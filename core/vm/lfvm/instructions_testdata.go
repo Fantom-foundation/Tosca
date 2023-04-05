@@ -5,11 +5,11 @@ import (
 )
 
 type tTestDataOp struct {
-	name   string // test description
-	op     func(*context)
-	data   []uint256.Int // input data (in reverse order)
-	res    uint256.Int   // expected result
-	status Status        // expected status
+	name   string         // test description
+	op     func(*context) // tested operation
+	data   []uint256.Int  // input data (in reverse order)
+	res    uint256.Int    // expected result
+	status Status         // expected status
 }
 
 // bitwise logic operations (And, Or, Not, Xor, Byte, Shl, Shr, Sar)
@@ -864,11 +864,12 @@ var testDataBitwiseLogicOp = []tTestDataOp{
 }
 
 // arithmetic operations (Add, Sub, Mul, MulMod, Div, SDiv, Mod, AddMod, SMod, Exp, SignExtend)
+var testDataArithmeticOp = []tTestDataOp{
 
-// operation Add
-var testDataAddOp = []tTestDataOp{
+	// operation Add
 	{
 		name: "opAdd: 0 + 0",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0, 0, 0, 0},
 			{0, 0, 0, 0}},
@@ -877,6 +878,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: -1 + 0",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -885,6 +887,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: 0 + -1",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -893,6 +896,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: 1 + -1",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -901,6 +905,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: -1 + 1",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -909,6 +914,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: -1 + -1",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -917,6 +923,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: -1 + x",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -925,6 +932,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: x + -1",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123}},
@@ -933,6 +941,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: 0x5..5 + 0xA..A (x + ^x)",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555}},
@@ -941,6 +950,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: 0xA..A + 0x5..5 (x + ^x)",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA}},
@@ -949,6 +959,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: overflow to the highest 8 bytes",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -957,6 +968,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: overflow over 64bit",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0x00, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00, 0x00}},
@@ -965,6 +977,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: first and last bit",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x8000000000000000},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -973,6 +986,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: last 2 bytes",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x00FF, 0x00, 0x00, 0x00}},
@@ -981,6 +995,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: sum in the upper 16 bytes",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x1234, 0x00},
 			{0x00, 0x00, 0x1234, 0xFFFF}},
@@ -989,6 +1004,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: last 2 bytes of each 8",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0xFF00, 0x0FF0, 0x00FF, 0xF0F0},
 			{0x1234, 0xABCD, 0x5678, 0xEF90}},
@@ -997,6 +1013,7 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: -1 + 0x1234",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1005,18 +1022,18 @@ var testDataAddOp = []tTestDataOp{
 	},
 	{
 		name: "opAdd: -10 + 0x1234",
+		op:   opAdd,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFF6, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
 		res:    uint256.Int{0x122A, 0x00, 0x00, 0x00},
 		status: RUNNING,
 	},
-}
 
-// operation Sub
-var testDataSubOp = []tTestDataOp{
+	// operation Sub
 	{
 		name: "opSub: 0 - 0",
+		op:   opSub,
 		data: []uint256.Int{
 			{0, 0, 0, 0},
 			{0, 0, 0, 0}},
@@ -1025,6 +1042,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: -1 - 0",
+		op:   opSub,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1033,6 +1051,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: 0 - -1",
+		op:   opSub,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -1041,6 +1060,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: 1 - -1",
+		op:   opSub,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -1049,6 +1069,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: -1 - 1",
+		op:   opSub,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1057,6 +1078,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: -1 - -1",
+		op:   opSub,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1065,6 +1087,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: -1 - x",
+		op:   opSub,
 		data: []uint256.Int{
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1073,6 +1096,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: x - -1",
+		op:   opSub,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123}},
@@ -1081,6 +1105,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: 0x5..5 - 0xA..A (x - ^x)",
+		op:   opSub,
 		data: []uint256.Int{
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555}},
@@ -1089,6 +1114,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: 0xA..A - 0x5..5 (x - ^x)",
+		op:   opSub,
 		data: []uint256.Int{
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA}},
@@ -1097,6 +1123,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: overflow between 8 bytes",
+		op:   opSub,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -1105,6 +1132,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: diff in the upper 8 bytes",
+		op:   opSub,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x01},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
@@ -1113,6 +1141,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: 0x8..0 - 1",
+		op:   opSub,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
@@ -1121,6 +1150,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: various 8*bytes",
+		op:   opSub,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0x00, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00, 0x00}},
@@ -1129,6 +1159,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: first and last bit",
+		op:   opSub,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x8000000000000000},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1137,6 +1168,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: 0x00FF - 0x1234",
+		op:   opSub,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x00FF, 0x00, 0x00, 0x00}},
@@ -1145,6 +1177,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: diff in the upper 16 bytes",
+		op:   opSub,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x1234, 0x00},
 			{0x00, 0x00, 0x1234, 0xFFFF}},
@@ -1153,6 +1186,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: last 2 bytes of each 8",
+		op:   opSub,
 		data: []uint256.Int{
 			{0xFF00, 0x0FF0, 0x00FF, 0xF0F0},
 			{0x1234, 0xABCD, 0x5678, 0xEF90}},
@@ -1161,6 +1195,7 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: -1 - 0x1234",
+		op:   opSub,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1169,18 +1204,18 @@ var testDataSubOp = []tTestDataOp{
 	},
 	{
 		name: "opSub: -10 - 0x1234",
+		op:   opSub,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFF6, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
 		res:    uint256.Int{0xFFFFFFFFFFFFEDC2, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 		status: RUNNING,
 	},
-}
 
-// operation Mul
-var testDataMulOp = []tTestDataOp{
+	// operation Mul
 	{
 		name: "opMul: 0 * 0",
+		op:   opMul,
 		data: []uint256.Int{
 			{0, 0, 0, 0},
 			{0, 0, 0, 0}},
@@ -1189,6 +1224,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: -1 * 0",
+		op:   opMul,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1197,6 +1233,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: 0 * -1",
+		op:   opMul,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -1205,6 +1242,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: 1 * -1",
+		op:   opMul,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -1213,6 +1251,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: -1 * 1",
+		op:   opMul,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1221,6 +1260,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: -1 * -1",
+		op:   opMul,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1229,6 +1269,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: -1 * x",
+		op:   opMul,
 		data: []uint256.Int{
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1237,6 +1278,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: x * -1",
+		op:   opMul,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123}},
@@ -1245,6 +1287,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: 0x5..5 * 0xA..A (x * ^x)",
+		op:   opMul,
 		data: []uint256.Int{
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555}},
@@ -1253,6 +1296,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: 0xA..A * 0x5..5 (x * ^x)",
+		op:   opMul,
 		data: []uint256.Int{
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA}},
@@ -1261,6 +1305,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: 0x01 * 0x00F..F",
+		op:   opMul,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -1269,6 +1314,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: overflow",
+		op:   opMul,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0x00, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00, 0x00}},
@@ -1277,6 +1323,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: first and last bit",
+		op:   opMul,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x8000000000000000},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1285,6 +1332,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: last 2 bytes",
+		op:   opMul,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x00FF, 0x00, 0x00, 0x00}},
@@ -1293,6 +1341,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: multiplication in the upper 16 bytes",
+		op:   opMul,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x1234, 0x00},
 			{0x00, 0x00, 0x1234, 0xFFFF}},
@@ -1301,6 +1350,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: last 2 bytes of each 8",
+		op:   opMul,
 		data: []uint256.Int{
 			{0xFF00, 0x0FF0, 0x00FF, 0xF0F0},
 			{0x1234, 0xABCD, 0x5678, 0xEF90}},
@@ -1309,6 +1359,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: -1 * 0x1234",
+		op:   opMul,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1317,6 +1368,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: -10 * 0x1234",
+		op:   opMul,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFF6, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1325,6 +1377,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: 0xF..F * 0x7F..F",
+		op:   opMul,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1333,6 +1386,7 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: 0xF..F * 0x80..0",
+		op:   opMul,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x8000000000000000},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1341,19 +1395,19 @@ var testDataMulOp = []tTestDataOp{
 	},
 	{
 		name: "opMul: 0x80..01 * 0xF..F",
+		op:   opMul,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x8000000000000000}},
 		res:    uint256.Int{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 		status: RUNNING,
 	},
-}
 
-// operation MulMod
-// (a * b) % N, data: {N, b, a}
-var testDataMulModOp = []tTestDataOp{
+	// operation MulMod
+	// (a * b) % N, data: {N, b, a}
 	{
 		name: "opMulMod: (0 * 0) mod 0",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0, 0, 0, 0},
 			{0, 0, 0, 0},
@@ -1363,6 +1417,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{
 		name: "opMulMod: (0 * 0) mod 1",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{1, 0, 0, 0},
 			{0, 0, 0, 0},
@@ -1372,6 +1427,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{
 		name: "opMulMod: (0 * -1) mod 1",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -1381,6 +1437,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{
 		name: "opMulMod: (-1 * 0) mod -1",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00},
@@ -1390,6 +1447,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{
 		name: "opMulMod: (0 * 1) mod -1",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00},
@@ -1399,6 +1457,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (1 * -1) mod 0xFF00 // result? int -1, uint 0xFF",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0xFF00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -1409,6 +1468,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (1 * -1) mod (2**128) // result? int -1, uint (2**128)-1",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x01, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -1419,6 +1479,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (-1 * -1) mod 15 // result? int 1, uint 0",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x0F, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -1429,6 +1490,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (-1 * x) mod (2**64) // result? int 0xF..F123456789ABCDEF0, uint 0xEDCBA98765432110",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x00, 0x01, 0x00, 0x00},
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123},
@@ -1439,6 +1501,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (x * -1) mod y // result? int 0xF..F1146, uint 0xEEBA",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0xFFFE, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -1449,6 +1512,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (0x5..5 * 0xA..A) mod (2**192) // result? int x uint",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x01},
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
@@ -1459,6 +1523,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{
 		name: "opMulMod: (0xA..A * 0x5..5) mod 0xAAAA",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0xAAAA, 0x00, 0x00, 0x00},
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
@@ -1468,6 +1533,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{
 		name: "opMulMod: (1 * x) mod y",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x123456789ABCDEF0, 0x123456789ABCDEF0, 0x123456789ABCDEF0, 0x123456789ABCDEF0},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00},
@@ -1477,6 +1543,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{
 		name: "opMulMod: various 8*bytes",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x00, 0x01, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0x00, 0xFFFFFFFFFFFFFFFF, 0x00},
@@ -1486,6 +1553,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: first and last bit // result? int x uint",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFC, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x8000000000000000},
@@ -1496,6 +1564,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{
 		name: "opMulMod: (0x00FF * 0x1234) mod 0xFF00",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0xFF00, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00},
@@ -1505,6 +1574,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{
 		name: "opMulMod: mul in the upper 16 bytes",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x07, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x1234, 0x00},
@@ -1514,6 +1584,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{
 		name: "opMulMod: last 2 bytes of each 8",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x000000001221CC01, 0x00, 0x00, 0x00},
 			{0xFF00, 0x0FF0, 0x00FF, 0xF0F0},
@@ -1523,6 +1594,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (-1 * 0x1234) mod 0xFF // result? int x uint",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0xFF, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00},
@@ -1533,6 +1605,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (-10 * 0x1234) mod 0xFF // result? int x uint",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0xFF, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00},
@@ -1543,6 +1616,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (1 * -1) mod 0x1234 // result? int x uint",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -1553,6 +1627,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (1 * -10) mod 0x1234 // result? int x uint",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFF6, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -1563,6 +1638,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (1 * (-1)) mod 2 // result? int x uint",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x02, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -1573,6 +1649,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{
 		name: "opMulMod: (1 * 1) mod -2",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFE, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00},
@@ -1582,6 +1659,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (1 * (-1)) mod -2 // result? int x uint",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFE, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -1592,6 +1670,7 @@ var testDataMulModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opMulMod: (2 * (-1)) mod 3 // result? int x uint",
+		op:   opMulMod,
 		data: []uint256.Int{
 			{0x03, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -1600,13 +1679,12 @@ var testDataMulModOp = []tTestDataOp{
 		res:    uint256.Int{0x00, 0x00, 0x00, 0x00},
 		status: RUNNING,
 	},
-}
 
-// operation Div
-// a / b (uint), data: {b, a}
-var testDataDivOp = []tTestDataOp{
+	// operation Div
+	// a / b (uint), data: {b, a}
 	{
 		name: "opDiv: 0 / 0",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0, 0, 0, 0},
 			{0, 0, 0, 0}},
@@ -1615,6 +1693,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: max / 0",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1623,6 +1702,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: 0 / max",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -1631,6 +1711,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: 1 / max",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -1639,6 +1720,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: max / 1",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1647,6 +1729,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: max / max",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1655,6 +1738,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: 3 / x",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123},
 			{0x03, 0x00, 0x00, 0x00}},
@@ -1663,6 +1747,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: x / max",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123}},
@@ -1671,6 +1756,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: 0x5..5 / 0xA..A (x / ^x)",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555}},
@@ -1679,6 +1765,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: 0xA..A / 0x5..5 (x / ^x)",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA}},
@@ -1687,6 +1774,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: 0x01 / 0x0F..F",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -1695,6 +1783,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: various 8*bytes",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0x00, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0x01, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1703,6 +1792,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: first and last bit",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x8000000000000000}},
@@ -1711,6 +1801,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: last 8 bytes",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x1221CC, 0x00, 0x00, 0x00}},
@@ -1719,6 +1810,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: div in the upper 16 bytes",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x1234, 0x00},
 			{0x00, 0x00, 0x1234, 0xFFFF}},
@@ -1727,6 +1819,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: each 8*bytes",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0xFF00, 0x0FF0, 0x00FF, 0xF0F0},
 			{0x000000001221CC00, 0x00000000AC434FC0, 0x0000000060E5BCFC, 0x0000000105CF7A73}},
@@ -1735,6 +1828,7 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: x / 0x1234",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFEDCC, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1743,19 +1837,19 @@ var testDataDivOp = []tTestDataOp{
 	},
 	{
 		name: "opDiv: y / 0x1234",
+		op:   opDiv,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFF49F8, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
 		res:    uint256.Int{0x743E68286EC00E06, 0xE1042CD3D4EE336B, 0x36B743E68286EC00, 0x000E1042CD3D4EE3},
 		status: RUNNING,
 	},
-}
 
-// operation SDiv
-// a / b (int), data: {b, a}
-var testDataSDivOp = []tTestDataOp{
+	// operation SDiv
+	// a / b (int), data: {b, a}
 	{
 		name: "opSDiv: 0 / 0",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0, 0, 0, 0},
 			{0, 0, 0, 0}},
@@ -1764,6 +1858,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: -1 / 0",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1772,6 +1867,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: 0 / -1",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -1780,6 +1876,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: 1 / -1",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -1788,6 +1885,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: -1 / 1",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1796,6 +1894,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: -1 / -1",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1804,6 +1903,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: min / -1",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
@@ -1812,6 +1912,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: -1 / min",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x8000000000000000},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1820,6 +1921,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: -1 / x",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1828,6 +1930,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: x / -1",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123}},
@@ -1836,6 +1939,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: 0x5..5 / 0xA..A (x / ^x)",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555}},
@@ -1844,6 +1948,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: 0xA..A / 0x5..5 (x / ^x)",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA}},
@@ -1852,6 +1957,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: 0x01 / 0x0F..F",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -1860,6 +1966,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: various 8*bytes",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0x00, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0x01, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1868,6 +1975,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: first and last bit",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x8000000000000000}},
@@ -1876,6 +1984,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: last 8 bytes",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x1221CC, 0x00, 0x00, 0x00}},
@@ -1884,6 +1993,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: div in the upper 16 bytes",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x1234, 0x00},
 			{0x00, 0x00, 0x1234, 0xFFFF}},
@@ -1892,6 +2002,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: each 8*bytes",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0xFF00, 0x0FF0, 0x00FF, 0xF0F0},
 			{0x000000001221CC00, 0x00000000AC434FC0, 0x0000000060E5BCFC, 0x0000000105CF7A73}},
@@ -1900,6 +2011,7 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: x / 0x1234 = -1",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFEDCC, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1908,19 +2020,19 @@ var testDataSDivOp = []tTestDataOp{
 	},
 	{
 		name: "opSDiv: y / 0x1234 = -10",
+		op:   opSDiv,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFF49F8, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
 		res:    uint256.Int{0xFFFFFFFFFFFFFFF6, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 		status: RUNNING,
 	},
-}
 
-// operation Mod
-// a % b (uint), data: {b, a}
-var testDataModOp = []tTestDataOp{
+	// operation Mod
+	// a % b (uint), data: {b, a}
 	{
 		name: "opMod: 0 mod 0",
+		op:   opMod,
 		data: []uint256.Int{
 			{0, 0, 0, 0},
 			{0, 0, 0, 0}},
@@ -1929,6 +2041,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: max mod 0",
+		op:   opMod,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1937,6 +2050,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: 0 mod max",
+		op:   opMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -1945,6 +2059,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: 1 mod max",
+		op:   opMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -1953,6 +2068,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: max mod 1",
+		op:   opMod,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1961,6 +2077,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: max mod max",
+		op:   opMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1969,6 +2086,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: 0x8..0 mod max",
+		op:   opMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
@@ -1977,6 +2095,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: max mod 0x8..0",
+		op:   opMod,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x8000000000000000},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1985,6 +2104,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: max mod x",
+		op:   opMod,
 		data: []uint256.Int{
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -1993,6 +2113,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: x mod max",
+		op:   opMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123}},
@@ -2001,6 +2122,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: 0x5..5 mod 0xA..A (x mod ^x)",
+		op:   opMod,
 		data: []uint256.Int{
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555}},
@@ -2009,6 +2131,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: 0xA..A mod 0x5..5 (x mod ^x)",
+		op:   opMod,
 		data: []uint256.Int{
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA}},
@@ -2017,6 +2140,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: 0x01 mod 0x0F..F",
+		op:   opMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -2025,6 +2149,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: various 8*bytes",
+		op:   opMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0x00, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0x01, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2033,6 +2158,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: first and last bit",
+		op:   opMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x8000000000000000}},
@@ -2041,6 +2167,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: last 8 bytes",
+		op:   opMod,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x1221CC, 0x00, 0x00, 0x00}},
@@ -2049,6 +2176,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: modulo in the upper 16 bytes",
+		op:   opMod,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x1234, 0x00},
 			{0x00, 0x00, 0x1234, 0xFFFF}},
@@ -2057,6 +2185,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: each 8*bytes",
+		op:   opMod,
 		data: []uint256.Int{
 			{0xFF00, 0x0FF0, 0x00FF, 0xF0F0},
 			{0x000000001221CC00, 0x00000000AC434FC0, 0x0000000060E5BCFC, 0x0000000105CF7A73}},
@@ -2065,6 +2194,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: x mod 0x1234",
+		op:   opMod,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFEDCC, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2073,6 +2203,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: y mod 0x1234",
+		op:   opMod,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFF49F8, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2081,6 +2212,7 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: max mod 0x1234",
+		op:   opMod,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2090,6 +2222,7 @@ var testDataModOp = []tTestDataOp{
 
 	{
 		name: "opMod: max mod 2",
+		op:   opMod,
 		data: []uint256.Int{
 			{0x02, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2098,19 +2231,19 @@ var testDataModOp = []tTestDataOp{
 	},
 	{
 		name: "opMod: max mod (max-1)",
+		op:   opMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFE, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
 		res:    uint256.Int{0x01, 0x00, 0x00, 0x00},
 		status: RUNNING,
 	},
-}
 
-// operation AddMod
-// (a + b) % N, data: {N, b, a}
-var testDataAddModOp = []tTestDataOp{
+	// operation AddMod
+	// (a + b) % N, data: {N, b, a}
 	{
 		name: "opAddMod: (0 + 0) mod 0",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0, 0, 0, 0},
 			{0, 0, 0, 0},
@@ -2120,6 +2253,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: (0 + 0) mod 1",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{1, 0, 0, 0},
 			{0, 0, 0, 0},
@@ -2129,6 +2263,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: (0 + -1) mod 1",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -2138,6 +2273,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: (-1 + 0) mod -1",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00},
@@ -2147,6 +2283,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: (0 + 1) mod -1",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00},
@@ -2156,6 +2293,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: (1 + -1) mod 0xFF00 // result? int x uint",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0xFF00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -2166,6 +2304,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: (1 + -1) mod 0x01..0",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x01, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -2175,6 +2314,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: (-1 + -1) mod 15 // result? int x uint",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x0F, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -2185,6 +2325,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: (-1 + x) mod y",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x00, 0x01, 0x00, 0x00},
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123},
@@ -2194,6 +2335,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: (x + -1) mod y // result? int x uint",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0xFFFE, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -2204,6 +2346,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: (x + ^x) mod y // result? int x uint",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x01},
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
@@ -2214,6 +2357,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: (x + ^x) mod 0xA..A // result? int x uint",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0xAAAA, 0x00, 0x00, 0x00},
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
@@ -2224,6 +2368,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: (1 + x) mod y",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x123456789ABCDEF0, 0x123456789ABCDEF0, 0x123456789ABCDEF0, 0x123456789ABCDEF0},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00},
@@ -2233,6 +2378,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: various 8*bytes",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x00, 0x01, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0x00, 0xFFFFFFFFFFFFFFFF, 0x00},
@@ -2242,6 +2388,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: first and last bit // result? int x uint",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFC, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x8000000000000000},
@@ -2252,6 +2399,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: (0x00FF + 0x1234) mod 0xFF00",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0xFF00, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00},
@@ -2261,6 +2409,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: mul in the upper 16 bytes",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x07, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x1234, 0x00},
@@ -2270,6 +2419,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: last 2 bytes of each 8",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x000000001221CC01, 0x00, 0x00, 0x00},
 			{0xFF00, 0x0FF0, 0x00FF, 0xF0F0},
@@ -2279,6 +2429,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: (-1 + 0x1234) mod 255 // result? int x uint",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0xFF, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00},
@@ -2289,6 +2440,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: (-10 + 0x1234) mod 255 // result? int x uint",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0xFF, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00},
@@ -2299,6 +2451,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: (1 + -1) mod 0x1234 // result? int x uint",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -2309,6 +2462,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: (1 + -10) mod 0x1234 // result? int x uint",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFF6, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -2319,6 +2473,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: (0 + (-1)) mod 2 // result? int -1, uint 1",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x02, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -2329,6 +2484,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: (0 + 1) mod -2",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFE, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00},
@@ -2338,6 +2494,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{
 		name: "opAddMod: ((-1) + (-1)) mod 2",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x02, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -2347,6 +2504,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: ((-1) + (-1)) mod -2 // result? int 0, uint 2",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFE, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -2357,6 +2515,7 @@ var testDataAddModOp = []tTestDataOp{
 	},
 	{ // different results for int and uint
 		name: "opAddMod: ((-1) + (-1)) mod 3 // result? int -2, uint 0",
+		op:   opAddMod,
 		data: []uint256.Int{
 			{0x03, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
@@ -2365,13 +2524,12 @@ var testDataAddModOp = []tTestDataOp{
 		res:    uint256.Int{0x00, 0x00, 0x00, 0x00},
 		status: RUNNING,
 	},
-}
 
-// operation SMod
-// a % b (int), data: {b, a}
-var testDataSModOp = []tTestDataOp{
+	// operation SMod
+	// a % b (int), data: {b, a}
 	{
 		name: "opSMod: 0 mod 0",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0, 0, 0, 0},
 			{0, 0, 0, 0}},
@@ -2380,6 +2538,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: -1 mod 0",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2388,6 +2547,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: 0 mod -1",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -2396,6 +2556,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: 1 mod -1",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -2404,6 +2565,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: -1 mod 1",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2412,6 +2574,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: -1 mod -1",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2420,6 +2583,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: min mod -1",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
@@ -2428,6 +2592,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: -1 mod min",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x8000000000000000},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2436,6 +2601,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: -1 mod x",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2444,6 +2610,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: x mod -1",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123}},
@@ -2452,6 +2619,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: 0x5..5 mod 0xA..A (x mod ^x)",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555}},
@@ -2460,6 +2628,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: 0xA..A mod 0x5..5 (x mod ^x)",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA}},
@@ -2468,6 +2637,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: 0x01 mod 0x0F..F",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -2476,6 +2646,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: various 8*bytes",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0x00, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0x01, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2484,6 +2655,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: first and last bit",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x8000000000000000}},
@@ -2492,6 +2664,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: last 8 bytes",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x1221CC, 0x00, 0x00, 0x00}},
@@ -2500,6 +2673,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: modulo in the upper 16 bytes",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x1234, 0x00},
 			{0x00, 0x00, 0x1234, 0xFFFF}},
@@ -2508,6 +2682,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: each 8*bytes",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0xFF00, 0x0FF0, 0x00FF, 0xF0F0},
 			{0x000000001221CC00, 0x00000000AC434FC0, 0x0000000060E5BCFC, 0x0000000105CF7A73}},
@@ -2516,6 +2691,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: x mod 0x1234",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFEDCC, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2524,6 +2700,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: y mod 0x1234",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFF49FF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2532,6 +2709,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: -1 mod 0x1234",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2540,6 +2718,7 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: -1 mod 2 = -1",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0x02, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2548,20 +2727,151 @@ var testDataSModOp = []tTestDataOp{
 	},
 	{
 		name: "opSMod: -1 mod -2 = -1",
+		op:   opSMod,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFE, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
 		res:    uint256.Int{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 		status: RUNNING,
 	},
+
+	// operation SignExtend
+	// singextend(x, b), data: {x, b}
+	{
+		name: "opSignExtend: (0, 0)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0, 0, 0, 0},
+			{0, 0, 0, 0}},
+		res:    uint256.Int{0, 0, 0, 0},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (2, -1)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0x02, 0x00, 0x00, 0x00},
+			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
+		res:    uint256.Int{0x02, 0x00, 0x00, 0x00},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (-1, 2)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
+			{0x02, 0x00, 0x00, 0x00}},
+		res:    uint256.Int{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (0xFFFF, 0)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0xFFFF, 0x00, 0x00, 0x00},
+			{0x00, 0x00, 0x00, 0x00}},
+		res:    uint256.Int{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (0xFFFF, 1)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0xFFFF, 0x00, 0x00, 0x00},
+			{0x01, 0x00, 0x00, 0x00}},
+		res:    uint256.Int{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (0xFFFF, 2)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0xFFFF, 0x00, 0x00, 0x00},
+			{0x02, 0x00, 0x00, 0x00}},
+		res:    uint256.Int{0xFFFF, 0x00, 0x00, 0x00},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (0xFFFF, 3)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0xFFFF, 0x00, 0x00, 0x00},
+			{0x03, 0x00, 0x00, 0x00}},
+		res:    uint256.Int{0xFFFF, 0x00, 0x00, 0x00},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (-238, 2)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0xFFFFFFFFFFFFFF12, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
+			{0x02, 0x00, 0x00, 0x00}},
+		res:    uint256.Int{0xFFFFFFFFFFFFFF12, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (0xFF12, 1)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0xFF12, 0x00, 0x00, 0x00},
+			{0x01, 0x00, 0x00, 0x00}},
+		res:    uint256.Int{0xFFFFFFFFFFFFFF12, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (x, 31)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0x1234, 0x00, 0x00, 0x123456789ABCDEF0},
+			{31, 0, 0, 0}},
+		res:    uint256.Int{0x1234, 0x00, 0x00, 0x123456789ABCDEF0},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (x, 30)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0x1234, 0x00, 0x00, 0x123456789ABCDEF0},
+			{30, 0, 0, 0}},
+		res:    uint256.Int{0x1234, 0x00, 0x00, 0x003456789ABCDEF0},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (0x1234, 0)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0x1234, 0x00, 0x00, 0x00},
+			{0x00, 0x00, 0x00, 0x00}},
+		res:    uint256.Int{0x34, 0x00, 0x00, 0x00},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (0x0A00, 0)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0x0A00, 0x00, 0x00, 0x00},
+			{0x00, 0x00, 0x00, 0x00}},
+		res:    uint256.Int{0x00, 0x00, 0x00, 0x00},
+		status: RUNNING,
+	},
+	{
+		name: "opSignExtend: (0x8100, 1)",
+		op:   opSignExtend,
+		data: []uint256.Int{
+			{0x8100, 0x00, 0x00, 0x00},
+			{0x01, 0x00, 0x00, 0x00}},
+		res:    uint256.Int{0xFFFFFFFFFFFF8100, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
+		status: RUNNING,
+	},
 }
 
 type tTestDataOpWithGas struct {
-	name   string
-	data   []uint256.Int
-	res    uint256.Int
-	status Status
-	gas    uint64
+	name   string         // test description
+	op     func(*context) // tested operation
+	data   []uint256.Int  // input data (in reverse order)
+	res    uint256.Int    // expected result
+	status Status         // expected status
+	gas    uint64         // required gas
 }
 
 // operation Exp
@@ -2569,6 +2879,7 @@ type tTestDataOpWithGas struct {
 var testDataExpOp = []tTestDataOpWithGas{
 	{
 		name: "opExp: 0 ** 0",
+		op:   opExp,
 		data: []uint256.Int{
 			{0, 0, 0, 0},
 			{0, 0, 0, 0}},
@@ -2578,6 +2889,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: 2 ** 2",
+		op:   opExp,
 		data: []uint256.Int{
 			{2, 0, 0, 0},
 			{2, 0, 0, 0}},
@@ -2587,6 +2899,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: 0x1234 ** 0",
+		op:   opExp,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -2596,6 +2909,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: 0x1234 ** 1",
+		op:   opExp,
 		data: []uint256.Int{
 			{0x0001, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -2605,6 +2919,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: 0x1234 ** 2",
+		op:   opExp,
 		data: []uint256.Int{
 			{0x0002, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -2614,6 +2929,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: 0x1234 ** 3",
+		op:   opExp,
 		data: []uint256.Int{
 			{0x0003, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -2623,6 +2939,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: 0x1234 ** 4",
+		op:   opExp,
 		data: []uint256.Int{
 			{0x0004, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -2632,6 +2949,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: 0x1234 ** 5",
+		op:   opExp,
 		data: []uint256.Int{
 			{0x0005, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -2641,6 +2959,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: 0x1234 ** 6",
+		op:   opExp,
 		data: []uint256.Int{
 			{0x0006, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -2650,6 +2969,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: 1 ** 10",
+		op:   opExp,
 		data: []uint256.Int{
 			{0x0A00, 0x00, 0x00, 0x00},
 			{0x0001, 0x00, 0x00, 0x00}},
@@ -2659,6 +2979,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: -1 ** 2",
+		op:   opExp,
 		data: []uint256.Int{
 			{0x02, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -2668,6 +2989,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: 2 ** -1",
+		op:   opExp,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x02, 0x00, 0x00, 0x00}},
@@ -2677,6 +2999,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: 2 ** 256",
+		op:   opExp,
 		data: []uint256.Int{
 			{0x0100, 0x00, 0x00, 0x00},
 			{0x02, 0x00, 0x00, 0x00}},
@@ -2686,6 +3009,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: 2 ** 255",
+		op:   opExp,
 		data: []uint256.Int{
 			{0xFF, 0x00, 0x00, 0x00},
 			{0x02, 0x00, 0x00, 0x00}},
@@ -2695,6 +3019,7 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 	{
 		name: "opExp: out of gas",
+		op:   opExp,
 		data: []uint256.Int{
 			{0x02, 0x00, 0x00, 0x00},
 			{0x0200, 0x00, 0x00, 0x00}},
@@ -2704,128 +3029,14 @@ var testDataExpOp = []tTestDataOpWithGas{
 	},
 }
 
-// operation SignExtend
-// singextend(x, b), data: {x, b}
-var testDataSignExtendOp = []tTestDataOp{
-	{
-		name: "opSignExtend: (0, 0)",
-		data: []uint256.Int{
-			{0, 0, 0, 0},
-			{0, 0, 0, 0}},
-		res:    uint256.Int{0, 0, 0, 0},
-		status: RUNNING,
-	},
-	{
-		name: "opSignExtend: (2, -1)",
-		data: []uint256.Int{
-			{0x02, 0x00, 0x00, 0x00},
-			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
-		res:    uint256.Int{0x02, 0x00, 0x00, 0x00},
-		status: RUNNING,
-	},
-	{
-		name: "opSignExtend: (-1, 2)",
-		data: []uint256.Int{
-			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
-			{0x02, 0x00, 0x00, 0x00}},
-		res:    uint256.Int{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
-		status: RUNNING,
-	},
-	{
-		name: "opSignExtend: (0xFFFF, 0)",
-		data: []uint256.Int{
-			{0xFFFF, 0x00, 0x00, 0x00},
-			{0x00, 0x00, 0x00, 0x00}},
-		res:    uint256.Int{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
-		status: RUNNING,
-	},
-	{
-		name: "opSignExtend: (0xFFFF, 1)",
-		data: []uint256.Int{
-			{0xFFFF, 0x00, 0x00, 0x00},
-			{0x01, 0x00, 0x00, 0x00}},
-		res:    uint256.Int{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
-		status: RUNNING,
-	},
-	{
-		name: "opSignExtend: (0xFFFF, 2)",
-		data: []uint256.Int{
-			{0xFFFF, 0x00, 0x00, 0x00},
-			{0x02, 0x00, 0x00, 0x00}},
-		res:    uint256.Int{0xFFFF, 0x00, 0x00, 0x00},
-		status: RUNNING,
-	},
-	{
-		name: "opSignExtend: (0xFFFF, 3)",
-		data: []uint256.Int{
-			{0xFFFF, 0x00, 0x00, 0x00},
-			{0x03, 0x00, 0x00, 0x00}},
-		res:    uint256.Int{0xFFFF, 0x00, 0x00, 0x00},
-		status: RUNNING,
-	},
-	{
-		name: "opSignExtend: (-238, 2)",
-		data: []uint256.Int{
-			{0xFFFFFFFFFFFFFF12, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
-			{0x02, 0x00, 0x00, 0x00}},
-		res:    uint256.Int{0xFFFFFFFFFFFFFF12, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
-		status: RUNNING,
-	},
-	{
-		name:   "opSignExtend: (0xFF12, 1)",
-		data:   []uint256.Int{{0xFF12, 0x00, 0x00, 0x00}, {0x01, 0x00, 0x00, 0x00}},
-		res:    uint256.Int{0xFFFFFFFFFFFFFF12, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
-		status: RUNNING,
-	},
-	{
-		name: "opSignExtend: (x, 31)",
-		data: []uint256.Int{
-			{0x1234, 0x00, 0x00, 0x123456789ABCDEF0},
-			{31, 0, 0, 0}},
-		res:    uint256.Int{0x1234, 0x00, 0x00, 0x123456789ABCDEF0},
-		status: RUNNING,
-	},
-	{
-		name: "opSignExtend: (x, 30)",
-		data: []uint256.Int{
-			{0x1234, 0x00, 0x00, 0x123456789ABCDEF0},
-			{30, 0, 0, 0}},
-		res:    uint256.Int{0x1234, 0x00, 0x00, 0x003456789ABCDEF0},
-		status: RUNNING,
-	},
-	{
-		name: "opSignExtend: (0x1234, 0)",
-		data: []uint256.Int{
-			{0x1234, 0x00, 0x00, 0x00},
-			{0x00, 0x00, 0x00, 0x00}},
-		res:    uint256.Int{0x34, 0x00, 0x00, 0x00},
-		status: RUNNING,
-	},
-	{
-		name: "opSignExtend: (0x0A00, 0)",
-		data: []uint256.Int{
-			{0x0A00, 0x00, 0x00, 0x00},
-			{0x00, 0x00, 0x00, 0x00}},
-		res:    uint256.Int{0x00, 0x00, 0x00, 0x00},
-		status: RUNNING,
-	},
-	{
-		name: "opSignExtend: (0x8100, 1)",
-		data: []uint256.Int{
-			{0x8100, 0x00, 0x00, 0x00},
-			{0x01, 0x00, 0x00, 0x00}},
-		res:    uint256.Int{0xFFFFFFFFFFFF8100, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
-		status: RUNNING,
-	},
-}
-
 // comparison operations (IsZero, Eq, Lt, Gt, Slt, Sgt)
 
 type tTestDataCompOp struct {
-	name   string
-	data   []uint256.Int
-	res    bool
-	status Status
+	name   string         // test description
+	op     func(*context) // tested operation
+	data   []uint256.Int  // input data (in reverse order)
+	res    bool           // expected result
+	status Status         // expected status
 }
 
 // operation Iszero

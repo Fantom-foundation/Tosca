@@ -427,54 +427,12 @@ func TestBitwiseLogicInstruction(t *testing.T) {
 }
 
 // arithmetic operations (Add, Sub, Mul, MulMod, Div, SDiv, Mod, AddMod, SMod, Exp, SignExtend)
-
-// operation Add
-func TestAddInstruction(t *testing.T) {
-	testInstructionF(t, opAdd, testDataAddOp)
-}
-
-// operation Sub
-func TestSubInstruction(t *testing.T) {
-	testInstructionF(t, opSub, testDataSubOp)
-}
-
-// operation Mul
-func TestMulInstruction(t *testing.T) {
-	testInstructionF(t, opMul, testDataMulOp)
-}
-
-// operation MulMod
-func TestMulModInstruction(t *testing.T) {
-	testInstructionF(t, opMulMod, testDataMulModOp)
-}
-
-// operation Div
-func TestDivInstruction(t *testing.T) {
-	testInstructionF(t, opDiv, testDataDivOp)
-}
-
-// operation SDiv
-func TestSDivInstruction(t *testing.T) {
-	testInstructionF(t, opSDiv, testDataSDivOp)
-}
-
-// operation Mod
-func TestModInstruction(t *testing.T) {
-	testInstructionF(t, opMod, testDataModOp)
-}
-
-// operation AddMod
-func TestAddModInstruction(t *testing.T) {
-	testInstructionF(t, opAddMod, testDataAddModOp)
-}
-
-// operation SMod
-func TestSModInstruction(t *testing.T) {
-	testInstructionF(t, opSMod, testDataSModOp)
+func TestArithmeticInstruction(t *testing.T) {
+	testInstructions(t, testDataArithmeticOp)
 }
 
 // operation Exp
-func testInstructionWithGas(t *testing.T, f func(*context), testData []tTestDataOpWithGas) {
+func testInstructionWithGas(t *testing.T, testData []tTestDataOpWithGas) {
 	for _, data := range testData {
 		t.Run(data.name, func(t *testing.T) {
 			ctxt := getTestEnvData(data.data)
@@ -483,7 +441,7 @@ func testInstructionWithGas(t *testing.T, f func(*context), testData []tTestData
 			addr := vm.AccountRef{}
 			ctxt.contract = vm.NewContract(addr, addr, big.NewInt(0), data.gas)
 
-			f(ctxt)
+			data.op(ctxt)
 
 			// control of the consumed gas
 			expectedGas := data.gas
@@ -498,12 +456,7 @@ func testInstructionWithGas(t *testing.T, f func(*context), testData []tTestData
 }
 
 func TestExpInstruction(t *testing.T) {
-	testInstructionWithGas(t, opExp, testDataExpOp)
-}
-
-// operation SignExtend
-func TestSignExtendInstruction(t *testing.T) {
-	testInstructionF(t, opSignExtend, testDataSignExtendOp)
+	testInstructionWithGas(t, testDataExpOp)
 }
 
 // comparison operations (IsZero, Eq, Lt, Gt, Slt, Sgt)
