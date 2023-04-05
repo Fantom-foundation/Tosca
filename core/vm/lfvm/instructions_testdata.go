@@ -5,7 +5,8 @@ import (
 )
 
 type tTestDataOp struct {
-	name   string        // test description
+	name   string // test description
+	op     func(*context)
 	data   []uint256.Int // input data (in reverse order)
 	res    uint256.Int   // expected result
 	status Status        // expected status
@@ -13,10 +14,12 @@ type tTestDataOp struct {
 
 // bitwise logic operations (And, Or, Not, Xor, Byte, Shl, Shr, Sar)
 
-// operation And
-var testDataAndOp = []tTestDataOp{
+var testDataBitwiseLogicOp = []tTestDataOp{
+
+	// operation And
 	{
 		name: "opAnd: 0xF..F & various bits",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -25,6 +28,7 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: various bits & 0xF..F",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123}},
@@ -33,6 +37,7 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: 0xF..F & 0x0..0",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -41,6 +46,7 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: 0x0..0 & 0xF..F",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -49,6 +55,7 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: 0xF..F & 0xF..F",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -57,6 +64,7 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: 0x0..0 & 0x0..0",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -65,6 +73,7 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: 0x5..5 & 0xA..A (x & ^x)",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555}},
@@ -73,6 +82,7 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: 0xA..A & 0x5..5 (x & ^x)",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA}},
@@ -81,6 +91,7 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: various bytes 0xFF and 0x00",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0xFFFF0000FFFF0000, 0xFFFFFFFF00000000, 0x00000000FFFFFFFF, 0x0000FFFF0000FFFF},
 			{0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00, 0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00}},
@@ -89,6 +100,7 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: various 8*bytes",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0x00, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00, 0x00}},
@@ -97,6 +109,7 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: first and last bit",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x8000000000000000},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -105,6 +118,7 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: last byte",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x00FF, 0x00, 0x00, 0x00}},
@@ -113,6 +127,7 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: bytes 14 and 15",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x1234, 0x00},
 			{0x00, 0x00, 0x1234, 0xFFFF}},
@@ -121,18 +136,18 @@ var testDataAndOp = []tTestDataOp{
 	},
 	{
 		name: "opAnd: last 2 bytes of each 8",
+		op:   opAnd,
 		data: []uint256.Int{
 			{0xFF00, 0x0FF0, 0x00FF, 0xF0F0},
 			{0x1234, 0xABCD, 0x5678, 0xEF90}},
 		res:    uint256.Int{0x1200, 0x0BC0, 0x0078, 0xE090},
 		status: RUNNING,
 	},
-}
 
-// operation Or
-var testDataOrOp = []tTestDataOp{
+	// operation Or
 	{
 		name: "opOr: 0xF..F | various bits",
+		op:   opOr,
 		data: []uint256.Int{
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -141,6 +156,7 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: various bits | 0xF..F",
+		op:   opOr,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123}},
@@ -149,6 +165,7 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: 0xF..F | 0x0..0",
+		op:   opOr,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -157,6 +174,7 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: 0x0..0 | 0xF..F",
+		op:   opOr,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -165,6 +183,7 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: 0xF..F | 0xF..F",
+		op:   opOr,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -173,6 +192,7 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: 0x0..0 | 0x0..0",
+		op:   opOr,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -181,6 +201,7 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: 0x5..5 | 0xA..A (x | ^x)",
+		op:   opOr,
 		data: []uint256.Int{
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555}},
@@ -189,6 +210,7 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: 0xA..A | 0x5..5 (x | ^x)",
+		op:   opOr,
 		data: []uint256.Int{
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA}},
@@ -197,6 +219,7 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: various bytes 0xFF and 0x00",
+		op:   opOr,
 		data: []uint256.Int{
 			{0xFFFF0000FFFF0000, 0xFFFFFFFF00000000, 0x00000000FFFFFFFF, 0x0000FFFF0000FFFF},
 			{0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00, 0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00}},
@@ -205,6 +228,7 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: various 8*bytes",
+		op:   opOr,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0x00, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00, 0x00}},
@@ -213,6 +237,7 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: first and last bit",
+		op:   opOr,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x8000000000000000},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -221,6 +246,7 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: last 2 bytes",
+		op:   opOr,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x00FF, 0x00, 0x00, 0x00}},
@@ -229,6 +255,7 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: bytes 14 and 15",
+		op:   opOr,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x1234, 0x00},
 			{0x00, 0x00, 0x1234, 0xFFFF}},
@@ -237,82 +264,90 @@ var testDataOrOp = []tTestDataOp{
 	},
 	{
 		name: "opOr: last 2 bytes of each 8",
+		op:   opOr,
 		data: []uint256.Int{
 			{0xFF00, 0x0FF0, 0x00FF, 0xF0F0},
 			{0x1234, 0xABCD, 0x5678, 0xEF90}},
 		res:    uint256.Int{0xFF34, 0xAFFD, 0x56FF, 0xFFF0},
 		status: RUNNING,
 	},
-}
 
-// operation Not
-var testDataNotOp = []tTestDataOp{
+	// operation Not
 	{
 		name:   "opNot: ^0x0..0",
+		op:     opNot,
 		data:   []uint256.Int{{0x00, 0x00, 0x00, 0x00}},
 		res:    uint256.Int{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 		status: RUNNING,
 	},
 	{
 		name:   "opNot: ^0xF..F",
+		op:     opNot,
 		data:   []uint256.Int{{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
 		res:    uint256.Int{0x00, 0x00, 0x00, 0x00},
 		status: RUNNING,
 	},
 	{
 		name:   "opNot: various bits",
+		op:     opNot,
 		data:   []uint256.Int{{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123}},
 		res:    uint256.Int{0xEDCBA9876543210F, 0xDCBA9876543210FE, 0xCBA9876543210FED, 0xBA9876543210FEDC},
 		status: RUNNING,
 	},
 	{
 		name:   "opNot: ^0xA..A",
+		op:     opNot,
 		data:   []uint256.Int{{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA}},
 		res:    uint256.Int{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
 		status: RUNNING,
 	},
 	{
 		name:   "opNot: ^0x5..5",
+		op:     opNot,
 		data:   []uint256.Int{{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555}},
 		res:    uint256.Int{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
 		status: RUNNING,
 	},
 	{
 		name:   "opNot: various 2*bytes 0xFFFF and 0x0000",
+		op:     opNot,
 		data:   []uint256.Int{{0xFFFF0000FFFF0000, 0xFFFFFFFF00000000, 0x00000000FFFFFFFF, 0x0000FFFF0000FFFF}},
 		res:    uint256.Int{0x0000FFFF0000FFFF, 0x00000000FFFFFFFF, 0xFFFFFFFF00000000, 0xFFFF0000FFFF0000},
 		status: RUNNING,
 	},
 	{
 		name:   "opNot: various bytes 0xFF and 0x00",
+		op:     opNot,
 		data:   []uint256.Int{{0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00, 0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00}},
 		res:    uint256.Int{0xFF00FF00FF00FF00, 0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00, 0x00FF00FF00FF00FF},
 		status: RUNNING,
 	},
 	{
 		name:   "opNot: first and last bit",
+		op:     opNot,
 		data:   []uint256.Int{{0x01, 0x00, 0x00, 0x8000000000000000}},
 		res:    uint256.Int{0xFFFFFFFFFFFFFFFE, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 		status: RUNNING,
 	},
 	{
 		name:   "opNot: bytes 22 and 23",
+		op:     opNot,
 		data:   []uint256.Int{{0x00, 0x1234, 0x00, 0x00}},
 		res:    uint256.Int{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFEDCB, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 		status: RUNNING,
 	},
 	{
 		name:   "opNot: bytes 14 and 15",
+		op:     opNot,
 		data:   []uint256.Int{{0x00, 0x00, 0xFFFF, 0x00}},
 		res:    uint256.Int{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFF0000, 0xFFFFFFFFFFFFFFFF},
 		status: RUNNING,
 	},
-}
 
-// operation Xor
-var testDataXorOp = []tTestDataOp{
+	// operation Xor
 	{
 		name: "opXor: 0xF..F xor various bits",
+		op:   opXor,
 		data: []uint256.Int{
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -321,6 +356,7 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: various bits xor 0xF..F",
+		op:   opXor,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x123456789ABCDEF0, 0x23456789ABCDEF01, 0x3456789ABCDEF012, 0x456789ABCDEF0123}},
@@ -329,6 +365,7 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: 0xF..F xor 0x0..0",
+		op:   opXor,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -337,6 +374,7 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: 0x0..0 xor 0xF..F",
+		op:   opXor,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -345,6 +383,7 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: 0xF..F xor 0xF..F",
+		op:   opXor,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -353,6 +392,7 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: 0x0..0 xor 0x0..0",
+		op:   opXor,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -361,6 +401,7 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: 0x5..5 xor 0xA..A (x xor ^x)",
+		op:   opXor,
 		data: []uint256.Int{
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA},
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555}},
@@ -369,6 +410,7 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: 0xA..A xor 0x5..5 (x xor ^x)",
+		op:   opXor,
 		data: []uint256.Int{
 			{0x5555555555555555, 0x5555555555555555, 0x5555555555555555, 0x5555555555555555},
 			{0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA}},
@@ -377,6 +419,7 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: various bytes 0xFF and 0x00",
+		op:   opXor,
 		data: []uint256.Int{
 			{0xFFFF0000FFFF0000, 0xFFFFFFFF00000000, 0x00000000FFFFFFFF, 0x0000FFFF0000FFFF},
 			{0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00, 0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00}},
@@ -385,6 +428,7 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: various 8*bytes",
+		op:   opXor,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0x00, 0xFFFFFFFFFFFFFFFF, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x00, 0x00}},
@@ -393,6 +437,7 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: first and last bit",
+		op:   opXor,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x8000000000000000},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -401,6 +446,7 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: last 2 bytes",
+		op:   opXor,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x00FF, 0x00, 0x00, 0x00}},
@@ -409,6 +455,7 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: bytes 6, 7, 14 and 15",
+		op:   opXor,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x1234, 0x00},
 			{0x00, 0x00, 0x1234, 0xFFFF}},
@@ -417,19 +464,19 @@ var testDataXorOp = []tTestDataOp{
 	},
 	{
 		name: "opXor: last 2 bytes of each 8",
+		op:   opXor,
 		data: []uint256.Int{
 			{0xFF00, 0x0FF0, 0x00FF, 0xF0F0},
 			{0x1234, 0xABCD, 0x5678, 0xEF90}},
 		res:    uint256.Int{0xED34, 0xA43D, 0x5687, 0x1F60},
 		status: RUNNING,
 	},
-}
 
-// operation Byte
-// byte(i, x), data: {x, i}
-var testDataByteOp = []tTestDataOp{
+	// operation Byte
+	// byte(i, x), data: {x, i}
 	{
 		name: "opByte: byte 0 of number 0",
+		op:   opByte,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -438,6 +485,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 0 of 0xFF0..0",
+		op:   opByte,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0xFF00000000000000},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -446,6 +494,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 0 of 0x00AB0..0",
+		op:   opByte,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00AB000000000000},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -454,6 +503,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 1",
+		op:   opByte,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x123456789ABCDEF0},
 			{1, 0, 0, 0}},
@@ -462,6 +512,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 0 of 0x63F..F",
+		op:   opByte,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x63FFFFFFFFFFFFFF},
 			{0, 0, 0, 0}},
@@ -470,6 +521,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 1 of 0xFF84F..F",
+		op:   opByte,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFF84FFFFFFFFFFFF},
 			{1, 0, 0, 0}},
@@ -478,6 +530,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 7",
+		op:   opByte,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFC5},
 			{7, 0, 0, 0}},
@@ -486,6 +539,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 8",
+		op:   opByte,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xB4FFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{8, 0, 0, 0}},
@@ -494,6 +548,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 15",
+		op:   opByte,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFF32, 0xFFFFFFFFFFFFFFFF},
 			{15, 0, 0, 0}},
@@ -502,6 +557,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 16",
+		op:   opByte,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0x74FFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{16, 0, 0, 0}},
@@ -510,6 +566,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 23",
+		op:   opByte,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFF68, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{23, 0, 0, 0}},
@@ -518,6 +575,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 24",
+		op:   opByte,
 		data: []uint256.Int{
 			{0x91FFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{24, 0, 0, 0}},
@@ -526,6 +584,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 31",
+		op:   opByte,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFF42, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{31, 0, 0, 0}},
@@ -534,6 +593,7 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 32 (out of range)",
+		op:   opByte,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{32, 0, 0, 0}},
@@ -542,19 +602,19 @@ var testDataByteOp = []tTestDataOp{
 	},
 	{
 		name: "opByte: byte 19",
+		op:   opByte,
 		data: []uint256.Int{
 			{0x00, 0x0000002500000000, 0x00, 0x00},
 			{19, 0, 0, 0}},
 		res:    uint256.Int{0x25, 0x00, 0x00, 0x00},
 		status: RUNNING,
 	},
-}
 
-// operation Shl
-// val << shift, data: {val, shift}
-var testDataShlOp = []tTestDataOp{
+	// operation Shl
+	// val << shift, data: {val, shift}
 	{
 		name: "opShl: left shift 0 on number 0",
+		op:   opShl,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -563,6 +623,7 @@ var testDataShlOp = []tTestDataOp{
 	},
 	{
 		name: "opShl: left shift 0 on number 0xFF0..0",
+		op:   opShl,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0xFF00000000000000},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -571,6 +632,7 @@ var testDataShlOp = []tTestDataOp{
 	},
 	{
 		name: "opShl: left shift 0 on number 0x00AB0..0",
+		op:   opShl,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00AB000000000000},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -579,6 +641,7 @@ var testDataShlOp = []tTestDataOp{
 	},
 	{
 		name: "opShl: left shift 1",
+		op:   opShl,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x123456789ABCDEF0},
 			{1, 0, 0, 0}},
@@ -587,6 +650,7 @@ var testDataShlOp = []tTestDataOp{
 	},
 	{
 		name: "opShl: left shift 0 on number 0x63F..F",
+		op:   opShl,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x63FFFFFFFFFFFFFF},
 			{0, 0, 0, 0}},
@@ -595,6 +659,7 @@ var testDataShlOp = []tTestDataOp{
 	},
 	{
 		name: "opShl: left shift 1 on number 0xFF84F..F",
+		op:   opShl,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFF84FFFFFFFFFFFF},
 			{1, 0, 0, 0}},
@@ -603,6 +668,7 @@ var testDataShlOp = []tTestDataOp{
 	},
 	{
 		name: "opShl: left shift 8",
+		op:   opShl,
 		data: []uint256.Int{
 			{0x1234000000000000, 0x5678000000000000, 0x9ABC000000000000, 0xDEF0000000000000},
 			{8, 0, 0, 0}},
@@ -611,6 +677,7 @@ var testDataShlOp = []tTestDataOp{
 	},
 	{
 		name: "opShl: left shift 64",
+		op:   opShl,
 		data: []uint256.Int{
 			{0x1234000000000000, 0x5678000000000000, 0x9ABC000000000000, 0xDEF0000000000000},
 			{64, 0, 0, 0}},
@@ -619,19 +686,19 @@ var testDataShlOp = []tTestDataOp{
 	},
 	{
 		name: "opShl: left shift 256",
+		op:   opShl,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFF32, 0xFFFFFFFFFFFFFFFF},
 			{256, 0, 0, 0}},
 		res:    uint256.Int{0x00, 0x00, 0x00, 0x00},
 		status: RUNNING,
 	},
-}
 
-// operation Shr
-// val >> shift, data: {val, shift}
-var testDataShrOp = []tTestDataOp{
+	// operation Shr
+	// val >> shift, data: {val, shift}
 	{
 		name: "opShr: right shift 0 on number 0",
+		op:   opShr,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -640,6 +707,7 @@ var testDataShrOp = []tTestDataOp{
 	},
 	{
 		name: "opShr: right shift 0 on number 0xFF0..0",
+		op:   opShr,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0xFF00000000000000},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -648,6 +716,7 @@ var testDataShrOp = []tTestDataOp{
 	},
 	{
 		name: "opShr: right shift 0 on number 0x00AB0..0",
+		op:   opShr,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00AB000000000000},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -656,6 +725,7 @@ var testDataShrOp = []tTestDataOp{
 	},
 	{
 		name: "opShr: right shift 1",
+		op:   opShr,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x123456789ABCDEF0},
 			{1, 0, 0, 0}},
@@ -664,6 +734,7 @@ var testDataShrOp = []tTestDataOp{
 	},
 	{
 		name: "opShr: right shift 0 on number 0x63F..F",
+		op:   opShr,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x63FFFFFFFFFFFFFF},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -672,6 +743,7 @@ var testDataShrOp = []tTestDataOp{
 	},
 	{
 		name: "opShr: right shift 1 on number 0xFF84F..F",
+		op:   opShr,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFF84FFFFFFFFFFFF},
 			{1, 0, 0, 0}},
@@ -680,6 +752,7 @@ var testDataShrOp = []tTestDataOp{
 	},
 	{
 		name: "opShr: right shift 8",
+		op:   opShr,
 		data: []uint256.Int{
 			{0x3400000000000000, 0x7800000000000012, 0xBC00000000000056, 0xF00000000000009A},
 			{8, 0, 0, 0}},
@@ -688,6 +761,7 @@ var testDataShrOp = []tTestDataOp{
 	},
 	{
 		name: "opShr: right shift 64",
+		op:   opShr,
 		data: []uint256.Int{
 			{0x1234000000000000, 0x5678000000000000, 0x9ABC000000000000, 0xDEF0000000000000},
 			{64, 0, 0, 0}},
@@ -696,19 +770,19 @@ var testDataShrOp = []tTestDataOp{
 	},
 	{
 		name: "opShr: right shift 256",
+		op:   opShr,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFF32, 0xFFFFFFFFFFFFFFFF},
 			{256, 0, 0, 0}},
 		res:    uint256.Int{0x00, 0x00, 0x00, 0x00},
 		status: RUNNING,
 	},
-}
 
-// operation Sar
-// val >> shift (arithemtic), data: {val, shift}
-var testDataSarOp = []tTestDataOp{
+	// operation Sar
+	// val >> shift (arithemtic), data: {val, shift}
 	{
 		name: "opSar: right shift 0 on number 0",
+		op:   opSar,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -717,6 +791,7 @@ var testDataSarOp = []tTestDataOp{
 	},
 	{
 		name: "opSar: right shift 0 on number 0xFF0..0",
+		op:   opSar,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0xFF00000000000000},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -725,6 +800,7 @@ var testDataSarOp = []tTestDataOp{
 	},
 	{
 		name: "opSar: right shift 0 on number 0x00AB0..0",
+		op:   opSar,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00AB000000000000},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -733,6 +809,7 @@ var testDataSarOp = []tTestDataOp{
 	},
 	{
 		name: "opSar: right shift 1",
+		op:   opSar,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x123456789ABCDEF0},
 			{1, 0, 0, 0}},
@@ -741,6 +818,7 @@ var testDataSarOp = []tTestDataOp{
 	},
 	{
 		name: "opSar: right shift 0 on number 0x63F..F",
+		op:   opSar,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x63FFFFFFFFFFFFFF},
 			{0, 0, 0, 0}},
@@ -749,6 +827,7 @@ var testDataSarOp = []tTestDataOp{
 	},
 	{
 		name: "opSar: right shift 1 on number 0xFF84F..F",
+		op:   opSar,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFF84FFFFFFFFFFFF},
 			{1, 0, 0, 0}},
@@ -757,6 +836,7 @@ var testDataSarOp = []tTestDataOp{
 	},
 	{
 		name: "opSar: right shift 8",
+		op:   opSar,
 		data: []uint256.Int{
 			{0x3400000000000000, 0x7800000000000012, 0xBC00000000000056, 0xF00000000000009A},
 			{8, 0, 0, 0}},
@@ -765,6 +845,7 @@ var testDataSarOp = []tTestDataOp{
 	},
 	{
 		name: "opSar: right shift 64",
+		op:   opSar,
 		data: []uint256.Int{
 			{0x1234000000000000, 0x5678000000000000, 0x9ABC000000000000, 0xDEF0000000000000},
 			{64, 0, 0, 0}},
@@ -773,6 +854,7 @@ var testDataSarOp = []tTestDataOp{
 	},
 	{
 		name: "opSar: right shift 256",
+		op:   opSar,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFF32, 0xFFFFFFFFFFFFFFFF},
 			{256, 0, 0, 0}},

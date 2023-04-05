@@ -396,8 +396,8 @@ func checkResult(t *testing.T, ctxt *context, status Status, res *uint256.Int) {
 	}
 }
 
-// testInstruction tests operation f with testData
-func testInstruction(t *testing.T, f func(*context), testData []tTestDataOp) {
+// testInstructionF tests operation f with testData
+func testInstructionF(t *testing.T, f func(*context), testData []tTestDataOp) {
 	for _, data := range testData {
 		t.Run(data.name, func(t *testing.T) {
 			ctxt := getTestEnvData(data.data)
@@ -409,93 +409,68 @@ func testInstruction(t *testing.T, f func(*context), testData []tTestDataOp) {
 	}
 }
 
+func testInstructions(t *testing.T, testData []tTestDataOp) {
+	for _, data := range testData {
+		t.Run(data.name, func(t *testing.T) {
+			ctxt := getTestEnvData(data.data)
+
+			data.op(ctxt)
+
+			checkResult(t, ctxt, data.status, &data.res)
+		})
+	}
+}
+
 // bitwise logic operations (And, Or, Not, Xor, Byte, Shl, Shr, Sar)
-
-// operation And
-func TestAndInstruction(t *testing.T) {
-	testInstruction(t, opAnd, testDataAndOp)
-}
-
-// operation Or
-func TestOrInstruction(t *testing.T) {
-	testInstruction(t, opOr, testDataOrOp)
-}
-
-// operation Not
-func TestNotInstruction(t *testing.T) {
-	testInstruction(t, opNot, testDataNotOp)
-}
-
-// operation Xor
-func TestXorInstruction(t *testing.T) {
-	testInstruction(t, opXor, testDataXorOp)
-}
-
-// operation Byte
-func TestByteInstruction(t *testing.T) {
-	testInstruction(t, opByte, testDataByteOp)
-}
-
-// operation Shl
-func TestShlInstruction(t *testing.T) {
-	testInstruction(t, opShl, testDataShlOp)
-}
-
-// operation Shr
-func TestShrInstruction(t *testing.T) {
-	testInstruction(t, opShr, testDataShrOp)
-}
-
-// operation Sar
-func TestSarInstruction(t *testing.T) {
-	testInstruction(t, opSar, testDataSarOp)
+func TestBitwiseLogicInstruction(t *testing.T) {
+	testInstructions(t, testDataBitwiseLogicOp)
 }
 
 // arithmetic operations (Add, Sub, Mul, MulMod, Div, SDiv, Mod, AddMod, SMod, Exp, SignExtend)
 
 // operation Add
 func TestAddInstruction(t *testing.T) {
-	testInstruction(t, opAdd, testDataAddOp)
+	testInstructionF(t, opAdd, testDataAddOp)
 }
 
 // operation Sub
 func TestSubInstruction(t *testing.T) {
-	testInstruction(t, opSub, testDataSubOp)
+	testInstructionF(t, opSub, testDataSubOp)
 }
 
 // operation Mul
 func TestMulInstruction(t *testing.T) {
-	testInstruction(t, opMul, testDataMulOp)
+	testInstructionF(t, opMul, testDataMulOp)
 }
 
 // operation MulMod
 func TestMulModInstruction(t *testing.T) {
-	testInstruction(t, opMulMod, testDataMulModOp)
+	testInstructionF(t, opMulMod, testDataMulModOp)
 }
 
 // operation Div
 func TestDivInstruction(t *testing.T) {
-	testInstruction(t, opDiv, testDataDivOp)
+	testInstructionF(t, opDiv, testDataDivOp)
 }
 
 // operation SDiv
 func TestSDivInstruction(t *testing.T) {
-	testInstruction(t, opSDiv, testDataSDivOp)
+	testInstructionF(t, opSDiv, testDataSDivOp)
 }
 
 // operation Mod
 func TestModInstruction(t *testing.T) {
-	testInstruction(t, opMod, testDataModOp)
+	testInstructionF(t, opMod, testDataModOp)
 }
 
 // operation AddMod
 func TestAddModInstruction(t *testing.T) {
-	testInstruction(t, opAddMod, testDataAddModOp)
+	testInstructionF(t, opAddMod, testDataAddModOp)
 }
 
 // operation SMod
 func TestSModInstruction(t *testing.T) {
-	testInstruction(t, opSMod, testDataSModOp)
+	testInstructionF(t, opSMod, testDataSModOp)
 }
 
 // operation Exp
@@ -528,7 +503,7 @@ func TestExpInstruction(t *testing.T) {
 
 // operation SignExtend
 func TestSignExtendInstruction(t *testing.T) {
-	testInstruction(t, opSignExtend, testDataSignExtendOp)
+	testInstructionF(t, opSignExtend, testDataSignExtendOp)
 }
 
 // comparison operations (IsZero, Eq, Lt, Gt, Slt, Sgt)
