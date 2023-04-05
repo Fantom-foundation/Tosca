@@ -369,6 +369,7 @@ func (state Status) String() string {
 		"SUICIDED",
 		"INVALID_INSTRUCTION",
 		"OUT_OF_GAS",
+		"SEGMENTATION_FAULT",
 		"ERROR"}
 	if state < RUNNING || state > ERROR {
 		return "Unknown state"
