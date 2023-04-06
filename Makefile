@@ -8,7 +8,7 @@
 
 # what are we building
 PROJECT := $(shell basename "$(PWD)")
-GO_BIN := $(CURDIR)/build
+GO_BIN := $(CURDIR)/go/build
 
 # compile time variables will be injected into the app
 APP_VERSION := 1.0
@@ -25,7 +25,7 @@ all: tosca
 tosca: tosca-go tosca-cpp
 
 tosca-go:
-	@cd core/vm/lfvm ; \
+	@cd go/vm/lfvm ; \
 	GOPROXY=$(GOPROXY) \
 	GOPRIVATE=github.com/Fantom-foundation/go-ethereum-substate \
 	go build -ldflags "-s -w -X 'github.com/Fantom-foundation/Tosca/utils.GitCommit=$(BUILD_COMMIT)'" \
@@ -47,7 +47,7 @@ test-cpp:
 clean: clean-go clean-cpp
 
 clean-go:
-	rm -fr ./build/*
+	rm -fr ./go/build/*
 
 clean-cpp:
 	@cd cpp ; \
