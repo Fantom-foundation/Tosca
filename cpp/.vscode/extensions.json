@@ -1,0 +1,9 @@
+{
+    "recommendations": [
+        "bazelbuild.vscode-bazel",
+        "stackbuild.bazel-stack-vscode",
+        "stackbuild.bazel-stack-vscode-cc",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "xaver.clang-format"
+    ]
+}
