@@ -10,6 +10,7 @@ type tTestDataOp struct {
 	data   []uint256.Int  // input data (in reverse order)
 	res    uint256.Int    // expected result
 	status Status         // expected status
+	gas    uint64         // required gas
 }
 
 // bitwise logic operations (And, Or, Not, Xor, Byte, Shl, Shr, Sar)
@@ -2863,20 +2864,9 @@ var testDataArithmeticOp = []tTestDataOp{
 		res:    uint256.Int{0xFFFFFFFFFFFF8100, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 		status: RUNNING,
 	},
-}
 
-type tTestDataOpWithGas struct {
-	name   string         // test description
-	op     func(*context) // tested operation
-	data   []uint256.Int  // input data (in reverse order)
-	res    uint256.Int    // expected result
-	status Status         // expected status
-	gas    uint64         // required gas
-}
-
-// operation Exp
-// a ** b (uint), data: {b, a}
-var testDataExpOp = []tTestDataOpWithGas{
+	// operation Exp
+	// a ** b (uint), data: {b, a}
 	{
 		name: "opExp: 0 ** 0",
 		op:   opExp,

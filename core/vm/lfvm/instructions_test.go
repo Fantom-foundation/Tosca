@@ -396,43 +396,7 @@ func checkResult(t *testing.T, ctxt *context, status Status, res *uint256.Int) {
 	}
 }
 
-// testInstructionF tests operation f with testData
-func testInstructionF(t *testing.T, f func(*context), testData []tTestDataOp) {
-	for _, data := range testData {
-		t.Run(data.name, func(t *testing.T) {
-			ctxt := getTestEnvData(data.data)
-
-			f(ctxt)
-
-			checkResult(t, ctxt, data.status, &data.res)
-		})
-	}
-}
-
 func testInstructions(t *testing.T, testData []tTestDataOp) {
-	for _, data := range testData {
-		t.Run(data.name, func(t *testing.T) {
-			ctxt := getTestEnvData(data.data)
-
-			data.op(ctxt)
-
-			checkResult(t, ctxt, data.status, &data.res)
-		})
-	}
-}
-
-// bitwise logic operations (And, Or, Not, Xor, Byte, Shl, Shr, Sar)
-func TestBitwiseLogicInstruction(t *testing.T) {
-	testInstructions(t, testDataBitwiseLogicOp)
-}
-
-// arithmetic operations (Add, Sub, Mul, MulMod, Div, SDiv, Mod, AddMod, SMod, Exp, SignExtend)
-func TestArithmeticInstruction(t *testing.T) {
-	testInstructions(t, testDataArithmeticOp)
-}
-
-// operation Exp
-func testInstructionWithGas(t *testing.T, testData []tTestDataOpWithGas) {
 	for _, data := range testData {
 		t.Run(data.name, func(t *testing.T) {
 			ctxt := getTestEnvData(data.data)
@@ -455,8 +419,14 @@ func testInstructionWithGas(t *testing.T, testData []tTestDataOpWithGas) {
 	}
 }
 
-func TestExpInstruction(t *testing.T) {
-	testInstructionWithGas(t, testDataExpOp)
+// bitwise logic operations (And, Or, Not, Xor, Byte, Shl, Shr, Sar)
+func TestBitwiseLogicInstruction(t *testing.T) {
+	testInstructions(t, testDataBitwiseLogicOp)
+}
+
+// arithmetic operations (Add, Sub, Mul, MulMod, Div, SDiv, Mod, AddMod, SMod, Exp, SignExtend)
+func TestArithmeticInstruction(t *testing.T) {
+	testInstructions(t, testDataArithmeticOp)
 }
 
 // comparison operations (IsZero, Eq, Lt, Gt, Slt, Sgt)
