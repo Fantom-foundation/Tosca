@@ -396,7 +396,8 @@ func checkResult(t *testing.T, ctxt *context, status Status, res *uint256.Int) {
 	}
 }
 
-func testInstructions(t *testing.T, testData []tTestDataOp) {
+// runTestInstr executes the individual tests defined in testData
+func runTestInstr(t *testing.T, testData []tTestDataOp) {
 	for _, data := range testData {
 		t.Run(data.name, func(t *testing.T) {
 			ctxt := getTestEnvData(data.data)
@@ -419,39 +420,23 @@ func testInstructions(t *testing.T, testData []tTestDataOp) {
 	}
 }
 
-// bitwise logic operations (And, Or, Not, Xor, Byte, Shl, Shr, Sar)
-func TestBitwiseLogicInstruction(t *testing.T) {
-	testInstructions(t, testDataBitwiseLogicOp)
-}
-
-// arithmetic operations (Add, Sub, Mul, MulMod, Div, SDiv, Mod, AddMod, SMod, Exp, SignExtend)
-func TestArithmeticInstruction(t *testing.T) {
-	testInstructions(t, testDataArithmeticOp)
-}
-
-// comparison operations (IsZero, Eq, Lt, Gt, Slt, Sgt)
-
-func checkResultBool(t *testing.T, ctxt *context, status Status, res bool) {
-	var r uint256.Int
-	r.Clear()
-	if res {
-		r[0] = 1
+// TestInstr tests bitwise logical, arithmetic and comparison operations.
+func TestInstr(t *testing.T) {
+	// preparation of data
+	// bitwise logic operations (And, Or, Not, Xor, Byte, Shl, Shr, Sar)
+	testData := testDataBitwiseLogicOp
+	// arithmetic operations (Add, Sub, Mul, MulMod, Div, SDiv, Mod, AddMod, SMod, Exp, SignExtend)
+	testData = append(testData, testDataArithmeticOp...)
+	// comparison operations (IsZero, Eq, Lt, Gt, Slt, Sgt)
+	for _, dc := range testDataComparsionOp {
+		d := tTestDataOp{dc.name, dc.op, dc.data, uint256.Int{0, 0, 0, 0}, dc.status, 0}
+		d.res.Clear()
+		if dc.res {
+			d.res[0] = 1
+		}
+		testData = append(testData, d)
 	}
-	checkResult(t, ctxt, status, &r)
-}
 
-func testCompInstruction(t *testing.T, testData []tTestDataCompOp) {
-	for _, data := range testData {
-		t.Run(data.name, func(t *testing.T) {
-			ctxt := getTestEnvData(data.data)
-
-			data.op(ctxt)
-
-			checkResultBool(t, ctxt, data.status, data.res)
-		})
-	}
-}
-
-func TestComparsionInstruction(t *testing.T) {
-	testCompInstruction(t, testDataComparsionOp)
+	// execution of tests
+	runTestInstr(t, testData)
 }
