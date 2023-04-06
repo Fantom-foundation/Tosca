@@ -18,22 +18,40 @@ BUILD_COMMIT := $(shell git show --format="%H" --no-patch)
 BUILD_COMMIT_TIME := $(shell git show --format="%cD" --no-patch)
 GOPROXY ?= "https://proxy.golang.org,direct"
 
-.PHONY: all clean help test
+.PHONY: all clean clean-go clean-cpp help test test-go test-cpp
 
 all: tosca
 
-tosca:
+tosca: tosca-go tosca-cpp
+
+tosca-go:
 	@cd core/vm/lfvm ; \
 	GOPROXY=$(GOPROXY) \
 	GOPRIVATE=github.com/Fantom-foundation/go-ethereum-substate \
 	go build -ldflags "-s -w -X 'github.com/Fantom-foundation/Tosca/utils.GitCommit=$(BUILD_COMMIT)'" \
 	-o $(GO_BIN)/tosca \
 
-test:
+tosca-cpp:
+	@cd cpp ; \
+	bazel build //...
+
+test: test-go test-cpp
+
+test-go:
 	@go test ./...
 
-clean:
+test-cpp:
+	@cd cpp ; \
+	bazel test //...
+
+clean: clean-go clean-cpp
+
+clean-go:
 	rm -fr ./build/*
+
+clean-cpp:
+	@cd cpp ; \
+	bazel clean --expunge
 
 help: Makefile
 	@echo "Choose a make command in "$(PROJECT)":"
