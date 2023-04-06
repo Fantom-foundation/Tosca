@@ -470,44 +470,18 @@ func checkResultBool(t *testing.T, ctxt *context, status Status, res bool) {
 	checkResult(t, ctxt, status, &r)
 }
 
-func testCompInstruction(t *testing.T, f func(*context), testData []tTestDataCompOp) {
+func testCompInstruction(t *testing.T, testData []tTestDataCompOp) {
 	for _, data := range testData {
 		t.Run(data.name, func(t *testing.T) {
 			ctxt := getTestEnvData(data.data)
 
-			f(ctxt)
+			data.op(ctxt)
 
 			checkResultBool(t, ctxt, data.status, data.res)
 		})
 	}
 }
 
-// operation IsZero
-func TestIszeroInstruction(t *testing.T) {
-	testCompInstruction(t, opIszero, testDataIszeroOp)
-}
-
-// operation Eq
-func TestEqInstruction(t *testing.T) {
-	testCompInstruction(t, opEq, testDataEqOp)
-}
-
-// operation Lt
-func TestLtInstruction(t *testing.T) {
-	testCompInstruction(t, opLt, testDataLtOp)
-}
-
-// operation Gt
-func TestGtInstruction(t *testing.T) {
-	testCompInstruction(t, opGt, testDataGtOp)
-}
-
-// operation Slt
-func TestSltInstruction(t *testing.T) {
-	testCompInstruction(t, opSlt, testDataSltOp)
-}
-
-// operation Sgt
-func TestSgtInstruction(t *testing.T) {
-	testCompInstruction(t, opSgt, testDataSgtOp)
+func TestComparsionInstruction(t *testing.T) {
+	testCompInstruction(t, testDataComparsionOp)
 }

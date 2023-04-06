@@ -3039,68 +3039,77 @@ type tTestDataCompOp struct {
 	status Status         // expected status
 }
 
-// operation Iszero
-var testDataIszeroOp = []tTestDataCompOp{
+var testDataComparsionOp = []tTestDataCompOp{
+
+	// operation Iszero
 	{
 		name:   "opIszero: 0x1234",
+		op:     opIszero,
 		data:   []uint256.Int{{0x1234, 0x00, 0x00, 0x00}},
 		res:    false,
 		status: RUNNING,
 	},
 	{
 		name:   "opIszero: 0",
+		op:     opIszero,
 		data:   []uint256.Int{{0x00, 0x00, 0x00, 0x00}},
 		res:    true,
 		status: RUNNING,
 	},
 	{
 		name:   "opIszero: 0xFFFF",
+		op:     opIszero,
 		data:   []uint256.Int{{0xFFFF, 0x00, 0x00, 0x00}},
 		res:    false,
 		status: RUNNING,
 	},
 	{
 		name:   "opIszero: 0xFF00",
+		op:     opIszero,
 		data:   []uint256.Int{{0xFF00, 0x00, 0x00, 0x00}},
 		res:    false,
 		status: RUNNING,
 	},
 	{
 		name:   "opIszero: -16",
+		op:     opIszero,
 		data:   []uint256.Int{{0xFFFFFFFFFFFFFFF0, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
 		res:    false,
 		status: RUNNING,
 	},
 	{
 		name:   "opIszero: max",
+		op:     opIszero,
 		data:   []uint256.Int{{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF}},
 		res:    false,
 		status: RUNNING,
 	},
 	{
 		name:   "opIszero: -1",
+		op:     opIszero,
 		data:   []uint256.Int{{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
 		res:    false,
 		status: RUNNING,
 	},
 	{
 		name:   "opIszero: min",
+		op:     opIszero,
 		data:   []uint256.Int{{0x00, 0x00, 0x00, 0x8000000000000000}},
 		res:    false,
 		status: RUNNING,
 	},
 	{
 		name:   "opIszero: 1",
+		op:     opIszero,
 		data:   []uint256.Int{{0x01, 0x00, 0x00, 0x00}},
 		res:    false,
 		status: RUNNING,
 	},
-}
 
-// operation Eq
-var testDataEqOp = []tTestDataCompOp{
+	// operation Eq
 	{
 		name: "opEq: 0x00 == 0x1234",
+		op:   opEq,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x0000, 0x00, 0x00, 0x00}},
@@ -3109,6 +3118,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: 0xFFFF == 0x1234",
+		op:   opEq,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFF, 0x00, 0x00, 0x00}},
@@ -3117,6 +3127,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: 0xFF00 == 0x1234",
+		op:   opEq,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFF00, 0x00, 0x00, 0x00}},
@@ -3125,6 +3136,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: 0x1234 == 0x00",
+		op:   opEq,
 		data: []uint256.Int{
 			{0x0000, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3133,6 +3145,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: 0x1234 == 0xFFFF",
+		op:   opEq,
 		data: []uint256.Int{
 			{0xFFFF, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3141,6 +3154,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: 0x1234 == 0xFF",
+		op:   opEq,
 		data: []uint256.Int{
 			{0x00FF, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3149,6 +3163,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: 0x1234 == 0x1234",
+		op:   opEq,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3157,6 +3172,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: 0 == 0",
+		op:   opEq,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -3165,6 +3181,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: -1 == 0",
+		op:   opEq,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3173,6 +3190,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: -1 == -16",
+		op:   opEq,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFF0, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3181,6 +3199,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: -1 == max",
+		op:   opEq,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3189,6 +3208,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: min == 1",
+		op:   opEq,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
@@ -3197,6 +3217,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: -1 == -1",
+		op:   opEq,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3205,6 +3226,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: -1 == 1",
+		op:   opEq,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3213,6 +3235,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: 1 == -1",
+		op:   opEq,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -3221,6 +3244,7 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: max == max",
+		op:   opEq,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF}},
@@ -3229,18 +3253,18 @@ var testDataEqOp = []tTestDataCompOp{
 	},
 	{
 		name: "opEq: min == min",
+		op:   opEq,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x8000000000000000},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
 		res:    true,
 		status: RUNNING,
 	},
-}
 
-// operation Lt
-var testDataLtOp = []tTestDataCompOp{
+	// operation Lt
 	{
 		name: "opLt: 0x00 < 0x1234",
+		op:   opLt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x0000, 0x00, 0x00, 0x00}},
@@ -3249,6 +3273,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: 0xFFFF < 0x1234",
+		op:   opLt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFF, 0x00, 0x00, 0x00}},
@@ -3257,6 +3282,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: 0xFF00 < 0x1234",
+		op:   opLt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFF00, 0x00, 0x00, 0x00}},
@@ -3265,6 +3291,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: 0x1234 < 0x00",
+		op:   opLt,
 		data: []uint256.Int{
 			{0x0000, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3273,6 +3300,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: 0x1234 < 0xFFFF",
+		op:   opLt,
 		data: []uint256.Int{
 			{0xFFFF, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3281,6 +3309,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: 0x1234 < 0xFF00",
+		op:   opLt,
 		data: []uint256.Int{
 			{0xFF00, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3289,6 +3318,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: 0x1234 < 0x1234",
+		op:   opLt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3297,6 +3327,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: 0 < 0",
+		op:   opLt,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -3305,6 +3336,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: max < 0",
+		op:   opLt,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3313,6 +3345,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: max < (max-15)",
+		op:   opLt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFF0, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3321,6 +3354,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: max < (max/2)",
+		op:   opLt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3329,6 +3363,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: (max/2+1) < 1",
+		op:   opLt,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
@@ -3337,6 +3372,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: max < max",
+		op:   opLt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3345,6 +3381,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: max < 1",
+		op:   opLt,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3353,6 +3390,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: 1 < max",
+		op:   opLt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -3361,6 +3399,7 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: max/2 < max/2",
+		op:   opLt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF}},
@@ -3369,18 +3408,18 @@ var testDataLtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opLt: (max/2+1) < (max/2+1)",
+		op:   opLt,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x8000000000000000},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
 		res:    false,
 		status: RUNNING,
 	},
-}
 
-// operation Gt
-var testDataGtOp = []tTestDataCompOp{
+	// operation Gt
 	{
 		name: "opGt: 0x00 > 0x1234",
+		op:   opGt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x0000, 0x00, 0x00, 0x00}},
@@ -3389,6 +3428,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: 0xFFFF > 0x1234",
+		op:   opGt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFF, 0x00, 0x00, 0x00}},
@@ -3397,6 +3437,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: 0xFF00 > 0x1234",
+		op:   opGt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFF00, 0x00, 0x00, 0x00}},
@@ -3405,6 +3446,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: 0x1234 > 0x00",
+		op:   opGt,
 		data: []uint256.Int{
 			{0x0000, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3413,6 +3455,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: 0x1234 > 0xFFFF",
+		op:   opGt,
 		data: []uint256.Int{
 			{0xFFFF, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3421,6 +3464,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: 0x1234 > 0xFF00",
+		op:   opGt,
 		data: []uint256.Int{
 			{0xFF00, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3429,6 +3473,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: 0xFFFF > 0xFFFF",
+		op:   opGt,
 		data: []uint256.Int{
 			{0xFFFF, 0x00, 0x00, 0x00},
 			{0xFFFF, 0x00, 0x00, 0x00}},
@@ -3437,6 +3482,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: 0 > 0",
+		op:   opGt,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -3445,6 +3491,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: max > 0",
+		op:   opGt,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3453,6 +3500,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: max > (max-15)",
+		op:   opGt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFF0, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3461,6 +3509,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: max > (max/2)",
+		op:   opGt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3469,6 +3518,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: (max/2+1) > 1",
+		op:   opGt,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
@@ -3477,6 +3527,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: max > max",
+		op:   opGt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3485,6 +3536,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: max > 1",
+		op:   opGt,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3493,6 +3545,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: 1 > max",
+		op:   opGt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -3501,6 +3554,7 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: max/2 > max/2",
+		op:   opGt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF}},
@@ -3509,18 +3563,18 @@ var testDataGtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opGt: (max/2+1) > (max/2+1)",
+		op:   opGt,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x8000000000000000},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
 		res:    false,
 		status: RUNNING,
 	},
-}
 
-// operation Slt
-var testDataSltOp = []tTestDataCompOp{
+	// operation Slt
 	{
 		name: "opSlt: 0x00 < 0x1234",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x0000, 0x00, 0x00, 0x00}},
@@ -3529,6 +3583,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: 0xFFFF < 0x1234",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFF, 0x00, 0x00, 0x00}},
@@ -3537,6 +3592,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: 0xFF00 < 0x1234",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFF00, 0x00, 0x00, 0x00}},
@@ -3545,6 +3601,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: 0x1234 < 0x00",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0x0000, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3553,6 +3610,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: 0x1234 < 0xFFFF",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0xFFFF, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3561,6 +3619,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: 0x1234 < 0xFF00",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0xFF00, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3569,6 +3628,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: 0x1234 < 0x1234",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3577,6 +3637,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: 0 < 0",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -3585,6 +3646,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: -1 < 0",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3593,6 +3655,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: -1 < -16",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFF0, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3601,6 +3664,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: -1 < max",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3609,6 +3673,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: min < 1",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
@@ -3617,6 +3682,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: -1 < -1",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3625,6 +3691,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: -1 < 1",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3633,6 +3700,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: 1 < -1",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -3641,6 +3709,7 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: max < max",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF}},
@@ -3649,18 +3718,18 @@ var testDataSltOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSlt: min < min",
+		op:   opSlt,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x8000000000000000},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
 		res:    false,
 		status: RUNNING,
 	},
-}
 
-// operation Sgt
-var testDataSgtOp = []tTestDataCompOp{
+	// operation Sgt
 	{
 		name: "opSgt: 0x00 > 0x1234",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0x0000, 0x00, 0x00, 0x00}},
@@ -3669,6 +3738,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: 0xFFFF > 0x1234",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFFFF, 0x00, 0x00, 0x00}},
@@ -3677,6 +3747,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: 0xFF00 > 0x1234",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0x1234, 0x00, 0x00, 0x00},
 			{0xFF00, 0x00, 0x00, 0x00}},
@@ -3685,6 +3756,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: 0x1234 > 0x00",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0x0000, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3693,6 +3765,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: 0x1234 > 0xFFFF",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0xFFFF, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3701,6 +3774,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: 0x1234 > 0xFF00",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0xFF00, 0x00, 0x00, 0x00},
 			{0x1234, 0x00, 0x00, 0x00}},
@@ -3709,6 +3783,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: 0xFFFF > 0xFFFF",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0xFFFF, 0x00, 0x00, 0x00},
 			{0xFFFF, 0x00, 0x00, 0x00}},
@@ -3717,6 +3792,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: 0 > 0",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}},
@@ -3725,6 +3801,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: -1 > 0",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3733,6 +3810,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: -1 > -16",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFF0, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3741,6 +3819,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: -1 > max",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3749,6 +3828,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: min > 1",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
@@ -3757,6 +3837,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: -1 > -1",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3765,6 +3846,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: -1 > 1",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0x01, 0x00, 0x00, 0x00},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF}},
@@ -3773,6 +3855,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: 1 > -1",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
 			{0x01, 0x00, 0x00, 0x00}},
@@ -3781,6 +3864,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: max > max",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF},
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF}},
@@ -3789,6 +3873,7 @@ var testDataSgtOp = []tTestDataCompOp{
 	},
 	{
 		name: "opSgt: min > min",
+		op:   opSgt,
 		data: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x8000000000000000},
 			{0x00, 0x00, 0x00, 0x8000000000000000}},
