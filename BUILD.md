@@ -6,7 +6,7 @@
     - Ubuntu/Debian package: `golang-go`
 - C/C++ toolchain (+ standard library) supporting C++20, Clang >= 14 recommended
     - Ubuntu/Debian package: `clang`
-    - Recommended: install `clang-format` and `clangd` for development
+    - Recommended: install `clang-format`, `clangd`, and `gdb` for development
 - [Bazel](https://bazel.build/)
     - Install Bazelisk via Go¹:
       ```
@@ -41,6 +41,21 @@ Open the `cpp` subdirectory in VSCode:
 - Install recommended extensions: press `F1` → *Show Recommended Extensions*
 - Generate `compile_commands.json`: press `F1` → *Generate Compilation Database*
 
+### Build / Run in VSCode
+
+Some tasks are defined in [`task.json`](cpp/.vscode/tasks.json) to ease building and testing during development.
+Tasks can be run via `F1` → *Tasks: Run …*
+
+### Debug in VSCode
+
+The debugging targets are defined in [`launch.json`](cpp/.vscode/launch.json).
+`gdb` must be installed for this to work.
+
+Right now, this is only used to debug unit tests.
+With a unit test file open (e.g. `word_test.cc`), set a break point and press `F5`.
+
+### Build / Run Manually
+
 To build different configurations, invoke Bazel in the `cpp` subdirectory:
 
 ```bash
@@ -62,3 +77,5 @@ bazel test //common/...
 # Run individual test or binary
 bazel run //common:word_test
 ```
+
+> Note: VSCode's multi-root workspace feature does not play nice with these extensions.
