@@ -440,3 +440,42 @@ func TestInstr(t *testing.T) {
 	// execution of tests
 	runTestInstr(t, testData)
 }
+
+// checkResultStack checks the result with an expectation
+// status = expected status; res = expected result
+func checkResultStack(t *testing.T, ctxt *context, status Status, res []uint256.Int) {
+	if ctxt.stack.len() != len(res) {
+		t.Errorf("expected stack size of %d, got %d", len(res), ctxt.stack.len())
+		return
+	}
+
+	if status != ctxt.status {
+		t.Errorf("expected status %s, got %s", status.String(), ctxt.status.String())
+	}
+
+	for i := len(res) - 1; i >= 0; i-- {
+		r := res[i]
+		got := ctxt.stack.pop()
+
+		if !r.Eq(got) {
+			t.Errorf("expected[%d] %s, got %s", i, r.Hex(), got.Hex())
+		}
+	}
+}
+
+func runTestStackInstr(t *testing.T, testData []tTestDataStackOp) {
+	for _, data := range testData {
+		t.Run(data.name, func(t *testing.T) {
+			ctxt := getTestEnvData(data.data)
+
+			data.op(ctxt, data.pos)
+
+			checkResultStack(t, ctxt, data.status, data.res)
+		})
+	}
+}
+
+// exchange operations (Swap) and duplication operations (Dup)
+func TestStackInstr(t *testing.T) {
+	runTestStackInstr(t, testDataStackOp)
+}
