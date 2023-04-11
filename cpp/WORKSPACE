@@ -20,3 +20,19 @@ http_archive(
     strip_prefix = "abseil-cpp-b971ac5250ea8de900eae9f95e06548d14cd95fe",
     urls = ["https://github.com/abseil/abseil-cpp/archive/b971ac5250ea8de900eae9f95e06548d14cd95fe.zip"],
 )
+
+http_archive(
+    name ="com_github_calccrypto_uint128_t",
+    build_file = "@//third_party/uint128_t:uint128_t.BUILD",
+    sha256 = "d6ebf168e2de5c673a4556cadf7107a5fb816e80e7bf171a38d7728df3b26a86",
+    strip_prefix = "uint128_t-ddc03839ea7efb78fa504ae8ecc2304e5ba80c3c",
+    urls = ["https://github.com/calccrypto/uint128_t/archive/ddc03839ea7efb78fa504ae8ecc2304e5ba80c3c.zip"],
+)
+
+http_archive(
+    name = "com_github_calccrypto_uint256_t",
+    build_file = "@//third_party/uint256_t:uint256_t.BUILD",
+    sha256 = "7f35fbd51f487f808815c29f5324c95aef2b8815aef2b9c09c5c44526a9f4e67",
+    strip_prefix = "uint256_t-092e4c82e2b607da19ea4bae94f857756ce07d81",
+    urls = ["https://github.com/calccrypto/uint256_t/archive/092e4c82e2b607da19ea4bae94f857756ce07d81.zip"],
+)
