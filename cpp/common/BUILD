@@ -6,6 +6,9 @@ cc_library(
     srcs = ["word.cc"],
     hdrs = ["word.h"],
     visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_calccrypto_uint256_t//:uint256_t",
+    ],
 )
 
 cc_test(

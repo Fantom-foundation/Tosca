@@ -22,7 +22,7 @@ http_archive(
 )
 
 http_archive(
-    name ="com_github_calccrypto_uint128_t",
+    name = "com_github_calccrypto_uint128_t",
     build_file = "@//third_party/uint128_t:uint128_t.BUILD",
     sha256 = "d6ebf168e2de5c673a4556cadf7107a5fb816e80e7bf171a38d7728df3b26a86",
     strip_prefix = "uint128_t-ddc03839ea7efb78fa504ae8ecc2304e5ba80c3c",
