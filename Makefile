@@ -34,6 +34,9 @@ tosca-go:
 tosca-cpp:
 	@cd cpp ; \
 	bazel build //...
+	@cd cpp/vm/evmone ; \
+	cmake -Bbuild ; \
+	cmake --build build --parallel
 
 test: test-go test-cpp
 
