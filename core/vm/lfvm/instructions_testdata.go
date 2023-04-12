@@ -4228,3 +4228,252 @@ var testDataStackOp = []tTestDataStackOp{
 		status: RUNNING, //???
 	},
 }
+
+type tTestDataMemOp struct {
+	name   string         // test description
+	op     func(*context) // tested operation
+	data   []uint256.Int  // input data
+	res    []uint256.Int  // expected result
+	status Status         // expected status
+}
+
+var testDataMemOp = []tTestDataMemOp{
+
+	// operation Mstore, Mload
+	{
+		name: "Mstore, Mload: write addr 0x00, read addr 0x00",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x00, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x00, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
+		status: RUNNING,
+	},
+	{
+		name: "Mstore, Mload: write addr 0x00, read addr 0x08",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x00, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x08, 0x00, 0x00, 0x00},
+			{0x00, 0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF}},
+		status: RUNNING,
+	},
+	{
+		name: "Mstore, Mload: write addr 0x10, read addr 0x10",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x10, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x10, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
+		status: RUNNING,
+	},
+	{
+		name: "Mstore, Mload: write addr 0x10, read addr 0x08",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x10, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x08, 0x00, 0x00, 0x00},
+			{0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0, 0x00}},
+		status: RUNNING,
+	},
+	{
+		name: "Mstore, Mload: write addr 0x00 and 0x10, read addr 0x08",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0x1111111111111111, 0x2222222222222222, 0x3333333333333333, 0x4444444444444444},
+			{0x00, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x10, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x08, 0x00, 0x00, 0x00},
+			{0xF0123456789ABCDE, 0x1111111111111111, 0x2222222222222222, 0x3333333333333333}},
+		status: RUNNING,
+	},
+	{
+		name: "Mstore, Mload: write addr 0x00 and 0x10, read addr 0x00",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0x1111111111111111, 0x2222222222222222, 0x3333333333333333, 0x4444444444444444},
+			{0x18, 0x00, 0x00, 0x00},
+			{0x5555555555555555, 0x6666666666666666, 0x7777777777777777, 0x8888888888888888},
+			{0x10, 0x00, 0x00, 0x00},
+			{0x9999999999999999, 0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB, 0xCCCCCCCCCCCCCCCC},
+			{0x08, 0x00, 0x00, 0x00},
+			{0xDDDDDDDDDDDDDDDD, 0xEEEEEEEEEEEEEEEE, 0xFFFFFFFFFFFFFFFF, 0x123456789ABCDEF0},
+			{0x00, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x00, 0x00, 0x00, 0x00},
+			{0x4444444444444444, 0x8888888888888888, 0xCCCCCCCCCCCCCCCC, 0x123456789ABCDEF0}},
+		status: RUNNING,
+	},
+	{
+		name: "Mstore, Mload: write addr 0x00 and 0x10, read addr 0x00, 0x20",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0x1111111111111111, 0x2222222222222222, 0x3333333333333333, 0x4444444444444444},
+			{0x18, 0x00, 0x00, 0x00},
+			{0x5555555555555555, 0x6666666666666666, 0x7777777777777777, 0x8888888888888888},
+			{0x10, 0x00, 0x00, 0x00},
+			{0x9999999999999999, 0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB, 0xCCCCCCCCCCCCCCCC},
+			{0x08, 0x00, 0x00, 0x00},
+			{0xDDDDDDDDDDDDDDDD, 0xEEEEEEEEEEEEEEEE, 0xFFFFFFFFFFFFFFFF, 0x123456789ABCDEF0},
+			{0x00, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x00, 0x00, 0x00, 0x00},
+			{0x4444444444444444, 0x8888888888888888, 0xCCCCCCCCCCCCCCCC, 0x123456789ABCDEF0},
+			{0x20, 0x00, 0x00, 0x00},
+			{0x0000000000000000, 0x1111111111111111, 0x2222222222222222, 0x3333333333333333}},
+		status: RUNNING,
+	},
+
+	/*// operation Mload
+	{
+		name: "Mload: write addr 0x00, read addr 0x00",
+		op:   opMload,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0, 0, 0, 0}},
+		res: []uint256.Int{
+			{0, 0, 0, 0},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
+		status: RUNNING,
+	},
+	{
+		name: "Mload: write addr 0x00, read addr 0x08",
+		op:   opMload,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0, 0, 0, 0}},
+		res: []uint256.Int{
+			{0x08, 0, 0, 0},
+			{0x00, 0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF}},
+		status: RUNNING,
+	},*/
+
+	// operation Mstore8
+	{
+		name: "Mstore8: byte 0x00",
+		op:   opMstore8,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x00, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x00, 0x00, 0x00, 0x00},
+			{0x00, 0x00, 0x00, 0xCD00000000000000}},
+		status: RUNNING,
+	},
+	{
+		name: "Mstore8: byte 0x01",
+		op:   opMstore8,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x01, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x00, 0x00, 0x00, 0x00},
+			{0x00, 0x00, 0x00, 0x00CD000000000000}},
+		status: RUNNING,
+	},
+	{
+		name: "Mstore8: byte 0x02",
+		op:   opMstore8,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x02, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x00, 0x00, 0x00, 0x00},
+			{0x00, 0x00, 0x00, 0x0000CD0000000000}},
+		status: RUNNING,
+	},
+	{
+		name: "Mstore8: byte 0x02 (2)",
+		op:   opMstore8,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x02, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x02, 0x00, 0x00, 0x00},
+			{0x00, 0x00, 0x00, 0xCD00000000000000}},
+		status: RUNNING,
+	},
+	{
+		name: "Mstore8: byte 0x10",
+		op:   opMstore8,
+		data: []uint256.Int{
+			{0x98, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x10, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x00, 0x00, 0x00, 0x00},
+			{0x00, 0x9800000000000000, 0x00, 0x00}},
+		status: RUNNING,
+	},
+	{
+		name: "Mstore8: byte 0x00 and byte 0x10",
+		op:   opMstore8,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x00, 0x00, 0x00, 0x00},
+			{0x98, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x10, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x00, 0x00, 0x00, 0x00},
+			{0x00, 0x9800000000000000, 0x00, 0xCD00000000000000}},
+		status: RUNNING,
+	},
+}
+
+// operation Msize
+var testDataMsizeOp = []tTestDataOp{
+	{
+		name: "Msize: 0x20",
+		op:   opMsize,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0, 0, 0, 0}},
+		res:    uint256.Int{0x20, 0, 0, 0},
+		status: RUNNING,
+	},
+	{
+		name: "Msize: 0x40",
+		op:   opMsize,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x08, 0, 0, 0}},
+		res:    uint256.Int{0x40, 0, 0, 0},
+		status: RUNNING,
+	},
+	{
+		name: "Msize: 0x40 (2)",
+		op:   opMsize,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x10, 0, 0, 0}},
+		res:    uint256.Int{0x40, 0, 0, 0},
+		status: RUNNING,
+	},
+	{
+		name: "Msize: 0x40 (3)",
+		op:   opMsize,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x20, 0, 0, 0}},
+		res:    uint256.Int{0x40, 0, 0, 0},
+		status: RUNNING,
+	},
+	{
+		name: "Msize: 0x60",
+		op:   opMsize,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x24, 0, 0, 0}},
+		res:    uint256.Int{0x60, 0, 0, 0},
+		status: RUNNING,
+	},
+}

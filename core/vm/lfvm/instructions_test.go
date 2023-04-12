@@ -479,3 +479,74 @@ func runTestStackInstr(t *testing.T, testData []tTestDataStackOp) {
 func TestStackInstr(t *testing.T) {
 	runTestStackInstr(t, testDataStackOp)
 }
+
+// checkResultMem checks the result with an expectation
+// status = expected status; res = expected result
+func checkResultMem(t *testing.T, ctxt *context, status Status, res []uint256.Int) {
+	if ctxt.stack.len() != 0 {
+		t.Errorf("expected stack size of 0, got %d", ctxt.stack.len())
+		return
+	}
+
+	if status != ctxt.status {
+		t.Errorf("expected status %s, got %s", status.String(), ctxt.status.String())
+	}
+
+	for i := 0; i < len(res)/2; i++ {
+		ctxt.stack.push(&res[2*i])
+		opMload(ctxt)
+
+		got := ctxt.stack.peek()
+
+		if !res[2*i+1].Eq(got) {
+			t.Errorf("expected %s, got %s", res[2*i+1].Hex(), got.Hex())
+		}
+	}
+}
+
+func runTestMemInstr(t *testing.T, testData []tTestDataMemOp) {
+	for _, data := range testData {
+		t.Run(data.name, func(t *testing.T) {
+			ctxt := getTestEnvData(data.data)
+			ctxt.memory = NewMemory()
+
+			// Create a dummy contract
+			addr := vm.AccountRef{}
+			ctxt.contract = vm.NewContract(addr, addr, big.NewInt(0), 1000)
+
+			for i := 0; i < len(data.data)/2; i++ {
+				data.op(ctxt)
+			}
+
+			checkResultMem(t, ctxt, data.status, data.res)
+		})
+	}
+}
+
+// operation Mstore, Mload, Mstore8
+func TestMemInstr(t *testing.T) {
+	runTestMemInstr(t, testDataMemOp)
+}
+
+// operation Msize
+func testMsizeInstruction(t *testing.T, testData []tTestDataOp) {
+	for _, data := range testData {
+		t.Run(data.name, func(t *testing.T) {
+			ctxt := getTestEnvData(data.data)
+			ctxt.memory = NewMemory()
+
+			// Create a dummy contract
+			addr := vm.AccountRef{}
+			ctxt.contract = vm.NewContract(addr, addr, big.NewInt(0), 1000)
+
+			opMstore(ctxt)
+			data.op(ctxt)
+
+			checkResult(t, ctxt, data.status, &data.res)
+		})
+	}
+}
+
+func TestMSizeInstruction(t *testing.T) {
+	testMsizeInstruction(t, testDataMsizeOp)
+}
