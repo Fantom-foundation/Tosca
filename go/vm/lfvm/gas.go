@@ -245,7 +245,6 @@ func getStaticGasPriceInternal(op OpCode) uint64 {
 // The cost of gas was changed during the homestead price change HF.
 // As part of EIP 150 (TangerineWhistle), the returned gas is gas - base * 63 / 64.
 func callGas(availableGas, base uint64, callCost *uint256.Int) uint64 {
-	//fmt.Printf("LFVM: Computing call gas from available gas %v, base %v, and call gas parameter %v\n", availableGas, base, callCost)
 	availableGas = availableGas - base
 	gas := availableGas - availableGas/64
 	if !callCost.IsUint64() || gas < callCost.Uint64() {
@@ -273,7 +272,6 @@ func gasSStore(c *context) (uint64, error) {
 //     2.2.2.1. If original value is 0, add SSTORE_SET_GAS - SLOAD_GAS to refund counter.
 //     2.2.2.2. Otherwise, add SSTORE_RESET_GAS - SLOAD_GAS gas to refund counter.
 func gasSStoreEIP2200(c *context) (uint64, error) {
-	//fmt.Printf("LFVM: Computing SSTORE costs based on EIP2200 rules ..\n")
 	// If we fail the minimum gas availability invariant, fail (0)
 	if c.contract.Gas <= params.SstoreSentryGasEIP2200 {
 		c.status = OUT_OF_GAS
@@ -287,42 +285,32 @@ func gasSStoreEIP2200(c *context) (uint64, error) {
 	value := common.Hash(y.Bytes32())
 
 	if current == value { // noop (1)
-		//fmt.Printf("LFVM: using SSTORE costs for no value change\n")
 		return params.SloadGasEIP2200, nil
 	}
 	original := c.stateDB.GetCommittedState(c.contract.Address(), x.Bytes32())
-	//fmt.Printf("LFVM:\n  original: %v\n  current:  %v\n  value:    %v\n", original, current, value)
 	if original == current {
 		if original == (common.Hash{}) { // create slot (2.1.1)
-			//fmt.Printf("LFVM: using SSTORE costs created slot\n")
 			return params.SstoreSetGasEIP2200, nil
 		}
 		if value == (common.Hash{}) { // delete slot (2.1.2b)
-			//fmt.Printf("LFVM: refunding gas for deleted slot\n")
 			c.stateDB.AddRefund(params.SstoreClearsScheduleRefundEIP2200)
 		}
-		//fmt.Printf("LFVM: using costs for updating an existing slot\n")
 		return params.SstoreResetGasEIP2200, nil // write existing slot (2.1.2)
 	}
 	if original != (common.Hash{}) {
 		if current == (common.Hash{}) { // recreate slot (2.2.1.1)
-			//fmt.Printf("LFVM: removing refund for deleted slot\n")
 			c.stateDB.SubRefund(params.SstoreClearsScheduleRefundEIP2200)
 		} else if value == (common.Hash{}) { // delete slot (2.2.1.2)
-			//fmt.Printf("LFVM: refunding gas for deleted slot\n")
 			c.stateDB.AddRefund(params.SstoreClearsScheduleRefundEIP2200)
 		}
 	}
 	if original == value {
 		if original == (common.Hash{}) { // reset to original inexistent slot (2.2.2.1)
-			//fmt.Printf("LFVM: refunding gas for original inexistent slot\n")
 			c.stateDB.AddRefund(params.SstoreSetGasEIP2200 - params.SloadGasEIP2200)
 		} else { // reset to original existing slot (2.2.2.2)
-			//fmt.Printf("LFVM: refunding gas for original existing slot\n")
 			c.stateDB.AddRefund(params.SstoreResetGasEIP2200 - params.SloadGasEIP2200)
 		}
 	}
-	//fmt.Printf("LFVM: using costs for dirty update\n")
 	return params.SloadGasEIP2200, nil // dirty update (2.2)
 }
 
@@ -407,10 +395,7 @@ func gasSStoreEIP2929(c *context) (uint64, error) {
 func gasEip2929AccountCheck(c *context, address common.Address) error {
 	if c.isBerlin {
 		// Charge extra for cold locations.
-
 		if !c.evm.StateDB.AddressInAccessList(address) {
-			// fmt.Printf("Reducing gas from %v to %v\n", c.contract.Gas, c.contract.Gas-2500)
-			// params.ColdAccountAccessCostEIP2929 - params.WarmStorageReadCostEIP2929 = 2600 -100
 			if !c.UseGas(params.ColdAccountAccessCostEIP2929 - params.WarmStorageReadCostEIP2929) {
 				return vm.ErrOutOfGas
 			}

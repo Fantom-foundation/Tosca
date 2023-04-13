@@ -1,7 +1,7 @@
 package lfvm
 
 import (
-	"fmt"
+	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -65,11 +65,11 @@ func (s ShadowStateDB) GetCodeSize(addr common.Address) int {
 
 func (s ShadowStateDB) AddRefund(amount uint64) {
 	// Ignored
-	fmt.Printf("SHADOW_DB: AddRefund %v\n", amount)
+	log.Printf("SHADOW_DB: AddRefund %v\n", amount)
 }
 func (s ShadowStateDB) SubRefund(amount uint64) {
 	// Ignored
-	fmt.Printf("SHADOW_DB: SubRefund %v\n", amount)
+	log.Printf("SHADOW_DB: SubRefund %v\n", amount)
 }
 func (s ShadowStateDB) GetRefund() uint64 {
 	return s.state.GetRefund()
@@ -79,7 +79,7 @@ func (s ShadowStateDB) GetCommittedState(addr common.Address, key common.Hash) c
 	return s.state.GetCommittedState(addr, key)
 }
 func (s ShadowStateDB) GetState(addr common.Address, key common.Hash) common.Hash {
-	fmt.Printf("SHADOW_DB: Reading %v %v\n", addr, key)
+	log.Printf("SHADOW_DB: Reading %v %v\n", addr, key)
 	value, present := shadow_values[slot{addr, key}]
 	if present {
 		return value
@@ -90,7 +90,7 @@ func (s ShadowStateDB) GetState(addr common.Address, key common.Hash) common.Has
 }
 
 func (s ShadowStateDB) SetState(addr common.Address, key common.Hash, value common.Hash) {
-	fmt.Printf("SHADOW_DB: Writing %v %v\n", addr, key)
+	log.Printf("SHADOW_DB: Writing %v %v\n", addr, key)
 	if shadow_values == nil {
 		shadow_values = make(map[slot]common.Hash)
 	}
@@ -116,23 +116,23 @@ func (s ShadowStateDB) Empty(addr common.Address) bool {
 
 func (s ShadowStateDB) PrepareAccessList(sender common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
 	// Ignored
-	fmt.Printf("SHADOW_DB: PrepareAccessList for %v\n", sender)
+	log.Printf("SHADOW_DB: PrepareAccessList for %v\n", sender)
 }
 func (s ShadowStateDB) AddressInAccessList(addr common.Address) bool {
-	fmt.Printf("SHADOW_DB: AddressInAccessList(%v)\n", addr)
+	log.Printf("SHADOW_DB: AddressInAccessList(%v)\n", addr)
 	return s.state.AddressInAccessList(addr)
 }
 func (s ShadowStateDB) SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool) {
-	fmt.Printf("SHADOW_DB: SlotInAccessList(%v,%v)\n", addr, slot)
+	log.Printf("SHADOW_DB: SlotInAccessList(%v,%v)\n", addr, slot)
 	return s.state.SlotInAccessList(addr, slot)
 }
 func (s ShadowStateDB) AddAddressToAccessList(addr common.Address) {
 	// Ignored
-	fmt.Printf("SHADOW_DB: AddAddressToAccessList(%v)\n", addr)
+	log.Printf("SHADOW_DB: AddAddressToAccessList(%v)\n", addr)
 }
 func (s ShadowStateDB) AddSlotToAccessList(addr common.Address, slot common.Hash) {
 	// Ignored
-	fmt.Printf("SHADOW_DB: AddSlotToAccessList(%v,%v)\n", addr, slot)
+	log.Printf("SHADOW_DB: AddSlotToAccessList(%v,%v)\n", addr, slot)
 }
 
 func (s ShadowStateDB) RevertToSnapshot(int) {

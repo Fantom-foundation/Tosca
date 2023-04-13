@@ -17,25 +17,21 @@ var (
 )
 
 func opStop(c *context) {
-	//fmt.Printf("STOP\n")
 	c.status = STOPPED
 }
 
 func opRevert(c *context) {
-	//fmt.Printf("REVERT\n")
 	c.result_offset = *c.stack.pop()
 	c.result_size = *c.stack.pop()
 	c.status = REVERTED
 }
 
 func opReturn(c *context) {
-	//fmt.Printf("RETURN\n")
 	c.result_offset = *c.stack.pop()
 	c.result_size = *c.stack.pop()
 	c.status = RETURNED
 }
 func opInvalid(c *context) {
-	//fmt.Printf("INVALID\n")
 	c.status = INVALID_INSTRUCTION
 }
 
@@ -64,7 +60,6 @@ func opJump(c *context) {
 func opJumpi(c *context) {
 	destination := c.stack.pop()
 	condition := c.stack.pop()
-	//fmt.Printf("JUMPI %v %v\n", destination, condition)
 	if !condition.IsZero() {
 		// Update the PC to the jump destination -1 since interpreter will increase PC by 1 afterward.
 		c.pc = int32(destination.Uint64()) - 1
@@ -83,7 +78,6 @@ func opNoop(c *context) {
 }
 
 func opPop(c *context) {
-	//fmt.Printf("POP\n")
 	c.stack.pop()
 }
 
@@ -149,12 +143,10 @@ func opPush32(c *context) {
 }
 
 func opDup(c *context, pos int) {
-	//fmt.Printf("DUP%d\n", pos)
 	c.stack.dup(pos)
 }
 
 func opSwap(c *context, pos int) {
-	//fmt.Printf("SWAP%d\n", pos)
 	c.stack.swap(pos + 1)
 }
 
@@ -196,7 +188,6 @@ func opMload(c *context) {
 	if c.memory.EnsureCapacity(offset, 32, c) != nil {
 		return
 	}
-	//fmt.Printf("MLOAD [%v]\n", addr)
 	c.memory.CopyWord(offset, trg)
 }
 
@@ -252,19 +243,15 @@ func opCaller(c *context) {
 }
 
 func opCallvalue(c *context) {
-	//fmt.Printf("CALLVALUE\n")
-	// Push a fake value on the stack.
 	v, _ := uint256.FromBig(c.contract.Value())
 	c.stack.push(v)
 }
 
 func opCallDatasize(c *context) {
-	//fmt.Printf("CALLDATASIZE\n")
 	c.stack.push(&c.callsize)
 }
 
 func opCallDataload(c *context) {
-	//fmt.Printf("CALLDATALOAD\n")
 	top := c.stack.peek()
 	offset := top.Uint64()
 
@@ -311,34 +298,29 @@ func opCallDataCopy(c *context) {
 }
 
 func opAnd(c *context) {
-	//fmt.Printf("AND\n")
 	a := c.stack.pop()
 	b := c.stack.peek()
 	b.And(a, b)
 }
 
 func opOr(c *context) {
-	//fmt.Printf("OR\n")
 	a := c.stack.pop()
 	b := c.stack.peek()
 	b.Or(a, b)
 }
 
 func opNot(c *context) {
-	//fmt.Printf("OR\n")
 	a := c.stack.peek()
 	a.Not(a)
 }
 
 func opXor(c *context) {
-	//fmt.Printf("OR\n")
 	a := c.stack.pop()
 	b := c.stack.peek()
 	b.Xor(a, b)
 }
 
 func opIszero(c *context) {
-	//fmt.Printf("ISZERO\n")
 	top := c.stack.peek()
 	if top.IsZero() {
 		top.SetOne()
@@ -350,7 +332,6 @@ func opIszero(c *context) {
 func opEq(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	//fmt.Printf("EQ %v %v\n", a, b)
 	res := a.Cmp(b)
 	for i := range b {
 		b[i] = 0
@@ -365,7 +346,6 @@ func opEq(c *context) {
 func opLt(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	//fmt.Printf("LT %v %v\n", &a, b)
 	if a.Lt(b) {
 		b.SetOne()
 	} else {
@@ -376,7 +356,6 @@ func opLt(c *context) {
 func opGt(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	//fmt.Printf("GT %v %v\n", a, b)
 	if a.Gt(b) {
 		b.SetOne()
 	} else {
@@ -406,7 +385,6 @@ func opSgt(c *context) {
 func opShr(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	//fmt.Printf("SHR %02x=%d %v\n", a.ToByte(), a.ToByte(), b)
 	// Note: this does not check for byte overflow!
 	b.Rsh(b, uint(a.Uint64()))
 }
@@ -414,7 +392,6 @@ func opShr(c *context) {
 func opShl(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	//fmt.Printf("SHR %02x=%d %v\n", a.ToByte(), a.ToByte(), b)
 	// Note: this does not check for byte overflow!
 	b.Lsh(b, uint(a.Uint64()))
 }
@@ -422,7 +399,6 @@ func opShl(c *context) {
 func opSar(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	//fmt.Printf("SHR %02x=%d %v\n", a.ToByte(), a.ToByte(), b)
 	// Note: this does not check for byte overflow!
 	b.SRsh(b, uint(a.Uint64()))
 }
