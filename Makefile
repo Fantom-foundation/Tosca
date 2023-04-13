@@ -18,7 +18,7 @@ BUILD_COMMIT := $(shell git show --format="%H" --no-patch)
 BUILD_COMMIT_TIME := $(shell git show --format="%cD" --no-patch)
 GOPROXY ?= "https://proxy.golang.org,direct"
 
-.PHONY: all clean clean-go clean-cpp help test test-go test-cpp
+.PHONY: all tosca tosca-go tosca-cpp clean clean-go clean-cpp help test test-go test-cpp bench bench-go
 
 all: tosca
 
@@ -34,18 +34,23 @@ tosca-go:
 tosca-cpp:
 	@cd cpp ; \
 	bazel build //...
-	@cd cpp/vm/evmone ; \
-	cmake -Bbuild ; \
+	@cd third_party/evmone ; \
+	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release ; \
 	cmake --build build --parallel
 
 test: test-go test-cpp
 
 test-go:
-	@go test ./...
+	@LD_LIBRARY_PATH=$(shell pwd)/third_party/evmone/build/lib go test ./...
 
 test-cpp:
 	@cd cpp ; \
 	bazel test //...
+
+bench: bench-go
+
+bench-go:
+	@LD_LIBRARY_PATH=$(shell pwd)/third_party/evmone/build/lib go test -bench=. ./...
 
 clean: clean-go clean-cpp
 
