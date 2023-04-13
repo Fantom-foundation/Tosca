@@ -65,16 +65,17 @@ func (m *Memory) Len() uint64 {
 	return uint64(len(m.store))
 }
 
-func (m *Memory) SetByte(offset uint64, value byte) {
+func (m *Memory) SetByte(offset uint64, value byte) error {
 	if m.Len() < offset+1 {
-		panic(fmt.Sprintf("memory to small, size %d, attempted to write at position %d", m.Len(), offset))
+		return fmt.Errorf("memory to small, size %d, attempted to write at position %d", m.Len(), offset)
 	}
 	m.store[offset] = value
+	return nil
 }
 
-func (m *Memory) SetWord(offset uint64, value *uint256.Int) {
+func (m *Memory) SetWord(offset uint64, value *uint256.Int) error {
 	if m.Len() < offset+32 {
-		panic(fmt.Sprintf("memory to small, size %d, attempted to write 32 byte at position %d", m.Len(), offset))
+		return fmt.Errorf("memory to small, size %d, attempted to write 32 byte at position %d", m.Len(), offset)
 	}
 
 	// Inlining and unrolling value.WriteToSlice(..) lead to a 7x speedup
@@ -114,22 +115,25 @@ func (m *Memory) SetWord(offset uint64, value *uint256.Int) {
 	dest[2] = byte(value[3] >> 40)
 	dest[1] = byte(value[3] >> 48)
 	dest[0] = byte(value[3] >> 56)
+	return nil
 }
 
-func (m *Memory) Set(offset, size uint64, value []byte) {
+func (m *Memory) Set(offset, size uint64, value []byte) error {
 	if size > 0 {
 		if offset+size > m.Len() {
-			panic(fmt.Sprintf("memory to small, size %d, attempted to write %d bytes at %d", m.Len(), size, offset))
+			return fmt.Errorf("memory to small, size %d, attempted to write %d bytes at %d", m.Len(), size, offset)
 		}
 		copy(m.store[offset:offset+size], value)
 	}
+	return nil
 }
 
-func (m *Memory) CopyWord(offset uint64, trg *uint256.Int) {
+func (m *Memory) CopyWord(offset uint64, trg *uint256.Int) error {
 	if m.Len() < offset+32 {
-		panic(fmt.Sprintf("memory to small, size %d, attempted to read 32 byte at position %d", m.Len(), offset))
+		return fmt.Errorf("memory to small, size %d, attempted to read 32 byte at position %d", m.Len(), offset)
 	}
 	trg.SetBytes32(m.store[offset : offset+32])
+	return nil
 }
 
 // Copies data from the memory to the given slice.

@@ -162,7 +162,9 @@ func opMstore(c *context) {
 	if c.memory.EnsureCapacity(offset, 32, c) != nil {
 		return
 	}
-	c.memory.SetWord(offset, value)
+	if err := c.memory.SetWord(offset, value); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opMstore8(c *context) {
@@ -177,7 +179,9 @@ func opMstore8(c *context) {
 	if c.memory.EnsureCapacity(offset, 1, c) != nil {
 		return
 	}
-	c.memory.SetByte(offset, byte(value.Uint64()))
+	if err := c.memory.SetByte(offset, byte(value.Uint64())); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opMload(c *context) {
@@ -188,7 +192,9 @@ func opMload(c *context) {
 	if c.memory.EnsureCapacity(offset, 32, c) != nil {
 		return
 	}
-	c.memory.CopyWord(offset, trg)
+	if err := c.memory.CopyWord(offset, trg); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opMsize(c *context) {
@@ -294,7 +300,9 @@ func opCallDataCopy(c *context) {
 	if c.memory.EnsureCapacity(memOffset64, length64, c) != nil {
 		return
 	}
-	c.memory.Set(memOffset64, length64, getData(c.data, dataOffset64, length64))
+	if err := c.memory.Set(memOffset64, length64, getData(c.data, dataOffset64, length64)); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opAnd(c *context) {
@@ -641,7 +649,9 @@ func opCodeCopy(c *context) {
 	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
-	c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
+	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opExtcodesize(c *context) {
@@ -797,7 +807,9 @@ func opExtCodeCopy(c *context) {
 	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
-	c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
+	if err = c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func neededMemorySize(c *context, offset, size *uint256.Int) (uint64, error) {
@@ -887,7 +899,9 @@ func opCall(c *context) {
 	ret, returnGas, err := c.evm.Call(c.contract, toAddr, args, cost, bigVal)
 
 	if err == nil || err == vm.ErrExecutionReverted {
-		c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		if err = c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); err != nil {
+			c.SignalError(err)
+		}
 	}
 
 	success := stack.pushEmpty()
@@ -976,7 +990,9 @@ func opCallCode(c *context) {
 	ret, returnGas, err := c.evm.CallCode(c.contract, toAddr, args, cost, bigVal)
 
 	if err == nil || err == vm.ErrExecutionReverted {
-		c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		if err = c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); err != nil {
+			c.SignalError(err)
+		}
 	}
 
 	success := stack.pushEmpty()
@@ -1042,7 +1058,9 @@ func opStaticCall(c *context) {
 	ret, returnGas, err := c.evm.StaticCall(c.contract, toAddr, args, gas)
 
 	if err == nil || err == vm.ErrExecutionReverted {
-		c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		if err = c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); err != nil {
+			c.SignalError(err)
+		}
 	}
 
 	success := stack.pushEmpty()
@@ -1105,7 +1123,9 @@ func opDelegateCall(c *context) {
 		if c.memory.EnsureCapacity(retOffset.Uint64(), retSize.Uint64(), c) != nil {
 			return
 		}
-		c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		if err = c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); err != nil {
+			c.SignalError(err)
+		}
 	}
 
 	success := stack.pushEmpty()
@@ -1152,7 +1172,9 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
-	c.memory.Set(memOffset.Uint64(), length.Uint64(), c.return_data[offset64:end64])
+	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), c.return_data[offset64:end64]); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opLog(c *context, size int) {
@@ -1263,7 +1285,9 @@ func opDup2_Mstore(c *context) {
 	if c.memory.EnsureCapacity(offset, 32, c) != nil {
 		return
 	}
-	c.memory.SetWord(offset, value)
+	if err := c.memory.SetWord(offset, value); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opDup2_Lt(c *context) {
