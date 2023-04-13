@@ -335,16 +335,14 @@ func gasSStoreEIP2929(c *context) (uint64, error) {
 	)
 	// Check slot presence in the access list
 	if addrPresent, slotPresent := c.evm.StateDB.SlotInAccessList(c.contract.Address(), slot); !slotPresent {
+		if !addrPresent {
+			c.status = ERROR
+			return 0, errors.New("address was not present in access list during sstore op")
+		}
 		cost = params.ColdSloadCostEIP2929
 		// If the caller cannot afford the cost, this change will be rolled back
 		if !c.IsShadowed() {
 			c.evm.StateDB.AddSlotToAccessList(c.contract.Address(), slot)
-		}
-		if !addrPresent {
-			// Once we're done with YOLOv2 and schedule this for mainnet, might
-			// be good to remove this panic here, which is just really a
-			// canary to have during testing
-			panic("impossible case: address was not present in access list during sstore op")
 		}
 	}
 	value := common.Hash(y.Bytes32())
