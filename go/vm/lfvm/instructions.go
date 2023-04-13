@@ -1,6 +1,7 @@
 package lfvm
 
 import (
+	"errors"
 	"math/big"
 	"math/bits"
 
@@ -73,8 +74,7 @@ func opJumpTo(c *context) {
 }
 
 func opNoop(c *context) {
-	// Nothing to do.
-	panic("Should not be reachable")
+	c.SignalError(errors.New("instruction NOOP should not be reachable by interpreter"))
 }
 
 func opPop(c *context) {
