@@ -18,13 +18,16 @@ BUILD_COMMIT := $(shell git show --format="%H" --no-patch)
 BUILD_COMMIT_TIME := $(shell git show --format="%cD" --no-patch)
 GOPROXY ?= "https://proxy.golang.org,direct"
 
-.PHONY: all clean clean-go clean-cpp help test test-go test-cpp
+.PHONY: all tosca tosca-go tosca-cpp clean clean-go clean-cpp help test test-go test-cpp bench bench-go
 
 all: tosca
 
 tosca: tosca-go tosca-cpp
 
 tosca-go:
+	@cd third_party/evmone ; \
+	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so ; \
+	cmake --build build --parallel
 	@cd go/vm/lfvm ; \
 	GOPROXY=$(GOPROXY) \
 	GOPRIVATE=github.com/Fantom-foundation/go-ethereum-substate \
@@ -34,9 +37,6 @@ tosca-go:
 tosca-cpp:
 	@cd cpp ; \
 	bazel build //...
-	@cd cpp/vm/evmone ; \
-	cmake -Bbuild ; \
-	cmake --build build --parallel
 
 test: test-go test-cpp
 
@@ -46,6 +46,11 @@ test-go:
 test-cpp:
 	@cd cpp ; \
 	bazel test //...
+
+bench: bench-go
+
+bench-go:
+	@go test -bench=. ./...
 
 clean: clean-go clean-cpp
 
