@@ -1,6 +1,7 @@
 package lfvm
 
 import (
+	"errors"
 	"math/big"
 	"math/bits"
 
@@ -17,25 +18,21 @@ var (
 )
 
 func opStop(c *context) {
-	//fmt.Printf("STOP\n")
 	c.status = STOPPED
 }
 
 func opRevert(c *context) {
-	//fmt.Printf("REVERT\n")
 	c.result_offset = *c.stack.pop()
 	c.result_size = *c.stack.pop()
 	c.status = REVERTED
 }
 
 func opReturn(c *context) {
-	//fmt.Printf("RETURN\n")
 	c.result_offset = *c.stack.pop()
 	c.result_size = *c.stack.pop()
 	c.status = RETURNED
 }
 func opInvalid(c *context) {
-	//fmt.Printf("INVALID\n")
 	c.status = INVALID_INSTRUCTION
 }
 
@@ -64,7 +61,6 @@ func opJump(c *context) {
 func opJumpi(c *context) {
 	destination := c.stack.pop()
 	condition := c.stack.pop()
-	//fmt.Printf("JUMPI %v %v\n", destination, condition)
 	if !condition.IsZero() {
 		// Update the PC to the jump destination -1 since interpreter will increase PC by 1 afterward.
 		c.pc = int32(destination.Uint64()) - 1
@@ -78,12 +74,10 @@ func opJumpTo(c *context) {
 }
 
 func opNoop(c *context) {
-	// Nothing to do.
-	panic("Should not be reachable")
+	c.SignalError(errors.New("instruction NOOP should not be reachable by interpreter"))
 }
 
 func opPop(c *context) {
-	//fmt.Printf("POP\n")
 	c.stack.pop()
 }
 
@@ -149,12 +143,10 @@ func opPush32(c *context) {
 }
 
 func opDup(c *context, pos int) {
-	//fmt.Printf("DUP%d\n", pos)
 	c.stack.dup(pos)
 }
 
 func opSwap(c *context, pos int) {
-	//fmt.Printf("SWAP%d\n", pos)
 	c.stack.swap(pos + 1)
 }
 
@@ -170,7 +162,9 @@ func opMstore(c *context) {
 	if c.memory.EnsureCapacity(offset, 32, c) != nil {
 		return
 	}
-	c.memory.SetWord(offset, value)
+	if err := c.memory.SetWord(offset, value); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opMstore8(c *context) {
@@ -185,7 +179,9 @@ func opMstore8(c *context) {
 	if c.memory.EnsureCapacity(offset, 1, c) != nil {
 		return
 	}
-	c.memory.SetByte(offset, byte(value.Uint64()))
+	if err := c.memory.SetByte(offset, byte(value.Uint64())); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opMload(c *context) {
@@ -196,8 +192,9 @@ func opMload(c *context) {
 	if c.memory.EnsureCapacity(offset, 32, c) != nil {
 		return
 	}
-	//fmt.Printf("MLOAD [%v]\n", addr)
-	c.memory.CopyWord(offset, trg)
+	if err := c.memory.CopyWord(offset, trg); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opMsize(c *context) {
@@ -252,19 +249,15 @@ func opCaller(c *context) {
 }
 
 func opCallvalue(c *context) {
-	//fmt.Printf("CALLVALUE\n")
-	// Push a fake value on the stack.
 	v, _ := uint256.FromBig(c.contract.Value())
 	c.stack.push(v)
 }
 
 func opCallDatasize(c *context) {
-	//fmt.Printf("CALLDATASIZE\n")
 	c.stack.push(&c.callsize)
 }
 
 func opCallDataload(c *context) {
-	//fmt.Printf("CALLDATALOAD\n")
 	top := c.stack.peek()
 	offset := top.Uint64()
 
@@ -307,38 +300,35 @@ func opCallDataCopy(c *context) {
 	if c.memory.EnsureCapacity(memOffset64, length64, c) != nil {
 		return
 	}
-	c.memory.Set(memOffset64, length64, getData(c.data, dataOffset64, length64))
+	if err := c.memory.Set(memOffset64, length64, getData(c.data, dataOffset64, length64)); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opAnd(c *context) {
-	//fmt.Printf("AND\n")
 	a := c.stack.pop()
 	b := c.stack.peek()
 	b.And(a, b)
 }
 
 func opOr(c *context) {
-	//fmt.Printf("OR\n")
 	a := c.stack.pop()
 	b := c.stack.peek()
 	b.Or(a, b)
 }
 
 func opNot(c *context) {
-	//fmt.Printf("OR\n")
 	a := c.stack.peek()
 	a.Not(a)
 }
 
 func opXor(c *context) {
-	//fmt.Printf("OR\n")
 	a := c.stack.pop()
 	b := c.stack.peek()
 	b.Xor(a, b)
 }
 
 func opIszero(c *context) {
-	//fmt.Printf("ISZERO\n")
 	top := c.stack.peek()
 	if top.IsZero() {
 		top.SetOne()
@@ -350,7 +340,6 @@ func opIszero(c *context) {
 func opEq(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	//fmt.Printf("EQ %v %v\n", a, b)
 	res := a.Cmp(b)
 	for i := range b {
 		b[i] = 0
@@ -365,7 +354,6 @@ func opEq(c *context) {
 func opLt(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	//fmt.Printf("LT %v %v\n", &a, b)
 	if a.Lt(b) {
 		b.SetOne()
 	} else {
@@ -376,7 +364,6 @@ func opLt(c *context) {
 func opGt(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	//fmt.Printf("GT %v %v\n", a, b)
 	if a.Gt(b) {
 		b.SetOne()
 	} else {
@@ -406,7 +393,6 @@ func opSgt(c *context) {
 func opShr(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	//fmt.Printf("SHR %02x=%d %v\n", a.ToByte(), a.ToByte(), b)
 	// Note: this does not check for byte overflow!
 	b.Rsh(b, uint(a.Uint64()))
 }
@@ -414,7 +400,6 @@ func opShr(c *context) {
 func opShl(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	//fmt.Printf("SHR %02x=%d %v\n", a.ToByte(), a.ToByte(), b)
 	// Note: this does not check for byte overflow!
 	b.Lsh(b, uint(a.Uint64()))
 }
@@ -422,7 +407,6 @@ func opShl(c *context) {
 func opSar(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	//fmt.Printf("SHR %02x=%d %v\n", a.ToByte(), a.ToByte(), b)
 	// Note: this does not check for byte overflow!
 	b.SRsh(b, uint(a.Uint64()))
 }
@@ -665,7 +649,9 @@ func opCodeCopy(c *context) {
 	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
-	c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
+	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opExtcodesize(c *context) {
@@ -821,7 +807,9 @@ func opExtCodeCopy(c *context) {
 	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
-	c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
+	if err = c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func neededMemorySize(c *context, offset, size *uint256.Int) (uint64, error) {
@@ -911,7 +899,9 @@ func opCall(c *context) {
 	ret, returnGas, err := c.evm.Call(c.contract, toAddr, args, cost, bigVal)
 
 	if err == nil || err == vm.ErrExecutionReverted {
-		c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		if err = c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); err != nil {
+			c.SignalError(err)
+		}
 	}
 
 	success := stack.pushEmpty()
@@ -1000,7 +990,9 @@ func opCallCode(c *context) {
 	ret, returnGas, err := c.evm.CallCode(c.contract, toAddr, args, cost, bigVal)
 
 	if err == nil || err == vm.ErrExecutionReverted {
-		c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		if err = c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); err != nil {
+			c.SignalError(err)
+		}
 	}
 
 	success := stack.pushEmpty()
@@ -1066,7 +1058,9 @@ func opStaticCall(c *context) {
 	ret, returnGas, err := c.evm.StaticCall(c.contract, toAddr, args, gas)
 
 	if err == nil || err == vm.ErrExecutionReverted {
-		c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		if err = c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); err != nil {
+			c.SignalError(err)
+		}
 	}
 
 	success := stack.pushEmpty()
@@ -1129,7 +1123,9 @@ func opDelegateCall(c *context) {
 		if c.memory.EnsureCapacity(retOffset.Uint64(), retSize.Uint64(), c) != nil {
 			return
 		}
-		c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		if err = c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); err != nil {
+			c.SignalError(err)
+		}
 	}
 
 	success := stack.pushEmpty()
@@ -1176,7 +1172,9 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
-	c.memory.Set(memOffset.Uint64(), length.Uint64(), c.return_data[offset64:end64])
+	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), c.return_data[offset64:end64]); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opLog(c *context, size int) {
@@ -1287,7 +1285,9 @@ func opDup2_Mstore(c *context) {
 	if c.memory.EnsureCapacity(offset, 32, c) != nil {
 		return
 	}
-	c.memory.SetWord(offset, value)
+	if err := c.memory.SetWord(offset, value); err != nil {
+		c.SignalError(err)
+	}
 }
 
 func opDup2_Lt(c *context) {

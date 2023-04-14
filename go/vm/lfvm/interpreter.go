@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash"
+	"log"
 	"sort"
 	"sync"
 
@@ -215,47 +216,47 @@ func runWithShadowInterpreter(c *context) {
 		count++
 
 		// Make a step in this interpreter.
-		fmt.Printf("%5d - %v\n", count, c.code[c.pc].opcode)
+		log.Printf("%5d - %v\n", count, c.code[c.pc].opcode)
 		step(c)
 
 		// Make a step in the shadow interpreter
-		fmt.Printf("%5d - % 92v\n", count, c.interpreter.GetCurrentOpCode())
+		log.Printf("%5d - % 92v\n", count, c.interpreter.GetCurrentOpCode())
 		c.interpreter.Step()
 
 		// Compare states and look for missalignments.
 		if (c.status != RUNNING) != (c.interpreter.IsDone()) {
-			fmt.Printf("Left done:  %t\n", c.status != RUNNING)
-			fmt.Printf("Right done: %t\n", c.interpreter.IsDone())
+			log.Printf("Left done:  %t\n", c.status != RUNNING)
+			log.Printf("Right done: %t\n", c.interpreter.IsDone())
 			panic("One side terminated while other hasn't")
 		}
 		if c.status != RUNNING {
 			continue
 		}
 		if c.contract.Gas != c.interpreter.Contract.Gas {
-			fmt.Printf("Left:  %v\n", c.contract.Gas)
-			fmt.Printf("Right: %v\n", c.interpreter.Contract.Gas)
-			fmt.Printf("Diff:  %v\n", int64(c.contract.Gas)-int64(c.interpreter.Contract.Gas))
+			log.Printf("Left:  %v\n", c.contract.Gas)
+			log.Printf("Right: %v\n", c.interpreter.Contract.Gas)
+			log.Printf("Diff:  %v\n", int64(c.contract.Gas)-int64(c.interpreter.Contract.Gas))
 			panic("Gas value diverged!")
 		}
 		if c.stack.len() != c.interpreter.Stack.Len() {
-			fmt.Printf("Left:  %d\n", c.stack.len())
-			fmt.Printf("Right: %d\n", c.interpreter.Stack.Len())
+			log.Printf("Left:  %d\n", c.stack.len())
+			log.Printf("Right: %d\n", c.interpreter.Stack.Len())
 			panic("Stack length diverged!")
 		}
 		if c.stack.len() > 0 && *c.stack.peek() != *c.interpreter.Stack.Back(0) {
-			fmt.Printf("Left:  %v\n", *c.stack.peek())
-			fmt.Printf("Right: %v\n", *c.interpreter.Stack.Back(0))
+			log.Printf("Left:  %v\n", *c.stack.peek())
+			log.Printf("Right: %v\n", *c.interpreter.Stack.Back(0))
 			panic("Stack top value divereged!")
 		}
 		if c.memory.Len() != uint64(c.interpreter.Memory.Len()) {
-			fmt.Printf("Left:  %v\n", c.memory.Len())
-			fmt.Printf("Right: %v\n", c.interpreter.Memory.Len())
+			log.Printf("Left:  %v\n", c.memory.Len())
+			log.Printf("Right: %v\n", c.interpreter.Memory.Len())
 			panic("Memory size divereged!")
 		}
 		if !bytes.Equal(c.memory.Data(), c.interpreter.Memory.Data()) {
-			fmt.Printf("Left:\n")
+			log.Printf("Left:\n")
 			c.memory.Print()
-			fmt.Printf("Right:\n")
+			log.Printf("Right:\n")
 			c.interpreter.Memory.Print()
 			panic("Memory content divereged!")
 		}
@@ -313,26 +314,26 @@ func (s *statistics) Insert(src *statistics) {
 }
 
 func (s *statistics) Print() {
-	fmt.Printf("\n----- Statistiscs ------\n")
-	fmt.Printf("\nSteps: %d\n", s.count)
-	fmt.Printf("\nSingels:\n")
+	log.Printf("\n----- Statistiscs ------\n")
+	log.Printf("\nSteps: %d\n", s.count)
+	log.Printf("\nSingels:\n")
 	for _, e := range getTopN(s.single_count, 5) {
-		fmt.Printf("\t%-30v: %d (%.2f%%)\n", OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
+		log.Printf("\t%-30v: %d (%.2f%%)\n", OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
 	}
-	fmt.Printf("\nPairs:\n")
+	log.Printf("\nPairs:\n")
 	for _, e := range getTopN(s.pair_count, 5) {
-		fmt.Printf("\t%-30v%-30v: %d (%.2f%%)\n", OpCode(e.value>>16), OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
+		log.Printf("\t%-30v%-30v: %d (%.2f%%)\n", OpCode(e.value>>16), OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
 	}
-	fmt.Printf("\nTriples:\n")
+	log.Printf("\nTriples:\n")
 	for _, e := range getTopN(s.triple_count, 5) {
-		fmt.Printf("\t%-30v%-30v%-30v: %d (%.2f%%)\n", OpCode(e.value>>32), OpCode(e.value>>16), OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
+		log.Printf("\t%-30v%-30v%-30v: %d (%.2f%%)\n", OpCode(e.value>>32), OpCode(e.value>>16), OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
 	}
 
-	fmt.Printf("\nQuads:\n")
+	log.Printf("\nQuads:\n")
 	for _, e := range getTopN(s.quad_count, 5) {
-		fmt.Printf("\t%-30v%-30v%-30v%-30v: %d (%.2f%%)\n", OpCode(e.value>>48), OpCode(e.value>>32), OpCode(e.value>>16), OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
+		log.Printf("\t%-30v%-30v%-30v%-30v: %d (%.2f%%)\n", OpCode(e.value>>48), OpCode(e.value>>32), OpCode(e.value>>16), OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
 	}
-	fmt.Printf("\n")
+	log.Printf("\n")
 }
 
 type stats_collector struct {

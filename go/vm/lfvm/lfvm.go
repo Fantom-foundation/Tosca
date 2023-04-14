@@ -42,8 +42,7 @@ func init() {
 func (e *EVMInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool) (ret []byte, err error) {
 	converted, err := Convert(*contract.CodeAddr, contract.Code, e.with_super_instructions, e.evm.Context.BlockNumber.Uint64(), input == nil)
 	if err != nil {
-		panic(err)
-		//return nil, err
+		return nil, err
 	}
 
 	// Make sure the readOnly is only set if we aren't in readOnly yet.

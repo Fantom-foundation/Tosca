@@ -1,7 +1,9 @@
 package lfvm
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 
@@ -40,11 +42,10 @@ func Convert(addr common.Address, code []byte, with_super_instructions bool, blk
 	if exists && !create {
 		isEqual := true
 		if addr == changedAddress01 || addr == changedAddress02 || addr == changedAddress03 || addr == changedAddress04 {
-			// fmt.Println("Address: ", addr.String(), " blk: ", blk)
 
 			for i, v := range res.oldCode {
 				if v != code[i] {
-					fmt.Println("Different code for address: ", addr.String(), " blk: ", blk)
+					log.Println("Different code for address: ", addr.String(), " blk: ", blk)
 					isEqual = false
 					break
 				}
@@ -118,7 +119,7 @@ func convert(code []byte, with_super_instructions bool) (Code, error) {
 		// Handle jump destinations
 		if code[i] == byte(vm.JUMPDEST) {
 			if res.length() > i {
-				return nil, fmt.Errorf("unable to convert code, encountered targe block larger than input")
+				return nil, errors.New("unable to convert code, encountered targe block larger than input")
 			}
 			// Jump to the next jump destination and fill space with noops
 			if res.length() < i {
