@@ -60,7 +60,8 @@ func benchmarkFib(b *testing.B, arg int) {
 
 	// Create a dummy contract
 	addr := vm.AccountRef{}
-	contract := vm.NewContract(addr, addr, big.NewInt(0), 1<<63)
+	contract := vm.NewContract(addr, addr, big.NewInt(0), 1<<62) // Gas is int64, not uint64
+	contract.Code = example.code
 
 	// Create execution context.
 	// ctxt := context{
@@ -74,7 +75,7 @@ func benchmarkFib(b *testing.B, arg int) {
 	// }
 
 	// Compute expected value.
-	// wanted := fib(arg)
+	wanted := fib(arg)
 
 	// blockCtx := vm.BlockContext{
 	// 	GasLimit: math.MaxUint64,
@@ -95,21 +96,21 @@ func benchmarkFib(b *testing.B, arg int) {
 
 	for i := 0; i < b.N; i++ {
 
-		_, err := interpreter.Run(contract, data, false)
+		output, err := interpreter.Run(contract, data, false)
 		if err != nil {
 			b.Fatalf("interpreter failed %s", err)
 		}
 
-		// if (len(output) != 32) {
-		// 	b.Fatalf("unexpected length of end; wanted 32, got %d", len(output))
-		// }
+		if len(output) != 32 {
+			b.Fatalf("unexpected length of end; wanted 32, got %d", len(output))
+		}
 
 		// res := make([]byte, len(output))
 
-		// got := (int(res[28]) << 24) | (int(res[29]) << 16) | (int(res[30]) << 8) | (int(res[31]) << 0)
-		// if wanted != got {
-		// 	b.Fatalf("unexpected result, wanted %d, got %d", wanted, got)
-		// }
+		got := (int(output[28]) << 24) | (int(output[29]) << 16) | (int(output[30]) << 8) | (int(output[31]) << 0)
+		if wanted != got {
+			b.Fatalf("unexpected result, wanted %d, got %d", wanted, got)
+		}
 
 		// Reset the context.
 		// ctxt.pc = 0

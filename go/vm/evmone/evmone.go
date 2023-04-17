@@ -6,7 +6,8 @@ import (
 )
 
 func NewInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return common.NewEVMCInterpreter("libevmone.so", evm, cfg)
+	path := "../../../third_party/evmone/build/lib/libevmone.so"
+	return common.NewEVMCInterpreter(path, evm, cfg)
 }
 
 func init() {
