@@ -20,3 +20,11 @@ http_archive(
     strip_prefix = "abseil-cpp-b971ac5250ea8de900eae9f95e06548d14cd95fe",
     urls = ["https://github.com/abseil/abseil-cpp/archive/b971ac5250ea8de900eae9f95e06548d14cd95fe.zip"],
 )
+
+http_archive(
+    name = "com_github_chfast_intx",
+    build_file = "@//third_party/intx:intx.BUILD",
+    sha256 = "2e65da2b49d400910d19004e402ffc9321e07384d6c483dba341b6f12811ca0c",
+    strip_prefix = "intx-bc106fa0ab5b7dad2d7f78b08168382ed5eabee8",
+    urls = ["https://github.com/chfast/intx/archive/bc106fa0ab5b7dad2d7f78b08168382ed5eabee8.zip"],
+)

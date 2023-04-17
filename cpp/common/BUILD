@@ -6,6 +6,9 @@ cc_library(
     srcs = ["word.cc"],
     hdrs = ["word.h"],
     visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_chfast_intx//:intx",
+    ],
 )
 
 cc_test(
