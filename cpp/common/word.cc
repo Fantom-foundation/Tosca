@@ -151,7 +151,8 @@ Word Word::Exp(const Word& exponent) const {
 
 std::ostream& operator<<(std::ostream& out, const Word& word) {
   constexpr auto toSymbol = [](char x) -> char { return x < 10 ? '0' + x : 'A' + x - 10; };
-  for (auto cur : word.data_ | std::views::reverse) {
+  for (auto it = word.data_.rbegin(); it != word.data_.rend(); it++) {
+    auto cur = *it;
     out << toSymbol(static_cast<char>(cur >> 4));
     out << toSymbol(static_cast<char>(cur) & 0xF);
   }

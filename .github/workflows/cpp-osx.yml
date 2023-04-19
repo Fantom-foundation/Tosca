@@ -12,6 +12,9 @@ on:
       - '.github/workflows/cpp-osx.yml'
       - 'cpp/**'
 
+env:
+  BAZEL_USE_CPP_ONLY_TOOLCHAIN: 1
+
 jobs:
 
   build:
@@ -29,5 +32,6 @@ jobs:
 
     - name: Run C++ tests
       working-directory: ./cpp
-      run: bazel test --verbose_failures --test_output=errors //...
-
+      run: |
+        export PATH="$(brew --prefix)/opt/llvm/bin:$PATH" 
+        bazel test --verbose_failures --test_output=errors --action_env CC=$(brew --prefix llvm@15)/bin/clang --linkopt=-fuse-ld=lld //...
