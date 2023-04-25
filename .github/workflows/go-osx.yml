@@ -22,6 +22,8 @@ jobs:
       TEST_TMPDIR: "/Users/runner/.cache/bazel"
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: recursive
     - uses: bazelbuild/setup-bazelisk@v2
     - name: Mount bazel cache
       uses: actions/cache@v3
@@ -35,9 +37,7 @@ jobs:
         go-version: 1.19
 
     - name: Build Go
-      working-directory: ./go
-      run: go build -v ./...
+      run: make tosca-go
 
     - name: Run Go tests
-      working-directory: ./go
-      run: go test -v ./...
+      run: make test-go

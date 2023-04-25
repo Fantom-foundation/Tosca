@@ -1,5 +1,11 @@
 # Tosca Build / Development Instructions
 
+Be sure to initialize all submodules
+
+```
+git submodule update --init --recursive
+```
+
 ## Build Requirements
 
 - Go toolchain, minimum version 1.19
@@ -22,6 +28,8 @@
       ```
       go install github.com/golang/mock/mockgen@v1.6.0
       ```
+- [CMake](https://cmake.org/)
+    - Ubuntu/Debian package: `cmake`
 
 ¹ Go installs programs into `$GOPATH/bin`, where `GOPATH` defaults to `$HOME/go`.
   Add this `bin` directory to your `PATH`.
