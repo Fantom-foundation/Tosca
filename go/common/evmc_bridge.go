@@ -60,7 +60,10 @@ func (e *EVMCInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 
 	// TODO: Not all parameters here are correct. More information needs be
 	// extracted from the contract and interpreter.
-	output, _, err := e.evmc.Execute(&host_ctx, revision, evmc.Call, false, e.evm.Depth, int64(contract.Gas), evmc.Address(contract.Address()), evmc.Address(contract.CallerAddress), input, value, contract.Code)
+	output, gasLeft, err := e.evmc.Execute(&host_ctx, revision, evmc.Call, false, e.evm.Depth, int64(contract.Gas), evmc.Address(contract.Address()), evmc.Address(contract.CallerAddress), input, value, contract.Code)
+
+	// update remaining gas
+	contract.Gas = uint64(gasLeft)
 
 	return output, err
 }
