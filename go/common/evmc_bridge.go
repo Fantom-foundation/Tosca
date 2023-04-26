@@ -48,9 +48,19 @@ func (e *EVMCInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 		panic(fmt.Sprintf("Could not convert value: %v", err))
 	}
 
+	// Pick proper EVM revision based on block height.
+	revision := evmc.Istanbul
+	if chainConfig := e.evm.ChainConfig(); chainConfig != nil {
+		if chainConfig.IsBerlin(e.evm.Context.BlockNumber) {
+			revision = evmc.Berlin
+		} else if chainConfig.IsLondon(e.evm.Context.BlockNumber) {
+			revision = evmc.London
+		}
+	}
+
 	// TODO: Not all parameters here are correct. More information needs be
 	// extracted from the contract and interpreter.
-	output, _, err := e.evmc.Execute(&host_ctx, evmc.London, evmc.Call, false, e.evm.Depth, int64(contract.Gas), evmc.Address(contract.Address()), evmc.Address(contract.CallerAddress), input, value, contract.Code)
+	output, _, err := e.evmc.Execute(&host_ctx, revision, evmc.Call, false, e.evm.Depth, int64(contract.Gas), evmc.Address(contract.Address()), evmc.Address(contract.CallerAddress), input, value, contract.Code)
 
 	return output, err
 }
