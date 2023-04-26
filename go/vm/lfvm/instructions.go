@@ -899,8 +899,8 @@ func opCall(c *context) {
 	ret, returnGas, err := c.evm.Call(c.contract, toAddr, args, cost, bigVal)
 
 	if err == nil || err == vm.ErrExecutionReverted {
-		if err = c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); err != nil {
-			c.SignalError(err)
+		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); memSetErr != nil {
+			c.SignalError(memSetErr)
 		}
 	}
 
@@ -990,8 +990,8 @@ func opCallCode(c *context) {
 	ret, returnGas, err := c.evm.CallCode(c.contract, toAddr, args, cost, bigVal)
 
 	if err == nil || err == vm.ErrExecutionReverted {
-		if err = c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); err != nil {
-			c.SignalError(err)
+		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); memSetErr != nil {
+			c.SignalError(memSetErr)
 		}
 	}
 
@@ -1058,8 +1058,8 @@ func opStaticCall(c *context) {
 	ret, returnGas, err := c.evm.StaticCall(c.contract, toAddr, args, gas)
 
 	if err == nil || err == vm.ErrExecutionReverted {
-		if err = c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); err != nil {
-			c.SignalError(err)
+		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); memSetErr != nil {
+			c.SignalError(memSetErr)
 		}
 	}
 
@@ -1123,8 +1123,8 @@ func opDelegateCall(c *context) {
 		if c.memory.EnsureCapacity(retOffset.Uint64(), retSize.Uint64(), c) != nil {
 			return
 		}
-		if err = c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); err != nil {
-			c.SignalError(err)
+		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); memSetErr != nil {
+			c.SignalError(memSetErr)
 		}
 	}
 
