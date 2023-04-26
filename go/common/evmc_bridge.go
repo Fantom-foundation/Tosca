@@ -115,9 +115,13 @@ func (ctx *HostContext) GetTxContext() evmc.TxContext {
 		panic(fmt.Sprintf("Cannot use gas limit %v, too big for int64", gasLimit))
 	}
 
-	baseFee, err := bigIntToHash(ctx.interpreter.evm.Context.BaseFee)
-	if err != nil {
-		panic(fmt.Sprintf("Could not convert base fee: %v", err))
+	// BaseFee can be assumed zero unless set.
+	var baseFee evmc.Hash
+	if ctx.interpreter.evm.Context.BaseFee != nil {
+		baseFee, err = bigIntToHash(ctx.interpreter.evm.Context.BaseFee)
+		if err != nil {
+			panic(fmt.Sprintf("Could not convert base fee: %v", err))
+		}
 	}
 
 	return evmc.TxContext{
