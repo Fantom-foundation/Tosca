@@ -1,5 +1,13 @@
 package common
 
+/*
+#cgo CFLAGS: -I${SRCDIR}/../../third_party/evmone/evmc/include -Wall -Wextra
+#cgo !windows LDFLAGS: -ldl
+
+#include <evmc/evmc.h>
+*/
+import "C"
+
 import (
 	"fmt"
 	"math"
@@ -9,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/holiman/uint256"
 )
 
 // Instantiates an interpreter with the given evm and config. `implementation`
@@ -28,24 +37,24 @@ func NewEVMCInterpreter(implementation string, evm *vm.EVM, cfg vm.Config) *EVMC
 }
 
 type EVMCInterpreter struct {
-	evmc *evmc.VM
-	evm  *vm.EVM
-	cfg  vm.Config
+	evmc     *evmc.VM
+	evm      *vm.EVM
+	cfg      vm.Config
+	readOnly bool
 }
 
 func (e *EVMCInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool) (ret []byte, err error) {
-	if contract.Gas > math.MaxInt64 {
-		panic(fmt.Sprintf("Gas too big %v for int64", contract.Gas))
+
+	e.evm.Depth++
+	defer func() { e.evm.Depth-- }()
+	if e.evm.Depth > 1024 {
+		return nil, vm.ErrDepth
 	}
 
 	host_ctx := HostContext{
+		evm:         e.evm,
 		interpreter: e,
 		contract:    contract,
-	}
-
-	value, err := bigIntToHash(contract.Value())
-	if err != nil {
-		panic(fmt.Sprintf("Could not convert value: %v", err))
 	}
 
 	// Pick proper EVM revision based on block height.
@@ -58,20 +67,78 @@ func (e *EVMCInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 		}
 	}
 
-	// TODO: Not all parameters here are correct. More information needs be
-	// extracted from the contract and interpreter.
-	output, gasLeft, err := e.evmc.Execute(&host_ctx, revision, evmc.Call, false, e.evm.Depth, int64(contract.Gas), evmc.Address(contract.Address()), evmc.Address(contract.CallerAddress), input, value, contract.Code)
+	// Make sure the readOnly is only set if we aren't in readOnly yet.
+	// This also makes sure that the readOnly flag isn't removed for child calls.
+	if readOnly && !e.readOnly {
+		e.readOnly = true
+		defer func() { e.readOnly = false }()
+	}
+
+	gasBefore := int64(contract.Gas)
+	if contract.Gas > math.MaxInt64 {
+		gasBefore = math.MaxInt64
+	}
+
+	value, err := bigIntToHash(contract.Value())
+	if err != nil {
+		panic(fmt.Sprintf("Could not convert value: %v", err))
+	}
+
+	// Forward the execution call to the underlying EVM implementation.
+	result, err := e.evmc.Execute2(
+		&host_ctx,
+		revision,
+		evmc.Call,
+		readOnly,
+		e.evm.Depth-1,
+		gasBefore,
+		evmc.Address(contract.Address()),
+		evmc.Address(contract.Caller()),
+		input,
+		value,
+		contract.Code,
+	)
 
 	// update remaining gas
-	contract.Gas = uint64(gasLeft)
+	gasUsed := gasBefore - result.GasLeft
+	contract.Gas -= uint64(gasUsed)
 
-	return output, err
+	if err != nil {
+		// translate error codes to vm errors
+		switch err {
+		case evmc.Revert:
+			err = vm.ErrExecutionReverted
+			return result.Output, err
+		case evmc.Failure:
+			err = vm.ErrInvalidCode
+		case evmc.Error(C.EVMC_OUT_OF_GAS):
+			err = vm.ErrOutOfGas
+		case evmc.Error(C.EVMC_INVALID_INSTRUCTION):
+			err = vm.ErrInvalidCode
+		case evmc.Error(C.EVMC_UNDEFINED_INSTRUCTION):
+			err = vm.ErrInvalidCode
+		case evmc.Error(C.EVMC_BAD_JUMP_DESTINATION):
+			err = vm.ErrInvalidJump
+		}
+		return nil, err
+	}
+
+	// update the amount of refund gas in the state DB
+	state := e.evm.StateDB
+	if state != nil {
+		refund := uint64(result.GasRefund)
+		state.SubRefund(state.GetRefund())
+		state.AddRefund(refund)
+	}
+
+	return result.Output, err
 }
 
 // The HostContext allows a non-Go EVM implementation to access the StateDB and
 // other systems external to the interpreter. This implementation leverages
 // evmc's Go bindings.
 type HostContext struct {
+	evm         *vm.EVM
 	interpreter *EVMCInterpreter
 	contract    *vm.Contract
 }
@@ -84,12 +151,65 @@ func (ctx *HostContext) GetStorage(addr evmc.Address, key evmc.Hash) evmc.Hash {
 	return evmc.Hash(ctx.interpreter.evm.StateDB.GetState((common.Address)(addr), (common.Hash)(key)))
 }
 
-func (ctx *HostContext) SetStorage(addr evmc.Address, key evmc.Hash, value evmc.Hash) evmc.StorageStatus {
-	ctx.interpreter.evm.StateDB.SetState((common.Address)(addr), (common.Hash)(key), (common.Hash)(value))
+func (ctx *HostContext) SetStorage(evmcAddr evmc.Address, evmcKey evmc.Hash, evmcValue evmc.Hash) evmc.StorageStatus {
+	var zero = common.Hash{}
 
-	// TODO: SetState does not report back the storage status. Assuming
-	// StorageAdded for now.
-	return evmc.StorageAdded
+	// See t.ly/b5HPf for the definition of the return status.
+	addr := (common.Address)(evmcAddr)
+	key := (common.Hash)(evmcKey)
+	newValue := (common.Hash)(evmcValue)
+
+	stateDB := ctx.interpreter.evm.StateDB
+	currentValue := stateDB.GetState(addr, key)
+	if currentValue == newValue {
+		return evmc.StorageAssigned
+	}
+	stateDB.SetState(addr, key, newValue)
+
+	originalValue := stateDB.GetCommittedState(addr, key)
+
+	// 0 -> 0 -> Z
+	if originalValue == zero && currentValue == zero && newValue != zero {
+		return evmc.StorageAdded
+	}
+
+	// X -> X -> 0
+	if originalValue != zero && currentValue == originalValue && newValue == zero {
+		return evmc.StorageDeleted
+	}
+
+	// X -> X -> Z
+	if originalValue != zero && currentValue == originalValue && newValue != zero && newValue != originalValue {
+		return evmc.StorageModified
+	}
+
+	// X -> 0 -> Z
+	if originalValue != zero && currentValue == zero && newValue != originalValue && newValue != zero {
+		return evmc.StorageDeletedAdded
+	}
+
+	// X -> Y -> 0
+	if originalValue != zero && currentValue != originalValue && currentValue != zero && newValue == zero {
+		return evmc.StorageModifiedDeleted
+	}
+
+	// X -> 0 -> X
+	if originalValue != zero && currentValue == zero && newValue == originalValue {
+		return evmc.StorageDeletedRestored
+	}
+
+	// 0 -> Y -> 0
+	if originalValue == zero && currentValue != zero && newValue == zero {
+		return evmc.StorageAddedDeleted
+	}
+
+	// X -> Y -> X
+	if originalValue != zero && currentValue != originalValue && currentValue != zero && newValue == originalValue {
+		return evmc.StorageModifiedRestored
+	}
+
+	// Default
+	return evmc.StorageAssigned
 }
 
 func (ctx *HostContext) GetBalance(addr evmc.Address) evmc.Hash {
@@ -125,7 +245,12 @@ func (ctx *HostContext) GetTxContext() evmc.TxContext {
 
 	gasLimit := ctx.interpreter.evm.Context.GasLimit
 	if gasLimit > math.MaxInt64 {
-		panic(fmt.Sprintf("Cannot use gas limit %v, too big for int64", gasLimit))
+		gasLimit = math.MaxInt64
+	}
+
+	chainId, err := bigIntToHash(ctx.interpreter.evm.ChainConfig().ChainID)
+	if err != nil {
+		panic(fmt.Sprintf("Could not convert chain Id: %v", err))
 	}
 
 	// BaseFee can be assumed zero unless set.
@@ -145,7 +270,7 @@ func (ctx *HostContext) GetTxContext() evmc.TxContext {
 		Timestamp:  ctx.interpreter.evm.Context.Time.Int64(),
 		GasLimit:   int64(gasLimit),
 		PrevRandao: evmc.Hash{}, // TODO: No idea where to get this from.
-		ChainID:    evmc.Hash(ctx.interpreter.evm.ChainConfig().EIP150Hash),
+		ChainID:    chainId,
 		BaseFee:    baseFee,
 	}
 }
@@ -171,17 +296,73 @@ func (ctx *HostContext) EmitLog(addr evmc.Address, topics_in []evmc.Hash, data [
 }
 
 func (ctx *HostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender evmc.Address, value evmc.Hash, input []byte, gas int64, depth int, static bool, salt evmc.Hash, codeAddress evmc.Address) (output []byte, gasLeft int64, gasRefund int64, createAddr evmc.Address, err error) {
-	// TODO
+	// Documentation of the parameters can be found here: t.ly/yhxC
+	toAddr := common.Address(codeAddress)
+
+	// Clear the current refund (it is tracked within the interpreter internally).
+	state := ctx.evm.StateDB
+
+	// TODO: try to remove this refund backup and restore.
+	refundBackup := state.GetRefund()
+	state.SubRefund(refundBackup)
+
+	var returnGas uint64
+	switch kind {
+	case evmc.Call:
+		if static {
+			output, returnGas, err = ctx.evm.StaticCall(ctx.contract, toAddr, input, uint64(gas))
+		} else {
+			output, returnGas, err = ctx.evm.Call(ctx.contract, toAddr, input, uint64(gas), hashToBigInt(&value))
+		}
+	case evmc.DelegateCall:
+		output, returnGas, err = ctx.evm.DelegateCall(ctx.contract, toAddr, input, uint64(gas))
+	case evmc.CallCode:
+		output, returnGas, err = ctx.evm.CallCode(ctx.contract, toAddr, input, uint64(gas), hashToBigInt(&value))
+	case evmc.Create:
+		var newAddr common.Address
+		output, newAddr, returnGas, err = ctx.evm.Create(ctx.contract, input, uint64(gas), hashToBigInt(&value))
+		createAddr = evmc.Address(newAddr)
+	case evmc.Create2:
+		var newAddr common.Address
+		vmSalt := &uint256.Int{}
+		vmSalt.SetBytes(salt[:])
+		output, newAddr, returnGas, err = ctx.evm.Create2(ctx.contract, input, uint64(gas), hashToBigInt(&value), vmSalt)
+		createAddr = evmc.Address(newAddr)
+	default:
+		panic(fmt.Sprintf("unsupported call kind: %v", kind))
+	}
+	gasLeft = int64(returnGas)
+
+	gasRefund = int64(state.GetRefund())
+	state.SubRefund(uint64(gasRefund))
+	state.AddRefund(refundBackup)
+
+	if err != nil {
+		// translate vm errors to evmc errors
+		switch err {
+		case vm.ErrExecutionReverted:
+			err = evmc.Revert
+		case vm.ErrInvalidCode:
+			err = evmc.Failure
+		case vm.ErrOutOfGas:
+			err = evmc.Error(C.EVMC_OUT_OF_GAS)
+		default:
+			err = evmc.Failure
+		}
+	}
+
 	return
 }
 
 func (ctx *HostContext) AccessAccount(addr evmc.Address) evmc.AccessStatus {
 	// TODO
+	panic("account access tracking not implemented")
 	return evmc.ColdAccess
 }
 
 func (ctx *HostContext) AccessStorage(addr evmc.Address, key evmc.Hash) evmc.AccessStatus {
 	// TODO
+	panic("account storage access tracking not implemented")
 	return evmc.ColdAccess
 }
 
@@ -197,4 +378,10 @@ func bigIntToHash(value *big.Int) (result evmc.Hash, err error) {
 	}
 	value.FillBytes(result[:])
 	return result, nil
+}
+
+func hashToBigInt(hash *evmc.Hash) *big.Int {
+	res := &big.Int{}
+	res.SetBytes(hash[:])
+	return res
 }

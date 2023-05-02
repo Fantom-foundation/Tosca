@@ -39,4 +39,4 @@ require (
 
 replace github.com/ethereum/go-ethereum => github.com/Fantom-foundation/go-ethereum-substate v1.1.1-0.20230110052435-1ac0bdd8f402
 
-replace github.com/ethereum/evmc/v10 => ./third_party/evmone/evmc
+replace github.com/ethereum/evmc/v10 => ./third_party/evmc
