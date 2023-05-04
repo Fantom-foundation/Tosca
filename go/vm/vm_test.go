@@ -93,7 +93,7 @@ func newTestEVM(r Revision) *vm.EVM {
 	chainConfig.BerlinBlock = big.NewInt(10)
 	chainConfig.LondonBlock = big.NewInt(20)
 
-	// Chose the block height to run.
+	// Choose the block height to run.
 	block := 5
 	if r == Berlin {
 		block = 15
