@@ -1,7 +1,7 @@
 package common
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../third_party/evmone/evmc/include -Wall -Wextra
+#cgo CFLAGS: -I${SRCDIR}/../../third_party/evmc/include -Wall -Wextra
 #cgo !windows LDFLAGS: -ldl
 
 #include <evmc/evmc.h>
@@ -10,6 +10,7 @@ import "C"
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"math/big"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
 
@@ -45,9 +47,11 @@ type EVMCInterpreter struct {
 
 func (e *EVMCInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool) (ret []byte, err error) {
 
+	// Track the recursive call depth of this Call within a transaction.
+	// A maximum limit of params.CallCreateDepth must be enforced.
 	e.evm.Depth++
 	defer func() { e.evm.Depth-- }()
-	if e.evm.Depth > 1024 {
+	if e.evm.Depth > int(params.CallCreateDepth) {
 		return nil, vm.ErrDepth
 	}
 
@@ -74,6 +78,14 @@ func (e *EVMCInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 		defer func() { e.readOnly = false }()
 	}
 
+	// The EVMC binding uses int64 to represent gas values while Geth utilizes
+	// uint64. Thus, everything larger than math.MaxInt64 will lead to negative
+	// values after the conversion. However, in practice, gas limits should be
+	// way below MaxInt64, which would by 2^63-1 gas units -- an equivalent of
+	// 10 days processing if 10.000 gas/ns would get burned. It would also cost
+	// more than 10 Billion FTM (assuming 1 Gwei/gas, which is usally >100) to
+	// run this contract, which is > 3x more than there is in existence.
+	// The assumption is that gas endowments > MaxInt64 are test cases.
 	gasBefore := int64(contract.Gas)
 	if contract.Gas > math.MaxInt64 {
 		gasBefore = math.MaxInt64
@@ -243,8 +255,14 @@ func (ctx *HostContext) GetTxContext() evmc.TxContext {
 		panic(fmt.Sprintf("Could not convert gas price: %v", err))
 	}
 
+	// Geth uses uint64 as a gas limit, while evmc uses int64.
+	// In practice, the per-block gas limit will never be close to
+	// math.MaxInt64, since this would be more gas for a single transaction
+	// than there are coins in circulation. However, test environments
+	// may use math.MaxUint64 as an unbound gas limit.
 	gasLimit := ctx.interpreter.evm.Context.GasLimit
 	if gasLimit > math.MaxInt64 {
+		log.Printf("Warning: encountered gas limit exceeding MaxInt64; limit got capped")
 		gasLimit = math.MaxInt64
 	}
 
