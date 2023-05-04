@@ -22,30 +22,53 @@ import (
 	"github.com/holiman/uint256"
 )
 
-// Instantiates an interpreter with the given evm and config. `implementation`
-// is a filepath to the shared library with the wanted interpreter
-// implementation (e.g. libevmone.so).
-func NewEVMCInterpreter(implementation string, evm *vm.EVM, cfg vm.Config) *EVMCInterpreter {
-	vm, err := evmc.Load(implementation)
-	if err != nil {
-		panic(fmt.Sprintf("Could not create %s instance %s", implementation, err))
-	}
+// EvmcVM is a EVM implementation accessible through the EVMC library.
+type EvmcVM struct {
+	vm *evmc.VM
+}
 
-	return &EVMCInterpreter{
+// LoadEvmcVM attempts to load an EVM implementation from a given library.
+// The `library` parameter should name the library file, while the actual
+// path to the library should be enforced using an rpath (see evmone
+// implementation for an example).
+func LoadEvmcVM(library string) (*EvmcVM, error) {
+	vm, err := evmc.Load(library)
+	if err != nil {
+		return nil, err
+	}
+	return &EvmcVM{vm: vm}, nil
+}
+
+// SetOption enables the configuration of implementation specific options.
+func (e *EvmcVM) SetOption(property string, value string) error {
+	return e.vm.SetOption(property, value)
+}
+
+// Destroy releases resources bound by this VM instance.
+func (e *EvmcVM) Destroy() {
+	if e.vm != nil {
+		e.vm.Destroy()
+	}
+	e.vm = nil
+}
+
+// NewEvmcInterpreter instantiates an interpreter with the given evm and config.
+func NewEvmcInterpreter(vm *EvmcVM, evm *vm.EVM, cfg vm.Config) *EvmcInterpreter {
+	return &EvmcInterpreter{
 		evmc: vm,
 		evm:  evm,
 		cfg:  cfg,
 	}
 }
 
-type EVMCInterpreter struct {
-	evmc     *evmc.VM
+type EvmcInterpreter struct {
+	evmc     *EvmcVM
 	evm      *vm.EVM
 	cfg      vm.Config
 	readOnly bool
 }
 
-func (e *EVMCInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool) (ret []byte, err error) {
+func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool) (ret []byte, err error) {
 
 	// Track the recursive call depth of this Call within a transaction.
 	// A maximum limit of params.CallCreateDepth must be enforced.
@@ -97,7 +120,7 @@ func (e *EVMCInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 	}
 
 	// Forward the execution call to the underlying EVM implementation.
-	result, err := e.evmc.Execute2(
+	result, err := e.evmc.vm.Execute2(
 		&host_ctx,
 		revision,
 		evmc.Call,
@@ -151,7 +174,7 @@ func (e *EVMCInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 // evmc's Go bindings.
 type HostContext struct {
 	evm         *vm.EVM
-	interpreter *EVMCInterpreter
+	interpreter *EvmcInterpreter
 	contract    *vm.Contract
 }
 
@@ -262,7 +285,7 @@ func (ctx *HostContext) GetTxContext() evmc.TxContext {
 	// may use math.MaxUint64 as an unbound gas limit.
 	gasLimit := ctx.interpreter.evm.Context.GasLimit
 	if gasLimit > math.MaxInt64 {
-		log.Printf("Warning: encountered gas limit exceeding MaxInt64; limit got capped")
+		log.Printf("Warning: encountered gas limit of %d exceeding MaxInt64; limit got capped", gasLimit)
 		gasLimit = math.MaxInt64
 	}
 
