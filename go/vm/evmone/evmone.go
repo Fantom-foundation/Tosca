@@ -12,7 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
-var evmone *common.EvmcVM
+var evmoneBasic *common.EvmcVM
+var evmoneAdvanced *common.EvmcVM
 
 func init() {
 	// In the CGO instructions at the top of this file the build directory
@@ -23,13 +24,37 @@ func init() {
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmone library: %s", err))
 	}
-	evmone = vm
+	// This instance remains in its basic configuration.
+	evmoneBasic = vm
+
+	// A second instance is configured to use the advanced execution mode.
+	vm, err = common.LoadEvmcVM("libevmone.so")
+	if err != nil {
+		panic(fmt.Errorf("failed to load evmone library: %s", err))
+	}
+	if err := vm.SetOption("advanced", "on"); err != nil {
+		panic(fmt.Errorf("failed to configure evmone advnaced mode: %v", err))
+	}
+	evmoneAdvanced = vm
 }
 
-func NewInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return common.NewEvmcInterpreter(evmone, evm, cfg)
+func newInterpreter(vm *common.EvmcVM, evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
+	return common.NewEvmcInterpreter(vm, evm, cfg)
+}
+
+func NewBasicInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
+	return newInterpreter(evmoneBasic, evm, cfg)
+}
+
+func NewAdvancedInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
+	return newInterpreter(evmoneAdvanced, evm, cfg)
 }
 
 func init() {
-	vm.RegisterInterpreterFactory("evmone", NewInterpreter)
+	vm.RegisterInterpreterFactory("evmone-basic", NewBasicInterpreter)
+	vm.RegisterInterpreterFactory("evmone-advanced", NewAdvancedInterpreter)
+
+	// We use the basic version as the default since it showed better performance in
+	// benchmarks (to verify on your system, run benchmarks in go/vm/vm_test.go).
+	vm.RegisterInterpreterFactory("evmone", NewBasicInterpreter)
 }

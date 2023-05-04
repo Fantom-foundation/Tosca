@@ -14,7 +14,14 @@ import (
 )
 
 var (
-	variants = []string{"geth", "lfvm", "lfvm-si", "evmone"}
+	variants = []string{
+		"geth",
+		"lfvm",
+		"lfvm-si",
+		"evmone",
+		"evmone-basic",
+		"evmone-advanced",
+	}
 )
 
 func TestFib_ComputesCorrectResult(t *testing.T) {
@@ -107,4 +114,34 @@ func newTestEVM(r Revision) *vm.EVM {
 	txCtxt := vm.TxContext{}
 	config := vm.Config{}
 	return vm.NewEVM(blockCtxt, txCtxt, nil, chainConfig, config)
+}
+
+func BenchmarkFib10(b *testing.B) {
+	benchmarkFib(b, 10)
+}
+
+func benchmarkFib(b *testing.B, arg int) {
+	example := examples.GetFibExample()
+
+	// compute expected value
+	wanted := example.RunReference(arg)
+
+	evm := newTestEVM(London)
+
+	for _, variant := range variants {
+		b.Run(variant, func(b *testing.B) {
+			interpreter := vm.NewInterpreter(variant, evm, vm.Config{})
+
+			for i := 0; i < b.N; i++ {
+				got, err := example.RunOn(interpreter, arg)
+				if err != nil {
+					b.Fatalf("running the fib example failed: %v", err)
+				}
+
+				if wanted != got.Result {
+					b.Fatalf("unexpected result, wanted %d, got %d", wanted, got)
+				}
+			}
+		})
+	}
 }
