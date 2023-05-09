@@ -219,6 +219,8 @@ func addFullStackFailOpCodes(tests []OpcodeTest) []OpcodeTest {
 	opCodes = append(opCodes, getOpcodes(vm.PUSH1, vm.PUSH32)...)
 	opCodes = append(opCodes, getOpcodes(vm.DUP1, vm.DUP16)...)
 	for _, opCode := range opCodes {
+		// Consumed gas here is 3*1024=3072 as there will be 1024 x PUSH1 instruction to fill stack,
+		// where static gas for one PUSH1 instruction is 3 and stack length is 1024
 		addedTests = append(addedTests, OpcodeTest{opCode.String(), []vm.OpCode{opCode}, MAX_STACK_SIZE, ErrStackOverflow, LONDON_BLOCK, nil, GAS_START, 3072})
 	}
 	return addedTests
