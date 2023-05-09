@@ -147,10 +147,8 @@ func TestStackMinBoundry(t *testing.T) {
 				contract := vm.NewContract(addr, addr, big.NewInt(0), test.gasStart)
 				contract.CodeAddr = &common.Address{}
 
-				code := make([]byte, test.stackPtrPos*2+1)
-
-				// Set a tested instruction as last one
-				code[test.stackPtrPos*2] = byte(test.code[0])
+				// Execute only solo instruction with empty stack
+				code := []byte{byte(test.code[0])}
 				contract.Code = code
 				gas := contract.Gas
 
