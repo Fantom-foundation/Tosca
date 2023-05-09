@@ -116,7 +116,7 @@ func TestStackMaxBoundry(t *testing.T) {
 				gas := contract.Gas
 
 				// Run an interpreter
-				_, err := evm.Interpreter().Run(contract, code, false)
+				_, err := evm.Interpreter().Run(contract, []byte{}, false)
 				gas -= contract.Gas
 				err = convertError(evm.Interpreter(), err)
 
@@ -155,7 +155,7 @@ func TestStackMinBoundry(t *testing.T) {
 				gas := contract.Gas
 
 				// Run an interpreter
-				_, err := evm.Interpreter().Run(contract, code, false)
+				_, err := evm.Interpreter().Run(contract, []byte{}, false)
 				gas -= contract.Gas
 				err = convertError(evm.Interpreter(), err)
 
