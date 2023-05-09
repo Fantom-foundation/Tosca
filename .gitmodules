@@ -3,4 +3,4 @@
 	url = https://github.com/ethereum/evmone.git
 [submodule "third_party/evmc"]
 	path = third_party/evmc
-	url = git@github.com:HerbertJordan/evmc.git
+	url = https://github.com/HerbertJordan/evmc.git
