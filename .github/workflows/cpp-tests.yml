@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      with:
-        submodules: recursive
+        with:
+          submodules: recursive
       - uses: egor-tensin/setup-clang@v1
       - uses: bazelbuild/setup-bazelisk@v2
       - name: Mount bazel cache
