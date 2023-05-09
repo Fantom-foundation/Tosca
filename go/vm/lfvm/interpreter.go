@@ -451,13 +451,13 @@ func steps(c *context, one_step_only bool) {
 			return
 		}
 
-		// Consume static gas price for instruction before execution
-		if !c.UseGas(static_gas_prices[op]) {
+		// Check stack boundry for every instruction
+		if checkStackBoundry(c, op) != nil {
 			return
 		}
 
-		// Check stack boundry for every instruction
-		if checkStackBoundry(c, op) != nil {
+		// Consume static gas price for instruction before execution
+		if !c.UseGas(static_gas_prices[op]) {
 			return
 		}
 
