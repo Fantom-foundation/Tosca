@@ -18,6 +18,7 @@ var (
 		"geth",
 		"lfvm",
 		"lfvm-si",
+		"lfvm-no-sha-cache",
 		"evmone",
 		"evmone-basic",
 		"evmone-advanced",
@@ -28,6 +29,7 @@ var (
 	testExamples = []examples.Example{
 		examples.GetIncrementExample(),
 		examples.GetFibExample(),
+		examples.GetSha3Example(),
 	}
 )
 
@@ -143,6 +145,14 @@ func BenchmarkFib(b *testing.B) {
 	}
 }
 
+func BenchmarkSha3(b *testing.B) {
+	args := []int{1, 10, 100, 1000}
+	for _, i := range args {
+		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
+			benchmark(b, examples.GetSha3Example(), i)
+		})
+	}
+}
 func benchmark(b *testing.B, example examples.Example, arg int) {
 	// compute expected value
 	wanted := example.RunReference(arg)
