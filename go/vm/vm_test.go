@@ -5,10 +5,10 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/examples"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 
+	"github.com/Fantom-foundation/Tosca/go/examples"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 )
@@ -24,49 +24,58 @@ var (
 	}
 )
 
-func TestFib_ComputesCorrectResult(t *testing.T) {
+var (
+	testExamples = []examples.Example{
+		examples.GetIncrementExample(),
+		examples.GetFibExample(),
+	}
+)
+
+func TestExamples_ComputesCorrectResult(t *testing.T) {
 	evm := newTestEVM(London)
-	fib := examples.GetFibExample()
-	for _, variant := range variants {
-		interpreter := vm.NewInterpreter(variant, evm, vm.Config{})
-		for i := 0; i < 10; i++ {
-			t.Run(fmt.Sprintf("%s-%d", variant, i), func(t *testing.T) {
-				want := fib.RunReference(i)
-				got, err := fib.RunOn(interpreter, i)
-				if err != nil {
-					t.Fatalf("error processing contract: %v", err)
-				}
-				if want != got.Result {
-					t.Fatalf("incorrect result, wanted %d, got %d", want, got.Result)
-				}
-			})
+	for _, example := range testExamples {
+		for _, variant := range variants {
+			interpreter := vm.NewInterpreter(variant, evm, vm.Config{})
+			for i := 0; i < 10; i++ {
+				t.Run(fmt.Sprintf("%s-%s-%d", example.Name, variant, i), func(t *testing.T) {
+					want := example.RunReference(i)
+					got, err := example.RunOn(interpreter, i)
+					if err != nil {
+						t.Fatalf("error processing contract: %v", err)
+					}
+					if want != got.Result {
+						t.Fatalf("incorrect result, wanted %d, got %d", want, got.Result)
+					}
+				})
+			}
 		}
 	}
 }
 
-func TestFib_ComputesCorrectGasPrice(t *testing.T) {
-	fib := examples.GetFibExample()
-	for _, revision := range revisions {
-		evm := newTestEVM(revision)
-		reference := vm.NewInterpreter("geth", evm, vm.Config{})
-		for _, variant := range variants {
-			interpreter := vm.NewInterpreter(variant, evm, vm.Config{})
-			for i := 0; i < 10; i++ {
-				t.Run(fmt.Sprintf("%s-%s-%d", revision, variant, i), func(t *testing.T) {
-					want, err := fib.RunOn(reference, i)
-					if err != nil {
-						t.Fatalf("failed to run reference VM: %v", err)
-					}
+func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
+	for _, example := range testExamples {
+		for _, revision := range revisions {
+			evm := newTestEVM(revision)
+			reference := vm.NewInterpreter("geth", evm, vm.Config{})
+			for _, variant := range variants {
+				interpreter := vm.NewInterpreter(variant, evm, vm.Config{})
+				for i := 0; i < 10; i++ {
+					t.Run(fmt.Sprintf("%s-%s-%s-%d", example.Name, revision, variant, i), func(t *testing.T) {
+						want, err := example.RunOn(reference, i)
+						if err != nil {
+							t.Fatalf("failed to run reference VM: %v", err)
+						}
 
-					got, err := fib.RunOn(interpreter, i)
-					if err != nil {
-						t.Fatalf("error processing contract: %v", err)
-					}
+						got, err := example.RunOn(interpreter, i)
+						if err != nil {
+							t.Fatalf("error processing contract: %v", err)
+						}
 
-					if want.UsedGas != got.UsedGas {
-						t.Errorf("incorrect gas usage, wanted %d, got %d", want.UsedGas, got.UsedGas)
-					}
-				})
+						if want.UsedGas != got.UsedGas {
+							t.Errorf("incorrect gas usage, wanted %d, got %d", want.UsedGas, got.UsedGas)
+						}
+					})
+				}
 			}
 		}
 	}
@@ -116,13 +125,25 @@ func newTestEVM(r Revision) *vm.EVM {
 	return vm.NewEVM(blockCtxt, txCtxt, nil, chainConfig, config)
 }
 
-func BenchmarkFib10(b *testing.B) {
-	benchmarkFib(b, 10)
+func BenchmarkInc(b *testing.B) {
+	args := []int{1, 10}
+	for _, i := range args {
+		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
+			benchmark(b, examples.GetIncrementExample(), i)
+		})
+	}
 }
 
-func benchmarkFib(b *testing.B, arg int) {
-	example := examples.GetFibExample()
+func BenchmarkFib(b *testing.B) {
+	args := []int{1, 5, 10, 15, 20}
+	for _, i := range args {
+		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
+			benchmark(b, examples.GetFibExample(), i)
+		})
+	}
+}
 
+func benchmark(b *testing.B, example examples.Example, arg int) {
 	// compute expected value
 	wanted := example.RunReference(arg)
 

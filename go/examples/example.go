@@ -11,6 +11,7 @@ import (
 
 // Example describes a contract and an entry point with a (int)->int signature.
 type Example struct {
+	Name      string
 	code      []byte        // some contract code
 	function  uint32        // identifier of the function in the contract to be called
 	reference func(int) int // a reference function computing the same function
@@ -73,7 +74,7 @@ func encodeArgument(function uint32, arg int) []byte {
 
 func decodeOutput(output []byte) (int, error) {
 	if len(output) != 32 {
-		return 0, fmt.Errorf("unexpected length of end; wanted 32, got %d", len(output))
+		return 0, fmt.Errorf("unexpected length of output; wanted 32, got %d", len(output))
 	}
 	return (int(output[28]) << 24) | (int(output[29]) << 16) | (int(output[30]) << 8) | (int(output[31]) << 0), nil
 }

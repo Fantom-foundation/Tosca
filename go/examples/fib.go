@@ -13,6 +13,7 @@ func GetFibExample() Example {
 	}
 
 	return Example{
+		Name:      "fib",
 		code:      code,
 		function:  0xF9B7C7E5, // function selector for the fib function
 		reference: fib,
