@@ -120,19 +120,19 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 	}
 
 	// Forward the execution call to the underlying EVM implementation.
-	result, err := e.evmc.vm.Execute2(
-		&host_ctx,
-		revision,
-		evmc.Call,
-		readOnly,
-		e.evm.Depth-1,
-		gasBefore,
-		evmc.Address(contract.Address()),
-		evmc.Address(contract.Caller()),
-		input,
-		value,
-		contract.Code,
-	)
+	result, err := e.evmc.vm.Execute(evmc.Parameters{
+		Context:   &host_ctx,
+		Revision:  revision,
+		Kind:      evmc.Call,
+		Static:    readOnly,
+		Depth:     e.evm.Depth - 1,
+		Gas:       gasBefore,
+		Recipient: evmc.Address(contract.Address()),
+		Sender:    evmc.Address(contract.Caller()),
+		Input:     input,
+		Value:     value,
+		Code:      contract.Code,
+	})
 
 	// update remaining gas
 	gasUsed := gasBefore - result.GasLeft
