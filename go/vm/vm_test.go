@@ -101,11 +101,11 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 			for i := 0; i < b.N; i++ {
 				got, err := example.RunOn(evm.GetInterpreter(), arg)
 				if err != nil {
-					b.Fatalf("running the fib example failed: %v", err)
+					b.Fatalf("running the %s example failed: %v", example.Name, err)
 				}
 
 				if wanted != got.Result {
-					b.Fatalf("unexpected result, wanted %d, got %d", wanted, got)
+					b.Fatalf("unexpected result, wanted %d, got %d", wanted, got.Result)
 				}
 			}
 		})
