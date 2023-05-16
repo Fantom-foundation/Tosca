@@ -14,6 +14,7 @@ var (
 		examples.GetIncrementExample(),
 		examples.GetFibExample(),
 		examples.GetSha3Example(),
+		examples.GetArithmeticExample(),
 	}
 )
 
@@ -91,6 +92,16 @@ func BenchmarkSha3(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkArith(b *testing.B) {
+	args := []int{1, 10, 100, 280}
+	for _, i := range args {
+		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
+			benchmark(b, examples.GetArithmeticExample(), i)
+		})
+	}
+}
+
 func benchmark(b *testing.B, example examples.Example, arg int) {
 	// compute expected value
 	wanted := example.RunReference(arg)
