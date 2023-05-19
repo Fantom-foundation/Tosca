@@ -87,10 +87,12 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 	// Pick proper EVM revision based on block height.
 	revision := evmc.Istanbul
 	if chainConfig := e.evm.ChainConfig(); chainConfig != nil {
-		if chainConfig.IsBerlin(e.evm.Context.BlockNumber) {
-			revision = evmc.Berlin
-		} else if chainConfig.IsLondon(e.evm.Context.BlockNumber) {
+		// Note: configurations need to be checked in reverse order since
+		// later revisions implicitly include earlier revisions.
+		if chainConfig.IsLondon(e.evm.Context.BlockNumber) {
 			revision = evmc.London
+		} else if chainConfig.IsBerlin(e.evm.Context.BlockNumber) {
+			revision = evmc.Berlin
 		}
 	}
 
@@ -154,6 +156,10 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 			err = &vm.ErrInvalidOpCode{}
 		case evmc.Error(C.EVMC_BAD_JUMP_DESTINATION):
 			err = vm.ErrInvalidJump
+		case evmc.Error(C.EVMC_STACK_OVERFLOW):
+			err = &vm.ErrStackOverflow{}
+		case evmc.Error(C.EVMC_STACK_UNDERFLOW):
+			err = &vm.ErrStackUnderflow{}
 		}
 		return nil, err
 	}
@@ -398,13 +404,11 @@ func (ctx *HostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender 
 func (ctx *HostContext) AccessAccount(addr evmc.Address) evmc.AccessStatus {
 	// TODO
 	panic("account access tracking not implemented")
-	return evmc.ColdAccess
 }
 
 func (ctx *HostContext) AccessStorage(addr evmc.Address, key evmc.Hash) evmc.AccessStatus {
 	// TODO
 	panic("account storage access tracking not implemented")
-	return evmc.ColdAccess
 }
 
 func bigIntToHash(value *big.Int) (result evmc.Hash, err error) {
