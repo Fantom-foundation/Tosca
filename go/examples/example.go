@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // Example describes a contract and an entry point with a (int)->int signature.
@@ -31,6 +32,7 @@ func (e *Example) RunOn(interpreter vm.EVMInterpreter, argument int) (Result, er
 	addr := vm.AccountRef{}
 	contract := vm.NewContract(addr, addr, big.NewInt(0), initialGas)
 	contract.Code = e.code
+	contract.CodeHash = crypto.Keccak256Hash(e.code)
 	contract.CodeAddr = &common.Address{}
 
 	output, err := interpreter.Run(contract, input, false)

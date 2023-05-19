@@ -113,6 +113,7 @@ func TestStackMaxBoundry(t *testing.T) {
 				// Set a tested instruction as last one
 				code[test.stackPtrPos*2] = byte(test.code[0])
 				contract.Code = code
+				contract.CodeHash = getSha256Hash(code)
 				gas := contract.Gas
 
 				// Run an interpreter
@@ -150,6 +151,7 @@ func TestStackMinBoundry(t *testing.T) {
 				// Execute only solo instruction with empty stack
 				code := []byte{byte(test.code[0])}
 				contract.Code = code
+				contract.CodeHash = getSha256Hash(code)
 				gas := contract.Gas
 
 				// Run an interpreter

@@ -9,7 +9,7 @@ import (
 func TestConvertLongExampleCode(t *testing.T) {
 	addr := common.Address{}
 	clearConversionCache()
-	_, err := Convert(addr, longExampleCode, false, 0, false, false)
+	_, err := Convert(addr, longExampleCode, false, 0, false, false, common.Hash{})
 	if err != nil {
 		t.Errorf("Failed to convert example code with error %v", err)
 	}
@@ -19,7 +19,7 @@ func BenchmarkConvertLongExampleCode(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		clearConversionCache()
 		addr := common.Address{}
-		_, err := Convert(addr, longExampleCode, false, 0, false, false)
+		_, err := Convert(addr, longExampleCode, false, 0, false, false, common.Hash{byte(i)})
 		if err != nil {
 			b.Errorf("Failed to convert example code with error %v", err)
 		}
