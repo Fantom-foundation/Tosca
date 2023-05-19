@@ -2,27 +2,13 @@ package vm
 
 import (
 	"fmt"
-	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/lfvm"
-)
-
-var (
-	variants = []string{
-		"geth",
-		"lfvm",
-		"lfvm-si",
-		"lfvm-no-sha-cache",
-		"evmone",
-		"evmone-basic",
-		"evmone-advanced",
-	}
 )
 
 var (
@@ -81,33 +67,6 @@ func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 			}
 		}
 	}
-}
-
-func newTestEVM(r Revision) *vm.EVM {
-	// Configure the block numbers for revision changes.
-	chainConfig := params.AllEthashProtocolChanges
-	chainConfig.BerlinBlock = big.NewInt(10)
-	chainConfig.LondonBlock = big.NewInt(20)
-
-	// Choose the block height to run.
-	block := 5
-	if r == Berlin {
-		block = 15
-	} else if r == London {
-		block = 25
-	}
-
-	blockCtxt := vm.BlockContext{
-		BlockNumber: big.NewInt(int64(block)),
-		Time:        big.NewInt(1000),
-		Difficulty:  big.NewInt(1),
-		GasLimit:    1 << 63,
-	}
-	txCtxt := vm.TxContext{
-		GasPrice: big.NewInt(1),
-	}
-	config := vm.Config{}
-	return vm.NewEVM(blockCtxt, txCtxt, nil, chainConfig, config)
 }
 
 func BenchmarkInc(b *testing.B) {
