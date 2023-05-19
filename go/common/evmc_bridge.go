@@ -149,9 +149,9 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 		case evmc.Error(C.EVMC_OUT_OF_GAS):
 			err = vm.ErrOutOfGas
 		case evmc.Error(C.EVMC_INVALID_INSTRUCTION):
-			err = vm.ErrInvalidCode
+			err = &vm.ErrInvalidOpCode{}
 		case evmc.Error(C.EVMC_UNDEFINED_INSTRUCTION):
-			err = vm.ErrInvalidCode
+			err = &vm.ErrInvalidOpCode{}
 		case evmc.Error(C.EVMC_BAD_JUMP_DESTINATION):
 			err = vm.ErrInvalidJump
 		}

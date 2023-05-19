@@ -83,28 +83,6 @@ func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 	}
 }
 
-type Revision int
-
-const (
-	Istanbul Revision = 1
-	Berlin   Revision = 2
-	London   Revision = 3
-)
-
-var revisions = []Revision{Istanbul, Berlin, London}
-
-func (r Revision) String() string {
-	switch r {
-	case Istanbul:
-		return "Istanbul"
-	case Berlin:
-		return "Berlin"
-	case London:
-		return "London"
-	}
-	return "Unknown"
-}
-
 func newTestEVM(r Revision) *vm.EVM {
 	// Configure the block numbers for revision changes.
 	chainConfig := params.AllEthashProtocolChanges
@@ -121,8 +99,13 @@ func newTestEVM(r Revision) *vm.EVM {
 
 	blockCtxt := vm.BlockContext{
 		BlockNumber: big.NewInt(int64(block)),
+		Time:        big.NewInt(1000),
+		Difficulty:  big.NewInt(1),
+		GasLimit:    1 << 63,
 	}
-	txCtxt := vm.TxContext{}
+	txCtxt := vm.TxContext{
+		GasPrice: big.NewInt(1),
+	}
 	config := vm.Config{}
 	return vm.NewEVM(blockCtxt, txCtxt, nil, chainConfig, config)
 }
