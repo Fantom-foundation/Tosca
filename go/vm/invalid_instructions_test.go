@@ -1,14 +1,10 @@
 package vm
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"math"
-	"math/big"
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
@@ -44,31 +40,4 @@ func TestInterpreterDetectsInvalidInstruction(t *testing.T) {
 func isInvalidOpCodeError(err error) bool {
 	_, ok := err.(*vm.ErrInvalidOpCode)
 	return ok
-}
-
-func runCode(interpreter vm.EVMInterpreter, code []byte, input []byte) error {
-	const initialGas = math.MaxInt64
-
-	// Create a dummy contract using the code hash as a address. This is required
-	// to avoid all tests using the same cached LFVM byte code.
-	addr := vm.AccountRef{}
-	contract := vm.NewContract(addr, addr, big.NewInt(0), initialGas)
-	contract.Code = code
-	contract.CodeHash = getSha256Hash(code)
-
-	// TODO: remove this once code caching is code-hash based.
-	var codeAddr common.Address
-	copy(codeAddr[:], contract.CodeHash[:])
-	contract.CodeAddr = &codeAddr
-
-	_, err := interpreter.Run(contract, input, false)
-	return err
-}
-
-func getSha256Hash(code []byte) common.Hash {
-	hasher := sha256.New()
-	hasher.Write(code)
-	var hash common.Hash
-	hasher.Sum(hash[0:0])
-	return hash
 }
