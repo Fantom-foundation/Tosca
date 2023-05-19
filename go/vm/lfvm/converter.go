@@ -1,6 +1,7 @@
 package lfvm
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
@@ -25,6 +26,8 @@ var changedAddress01 = common.HexToAddress("0xA7CC236F81b04c1058e9bfb70E0Ee9940e
 var changedAddress02 = common.HexToAddress("0xAD0FB83a110c3694faDa81e8B396716a610c4030")
 var changedAddress03 = common.HexToAddress("0xA8B3C9f298877dD93F30E8Ed359956faE10E8797")
 var changedAddress04 = common.HexToAddress("0x6DBd5d37397afF80BE434F74cc89b9d933635784")
+var changedAddress05 = common.HexToAddress("0x4599cf4534CbD4ea66B8664DB292B405Dc40C054")
+var changedAddress06 = common.HexToAddress("0x6f686359BE3c1168386F2DC04b42addEda40e556")
 
 var mu = sync.Mutex{}
 var cache = map[cache_key]cache_val{}
@@ -35,20 +38,23 @@ func clearConversionCache() {
 	cache = map[cache_key]cache_val{}
 }
 
-func Convert(addr common.Address, code []byte, with_super_instructions bool, blk uint64, create bool) (Code, error) {
+func Convert(addr common.Address, code []byte, with_super_instructions bool, blk uint64, create bool, noCodeCache bool) (Code, error) {
 	key := cache_key{addr, len(code)}
 	mu.Lock()
 	res, exists := cache[key]
 	if exists && !create {
 		isEqual := true
-		if addr == changedAddress01 || addr == changedAddress02 || addr == changedAddress03 || addr == changedAddress04 {
+		if noCodeCache ||
+			addr == changedAddress01 ||
+			addr == changedAddress02 ||
+			addr == changedAddress03 ||
+			addr == changedAddress04 ||
+			addr == changedAddress05 ||
+			addr == changedAddress06 {
 
-			for i, v := range res.oldCode {
-				if v != code[i] {
-					log.Println("Different code for address: ", addr.String(), " blk: ", blk)
-					isEqual = false
-					break
-				}
+			if !bytes.Equal(res.oldCode, code) {
+				log.Println("Different code for address: ", addr.String(), " blk: ", blk)
+				isEqual = false
 			}
 		}
 
