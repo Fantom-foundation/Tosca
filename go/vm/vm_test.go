@@ -1,10 +1,8 @@
-package vm
+package vm_test
 
 import (
 	"fmt"
 	"testing"
-
-	"github.com/ethereum/go-ethereum/core/vm"
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
@@ -20,14 +18,13 @@ var (
 )
 
 func TestExamples_ComputesCorrectResult(t *testing.T) {
-	evm := newTestEVM(London)
 	for _, example := range testExamples {
-		for _, variant := range variants {
-			interpreter := vm.NewInterpreter(variant, evm, vm.Config{})
+		for _, variant := range Variants {
+			evm := GetCleanEVM(London, variant, nil)
 			for i := 0; i < 10; i++ {
 				t.Run(fmt.Sprintf("%s-%s-%d", example.Name, variant, i), func(t *testing.T) {
 					want := example.RunReference(i)
-					got, err := example.RunOn(interpreter, i)
+					got, err := example.RunOn(evm.GetInterpreter(), i)
 					if err != nil {
 						t.Fatalf("error processing contract: %v", err)
 					}
@@ -43,18 +40,17 @@ func TestExamples_ComputesCorrectResult(t *testing.T) {
 func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 	for _, example := range testExamples {
 		for _, revision := range revisions {
-			evm := newTestEVM(revision)
-			reference := vm.NewInterpreter("geth", evm, vm.Config{})
-			for _, variant := range variants {
-				interpreter := vm.NewInterpreter(variant, evm, vm.Config{})
+			reference := GetCleanEVM(revision, "geth", nil)
+			for _, variant := range Variants {
+				evm := GetCleanEVM(revision, variant, nil)
 				for i := 0; i < 10; i++ {
 					t.Run(fmt.Sprintf("%s-%s-%s-%d", example.Name, revision, variant, i), func(t *testing.T) {
-						want, err := example.RunOn(reference, i)
+						want, err := example.RunOn(reference.GetInterpreter(), i)
 						if err != nil {
 							t.Fatalf("failed to run reference VM: %v", err)
 						}
 
-						got, err := example.RunOn(interpreter, i)
+						got, err := example.RunOn(evm.GetInterpreter(), i)
 						if err != nil {
 							t.Fatalf("error processing contract: %v", err)
 						}
@@ -99,14 +95,11 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 	// compute expected value
 	wanted := example.RunReference(arg)
 
-	evm := newTestEVM(London)
-
-	for _, variant := range variants {
+	for _, variant := range Variants {
+		evm := GetCleanEVM(London, variant, nil)
 		b.Run(variant, func(b *testing.B) {
-			interpreter := vm.NewInterpreter(variant, evm, vm.Config{})
-
 			for i := 0; i < b.N; i++ {
-				got, err := example.RunOn(interpreter, arg)
+				got, err := example.RunOn(evm.GetInterpreter(), arg)
 				if err != nil {
 					b.Fatalf("running the fib example failed: %v", err)
 				}

@@ -1,4 +1,4 @@
-package vm
+package vm_test
 
 import (
 	"fmt"
@@ -13,6 +13,13 @@ const (
 	Istanbul Revision = 1
 	Berlin   Revision = 2
 	London   Revision = 3
+
+	LatestRevision = London
+
+	// Chain config for hardforks
+	ISTANBUL_FORK = 00
+	BERLIN_FORK   = 10
+	LONDON_FORK   = 20
 )
 
 func (r Revision) String() string {
@@ -25,6 +32,18 @@ func (r Revision) String() string {
 		return "London"
 	}
 	return "Unknown"
+}
+
+func (r Revision) GetForkBlock() int64 {
+	switch r {
+	case Istanbul:
+		return ISTANBUL_FORK
+	case Berlin:
+		return BERLIN_FORK
+	case London:
+		return LONDON_FORK
+	}
+	panic(fmt.Sprintf("unknown revision: %v", r))
 }
 
 // revisions lists all revisions covered by the tests in this package.
