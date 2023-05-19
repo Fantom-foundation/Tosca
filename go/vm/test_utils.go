@@ -1,77 +1,78 @@
-package vm
+package vm_test
 
 import (
-	"crypto/sha256"
 	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 )
 
 var (
-	variants = []string{
+	Variants = []string{
 		"geth",
 		"lfvm",
 		"lfvm-si",
 		"lfvm-no-sha-cache",
+		"lfvm-no-code-cache",
 		"evmone",
 		"evmone-basic",
 		"evmone-advanced",
 	}
 )
 
-func newTestEVM(r Revision) *vm.EVM {
-	// Configure the block numbers for revision changes.
-	chainConfig := params.AllEthashProtocolChanges
-	chainConfig.BerlinBlock = big.NewInt(10)
-	chainConfig.LondonBlock = big.NewInt(20)
+type TestEVM struct {
+	evm *vm.EVM
+}
 
-	// Choose the block height to run.
-	block := 5
-	if r == Berlin {
-		block = 15
-	} else if r == London {
-		block = 25
+func GetCleanEVM(revision Revision, interpreter string, stateDB vm.StateDB) TestEVM {
+	// Set hard forks for chainconfig
+	chainConfig := params.ChainConfig{
+		IstanbulBlock: big.NewInt(Istanbul.GetForkBlock()),
+		BerlinBlock:   big.NewInt(Berlin.GetForkBlock()),
+		LondonBlock:   big.NewInt(London.GetForkBlock()),
 	}
-
-	blockCtxt := vm.BlockContext{
-		BlockNumber: big.NewInt(int64(block)),
-		Time:        big.NewInt(1000),
+	// Create empty block context based on block number
+	blockCtx := vm.BlockContext{
+		BlockNumber: big.NewInt(revision.GetForkBlock() + 2),
+		Time:        big.NewInt(1),
 		Difficulty:  big.NewInt(1),
 		GasLimit:    1 << 63,
 	}
-	txCtxt := vm.TxContext{
+	// Create empty tx context
+	txCtx := vm.TxContext{
 		GasPrice: big.NewInt(1),
 	}
-	config := vm.Config{}
-	return vm.NewEVM(blockCtxt, txCtxt, nil, chainConfig, config)
+	// Set interpreter variant for this VM
+	config := vm.Config{
+		InterpreterImpl: interpreter,
+	}
+	return TestEVM{vm.NewEVM(blockCtx, txCtx, stateDB, &chainConfig, config)}
 }
 
-func runCode(interpreter vm.EVMInterpreter, code []byte, input []byte) error {
+type RunResult struct {
+	Output  []byte
+	GasUsed uint64
+}
+
+func (e *TestEVM) Run(code []byte, input []byte) (RunResult, error) {
 	const initialGas = math.MaxInt64
 
-	// Create a dummy contract using the code hash as a address. This is required
-	// to avoid all tests using the same cached LFVM byte code.
 	addr := vm.AccountRef{}
 	contract := vm.NewContract(addr, addr, big.NewInt(0), initialGas)
+	contract.CodeAddr = &common.Address{}
 	contract.Code = code
-	contract.CodeHash = getSha256Hash(code)
+	contract.CodeHash = crypto.Keccak256Hash(code)
 
-	// TODO: remove this once code caching is code-hash based.
-	var codeAddr common.Address
-	copy(codeAddr[:], contract.CodeHash[:])
-	contract.CodeAddr = &codeAddr
-
-	_, err := interpreter.Run(contract, input, false)
-	return err
+	output, err := e.GetInterpreter().Run(contract, input, false)
+	return RunResult{
+		Output:  output,
+		GasUsed: math.MaxInt64 - contract.Gas,
+	}, err
 }
 
-func getSha256Hash(code []byte) common.Hash {
-	hasher := sha256.New()
-	hasher.Write(code)
-	var hash common.Hash
-	hasher.Sum(hash[0:0])
-	return hash
+func (e *TestEVM) GetInterpreter() vm.EVMInterpreter {
+	return e.evm.Interpreter()
 }

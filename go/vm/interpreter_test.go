@@ -1,4 +1,4 @@
-package vm
+package vm_test
 
 import (
 	"errors"
@@ -11,22 +11,11 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 const (
 	MAX_STACK_SIZE int    = 1024
 	GAS_START      uint64 = 1 << 32
-
-	// Chain config for hardforks
-	ISTANBUL_FORK = 1
-	BERLIN_FORK   = 10
-	LONDON_FORK   = 20
-
-	// Block numbers for different fork version
-	ISTANBUL_BLOCK = 2
-	BERLIN_BLOCK   = 12
-	LONDON_BLOCK   = 22
 )
 
 var (
@@ -36,6 +25,7 @@ var (
 		"geth",
 		"lfvm",
 		"lfvm-si",
+		"lfvm-no-code-cache",
 		//"evmone",
 		//"evmone-basic",
 		//"evmone-advanced",
@@ -62,32 +52,6 @@ type OpcodeTest struct {
 	gasConsumed uint64
 }
 
-func getCleanEVM(blockNR uint64, interpreter string, stateDB vm.StateDB) *vm.EVM {
-	// Create empty block context based on block number
-	blockCtx := vm.BlockContext{
-		BlockNumber: big.NewInt(int64(blockNR)),
-		Time:        big.NewInt(1),
-		Difficulty:  big.NewInt(1),
-		GasLimit:    1 << 63,
-	}
-	// Create empty tx context
-	txCtx := vm.TxContext{
-		GasPrice: big.NewInt(1),
-	}
-	// Set hard forks for chainconfig
-	chainConfig := params.ChainConfig{
-		IstanbulBlock: big.NewInt(ISTANBUL_FORK),
-		BerlinBlock:   big.NewInt(BERLIN_FORK),
-		LondonBlock:   big.NewInt(LONDON_FORK),
-	}
-	// Set interpreter variant for this VM
-	config := vm.Config{
-		InterpreterImpl: interpreter,
-	}
-
-	return vm.NewEVM(blockCtx, txCtx, stateDB, &chainConfig, config)
-}
-
 func TestStackMaxBoundry(t *testing.T) {
 
 	// For every variant of interpreter
@@ -96,12 +60,8 @@ func TestStackMaxBoundry(t *testing.T) {
 		// Add tests for execution
 		for _, test := range addFullStackFailOpCodes(nil) {
 			t.Run(variant+"/"+test.name, func(t *testing.T) {
-				var stateDB *lfvm.MockStateDB
-
-				evm := getCleanEVM(test.blockNumber, variant, stateDB)
-				addr := vm.AccountRef{}
-				contract := vm.NewContract(addr, addr, big.NewInt(0), test.gasStart)
-				contract.CodeAddr = &common.Address{}
+				var stateDB vm.StateDB
+				evm := GetCleanEVM(LatestRevision, variant, stateDB)
 
 				// Fill stack with PUSH1 instruction
 				code := make([]byte, test.stackPtrPos*2+1)
@@ -112,21 +72,17 @@ func TestStackMaxBoundry(t *testing.T) {
 
 				// Set a tested instruction as last one
 				code[test.stackPtrPos*2] = byte(test.code[0])
-				contract.Code = code
-				contract.CodeHash = getSha256Hash(code)
-				gas := contract.Gas
 
 				// Run an interpreter
-				_, err := evm.Interpreter().Run(contract, []byte{}, false)
-				gas -= contract.Gas
-				err = convertError(evm.Interpreter(), err)
+				result, err := evm.Run(code, []byte{})
+				err = convertError(evm.GetInterpreter(), err)
 
 				// Check the result.
 				if err != ErrStackOverflow {
 					t.Errorf("execution failed %v should end with stack overflow: status is %v", test.name, err)
 				}
-				if gas != test.gasConsumed {
-					t.Errorf("execution failed %v wrong gas: status is %v, wanted %v", test.name, gas, test.gasConsumed)
+				if result.GasUsed != test.gasConsumed {
+					t.Errorf("execution failed %v wrong gas: used %v, wanted %v", test.name, result.GasUsed, test.gasConsumed)
 				}
 			})
 		}
@@ -143,28 +99,21 @@ func TestStackMinBoundry(t *testing.T) {
 			t.Run(variant+"/"+test.name, func(t *testing.T) {
 				var stateDB *lfvm.MockStateDB
 
-				evm := getCleanEVM(test.blockNumber, variant, stateDB)
-				addr := vm.AccountRef{}
-				contract := vm.NewContract(addr, addr, big.NewInt(0), test.gasStart)
-				contract.CodeAddr = &common.Address{}
+				evm := GetCleanEVM(LatestRevision, variant, stateDB)
 
 				// Execute only solo instruction with empty stack
 				code := []byte{byte(test.code[0])}
-				contract.Code = code
-				contract.CodeHash = getSha256Hash(code)
-				gas := contract.Gas
 
 				// Run an interpreter
-				_, err := evm.Interpreter().Run(contract, []byte{}, false)
-				gas -= contract.Gas
-				err = convertError(evm.Interpreter(), err)
+				result, err := evm.Run(code, []byte{})
+				err = convertError(evm.GetInterpreter(), err)
 
 				// Check the result.
 				if err != ErrStackUnderflow {
 					t.Errorf("execution failed %v should end with stack overflow: status is %v", test.name, err)
 				}
-				if gas != test.gasConsumed {
-					t.Errorf("execution failed %v wrong gas: status is %v, wanted %v", test.name, gas, test.gasConsumed)
+				if result.GasUsed != test.gasConsumed {
+					t.Errorf("execution failed %v wrong gas: used %v, wanted %v", test.name, result.GasUsed, test.gasConsumed)
 				}
 			})
 		}
@@ -206,7 +155,7 @@ func addEmptyStackFailOpCodes(tests []OpcodeTest) []OpcodeTest {
 	opCodes = append(opCodes, getOpcodes(vm.SWAP1, vm.SWAP16)...)
 	opCodes = append(opCodes, getOpcodes(vm.LOG0, vm.LOG4)...)
 	for _, opCode := range opCodes {
-		addedTests = append(addedTests, OpcodeTest{opCode.String(), []vm.OpCode{opCode}, 0, ErrStackUnderflow, LONDON_BLOCK, nil, GAS_START, 0})
+		addedTests = append(addedTests, OpcodeTest{opCode.String(), []vm.OpCode{opCode}, 0, ErrStackUnderflow, uint64(London.GetForkBlock()) + 2, nil, GAS_START, 0})
 	}
 	return addedTests
 }
@@ -221,7 +170,7 @@ func addFullStackFailOpCodes(tests []OpcodeTest) []OpcodeTest {
 	for _, opCode := range opCodes {
 		// Consumed gas here is 3*1024=3072 as there will be 1024 x PUSH1 instruction to fill stack,
 		// where static gas for one PUSH1 instruction is 3 and stack length is 1024
-		addedTests = append(addedTests, OpcodeTest{opCode.String(), []vm.OpCode{opCode}, MAX_STACK_SIZE, ErrStackOverflow, LONDON_BLOCK, nil, GAS_START, 3072})
+		addedTests = append(addedTests, OpcodeTest{opCode.String(), []vm.OpCode{opCode}, MAX_STACK_SIZE, ErrStackOverflow, uint64(London.GetForkBlock()) + 2, nil, GAS_START, 3072})
 	}
 	return addedTests
 }
