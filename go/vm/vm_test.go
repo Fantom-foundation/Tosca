@@ -16,6 +16,10 @@ var (
 		examples.GetSha3Example(),
 		examples.GetArithmeticExample(),
 		examples.GetMemoryExample(),
+		examples.GetJumpdestAnalysisExample(),
+		examples.GetStopAnalysisExample(),
+		examples.GetPush1AnalysisExample(),
+		examples.GetPush32AnalysisExample(),
 	}
 )
 
@@ -108,6 +112,20 @@ func BenchmarkMemory(b *testing.B) {
 	for _, i := range args {
 		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
 			benchmark(b, examples.GetMemoryExample(), i)
+		})
+	}
+}
+
+func BenchmarkAnalysis(b *testing.B) {
+	examples := []examples.Example{
+		examples.GetJumpdestAnalysisExample(),
+		examples.GetStopAnalysisExample(),
+		examples.GetPush1AnalysisExample(),
+		examples.GetPush32AnalysisExample(),
+	}
+	for _, example := range examples {
+		b.Run(fmt.Sprintf("%s", example.Name), func(b *testing.B) {
+			benchmark(b, example, 0)
 		})
 	}
 }
