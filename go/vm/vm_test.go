@@ -15,6 +15,7 @@ var (
 		examples.GetFibExample(),
 		examples.GetSha3Example(),
 		examples.GetArithmeticExample(),
+		examples.GetMemoryExample(),
 	}
 )
 
@@ -98,6 +99,15 @@ func BenchmarkArith(b *testing.B) {
 	for _, i := range args {
 		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
 			benchmark(b, examples.GetArithmeticExample(), i)
+		})
+	}
+}
+
+func BenchmarkMemory(b *testing.B) {
+	args := []int{1, 10, 100, 1000, 10000}
+	for _, i := range args {
+		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
+			benchmark(b, examples.GetMemoryExample(), i)
 		})
 	}
 }
