@@ -14,6 +14,12 @@ var (
 		examples.GetIncrementExample(),
 		examples.GetFibExample(),
 		examples.GetSha3Example(),
+		examples.GetArithmeticExample(),
+		examples.GetMemoryExample(),
+		examples.GetJumpdestAnalysisExample(),
+		examples.GetStopAnalysisExample(),
+		examples.GetPush1AnalysisExample(),
+		examples.GetPush32AnalysisExample(),
 	}
 )
 
@@ -91,6 +97,39 @@ func BenchmarkSha3(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkArith(b *testing.B) {
+	args := []int{1, 10, 100, 280}
+	for _, i := range args {
+		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
+			benchmark(b, examples.GetArithmeticExample(), i)
+		})
+	}
+}
+
+func BenchmarkMemory(b *testing.B) {
+	args := []int{1, 10, 100, 1000, 10000}
+	for _, i := range args {
+		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
+			benchmark(b, examples.GetMemoryExample(), i)
+		})
+	}
+}
+
+func BenchmarkAnalysis(b *testing.B) {
+	examples := []examples.Example{
+		examples.GetJumpdestAnalysisExample(),
+		examples.GetStopAnalysisExample(),
+		examples.GetPush1AnalysisExample(),
+		examples.GetPush32AnalysisExample(),
+	}
+	for _, example := range examples {
+		b.Run(fmt.Sprintf("%s", example.Name), func(b *testing.B) {
+			benchmark(b, example, 0)
+		})
+	}
+}
+
 func benchmark(b *testing.B, example examples.Example, arg int) {
 	// compute expected value
 	wanted := example.RunReference(arg)
@@ -101,11 +140,11 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 			for i := 0; i < b.N; i++ {
 				got, err := example.RunOn(evm.GetInterpreter(), arg)
 				if err != nil {
-					b.Fatalf("running the fib example failed: %v", err)
+					b.Fatalf("running the %s example failed: %v", example.Name, err)
 				}
 
 				if wanted != got.Result {
-					b.Fatalf("unexpected result, wanted %d, got %d", wanted, got)
+					b.Fatalf("unexpected result, wanted %d, got %d", wanted, got.Result)
 				}
 			}
 		})

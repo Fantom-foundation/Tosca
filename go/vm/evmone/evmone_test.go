@@ -68,7 +68,7 @@ func benchmarkFib(b *testing.B, arg int) {
 				}
 
 				if wanted != got.Result {
-					b.Fatalf("unexpected result, wanted %d, got %d", wanted, got)
+					b.Fatalf("unexpected result, wanted %d, got %d", wanted, got.Result)
 				}
 			}
 		})
