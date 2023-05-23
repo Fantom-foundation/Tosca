@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"testing"
 
+	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/vm_test/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
@@ -97,7 +98,7 @@ type OpcodeTest struct {
 	endStatus   Status
 	isBerlin    bool
 	isLondon    bool
-	mockCalls   func(mockStateDB *MockStateDB)
+	mockCalls   func(mockStateDB *vm_mock.MockStateDB)
 	gasStart    uint64
 	gasConsumed uint64
 }
@@ -249,82 +250,82 @@ var opcodeTests = []OpcodeTest{
 	{"PC", []Instruction{{PC, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 2},
 	{"STOP", []Instruction{{STOP, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 0},
 	{"SLOAD", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(common.Address{0}, common.Hash{0}).Return(common.Hash{0})
 		}, GAS_START, 803},
 	{"SLOAD Berlin", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(common.Address{0}, common.Hash{0}).Return(common.Hash{0})
 			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, common.Hash{0}).Return(true, true)
 		}, GAS_START, 103},
 	{"SLOAD Berlin no slot", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(common.Address{0}, common.Hash{0}).Return(common.Hash{0})
 			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, common.Hash{0}).Return(false, false)
 			mockStateDB.EXPECT().AddSlotToAccessList(common.Address{0}, common.Hash{0})
 		}, GAS_START, 2103},
 	{"SSTORE same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_0)
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_0)
 		}, GAS_START, 806},
 	{"SSTORE diff value, same state as db, db is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_0)
 			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_0)
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_1)
 		}, GAS_START, 20006},
 	{"SSTORE diff value, same state as db, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_1)
 			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_1)
 			mockStateDB.EXPECT().AddRefund(params.SstoreClearsScheduleRefundEIP2200)
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_0)
 		}, GAS_START, 5006},
 	{"SSTORE diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_0)
 			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_2)
 			mockStateDB.EXPECT().SubRefund(params.SstoreClearsScheduleRefundEIP2200)
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_1)
 		}, GAS_START, 806},
 	{"SSTORE diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_1)
 			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_2)
 			mockStateDB.EXPECT().AddRefund(params.SstoreClearsScheduleRefundEIP2200)
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_0)
 		}, GAS_START, 806},
 	{"SSTORE diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_1).Return(HASH_1)
 			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_1).Return(HASH_0)
 			mockStateDB.EXPECT().AddRefund(params.SstoreSetGasEIP2200 - params.SloadGasEIP2200)
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_1, HASH_0)
 		}, GAS_START, 806},
 	{"SSTORE diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_1)
 			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_2)
 			mockStateDB.EXPECT().AddRefund(params.SstoreResetGasEIP2200 - params.SloadGasEIP2200)
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_2)
 		}, GAS_START, 806},
 	{"SSTORE Berlin same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_0)
 			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_0).Return(true, false)
 			mockStateDB.EXPECT().AddSlotToAccessList(ADDRESS_0, HASH_0)
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_0)
 		}, GAS_START, 2206},
 	{"SSTORE Berlin diff value, same state as db, db is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_0)
 			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_0).Return(true, true)
 			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_0)
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_1)
 		}, GAS_START, 20006},
 	{"SSTORE Berlin diff value, same state as db, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_1)
 			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_0).Return(true, true)
 			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_1)
@@ -332,7 +333,7 @@ var opcodeTests = []OpcodeTest{
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_0)
 		}, GAS_START, 2906},
 	{"SSTORE Berlin diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_0)
 			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_0).Return(true, true)
 			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_2)
@@ -340,7 +341,7 @@ var opcodeTests = []OpcodeTest{
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_1)
 		}, GAS_START, 106},
 	{"SSTORE Berlin diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_1)
 			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_0).Return(true, true)
 			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_2)
@@ -348,7 +349,7 @@ var opcodeTests = []OpcodeTest{
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_0)
 		}, GAS_START, 106},
 	{"SSTORE Berlin diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_1).Return(HASH_1)
 			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_1).Return(true, true)
 			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_1).Return(HASH_0)
@@ -356,7 +357,7 @@ var opcodeTests = []OpcodeTest{
 			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_1, HASH_0)
 		}, GAS_START, 106},
 	{"SSTORE Berlin diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *MockStateDB) {
+		func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_1)
 			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_0).Return(true, true)
 			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_2)
@@ -412,14 +413,14 @@ func addOKOpCodes(tests []OpcodeTest) []OpcodeTest {
 func TestOKInstructionPath(t *testing.T) {
 
 	var mockCtrl *gomock.Controller
-	var mockStateDB *MockStateDB
+	var mockStateDB *vm_mock.MockStateDB
 
 	for _, test := range addOKOpCodes(opcodeTests) {
 		t.Run(test.name, func(t *testing.T) {
 
 			if test.mockCalls != nil {
 				mockCtrl = gomock.NewController(t)
-				mockStateDB = NewMockStateDB(mockCtrl)
+				mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
 				test.mockCalls(mockStateDB)
 			} else {
 				mockStateDB = nil

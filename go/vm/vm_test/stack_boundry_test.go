@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
+	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/vm_test/mocks"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -49,7 +49,7 @@ func TestStackMinBoundry(t *testing.T) {
 		for _, revision := range revisions {
 			for _, op := range getEmptyStackFailOpCodes(revision) {
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, op), func(t *testing.T) {
-					var stateDB *lfvm.MockStateDB
+					var stateDB *vm_mock.MockStateDB
 
 					evm := GetCleanEVM(revision, variant, stateDB)
 
