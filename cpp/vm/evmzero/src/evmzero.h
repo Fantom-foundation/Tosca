@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -179,6 +180,14 @@ struct Context {
           evmc_host_context* host_context)
       : message(message), host(host_interface, host_context) {
     code = ByteCodeStringToBinary(code_string);
+    valid_jump_target.resize(code.size());
+    stack.resize(max_stack_size);
+  }
+
+  Context(std::span<const uint8_t> input_code, const evmc_message* message, const evmc_host_interface& host_interface,
+          evmc_host_context* host_context)
+      : code(input_code.begin(), input_code.end()), message(message), host(host_interface, host_context) {
+    code.push_back(op::STOP);  // same as with ByteCodeStringToBinary
     valid_jump_target.resize(code.size());
     stack.resize(max_stack_size);
   }
