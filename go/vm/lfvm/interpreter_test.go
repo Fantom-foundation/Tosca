@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"testing"
 
-	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/vm_test/mocks"
+	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/test/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
