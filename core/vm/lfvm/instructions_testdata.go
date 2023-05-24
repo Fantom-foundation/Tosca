@@ -4230,18 +4230,20 @@ var testDataStackOp = []tTestDataStackOp{
 }
 
 type tTestDataMemOp struct {
-	name   string         // test description
-	op     func(*context) // tested operation
-	data   []uint256.Int  // input data
-	res    []uint256.Int  // expected result
-	status Status         // expected status
+	name     string         // test description
+	op       func(*context) // tested operation
+	data     []uint256.Int  // input data
+	res      []uint256.Int  // expected result
+	status   Status         // expected status
+	gasStore uint64         // required gas for store
+	gasLoad  uint64         // required gas for load
 }
 
 var testDataMemOp = []tTestDataMemOp{
 
 	// operation Mstore, Mload
 	{
-		name: "Mstore, Mload: write addr 0x00, read addr 0x00",
+		name: "Mstore, Mload: store to addr 0x00, load from addr 0x00",
 		op:   opMstore,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
@@ -4250,9 +4252,13 @@ var testDataMemOp = []tTestDataMemOp{
 			{0x00, 0x00, 0x00, 0x00},
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
 		status: RUNNING,
+		// new_mem_size_words = ((0x00+0x1F) + 0x1F) / 0x20 = 0x01
+		// gas_cost = (0x01 * 0x01 / 0x0200) + (0x03 * 0x01) = 0x03
+		gasStore: 3,
+		gasLoad:  0,
 	},
 	{
-		name: "Mstore, Mload: write addr 0x00, read addr 0x08",
+		name: "Mstore, Mload: store to addr 0x00, load from addr 0x08",
 		op:   opMstore,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
@@ -4260,10 +4266,14 @@ var testDataMemOp = []tTestDataMemOp{
 		res: []uint256.Int{
 			{0x08, 0x00, 0x00, 0x00},
 			{0x00, 0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF}},
-		status: RUNNING,
+		status:   RUNNING,
+		gasStore: 3,
+		// new_mem_size_words = ((0x08+0x1F) + 0x1F) / 0x20 = 0x02
+		// gas_cost = (0x02 * 0x02 / 0x0200) + (0x03 * 0x02) - 0x03 = 0x03
+		gasLoad: 3,
 	},
 	{
-		name: "Mstore, Mload: write addr 0x10, read addr 0x10",
+		name: "Mstore, Mload: store to addr 0x10, load from addr 0x10",
 		op:   opMstore,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
@@ -4272,9 +4282,13 @@ var testDataMemOp = []tTestDataMemOp{
 			{0x10, 0x00, 0x00, 0x00},
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
 		status: RUNNING,
+		// new_mem_size_words = ((0x10+0x1F) + 0x1F) / 0x20 = 0x02
+		// gas_cost = (0x02 * 0x02 / 0x0200) + (0x03 * 0x02) = 0x06
+		gasStore: 6,
+		gasLoad:  0,
 	},
 	{
-		name: "Mstore, Mload: write addr 0x10, read addr 0x08",
+		name: "Mstore, Mload: store to addr 0x10, load from addr 0x08",
 		op:   opMstore,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
@@ -4282,10 +4296,12 @@ var testDataMemOp = []tTestDataMemOp{
 		res: []uint256.Int{
 			{0x08, 0x00, 0x00, 0x00},
 			{0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0, 0x00}},
-		status: RUNNING,
+		status:   RUNNING,
+		gasStore: 6,
+		gasLoad:  0,
 	},
 	{
-		name: "Mstore, Mload: write addr 0x00 and 0x10, read addr 0x08",
+		name: "Mstore, Mload: store to addr 0x00 and 0x10, load from addr 0x08",
 		op:   opMstore,
 		data: []uint256.Int{
 			{0x1111111111111111, 0x2222222222222222, 0x3333333333333333, 0x4444444444444444},
@@ -4295,10 +4311,12 @@ var testDataMemOp = []tTestDataMemOp{
 		res: []uint256.Int{
 			{0x08, 0x00, 0x00, 0x00},
 			{0xF0123456789ABCDE, 0x1111111111111111, 0x2222222222222222, 0x3333333333333333}},
-		status: RUNNING,
+		status:   RUNNING,
+		gasStore: 6,
+		gasLoad:  0,
 	},
 	{
-		name: "Mstore, Mload: write addr 0x00 and 0x10, read addr 0x00",
+		name: "Mstore, Mload: store to addr 0x18, 0x10, 0x08 and 0x00, read form addr 0x00",
 		op:   opMstore,
 		data: []uint256.Int{
 			{0x1111111111111111, 0x2222222222222222, 0x3333333333333333, 0x4444444444444444},
@@ -4312,10 +4330,12 @@ var testDataMemOp = []tTestDataMemOp{
 		res: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x4444444444444444, 0x8888888888888888, 0xCCCCCCCCCCCCCCCC, 0x123456789ABCDEF0}},
-		status: RUNNING,
+		status:   RUNNING,
+		gasStore: 6,
+		gasLoad:  0,
 	},
 	{
-		name: "Mstore, Mload: write addr 0x00 and 0x10, read addr 0x00, 0x20",
+		name: "Mstore, Mload: store to addr 0x18, 0x10, 0x08 and 0x00, load from addr 0x00 and 0x20",
 		op:   opMstore,
 		data: []uint256.Int{
 			{0x1111111111111111, 0x2222222222222222, 0x3333333333333333, 0x4444444444444444},
@@ -4331,36 +4351,100 @@ var testDataMemOp = []tTestDataMemOp{
 			{0x4444444444444444, 0x8888888888888888, 0xCCCCCCCCCCCCCCCC, 0x123456789ABCDEF0},
 			{0x20, 0x00, 0x00, 0x00},
 			{0x0000000000000000, 0x1111111111111111, 0x2222222222222222, 0x3333333333333333}},
-		status: RUNNING,
+		status:   RUNNING,
+		gasStore: 6,
+		gasLoad:  0,
 	},
-
-	/*// operation Mload
 	{
-		name: "Mload: write addr 0x00, read addr 0x00",
-		op:   opMload,
+		name: "Mstore, Mload: store to addr 2^64, load from addr 2^64, status ERROR",
+		op:   opMstore,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
-			{0, 0, 0, 0}},
+			{0x00, 0x01, 0x00, 0x00}},
 		res: []uint256.Int{
-			{0, 0, 0, 0},
+			{0x00, 0x01, 0x00, 0x00},
+			{0x00, 0x00, 0x00, 0x00}},
+		status:   ERROR,
+		gasStore: 0,
+		gasLoad:  0,
+	},
+	/*{
+		// runtime error: slice bounds out of range
+		name: "Mstore, Mload: store to addr 2^64-1, status ERROR",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0xFFFFFFFFFFFFFFFF, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0xFFFFFFFFFFFFFFFF, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
+		status:   RUNNING,
+		gasStore: 1000,
+		gasLoad:  0,
+	},*/
+	{
+		name: "Mstore, Mload: store to addr 0xFF00, load from addr 0xFF00",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x000000000000FF00, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x000000000000FF00, 0x00, 0x00, 0x00},
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
 		status: RUNNING,
+		// new_mem_size_words = ((0xFF00+0x1F) + 0x1F) / 0x20 = 0x07F9
+		// gas_cost = (0x07F9 * 0x07F9 / 0x0200) + (3 * 0x07F9) = 0x37B3,
+		gasStore: 0x37B3,
+		gasLoad:  0,
 	},
 	{
-		name: "Mload: write addr 0x00, read addr 0x08",
-		op:   opMload,
+		name: "Mstore, Mload: store to addr 0xFFFFFFFF, load from addr 0xFFFFFFFF",
+		op:   opMstore,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
-			{0, 0, 0, 0}},
+			{0x00000000FFFFFFFF, 0x00, 0x00, 0x00}},
 		res: []uint256.Int{
-			{0x08, 0, 0, 0},
-			{0x00, 0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF}},
+			{0x00000000FFFFFFFF, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
 		status: RUNNING,
+		// new_mem_size_words = ((0xFFFFFFFF+0x1F) + 0x1F) / 0x20 = 0x08000001
+		// gas_cost = (0x08000001 * 0x08000001 / 0x0200) + (3 * 0x08000001) = 0x200018080003,
+		gasStore: 0x200018080003,
+		gasLoad:  0,
+	},
+	{
+		name: "Mstore, Mload: store to addr 0x00 and 0xFFFFFFFF, load from addr 0x00",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x00000000FFFFFFFF, 0x00, 0x00, 0x00},
+			{0xDDDDDDDDDDDDDDDD, 0xEEEEEEEEEEEEEEEE, 0xFFFFFFFFFFFFFFFF, 0x123456789ABCDEF0},
+			{0x00, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x00, 0x00, 0x00, 0x00},
+			{0xDDDDDDDDDDDDDDDD, 0xEEEEEEEEEEEEEEEE, 0xFFFFFFFFFFFFFFFF, 0x123456789ABCDEF0}},
+		status:   RUNNING,
+		gasStore: 0x200018080003,
+		gasLoad:  0,
+	},
+	/*{
+		// runtime error, it kill VS Code
+		name: "Mstore, Mload: store to addr 0xFFFFFFFFFF, load from addr 0xFFFFFFFF",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x000000FFFFFFFFFF, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x000000FFFFFFFFFF, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
+		status: RUNNING,
+		gasStore: 0x200018080003,
+		gasLoad:  0,
 	},*/
 
 	// operation Mstore8
 	{
-		name: "Mstore8: byte 0x00",
+		name: "Mstore8, Mload: store byte to addr 0x00, load from addr 0x00",
 		op:   opMstore8,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
@@ -4368,10 +4452,12 @@ var testDataMemOp = []tTestDataMemOp{
 		res: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0xCD00000000000000}},
-		status: RUNNING,
+		status:   RUNNING,
+		gasStore: 3,
+		gasLoad:  0,
 	},
 	{
-		name: "Mstore8: byte 0x01",
+		name: "Mstore8, Mload: store byte to addr 0x01, load from addr 0x00",
 		op:   opMstore8,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
@@ -4379,10 +4465,12 @@ var testDataMemOp = []tTestDataMemOp{
 		res: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00CD000000000000}},
-		status: RUNNING,
+		status:   RUNNING,
+		gasStore: 3,
+		gasLoad:  0,
 	},
 	{
-		name: "Mstore8: byte 0x02",
+		name: "Mstore8, Mload: store byte to addr 0x02, load from addr 0x00",
 		op:   opMstore8,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
@@ -4390,10 +4478,12 @@ var testDataMemOp = []tTestDataMemOp{
 		res: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x0000CD0000000000}},
-		status: RUNNING,
+		status:   RUNNING,
+		gasStore: 3,
+		gasLoad:  0,
 	},
 	{
-		name: "Mstore8: byte 0x02 (2)",
+		name: "Mstore8, Mload: store byte to addr 0x02, load from addr 0x02",
 		op:   opMstore8,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
@@ -4401,79 +4491,119 @@ var testDataMemOp = []tTestDataMemOp{
 		res: []uint256.Int{
 			{0x02, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0xCD00000000000000}},
-		status: RUNNING,
+		status:   RUNNING,
+		gasStore: 3,
+		gasLoad:  3,
 	},
 	{
-		name: "Mstore8: byte 0x10",
+		name: "Mstore8, Mload: store byte to addr 0x10, load from addr 0x00",
 		op:   opMstore8,
 		data: []uint256.Int{
-			{0x98, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x0000000000000098, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
 			{0x10, 0x00, 0x00, 0x00}},
 		res: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x9800000000000000, 0x00, 0x00}},
-		status: RUNNING,
+		status:   RUNNING,
+		gasStore: 3,
+		gasLoad:  0,
 	},
 	{
-		name: "Mstore8: byte 0x00 and byte 0x10",
+		name: "Mstore8: store byte to addr 0x00 and 0x10, load from addr 0x00",
 		op:   opMstore8,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
 			{0x00, 0x00, 0x00, 0x00},
-			{0x98, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x0000000000000098, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
 			{0x10, 0x00, 0x00, 0x00}},
 		res: []uint256.Int{
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x9800000000000000, 0x00, 0xCD00000000000000}},
+		status:   RUNNING,
+		gasStore: 3,
+		gasLoad:  0,
+	},
+	{
+		name: "Mstore8, Mload: store to addr 0x00 and 0xFFFFFFFF, load from addr 0x00",
+		op:   opMstore8,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x00000000FFFFFFFF, 0x00, 0x00, 0x00},
+			{0xAAAAAAAAAAAAAADD, 0xEEEEEEEEEEEEEEEE, 0xFFFFFFFFFFFFFFFF, 0x123456789ABCDEF0},
+			{0x00, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x00, 0x00, 0x00, 0x00},
+			{0x00, 0x00, 0x00, 0xDD00000000000000},
+			{0x00000000FFFFFFFF, 0x00, 0x00, 0x00},
+			{0x00, 0x00, 0x00, 0xCD00000000000000}},
 		status: RUNNING,
+		// new_mem_size_words = (0xFFFFFFFF + 0x1F) / 0x20 = 0x08000000
+		// gas_cost = (0x08000000 * 0x08000000 / 0x0200) + (3 * 0x08000000) = 0x200018000000,
+		gasStore: 0x200018000000,
+		gasLoad:  0x000000080003,
 	},
 }
 
 // operation Msize
 var testDataMsizeOp = []tTestDataOp{
 	{
-		name: "Msize: 0x20",
+		name: "Mstore, Msize: store to addr 0x00, mem size 0x20",
 		op:   opMsize,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
 			{0, 0, 0, 0}},
 		res:    uint256.Int{0x20, 0, 0, 0},
 		status: RUNNING,
+		gas:    3,
 	},
 	{
-		name: "Msize: 0x40",
+		name: "Mstore, Msize: store to addr 0x08, mem size 0x40",
 		op:   opMsize,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
 			{0x08, 0, 0, 0}},
 		res:    uint256.Int{0x40, 0, 0, 0},
 		status: RUNNING,
+		gas:    6,
 	},
 	{
-		name: "Msize: 0x40 (2)",
+		name: "Mstore, Msize: store to addr 0x10, mem size 0x40",
 		op:   opMsize,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
 			{0x10, 0, 0, 0}},
 		res:    uint256.Int{0x40, 0, 0, 0},
 		status: RUNNING,
+		gas:    6,
 	},
 	{
-		name: "Msize: 0x40 (3)",
+		name: "Mstore, Msize: store to addr 0x20, mem size 0x40",
 		op:   opMsize,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
 			{0x20, 0, 0, 0}},
 		res:    uint256.Int{0x40, 0, 0, 0},
 		status: RUNNING,
+		gas:    6,
 	},
 	{
-		name: "Msize: 0x60",
+		name: "Mstore, Msize: store to addr 0x24, mem size 0x60",
 		op:   opMsize,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
 			{0x24, 0, 0, 0}},
 		res:    uint256.Int{0x60, 0, 0, 0},
 		status: RUNNING,
+		gas:    9,
+	},
+	{
+		name: "Mstore, Msize: store to addr 0xFF00, mem size 0xFF20",
+		op:   opMsize,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0xFF00, 0, 0, 0}},
+		res:    uint256.Int{0xFF20, 0, 0, 0},
+		status: RUNNING,
+		gas:    0x37B3,
 	},
 }

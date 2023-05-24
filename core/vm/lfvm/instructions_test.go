@@ -492,14 +492,22 @@ func checkResultMem(t *testing.T, ctxt *context, status Status, res []uint256.In
 		t.Errorf("expected status %s, got %s", status.String(), ctxt.status.String())
 	}
 
+	if ctxt.status != RUNNING {
+		return
+	}
+
 	for i := 0; i < len(res)/2; i++ {
 		ctxt.stack.push(&res[2*i])
 		opMload(ctxt)
+		if status != ctxt.status {
+			t.Errorf("expected status %s, got %s", status.String(), ctxt.status.String())
+		} else {
 
-		got := ctxt.stack.peek()
+			got := ctxt.stack.peek()
 
-		if !res[2*i+1].Eq(got) {
-			t.Errorf("expected %s, got %s", res[2*i+1].Hex(), got.Hex())
+			if !res[2*i+1].Eq(got) {
+				t.Errorf("expected %s, got %s", res[2*i+1].Hex(), got.Hex())
+			}
 		}
 	}
 }
@@ -512,10 +520,17 @@ func runTestMemInstr(t *testing.T, testData []tTestDataMemOp) {
 
 			// Create a dummy contract
 			addr := vm.AccountRef{}
-			ctxt.contract = vm.NewContract(addr, addr, big.NewInt(0), 1000)
+			ctxt.contract = vm.NewContract(addr, addr, big.NewInt(0), data.gasStore+data.gasLoad)
 
 			for i := 0; i < len(data.data)/2; i++ {
 				data.op(ctxt)
+			}
+
+			// control of the consumed gas
+			expectedGas := data.gasStore
+			consumedGas := data.gasStore + data.gasLoad - ctxt.contract.Gas
+			if consumedGas != expectedGas {
+				t.Errorf("expected consumed gas %d, got %d", expectedGas, consumedGas)
 			}
 
 			checkResultMem(t, ctxt, data.status, data.res)
@@ -537,7 +552,7 @@ func testMsizeInstruction(t *testing.T, testData []tTestDataOp) {
 
 			// Create a dummy contract
 			addr := vm.AccountRef{}
-			ctxt.contract = vm.NewContract(addr, addr, big.NewInt(0), 1000)
+			ctxt.contract = vm.NewContract(addr, addr, big.NewInt(0), data.gas)
 
 			opMstore(ctxt)
 			data.op(ctxt)
