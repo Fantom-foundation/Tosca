@@ -565,3 +565,38 @@ func testMsizeInstruction(t *testing.T, testData []tTestDataOp) {
 func TestMSizeInstruction(t *testing.T) {
 	testMsizeInstruction(t, testDataMsizeOp)
 }
+
+// operation Push32
+func testPush32(t *testing.T, testData []tTestDataPush32) {
+	for _, data := range testData {
+		t.Run(data.name, func(t *testing.T) {
+			ctxt := context{
+				code:  data.data,
+				stack: NewStack(),
+			}
+
+			data.op(&ctxt)
+			ctxt.pc++
+
+			if ctxt.stack.len() != 1 {
+				t.Errorf("expected stack size of 1, got %d", ctxt.stack.len())
+				return
+			}
+
+			if int(ctxt.pc) != 16 {
+				t.Errorf("program counter did not progress to %d, got %d", 2, ctxt.pc)
+			}
+
+			got256 := ctxt.stack.peek()
+			if got256.ByteLen() != data.res.ByteLen() {
+				t.Errorf("expected %d byte on the stack, got %d with values %v", got256.ByteLen(), data.res.ByteLen(), got256)
+			}
+
+			checkResult(t, &ctxt, data.status, &data.res)
+		})
+	}
+}
+
+func TestPush32Instruction(t *testing.T) {
+	testPush32(t, testDataPush32)
+}

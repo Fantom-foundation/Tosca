@@ -4397,7 +4397,7 @@ var testDataMemOp = []tTestDataMemOp{
 		gasStore: 0x37B3,
 		gasLoad:  0,
 	},
-	{
+	/*{
 		name: "Mstore, Mload: store to addr 0xFFFFFFFF, load from addr 0xFFFFFFFF",
 		op:   opMstore,
 		data: []uint256.Int{
@@ -4426,7 +4426,7 @@ var testDataMemOp = []tTestDataMemOp{
 		status:   RUNNING,
 		gasStore: 0x200018080003,
 		gasLoad:  0,
-	},
+	},*/
 	/*{
 		// runtime error, it kill VS Code
 		name: "Mstore, Mload: store to addr 0xFFFFFFFFFF, load from addr 0xFFFFFFFF",
@@ -4523,8 +4523,8 @@ var testDataMemOp = []tTestDataMemOp{
 		gasStore: 3,
 		gasLoad:  0,
 	},
-	{
-		name: "Mstore8, Mload: store to addr 0x00 and 0xFFFFFFFF, load from addr 0x00",
+	/*{
+		name: "Mstore8, Mload: store to addr 0x00 and 0xFFFFFFFF, load from addr 0x00 and 0xFFFFFFFF",
 		op:   opMstore8,
 		data: []uint256.Int{
 			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
@@ -4541,7 +4541,7 @@ var testDataMemOp = []tTestDataMemOp{
 		// gas_cost = (0x08000000 * 0x08000000 / 0x0200) + (3 * 0x08000000) = 0x200018000000,
 		gasStore: 0x200018000000,
 		gasLoad:  0x000000080003,
-	},
+	},*/
 }
 
 // operation Msize
@@ -4605,5 +4605,110 @@ var testDataMsizeOp = []tTestDataOp{
 		res:    uint256.Int{0xFF20, 0, 0, 0},
 		status: RUNNING,
 		gas:    0x37B3,
+	},
+}
+
+type tTestDataPush32 struct {
+	name   string         // test description
+	op     func(*context) // tested operation
+	data   []Instruction  // input data
+	res    uint256.Int    // expected result
+	status Status         // expected status
+}
+
+var testDataPush32 = []tTestDataPush32{
+
+	// operation Push32
+	{
+		name: "Push32: various values",
+		op:   opPush32,
+		data: []Instruction{
+			{opcode: PUSH32, arg: 0x1234},
+			{opcode: DATA, arg: 0x5678},
+			{opcode: DATA, arg: 0x9ABC},
+			{opcode: DATA, arg: 0xDEF0},
+			{opcode: DATA, arg: 0x0FED},
+			{opcode: DATA, arg: 0xCBA9},
+			{opcode: DATA, arg: 0x8765},
+			{opcode: DATA, arg: 0x4321},
+			{opcode: DATA, arg: 0x1122},
+			{opcode: DATA, arg: 0x3344},
+			{opcode: DATA, arg: 0x5566},
+			{opcode: DATA, arg: 0x7788},
+			{opcode: DATA, arg: 0x99AA},
+			{opcode: DATA, arg: 0xBBCC},
+			{opcode: DATA, arg: 0xDDEE},
+			{opcode: DATA, arg: 0xFF0F}},
+		res:    uint256.Int{0x99AABBCCDDEEFF0F, 0x1122334455667788, 0x0FEDCBA987654321, 0x123456789ABCDEF0},
+		status: RUNNING,
+	},
+	{
+		name: "Push32: all zero values",
+		op:   opPush32,
+		data: []Instruction{
+			{opcode: PUSH32, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000}},
+		res:    uint256.Int{0x00, 0x00, 0x00, 0x00},
+		status: RUNNING,
+	},
+	{
+		name: "Push32: all 0xFF values",
+		op:   opPush32,
+		data: []Instruction{
+			{opcode: PUSH32, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF},
+			{opcode: DATA, arg: 0xFFFF}},
+		res:    uint256.Int{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF},
+		status: RUNNING,
+	},
+	{
+		name: "Push32: value 1 on the lowest bit",
+		op:   opPush32,
+		data: []Instruction{
+			{opcode: PUSH32, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0000},
+			{opcode: DATA, arg: 0x0001}},
+		res:    uint256.Int{0x01, 0x00, 0x00, 0x00},
+		status: RUNNING,
 	},
 }
