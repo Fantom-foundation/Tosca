@@ -20,6 +20,7 @@ var (
 		"evmone",
 		"evmone-basic",
 		"evmone-advanced",
+		// "evmzero", TODO: evmzero is not yet in a state where these tests succeed!
 	}
 )
 

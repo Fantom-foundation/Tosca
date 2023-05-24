@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
+	_ "github.com/Fantom-foundation/Tosca/go/vm/evmzero"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 )
 
