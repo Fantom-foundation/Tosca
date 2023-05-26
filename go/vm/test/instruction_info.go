@@ -90,7 +90,7 @@ func getInstanbulInstructions() map[vm.OpCode]InstructionInfo {
 	}
 
 	swap := func(x int) StackUsage {
-		return StackUsage{popped: x, pushed: x}
+		return StackUsage{popped: x + 1, pushed: x + 1}
 	}
 
 	res := map[vm.OpCode]InstructionInfo{
