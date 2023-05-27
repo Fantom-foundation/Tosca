@@ -29,12 +29,14 @@ func TestStaticGas(t *testing.T) {
 	// For every variant of interpreter
 	for _, variant := range Variants {
 		for _, revision := range revisions {
+			// Get staic gas for frequently used instructions
+			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
+			jumpdestGas := getInstructions(revision)[vm.JUMPDEST].gas.static
+
 			for op, info := range getInstructions(revision) {
 				if info.gas.dynamic == nil {
 					t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, op), func(t *testing.T) {
 						evm := GetCleanEVM(revision, variant, mockStateDB)
-
-						pushGas := getInstructions(revision)[vm.PUSH1].gas.static
 						wantGas := 0
 						var code []byte
 						if op == vm.JUMP {
@@ -44,15 +46,14 @@ func TestStaticGas(t *testing.T) {
 								byte(op),
 								byte(vm.JUMPDEST),
 							}
-							wantGas = pushGas + info.gas.static + getInstructions(revision)[vm.JUMPDEST].gas.static
-
+							wantGas = pushGas + info.gas.static + jumpdestGas
 						} else {
 							// Fill stack with PUSH1 instructions.
 							codeLen := info.stack.popped*2 + 1
 							code = make([]byte, 0, codeLen)
 							for i := 0; i < info.stack.popped; i++ {
 								code = append(code, []byte{byte(vm.PUSH1), 0}...)
-								wantGas += getInstructions(revision)[vm.PUSH1].gas.static
+								wantGas += pushGas
 							}
 
 							// Set a tested instruction as the last one.
