@@ -30,16 +30,25 @@ type TestEVM struct {
 func GetCleanEVM(revision Revision, interpreter string, stateDB vm.StateDB) TestEVM {
 	// Set hard forks for chainconfig
 	chainConfig := params.ChainConfig{
+		ChainID:       big.NewInt(0),
 		IstanbulBlock: big.NewInt(Istanbul.GetForkBlock()),
 		BerlinBlock:   big.NewInt(Berlin.GetForkBlock()),
 		LondonBlock:   big.NewInt(London.GetForkBlock()),
 	}
+
+	// Hashing function used in the context for BLOCKHASH instruction
+	getHash := func(num uint64) common.Hash {
+		return common.Hash{}
+	}
+
 	// Create empty block context based on block number
 	blockCtx := vm.BlockContext{
 		BlockNumber: big.NewInt(revision.GetForkBlock() + 2),
 		Time:        big.NewInt(1),
 		Difficulty:  big.NewInt(1),
 		GasLimit:    1 << 63,
+		GetHash:     getHash,
+		BaseFee:     big.NewInt(100),
 	}
 	// Create empty tx context
 	txCtx := vm.TxContext{

@@ -120,7 +120,7 @@ func getStaticStackInternal(op OpCode) InstructionStack {
 		return newInstructionStack(int(op)-int(DUP1)+1, 1, 1)
 	}
 	if SWAP1 <= op && op <= SWAP16 {
-		return newInstructionStack(int(op)-int(SWAP1)+1, 0, 0)
+		return newInstructionStack(int(op)-int(SWAP1)+2, 0, 0)
 	}
 	if LOG0 <= op && op <= LOG4 {
 		return newInstructionStack(int(op)-int(LOG0)+2, 0, 0)
