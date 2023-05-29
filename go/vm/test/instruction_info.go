@@ -68,7 +68,7 @@ type GasUsage struct {
 }
 
 // getInstructions returns a map of OpCodes for the respective revision.
-func getInstructions(revision Revision) map[vm.OpCode]InstructionInfo {
+func getInstructions(revision Revision) map[vm.OpCode]*InstructionInfo {
 	switch revision {
 	case Istanbul:
 		return getInstanbulInstructions()
@@ -80,7 +80,7 @@ func getInstructions(revision Revision) map[vm.OpCode]InstructionInfo {
 	panic(fmt.Sprintf("unknown revision: %v", revision))
 }
 
-func getInstanbulInstructions() map[vm.OpCode]InstructionInfo {
+func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 	none := StackUsage{}
 
 	op := func(x int) StackUsage {
@@ -130,7 +130,7 @@ func getInstanbulInstructions() map[vm.OpCode]InstructionInfo {
 		return GasUsage{static, nil}
 	}
 
-	res := map[vm.OpCode]InstructionInfo{
+	res := map[vm.OpCode]*InstructionInfo{
 		vm.STOP:           {stack: none, gas: noGas},
 		vm.ADD:            {stack: op(2), gas: gasS(gasFastestStep)},
 		vm.MUL:            {stack: op(2), gas: gasS(gasFastStep)},
@@ -276,7 +276,7 @@ func getInstanbulInstructions() map[vm.OpCode]InstructionInfo {
 	return res
 }
 
-func getBerlinInstructions() map[vm.OpCode]InstructionInfo {
+func getBerlinInstructions() map[vm.OpCode]*InstructionInfo {
 	// Berlin only modifies gas computations.
 	// https://eips.ethereum.org/EIPS/eip-2929
 	const gasWarmStorageReadCostEIP2929 int = 100
@@ -286,35 +286,34 @@ func getBerlinInstructions() map[vm.OpCode]InstructionInfo {
 	res := getInstanbulInstructions()
 
 	// Static and dynamic gas calculation is changing for these instructions
-	res[vm.SSTORE] = InstructionInfo{stack: res[vm.SSTORE].stack, gas: GasUsage{res[vm.SSTORE].gas.static, dynGasNotImpYet}}
-	res[vm.SLOAD] = InstructionInfo{stack: res[vm.SLOAD].stack, gas: GasUsage{0, dynGasNotImpYet}}
-	res[vm.EXTCODECOPY] = InstructionInfo{stack: res[vm.EXTCODECOPY].stack, gas: GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}}
-	res[vm.EXTCODESIZE] = InstructionInfo{stack: res[vm.EXTCODESIZE].stack, gas: GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}}
-	res[vm.EXTCODEHASH] = InstructionInfo{stack: res[vm.EXTCODEHASH].stack, gas: GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}}
-	res[vm.BALANCE] = InstructionInfo{stack: res[vm.BALANCE].stack, gas: GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}}
-	res[vm.CALL] = InstructionInfo{stack: res[vm.CALL].stack, gas: GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}}
-	res[vm.CALLCODE] = InstructionInfo{stack: res[vm.CALLCODE].stack, gas: GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}}
-	res[vm.STATICCALL] = InstructionInfo{stack: res[vm.STATICCALL].stack, gas: GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}}
-	res[vm.DELEGATECALL] = InstructionInfo{stack: res[vm.DELEGATECALL].stack, gas: GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}}
-	res[vm.SELFDESTRUCT] = InstructionInfo{stack: res[vm.SELFDESTRUCT].stack, gas: GasUsage{gasSelfDestruct, dynGasNotImpYet}}
+	res[vm.SSTORE].gas.dynamic = dynGasNotImpYet
+	res[vm.SLOAD].gas = GasUsage{0, dynGasNotImpYet}
+	res[vm.EXTCODECOPY].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
+	res[vm.EXTCODESIZE].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
+	res[vm.EXTCODEHASH].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
+	res[vm.BALANCE].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
+	res[vm.CALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
+	res[vm.CALLCODE].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
+	res[vm.STATICCALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
+	res[vm.DELEGATECALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
+	res[vm.SELFDESTRUCT].gas = GasUsage{gasSelfDestruct, dynGasNotImpYet}
 
 	return res
 }
 
-func getLondonInstructions() map[vm.OpCode]InstructionInfo {
+func getLondonInstructions() map[vm.OpCode]*InstructionInfo {
 	const gasQuickStep int = 2
 	res := getBerlinInstructions()
 	dynGasNotImpYet := func() {}
 	// One additional instruction: BASEFEE
 	// https://eips.ethereum.org/EIPS/eip-3198
-	res[vm.BASEFEE] = InstructionInfo{
+	res[vm.BASEFEE] = &InstructionInfo{
 		stack: StackUsage{pushed: 1},
 		gas:   GasUsage{gasQuickStep, nil},
 	}
 
 	// Only dynamic gas calculation is changing
-	res[vm.SSTORE] = InstructionInfo{stack: res[vm.SSTORE].stack, gas: GasUsage{res[vm.SSTORE].gas.static, dynGasNotImpYet}}
-	res[vm.SELFDESTRUCT] = InstructionInfo{stack: res[vm.SELFDESTRUCT].stack, gas: GasUsage{res[vm.SELFDESTRUCT].gas.static, dynGasNotImpYet}}
-
+	res[vm.BASEFEE].gas.dynamic = dynGasNotImpYet
+	res[vm.SELFDESTRUCT].gas.dynamic = dynGasNotImpYet
 	return res
 }
