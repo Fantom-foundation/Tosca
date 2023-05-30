@@ -64,8 +64,10 @@ type StackUsage struct {
 
 type GasUsage struct {
 	static  int
-	dynamic func()
+	dynamic func() []*DynGasTest
 }
+
+var dynGasNotImpYet = func() []*DynGasTest { return []*DynGasTest{} }
 
 // getInstructions returns a map of OpCodes for the respective revision.
 func getInstructions(revision Revision) map[vm.OpCode]*InstructionInfo {
@@ -114,15 +116,13 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 	const gasCallEIP150 int = 700
 	const gasCreate int = 32000
 
-	dynGasNotImpYet := func() {}
-
 	noGas := GasUsage{0, nil}
 
-	gas := func(static int, dynamic func()) GasUsage {
+	gas := func(static int, dynamic func() []*DynGasTest) GasUsage {
 		return GasUsage{static, dynamic}
 	}
 
-	gasD := func(dynamic func()) GasUsage {
+	gasD := func(dynamic func() []*DynGasTest) GasUsage {
 		return GasUsage{0, dynamic}
 	}
 
@@ -141,7 +141,7 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.SMOD:           {stack: op(2), gas: gasS(gasFastStep)},
 		vm.ADDMOD:         {stack: op(3), gas: gasS(gasMidStep)},
 		vm.MULMOD:         {stack: op(3), gas: gasS(gasMidStep)},
-		vm.EXP:            {stack: op(2), gas: gasD(dynGasNotImpYet)},
+		vm.EXP:            {stack: op(2), gas: gasD(gasEXP)},
 		vm.SIGNEXTEND:     {stack: op(2), gas: gasS(gasFastStep)},
 		vm.LT:             {stack: op(2), gas: gasS(gasFastestStep)},
 		vm.GT:             {stack: op(2), gas: gasS(gasFastestStep)},
@@ -281,7 +281,6 @@ func getBerlinInstructions() map[vm.OpCode]*InstructionInfo {
 	// https://eips.ethereum.org/EIPS/eip-2929
 	const gasWarmStorageReadCostEIP2929 int = 100
 	const gasSelfDestruct int = 5000
-	dynGasNotImpYet := func() {}
 
 	res := getInstanbulInstructions()
 
@@ -304,7 +303,6 @@ func getBerlinInstructions() map[vm.OpCode]*InstructionInfo {
 func getLondonInstructions() map[vm.OpCode]*InstructionInfo {
 	const gasQuickStep int = 2
 	res := getBerlinInstructions()
-	dynGasNotImpYet := func() {}
 	// One additional instruction: BASEFEE
 	// https://eips.ethereum.org/EIPS/eip-3198
 	res[vm.BASEFEE] = &InstructionInfo{
