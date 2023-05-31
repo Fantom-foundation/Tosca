@@ -74,10 +74,10 @@ For instance:
 
 ```bash
 # Run specific test binary directly
-./build/vm/evmzero/evmzero_interpreter_test
+./build/vm/evmzero/uint256_test
 
 # Build and run specific test binary directly
-cmake --build build --parallel --target evmzero_interpreter_test && ./build/vm/evmzero/evmzero_interpreter_test
+cmake --build build --parallel --target uint256_test && ./build/vm/evmzero/uint256_test
 ```
 
 > Note: Invoking ctest does **not** trigger compilation.
