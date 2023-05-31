@@ -4,3 +4,12 @@
 [submodule "third_party/evmc"]
 	path = third_party/evmc
 	url = https://github.com/HerbertJordan/evmc.git
+[submodule "third_party/intx"]
+	path = third_party/intx
+	url = https://github.com/chfast/intx.git
+[submodule "third_party/googletest"]
+	path = third_party/googletest
+	url = https://github.com/google/googletest.git
+[submodule "third_party/ethash"]
+	path = third_party/ethash
+	url = https://github.com/chfast/ethash.git
