@@ -13,16 +13,6 @@ git submodule update --init --recursive
 - C/C++ toolchain (+ standard library) supporting C++20, Clang >= 14 recommended
     - Ubuntu/Debian package: `clang`
     - Recommended: install `clang-format`, `clangd`, and `gdb` for development
-- [Bazel](https://bazel.build/)
-    - Install Bazelisk via Go¹:
-      ```
-      go install github.com/bazelbuild/bazelisk@latest
-      ```
-    - Create a symlink `bazel` pointing to the installed `bazelisk` binary:
-      ```
-      cd $HOME/go/bin
-      ln -s bazelisk bazel
-      ```
 - [mockgen](https://github.com/golang/mock)
     - Install via Go:
       ```
@@ -47,43 +37,59 @@ make test
 
 Open the `cpp` subdirectory in VSCode:
 - Install recommended extensions: press `F1` → *Show Recommended Extensions*
-- Generate `compile_commands.json`: press `F1` → *Generate Compilation Database*
 
 ### Build / Run in VSCode
 
-Some tasks are defined in [`task.json`](cpp/.vscode/tasks.json) to ease building and testing during development.
-Tasks can be run via `F1` → *Tasks: Run …*
+Select the wanted compiler (i.e. kit), build configuration and build target in VSCode's status line.
+The selected target can be build via the *Build* button in the status line, or by pressing `F7`.
 
 ### Debug in VSCode
 
-The debugging targets are defined in [`launch.json`](cpp/.vscode/launch.json).
-`gdb` must be installed for this to work.
-
-Right now, this is only used to debug unit tests.
-With a unit test file open (e.g. `word_test.cc`), set a break point and press `F5`.
+Pressing the 🐜 button in VSCode's status line launches the currently selected target in the debugger.
+The same can be achieved by pressing `Ctrl + F5`.
 
 ### Build / Run Manually
 
-To build different configurations, invoke Bazel in the `cpp` subdirectory:
+To build different configurations, invoke CMake in the `cpp` subdirectory:
 
 ```bash
-# Debug Configuration
-bazel build -c dbg //...
+# Debug Configuration (with AddressSanitizer)
+cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DTOSCA_ASAN=ON
+cmake --build build --parallel
 
-# Address Sanitizer
-bazel build -c dbg --config asan //...
-
-# Optimized build
-bazel build -c opt //...
+# Release Configuration
+cmake -BBuild -DCMAKE_BUILD_TYPE=Release -DTOSCA_ASAN=OFF
+cmake --build build --parallel
 
 # Run all tests
-bazel test //...
+ctest --test-dir build --output-on-failure
 
-# Run test in sub-directory
-bazel test //common/...
-
-# Run individual test or binary
-bazel run //common:word_test
+# Run individual test
+ctest --test-dir build --output-on-failure -R <test-name>
 ```
+
+`ctest` executes each unit test in isolation which is relatively slow to execute.
+Alternatively, you can just run the corresponding unit test binary.
+For instance:
+
+```bash
+# Run specific test binary directly
+./build/vm/evmzero/uint256_test
+
+# Build and run specific test binary directly
+cmake --build build --parallel --target uint256_test && ./build/vm/evmzero/uint256_test
+```
+
+> Note: Invoking ctest does **not** trigger compilation.
+> You have to invoke the build process beforehand.
+> 
+> ```bash
+> cmake --build build --parallel && ctest --test-dir build --output-on-failure
+> ```
+
+> Note: For OSX, add the following argument to the initial CMake invocation:
+> ```
+> -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so
+> ```
 
 > Note: VSCode's multi-root workspace feature does not play nice with these extensions.

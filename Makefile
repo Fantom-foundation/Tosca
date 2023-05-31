@@ -24,7 +24,7 @@ all: tosca
 
 tosca: tosca-go tosca-cpp
 
-tosca-go:
+tosca-go: tosca-cpp
 	@cd third_party/evmone ; \
 	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so ; \
 	cmake --build build --parallel
@@ -36,16 +36,26 @@ tosca-go:
 
 tosca-cpp:
 	@cd cpp ; \
-	bazel build //...
+	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so ; \
+	cmake --build build --parallel
+
+tosca-cpp-asan:
+	@cd cpp ; \
+	cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so -DTOSCA_ASAN=ON ; \
+	cmake --build build --parallel
 
 test: test-go test-cpp
 
 test-go:
 	@go test ./...
 
-test-cpp:
-	@cd cpp ; \
-	bazel test //...
+test-cpp: tosca-cpp
+	@cd cpp/build ; \
+	ctest --output-on-failure
+
+test-cpp-asan: tosca-cpp-asan
+	@cd cpp/build ; \
+	ctest --output-on-failure
 
 bench: bench-go
 
@@ -59,7 +69,7 @@ clean-go:
 
 clean-cpp:
 	@cd cpp ; \
-	bazel clean --expunge
+	cmake --build build --target clean
 
 help: Makefile
 	@echo "Choose a make command in "$(PROJECT)":"
