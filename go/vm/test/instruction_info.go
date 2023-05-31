@@ -63,7 +63,7 @@ type StackUsage struct {
 }
 
 type GasUsage struct {
-	static  int
+	static  uint64
 	dynamic func() []*DynGasTest
 }
 
@@ -101,24 +101,24 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		return StackUsage{popped: x + 1, pushed: x + 1}
 	}
 
-	const gasJumpDest int = 1
-	const gasQuickStep int = 2
-	const gasFastestStep int = 3
-	const gasFastStep int = 5
-	const gasMidStep int = 8
-	const gasSlowStep int = 10
-	const gasBalance int = 700
-	const gasExtStep int = 20
-	const gasExtCode int = 700
-	const gasSha3 int = 30
-	const gasSloadEIP2200 int = 800
-	const gasExtCodeHash int = 700
-	const gasCallEIP150 int = 700
-	const gasCreate int = 32000
+	const gasJumpDest uint64 = 1
+	const gasQuickStep uint64 = 2
+	const gasFastestStep uint64 = 3
+	const gasFastStep uint64 = 5
+	const gasMidStep uint64 = 8
+	const gasSlowStep uint64 = 10
+	const gasBalance uint64 = 700
+	const gasExtStep uint64 = 20
+	const gasExtCode uint64 = 700
+	const gasSha3 uint64 = 30
+	const gasSloadEIP2200 uint64 = 800
+	const gasExtCodeHash uint64 = 700
+	const gasCallEIP150 uint64 = 700
+	const gasCreate uint64 = 32000
 
 	noGas := GasUsage{0, nil}
 
-	gas := func(static int, dynamic func() []*DynGasTest) GasUsage {
+	gas := func(static uint64, dynamic func() []*DynGasTest) GasUsage {
 		return GasUsage{static, dynamic}
 	}
 
@@ -126,7 +126,7 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		return GasUsage{0, dynamic}
 	}
 
-	gasS := func(static int) GasUsage {
+	gasS := func(static uint64) GasUsage {
 		return GasUsage{static, nil}
 	}
 
@@ -157,7 +157,7 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.SHL:            {stack: op(2), gas: gasS(gasFastestStep)},
 		vm.SHR:            {stack: op(2), gas: gasS(gasFastestStep)},
 		vm.SAR:            {stack: op(2), gas: gasS(gasFastestStep)},
-		vm.SHA3:           {stack: op(2), gas: gas(gasSha3, dynGasNotImpYet)},
+		vm.SHA3:           {stack: op(2), gas: gas(gasSha3, gasDynamicSHA3)},
 		vm.ADDRESS:        {stack: op(0), gas: gasS(gasQuickStep)},
 		vm.BALANCE:        {stack: op(1), gas: gasS(gasBalance)},
 		vm.ORIGIN:         {stack: op(0), gas: gasS(gasQuickStep)},
@@ -279,8 +279,8 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 func getBerlinInstructions() map[vm.OpCode]*InstructionInfo {
 	// Berlin only modifies gas computations.
 	// https://eips.ethereum.org/EIPS/eip-2929
-	const gasWarmStorageReadCostEIP2929 int = 100
-	const gasSelfDestruct int = 5000
+	const gasWarmStorageReadCostEIP2929 uint64 = 100
+	const gasSelfDestruct uint64 = 5000
 
 	res := getInstanbulInstructions()
 
@@ -301,7 +301,7 @@ func getBerlinInstructions() map[vm.OpCode]*InstructionInfo {
 }
 
 func getLondonInstructions() map[vm.OpCode]*InstructionInfo {
-	const gasQuickStep int = 2
+	const gasQuickStep uint64 = 2
 	res := getBerlinInstructions()
 	// One additional instruction: BASEFEE
 	// https://eips.ethereum.org/EIPS/eip-3198

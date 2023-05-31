@@ -37,7 +37,7 @@ func TestStaticGas(t *testing.T) {
 				if info.gas.dynamic == nil {
 					t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, op), func(t *testing.T) {
 						evm := GetCleanEVM(revision, variant, mockStateDB)
-						wantGas := 0
+						var wantGas uint64 = 0
 						var code []byte
 						if op == vm.JUMP {
 							code = []byte{
@@ -103,7 +103,7 @@ func TestDynamicGas(t *testing.T) {
 						t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, op, testCase.testName), func(t *testing.T) {
 							// Initialize EVM clean instance
 							evm := GetCleanEVM(revision, variant, mockStateDB)
-							wantGas := 0
+							var wantGas uint64 = 0
 
 							// Put needed values on stack with PUSH instructions.
 							stackValues := testCase.stackValues
@@ -111,6 +111,9 @@ func TestDynamicGas(t *testing.T) {
 							code := make([]byte, 0)
 							for i := 0; i < stackValuesCount; i++ {
 								valueBytes := stackValues[i].Bytes()
+								if len(valueBytes) == 0 {
+									valueBytes = []byte{0}
+								}
 								push := vm.PUSH1 + vm.OpCode(len(valueBytes)-1)
 								code = append(code, byte(push))
 								for j := 0; j < len(valueBytes); j++ {
