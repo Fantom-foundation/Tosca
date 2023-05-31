@@ -1,7 +1,4 @@
 {
-    "bsv.cc.compdb.targets": [
-        "//..."
-    ],
     "[c]": {
         "editor.defaultFormatter": "xaver.clang-format",
         "files.insertFinalNewline": true,
@@ -12,4 +9,14 @@
         "files.insertFinalNewline": true,
         "files.trimFinalNewlines": true,
     },
+
+    "clangd.arguments": [
+        "-header-insertion=never",
+    ],
+    
+    // Disabling C/C++ extension's auto-completion as we are using clangd. We
+    // still use this extension for better debugging support.
+    "C_Cpp.autocomplete": "disabled",
+    "C_Cpp.intelliSenseEngineFallback": "disabled",
+    "C_Cpp.errorSquiggles": "disabled",
 }
