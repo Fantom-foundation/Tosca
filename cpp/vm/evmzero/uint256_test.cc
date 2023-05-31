@@ -1,4 +1,4 @@
-#include "vm/emvzero/uint256.h"
+#include "vm/evmzero/uint256.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

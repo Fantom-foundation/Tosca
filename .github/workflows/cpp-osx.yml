@@ -20,8 +20,5 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Build C++
-      run: make tosca-cpp
-
     - name: Run C++ tests
       run: make test-cpp

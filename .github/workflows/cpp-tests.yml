@@ -22,8 +22,5 @@ jobs:
           submodules: recursive
       - uses: egor-tensin/setup-clang@v1
 
-      - name: Build C++
-        run: make tosca-cpp-asan
-
       - name: Run C++ tests
-        run: make test-cpp
+        run: make test-cpp-asan

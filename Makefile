@@ -53,6 +53,10 @@ test-cpp: tosca-cpp
 	@cd cpp/build ; \
 	ctest --output-on-failure
 
+test-cpp-asan: tosca-cpp-asan
+	@cd cpp/build ; \
+	ctest --output-on-failure
+
 bench: bench-go
 
 bench-go:
