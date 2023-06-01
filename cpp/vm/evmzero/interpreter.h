@@ -32,7 +32,7 @@ struct InterpreterArgs {
 struct InterpreterResult {
   RunState state = RunState::kDone;
   uint64_t remaining_gas = 0;
-  std::vector<uint8_t> return_data = {};
+  std::vector<uint8_t> return_data;
 };
 
 InterpreterResult Interpret(const InterpreterArgs&);
@@ -45,12 +45,12 @@ struct Context {
   uint64_t pc = 0;
   uint64_t gas = 100000000000llu;
 
-  std::vector<uint8_t> code = {};
-  std::vector<uint8_t> return_data = {};
-  std::vector<uint8_t> valid_jump_targets = {};
+  std::vector<uint8_t> code;
+  std::vector<uint8_t> return_data;
+  std::vector<uint8_t> valid_jump_targets;
 
-  Memory memory = {};
-  Stack stack = {};
+  Memory memory;
+  Stack stack;
 
   bool CheckStackAvailable(uint64_t elements_needed) noexcept;
   bool CheckStackOverflow(uint64_t slots_needed) noexcept;

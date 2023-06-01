@@ -15,8 +15,8 @@ struct InterpreterTestDescription {
   uint64_t gas_before = 0;
   uint64_t gas_after = 0;
 
-  Stack stack_before = {};
-  Stack stack_after = {};
+  Stack stack_before;
+  Stack stack_after;
 };
 
 void RunInterpreterTest(const InterpreterTestDescription& desc) {
