@@ -10,6 +10,16 @@ TEST(StackTest, Empty) {
   EXPECT_EQ(stack.GetSize(), 0);
 }
 
+TEST(StackTest, Init) {
+  Stack stack = {1, 2, 3};
+
+  EXPECT_EQ(stack.GetSize(), 3);
+
+  EXPECT_EQ(stack.Pop(), 3);
+  EXPECT_EQ(stack.Pop(), 2);
+  EXPECT_EQ(stack.Pop(), 1);
+}
+
 TEST(StackTest, PushPop) {
   Stack stack;
 
@@ -26,20 +36,8 @@ TEST(StackTest, PushPop) {
   EXPECT_EQ(stack.GetSize(), 0);
 }
 
-TEST(StackTest, SetElements) {
-  Stack stack;
-  stack.SetElements({1, 2, 3});
-  EXPECT_EQ(stack.GetSize(), 3);
-  EXPECT_EQ(stack.Pop(), 3);
-
-  stack.SetElements({4});
-  EXPECT_EQ(stack.GetSize(), 1);
-  EXPECT_EQ(stack.Pop(), 4);
-}
-
 TEST(StackTest, Subscript) {
-  Stack stack;
-  stack.SetElements({1, 2, 3});
+  Stack stack = {1, 2, 3};
 
   EXPECT_EQ(stack[0], 3);
   EXPECT_EQ(stack[1], 2);

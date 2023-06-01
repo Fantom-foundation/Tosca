@@ -2,6 +2,7 @@
 # Library
 add_library(evmzero SHARED
   evmzero.cc
+  interpreter.cc
   memory.cc
   stack.cc)
 tosca_add_compile_flags(evmzero)
