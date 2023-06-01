@@ -383,6 +383,120 @@ static void sar(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+static void pop(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Pop();
+  ctx.pc++;
+}
+
+static void jump(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(8)) [[unlikely]]
+    return;
+  uint64_t counter = static_cast<uint64_t>(ctx.stack.Pop());
+  if (!ctx.CheckJumpDest(counter)) [[unlikely]]
+    return;
+  ctx.pc = counter;
+}
+
+static void jumpi(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(10)) [[unlikely]]
+    return;
+  uint64_t counter = static_cast<uint64_t>(ctx.stack.Pop());
+  uint64_t b = static_cast<uint64_t>(ctx.stack.Pop());
+  if (b != 0) {
+    if (!ctx.CheckJumpDest(counter)) [[unlikely]]
+      return;
+    ctx.pc = counter;
+  } else {
+    ctx.pc++;
+  }
+}
+
+static void pc(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ctx.pc);
+  ctx.pc++;
+}
+
+static void msize(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ctx.memory.GetSize());
+  ctx.pc++;
+}
+
+static void gas(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ctx.gas);
+  ctx.pc++;
+}
+
+static void jumpdest(Context& ctx) noexcept {
+  if (!ctx.ApplyGasCost(1)) [[unlikely]]
+    return;
+  ctx.pc++;
+}
+
+template <uint64_t N>
+static void push(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+
+  // If their aren't enough values in the code, we exit without doing the push
+  // as the interpreter would stop with the next iteration anyway.
+  if (ctx.code.size() < ctx.pc + 1 + N) [[unlikely]] {
+    ctx.pc += 1 + N;
+    ctx.state = RunState::kDone;
+    return;
+  }
+
+  uint256_t value = 0;
+  for (uint64_t i = 1; i <= N; ++i) {
+    value |= static_cast<uint256_t>(ctx.code[ctx.pc + i]) << (N - i) * 8;
+  }
+  ctx.stack.Push(value);
+  ctx.pc += 1 + N;
+}
+
+template <uint64_t N>
+static void dup(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(N)) [[unlikely]]
+    return;
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  ctx.stack.Push(ctx.stack[N - 1]);
+  ctx.pc++;
+}
+
+template <uint64_t N>
+static void swap(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(N + 1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  std::swap(ctx.stack[0], ctx.stack[N]);
+  ctx.pc++;
+}
+
 }  // namespace op
 
 ///////////////////////////////////////////////////////////
@@ -404,6 +518,43 @@ bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
     return false;
   } else {
     return true;
+  }
+}
+
+bool Context::CheckJumpDest(uint64_t index) noexcept {
+  FillValidJumpTargetsUpTo(index);
+  if (index >= code.size() || !valid_jump_targets[index]) [[unlikely]] {
+    state = RunState::kErrorJump;
+    return false;
+  } else {
+    return true;
+  }
+}
+
+void Context::FillValidJumpTargetsUpTo(uint64_t index) noexcept {
+  if (index < valid_jump_targets.size()) [[likely]] {
+    return;
+  }
+
+  if (index >= code.size()) [[unlikely]] {
+    assert(false);
+    return;
+  }
+
+  const uint64_t old_size = valid_jump_targets.size();
+  valid_jump_targets.resize(index + 1);
+
+  uint64_t cur = old_size;
+  while (cur <= index) {
+    const auto instruction = code[cur];
+
+    if (op::PUSH1 <= instruction && instruction <= op::PUSH32) {
+      // Skip PUSH and arguments
+      cur += instruction - op::PUSH1 + 2;
+    } else {
+      valid_jump_targets[cur] = instruction == op::JUMPDEST;
+      cur++;
+    }
   }
 }
 
@@ -481,13 +632,16 @@ void RunInterpreter(Context& ctx) {
       case op::CHAINID: op::chainid(ctx); break;
       case op::SELFBALANCE: op::selfbalance(ctx); break;
       case op::BASEFEE: op::basefee(ctx); break;
+      */
 
       case op::POP: op::pop(ctx); break;
+      /*
       case op::MLOAD: op::mload(ctx); break;
       case op::MSTORE: op::mstore(ctx); break;
       case op::MSTORE8: op::mstore8(ctx); break;
       case op::SLOAD: op::sload(ctx); break;
       case op::SSTORE: op::sstore(ctx); break;
+      */
 
       case op::JUMP: op::jump(ctx); break;
       case op::JUMPI: op::jumpi(ctx); break;
@@ -563,6 +717,7 @@ void RunInterpreter(Context& ctx) {
       case op::SWAP15: op::swap<15>(ctx); break;
       case op::SWAP16: op::swap<16>(ctx); break;
 
+      /*
       case op::LOG0: op::log<0>(ctx); break;
       case op::LOG1: op::log<1>(ctx); break;
       case op::LOG2: op::log<2>(ctx); break;
