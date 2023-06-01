@@ -55,6 +55,9 @@ struct Context {
   bool CheckStackAvailable(uint64_t elements_needed) noexcept;
   bool CheckStackOverflow(uint64_t slots_needed) noexcept;
   bool ApplyGasCost(uint64_t gas_cost) noexcept;
+
+  bool CheckJumpDest(uint64_t index) noexcept;
+  void FillValidJumpTargetsUpTo(uint64_t index) noexcept;
 };
 
 void RunInterpreter(Context&);

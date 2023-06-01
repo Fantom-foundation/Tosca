@@ -17,12 +17,16 @@ struct InterpreterTestDescription {
 
   Stack stack_before;
   Stack stack_after;
+
+  Memory memory_before;
+  Memory memory_after;
 };
 
 void RunInterpreterTest(const InterpreterTestDescription& desc) {
   internal::Context ctx{
       .gas = desc.gas_before,
       .code = desc.code,
+      .memory = desc.memory_before,
       .stack = desc.stack_before,
   };
 
@@ -1260,6 +1264,366 @@ TEST(InterpreterTest, SAR_StackError) {
       .state_after = RunState::kErrorStack,
       .gas_before = 7,
       .stack_before = {1},
+  });
+}
+
+///////////////////////////////////////////////////////////
+// POP
+TEST(InterpreterTest, POP) {
+  RunInterpreterTest({
+      .code = {op::POP},
+      .state_after = RunState::kDone,
+      .gas_before = 5,
+      .gas_after = 3,
+      .stack_before = {3},
+      .stack_after = {},
+  });
+}
+
+TEST(InterpreterTest, POP_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::POP},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+      .stack_before = {3},
+  });
+}
+
+TEST(InterpreterTest, POP_StackError) {
+  RunInterpreterTest({
+      .code = {op::POP},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 5,
+      .stack_before = {},
+  });
+}
+
+///////////////////////////////////////////////////////////
+// JUMP
+TEST(InterpreterTest, JUMP) {
+  RunInterpreterTest({
+      .code = {op::JUMP,       //
+               op::PUSH1, 24,  // should be skipped
+               op::JUMPDEST,   //
+               op::PUSH1, 42},
+      .state_after = RunState::kDone,
+      .gas_before = 5000,
+      .gas_after = 4988,
+      .stack_before = {3},
+      .stack_after = {42},
+  });
+}
+
+TEST(InterpreterTest, JUMP_Invalid) {
+  RunInterpreterTest({
+      .code = {op::PUSH4, op::JUMPDEST, op::JUMPDEST, op::JUMPDEST, op::JUMPDEST,  //
+               op::PUSH1, 3,                                                       //
+               op::JUMP},
+      .state_after = RunState::kErrorJump,
+      .gas_before = 5000,
+  });
+}
+
+TEST(InterpreterTest, JUMP_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::JUMP},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 7,
+      .stack_before = {0},
+  });
+}
+
+TEST(InterpreterTest, JUMP_StackError) {
+  RunInterpreterTest({
+      .code = {op::JUMP},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 100,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// JUMPI
+TEST(InterpreterTest, JUMPI) {
+  RunInterpreterTest({
+      .code = {op::JUMPI,      //
+               op::PUSH1, 24,  //
+               op::JUMPDEST,   //
+               op::PUSH1, 42},
+      .state_after = RunState::kDone,
+      .gas_before = 5000,
+      .gas_after = 4983,
+      .stack_before = {0, 3},
+      .stack_after = {24, 42},
+  });
+
+  RunInterpreterTest({
+      .code = {op::JUMPI,      //
+               op::PUSH1, 24,  //
+               op::JUMPDEST,   //
+               op::PUSH1, 42},
+      .state_after = RunState::kDone,
+      .gas_before = 5000,
+      .gas_after = 4986,
+      .stack_before = {1, 3},
+      .stack_after = {42},
+  });
+}
+
+TEST(InterpreterTest, JUMPI_Invalid) {
+  RunInterpreterTest({
+      .code = {op::PUSH4, op::JUMPDEST, op::JUMPDEST, op::JUMPDEST, op::JUMPDEST,  //
+               op::PUSH1, 3,                                                       //
+               op::PUSH1, 1,                                                       //
+               op::JUMPI},
+      .state_after = RunState::kErrorJump,
+      .gas_before = 5000,
+  });
+}
+
+TEST(InterpreterTest, JUMPI_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::JUMPI,      //
+               op::PUSH1, 24,  //
+               op::JUMPDEST,   //
+               op::PUSH1, 42},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 9,
+      .stack_before = {0, 3},
+  });
+}
+
+TEST(InterpreterTest, JUMPI_StackError) {
+  RunInterpreterTest({
+      .code = {op::JUMPI,      //
+               op::PUSH1, 24,  //
+               op::JUMPDEST,   //
+               op::PUSH1, 42},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 100,
+      .stack_before = {0},
+  });
+}
+
+///////////////////////////////////////////////////////////
+// PC
+TEST(InterpreterTest, PC) {
+  RunInterpreterTest({
+      .code = {op::PC, op::PC, op::PC},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 4,
+      .stack_after = {0, 1, 2},
+  });
+}
+
+TEST(InterpreterTest, PC_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::PC},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// MSIZE
+TEST(InterpreterTest, MSIZE) {
+  RunInterpreterTest({
+      .code = {op::MSIZE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {0},
+  });
+
+  RunInterpreterTest({
+      .code = {op::MSIZE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {32},
+      .memory_before{
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+      },
+      .memory_after{
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+      },
+  });
+}
+
+TEST(InterpreterTest, MSIZE_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::MSIZE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// GAS
+TEST(InterpreterTest, GAS) {
+  RunInterpreterTest({
+      .code = {op::GAS},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 98,
+      .stack_after = {98},
+  });
+}
+
+TEST(InterpreterTest, GAS_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::GAS},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// JUMPDEST
+TEST(InterpreterTest, JUMPDEST) {
+  RunInterpreterTest({
+      .code = {op::JUMPDEST},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 9,
+  });
+}
+
+TEST(InterpreterTest, JUMPDEST_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::JUMPDEST},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 0,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// PUSH
+TEST(InterpreterTest, PUSH) {
+  RunInterpreterTest({
+      .code = {op::PUSH4, 0xFF, 0xFF, 0xFF, 0xFF},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {},
+      .stack_after = {0xFFFFFFFF},
+  });
+
+  RunInterpreterTest({
+      .code = {op::PUSH20, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+               0xFF,       0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xAA},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {},
+      .stack_after = {uint256_t(0xFFFFFFFFFFFFFFAA, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFF)},
+  });
+}
+
+TEST(InterpreterTest, PUSH_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::PUSH4, 0xFF, 0xFF, 0xFF, 0xFF},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2,
+  });
+}
+
+TEST(InterpreterTest, PUSH_OutOfBytes) {
+  RunInterpreterTest({
+      .code = {op::PUSH4, 0xFF, 0xFF, /* 0 byte added for test */},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_PUSH_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
+// DUP
+TEST(InterpreterTest, DUP) {
+  RunInterpreterTest({
+      .code = {op::DUP4},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {4, 3, 2, 1},
+      .stack_after = {4, 3, 2, 1, 4},
+  });
+
+  RunInterpreterTest({
+      .code = {op::DUP15},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1},
+      .stack_after = {16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 15},
+  });
+}
+
+TEST(InterpreterTest, DUP_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::DUP4},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+      .stack_before = {4, 3, 2, 1},
+  });
+}
+
+TEST(InterpreterTest, DUP_StackError) {
+  RunInterpreterTest({
+      .code = {op::DUP4},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 10,
+      .stack_before = {3, 2, 1},
+  });
+}
+
+TEST(InterpreterTest, DISABLED_DUP_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
+// SWAP
+TEST(InterpreterTest, SWAP) {
+  RunInterpreterTest({
+      .code = {op::SWAP4},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {5, 4, 3, 2, 1},
+      .stack_after = {1, 4, 3, 2, 5},
+  });
+
+  RunInterpreterTest({
+      .code = {op::SWAP16},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1},
+      .stack_after = {18, 1, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 17},
+  });
+}
+
+TEST(InterpreterTest, SWAP_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::SWAP4},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+      .stack_before = {5, 4, 3, 2, 1},
+  });
+}
+
+TEST(InterpreterTest, SWAP_StackError) {
+  RunInterpreterTest({
+      .code = {op::SWAP4},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 10,
+      .stack_before = {4, 3, 2, 1},
   });
 }
 
