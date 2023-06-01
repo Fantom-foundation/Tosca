@@ -11,8 +11,8 @@ void Stack::SetElements(std::initializer_list<uint256_t> elements) {
 }
 
 bool operator==(const Stack& a, const Stack& b) {
-  return std::equal(a.stack_.begin(), a.stack_.begin() + static_cast<ptrdiff_t>(a.position_),  //
-                    b.stack_.begin(), b.stack_.begin() + static_cast<ptrdiff_t>(b.position_));
+  return std::equal(a.stack_.data(), a.stack_.data() + a.position_,  //
+                    b.stack_.data(), b.stack_.data() + b.position_);
 }
 
 bool operator!=(const Stack& a, const Stack& b) { return !(a == b); }
