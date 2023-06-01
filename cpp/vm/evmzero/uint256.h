@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <ostream>
 #include <string>
 
 #include <ethash/keccak.hpp>
@@ -17,6 +18,7 @@ inline uint8_t* ToBytes(uint256_t& i) { return intx::as_bytes(i); }
 inline const uint8_t* ToBytes(const uint256_t& i) { return intx::as_bytes(i); }
 
 inline std::string ToString(const uint256_t& i) { return intx::to_string(i); }
+inline std::ostream& operator<<(std::ostream& out, const uint256_t& i) { return out << ToString(i); }
 
 inline evmc_address ToEvmcAddress(const uint256_t& i) { return intx::be::trunc<evmc_address>(i); }
 inline uint256_t ToUint256(const evmc_address& address) { return intx::be::load<uint256_t>(address); }
