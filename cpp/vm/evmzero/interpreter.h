@@ -58,6 +58,8 @@ struct Context {
 
   bool CheckJumpDest(uint64_t index) noexcept;
   void FillValidJumpTargetsUpTo(uint64_t index) noexcept;
+
+  uint64_t MemoryExpansionCost(uint64_t new_size) noexcept;
 };
 
 void RunInterpreter(Context&);
