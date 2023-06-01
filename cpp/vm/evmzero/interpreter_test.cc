@@ -1299,6 +1299,370 @@ TEST(InterpreterTest, POP_StackError) {
 }
 
 ///////////////////////////////////////////////////////////
+// MLOAD
+TEST(InterpreterTest, MLOAD) {
+  RunInterpreterTest({
+      .code = {op::MLOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {0},
+      .stack_after = {0xFF},
+      .memory_before{
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0xFF,  //
+      },
+      .memory_after{
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0xFF,  //
+      },
+  });
+
+  RunInterpreterTest({
+      .code = {op::MLOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {2},
+      .stack_after = {0xFF},
+      .memory_before{
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0xFF,
+      },
+      .memory_after{
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0xFF,
+      },
+  });
+}
+
+TEST(InterpreterTest, MLOAD_Grow) {
+  RunInterpreterTest({
+      .code = {op::MLOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 4,
+      .stack_before = {32},
+      .stack_after = {0},
+      .memory_before{
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0xFF,  //
+      },
+      .memory_after{
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0xFF,  //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+      },
+  });
+
+  RunInterpreterTest({
+      .code = {op::MLOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 4,
+      .stack_before = {1},
+      .stack_after = {0xFF00},
+      .memory_before{
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0xFF,  //
+      },
+      .memory_after{
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0xFF,  //
+          0,
+      },
+  });
+}
+
+TEST(InterpreterTest, MLOAD_RetainExisting) {
+  RunInterpreterTest({
+      .code = {op::MLOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {0},
+      .stack_after = {0xFF},
+      .memory_before{
+          0,    0, 0, 0, 0, 0, 0, 0,     //
+          0,    0, 0, 0, 0, 0, 0, 0,     //
+          0,    0, 0, 0, 0, 0, 0, 0,     //
+          0,    0, 0, 0, 0, 0, 0, 0xFF,  //
+          0xFF, 0, 0, 0, 0, 0, 0, 0,     //
+          0xFF, 0, 0, 0, 0, 0, 0, 0,     //
+      },
+      .memory_after{
+          0,    0, 0, 0, 0, 0, 0, 0,     //
+          0,    0, 0, 0, 0, 0, 0, 0,     //
+          0,    0, 0, 0, 0, 0, 0, 0,     //
+          0,    0, 0, 0, 0, 0, 0, 0xFF,  //
+          0xFF, 0, 0, 0, 0, 0, 0, 0,     //
+          0xFF, 0, 0, 0, 0, 0, 0, 0,     //
+      },
+  });
+}
+
+TEST(InterpreterTest, MLOAD_OutOfGas_Static) {
+  RunInterpreterTest({
+      .code = {op::MLOAD},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2,
+      .stack_before = {1},
+      .memory_before{
+          0xFF, 0, 0, 0, 0, 0, 0, 0,  //
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+      },
+
+  });
+}
+
+TEST(InterpreterTest, MLOAD_OutOfGas_Dynamic) {
+  RunInterpreterTest({
+      .code = {op::MLOAD},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 5,
+      .stack_before = {1},
+      .memory_before{
+          0xFF, 0, 0, 0, 0, 0, 0, 0,  //
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+      },
+  });
+}
+
+TEST(InterpreterTest, MLOAD_StackError) {
+  RunInterpreterTest({
+      .code = {op::MLOAD},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 100,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// MSTORE
+TEST(InterpreterTest, MSTORE) {
+  RunInterpreterTest({
+      .code = {op::MSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {0xFF, 0},
+      .memory_before{
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+      },
+      .memory_after{
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0,     //
+          0, 0, 0, 0, 0, 0, 0, 0xFF,  //
+      },
+  });
+}
+
+TEST(InterpreterTest, MSTORE_Grow) {
+  RunInterpreterTest({
+      .code = {op::MSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 1,
+      .stack_before = {0xFF, 2},
+      .memory_after{
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0xFF,
+      },
+  });
+
+  RunInterpreterTest({
+      .code = {op::MSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 4,
+      .stack_before = {0xFF, 2},
+      .memory_before{
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+      },
+      .memory_after{
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0,    0, 0, 0, 0, 0, 0,  //
+          0, 0xFF,
+      },
+  });
+}
+
+TEST(InterpreterTest, MSTORE_RetainExisting) {
+  RunInterpreterTest({
+      .code = {op::MSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {0xFF, 2},
+      .stack_after = {},
+      .memory_before{
+          0,    0, 0xFF, 0, 0, 0, 0, 0,  //
+          0,    0, 0,    0, 0, 0, 0, 0,  //
+          0,    0, 0,    0, 0, 0, 0, 0,  //
+          0,    0, 0,    0, 0, 0, 0, 0,  //
+          0xFF, 0, 0,    0, 0, 0, 0, 0,  //
+          0xFF, 0, 0,    0, 0, 0, 0, 0,  //
+      },
+      .memory_after{
+          0,    0,    0, 0, 0, 0, 0, 0,  //
+          0,    0,    0, 0, 0, 0, 0, 0,  //
+          0,    0,    0, 0, 0, 0, 0, 0,  //
+          0,    0,    0, 0, 0, 0, 0, 0,  //
+          0,    0xFF, 0, 0, 0, 0, 0, 0,  //
+          0xFF, 0,    0, 0, 0, 0, 0, 0,  //
+      },
+  });
+}
+
+TEST(InterpreterTest, MSTORE_OutOfGas_Static) {
+  RunInterpreterTest({
+      .code = {op::MSTORE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2,
+      .stack_before = {0xFF, 0},
+  });
+}
+
+TEST(InterpreterTest, MSTORE_OutOfGas_Dynamic) {
+  RunInterpreterTest({
+      .code = {op::MSTORE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 5,
+      .stack_before = {0xFF, 0},
+  });
+}
+
+TEST(InterpreterTest, MSTORE_StackError) {
+  RunInterpreterTest({
+      .code = {op::MSTORE},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 10,
+      .stack_before = {0xFF},
+  });
+}
+
+///////////////////////////////////////////////////////////
+// MSTORE8
+TEST(InterpreterTest, MSTORE8) {
+  RunInterpreterTest({
+      .code = {op::MSTORE8},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {0xBB, 1},
+      .memory_before = {0xAA, 0, 0xCC, 0xDD, 0, 0, 0, 0},
+      .memory_after = {0xAA, 0xBB, 0xCC, 0xDD, 0, 0, 0, 0},
+  });
+}
+
+TEST(InterpreterTest, MSTORE8_Grow) {
+  RunInterpreterTest({
+      .code = {op::MSTORE8},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 4,
+      .stack_before = {0xFF, 32},
+      .memory_before = {0, 0, 0, 0, 0, 0, 0, 0},
+      .memory_after{
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+          0xFF,                       //
+      },
+  });
+}
+
+TEST(InterpreterTest, MSTORE8_RetainExisting) {
+  RunInterpreterTest({
+      .code = {op::MSTORE8},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {0xFF, 2},
+      .memory_before{
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+          0,    0, 0, 0, 0, 0, 0, 0,  //
+          0xFF, 0, 0, 0, 0, 0, 0, 0,  //
+          0xFF, 0, 0, 0, 0, 0, 0, 0,  //
+      },
+      .memory_after{
+          0,    0, 0xFF, 0, 0, 0, 0, 0,  //
+          0,    0, 0,    0, 0, 0, 0, 0,  //
+          0,    0, 0,    0, 0, 0, 0, 0,  //
+          0,    0, 0,    0, 0, 0, 0, 0,  //
+          0xFF, 0, 0,    0, 0, 0, 0, 0,  //
+          0xFF, 0, 0,    0, 0, 0, 0, 0,  //
+      },
+  });
+}
+
+TEST(InterpreterTest, MSTORE8_OutOfGas_Static) {
+  RunInterpreterTest({
+      .code = {op::MSTORE8},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2,
+      .stack_before = {0xFF, 0},
+  });
+}
+
+TEST(InterpreterTest, MSTORE8_OutOfGas_Dynamic) {
+  RunInterpreterTest({
+      .code = {op::MSTORE8},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 5,
+      .stack_before = {0xFF, 0},
+  });
+}
+
+TEST(InterpreterTest, MSTORE8_StackError) {
+  RunInterpreterTest({
+      .code = {op::MSTORE8},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 10,
+      .stack_before = {0xFF},
+  });
+}
+
+///////////////////////////////////////////////////////////
 // JUMP
 TEST(InterpreterTest, JUMP) {
   RunInterpreterTest({

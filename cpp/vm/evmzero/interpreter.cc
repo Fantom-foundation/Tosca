@@ -392,6 +392,49 @@ static void pop(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+static void mload(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  const uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
+  if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset + 32))) [[unlikely]]
+    return;
+
+  uint256_t value_le;
+  ctx.memory.WriteTo({ToBytes(value_le), 32}, offset);
+  ctx.stack.Push(intx::to_big_endian(value_le));
+  ctx.pc++;
+}
+
+static void mstore(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  const uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
+  uint256_t value_le = intx::to_little_endian(ctx.stack.Pop());
+  if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset + 32))) [[unlikely]]
+    return;
+
+  ctx.memory.ReadFrom({ToBytes(value_le), 32}, offset);
+  ctx.pc++;
+}
+
+static void mstore8(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  const uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint8_t value = static_cast<uint8_t>(ctx.stack.Pop());
+  if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset + 1))) [[unlikely]]
+    return;
+
+  ctx.memory.ReadFrom({&value, 1}, offset);
+  ctx.pc++;
+}
+
 static void jump(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
@@ -558,6 +601,19 @@ void Context::FillValidJumpTargetsUpTo(uint64_t index) noexcept {
   }
 }
 
+uint64_t Context::MemoryExpansionCost(uint64_t new_size) noexcept {
+  if (new_size <= memory.GetSize()) {
+    return 0;
+  }
+
+  auto calc_memory_cost = [](uint64_t size) {
+    uint64_t memory_size_word = (size + 31) / 32;
+    return (memory_size_word * memory_size_word) / 512 + (3 * memory_size_word);
+  };
+
+  return calc_memory_cost(new_size) - calc_memory_cost(memory.GetSize());
+}
+
 bool Context::ApplyGasCost(uint64_t gas_cost) noexcept {
   if (gas < gas_cost) [[unlikely]] {
     state = RunState::kErrorGas;
@@ -635,10 +691,10 @@ void RunInterpreter(Context& ctx) {
       */
 
       case op::POP: op::pop(ctx); break;
-      /*
       case op::MLOAD: op::mload(ctx); break;
       case op::MSTORE: op::mstore(ctx); break;
       case op::MSTORE8: op::mstore8(ctx); break;
+      /*
       case op::SLOAD: op::sload(ctx); break;
       case op::SSTORE: op::sstore(ctx); break;
       */
