@@ -68,6 +68,321 @@ static void add(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+static void mul(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(5)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  ctx.stack.Push(a * b);
+  ctx.pc++;
+}
+
+static void sub(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  ctx.stack.Push(a - b);
+  ctx.pc++;
+}
+
+static void div(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(5)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  if (b == 0)
+    ctx.stack.Push(0);
+  else
+    ctx.stack.Push(a / b);
+  ctx.pc++;
+}
+
+static void sdiv(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(5)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  if (b == 0)
+    ctx.stack.Push(0);
+  else
+    ctx.stack.Push(intx::sdivrem(a, b).quot);
+  ctx.pc++;
+}
+
+static void mod(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(5)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  if (b == 0)
+    ctx.stack.Push(0);
+  else
+    ctx.stack.Push(a % b);
+  ctx.pc++;
+}
+
+static void smod(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(5)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  if (b == 0)
+    ctx.stack.Push(0);
+  else
+    ctx.stack.Push(intx::sdivrem(a, b).rem);
+  ctx.pc++;
+}
+
+static void addmod(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(3)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(8)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  uint256_t N = ctx.stack.Pop();
+  if (N == 0)
+    ctx.stack.Push(0);
+  else
+    ctx.stack.Push(intx::addmod(a, b, N));
+  ctx.pc++;
+}
+
+static void mulmod(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(3)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(8)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  uint256_t N = ctx.stack.Pop();
+  if (N == 0)
+    ctx.stack.Push(0);
+  else
+    ctx.stack.Push(intx::mulmod(a, b, N));
+  ctx.pc++;
+}
+
+static void exp(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(10)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t exponent = ctx.stack.Pop();
+  if (!ctx.ApplyGasCost(50 * intx::count_significant_bytes(exponent))) [[unlikely]]
+    return;
+  ctx.stack.Push(intx::exp(a, exponent));
+  ctx.pc++;
+}
+
+static void signextend(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(5)) [[unlikely]]
+    return;
+
+  uint8_t leading_byte_index = static_cast<uint8_t>(ctx.stack.Pop());
+  if (leading_byte_index > 31) {
+    leading_byte_index = 31;
+  }
+
+  uint256_t value = ctx.stack.Pop();
+
+  bool is_negative = ToByteArrayLe(value)[leading_byte_index] & 0b1000'0000;
+  if (is_negative) {
+    auto mask = kUint256Max << (8 * (leading_byte_index + 1));
+    ctx.stack.Push(mask | value);
+  } else {
+    auto mask = kUint256Max >> (8 * (31 - leading_byte_index));
+    ctx.stack.Push(mask & value);
+  }
+
+  ctx.pc++;
+}
+
+static void lt(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  ctx.stack.Push(a < b ? 1 : 0);
+  ctx.pc++;
+}
+
+static void gt(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  ctx.stack.Push(a > b ? 1 : 0);
+  ctx.pc++;
+}
+
+static void slt(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  ctx.stack.Push(intx::slt(a, b) ? 1 : 0);
+  ctx.pc++;
+}
+
+static void sgt(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  ctx.stack.Push(intx::slt(b, a) ? 1 : 0);
+  ctx.pc++;
+}
+
+static void eq(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  ctx.stack.Push(a == b ? 1 : 0);
+  ctx.pc++;
+}
+
+static void iszero(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t val = ctx.stack.Pop();
+  ctx.stack.Push(val == 0);
+  ctx.pc++;
+}
+
+static void bit_and(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  ctx.stack.Push(a & b);
+  ctx.pc++;
+}
+
+static void bit_or(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  ctx.stack.Push(a | b);
+  ctx.pc++;
+}
+
+static void bit_xor(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  uint256_t b = ctx.stack.Pop();
+  ctx.stack.Push(a ^ b);
+  ctx.pc++;
+}
+
+static void bit_not(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t a = ctx.stack.Pop();
+  ctx.stack.Push(~a);
+  ctx.pc++;
+}
+
+static void byte(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t offset = ctx.stack.Pop();
+  uint256_t x = ctx.stack.Pop();
+  if (offset < 32) {
+    // Offset starts at most significant byte.
+    ctx.stack.Push(ToByteArrayLe(x)[31 - static_cast<uint8_t>(offset)]);
+  } else {
+    ctx.stack.Push(0);
+  }
+  ctx.pc++;
+}
+
+static void shl(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t shift = ctx.stack.Pop();
+  uint256_t value = ctx.stack.Pop();
+  ctx.stack.Push(value << shift);
+  ctx.pc++;
+}
+
+static void shr(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t shift = ctx.stack.Pop();
+  uint256_t value = ctx.stack.Pop();
+  ctx.stack.Push(value >> shift);
+  ctx.pc++;
+}
+
+static void sar(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  uint256_t shift = ctx.stack.Pop();
+  uint256_t value = ctx.stack.Pop();
+  const bool is_negative = ToByteArrayLe(value)[31] & 0b1000'0000;
+
+  if (shift > 31) {
+    shift = 31;
+  }
+
+  value >>= shift;
+
+  if (is_negative) {
+    value |= (kUint256Max << (31 - shift));
+  }
+
+  ctx.stack.Push(value);
+  ctx.pc++;
+}
+
 }  // namespace op
 
 ///////////////////////////////////////////////////////////
@@ -115,7 +430,6 @@ void RunInterpreter(Context& ctx) {
       case op::STOP: op::stop(ctx); break;
 
       case op::ADD: op::add(ctx); break;
-      /*
       case op::MUL: op::mul(ctx); break;
       case op::SUB: op::sub(ctx); break;
       case op::DIV: op::div(ctx); break;
@@ -140,6 +454,7 @@ void RunInterpreter(Context& ctx) {
       case op::SHL: op::shl(ctx); break;
       case op::SHR: op::shr(ctx); break;
       case op::SAR: op::sar(ctx); break;
+      /*
       case op::SHA3: op::sha3(ctx); break;
       case op::ADDRESS: op::address(ctx); break;
       case op::BALANCE: op::balance(ctx); break;
