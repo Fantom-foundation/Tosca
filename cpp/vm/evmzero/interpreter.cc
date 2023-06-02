@@ -405,6 +405,38 @@ static void sha3(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+static void codesize(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ctx.code.size());
+  ctx.pc++;
+}
+
+static void codecopy(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(3)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+
+  const uint64_t memory_offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t code_offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
+
+  const uint64_t minimum_word_size = (size + 31) / 32;
+  if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
+    return;
+
+  std::span<uint8_t> code_view;
+  if (code_offset < ctx.code.size()) {
+    code_view = std::span(ctx.code).subspan(code_offset);
+  }
+
+  ctx.memory.ReadFromWithSize(code_view, memory_offset, size);
+  ctx.pc++;
+}
+
 static void pop(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
@@ -702,8 +734,10 @@ void RunInterpreter(Context& ctx) {
       case op::CALLDATALOAD: op::calldataload(ctx); break;
       case op::CALLDATASIZE: op::calldatasize(ctx); break;
       case op::CALLDATACOPY: op::calldatacopy(ctx); break;
+      */
       case op::CODESIZE: op::codesize(ctx); break;
       case op::CODECOPY: op::codecopy(ctx); break;
+      /*
       case op::GASPRICE: op::gasprice(ctx); break;
       case op::EXTCODESIZE: op::extcodesize(ctx); break;
       case op::EXTCODECOPY: op::extcodecopy(ctx); break;
