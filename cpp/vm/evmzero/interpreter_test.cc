@@ -40,6 +40,7 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
   if (ctx.state == RunState::kDone) {
     EXPECT_EQ(ctx.gas, desc.gas_after);
     EXPECT_EQ(ctx.stack, desc.stack_after);
+    EXPECT_EQ(ctx.memory, desc.memory_after);
   }
 }
 
