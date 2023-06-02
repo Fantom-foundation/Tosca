@@ -1,8 +1,10 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <initializer_list>
+#include <ostream>
 #include <span>
 #include <vector>
 
@@ -38,16 +40,15 @@ class Memory {
     std::copy_n(memory_.data() + memory_offset, buffer.size(), buffer.data());
   }
 
-  // Accesses byte in memory at offset. Grows memory automatically.
-  uint8_t& operator[](size_t offset) {
-    Grow(offset + 1);
-    return memory_[offset];
-  }
+  uint8_t& operator[](size_t index) { return memory_[index]; }
+  const uint8_t& operator[](size_t index) const { return memory_[index]; }
 
   bool operator==(const Memory&) const = default;
 
  private:
   std::vector<uint8_t> memory_;
 };
+
+std::ostream& operator<<(std::ostream&, const Memory&);
 
 }  // namespace tosca::evmzero

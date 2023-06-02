@@ -1,5 +1,6 @@
 #include "vm/evmzero/interpreter.h"
 
+#include <bit>
 #include <cstdio>
 
 #include "vm/evmzero/opcodes.h"
@@ -401,9 +402,14 @@ static void mload(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset + 32))) [[unlikely]]
     return;
 
-  uint256_t value_le;
-  ctx.memory.WriteTo({ToBytes(value_le), 32}, offset);
-  ctx.stack.Push(intx::to_big_endian(value_le));
+  uint256_t value;
+  ctx.memory.WriteTo({ToBytes(value), 32}, offset);
+
+  if constexpr (std::endian::native == std::endian::little) {
+    value = intx::bswap(value);
+  }
+
+  ctx.stack.Push(value);
   ctx.pc++;
 }
 
@@ -413,11 +419,15 @@ static void mstore(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
   const uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
-  uint256_t value_le = intx::to_little_endian(ctx.stack.Pop());
+  uint256_t value = ctx.stack.Pop();
   if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset + 32))) [[unlikely]]
     return;
 
-  ctx.memory.ReadFrom({ToBytes(value_le), 32}, offset);
+  if constexpr (std::endian::native == std::endian::little) {
+    value = intx::bswap(value);
+  }
+
+  ctx.memory.ReadFrom({ToBytes(value), 32}, offset);
   ctx.pc++;
 }
 

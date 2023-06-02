@@ -34,10 +34,7 @@ TEST(MemoryTest, Grow) {
 }
 
 TEST(MemoryTest, GrowRetainsElements) {
-  Memory memory;
-  memory.Grow(1);
-
-  memory[0] = 42;
+  Memory memory = {42};
 
   memory.Grow(2);
   EXPECT_EQ(memory[0], 42);
@@ -92,14 +89,13 @@ TEST(MemoryTest, WriteTo) {
 }
 
 TEST(MemoryTest, Subscript) {
-  Memory memory;
+  Memory memory = {1, 2, 3};
 
-  memory[2] = 42;
-  EXPECT_EQ(memory.GetSize(), 3);
+  memory[1] = 42;
 
-  EXPECT_EQ(memory[0], 0);  // zero initialized
-  EXPECT_EQ(memory[1], 0);  // zero initialized
-  EXPECT_EQ(memory[2], 42);
+  EXPECT_EQ(memory[0], 1);
+  EXPECT_EQ(memory[1], 42);
+  EXPECT_EQ(memory[2], 3);
 }
 
 TEST(MemoryTest, Equality) {
