@@ -1323,6 +1323,141 @@ TEST(InterpreterTest, SHA3_StackError) {
 }
 
 ///////////////////////////////////////////////////////////
+// CODESIZE
+TEST(InterpreterTest, CODESIZE) {
+  RunInterpreterTest({
+      .code = {op::PUSH1, 0,  //
+               op::POP,       //
+               op::PUSH1, 0,  //
+               op::POP,       //
+               op::CODESIZE},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 100 - 10 - 2,
+      .stack_after = {7 + 1 /* for trailing STOP byte */},
+  });
+}
+
+TEST(InterpreterTest, CODESIZE_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::PUSH1, 0,  //
+               op::POP,       //
+               op::PUSH1, 0,  //
+               op::POP,       //
+               op::CODESIZE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 11,
+      .stack_before = {},
+  });
+}
+
+///////////////////////////////////////////////////////////
+// CODECOPY
+TEST(InterpreterTest, CODECOPY) {
+  RunInterpreterTest({
+      .code = {op::PUSH1, 23,  //
+               op::POP,        //
+               op::PUSH1, 42,  //
+               op::POP,        //
+               op::CODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 100 - 10 - 9,
+      .stack_before = {3, 1, 2},
+      .memory_after = {0, 0, 23, op::POP, op::PUSH1},
+  });
+}
+
+TEST(InterpreterTest, CODECOPY_OutOfBytes) {
+  RunInterpreterTest({
+      .code = {op::PUSH1, 23,  //
+               op::POP,        //
+               op::PUSH1, 42,  //
+               op::POP,        //
+               op::CODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 100 - 10 - 9,
+      .stack_before = {8, 1, 2},
+      .memory_after = {0, 0, 23, op::POP, op::PUSH1, 42, op::POP, op::CODECOPY,  //
+                       op::STOP, 0},
+  });
+}
+
+TEST(InterpreterTest, CODECOPY_OutOfBytes_WriteZero) {
+  RunInterpreterTest({
+      .code = {op::PUSH1, 0,   //
+               op::POP,        //
+               op::PUSH1, 42,  //
+               op::POP,        //
+               op::CODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 84,
+      .stack_before = {8, 1, 2},
+      .memory_before = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,  //
+                        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+      .memory_after = {0xFF, 0xFF, 0, op::POP, op::PUSH1, 42, op::POP, op::CODECOPY,  //
+                       op::STOP, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+  });
+}
+
+TEST(InterpreterTest, CODECOPY_RetainMemory) {
+  RunInterpreterTest({
+      .code = {op::PUSH1, 23,  //
+               op::POP,        //
+               op::PUSH1, 42,  //
+               op::POP,        //
+               op::CODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 100 - 10 - 6,
+      .stack_before = {3, 1, 2},
+      .memory_before = {0xFF, 0xFF, 0, 0, 0, 0xFF, 0xFF, 0xFF},
+      .memory_after = {0xFF, 0xFF, 23, op::POP, op::PUSH1, 0xFF, 0xFF, 0xFF},
+  });
+}
+
+TEST(InterpreterTest, CODECOPY_OutOfGas_Static) {
+  RunInterpreterTest({
+      .code = {op::PUSH1, 0,   //
+               op::POP,        //
+               op::PUSH1, 42,  //
+               op::POP,        //
+               op::CODECOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 11,
+      .stack_before = {3, 1, 2},
+  });
+}
+
+TEST(InterpreterTest, CODECOPY_OutOfGas_Dynamic) {
+  RunInterpreterTest({
+      .code = {op::PUSH1, 0,   //
+               op::POP,        //
+               op::PUSH1, 42,  //
+               op::POP,        //
+               op::CODECOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 15,
+      .stack_before = {3, 1, 2},
+  });
+}
+
+TEST(InterpreterTest, CODECOPY_StackError) {
+  RunInterpreterTest({
+      .code = {op::PUSH1, 0,   //
+               op::POP,        //
+               op::PUSH1, 42,  //
+               op::POP,        //
+               op::CODECOPY},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 100,
+      .stack_before = {3, 1},
+  });
+}
+
+///////////////////////////////////////////////////////////
 // POP
 TEST(InterpreterTest, POP) {
   RunInterpreterTest({

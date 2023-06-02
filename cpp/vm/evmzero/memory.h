@@ -33,6 +33,19 @@ class Memory {
     std::copy(buffer.begin(), buffer.end(), memory_.data() + memory_offset);
   }
 
+  // Read from the given buffer into memory at memory_offset. Will write exactly
+  // memory_write_size bytes. If the provided buffer is smaller than
+  // memory_write_size, it is implicitly padded with zero values. Grows memory
+  // automatically.
+  void ReadFromWithSize(std::span<const uint8_t> buffer, uint64_t memory_offset, uint64_t memory_write_size) {
+    Grow(memory_offset + memory_write_size);
+
+    auto bytes_to_copy = std::min<uint64_t>(buffer.size(), memory_write_size);
+    std::copy_n(buffer.data(), bytes_to_copy, memory_.data() + memory_offset);
+
+    std::fill_n(memory_.data() + memory_offset + bytes_to_copy, memory_write_size - bytes_to_copy, 0);
+  }
+
   // Writes to the given buffer from memory at memory_offset. Grows memory
   // automatically.
   void WriteTo(std::span<uint8_t> buffer, uint64_t memory_offset) {

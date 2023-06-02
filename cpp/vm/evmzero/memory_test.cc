@@ -74,6 +74,34 @@ TEST(MemoryTest, ReadFrom) {
   EXPECT_EQ(memory[3], 3);
 }
 
+TEST(MemoryTest, ReadFromWithSize_SmallerSize) {
+  Memory memory;
+
+  std::vector<uint8_t> buffer = {1, 2, 3};
+  memory.ReadFromWithSize(buffer, 1, 2);
+
+  EXPECT_EQ(memory.GetSize(), 3);
+
+  EXPECT_EQ(memory[0], 0);  // zero initialized
+  EXPECT_EQ(memory[1], 1);
+  EXPECT_EQ(memory[2], 2);
+}
+
+TEST(MemoryTest, ReadFromWithSize_LargerSize) {
+  Memory memory = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+  std::vector<uint8_t> buffer = {1, 2};
+  memory.ReadFromWithSize(buffer, 1, 3);
+
+  EXPECT_EQ(memory.GetSize(), 5);
+
+  EXPECT_EQ(memory[0], 0xFF);
+  EXPECT_EQ(memory[1], 1);
+  EXPECT_EQ(memory[2], 2);
+  EXPECT_EQ(memory[3], 0);  // filled with zero
+  EXPECT_EQ(memory[4], 0xFF);
+}
+
 TEST(MemoryTest, WriteTo) {
   Memory memory;
   memory.SetMemory({1, 2, 3});
