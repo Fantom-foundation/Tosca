@@ -13,6 +13,8 @@ const char* ToString(RunState state) {
       return "Running";
     case RunState::kDone:
       return "Done";
+    case RunState::kRevert:
+      return "Revert";
     case RunState::kInvalid:
       return "Invalid";
     case RunState::kErrorOpcode:
@@ -437,6 +439,38 @@ static void codecopy(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+static void returndatasize(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ctx.return_data.size());
+  ctx.pc++;
+}
+
+static void returndatacopy(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(3)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+
+  const uint64_t memory_offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t return_data_offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
+
+  const uint64_t minimum_word_size = (size + 31) / 32;
+  if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
+    return;
+
+  std::span<uint8_t> return_data_view;
+  if (return_data_offset < ctx.return_data.size()) {
+    return_data_view = std::span(ctx.return_data).subspan(return_data_offset);
+  }
+
+  ctx.memory.ReadFromWithSize(return_data_view, memory_offset, size);
+  ctx.pc++;
+}
+
 static void pop(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
@@ -603,6 +637,22 @@ static void swap(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <RunState result_state>
+static void return_op(Context& ctx) noexcept {
+  static_assert(result_state == RunState::kDone || result_state == RunState::kRevert);
+
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
+  uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
+  if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset + size))) [[unlikely]]
+    return;
+
+  ctx.return_data.resize(size);
+  ctx.memory.WriteTo(ctx.return_data, offset);
+  ctx.state = result_state;
+}
+
 }  // namespace op
 
 ///////////////////////////////////////////////////////////
@@ -741,8 +791,10 @@ void RunInterpreter(Context& ctx) {
       case op::GASPRICE: op::gasprice(ctx); break;
       case op::EXTCODESIZE: op::extcodesize(ctx); break;
       case op::EXTCODECOPY: op::extcodecopy(ctx); break;
+      */
       case op::RETURNDATASIZE: op::returndatasize(ctx); break;
       case op::RETURNDATACOPY: op::returndatacopy(ctx); break;
+      /*
       case op::EXTCODEHASH: op::extcodehash(ctx); break;
       case op::BLOCKHASH: op::blockhash(ctx); break;
       case op::COINBASE: op::coinbase(ctx); break;
@@ -847,10 +899,12 @@ void RunInterpreter(Context& ctx) {
 
       case op::CREATE: op::create_impl<op::CREATE>(ctx); break;
       case op::CREATE2: op::create_impl<op::CREATE2>(ctx); break;
+      */
 
-      case op::RETURN: op::return_op(ctx); break;
-      case op::REVERT: op::return_op(ctx); break; // TODO
+      case op::RETURN: op::return_op<RunState::kDone>(ctx); break;
+      case op::REVERT: op::return_op<RunState::kRevert>(ctx); break;
 
+      /*
       case op::CALL: op::call_impl<op::CALL>(ctx); break;
       case op::CALLCODE: op::call_impl<op::CALLCODE>(ctx); break;
       case op::DELEGATECALL: op::call_impl<op::DELEGATECALL>(ctx); break;
