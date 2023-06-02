@@ -2402,5 +2402,15 @@ TEST(InterpreterTest, REVERT_StackError) {
   });
 }
 
+///////////////////////////////////////////////////////////
+// INVALID
+TEST(InterpreterTest, INVALID) {
+  RunInterpreterTest({
+      .code = {op::INVALID},
+      .state_after = RunState::kInvalid,
+      .gas_before = 10,
+  });
+}
+
 }  // namespace
 }  // namespace tosca::evmzero

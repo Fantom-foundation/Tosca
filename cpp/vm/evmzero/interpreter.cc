@@ -653,6 +653,11 @@ static void return_op(Context& ctx) noexcept {
   ctx.state = result_state;
 }
 
+static void invalid(Context& ctx) noexcept {
+  ctx.gas = 0;
+  ctx.state = RunState::kInvalid;
+}
+
 }  // namespace op
 
 ///////////////////////////////////////////////////////////
@@ -909,12 +914,13 @@ void RunInterpreter(Context& ctx) {
       case op::CALLCODE: op::call_impl<op::CALLCODE>(ctx); break;
       case op::DELEGATECALL: op::call_impl<op::DELEGATECALL>(ctx); break;
       case op::STATICCALL: op::call_impl<op::STATICCALL>(ctx); break;
+      */
 
       case op::INVALID: op::invalid(ctx); break;
-      case op::SELFDESTRUCT: op::selfdestruct(ctx); break;
-      */
-        // clang-format on
+      // case op::SELFDESTRUCT: op::selfdestruct(ctx); break;
+      // clang-format on
       default:
+        ctx.gas = 0;
         ctx.state = RunState::kErrorOpcode;
     }
   }
