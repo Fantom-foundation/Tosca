@@ -1269,6 +1269,60 @@ TEST(InterpreterTest, SAR_StackError) {
 }
 
 ///////////////////////////////////////////////////////////
+// SHA3
+TEST(InterpreterTest, SHA3) {
+  RunInterpreterTest({
+      .code = {op::SHA3},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 64,
+      .stack_before = {4, 0},
+      .stack_after = {uint256_t(0x79A1BC8F0BB2C238, 0x9522D0CF0F73282C, 0x46EF02C2223570DA, 0x29045A592007D0C2)},
+      .memory_before = {0xFF, 0xFF, 0xFF, 0xFF},
+      .memory_after = {0xFF, 0xFF, 0xFF, 0xFF},
+  });
+}
+
+TEST(InterpreterTest, SHA3_GrowMemory) {
+  RunInterpreterTest({
+      .code = {op::SHA3},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 61,
+      .stack_before = {4, 0},
+      .stack_after = {uint256_t(0x64633A4ACBD3244C, 0xF7685EBD40E852B1, 0x55364C7B4BBF0BB7, 0xE8E77626586F73B9)},
+      .memory_after = {0x00, 0x00, 0x00, 0x00},
+  });
+}
+
+TEST(InterpreterTest, SHA3_OutOfGas_Static) {
+  RunInterpreterTest({
+      .code = {op::SHA3},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10,
+      .stack_before = {4, 0},
+  });
+}
+
+TEST(InterpreterTest, SHA3_OutOfGas_Dynamic) {
+  RunInterpreterTest({
+      .code = {op::SHA3},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 32,
+      .stack_before = {4, 0},
+  });
+}
+
+TEST(InterpreterTest, SHA3_StackError) {
+  RunInterpreterTest({
+      .code = {op::SHA3},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 100,
+      .stack_before = {4},
+  });
+}
+
+///////////////////////////////////////////////////////////
 // POP
 TEST(InterpreterTest, POP) {
   RunInterpreterTest({

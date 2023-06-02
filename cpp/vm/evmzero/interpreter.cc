@@ -384,6 +384,27 @@ static void sar(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+static void sha3(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(30)) [[unlikely]]
+    return;
+
+  const uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
+
+  const uint64_t minimum_word_size = (size + 31) / 32;
+  if (!ctx.ApplyGasCost(6 * minimum_word_size + ctx.MemoryExpansionCost(offset + size))) [[unlikely]]
+    return;
+
+  std::vector<uint8_t> buffer(size);
+  ctx.memory.WriteTo(buffer, offset);
+
+  auto hash = ethash::keccak256(buffer.data(), buffer.size());
+  ctx.stack.Push(ToUint256(hash));
+  ctx.pc++;
+}
+
 static void pop(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
@@ -671,8 +692,8 @@ void RunInterpreter(Context& ctx) {
       case op::SHL: op::shl(ctx); break;
       case op::SHR: op::shr(ctx); break;
       case op::SAR: op::sar(ctx); break;
-      /*
       case op::SHA3: op::sha3(ctx); break;
+      /*
       case op::ADDRESS: op::address(ctx); break;
       case op::BALANCE: op::balance(ctx); break;
       case op::ORIGIN: op::origin(ctx); break;
