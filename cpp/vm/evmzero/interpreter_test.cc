@@ -20,12 +20,16 @@ struct InterpreterTestDescription {
 
   Memory memory_before;
   Memory memory_after;
+
+  std::vector<uint8_t> last_call_data;
+  std::vector<uint8_t> return_data;
 };
 
 void RunInterpreterTest(const InterpreterTestDescription& desc) {
   internal::Context ctx{
       .gas = desc.gas_before,
       .code = desc.code,
+      .return_data = desc.last_call_data,
       .memory = desc.memory_before,
       .stack = desc.stack_before,
   };
@@ -37,10 +41,13 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
 
   ASSERT_EQ(ctx.state, desc.state_after);
 
-  if (ctx.state == RunState::kDone) {
+  if (ctx.state == RunState::kDone || ctx.state == RunState::kRevert) {
     EXPECT_EQ(ctx.gas, desc.gas_after);
     EXPECT_EQ(ctx.stack, desc.stack_after);
     EXPECT_EQ(ctx.memory, desc.memory_after);
+    if (!desc.return_data.empty()) {
+      EXPECT_EQ(ctx.return_data, desc.return_data);
+    }
   }
 }
 
@@ -1458,6 +1465,130 @@ TEST(InterpreterTest, CODECOPY_StackError) {
 }
 
 ///////////////////////////////////////////////////////////
+// RETURNDATASIZE
+TEST(InterpreterTest, RETURNDATASIZE) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATASIZE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {0},
+  });
+
+  RunInterpreterTest({
+      .code = {op::RETURNDATASIZE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {3},
+      .last_call_data = {0x01, 0x02, 0x03},
+  });
+}
+
+TEST(InterpreterTest, RETURNDATASIZE_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATASIZE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+      .gas_after = 1,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// RETURNDATACOPY
+TEST(InterpreterTest, RETURNDATACOPY) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 4,
+      .stack_before = {3, 1, 2},
+      .memory_before{0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+      .memory_after{0x0A, 0x0B, 0x00, 0x00, 0x00, 0x0F},
+  });
+
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 4,
+      .stack_before = {3, 1, 2},
+      .memory_before{0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+      .memory_after{0x0A, 0x0B, 0x02, 0x03, 0x04, 0x0F},
+      .last_call_data{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+  });
+}
+
+TEST(InterpreterTest, RETURNDATACOPY_OutOfBytes) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 4,
+      .stack_before = {3, 1, 2},
+      .memory_before{0x0A, 0x0B, 0x0C},
+      .memory_after{0x0A, 0x0B, 0x02, 0x00, 0x00},
+      .last_call_data{0x01, 0x02},
+  });
+}
+
+TEST(InterpreterTest, RETURNDATACOPY_OutOfBytes_WriteZero) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 4,
+      .stack_before = {3, 1, 2},
+      .memory_before{0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+      .memory_after{0x0A, 0x0B, 0x02, 0x00, 0x00, 0x0F},
+      .last_call_data{0x01, 0x02},
+  });
+}
+
+TEST(InterpreterTest, RETURNDATACOPY_Grow) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 1,
+      .stack_before = {3, 1, 2},
+      .memory_after{0x00, 0x00, 0x02, 0x03, 0x04},
+      .last_call_data{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+  });
+}
+
+TEST(InterpreterTest, RETURNDATACOPY_OutOfGas_Static) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2,
+      .gas_after = 2,
+      .stack_before = {3, 1, 2},
+  });
+}
+
+TEST(InterpreterTest, RETURNDATACOPY_OutOfGas_Dynamic) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 8,
+      .gas_after = 5,
+      .stack_before = {3, 1, 2},
+  });
+}
+
+TEST(InterpreterTest, RETURNDATACOPY_StackError) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 10,
+      .gas_after = 10,
+      .stack_before = {3, 1},
+      .stack_after = {3, 1},
+  });
+}
+
+///////////////////////////////////////////////////////////
 // POP
 TEST(InterpreterTest, POP) {
   RunInterpreterTest({
@@ -2178,6 +2309,96 @@ TEST(InterpreterTest, SWAP_StackError) {
       .state_after = RunState::kErrorStack,
       .gas_before = 10,
       .stack_before = {4, 3, 2, 1},
+  });
+}
+
+///////////////////////////////////////////////////////////
+// RETURN
+TEST(InterpreterTest, RETURN) {
+  RunInterpreterTest({
+      .code = {op::RETURN},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 10,
+      .stack_before = {2, 1},
+      .memory_before = {0xAA, 0xBB, 0xCC},
+      .memory_after = {0xAA, 0xBB, 0xCC},
+      .return_data = {0xBB, 0xCC},
+  });
+}
+
+TEST(InterpreterTest, RETURN_GrowMemory) {
+  RunInterpreterTest({
+      .code = {op::RETURN},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {3, 1},
+      .memory_after = {0, 0, 0, 0},
+      .return_data = {0, 0, 0},
+  });
+}
+
+TEST(InterpreterTest, RETURN_OutOfGas_Dynamic) {
+  RunInterpreterTest({
+      .code = {op::RETURN},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2,
+      .stack_before = {3, 1},
+  });
+}
+
+TEST(InterpreterTest, RETURN_StackError) {
+  RunInterpreterTest({
+      .code = {op::RETURN},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 10,
+      .stack_before = {3},
+  });
+}
+
+///////////////////////////////////////////////////////////
+// REVERT
+TEST(InterpreterTest, REVERT) {
+  RunInterpreterTest({
+      .code = {op::REVERT},
+      .state_after = RunState::kRevert,
+      .gas_before = 10,
+      .gas_after = 10,
+      .stack_before = {2, 1},
+      .memory_before = {0xAA, 0xBB, 0xCC},
+      .memory_after = {0xAA, 0xBB, 0xCC},
+      .return_data = {0xBB, 0xCC},
+  });
+}
+
+TEST(InterpreterTest, REVERT_GrowMemory) {
+  RunInterpreterTest({
+      .code = {op::REVERT},
+      .state_after = RunState::kRevert,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {3, 1},
+      .memory_after = {0, 0, 0, 0},
+      .return_data = {0, 0, 0},
+  });
+}
+
+TEST(InterpreterTest, REVERT_OutOfGas_Dynamic) {
+  RunInterpreterTest({
+      .code = {op::REVERT},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2,
+      .stack_before = {3, 1},
+  });
+}
+
+TEST(InterpreterTest, REVERT_StackError) {
+  RunInterpreterTest({
+      .code = {op::REVERT},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 10,
+      .stack_before = {3},
   });
 }
 

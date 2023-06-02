@@ -13,6 +13,7 @@ namespace tosca::evmzero {
 enum class RunState {
   kRunning,
   kDone,
+  kRevert,
   kInvalid,
   kErrorOpcode,
   kErrorGas,
