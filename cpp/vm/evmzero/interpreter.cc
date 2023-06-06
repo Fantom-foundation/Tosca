@@ -788,6 +788,43 @@ static void mstore8(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+static void sload(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+    return;
+
+  const uint256_t key = ctx.stack.Pop();
+
+  uint64_t dynamic_gas_cost = 2100;
+  if (ctx.host->access_storage(ctx.message->recipient, ToEvmcBytes(key)) == EVMC_ACCESS_WARM) {
+    dynamic_gas_cost = 100;
+  }
+  if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
+    return;
+
+  auto value = ctx.host->get_storage(ctx.message->recipient, ToEvmcBytes(key));
+  ctx.stack.Push(ToUint256(value));
+  ctx.pc++;
+}
+
+static void sstore(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+    return;
+  const uint256_t key = ctx.stack.Pop();
+  const uint256_t value = ctx.stack.Pop();
+
+  // TODO: Take current_value and original_value into account!
+
+  uint64_t dynamic_gas_cost = 100;
+  if (ctx.host->access_storage(ctx.message->recipient, ToEvmcBytes(key)) == EVMC_ACCESS_COLD) {
+    dynamic_gas_cost += 2100;
+  }
+  if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
+    return;
+
+  ctx.host->set_storage(ctx.message->recipient, ToEvmcBytes(key), ToEvmcBytes(value));
+  ctx.pc++;
+}
+
 static void jump(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
@@ -1066,10 +1103,8 @@ void RunInterpreter(Context& ctx) {
       case op::MLOAD: op::mload(ctx); break;
       case op::MSTORE: op::mstore(ctx); break;
       case op::MSTORE8: op::mstore8(ctx); break;
-      /*
       case op::SLOAD: op::sload(ctx); break;
       case op::SSTORE: op::sstore(ctx); break;
-      */
 
       case op::JUMP: op::jump(ctx); break;
       case op::JUMPI: op::jumpi(ctx); break;
