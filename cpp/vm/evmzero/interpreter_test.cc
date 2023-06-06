@@ -1,5 +1,6 @@
 #include "vm/evmzero/interpreter.h"
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <evmc/evmc.hpp>
@@ -8,6 +9,36 @@
 
 namespace tosca::evmzero {
 namespace {
+
+using ::testing::_;
+using ::testing::DoAll;
+using ::testing::Return;
+using ::testing::SetArrayArgument;
+
+class MockHost : public evmc::Host {
+ public:
+  MOCK_METHOD(bool, account_exists, (const evmc::address& addr), (const, noexcept, override));
+  MOCK_METHOD(evmc::bytes32, get_storage, (const evmc::address& addr, const evmc::bytes32& key),
+              (const, noexcept, override));
+  MOCK_METHOD(evmc_storage_status, set_storage,
+              (const evmc::address& addr, const evmc::bytes32& key, const evmc::bytes32& value), (noexcept, override));
+  MOCK_METHOD(evmc::uint256be, get_balance, (const evmc::address& addr), (const, noexcept, override));
+  MOCK_METHOD(size_t, get_code_size, (const evmc::address& addr), (const, noexcept, override));
+  MOCK_METHOD(evmc::bytes32, get_code_hash, (const evmc::address& addr), (const, noexcept, override));
+  MOCK_METHOD(size_t, copy_code,
+              (const evmc::address& addr, size_t code_offset, uint8_t* buffer_data, size_t buffer_size),
+              (const, noexcept, override));
+  MOCK_METHOD(bool, selfdestruct, (const evmc::address& addr, const evmc::address& beneficiary), (noexcept, override));
+  MOCK_METHOD(evmc::Result, call, (const evmc_message& msg), (noexcept, override));
+  MOCK_METHOD(evmc_tx_context, get_tx_context, (), (const, noexcept, override));
+  MOCK_METHOD(evmc::bytes32, get_block_hash, (int64_t black_number), (const, noexcept, override));
+  MOCK_METHOD(void, emit_log,
+              (const evmc::address& addr, const uint8_t* data, size_t data_size, const evmc::bytes32 topics[],
+               size_t num_topics),
+              (noexcept, override));
+  MOCK_METHOD(evmc_access_status, access_account, (const evmc::address& addr), (noexcept));
+  MOCK_METHOD(evmc_access_status, access_storage, (const evmc::address& addr, const evmc::bytes32& key), (noexcept));
+};
 
 struct InterpreterTestDescription {
   std::vector<uint8_t> code;
@@ -27,6 +58,7 @@ struct InterpreterTestDescription {
   std::vector<uint8_t> return_data;
 
   evmc_message message{};
+  evmc::HostInterface* host = nullptr;
 };
 
 void RunInterpreterTest(const InterpreterTestDescription& desc) {
@@ -37,6 +69,7 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
       .memory = desc.memory_before,
       .stack = desc.stack_before,
       .message = &desc.message,
+      .host = desc.host,
   };
 
   // Adding a final STOP byte here so we don't have to add it in every test!
@@ -1364,6 +1397,90 @@ TEST(InterpreterTest, ADDRESS_OutOfGas) {
 }
 
 ///////////////////////////////////////////////////////////
+// BALANCE
+TEST(InterpreterTest, BALANCE) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+  EXPECT_CALL(host, get_balance(evmc::address(0x42)))  //
+      .Times(1)
+      .WillOnce(Return(evmc::uint256be(0x21)));
+
+  RunInterpreterTest({
+      .code = {op::BALANCE},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 400,
+      .stack_before = {0x42},
+      .stack_after = {0x21},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, BALANCE_OutOfGas_Cold) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+
+  RunInterpreterTest({
+      .code = {op::BALANCE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2500,
+      .stack_before = {0x42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, BALANCE_OutOfGas_WARM) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+
+  RunInterpreterTest({
+      .code = {op::BALANCE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 100,
+      .stack_before = {0x42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, BALANCE_StackError) {
+  RunInterpreterTest({
+      .code = {op::BALANCE},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 3000,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// ORIGIN
+TEST(InterpreterTest, ORIGIN) {
+  evmc_tx_context tx_context{
+      .tx_origin = evmc::address(0x42),
+  };
+
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
+
+  RunInterpreterTest({
+      .code = {op::ORIGIN},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {0x42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, ORIGIN_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::ORIGIN},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_ORIGIN_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
 // CALLER
 TEST(InterpreterTest, CALLER) {
   RunInterpreterTest({
@@ -1730,6 +1847,181 @@ TEST(InterpreterTest, CODECOPY_StackError) {
 }
 
 ///////////////////////////////////////////////////////////
+// GASPRICE
+TEST(InterpreterTest, GASPRICE) {
+  evmc_tx_context tx_context{
+      .tx_gas_price = evmc::uint256be(42),
+  };
+
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
+
+  RunInterpreterTest({
+      .code = {op::GASPRICE},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 5,
+      .stack_after = {42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, GASPRICE_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::GASPRICE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_GASPRICE_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
+// EXTCODESIZE
+TEST(InterpreterTest, EXTCODESIZE) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+  EXPECT_CALL(host, get_code_size(evmc::address(0x42))).Times(1).WillOnce(Return(16));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODESIZE},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 400,
+      .stack_before = {0x42},
+      .stack_after = {16},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODESIZE_OutOfGas_Cold) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODESIZE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2500,
+      .stack_before = {0x42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODESIZE_OutOfGas_Warm) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODESIZE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 90,
+      .stack_before = {0x42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_EXTCODESIZE_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
+// EXTCODECOPY
+TEST(InterpreterTest, EXTCODECOPY) {
+  const std::vector<uint8_t> code = {op::PUSH4, 0x0A, 0x0B, 0x0C, 0xD};
+
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+  EXPECT_CALL(host, copy_code(evmc::address(0x42), 1, _, 3))  //
+      .Times(1)
+      .WillOnce(DoAll(SetArrayArgument<2>(code.data() + 1, code.data() + 1 + 3), Return(3)));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 3000 - 2600 - 6,
+      .stack_before = {3, 1, 2, 0x42},
+      .memory_after = {0, 0, 0x0A, 0x0B, 0x0C},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODECOPY_RetainMemory) {
+  const std::vector<uint8_t> code = {op::PUSH4, 0x0A, 0x0B, 0x0C, 0xD};
+
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+  EXPECT_CALL(host, copy_code(evmc::address(0x42), 1, _, 3))  //
+      .Times(1)
+      .WillOnce(DoAll(SetArrayArgument<2>(code.data() + 1, code.data() + 1 + 3), Return(3)));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 3000 - 2600 - 3,
+      .stack_before = {3, 1, 2, 0x42},
+      .memory_before = {0, 0, 0, 0, 0, 0xFF},
+      .memory_after = {0, 0, 0x0A, 0x0B, 0x0C, 0xFF},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODECOPY_WriteZeros) {
+  const std::vector<uint8_t> code = {op::PUSH1, 0x0A};
+
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+  EXPECT_CALL(host, copy_code(evmc::address(0x42), 1, _, 3))  //
+      .Times(1)
+      .WillOnce(DoAll(SetArrayArgument<2>(code.data() + 1, code.data() + 2), Return(3)));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 3000 - 2600 - 3,
+      .stack_before = {3, 1, 2, 0x42},
+      .memory_before = {0, 0, 0, 0xFF, 0xFF, 0xFF},
+      .memory_after = {0, 0, 0x0A, 0, 0, 0xFF},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODECOPY_OutOfGas_Cold) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2500,
+      .stack_before = {3, 1, 2, 0x42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODECOPY_OutOfGas_Warm) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 90,
+      .stack_before = {3, 1, 2, 0x42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODECOPY_StackError) {
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 3000,
+      .stack_before = {3, 1, 2},
+  });
+}
+
+///////////////////////////////////////////////////////////
 // RETURNDATASIZE
 TEST(InterpreterTest, RETURNDATASIZE) {
   RunInterpreterTest({
@@ -1852,6 +2144,334 @@ TEST(InterpreterTest, RETURNDATACOPY_StackError) {
       .stack_after = {3, 1},
   });
 }
+///////////////////////////////////////////////////////////
+// EXTCODEHASH
+TEST(InterpreterTest, EXTCODEHASH) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+  EXPECT_CALL(host, get_code_hash(evmc::address(0x42)))  //
+      .Times(1)
+      .WillOnce(Return(evmc::bytes32(0x0a0b0c0d)));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODEHASH},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 400,
+      .stack_before = {0x42},
+      .stack_after = {0x0a0b0c0d},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODEHASH_OutOfGas_Cold) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODEHASH},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2500,
+      .stack_before = {0x42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODEHASH_OutOfGas_Warm) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODEHASH},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 90,
+      .stack_before = {0x42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODEHASH_StackError) {
+  RunInterpreterTest({
+      .code = {op::EXTCODEHASH},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 3000,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// BLOCKHASH
+TEST(InterpreterTest, BLOCKHASH) {
+  MockHost host;
+  EXPECT_CALL(host, get_block_hash(21))  //
+      .Times(1)
+      .WillOnce(Return(evmc::bytes32(0x0a0b0c0d)));
+
+  RunInterpreterTest({
+      .code = {op::BLOCKHASH},
+      .state_after = RunState::kDone,
+      .gas_before = 40,
+      .gas_after = 20,
+      .stack_before = {21},
+      .stack_after = {0x0a0b0c0d},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, BLOCKHASH_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::BLOCKHASH},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 19,
+      .stack_before = {0},
+  });
+}
+
+TEST(InterpreterTest, BLOCKHASH_StackError) {
+  RunInterpreterTest({
+      .code = {op::BLOCKHASH},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 40,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// COINBASE
+TEST(InterpreterTest, COINBASE) {
+  evmc_tx_context tx_context{
+      .block_coinbase = evmc::address(0x42),
+  };
+
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
+
+  RunInterpreterTest({
+      .code = {op::COINBASE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {0x42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, COINBASE_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::COINBASE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_COINBASE_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
+// TIMESTAMP
+TEST(InterpreterTest, TIMESTAMP) {
+  evmc_tx_context tx_context{
+      .block_timestamp = 42,
+  };
+
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
+
+  RunInterpreterTest({
+      .code = {op::TIMESTAMP},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, TIMESTAMP_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::TIMESTAMP},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_TIMESTAMP_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
+// NUMBER
+TEST(InterpreterTest, NUMBER) {
+  evmc_tx_context tx_context{
+      .block_number = 42,
+  };
+
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
+
+  RunInterpreterTest({
+      .code = {op::NUMBER},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, NUMBER_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::NUMBER},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_NUMBER_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
+// DIFFICULTY / PREVRANDAO
+TEST(InterpreterTest, DIFFICULTY) {
+  evmc_tx_context tx_context{
+      .block_prev_randao = evmc::uint256be(42),
+  };
+
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
+
+  RunInterpreterTest({
+      .code = {op::DIFFICULTY},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, DIFFICULTY_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::DIFFICULTY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_DIFFICULTY_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
+// GASLIMIT
+TEST(InterpreterTest, GASLIMIT) {
+  evmc_tx_context tx_context{
+      .block_gas_limit = 42,
+  };
+
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
+
+  RunInterpreterTest({
+      .code = {op::GASLIMIT},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, GASLIMIT_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::GASLIMIT},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_GASLIMIT_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
+// CHAINID
+TEST(InterpreterTest, CHAINID) {
+  evmc_tx_context tx_context{
+      .chain_id = evmc::uint256be(42),
+  };
+
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
+
+  RunInterpreterTest({
+      .code = {op::CHAINID},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, CHAINID_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::CHAINID},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_CHAINID_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
+// SELFBALANCE
+TEST(InterpreterTest, SELFBALANCE) {
+  MockHost host;
+  EXPECT_CALL(host, get_balance(evmc::address(0x42)))  //
+      .Times(1)
+      .WillOnce(Return(evmc::uint256be(1042)));
+
+  RunInterpreterTest({
+      .code = {op::SELFBALANCE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 5,
+      .stack_after = {1042},
+      .message{.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SELFBALANCE_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::SELFBALANCE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 4,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_SELFBALANCE_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
+// BASEFEE
+TEST(InterpreterTest, BASEFEE) {
+  evmc_tx_context tx_context{
+      .block_base_fee = evmc::uint256be(42),
+  };
+
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
+
+  RunInterpreterTest({
+      .code = {op::BASEFEE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {42},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, BASEFEE_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::BASEFEE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_BASEFEE_StackOverflow) {}
 
 ///////////////////////////////////////////////////////////
 // POP
