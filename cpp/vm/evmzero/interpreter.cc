@@ -416,6 +416,32 @@ static void address(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+static void balance(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+    return;
+
+  evmc::address address = ToEvmcAddress(ctx.stack.Pop());
+
+  uint64_t dynamic_gas_cost = 2600;
+  if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
+    dynamic_gas_cost = 200;
+  }
+  if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
+    return;
+
+  ctx.stack.Push(ToUint256(ctx.host->get_balance(address)));
+  ctx.pc++;
+}
+
+static void origin(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ToUint256(ctx.host->get_tx_context().tx_origin));
+  ctx.pc++;
+}
+
 static void caller(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
     return;
@@ -517,6 +543,59 @@ static void codecopy(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+static void gasprice(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ToUint256(ctx.host->get_tx_context().tx_gas_price));
+  ctx.pc++;
+}
+
+static void extcodesize(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+    return;
+
+  auto address = ToEvmcAddress(ctx.stack.Pop());
+
+  uint64_t dynamic_gas_cost = 2600;
+  if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
+    dynamic_gas_cost = 100;
+  }
+  if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
+    return;
+
+  ctx.stack.Push(ctx.host->get_code_size(address));
+  ctx.pc++;
+}
+
+static void extcodecopy(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(4)) [[unlikely]]
+    return;
+
+  auto address = ToEvmcAddress(ctx.stack.Pop());
+  const uint64_t memory_offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t code_offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
+
+  const uint64_t minimum_word_size = (size + 31) / 32;
+  uint64_t address_access_cost = 2600;
+  if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
+    address_access_cost = 100;
+  }
+  const uint64_t dynamic_gas_cost = 3 * minimum_word_size  //
+                                    + address_access_cost  //
+                                    + ctx.MemoryExpansionCost(memory_offset + size);
+  if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
+    return;
+
+  std::vector<uint8_t> buffer(size);
+  ctx.host->copy_code(address, code_offset, buffer.data(), buffer.size());
+
+  ctx.memory.ReadFrom(buffer, memory_offset);
+  ctx.pc++;
+}
+
 static void returndatasize(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
     return;
@@ -546,6 +625,105 @@ static void returndatacopy(Context& ctx) noexcept {
   }
 
   ctx.memory.ReadFromWithSize(return_data_view, memory_offset, size);
+  ctx.pc++;
+}
+
+static void extcodehash(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+    return;
+
+  auto address = ToEvmcAddress(ctx.stack.Pop());
+
+  uint64_t dynamic_gas_cost = 2600;
+  if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
+    dynamic_gas_cost = 100;
+  }
+  if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
+    return;
+
+  ctx.stack.Push(ToUint256(ctx.host->get_code_hash(address)));
+  ctx.pc++;
+}
+
+static void blockhash(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(20)) [[unlikely]]
+    return;
+  int64_t number = static_cast<int64_t>(ctx.stack.Pop());
+  ctx.stack.Push(ToUint256(ctx.host->get_block_hash(number)));
+  ctx.pc++;
+}
+
+static void coinbase(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ToUint256(ctx.host->get_tx_context().block_coinbase));
+  ctx.pc++;
+}
+
+static void timestamp(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ctx.host->get_tx_context().block_timestamp);
+  ctx.pc++;
+}
+
+static void blocknumber(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ctx.host->get_tx_context().block_number);
+  ctx.pc++;
+}
+
+static void prevrandao(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ToUint256(ctx.host->get_tx_context().block_prev_randao));
+  ctx.pc++;
+}
+
+static void gaslimit(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ctx.host->get_tx_context().block_gas_limit);
+  ctx.pc++;
+}
+
+static void chainid(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ToUint256(ctx.host->get_tx_context().chain_id));
+  ctx.pc++;
+}
+
+static void selfbalance(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(5)) [[unlikely]]
+    return;
+  ctx.stack.Push(ToUint256(ctx.host->get_balance(ctx.message->recipient)));
+  ctx.pc++;
+}
+
+static void basefee(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ToUint256(ctx.host->get_tx_context().block_base_fee));
   ctx.pc++;
 }
 
@@ -859,8 +1037,8 @@ void RunInterpreter(Context& ctx) {
       case op::SAR: op::sar(ctx); break;
       case op::SHA3: op::sha3(ctx); break;
       case op::ADDRESS: op::address(ctx); break;
-      // case op::BALANCE: op::balance(ctx); break;
-      // case op::ORIGIN: op::origin(ctx); break;
+      case op::BALANCE: op::balance(ctx); break;
+      case op::ORIGIN: op::origin(ctx); break;
       case op::CALLER: op::caller(ctx); break;
       case op::CALLVALUE: op::callvalue(ctx); break;
       case op::CALLDATALOAD: op::calldataload(ctx); break;
@@ -868,25 +1046,21 @@ void RunInterpreter(Context& ctx) {
       case op::CALLDATACOPY: op::calldatacopy(ctx); break;
       case op::CODESIZE: op::codesize(ctx); break;
       case op::CODECOPY: op::codecopy(ctx); break;
-      /*
       case op::GASPRICE: op::gasprice(ctx); break;
       case op::EXTCODESIZE: op::extcodesize(ctx); break;
       case op::EXTCODECOPY: op::extcodecopy(ctx); break;
-      */
       case op::RETURNDATASIZE: op::returndatasize(ctx); break;
       case op::RETURNDATACOPY: op::returndatacopy(ctx); break;
-      /*
       case op::EXTCODEHASH: op::extcodehash(ctx); break;
       case op::BLOCKHASH: op::blockhash(ctx); break;
       case op::COINBASE: op::coinbase(ctx); break;
       case op::TIMESTAMP: op::timestamp(ctx); break;
-      case op::NUMBER: op::number(ctx); break;
+      case op::NUMBER: op::blocknumber(ctx); break;
       case op::DIFFICULTY: op::prevrandao(ctx); break; // intentional
       case op::GASLIMIT: op::gaslimit(ctx); break;
       case op::CHAINID: op::chainid(ctx); break;
       case op::SELFBALANCE: op::selfbalance(ctx); break;
       case op::BASEFEE: op::basefee(ctx); break;
-      */
 
       case op::POP: op::pop(ctx); break;
       case op::MLOAD: op::mload(ctx); break;

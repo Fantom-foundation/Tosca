@@ -57,6 +57,8 @@ struct Context {
 
   const evmc_message* message = nullptr;
 
+  evmc::HostInterface* host = nullptr;
+
   bool CheckStackAvailable(uint64_t elements_needed) noexcept;
   bool CheckStackOverflow(uint64_t slots_needed) noexcept;
   bool ApplyGasCost(uint64_t gas_cost) noexcept;
