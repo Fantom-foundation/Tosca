@@ -5,6 +5,8 @@
 #include <span>
 #include <vector>
 
+#include <evmc/evmc.hpp>
+
 #include "vm/evmzero/memory.h"
 #include "vm/evmzero/stack.h"
 
@@ -52,6 +54,8 @@ struct Context {
 
   Memory memory;
   Stack stack;
+
+  const evmc_message* message = nullptr;
 
   bool CheckStackAvailable(uint64_t elements_needed) noexcept;
   bool CheckStackOverflow(uint64_t slots_needed) noexcept;

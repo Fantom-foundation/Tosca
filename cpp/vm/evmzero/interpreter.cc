@@ -407,6 +407,84 @@ static void sha3(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+static void address(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ToUint256(ctx.message->recipient));
+  ctx.pc++;
+}
+
+static void caller(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ToUint256(ctx.message->sender));
+  ctx.pc++;
+}
+
+static void callvalue(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ToUint256(ctx.message->value));
+  ctx.pc++;
+}
+
+static void calldataload(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+
+  uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
+
+  std::span<const uint8_t> input_view;
+  if (offset < ctx.message->input_size) {
+    input_view = std::span(ctx.message->input_data, ctx.message->input_size).subspan(offset);
+  }
+
+  evmc::bytes32 value{};
+  std::copy(input_view.begin(), input_view.end(), value.bytes);
+
+  ctx.stack.Push(ToUint256(value));
+  ctx.pc++;
+}
+
+static void calldatasize(Context& ctx) noexcept {
+  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(2)) [[unlikely]]
+    return;
+  ctx.stack.Push(ctx.message->input_size);
+  ctx.pc++;
+}
+
+static void calldatacopy(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(3)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(3)) [[unlikely]]
+    return;
+  const uint64_t memory_offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t data_offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
+
+  const uint64_t minimum_word_size = (size + 31) / 32;
+  if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
+    return;
+
+  std::span<const uint8_t> data_view;
+  if (data_offset < ctx.message->input_size) {
+    data_view = std::span(ctx.message->input_data, ctx.message->input_size).subspan(data_offset);
+  }
+
+  ctx.memory.ReadFromWithSize(data_view, memory_offset, size);
+  ctx.pc++;
+}
+
 static void codesize(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
     return;
@@ -780,16 +858,14 @@ void RunInterpreter(Context& ctx) {
       case op::SHR: op::shr(ctx); break;
       case op::SAR: op::sar(ctx); break;
       case op::SHA3: op::sha3(ctx); break;
-      /*
       case op::ADDRESS: op::address(ctx); break;
-      case op::BALANCE: op::balance(ctx); break;
-      case op::ORIGIN: op::origin(ctx); break;
+      // case op::BALANCE: op::balance(ctx); break;
+      // case op::ORIGIN: op::origin(ctx); break;
       case op::CALLER: op::caller(ctx); break;
       case op::CALLVALUE: op::callvalue(ctx); break;
       case op::CALLDATALOAD: op::calldataload(ctx); break;
       case op::CALLDATASIZE: op::calldatasize(ctx); break;
       case op::CALLDATACOPY: op::calldatacopy(ctx); break;
-      */
       case op::CODESIZE: op::codesize(ctx); break;
       case op::CODECOPY: op::codecopy(ctx); break;
       /*
