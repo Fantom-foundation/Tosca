@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <evmc/evmc.hpp>
+
 #include "vm/evmzero/opcodes.h"
 
 namespace tosca::evmzero {
@@ -23,6 +25,8 @@ struct InterpreterTestDescription {
 
   std::vector<uint8_t> last_call_data;
   std::vector<uint8_t> return_data;
+
+  evmc_message message{};
 };
 
 void RunInterpreterTest(const InterpreterTestDescription& desc) {
@@ -32,6 +36,7 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
       .return_data = desc.last_call_data,
       .memory = desc.memory_before,
       .stack = desc.stack_before,
+      .message = &desc.message,
   };
 
   // Adding a final STOP byte here so we don't have to add it in every test!
@@ -1326,6 +1331,266 @@ TEST(InterpreterTest, SHA3_StackError) {
       .state_after = RunState::kErrorStack,
       .gas_before = 100,
       .stack_before = {4},
+  });
+}
+
+///////////////////////////////////////////////////////////
+// ADDRESS
+TEST(InterpreterTest, ADDRESS) {
+  RunInterpreterTest({
+      .code = {op::ADDRESS},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {0},
+  });
+
+  RunInterpreterTest({
+      .code = {op::ADDRESS},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {0x42},
+      .message{.recipient = evmc::address(0x42)},
+  });
+}
+
+TEST(InterpreterTest, ADDRESS_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::ADDRESS},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// CALLER
+TEST(InterpreterTest, CALLER) {
+  RunInterpreterTest({
+      .code = {op::CALLER},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {0},
+  });
+  RunInterpreterTest({
+      .code = {op::CALLER},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {0x42},
+      .message{.sender = evmc::address(0x42)},
+  });
+}
+
+TEST(InterpreterTest, CALLER_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::CALLER},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// CALLVALUE
+TEST(InterpreterTest, CALLVALUE) {
+  RunInterpreterTest({
+      .code = {op::CALLVALUE},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 5,
+      .stack_after = {0},
+  });
+
+  RunInterpreterTest({
+      .code = {op::CALLVALUE},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 5,
+      .stack_after = {0x42},
+      .message{.value = evmc::uint256be(0x42)},
+  });
+}
+
+TEST(InterpreterTest, CALLVALUE_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::CALLVALUE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// CALLDATALOAD
+TEST(InterpreterTest, CALLDATALOAD) {
+  RunInterpreterTest({
+      .code = {op::CALLDATALOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 4,
+      .stack_before = {0},
+      .stack_after = {0},
+  });
+
+  std::array<uint8_t, 32> input_data{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,  //
+                                     0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,  //
+                                     0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,  //
+                                     0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37};
+  RunInterpreterTest({
+      .code = {op::CALLDATALOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 4,
+      .stack_before = {0},
+      .stack_after = {uint256_t(0x3031323334353637, 0x2021222324252627, 0x1011121314151617, 0x0001020304050607)},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+
+  RunInterpreterTest({
+      .code = {op::CALLDATALOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 4,
+      .stack_before = {30},
+      .stack_after = {uint256_t(0, 0, 0, 0x3637000000000000)},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+}
+
+TEST(InterpreterTest, CALLDATALOAD_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::CALLDATALOAD},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+      .stack_before = {0},
+  });
+}
+
+TEST(InterpreterTest, CALLDATALOAD_StackError) {
+  RunInterpreterTest({
+      .code = {op::CALLDATALOAD},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 7,
+      .stack_after = {},
+  });
+}
+
+///////////////////////////////////////////////////////////
+// CALLDATASIZE
+TEST(InterpreterTest, CALLDATASIZE) {
+  RunInterpreterTest({
+      .code = {op::CALLDATASIZE},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 5,
+      .stack_after = {0},
+  });
+
+  std::array<uint8_t, 3> input_data{};
+  RunInterpreterTest({
+      .code = {op::CALLDATASIZE},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 5,
+      .stack_after = {3},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+}
+
+TEST(InterpreterTest, CALLDATASIZE_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::CALLDATASIZE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_CALLDATASIZE_StackOverflow) {}
+
+///////////////////////////////////////////////////////////
+// CALLDATACOPY
+TEST(InterpreterTest, CALLDATACOPY) {
+  std::array<uint8_t, 4> input_data{0xA0, 0xA1, 0xA2, 0xA3};
+  RunInterpreterTest({
+      .code = {op::CALLDATACOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 1,
+      .stack_before = {3, 1, 2},
+      .memory_after = {0, 0, 0xA1, 0xA2, 0xA3},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+}
+
+TEST(InterpreterTest, CALLDATACOPY_RetainMemory) {
+  std::array<uint8_t, 4> input_data{0xA0, 0xA1, 0xA2, 0xA3};
+  RunInterpreterTest({
+      .code = {op::CALLDATACOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 4,
+      .stack_before = {3, 1, 2},
+      .memory_before = {0xFF, 0xFF, 0, 0, 0, 0xFF, 0xFF, 0xFF},
+      .memory_after = {0xFF, 0xFF, 0xA1, 0xA2, 0xA3, 0xFF, 0xFF, 0xFF},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+}
+
+TEST(InterpreterTest, CALLDATACOPY_WriteZeros) {
+  std::array<uint8_t, 4> input_data{0xA0, 0xA1};
+  RunInterpreterTest({
+      .code = {op::CALLDATACOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 4,
+      .stack_before = {3, 1, 2},
+      .memory_before = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+      .memory_after = {0xFF, 0xFF, 0xA1, 0, 0, 0xFF, 0xFF, 0xFF},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+}
+
+TEST(InterpreterTest, CALLDATACOPY_OutOfBounds) {
+  std::array<uint8_t, 2> input_data{0xA0, 0xA1};
+  RunInterpreterTest({
+      .code = {op::CALLDATACOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 1,
+      .stack_before = {3, 1, 2},
+      .memory_after = {0, 0, 0xA1, 0, 0},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+}
+
+TEST(InterpreterTest, CALLDATACOPY_OutOfGas_Static) {
+  std::array<uint8_t, 2> input_data{0xA0, 0xA1};
+  RunInterpreterTest({
+      .code = {op::CALLDATACOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2,
+      .stack_before = {3, 1, 2},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+}
+
+TEST(InterpreterTest, CALLDATACOPY_OutOfGas_Dynamic) {
+  std::array<uint8_t, 2> input_data{0xA0, 0xA1};
+  RunInterpreterTest({
+      .code = {op::CALLDATACOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 8,
+      .stack_before = {3, 1, 2},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+}
+
+TEST(InterpreterTest, CALLDATACOPY_StackError) {
+  RunInterpreterTest({
+      .code = {op::CALLDATACOPY},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 100,
+      .stack_before = {3, 1},
   });
 }
 
