@@ -976,6 +976,20 @@ static void invalid(Context& ctx) noexcept {
   ctx.state = RunState::kInvalid;
 }
 
+static void selfdestruct(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(5000)) [[unlikely]]
+    return;
+
+  auto address = ToEvmcAddress(ctx.stack.Pop());
+
+  // TODO: Dynamic gas cost
+
+  ctx.host->selfdestruct(ctx.message->recipient, address);
+  ctx.state = RunState::kDone;
+}
+
 }  // namespace op
 
 ///////////////////////////////////////////////////////////
@@ -1227,7 +1241,7 @@ void RunInterpreter(Context& ctx) {
       */
 
       case op::INVALID: op::invalid(ctx); break;
-      // case op::SELFDESTRUCT: op::selfdestruct(ctx); break;
+      case op::SELFDESTRUCT: op::selfdestruct(ctx); break;
       // clang-format on
       default:
         ctx.gas = 0;
