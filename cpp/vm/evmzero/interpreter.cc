@@ -36,7 +36,13 @@ const char* ToString(RunState state) {
 std::ostream& operator<<(std::ostream& out, RunState state) { return out << ToString(state); }
 
 InterpreterResult Interpret(const InterpreterArgs& args) {
-  internal::Context ctx;
+  evmc::HostContext host(*args.host_interface, args.host_context);
+
+  internal::Context ctx{
+      .gas = static_cast<uint64_t>(args.message->gas),
+      .message = args.message,
+      .host = &host,
+  };
   ctx.code.assign(args.code.begin(), args.code.end());
 
   internal::RunInterpreter(ctx);
@@ -534,7 +540,7 @@ static void codecopy(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
     return;
 
-  std::span<uint8_t> code_view;
+  std::span<const uint8_t> code_view;
   if (code_offset < ctx.code.size()) {
     code_view = std::span(ctx.code).subspan(code_offset);
   }
@@ -971,10 +977,7 @@ static void return_op(Context& ctx) noexcept {
   ctx.state = result_state;
 }
 
-static void invalid(Context& ctx) noexcept {
-  ctx.gas = 0;
-  ctx.state = RunState::kInvalid;
-}
+static void invalid(Context& ctx) noexcept { ctx.state = RunState::kInvalid; }
 
 static void selfdestruct(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
@@ -1406,7 +1409,6 @@ void RunInterpreter(Context& ctx) {
       case op::SELFDESTRUCT: op::selfdestruct(ctx); break;
       // clang-format on
       default:
-        ctx.gas = 0;
         ctx.state = RunState::kErrorOpcode;
     }
   }

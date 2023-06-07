@@ -30,6 +30,9 @@ std::ostream& operator<<(std::ostream&, RunState);
 
 struct InterpreterArgs {
   std::span<const uint8_t> code;
+  const evmc_message* message = nullptr;
+  const evmc_host_interface* host_interface = nullptr;
+  evmc_host_context* host_context = nullptr;
 };
 
 struct InterpreterResult {
