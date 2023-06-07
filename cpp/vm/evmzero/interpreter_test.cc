@@ -3503,5 +3503,40 @@ TEST(InterpreterTest, INVALID) {
   });
 }
 
+// SELFDESTRUCT
+TEST(InterpreterTest, SELFDESTRUCT) {
+  MockHost host;
+  EXPECT_CALL(host, selfdestruct(evmc::address(0x42), evmc::address(0x43)))  //
+      .Times(1)
+      .WillOnce(Return(true));
+
+  RunInterpreterTest({
+      .code = {op::SELFDESTRUCT},
+      .state_after = RunState::kDone,
+      .gas_before = 5000,
+      .gas_after = 0,
+      .stack_before = {0x43},
+      .message{.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SELFDESTRUCT_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::SELFDESTRUCT},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 4000,
+      .stack_before = {0x43},
+  });
+}
+
+TEST(InterpreterTest, SELFDESTRUCT_StackError) {
+  RunInterpreterTest({
+      .code = {op::SELFDESTRUCT},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 5000,
+  });
+}
+
 }  // namespace
 }  // namespace tosca::evmzero
