@@ -990,6 +990,172 @@ static void selfdestruct(Context& ctx) noexcept {
   ctx.state = RunState::kDone;
 }
 
+// WIP, based on evmone!
+template <op::OpCodes Op>
+static void create_impl(Context& ctx) noexcept {
+  static_assert(Op == op::CREATE || Op == op::CREATE2);
+
+  // if (state.in_static_mode()) {
+  //   return {EVMC_STATIC_MODE_VIOLATION, gas_left};
+  // }
+
+  const auto endowment = ctx.stack.Pop();
+  const uint64_t init_code_offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t init_code_size = static_cast<uint64_t>(ctx.stack.Pop());
+  const auto salt = (Op == op::CREATE2) ? ctx.stack.Pop() : uint256_t{0};
+
+  ctx.return_data.clear();
+
+  // if (state.rev >= EVMC_SHANGHAI && init_code_size > 0xC000) {
+  //   return {EVMC_OUT_OF_GAS, gas_left};
+  // }
+
+  // const auto init_code_word_cost = 6 * (Op == op::CREATE2) + 2 * (state.rev >= EVMC_SHANGHAI);
+  // const auto init_code_cost = num_words(init_code_size) * init_code_word_cost;
+  // if ((gas_left -= init_code_cost) < 0) {
+  //   return {EVMC_OUT_OF_GAS, gas_left};
+  // }
+
+  if (ctx.message->depth >= 1024) {
+    ctx.state = RunState::kErrorCreate;
+    return;
+  }
+
+  if (endowment != 0 && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < endowment) {
+    ctx.state = RunState::kErrorCreate;
+    return;
+  }
+
+  std::vector<uint8_t> init_code(init_code_size);
+  ctx.memory.WriteTo(init_code, init_code_offset);
+
+  evmc_message msg{
+      .kind = (Op == op::CREATE) ? EVMC_CREATE : EVMC_CREATE2,
+      .depth = ctx.message->depth + 1,
+      .sender = ctx.message->recipient,
+      .input_data = init_code.data(),
+      .input_size = init_code.size(),
+      .value = ToEvmcBytes(endowment),
+      .create2_salt = ToEvmcBytes(salt),
+  };
+
+  // msg.gas = gas_left;
+  // if (state.rev >= EVMC_TANGERINE_WHISTLE) {
+  //   msg.gas = msg.gas - msg.gas / 64;
+  // }
+
+  const evmc::Result result = ctx.host->call(msg);
+  // gas_left -= msg.gas - result.gas_left;
+  // state.gas_refund += result.gas_refund;
+
+  ctx.return_data.resize(result.output_size);
+  std::copy_n(result.output_data, result.output_size, ctx.return_data.data());
+
+  if (result.status_code == EVMC_SUCCESS) {
+    ctx.stack.Push(ToUint256(result.create_address));
+  }
+
+  ctx.pc++;
+}
+
+// WIP, based on evmone!
+template <op::OpCodes Op>
+static void call_impl(Context& ctx) noexcept {
+  static_assert(Op == op::CALL || Op == op::CALLCODE || Op == op::DELEGATECALL || Op == op::STATICCALL);
+
+  if (!ctx.CheckStackAvailable((Op == op::STATICCALL || Op == op::DELEGATECALL) ? 6 : 7)) [[unlikely]]
+    return;
+
+  const auto gas = ctx.stack.Pop();
+  const auto dst = ToEvmcAddress(ctx.stack.Pop());
+  const auto value = (Op == op::STATICCALL || Op == op::DELEGATECALL) ? 0 : ctx.stack.Pop();
+  const auto has_value = value != 0;
+  const uint64_t input_offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t input_size = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t output_offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t output_size = static_cast<uint64_t>(ctx.stack.Pop());
+
+  ctx.return_data.clear();
+
+  // if (state.rev >= EVMC_BERLIN && ctx.host.access_account(dst) == EVMC_ACCESS_COLD) {
+  //   if ((gas_left -= instr::additional_cold_account_access_cost) < 0) {
+  //     return {EVMC_OUT_OF_GAS, gas_left};
+  //   }
+  // }
+
+  std::vector<uint8_t> input_data(input_size);
+  ctx.memory.WriteTo(input_data, input_offset);
+
+  evmc_message msg{
+      .kind = (Op == op::DELEGATECALL) ? EVMC_DELEGATECALL
+              : (Op == op::CALLCODE)   ? EVMC_CALLCODE
+                                       : EVMC_CALL,
+      .flags = (Op == op::STATICCALL) ? uint32_t{EVMC_STATIC} : ctx.message->flags,
+      .depth = ctx.message->depth + 1,
+      .recipient = (Op == op::CALL || Op == op::STATICCALL) ? dst : ctx.message->recipient,
+      .sender = (Op == op::DELEGATECALL) ? ctx.message->sender : ctx.message->recipient,
+      .input_data = input_data.data(),
+      .input_size = input_data.size(),
+      .value = (Op == op::DELEGATECALL) ? ctx.message->value : ToEvmcBytes(value),
+      .code_address = dst,
+  };
+
+  // auto cost = has_value ? 9000 : 0;
+
+  // if constexpr (Op == op::CALL) {
+  //   if (has_value && state.in_static_mode()) {
+  //     return {EVMC_STATIC_MODE_VIOLATION, gas_left};
+  //   }
+
+  //   if ((has_value || state.rev < EVMC_SPURIOUS_DRAGON) && !state.host.account_exists(dst)) {
+  //     cost += 25000;
+  //   }
+  // }
+
+  // if ((gas_left -= cost) < 0) {
+  //   return {EVMC_OUT_OF_GAS, gas_left};
+  // }
+
+  msg.gas = std::numeric_limits<int64_t>::max();
+  if (gas < msg.gas) {
+    msg.gas = static_cast<int64_t>(gas);
+  }
+
+  // if (state.rev >= EVMC_TANGERINE_WHISTLE) {  // TODO: Always true for STATICCALL.
+  //   msg.gas = std::min(msg.gas, gas_left - gas_left / 64);
+  // } else if (msg.gas > gas_left) {
+  //   return {EVMC_OUT_OF_GAS, gas_left};
+  // }
+
+  // if (has_value) {
+  //   msg.gas += 2300;  // Add stipend.
+  //   gas_left += 2300;
+  // }
+
+  if (ctx.message->depth >= 1024) {
+    ctx.state = RunState::kErrorCall;
+    return;
+  }
+
+  if (has_value && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < value) {
+    ctx.state = RunState::kErrorCall;
+    return;
+  }
+
+  const evmc::Result result = ctx.host->call(msg);
+  ctx.return_data.assign(result.output_data, result.output_data + result.output_size);
+
+  ctx.memory.ReadFromWithSize(ctx.return_data, output_offset, output_size);
+
+  ctx.stack.Push(result.status_code == EVMC_SUCCESS);
+
+  // const auto gas_used = msg.gas - result.gas_left;
+  // gas_left -= gas_used;
+  // state.gas_refund += result.gas_refund;
+
+  ctx.pc++;
+}
+
 }  // namespace op
 
 ///////////////////////////////////////////////////////////
@@ -1225,20 +1391,16 @@ void RunInterpreter(Context& ctx) {
       case op::LOG3: op::log<3>(ctx); break;
       case op::LOG4: op::log<4>(ctx); break;
 
-      /*
       case op::CREATE: op::create_impl<op::CREATE>(ctx); break;
       case op::CREATE2: op::create_impl<op::CREATE2>(ctx); break;
-      */
 
       case op::RETURN: op::return_op<RunState::kDone>(ctx); break;
       case op::REVERT: op::return_op<RunState::kRevert>(ctx); break;
 
-      /*
       case op::CALL: op::call_impl<op::CALL>(ctx); break;
       case op::CALLCODE: op::call_impl<op::CALLCODE>(ctx); break;
       case op::DELEGATECALL: op::call_impl<op::DELEGATECALL>(ctx); break;
       case op::STATICCALL: op::call_impl<op::STATICCALL>(ctx); break;
-      */
 
       case op::INVALID: op::invalid(ctx); break;
       case op::SELFDESTRUCT: op::selfdestruct(ctx); break;
