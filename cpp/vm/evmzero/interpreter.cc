@@ -930,6 +930,31 @@ static void swap(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <uint64_t N>
+static void log(Context& ctx) noexcept {
+  if (!ctx.CheckStackAvailable(2 + N)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(375)) [[unlikely]]
+    return;
+
+  const uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
+  const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
+
+  std::array<evmc::bytes32, N> topics;
+  for (unsigned i = 0; i < N; ++i) {
+    topics[i] = ToEvmcBytes(ctx.stack.Pop());
+  }
+
+  if (!ctx.ApplyGasCost(375 * N + 8 * size + ctx.MemoryExpansionCost(offset + size))) [[unlikely]]
+    return;
+
+  std::vector<uint8_t> buffer(size);
+  ctx.memory.WriteTo(buffer, offset);
+
+  ctx.host->emit_log(ctx.message->recipient, buffer.data(), buffer.size(), topics.data(), topics.size());
+  ctx.pc++;
+}
+
 template <RunState result_state>
 static void return_op(Context& ctx) noexcept {
   static_assert(result_state == RunState::kDone || result_state == RunState::kRevert);
@@ -1180,13 +1205,13 @@ void RunInterpreter(Context& ctx) {
       case op::SWAP15: op::swap<15>(ctx); break;
       case op::SWAP16: op::swap<16>(ctx); break;
 
-      /*
       case op::LOG0: op::log<0>(ctx); break;
       case op::LOG1: op::log<1>(ctx); break;
       case op::LOG2: op::log<2>(ctx); break;
       case op::LOG3: op::log<3>(ctx); break;
       case op::LOG4: op::log<4>(ctx); break;
 
+      /*
       case op::CREATE: op::create_impl<op::CREATE>(ctx); break;
       case op::CREATE2: op::create_impl<op::CREATE2>(ctx); break;
       */

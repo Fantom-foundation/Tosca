@@ -11,7 +11,10 @@ namespace tosca::evmzero {
 namespace {
 
 using ::testing::_;
+using ::testing::AllOf;
+using ::testing::Args;
 using ::testing::DoAll;
+using ::testing::ElementsAre;
 using ::testing::Return;
 using ::testing::SetArrayArgument;
 
@@ -3308,6 +3311,95 @@ TEST(InterpreterTest, SWAP_StackError) {
       .state_after = RunState::kErrorStack,
       .gas_before = 10,
       .stack_before = {4, 3, 2, 1},
+  });
+}
+
+///////////////////////////////////////////////////////////
+// LOG
+TEST(InterpreterTest, LOG0) {
+  MockHost host;
+  EXPECT_CALL(host, emit_log(evmc::address(0x42), _, _, _, 0))  //
+      .With(Args<1, 2>(ElementsAre(0x0B, 0x0C, 0x0D)))
+      .Times(1);
+
+  RunInterpreterTest({
+      .code = {op::LOG0},
+      .state_after = RunState::kDone,
+      .gas_before = 400,
+      .gas_after = 1,
+      .stack_before = {3, 1},
+      .memory_before{0x0A, 0x0B, 0x0C, 0x0D, 0x0E},
+      .memory_after{0x0A, 0x0B, 0x0C, 0x0D, 0x0E},
+      .message{.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, LOG3) {
+  using evmc::bytes32;
+
+  MockHost host;
+  EXPECT_CALL(host, emit_log(evmc::address(0x42), _, _, _, _))
+      .With(AllOf(Args<1, 2>(ElementsAre(0x0B, 0x0C, 0x0D)),
+                  Args<3, 4>(ElementsAre(bytes32{0xF1}, bytes32{0xF2}, bytes32{0xF3}))))
+      .Times(1);
+
+  RunInterpreterTest({
+      .code = {op::LOG3},
+      .state_after = RunState::kDone,
+      .gas_before = 1524,
+      .gas_after = 0,
+      .stack_before = {0xF3, 0xF2, 0xF1, 3, 1},
+      .memory_before{0x0A, 0x0B, 0x0C, 0x0D, 0x0E},
+      .memory_after{0x0A, 0x0B, 0x0C, 0x0D, 0x0E},
+      .message{.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, LOG0_GrowMemory) {
+  MockHost host;
+  EXPECT_CALL(host, emit_log(evmc::address(0x42), _, _, _, 0))  //
+      .With(Args<1, 2>(ElementsAre(0x0B, 0x0C, 0x0D, 0, 0)))
+      .Times(1);
+
+  RunInterpreterTest({
+      .code = {op::LOG0},
+      .state_after = RunState::kDone,
+      .gas_before = 420,
+      .gas_after = 5,
+      .stack_before = {5, 1},
+      .memory_before{0x0A, 0x0B, 0x0C, 0x0D},
+      .memory_after{0x0A, 0x0B, 0x0C, 0x0D, 0, 0},
+      .message{.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, LOG0_OutOfGas_Static) {
+  RunInterpreterTest({
+      .code = {op::LOG0},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 350,
+      .stack_before = {5, 1},
+  });
+}
+
+TEST(InterpreterTest, LOG0_OutOfGas_Dynamic) {
+  RunInterpreterTest({
+      .code = {op::LOG0},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 400,
+      .stack_before = {5, 1},
+  });
+}
+
+TEST(InterpreterTest, LOG0_StackError) {
+  RunInterpreterTest({
+      .code = {op::LOG0},
+      .state_after = RunState::kErrorStack,
+      .gas_before = 1000,
+      .stack_before = {5},
   });
 }
 
