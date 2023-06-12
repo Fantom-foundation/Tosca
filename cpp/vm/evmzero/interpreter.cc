@@ -44,6 +44,7 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
       .gas = static_cast<uint64_t>(args.message->gas),
       .message = args.message,
       .host = &host,
+      .revision = args.revision,
   };
   ctx.code.assign(args.code.begin(), args.code.end());
 
@@ -727,6 +728,8 @@ static void selfbalance(Context& ctx) noexcept {
 }
 
 static void basefee(Context& ctx) noexcept {
+  if (!ctx.CheckOpcodeAvailable(EVMC_LONDON)) [[unlikely]]
+    return;
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(2)) [[unlikely]]
@@ -1166,6 +1169,15 @@ static void call_impl(Context& ctx) noexcept {
 ///////////////////////////////////////////////////////////
 
 namespace internal {
+
+bool Context::CheckOpcodeAvailable(evmc_revision introduced_in) noexcept {
+  if (revision < introduced_in) [[unlikely]] {
+    state = RunState::kErrorOpcode;
+    return false;
+  } else {
+    return true;
+  }
+}
 
 bool Context::CheckStackAvailable(uint64_t elements_needed) noexcept {
   if (stack.GetSize() < elements_needed) [[unlikely]] {

@@ -34,6 +34,7 @@ struct InterpreterArgs {
   const evmc_message* message = nullptr;
   const evmc_host_interface* host_interface = nullptr;
   evmc_host_context* host_context = nullptr;
+  evmc_revision revision = EVMC_ISTANBUL;
 };
 
 struct InterpreterResult {
@@ -63,6 +64,9 @@ struct Context {
 
   evmc::HostInterface* host = nullptr;
 
+  evmc_revision revision = EVMC_ISTANBUL;
+
+  bool CheckOpcodeAvailable(evmc_revision introduced_in) noexcept;
   bool CheckStackAvailable(uint64_t elements_needed) noexcept;
   bool CheckStackOverflow(uint64_t slots_needed) noexcept;
   bool ApplyGasCost(uint64_t gas_cost) noexcept;

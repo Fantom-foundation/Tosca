@@ -62,6 +62,8 @@ struct InterpreterTestDescription {
 
   evmc_message message{};
   evmc::HostInterface* host = nullptr;
+
+  evmc_revision revision = EVMC_ISTANBUL;
 };
 
 void RunInterpreterTest(const InterpreterTestDescription& desc) {
@@ -73,6 +75,7 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
       .stack = desc.stack_before,
       .message = &desc.message,
       .host = desc.host,
+      .revision = desc.revision,
   };
 
   // Adding a final STOP byte here so we don't have to add it in every test!
@@ -2463,6 +2466,7 @@ TEST(InterpreterTest, BASEFEE) {
       .gas_after = 8,
       .stack_after = {42},
       .host = &host,
+      .revision = EVMC_LONDON,
   });
 }
 
@@ -2471,10 +2475,20 @@ TEST(InterpreterTest, BASEFEE_OutOfGas) {
       .code = {op::BASEFEE},
       .state_after = RunState::kErrorGas,
       .gas_before = 1,
+      .revision = EVMC_LONDON,
   });
 }
 
 TEST(InterpreterTest, DISABLED_BASEFEE_StackOverflow) {}
+
+TEST(InterpreterTest, BASEFEE_PreRevision) {
+  RunInterpreterTest({
+      .code = {op::BASEFEE},
+      .state_after = RunState::kErrorOpcode,
+      .gas_before = 10,
+      .revision = EVMC_BERLIN,
+  });
+}
 
 ///////////////////////////////////////////////////////////
 // POP
