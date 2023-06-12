@@ -21,8 +21,10 @@ const char* ToString(RunState state) {
       return "ErrorOpcode";
     case RunState::kErrorGas:
       return "ErrorGas";
-    case RunState::kErrorStack:
-      return "ErrorStack";
+    case RunState::kErrorStackUnderflow:
+      return "ErrorStackUnderflow";
+    case RunState::kErrorStackOverflow:
+      return "ErrorStackOverflow";
     case RunState::kErrorJump:
       return "ErrorJump";
     case RunState::kErrorCall:
@@ -1167,7 +1169,7 @@ namespace internal {
 
 bool Context::CheckStackAvailable(uint64_t elements_needed) noexcept {
   if (stack.GetSize() < elements_needed) [[unlikely]] {
-    state = RunState::kErrorStack;
+    state = RunState::kErrorStackUnderflow;
     return false;
   } else {
     return true;
@@ -1176,7 +1178,7 @@ bool Context::CheckStackAvailable(uint64_t elements_needed) noexcept {
 
 bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
   if (stack.GetMaxSize() - stack.GetSize() < slots_needed) [[unlikely]] {
-    state = RunState::kErrorStack;
+    state = RunState::kErrorStackOverflow;
     return false;
   } else {
     return true;
