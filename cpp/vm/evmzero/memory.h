@@ -18,14 +18,6 @@ class Memory {
 
   uint64_t GetSize() const { return memory_.size(); }
 
-  void Grow(size_t new_size) {
-    if (new_size > memory_.size()) {
-      memory_.resize(new_size);
-    }
-  }
-
-  void SetMemory(std::initializer_list<uint8_t>);
-
   // Read from the given buffer into memory at memory_offset. Grows memory
   // automatically.
   void ReadFrom(std::span<const uint8_t> buffer, uint64_t memory_offset) {
@@ -59,6 +51,12 @@ class Memory {
   bool operator==(const Memory&) const = default;
 
  private:
+  void Grow(size_t new_size) {
+    if (new_size > memory_.size()) {
+      memory_.resize(new_size);
+    }
+  }
+
   std::vector<uint8_t> memory_;
 };
 

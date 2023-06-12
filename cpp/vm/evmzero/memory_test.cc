@@ -19,47 +19,6 @@ TEST(MemoryTest, InitializerList) {
   EXPECT_EQ(memory[2], 3);
 }
 
-TEST(MemoryTest, ZeroInitialized) {
-  Memory memory;
-  memory.Grow(1);
-  EXPECT_EQ(memory[0], 0);
-}
-
-TEST(MemoryTest, Grow) {
-  Memory memory;
-  EXPECT_EQ(memory.GetSize(), 0);
-
-  memory.Grow(64);
-  EXPECT_EQ(memory.GetSize(), 64);
-}
-
-TEST(MemoryTest, GrowRetainsElements) {
-  Memory memory = {42};
-
-  memory.Grow(2);
-  EXPECT_EQ(memory[0], 42);
-  EXPECT_EQ(memory[1], 0);
-}
-
-TEST(MemoryTest, GrowCanNotShrink) {
-  Memory memory;
-  memory.Grow(64);
-  EXPECT_EQ(memory.GetSize(), 64);
-
-  memory.Grow(32);
-  EXPECT_EQ(memory.GetSize(), 64);
-}
-
-TEST(MemoryTest, SetMemory) {
-  Memory memory;
-  memory.SetMemory({1, 2, 3});
-  EXPECT_EQ(memory.GetSize(), 3);
-
-  EXPECT_EQ(memory[0], 1);
-  EXPECT_EQ(memory[1], 2);
-  EXPECT_EQ(memory[2], 3);
-}
-
 TEST(MemoryTest, ReadFrom) {
   Memory memory;
 
@@ -103,17 +62,37 @@ TEST(MemoryTest, ReadFromWithSize_LargerSize) {
 }
 
 TEST(MemoryTest, WriteTo) {
-  Memory memory;
-  memory.SetMemory({1, 2, 3});
+  Memory memory = {1, 2, 3};
+
+  std::vector<uint8_t> buffer(3);
+  memory.WriteTo(buffer, 0);
+
+  EXPECT_EQ(buffer[0], 1);
+  EXPECT_EQ(buffer[1], 2);
+  EXPECT_EQ(buffer[2], 3);
+}
+
+TEST(MemoryTest, WriteTo_WritesZeros) {
+  Memory memory = {1, 2, 3};
+
+  std::vector<uint8_t> buffer = {4, 5, 7};
+  memory.WriteTo(buffer, 1);
+
+  EXPECT_EQ(buffer[0], 2);
+  EXPECT_EQ(buffer[1], 3);
+  EXPECT_EQ(buffer[2], 0);  // filled with zero
+}
+
+TEST(MemoryTest, WriteTo_Grows) {
+  Memory memory = {1, 2, 3};
 
   std::vector<uint8_t> buffer(3);
   memory.WriteTo(buffer, 1);
 
-  EXPECT_EQ(memory.GetSize(), 4);
-
-  EXPECT_EQ(buffer[0], 2);
-  EXPECT_EQ(buffer[1], 3);
-  EXPECT_EQ(buffer[2], 0);  // zero initialized
+  EXPECT_EQ(memory[0], 1);
+  EXPECT_EQ(memory[1], 2);
+  EXPECT_EQ(memory[2], 3);
+  EXPECT_EQ(memory[3], 0);  // zero initialized
 }
 
 TEST(MemoryTest, Subscript) {
@@ -130,10 +109,10 @@ TEST(MemoryTest, Equality) {
   Memory m1, m2;
   EXPECT_EQ(m1, m2);
 
-  m1.Grow(3);
+  m1.ReadFrom(std::vector<uint8_t>{0, 0, 0}, 0);
   EXPECT_NE(m1, m2);
 
-  m2.SetMemory({1, 2, 3});
+  m2.ReadFrom(std::vector<uint8_t>{1, 2, 3}, 0);
   EXPECT_NE(m1, m2);
 
   m1[0] = 1;
