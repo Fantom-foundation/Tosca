@@ -36,7 +36,7 @@ tosca-go: tosca-cpp
 
 tosca-cpp:
 	@cd cpp ; \
-	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so ; \
+	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so -DTOSCA_ASAN=OFF; \
 	cmake --build build --parallel
 
 tosca-cpp-asan:
@@ -46,7 +46,7 @@ tosca-cpp-asan:
 
 test: test-go test-cpp
 
-test-go:
+test-go: tosca-go
 	@go test ./...
 
 test-cpp: tosca-cpp
