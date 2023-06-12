@@ -57,12 +57,13 @@ class VM : public evmc_vm {
 
   evmc_result execute(std::span<const uint8_t> code, const evmc_message* message,                  //
                       const evmc_host_interface* host_interface, evmc_host_context* host_context,  //
-                      evmc_revision) {
+                      evmc_revision revision) {
     auto interpreter_result = Interpret({
         .code = code,
         .message = message,
         .host_interface = host_interface,
         .host_context = host_context,
+        .revision = revision,
     });
 
     // Move output data to a dedicated buffer so we can release the interpreter
