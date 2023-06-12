@@ -151,7 +151,7 @@ TEST(InterpreterTest, ADD_OutOfGas) {
 TEST(InterpreterTest, ADD_StackError) {
   RunInterpreterTest({
       .code = {op::ADD},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
   });
 }
@@ -201,7 +201,7 @@ TEST(InterpreterTest, MUL_OutOfGas) {
 TEST(InterpreterTest, MUL_StackError) {
   RunInterpreterTest({
       .code = {op::MUL},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {1},
   });
@@ -252,7 +252,7 @@ TEST(InterpreterTest, SUB_OutOfGas) {
 TEST(InterpreterTest, SUB_StackError) {
   RunInterpreterTest({
       .code = {op::SUB},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {1},
   });
@@ -303,7 +303,7 @@ TEST(InterpreterTest, DIV_OutOfGas) {
 TEST(InterpreterTest, DIV_StackError) {
   RunInterpreterTest({
       .code = {op::DIV},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {1},
   });
@@ -354,7 +354,7 @@ TEST(InterpreterTest, SDIV_OutOfGas) {
 TEST(InterpreterTest, SDIV_StackError) {
   RunInterpreterTest({
       .code = {op::SDIV},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {1},
   });
@@ -405,7 +405,7 @@ TEST(InterpreterTest, MOD_OutOfGas) {
 TEST(InterpreterTest, MOD_StackError) {
   RunInterpreterTest({
       .code = {op::MOD},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {1},
   });
@@ -456,7 +456,7 @@ TEST(InterpreterTest, SMOD_OutOfGas) {
 TEST(InterpreterTest, SMOD_StackError) {
   RunInterpreterTest({
       .code = {op::SMOD},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {1},
   });
@@ -507,7 +507,7 @@ TEST(InterpreterTest, ADDMOD_OutOfGas) {
 TEST(InterpreterTest, ADDMOD_StackError) {
   RunInterpreterTest({
       .code = {op::ADDMOD},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 10,
       .stack_before = {1, 2},
   });
@@ -558,7 +558,7 @@ TEST(InterpreterTest, MULMOD_OutOfGas) {
 TEST(InterpreterTest, MULMOD_StackError) {
   RunInterpreterTest({
       .code = {op::MULMOD},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 10,
       .stack_before = {1, 2},
   });
@@ -607,7 +607,7 @@ TEST(InterpreterTest, EXP_OutOfGas_Dynamic) {
 TEST(InterpreterTest, EXP_StackError) {
   RunInterpreterTest({
       .code = {op::EXP},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 200,
       .stack_before = {1},
   });
@@ -665,7 +665,7 @@ TEST(InterpreterTest, SIGNEXTEND_OutOfGas) {
 TEST(InterpreterTest, SIGNEXTEND_StackError) {
   RunInterpreterTest({
       .code = {op::SIGNEXTEND},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 10,
       .stack_before = {0xFF},
   });
@@ -714,7 +714,7 @@ TEST(InterpreterTest, LT_OutOfGas) {
 TEST(InterpreterTest, LT_StackError) {
   RunInterpreterTest({
       .code = {op::LT},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {1},
   });
@@ -763,7 +763,7 @@ TEST(InterpreterTest, GT_OutOfGas) {
 TEST(InterpreterTest, GT_StackError) {
   RunInterpreterTest({
       .code = {op::GT},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {1},
   });
@@ -821,7 +821,7 @@ TEST(InterpreterTest, SLT_OutOfGas) {
 TEST(InterpreterTest, SLT_StackError) {
   RunInterpreterTest({
       .code = {op::SLT},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {1},
   });
@@ -879,7 +879,7 @@ TEST(InterpreterTest, SGT_OutOfGas) {
 TEST(InterpreterTest, SGT_StackError) {
   RunInterpreterTest({
       .code = {op::SGT},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {1},
   });
@@ -919,7 +919,7 @@ TEST(InterpreterTest, EQ_OutOfGas) {
 TEST(InterpreterTest, EQ_StackError) {
   RunInterpreterTest({
       .code = {op::EQ},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {1},
   });
@@ -959,7 +959,7 @@ TEST(InterpreterTest, ISZERO_OutOfGas) {
 TEST(InterpreterTest, ISZERO_StackError) {
   RunInterpreterTest({
       .code = {op::ISZERO},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {},
   });
@@ -999,7 +999,7 @@ TEST(InterpreterTest, AND_OutOfGas) {
 TEST(InterpreterTest, AND_StackError) {
   RunInterpreterTest({
       .code = {op::AND},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {0xFF},
   });
@@ -1039,7 +1039,7 @@ TEST(InterpreterTest, OR_OutOfGas) {
 TEST(InterpreterTest, OR_StackError) {
   RunInterpreterTest({
       .code = {op::OR},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {0xFF},
   });
@@ -1079,7 +1079,7 @@ TEST(InterpreterTest, XOR_OutOfGas) {
 TEST(InterpreterTest, XOR_StackError) {
   RunInterpreterTest({
       .code = {op::XOR},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {0xFF},
   });
@@ -1119,7 +1119,7 @@ TEST(InterpreterTest, NOT_OutOfGas) {
 TEST(InterpreterTest, NOT_StackError) {
   RunInterpreterTest({
       .code = {op::NOT},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {},
   });
@@ -1170,7 +1170,7 @@ TEST(InterpreterTest, BYTE_OutOfGas) {
 TEST(InterpreterTest, BYTE_StackError) {
   RunInterpreterTest({
       .code = {op::BYTE},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {0xFF},
   });
@@ -1219,7 +1219,7 @@ TEST(InterpreterTest, SHL_OutOfGas) {
 TEST(InterpreterTest, SHL_StackError) {
   RunInterpreterTest({
       .code = {op::SHL},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {0xFF},
   });
@@ -1268,7 +1268,7 @@ TEST(InterpreterTest, SHR_OutOfGas) {
 TEST(InterpreterTest, SHR_StackError) {
   RunInterpreterTest({
       .code = {op::SHR},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {2},
   });
@@ -1310,7 +1310,7 @@ TEST(InterpreterTest, SAR_OutOfGas) {
 TEST(InterpreterTest, SAR_StackError) {
   RunInterpreterTest({
       .code = {op::SAR},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_before = {1},
   });
@@ -1364,7 +1364,7 @@ TEST(InterpreterTest, SHA3_OutOfGas_Dynamic) {
 TEST(InterpreterTest, SHA3_StackError) {
   RunInterpreterTest({
       .code = {op::SHA3},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 100,
       .stack_before = {4},
   });
@@ -1448,7 +1448,7 @@ TEST(InterpreterTest, BALANCE_OutOfGas_WARM) {
 TEST(InterpreterTest, BALANCE_StackError) {
   RunInterpreterTest({
       .code = {op::BALANCE},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 3000,
   });
 }
@@ -1589,7 +1589,7 @@ TEST(InterpreterTest, CALLDATALOAD_OutOfGas) {
 TEST(InterpreterTest, CALLDATALOAD_StackError) {
   RunInterpreterTest({
       .code = {op::CALLDATALOAD},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 7,
       .stack_after = {},
   });
@@ -1708,7 +1708,7 @@ TEST(InterpreterTest, CALLDATACOPY_OutOfGas_Dynamic) {
 TEST(InterpreterTest, CALLDATACOPY_StackError) {
   RunInterpreterTest({
       .code = {op::CALLDATACOPY},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 100,
       .stack_before = {3, 1},
   });
@@ -1843,7 +1843,7 @@ TEST(InterpreterTest, CODECOPY_StackError) {
                op::PUSH1, 42,  //
                op::POP,        //
                op::CODECOPY},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 100,
       .stack_before = {3, 1},
   });
@@ -2018,7 +2018,7 @@ TEST(InterpreterTest, EXTCODECOPY_OutOfGas_Warm) {
 TEST(InterpreterTest, EXTCODECOPY_StackError) {
   RunInterpreterTest({
       .code = {op::EXTCODECOPY},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 3000,
       .stack_before = {3, 1, 2},
   });
@@ -2140,7 +2140,7 @@ TEST(InterpreterTest, RETURNDATACOPY_OutOfGas_Dynamic) {
 TEST(InterpreterTest, RETURNDATACOPY_StackError) {
   RunInterpreterTest({
       .code = {op::RETURNDATACOPY},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 10,
       .gas_after = 10,
       .stack_before = {3, 1},
@@ -2196,7 +2196,7 @@ TEST(InterpreterTest, EXTCODEHASH_OutOfGas_Warm) {
 TEST(InterpreterTest, EXTCODEHASH_StackError) {
   RunInterpreterTest({
       .code = {op::EXTCODEHASH},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 3000,
   });
 }
@@ -2232,7 +2232,7 @@ TEST(InterpreterTest, BLOCKHASH_OutOfGas) {
 TEST(InterpreterTest, BLOCKHASH_StackError) {
   RunInterpreterTest({
       .code = {op::BLOCKHASH},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 40,
   });
 }
@@ -2501,7 +2501,7 @@ TEST(InterpreterTest, POP_OutOfGas) {
 TEST(InterpreterTest, POP_StackError) {
   RunInterpreterTest({
       .code = {op::POP},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 5,
       .stack_before = {},
   });
@@ -2665,7 +2665,7 @@ TEST(InterpreterTest, MLOAD_OutOfGas_Dynamic) {
 TEST(InterpreterTest, MLOAD_StackError) {
   RunInterpreterTest({
       .code = {op::MLOAD},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 100,
   });
 }
@@ -2780,7 +2780,7 @@ TEST(InterpreterTest, MSTORE_OutOfGas_Dynamic) {
 TEST(InterpreterTest, MSTORE_StackError) {
   RunInterpreterTest({
       .code = {op::MSTORE},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 10,
       .stack_before = {0xFF},
   });
@@ -2865,7 +2865,7 @@ TEST(InterpreterTest, MSTORE8_OutOfGas_Dynamic) {
 TEST(InterpreterTest, MSTORE8_StackError) {
   RunInterpreterTest({
       .code = {op::MSTORE8},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 10,
       .stack_before = {0xFF},
   });
@@ -2923,7 +2923,7 @@ TEST(InterpreterTest, SLOAD_OutOfGas_Warm) {
 TEST(InterpreterTest, SLOAD_StackError) {
   RunInterpreterTest({
       .code = {op::SLOAD},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 2200,
   });
 }
@@ -2979,7 +2979,7 @@ TEST(InterpreterTest, SSTORE_OutOfGas_Warm) {
 TEST(InterpreterTest, SSTORE_StackError) {
   RunInterpreterTest({
       .code = {op::SSTORE},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 3000,
       .stack_before = {0xFF},
   });
@@ -3023,7 +3023,7 @@ TEST(InterpreterTest, JUMP_OutOfGas) {
 TEST(InterpreterTest, JUMP_StackError) {
   RunInterpreterTest({
       .code = {op::JUMP},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 100,
   });
 }
@@ -3085,7 +3085,7 @@ TEST(InterpreterTest, JUMPI_StackError) {
                op::PUSH1, 24,  //
                op::JUMPDEST,   //
                op::PUSH1, 42},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 100,
       .stack_before = {0},
   });
@@ -3266,7 +3266,7 @@ TEST(InterpreterTest, DUP_OutOfGas) {
 TEST(InterpreterTest, DUP_StackError) {
   RunInterpreterTest({
       .code = {op::DUP4},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 10,
       .stack_before = {3, 2, 1},
   });
@@ -3308,7 +3308,7 @@ TEST(InterpreterTest, SWAP_OutOfGas) {
 TEST(InterpreterTest, SWAP_StackError) {
   RunInterpreterTest({
       .code = {op::SWAP4},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 10,
       .stack_before = {4, 3, 2, 1},
   });
@@ -3397,7 +3397,7 @@ TEST(InterpreterTest, LOG0_OutOfGas_Dynamic) {
 TEST(InterpreterTest, LOG0_StackError) {
   RunInterpreterTest({
       .code = {op::LOG0},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 1000,
       .stack_before = {5},
   });
@@ -3442,7 +3442,7 @@ TEST(InterpreterTest, RETURN_OutOfGas_Dynamic) {
 TEST(InterpreterTest, RETURN_StackError) {
   RunInterpreterTest({
       .code = {op::RETURN},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 10,
       .stack_before = {3},
   });
@@ -3487,7 +3487,7 @@ TEST(InterpreterTest, REVERT_OutOfGas_Dynamic) {
 TEST(InterpreterTest, REVERT_StackError) {
   RunInterpreterTest({
       .code = {op::REVERT},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 10,
       .stack_before = {3},
   });
@@ -3533,7 +3533,7 @@ TEST(InterpreterTest, SELFDESTRUCT_OutOfGas) {
 TEST(InterpreterTest, SELFDESTRUCT_StackError) {
   RunInterpreterTest({
       .code = {op::SELFDESTRUCT},
-      .state_after = RunState::kErrorStack,
+      .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 5000,
   });
 }

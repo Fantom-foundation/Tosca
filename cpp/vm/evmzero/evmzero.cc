@@ -19,8 +19,10 @@ evmc_status_code ToEvmcStatusCode(RunState state) {
       return EVMC_INVALID_INSTRUCTION;
     case RunState::kErrorGas:
       return EVMC_OUT_OF_GAS;
-    case RunState::kErrorStack:
+    case RunState::kErrorStackUnderflow:
       return EVMC_STACK_UNDERFLOW;
+    case RunState::kErrorStackOverflow:
+      return EVMC_STACK_OVERFLOW;
     case RunState::kErrorJump:
       return EVMC_BAD_JUMP_DESTINATION;
     case RunState::kErrorCall:
