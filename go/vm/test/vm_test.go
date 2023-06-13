@@ -7,6 +7,8 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/examples"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/lfvm"
+
+	_ "github.com/ianlancetaylor/cgosymbolizer"
 )
 
 var (
