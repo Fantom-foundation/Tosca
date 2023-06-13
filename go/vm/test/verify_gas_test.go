@@ -81,34 +81,53 @@ func TestStaticGas(t *testing.T) {
 }
 
 func TestDynamicGas(t *testing.T) {
+	account := common.Address{0}
+	accountBalance := big.NewInt(1000)
 	var mockCtrl *gomock.Controller
 	var mockStateDB *vm_mock.MockStateDB
-	mockCtrl = gomock.NewController(t)
-	mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
-
-	// evmone needs following in addition to geth and lfvm
-	mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
-	mockStateDB.EXPECT().SubRefund(gomock.Any()).AnyTimes()
-	mockStateDB.EXPECT().AddRefund(gomock.Any()).AnyTimes()
-	mockStateDB.EXPECT().GetCodeHash(gomock.Any()).AnyTimes().Return(common.Hash{0})
 
 	// For every variant of interpreter
 	for _, variant := range Variants {
 		for _, revision := range revisions {
-			// Get staic gas for frequently used instructions
+			// Get static gas for frequently used instructions
 			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
 			for op, info := range getInstructions(revision) {
 				if info.gas.dynamic != nil {
-					for _, testCase := range info.gas.dynamic() {
+					for _, testCase := range info.gas.dynamic(revision) {
+
 						t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, op, testCase.testName), func(t *testing.T) {
+
+							// Need new mock for every testcase
+							mockCtrl = gomock.NewController(t)
+							mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+
+							// evmone needs following in addition to geth and lfvm
+							mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
+							mockStateDB.EXPECT().SubRefund(gomock.Any()).AnyTimes()
+							mockStateDB.EXPECT().AddRefund(gomock.Any()).AnyTimes()
+							mockStateDB.EXPECT().GetBalance(account).AnyTimes().Return(accountBalance)
+
+							// Init stateDB mock calls from test function
+							if testCase.mockCalls != nil {
+								testCase.mockCalls(mockStateDB)
+							}
+
 							// Initialize EVM clean instance
 							evm := GetCleanEVM(revision, variant, mockStateDB)
 							var wantGas uint64 = 0
+							code := make([]byte, 0)
+
+							// When test need return value from inner call operation
+							if testCase.needReturnValue {
+								gas, returnCode := putCallReturnValue(t, revision, code, mockStateDB)
+								wantGas += gas
+								code = append(code, returnCode...)
+							}
 
 							// Put needed values on stack with PUSH instructions.
 							stackValues := testCase.stackValues
 							stackValuesCount := len(stackValues)
-							code := make([]byte, 0)
+
 							for i := 0; i < stackValuesCount; i++ {
 								valueBytes := stackValues[i].Bytes()
 								if len(valueBytes) == 0 {
@@ -145,4 +164,102 @@ func TestDynamicGas(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Returns computed gas for calling passed callCode with a Call instruction
+func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) uint64 {
+	accountNumber := 99
+	account := common.Address{byte(accountNumber)}
+	code := make([]byte, 0)
+	zeroVal := big.NewInt(0)
+	gasSentWithCall := big.NewInt(100000)
+	if len(callCode) == 0 {
+		callCode = []byte{byte(vm.STOP)}
+	}
+	var mockCtrl *gomock.Controller
+	var mockStateDB *vm_mock.MockStateDB
+	mockCtrl = gomock.NewController(t)
+	mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+
+	// evmone needs following in addition to geth and lfvm
+	mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
+	mockStateDB.EXPECT().SubRefund(gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().AddRefund(gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().GetCodeHash(account).Return(common.Hash{byte(accountNumber)})
+	mockStateDB.EXPECT().Snapshot().AnyTimes().Return(0)
+	mockStateDB.EXPECT().Exist(account).AnyTimes().Return(true)
+	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(callCode)
+	mockStateDB.EXPECT().AddressInAccessList(account).AnyTimes().Return(true)
+
+	// Minimum stack values to execute CALL instruction
+	stackValues := []*big.Int{zeroVal, zeroVal, zeroVal, zeroVal, zeroVal, account.Hash().Big(), gasSentWithCall}
+
+	evm := GetCleanEVM(revision, Variants[0], mockStateDB)
+
+	for i := 0; i < len(stackValues); i++ {
+		valueBytes := stackValues[i].Bytes()
+		if len(valueBytes) == 0 {
+			valueBytes = []byte{0}
+		}
+		push := vm.PUSH1 + vm.OpCode(len(valueBytes)-1)
+		code = append(code, byte(push))
+		for j := 0; j < len(valueBytes); j++ {
+			code = append(code, valueBytes[j])
+		}
+	}
+
+	// Set a CALL instruction as the last one.
+	code = append(code, byte(vm.CALL))
+
+	result, err := evm.Run(code, []byte{})
+	if err != nil {
+		return 0
+	}
+
+	return result.GasUsed
+}
+
+// Processes call which ends with a return value, so it is put into the memmory of the EVM
+func putCallReturnValue(t *testing.T, revision Revision, code []byte, mockStateDB *vm_mock.MockStateDB) (gas uint64, returnCode []byte) {
+	accountNumber := 100
+	account := common.Address{byte(accountNumber)}
+	gasSentWithCall := big.NewInt(100000)
+
+	// Code processed inside inner call
+	codeWithReturnValue := []byte{
+		byte(vm.PUSH1),
+		byte(0),
+		byte(vm.PUSH1),
+		byte(1),
+		byte(vm.MSTORE),
+		byte(vm.PUSH2),
+		byte(255),
+		byte(255),
+		byte(vm.PUSH1),
+		byte(0),
+		byte(vm.RETURN)}
+	mockStateDB.EXPECT().Snapshot().AnyTimes().Return(0)
+	mockStateDB.EXPECT().Exist(account).AnyTimes().Return(true)
+	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(codeWithReturnValue)
+	mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(common.Hash{byte(accountNumber)})
+	mockStateDB.EXPECT().AddressInAccessList(account).AnyTimes().Return(true)
+	// Get needed gas from a CALL execution for this code and revision
+	gas = getCallInstructionGas(t, revision, codeWithReturnValue)
+
+	zeroVal := big.NewInt(0)
+	stackCallValues := []*big.Int{zeroVal, zeroVal, zeroVal, zeroVal, zeroVal, account.Hash().Big(), gasSentWithCall}
+
+	for i := 0; i < len(stackCallValues); i++ {
+		valueBytes := stackCallValues[i].Bytes()
+		if len(valueBytes) == 0 {
+			valueBytes = []byte{0}
+		}
+		push := vm.PUSH1 + vm.OpCode(len(valueBytes)-1)
+		code = append(code, byte(push))
+		for j := 0; j < len(valueBytes); j++ {
+			code = append(code, valueBytes[j])
+		}
+	}
+	returnCode = append(code, byte(vm.CALL))
+	return gas, returnCode
 }

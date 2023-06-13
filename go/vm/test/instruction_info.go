@@ -64,10 +64,10 @@ type StackUsage struct {
 
 type GasUsage struct {
 	static  uint64
-	dynamic func() []*DynGasTest
+	dynamic func(revision Revision) []*DynGasTest
 }
 
-var dynGasNotImpYet = func() []*DynGasTest { return []*DynGasTest{} }
+var dynGasNotImpYet = func(revision Revision) []*DynGasTest { return []*DynGasTest{} }
 
 // getInstructions returns a map of OpCodes for the respective revision.
 func getInstructions(revision Revision) map[vm.OpCode]*InstructionInfo {
@@ -118,11 +118,11 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 
 	noGas := GasUsage{0, nil}
 
-	gas := func(static uint64, dynamic func() []*DynGasTest) GasUsage {
+	gas := func(static uint64, dynamic func(revision Revision) []*DynGasTest) GasUsage {
 		return GasUsage{static, dynamic}
 	}
 
-	gasD := func(dynamic func() []*DynGasTest) GasUsage {
+	gasD := func(dynamic func(revision Revision) []*DynGasTest) GasUsage {
 		return GasUsage{0, dynamic}
 	}
 
@@ -172,7 +172,7 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.EXTCODESIZE:    {stack: op(1), gas: gasS(gasExtCode)},
 		vm.EXTCODECOPY:    {stack: consume(4), gas: gas(gasExtCode, dynGasNotImpYet)},
 		vm.RETURNDATASIZE: {stack: op(0), gas: gas(gasQuickStep, dynGasNotImpYet)},
-		vm.RETURNDATACOPY: {stack: consume(3), gas: gas(gasFastestStep, dynGasNotImpYet)},
+		vm.RETURNDATACOPY: {stack: consume(3), gas: gas(gasFastestStep, gasDynamicCopyReturnValue)},
 		vm.EXTCODEHASH:    {stack: op(1), gas: gasS(gasExtCodeHash)},
 		vm.BLOCKHASH:      {stack: op(1), gas: gasS(gasExtStep)},
 		vm.COINBASE:       {stack: op(0), gas: gasS(gasQuickStep)},
@@ -264,7 +264,7 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.LOG3:           {stack: consume(5), gas: gasD(dynGasNotImpYet)},
 		vm.LOG4:           {stack: consume(6), gas: gasD(dynGasNotImpYet)},
 		vm.CREATE:         {stack: op(3), gas: gas(gasCreate, dynGasNotImpYet)},
-		vm.CALL:           {stack: op(7), gas: gas(gasCallEIP150, dynGasNotImpYet)},
+		vm.CALL:           {stack: op(7), gas: gas(gasCallEIP150, gasDynamicCall)},
 		vm.CALLCODE:       {stack: op(7), gas: gas(gasCallEIP150, dynGasNotImpYet)},
 		vm.RETURN:         {stack: consume(2), gas: gasD(dynGasNotImpYet)},
 		vm.DELEGATECALL:   {stack: op(6), gas: gas(gasCallEIP150, dynGasNotImpYet)},
@@ -291,7 +291,7 @@ func getBerlinInstructions() map[vm.OpCode]*InstructionInfo {
 	res[vm.EXTCODESIZE].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
 	res[vm.EXTCODEHASH].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
 	res[vm.BALANCE].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
-	res[vm.CALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
+	res[vm.CALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicCall}
 	res[vm.CALLCODE].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
 	res[vm.STATICCALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
 	res[vm.DELEGATECALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
