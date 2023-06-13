@@ -96,7 +96,7 @@ cmake --build build --parallel --target uint256_test && ./build/vm/evmzero/uint2
 
 ## Running Benchmarks
 
-The Tosca project includes a set of benchmarks covering the a range of EVM implementations and variants thereof. The benchmarks are part of the `github.com/Fantom-foundation/Tosca/go/vm/test` module.
+The Tosca project includes a set of benchmarks covering a range of EVM implementations and variants thereof. The benchmarks are part of the `github.com/Fantom-foundation/Tosca/go/vm/test` module.
 
 The Benchmarks are implemented using Go's benchmark infrastructure. For a comprehensive introduction see the corresponding chapter in [Practical Go Lessions](https://www.practical-go-lessons.com/chap-34-benchmarks) or the [Go Test Package Documentation](https://pkg.go.dev/testing#hdr-Benchmarks).
 
