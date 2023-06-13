@@ -178,4 +178,4 @@ Fib/20/lfvm-no-code-cache-12  21.2ms ± 3%  20.7ms ± 3%  -2.17%  (p=0.006 n=9+1
 ```
 For details on how to use it, please refer to the [Example](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat#hdr-Example) section of the tool's documentation page.
 
-Ideally, pull requests targeting performance improvements include such a report in their description to document its impact.
+Ideally, pull requests targeting performance improvements should include such a report in their description to document its impact.
