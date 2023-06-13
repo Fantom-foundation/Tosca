@@ -13,20 +13,22 @@ func TestStackMaxBoundry(t *testing.T) {
 	// For every variant of interpreter
 	for _, variant := range Variants {
 		for _, revision := range revisions {
-			for _, op := range getFullStackFailOpCodes(revision) {
+			for op, info := range getInstructions(revision) {
+				if info.stack.popped >= info.stack.pushed {
+					continue
+				}
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, op), func(t *testing.T) {
 					var stateDB vm.StateDB
 					evm := GetCleanEVM(revision, variant, stateDB)
 
-					// Fill stack with PUSH1 instructions.
-					size := int(params.StackLimit)
-					code := make([]byte, 0, size*2+1)
-					for i := 0; i < size; i++ {
-						code = append(code, []byte{byte(vm.PUSH1), 1}...)
+					size := info.stack.pushed - info.stack.popped
+					if size > 1 {
+						size = int(params.StackLimit) - size + 1
+					} else {
+						size = int(params.StackLimit)
 					}
 
-					// Set a tested instruction as the last one.
-					code = append(code, byte(op))
+					code := getCode(size, op)
 
 					// Run an interpreter
 					_, err := evm.Run(code, []byte{})
@@ -47,14 +49,21 @@ func TestStackMinBoundry(t *testing.T) {
 	// For every variant of interpreter
 	for _, variant := range Variants {
 		for _, revision := range revisions {
-			for _, op := range getEmptyStackFailOpCodes(revision) {
+			for op, info := range getInstructions(revision) {
+				if info.stack.popped <= 0 {
+					continue
+				}
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, op), func(t *testing.T) {
 					var stateDB *vm_mock.MockStateDB
 
 					evm := GetCleanEVM(revision, variant, stateDB)
 
-					// Execute only solo instruction with empty stack
-					code := []byte{byte(op)}
+					var code []byte
+					if info.stack.popped > 1 {
+						code = getCode(info.stack.popped-1, op)
+					} else {
+						code = []byte{byte(op)}
+					}
 
 					// Run an interpreter
 					_, err := evm.Run(code, []byte{})
@@ -71,22 +80,15 @@ func TestStackMinBoundry(t *testing.T) {
 	}
 }
 
-func getEmptyStackFailOpCodes(revision Revision) []vm.OpCode {
-	var result []vm.OpCode
-	for op, info := range getInstructions(revision) {
-		if info.stack.popped > 0 {
-			result = append(result, op)
-		}
-	}
-	return result
-}
+func getCode(stackLength int, op vm.OpCode) []byte {
+	code := make([]byte, 0, stackLength*2+1)
 
-func getFullStackFailOpCodes(revision Revision) []vm.OpCode {
-	var result []vm.OpCode
-	for op, info := range getInstructions(revision) {
-		if info.stack.popped < info.stack.pushed {
-			result = append(result, op)
-		}
+	// Add to stack PUSH1 instructions
+	for i := 0; i < stackLength; i++ {
+		code = append(code, []byte{byte(vm.PUSH1), byte(0)}...)
 	}
-	return result
+
+	// Set a tested instruction as the last one.
+	code = append(code, byte(op))
+	return code
 }
