@@ -23,6 +23,8 @@ var (
 	}
 )
 
+const InitialTestGas = math.MaxInt64
+
 type TestEVM struct {
 	evm *vm.EVM
 }
@@ -67,18 +69,18 @@ type RunResult struct {
 }
 
 func (e *TestEVM) Run(code []byte, input []byte) (RunResult, error) {
-	const initialGas = math.MaxInt64
 
 	addr := vm.AccountRef{}
-	contract := vm.NewContract(addr, addr, big.NewInt(0), initialGas)
+	contract := vm.NewContract(addr, addr, big.NewInt(0), InitialTestGas)
 	contract.CodeAddr = &common.Address{}
 	contract.Code = code
 	contract.CodeHash = crypto.Keccak256Hash(code)
+	contract.CallerAddress = common.Address{}
 
 	output, err := e.GetInterpreter().Run(contract, input, false)
 	return RunResult{
 		Output:  output,
-		GasUsed: math.MaxInt64 - contract.Gas,
+		GasUsed: InitialTestGas - contract.Gas,
 	}, err
 }
 
