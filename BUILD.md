@@ -164,7 +164,7 @@ If symbols for the C++ libraries are missing, make sure the library is built inc
 ```
 _ "github.com/ianlancetaylor/cgosymbolizer"
 ```
-This package makes C/C++ symbols accessible for the Go profiler. On some systems, however, this may hide Go symbols so the import may have to be added/removed as needed.
+This package makes C/C++ symbols accessible to the Go profiler. On some systems, however, this may hide Go symbols so the import may have to be added/removed as needed.
 
 ### Diffing Benchmarks
 
