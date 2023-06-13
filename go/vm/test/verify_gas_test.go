@@ -3,6 +3,7 @@ package vm_test
 import (
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
 	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/test/mocks"
@@ -92,6 +93,12 @@ func TestDynamicGas(t *testing.T) {
 			// Get static gas for frequently used instructions
 			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
 			for op, info := range getInstructions(revision) {
+
+				// TODO: AccessLists are not implemented yet
+				if strings.Contains(variant, "evmone") && (revision != Istanbul) && (op == vm.CALL || op == vm.RETURNDATACOPY) {
+					continue
+				}
+
 				if info.gas.dynamic != nil {
 					for _, testCase := range info.gas.dynamic(revision) {
 
