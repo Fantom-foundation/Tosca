@@ -126,7 +126,7 @@ BenchmarkInc/1/evmone-advanced-12           	  136111	      7381 ns/op	    1088 
 BenchmarkInc/1/evmzero-12                   	  162552	      7317 ns/op	    1088 B/op	      15 allocs/op
 ```
 The columns are as follows:
- - the name of the benchmark, using `/` as a separator between benchmarks and sub-benchmarks. In Tosca's setup, the first part of the name is the name of the benchmark (e.g. `BenchmarkInc`), the second part the input size (e.g. 10), and the last part the EVM implementation (e.g. evmone-basic) followed by the number of cores used to run the benchmark (e.g. -12); the latter is added by Go's benchmark infrastructure and has no effect if the benchmark is not using multiple go routines.
+ - the name of the benchmark, using `/` as a separator between benchmarks and sub-benchmarks. In Tosca's setup, the first part of the name is the name of the benchmark (e.g. `BenchmarkInc`), the second part the input size (e.g. `10`), and the last part the EVM implementation (e.g. `evmone-basic`) followed by the number of cores used to run the benchmark (e.g. `-12`); the latter is added by Go's benchmark infrastructure and has no effect if the benchmark is not using multiple go routines.
  - the number of times the benchmark was executed
  - the average time per execution
  - the average number of bytes allocated per execution (only when using `-benchmem`)
