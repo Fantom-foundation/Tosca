@@ -51,6 +51,8 @@ func GetCleanEVM(revision Revision, interpreter string, stateDB vm.StateDB) Test
 		GasLimit:    1 << 63,
 		GetHash:     getHash,
 		BaseFee:     big.NewInt(100),
+		Transfer:    transferFunc,
+		CanTransfer: canTransferFunc,
 	}
 	// Create empty tx context
 	txCtx := vm.TxContext{
@@ -66,6 +68,15 @@ func GetCleanEVM(revision Revision, interpreter string, stateDB vm.StateDB) Test
 type RunResult struct {
 	Output  []byte
 	GasUsed uint64
+}
+
+// transferFunc is doing nothing as this is not changing gas computation
+func transferFunc(stateDB vm.StateDB, callerAddress common.Address, to common.Address, value *big.Int) {
+}
+
+// canTransferFunc is the signature of a transfer function
+func canTransferFunc(stateDB vm.StateDB, callerAddress common.Address, value *big.Int) bool {
+	return stateDB.GetBalance(callerAddress).Cmp(value) >= 0
 }
 
 func (e *TestEVM) Run(code []byte, input []byte) (RunResult, error) {
