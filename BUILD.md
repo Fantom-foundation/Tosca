@@ -134,7 +134,7 @@ The columns are as follows:
 
 ### Filtering Benchmarks
 
-The `-bench` flag can be used to filter benchmarks by their name using regex expressions. However, the following is to be considered:
+The `-bench` flag can be used to filter benchmarks by their name using regex expressions. It's important to note that:
  - tests are selected if the regex matches any part of the benchmark name
  - before the regex expressions are applied, the pattern is devided into sub-patterns for sub-tests using the `/` separator
 
