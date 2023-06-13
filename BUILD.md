@@ -152,7 +152,7 @@ since the individual parts of the benchmark name are matched one-by-one.
 ### Profiling Benchmarks
 Go has an integrated CPU profiler that can be enabled using the `-cpuprofile` flag:
 ```
-go test ./go/vm/test -run none -bench Fib/20/evmzero -cpuprofile cpu.log
+go test ./go/vm/test -run=NONE -bench Fib/20/evmzero -cpuprofile cpu.log
 ```
 This command runs the benchmark and collects CPU performance data which can be visualized using
 ```
