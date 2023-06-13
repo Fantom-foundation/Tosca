@@ -168,7 +168,13 @@ This package makes C/C++ symbols accessible to the Go profiler. On some systems,
 
 ### Diffing Benchmarks
 
-To compare the benchmark results of two different code versions, the [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) tool can be utilized. The tool produces reports on the impact of code changes on the performance of benchmarks in the following format:
+To compare the benchmark results of two different code versions, the [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) tool can be utilized. To install the tool run
+```
+go install golang.org/x/perf/cmd/benchstat@latest
+```
+which places the binary `benchstat` into your `$GOPATH/bin` directoy.
+
+The tool produces reports on the impact of code changes on the performance of benchmarks in the following format:
 ```
 name                          old time/op  new time/op  delta
 Fib/20/lfvm-12                21.6ms ± 8%  21.1ms ± 2%    ~     (p=0.417 n=10+7)
