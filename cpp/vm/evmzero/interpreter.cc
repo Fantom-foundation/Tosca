@@ -1007,6 +1007,9 @@ static void create_impl(Context& ctx) noexcept {
   //   return {EVMC_STATIC_MODE_VIOLATION, gas_left};
   // }
 
+  if (!ctx.CheckStackAvailable((Op == op::CREATE2) ? 4 : 3)) [[unlikely]]
+    return;
+
   const auto endowment = ctx.stack.Pop();
   const uint64_t init_code_offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t init_code_size = static_cast<uint64_t>(ctx.stack.Pop());
