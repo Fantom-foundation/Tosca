@@ -158,7 +158,7 @@ This command runs the benchmark and collects CPU performance data which can be v
 ```
 go tool pprof -http "localhost:8000" ./cpu.log
 ```
-which starts a web-server at port 8000 hosting an interactive set of charts to investigate the collected profiling data.
+which starts a web-server at port `8000` hosting an interactive set of charts to investigate the collected profiling data.
 
 If symbols for the C++ libraries are missing, make sure the library is build including those symbols and that in some go file in the `./go/vm/test` package the following import is present:
 ```
