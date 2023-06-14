@@ -433,7 +433,11 @@ static void balance(Context& ctx) noexcept {
 
   uint64_t dynamic_gas_cost = 2600;
   if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
-    dynamic_gas_cost = 200;
+    if (ctx.revision >= EVMC_BERLIN) {
+      dynamic_gas_cost = 100;
+    } else {
+      dynamic_gas_cost = 700;
+    }
   }
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
     return;
@@ -569,7 +573,11 @@ static void extcodesize(Context& ctx) noexcept {
 
   uint64_t dynamic_gas_cost = 2600;
   if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
-    dynamic_gas_cost = 100;
+    if (ctx.revision >= EVMC_BERLIN) {
+      dynamic_gas_cost = 100;
+    } else {
+      dynamic_gas_cost = 700;
+    }
   }
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
     return;
@@ -590,7 +598,11 @@ static void extcodecopy(Context& ctx) noexcept {
   const uint64_t minimum_word_size = (size + 31) / 32;
   uint64_t address_access_cost = 2600;
   if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
-    address_access_cost = 100;
+    if (ctx.revision >= EVMC_BERLIN) {
+      address_access_cost = 100;
+    } else {
+      address_access_cost = 700;
+    }
   }
   const uint64_t dynamic_gas_cost = 3 * minimum_word_size  //
                                     + address_access_cost  //
@@ -645,7 +657,11 @@ static void extcodehash(Context& ctx) noexcept {
 
   uint64_t dynamic_gas_cost = 2600;
   if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
-    dynamic_gas_cost = 100;
+    if (ctx.revision >= EVMC_BERLIN) {
+      dynamic_gas_cost = 100;
+    } else {
+      dynamic_gas_cost = 700;
+    }
   }
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
     return;
@@ -807,7 +823,11 @@ static void sload(Context& ctx) noexcept {
 
   uint64_t dynamic_gas_cost = 2100;
   if (ctx.host->access_storage(ctx.message->recipient, ToEvmcBytes(key)) == EVMC_ACCESS_WARM) {
-    dynamic_gas_cost = 100;
+    if (ctx.revision >= EVMC_BERLIN) {
+      dynamic_gas_cost = 100;
+    } else {
+      dynamic_gas_cost = 700;
+    }
   }
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
     return;
