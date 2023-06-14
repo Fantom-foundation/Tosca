@@ -21,12 +21,10 @@ func TestStackMaxBoundry(t *testing.T) {
 					var stateDB vm.StateDB
 					evm := GetCleanEVM(revision, variant, stateDB)
 
+					// push size
 					size := info.stack.pushed - info.stack.popped
-					if size > 1 {
-						size = int(params.StackLimit) - size + 1
-					} else {
-						size = int(params.StackLimit)
-					}
+					// needed stack size
+					size = int(params.StackLimit) - size + 1
 
 					code := getCode(size, op)
 
@@ -57,13 +55,7 @@ func TestStackMinBoundry(t *testing.T) {
 					var stateDB *vm_mock.MockStateDB
 
 					evm := GetCleanEVM(revision, variant, stateDB)
-
-					var code []byte
-					if info.stack.popped > 1 {
-						code = getCode(info.stack.popped-1, op)
-					} else {
-						code = []byte{byte(op)}
-					}
+					code := getCode(info.stack.popped-1, op)
 
 					// Run an interpreter
 					_, err := evm.Run(code, []byte{})
