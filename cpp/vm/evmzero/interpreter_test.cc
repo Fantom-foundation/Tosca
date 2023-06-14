@@ -1422,6 +1422,43 @@ TEST(InterpreterTest, BALANCE) {
   });
 }
 
+TEST(InterpreterTest, BALANCE_Warm) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, get_balance(evmc::address(0x42)))  //
+      .Times(1)
+      .WillOnce(Return(evmc::uint256be(0x21)));
+
+  RunInterpreterTest({
+      .code = {op::BALANCE},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 2300,
+      .stack_before = {0x42},
+      .stack_after = {0x21},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, BALANCE_PostRevision) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, get_balance(evmc::address(0x42)))  //
+      .Times(1)
+      .WillOnce(Return(evmc::uint256be(0x21)));
+
+  RunInterpreterTest({
+      .code = {op::BALANCE},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 2900,
+      .stack_before = {0x42},
+      .stack_after = {0x21},
+      .host = &host,
+      .revision = EVMC_BERLIN,
+  });
+}
+
 TEST(InterpreterTest, BALANCE_OutOfGas_Cold) {
   MockHost host;
   EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
@@ -1442,7 +1479,7 @@ TEST(InterpreterTest, BALANCE_OutOfGas_WARM) {
   RunInterpreterTest({
       .code = {op::BALANCE},
       .state_after = RunState::kErrorGas,
-      .gas_before = 100,
+      .gas_before = 690,
       .stack_before = {0x42},
       .host = &host,
   });
@@ -1900,6 +1937,39 @@ TEST(InterpreterTest, EXTCODESIZE) {
   });
 }
 
+TEST(InterpreterTest, EXTCODESIZE_Warm) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, get_code_size(evmc::address(0x42))).Times(1).WillOnce(Return(16));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODESIZE},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 2300,
+      .stack_before = {0x42},
+      .stack_after = {16},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODESIZE_PostRevision) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, get_code_size(evmc::address(0x42))).Times(1).WillOnce(Return(16));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODESIZE},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 2900,
+      .stack_before = {0x42},
+      .stack_after = {16},
+      .host = &host,
+      .revision = EVMC_BERLIN,
+  });
+}
+
 TEST(InterpreterTest, EXTCODESIZE_OutOfGas_Cold) {
   MockHost host;
   EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
@@ -1920,7 +1990,7 @@ TEST(InterpreterTest, EXTCODESIZE_OutOfGas_Warm) {
   RunInterpreterTest({
       .code = {op::EXTCODESIZE},
       .state_after = RunState::kErrorGas,
-      .gas_before = 90,
+      .gas_before = 690,
       .stack_before = {0x42},
       .host = &host,
   });
@@ -1947,6 +2017,47 @@ TEST(InterpreterTest, EXTCODECOPY) {
       .stack_before = {3, 1, 2, 0x42},
       .memory_after = {0, 0, 0x0A, 0x0B, 0x0C},
       .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODECOPY_Warm) {
+  const std::vector<uint8_t> code = {op::PUSH4, 0x0A, 0x0B, 0x0C, 0xD};
+
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, copy_code(evmc::address(0x42), 1, _, 3))  //
+      .Times(1)
+      .WillOnce(DoAll(SetArrayArgument<2>(code.data() + 1, code.data() + 1 + 3), Return(3)));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 3000 - 700 - 6,
+      .stack_before = {3, 1, 2, 0x42},
+      .memory_after = {0, 0, 0x0A, 0x0B, 0x0C},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODECOPY_PostRevision) {
+  const std::vector<uint8_t> code = {op::PUSH4, 0x0A, 0x0B, 0x0C, 0xD};
+
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, copy_code(evmc::address(0x42), 1, _, 3))  //
+      .Times(1)
+      .WillOnce(DoAll(SetArrayArgument<2>(code.data() + 1, code.data() + 1 + 3), Return(3)));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 3000 - 100 - 6,
+      .stack_before = {3, 1, 2, 0x42},
+      .memory_after = {0, 0, 0x0A, 0x0B, 0x0C},
+      .host = &host,
+      .revision = EVMC_BERLIN,
   });
 }
 
@@ -2012,7 +2123,7 @@ TEST(InterpreterTest, EXTCODECOPY_OutOfGas_Warm) {
   RunInterpreterTest({
       .code = {op::EXTCODECOPY},
       .state_after = RunState::kErrorGas,
-      .gas_before = 90,
+      .gas_before = 690,
       .stack_before = {3, 1, 2, 0x42},
       .host = &host,
   });
@@ -2170,6 +2281,43 @@ TEST(InterpreterTest, EXTCODEHASH) {
   });
 }
 
+TEST(InterpreterTest, EXTCODEHASH_Warm) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, get_code_hash(evmc::address(0x42)))  //
+      .Times(1)
+      .WillOnce(Return(evmc::bytes32(0x0a0b0c0d)));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODEHASH},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 2300,
+      .stack_before = {0x42},
+      .stack_after = {0x0a0b0c0d},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, EXTCODEHASH_PostRevision) {
+  MockHost host;
+  EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, get_code_hash(evmc::address(0x42)))  //
+      .Times(1)
+      .WillOnce(Return(evmc::bytes32(0x0a0b0c0d)));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODEHASH},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 2900,
+      .stack_before = {0x42},
+      .stack_after = {0x0a0b0c0d},
+      .host = &host,
+      .revision = EVMC_BERLIN,
+  });
+}
+
 TEST(InterpreterTest, EXTCODEHASH_OutOfGas_Cold) {
   MockHost host;
   EXPECT_CALL(host, access_account(evmc::address(0x42))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
@@ -2190,7 +2338,7 @@ TEST(InterpreterTest, EXTCODEHASH_OutOfGas_Warm) {
   RunInterpreterTest({
       .code = {op::EXTCODEHASH},
       .state_after = RunState::kErrorGas,
-      .gas_before = 90,
+      .gas_before = 690,
       .stack_before = {0x42},
       .host = &host,
   });
@@ -2481,7 +2629,7 @@ TEST(InterpreterTest, BASEFEE_OutOfGas) {
 
 TEST(InterpreterTest, DISABLED_BASEFEE_StackOverflow) {}
 
-TEST(InterpreterTest, BASEFEE_PreRevision) {
+TEST(InterpreterTest, BASEFEE_PostRevision) {
   RunInterpreterTest({
       .code = {op::BASEFEE},
       .state_after = RunState::kErrorOpcode,
@@ -2906,6 +3054,45 @@ TEST(InterpreterTest, SLOAD) {
   });
 }
 
+TEST(InterpreterTest, SLOAD_Warm) {
+  MockHost host;
+  EXPECT_CALL(host, access_storage(evmc::address(0x42), evmc::bytes32(16))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, get_storage(evmc::address(0x42), evmc::bytes32(16)))  //
+      .Times(1)
+      .WillOnce(Return(evmc::bytes32(32)));
+
+  RunInterpreterTest({
+      .code = {op::SLOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 2300,
+      .stack_before = {16},
+      .stack_after = {32},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SLOAD_PostRevision) {
+  MockHost host;
+  EXPECT_CALL(host, access_storage(evmc::address(0x42), evmc::bytes32(16))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, get_storage(evmc::address(0x42), evmc::bytes32(16)))  //
+      .Times(1)
+      .WillOnce(Return(evmc::bytes32(32)));
+
+  RunInterpreterTest({
+      .code = {op::SLOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 2900,
+      .stack_before = {16},
+      .stack_after = {32},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+      .revision = EVMC_BERLIN,
+  });
+}
+
 TEST(InterpreterTest, SLOAD_OutOfGas_Cold) {
   MockHost host;
   EXPECT_CALL(host, access_storage(evmc::address(0x42), evmc::bytes32(16))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
@@ -2927,7 +3114,7 @@ TEST(InterpreterTest, SLOAD_OutOfGas_Warm) {
   RunInterpreterTest({
       .code = {op::SLOAD},
       .state_after = RunState::kErrorGas,
-      .gas_before = 90,
+      .gas_before = 690,
       .stack_before = {16},
       .message = {.recipient = evmc::address(0x42)},
       .host = &host,
