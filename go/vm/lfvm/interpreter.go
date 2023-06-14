@@ -10,7 +10,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
 
@@ -404,7 +403,7 @@ func checkStackBoundry(c *context, op OpCode) error {
 		c.status = ERROR
 		return c.err
 	}
-	if stackLen > int(params.StackLimit)-1 && stackLen > staticStackBoundry[op].stackMax {
+	if stackLen > staticStackBoundry[op].stackMax {
 		c.err = &vm.ErrStackOverflow{}
 		c.status = ERROR
 		return c.err
