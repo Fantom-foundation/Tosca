@@ -78,9 +78,6 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
       .revision = desc.revision,
   };
 
-  // Adding a final STOP byte here so we don't have to add it in every test!
-  ctx.code.push_back(op::STOP);
-
   internal::RunInterpreter(ctx);
 
   ASSERT_EQ(ctx.state, desc.state_after);
@@ -93,18 +90,6 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
       EXPECT_EQ(ctx.return_data, desc.return_data);
     }
   }
-}
-
-TEST(InterpreterTest, NoStopByte) {
-  internal::Context ctx{
-      .code = {op::ADD},
-      .stack = {1, 2},
-  };
-
-  internal::RunInterpreter(ctx);
-
-  EXPECT_EQ(ctx.pc, 1);
-  EXPECT_EQ(ctx.state, RunState::kErrorOpcode);
 }
 
 ///////////////////////////////////////////////////////////
@@ -1777,7 +1762,7 @@ TEST(InterpreterTest, CODESIZE) {
       .state_after = RunState::kDone,
       .gas_before = 100,
       .gas_after = 100 - 10 - 2,
-      .stack_after = {7 + 1 /* for trailing STOP byte */},
+      .stack_after = {7},
   });
 }
 
