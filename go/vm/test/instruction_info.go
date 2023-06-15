@@ -170,7 +170,7 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.CODECOPY:       {stack: consume(3), gas: gas(gasFastestStep, gasDynamicCopy)},
 		vm.GASPRICE:       {stack: op(0), gas: gasS(gasQuickStep)},
 		vm.EXTCODESIZE:    {stack: op(1), gas: gasS(gasExtCode)},
-		vm.EXTCODECOPY:    {stack: consume(4), gas: gas(gasExtCode, dynGasNotImpYet)},
+		vm.EXTCODECOPY:    {stack: consume(4), gas: gas(gasExtCode, gasDynamicExtCodeCopy)},
 		vm.RETURNDATASIZE: {stack: op(0), gas: gas(gasQuickStep, dynGasNotImpYet)},
 		vm.RETURNDATACOPY: {stack: consume(3), gas: gas(gasFastestStep, gasDynamicCopyReturnValue)},
 		vm.EXTCODEHASH:    {stack: op(1), gas: gasS(gasExtCodeHash)},
@@ -286,11 +286,11 @@ func getBerlinInstructions() map[vm.OpCode]*InstructionInfo {
 
 	// Static and dynamic gas calculation is changing for these instructions
 	res[vm.SSTORE].gas.dynamic = dynGasNotImpYet
-	res[vm.SLOAD].gas = GasUsage{0, dynGasNotImpYet}
-	res[vm.EXTCODECOPY].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
-	res[vm.EXTCODESIZE].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
-	res[vm.EXTCODEHASH].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
-	res[vm.BALANCE].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
+	res[vm.SLOAD].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicSLoad}
+	res[vm.EXTCODECOPY].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicExtCodeCopy}
+	res[vm.EXTCODESIZE].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicAccountAccess}
+	res[vm.EXTCODEHASH].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicAccountAccess}
+	res[vm.BALANCE].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicAccountAccess}
 	res[vm.CALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicCall}
 	res[vm.CALLCODE].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
 	res[vm.STATICCALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}

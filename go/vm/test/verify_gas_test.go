@@ -94,12 +94,15 @@ func TestDynamicGas(t *testing.T) {
 			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
 			for op, info := range getInstructions(revision) {
 
-				// TODO: AccessLists are not implemented yet
-				if strings.Contains(variant, "evmone") && (revision != Istanbul) && (op == vm.CALL || op == vm.RETURNDATACOPY) {
+				if info.gas.dynamic == nil {
 					continue
 				}
 
-				if info.gas.dynamic != nil {
+				// TODO: AccessLists are not implemented yet
+				if strings.Contains(variant, "evmone") && (revision != Istanbul) {
+					continue
+				}
+
 					for _, testCase := range info.gas.dynamic(revision) {
 
 						t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, op, testCase.testName), func(t *testing.T) {
@@ -171,7 +174,6 @@ func TestDynamicGas(t *testing.T) {
 			}
 		}
 	}
-}
 
 // Returns computed gas for calling passed callCode with a Call instruction
 func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) uint64 {
