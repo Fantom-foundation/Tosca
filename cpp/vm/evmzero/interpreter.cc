@@ -431,12 +431,12 @@ static void balance(Context& ctx) noexcept {
 
   evmc::address address = ToEvmcAddress(ctx.stack.Pop());
 
-  uint64_t dynamic_gas_cost = 2600;
-  if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
-    if (ctx.revision >= EVMC_BERLIN) {
+  uint64_t dynamic_gas_cost = 700;
+  if (ctx.revision >= EVMC_BERLIN) {
+    if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
       dynamic_gas_cost = 100;
     } else {
-      dynamic_gas_cost = 700;
+      dynamic_gas_cost = 2600;
     }
   }
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
@@ -571,12 +571,12 @@ static void extcodesize(Context& ctx) noexcept {
 
   auto address = ToEvmcAddress(ctx.stack.Pop());
 
-  uint64_t dynamic_gas_cost = 2600;
-  if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
-    if (ctx.revision >= EVMC_BERLIN) {
+  uint64_t dynamic_gas_cost = 700;
+  if (ctx.revision >= EVMC_BERLIN) {
+    if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
       dynamic_gas_cost = 100;
     } else {
-      dynamic_gas_cost = 700;
+      dynamic_gas_cost = 2600;
     }
   }
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
@@ -596,12 +596,12 @@ static void extcodecopy(Context& ctx) noexcept {
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
   const uint64_t minimum_word_size = (size + 31) / 32;
-  uint64_t address_access_cost = 2600;
-  if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
-    if (ctx.revision >= EVMC_BERLIN) {
+  uint64_t address_access_cost = 700;
+  if (ctx.revision >= EVMC_BERLIN) {
+    if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
       address_access_cost = 100;
     } else {
-      address_access_cost = 700;
+      address_access_cost = 2600;
     }
   }
   const uint64_t dynamic_gas_cost = 3 * minimum_word_size  //
@@ -655,12 +655,12 @@ static void extcodehash(Context& ctx) noexcept {
 
   auto address = ToEvmcAddress(ctx.stack.Pop());
 
-  uint64_t dynamic_gas_cost = 2600;
-  if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
-    if (ctx.revision >= EVMC_BERLIN) {
+  uint64_t dynamic_gas_cost = 700;
+  if (ctx.revision >= EVMC_BERLIN) {
+    if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
       dynamic_gas_cost = 100;
     } else {
-      dynamic_gas_cost = 700;
+      dynamic_gas_cost = 2600;
     }
   }
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
@@ -821,12 +821,12 @@ static void sload(Context& ctx) noexcept {
 
   const uint256_t key = ctx.stack.Pop();
 
-  uint64_t dynamic_gas_cost = 2100;
-  if (ctx.host->access_storage(ctx.message->recipient, ToEvmcBytes(key)) == EVMC_ACCESS_WARM) {
-    if (ctx.revision >= EVMC_BERLIN) {
+  uint64_t dynamic_gas_cost = 800;
+  if (ctx.revision >= EVMC_BERLIN) {
+    if (ctx.host->access_storage(ctx.message->recipient, ToEvmcBytes(key)) == EVMC_ACCESS_WARM) {
       dynamic_gas_cost = 100;
     } else {
-      dynamic_gas_cost = 700;
+      dynamic_gas_cost = 2100;
     }
   }
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
@@ -843,16 +843,29 @@ static void sstore(Context& ctx) noexcept {
   const uint256_t key = ctx.stack.Pop();
   const uint256_t value = ctx.stack.Pop();
 
-  // TODO: Take current_value and original_value into account!
-
-  uint64_t dynamic_gas_cost = 100;
-  if (ctx.host->access_storage(ctx.message->recipient, ToEvmcBytes(key)) == EVMC_ACCESS_COLD) {
-    dynamic_gas_cost += 2100;
+  uint64_t dynamic_gas_cost = 800;
+  if (ctx.revision >= EVMC_BERLIN) {
+    dynamic_gas_cost = 100;
   }
+
+  const auto storage_status = ctx.host->set_storage(ctx.message->recipient, ToEvmcBytes(key), ToEvmcBytes(value));
+
+  // Dynamic gas cost depends on the current value in storage. set_storage
+  // provides the relevant information we need.
+  if (storage_status == EVMC_STORAGE_ADDED) {
+    dynamic_gas_cost = 20000;
+  }
+  if (storage_status == EVMC_STORAGE_MODIFIED) {
+    if (ctx.revision >= EVMC_BERLIN) {
+      dynamic_gas_cost = 2900;
+    } else {
+      dynamic_gas_cost = 5000;
+    }
+  }
+
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
     return;
 
-  ctx.host->set_storage(ctx.message->recipient, ToEvmcBytes(key), ToEvmcBytes(value));
   ctx.pc++;
 }
 
