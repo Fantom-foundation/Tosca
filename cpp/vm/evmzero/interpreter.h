@@ -40,6 +40,7 @@ struct InterpreterArgs {
 struct InterpreterResult {
   RunState state = RunState::kDone;
   uint64_t remaining_gas = 0;
+  uint64_t refunded_gas = 0;
   std::vector<uint8_t> return_data;
 };
 
@@ -52,6 +53,7 @@ struct Context {
 
   uint64_t pc = 0;
   uint64_t gas = 100000000000llu;
+  uint64_t gas_refunds = 0;
 
   std::vector<uint8_t> code;
   std::vector<uint8_t> return_data;

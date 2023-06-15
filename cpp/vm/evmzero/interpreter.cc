@@ -57,6 +57,7 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
   return {
       .state = ctx.state,
       .remaining_gas = ctx.gas,
+      .refunded_gas = ctx.gas_refunds,
       .return_data = ctx.return_data,
   };
 }
@@ -848,6 +849,11 @@ static void sstore(Context& ctx) noexcept {
     dynamic_gas_cost = 100;
   }
 
+  bool key_is_warm = false;
+  if (ctx.revision >= EVMC_BERLIN) {
+    key_is_warm = ctx.host->access_storage(ctx.message->recipient, ToEvmcBytes(key));
+  }
+
   const auto storage_status = ctx.host->set_storage(ctx.message->recipient, ToEvmcBytes(key), ToEvmcBytes(value));
 
   // Dynamic gas cost depends on the current value in storage. set_storage
@@ -865,6 +871,27 @@ static void sstore(Context& ctx) noexcept {
 
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
     return;
+
+  // gas refund
+  if (storage_status == EVMC_STORAGE_DELETED) {
+    ctx.gas_refunds += 15000;
+  } else if (storage_status == EVMC_STORAGE_DELETED_ADDED) {
+    ctx.gas_refunds -= std::min<uint64_t>(15000, ctx.gas_refunds);
+  } else if (storage_status == EVMC_STORAGE_MODIFIED_DELETED) {
+    ctx.gas_refunds += 15000;
+  } else if (storage_status == EVMC_STORAGE_ADDED_DELETED) {
+    ctx.gas_refunds += 19200;
+  } else if (storage_status == EVMC_STORAGE_MODIFIED_RESTORED) {
+    if (ctx.revision >= EVMC_BERLIN) {
+      if (key_is_warm) {
+        ctx.gas_refunds += 5000 - 2100 - 100;
+      } else {
+        ctx.gas_refunds += 4900;
+      }
+    } else {
+      ctx.gas_refunds += 4200;
+    }
+  }
 
   ctx.pc++;
 }

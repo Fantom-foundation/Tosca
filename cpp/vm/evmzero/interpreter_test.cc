@@ -50,6 +50,8 @@ struct InterpreterTestDescription {
 
   uint64_t gas_before = 0;
   uint64_t gas_after = 0;
+  uint64_t gas_refund_before = 0;
+  uint64_t gas_refund_after = 0;
 
   Stack stack_before;
   Stack stack_after;
@@ -69,6 +71,7 @@ struct InterpreterTestDescription {
 void RunInterpreterTest(const InterpreterTestDescription& desc) {
   internal::Context ctx{
       .gas = desc.gas_before,
+      .gas_refunds = desc.gas_refund_before,
       .code = desc.code,
       .return_data = desc.last_call_data,
       .memory = desc.memory_before,
@@ -84,6 +87,7 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
 
   if (ctx.state == RunState::kDone || ctx.state == RunState::kRevert) {
     EXPECT_EQ(ctx.gas, desc.gas_after);
+    EXPECT_EQ(ctx.gas_refunds, desc.gas_refund_after);
     EXPECT_EQ(ctx.stack, desc.stack_after);
     EXPECT_EQ(ctx.memory, desc.memory_after);
     if (!desc.return_data.empty()) {
@@ -3247,6 +3251,7 @@ TEST(InterpreterTest, SSTORE_StackError) {
 
 TEST(InterpreterTest, SSTORE_BerlinRevision) {
   MockHost host;
+  EXPECT_CALL(host, access_storage(evmc::address(0x42), evmc::bytes32(16))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
   EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
       .Times(1)
       .WillOnce(Return(EVMC_STORAGE_ASSIGNED));
@@ -3263,8 +3268,9 @@ TEST(InterpreterTest, SSTORE_BerlinRevision) {
   });
 }
 
-TEST(InterpreterTest, SSTORE_BerlinRevision_StorageModified) {
+TEST(InterpreterTest, SSTORE_BerlinRevision_Modified) {
   MockHost host;
+  EXPECT_CALL(host, access_storage(evmc::address(0x42), evmc::bytes32(16))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
   EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
       .Times(1)
       .WillOnce(Return(EVMC_STORAGE_MODIFIED));
@@ -3274,6 +3280,148 @@ TEST(InterpreterTest, SSTORE_BerlinRevision_StorageModified) {
       .state_after = RunState::kDone,
       .gas_before = 3000,
       .gas_after = 100,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+      .revision = EVMC_BERLIN,
+  });
+}
+
+TEST(InterpreterTest, SSTORE_Refund_Deleted) {
+  MockHost host;
+  EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
+      .Times(1)
+      .WillOnce(Return(EVMC_STORAGE_DELETED));
+
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 2000,
+      .gas_after = 1200,
+      .gas_refund_after = 15000,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SSTORE_Refund_DeletedAdded) {
+  MockHost host;
+  EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
+      .WillRepeatedly(Return(EVMC_STORAGE_DELETED_ADDED));
+
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 2000,
+      .gas_after = 1200,
+      .gas_refund_before = 20000,
+      .gas_refund_after = 5000,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 2000,
+      .gas_after = 1200,
+      .gas_refund_before = 10000,
+      .gas_refund_after = 0,  // refund cannot be negative
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SSTORE_Refund_ModifiedDeleted) {
+  MockHost host;
+  EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
+      .Times(1)
+      .WillOnce(Return(EVMC_STORAGE_MODIFIED_DELETED));
+
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 2000,
+      .gas_after = 1200,
+      .gas_refund_after = 15000,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SSTORE_Refund_AddedDeleted) {
+  MockHost host;
+  EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
+      .Times(1)
+      .WillOnce(Return(EVMC_STORAGE_ADDED_DELETED));
+
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 2000,
+      .gas_after = 1200,
+      .gas_refund_after = 19200,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SSTORE_Refund_ModifiedRestored) {
+  MockHost host;
+  EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
+      .Times(1)
+      .WillOnce(Return(EVMC_STORAGE_MODIFIED_RESTORED));
+
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 2000,
+      .gas_after = 1200,
+      .gas_refund_after = 4200,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SSTORE_Refund_ModifiedRestored_Cold) {
+  MockHost host;
+  EXPECT_CALL(host, access_storage(evmc::address(0x42), evmc::bytes32(16))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+  EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
+      .Times(1)
+      .WillOnce(Return(EVMC_STORAGE_MODIFIED_RESTORED));
+
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 2000,
+      .gas_after = 1900,
+      .gas_refund_after = 4900,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+      .revision = EVMC_BERLIN,
+  });
+}
+
+TEST(InterpreterTest, SSTORE_Refund_ModifiedRestored_Warm) {
+  MockHost host;
+  EXPECT_CALL(host, access_storage(evmc::address(0x42), evmc::bytes32(16))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
+      .Times(1)
+      .WillOnce(Return(EVMC_STORAGE_MODIFIED_RESTORED));
+
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 2000,
+      .gas_after = 1900,
+      .gas_refund_after = 2800,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
       .host = &host,
