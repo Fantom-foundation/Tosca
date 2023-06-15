@@ -1297,7 +1297,7 @@ bool Context::ApplyGasCost(uint64_t gas_cost) noexcept {
 void RunInterpreter(Context& ctx) {
   while (ctx.state == RunState::kRunning) {
     if (ctx.pc >= ctx.code.size()) [[unlikely]] {
-      ctx.state = RunState::kErrorOpcode;
+      ctx.state = RunState::kDone;
       break;
     }
 
