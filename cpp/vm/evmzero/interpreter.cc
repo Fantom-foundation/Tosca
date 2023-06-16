@@ -31,6 +31,8 @@ const char* ToString(RunState state) {
       return "ErrorCall";
     case RunState::kErrorCreate:
       return "ErrorCreate";
+    case RunState::kErrorStaticCall:
+      return "ErrorStaticCall";
   }
   return "UNKNOWN_STATE";
 }
@@ -41,6 +43,7 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
   evmc::HostContext host(*args.host_interface, args.host_context);
 
   internal::Context ctx{
+      .is_static_call = static_cast<bool>(args.message->flags & EVMC_STATIC),
       .gas = static_cast<uint64_t>(args.message->gas),
       .message = args.message,
       .host = &host,
@@ -839,6 +842,8 @@ static void sload(Context& ctx) noexcept {
 }
 
 static void sstore(Context& ctx) noexcept {
+  if (!ctx.CheckStaticCallConformance()) [[unlikely]]
+    return;
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
     return;
   const uint256_t key = ctx.stack.Pop();
@@ -1003,6 +1008,8 @@ static void swap(Context& ctx) noexcept {
 
 template <uint64_t N>
 static void log(Context& ctx) noexcept {
+  if (!ctx.CheckStaticCallConformance()) [[unlikely]]
+    return;
   if (!ctx.CheckStackAvailable(2 + N)) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(375)) [[unlikely]]
@@ -1045,6 +1052,8 @@ static void return_op(Context& ctx) noexcept {
 static void invalid(Context& ctx) noexcept { ctx.state = RunState::kInvalid; }
 
 static void selfdestruct(Context& ctx) noexcept {
+  if (!ctx.CheckStaticCallConformance()) [[unlikely]]
+    return;
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(5000)) [[unlikely]]
@@ -1063,10 +1072,8 @@ template <op::OpCodes Op>
 static void create_impl(Context& ctx) noexcept {
   static_assert(Op == op::CREATE || Op == op::CREATE2);
 
-  // if (state.in_static_mode()) {
-  //   return {EVMC_STATIC_MODE_VIOLATION, gas_left};
-  // }
-
+  if (!ctx.CheckStaticCallConformance()) [[unlikely]]
+    return;
   if (!ctx.CheckStackAvailable((Op == op::CREATE2) ? 4 : 3)) [[unlikely]]
     return;
 
@@ -1145,6 +1152,9 @@ static void call_impl(Context& ctx) noexcept {
   const uint64_t input_size = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t output_offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t output_size = static_cast<uint64_t>(ctx.stack.Pop());
+
+  if (value != 0 && !ctx.CheckStaticCallConformance()) [[unlikely]]
+    return;
 
   ctx.return_data.clear();
 
@@ -1236,6 +1246,15 @@ namespace internal {
 bool Context::CheckOpcodeAvailable(evmc_revision introduced_in) noexcept {
   if (revision < introduced_in) [[unlikely]] {
     state = RunState::kErrorOpcode;
+    return false;
+  } else {
+    return true;
+  }
+}
+
+bool Context::CheckStaticCallConformance() noexcept {
+  if (is_static_call) [[unlikely]] {
+    state = RunState::kErrorStaticCall;
     return false;
   } else {
     return true;

@@ -29,6 +29,8 @@ evmc_status_code ToEvmcStatusCode(RunState state) {
       return EVMC_CALL_DEPTH_EXCEEDED;
     case RunState::kErrorCreate:
       return EVMC_FAILURE;
+    case RunState::kErrorStaticCall:
+      return EVMC_STATIC_MODE_VIOLATION;
   }
   return EVMC_FAILURE;
 }
