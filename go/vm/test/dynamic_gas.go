@@ -233,6 +233,146 @@ func gasDynamicSLoad(revision Revision) []*DynGasTest {
 	}
 	return testCases
 }
+
+// SSTORE instruction
+// context_addr: the address of the current execution context (i.e. what ADDRESS would put on the stack)
+// target_storage_key: The 32-byte storage index to store to (key in the stack representation)
+// orig_val: the value of the storage slot if the current transaction is reverted
+// current_val: the value of the storage slot immediately before the sstore op in question
+// new_val: the value of the storage slot immediately after the sstore op in question
+func gasDynamicSStore(revision Revision) []*DynGasTest {
+
+	type sloadTest struct {
+		testName            string
+		addressInAccessList bool
+		slotInAccessList    bool
+		origValue           common.Hash
+		currentValue        common.Hash
+		newValue            common.Hash
+	}
+
+	val0 := common.Hash{0}
+	val1 := common.Hash{1}
+	val2 := common.Hash{2}
+
+	tests := []sloadTest{
+		{"Address in ACL, slot in ACL", true, true, val1, val2, val2},
+		{"Address in ACL, slot not in ACL", true, false, val1, val2, val2},
+		{"Address not in ACL, slot in ACL", false, true, val1, val2, val2},
+
+		{"Slot 0, current 0, new 1", true, true, val0, val0, val1},
+		{"Slot 1, current 1, new 2", true, true, val1, val1, val2},
+		{"Slot 1, current 1, new 0", true, true, val1, val1, val0},
+		{"Slot 1, current 0, new 2", true, true, val1, val0, val2},
+		{"Slot 1, current 2, new 0", true, true, val1, val2, val0},
+		{"Slot 1, current 2, new 1", true, true, val1, val2, val1},
+		{"Slot 0, current 1, new 0", true, true, val0, val1, val0},
+	}
+
+	testCases := []*DynGasTest{}
+
+	for i, test := range tests {
+		address := common.Address{byte(0)}
+		key := common.Hash{byte(i + 1)}
+
+		origValue := test.origValue
+		currentValue := test.currentValue
+		newValue := test.newValue
+
+		addressInACL := test.addressInAccessList
+		slotInACL := test.slotInAccessList
+		stackValues := []*big.Int{newValue.Big(), key.Big()}
+
+		// TODO: if remaining gas < 2300 there has to be OUT_OF_GAS error
+
+		// Expected gas calculation
+		var expectedGas uint64
+		var gasRefund int
+
+		// Access list access for slots in SSTORE
+		warmAccessCost, coldAccessCost := getSStoreAccessCost(revision, true)
+
+		if !test.slotInAccessList {
+			expectedGas += coldAccessCost
+		}
+
+		refundGas, resetGas := getSStoreGasAmounts(revision)
+
+		expectedGas, gasRefund = calculateSStoreGas(origValue, currentValue, newValue, expectedGas, warmAccessCost, coldAccessCost, refundGas, resetGas)
+
+		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
+			mockStateDB.EXPECT().SlotInAccessList(address, key).AnyTimes().Return(addressInACL, slotInACL)
+			mockStateDB.EXPECT().AddSlotToAccessList(address, key).AnyTimes()
+			mockStateDB.EXPECT().GetCommittedState(address, key).AnyTimes().Return(origValue)
+			mockStateDB.EXPECT().GetState(address, key).AnyTimes().Return(currentValue)
+			mockStateDB.EXPECT().SetState(address, key, newValue).AnyTimes()
+			if gasRefund != 0 {
+				if gasRefund > 0 {
+					mockStateDB.EXPECT().AddRefund(uint64(gasRefund))
+				} else {
+					mockStateDB.EXPECT().SubRefund(uint64(gasRefund * -1))
+				}
+			}
+		}
+
+		// Append test
+		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, false, mockCalls})
+	}
+	return testCases
+}
+
+// Returns refund and reset gas values according to revision
+func getSStoreGasAmounts(revision Revision) (int, uint64) {
+	switch revision {
+	case Istanbul:
+		return 15000, 5000
+	case Berlin:
+		return 15000, 2900
+	case London:
+		return 4800, 2900
+	default:
+		return 0, 0
+	}
+}
+
+// Returns expected gas and gas to refund for a SSTORE instruction
+func calculateSStoreGas(origValue common.Hash, currentValue common.Hash, newValue common.Hash, expectedGas uint64, warmAccessCost uint64, coldAccessCost uint64, refundAmount int, resetGasAmount uint64) (uint64, int) {
+	zeroVal := common.Hash{0}
+	var gasRefund int
+
+	if newValue == currentValue {
+		expectedGas += warmAccessCost
+	} else {
+		if currentValue == origValue {
+			if origValue == zeroVal {
+				expectedGas += 20000
+			} else {
+				expectedGas += resetGasAmount
+				if newValue == zeroVal {
+					gasRefund += refundAmount
+				}
+			}
+		} else {
+			expectedGas += warmAccessCost
+			if origValue != zeroVal {
+				if currentValue == zeroVal {
+					gasRefund -= refundAmount
+				} else if newValue == zeroVal {
+					gasRefund += refundAmount
+				}
+			}
+			if newValue == origValue {
+				if origValue == zeroVal {
+					gasRefund += 20000 - int(warmAccessCost)
+				} else {
+					gasRefund += 5000 - int(coldAccessCost) - int(warmAccessCost)
+				}
+			}
+		}
+	}
+	return expectedGas, gasRefund
+}
+
 // CALL instruction
 // base_gas = access_cost + mem_expansion_cost
 // If call_value > 0 (sending value with call):
@@ -361,7 +501,7 @@ func getAccessCost(revision Revision, warmAccess bool, isSlot bool) uint64 {
 		default:
 			if !isSlot {
 				// 2600 - 100 static gas at instruction info
-			return 2500
+				return 2500
 			} else {
 				// 2100 - 100 static gas at instruction info
 				return 2000
@@ -370,6 +510,13 @@ func getAccessCost(revision Revision, warmAccess bool, isSlot bool) uint64 {
 	}
 }
 
-		}
+// Returns ACL access cost for SSTORE
+// No static gas for instruction is involved
+func getSStoreAccessCost(revision Revision, warmAccess bool) (uint64, uint64) {
+	switch revision {
+	case Istanbul:
+		return 800, 0
+	default:
+		return 100, 2100
 	}
 }

@@ -187,7 +187,7 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.MSTORE:         {stack: consume(2), gas: gas(gasFastestStep, dynGasNotImpYet)},
 		vm.MSTORE8:        {stack: consume(2), gas: gas(gasFastestStep, dynGasNotImpYet)},
 		vm.SLOAD:          {stack: op(1), gas: gasS(gasSloadEIP2200)},
-		vm.SSTORE:         {stack: consume(2), gas: gasD(dynGasNotImpYet)},
+		vm.SSTORE:         {stack: consume(2), gas: gas(0, gasDynamicSStore)},
 		vm.JUMP:           {stack: consume(1), gas: gasS(gasMidStep)},
 		vm.JUMPI:          {stack: consume(2), gas: gasS(gasSlowStep)},
 		vm.PC:             {stack: op(0), gas: gasS(gasQuickStep)},
@@ -285,7 +285,7 @@ func getBerlinInstructions() map[vm.OpCode]*InstructionInfo {
 	res := getInstanbulInstructions()
 
 	// Static and dynamic gas calculation is changing for these instructions
-	res[vm.SSTORE].gas.dynamic = dynGasNotImpYet
+	res[vm.SSTORE].gas = GasUsage{0, gasDynamicSStore}
 	res[vm.SLOAD].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicSLoad}
 	res[vm.EXTCODECOPY].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicExtCodeCopy}
 	res[vm.EXTCODESIZE].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicAccountAccess}

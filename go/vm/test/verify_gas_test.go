@@ -99,81 +99,81 @@ func TestDynamicGas(t *testing.T) {
 				}
 
 				// TODO: AccessLists are not implemented yet
-				if strings.Contains(variant, "evmone") && (revision != Istanbul) {
+				if strings.Contains(variant, "evmone") {
 					continue
 				}
 
-					for _, testCase := range info.gas.dynamic(revision) {
+				for _, testCase := range info.gas.dynamic(revision) {
 
-						t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, op, testCase.testName), func(t *testing.T) {
+					t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, op, testCase.testName), func(t *testing.T) {
 
-							// Need new mock for every testcase
-							mockCtrl = gomock.NewController(t)
-							mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+						// Need new mock for every testcase
+						mockCtrl = gomock.NewController(t)
+						mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
 
-							// evmone needs following in addition to geth and lfvm
-							mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
-							mockStateDB.EXPECT().SubRefund(gomock.Any()).AnyTimes()
-							mockStateDB.EXPECT().AddRefund(gomock.Any()).AnyTimes()
-							mockStateDB.EXPECT().GetBalance(account).AnyTimes().Return(accountBalance)
+						// evmone needs following in addition to geth and lfvm
+						mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
+						mockStateDB.EXPECT().SubRefund(uint64(0)).AnyTimes()
+						mockStateDB.EXPECT().AddRefund(uint64(0)).AnyTimes()
+						mockStateDB.EXPECT().GetBalance(account).AnyTimes().Return(accountBalance)
 
-							// Init stateDB mock calls from test function
-							if testCase.mockCalls != nil {
-								testCase.mockCalls(mockStateDB)
+						// Init stateDB mock calls from test function
+						if testCase.mockCalls != nil {
+							testCase.mockCalls(mockStateDB)
+						}
+
+						// Initialize EVM clean instance
+						evm := GetCleanEVM(revision, variant, mockStateDB)
+						var wantGas uint64 = 0
+						code := make([]byte, 0)
+
+						// When test need return value from inner call operation
+						if testCase.needReturnValue {
+							gas, returnCode := putCallReturnValue(t, revision, code, mockStateDB)
+							wantGas += gas
+							code = append(code, returnCode...)
+						}
+
+						// Put needed values on stack with PUSH instructions.
+						stackValues := testCase.stackValues
+						stackValuesCount := len(stackValues)
+
+						for i := 0; i < stackValuesCount; i++ {
+							valueBytes := stackValues[i].Bytes()
+							if len(valueBytes) == 0 {
+								valueBytes = []byte{0}
 							}
-
-							// Initialize EVM clean instance
-							evm := GetCleanEVM(revision, variant, mockStateDB)
-							var wantGas uint64 = 0
-							code := make([]byte, 0)
-
-							// When test need return value from inner call operation
-							if testCase.needReturnValue {
-								gas, returnCode := putCallReturnValue(t, revision, code, mockStateDB)
-								wantGas += gas
-								code = append(code, returnCode...)
+							push := vm.PUSH1 + vm.OpCode(len(valueBytes)-1)
+							code = append(code, byte(push))
+							for j := 0; j < len(valueBytes); j++ {
+								code = append(code, valueBytes[j])
 							}
+							wantGas += pushGas
+						}
 
-							// Put needed values on stack with PUSH instructions.
-							stackValues := testCase.stackValues
-							stackValuesCount := len(stackValues)
+						// Set a tested instruction as the last one.
+						code = append(code, byte(op))
+						// Add expected static and dynamic gas for test case
+						wantGas += info.gas.static + testCase.expectedGas
 
-							for i := 0; i < stackValuesCount; i++ {
-								valueBytes := stackValues[i].Bytes()
-								if len(valueBytes) == 0 {
-									valueBytes = []byte{0}
-								}
-								push := vm.PUSH1 + vm.OpCode(len(valueBytes)-1)
-								code = append(code, byte(push))
-								for j := 0; j < len(valueBytes); j++ {
-									code = append(code, valueBytes[j])
-								}
-								wantGas += pushGas
-							}
+						// Run an interpreter
+						result, err := evm.Run(code, []byte{})
 
-							// Set a tested instruction as the last one.
-							code = append(code, byte(op))
-							// Add expected static and dynamic gas for test case
-							wantGas += info.gas.static + testCase.expectedGas
+						// Check the result.
+						if err != nil {
+							t.Errorf("execution failed %v should not fail: error is %v", op, err)
+						}
 
-							// Run an interpreter
-							result, err := evm.Run(code, []byte{})
-
-							// Check the result.
-							if err != nil {
-								t.Errorf("execution failed %v should not fail: error is %v", op, err)
-							}
-
-							// Check the result.
-							if result.GasUsed != uint64(wantGas) {
-								t.Errorf("execution failed %v use wrong amount of gas: was %v, want %v", op, result.GasUsed, wantGas)
-							}
-						})
-					}
+						// Check the result.
+						if result.GasUsed != uint64(wantGas) {
+							t.Errorf("execution failed %v use wrong amount of gas: was %v, want %v", op, result.GasUsed, wantGas)
+						}
+					})
 				}
 			}
 		}
 	}
+}
 
 // Returns computed gas for calling passed callCode with a Call instruction
 func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) uint64 {
