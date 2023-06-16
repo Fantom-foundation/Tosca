@@ -9,12 +9,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
+// Structure for dynamic gas instruction test
 type DynGasTest struct {
-	testName        string
-	stackValues     []*big.Int
-	expectedGas     uint64
-	needReturnValue bool
-	mockCalls       func(mockStateDB *vm_mock.MockStateDB)
+	testName        string                                 // test name
+	stackValues     []*big.Int                             // values to be put on stack
+	expectedGas     uint64                                 // gas amout after test evaluation
+	needReturnValue bool                                   // true if test needs return value from an inner call like CALL instruction
+	mockCalls       func(mockStateDB *vm_mock.MockStateDB) // defines expected stateDB calls during test execution
 }
 
 // EXP instruction
@@ -371,6 +372,52 @@ func calculateSStoreGas(origValue common.Hash, currentValue common.Hash, newValu
 		}
 	}
 	return expectedGas, gasRefund
+}
+
+// LOG instruction
+// num_topics: the * of the LOG* op. e.g. LOG0 has num_topics = 0, LOG4 has num_topics = 4
+// data_size: size of the data to log in bytes (len in the stack representation).
+// mem_expansion_cost: the cost of any memory expansion required (see A0-1)
+// Gas Calculation:
+
+// gas_cost = 375 + 375 * num_topics + 8 * data_size + mem_expansion_cost
+func gasDynamicLog(revision Revision) []*DynGasTest {
+
+	testCases := []*DynGasTest{}
+	copyCode := make([]byte, 0, 1000)
+	name := []string{"Address in access list", "Addres not in access list"}
+
+	for i := 0; i < 10; i++ {
+		address := common.Address{byte(i + 1)}
+		hash := common.Hash{byte(i + 1)}
+
+		inAccessList := i%2 == 0
+		accessCost := getAccessCost(revision, inAccessList, false)
+
+		// Steps of 256 bytes memory addition to check non linear gas cost for expansion
+		var dataSize uint64 = 256 * uint64(i)
+		offset := big.NewInt(0)
+		dataSizeWords := (dataSize + 31) / 32
+		testName := name[i%2] + " size " + fmt.Sprint(dataSize)
+
+		stackValues := []*big.Int{big.NewInt(int64(dataSize)), offset}
+		for j := 0; j < i; j++ {
+			stackValues = append(stackValues)
+		}
+
+		// Expected gas calculation
+		expectedGas := accessCost + 3*dataSizeWords + memoryExpansionGasCost(dataSize)
+
+		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
+			mockStateDB.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
+			mockStateDB.EXPECT().GetCode(address).AnyTimes().Return(copyCode)
+			mockStateDB.EXPECT().AddressInAccessList(address).AnyTimes().Return(inAccessList)
+			mockStateDB.EXPECT().AddAddressToAccessList(address).AnyTimes()
+		}
+		// Append test
+		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, false, mockCalls})
+	}
+	return testCases
 }
 
 // CALL instruction
