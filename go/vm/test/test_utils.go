@@ -70,8 +70,12 @@ type RunResult struct {
 	GasUsed uint64
 }
 
-// transferFunc is doing nothing as this is not changing gas computation
+// transferFunc subtracts amount from sender and adds amount to recipient using the given Db
+// Now is doing nothing as this is not changing gas computation
 func transferFunc(stateDB vm.StateDB, callerAddress common.Address, to common.Address, value *big.Int) {
+	// Can be something like this:
+	// stateDB.SubBalance(callerAddress, value)
+	// stateDB.AddBalance(to, value)
 }
 
 // canTransferFunc is the signature of a transfer function
