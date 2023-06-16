@@ -43,20 +43,7 @@ func gasEXP(revision Revision) []*DynGasTest {
 // data_size_words = (data_size + 31) // 32: number of (32-byte) words in the message to hash
 // mem_expansion_cost: the cost of any memory expansion required (see A0-1)
 func gasDynamicSHA3(revision Revision) []*DynGasTest {
-
-	testCases := []*DynGasTest{}
-
-	for i := 0; i < 10; i++ {
-		// Steps of 256 bytes memory addition to check non linear gas cost for expansion
-		var dataSize uint64 = 256 * uint64(i)
-		offset := big.NewInt(0)
-		testName := "size " + fmt.Sprint(dataSize)
-		stackValues := []*big.Int{big.NewInt(int64(dataSize)), offset}
-		expectedGas := 6*getDataSizeWords(dataSize) + memoryExpansionGasCost(dataSize)
-		// Append test
-		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, nil})
-	}
-	return testCases
+	return getDynamicMemGas(6, 2)
 }
 
 // The following applies for the operations CALLDATACOPY and CODECOPY (not EXTCODECOPY)
@@ -65,11 +52,13 @@ func gasDynamicSHA3(revision Revision) []*DynGasTest {
 // data_size: size of the data to copy in bytes (len in the stack representation)
 // data_size_words = (data_size + 31) // 32: number of (32-byte) words in the data to copy
 // mem_expansion_cost: the cost of any memory expansion required (see A0-1)
-
 // gas_cost = 3 + 3 * data_size_words + mem_expansion_cost
-
 func gasDynamicCopy(revision Revision) []*DynGasTest {
+	return getDynamicMemGas(3, 3)
+}
 
+// Common function for SHA3, CALLDATACOPY, CODECOPY and RETURNDATACOPY
+func getDynamicMemGas(gasCoeficient uint64, numStackValues int) []*DynGasTest {
 	testCases := []*DynGasTest{}
 
 	for i := 0; i < 10; i++ {
@@ -77,8 +66,13 @@ func gasDynamicCopy(revision Revision) []*DynGasTest {
 		var dataSize uint64 = 256 * uint64(i)
 		offset := big.NewInt(0)
 		testName := "size " + fmt.Sprint(dataSize)
-		stackValues := []*big.Int{big.NewInt(int64(dataSize)), offset, offset}
-		expectedGas := 3*getDataSizeWords(dataSize) + memoryExpansionGasCost(dataSize)
+		stackValues := []*big.Int{big.NewInt(int64(dataSize)), offset}
+		if numStackValues > len(stackValues) {
+			for i := len(stackValues); i < numStackValues; i++ {
+				stackValues = append(stackValues, offset)
+			}
+		}
+		expectedGas := gasCoeficient*getDataSizeWords(dataSize) + memoryExpansionGasCost(dataSize)
 		// Append test
 		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, nil})
 	}
