@@ -11,11 +11,10 @@ import (
 
 // Structure for dynamic gas instruction test
 type DynGasTest struct {
-	testName        string                                 // test name
-	stackValues     []*big.Int                             // values to be put on stack
-	expectedGas     uint64                                 // gas amout after test evaluation
-	needReturnValue bool                                   // true if test needs return value from an inner call like CALL instruction
-	mockCalls       func(mockStateDB *vm_mock.MockStateDB) // defines expected stateDB calls during test execution
+	testName    string                                 // test name
+	stackValues []*big.Int                             // values to be put on stack
+	expectedGas uint64                                 // gas amout after test evaluation
+	mockCalls   func(mockStateDB *vm_mock.MockStateDB) // defines expected stateDB calls during test execution
 }
 
 // EXP instruction
@@ -32,7 +31,7 @@ func gasEXP(revision Revision) []*DynGasTest {
 		stackValues := []*big.Int{exp.Lsh(exp, uint(i)*8), num}
 		expectedGas := uint64(10 + (i+1)*50)
 		// Append test
-		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, false, nil})
+		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, nil})
 	}
 	return testCases
 }
@@ -51,12 +50,11 @@ func gasDynamicSHA3(revision Revision) []*DynGasTest {
 		// Steps of 256 bytes memory addition to check non linear gas cost for expansion
 		var dataSize uint64 = 256 * uint64(i)
 		offset := big.NewInt(0)
-		dataSizeWords := (dataSize + 31) / 32
 		testName := "size " + fmt.Sprint(dataSize)
 		stackValues := []*big.Int{big.NewInt(int64(dataSize)), offset}
-		expectedGas := 6*dataSizeWords + memoryExpansionGasCost(dataSize)
+		expectedGas := 6*getDataSizeWords(dataSize) + memoryExpansionGasCost(dataSize)
 		// Append test
-		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, false, nil})
+		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, nil})
 	}
 	return testCases
 }
@@ -78,30 +76,11 @@ func gasDynamicCopy(revision Revision) []*DynGasTest {
 		// Steps of 256 bytes memory addition to check non linear gas cost for expansion
 		var dataSize uint64 = 256 * uint64(i)
 		offset := big.NewInt(0)
-		dataSizeWords := (dataSize + 31) / 32
 		testName := "size " + fmt.Sprint(dataSize)
 		stackValues := []*big.Int{big.NewInt(int64(dataSize)), offset, offset}
-		expectedGas := 3*dataSizeWords + memoryExpansionGasCost(dataSize)
+		expectedGas := 3*getDataSizeWords(dataSize) + memoryExpansionGasCost(dataSize)
 		// Append test
-		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, false, nil})
-	}
-	return testCases
-}
-
-func gasDynamicCopyReturnValue(revision Revision) []*DynGasTest {
-
-	testCases := []*DynGasTest{}
-
-	for i := 0; i < 10; i++ {
-		// Steps of 256 bytes memory addition to check non linear gas cost for expansion
-		var dataSize uint64 = 256 * uint64(i)
-		offset := big.NewInt(0)
-		dataSizeWords := (dataSize + 31) / 32
-		testName := "size " + fmt.Sprint(dataSize)
-		stackValues := []*big.Int{big.NewInt(int64(dataSize)), offset, offset}
-		expectedGas := 3*dataSizeWords + memoryExpansionGasCost(dataSize)
-		// Append test
-		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, true, nil})
+		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, nil})
 	}
 	return testCases
 }
@@ -121,7 +100,7 @@ func gasDynamicExtCodeCopy(revision Revision) []*DynGasTest {
 
 	testCases := []*DynGasTest{}
 	copyCode := make([]byte, 0, 1000)
-	name := []string{"Address in access list", "Addres not in access list"}
+	name := []string{"Address in access list", "Address not in access list"}
 
 	for i := 0; i < 10; i++ {
 		address := common.Address{byte(i + 1)}
@@ -133,12 +112,11 @@ func gasDynamicExtCodeCopy(revision Revision) []*DynGasTest {
 		// Steps of 256 bytes memory addition to check non linear gas cost for expansion
 		var dataSize uint64 = 256 * uint64(i)
 		offset := big.NewInt(0)
-		dataSizeWords := (dataSize + 31) / 32
 		testName := name[i%2] + " size " + fmt.Sprint(dataSize)
 		stackValues := []*big.Int{big.NewInt(int64(dataSize)), offset, offset, address.Hash().Big()}
 
 		// Expected gas calculation
-		expectedGas := accessCost + 3*dataSizeWords + memoryExpansionGasCost(dataSize)
+		expectedGas := accessCost + 3*getDataSizeWords(dataSize) + memoryExpansionGasCost(dataSize)
 
 		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
@@ -147,7 +125,7 @@ func gasDynamicExtCodeCopy(revision Revision) []*DynGasTest {
 			mockStateDB.EXPECT().AddAddressToAccessList(address).AnyTimes()
 		}
 		// Append test
-		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, false, mockCalls})
+		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, mockCalls})
 	}
 	return testCases
 }
@@ -190,7 +168,7 @@ func gasDynamicAccountAccess(revision Revision) []*DynGasTest {
 			mockStateDB.EXPECT().GetBalance(address).AnyTimes().Return(big.NewInt(0))
 		}
 		// Append test
-		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, false, mockCalls})
+		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls})
 	}
 	return testCases
 }
@@ -230,7 +208,7 @@ func gasDynamicSLoad(revision Revision) []*DynGasTest {
 		expectedGas := getAccessCost(revision, test.slotInAccessList, true)
 
 		// Append test
-		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, false, mockCalls})
+		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls})
 	}
 	return testCases
 }
@@ -317,7 +295,7 @@ func gasDynamicSStore(revision Revision) []*DynGasTest {
 		}
 
 		// Append test
-		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, false, mockCalls})
+		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls})
 	}
 	return testCases
 }
@@ -397,7 +375,6 @@ func gasDynamicLog(revision Revision) []*DynGasTest {
 		// Steps of 256 bytes memory addition to check non linear gas cost for expansion
 		var dataSize uint64 = 256 * uint64(i)
 		offset := big.NewInt(0)
-		dataSizeWords := (dataSize + 31) / 32
 		testName := name[i%2] + " size " + fmt.Sprint(dataSize)
 
 		stackValues := []*big.Int{big.NewInt(int64(dataSize)), offset}
@@ -406,7 +383,7 @@ func gasDynamicLog(revision Revision) []*DynGasTest {
 		}
 
 		// Expected gas calculation
-		expectedGas := accessCost + 3*dataSizeWords + memoryExpansionGasCost(dataSize)
+		expectedGas := accessCost + 3*getDataSizeWords(dataSize) + memoryExpansionGasCost(dataSize)
 
 		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
 			mockStateDB.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
@@ -415,7 +392,7 @@ func gasDynamicLog(revision Revision) []*DynGasTest {
 			mockStateDB.EXPECT().AddAddressToAccessList(address).AnyTimes()
 		}
 		// Append test
-		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, false, mockCalls})
+		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, mockCalls})
 	}
 	return testCases
 }
@@ -508,7 +485,7 @@ func gasDynamicCall(revision Revision) []*DynGasTest {
 		stackValues := []*big.Int{zeroVal, zeroVal, dataSize, zeroVal, test.callValue, address.Hash().Big(), big.NewInt(int64(gasSentWithCall))}
 
 		// Append test
-		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, false, mockCalls})
+		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls})
 	}
 	return testCases
 }
@@ -566,4 +543,10 @@ func getSStoreAccessCost(revision Revision, warmAccess bool) (uint64, uint64) {
 	default:
 		return 100, 2100
 	}
+}
+
+// getDataSizeWords computesword size of data
+func getDataSizeWords(dataSize uint64) uint64 {
+	dataSizeWords := (dataSize + 31) / 32
+	return dataSizeWords
 }

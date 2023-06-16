@@ -128,7 +128,7 @@ func TestDynamicGas(t *testing.T) {
 						code := make([]byte, 0)
 
 						// When test need return value from inner call operation
-						if testCase.needReturnValue {
+						if op == vm.RETURNDATACOPY {
 							gas, returnCode := putCallReturnValue(t, revision, code, mockStateDB)
 							wantGas += gas
 							code = append(code, returnCode...)
