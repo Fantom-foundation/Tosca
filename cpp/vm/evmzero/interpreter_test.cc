@@ -47,6 +47,7 @@ struct InterpreterTestDescription {
   std::vector<uint8_t> code;
 
   RunState state_after = RunState::kDone;
+  bool is_static_call = false;
 
   uint64_t gas_before = 0;
   uint64_t gas_after = 0;
@@ -70,6 +71,7 @@ struct InterpreterTestDescription {
 
 void RunInterpreterTest(const InterpreterTestDescription& desc) {
   internal::Context ctx{
+      .is_static_call = desc.is_static_call,
       .gas = desc.gas_before,
       .gas_refunds = desc.gas_refund_before,
       .code = desc.code,
@@ -3429,6 +3431,16 @@ TEST(InterpreterTest, SSTORE_Refund_ModifiedRestored_Warm) {
   });
 }
 
+TEST(InterpreterTest, SSTORE_StaticCallViolation) {
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kErrorStaticCall,
+      .is_static_call = true,
+      .gas_before = 2000,
+      .stack_before = {32, 16},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // JUMP
 TEST(InterpreterTest, JUMP) {
@@ -3847,6 +3859,16 @@ TEST(InterpreterTest, LOG0_StackError) {
   });
 }
 
+TEST(InterpreterTest, LOG0_StaticCallViolation) {
+  RunInterpreterTest({
+      .code = {op::LOG0},
+      .state_after = RunState::kErrorStaticCall,
+      .is_static_call = true,
+      .gas_before = 400,
+      .stack_before = {3, 1},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // RETURN
 TEST(InterpreterTest, RETURN) {
@@ -3979,6 +4001,16 @@ TEST(InterpreterTest, SELFDESTRUCT_StackError) {
       .code = {op::SELFDESTRUCT},
       .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 5000,
+  });
+}
+
+TEST(InterpreterTest, SELFDESTRUCT_StaticCallViolation) {
+  RunInterpreterTest({
+      .code = {op::SELFDESTRUCT},
+      .state_after = RunState::kErrorStaticCall,
+      .is_static_call = true,
+      .gas_before = 5000,
+      .stack_before = {0x43},
   });
 }
 

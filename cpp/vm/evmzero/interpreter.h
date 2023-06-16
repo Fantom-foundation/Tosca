@@ -24,6 +24,7 @@ enum class RunState {
   kErrorJump,
   kErrorCall,
   kErrorCreate,
+  kErrorStaticCall,
 };
 
 const char* ToString(RunState);
@@ -50,6 +51,7 @@ namespace internal {
 
 struct Context {
   RunState state = RunState::kRunning;
+  bool is_static_call = false;
 
   uint64_t pc = 0;
   uint64_t gas = 100000000000llu;
@@ -69,6 +71,7 @@ struct Context {
   evmc_revision revision = EVMC_ISTANBUL;
 
   bool CheckOpcodeAvailable(evmc_revision introduced_in) noexcept;
+  bool CheckStaticCallConformance() noexcept;
   bool CheckStackAvailable(uint64_t elements_needed) noexcept;
   bool CheckStackOverflow(uint64_t slots_needed) noexcept;
   bool ApplyGasCost(uint64_t gas_cost) noexcept;
