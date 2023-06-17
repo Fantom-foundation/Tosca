@@ -44,7 +44,7 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
 
   internal::Context ctx{
       .is_static_call = static_cast<bool>(args.message->flags & EVMC_STATIC),
-      .gas = static_cast<uint64_t>(args.message->gas),
+      .gas = args.message->gas,
       .message = args.message,
       .host = &host,
       .revision = args.revision,
@@ -408,7 +408,7 @@ static void sha3(Context& ctx) noexcept {
   const uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
-  const uint64_t minimum_word_size = (size + 31) / 32;
+  const int64_t minimum_word_size = (size + 31) / 32;
   if (!ctx.ApplyGasCost(6 * minimum_word_size + ctx.MemoryExpansionCost(offset + size))) [[unlikely]]
     return;
 
@@ -435,7 +435,7 @@ static void balance(Context& ctx) noexcept {
 
   evmc::address address = ToEvmcAddress(ctx.stack.Pop());
 
-  uint64_t dynamic_gas_cost = 700;
+  int64_t dynamic_gas_cost = 700;
   if (ctx.revision >= EVMC_BERLIN) {
     if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
       dynamic_gas_cost = 100;
@@ -515,7 +515,7 @@ static void calldatacopy(Context& ctx) noexcept {
   const uint64_t data_offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
-  const uint64_t minimum_word_size = (size + 31) / 32;
+  const int64_t minimum_word_size = (size + 31) / 32;
   if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
     return;
 
@@ -547,7 +547,7 @@ static void codecopy(Context& ctx) noexcept {
   const uint64_t code_offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
-  const uint64_t minimum_word_size = (size + 31) / 32;
+  const int64_t minimum_word_size = (size + 31) / 32;
   if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
     return;
 
@@ -575,7 +575,7 @@ static void extcodesize(Context& ctx) noexcept {
 
   auto address = ToEvmcAddress(ctx.stack.Pop());
 
-  uint64_t dynamic_gas_cost = 700;
+  int64_t dynamic_gas_cost = 700;
   if (ctx.revision >= EVMC_BERLIN) {
     if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
       dynamic_gas_cost = 100;
@@ -599,8 +599,8 @@ static void extcodecopy(Context& ctx) noexcept {
   const uint64_t code_offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
-  const uint64_t minimum_word_size = (size + 31) / 32;
-  uint64_t address_access_cost = 700;
+  const int64_t minimum_word_size = (size + 31) / 32;
+  int64_t address_access_cost = 700;
   if (ctx.revision >= EVMC_BERLIN) {
     if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
       address_access_cost = 100;
@@ -608,9 +608,9 @@ static void extcodecopy(Context& ctx) noexcept {
       address_access_cost = 2600;
     }
   }
-  const uint64_t dynamic_gas_cost = 3 * minimum_word_size  //
-                                    + address_access_cost  //
-                                    + ctx.MemoryExpansionCost(memory_offset + size);
+  const int64_t dynamic_gas_cost = 3 * minimum_word_size  //
+                                   + address_access_cost  //
+                                   + ctx.MemoryExpansionCost(memory_offset + size);
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
     return;
 
@@ -640,7 +640,7 @@ static void returndatacopy(Context& ctx) noexcept {
   const uint64_t return_data_offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
-  const uint64_t minimum_word_size = (size + 31) / 32;
+  const int64_t minimum_word_size = (size + 31) / 32;
   if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
     return;
 
@@ -659,7 +659,7 @@ static void extcodehash(Context& ctx) noexcept {
 
   auto address = ToEvmcAddress(ctx.stack.Pop());
 
-  uint64_t dynamic_gas_cost = 700;
+  int64_t dynamic_gas_cost = 700;
   if (ctx.revision >= EVMC_BERLIN) {
     if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
       dynamic_gas_cost = 100;
@@ -825,7 +825,7 @@ static void sload(Context& ctx) noexcept {
 
   const uint256_t key = ctx.stack.Pop();
 
-  uint64_t dynamic_gas_cost = 800;
+  int64_t dynamic_gas_cost = 800;
   if (ctx.revision >= EVMC_BERLIN) {
     if (ctx.host->access_storage(ctx.message->recipient, ToEvmcBytes(key)) == EVMC_ACCESS_WARM) {
       dynamic_gas_cost = 100;
@@ -849,7 +849,7 @@ static void sstore(Context& ctx) noexcept {
   const uint256_t key = ctx.stack.Pop();
   const uint256_t value = ctx.stack.Pop();
 
-  uint64_t dynamic_gas_cost = 800;
+  int64_t dynamic_gas_cost = 800;
   if (ctx.revision >= EVMC_BERLIN) {
     dynamic_gas_cost = 100;
   }
@@ -881,7 +881,7 @@ static void sstore(Context& ctx) noexcept {
   if (storage_status == EVMC_STORAGE_DELETED) {
     ctx.gas_refunds += 15000;
   } else if (storage_status == EVMC_STORAGE_DELETED_ADDED) {
-    ctx.gas_refunds -= std::min<uint64_t>(15000, ctx.gas_refunds);
+    ctx.gas_refunds -= std::min<int64_t>(15000, ctx.gas_refunds);
   } else if (storage_status == EVMC_STORAGE_MODIFIED_DELETED) {
     ctx.gas_refunds += 15000;
   } else if (storage_status == EVMC_STORAGE_ADDED_DELETED) {
@@ -1023,7 +1023,7 @@ static void log(Context& ctx) noexcept {
     topics[i] = ToEvmcBytes(ctx.stack.Pop());
   }
 
-  if (!ctx.ApplyGasCost(375 * N + 8 * size + ctx.MemoryExpansionCost(offset + size))) [[unlikely]]
+  if (!ctx.ApplyGasCost(static_cast<int64_t>(375 * N + 8 * size) + ctx.MemoryExpansionCost(offset + size))) [[unlikely]]
     return;
 
   std::vector<uint8_t> buffer(size);
@@ -1148,7 +1148,7 @@ static void call_impl(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable((Op == op::STATICCALL || Op == op::DELEGATECALL) ? 6 : 7)) [[unlikely]]
     return;
 
-  const uint64_t gas = static_cast<uint64_t>(ctx.stack.Pop());
+  const int64_t gas = static_cast<int64_t>(ctx.stack.Pop());
   const auto account = ToEvmcAddress(ctx.stack.Pop());
   const auto value = (Op == op::STATICCALL || Op == op::DELEGATECALL) ? 0 : ctx.stack.Pop();
   const bool has_value = value != 0;
@@ -1169,7 +1169,7 @@ static void call_impl(Context& ctx) noexcept {
 
   // Dynamic gas costs (excluding code execution costs)
   {
-    uint64_t address_access_cost = 700;
+    int64_t address_access_cost = 700;
     if (ctx.revision >= EVMC_BERLIN) {
       if (ctx.host->access_account(account) == EVMC_ACCESS_WARM) {
         address_access_cost = 100;
@@ -1178,17 +1178,17 @@ static void call_impl(Context& ctx) noexcept {
       }
     }
 
-    uint64_t positive_value_cost = has_value ? 9000 : 0;
-    uint64_t value_to_empty_account_cost = 0;
+    int64_t positive_value_cost = has_value ? 9000 : 0;
+    int64_t value_to_empty_account_cost = 0;
     if (has_value && !ctx.host->account_exists(account)) {
       value_to_empty_account_cost = 25000;
     }
 
-    uint64_t dynamic_gas_cost = ctx.MemoryExpansionCost(input_offset + input_size)      //
-                                + ctx.MemoryExpansionCost(output_offset + output_size)  //
-                                + address_access_cost                                   //
-                                + positive_value_cost                                   //
-                                + value_to_empty_account_cost;
+    int64_t dynamic_gas_cost = ctx.MemoryExpansionCost(input_offset + input_size)      //
+                               + ctx.MemoryExpansionCost(output_offset + output_size)  //
+                               + address_access_cost                                   //
+                               + positive_value_cost                                   //
+                               + value_to_empty_account_cost;
     if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
       return;
   }
@@ -1204,6 +1204,7 @@ static void call_impl(Context& ctx) noexcept {
                                        : EVMC_CALL,
       .flags = (Op == op::STATICCALL) ? uint32_t{EVMC_STATIC} : ctx.message->flags,
       .depth = ctx.message->depth + 1,
+      .gas = gas,
       .recipient = (Op == op::CALL || Op == op::STATICCALL) ? account : ctx.message->recipient,
       .sender = (Op == op::DELEGATECALL) ? ctx.message->sender : ctx.message->recipient,
       .input_data = input_data.data(),
@@ -1218,21 +1219,15 @@ static void call_impl(Context& ctx) noexcept {
     ctx.gas += 2300;
   }
 
-  if (gas > std::numeric_limits<int64_t>::max()) {
-    msg.gas = std::numeric_limits<int64_t>::max();
-  } else {
-    msg.gas = static_cast<int64_t>(gas);
-  }
-
   const evmc::Result result = ctx.host->call(msg);
   ctx.return_data.assign(result.output_data, result.output_data + result.output_size);
 
   ctx.memory.ReadFromWithSize(ctx.return_data, output_offset, output_size);
 
-  if (!ctx.ApplyGasCost(static_cast<uint64_t>(msg.gas - result.gas_left))) [[unlikely]]
+  if (!ctx.ApplyGasCost(msg.gas - result.gas_left)) [[unlikely]]
     return;
 
-  ctx.gas_refunds += static_cast<uint64_t>(result.gas_refund);
+  ctx.gas_refunds += result.gas_refund;
 
   ctx.stack.Push(result.status_code == EVMC_SUCCESS);
   ctx.pc++;
@@ -1322,20 +1317,20 @@ void Context::FillValidJumpTargetsUpTo(uint64_t index) noexcept {
   }
 }
 
-uint64_t Context::MemoryExpansionCost(uint64_t new_size) noexcept {
+int64_t Context::MemoryExpansionCost(uint64_t new_size) noexcept {
   if (new_size <= memory.GetSize()) {
     return 0;
   }
 
-  auto calc_memory_cost = [](uint64_t size) {
-    uint64_t memory_size_word = (size + 31) / 32;
+  auto calc_memory_cost = [](uint64_t size) -> int64_t {
+    int64_t memory_size_word = (size + 31) / 32;
     return (memory_size_word * memory_size_word) / 512 + (3 * memory_size_word);
   };
 
   return calc_memory_cost(new_size) - calc_memory_cost(memory.GetSize());
 }
 
-bool Context::ApplyGasCost(uint64_t gas_cost) noexcept {
+bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
   if (gas < gas_cost) [[unlikely]] {
     state = RunState::kErrorGas;
     return false;
