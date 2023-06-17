@@ -49,10 +49,10 @@ struct InterpreterTestDescription {
   RunState state_after = RunState::kDone;
   bool is_static_call = false;
 
-  uint64_t gas_before = 0;
-  uint64_t gas_after = 0;
-  uint64_t gas_refund_before = 0;
-  uint64_t gas_refund_after = 0;
+  int64_t gas_before = 0;
+  int64_t gas_after = 0;
+  int64_t gas_refund_before = 0;
+  int64_t gas_refund_after = 0;
 
   Stack stack_before;
   Stack stack_after;

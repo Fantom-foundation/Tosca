@@ -78,8 +78,8 @@ class VM : public evmc_vm {
 
     return {
         .status_code = ToEvmcStatusCode(interpreter_result.state),
-        .gas_left = static_cast<int64_t>(interpreter_result.remaining_gas),
-        .gas_refund = static_cast<int64_t>(interpreter_result.refunded_gas),
+        .gas_left = interpreter_result.remaining_gas,
+        .gas_refund = interpreter_result.refunded_gas,
         .output_data = output_data,
         .output_size = interpreter_result.return_data.size(),
         .release = [](const evmc_result* result) { delete[] result->output_data; },
