@@ -866,7 +866,7 @@ static void sstore(Context& ctx) noexcept {
   if (storage_status == EVMC_STORAGE_ADDED) {
     dynamic_gas_cost = 20000;
   }
-  if (storage_status == EVMC_STORAGE_MODIFIED) {
+  if (storage_status == EVMC_STORAGE_MODIFIED || storage_status == EVMC_STORAGE_DELETED) {
     if (ctx.revision >= EVMC_BERLIN) {
       dynamic_gas_cost = 2900;
     } else {
