@@ -1136,33 +1136,64 @@ static void create_impl(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-// WIP, based on evmone!
 template <op::OpCodes Op>
 static void call_impl(Context& ctx) noexcept {
   static_assert(Op == op::CALL || Op == op::CALLCODE || Op == op::DELEGATECALL || Op == op::STATICCALL);
 
+  if (ctx.message->depth >= 1024) [[unlikely]] {
+    ctx.state = RunState::kErrorCall;
+    return;
+  }
+
   if (!ctx.CheckStackAvailable((Op == op::STATICCALL || Op == op::DELEGATECALL) ? 6 : 7)) [[unlikely]]
     return;
 
-  const auto gas = ctx.stack.Pop();
-  const auto dst = ToEvmcAddress(ctx.stack.Pop());
+  const uint64_t gas = static_cast<uint64_t>(ctx.stack.Pop());
+  const auto account = ToEvmcAddress(ctx.stack.Pop());
   const auto value = (Op == op::STATICCALL || Op == op::DELEGATECALL) ? 0 : ctx.stack.Pop();
-  const auto has_value = value != 0;
+  const bool has_value = value != 0;
   const uint64_t input_offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t input_size = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t output_offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t output_size = static_cast<uint64_t>(ctx.stack.Pop());
 
-  if (value != 0 && !ctx.CheckStaticCallConformance()) [[unlikely]]
+  if constexpr (Op == op::CALL) {
+    if (has_value && !ctx.CheckStaticCallConformance()) [[unlikely]]
+      return;
+  }
+
+  if (has_value && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < value) {
+    ctx.state = RunState::kErrorCall;
     return;
+  }
+
+  // Dynamic gas costs (excluding code execution costs)
+  {
+    uint64_t address_access_cost = 700;
+    if (ctx.revision >= EVMC_BERLIN) {
+      if (ctx.host->access_account(account) == EVMC_ACCESS_WARM) {
+        address_access_cost = 100;
+      } else {
+        address_access_cost = 2600;
+      }
+    }
+
+    uint64_t positive_value_cost = has_value ? 9000 : 0;
+    uint64_t value_to_empty_account_cost = 0;
+    if (has_value && !ctx.host->account_exists(account)) {
+      value_to_empty_account_cost = 25000;
+    }
+
+    uint64_t dynamic_gas_cost = ctx.MemoryExpansionCost(input_offset + input_size)      //
+                                + ctx.MemoryExpansionCost(output_offset + output_size)  //
+                                + address_access_cost                                   //
+                                + positive_value_cost                                   //
+                                + value_to_empty_account_cost;
+    if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
+      return;
+  }
 
   ctx.return_data.clear();
-
-  // if (state.rev >= EVMC_BERLIN && ctx.host.access_account(dst) == EVMC_ACCESS_COLD) {
-  //   if ((gas_left -= instr::additional_cold_account_access_cost) < 0) {
-  //     return {EVMC_OUT_OF_GAS, gas_left};
-  //   }
-  // }
 
   std::vector<uint8_t> input_data(input_size);
   ctx.memory.WriteTo(input_data, input_offset);
@@ -1173,54 +1204,24 @@ static void call_impl(Context& ctx) noexcept {
                                        : EVMC_CALL,
       .flags = (Op == op::STATICCALL) ? uint32_t{EVMC_STATIC} : ctx.message->flags,
       .depth = ctx.message->depth + 1,
-      .recipient = (Op == op::CALL || Op == op::STATICCALL) ? dst : ctx.message->recipient,
+      .recipient = (Op == op::CALL || Op == op::STATICCALL) ? account : ctx.message->recipient,
       .sender = (Op == op::DELEGATECALL) ? ctx.message->sender : ctx.message->recipient,
       .input_data = input_data.data(),
       .input_size = input_data.size(),
       .value = (Op == op::DELEGATECALL) ? ctx.message->value : ToEvmcBytes(value),
-      .code_address = dst,
+      .code_address = account,
   };
 
-  // auto cost = has_value ? 9000 : 0;
+  // call stipend
+  if (has_value) {
+    msg.gas += 2300;
+    ctx.gas += 2300;
+  }
 
-  // if constexpr (Op == op::CALL) {
-  //   if (has_value && state.in_static_mode()) {
-  //     return {EVMC_STATIC_MODE_VIOLATION, gas_left};
-  //   }
-
-  //   if ((has_value || state.rev < EVMC_SPURIOUS_DRAGON) && !state.host.account_exists(dst)) {
-  //     cost += 25000;
-  //   }
-  // }
-
-  // if ((gas_left -= cost) < 0) {
-  //   return {EVMC_OUT_OF_GAS, gas_left};
-  // }
-
-  msg.gas = std::numeric_limits<int64_t>::max();
-  if (gas < msg.gas) {
+  if (gas > std::numeric_limits<int64_t>::max()) {
+    msg.gas = std::numeric_limits<int64_t>::max();
+  } else {
     msg.gas = static_cast<int64_t>(gas);
-  }
-
-  // if (state.rev >= EVMC_TANGERINE_WHISTLE) {  // TODO: Always true for STATICCALL.
-  //   msg.gas = std::min(msg.gas, gas_left - gas_left / 64);
-  // } else if (msg.gas > gas_left) {
-  //   return {EVMC_OUT_OF_GAS, gas_left};
-  // }
-
-  // if (has_value) {
-  //   msg.gas += 2300;  // Add stipend.
-  //   gas_left += 2300;
-  // }
-
-  if (ctx.message->depth >= 1024) {
-    ctx.state = RunState::kErrorCall;
-    return;
-  }
-
-  if (has_value && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < value) {
-    ctx.state = RunState::kErrorCall;
-    return;
   }
 
   const evmc::Result result = ctx.host->call(msg);
@@ -1228,12 +1229,12 @@ static void call_impl(Context& ctx) noexcept {
 
   ctx.memory.ReadFromWithSize(ctx.return_data, output_offset, output_size);
 
+  if (!ctx.ApplyGasCost(static_cast<uint64_t>(msg.gas - result.gas_left))) [[unlikely]]
+    return;
+
+  ctx.gas_refunds += static_cast<uint64_t>(result.gas_refund);
+
   ctx.stack.Push(result.status_code == EVMC_SUCCESS);
-
-  // const auto gas_used = msg.gas - result.gas_left;
-  // gas_left -= gas_used;
-  // state.gas_refund += result.gas_refund;
-
   ctx.pc++;
 }
 
