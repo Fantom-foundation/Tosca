@@ -402,13 +402,20 @@ func (ctx *HostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender 
 }
 
 func (ctx *HostContext) AccessAccount(addr evmc.Address) evmc.AccessStatus {
-	// TODO
-	panic("account access tracking not implemented")
+	if ctx.interpreter.evm.StateDB.AddressInAccessList((common.Address)(addr)) {
+		return evmc.WarmAccess
+	} else {
+		return evmc.ColdAccess
+	}
 }
 
 func (ctx *HostContext) AccessStorage(addr evmc.Address, key evmc.Hash) evmc.AccessStatus {
-	// TODO
-	panic("account storage access tracking not implemented")
+	_, slotOk := ctx.interpreter.evm.StateDB.SlotInAccessList((common.Address)(addr), (common.Hash)(key))
+	if slotOk {
+		return evmc.WarmAccess
+	} else {
+		return evmc.ColdAccess
+	}
 }
 
 func bigIntToHash(value *big.Int) (result evmc.Hash, err error) {
