@@ -1280,13 +1280,18 @@ bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
 }
 
 bool Context::CheckJumpDest(uint64_t index) noexcept {
-  FillValidJumpTargetsUpTo(index);
-  if (index >= code.size() || !valid_jump_targets[index]) [[unlikely]] {
+  if (index >= code.size()) [[unlikely]] {
     state = RunState::kErrorJump;
     return false;
-  } else {
-    return true;
   }
+
+  FillValidJumpTargetsUpTo(index);
+  if (!valid_jump_targets[index]) [[unlikely]] {
+    state = RunState::kErrorJump;
+    return false;
+  }
+
+  return true;
 }
 
 void Context::FillValidJumpTargetsUpTo(uint64_t index) noexcept {
