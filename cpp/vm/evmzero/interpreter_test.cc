@@ -3467,6 +3467,15 @@ TEST(InterpreterTest, JUMP_Invalid) {
   });
 }
 
+TEST(InterpreterTest, JUMP_OutOfCode) {
+  RunInterpreterTest({
+      .code = {op::JUMP},
+      .state_after = RunState::kErrorJump,
+      .gas_before = 5000,
+      .stack_before = {3},
+  });
+}
+
 TEST(InterpreterTest, JUMP_OutOfGas) {
   RunInterpreterTest({
       .code = {op::JUMP},
