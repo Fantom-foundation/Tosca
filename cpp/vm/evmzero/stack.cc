@@ -5,7 +5,7 @@
 namespace tosca::evmzero {
 
 Stack::Stack(std::initializer_list<uint256_t> elements) {
-  assert(elements.size() <= stack_.size());
+  TOSCA_ASSERT(elements.size() <= stack_.size());
   std::copy(elements.begin(), elements.end(), stack_.begin());
   position_ = elements.size();
 }

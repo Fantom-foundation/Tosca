@@ -1,11 +1,11 @@
 #pragma once
 
 #include <array>
-#include <cassert>
 #include <cstdint>
 #include <initializer_list>
 #include <ostream>
 
+#include "common/assert.h"
 #include "vm/evmzero/uint256.h"
 
 namespace tosca::evmzero {
@@ -20,18 +20,18 @@ class Stack {
   uint64_t GetMaxSize() const { return stack_.size(); }
 
   void Push(uint256_t value) {
-    assert(position_ < stack_.size());
+    TOSCA_ASSERT(position_ < stack_.size());
     stack_[position_++] = value;
   }
 
   uint256_t Pop() {
-    assert(position_ > 0);
+    TOSCA_ASSERT(position_ > 0);
     return stack_[--position_];
   }
 
   // Accesses elements starting from the top; index 0 is the top element.
   uint256_t& operator[](size_t index) {
-    assert(index < position_);
+    TOSCA_ASSERT(index < position_);
     return stack_[position_ - 1 - index];
   }
   const uint256_t& operator[](size_t index) const { return const_cast<Stack&>(*this)[index]; }
