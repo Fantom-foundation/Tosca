@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 project(tosca)
 
 option(TOSCA_ASAN "Enable AddressSanitizer for Tosca targets.")
+option(TOSCA_ASSERT "Enable Tosca specific assertions.")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 enable_testing()
@@ -21,6 +22,7 @@ function(tosca_add_compile_flags target)
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wtype-limits -Wconversion -Wsign-conversion -Wdouble-promotion -g>
     $<$<CXX_COMPILER_ID:GNU>:-Wno-missing-field-initializers -fdiagnostics-color>
     $<$<CXX_COMPILER_ID:Clang,AppleClang>:-fcolor-diagnostics>)
+  target_compile_definitions(${target} PRIVATE $<$<BOOL:TOSCA_ASSERT>:TOSCA_ASSERT_ENABLED>)
   target_include_directories(${target} PRIVATE ${PROJECT_SOURCE_DIR})
 endfunction()
 
