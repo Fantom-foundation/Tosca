@@ -3,6 +3,7 @@
 #include <bit>
 #include <cstdio>
 
+#include "common/assert.h"
 #include "vm/evmzero/opcodes.h"
 
 namespace tosca::evmzero {
@@ -1296,7 +1297,7 @@ void Context::FillValidJumpTargetsUpTo(uint64_t index) noexcept {
   }
 
   if (index >= code.size()) [[unlikely]] {
-    assert(false);
+    TOSCA_ASSERT(false);
     return;
   }
 
