@@ -350,13 +350,6 @@ func (ctx *HostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender 
 	// Documentation of the parameters can be found here: t.ly/yhxC
 	toAddr := common.Address(codeAddress)
 
-	// Clear the current refund (it is tracked within the interpreter internally).
-	state := ctx.evm.StateDB
-
-	// TODO: try to remove this refund backup and restore.
-	refundBackup := state.GetRefund()
-	state.SubRefund(refundBackup)
-
 	var returnGas uint64
 	switch kind {
 	case evmc.Call:
@@ -383,10 +376,6 @@ func (ctx *HostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender 
 		panic(fmt.Sprintf("unsupported call kind: %v", kind))
 	}
 	gasLeft = int64(returnGas)
-
-	gasRefund = int64(state.GetRefund())
-	state.SubRefund(uint64(gasRefund))
-	state.AddRefund(refundBackup)
 
 	if err != nil {
 		// translate vm errors to evmc errors
