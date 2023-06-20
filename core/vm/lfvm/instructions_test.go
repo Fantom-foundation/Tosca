@@ -480,6 +480,9 @@ func TestStackInstr(t *testing.T) {
 	runTestStackInstr(t, testDataStackOp)
 }
 
+// Stack, Memory, Storage and Flow Operations (Pop, Mload, Mstore, Mstore8,
+// Sload, Sstore, Msize, Gas)
+
 // checkResultMem checks the result with an expectation
 // status = expected status; res = expected result
 func checkResultMem(t *testing.T, ctxt *context, status Status, res []uint256.Int) {
@@ -544,7 +547,7 @@ func TestMemInstr(t *testing.T) {
 }
 
 // operation Msize
-func testMsizeInstruction(t *testing.T, testData []tTestDataOp) {
+func runTestMsizeInstr(t *testing.T, testData []tTestDataOp) {
 	for _, data := range testData {
 		t.Run(data.name, func(t *testing.T) {
 			ctxt := getTestEnvData(data.data)
@@ -563,8 +566,10 @@ func testMsizeInstruction(t *testing.T, testData []tTestDataOp) {
 }
 
 func TestMSizeInstruction(t *testing.T) {
-	testMsizeInstruction(t, testDataMsizeOp)
+	runTestMsizeInstr(t, testDataMsizeOp)
 }
+
+// push operations (Push32)
 
 // operation Push32
 func testPush32(t *testing.T, testData []tTestDataPush32) {
@@ -599,4 +604,11 @@ func testPush32(t *testing.T, testData []tTestDataPush32) {
 
 func TestPush32Instruction(t *testing.T) {
 	testPush32(t, testDataPush32)
+}
+
+// Function with examples that cause a runtime error/fatal error.
+// Individual examples are commented, see test data.
+func TestInstrRTError(t *testing.T) {
+	runTestStackInstr(t, testDataStackOpError)
+	runTestMemInstr(t, testDataMemOpError)
 }

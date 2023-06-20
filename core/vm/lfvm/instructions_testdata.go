@@ -694,6 +694,15 @@ var testDataBitwiseLogicOp = []tTestDataOp{
 		res:    uint256.Int{0x00, 0x00, 0x00, 0x00},
 		status: RUNNING,
 	},
+	{
+		name: "opShl: left shift 0xFFFF",
+		op:   opShl,
+		data: []uint256.Int{
+			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFF32, 0xFFFFFFFFFFFFFFFF},
+			{0xFFFF, 0, 0, 0}},
+		res:    uint256.Int{0x00, 0x00, 0x00, 0x00},
+		status: RUNNING,
+	},
 
 	// operation Shr
 	// val >> shift, data: {val, shift}
@@ -775,6 +784,15 @@ var testDataBitwiseLogicOp = []tTestDataOp{
 		data: []uint256.Int{
 			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFF32, 0xFFFFFFFFFFFFFFFF},
 			{256, 0, 0, 0}},
+		res:    uint256.Int{0x00, 0x00, 0x00, 0x00},
+		status: RUNNING,
+	},
+	{
+		name: "opShr: right shift 0xFFFF",
+		op:   opShr,
+		data: []uint256.Int{
+			{0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFF32, 0xFFFFFFFFFFFFFFFF},
+			{0xFFFF, 0, 0, 0}},
 		res:    uint256.Int{0x00, 0x00, 0x00, 0x00},
 		status: RUNNING,
 	},
@@ -3884,14 +3902,6 @@ type tTestDataStackOp struct {
 var testDataStackOp = []tTestDataStackOp{
 
 	// operation Swap
-	/*{
-		name:   "opSwap: no item in stack",
-		op:   opSwap,
-		data:   []uint256.Int{},
-		res:    []uint256.Int{},
-		pos:    0,
-		status: RUNNING,
-	},*/
 	{
 		name: "opSwap: pos 0",
 		op:   opSwap,
@@ -3960,22 +3970,6 @@ var testDataStackOp = []tTestDataStackOp{
 		pos:    2,
 		status: RUNNING,
 	},
-	/*{
-		name: "opSwap: pos 4, 4 items",
-		op:   opSwap,
-		data: []uint256.Int{
-			{0x0401, 0x0402, 0x0403, 0x0404},
-			{0x0301, 0x0302, 0x0303, 0x0304},
-			{0x0201, 0x0202, 0x0203, 0x0204},
-			{0x0101, 0x0102, 0x0103, 0x0104}},
-		res: []uint256.Int{
-			{0x0401, 0x0402, 0x0403, 0x0404},
-			{0x0301, 0x0302, 0x0303, 0x0304},
-			{0x0201, 0x0202, 0x0203, 0x0204},
-			{0x0101, 0x0102, 0x0103, 0x0104}},
-		pos:    4,
-		status: ERROR,
-	},*/
 	{
 		name: "opSwap: pos 16",
 		op:   opSwap,
@@ -4129,20 +4123,6 @@ var testDataStackOp = []tTestDataStackOp{
 		pos:    0x03,
 		status: RUNNING,
 	},
-	/*{
-		name: "opDup: pos 4, 3 items",
-		op:   opDup,
-		data: []uint256.Int{
-			{0x0301, 0x0302, 0x0303, 0x0304},
-			{0x0201, 0x0202, 0x0203, 0x0204},
-			{0x0101, 0x0102, 0x0103, 0x0104}},
-		res: []uint256.Int{
-			{0x0301, 0x0302, 0x0303, 0x0304},
-			{0x0201, 0x0202, 0x0203, 0x0204},
-			{0x0101, 0x0102, 0x0103, 0x0104}},
-		pos:    4,
-		status: ERROR,
-	},*/
 	{
 		name: "opDup: pos 16",
 		op:   opDup,
@@ -4227,6 +4207,54 @@ var testDataStackOp = []tTestDataStackOp{
 		pos:    0x11,
 		status: RUNNING, //???
 	},
+}
+
+var testDataStackOpError = []tTestDataStackOp{
+
+	// operation Swap
+	/*{
+		// runtime error: index out of range [-1]
+		name:   "opSwap: no item in stack",
+		op:     opSwap,
+		data:   []uint256.Int{},
+		res:    []uint256.Int{},
+		pos:    0,
+		status: RUNNING,
+	}, /**/
+	/*{
+		// runtime error: index out of range [-1]
+		name: "opSwap: pos 4, 4 items",
+		op:   opSwap,
+		data: []uint256.Int{
+			{0x0401, 0x0402, 0x0403, 0x0404},
+			{0x0301, 0x0302, 0x0303, 0x0304},
+			{0x0201, 0x0202, 0x0203, 0x0204},
+			{0x0101, 0x0102, 0x0103, 0x0104}},
+		res: []uint256.Int{
+			{0x0401, 0x0402, 0x0403, 0x0404},
+			{0x0301, 0x0302, 0x0303, 0x0304},
+			{0x0201, 0x0202, 0x0203, 0x0204},
+			{0x0101, 0x0102, 0x0103, 0x0104}},
+		pos:    4,
+		status: ERROR,
+	}, /**/
+
+	// operation Dup
+	/*{
+		// runtime error: index out of range [-1]
+		name: "opDup: pos 4, 3 items",
+		op:   opDup,
+		data: []uint256.Int{
+			{0x0301, 0x0302, 0x0303, 0x0304},
+			{0x0201, 0x0202, 0x0203, 0x0204},
+			{0x0101, 0x0102, 0x0103, 0x0104}},
+		res: []uint256.Int{
+			{0x0301, 0x0302, 0x0303, 0x0304},
+			{0x0201, 0x0202, 0x0203, 0x0204},
+			{0x0101, 0x0102, 0x0103, 0x0104}},
+		pos:    4,
+		status: ERROR,
+	}, /**/
 }
 
 type tTestDataMemOp struct {
@@ -4368,20 +4396,6 @@ var testDataMemOp = []tTestDataMemOp{
 		gasStore: 0,
 		gasLoad:  0,
 	},
-	/*{
-		// runtime error: slice bounds out of range
-		name: "Mstore, Mload: store to addr 2^64-1, status ERROR",
-		op:   opMstore,
-		data: []uint256.Int{
-			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
-			{0xFFFFFFFFFFFFFFFF, 0x00, 0x00, 0x00}},
-		res: []uint256.Int{
-			{0xFFFFFFFFFFFFFFFF, 0x00, 0x00, 0x00},
-			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
-		status:   RUNNING,
-		gasStore: 1000,
-		gasLoad:  0,
-	},*/
 	{
 		name: "Mstore, Mload: store to addr 0xFF00, load from addr 0xFF00",
 		op:   opMstore,
@@ -4397,58 +4411,6 @@ var testDataMemOp = []tTestDataMemOp{
 		gasStore: 0x37B3,
 		gasLoad:  0,
 	},
-	/*
-		// high address, it takes a long time, but it works
-		{
-			name: "Mstore, Mload: store to addr 0xFFFFFFFF, load from addr 0xFFFFFFFF",
-			op:   opMstore,
-			data: []uint256.Int{
-				{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
-				{0x00000000FFFFFFFF, 0x00, 0x00, 0x00}},
-			res: []uint256.Int{
-				{0x00000000FFFFFFFF, 0x00, 0x00, 0x00},
-				{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
-			status: RUNNING,
-			// new_mem_size_words = ((0xFFFFFFFF+0x1F) + 0x1F) / 0x20 = 0x08000001
-			// gas_cost = (0x08000001 * 0x08000001 / 0x0200) + (3 * 0x08000001) = 0x200018080003,
-			gasStore: 0x200018080003,
-			gasLoad:  0,
-		},
-		{
-			name: "Mstore, Mload: store to addr 0x00 and 0xFFFFFFFF, load from addr 0x00",
-			op:   opMstore,
-			data: []uint256.Int{
-				{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
-				{0x00000000FFFFFFFF, 0x00, 0x00, 0x00},
-				{0xDDDDDDDDDDDDDDDD, 0xEEEEEEEEEEEEEEEE, 0xFFFFFFFFFFFFFFFF, 0x123456789ABCDEF0},
-				{0x00, 0x00, 0x00, 0x00}},
-			res: []uint256.Int{
-				{0x00, 0x00, 0x00, 0x00},
-				{0xDDDDDDDDDDDDDDDD, 0xEEEEEEEEEEEEEEEE, 0xFFFFFFFFFFFFFFFF, 0x123456789ABCDEF0}},
-			status:   RUNNING,
-			gasStore: 0x200018080003,
-			gasLoad:  0,
-		},*/
-	/*{
-		// runtime error, it kill VS Code
-		name: "Mstore, Mload: calc of gas overflow, runtime error (memory)",
-		op:   opMstore,
-		data: []uint256.Int{
-			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
-			{0x000000FFFFFFFFF0, 0x00, 0x00, 0x00}},
-		res: []uint256.Int{
-			{0x000000FFFFFFFFF0, 0x00, 0x00, 0x00},
-			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
-		status: OUT_OF_GAS,
-		// new_mem_size_words = ((0xFF FFFF FF01 + 0x1F) + 0x1F) / 0x20 = 0x08 0000 0001
-		// gas_cost = (0x08 0000 0001 * 0x08 0000 0001 / 0x0200) + (3 * 0x08 0000 0001) =
-		//          = 0x2000 0000 0400 0000 + 0x18 0000 0003 = 0x2000 0018 0400 0003, // right
-		// xxxx
-		//          = 0800 0000 + 18 0000 0003 =18 0800 0003 // wrong, gas_cost*gas_cost overflow
-		//gasStore: 0x2000001804000003,
-		gasStore: 0x1808000003, // little gas, but it is accepted
-		gasLoad:  0,
-	},*/
 
 	// operation Mstore8
 	{
@@ -4531,8 +4493,77 @@ var testDataMemOp = []tTestDataMemOp{
 		gasStore: 3,
 		gasLoad:  0,
 	},
+}
+
+var testDataMemOpError = []tTestDataMemOp{
 	/*{
-		// high address, it takes a long time, but it works
+		// runtime error: slice bounds out of range
+		name: "Mstore, Mload: store to addr 2^64-1, status ERROR",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0xFFFFFFFFFFFFFFFF, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0xFFFFFFFFFFFFFFFF, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
+		status:   RUNNING,
+		gasStore: 1000,
+		gasLoad:  0,
+	},/**/
+	/*{
+		// high address, it takes a long time, but it works (sometimes)
+		name: "Mstore, Mload: store to addr 0xFFFFFFFF, load from addr 0xFFFFFFFF",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x00000000FFFFFFFF, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x00000000FFFFFFFF, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
+		status: RUNNING,
+		// new_mem_size_words = ((0xFFFFFFFF+0x1F) + 0x1F) / 0x20 = 0x08000001
+		// gas_cost = (0x08000001 * 0x08000001 / 0x0200) + (3 * 0x08000001) = 0x200018080003,
+		gasStore: 0x200018080003,
+		gasLoad:  0,
+	},/**/
+	/*{
+		// high address, it takes a long time, but it works (sometimes)
+		name: "Mstore, Mload: store to addr 0x00 and 0xFFFFFFFF, load from addr 0x00",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x00000000FFFFFFFF, 0x00, 0x00, 0x00},
+			{0xDDDDDDDDDDDDDDDD, 0xEEEEEEEEEEEEEEEE, 0xFFFFFFFFFFFFFFFF, 0x123456789ABCDEF0},
+			{0x00, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x00, 0x00, 0x00, 0x00},
+			{0xDDDDDDDDDDDDDDDD, 0xEEEEEEEEEEEEEEEE, 0xFFFFFFFFFFFFFFFF, 0x123456789ABCDEF0}},
+		status:   RUNNING,
+		gasStore: 0x200018080003,
+		gasLoad:  0,
+	}, /**/
+	/*{
+		// runtime error, it kill VS Code
+		name: "Mstore, Mload: calc of gas overflow, runtime error (memory)",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x000000FFFFFFFFF0, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x000000FFFFFFFFF0, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
+		status: OUT_OF_GAS,
+		// new_mem_size_words = ((0xFF FFFF FF01 + 0x1F) + 0x1F) / 0x20 = 0x08 0000 0001
+		// gas_cost = (0x08 0000 0001 * 0x08 0000 0001 / 0x0200) + (3 * 0x08 0000 0001) =
+		//          = 0x2000 0000 0400 0000 + 0x18 0000 0003 = 0x2000 0018 0400 0003, // right
+		// xxxx
+		//          = 0800 0000 + 18 0000 0003 =18 0800 0003 // wrong, gas_cost*gas_cost overflow
+		//gasStore: 0x2000001804000003,
+		gasStore: 0x1808000003, // little gas, but it is accepted
+		gasLoad:  0,
+	}, /**/
+	/*{
+		// high address, it takes a long time, but it works (sometimes)
 		name: "Mstore8, Mload: store to addr 0x00 and 0xFFFFFFFF, load from addr 0x00 and 0xFFFFFFFF",
 		op:   opMstore8,
 		data: []uint256.Int{
@@ -4550,7 +4581,100 @@ var testDataMemOp = []tTestDataMemOp{
 		// gas_cost = (0x08000000 * 0x08000000 / 0x0200) + (3 * 0x08000000) = 0x200018000000,
 		gasStore: 0x200018000000,
 		gasLoad:  0x000000080003,
-	},*/
+	}, /**/
+
+	/*{
+		// runtime error, it kill VS Code
+		name: "Mstore, Mload: calc of gas overflow, runtime error (memory)",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x000002D413CC6FC2, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x000002D413CC6FC2, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
+		status: OUT_OF_GAS,
+
+		//
+		// 0x16 a09e 6680
+		// new_mem_size_words = ((0x02d4 13cc 6fc2 + 0x1F) + 0x1F) / 0x20 = 0x16 A09E 6380
+		// gas_cost = (0x16 A09E 6380 * 0x16 A09E 6380 / 0x0200) + (3 * 0x16 A09E 6380) =
+		//          = 0xffff ffbc 2f7c 5620 + 0x43 e1db 2a80 = 0x1 0000 0000 1157 80a0, // right
+		// FFFFFFAB37058B80 + 0x43...= 0xFFFFFFEF18E0B600
+		// xxxx      fffffa020008fa01/200
+		//          = 0xFFFF FFBC 2F7C 5620 + 0x43 e1db 2a80 =0x8000 0000 1157 80A0 // wrong, overflow
+		gasStore: 0x800000115780a0, // = 36 028 797 309 911 200
+		//gasStore: 0x115780A0, // little gas, but it is accepted ????
+		gasLoad: 0,
+	}, /**/
+	/*{
+		// address overflow, runtime error: slice bounds out of range
+		name: "Mstore, Mload: calc of gas overflow with result 0, runtime error (memory)",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0xFFFFFFFFFFFFFFE1, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x01, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
+		status: RUNNING,
+
+		//
+		// new_mem_size_words = ((0xFFFF FFFF FFFF FFE1 + 0x1F) + 0x1F) / 0x20 =
+		//          = 0x8000 0000 0000 0000 // right
+		//          = 0 // wrong, overflow
+		// gas_cost = (0x8000 0000 0000 0000 * 0x8000 0000 0000 0000/ 0x0200) + (3 * 0x8000 0000 0000 0000) =
+		//          = 0x20 0000 0000 0001 8000 0000 0000 0000 // right
+		// gas_cost = (0x0 * 0x0 / 0x0200) + (3 * 0x0) = 0 // wrong
+		gasStore: 3, // little gas, but it is accepted
+		gasLoad:  0,
+	}, /**/
+	/*{
+		// wrong address, runtime error
+		name: "Mstore, Mload: calc of gas overflow with result 0, runtime error (memory)",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			//{0xFFFFFFFFFFFFFFE0, 0x00, 0x00, 0x00}}, // runtime error: slice bounds out of range [18446744073709551584:0]
+			//{0xFFFFFFFFFFFFFFDF, 0x00, 0x00, 0x00}}, // fatal error
+			{0xFFFFFFFFFFFFFFDE, 0x00, 0x00, 0x00}}, // panic: memory to small, size 0, attempted to write 32 byte at position 18446744073709551582
+		res: []uint256.Int{
+			{0x01, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
+		status: RUNNING,
+
+		//
+		// new_mem_size_words = ((0xFFFF FFFF FFFF FFE1 + 0x1F) + 0x1F) / 0x20 =
+		//          = 0x8000 0000 0000 0000 // right
+		//          = 0 // wrong, overflow
+		// gas_cost = (0x8000 0000 0000 0000 * 0x8000 0000 0000 0000/ 0x0200) + (3 * 0x8000 0000 0000 0000) =
+		//          = 0x20 0000 0000 0001 8000 0000 0000 0000 // right
+		// gas_cost = (0x0 * 0x0 / 0x0200) + (3 * 0x0) = 0 // wrong
+		gasStore: 3, // little gas, but it is accepted
+		gasLoad:  0,
+	}, /**/
+	/*{
+		// runtime error: makeslice: len out of range
+		name: "Mstore, Mload: runtime error (memory)",
+		op:   opMstore,
+		data: []uint256.Int{
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0},
+			{0x001FFFFFFFFFFFC2, 0x00, 0x00, 0x00}},
+		res: []uint256.Int{
+			{0x01, 0x00, 0x00, 0x00},
+			{0xEF0123456789ABCD, 0xF0123456789ABCDE, 0x0123456789ABCDEF, 0x123456789ABCDEF0}},
+		status: RUNNING,
+
+		//
+		// new_mem_size_words = ((0x1F FFFF FFFF FFC2 + 0x1F) + 0x1F) / 0x20 =
+		//          = 0x1 0000 0000 0000
+		// gas_cost = (0x1 0000 0000 0000 * 0x1 0000 0000 0000/ 0x0200) + (3 * 0x1 0000 0000 0000) =
+		//          = 0x80 0000 0003 0000 0000 0000 // right
+		// gas_cost = (0x1000000000000 * 0x1000000000000 / 0x0200) + (3 * 0x1000000000000)
+		//          = 0x3000000000000 // wrong
+		gasStore: 0x3000000000000, // little gas, but it is accepted
+		gasLoad:  0,
+	}, /**/
 }
 
 // operation Msize
