@@ -3,7 +3,6 @@ package vm_test
 import (
 	"fmt"
 	"math/big"
-	"strings"
 	"testing"
 
 	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/test/mocks"
@@ -95,11 +94,6 @@ func TestDynamicGas(t *testing.T) {
 			for op, info := range getInstructions(revision) {
 
 				if info.gas.dynamic == nil {
-					continue
-				}
-
-				// TODO: AccessLists are not implemented yet
-				if strings.Contains(variant, "evmone") {
 					continue
 				}
 

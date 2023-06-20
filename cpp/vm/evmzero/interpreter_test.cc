@@ -3279,7 +3279,7 @@ TEST(InterpreterTest, SSTORE_BerlinRevision) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 200,
+      .gas_before = 2300,
       .gas_after = 100,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
@@ -3368,7 +3368,7 @@ TEST(InterpreterTest, SSTORE_Refund_StorageDeletedAdded) {
       .gas_before = 2000,
       .gas_after = 1200,
       .gas_refund_before = 10000,
-      .gas_refund_after = 0,  // refund cannot be negative
+      .gas_refund_after = -5000,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
       .host = &host,
@@ -3439,8 +3439,8 @@ TEST(InterpreterTest, SSTORE_Refund_StorageModifiedRestored_Cold) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2000,
-      .gas_after = 1900,
+      .gas_before = 2300,
+      .gas_after = 100,
       .gas_refund_after = 4900,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
