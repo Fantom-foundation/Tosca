@@ -167,9 +167,13 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 	// update the amount of refund gas in the state DB
 	state := e.evm.StateDB
 	if state != nil {
-		refund := uint64(result.GasRefund)
-		state.SubRefund(state.GetRefund())
-		state.AddRefund(refund)
+		if result.GasRefund != 0 {
+			if result.GasRefund > 0 {
+				state.AddRefund(uint64(result.GasRefund))
+			} else {
+				state.SubRefund(uint64(result.GasRefund * -1))
+			}
+		}
 	}
 
 	return result.Output, err
