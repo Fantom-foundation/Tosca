@@ -409,7 +409,7 @@ static void sha3(Context& ctx) noexcept {
   const uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
-  const int64_t minimum_word_size = (size + 31) / 32;
+  const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
   if (!ctx.ApplyGasCost(6 * minimum_word_size + ctx.MemoryExpansionCost(offset + size))) [[unlikely]]
     return;
 
@@ -516,7 +516,7 @@ static void calldatacopy(Context& ctx) noexcept {
   const uint64_t data_offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
-  const int64_t minimum_word_size = (size + 31) / 32;
+  const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
   if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
     return;
 
@@ -548,7 +548,7 @@ static void codecopy(Context& ctx) noexcept {
   const uint64_t code_offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
-  const int64_t minimum_word_size = (size + 31) / 32;
+  const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
   if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
     return;
 
@@ -600,7 +600,7 @@ static void extcodecopy(Context& ctx) noexcept {
   const uint64_t code_offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
-  const int64_t minimum_word_size = (size + 31) / 32;
+  const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
   int64_t address_access_cost = 700;
   if (ctx.revision >= EVMC_BERLIN) {
     if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
@@ -641,7 +641,7 @@ static void returndatacopy(Context& ctx) noexcept {
   const uint64_t return_data_offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
-  const int64_t minimum_word_size = (size + 31) / 32;
+  const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
   if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
     return;
 
@@ -850,14 +850,18 @@ static void sstore(Context& ctx) noexcept {
   const uint256_t key = ctx.stack.Pop();
   const uint256_t value = ctx.stack.Pop();
 
-  int64_t dynamic_gas_cost = 800;
-  if (ctx.revision >= EVMC_BERLIN) {
-    dynamic_gas_cost = 100;
-  }
-
   bool key_is_warm = false;
   if (ctx.revision >= EVMC_BERLIN) {
-    key_is_warm = ctx.host->access_storage(ctx.message->recipient, ToEvmcBytes(key));
+    key_is_warm = ctx.host->access_storage(ctx.message->recipient, ToEvmcBytes(key)) == EVMC_ACCESS_WARM;
+  }
+
+  int64_t dynamic_gas_cost = 800;
+  if (ctx.revision >= EVMC_BERLIN) {
+    if (key_is_warm) {
+      dynamic_gas_cost = 100;
+    } else {
+      dynamic_gas_cost = 2200;
+    }
   }
 
   const auto storage_status = ctx.host->set_storage(ctx.message->recipient, ToEvmcBytes(key), ToEvmcBytes(value));
@@ -880,13 +884,13 @@ static void sstore(Context& ctx) noexcept {
 
   // gas refund
   if (storage_status == EVMC_STORAGE_DELETED) {
-    ctx.gas_refunds += 15000;
+    ctx.gas_refunds += ctx.revision >= EVMC_LONDON ? 4800 : 15000;
   } else if (storage_status == EVMC_STORAGE_DELETED_ADDED) {
-    ctx.gas_refunds -= std::min<int64_t>(15000, ctx.gas_refunds);
+    ctx.gas_refunds -= ctx.revision >= EVMC_LONDON ? 4800 : 15000;
   } else if (storage_status == EVMC_STORAGE_MODIFIED_DELETED) {
-    ctx.gas_refunds += 15000;
+    ctx.gas_refunds += ctx.revision >= EVMC_LONDON ? 4800 : 15000;
   } else if (storage_status == EVMC_STORAGE_ADDED_DELETED) {
-    ctx.gas_refunds += 19200;
+    ctx.gas_refunds += ctx.revision >= EVMC_BERLIN ? 19900 : 19200;
   } else if (storage_status == EVMC_STORAGE_MODIFIED_RESTORED) {
     if (ctx.revision >= EVMC_BERLIN) {
       if (key_is_warm) {
@@ -1324,7 +1328,7 @@ int64_t Context::MemoryExpansionCost(uint64_t new_size) noexcept {
   }
 
   auto calc_memory_cost = [](uint64_t size) -> int64_t {
-    int64_t memory_size_word = (size + 31) / 32;
+    const int64_t memory_size_word = static_cast<int64_t>((size + 31) / 32);
     return (memory_size_word * memory_size_word) / 512 + (3 * memory_size_word);
   };
 

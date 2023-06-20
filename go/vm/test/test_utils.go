@@ -4,6 +4,9 @@ import (
 	"math"
 	"math/big"
 
+	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
+	_ "github.com/Fantom-foundation/Tosca/go/vm/evmzero"
+	_ "github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -20,6 +23,7 @@ var (
 		"evmone",
 		"evmone-basic",
 		"evmone-advanced",
+		"evmzero",
 	}
 )
 
@@ -48,7 +52,7 @@ func GetCleanEVM(revision Revision, interpreter string, stateDB vm.StateDB) Test
 		BlockNumber: big.NewInt(revision.GetForkBlock() + 2),
 		Time:        big.NewInt(1),
 		Difficulty:  big.NewInt(1),
-		GasLimit:    1 << 63,
+		GasLimit:    1 << 62,
 		GetHash:     getHash,
 		BaseFee:     big.NewInt(100),
 		Transfer:    transferFunc,

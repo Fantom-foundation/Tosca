@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
-	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
-	_ "github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 	// Enable this import to see C/C++ symbols in CPU profile data.
 	// This import is commented out because it would affect all binaries this
 	// package gets imported in and in some cases this library causes Go
