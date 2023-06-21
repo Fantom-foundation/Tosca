@@ -1064,11 +1064,28 @@ static void selfdestruct(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(5000)) [[unlikely]]
     return;
 
-  auto address = ToEvmcAddress(ctx.stack.Pop());
+  auto account = ToEvmcAddress(ctx.stack.Pop());
 
-  // TODO: Dynamic gas cost
+  {
+    int64_t dynamic_gas_cost = 0;
+    if (ctx.host->get_balance(ctx.message->recipient) && !ctx.host->account_exists(account)) {
+      dynamic_gas_cost += 25000;
+    }
+    if (ctx.revision >= EVMC_BERLIN) {
+      if (ctx.host->access_account(account) == EVMC_ACCESS_COLD) {
+        dynamic_gas_cost += 2600;
+      }
+    }
+    if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
+      return;
+  }
 
-  ctx.host->selfdestruct(ctx.message->recipient, address);
+  ctx.host->selfdestruct(ctx.message->recipient, account);
+
+  if (ctx.revision < EVMC_LONDON) {
+    ctx.gas_refunds += 24000;
+  }
+
   ctx.state = RunState::kDone;
 }
 
