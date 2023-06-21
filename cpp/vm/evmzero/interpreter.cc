@@ -1089,14 +1089,20 @@ static void selfdestruct(Context& ctx) noexcept {
   ctx.state = RunState::kDone;
 }
 
-// WIP, based on evmone!
 template <op::OpCodes Op>
 static void create_impl(Context& ctx) noexcept {
   static_assert(Op == op::CREATE || Op == op::CREATE2);
 
+  if (ctx.message->depth >= 1024) [[unlikely]] {
+    ctx.state = RunState::kErrorCreate;
+    return;
+  }
+
   if (!ctx.CheckStaticCallConformance()) [[unlikely]]
     return;
   if (!ctx.CheckStackAvailable((Op == op::CREATE2) ? 4 : 3)) [[unlikely]]
+    return;
+  if (!ctx.ApplyGasCost(32000)) [[unlikely]]
     return;
 
   const auto endowment = ctx.stack.Pop();
@@ -1104,22 +1110,22 @@ static void create_impl(Context& ctx) noexcept {
   const uint64_t init_code_size = static_cast<uint64_t>(ctx.stack.Pop());
   const auto salt = (Op == op::CREATE2) ? ctx.stack.Pop() : uint256_t{0};
 
-  ctx.return_data.clear();
+  // Dynamic gas costs (excluding code deployment costs)
+  {
+    int64_t code_deposit_cost = static_cast<int64_t>(200 * init_code_size);
 
-  // if (state.rev >= EVMC_SHANGHAI && init_code_size > 0xC000) {
-  //   return {EVMC_OUT_OF_GAS, gas_left};
-  // }
+    int64_t dynamic_gas_cost = ctx.MemoryExpansionCost(init_code_offset + init_code_size)  //
+                               + code_deposit_cost;
+    if constexpr (Op == op::CREATE2) {
+      const int64_t minimum_word_size = static_cast<int64_t>((init_code_size + 31) / 32);
+      dynamic_gas_cost += 6 * minimum_word_size;
+    }
 
-  // const auto init_code_word_cost = 6 * (Op == op::CREATE2) + 2 * (state.rev >= EVMC_SHANGHAI);
-  // const auto init_code_cost = num_words(init_code_size) * init_code_word_cost;
-  // if ((gas_left -= init_code_cost) < 0) {
-  //   return {EVMC_OUT_OF_GAS, gas_left};
-  // }
-
-  if (ctx.message->depth >= 1024) {
-    ctx.state = RunState::kErrorCreate;
-    return;
+    if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
+      return;
   }
+
+  ctx.return_data.clear();
 
   if (endowment != 0 && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < endowment) {
     ctx.state = RunState::kErrorCreate;
@@ -1132,6 +1138,7 @@ static void create_impl(Context& ctx) noexcept {
   evmc_message msg{
       .kind = (Op == op::CREATE) ? EVMC_CREATE : EVMC_CREATE2,
       .depth = ctx.message->depth + 1,
+      .gas = ctx.gas,
       .sender = ctx.message->recipient,
       .input_data = init_code.data(),
       .input_size = init_code.size(),
@@ -1139,20 +1146,18 @@ static void create_impl(Context& ctx) noexcept {
       .create2_salt = ToEvmcBytes(salt),
   };
 
-  // msg.gas = gas_left;
-  // if (state.rev >= EVMC_TANGERINE_WHISTLE) {
-  //   msg.gas = msg.gas - msg.gas / 64;
-  // }
-
   const evmc::Result result = ctx.host->call(msg);
-  // gas_left -= msg.gas - result.gas_left;
-  // state.gas_refund += result.gas_refund;
+  ctx.return_data.assign(result.output_data, result.output_data + result.output_size);
 
-  ctx.return_data.resize(result.output_size);
-  std::copy_n(result.output_data, result.output_size, ctx.return_data.data());
+  if (!ctx.ApplyGasCost(msg.gas - result.gas_left)) [[unlikely]]
+    return;
+
+  ctx.gas_refunds += result.gas_refund;
 
   if (result.status_code == EVMC_SUCCESS) {
     ctx.stack.Push(ToUint256(result.create_address));
+  } else {
+    ctx.stack.Push(0);
   }
 
   ctx.pc++;
