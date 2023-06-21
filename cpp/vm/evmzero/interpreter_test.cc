@@ -4019,6 +4019,8 @@ TEST(InterpreterTest, INVALID) {
 // SELFDESTRUCT
 TEST(InterpreterTest, SELFDESTRUCT) {
   MockHost host;
+  EXPECT_CALL(host, get_balance(evmc::address(0x42))).WillRepeatedly(Return(evmc::uint256be(1)));
+  EXPECT_CALL(host, account_exists(evmc::address(0x43))).WillRepeatedly(Return(true));
   EXPECT_CALL(host, selfdestruct(evmc::address(0x42), evmc::address(0x43)))  //
       .Times(1)
       .WillOnce(Return(true));
@@ -4028,9 +4030,115 @@ TEST(InterpreterTest, SELFDESTRUCT) {
       .state_after = RunState::kDone,
       .gas_before = 5000,
       .gas_after = 0,
+      .gas_refund_after = 24000,
       .stack_before = {0x43},
       .message{.recipient = evmc::address(0x42)},
       .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SELFDESTRUCT_AccountNotExisting) {
+  MockHost host;
+  EXPECT_CALL(host, get_balance(evmc::address(0x42))).WillRepeatedly(Return(evmc::uint256be(1)));
+  EXPECT_CALL(host, account_exists(evmc::address(0x43))).WillRepeatedly(Return(false));
+  EXPECT_CALL(host, selfdestruct(evmc::address(0x42), evmc::address(0x43)))  //
+      .Times(1)
+      .WillOnce(Return(true));
+
+  RunInterpreterTest({
+      .code = {op::SELFDESTRUCT},
+      .state_after = RunState::kDone,
+      .gas_before = 30000,
+      .gas_after = 0,
+      .gas_refund_after = 24000,
+      .stack_before = {0x43},
+      .message{.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SELFDESTRUCT_AccountNotExisting_ButNoValueSent) {
+  MockHost host;
+  EXPECT_CALL(host, get_balance(evmc::address(0x42))).WillRepeatedly(Return(evmc::uint256be(0)));
+  EXPECT_CALL(host, account_exists(evmc::address(0x43))).WillRepeatedly(Return(false));
+  EXPECT_CALL(host, selfdestruct(evmc::address(0x42), evmc::address(0x43)))  //
+      .Times(1)
+      .WillOnce(Return(true));
+
+  RunInterpreterTest({
+      .code = {op::SELFDESTRUCT},
+      .state_after = RunState::kDone,
+      .gas_before = 5000,
+      .gas_after = 0,
+      .gas_refund_after = 24000,
+      .stack_before = {0x43},
+      .message{.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SELFDESTRUCT_BerlinRevision_Cold) {
+  MockHost host;
+  EXPECT_CALL(host, get_balance(evmc::address(0x42))).WillRepeatedly(Return(evmc::uint256be(1)));
+  EXPECT_CALL(host, account_exists(evmc::address(0x43))).WillRepeatedly(Return(true));
+  EXPECT_CALL(host, access_account(evmc::address(0x43))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+  EXPECT_CALL(host, selfdestruct(evmc::address(0x42), evmc::address(0x43)))  //
+      .Times(1)
+      .WillOnce(Return(true));
+
+  RunInterpreterTest({
+      .code = {op::SELFDESTRUCT},
+      .state_after = RunState::kDone,
+      .gas_before = 7600,
+      .gas_after = 0,
+      .gas_refund_after = 24000,
+      .stack_before = {0x43},
+      .message{.recipient = evmc::address(0x42)},
+      .host = &host,
+      .revision = EVMC_BERLIN,
+  });
+}
+
+TEST(InterpreterTest, SELFDESTRUCT_BerlinRevision_Warm) {
+  MockHost host;
+  EXPECT_CALL(host, get_balance(evmc::address(0x42))).WillRepeatedly(Return(evmc::uint256be(1)));
+  EXPECT_CALL(host, account_exists(evmc::address(0x43))).WillRepeatedly(Return(true));
+  EXPECT_CALL(host, access_account(evmc::address(0x43))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, selfdestruct(evmc::address(0x42), evmc::address(0x43)))  //
+      .Times(1)
+      .WillOnce(Return(true));
+
+  RunInterpreterTest({
+      .code = {op::SELFDESTRUCT},
+      .state_after = RunState::kDone,
+      .gas_before = 5000,
+      .gas_after = 0,
+      .gas_refund_after = 24000,
+      .stack_before = {0x43},
+      .message{.recipient = evmc::address(0x42)},
+      .host = &host,
+      .revision = EVMC_BERLIN,
+  });
+}
+
+TEST(InterpreterTest, SELFDESTRUCT_LondonRevision_NoRefund) {
+  MockHost host;
+  EXPECT_CALL(host, get_balance(evmc::address(0x42))).WillRepeatedly(Return(evmc::uint256be(1)));
+  EXPECT_CALL(host, account_exists(evmc::address(0x43))).WillRepeatedly(Return(true));
+  EXPECT_CALL(host, access_account(evmc::address(0x43))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+  EXPECT_CALL(host, selfdestruct(evmc::address(0x42), evmc::address(0x43)))  //
+      .Times(1)
+      .WillOnce(Return(true));
+
+  RunInterpreterTest({
+      .code = {op::SELFDESTRUCT},
+      .state_after = RunState::kDone,
+      .gas_before = 7600,
+      .gas_after = 0,
+      .stack_before = {0x43},
+      .message{.recipient = evmc::address(0x42)},
+      .host = &host,
+      .revision = EVMC_LONDON,
   });
 }
 
