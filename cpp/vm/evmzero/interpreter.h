@@ -45,7 +45,8 @@ struct InterpreterResult {
   std::vector<uint8_t> return_data;
 };
 
-InterpreterResult Interpret(const InterpreterArgs&);
+template <bool TracingEnabled>
+extern InterpreterResult Interpret(const InterpreterArgs&);
 
 namespace internal {
 
@@ -82,7 +83,8 @@ struct Context {
   int64_t MemoryExpansionCost(uint64_t new_size) noexcept;
 };
 
-void RunInterpreter(Context&);
+template <bool TracingEnabled>
+extern void RunInterpreter(Context&);
 
 }  // namespace internal
 

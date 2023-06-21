@@ -1,3 +1,5 @@
+#include <string_view>
+
 #include <evmc/evmc.h>
 #include <evmc/utils.h>
 
@@ -51,22 +53,32 @@ class VM : public evmc_vm {
             .execute = [](evmc_vm* vm, const evmc_host_interface* host_interface, evmc_host_context* host_context,
                           evmc_revision revision, const evmc_message* message, const uint8_t* code,
                           size_t code_size) -> evmc_result {
-              return static_cast<VM*>(vm)->execute({code, code_size}, message, host_interface, host_context, revision);
+              return static_cast<VM*>(vm)->Execute({code, code_size}, message, host_interface, host_context, revision);
             },
 
             .get_capabilities = [](evmc_vm*) -> evmc_capabilities_flagset { return EVMC_CAPABILITY_EVM1; },
+
+            .set_option = [](evmc_vm* vm, char const* name, char const* value) -> evmc_set_option_result {
+              return static_cast<VM*>(vm)->SetOption(name, value);
+            },
         } {}
 
-  evmc_result execute(std::span<const uint8_t> code, const evmc_message* message,                  //
+  evmc_result Execute(std::span<const uint8_t> code, const evmc_message* message,                  //
                       const evmc_host_interface* host_interface, evmc_host_context* host_context,  //
                       evmc_revision revision) {
-    auto interpreter_result = Interpret({
+    const InterpreterArgs interpreter_args{
         .code = code,
         .message = message,
         .host_interface = host_interface,
         .host_context = host_context,
         .revision = revision,
-    });
+    };
+    InterpreterResult interpreter_result;
+    if (tracing_enabled_) {
+      interpreter_result = Interpret<true>(interpreter_args);
+    } else {
+      interpreter_result = Interpret<false>(interpreter_args);
+    }
 
     // Move output data to a dedicated buffer so we can release the interpreter
     // result.
@@ -85,6 +97,25 @@ class VM : public evmc_vm {
         .release = [](const evmc_result* result) { delete[] result->output_data; },
     };
   }
+
+  evmc_set_option_result SetOption(std::string_view name, std::string_view value) {
+    if (name == "tracing") {
+      if (value == "true") {
+        tracing_enabled_ = true;
+        return EVMC_SET_OPTION_SUCCESS;
+      } else if (value == "false") {
+        tracing_enabled_ = false;
+        return EVMC_SET_OPTION_SUCCESS;
+      } else {
+        return EVMC_SET_OPTION_INVALID_VALUE;
+      }
+    } else {
+      return EVMC_SET_OPTION_INVALID_NAME;
+    }
+  }
+
+ private:
+  bool tracing_enabled_ = false;
 };
 
 extern "C" {
