@@ -13,6 +13,7 @@ import (
 )
 
 var evmzero *common.EvmcVM
+var evmzeroWithLogging *common.EvmcVM
 
 func init() {
 	// In the CGO instructions at the top of this file the build directory
@@ -25,12 +26,27 @@ func init() {
 	}
 	// This instance remains in its basic configuration.
 	evmzero = vm
+
+	// We create a second instance in which we enable logging.
+	vm, err = common.LoadEvmcVM("libevmzero.so")
+	if err != nil {
+		panic(fmt.Errorf("failed to load evmzero library: %s", err))
+	}
+	if err = vm.SetOption("logging", "true"); err != nil {
+		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+	}
+	evmzeroWithLogging = vm
 }
 
-func NewInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
+func newInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
 	return common.NewEvmcInterpreter(evmzero, evm, cfg)
 }
 
+func newLoggingInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
+	return common.NewEvmcInterpreter(evmzeroWithLogging, evm, cfg)
+}
+
 func init() {
-	vm.RegisterInterpreterFactory("evmzero", NewInterpreter)
+	vm.RegisterInterpreterFactory("evmzero", newInterpreter)
+	vm.RegisterInterpreterFactory("evmzero-logging", newLoggingInterpreter)
 }
