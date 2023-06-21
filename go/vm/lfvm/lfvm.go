@@ -13,6 +13,7 @@ type EVMInterpreter struct {
 	readOnly                bool
 	no_shaCache             bool
 	no_code_cache           bool
+	logging                 bool
 }
 
 // Registers the long-form EVM as a possible interpreter implementation.
@@ -41,6 +42,9 @@ func init() {
 	vm.RegisterInterpreterFactory("lfvm-no-code-cache", func(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
 		return &EVMInterpreter{evm: evm, cfg: cfg, no_code_cache: true}
 	})
+	vm.RegisterInterpreterFactory("lfvm-logging", func(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
+		return &EVMInterpreter{evm: evm, cfg: cfg, logging: true}
+	})
 }
 
 func (e *EVMInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool) (ret []byte, err error) {
@@ -55,5 +59,5 @@ func (e *EVMInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool)
 		e.readOnly = true
 		defer func() { e.readOnly = false }()
 	}
-	return Run(e.evm, e.cfg, contract, converted, input, e.readOnly, e.evm.StateDB, e.with_shadow_evm, e.with_statistics, e.no_shaCache)
+	return Run(e.evm, e.cfg, contract, converted, input, e.readOnly, e.evm.StateDB, e.with_shadow_evm, e.with_statistics, e.no_shaCache, e.logging)
 }

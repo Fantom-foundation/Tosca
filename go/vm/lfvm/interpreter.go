@@ -87,7 +87,7 @@ func (c *context) IsShadowed() bool {
 	return c.interpreter != nil
 }
 
-func Run(evm *vm.EVM, cfg vm.Config, contract *vm.Contract, code Code, data []byte, readOnly bool, state vm.StateDB, with_shadow_vm, with_statistics bool, no_shaCache bool) ([]byte, error) {
+func Run(evm *vm.EVM, cfg vm.Config, contract *vm.Contract, code Code, data []byte, readOnly bool, state vm.StateDB, with_shadow_vm, with_statistics bool, no_shaCache bool, logging bool) ([]byte, error) {
 	if evm.Depth == 0 {
 		ClearShadowValues()
 	}
@@ -148,6 +148,8 @@ func Run(evm *vm.EVM, cfg vm.Config, contract *vm.Contract, code Code, data []by
 		runWithShadowInterpreter(&ctxt)
 	} else if with_statistics {
 		runWithStatistics(&ctxt)
+	} else if logging {
+		runWithLogging(&ctxt)
 	} else {
 		run(&ctxt)
 	}
@@ -386,6 +388,20 @@ func runWithStatistics(c *context) {
 	global_stats_mu.Lock()
 	defer global_stats_mu.Unlock()
 	global_statistics.Insert(&stats.stats)
+}
+
+func runWithLogging(c *context) {
+	for c.status == RUNNING {
+		// log format: <op>, <gas>, <top-of-stack>\n
+		if int(c.pc) < len(c.code) {
+			top := "-empty-"
+			if c.stack.len() > 0 {
+				top = c.stack.peek().ToBig().String()
+			}
+			fmt.Printf("%v, %d, %v\n", c.code[c.pc].opcode, c.contract.Gas, top)
+		}
+		step(c)
+	}
 }
 
 func step(c *context) {

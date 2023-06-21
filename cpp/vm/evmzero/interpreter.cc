@@ -2,6 +2,7 @@
 
 #include <bit>
 #include <cstdio>
+#include <iostream>
 
 #include "common/assert.h"
 #include "vm/evmzero/opcodes.h"
@@ -40,6 +41,7 @@ const char* ToString(RunState state) {
 
 std::ostream& operator<<(std::ostream& out, RunState state) { return out << ToString(state); }
 
+template <bool LoggingEnabled>
 InterpreterResult Interpret(const InterpreterArgs& args) {
   evmc::HostContext host(*args.host_interface, args.host_context);
 
@@ -52,7 +54,7 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
   };
   ctx.code.assign(args.code.begin(), args.code.end());
 
-  internal::RunInterpreter(ctx);
+  internal::RunInterpreter<LoggingEnabled>(ctx);
 
   if (ctx.state != RunState::kDone) {
     ctx.gas = 0;
@@ -65,6 +67,9 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
       .return_data = ctx.return_data,
   };
 }
+
+template InterpreterResult Interpret<false>(const InterpreterArgs&);
+template InterpreterResult Interpret<true>(const InterpreterArgs&);
 
 ///////////////////////////////////////////////////////////
 
@@ -1368,11 +1373,24 @@ bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
   return true;
 }
 
+template <bool LoggingEnabled>
 void RunInterpreter(Context& ctx) {
   while (ctx.state == RunState::kRunning) {
     if (ctx.pc >= ctx.code.size()) [[unlikely]] {
       ctx.state = RunState::kDone;
       break;
+    }
+
+    if constexpr (LoggingEnabled) {
+      // log format: <op>, <gas>, <top-of-stack>\n
+      std::cout << ToString(static_cast<op::OpCodes>(ctx.code[ctx.pc])) << ", "  //
+                << ctx.gas << ", ";
+      if (ctx.stack.GetSize() == 0) {
+        std::cout << "-empty-";
+      } else {
+        std::cout << ctx.stack[0];
+      }
+      std::cout << "\n" << std::flush;
     }
 
     switch (ctx.code[ctx.pc]) {
@@ -1537,6 +1555,9 @@ void RunInterpreter(Context& ctx) {
     }
   }
 }
+
+template void RunInterpreter<false>(Context&);
+template void RunInterpreter<true>(Context&);
 
 }  // namespace internal
 
