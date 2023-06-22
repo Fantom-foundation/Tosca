@@ -83,7 +83,7 @@ struct Context {
   int64_t MemoryExpansionCost(uint64_t new_size) noexcept;
 };
 
-template <bool TracingEnabled>
+template <bool LoggingEnabled>
 extern void RunInterpreter(Context&);
 
 }  // namespace internal

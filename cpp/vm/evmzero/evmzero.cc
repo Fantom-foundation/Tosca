@@ -74,7 +74,7 @@ class VM : public evmc_vm {
         .revision = revision,
     };
     InterpreterResult interpreter_result;
-    if (tracing_enabled_) {
+    if (logging_enabled_) {
       interpreter_result = Interpret<true>(interpreter_args);
     } else {
       interpreter_result = Interpret<false>(interpreter_args);
@@ -99,12 +99,12 @@ class VM : public evmc_vm {
   }
 
   evmc_set_option_result SetOption(std::string_view name, std::string_view value) {
-    if (name == "tracing") {
+    if (name == "logging") {
       if (value == "true") {
-        tracing_enabled_ = true;
+        logging_enabled_ = true;
         return EVMC_SET_OPTION_SUCCESS;
       } else if (value == "false") {
-        tracing_enabled_ = false;
+        logging_enabled_ = false;
         return EVMC_SET_OPTION_SUCCESS;
       } else {
         return EVMC_SET_OPTION_INVALID_VALUE;
@@ -115,7 +115,7 @@ class VM : public evmc_vm {
   }
 
  private:
-  bool tracing_enabled_ = false;
+  bool logging_enabled_ = false;
 };
 
 extern "C" {

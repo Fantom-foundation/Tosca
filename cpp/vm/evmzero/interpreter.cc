@@ -1373,7 +1373,7 @@ bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
   return true;
 }
 
-template <bool TracingEnabled>
+template <bool LoggingEnabled>
 void RunInterpreter(Context& ctx) {
   while (ctx.state == RunState::kRunning) {
     if (ctx.pc >= ctx.code.size()) [[unlikely]] {
@@ -1381,12 +1381,16 @@ void RunInterpreter(Context& ctx) {
       break;
     }
 
-    if constexpr (TracingEnabled) {
-      std::cout << "PC: " << ctx.pc                                                   //
-                << "   OP: " << ToString(static_cast<op::OpCodes>(ctx.code[ctx.pc]))  //
-                << "   Gas: " << ctx.gas                                              //
-                << "   Gas Refunds: " << ctx.gas_refunds << "\n"
-                << ctx.stack << ctx.memory << "\n\n";
+    if constexpr (LoggingEnabled) {
+      // log format: <op>, <gas>, <top-of-stack>\n
+      std::cout << ToString(static_cast<op::OpCodes>(ctx.code[ctx.pc])) << ", "
+                << ctx.gas << ", ";
+      if (ctx.stack.GetSize() == 0) {
+        // we want the flush here to avoid interleaving Go messages.
+        std::cout << "-empty-" << std::endl;
+      } else {
+        std::cout << ctx.stack[0] << std::endl;
+      }
     }
 
     switch (ctx.code[ctx.pc]) {

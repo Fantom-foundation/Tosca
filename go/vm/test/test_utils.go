@@ -20,10 +20,12 @@ var (
 		"lfvm-si",
 		"lfvm-no-sha-cache",
 		"lfvm-no-code-cache",
+		"lfvm-logging",
 		"evmone",
 		"evmone-basic",
 		"evmone-advanced",
 		"evmzero",
+		"evmzero-logging",
 	}
 )
 
