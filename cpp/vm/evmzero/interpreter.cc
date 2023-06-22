@@ -492,7 +492,7 @@ static void calldataload(Context& ctx) noexcept {
   }
 
   evmc::bytes32 value{};
-  std::copy(input_view.begin(), input_view.end(), value.bytes);
+  std::copy_n(input_view.begin(), std::min<size_t>(input_view.size(), 32), value.bytes);
 
   ctx.stack.Push(ToUint256(value));
   ctx.pc++;

@@ -1619,6 +1619,22 @@ TEST(InterpreterTest, CALLDATALOAD) {
   });
 }
 
+TEST(InterpreterTest, CALLDATALOAD_InputLargerThan32Bytes) {
+  std::array<uint8_t, 128> input_data{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,  //
+                                      0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,  //
+                                      0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,  //
+                                      0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37};
+  RunInterpreterTest({
+      .code = {op::CALLDATALOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 4,
+      .stack_before = {0},
+      .stack_after = {uint256_t(0x3031323334353637, 0x2021222324252627, 0x1011121314151617, 0x0001020304050607)},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+}
+
 TEST(InterpreterTest, CALLDATALOAD_OutOfGas) {
   RunInterpreterTest({
       .code = {op::CALLDATALOAD},
