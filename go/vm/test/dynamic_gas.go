@@ -7,6 +7,7 @@ import (
 	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/test/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/golang/mock/gomock"
 )
 
 // Structure for dynamic gas instruction test
@@ -351,39 +352,44 @@ func calculateSStoreGas(origValue common.Hash, currentValue common.Hash, newValu
 // data_size: size of the data to log in bytes (len in the stack representation).
 // mem_expansion_cost: the cost of any memory expansion required (see A0-1)
 // Gas Calculation:
-
 // gas_cost = 375 + 375 * num_topics + 8 * data_size + mem_expansion_cost
-func gasDynamicLog(revision Revision) []*DynGasTest {
+func gasDynamicLog0(revision Revision) []*DynGasTest {
+	return gasDynamicLog(revision, 0)
+}
+func gasDynamicLog1(revision Revision) []*DynGasTest {
+	return gasDynamicLog(revision, 1)
+}
+func gasDynamicLog2(revision Revision) []*DynGasTest {
+	return gasDynamicLog(revision, 2)
+}
+func gasDynamicLog3(revision Revision) []*DynGasTest {
+	return gasDynamicLog(revision, 3)
+}
+func gasDynamicLog4(revision Revision) []*DynGasTest {
+	return gasDynamicLog(revision, 4)
+}
+
+func gasDynamicLog(revision Revision, size int) []*DynGasTest {
 
 	testCases := []*DynGasTest{}
-	copyCode := make([]byte, 0, 1000)
-	name := []string{"Address in access list", "Addres not in access list"}
-
-	for i := 0; i < 10; i++ {
-		address := common.Address{byte(i + 1)}
-		hash := common.Hash{byte(i + 1)}
-
-		inAccessList := i%2 == 0
-		accessCost := getAccessCost(revision, inAccessList, false)
+	for i := 0; i < 100; i++ {
 
 		// Steps of 256 bytes memory addition to check non linear gas cost for expansion
 		var dataSize uint64 = 256 * uint64(i)
 		offset := big.NewInt(0)
-		testName := name[i%2] + " size " + fmt.Sprint(dataSize)
+		testName := "size " + fmt.Sprint(dataSize)
 
-		stackValues := []*big.Int{big.NewInt(int64(dataSize)), offset}
-		for j := 0; j < i; j++ {
-			stackValues = append(stackValues)
+		stackValues := []*big.Int{}
+		for j := 0; j < size; j++ {
+			stackValues = append(stackValues, common.Hash{byte(j)}.Big())
 		}
+		stackValues = append(stackValues, big.NewInt(int64(dataSize)), offset)
 
 		// Expected gas calculation
-		expectedGas := accessCost + 3*getDataSizeWords(dataSize) + memoryExpansionGasCost(dataSize)
+		expectedGas := uint64(375+375*size) + 8*dataSize + memoryExpansionGasCost(dataSize)
 
 		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
-			mockStateDB.EXPECT().GetCode(address).AnyTimes().Return(copyCode)
-			mockStateDB.EXPECT().AddressInAccessList(address).AnyTimes().Return(inAccessList)
-			mockStateDB.EXPECT().AddAddressToAccessList(address).AnyTimes()
+			mockStateDB.EXPECT().AddLog(gomock.Any()).AnyTimes()
 		}
 		// Append test
 		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, mockCalls})
