@@ -56,10 +56,6 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
 
   internal::RunInterpreter<LoggingEnabled>(ctx);
 
-  if (ctx.state != RunState::kDone) {
-    ctx.gas = 0;
-  }
-
   return {
       .state = ctx.state,
       .remaining_gas = ctx.gas,
@@ -1553,6 +1549,10 @@ void RunInterpreter(Context& ctx) {
       default:
         ctx.state = RunState::kErrorOpcode;
     }
+  }
+
+  if (ctx.state != RunState::kDone && ctx.state != RunState::kRevert) {
+    ctx.gas = 0;
   }
 }
 
