@@ -1093,7 +1093,7 @@ func opDelegateCall(c *context) {
 	gas := callGas(c.contract.Gas, base_gas, provided_gas)
 
 	if warmAccess {
-		if !c.UseGas(gas) {
+		if !c.UseGas(base_gas + gas) {
 			return
 		}
 	} else {
@@ -1102,10 +1102,14 @@ func opDelegateCall(c *context) {
 		// outside of this function, as part of the dynamic gas, and that will make it
 		// also become correctly reported to tracers.
 		c.contract.Gas += coldCost
-		if !c.UseGas(gas + coldCost) {
+		if !c.UseGas(base_gas + gas + coldCost) {
 			return
 		}
 	}
+
+	// first use static and dynamic gas cost and then resize the memory
+	// when out of gas is happening, then mem should not be resized
+	c.memory.EnsureCapacityWithoutGas(needed_memory_size, c)
 
 	toAddr := common.Address(addr.Bytes20())
 	// Get arguments from the memory.
@@ -1114,9 +1118,6 @@ func opDelegateCall(c *context) {
 	ret, returnGas, err := c.evm.DelegateCall(c.contract, toAddr, args, gas)
 
 	if err == nil || err == vm.ErrExecutionReverted {
-		if c.memory.EnsureCapacity(retOffset.Uint64(), retSize.Uint64(), c) != nil {
-			return
-		}
 		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret); memSetErr != nil {
 			c.SignalError(memSetErr)
 		}
