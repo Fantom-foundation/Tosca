@@ -410,6 +410,22 @@ func gasDynamicLog(revision Revision) []*DynGasTest {
 // mem_expansion_cost: the cost of any memory expansion required (see A0-1)
 // gas_sent_with_call: the gas ultimately sent with the call
 func gasDynamicCall(revision Revision) []*DynGasTest {
+	return gasDynamicCallCommon(revision, true, true)
+}
+
+// STATICCALL & DELEGATECALL instruction
+// Same as CALL instruction, but not using call value
+func gasDynamicStaticDelegateCall(revision Revision) []*DynGasTest {
+	return gasDynamicCallCommon(revision, false, false)
+}
+
+// CALLCODE instruction
+// Same as CALL instruction, different address creation gas computation
+func gasDynamicCallCodeCall(revision Revision) []*DynGasTest {
+	return gasDynamicCallCommon(revision, true, false)
+}
+
+func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationGas bool) []*DynGasTest {
 
 	calledCode := []byte{byte(vm.STOP)}
 
@@ -423,8 +439,13 @@ func gasDynamicCall(revision Revision) []*DynGasTest {
 	tests := []callTest{
 		{"Address exist and in access list", true, true, big.NewInt(0)},
 		{"Address exist and not in access list", true, false, big.NewInt(0)},
-		{"Call value is > 0", true, true, big.NewInt(1)},
-		{"Call value is > 0 & address not exist", false, false, big.NewInt(1)},
+	}
+
+	if useCallValue {
+		tests = append(tests, []callTest{
+			{"Call value is > 0", true, true, big.NewInt(1)},
+			{"Call value is > 0 & address not exist", false, false, big.NewInt(1)},
+		}...)
 	}
 
 	testCases := []*DynGasTest{}
@@ -442,6 +463,7 @@ func gasDynamicCall(revision Revision) []*DynGasTest {
 			mockStateDB.EXPECT().AddressInAccessList(address).AnyTimes().Return(inAccessList)
 			mockStateDB.EXPECT().AddAddressToAccessList(address).AnyTimes()
 			mockStateDB.EXPECT().CreateAccount(address).AnyTimes()
+			mockStateDB.EXPECT().AddBalance(address, big.NewInt(0)).AnyTimes()
 		}
 
 		// The WarmStorageReadCostEIP2929 (100) is already deducted in the form of a constant cost, so
@@ -455,9 +477,9 @@ func gasDynamicCall(revision Revision) []*DynGasTest {
 
 		expectedGas += memExpansionCost
 
-		if test.callValue.Cmp(big.NewInt(0)) > 0 {
+		if useCallValue && test.callValue.Cmp(big.NewInt(0)) > 0 {
 			expectedGas += 9000 - 2300
-			if !test.addrExist {
+			if addressCreationGas && !test.addrExist {
 				expectedGas += 25000
 			}
 		}
@@ -475,8 +497,14 @@ func gasDynamicCall(revision Revision) []*DynGasTest {
 
 		zeroVal := big.NewInt(0)
 
-		// retSize, retOffset, inSize, inOffset, value, addr, provided_gas
-		stackValues := []*big.Int{zeroVal, zeroVal, dataSize, zeroVal, test.callValue, address.Hash().Big(), big.NewInt(int64(gasSentWithCall))}
+		var stackValues []*big.Int
+		if useCallValue {
+			// retSize, retOffset, inSize, inOffset, value, addr, provided_gas
+			stackValues = []*big.Int{zeroVal, zeroVal, dataSize, zeroVal, test.callValue, address.Hash().Big(), big.NewInt(int64(gasSentWithCall))}
+		} else {
+			// retSize, retOffset, inSize, inOffset, addr, provided_gas
+			stackValues = []*big.Int{zeroVal, zeroVal, dataSize, zeroVal, address.Hash().Big(), big.NewInt(int64(gasSentWithCall))}
+		}
 
 		// Append test
 		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls})

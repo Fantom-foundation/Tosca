@@ -265,11 +265,11 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.LOG4:           {stack: consume(6), gas: gasD(dynGasNotImpYet)},
 		vm.CREATE:         {stack: op(3), gas: gas(gasCreate, dynGasNotImpYet)},
 		vm.CALL:           {stack: op(7), gas: gas(gasCallEIP150, gasDynamicCall)},
-		vm.CALLCODE:       {stack: op(7), gas: gas(gasCallEIP150, dynGasNotImpYet)},
+		vm.CALLCODE:       {stack: op(7), gas: gas(gasCallEIP150, gasDynamicCallCodeCall)},
 		vm.RETURN:         {stack: consume(2), gas: gasD(dynGasNotImpYet)},
-		vm.DELEGATECALL:   {stack: op(6), gas: gas(gasCallEIP150, dynGasNotImpYet)},
+		vm.DELEGATECALL:   {stack: op(6), gas: gas(gasCallEIP150, gasDynamicStaticDelegateCall)},
 		vm.CREATE2:        {stack: op(4), gas: gas(gasCreate, dynGasNotImpYet)},
-		vm.STATICCALL:     {stack: op(6), gas: gas(gasCallEIP150, dynGasNotImpYet)},
+		vm.STATICCALL:     {stack: op(6), gas: gas(gasCallEIP150, gasDynamicStaticDelegateCall)},
 		vm.REVERT:         {stack: consume(2), gas: gasD(dynGasNotImpYet)},
 		vm.SELFDESTRUCT:   {stack: consume(1), gas: gasD(dynGasNotImpYet)},
 	}
@@ -292,9 +292,9 @@ func getBerlinInstructions() map[vm.OpCode]*InstructionInfo {
 	res[vm.EXTCODEHASH].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicAccountAccess}
 	res[vm.BALANCE].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicAccountAccess}
 	res[vm.CALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicCall}
-	res[vm.CALLCODE].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
-	res[vm.STATICCALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
-	res[vm.DELEGATECALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
+	res[vm.CALLCODE].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicCallCodeCall}
+	res[vm.STATICCALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicStaticDelegateCall}
+	res[vm.DELEGATECALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicStaticDelegateCall}
 	res[vm.SELFDESTRUCT].gas = GasUsage{gasSelfDestruct, dynGasNotImpYet}
 
 	return res
