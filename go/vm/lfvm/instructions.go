@@ -949,12 +949,6 @@ func opCallCode(c *context) {
 		base_gas += params.CallValueTransferGas
 	}
 
-	// if evm.chainRules.IsEIP158 according to GETH it is EIP158 since 2016
-	// !!!! but need to touch stateDB for the address to have it in the substate record key/value
-	if !value.IsZero() && !c.stateDB.Exist(toAddr) {
-		base_gas += params.CallNewAccountGas
-	}
-
 	cost := callGas(c.contract.Gas, base_gas, provided_gas)
 
 	if warmAccess {
