@@ -3485,6 +3485,64 @@ TEST(InterpreterTest, SSTORE_Refund_StorageModifiedRestored_Warm) {
   });
 }
 
+TEST(InterpreterTest, SSTORE_Refund_StorageDeletedRestored) {
+  MockHost host;
+  EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
+      .Times(1)
+      .WillOnce(Return(EVMC_STORAGE_DELETED_RESTORED));
+
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 2000,
+      .gas_after = 1200,
+      .gas_refund_after = -10800,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SSTORE_Refund_StorageDeletedRestored_Cold) {
+  MockHost host;
+  EXPECT_CALL(host, access_storage(evmc::address(0x42), evmc::bytes32(16))).WillRepeatedly(Return(EVMC_ACCESS_COLD));
+  EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
+      .Times(1)
+      .WillOnce(Return(EVMC_STORAGE_DELETED_RESTORED));
+
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 2300,
+      .gas_after = 100,
+      .gas_refund_after = -10100,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+      .revision = EVMC_BERLIN,
+  });
+}
+
+TEST(InterpreterTest, SSTORE_Refund_StorageDeletedRestored_Warm) {
+  MockHost host;
+  EXPECT_CALL(host, access_storage(evmc::address(0x42), evmc::bytes32(16))).WillRepeatedly(Return(EVMC_ACCESS_WARM));
+  EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
+      .Times(1)
+      .WillOnce(Return(EVMC_STORAGE_DELETED_RESTORED));
+
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 2000,
+      .gas_after = 1900,
+      .gas_refund_after = -12200,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+      .revision = EVMC_BERLIN,
+  });
+}
+
 TEST(InterpreterTest, SSTORE_StaticCallViolation) {
   RunInterpreterTest({
       .code = {op::SSTORE},
