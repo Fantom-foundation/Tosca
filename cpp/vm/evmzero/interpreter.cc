@@ -1139,7 +1139,7 @@ static void create_impl(Context& ctx) noexcept {
   evmc_message msg{
       .kind = (Op == op::CREATE) ? EVMC_CREATE : EVMC_CREATE2,
       .depth = ctx.message->depth + 1,
-      .gas = ctx.gas,
+      .gas = ctx.gas - ctx.gas / 64,
       .sender = ctx.message->recipient,
       .input_data = init_code.data(),
       .input_size = init_code.size(),
@@ -1232,7 +1232,7 @@ static void call_impl(Context& ctx) noexcept {
                                        : EVMC_CALL,
       .flags = (Op == op::STATICCALL) ? uint32_t{EVMC_STATIC} : ctx.message->flags,
       .depth = ctx.message->depth + 1,
-      .gas = gas,
+      .gas = std::min(gas, ctx.gas - ctx.gas / 64),
       .recipient = (Op == op::CALL || Op == op::STATICCALL) ? account : ctx.message->recipient,
       .sender = (Op == op::DELEGATECALL) ? ctx.message->sender : ctx.message->recipient,
       .input_data = input_data.data(),
