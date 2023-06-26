@@ -888,23 +888,43 @@ static void sstore(Context& ctx) noexcept {
     return;
 
   // gas refund
-  if (storage_status == EVMC_STORAGE_DELETED) {
-    ctx.gas_refunds += ctx.revision >= EVMC_LONDON ? 4800 : 15000;
-  } else if (storage_status == EVMC_STORAGE_DELETED_ADDED) {
-    ctx.gas_refunds -= ctx.revision >= EVMC_LONDON ? 4800 : 15000;
-  } else if (storage_status == EVMC_STORAGE_MODIFIED_DELETED) {
-    ctx.gas_refunds += ctx.revision >= EVMC_LONDON ? 4800 : 15000;
-  } else if (storage_status == EVMC_STORAGE_ADDED_DELETED) {
-    ctx.gas_refunds += ctx.revision >= EVMC_BERLIN ? 19900 : 19200;
-  } else if (storage_status == EVMC_STORAGE_MODIFIED_RESTORED) {
-    if (ctx.revision >= EVMC_BERLIN) {
-      if (key_is_warm) {
-        ctx.gas_refunds += 5000 - 2100 - 100;
+  {
+    auto warm_cold_restored = [&]() -> int64_t {
+      if (ctx.revision >= EVMC_BERLIN) {
+        if (key_is_warm) {
+          return 5000 - 2100 - 100;
+        } else {
+          return 4900;
+        }
       } else {
-        ctx.gas_refunds += 4900;
+        return 4200;
       }
-    } else {
-      ctx.gas_refunds += 4200;
+    };
+
+    switch (storage_status) {
+      case EVMC_STORAGE_DELETED:
+        ctx.gas_refunds += ctx.revision >= EVMC_LONDON ? 4800 : 15000;
+        break;
+      case EVMC_STORAGE_DELETED_ADDED:
+        ctx.gas_refunds -= ctx.revision >= EVMC_LONDON ? 4800 : 15000;
+        break;
+      case EVMC_STORAGE_MODIFIED_DELETED:
+        ctx.gas_refunds += ctx.revision >= EVMC_LONDON ? 4800 : 15000;
+        break;
+      case EVMC_STORAGE_DELETED_RESTORED:
+        ctx.gas_refunds -= ctx.revision >= EVMC_LONDON ? 4800 : 15000;
+        ctx.gas_refunds += warm_cold_restored();
+        break;
+      case EVMC_STORAGE_ADDED_DELETED:
+        ctx.gas_refunds += ctx.revision >= EVMC_BERLIN ? 19900 : 19200;
+        break;
+      case EVMC_STORAGE_MODIFIED_RESTORED:
+        ctx.gas_refunds += warm_cold_restored();
+        break;
+      case EVMC_STORAGE_ASSIGNED:
+      case EVMC_STORAGE_ADDED:
+      case EVMC_STORAGE_MODIFIED:
+        break;
     }
   }
 
