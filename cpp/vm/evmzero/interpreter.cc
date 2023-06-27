@@ -1117,10 +1117,7 @@ static void create_impl(Context& ctx) noexcept {
 
   // Dynamic gas costs (excluding code deployment costs)
   {
-    int64_t code_deposit_cost = static_cast<int64_t>(200 * init_code_size);
-
-    int64_t dynamic_gas_cost = ctx.MemoryExpansionCost(init_code_offset + init_code_size)  //
-                               + code_deposit_cost;
+    int64_t dynamic_gas_cost = ctx.MemoryExpansionCost(init_code_offset + init_code_size);
     if constexpr (Op == op::CREATE2) {
       const int64_t minimum_word_size = static_cast<int64_t>((init_code_size + 31) / 32);
       dynamic_gas_cost += 6 * minimum_word_size;
