@@ -1194,11 +1194,6 @@ static void call_impl(Context& ctx) noexcept {
       return;
   }
 
-  if (has_value && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < value) {
-    ctx.state = RunState::kErrorCall;
-    return;
-  }
-
   // Dynamic gas costs (excluding code execution costs)
   {
     int64_t address_access_cost = 700;
@@ -1249,6 +1244,12 @@ static void call_impl(Context& ctx) noexcept {
   if (has_value) {
     msg.gas += 2300;
     ctx.gas += 2300;
+  }
+
+  if (has_value && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < value) {
+    ctx.stack.Push(0);
+    ctx.pc++;
+    return;
   }
 
   const evmc::Result result = ctx.host->call(msg);
