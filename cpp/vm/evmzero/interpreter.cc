@@ -1212,8 +1212,10 @@ static void call_impl(Context& ctx) noexcept {
 
     int64_t positive_value_cost = has_value ? 9000 : 0;
     int64_t value_to_empty_account_cost = 0;
-    if (has_value && !ctx.host->account_exists(account)) {
-      value_to_empty_account_cost = 25000;
+    if constexpr (Op != op::CALLCODE) {
+      if (has_value && !ctx.host->account_exists(account)) {
+        value_to_empty_account_cost = 25000;
+      }
     }
 
     int64_t dynamic_gas_cost = ctx.MemoryExpansionCost(input_offset + input_size)      //
