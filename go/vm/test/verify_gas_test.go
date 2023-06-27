@@ -128,22 +128,15 @@ func TestDynamicGas(t *testing.T) {
 							code = append(code, returnCode...)
 						}
 
-						// Put needed values on stack with PUSH instructions.
-						stackValues := testCase.stackValues
-						stackValuesCount := len(stackValues)
+						// If test needs to put values into memory
+						memCode, gas := addMemToStack(testCase.memValues, pushGas)
+						code = append(code, memCode...)
+						wantGas += gas
 
-						for i := 0; i < stackValuesCount; i++ {
-							valueBytes := stackValues[i].Bytes()
-							if len(valueBytes) == 0 {
-								valueBytes = []byte{0}
-							}
-							push := vm.PUSH1 + vm.OpCode(len(valueBytes)-1)
-							code = append(code, byte(push))
-							for j := 0; j < len(valueBytes); j++ {
-								code = append(code, valueBytes[j])
-							}
-							wantGas += pushGas
-						}
+						// Put needed values on stack with PUSH instructions.
+						pushCode, gas := addValuesToStack(testCase.stackValues, pushGas)
+						code = append(code, pushCode...)
+						wantGas += gas
 
 						// Set a tested instruction as the last one.
 						code = append(code, byte(op))
@@ -167,6 +160,50 @@ func TestDynamicGas(t *testing.T) {
 			}
 		}
 	}
+}
+
+func addValuesToStack(stackValues []*big.Int, pushGas uint64) ([]byte, uint64) {
+	stackValuesCount := len(stackValues)
+
+	var (
+		code    []byte
+		wantGas uint64
+	)
+
+	for i := 0; i < stackValuesCount; i++ {
+		code, wantGas = addBytesTostack(stackValues[i].Bytes(), code, wantGas, pushGas)
+	}
+	return code, wantGas
+}
+
+func addMemToStack(stackValues []*big.Int, pushGas uint64) ([]byte, uint64) {
+	stackValuesCount := len(stackValues)
+
+	var (
+		code    []byte
+		wantGas uint64
+	)
+
+	for i := 0; i < stackValuesCount; i += 2 {
+		code, wantGas = addBytesTostack(stackValues[i].Bytes(), code, wantGas, pushGas)
+		code, wantGas = addBytesTostack(stackValues[i+1].Bytes(), code, wantGas, pushGas)
+		code = append(code, byte(vm.MSTORE))
+		wantGas += memoryExpansionGasCost(32)
+	}
+	return code, wantGas
+}
+
+func addBytesTostack(valueBytes []byte, code []byte, wantGas uint64, pushGas uint64) ([]byte, uint64) {
+	if len(valueBytes) == 0 {
+		valueBytes = []byte{0}
+	}
+	push := vm.PUSH1 + vm.OpCode(len(valueBytes)-1)
+	code = append(code, byte(push))
+	for j := 0; j < len(valueBytes); j++ {
+		code = append(code, valueBytes[j])
+	}
+	wantGas += pushGas
+	return code, wantGas
 }
 
 // Returns computed gas for calling passed callCode with a Call instruction
