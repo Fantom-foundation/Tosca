@@ -313,6 +313,14 @@ func (ctx *HostContext) GetTxContext() evmc.TxContext {
 		}
 	}
 
+	var difficulty evmc.Hash
+	if ctx.interpreter.evm.Context.Difficulty != nil {
+		difficulty, err = bigIntToHash(ctx.interpreter.evm.Context.Difficulty)
+		if err != nil {
+			panic(fmt.Sprintf("Could not convert difficulty: %v", err))
+		}
+	}
+
 	return evmc.TxContext{
 		GasPrice:   gasPrice,
 		Origin:     evmc.Address(ctx.interpreter.evm.Origin),
@@ -320,7 +328,7 @@ func (ctx *HostContext) GetTxContext() evmc.TxContext {
 		Number:     ctx.interpreter.evm.Context.BlockNumber.Int64(),
 		Timestamp:  ctx.interpreter.evm.Context.Time.Int64(),
 		GasLimit:   int64(gasLimit),
-		PrevRandao: evmc.Hash{}, // TODO: No idea where to get this from.
+		PrevRandao: difficulty,
 		ChainID:    chainId,
 		BaseFee:    baseFee,
 	}
