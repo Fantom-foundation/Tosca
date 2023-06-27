@@ -10,7 +10,6 @@ import "C"
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"math/big"
 
@@ -288,17 +287,6 @@ func (ctx *HostContext) GetTxContext() evmc.TxContext {
 		panic(fmt.Sprintf("Could not convert gas price: %v", err))
 	}
 
-	// Geth uses uint64 as a gas limit, while evmc uses int64.
-	// In practice, the per-block gas limit will never be close to
-	// math.MaxInt64, since this would be more gas for a single transaction
-	// than there are coins in circulation. However, test environments
-	// may use math.MaxUint64 as an unbound gas limit.
-	gasLimit := ctx.interpreter.evm.Context.GasLimit
-	if gasLimit > math.MaxInt64 {
-		log.Printf("Warning: encountered gas limit of %d exceeding MaxInt64; limit got capped", gasLimit)
-		gasLimit = math.MaxInt64
-	}
-
 	chainId, err := bigIntToHash(ctx.interpreter.evm.ChainConfig().ChainID)
 	if err != nil {
 		panic(fmt.Sprintf("Could not convert chain Id: %v", err))
@@ -327,7 +315,7 @@ func (ctx *HostContext) GetTxContext() evmc.TxContext {
 		Coinbase:   evmc.Address(ctx.interpreter.evm.Context.Coinbase),
 		Number:     ctx.interpreter.evm.Context.BlockNumber.Int64(),
 		Timestamp:  ctx.interpreter.evm.Context.Time.Int64(),
-		GasLimit:   int64(gasLimit),
+		GasLimit:   int64(ctx.interpreter.evm.Context.GasLimit),
 		PrevRandao: difficulty,
 		ChainID:    chainId,
 		BaseFee:    baseFee,
