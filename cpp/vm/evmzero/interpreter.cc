@@ -844,6 +844,12 @@ static void sload(Context& ctx) noexcept {
 }
 
 static void sstore(Context& ctx) noexcept {
+  // EIP-2200
+  if (ctx.gas <= 2300) [[unlikely]] {
+    ctx.state = RunState::kErrorGas;
+    return;
+  }
+
   if (!ctx.CheckStaticCallConformance()) [[unlikely]]
     return;
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
