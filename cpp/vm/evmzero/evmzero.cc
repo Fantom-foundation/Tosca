@@ -13,12 +13,14 @@ evmc_status_code ToEvmcStatusCode(RunState state) {
       return EVMC_FAILURE;
     case RunState::kDone:
       return EVMC_SUCCESS;
+    case RunState::kReturn:
+      return EVMC_SUCCESS;
     case RunState::kRevert:
       return EVMC_REVERT;
     case RunState::kInvalid:
       return EVMC_INVALID_INSTRUCTION;
     case RunState::kErrorOpcode:
-      return EVMC_INVALID_INSTRUCTION;
+      return EVMC_UNDEFINED_INSTRUCTION;
     case RunState::kErrorGas:
       return EVMC_OUT_OF_GAS;
     case RunState::kErrorStackUnderflow:

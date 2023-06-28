@@ -15,6 +15,8 @@ const char* ToString(RunState state) {
       return "Running";
     case RunState::kDone:
       return "Done";
+    case RunState::kReturn:
+      return "Return";
     case RunState::kRevert:
       return "Revert";
     case RunState::kInvalid:
@@ -37,6 +39,12 @@ const char* ToString(RunState state) {
       return "ErrorStaticCall";
   }
   return "UNKNOWN_STATE";
+}
+
+bool IsSuccess(RunState state) {
+  return state == RunState::kDone       //
+         || state == RunState::kReturn  //
+         || state == RunState::kRevert;
 }
 
 std::ostream& operator<<(std::ostream& out, RunState state) { return out << ToString(state); }
@@ -1061,7 +1069,7 @@ static void log(Context& ctx) noexcept {
 
 template <RunState result_state>
 static void return_op(Context& ctx) noexcept {
-  static_assert(result_state == RunState::kDone || result_state == RunState::kRevert);
+  static_assert(result_state == RunState::kReturn || result_state == RunState::kRevert);
 
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
     return;
@@ -1556,7 +1564,7 @@ void RunInterpreter(Context& ctx) {
       case op::CREATE: op::create_impl<op::CREATE>(ctx); break;
       case op::CREATE2: op::create_impl<op::CREATE2>(ctx); break;
 
-      case op::RETURN: op::return_op<RunState::kDone>(ctx); break;
+      case op::RETURN: op::return_op<RunState::kReturn>(ctx); break;
       case op::REVERT: op::return_op<RunState::kRevert>(ctx); break;
 
       case op::CALL: op::call_impl<op::CALL>(ctx); break;
@@ -1572,8 +1580,13 @@ void RunInterpreter(Context& ctx) {
     }
   }
 
-  if (ctx.state != RunState::kDone && ctx.state != RunState::kRevert) {
+  if (!IsSuccess(ctx.state)) {
     ctx.gas = 0;
+  }
+
+  // Keep return data only when we are supposed to return something.
+  if (ctx.state != RunState::kReturn && ctx.state != RunState::kRevert) {
+    ctx.return_data.clear();
   }
 }
 
