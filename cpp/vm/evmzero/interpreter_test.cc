@@ -3575,6 +3575,20 @@ TEST(InterpreterTest, JUMPI) {
   });
 }
 
+TEST(InterpreterTest, JUMPI_LargeCondition) {
+  RunInterpreterTest({
+      .code = {op::JUMPI,      //
+               op::PUSH1, 24,  //
+               op::JUMPDEST,   //
+               op::PUSH1, 42},
+      .state_after = RunState::kDone,
+      .gas_before = 5000,
+      .gas_after = 4986,
+      .stack_before = {uint256_t(1) << 80, 3},
+      .stack_after = {42},
+  });
+}
+
 TEST(InterpreterTest, JUMPI_Invalid) {
   RunInterpreterTest({
       .code = {op::PUSH4, op::JUMPDEST, op::JUMPDEST, op::JUMPDEST, op::JUMPDEST,  //
