@@ -3200,8 +3200,8 @@ TEST(InterpreterTest, SSTORE) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2000,
-      .gas_after = 1200,
+      .gas_before = 3000,
+      .gas_after = 2200,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
       .host = &host,
@@ -3264,15 +3264,25 @@ TEST(InterpreterTest, SSTORE_OutOfGas) {
   MockHost host;
   EXPECT_CALL(host, set_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
       .Times(1)
-      .WillOnce(Return(EVMC_STORAGE_ASSIGNED));
+      .WillOnce(Return(EVMC_STORAGE_MODIFIED));
 
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kErrorGas,
-      .gas_before = 700,
+      .gas_before = 2700,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
       .host = &host,
+  });
+}
+
+TEST(InterpreterTest, SSTORE_OutOfGas_EIP2200) {
+  RunInterpreterTest({
+      .code = {op::SSTORE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 2300,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
   });
 }
 
@@ -3295,8 +3305,8 @@ TEST(InterpreterTest, SSTORE_BerlinRevision) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2300,
-      .gas_after = 100,
+      .gas_before = 3300,
+      .gas_after = 1100,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
       .host = &host,
@@ -3369,8 +3379,8 @@ TEST(InterpreterTest, SSTORE_Refund_StorageDeletedAdded) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2000,
-      .gas_after = 1200,
+      .gas_before = 3000,
+      .gas_after = 2200,
       .gas_refund_before = 20000,
       .gas_refund_after = 5000,
       .stack_before = {32, 16},
@@ -3381,8 +3391,8 @@ TEST(InterpreterTest, SSTORE_Refund_StorageDeletedAdded) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2000,
-      .gas_after = 1200,
+      .gas_before = 3000,
+      .gas_after = 2200,
       .gas_refund_before = 10000,
       .gas_refund_after = -5000,
       .stack_before = {32, 16},
@@ -3400,8 +3410,8 @@ TEST(InterpreterTest, SSTORE_Refund_StorageModifiedDeleted) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2000,
-      .gas_after = 1200,
+      .gas_before = 3000,
+      .gas_after = 2200,
       .gas_refund_after = 15000,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
@@ -3418,8 +3428,8 @@ TEST(InterpreterTest, SSTORE_Refund_StorageAddedDeleted) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2000,
-      .gas_after = 1200,
+      .gas_before = 3000,
+      .gas_after = 2200,
       .gas_refund_after = 19200,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
@@ -3436,8 +3446,8 @@ TEST(InterpreterTest, SSTORE_Refund_StorageModifiedRestored) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2000,
-      .gas_after = 1200,
+      .gas_before = 3000,
+      .gas_after = 2200,
       .gas_refund_after = 4200,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
@@ -3455,8 +3465,8 @@ TEST(InterpreterTest, SSTORE_Refund_StorageModifiedRestored_Cold) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2300,
-      .gas_after = 100,
+      .gas_before = 3300,
+      .gas_after = 1100,
       .gas_refund_after = 4900,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
@@ -3475,8 +3485,8 @@ TEST(InterpreterTest, SSTORE_Refund_StorageModifiedRestored_Warm) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2000,
-      .gas_after = 1900,
+      .gas_before = 3000,
+      .gas_after = 2900,
       .gas_refund_after = 2800,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
@@ -3494,8 +3504,8 @@ TEST(InterpreterTest, SSTORE_Refund_StorageDeletedRestored) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2000,
-      .gas_after = 1200,
+      .gas_before = 3000,
+      .gas_after = 2200,
       .gas_refund_after = -10800,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
@@ -3513,8 +3523,8 @@ TEST(InterpreterTest, SSTORE_Refund_StorageDeletedRestored_Cold) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2300,
-      .gas_after = 100,
+      .gas_before = 3300,
+      .gas_after = 1100,
       .gas_refund_after = -10100,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
@@ -3533,8 +3543,8 @@ TEST(InterpreterTest, SSTORE_Refund_StorageDeletedRestored_Warm) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 2000,
-      .gas_after = 1900,
+      .gas_before = 3000,
+      .gas_after = 2900,
       .gas_refund_after = -12200,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
@@ -3548,7 +3558,7 @@ TEST(InterpreterTest, SSTORE_StaticCallViolation) {
       .code = {op::SSTORE},
       .state_after = RunState::kErrorStaticCall,
       .is_static_call = true,
-      .gas_before = 2000,
+      .gas_before = 3000,
       .stack_before = {32, 16},
   });
 }
