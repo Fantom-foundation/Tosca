@@ -1240,10 +1240,10 @@ static void call_impl(Context& ctx) noexcept {
       }
     }
 
-    int64_t dynamic_gas_cost = ctx.MemoryExpansionCost(input_offset, input_size)      //
-                               + ctx.MemoryExpansionCost(output_offset, output_size)  //
-                               + address_access_cost                                  //
-                               + positive_value_cost                                  //
+    int64_t dynamic_gas_cost = std::max(ctx.MemoryExpansionCost(input_offset, input_size),
+                                        ctx.MemoryExpansionCost(output_offset, output_size))  //
+                               + address_access_cost                                          //
+                               + positive_value_cost                                          //
                                + value_to_empty_account_cost;
     if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
       return;
