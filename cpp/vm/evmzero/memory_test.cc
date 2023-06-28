@@ -12,7 +12,7 @@ TEST(MemoryTest, DefaultInit) {
 
 TEST(MemoryTest, InitializerList) {
   Memory memory = {1, 2, 3};
-  EXPECT_EQ(memory.GetSize(), 3);
+  EXPECT_EQ(memory.GetSize(), 32);
 
   EXPECT_EQ(memory[0], 1);
   EXPECT_EQ(memory[1], 2);
@@ -25,12 +25,26 @@ TEST(MemoryTest, ReadFrom) {
   std::vector<uint8_t> buffer = {1, 2, 3};
   memory.ReadFrom(buffer, 1);
 
-  EXPECT_EQ(memory.GetSize(), 4);
+  EXPECT_EQ(memory.GetSize(), 32);
 
   EXPECT_EQ(memory[0], 0);  // zero initialized
   EXPECT_EQ(memory[1], 1);
   EXPECT_EQ(memory[2], 2);
   EXPECT_EQ(memory[3], 3);
+  EXPECT_EQ(memory[4], 0);  // zero initialized
+}
+
+TEST(MemoryTest, GrowsByMultipleOf32) {
+  Memory memory;
+  EXPECT_EQ(memory.GetSize(), 0);
+
+  std::vector<uint8_t> buffer(1);
+  memory.ReadFrom(buffer, 0);
+  EXPECT_EQ(memory.GetSize(), 32);
+
+  buffer.resize(35);
+  memory.ReadFrom(buffer, 0);
+  EXPECT_EQ(memory.GetSize(), 64);
 }
 
 TEST(MemoryTest, ReadFromWithSize_SmallerSize) {
@@ -39,11 +53,12 @@ TEST(MemoryTest, ReadFromWithSize_SmallerSize) {
   std::vector<uint8_t> buffer = {1, 2, 3};
   memory.ReadFromWithSize(buffer, 1, 2);
 
-  EXPECT_EQ(memory.GetSize(), 3);
+  EXPECT_EQ(memory.GetSize(), 32);
 
   EXPECT_EQ(memory[0], 0);  // zero initialized
   EXPECT_EQ(memory[1], 1);
   EXPECT_EQ(memory[2], 2);
+  EXPECT_EQ(memory[3], 0);  // zero initialized
 }
 
 TEST(MemoryTest, ReadFromWithSize_LargerSize) {
@@ -52,13 +67,14 @@ TEST(MemoryTest, ReadFromWithSize_LargerSize) {
   std::vector<uint8_t> buffer = {1, 2};
   memory.ReadFromWithSize(buffer, 1, 3);
 
-  EXPECT_EQ(memory.GetSize(), 5);
+  EXPECT_EQ(memory.GetSize(), 32);
 
   EXPECT_EQ(memory[0], 0xFF);
   EXPECT_EQ(memory[1], 1);
   EXPECT_EQ(memory[2], 2);
   EXPECT_EQ(memory[3], 0);  // filled with zero
   EXPECT_EQ(memory[4], 0xFF);
+  EXPECT_EQ(memory[5], 0);  // zero initialized
 }
 
 TEST(MemoryTest, WriteTo) {

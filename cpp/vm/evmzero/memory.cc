@@ -4,7 +4,10 @@
 
 namespace tosca::evmzero {
 
-Memory::Memory(std::initializer_list<uint8_t> init) : memory_(init) {}
+Memory::Memory(std::initializer_list<uint8_t> init) : memory_(init) {
+  // Ensure size is a multiple of 32.
+  memory_.resize(((init.size() + 31) / 32) * 32);
+}
 
 std::ostream& operator<<(std::ostream& out, const Memory& memory) {
   const auto flag_backup = out.flags();
