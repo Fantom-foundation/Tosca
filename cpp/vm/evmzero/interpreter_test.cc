@@ -1334,6 +1334,17 @@ TEST(InterpreterTest, SHA3) {
   });
 }
 
+TEST(InterpreterTest, SHA3_ZeroSize) {
+  RunInterpreterTest({
+      .code = {op::SHA3},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 70,
+      .stack_before = {0, 42},
+      .stack_after = {uint256_t(0x7BFAD8045D85A470, 0xE500B653CA82273B, 0x927E7DB2DCC703C0, 0xC5D2460186F7233C)},
+  });
+}
+
 TEST(InterpreterTest, SHA3_GrowMemory) {
   RunInterpreterTest({
       .code = {op::SHA3},
@@ -1709,6 +1720,18 @@ TEST(InterpreterTest, CALLDATACOPY) {
   });
 }
 
+TEST(InterpreterTest, CALLDATACOPY_ZeroSize) {
+  std::array<uint8_t, 4> input_data{0xA0, 0xA1, 0xA2, 0xA3};
+  RunInterpreterTest({
+      .code = {op::CALLDATACOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {0, 1, 2},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+}
+
 TEST(InterpreterTest, CALLDATACOPY_RetainMemory) {
   std::array<uint8_t, 4> input_data{0xA0, 0xA1, 0xA2, 0xA3};
   RunInterpreterTest({
@@ -1824,6 +1847,20 @@ TEST(InterpreterTest, CODECOPY) {
       .gas_after = 100 - 10 - 9,
       .stack_before = {3, 1, 2},
       .memory_after = {0, 0, 23, op::POP, op::PUSH1},
+  });
+}
+
+TEST(InterpreterTest, CODECOPY_ZeroSize) {
+  RunInterpreterTest({
+      .code = {op::PUSH1, 23,  //
+               op::POP,        //
+               op::PUSH1, 42,  //
+               op::POP,        //
+               op::CODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 100 - 10 - 3,
+      .stack_before = {0, 1, 2},
   });
 }
 
@@ -2057,6 +2094,24 @@ TEST(InterpreterTest, EXTCODECOPY) {
   });
 }
 
+TEST(InterpreterTest, EXTCODECOPY_ZeroSize) {
+  const std::vector<uint8_t> code = {op::PUSH4, 0x0A, 0x0B, 0x0C, 0xD};
+
+  MockHost host;
+  EXPECT_CALL(host, copy_code(evmc::address(0x42), 1, _, 0))  //
+      .Times(1)
+      .WillOnce(Return(0));
+
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 3000,
+      .gas_after = 3000 - 700,
+      .stack_before = {0, 1, 2, 0x42},
+      .host = &host,
+  });
+}
+
 TEST(InterpreterTest, EXTCODECOPY_OutOfGas) {
   RunInterpreterTest({
       .code = {op::EXTCODECOPY},
@@ -2236,6 +2291,16 @@ TEST(InterpreterTest, RETURNDATACOPY) {
       .memory_before{0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
       .memory_after{0x0A, 0x0B, 0x02, 0x03, 0x04, 0x0F},
       .last_call_data{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+  });
+}
+
+TEST(InterpreterTest, RETURNDATACOPY_ZeroSize) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {0, 1, 2},
   });
 }
 
@@ -3981,6 +4046,23 @@ TEST(InterpreterTest, LOG3) {
   });
 }
 
+TEST(InterpreterTest, LOG0_ZeroSize) {
+  MockHost host;
+  EXPECT_CALL(host, emit_log(evmc::address(0x42), _, _, _, 0))  //
+      .With(Args<1, 2>(ElementsAre()))
+      .Times(1);
+
+  RunInterpreterTest({
+      .code = {op::LOG0},
+      .state_after = RunState::kDone,
+      .gas_before = 420,
+      .gas_after = 45,
+      .stack_before = {0, 1},
+      .message{.recipient = evmc::address(0x42)},
+      .host = &host,
+  });
+}
+
 TEST(InterpreterTest, LOG0_GrowMemory) {
   MockHost host;
   EXPECT_CALL(host, emit_log(evmc::address(0x42), _, _, _, 0))  //
@@ -4049,6 +4131,16 @@ TEST(InterpreterTest, RETURN) {
       .memory_before = {0xAA, 0xBB, 0xCC},
       .memory_after = {0xAA, 0xBB, 0xCC},
       .return_data = {0xBB, 0xCC},
+  });
+}
+
+TEST(InterpreterTest, RETURN_ZeroSize) {
+  RunInterpreterTest({
+      .code = {op::RETURN},
+      .state_after = RunState::kReturn,
+      .gas_before = 10,
+      .gas_after = 10,
+      .stack_before = {0, 1},
   });
 }
 
