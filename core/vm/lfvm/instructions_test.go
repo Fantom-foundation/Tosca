@@ -611,4 +611,5 @@ func TestPush32Instruction(t *testing.T) {
 func TestInstrRTError(t *testing.T) {
 	runTestStackInstr(t, testDataStackOpError)
 	runTestMemInstr(t, testDataMemOpError)
+	runTestSuperInstr(t, testDataSuperOpError)
 }
