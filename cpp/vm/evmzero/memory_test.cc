@@ -34,6 +34,15 @@ TEST(MemoryTest, ReadFrom) {
   EXPECT_EQ(memory[4], 0);  // zero initialized
 }
 
+TEST(MemoryTest, ReadFrom_ZeroSize) {
+  Memory memory;
+
+  std::vector<uint8_t> buffer;
+  memory.ReadFrom(buffer, 42);
+
+  EXPECT_EQ(memory.GetSize(), 0);
+}
+
 TEST(MemoryTest, GrowsByMultipleOf32) {
   Memory memory;
   EXPECT_EQ(memory.GetSize(), 0);
@@ -77,6 +86,15 @@ TEST(MemoryTest, ReadFromWithSize_LargerSize) {
   EXPECT_EQ(memory[5], 0);  // zero initialized
 }
 
+TEST(MemoryTest, ReadFromWithSize_ZeroSize) {
+  Memory memory;
+
+  std::vector<uint8_t> buffer = {1, 2};
+  memory.ReadFromWithSize(buffer, 42, 0);
+
+  EXPECT_EQ(memory.GetSize(), 0);
+}
+
 TEST(MemoryTest, WriteTo) {
   Memory memory = {1, 2, 3};
 
@@ -109,6 +127,15 @@ TEST(MemoryTest, WriteTo_Grows) {
   EXPECT_EQ(memory[1], 2);
   EXPECT_EQ(memory[2], 3);
   EXPECT_EQ(memory[3], 0);  // zero initialized
+}
+
+TEST(MemoryTest, WriteTo_ZeroSize) {
+  Memory memory;
+
+  std::vector<uint8_t> buffer;
+  memory.WriteTo(buffer, 42);
+
+  EXPECT_EQ(memory.GetSize(), 0);
 }
 
 TEST(MemoryTest, Subscript) {
