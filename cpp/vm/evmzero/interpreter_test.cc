@@ -3732,19 +3732,33 @@ TEST(InterpreterTest, MSIZE) {
       .stack_after = {0},
   });
 
+  // Automatically expands to multiples of 32.
   RunInterpreterTest({
       .code = {op::MSIZE},
       .state_after = RunState::kDone,
       .gas_before = 10,
       .gas_after = 8,
       .stack_after = {32},
+      .memory_before{0, 0, 0, 0, 0, 0, 0, 0},
+      .memory_after{0, 0, 0, 0, 0, 0, 0, 0},
+  });
+
+  // Automatically expands to multiples of 32.
+  RunInterpreterTest({
+      .code = {op::MSIZE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {64},
       .memory_before{
+          0, 0, 0, 0, 0, 0, 0, 0,  //
           0, 0, 0, 0, 0, 0, 0, 0,  //
           0, 0, 0, 0, 0, 0, 0, 0,  //
           0, 0, 0, 0, 0, 0, 0, 0,  //
           0, 0, 0, 0, 0, 0, 0, 0,  //
       },
       .memory_after{
+          0, 0, 0, 0, 0, 0, 0, 0,  //
           0, 0, 0, 0, 0, 0, 0, 0,  //
           0, 0, 0, 0, 0, 0, 0, 0,  //
           0, 0, 0, 0, 0, 0, 0, 0,  //

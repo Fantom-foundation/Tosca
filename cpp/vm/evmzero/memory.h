@@ -10,6 +10,8 @@
 namespace tosca::evmzero {
 
 // This data structure is used as the interpreter's memory during execution.
+//
+// Invariant: memory size is always a multiple of 32.
 class Memory {
  public:
   Memory() = default;
@@ -52,7 +54,7 @@ class Memory {
  private:
   void Grow(size_t new_size) {
     if (new_size > memory_.size()) {
-      memory_.resize(new_size);
+      memory_.resize(((new_size + 31) / 32) * 32);
     }
   }
 
