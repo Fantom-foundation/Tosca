@@ -15,6 +15,7 @@ namespace tosca::evmzero {
 enum class RunState {
   kRunning,
   kDone,
+  kReturn,
   kRevert,
   kInvalid,
   kErrorOpcode,
@@ -26,6 +27,8 @@ enum class RunState {
   kErrorCreate,
   kErrorStaticCall,
 };
+
+bool IsSuccess(RunState);
 
 const char* ToString(RunState);
 std::ostream& operator<<(std::ostream&, RunState);

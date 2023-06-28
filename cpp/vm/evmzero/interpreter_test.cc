@@ -87,14 +87,12 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
 
   ASSERT_EQ(ctx.state, desc.state_after);
 
-  if (ctx.state == RunState::kDone || ctx.state == RunState::kRevert) {
+  if (IsSuccess(ctx.state)) {
     EXPECT_EQ(ctx.gas, desc.gas_after);
     EXPECT_EQ(ctx.gas_refunds, desc.gas_refund_after);
     EXPECT_EQ(ctx.stack, desc.stack_after);
     EXPECT_EQ(ctx.memory, desc.memory_after);
-    if (!desc.return_data.empty()) {
-      EXPECT_EQ(ctx.return_data, desc.return_data);
-    }
+    EXPECT_EQ(ctx.return_data, desc.return_data);
   }
 }
 
@@ -106,6 +104,17 @@ TEST(InterpreterTest, STOP) {
       .state_after = RunState::kDone,
       .gas_before = 7,
       .gas_after = 7,
+  });
+}
+
+TEST(InterpreterTest, STOP_NoReturnData) {
+  RunInterpreterTest({
+      .code = {op::STOP},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 7,
+      .last_call_data = {0xFF},
+      .return_data = {},
   });
 }
 
@@ -4019,7 +4028,7 @@ TEST(InterpreterTest, LOG0_StaticCallViolation) {
 TEST(InterpreterTest, RETURN) {
   RunInterpreterTest({
       .code = {op::RETURN},
-      .state_after = RunState::kDone,
+      .state_after = RunState::kReturn,
       .gas_before = 10,
       .gas_after = 10,
       .stack_before = {2, 1},
@@ -4032,7 +4041,7 @@ TEST(InterpreterTest, RETURN) {
 TEST(InterpreterTest, RETURN_GrowMemory) {
   RunInterpreterTest({
       .code = {op::RETURN},
-      .state_after = RunState::kDone,
+      .state_after = RunState::kReturn,
       .gas_before = 10,
       .gas_after = 7,
       .stack_before = {3, 1},
