@@ -924,7 +924,7 @@ static void jumpi(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(10)) [[unlikely]]
     return;
   uint64_t counter = static_cast<uint64_t>(ctx.stack.Pop());
-  uint64_t b = static_cast<uint64_t>(ctx.stack.Pop());
+  uint256_t b = ctx.stack.Pop();
   if (b != 0) {
     if (!ctx.CheckJumpDest(counter)) [[unlikely]]
       return;
