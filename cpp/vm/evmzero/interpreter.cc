@@ -419,7 +419,7 @@ static void sha3(Context& ctx) noexcept {
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
   const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
-  if (!ctx.ApplyGasCost(6 * minimum_word_size + ctx.MemoryExpansionCost(offset + size))) [[unlikely]]
+  if (!ctx.ApplyGasCost(6 * minimum_word_size + ctx.MemoryExpansionCost(offset, size))) [[unlikely]]
     return;
 
   std::vector<uint8_t> buffer(size);
@@ -526,7 +526,7 @@ static void calldatacopy(Context& ctx) noexcept {
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
   const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
-  if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
+  if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset, size))) [[unlikely]]
     return;
 
   std::span<const uint8_t> data_view;
@@ -558,7 +558,7 @@ static void codecopy(Context& ctx) noexcept {
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
   const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
-  if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
+  if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset, size))) [[unlikely]]
     return;
 
   std::span<const uint8_t> code_view;
@@ -620,7 +620,7 @@ static void extcodecopy(Context& ctx) noexcept {
   }
   const int64_t dynamic_gas_cost = 3 * minimum_word_size  //
                                    + address_access_cost  //
-                                   + ctx.MemoryExpansionCost(memory_offset + size);
+                                   + ctx.MemoryExpansionCost(memory_offset, size);
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
     return;
 
@@ -651,7 +651,7 @@ static void returndatacopy(Context& ctx) noexcept {
   const uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
 
   const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
-  if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset + size))) [[unlikely]]
+  if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset, size))) [[unlikely]]
     return;
 
   std::span<uint8_t> return_data_view;
@@ -783,7 +783,7 @@ static void mload(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
   const uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
-  if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset + 32))) [[unlikely]]
+  if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset, 32))) [[unlikely]]
     return;
 
   uint256_t value;
@@ -804,7 +804,7 @@ static void mstore(Context& ctx) noexcept {
     return;
   const uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
   uint256_t value = ctx.stack.Pop();
-  if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset + 32))) [[unlikely]]
+  if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset, 32))) [[unlikely]]
     return;
 
   if constexpr (std::endian::native == std::endian::little) {
@@ -822,7 +822,7 @@ static void mstore8(Context& ctx) noexcept {
     return;
   const uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
   const uint8_t value = static_cast<uint8_t>(ctx.stack.Pop());
-  if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset + 1))) [[unlikely]]
+  if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset, 1))) [[unlikely]]
     return;
 
   ctx.memory.ReadFrom({&value, 1}, offset);
@@ -1063,7 +1063,7 @@ static void log(Context& ctx) noexcept {
     topics[i] = ToEvmcBytes(ctx.stack.Pop());
   }
 
-  if (!ctx.ApplyGasCost(static_cast<int64_t>(375 * N + 8 * size) + ctx.MemoryExpansionCost(offset + size))) [[unlikely]]
+  if (!ctx.ApplyGasCost(static_cast<int64_t>(375 * N + 8 * size) + ctx.MemoryExpansionCost(offset, size))) [[unlikely]]
     return;
 
   std::vector<uint8_t> buffer(size);
@@ -1081,7 +1081,7 @@ static void return_op(Context& ctx) noexcept {
     return;
   uint64_t offset = static_cast<uint64_t>(ctx.stack.Pop());
   uint64_t size = static_cast<uint64_t>(ctx.stack.Pop());
-  if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset + size))) [[unlikely]]
+  if (!ctx.ApplyGasCost(ctx.MemoryExpansionCost(offset, size))) [[unlikely]]
     return;
 
   ctx.return_data.resize(size);
@@ -1147,7 +1147,7 @@ static void create_impl(Context& ctx) noexcept {
 
   // Dynamic gas costs (excluding code deployment costs)
   {
-    int64_t dynamic_gas_cost = ctx.MemoryExpansionCost(init_code_offset + init_code_size);
+    int64_t dynamic_gas_cost = ctx.MemoryExpansionCost(init_code_offset, init_code_size);
     if constexpr (Op == op::CREATE2) {
       const int64_t minimum_word_size = static_cast<int64_t>((init_code_size + 31) / 32);
       dynamic_gas_cost += 6 * minimum_word_size;
@@ -1240,10 +1240,10 @@ static void call_impl(Context& ctx) noexcept {
       }
     }
 
-    int64_t dynamic_gas_cost = ctx.MemoryExpansionCost(input_offset + input_size)      //
-                               + ctx.MemoryExpansionCost(output_offset + output_size)  //
-                               + address_access_cost                                   //
-                               + positive_value_cost                                   //
+    int64_t dynamic_gas_cost = ctx.MemoryExpansionCost(input_offset, input_size)      //
+                               + ctx.MemoryExpansionCost(output_offset, output_size)  //
+                               + address_access_cost                                  //
+                               + positive_value_cost                                  //
                                + value_to_empty_account_cost;
     if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
       return;
@@ -1379,7 +1379,12 @@ void Context::FillValidJumpTargetsUpTo(uint64_t index) noexcept {
   }
 }
 
-int64_t Context::MemoryExpansionCost(uint64_t new_size) noexcept {
+int64_t Context::MemoryExpansionCost(uint64_t offset, uint64_t size) noexcept {
+  if (size == 0) {
+    return 0;
+  }
+
+  const auto new_size = offset + size;
   if (new_size <= memory.GetSize()) {
     return 0;
   }
