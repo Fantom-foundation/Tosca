@@ -1205,6 +1205,15 @@ TEST(InterpreterTest, SHL) {
       .state_after = RunState::kDone,
       .gas_before = 7,
       .gas_after = 4,
+      .stack_before = {kUint256Max, 100},
+      .stack_after = {kUint256Max << 100},
+  });
+
+  RunInterpreterTest({
+      .code = {op::SHL},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 4,
       .stack_before = {7, 256},
       .stack_after = {0},
   });
@@ -1254,6 +1263,15 @@ TEST(InterpreterTest, SHR) {
       .state_after = RunState::kDone,
       .gas_before = 7,
       .gas_after = 4,
+      .stack_before = {kUint256Max, 100},
+      .stack_after = {kUint256Max >> 100},
+  });
+
+  RunInterpreterTest({
+      .code = {op::SHR},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 4,
       .stack_before = {kUint256Max, 256},
       .stack_after = {0},
   });
@@ -1296,6 +1314,33 @@ TEST(InterpreterTest, SAR) {
       .gas_after = 4,
       .stack_before = {kUint256Max - 0xF, 4},
       .stack_after = {kUint256Max},
+  });
+
+  RunInterpreterTest({
+      .code = {op::SAR},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 4,
+      .stack_before = {uint256_t{0, 0, 1}, 128},
+      .stack_after = {1},
+  });
+
+  RunInterpreterTest({
+      .code = {op::SAR},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 4,
+      .stack_before = {kUint256Max, 100},
+      .stack_after = {kUint256Max},
+  });
+
+  RunInterpreterTest({
+      .code = {op::SAR},
+      .state_after = RunState::kDone,
+      .gas_before = 7,
+      .gas_after = 4,
+      .stack_before = {kUint256Max, 256},
+      .stack_after = {0},
   });
 }
 
