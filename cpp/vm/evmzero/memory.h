@@ -46,12 +46,8 @@ class Memory {
     std::copy_n(memory_.data() + memory_offset, buffer.size(), buffer.data());
   }
 
-  uint8_t& operator[](size_t index) { return memory_[index]; }
-  const uint8_t& operator[](size_t index) const { return memory_[index]; }
-
-  bool operator==(const Memory&) const = default;
-
- private:
+  // Grow memory to accommodate offset + size bytes. Memory is not grown when
+  // size == 0.
   void Grow(uint64_t offset, uint64_t size) {
     if (size != 0) {
       const auto new_size = offset + size;
@@ -61,6 +57,12 @@ class Memory {
     }
   }
 
+  uint8_t& operator[](size_t index) { return memory_[index]; }
+  const uint8_t& operator[](size_t index) const { return memory_[index]; }
+
+  bool operator==(const Memory&) const = default;
+
+ private:
   std::vector<uint8_t> memory_;
 };
 
