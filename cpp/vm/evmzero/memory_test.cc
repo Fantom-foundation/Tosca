@@ -138,6 +138,24 @@ TEST(MemoryTest, WriteTo_ZeroSize) {
   EXPECT_EQ(memory.GetSize(), 0);
 }
 
+TEST(MemoryTest, Grow) {
+  Memory memory;
+  memory.Grow(0, 16);
+  EXPECT_EQ(memory.GetSize(), 32);
+
+  memory.Grow(32, 16);
+  EXPECT_EQ(memory.GetSize(), 64);
+
+  memory.Grow(0, 16);
+  EXPECT_EQ(memory.GetSize(), 64);
+}
+
+TEST(MemoryTest, Grow_ZeroSize) {
+  Memory memory;
+  memory.Grow(128, 0);
+  EXPECT_EQ(memory.GetSize(), 0);
+}
+
 TEST(MemoryTest, Subscript) {
   Memory memory = {1, 2, 3};
 

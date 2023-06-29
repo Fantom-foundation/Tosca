@@ -1284,7 +1284,10 @@ static void call_impl(Context& ctx) noexcept {
   const evmc::Result result = ctx.host->call(msg);
   ctx.return_data.assign(result.output_data, result.output_data + result.output_size);
 
-  ctx.memory.ReadFromWithSize(ctx.return_data, output_offset, output_size);
+  ctx.memory.Grow(output_offset, output_size);
+  if (ctx.return_data.size() > 0) {
+    ctx.memory.ReadFromWithSize(ctx.return_data, output_offset, output_size);
+  }
 
   if (!ctx.ApplyGasCost(msg.gas - result.gas_left)) [[unlikely]]
     return;
