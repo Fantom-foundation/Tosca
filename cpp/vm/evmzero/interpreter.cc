@@ -395,17 +395,15 @@ static void sar(Context& ctx) noexcept {
   uint256_t value = ctx.stack.Pop();
   const bool is_negative = ToByteArrayLe(value)[31] & 0b1000'0000;
 
-  if (shift > 31) {
-    shift = 31;
+  if (shift <= 255) {
+    value >>= shift;
+    if (is_negative) {
+      value |= (kUint256Max << (255 - shift));
+    }
+    ctx.stack.Push(value);
+  } else {
+    ctx.stack.Push(0);
   }
-
-  value >>= shift;
-
-  if (is_negative) {
-    value |= (kUint256Max << (31 - shift));
-  }
-
-  ctx.stack.Push(value);
   ctx.pc++;
 }
 
