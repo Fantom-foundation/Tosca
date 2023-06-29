@@ -125,7 +125,7 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 		Context:   &host_ctx,
 		Revision:  revision,
 		Kind:      evmc.Call,
-		Static:    readOnly,
+		Static:    e.readOnly,
 		Depth:     e.evm.Depth - 1,
 		Gas:       gasBefore,
 		Recipient: evmc.Address(contract.Address()),
