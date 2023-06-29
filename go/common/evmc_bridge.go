@@ -278,6 +278,8 @@ func (ctx *HostContext) GetCode(addr evmc.Address) []byte {
 }
 
 func (ctx *HostContext) Selfdestruct(addr evmc.Address, beneficiary evmc.Address) bool {
+	balance := ctx.interpreter.evm.StateDB.GetBalance(ctx.contract.Address())
+	ctx.interpreter.evm.StateDB.AddBalance(common.Address(beneficiary), balance)
 	return ctx.interpreter.evm.StateDB.Suicide((common.Address)(addr))
 }
 
