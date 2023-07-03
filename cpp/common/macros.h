@@ -11,3 +11,5 @@
 #else
 #define TOSCA_DEBUG_BREAK() ::std::abort()
 #endif
+
+#define TOSCA_CHECK_OVERFLOW_ADD(a, b, result) __builtin_add_overflow(a, b, result)
