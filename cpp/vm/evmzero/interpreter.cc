@@ -1115,10 +1115,10 @@ static void selfdestruct(Context& ctx) noexcept {
       return;
   }
 
-  ctx.host->selfdestruct(ctx.message->recipient, account);
-
-  if (ctx.revision < EVMC_LONDON) {
-    ctx.gas_refunds += 24000;
+  if (ctx.host->selfdestruct(ctx.message->recipient, account)) {
+    if (ctx.revision < EVMC_LONDON) {
+      ctx.gas_refunds += 24000;
+    }
   }
 
   ctx.state = RunState::kDone;
