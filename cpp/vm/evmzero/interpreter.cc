@@ -1177,7 +1177,9 @@ static void create_impl(Context& ctx) noexcept {
   };
 
   const evmc::Result result = ctx.host->call(msg);
-  ctx.return_data.assign(result.output_data, result.output_data + result.output_size);
+  if (result.status_code == EVMC_REVERT) {
+    ctx.return_data.assign(result.output_data, result.output_data + result.output_size);
+  }
 
   if (!ctx.ApplyGasCost(msg.gas - result.gas_left)) [[unlikely]]
     return;
