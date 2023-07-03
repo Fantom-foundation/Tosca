@@ -23,6 +23,7 @@ enum class RunState {
   kErrorStackUnderflow,
   kErrorStackOverflow,
   kErrorJump,
+  kErrorReturnDataCopyOutOfBounds,
   kErrorCall,
   kErrorCreate,
   kErrorStaticCall,

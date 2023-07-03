@@ -31,6 +31,8 @@ const char* ToString(RunState state) {
       return "ErrorStackOverflow";
     case RunState::kErrorJump:
       return "ErrorJump";
+    case RunState::kErrorReturnDataCopyOutOfBounds:
+      return "ErrorReturnDataCopyOutOfBounds";
     case RunState::kErrorCall:
       return "ErrorCall";
     case RunState::kErrorCreate:
@@ -652,11 +654,12 @@ static void returndatacopy(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(3 * minimum_word_size + ctx.MemoryExpansionCost(memory_offset, size))) [[unlikely]]
     return;
 
-  std::span<uint8_t> return_data_view;
-  if (return_data_offset < ctx.return_data.size()) {
-    return_data_view = std::span(ctx.return_data).subspan(return_data_offset);
+  if (return_data_offset + size > ctx.return_data.size()) {
+    ctx.state = RunState::kErrorReturnDataCopyOutOfBounds;
+    return;
   }
 
+  std::span<const uint8_t> return_data_view = std::span(ctx.return_data).subspan(return_data_offset);
   ctx.memory.ReadFromWithSize(return_data_view, memory_offset, size);
   ctx.pc++;
 }
