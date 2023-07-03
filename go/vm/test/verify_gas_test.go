@@ -21,6 +21,7 @@ func TestStaticGas(t *testing.T) {
 	mockStateDB.EXPECT().GetCodeSize(gomock.Any()).AnyTimes().Return(0)
 	mockStateDB.EXPECT().Empty(gomock.Any()).AnyTimes().Return(true)
 	// evmone needs following in addition to geth and lfvm
+	mockStateDB.EXPECT().Exist(gomock.Any()).AnyTimes().Return(true)
 	mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
 	mockStateDB.EXPECT().SubRefund(gomock.Any()).AnyTimes()
 	mockStateDB.EXPECT().AddRefund(gomock.Any()).AnyTimes()

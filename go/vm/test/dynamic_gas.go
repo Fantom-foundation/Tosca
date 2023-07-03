@@ -158,6 +158,7 @@ func gasDynamicAccountAccess(revision Revision) []*DynGasTest {
 		expectedGas := getAccessCost(revision, test.addrInAccessList, false)
 		stackValues := []*big.Int{address.Hash().Big()}
 		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
+			mockStateDB.EXPECT().Exist(address).AnyTimes().Return(true)
 			mockStateDB.EXPECT().AddressInAccessList(address).AnyTimes().Return(inAccessList)
 			mockStateDB.EXPECT().AddAddressToAccessList(address).AnyTimes()
 			mockStateDB.EXPECT().GetCodeSize(address).AnyTimes().Return(0)

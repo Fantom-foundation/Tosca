@@ -270,7 +270,11 @@ func (ctx *HostContext) GetCodeSize(addr evmc.Address) int {
 }
 
 func (ctx *HostContext) GetCodeHash(addr evmc.Address) evmc.Hash {
-	return evmc.Hash(ctx.interpreter.evm.StateDB.GetCodeHash((common.Address)(addr)))
+	if ctx.interpreter.evm.StateDB.Exist((common.Address)(addr)) {
+		return evmc.Hash(ctx.interpreter.evm.StateDB.GetCodeHash((common.Address)(addr)))
+	} else {
+		return evmc.Hash{0}
+	}
 }
 
 func (ctx *HostContext) GetCode(addr evmc.Address) []byte {
