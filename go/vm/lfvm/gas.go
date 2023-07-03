@@ -178,7 +178,7 @@ func getStaticGasPriceInternal(op OpCode) uint64 {
 	case CALL:
 		return 700 // Should be 100 according to evm.code
 	case CALLCODE:
-		return 100
+		return 700
 	case STATICCALL:
 		return 700 // Should be 100 according to evm.code
 	case RETURN:

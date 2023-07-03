@@ -183,9 +183,9 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.CHAINID:        {stack: op(0), gas: gasS(gasQuickStep)},
 		vm.SELFBALANCE:    {stack: op(0), gas: gasS(gasFastStep)},
 		vm.POP:            {stack: consume(1), gas: gasS(gasQuickStep)},
-		vm.MLOAD:          {stack: op(1), gas: gas(gasFastestStep, dynGasNotImpYet)},
-		vm.MSTORE:         {stack: consume(2), gas: gas(gasFastestStep, dynGasNotImpYet)},
-		vm.MSTORE8:        {stack: consume(2), gas: gas(gasFastestStep, dynGasNotImpYet)},
+		vm.MLOAD:          {stack: op(1), gas: gas(gasFastestStep, gasDynamicMemory)},
+		vm.MSTORE:         {stack: consume(2), gas: gas(gasFastestStep, gasDynamicMemory)},
+		vm.MSTORE8:        {stack: consume(2), gas: gas(gasFastestStep, gasDynamicMemory)},
 		vm.SLOAD:          {stack: op(1), gas: gasS(gasSloadEIP2200)},
 		vm.SSTORE:         {stack: consume(2), gas: gas(0, gasDynamicSStore)},
 		vm.JUMP:           {stack: consume(1), gas: gasS(gasMidStep)},
@@ -258,18 +258,18 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.SWAP14:         {stack: swap(14), gas: gasS(gasFastestStep)},
 		vm.SWAP15:         {stack: swap(15), gas: gasS(gasFastestStep)},
 		vm.SWAP16:         {stack: swap(16), gas: gasS(gasFastestStep)},
-		vm.LOG0:           {stack: consume(2), gas: gasD(dynGasNotImpYet)},
-		vm.LOG1:           {stack: consume(3), gas: gasD(dynGasNotImpYet)},
-		vm.LOG2:           {stack: consume(4), gas: gasD(dynGasNotImpYet)},
-		vm.LOG3:           {stack: consume(5), gas: gasD(dynGasNotImpYet)},
-		vm.LOG4:           {stack: consume(6), gas: gasD(dynGasNotImpYet)},
-		vm.CREATE:         {stack: op(3), gas: gas(gasCreate, dynGasNotImpYet)},
+		vm.LOG0:           {stack: consume(2), gas: gasD(gasDynamicLog0)},
+		vm.LOG1:           {stack: consume(3), gas: gasD(gasDynamicLog1)},
+		vm.LOG2:           {stack: consume(4), gas: gasD(gasDynamicLog2)},
+		vm.LOG3:           {stack: consume(5), gas: gasD(gasDynamicLog3)},
+		vm.LOG4:           {stack: consume(6), gas: gasD(gasDynamicLog4)},
+		vm.CREATE:         {stack: op(3), gas: gas(gasCreate, gasDynamicCreate)},
 		vm.CALL:           {stack: op(7), gas: gas(gasCallEIP150, gasDynamicCall)},
-		vm.CALLCODE:       {stack: op(7), gas: gas(gasCallEIP150, dynGasNotImpYet)},
-		vm.RETURN:         {stack: consume(2), gas: gasD(dynGasNotImpYet)},
-		vm.DELEGATECALL:   {stack: op(6), gas: gas(gasCallEIP150, dynGasNotImpYet)},
-		vm.CREATE2:        {stack: op(4), gas: gas(gasCreate, dynGasNotImpYet)},
-		vm.STATICCALL:     {stack: op(6), gas: gas(gasCallEIP150, dynGasNotImpYet)},
+		vm.CALLCODE:       {stack: op(7), gas: gas(gasCallEIP150, gasDynamicCallCodeCall)},
+		vm.RETURN:         {stack: consume(2), gas: gasD(gasDynamicMemory)},
+		vm.DELEGATECALL:   {stack: op(6), gas: gas(gasCallEIP150, gasDynamicStaticDelegateCall)},
+		vm.CREATE2:        {stack: op(4), gas: gas(gasCreate, gasDynamicCreate2)},
+		vm.STATICCALL:     {stack: op(6), gas: gas(gasCallEIP150, gasDynamicStaticDelegateCall)},
 		vm.REVERT:         {stack: consume(2), gas: gasD(dynGasNotImpYet)},
 		vm.SELFDESTRUCT:   {stack: consume(1), gas: gasD(dynGasNotImpYet)},
 	}
@@ -292,9 +292,9 @@ func getBerlinInstructions() map[vm.OpCode]*InstructionInfo {
 	res[vm.EXTCODEHASH].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicAccountAccess}
 	res[vm.BALANCE].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicAccountAccess}
 	res[vm.CALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicCall}
-	res[vm.CALLCODE].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
-	res[vm.STATICCALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
-	res[vm.DELEGATECALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, dynGasNotImpYet}
+	res[vm.CALLCODE].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicCallCodeCall}
+	res[vm.STATICCALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicStaticDelegateCall}
+	res[vm.DELEGATECALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicStaticDelegateCall}
 	res[vm.SELFDESTRUCT].gas = GasUsage{gasSelfDestruct, dynGasNotImpYet}
 
 	return res
