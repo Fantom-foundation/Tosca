@@ -29,6 +29,8 @@ evmc_status_code ToEvmcStatusCode(RunState state) {
       return EVMC_STACK_OVERFLOW;
     case RunState::kErrorJump:
       return EVMC_BAD_JUMP_DESTINATION;
+    case RunState::kErrorReturnDataCopyOutOfBounds:
+      return EVMC_INVALID_MEMORY_ACCESS;
     case RunState::kErrorCall:
       return EVMC_CALL_DEPTH_EXCEEDED;
     case RunState::kErrorCreate:

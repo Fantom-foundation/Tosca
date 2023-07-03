@@ -2324,54 +2324,27 @@ TEST(InterpreterTest, RETURNDATACOPY) {
       .gas_after = 4,
       .stack_before = {3, 1, 2},
       .memory_before{0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
-      .memory_after{0x0A, 0x0B, 0x00, 0x00, 0x00, 0x0F},
-  });
-
-  RunInterpreterTest({
-      .code = {op::RETURNDATACOPY},
-      .state_after = RunState::kDone,
-      .gas_before = 10,
-      .gas_after = 4,
-      .stack_before = {3, 1, 2},
-      .memory_before{0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
       .memory_after{0x0A, 0x0B, 0x02, 0x03, 0x04, 0x0F},
       .last_call_data{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
   });
 }
 
-TEST(InterpreterTest, RETURNDATACOPY_ZeroSize) {
+TEST(InterpreterTest, RETURNDATACOPY_OutOfBounds) {
   RunInterpreterTest({
       .code = {op::RETURNDATACOPY},
-      .state_after = RunState::kDone,
+      .state_after = RunState::kErrorReturnDataCopyOutOfBounds,
       .gas_before = 10,
-      .gas_after = 7,
-      .stack_before = {0, 1, 2},
-  });
-}
-
-TEST(InterpreterTest, RETURNDATACOPY_OutOfBytes) {
-  RunInterpreterTest({
-      .code = {op::RETURNDATACOPY},
-      .state_after = RunState::kDone,
-      .gas_before = 10,
-      .gas_after = 4,
       .stack_before = {3, 1, 2},
       .memory_before{0x0A, 0x0B, 0x0C},
-      .memory_after{0x0A, 0x0B, 0x02, 0x00, 0x00},
       .last_call_data{0x01, 0x02},
   });
-}
 
-TEST(InterpreterTest, RETURNDATACOPY_OutOfBytes_WriteZero) {
   RunInterpreterTest({
       .code = {op::RETURNDATACOPY},
-      .state_after = RunState::kDone,
+      .state_after = RunState::kErrorReturnDataCopyOutOfBounds,
       .gas_before = 10,
-      .gas_after = 4,
-      .stack_before = {3, 1, 2},
-      .memory_before{0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
-      .memory_after{0x0A, 0x0B, 0x02, 0x00, 0x00, 0x0F},
-      .last_call_data{0x01, 0x02},
+      .stack_before = {0, 1, 2},
+      .memory_before{0x0A, 0x0B, 0x0C},
   });
 }
 
