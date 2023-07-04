@@ -84,7 +84,13 @@ struct Context {
   bool CheckJumpDest(uint256_t index) noexcept;
   void FillValidJumpTargetsUpTo(uint64_t index) noexcept;
 
-  int64_t MemoryExpansionCost(uint256_t offset, uint256_t size) noexcept;
+  struct MemoryExpansionCostResult {
+    int64_t gas_cost = 0;
+    uint64_t offset = 0;
+    uint64_t size = 0;
+  };
+
+  MemoryExpansionCostResult MemoryExpansionCost(uint256_t offset, uint256_t size) noexcept;
 };
 
 template <bool LoggingEnabled>
