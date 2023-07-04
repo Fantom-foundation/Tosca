@@ -61,10 +61,11 @@ func NewEvmcInterpreter(vm *EvmcVM, evm *vm.EVM, cfg vm.Config) *EvmcInterpreter
 }
 
 type EvmcInterpreter struct {
-	evmc     *EvmcVM
-	evm      *vm.EVM
-	cfg      vm.Config
-	readOnly bool
+	evmc          *EvmcVM
+	evm           *vm.EVM
+	cfg           vm.Config
+	readOnly      bool
+	lastGasRefund int64
 }
 
 func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool) (ret []byte, err error) {
@@ -164,15 +165,19 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 	}
 
 	// update the amount of refund gas in the state DB
-	state := e.evm.StateDB
-	if state != nil {
-		if result.GasRefund != 0 {
-			if result.GasRefund > 0 {
-				state.AddRefund(uint64(result.GasRefund))
-			} else {
-				state.SubRefund(uint64(result.GasRefund * -1))
+	if e.evm.Depth == 1 {
+		state := e.evm.StateDB
+		if state != nil {
+			if result.GasRefund != 0 {
+				if result.GasRefund > 0 {
+					state.AddRefund(uint64(result.GasRefund))
+				} else {
+					state.SubRefund(uint64(result.GasRefund * -1))
+				}
 			}
 		}
+	} else {
+		e.lastGasRefund = result.GasRefund
 	}
 
 	return result.Output, err
@@ -374,6 +379,9 @@ func (ctx *HostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender 
 		panic(fmt.Sprintf("unsupported call kind: %v", kind))
 	}
 	gasLeft = int64(returnGas)
+
+	gasRefund = ctx.interpreter.lastGasRefund
+	ctx.interpreter.lastGasRefund = 0
 
 	if err != nil {
 		// translate vm errors to evmc errors
