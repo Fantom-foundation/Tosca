@@ -82,6 +82,7 @@ template InterpreterResult Interpret<true>(const InterpreterArgs&);
 namespace op {
 
 using internal::Context;
+using internal::kMaxGas;
 
 static void stop(Context& ctx) noexcept { ctx.state = RunState::kDone; }
 
@@ -641,7 +642,9 @@ static void extcodecopy(Context& ctx) noexcept {
     return;
 
   std::vector<uint8_t> buffer(size);
-  ctx.host->copy_code(address, static_cast<uint64_t>(code_offset_u256), buffer.data(), buffer.size());
+  if (code_offset_u256 <= std::numeric_limits<uint64_t>::max()) {
+    ctx.host->copy_code(address, static_cast<uint64_t>(code_offset_u256), buffer.data(), buffer.size());
+  }
 
   ctx.memory.ReadFrom(buffer, memory_offset);
   ctx.pc++;
@@ -674,9 +677,12 @@ static void returndatacopy(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(3 * minimum_word_size)) [[unlikely]]
     return;
 
-  if (return_data_offset_u256 + size_u256 > ctx.return_data.size()) {
-    ctx.state = RunState::kErrorReturnDataCopyOutOfBounds;
-    return;
+  {
+    const auto [end_u256, carry] = intx::addc(return_data_offset_u256, size_u256);
+    if (carry || end_u256 > ctx.return_data.size()) {
+      ctx.state = RunState::kErrorReturnDataCopyOutOfBounds;
+      return;
+    }
   }
 
   std::span<const uint8_t> return_data_view = std::span(ctx.return_data)  //
@@ -1295,8 +1301,8 @@ static void call_impl(Context& ctx) noexcept {
   std::vector<uint8_t> input_data(input_size);
   ctx.memory.WriteTo(input_data, input_offset);
 
-  int64_t gas = std::numeric_limits<int64_t>::max();
-  if (gas_u256 < std::numeric_limits<int64_t>::max()) {
+  int64_t gas = kMaxGas;
+  if (gas_u256 < kMaxGas) {
     gas = static_cast<int64_t>(gas_u256);
   }
 
@@ -1433,7 +1439,7 @@ void Context::FillValidJumpTargetsUpTo(uint64_t index) noexcept {
 Context::MemoryExpansionCostResult Context::MemoryExpansionCost(uint256_t offset_u256, uint256_t size_u256) noexcept {
   const uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
   if (offset_u256 > uint64_max || size_u256 > uint64_max) [[unlikely]] {
-    return {std::numeric_limits<int64_t>::max()};
+    return {kMaxGas};
   }
 
   const uint64_t offset = static_cast<uint64_t>(offset_u256);
@@ -1445,7 +1451,7 @@ Context::MemoryExpansionCostResult Context::MemoryExpansionCost(uint256_t offset
 
   uint64_t new_size = 0;
   if (TOSCA_CHECK_OVERFLOW_ADD(offset, size, &new_size)) [[unlikely]] {
-    return {std::numeric_limits<int64_t>::max(), offset, size};
+    return {kMaxGas, offset, size};
   }
 
   if (new_size <= memory.GetSize()) {
