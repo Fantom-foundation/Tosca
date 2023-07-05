@@ -97,6 +97,63 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
 }
 
 ///////////////////////////////////////////////////////////
+// MemoryExpansionCost
+TEST(InterpreterTest, MemoryExpansionCost) {
+  internal::Context ctx;
+
+  const auto [cost, offset, size] = ctx.MemoryExpansionCost(128, 42);
+  EXPECT_EQ(cost, 18);
+  EXPECT_EQ(offset, 128);
+  EXPECT_EQ(size, 42);
+}
+
+TEST(InterpreterTest, MemoryExpansionCost_NoGrowNeeded) {
+  internal::Context ctx;
+  ctx.memory.Grow(128, 42);
+
+  const auto [cost, offset, size] = ctx.MemoryExpansionCost(128, 42);
+  EXPECT_EQ(cost, 0);
+  EXPECT_EQ(offset, 128);
+  EXPECT_EQ(size, 42);
+}
+
+TEST(InterpreterTest, MemoryExpansionCost_ZeroSize) {
+  internal::Context ctx;
+
+  const auto [cost, offset, size] = ctx.MemoryExpansionCost(128, 0);
+  EXPECT_EQ(cost, 0);
+  EXPECT_EQ(offset, 128);
+  EXPECT_EQ(size, 0);
+}
+
+TEST(InterpreterTest, MemoryExpansionCost_Overflow) {
+  internal::Context ctx;
+
+  const auto [cost, offset, size] = ctx.MemoryExpansionCost(1ul << 63, 1ul << 63);
+  EXPECT_EQ(cost, std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(offset, 1ul << 63);
+  EXPECT_EQ(size, 1ul << 63);
+}
+
+TEST(InterpreterTest, MemoryExpansionCost_OversizedMemory) {
+  internal::Context ctx;
+
+  {
+    const auto [cost, offset, size] = ctx.MemoryExpansionCost(0, uint256_t{1} << 100);
+    EXPECT_EQ(cost, std::numeric_limits<int64_t>::max());
+    EXPECT_EQ(offset, 0);
+    EXPECT_EQ(size, 0);
+  }
+
+  {
+    const auto [cost, offset, size] = ctx.MemoryExpansionCost(uint256_t{1} << 100, 1);
+    EXPECT_EQ(cost, std::numeric_limits<int64_t>::max());
+    EXPECT_EQ(offset, 0);
+    EXPECT_EQ(size, 0);
+  }
+}
+
+///////////////////////////////////////////////////////////
 // STOP
 TEST(InterpreterTest, STOP) {
   RunInterpreterTest({
@@ -1429,6 +1486,22 @@ TEST(InterpreterTest, SHA3_StackError) {
   });
 }
 
+TEST(InterpreterTest, SHA3_OversizedMemory) {
+  RunInterpreterTest({
+      .code = {op::SHA3},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1000000,
+      .stack_before = {uint256_t{1} << 100, 0},
+  });
+
+  RunInterpreterTest({
+      .code = {op::SHA3},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1000000,
+      .stack_before = {1, uint256_t{1} << 100},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // ADDRESS
 TEST(InterpreterTest, ADDRESS) {
@@ -1849,6 +1922,25 @@ TEST(InterpreterTest, CALLDATACOPY_StackError) {
   });
 }
 
+TEST(InterpreterTest, CALLDATACOPY_OversizedMemory) {
+  std::array<uint8_t, 4> input_data{0xA0, 0xA1, 0xA2, 0xA3};
+  RunInterpreterTest({
+      .code = {op::CALLDATACOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {uint256_t{1} << 100, 0, 0},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+
+  RunInterpreterTest({
+      .code = {op::CALLDATACOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {1, 0, uint256_t{1} << 100},
+      .message{.input_data = input_data.data(), .input_size = input_data.size()},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // CODESIZE
 TEST(InterpreterTest, CODESIZE) {
@@ -1995,6 +2087,30 @@ TEST(InterpreterTest, CODECOPY_StackError) {
       .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 100,
       .stack_before = {3, 1},
+  });
+}
+
+TEST(InterpreterTest, CODECOPY_OversizedMemory) {
+  RunInterpreterTest({
+      .code = {op::PUSH1, 23,  //
+               op::POP,        //
+               op::PUSH1, 42,  //
+               op::POP,        //
+               op::CODECOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {uint256_t{1} << 100, 0, 0},
+  });
+
+  RunInterpreterTest({
+      .code = {op::PUSH1, 23,  //
+               op::POP,        //
+               op::PUSH1, 42,  //
+               op::POP,        //
+               op::CODECOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {1, 0, uint256_t{1} << 100},
   });
 }
 
@@ -2284,6 +2400,22 @@ TEST(InterpreterTest, EXTCODECOPY_StackError) {
   });
 }
 
+TEST(InterpreterTest, EXTCODECOPY_OversizedMemory) {
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {uint256_t{1} << 100, 0, 0, 0x42},
+  });
+
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {0, 0, uint256_t{1} << 100, 0x42},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // RETURNDATASIZE
 TEST(InterpreterTest, RETURNDATASIZE) {
@@ -2390,6 +2522,25 @@ TEST(InterpreterTest, RETURNDATACOPY_StackError) {
       .stack_after = {3, 1},
   });
 }
+
+TEST(InterpreterTest, RETURNDATACOPY_OversizedMemory) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {uint256_t{1} << 100, 0, 0},
+      .last_call_data{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+  });
+
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {0, 0, uint256_t{1} << 100},
+      .last_call_data{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // EXTCODEHASH
 TEST(InterpreterTest, EXTCODEHASH) {
@@ -2972,6 +3123,15 @@ TEST(InterpreterTest, MLOAD_StackError) {
   });
 }
 
+TEST(InterpreterTest, MLOAD_OversizedMemory) {
+  RunInterpreterTest({
+      .code = {op::MLOAD},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {uint256_t{1} << 100},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // MSTORE
 TEST(InterpreterTest, MSTORE) {
@@ -3088,6 +3248,15 @@ TEST(InterpreterTest, MSTORE_StackError) {
   });
 }
 
+TEST(InterpreterTest, MSTORE_OversizedMemory) {
+  RunInterpreterTest({
+      .code = {op::MSTORE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {0xFF, uint256_t{1} << 100},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // MSTORE8
 TEST(InterpreterTest, MSTORE8) {
@@ -3170,6 +3339,15 @@ TEST(InterpreterTest, MSTORE8_StackError) {
       .state_after = RunState::kErrorStackUnderflow,
       .gas_before = 10,
       .stack_before = {0xFF},
+  });
+}
+
+TEST(InterpreterTest, MSTORE8_OversizedMemory) {
+  RunInterpreterTest({
+      .code = {op::MSTORE8},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {0xBB, uint256_t{1} << 100},
   });
 }
 
@@ -4137,6 +4315,22 @@ TEST(InterpreterTest, LOG0_StaticCallViolation) {
   });
 }
 
+TEST(InterpreterTest, LOG0_OversizedMemory) {
+  RunInterpreterTest({
+      .code = {op::LOG0},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {uint256_t{1} << 100, 0},
+  });
+
+  RunInterpreterTest({
+      .code = {op::LOG0},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {1, uint256_t{1} << 100},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // RETURN
 TEST(InterpreterTest, RETURN) {
@@ -4192,6 +4386,22 @@ TEST(InterpreterTest, RETURN_StackError) {
   });
 }
 
+TEST(InterpreterTest, RETURN_OversizedMemory) {
+  RunInterpreterTest({
+      .code = {op::RETURN},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {uint256_t{1} << 100, 0},
+  });
+
+  RunInterpreterTest({
+      .code = {op::RETURN},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {1, uint256_t{1} << 100},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // REVERT
 TEST(InterpreterTest, REVERT) {
@@ -4237,6 +4447,22 @@ TEST(InterpreterTest, REVERT_StackError) {
   });
 }
 
+TEST(InterpreterTest, REVERT_OversizedMemory) {
+  RunInterpreterTest({
+      .code = {op::REVERT},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {uint256_t{1} << 100, 0},
+  });
+
+  RunInterpreterTest({
+      .code = {op::REVERT},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {1, uint256_t{1} << 100},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // INVALID
 TEST(InterpreterTest, INVALID) {
@@ -4247,6 +4473,7 @@ TEST(InterpreterTest, INVALID) {
   });
 }
 
+///////////////////////////////////////////////////////////
 // SELFDESTRUCT
 TEST(InterpreterTest, SELFDESTRUCT) {
   MockHost host;
