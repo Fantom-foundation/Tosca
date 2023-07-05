@@ -54,12 +54,14 @@ extern InterpreterResult Interpret(const InterpreterArgs&);
 
 namespace internal {
 
+constexpr int64_t kMaxGas = std::numeric_limits<int64_t>::max();
+
 struct Context {
   RunState state = RunState::kRunning;
   bool is_static_call = false;
 
   uint64_t pc = 0;
-  int64_t gas = std::numeric_limits<int64_t>::max();
+  int64_t gas = kMaxGas;
   int64_t gas_refunds = 0;
 
   std::vector<uint8_t> code;
@@ -85,7 +87,11 @@ struct Context {
   void FillValidJumpTargetsUpTo(uint64_t index) noexcept;
 
   struct MemoryExpansionCostResult {
+    // Resulting memory expansion costs.
     int64_t gas_cost = 0;
+
+    // MemoryExpansionCost also converts the given offset and size parameters
+    // from uint256_t to uint64_t, given they are <= UINT64_MAX each.
     uint64_t offset = 0;
     uint64_t size = 0;
   };

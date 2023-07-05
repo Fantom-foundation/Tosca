@@ -130,7 +130,7 @@ TEST(InterpreterTest, MemoryExpansionCost_Overflow) {
   internal::Context ctx;
 
   const auto [cost, offset, size] = ctx.MemoryExpansionCost(1ul << 63, 1ul << 63);
-  EXPECT_EQ(cost, std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(cost, internal::kMaxGas);
   EXPECT_EQ(offset, 1ul << 63);
   EXPECT_EQ(size, 1ul << 63);
 }
@@ -140,14 +140,14 @@ TEST(InterpreterTest, MemoryExpansionCost_OversizedMemory) {
 
   {
     const auto [cost, offset, size] = ctx.MemoryExpansionCost(0, uint256_t{1} << 100);
-    EXPECT_EQ(cost, std::numeric_limits<int64_t>::max());
+    EXPECT_EQ(cost, internal::kMaxGas);
     EXPECT_EQ(offset, 0);
     EXPECT_EQ(size, 0);
   }
 
   {
     const auto [cost, offset, size] = ctx.MemoryExpansionCost(uint256_t{1} << 100, 1);
-    EXPECT_EQ(cost, std::numeric_limits<int64_t>::max());
+    EXPECT_EQ(cost, internal::kMaxGas);
     EXPECT_EQ(offset, 0);
     EXPECT_EQ(size, 0);
   }
@@ -2416,6 +2416,18 @@ TEST(InterpreterTest, EXTCODECOPY_OversizedMemory) {
   });
 }
 
+TEST(InterpreterTest, EXTCODECOPY_OutOfBoundsCodeOffset) {
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 1000,
+      .gas_after = 297,
+      .stack_before = {4, uint256_t{1} << 100, 0, 0x42},
+      .memory_before = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE},
+      .memory_after = {0x00, 0x00, 0x00, 0x00, 0xEE},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // RETURNDATASIZE
 TEST(InterpreterTest, RETURNDATASIZE) {
@@ -2537,6 +2549,16 @@ TEST(InterpreterTest, RETURNDATACOPY_OversizedMemory) {
       .state_after = RunState::kErrorGas,
       .gas_before = 10000000,
       .stack_before = {0, 0, uint256_t{1} << 100},
+      .last_call_data{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+  });
+}
+
+TEST(InterpreterTest, RETURNDATACOPY_OffsetOverflow) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kErrorReturnDataCopyOutOfBounds,
+      .gas_before = 10000000,
+      .stack_before = {1, kUint256Max, 0},
       .last_call_data{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
   });
 }
