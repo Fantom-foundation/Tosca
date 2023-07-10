@@ -404,19 +404,26 @@ func (ctx *HostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender 
 	return
 }
 
-func (ctx *HostContext) AccessAccount(addr evmc.Address) evmc.AccessStatus {
-	if ctx.interpreter.evm.StateDB.AddressInAccessList((common.Address)(addr)) {
+func (ctx *HostContext) AccessAccount(evmcAddr evmc.Address) evmc.AccessStatus {
+	addr := (common.Address)(evmcAddr)
+	stateDB := ctx.interpreter.evm.StateDB
+	if stateDB.AddressInAccessList(addr) {
 		return evmc.WarmAccess
 	} else {
+		stateDB.AddAddressToAccessList(addr)
 		return evmc.ColdAccess
 	}
 }
 
-func (ctx *HostContext) AccessStorage(addr evmc.Address, key evmc.Hash) evmc.AccessStatus {
-	_, slotOk := ctx.interpreter.evm.StateDB.SlotInAccessList((common.Address)(addr), (common.Hash)(key))
+func (ctx *HostContext) AccessStorage(evmcAddr evmc.Address, evmcKey evmc.Hash) evmc.AccessStatus {
+	addr := (common.Address)(evmcAddr)
+	key := (common.Hash)(evmcKey)
+	stateDB := ctx.interpreter.evm.StateDB
+	_, slotOk := stateDB.SlotInAccessList((common.Address)(addr), (common.Hash)(key))
 	if slotOk {
 		return evmc.WarmAccess
 	} else {
+		stateDB.AddSlotToAccessList(addr, key)
 		return evmc.ColdAccess
 	}
 }
