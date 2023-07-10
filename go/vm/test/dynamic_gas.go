@@ -644,6 +644,85 @@ func getCreateContractCode(returnSize int) ([]byte, uint64, uint64) {
 	return code[:], execGas, codeLength
 }
 
+// SELFDESTRUCT instruction
+// target_addr: the recipient of the self-destructing contract's funds (addr in the stack representation)
+// context_addr: the address of the current execution context (i.e. what ADDRESS would put on the stack)
+
+// Gas Calculation
+// gas_cost = 5000: base cost
+// If balance(context_addr) > 0 && is_empty(target_addr) (sending funds to a previously empty address):
+// gas_cost += 25000
+// If target_addr not in touched_addresses (cold access):
+// gas_cost += 2600
+func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
+
+	testCases := []*DynGasTest{}
+
+	type selfdestructTest struct {
+		testName        string
+		balance         int
+		targetAddrEmpty bool
+		targetAddrInACL bool
+		hasSuicided     bool
+	}
+
+	tests := []selfdestructTest{
+		{"Target address empty, in ACL, no balance", 0, true, true, false},
+		{"Target address empty, in ACL, with balance", 1, true, true, false},
+		{"Target address empty, not in ACL no balance", 0, true, false, false},
+		{"Target address empty, not in ACL with balance", 1, true, false, false},
+		{"Target address not empty, no balance", 0, false, false, false},
+		{"Target address not empty, with balance", 1, false, false, false},
+		{"Target address not empty, no balance", 0, false, false, true},
+		{"Target address not empty, with balance", 1, false, false, true},
+	}
+
+	for i, test := range tests {
+		// Offset target adres from contract addres
+		targetAddress := common.Address{byte(i + 1)}
+		contractAddress := common.Address{0}
+		empty := test.targetAddrEmpty
+		balance := test.balance
+		inAcl := test.targetAddrInACL
+		suicided := test.hasSuicided
+
+		stackValues := []*big.Int{targetAddress.Hash().Big()}
+
+		// Expected gas calculation
+		expectedGas := uint64(5000)
+
+		// Sending balance to an empty address
+		if empty && balance > 0 {
+			expectedGas += 25000
+		}
+
+		// Cold access for a target address
+		if !inAcl && revision != Istanbul {
+			expectedGas += 2600
+		}
+
+		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
+			mockStateDB.EXPECT().HasSuicided(contractAddress).AnyTimes().Return(suicided)
+			mockStateDB.EXPECT().Empty(targetAddress).AnyTimes().Return(empty)
+
+			mockStateDB.EXPECT().Suicide(contractAddress).AnyTimes().Return(true)
+			mockStateDB.EXPECT().GetBalance(contractAddress).AnyTimes().Return(big.NewInt(int64(balance)))
+			mockStateDB.EXPECT().AddBalance(targetAddress, big.NewInt(int64(balance))).AnyTimes()
+			mockStateDB.EXPECT().Exist(targetAddress).AnyTimes().Return(!empty)
+			mockStateDB.EXPECT().AddressInAccessList(targetAddress).AnyTimes().Return(inAcl)
+			mockStateDB.EXPECT().AddAddressToAccessList(targetAddress).AnyTimes()
+			if revision < London {
+				if !suicided {
+					mockStateDB.EXPECT().AddRefund(uint64(24000))
+				}
+			}
+		}
+		// Append test
+		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls, nil})
+	}
+	return testCases
+}
+
 // A0-1: Memory Expansion
 // new_mem_size: the highest referenced memory address after the operation in question (in bytes)
 // new_mem_size_words = (new_mem_size + 31) // 32

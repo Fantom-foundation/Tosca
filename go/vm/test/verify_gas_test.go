@@ -108,8 +108,12 @@ func TestDynamicGas(t *testing.T) {
 						// evmone needs following in addition to geth and lfvm
 						mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
 						mockStateDB.EXPECT().SubRefund(uint64(0)).AnyTimes()
+
+						// SELFDESTRUCT gas computation is dependent on an account balance
+						if op != vm.SELFDESTRUCT {
 						mockStateDB.EXPECT().AddRefund(uint64(0)).AnyTimes()
 						mockStateDB.EXPECT().GetBalance(account).AnyTimes().Return(accountBalance)
+						}
 
 						// Init stateDB mock calls from test function
 						if testCase.mockCalls != nil {
