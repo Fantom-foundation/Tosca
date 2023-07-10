@@ -171,7 +171,7 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.GASPRICE:       {stack: op(0), gas: gasS(gasQuickStep)},
 		vm.EXTCODESIZE:    {stack: op(1), gas: gasS(gasExtCode)},
 		vm.EXTCODECOPY:    {stack: consume(4), gas: gas(gasExtCode, gasDynamicExtCodeCopy)},
-		vm.RETURNDATASIZE: {stack: op(0), gas: gas(gasQuickStep, dynGasNotImpYet)},
+		vm.RETURNDATASIZE: {stack: op(0), gas: gasS(gasQuickStep)},
 		vm.RETURNDATACOPY: {stack: consume(3), gas: gas(gasFastestStep, gasDynamicCopy)},
 		vm.EXTCODEHASH:    {stack: op(1), gas: gasS(gasExtCodeHash)},
 		vm.BLOCKHASH:      {stack: op(1), gas: gasS(gasExtStep)},
