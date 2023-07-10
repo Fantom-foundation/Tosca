@@ -312,8 +312,6 @@ func getLondonInstructions() map[vm.OpCode]*InstructionInfo {
 		gas:   GasUsage{gasQuickStep, nil},
 	}
 
-	// Only dynamic gas calculation is changing
-	res[vm.BASEFEE].gas.dynamic = dynGasNotImpYet
 	// Selfdestruct dynamic gas calculation has changed in London
 	// Test is universal for all revisions, keeping here to know, there is change in calculation
 	// res[vm.SELFDESTRUCT].gas.dynamic = gasDynamicSelfDestruct
