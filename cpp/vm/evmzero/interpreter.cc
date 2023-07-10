@@ -909,11 +909,7 @@ static void sstore(Context& ctx) noexcept {
 
   int64_t dynamic_gas_cost = 800;
   if (ctx.revision >= EVMC_BERLIN) {
-    if (key_is_warm) {
-      dynamic_gas_cost = 100;
-    } else {
-      dynamic_gas_cost = 2200;
-    }
+    dynamic_gas_cost = 100;
   }
 
   const auto storage_status = ctx.host->set_storage(ctx.message->recipient, ToEvmcBytes(key), ToEvmcBytes(value));
@@ -929,6 +925,10 @@ static void sstore(Context& ctx) noexcept {
     } else {
       dynamic_gas_cost = 5000;
     }
+  }
+
+  if (ctx.revision >= EVMC_BERLIN && !key_is_warm) {
+    dynamic_gas_cost += 2100;
   }
 
   if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
