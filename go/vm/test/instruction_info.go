@@ -67,8 +67,6 @@ type GasUsage struct {
 	dynamic func(revision Revision) []*DynGasTest
 }
 
-var dynGasNotImpYet = func(revision Revision) []*DynGasTest { return []*DynGasTest{} }
-
 // getInstructions returns a map of OpCodes for the respective revision.
 func getInstructions(revision Revision) map[vm.OpCode]*InstructionInfo {
 	switch revision {
