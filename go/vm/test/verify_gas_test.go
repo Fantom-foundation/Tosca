@@ -111,8 +111,8 @@ func TestDynamicGas(t *testing.T) {
 
 						// SELFDESTRUCT gas computation is dependent on an account balance
 						if op != vm.SELFDESTRUCT {
-						mockStateDB.EXPECT().AddRefund(uint64(0)).AnyTimes()
-						mockStateDB.EXPECT().GetBalance(account).AnyTimes().Return(accountBalance)
+							mockStateDB.EXPECT().AddRefund(uint64(0)).AnyTimes()
+							mockStateDB.EXPECT().GetBalance(account).AnyTimes().Return(accountBalance)
 						}
 
 						// Init stateDB mock calls from test function
