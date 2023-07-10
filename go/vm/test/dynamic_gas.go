@@ -473,6 +473,7 @@ func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationG
 			mockStateDB.EXPECT().AddAddressToAccessList(address).AnyTimes()
 			mockStateDB.EXPECT().CreateAccount(address).AnyTimes()
 			mockStateDB.EXPECT().AddBalance(address, big.NewInt(0)).AnyTimes()
+			mockStateDB.EXPECT().Empty(address).AnyTimes().Return(!exist)
 		}
 
 		// The WarmStorageReadCostEIP2929 (100) is already deducted in the form of a constant cost, so
@@ -612,6 +613,7 @@ func gasDynCreate(revision Revision, isCreate2 bool) []*DynGasTest {
 			mockStateDB.EXPECT().CreateAccount(contractAddr)
 			mockStateDB.EXPECT().SetCode(contractAddr, gomock.Any())
 			mockStateDB.EXPECT().AddAddressToAccessList(contractAddr).AnyTimes()
+			mockStateDB.EXPECT().SetNonce(contractAddr, uint64(1))
 		}
 		// Append test
 		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, mockCalls, memValues})
