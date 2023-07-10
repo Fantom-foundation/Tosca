@@ -151,8 +151,10 @@ func TestDynamicGas(t *testing.T) {
 						result, err := evm.Run(code, []byte{})
 
 						// Check the result.
-						if err != nil {
+						if err != nil && op != vm.REVERT {
 							t.Errorf("execution failed %v should not fail: error is %v", op, err)
+						} else if op == vm.REVERT && err != vm.ErrExecutionReverted {
+							t.Errorf("execution of %v should fail with ErrExecutionReverted: error is %v", op, err)
 						}
 
 						// Check the result.

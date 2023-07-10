@@ -270,7 +270,7 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.DELEGATECALL:   {stack: op(6), gas: gas(gasCallEIP150, gasDynamicStaticDelegateCall)},
 		vm.CREATE2:        {stack: op(4), gas: gas(gasCreate, gasDynamicCreate2)},
 		vm.STATICCALL:     {stack: op(6), gas: gas(gasCallEIP150, gasDynamicStaticDelegateCall)},
-		vm.REVERT:         {stack: consume(2), gas: gasD(dynGasNotImpYet)},
+		vm.REVERT:         {stack: consume(2), gas: gasD(gasDynamicMemory)},
 		vm.SELFDESTRUCT:   {stack: consume(1), gas: gasD(gasDynamicSelfDestruct)},
 	}
 	return res
