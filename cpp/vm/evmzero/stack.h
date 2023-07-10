@@ -1,9 +1,9 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
 #include <initializer_list>
 #include <ostream>
+#include <vector>
 
 #include "common/assert.h"
 #include "vm/evmzero/uint256.h"
@@ -13,7 +13,7 @@ namespace tosca::evmzero {
 // This data structure is used as the interpreter's stack during execution.
 class Stack {
  public:
-  Stack() = default;
+  Stack();
   Stack(std::initializer_list<uint256_t>);
 
   uint64_t GetSize() const { return position_; }
@@ -40,7 +40,7 @@ class Stack {
   friend bool operator!=(const Stack&, const Stack&);
 
  private:
-  std::array<uint256_t, 1024> stack_;
+  std::vector<uint256_t> stack_;
   uint64_t position_ = 0;
 };
 
