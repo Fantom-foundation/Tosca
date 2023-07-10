@@ -3616,7 +3616,7 @@ TEST(InterpreterTest, SSTORE_BerlinRevision_StorageModified) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 3000,
+      .gas_before = 5100,
       .gas_after = 100,
       .stack_before = {32, 16},
       .message = {.recipient = evmc::address(0x42)},
@@ -3635,7 +3635,7 @@ TEST(InterpreterTest, SSTORE_BerlinRevision_StorageDeleted) {
   RunInterpreterTest({
       .code = {op::SSTORE},
       .state_after = RunState::kDone,
-      .gas_before = 3000,
+      .gas_before = 5100,
       .gas_after = 100,
       .gas_refund_after = 15000,
       .stack_before = {32, 16},
