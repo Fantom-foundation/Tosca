@@ -705,7 +705,7 @@ func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
 		}
 
 		// Cold access for a target address
-		if !inAcl && revision != Istanbul {
+		if !inAcl && revision >= Berlin {
 			expectedGas += 2600
 		}
 
