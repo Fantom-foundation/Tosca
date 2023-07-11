@@ -473,6 +473,7 @@ func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationG
 			mockStateDB.EXPECT().AddAddressToAccessList(address).AnyTimes()
 			mockStateDB.EXPECT().CreateAccount(address).AnyTimes()
 			mockStateDB.EXPECT().AddBalance(address, big.NewInt(0)).AnyTimes()
+			mockStateDB.EXPECT().Empty(address).AnyTimes().Return(!exist)
 		}
 
 		// The WarmStorageReadCostEIP2929 (100) is already deducted in the form of a constant cost, so
@@ -612,6 +613,7 @@ func gasDynCreate(revision Revision, isCreate2 bool) []*DynGasTest {
 			mockStateDB.EXPECT().CreateAccount(contractAddr)
 			mockStateDB.EXPECT().SetCode(contractAddr, gomock.Any())
 			mockStateDB.EXPECT().AddAddressToAccessList(contractAddr).AnyTimes()
+			mockStateDB.EXPECT().SetNonce(contractAddr, uint64(1))
 		}
 		// Append test
 		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, mockCalls, memValues})
@@ -640,6 +642,93 @@ func getCreateContractCode(returnSize int) ([]byte, uint64, uint64) {
 	execGas := uint64(18) + expansionCost
 
 	return code[:], execGas, codeLength
+}
+
+// SELFDESTRUCT instruction
+// target_addr: the recipient of the self-destructing contract's funds (addr in the stack representation)
+// context_addr: the address of the current execution context (i.e. what ADDRESS would put on the stack)
+
+// Gas Calculation
+// gas_cost = 5000: base cost
+// If balance(context_addr) > 0 && is_empty(target_addr) (sending funds to a previously empty address):
+// gas_cost += 25000
+// If target_addr not in touched_addresses (cold access):
+// gas_cost += 2600
+func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
+
+	testCases := []*DynGasTest{}
+
+	type selfdestructTest struct {
+		testName        string
+		balance         int
+		targetAddrEmpty bool
+		targetAddrInACL bool
+		hasSuicided     bool
+	}
+
+	tests := []selfdestructTest{
+		{"Target address empty, in ACL, no balance, not suicided", 0, true, true, false},
+		{"Target address empty, in ACL, with balance, not suicided", 1, true, true, false},
+		{"Target address empty, not in ACL no balance, not suicided", 0, true, false, false},
+		{"Target address empty, not in ACL with balance, not suicided", 1, true, false, false},
+		{"Target address empty, in ACL, no balance, suicided", 0, true, true, true},
+		{"Target address empty, in ACL, with balance suicided", 1, true, true, true},
+		{"Target address empty, not in ACL, no balance suicided", 0, true, false, true},
+		{"Target address empty, not in ACL, with balance suicided", 1, true, false, true},
+		{"Target address not empty, in ACL, no balance, not suicided", 0, false, true, false},
+		{"Target address not empty, in ACL, with balance, not suicided", 1, false, true, false},
+		{"Target address not empty, not in ACL no balance, not suicided", 0, false, false, false},
+		{"Target address not empty, not in ACL with balance, not suicided", 1, false, false, false},
+		{"Target address not empty, in ACL, no balance, suicided", 0, false, true, true},
+		{"Target address not empty, in ACL, with balance suicided", 1, false, true, true},
+		{"Target address not empty, not in ACL, no balance suicided", 0, false, false, true},
+		{"Target address not empty, not in ACL, with balance suicided", 1, false, false, true},
+	}
+
+	for i, test := range tests {
+		// Offset target address from contract address
+		targetAddress := common.Address{byte(i + 1)}
+		contractAddress := common.Address{0}
+		empty := test.targetAddrEmpty
+		balance := test.balance
+		inAcl := test.targetAddrInACL
+		suicided := test.hasSuicided
+
+		stackValues := []*big.Int{targetAddress.Hash().Big()}
+
+		// Expected gas calculation
+		expectedGas := uint64(5000)
+
+		// Sending balance to an empty address
+		if empty && balance > 0 {
+			expectedGas += 25000
+		}
+
+		// Cold access for a target address
+		if !inAcl && revision >= Berlin {
+			expectedGas += 2600
+		}
+
+		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
+			mockStateDB.EXPECT().HasSuicided(contractAddress).AnyTimes().Return(suicided)
+			mockStateDB.EXPECT().Empty(targetAddress).AnyTimes().Return(empty)
+
+			mockStateDB.EXPECT().Suicide(contractAddress).AnyTimes().Return(true)
+			mockStateDB.EXPECT().GetBalance(contractAddress).AnyTimes().Return(big.NewInt(int64(balance)))
+			mockStateDB.EXPECT().AddBalance(targetAddress, big.NewInt(int64(balance))).AnyTimes()
+			mockStateDB.EXPECT().Exist(targetAddress).AnyTimes().Return(!empty)
+			mockStateDB.EXPECT().AddressInAccessList(targetAddress).AnyTimes().Return(inAcl)
+			mockStateDB.EXPECT().AddAddressToAccessList(targetAddress).AnyTimes()
+			if revision < London {
+				if !suicided {
+					mockStateDB.EXPECT().AddRefund(uint64(24000))
+				}
+			}
+		}
+		// Append test
+		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls, nil})
+	}
+	return testCases
 }
 
 // A0-1: Memory Expansion

@@ -67,8 +67,6 @@ type GasUsage struct {
 	dynamic func(revision Revision) []*DynGasTest
 }
 
-var dynGasNotImpYet = func(revision Revision) []*DynGasTest { return []*DynGasTest{} }
-
 // getInstructions returns a map of OpCodes for the respective revision.
 func getInstructions(revision Revision) map[vm.OpCode]*InstructionInfo {
 	switch revision {
@@ -171,7 +169,7 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.GASPRICE:       {stack: op(0), gas: gasS(gasQuickStep)},
 		vm.EXTCODESIZE:    {stack: op(1), gas: gasS(gasExtCode)},
 		vm.EXTCODECOPY:    {stack: consume(4), gas: gas(gasExtCode, gasDynamicExtCodeCopy)},
-		vm.RETURNDATASIZE: {stack: op(0), gas: gas(gasQuickStep, dynGasNotImpYet)},
+		vm.RETURNDATASIZE: {stack: op(0), gas: gasS(gasQuickStep)},
 		vm.RETURNDATACOPY: {stack: consume(3), gas: gas(gasFastestStep, gasDynamicCopy)},
 		vm.EXTCODEHASH:    {stack: op(1), gas: gasS(gasExtCodeHash)},
 		vm.BLOCKHASH:      {stack: op(1), gas: gasS(gasExtStep)},
@@ -270,8 +268,8 @@ func getInstanbulInstructions() map[vm.OpCode]*InstructionInfo {
 		vm.DELEGATECALL:   {stack: op(6), gas: gas(gasCallEIP150, gasDynamicStaticDelegateCall)},
 		vm.CREATE2:        {stack: op(4), gas: gas(gasCreate, gasDynamicCreate2)},
 		vm.STATICCALL:     {stack: op(6), gas: gas(gasCallEIP150, gasDynamicStaticDelegateCall)},
-		vm.REVERT:         {stack: consume(2), gas: gasD(dynGasNotImpYet)},
-		vm.SELFDESTRUCT:   {stack: consume(1), gas: gasD(dynGasNotImpYet)},
+		vm.REVERT:         {stack: consume(2), gas: gasD(gasDynamicMemory)},
+		vm.SELFDESTRUCT:   {stack: consume(1), gas: gasD(gasDynamicSelfDestruct)},
 	}
 	return res
 }
@@ -295,7 +293,9 @@ func getBerlinInstructions() map[vm.OpCode]*InstructionInfo {
 	res[vm.CALLCODE].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicCallCodeCall}
 	res[vm.STATICCALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicStaticDelegateCall}
 	res[vm.DELEGATECALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicStaticDelegateCall}
-	res[vm.SELFDESTRUCT].gas = GasUsage{gasSelfDestruct, dynGasNotImpYet}
+	// Selfdestruct dynamic gas calculation has changed in Berlin
+	// Test is universal for all revisions, keeping here to know, there is change in calculation
+	// res[vm.SELFDESTRUCT].gas = GasUsage{gasSelfDestruct, gasDynamicSelfDestruct}
 
 	return res
 }
@@ -310,8 +310,8 @@ func getLondonInstructions() map[vm.OpCode]*InstructionInfo {
 		gas:   GasUsage{gasQuickStep, nil},
 	}
 
-	// Only dynamic gas calculation is changing
-	res[vm.BASEFEE].gas.dynamic = dynGasNotImpYet
-	res[vm.SELFDESTRUCT].gas.dynamic = dynGasNotImpYet
+	// Selfdestruct dynamic gas calculation has changed in London
+	// Test is universal for all revisions, keeping here to know, there is change in calculation
+	// res[vm.SELFDESTRUCT].gas.dynamic = gasDynamicSelfDestruct
 	return res
 }

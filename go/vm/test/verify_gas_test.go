@@ -108,8 +108,12 @@ func TestDynamicGas(t *testing.T) {
 						// evmone needs following in addition to geth and lfvm
 						mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
 						mockStateDB.EXPECT().SubRefund(uint64(0)).AnyTimes()
-						mockStateDB.EXPECT().AddRefund(uint64(0)).AnyTimes()
-						mockStateDB.EXPECT().GetBalance(account).AnyTimes().Return(accountBalance)
+
+						// SELFDESTRUCT gas computation is dependent on an account balance
+						if op != vm.SELFDESTRUCT {
+							mockStateDB.EXPECT().AddRefund(uint64(0)).AnyTimes()
+							mockStateDB.EXPECT().GetBalance(account).AnyTimes().Return(accountBalance)
+						}
 
 						// Init stateDB mock calls from test function
 						if testCase.mockCalls != nil {
@@ -147,8 +151,10 @@ func TestDynamicGas(t *testing.T) {
 						result, err := evm.Run(code, []byte{})
 
 						// Check the result.
-						if err != nil {
+						if err != nil && op != vm.REVERT {
 							t.Errorf("execution failed %v should not fail: error is %v", op, err)
+						} else if op == vm.REVERT && err != vm.ErrExecutionReverted {
+							t.Errorf("execution of %v should fail with ErrExecutionReverted: error is %v", op, err)
 						}
 
 						// Check the result.
