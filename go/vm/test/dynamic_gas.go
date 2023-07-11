@@ -667,14 +667,22 @@ func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
 	}
 
 	tests := []selfdestructTest{
-		{"Target address empty, in ACL, no balance", 0, true, true, false},
-		{"Target address empty, in ACL, with balance", 1, true, true, false},
-		{"Target address empty, not in ACL no balance", 0, true, false, false},
-		{"Target address empty, not in ACL with balance", 1, true, false, false},
-		{"Target address not empty, no balance", 0, false, false, false},
-		{"Target address not empty, with balance", 1, false, false, false},
-		{"Target address not empty, no balance", 0, false, false, true},
-		{"Target address not empty, with balance", 1, false, false, true},
+		{"Target address empty, in ACL, no balance, not suicided", 0, true, true, false},
+		{"Target address empty, in ACL, with balance, not suicided", 1, true, true, false},
+		{"Target address empty, not in ACL no balance, not suicided", 0, true, false, false},
+		{"Target address empty, not in ACL with balance, not suicided", 1, true, false, false},
+		{"Target address empty, in ACL, no balance, suicided", 0, true, true, true},
+		{"Target address empty, in ACL, with balance suicided", 1, true, true, true},
+		{"Target address empty, not in ACL, no balance suicided", 0, true, false, true},
+		{"Target address empty, not in ACL, with balance suicided", 1, true, false, true},
+		{"Target address not empty, in ACL, no balance, not suicided", 0, false, true, false},
+		{"Target address not empty, in ACL, with balance, not suicided", 1, false, true, false},
+		{"Target address not empty, not in ACL no balance, not suicided", 0, false, false, false},
+		{"Target address not empty, not in ACL with balance, not suicided", 1, false, false, false},
+		{"Target address not empty, in ACL, no balance, suicided", 0, false, true, true},
+		{"Target address not empty, in ACL, with balance suicided", 1, false, true, true},
+		{"Target address not empty, not in ACL, no balance suicided", 0, false, false, true},
+		{"Target address not empty, not in ACL, with balance suicided", 1, false, false, true},
 	}
 
 	for i, test := range tests {
