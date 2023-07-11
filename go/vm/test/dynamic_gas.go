@@ -686,7 +686,7 @@ func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
 	}
 
 	for i, test := range tests {
-		// Offset target adres from contract addres
+		// Offset target address from contract addres
 		targetAddress := common.Address{byte(i + 1)}
 		contractAddress := common.Address{0}
 		empty := test.targetAddrEmpty
