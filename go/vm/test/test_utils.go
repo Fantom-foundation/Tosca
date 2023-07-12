@@ -98,9 +98,6 @@ func (e *TestEVM) Run(code []byte, input []byte) (RunResult, error) {
 
 func (e *TestEVM) RunWithGas(code []byte, input []byte, initialGas uint64) (RunResult, error) {
 
-	if initialGas == 0 {
-		initialGas = InitialTestGas
-	}
 	addr := vm.AccountRef{}
 	contract := vm.NewContract(addr, addr, big.NewInt(0), initialGas)
 	contract.CodeAddr = &common.Address{}
