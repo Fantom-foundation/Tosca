@@ -67,7 +67,7 @@ func GetCleanEVM(revision Revision, interpreter string, stateDB vm.StateDB) Test
 	config := vm.Config{
 		InterpreterImpl: interpreter,
 	}
-	return TestEVM{vm.NewEVM(blockCtx, txCtx, stateDB, &chainConfig, config)}
+	return TestEVM{vm.NewEVM(blockCtx, txCtx, stateDB, chainConfig, config)}
 }
 
 type RunResult struct {
