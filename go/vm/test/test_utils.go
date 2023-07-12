@@ -37,15 +37,11 @@ type TestEVM struct {
 
 func GetCleanEVM(revision Revision, interpreter string, stateDB vm.StateDB) TestEVM {
 	// Set hard forks for chainconfig
-	chainConfig := params.ChainConfig{
-		ChainID:       big.NewInt(0),
-		EIP150Block:   big.NewInt(0),
-		EIP155Block:   big.NewInt(0),
-		EIP158Block:   big.NewInt(0),
-		IstanbulBlock: big.NewInt(Istanbul.GetForkBlock()),
-		BerlinBlock:   big.NewInt(Berlin.GetForkBlock()),
-		LondonBlock:   big.NewInt(London.GetForkBlock()),
-	}
+	chainConfig := params.AllEthashProtocolChanges
+	chainConfig.ChainID = big.NewInt(0)
+	chainConfig.IstanbulBlock = big.NewInt(Istanbul.GetForkBlock())
+	chainConfig.BerlinBlock = big.NewInt(Berlin.GetForkBlock())
+	chainConfig.LondonBlock = big.NewInt(London.GetForkBlock())
 
 	// Hashing function used in the context for BLOCKHASH instruction
 	getHash := func(num uint64) common.Hash {
