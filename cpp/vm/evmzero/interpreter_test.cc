@@ -4130,10 +4130,11 @@ TEST(InterpreterTest, PUSH_OutOfGas) {
 
 TEST(InterpreterTest, PUSH_OutOfBytes) {
   RunInterpreterTest({
-      .code = {op::PUSH4, 0xFF, 0xFF, /* 0 byte added for test */},
+      .code = {op::PUSH4, 0xFF, 0xFF},
       .state_after = RunState::kDone,
       .gas_before = 10,
       .gas_after = 7,
+      .stack_after = {0xFFFF0000},
   });
 }
 

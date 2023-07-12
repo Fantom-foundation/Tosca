@@ -62,6 +62,7 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
       .host = &host,
       .revision = args.revision,
   };
+  ctx.code.reserve(args.code.size() + 32);  // with additional STOP bytes
   ctx.code.assign(args.code.begin(), args.code.end());
 
   internal::RunInterpreter<LoggingEnabled>(ctx);
@@ -555,7 +556,7 @@ static void codesize(Context& ctx) noexcept {
     return;
   if (!ctx.ApplyGasCost(2)) [[unlikely]]
     return;
-  ctx.stack.Push(ctx.code.size());
+  ctx.stack.Push(ctx.code.size() - 32);  // accounted for added STOP bytes
   ctx.pc++;
 }
 
@@ -1045,14 +1046,6 @@ static void push(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
 
-  // If their aren't enough values in the code, we exit without doing the push
-  // as the interpreter would stop with the next iteration anyway.
-  if (ctx.code.size() < ctx.pc + 1 + N) [[unlikely]] {
-    ctx.pc += 1 + N;
-    ctx.state = RunState::kDone;
-    return;
-  }
-
   uint256_t value = 0;
   for (uint64_t i = 1; i <= N; ++i) {
     value |= static_cast<uint256_t>(ctx.code[ctx.pc + i]) << (N - i) * 8;
@@ -1485,12 +1478,12 @@ bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
 
 template <bool LoggingEnabled>
 void RunInterpreter(Context& ctx) {
-  while (ctx.state == RunState::kRunning) {
-    if (ctx.pc >= ctx.code.size()) [[unlikely]] {
-      ctx.state = RunState::kDone;
-      break;
-    }
+  // Padding the code with additional STOP bytes so we don't have to
+  // continuously check for end-of-code. We use multiple STOP bytes in case one
+  // of the last instructions is a PUSH with too few arguments.
+  ctx.code.resize(ctx.code.size() + 32, op::STOP);
 
+  while (ctx.state == RunState::kRunning) {
     if constexpr (LoggingEnabled) {
       // log format: <op>, <gas>, <top-of-stack>\n
       std::cout << ToString(static_cast<op::OpCodes>(ctx.code[ctx.pc])) << ", "  //
