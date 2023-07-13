@@ -18,6 +18,7 @@ import (
 var evmzero *common.EvmcVM
 var evmzeroWithLogging *common.EvmcVM
 var evmzeroWithoutAnalysisCache *common.EvmcVM
+var evmzeroWithProfiling *common.EvmcVM
 
 func init() {
 	// In the CGO instructions at the top of this file the build directory
@@ -50,6 +51,16 @@ func init() {
 		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 	}
 	evmzeroWithoutAnalysisCache = vm
+
+	// We create a fourth instance in which we enable profiling.
+	vm, err = common.LoadEvmcVM("libevmzero.so")
+	if err != nil {
+		panic(fmt.Errorf("failed to load evmzero library: %s", err))
+	}
+	if err = vm.SetOption("profiling", "true"); err != nil {
+		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+	}
+	evmzeroWithProfiling = vm
 }
 
 func newInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
@@ -64,10 +75,15 @@ func newInterpreterWithoutAnalysisCache(evm *vm.EVM, cfg vm.Config) vm.EVMInterp
 	return common.NewEvmcInterpreter(evmzeroWithoutAnalysisCache, evm, cfg)
 }
 
+func newProfilingInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
+	return common.NewEvmcInterpreter(evmzeroWithProfiling, evm, cfg)
+}
+
 func init() {
 	vm.RegisterInterpreterFactory("evmzero", newInterpreter)
 	vm.RegisterInterpreterFactory("evmzero-logging", newLoggingInterpreter)
 	vm.RegisterInterpreterFactory("evmzero-no-analysis-cache", newInterpreterWithoutAnalysisCache)
+	vm.RegisterInterpreterFactory("evmzero-profiling", newProfilingInterpreter)
 }
 
 func DumpStatistics(interpreter vm.EVMInterpreter) {

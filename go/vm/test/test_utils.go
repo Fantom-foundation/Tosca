@@ -27,6 +27,7 @@ var (
 		"evmzero",
 		"evmzero-logging",
 		"evmzero-no-analysis-cache",
+		"evmzero-profiling",
 	}
 )
 

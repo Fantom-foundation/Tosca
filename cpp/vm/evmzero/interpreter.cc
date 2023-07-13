@@ -57,7 +57,7 @@ std::ostream& operator<<(std::ostream& out, RunState state) { return out << ToSt
 // instructions is a PUSH with too few arguments.
 constexpr int kStopBytePadding = 33;
 
-template <bool LoggingEnabled>
+template <bool LoggingEnabled, bool ProfilingEnabled>
 InterpreterResult Interpret(const InterpreterArgs& args) {
   evmc::HostContext host(*args.host_interface, args.host_context);
 
@@ -72,7 +72,7 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
   ctx.code.reserve(args.code.size() + kStopBytePadding);
   ctx.code.assign(args.code.begin(), args.code.end());
 
-  internal::RunInterpreter<LoggingEnabled>(ctx);
+  internal::RunInterpreter<LoggingEnabled, ProfilingEnabled>(ctx);
 
   return {
       .state = ctx.state,
@@ -82,8 +82,10 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
   };
 }
 
-template InterpreterResult Interpret<false>(const InterpreterArgs&);
-template InterpreterResult Interpret<true>(const InterpreterArgs&);
+template InterpreterResult Interpret<false, false>(const InterpreterArgs&);
+template InterpreterResult Interpret<true, false>(const InterpreterArgs&);
+template InterpreterResult Interpret<false, true>(const InterpreterArgs&);
+template InterpreterResult Interpret<true, true>(const InterpreterArgs&);
 
 ///////////////////////////////////////////////////////////
 
@@ -1469,7 +1471,7 @@ inline bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
   return true;
 }
 
-template <bool LoggingEnabled>
+template <bool LoggingEnabled, bool ProfilingEnabled>
 void RunInterpreter(Context& ctx) {
   ctx.code.resize(ctx.code.size() + kStopBytePadding, op::STOP);
 
@@ -1658,8 +1660,10 @@ void RunInterpreter(Context& ctx) {
   }
 }
 
-template void RunInterpreter<false>(Context&);
-template void RunInterpreter<true>(Context&);
+template void RunInterpreter<false, false>(Context&);
+template void RunInterpreter<true, false>(Context&);
+template void RunInterpreter<false, true>(Context&);
+template void RunInterpreter<true, true>(Context&);
 
 }  // namespace internal
 

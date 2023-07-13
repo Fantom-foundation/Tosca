@@ -86,7 +86,7 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
       .revision = desc.revision,
   };
 
-  internal::RunInterpreter<false>(ctx);
+  internal::RunInterpreter<false, false>(ctx);
 
   ASSERT_EQ(ctx.state, desc.state_after);
 
