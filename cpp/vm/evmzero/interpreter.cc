@@ -7,6 +7,7 @@
 
 #include "common/assert.h"
 #include "vm/evmzero/opcodes.h"
+#include "vm/evmzero/profiler.h"
 
 namespace tosca::evmzero {
 
@@ -1475,6 +1476,11 @@ template <bool LoggingEnabled, bool ProfilingEnabled>
 void RunInterpreter(Context& ctx) {
   ctx.code.resize(ctx.code.size() + kStopBytePadding, op::STOP);
 
+  auto profiler = Profiler<ProfilingEnabled>{};
+#define PROFILE_START(marker) profiler.template Start<Markers::marker>()
+#define PROFILE_END(marker) profiler.template End<Markers::marker>()
+#define PROFILE_SCOPED(marker) const auto scope_##marker = profiler.template Scoped<Markers::marker>()
+
   while (ctx.state == RunState::kRunning) {
     if constexpr (LoggingEnabled) {
       // log format: <op>, <gas>, <top-of-stack>\n
@@ -1488,167 +1494,169 @@ void RunInterpreter(Context& ctx) {
       std::cout << "\n" << std::flush;
     }
 
+    PROFILE_START(DISPATCH);
     switch (ctx.code[ctx.pc]) {
-      // clang-format off
-      case op::STOP: op::stop(ctx); break;
+        // clang-format off
+      case op::STOP: PROFILE_START(STOP); op::stop(ctx); PROFILE_END(STOP); break;
 
-      case op::ADD: op::add(ctx); break;
-      case op::MUL: op::mul(ctx); break;
-      case op::SUB: op::sub(ctx); break;
-      case op::DIV: op::div(ctx); break;
-      case op::SDIV: op::sdiv(ctx); break;
-      case op::MOD: op::mod(ctx); break;
-      case op::SMOD: op::smod(ctx); break;
-      case op::ADDMOD: op::addmod(ctx); break;
-      case op::MULMOD: op::mulmod(ctx); break;
-      case op::EXP: op::exp(ctx); break;
-      case op::SIGNEXTEND: op::signextend(ctx); break;
-      case op::LT: op::lt(ctx); break;
-      case op::GT: op::gt(ctx); break;
-      case op::SLT: op::slt(ctx); break;
-      case op::SGT: op::sgt(ctx); break;
-      case op::EQ: op::eq(ctx); break;
-      case op::ISZERO: op::iszero(ctx); break;
-      case op::AND: op::bit_and(ctx); break;
-      case op::OR: op::bit_or(ctx); break;
-      case op::XOR: op::bit_xor(ctx); break;
-      case op::NOT: op::bit_not(ctx); break;
-      case op::BYTE: op::byte(ctx); break;
-      case op::SHL: op::shl(ctx); break;
-      case op::SHR: op::shr(ctx); break;
-      case op::SAR: op::sar(ctx); break;
-      case op::SHA3: op::sha3(ctx); break;
-      case op::ADDRESS: op::address(ctx); break;
-      case op::BALANCE: op::balance(ctx); break;
-      case op::ORIGIN: op::origin(ctx); break;
-      case op::CALLER: op::caller(ctx); break;
-      case op::CALLVALUE: op::callvalue(ctx); break;
-      case op::CALLDATALOAD: op::calldataload(ctx); break;
-      case op::CALLDATASIZE: op::calldatasize(ctx); break;
-      case op::CALLDATACOPY: op::calldatacopy(ctx); break;
-      case op::CODESIZE: op::codesize(ctx); break;
-      case op::CODECOPY: op::codecopy(ctx); break;
-      case op::GASPRICE: op::gasprice(ctx); break;
-      case op::EXTCODESIZE: op::extcodesize(ctx); break;
-      case op::EXTCODECOPY: op::extcodecopy(ctx); break;
-      case op::RETURNDATASIZE: op::returndatasize(ctx); break;
-      case op::RETURNDATACOPY: op::returndatacopy(ctx); break;
-      case op::EXTCODEHASH: op::extcodehash(ctx); break;
-      case op::BLOCKHASH: op::blockhash(ctx); break;
-      case op::COINBASE: op::coinbase(ctx); break;
-      case op::TIMESTAMP: op::timestamp(ctx); break;
-      case op::NUMBER: op::blocknumber(ctx); break;
-      case op::DIFFICULTY: op::prevrandao(ctx); break; // intentional
-      case op::GASLIMIT: op::gaslimit(ctx); break;
-      case op::CHAINID: op::chainid(ctx); break;
-      case op::SELFBALANCE: op::selfbalance(ctx); break;
-      case op::BASEFEE: op::basefee(ctx); break;
+      case op::ADD: PROFILE_START(ADD); op::add(ctx); PROFILE_END(ADD); break;
+      case op::MUL: PROFILE_START(MUL); op::mul(ctx); PROFILE_END(MUL); break;
+      case op::SUB: PROFILE_START(SUB); op::sub(ctx); PROFILE_END(SUB); break;
+      case op::DIV: PROFILE_START(DIV); op::div(ctx); PROFILE_END(DIV); break;
+      case op::SDIV: PROFILE_START(SDIV); op::sdiv(ctx); PROFILE_END(SDIV); break;
+      case op::MOD: PROFILE_START(MOD); op::mod(ctx); PROFILE_END(MOD); break;
+      case op::SMOD: PROFILE_START(SMOD); op::smod(ctx); PROFILE_END(SMOD); break;
+      case op::ADDMOD: PROFILE_START(ADDMOD); op::addmod(ctx); PROFILE_END(ADDMOD); break;
+      case op::MULMOD: PROFILE_START(MULMOD); op::mulmod(ctx); PROFILE_END(MULMOD); break;
+      case op::EXP: PROFILE_START(EXP); op::exp(ctx); PROFILE_END(EXP); break;
+      case op::SIGNEXTEND: PROFILE_START(SIGNEXTEND); op::signextend(ctx); PROFILE_END(SIGNEXTEND); break;
+      case op::LT: PROFILE_START(LT); op::lt(ctx); PROFILE_END(LT); break;
+      case op::GT: PROFILE_START(GT); op::gt(ctx); PROFILE_END(GT); break;
+      case op::SLT: PROFILE_START(SLT); op::slt(ctx); PROFILE_END(SLT); break;
+      case op::SGT: PROFILE_START(SGT); op::sgt(ctx); PROFILE_END(SGT); break;
+      case op::EQ: PROFILE_START(EQ); op::eq(ctx); PROFILE_END(EQ); break;
+      case op::ISZERO: PROFILE_START(ISZERO); op::iszero(ctx); PROFILE_END(ISZERO); break;
+      case op::AND: PROFILE_START(AND); op::bit_and(ctx); PROFILE_END(AND); break;
+      case op::OR: PROFILE_START(OR); op::bit_or(ctx); PROFILE_END(OR); break;
+      case op::XOR: PROFILE_START(XOR); op::bit_xor(ctx); PROFILE_END(XOR); break;
+      case op::NOT: PROFILE_START(NOT); op::bit_not(ctx); PROFILE_END(NOT); break;
+      case op::BYTE: PROFILE_START(BYTE); op::byte(ctx); PROFILE_END(BYTE); break;
+      case op::SHL: PROFILE_START(SHL); op::shl(ctx); PROFILE_END(SHL); break;
+      case op::SHR: PROFILE_START(SHR); op::shr(ctx); PROFILE_END(SHR); break;
+      case op::SAR: PROFILE_START(SAR); op::sar(ctx); PROFILE_END(SAR); break;
+      case op::SHA3: PROFILE_START(SHA3); op::sha3(ctx); PROFILE_END(SHA3); break;
+      case op::ADDRESS: PROFILE_START(ADDRESS); op::address(ctx); PROFILE_END(ADDRESS); break;
+      case op::BALANCE: PROFILE_START(BALANCE); op::balance(ctx); PROFILE_END(BALANCE); break;
+      case op::ORIGIN: PROFILE_START(ORIGIN); op::origin(ctx); PROFILE_END(ORIGIN); break;
+      case op::CALLER: PROFILE_START(CALLER); op::caller(ctx); PROFILE_END(CALLER); break;
+      case op::CALLVALUE: PROFILE_START(CALLVALUE); op::callvalue(ctx); PROFILE_END(CALLVALUE); break;
+      case op::CALLDATALOAD: PROFILE_START(CALLDATALOAD); op::calldataload(ctx); PROFILE_END(CALLDATALOAD); break;
+      case op::CALLDATASIZE: PROFILE_START(CALLDATASIZE); op::calldatasize(ctx); PROFILE_END(CALLDATASIZE); break;
+      case op::CALLDATACOPY: PROFILE_START(CALLDATACOPY); op::calldatacopy(ctx); PROFILE_END(CALLDATACOPY); break;
+      case op::CODESIZE: PROFILE_START(CODESIZE); op::codesize(ctx); PROFILE_END(CODESIZE); break;
+      case op::CODECOPY: PROFILE_START(CODECOPY); op::codecopy(ctx); PROFILE_END(CODECOPY); break;
+      case op::GASPRICE: PROFILE_START(GASPRICE); op::gasprice(ctx); PROFILE_END(GASPRICE); break;
+      case op::EXTCODESIZE: PROFILE_START(EXTCODESIZE); op::extcodesize(ctx); PROFILE_END(EXTCODESIZE); break;
+      case op::EXTCODECOPY: PROFILE_START(EXTCODECOPY); op::extcodecopy(ctx); PROFILE_END(EXTCODECOPY); break;
+      case op::RETURNDATASIZE: PROFILE_START(RETURNDATASIZE); op::returndatasize(ctx); PROFILE_END(RETURNDATASIZE); break;
+      case op::RETURNDATACOPY: PROFILE_START(RETURNDATACOPY); op::returndatacopy(ctx); PROFILE_END(RETURNDATACOPY); break;
+      case op::EXTCODEHASH: PROFILE_START(EXTCODEHASH); op::extcodehash(ctx); PROFILE_END(EXTCODEHASH); break;
+      case op::BLOCKHASH: PROFILE_START(BLOCKHASH); op::blockhash(ctx); PROFILE_END(BLOCKHASH); break;
+      case op::COINBASE: PROFILE_START(COINBASE); op::coinbase(ctx); PROFILE_END(COINBASE); break;
+      case op::TIMESTAMP: PROFILE_START(TIMESTAMP); op::timestamp(ctx); PROFILE_END(TIMESTAMP); break;
+      case op::NUMBER: PROFILE_START(NUMBER); op::blocknumber(ctx); PROFILE_END(NUMBER); break;
+      case op::DIFFICULTY: PROFILE_START(DIFFICULTY); op::prevrandao(ctx); PROFILE_END(DIFFICULTY); break; // intentional
+      case op::GASLIMIT: PROFILE_START(GASLIMIT); op::gaslimit(ctx); PROFILE_END(GASLIMIT); break;
+      case op::CHAINID: PROFILE_START(CHAINID); op::chainid(ctx); PROFILE_END(CHAINID); break;
+      case op::SELFBALANCE: PROFILE_START(SELFBALANCE); op::selfbalance(ctx); PROFILE_END(SELFBALANCE); break;
+      case op::BASEFEE: PROFILE_START(BASEFEE); op::basefee(ctx); PROFILE_END(BASEFEE); break;
 
-      case op::POP: op::pop(ctx); break;
-      case op::MLOAD: op::mload(ctx); break;
-      case op::MSTORE: op::mstore(ctx); break;
-      case op::MSTORE8: op::mstore8(ctx); break;
-      case op::SLOAD: op::sload(ctx); break;
-      case op::SSTORE: op::sstore(ctx); break;
+      case op::POP: PROFILE_START(POP); op::pop(ctx); PROFILE_END(POP); break;
+      case op::MLOAD: PROFILE_START(MLOAD); op::mload(ctx); PROFILE_END(MLOAD); break;
+      case op::MSTORE: PROFILE_START(MSTORE); op::mstore(ctx); PROFILE_END(MSTORE); break;
+      case op::MSTORE8: PROFILE_START(MSTORE8); op::mstore8(ctx); PROFILE_END(MSTORE8); break;
+      case op::SLOAD: PROFILE_START(SLOAD); op::sload(ctx); PROFILE_END(SLOAD); break;
+      case op::SSTORE: PROFILE_START(SSTORE); op::sstore(ctx); PROFILE_END(SSTORE); break;
 
-      case op::JUMP: op::jump(ctx); break;
-      case op::JUMPI: op::jumpi(ctx); break;
-      case op::PC: op::pc(ctx); break;
-      case op::MSIZE: op::msize(ctx); break;
-      case op::GAS: op::gas(ctx); break;
-      case op::JUMPDEST: op::jumpdest(ctx); break;
+      case op::JUMP: PROFILE_START(JUMP); op::jump(ctx); PROFILE_END(JUMP); break;
+      case op::JUMPI: PROFILE_START(JUMPI); op::jumpi(ctx); PROFILE_END(JUMPI); break;
+      case op::PC: PROFILE_START(PC); op::pc(ctx); PROFILE_END(PC); break;
+      case op::MSIZE: PROFILE_START(MSIZE); op::msize(ctx); PROFILE_END(MSIZE); break;
+      case op::GAS: PROFILE_START(GAS); op::gas(ctx); PROFILE_END(GAS); break;
+      case op::JUMPDEST: PROFILE_START(JUMPDEST); op::jumpdest(ctx); PROFILE_END(JUMPDEST); break;
 
-      case op::PUSH1: op::push<1>(ctx); break;
-      case op::PUSH2: op::push<2>(ctx); break;
-      case op::PUSH3: op::push<3>(ctx); break;
-      case op::PUSH4: op::push<4>(ctx); break;
-      case op::PUSH5: op::push<5>(ctx); break;
-      case op::PUSH6: op::push<6>(ctx); break;
-      case op::PUSH7: op::push<7>(ctx); break;
-      case op::PUSH8: op::push<8>(ctx); break;
-      case op::PUSH9: op::push<9>(ctx); break;
-      case op::PUSH10: op::push<10>(ctx); break;
-      case op::PUSH11: op::push<11>(ctx); break;
-      case op::PUSH12: op::push<12>(ctx); break;
-      case op::PUSH13: op::push<13>(ctx); break;
-      case op::PUSH14: op::push<14>(ctx); break;
-      case op::PUSH15: op::push<15>(ctx); break;
-      case op::PUSH16: op::push<16>(ctx); break;
-      case op::PUSH17: op::push<17>(ctx); break;
-      case op::PUSH18: op::push<18>(ctx); break;
-      case op::PUSH19: op::push<19>(ctx); break;
-      case op::PUSH20: op::push<20>(ctx); break;
-      case op::PUSH21: op::push<21>(ctx); break;
-      case op::PUSH22: op::push<22>(ctx); break;
-      case op::PUSH23: op::push<23>(ctx); break;
-      case op::PUSH24: op::push<24>(ctx); break;
-      case op::PUSH25: op::push<25>(ctx); break;
-      case op::PUSH26: op::push<26>(ctx); break;
-      case op::PUSH27: op::push<27>(ctx); break;
-      case op::PUSH28: op::push<28>(ctx); break;
-      case op::PUSH29: op::push<29>(ctx); break;
-      case op::PUSH30: op::push<30>(ctx); break;
-      case op::PUSH31: op::push<31>(ctx); break;
-      case op::PUSH32: op::push<32>(ctx); break;
+      case op::PUSH1: PROFILE_START(PUSH1); op::push<1>(ctx); PROFILE_END(PUSH1); break;
+      case op::PUSH2: PROFILE_START(PUSH2); op::push<2>(ctx); PROFILE_END(PUSH2); break;
+      case op::PUSH3: PROFILE_START(PUSH3); op::push<3>(ctx); PROFILE_END(PUSH3); break;
+      case op::PUSH4: PROFILE_START(PUSH4); op::push<4>(ctx); PROFILE_END(PUSH4); break;
+      case op::PUSH5: PROFILE_START(PUSH5); op::push<5>(ctx); PROFILE_END(PUSH5); break;
+      case op::PUSH6: PROFILE_START(PUSH6); op::push<6>(ctx); PROFILE_END(PUSH6); break;
+      case op::PUSH7: PROFILE_START(PUSH7); op::push<7>(ctx); PROFILE_END(PUSH7); break;
+      case op::PUSH8: PROFILE_START(PUSH8); op::push<8>(ctx); PROFILE_END(PUSH8); break;
+      case op::PUSH9: PROFILE_START(PUSH9); op::push<9>(ctx); PROFILE_END(PUSH9); break;
+      case op::PUSH10: PROFILE_START(PUSH10); op::push<10>(ctx); PROFILE_END(PUSH10); break;
+      case op::PUSH11: PROFILE_START(PUSH11); op::push<11>(ctx); PROFILE_END(PUSH11); break;
+      case op::PUSH12: PROFILE_START(PUSH12); op::push<12>(ctx); PROFILE_END(PUSH12); break;
+      case op::PUSH13: PROFILE_START(PUSH13); op::push<13>(ctx); PROFILE_END(PUSH13); break;
+      case op::PUSH14: PROFILE_START(PUSH14); op::push<14>(ctx); PROFILE_END(PUSH14); break;
+      case op::PUSH15: PROFILE_START(PUSH15); op::push<15>(ctx); PROFILE_END(PUSH15); break;
+      case op::PUSH16: PROFILE_START(PUSH16); op::push<16>(ctx); PROFILE_END(PUSH16); break;
+      case op::PUSH17: PROFILE_START(PUSH17); op::push<17>(ctx); PROFILE_END(PUSH17); break;
+      case op::PUSH18: PROFILE_START(PUSH18); op::push<18>(ctx); PROFILE_END(PUSH18); break;
+      case op::PUSH19: PROFILE_START(PUSH19); op::push<19>(ctx); PROFILE_END(PUSH19); break;
+      case op::PUSH20: PROFILE_START(PUSH20); op::push<20>(ctx); PROFILE_END(PUSH20); break;
+      case op::PUSH21: PROFILE_START(PUSH21); op::push<21>(ctx); PROFILE_END(PUSH21); break;
+      case op::PUSH22: PROFILE_START(PUSH22); op::push<22>(ctx); PROFILE_END(PUSH22); break;
+      case op::PUSH23: PROFILE_START(PUSH23); op::push<23>(ctx); PROFILE_END(PUSH23); break;
+      case op::PUSH24: PROFILE_START(PUSH24); op::push<24>(ctx); PROFILE_END(PUSH24); break;
+      case op::PUSH25: PROFILE_START(PUSH25); op::push<25>(ctx); PROFILE_END(PUSH25); break;
+      case op::PUSH26: PROFILE_START(PUSH26); op::push<26>(ctx); PROFILE_END(PUSH26); break;
+      case op::PUSH27: PROFILE_START(PUSH27); op::push<27>(ctx); PROFILE_END(PUSH27); break;
+      case op::PUSH28: PROFILE_START(PUSH28); op::push<28>(ctx); PROFILE_END(PUSH28); break;
+      case op::PUSH29: PROFILE_START(PUSH29); op::push<29>(ctx); PROFILE_END(PUSH29); break;
+      case op::PUSH30: PROFILE_START(PUSH30); op::push<30>(ctx); PROFILE_END(PUSH30); break;
+      case op::PUSH31: PROFILE_START(PUSH31); op::push<31>(ctx); PROFILE_END(PUSH31); break;
+      case op::PUSH32: PROFILE_START(PUSH32); op::push<32>(ctx); PROFILE_END(PUSH32); break;
 
-      case op::DUP1: op::dup<1>(ctx); break;
-      case op::DUP2: op::dup<2>(ctx); break;
-      case op::DUP3: op::dup<3>(ctx); break;
-      case op::DUP4: op::dup<4>(ctx); break;
-      case op::DUP5: op::dup<5>(ctx); break;
-      case op::DUP6: op::dup<6>(ctx); break;
-      case op::DUP7: op::dup<7>(ctx); break;
-      case op::DUP8: op::dup<8>(ctx); break;
-      case op::DUP9: op::dup<9>(ctx); break;
-      case op::DUP10: op::dup<10>(ctx); break;
-      case op::DUP11: op::dup<11>(ctx); break;
-      case op::DUP12: op::dup<12>(ctx); break;
-      case op::DUP13: op::dup<13>(ctx); break;
-      case op::DUP14: op::dup<14>(ctx); break;
-      case op::DUP15: op::dup<15>(ctx); break;
-      case op::DUP16: op::dup<16>(ctx); break;
+      case op::DUP1: PROFILE_START(DUP1); op::dup<1>(ctx); PROFILE_END(DUP1); break;
+      case op::DUP2: PROFILE_START(DUP2); op::dup<2>(ctx); PROFILE_END(DUP2); break;
+      case op::DUP3: PROFILE_START(DUP3); op::dup<3>(ctx); PROFILE_END(DUP3); break;
+      case op::DUP4: PROFILE_START(DUP4); op::dup<4>(ctx); PROFILE_END(DUP4); break;
+      case op::DUP5: PROFILE_START(DUP5); op::dup<5>(ctx); PROFILE_END(DUP5); break;
+      case op::DUP6: PROFILE_START(DUP6); op::dup<6>(ctx); PROFILE_END(DUP6); break;
+      case op::DUP7: PROFILE_START(DUP7); op::dup<7>(ctx); PROFILE_END(DUP7); break;
+      case op::DUP8: PROFILE_START(DUP8); op::dup<8>(ctx); PROFILE_END(DUP8); break;
+      case op::DUP9: PROFILE_START(DUP9); op::dup<9>(ctx); PROFILE_END(DUP9); break;
+      case op::DUP10: PROFILE_START(DUP10); op::dup<10>(ctx); PROFILE_END(DUP10); break;
+      case op::DUP11: PROFILE_START(DUP11); op::dup<11>(ctx); PROFILE_END(DUP11); break;
+      case op::DUP12: PROFILE_START(DUP12); op::dup<12>(ctx); PROFILE_END(DUP12); break;
+      case op::DUP13: PROFILE_START(DUP13); op::dup<13>(ctx); PROFILE_END(DUP13); break;
+      case op::DUP14: PROFILE_START(DUP14); op::dup<14>(ctx); PROFILE_END(DUP14); break;
+      case op::DUP15: PROFILE_START(DUP15); op::dup<15>(ctx); PROFILE_END(DUP15); break;
+      case op::DUP16: PROFILE_START(DUP16); op::dup<16>(ctx); PROFILE_END(DUP16); break;
 
-      case op::SWAP1: op::swap<1>(ctx); break;
-      case op::SWAP2: op::swap<2>(ctx); break;
-      case op::SWAP3: op::swap<3>(ctx); break;
-      case op::SWAP4: op::swap<4>(ctx); break;
-      case op::SWAP5: op::swap<5>(ctx); break;
-      case op::SWAP6: op::swap<6>(ctx); break;
-      case op::SWAP7: op::swap<7>(ctx); break;
-      case op::SWAP8: op::swap<8>(ctx); break;
-      case op::SWAP9: op::swap<9>(ctx); break;
-      case op::SWAP10: op::swap<10>(ctx); break;
-      case op::SWAP11: op::swap<11>(ctx); break;
-      case op::SWAP12: op::swap<12>(ctx); break;
-      case op::SWAP13: op::swap<13>(ctx); break;
-      case op::SWAP14: op::swap<14>(ctx); break;
-      case op::SWAP15: op::swap<15>(ctx); break;
-      case op::SWAP16: op::swap<16>(ctx); break;
+      case op::SWAP1: PROFILE_START(SWAP1); op::swap<1>(ctx); PROFILE_END(SWAP1); break;
+      case op::SWAP2: PROFILE_START(SWAP2); op::swap<2>(ctx); PROFILE_END(SWAP2); break;
+      case op::SWAP3: PROFILE_START(SWAP3); op::swap<3>(ctx); PROFILE_END(SWAP3); break;
+      case op::SWAP4: PROFILE_START(SWAP4); op::swap<4>(ctx); PROFILE_END(SWAP4); break;
+      case op::SWAP5: PROFILE_START(SWAP5); op::swap<5>(ctx); PROFILE_END(SWAP5); break;
+      case op::SWAP6: PROFILE_START(SWAP6); op::swap<6>(ctx); PROFILE_END(SWAP6); break;
+      case op::SWAP7: PROFILE_START(SWAP7); op::swap<7>(ctx); PROFILE_END(SWAP7); break;
+      case op::SWAP8: PROFILE_START(SWAP8); op::swap<8>(ctx); PROFILE_END(SWAP8); break;
+      case op::SWAP9: PROFILE_START(SWAP9); op::swap<9>(ctx); PROFILE_END(SWAP9); break;
+      case op::SWAP10: PROFILE_START(SWAP10); op::swap<10>(ctx); PROFILE_END(SWAP10); break;
+      case op::SWAP11: PROFILE_START(SWAP11); op::swap<11>(ctx); PROFILE_END(SWAP11); break;
+      case op::SWAP12: PROFILE_START(SWAP12); op::swap<12>(ctx); PROFILE_END(SWAP12); break;
+      case op::SWAP13: PROFILE_START(SWAP13); op::swap<13>(ctx); PROFILE_END(SWAP13); break;
+      case op::SWAP14: PROFILE_START(SWAP14); op::swap<14>(ctx); PROFILE_END(SWAP14); break;
+      case op::SWAP15: PROFILE_START(SWAP15); op::swap<15>(ctx); PROFILE_END(SWAP15); break;
+      case op::SWAP16: PROFILE_START(SWAP16); op::swap<16>(ctx); PROFILE_END(SWAP16); break;
 
-      case op::LOG0: op::log<0>(ctx); break;
-      case op::LOG1: op::log<1>(ctx); break;
-      case op::LOG2: op::log<2>(ctx); break;
-      case op::LOG3: op::log<3>(ctx); break;
-      case op::LOG4: op::log<4>(ctx); break;
+      case op::LOG0: PROFILE_START(LOG0); op::log<0>(ctx); PROFILE_END(LOG0); break;
+      case op::LOG1: PROFILE_START(LOG1); op::log<1>(ctx); PROFILE_END(LOG1); break;
+      case op::LOG2: PROFILE_START(LOG2); op::log<2>(ctx); PROFILE_END(LOG2); break;
+      case op::LOG3: PROFILE_START(LOG3); op::log<3>(ctx); PROFILE_END(LOG3); break;
+      case op::LOG4: PROFILE_START(LOG4); op::log<4>(ctx); PROFILE_END(LOG4); break;
 
-      case op::CREATE: op::create_impl<op::CREATE>(ctx); break;
-      case op::CREATE2: op::create_impl<op::CREATE2>(ctx); break;
+      case op::CREATE: PROFILE_START(CREATE); op::create_impl<op::CREATE>(ctx); PROFILE_END(CREATE); break;
+      case op::CREATE2: PROFILE_START(CREATE2); op::create_impl<op::CREATE2>(ctx); PROFILE_END(CREATE2); break;
 
-      case op::RETURN: op::return_op<RunState::kReturn>(ctx); break;
-      case op::REVERT: op::return_op<RunState::kRevert>(ctx); break;
+      case op::RETURN: PROFILE_START(RETURN); op::return_op<RunState::kReturn>(ctx); PROFILE_END(RETURN); break;
+      case op::REVERT: PROFILE_START(REVERT); op::return_op<RunState::kRevert>(ctx); PROFILE_END(REVERT); break;
 
-      case op::CALL: op::call_impl<op::CALL>(ctx); break;
-      case op::CALLCODE: op::call_impl<op::CALLCODE>(ctx); break;
-      case op::DELEGATECALL: op::call_impl<op::DELEGATECALL>(ctx); break;
-      case op::STATICCALL: op::call_impl<op::STATICCALL>(ctx); break;
+      case op::CALL: PROFILE_START(CALL); op::call_impl<op::CALL>(ctx); PROFILE_END(CALL); break;
+      case op::CALLCODE: PROFILE_START(CALLCODE); op::call_impl<op::CALLCODE>(ctx); PROFILE_END(CALLCODE); break;
+      case op::DELEGATECALL: PROFILE_START(DELEGATECALL); op::call_impl<op::DELEGATECALL>(ctx); PROFILE_END(DELEGATECALL); break;
+      case op::STATICCALL: PROFILE_START(STATICCALL); op::call_impl<op::STATICCALL>(ctx); PROFILE_END(STATICCALL); break;
 
-      case op::INVALID: op::invalid(ctx); break;
-      case op::SELFDESTRUCT: op::selfdestruct(ctx); break;
+      case op::INVALID: PROFILE_START(INVALID); op::invalid(ctx); PROFILE_END(INVALID); break;
+      case op::SELFDESTRUCT: PROFILE_START(SELFDESTRUCT); op::selfdestruct(ctx); PROFILE_END(SELFDESTRUCT); break;
       // clang-format on
       default:
         ctx.state = RunState::kErrorOpcode;
     }
   }
+  PROFILE_END(DISPATCH);
 
   if (!IsSuccess(ctx.state)) {
     ctx.gas = 0;
@@ -1658,6 +1666,10 @@ void RunInterpreter(Context& ctx) {
   if (ctx.state != RunState::kReturn && ctx.state != RunState::kRevert) {
     ctx.return_data.clear();
   }
+
+#undef PROFILE_START
+#undef PROFILE_END
+#undef PROFILE_SCOPED
 }
 
 template void RunInterpreter<false, false>(Context&);
