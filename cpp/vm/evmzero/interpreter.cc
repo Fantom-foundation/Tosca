@@ -1403,12 +1403,9 @@ bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
 }
 
 void Context::FillValidJumpTargetsUpTo(uint64_t index) noexcept {
-  if (index < valid_jump_targets.size()) [[likely]] {
-    return;
-  }
+  TOSCA_ASSERT(index < code.size());
 
-  if (index >= code.size()) [[unlikely]] {
-    TOSCA_ASSERT(false);
+  if (index < valid_jump_targets.size()) [[likely]] {
     return;
   }
 
