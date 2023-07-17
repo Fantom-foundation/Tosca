@@ -1480,6 +1480,8 @@ void RunInterpreter(Context& ctx) {
   // of the last instructions is a PUSH with too few arguments.
   ctx.code.resize(ctx.code.size() + 32, op::STOP);
 
+  ctx.valid_jump_targets.reserve(ctx.code.size());
+
   while (ctx.state == RunState::kRunning) {
     if constexpr (LoggingEnabled) {
       // log format: <op>, <gas>, <top-of-stack>\n
