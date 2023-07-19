@@ -2,9 +2,14 @@ package vm_test
 
 import (
 	"fmt"
+	"math"
+	"math/big"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	// Enable this import to see C/C++ symbols in CPU profile data.
 	// This import is commented out because it would affect all binaries this
 	// package gets imported in and in some cases this library causes Go
@@ -71,6 +76,26 @@ func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func BenchmarkEmpty(b *testing.B) {
+	addr := vm.AccountRef{}
+	contract := vm.NewContract(addr, addr, big.NewInt(0), math.MaxInt64)
+	contract.Code = []byte{0}
+	contract.CodeHash = crypto.Keccak256Hash(contract.Code)
+	contract.CodeAddr = &common.Address{}
+
+	for _, variant := range Variants {
+		evm := GetCleanEVM(London, variant, nil)
+		b.Run(variant, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, err := evm.GetInterpreter().Run(contract, []byte{}, false)
+				if err != nil {
+					b.Fatalf("error running empty example: %v", err)
+				}
+			}
+		})
 	}
 }
 
