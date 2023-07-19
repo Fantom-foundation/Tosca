@@ -121,6 +121,8 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 		panic(fmt.Sprintf("Could not convert value: %v", err))
 	}
 
+	codeHash := evmc.Hash(contract.CodeHash)
+
 	// Forward the execution call to the underlying EVM implementation.
 	result, err := e.evmc.vm.Execute(evmc.Parameters{
 		Context:   &host_ctx,
@@ -133,6 +135,7 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 		Sender:    evmc.Address(contract.Caller()),
 		Input:     input,
 		Value:     value,
+		CodeHash:  &codeHash,
 		Code:      contract.Code,
 	})
 
