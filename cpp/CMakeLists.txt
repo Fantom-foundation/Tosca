@@ -31,4 +31,5 @@ if(TOSCA_ASAN)
   add_link_options($<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
 endif()
 
+add_subdirectory(common)
 add_subdirectory(vm/evmzero)
