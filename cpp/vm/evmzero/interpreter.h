@@ -36,6 +36,7 @@ std::ostream& operator<<(std::ostream&, RunState);
 
 struct InterpreterArgs {
   std::span<const uint8_t> code;
+  std::span<const uint8_t> valid_jump_targets;
   const evmc_message* message = nullptr;
   const evmc_host_interface* host_interface = nullptr;
   evmc_host_context* host_context = nullptr;
@@ -66,7 +67,7 @@ struct Context {
 
   std::vector<uint8_t> code;
   std::vector<uint8_t> return_data;
-  std::vector<uint8_t> valid_jump_targets;
+  std::span<const uint8_t> valid_jump_targets;
 
   Memory memory;
   Stack stack;
@@ -84,7 +85,6 @@ struct Context {
   bool ApplyGasCost(int64_t gas_cost) noexcept;
 
   bool CheckJumpDest(uint256_t index) noexcept;
-  void FillValidJumpTargetsUpTo(uint64_t index) noexcept;
 
   struct MemoryExpansionCostResult {
     // Resulting memory expansion costs.

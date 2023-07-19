@@ -32,16 +32,15 @@ class LruCache {
   }
 
   // Adds or updates the value with the given key. Removes the least recently
-  // used element when Capacity is exceeded. Returns true if a new key was
-  // inserted.
-  bool InsertOrAssign(const Key& key, Value value) {
+  // used element when Capacity is exceeded. Returns the added/updated value.
+  std::shared_ptr<const Value> InsertOrAssign(const Key& key, Value value) {
     std::scoped_lock lock(mutex_);
 
     const auto value_ptr = std::make_shared<Value>(std::move(value));
 
     if (auto it = entries_.find(key); it != entries_.end()) {
       it->second.value = value_ptr;
-      return false;
+      return value_ptr;
     }
 
     if (entries_.size() == Capacity) {
@@ -58,7 +57,7 @@ class LruCache {
     TOSCA_ASSERT(entries_.size() <= Capacity);
     TOSCA_ASSERT(entries_.size() == lru_.size());
 
-    return true;
+    return value_ptr;
   }
 
   size_t GetSize() {

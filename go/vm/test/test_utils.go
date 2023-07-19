@@ -26,6 +26,7 @@ var (
 		"evmone-advanced",
 		"evmzero",
 		"evmzero-logging",
+		"evmzero-no-analysis-cache",
 	}
 )
 

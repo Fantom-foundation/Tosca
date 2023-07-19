@@ -1,9 +1,14 @@
+#include <cstdint>
+#include <iostream>
+#include <span>
 #include <string_view>
 
 #include <evmc/evmc.h>
 #include <evmc/utils.h>
 
+#include "common/lru_cache.h"
 #include "vm/evmzero/interpreter.h"
+#include "vm/evmzero/opcodes.h"
 
 namespace tosca::evmzero {
 
@@ -46,7 +51,8 @@ evmc_status_code ToEvmcStatusCode(RunState state) {
 // infrastructure via the evmc interface.
 class VM : public evmc_vm {
  public:
-  constexpr VM() noexcept
+  VM()
+  noexcept
       : evmc_vm{
             .abi_version = EVMC_ABI_VERSION,
             .name = "evmzero",
@@ -57,7 +63,8 @@ class VM : public evmc_vm {
             .execute = [](evmc_vm* vm, const evmc_host_interface* host_interface, evmc_host_context* host_context,
                           evmc_revision revision, const evmc_message* message, const evmc_bytes32* code_hash,
                           const uint8_t* code, size_t code_size) -> evmc_result {
-              return static_cast<VM*>(vm)->Execute({code, code_size}, message, host_interface, host_context, revision);
+              return static_cast<VM*>(vm)->Execute({code, code_size}, code_hash, message, host_interface, host_context,
+                                                   revision);
             },
 
             .get_capabilities = [](evmc_vm*) -> evmc_capabilities_flagset { return EVMC_CAPABILITY_EVM1; },
@@ -67,11 +74,23 @@ class VM : public evmc_vm {
             },
         } {}
 
-  evmc_result Execute(std::span<const uint8_t> code, const evmc_message* message,                  //
+  evmc_result Execute(std::span<const uint8_t> code, const evmc_bytes32* code_hash,                //
+                      const evmc_message* message,                                                 //
                       const evmc_host_interface* host_interface, evmc_host_context* host_context,  //
                       evmc_revision revision) {
+    std::shared_ptr<const op::ValidJumpTargetsBuffer> valid_jump_targets;
+    if (analysis_cache_enabled_ && code_hash && *code_hash != evmc::bytes32{0}) [[likely]] {
+      valid_jump_targets = valid_jump_targets_cache_.Get(*code_hash);
+      if (!valid_jump_targets) {
+        valid_jump_targets = valid_jump_targets_cache_.InsertOrAssign(*code_hash, op::CalculateValidJumpTargets(code));
+      }
+    } else {
+      valid_jump_targets = std::make_shared<std::vector<uint8_t>>(op::CalculateValidJumpTargets(code));
+    }
+
     const InterpreterArgs interpreter_args{
         .code = code,
+        .valid_jump_targets = *valid_jump_targets,
         .message = message,
         .host_interface = host_interface,
         .host_context = host_context,
@@ -103,23 +122,32 @@ class VM : public evmc_vm {
   }
 
   evmc_set_option_result SetOption(std::string_view name, std::string_view value) {
-    if (name == "logging") {
-      if (value == "true") {
-        logging_enabled_ = true;
-        return EVMC_SET_OPTION_SUCCESS;
-      } else if (value == "false") {
-        logging_enabled_ = false;
-        return EVMC_SET_OPTION_SUCCESS;
-      } else {
-        return EVMC_SET_OPTION_INVALID_VALUE;
+    const auto on_off_options = {
+        std::pair("logging", &logging_enabled_),
+        std::pair("analysis_cache", &analysis_cache_enabled_),
+    };
+
+    for (const auto& [option_name, member] : on_off_options) {
+      if (name == option_name) {
+        if (value == "true") {
+          *member = true;
+          return EVMC_SET_OPTION_SUCCESS;
+        } else if (value == "false") {
+          *member = false;
+          return EVMC_SET_OPTION_SUCCESS;
+        } else {
+          return EVMC_SET_OPTION_INVALID_VALUE;
+        }
       }
-    } else {
-      return EVMC_SET_OPTION_INVALID_NAME;
     }
+    return EVMC_SET_OPTION_INVALID_NAME;
   }
 
  private:
   bool logging_enabled_ = false;
+  bool analysis_cache_enabled_ = true;
+
+  LruCache<evmc::bytes32, op::ValidJumpTargetsBuffer, 128> valid_jump_targets_cache_;
 };
 
 extern "C" {
