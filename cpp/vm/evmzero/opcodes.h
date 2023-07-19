@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
+#include <vector>
 
 namespace tosca::evmzero::op {
 
@@ -9,7 +11,7 @@ enum OpCodes : uint8_t {
 #include "opcodes.inc"
 };
 
-constexpr const char* ToString(OpCodes op) {
+constexpr inline const char* ToString(OpCodes op) {
   switch (op) {
 #define EVMZERO_OPCODE(name, value) \
   case op::name:                    \
@@ -18,5 +20,8 @@ constexpr const char* ToString(OpCodes op) {
   }
   return "UNKNOWN";
 }
+
+using ValidJumpTargetsBuffer = std::vector<uint8_t>;
+ValidJumpTargetsBuffer CalculateValidJumpTargets(std::span<const uint8_t> code);
 
 }  // namespace tosca::evmzero::op

@@ -64,6 +64,7 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
   internal::Context ctx{
       .is_static_call = static_cast<bool>(args.message->flags & EVMC_STATIC),
       .gas = args.message->gas,
+      .valid_jump_targets = args.valid_jump_targets,
       .message = args.message,
       .host = &host,
       .revision = args.revision,
@@ -1407,44 +1408,19 @@ inline bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
 }
 
 bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
-  if (index_u256 >= code.size()) [[unlikely]] {
+  if (index_u256 >= valid_jump_targets.size()) [[unlikely]] {
     state = RunState::kErrorJump;
     return false;
   }
 
   const uint64_t index = static_cast<uint64_t>(index_u256);
 
-  FillValidJumpTargetsUpTo(index);
   if (!valid_jump_targets[index]) [[unlikely]] {
     state = RunState::kErrorJump;
     return false;
   }
 
   return true;
-}
-
-void Context::FillValidJumpTargetsUpTo(uint64_t index) noexcept {
-  TOSCA_ASSERT(index < code.size());
-
-  if (index < valid_jump_targets.size()) [[likely]] {
-    return;
-  }
-
-  const uint64_t old_size = valid_jump_targets.size();
-  valid_jump_targets.resize(index + 1);
-
-  uint64_t cur = old_size;
-  while (cur <= index) {
-    const auto instruction = code[cur];
-
-    if (op::PUSH1 <= instruction && instruction <= op::PUSH32) {
-      // Skip PUSH and arguments
-      cur += instruction - op::PUSH1 + 2;
-    } else {
-      valid_jump_targets[cur] = instruction == op::JUMPDEST;
-      cur++;
-    }
-  }
 }
 
 Context::MemoryExpansionCostResult Context::MemoryExpansionCost(uint256_t offset_u256, uint256_t size_u256) noexcept {
@@ -1497,8 +1473,6 @@ inline bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
 template <bool LoggingEnabled>
 void RunInterpreter(Context& ctx) {
   ctx.code.resize(ctx.code.size() + kStopBytePadding, op::STOP);
-
-  ctx.valid_jump_targets.reserve(ctx.code.size());
 
   while (ctx.state == RunState::kRunning) {
     if constexpr (LoggingEnabled) {

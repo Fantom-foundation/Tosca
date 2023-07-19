@@ -70,12 +70,15 @@ struct InterpreterTestDescription {
 };
 
 void RunInterpreterTest(const InterpreterTestDescription& desc) {
+  auto valid_jump_targets = op::CalculateValidJumpTargets(desc.code);
+
   internal::Context ctx{
       .is_static_call = desc.is_static_call,
       .gas = desc.gas_before,
       .gas_refunds = desc.gas_refund_before,
       .code = desc.code,
       .return_data = desc.last_call_data,
+      .valid_jump_targets = valid_jump_targets,
       .memory = desc.memory_before,
       .stack = desc.stack_before,
       .message = &desc.message,

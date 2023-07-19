@@ -18,8 +18,8 @@ TEST(LruCacheTest, GetMissing) {
 TEST(LruCacheTest, Insert) {
   LruCache<int, int, 32> cache;
 
-  bool inserted = cache.InsertOrAssign(0, 42);
-  EXPECT_TRUE(inserted);
+  auto element = cache.InsertOrAssign(0, 42);
+  EXPECT_EQ(*element, 42);
   EXPECT_EQ(cache.GetSize(), 1);
   EXPECT_EQ(*cache.Get(0), 42);
 }
@@ -28,8 +28,8 @@ TEST(LruCacheTest, Assign) {
   LruCache<int, int, 32> cache;
 
   cache.InsertOrAssign(0, 42);
-  bool inserted = cache.InsertOrAssign(0, 23);
-  EXPECT_FALSE(inserted);
+  auto element = cache.InsertOrAssign(0, 23);
+  EXPECT_EQ(*element, 23);
   EXPECT_EQ(cache.GetSize(), 1);
   EXPECT_EQ(*cache.Get(0), 23);
 }

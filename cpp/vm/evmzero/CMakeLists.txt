@@ -4,6 +4,7 @@ add_library(evmzero SHARED
   evmzero.cc
   interpreter.cc
   memory.cc
+  opcodes.cc
   stack.cc)
 tosca_add_compile_flags(evmzero)
 target_include_directories(evmzero SYSTEM PUBLIC ${TOSCA_THIRD_PARTY_DIR}/intx/include)
