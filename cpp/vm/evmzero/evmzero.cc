@@ -55,8 +55,8 @@ class VM : public evmc_vm {
             .destroy = [](evmc_vm* vm) { delete static_cast<VM*>(vm); },
 
             .execute = [](evmc_vm* vm, const evmc_host_interface* host_interface, evmc_host_context* host_context,
-                          evmc_revision revision, const evmc_message* message, const uint8_t* code,
-                          size_t code_size) -> evmc_result {
+                          evmc_revision revision, const evmc_message* message, const evmc_bytes32* code_hash,
+                          const uint8_t* code, size_t code_size) -> evmc_result {
               return static_cast<VM*>(vm)->Execute({code, code_size}, message, host_interface, host_context, revision);
             },
 
