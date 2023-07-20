@@ -428,11 +428,7 @@ static void sha3(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(6 * minimum_word_size)) [[unlikely]]
     return;
 
-  std::vector<uint8_t> buffer(size);
-  ctx.memory.WriteTo(buffer, offset);
-
-  auto hash = ethash::keccak256(buffer.data(), buffer.size());
-  ctx.stack.Push(ToUint256(hash));
+  ctx.stack.Push(ctx.memory.CalculateHash(offset, size));
   ctx.pc++;
 }
 
