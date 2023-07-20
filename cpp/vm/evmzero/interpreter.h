@@ -8,6 +8,7 @@
 #include <evmc/evmc.hpp>
 
 #include "vm/evmzero/memory.h"
+#include "vm/evmzero/profiler.h"
 #include "vm/evmzero/stack.h"
 
 namespace tosca::evmzero {
@@ -41,6 +42,7 @@ struct InterpreterArgs {
   const evmc_host_interface* host_interface = nullptr;
   evmc_host_context* host_context = nullptr;
   evmc_revision revision = EVMC_ISTANBUL;
+  void* profiler = nullptr;
 };
 
 struct InterpreterResult {
@@ -100,7 +102,7 @@ struct Context {
 };
 
 template <bool LoggingEnabled, bool ProfilingEnabled>
-extern void RunInterpreter(Context&);
+extern void RunInterpreter(Context&, Profiler<ProfilingEnabled>&);
 
 }  // namespace internal
 

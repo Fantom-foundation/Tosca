@@ -86,7 +86,8 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
       .revision = desc.revision,
   };
 
-  internal::RunInterpreter<false, false>(ctx);
+  auto profiler = Profiler<false>{};
+  internal::RunInterpreter<false, false>(ctx, profiler);
 
   ASSERT_EQ(ctx.state, desc.state_after);
 

@@ -7,7 +7,6 @@
 
 #include "common/assert.h"
 #include "vm/evmzero/opcodes.h"
-#include "vm/evmzero/profiler.h"
 
 namespace tosca::evmzero {
 
@@ -73,7 +72,9 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
   ctx.code.reserve(args.code.size() + kStopBytePadding);
   ctx.code.assign(args.code.begin(), args.code.end());
 
-  internal::RunInterpreter<LoggingEnabled, ProfilingEnabled>(ctx);
+  auto& profiler = *static_cast<Profiler<ProfilingEnabled>*>(args.profiler);
+
+  internal::RunInterpreter<LoggingEnabled, ProfilingEnabled>(ctx, profiler);
 
   return {
       .state = ctx.state,
@@ -1473,10 +1474,9 @@ inline bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
 }
 
 template <bool LoggingEnabled, bool ProfilingEnabled>
-void RunInterpreter(Context& ctx) {
+void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   ctx.code.resize(ctx.code.size() + kStopBytePadding, op::STOP);
 
-  auto profiler = Profiler<ProfilingEnabled>{};
 #define PROFILE_START(marker) profiler.template Start<Markers::marker>()
 #define PROFILE_END(marker) profiler.template End<Markers::marker>()
 #define PROFILE_SCOPED(marker) const auto scope_##marker = profiler.template Scoped<Markers::marker>()
@@ -1672,10 +1672,10 @@ void RunInterpreter(Context& ctx) {
 #undef PROFILE_SCOPED
 }
 
-template void RunInterpreter<false, false>(Context&);
-template void RunInterpreter<true, false>(Context&);
-template void RunInterpreter<false, true>(Context&);
-template void RunInterpreter<true, true>(Context&);
+template void RunInterpreter<false, false>(Context&, Profiler<false>&);
+template void RunInterpreter<true, false>(Context&, Profiler<false>&);
+template void RunInterpreter<false, true>(Context&, Profiler<true>&);
+template void RunInterpreter<true, true>(Context&, Profiler<true>&);
 
 }  // namespace internal
 

@@ -9,7 +9,7 @@ enum class Markers : std::size_t {
 #include "profiler_markers.inc"
 };
 
-constexpr const char* ToString(Markers marker) {
+inline constexpr const char* ToString(Markers marker) {
   switch (marker) {
 #define EVMZERO_PROFILER_MARKER(name) \
   case Markers::name:                 \

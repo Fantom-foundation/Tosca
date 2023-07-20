@@ -14,20 +14,6 @@ namespace tosca::evmzero {
 template <bool ProfilingEnabled>
 class Profiler {
  public:
-  ~Profiler() {
-    if constexpr (ProfilingEnabled) {
-      // profiling format: <marker>, <calls>, <total-time>\n
-      for (std::size_t i = 0; i < static_cast<std::size_t>(Markers::NUM_MARKERS); ++i) {
-        if (calls_[i]) {
-          std::cout << ToString(static_cast<Markers>(i)) << ", "  //
-                    << calls_[i] << ", "                          //
-                    << total_time_[i] << ", ";
-          std::cout << "\n" << std::flush;
-        }
-      }
-    }
-  }
-
   template <Markers Marker>
   inline void Start() {
     if constexpr (ProfilingEnabled) {
@@ -49,6 +35,26 @@ class Profiler {
   inline auto Scoped() {
     Start<Marker>();
     return DeferredEnd<Marker>(*this);
+  }
+
+  void Dump() const {
+    if constexpr (ProfilingEnabled) {
+      // profiling format: <marker>, <calls>, <total-time>\n
+      for (std::size_t i = 0; i < static_cast<std::size_t>(Markers::NUM_MARKERS); ++i) {
+        if (calls_[i]) {
+          std::cout << ToString(static_cast<Markers>(i)) << ", "  //
+                    << calls_[i] << ", "                          //
+                    << total_time_[i] << ", ";
+          std::cout << "\n" << std::flush;
+        }
+      }
+    }
+  }
+
+  void Reset() {
+    calls_ = {};
+    start_time_ = {};
+    total_time_ = {};
   }
 
  private:

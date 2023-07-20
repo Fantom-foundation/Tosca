@@ -29,17 +29,17 @@ func TestFib10(t *testing.T) {
 	})
 }
 
-func TestEvmzero_DumpStatistics(t *testing.T) {
+func TestEvmzero_DumpProfiler(t *testing.T) {
 	example := examples.GetFibExample()
-	interpreter := vm.NewInterpreter("evmzero", &vm.EVM{}, vm.Config{})
+	interpreter := vm.NewInterpreter("evmzero-profiling", &vm.EVM{}, vm.Config{})
 	for i := 0; i < 10; i++ {
 		example.RunOn(interpreter, 10)
 		// This is just printing to the output stream, but it could
 		// be something more sophisticated sending back some string or
-		// otherwise encoded statistcs data ...
-		DumpStatistics(interpreter)
+		// otherwise encoded statistics data ...
+		DumpProfiler(interpreter)
 		if i == 5 {
-			ResetStatistics(interpreter)
+			ResetProfiler(interpreter)
 		}
 	}
 }

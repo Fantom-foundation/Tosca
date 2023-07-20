@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
+	"github.com/Fantom-foundation/Tosca/go/vm/evmzero"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -164,6 +166,9 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 
 	for _, variant := range Variants {
 		evm := GetCleanEVM(London, variant, nil)
+		if strings.HasSuffix(variant, "-profiling") {
+			evmzero.ResetProfiler(evm.GetInterpreter())
+		}
 		b.Run(variant, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				got, err := example.RunOn(evm.GetInterpreter(), arg)
@@ -176,5 +181,8 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 				}
 			}
 		})
+		if strings.HasSuffix(variant, "-profiling") {
+			evmzero.DumpProfiler(evm.GetInterpreter())
+		}
 	}
 }

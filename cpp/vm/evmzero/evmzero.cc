@@ -5,11 +5,11 @@
 
 #include <evmc/evmc.h>
 #include <evmc/utils.h>
-#include <iostream>
 
 #include "common/lru_cache.h"
 #include "vm/evmzero/interpreter.h"
 #include "vm/evmzero/opcodes.h"
+#include "vm/evmzero/profiler.h"
 
 namespace tosca::evmzero {
 
@@ -89,8 +89,6 @@ class VM : public evmc_vm {
       valid_jump_targets = std::make_shared<std::vector<uint8_t>>(op::CalculateValidJumpTargets(code));
     }
 
-    call_counter_++;
-
     const InterpreterArgs interpreter_args{
         .code = code,
         .valid_jump_targets = *valid_jump_targets,
@@ -98,6 +96,8 @@ class VM : public evmc_vm {
         .host_interface = host_interface,
         .host_context = host_context,
         .revision = revision,
+        .profiler =
+            (profiling_enabled_ ? static_cast<void*>(&enabled_profiler_) : static_cast<void*>(&disabled_profiler_)),
     };
     InterpreterResult interpreter_result;
     if (logging_enabled_ && profiling_enabled_) {
@@ -151,9 +151,15 @@ class VM : public evmc_vm {
     return EVMC_SET_OPTION_INVALID_NAME;
   }
 
-  void DumpStatistics() const { std::cout << "Number of calls: " << call_counter_ << "\n" << std::flush; }
+  void DumpProfiler() const {
+    disabled_profiler_.Dump();
+    enabled_profiler_.Dump();
+  }
 
-  void ResetStatistics() { call_counter_ = 0; }
+  void ResetProfiler() {
+    disabled_profiler_.Reset();
+    enabled_profiler_.Reset();
+  }
 
  private:
   bool logging_enabled_ = false;
@@ -162,15 +168,16 @@ class VM : public evmc_vm {
 
   LruCache<evmc::bytes32, op::ValidJumpTargetsBuffer, 1 << 16> valid_jump_targets_cache_;
 
-  int call_counter_ = 0;
+  Profiler<false> disabled_profiler_;
+  Profiler<true> enabled_profiler_;
 };
 
 extern "C" {
 EVMC_EXPORT evmc_vm* evmc_create_evmzero() noexcept { return new VM; }
 
-EVMC_EXPORT void evmzero_dump_statistis(evmc_vm* vm) noexcept { reinterpret_cast<VM*>(vm)->DumpStatistics(); }
+EVMC_EXPORT void evmzero_dump_profiler(evmc_vm* vm) noexcept { reinterpret_cast<VM*>(vm)->DumpProfiler(); }
 
-EVMC_EXPORT void evmzero_reset_statistis(evmc_vm* vm) noexcept { reinterpret_cast<VM*>(vm)->ResetStatistics(); }
+EVMC_EXPORT void evmzero_reset_profiler(evmc_vm* vm) noexcept { reinterpret_cast<VM*>(vm)->ResetProfiler(); }
 }
 
 }  // namespace tosca::evmzero

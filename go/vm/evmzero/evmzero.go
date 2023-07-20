@@ -3,8 +3,8 @@ package evmzero
 /*
 #cgo LDFLAGS: -L${SRCDIR}/../../../cpp/build/vm/evmzero -levmzero -Wl,-rpath,${SRCDIR}/../../../cpp/build/vm/evmzero
 // Declarations for evmzero API exceeding EVMC requirements.
-void evmzero_dump_statistis(void* vm);
-void evmzero_reset_statistis(void* vm);
+void evmzero_dump_profiler(void* vm);
+void evmzero_reset_profiler(void* vm);
 */
 import "C"
 
@@ -86,16 +86,18 @@ func init() {
 	vm.RegisterInterpreterFactory("evmzero-profiling", newProfilingInterpreter)
 }
 
-func DumpStatistics(interpreter vm.EVMInterpreter) {
+func DumpProfiler(interpreter vm.EVMInterpreter) {
 	if evmc, ok := interpreter.(*common.EvmcInterpreter); ok {
-		C.evmzero_dump_statistis(evmc.GetEvmcVM().GetHandle())
+		C.evmzero_dump_profiler(evmc.GetEvmcVM().GetHandle())
 	} else {
-		fmt.Printf("Cannot dump operator statistics for non-evmzero interpreter.\n")
+		fmt.Printf("Cannot dump profiler data for non-evmzero interpreter.\n")
 	}
 }
 
-func ResetStatistics(interpreter vm.EVMInterpreter) {
+func ResetProfiler(interpreter vm.EVMInterpreter) {
 	if evmc, ok := interpreter.(*common.EvmcInterpreter); ok {
-		C.evmzero_reset_statistis(evmc.GetEvmcVM().GetHandle())
+		C.evmzero_reset_profiler(evmc.GetEvmcVM().GetHandle())
+	} else {
+		fmt.Printf("Cannot reset profiler for non-evmzero interpreter.\n")
 	}
 }
