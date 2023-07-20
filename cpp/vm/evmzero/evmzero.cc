@@ -2,6 +2,7 @@
 
 #include <evmc/evmc.h>
 #include <evmc/utils.h>
+#include <iostream>
 
 #include "vm/evmzero/interpreter.h"
 
@@ -70,6 +71,7 @@ class VM : public evmc_vm {
   evmc_result Execute(std::span<const uint8_t> code, const evmc_message* message,                  //
                       const evmc_host_interface* host_interface, evmc_host_context* host_context,  //
                       evmc_revision revision) {
+    call_counter_++;
     const InterpreterArgs interpreter_args{
         .code = code,
         .message = message,
@@ -118,12 +120,21 @@ class VM : public evmc_vm {
     }
   }
 
+  void DumpStatistics() const { std::cout << "Number of calls: " << call_counter_ << "\n" << std::flush; }
+
+  void ResetStatistics() { call_counter_ = 0; }
+
  private:
   bool logging_enabled_ = false;
+  int call_counter_ = 0;
 };
 
 extern "C" {
 EVMC_EXPORT evmc_vm* evmc_create_evmzero() noexcept { return new VM; }
+
+EVMC_EXPORT void evmzero_dump_statistis(evmc_vm* vm) noexcept { reinterpret_cast<VM*>(vm)->DumpStatistics(); }
+
+EVMC_EXPORT void evmzero_reset_statistis(evmc_vm* vm) noexcept { reinterpret_cast<VM*>(vm)->ResetStatistics(); }
 }
 
 }  // namespace tosca::evmzero

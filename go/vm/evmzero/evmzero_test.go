@@ -29,6 +29,21 @@ func TestFib10(t *testing.T) {
 	})
 }
 
+func TestEvmzero_DumpStatistics(t *testing.T) {
+	example := examples.GetFibExample()
+	interpreter := vm.NewInterpreter("evmzero", &vm.EVM{}, vm.Config{})
+	for i := 0; i < 10; i++ {
+		example.RunOn(interpreter, 10)
+		// This is just printing to the output stream, but it could
+		// be something more sophisticated sending back some string or
+		// otherwise encoded statistcs data ...
+		DumpStatistics(interpreter)
+		if i == 5 {
+			ResetStatistics(interpreter)
+		}
+	}
+}
+
 func BenchmarkNewEvmcInterpreter(b *testing.B) {
 	b.Run("evmzero", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

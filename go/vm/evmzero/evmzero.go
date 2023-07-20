@@ -1,7 +1,10 @@
 package evmzero
 
 /*
-#cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/../../../cpp/build/vm/evmzero
+#cgo LDFLAGS: -L${SRCDIR}/../../../cpp/build/vm/evmzero -levmzero -Wl,-rpath,${SRCDIR}/../../../cpp/build/vm/evmzero
+// Declarations for evmzero API exceeding EVMC requirements.
+void evmzero_dump_statistis(void* vm);
+void evmzero_reset_statistis(void* vm);
 */
 import "C"
 
@@ -49,4 +52,18 @@ func newLoggingInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
 func init() {
 	vm.RegisterInterpreterFactory("evmzero", newInterpreter)
 	vm.RegisterInterpreterFactory("evmzero-logging", newLoggingInterpreter)
+}
+
+func DumpStatistics(interpreter vm.EVMInterpreter) {
+	if evmc, ok := interpreter.(*common.EvmcInterpreter); ok {
+		C.evmzero_dump_statistis(evmc.GetEvmcVM().GetHandle())
+	} else {
+		fmt.Printf("Cannot dump operator statistics for non-evmzero interpreter.\n")
+	}
+}
+
+func ResetStatistics(interpreter vm.EVMInterpreter) {
+	if evmc, ok := interpreter.(*common.EvmcInterpreter); ok {
+		C.evmzero_reset_statistis(evmc.GetEvmcVM().GetHandle())
+	}
 }
