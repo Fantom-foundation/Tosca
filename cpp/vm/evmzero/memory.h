@@ -7,6 +7,10 @@
 #include <span>
 #include <vector>
 
+#include <ethash/keccak.hpp>
+
+#include "vm/evmzero/uint256.h"
+
 namespace tosca::evmzero {
 
 // This data structure is used as the interpreter's memory during execution.
@@ -44,6 +48,13 @@ class Memory {
   void WriteTo(std::span<uint8_t> buffer, uint64_t memory_offset) {
     Grow(memory_offset, buffer.size());
     std::copy_n(memory_.data() + memory_offset, buffer.size(), buffer.data());
+  }
+
+  // Calculates the keccak256 hash of the given memory segement. Grows memory
+  // automatically, unless size == 0.
+  uint256_t CalculateHash(uint64_t offset, uint64_t size) {
+    Grow(offset, size);
+    return ToUint256(ethash::keccak256(memory_.data() + offset, size));
   }
 
   // Grow memory to accommodate offset + size bytes. Memory is not grown when
