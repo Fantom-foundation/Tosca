@@ -186,6 +186,11 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 	return result.Output, err
 }
 
+// GetEvmcVM provides direct access to the VM connected through the EVMC library.
+func (e *EvmcInterpreter) GetEvmcVM() *evmc.VM {
+	return e.evmc.vm
+}
+
 // The HostContext allows a non-Go EVM implementation to access the StateDB and
 // other systems external to the interpreter. This implementation leverages
 // evmc's Go bindings.

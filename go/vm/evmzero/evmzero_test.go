@@ -29,6 +29,18 @@ func TestFib10(t *testing.T) {
 	})
 }
 
+func TestEvmzero_DumpProfile(t *testing.T) {
+	example := examples.GetFibExample()
+	interpreter := vm.NewInterpreter("evmzero-profiling", &vm.EVM{}, vm.Config{})
+	for i := 0; i < 10; i++ {
+		example.RunOn(interpreter, 10)
+		DumpProfile(interpreter)
+		if i == 5 {
+			ResetProfiler(interpreter)
+		}
+	}
+}
+
 func BenchmarkNewEvmcInterpreter(b *testing.B) {
 	b.Run("evmzero", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

@@ -57,8 +57,11 @@ std::ostream& operator<<(std::ostream& out, RunState state) { return out << ToSt
 // instructions is a PUSH with too few arguments.
 constexpr int kStopBytePadding = 33;
 
-template <bool LoggingEnabled>
-InterpreterResult Interpret(const InterpreterArgs& args) {
+template <bool LoggingEnabled, bool ProfilingEnabled>
+InterpreterResult Interpret(const InterpreterArgs<ProfilingEnabled>& args) {
+  auto profiler = Profiler<ProfilingEnabled>{};
+  profiler.template Start<Marker::INTERPRETER>();
+
   evmc::HostContext host(*args.host_interface, args.host_context);
 
   internal::Context ctx{
@@ -72,7 +75,12 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
       .sha3_cache = args.sha3_cache,
   };
 
-  internal::RunInterpreter<LoggingEnabled>(ctx);
+  internal::RunInterpreter<LoggingEnabled, ProfilingEnabled>(ctx, profiler);
+
+  profiler.template End<Marker::INTERPRETER>();
+
+  auto& vm_profiler = args.profiler;
+  vm_profiler.Merge(profiler.Collect());
 
   return {
       .state = ctx.state,
@@ -82,8 +90,10 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
   };
 }
 
-template InterpreterResult Interpret<false>(const InterpreterArgs&);
-template InterpreterResult Interpret<true>(const InterpreterArgs&);
+template InterpreterResult Interpret<false, false>(const InterpreterArgs<false>&);
+template InterpreterResult Interpret<true, false>(const InterpreterArgs<false>&);
+template InterpreterResult Interpret<false, true>(const InterpreterArgs<true>&);
+template InterpreterResult Interpret<true, true>(const InterpreterArgs<true>&);
 
 ///////////////////////////////////////////////////////////
 
@@ -1483,8 +1493,15 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
   return padded;
 }
 
-template <bool LoggingEnabled>
-void RunInterpreter(Context& ctx) {
+template <bool LoggingEnabled, bool ProfilingEnabled>
+void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
+#define PROFILE_START(marker) profiler.template Start<Marker::marker>()
+#define PROFILE_END(marker) profiler.template End<Marker::marker>()
+#define OPCODE(opcode, impl)          \
+  op::opcode : PROFILE_START(opcode); \
+  op::impl(ctx);                      \
+  PROFILE_END(opcode)
+
   while (ctx.state == RunState::kRunning) {
     if constexpr (LoggingEnabled) {
       // log format: <op>, <gas>, <top-of-stack>\n
@@ -1500,163 +1517,165 @@ void RunInterpreter(Context& ctx) {
 
     switch (ctx.padded_code[ctx.pc]) {
       // clang-format off
-      case op::STOP: op::stop(ctx); break;
+      case OPCODE(STOP, stop); break;
 
-      case op::ADD: op::add(ctx); break;
-      case op::MUL: op::mul(ctx); break;
-      case op::SUB: op::sub(ctx); break;
-      case op::DIV: op::div(ctx); break;
-      case op::SDIV: op::sdiv(ctx); break;
-      case op::MOD: op::mod(ctx); break;
-      case op::SMOD: op::smod(ctx); break;
-      case op::ADDMOD: op::addmod(ctx); break;
-      case op::MULMOD: op::mulmod(ctx); break;
-      case op::EXP: op::exp(ctx); break;
-      case op::SIGNEXTEND: op::signextend(ctx); break;
-      case op::LT: op::lt(ctx); break;
-      case op::GT: op::gt(ctx); break;
-      case op::SLT: op::slt(ctx); break;
-      case op::SGT: op::sgt(ctx); break;
-      case op::EQ: op::eq(ctx); break;
-      case op::ISZERO: op::iszero(ctx); break;
-      case op::AND: op::bit_and(ctx); break;
-      case op::OR: op::bit_or(ctx); break;
-      case op::XOR: op::bit_xor(ctx); break;
-      case op::NOT: op::bit_not(ctx); break;
-      case op::BYTE: op::byte(ctx); break;
-      case op::SHL: op::shl(ctx); break;
-      case op::SHR: op::shr(ctx); break;
-      case op::SAR: op::sar(ctx); break;
-      case op::SHA3: op::sha3(ctx); break;
-      case op::ADDRESS: op::address(ctx); break;
-      case op::BALANCE: op::balance(ctx); break;
-      case op::ORIGIN: op::origin(ctx); break;
-      case op::CALLER: op::caller(ctx); break;
-      case op::CALLVALUE: op::callvalue(ctx); break;
-      case op::CALLDATALOAD: op::calldataload(ctx); break;
-      case op::CALLDATASIZE: op::calldatasize(ctx); break;
-      case op::CALLDATACOPY: op::calldatacopy(ctx); break;
-      case op::CODESIZE: op::codesize(ctx); break;
-      case op::CODECOPY: op::codecopy(ctx); break;
-      case op::GASPRICE: op::gasprice(ctx); break;
-      case op::EXTCODESIZE: op::extcodesize(ctx); break;
-      case op::EXTCODECOPY: op::extcodecopy(ctx); break;
-      case op::RETURNDATASIZE: op::returndatasize(ctx); break;
-      case op::RETURNDATACOPY: op::returndatacopy(ctx); break;
-      case op::EXTCODEHASH: op::extcodehash(ctx); break;
-      case op::BLOCKHASH: op::blockhash(ctx); break;
-      case op::COINBASE: op::coinbase(ctx); break;
-      case op::TIMESTAMP: op::timestamp(ctx); break;
-      case op::NUMBER: op::blocknumber(ctx); break;
-      case op::DIFFICULTY: op::prevrandao(ctx); break; // intentional
-      case op::GASLIMIT: op::gaslimit(ctx); break;
-      case op::CHAINID: op::chainid(ctx); break;
-      case op::SELFBALANCE: op::selfbalance(ctx); break;
-      case op::BASEFEE: op::basefee(ctx); break;
+      case OPCODE(ADD, add); break;
+      case OPCODE(MUL, mul); break;
+      case OPCODE(SUB, sub); break;
+      case OPCODE(DIV, div); break;
+      case OPCODE(SDIV, sdiv); break;
+      case OPCODE(MOD, mod); break;
+      case OPCODE(SMOD, smod); break;
+      case OPCODE(ADDMOD, addmod); break;
+      case OPCODE(MULMOD, mulmod); break;
+      case OPCODE(EXP, exp); break;
+      case OPCODE(SIGNEXTEND, signextend); break;
+      case OPCODE(LT, lt); break;
+      case OPCODE(GT, gt); break;
+      case OPCODE(SLT, slt); break;
+      case OPCODE(SGT, sgt); break;
+      case OPCODE(EQ, eq); break;
+      case OPCODE(ISZERO, iszero); break;
+      case OPCODE(AND, bit_and); break;
+      case OPCODE(OR, bit_or); break;
+      case OPCODE(XOR, bit_xor); break;
+      case OPCODE(NOT, bit_not); break;
+      case OPCODE(BYTE, byte); break;
+      case OPCODE(SHL, shl); break;
+      case OPCODE(SHR, shr); break;
+      case OPCODE(SAR, sar); break;
+      case OPCODE(SHA3, sha3); break;
+      case OPCODE(ADDRESS, address); break;
+      case OPCODE(BALANCE, balance); break;
+      case OPCODE(ORIGIN, origin); break;
+      case OPCODE(CALLER, caller); break;
+      case OPCODE(CALLVALUE, callvalue); break;
+      case OPCODE(CALLDATALOAD, calldataload); break;
+      case OPCODE(CALLDATASIZE, calldatasize); break;
+      case OPCODE(CALLDATACOPY, calldatacopy); break;
+      case OPCODE(CODESIZE, codesize); break;
+      case OPCODE(CODECOPY, codecopy); break;
+      case OPCODE(GASPRICE, gasprice); break;
+      case OPCODE(EXTCODESIZE, extcodesize); break;
+      case OPCODE(EXTCODECOPY, extcodecopy); break;
+      case OPCODE(RETURNDATASIZE, returndatasize); break;
+      case OPCODE(RETURNDATACOPY, returndatacopy); break;
+      case OPCODE(EXTCODEHASH, extcodehash); break;
+      case OPCODE(BLOCKHASH, blockhash); break;
+      case OPCODE(COINBASE, coinbase); break;
+      case OPCODE(TIMESTAMP, timestamp); break;
+      case OPCODE(NUMBER, blocknumber); break;
+      case OPCODE(DIFFICULTY, prevrandao); break; // intentional
+      case OPCODE(GASLIMIT, gaslimit); break;
+      case OPCODE(CHAINID, chainid); break;
+      case OPCODE(SELFBALANCE, selfbalance); break;
+      case OPCODE(BASEFEE, basefee); break;
 
-      case op::POP: op::pop(ctx); break;
-      case op::MLOAD: op::mload(ctx); break;
-      case op::MSTORE: op::mstore(ctx); break;
-      case op::MSTORE8: op::mstore8(ctx); break;
-      case op::SLOAD: op::sload(ctx); break;
-      case op::SSTORE: op::sstore(ctx); break;
+      case OPCODE(POP, pop); break;
+      case OPCODE(MLOAD, mload); break;
+      case OPCODE(MSTORE, mstore); break;
+      case OPCODE(MSTORE8, mstore8); break;
+      case OPCODE(SLOAD, sload); break;
+      case OPCODE(SSTORE, sstore); break;
 
-      case op::JUMP: op::jump(ctx); break;
-      case op::JUMPI: op::jumpi(ctx); break;
-      case op::PC: op::pc(ctx); break;
-      case op::MSIZE: op::msize(ctx); break;
-      case op::GAS: op::gas(ctx); break;
-      case op::JUMPDEST: op::jumpdest(ctx); break;
+      case OPCODE(JUMP, jump); break;
+      case OPCODE(JUMPI, jumpi); break;
+      case OPCODE(PC, pc); break;
+      case OPCODE(MSIZE, msize); break;
+      case OPCODE(GAS, gas); break;
+      case OPCODE(JUMPDEST, jumpdest); break;
 
-      case op::PUSH1: op::push<1>(ctx); break;
-      case op::PUSH2: op::push<2>(ctx); break;
-      case op::PUSH3: op::push<3>(ctx); break;
-      case op::PUSH4: op::push<4>(ctx); break;
-      case op::PUSH5: op::push<5>(ctx); break;
-      case op::PUSH6: op::push<6>(ctx); break;
-      case op::PUSH7: op::push<7>(ctx); break;
-      case op::PUSH8: op::push<8>(ctx); break;
-      case op::PUSH9: op::push<9>(ctx); break;
-      case op::PUSH10: op::push<10>(ctx); break;
-      case op::PUSH11: op::push<11>(ctx); break;
-      case op::PUSH12: op::push<12>(ctx); break;
-      case op::PUSH13: op::push<13>(ctx); break;
-      case op::PUSH14: op::push<14>(ctx); break;
-      case op::PUSH15: op::push<15>(ctx); break;
-      case op::PUSH16: op::push<16>(ctx); break;
-      case op::PUSH17: op::push<17>(ctx); break;
-      case op::PUSH18: op::push<18>(ctx); break;
-      case op::PUSH19: op::push<19>(ctx); break;
-      case op::PUSH20: op::push<20>(ctx); break;
-      case op::PUSH21: op::push<21>(ctx); break;
-      case op::PUSH22: op::push<22>(ctx); break;
-      case op::PUSH23: op::push<23>(ctx); break;
-      case op::PUSH24: op::push<24>(ctx); break;
-      case op::PUSH25: op::push<25>(ctx); break;
-      case op::PUSH26: op::push<26>(ctx); break;
-      case op::PUSH27: op::push<27>(ctx); break;
-      case op::PUSH28: op::push<28>(ctx); break;
-      case op::PUSH29: op::push<29>(ctx); break;
-      case op::PUSH30: op::push<30>(ctx); break;
-      case op::PUSH31: op::push<31>(ctx); break;
-      case op::PUSH32: op::push<32>(ctx); break;
+      case OPCODE(PUSH1, push<1>); break;
+      case OPCODE(PUSH2, push<2>); break;
+      case OPCODE(PUSH3, push<3>); break;
+      case OPCODE(PUSH4, push<4>); break;
+      case OPCODE(PUSH5, push<5>); break;
+      case OPCODE(PUSH6, push<6>); break;
+      case OPCODE(PUSH7, push<7>); break;
+      case OPCODE(PUSH8, push<8>); break;
+      case OPCODE(PUSH9, push<9>); break;
+      case OPCODE(PUSH10, push<10>); break;
+      case OPCODE(PUSH11, push<11>); break;
+      case OPCODE(PUSH12, push<12>); break;
+      case OPCODE(PUSH13, push<13>); break;
+      case OPCODE(PUSH14, push<14>); break;
+      case OPCODE(PUSH15, push<15>); break;
+      case OPCODE(PUSH16, push<16>); break;
+      case OPCODE(PUSH17, push<17>); break;
+      case OPCODE(PUSH18, push<18>); break;
+      case OPCODE(PUSH19, push<19>); break;
+      case OPCODE(PUSH20, push<20>); break;
+      case OPCODE(PUSH21, push<21>); break;
+      case OPCODE(PUSH22, push<22>); break;
+      case OPCODE(PUSH23, push<23>); break;
+      case OPCODE(PUSH24, push<24>); break;
+      case OPCODE(PUSH25, push<25>); break;
+      case OPCODE(PUSH26, push<26>); break;
+      case OPCODE(PUSH27, push<27>); break;
+      case OPCODE(PUSH28, push<28>); break;
+      case OPCODE(PUSH29, push<29>); break;
+      case OPCODE(PUSH30, push<30>); break;
+      case OPCODE(PUSH31, push<31>); break;
+      case OPCODE(PUSH32, push<32>); break;
 
-      case op::DUP1: op::dup<1>(ctx); break;
-      case op::DUP2: op::dup<2>(ctx); break;
-      case op::DUP3: op::dup<3>(ctx); break;
-      case op::DUP4: op::dup<4>(ctx); break;
-      case op::DUP5: op::dup<5>(ctx); break;
-      case op::DUP6: op::dup<6>(ctx); break;
-      case op::DUP7: op::dup<7>(ctx); break;
-      case op::DUP8: op::dup<8>(ctx); break;
-      case op::DUP9: op::dup<9>(ctx); break;
-      case op::DUP10: op::dup<10>(ctx); break;
-      case op::DUP11: op::dup<11>(ctx); break;
-      case op::DUP12: op::dup<12>(ctx); break;
-      case op::DUP13: op::dup<13>(ctx); break;
-      case op::DUP14: op::dup<14>(ctx); break;
-      case op::DUP15: op::dup<15>(ctx); break;
-      case op::DUP16: op::dup<16>(ctx); break;
+      case OPCODE(DUP1, dup<1>); break;
+      case OPCODE(DUP2, dup<2>); break;
+      case OPCODE(DUP3, dup<3>); break;
+      case OPCODE(DUP4, dup<4>); break;
+      case OPCODE(DUP5, dup<5>); break;
+      case OPCODE(DUP6, dup<6>); break;
+      case OPCODE(DUP7, dup<7>); break;
+      case OPCODE(DUP8, dup<8>); break;
+      case OPCODE(DUP9, dup<9>); break;
+      case OPCODE(DUP10, dup<10>); break;
+      case OPCODE(DUP11, dup<11>); break;
+      case OPCODE(DUP12, dup<12>); break;
+      case OPCODE(DUP13, dup<13>); break;
+      case OPCODE(DUP14, dup<14>); break;
+      case OPCODE(DUP15, dup<15>); break;
+      case OPCODE(DUP16, dup<16>); break;
 
-      case op::SWAP1: op::swap<1>(ctx); break;
-      case op::SWAP2: op::swap<2>(ctx); break;
-      case op::SWAP3: op::swap<3>(ctx); break;
-      case op::SWAP4: op::swap<4>(ctx); break;
-      case op::SWAP5: op::swap<5>(ctx); break;
-      case op::SWAP6: op::swap<6>(ctx); break;
-      case op::SWAP7: op::swap<7>(ctx); break;
-      case op::SWAP8: op::swap<8>(ctx); break;
-      case op::SWAP9: op::swap<9>(ctx); break;
-      case op::SWAP10: op::swap<10>(ctx); break;
-      case op::SWAP11: op::swap<11>(ctx); break;
-      case op::SWAP12: op::swap<12>(ctx); break;
-      case op::SWAP13: op::swap<13>(ctx); break;
-      case op::SWAP14: op::swap<14>(ctx); break;
-      case op::SWAP15: op::swap<15>(ctx); break;
-      case op::SWAP16: op::swap<16>(ctx); break;
+      case OPCODE(SWAP1, swap<1>); break;
+      case OPCODE(SWAP2, swap<2>); break;
+      case OPCODE(SWAP3, swap<3>); break;
+      case OPCODE(SWAP4, swap<4>); break;
+      case OPCODE(SWAP5, swap<5>); break;
+      case OPCODE(SWAP6, swap<6>); break;
+      case OPCODE(SWAP7, swap<7>); break;
+      case OPCODE(SWAP8, swap<8>); break;
+      case OPCODE(SWAP9, swap<9>); break;
+      case OPCODE(SWAP10, swap<10>); break;
+      case OPCODE(SWAP11, swap<11>); break;
+      case OPCODE(SWAP12, swap<12>); break;
+      case OPCODE(SWAP13, swap<13>); break;
+      case OPCODE(SWAP14, swap<14>); break;
+      case OPCODE(SWAP15, swap<15>); break;
+      case OPCODE(SWAP16, swap<16>); break;
 
-      case op::LOG0: op::log<0>(ctx); break;
-      case op::LOG1: op::log<1>(ctx); break;
-      case op::LOG2: op::log<2>(ctx); break;
-      case op::LOG3: op::log<3>(ctx); break;
-      case op::LOG4: op::log<4>(ctx); break;
+      case OPCODE(LOG0, log<0>); break;
+      case OPCODE(LOG1, log<1>); break;
+      case OPCODE(LOG2, log<2>); break;
+      case OPCODE(LOG3, log<3>); break;
+      case OPCODE(LOG4, log<4>); break;
 
       case op::CREATE: op::create_impl<op::CREATE>(ctx); break;
       case op::CREATE2: op::create_impl<op::CREATE2>(ctx); break;
 
-      case op::RETURN: op::return_op<RunState::kReturn>(ctx); break;
-      case op::REVERT: op::return_op<RunState::kRevert>(ctx); break;
+      case OPCODE(RETURN, return_op<RunState::kReturn>); break;
+      case OPCODE(REVERT, return_op<RunState::kRevert>); break;
 
       case op::CALL: op::call_impl<op::CALL>(ctx); break;
       case op::CALLCODE: op::call_impl<op::CALLCODE>(ctx); break;
       case op::DELEGATECALL: op::call_impl<op::DELEGATECALL>(ctx); break;
       case op::STATICCALL: op::call_impl<op::STATICCALL>(ctx); break;
 
-      case op::INVALID: op::invalid(ctx); break;
-      case op::SELFDESTRUCT: op::selfdestruct(ctx); break;
-      // clang-format on
+      case OPCODE(INVALID, invalid); break;
+      case OPCODE(SELFDESTRUCT, selfdestruct); break;
+
       default:
         ctx.state = RunState::kErrorOpcode;
+
+        // clang-format on
     }
   }
 
@@ -1668,10 +1687,16 @@ void RunInterpreter(Context& ctx) {
   if (ctx.state != RunState::kReturn && ctx.state != RunState::kRevert) {
     ctx.return_data.clear();
   }
+
+#undef PROFILE_START
+#undef PROFILE_END
+#undef OPCODE
 }
 
-template void RunInterpreter<false>(Context&);
-template void RunInterpreter<true>(Context&);
+template void RunInterpreter<false, false>(Context&, Profiler<false>&);
+template void RunInterpreter<true, false>(Context&, Profiler<false>&);
+template void RunInterpreter<false, true>(Context&, Profiler<true>&);
+template void RunInterpreter<true, true>(Context&, Profiler<true>&);
 
 }  // namespace internal
 
