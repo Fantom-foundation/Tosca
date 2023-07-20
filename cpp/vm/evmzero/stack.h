@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <initializer_list>
+#include <memory>
 #include <ostream>
 #include <vector>
 
@@ -14,25 +15,40 @@ namespace tosca::evmzero {
 class Stack {
  public:
   Stack();
+  Stack(const Stack&);
   Stack(std::initializer_list<uint256_t>);
 
-  uint64_t GetSize() const { return position_; }
-  uint64_t GetMaxSize() const { return stack_.size(); }
+  uint64_t GetSize() const { return uint64_t(end_ - top_); }
+  uint64_t GetMaxSize() const { return kStackSize; }
 
-  void Push(uint256_t value) {
-    TOSCA_ASSERT(position_ < stack_.size());
-    stack_[position_++] = value;
+  void Push(const uint256_t& value) {
+    TOSCA_ASSERT(GetSize() < kStackSize);
+    *(--top_) = value;
   }
 
   uint256_t Pop() {
-    TOSCA_ASSERT(position_ > 0);
-    return stack_[--position_];
+    TOSCA_ASSERT(GetSize() > 0);
+    return *(top_++);
+  }
+
+  template <size_t N>
+  void Swap() {
+    TOSCA_ASSERT(N < GetSize());
+    auto tmp = top_[N];
+    top_[N] = top_[0];
+    top_[0] = tmp;
+  }
+
+  template <size_t N>
+  void Dup() {
+    TOSCA_ASSERT(N - 1 < GetSize());
+    Push(top_[N - 1]);
   }
 
   // Accesses elements starting from the top; index 0 is the top element.
   uint256_t& operator[](size_t index) {
-    TOSCA_ASSERT(index < position_);
-    return stack_[position_ - 1 - index];
+    TOSCA_ASSERT(index < GetSize());
+    return top_[index];
   }
   const uint256_t& operator[](size_t index) const { return const_cast<Stack&>(*this)[index]; }
 
@@ -40,8 +56,10 @@ class Stack {
   friend bool operator!=(const Stack&, const Stack&);
 
  private:
-  std::vector<uint256_t> stack_;
-  uint64_t position_ = 0;
+  static constexpr size_t kStackSize = 1024;
+  std::unique_ptr<std::array<uint256_t, kStackSize>> stack_;
+  uint256_t* top_ = nullptr;
+  uint256_t* const end_ = nullptr;
 };
 
 std::ostream& operator<<(std::ostream&, const Stack&);
