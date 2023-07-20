@@ -2,6 +2,7 @@
 
 #include <bit>
 #include <cstdio>
+#include <intx/intx.hpp>
 #include <iostream>
 
 #include "common/assert.h"
@@ -1042,10 +1043,29 @@ static void push(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
 
+  constexpr auto num_full_words = N / sizeof(uint64_t);
+  constexpr auto num_partial_bytes = N % sizeof(uint64_t);
+  auto data = &ctx.code[ctx.pc + 1];
+
   uint256_t value = 0;
-  for (uint64_t i = 1; i <= N; ++i) {
-    value |= static_cast<uint256_t>(ctx.code[ctx.pc + i]) << (N - i) * 8;
+  if constexpr (num_partial_bytes != 0) {
+    uint64_t word = 0;
+    for (unsigned i = 0; i < num_partial_bytes; i++) {
+      word = word << 8 | data[i];
+    }
+    value[num_full_words] = word;
+    data += num_partial_bytes;
   }
+
+  for (size_t i = 0; i < num_full_words; ++i) {
+    if constexpr (std::endian::native == std::endian::little) {
+      value[num_full_words - 1 - i] = intx::bswap(*reinterpret_cast<uint64_t*>(data));
+    } else {
+      value[num_full_words - 1 - i] = *reinterpret_cast<uint64_t*>(data);
+    }
+    data += sizeof(uint64_t);
+  }
+
   ctx.stack.Push(value);
   ctx.pc += 1 + N;
 }
@@ -1058,7 +1078,7 @@ static void dup(Context& ctx) noexcept {
     return;
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
-  ctx.stack.Push(ctx.stack[N - 1]);
+  ctx.stack.Dup<N>();
   ctx.pc++;
 }
 
@@ -1068,7 +1088,7 @@ static void swap(Context& ctx) noexcept {
     return;
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
-  std::swap(ctx.stack[0], ctx.stack[N]);
+  ctx.stack.Swap<N>();
   ctx.pc++;
 }
 
@@ -1381,7 +1401,7 @@ inline bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
   }
 }
 
-bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
+bool Context::CheckJumpDest(const uint256_t& index_u256) noexcept {
   if (index_u256 >= code.size()) [[unlikely]] {
     state = RunState::kErrorJump;
     return false;
