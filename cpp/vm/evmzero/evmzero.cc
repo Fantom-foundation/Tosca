@@ -5,6 +5,7 @@
 
 #include <evmc/evmc.h>
 #include <evmc/utils.h>
+#include <iostream>
 
 #include "common/lru_cache.h"
 #include "vm/evmzero/interpreter.h"
@@ -88,6 +89,8 @@ class VM : public evmc_vm {
       valid_jump_targets = std::make_shared<std::vector<uint8_t>>(op::CalculateValidJumpTargets(code));
     }
 
+    call_counter_++;
+
     const InterpreterArgs interpreter_args{
         .code = code,
         .valid_jump_targets = *valid_jump_targets,
@@ -143,15 +146,25 @@ class VM : public evmc_vm {
     return EVMC_SET_OPTION_INVALID_NAME;
   }
 
+  void DumpStatistics() const { std::cout << "Number of calls: " << call_counter_ << "\n" << std::flush; }
+
+  void ResetStatistics() { call_counter_ = 0; }
+
  private:
   bool logging_enabled_ = false;
   bool analysis_cache_enabled_ = true;
 
   LruCache<evmc::bytes32, op::ValidJumpTargetsBuffer, 1 << 16> valid_jump_targets_cache_;
+
+  int call_counter_ = 0;
 };
 
 extern "C" {
 EVMC_EXPORT evmc_vm* evmc_create_evmzero() noexcept { return new VM; }
+
+EVMC_EXPORT void evmzero_dump_statistis(evmc_vm* vm) noexcept { reinterpret_cast<VM*>(vm)->DumpStatistics(); }
+
+EVMC_EXPORT void evmzero_reset_statistis(evmc_vm* vm) noexcept { reinterpret_cast<VM*>(vm)->ResetStatistics(); }
 }
 
 }  // namespace tosca::evmzero
