@@ -1367,7 +1367,7 @@ bool Context::CheckStaticCallConformance() noexcept {
   }
 }
 
-bool Context::CheckStackAvailable(uint64_t elements_needed) noexcept {
+inline bool Context::CheckStackAvailable(uint64_t elements_needed) noexcept {
   if (stack.GetSize() < elements_needed) [[unlikely]] {
     state = RunState::kErrorStackUnderflow;
     return false;
@@ -1376,7 +1376,7 @@ bool Context::CheckStackAvailable(uint64_t elements_needed) noexcept {
   }
 }
 
-bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
+inline bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
   if (stack.GetMaxSize() - stack.GetSize() < slots_needed) [[unlikely]] {
     state = RunState::kErrorStackOverflow;
     return false;
@@ -1460,7 +1460,7 @@ Context::MemoryExpansionCostResult Context::MemoryExpansionCost(uint256_t offset
   };
 }
 
-bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
+inline bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
   TOSCA_ASSERT(gas_cost >= 0);
 
   if (gas < gas_cost) [[unlikely]] {
