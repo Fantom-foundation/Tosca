@@ -28,6 +28,7 @@ var (
 		"evmzero-logging",
 		"evmzero-no-analysis-cache",
 		"evmzero-no-sha3-cache",
+		"evmzero-profiling",
 	}
 )
 
