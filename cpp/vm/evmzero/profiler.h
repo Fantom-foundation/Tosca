@@ -9,13 +9,15 @@
 
 #include "profiler_markers.h"
 
+#define FORCE_INLINE __attribute__((always_inline))
+
 namespace tosca::evmzero {
 
 template <bool ProfilingEnabled>
 class Profiler {
  public:
   template <Markers Marker>
-  inline void Start() {
+  FORCE_INLINE void Start() {
     if constexpr (ProfilingEnabled) {
       constexpr auto marker_idx = static_cast<std::size_t>(Marker);
       ++calls_[marker_idx];
@@ -24,7 +26,7 @@ class Profiler {
   }
 
   template <Markers Marker>
-  inline void End() {
+  FORCE_INLINE void End() {
     if constexpr (ProfilingEnabled) {
       constexpr auto marker_idx = static_cast<std::size_t>(Marker);
       total_time_[marker_idx] += GetTime() - start_time_[marker_idx];
@@ -32,7 +34,7 @@ class Profiler {
   }
 
   template <Markers Marker>
-  inline auto Scoped() {
+  FORCE_INLINE auto Scoped() {
     Start<Marker>();
     return DeferredEnd<Marker>(*this);
   }
@@ -72,10 +74,12 @@ class Profiler {
   std::array<std::uint64_t, static_cast<std::size_t>(Markers::NUM_MARKERS)> start_time_ = {};
   std::array<std::uint64_t, static_cast<std::size_t>(Markers::NUM_MARKERS)> total_time_ = {};
 
-  inline std::uint64_t GetTime() const {
+  FORCE_INLINE std::uint64_t GetTime() const {
     unsigned int _;
     return __rdtscp(&_);
   }
 };
 
 }  // namespace tosca::evmzero
+
+#undef FORCE_INLINE
