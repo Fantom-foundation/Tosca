@@ -73,7 +73,9 @@ class VM : public evmc_vm {
             .set_option = [](evmc_vm* vm, char const* name, char const* value) -> evmc_set_option_result {
               return static_cast<VM*>(vm)->SetOption(name, value);
             },
-        } {}
+        } {
+    enabled_profiler_.Start<Markers::TOTAL>();
+  }
 
   evmc_result Execute(std::span<const uint8_t> code, const evmc_bytes32* code_hash,                //
                       const evmc_message* message,                                                 //
@@ -89,7 +91,7 @@ class VM : public evmc_vm {
       valid_jump_targets = std::make_shared<std::vector<uint8_t>>(op::CalculateValidJumpTargets(code));
     }
 
-    const auto _ = enabled_profiler_.Scoped<Markers::EXECUTION>();
+    const auto _ = enabled_profiler_.Scoped<Markers::INTERPRETER>();
     const InterpreterArgs interpreter_args{
         .code = code,
         .valid_jump_targets = *valid_jump_targets,
@@ -152,9 +154,11 @@ class VM : public evmc_vm {
     return EVMC_SET_OPTION_INVALID_NAME;
   }
 
-  void DumpProfiler() const {
+  void DumpProfiler() {
+    enabled_profiler_.End<Markers::TOTAL>();
     disabled_profiler_.Dump();
     enabled_profiler_.Dump();
+    enabled_profiler_.Start<Markers::TOTAL>();
   }
 
   void ResetProfiler() {
