@@ -89,6 +89,7 @@ class VM : public evmc_vm {
       valid_jump_targets = std::make_shared<std::vector<uint8_t>>(op::CalculateValidJumpTargets(code));
     }
 
+    const auto _ = enabled_profiler_.Scoped<Markers::EXECUTION>();
     const InterpreterArgs interpreter_args{
         .code = code,
         .valid_jump_targets = *valid_jump_targets,
