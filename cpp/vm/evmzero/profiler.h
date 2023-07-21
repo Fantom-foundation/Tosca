@@ -59,6 +59,13 @@ class Profiler {
     total_time_ = {};
   }
 
+  FORCE_INLINE void Merge(const Profiler& other) {
+    for (std::size_t i = 0; i < static_cast<std::size_t>(Markers::NUM_MARKERS); ++i) {
+      calls_[i] += other.calls_[i];
+      total_time_[i] += other.total_time_[i];
+    }
+  }
+
  private:
   template <Markers Marker>
   class DeferredEnd {

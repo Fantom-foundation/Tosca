@@ -59,6 +59,9 @@ constexpr int kStopBytePadding = 33;
 
 template <bool LoggingEnabled, bool ProfilingEnabled>
 InterpreterResult Interpret(const InterpreterArgs& args) {
+  auto profiler = Profiler<ProfilingEnabled>{};
+  profiler.template Start<Markers::INTERPRETER>();
+
   evmc::HostContext host(*args.host_interface, args.host_context);
 
   internal::Context ctx{
@@ -72,9 +75,13 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
   ctx.code.reserve(args.code.size() + kStopBytePadding);
   ctx.code.assign(args.code.begin(), args.code.end());
 
-  auto& profiler = *static_cast<Profiler<ProfilingEnabled>*>(args.profiler);
-
   internal::RunInterpreter<LoggingEnabled, ProfilingEnabled>(ctx, profiler);
+
+  profiler.template End<Markers::INTERPRETER>();
+
+  auto& vmProfiler = *static_cast<Profiler<ProfilingEnabled>*>(args.profiler);
+
+  vmProfiler.Merge(profiler);
 
   return {
       .state = ctx.state,
