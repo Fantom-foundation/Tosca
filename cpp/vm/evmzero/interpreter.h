@@ -83,7 +83,7 @@ struct Context {
   bool CheckStackOverflow(uint64_t slots_needed) noexcept;
   bool ApplyGasCost(int64_t gas_cost) noexcept;
 
-  bool CheckJumpDest(const uint256_t& index) noexcept;
+  bool CheckJumpDest(uint256_t index) noexcept;
   void FillValidJumpTargetsUpTo(uint64_t index) noexcept;
 
   struct MemoryExpansionCostResult {
