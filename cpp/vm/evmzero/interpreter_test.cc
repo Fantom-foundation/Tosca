@@ -4136,6 +4136,14 @@ TEST(InterpreterTest, PUSH_OutOfBytes) {
       .gas_after = 7,
       .stack_after = {0xFFFF0000},
   });
+
+  RunInterpreterTest({
+      .code = {op::PUSH32},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_after = {0},
+  });
 }
 
 TEST(InterpreterTest, DISABLED_PUSH_StackOverflow) {}
