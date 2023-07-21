@@ -16,6 +16,7 @@ class Stack {
  public:
   Stack();
   Stack(const Stack&);
+  Stack(Stack&&) = default;
   Stack(std::initializer_list<uint256_t>);
 
   uint64_t GetSize() const { return uint64_t(end_ - top_); }
@@ -45,6 +46,9 @@ class Stack {
     Push(top_[N - 1]);
   }
 
+  Stack& operator=(const Stack&);
+  Stack& operator=(Stack&&) = default;
+
   // Accesses elements starting from the top; index 0 is the top element.
   uint256_t& operator[](size_t index) {
     TOSCA_ASSERT(index < GetSize());
@@ -57,7 +61,8 @@ class Stack {
 
  private:
   static constexpr size_t kStackSize = 1024;
-  std::unique_ptr<std::array<uint256_t, kStackSize>> stack_;
+  using Data = std::array<uint256_t, kStackSize>;
+  std::unique_ptr<Data> stack_;
   uint256_t* top_ = nullptr;
   uint256_t* const end_ = nullptr;
 };
