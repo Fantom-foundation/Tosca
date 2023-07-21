@@ -48,7 +48,7 @@ tosca-cpp:
 test: test-go test-cpp
 
 test-go: tosca-go
-	@go test ./...
+	@go test ./... -count 1
 
 test-cpp: tosca-cpp
 	@cd cpp/build ; \
