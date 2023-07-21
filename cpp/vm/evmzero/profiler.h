@@ -46,7 +46,7 @@ class Profiler {
         if (calls_[i]) {
           std::cout << ToString(static_cast<Markers>(i)) << ", "  //
                     << calls_[i] << ", "                          //
-                    << total_time_[i] << ", ";
+                    << total_time_[i];
           std::cout << "\n" << std::flush;
         }
       }
