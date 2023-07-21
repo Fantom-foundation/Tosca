@@ -1401,7 +1401,7 @@ inline bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
   }
 }
 
-bool Context::CheckJumpDest(const uint256_t& index_u256) noexcept {
+bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
   if (index_u256 >= code.size()) [[unlikely]] {
     state = RunState::kErrorJump;
     return false;
