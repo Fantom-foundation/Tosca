@@ -16,7 +16,7 @@ class Stack {
  public:
   Stack();
   Stack(const Stack&);
-  Stack(Stack&&) = default;
+  Stack(Stack&&) = delete;
   Stack(std::initializer_list<uint256_t>);
 
   uint64_t GetSize() const { return uint64_t(end_ - top_); }
@@ -47,7 +47,7 @@ class Stack {
   }
 
   Stack& operator=(const Stack&);
-  Stack& operator=(Stack&&) = default;
+  Stack& operator=(Stack&&) = delete;
 
   // Accesses elements starting from the top; index 0 is the top element.
   uint256_t& operator[](size_t index) {
