@@ -72,7 +72,10 @@ class Profiler {
   std::array<std::uint64_t, static_cast<std::size_t>(Markers::NUM_MARKERS)> start_time_ = {};
   std::array<std::uint64_t, static_cast<std::size_t>(Markers::NUM_MARKERS)> total_time_ = {};
 
-  inline std::uint64_t GetTime() const { return __rdtsc(); }
+  inline std::uint64_t GetTime() const {
+    unsigned int _;
+    return __rdtscp(&_);
+  }
 };
 
 }  // namespace tosca::evmzero
