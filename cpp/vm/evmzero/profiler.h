@@ -20,7 +20,6 @@ class Profiler {
   FORCE_INLINE void Start() {
     if constexpr (ProfilingEnabled) {
       constexpr auto marker_idx = static_cast<std::size_t>(Marker);
-      ++calls_[marker_idx];
       start_time_[marker_idx] = GetTime();
     }
   }
@@ -29,6 +28,7 @@ class Profiler {
   FORCE_INLINE void End() {
     if constexpr (ProfilingEnabled) {
       constexpr auto marker_idx = static_cast<std::size_t>(Marker);
+      ++calls_[marker_idx];
       total_time_[marker_idx] += GetTime() - start_time_[marker_idx];
     }
   }
