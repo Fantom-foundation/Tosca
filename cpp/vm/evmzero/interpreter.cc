@@ -1662,8 +1662,8 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
       default:
         ctx.state = RunState::kErrorOpcode;
     }
+    PROFILE_END(DISPATCH);
   }
-  PROFILE_END(DISPATCH);
 
   if (!IsSuccess(ctx.state)) {
     ctx.gas = 0;
