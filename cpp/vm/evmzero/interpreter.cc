@@ -52,6 +52,11 @@ bool IsSuccess(RunState state) {
 
 std::ostream& operator<<(std::ostream& out, RunState state) { return out << ToString(state); }
 
+// Padding the code with additional STOP bytes so we don't have to continuously
+// check for end-of-code. We use multiple STOP bytes in case one of the last
+// instructions is a PUSH with too few arguments.
+constexpr int kStopBytePadding = 33;
+
 template <bool LoggingEnabled>
 InterpreterResult Interpret(const InterpreterArgs& args) {
   evmc::HostContext host(*args.host_interface, args.host_context);
@@ -63,7 +68,7 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
       .host = &host,
       .revision = args.revision,
   };
-  ctx.code.reserve(args.code.size() + 32);  // with additional STOP bytes
+  ctx.code.reserve(args.code.size() + kStopBytePadding);
   ctx.code.assign(args.code.begin(), args.code.end());
 
   internal::RunInterpreter<LoggingEnabled>(ctx);
@@ -553,7 +558,7 @@ static void codesize(Context& ctx) noexcept {
     return;
   if (!ctx.ApplyGasCost(2)) [[unlikely]]
     return;
-  ctx.stack.Push(ctx.code.size() - 32);  // accounted for added STOP bytes
+  ctx.stack.Push(ctx.code.size() - kStopBytePadding);
   ctx.pc++;
 }
 
@@ -1491,10 +1496,7 @@ inline bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
 
 template <bool LoggingEnabled>
 void RunInterpreter(Context& ctx) {
-  // Padding the code with additional STOP bytes so we don't have to
-  // continuously check for end-of-code. We use multiple STOP bytes in case one
-  // of the last instructions is a PUSH with too few arguments.
-  ctx.code.resize(ctx.code.size() + 32, op::STOP);
+  ctx.code.resize(ctx.code.size() + kStopBytePadding, op::STOP);
 
   ctx.valid_jump_targets.reserve(ctx.code.size());
 
