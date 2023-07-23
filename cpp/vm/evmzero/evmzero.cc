@@ -147,7 +147,7 @@ class VM : public evmc_vm {
   bool logging_enabled_ = false;
   bool analysis_cache_enabled_ = true;
 
-  LruCache<evmc::bytes32, op::ValidJumpTargetsBuffer, 128> valid_jump_targets_cache_;
+  LruCache<evmc::bytes32, op::ValidJumpTargetsBuffer, 1 << 16> valid_jump_targets_cache_;
 };
 
 extern "C" {
