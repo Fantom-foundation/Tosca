@@ -65,6 +65,8 @@ class LruCache {
     return entries_.size();
   }
 
+  constexpr size_t GetMaxSize() const { return Capacity; }
+
   void Clear() {
     std::scoped_lock lock(mutex_);
     entries_.clear();
