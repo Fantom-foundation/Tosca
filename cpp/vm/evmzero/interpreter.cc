@@ -1474,181 +1474,448 @@ template <bool LoggingEnabled>
 void RunInterpreter(Context& ctx) {
   ctx.code.resize(ctx.code.size() + kStopBytePadding, op::STOP);
 
-  while (ctx.state == RunState::kRunning) {
-    if constexpr (LoggingEnabled) {
-      // log format: <op>, <gas>, <top-of-stack>\n
-      std::cout << ToString(static_cast<op::OpCodes>(ctx.code[ctx.pc])) << ", "  //
-                << ctx.gas << ", ";
-      if (ctx.stack.GetSize() == 0) {
-        std::cout << "-empty-";
-      } else {
-        std::cout << ctx.stack[0];
-      }
-      std::cout << "\n" << std::flush;
-    }
+  static void* dispatch_table[] = {
+      &&op_STOP,
+      &&op_ADD,
+      &&op_MUL,
+      &&op_SUB,
+      &&op_DIV,
+      &&op_SDIV,
+      &&op_MOD,
+      &&op_SMOD,
+      &&op_ADDMOD,
+      &&op_MULMOD,
+      &&op_EXP,
+      &&op_SIGNEXTEND,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_LT,
+      &&op_GT,
+      &&op_SLT,
+      &&op_SGT,
+      &&op_EQ,
+      &&op_ISZERO,
+      &&op_AND,
+      &&op_OR,
+      &&op_XOR,
+      &&op_NOT,
+      &&op_BYTE,
+      &&op_SHL,
+      &&op_SHR,
+      &&op_SAR,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_SHA3,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_ADDRESS,
+      &&op_BALANCE,
+      &&op_ORIGIN,
+      &&op_CALLER,
+      &&op_CALLVALUE,
+      &&op_CALLDATALOAD,
+      &&op_CALLDATASIZE,
+      &&op_CALLDATACOPY,
+      &&op_CODESIZE,
+      &&op_CODECOPY,
+      &&op_GASPRICE,
+      &&op_EXTCODESIZE,
+      &&op_EXTCODECOPY,
+      &&op_RETURNDATASIZE,
+      &&op_RETURNDATACOPY,
+      &&op_EXTCODEHASH,
+      &&op_BLOCKHASH,
+      &&op_COINBASE,
+      &&op_TIMESTAMP,
+      &&op_NUMBER,
+      &&op_DIFFICULTY,
+      &&op_GASLIMIT,
+      &&op_CHAINID,
+      &&op_SELFBALANCE,
+      &&op_BASEFEE,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_POP,
+      &&op_MLOAD,
+      &&op_MSTORE,
+      &&op_MSTORE8,
+      &&op_SLOAD,
+      &&op_SSTORE,
+      &&op_JUMP,
+      &&op_JUMPI,
+      &&op_PC,
+      &&op_MSIZE,
+      &&op_GAS,
+      &&op_JUMPDEST,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_PUSH1,
+      &&op_PUSH2,
+      &&op_PUSH3,
+      &&op_PUSH4,
+      &&op_PUSH5,
+      &&op_PUSH6,
+      &&op_PUSH7,
+      &&op_PUSH8,
+      &&op_PUSH9,
+      &&op_PUSH10,
+      &&op_PUSH11,
+      &&op_PUSH12,
+      &&op_PUSH13,
+      &&op_PUSH14,
+      &&op_PUSH15,
+      &&op_PUSH16,
+      &&op_PUSH17,
+      &&op_PUSH18,
+      &&op_PUSH19,
+      &&op_PUSH20,
+      &&op_PUSH21,
+      &&op_PUSH22,
+      &&op_PUSH23,
+      &&op_PUSH24,
+      &&op_PUSH25,
+      &&op_PUSH26,
+      &&op_PUSH27,
+      &&op_PUSH28,
+      &&op_PUSH29,
+      &&op_PUSH30,
+      &&op_PUSH31,
+      &&op_PUSH32,
+      &&op_DUP1,
+      &&op_DUP2,
+      &&op_DUP3,
+      &&op_DUP4,
+      &&op_DUP5,
+      &&op_DUP6,
+      &&op_DUP7,
+      &&op_DUP8,
+      &&op_DUP9,
+      &&op_DUP10,
+      &&op_DUP11,
+      &&op_DUP12,
+      &&op_DUP13,
+      &&op_DUP14,
+      &&op_DUP15,
+      &&op_DUP16,
+      &&op_SWAP1,
+      &&op_SWAP2,
+      &&op_SWAP3,
+      &&op_SWAP4,
+      &&op_SWAP5,
+      &&op_SWAP6,
+      &&op_SWAP7,
+      &&op_SWAP8,
+      &&op_SWAP9,
+      &&op_SWAP10,
+      &&op_SWAP11,
+      &&op_SWAP12,
+      &&op_SWAP13,
+      &&op_SWAP14,
+      &&op_SWAP15,
+      &&op_SWAP16,
+      &&op_LOG0,
+      &&op_LOG1,
+      &&op_LOG2,
+      &&op_LOG3,
+      &&op_LOG4,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_CREATE,
+      &&op_CALL,
+      &&op_CALLCODE,
+      &&op_RETURN,
+      &&op_DELEGATECALL,
+      &&op_CREATE2,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_STATICCALL,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_REVERT,
+      &&op_INVALID,
+      &&op_SELFDESTRUCT,
+  };
 
-    switch (ctx.code[ctx.pc]) {
-      // clang-format off
-      case op::STOP: op::stop(ctx); break;
+  // if constexpr (LoggingEnabled) {
+  //   // log format: <op>, <gas>, <top-of-stack>\n
+  //   std::cout << ToString(static_cast<op::OpCodes>(ctx.code[ctx.pc])) << ", "  //
+  //             << ctx.gas << ", ";
+  //   if (ctx.stack.GetSize() == 0) {
+  //     std::cout << "-empty-";
+  //   } else {
+  //     std::cout << ctx.stack[0];
+  //   }
+  //   std::cout << "\n" << std::flush;
+  // }
 
-      case op::ADD: op::add(ctx); break;
-      case op::MUL: op::mul(ctx); break;
-      case op::SUB: op::sub(ctx); break;
-      case op::DIV: op::div(ctx); break;
-      case op::SDIV: op::sdiv(ctx); break;
-      case op::MOD: op::mod(ctx); break;
-      case op::SMOD: op::smod(ctx); break;
-      case op::ADDMOD: op::addmod(ctx); break;
-      case op::MULMOD: op::mulmod(ctx); break;
-      case op::EXP: op::exp(ctx); break;
-      case op::SIGNEXTEND: op::signextend(ctx); break;
-      case op::LT: op::lt(ctx); break;
-      case op::GT: op::gt(ctx); break;
-      case op::SLT: op::slt(ctx); break;
-      case op::SGT: op::sgt(ctx); break;
-      case op::EQ: op::eq(ctx); break;
-      case op::ISZERO: op::iszero(ctx); break;
-      case op::AND: op::bit_and(ctx); break;
-      case op::OR: op::bit_or(ctx); break;
-      case op::XOR: op::bit_xor(ctx); break;
-      case op::NOT: op::bit_not(ctx); break;
-      case op::BYTE: op::byte(ctx); break;
-      case op::SHL: op::shl(ctx); break;
-      case op::SHR: op::shr(ctx); break;
-      case op::SAR: op::sar(ctx); break;
-      case op::SHA3: op::sha3(ctx); break;
-      case op::ADDRESS: op::address(ctx); break;
-      case op::BALANCE: op::balance(ctx); break;
-      case op::ORIGIN: op::origin(ctx); break;
-      case op::CALLER: op::caller(ctx); break;
-      case op::CALLVALUE: op::callvalue(ctx); break;
-      case op::CALLDATALOAD: op::calldataload(ctx); break;
-      case op::CALLDATASIZE: op::calldatasize(ctx); break;
-      case op::CALLDATACOPY: op::calldatacopy(ctx); break;
-      case op::CODESIZE: op::codesize(ctx); break;
-      case op::CODECOPY: op::codecopy(ctx); break;
-      case op::GASPRICE: op::gasprice(ctx); break;
-      case op::EXTCODESIZE: op::extcodesize(ctx); break;
-      case op::EXTCODECOPY: op::extcodecopy(ctx); break;
-      case op::RETURNDATASIZE: op::returndatasize(ctx); break;
-      case op::RETURNDATACOPY: op::returndatacopy(ctx); break;
-      case op::EXTCODEHASH: op::extcodehash(ctx); break;
-      case op::BLOCKHASH: op::blockhash(ctx); break;
-      case op::COINBASE: op::coinbase(ctx); break;
-      case op::TIMESTAMP: op::timestamp(ctx); break;
-      case op::NUMBER: op::blocknumber(ctx); break;
-      case op::DIFFICULTY: op::prevrandao(ctx); break; // intentional
-      case op::GASLIMIT: op::gaslimit(ctx); break;
-      case op::CHAINID: op::chainid(ctx); break;
-      case op::SELFBALANCE: op::selfbalance(ctx); break;
-      case op::BASEFEE: op::basefee(ctx); break;
+#define DISPATCH()                            \
+  do {                                        \
+    if (ctx.state == RunState::kRunning) {    \
+      goto* dispatch_table[ctx.code[ctx.pc]]; \
+    } else {                                  \
+      goto end;                               \
+    }                                         \
+  } while (0)
 
-      case op::POP: op::pop(ctx); break;
-      case op::MLOAD: op::mload(ctx); break;
-      case op::MSTORE: op::mstore(ctx); break;
-      case op::MSTORE8: op::mstore8(ctx); break;
-      case op::SLOAD: op::sload(ctx); break;
-      case op::SSTORE: op::sstore(ctx); break;
+  DISPATCH();
 
-      case op::JUMP: op::jump(ctx); break;
-      case op::JUMPI: op::jumpi(ctx); break;
-      case op::PC: op::pc(ctx); break;
-      case op::MSIZE: op::msize(ctx); break;
-      case op::GAS: op::gas(ctx); break;
-      case op::JUMPDEST: op::jumpdest(ctx); break;
+  // clang-format off
+      op_STOP: op::stop(ctx); DISPATCH();
 
-      case op::PUSH1: op::push<1>(ctx); break;
-      case op::PUSH2: op::push<2>(ctx); break;
-      case op::PUSH3: op::push<3>(ctx); break;
-      case op::PUSH4: op::push<4>(ctx); break;
-      case op::PUSH5: op::push<5>(ctx); break;
-      case op::PUSH6: op::push<6>(ctx); break;
-      case op::PUSH7: op::push<7>(ctx); break;
-      case op::PUSH8: op::push<8>(ctx); break;
-      case op::PUSH9: op::push<9>(ctx); break;
-      case op::PUSH10: op::push<10>(ctx); break;
-      case op::PUSH11: op::push<11>(ctx); break;
-      case op::PUSH12: op::push<12>(ctx); break;
-      case op::PUSH13: op::push<13>(ctx); break;
-      case op::PUSH14: op::push<14>(ctx); break;
-      case op::PUSH15: op::push<15>(ctx); break;
-      case op::PUSH16: op::push<16>(ctx); break;
-      case op::PUSH17: op::push<17>(ctx); break;
-      case op::PUSH18: op::push<18>(ctx); break;
-      case op::PUSH19: op::push<19>(ctx); break;
-      case op::PUSH20: op::push<20>(ctx); break;
-      case op::PUSH21: op::push<21>(ctx); break;
-      case op::PUSH22: op::push<22>(ctx); break;
-      case op::PUSH23: op::push<23>(ctx); break;
-      case op::PUSH24: op::push<24>(ctx); break;
-      case op::PUSH25: op::push<25>(ctx); break;
-      case op::PUSH26: op::push<26>(ctx); break;
-      case op::PUSH27: op::push<27>(ctx); break;
-      case op::PUSH28: op::push<28>(ctx); break;
-      case op::PUSH29: op::push<29>(ctx); break;
-      case op::PUSH30: op::push<30>(ctx); break;
-      case op::PUSH31: op::push<31>(ctx); break;
-      case op::PUSH32: op::push<32>(ctx); break;
+      op_ADD: op::add(ctx); DISPATCH();
+      op_MUL: op::mul(ctx); DISPATCH();
+      op_SUB: op::sub(ctx); DISPATCH();
+      op_DIV: op::div(ctx); DISPATCH();
+      op_SDIV: op::sdiv(ctx); DISPATCH();
+      op_MOD: op::mod(ctx); DISPATCH();
+      op_SMOD: op::smod(ctx); DISPATCH();
+      op_ADDMOD: op::addmod(ctx); DISPATCH();
+      op_MULMOD: op::mulmod(ctx); DISPATCH();
+      op_EXP: op::exp(ctx); DISPATCH();
+      op_SIGNEXTEND: op::signextend(ctx); DISPATCH();
+      op_LT: op::lt(ctx); DISPATCH();
+      op_GT: op::gt(ctx); DISPATCH();
+      op_SLT: op::slt(ctx); DISPATCH();
+      op_SGT: op::sgt(ctx); DISPATCH();
+      op_EQ: op::eq(ctx); DISPATCH();
+      op_ISZERO: op::iszero(ctx); DISPATCH();
+      op_AND: op::bit_and(ctx); DISPATCH();
+      op_OR: op::bit_or(ctx); DISPATCH();
+      op_XOR: op::bit_xor(ctx); DISPATCH();
+      op_NOT: op::bit_not(ctx); DISPATCH();
+      op_BYTE: op::byte(ctx); DISPATCH();
+      op_SHL: op::shl(ctx); DISPATCH();
+      op_SHR: op::shr(ctx); DISPATCH();
+      op_SAR: op::sar(ctx); DISPATCH();
+      op_SHA3: op::sha3(ctx); DISPATCH();
+      op_ADDRESS: op::address(ctx); DISPATCH();
+      op_BALANCE: op::balance(ctx); DISPATCH();
+      op_ORIGIN: op::origin(ctx); DISPATCH();
+      op_CALLER: op::caller(ctx); DISPATCH();
+      op_CALLVALUE: op::callvalue(ctx); DISPATCH();
+      op_CALLDATALOAD: op::calldataload(ctx); DISPATCH();
+      op_CALLDATASIZE: op::calldatasize(ctx); DISPATCH();
+      op_CALLDATACOPY: op::calldatacopy(ctx); DISPATCH();
+      op_CODESIZE: op::codesize(ctx); DISPATCH();
+      op_CODECOPY: op::codecopy(ctx); DISPATCH();
+      op_GASPRICE: op::gasprice(ctx); DISPATCH();
+      op_EXTCODESIZE: op::extcodesize(ctx); DISPATCH();
+      op_EXTCODECOPY: op::extcodecopy(ctx); DISPATCH();
+      op_RETURNDATASIZE: op::returndatasize(ctx); DISPATCH();
+      op_RETURNDATACOPY: op::returndatacopy(ctx); DISPATCH();
+      op_EXTCODEHASH: op::extcodehash(ctx); DISPATCH();
+      op_BLOCKHASH: op::blockhash(ctx); DISPATCH();
+      op_COINBASE: op::coinbase(ctx); DISPATCH();
+      op_TIMESTAMP: op::timestamp(ctx); DISPATCH();
+      op_NUMBER: op::blocknumber(ctx); DISPATCH();
+      op_DIFFICULTY: op::prevrandao(ctx); DISPATCH(); // intentional
+      op_GASLIMIT: op::gaslimit(ctx); DISPATCH();
+      op_CHAINID: op::chainid(ctx); DISPATCH();
+      op_SELFBALANCE: op::selfbalance(ctx); DISPATCH();
+      op_BASEFEE: op::basefee(ctx); DISPATCH();
 
-      case op::DUP1: op::dup<1>(ctx); break;
-      case op::DUP2: op::dup<2>(ctx); break;
-      case op::DUP3: op::dup<3>(ctx); break;
-      case op::DUP4: op::dup<4>(ctx); break;
-      case op::DUP5: op::dup<5>(ctx); break;
-      case op::DUP6: op::dup<6>(ctx); break;
-      case op::DUP7: op::dup<7>(ctx); break;
-      case op::DUP8: op::dup<8>(ctx); break;
-      case op::DUP9: op::dup<9>(ctx); break;
-      case op::DUP10: op::dup<10>(ctx); break;
-      case op::DUP11: op::dup<11>(ctx); break;
-      case op::DUP12: op::dup<12>(ctx); break;
-      case op::DUP13: op::dup<13>(ctx); break;
-      case op::DUP14: op::dup<14>(ctx); break;
-      case op::DUP15: op::dup<15>(ctx); break;
-      case op::DUP16: op::dup<16>(ctx); break;
+      op_POP: op::pop(ctx); DISPATCH();
+      op_MLOAD: op::mload(ctx); DISPATCH();
+      op_MSTORE: op::mstore(ctx); DISPATCH();
+      op_MSTORE8: op::mstore8(ctx); DISPATCH();
+      op_SLOAD: op::sload(ctx); DISPATCH();
+      op_SSTORE: op::sstore(ctx); DISPATCH();
 
-      case op::SWAP1: op::swap<1>(ctx); break;
-      case op::SWAP2: op::swap<2>(ctx); break;
-      case op::SWAP3: op::swap<3>(ctx); break;
-      case op::SWAP4: op::swap<4>(ctx); break;
-      case op::SWAP5: op::swap<5>(ctx); break;
-      case op::SWAP6: op::swap<6>(ctx); break;
-      case op::SWAP7: op::swap<7>(ctx); break;
-      case op::SWAP8: op::swap<8>(ctx); break;
-      case op::SWAP9: op::swap<9>(ctx); break;
-      case op::SWAP10: op::swap<10>(ctx); break;
-      case op::SWAP11: op::swap<11>(ctx); break;
-      case op::SWAP12: op::swap<12>(ctx); break;
-      case op::SWAP13: op::swap<13>(ctx); break;
-      case op::SWAP14: op::swap<14>(ctx); break;
-      case op::SWAP15: op::swap<15>(ctx); break;
-      case op::SWAP16: op::swap<16>(ctx); break;
+      op_JUMP: op::jump(ctx); DISPATCH();
+      op_JUMPI: op::jumpi(ctx); DISPATCH();
+      op_PC: op::pc(ctx); DISPATCH();
+      op_MSIZE: op::msize(ctx); DISPATCH();
+      op_GAS: op::gas(ctx); DISPATCH();
+      op_JUMPDEST: op::jumpdest(ctx); DISPATCH();
 
-      case op::LOG0: op::log<0>(ctx); break;
-      case op::LOG1: op::log<1>(ctx); break;
-      case op::LOG2: op::log<2>(ctx); break;
-      case op::LOG3: op::log<3>(ctx); break;
-      case op::LOG4: op::log<4>(ctx); break;
+      op_PUSH1: op::push<1>(ctx); DISPATCH();
+      op_PUSH2: op::push<2>(ctx); DISPATCH();
+      op_PUSH3: op::push<3>(ctx); DISPATCH();
+      op_PUSH4: op::push<4>(ctx); DISPATCH();
+      op_PUSH5: op::push<5>(ctx); DISPATCH();
+      op_PUSH6: op::push<6>(ctx); DISPATCH();
+      op_PUSH7: op::push<7>(ctx); DISPATCH();
+      op_PUSH8: op::push<8>(ctx); DISPATCH();
+      op_PUSH9: op::push<9>(ctx); DISPATCH();
+      op_PUSH10: op::push<10>(ctx); DISPATCH();
+      op_PUSH11: op::push<11>(ctx); DISPATCH();
+      op_PUSH12: op::push<12>(ctx); DISPATCH();
+      op_PUSH13: op::push<13>(ctx); DISPATCH();
+      op_PUSH14: op::push<14>(ctx); DISPATCH();
+      op_PUSH15: op::push<15>(ctx); DISPATCH();
+      op_PUSH16: op::push<16>(ctx); DISPATCH();
+      op_PUSH17: op::push<17>(ctx); DISPATCH();
+      op_PUSH18: op::push<18>(ctx); DISPATCH();
+      op_PUSH19: op::push<19>(ctx); DISPATCH();
+      op_PUSH20: op::push<20>(ctx); DISPATCH();
+      op_PUSH21: op::push<21>(ctx); DISPATCH();
+      op_PUSH22: op::push<22>(ctx); DISPATCH();
+      op_PUSH23: op::push<23>(ctx); DISPATCH();
+      op_PUSH24: op::push<24>(ctx); DISPATCH();
+      op_PUSH25: op::push<25>(ctx); DISPATCH();
+      op_PUSH26: op::push<26>(ctx); DISPATCH();
+      op_PUSH27: op::push<27>(ctx); DISPATCH();
+      op_PUSH28: op::push<28>(ctx); DISPATCH();
+      op_PUSH29: op::push<29>(ctx); DISPATCH();
+      op_PUSH30: op::push<30>(ctx); DISPATCH();
+      op_PUSH31: op::push<31>(ctx); DISPATCH();
+      op_PUSH32: op::push<32>(ctx); DISPATCH();
 
-      case op::CREATE: op::create_impl<op::CREATE>(ctx); break;
-      case op::CREATE2: op::create_impl<op::CREATE2>(ctx); break;
+      op_DUP1: op::dup<1>(ctx); DISPATCH();
+      op_DUP2: op::dup<2>(ctx); DISPATCH();
+      op_DUP3: op::dup<3>(ctx); DISPATCH();
+      op_DUP4: op::dup<4>(ctx); DISPATCH();
+      op_DUP5: op::dup<5>(ctx); DISPATCH();
+      op_DUP6: op::dup<6>(ctx); DISPATCH();
+      op_DUP7: op::dup<7>(ctx); DISPATCH();
+      op_DUP8: op::dup<8>(ctx); DISPATCH();
+      op_DUP9: op::dup<9>(ctx); DISPATCH();
+      op_DUP10: op::dup<10>(ctx); DISPATCH();
+      op_DUP11: op::dup<11>(ctx); DISPATCH();
+      op_DUP12: op::dup<12>(ctx); DISPATCH();
+      op_DUP13: op::dup<13>(ctx); DISPATCH();
+      op_DUP14: op::dup<14>(ctx); DISPATCH();
+      op_DUP15: op::dup<15>(ctx); DISPATCH();
+      op_DUP16: op::dup<16>(ctx); DISPATCH();
 
-      case op::RETURN: op::return_op<RunState::kReturn>(ctx); break;
-      case op::REVERT: op::return_op<RunState::kRevert>(ctx); break;
+      op_SWAP1: op::swap<1>(ctx); DISPATCH();
+      op_SWAP2: op::swap<2>(ctx); DISPATCH();
+      op_SWAP3: op::swap<3>(ctx); DISPATCH();
+      op_SWAP4: op::swap<4>(ctx); DISPATCH();
+      op_SWAP5: op::swap<5>(ctx); DISPATCH();
+      op_SWAP6: op::swap<6>(ctx); DISPATCH();
+      op_SWAP7: op::swap<7>(ctx); DISPATCH();
+      op_SWAP8: op::swap<8>(ctx); DISPATCH();
+      op_SWAP9: op::swap<9>(ctx); DISPATCH();
+      op_SWAP10: op::swap<10>(ctx); DISPATCH();
+      op_SWAP11: op::swap<11>(ctx); DISPATCH();
+      op_SWAP12: op::swap<12>(ctx); DISPATCH();
+      op_SWAP13: op::swap<13>(ctx); DISPATCH();
+      op_SWAP14: op::swap<14>(ctx); DISPATCH();
+      op_SWAP15: op::swap<15>(ctx); DISPATCH();
+      op_SWAP16: op::swap<16>(ctx); DISPATCH();
 
-      case op::CALL: op::call_impl<op::CALL>(ctx); break;
-      case op::CALLCODE: op::call_impl<op::CALLCODE>(ctx); break;
-      case op::DELEGATECALL: op::call_impl<op::DELEGATECALL>(ctx); break;
-      case op::STATICCALL: op::call_impl<op::STATICCALL>(ctx); break;
+      op_LOG0: op::log<0>(ctx); DISPATCH();
+      op_LOG1: op::log<1>(ctx); DISPATCH();
+      op_LOG2: op::log<2>(ctx); DISPATCH();
+      op_LOG3: op::log<3>(ctx); DISPATCH();
+      op_LOG4: op::log<4>(ctx); DISPATCH();
 
-      case op::INVALID: op::invalid(ctx); break;
-      case op::SELFDESTRUCT: op::selfdestruct(ctx); break;
-      // clang-format on
-      default:
-        ctx.state = RunState::kErrorOpcode;
-    }
-  }
+      op_CREATE: op::create_impl<op::CREATE>(ctx); DISPATCH();
+      op_CREATE2: op::create_impl<op::CREATE2>(ctx); DISPATCH();
 
+      op_RETURN: op::return_op<RunState::kReturn>(ctx); DISPATCH();
+      op_REVERT: op::return_op<RunState::kRevert>(ctx); DISPATCH();
+
+      op_CALL: op::call_impl<op::CALL>(ctx); DISPATCH();
+      op_CALLCODE: op::call_impl<op::CALLCODE>(ctx); DISPATCH();
+      op_DELEGATECALL: op::call_impl<op::DELEGATECALL>(ctx); DISPATCH();
+      op_STATICCALL: op::call_impl<op::STATICCALL>(ctx); DISPATCH();
+
+      op_INVALID: op::invalid(ctx); DISPATCH();
+      op_SELFDESTRUCT: op::selfdestruct(ctx); DISPATCH();
+  // clang-format on
+
+#undef DISPATCH
+
+end:
   if (!IsSuccess(ctx.state)) {
     ctx.gas = 0;
   }
