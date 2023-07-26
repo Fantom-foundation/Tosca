@@ -23,6 +23,13 @@ class Memory {
 
   uint64_t GetSize() const { return memory_.size(); }
 
+  // Get a span for the given memory offset and size that can be used for
+  // reading or writing. Grows memory automatically, unless size == 0.
+  std::span<uint8_t> GetSpan(uint64_t offset, uint64_t size) {
+    Grow(offset, size);
+    return {memory_.data() + offset, size};
+  }
+
   // Read from the given buffer into memory at memory_offset. Grows memory
   // automatically, unless buffer.size() == 0.
   void ReadFrom(std::span<const uint8_t> buffer, uint64_t memory_offset) {

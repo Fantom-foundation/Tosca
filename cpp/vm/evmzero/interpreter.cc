@@ -645,12 +645,14 @@ static void extcodecopy(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(3 * minimum_word_size + address_access_cost)) [[unlikely]]
     return;
 
-  std::vector<uint8_t> buffer(size);
+  auto memory_span = ctx.memory.GetSpan(memory_offset, size);
   if (code_offset_u256 <= std::numeric_limits<uint64_t>::max()) {
-    ctx.host->copy_code(address, static_cast<uint64_t>(code_offset_u256), buffer.data(), buffer.size());
+    uint64_t code_offset = static_cast<uint64_t>(code_offset_u256);
+    size_t bytes_written = ctx.host->copy_code(address, code_offset, memory_span.data(), memory_span.size());
+    memory_span = memory_span.subspan(bytes_written);
   }
+  std::fill(memory_span.begin(), memory_span.end(), 0);
 
-  ctx.memory.ReadFrom(buffer, memory_offset);
   ctx.pc++;
 }
 
@@ -1122,10 +1124,9 @@ static void log(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(static_cast<int64_t>(375 * N + 8 * size))) [[unlikely]]
     return;
 
-  std::vector<uint8_t> buffer(size);
-  ctx.memory.WriteTo(buffer, offset);
+  auto data = ctx.memory.GetSpan(offset, size);
 
-  ctx.host->emit_log(ctx.message->recipient, buffer.data(), buffer.size(), topics.data(), topics.size());
+  ctx.host->emit_log(ctx.message->recipient, data.data(), data.size(), topics.data(), topics.size());
   ctx.pc++;
 }
 
@@ -1222,8 +1223,7 @@ static void create_impl(Context& ctx) noexcept {
     return;
   }
 
-  std::vector<uint8_t> init_code(init_code_size);
-  ctx.memory.WriteTo(init_code, init_code_offset);
+  auto init_code = ctx.memory.GetSpan(init_code_offset, init_code_size);
 
   evmc_message msg{
       .kind = (Op == op::CREATE) ? EVMC_CREATE : EVMC_CREATE2,
@@ -1313,8 +1313,7 @@ static void call_impl(Context& ctx) noexcept {
 
   ctx.return_data.clear();
 
-  std::vector<uint8_t> input_data(input_size);
-  ctx.memory.WriteTo(input_data, input_offset);
+  auto input_data = ctx.memory.GetSpan(input_offset, input_size);
 
   int64_t gas = kMaxGas;
   if (gas_u256 < kMaxGas) {
