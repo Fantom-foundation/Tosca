@@ -80,10 +80,9 @@ class VM : public evmc_vm {
                       evmc_revision revision) {
     std::shared_ptr<const op::ValidJumpTargetsBuffer> valid_jump_targets;
     if (analysis_cache_enabled_ && code_hash && *code_hash != evmc::bytes32{0}) [[likely]] {
-      valid_jump_targets = valid_jump_targets_cache_.Get(*code_hash);
-      if (!valid_jump_targets) {
-        valid_jump_targets = valid_jump_targets_cache_.InsertOrAssign(*code_hash, op::CalculateValidJumpTargets(code));
-      }
+      valid_jump_targets = valid_jump_targets_cache_.GetOrInsert(*code_hash, [&]() {  //
+        return op::CalculateValidJumpTargets(code);
+      });
     } else {
       valid_jump_targets = std::make_shared<std::vector<uint8_t>>(op::CalculateValidJumpTargets(code));
     }
