@@ -98,8 +98,8 @@ class VM : public evmc_vm {
         .host_interface = host_interface,
         .host_context = host_context,
         .revision = revision,
-        .profiler =
-            (profiling_enabled_ ? static_cast<void*>(&enabled_profiler_) : static_cast<void*>(&disabled_profiler_)),
+        .profiler = profiling_enabled_ ? InterpreterArgs::ProfilerVariant(&enabled_profiler_)
+                                       : InterpreterArgs::ProfilerVariant(&disabled_profiler_),
     };
     InterpreterResult interpreter_result;
     if (logging_enabled_ && profiling_enabled_) {

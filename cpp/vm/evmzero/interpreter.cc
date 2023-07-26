@@ -79,9 +79,9 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
 
   profiler.template End<Markers::INTERPRETER>();
 
-  auto& vmProfiler = *static_cast<Profiler<ProfilingEnabled>*>(args.profiler);
+  auto& vm_profiler = *std::get<Profiler<ProfilingEnabled>*>(args.profiler);
 
-  vmProfiler.Merge(profiler);
+  vm_profiler.Merge(profiler);
 
   return {
       .state = ctx.state,

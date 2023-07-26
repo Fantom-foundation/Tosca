@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <ostream>
 #include <span>
+#include <variant>
 #include <vector>
 
 #include <evmc/evmc.hpp>
@@ -36,13 +37,15 @@ const char* ToString(RunState);
 std::ostream& operator<<(std::ostream&, RunState);
 
 struct InterpreterArgs {
+  using ProfilerVariant = std::variant<Profiler<false>*, Profiler<true>*>;
+
   std::span<const uint8_t> code;
   std::span<const uint8_t> valid_jump_targets;
   const evmc_message* message = nullptr;
   const evmc_host_interface* host_interface = nullptr;
   evmc_host_context* host_context = nullptr;
   evmc_revision revision = EVMC_ISTANBUL;
-  void* profiler = nullptr;
+  ProfilerVariant profiler;
 };
 
 struct InterpreterResult {
