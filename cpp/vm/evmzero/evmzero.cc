@@ -155,15 +155,11 @@ class VM : public evmc_vm {
 
   void DumpProfiler() {
     enabled_profiler_.End<Markers::TOTAL>();
-    disabled_profiler_.Dump();
     enabled_profiler_.Dump();
     enabled_profiler_.Start<Markers::TOTAL>();
   }
 
-  void ResetProfiler() {
-    disabled_profiler_.Reset();
-    enabled_profiler_.Reset();
-  }
+  void ResetProfiler() { enabled_profiler_.Reset(); }
 
  private:
   bool logging_enabled_ = false;
