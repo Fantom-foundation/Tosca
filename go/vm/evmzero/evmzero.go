@@ -15,6 +15,7 @@ import (
 var evmzero *common.EvmcVM
 var evmzeroWithLogging *common.EvmcVM
 var evmzeroWithoutAnalysisCache *common.EvmcVM
+var evmzeroWithoutSha3Cache *common.EvmcVM
 
 func init() {
 	// In the CGO instructions at the top of this file the build directory
@@ -47,6 +48,16 @@ func init() {
 		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 	}
 	evmzeroWithoutAnalysisCache = vm
+
+	// Another instance without SHA3 cache.
+	vm, err = common.LoadEvmcVM("libevmzero.so")
+	if err != nil {
+		panic(fmt.Errorf("failed to load evmzero library: %s", err))
+	}
+	if err = vm.SetOption("sha3_cache", "false"); err != nil {
+		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+	}
+	evmzeroWithoutSha3Cache = vm
 }
 
 func newInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
@@ -61,8 +72,13 @@ func newInterpreterWithoutAnalysisCache(evm *vm.EVM, cfg vm.Config) vm.EVMInterp
 	return common.NewEvmcInterpreter(evmzeroWithoutAnalysisCache, evm, cfg)
 }
 
+func newInterpreterWithoutSha3Cache(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
+	return common.NewEvmcInterpreter(evmzeroWithoutSha3Cache, evm, cfg)
+}
+
 func init() {
 	vm.RegisterInterpreterFactory("evmzero", newInterpreter)
 	vm.RegisterInterpreterFactory("evmzero-logging", newLoggingInterpreter)
 	vm.RegisterInterpreterFactory("evmzero-no-analysis-cache", newInterpreterWithoutAnalysisCache)
+	vm.RegisterInterpreterFactory("evmzero-no-sha3-cache", newInterpreterWithoutSha3Cache)
 }

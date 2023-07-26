@@ -68,6 +68,7 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
       .message = args.message,
       .host = &host,
       .revision = args.revision,
+      .sha3_cache = args.sha3_cache,
   };
   ctx.code.reserve(args.code.size() + kStopBytePadding);
   ctx.code.assign(args.code.begin(), args.code.end());
@@ -435,7 +436,13 @@ static void sha3(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(6 * minimum_word_size)) [[unlikely]]
     return;
 
-  ctx.stack.Push(ctx.memory.CalculateHash(offset, size));
+  auto memory_span = ctx.memory.GetSpan(offset, size);
+  if (ctx.sha3_cache) {
+    ctx.stack.Push(ctx.sha3_cache->Hash(memory_span));
+  } else {
+    ctx.stack.Push(ToUint256(ethash::keccak256(memory_span.data(), memory_span.size())));
+  }
+
   ctx.pc++;
 }
 
