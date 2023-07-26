@@ -2311,7 +2311,7 @@ TEST(InterpreterTest, EXTCODECOPY_WriteZeros) {
   MockHost host;
   EXPECT_CALL(host, copy_code(evmc::address(0x42), 1, _, 3))  //
       .Times(1)
-      .WillOnce(DoAll(SetArrayArgument<2>(code.data() + 1, code.data() + 2), Return(3)));
+      .WillOnce(DoAll(SetArrayArgument<2>(code.data() + 1, code.data() + 1 + 1), Return(1)));
 
   RunInterpreterTest({
       .code = {op::EXTCODECOPY},
