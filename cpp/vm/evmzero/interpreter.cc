@@ -1500,7 +1500,6 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
       std::cout << "\n" << std::flush;
     }
 
-    PROFILE_START(DISPATCH);
     switch (ctx.code[ctx.pc]) {
         // clang-format off
       case op::STOP: PROFILE_START(STOP); op::stop(ctx); PROFILE_END(STOP); break;
@@ -1644,16 +1643,16 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
       case op::LOG3: PROFILE_START(LOG3); op::log<3>(ctx); PROFILE_END(LOG3); break;
       case op::LOG4: PROFILE_START(LOG4); op::log<4>(ctx); PROFILE_END(LOG4); break;
 
-      case op::CREATE: PROFILE_START(CREATE); op::create_impl<op::CREATE>(ctx); PROFILE_END(CREATE); break;
-      case op::CREATE2: PROFILE_START(CREATE2); op::create_impl<op::CREATE2>(ctx); PROFILE_END(CREATE2); break;
+      case op::CREATE: op::create_impl<op::CREATE>(ctx); break;
+      case op::CREATE2: op::create_impl<op::CREATE2>(ctx); break;
 
       case op::RETURN: PROFILE_START(RETURN); op::return_op<RunState::kReturn>(ctx); PROFILE_END(RETURN); break;
       case op::REVERT: PROFILE_START(REVERT); op::return_op<RunState::kRevert>(ctx); PROFILE_END(REVERT); break;
 
-      case op::CALL: PROFILE_START(CALL); op::call_impl<op::CALL>(ctx); PROFILE_END(CALL); break;
-      case op::CALLCODE: PROFILE_START(CALLCODE); op::call_impl<op::CALLCODE>(ctx); PROFILE_END(CALLCODE); break;
-      case op::DELEGATECALL: PROFILE_START(DELEGATECALL); op::call_impl<op::DELEGATECALL>(ctx); PROFILE_END(DELEGATECALL); break;
-      case op::STATICCALL: PROFILE_START(STATICCALL); op::call_impl<op::STATICCALL>(ctx); PROFILE_END(STATICCALL); break;
+      case op::CALL: op::call_impl<op::CALL>(ctx); break;
+      case op::CALLCODE: op::call_impl<op::CALLCODE>(ctx); break;
+      case op::DELEGATECALL: op::call_impl<op::DELEGATECALL>(ctx); break;
+      case op::STATICCALL: op::call_impl<op::STATICCALL>(ctx); break;
 
       case op::INVALID: PROFILE_START(INVALID); op::invalid(ctx); PROFILE_END(INVALID); break;
       case op::SELFDESTRUCT: PROFILE_START(SELFDESTRUCT); op::selfdestruct(ctx); PROFILE_END(SELFDESTRUCT); break;
@@ -1661,7 +1660,6 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
       default:
         ctx.state = RunState::kErrorOpcode;
     }
-    PROFILE_END(DISPATCH);
   }
 
   if (!IsSuccess(ctx.state)) {
