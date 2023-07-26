@@ -34,6 +34,22 @@ TEST(LruCacheTest, Assign) {
   EXPECT_EQ(*cache.Get(0), 23);
 }
 
+TEST(LruCacheTest, GetOrInsert) {
+  LruCache<int, int, 32> cache;
+
+  EXPECT_EQ(42, *cache.GetOrInsert(0, []() { return 42; }));
+  EXPECT_EQ(cache.GetSize(), 1);
+
+  EXPECT_EQ(42, *cache.GetOrInsert(0, []() {
+    EXPECT_TRUE(false);  // Should not be executed!
+    return 0;
+  }));
+  EXPECT_EQ(cache.GetSize(), 1);
+
+  EXPECT_EQ(21, *cache.GetOrInsert(1, []() { return 21; }));
+  EXPECT_EQ(cache.GetSize(), 2);
+}
+
 TEST(LruCacheTest, LeastRecentlyUsedRemoved) {
   {
     LruCache<int, int, 2> cache;

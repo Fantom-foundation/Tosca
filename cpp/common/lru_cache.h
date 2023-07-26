@@ -60,6 +60,18 @@ class LruCache {
     return value_ptr;
   }
 
+  // Tries to get the value with the given key. If the key is not contained,
+  // creates and inserts a value by calling make_value and returns it. Removes
+  // the least recently used element when Capacity is exceeded
+  template <typename F>
+  std::shared_ptr<const Value> GetOrInsert(const Key& key, F make_value) {
+    if (auto entry = Get(key)) {
+      return entry;
+    } else {
+      return InsertOrAssign(key, make_value());
+    }
+  }
+
   size_t GetSize() {
     std::scoped_lock lock(mutex_);
     return entries_.size();
