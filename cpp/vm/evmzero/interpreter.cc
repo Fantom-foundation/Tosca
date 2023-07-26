@@ -1482,10 +1482,10 @@ inline bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
 
 template <bool LoggingEnabled, bool ProfilingEnabled>
 void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
-  ctx.code.resize(ctx.code.size() + kStopBytePadding, op::STOP);
-
 #define PROFILE_START(marker) profiler.template Start<Markers::marker>()
 #define PROFILE_END(marker) profiler.template End<Markers::marker>()
+
+  ctx.code.resize(ctx.code.size() + kStopBytePadding, op::STOP);
 
   while (ctx.state == RunState::kRunning) {
     if constexpr (LoggingEnabled) {
