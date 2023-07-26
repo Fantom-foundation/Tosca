@@ -138,29 +138,6 @@ TEST(MemoryTest, WriteTo_ZeroSize) {
   EXPECT_EQ(memory.GetSize(), 0);
 }
 
-TEST(MemoryTest, CalculateHash) {
-  Memory memory = {0xFF, 0xFF, 0xFF, 0xFF};
-
-  auto hash = memory.CalculateHash(0, 4);
-  EXPECT_EQ(hash, uint256_t(0x79A1BC8F0BB2C238, 0x9522D0CF0F73282C, 0x46EF02C2223570DA, 0x29045A592007D0C2));
-}
-
-TEST(MemoryTest, CalculateHash_ZeroSize) {
-  Memory memory = {0xFF, 0xFF, 0xFF, 0xFF};
-
-  auto hash = memory.CalculateHash(4, 0);
-  EXPECT_EQ(hash, uint256_t(0x7BFAD8045D85A470, 0xE500B653CA82273B, 0x927E7DB2DCC703C0, 0xC5D2460186F7233C));
-  EXPECT_EQ(memory.GetSize(), 32);
-}
-
-TEST(MemoryTest, CalculateHash_Grow) {
-  Memory memory;
-
-  auto hash = memory.CalculateHash(0, 4);
-  EXPECT_EQ(hash, uint256_t(0x64633A4ACBD3244C, 0xF7685EBD40E852B1, 0x55364C7B4BBF0BB7, 0xE8E77626586F73B9));
-  EXPECT_EQ(memory.GetSize(), 32);
-}
-
 TEST(MemoryTest, Grow) {
   Memory memory;
   memory.Grow(0, 16);

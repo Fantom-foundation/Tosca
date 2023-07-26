@@ -13,7 +13,8 @@ namespace tosca {
 // This container serves as a key-value storage with a fixed maximum capacity.
 // Adding elements beyond Capacity will cause the least recently used elements
 // to be removed. This container is thread-safe.
-template <typename Key, typename Value, size_t Capacity>
+template <typename Key, typename Value, size_t Capacity,  //
+          typename Hash = std::hash<Key>, typename KeyEqual = std::equal_to<Key>>
 class LruCache {
  public:
   // Retrieves the value with the given key and updates the least recently used
@@ -94,7 +95,7 @@ class LruCache {
   };
 
   std::mutex mutex_;
-  std::unordered_map<Key, Entry> entries_;
+  std::unordered_map<Key, Entry, Hash, KeyEqual> entries_;
   LruList lru_;
 };
 

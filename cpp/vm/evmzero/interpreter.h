@@ -8,6 +8,7 @@
 #include <evmc/evmc.hpp>
 
 #include "vm/evmzero/memory.h"
+#include "vm/evmzero/sha3_cache.h"
 #include "vm/evmzero/stack.h"
 
 namespace tosca::evmzero {
@@ -41,6 +42,7 @@ struct InterpreterArgs {
   const evmc_host_interface* host_interface = nullptr;
   evmc_host_context* host_context = nullptr;
   evmc_revision revision = EVMC_ISTANBUL;
+  Sha3Cache* sha3_cache = nullptr;
 };
 
 struct InterpreterResult {
@@ -77,6 +79,8 @@ struct Context {
   evmc::HostInterface* host = nullptr;
 
   evmc_revision revision = EVMC_ISTANBUL;
+
+  Sha3Cache* sha3_cache = nullptr;
 
   bool CheckOpcodeAvailable(evmc_revision introduced_in) noexcept;
   bool CheckStaticCallConformance() noexcept;

@@ -9,6 +9,7 @@
 #include "common/lru_cache.h"
 #include "vm/evmzero/interpreter.h"
 #include "vm/evmzero/opcodes.h"
+#include "vm/evmzero/sha3_cache.h"
 
 namespace tosca::evmzero {
 
@@ -87,7 +88,7 @@ class VM : public evmc_vm {
       valid_jump_targets = std::make_shared<std::vector<uint8_t>>(op::CalculateValidJumpTargets(code));
     }
 
-    const InterpreterArgs interpreter_args{
+    InterpreterArgs interpreter_args{
         .code = code,
         .valid_jump_targets = *valid_jump_targets,
         .message = message,
@@ -95,6 +96,10 @@ class VM : public evmc_vm {
         .host_context = host_context,
         .revision = revision,
     };
+    if (sha3_cache_enabled_) {
+      interpreter_args.sha3_cache = &sha3_cache_;
+    }
+
     InterpreterResult interpreter_result;
     if (logging_enabled_) {
       interpreter_result = Interpret<true>(interpreter_args);
@@ -124,6 +129,7 @@ class VM : public evmc_vm {
     const auto on_off_options = {
         std::pair("logging", &logging_enabled_),
         std::pair("analysis_cache", &analysis_cache_enabled_),
+        std::pair("sha3_cache", &sha3_cache_enabled_),
     };
 
     for (const auto& [option_name, member] : on_off_options) {
@@ -145,8 +151,11 @@ class VM : public evmc_vm {
  private:
   bool logging_enabled_ = false;
   bool analysis_cache_enabled_ = true;
+  bool sha3_cache_enabled_ = true;
 
   LruCache<evmc::bytes32, op::ValidJumpTargetsBuffer, 1 << 16> valid_jump_targets_cache_;
+
+  Sha3Cache sha3_cache_;
 };
 
 extern "C" {

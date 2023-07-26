@@ -57,13 +57,6 @@ class Memory {
     std::copy_n(memory_.data() + memory_offset, buffer.size(), buffer.data());
   }
 
-  // Calculates the keccak256 hash of the given memory segement. Grows memory
-  // automatically, unless size == 0.
-  uint256_t CalculateHash(uint64_t offset, uint64_t size) {
-    Grow(offset, size);
-    return ToUint256(ethash::keccak256(memory_.data() + offset, size));
-  }
-
   // Grow memory to accommodate offset + size bytes. Memory is not grown when
   // size == 0.
   void Grow(uint64_t offset, uint64_t size) {
