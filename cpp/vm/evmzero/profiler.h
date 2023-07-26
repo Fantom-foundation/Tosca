@@ -5,7 +5,11 @@
 #include <cstdint>
 #include <iostream>
 
+#if defined(__x86_64__)
 #include <x86intrin.h>
+#else
+#include <chrono>
+#endif
 
 #include "common/macros.h"
 #include "profiler_markers.h"
@@ -83,8 +87,12 @@ class Profiler {
   std::array<std::uint64_t, static_cast<std::size_t>(Markers::NUM_MARKERS)> total_time_ = {};
 
   TOSCA_FORCE_INLINE std::uint64_t GetTime() const {
+#if defined(__x86_64__)
     unsigned int _;
     return __rdtscp(&_);
+#else
+    return static_cast<std::uint64_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+#endif
   }
 };
 
