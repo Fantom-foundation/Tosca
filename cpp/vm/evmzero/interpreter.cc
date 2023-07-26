@@ -1486,7 +1486,6 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
 
 #define PROFILE_START(marker) profiler.template Start<Markers::marker>()
 #define PROFILE_END(marker) profiler.template End<Markers::marker>()
-#define PROFILE_SCOPED(marker) const auto scope_##marker = profiler.template Scoped<Markers::marker>()
 
   while (ctx.state == RunState::kRunning) {
     if constexpr (LoggingEnabled) {
@@ -1676,7 +1675,6 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
 
 #undef PROFILE_START
 #undef PROFILE_END
-#undef PROFILE_SCOPED
 }
 
 template void RunInterpreter<false, false>(Context&, Profiler<false>&);
