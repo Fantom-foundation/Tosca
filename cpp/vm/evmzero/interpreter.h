@@ -67,7 +67,7 @@ struct Context {
   int64_t gas = kMaxGas;
   int64_t gas_refunds = 0;
 
-  std::vector<uint8_t> code;
+  std::span<const uint8_t> code;
   std::vector<uint8_t> return_data;
   std::span<const uint8_t> valid_jump_targets;
 
@@ -89,6 +89,20 @@ struct Context {
   bool ApplyGasCost(int64_t gas_cost) noexcept;
 
   bool CheckJumpDest(uint256_t index) noexcept;
+
+  template<uint64_t pop, uint64_t push>
+  bool CheckStackRequirements() noexcept {
+    auto size = stack.GetSize();
+    if (pop > 0 && size < pop) [[unlikely]] {
+      state = RunState::kErrorStackUnderflow;
+      return false;
+    } else if (push > 0 && stack.GetMaxSize() - size < push) [[unlikely]] {
+      state = RunState::kErrorStackOverflow;
+      return false;
+    } else {
+      return true;
+    }
+  }
 
   struct MemoryExpansionCostResult {
     // Resulting memory expansion costs.

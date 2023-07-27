@@ -64,14 +64,13 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
   internal::Context ctx{
       .is_static_call = static_cast<bool>(args.message->flags & EVMC_STATIC),
       .gas = args.message->gas,
+      .code = args.code,
       .valid_jump_targets = args.valid_jump_targets,
       .message = args.message,
       .host = &host,
       .revision = args.revision,
       .sha3_cache = args.sha3_cache,
   };
-  ctx.code.reserve(args.code.size() + kStopBytePadding);
-  ctx.code.assign(args.code.begin(), args.code.end());
 
   internal::RunInterpreter<LoggingEnabled>(ctx);
 
@@ -810,7 +809,7 @@ static void basefee(Context& ctx) noexcept {
 }
 
 static void pop(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<1,0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(2)) [[unlikely]]
     return;
@@ -992,7 +991,7 @@ static void sstore(Context& ctx) noexcept {
 }
 
 static void jump(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<1,0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(8)) [[unlikely]]
     return;
@@ -1003,7 +1002,7 @@ static void jump(Context& ctx) noexcept {
 }
 
 static void jumpi(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<2,0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(10)) [[unlikely]]
     return;
@@ -1053,7 +1052,7 @@ static void jumpdest(Context& ctx) noexcept {
 
 template <uint64_t N>
 static void push(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<0,1>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
@@ -1074,9 +1073,9 @@ static void push(Context& ctx) noexcept {
 
   for (size_t i = 0; i < num_full_words; ++i) {
     if constexpr (std::endian::native == std::endian::little) {
-      value[num_full_words - 1 - i] = intx::bswap(*reinterpret_cast<uint64_t*>(data));
+      value[num_full_words - 1 - i] = intx::bswap(*reinterpret_cast<const uint64_t*>(data));
     } else {
-      value[num_full_words - 1 - i] = *reinterpret_cast<uint64_t*>(data);
+      value[num_full_words - 1 - i] = *reinterpret_cast<const uint64_t*>(data);
     }
     data += sizeof(uint64_t);
   }
@@ -1087,9 +1086,7 @@ static void push(Context& ctx) noexcept {
 
 template <uint64_t N>
 static void dup(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(N)) [[unlikely]]
-    return;
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<N,1>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
@@ -1099,7 +1096,7 @@ static void dup(Context& ctx) noexcept {
 
 template <uint64_t N>
 static void swap(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(N + 1)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<N+1,0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
@@ -1413,7 +1410,7 @@ inline bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
   }
 }
 
-bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
+inline bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
   if (index_u256 >= valid_jump_targets.size()) [[unlikely]] {
     state = RunState::kErrorJump;
     return false;
@@ -1478,8 +1475,6 @@ inline bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
 
 template <bool LoggingEnabled>
 void RunInterpreter(Context& ctx) {
-  ctx.code.resize(ctx.code.size() + kStopBytePadding, op::STOP);
-
   while (ctx.state == RunState::kRunning) {
     if constexpr (LoggingEnabled) {
       // log format: <op>, <gas>, <top-of-stack>\n

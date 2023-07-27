@@ -10,11 +10,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+
 	// Enable this import to see C/C++ symbols in CPU profile data.
 	// This import is commented out because it would affect all binaries this
 	// package gets imported in and in some cases this library causes Go
 	// symbols to be hidden. Also, the library has build issues on MacOS.
-	// _ "github.com/ianlancetaylor/cgosymbolizer"
+	_ "github.com/ianlancetaylor/cgosymbolizer"
 )
 
 var (

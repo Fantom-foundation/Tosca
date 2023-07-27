@@ -79,18 +79,28 @@ class VM : public evmc_vm {
                       const evmc_message* message,                                                 //
                       const evmc_host_interface* host_interface, evmc_host_context* host_context,  //
                       evmc_revision revision) {
-    std::shared_ptr<const op::ValidJumpTargetsBuffer> valid_jump_targets;
+    std::shared_ptr<const Contract> contract;
     if (analysis_cache_enabled_ && code_hash && *code_hash != evmc::bytes32{0}) [[likely]] {
-      valid_jump_targets = valid_jump_targets_cache_.GetOrInsert(*code_hash, [&]() {  //
-        return op::CalculateValidJumpTargets(code);
+      contract = contract_cache_.GetOrInsert(*code_hash, [&]()->Contract {
+        auto tmp = std::vector<uint8_t>(code.size() + 33);
+        std::copy(code.begin(), code.end(), tmp.begin());
+        return {
+          .padded_code = tmp,
+          .valid_jump_targets = op::CalculateValidJumpTargets(code)
+        };
       });
     } else {
-      valid_jump_targets = std::make_shared<std::vector<uint8_t>>(op::CalculateValidJumpTargets(code));
+      auto tmp = std::vector<uint8_t>(code.size() + 33);
+      std::copy(code.begin(), code.end(), tmp.begin());
+      contract = std::make_shared<Contract>(Contract{
+         .padded_code = tmp,
+          .valid_jump_targets = op::CalculateValidJumpTargets(code)
+      });
     }
 
     InterpreterArgs interpreter_args{
-        .code = code,
-        .valid_jump_targets = *valid_jump_targets,
+        .code = contract->padded_code,
+        .valid_jump_targets = contract->valid_jump_targets,
         .message = message,
         .host_interface = host_interface,
         .host_context = host_context,
@@ -153,7 +163,12 @@ class VM : public evmc_vm {
   bool analysis_cache_enabled_ = true;
   bool sha3_cache_enabled_ = true;
 
-  LruCache<evmc::bytes32, op::ValidJumpTargetsBuffer, 1 << 16> valid_jump_targets_cache_;
+  struct Contract {
+    std::vector<uint8_t> padded_code;
+    op::ValidJumpTargetsBuffer valid_jump_targets;
+  };
+
+  LruCache<evmc::bytes32, Contract, 1<<16> contract_cache_;
 
   Sha3Cache sha3_cache_;
 };
