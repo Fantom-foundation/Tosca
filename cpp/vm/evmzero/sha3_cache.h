@@ -6,6 +6,7 @@
 
 #include "common/hash_utils.h"
 #include "common/lru_cache.h"
+#include "common/macros.h"
 #include "vm/evmzero/uint256.h"
 
 namespace tosca::evmzero {
@@ -15,7 +16,7 @@ namespace tosca::evmzero {
 // capcity. A least-recently-used strategy is employed.
 class Sha3Cache {
  public:
-  uint256_t Hash(std::span<const uint8_t> key_view) noexcept {
+  TOSCA_FORCE_INLINE uint256_t Hash(std::span<const uint8_t> key_view) noexcept {
     auto calculate_hash = [&key_view]() {  //
       return ToUint256(ethash::keccak256(key_view.data(), key_view.size()));
     };
