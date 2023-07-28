@@ -32,12 +32,12 @@ func GetMemoryExample() Example {
 		log.Fatalf("Unable to decode memory-code: %v", err)
 	}
 
-	return Example{
+	return exampleSpec{
 		Name:      "memory",
 		code:      code,
 		function:  0xE88AE781,
 		reference: memory,
-	}
+	}.build()
 }
 
 func memory(n int) int {

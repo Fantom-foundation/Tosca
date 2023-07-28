@@ -53,33 +53,33 @@ func GetJumpdestAnalysisExample() Example {
 	filler := []byte{byte(vm.JUMPDEST)}
 	code := GenerateAnalysisCode(filler)
 
-	return Example{
+	return exampleSpec{
 		Name:      "jumpdest",
 		code:      code,
 		reference: analysis,
-	}
+	}.build()
 }
 
 func GetStopAnalysisExample() Example {
 	filler := []byte{byte(vm.STOP)}
 	code := GenerateAnalysisCode(filler)
 
-	return Example{
+	return exampleSpec{
 		Name:      "stop",
 		code:      code,
 		reference: analysis,
-	}
+	}.build()
 }
 
 func GetPush1AnalysisExample() Example {
 	filler := []byte{byte(vm.PUSH1), 0}
 	code := GenerateAnalysisCode(filler)
 
-	return Example{
+	return exampleSpec{
 		Name:      "push1",
 		code:      code,
 		reference: analysis,
-	}
+	}.build()
 }
 
 func GetPush32AnalysisExample() Example {
@@ -87,11 +87,11 @@ func GetPush32AnalysisExample() Example {
 	filler = append(filler, make([]byte, 32)...)
 	code := GenerateAnalysisCode(filler)
 
-	return Example{
+	return exampleSpec{
 		Name:      "push32",
 		code:      code,
 		reference: analysis,
-	}
+	}.build()
 }
 
 func analysis(x int) int {

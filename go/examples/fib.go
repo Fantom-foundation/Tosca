@@ -12,12 +12,12 @@ func GetFibExample() Example {
 		log.Fatalf("Unable to decode fib-code: %v", err)
 	}
 
-	return Example{
+	return exampleSpec{
 		Name:      "fib",
 		code:      code,
 		function:  0xF9B7C7E5, // function selector for the fib function
 		reference: fib,
-	}
+	}.build()
 }
 
 func fib(x int) int {
