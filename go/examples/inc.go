@@ -12,12 +12,12 @@ func GetIncrementExample() Example {
 		log.Fatalf("Unable to decode increment-code: %v", err)
 	}
 
-	return Example{
+	return exampleSpec{
 		Name:      "inc",
 		code:      code,
 		function:  0xDD5D5211,
 		reference: inc,
-	}
+	}.build()
 }
 
 func inc(x int) int {

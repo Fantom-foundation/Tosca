@@ -52,11 +52,11 @@ func GetSha3Example() Example {
 		byte(vm.RETURN),
 	}
 
-	return Example{
+	return exampleSpec{
 		Name:      "sha3",
 		code:      code,
 		reference: sha3Ref,
-	}
+	}.build()
 }
 
 func sha3Ref(x int) int {

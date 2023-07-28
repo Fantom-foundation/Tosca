@@ -36,12 +36,12 @@ func GetArithmeticExample() Example {
 		log.Fatalf("Unable to decode arithmetic-code: %v", err)
 	}
 
-	return Example{
+	return exampleSpec{
 		Name:      "arithmetic",
 		code:      code,
 		function:  0xCC821C09,
 		reference: arithmetic,
-	}
+	}.build()
 }
 
 func arithmetic(n int) int {

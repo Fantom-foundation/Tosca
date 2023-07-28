@@ -10,12 +10,25 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-// Example describes a contract and an entry point with a (int)->int signature.
+// Example is an executable description of a contract and an entry point with a (int)->int signature.
 type Example struct {
+	exampleSpec
+	codeHash common.Hash // the hash of the code
+}
+
+// exampleSpec specifies a contract and an entry point with a (int)->int signature.
+type exampleSpec struct {
 	Name      string
 	code      []byte        // some contract code
 	function  uint32        // identifier of the function in the contract to be called
 	reference func(int) int // a reference function computing the same function
+}
+
+func (s exampleSpec) build() Example {
+	return Example{
+		exampleSpec: s,
+		codeHash:    crypto.Keccak256Hash(s.code),
+	}
 }
 
 type Result struct {
@@ -32,7 +45,7 @@ func (e *Example) RunOn(interpreter vm.EVMInterpreter, argument int) (Result, er
 	addr := vm.AccountRef{}
 	contract := vm.NewContract(addr, addr, big.NewInt(0), initialGas)
 	contract.Code = e.code
-	contract.CodeHash = crypto.Keccak256Hash(e.code)
+	contract.CodeHash = e.codeHash
 	contract.CodeAddr = &common.Address{}
 
 	output, err := interpreter.Run(contract, input, false)
