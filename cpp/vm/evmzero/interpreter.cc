@@ -95,91 +95,83 @@ using internal::kMaxGas;
 static void stop(Context& ctx) noexcept { ctx.state = RunState::kDone; }
 
 static void add(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<2, 0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a + b);
+  uint256_t& a = ctx.stack.Pop();
+  uint256_t& b = ctx.stack.Peek();
+  b += a;
   ctx.pc++;
 }
 
 static void mul(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<2, 0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(5)) [[unlikely]]
     return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a * b);
+  uint256_t& a = ctx.stack.Pop();
+  uint256_t& b = ctx.stack.Peek();
+  b *= a;
   ctx.pc++;
 }
 
 static void sub(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<2, 0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a - b);
+  uint256_t& a = ctx.stack.Pop();
+  uint256_t& b = ctx.stack.Peek();
+  b = a - b;
   ctx.pc++;
 }
 
 static void div(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<2, 0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(5)) [[unlikely]]
     return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  if (b == 0)
-    ctx.stack.Push(0);
-  else
-    ctx.stack.Push(a / b);
+  uint256_t& a = ctx.stack.Pop();
+  uint256_t& b = ctx.stack.Peek();
+  if (b != 0)
+    b = a / b;
   ctx.pc++;
 }
 
 static void sdiv(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<2, 0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(5)) [[unlikely]]
     return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  if (b == 0)
-    ctx.stack.Push(0);
-  else
-    ctx.stack.Push(intx::sdivrem(a, b).quot);
+  uint256_t& a = ctx.stack.Pop();
+  uint256_t& b = ctx.stack.Peek();
+  if (b != 0)
+    b = intx::sdivrem(a, b).quot;
   ctx.pc++;
 }
 
 static void mod(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<2, 0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(5)) [[unlikely]]
     return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  if (b == 0)
-    ctx.stack.Push(0);
-  else
-    ctx.stack.Push(a % b);
+  uint256_t& a = ctx.stack.Pop();
+  uint256_t& b = ctx.stack.Peek();
+  if (b != 0)
+    b = a % b;
   ctx.pc++;
 }
 
 static void smod(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
+  if (!ctx.CheckStackRequirements<2, 0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(5)) [[unlikely]]
     return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  if (b == 0)
-    ctx.stack.Push(0);
-  else
-    ctx.stack.Push(intx::sdivrem(a, b).rem);
+  uint256_t& a = ctx.stack.Pop();
+  uint256_t& b = ctx.stack.Peek();
+  if (b != 0)
+    b = intx::sdivrem(a, b).rem;
   ctx.pc++;
 }
 
@@ -188,13 +180,11 @@ static void addmod(Context& ctx) noexcept {
     return;
   if (!ctx.ApplyGasCost(8)) [[unlikely]]
     return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  uint256_t N = ctx.stack.Pop();
-  if (N == 0)
-    ctx.stack.Push(0);
-  else
-    ctx.stack.Push(intx::addmod(a, b, N));
+  uint256_t& a = ctx.stack.Pop();
+  uint256_t& b = ctx.stack.Pop();
+  uint256_t& N = ctx.stack.Peek();
+  if (N != 0)
+    N = intx::addmod(a, b, N);
   ctx.pc++;
 }
 
@@ -203,13 +193,11 @@ static void mulmod(Context& ctx) noexcept {
     return;
   if (!ctx.ApplyGasCost(8)) [[unlikely]]
     return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  uint256_t N = ctx.stack.Pop();
-  if (N == 0)
-    ctx.stack.Push(0);
-  else
-    ctx.stack.Push(intx::mulmod(a, b, N));
+  uint256_t& a = ctx.stack.Pop();
+  uint256_t& b = ctx.stack.Pop();
+  uint256_t& N = ctx.stack.Peek();
+  if (N != 0)
+    N =intx::mulmod(a, b, N);
   ctx.pc++;
 }
 

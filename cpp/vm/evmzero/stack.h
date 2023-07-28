@@ -19,17 +19,24 @@ class Stack {
   Stack(Stack&&) = delete;
   Stack(std::initializer_list<uint256_t>);
 
-  uint64_t GetSize() const { return uint64_t(end_ - top_); }
+  uint16_t GetSize() const { return size_; }
   uint64_t GetMaxSize() const { return kStackSize; }
 
   void Push(const uint256_t& value) {
     TOSCA_ASSERT(GetSize() < kStackSize);
     *(--top_) = value;
+    size_++;
   }
 
-  uint256_t Pop() {
+  uint256_t& Pop() {
     TOSCA_ASSERT(GetSize() > 0);
+    size_--;
     return *(top_++);
+  }
+
+  uint256_t& Peek() {
+    TOSCA_ASSERT(GetSize() > 0);
+    return *top_;
   }
 
   template <size_t N>
@@ -65,6 +72,7 @@ class Stack {
   std::unique_ptr<Data> stack_;
   uint256_t* top_ = nullptr;
   uint256_t* const end_ = nullptr;
+  uint16_t size_ = 0;
 };
 
 std::ostream& operator<<(std::ostream&, const Stack&);
