@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <initializer_list>
 #include <memory>
@@ -18,6 +19,7 @@ class Stack {
   Stack(const Stack&);
   Stack(Stack&&) = delete;
   Stack(std::initializer_list<uint256_t>);
+  ~Stack();
 
   uint16_t GetSize() const { return size_; }
   uint64_t GetMaxSize() const { return kStackSize; }
@@ -77,9 +79,15 @@ class Stack {
 
     // Provides uninitialized, reinterpretable stack storage.
     alignas(sizeof(uint256_t)) std::byte data_[kStackSize * sizeof(uint256_t)];
+    Data* next_ = nullptr;
   };
 
-  std::unique_ptr<Data> stack_;
+  static std::atomic<Data*> kFreeList;
+
+  static Data* GetData();
+  static void Release(Data*);
+
+  Data* data_;
   uint256_t* top_ = nullptr;
   uint256_t* const end_ = nullptr;
   uint16_t size_ = 0;

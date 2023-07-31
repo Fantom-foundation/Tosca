@@ -1,10 +1,11 @@
 #include "vm/evmzero/stack.h"
 
 #include <algorithm>
+#include <atomic>
 
 namespace tosca::evmzero {
 
-Stack::Stack() : stack_(std::make_unique<Data>()), top_(stack_->end()), end_(top_) {}
+Stack::Stack() : data_(GetData()), top_(data_->end()), end_(top_) {}
 
 Stack::Stack(std::initializer_list<uint256_t> elements) : Stack() {
   TOSCA_ASSERT(elements.size() <= stack_->size());
@@ -14,16 +15,22 @@ Stack::Stack(std::initializer_list<uint256_t> elements) : Stack() {
 }
 
 Stack::Stack(const Stack& other) : Stack() {
-  *stack_ = *other.stack_;
-  top_ = stack_->end() - other.GetSize();
+  *data_ = *other.data_;
+  top_ = data_->end() - other.GetSize();
+}
+
+Stack::~Stack() {
+  if (data_) {
+    Release(data_);
+  }
 }
 
 Stack& Stack::operator=(const Stack& other) {
   if (this == &other) {
     return *this;
   }
-  *stack_ = *other.stack_;
-  top_ = stack_->end() - other.GetSize();
+  *data_ = *other.data_;
+  top_ = data_->end() - other.GetSize();
   return *this;
 }
 
@@ -40,6 +47,25 @@ std::ostream& operator<<(std::ostream& out, const Stack& stack) {
     out << stack[i];
   }
   return out << " ]B";
+}
+
+std::atomic<Stack::Data*> Stack::kFreeList = nullptr;
+
+Stack::Data* Stack::GetData() {
+  Data* res = kFreeList.load(std::memory_order_relaxed);
+  for (;;) {
+    if (res == nullptr) {
+      return new Data();
+    }
+    if (kFreeList.compare_exchange_weak(res, res->next_)) {
+      return res;
+    }
+  }
+}
+
+void Stack::Release(Data* data) {
+  while (!kFreeList.compare_exchange_weak(data->next_, data, std::memory_order_relaxed, std::memory_order_relaxed)) {
+  }
 }
 
 }  // namespace tosca::evmzero
