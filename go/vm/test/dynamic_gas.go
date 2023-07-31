@@ -21,6 +21,16 @@ type DynGasTest struct {
 	memValues   []*big.Int
 }
 
+// Structure for dynamic gas instruction test
+type FailGasTest struct {
+	testName      string                                 // test name
+	instruction   vm.OpCode                              // tested instruction opcode
+	expectedError error                                  // error at the end of execution
+	stackValues   []*big.Int                             // values to be put on stack
+	initialGas    uint64                                 // gas amout for the test
+	mockCalls     func(mockStateDB *vm_mock.MockStateDB) // defines expected stateDB calls during test execution
+}
+
 // EXP instruction
 // gas_cost = 10 + 50 * byte_len_exponent
 // byte_len_exponent: the number of bytes in the exponent (exponent is b in the stack representation)
@@ -295,6 +305,59 @@ func gasDynamicSStore(revision Revision) []*DynGasTest {
 		// Append test
 		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls, nil})
 	}
+	return testCases
+}
+
+// Tests for which OutOfGas error should happen
+func getOutOfGasTests(revision Revision) []*FailGasTest {
+
+	testCases := []*FailGasTest{}
+
+	type instructionTest struct {
+		instruction vm.OpCode
+		initialGas  uint64
+	}
+
+	// This gas is not sufficient for cold gas access
+	var accessLowGas uint64 = 300
+
+	tests := []instructionTest{
+		{vm.SSTORE, 2306}, // SSTORE has to fail if gas < 2300 + 2x3 for PUSH to stack
+		{vm.SLOAD, accessLowGas},
+		{vm.BALANCE, accessLowGas},
+		{vm.EXTCODESIZE, accessLowGas},
+		{vm.EXTCODEHASH, accessLowGas},
+		{vm.EXTCODECOPY, accessLowGas},
+		{vm.CALL, accessLowGas},
+		{vm.STATICCALL, accessLowGas},
+		{vm.DELEGATECALL, accessLowGas},
+		{vm.CALLCODE, accessLowGas},
+		{vm.SELFDESTRUCT, accessLowGas},
+	}
+
+	mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
+		mockStateDB.EXPECT().SlotInAccessList(gomock.Any(), gomock.Any()).AnyTimes().Return(false, false)
+		mockStateDB.EXPECT().AddressInAccessList(gomock.Any()).AnyTimes().Return(false)
+		mockStateDB.EXPECT().AddAddressToAccessList(gomock.Any()).AnyTimes()
+		mockStateDB.EXPECT().Exist(gomock.Any()).AnyTimes().Return(false)
+		mockStateDB.EXPECT().AddSlotToAccessList(gomock.Any(), gomock.Any()).AnyTimes()
+		mockStateDB.EXPECT().Empty(gomock.Any()).AnyTimes().Return(true)
+		mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(big.NewInt(0))
+		mockStateDB.EXPECT().HasSuicided(gomock.Any()).AnyTimes().Return(true)
+	}
+
+	// Generate test cases
+	for _, test := range tests {
+		stackValCount := getInstructions(revision)[test.instruction].stack.popped
+		stackValues := make([]*big.Int, 0)
+		for i := 0; i < stackValCount; i++ {
+			stackValues = append(stackValues, big.NewInt(1))
+		}
+		testName := fmt.Sprintf("%v using %v gas", test.instruction.String(), test.initialGas)
+
+		testCases = append(testCases, &FailGasTest{testName, test.instruction, vm.ErrOutOfGas, stackValues, test.initialGas, mockCalls})
+	}
+
 	return testCases
 }
 

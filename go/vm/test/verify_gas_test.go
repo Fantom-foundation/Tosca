@@ -168,6 +168,59 @@ func TestDynamicGas(t *testing.T) {
 	}
 }
 
+func TestOutOfGas(t *testing.T) {
+	var mockCtrl *gomock.Controller
+	var mockStateDB *vm_mock.MockStateDB
+
+	// For every variant of interpreter
+	for _, variant := range Variants {
+		for _, revision := range revisions {
+			// Get static gas for frequently used instructions
+			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
+
+			for _, testCase := range getOutOfGasTests(revision) {
+
+				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, testCase.testName), func(t *testing.T) {
+
+					// Need new mock for every testcase
+					mockCtrl = gomock.NewController(t)
+					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+
+					// evmone needs following in addition to geth and lfvm
+					mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
+					mockStateDB.EXPECT().SubRefund(uint64(0)).AnyTimes()
+
+					// Init stateDB mock calls from test function
+					if testCase.mockCalls != nil {
+						testCase.mockCalls(mockStateDB)
+					}
+
+					// Initialize EVM clean instance
+					evm := GetCleanEVM(revision, variant, mockStateDB)
+					code := make([]byte, 0)
+
+					// Put needed values on stack with PUSH instructions.
+					pushCode, _ := addValuesToStack(testCase.stackValues, pushGas)
+					code = append(code, pushCode...)
+
+					// Set a tested instruction as the last one.
+					code = append(code, byte(testCase.instruction))
+
+					// Run an interpreter
+					_, err := evm.RunWithGas(code, []byte{}, testCase.initialGas)
+
+					// Check the result.
+					if err != nil && err != testCase.expectedError {
+						t.Errorf("execution failed %v should fail with %v but got error: %v", testCase.testName, testCase.expectedError, err)
+					} else if err == nil {
+						t.Errorf("execution of %v should fail with ErrOutOfGas but there is no error", testCase.testName)
+					}
+				})
+			}
+		}
+	}
+}
+
 func addValuesToStack(stackValues []*big.Int, pushGas uint64) ([]byte, uint64) {
 	stackValuesCount := len(stackValues)
 
