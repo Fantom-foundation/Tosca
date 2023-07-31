@@ -68,7 +68,17 @@ class Stack {
 
  private:
   static constexpr size_t kStackSize = 1024;
-  using Data = std::array<uint256_t, kStackSize>;
+
+  struct Data {
+    Data() {}  // Required to disable default initialization of data_ array
+
+    uint256_t* end() { return reinterpret_cast<uint256_t*>(data_) + kStackSize; }
+    std::size_t size() const { return kStackSize; }
+
+    // Provides uninitialized, reinterpretable stack storage.
+    alignas(sizeof(uint256_t)) std::byte data_[kStackSize * sizeof(uint256_t)];
+  };
+
   std::unique_ptr<Data> stack_;
   uint256_t* top_ = nullptr;
   uint256_t* const end_ = nullptr;

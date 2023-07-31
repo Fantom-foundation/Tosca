@@ -1049,7 +1049,8 @@ static void push(Context& ctx) noexcept {
   constexpr auto num_partial_bytes = N % sizeof(uint64_t);
   auto data = &ctx.code[ctx.pc + 1];
 
-  uint256_t value = 0;
+  ctx.stack.Push(0);
+  uint256_t& value = ctx.stack.Peek();
   if constexpr (num_partial_bytes != 0) {
     uint64_t word = 0;
     for (unsigned i = 0; i < num_partial_bytes; i++) {
@@ -1068,7 +1069,6 @@ static void push(Context& ctx) noexcept {
     data += sizeof(uint64_t);
   }
 
-  ctx.stack.Push(value);
   ctx.pc += 1 + N;
 }
 
