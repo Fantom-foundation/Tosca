@@ -90,7 +90,7 @@ struct Context {
 
   bool CheckJumpDest(uint256_t index) noexcept;
 
-  template<uint64_t pop, uint64_t push>
+  template <uint64_t pop, uint64_t push>
   bool CheckStackRequirements() noexcept {
     auto size = stack.GetSize();
     if (pop > 0 && size < pop) [[unlikely]] {

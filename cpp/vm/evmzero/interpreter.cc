@@ -134,8 +134,7 @@ static void div(Context& ctx) noexcept {
     return;
   uint256_t& a = ctx.stack.Pop();
   uint256_t& b = ctx.stack.Peek();
-  if (b != 0)
-    b = a / b;
+  if (b != 0) b = a / b;
   ctx.pc++;
 }
 
@@ -146,8 +145,7 @@ static void sdiv(Context& ctx) noexcept {
     return;
   uint256_t& a = ctx.stack.Pop();
   uint256_t& b = ctx.stack.Peek();
-  if (b != 0)
-    b = intx::sdivrem(a, b).quot;
+  if (b != 0) b = intx::sdivrem(a, b).quot;
   ctx.pc++;
 }
 
@@ -158,8 +156,7 @@ static void mod(Context& ctx) noexcept {
     return;
   uint256_t& a = ctx.stack.Pop();
   uint256_t& b = ctx.stack.Peek();
-  if (b != 0)
-    b = a % b;
+  if (b != 0) b = a % b;
   ctx.pc++;
 }
 
@@ -170,8 +167,7 @@ static void smod(Context& ctx) noexcept {
     return;
   uint256_t& a = ctx.stack.Pop();
   uint256_t& b = ctx.stack.Peek();
-  if (b != 0)
-    b = intx::sdivrem(a, b).rem;
+  if (b != 0) b = intx::sdivrem(a, b).rem;
   ctx.pc++;
 }
 
@@ -183,8 +179,7 @@ static void addmod(Context& ctx) noexcept {
   uint256_t& a = ctx.stack.Pop();
   uint256_t& b = ctx.stack.Pop();
   uint256_t& N = ctx.stack.Peek();
-  if (N != 0)
-    N = intx::addmod(a, b, N);
+  if (N != 0) N = intx::addmod(a, b, N);
   ctx.pc++;
 }
 
@@ -196,8 +191,7 @@ static void mulmod(Context& ctx) noexcept {
   uint256_t& a = ctx.stack.Pop();
   uint256_t& b = ctx.stack.Pop();
   uint256_t& N = ctx.stack.Peek();
-  if (N != 0)
-    N =intx::mulmod(a, b, N);
+  if (N != 0) N = intx::mulmod(a, b, N);
   ctx.pc++;
 }
 
@@ -797,7 +791,7 @@ static void basefee(Context& ctx) noexcept {
 }
 
 static void pop(Context& ctx) noexcept {
-  if (!ctx.CheckStackRequirements<1,0>()) [[unlikely]]
+  if (!ctx.CheckStackRequirements<1, 0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(2)) [[unlikely]]
     return;
@@ -979,7 +973,7 @@ static void sstore(Context& ctx) noexcept {
 }
 
 static void jump(Context& ctx) noexcept {
-  if (!ctx.CheckStackRequirements<1,0>()) [[unlikely]]
+  if (!ctx.CheckStackRequirements<1, 0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(8)) [[unlikely]]
     return;
@@ -990,7 +984,7 @@ static void jump(Context& ctx) noexcept {
 }
 
 static void jumpi(Context& ctx) noexcept {
-  if (!ctx.CheckStackRequirements<2,0>()) [[unlikely]]
+  if (!ctx.CheckStackRequirements<2, 0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(10)) [[unlikely]]
     return;
@@ -1040,7 +1034,7 @@ static void jumpdest(Context& ctx) noexcept {
 
 template <uint64_t N>
 static void push(Context& ctx) noexcept {
-  if (!ctx.CheckStackRequirements<0,1>()) [[unlikely]]
+  if (!ctx.CheckStackRequirements<0, 1>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
@@ -1074,7 +1068,7 @@ static void push(Context& ctx) noexcept {
 
 template <uint64_t N>
 static void dup(Context& ctx) noexcept {
-  if (!ctx.CheckStackRequirements<N,1>()) [[unlikely]]
+  if (!ctx.CheckStackRequirements<N, 1>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;
@@ -1084,7 +1078,7 @@ static void dup(Context& ctx) noexcept {
 
 template <uint64_t N>
 static void swap(Context& ctx) noexcept {
-  if (!ctx.CheckStackRequirements<N+1,0>()) [[unlikely]]
+  if (!ctx.CheckStackRequirements<N + 1, 0>()) [[unlikely]]
     return;
   if (!ctx.ApplyGasCost(3)) [[unlikely]]
     return;

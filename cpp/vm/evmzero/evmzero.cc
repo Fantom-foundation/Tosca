@@ -81,21 +81,16 @@ class VM : public evmc_vm {
                       evmc_revision revision) {
     std::shared_ptr<const Contract> contract;
     if (analysis_cache_enabled_ && code_hash && *code_hash != evmc::bytes32{0}) [[likely]] {
-      contract = contract_cache_.GetOrInsert(*code_hash, [&]()->Contract {
+      contract = contract_cache_.GetOrInsert(*code_hash, [&]() -> Contract {
         auto tmp = std::vector<uint8_t>(code.size() + 33);
         std::copy(code.begin(), code.end(), tmp.begin());
-        return {
-          .padded_code = tmp,
-          .valid_jump_targets = op::CalculateValidJumpTargets(code)
-        };
+        return {.padded_code = tmp, .valid_jump_targets = op::CalculateValidJumpTargets(code)};
       });
     } else {
       auto tmp = std::vector<uint8_t>(code.size() + 33);
       std::copy(code.begin(), code.end(), tmp.begin());
-      contract = std::make_shared<Contract>(Contract{
-         .padded_code = tmp,
-          .valid_jump_targets = op::CalculateValidJumpTargets(code)
-      });
+      contract = std::make_shared<Contract>(
+          Contract{.padded_code = tmp, .valid_jump_targets = op::CalculateValidJumpTargets(code)});
     }
 
     InterpreterArgs interpreter_args{
@@ -168,7 +163,7 @@ class VM : public evmc_vm {
     op::ValidJumpTargetsBuffer valid_jump_targets;
   };
 
-  LruCache<evmc::bytes32, Contract, 1<<16> contract_cache_;
+  LruCache<evmc::bytes32, Contract, 1 << 16> contract_cache_;
 
   Sha3Cache sha3_cache_;
 };
