@@ -79,18 +79,16 @@ class VM : public evmc_vm {
                       const evmc_message* message,                                                 //
                       const evmc_host_interface* host_interface, evmc_host_context* host_context,  //
                       evmc_revision revision) {
-    std::shared_ptr<const op::ValidJumpTargetsBuffer> valid_jump_targets;
+    std::shared_ptr<const ContractInfo> contract_info;
     if (analysis_cache_enabled_ && code_hash && *code_hash != evmc::bytes32{0}) [[likely]] {
-      valid_jump_targets = valid_jump_targets_cache_.GetOrInsert(*code_hash, [&]() {  //
-        return op::CalculateValidJumpTargets(code);
-      });
+      contract_info = contract_info_cache_.GetOrInsert(*code_hash, [&] { return ComputeContractInfo(code); });
     } else {
-      valid_jump_targets = std::make_shared<std::vector<uint8_t>>(op::CalculateValidJumpTargets(code));
+      contract_info = std::make_shared<ContractInfo>(ComputeContractInfo(code));
     }
 
     InterpreterArgs interpreter_args{
-        .code = code,
-        .valid_jump_targets = *valid_jump_targets,
+        .padded_code = contract_info->padded_code,
+        .valid_jump_targets = contract_info->valid_jump_targets,
         .message = message,
         .host_interface = host_interface,
         .host_context = host_context,
@@ -149,11 +147,23 @@ class VM : public evmc_vm {
   }
 
  private:
+  struct ContractInfo {
+    std::vector<uint8_t> padded_code;
+    op::ValidJumpTargetsBuffer valid_jump_targets;
+  };
+
+  static ContractInfo ComputeContractInfo(std::span<const uint8_t> code) {
+    return ContractInfo{
+        .padded_code = internal::PadCode(code),
+        .valid_jump_targets = op::CalculateValidJumpTargets(code),
+    };
+  }
+
   bool logging_enabled_ = false;
   bool analysis_cache_enabled_ = true;
   bool sha3_cache_enabled_ = true;
 
-  LruCache<evmc::bytes32, op::ValidJumpTargetsBuffer, 1 << 16> valid_jump_targets_cache_;
+  LruCache<evmc::bytes32, ContractInfo, 1 << 16> contract_info_cache_;
 
   Sha3Cache sha3_cache_;
 };

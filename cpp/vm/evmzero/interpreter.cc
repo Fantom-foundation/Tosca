@@ -64,14 +64,13 @@ InterpreterResult Interpret(const InterpreterArgs& args) {
   internal::Context ctx{
       .is_static_call = static_cast<bool>(args.message->flags & EVMC_STATIC),
       .gas = args.message->gas,
+      .padded_code = args.padded_code,
       .valid_jump_targets = args.valid_jump_targets,
       .message = args.message,
       .host = &host,
       .revision = args.revision,
       .sha3_cache = args.sha3_cache,
   };
-  ctx.code.reserve(args.code.size() + kStopBytePadding);
-  ctx.code.assign(args.code.begin(), args.code.end());
 
   internal::RunInterpreter<LoggingEnabled>(ctx);
 
@@ -566,7 +565,7 @@ static void codesize(Context& ctx) noexcept {
     return;
   if (!ctx.ApplyGasCost(2)) [[unlikely]]
     return;
-  ctx.stack.Push(ctx.code.size() - kStopBytePadding);
+  ctx.stack.Push(ctx.padded_code.size() - kStopBytePadding);
   ctx.pc++;
 }
 
@@ -589,8 +588,8 @@ static void codecopy(Context& ctx) noexcept {
     return;
 
   std::span<const uint8_t> code_view;
-  if (code_offset_u256 < ctx.code.size()) {
-    code_view = std::span(ctx.code).subspan(static_cast<uint64_t>(code_offset_u256));
+  if (code_offset_u256 < ctx.padded_code.size() - kStopBytePadding) {
+    code_view = std::span(ctx.padded_code).subspan(static_cast<uint64_t>(code_offset_u256));
   }
 
   ctx.memory.ReadFromWithSize(code_view, memory_offset, size);
@@ -1060,7 +1059,7 @@ static void push(Context& ctx) noexcept {
 
   constexpr auto num_full_words = N / sizeof(uint64_t);
   constexpr auto num_partial_bytes = N % sizeof(uint64_t);
-  auto data = &ctx.code[ctx.pc + 1];
+  auto data = &ctx.padded_code[ctx.pc + 1];
 
   uint256_t value = 0;
   if constexpr (num_partial_bytes != 0) {
@@ -1074,9 +1073,9 @@ static void push(Context& ctx) noexcept {
 
   for (size_t i = 0; i < num_full_words; ++i) {
     if constexpr (std::endian::native == std::endian::little) {
-      value[num_full_words - 1 - i] = intx::bswap(*reinterpret_cast<uint64_t*>(data));
+      value[num_full_words - 1 - i] = intx::bswap(*reinterpret_cast<const uint64_t*>(data));
     } else {
-      value[num_full_words - 1 - i] = *reinterpret_cast<uint64_t*>(data);
+      value[num_full_words - 1 - i] = *reinterpret_cast<const uint64_t*>(data);
     }
     data += sizeof(uint64_t);
   }
@@ -1476,14 +1475,20 @@ inline bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
   return true;
 }
 
+std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
+  std::vector<uint8_t> padded;
+  padded.reserve(code.size() + kStopBytePadding);
+  padded.assign(code.begin(), code.end());
+  padded.resize(code.size() + kStopBytePadding, op::STOP);
+  return padded;
+}
+
 template <bool LoggingEnabled>
 void RunInterpreter(Context& ctx) {
-  ctx.code.resize(ctx.code.size() + kStopBytePadding, op::STOP);
-
   while (ctx.state == RunState::kRunning) {
     if constexpr (LoggingEnabled) {
       // log format: <op>, <gas>, <top-of-stack>\n
-      std::cout << ToString(static_cast<op::OpCodes>(ctx.code[ctx.pc])) << ", "  //
+      std::cout << ToString(static_cast<op::OpCodes>(ctx.padded_code[ctx.pc])) << ", "  //
                 << ctx.gas << ", ";
       if (ctx.stack.GetSize() == 0) {
         std::cout << "-empty-";
@@ -1493,7 +1498,7 @@ void RunInterpreter(Context& ctx) {
       std::cout << "\n" << std::flush;
     }
 
-    switch (ctx.code[ctx.pc]) {
+    switch (ctx.padded_code[ctx.pc]) {
       // clang-format off
       case op::STOP: op::stop(ctx); break;
 
