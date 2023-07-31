@@ -36,7 +36,7 @@ const char* ToString(RunState);
 std::ostream& operator<<(std::ostream&, RunState);
 
 struct InterpreterArgs {
-  std::span<const uint8_t> code;
+  std::span<const uint8_t> padded_code;
   std::span<const uint8_t> valid_jump_targets;
   const evmc_message* message = nullptr;
   const evmc_host_interface* host_interface = nullptr;
@@ -67,7 +67,7 @@ struct Context {
   int64_t gas = kMaxGas;
   int64_t gas_refunds = 0;
 
-  std::vector<uint8_t> code;
+  std::span<const uint8_t> padded_code;
   std::vector<uint8_t> return_data;
   std::span<const uint8_t> valid_jump_targets;
 
@@ -102,6 +102,11 @@ struct Context {
 
   MemoryExpansionCostResult MemoryExpansionCost(uint256_t offset, uint256_t size) noexcept;
 };
+
+// Pads the given code with extra STOP/zero bytes to make sure that no operations are exceeding
+// the end-of-code boundaries when being executed. By padding the code before executing it,
+// bound checks during the execution can be avoided.
+std::vector<uint8_t> PadCode(std::span<const uint8_t> code);
 
 template <bool LoggingEnabled>
 extern void RunInterpreter(Context&);

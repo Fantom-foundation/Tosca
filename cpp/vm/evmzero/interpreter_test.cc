@@ -72,11 +72,12 @@ struct InterpreterTestDescription {
 void RunInterpreterTest(const InterpreterTestDescription& desc) {
   auto valid_jump_targets = op::CalculateValidJumpTargets(desc.code);
 
+  auto padded_code = internal::PadCode(desc.code);
   internal::Context ctx{
       .is_static_call = desc.is_static_call,
       .gas = desc.gas_before,
       .gas_refunds = desc.gas_refund_before,
-      .code = desc.code,
+      .padded_code = padded_code,
       .return_data = desc.last_call_data,
       .valid_jump_targets = valid_jump_targets,
       .memory = desc.memory_before,
