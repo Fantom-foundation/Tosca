@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <initializer_list>
 #include <memory>
@@ -61,7 +62,20 @@ class Stack {
 
  private:
   static constexpr size_t kStackSize = 1024;
-  using Data = std::array<uint256_t, kStackSize>;
+
+  // The type retaining the actual storage for the stack.
+  class Data {
+   public:
+    Data() {}  // needed to avoid zero-initialization of data_ and use default-initialization instead (see t.ly/MkD0M).
+    uint256_t* end() { return reinterpret_cast<uint256_t*>(data_.end()); }
+    size_t size() { return kStackSize; }
+
+   private:
+    // An aligned blob of not auto-initialized data. Stack memory does not have
+    // to be initialized, since any read is preceeded by a push or dup.
+    alignas(sizeof(uint256_t)) std::array<std::byte, kStackSize * sizeof(uint256_t)> data_;
+  };
+
   std::unique_ptr<Data> stack_;
   uint256_t* top_ = nullptr;
   uint256_t* const end_ = nullptr;
