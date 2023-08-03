@@ -308,8 +308,8 @@ func gasDynamicSStore(revision Revision) []*DynGasTest {
 	return testCases
 }
 
-// Tests for which OutOfGas error should happen
-func getOutOfGasTests(revision Revision) []*FailGasTest {
+// Tests for which dynamic gas should run out and OutOfGas error should happen
+func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 
 	testCases := []*FailGasTest{}
 

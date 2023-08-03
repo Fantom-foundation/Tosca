@@ -178,7 +178,7 @@ func TestOutOfGas(t *testing.T) {
 			// Get static gas for frequently used instructions
 			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
 
-			for _, testCase := range getOutOfGasTests(revision) {
+			for _, testCase := range getOutOfDynamicGasTests(revision) {
 
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, testCase.testName), func(t *testing.T) {
 
