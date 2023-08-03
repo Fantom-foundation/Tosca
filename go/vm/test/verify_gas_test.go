@@ -221,6 +221,50 @@ func TestOutOfGas(t *testing.T) {
 	}
 }
 
+func TestOutOfStaticGasOnly(t *testing.T) {
+	// For every variant of interpreter
+	for _, variant := range Variants {
+		for _, revision := range revisions {
+			// Get static gas for frequently used instructions
+			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
+			for op, info := range getInstructions(revision) {
+
+				if info.gas.static == 0 || info.gas.dynamic != nil {
+					continue
+				}
+
+				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, op), func(t *testing.T) {
+
+					// Initialize EVM clean instance
+					evm := GetCleanEVM(revision, variant, nil)
+					code := make([]byte, 0)
+
+					// Put needed values on stack with PUSH instructions.
+					stackValues := make([]*big.Int, 0)
+					for i := 0; i < info.stack.popped; i++ {
+						stackValues = append(stackValues, big.NewInt(1))
+					}
+					pushCode, needGas := addValuesToStack(stackValues, pushGas)
+					code = append(code, pushCode...)
+
+					// Set a tested instruction as the last one.
+					code = append(code, byte(op))
+
+					// Run an interpreter with gas set to fail
+					_, err := evm.RunWithGas(code, []byte{}, info.gas.static+needGas-1)
+
+					// Check the result.
+					if err != nil && err != vm.ErrOutOfGas {
+						t.Errorf("execution should fail with %v but got error: %v", vm.ErrOutOfGas, err)
+					} else if err == nil {
+						t.Errorf("execution should fail with ErrOutOfGas but there is no error")
+					}
+				})
+			}
+		}
+	}
+}
+
 func addValuesToStack(stackValues []*big.Int, pushGas uint64) ([]byte, uint64) {
 	stackValuesCount := len(stackValues)
 
