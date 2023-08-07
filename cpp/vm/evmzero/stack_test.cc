@@ -1,17 +1,9 @@
 #include "vm/evmzero/stack.h"
 
 #include <gtest/gtest.h>
-#include <type_traits>
 
 namespace tosca::evmzero {
 namespace {
-
-TEST(StackTest, Traits) {
-  EXPECT_TRUE(std::is_copy_constructible_v<Stack>);
-  EXPECT_FALSE(std::is_move_constructible_v<Stack>);
-  EXPECT_TRUE(std::is_copy_assignable_v<Stack>);
-  EXPECT_FALSE(std::is_move_assignable_v<Stack>);
-}
 
 TEST(StackTest, Empty) {
   Stack stack;

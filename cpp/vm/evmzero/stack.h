@@ -1,9 +1,9 @@
 #pragma once
 
 #include <array>
-#include <atomic>
 #include <cstdint>
 #include <initializer_list>
+#include <memory>
 #include <ostream>
 #include <vector>
 
@@ -19,7 +19,6 @@ class Stack {
   Stack(const Stack&);
   Stack(Stack&&) = delete;
   Stack(std::initializer_list<uint256_t>);
-  ~Stack();
 
   uint64_t GetSize() const { return uint64_t(end_ - top_); }
   uint64_t GetMaxSize() const { return kStackSize; }
@@ -68,28 +67,16 @@ class Stack {
   class Data {
    public:
     Data() {}  // needed to avoid zero-initialization of data_ and use default-initialization instead (see t.ly/MkD0M).
-
-    // Retrieves an instance from a global re-use list.
-    static Data* Get();
-
-    // Releases this instance to be re-used by another stack.
-    void Release();
-
     uint256_t* end() { return reinterpret_cast<uint256_t*>(data_.end()); }
     size_t size() { return kStackSize; }
 
    private:
-    static std::atomic<Data*> freeList;
-
     // An aligned blob of not auto-initialized data. Stack memory does not have
     // to be initialized, since any read is preceeded by a push or dup.
     alignas(sizeof(uint256_t)) std::array<std::byte, kStackSize * sizeof(uint256_t)> data_;
-
-    // A next-pointer to be used when enqueuing instances in the free list.
-    Data* next_ = nullptr;
   };
 
-  Data* const data_ = nullptr;
+  std::unique_ptr<Data> stack_;
   uint256_t* top_ = nullptr;
   uint256_t* const end_ = nullptr;
 };
