@@ -168,7 +168,7 @@ func TestDynamicGas(t *testing.T) {
 	}
 }
 
-func TestOutOfGas(t *testing.T) {
+func TestOutOfDynamicGas(t *testing.T) {
 	var mockCtrl *gomock.Controller
 	var mockStateDB *vm_mock.MockStateDB
 
@@ -179,7 +179,6 @@ func TestOutOfGas(t *testing.T) {
 			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
 
 			for _, testCase := range getOutOfDynamicGasTests(revision) {
-
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, testCase.testName), func(t *testing.T) {
 
 					// Need new mock for every testcase
@@ -200,20 +199,20 @@ func TestOutOfGas(t *testing.T) {
 					code := make([]byte, 0)
 
 					// Put needed values on stack with PUSH instructions.
-					pushCode, _ := addValuesToStack(testCase.stackValues, pushGas)
+					pushCode, pushGasAdded := addValuesToStack(testCase.stackValues, pushGas)
 					code = append(code, pushCode...)
 
 					// Set a tested instruction as the last one.
 					code = append(code, byte(testCase.instruction))
 
 					// Run an interpreter
-					_, err := evm.RunWithGas(code, []byte{}, testCase.initialGas)
+					res, err := evm.RunWithGas(code, []byte{}, testCase.initialGas+pushGasAdded)
 
 					// Check the result.
 					if err != nil && err != testCase.expectedError {
 						t.Errorf("execution failed %v should fail with %v but got error: %v", testCase.testName, testCase.expectedError, err)
 					} else if err == nil {
-						t.Errorf("execution of %v should fail with ErrOutOfGas but there is no error", testCase.testName)
+						t.Errorf("execution of %v should fail with ErrOutOfGas but there is no error, used %v, put %v", testCase.testName, res.GasUsed, testCase.initialGas+pushGasAdded)
 					}
 				})
 			}
@@ -366,7 +365,7 @@ func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) uin
 func putCallReturnValue(t *testing.T, revision Revision, code []byte, mockStateDB *vm_mock.MockStateDB) (gas uint64, returnCode []byte) {
 	accountNumber := 100
 	account := common.Address{byte(accountNumber)}
-	gasSentWithCall := big.NewInt(100000)
+	//gasSentWithCall := big.NewInt(100000)
 
 	// Code processed inside inner call
 	codeWithReturnValue := []byte{
@@ -390,7 +389,7 @@ func putCallReturnValue(t *testing.T, revision Revision, code []byte, mockStateD
 	gas = getCallInstructionGas(t, revision, codeWithReturnValue)
 
 	zeroVal := big.NewInt(0)
-	stackCallValues := []*big.Int{zeroVal, zeroVal, zeroVal, zeroVal, zeroVal, account.Hash().Big(), gasSentWithCall}
+	stackCallValues := []*big.Int{zeroVal, zeroVal, zeroVal, zeroVal, zeroVal, account.Hash().Big(), big.NewInt(int64(gas))}
 
 	for i := 0; i < len(stackCallValues); i++ {
 		valueBytes := stackCallValues[i].Bytes()
