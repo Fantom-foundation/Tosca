@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstdint>
 #include <initializer_list>
+#include <mutex>
 #include <ostream>
 #include <vector>
 
@@ -79,7 +80,8 @@ class Stack {
     size_t size() { return kStackSize; }
 
    private:
-    static std::atomic<Data*> freeList;
+    static Data* free_list;
+    static std::mutex free_list_mutex;
 
     // An aligned blob of not auto-initialized data. Stack memory does not have
     // to be initialized, since any read is preceeded by a push or dup.
