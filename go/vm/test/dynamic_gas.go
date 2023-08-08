@@ -330,11 +330,11 @@ func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 		// This gas is not sufficient for cold gas access
 		accessLowGas uint64 = 300
 		// Memory expansion for a 1 word and offset by 1 gas is 6
-		memoryLowGas uint64 = 5
-		// Same as above with added static gas for instruction
-		memoryLowGasWithStatic = memoryLowGas + 3
-		// For MSTORE8 memory is expanded only by one word
-		memoryLowGasMSTORE8 uint64 = 2
+		memoryLowGasTwoWords uint64 = 5
+		// Same as above with added 3 static gas for instruction
+		memoryLowGasTwoWordsWithStatic = memoryLowGasTwoWords + 3
+		// Memory expanded by 1 word needs 3 gas
+		memoryLowGasOneWord uint64 = 2
 		// Copy of one word is 3 + 3 for static gas
 		copyLowGas uint64 = 5
 		// Log of size 1 needs 8 gas
@@ -365,22 +365,22 @@ func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 		{vm.EXP, expLowGas},
 		{vm.CODECOPY, copyLowGas},
 		{vm.CALLDATACOPY, copyLowGas},
-		{vm.MLOAD, memoryLowGasWithStatic},
-		{vm.MSTORE, memoryLowGasWithStatic},
-		{vm.MSTORE8, memoryLowGasMSTORE8},
+		{vm.MLOAD, memoryLowGasTwoWordsWithStatic},
+		{vm.MSTORE, memoryLowGasTwoWordsWithStatic},
+		{vm.MSTORE8, memoryLowGasOneWord},
 		{vm.LOG0, 1*logStaticGas + logLowGas},
 		{vm.LOG1, 2*logStaticGas + logLowGas},
 		{vm.LOG2, 3*logStaticGas + logLowGas},
 		{vm.LOG3, 4*logStaticGas + logLowGas},
 		{vm.LOG4, 5*logStaticGas + logLowGas},
 		{vm.SHA3, sha3LowGas},
+		{vm.RETURN, memoryLowGasOneWord},
+		{vm.REVERT, memoryLowGasOneWord},
 	}
 
 	// Check if all opcodes with dynamic gas calculation are present in the tests
 	for op, info := range getInstructions(revision) {
-		if op == vm.REVERT || // this opcode is not changing gas
-			op == vm.RETURN || // this opcode is not changing gas
-			op == vm.RETURNDATACOPY || // can't be tested in this way because of inner call needed
+		if op == vm.RETURNDATACOPY || // can't be tested in this way because of inner call needed
 			info.gas.dynamic == nil {
 			continue
 		} else {
