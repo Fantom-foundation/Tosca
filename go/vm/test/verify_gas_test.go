@@ -365,7 +365,6 @@ func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) uin
 func putCallReturnValue(t *testing.T, revision Revision, code []byte, mockStateDB *vm_mock.MockStateDB) (gas uint64, returnCode []byte) {
 	accountNumber := 100
 	account := common.Address{byte(accountNumber)}
-	//gasSentWithCall := big.NewInt(100000)
 
 	// Code processed inside inner call
 	codeWithReturnValue := []byte{
