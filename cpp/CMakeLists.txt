@@ -12,6 +12,10 @@ add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/evmc third_party/evmc EXCLUDE_FROM_ALL
 add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/ethash third_party/ethash EXCLUDE_FROM_ALL)
 add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/googletest third_party/googletest EXCLUDE_FROM_ALL)
 
+set(MI_OVERRIDE OFF)
+set(MI_BUILD_TESTS OFF)
+add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/mimalloc third_party/mimalloc EXCLUDE_FROM_ALL)
+
 function(tosca_add_compile_flags target)
   set_target_properties(${target} PROPERTIES
     CXX_STANDARD 20
