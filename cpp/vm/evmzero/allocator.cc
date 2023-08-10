@@ -56,7 +56,21 @@ void operator delete(void* ptr, std::align_val_t al) noexcept { mi_free_aligned(
 
 void operator delete[](void* ptr, std::align_val_t al) noexcept { mi_free_aligned(ptr, static_cast<size_t>(al)); }
 
+void operator delete(void* ptr, size_t) noexcept { mi_free(ptr); }
+
+void operator delete[](void* ptr, size_t) noexcept { mi_free(ptr); }
+
+void operator delete(void* ptr, size_t, std::align_val_t al) noexcept { mi_free_aligned(ptr, static_cast<size_t>(al)); }
+
+void operator delete[](void* ptr, size_t, std::align_val_t al) noexcept {
+  mi_free_aligned(ptr, static_cast<size_t>(al));
+}
+
 // replaceable placement deallocation functions
+
+void operator delete(void* ptr, const std::nothrow_t&) noexcept { mi_free(ptr); }
+
+void operator delete[](void* ptr, const std::nothrow_t&) noexcept { mi_free(ptr); }
 
 void operator delete(void* ptr, std::align_val_t al, const std::nothrow_t&) noexcept {
   mi_free_aligned(ptr, static_cast<size_t>(al));
