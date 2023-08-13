@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/Fantom-foundation/Tosca/go/common"
+	"github.com/Fantom-foundation/Tosca/go/vm/registry"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
@@ -51,10 +52,10 @@ func NewAdvancedInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
 }
 
 func init() {
-	vm.RegisterInterpreterFactory("evmone-basic", NewBasicInterpreter)
-	vm.RegisterInterpreterFactory("evmone-advanced", NewAdvancedInterpreter)
+	registry.RegisterInterpreterFactory("evmone-basic", NewBasicInterpreter)
+	registry.RegisterInterpreterFactory("evmone-advanced", NewAdvancedInterpreter)
 
 	// We use the basic version as the default since it showed better performance in
 	// benchmarks (to verify on your system, run benchmarks in go/vm/vm_test.go).
-	vm.RegisterInterpreterFactory("evmone", NewBasicInterpreter)
+	registry.RegisterInterpreterFactory("evmone", NewBasicInterpreter)
 }

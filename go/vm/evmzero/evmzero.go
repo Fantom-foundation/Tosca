@@ -12,6 +12,7 @@ import (
 	"fmt"
 
 	"github.com/Fantom-foundation/Tosca/go/common"
+	"github.com/Fantom-foundation/Tosca/go/vm/registry"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
@@ -74,48 +75,34 @@ func init() {
 	evmzeroWithProfiling = vm
 }
 
-func newInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return common.NewEvmcInterpreter(evmzero, evm, cfg)
-}
-
-func newLoggingInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return common.NewEvmcInterpreter(evmzeroWithLogging, evm, cfg)
-}
-
-func newInterpreterWithoutAnalysisCache(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return common.NewEvmcInterpreter(evmzeroWithoutAnalysisCache, evm, cfg)
-}
-
-func newInterpreterWithoutSha3Cache(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return common.NewEvmcInterpreter(evmzeroWithoutSha3Cache, evm, cfg)
-}
-
-func newProfilingInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return common.NewEvmcInterpreter(evmzeroWithProfiling, evm, cfg)
-}
-
 func init() {
-	vm.RegisterInterpreterFactory("evmzero", newInterpreter)
-	vm.RegisterInterpreterFactory("evmzero-logging", newLoggingInterpreter)
-	vm.RegisterInterpreterFactory("evmzero-no-analysis-cache", newInterpreterWithoutAnalysisCache)
-	vm.RegisterInterpreterFactory("evmzero-no-sha3-cache", newInterpreterWithoutSha3Cache)
-	vm.RegisterInterpreterFactory("evmzero-profiling", newProfilingInterpreter)
+	registry.RegisterVirtualMachine("evmzero", &evmzeroInstance{evmzero})
+	registry.RegisterVirtualMachine("evmzero-logging", &evmzeroInstance{evmzeroWithLogging})
+	registry.RegisterVirtualMachine("evmzero-no-analysis-cache", &evmzeroInstance{evmzeroWithoutAnalysisCache})
+	registry.RegisterVirtualMachine("evmzero-no-sha3-cache", &evmzeroInstance{evmzeroWithoutSha3Cache})
+	registry.RegisterVirtualMachine("evmzero-profiling", &evmzeroInstanceWithProfiler{evmzeroInstance{evmzeroWithProfiling}})
 }
 
-// DumpProfile prints a snapshot of the profiling data collected since the last reset to stdout.
-// In the future this interface will be changed to return the result instead of printing it.
-func DumpProfile(interpreter vm.EVMInterpreter) {
-	if evmc, ok := interpreter.(*common.EvmcInterpreter); ok {
-		C.evmzero_dump_profile(evmc.GetEvmcVM().GetHandle())
-	} else {
-		fmt.Printf("Cannot dump profiler data for non-evmzero interpreter.\n")
-	}
+// evmzeroInstance implements the vm.VirtualMachine interface and is used for all
+// configurations not collecting profiling data.
+type evmzeroInstance struct {
+	vm *common.EvmcVM
 }
 
-func ResetProfiler(interpreter vm.EVMInterpreter) {
-	if evmc, ok := interpreter.(*common.EvmcInterpreter); ok {
-		C.evmzero_reset_profiler(evmc.GetEvmcVM().GetHandle())
-	} else {
-		fmt.Printf("Cannot reset profiler for non-evmzero interpreter.\n")
-	}
+func (e *evmzeroInstance) NewInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
+	return common.NewEvmcInterpreter(e.vm, evm, cfg)
+}
+
+// evmzeroInstanceWithProfiler implements the vm.ProfilingVM interface and is used for all
+// configurations collecting profiling data.
+type evmzeroInstanceWithProfiler struct {
+	evmzeroInstance
+}
+
+func (e *evmzeroInstanceWithProfiler) DumpProfile() {
+	C.evmzero_dump_profile(e.evmzeroInstance.vm.GetEvmcVM().GetHandle())
+}
+
+func (e *evmzeroInstanceWithProfiler) ResetProfile() {
+	C.evmzero_reset_profiler(e.evmzeroInstance.vm.GetEvmcVM().GetHandle())
 }

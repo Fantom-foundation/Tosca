@@ -51,6 +51,11 @@ func (e *EvmcVM) Destroy() {
 	e.vm = nil
 }
 
+// GetEvmcVM provides direct access to the VM connected through the EVMC library.
+func (e *EvmcVM) GetEvmcVM() *evmc.VM {
+	return e.vm
+}
+
 // NewEvmcInterpreter instantiates an interpreter with the given evm and config.
 func NewEvmcInterpreter(vm *EvmcVM, evm *vm.EVM, cfg vm.Config) *EvmcInterpreter {
 	return &EvmcInterpreter{
@@ -184,11 +189,6 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 	}
 
 	return result.Output, err
-}
-
-// GetEvmcVM provides direct access to the VM connected through the EVMC library.
-func (e *EvmcInterpreter) GetEvmcVM() *evmc.VM {
-	return e.evmc.vm
 }
 
 // The HostContext allows a non-Go EVM implementation to access the StateDB and
