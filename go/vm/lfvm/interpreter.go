@@ -373,10 +373,16 @@ func (s *stats_collector) NextOp(op OpCode) {
 var global_stats_mu = sync.Mutex{}
 var global_statistics = newStatistics()
 
-func PrintCollectedInstructionStatistics() {
+func printCollectedInstructionStatistics() {
 	global_stats_mu.Lock()
 	defer global_stats_mu.Unlock()
 	global_statistics.Print()
+}
+
+func resetCollectedInstructionStatistics() {
+	global_stats_mu.Lock()
+	defer global_stats_mu.Unlock()
+	global_statistics = newStatistics()
 }
 
 func runWithStatistics(c *context) {
