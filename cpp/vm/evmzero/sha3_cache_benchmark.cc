@@ -62,17 +62,26 @@ void BM_Sha3HashCached(benchmark::State& state) {
 
 BENCHMARK(BM_Sha3HashCached)->Arg(32)->Arg(48)->Arg(64);
 
+template <size_t N>
+struct HashBytesDirectly {
+  constexpr size_t operator()(std::span<const uint8_t, N> key) const noexcept {
+    size_t seed = 0;
+    tosca::HashRange(seed, key.begin(), key.end());
+    return seed;
+  }
+};
+
 // Benchmark the performance of hashing of input data.
-void BM_DataHashingOld(benchmark::State& state) {
+void BM_DataHashingDirectly(benchmark::State& state) {
   std::array<uint8_t, 64> data{};
   for (auto _ : state) {
     Inc(data);
-    auto hash = HashBytesOld<64>()(data);
+    auto hash = HashBytesDirectly<64>()(data);
     benchmark::DoNotOptimize(hash);
   }
 }
 
-BENCHMARK(BM_DataHashingOld);
+BENCHMARK(BM_DataHashingDirectly);
 
 // Benchmark the performance of hashing of input data.
 void BM_DataHashing(benchmark::State& state) {

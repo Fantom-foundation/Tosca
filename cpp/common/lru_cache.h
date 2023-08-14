@@ -4,12 +4,11 @@
 #include <list>
 #include <memory>
 #include <mutex>
-#include <unordered_map>
 #include <optional>
 #include <vector>
 
-#include "common/assert.h"
 #include "absl/container/flat_hash_map.h"
+#include "common/assert.h"
 
 namespace tosca {
 
@@ -72,12 +71,12 @@ class LruCache {
     std::scoped_lock lock(mutex_);
     entries_.clear();
     entries_.resize(Capacity);
-    for (size_t i = 0; i<entries_.size(); i++) {
-      entries_[i].pred = i >0 ? &entries_[i-1] : nullptr;
-      entries_[i].succ = i < entries_.size() ? &entries_[i+1] : nullptr;
+    for (size_t i = 0; i < entries_.size(); i++) {
+      entries_[i].pred = i > 0 ? &entries_[i - 1] : nullptr;
+      entries_[i].succ = i < entries_.size() ? &entries_[i + 1] : nullptr;
     }
     head_ = &entries_[0];
-    tail_ = &entries_[Capacity-1];
+    tail_ = &entries_[Capacity - 1];
     index_.clear();
     index_.reserve(Capacity);
   }
@@ -89,7 +88,6 @@ class LruCache {
     Entry* pred;
     Entry* succ;
   };
-
 
   // Registers an access to an entry by moving it to the front of the LRU queue.
   void Touch(Entry* entry) {
