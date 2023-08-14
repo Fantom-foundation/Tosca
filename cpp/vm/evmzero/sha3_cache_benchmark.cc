@@ -62,5 +62,29 @@ void BM_Sha3HashCached(benchmark::State& state) {
 
 BENCHMARK(BM_Sha3HashCached)->Arg(32)->Arg(48)->Arg(64);
 
+// Benchmark the performance of hashing of input data.
+void BM_DataHashingOld(benchmark::State& state) {
+  std::array<uint8_t, 64> data{};
+  for (auto _ : state) {
+    Inc(data);
+    auto hash = HashBytesOld<64>()(data);
+    benchmark::DoNotOptimize(hash);
+  }
+}
+
+BENCHMARK(BM_DataHashingOld);
+
+// Benchmark the performance of hashing of input data.
+void BM_DataHashing(benchmark::State& state) {
+  std::array<uint8_t, 64> data{};
+  for (auto _ : state) {
+    Inc(data);
+    auto hash = HashBytes<64>()(data);
+    benchmark::DoNotOptimize(hash);
+  }
+}
+
+BENCHMARK(BM_DataHashing);
+
 }  // namespace
 }  // namespace tosca::evmzero
