@@ -22,3 +22,6 @@
 [submodule "third_party/gperftools"]
 	path = third_party/gperftools
 	url = git@github.com:gperftools/gperftools.git
+[submodule "third_party/abseil-cpp"]
+	path = third_party/abseil-cpp
+	url = git@github.com:abseil/abseil-cpp.git
