@@ -80,18 +80,7 @@ class Profile {
   static constexpr auto kNumMarkers = static_cast<std::size_t>(Marker::NUM_MARKERS);
 
   // Print the contained profiling data to stdout or to wherever the env var "EVMZERO_PROFILE_FILE" points to.
-  // Only non-zero entries are printed.
   void Dump() const {
-    const auto dump_to_stream = [this](std::ostream& stream, Marker marker) {
-      if (GetNumCalls(marker)) {
-        stream << ToString(marker) << ", "       //
-               << GetNumCalls(marker) << ", "    //
-               << GetTotalTicks(marker) << ", "  //
-               << GetTotalTime(marker).count() << "ns";
-        stream << "\n" << std::flush;
-      }
-    };
-
     auto out_file = std::ofstream();
     const auto* const profile_file = std::getenv("EVMZERO_PROFILE_FILE");
     if (profile_file) {
@@ -99,10 +88,16 @@ class Profile {
     }
 
     // profiling format: <marker>, <calls>, <total-time-ticks>, <total-time-nanoseconds>\n
+    std::ostream& out = out_file.is_open() ? out_file : std::cout;
+    out << "marker,calls,ticks,duration[ns]\n";
     for (std::size_t i = 0; i < kNumMarkers; ++i) {
       const auto marker = static_cast<Marker>(i);
-      dump_to_stream(out_file.is_open() ? out_file : std::cout, marker);
+      out << ToString(marker) << ", "       //
+          << GetNumCalls(marker) << ", "    //
+          << GetTotalTicks(marker) << ", "  //
+          << GetTotalTime(marker).count() << "\n";
     }
+    out << std::flush;
   }
 
   // Merge the contained profile with another profile.
