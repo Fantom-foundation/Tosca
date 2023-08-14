@@ -6,6 +6,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <optional>
+#include <vector>
 
 #include "common/assert.h"
 
@@ -18,19 +19,18 @@ template <typename Key, typename Value, size_t Capacity,  //
           typename Hash = std::hash<Key>, typename KeyEqual = std::equal_to<Key>>
 class LruCache {
  public:
+  LruCache() { Clear(); }
+
   // Retrieves the value with the given key and updates the least recently used
   // list. Returns nullopt when the key is not present.
   std::optional<Value> Get(const Key& key) {
     std::scoped_lock lock(mutex_);
-
-    if (auto it = entries_.find(key); it != entries_.end()) {
-      lru_.erase(it->second.lru_entry);
-      lru_.push_front(key);
-      it->second.lru_entry = lru_.begin();
-      return it->second.value;
-    } else {
-      return std::nullopt;
+    if (auto it = index_.find(key); it != index_.end()) {
+      auto entry = it->second;
+      Touch(entry);
+      return entry->value;
     }
+    return std::nullopt;
   }
 
   // Adds or updates the value with the given key. Removes the least recently
@@ -38,26 +38,19 @@ class LruCache {
   Value InsertOrAssign(const Key& key, Value value) {
     std::scoped_lock lock(mutex_);
 
-    if (auto it = entries_.find(key); it != entries_.end()) {
-      it->second.value = std::move(value);
-      return it->second.value;
+    if (auto it = index_.find(key); it != index_.end()) {
+      it->second->value = std::move(value);
+      return it->second->value;
     }
 
-    if (entries_.size() == Capacity) {
-      entries_.erase(lru_.back());
-      lru_.pop_back();
-    }
-    lru_.push_front(key);
+    auto entry = GetNewHead();
+    entry->key = key;
+    entry->value = std::move(value);
+    index_[key] = entry;
 
-    auto [iter, _]  = entries_.insert_or_assign(key, Entry{
-        .lru_entry = lru_.begin(),
-        .value = std::move(value),
-    });
+    TOSCA_ASSERT(index_.size() <= Capacity);
 
-    TOSCA_ASSERT(entries_.size() <= Capacity);
-    TOSCA_ASSERT(entries_.size() == lru_.size());
-
-    return iter->second.value;
+    return entry->value;
   }
 
   // Tries to get the value with the given key. If the key is not contained,
@@ -72,30 +65,75 @@ class LruCache {
     }
   }
 
-  size_t GetSize() {
-    std::scoped_lock lock(mutex_);
-    return entries_.size();
-  }
-
   constexpr size_t GetMaxSize() const { return Capacity; }
 
   void Clear() {
     std::scoped_lock lock(mutex_);
     entries_.clear();
-    lru_.clear();
+    entries_.resize(Capacity);
+    for (size_t i = 0; i<entries_.size(); i++) {
+      entries_[i].pred = i >0 ? &entries_[i-1] : nullptr;
+      entries_[i].succ = i < entries_.size() ? &entries_[i+1] : nullptr;
+    }
+    head_ = &entries_[0];
+    tail_ = &entries_[Capacity-1];
+    index_.clear();
+    index_.reserve(Capacity);
   }
 
  private:
-  using LruList = std::list<Key>;
-
   struct Entry {
-    typename LruList::const_iterator lru_entry;
+    Key key;
     Value value;
+    Entry* pred;
+    Entry* succ;
   };
 
+
+  // Registers an access to an entry by moving it to the front of the LRU queue.
+  void Touch(Entry* entry) {
+    if (entry == head_) return;
+
+    // Remove entry from current position in list.
+    entry->pred->succ = entry->succ;
+
+    if (entry->succ) {
+      entry->succ->pred = entry->pred;
+    } else {
+      tail_ = entry->pred;
+    }
+
+    // Make the entry the new head.
+    entry->pred = nullptr;
+    entry->succ = head_;
+    head_->pred = entry;
+    head_ = entry;
+  }
+
+  Entry* GetNewHead() {
+    // Remove tail element.
+    auto new_tail = tail_->pred;
+    new_tail->succ = nullptr;
+    if (index_.size() >= entries_.size()) {
+      index_.erase(tail_->key);
+    }
+    auto result = tail_;
+    tail_ = new_tail;
+
+    // Make the result the new head.
+    result->pred = nullptr;
+    result->succ = head_;
+    head_->pred = result;
+    head_ = result;
+    return result;
+  }
+
   std::mutex mutex_;
-  std::unordered_map<Key, Entry, Hash, KeyEqual> entries_;
-  LruList lru_;
+  std::vector<Entry> entries_;
+  std::unordered_map<Key, Entry*, Hash, KeyEqual> index_;
+
+  Entry* head_;
+  Entry* tail_;
 };
 
 }  // namespace tosca
