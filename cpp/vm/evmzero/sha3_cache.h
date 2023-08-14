@@ -25,13 +25,13 @@ class Sha3Cache {
     if (key_view.size() == 32) {
       Bytes<32> key;
       std::copy_n(key_view.data(), 32, key.begin());
-      return *cache_32_.GetOrInsert(key, calculate_hash);
+      return cache_32_.GetOrInsert(key, calculate_hash);
     }
 
     else if (key_view.size() == 64) {
       Bytes<64> key;
       std::copy_n(key_view.data(), 64, key.begin());
-      return *cache_64_.GetOrInsert(key, calculate_hash);
+      return cache_64_.GetOrInsert(key, calculate_hash);
     }
 
     else {
@@ -51,6 +51,13 @@ class Sha3Cache {
       return seed;
     }
   };
+
+  // N=1024 => ~84% hit rate
+  // N=4096 => ~85% hit rate
+  // N=2^16 => ~88% hit rate
+  // N=2^20 => ~89% hit rate
+
+
 
   LruCache<Bytes<32>, uint256_t, 1024, HashBytes<32>> cache_32_;
   LruCache<Bytes<64>, uint256_t, 1024, HashBytes<64>> cache_64_;
