@@ -16,6 +16,12 @@ set(MI_OVERRIDE OFF)
 set(MI_BUILD_TESTS OFF)
 add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/mimalloc third_party/mimalloc EXCLUDE_FROM_ALL)
 
+set(BENCHMARK_ENABLE_TESTING OFF)
+add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/google_benchmark third_party/google_benchmark EXCLUDE_FROM_ALL)
+
+set(BUILD_TESTING OFF)
+add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/gperftools third_party/gperftools EXCLUDE_FROM_ALL)
+
 function(tosca_add_compile_flags target)
   set_target_properties(${target} PROPERTIES
     CXX_STANDARD 20
