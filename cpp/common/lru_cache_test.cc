@@ -5,9 +5,7 @@
 namespace tosca::evmzero {
 namespace {
 
-TEST(LruCacheTest, Init) {
-  LruCache<int, int, 32> cache;
-}
+TEST(LruCacheTest, Init) { LruCache<int, int, 32> cache; }
 
 TEST(LruCacheTest, GetMissing) {
   LruCache<int, int, 32> cache;
