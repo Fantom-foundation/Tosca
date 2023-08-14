@@ -35,3 +35,18 @@ foreach(evmzero_test ${evmzero_tests})
   target_compile_options(${evmzero_test_target} PRIVATE $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
   target_link_options(${evmzero_test_target} PRIVATE $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
 endforeach()
+
+###########################################################
+# Benchmarks
+
+file(GLOB_RECURSE evmzero_benchmarks CONFIGURE_DEPENDS *_benchmark.cc)
+foreach(evmzero_benchmark ${evmzero_benchmarks})
+  get_filename_component(evmzero_benchmark_target ${evmzero_benchmark} NAME_WE)
+
+  add_executable(${evmzero_benchmark_target} ${evmzero_benchmark})
+  tosca_add_compile_flags(${evmzero_benchmark_target})
+  target_link_libraries(${evmzero_benchmark_target} evmzero benchmark::benchmark benchmark::benchmark_main)
+
+  # Always include the CPU profiler in benchmarks.
+  target_link_libraries(${evmzero_benchmark_target} -Wl,--no-as-needed profiler  -Wl,--as-needed)
+endforeach()
