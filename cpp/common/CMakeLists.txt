@@ -6,7 +6,8 @@ foreach(tosca_common_test ${tosca_common_tests})
 
   add_executable(${tosca_common_test_target} ${tosca_common_test})
   tosca_add_compile_flags(${tosca_common_test_target})
-  target_link_libraries(${tosca_common_test_target} GTest::gmock GTest::gtest_main)
+  target_include_directories(${tosca_common_test_target} SYSTEM PUBLIC ${TOSCA_THIRD_PARTY_DIR}/abseil-cpp)
+  target_link_libraries(${tosca_common_test_target} GTest::gmock GTest::gtest_main absl::flat_hash_map)
   gtest_discover_tests(${tosca_common_test_target})
 
   # Always enable ASAN for unit tests

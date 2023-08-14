@@ -11,8 +11,8 @@ add_library(evmzero SHARED
   opcodes.cc
   stack.cc)
 tosca_add_compile_flags(evmzero)
-target_include_directories(evmzero SYSTEM PUBLIC ${TOSCA_THIRD_PARTY_DIR}/intx/include)
-target_link_libraries(evmzero PUBLIC ethash::keccak evmc::evmc)
+target_include_directories(evmzero SYSTEM PUBLIC ${TOSCA_THIRD_PARTY_DIR}/intx/include ${TOSCA_THIRD_PARTY_DIR}/abseil-cpp)
+target_link_libraries(evmzero PUBLIC ethash::keccak evmc::evmc absl::flat_hash_map)
 
 if(EVMZERO_MIMALLOC)
   target_compile_definitions(evmzero PRIVATE EVMZERO_MIMALLOC_ENABLED)

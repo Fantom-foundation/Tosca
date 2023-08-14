@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "absl/container/flat_hash_map.h"
 
 namespace tosca {
 
@@ -130,7 +131,7 @@ class LruCache {
 
   std::mutex mutex_;
   std::vector<Entry> entries_;
-  std::unordered_map<Key, Entry*, Hash, KeyEqual> index_;
+  absl::flat_hash_map<Key, Entry*, Hash, KeyEqual> index_;
 
   Entry* head_;
   Entry* tail_;

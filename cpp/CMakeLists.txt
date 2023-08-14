@@ -6,6 +6,7 @@ option(TOSCA_ASAN "Enable AddressSanitizer for Tosca targets.")
 option(TOSCA_ASSERT "Enable Tosca specific assertions.")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 enable_testing()
 
 set(TOSCA_THIRD_PARTY_DIR ${PROJECT_SOURCE_DIR}/../third_party)
@@ -24,6 +25,8 @@ if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(BUILD_TESTING OFF)
   add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/gperftools third_party/gperftools EXCLUDE_FROM_ALL)
 endif()
+
+add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/abseil-cpp third_party/abseil-cpp EXCLUDE_FROM_ALL)
 
 set(TRACY_STATIC OFF)
 add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/tracy third_party/tracy EXCLUDE_FROM_ALL)
