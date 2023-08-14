@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <optional>
 
 #include "common/assert.h"
 
@@ -18,8 +19,8 @@ template <typename Key, typename Value, size_t Capacity,  //
 class LruCache {
  public:
   // Retrieves the value with the given key and updates the least recently used
-  // list. Returns nullptr when the key is not present.
-  std::shared_ptr<const Value> Get(const Key& key) {
+  // list. Returns nullopt when the key is not present.
+  std::optional<Value> Get(const Key& key) {
     std::scoped_lock lock(mutex_);
 
     if (auto it = entries_.find(key); it != entries_.end()) {
@@ -28,20 +29,18 @@ class LruCache {
       it->second.lru_entry = lru_.begin();
       return it->second.value;
     } else {
-      return nullptr;
+      return std::nullopt;
     }
   }
 
   // Adds or updates the value with the given key. Removes the least recently
   // used element when Capacity is exceeded. Returns the added/updated value.
-  std::shared_ptr<const Value> InsertOrAssign(const Key& key, Value value) {
+  Value InsertOrAssign(const Key& key, Value value) {
     std::scoped_lock lock(mutex_);
 
-    const auto value_ptr = std::make_shared<Value>(std::move(value));
-
     if (auto it = entries_.find(key); it != entries_.end()) {
-      it->second.value = value_ptr;
-      return value_ptr;
+      it->second.value = std::move(value);
+      return it->second.value;
     }
 
     if (entries_.size() == Capacity) {
@@ -50,24 +49,24 @@ class LruCache {
     }
     lru_.push_front(key);
 
-    entries_[key] = Entry{
+    auto [iter, _]  = entries_.insert_or_assign(key, Entry{
         .lru_entry = lru_.begin(),
-        .value = value_ptr,
-    };
+        .value = std::move(value),
+    });
 
     TOSCA_ASSERT(entries_.size() <= Capacity);
     TOSCA_ASSERT(entries_.size() == lru_.size());
 
-    return value_ptr;
+    return iter->second.value;
   }
 
   // Tries to get the value with the given key. If the key is not contained,
   // creates and inserts a value by calling make_value and returns it. Removes
   // the least recently used element when Capacity is exceeded
   template <typename F>
-  std::shared_ptr<const Value> GetOrInsert(const Key& key, F make_value) {
+  Value GetOrInsert(const Key& key, F make_value) {
     if (auto entry = Get(key)) {
-      return entry;
+      return *entry;
     } else {
       return InsertOrAssign(key, make_value());
     }
@@ -91,7 +90,7 @@ class LruCache {
 
   struct Entry {
     typename LruList::const_iterator lru_entry;
-    std::shared_ptr<Value> value;
+    Value value;
   };
 
   std::mutex mutex_;

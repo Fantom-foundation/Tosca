@@ -86,7 +86,7 @@ class VM : public evmc_vm {
     if (analysis_cache_enabled_ && code_hash && *code_hash != evmc::bytes32{0}) [[likely]] {
       contract_info = contract_info_cache_.GetOrInsert(*code_hash, [&] { return ComputeContractInfo(code); });
     } else {
-      contract_info = std::make_shared<ContractInfo>(ComputeContractInfo(code));
+      contract_info = ComputeContractInfo(code);
     }
 
     const auto make_interpreter_args = [&]<bool ProfilingEnabled>(Profiler<ProfilingEnabled>& profiler) {
@@ -176,11 +176,11 @@ class VM : public evmc_vm {
     op::ValidJumpTargetsBuffer valid_jump_targets;
   };
 
-  static ContractInfo ComputeContractInfo(std::span<const uint8_t> code) {
-    return ContractInfo{
+  static std::shared_ptr<ContractInfo> ComputeContractInfo(std::span<const uint8_t> code) {
+    return std::make_shared<ContractInfo>(ContractInfo{
         .padded_code = internal::PadCode(code),
         .valid_jump_targets = op::CalculateValidJumpTargets(code),
-    };
+    });
   }
 
   bool logging_enabled_ = false;
@@ -188,7 +188,7 @@ class VM : public evmc_vm {
   bool sha3_cache_enabled_ = true;
   bool profiling_enabled_ = false;
 
-  LruCache<evmc::bytes32, ContractInfo, 1 << 16> contract_info_cache_;
+  LruCache<evmc::bytes32, std::shared_ptr<ContractInfo>, 1 << 16> contract_info_cache_;
 
   Sha3Cache sha3_cache_;
 
