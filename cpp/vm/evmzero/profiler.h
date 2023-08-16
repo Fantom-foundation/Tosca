@@ -17,6 +17,19 @@
 #include "common/macros.h"
 #include "profiler_markers.h"
 
+#if EVMZERO_TRACY_ENABLED
+#include <tracy/Tracy.hpp>
+#define EVMZERO_PROFILE_ZONE() ZoneScoped
+#define EVMZERO_PROFILE_ZONE_N(name) ZoneScopedN(name)
+#define EVMZERO_PROFILE_ALLOC(ptr, size) TracyAlloc(ptr, size)
+#define EVMZERO_PROFILE_FREE(ptr) TracyFree(ptr)
+#else
+#define EVMZERO_PROFILE_ZONE()
+#define EVMZERO_PROFILE_ZONE_N(name)
+#define EVMZERO_PROFILE_ALLOC(ptr, size)
+#define EVMZERO_PROFILE_FREE(ptr)
+#endif
+
 namespace tosca::evmzero {
 
 namespace internal {

@@ -1,4 +1,5 @@
 option(EVMZERO_MIMALLOC "Enable mimalloc for evmzero" ON)
+option(EVMZERO_TRACY "Enable Tracy profiler for evmzero" OFF)
 
 ###########################################################
 # Library
@@ -14,8 +15,13 @@ target_include_directories(evmzero SYSTEM PUBLIC ${TOSCA_THIRD_PARTY_DIR}/intx/i
 target_link_libraries(evmzero PUBLIC ethash::keccak evmc::evmc)
 
 if(EVMZERO_MIMALLOC)
-  target_compile_definitions(evmzero PRIVATE EVMZERO_ENABLE_MIMALLOC)
+  target_compile_definitions(evmzero PRIVATE EVMZERO_MIMALLOC_ENABLED)
   target_link_libraries(evmzero PRIVATE mimalloc-obj)
+endif()
+
+if(EVMZERO_TRACY)
+  target_compile_definitions(evmzero PRIVATE EVMZERO_TRACY_ENABLED)
+  target_link_libraries(evmzero PUBLIC Tracy::TracyClient)
 endif()
 
 ###########################################################

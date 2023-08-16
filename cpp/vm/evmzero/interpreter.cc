@@ -1495,12 +1495,17 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
 
 template <bool LoggingEnabled, bool ProfilingEnabled>
 void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
+  EVMZERO_PROFILE_ZONE();
+
 #define PROFILE_START(marker) profiler.template Start<Marker::marker>()
 #define PROFILE_END(marker) profiler.template End<Marker::marker>()
-#define OPCODE(opcode, impl)          \
-  op::opcode : PROFILE_START(opcode); \
-  op::impl(ctx);                      \
-  PROFILE_END(opcode)
+#define OPCODE(opcode, impl)         \
+  op::opcode : {                     \
+    EVMZERO_PROFILE_ZONE_N(#opcode); \
+    PROFILE_START(opcode);           \
+    op::impl(ctx);                   \
+    PROFILE_END(opcode);             \
+  }
 
   while (ctx.state == RunState::kRunning) {
     if constexpr (LoggingEnabled) {
