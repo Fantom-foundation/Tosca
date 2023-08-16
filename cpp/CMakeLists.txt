@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # option respects set variables
 project(tosca)
 
 option(TOSCA_ASAN "Enable AddressSanitizer for Tosca targets.")
@@ -24,6 +24,9 @@ if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(BUILD_TESTING OFF)
   add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/gperftools third_party/gperftools EXCLUDE_FROM_ALL)
 endif()
+
+set(TRACY_STATIC OFF)
+add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/tracy third_party/tracy EXCLUDE_FROM_ALL)
 
 function(tosca_add_compile_flags target)
   set_target_properties(${target} PROPERTIES
