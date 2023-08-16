@@ -48,5 +48,7 @@ foreach(evmzero_benchmark ${evmzero_benchmarks})
   target_link_libraries(${evmzero_benchmark_target} evmzero benchmark::benchmark benchmark::benchmark_main)
 
   # Always include the CPU profiler in benchmarks.
-  target_link_libraries(${evmzero_benchmark_target} -Wl,--no-as-needed profiler  -Wl,--as-needed)
+  if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    target_link_libraries(${evmzero_benchmark_target} -Wl,--no-as-needed profiler  -Wl,--as-needed)
+  endif()
 endforeach()
