@@ -26,6 +26,8 @@ foreach(tosca_common_benchmark ${tosca_common_benchmarks})
   tosca_add_compile_flags(${tosca_common_benchmark_target})
   target_link_libraries(${tosca_common_benchmark_target} benchmark::benchmark benchmark::benchmark_main)
 
-  # Always include the CPU profiler in benchmarks.
-  target_link_libraries(${tosca_common_benchmark_target} -Wl,--no-as-needed profiler  -Wl,--as-needed)
+  if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    # Always include the CPU profiler in benchmarks.
+    target_link_libraries(${tosca_common_benchmark_target} -Wl,--no-as-needed profiler -Wl,--as-needed)
+  endif()
 endforeach()
