@@ -1,6 +1,7 @@
 #include "vm/evmzero/sha3_cache.h"
 
 #include <array>
+#include <span>
 #include <cstdint>
 #include <span>
 
