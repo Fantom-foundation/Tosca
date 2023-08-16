@@ -26,6 +26,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/gperftools third_party/gperftools EXCLUDE_FROM_ALL)
 endif()
 
+set(ABSL_PROPAGATE_CXX_STD ON)
 add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/abseil-cpp third_party/abseil-cpp EXCLUDE_FROM_ALL)
 
 set(TRACY_STATIC OFF)
