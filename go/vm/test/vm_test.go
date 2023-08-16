@@ -169,7 +169,9 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 		if pvm, ok := vm.(tosca.ProfilingVM); ok {
 			pvm.ResetProfile()
 		}
+		active := false
 		b.Run(variant, func(b *testing.B) {
+			active = true
 			for i := 0; i < b.N; i++ {
 				got, err := example.RunOn(evm.GetInterpreter(), arg)
 				if err != nil {
@@ -181,7 +183,7 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 				}
 			}
 		})
-		if pvm, ok := vm.(tosca.ProfilingVM); ok {
+		if pvm, ok := vm.(tosca.ProfilingVM); active && ok {
 			pvm.DumpProfile()
 		}
 	}
