@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <intx/intx.hpp>
 #include <iostream>
+#include <type_traits>
 
 #include "common/assert.h"
 #include "vm/evmzero/opcodes.h"
@@ -102,7 +103,31 @@ namespace op {
 using internal::Context;
 using internal::kMaxGas;
 
+struct OpInfo {
+  int32_t pops;
+  int32_t pushes;
+  int32_t staticGas;
+  int32_t instructionLength = 1;
+  bool isJump = false;
+
+  constexpr int32_t GetStackDelta() const { return pushes - pops; }
+};
+
+template <OpCode op_code, typename = void>
+struct Impl : public std::false_type {};
+
 static void stop(Context& ctx) noexcept { ctx.state = RunState::kDone; }
+
+template <>
+struct Impl<OpCode::ADD> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 3,
+  };
+
+  static void Run(uint256_t* top) noexcept { top[1] += top[0]; }
+};
 
 static void add(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
@@ -125,6 +150,17 @@ static void mul(Context& ctx) noexcept {
   ctx.stack.Push(a * b);
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::SUB> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 3,
+  };
+
+  static void Run(uint256_t* top) noexcept { top[1] = top[0] - top[1]; }
+};
 
 static void sub(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
@@ -261,6 +297,17 @@ static void signextend(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::LT> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 3,
+  };
+
+  static void Run(uint256_t* top) noexcept { top[1] = top[0] < top[1] ? 1 : 0; }
+};
+
 static void lt(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
     return;
@@ -272,6 +319,17 @@ static void lt(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::GT> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 3,
+  };
+
+  static void Run(uint256_t* top) noexcept { top[1] = top[0] > top[1] ? 1 : 0; }
+};
+
 static void gt(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
     return;
@@ -282,6 +340,17 @@ static void gt(Context& ctx) noexcept {
   ctx.stack.Push(a > b ? 1 : 0);
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::SLT> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 3,
+  };
+
+  static void Run(uint256_t* top) noexcept { top[1] = intx::slt(top[0], top[1]) ? 1 : 0; }
+};
 
 static void slt(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
@@ -305,6 +374,17 @@ static void sgt(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::EQ> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 3,
+  };
+
+  static void Run(uint256_t* top) noexcept { top[1] = top[0] == top[1] ? 1 : 0; }
+};
+
 static void eq(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
     return;
@@ -316,6 +396,17 @@ static void eq(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::ISZERO> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 1,
+      .pushes = 1,
+      .staticGas = 3,
+  };
+
+  static void Run(uint256_t* top) noexcept { top[0] = top[0] == 0; }
+};
+
 static void iszero(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
@@ -325,6 +416,17 @@ static void iszero(Context& ctx) noexcept {
   ctx.stack.Push(val == 0);
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::AND> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 3,
+  };
+
+  static void Run(uint256_t* top) noexcept { top[1] = top[0] & top[1]; }
+};
 
 static void bit_and(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
@@ -395,6 +497,17 @@ static void shl(Context& ctx) noexcept {
   ctx.stack.Push(value << shift);
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::SHR> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 3,
+  };
+
+  static void Run(uint256_t* top) noexcept { top[1] >>= top[0]; }
+};
 
 static void shr(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
@@ -818,6 +931,17 @@ static void basefee(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::POP> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 1,
+      .pushes = 0,
+      .staticGas = 2,
+  };
+
+  static void Run() noexcept {}
+};
+
 static void pop(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
@@ -1000,6 +1124,18 @@ static void sstore(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::JUMP> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 1,
+      .pushes = 0,
+      .staticGas = 8,
+      .isJump = true,
+  };
+
+  static bool Run(uint256_t*) noexcept { return true; }
+};
+
 static void jump(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
@@ -1010,6 +1146,21 @@ static void jump(Context& ctx) noexcept {
     return;
   ctx.pc = static_cast<uint64_t>(counter_u256);
 }
+
+template <>
+struct Impl<OpCode::JUMPI> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 0,
+      .staticGas = 10,
+      .isJump = true,
+  };
+
+  static bool Run(uint256_t* top) noexcept {
+    const uint256_t& b = top[1];
+    return b != 0;
+  }
+};
 
 static void jumpi(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
@@ -1054,11 +1205,62 @@ static void gas(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::JUMPDEST> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 0,
+      .staticGas = 1,
+  };
+
+  static void Run() noexcept {}
+};
+
 static void jumpdest(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(1)) [[unlikely]]
     return;
   ctx.pc++;
 }
+
+template <uint64_t N>
+struct PushImpl : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .staticGas = 3,
+      .instructionLength = 1 + N,
+  };
+
+  static void Run(uint256_t* top, const uint8_t* data) noexcept {
+    constexpr auto num_full_words = N / sizeof(uint64_t);
+    constexpr auto num_partial_bytes = N % sizeof(uint64_t);
+
+    // TODO: hide stack details.
+    uint256_t& value = *(--top);
+    value = 0;
+    if constexpr (num_partial_bytes != 0) {
+      uint64_t word = 0;
+      for (unsigned i = 0; i < num_partial_bytes; i++) {
+        word = word << 8 | data[i];
+      }
+      value[num_full_words] = word;
+      data += num_partial_bytes;
+    }
+
+    for (size_t i = 0; i < num_full_words; ++i) {
+      if constexpr (std::endian::native == std::endian::little) {
+        value[num_full_words - 1 - i] = intx::bswap(*reinterpret_cast<const uint64_t*>(data));
+      } else {
+        value[num_full_words - 1 - i] = *reinterpret_cast<const uint64_t*>(data);
+      }
+      data += sizeof(uint64_t);
+    }
+  }
+};
+
+template <op::OpCode op_code>
+struct Impl<op_code, std::enable_if_t<OpCode::PUSH1 <= op_code && op_code <= OpCode::PUSH32>>
+    : public PushImpl<static_cast<uint64_t>(op_code - OpCode::PUSH1 + 1)> {};
 
 template <uint64_t N>
 static void push(Context& ctx) noexcept {
@@ -1095,6 +1297,21 @@ static void push(Context& ctx) noexcept {
 }
 
 template <uint64_t N>
+struct DupImpl : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = N,
+      .pushes = N + 1,
+      .staticGas = 3,
+  };
+
+  static void Run(uint256_t* top) noexcept { *(top - 1) = top[N - 1]; }
+};
+
+template <op::OpCode op_code>
+struct Impl<op_code, std::enable_if_t<OpCode::DUP1 <= op_code && op_code <= OpCode::DUP16>>
+    : public DupImpl<static_cast<uint64_t>(op_code - OpCode::DUP1 + 1)> {};
+
+template <uint64_t N>
 static void dup(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(N)) [[unlikely]]
     return;
@@ -1105,6 +1322,25 @@ static void dup(Context& ctx) noexcept {
   ctx.stack.Dup<N>();
   ctx.pc++;
 }
+
+template <uint64_t N>
+struct SwapImpl : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = N + 1,
+      .pushes = N + 1,
+      .staticGas = 3,
+  };
+
+  static void Run(uint256_t* top) noexcept {
+    auto tmp = top[N];
+    top[N] = top[0];
+    top[0] = tmp;
+  }
+};
+
+template <op::OpCode op_code>
+struct Impl<op_code, std::enable_if_t<OpCode::SWAP1 <= op_code && op_code <= OpCode::SWAP16>>
+    : public SwapImpl<static_cast<uint64_t>(op_code - OpCode::SWAP1 + 1)> {};
 
 template <uint64_t N>
 static void swap(Context& ctx) noexcept {
@@ -1200,7 +1436,7 @@ static void selfdestruct(Context& ctx) noexcept {
   ctx.state = RunState::kDone;
 }
 
-template <op::OpCodes Op>
+template <op::OpCode Op>
 static void create_impl(Context& ctx) noexcept {
   static_assert(Op == op::CREATE || Op == op::CREATE2);
 
@@ -1271,7 +1507,7 @@ static void create_impl(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-template <op::OpCodes Op>
+template <op::OpCode Op>
 static void call_impl(Context& ctx) noexcept {
   static_assert(Op == op::CALL || Op == op::CALLCODE || Op == op::DELEGATECALL || Op == op::STATICCALL);
 
@@ -1422,7 +1658,7 @@ inline bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
   }
 }
 
-bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
+inline bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
   if (index_u256 >= valid_jump_targets.size()) [[unlikely]] {
     state = RunState::kErrorJump;
     return false;
@@ -1493,24 +1729,130 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
   return padded;
 }
 
+inline void Invoke(uint256_t*, const uint8_t*, void (*op)() noexcept) noexcept { op(); }
+
+inline void Invoke(uint256_t* top, const uint8_t*, void (*op)(uint256_t*) noexcept) noexcept { op(top); }
+
+inline void Invoke(uint256_t* top, const uint8_t* data,
+                   void (*op)(uint256_t* top, const uint8_t* data) noexcept) noexcept {
+  op(top, data + 1);  // Data of push is off-set by 1
+}
+
+struct Result {
+  RunState state;
+  uint32_t pc;
+  int64_t gas_left;
+  uint256_t* top;
+};
+
+template <op::OpCode op_code>
+constexpr static bool kHasImplType = op::Impl<op_code>::value;
+
+template <op::OpCode op_code>
+inline Result Run(uint32_t pc, int64_t gas, uint256_t* base, uint256_t* top, const uint8_t* code, Context& ctx,
+                  void (*legacy)(Context&) noexcept) {
+  // If the new experimental operator implementation is available use that one.
+  if constexpr (kHasImplType<op_code>) {
+    // TODO: factor out stack implementation details.
+    using Impl = op::Impl<op_code>;
+
+    // Check stack requirements.
+    auto size = base - top;
+    if constexpr (Impl::kInfo.pops > 0) {
+      if (size < Impl::kInfo.pops) [[unlikely]] {
+        return Result{.state = RunState::kErrorStackUnderflow};
+      }
+    }
+    if constexpr (Impl::kInfo.GetStackDelta() > 0) {
+      if (1024 - size < Impl::kInfo.GetStackDelta()) [[unlikely]] {
+        return Result{.state = RunState::kErrorStackOverflow};
+      }
+    }
+    // Charge static gas costs.
+    if (gas < Impl::kInfo.staticGas) [[unlikely]] {
+      return Result{.state = RunState::kErrorGas};
+    }
+    gas -= Impl::kInfo.staticGas;
+
+    // Run the operation.
+    if constexpr (Impl::kInfo.isJump) {
+      if (Impl::Run(top)) {
+        if (!ctx.CheckJumpDest(*top)) [[unlikely]] {
+          return Result{.state = ctx.state};
+        }
+        pc = static_cast<uint32_t>(*top);
+      } else {
+        pc += 1;
+      }
+    } else {
+      Invoke(top, code + pc, Impl::Run);
+      pc += Impl::kInfo.instructionLength;
+    }
+
+    // Update the stack.
+    top -= Impl::kInfo.GetStackDelta();
+    return Result{
+        .state = RunState::kRunning,
+        .pc = pc,
+        .gas_left = gas,
+        .top = top,
+    };
+  }
+
+  // If there is no type-based implementation, fall back to the legacy version.
+  else {
+    // std::cout << "Missing: " << ToString(op_code) << "\n";
+    //  Update context.
+    ctx.stack.SetTop(top);
+    ctx.pc = pc;
+    ctx.gas = gas;
+    // Run legacy version of operation.
+    legacy(ctx);
+    // Extract information from context.
+    return Result{
+        .state = ctx.state,
+        .pc = static_cast<uint32_t>(ctx.pc),
+        .gas_left = ctx.gas,
+        .top = ctx.stack.Peek(),
+    };
+  }
+}
+
 template <bool LoggingEnabled, bool ProfilingEnabled>
 void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   EVMZERO_PROFILE_ZONE();
 
+  // The state, pc, and stack state are owned by this function and
+  // should not escape this function.
+  RunState state = RunState::kRunning;
+  uint32_t pc = 0;
+  int64_t gas = ctx.gas;
+  uint256_t* base = ctx.stack.Base();
+  uint256_t* top = ctx.stack.Peek();
+
 #define PROFILE_START(marker) profiler.template Start<Marker::marker>()
 #define PROFILE_END(marker) profiler.template End<Marker::marker>()
+#define RUN(opcode, impl)                                                       \
+  {                                                                             \
+    auto res = Run<op::opcode>(pc, gas, base, top, padded_code, ctx, op::impl); \
+    state = res.state;                                                          \
+    pc = res.pc;                                                                \
+    gas = res.gas_left;                                                         \
+    top = res.top;                                                              \
+  }
 #define OPCODE(opcode, impl)         \
   op::opcode : {                     \
     EVMZERO_PROFILE_ZONE_N(#opcode); \
     PROFILE_START(opcode);           \
-    op::impl(ctx);                   \
+    RUN(opcode, impl);               \
     PROFILE_END(opcode);             \
   }
 
-  while (ctx.state == RunState::kRunning) {
+  auto padded_code = ctx.padded_code.data();
+  while (state == RunState::kRunning) {
     if constexpr (LoggingEnabled) {
       // log format: <op>, <gas>, <top-of-stack>\n
-      std::cout << ToString(static_cast<op::OpCodes>(ctx.padded_code[ctx.pc])) << ", "  //
+      std::cout << ToString(static_cast<op::OpCode>(padded_code[pc])) << ", "  //
                 << ctx.gas << ", ";
       if (ctx.stack.GetSize() == 0) {
         std::cout << "-empty-";
@@ -1520,7 +1862,7 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
       std::cout << "\n" << std::flush;
     }
 
-    switch (ctx.padded_code[ctx.pc]) {
+    switch (padded_code[pc]) {
       // clang-format off
       case OPCODE(STOP, stop); break;
 
@@ -1663,38 +2005,44 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
       case OPCODE(LOG3, log<3>); break;
       case OPCODE(LOG4, log<4>); break;
 
-      case op::CREATE: op::create_impl<op::CREATE>(ctx); break;
-      case op::CREATE2: op::create_impl<op::CREATE2>(ctx); break;
+      case op::CREATE: RUN(CREATE, create_impl<op::CREATE>); break;
+      case op::CREATE2: RUN(CREATE2, create_impl<op::CREATE2>); break;
 
       case OPCODE(RETURN, return_op<RunState::kReturn>); break;
       case OPCODE(REVERT, return_op<RunState::kRevert>); break;
 
-      case op::CALL: op::call_impl<op::CALL>(ctx); break;
-      case op::CALLCODE: op::call_impl<op::CALLCODE>(ctx); break;
-      case op::DELEGATECALL: op::call_impl<op::DELEGATECALL>(ctx); break;
-      case op::STATICCALL: op::call_impl<op::STATICCALL>(ctx); break;
+      case op::CALL: RUN(CALL, call_impl<op::CALL>); break;
+      case op::CALLCODE: RUN(CALLCODE, call_impl<op::CALLCODE>); break;
+      case op::DELEGATECALL: RUN(DELEGATECALL, call_impl<op::DELEGATECALL>); break;
+      case op::STATICCALL: RUN(STATICCALL, call_impl<op::STATICCALL>); break;
 
       case OPCODE(INVALID, invalid); break;
       case OPCODE(SELFDESTRUCT, selfdestruct); break;
 
       default:
-        ctx.state = RunState::kErrorOpcode;
+        state = RunState::kErrorOpcode;
 
         // clang-format on
     }
   }
 
-  if (!IsSuccess(ctx.state)) {
+  if (IsSuccess(state)) {
+    ctx.gas = gas;
+  } else {
     ctx.gas = 0;
   }
 
   // Keep return data only when we are supposed to return something.
-  if (ctx.state != RunState::kReturn && ctx.state != RunState::kRevert) {
+  if (state != RunState::kReturn && state != RunState::kRevert) {
     ctx.return_data.clear();
   }
 
+  ctx.state = state;
+  ctx.stack.SetTop(top);
+
 #undef PROFILE_START
 #undef PROFILE_END
+#undef RUN
 #undef OPCODE
 }
 

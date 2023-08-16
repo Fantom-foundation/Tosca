@@ -35,6 +35,15 @@ class Stack {
     return *(top_++);
   }
 
+  void Pop(int32_t num_values) { top_ += num_values; }
+
+  uint256_t* Peek() { return top_; }
+
+  uint256_t* Base() { return end_; }
+
+  // DO NOT SUBMIT!
+  void SetTop(uint256_t* top) { top_ = top; }
+
   template <size_t N>
   void Swap() {
     TOSCA_ASSERT(N < GetSize());
