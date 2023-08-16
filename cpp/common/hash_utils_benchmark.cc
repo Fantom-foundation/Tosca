@@ -1,24 +1,23 @@
-#include "vm/evmzero/sha3_cache.h"
+#include "common/hash_utils.h"
 
 #include <array>
 #include <cstdint>
 #include <span>
 
 #include "benchmark/benchmark.h"
-#include "ethash/keccak.hpp"
 
-namespace tosca::evmzero {
+namespace tosca {
 namespace {
 
 // To run benchmarks, use the following commands:
 //
 //    cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DTOSCA_ASAN=OFF
-//    cmake --build build --parallel --target sha3_cache_benchmark
-//    ./build/vm/evmzero/sha3_cache_benchmark
+//    cmake --build build --parallel --target hash_utils_benchmark
+//    ./build/common/hash_utils_benchmark
 //
 // To get a CPU profile, use
 //
-//    CPUPROFILE=profile.dat ./build/vm/evmzero/sha3_cache_benchmark
+//    CPUPROFILE=profile.dat ./build/common/hash_utils_benchmark
 //
 // and
 //
@@ -37,30 +36,38 @@ void Inc(std::span<uint8_t> data) {
   }
 }
 
-// Benchmark the performance of SHA3 hashing.
-void BM_Sha3Hash(benchmark::State& state) {
-  std::vector<uint8_t> data(static_cast<size_t>(state.range(0)));
+template <size_t N>
+struct HashBytesByteWise {
+  constexpr size_t operator()(std::span<const uint8_t, N> key) const noexcept {
+    size_t seed = 0;
+    HashRange(seed, key.begin(), key.end());
+    return seed;
+  }
+};
+
+// Benchmark the performance of hashing of input data.
+void BM_HashBytesByteWise(benchmark::State& state) {
+  std::array<uint8_t, 64> data{};
   for (auto _ : state) {
     Inc(data);
-    auto hash = ethash::keccak256(data.data(), data.size());
+    auto hash = HashBytesByteWise<64>()(data);
     benchmark::DoNotOptimize(hash);
   }
 }
 
-BENCHMARK(BM_Sha3Hash)->Arg(32)->Arg(48)->Arg(64);
+BENCHMARK(BM_HashBytesByteWise);
 
-// Benchmark the performance of SHA3 hashing when enabling caching.
-void BM_Sha3HashCached(benchmark::State& state) {
-  std::vector<uint8_t> data(static_cast<size_t>(state.range(0)));
-  Sha3Cache cache;
+// Benchmark the performance of hashing of input data.
+void BM_HashBytesWordWise(benchmark::State& state) {
+  std::array<uint8_t, 64> data{};
   for (auto _ : state) {
     Inc(data);
-    auto hash = cache.Hash(data);
+    auto hash = HashBytes<64>()(data);
     benchmark::DoNotOptimize(hash);
   }
 }
 
-BENCHMARK(BM_Sha3HashCached)->Arg(32)->Arg(48)->Arg(64);
+BENCHMARK(BM_HashBytesWordWise);
 
 }  // namespace
-}  // namespace tosca::evmzero
+}  // namespace tosca
