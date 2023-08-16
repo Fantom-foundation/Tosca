@@ -15,20 +15,26 @@ import (
 
 var (
 	Variants = []string{
-		"geth",
-		"lfvm",
-		"lfvm-si",
-		"lfvm-no-sha-cache",
-		"lfvm-no-code-cache",
-		"lfvm-logging",
+		/*
+			"geth",
+			"lfvm",
+			"lfvm-si",
+			"lfvm-no-sha-cache",
+			"lfvm-no-code-cache",
+			"lfvm-logging",
+		*/
 		"evmone",
-		"evmone-basic",
-		"evmone-advanced",
+		/*
+			"evmone-basic",
+			"evmone-advanced",
+		*/
 		"evmzero",
-		"evmzero-logging",
-		"evmzero-no-analysis-cache",
-		"evmzero-no-sha3-cache",
-		"evmzero-profiling",
+		/*
+			"evmzero-logging",
+			"evmzero-no-analysis-cache",
+			"evmzero-no-sha3-cache",
+			"evmzero-profiling",
+		*/
 	}
 )
 
