@@ -1,0 +1,92 @@
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "bazel_skylib",
+    sha256 = "66ffd9315665bfaafc96b52278f57c7e2dd09f5ede279ea6d39b2be471e7e3aa",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.4.2/bazel-skylib-1.4.2.tar.gz",
+        "https://github.com/bazelbuild/bazel-skylib/releases/download/1.4.2/bazel-skylib-1.4.2.tar.gz",
+    ],
+)
+
+load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
+
+bazel_skylib_workspace()
+
+http_archive(
+    name = "rules_foreign_cc",
+    sha256 = "2a4d07cd64b0719b39a7c12218a3e507672b82a97b98c6a89d38565894cf7c51",
+    strip_prefix = "rules_foreign_cc-0.9.0",
+    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/refs/tags/0.9.0.tar.gz",
+)
+
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
+
+rules_foreign_cc_dependencies()
+
+_ALL_CONTENT = """
+filegroup(
+    name = "all_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//visibility:public"],
+)
+"""
+
+http_archive(
+    name = "absl",
+    sha256 = "f7c2cb2c5accdcbbbd5c0c59f241a988c0b1da2a3b7134b823c0bd613b1a6880",
+    strip_prefix = "abseil-cpp-b971ac5250ea8de900eae9f95e06548d14cd95fe",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/b971ac5250ea8de900eae9f95e06548d14cd95fe.zip"],
+)
+
+http_archive(
+    name = "googletest",
+    sha256 = "983a7f2f4cc2a4d75d94ee06300c46a657291fba965e355d11ab3b6965a7b0e5",
+    strip_prefix = "googletest-b796f7d44681514f58a683a3a71ff17c94edb0c1",
+    urls = ["https://github.com/google/googletest/archive/b796f7d44681514f58a683a3a71ff17c94edb0c1.zip"],
+)
+
+http_archive(
+    name = "googlebenchmark",
+    sha256 = "aeec52381284ec3752505a220d36096954c869da4573c2e1df3642d2f0a4aac6",
+    strip_prefix = "benchmark-1.7.1",
+    urls = ["https://github.com/google/benchmark/archive/refs/tags/v1.7.1.zip"],
+)
+
+http_archive(
+    name = "gperftools",
+    build_file_content = _ALL_CONTENT,
+    patch_args = [
+        "-p1",
+    ],
+    patches = [
+        "//third_party/gperftools:pc_from_ucontext.patch",
+    ],
+    sha256 = "a7ad7779a0584da12c8bffffcb6020855ad936736c30ba99e75376fe7a1f446f",
+    strip_prefix = "gperftools-gperftools-2.10",
+    urls = [
+        "https://github.com/gperftools/gperftools/archive/refs/tags/gperftools-2.10.zip",
+    ],
+)
+
+new_local_repository(
+    name = "evmc",
+    build_file_content = _ALL_CONTENT,
+    path = "../third_party/evmc",
+)
+
+http_archive(
+    name = "intx",
+    build_file_content = _ALL_CONTENT,
+    sha256 = "2c6fa9ae7b9b0a5f854df6bed66b613ed938007ac522e8bc1dc623e0e5a3cd1c",
+    strip_prefix = "intx-0.10.0",
+    urls = ["https://github.com/chfast/intx/archive/refs/tags/v0.10.0.zip"],
+)
+
+http_archive(
+    name = "ethash",
+    build_file_content = _ALL_CONTENT,
+    sha256 = "381a1811d64a7c946f247ba256cd04d2cec0e094e118498a58737daa5445aa67",
+    strip_prefix = "ethash-1.0.1",
+    urls = ["https://github.com/chfast/ethash/archive/refs/tags/v1.0.1.zip"],
+)

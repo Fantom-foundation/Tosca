@@ -1,7 +1,7 @@
 package evmzero
 
 /*
-#cgo LDFLAGS: -L${SRCDIR}/../../../cpp/build/vm/evmzero -levmzero -Wl,-rpath,${SRCDIR}/../../../cpp/build/vm/evmzero
+#cgo LDFLAGS: -L${SRCDIR}/../../../cpp/bazel-bin/vm/evmzero -levmzero -Wl,-rpath,${SRCDIR}/../../../cpp/bazel-bin/vm/evmzero
 // Declarations for evmzero API exceeding EVMC requirements.
 void evmzero_dump_profile(void* vm);
 void evmzero_reset_profiler(void* vm);

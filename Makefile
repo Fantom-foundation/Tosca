@@ -18,10 +18,6 @@ BUILD_COMMIT := $(shell git show --format="%H" --no-patch)
 BUILD_COMMIT_TIME := $(shell git show --format="%cD" --no-patch)
 GOPROXY ?= "https://proxy.golang.org,direct"
 
-TOSCA_CPP_BUILD = Release
-TOSCA_CPP_ASSERT = ON
-TOSCA_CPP_ASAN = OFF
-
 .PHONY: all tosca tosca-go tosca-cpp test test-go test-cpp test-cpp-asan \
         bench bench-go clean clean-go clean-cpp
 
@@ -41,29 +37,25 @@ tosca-go: tosca-cpp
 
 tosca-cpp:
 	cd cpp ; \
-	cmake -Bbuild -DCMAKE_BUILD_TYPE="$(TOSCA_CPP_BUILD)" -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so \
-		-DTOSCA_ASSERT="$(TOSCA_CPP_ASSERT)" -DTOSCA_ASAN="$(TOSCA_CPP_ASAN)"; \
-	cmake --build build --parallel
+	bazel build //...
 
 test: test-go test-cpp
 
 test-go: tosca-go
 	@go test ./... -count 1
 
-test-cpp: tosca-cpp
-	@cd cpp/build ; \
-	ctest --output-on-failure
+test-cpp:
+	@cd cpp ; \
+	bazel test --config=asan --nocache_test_results --test_output=errors //...
 
-test-cpp-asan: TOSCA_CPP_BUILD = Debug
-test-cpp-asan: TOSCA_CPP_ASAN = ON
-test-cpp-asan: test-cpp
+bench: bench-cpp bench-go
 
-bench: TOSCA_CPP_ASSERT = OFF
-bench: tosca-cpp bench-go
-
-bench-go: TOSCA_CPP_ASSERT = OFF
 bench-go:
 	@go test -bench=. ./...
+
+bench-cpp:
+	@cd cpp ; \
+	bazel test --config=bench --nocache_test_results --test_output=errors //...
 
 clean: clean-go clean-cpp
 
@@ -71,4 +63,5 @@ clean-go:
 	$(RM) -r ./go/build/*
 
 clean-cpp:
-	$(RM) -r ./cpp/build
+	cd cpp ; \
+	bazel clean --expunge
