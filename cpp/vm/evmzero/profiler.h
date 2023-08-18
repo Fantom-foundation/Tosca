@@ -102,6 +102,7 @@ class Profile {
 
     // profiling format: <marker>, <calls>, <total-time-ticks>, <total-time-nanoseconds>\n
     std::ostream& out = out_file.is_open() ? out_file : std::cout;
+    out << "compiler: " << TOSCA_COMPILER << "\n";
     out << "marker,calls,ticks,duration[ns]\n";
     for (std::size_t i = 0; i < kNumMarkers; ++i) {
       const auto marker = static_cast<Marker>(i);
