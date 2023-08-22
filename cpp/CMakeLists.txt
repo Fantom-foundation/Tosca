@@ -9,6 +9,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 enable_testing()
 
+if(TOSCA_ASAN)
+  add_compile_options(
+    $<$<CXX_COMPILER_ID:Clang>:-fno-omit-frame-pointer>
+    $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
+  add_link_options(
+    $<$<CXX_COMPILER_ID:Clang>:-fno-omit-frame-pointer>
+    $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
+endif()
+
 set(TOSCA_THIRD_PARTY_DIR ${PROJECT_SOURCE_DIR}/../third_party)
 add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/evmc third_party/evmc EXCLUDE_FROM_ALL)
 add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/ethash third_party/ethash EXCLUDE_FROM_ALL)
@@ -45,11 +54,6 @@ function(tosca_add_compile_flags target)
   target_compile_definitions(${target} PRIVATE $<$<BOOL:${TOSCA_ASSERT}>:TOSCA_ASSERT_ENABLED>)
   target_include_directories(${target} PRIVATE ${PROJECT_SOURCE_DIR})
 endfunction()
-
-if(TOSCA_ASAN)
-  add_compile_options($<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
-  add_link_options($<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
-endif()
 
 add_subdirectory(common)
 add_subdirectory(vm/evmzero)

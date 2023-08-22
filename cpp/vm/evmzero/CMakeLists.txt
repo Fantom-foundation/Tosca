@@ -36,10 +36,6 @@ foreach(evmzero_test ${evmzero_tests})
   tosca_add_compile_flags(${evmzero_test_target})
   target_link_libraries(${evmzero_test_target} evmzero GTest::gmock GTest::gtest_main)
   gtest_discover_tests(${evmzero_test_target})
-
-  # Always enable ASAN for unit tests
-  target_compile_options(${evmzero_test_target} PRIVATE $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
-  target_link_options(${evmzero_test_target} PRIVATE $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
 endforeach()
 
 ###########################################################
