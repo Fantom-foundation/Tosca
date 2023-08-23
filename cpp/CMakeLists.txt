@@ -6,7 +6,17 @@ option(TOSCA_ASAN "Enable AddressSanitizer for Tosca targets.")
 option(TOSCA_ASSERT "Enable Tosca specific assertions.")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 enable_testing()
+
+if(TOSCA_ASAN)
+  add_compile_options(
+    $<$<CXX_COMPILER_ID:Clang>:-fno-omit-frame-pointer>
+    $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
+  add_link_options(
+    $<$<CXX_COMPILER_ID:Clang>:-fno-omit-frame-pointer>
+    $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
+endif()
 
 set(TOSCA_THIRD_PARTY_DIR ${PROJECT_SOURCE_DIR}/../third_party)
 add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/evmc third_party/evmc EXCLUDE_FROM_ALL)
@@ -25,6 +35,10 @@ if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/gperftools third_party/gperftools EXCLUDE_FROM_ALL)
 endif()
 
+set(ABSL_PROPAGATE_CXX_STD ON)
+set(ABSL_USE_SYSTEM_INCLUDES ON)
+add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/abseil-cpp third_party/abseil-cpp EXCLUDE_FROM_ALL)
+
 set(TRACY_STATIC OFF)
 add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/tracy third_party/tracy EXCLUDE_FROM_ALL)
 
@@ -41,11 +55,6 @@ function(tosca_add_compile_flags target)
   target_compile_definitions(${target} PRIVATE $<$<BOOL:${TOSCA_ASSERT}>:TOSCA_ASSERT_ENABLED>)
   target_include_directories(${target} PRIVATE ${PROJECT_SOURCE_DIR})
 endfunction()
-
-if(TOSCA_ASAN)
-  add_compile_options($<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
-  add_link_options($<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
-endif()
 
 add_subdirectory(common)
 add_subdirectory(vm/evmzero)
