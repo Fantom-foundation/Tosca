@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+
 #include "common/assert.h"
 
 namespace tosca {
@@ -91,7 +92,9 @@ class LruCache {
 
   // Registers an access to an entry by moving it to the front of the LRU queue.
   void Touch(Entry* entry) {
-    if (entry == head_) return;
+    if (entry == head_) {
+      return;
+    }
 
     // Remove entry from current position in list.
     entry->pred->succ = entry->succ;

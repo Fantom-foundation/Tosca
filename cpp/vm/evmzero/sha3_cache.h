@@ -2,13 +2,13 @@
 
 #include <algorithm>
 #include <array>
-#include <iostream>
 #include <span>
+
+#include "ethash/keccak.hpp"
 
 #include "common/hash_utils.h"
 #include "common/lru_cache.h"
 #include "common/macros.h"
-#include "ethash/keccak.hpp"
 #include "vm/evmzero/uint256.h"
 
 namespace tosca::evmzero {
