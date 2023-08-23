@@ -2237,6 +2237,15 @@ TEST(InterpreterTest, EXTCODESIZE_OutOfGas_Warm) {
   });
 }
 
+TEST(InterpreterTest, EXTCODESIZE_StackError) {
+  RunInterpreterTest({
+      .code = {op::EXTCODESIZE},
+      .state_after = RunState::kErrorStackUnderflow,
+      .gas_before = 3000,
+      .stack_before = {},
+  });
+}
+
 TEST(InterpreterTest, DISABLED_EXTCODESIZE_StackOverflow) {}
 
 ///////////////////////////////////////////////////////////

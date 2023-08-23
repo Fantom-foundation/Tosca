@@ -102,373 +102,465 @@ namespace op {
 using internal::Context;
 using internal::kMaxGas;
 
-static void stop(Context& ctx) noexcept { ctx.state = RunState::kDone; }
+struct OpResult {
+  RunState state = RunState::kRunning;
+  uint32_t pc = 0;
+  int64_t gas_left = 0;
+  uint256_t* stack_top = 0;
+};
 
-static void add(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a + b);
-  ctx.pc++;
+#define CHECK_STACK_AVAILABLE(stack_size, elements_needed) \
+  if ((stack_size) < (elements_needed)) [[unlikely]] {     \
+    return {.state = RunState::kErrorStackUnderflow};      \
+  }
+
+#define CHECK_STACK_OVERFLOW(stack_size, slots_needed)     \
+  if (1024 - (stack_size) < (slots_needed)) [[unlikely]] { \
+    return {.state = RunState::kErrorStackOverflow};       \
+  }
+
+#define CHECK_STATIC_CALL_CONFORMANCE(context)    \
+  if ((context).is_static_call) [[unlikely]] {    \
+    return {.state = RunState::kErrorStaticCall}; \
+  }
+
+#define APPLY_GAS_COST(gas_counter, amount)                        \
+  if ((gas_counter) -= (amount); (gas_counter) < 0) [[unlikely]] { \
+    return {.state = RunState::kErrorGas};                         \
+  }
+
+static OpResult stop(uint32_t pc, int64_t gas, uint256_t* stack_top) noexcept {
+  return {
+      .state = RunState::kDone,
+      .pc = pc,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-static void mul(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(5)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a * b);
-  ctx.pc++;
+static OpResult add(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[1] += stack_top[0];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void sub(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a - b);
-  ctx.pc++;
+static OpResult mul(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 5);
+
+  stack_top[1] *= stack_top[0];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void div(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(5)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  if (b == 0)
-    ctx.stack.Push(0);
-  else
-    ctx.stack.Push(a / b);
-  ctx.pc++;
+static OpResult sub(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[1] = stack_top[0] - stack_top[1];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void sdiv(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(5)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  if (b == 0)
-    ctx.stack.Push(0);
-  else
-    ctx.stack.Push(intx::sdivrem(a, b).quot);
-  ctx.pc++;
+static OpResult div(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 5);
+
+  if (stack_top[1] == 0) {
+    stack_top[1] = 0;
+  } else {
+    stack_top[1] = stack_top[0] / stack_top[1];
+  }
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void mod(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(5)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  if (b == 0)
-    ctx.stack.Push(0);
-  else
-    ctx.stack.Push(a % b);
-  ctx.pc++;
+static OpResult sdiv(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 5);
+
+  if (stack_top[1] == 0) {
+    stack_top[1] = 0;
+  } else {
+    stack_top[1] = intx::sdivrem(stack_top[0], stack_top[1]).quot;
+  }
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void smod(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(5)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  if (b == 0)
-    ctx.stack.Push(0);
-  else
-    ctx.stack.Push(intx::sdivrem(a, b).rem);
-  ctx.pc++;
+static OpResult mod(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 5);
+
+  if (stack_top[1] == 0) {
+    stack_top[1] = 0;
+  } else {
+    stack_top[1] = stack_top[0] % stack_top[1];
+  }
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void addmod(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(3)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(8)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  uint256_t N = ctx.stack.Pop();
-  if (N == 0)
-    ctx.stack.Push(0);
-  else
-    ctx.stack.Push(intx::addmod(a, b, N));
-  ctx.pc++;
+static OpResult smod(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 5);
+
+  if (stack_top[1] == 0) {
+    stack_top[1] = 0;
+  } else {
+    stack_top[1] = intx::sdivrem(stack_top[0], stack_top[1]).rem;
+  }
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void mulmod(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(3)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(8)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  uint256_t N = ctx.stack.Pop();
-  if (N == 0)
-    ctx.stack.Push(0);
-  else
-    ctx.stack.Push(intx::mulmod(a, b, N));
-  ctx.pc++;
+static OpResult addmod(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 3);
+  APPLY_GAS_COST(gas, 8);
+
+  if (stack_top[2] == 0) {
+    stack_top[2] = 0;
+  } else {
+    stack_top[2] = intx::addmod(stack_top[0], stack_top[1], stack_top[2]);
+  }
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 2,
+  };
 }
 
-static void exp(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(10)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t exponent = ctx.stack.Pop();
-  if (!ctx.ApplyGasCost(50 * intx::count_significant_bytes(exponent))) [[unlikely]]
-    return;
-  ctx.stack.Push(intx::exp(a, exponent));
-  ctx.pc++;
+static OpResult mulmod(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 3);
+  APPLY_GAS_COST(gas, 8);
+
+  if (stack_top[2] == 0) {
+    stack_top[2] = 0;
+  } else {
+    stack_top[2] = intx::mulmod(stack_top[0], stack_top[1], stack_top[2]);
+  }
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 2,
+  };
 }
 
-static void signextend(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(5)) [[unlikely]]
-    return;
+static OpResult exp(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 10);
 
-  uint8_t leading_byte_index = static_cast<uint8_t>(ctx.stack.Pop());
+  APPLY_GAS_COST(gas, 50 * intx::count_significant_bytes(stack_top[1]))
+
+  stack_top[1] = intx::exp(stack_top[0], stack_top[1]);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
+}
+
+static OpResult signextend(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 5);
+
+  uint8_t leading_byte_index = static_cast<uint8_t>(stack_top[0]);
   if (leading_byte_index > 31) {
     leading_byte_index = 31;
   }
 
-  uint256_t value = ctx.stack.Pop();
-
-  bool is_negative = ToByteArrayLe(value)[leading_byte_index] & 0b1000'0000;
+  bool is_negative = ToByteArrayLe(stack_top[1])[leading_byte_index] & 0b1000'0000;
   if (is_negative) {
     auto mask = kUint256Max << (8 * (leading_byte_index + 1));
-    ctx.stack.Push(mask | value);
+    stack_top[1] = mask | stack_top[1];
   } else {
     auto mask = kUint256Max >> (8 * (31 - leading_byte_index));
-    ctx.stack.Push(mask & value);
+    stack_top[1] = mask & stack_top[1];
   }
 
-  ctx.pc++;
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void lt(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a < b ? 1 : 0);
-  ctx.pc++;
+static OpResult lt(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[1] = stack_top[0] < stack_top[1] ? 1 : 0;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void gt(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a > b ? 1 : 0);
-  ctx.pc++;
+static OpResult gt(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[1] = stack_top[0] > stack_top[1] ? 1 : 0;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void slt(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(intx::slt(a, b) ? 1 : 0);
-  ctx.pc++;
+static OpResult slt(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[1] = intx::slt(stack_top[0], stack_top[1]) ? 1 : 0;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void sgt(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(intx::slt(b, a) ? 1 : 0);
-  ctx.pc++;
+static OpResult sgt(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[1] = intx::slt(stack_top[1], stack_top[0]) ? 1 : 0;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void eq(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a == b ? 1 : 0);
-  ctx.pc++;
+static OpResult eq(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[1] = stack_top[0] == stack_top[1] ? 1 : 0;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void iszero(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t val = ctx.stack.Pop();
-  ctx.stack.Push(val == 0);
-  ctx.pc++;
+static OpResult iszero(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[0] = stack_top[0] == 0;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-static void bit_and(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a & b);
-  ctx.pc++;
+static OpResult bit_and(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[1] = stack_top[0] & stack_top[1];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void bit_or(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a | b);
-  ctx.pc++;
+static OpResult bit_or(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[1] = stack_top[0] | stack_top[1];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void bit_xor(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a ^ b);
-  ctx.pc++;
+static OpResult bit_xor(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[1] = stack_top[0] ^ stack_top[1];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void bit_not(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  ctx.stack.Push(~a);
-  ctx.pc++;
+static OpResult bit_not(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[0] = ~stack_top[0];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-static void byte(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t offset = ctx.stack.Pop();
-  uint256_t x = ctx.stack.Pop();
-  if (offset < 32) {
-    // Offset starts at most significant byte.
-    ctx.stack.Push(ToByteArrayLe(x)[31 - static_cast<uint8_t>(offset)]);
+static OpResult byte(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  if (stack_top[0] < 32) {
+    stack_top[1] = ToByteArrayLe(stack_top[1])[31 - static_cast<uint8_t>(stack_top[0])];
   } else {
-    ctx.stack.Push(0);
+    stack_top[1] = 0;
   }
-  ctx.pc++;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void shl(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t shift = ctx.stack.Pop();
-  uint256_t value = ctx.stack.Pop();
-  ctx.stack.Push(value << shift);
-  ctx.pc++;
+static OpResult shl(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[1] = stack_top[1] << stack_top[0];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void shr(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t shift = ctx.stack.Pop();
-  uint256_t value = ctx.stack.Pop();
-  ctx.stack.Push(value >> shift);
-  ctx.pc++;
+static OpResult shr(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[1] >>= stack_top[0];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void sar(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t shift = ctx.stack.Pop();
-  uint256_t value = ctx.stack.Pop();
-  const bool is_negative = ToByteArrayLe(value)[31] & 0b1000'0000;
+static OpResult sar(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
 
-  if (shift <= 255) {
-    value >>= shift;
+  const bool is_negative = ToByteArrayLe(stack_top[1])[31] & 0b1000'0000;
+
+  if (stack_top[0] <= 255) {
+    stack_top[1] >>= stack_top[0];
     if (is_negative) {
-      value |= (kUint256Max << (255 - shift));
+      stack_top[1] |= (kUint256Max << (255 - stack_top[0]));
     }
-    ctx.stack.Push(value);
   } else {
-    ctx.stack.Push(0);
+    stack_top[1] = 0;
   }
-  ctx.pc++;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void sha3(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(30)) [[unlikely]]
-    return;
+static OpResult sha3(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                     Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 30);
 
-  const uint256_t offset_u256 = ctx.stack.Pop();
-  const uint256_t size_u256 = ctx.stack.Pop();
+  const uint256_t offset_u256 = stack_top[0];
+  const uint256_t size_u256 = stack_top[1];
 
   const auto [mem_cost, offset, size] = ctx.MemoryExpansionCost(offset_u256, size_u256);
-  if (!ctx.ApplyGasCost(mem_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, mem_cost);
 
   const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
-  if (!ctx.ApplyGasCost(6 * minimum_word_size)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, 6 * minimum_word_size);
 
   auto memory_span = ctx.memory.GetSpan(offset, size);
   if (ctx.sha3_cache) {
-    ctx.stack.Push(ctx.sha3_cache->Hash(memory_span));
+    stack_top[1] = ctx.sha3_cache->Hash(memory_span);
   } else {
-    ctx.stack.Push(ToUint256(ethash::keccak256(memory_span.data(), memory_span.size())));
+    stack_top[1] = ToUint256(ethash::keccak256(memory_span.data(), memory_span.size()));
   }
 
-  ctx.pc++;
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void address(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ToUint256(ctx.message->recipient));
-  ctx.pc++;
+static OpResult address(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                        Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ToUint256(ctx.message->recipient);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void balance(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
+static OpResult balance(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                        Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 1);
 
-  evmc::address address = ToEvmcAddress(ctx.stack.Pop());
+  evmc::address address = ToEvmcAddress(stack_top[0]);
 
   int64_t dynamic_gas_cost = 700;
   if (ctx.revision >= EVMC_BERLIN) {
@@ -478,47 +570,65 @@ static void balance(Context& ctx) noexcept {
       dynamic_gas_cost = 2600;
     }
   }
-  if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, dynamic_gas_cost);
 
-  ctx.stack.Push(ToUint256(ctx.host->get_balance(address)));
-  ctx.pc++;
+  stack_top[0] = ToUint256(ctx.host->get_balance(address));
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-static void origin(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ToUint256(ctx.host->get_tx_context().tx_origin));
-  ctx.pc++;
+static OpResult origin(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                       Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ToUint256(ctx.host->get_tx_context().tx_origin);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void caller(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ToUint256(ctx.message->sender));
-  ctx.pc++;
+static OpResult caller(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                       Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ToUint256(ctx.message->sender);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void callvalue(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ToUint256(ctx.message->value));
-  ctx.pc++;
+static OpResult callvalue(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                          Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ToUint256(ctx.message->value);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void calldataload(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
+static OpResult calldataload(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                             Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 3);
 
-  const uint256_t offset_u256 = ctx.stack.Pop();
+  const uint256_t offset_u256 = stack_top[0];
 
   std::span<const uint8_t> input_view;
   if (offset_u256 < ctx.message->input_size) {
@@ -529,36 +639,43 @@ static void calldataload(Context& ctx) noexcept {
   evmc::bytes32 value{};
   std::copy_n(input_view.begin(), std::min<size_t>(input_view.size(), 32), value.bytes);
 
-  ctx.stack.Push(ToUint256(value));
-  ctx.pc++;
+  stack_top[0] = ToUint256(value);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-static void calldatasize(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ctx.message->input_size);
-  ctx.pc++;
+static OpResult calldatasize(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                             Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ctx.message->input_size;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void calldatacopy(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(3)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
+static OpResult calldatacopy(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                             Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 3);
+  APPLY_GAS_COST(gas, 3);
 
-  const uint256_t memory_offset_u256 = ctx.stack.Pop();
-  const uint256_t data_offset_u256 = ctx.stack.Pop();
-  const uint256_t size_u256 = ctx.stack.Pop();
+  const uint256_t memory_offset_u256 = stack_top[0];
+  const uint256_t data_offset_u256 = stack_top[1];
+  const uint256_t size_u256 = stack_top[2];
 
   const auto [mem_cost, memory_offset, size] = ctx.MemoryExpansionCost(memory_offset_u256, size_u256);
-  if (!ctx.ApplyGasCost(mem_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, mem_cost);
 
   const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
-  if (!ctx.ApplyGasCost(3 * minimum_word_size)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, 3 * minimum_word_size);
 
   std::span<const uint8_t> data_view;
   if (data_offset_u256 < ctx.message->input_size) {
@@ -567,35 +684,42 @@ static void calldatacopy(Context& ctx) noexcept {
   }
 
   ctx.memory.ReadFromWithSize(data_view, memory_offset, size);
-  ctx.pc++;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 3,
+  };
 }
 
-static void codesize(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ctx.padded_code.size() - kStopBytePadding);
-  ctx.pc++;
+static OpResult codesize(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                         Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ctx.padded_code.size() - kStopBytePadding;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void codecopy(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(3)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
+static OpResult codecopy(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                         Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 3);
+  APPLY_GAS_COST(gas, 3);
 
-  const uint256_t memory_offset_u256 = ctx.stack.Pop();
-  const uint256_t code_offset_u256 = ctx.stack.Pop();
-  const uint256_t size_u256 = ctx.stack.Pop();
+  const uint256_t memory_offset_u256 = stack_top[0];
+  const uint256_t code_offset_u256 = stack_top[1];
+  const uint256_t size_u256 = stack_top[2];
 
   const auto [mem_cost, memory_offset, size] = ctx.MemoryExpansionCost(memory_offset_u256, size_u256);
-  if (!ctx.ApplyGasCost(mem_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, mem_cost);
 
   const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
-  if (!ctx.ApplyGasCost(3 * minimum_word_size)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, 3 * minimum_word_size);
 
   std::span<const uint8_t> code_view;
   if (code_offset_u256 < ctx.padded_code.size() - kStopBytePadding) {
@@ -603,23 +727,33 @@ static void codecopy(Context& ctx) noexcept {
   }
 
   ctx.memory.ReadFromWithSize(code_view, memory_offset, size);
-  ctx.pc++;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 3,
+  };
 }
 
-static void gasprice(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ToUint256(ctx.host->get_tx_context().tx_gas_price));
-  ctx.pc++;
+static OpResult gasprice(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                         Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ToUint256(ctx.host->get_tx_context().tx_gas_price);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void extcodesize(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
+static OpResult extcodesize(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                            Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 1);
 
-  auto address = ToEvmcAddress(ctx.stack.Pop());
+  auto address = ToEvmcAddress(stack_top[0]);
 
   int64_t dynamic_gas_cost = 700;
   if (ctx.revision >= EVMC_BERLIN) {
@@ -629,25 +763,28 @@ static void extcodesize(Context& ctx) noexcept {
       dynamic_gas_cost = 2600;
     }
   }
-  if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, dynamic_gas_cost);
 
-  ctx.stack.Push(ctx.host->get_code_size(address));
-  ctx.pc++;
+  stack_top[0] = ctx.host->get_code_size(address);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-static void extcodecopy(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(4)) [[unlikely]]
-    return;
+static OpResult extcodecopy(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                            Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 4);
 
-  const auto address = ToEvmcAddress(ctx.stack.Pop());
-  const uint256_t memory_offset_u256 = ctx.stack.Pop();
-  const uint256_t code_offset_u256 = ctx.stack.Pop();
-  const uint256_t size_u256 = ctx.stack.Pop();
+  const auto address = ToEvmcAddress(stack_top[0]);
+  const uint256_t memory_offset_u256 = stack_top[1];
+  const uint256_t code_offset_u256 = stack_top[2];
+  const uint256_t size_u256 = stack_top[3];
 
   const auto [mem_cost, memory_offset, size] = ctx.MemoryExpansionCost(memory_offset_u256, size_u256);
-  if (!ctx.ApplyGasCost(mem_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, mem_cost);
 
   const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
   int64_t address_access_cost = 700;
@@ -658,8 +795,7 @@ static void extcodecopy(Context& ctx) noexcept {
       address_access_cost = 2600;
     }
   }
-  if (!ctx.ApplyGasCost(3 * minimum_word_size + address_access_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, 3 * minimum_word_size + address_access_cost);
 
   auto memory_span = ctx.memory.GetSpan(memory_offset, size);
   if (code_offset_u256 <= std::numeric_limits<uint64_t>::max()) {
@@ -669,55 +805,65 @@ static void extcodecopy(Context& ctx) noexcept {
   }
   std::fill(memory_span.begin(), memory_span.end(), 0);
 
-  ctx.pc++;
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 4,
+  };
 }
 
-static void returndatasize(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ctx.return_data.size());
-  ctx.pc++;
+static OpResult returndatasize(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                               Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ctx.return_data.size();
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void returndatacopy(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(3)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
+static OpResult returndatacopy(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                               Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 3);
+  APPLY_GAS_COST(gas, 3);
 
-  const uint256_t memory_offset_u256 = ctx.stack.Pop();
-  const uint256_t return_data_offset_u256 = ctx.stack.Pop();
-  const uint256_t size_u256 = ctx.stack.Pop();
+  const uint256_t memory_offset_u256 = stack_top[0];
+  const uint256_t return_data_offset_u256 = stack_top[1];
+  const uint256_t size_u256 = stack_top[2];
 
   const auto [mem_cost, memory_offset, size] = ctx.MemoryExpansionCost(memory_offset_u256, size_u256);
-  if (!ctx.ApplyGasCost(mem_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, mem_cost);
 
   const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
-  if (!ctx.ApplyGasCost(3 * minimum_word_size)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, 3 * minimum_word_size);
 
   {
     const auto [end_u256, carry] = intx::addc(return_data_offset_u256, size_u256);
     if (carry || end_u256 > ctx.return_data.size()) {
-      ctx.state = RunState::kErrorReturnDataCopyOutOfBounds;
-      return;
+      return {.state = RunState::kErrorReturnDataCopyOutOfBounds};
     }
   }
 
   std::span<const uint8_t> return_data_view = std::span(ctx.return_data)  //
                                                   .subspan(static_cast<uint64_t>(return_data_offset_u256));
   ctx.memory.ReadFromWithSize(return_data_view, memory_offset, size);
-  ctx.pc++;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 3,
+  };
 }
 
-static void extcodehash(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
+static OpResult extcodehash(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                            Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 1);
 
-  auto address = ToEvmcAddress(ctx.stack.Pop());
+  auto address = ToEvmcAddress(stack_top[0]);
 
   int64_t dynamic_gas_cost = 700;
   if (ctx.revision >= EVMC_BERLIN) {
@@ -727,117 +873,166 @@ static void extcodehash(Context& ctx) noexcept {
       dynamic_gas_cost = 2600;
     }
   }
-  if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, dynamic_gas_cost);
 
-  ctx.stack.Push(ToUint256(ctx.host->get_code_hash(address)));
-  ctx.pc++;
+  stack_top[0] = ToUint256(ctx.host->get_code_hash(address));
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-static void blockhash(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(20)) [[unlikely]]
-    return;
-  int64_t number = static_cast<int64_t>(ctx.stack.Pop());
-  ctx.stack.Push(ToUint256(ctx.host->get_block_hash(number)));
-  ctx.pc++;
+static OpResult blockhash(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                          Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 20);
+
+  int64_t number = static_cast<int64_t>(stack_top[0]);
+  stack_top[0] = ToUint256(ctx.host->get_block_hash(number));
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-static void coinbase(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ToUint256(ctx.host->get_tx_context().block_coinbase));
-  ctx.pc++;
+static OpResult coinbase(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                         Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ToUint256(ctx.host->get_tx_context().block_coinbase);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void timestamp(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ctx.host->get_tx_context().block_timestamp);
-  ctx.pc++;
+static OpResult timestamp(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                          Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ctx.host->get_tx_context().block_timestamp;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void blocknumber(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ctx.host->get_tx_context().block_number);
-  ctx.pc++;
+static OpResult blocknumber(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                            Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ctx.host->get_tx_context().block_number;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void prevrandao(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ToUint256(ctx.host->get_tx_context().block_prev_randao));
-  ctx.pc++;
+static OpResult prevrandao(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                           Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ToUint256(ctx.host->get_tx_context().block_prev_randao);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void gaslimit(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ctx.host->get_tx_context().block_gas_limit);
-  ctx.pc++;
+static OpResult gaslimit(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                         Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ctx.host->get_tx_context().block_gas_limit;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void chainid(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ToUint256(ctx.host->get_tx_context().chain_id));
-  ctx.pc++;
+static OpResult chainid(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                        Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ToUint256(ctx.host->get_tx_context().chain_id);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void selfbalance(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(5)) [[unlikely]]
-    return;
-  ctx.stack.Push(ToUint256(ctx.host->get_balance(ctx.message->recipient)));
-  ctx.pc++;
+static OpResult selfbalance(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                            Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 5);
+
+  stack_top[-1] = ToUint256(ctx.host->get_balance(ctx.message->recipient));
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void basefee(Context& ctx) noexcept {
-  if (!ctx.CheckOpcodeAvailable(EVMC_LONDON)) [[unlikely]]
-    return;
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ToUint256(ctx.host->get_tx_context().block_base_fee));
-  ctx.pc++;
+static OpResult basefee(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                        Context& ctx) noexcept {
+  if (ctx.revision < EVMC_LONDON) [[unlikely]]
+    return {.state = RunState::kErrorOpcode};
+
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ToUint256(ctx.host->get_tx_context().block_base_fee);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void pop(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Pop();
-  ctx.pc++;
+static OpResult pop(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void mload(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
+static OpResult mload(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                      Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 3);
 
-  const uint256_t offset_u256 = ctx.stack.Pop();
+  const uint256_t offset_u256 = stack_top[0];
 
   const auto [mem_cost, offset, _] = ctx.MemoryExpansionCost(offset_u256, 32);
-  if (!ctx.ApplyGasCost(mem_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, mem_cost);
 
   uint256_t value;
   ctx.memory.WriteTo({ToBytes(value), 32}, offset);
@@ -846,53 +1041,64 @@ static void mload(Context& ctx) noexcept {
     value = intx::bswap(value);
   }
 
-  ctx.stack.Push(value);
-  ctx.pc++;
+  stack_top[0] = value;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-static void mstore(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
+static OpResult mstore(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                       Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
 
-  const uint256_t offset_u256 = ctx.stack.Pop();
-  uint256_t value = ctx.stack.Pop();
+  const uint256_t offset_u256 = stack_top[0];
+  uint256_t value = stack_top[1];
 
   const auto [mem_cost, offset, _] = ctx.MemoryExpansionCost(offset_u256, 32);
-  if (!ctx.ApplyGasCost(mem_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, mem_cost);
 
   if constexpr (std::endian::native == std::endian::little) {
     value = intx::bswap(value);
   }
 
   ctx.memory.ReadFrom({ToBytes(value), 32}, offset);
-  ctx.pc++;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 2,
+  };
 }
 
-static void mstore8(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
+static OpResult mstore8(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                        Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 3);
 
-  const uint256_t offset_u256 = ctx.stack.Pop();
-  const uint8_t value = static_cast<uint8_t>(ctx.stack.Pop());
+  const uint256_t offset_u256 = stack_top[0];
+  const uint8_t value = static_cast<uint8_t>(stack_top[1]);
 
   const auto [mem_cost, offset, _] = ctx.MemoryExpansionCost(offset_u256, 1);
-  if (!ctx.ApplyGasCost(mem_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, mem_cost);
 
   ctx.memory.ReadFrom({&value, 1}, offset);
-  ctx.pc++;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 2,
+  };
 }
 
-static void sload(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
+static OpResult sload(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                      Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 1);
 
-  const uint256_t key = ctx.stack.Pop();
+  const uint256_t key = stack_top[0];
 
   int64_t dynamic_gas_cost = 800;
   if (ctx.revision >= EVMC_BERLIN) {
@@ -902,27 +1108,29 @@ static void sload(Context& ctx) noexcept {
       dynamic_gas_cost = 2100;
     }
   }
-  if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, dynamic_gas_cost);
 
-  auto value = ctx.host->get_storage(ctx.message->recipient, ToEvmcBytes(key));
-  ctx.stack.Push(ToUint256(value));
-  ctx.pc++;
+  stack_top[0] = ToUint256(ctx.host->get_storage(ctx.message->recipient, ToEvmcBytes(key)));
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-static void sstore(Context& ctx) noexcept {
+static OpResult sstore(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                       Context& ctx) noexcept {
   // EIP-2200
-  if (ctx.gas <= 2300) [[unlikely]] {
-    ctx.state = RunState::kErrorGas;
-    return;
+  if (gas <= 2300) [[unlikely]] {
+    return {.state = RunState::kErrorGas};
   }
 
-  if (!ctx.CheckStaticCallConformance()) [[unlikely]]
-    return;
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  const uint256_t key = ctx.stack.Pop();
-  const uint256_t value = ctx.stack.Pop();
+  CHECK_STATIC_CALL_CONFORMANCE(ctx);
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+
+  const uint256_t key = stack_top[0];
+  const uint256_t value = stack_top[1];
 
   bool key_is_warm = false;
   if (ctx.revision >= EVMC_BERLIN) {
@@ -953,8 +1161,7 @@ static void sstore(Context& ctx) noexcept {
     dynamic_gas_cost += 2100;
   }
 
-  if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, dynamic_gas_cost);
 
   // gas refund
   {
@@ -997,79 +1204,108 @@ static void sstore(Context& ctx) noexcept {
     }
   }
 
-  ctx.pc++;
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 2,
+  };
 }
 
-static void jump(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(8)) [[unlikely]]
-    return;
-  const uint256_t counter_u256 = ctx.stack.Pop();
-  if (!ctx.CheckJumpDest(counter_u256)) [[unlikely]]
-    return;
-  ctx.pc = static_cast<uint64_t>(counter_u256);
+static OpResult jump(uint32_t, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top, Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 8);
+
+  if (!ctx.CheckJumpDest(stack_top[0])) [[unlikely]]
+    return {.state = ctx.state};
+
+  return {
+      .pc = static_cast<uint32_t>(stack_top[0]),
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void jumpi(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(10)) [[unlikely]]
-    return;
-  const uint256_t counter_u256 = ctx.stack.Pop();
-  const uint256_t b = ctx.stack.Pop();
-  if (b != 0) {
-    if (!ctx.CheckJumpDest(counter_u256)) [[unlikely]]
-      return;
-    ctx.pc = static_cast<uint64_t>(counter_u256);
+static OpResult jumpi(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                      Context& ctx) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
+  APPLY_GAS_COST(gas, 10);
+
+  if (stack_top[1] != 0) {
+    if (!ctx.CheckJumpDest(stack_top[0])) [[unlikely]]
+      return {.state = ctx.state};
+    return {
+        .pc = static_cast<uint32_t>(stack_top[0]),
+        .gas_left = gas,
+        .stack_top = stack_top + 2,
+    };
   } else {
-    ctx.pc++;
+    return {
+        .pc = pc + 1,
+        .gas_left = gas,
+        .stack_top = stack_top + 2,
+    };
   }
 }
 
-static void pc(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ctx.pc);
-  ctx.pc++;
+static OpResult pc(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = pc;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void msize(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ctx.memory.GetSize());
-  ctx.pc++;
+static OpResult msize(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                      Context& ctx) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = ctx.memory.GetSize();
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void gas(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(2)) [[unlikely]]
-    return;
-  ctx.stack.Push(ctx.gas);
-  ctx.pc++;
+static OpResult gas(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 2);
+
+  stack_top[-1] = gas;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-static void jumpdest(Context& ctx) noexcept {
-  if (!ctx.ApplyGasCost(1)) [[unlikely]]
-    return;
-  ctx.pc++;
+static OpResult jumpdest(uint32_t pc, int64_t gas, const uint256_t*, uint256_t* stack_top) noexcept {
+  APPLY_GAS_COST(gas, 1);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-template <uint64_t N>
-static void push(Context& ctx) noexcept {
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
+template <uint32_t N>
+static OpResult push(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                     const uint8_t* padded_code) noexcept {
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 3);
 
   constexpr auto num_full_words = N / sizeof(uint64_t);
   constexpr auto num_partial_bytes = N % sizeof(uint64_t);
-  auto data = &ctx.padded_code[ctx.pc + 1];
+  auto data = padded_code + pc + 1;
 
   uint256_t value = 0;
   if constexpr (num_partial_bytes != 0) {
@@ -1090,92 +1326,115 @@ static void push(Context& ctx) noexcept {
     data += sizeof(uint64_t);
   }
 
-  ctx.stack.Push(value);
-  ctx.pc += 1 + N;
+  stack_top[-1] = value;
+
+  return {
+      .pc = pc + 1 + N,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-template <uint64_t N>
-static void dup(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(N)) [[unlikely]]
-    return;
-  if (!ctx.CheckStackOverflow(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  ctx.stack.Dup<N>();
-  ctx.pc++;
+template <uint32_t N>
+static OpResult dup(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, N);
+  CHECK_STACK_OVERFLOW(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 3);
+
+  stack_top[-1] = stack_top[N - 1];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
-template <uint64_t N>
-static void swap(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(N + 1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  ctx.stack.Swap<N>();
-  ctx.pc++;
+template <uint32_t N>
+static OpResult swap(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, N + 1);
+  APPLY_GAS_COST(gas, 3);
+
+  std::swap(stack_top[0], stack_top[N]);
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-template <uint64_t N>
-static void log(Context& ctx) noexcept {
-  if (!ctx.CheckStaticCallConformance()) [[unlikely]]
-    return;
-  if (!ctx.CheckStackAvailable(2 + N)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(375)) [[unlikely]]
-    return;
+template <uint32_t N>
+static OpResult log(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                    Context& ctx) noexcept {
+  CHECK_STATIC_CALL_CONFORMANCE(ctx);
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2 + N);
+  APPLY_GAS_COST(gas, 375);
 
-  const uint256_t offset_u256 = ctx.stack.Pop();
-  const uint256_t size_u256 = ctx.stack.Pop();
+  const uint256_t offset_u256 = stack_top[0];
+  const uint256_t size_u256 = stack_top[1];
 
   const auto [mem_cost, offset, size] = ctx.MemoryExpansionCost(offset_u256, size_u256);
-  if (!ctx.ApplyGasCost(mem_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, mem_cost);
 
   std::array<evmc::bytes32, N> topics;
   for (unsigned i = 0; i < N; ++i) {
-    topics[i] = ToEvmcBytes(ctx.stack.Pop());
+    topics[i] = ToEvmcBytes(stack_top[2 + i]);
   }
 
-  if (!ctx.ApplyGasCost(static_cast<int64_t>(375 * N + 8 * size))) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, static_cast<int64_t>(375 * N + 8 * size));
 
   auto data = ctx.memory.GetSpan(offset, size);
 
   ctx.host->emit_log(ctx.message->recipient, data.data(), data.size(), topics.data(), topics.size());
-  ctx.pc++;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 2 + N,
+  };
 }
 
 template <RunState result_state>
-static void return_op(Context& ctx) noexcept {
+static OpResult return_op(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                          Context& ctx) noexcept {
   static_assert(result_state == RunState::kReturn || result_state == RunState::kRevert);
 
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
 
-  const uint256_t offset_u256 = ctx.stack.Pop();
-  const uint256_t size_u256 = ctx.stack.Pop();
+  const uint256_t offset_u256 = stack_top[0];
+  const uint256_t size_u256 = stack_top[1];
 
   const auto [mem_cost, offset, size] = ctx.MemoryExpansionCost(offset_u256, size_u256);
-  if (!ctx.ApplyGasCost(mem_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, mem_cost);
 
   ctx.return_data.resize(size);
   ctx.memory.WriteTo(ctx.return_data, offset);
-  ctx.state = result_state;
+
+  return {
+      .state = result_state,
+      .pc = pc,
+      .gas_left = gas,
+      .stack_top = stack_top + 2,
+  };
 }
 
-static void invalid(Context& ctx) noexcept { ctx.state = RunState::kInvalid; }
+static OpResult invalid(uint32_t pc, int64_t gas, const uint256_t*, uint256_t* stack_top) noexcept {
+  return {
+      .state = RunState::kInvalid,
+      .pc = pc,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
+}
 
-static void selfdestruct(Context& ctx) noexcept {
-  if (!ctx.CheckStaticCallConformance()) [[unlikely]]
-    return;
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(5000)) [[unlikely]]
-    return;
+static OpResult selfdestruct(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                             Context& ctx) noexcept {
+  CHECK_STATIC_CALL_CONFORMANCE(ctx);
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, 1);
+  APPLY_GAS_COST(gas, 5000);
 
-  auto account = ToEvmcAddress(ctx.stack.Pop());
+  auto account = ToEvmcAddress(stack_top[0]);
 
   {
     int64_t dynamic_gas_cost = 0;
@@ -1187,8 +1446,7 @@ static void selfdestruct(Context& ctx) noexcept {
         dynamic_gas_cost += 2600;
       }
     }
-    if (!ctx.ApplyGasCost(dynamic_gas_cost)) [[unlikely]]
-      return;
+    APPLY_GAS_COST(gas, dynamic_gas_cost);
   }
 
   if (ctx.host->selfdestruct(ctx.message->recipient, account)) {
@@ -1197,46 +1455,50 @@ static void selfdestruct(Context& ctx) noexcept {
     }
   }
 
-  ctx.state = RunState::kDone;
+  return {
+      .state = RunState::kDone,
+      .pc = pc,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
 template <op::OpCodes Op>
-static void create_impl(Context& ctx) noexcept {
+static OpResult create_impl(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                            Context& ctx) noexcept {
   static_assert(Op == op::CREATE || Op == op::CREATE2);
 
   if (ctx.message->depth >= 1024) [[unlikely]] {
-    ctx.state = RunState::kErrorCreate;
-    return;
+    return {.state = RunState::kErrorCreate};
   }
 
-  if (!ctx.CheckStaticCallConformance()) [[unlikely]]
-    return;
-  if (!ctx.CheckStackAvailable((Op == op::CREATE2) ? 4 : 3)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(32000)) [[unlikely]]
-    return;
+  CHECK_STATIC_CALL_CONFORMANCE(ctx);
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, (Op == op::CREATE2) ? 4 : 3);
+  APPLY_GAS_COST(gas, 32000);
 
-  const auto endowment = ctx.stack.Pop();
-  const uint256_t init_code_offset_u256 = ctx.stack.Pop();
-  const uint256_t init_code_size_u256 = ctx.stack.Pop();
-  const auto salt = (Op == op::CREATE2) ? ctx.stack.Pop() : uint256_t{0};
+  // TODO Refactor using dedicated stack pop.
+
+  const auto endowment = stack_top[0];
+  const uint256_t init_code_offset_u256 = stack_top[1];
+  const uint256_t init_code_size_u256 = stack_top[2];
+  const auto salt = (Op == op::CREATE2) ? stack_top[3] : uint256_t{0};
+
+  // Set up stack pointer for result value.
+  stack_top += (Op == op::CREATE2) ? 3 : 2;
 
   const auto [mem_cost, init_code_offset, init_code_size] =
       ctx.MemoryExpansionCost(init_code_offset_u256, init_code_size_u256);
-  if (!ctx.ApplyGasCost(mem_cost)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, mem_cost);
 
   if constexpr (Op == op::CREATE2) {
     const int64_t minimum_word_size = static_cast<int64_t>((init_code_size + 31) / 32);
-    if (!ctx.ApplyGasCost(6 * minimum_word_size)) [[unlikely]]
-      return;
+    APPLY_GAS_COST(gas, 6 * minimum_word_size);
   }
 
   ctx.return_data.clear();
 
   if (endowment != 0 && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < endowment) {
-    ctx.state = RunState::kErrorCreate;
-    return;
+    return {.state = RunState::kErrorCreate};
   }
 
   auto init_code = ctx.memory.GetSpan(init_code_offset, init_code_size);
@@ -1244,7 +1506,7 @@ static void create_impl(Context& ctx) noexcept {
   evmc_message msg{
       .kind = (Op == op::CREATE) ? EVMC_CREATE : EVMC_CREATE2,
       .depth = ctx.message->depth + 1,
-      .gas = ctx.gas - ctx.gas / 64,
+      .gas = gas - gas / 64,
       .sender = ctx.message->recipient,
       .input_data = init_code.data(),
       .input_size = init_code.size(),
@@ -1257,33 +1519,38 @@ static void create_impl(Context& ctx) noexcept {
     ctx.return_data.assign(result.output_data, result.output_data + result.output_size);
   }
 
-  if (!ctx.ApplyGasCost(msg.gas - result.gas_left)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, msg.gas - result.gas_left);
 
   ctx.gas_refunds += result.gas_refund;
 
   if (result.status_code == EVMC_SUCCESS) {
-    ctx.stack.Push(ToUint256(result.create_address));
+    stack_top[0] = ToUint256(result.create_address);
   } else {
-    ctx.stack.Push(0);
+    stack_top[0] = 0;
   }
 
-  ctx.pc++;
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
 template <op::OpCodes Op>
-static void call_impl(Context& ctx) noexcept {
+static OpResult call_impl(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                          Context& ctx) noexcept {
   static_assert(Op == op::CALL || Op == op::CALLCODE || Op == op::DELEGATECALL || Op == op::STATICCALL);
 
   if (ctx.message->depth >= 1024) [[unlikely]] {
-    ctx.state = RunState::kErrorCall;
-    return;
+    return {.state = RunState::kErrorCall};
   }
 
-  if (!ctx.CheckStackAvailable((Op == op::STATICCALL || Op == op::DELEGATECALL) ? 6 : 7)) [[unlikely]]
-    return;
+  CHECK_STACK_AVAILABLE(stack_base - stack_top, (Op == op::STATICCALL || Op == op::DELEGATECALL) ? 6 : 7);
 
-  const uint256_t gas_u256 = ctx.stack.Pop();
+  // TODO Refactor using dedicated stack pop.
+  ctx.stack.top_ = stack_top;
+
+  const uint256_t call_gas_u256 = ctx.stack.Pop();
   const auto account = ToEvmcAddress(ctx.stack.Pop());
   const auto value = (Op == op::STATICCALL || Op == op::DELEGATECALL) ? 0 : ctx.stack.Pop();
   const bool has_value = value != 0;
@@ -1292,16 +1559,18 @@ static void call_impl(Context& ctx) noexcept {
   const uint256_t output_offset_u256 = ctx.stack.Pop();
   const uint256_t output_size_u256 = ctx.stack.Pop();
 
+  stack_top = ctx.stack.top_;
+
   const auto [input_mem_cost, input_offset, input_size] = ctx.MemoryExpansionCost(input_offset_u256, input_size_u256);
   const auto [output_mem_cost, output_offset, output_size] =
       ctx.MemoryExpansionCost(output_offset_u256, output_size_u256);
 
-  if (!ctx.ApplyGasCost(std::max(input_mem_cost, output_mem_cost))) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, std::max(input_mem_cost, output_mem_cost));
 
   if constexpr (Op == op::CALL) {
-    if (has_value && !ctx.CheckStaticCallConformance()) [[unlikely]]
-      return;
+    if (has_value) {
+      CHECK_STATIC_CALL_CONFORMANCE(ctx);
+    }
   }
 
   // Dynamic gas costs (excluding memory expansion and code execution costs)
@@ -1323,17 +1592,16 @@ static void call_impl(Context& ctx) noexcept {
       }
     }
 
-    if (!ctx.ApplyGasCost(address_access_cost + positive_value_cost + value_to_empty_account_cost)) [[unlikely]]
-      return;
+    APPLY_GAS_COST(gas, address_access_cost + positive_value_cost + value_to_empty_account_cost);
   }
 
   ctx.return_data.clear();
 
   auto input_data = ctx.memory.GetSpan(input_offset, input_size);
 
-  int64_t gas = kMaxGas;
-  if (gas_u256 < kMaxGas) {
-    gas = static_cast<int64_t>(gas_u256);
+  int64_t call_gas = kMaxGas;
+  if (call_gas_u256 < kMaxGas) {
+    call_gas = static_cast<int64_t>(call_gas_u256);
   }
 
   evmc_message msg{
@@ -1342,7 +1610,7 @@ static void call_impl(Context& ctx) noexcept {
                                        : EVMC_CALL,
       .flags = (Op == op::STATICCALL) ? uint32_t{EVMC_STATIC} : ctx.message->flags,
       .depth = ctx.message->depth + 1,
-      .gas = std::min(gas, ctx.gas - ctx.gas / 64),
+      .gas = std::min(call_gas, gas - gas / 64),
       .recipient = (Op == op::CALL || Op == op::STATICCALL) ? account : ctx.message->recipient,
       .sender = (Op == op::DELEGATECALL) ? ctx.message->sender : ctx.message->recipient,
       .input_data = input_data.data(),
@@ -1354,13 +1622,16 @@ static void call_impl(Context& ctx) noexcept {
   // call stipend
   if (has_value) {
     msg.gas += 2300;
-    ctx.gas += 2300;
+    gas += 2300;
   }
 
   if (has_value && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < value) {
-    ctx.stack.Push(0);
-    ctx.pc++;
-    return;
+    stack_top[-1] = 0;
+    return {
+        .pc = pc + 1,
+        .gas_left = gas,
+        .stack_top = stack_top - 1,
+    };
   }
 
   const evmc::Result result = ctx.host->call(msg);
@@ -1371,13 +1642,17 @@ static void call_impl(Context& ctx) noexcept {
     ctx.memory.ReadFromWithSize(ctx.return_data, output_offset, output_size);
   }
 
-  if (!ctx.ApplyGasCost(msg.gas - result.gas_left)) [[unlikely]]
-    return;
+  APPLY_GAS_COST(gas, msg.gas - result.gas_left);
 
   ctx.gas_refunds += result.gas_refund;
 
-  ctx.stack.Push(result.status_code == EVMC_SUCCESS);
-  ctx.pc++;
+  stack_top[-1] = result.status_code == EVMC_SUCCESS;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top - 1,
+  };
 }
 
 }  // namespace op
@@ -1422,6 +1697,7 @@ inline bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
   }
 }
 
+// TODO don't set state
 bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
   if (index_u256 >= valid_jump_targets.size()) [[unlikely]] {
     state = RunState::kErrorJump;
@@ -1494,204 +1770,218 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
 }
 
 template <bool LoggingEnabled, bool ProfilingEnabled>
-void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
-  EVMZERO_PROFILE_ZONE();
-
-#define PROFILE_START(marker) profiler.template Start<Marker::marker>()
-#define PROFILE_END(marker) profiler.template End<Marker::marker>()
-#define OPCODE(opcode, impl)         \
-  op::opcode : {                     \
-    EVMZERO_PROFILE_ZONE_N(#opcode); \
-    PROFILE_START(opcode);           \
-    op::impl(ctx);                   \
-    PROFILE_END(opcode);             \
+void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
+#define OPCODE_OLD(opcode, impl) \
+  case op::opcode: {             \
+    ctx.state = state;           \
+    ctx.pc = pc;                 \
+    ctx.gas = gas;               \
+    ctx.stack.top_ = top;        \
+                                 \
+    impl;                        \
+                                 \
+    state = ctx.state;           \
+    pc = ctx.pc;                 \
+    gas = ctx.gas;               \
+    top = ctx.stack.top_;        \
+    break;                       \
   }
 
-  while (ctx.state == RunState::kRunning) {
-    if constexpr (LoggingEnabled) {
-      // log format: <op>, <gas>, <top-of-stack>\n
-      std::cout << ToString(static_cast<op::OpCodes>(ctx.padded_code[ctx.pc])) << ", "  //
-                << ctx.gas << ", ";
-      if (ctx.stack.GetSize() == 0) {
-        std::cout << "-empty-";
-      } else {
-        std::cout << ctx.stack[0];
-      }
-      std::cout << "\n" << std::flush;
-    }
+#define OPCODE_NEW(opcode, impl) \
+  case op::opcode: {             \
+    op::OpResult result = impl;  \
+    state = result.state;        \
+    pc = result.pc;              \
+    gas = result.gas_left;       \
+    top = result.stack_top;      \
+    break;                       \
+  }
 
-    switch (ctx.padded_code[ctx.pc]) {
-      // clang-format off
-      case OPCODE(STOP, stop); break;
+  RunState state = RunState::kRunning;
+  uint32_t pc = 0;
+  int64_t gas = ctx.gas;
+  uint256_t* base = ctx.stack.end_;
+  uint256_t* top = ctx.stack.top_;
 
-      case OPCODE(ADD, add); break;
-      case OPCODE(MUL, mul); break;
-      case OPCODE(SUB, sub); break;
-      case OPCODE(DIV, div); break;
-      case OPCODE(SDIV, sdiv); break;
-      case OPCODE(MOD, mod); break;
-      case OPCODE(SMOD, smod); break;
-      case OPCODE(ADDMOD, addmod); break;
-      case OPCODE(MULMOD, mulmod); break;
-      case OPCODE(EXP, exp); break;
-      case OPCODE(SIGNEXTEND, signextend); break;
-      case OPCODE(LT, lt); break;
-      case OPCODE(GT, gt); break;
-      case OPCODE(SLT, slt); break;
-      case OPCODE(SGT, sgt); break;
-      case OPCODE(EQ, eq); break;
-      case OPCODE(ISZERO, iszero); break;
-      case OPCODE(AND, bit_and); break;
-      case OPCODE(OR, bit_or); break;
-      case OPCODE(XOR, bit_xor); break;
-      case OPCODE(NOT, bit_not); break;
-      case OPCODE(BYTE, byte); break;
-      case OPCODE(SHL, shl); break;
-      case OPCODE(SHR, shr); break;
-      case OPCODE(SAR, sar); break;
-      case OPCODE(SHA3, sha3); break;
-      case OPCODE(ADDRESS, address); break;
-      case OPCODE(BALANCE, balance); break;
-      case OPCODE(ORIGIN, origin); break;
-      case OPCODE(CALLER, caller); break;
-      case OPCODE(CALLVALUE, callvalue); break;
-      case OPCODE(CALLDATALOAD, calldataload); break;
-      case OPCODE(CALLDATASIZE, calldatasize); break;
-      case OPCODE(CALLDATACOPY, calldatacopy); break;
-      case OPCODE(CODESIZE, codesize); break;
-      case OPCODE(CODECOPY, codecopy); break;
-      case OPCODE(GASPRICE, gasprice); break;
-      case OPCODE(EXTCODESIZE, extcodesize); break;
-      case OPCODE(EXTCODECOPY, extcodecopy); break;
-      case OPCODE(RETURNDATASIZE, returndatasize); break;
-      case OPCODE(RETURNDATACOPY, returndatacopy); break;
-      case OPCODE(EXTCODEHASH, extcodehash); break;
-      case OPCODE(BLOCKHASH, blockhash); break;
-      case OPCODE(COINBASE, coinbase); break;
-      case OPCODE(TIMESTAMP, timestamp); break;
-      case OPCODE(NUMBER, blocknumber); break;
-      case OPCODE(DIFFICULTY, prevrandao); break; // intentional
-      case OPCODE(GASLIMIT, gaslimit); break;
-      case OPCODE(CHAINID, chainid); break;
-      case OPCODE(SELFBALANCE, selfbalance); break;
-      case OPCODE(BASEFEE, basefee); break;
+  while (state == RunState::kRunning) {
+    switch (ctx.padded_code[pc]) {
+      OPCODE_NEW(STOP, op::stop(pc, gas, top));
 
-      case OPCODE(POP, pop); break;
-      case OPCODE(MLOAD, mload); break;
-      case OPCODE(MSTORE, mstore); break;
-      case OPCODE(MSTORE8, mstore8); break;
-      case OPCODE(SLOAD, sload); break;
-      case OPCODE(SSTORE, sstore); break;
+      OPCODE_NEW(ADD, op::add(pc, gas, base, top));
+      OPCODE_NEW(MUL, op::mul(pc, gas, base, top));
+      OPCODE_NEW(SUB, op::sub(pc, gas, base, top));
+      OPCODE_NEW(DIV, op::div(pc, gas, base, top));
+      OPCODE_NEW(SDIV, op::sdiv(pc, gas, base, top));
+      OPCODE_NEW(MOD, op::mod(pc, gas, base, top));
+      OPCODE_NEW(SMOD, op::smod(pc, gas, base, top));
+      OPCODE_NEW(ADDMOD, op::addmod(pc, gas, base, top));
+      OPCODE_NEW(MULMOD, op::mulmod(pc, gas, base, top));
+      OPCODE_NEW(EXP, op::exp(pc, gas, base, top));
+      OPCODE_NEW(SIGNEXTEND, op::signextend(pc, gas, base, top));
+      OPCODE_NEW(LT, op::lt(pc, gas, base, top));
+      OPCODE_NEW(GT, op::gt(pc, gas, base, top));
+      OPCODE_NEW(SLT, op::slt(pc, gas, base, top));
+      OPCODE_NEW(SGT, op::sgt(pc, gas, base, top));
+      OPCODE_NEW(EQ, op::eq(pc, gas, base, top));
+      OPCODE_NEW(ISZERO, op::iszero(pc, gas, base, top));
+      OPCODE_NEW(AND, op::bit_and(pc, gas, base, top));
+      OPCODE_NEW(OR, op::bit_or(pc, gas, base, top));
+      OPCODE_NEW(XOR, op::bit_xor(pc, gas, base, top));
+      OPCODE_NEW(NOT, op::bit_not(pc, gas, base, top));
+      OPCODE_NEW(BYTE, op::byte(pc, gas, base, top));
+      OPCODE_NEW(SHL, op::shl(pc, gas, base, top));
+      OPCODE_NEW(SHR, op::shr(pc, gas, base, top));
+      OPCODE_NEW(SAR, op::sar(pc, gas, base, top));
+      OPCODE_NEW(SHA3, op::sha3(pc, gas, base, top, ctx));
 
-      case OPCODE(JUMP, jump); break;
-      case OPCODE(JUMPI, jumpi); break;
-      case OPCODE(PC, pc); break;
-      case OPCODE(MSIZE, msize); break;
-      case OPCODE(GAS, gas); break;
-      case OPCODE(JUMPDEST, jumpdest); break;
+      OPCODE_NEW(ADDRESS, op::address(pc, gas, base, top, ctx));
+      OPCODE_NEW(BALANCE, op::balance(pc, gas, base, top, ctx));
+      OPCODE_NEW(ORIGIN, op::origin(pc, gas, base, top, ctx));
+      OPCODE_NEW(CALLER, op::caller(pc, gas, base, top, ctx));
+      OPCODE_NEW(CALLVALUE, op::callvalue(pc, gas, base, top, ctx));
+      OPCODE_NEW(CALLDATALOAD, op::calldataload(pc, gas, base, top, ctx));
+      OPCODE_NEW(CALLDATASIZE, op::calldatasize(pc, gas, base, top, ctx));
+      OPCODE_NEW(CALLDATACOPY, op::calldatacopy(pc, gas, base, top, ctx));
+      OPCODE_NEW(CODESIZE, op::codesize(pc, gas, base, top, ctx));
+      OPCODE_NEW(CODECOPY, op::codecopy(pc, gas, base, top, ctx));
+      OPCODE_NEW(GASPRICE, op::gasprice(pc, gas, base, top, ctx));
+      OPCODE_NEW(EXTCODESIZE, op::extcodesize(pc, gas, base, top, ctx));
+      OPCODE_NEW(EXTCODECOPY, op::extcodecopy(pc, gas, base, top, ctx));
+      OPCODE_NEW(RETURNDATASIZE, op::returndatasize(pc, gas, base, top, ctx));
+      OPCODE_NEW(RETURNDATACOPY, op::returndatacopy(pc, gas, base, top, ctx));
+      OPCODE_NEW(EXTCODEHASH, op::extcodehash(pc, gas, base, top, ctx));
+      OPCODE_NEW(BLOCKHASH, op::blockhash(pc, gas, base, top, ctx));
+      OPCODE_NEW(COINBASE, op::coinbase(pc, gas, base, top, ctx));
+      OPCODE_NEW(TIMESTAMP, op::timestamp(pc, gas, base, top, ctx));
+      OPCODE_NEW(NUMBER, op::blocknumber(pc, gas, base, top, ctx));
+      OPCODE_NEW(DIFFICULTY, op::prevrandao(pc, gas, base, top, ctx));  // intentional
+      OPCODE_NEW(GASLIMIT, op::gaslimit(pc, gas, base, top, ctx));
+      OPCODE_NEW(CHAINID, op::chainid(pc, gas, base, top, ctx));
+      OPCODE_NEW(SELFBALANCE, op::selfbalance(pc, gas, base, top, ctx));
+      OPCODE_NEW(BASEFEE, op::basefee(pc, gas, base, top, ctx));
 
-      case OPCODE(PUSH1, push<1>); break;
-      case OPCODE(PUSH2, push<2>); break;
-      case OPCODE(PUSH3, push<3>); break;
-      case OPCODE(PUSH4, push<4>); break;
-      case OPCODE(PUSH5, push<5>); break;
-      case OPCODE(PUSH6, push<6>); break;
-      case OPCODE(PUSH7, push<7>); break;
-      case OPCODE(PUSH8, push<8>); break;
-      case OPCODE(PUSH9, push<9>); break;
-      case OPCODE(PUSH10, push<10>); break;
-      case OPCODE(PUSH11, push<11>); break;
-      case OPCODE(PUSH12, push<12>); break;
-      case OPCODE(PUSH13, push<13>); break;
-      case OPCODE(PUSH14, push<14>); break;
-      case OPCODE(PUSH15, push<15>); break;
-      case OPCODE(PUSH16, push<16>); break;
-      case OPCODE(PUSH17, push<17>); break;
-      case OPCODE(PUSH18, push<18>); break;
-      case OPCODE(PUSH19, push<19>); break;
-      case OPCODE(PUSH20, push<20>); break;
-      case OPCODE(PUSH21, push<21>); break;
-      case OPCODE(PUSH22, push<22>); break;
-      case OPCODE(PUSH23, push<23>); break;
-      case OPCODE(PUSH24, push<24>); break;
-      case OPCODE(PUSH25, push<25>); break;
-      case OPCODE(PUSH26, push<26>); break;
-      case OPCODE(PUSH27, push<27>); break;
-      case OPCODE(PUSH28, push<28>); break;
-      case OPCODE(PUSH29, push<29>); break;
-      case OPCODE(PUSH30, push<30>); break;
-      case OPCODE(PUSH31, push<31>); break;
-      case OPCODE(PUSH32, push<32>); break;
+      OPCODE_NEW(POP, op::pop(pc, gas, base, top));
 
-      case OPCODE(DUP1, dup<1>); break;
-      case OPCODE(DUP2, dup<2>); break;
-      case OPCODE(DUP3, dup<3>); break;
-      case OPCODE(DUP4, dup<4>); break;
-      case OPCODE(DUP5, dup<5>); break;
-      case OPCODE(DUP6, dup<6>); break;
-      case OPCODE(DUP7, dup<7>); break;
-      case OPCODE(DUP8, dup<8>); break;
-      case OPCODE(DUP9, dup<9>); break;
-      case OPCODE(DUP10, dup<10>); break;
-      case OPCODE(DUP11, dup<11>); break;
-      case OPCODE(DUP12, dup<12>); break;
-      case OPCODE(DUP13, dup<13>); break;
-      case OPCODE(DUP14, dup<14>); break;
-      case OPCODE(DUP15, dup<15>); break;
-      case OPCODE(DUP16, dup<16>); break;
+      OPCODE_NEW(MLOAD, op::mload(pc, gas, base, top, ctx));
+      OPCODE_NEW(MSTORE, op::mstore(pc, gas, base, top, ctx));
+      OPCODE_NEW(MSTORE8, op::mstore8(pc, gas, base, top, ctx));
 
-      case OPCODE(SWAP1, swap<1>); break;
-      case OPCODE(SWAP2, swap<2>); break;
-      case OPCODE(SWAP3, swap<3>); break;
-      case OPCODE(SWAP4, swap<4>); break;
-      case OPCODE(SWAP5, swap<5>); break;
-      case OPCODE(SWAP6, swap<6>); break;
-      case OPCODE(SWAP7, swap<7>); break;
-      case OPCODE(SWAP8, swap<8>); break;
-      case OPCODE(SWAP9, swap<9>); break;
-      case OPCODE(SWAP10, swap<10>); break;
-      case OPCODE(SWAP11, swap<11>); break;
-      case OPCODE(SWAP12, swap<12>); break;
-      case OPCODE(SWAP13, swap<13>); break;
-      case OPCODE(SWAP14, swap<14>); break;
-      case OPCODE(SWAP15, swap<15>); break;
-      case OPCODE(SWAP16, swap<16>); break;
+      OPCODE_NEW(SLOAD, op::sload(pc, gas, base, top, ctx));
+      OPCODE_NEW(SSTORE, op::sstore(pc, gas, base, top, ctx));
 
-      case OPCODE(LOG0, log<0>); break;
-      case OPCODE(LOG1, log<1>); break;
-      case OPCODE(LOG2, log<2>); break;
-      case OPCODE(LOG3, log<3>); break;
-      case OPCODE(LOG4, log<4>); break;
+      OPCODE_NEW(JUMP, op::jump(pc, gas, base, top, ctx));
+      OPCODE_NEW(JUMPI, op::jumpi(pc, gas, base, top, ctx));
 
-      case op::CREATE: op::create_impl<op::CREATE>(ctx); break;
-      case op::CREATE2: op::create_impl<op::CREATE2>(ctx); break;
+      OPCODE_NEW(PC, op::pc(pc, gas, base, top));
+      OPCODE_NEW(MSIZE, op::msize(pc, gas, base, top, ctx));
+      OPCODE_NEW(GAS, op::gas(pc, gas, base, top));
 
-      case OPCODE(RETURN, return_op<RunState::kReturn>); break;
-      case OPCODE(REVERT, return_op<RunState::kRevert>); break;
+      OPCODE_NEW(JUMPDEST, op::jumpdest(pc, gas, base, top));
 
-      case op::CALL: op::call_impl<op::CALL>(ctx); break;
-      case op::CALLCODE: op::call_impl<op::CALLCODE>(ctx); break;
-      case op::DELEGATECALL: op::call_impl<op::DELEGATECALL>(ctx); break;
-      case op::STATICCALL: op::call_impl<op::STATICCALL>(ctx); break;
+      OPCODE_NEW(PUSH1, op::push<1>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH2, op::push<2>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH3, op::push<3>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH4, op::push<4>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH5, op::push<5>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH6, op::push<6>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH7, op::push<7>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH8, op::push<8>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH9, op::push<9>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH10, op::push<10>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH11, op::push<11>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH12, op::push<12>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH13, op::push<13>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH14, op::push<14>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH15, op::push<15>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH16, op::push<16>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH17, op::push<17>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH18, op::push<18>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH19, op::push<19>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH20, op::push<20>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH21, op::push<21>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH22, op::push<22>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH23, op::push<23>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH24, op::push<24>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH25, op::push<25>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH26, op::push<26>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH27, op::push<27>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH28, op::push<28>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH29, op::push<29>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH30, op::push<30>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH31, op::push<31>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE_NEW(PUSH32, op::push<32>(pc, gas, base, top, ctx.padded_code.data()));
 
-      case OPCODE(INVALID, invalid); break;
-      case OPCODE(SELFDESTRUCT, selfdestruct); break;
+      OPCODE_NEW(DUP1, op::dup<1>(pc, gas, base, top));
+      OPCODE_NEW(DUP2, op::dup<2>(pc, gas, base, top));
+      OPCODE_NEW(DUP3, op::dup<3>(pc, gas, base, top));
+      OPCODE_NEW(DUP4, op::dup<4>(pc, gas, base, top));
+      OPCODE_NEW(DUP5, op::dup<5>(pc, gas, base, top));
+      OPCODE_NEW(DUP6, op::dup<6>(pc, gas, base, top));
+      OPCODE_NEW(DUP7, op::dup<7>(pc, gas, base, top));
+      OPCODE_NEW(DUP8, op::dup<8>(pc, gas, base, top));
+      OPCODE_NEW(DUP9, op::dup<9>(pc, gas, base, top));
+      OPCODE_NEW(DUP10, op::dup<10>(pc, gas, base, top));
+      OPCODE_NEW(DUP11, op::dup<11>(pc, gas, base, top));
+      OPCODE_NEW(DUP12, op::dup<12>(pc, gas, base, top));
+      OPCODE_NEW(DUP13, op::dup<13>(pc, gas, base, top));
+      OPCODE_NEW(DUP14, op::dup<14>(pc, gas, base, top));
+      OPCODE_NEW(DUP15, op::dup<15>(pc, gas, base, top));
+      OPCODE_NEW(DUP16, op::dup<16>(pc, gas, base, top));
+
+      OPCODE_NEW(SWAP1, op::swap<1>(pc, gas, base, top));
+      OPCODE_NEW(SWAP2, op::swap<2>(pc, gas, base, top));
+      OPCODE_NEW(SWAP3, op::swap<3>(pc, gas, base, top));
+      OPCODE_NEW(SWAP4, op::swap<4>(pc, gas, base, top));
+      OPCODE_NEW(SWAP5, op::swap<5>(pc, gas, base, top));
+      OPCODE_NEW(SWAP6, op::swap<6>(pc, gas, base, top));
+      OPCODE_NEW(SWAP7, op::swap<7>(pc, gas, base, top));
+      OPCODE_NEW(SWAP8, op::swap<8>(pc, gas, base, top));
+      OPCODE_NEW(SWAP9, op::swap<9>(pc, gas, base, top));
+      OPCODE_NEW(SWAP10, op::swap<10>(pc, gas, base, top));
+      OPCODE_NEW(SWAP11, op::swap<11>(pc, gas, base, top));
+      OPCODE_NEW(SWAP12, op::swap<12>(pc, gas, base, top));
+      OPCODE_NEW(SWAP13, op::swap<13>(pc, gas, base, top));
+      OPCODE_NEW(SWAP14, op::swap<14>(pc, gas, base, top));
+      OPCODE_NEW(SWAP15, op::swap<15>(pc, gas, base, top));
+      OPCODE_NEW(SWAP16, op::swap<16>(pc, gas, base, top));
+
+      OPCODE_NEW(LOG0, op::log<0>(pc, gas, base, top, ctx));
+      OPCODE_NEW(LOG1, op::log<1>(pc, gas, base, top, ctx));
+      OPCODE_NEW(LOG2, op::log<2>(pc, gas, base, top, ctx));
+      OPCODE_NEW(LOG3, op::log<3>(pc, gas, base, top, ctx));
+      OPCODE_NEW(LOG4, op::log<4>(pc, gas, base, top, ctx));
+
+      OPCODE_NEW(CREATE, op::create_impl<op::CREATE>(pc, gas, base, top, ctx));
+      OPCODE_NEW(CREATE2, op::create_impl<op::CREATE2>(pc, gas, base, top, ctx));
+
+      OPCODE_NEW(RETURN, op::return_op<RunState::kReturn>(pc, gas, base, top, ctx));
+      OPCODE_NEW(REVERT, op::return_op<RunState::kRevert>(pc, gas, base, top, ctx));
+
+      OPCODE_NEW(CALL, op::call_impl<op::CALL>(pc, gas, base, top, ctx));
+      OPCODE_NEW(CALLCODE, op::call_impl<op::CALLCODE>(pc, gas, base, top, ctx));
+      OPCODE_NEW(DELEGATECALL, op::call_impl<op::DELEGATECALL>(pc, gas, base, top, ctx));
+      OPCODE_NEW(STATICCALL, op::call_impl<op::STATICCALL>(pc, gas, base, top, ctx));
+
+      OPCODE_NEW(INVALID, op::invalid(pc, gas, base, top));
+      OPCODE_NEW(SELFDESTRUCT, op::selfdestruct(pc, gas, base, top, ctx));
 
       default:
-        ctx.state = RunState::kErrorOpcode;
-
-        // clang-format on
+        state = RunState::kErrorOpcode;
     }
   }
 
-  if (!IsSuccess(ctx.state)) {
-    ctx.gas = 0;
+  if (!IsSuccess(state)) {
+    gas = 0;
   }
 
   // Keep return data only when we are supposed to return something.
-  if (ctx.state != RunState::kReturn && ctx.state != RunState::kRevert) {
+  if (state != RunState::kReturn && state != RunState::kRevert) {
     ctx.return_data.clear();
   }
+
+  ctx.state = state;
+  ctx.stack.top_ = top;
+  ctx.gas = gas;
 
 #undef PROFILE_START
 #undef PROFILE_END
