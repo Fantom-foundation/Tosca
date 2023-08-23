@@ -102,17 +102,28 @@ namespace op {
 using internal::Context;
 using internal::kMaxGas;
 
+struct OpResult {
+  RunState state = RunState::kRunning;
+  uint32_t pc = 0;
+  int64_t gas_left = 0;
+  uint256_t* stack_top = 0;
+};
+
 static void stop(Context& ctx) noexcept { ctx.state = RunState::kDone; }
 
-static void add(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a + b);
-  ctx.pc++;
+static OpResult add(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  if (stack_base - stack_top < 2) [[unlikely]]
+    return {.state = RunState::kErrorStackUnderflow};
+  if (gas -= 3; gas < 0) [[unlikely]]
+    return {.state = RunState::kErrorGas};
+
+  stack_top[1] += stack_top[0];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
 static void mul(Context& ctx) noexcept {
@@ -126,15 +137,19 @@ static void mul(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-static void sub(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a - b);
-  ctx.pc++;
+static OpResult sub(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  if (stack_base - stack_top < 2) [[unlikely]]
+    return {.state = RunState::kErrorStackUnderflow};
+  if (gas -= 3; gas < 0) [[unlikely]]
+    return {.state = RunState::kErrorGas};
+
+  stack_top[1] = stack_top[0] - stack_top[1];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
 static void div(Context& ctx) noexcept {
@@ -261,37 +276,49 @@ static void signextend(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-static void lt(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a < b ? 1 : 0);
-  ctx.pc++;
+static OpResult lt(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  if (stack_base - stack_top < 2) [[unlikely]]
+    return {.state = RunState::kErrorStackUnderflow};
+  if (gas -= 3; gas < 0) [[unlikely]]
+    return {.state = RunState::kErrorGas};
+
+  stack_top[1] = stack_top[0] < stack_top[1] ? 1 : 0;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void gt(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a > b ? 1 : 0);
-  ctx.pc++;
+static OpResult gt(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  if (stack_base - stack_top < 2) [[unlikely]]
+    return {.state = RunState::kErrorStackUnderflow};
+  if (gas -= 3; gas < 0) [[unlikely]]
+    return {.state = RunState::kErrorGas};
+
+  stack_top[1] = stack_top[0] > stack_top[1] ? 1 : 0;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void slt(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(intx::slt(a, b) ? 1 : 0);
-  ctx.pc++;
+static OpResult slt(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  if (stack_base - stack_top < 2) [[unlikely]]
+    return {.state = RunState::kErrorStackUnderflow};
+  if (gas -= 3; gas < 0) [[unlikely]]
+    return {.state = RunState::kErrorGas};
+
+  stack_top[1] = intx::slt(stack_top[0], stack_top[1]) ? 1 : 0;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
 static void sgt(Context& ctx) noexcept {
@@ -305,36 +332,49 @@ static void sgt(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-static void eq(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a == b ? 1 : 0);
-  ctx.pc++;
+static OpResult eq(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  if (stack_base - stack_top < 2) [[unlikely]]
+    return {.state = RunState::kErrorStackUnderflow};
+  if (gas -= 3; gas < 0) [[unlikely]]
+    return {.state = RunState::kErrorGas};
+
+  stack_top[1] = stack_top[0] == stack_top[1] ? 1 : 0;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void iszero(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t val = ctx.stack.Pop();
-  ctx.stack.Push(val == 0);
-  ctx.pc++;
+static OpResult iszero(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  if (stack_base - stack_top < 1) [[unlikely]]
+    return {.state = RunState::kErrorStackUnderflow};
+  if (gas -= 3; gas < 0) [[unlikely]]
+    return {.state = RunState::kErrorGas};
+
+  stack_top[0] = stack_top[0] == 0;
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
-static void bit_and(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t a = ctx.stack.Pop();
-  uint256_t b = ctx.stack.Pop();
-  ctx.stack.Push(a & b);
-  ctx.pc++;
+static OpResult bit_and(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  if (stack_base - stack_top < 2) [[unlikely]]
+    return {.state = RunState::kErrorStackUnderflow};
+  if (gas -= 3; gas < 0) [[unlikely]]
+    return {.state = RunState::kErrorGas};
+
+  stack_top[1] = stack_top[0] & stack_top[1];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
 static void bit_or(Context& ctx) noexcept {
@@ -396,15 +436,19 @@ static void shl(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-static void shr(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(3)) [[unlikely]]
-    return;
-  uint256_t shift = ctx.stack.Pop();
-  uint256_t value = ctx.stack.Pop();
-  ctx.stack.Push(value >> shift);
-  ctx.pc++;
+static OpResult shr(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
+  if (stack_base - stack_top < 2) [[unlikely]]
+    return {.state = RunState::kErrorStackUnderflow};
+  if (gas -= 3; gas < 0) [[unlikely]]
+    return {.state = RunState::kErrorGas};
+
+  stack_top[1] >>= stack_top[0];
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
 static void sar(Context& ctx) noexcept {
@@ -1000,30 +1044,43 @@ static void sstore(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-static void jump(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(1)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(8)) [[unlikely]]
-    return;
-  const uint256_t counter_u256 = ctx.stack.Pop();
-  if (!ctx.CheckJumpDest(counter_u256)) [[unlikely]]
-    return;
-  ctx.pc = static_cast<uint64_t>(counter_u256);
+static OpResult jump(uint32_t, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top, Context& ctx) noexcept {
+  if (stack_base - stack_top < 1) [[unlikely]]
+    return {.state = RunState::kErrorStackUnderflow};
+  if (gas -= 8; gas < 0) [[unlikely]]
+    return {.state = RunState::kErrorGas};
+
+  if (!ctx.CheckJumpDest(stack_top[0])) [[unlikely]]
+    return {.state = ctx.state};
+
+  return {
+      .pc = static_cast<uint32_t>(stack_top[0]),
+      .gas_left = gas,
+      .stack_top = stack_top + 1,
+  };
 }
 
-static void jumpi(Context& ctx) noexcept {
-  if (!ctx.CheckStackAvailable(2)) [[unlikely]]
-    return;
-  if (!ctx.ApplyGasCost(10)) [[unlikely]]
-    return;
-  const uint256_t counter_u256 = ctx.stack.Pop();
-  const uint256_t b = ctx.stack.Pop();
-  if (b != 0) {
-    if (!ctx.CheckJumpDest(counter_u256)) [[unlikely]]
-      return;
-    ctx.pc = static_cast<uint64_t>(counter_u256);
+static OpResult jumpi(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
+                      Context& ctx) noexcept {
+  if (stack_base - stack_top < 2) [[unlikely]]
+    return {.state = RunState::kErrorStackUnderflow};
+  if (gas -= 10; gas < 0) [[unlikely]]
+    return {.state = RunState::kErrorGas};
+
+  if (stack_top[1] != 0) {
+    if (!ctx.CheckJumpDest(stack_top[0])) [[unlikely]]
+      return {.state = ctx.state};
+    return {
+        .pc = static_cast<uint32_t>(stack_top[0]),
+        .gas_left = gas,
+        .stack_top = stack_top + 2,
+    };
   } else {
-    ctx.pc++;
+    return {
+        .pc = pc + 1,
+        .gas_left = gas,
+        .stack_top = stack_top + 2,
+    };
   }
 }
 
@@ -1054,10 +1111,15 @@ static void gas(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-static void jumpdest(Context& ctx) noexcept {
-  if (!ctx.ApplyGasCost(1)) [[unlikely]]
-    return;
-  ctx.pc++;
+static OpResult jumpdest(uint32_t pc, int64_t gas, const uint256_t*, uint256_t* stack_top) noexcept {
+  if (gas -= 1; gas < 0) [[unlikely]]
+    return {.state = RunState::kErrorGas};
+
+  return {
+      .pc = pc + 1,
+      .gas_left = gas,
+      .stack_top = stack_top,
+  };
 }
 
 template <uint64_t N>
@@ -1494,204 +1556,221 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
 }
 
 template <bool LoggingEnabled, bool ProfilingEnabled>
-void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
-  EVMZERO_PROFILE_ZONE();
-
-#define PROFILE_START(marker) profiler.template Start<Marker::marker>()
-#define PROFILE_END(marker) profiler.template End<Marker::marker>()
-#define OPCODE(opcode, impl)         \
-  op::opcode : {                     \
-    EVMZERO_PROFILE_ZONE_N(#opcode); \
-    PROFILE_START(opcode);           \
-    op::impl(ctx);                   \
-    PROFILE_END(opcode);             \
+void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
+#define OPCODE_OLD(opcode, impl) \
+  case op::opcode: {             \
+    ctx.state = state;           \
+    ctx.pc = pc;                 \
+    ctx.gas = gas;               \
+    ctx.stack.top_ = top;        \
+                                 \
+    impl;                        \
+                                 \
+    state = ctx.state;           \
+    pc = ctx.pc;                 \
+    gas = ctx.gas;               \
+    top = ctx.stack.top_;        \
+    break;                       \
   }
 
-  while (ctx.state == RunState::kRunning) {
-    if constexpr (LoggingEnabled) {
-      // log format: <op>, <gas>, <top-of-stack>\n
-      std::cout << ToString(static_cast<op::OpCodes>(ctx.padded_code[ctx.pc])) << ", "  //
-                << ctx.gas << ", ";
-      if (ctx.stack.GetSize() == 0) {
-        std::cout << "-empty-";
-      } else {
-        std::cout << ctx.stack[0];
-      }
-      std::cout << "\n" << std::flush;
-    }
+#define OPCODE_NEW(opcode, impl) \
+  case op::opcode: {             \
+    op::OpResult result = impl;  \
+    state = result.state;        \
+    pc = result.pc;              \
+    gas = result.gas_left;       \
+    top = result.stack_top;      \
+    break;                       \
+  }
 
-    switch (ctx.padded_code[ctx.pc]) {
-      // clang-format off
-      case OPCODE(STOP, stop); break;
+  RunState state = RunState::kRunning;
+  uint32_t pc = 0;
+  int64_t gas = ctx.gas;
+  uint256_t* base = ctx.stack.end_;
+  uint256_t* top = ctx.stack.top_;
 
-      case OPCODE(ADD, add); break;
-      case OPCODE(MUL, mul); break;
-      case OPCODE(SUB, sub); break;
-      case OPCODE(DIV, div); break;
-      case OPCODE(SDIV, sdiv); break;
-      case OPCODE(MOD, mod); break;
-      case OPCODE(SMOD, smod); break;
-      case OPCODE(ADDMOD, addmod); break;
-      case OPCODE(MULMOD, mulmod); break;
-      case OPCODE(EXP, exp); break;
-      case OPCODE(SIGNEXTEND, signextend); break;
-      case OPCODE(LT, lt); break;
-      case OPCODE(GT, gt); break;
-      case OPCODE(SLT, slt); break;
-      case OPCODE(SGT, sgt); break;
-      case OPCODE(EQ, eq); break;
-      case OPCODE(ISZERO, iszero); break;
-      case OPCODE(AND, bit_and); break;
-      case OPCODE(OR, bit_or); break;
-      case OPCODE(XOR, bit_xor); break;
-      case OPCODE(NOT, bit_not); break;
-      case OPCODE(BYTE, byte); break;
-      case OPCODE(SHL, shl); break;
-      case OPCODE(SHR, shr); break;
-      case OPCODE(SAR, sar); break;
-      case OPCODE(SHA3, sha3); break;
-      case OPCODE(ADDRESS, address); break;
-      case OPCODE(BALANCE, balance); break;
-      case OPCODE(ORIGIN, origin); break;
-      case OPCODE(CALLER, caller); break;
-      case OPCODE(CALLVALUE, callvalue); break;
-      case OPCODE(CALLDATALOAD, calldataload); break;
-      case OPCODE(CALLDATASIZE, calldatasize); break;
-      case OPCODE(CALLDATACOPY, calldatacopy); break;
-      case OPCODE(CODESIZE, codesize); break;
-      case OPCODE(CODECOPY, codecopy); break;
-      case OPCODE(GASPRICE, gasprice); break;
-      case OPCODE(EXTCODESIZE, extcodesize); break;
-      case OPCODE(EXTCODECOPY, extcodecopy); break;
-      case OPCODE(RETURNDATASIZE, returndatasize); break;
-      case OPCODE(RETURNDATACOPY, returndatacopy); break;
-      case OPCODE(EXTCODEHASH, extcodehash); break;
-      case OPCODE(BLOCKHASH, blockhash); break;
-      case OPCODE(COINBASE, coinbase); break;
-      case OPCODE(TIMESTAMP, timestamp); break;
-      case OPCODE(NUMBER, blocknumber); break;
-      case OPCODE(DIFFICULTY, prevrandao); break; // intentional
-      case OPCODE(GASLIMIT, gaslimit); break;
-      case OPCODE(CHAINID, chainid); break;
-      case OPCODE(SELFBALANCE, selfbalance); break;
-      case OPCODE(BASEFEE, basefee); break;
+  while (state == RunState::kRunning) {
+    switch (ctx.padded_code[pc]) {
+      OPCODE_OLD(STOP, op::stop(ctx));
 
-      case OPCODE(POP, pop); break;
-      case OPCODE(MLOAD, mload); break;
-      case OPCODE(MSTORE, mstore); break;
-      case OPCODE(MSTORE8, mstore8); break;
-      case OPCODE(SLOAD, sload); break;
-      case OPCODE(SSTORE, sstore); break;
+      OPCODE_NEW(ADD, op::add(pc, gas, base, top));
 
-      case OPCODE(JUMP, jump); break;
-      case OPCODE(JUMPI, jumpi); break;
-      case OPCODE(PC, pc); break;
-      case OPCODE(MSIZE, msize); break;
-      case OPCODE(GAS, gas); break;
-      case OPCODE(JUMPDEST, jumpdest); break;
+      OPCODE_OLD(MUL, op::mul(ctx));
 
-      case OPCODE(PUSH1, push<1>); break;
-      case OPCODE(PUSH2, push<2>); break;
-      case OPCODE(PUSH3, push<3>); break;
-      case OPCODE(PUSH4, push<4>); break;
-      case OPCODE(PUSH5, push<5>); break;
-      case OPCODE(PUSH6, push<6>); break;
-      case OPCODE(PUSH7, push<7>); break;
-      case OPCODE(PUSH8, push<8>); break;
-      case OPCODE(PUSH9, push<9>); break;
-      case OPCODE(PUSH10, push<10>); break;
-      case OPCODE(PUSH11, push<11>); break;
-      case OPCODE(PUSH12, push<12>); break;
-      case OPCODE(PUSH13, push<13>); break;
-      case OPCODE(PUSH14, push<14>); break;
-      case OPCODE(PUSH15, push<15>); break;
-      case OPCODE(PUSH16, push<16>); break;
-      case OPCODE(PUSH17, push<17>); break;
-      case OPCODE(PUSH18, push<18>); break;
-      case OPCODE(PUSH19, push<19>); break;
-      case OPCODE(PUSH20, push<20>); break;
-      case OPCODE(PUSH21, push<21>); break;
-      case OPCODE(PUSH22, push<22>); break;
-      case OPCODE(PUSH23, push<23>); break;
-      case OPCODE(PUSH24, push<24>); break;
-      case OPCODE(PUSH25, push<25>); break;
-      case OPCODE(PUSH26, push<26>); break;
-      case OPCODE(PUSH27, push<27>); break;
-      case OPCODE(PUSH28, push<28>); break;
-      case OPCODE(PUSH29, push<29>); break;
-      case OPCODE(PUSH30, push<30>); break;
-      case OPCODE(PUSH31, push<31>); break;
-      case OPCODE(PUSH32, push<32>); break;
+      OPCODE_NEW(SUB, op::sub(pc, gas, base, top));
 
-      case OPCODE(DUP1, dup<1>); break;
-      case OPCODE(DUP2, dup<2>); break;
-      case OPCODE(DUP3, dup<3>); break;
-      case OPCODE(DUP4, dup<4>); break;
-      case OPCODE(DUP5, dup<5>); break;
-      case OPCODE(DUP6, dup<6>); break;
-      case OPCODE(DUP7, dup<7>); break;
-      case OPCODE(DUP8, dup<8>); break;
-      case OPCODE(DUP9, dup<9>); break;
-      case OPCODE(DUP10, dup<10>); break;
-      case OPCODE(DUP11, dup<11>); break;
-      case OPCODE(DUP12, dup<12>); break;
-      case OPCODE(DUP13, dup<13>); break;
-      case OPCODE(DUP14, dup<14>); break;
-      case OPCODE(DUP15, dup<15>); break;
-      case OPCODE(DUP16, dup<16>); break;
+      OPCODE_OLD(DIV, op::div(ctx));
+      OPCODE_OLD(SDIV, op::sdiv(ctx));
+      OPCODE_OLD(MOD, op::mod(ctx));
+      OPCODE_OLD(SMOD, op::smod(ctx));
+      OPCODE_OLD(ADDMOD, op::addmod(ctx));
+      OPCODE_OLD(MULMOD, op::mulmod(ctx));
+      OPCODE_OLD(EXP, op::exp(ctx));
+      OPCODE_OLD(SIGNEXTEND, op::signextend(ctx));
 
-      case OPCODE(SWAP1, swap<1>); break;
-      case OPCODE(SWAP2, swap<2>); break;
-      case OPCODE(SWAP3, swap<3>); break;
-      case OPCODE(SWAP4, swap<4>); break;
-      case OPCODE(SWAP5, swap<5>); break;
-      case OPCODE(SWAP6, swap<6>); break;
-      case OPCODE(SWAP7, swap<7>); break;
-      case OPCODE(SWAP8, swap<8>); break;
-      case OPCODE(SWAP9, swap<9>); break;
-      case OPCODE(SWAP10, swap<10>); break;
-      case OPCODE(SWAP11, swap<11>); break;
-      case OPCODE(SWAP12, swap<12>); break;
-      case OPCODE(SWAP13, swap<13>); break;
-      case OPCODE(SWAP14, swap<14>); break;
-      case OPCODE(SWAP15, swap<15>); break;
-      case OPCODE(SWAP16, swap<16>); break;
+      OPCODE_NEW(LT, op::lt(pc, gas, base, top));
+      OPCODE_NEW(GT, op::gt(pc, gas, base, top));
+      OPCODE_NEW(SLT, op::slt(pc, gas, base, top));
 
-      case OPCODE(LOG0, log<0>); break;
-      case OPCODE(LOG1, log<1>); break;
-      case OPCODE(LOG2, log<2>); break;
-      case OPCODE(LOG3, log<3>); break;
-      case OPCODE(LOG4, log<4>); break;
+      OPCODE_OLD(SGT, op::sgt(ctx));
 
-      case op::CREATE: op::create_impl<op::CREATE>(ctx); break;
-      case op::CREATE2: op::create_impl<op::CREATE2>(ctx); break;
+      OPCODE_NEW(EQ, op::eq(pc, gas, base, top));
+      OPCODE_NEW(ISZERO, op::iszero(pc, gas, base, top));
+      OPCODE_NEW(AND, op::bit_and(pc, gas, base, top));
 
-      case OPCODE(RETURN, return_op<RunState::kReturn>); break;
-      case OPCODE(REVERT, return_op<RunState::kRevert>); break;
+      OPCODE_OLD(OR, op::bit_or(ctx));
+      OPCODE_OLD(XOR, op::bit_xor(ctx));
+      OPCODE_OLD(NOT, op::bit_not(ctx));
+      OPCODE_OLD(BYTE, op::byte(ctx));
+      OPCODE_OLD(SHL, op::shl(ctx));
 
-      case op::CALL: op::call_impl<op::CALL>(ctx); break;
-      case op::CALLCODE: op::call_impl<op::CALLCODE>(ctx); break;
-      case op::DELEGATECALL: op::call_impl<op::DELEGATECALL>(ctx); break;
-      case op::STATICCALL: op::call_impl<op::STATICCALL>(ctx); break;
+      OPCODE_NEW(SHR, op::shr(pc, gas, base, top));
 
-      case OPCODE(INVALID, invalid); break;
-      case OPCODE(SELFDESTRUCT, selfdestruct); break;
+      OPCODE_OLD(SAR, op::sar(ctx));
+      OPCODE_OLD(SHA3, op::sha3(ctx));
+      OPCODE_OLD(ADDRESS, op::address(ctx));
+      OPCODE_OLD(BALANCE, op::balance(ctx));
+      OPCODE_OLD(ORIGIN, op::origin(ctx));
+      OPCODE_OLD(CALLER, op::caller(ctx));
+      OPCODE_OLD(CALLVALUE, op::callvalue(ctx));
+      OPCODE_OLD(CALLDATALOAD, op::calldataload(ctx));
+      OPCODE_OLD(CALLDATASIZE, op::calldatasize(ctx));
+      OPCODE_OLD(CALLDATACOPY, op::calldatacopy(ctx));
+      OPCODE_OLD(CODESIZE, op::codesize(ctx));
+      OPCODE_OLD(CODECOPY, op::codecopy(ctx));
+      OPCODE_OLD(GASPRICE, op::gasprice(ctx));
+      OPCODE_OLD(EXTCODESIZE, op::extcodesize(ctx));
+      OPCODE_OLD(EXTCODECOPY, op::extcodecopy(ctx));
+      OPCODE_OLD(RETURNDATASIZE, op::returndatasize(ctx));
+      OPCODE_OLD(RETURNDATACOPY, op::returndatacopy(ctx));
+      OPCODE_OLD(EXTCODEHASH, op::extcodehash(ctx));
+      OPCODE_OLD(BLOCKHASH, op::blockhash(ctx));
+      OPCODE_OLD(COINBASE, op::coinbase(ctx));
+      OPCODE_OLD(TIMESTAMP, op::timestamp(ctx));
+      OPCODE_OLD(NUMBER, op::blocknumber(ctx));
+      OPCODE_OLD(DIFFICULTY, op::prevrandao(ctx));  // intentional
+      OPCODE_OLD(GASLIMIT, op::gaslimit(ctx));
+      OPCODE_OLD(CHAINID, op::chainid(ctx));
+      OPCODE_OLD(SELFBALANCE, op::selfbalance(ctx));
+      OPCODE_OLD(BASEFEE, op::basefee(ctx));
+
+      OPCODE_OLD(POP, op::pop(ctx));
+      OPCODE_OLD(MLOAD, op::mload(ctx));
+      OPCODE_OLD(MSTORE, op::mstore(ctx));
+      OPCODE_OLD(MSTORE8, op::mstore8(ctx));
+      OPCODE_OLD(SLOAD, op::sload(ctx));
+      OPCODE_OLD(SSTORE, op::sstore(ctx));
+
+      OPCODE_NEW(JUMP, op::jump(pc, gas, base, top, ctx));
+      OPCODE_NEW(JUMPI, op::jumpi(pc, gas, base, top, ctx));
+      OPCODE_OLD(PC, op::pc(ctx));
+      OPCODE_OLD(MSIZE, op::msize(ctx));
+      OPCODE_OLD(GAS, op::gas(ctx));
+      OPCODE_NEW(JUMPDEST, op::jumpdest(pc, gas, base, top));
+
+      OPCODE_OLD(PUSH1, op::push<1>(ctx));
+      OPCODE_OLD(PUSH2, op::push<2>(ctx));
+      OPCODE_OLD(PUSH3, op::push<3>(ctx));
+      OPCODE_OLD(PUSH4, op::push<4>(ctx));
+      OPCODE_OLD(PUSH5, op::push<5>(ctx));
+      OPCODE_OLD(PUSH6, op::push<6>(ctx));
+      OPCODE_OLD(PUSH7, op::push<7>(ctx));
+      OPCODE_OLD(PUSH8, op::push<8>(ctx));
+      OPCODE_OLD(PUSH9, op::push<9>(ctx));
+      OPCODE_OLD(PUSH10, op::push<10>(ctx));
+      OPCODE_OLD(PUSH11, op::push<11>(ctx));
+      OPCODE_OLD(PUSH12, op::push<12>(ctx));
+      OPCODE_OLD(PUSH13, op::push<13>(ctx));
+      OPCODE_OLD(PUSH14, op::push<14>(ctx));
+      OPCODE_OLD(PUSH15, op::push<15>(ctx));
+      OPCODE_OLD(PUSH16, op::push<16>(ctx));
+      OPCODE_OLD(PUSH17, op::push<17>(ctx));
+      OPCODE_OLD(PUSH18, op::push<18>(ctx));
+      OPCODE_OLD(PUSH19, op::push<19>(ctx));
+      OPCODE_OLD(PUSH20, op::push<20>(ctx));
+      OPCODE_OLD(PUSH21, op::push<21>(ctx));
+      OPCODE_OLD(PUSH22, op::push<22>(ctx));
+      OPCODE_OLD(PUSH23, op::push<23>(ctx));
+      OPCODE_OLD(PUSH24, op::push<24>(ctx));
+      OPCODE_OLD(PUSH25, op::push<25>(ctx));
+      OPCODE_OLD(PUSH26, op::push<26>(ctx));
+      OPCODE_OLD(PUSH27, op::push<27>(ctx));
+      OPCODE_OLD(PUSH28, op::push<28>(ctx));
+      OPCODE_OLD(PUSH29, op::push<29>(ctx));
+      OPCODE_OLD(PUSH30, op::push<30>(ctx));
+      OPCODE_OLD(PUSH31, op::push<31>(ctx));
+      OPCODE_OLD(PUSH32, op::push<32>(ctx));
+
+      OPCODE_OLD(DUP1, op::dup<1>(ctx));
+      OPCODE_OLD(DUP2, op::dup<2>(ctx));
+      OPCODE_OLD(DUP3, op::dup<3>(ctx));
+      OPCODE_OLD(DUP4, op::dup<4>(ctx));
+      OPCODE_OLD(DUP5, op::dup<5>(ctx));
+      OPCODE_OLD(DUP6, op::dup<6>(ctx));
+      OPCODE_OLD(DUP7, op::dup<7>(ctx));
+      OPCODE_OLD(DUP8, op::dup<8>(ctx));
+      OPCODE_OLD(DUP9, op::dup<9>(ctx));
+      OPCODE_OLD(DUP10, op::dup<10>(ctx));
+      OPCODE_OLD(DUP11, op::dup<11>(ctx));
+      OPCODE_OLD(DUP12, op::dup<12>(ctx));
+      OPCODE_OLD(DUP13, op::dup<13>(ctx));
+      OPCODE_OLD(DUP14, op::dup<14>(ctx));
+      OPCODE_OLD(DUP15, op::dup<15>(ctx));
+      OPCODE_OLD(DUP16, op::dup<16>(ctx));
+
+      OPCODE_OLD(SWAP1, op::swap<1>(ctx));
+      OPCODE_OLD(SWAP2, op::swap<2>(ctx));
+      OPCODE_OLD(SWAP3, op::swap<3>(ctx));
+      OPCODE_OLD(SWAP4, op::swap<4>(ctx));
+      OPCODE_OLD(SWAP5, op::swap<5>(ctx));
+      OPCODE_OLD(SWAP6, op::swap<6>(ctx));
+      OPCODE_OLD(SWAP7, op::swap<7>(ctx));
+      OPCODE_OLD(SWAP8, op::swap<8>(ctx));
+      OPCODE_OLD(SWAP9, op::swap<9>(ctx));
+      OPCODE_OLD(SWAP10, op::swap<10>(ctx));
+      OPCODE_OLD(SWAP11, op::swap<11>(ctx));
+      OPCODE_OLD(SWAP12, op::swap<12>(ctx));
+      OPCODE_OLD(SWAP13, op::swap<13>(ctx));
+      OPCODE_OLD(SWAP14, op::swap<14>(ctx));
+      OPCODE_OLD(SWAP15, op::swap<15>(ctx));
+      OPCODE_OLD(SWAP16, op::swap<16>(ctx));
+
+      OPCODE_OLD(LOG0, op::log<0>(ctx));
+      OPCODE_OLD(LOG1, op::log<1>(ctx));
+      OPCODE_OLD(LOG2, op::log<2>(ctx));
+      OPCODE_OLD(LOG3, op::log<3>(ctx));
+      OPCODE_OLD(LOG4, op::log<4>(ctx));
+
+      OPCODE_OLD(CREATE, op::create_impl<op::CREATE>(ctx));
+      OPCODE_OLD(CREATE2, op::create_impl<op::CREATE2>(ctx));
+
+      OPCODE_OLD(RETURN, op::return_op<RunState::kReturn>(ctx));
+      OPCODE_OLD(REVERT, op::return_op<RunState::kRevert>(ctx));
+
+      OPCODE_OLD(CALL, op::call_impl<op::CALL>(ctx));
+      OPCODE_OLD(CALLCODE, op::call_impl<op::CALLCODE>(ctx));
+      OPCODE_OLD(DELEGATECALL, op::call_impl<op::DELEGATECALL>(ctx));
+      OPCODE_OLD(STATICCALL, op::call_impl<op::STATICCALL>(ctx));
+
+      OPCODE_OLD(INVALID, op::invalid(ctx));
+      OPCODE_OLD(SELFDESTRUCT, op::selfdestruct(ctx));
 
       default:
-        ctx.state = RunState::kErrorOpcode;
-
-        // clang-format on
+        state = RunState::kErrorOpcode;
     }
   }
 
-  if (!IsSuccess(ctx.state)) {
-    ctx.gas = 0;
+  if (!IsSuccess(state)) {
+    gas = 0;
   }
 
   // Keep return data only when we are supposed to return something.
-  if (ctx.state != RunState::kReturn && ctx.state != RunState::kRevert) {
+  if (state != RunState::kReturn && state != RunState::kRevert) {
     ctx.return_data.clear();
   }
+
+  ctx.state = state;
+  ctx.gas = gas;
 
 #undef PROFILE_START
 #undef PROFILE_END
