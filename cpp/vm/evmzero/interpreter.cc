@@ -102,28 +102,30 @@ namespace op {
 using internal::Context;
 using internal::kMaxGas;
 
-struct OpResult {
+struct Subcontext {
   RunState state = RunState::kRunning;
   uint32_t pc = 0;
-  int64_t gas_left = 0;
-  uint256_t* stack_top = 0;
+  int64_t gas = 0;
+  uint256_t* stack_base = nullptr;
+  uint256_t* stack_top = nullptr;
 };
 
 static void stop(Context& ctx) noexcept { ctx.state = RunState::kDone; }
 
-static OpResult add(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
-  if (stack_base - stack_top < 2) [[unlikely]]
-    return {.state = RunState::kErrorStackUnderflow};
-  if (gas -= 3; gas < 0) [[unlikely]]
-    return {.state = RunState::kErrorGas};
+static void add(Subcontext& c) noexcept {
+  if (c.stack_base - c.stack_top < 2) [[unlikely]] {
+    c.state = RunState::kErrorStackUnderflow;
+    return;
+  }
+  if (c.gas -= 3; c.gas < 0) [[unlikely]] {
+    c.state = RunState::kErrorGas;
+    return;
+  }
 
-  stack_top[1] += stack_top[0];
+  c.stack_top[1] += c.stack_top[0];
 
-  return {
-      .pc = pc + 1,
-      .gas_left = gas,
-      .stack_top = stack_top + 1,
-  };
+  c.stack_top += 1;
+  c.pc++;
 }
 
 static void mul(Context& ctx) noexcept {
@@ -137,19 +139,20 @@ static void mul(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-static OpResult sub(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
-  if (stack_base - stack_top < 2) [[unlikely]]
-    return {.state = RunState::kErrorStackUnderflow};
-  if (gas -= 3; gas < 0) [[unlikely]]
-    return {.state = RunState::kErrorGas};
+static void sub(Subcontext& c) noexcept {
+  if (c.stack_base - c.stack_top < 2) [[unlikely]] {
+    c.state = RunState::kErrorStackUnderflow;
+    return;
+  }
+  if (c.gas -= 3; c.gas < 0) [[unlikely]] {
+    c.state = RunState::kErrorGas;
+    return;
+  }
 
-  stack_top[1] = stack_top[0] - stack_top[1];
+  c.stack_top[1] = c.stack_top[0] - c.stack_top[1];
 
-  return {
-      .pc = pc + 1,
-      .gas_left = gas,
-      .stack_top = stack_top + 1,
-  };
+  c.stack_top += 1;
+  c.pc++;
 }
 
 static void div(Context& ctx) noexcept {
@@ -276,49 +279,52 @@ static void signextend(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-static OpResult lt(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
-  if (stack_base - stack_top < 2) [[unlikely]]
-    return {.state = RunState::kErrorStackUnderflow};
-  if (gas -= 3; gas < 0) [[unlikely]]
-    return {.state = RunState::kErrorGas};
+static void lt(Subcontext& c) noexcept {
+  if (c.stack_base - c.stack_top < 2) [[unlikely]] {
+    c.state = RunState::kErrorStackUnderflow;
+    return;
+  }
+  if (c.gas -= 3; c.gas < 0) [[unlikely]] {
+    c.state = RunState::kErrorGas;
+    return;
+  }
 
-  stack_top[1] = stack_top[0] < stack_top[1] ? 1 : 0;
+  c.stack_top[1] = c.stack_top[0] < c.stack_top[1] ? 1 : 0;
 
-  return {
-      .pc = pc + 1,
-      .gas_left = gas,
-      .stack_top = stack_top + 1,
-  };
+  c.stack_top += 1;
+  c.pc++;
 }
 
-static OpResult gt(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
-  if (stack_base - stack_top < 2) [[unlikely]]
-    return {.state = RunState::kErrorStackUnderflow};
-  if (gas -= 3; gas < 0) [[unlikely]]
-    return {.state = RunState::kErrorGas};
+static void gt(Subcontext& c) noexcept {
+  if (c.stack_base - c.stack_top < 2) [[unlikely]] {
+    c.state = RunState::kErrorStackUnderflow;
+    return;
+  }
+  if (c.gas -= 3; c.gas < 0) [[unlikely]] {
+    c.state = RunState::kErrorGas;
+    return;
+  }
 
-  stack_top[1] = stack_top[0] > stack_top[1] ? 1 : 0;
+  c.stack_top[1] = c.stack_top[0] > c.stack_top[1] ? 1 : 0;
 
-  return {
-      .pc = pc + 1,
-      .gas_left = gas,
-      .stack_top = stack_top + 1,
-  };
+  c.stack_top += 1;
+  c.pc++;
 }
 
-static OpResult slt(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
-  if (stack_base - stack_top < 2) [[unlikely]]
-    return {.state = RunState::kErrorStackUnderflow};
-  if (gas -= 3; gas < 0) [[unlikely]]
-    return {.state = RunState::kErrorGas};
+static void slt(Subcontext& c) noexcept {
+  if (c.stack_base - c.stack_top < 2) [[unlikely]] {
+    c.state = RunState::kErrorStackUnderflow;
+    return;
+  }
+  if (c.gas -= 3; c.gas < 0) [[unlikely]] {
+    c.state = RunState::kErrorGas;
+    return;
+  }
 
-  stack_top[1] = intx::slt(stack_top[0], stack_top[1]) ? 1 : 0;
+  c.stack_top[1] = intx::slt(c.stack_top[0], c.stack_top[1]) ? 1 : 0;
 
-  return {
-      .pc = pc + 1,
-      .gas_left = gas,
-      .stack_top = stack_top + 1,
-  };
+  c.stack_top += 1;
+  c.pc++;
 }
 
 static void sgt(Context& ctx) noexcept {
@@ -332,49 +338,51 @@ static void sgt(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-static OpResult eq(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
-  if (stack_base - stack_top < 2) [[unlikely]]
-    return {.state = RunState::kErrorStackUnderflow};
-  if (gas -= 3; gas < 0) [[unlikely]]
-    return {.state = RunState::kErrorGas};
+static void eq(Subcontext& c) noexcept {
+  if (c.stack_base - c.stack_top < 2) [[unlikely]] {
+    c.state = RunState::kErrorStackUnderflow;
+    return;
+  }
+  if (c.gas -= 3; c.gas < 0) [[unlikely]] {
+    c.state = RunState::kErrorGas;
+    return;
+  }
 
-  stack_top[1] = stack_top[0] == stack_top[1] ? 1 : 0;
+  c.stack_top[1] = c.stack_top[0] == c.stack_top[1] ? 1 : 0;
 
-  return {
-      .pc = pc + 1,
-      .gas_left = gas,
-      .stack_top = stack_top + 1,
-  };
+  c.stack_top += 1;
+  c.pc++;
 }
 
-static OpResult iszero(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
-  if (stack_base - stack_top < 1) [[unlikely]]
-    return {.state = RunState::kErrorStackUnderflow};
-  if (gas -= 3; gas < 0) [[unlikely]]
-    return {.state = RunState::kErrorGas};
+static void iszero(Subcontext& c) noexcept {
+  if (c.stack_base - c.stack_top < 1) [[unlikely]] {
+    c.state = RunState::kErrorStackUnderflow;
+    return;
+  }
+  if (c.gas -= 3; c.gas < 0) [[unlikely]] {
+    c.state = RunState::kErrorGas;
+    return;
+  }
 
-  stack_top[0] = stack_top[0] == 0;
+  c.stack_top[0] = c.stack_top[0] == 0;
 
-  return {
-      .pc = pc + 1,
-      .gas_left = gas,
-      .stack_top = stack_top,
-  };
+  c.pc++;
 }
 
-static OpResult bit_and(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
-  if (stack_base - stack_top < 2) [[unlikely]]
-    return {.state = RunState::kErrorStackUnderflow};
-  if (gas -= 3; gas < 0) [[unlikely]]
-    return {.state = RunState::kErrorGas};
+static void bit_and(Subcontext& c) noexcept {
+  if (c.stack_base - c.stack_top < 2) [[unlikely]] {
+    c.state = RunState::kErrorStackUnderflow;
+    return;
+  }
+  if (c.gas -= 3; c.gas < 0) [[unlikely]] {
+    c.state = RunState::kErrorGas;
+    return;
+  }
 
-  stack_top[1] = stack_top[0] & stack_top[1];
+  c.stack_top[1] = c.stack_top[0] & c.stack_top[1];
 
-  return {
-      .pc = pc + 1,
-      .gas_left = gas,
-      .stack_top = stack_top + 1,
-  };
+  c.stack_top += 1;
+  c.pc++;
 }
 
 static void bit_or(Context& ctx) noexcept {
@@ -436,19 +444,20 @@ static void shl(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-static OpResult shr(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top) noexcept {
-  if (stack_base - stack_top < 2) [[unlikely]]
-    return {.state = RunState::kErrorStackUnderflow};
-  if (gas -= 3; gas < 0) [[unlikely]]
-    return {.state = RunState::kErrorGas};
+static void shr(Subcontext& c) noexcept {
+  if (c.stack_base - c.stack_top < 2) [[unlikely]] {
+    c.state = RunState::kErrorStackUnderflow;
+    return;
+  }
+  if (c.gas -= 3; c.gas < 0) [[unlikely]] {
+    c.state = RunState::kErrorGas;
+    return;
+  }
 
-  stack_top[1] >>= stack_top[0];
+  c.stack_top[1] >>= c.stack_top[0];
 
-  return {
-      .pc = pc + 1,
-      .gas_left = gas,
-      .stack_top = stack_top + 1,
-  };
+  c.stack_top += 1;
+  c.pc++;
 }
 
 static void sar(Context& ctx) noexcept {
@@ -1044,44 +1053,46 @@ static void sstore(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-static OpResult jump(uint32_t, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top, Context& ctx) noexcept {
-  if (stack_base - stack_top < 1) [[unlikely]]
-    return {.state = RunState::kErrorStackUnderflow};
-  if (gas -= 8; gas < 0) [[unlikely]]
-    return {.state = RunState::kErrorGas};
+static void jump(Subcontext& c, Context& ctx) noexcept {
+  if (c.stack_base - c.stack_top < 1) [[unlikely]] {
+    c.state = RunState::kErrorStackUnderflow;
+    return;
+  }
+  if (c.gas -= 8; c.gas < 0) [[unlikely]] {
+    c.state = RunState::kErrorGas;
+    return;
+  }
 
-  if (!ctx.CheckJumpDest(stack_top[0])) [[unlikely]]
-    return {.state = ctx.state};
+  if (!ctx.CheckJumpDest(c.stack_top[0])) [[unlikely]] {
+    c.state = RunState::kErrorJump;
+    return;
+  }
 
-  return {
-      .pc = static_cast<uint32_t>(stack_top[0]),
-      .gas_left = gas,
-      .stack_top = stack_top + 1,
-  };
+  c.pc = static_cast<uint32_t>(c.stack_top[0]);
+  c.stack_top += 1;
 }
 
-static OpResult jumpi(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint256_t* stack_top,
-                      Context& ctx) noexcept {
-  if (stack_base - stack_top < 2) [[unlikely]]
-    return {.state = RunState::kErrorStackUnderflow};
-  if (gas -= 10; gas < 0) [[unlikely]]
-    return {.state = RunState::kErrorGas};
-
-  if (stack_top[1] != 0) {
-    if (!ctx.CheckJumpDest(stack_top[0])) [[unlikely]]
-      return {.state = ctx.state};
-    return {
-        .pc = static_cast<uint32_t>(stack_top[0]),
-        .gas_left = gas,
-        .stack_top = stack_top + 2,
-    };
-  } else {
-    return {
-        .pc = pc + 1,
-        .gas_left = gas,
-        .stack_top = stack_top + 2,
-    };
+static void jumpi(Subcontext& c, Context& ctx) noexcept {
+  if (c.stack_base - c.stack_top < 2) [[unlikely]] {
+    c.state = RunState::kErrorStackUnderflow;
+    return;
   }
+  if (c.gas -= 10; c.gas < 0) [[unlikely]] {
+    c.state = RunState::kErrorGas;
+    return;
+  }
+
+  if (c.stack_top[1] != 0) {
+    if (!ctx.CheckJumpDest(c.stack_top[0])) [[unlikely]] {
+      c.state = RunState::kErrorJump;
+      return;
+    }
+    c.pc = static_cast<uint32_t>(c.stack_top[0]);
+  } else {
+    c.pc++;
+  }
+
+  c.stack_top += 2;
 }
 
 static void pc(Context& ctx) noexcept {
@@ -1111,15 +1122,12 @@ static void gas(Context& ctx) noexcept {
   ctx.pc++;
 }
 
-static OpResult jumpdest(uint32_t pc, int64_t gas, const uint256_t*, uint256_t* stack_top) noexcept {
-  if (gas -= 1; gas < 0) [[unlikely]]
-    return {.state = RunState::kErrorGas};
-
-  return {
-      .pc = pc + 1,
-      .gas_left = gas,
-      .stack_top = stack_top,
-  };
+static void jumpdest(Subcontext& c) noexcept {
+  if (c.gas -= 1; c.gas < 0) [[unlikely]] {
+    c.state = RunState::kErrorGas;
+    return;
+  }
+  c.pc++;
 }
 
 template <uint64_t N>
@@ -1557,47 +1565,49 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
 
 template <bool LoggingEnabled, bool ProfilingEnabled>
 void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
-#define OPCODE_OLD(opcode, impl) \
-  case op::opcode: {             \
-    ctx.state = state;           \
-    ctx.pc = pc;                 \
-    ctx.gas = gas;               \
-    ctx.stack.top_ = top;        \
-                                 \
-    impl;                        \
-                                 \
-    state = ctx.state;           \
-    pc = ctx.pc;                 \
-    gas = ctx.gas;               \
-    top = ctx.stack.top_;        \
-    break;                       \
+#define OPCODE_OLD(opcode, impl)  \
+  case op::opcode: {              \
+    ctx.state = c.state;          \
+    ctx.pc = c.pc;                \
+    ctx.gas = c.gas;              \
+    ctx.stack.top_ = c.stack_top; \
+                                  \
+    impl;                         \
+                                  \
+    c.state = ctx.state;          \
+    c.pc = ctx.pc;                \
+    c.gas = ctx.gas;              \
+    c.stack_top = ctx.stack.top_; \
+    break;                        \
   }
 
 #define OPCODE_NEW(opcode, impl) \
-  case op::opcode: {             \
-    op::OpResult result = impl;  \
-    state = result.state;        \
-    pc = result.pc;              \
-    gas = result.gas_left;       \
-    top = result.stack_top;      \
-    break;                       \
-  }
+  case op::opcode:               \
+    impl;                        \
+    break;
 
-  RunState state = RunState::kRunning;
-  uint32_t pc = 0;
-  int64_t gas = ctx.gas;
-  uint256_t* base = ctx.stack.end_;
-  uint256_t* top = ctx.stack.top_;
+  // RunState state = RunState::kRunning;
+  // uint32_t pc = 0;
+  // int64_t gas = ctx.gas;
+  // uint256_t* base = ctx.stack.end_;
+  // uint256_t* top = ctx.stack.top_;
 
-  while (state == RunState::kRunning) {
-    switch (ctx.padded_code[pc]) {
+  op::Subcontext c{
+      .state = RunState::kRunning,
+      .gas = ctx.gas,
+      .stack_base = ctx.stack.end_,
+      .stack_top = ctx.stack.top_,
+  };
+
+  while (c.state == RunState::kRunning) {
+    switch (ctx.padded_code[c.pc]) {
       OPCODE_OLD(STOP, op::stop(ctx));
 
-      OPCODE_NEW(ADD, op::add(pc, gas, base, top));
+      OPCODE_NEW(ADD, op::add(c));
 
       OPCODE_OLD(MUL, op::mul(ctx));
 
-      OPCODE_NEW(SUB, op::sub(pc, gas, base, top));
+      OPCODE_NEW(SUB, op::sub(c));
 
       OPCODE_OLD(DIV, op::div(ctx));
       OPCODE_OLD(SDIV, op::sdiv(ctx));
@@ -1608,15 +1618,15 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
       OPCODE_OLD(EXP, op::exp(ctx));
       OPCODE_OLD(SIGNEXTEND, op::signextend(ctx));
 
-      OPCODE_NEW(LT, op::lt(pc, gas, base, top));
-      OPCODE_NEW(GT, op::gt(pc, gas, base, top));
-      OPCODE_NEW(SLT, op::slt(pc, gas, base, top));
+      OPCODE_NEW(LT, op::lt(c));
+      OPCODE_NEW(GT, op::gt(c));
+      OPCODE_NEW(SLT, op::slt(c));
 
       OPCODE_OLD(SGT, op::sgt(ctx));
 
-      OPCODE_NEW(EQ, op::eq(pc, gas, base, top));
-      OPCODE_NEW(ISZERO, op::iszero(pc, gas, base, top));
-      OPCODE_NEW(AND, op::bit_and(pc, gas, base, top));
+      OPCODE_NEW(EQ, op::eq(c));
+      OPCODE_NEW(ISZERO, op::iszero(c));
+      OPCODE_NEW(AND, op::bit_and(c));
 
       OPCODE_OLD(OR, op::bit_or(ctx));
       OPCODE_OLD(XOR, op::bit_xor(ctx));
@@ -1624,7 +1634,7 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
       OPCODE_OLD(BYTE, op::byte(ctx));
       OPCODE_OLD(SHL, op::shl(ctx));
 
-      OPCODE_NEW(SHR, op::shr(pc, gas, base, top));
+      OPCODE_NEW(SHR, op::shr(c));
 
       OPCODE_OLD(SAR, op::sar(ctx));
       OPCODE_OLD(SHA3, op::sha3(ctx));
@@ -1661,12 +1671,12 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
       OPCODE_OLD(SLOAD, op::sload(ctx));
       OPCODE_OLD(SSTORE, op::sstore(ctx));
 
-      OPCODE_NEW(JUMP, op::jump(pc, gas, base, top, ctx));
-      OPCODE_NEW(JUMPI, op::jumpi(pc, gas, base, top, ctx));
+      OPCODE_NEW(JUMP, op::jump(c, ctx));
+      OPCODE_NEW(JUMPI, op::jumpi(c, ctx));
       OPCODE_OLD(PC, op::pc(ctx));
       OPCODE_OLD(MSIZE, op::msize(ctx));
       OPCODE_OLD(GAS, op::gas(ctx));
-      OPCODE_NEW(JUMPDEST, op::jumpdest(pc, gas, base, top));
+      OPCODE_NEW(JUMPDEST, op::jumpdest(c));
 
       OPCODE_OLD(PUSH1, op::push<1>(ctx));
       OPCODE_OLD(PUSH2, op::push<2>(ctx));
@@ -1756,21 +1766,21 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
       OPCODE_OLD(SELFDESTRUCT, op::selfdestruct(ctx));
 
       default:
-        state = RunState::kErrorOpcode;
+        c.state = RunState::kErrorOpcode;
     }
   }
 
-  if (!IsSuccess(state)) {
-    gas = 0;
+  if (!IsSuccess(c.state)) {
+    c.gas = 0;
   }
 
   // Keep return data only when we are supposed to return something.
-  if (state != RunState::kReturn && state != RunState::kRevert) {
+  if (c.state != RunState::kReturn && c.state != RunState::kRevert) {
     ctx.return_data.clear();
   }
 
-  ctx.state = state;
-  ctx.gas = gas;
+  ctx.state = c.state;
+  ctx.gas = c.gas;
 
 #undef PROFILE_START
 #undef PROFILE_END
