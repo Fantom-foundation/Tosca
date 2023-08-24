@@ -25,6 +25,10 @@ class Stack {
   uint64_t GetSize() const { return uint64_t(end_ - top_); }
   uint64_t GetMaxSize() const { return kStackSize; }
 
+  const uint256_t* GetBase() const { return end_; }
+  uint256_t* GetTop() { return top_; }
+  void SetTop(uint256_t* top) { top_ = top; }
+
   void Push(const uint256_t& value) {
     TOSCA_ASSERT(GetSize() < kStackSize);
     *(--top_) = value;
@@ -33,20 +37,6 @@ class Stack {
   uint256_t Pop() {
     TOSCA_ASSERT(GetSize() > 0);
     return *(top_++);
-  }
-
-  template <size_t N>
-  void Swap() {
-    TOSCA_ASSERT(N < GetSize());
-    auto tmp = top_[N];
-    top_[N] = top_[0];
-    top_[0] = tmp;
-  }
-
-  template <size_t N>
-  void Dup() {
-    TOSCA_ASSERT(N - 1 < GetSize());
-    Push(top_[N - 1]);
   }
 
   Stack& operator=(const Stack&);
@@ -62,7 +52,7 @@ class Stack {
   friend bool operator==(const Stack&, const Stack&);
   friend bool operator!=(const Stack&, const Stack&);
 
-  // TODO private:
+ private:
   static constexpr size_t kStackSize = 1024;
 
   // The type retaining the actual storage for the stack.

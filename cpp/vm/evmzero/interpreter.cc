@@ -1741,10 +1741,12 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
 template <bool LoggingEnabled, bool ProfilingEnabled>
 void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
   RunState state = RunState::kRunning;
+
   uint32_t pc = 0;
   int64_t gas = ctx.gas;
-  uint256_t* base = ctx.stack.end_;
-  uint256_t* top = ctx.stack.top_;
+
+  const uint256_t* base = ctx.stack.GetBase();
+  uint256_t* top = ctx.stack.GetTop();
 
   while (state == RunState::kRunning) {
     switch (ctx.padded_code[pc]) {
@@ -1937,8 +1939,9 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
   }
 
   ctx.state = state;
-  ctx.stack.top_ = top;
+  ctx.pc = pc;
   ctx.gas = gas;
+  ctx.stack.SetTop(top);
 }
 
 template void RunInterpreter<false, false>(Context&, Profiler<false>&);
