@@ -1476,8 +1476,6 @@ static OpResult create_impl(uint32_t pc, int64_t gas, const uint256_t* stack_bas
   CHECK_STACK_AVAILABLE(stack_base - stack_top, (Op == op::CREATE2) ? 4 : 3);
   APPLY_GAS_COST(gas, 32000);
 
-  // TODO Refactor using dedicated stack pop.
-
   const auto endowment = stack_top[0];
   const uint256_t init_code_offset_u256 = stack_top[1];
   const uint256_t init_code_size_u256 = stack_top[2];
@@ -1545,21 +1543,44 @@ static OpResult call_impl(uint32_t pc, int64_t gas, const uint256_t* stack_base,
     return {.state = RunState::kErrorCall};
   }
 
-  CHECK_STACK_AVAILABLE(stack_base - stack_top, (Op == op::STATICCALL || Op == op::DELEGATECALL) ? 6 : 7);
+  uint256_t call_gas_u256;
+  evmc::address account;
+  uint256_t value;
+  uint256_t input_offset_u256;
+  uint256_t input_size_u256;
+  uint256_t output_offset_u256;
+  uint256_t output_size_u256;
 
-  // TODO Refactor using dedicated stack pop.
-  ctx.stack.top_ = stack_top;
+  if constexpr (Op == op::STATICCALL || Op == op::DELEGATECALL) {
+    CHECK_STACK_AVAILABLE(stack_base - stack_top, 6);
 
-  const uint256_t call_gas_u256 = ctx.stack.Pop();
-  const auto account = ToEvmcAddress(ctx.stack.Pop());
-  const auto value = (Op == op::STATICCALL || Op == op::DELEGATECALL) ? 0 : ctx.stack.Pop();
+    call_gas_u256 = stack_top[0];
+    account = ToEvmcAddress(stack_top[1]);
+    value = 0;
+    input_offset_u256 = stack_top[2];
+    input_size_u256 = stack_top[3];
+    output_offset_u256 = stack_top[4];
+    output_size_u256 = stack_top[5];
+
+    // Set up stack pointer for result value.
+    stack_top += 5;
+
+  } else {
+    CHECK_STACK_AVAILABLE(stack_base - stack_top, 7);
+
+    call_gas_u256 = stack_top[0];
+    account = ToEvmcAddress(stack_top[1]);
+    value = stack_top[2];
+    input_offset_u256 = stack_top[3];
+    input_size_u256 = stack_top[4];
+    output_offset_u256 = stack_top[5];
+    output_size_u256 = stack_top[6];
+
+    // Set up stack pointer for result value.
+    stack_top += 6;
+  }
+
   const bool has_value = value != 0;
-  const uint256_t input_offset_u256 = ctx.stack.Pop();
-  const uint256_t input_size_u256 = ctx.stack.Pop();
-  const uint256_t output_offset_u256 = ctx.stack.Pop();
-  const uint256_t output_size_u256 = ctx.stack.Pop();
-
-  stack_top = ctx.stack.top_;
 
   const auto [input_mem_cost, input_offset, input_size] = ctx.MemoryExpansionCost(input_offset_u256, input_size_u256);
   const auto [output_mem_cost, output_offset, output_size] =
@@ -1626,11 +1647,11 @@ static OpResult call_impl(uint32_t pc, int64_t gas, const uint256_t* stack_base,
   }
 
   if (has_value && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < value) {
-    stack_top[-1] = 0;
+    stack_top[0] = 0;
     return {
         .pc = pc + 1,
         .gas_left = gas,
-        .stack_top = stack_top - 1,
+        .stack_top = stack_top,
     };
   }
 
@@ -1646,12 +1667,12 @@ static OpResult call_impl(uint32_t pc, int64_t gas, const uint256_t* stack_base,
 
   ctx.gas_refunds += result.gas_refund;
 
-  stack_top[-1] = result.status_code == EVMC_SUCCESS;
+  stack_top[0] = result.status_code == EVMC_SUCCESS;
 
   return {
       .pc = pc + 1,
       .gas_left = gas,
-      .stack_top = stack_top - 1,
+      .stack_top = stack_top,
   };
 }
 
