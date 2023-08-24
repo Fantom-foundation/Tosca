@@ -1739,7 +1739,9 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
 }
 
 template <bool LoggingEnabled, bool ProfilingEnabled>
-void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
+void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
+  EVMZERO_PROFILE_ZONE();
+
   RunState state = RunState::kRunning;
 
   uint32_t pc = 0;
@@ -1749,15 +1751,32 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
   uint256_t* top = ctx.stack.GetTop();
 
   while (state == RunState::kRunning) {
+    if constexpr (LoggingEnabled) {
+      // log format: <op>, <gas>, <top-of-stack>\n
+      std::cout << ToString(static_cast<op::OpCodes>(ctx.padded_code[ctx.pc])) << ", "  //
+                << ctx.gas << ", ";
+      if (ctx.stack.GetSize() == 0) {
+        std::cout << "-empty-";
+      } else {
+        std::cout << ctx.stack[0];
+      }
+      std::cout << "\n" << std::flush;
+    }
+
     switch (ctx.padded_code[pc]) {
-#define OPCODE(opcode, impl)    \
-  case op::opcode: {            \
-    op::OpResult result = impl; \
-    state = result.state;       \
-    pc = result.pc;             \
-    gas = result.gas_left;      \
-    top = result.stack_top;     \
-    break;                      \
+#define PROFILE_START(marker) profiler.template Start<Marker::marker>()
+#define PROFILE_END(marker) profiler.template End<Marker::marker>()
+#define OPCODE(opcode, impl)         \
+  case op::opcode: {                 \
+    EVMZERO_PROFILE_ZONE_N(#opcode); \
+    PROFILE_START(opcode);           \
+    op::OpResult result = impl;      \
+    PROFILE_END(opcode);             \
+    state = result.state;            \
+    pc = result.pc;                  \
+    gas = result.gas_left;           \
+    top = result.stack_top;          \
+    break;                           \
   }
 
       OPCODE(STOP, op::stop(pc, gas, top));
