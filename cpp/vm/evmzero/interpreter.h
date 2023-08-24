@@ -66,7 +66,7 @@ struct Context {
   RunState state = RunState::kRunning;
   bool is_static_call = false;
 
-  uint32_t pc = 0;
+  uint32_t pc = 0;  // unused
   int64_t gas = kMaxGas;
   int64_t gas_refunds = 0;
 

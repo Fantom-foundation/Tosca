@@ -1939,7 +1939,6 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
   }
 
   ctx.state = state;
-  ctx.pc = pc;
   ctx.gas = gas;
   ctx.stack.SetTop(top);
 }
