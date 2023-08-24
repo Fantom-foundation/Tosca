@@ -62,7 +62,7 @@ class Stack {
   friend bool operator==(const Stack&, const Stack&);
   friend bool operator!=(const Stack&, const Stack&);
 
-//  private:
+  // TODO private:
   static constexpr size_t kStackSize = 1024;
 
   // The type retaining the actual storage for the stack.

@@ -1771,30 +1771,14 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
 
 template <bool LoggingEnabled, bool ProfilingEnabled>
 void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
-#define OPCODE_OLD(opcode, impl) \
-  case op::opcode: {             \
-    ctx.state = state;           \
-    ctx.pc = pc;                 \
-    ctx.gas = gas;               \
-    ctx.stack.top_ = top;        \
-                                 \
-    impl;                        \
-                                 \
-    state = ctx.state;           \
-    pc = ctx.pc;                 \
-    gas = ctx.gas;               \
-    top = ctx.stack.top_;        \
-    break;                       \
-  }
-
-#define OPCODE_NEW(opcode, impl) \
-  case op::opcode: {             \
-    op::OpResult result = impl;  \
-    state = result.state;        \
-    pc = result.pc;              \
-    gas = result.gas_left;       \
-    top = result.stack_top;      \
-    break;                       \
+#define OPCODE(opcode, impl)    \
+  case op::opcode: {            \
+    op::OpResult result = impl; \
+    state = result.state;       \
+    pc = result.pc;             \
+    gas = result.gas_left;      \
+    top = result.stack_top;     \
+    break;                      \
   }
 
   RunState state = RunState::kRunning;
@@ -1805,165 +1789,165 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
 
   while (state == RunState::kRunning) {
     switch (ctx.padded_code[pc]) {
-      OPCODE_NEW(STOP, op::stop(pc, gas, top));
+      OPCODE(STOP, op::stop(pc, gas, top));
 
-      OPCODE_NEW(ADD, op::add(pc, gas, base, top));
-      OPCODE_NEW(MUL, op::mul(pc, gas, base, top));
-      OPCODE_NEW(SUB, op::sub(pc, gas, base, top));
-      OPCODE_NEW(DIV, op::div(pc, gas, base, top));
-      OPCODE_NEW(SDIV, op::sdiv(pc, gas, base, top));
-      OPCODE_NEW(MOD, op::mod(pc, gas, base, top));
-      OPCODE_NEW(SMOD, op::smod(pc, gas, base, top));
-      OPCODE_NEW(ADDMOD, op::addmod(pc, gas, base, top));
-      OPCODE_NEW(MULMOD, op::mulmod(pc, gas, base, top));
-      OPCODE_NEW(EXP, op::exp(pc, gas, base, top));
-      OPCODE_NEW(SIGNEXTEND, op::signextend(pc, gas, base, top));
-      OPCODE_NEW(LT, op::lt(pc, gas, base, top));
-      OPCODE_NEW(GT, op::gt(pc, gas, base, top));
-      OPCODE_NEW(SLT, op::slt(pc, gas, base, top));
-      OPCODE_NEW(SGT, op::sgt(pc, gas, base, top));
-      OPCODE_NEW(EQ, op::eq(pc, gas, base, top));
-      OPCODE_NEW(ISZERO, op::iszero(pc, gas, base, top));
-      OPCODE_NEW(AND, op::bit_and(pc, gas, base, top));
-      OPCODE_NEW(OR, op::bit_or(pc, gas, base, top));
-      OPCODE_NEW(XOR, op::bit_xor(pc, gas, base, top));
-      OPCODE_NEW(NOT, op::bit_not(pc, gas, base, top));
-      OPCODE_NEW(BYTE, op::byte(pc, gas, base, top));
-      OPCODE_NEW(SHL, op::shl(pc, gas, base, top));
-      OPCODE_NEW(SHR, op::shr(pc, gas, base, top));
-      OPCODE_NEW(SAR, op::sar(pc, gas, base, top));
-      OPCODE_NEW(SHA3, op::sha3(pc, gas, base, top, ctx));
+      OPCODE(ADD, op::add(pc, gas, base, top));
+      OPCODE(MUL, op::mul(pc, gas, base, top));
+      OPCODE(SUB, op::sub(pc, gas, base, top));
+      OPCODE(DIV, op::div(pc, gas, base, top));
+      OPCODE(SDIV, op::sdiv(pc, gas, base, top));
+      OPCODE(MOD, op::mod(pc, gas, base, top));
+      OPCODE(SMOD, op::smod(pc, gas, base, top));
+      OPCODE(ADDMOD, op::addmod(pc, gas, base, top));
+      OPCODE(MULMOD, op::mulmod(pc, gas, base, top));
+      OPCODE(EXP, op::exp(pc, gas, base, top));
+      OPCODE(SIGNEXTEND, op::signextend(pc, gas, base, top));
+      OPCODE(LT, op::lt(pc, gas, base, top));
+      OPCODE(GT, op::gt(pc, gas, base, top));
+      OPCODE(SLT, op::slt(pc, gas, base, top));
+      OPCODE(SGT, op::sgt(pc, gas, base, top));
+      OPCODE(EQ, op::eq(pc, gas, base, top));
+      OPCODE(ISZERO, op::iszero(pc, gas, base, top));
+      OPCODE(AND, op::bit_and(pc, gas, base, top));
+      OPCODE(OR, op::bit_or(pc, gas, base, top));
+      OPCODE(XOR, op::bit_xor(pc, gas, base, top));
+      OPCODE(NOT, op::bit_not(pc, gas, base, top));
+      OPCODE(BYTE, op::byte(pc, gas, base, top));
+      OPCODE(SHL, op::shl(pc, gas, base, top));
+      OPCODE(SHR, op::shr(pc, gas, base, top));
+      OPCODE(SAR, op::sar(pc, gas, base, top));
+      OPCODE(SHA3, op::sha3(pc, gas, base, top, ctx));
 
-      OPCODE_NEW(ADDRESS, op::address(pc, gas, base, top, ctx));
-      OPCODE_NEW(BALANCE, op::balance(pc, gas, base, top, ctx));
-      OPCODE_NEW(ORIGIN, op::origin(pc, gas, base, top, ctx));
-      OPCODE_NEW(CALLER, op::caller(pc, gas, base, top, ctx));
-      OPCODE_NEW(CALLVALUE, op::callvalue(pc, gas, base, top, ctx));
-      OPCODE_NEW(CALLDATALOAD, op::calldataload(pc, gas, base, top, ctx));
-      OPCODE_NEW(CALLDATASIZE, op::calldatasize(pc, gas, base, top, ctx));
-      OPCODE_NEW(CALLDATACOPY, op::calldatacopy(pc, gas, base, top, ctx));
-      OPCODE_NEW(CODESIZE, op::codesize(pc, gas, base, top, ctx));
-      OPCODE_NEW(CODECOPY, op::codecopy(pc, gas, base, top, ctx));
-      OPCODE_NEW(GASPRICE, op::gasprice(pc, gas, base, top, ctx));
-      OPCODE_NEW(EXTCODESIZE, op::extcodesize(pc, gas, base, top, ctx));
-      OPCODE_NEW(EXTCODECOPY, op::extcodecopy(pc, gas, base, top, ctx));
-      OPCODE_NEW(RETURNDATASIZE, op::returndatasize(pc, gas, base, top, ctx));
-      OPCODE_NEW(RETURNDATACOPY, op::returndatacopy(pc, gas, base, top, ctx));
-      OPCODE_NEW(EXTCODEHASH, op::extcodehash(pc, gas, base, top, ctx));
-      OPCODE_NEW(BLOCKHASH, op::blockhash(pc, gas, base, top, ctx));
-      OPCODE_NEW(COINBASE, op::coinbase(pc, gas, base, top, ctx));
-      OPCODE_NEW(TIMESTAMP, op::timestamp(pc, gas, base, top, ctx));
-      OPCODE_NEW(NUMBER, op::blocknumber(pc, gas, base, top, ctx));
-      OPCODE_NEW(DIFFICULTY, op::prevrandao(pc, gas, base, top, ctx));  // intentional
-      OPCODE_NEW(GASLIMIT, op::gaslimit(pc, gas, base, top, ctx));
-      OPCODE_NEW(CHAINID, op::chainid(pc, gas, base, top, ctx));
-      OPCODE_NEW(SELFBALANCE, op::selfbalance(pc, gas, base, top, ctx));
-      OPCODE_NEW(BASEFEE, op::basefee(pc, gas, base, top, ctx));
+      OPCODE(ADDRESS, op::address(pc, gas, base, top, ctx));
+      OPCODE(BALANCE, op::balance(pc, gas, base, top, ctx));
+      OPCODE(ORIGIN, op::origin(pc, gas, base, top, ctx));
+      OPCODE(CALLER, op::caller(pc, gas, base, top, ctx));
+      OPCODE(CALLVALUE, op::callvalue(pc, gas, base, top, ctx));
+      OPCODE(CALLDATALOAD, op::calldataload(pc, gas, base, top, ctx));
+      OPCODE(CALLDATASIZE, op::calldatasize(pc, gas, base, top, ctx));
+      OPCODE(CALLDATACOPY, op::calldatacopy(pc, gas, base, top, ctx));
+      OPCODE(CODESIZE, op::codesize(pc, gas, base, top, ctx));
+      OPCODE(CODECOPY, op::codecopy(pc, gas, base, top, ctx));
+      OPCODE(GASPRICE, op::gasprice(pc, gas, base, top, ctx));
+      OPCODE(EXTCODESIZE, op::extcodesize(pc, gas, base, top, ctx));
+      OPCODE(EXTCODECOPY, op::extcodecopy(pc, gas, base, top, ctx));
+      OPCODE(RETURNDATASIZE, op::returndatasize(pc, gas, base, top, ctx));
+      OPCODE(RETURNDATACOPY, op::returndatacopy(pc, gas, base, top, ctx));
+      OPCODE(EXTCODEHASH, op::extcodehash(pc, gas, base, top, ctx));
+      OPCODE(BLOCKHASH, op::blockhash(pc, gas, base, top, ctx));
+      OPCODE(COINBASE, op::coinbase(pc, gas, base, top, ctx));
+      OPCODE(TIMESTAMP, op::timestamp(pc, gas, base, top, ctx));
+      OPCODE(NUMBER, op::blocknumber(pc, gas, base, top, ctx));
+      OPCODE(DIFFICULTY, op::prevrandao(pc, gas, base, top, ctx));  // intentional
+      OPCODE(GASLIMIT, op::gaslimit(pc, gas, base, top, ctx));
+      OPCODE(CHAINID, op::chainid(pc, gas, base, top, ctx));
+      OPCODE(SELFBALANCE, op::selfbalance(pc, gas, base, top, ctx));
+      OPCODE(BASEFEE, op::basefee(pc, gas, base, top, ctx));
 
-      OPCODE_NEW(POP, op::pop(pc, gas, base, top));
+      OPCODE(POP, op::pop(pc, gas, base, top));
 
-      OPCODE_NEW(MLOAD, op::mload(pc, gas, base, top, ctx));
-      OPCODE_NEW(MSTORE, op::mstore(pc, gas, base, top, ctx));
-      OPCODE_NEW(MSTORE8, op::mstore8(pc, gas, base, top, ctx));
+      OPCODE(MLOAD, op::mload(pc, gas, base, top, ctx));
+      OPCODE(MSTORE, op::mstore(pc, gas, base, top, ctx));
+      OPCODE(MSTORE8, op::mstore8(pc, gas, base, top, ctx));
 
-      OPCODE_NEW(SLOAD, op::sload(pc, gas, base, top, ctx));
-      OPCODE_NEW(SSTORE, op::sstore(pc, gas, base, top, ctx));
+      OPCODE(SLOAD, op::sload(pc, gas, base, top, ctx));
+      OPCODE(SSTORE, op::sstore(pc, gas, base, top, ctx));
 
-      OPCODE_NEW(JUMP, op::jump(pc, gas, base, top, ctx));
-      OPCODE_NEW(JUMPI, op::jumpi(pc, gas, base, top, ctx));
+      OPCODE(JUMP, op::jump(pc, gas, base, top, ctx));
+      OPCODE(JUMPI, op::jumpi(pc, gas, base, top, ctx));
 
-      OPCODE_NEW(PC, op::pc(pc, gas, base, top));
-      OPCODE_NEW(MSIZE, op::msize(pc, gas, base, top, ctx));
-      OPCODE_NEW(GAS, op::gas(pc, gas, base, top));
+      OPCODE(PC, op::pc(pc, gas, base, top));
+      OPCODE(MSIZE, op::msize(pc, gas, base, top, ctx));
+      OPCODE(GAS, op::gas(pc, gas, base, top));
 
-      OPCODE_NEW(JUMPDEST, op::jumpdest(pc, gas, base, top));
+      OPCODE(JUMPDEST, op::jumpdest(pc, gas, base, top));
 
-      OPCODE_NEW(PUSH1, op::push<1>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH2, op::push<2>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH3, op::push<3>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH4, op::push<4>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH5, op::push<5>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH6, op::push<6>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH7, op::push<7>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH8, op::push<8>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH9, op::push<9>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH10, op::push<10>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH11, op::push<11>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH12, op::push<12>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH13, op::push<13>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH14, op::push<14>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH15, op::push<15>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH16, op::push<16>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH17, op::push<17>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH18, op::push<18>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH19, op::push<19>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH20, op::push<20>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH21, op::push<21>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH22, op::push<22>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH23, op::push<23>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH24, op::push<24>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH25, op::push<25>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH26, op::push<26>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH27, op::push<27>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH28, op::push<28>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH29, op::push<29>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH30, op::push<30>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH31, op::push<31>(pc, gas, base, top, ctx.padded_code.data()));
-      OPCODE_NEW(PUSH32, op::push<32>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH1, op::push<1>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH2, op::push<2>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH3, op::push<3>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH4, op::push<4>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH5, op::push<5>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH6, op::push<6>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH7, op::push<7>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH8, op::push<8>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH9, op::push<9>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH10, op::push<10>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH11, op::push<11>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH12, op::push<12>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH13, op::push<13>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH14, op::push<14>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH15, op::push<15>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH16, op::push<16>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH17, op::push<17>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH18, op::push<18>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH19, op::push<19>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH20, op::push<20>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH21, op::push<21>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH22, op::push<22>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH23, op::push<23>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH24, op::push<24>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH25, op::push<25>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH26, op::push<26>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH27, op::push<27>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH28, op::push<28>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH29, op::push<29>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH30, op::push<30>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH31, op::push<31>(pc, gas, base, top, ctx.padded_code.data()));
+      OPCODE(PUSH32, op::push<32>(pc, gas, base, top, ctx.padded_code.data()));
 
-      OPCODE_NEW(DUP1, op::dup<1>(pc, gas, base, top));
-      OPCODE_NEW(DUP2, op::dup<2>(pc, gas, base, top));
-      OPCODE_NEW(DUP3, op::dup<3>(pc, gas, base, top));
-      OPCODE_NEW(DUP4, op::dup<4>(pc, gas, base, top));
-      OPCODE_NEW(DUP5, op::dup<5>(pc, gas, base, top));
-      OPCODE_NEW(DUP6, op::dup<6>(pc, gas, base, top));
-      OPCODE_NEW(DUP7, op::dup<7>(pc, gas, base, top));
-      OPCODE_NEW(DUP8, op::dup<8>(pc, gas, base, top));
-      OPCODE_NEW(DUP9, op::dup<9>(pc, gas, base, top));
-      OPCODE_NEW(DUP10, op::dup<10>(pc, gas, base, top));
-      OPCODE_NEW(DUP11, op::dup<11>(pc, gas, base, top));
-      OPCODE_NEW(DUP12, op::dup<12>(pc, gas, base, top));
-      OPCODE_NEW(DUP13, op::dup<13>(pc, gas, base, top));
-      OPCODE_NEW(DUP14, op::dup<14>(pc, gas, base, top));
-      OPCODE_NEW(DUP15, op::dup<15>(pc, gas, base, top));
-      OPCODE_NEW(DUP16, op::dup<16>(pc, gas, base, top));
+      OPCODE(DUP1, op::dup<1>(pc, gas, base, top));
+      OPCODE(DUP2, op::dup<2>(pc, gas, base, top));
+      OPCODE(DUP3, op::dup<3>(pc, gas, base, top));
+      OPCODE(DUP4, op::dup<4>(pc, gas, base, top));
+      OPCODE(DUP5, op::dup<5>(pc, gas, base, top));
+      OPCODE(DUP6, op::dup<6>(pc, gas, base, top));
+      OPCODE(DUP7, op::dup<7>(pc, gas, base, top));
+      OPCODE(DUP8, op::dup<8>(pc, gas, base, top));
+      OPCODE(DUP9, op::dup<9>(pc, gas, base, top));
+      OPCODE(DUP10, op::dup<10>(pc, gas, base, top));
+      OPCODE(DUP11, op::dup<11>(pc, gas, base, top));
+      OPCODE(DUP12, op::dup<12>(pc, gas, base, top));
+      OPCODE(DUP13, op::dup<13>(pc, gas, base, top));
+      OPCODE(DUP14, op::dup<14>(pc, gas, base, top));
+      OPCODE(DUP15, op::dup<15>(pc, gas, base, top));
+      OPCODE(DUP16, op::dup<16>(pc, gas, base, top));
 
-      OPCODE_NEW(SWAP1, op::swap<1>(pc, gas, base, top));
-      OPCODE_NEW(SWAP2, op::swap<2>(pc, gas, base, top));
-      OPCODE_NEW(SWAP3, op::swap<3>(pc, gas, base, top));
-      OPCODE_NEW(SWAP4, op::swap<4>(pc, gas, base, top));
-      OPCODE_NEW(SWAP5, op::swap<5>(pc, gas, base, top));
-      OPCODE_NEW(SWAP6, op::swap<6>(pc, gas, base, top));
-      OPCODE_NEW(SWAP7, op::swap<7>(pc, gas, base, top));
-      OPCODE_NEW(SWAP8, op::swap<8>(pc, gas, base, top));
-      OPCODE_NEW(SWAP9, op::swap<9>(pc, gas, base, top));
-      OPCODE_NEW(SWAP10, op::swap<10>(pc, gas, base, top));
-      OPCODE_NEW(SWAP11, op::swap<11>(pc, gas, base, top));
-      OPCODE_NEW(SWAP12, op::swap<12>(pc, gas, base, top));
-      OPCODE_NEW(SWAP13, op::swap<13>(pc, gas, base, top));
-      OPCODE_NEW(SWAP14, op::swap<14>(pc, gas, base, top));
-      OPCODE_NEW(SWAP15, op::swap<15>(pc, gas, base, top));
-      OPCODE_NEW(SWAP16, op::swap<16>(pc, gas, base, top));
+      OPCODE(SWAP1, op::swap<1>(pc, gas, base, top));
+      OPCODE(SWAP2, op::swap<2>(pc, gas, base, top));
+      OPCODE(SWAP3, op::swap<3>(pc, gas, base, top));
+      OPCODE(SWAP4, op::swap<4>(pc, gas, base, top));
+      OPCODE(SWAP5, op::swap<5>(pc, gas, base, top));
+      OPCODE(SWAP6, op::swap<6>(pc, gas, base, top));
+      OPCODE(SWAP7, op::swap<7>(pc, gas, base, top));
+      OPCODE(SWAP8, op::swap<8>(pc, gas, base, top));
+      OPCODE(SWAP9, op::swap<9>(pc, gas, base, top));
+      OPCODE(SWAP10, op::swap<10>(pc, gas, base, top));
+      OPCODE(SWAP11, op::swap<11>(pc, gas, base, top));
+      OPCODE(SWAP12, op::swap<12>(pc, gas, base, top));
+      OPCODE(SWAP13, op::swap<13>(pc, gas, base, top));
+      OPCODE(SWAP14, op::swap<14>(pc, gas, base, top));
+      OPCODE(SWAP15, op::swap<15>(pc, gas, base, top));
+      OPCODE(SWAP16, op::swap<16>(pc, gas, base, top));
 
-      OPCODE_NEW(LOG0, op::log<0>(pc, gas, base, top, ctx));
-      OPCODE_NEW(LOG1, op::log<1>(pc, gas, base, top, ctx));
-      OPCODE_NEW(LOG2, op::log<2>(pc, gas, base, top, ctx));
-      OPCODE_NEW(LOG3, op::log<3>(pc, gas, base, top, ctx));
-      OPCODE_NEW(LOG4, op::log<4>(pc, gas, base, top, ctx));
+      OPCODE(LOG0, op::log<0>(pc, gas, base, top, ctx));
+      OPCODE(LOG1, op::log<1>(pc, gas, base, top, ctx));
+      OPCODE(LOG2, op::log<2>(pc, gas, base, top, ctx));
+      OPCODE(LOG3, op::log<3>(pc, gas, base, top, ctx));
+      OPCODE(LOG4, op::log<4>(pc, gas, base, top, ctx));
 
-      OPCODE_NEW(CREATE, op::create_impl<op::CREATE>(pc, gas, base, top, ctx));
-      OPCODE_NEW(CREATE2, op::create_impl<op::CREATE2>(pc, gas, base, top, ctx));
+      OPCODE(CREATE, op::create_impl<op::CREATE>(pc, gas, base, top, ctx));
+      OPCODE(CREATE2, op::create_impl<op::CREATE2>(pc, gas, base, top, ctx));
 
-      OPCODE_NEW(RETURN, op::return_op<RunState::kReturn>(pc, gas, base, top, ctx));
-      OPCODE_NEW(REVERT, op::return_op<RunState::kRevert>(pc, gas, base, top, ctx));
+      OPCODE(RETURN, op::return_op<RunState::kReturn>(pc, gas, base, top, ctx));
+      OPCODE(REVERT, op::return_op<RunState::kRevert>(pc, gas, base, top, ctx));
 
-      OPCODE_NEW(CALL, op::call_impl<op::CALL>(pc, gas, base, top, ctx));
-      OPCODE_NEW(CALLCODE, op::call_impl<op::CALLCODE>(pc, gas, base, top, ctx));
-      OPCODE_NEW(DELEGATECALL, op::call_impl<op::DELEGATECALL>(pc, gas, base, top, ctx));
-      OPCODE_NEW(STATICCALL, op::call_impl<op::STATICCALL>(pc, gas, base, top, ctx));
+      OPCODE(CALL, op::call_impl<op::CALL>(pc, gas, base, top, ctx));
+      OPCODE(CALLCODE, op::call_impl<op::CALLCODE>(pc, gas, base, top, ctx));
+      OPCODE(DELEGATECALL, op::call_impl<op::DELEGATECALL>(pc, gas, base, top, ctx));
+      OPCODE(STATICCALL, op::call_impl<op::STATICCALL>(pc, gas, base, top, ctx));
 
-      OPCODE_NEW(INVALID, op::invalid(pc, gas, base, top));
-      OPCODE_NEW(SELFDESTRUCT, op::selfdestruct(pc, gas, base, top, ctx));
+      OPCODE(INVALID, op::invalid(pc, gas, base, top));
+      OPCODE(SELFDESTRUCT, op::selfdestruct(pc, gas, base, top, ctx));
 
       default:
         state = RunState::kErrorOpcode;
