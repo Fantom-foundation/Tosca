@@ -181,9 +181,7 @@ static OpResult div(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint2
   CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
   APPLY_GAS_COST(gas, 5);
 
-  if (stack_top[1] == 0) {
-    stack_top[1] = 0;
-  } else {
+  if (stack_top[1] != 0) {
     stack_top[1] = stack_top[0] / stack_top[1];
   }
 
@@ -198,9 +196,7 @@ static OpResult sdiv(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint
   CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
   APPLY_GAS_COST(gas, 5);
 
-  if (stack_top[1] == 0) {
-    stack_top[1] = 0;
-  } else {
+  if (stack_top[1] != 0) {
     stack_top[1] = intx::sdivrem(stack_top[0], stack_top[1]).quot;
   }
 
@@ -215,9 +211,7 @@ static OpResult mod(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint2
   CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
   APPLY_GAS_COST(gas, 5);
 
-  if (stack_top[1] == 0) {
-    stack_top[1] = 0;
-  } else {
+  if (stack_top[1] != 0) {
     stack_top[1] = stack_top[0] % stack_top[1];
   }
 
@@ -232,9 +226,7 @@ static OpResult smod(uint32_t pc, int64_t gas, const uint256_t* stack_base, uint
   CHECK_STACK_AVAILABLE(stack_base - stack_top, 2);
   APPLY_GAS_COST(gas, 5);
 
-  if (stack_top[1] == 0) {
-    stack_top[1] = 0;
-  } else {
+  if (stack_top[1] != 0) {
     stack_top[1] = intx::sdivrem(stack_top[0], stack_top[1]).rem;
   }
 
@@ -249,9 +241,7 @@ static OpResult addmod(uint32_t pc, int64_t gas, const uint256_t* stack_base, ui
   CHECK_STACK_AVAILABLE(stack_base - stack_top, 3);
   APPLY_GAS_COST(gas, 8);
 
-  if (stack_top[2] == 0) {
-    stack_top[2] = 0;
-  } else {
+  if (stack_top[2] != 0) {
     stack_top[2] = intx::addmod(stack_top[0], stack_top[1], stack_top[2]);
   }
 
@@ -266,9 +256,7 @@ static OpResult mulmod(uint32_t pc, int64_t gas, const uint256_t* stack_base, ui
   CHECK_STACK_AVAILABLE(stack_base - stack_top, 3);
   APPLY_GAS_COST(gas, 8);
 
-  if (stack_top[2] == 0) {
-    stack_top[2] = 0;
-  } else {
+  if (stack_top[2] != 0) {
     stack_top[2] = intx::mulmod(stack_top[0], stack_top[1], stack_top[2]);
   }
 
