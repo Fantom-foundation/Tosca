@@ -1216,7 +1216,7 @@ static OpResult jump(uint32_t, int64_t gas, const uint256_t* stack_base, uint256
   APPLY_GAS_COST(gas, 8);
 
   if (!ctx.CheckJumpDest(stack_top[0])) [[unlikely]]
-    return {.state = ctx.state};
+    return {.state = RunState::kErrorJump};
 
   return {
       .pc = static_cast<uint32_t>(stack_top[0]),
@@ -1232,7 +1232,7 @@ static OpResult jumpi(uint32_t pc, int64_t gas, const uint256_t* stack_base, uin
 
   if (stack_top[1] != 0) {
     if (!ctx.CheckJumpDest(stack_top[0])) [[unlikely]]
-      return {.state = ctx.state};
+      return {.state = RunState::kErrorJump};
     return {
         .pc = static_cast<uint32_t>(stack_top[0]),
         .gas_left = gas,
@@ -1661,53 +1661,14 @@ static OpResult call_impl(uint32_t pc, int64_t gas, const uint256_t* stack_base,
 
 namespace internal {
 
-bool Context::CheckOpcodeAvailable(evmc_revision introduced_in) noexcept {
-  if (revision < introduced_in) [[unlikely]] {
-    state = RunState::kErrorOpcode;
-    return false;
-  } else {
-    return true;
-  }
-}
-
-bool Context::CheckStaticCallConformance() noexcept {
-  if (is_static_call) [[unlikely]] {
-    state = RunState::kErrorStaticCall;
-    return false;
-  } else {
-    return true;
-  }
-}
-
-inline bool Context::CheckStackAvailable(uint64_t elements_needed) noexcept {
-  if (stack.GetSize() < elements_needed) [[unlikely]] {
-    state = RunState::kErrorStackUnderflow;
-    return false;
-  } else {
-    return true;
-  }
-}
-
-inline bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
-  if (stack.GetMaxSize() - stack.GetSize() < slots_needed) [[unlikely]] {
-    state = RunState::kErrorStackOverflow;
-    return false;
-  } else {
-    return true;
-  }
-}
-
-// TODO don't set state
 bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
   if (index_u256 >= valid_jump_targets.size()) [[unlikely]] {
-    state = RunState::kErrorJump;
     return false;
   }
 
   const uint64_t index = static_cast<uint64_t>(index_u256);
 
   if (!valid_jump_targets[index]) [[unlikely]] {
-    state = RunState::kErrorJump;
     return false;
   }
 
@@ -1748,19 +1709,6 @@ Context::MemoryExpansionCostResult Context::MemoryExpansionCost(uint256_t offset
   };
 }
 
-inline bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
-  TOSCA_ASSERT(gas_cost >= 0);
-
-  if (gas < gas_cost) [[unlikely]] {
-    state = RunState::kErrorGas;
-    return false;
-  }
-
-  gas -= gas_cost;
-
-  return true;
-}
-
 std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
   std::vector<uint8_t> padded;
   padded.reserve(code.size() + kStopBytePadding);
@@ -1771,6 +1719,14 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
 
 template <bool LoggingEnabled, bool ProfilingEnabled>
 void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
+  RunState state = RunState::kRunning;
+  uint32_t pc = 0;
+  int64_t gas = ctx.gas;
+  uint256_t* base = ctx.stack.end_;
+  uint256_t* top = ctx.stack.top_;
+
+  while (state == RunState::kRunning) {
+    switch (ctx.padded_code[pc]) {
 #define OPCODE(opcode, impl)    \
   case op::opcode: {            \
     op::OpResult result = impl; \
@@ -1781,14 +1737,6 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
     break;                      \
   }
 
-  RunState state = RunState::kRunning;
-  uint32_t pc = 0;
-  int64_t gas = ctx.gas;
-  uint256_t* base = ctx.stack.end_;
-  uint256_t* top = ctx.stack.top_;
-
-  while (state == RunState::kRunning) {
-    switch (ctx.padded_code[pc]) {
       OPCODE(STOP, op::stop(pc, gas, top));
 
       OPCODE(ADD, op::add(pc, gas, base, top));
@@ -1949,6 +1897,10 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
       OPCODE(INVALID, op::invalid(pc, gas, base, top));
       OPCODE(SELFDESTRUCT, op::selfdestruct(pc, gas, base, top, ctx));
 
+#undef PROFILE_START
+#undef PROFILE_END
+#undef OPCODE
+
       default:
         state = RunState::kErrorOpcode;
     }
@@ -1966,10 +1918,6 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
   ctx.state = state;
   ctx.stack.top_ = top;
   ctx.gas = gas;
-
-#undef PROFILE_START
-#undef PROFILE_END
-#undef OPCODE
 }
 
 template void RunInterpreter<false, false>(Context&, Profiler<false>&);

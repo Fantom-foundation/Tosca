@@ -85,12 +85,6 @@ struct Context {
 
   Sha3Cache* sha3_cache = nullptr;
 
-  bool CheckOpcodeAvailable(evmc_revision introduced_in) noexcept;
-  bool CheckStaticCallConformance() noexcept;
-  bool CheckStackAvailable(uint64_t elements_needed) noexcept;
-  bool CheckStackOverflow(uint64_t slots_needed) noexcept;
-  bool ApplyGasCost(int64_t gas_cost) noexcept;
-
   bool CheckJumpDest(uint256_t index) noexcept;
 
   struct MemoryExpansionCostResult {
