@@ -277,6 +277,21 @@ static void mod(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::SMOD> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 5,
+  };
+
+  static void Run(uint256_t* top) noexcept {
+    if (top[1] != 0) {
+      top[1] = intx::sdivrem(top[0], top[1]).rem;
+    }
+  }
+};
+
 static void smod(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
     return;
@@ -290,6 +305,21 @@ static void smod(Context& ctx) noexcept {
     ctx.stack.Push(intx::sdivrem(a, b).rem);
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::ADDMOD> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 3,
+      .pushes = 1,
+      .staticGas = 8,
+  };
+
+  static void Run(uint256_t* top) noexcept {
+    if (top[2] != 0) {
+      top[2] = intx::addmod(top[0], top[1], top[2]);
+    }
+  }
+};
 
 static void addmod(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(3)) [[unlikely]]
@@ -306,6 +336,21 @@ static void addmod(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::MULMOD> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 3,
+      .pushes = 1,
+      .staticGas = 8,
+  };
+
+  static void Run(uint256_t* top) noexcept {
+    if (top[2] != 0) {
+      top[2] = intx::mulmod(top[0], top[1], top[2]);
+    }
+  }
+};
+
 static void mulmod(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(3)) [[unlikely]]
     return;
@@ -320,6 +365,26 @@ static void mulmod(Context& ctx) noexcept {
     ctx.stack.Push(intx::mulmod(a, b, N));
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::EXP> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 10,
+  };
+
+  static int64_t Run(uint256_t* top, int64_t gas) noexcept {
+    uint256_t& a = top[0];
+    uint256_t& exponent = top[1];
+    int64_t dynamic_gas = 50 * intx::count_significant_bytes(exponent);
+    if (gas < dynamic_gas) [[unlikely]] {
+      return dynamic_gas;
+    }
+    top[1] = intx::exp(a, exponent);
+    return dynamic_gas;
+  }
+};
 
 static void exp(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
@@ -1791,22 +1856,34 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
   return padded;
 }
 
-inline RunState Invoke(uint256_t*, const uint8_t*, void (*op)() noexcept) noexcept { 
-  op(); 
-  return RunState::kRunning;
+struct InvokeResult {
+  RunState state = RunState::kRunning;
+  int64_t dynamic_gas_costs = 0;
+};
+
+inline InvokeResult Invoke(uint256_t*, const uint8_t*, int64_t, void (*op)() noexcept) noexcept {
+  op();
+  return {};
 }
 
-inline RunState Invoke(uint256_t*, const uint8_t*, RunState (*op)() noexcept) noexcept { return op(); }
-
-inline RunState Invoke(uint256_t* top, const uint8_t*, void (*op)(uint256_t*) noexcept) noexcept { 
-  op(top); 
-  return RunState::kRunning;
+inline InvokeResult Invoke(uint256_t*, const uint8_t*, int64_t, RunState (*op)() noexcept) noexcept {
+  return {.state = op()};
 }
 
-inline RunState Invoke(uint256_t* top, const uint8_t* data,
-                   void (*op)(uint256_t* top, const uint8_t* data) noexcept) noexcept {
+inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t gas,
+                           int64_t (*op)(uint256_t*, int64_t) noexcept) noexcept {
+  return {.dynamic_gas_costs = op(top, gas)};
+}
+
+inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t, void (*op)(uint256_t*) noexcept) noexcept {
+  op(top);
+  return {};
+}
+
+inline InvokeResult Invoke(uint256_t* top, const uint8_t* data, int64_t,
+                           void (*op)(uint256_t* top, const uint8_t* data) noexcept) noexcept {
   op(top, data + 1);  // Data of push is off-set by 1
-  return RunState::kRunning;
+  return {};
 }
 
 struct Result {
@@ -1857,7 +1934,14 @@ inline Result Run(uint32_t pc, int64_t gas, uint256_t* base, uint256_t* top, con
         pc += 1;
       }
     } else {
-      state = Invoke(top, code + pc, Impl::Run);
+      auto res = Invoke(top, code + pc, gas, Impl::Run);
+      state = res.state;
+      if (res.dynamic_gas_costs > 0) {
+        if (res.dynamic_gas_costs > gas) {
+          return Result{.state = RunState::kErrorGas};
+        }
+        gas -= res.dynamic_gas_costs;
+      }
       pc += Impl::kInfo.instructionLength;
     }
 
