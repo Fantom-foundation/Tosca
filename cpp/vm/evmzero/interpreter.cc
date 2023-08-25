@@ -140,6 +140,17 @@ static void add(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::MUL> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 5,
+  };
+
+  static void Run(uint256_t* top) noexcept { top[1] *= top[0]; }
+};
+
 static void mul(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
     return;
@@ -173,6 +184,21 @@ static void sub(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::DIV> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 5,
+  };
+
+  static void Run(uint256_t* top) noexcept {
+    if (top[1] != 0) {
+      top[1] = top[0] / top[1];
+    }
+  }
+};
+
 static void div(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
     return;
@@ -187,6 +213,21 @@ static void div(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::SDIV> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 5,
+  };
+
+  static void Run(uint256_t* top) noexcept {
+    if (top[1] != 0) {
+      top[1] = intx::sdivrem(top[0], top[1]).quot;
+    }
+  }
+};
+
 static void sdiv(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
     return;
@@ -200,6 +241,21 @@ static void sdiv(Context& ctx) noexcept {
     ctx.stack.Push(intx::sdivrem(a, b).quot);
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::MOD> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 1,
+      .staticGas = 5,
+  };
+
+  static void Run(uint256_t* top) noexcept {
+    if (top[1] != 0) {
+      top[1] = top[0] % top[1];
+    }
+  }
+};
 
 static void mod(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
