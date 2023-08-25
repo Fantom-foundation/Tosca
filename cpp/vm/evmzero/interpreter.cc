@@ -1897,7 +1897,7 @@ template <op::OpCode op_code>
 constexpr static bool kHasImplType = op::Impl<op_code>::value;
 
 template <op::OpCode op_code>
-inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* base, uint256_t* top, const uint8_t* code, Context& ctx,
+inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t* code, Context& ctx,
                   void (*legacy)(Context&) noexcept) {
   // If the new experimental operator implementation is available use that one.
   if constexpr (kHasImplType<op_code>) {
@@ -1905,6 +1905,9 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* base, uint256_t* to
     using Impl = op::Impl<op_code>;
 
     // Check stack requirements.
+    auto base = reinterpret_cast<const uint256_t*>(
+      (reinterpret_cast<uintptr_t>(top) >> 16) << 16
+    ) + Stack::kStackSize;
     auto size = base - top;
     if constexpr (Impl::kInfo.pops > 0) {
       if (size < Impl::kInfo.pops) [[unlikely]] {
@@ -1982,14 +1985,13 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   // should not escape this function.
   RunState state = RunState::kRunning;
   int64_t gas = ctx.gas;
-  uint256_t* base = ctx.stack.Base();
   uint256_t* top = ctx.stack.Peek();
 
 #define PROFILE_START(marker) profiler.template Start<Marker::marker>()
 #define PROFILE_END(marker) profiler.template End<Marker::marker>()
 #define RUN(opcode, impl)                                                       \
   {                                                                             \
-    auto res = Run<op::opcode>(pc, gas, base, top, padded_code, ctx, op::impl); \
+    auto res = Run<op::opcode>(pc, gas, top, padded_code, ctx, op::impl); \
     state = res.state;                                                          \
     pc = res.pc;                                                                \
     gas = res.gas_left;                                                         \

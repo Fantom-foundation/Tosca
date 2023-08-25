@@ -16,6 +16,8 @@ namespace tosca::evmzero {
 // This data structure is used as the interpreter's stack during execution.
 class Stack {
  public:
+  static constexpr size_t kStackSize = 1024;
+
   Stack();
   Stack(const Stack&);
   Stack(Stack&&) = delete;
@@ -72,7 +74,6 @@ class Stack {
   friend bool operator!=(const Stack&, const Stack&);
 
  private:
-  static constexpr size_t kStackSize = 1024;
 
   // The type retaining the actual storage for the stack.
   class Data {
@@ -94,7 +95,8 @@ class Stack {
 
     // An aligned blob of not auto-initialized data. Stack memory does not have
     // to be initialized, since any read is preceeded by a push or dup.
-    alignas(sizeof(uint256_t)) std::array<std::byte, kStackSize * sizeof(uint256_t)> data_;
+    static_assert(sizeof(uint256_t) * kStackSize * 2 == 1<<16);
+    alignas(1<<16) std::array<std::byte, kStackSize * sizeof(uint256_t)> data_;
 
     // A next-pointer to be used when enqueuing instances in the free list.
     Data* next_ = nullptr;
