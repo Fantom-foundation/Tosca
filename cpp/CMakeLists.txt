@@ -4,6 +4,7 @@ project(tosca)
 
 option(TOSCA_ASAN "Enable AddressSanitizer for Tosca targets.")
 option(TOSCA_ASSERT "Enable Tosca specific assertions.")
+option(TOSCA_SHUFFLE_SECTIONS_SEED "Enable and set seed for Tosca shuffling of sections by the mold linker.")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
@@ -54,6 +55,7 @@ function(tosca_add_compile_flags target)
     $<$<CXX_COMPILER_ID:Clang,AppleClang>:-fcolor-diagnostics>)
   target_compile_definitions(${target} PRIVATE $<$<BOOL:${TOSCA_ASSERT}>:TOSCA_ASSERT_ENABLED>)
   target_include_directories(${target} PRIVATE ${PROJECT_SOURCE_DIR})
+  target_link_options(${target} PRIVATE $<$<BOOL:${TOSCA_SHUFFLE_SECTIONS_SEED}>:-fuse-ld=mold LINKER:--shuffle-sections=${TOSCA_SHUFFLE_SECTIONS_SEED}>)
 endfunction()
 
 add_subdirectory(common)
