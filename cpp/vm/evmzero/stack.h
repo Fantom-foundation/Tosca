@@ -13,6 +13,14 @@
 
 namespace tosca::evmzero {
 
+class StackView {
+ public:
+ private:
+  friend class Stack;
+  StackView(uint256_t* top) : top_(top) {}
+  uint256_t* top_;
+};
+
 // This data structure is used as the interpreter's stack during execution.
 class Stack {
  public:
@@ -38,6 +46,8 @@ class Stack {
   }
 
   void Pop(int32_t num_values) { top_ += num_values; }
+
+  StackView GetView() { return StackView(top_); }
 
   uint256_t* Peek() { return top_; }
 
