@@ -1888,7 +1888,7 @@ inline InvokeResult Invoke(uint256_t* top, const uint8_t* data, int64_t,
 
 struct Result {
   RunState state;
-  uint32_t pc;
+  const uint8_t* pc;
   int64_t gas_left;
   uint256_t* top;
 };
@@ -1897,7 +1897,7 @@ template <op::OpCode op_code>
 constexpr static bool kHasImplType = op::Impl<op_code>::value;
 
 template <op::OpCode op_code>
-inline Result Run(uint32_t pc, int64_t gas, uint256_t* base, uint256_t* top, const uint8_t* code, Context& ctx,
+inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* base, uint256_t* top, const uint8_t* code, Context& ctx,
                   void (*legacy)(Context&) noexcept) {
   // If the new experimental operator implementation is available use that one.
   if constexpr (kHasImplType<op_code>) {
@@ -1929,12 +1929,12 @@ inline Result Run(uint32_t pc, int64_t gas, uint256_t* base, uint256_t* top, con
         if (!ctx.CheckJumpDest(*top)) [[unlikely]] {
           return Result{.state = ctx.state};
         }
-        pc = static_cast<uint32_t>(*top);
+        pc = code + static_cast<uint32_t>(*top);
       } else {
         pc += 1;
       }
     } else {
-      auto res = Invoke(top, code + pc, gas, Impl::Run);
+      auto res = Invoke(top, pc, gas, Impl::Run);
       state = res.state;
       if (res.dynamic_gas_costs > 0) {
         if (res.dynamic_gas_costs > gas) {
@@ -1960,14 +1960,14 @@ inline Result Run(uint32_t pc, int64_t gas, uint256_t* base, uint256_t* top, con
     // std::cout << "Missing: " << ToString(op_code) << "\n";
     //  Update context.
     ctx.stack.SetTop(top);
-    ctx.pc = pc;
+    ctx.pc = static_cast<uint64_t>(pc - code);
     ctx.gas = gas;
     // Run legacy version of operation.
     legacy(ctx);
     // Extract information from context.
     return Result{
         .state = ctx.state,
-        .pc = static_cast<uint32_t>(ctx.pc),
+        .pc = code + static_cast<uint32_t>(ctx.pc),
         .gas_left = ctx.gas,
         .top = ctx.stack.Peek(),
     };
@@ -1981,7 +1981,6 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   // The state, pc, and stack state are owned by this function and
   // should not escape this function.
   RunState state = RunState::kRunning;
-  uint32_t pc = 0;
   int64_t gas = ctx.gas;
   uint256_t* base = ctx.stack.Base();
   uint256_t* top = ctx.stack.Peek();
@@ -2005,10 +2004,11 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   }
 
   auto padded_code = ctx.padded_code.data();
+  auto pc = padded_code;
   while (state == RunState::kRunning) {
     if constexpr (LoggingEnabled) {
       // log format: <op>, <gas>, <top-of-stack>\n
-      std::cout << ToString(static_cast<op::OpCode>(padded_code[pc])) << ", "  //
+      std::cout << ToString(static_cast<op::OpCode>(*pc)) << ", "  //
                 << ctx.gas << ", ";
       if (ctx.stack.GetSize() == 0) {
         std::cout << "-empty-";
@@ -2018,7 +2018,7 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
       std::cout << "\n" << std::flush;
     }
 
-    switch (padded_code[pc]) {
+    switch (*pc) {
       // clang-format off
       case OPCODE(STOP, stop); break;
 
