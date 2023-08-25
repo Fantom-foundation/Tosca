@@ -132,7 +132,7 @@ struct Impl<OpCode::ADD> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] += top[0]; }
+  static void Run(StackView stack) noexcept { stack[1] += stack[0]; }
 };
 
 static void add(Context& ctx) noexcept {
@@ -154,7 +154,7 @@ struct Impl<OpCode::MUL> : public std::true_type {
       .staticGas = 5,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] *= top[0]; }
+  static void Run(StackView stack) noexcept { stack[1] *= stack[0]; }
 };
 
 static void mul(Context& ctx) noexcept {
@@ -176,7 +176,7 @@ struct Impl<OpCode::SUB> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = top[0] - top[1]; }
+  static void Run(StackView stack) noexcept { stack[1] = stack[0] - stack[1]; }
 };
 
 static void sub(Context& ctx) noexcept {
@@ -198,9 +198,9 @@ struct Impl<OpCode::DIV> : public std::true_type {
       .staticGas = 5,
   };
 
-  static void Run(uint256_t* top) noexcept {
-    if (top[1] != 0) {
-      top[1] = top[0] / top[1];
+  static void Run(StackView stack) noexcept {
+    if (stack[1] != 0) {
+      stack[1] = stack[0] / stack[1];
     }
   }
 };
@@ -227,9 +227,9 @@ struct Impl<OpCode::SDIV> : public std::true_type {
       .staticGas = 5,
   };
 
-  static void Run(uint256_t* top) noexcept {
-    if (top[1] != 0) {
-      top[1] = intx::sdivrem(top[0], top[1]).quot;
+  static void Run(StackView stack) noexcept {
+    if (stack[1] != 0) {
+      stack[1] = intx::sdivrem(stack[0], stack[1]).quot;
     }
   }
 };
@@ -256,9 +256,9 @@ struct Impl<OpCode::MOD> : public std::true_type {
       .staticGas = 5,
   };
 
-  static void Run(uint256_t* top) noexcept {
-    if (top[1] != 0) {
-      top[1] = top[0] % top[1];
+  static void Run(StackView stack) noexcept {
+    if (stack[1] != 0) {
+      stack[1] = stack[0] % stack[1];
     }
   }
 };
@@ -285,9 +285,9 @@ struct Impl<OpCode::SMOD> : public std::true_type {
       .staticGas = 5,
   };
 
-  static void Run(uint256_t* top) noexcept {
-    if (top[1] != 0) {
-      top[1] = intx::sdivrem(top[0], top[1]).rem;
+  static void Run(StackView stack) noexcept {
+    if (stack[1] != 0) {
+      stack[1] = intx::sdivrem(stack[0], stack[1]).rem;
     }
   }
 };
@@ -314,9 +314,9 @@ struct Impl<OpCode::ADDMOD> : public std::true_type {
       .staticGas = 8,
   };
 
-  static void Run(uint256_t* top) noexcept {
-    if (top[2] != 0) {
-      top[2] = intx::addmod(top[0], top[1], top[2]);
+  static void Run(StackView stack) noexcept {
+    if (stack[2] != 0) {
+      stack[2] = intx::addmod(stack[0], stack[1], stack[2]);
     }
   }
 };
@@ -344,9 +344,9 @@ struct Impl<OpCode::MULMOD> : public std::true_type {
       .staticGas = 8,
   };
 
-  static void Run(uint256_t* top) noexcept {
-    if (top[2] != 0) {
-      top[2] = intx::mulmod(top[0], top[1], top[2]);
+  static void Run(StackView stack) noexcept {
+    if (stack[2] != 0) {
+      stack[2] = intx::mulmod(stack[0], stack[1], stack[2]);
     }
   }
 };
@@ -374,14 +374,14 @@ struct Impl<OpCode::EXP> : public std::true_type {
       .staticGas = 10,
   };
 
-  static int64_t Run(uint256_t* top, int64_t gas) noexcept {
-    uint256_t& a = top[0];
-    uint256_t& exponent = top[1];
+  static int64_t Run(StackView stack, int64_t gas) noexcept {
+    uint256_t& a = stack[0];
+    uint256_t& exponent = stack[1];
     int64_t dynamic_gas = 50 * intx::count_significant_bytes(exponent);
     if (gas < dynamic_gas) [[unlikely]] {
       return dynamic_gas;
     }
-    top[1] = intx::exp(a, exponent);
+    stack[1] = intx::exp(a, exponent);
     return dynamic_gas;
   }
 };
@@ -432,7 +432,7 @@ struct Impl<OpCode::LT> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = top[0] < top[1] ? 1 : 0; }
+  static void Run(StackView stack) noexcept { stack[1] = stack[0] < stack[1] ? 1 : 0; }
 };
 
 static void lt(Context& ctx) noexcept {
@@ -454,7 +454,7 @@ struct Impl<OpCode::GT> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = top[0] > top[1] ? 1 : 0; }
+  static void Run(StackView stack) noexcept { stack[1] = stack[0] > stack[1] ? 1 : 0; }
 };
 
 static void gt(Context& ctx) noexcept {
@@ -476,7 +476,7 @@ struct Impl<OpCode::SLT> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = intx::slt(top[0], top[1]) ? 1 : 0; }
+  static void Run(StackView stack) noexcept { stack[1] = intx::slt(stack[0], stack[1]) ? 1 : 0; }
 };
 
 static void slt(Context& ctx) noexcept {
@@ -509,7 +509,7 @@ struct Impl<OpCode::EQ> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = top[0] == top[1] ? 1 : 0; }
+  static void Run(StackView stack) noexcept { stack[1] = stack[0] == stack[1] ? 1 : 0; }
 };
 
 static void eq(Context& ctx) noexcept {
@@ -531,7 +531,7 @@ struct Impl<OpCode::ISZERO> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[0] = top[0] == 0; }
+  static void Run(StackView stack) noexcept { stack[0] = stack[0] == 0; }
 };
 
 static void iszero(Context& ctx) noexcept {
@@ -552,7 +552,7 @@ struct Impl<OpCode::AND> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = top[0] & top[1]; }
+  static void Run(StackView stack) noexcept { stack[1] = stack[0] & stack[1]; }
 };
 
 static void bit_and(Context& ctx) noexcept {
@@ -633,7 +633,7 @@ struct Impl<OpCode::SHR> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] >>= top[0]; }
+  static void Run(StackView stack) noexcept { stack[1] >>= stack[0]; }
 };
 
 static void shr(Context& ctx) noexcept {
@@ -1260,7 +1260,7 @@ struct Impl<OpCode::JUMP> : public std::true_type {
       .isJump = true,
   };
 
-  static bool Run(uint256_t*) noexcept { return true; }
+  static bool Run(StackView) noexcept { return true; }
 };
 
 static void jump(Context& ctx) noexcept {
@@ -1283,8 +1283,8 @@ struct Impl<OpCode::JUMPI> : public std::true_type {
       .isJump = true,
   };
 
-  static bool Run(uint256_t* top) noexcept {
-    const uint256_t& b = top[1];
+  static bool Run(StackView stack) noexcept {
+    const uint256_t& b = stack[1];
     return b != 0;
   }
 };
@@ -1358,12 +1358,12 @@ struct PushImpl : public std::true_type {
       .instructionLength = 1 + N,
   };
 
-  static void Run(uint256_t* top, const uint8_t* data) noexcept {
+  static void Run(StackView stack, const uint8_t* data) noexcept {
     constexpr auto num_full_words = N / sizeof(uint64_t);
     constexpr auto num_partial_bytes = N % sizeof(uint64_t);
 
     // TODO: hide stack details.
-    uint256_t& value = *(--top);
+    uint256_t& value = stack[-1];
     value = 0;
     if constexpr (num_partial_bytes != 0) {
       uint64_t word = 0;
@@ -1431,7 +1431,7 @@ struct DupImpl : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { *(top - 1) = top[N - 1]; }
+  static void Run(StackView stack) noexcept { stack[-1] = stack[N-1]; }
 };
 
 template <op::OpCode op_code>
@@ -1458,10 +1458,10 @@ struct SwapImpl : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept {
-    auto tmp = top[N];
-    top[N] = top[0];
-    top[0] = tmp;
+  static void Run(StackView stack) noexcept {
+    auto tmp = stack[N];
+    stack[N] = stack[0];
+    stack[0] = tmp;
   }
 };
 
@@ -1861,28 +1861,28 @@ struct InvokeResult {
   int64_t dynamic_gas_costs = 0;
 };
 
-inline InvokeResult Invoke(uint256_t*, const uint8_t*, int64_t, void (*op)() noexcept) noexcept {
+inline InvokeResult Invoke(StackView, const uint8_t*, int64_t, void (*op)() noexcept) noexcept {
   op();
   return {};
 }
 
-inline InvokeResult Invoke(uint256_t*, const uint8_t*, int64_t, RunState (*op)() noexcept) noexcept {
+inline InvokeResult Invoke(StackView, const uint8_t*, int64_t, RunState (*op)() noexcept) noexcept {
   return {.state = op()};
 }
 
-inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t gas,
-                           int64_t (*op)(uint256_t*, int64_t) noexcept) noexcept {
-  return {.dynamic_gas_costs = op(top, gas)};
+inline InvokeResult Invoke(StackView stack, const uint8_t*, int64_t gas,
+                           int64_t (*op)(StackView, int64_t) noexcept) noexcept {
+  return {.dynamic_gas_costs = op(stack, gas)};
 }
 
-inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t, void (*op)(uint256_t*) noexcept) noexcept {
-  op(top);
+inline InvokeResult Invoke(StackView stack, const uint8_t*, int64_t, void (*op)(StackView) noexcept) noexcept {
+  op(stack);
   return {};
 }
 
-inline InvokeResult Invoke(uint256_t* top, const uint8_t* data, int64_t,
-                           void (*op)(uint256_t* top, const uint8_t* data) noexcept) noexcept {
-  op(top, data + 1);  // Data of push is off-set by 1
+inline InvokeResult Invoke(StackView stack, const uint8_t* data, int64_t,
+                           void (*op)(StackView stack, const uint8_t* data) noexcept) noexcept {
+  op(stack, data + 1);  // Data of push is off-set by 1
   return {};
 }
 
@@ -1890,14 +1890,14 @@ struct Result {
   RunState state;
   const uint8_t* pc;
   int64_t gas_left;
-  uint256_t* top;
+  StackView stack;
 };
 
 template <op::OpCode op_code>
 constexpr static bool kHasImplType = op::Impl<op_code>::value;
 
 template <op::OpCode op_code>
-inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t* code, Context& ctx,
+inline Result Run(const uint8_t* pc, int64_t gas, StackView stack, const uint8_t* code, Context& ctx,
                   void (*legacy)(Context&) noexcept) {
   // If the new experimental operator implementation is available use that one.
   if constexpr (kHasImplType<op_code>) {
@@ -1905,10 +1905,7 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
     using Impl = op::Impl<op_code>;
 
     // Check stack requirements.
-    auto base = reinterpret_cast<const uint256_t*>(
-      (reinterpret_cast<uintptr_t>(top) >> 16) << 16
-    ) + Stack::kStackSize;
-    auto size = base - top;
+    auto size = stack.Size();
     if constexpr (Impl::kInfo.pops > 0) {
       if (size < Impl::kInfo.pops) [[unlikely]] {
         return Result{.state = RunState::kErrorStackUnderflow};
@@ -1928,16 +1925,16 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
     // Run the operation.
     RunState state = RunState::kRunning;
     if constexpr (Impl::kInfo.isJump) {
-      if (Impl::Run(top)) {
-        if (!ctx.CheckJumpDest(*top)) [[unlikely]] {
+      if (Impl::Run(stack)) {
+        if (!ctx.CheckJumpDest(stack[0])) [[unlikely]] {
           return Result{.state = ctx.state};
         }
-        pc = code + static_cast<uint32_t>(*top);
+        pc = code + static_cast<uint32_t>(stack[0]);
       } else {
         pc += 1;
       }
     } else {
-      auto res = Invoke(top, pc, gas, Impl::Run);
+      auto res = Invoke(stack, pc, gas, Impl::Run);
       state = res.state;
       if (res.dynamic_gas_costs > 0) {
         if (res.dynamic_gas_costs > gas) {
@@ -1949,12 +1946,12 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
     }
 
     // Update the stack.
-    top -= Impl::kInfo.GetStackDelta();
+    stack = stack.Shift(-Impl::kInfo.GetStackDelta());
     return Result{
         .state = state,
         .pc = pc,
         .gas_left = gas,
-        .top = top,
+        .stack = stack,
     };
   }
 
@@ -1962,7 +1959,7 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
   else {
     // std::cout << "Missing: " << ToString(op_code) << "\n";
     //  Update context.
-    ctx.stack.SetTop(top);
+    ctx.stack.SetTop(stack);
     ctx.pc = static_cast<uint64_t>(pc - code);
     ctx.gas = gas;
     // Run legacy version of operation.
@@ -1972,7 +1969,7 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
         .state = ctx.state,
         .pc = code + static_cast<uint32_t>(ctx.pc),
         .gas_left = ctx.gas,
-        .top = ctx.stack.Peek(),
+        .stack = ctx.stack.GetView(),
     };
   }
 }
@@ -1985,17 +1982,17 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   // should not escape this function.
   RunState state = RunState::kRunning;
   int64_t gas = ctx.gas;
-  uint256_t* top = ctx.stack.Peek();
+  StackView stack = ctx.stack.GetView();
 
 #define PROFILE_START(marker) profiler.template Start<Marker::marker>()
 #define PROFILE_END(marker) profiler.template End<Marker::marker>()
 #define RUN(opcode, impl)                                                       \
   {                                                                             \
-    auto res = Run<op::opcode>(pc, gas, top, padded_code, ctx, op::impl); \
+    auto res = Run<op::opcode>(pc, gas, stack, padded_code, ctx, op::impl);     \
     state = res.state;                                                          \
     pc = res.pc;                                                                \
     gas = res.gas_left;                                                         \
-    top = res.top;                                                              \
+    stack = res.stack;                                                          \
   }
 #define OPCODE(opcode, impl)         \
   op::opcode : {                     \
@@ -2196,7 +2193,7 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   }
 
   ctx.state = state;
-  ctx.stack.SetTop(top);
+  ctx.stack.SetTop(stack);
 
 #undef PROFILE_START
 #undef PROFILE_END

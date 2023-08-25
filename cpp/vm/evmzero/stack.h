@@ -13,8 +13,29 @@
 
 namespace tosca::evmzero {
 
+static constexpr size_t kStackSize = 1024;
+
 class StackView {
  public:
+  StackView() = default;
+
+  inline auto Size() const {
+    // Since the base is aligned by a multiple of the overall
+    // stack size, the base can be computed from the top.
+    auto base = reinterpret_cast<const uint256_t*>(
+      (reinterpret_cast<uintptr_t>(top_) >> 16) << 16
+    ) + kStackSize;
+    return base - top_;
+  }
+
+  uint256_t& operator[](int i) const {
+    return top_[i];
+  }
+
+  StackView Shift(int delta) const {
+    return StackView{top_ + delta};
+  }
+
  private:
   friend class Stack;
   StackView(uint256_t* top) : top_(top) {}
@@ -24,8 +45,6 @@ class StackView {
 // This data structure is used as the interpreter's stack during execution.
 class Stack {
  public:
-  static constexpr size_t kStackSize = 1024;
-
   Stack();
   Stack(const Stack&);
   Stack(Stack&&) = delete;
@@ -54,7 +73,7 @@ class Stack {
   uint256_t* Base() { return end_; }
 
   // DO NOT SUBMIT!
-  void SetTop(uint256_t* top) { top_ = top; }
+  void SetTop(StackView view) { top_ = view.top_; }
 
   template <size_t N>
   void Swap() {
