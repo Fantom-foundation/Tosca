@@ -116,6 +116,12 @@ struct OpInfo {
 template <OpCode op_code, typename = void>
 struct Impl : public std::false_type {};
 
+template <>
+struct Impl<OpCode::STOP> : public std::true_type {
+  constexpr static OpInfo kInfo{};
+  static RunState Run() noexcept { return RunState::kDone; }
+};
+
 static void stop(Context& ctx) noexcept { ctx.state = RunState::kDone; }
 
 template <>
@@ -1785,13 +1791,22 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
   return padded;
 }
 
-inline void Invoke(uint256_t*, const uint8_t*, void (*op)() noexcept) noexcept { op(); }
+inline RunState Invoke(uint256_t*, const uint8_t*, void (*op)() noexcept) noexcept { 
+  op(); 
+  return RunState::kRunning;
+}
 
-inline void Invoke(uint256_t* top, const uint8_t*, void (*op)(uint256_t*) noexcept) noexcept { op(top); }
+inline RunState Invoke(uint256_t*, const uint8_t*, RunState (*op)() noexcept) noexcept { return op(); }
 
-inline void Invoke(uint256_t* top, const uint8_t* data,
+inline RunState Invoke(uint256_t* top, const uint8_t*, void (*op)(uint256_t*) noexcept) noexcept { 
+  op(top); 
+  return RunState::kRunning;
+}
+
+inline RunState Invoke(uint256_t* top, const uint8_t* data,
                    void (*op)(uint256_t* top, const uint8_t* data) noexcept) noexcept {
   op(top, data + 1);  // Data of push is off-set by 1
+  return RunState::kRunning;
 }
 
 struct Result {
@@ -1831,6 +1846,7 @@ inline Result Run(uint32_t pc, int64_t gas, uint256_t* base, uint256_t* top, con
     gas -= Impl::kInfo.staticGas;
 
     // Run the operation.
+    RunState state = RunState::kRunning;
     if constexpr (Impl::kInfo.isJump) {
       if (Impl::Run(top)) {
         if (!ctx.CheckJumpDest(*top)) [[unlikely]] {
@@ -1841,14 +1857,14 @@ inline Result Run(uint32_t pc, int64_t gas, uint256_t* base, uint256_t* top, con
         pc += 1;
       }
     } else {
-      Invoke(top, code + pc, Impl::Run);
+      state = Invoke(top, code + pc, Impl::Run);
       pc += Impl::kInfo.instructionLength;
     }
 
     // Update the stack.
     top -= Impl::kInfo.GetStackDelta();
     return Result{
-        .state = RunState::kRunning,
+        .state = state,
         .pc = pc,
         .gas_left = gas,
         .top = top,
