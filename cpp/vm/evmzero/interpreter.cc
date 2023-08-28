@@ -121,7 +121,7 @@ struct OpResult {
   int64_t dynamic_gas_costs = 0;
 };
 
-template <OpCode op_code, typename = void>
+template <OpCode op_code>
 struct Impl : public std::false_type {};
 
 template <>
@@ -1378,8 +1378,9 @@ struct PushImpl : public std::true_type {
 };
 
 template <op::OpCode op_code>
-struct Impl<op_code, std::enable_if_t<OpCode::PUSH1 <= op_code && op_code <= OpCode::PUSH32>>
-    : public PushImpl<static_cast<uint64_t>(op_code - OpCode::PUSH1 + 1)> {};
+requires(OpCode::PUSH1 <= op_code && op_code <= OpCode::PUSH32)  //
+    struct Impl<op_code> : public PushImpl<static_cast<uint64_t>(op_code - OpCode::PUSH1 + 1)> {
+};
 
 template <uint64_t N>
 struct DupImpl : public std::true_type {
@@ -1396,8 +1397,9 @@ struct DupImpl : public std::true_type {
 };
 
 template <op::OpCode op_code>
-struct Impl<op_code, std::enable_if_t<OpCode::DUP1 <= op_code && op_code <= OpCode::DUP16>>
-    : public DupImpl<static_cast<uint64_t>(op_code - OpCode::DUP1 + 1)> {};
+requires(OpCode::DUP1 <= op_code && op_code <= OpCode::DUP16)  //
+    struct Impl<op_code> : public DupImpl<static_cast<uint64_t>(op_code - OpCode::DUP1 + 1)> {
+};
 
 template <uint64_t N>
 struct SwapImpl : public std::true_type {
@@ -1414,8 +1416,9 @@ struct SwapImpl : public std::true_type {
 };
 
 template <op::OpCode op_code>
-struct Impl<op_code, std::enable_if_t<OpCode::SWAP1 <= op_code && op_code <= OpCode::SWAP16>>
-    : public SwapImpl<static_cast<uint64_t>(op_code - OpCode::SWAP1 + 1)> {};
+requires(OpCode::SWAP1 <= op_code && op_code <= OpCode::SWAP16)  //
+    struct Impl<op_code> : public SwapImpl<static_cast<uint64_t>(op_code - OpCode::SWAP1 + 1)> {
+};
 
 template <uint64_t N>
 struct LogImpl : public std::true_type {
@@ -1453,8 +1456,9 @@ struct LogImpl : public std::true_type {
 };
 
 template <op::OpCode op_code>
-struct Impl<op_code, std::enable_if_t<OpCode::LOG0 <= op_code && op_code <= OpCode::LOG4>>
-    : public LogImpl<static_cast<uint64_t>(op_code - OpCode::LOG0)> {};
+requires(OpCode::LOG0 <= op_code && op_code <= OpCode::LOG4)  //
+    struct Impl<op_code> : public LogImpl<static_cast<uint64_t>(op_code - OpCode::LOG0)> {
+};
 
 template <RunState result_state>
 struct ReturnImpl : public std::true_type {
