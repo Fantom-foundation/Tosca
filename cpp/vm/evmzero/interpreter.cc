@@ -106,12 +106,12 @@ using internal::kMaxGas;
 struct OpInfo {
   int32_t pops = 0;
   int32_t pushes = 0;
-  int32_t staticGas = 0;
-  int32_t instructionLength = 1;
-  bool isJump = false;
-  bool disallowedInStaticCall = false;
+  int32_t static_gas = 0;
+  int32_t instruction_length = 1;
+  bool is_jump = false;
+  bool disallowed_in_static_call = false;
 
-  std::optional<evmc_revision> introducedIn;
+  std::optional<evmc_revision> introduced_in;
 
   constexpr int32_t GetStackDelta() const { return pushes - pops; }
 };
@@ -135,7 +135,7 @@ struct Impl<OpCode::ADD> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -149,7 +149,7 @@ struct Impl<OpCode::MUL> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 5,
+      .static_gas = 5,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -163,7 +163,7 @@ struct Impl<OpCode::SUB> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -177,7 +177,7 @@ struct Impl<OpCode::DIV> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 5,
+      .static_gas = 5,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -193,7 +193,7 @@ struct Impl<OpCode::SDIV> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 5,
+      .static_gas = 5,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -209,7 +209,7 @@ struct Impl<OpCode::MOD> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 5,
+      .static_gas = 5,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -225,7 +225,7 @@ struct Impl<OpCode::SMOD> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 5,
+      .static_gas = 5,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -241,7 +241,7 @@ struct Impl<OpCode::ADDMOD> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 3,
       .pushes = 1,
-      .staticGas = 8,
+      .static_gas = 8,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -257,7 +257,7 @@ struct Impl<OpCode::MULMOD> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 3,
       .pushes = 1,
-      .staticGas = 8,
+      .static_gas = 8,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -273,7 +273,7 @@ struct Impl<OpCode::EXP> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 10,
+      .static_gas = 10,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas) noexcept {
@@ -293,7 +293,7 @@ struct Impl<OpCode::SIGNEXTEND> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 5,
+      .static_gas = 5,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -322,7 +322,7 @@ struct Impl<OpCode::LT> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -336,7 +336,7 @@ struct Impl<OpCode::GT> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -350,7 +350,7 @@ struct Impl<OpCode::SLT> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -364,7 +364,7 @@ struct Impl<OpCode::SGT> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -378,7 +378,7 @@ struct Impl<OpCode::EQ> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -392,7 +392,7 @@ struct Impl<OpCode::ISZERO> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -406,7 +406,7 @@ struct Impl<OpCode::AND> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -420,7 +420,7 @@ struct Impl<OpCode::OR> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -434,7 +434,7 @@ struct Impl<OpCode::XOR> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -448,7 +448,7 @@ struct Impl<OpCode::NOT> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -462,7 +462,7 @@ struct Impl<OpCode::BYTE> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -481,7 +481,7 @@ struct Impl<OpCode::SHL> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -495,7 +495,7 @@ struct Impl<OpCode::SHR> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -509,7 +509,7 @@ struct Impl<OpCode::SAR> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -533,7 +533,7 @@ struct Impl<OpCode::SHA3> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
-      .staticGas = 30,
+      .static_gas = 30,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
@@ -562,7 +562,7 @@ struct Impl<OpCode::ADDRESS> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -603,7 +603,7 @@ struct Impl<OpCode::ORIGIN> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -617,7 +617,7 @@ struct Impl<OpCode::CALLER> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -631,7 +631,7 @@ struct Impl<OpCode::CALLVALUE> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -645,7 +645,7 @@ struct Impl<OpCode::CALLDATALOAD> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -671,7 +671,7 @@ struct Impl<OpCode::CALLDATASIZE> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -685,7 +685,7 @@ struct Impl<OpCode::CALLDATACOPY> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 3,
       .pushes = 0,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
@@ -716,7 +716,7 @@ struct Impl<OpCode::CODESIZE> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -730,7 +730,7 @@ struct Impl<OpCode::CODECOPY> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 3,
       .pushes = 0,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
@@ -760,7 +760,7 @@ struct Impl<OpCode::GASPRICE> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -844,7 +844,7 @@ struct Impl<OpCode::RETURNDATASIZE> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -858,7 +858,7 @@ struct Impl<OpCode::RETURNDATACOPY> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 3,
       .pushes = 0,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
@@ -923,7 +923,7 @@ struct Impl<OpCode::BLOCKHASH> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
-      .staticGas = 20,
+      .static_gas = 20,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -938,7 +938,7 @@ struct Impl<OpCode::COINBASE> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -952,7 +952,7 @@ struct Impl<OpCode::TIMESTAMP> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -966,7 +966,7 @@ struct Impl<OpCode::NUMBER> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -980,7 +980,7 @@ struct Impl<OpCode::DIFFICULTY> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -994,7 +994,7 @@ struct Impl<OpCode::GASLIMIT> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -1008,7 +1008,7 @@ struct Impl<OpCode::CHAINID> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -1022,7 +1022,7 @@ struct Impl<OpCode::SELFBALANCE> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 5,
+      .static_gas = 5,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -1036,8 +1036,8 @@ struct Impl<OpCode::BASEFEE> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
-      .introducedIn = EVMC_LONDON,
+      .static_gas = 2,
+      .introduced_in = EVMC_LONDON,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -1051,7 +1051,7 @@ struct Impl<OpCode::POP> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 0,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run() noexcept { return {}; }
@@ -1062,7 +1062,7 @@ struct Impl<OpCode::MLOAD> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
@@ -1091,7 +1091,7 @@ struct Impl<OpCode::MSTORE> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 0,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
@@ -1118,7 +1118,7 @@ struct Impl<OpCode::MSTORE8> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 0,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
@@ -1168,7 +1168,7 @@ struct Impl<OpCode::SSTORE> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 0,
-      .disallowedInStaticCall = true,
+      .disallowed_in_static_call = true,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
@@ -1262,8 +1262,8 @@ struct Impl<OpCode::JUMP> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 0,
-      .staticGas = 8,
-      .isJump = true,
+      .static_gas = 8,
+      .is_jump = true,
   };
 
   static bool Run(uint256_t*) noexcept { return true; }
@@ -1274,8 +1274,8 @@ struct Impl<OpCode::JUMPI> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 0,
-      .staticGas = 10,
-      .isJump = true,
+      .static_gas = 10,
+      .is_jump = true,
   };
 
   static bool Run(uint256_t* top) noexcept {
@@ -1289,7 +1289,7 @@ struct Impl<OpCode::PC> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, const uint8_t* pc, Context& ctx) noexcept {
@@ -1303,7 +1303,7 @@ struct Impl<OpCode::MSIZE> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
@@ -1317,7 +1317,7 @@ struct Impl<OpCode::GAS> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 2,
+      .static_gas = 2,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas) noexcept {
@@ -1331,7 +1331,7 @@ struct Impl<OpCode::JUMPDEST> : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 0,
-      .staticGas = 1,
+      .static_gas = 1,
   };
 
   static OpResult Run() noexcept { return {}; }
@@ -1342,8 +1342,8 @@ struct PushImpl : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
-      .staticGas = 3,
-      .instructionLength = 1 + N,
+      .static_gas = 3,
+      .instruction_length = 1 + N,
   };
 
   static OpResult Run(uint256_t* top, const uint8_t* pc) noexcept {
@@ -1386,7 +1386,7 @@ struct DupImpl : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = N,
       .pushes = N + 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -1404,7 +1404,7 @@ struct SwapImpl : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = N + 1,
       .pushes = N + 1,
-      .staticGas = 3,
+      .static_gas = 3,
   };
 
   static OpResult Run(uint256_t* top) noexcept {
@@ -1422,8 +1422,8 @@ struct LogImpl : public std::true_type {
   constexpr static OpInfo kInfo{
       .pops = N + 2,
       .pushes = 0,
-      .staticGas = 375 + 375 * N,
-      .disallowedInStaticCall = true,
+      .static_gas = 375 + 375 * N,
+      .disallowed_in_static_call = true,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
@@ -1499,8 +1499,8 @@ struct Impl<OpCode::SELFDESTRUCT> : std::true_type {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 0,
-      .staticGas = 5000,
-      .disallowedInStaticCall = true,
+      .static_gas = 5000,
+      .disallowed_in_static_call = true,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
@@ -1536,8 +1536,8 @@ struct CreateImpl : std::true_type {
   constexpr static OpInfo kInfo{
       .pops = Op == op::CREATE ? 3 : 4,
       .pushes = 1,
-      .staticGas = 32000,
-      .disallowedInStaticCall = true,
+      .static_gas = 32000,
+      .disallowed_in_static_call = true,
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
@@ -1934,13 +1934,13 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
   // TODO: factor out stack implementation details.
   using Impl = op::Impl<op_code>;
 
-  if constexpr (Impl::kInfo.introducedIn) {
-    if (ctx.revision < Impl::kInfo.introducedIn) [[unlikely]] {
+  if constexpr (Impl::kInfo.introduced_in) {
+    if (ctx.revision < Impl::kInfo.introduced_in) [[unlikely]] {
       return {.state = RunState::kErrorOpcode};
     }
   }
 
-  if constexpr (Impl::kInfo.disallowedInStaticCall) {
+  if constexpr (Impl::kInfo.disallowed_in_static_call) {
     if (ctx.is_static_call) [[unlikely]]
       return {.state = RunState::kErrorStaticCall};
   }
@@ -1959,14 +1959,14 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
     }
   }
   // Charge static gas costs.
-  if (gas < Impl::kInfo.staticGas) [[unlikely]] {
+  if (gas < Impl::kInfo.static_gas) [[unlikely]] {
     return Result{.state = RunState::kErrorGas};
   }
-  gas -= Impl::kInfo.staticGas;
+  gas -= Impl::kInfo.static_gas;
 
   // Run the operation.
   RunState state = RunState::kRunning;
-  if constexpr (Impl::kInfo.isJump) {
+  if constexpr (Impl::kInfo.is_jump) {
     if (Impl::Run(top)) {
       if (!ctx.CheckJumpDest(*top)) [[unlikely]] {
         return Result{.state = ctx.state};
@@ -1984,7 +1984,7 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
       }
       gas -= res.dynamic_gas_costs;
     }
-    pc += Impl::kInfo.instructionLength;
+    pc += Impl::kInfo.instruction_length;
   }
 
   // Update the stack.
