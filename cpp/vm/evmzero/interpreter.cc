@@ -2528,7 +2528,6 @@ struct ReturnImpl : public std::true_type {
 
 template <>
 struct Impl<OpCode::RETURN> : ReturnImpl<RunState::kReturn> {};
-
 template <>
 struct Impl<OpCode::REVERT> : ReturnImpl<RunState::kRevert> {};
 
@@ -2630,6 +2629,85 @@ static void selfdestruct(Context& ctx) noexcept {
   ctx.state = RunState::kDone;
 }
 
+template <OpCode Op>
+struct CreateImpl : std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = Op == op::CREATE ? 3 : 4,
+      .pushes = 1,
+      .staticGas = 32000,
+      .disallowedInStaticCall = true,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    if (ctx.message->depth >= 1024) [[unlikely]]
+      return {.state = RunState::kErrorCreate};
+
+    const auto endowment = top[0];
+    const uint256_t init_code_offset_u256 = top[1];
+    const uint256_t init_code_size_u256 = top[2];
+    const auto salt = (Op == op::CREATE2) ? top[3] : uint256_t{0};
+
+    // Set up stack pointer for result value.
+    top += (Op == op::CREATE) ? 2 : 3;
+
+    const auto [mem_cost, init_code_offset, init_code_size] =
+        ctx.MemoryExpansionCost(init_code_offset_u256, init_code_size_u256);
+    int64_t dynamic_gas = mem_cost;
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    if constexpr (Op == op::CREATE2) {
+      const int64_t minimum_word_size = static_cast<int64_t>((init_code_size + 31) / 32);
+      dynamic_gas += 6 * minimum_word_size;
+      if (gas < dynamic_gas) [[unlikely]]
+        return {.dynamic_gas_costs = dynamic_gas};
+    }
+
+    ctx.return_data.clear();
+
+    if (endowment != 0 && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < endowment) {
+      return {.state = RunState::kErrorCreate};
+    }
+
+    auto init_code = ctx.memory.GetSpan(init_code_offset, init_code_size);
+
+    gas -= dynamic_gas;
+
+    evmc_message msg{
+        .kind = (Op == op::CREATE) ? EVMC_CREATE : EVMC_CREATE2,
+        .depth = ctx.message->depth + 1,
+        .gas = gas - gas / 64,
+        .sender = ctx.message->recipient,
+        .input_data = init_code.data(),
+        .input_size = init_code.size(),
+        .value = ToEvmcBytes(endowment),
+        .create2_salt = ToEvmcBytes(salt),
+    };
+
+    const evmc::Result result = ctx.host->call(msg);
+    if (result.status_code == EVMC_REVERT) {
+      ctx.return_data.assign(result.output_data, result.output_data + result.output_size);
+    }
+
+    dynamic_gas += msg.gas - result.gas_left;
+
+    ctx.gas_refunds += result.gas_refund;
+
+    if (result.status_code == EVMC_SUCCESS) {
+      top[0] = ToUint256(result.create_address);
+    } else {
+      top[0] = 0;
+    }
+
+    return {.dynamic_gas_costs = dynamic_gas};
+  }
+};
+
+template <>
+struct Impl<OpCode::CREATE> : CreateImpl<OpCode::CREATE> {};
+template <>
+struct Impl<OpCode::CREATE2> : CreateImpl<OpCode::CREATE2> {};
+
 template <op::OpCode Op>
 static void create_impl(Context& ctx) noexcept {
   static_assert(Op == op::CREATE || Op == op::CREATE2);
@@ -2700,6 +2778,158 @@ static void create_impl(Context& ctx) noexcept {
 
   ctx.pc++;
 }
+
+template <OpCode Op>
+struct CallImpl : std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = (Op == op::STATICCALL || Op == op::DELEGATECALL) ? 6 : 7,
+      .pushes = 1,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    if (ctx.message->depth >= 1024) [[unlikely]]
+      return {.state = RunState::kErrorCall};
+
+    uint256_t call_gas_u256;
+    evmc::address account;
+    uint256_t value;
+    uint256_t input_offset_u256;
+    uint256_t input_size_u256;
+    uint256_t output_offset_u256;
+    uint256_t output_size_u256;
+
+    if constexpr (Op == op::STATICCALL || Op == op::DELEGATECALL) {
+      call_gas_u256 = top[0];
+      account = ToEvmcAddress(top[1]);
+      value = 0;
+      input_offset_u256 = top[2];
+      input_size_u256 = top[3];
+      output_offset_u256 = top[4];
+      output_size_u256 = top[5];
+
+      // Set up stack pointer for result value.
+      top += 5;
+
+    } else {
+      call_gas_u256 = top[0];
+      account = ToEvmcAddress(top[1]);
+      value = top[2];
+      input_offset_u256 = top[3];
+      input_size_u256 = top[4];
+      output_offset_u256 = top[5];
+      output_size_u256 = top[6];
+
+      // Set up stack pointer for result value.
+      top += 6;
+    }
+
+    const bool has_value = value != 0;
+
+    const auto [input_mem_cost, input_offset, input_size] = ctx.MemoryExpansionCost(input_offset_u256, input_size_u256);
+    const auto [output_mem_cost, output_offset, output_size] =
+        ctx.MemoryExpansionCost(output_offset_u256, output_size_u256);
+
+    // APPLY_GAS_COST(gas, std::max(input_mem_cost, output_mem_cost));
+    int64_t dynamic_gas = std::max(input_mem_cost, output_mem_cost);
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    if constexpr (Op == op::CALL) {
+      if (has_value && ctx.is_static_call) {
+        return {.state = RunState::kErrorStaticCall};
+      }
+    }
+
+    // Dynamic gas costs (excluding memory expansion and code execution costs)
+    {
+      int64_t address_access_cost = 700;
+      if (ctx.revision >= EVMC_BERLIN) {
+        if (ctx.host->access_account(account) == EVMC_ACCESS_WARM) {
+          address_access_cost = 100;
+        } else {
+          address_access_cost = 2600;
+        }
+      }
+
+      int64_t positive_value_cost = has_value ? 9000 : 0;
+      int64_t value_to_empty_account_cost = 0;
+      if constexpr (Op != op::CALLCODE) {
+        if (has_value && !ctx.host->account_exists(account)) {
+          value_to_empty_account_cost = 25000;
+        }
+      }
+
+      // APPLY_GAS_COST(gas, address_access_cost + positive_value_cost + value_to_empty_account_cost);
+      dynamic_gas += address_access_cost + positive_value_cost + value_to_empty_account_cost;
+      if (gas < dynamic_gas) [[unlikely]]
+        return {.dynamic_gas_costs = dynamic_gas};
+    }
+
+    ctx.return_data.clear();
+
+    auto input_data = ctx.memory.GetSpan(input_offset, input_size);
+
+    int64_t call_gas = kMaxGas;
+    if (call_gas_u256 < kMaxGas) {
+      call_gas = static_cast<int64_t>(call_gas_u256);
+    }
+
+    evmc_message msg{
+        .kind = (Op == op::DELEGATECALL) ? EVMC_DELEGATECALL
+                : (Op == op::CALLCODE)   ? EVMC_CALLCODE
+                                         : EVMC_CALL,
+        .flags = (Op == op::STATICCALL) ? uint32_t{EVMC_STATIC} : ctx.message->flags,
+        .depth = ctx.message->depth + 1,
+        .gas = std::min(call_gas, (gas - dynamic_gas) - (gas - dynamic_gas) / 64),
+        .recipient = (Op == op::CALL || Op == op::STATICCALL) ? account : ctx.message->recipient,
+        .sender = (Op == op::DELEGATECALL) ? ctx.message->sender : ctx.message->recipient,
+        .input_data = input_data.data(),
+        .input_size = input_data.size(),
+        .value = (Op == op::DELEGATECALL) ? ctx.message->value : ToEvmcBytes(value),
+        .code_address = account,
+    };
+
+    // call stipend
+    if (has_value) {
+      msg.gas += 2300;
+      // gas += 2300;
+      dynamic_gas -= 2300;
+    }
+
+    if (has_value && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < value) {
+      top[0] = 0;
+      return {.dynamic_gas_costs = dynamic_gas};
+    }
+
+    const evmc::Result result = ctx.host->call(msg);
+    ctx.return_data.assign(result.output_data, result.output_data + result.output_size);
+
+    ctx.memory.Grow(output_offset, output_size);
+    if (ctx.return_data.size() > 0) {
+      ctx.memory.ReadFromWithSize(ctx.return_data, output_offset, output_size);
+    }
+
+    // APPLY_GAS_COST(gas, msg.gas - result.gas_left);
+    dynamic_gas += msg.gas - result.gas_left;
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    ctx.gas_refunds += result.gas_refund;
+
+    top[0] = result.status_code == EVMC_SUCCESS;
+
+    return {.dynamic_gas_costs = dynamic_gas};
+  }
+};
+
+template <>
+struct Impl<OpCode::CALL> : CallImpl<OpCode::CALL> {};
+template <>
+struct Impl<OpCode::CALLCODE> : CallImpl<OpCode::CALLCODE> {};
+template <>
+struct Impl<OpCode::DELEGATECALL> : CallImpl<OpCode::DELEGATECALL> {};
+template <>
+struct Impl<OpCode::STATICCALL> : CallImpl<OpCode::STATICCALL> {};
 
 template <op::OpCode Op>
 static void call_impl(Context& ctx) noexcept {
