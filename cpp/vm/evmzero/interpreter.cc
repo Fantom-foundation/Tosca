@@ -1769,47 +1769,53 @@ struct Impl<OpCode::DELEGATECALL> : CallImpl<OpCode::DELEGATECALL> {};
 template <>
 struct Impl<OpCode::STATICCALL> : CallImpl<OpCode::STATICCALL> {};
 
+inline OpResult Invoke(uint256_t*, const uint8_t*, int64_t, Context&,  //
+                       OpResult (*op)() noexcept                       //
+                       ) noexcept {
+  return op();
+}
+
+inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context&,  //
+                       OpResult (*op)(uint256_t* top) noexcept             //
+                       ) noexcept {
+  return op(top);
+}
+
+inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context&,  //
+                       OpResult (*op)(uint256_t* top, int64_t gas) noexcept    //
+                       ) noexcept {
+  return op(top, gas);
+}
+
+inline OpResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, Context&,       //
+                       OpResult (*op)(uint256_t* top, const uint8_t* pc) noexcept  //
+                       ) noexcept {
+  return op(top, pc);
+}
+
+inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context& ctx,  //
+                       OpResult (*op)(uint256_t* top, Context&) noexcept       //
+                       ) noexcept {
+  return op(top, ctx);
+}
+
+inline OpResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, Context& ctx,             //
+                       OpResult (*op)(uint256_t* top, const uint8_t* pc, Context&) noexcept  //
+                       ) noexcept {
+  return op(top, pc, ctx);
+}
+
+inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context& ctx,      //
+                       OpResult (*op)(uint256_t* top, int64_t gas, Context&) noexcept  //
+                       ) noexcept {
+  return op(top, gas, ctx);
+}
+
 }  // namespace op
 
 ///////////////////////////////////////////////////////////
 
 namespace internal {
-
-bool Context::CheckOpcodeAvailable(evmc_revision introduced_in) noexcept {
-  if (revision < introduced_in) [[unlikely]] {
-    state = RunState::kErrorOpcode;
-    return false;
-  } else {
-    return true;
-  }
-}
-
-bool Context::CheckStaticCallConformance() noexcept {
-  if (is_static_call) [[unlikely]] {
-    state = RunState::kErrorStaticCall;
-    return false;
-  } else {
-    return true;
-  }
-}
-
-inline bool Context::CheckStackAvailable(uint64_t elements_needed) noexcept {
-  if (stack.GetSize() < elements_needed) [[unlikely]] {
-    state = RunState::kErrorStackUnderflow;
-    return false;
-  } else {
-    return true;
-  }
-}
-
-inline bool Context::CheckStackOverflow(uint64_t slots_needed) noexcept {
-  if (stack.GetMaxSize() - stack.GetSize() < slots_needed) [[unlikely]] {
-    state = RunState::kErrorStackOverflow;
-    return false;
-  } else {
-    return true;
-  }
-}
 
 inline bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
   if (index_u256 >= valid_jump_targets.size()) [[unlikely]] {
@@ -1861,19 +1867,6 @@ Context::MemoryExpansionCostResult Context::MemoryExpansionCost(uint256_t offset
   };
 }
 
-inline bool Context::ApplyGasCost(int64_t gas_cost) noexcept {
-  TOSCA_ASSERT(gas_cost >= 0);
-
-  if (gas < gas_cost) [[unlikely]] {
-    state = RunState::kErrorGas;
-    return false;
-  }
-
-  gas -= gas_cost;
-
-  return true;
-}
-
 std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
   std::vector<uint8_t> padded;
   padded.reserve(code.size() + kStopBytePadding);
@@ -1882,52 +1875,11 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
   return padded;
 }
 
-inline op::OpResult Invoke(uint256_t*, const uint8_t*, int64_t, Context&,  //
-                           op::OpResult (*op)() noexcept) noexcept {
-  return op();
-}
-
-inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context&,  //
-                           op::OpResult (*op)(uint256_t* top) noexcept         //
-                           ) noexcept {
-  return op(top);
-}
-
-inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context&,    //
-                           op::OpResult (*op)(uint256_t* top, int64_t gas) noexcept  //
-                           ) noexcept {
-  return op(top, gas);
-}
-
-inline op::OpResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, Context&,           //
-                           op::OpResult (*op)(uint256_t* top, const uint8_t* pc) noexcept  //
-                           ) noexcept {
-  return op(top, pc);
-}
-
-inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context& ctx,  //
-                           op::OpResult (*op)(uint256_t* top, Context&) noexcept   //
-                           ) noexcept {
-  return op(top, ctx);
-}
-
-inline op::OpResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, Context& ctx,                 //
-                           op::OpResult (*op)(uint256_t* top, const uint8_t* pc, Context&) noexcept  //
-                           ) noexcept {
-  return op(top, pc, ctx);
-}
-
-inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context& ctx,          //
-                           op::OpResult (*op)(uint256_t* top, int64_t gas, Context&) noexcept  //
-                           ) noexcept {
-  return op(top, gas, ctx);
-}
-
 struct Result {
-  RunState state;
-  const uint8_t* pc;
-  int64_t gas_left;
-  uint256_t* top;
+  RunState state = RunState::kDone;
+  const uint8_t* pc = nullptr;
+  int64_t gas_left = 0;
+  uint256_t* top = nullptr;
 };
 
 template <op::OpCode op_code>

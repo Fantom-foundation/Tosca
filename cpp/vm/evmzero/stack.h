@@ -74,7 +74,6 @@ class Stack {
   friend bool operator!=(const Stack&, const Stack&);
 
  private:
-
   // The type retaining the actual storage for the stack.
   class Data {
    public:
@@ -95,8 +94,8 @@ class Stack {
 
     // An aligned blob of not auto-initialized data. Stack memory does not have
     // to be initialized, since any read is preceeded by a push or dup.
-    static_assert(sizeof(uint256_t) * kStackSize * 2 == 1<<16);
-    alignas(1<<16) std::array<std::byte, kStackSize * sizeof(uint256_t)> data_;
+    static_assert(sizeof(uint256_t) * kStackSize * 2 == 1 << 16);
+    alignas(1 << 16) std::array<std::byte, kStackSize * sizeof(uint256_t)> data_;
 
     // A next-pointer to be used when enqueuing instances in the free list.
     Data* next_ = nullptr;
