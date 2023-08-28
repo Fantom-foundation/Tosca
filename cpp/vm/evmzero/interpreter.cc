@@ -110,6 +110,8 @@ struct OpInfo {
   int32_t instructionLength = 1;
   bool isJump = false;
 
+  std::optional<evmc_revision> introducedIn;
+
   constexpr int32_t GetStackDelta() const { return pushes - pops; }
 };
 
@@ -1429,6 +1431,44 @@ static void returndatasize(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::RETURNDATACOPY> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 3,
+      .pushes = 0,
+      .staticGas = 3,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    const uint256_t memory_offset_u256 = top[0];
+    const uint256_t return_data_offset_u256 = top[1];
+    const uint256_t size_u256 = top[2];
+
+    const auto [mem_cost, memory_offset, size] = ctx.MemoryExpansionCost(memory_offset_u256, size_u256);
+    int64_t dynamic_gas = mem_cost;
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
+    dynamic_gas += 3 * minimum_word_size;
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    {
+      const auto [end_u256, carry] = intx::addc(return_data_offset_u256, size_u256);
+      if (carry || end_u256 > ctx.return_data.size()) {
+        return {.state = RunState::kErrorReturnDataCopyOutOfBounds};
+      }
+    }
+
+    std::span<const uint8_t> return_data_view = std::span(ctx.return_data)  //
+                                                    .subspan(static_cast<uint64_t>(return_data_offset_u256));
+    ctx.memory.ReadFromWithSize(return_data_view, memory_offset, size);
+
+    return {.dynamic_gas_costs = dynamic_gas};
+  }
+};
+
 static void returndatacopy(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(3)) [[unlikely]]
     return;
@@ -1461,6 +1501,33 @@ static void returndatacopy(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::EXTCODEHASH> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 1,
+      .pushes = 1,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    auto address = ToEvmcAddress(top[0]);
+
+    int64_t dynamic_gas = 700;
+    if (ctx.revision >= EVMC_BERLIN) {
+      if (ctx.host->access_account(address) == EVMC_ACCESS_WARM) {
+        dynamic_gas = 100;
+      } else {
+        dynamic_gas = 2600;
+      }
+    }
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    top[0] = ToUint256(ctx.host->get_code_hash(address));
+
+    return {.dynamic_gas_costs = dynamic_gas};
+  }
+};
+
 static void extcodehash(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
@@ -1482,6 +1549,21 @@ static void extcodehash(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::BLOCKHASH> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 1,
+      .pushes = 1,
+      .staticGas = 20,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    int64_t number = static_cast<int64_t>(top[0]);
+    top[0] = ToUint256(ctx.host->get_block_hash(number));
+    return {};
+  }
+};
+
 static void blockhash(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
@@ -1492,6 +1574,20 @@ static void blockhash(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::COINBASE> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .staticGas = 2,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ToUint256(ctx.host->get_tx_context().block_coinbase);
+    return {};
+  }
+};
+
 static void coinbase(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
     return;
@@ -1500,6 +1596,20 @@ static void coinbase(Context& ctx) noexcept {
   ctx.stack.Push(ToUint256(ctx.host->get_tx_context().block_coinbase));
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::TIMESTAMP> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .staticGas = 2,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ctx.host->get_tx_context().block_timestamp;
+    return {};
+  }
+};
 
 static void timestamp(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
@@ -1510,6 +1620,20 @@ static void timestamp(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::NUMBER> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .staticGas = 2,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ctx.host->get_tx_context().block_number;
+    return {};
+  }
+};
+
 static void blocknumber(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
     return;
@@ -1518,6 +1642,20 @@ static void blocknumber(Context& ctx) noexcept {
   ctx.stack.Push(ctx.host->get_tx_context().block_number);
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::DIFFICULTY> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .staticGas = 2,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ToUint256(ctx.host->get_tx_context().block_prev_randao);
+    return {};
+  }
+};
 
 static void prevrandao(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
@@ -1528,6 +1666,20 @@ static void prevrandao(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::GASLIMIT> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .staticGas = 2,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ctx.host->get_tx_context().block_gas_limit;
+    return {};
+  }
+};
+
 static void gaslimit(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
     return;
@@ -1536,6 +1688,20 @@ static void gaslimit(Context& ctx) noexcept {
   ctx.stack.Push(ctx.host->get_tx_context().block_gas_limit);
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::CHAINID> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .staticGas = 2,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ToUint256(ctx.host->get_tx_context().chain_id);
+    return {};
+  }
+};
 
 static void chainid(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
@@ -1546,6 +1712,20 @@ static void chainid(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::SELFBALANCE> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .staticGas = 5,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ToUint256(ctx.host->get_balance(ctx.message->recipient));
+    return {};
+  }
+};
+
 static void selfbalance(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
     return;
@@ -1554,6 +1734,21 @@ static void selfbalance(Context& ctx) noexcept {
   ctx.stack.Push(ToUint256(ctx.host->get_balance(ctx.message->recipient)));
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::BASEFEE> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .staticGas = 2,
+      .introducedIn = EVMC_LONDON,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ToUint256(ctx.host->get_tx_context().block_base_fee);
+    return {};
+  }
+};
 
 static void basefee(Context& ctx) noexcept {
   if (!ctx.CheckOpcodeAvailable(EVMC_LONDON)) [[unlikely]]
@@ -1586,6 +1781,35 @@ static void pop(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::MLOAD> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 1,
+      .pushes = 1,
+      .staticGas = 3,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    const uint256_t offset_u256 = top[0];
+
+    const auto [mem_cost, offset, _] = ctx.MemoryExpansionCost(offset_u256, 32);
+    int64_t dynamic_gas = mem_cost;
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    uint256_t value;
+    ctx.memory.WriteTo({ToBytes(value), 32}, offset);
+
+    if constexpr (std::endian::native == std::endian::little) {
+      value = intx::bswap(value);
+    }
+
+    top[0] = value;
+
+    return {.dynamic_gas_costs = dynamic_gas};
+  }
+};
+
 static void mload(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
@@ -1609,6 +1833,33 @@ static void mload(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::MSTORE> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 0,
+      .staticGas = 3,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    const uint256_t offset_u256 = top[0];
+    uint256_t value = top[1];
+
+    const auto [mem_cost, offset, _] = ctx.MemoryExpansionCost(offset_u256, 32);
+    int64_t dynamic_gas = mem_cost;
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    if constexpr (std::endian::native == std::endian::little) {
+      value = intx::bswap(value);
+    }
+
+    ctx.memory.ReadFrom({ToBytes(value), 32}, offset);
+
+    return {.dynamic_gas_costs = dynamic_gas};
+  }
+};
+
 static void mstore(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
     return;
@@ -1629,6 +1880,29 @@ static void mstore(Context& ctx) noexcept {
   ctx.memory.ReadFrom({ToBytes(value), 32}, offset);
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::MSTORE8> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 0,
+      .staticGas = 3,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    const uint256_t offset_u256 = top[0];
+    const uint8_t value = static_cast<uint8_t>(top[1]);
+
+    const auto [mem_cost, offset, _] = ctx.MemoryExpansionCost(offset_u256, 1);
+    int64_t dynamic_gas = mem_cost;
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    ctx.memory.ReadFrom({&value, 1}, offset);
+
+    return {.dynamic_gas_costs = dynamic_gas};
+  }
+};
 
 static void mstore8(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(2)) [[unlikely]]
@@ -2420,6 +2694,12 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
   if constexpr (kHasImplType<op_code>) {
     // TODO: factor out stack implementation details.
     using Impl = op::Impl<op_code>;
+
+    if constexpr (Impl::kInfo.introducedIn) {
+      if (ctx.revision < Impl::kInfo.introducedIn) [[unlikely]] {
+        return Result{.state = RunState::kErrorOpcode};
+      }
+    }
 
     // Check stack requirements.
     auto base = reinterpret_cast<const uint256_t*>((reinterpret_cast<uintptr_t>(top) >> 16) << 16) + Stack::kStackSize;
