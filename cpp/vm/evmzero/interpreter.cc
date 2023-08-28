@@ -122,16 +122,19 @@ struct OpResult {
 };
 
 template <OpCode op_code>
-struct Impl : public std::false_type {};
+struct Impl {
+  constexpr static OpInfo kInfo;
+  static OpResult Run() noexcept { static_assert(op_code != op_code, "Not implemented!"); }
+};
 
 template <>
-struct Impl<OpCode::STOP> : public std::true_type {
+struct Impl<OpCode::STOP> {
   constexpr static OpInfo kInfo{};
   static OpResult Run() noexcept { return {.state = RunState::kDone}; }
 };
 
 template <>
-struct Impl<OpCode::ADD> : public std::true_type {
+struct Impl<OpCode::ADD> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -145,7 +148,7 @@ struct Impl<OpCode::ADD> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::MUL> : public std::true_type {
+struct Impl<OpCode::MUL> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -159,7 +162,7 @@ struct Impl<OpCode::MUL> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SUB> : public std::true_type {
+struct Impl<OpCode::SUB> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -173,7 +176,7 @@ struct Impl<OpCode::SUB> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::DIV> : public std::true_type {
+struct Impl<OpCode::DIV> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -189,7 +192,7 @@ struct Impl<OpCode::DIV> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SDIV> : public std::true_type {
+struct Impl<OpCode::SDIV> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -205,7 +208,7 @@ struct Impl<OpCode::SDIV> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::MOD> : public std::true_type {
+struct Impl<OpCode::MOD> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -221,7 +224,7 @@ struct Impl<OpCode::MOD> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SMOD> : public std::true_type {
+struct Impl<OpCode::SMOD> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -237,7 +240,7 @@ struct Impl<OpCode::SMOD> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::ADDMOD> : public std::true_type {
+struct Impl<OpCode::ADDMOD> {
   constexpr static OpInfo kInfo{
       .pops = 3,
       .pushes = 1,
@@ -253,7 +256,7 @@ struct Impl<OpCode::ADDMOD> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::MULMOD> : public std::true_type {
+struct Impl<OpCode::MULMOD> {
   constexpr static OpInfo kInfo{
       .pops = 3,
       .pushes = 1,
@@ -269,7 +272,7 @@ struct Impl<OpCode::MULMOD> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::EXP> : public std::true_type {
+struct Impl<OpCode::EXP> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -289,7 +292,7 @@ struct Impl<OpCode::EXP> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SIGNEXTEND> : public std::true_type {
+struct Impl<OpCode::SIGNEXTEND> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -318,7 +321,7 @@ struct Impl<OpCode::SIGNEXTEND> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::LT> : public std::true_type {
+struct Impl<OpCode::LT> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -332,7 +335,7 @@ struct Impl<OpCode::LT> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::GT> : public std::true_type {
+struct Impl<OpCode::GT> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -346,7 +349,7 @@ struct Impl<OpCode::GT> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SLT> : public std::true_type {
+struct Impl<OpCode::SLT> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -360,7 +363,7 @@ struct Impl<OpCode::SLT> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SGT> : public std::true_type {
+struct Impl<OpCode::SGT> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -374,7 +377,7 @@ struct Impl<OpCode::SGT> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::EQ> : public std::true_type {
+struct Impl<OpCode::EQ> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -388,7 +391,7 @@ struct Impl<OpCode::EQ> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::ISZERO> : public std::true_type {
+struct Impl<OpCode::ISZERO> {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
@@ -402,7 +405,7 @@ struct Impl<OpCode::ISZERO> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::AND> : public std::true_type {
+struct Impl<OpCode::AND> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -416,7 +419,7 @@ struct Impl<OpCode::AND> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::OR> : public std::true_type {
+struct Impl<OpCode::OR> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -430,7 +433,7 @@ struct Impl<OpCode::OR> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::XOR> : public std::true_type {
+struct Impl<OpCode::XOR> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -444,7 +447,7 @@ struct Impl<OpCode::XOR> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::NOT> : public std::true_type {
+struct Impl<OpCode::NOT> {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
@@ -458,7 +461,7 @@ struct Impl<OpCode::NOT> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::BYTE> : public std::true_type {
+struct Impl<OpCode::BYTE> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -477,7 +480,7 @@ struct Impl<OpCode::BYTE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SHL> : public std::true_type {
+struct Impl<OpCode::SHL> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -491,7 +494,7 @@ struct Impl<OpCode::SHL> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SHR> : public std::true_type {
+struct Impl<OpCode::SHR> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -505,7 +508,7 @@ struct Impl<OpCode::SHR> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SAR> : public std::true_type {
+struct Impl<OpCode::SAR> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -529,7 +532,7 @@ struct Impl<OpCode::SAR> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SHA3> : public std::true_type {
+struct Impl<OpCode::SHA3> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 1,
@@ -558,7 +561,7 @@ struct Impl<OpCode::SHA3> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::ADDRESS> : public std::true_type {
+struct Impl<OpCode::ADDRESS> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -572,7 +575,7 @@ struct Impl<OpCode::ADDRESS> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::BALANCE> : public std::true_type {
+struct Impl<OpCode::BALANCE> {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
@@ -599,7 +602,7 @@ struct Impl<OpCode::BALANCE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::ORIGIN> : public std::true_type {
+struct Impl<OpCode::ORIGIN> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -613,7 +616,7 @@ struct Impl<OpCode::ORIGIN> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::CALLER> : public std::true_type {
+struct Impl<OpCode::CALLER> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -627,7 +630,7 @@ struct Impl<OpCode::CALLER> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::CALLVALUE> : public std::true_type {
+struct Impl<OpCode::CALLVALUE> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -641,7 +644,7 @@ struct Impl<OpCode::CALLVALUE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::CALLDATALOAD> : public std::true_type {
+struct Impl<OpCode::CALLDATALOAD> {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
@@ -667,7 +670,7 @@ struct Impl<OpCode::CALLDATALOAD> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::CALLDATASIZE> : public std::true_type {
+struct Impl<OpCode::CALLDATASIZE> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -681,7 +684,7 @@ struct Impl<OpCode::CALLDATASIZE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::CALLDATACOPY> : public std::true_type {
+struct Impl<OpCode::CALLDATACOPY> {
   constexpr static OpInfo kInfo{
       .pops = 3,
       .pushes = 0,
@@ -712,7 +715,7 @@ struct Impl<OpCode::CALLDATACOPY> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::CODESIZE> : public std::true_type {
+struct Impl<OpCode::CODESIZE> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -726,7 +729,7 @@ struct Impl<OpCode::CODESIZE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::CODECOPY> : public std::true_type {
+struct Impl<OpCode::CODECOPY> {
   constexpr static OpInfo kInfo{
       .pops = 3,
       .pushes = 0,
@@ -756,7 +759,7 @@ struct Impl<OpCode::CODECOPY> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::GASPRICE> : public std::true_type {
+struct Impl<OpCode::GASPRICE> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -770,7 +773,7 @@ struct Impl<OpCode::GASPRICE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::EXTCODESIZE> : public std::true_type {
+struct Impl<OpCode::EXTCODESIZE> {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
@@ -797,7 +800,7 @@ struct Impl<OpCode::EXTCODESIZE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::EXTCODECOPY> : public std::true_type {
+struct Impl<OpCode::EXTCODECOPY> {
   constexpr static OpInfo kInfo{
       .pops = 4,
       .pushes = 0,
@@ -840,7 +843,7 @@ struct Impl<OpCode::EXTCODECOPY> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::RETURNDATASIZE> : public std::true_type {
+struct Impl<OpCode::RETURNDATASIZE> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -854,7 +857,7 @@ struct Impl<OpCode::RETURNDATASIZE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::RETURNDATACOPY> : public std::true_type {
+struct Impl<OpCode::RETURNDATACOPY> {
   constexpr static OpInfo kInfo{
       .pops = 3,
       .pushes = 0,
@@ -892,7 +895,7 @@ struct Impl<OpCode::RETURNDATACOPY> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::EXTCODEHASH> : public std::true_type {
+struct Impl<OpCode::EXTCODEHASH> {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
@@ -919,7 +922,7 @@ struct Impl<OpCode::EXTCODEHASH> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::BLOCKHASH> : public std::true_type {
+struct Impl<OpCode::BLOCKHASH> {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
@@ -934,7 +937,7 @@ struct Impl<OpCode::BLOCKHASH> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::COINBASE> : public std::true_type {
+struct Impl<OpCode::COINBASE> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -948,7 +951,7 @@ struct Impl<OpCode::COINBASE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::TIMESTAMP> : public std::true_type {
+struct Impl<OpCode::TIMESTAMP> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -962,7 +965,7 @@ struct Impl<OpCode::TIMESTAMP> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::NUMBER> : public std::true_type {
+struct Impl<OpCode::NUMBER> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -976,7 +979,7 @@ struct Impl<OpCode::NUMBER> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::DIFFICULTY> : public std::true_type {
+struct Impl<OpCode::DIFFICULTY> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -990,7 +993,7 @@ struct Impl<OpCode::DIFFICULTY> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::GASLIMIT> : public std::true_type {
+struct Impl<OpCode::GASLIMIT> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -1004,7 +1007,7 @@ struct Impl<OpCode::GASLIMIT> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::CHAINID> : public std::true_type {
+struct Impl<OpCode::CHAINID> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -1018,7 +1021,7 @@ struct Impl<OpCode::CHAINID> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SELFBALANCE> : public std::true_type {
+struct Impl<OpCode::SELFBALANCE> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -1032,7 +1035,7 @@ struct Impl<OpCode::SELFBALANCE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::BASEFEE> : public std::true_type {
+struct Impl<OpCode::BASEFEE> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -1047,7 +1050,7 @@ struct Impl<OpCode::BASEFEE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::POP> : public std::true_type {
+struct Impl<OpCode::POP> {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 0,
@@ -1058,7 +1061,7 @@ struct Impl<OpCode::POP> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::MLOAD> : public std::true_type {
+struct Impl<OpCode::MLOAD> {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
@@ -1087,7 +1090,7 @@ struct Impl<OpCode::MLOAD> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::MSTORE> : public std::true_type {
+struct Impl<OpCode::MSTORE> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 0,
@@ -1114,7 +1117,7 @@ struct Impl<OpCode::MSTORE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::MSTORE8> : public std::true_type {
+struct Impl<OpCode::MSTORE8> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 0,
@@ -1137,7 +1140,7 @@ struct Impl<OpCode::MSTORE8> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SLOAD> : public std::true_type {
+struct Impl<OpCode::SLOAD> {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 1,
@@ -1164,7 +1167,7 @@ struct Impl<OpCode::SLOAD> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::SSTORE> : public std::true_type {
+struct Impl<OpCode::SSTORE> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 0,
@@ -1258,7 +1261,7 @@ struct Impl<OpCode::SSTORE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::JUMP> : public std::true_type {
+struct Impl<OpCode::JUMP> {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 0,
@@ -1270,7 +1273,7 @@ struct Impl<OpCode::JUMP> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::JUMPI> : public std::true_type {
+struct Impl<OpCode::JUMPI> {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 0,
@@ -1285,7 +1288,7 @@ struct Impl<OpCode::JUMPI> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::PC> : public std::true_type {
+struct Impl<OpCode::PC> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -1299,7 +1302,7 @@ struct Impl<OpCode::PC> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::MSIZE> : public std::true_type {
+struct Impl<OpCode::MSIZE> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -1313,7 +1316,7 @@ struct Impl<OpCode::MSIZE> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::GAS> : public std::true_type {
+struct Impl<OpCode::GAS> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -1327,7 +1330,7 @@ struct Impl<OpCode::GAS> : public std::true_type {
 };
 
 template <>
-struct Impl<OpCode::JUMPDEST> : public std::true_type {
+struct Impl<OpCode::JUMPDEST> {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 0,
@@ -1338,7 +1341,7 @@ struct Impl<OpCode::JUMPDEST> : public std::true_type {
 };
 
 template <uint64_t N>
-struct PushImpl : public std::true_type {
+struct PushImpl {
   constexpr static OpInfo kInfo{
       .pops = 0,
       .pushes = 1,
@@ -1383,7 +1386,7 @@ requires(OpCode::PUSH1 <= op_code && op_code <= OpCode::PUSH32)  //
 };
 
 template <uint64_t N>
-struct DupImpl : public std::true_type {
+struct DupImpl {
   constexpr static OpInfo kInfo{
       .pops = N,
       .pushes = N + 1,
@@ -1402,7 +1405,7 @@ requires(OpCode::DUP1 <= op_code && op_code <= OpCode::DUP16)  //
 };
 
 template <uint64_t N>
-struct SwapImpl : public std::true_type {
+struct SwapImpl {
   constexpr static OpInfo kInfo{
       .pops = N + 1,
       .pushes = N + 1,
@@ -1421,7 +1424,7 @@ requires(OpCode::SWAP1 <= op_code && op_code <= OpCode::SWAP16)  //
 };
 
 template <uint64_t N>
-struct LogImpl : public std::true_type {
+struct LogImpl {
   constexpr static OpInfo kInfo{
       .pops = N + 2,
       .pushes = 0,
@@ -1461,7 +1464,7 @@ requires(OpCode::LOG0 <= op_code && op_code <= OpCode::LOG4)  //
 };
 
 template <RunState result_state>
-struct ReturnImpl : public std::true_type {
+struct ReturnImpl {
   constexpr static OpInfo kInfo{
       .pops = 2,
       .pushes = 0,
@@ -1928,13 +1931,7 @@ struct Result {
 };
 
 template <op::OpCode op_code>
-constexpr static bool kHasImplType = op::Impl<op_code>::value;
-
-template <op::OpCode op_code>
-inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t* code,
-                  Context& ctx)      //
-    requires(kHasImplType<op_code>)  //
-{
+inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t* code, Context& ctx) {
   // TODO: factor out stack implementation details.
   using Impl = op::Impl<op_code>;
 
