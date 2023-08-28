@@ -109,6 +109,7 @@ struct OpInfo {
   int32_t staticGas = 0;
   int32_t instructionLength = 1;
   bool isJump = false;
+  bool disallowedInStaticCall = false;
 
   std::optional<evmc_revision> introducedIn;
 
@@ -400,9 +401,9 @@ struct Impl<OpCode::EXP> : public std::true_type {
     uint256_t& a = top[0];
     uint256_t& exponent = top[1];
     int64_t dynamic_gas = 50 * intx::count_significant_bytes(exponent);
-    if (gas < dynamic_gas) [[unlikely]] {
+    if (gas < dynamic_gas) [[unlikely]]
       return {.dynamic_gas_costs = dynamic_gas};
-    }
+
     top[1] = intx::exp(a, exponent);
     return {.dynamic_gas_costs = dynamic_gas};
   }
@@ -1921,6 +1922,33 @@ static void mstore8(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::SLOAD> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 1,
+      .pushes = 1,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    const uint256_t key = top[0];
+
+    int64_t dynamic_gas = 800;
+    if (ctx.revision >= EVMC_BERLIN) {
+      if (ctx.host->access_storage(ctx.message->recipient, ToEvmcBytes(key)) == EVMC_ACCESS_WARM) {
+        dynamic_gas = 100;
+      } else {
+        dynamic_gas = 2100;
+      }
+    }
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    top[0] = ToUint256(ctx.host->get_storage(ctx.message->recipient, ToEvmcBytes(key)));
+
+    return {.dynamic_gas_costs = dynamic_gas};
+  }
+};
+
 static void sload(Context& ctx) noexcept {
   if (!ctx.CheckStackAvailable(1)) [[unlikely]]
     return;
@@ -1942,6 +1970,100 @@ static void sload(Context& ctx) noexcept {
   ctx.stack.Push(ToUint256(value));
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::SSTORE> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 0,
+      .disallowedInStaticCall = true,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    // EIP-2200
+    if (gas <= 2300) [[unlikely]] {
+      return {.state = RunState::kErrorGas};
+    }
+
+    const uint256_t key = top[0];
+    const uint256_t value = top[1];
+
+    bool key_is_warm = false;
+    if (ctx.revision >= EVMC_BERLIN) {
+      key_is_warm = ctx.host->access_storage(ctx.message->recipient, ToEvmcBytes(key)) == EVMC_ACCESS_WARM;
+    }
+
+    int64_t dynamic_gas = 800;
+    if (ctx.revision >= EVMC_BERLIN) {
+      dynamic_gas = 100;
+    }
+
+    const auto storage_status = ctx.host->set_storage(ctx.message->recipient, ToEvmcBytes(key), ToEvmcBytes(value));
+
+    // Dynamic gas cost depends on the current value in storage. set_storage
+    // provides the relevant information we need.
+    if (storage_status == EVMC_STORAGE_ADDED) {
+      dynamic_gas = 20000;
+    }
+    if (storage_status == EVMC_STORAGE_MODIFIED || storage_status == EVMC_STORAGE_DELETED) {
+      if (ctx.revision >= EVMC_BERLIN) {
+        dynamic_gas = 2900;
+      } else {
+        dynamic_gas = 5000;
+      }
+    }
+
+    if (ctx.revision >= EVMC_BERLIN && !key_is_warm) {
+      dynamic_gas += 2100;
+    }
+
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    // gas refund
+    {
+      auto warm_cold_restored = [&]() -> int64_t {
+        if (ctx.revision >= EVMC_BERLIN) {
+          if (key_is_warm) {
+            return 5000 - 2100 - 100;
+          } else {
+            return 4900;
+          }
+        } else {
+          return 4200;
+        }
+      };
+
+      switch (storage_status) {
+        case EVMC_STORAGE_DELETED:
+          ctx.gas_refunds += ctx.revision >= EVMC_LONDON ? 4800 : 15000;
+          break;
+        case EVMC_STORAGE_DELETED_ADDED:
+          ctx.gas_refunds -= ctx.revision >= EVMC_LONDON ? 4800 : 15000;
+          break;
+        case EVMC_STORAGE_MODIFIED_DELETED:
+          ctx.gas_refunds += ctx.revision >= EVMC_LONDON ? 4800 : 15000;
+          break;
+        case EVMC_STORAGE_DELETED_RESTORED:
+          ctx.gas_refunds -= ctx.revision >= EVMC_LONDON ? 4800 : 15000;
+          ctx.gas_refunds += warm_cold_restored();
+          break;
+        case EVMC_STORAGE_ADDED_DELETED:
+          ctx.gas_refunds += ctx.revision >= EVMC_BERLIN ? 19900 : 19200;
+          break;
+        case EVMC_STORAGE_MODIFIED_RESTORED:
+          ctx.gas_refunds += warm_cold_restored();
+          break;
+        case EVMC_STORAGE_ASSIGNED:
+        case EVMC_STORAGE_ADDED:
+        case EVMC_STORAGE_MODIFIED:
+          break;
+      }
+    }
+
+    return {.dynamic_gas_costs = dynamic_gas};
+  }
+};
 
 static void sstore(Context& ctx) noexcept {
   // EIP-2200
@@ -2087,6 +2209,20 @@ static void jumpi(Context& ctx) noexcept {
   }
 }
 
+template <>
+struct Impl<OpCode::PC> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .staticGas = 2,
+  };
+
+  static OpResult Run(uint256_t* top, const uint8_t* pc, Context& ctx) noexcept {
+    top[-1] = pc - ctx.padded_code.data();
+    return {};
+  }
+};
+
 static void pc(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
     return;
@@ -2096,6 +2232,20 @@ static void pc(Context& ctx) noexcept {
   ctx.pc++;
 }
 
+template <>
+struct Impl<OpCode::MSIZE> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .staticGas = 2,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ctx.memory.GetSize();
+    return {};
+  }
+};
+
 static void msize(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
     return;
@@ -2104,6 +2254,20 @@ static void msize(Context& ctx) noexcept {
   ctx.stack.Push(ctx.memory.GetSize());
   ctx.pc++;
 }
+
+template <>
+struct Impl<OpCode::GAS> : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .staticGas = 2,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas) noexcept {
+    top[-1] = gas;
+    return {};
+  }
+};
 
 static void gas(Context& ctx) noexcept {
   if (!ctx.CheckStackOverflow(1)) [[unlikely]]
@@ -2140,9 +2304,11 @@ struct PushImpl : public std::true_type {
       .instructionLength = 1 + N,
   };
 
-  static OpResult Run(uint256_t* top, const uint8_t* data) noexcept {
+  static OpResult Run(uint256_t* top, const uint8_t* pc) noexcept {
     constexpr auto num_full_words = N / sizeof(uint64_t);
     constexpr auto num_partial_bytes = N % sizeof(uint64_t);
+
+    const uint8_t* data = pc + 1;
 
     // TODO: hide stack details.
     uint256_t& value = *(--top);
@@ -2266,6 +2432,45 @@ static void swap(Context& ctx) noexcept {
 }
 
 template <uint64_t N>
+struct LogImpl : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = N + 2,
+      .pushes = 0,
+      .staticGas = 375 + 375 * N,
+      .disallowedInStaticCall = true,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    const uint256_t offset_u256 = top[0];
+    const uint256_t size_u256 = top[1];
+
+    const auto [mem_cost, offset, size] = ctx.MemoryExpansionCost(offset_u256, size_u256);
+    int64_t dynamic_gas = mem_cost;
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    std::array<evmc::bytes32, N> topics;
+    for (unsigned i = 0; i < N; ++i) {
+      topics[i] = ToEvmcBytes(top[2 + i]);
+    }
+
+    dynamic_gas += static_cast<int64_t>(8 * size);
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    auto data = ctx.memory.GetSpan(offset, size);
+
+    ctx.host->emit_log(ctx.message->recipient, data.data(), data.size(), topics.data(), topics.size());
+
+    return {.dynamic_gas_costs = dynamic_gas};
+  }
+};
+
+template <op::OpCode op_code>
+struct Impl<op_code, std::enable_if_t<OpCode::LOG0 <= op_code && op_code <= OpCode::LOG4>>
+    : public LogImpl<static_cast<uint64_t>(op_code - OpCode::LOG0)> {};
+
+template <uint64_t N>
 static void log(Context& ctx) noexcept {
   if (!ctx.CheckStaticCallConformance()) [[unlikely]]
     return;
@@ -2296,6 +2501,38 @@ static void log(Context& ctx) noexcept {
 }
 
 template <RunState result_state>
+struct ReturnImpl : public std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 0,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    const uint256_t offset_u256 = top[0];
+    const uint256_t size_u256 = top[1];
+
+    const auto [mem_cost, offset, size] = ctx.MemoryExpansionCost(offset_u256, size_u256);
+    int64_t dynamic_gas = mem_cost;
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    ctx.return_data.resize(size);
+    ctx.memory.WriteTo(ctx.return_data, offset);
+
+    return {
+        .state = result_state,
+        .dynamic_gas_costs = dynamic_gas,
+    };
+  }
+};
+
+template <>
+struct Impl<OpCode::RETURN> : ReturnImpl<RunState::kReturn> {};
+
+template <>
+struct Impl<OpCode::REVERT> : ReturnImpl<RunState::kRevert> {};
+
+template <RunState result_state>
 static void return_op(Context& ctx) noexcept {
   static_assert(result_state == RunState::kReturn || result_state == RunState::kRevert);
 
@@ -2314,7 +2551,51 @@ static void return_op(Context& ctx) noexcept {
   ctx.state = result_state;
 }
 
+template <>
+struct Impl<OpCode::INVALID> : std::true_type {
+  constexpr static OpInfo kInfo;
+
+  static OpResult Run() noexcept { return {.state = RunState::kInvalid}; }
+};
+
 static void invalid(Context& ctx) noexcept { ctx.state = RunState::kInvalid; }
+
+template <>
+struct Impl<OpCode::SELFDESTRUCT> : std::true_type {
+  constexpr static OpInfo kInfo{
+      .pops = 1,
+      .pushes = 0,
+      .staticGas = 5000,
+      .disallowedInStaticCall = true,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    auto account = ToEvmcAddress(top[0]);
+
+    int64_t dynamic_gas = 0;
+    if (ctx.host->get_balance(ctx.message->recipient) && !ctx.host->account_exists(account)) {
+      dynamic_gas += 25000;
+    }
+    if (ctx.revision >= EVMC_BERLIN) {
+      if (ctx.host->access_account(account) == EVMC_ACCESS_COLD) {
+        dynamic_gas += 2600;
+      }
+    }
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    if (ctx.host->selfdestruct(ctx.message->recipient, account)) {
+      if (ctx.revision < EVMC_LONDON) {
+        ctx.gas_refunds += 24000;
+      }
+    }
+
+    return {
+        .state = RunState::kDone,
+        .dynamic_gas_costs = dynamic_gas,
+    };
+  }
+};
 
 static void selfdestruct(Context& ctx) noexcept {
   if (!ctx.CheckStaticCallConformance()) [[unlikely]]
@@ -2648,31 +2929,37 @@ inline op::OpResult Invoke(uint256_t*, const uint8_t*, int64_t, Context&,  //
 }
 
 inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context&,  //
-                           op::OpResult (*op)(uint256_t*) noexcept             //
+                           op::OpResult (*op)(uint256_t* top) noexcept         //
                            ) noexcept {
   return op(top);
 }
 
-inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context&,  //
-                           op::OpResult (*op)(uint256_t*, int64_t) noexcept        //
+inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context&,    //
+                           op::OpResult (*op)(uint256_t* top, int64_t gas) noexcept  //
                            ) noexcept {
   return op(top, gas);
 }
 
-inline op::OpResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, Context&,             //
-                           op::OpResult (*op)(uint256_t* top, const uint8_t* data) noexcept  //
+inline op::OpResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, Context&,           //
+                           op::OpResult (*op)(uint256_t* top, const uint8_t* pc) noexcept  //
                            ) noexcept {
-  return op(top, pc + 1);  // Data of push is off-set by 1
+  return op(top, pc);
 }
 
 inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context& ctx,  //
-                           op::OpResult (*op)(uint256_t*, Context&) noexcept       //
+                           op::OpResult (*op)(uint256_t* top, Context&) noexcept   //
                            ) noexcept {
   return op(top, ctx);
 }
 
-inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context& ctx,  //
-                           op::OpResult (*op)(uint256_t*, int64_t, Context&) noexcept  //
+inline op::OpResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, Context& ctx,                 //
+                           op::OpResult (*op)(uint256_t* top, const uint8_t* pc, Context&) noexcept  //
+                           ) noexcept {
+  return op(top, pc, ctx);
+}
+
+inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context& ctx,          //
+                           op::OpResult (*op)(uint256_t* top, int64_t gas, Context&) noexcept  //
                            ) noexcept {
   return op(top, gas, ctx);
 }
@@ -2697,8 +2984,13 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
 
     if constexpr (Impl::kInfo.introducedIn) {
       if (ctx.revision < Impl::kInfo.introducedIn) [[unlikely]] {
-        return Result{.state = RunState::kErrorOpcode};
+        return {.state = RunState::kErrorOpcode};
       }
+    }
+
+    if constexpr (Impl::kInfo.disallowedInStaticCall) {
+      if (ctx.is_static_call) [[unlikely]]
+        return {.state = RunState::kErrorStaticCall};
     }
 
     // Check stack requirements.
