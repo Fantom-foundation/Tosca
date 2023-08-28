@@ -113,13 +113,18 @@ struct OpInfo {
   constexpr int32_t GetStackDelta() const { return pushes - pops; }
 };
 
+struct OpResult {
+  RunState state = RunState::kRunning;
+  int64_t dynamic_gas_costs = 0;
+};
+
 template <OpCode op_code, typename = void>
 struct Impl : public std::false_type {};
 
 template <>
 struct Impl<OpCode::STOP> : public std::true_type {
   constexpr static OpInfo kInfo{};
-  static RunState Run() noexcept { return RunState::kDone; }
+  static OpResult Run() noexcept { return {.state = RunState::kDone}; }
 };
 
 static void stop(Context& ctx) noexcept { ctx.state = RunState::kDone; }
@@ -132,7 +137,10 @@ struct Impl<OpCode::ADD> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] += top[0]; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] += top[0];
+    return {};
+  }
 };
 
 static void add(Context& ctx) noexcept {
@@ -154,7 +162,10 @@ struct Impl<OpCode::MUL> : public std::true_type {
       .staticGas = 5,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] *= top[0]; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] *= top[0];
+    return {};
+  }
 };
 
 static void mul(Context& ctx) noexcept {
@@ -176,7 +187,10 @@ struct Impl<OpCode::SUB> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = top[0] - top[1]; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] = top[0] - top[1];
+    return {};
+  }
 };
 
 static void sub(Context& ctx) noexcept {
@@ -198,10 +212,11 @@ struct Impl<OpCode::DIV> : public std::true_type {
       .staticGas = 5,
   };
 
-  static void Run(uint256_t* top) noexcept {
+  static OpResult Run(uint256_t* top) noexcept {
     if (top[1] != 0) {
       top[1] = top[0] / top[1];
     }
+    return {};
   }
 };
 
@@ -227,10 +242,11 @@ struct Impl<OpCode::SDIV> : public std::true_type {
       .staticGas = 5,
   };
 
-  static void Run(uint256_t* top) noexcept {
+  static OpResult Run(uint256_t* top) noexcept {
     if (top[1] != 0) {
       top[1] = intx::sdivrem(top[0], top[1]).quot;
     }
+    return {};
   }
 };
 
@@ -256,10 +272,11 @@ struct Impl<OpCode::MOD> : public std::true_type {
       .staticGas = 5,
   };
 
-  static void Run(uint256_t* top) noexcept {
+  static OpResult Run(uint256_t* top) noexcept {
     if (top[1] != 0) {
       top[1] = top[0] % top[1];
     }
+    return {};
   }
 };
 
@@ -285,10 +302,11 @@ struct Impl<OpCode::SMOD> : public std::true_type {
       .staticGas = 5,
   };
 
-  static void Run(uint256_t* top) noexcept {
+  static OpResult Run(uint256_t* top) noexcept {
     if (top[1] != 0) {
       top[1] = intx::sdivrem(top[0], top[1]).rem;
     }
+    return {};
   }
 };
 
@@ -314,10 +332,11 @@ struct Impl<OpCode::ADDMOD> : public std::true_type {
       .staticGas = 8,
   };
 
-  static void Run(uint256_t* top) noexcept {
+  static OpResult Run(uint256_t* top) noexcept {
     if (top[2] != 0) {
       top[2] = intx::addmod(top[0], top[1], top[2]);
     }
+    return {};
   }
 };
 
@@ -344,10 +363,11 @@ struct Impl<OpCode::MULMOD> : public std::true_type {
       .staticGas = 8,
   };
 
-  static void Run(uint256_t* top) noexcept {
+  static OpResult Run(uint256_t* top) noexcept {
     if (top[2] != 0) {
       top[2] = intx::mulmod(top[0], top[1], top[2]);
     }
+    return {};
   }
 };
 
@@ -374,15 +394,15 @@ struct Impl<OpCode::EXP> : public std::true_type {
       .staticGas = 10,
   };
 
-  static int64_t Run(uint256_t* top, int64_t gas) noexcept {
+  static OpResult Run(uint256_t* top, int64_t gas) noexcept {
     uint256_t& a = top[0];
     uint256_t& exponent = top[1];
     int64_t dynamic_gas = 50 * intx::count_significant_bytes(exponent);
     if (gas < dynamic_gas) [[unlikely]] {
-      return dynamic_gas;
+      return {.dynamic_gas_costs = dynamic_gas};
     }
     top[1] = intx::exp(a, exponent);
-    return dynamic_gas;
+    return {.dynamic_gas_costs = dynamic_gas};
   }
 };
 
@@ -407,7 +427,7 @@ struct Impl<OpCode::SIGNEXTEND> : public std::true_type {
       .staticGas = 5,
   };
 
-  static void Run(uint256_t* top) noexcept {
+  static OpResult Run(uint256_t* top) noexcept {
     uint8_t leading_byte_index = static_cast<uint8_t>(top[0]);
     if (leading_byte_index > 31) {
       leading_byte_index = 31;
@@ -423,6 +443,8 @@ struct Impl<OpCode::SIGNEXTEND> : public std::true_type {
       auto mask = kUint256Max >> (8 * (31 - leading_byte_index));
       top[1] = mask & value;
     }
+
+    return {};
   }
 };
 
@@ -459,7 +481,10 @@ struct Impl<OpCode::LT> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = top[0] < top[1] ? 1 : 0; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] = top[0] < top[1] ? 1 : 0;
+    return {};
+  }
 };
 
 static void lt(Context& ctx) noexcept {
@@ -481,7 +506,10 @@ struct Impl<OpCode::GT> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = top[0] > top[1] ? 1 : 0; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] = top[0] > top[1] ? 1 : 0;
+    return {};
+  }
 };
 
 static void gt(Context& ctx) noexcept {
@@ -503,7 +531,10 @@ struct Impl<OpCode::SLT> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = intx::slt(top[0], top[1]) ? 1 : 0; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] = intx::slt(top[0], top[1]) ? 1 : 0;
+    return {};
+  }
 };
 
 static void slt(Context& ctx) noexcept {
@@ -525,7 +556,10 @@ struct Impl<OpCode::SGT> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = intx::slt(top[1], top[0]) ? 1 : 0; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] = intx::slt(top[1], top[0]) ? 1 : 0;
+    return {};
+  }
 };
 
 static void sgt(Context& ctx) noexcept {
@@ -547,7 +581,10 @@ struct Impl<OpCode::EQ> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = top[0] == top[1] ? 1 : 0; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] = top[0] == top[1] ? 1 : 0;
+    return {};
+  }
 };
 
 static void eq(Context& ctx) noexcept {
@@ -569,7 +606,10 @@ struct Impl<OpCode::ISZERO> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[0] = top[0] == 0; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[0] = top[0] == 0;
+    return {};
+  }
 };
 
 static void iszero(Context& ctx) noexcept {
@@ -590,7 +630,10 @@ struct Impl<OpCode::AND> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = top[0] & top[1]; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] = top[0] & top[1];
+    return {};
+  }
 };
 
 static void bit_and(Context& ctx) noexcept {
@@ -612,7 +655,10 @@ struct Impl<OpCode::OR> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = top[0] | top[1]; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] = top[0] | top[1];
+    return {};
+  }
 };
 
 static void bit_or(Context& ctx) noexcept {
@@ -634,7 +680,10 @@ struct Impl<OpCode::XOR> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] = top[0] ^ top[1]; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] = top[0] ^ top[1];
+    return {};
+  }
 };
 
 static void bit_xor(Context& ctx) noexcept {
@@ -656,7 +705,10 @@ struct Impl<OpCode::NOT> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[0] = ~top[0]; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[0] = ~top[0];
+    return {};
+  }
 };
 
 static void bit_not(Context& ctx) noexcept {
@@ -677,12 +729,14 @@ struct Impl<OpCode::BYTE> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept {
+  static OpResult Run(uint256_t* top) noexcept {
     if (top[0] < 32) {
       top[1] = ToByteArrayLe(top[1])[31 - static_cast<uint8_t>(top[0])];
     } else {
       top[1] = 0;
     }
+
+    return {};
   }
 };
 
@@ -710,7 +764,10 @@ struct Impl<OpCode::SHL> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] <<= top[0]; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] <<= top[0];
+    return {};
+  }
 };
 
 static void shl(Context& ctx) noexcept {
@@ -732,7 +789,10 @@ struct Impl<OpCode::SHR> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { top[1] >>= top[0]; }
+  static OpResult Run(uint256_t* top) noexcept {
+    top[1] >>= top[0];
+    return {};
+  }
 };
 
 static void shr(Context& ctx) noexcept {
@@ -754,7 +814,7 @@ struct Impl<OpCode::SAR> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept {
+  static OpResult Run(uint256_t* top) noexcept {
     const bool is_negative = ToByteArrayLe(top[1])[31] & 0b1000'0000;
 
     if (top[0] <= 255) {
@@ -765,6 +825,8 @@ struct Impl<OpCode::SAR> : public std::true_type {
     } else {
       top[1] = 0;
     }
+
+    return {};
   }
 };
 
@@ -797,7 +859,7 @@ struct Impl<OpCode::SHA3> : public std::true_type {
       .staticGas = 30,
   };
 
-  static int64_t Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     const uint256_t offset_u256 = top[0];
     const uint256_t size_u256 = top[1];
 
@@ -805,7 +867,7 @@ struct Impl<OpCode::SHA3> : public std::true_type {
     const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
     int64_t dynamic_gas = mem_cost + 6 * minimum_word_size;
     if (gas < dynamic_gas) [[unlikely]]
-      return dynamic_gas;
+      return {.dynamic_gas_costs = dynamic_gas};
 
     auto memory_span = ctx.memory.GetSpan(offset, size);
     if (ctx.sha3_cache) {
@@ -814,7 +876,7 @@ struct Impl<OpCode::SHA3> : public std::true_type {
       top[1] = ToUint256(ethash::keccak256(memory_span.data(), memory_span.size()));
     }
 
-    return dynamic_gas;
+    return {.dynamic_gas_costs = dynamic_gas};
   }
 };
 
@@ -853,7 +915,10 @@ struct Impl<OpCode::ADDRESS> : public std::true_type {
       .staticGas = 2,
   };
 
-  static void Run(uint256_t* top, Context& ctx) noexcept { top[-1] = ToUint256(ctx.message->recipient); }
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ToUint256(ctx.message->recipient);
+    return {};
+  }
 };
 
 static void address(Context& ctx) noexcept {
@@ -872,7 +937,7 @@ struct Impl<OpCode::BALANCE> : public std::true_type {
       .pushes = 1,
   };
 
-  static int64_t Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     evmc::address address = ToEvmcAddress(top[0]);
 
     int64_t dynamic_gas = 700;
@@ -884,11 +949,11 @@ struct Impl<OpCode::BALANCE> : public std::true_type {
       }
     }
     if (gas < dynamic_gas) [[unlikely]]
-      return dynamic_gas;
+      return {.dynamic_gas_costs = dynamic_gas};
 
     top[0] = ToUint256(ctx.host->get_balance(address));
 
-    return dynamic_gas;
+    return {.dynamic_gas_costs = dynamic_gas};
   }
 };
 
@@ -921,7 +986,10 @@ struct Impl<OpCode::ORIGIN> : public std::true_type {
       .staticGas = 2,
   };
 
-  static void Run(uint256_t* top, Context& ctx) noexcept { top[-1] = ToUint256(ctx.host->get_tx_context().tx_origin); }
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ToUint256(ctx.host->get_tx_context().tx_origin);
+    return {};
+  }
 };
 
 static void origin(Context& ctx) noexcept {
@@ -941,7 +1009,10 @@ struct Impl<OpCode::CALLER> : public std::true_type {
       .staticGas = 2,
   };
 
-  static void Run(uint256_t* top, Context& ctx) noexcept { top[-1] = ToUint256(ctx.message->sender); }
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ToUint256(ctx.message->sender);
+    return {};
+  }
 };
 
 static void caller(Context& ctx) noexcept {
@@ -961,7 +1032,10 @@ struct Impl<OpCode::CALLVALUE> : public std::true_type {
       .staticGas = 2,
   };
 
-  static void Run(uint256_t* top, Context& ctx) noexcept { top[-1] = ToUint256(ctx.message->value); }
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ToUint256(ctx.message->value);
+    return {};
+  }
 };
 
 static void callvalue(Context& ctx) noexcept {
@@ -981,7 +1055,7 @@ struct Impl<OpCode::CALLDATALOAD> : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top, Context& ctx) noexcept {
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     const uint256_t offset_u256 = top[0];
 
     std::span<const uint8_t> input_view;
@@ -994,6 +1068,8 @@ struct Impl<OpCode::CALLDATALOAD> : public std::true_type {
     std::copy_n(input_view.begin(), std::min<size_t>(input_view.size(), 32), value.bytes);
 
     top[0] = ToUint256(value);
+
+    return {};
   }
 };
 
@@ -1026,7 +1102,10 @@ struct Impl<OpCode::CALLDATASIZE> : public std::true_type {
       .staticGas = 2,
   };
 
-  static void Run(uint256_t* top, Context& ctx) noexcept { top[-1] = ctx.message->input_size; }
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ctx.message->input_size;
+    return {};
+  }
 };
 
 static void calldatasize(Context& ctx) noexcept {
@@ -1046,7 +1125,7 @@ struct Impl<OpCode::CALLDATACOPY> : public std::true_type {
       .staticGas = 3,
   };
 
-  static int64_t Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     const uint256_t memory_offset_u256 = top[0];
     const uint256_t data_offset_u256 = top[1];
     const uint256_t size_u256 = top[2];
@@ -1055,7 +1134,7 @@ struct Impl<OpCode::CALLDATACOPY> : public std::true_type {
     const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
     int64_t dynamic_gas = mem_cost + 3 * minimum_word_size;
     if (gas < dynamic_gas) [[unlikely]]
-      return dynamic_gas;
+      return {.dynamic_gas_costs = dynamic_gas};
 
     std::span<const uint8_t> data_view;
     if (data_offset_u256 < ctx.message->input_size) {
@@ -1065,7 +1144,7 @@ struct Impl<OpCode::CALLDATACOPY> : public std::true_type {
 
     ctx.memory.ReadFromWithSize(data_view, memory_offset, size);
 
-    return dynamic_gas;
+    return {.dynamic_gas_costs = dynamic_gas};
   }
 };
 
@@ -1105,7 +1184,10 @@ struct Impl<OpCode::CODESIZE> : public std::true_type {
       .staticGas = 2,
   };
 
-  static void Run(uint256_t* top, Context& ctx) noexcept { top[-1] = ctx.padded_code.size() - kStopBytePadding; }
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ctx.padded_code.size() - kStopBytePadding;
+    return {};
+  }
 };
 
 static void codesize(Context& ctx) noexcept {
@@ -1125,7 +1207,7 @@ struct Impl<OpCode::CODECOPY> : public std::true_type {
       .staticGas = 3,
   };
 
-  static int64_t Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     const uint256_t memory_offset_u256 = top[0];
     const uint256_t code_offset_u256 = top[1];
     const uint256_t size_u256 = top[2];
@@ -1134,7 +1216,7 @@ struct Impl<OpCode::CODECOPY> : public std::true_type {
     const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
     int64_t dynamic_gas = mem_cost + 3 * minimum_word_size;
     if (gas < dynamic_gas) [[unlikely]]
-      return dynamic_gas;
+      return {.dynamic_gas_costs = dynamic_gas};
 
     std::span<const uint8_t> code_view;
     if (code_offset_u256 < ctx.padded_code.size() - kStopBytePadding) {
@@ -1143,7 +1225,7 @@ struct Impl<OpCode::CODECOPY> : public std::true_type {
 
     ctx.memory.ReadFromWithSize(code_view, memory_offset, size);
 
-    return dynamic_gas;
+    return {.dynamic_gas_costs = dynamic_gas};
   }
 };
 
@@ -1182,8 +1264,9 @@ struct Impl<OpCode::GASPRICE> : public std::true_type {
       .staticGas = 2,
   };
 
-  static void Run(uint256_t* top, Context& ctx) noexcept {
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ToUint256(ctx.host->get_tx_context().tx_gas_price);
+    return {};
   }
 };
 
@@ -1203,7 +1286,7 @@ struct Impl<OpCode::EXTCODESIZE> : public std::true_type {
       .pushes = 1,
   };
 
-  static int64_t Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     auto address = ToEvmcAddress(top[0]);
 
     int64_t dynamic_gas = 700;
@@ -1215,11 +1298,11 @@ struct Impl<OpCode::EXTCODESIZE> : public std::true_type {
       }
     }
     if (gas < dynamic_gas) [[unlikely]]
-      return dynamic_gas;
+      return {.dynamic_gas_costs = dynamic_gas};
 
     top[0] = ctx.host->get_code_size(address);
 
-    return dynamic_gas;
+    return {.dynamic_gas_costs = dynamic_gas};
   }
 };
 
@@ -1251,7 +1334,7 @@ struct Impl<OpCode::EXTCODECOPY> : public std::true_type {
       .pushes = 0,
   };
 
-  static int64_t Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     const auto address = ToEvmcAddress(top[0]);
     const uint256_t memory_offset_u256 = top[1];
     const uint256_t code_offset_u256 = top[2];
@@ -1260,7 +1343,7 @@ struct Impl<OpCode::EXTCODECOPY> : public std::true_type {
     const auto [mem_cost, memory_offset, size] = ctx.MemoryExpansionCost(memory_offset_u256, size_u256);
     int64_t dynamic_gas = mem_cost;
     if (gas < dynamic_gas) [[unlikely]]
-      return dynamic_gas;
+      return {.dynamic_gas_costs = dynamic_gas};
 
     const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
     int64_t address_access_cost = 700;
@@ -1273,7 +1356,7 @@ struct Impl<OpCode::EXTCODECOPY> : public std::true_type {
     }
     dynamic_gas += 3 * minimum_word_size + address_access_cost;
     if (gas < dynamic_gas) [[unlikely]]
-      return dynamic_gas;
+      return {.dynamic_gas_costs = dynamic_gas};
 
     auto memory_span = ctx.memory.GetSpan(memory_offset, size);
     if (code_offset_u256 <= std::numeric_limits<uint64_t>::max()) {
@@ -1283,7 +1366,7 @@ struct Impl<OpCode::EXTCODECOPY> : public std::true_type {
     }
     std::fill(memory_span.begin(), memory_span.end(), 0);
 
-    return dynamic_gas;
+    return {.dynamic_gas_costs = dynamic_gas};
   }
 };
 
@@ -1331,7 +1414,10 @@ struct Impl<OpCode::RETURNDATASIZE> : public std::true_type {
       .staticGas = 2,
   };
 
-  static void Run(uint256_t* top, Context& ctx) noexcept { top[-1] = ctx.return_data.size(); }
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ctx.return_data.size();
+    return {};
+  }
 };
 
 static void returndatasize(Context& ctx) noexcept {
@@ -1488,7 +1574,7 @@ struct Impl<OpCode::POP> : public std::true_type {
       .staticGas = 2,
   };
 
-  static void Run() noexcept {}
+  static OpResult Run() noexcept { return {}; }
 };
 
 static void pop(Context& ctx) noexcept {
@@ -1762,7 +1848,7 @@ struct Impl<OpCode::JUMPDEST> : public std::true_type {
       .staticGas = 1,
   };
 
-  static void Run() noexcept {}
+  static OpResult Run() noexcept { return {}; }
 };
 
 static void jumpdest(Context& ctx) noexcept {
@@ -1780,7 +1866,7 @@ struct PushImpl : public std::true_type {
       .instructionLength = 1 + N,
   };
 
-  static void Run(uint256_t* top, const uint8_t* data) noexcept {
+  static OpResult Run(uint256_t* top, const uint8_t* data) noexcept {
     constexpr auto num_full_words = N / sizeof(uint64_t);
     constexpr auto num_partial_bytes = N % sizeof(uint64_t);
 
@@ -1804,6 +1890,8 @@ struct PushImpl : public std::true_type {
       }
       data += sizeof(uint64_t);
     }
+
+    return {};
   }
 };
 
@@ -1853,7 +1941,10 @@ struct DupImpl : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept { *(top - 1) = top[N - 1]; }
+  static OpResult Run(uint256_t* top) noexcept {
+    *(top - 1) = top[N - 1];
+    return {};
+  }
 };
 
 template <op::OpCode op_code>
@@ -1880,10 +1971,9 @@ struct SwapImpl : public std::true_type {
       .staticGas = 3,
   };
 
-  static void Run(uint256_t* top) noexcept {
-    auto tmp = top[N];
-    top[N] = top[0];
-    top[0] = tmp;
+  static OpResult Run(uint256_t* top) noexcept {
+    std::swap(top[0], top[N]);
+    return {};
   }
 };
 
@@ -2278,54 +2368,39 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
   return padded;
 }
 
-struct InvokeResult {
-  RunState state = RunState::kRunning;
-  int64_t dynamic_gas_costs = 0;
-};
-
-inline InvokeResult Invoke(uint256_t*, const uint8_t*, int64_t, Context&,  //
-                           void (*op)() noexcept) noexcept {
-  op();
-  return {};
+inline op::OpResult Invoke(uint256_t*, const uint8_t*, int64_t, Context&,  //
+                           op::OpResult (*op)() noexcept) noexcept {
+  return op();
 }
 
-inline InvokeResult Invoke(uint256_t*, const uint8_t*, int64_t, Context&,  //
-                           RunState (*op)() noexcept                       //
+inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context&,  //
+                           op::OpResult (*op)(uint256_t*) noexcept             //
                            ) noexcept {
-  return {.state = op()};
+  return op(top);
 }
 
-inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context&,  //
-                           int64_t (*op)(uint256_t*, int64_t) noexcept             //
+inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context&,  //
+                           op::OpResult (*op)(uint256_t*, int64_t) noexcept        //
                            ) noexcept {
-  return {.dynamic_gas_costs = op(top, gas)};
+  return op(top, gas);
 }
 
-inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context&,  //
-                           void (*op)(uint256_t*) noexcept                     //
+inline op::OpResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, Context&,             //
+                           op::OpResult (*op)(uint256_t* top, const uint8_t* data) noexcept  //
                            ) noexcept {
-  op(top);
-  return {};
+  return op(top, pc + 1);  // Data of push is off-set by 1
 }
 
-inline InvokeResult Invoke(uint256_t* top, const uint8_t* data, int64_t, Context&,   //
-                           void (*op)(uint256_t* top, const uint8_t* data) noexcept  //
+inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context& ctx,  //
+                           op::OpResult (*op)(uint256_t*, Context&) noexcept       //
                            ) noexcept {
-  op(top, data + 1);  // Data of push is off-set by 1
-  return {};
+  return op(top, ctx);
 }
 
-inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context& ctx,  //
-                           void (*op)(uint256_t*, Context&) noexcept               //
+inline op::OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context& ctx,  //
+                           op::OpResult (*op)(uint256_t*, int64_t, Context&) noexcept  //
                            ) noexcept {
-  op(top, ctx);
-  return {};
-}
-
-inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context& ctx,  //
-                           int64_t (*op)(uint256_t*, int64_t, Context&) noexcept       //
-                           ) noexcept {
-  return {.dynamic_gas_costs = op(top, gas, ctx)};
+  return op(top, gas, ctx);
 }
 
 struct Result {
