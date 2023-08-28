@@ -1269,7 +1269,7 @@ struct Impl<OpCode::JUMP> {
       .is_jump = true,
   };
 
-  static bool Run(uint256_t*) noexcept { return true; }
+  static bool RunJump(uint256_t*) noexcept { return true; }
 };
 
 template <>
@@ -1281,7 +1281,7 @@ struct Impl<OpCode::JUMPI> {
       .is_jump = true,
   };
 
-  static bool Run(uint256_t* top) noexcept {
+  static bool RunJump(uint256_t* top) noexcept {
     const uint256_t& b = top[1];
     return b != 0;
   }
@@ -1912,7 +1912,7 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
   // Run the operation.
   RunState state = RunState::kRunning;
   if constexpr (Impl::kInfo.is_jump) {
-    if (Impl::Run(top)) {
+    if (Impl::RunJump(top)) {
       if (!ctx.CheckJumpDest(*top)) [[unlikely]] {
         return Result{.state = ctx.state};
       }
