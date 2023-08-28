@@ -1551,6 +1551,8 @@ struct CreateImpl : std::true_type {
     if (ctx.message->depth >= 1024) [[unlikely]]
       return {.state = RunState::kErrorCreate};
 
+    const int64_t initial_gas = gas;
+
     const auto endowment = top[0];
     const uint256_t init_code_offset_u256 = top[1];
     const uint256_t init_code_size_u256 = top[2];
@@ -1561,15 +1563,13 @@ struct CreateImpl : std::true_type {
 
     const auto [mem_cost, init_code_offset, init_code_size] =
         ctx.MemoryExpansionCost(init_code_offset_u256, init_code_size_u256);
-    int64_t dynamic_gas = mem_cost;
-    if (gas < dynamic_gas) [[unlikely]]
-      return {.dynamic_gas_costs = dynamic_gas};
+    if (gas -= mem_cost; gas < 0) [[unlikely]]
+      return {.dynamic_gas_costs = initial_gas - gas};
 
     if constexpr (Op == op::CREATE2) {
       const int64_t minimum_word_size = static_cast<int64_t>((init_code_size + 31) / 32);
-      dynamic_gas += 6 * minimum_word_size;
-      if (gas < dynamic_gas) [[unlikely]]
-        return {.dynamic_gas_costs = dynamic_gas};
+      if (gas -= 6 * minimum_word_size; gas < 0) [[unlikely]]
+        return {.dynamic_gas_costs = initial_gas - gas};
     }
 
     ctx.return_data.clear();
@@ -1579,8 +1579,6 @@ struct CreateImpl : std::true_type {
     }
 
     auto init_code = ctx.memory.GetSpan(init_code_offset, init_code_size);
-
-    gas -= dynamic_gas;
 
     evmc_message msg{
         .kind = (Op == op::CREATE) ? EVMC_CREATE : EVMC_CREATE2,
@@ -1598,8 +1596,7 @@ struct CreateImpl : std::true_type {
       ctx.return_data.assign(result.output_data, result.output_data + result.output_size);
     }
 
-    dynamic_gas += msg.gas - result.gas_left;
-
+    gas -= msg.gas - result.gas_left;
     ctx.gas_refunds += result.gas_refund;
 
     if (result.status_code == EVMC_SUCCESS) {
@@ -1608,7 +1605,7 @@ struct CreateImpl : std::true_type {
       top[0] = 0;
     }
 
-    return {.dynamic_gas_costs = dynamic_gas};
+    return {.dynamic_gas_costs = initial_gas - gas};
   }
 };
 
@@ -1627,6 +1624,8 @@ struct CallImpl : std::true_type {
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     if (ctx.message->depth >= 1024) [[unlikely]]
       return {.state = RunState::kErrorCall};
+
+    const int64_t initial_gas = gas;
 
     uint256_t call_gas_u256;
     evmc::address account;
@@ -1667,10 +1666,8 @@ struct CallImpl : std::true_type {
     const auto [output_mem_cost, output_offset, output_size] =
         ctx.MemoryExpansionCost(output_offset_u256, output_size_u256);
 
-    // APPLY_GAS_COST(gas, std::max(input_mem_cost, output_mem_cost));
-    int64_t dynamic_gas = std::max(input_mem_cost, output_mem_cost);
-    if (gas < dynamic_gas) [[unlikely]]
-      return {.dynamic_gas_costs = dynamic_gas};
+    if (gas -= std::max(input_mem_cost, output_mem_cost); gas < 0) [[unlikely]]
+      return {.dynamic_gas_costs = initial_gas - gas};
 
     if constexpr (Op == op::CALL) {
       if (has_value && ctx.is_static_call) {
@@ -1697,10 +1694,8 @@ struct CallImpl : std::true_type {
         }
       }
 
-      // APPLY_GAS_COST(gas, address_access_cost + positive_value_cost + value_to_empty_account_cost);
-      dynamic_gas += address_access_cost + positive_value_cost + value_to_empty_account_cost;
-      if (gas < dynamic_gas) [[unlikely]]
-        return {.dynamic_gas_costs = dynamic_gas};
+      if (gas -= address_access_cost + positive_value_cost + value_to_empty_account_cost; gas < 0) [[unlikely]]
+        return {.dynamic_gas_costs = initial_gas - gas};
     }
 
     ctx.return_data.clear();
@@ -1718,7 +1713,7 @@ struct CallImpl : std::true_type {
                                          : EVMC_CALL,
         .flags = (Op == op::STATICCALL) ? uint32_t{EVMC_STATIC} : ctx.message->flags,
         .depth = ctx.message->depth + 1,
-        .gas = std::min(call_gas, (gas - dynamic_gas) - (gas - dynamic_gas) / 64),
+        .gas = std::min(call_gas, gas - gas / 64),
         .recipient = (Op == op::CALL || Op == op::STATICCALL) ? account : ctx.message->recipient,
         .sender = (Op == op::DELEGATECALL) ? ctx.message->sender : ctx.message->recipient,
         .input_data = input_data.data(),
@@ -1730,13 +1725,12 @@ struct CallImpl : std::true_type {
     // call stipend
     if (has_value) {
       msg.gas += 2300;
-      // gas += 2300;
-      dynamic_gas -= 2300;
+      gas += 2300;
     }
 
     if (has_value && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < value) {
       top[0] = 0;
-      return {.dynamic_gas_costs = dynamic_gas};
+      return {.dynamic_gas_costs = initial_gas - gas};
     }
 
     const evmc::Result result = ctx.host->call(msg);
@@ -1747,16 +1741,14 @@ struct CallImpl : std::true_type {
       ctx.memory.ReadFromWithSize(ctx.return_data, output_offset, output_size);
     }
 
-    // APPLY_GAS_COST(gas, msg.gas - result.gas_left);
-    dynamic_gas += msg.gas - result.gas_left;
-    if (gas < dynamic_gas) [[unlikely]]
-      return {.dynamic_gas_costs = dynamic_gas};
+    if (gas -= msg.gas - result.gas_left; gas < 0) [[unlikely]]
+      return {.dynamic_gas_costs = initial_gas - gas};
 
     ctx.gas_refunds += result.gas_refund;
 
     top[0] = result.status_code == EVMC_SUCCESS;
 
-    return {.dynamic_gas_costs = dynamic_gas};
+    return {.dynamic_gas_costs = initial_gas - gas};
   }
 };
 
