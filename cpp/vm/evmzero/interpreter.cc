@@ -123,8 +123,11 @@ struct OpResult {
 
 template <OpCode op_code>
 struct Impl {
-  constexpr static OpInfo kInfo;
-  static OpResult Run() noexcept { static_assert(op_code != op_code, "Not implemented!"); }
+  constexpr static OpInfo kInfo{};
+  static OpResult Run() noexcept {
+    static_assert(op_code != op_code, "Not implemented!");
+    return {};
+  }
 };
 
 template <>
@@ -1496,7 +1499,7 @@ struct Impl<OpCode::REVERT> : ReturnImpl<RunState::kRevert> {};
 
 template <>
 struct Impl<OpCode::INVALID> : std::true_type {
-  constexpr static OpInfo kInfo;
+  constexpr static OpInfo kInfo{};
 
   static OpResult Run() noexcept { return {.state = RunState::kInvalid}; }
 };
