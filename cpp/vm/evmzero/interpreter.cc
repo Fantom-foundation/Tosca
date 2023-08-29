@@ -1498,14 +1498,14 @@ template <>
 struct Impl<OpCode::REVERT> : ReturnImpl<RunState::kRevert> {};
 
 template <>
-struct Impl<OpCode::INVALID> : std::true_type {
+struct Impl<OpCode::INVALID> {
   constexpr static OpInfo kInfo{};
 
   static OpResult Run() noexcept { return {.state = RunState::kInvalid}; }
 };
 
 template <>
-struct Impl<OpCode::SELFDESTRUCT> : std::true_type {
+struct Impl<OpCode::SELFDESTRUCT> {
   constexpr static OpInfo kInfo{
       .pops = 1,
       .pushes = 0,
@@ -1542,7 +1542,7 @@ struct Impl<OpCode::SELFDESTRUCT> : std::true_type {
 };
 
 template <OpCode Op>
-struct CreateImpl : std::true_type {
+struct CreateImpl {
   constexpr static OpInfo kInfo{
       .pops = Op == op::CREATE ? 3 : 4,
       .pushes = 1,
@@ -1618,7 +1618,7 @@ template <>
 struct Impl<OpCode::CREATE2> : CreateImpl<OpCode::CREATE2> {};
 
 template <OpCode Op>
-struct CallImpl : std::true_type {
+struct CallImpl {
   constexpr static OpInfo kInfo{
       .pops = (Op == op::STATICCALL || Op == op::DELEGATECALL) ? 6 : 7,
       .pushes = 1,
@@ -1895,14 +1895,14 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
 
   // Check stack requirements.
   auto base = reinterpret_cast<const uint256_t*>((reinterpret_cast<uintptr_t>(top) >> 16) << 16) + Stack::kStackSize;
-  auto size = base - top;
+  auto size = static_cast<size_t>(base - top);
   if constexpr (Impl::kInfo.pops > 0) {
     if (size < Impl::kInfo.pops) [[unlikely]] {
       return Result{.state = RunState::kErrorStackUnderflow};
     }
   }
   if constexpr (Impl::kInfo.GetStackDelta() > 0) {
-    if (1024 - size < Impl::kInfo.GetStackDelta()) [[unlikely]] {
+    if (Stack::kStackSize - size < Impl::kInfo.GetStackDelta()) [[unlikely]] {
       return Result{.state = RunState::kErrorStackOverflow};
     }
   }
