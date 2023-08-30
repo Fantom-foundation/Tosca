@@ -24,6 +24,9 @@ class Stack {
   Stack(std::initializer_list<uint256_t>);
   ~Stack();
 
+  uint256_t* Top() { return top_; }
+  void SetTop(uint256_t* top) { top_ = top; }
+
   uint64_t GetSize() const { return uint64_t(end_ - top_); }
   uint64_t GetMaxSize() const { return kStackSize; }
 
@@ -35,29 +38,6 @@ class Stack {
   uint256_t Pop() {
     TOSCA_ASSERT(GetSize() > 0);
     return *(top_++);
-  }
-
-  void Pop(int32_t num_values) { top_ += num_values; }
-
-  uint256_t* Peek() { return top_; }
-
-  uint256_t* Base() { return end_; }
-
-  // DO NOT SUBMIT!
-  void SetTop(uint256_t* top) { top_ = top; }
-
-  template <size_t N>
-  void Swap() {
-    TOSCA_ASSERT(N < GetSize());
-    auto tmp = top_[N];
-    top_[N] = top_[0];
-    top_[0] = tmp;
-  }
-
-  template <size_t N>
-  void Dup() {
-    TOSCA_ASSERT(N - 1 < GetSize());
-    Push(top_[N - 1]);
   }
 
   Stack& operator=(const Stack&);

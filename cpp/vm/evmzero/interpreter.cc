@@ -4,7 +4,6 @@
 #include <cstdio>
 #include <intx/intx.hpp>
 #include <iostream>
-#include <type_traits>
 
 #include "common/assert.h"
 #include "vm/evmzero/opcodes.h"
@@ -1691,7 +1690,6 @@ struct Result {
 
 template <op::OpCode op_code>
 inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t* code, Context& ctx) {
-  // TODO: factor out stack implementation details.
   using Impl = op::Impl<op_code>;
 
   if constexpr (Impl::kInfo.introduced_in) {
@@ -1705,9 +1703,10 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
       return {.state = RunState::kErrorStaticCall};
   }
 
-  // Check stack requirements.
-  auto base = reinterpret_cast<const uint256_t*>((reinterpret_cast<uintptr_t>(top) >> 16) << 16) + Stack::kStackSize;
-  auto size = static_cast<size_t>(base - top);
+  // Check stack requirements. Since the stack is aligned to 64k boundaries, we
+  // can computed the stack size directly from the stack pointer.
+  auto size = Stack::kStackSize - (reinterpret_cast<size_t>(top) & 0xFFFF) / sizeof(*top);
+
   if constexpr (Impl::kInfo.pops > 0) {
     if (size < Impl::kInfo.pops) [[unlikely]] {
       return Result{.state = RunState::kErrorStackUnderflow};
@@ -1765,7 +1764,7 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   // should not escape this function.
   RunState state = RunState::kRunning;
   int64_t gas = ctx.gas;
-  uint256_t* top = ctx.stack.Peek();
+  uint256_t* top = ctx.stack.Top();
 
   auto padded_code = ctx.padded_code.data();
   auto pc = padded_code;
