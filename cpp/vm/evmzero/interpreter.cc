@@ -116,6 +116,10 @@ struct OpInfo {
   constexpr int32_t GetStackDelta() const { return pushes - pops; }
 };
 
+constexpr OpInfo NullaryOp(int32_t static_gas) { return OpInfo{.pops = 0, .pushes = 1, .static_gas = static_gas}; }
+constexpr OpInfo UnaryOp(int32_t static_gas) { return OpInfo{.pops = 1, .pushes = 1, .static_gas = static_gas}; }
+constexpr OpInfo BinaryOp(int32_t static_gas) { return OpInfo{.pops = 2, .pushes = 1, .static_gas = static_gas}; }
+
 struct OpResult {
   RunState state = RunState::kRunning;
   int64_t dynamic_gas_costs = 0;
@@ -138,11 +142,7 @@ struct Impl<OpCode::STOP> {
 
 template <>
 struct Impl<OpCode::ADD> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] += top[0];
@@ -152,11 +152,7 @@ struct Impl<OpCode::ADD> {
 
 template <>
 struct Impl<OpCode::MUL> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 5,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(5);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] *= top[0];
@@ -166,11 +162,7 @@ struct Impl<OpCode::MUL> {
 
 template <>
 struct Impl<OpCode::SUB> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] = top[0] - top[1];
@@ -180,11 +172,7 @@ struct Impl<OpCode::SUB> {
 
 template <>
 struct Impl<OpCode::DIV> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 5,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(5);
 
   static OpResult Run(uint256_t* top) noexcept {
     if (top[1] != 0) {
@@ -196,11 +184,7 @@ struct Impl<OpCode::DIV> {
 
 template <>
 struct Impl<OpCode::SDIV> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 5,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(5);
 
   static OpResult Run(uint256_t* top) noexcept {
     if (top[1] != 0) {
@@ -212,11 +196,7 @@ struct Impl<OpCode::SDIV> {
 
 template <>
 struct Impl<OpCode::MOD> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 5,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(5);
 
   static OpResult Run(uint256_t* top) noexcept {
     if (top[1] != 0) {
@@ -228,11 +208,7 @@ struct Impl<OpCode::MOD> {
 
 template <>
 struct Impl<OpCode::SMOD> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 5,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(5);
 
   static OpResult Run(uint256_t* top) noexcept {
     if (top[1] != 0) {
@@ -276,11 +252,7 @@ struct Impl<OpCode::MULMOD> {
 
 template <>
 struct Impl<OpCode::EXP> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 10,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(10);
 
   static OpResult Run(uint256_t* top, int64_t gas) noexcept {
     uint256_t& a = top[0];
@@ -296,11 +268,7 @@ struct Impl<OpCode::EXP> {
 
 template <>
 struct Impl<OpCode::SIGNEXTEND> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 5,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(5);
 
   static OpResult Run(uint256_t* top) noexcept {
     uint8_t leading_byte_index = static_cast<uint8_t>(top[0]);
@@ -325,11 +293,7 @@ struct Impl<OpCode::SIGNEXTEND> {
 
 template <>
 struct Impl<OpCode::LT> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] = top[0] < top[1] ? 1 : 0;
@@ -339,11 +303,7 @@ struct Impl<OpCode::LT> {
 
 template <>
 struct Impl<OpCode::GT> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] = top[0] > top[1] ? 1 : 0;
@@ -353,11 +313,7 @@ struct Impl<OpCode::GT> {
 
 template <>
 struct Impl<OpCode::SLT> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] = intx::slt(top[0], top[1]) ? 1 : 0;
@@ -367,11 +323,7 @@ struct Impl<OpCode::SLT> {
 
 template <>
 struct Impl<OpCode::SGT> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] = intx::slt(top[1], top[0]) ? 1 : 0;
@@ -381,11 +333,7 @@ struct Impl<OpCode::SGT> {
 
 template <>
 struct Impl<OpCode::EQ> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] = top[0] == top[1] ? 1 : 0;
@@ -395,11 +343,7 @@ struct Impl<OpCode::EQ> {
 
 template <>
 struct Impl<OpCode::ISZERO> {
-  constexpr static OpInfo kInfo{
-      .pops = 1,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = UnaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[0] = top[0] == 0;
@@ -409,11 +353,7 @@ struct Impl<OpCode::ISZERO> {
 
 template <>
 struct Impl<OpCode::AND> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] = top[0] & top[1];
@@ -423,11 +363,7 @@ struct Impl<OpCode::AND> {
 
 template <>
 struct Impl<OpCode::OR> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] = top[0] | top[1];
@@ -437,11 +373,7 @@ struct Impl<OpCode::OR> {
 
 template <>
 struct Impl<OpCode::XOR> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] = top[0] ^ top[1];
@@ -451,11 +383,7 @@ struct Impl<OpCode::XOR> {
 
 template <>
 struct Impl<OpCode::NOT> {
-  constexpr static OpInfo kInfo{
-      .pops = 1,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = UnaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[0] = ~top[0];
@@ -465,11 +393,7 @@ struct Impl<OpCode::NOT> {
 
 template <>
 struct Impl<OpCode::BYTE> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     if (top[0] < 32) {
@@ -484,11 +408,7 @@ struct Impl<OpCode::BYTE> {
 
 template <>
 struct Impl<OpCode::SHL> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] <<= top[0];
@@ -498,11 +418,7 @@ struct Impl<OpCode::SHL> {
 
 template <>
 struct Impl<OpCode::SHR> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     top[1] >>= top[0];
@@ -512,11 +428,7 @@ struct Impl<OpCode::SHR> {
 
 template <>
 struct Impl<OpCode::SAR> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(3);
 
   static OpResult Run(uint256_t* top) noexcept {
     const bool is_negative = ToByteArrayLe(top[1])[31] & 0b1000'0000;
@@ -536,11 +448,7 @@ struct Impl<OpCode::SAR> {
 
 template <>
 struct Impl<OpCode::SHA3> {
-  constexpr static OpInfo kInfo{
-      .pops = 2,
-      .pushes = 1,
-      .static_gas = 30,
-  };
+  constexpr static OpInfo kInfo = BinaryOp(30);
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     const uint256_t offset_u256 = top[0];
@@ -565,11 +473,7 @@ struct Impl<OpCode::SHA3> {
 
 template <>
 struct Impl<OpCode::ADDRESS> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ToUint256(ctx.message->recipient);
@@ -579,10 +483,7 @@ struct Impl<OpCode::ADDRESS> {
 
 template <>
 struct Impl<OpCode::BALANCE> {
-  constexpr static OpInfo kInfo{
-      .pops = 1,
-      .pushes = 1,
-  };
+  constexpr static OpInfo kInfo = UnaryOp(0);
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     evmc::address address = ToEvmcAddress(top[0]);
@@ -606,11 +507,7 @@ struct Impl<OpCode::BALANCE> {
 
 template <>
 struct Impl<OpCode::ORIGIN> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ToUint256(ctx.host->get_tx_context().tx_origin);
@@ -620,11 +517,7 @@ struct Impl<OpCode::ORIGIN> {
 
 template <>
 struct Impl<OpCode::CALLER> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ToUint256(ctx.message->sender);
@@ -634,11 +527,7 @@ struct Impl<OpCode::CALLER> {
 
 template <>
 struct Impl<OpCode::CALLVALUE> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ToUint256(ctx.message->value);
@@ -648,11 +537,7 @@ struct Impl<OpCode::CALLVALUE> {
 
 template <>
 struct Impl<OpCode::CALLDATALOAD> {
-  constexpr static OpInfo kInfo{
-      .pops = 1,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = UnaryOp(3);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     const uint256_t offset_u256 = top[0];
@@ -674,11 +559,7 @@ struct Impl<OpCode::CALLDATALOAD> {
 
 template <>
 struct Impl<OpCode::CALLDATASIZE> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ctx.message->input_size;
@@ -719,11 +600,7 @@ struct Impl<OpCode::CALLDATACOPY> {
 
 template <>
 struct Impl<OpCode::CODESIZE> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ctx.padded_code.size() - kStopBytePadding;
@@ -763,11 +640,7 @@ struct Impl<OpCode::CODECOPY> {
 
 template <>
 struct Impl<OpCode::GASPRICE> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ToUint256(ctx.host->get_tx_context().tx_gas_price);
@@ -777,10 +650,7 @@ struct Impl<OpCode::GASPRICE> {
 
 template <>
 struct Impl<OpCode::EXTCODESIZE> {
-  constexpr static OpInfo kInfo{
-      .pops = 1,
-      .pushes = 1,
-  };
+  constexpr static OpInfo kInfo = UnaryOp(0);
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     auto address = ToEvmcAddress(top[0]);
@@ -847,11 +717,7 @@ struct Impl<OpCode::EXTCODECOPY> {
 
 template <>
 struct Impl<OpCode::RETURNDATASIZE> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ctx.return_data.size();
@@ -899,10 +765,7 @@ struct Impl<OpCode::RETURNDATACOPY> {
 
 template <>
 struct Impl<OpCode::EXTCODEHASH> {
-  constexpr static OpInfo kInfo{
-      .pops = 1,
-      .pushes = 1,
-  };
+  constexpr static OpInfo kInfo = UnaryOp(0);
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     auto address = ToEvmcAddress(top[0]);
@@ -926,11 +789,7 @@ struct Impl<OpCode::EXTCODEHASH> {
 
 template <>
 struct Impl<OpCode::BLOCKHASH> {
-  constexpr static OpInfo kInfo{
-      .pops = 1,
-      .pushes = 1,
-      .static_gas = 20,
-  };
+  constexpr static OpInfo kInfo = UnaryOp(20);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     int64_t number = static_cast<int64_t>(top[0]);
@@ -941,11 +800,7 @@ struct Impl<OpCode::BLOCKHASH> {
 
 template <>
 struct Impl<OpCode::COINBASE> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ToUint256(ctx.host->get_tx_context().block_coinbase);
@@ -955,11 +810,7 @@ struct Impl<OpCode::COINBASE> {
 
 template <>
 struct Impl<OpCode::TIMESTAMP> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ctx.host->get_tx_context().block_timestamp;
@@ -969,11 +820,7 @@ struct Impl<OpCode::TIMESTAMP> {
 
 template <>
 struct Impl<OpCode::NUMBER> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ctx.host->get_tx_context().block_number;
@@ -983,11 +830,7 @@ struct Impl<OpCode::NUMBER> {
 
 template <>
 struct Impl<OpCode::DIFFICULTY> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ToUint256(ctx.host->get_tx_context().block_prev_randao);
@@ -997,11 +840,7 @@ struct Impl<OpCode::DIFFICULTY> {
 
 template <>
 struct Impl<OpCode::GASLIMIT> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ctx.host->get_tx_context().block_gas_limit;
@@ -1011,11 +850,7 @@ struct Impl<OpCode::GASLIMIT> {
 
 template <>
 struct Impl<OpCode::CHAINID> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ToUint256(ctx.host->get_tx_context().chain_id);
@@ -1025,11 +860,7 @@ struct Impl<OpCode::CHAINID> {
 
 template <>
 struct Impl<OpCode::SELFBALANCE> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 5,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(5);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ToUint256(ctx.host->get_balance(ctx.message->recipient));
@@ -1065,11 +896,7 @@ struct Impl<OpCode::POP> {
 
 template <>
 struct Impl<OpCode::MLOAD> {
-  constexpr static OpInfo kInfo{
-      .pops = 1,
-      .pushes = 1,
-      .static_gas = 3,
-  };
+  constexpr static OpInfo kInfo = UnaryOp(3);
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     const uint256_t offset_u256 = top[0];
@@ -1144,10 +971,7 @@ struct Impl<OpCode::MSTORE8> {
 
 template <>
 struct Impl<OpCode::SLOAD> {
-  constexpr static OpInfo kInfo{
-      .pops = 1,
-      .pushes = 1,
-  };
+  constexpr static OpInfo kInfo = UnaryOp(0);
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
     const uint256_t key = top[0];
@@ -1292,11 +1116,7 @@ struct Impl<OpCode::JUMPI> {
 
 template <>
 struct Impl<OpCode::PC> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, const uint8_t* pc, Context& ctx) noexcept {
     top[-1] = pc - ctx.padded_code.data();
@@ -1306,11 +1126,7 @@ struct Impl<OpCode::PC> {
 
 template <>
 struct Impl<OpCode::MSIZE> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ctx.memory.GetSize();
@@ -1320,11 +1136,7 @@ struct Impl<OpCode::MSIZE> {
 
 template <>
 struct Impl<OpCode::GAS> {
-  constexpr static OpInfo kInfo{
-      .pops = 0,
-      .pushes = 1,
-      .static_gas = 2,
-  };
+  constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, int64_t gas) noexcept {
     top[-1] = gas;
