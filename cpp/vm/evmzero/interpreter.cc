@@ -1704,7 +1704,7 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
   }
 
   // Check stack requirements. Since the stack is aligned to 64k boundaries, we
-  // can computed the stack size directly from the stack pointer.
+  // can compute the stack size directly from the stack pointer.
   auto size = Stack::kStackSize - (reinterpret_cast<size_t>(top) & 0xFFFF) / sizeof(*top);
 
   if constexpr (Impl::kInfo.pops > 0) {
