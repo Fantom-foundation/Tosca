@@ -1766,24 +1766,293 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   int64_t gas = ctx.gas;
   uint256_t* top = ctx.stack.Top();
 
-  auto padded_code = ctx.padded_code.data();
-  auto pc = padded_code;
-  while (state == RunState::kRunning) {
-    if constexpr (LoggingEnabled) {
-      // log format: <op>, <gas>, <top-of-stack>\n
-      std::cout << ToString(static_cast<op::OpCode>(*pc)) << ", "  //
-                << ctx.gas << ", ";
-      if (ctx.stack.GetSize() == 0) {
-        std::cout << "-empty-";
-      } else {
-        std::cout << ctx.stack[0];
-      }
-      std::cout << "\n" << std::flush;
-    }
+  auto* padded_code = ctx.padded_code.data();
+  auto* pc = padded_code;
+  // while (state == RunState::kRunning) {
+  // if constexpr (LoggingEnabled) {
+  //   // log format: <op>, <gas>, <top-of-stack>\n
+  //   std::cout << ToString(static_cast<op::OpCode>(*pc)) << ", "  //
+  //             << ctx.gas << ", ";
+  //   if (ctx.stack.GetSize() == 0) {
+  //     std::cout << "-empty-";
+  //   } else {
+  //     std::cout << ctx.stack[0];
+  //   }
+  //   std::cout << "\n" << std::flush;
+  // }
 
-    switch (*pc) {
+  static void* dispatch_table[] = {
+      &&op_STOP,
+      &&op_ADD,
+      &&op_MUL,
+      &&op_SUB,
+      &&op_DIV,
+      &&op_SDIV,
+      &&op_MOD,
+      &&op_SMOD,
+      &&op_ADDMOD,
+      &&op_MULMOD,
+      &&op_EXP,
+      &&op_SIGNEXTEND,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_LT,
+      &&op_GT,
+      &&op_SLT,
+      &&op_SGT,
+      &&op_EQ,
+      &&op_ISZERO,
+      &&op_AND,
+      &&op_OR,
+      &&op_XOR,
+      &&op_NOT,
+      &&op_BYTE,
+      &&op_SHL,
+      &&op_SHR,
+      &&op_SAR,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_SHA3,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_ADDRESS,
+      &&op_BALANCE,
+      &&op_ORIGIN,
+      &&op_CALLER,
+      &&op_CALLVALUE,
+      &&op_CALLDATALOAD,
+      &&op_CALLDATASIZE,
+      &&op_CALLDATACOPY,
+      &&op_CODESIZE,
+      &&op_CODECOPY,
+      &&op_GASPRICE,
+      &&op_EXTCODESIZE,
+      &&op_EXTCODECOPY,
+      &&op_RETURNDATASIZE,
+      &&op_RETURNDATACOPY,
+      &&op_EXTCODEHASH,
+      &&op_BLOCKHASH,
+      &&op_COINBASE,
+      &&op_TIMESTAMP,
+      &&op_NUMBER,
+      &&op_DIFFICULTY,
+      &&op_GASLIMIT,
+      &&op_CHAINID,
+      &&op_SELFBALANCE,
+      &&op_BASEFEE,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_POP,
+      &&op_MLOAD,
+      &&op_MSTORE,
+      &&op_MSTORE8,
+      &&op_SLOAD,
+      &&op_SSTORE,
+      &&op_JUMP,
+      &&op_JUMPI,
+      &&op_PC,
+      &&op_MSIZE,
+      &&op_GAS,
+      &&op_JUMPDEST,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_PUSH1,
+      &&op_PUSH2,
+      &&op_PUSH3,
+      &&op_PUSH4,
+      &&op_PUSH5,
+      &&op_PUSH6,
+      &&op_PUSH7,
+      &&op_PUSH8,
+      &&op_PUSH9,
+      &&op_PUSH10,
+      &&op_PUSH11,
+      &&op_PUSH12,
+      &&op_PUSH13,
+      &&op_PUSH14,
+      &&op_PUSH15,
+      &&op_PUSH16,
+      &&op_PUSH17,
+      &&op_PUSH18,
+      &&op_PUSH19,
+      &&op_PUSH20,
+      &&op_PUSH21,
+      &&op_PUSH22,
+      &&op_PUSH23,
+      &&op_PUSH24,
+      &&op_PUSH25,
+      &&op_PUSH26,
+      &&op_PUSH27,
+      &&op_PUSH28,
+      &&op_PUSH29,
+      &&op_PUSH30,
+      &&op_PUSH31,
+      &&op_PUSH32,
+      &&op_DUP1,
+      &&op_DUP2,
+      &&op_DUP3,
+      &&op_DUP4,
+      &&op_DUP5,
+      &&op_DUP6,
+      &&op_DUP7,
+      &&op_DUP8,
+      &&op_DUP9,
+      &&op_DUP10,
+      &&op_DUP11,
+      &&op_DUP12,
+      &&op_DUP13,
+      &&op_DUP14,
+      &&op_DUP15,
+      &&op_DUP16,
+      &&op_SWAP1,
+      &&op_SWAP2,
+      &&op_SWAP3,
+      &&op_SWAP4,
+      &&op_SWAP5,
+      &&op_SWAP6,
+      &&op_SWAP7,
+      &&op_SWAP8,
+      &&op_SWAP9,
+      &&op_SWAP10,
+      &&op_SWAP11,
+      &&op_SWAP12,
+      &&op_SWAP13,
+      &&op_SWAP14,
+      &&op_SWAP15,
+      &&op_SWAP16,
+      &&op_LOG0,
+      &&op_LOG1,
+      &&op_LOG2,
+      &&op_LOG3,
+      &&op_LOG4,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_CREATE,
+      &&op_CALL,
+      &&op_CALLCODE,
+      &&op_RETURN,
+      &&op_DELEGATECALL,
+      &&op_CREATE2,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_STATICCALL,
+      &&op_INVALID,
+      &&op_INVALID,
+      &&op_REVERT,
+      &&op_INVALID,
+      &&op_SELFDESTRUCT,
+  };
+
+#define DISPATCH()                     \
+  do {                                 \
+    if (state == RunState::kRunning) { \
+      goto* dispatch_table[*pc];       \
+    } else {                           \
+      goto end;                        \
+    }                                  \
+  } while (0)
+
+  DISPATCH();
+
 #define OPCODE(opcode)                                          \
-  case op::opcode: {                                            \
+  op_##opcode : {                                               \
     EVMZERO_PROFILE_ZONE_N(#opcode);                            \
     profiler.template Start<Marker::opcode>();                  \
     auto res = Run<op::opcode>(pc, gas, top, padded_code, ctx); \
@@ -1792,182 +2061,180 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
     gas = res.gas_left;                                         \
     top = res.top;                                              \
     profiler.template End<Marker::opcode>();                    \
-    break;                                                      \
-  }
+  }                                                             \
+  DISPATCH();
+
 #define OPCODE_NO_PROFILE(opcode)                               \
-  case op::opcode: {                                            \
+  op_##opcode : {                                               \
     EVMZERO_PROFILE_ZONE();                                     \
     auto res = Run<op::opcode>(pc, gas, top, padded_code, ctx); \
     state = res.state;                                          \
     pc = res.pc;                                                \
     gas = res.gas_left;                                         \
     top = res.top;                                              \
-    break;                                                      \
-  }
+  }                                                             \
+  DISPATCH();
 
-      OPCODE(STOP);
+  OPCODE(STOP);
 
-      OPCODE(ADD);
-      OPCODE(MUL);
-      OPCODE(SUB);
-      OPCODE(DIV);
-      OPCODE(SDIV);
-      OPCODE(MOD);
-      OPCODE(SMOD);
-      OPCODE(ADDMOD);
-      OPCODE(MULMOD);
-      OPCODE(EXP);
-      OPCODE(SIGNEXTEND);
-      OPCODE(LT);
-      OPCODE(GT);
-      OPCODE(SLT);
-      OPCODE(SGT);
-      OPCODE(EQ);
-      OPCODE(ISZERO);
-      OPCODE(AND);
-      OPCODE(OR);
-      OPCODE(XOR);
-      OPCODE(NOT);
-      OPCODE(BYTE);
-      OPCODE(SHL);
-      OPCODE(SHR);
-      OPCODE(SAR);
-      OPCODE(SHA3);
-      OPCODE(ADDRESS);
-      OPCODE(BALANCE);
-      OPCODE(ORIGIN);
-      OPCODE(CALLER);
-      OPCODE(CALLVALUE);
-      OPCODE(CALLDATALOAD);
-      OPCODE(CALLDATASIZE);
-      OPCODE(CALLDATACOPY);
-      OPCODE(CODESIZE);
-      OPCODE(CODECOPY);
-      OPCODE(GASPRICE);
-      OPCODE(EXTCODESIZE);
-      OPCODE(EXTCODECOPY);
-      OPCODE(RETURNDATASIZE);
-      OPCODE(RETURNDATACOPY);
-      OPCODE(EXTCODEHASH);
-      OPCODE(BLOCKHASH);
-      OPCODE(COINBASE);
-      OPCODE(TIMESTAMP);
-      OPCODE(NUMBER);
-      OPCODE(DIFFICULTY);
-      OPCODE(GASLIMIT);
-      OPCODE(CHAINID);
-      OPCODE(SELFBALANCE);
-      OPCODE(BASEFEE);
+  OPCODE(ADD);
+  OPCODE(MUL);
+  OPCODE(SUB);
+  OPCODE(DIV);
+  OPCODE(SDIV);
+  OPCODE(MOD);
+  OPCODE(SMOD);
+  OPCODE(ADDMOD);
+  OPCODE(MULMOD);
+  OPCODE(EXP);
+  OPCODE(SIGNEXTEND);
+  OPCODE(LT);
+  OPCODE(GT);
+  OPCODE(SLT);
+  OPCODE(SGT);
+  OPCODE(EQ);
+  OPCODE(ISZERO);
+  OPCODE(AND);
+  OPCODE(OR);
+  OPCODE(XOR);
+  OPCODE(NOT);
+  OPCODE(BYTE);
+  OPCODE(SHL);
+  OPCODE(SHR);
+  OPCODE(SAR);
+  OPCODE(SHA3);
+  OPCODE(ADDRESS);
+  OPCODE(BALANCE);
+  OPCODE(ORIGIN);
+  OPCODE(CALLER);
+  OPCODE(CALLVALUE);
+  OPCODE(CALLDATALOAD);
+  OPCODE(CALLDATASIZE);
+  OPCODE(CALLDATACOPY);
+  OPCODE(CODESIZE);
+  OPCODE(CODECOPY);
+  OPCODE(GASPRICE);
+  OPCODE(EXTCODESIZE);
+  OPCODE(EXTCODECOPY);
+  OPCODE(RETURNDATASIZE);
+  OPCODE(RETURNDATACOPY);
+  OPCODE(EXTCODEHASH);
+  OPCODE(BLOCKHASH);
+  OPCODE(COINBASE);
+  OPCODE(TIMESTAMP);
+  OPCODE(NUMBER);
+  OPCODE(DIFFICULTY);
+  OPCODE(GASLIMIT);
+  OPCODE(CHAINID);
+  OPCODE(SELFBALANCE);
+  OPCODE(BASEFEE);
 
-      OPCODE(POP);
-      OPCODE(MLOAD);
-      OPCODE(MSTORE);
-      OPCODE(MSTORE8);
-      OPCODE(SLOAD);
-      OPCODE(SSTORE);
+  OPCODE(POP);
+  OPCODE(MLOAD);
+  OPCODE(MSTORE);
+  OPCODE(MSTORE8);
+  OPCODE(SLOAD);
+  OPCODE(SSTORE);
 
-      OPCODE(JUMP);
-      OPCODE(JUMPI);
-      OPCODE(PC);
-      OPCODE(MSIZE);
-      OPCODE(GAS);
-      OPCODE(JUMPDEST);
+  OPCODE(JUMP);
+  OPCODE(JUMPI);
+  OPCODE(PC);
+  OPCODE(MSIZE);
+  OPCODE(GAS);
+  OPCODE(JUMPDEST);
 
-      OPCODE(PUSH1);
-      OPCODE(PUSH2);
-      OPCODE(PUSH3);
-      OPCODE(PUSH4);
-      OPCODE(PUSH5);
-      OPCODE(PUSH6);
-      OPCODE(PUSH7);
-      OPCODE(PUSH8);
-      OPCODE(PUSH9);
-      OPCODE(PUSH10);
-      OPCODE(PUSH11);
-      OPCODE(PUSH12);
-      OPCODE(PUSH13);
-      OPCODE(PUSH14);
-      OPCODE(PUSH15);
-      OPCODE(PUSH16);
-      OPCODE(PUSH17);
-      OPCODE(PUSH18);
-      OPCODE(PUSH19);
-      OPCODE(PUSH20);
-      OPCODE(PUSH21);
-      OPCODE(PUSH22);
-      OPCODE(PUSH23);
-      OPCODE(PUSH24);
-      OPCODE(PUSH25);
-      OPCODE(PUSH26);
-      OPCODE(PUSH27);
-      OPCODE(PUSH28);
-      OPCODE(PUSH29);
-      OPCODE(PUSH30);
-      OPCODE(PUSH31);
-      OPCODE(PUSH32);
+  OPCODE(PUSH1);
+  OPCODE(PUSH2);
+  OPCODE(PUSH3);
+  OPCODE(PUSH4);
+  OPCODE(PUSH5);
+  OPCODE(PUSH6);
+  OPCODE(PUSH7);
+  OPCODE(PUSH8);
+  OPCODE(PUSH9);
+  OPCODE(PUSH10);
+  OPCODE(PUSH11);
+  OPCODE(PUSH12);
+  OPCODE(PUSH13);
+  OPCODE(PUSH14);
+  OPCODE(PUSH15);
+  OPCODE(PUSH16);
+  OPCODE(PUSH17);
+  OPCODE(PUSH18);
+  OPCODE(PUSH19);
+  OPCODE(PUSH20);
+  OPCODE(PUSH21);
+  OPCODE(PUSH22);
+  OPCODE(PUSH23);
+  OPCODE(PUSH24);
+  OPCODE(PUSH25);
+  OPCODE(PUSH26);
+  OPCODE(PUSH27);
+  OPCODE(PUSH28);
+  OPCODE(PUSH29);
+  OPCODE(PUSH30);
+  OPCODE(PUSH31);
+  OPCODE(PUSH32);
 
-      OPCODE(DUP1);
-      OPCODE(DUP2);
-      OPCODE(DUP3);
-      OPCODE(DUP4);
-      OPCODE(DUP5);
-      OPCODE(DUP6);
-      OPCODE(DUP7);
-      OPCODE(DUP8);
-      OPCODE(DUP9);
-      OPCODE(DUP10);
-      OPCODE(DUP11);
-      OPCODE(DUP12);
-      OPCODE(DUP13);
-      OPCODE(DUP14);
-      OPCODE(DUP15);
-      OPCODE(DUP16);
+  OPCODE(DUP1);
+  OPCODE(DUP2);
+  OPCODE(DUP3);
+  OPCODE(DUP4);
+  OPCODE(DUP5);
+  OPCODE(DUP6);
+  OPCODE(DUP7);
+  OPCODE(DUP8);
+  OPCODE(DUP9);
+  OPCODE(DUP10);
+  OPCODE(DUP11);
+  OPCODE(DUP12);
+  OPCODE(DUP13);
+  OPCODE(DUP14);
+  OPCODE(DUP15);
+  OPCODE(DUP16);
 
-      OPCODE(SWAP1);
-      OPCODE(SWAP2);
-      OPCODE(SWAP3);
-      OPCODE(SWAP4);
-      OPCODE(SWAP5);
-      OPCODE(SWAP6);
-      OPCODE(SWAP7);
-      OPCODE(SWAP8);
-      OPCODE(SWAP9);
-      OPCODE(SWAP10);
-      OPCODE(SWAP11);
-      OPCODE(SWAP12);
-      OPCODE(SWAP13);
-      OPCODE(SWAP14);
-      OPCODE(SWAP15);
-      OPCODE(SWAP16);
+  OPCODE(SWAP1);
+  OPCODE(SWAP2);
+  OPCODE(SWAP3);
+  OPCODE(SWAP4);
+  OPCODE(SWAP5);
+  OPCODE(SWAP6);
+  OPCODE(SWAP7);
+  OPCODE(SWAP8);
+  OPCODE(SWAP9);
+  OPCODE(SWAP10);
+  OPCODE(SWAP11);
+  OPCODE(SWAP12);
+  OPCODE(SWAP13);
+  OPCODE(SWAP14);
+  OPCODE(SWAP15);
+  OPCODE(SWAP16);
 
-      OPCODE(LOG0);
-      OPCODE(LOG1);
-      OPCODE(LOG2);
-      OPCODE(LOG3);
-      OPCODE(LOG4);
+  OPCODE(LOG0);
+  OPCODE(LOG1);
+  OPCODE(LOG2);
+  OPCODE(LOG3);
+  OPCODE(LOG4);
 
-      OPCODE_NO_PROFILE(CREATE);
-      OPCODE_NO_PROFILE(CREATE2);
+  OPCODE_NO_PROFILE(CREATE);
+  OPCODE_NO_PROFILE(CREATE2);
 
-      OPCODE(RETURN);
-      OPCODE(REVERT);
+  OPCODE(RETURN);
+  OPCODE(REVERT);
 
-      OPCODE_NO_PROFILE(CALL);
-      OPCODE_NO_PROFILE(CALLCODE);
-      OPCODE_NO_PROFILE(DELEGATECALL);
-      OPCODE_NO_PROFILE(STATICCALL);
+  OPCODE_NO_PROFILE(CALL);
+  OPCODE_NO_PROFILE(CALLCODE);
+  OPCODE_NO_PROFILE(DELEGATECALL);
+  OPCODE_NO_PROFILE(STATICCALL);
 
-      OPCODE(INVALID);
-      OPCODE(SELFDESTRUCT);
+  OPCODE(INVALID);
+  OPCODE(SELFDESTRUCT);
 
 #undef OPCODE
 #undef OPCODE_NO_PROFILE
+#undef DISPATCH
 
-      default:
-        state = RunState::kErrorOpcode;
-    }
-  }
-
+end:
   if (IsSuccess(state)) {
     ctx.gas = gas;
   } else {
