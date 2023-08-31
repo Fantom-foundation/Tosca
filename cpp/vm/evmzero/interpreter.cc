@@ -1794,6 +1794,16 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
     profiler.template End<Marker::opcode>();                    \
     break;                                                      \
   }
+#define OPCODE_NO_PROFILE(opcode)                               \
+  case op::opcode: {                                            \
+    EVMZERO_PROFILE_ZONE();                                     \
+    auto res = Run<op::opcode>(pc, gas, top, padded_code, ctx); \
+    state = res.state;                                          \
+    pc = res.pc;                                                \
+    gas = res.gas_left;                                         \
+    top = res.top;                                              \
+    break;                                                      \
+  }
 
       OPCODE(STOP);
 
@@ -1936,21 +1946,22 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
       OPCODE(LOG3);
       OPCODE(LOG4);
 
-      OPCODE(CREATE);
-      OPCODE(CREATE2);
+      OPCODE_NO_PROFILE(CREATE);
+      OPCODE_NO_PROFILE(CREATE2);
 
       OPCODE(RETURN);
       OPCODE(REVERT);
 
-      OPCODE(CALL);
-      OPCODE(CALLCODE);
-      OPCODE(DELEGATECALL);
-      OPCODE(STATICCALL);
+      OPCODE_NO_PROFILE(CALL);
+      OPCODE_NO_PROFILE(CALLCODE);
+      OPCODE_NO_PROFILE(DELEGATECALL);
+      OPCODE_NO_PROFILE(STATICCALL);
 
       OPCODE(INVALID);
       OPCODE(SELFDESTRUCT);
 
 #undef OPCODE
+#undef OPCODE_NO_PROFILE
 
       default:
         state = RunState::kErrorOpcode;
