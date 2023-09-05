@@ -4,8 +4,6 @@ import (
 	"math"
 	"math/big"
 
-	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
-	_ "github.com/Fantom-foundation/Tosca/go/vm/evmzero"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -21,14 +19,6 @@ var (
 		"lfvm-no-sha-cache",
 		"lfvm-no-code-cache",
 		"lfvm-logging",
-		"evmone",
-		"evmone-basic",
-		"evmone-advanced",
-		"evmzero",
-		"evmzero-logging",
-		"evmzero-no-analysis-cache",
-		"evmzero-no-sha3-cache",
-		"evmzero-profiling",
 	}
 )
 

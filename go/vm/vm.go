@@ -7,8 +7,6 @@ package vm
 
 import (
 	// EVM implementations offered externaly.
-	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
-	_ "github.com/Fantom-foundation/Tosca/go/vm/evmzero"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 
 	// Implementation of registry support

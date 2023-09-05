@@ -1,8 +1,0 @@
----
-BasedOnStyle: Google
-ColumnLimit: 120
-Standard: c++20
-
-IncludeBlocks: Preserve
-...
-
