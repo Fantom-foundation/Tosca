@@ -1766,24 +1766,49 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   int64_t gas = ctx.gas;
   uint256_t* top = ctx.stack.Top();
 
-  auto padded_code = ctx.padded_code.data();
-  auto pc = padded_code;
-  while (state == RunState::kRunning) {
-    if constexpr (LoggingEnabled) {
-      // log format: <op>, <gas>, <top-of-stack>\n
-      std::cout << ToString(static_cast<op::OpCode>(*pc)) << ", "  //
-                << ctx.gas << ", ";
-      if (ctx.stack.GetSize() == 0) {
-        std::cout << "-empty-";
-      } else {
-        std::cout << ctx.stack[0];
-      }
-      std::cout << "\n" << std::flush;
-    }
+  auto* padded_code = ctx.padded_code.data();
+  auto* pc = padded_code;
 
-    switch (*pc) {
-#define OPCODE(opcode)                                          \
-  case op::opcode: {                                            \
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+
+  // The dispatch mechanism uses "computed gotos". The dispatch table is defined
+  // here, enumerating _all_ possible opcodes.
+  static constexpr std::array dispatch_table = {
+#define EVMZERO_OPCODE(name, value) &&op_##name,
+#define EVMZERO_OPCODE_UNUSED(value) &&op_INVALID,
+#include "opcodes.inc"
+  };
+  static_assert(dispatch_table.size() == 256);
+
+// On each dispatch, the dispatch_table is used to resolve the target address
+// for the handling code.
+#define DISPATCH()                                                                      \
+  do {                                                                                  \
+    if (state == RunState::kRunning) {                                                  \
+      if constexpr (LoggingEnabled) {                                                   \
+        std::cout << ToString(static_cast<op::OpCode>(*pc)) << ", " << ctx.gas << ", "; \
+        if (ctx.stack.GetSize() == 0) {                                                 \
+          std::cout << "-empty-";                                                       \
+        } else {                                                                        \
+          std::cout << ctx.stack[0];                                                    \
+        }                                                                               \
+        std::cout << "\n" << std::flush;                                                \
+      }                                                                                 \
+      goto* dispatch_table[*pc];                                                        \
+    } else {                                                                            \
+      goto end;                                                                         \
+    }                                                                                   \
+  } while (0)
+
+  // Initial dispatch is executed here!
+  DISPATCH();
+
+// A valid op code is executed, followed by another DISPATCH call. Since the
+// profiler currently doesn't work with recursive op codes, we don't profile
+// CREATE and CALL op codes.
+#define RUN_OPCODE(opcode)                                      \
+  op_##opcode : {                                               \
     EVMZERO_PROFILE_ZONE_N(#opcode);                            \
     profiler.template Start<Marker::opcode>();                  \
     auto res = Run<op::opcode>(pc, gas, top, padded_code, ctx); \
@@ -1792,182 +1817,32 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
     gas = res.gas_left;                                         \
     top = res.top;                                              \
     profiler.template End<Marker::opcode>();                    \
-    break;                                                      \
-  }
-#define OPCODE_NO_PROFILE(opcode)                               \
-  case op::opcode: {                                            \
+  }                                                             \
+  DISPATCH();
+
+#define RUN_OPCODE_NO_PROFILE(opcode)                           \
+  op_##opcode : {                                               \
     EVMZERO_PROFILE_ZONE();                                     \
     auto res = Run<op::opcode>(pc, gas, top, padded_code, ctx); \
     state = res.state;                                          \
     pc = res.pc;                                                \
     gas = res.gas_left;                                         \
     top = res.top;                                              \
-    break;                                                      \
-  }
+  }                                                             \
+  DISPATCH();
 
-      OPCODE(STOP);
+#define EVMZERO_OPCODE(name, value) RUN_OPCODE(name)
+#define EVMZERO_OPCODE_CREATE(name, value) RUN_OPCODE_NO_PROFILE(name)
+#define EVMZERO_OPCODE_CALL(name, value) RUN_OPCODE_NO_PROFILE(name)
+#include "opcodes.inc"
 
-      OPCODE(ADD);
-      OPCODE(MUL);
-      OPCODE(SUB);
-      OPCODE(DIV);
-      OPCODE(SDIV);
-      OPCODE(MOD);
-      OPCODE(SMOD);
-      OPCODE(ADDMOD);
-      OPCODE(MULMOD);
-      OPCODE(EXP);
-      OPCODE(SIGNEXTEND);
-      OPCODE(LT);
-      OPCODE(GT);
-      OPCODE(SLT);
-      OPCODE(SGT);
-      OPCODE(EQ);
-      OPCODE(ISZERO);
-      OPCODE(AND);
-      OPCODE(OR);
-      OPCODE(XOR);
-      OPCODE(NOT);
-      OPCODE(BYTE);
-      OPCODE(SHL);
-      OPCODE(SHR);
-      OPCODE(SAR);
-      OPCODE(SHA3);
-      OPCODE(ADDRESS);
-      OPCODE(BALANCE);
-      OPCODE(ORIGIN);
-      OPCODE(CALLER);
-      OPCODE(CALLVALUE);
-      OPCODE(CALLDATALOAD);
-      OPCODE(CALLDATASIZE);
-      OPCODE(CALLDATACOPY);
-      OPCODE(CODESIZE);
-      OPCODE(CODECOPY);
-      OPCODE(GASPRICE);
-      OPCODE(EXTCODESIZE);
-      OPCODE(EXTCODECOPY);
-      OPCODE(RETURNDATASIZE);
-      OPCODE(RETURNDATACOPY);
-      OPCODE(EXTCODEHASH);
-      OPCODE(BLOCKHASH);
-      OPCODE(COINBASE);
-      OPCODE(TIMESTAMP);
-      OPCODE(NUMBER);
-      OPCODE(DIFFICULTY);
-      OPCODE(GASLIMIT);
-      OPCODE(CHAINID);
-      OPCODE(SELFBALANCE);
-      OPCODE(BASEFEE);
+#undef RUN_OPCODE
+#undef RUN_OPCODE_NO_PROFILE
+#undef DISPATCH
 
-      OPCODE(POP);
-      OPCODE(MLOAD);
-      OPCODE(MSTORE);
-      OPCODE(MSTORE8);
-      OPCODE(SLOAD);
-      OPCODE(SSTORE);
+#pragma GCC diagnostic pop
 
-      OPCODE(JUMP);
-      OPCODE(JUMPI);
-      OPCODE(PC);
-      OPCODE(MSIZE);
-      OPCODE(GAS);
-      OPCODE(JUMPDEST);
-
-      OPCODE(PUSH1);
-      OPCODE(PUSH2);
-      OPCODE(PUSH3);
-      OPCODE(PUSH4);
-      OPCODE(PUSH5);
-      OPCODE(PUSH6);
-      OPCODE(PUSH7);
-      OPCODE(PUSH8);
-      OPCODE(PUSH9);
-      OPCODE(PUSH10);
-      OPCODE(PUSH11);
-      OPCODE(PUSH12);
-      OPCODE(PUSH13);
-      OPCODE(PUSH14);
-      OPCODE(PUSH15);
-      OPCODE(PUSH16);
-      OPCODE(PUSH17);
-      OPCODE(PUSH18);
-      OPCODE(PUSH19);
-      OPCODE(PUSH20);
-      OPCODE(PUSH21);
-      OPCODE(PUSH22);
-      OPCODE(PUSH23);
-      OPCODE(PUSH24);
-      OPCODE(PUSH25);
-      OPCODE(PUSH26);
-      OPCODE(PUSH27);
-      OPCODE(PUSH28);
-      OPCODE(PUSH29);
-      OPCODE(PUSH30);
-      OPCODE(PUSH31);
-      OPCODE(PUSH32);
-
-      OPCODE(DUP1);
-      OPCODE(DUP2);
-      OPCODE(DUP3);
-      OPCODE(DUP4);
-      OPCODE(DUP5);
-      OPCODE(DUP6);
-      OPCODE(DUP7);
-      OPCODE(DUP8);
-      OPCODE(DUP9);
-      OPCODE(DUP10);
-      OPCODE(DUP11);
-      OPCODE(DUP12);
-      OPCODE(DUP13);
-      OPCODE(DUP14);
-      OPCODE(DUP15);
-      OPCODE(DUP16);
-
-      OPCODE(SWAP1);
-      OPCODE(SWAP2);
-      OPCODE(SWAP3);
-      OPCODE(SWAP4);
-      OPCODE(SWAP5);
-      OPCODE(SWAP6);
-      OPCODE(SWAP7);
-      OPCODE(SWAP8);
-      OPCODE(SWAP9);
-      OPCODE(SWAP10);
-      OPCODE(SWAP11);
-      OPCODE(SWAP12);
-      OPCODE(SWAP13);
-      OPCODE(SWAP14);
-      OPCODE(SWAP15);
-      OPCODE(SWAP16);
-
-      OPCODE(LOG0);
-      OPCODE(LOG1);
-      OPCODE(LOG2);
-      OPCODE(LOG3);
-      OPCODE(LOG4);
-
-      OPCODE_NO_PROFILE(CREATE);
-      OPCODE_NO_PROFILE(CREATE2);
-
-      OPCODE(RETURN);
-      OPCODE(REVERT);
-
-      OPCODE_NO_PROFILE(CALL);
-      OPCODE_NO_PROFILE(CALLCODE);
-      OPCODE_NO_PROFILE(DELEGATECALL);
-      OPCODE_NO_PROFILE(STATICCALL);
-
-      OPCODE(INVALID);
-      OPCODE(SELFDESTRUCT);
-
-#undef OPCODE
-#undef OPCODE_NO_PROFILE
-
-      default:
-        state = RunState::kErrorOpcode;
-    }
-  }
-
+end:
   if (IsSuccess(state)) {
     ctx.gas = gas;
   } else {
