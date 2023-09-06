@@ -1769,6 +1769,9 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   auto* padded_code = ctx.padded_code.data();
   auto* pc = padded_code;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+
   // The dispatch mechanism uses "computed gotos". The dispatch table is defined
   // here, enumerating _all_ possible opcodes.
   static constexpr std::array dispatch_table = {
@@ -1836,6 +1839,8 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
 #undef RUN_OPCODE
 #undef RUN_OPCODE_NO_PROFILE
 #undef DISPATCH
+
+#pragma GCC diagnostic pop
 
 end:
   if (IsSuccess(state)) {
