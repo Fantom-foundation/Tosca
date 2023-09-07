@@ -1705,23 +1705,23 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
 
   // Check stack requirements. Since the stack is aligned to 64k boundaries, we
   // can compute the stack size directly from the stack pointer.
-  auto size = Stack::kStackSize - (reinterpret_cast<size_t>(top) & 0xFFFF) / sizeof(*top);
+  // auto size = Stack::kStackSize - (reinterpret_cast<size_t>(top) & 0xFFFF) / sizeof(*top);
 
-  if constexpr (Impl::kInfo.pops > 0) {
-    if (size < Impl::kInfo.pops) [[unlikely]] {
-      return Result{.state = RunState::kErrorStackUnderflow};
-    }
-  }
-  if constexpr (Impl::kInfo.GetStackDelta() > 0) {
-    if (Stack::kStackSize - size < Impl::kInfo.GetStackDelta()) [[unlikely]] {
-      return Result{.state = RunState::kErrorStackOverflow};
-    }
-  }
+  // if constexpr (Impl::kInfo.pops > 0) {
+  //   if (size < Impl::kInfo.pops) [[unlikely]] {
+  //     return Result{.state = RunState::kErrorStackUnderflow};
+  //   }
+  // }
+  // if constexpr (Impl::kInfo.GetStackDelta() > 0) {
+  //   if (Stack::kStackSize - size < Impl::kInfo.GetStackDelta()) [[unlikely]] {
+  //     return Result{.state = RunState::kErrorStackOverflow};
+  //   }
+  // }
   // Charge static gas costs.
-  if (gas < Impl::kInfo.static_gas) [[unlikely]] {
-    return Result{.state = RunState::kErrorGas};
-  }
-  gas -= Impl::kInfo.static_gas;
+  // if (gas < Impl::kInfo.static_gas) [[unlikely]] {
+  //   return Result{.state = RunState::kErrorGas};
+  // }
+  // gas -= Impl::kInfo.static_gas;
 
   // Run the operation.
   RunState state = RunState::kRunning;
@@ -1757,7 +1757,7 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
 }
 
 template <bool LoggingEnabled, bool ProfilingEnabled>
-void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
+void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
   EVMZERO_PROFILE_ZONE();
 
   // The state, pc, and stack state are owned by this function and
@@ -1768,6 +1768,11 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
 
   auto* padded_code = ctx.padded_code.data();
   auto* pc = padded_code;
+
+  op::OpInfo info;
+  int32_t stack_size = 0;
+  Result result;
+  auto run = &Run<op::INVALID>;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
@@ -1804,43 +1809,43 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   // Initial dispatch is executed here!
   DISPATCH();
 
-// A valid op code is executed, followed by another DISPATCH call. Since the
-// profiler currently doesn't work with recursive op codes, we don't profile
-// CREATE and CALL op codes.
-#define RUN_OPCODE(opcode)                                      \
-  op_##opcode : {                                               \
-    EVMZERO_PROFILE_ZONE_N(#opcode);                            \
-    profiler.template Start<Marker::opcode>();                  \
-    auto res = Run<op::opcode>(pc, gas, top, padded_code, ctx); \
-    state = res.state;                                          \
-    pc = res.pc;                                                \
-    gas = res.gas_left;                                         \
-    top = res.top;                                              \
-    profiler.template End<Marker::opcode>();                    \
-  }                                                             \
-  DISPATCH();
-
-#define RUN_OPCODE_NO_PROFILE(opcode)                           \
-  op_##opcode : {                                               \
-    EVMZERO_PROFILE_ZONE();                                     \
-    auto res = Run<op::opcode>(pc, gas, top, padded_code, ctx); \
-    state = res.state;                                          \
-    pc = res.pc;                                                \
-    gas = res.gas_left;                                         \
-    top = res.top;                                              \
-  }                                                             \
-  DISPATCH();
-
-#define EVMZERO_OPCODE(name, value) RUN_OPCODE(name)
-#define EVMZERO_OPCODE_CREATE(name, value) RUN_OPCODE_NO_PROFILE(name)
-#define EVMZERO_OPCODE_CALL(name, value) RUN_OPCODE_NO_PROFILE(name)
+#define EVMZERO_OPCODE(opcode, value)               \
+  op_##opcode : info = op::Impl<op::opcode>::kInfo; \
+  run = &Run<op::opcode>;                           \
+  goto run_op;
 #include "opcodes.inc"
 
-#undef RUN_OPCODE
-#undef RUN_OPCODE_NO_PROFILE
-#undef DISPATCH
-
 #pragma GCC diagnostic pop
+
+run_op:
+  // Check stack requirements. Since the stack is aligned to 64k boundaries, we
+  // can compute the stack size directly from the stack pointer.
+  stack_size = Stack::kStackSize - (reinterpret_cast<size_t>(top) & 0xFFFF) / sizeof(*top);
+  if (stack_size < info.pops) [[unlikely]] {
+    state = RunState::kErrorStackUnderflow;
+    goto end;
+  }
+  if (info.GetStackDelta() > 0) {
+    if (Stack::kStackSize - stack_size < info.GetStackDelta()) [[unlikely]] {
+      state = RunState::kErrorStackOverflow;
+      goto end;
+    }
+  }
+  if (gas < info.static_gas) [[unlikely]] {
+    state = RunState::kErrorGas;
+    goto end;
+  }
+  gas -= info.static_gas;
+
+  result = run(pc, gas, top, padded_code, ctx);
+  state = result.state;
+  pc = result.pc;
+  gas = result.gas_left;
+  top = result.top;
+
+  DISPATCH();
+
+#undef DISPATCH
 
 end:
   if (IsSuccess(state)) {
