@@ -8,6 +8,12 @@
 #include "common/assert.h"
 #include "vm/evmzero/opcodes.h"
 
+#ifdef NDEBUG
+#define release_inline gnu::always_inline, msvc::forceinline
+#else
+#define release_inline
+#endif
+
 namespace tosca::evmzero {
 
 const char* ToString(RunState state) {
@@ -1207,7 +1213,7 @@ struct DupImpl {
       .static_gas = 3,
   };
 
-  static OpResult Run(uint256_t* top) noexcept {
+  static inline OpResult Run(uint256_t* top) noexcept {
     *(top - 1) = top[N - 1];
     return {};
   }
@@ -1689,7 +1695,7 @@ struct Result {
 };
 
 template <op::OpCode op_code>
-inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t* code, Context& ctx) {
+[[release_inline]] inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t* code, Context& ctx) {
   using Impl = op::Impl<op_code>;
 
   if constexpr (Impl::kInfo.introduced_in) {
