@@ -1624,12 +1624,17 @@ inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context& ctx
 namespace internal {
 
 inline bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
-  if (index_u256 >= valid_jump_targets.size()) [[unlikely]] {
+  if (index_u256[1] != 0 || index_u256[2] != 0 || index_u256[3] != 0) [[unlikely]] {
     state = RunState::kErrorJump;
     return false;
   }
 
   const uint64_t index = static_cast<uint64_t>(index_u256);
+
+  if (index >= valid_jump_targets.size()) [[unlikely]] {
+    state = RunState::kErrorJump;
+    return false;
+  }
 
   if (!valid_jump_targets[index]) [[unlikely]] {
     state = RunState::kErrorJump;
