@@ -109,6 +109,7 @@ struct OpInfo {
   int32_t instruction_length = 1;
   bool is_jump = false;
   bool disallowed_in_static_call = false;
+  bool used = true;
 
   std::optional<evmc_revision> introduced_in;
 
@@ -120,13 +121,12 @@ constexpr OpInfo UnaryOp(int32_t static_gas) { return OpInfo{.pops = 1, .pushes 
 constexpr OpInfo BinaryOp(int32_t static_gas) { return OpInfo{.pops = 2, .pushes = 1, .static_gas = static_gas}; }
 
 struct OpResult {
-  RunState state = RunState::kRunning;
   int64_t dynamic_gas_costs = 0;
 };
 
 template <OpCode op_code>
 struct Impl {
-  constexpr static OpInfo kInfo{};
+  constexpr static OpInfo kInfo{.used = false};
   static OpResult Run() noexcept {
     static_assert(op_code != op_code, "Not implemented!");
     return {};
@@ -136,7 +136,10 @@ struct Impl {
 template <>
 struct Impl<OpCode::STOP> {
   constexpr static OpInfo kInfo{};
-  static OpResult Run() noexcept { return {.state = RunState::kDone}; }
+  static OpResult Run(RunState* state) noexcept {
+    *state = RunState::kDone;
+    return {};
+  }
 };
 
 template <>
@@ -732,7 +735,7 @@ struct Impl<OpCode::RETURNDATACOPY> {
       .static_gas = 3,
   };
 
-  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+  static OpResult Run(uint256_t* top, int64_t gas, RunState* state, Context& ctx) noexcept {
     const uint256_t memory_offset_u256 = top[0];
     const uint256_t return_data_offset_u256 = top[1];
     const uint256_t size_u256 = top[2];
@@ -750,7 +753,8 @@ struct Impl<OpCode::RETURNDATACOPY> {
     {
       const auto [end_u256, carry] = intx::addc(return_data_offset_u256, size_u256);
       if (carry || end_u256 > ctx.return_data.size()) {
-        return {.state = RunState::kErrorReturnDataCopyOutOfBounds};
+        *state = RunState::kErrorReturnDataCopyOutOfBounds;
+        return {};
       }
     }
 
@@ -1000,10 +1004,11 @@ struct Impl<OpCode::SSTORE> {
       .disallowed_in_static_call = true,
   };
 
-  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+  static OpResult Run(uint256_t* top, int64_t gas, RunState* state, Context& ctx) noexcept {
     // EIP-2200
     if (gas <= 2300) [[unlikely]] {
-      return {.state = RunState::kErrorGas};
+      *state = RunState::kErrorGas;
+      return {};
     }
 
     const uint256_t key = top[0];
@@ -1284,7 +1289,7 @@ struct ReturnImpl {
       .pushes = 0,
   };
 
-  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+  static OpResult Run(uint256_t* top, int64_t gas, RunState* state, Context& ctx) noexcept {
     const uint256_t offset_u256 = top[0];
     const uint256_t size_u256 = top[1];
 
@@ -1296,10 +1301,8 @@ struct ReturnImpl {
     ctx.return_data.resize(size);
     ctx.memory.WriteTo(ctx.return_data, offset);
 
-    return {
-        .state = result_state,
-        .dynamic_gas_costs = dynamic_gas,
-    };
+    *state = result_state;
+    return {.dynamic_gas_costs = dynamic_gas};
   }
 };
 
@@ -1312,7 +1315,10 @@ template <>
 struct Impl<OpCode::INVALID> {
   constexpr static OpInfo kInfo{};
 
-  static OpResult Run() noexcept { return {.state = RunState::kInvalid}; }
+  static OpResult Run(RunState* state) noexcept {
+    *state = RunState::kInvalid;
+    return {};
+  }
 };
 
 template <>
@@ -1324,7 +1330,7 @@ struct Impl<OpCode::SELFDESTRUCT> {
       .disallowed_in_static_call = true,
   };
 
-  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+  static OpResult Run(uint256_t* top, int64_t gas, RunState* state, Context& ctx) noexcept {
     auto account = ToEvmcAddress(top[0]);
 
     int64_t dynamic_gas = 0;
@@ -1345,10 +1351,8 @@ struct Impl<OpCode::SELFDESTRUCT> {
       }
     }
 
-    return {
-        .state = RunState::kDone,
-        .dynamic_gas_costs = dynamic_gas,
-    };
+    *state = RunState::kDone;
+    return {.dynamic_gas_costs = dynamic_gas};
   }
 };
 
@@ -1361,9 +1365,11 @@ struct CreateImpl {
       .disallowed_in_static_call = true,
   };
 
-  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
-    if (ctx.message->depth >= 1024) [[unlikely]]
-      return {.state = RunState::kErrorCreate};
+  static OpResult Run(uint256_t* top, int64_t gas, RunState* state, Context& ctx) noexcept {
+    if (ctx.message->depth >= 1024) [[unlikely]] {
+      *state = RunState::kErrorCreate;
+      return {};
+    }
 
     const int64_t initial_gas = gas;
 
@@ -1389,7 +1395,8 @@ struct CreateImpl {
     ctx.return_data.clear();
 
     if (endowment != 0 && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < endowment) {
-      return {.state = RunState::kErrorCreate};
+      *state = RunState::kErrorCreate;
+      return {};
     }
 
     auto init_code = ctx.memory.GetSpan(init_code_offset, init_code_size);
@@ -1435,9 +1442,11 @@ struct CallImpl {
       .pushes = 1,
   };
 
-  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
-    if (ctx.message->depth >= 1024) [[unlikely]]
-      return {.state = RunState::kErrorCall};
+  static OpResult Run(uint256_t* top, int64_t gas, RunState* state, Context& ctx) noexcept {
+    if (ctx.message->depth >= 1024) [[unlikely]] {
+      *state = RunState::kErrorCall;
+      return {};
+    }
 
     const int64_t initial_gas = gas;
 
@@ -1485,7 +1494,8 @@ struct CallImpl {
 
     if constexpr (Op == op::CALL) {
       if (has_value && ctx.is_static_call) {
-        return {.state = RunState::kErrorStaticCall};
+        *state = RunState::kErrorStaticCall;
+        return {};
       }
     }
 
@@ -1575,46 +1585,64 @@ struct Impl<OpCode::DELEGATECALL> : CallImpl<OpCode::DELEGATECALL> {};
 template <>
 struct Impl<OpCode::STATICCALL> : CallImpl<OpCode::STATICCALL> {};
 
-inline OpResult Invoke(uint256_t*, const uint8_t*, int64_t, Context&,  //
-                       OpResult (*op)() noexcept                       //
-                       ) noexcept {
-  return op();
+struct InvokeResult : public OpResult {
+  bool abort = false;
+};
+
+inline InvokeResult Invoke(uint256_t*, const uint8_t*, int64_t, RunState*, Context&,  //
+                           OpResult (*op)() noexcept                                  //
+                           ) noexcept {
+  return {op()};
 }
 
-inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context&,  //
-                       OpResult (*op)(uint256_t* top) noexcept             //
-                       ) noexcept {
-  return op(top);
+inline InvokeResult Invoke(uint256_t*, const uint8_t*, int64_t, RunState* state, Context&,  //
+                           OpResult (*op)(RunState*) noexcept                               //
+                           ) noexcept {
+  auto res = op(state);
+  return {res, *state != RunState::kRunning};
 }
 
-inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context&,  //
-                       OpResult (*op)(uint256_t* top, int64_t gas) noexcept    //
-                       ) noexcept {
-  return op(top, gas);
+inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t, RunState*, Context&,  //
+                           OpResult (*op)(uint256_t* top) noexcept                        //
+                           ) noexcept {
+  return {op(top)};
 }
 
-inline OpResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, Context&,       //
-                       OpResult (*op)(uint256_t* top, const uint8_t* pc) noexcept  //
-                       ) noexcept {
-  return op(top, pc);
+inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, RunState*, Context&,  //
+                           OpResult (*op)(uint256_t* top, int64_t gas) noexcept               //
+                           ) noexcept {
+  return {op(top, gas)};
 }
 
-inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context& ctx,  //
-                       OpResult (*op)(uint256_t* top, Context&) noexcept       //
-                       ) noexcept {
-  return op(top, ctx);
+inline InvokeResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, RunState*, Context&,  //
+                           OpResult (*op)(uint256_t* top, const uint8_t* pc) noexcept        //
+                           ) noexcept {
+  return {op(top, pc)};
 }
 
-inline OpResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, Context& ctx,             //
-                       OpResult (*op)(uint256_t* top, const uint8_t* pc, Context&) noexcept  //
-                       ) noexcept {
-  return op(top, pc, ctx);
+inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t, RunState*, Context& ctx,  //
+                           OpResult (*op)(uint256_t* top, Context&) noexcept                  //
+                           ) noexcept {
+  return {op(top, ctx)};
 }
 
-inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context& ctx,      //
-                       OpResult (*op)(uint256_t* top, int64_t gas, Context&) noexcept  //
-                       ) noexcept {
-  return op(top, gas, ctx);
+inline InvokeResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, RunState*, Context& ctx,  //
+                           OpResult (*op)(uint256_t* top, const uint8_t* pc, Context&) noexcept  //
+                           ) noexcept {
+  return {op(top, pc, ctx)};
+}
+
+inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, RunState*, Context& ctx,  //
+                           OpResult (*op)(uint256_t* top, int64_t gas, Context&) noexcept         //
+                           ) noexcept {
+  return {op(top, gas, ctx)};
+}
+
+inline InvokeResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, RunState* state, Context& ctx,  //
+                           OpResult (*op)(uint256_t* top, int64_t gas, RunState*, Context&) noexcept    //
+                           ) noexcept {
+  auto res = op(top, gas, state, ctx);
+  return {res, *state != RunState::kRunning};
 }
 
 }  // namespace op
@@ -1686,55 +1714,71 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
   return padded;
 }
 
+// This constatn encodes a special memory location the program pointer
+// is exected to point to when a abort-condition is identified. The
+// instruction stored is a unused instruction, and would normally lead
+// to an INVALID-INSTRUCTION abort. However, if the PC is pointing to
+// this memory location, the execution is aborted without updating the
+// error state.
+static const uint8_t kTerminate = 0xFC;
+static_assert(!(op::Impl<op::OpCode(kTerminate)>::kInfo.used), "Termination instruction must be an unused OpCode.");
+
 struct Result {
-  RunState state = RunState::kDone;
-  const uint8_t* pc = nullptr;
+  const uint8_t* pc = &kTerminate;
   int64_t gas_left = 0;
 };
 
 template <op::OpCode op_code>
 inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, int32_t stack_size, const uint8_t* code,
-                  Context& ctx) {
+                  RunState* state, Context& ctx) {
   using Impl = op::Impl<op_code>;
 
   if constexpr (Impl::kInfo.introduced_in) {
     if (ctx.revision < Impl::kInfo.introduced_in) [[unlikely]] {
-      return {.state = RunState::kErrorOpcode};
+      *state = RunState::kErrorOpcode;
+      return {};
     }
   }
 
   if constexpr (Impl::kInfo.disallowed_in_static_call) {
-    if (ctx.is_static_call) [[unlikely]]
-      return {.state = RunState::kErrorStaticCall};
+    if (ctx.is_static_call) [[unlikely]] {
+      *state = RunState::kErrorStaticCall;
+      return {};
+    }
   }
 
   if constexpr (Impl::kInfo.pops > 0) {
     if (stack_size < Impl::kInfo.pops) [[unlikely]] {
-      return Result{.state = RunState::kErrorStackUnderflow};
+      *state = RunState::kErrorStackUnderflow;
+      return {};
     }
   }
   if constexpr (Impl::kInfo.GetStackDelta() > 0) {
     if (static_cast<int32_t>(Stack::kStackSize) - stack_size < Impl::kInfo.GetStackDelta()) [[unlikely]] {
-      return Result{.state = RunState::kErrorStackOverflow};
+      *state = RunState::kErrorStackOverflow;
+      return {};
     }
   }
+
   // Charge static gas costs.
   if (gas < Impl::kInfo.static_gas) [[unlikely]] {
-    return Result{.state = RunState::kErrorGas};
+    *state = RunState::kErrorGas;
+    return Result{};
   }
   gas -= Impl::kInfo.static_gas;
 
   // Run the operation.
-  RunState state = RunState::kRunning;
   if constexpr (Impl::kInfo.is_jump) {
     if (Impl::RunJump(top)) {
       if (!ctx.CheckJumpDest(*top)) [[unlikely]] {
-        return Result{.state = ctx.state};
+        *state = RunState::kErrorJump;
+        return {};
       }
 
       // Immediately subtract gas for JUMPDEST
       if (gas < op::Impl<op::JUMPDEST>::kInfo.static_gas) [[unlikely]] {
-        return Result{.state = RunState::kErrorGas};
+        *state = RunState::kErrorGas;
+        return {};
       }
       gas -= op::Impl<op::JUMPDEST>::kInfo.static_gas;
 
@@ -1743,20 +1787,22 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, int32_t stack_
       pc += 1;
     }
   } else {
-    auto res = Invoke(top, pc, gas, ctx, Impl::Run);
-    state = res.state;
+    auto res = Invoke(top, pc, gas, state, ctx, Impl::Run);
     if (res.dynamic_gas_costs > 0) {
-      if (res.dynamic_gas_costs > gas) {
-        return Result{.state = RunState::kErrorGas};
+      if (res.dynamic_gas_costs > gas) [[unlikely]] {
+        *state = RunState::kErrorGas;
+        return {};
       }
       gas -= res.dynamic_gas_costs;
+    }
+    if (res.abort) [[unlikely]] {
+      return {.gas_left = gas};
     }
     pc += Impl::kInfo.instruction_length;
   }
 
   // Update the stack.
   return Result{
-      .state = state,
       .pc = pc,
       .gas_left = gas,
   };
@@ -1784,6 +1830,7 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   static constexpr std::array dispatch_table = {
 #define EVMZERO_OPCODE(name, value) &&op_##name,
 #define EVMZERO_OPCODE_UNUSED(value) &&op_INVALID,
+#define EVMZERO_OPCODE_TERMINATE(value) &&end,
 #include "opcodes.inc"
   };
   static_assert(dispatch_table.size() == 256);
@@ -1792,7 +1839,6 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
 // for the handling code.
 #define DISPATCH()                                                                      \
   do {                                                                                  \
-    if (state == RunState::kRunning) {                                                  \
       if constexpr (LoggingEnabled) {                                                   \
         std::cout << ToString(static_cast<op::OpCode>(*pc)) << ", " << ctx.gas << ", "; \
         if (ctx.stack.GetSize() == 0) {                                                 \
@@ -1803,9 +1849,6 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
         std::cout << "\n" << std::flush;                                                \
       }                                                                                 \
       goto* dispatch_table[*pc];                                                        \
-    } else {                                                                            \
-      goto end;                                                                         \
-    }                                                                                   \
   } while (0)
 
   // Initial dispatch is executed here!
@@ -1818,8 +1861,7 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   op_##opcode : {                                                     \
     EVMZERO_PROFILE_ZONE_N(#opcode);                                  \
     profiler.template Start<Marker::opcode>();                        \
-    auto res = Run<op::opcode>(pc, gas, top, size, padded_code, ctx); \
-    state = res.state;                                                \
+    auto res = Run<op::opcode>(pc, gas, top, size, padded_code, &state, ctx); \
     pc = res.pc;                                                      \
     gas = res.gas_left;                                               \
     top -= op::Impl<op::opcode>::kInfo.GetStackDelta();               \
@@ -1831,8 +1873,7 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
 #define RUN_OPCODE_NO_PROFILE(opcode)                                 \
   op_##opcode : {                                                     \
     EVMZERO_PROFILE_ZONE();                                           \
-    auto res = Run<op::opcode>(pc, gas, top, size, padded_code, ctx); \
-    state = res.state;                                                \
+    auto res = Run<op::opcode>(pc, gas, top, size, padded_code, &state, ctx); \
     pc = res.pc;                                                      \
     gas = res.gas_left;                                               \
     top -= op::Impl<op::opcode>::kInfo.GetStackDelta();               \
@@ -1843,6 +1884,7 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
 #define EVMZERO_OPCODE(name, value) RUN_OPCODE(name)
 #define EVMZERO_OPCODE_CREATE(name, value) RUN_OPCODE_NO_PROFILE(name)
 #define EVMZERO_OPCODE_CALL(name, value) RUN_OPCODE_NO_PROFILE(name)
+#define EVMZERO_OPCODE_TERMINATE(value) // nothing
 #include "opcodes.inc"
 
 #undef RUN_OPCODE
@@ -1852,6 +1894,14 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
 #pragma GCC diagnostic pop
 
 end:
+  // This point might be reached due to a requirements issue (e.g. out of gas),
+  // or because if an invalid instruction. To distinguish, we check where the 
+  // current programming pointer is pointing to. In either case, the processing
+  // ends here.
+  if (pc != &kTerminate) {
+    state = RunState::kInvalid;
+  }
+
   if (IsSuccess(state)) {
     ctx.gas = gas;
   } else {
