@@ -1690,11 +1690,11 @@ struct Result {
   RunState state = RunState::kDone;
   const uint8_t* pc = nullptr;
   int64_t gas_left = 0;
-  uint256_t* top = nullptr;
 };
 
 template <op::OpCode op_code>
-inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t* code, Context& ctx) {
+inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, int32_t stack_size, const uint8_t* code,
+                  Context& ctx) {
   using Impl = op::Impl<op_code>;
 
   if constexpr (Impl::kInfo.introduced_in) {
@@ -1708,17 +1708,13 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
       return {.state = RunState::kErrorStaticCall};
   }
 
-  // Check stack requirements. Since the stack is aligned to 64k boundaries, we
-  // can compute the stack size directly from the stack pointer.
-  auto size = Stack::kStackSize - (reinterpret_cast<size_t>(top) & 0xFFFF) / sizeof(*top);
-
   if constexpr (Impl::kInfo.pops > 0) {
-    if (size < Impl::kInfo.pops) [[unlikely]] {
+    if (stack_size < Impl::kInfo.pops) [[unlikely]] {
       return Result{.state = RunState::kErrorStackUnderflow};
     }
   }
   if constexpr (Impl::kInfo.GetStackDelta() > 0) {
-    if (Stack::kStackSize - size < Impl::kInfo.GetStackDelta()) [[unlikely]] {
+    if (static_cast<int32_t>(Stack::kStackSize) - stack_size < Impl::kInfo.GetStackDelta()) [[unlikely]] {
       return Result{.state = RunState::kErrorStackOverflow};
     }
   }
@@ -1759,12 +1755,10 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
   }
 
   // Update the stack.
-  top -= Impl::kInfo.GetStackDelta();
   return Result{
       .state = state,
       .pc = pc,
       .gas_left = gas,
-      .top = top,
   };
 }
 
@@ -1777,6 +1771,7 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
   RunState state = RunState::kRunning;
   int64_t gas = ctx.gas;
   uint256_t* top = ctx.stack.Top();
+  int32_t size = static_cast<int32_t>(ctx.stack.GetSize());
 
   auto* padded_code = ctx.padded_code.data();
   auto* pc = padded_code;
@@ -1819,28 +1814,30 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
 // A valid op code is executed, followed by another DISPATCH call. Since the
 // profiler currently doesn't work with recursive op codes, we don't profile
 // CREATE and CALL op codes.
-#define RUN_OPCODE(opcode)                                      \
-  op_##opcode : {                                               \
-    EVMZERO_PROFILE_ZONE_N(#opcode);                            \
-    profiler.template Start<Marker::opcode>();                  \
-    auto res = Run<op::opcode>(pc, gas, top, padded_code, ctx); \
-    state = res.state;                                          \
-    pc = res.pc;                                                \
-    gas = res.gas_left;                                         \
-    top = res.top;                                              \
-    profiler.template End<Marker::opcode>();                    \
-  }                                                             \
+#define RUN_OPCODE(opcode)                                            \
+  op_##opcode : {                                                     \
+    EVMZERO_PROFILE_ZONE_N(#opcode);                                  \
+    profiler.template Start<Marker::opcode>();                        \
+    auto res = Run<op::opcode>(pc, gas, top, size, padded_code, ctx); \
+    state = res.state;                                                \
+    pc = res.pc;                                                      \
+    gas = res.gas_left;                                               \
+    top -= op::Impl<op::opcode>::kInfo.GetStackDelta();               \
+    size += op::Impl<op::opcode>::kInfo.GetStackDelta();              \
+    profiler.template End<Marker::opcode>();                          \
+  }                                                                   \
   DISPATCH();
 
-#define RUN_OPCODE_NO_PROFILE(opcode)                           \
-  op_##opcode : {                                               \
-    EVMZERO_PROFILE_ZONE();                                     \
-    auto res = Run<op::opcode>(pc, gas, top, padded_code, ctx); \
-    state = res.state;                                          \
-    pc = res.pc;                                                \
-    gas = res.gas_left;                                         \
-    top = res.top;                                              \
-  }                                                             \
+#define RUN_OPCODE_NO_PROFILE(opcode)                                 \
+  op_##opcode : {                                                     \
+    EVMZERO_PROFILE_ZONE();                                           \
+    auto res = Run<op::opcode>(pc, gas, top, size, padded_code, ctx); \
+    state = res.state;                                                \
+    pc = res.pc;                                                      \
+    gas = res.gas_left;                                               \
+    top -= op::Impl<op::opcode>::kInfo.GetStackDelta();               \
+    size += op::Impl<op::opcode>::kInfo.GetStackDelta();              \
+  }                                                                   \
   DISPATCH();
 
 #define EVMZERO_OPCODE(name, value) RUN_OPCODE(name)
