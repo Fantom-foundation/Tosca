@@ -1730,7 +1730,14 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, const uint8_t*
       if (!ctx.CheckJumpDest(*top)) [[unlikely]] {
         return Result{.state = ctx.state};
       }
-      pc = code + static_cast<uint32_t>(*top);
+
+      // Immediately subtract gas for JUMPDEST
+      if (gas < op::Impl<op::JUMPDEST>::kInfo.static_gas) [[unlikely]] {
+        return Result{.state = RunState::kErrorGas};
+      }
+      gas -= op::Impl<op::JUMPDEST>::kInfo.static_gas;
+
+      pc = code + static_cast<uint32_t>(*top) + 1 /* skip JUMPDEST */;
     } else {
       pc += 1;
     }
