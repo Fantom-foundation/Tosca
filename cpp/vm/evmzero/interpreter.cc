@@ -1769,10 +1769,8 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
   auto* padded_code = ctx.padded_code.data();
   auto* pc = padded_code;
 
-  op::OpInfo info;
   int32_t stack_size = 0;
   Result result;
-  auto run = &Run<op::INVALID>;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
@@ -1780,72 +1778,69 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>&) {
   // The dispatch mechanism uses "computed gotos". The dispatch table is defined
   // here, enumerating _all_ possible opcodes.
   static constexpr std::array dispatch_table = {
-#define EVMZERO_OPCODE(name, value) &&op_##name,
-#define EVMZERO_OPCODE_UNUSED(value) &&op_INVALID,
+#define EVMZERO_OPCODE(name, value) std::pair(op::Impl<op::name>::kInfo, &&op_##name),
+#define EVMZERO_OPCODE_UNUSED(value) std::pair(op::Impl<op::INVALID>::kInfo, &&op_INVALID),
 #include "opcodes.inc"
   };
   static_assert(dispatch_table.size() == 256);
 
-// On each dispatch, the dispatch_table is used to resolve the target address
-// for the handling code.
-#define DISPATCH()                                                                      \
-  do {                                                                                  \
-    if (state == RunState::kRunning) {                                                  \
-      if constexpr (LoggingEnabled) {                                                   \
-        std::cout << ToString(static_cast<op::OpCode>(*pc)) << ", " << ctx.gas << ", "; \
-        if (ctx.stack.GetSize() == 0) {                                                 \
-          std::cout << "-empty-";                                                       \
-        } else {                                                                        \
-          std::cout << ctx.stack[0];                                                    \
-        }                                                                               \
-        std::cout << "\n" << std::flush;                                                \
-      }                                                                                 \
-      goto* dispatch_table[*pc];                                                        \
-    } else {                                                                            \
-      goto end;                                                                         \
-    }                                                                                   \
-  } while (0)
+  // On each dispatch, the dispatch_table is used to resolve the target address
+  // for the handling code.
+  // #define DISPATCH()                                                                      \
+//   do {                                                                                  \
+//     if (state == RunState::kRunning) {                                                  \
+//       if constexpr (LoggingEnabled) {                                                   \
+//         std::cout << ToString(static_cast<op::OpCode>(*pc)) << ", " << ctx.gas << ", "; \
+//         if (ctx.stack.GetSize() == 0) {                                                 \
+//           std::cout << "-empty-";                                                       \
+//         } else {                                                                        \
+//           std::cout << ctx.stack[0];                                                    \
+//         }                                                                               \
+//         std::cout << "\n" << std::flush;                                                \
+//       }                                                                                 \
+//       goto* dispatch_table[*pc];                                                        \
+//     } else {                                                                            \
+//       goto end;                                                                         \
+//     }                                                                                   \
+//   } while (0)
 
-  // Initial dispatch is executed here!
-  DISPATCH();
+dispatch:
+  if (state == RunState::kRunning) {
+    // Check stack requirements. Since the stack is aligned to 64k boundaries, we
+    // can compute the stack size directly from the stack pointer.
+    auto [info, target] = dispatch_table[*pc];
+    stack_size = Stack::kStackSize - (reinterpret_cast<size_t>(top) & 0xFFFF) / sizeof(*top);
+    if (stack_size < info.pops) [[unlikely]] {
+      state = RunState::kErrorStackUnderflow;
+      goto end;
+    }
+    if (info.GetStackDelta() > 0) {
+      if (Stack::kStackSize - stack_size < info.GetStackDelta()) [[unlikely]] {
+        state = RunState::kErrorStackOverflow;
+        goto end;
+      }
+    }
+    if (gas < info.static_gas) [[unlikely]] {
+      state = RunState::kErrorGas;
+      goto end;
+    }
+    gas -= info.static_gas;
 
-#define EVMZERO_OPCODE(opcode, value)               \
-  op_##opcode : info = op::Impl<op::opcode>::kInfo; \
-  run = &Run<op::opcode>;                           \
-  goto run_op;
+    goto* target;
+  } else {
+    goto end;
+  }
+
+#define EVMZERO_OPCODE(opcode, value)                                     \
+  op_##opcode : result = Run<op::opcode>(pc, gas, top, padded_code, ctx); \
+  state = result.state;                                                   \
+  pc = result.pc;                                                         \
+  gas = result.gas_left;                                                  \
+  top = result.top;                                                       \
+  goto dispatch;
 #include "opcodes.inc"
 
 #pragma GCC diagnostic pop
-
-run_op:
-  // Check stack requirements. Since the stack is aligned to 64k boundaries, we
-  // can compute the stack size directly from the stack pointer.
-  stack_size = Stack::kStackSize - (reinterpret_cast<size_t>(top) & 0xFFFF) / sizeof(*top);
-  if (stack_size < info.pops) [[unlikely]] {
-    state = RunState::kErrorStackUnderflow;
-    goto end;
-  }
-  if (info.GetStackDelta() > 0) {
-    if (Stack::kStackSize - stack_size < info.GetStackDelta()) [[unlikely]] {
-      state = RunState::kErrorStackOverflow;
-      goto end;
-    }
-  }
-  if (gas < info.static_gas) [[unlikely]] {
-    state = RunState::kErrorGas;
-    goto end;
-  }
-  gas -= info.static_gas;
-
-  result = run(pc, gas, top, padded_code, ctx);
-  state = result.state;
-  pc = result.pc;
-  gas = result.gas_left;
-  top = result.top;
-
-  DISPATCH();
-
-#undef DISPATCH
 
 end:
   if (IsSuccess(state)) {
