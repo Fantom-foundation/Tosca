@@ -7,6 +7,7 @@
 
 #include <evmc/evmc.hpp>
 
+#include "vm/evmzero/observer.h"
 #include "vm/evmzero/memory.h"
 #include "vm/evmzero/profiler.h"
 #include "vm/evmzero/sha3_cache.h"
@@ -36,7 +37,7 @@ bool IsSuccess(RunState);
 const char* ToString(RunState);
 std::ostream& operator<<(std::ostream&, RunState);
 
-template <bool ProfilingEnabled>
+template <Observer Observer>
 struct InterpreterArgs {
   std::span<const uint8_t> padded_code;
   std::span<const uint8_t> valid_jump_targets;
@@ -45,7 +46,7 @@ struct InterpreterArgs {
   evmc_host_context* host_context = nullptr;
   evmc_revision revision = EVMC_ISTANBUL;
   Sha3Cache* sha3_cache = nullptr;
-  Profiler<ProfilingEnabled>& profiler;
+  Observer& observer;
 };
 
 struct InterpreterResult {
@@ -55,8 +56,8 @@ struct InterpreterResult {
   std::vector<uint8_t> return_data;
 };
 
-template <bool TracingEnabled, bool ProfilingEnabled>
-extern InterpreterResult Interpret(const InterpreterArgs<ProfilingEnabled>&);
+template <Observer Observer>
+extern InterpreterResult Interpret(const InterpreterArgs<Observer>&);
 
 namespace internal {
 
@@ -105,8 +106,8 @@ struct Context {
 // bound checks during the execution can be avoided.
 std::vector<uint8_t> PadCode(std::span<const uint8_t> code);
 
-template <bool LoggingEnabled, bool ProfilingEnabled>
-extern void RunInterpreter(Context&, Profiler<ProfilingEnabled>&);
+template <Observer Observer>
+extern void RunInterpreter(Context&, Observer&);
 
 }  // namespace internal
 

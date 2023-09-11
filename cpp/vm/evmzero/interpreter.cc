@@ -57,10 +57,10 @@ std::ostream& operator<<(std::ostream& out, RunState state) { return out << ToSt
 // instructions is a PUSH with too few arguments.
 constexpr int kStopBytePadding = 33;
 
-template <bool LoggingEnabled, bool ProfilingEnabled>
-InterpreterResult Interpret(const InterpreterArgs<ProfilingEnabled>& args) {
-  auto profiler = Profiler<ProfilingEnabled>{};
-  profiler.template Start<Marker::INTERPRETER>();
+template <Observer Observer>
+InterpreterResult Interpret(const InterpreterArgs<Observer>& args) {
+  auto observer& = args.observer;
+  observer.PreRun();
 
   evmc::HostContext host(*args.host_interface, args.host_context);
 
@@ -79,8 +79,7 @@ InterpreterResult Interpret(const InterpreterArgs<ProfilingEnabled>& args) {
 
   profiler.template End<Marker::INTERPRETER>();
 
-  auto& vm_profiler = args.profiler;
-  vm_profiler.Merge(profiler.Collect());
+  observer.PostRun();
 
   return {
       .state = ctx.state,
