@@ -11,7 +11,19 @@ add_library(evmzero SHARED
   opcodes.cc
   stack.cc)
 tosca_add_compile_flags(evmzero)
-target_include_directories(evmzero SYSTEM PUBLIC ${TOSCA_THIRD_PARTY_DIR}/intx/include)
+
+get_target_property(EVMZERO_COMPILE_DEFINITIONS evmzero COMPILE_DEFINITIONS)
+get_target_property(EVMZERO_COMPILE_OPTIONS evmzero COMPILE_OPTIONS)
+# The target properties contain generator expressions which cannot be resolved through
+# configure_file. The workaround is to use file(GENERATE ... TARGET ...) to expand
+# the generator expressions.
+file(GENERATE OUTPUT target_properties.inc CONTENT
+"constexpr auto kCompileDefinitions = \"${EVMZERO_COMPILE_DEFINITIONS}\";
+constexpr auto kCompileOptions = \"${EVMZERO_COMPILE_OPTIONS}\";"
+  TARGET evmzero)
+configure_file(build_info.h.in build_info.h)
+
+target_include_directories(evmzero SYSTEM PUBLIC ${TOSCA_THIRD_PARTY_DIR}/intx/include ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(evmzero PUBLIC tosca_common ethash::keccak evmc::evmc)
 
 if(EVMZERO_MIMALLOC)

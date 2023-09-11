@@ -1,0 +1,11 @@
+
+namespace tosca::evmzero::internal {
+constexpr auto kCompilerId = "@CMAKE_CXX_COMPILER_ID@";
+constexpr auto kCompilerVersion = "@CMAKE_CXX_COMPILER_VERSION@";
+constexpr auto kBuildType = "@CMAKE_BUILD_TYPE@";
+#include "target_properties.inc"
+constexpr auto kAssertions = "@TOSCA_ASSERT@";
+constexpr auto kAsan = "@TOSCA_ASAN@";
+constexpr auto kMimalloc = "@EVMZERO_MIMALLOC@";
+constexpr auto kTracy = "@EVMZERO_TRACY@";
+}  // namespace tosca::evmzero::internal

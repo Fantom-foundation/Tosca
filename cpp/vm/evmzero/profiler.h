@@ -14,6 +14,7 @@
 #include <x86intrin.h>
 #endif
 
+#include "build_info.h"
 #include "common/macros.h"
 #include "profiler_markers.h"
 
@@ -102,7 +103,14 @@ class Profile {
 
     // profiling format: <marker>, <calls>, <total-time-ticks>, <total-time-nanoseconds>\n
     std::ostream& out = out_file.is_open() ? out_file : std::cout;
-    out << "compiler: " << TOSCA_COMPILER << "\n";
+    out << "Compiler: " << internal::kCompilerId << " " << internal::kCompilerVersion << "\n";
+    out << "Build type: " << internal::kBuildType << "\n";
+    out << "Compile definitions: " << internal::kCompileDefinitions << "\n";
+    out << "Compile options: " << internal::kCompileOptions << "\n";
+    out << "Assertions: " << internal::kAssertions << "\n";
+    out << "ASAN: " << internal::kAsan << "\n";
+    out << "Mimalloc: " << internal::kMimalloc << "\n";
+    out << "Tracy: " << internal::kTracy << "\n";
     out << "marker,calls,ticks,duration[ns]\n";
     for (std::size_t i = 0; i < kNumMarkers; ++i) {
       const auto marker = static_cast<Marker>(i);
