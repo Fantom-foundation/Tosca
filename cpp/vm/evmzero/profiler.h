@@ -16,7 +16,8 @@
 
 #include "build_info.h"
 #include "common/macros.h"
-#include "profiler_markers.h"
+#include "interpreter.h"
+#include "opcodes.h"
 
 #if EVMZERO_TRACY_ENABLED
 #include <tracy/Tracy.hpp>
@@ -91,7 +92,11 @@ class TimeConverter {
 // This type represents collected profiling data.
 class Profile {
  public:
-  static constexpr auto kNumMarkers = static_cast<std::size_t>(Marker::NUM_MARKERS);
+  struct Stats {
+    const std::uint64_t num_calls;
+    const std::uint64_t total_ticks;
+    const std::chrono::nanoseconds total_time;
+  };
 
   // Print the contained profiling data to stdout or to wherever the env var "EVMZERO_PROFILE_FILE" points to.
   void Dump() const {
@@ -101,7 +106,7 @@ class Profile {
       out_file.open(profile_file, std::ios::out | std::ios::app);
     }
 
-    // profiling format: <marker>, <calls>, <total-time-ticks>, <total-time-nanoseconds>\n
+    // profiling format: <opcode>, <calls>, <total-time-ticks>, <total-time-nanoseconds>\n
     std::ostream& out = out_file.is_open() ? out_file : std::cout;
     out << "Compiler: " << internal::kCompilerId << " " << internal::kCompilerVersion << "\n";
     out << "Build type: " << internal::kBuildType << "\n";
@@ -111,63 +116,80 @@ class Profile {
     out << "ASAN: " << internal::kAsan << "\n";
     out << "Mimalloc: " << internal::kMimalloc << "\n";
     out << "Tracy: " << internal::kTracy << "\n";
-    out << "marker,calls,ticks,duration[ns]\n";
-    for (std::size_t i = 0; i < kNumMarkers; ++i) {
-      const auto marker = static_cast<Marker>(i);
-      out << ToString(marker) << ", "       //
-          << GetNumCalls(marker) << ", "    //
-          << GetTotalTicks(marker) << ", "  //
-          << GetTotalTime(marker).count() << "\n";
+    out << "opcode,calls,ticks,duration[ns]\n";
+    const auto interpreter_stats = GetInterpreterStats();
+    out << "INTERPRETER,"                        //
+        << interpreter_stats.num_calls << ","    //
+        << interpreter_stats.total_ticks << ","  //
+        << interpreter_stats.total_time.count() << "\n";
+    for (std::size_t i = 0; i < op::kNumUsedAndUnusedOpCodes; ++i) {
+      const auto opcode = static_cast<op::OpCode>(i);
+      if (op::IsUsedOpCode(opcode)) {
+        const auto opcode_stats = GetInstructionStats(opcode);
+        out << ToString(opcode) << ", "          //
+            << opcode_stats.num_calls << ", "    //
+            << opcode_stats.total_ticks << ", "  //
+            << opcode_stats.total_time.count() << "\n";
+      }
     }
     out << std::flush;
   }
 
   // Merge the contained profile with another profile.
   inline void Merge(const Profile& other) noexcept {
-    for (std::size_t i = 0; i < kNumMarkers; ++i) {
+    for (std::size_t i = 0; i < op::kNumUsedAndUnusedOpCodes; ++i) {
       calls_[i] += other.calls_[i];
-      total_time_[i] += other.total_time_[i];
+      total_ticks_[i] += other.total_ticks_[i];
     }
+    interpreter_stats_.calls += other.interpreter_stats_.calls;
+    interpreter_stats_.total_ticks += other.interpreter_stats_.total_ticks;
   }
 
   // Reset the contained profiling data.
   inline void Reset() noexcept {
     calls_ = {};
-    total_time_ = {};
+    total_ticks_ = {};
+    interpreter_stats_ = {};
   }
 
-  // Get the number of times the specified marker was called.
-  inline std::uint64_t GetNumCalls(const Marker marker) const noexcept {
-    return calls_[static_cast<std::size_t>(marker)];
+  // Get collected profiling statistics for the given opcode.
+  inline Stats GetInstructionStats(const op::OpCode opcode) const noexcept {
+    return Stats{
+        .num_calls = calls_[static_cast<std::size_t>(opcode)],
+        .total_ticks = total_ticks_[static_cast<std::size_t>(opcode)],
+        .total_time = time_converter_.Convert(total_ticks_[static_cast<std::size_t>(opcode)]),
+    };
   }
 
-  // Get the cumulative time spent in the specified marker in processor-time.
-  inline std::uint64_t GetTotalTicks(const Marker marker) const noexcept {
-    return total_time_[static_cast<std::size_t>(marker)];
-  }
-
-  // Get the cumulative time spent in the specified marker in nanoseconds.
-  inline std::chrono::nanoseconds GetTotalTime(const Marker marker) const noexcept {
-    const auto time_ticks = total_time_[static_cast<std::size_t>(marker)];
-    return time_converter_.Convert(time_ticks);
+  // Get collected profiling statistics for the interpreter.
+  inline Stats GetInterpreterStats() const noexcept {
+    return Stats{
+        .num_calls = interpreter_stats_.calls,
+        .total_ticks = interpreter_stats_.total_ticks,
+        .total_time = time_converter_.Convert(interpreter_stats_.total_ticks),
+    };
   }
 
  private:
-  using Data = std::array<std::uint64_t, kNumMarkers>;
+  using Data = std::array<std::uint64_t, op::kNumUsedAndUnusedOpCodes>;
 
-  template <bool ProfilingEnabled>
   friend class Profiler;
+
+  struct InterpreterStats {
+    std::uint64_t calls;
+    std::uint64_t total_ticks;
+  };
 
   internal::TimeConverter time_converter_;
   Data calls_ = {};
-  Data total_time_ = {};
+  Data total_ticks_ = {};
+  InterpreterStats interpreter_stats_ = {};
 
   // Mark the end of a measurement to have a reference with which to convert processor-time to wall-clock time.
   void MarkEnd() noexcept { time_converter_.MarkEnd(); }
 };
 
-// This type allows the collection of profiling data through start/end or scoped markers.
-template <bool ProfilingEnabled>
+// This type allows the collection of profiling data through the observer interface.
 class Profiler {
  public:
   Profiler() noexcept = default;
@@ -180,26 +202,37 @@ class Profiler {
   // Construct the profiler from an already existing profile.
   explicit Profiler(const Profile& profile) noexcept : profile_(profile) {}
 
-  // Start measurement for the given marker. Must be followed by an end for the same marker to finish the measurement.
-  template <Marker M>
-  TOSCA_FORCE_INLINE void Start() noexcept {
-    constexpr auto marker_idx = static_cast<std::size_t>(M);
-    start_time_[marker_idx] = internal::Now();
+  // Start measurement for the given opcode. Must be followed by a PostInstruction call for the same opcode to finish
+  // the measurement.
+  TOSCA_FORCE_INLINE void PreInstruction(op::OpCode opcode, const internal::Context&) {
+    if (!op::IsCallOpCode(opcode)) {
+      const auto opcode_idx = static_cast<std::size_t>(opcode);
+      start_time_[opcode_idx] = internal::Now();
+    }
   }
 
-  // End measurement for the given marker. Must have been preceded by a start of the same marker.
-  template <Marker M>
-  TOSCA_FORCE_INLINE void End() noexcept {
-    constexpr auto marker_idx = static_cast<std::size_t>(M);
-    ++profile_.calls_[marker_idx];
-    profile_.total_time_[marker_idx] += internal::Now() - start_time_[marker_idx];
+  // End measurement for the given opcode. Must have been preceded by a PreInstruction call of the same opcode.
+  TOSCA_FORCE_INLINE void PostInstruction(op::OpCode opcode, const internal::Context&) {
+    if (!op::IsCallOpCode(opcode)) {
+      const auto opcode_idx = static_cast<std::size_t>(opcode);
+      ++profile_.calls_[opcode_idx];
+      profile_.total_ticks_[opcode_idx] += internal::Now() - start_time_[opcode_idx];
+    }
   }
 
-  // RAII style wrapper for Start/End that automatically calls End once the returned type goes out of scope.
-  template <Marker M>
-  [[nodiscard]] inline auto Scoped() noexcept {
-    Start<M>();
-    return DeferredEnd<M>(*this);
+  // Start measurement for the interpreter time, only measures time for call depth 0 (i.e. outermost call).
+  inline void PreRun(const InterpreterArgs& args) {
+    if (args.message->depth == 0) {
+      interpreter_start_time_ = internal::Now();
+    }
+  }
+
+  // End measurement for the interpreter time, only measures time for call depth 0 (i.e. outermost call).
+  inline void PostRun(const InterpreterArgs& args) {
+    if (args.message->depth == 0) {
+      ++profile_.interpreter_stats_.calls;
+      profile_.interpreter_stats_.total_ticks += internal::Now() - interpreter_start_time_;
+    }
   }
 
   // Adds the counter and execution times of the provided profile to the profile currently recorded by this profiler.
@@ -209,6 +242,7 @@ class Profiler {
   inline void Reset() noexcept {
     profile_.Reset();
     start_time_ = {};
+    interpreter_start_time_ = {};
   }
 
   // Get a reference to the data collected so far.
@@ -220,53 +254,9 @@ class Profiler {
   }
 
  private:
-  // RAII helper that automatically calls End when it goes out of scope.
-  template <Marker M>
-  class DeferredEnd {
-   public:
-    DeferredEnd(Profiler& profiler) noexcept : profiler_(profiler) {}
-    ~DeferredEnd() { profiler_.template End<M>(); }
-
-    DeferredEnd(const DeferredEnd&) = delete;
-    DeferredEnd(DeferredEnd&&) = delete;
-
-   private:
-    Profiler& profiler_;
-  };
-
   Profile profile_;
   Profile::Data start_time_ = {};
-};
-
-// Stub specialization for disabled profiler that does nothing.
-template <>
-class Profiler<false> {
- public:
-  Profiler() noexcept = default;
-  Profiler(const Profiler&) = delete;
-  Profiler(Profiler&&) = delete;
-
-  Profiler& operator=(const Profiler&) = delete;
-  Profiler& operator=(Profiler&&) = delete;
-
-  explicit Profiler(const Profile&) noexcept {}
-
-  template <Marker M>
-  inline void Start() noexcept {}
-  template <Marker M>
-  inline void End() noexcept {}
-  template <Marker M>
-  [[nodiscard]] inline auto Scoped() noexcept {
-    return DeferredEnd{};
-  }
-  inline void Merge(const Profile&) noexcept {}
-  inline void Reset() noexcept {}
-  inline Profile Collect() noexcept { return Profile{}; }
-
- private:
-  struct DeferredEnd {
-    ~DeferredEnd() {}
-  };
+  std::uint64_t interpreter_start_time_ = {};
 };
 
 }  // namespace tosca::evmzero

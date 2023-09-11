@@ -7,7 +7,10 @@
 
 #include "common/assert.h"
 #include "common/macros.h"
+#include "vm/evmzero/logger.h"
+#include "vm/evmzero/observer.h"
 #include "vm/evmzero/opcodes.h"
+#include "vm/evmzero/profiler.h"
 
 namespace tosca::evmzero {
 
@@ -58,10 +61,9 @@ std::ostream& operator<<(std::ostream& out, RunState state) { return out << ToSt
 // instructions is a PUSH with too few arguments.
 constexpr int kStopBytePadding = 33;
 
-template <bool LoggingEnabled, bool ProfilingEnabled>
-InterpreterResult Interpret(const InterpreterArgs<ProfilingEnabled>& args) {
-  auto profiler = Profiler<ProfilingEnabled>{};
-  profiler.template Start<Marker::INTERPRETER>();
+template <Observer Observer>
+InterpreterResult Interpret(const InterpreterArgs& args, Observer& observer) {
+  observer.PreRun(args);
 
   evmc::HostContext host(*args.host_interface, args.host_context);
 
@@ -76,12 +78,9 @@ InterpreterResult Interpret(const InterpreterArgs<ProfilingEnabled>& args) {
       .sha3_cache = args.sha3_cache,
   };
 
-  internal::RunInterpreter<LoggingEnabled, ProfilingEnabled>(ctx, profiler);
+  internal::RunInterpreter(ctx, observer);
 
-  profiler.template End<Marker::INTERPRETER>();
-
-  auto& vm_profiler = args.profiler;
-  vm_profiler.Merge(profiler.Collect());
+  observer.PostRun(args);
 
   return {
       .state = ctx.state,
@@ -91,10 +90,9 @@ InterpreterResult Interpret(const InterpreterArgs<ProfilingEnabled>& args) {
   };
 }
 
-template InterpreterResult Interpret<false, false>(const InterpreterArgs<false>&);
-template InterpreterResult Interpret<true, false>(const InterpreterArgs<false>&);
-template InterpreterResult Interpret<false, true>(const InterpreterArgs<true>&);
-template InterpreterResult Interpret<true, true>(const InterpreterArgs<true>&);
+template InterpreterResult Interpret<NoObserver>(const InterpreterArgs&, NoObserver&);
+template InterpreterResult Interpret<Profiler>(const InterpreterArgs&, Profiler&);
+template InterpreterResult Interpret<Logger>(const InterpreterArgs&, Logger&);
 
 ///////////////////////////////////////////////////////////
 
@@ -1775,8 +1773,8 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, int32_t stack_
   };
 }
 
-template <bool LoggingEnabled, bool ProfilingEnabled>
-void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
+template <Observer Observer>
+void RunInterpreter(Context& ctx, Observer& observer) {
   EVMZERO_PROFILE_ZONE();
 
   // The state, pc, and stack state are owned by this function and
@@ -1799,26 +1797,17 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
 #define EVMZERO_OPCODE_UNUSED(value) &&op_INVALID,
 #include "opcodes.inc"
   };
-  static_assert(dispatch_table.size() == 256);
+  static_assert(dispatch_table.size() == op::kNumUsedAndUnusedOpCodes);
 
 // On each dispatch, the dispatch_table is used to resolve the target address
 // for the handling code.
-#define DISPATCH()                                                                      \
-  do {                                                                                  \
-    if (state == RunState::kRunning) {                                                  \
-      if constexpr (LoggingEnabled) {                                                   \
-        std::cout << ToString(static_cast<op::OpCode>(*pc)) << ", " << ctx.gas << ", "; \
-        if (ctx.stack.GetSize() == 0) {                                                 \
-          std::cout << "-empty-";                                                       \
-        } else {                                                                        \
-          std::cout << ctx.stack[0];                                                    \
-        }                                                                               \
-        std::cout << "\n" << std::flush;                                                \
-      }                                                                                 \
-      goto* dispatch_table[*pc];                                                        \
-    } else {                                                                            \
-      goto end;                                                                         \
-    }                                                                                   \
+#define DISPATCH()                     \
+  do {                                 \
+    if (state == RunState::kRunning) { \
+      goto* dispatch_table[*pc];       \
+    } else {                           \
+      goto end;                        \
+    }                                  \
   } while (0)
 
   // Initial dispatch is executed here!
@@ -1830,36 +1819,21 @@ void RunInterpreter(Context& ctx, Profiler<ProfilingEnabled>& profiler) {
 #define RUN_OPCODE(opcode)                                            \
   op_##opcode : {                                                     \
     EVMZERO_PROFILE_ZONE_N(#opcode);                                  \
-    profiler.template Start<Marker::opcode>();                        \
+    observer.PreInstruction(op::opcode, ctx);                         \
     auto res = Run<op::opcode>(pc, gas, top, size, padded_code, ctx); \
     state = res.state;                                                \
     pc = res.pc;                                                      \
     gas = res.gas_left;                                               \
     top -= op::Impl<op::opcode>::kInfo.GetStackDelta();               \
     size += op::Impl<op::opcode>::kInfo.GetStackDelta();              \
-    profiler.template End<Marker::opcode>();                          \
-  }                                                                   \
-  DISPATCH();
-
-#define RUN_OPCODE_NO_PROFILE(opcode)                                 \
-  op_##opcode : {                                                     \
-    EVMZERO_PROFILE_ZONE();                                           \
-    auto res = Run<op::opcode>(pc, gas, top, size, padded_code, ctx); \
-    state = res.state;                                                \
-    pc = res.pc;                                                      \
-    gas = res.gas_left;                                               \
-    top -= op::Impl<op::opcode>::kInfo.GetStackDelta();               \
-    size += op::Impl<op::opcode>::kInfo.GetStackDelta();              \
+    observer.PostInstruction(op::opcode, ctx);                        \
   }                                                                   \
   DISPATCH();
 
 #define EVMZERO_OPCODE(name, value) RUN_OPCODE(name)
-#define EVMZERO_OPCODE_CREATE(name, value) RUN_OPCODE_NO_PROFILE(name)
-#define EVMZERO_OPCODE_CALL(name, value) RUN_OPCODE_NO_PROFILE(name)
 #include "opcodes.inc"
 
 #undef RUN_OPCODE
-#undef RUN_OPCODE_NO_PROFILE
 #undef DISPATCH
 
 #pragma GCC diagnostic pop
@@ -1880,10 +1854,9 @@ end:
   ctx.stack.SetTop(top);
 }
 
-template void RunInterpreter<false, false>(Context&, Profiler<false>&);
-template void RunInterpreter<true, false>(Context&, Profiler<false>&);
-template void RunInterpreter<false, true>(Context&, Profiler<true>&);
-template void RunInterpreter<true, true>(Context&, Profiler<true>&);
+template void RunInterpreter<NoObserver>(Context&, NoObserver&);
+template void RunInterpreter<Profiler>(Context&, Profiler&);
+template void RunInterpreter<Logger>(Context&, Logger&);
 
 }  // namespace internal
 

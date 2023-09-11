@@ -8,6 +8,7 @@
 
 #include "common/lru_cache.h"
 #include "vm/evmzero/interpreter.h"
+#include "vm/evmzero/logger.h"
 #include "vm/evmzero/opcodes.h"
 #include "vm/evmzero/profiler.h"
 #include "vm/evmzero/sha3_cache.h"
@@ -74,9 +75,7 @@ class VM : public evmc_vm {
             .set_option = [](evmc_vm* vm, char const* name, char const* value) -> evmc_set_option_result {
               return static_cast<VM*>(vm)->SetOption(name, value);
             },
-        } {
-    enabled_profiler_.Start<Marker::TOTAL>();
-  }
+        } {}
 
   evmc_result Execute(std::span<const uint8_t> code, const evmc_bytes32* code_hash,                //
                       const evmc_message* message,                                                 //
@@ -89,32 +88,23 @@ class VM : public evmc_vm {
       contract_info = ComputeContractInfo(code);
     }
 
-    const auto make_interpreter_args = [&]<bool ProfilingEnabled>(Profiler<ProfilingEnabled>& profiler) {
-      return InterpreterArgs<ProfilingEnabled>{
-          .padded_code = contract_info->padded_code,
-          .valid_jump_targets = contract_info->valid_jump_targets,
-          .message = message,
-          .host_interface = host_interface,
-          .host_context = host_context,
-          .revision = revision,
-          .sha3_cache = sha3_cache_enabled_ ? &sha3_cache_ : nullptr,
-          .profiler = profiler,
-      };
+    const auto interpreter_args = InterpreterArgs{
+        .padded_code = contract_info->padded_code,
+        .valid_jump_targets = contract_info->valid_jump_targets,
+        .message = message,
+        .host_interface = host_interface,
+        .host_context = host_context,
+        .revision = revision,
+        .sha3_cache = sha3_cache_enabled_ ? &sha3_cache_ : nullptr,
     };
 
     InterpreterResult interpreter_result;
-    if (logging_enabled_ && profiling_enabled_) {
-      const auto interpreter_args = make_interpreter_args(enabled_profiler_);
-      interpreter_result = Interpret<true, true>(interpreter_args);
-    } else if (logging_enabled_ && !profiling_enabled_) {
-      const auto interpreter_args = make_interpreter_args(disabled_profiler_);
-      interpreter_result = Interpret<true, false>(interpreter_args);
-    } else if (!logging_enabled_ && profiling_enabled_) {
-      const auto interpreter_args = make_interpreter_args(enabled_profiler_);
-      interpreter_result = Interpret<false, true>(interpreter_args);
-    } else if (!logging_enabled_ && !profiling_enabled_) {
-      const auto interpreter_args = make_interpreter_args(disabled_profiler_);
-      interpreter_result = Interpret<false, false>(interpreter_args);
+    if (logging_enabled_) {
+      interpreter_result = Interpret(interpreter_args, logger_);
+    } else if (profiling_enabled_) {
+      interpreter_result = Interpret(interpreter_args, profiler_);
+    } else {
+      interpreter_result = Interpret(interpreter_args, no_observer_);
     }
 
     // Move output data to a dedicated buffer so we can release the interpreter
@@ -159,16 +149,9 @@ class VM : public evmc_vm {
     return EVMC_SET_OPTION_INVALID_NAME;
   }
 
-  void DumpProfile() {
-    enabled_profiler_.End<Marker::TOTAL>();
-    enabled_profiler_.Collect().Dump();
-    enabled_profiler_.Start<Marker::TOTAL>();
-  }
+  void DumpProfile() { profiler_.Collect().Dump(); }
 
-  void ResetProfiler() {
-    enabled_profiler_.Reset();
-    enabled_profiler_.Start<Marker::TOTAL>();
-  }
+  void ResetProfiler() { profiler_.Reset(); }
 
  private:
   struct ContractInfo {
@@ -192,8 +175,9 @@ class VM : public evmc_vm {
 
   Sha3Cache sha3_cache_;
 
-  Profiler<false> disabled_profiler_;
-  Profiler<true> enabled_profiler_;
+  NoObserver no_observer_;
+  Logger logger_;
+  Profiler profiler_;
 };
 
 extern "C" {
