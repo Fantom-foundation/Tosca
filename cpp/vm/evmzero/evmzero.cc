@@ -125,6 +125,29 @@ class VM : public evmc_vm {
       std::copy(interpreter_result.return_data.begin(), interpreter_result.return_data.end(), output_data);
     }
 
+    auto status_code = ToEvmcStatusCode(interpreter_result.state);
+    switch(status_code) {
+      case EVMC_SUCCESS:
+        num_successes_++;
+        break;
+      case EVMC_REVERT:
+        num_reverts_++;
+        break;
+      case EVMC_UNDEFINED_INSTRUCTION:
+      case EVMC_INVALID_INSTRUCTION:
+        num_invalid_code_++;
+        break;
+      case EVMC_OUT_OF_GAS:
+        num_out_of_gas_++;
+        break;
+      case EVMC_STACK_UNDERFLOW:
+      case EVMC_STACK_OVERFLOW:
+        num_invalid_stack_++;
+        break;
+      default:
+        num_other_terminations_++;
+    }
+
     return {
         .status_code = ToEvmcStatusCode(interpreter_result.state),
         .gas_left = interpreter_result.remaining_gas,
@@ -163,6 +186,12 @@ class VM : public evmc_vm {
     enabled_profiler_.End<Marker::TOTAL>();
     enabled_profiler_.Collect().Dump();
     enabled_profiler_.Start<Marker::TOTAL>();
+    std::cout << "successes," << num_successes_.load() << "\n";
+    std::cout << "reverts," << num_reverts_.load() << "\n";
+    std::cout << "invalid_codes," << num_invalid_code_.load() << "\n";
+    std::cout << "out_of_gas," << num_out_of_gas_.load() << "\n";
+    std::cout << "invalid_stack," << num_invalid_stack_.load() << "\n";
+    std::cout << "others," << num_other_terminations_.load() << "\n";
   }
 
   void ResetProfiler() {
@@ -194,6 +223,13 @@ class VM : public evmc_vm {
 
   Profiler<false> disabled_profiler_;
   Profiler<true> enabled_profiler_;
+
+  std::atomic<uint64_t> num_successes_;
+  std::atomic<uint64_t> num_reverts_;
+  std::atomic<uint64_t> num_invalid_code_;
+  std::atomic<uint64_t> num_out_of_gas_;
+  std::atomic<uint64_t> num_invalid_stack_;
+  std::atomic<uint64_t> num_other_terminations_;
 };
 
 extern "C" {
