@@ -168,6 +168,102 @@ func TestDynamicGas(t *testing.T) {
 	}
 }
 
+func TestOutOfDynamicGas(t *testing.T) {
+	var mockCtrl *gomock.Controller
+	var mockStateDB *vm_mock.MockStateDB
+
+	// For every variant of interpreter
+	for _, variant := range Variants {
+		for _, revision := range revisions {
+			// Get static gas for frequently used instructions
+			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
+
+			for _, testCase := range getOutOfDynamicGasTests(revision) {
+				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, testCase.testName), func(t *testing.T) {
+
+					// Need new mock for every testcase
+					mockCtrl = gomock.NewController(t)
+					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+
+					// evmone needs following in addition to geth and lfvm
+					mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
+					mockStateDB.EXPECT().SubRefund(uint64(0)).AnyTimes()
+
+					// Init stateDB mock calls from test function
+					if testCase.mockCalls != nil {
+						testCase.mockCalls(mockStateDB)
+					}
+
+					// Initialize EVM clean instance
+					evm := GetCleanEVM(revision, variant, mockStateDB)
+					code := make([]byte, 0)
+
+					// Put needed values on stack with PUSH instructions.
+					pushCode, pushGasAdded := addValuesToStack(testCase.stackValues, pushGas)
+					code = append(code, pushCode...)
+
+					// Set a tested instruction as the last one.
+					code = append(code, byte(testCase.instruction))
+
+					// Run an interpreter
+					res, err := evm.RunWithGas(code, []byte{}, testCase.initialGas+pushGasAdded)
+
+					// Check the result.
+					if err != nil && err != testCase.expectedError {
+						t.Errorf("execution failed %v should fail with %v but got error: %v", testCase.testName, testCase.expectedError, err)
+					} else if err == nil {
+						t.Errorf("execution of %v should fail with ErrOutOfGas but there is no error, used %v, put %v", testCase.testName, res.GasUsed, testCase.initialGas+pushGasAdded)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestOutOfStaticGasOnly(t *testing.T) {
+	// For every variant of interpreter
+	for _, variant := range Variants {
+		for _, revision := range revisions {
+			// Get static gas for frequently used instructions
+			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
+			for op, info := range getInstructions(revision) {
+
+				if info.gas.static == 0 || info.gas.dynamic != nil {
+					continue
+				}
+
+				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, op), func(t *testing.T) {
+
+					// Initialize EVM clean instance
+					evm := GetCleanEVM(revision, variant, nil)
+					code := make([]byte, 0)
+
+					// Put needed values on stack with PUSH instructions.
+					stackValues := make([]*big.Int, 0)
+					for i := 0; i < info.stack.popped; i++ {
+						stackValues = append(stackValues, big.NewInt(1))
+					}
+					pushCode, needGas := addValuesToStack(stackValues, pushGas)
+					code = append(code, pushCode...)
+
+					// Set a tested instruction as the last one.
+					code = append(code, byte(op))
+
+					// Run an interpreter with gas set to fail
+					_, err := evm.RunWithGas(code, []byte{}, info.gas.static+needGas-1)
+
+					// Check the result.
+					if err != nil && err != vm.ErrOutOfGas {
+						t.Errorf("execution should fail with %v but got error: %v", vm.ErrOutOfGas, err)
+					} else if err == nil {
+						t.Errorf("execution should fail with ErrOutOfGas but there is no error")
+					}
+				})
+			}
+		}
+	}
+}
+
 func addValuesToStack(stackValues []*big.Int, pushGas uint64) ([]byte, uint64) {
 	stackValuesCount := len(stackValues)
 
@@ -269,7 +365,6 @@ func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) uin
 func putCallReturnValue(t *testing.T, revision Revision, code []byte, mockStateDB *vm_mock.MockStateDB) (gas uint64, returnCode []byte) {
 	accountNumber := 100
 	account := common.Address{byte(accountNumber)}
-	gasSentWithCall := big.NewInt(100000)
 
 	// Code processed inside inner call
 	codeWithReturnValue := []byte{
@@ -293,7 +388,7 @@ func putCallReturnValue(t *testing.T, revision Revision, code []byte, mockStateD
 	gas = getCallInstructionGas(t, revision, codeWithReturnValue)
 
 	zeroVal := big.NewInt(0)
-	stackCallValues := []*big.Int{zeroVal, zeroVal, zeroVal, zeroVal, zeroVal, account.Hash().Big(), gasSentWithCall}
+	stackCallValues := []*big.Int{zeroVal, zeroVal, zeroVal, zeroVal, zeroVal, account.Hash().Big(), big.NewInt(int64(gas))}
 
 	for i := 0; i < len(stackCallValues); i++ {
 		valueBytes := stackCallValues[i].Bytes()
