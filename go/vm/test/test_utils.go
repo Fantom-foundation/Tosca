@@ -28,6 +28,7 @@ var (
 		"evmzero-no-analysis-cache",
 		"evmzero-no-sha3-cache",
 		"evmzero-profiling",
+		"evmzero-profiling-external",
 	}
 
 	DisabledTest = map[string]map[string]bool{

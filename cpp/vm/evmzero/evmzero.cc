@@ -103,6 +103,8 @@ class VM : public evmc_vm {
       interpreter_result = Interpret(interpreter_args, logger_);
     } else if (profiling_enabled_) {
       interpreter_result = Interpret(interpreter_args, profiler_);
+    } else if (profiling_external_enabled_) {
+      interpreter_result = Interpret(interpreter_args, profiler_external_);
     } else {
       interpreter_result = Interpret(interpreter_args, no_observer_);
     }
@@ -131,6 +133,7 @@ class VM : public evmc_vm {
         std::pair("analysis_cache", &analysis_cache_enabled_),
         std::pair("sha3_cache", &sha3_cache_enabled_),
         std::pair("profiling", &profiling_enabled_),
+        std::pair("profiling_external", &profiling_external_enabled_),
     };
 
     for (const auto& [option_name, member] : on_off_options) {
@@ -149,9 +152,21 @@ class VM : public evmc_vm {
     return EVMC_SET_OPTION_INVALID_NAME;
   }
 
-  void DumpProfile() { profiler_.Collect().Dump(); }
+  void DumpProfile() {
+    if (profiling_enabled_) {
+      profiler_.Collect().Dump();
+    } else if (profiling_external_enabled_) {
+      profiler_external_.Collect().Dump();
+    }
+  }
 
-  void ResetProfiler() { profiler_.Reset(); }
+  void ResetProfiler() {
+    if (profiling_enabled_) {
+      profiler_.Reset();
+    } else if (profiling_external_enabled_) {
+      profiler_external_.Reset();
+    }
+  }
 
  private:
   struct ContractInfo {
@@ -170,6 +185,7 @@ class VM : public evmc_vm {
   bool analysis_cache_enabled_ = true;
   bool sha3_cache_enabled_ = true;
   bool profiling_enabled_ = false;
+  bool profiling_external_enabled_ = false;
 
   LruCache<evmc::bytes32, std::shared_ptr<ContractInfo>, 1 << 16> contract_info_cache_;
 
@@ -177,7 +193,8 @@ class VM : public evmc_vm {
 
   NoObserver no_observer_;
   Logger logger_;
-  Profiler profiler_;
+  Profiler<ProfilerMode::kFull> profiler_;
+  Profiler<ProfilerMode::kExternal> profiler_external_;
 };
 
 extern "C" {
