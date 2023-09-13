@@ -91,7 +91,10 @@ InterpreterResult Interpret(const InterpreterArgs& args, Observer& observer) {
 }
 
 template InterpreterResult Interpret<NoObserver>(const InterpreterArgs&, NoObserver&);
-template InterpreterResult Interpret<Profiler>(const InterpreterArgs&, Profiler&);
+template InterpreterResult Interpret<Profiler<ProfilerMode::kFull>>(const InterpreterArgs&,
+                                                                    Profiler<ProfilerMode::kFull>&);
+template InterpreterResult Interpret<Profiler<ProfilerMode::kExternal>>(const InterpreterArgs&,
+                                                                        Profiler<ProfilerMode::kExternal>&);
 template InterpreterResult Interpret<Logger>(const InterpreterArgs&, Logger&);
 
 ///////////////////////////////////////////////////////////
@@ -1855,7 +1858,8 @@ end:
 }
 
 template void RunInterpreter<NoObserver>(Context&, NoObserver&);
-template void RunInterpreter<Profiler>(Context&, Profiler&);
+template void RunInterpreter<Profiler<ProfilerMode::kFull>>(Context&, Profiler<ProfilerMode::kFull>&);
+template void RunInterpreter<Profiler<ProfilerMode::kExternal>>(Context&, Profiler<ProfilerMode::kExternal>&);
 template void RunInterpreter<Logger>(Context&, Logger&);
 
 }  // namespace internal

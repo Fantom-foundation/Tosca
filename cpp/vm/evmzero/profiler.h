@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <type_traits>
 #include <utility>
 
 #if defined(__x86_64__)
@@ -89,7 +90,15 @@ class TimeConverter {
 
 }  // namespace internal
 
-// This type represents collected profiling data.
+// Enum type used to select the mode of the profiler and its associated profile.
+enum class ProfilerMode {
+  kFull,
+  kExternal,
+};
+
+// This type represents collected profiling data. Specialized with the profiler mode to make merging of incompatible
+// profiles a compilte-time error.
+template <ProfilerMode Mode>
 class Profile {
  public:
   struct Stats {
@@ -124,7 +133,8 @@ class Profile {
         << interpreter_stats.total_time.count() << "\n";
     for (std::size_t i = 0; i < op::kNumUsedAndUnusedOpCodes; ++i) {
       const auto opcode = static_cast<op::OpCode>(i);
-      if (op::IsUsedOpCode(opcode)) {
+      if ((Mode == ProfilerMode::kFull && op::IsUsedOpCode(opcode)) ||
+          (Mode == ProfilerMode::kExternal && op::IsExternalOpCode(opcode))) {
         const auto opcode_stats = GetInstructionStats(opcode);
         out << ToString(opcode) << ", "          //
             << opcode_stats.num_calls << ", "    //
@@ -173,6 +183,7 @@ class Profile {
  private:
   using Data = std::array<std::uint64_t, op::kNumUsedAndUnusedOpCodes>;
 
+  template <ProfilerMode>
   friend class Profiler;
 
   struct InterpreterStats {
@@ -190,6 +201,7 @@ class Profile {
 };
 
 // This type allows the collection of profiling data through the observer interface.
+template <ProfilerMode Mode>
 class Profiler {
  public:
   Profiler() noexcept = default;
@@ -200,24 +212,42 @@ class Profiler {
   Profiler& operator=(Profiler&&) = delete;
 
   // Construct the profiler from an already existing profile.
-  explicit Profiler(const Profile& profile) noexcept : profile_(profile) {}
+  explicit Profiler(const Profile<Mode>& profile) noexcept : profile_(profile) {}
 
   // Start measurement for the given opcode. Must be followed by a PostInstruction call for the same opcode to finish
   // the measurement.
   TOSCA_FORCE_INLINE void PreInstruction(op::OpCode opcode, const internal::Context&) {
-    if (!op::IsCallOpCode(opcode)) {
-      const auto opcode_idx = static_cast<std::size_t>(opcode);
-      start_time_[opcode_idx] = internal::Now();
+    if constexpr (Mode == ProfilerMode::kFull) {
+      if (op::IsCallOpCode(opcode)) {
+        return;
+      }
     }
+    if constexpr (Mode == ProfilerMode::kExternal) {
+      if (!op::IsExternalOpCode(opcode)) {
+        return;
+      }
+    }
+
+    const auto opcode_idx = static_cast<std::size_t>(opcode);
+    start_time_[opcode_idx] = internal::Now();
   }
 
   // End measurement for the given opcode. Must have been preceded by a PreInstruction call of the same opcode.
   TOSCA_FORCE_INLINE void PostInstruction(op::OpCode opcode, const internal::Context&) {
-    if (!op::IsCallOpCode(opcode)) {
-      const auto opcode_idx = static_cast<std::size_t>(opcode);
-      ++profile_.calls_[opcode_idx];
-      profile_.total_ticks_[opcode_idx] += internal::Now() - start_time_[opcode_idx];
+    if constexpr (Mode == ProfilerMode::kFull) {
+      if (op::IsCallOpCode(opcode)) {
+        return;
+      }
     }
+    if constexpr (Mode == ProfilerMode::kExternal) {
+      if (!op::IsExternalOpCode(opcode)) {
+        return;
+      }
+    }
+
+    const auto opcode_idx = static_cast<std::size_t>(opcode);
+    ++profile_.calls_[opcode_idx];
+    profile_.total_ticks_[opcode_idx] += internal::Now() - start_time_[opcode_idx];
   }
 
   // Start measurement for the interpreter time, only measures time for call depth 0 (i.e. outermost call).
@@ -236,7 +266,7 @@ class Profiler {
   }
 
   // Adds the counter and execution times of the provided profile to the profile currently recorded by this profiler.
-  inline void Merge(const Profile& profile) noexcept { profile_.Merge(profile); }
+  inline void Merge(const Profile<Mode>& profile) noexcept { profile_.Merge(profile); }
 
   // Reset collected data.
   inline void Reset() noexcept {
@@ -248,15 +278,18 @@ class Profiler {
   // Get a reference to the data collected so far.
   // Note: Create a copy to retain a snapshot of the current state.
   // Note: This function must not be called when there are ongoing measurements (i.e. Start with no End).
-  inline const Profile& Collect() noexcept {
+  inline const Profile<Mode>& Collect() noexcept {
     profile_.MarkEnd();
     return profile_;
   }
 
  private:
-  Profile profile_;
-  Profile::Data start_time_ = {};
+  Profile<Mode> profile_ = {};
+  typename Profile<Mode>::Data start_time_ = {};
   std::uint64_t interpreter_start_time_ = {};
 };
+
+static_assert(!std::is_convertible_v<Profile<ProfilerMode::kFull>, Profile<ProfilerMode::kExternal>>);
+static_assert(!std::is_convertible_v<Profiler<ProfilerMode::kFull>, Profiler<ProfilerMode::kExternal>>);
 
 }  // namespace tosca::evmzero

@@ -43,6 +43,15 @@ constexpr inline bool IsCallOpCode(OpCode op) {
   return false;
 }
 
+constexpr inline bool IsExternalOpCode(OpCode op) {
+#define EVMZERO_OPCODE_EXTERNAL(name, value) \
+  if (static_cast<OpCode>(value) == op) {    \
+    return true;                             \
+  }
+#include "opcodes.inc"
+  return false;
+}
+
 constexpr inline const char* ToString(OpCode op) {
   switch (op) {
 #define EVMZERO_OPCODE(name, value) \

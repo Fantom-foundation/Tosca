@@ -21,9 +21,11 @@ using TotalTicksExpectation = std::function<void(std::uint64_t)>;
 using TotalTicksExpectations = std::map<op::OpCode, TotalTicksExpectation>;
 using RelativeTimeExpectation = std::function<void(std::uint64_t, std::uint64_t)>;
 using RelativeTimeExpectations = std::map<std::pair<op::OpCode, op::OpCode>, RelativeTimeExpectation>;
-using InterpreterExpectation = std::function<void(Profile::Stats)>;
+template <ProfilerMode Mode = ProfilerMode::kFull>
+using InterpreterExpectation = std::function<void(typename Profile<Mode>::Stats)>;
 
-void FillProfile(Profiler& profiler, int call_depth = 0) {
+template <ProfilerMode Mode = ProfilerMode::kFull>
+void FillProfile(Profiler<Mode>& profiler, int call_depth = 0) {
   auto msg = evmc_message{.depth = call_depth};
   const auto args = InterpreterArgs{.message = &msg};
   const auto ctx = internal::Context{};
@@ -64,26 +66,29 @@ auto ExpectAllNumCallsEmpty() { return ExpectAllMarkersEmpty<std::uint64_t>(); }
 auto ExpectAllTotalTimesEmpty() { return ExpectAllMarkersEmpty<std::chrono::nanoseconds>(); }
 auto ExpectAllTotalTicksEmpty() { return ExpectAllMarkersEmpty<std::uint64_t>(); }
 
+template <ProfilerMode Mode = ProfilerMode::kFull>
 auto ExpectInterpreterEmpty() {
-  return [](Profile::Stats stats) {
+  return [](typename Profile<Mode>::Stats stats) {
     EXPECT_EQ(stats.num_calls, 0);
     EXPECT_EQ(stats.total_ticks, 0);
     EXPECT_EQ(stats.total_time, 0ns);
   };
 }
 
+template <ProfilerMode Mode = ProfilerMode::kFull>
 auto ExpectInterpreterCalled(std::uint64_t num_calls) {
-  return [num_calls](Profile::Stats stats) {
+  return [num_calls](typename Profile<Mode>::Stats stats) {
     EXPECT_EQ(stats.num_calls, num_calls);
     EXPECT_GT(stats.total_ticks, 0);
     EXPECT_GT(stats.total_time, 0ns);
   };
 }
 
+template <ProfilerMode Mode = ProfilerMode::kFull>
 struct ProfilerTestDescription {
-  using TestFunction = std::function<void(Profiler&)>;
+  using TestFunction = std::function<void(Profiler<Mode>&)>;
 
-  Profile initial_profile;
+  Profile<Mode> initial_profile;
   TestFunction test;
   NumCallsExpectations num_calls_before;
   NumCallsExpectations num_calls_after;
@@ -93,12 +98,13 @@ struct ProfilerTestDescription {
   TotalTicksExpectations total_ticks_after;
   RelativeTimeExpectations relative_time_before;
   RelativeTimeExpectations relative_time_after;
-  InterpreterExpectation interpreter_before;
-  InterpreterExpectation interpreter_after;
+  InterpreterExpectation<Mode> interpreter_before;
+  InterpreterExpectation<Mode> interpreter_after;
 };
 
-void RunProfilerTest(const ProfilerTestDescription& desc) {
-  auto profiler = Profiler(desc.initial_profile);
+template <ProfilerMode Mode = ProfilerMode::kFull>
+void RunProfilerTest(const ProfilerTestDescription<Mode>& desc) {
+  auto profiler = Profiler<Mode>(desc.initial_profile);
 
   // Check preconditions.
   const auto profile_before = profiler.Collect();
@@ -192,7 +198,7 @@ TEST(ProfilerTest, Collects) {
 }
 
 TEST(ProfilerTest, ConstructFromProfile) {
-  auto profiler = Profiler{};
+  auto profiler = Profiler<ProfilerMode::kFull>{};
   FillProfile(profiler);
 
   RunProfilerTest({
@@ -209,7 +215,7 @@ TEST(ProfilerTest, ConstructFromProfile) {
 }
 
 TEST(ProfilerTest, ResetClears) {
-  auto profiler = Profiler{};
+  auto profiler = Profiler<ProfilerMode::kFull>{};
   FillProfile(profiler);
 
   RunProfilerTest({
@@ -227,7 +233,7 @@ TEST(ProfilerTest, ResetClears) {
 }
 
 TEST(ProfilerTest, MergeMerges) {
-  auto init_profiler = Profiler{};
+  auto init_profiler = Profiler<ProfilerMode::kFull>{};
   FillProfile(init_profiler);
 
   RunProfilerTest({
@@ -406,6 +412,39 @@ TEST(ProfilerTest, WallClockAccurate) {
       .total_ticks_after = {{op::OpCode::SHA3, [](auto value) { EXPECT_GT(value, 0); }}},
       .interpreter_before = ExpectInterpreterEmpty(),
       .interpreter_after = ExpectInterpreterEmpty(),
+  });
+}
+
+TEST(ProfilerExternalTest, InternalMarkersIgnored) {
+  RunProfilerTest<ProfilerMode::kExternal>({
+      .test =
+          [](auto& profiler) {
+            const auto ctx = internal::Context{};
+            profiler.PreInstruction(op::OpCode::ADD, ctx);
+            profiler.PostInstruction(op::OpCode::ADD, ctx);
+            profiler.PreInstruction(op::OpCode::SLOAD, ctx);
+            profiler.PostInstruction(op::OpCode::SLOAD, ctx);
+          },
+      .num_calls_before = ExpectAllNumCallsEmpty(),
+      .num_calls_after =
+          {
+              {op::OpCode::ADD, [](auto value) { EXPECT_EQ(value, 0); }},
+              {op::OpCode::SLOAD, [](auto value) { EXPECT_EQ(value, 1); }},
+          },
+      .total_time_before = ExpectAllTotalTimesEmpty(),
+      .total_time_after =
+          {
+              {op::OpCode::ADD, [](auto value) { EXPECT_EQ(value, 0ns); }},
+              {op::OpCode::SLOAD, [](auto value) { EXPECT_GT(value, 0ns); }},
+          },
+      .total_ticks_before = ExpectAllTotalTicksEmpty(),
+      .total_ticks_after =
+          {
+              {op::OpCode::ADD, [](auto value) { EXPECT_EQ(value, 0); }},
+              {op::OpCode::SLOAD, [](auto value) { EXPECT_GT(value, 0); }},
+          },
+      .interpreter_before = ExpectInterpreterEmpty<ProfilerMode::kExternal>(),
+      .interpreter_after = ExpectInterpreterEmpty<ProfilerMode::kExternal>(),
   });
 }
 
