@@ -74,3 +74,43 @@ func TestMaxCallDepth(t *testing.T) {
 		}
 	}
 }
+
+func TestInvalidJumpOverflow(t *testing.T) {
+
+	// For every variant of interpreter
+	for _, variant := range Variants {
+
+		for _, revision := range revisions {
+
+			testInstructions := []vm.OpCode{vm.JUMP, vm.JUMPI}
+
+			for _, instruction := range testInstructions {
+
+				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, instruction.String()), func(t *testing.T) {
+
+					evm := GetCleanEVM(revision, variant, nil)
+
+					// condition for JUMPI instruction
+					condition := big.NewInt(1)
+					// destination number bigger then uint64 with uint64 part containing relevant jump destination
+					dst, _ := big.NewInt(0).SetString("0x1000000000000000d", 0)
+					code, _ := addValuesToStack([]*big.Int{condition, dst}, 0)
+					codeJump := []byte{byte(instruction), byte(vm.JUMPDEST), byte(vm.PUSH1), byte(0), byte(vm.STOP)}
+					code = append(code, codeJump...)
+
+					// Run an interpreter
+					_, err := evm.Run(code, []byte{})
+
+					// Check the result.
+					if err == nil {
+						t.Errorf("execution should fail with error : %v", vm.ErrInvalidJump)
+					} else {
+						if err != vm.ErrInvalidJump {
+							t.Errorf("execution should fail with error : %v but got: %v", vm.ErrInvalidJump, err)
+						}
+					}
+				})
+			}
+		}
+	}
+}
