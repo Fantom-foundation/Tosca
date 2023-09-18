@@ -11,6 +11,8 @@ import (
 	"github.com/golang/mock/gomock"
 )
 
+const HUGE_GAS_SENT_WITH_CALL int64 = 1000000000000
+
 func TestMaxCallDepth(t *testing.T) {
 	var mockCtrl *gomock.Controller
 	var mockStateDB *vm_mock.MockStateDB
@@ -27,11 +29,9 @@ func TestMaxCallDepth(t *testing.T) {
 
 				zeroVal := big.NewInt(0)
 				account := common.Address{byte(0)}
-				// big value to cover all recursive calls
-				gasSentWithCall := 1000000000000
 
 				// return and input data size is 32bytes, memory offset is 0 for all
-				callStackValues := []*big.Int{big.NewInt(32), zeroVal, big.NewInt(32), zeroVal, zeroVal, account.Hash().Big(), big.NewInt(int64(gasSentWithCall))}
+				callStackValues := []*big.Int{big.NewInt(32), zeroVal, big.NewInt(32), zeroVal, zeroVal, account.Hash().Big(), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
 				pushCode, _ := addValuesToStack(callStackValues, 0)
 
 				// put 32byte input value with 0 offset from memory to stack, add 1 to it and put it back to memory with 0 offset
@@ -54,16 +54,7 @@ func TestMaxCallDepth(t *testing.T) {
 					byte(vm.RETURN)}
 				code = append(code, codeReturn...)
 
-				// mock state calls for call instruction
-				mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
-				mockStateDB.EXPECT().SubRefund(gomock.Any()).AnyTimes()
-				mockStateDB.EXPECT().AddRefund(gomock.Any()).AnyTimes()
-				mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(common.Hash{byte(0)})
-				mockStateDB.EXPECT().Snapshot().AnyTimes().Return(0)
-				mockStateDB.EXPECT().Exist(account).AnyTimes().Return(true)
-				mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(code)
-				mockStateDB.EXPECT().AddressInAccessList(account).AnyTimes().Return(true)
-				mockStateDB.EXPECT().RevertToSnapshot(gomock.Any()).AnyTimes()
+				setDefaultCallStateDBMock(mockStateDB, account, code)
 
 				evm := GetCleanEVM(revision, variant, mockStateDB)
 
@@ -127,4 +118,18 @@ func TestInvalidJumpOverflow(t *testing.T) {
 			}
 		}
 	}
+}
+
+
+func setDefaultCallStateDBMock(mockStateDB *vm_mock.MockStateDB, account common.Address, code []byte) {
+	// mock state calls for call instruction
+	mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
+	mockStateDB.EXPECT().SubRefund(gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().AddRefund(gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(common.Hash{byte(0)})
+	mockStateDB.EXPECT().Snapshot().AnyTimes().Return(0)
+	mockStateDB.EXPECT().Exist(account).AnyTimes().Return(true)
+	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(code)
+	mockStateDB.EXPECT().AddressInAccessList(account).AnyTimes().Return(true)
+	mockStateDB.EXPECT().RevertToSnapshot(gomock.Any()).AnyTimes()
 }
