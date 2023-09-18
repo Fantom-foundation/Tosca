@@ -168,6 +168,8 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 			// Similarly, the evm module does not define a generic
 			// ErrInvalidMemoryAccess that we could use here.
 			err = vm.ErrReturnDataOutOfBounds
+		case evmc.Error(C.EVMC_STATIC_MODE_VIOLATION):
+			err = vm.ErrWriteProtection
 		case evmc.Error(C.EVMC_STACK_OVERFLOW):
 			err = &vm.ErrStackOverflow{}
 		case evmc.Error(C.EVMC_STACK_UNDERFLOW):
