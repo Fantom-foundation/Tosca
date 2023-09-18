@@ -159,6 +159,15 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 			err = &vm.ErrInvalidOpCode{}
 		case evmc.Error(C.EVMC_BAD_JUMP_DESTINATION):
 			err = vm.ErrInvalidJump
+		case evmc.Error(C.EVMC_INVALID_MEMORY_ACCESS):
+			// Technically not every EVMC_INVALID_MEMORY_ACCESS is an
+			// ErrReturnDataOutOfBounds, but there is currently no dedicated
+			// error defined in EVMC that lets us distinguish between the
+			// different cases.
+			//
+			// Similarly, the evm module does not define a generic
+			// ErrInvalidMemoryAccess that we could use here.
+			err = vm.ErrReturnDataOutOfBounds
 		case evmc.Error(C.EVMC_STACK_OVERFLOW):
 			err = &vm.ErrStackOverflow{}
 		case evmc.Error(C.EVMC_STACK_UNDERFLOW):
