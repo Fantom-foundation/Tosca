@@ -1194,7 +1194,7 @@ template <op::OpCodes Op>
 static void create_impl(Context& ctx) noexcept {
   static_assert(Op == op::CREATE || Op == op::CREATE2);
 
-  if (ctx.message->depth >= 1024) [[unlikely]] {
+  if (ctx.message->depth > 1024) [[unlikely]] {
     ctx.state = RunState::kErrorCreate;
     return;
   }
@@ -1265,7 +1265,7 @@ template <op::OpCodes Op>
 static void call_impl(Context& ctx) noexcept {
   static_assert(Op == op::CALL || Op == op::CALLCODE || Op == op::DELEGATECALL || Op == op::STATICCALL);
 
-  if (ctx.message->depth >= 1024) [[unlikely]] {
+  if (ctx.message->depth > 1024) [[unlikely]] {
     ctx.state = RunState::kErrorCall;
     return;
   }
