@@ -35,13 +35,23 @@ func TestMaxCallDepth(t *testing.T) {
 				pushCode, _ := addValuesToStack(callStackValues, 0)
 
 				// put 32byte input value with 0 offset from memory to stack, add 1 to it and put it back to memory with 0 offset
-				code := []byte{byte(vm.PUSH1), byte(0), byte(vm.CALLDATALOAD), byte(vm.PUSH1), byte(1), byte(vm.ADD), byte(vm.PUSH1), byte(0), byte(vm.MSTORE)}
+				code := []byte{
+					byte(vm.PUSH1), byte(0),
+					byte(vm.CALLDATALOAD),
+					byte(vm.PUSH1), byte(1),
+					byte(vm.ADD),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.MSTORE)}
 
 				// add stack values for call instruction
 				code = append(code, pushCode...)
 
 				// make inner call and return 32byte value with 0 offset from memory
-				codeReturn := []byte{byte(vm.CALL), byte(vm.PUSH1), byte(32), byte(vm.PUSH1), byte(0), byte(vm.RETURN)}
+				codeReturn := []byte{
+					byte(vm.CALL),
+					byte(vm.PUSH1), byte(32),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.RETURN)}
 				code = append(code, codeReturn...)
 
 				// mock state calls for call instruction
@@ -95,7 +105,11 @@ func TestInvalidJumpOverflow(t *testing.T) {
 					// destination number bigger then uint64 with uint64 part containing relevant jump destination
 					dst, _ := big.NewInt(0).SetString("0x1000000000000000d", 0)
 					code, _ := addValuesToStack([]*big.Int{condition, dst}, 0)
-					codeJump := []byte{byte(instruction), byte(vm.JUMPDEST), byte(vm.PUSH1), byte(0), byte(vm.STOP)}
+					codeJump := []byte{
+						byte(instruction),
+						byte(vm.JUMPDEST),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.STOP)}
 					code = append(code, codeJump...)
 
 					// Run an interpreter
