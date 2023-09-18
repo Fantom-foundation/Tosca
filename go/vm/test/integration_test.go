@@ -120,6 +120,86 @@ func TestInvalidJumpOverflow(t *testing.T) {
 	}
 }
 
+func TestReturnDataCopy(t *testing.T) {
+	var mockCtrl *gomock.Controller
+	var mockStateDB *vm_mock.MockStateDB
+
+	type test struct {
+		name           string
+		dataSize       uint
+		dataOffset     *big.Int
+		returnDataSize uint
+		err            error
+	}
+
+	zero := big.NewInt(0)
+	one := big.NewInt(1)
+	overflowValue, _ := big.NewInt(0).SetString("0x1000000000000000d", 0)
+
+	tests := []test{
+		{name: "no data", dataSize: 0, dataOffset: zero, returnDataSize: 0, err: nil},
+		{name: "offset > return data", dataSize: 0, dataOffset: one, returnDataSize: 0, err: vm.ErrReturnDataOutOfBounds},
+		{name: "same data", dataSize: 0, dataOffset: one, returnDataSize: 1, err: nil},
+		{name: "size > return data", dataSize: 1, dataOffset: zero, returnDataSize: 0, err: vm.ErrReturnDataOutOfBounds},
+		{name: "size + offset > return data", dataSize: 1, dataOffset: one, returnDataSize: 0, err: vm.ErrReturnDataOutOfBounds},
+		{name: "same data", dataSize: 1, dataOffset: zero, returnDataSize: 2, err: nil},
+		{name: "offset overflow", dataSize: 0, dataOffset: overflowValue, returnDataSize: 0, err: vm.ErrReturnDataOutOfBounds},
+	}
+	// For every variant of interpreter
+	for _, variant := range Variants {
+
+		for _, revision := range revisions {
+
+			for _, tst := range tests {
+
+				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, tst.name), func(t *testing.T) {
+
+					mockCtrl = gomock.NewController(t)
+					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+
+					zeroVal := big.NewInt(0)
+					account := common.Address{byte(0)}
+					returnDataSize := big.NewInt(10)
+
+					// stack values for inner contract call
+					callStackValues := []*big.Int{returnDataSize, zeroVal, zeroVal, zeroVal, zeroVal, account.Hash().Big(), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
+					code, _ := addValuesToStack(callStackValues, 0)
+					code = append(code, byte(vm.CALL))
+
+					callStackValues = []*big.Int{big.NewInt(int64(tst.dataSize)), tst.dataOffset, zeroVal}
+					codeValues, _ := addValuesToStack(callStackValues, 0)
+					code = append(code, codeValues...)
+					code = append(code,
+						byte(vm.RETURNDATACOPY),
+						byte(vm.STOP))
+
+					// code for inner contract call
+					codeReturn := []byte{
+						byte(vm.PUSH1), byte(tst.returnDataSize),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.RETURN)}
+
+					// set mock for inner call
+					setDefaultCallStateDBMock(mockStateDB, account, codeReturn)
+
+					evm := GetCleanEVM(revision, variant, mockStateDB)
+
+					// Run an interpreter
+					_, err := evm.Run(code, []byte{})
+
+					// Check the result.
+					if err != tst.err {
+						if tst.err == nil {
+							t.Errorf("execution should not fail, but got error: %v", err)
+						} else {
+							t.Errorf("execution should fail with error: %v, but got:%v", tst.err, err)
+						}
+					}
+				})
+			}
+		}
+	}
+}
 
 func setDefaultCallStateDBMock(mockStateDB *vm_mock.MockStateDB, account common.Address, code []byte) {
 	// mock state calls for call instruction
