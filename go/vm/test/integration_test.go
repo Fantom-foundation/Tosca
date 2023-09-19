@@ -8,6 +8,7 @@ import (
 	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/test/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
 )
 
@@ -201,15 +202,126 @@ func TestReturnDataCopy(t *testing.T) {
 	}
 }
 
+func TestReadOnlyStaticCall(t *testing.T) {
+	var mockCtrl *gomock.Controller
+	var mockStateDB *vm_mock.MockStateDB
+
+	type callsType struct {
+		instruction vm.OpCode
+		shouldFail  bool
+	}
+
+	// all types of inner call to be tested
+	calls := []callsType{
+		{vm.CALL, false},
+		{vm.STATICCALL, true},
+		{vm.DELEGATECALL, false},
+		{vm.CALLCODE, false},
+		{vm.CREATE, false},
+		{vm.CREATE2, false},
+	}
+
+	readOnlyInstructions := []vm.OpCode{
+		vm.LOG0, vm.LOG1, vm.LOG2, vm.LOG3, vm.LOG4,
+		vm.SSTORE, vm.CREATE, vm.CREATE2, vm.SELFDESTRUCT,
+	}
+
+	// For every variant of interpreter
+	for _, variant := range Variants {
+
+		for _, revision := range revisions {
+
+			for _, call := range calls {
+
+				for _, instruction := range readOnlyInstructions {
+
+					t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, call.instruction, instruction), func(t *testing.T) {
+
+						mockCtrl = gomock.NewController(t)
+						mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+
+						zeroVal := big.NewInt(0)
+						account := common.Address{byte(0)}
+
+						// stack values for inner contract call
+						callStackValues := []*big.Int{zeroVal, zeroVal, zeroVal, zeroVal, zeroVal, account.Hash().Big(), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
+						code, _ := addValuesToStack(callStackValues, 0)
+						code = append(code,
+							byte(call.instruction),
+							byte(vm.PUSH1), byte(0),
+							byte(vm.MSTORE),
+							byte(vm.PUSH1), byte(32),
+							byte(vm.PUSH1), byte(0),
+							byte(vm.RETURN))
+
+						// code for inner contract call
+						innerCallCode := []byte{
+							// push zero values to stack to have data for write instructions
+							byte(vm.PUSH1), byte(0),
+							byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1),
+							byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1),
+							byte(instruction),
+							byte(vm.PUSH1), byte(0),
+							byte(vm.DUP1),
+							byte(vm.RETURN)}
+
+						// set mock for inner call
+						setDefaultCallStateDBMock(mockStateDB, account, innerCallCode)
+
+						evm := GetCleanEVM(revision, variant, mockStateDB)
+
+						// Run an interpreter
+						result, err := evm.Run(code, []byte{})
+
+						res := big.NewInt(0).SetBytes(result.Output[0:32])
+						success := res.Cmp(zeroVal) != 0
+						if success == call.shouldFail {
+							t.Errorf("execution should fail because of read only call, but did not fail")
+						}
+
+						if err != nil {
+							t.Errorf("execution should not return an error, but got:%v", err)
+						}
+					})
+				}
+			}
+		}
+	}
+}
+
 func setDefaultCallStateDBMock(mockStateDB *vm_mock.MockStateDB, account common.Address, code []byte) {
+
+	var emptyCodeHash = crypto.Keccak256Hash(nil)
+	contractAddrCreate := crypto.CreateAddress(account, 0)
+	contractAddrCreate2 := crypto.CreateAddress2(account, [32]byte{}, emptyCodeHash.Bytes())
+	balance, _ := big.NewInt(0).SetString("0x2000000000000000", 0)
+
 	// mock state calls for call instruction
 	mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
 	mockStateDB.EXPECT().SubRefund(gomock.Any()).AnyTimes()
 	mockStateDB.EXPECT().AddRefund(gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().AddBalance(gomock.Any(), gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(balance)
 	mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(common.Hash{byte(0)})
+	mockStateDB.EXPECT().GetCodeHash(contractAddrCreate).AnyTimes().Return(common.Hash{byte(0)})
+	mockStateDB.EXPECT().CreateAccount(contractAddrCreate).AnyTimes()
+	mockStateDB.EXPECT().GetCodeHash(contractAddrCreate2).AnyTimes().Return(common.Hash{byte(0)})
+	mockStateDB.EXPECT().CreateAccount(contractAddrCreate2).AnyTimes()
 	mockStateDB.EXPECT().Snapshot().AnyTimes().Return(0)
 	mockStateDB.EXPECT().Exist(account).AnyTimes().Return(true)
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(code)
+	mockStateDB.EXPECT().SetCode(contractAddrCreate, gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().SetCode(contractAddrCreate2, gomock.Any()).AnyTimes()
 	mockStateDB.EXPECT().AddressInAccessList(account).AnyTimes().Return(true)
 	mockStateDB.EXPECT().RevertToSnapshot(gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().AddLog(gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().GetState(gomock.Any(), gomock.Any()).AnyTimes().Return(common.Hash{byte(0)})
+	mockStateDB.EXPECT().SetState(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes().Return(uint64(0))
+	mockStateDB.EXPECT().SetNonce(gomock.Any(), gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().Empty(gomock.Any()).AnyTimes().Return(true)
+	mockStateDB.EXPECT().HasSuicided(gomock.Any()).AnyTimes().Return(true)
+	mockStateDB.EXPECT().Suicide(gomock.Any()).AnyTimes().Return(true)
+	mockStateDB.EXPECT().SlotInAccessList(gomock.Any(), gomock.Any()).AnyTimes().Return(true, true)
+	mockStateDB.EXPECT().AddAddressToAccessList(gomock.Any()).AnyTimes()
 }
