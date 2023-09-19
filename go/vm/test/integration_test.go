@@ -289,6 +289,70 @@ func TestReadOnlyStaticCall(t *testing.T) {
 	}
 }
 
+func TestRevertReturnDataInitialization(t *testing.T) {
+
+	type test struct {
+		name        string
+		instruction vm.OpCode
+		size        *big.Int
+		offset      *big.Int
+		err         error
+	}
+
+	sizeNormal, _ := big.NewInt(0).SetString("0x10000", 0)
+	// Adding two huge together overflows uint64
+	sizeHuge, _ := big.NewInt(0).SetString("0x8000000000000000", 0)
+	sizeOverUint64, _ := big.NewInt(0).SetString("0x100000000000000000", 0)
+
+	tests := []test{
+		{"zero size and offset", vm.RETURN, big.NewInt(0), big.NewInt(0), nil},
+		{"normal size and offset", vm.RETURN, sizeNormal, sizeNormal, nil},
+		{"huge size normal offset", vm.RETURN, sizeHuge, sizeNormal, vm.ErrOutOfGas},
+		{"over size normal offset", vm.RETURN, sizeOverUint64, sizeNormal, vm.ErrGasUintOverflow},
+		{"zero size and offset", vm.REVERT, big.NewInt(0), big.NewInt(0), vm.ErrExecutionReverted},
+		{"normal size and offset", vm.REVERT, sizeNormal, sizeNormal, vm.ErrExecutionReverted},
+		{"huge size normal offset", vm.REVERT, sizeHuge, sizeNormal, vm.ErrOutOfGas},
+		{"over size normal offset", vm.REVERT, sizeOverUint64, sizeNormal, vm.ErrGasUintOverflow},
+		{"normal size huge offset", vm.RETURN, sizeNormal, sizeHuge, vm.ErrOutOfGas},
+		{"normal size over offset", vm.RETURN, sizeNormal, sizeOverUint64, vm.ErrGasUintOverflow},
+		{"normal size huge offset", vm.REVERT, sizeNormal, sizeHuge, vm.ErrOutOfGas},
+		{"normal size over offset", vm.REVERT, sizeNormal, sizeOverUint64, vm.ErrGasUintOverflow},
+		{"normal size over offset", vm.RETURN, sizeHuge, sizeHuge, vm.ErrGasUintOverflow},
+		{"normal size over offset", vm.REVERT, sizeHuge, sizeHuge, vm.ErrGasUintOverflow},
+	}
+
+	// For every variant of interpreter
+	for _, variant := range Variants {
+
+		for _, revision := range revisions {
+
+			for _, test := range tests {
+
+				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, test.instruction, test.name), func(t *testing.T) {
+
+					callStackValues := []*big.Int{test.size, test.offset}
+					code, _ := addValuesToStack(callStackValues, 0)
+					code = append(code, byte(test.instruction))
+
+					evm := GetCleanEVM(revision, variant, nil)
+
+					// Run an interpreter
+					_, err := evm.Run(code, []byte{})
+
+					// Check the result.
+					if err == nil && test.err != nil {
+						t.Errorf("execution should fail with error: %v", test.err)
+					}
+
+					if err != nil && err != test.err {
+						t.Errorf("execution should fail with error: %v, but got: %v", test.err, err)
+					}
+				})
+			}
+		}
+	}
+}
+
 func setDefaultCallStateDBMock(mockStateDB *vm_mock.MockStateDB, account common.Address, code []byte) {
 
 	var emptyCodeHash = crypto.Keccak256Hash(nil)
