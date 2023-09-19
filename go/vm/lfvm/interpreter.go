@@ -156,6 +156,9 @@ func Run(evm *vm.EVM, cfg vm.Config, contract *vm.Contract, code Code, data []by
 
 	var res []byte
 	if ctxt.status == RETURNED || ctxt.status == REVERTED {
+		if !ctxt.result_offset.IsUint64() || !ctxt.result_size.IsUint64() {
+			return nil, vm.ErrGasUintOverflow
+		}
 		// Extract the result from the memory.
 		offset := ctxt.result_offset.Uint64()
 		size := ctxt.result_size.Uint64()
