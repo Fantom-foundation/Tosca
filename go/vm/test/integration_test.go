@@ -319,6 +319,8 @@ func TestRevertReturnDataInitialization(t *testing.T) {
 		{"normal size over offset", vm.REVERT, sizeNormal, sizeOverUint64, vm.ErrGasUintOverflow},
 		{"normal size over offset", vm.RETURN, sizeHuge, sizeHuge, vm.ErrGasUintOverflow},
 		{"normal size over offset", vm.REVERT, sizeHuge, sizeHuge, vm.ErrGasUintOverflow},
+		{"zero size over offset", vm.RETURN, big.NewInt(0), sizeOverUint64, nil},
+		{"zero size over offset", vm.REVERT, big.NewInt(0), sizeOverUint64, vm.ErrExecutionReverted},
 	}
 
 	// For every variant of interpreter
