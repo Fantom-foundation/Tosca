@@ -353,6 +353,88 @@ func TestRevertReturnDataInitialization(t *testing.T) {
 	}
 }
 
+func TestCreateDataInitialization(t *testing.T) {
+
+	var mockCtrl *gomock.Controller
+	var mockStateDB *vm_mock.MockStateDB
+
+	account := common.Address{byte(0)}
+	type test struct {
+		name   string
+		size   *big.Int
+		offset *big.Int
+		err    []error
+	}
+
+	// Adding two huge together overflows uint64
+	numHuge, _ := big.NewInt(0).SetString("0x8000000000000000", 0)
+	numOverUint64, _ := big.NewInt(0).SetString("0x100000000000000000", 0)
+
+	instructions := []vm.OpCode{vm.CREATE, vm.CREATE2}
+	tests := []test{
+		{"zero size over offset", big.NewInt(0), numOverUint64, nil},
+		{"over size zero offset", numOverUint64, big.NewInt(0), []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"over size over offset", numOverUint64, numOverUint64, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"add size and offset overflows", numHuge, numHuge, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+	}
+
+	// For every variant of interpreter
+	for _, variant := range Variants {
+
+		for _, revision := range revisions {
+
+			for _, instruction := range instructions {
+
+				for _, test := range tests {
+
+					t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, instruction, test.name), func(t *testing.T) {
+
+						mockCtrl = gomock.NewController(t)
+						mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+
+						callStackValues := []*big.Int{test.size, test.offset, big.NewInt(0)}
+						if instruction == vm.CREATE2 {
+							callStackValues = append([]*big.Int{big.NewInt(0)}, callStackValues...)
+						}
+
+						code, _ := addValuesToStack(callStackValues, 0)
+						code = append(code, byte(instruction))
+
+						// set mock for inner call
+						setDefaultCallStateDBMock(mockStateDB, account, make([]byte, 0))
+
+						evm := GetCleanEVM(revision, variant, mockStateDB)
+						// Run an interpreter
+						_, err := evm.Run(code, []byte{})
+
+						// Check the result.
+						if err == nil && test.err != nil {
+							t.Errorf("execution should fail with error: %v", test.err)
+						}
+
+						if test.err == nil && err != nil {
+							t.Errorf("execution should not fail but got: %v", err)
+						} else {
+							if err != nil && !contains(test.err, err) {
+								t.Errorf("execution should fail with error: %v, but got: %v", test.err, err)
+							}
+						}
+					})
+				}
+			}
+		}
+	}
+}
+
+func contains(s []error, elem error) bool {
+	for _, a := range s {
+		if a == elem {
+			return true
+		}
+	}
+	return false
+}
+
 func setDefaultCallStateDBMock(mockStateDB *vm_mock.MockStateDB, account common.Address, code []byte) {
 
 	var emptyCodeHash = crypto.Keccak256Hash(nil)
