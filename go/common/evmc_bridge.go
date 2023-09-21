@@ -72,11 +72,11 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 
 	// Track the recursive call depth of this Call within a transaction.
 	// A maximum limit of params.CallCreateDepth must be enforced.
-	e.evm.Depth++
-	defer func() { e.evm.Depth-- }()
 	if e.evm.Depth > int(params.CallCreateDepth) {
 		return nil, vm.ErrDepth
 	}
+	e.evm.Depth++
+	defer func() { e.evm.Depth-- }()
 
 	host_ctx := HostContext{
 		evm:         e.evm,
