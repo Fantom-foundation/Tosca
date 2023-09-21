@@ -37,6 +37,10 @@ func (m *Memory) EnsureCapacity(offset, size uint64, c *context) error {
 		return nil
 	}
 	needed := offset + size
+	// check overflow
+	if needed < offset {
+		return vm.ErrGasUintOverflow
+	}
 	if m.Len() < needed {
 		needed = toValidMemorySize(needed)
 		fee := m.ExpansionCosts(needed)
