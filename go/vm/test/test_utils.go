@@ -31,7 +31,7 @@ var (
 	}
 )
 
-const InitialTestGas = math.MaxInt64
+const InitialTestGas uint64 = 1 << 44
 
 type TestEVM struct {
 	evm *vm.EVM
