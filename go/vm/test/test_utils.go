@@ -1,7 +1,6 @@
 package vm_test
 
 import (
-	"math"
 	"math/big"
 
 	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
