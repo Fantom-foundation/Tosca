@@ -651,13 +651,15 @@ static void extcodecopy(Context& ctx) noexcept {
   if (!ctx.ApplyGasCost(3 * minimum_word_size + address_access_cost)) [[unlikely]]
     return;
 
-  auto memory_span = ctx.memory.GetSpan(memory_offset, size);
-  if (code_offset_u256 <= std::numeric_limits<uint64_t>::max()) {
-    uint64_t code_offset = static_cast<uint64_t>(code_offset_u256);
-    size_t bytes_written = ctx.host->copy_code(address, code_offset, memory_span.data(), memory_span.size());
-    memory_span = memory_span.subspan(bytes_written);
+  if (size > 0) [[likely]] {
+    auto memory_span = ctx.memory.GetSpan(memory_offset, size);
+    if (code_offset_u256 <= std::numeric_limits<uint64_t>::max()) {
+      uint64_t code_offset = static_cast<uint64_t>(code_offset_u256);
+      size_t bytes_written = ctx.host->copy_code(address, code_offset, memory_span.data(), memory_span.size());
+      memory_span = memory_span.subspan(bytes_written);
+    }
+    std::fill(memory_span.begin(), memory_span.end(), 0);
   }
-  std::fill(memory_span.begin(), memory_span.end(), 0);
 
   ctx.pc++;
 }
@@ -1430,7 +1432,7 @@ bool Context::CheckJumpDest(uint256_t index_u256) noexcept {
 
 Context::MemoryExpansionCostResult Context::MemoryExpansionCost(uint256_t offset_u256, uint256_t size_u256) noexcept {
   const uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
-  if (offset_u256 > uint64_max || size_u256 > uint64_max) [[unlikely]] {
+  if (size_u256 > uint64_max || (offset_u256 > uint64_max && size_u256 != 0)) [[unlikely]] {
     return {kMaxGas};
   }
 
