@@ -687,7 +687,8 @@ func opCreate(c *context) {
 		value        = c.stack.pop()
 		offset, size = c.stack.pop(), c.stack.pop()
 	)
-	if checkStackValuesOverflow(c, offset, size) != nil {
+	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
+		c.SignalError(err)
 		return
 	}
 
@@ -732,7 +733,8 @@ func opCreate2(c *context) {
 		offset, size = c.stack.pop(), c.stack.pop()
 		salt         = c.stack.pop()
 	)
-	if checkStackValuesOverflow(c, offset, size) != nil {
+	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
+		c.SignalError(err)
 		return
 	}
 
@@ -823,29 +825,23 @@ func opExtCodeCopy(c *context) {
 	}
 }
 
-func checkStackValuesOverflow(c *context, offset, size *uint256.Int) error {
+func checkSizeOffsetUint64Overflow(offset, size *uint256.Int) error {
 	if size.IsZero() {
 		return nil
 	}
-
 	if !offset.IsUint64() || !size.IsUint64() || offset.Uint64()+size.Uint64() < offset.Uint64() {
-		c.SignalError(vm.ErrGasUintOverflow)
 		return vm.ErrGasUintOverflow
 	}
 	return nil
 }
 
 func neededMemorySize(c *context, offset, size *uint256.Int) (uint64, error) {
-	if !size.IsUint64() {
-		c.SignalError(vm.ErrGasUintOverflow)
-		return 0, vm.ErrGasUintOverflow
+	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
+		c.SignalError(err)
+		return 0, err
 	}
 	if size.IsZero() {
 		return 0, nil
-	}
-	if !offset.IsUint64() || offset.Uint64()+size.Uint64() < offset.Uint64() {
-		c.SignalError(vm.ErrGasUintOverflow)
-		return 0, vm.ErrGasUintOverflow
 	}
 	return offset.Uint64() + size.Uint64(), nil
 }
