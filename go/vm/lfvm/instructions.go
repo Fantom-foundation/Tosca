@@ -49,7 +49,7 @@ func checkJumpDest(c *context) {
 func opJump(c *context) {
 	destination := c.stack.pop()
 	// overflow check
-	if !destination.IsUint64() || destination.Uint64()>>32 > 0 {
+	if !destination.IsUint64() || destination.Uint64()>>33 > 0 {
 		c.SignalError(vm.ErrInvalidJump)
 		return
 	}
@@ -62,7 +62,7 @@ func opJumpi(c *context) {
 	destination := c.stack.pop()
 	condition := c.stack.pop()
 	// overflow check
-	if !destination.IsUint64() || destination.Uint64()>>32 > 0 {
+	if !destination.IsUint64() || destination.Uint64()>>33 > 0 {
 		c.SignalError(vm.ErrInvalidJump)
 		return
 	}
