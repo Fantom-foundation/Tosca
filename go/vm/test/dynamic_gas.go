@@ -21,6 +21,16 @@ type DynGasTest struct {
 	memValues   []*big.Int
 }
 
+// Structure for dynamic gas instruction test
+type FailGasTest struct {
+	testName      string                                 // test name
+	instruction   vm.OpCode                              // tested instruction opcode
+	expectedError error                                  // error at the end of execution
+	stackValues   []*big.Int                             // values to be put on stack
+	initialGas    uint64                                 // gas amout for the test
+	mockCalls     func(mockStateDB *vm_mock.MockStateDB) // defines expected stateDB calls during test execution
+}
+
 // EXP instruction
 // gas_cost = 10 + 50 * byte_len_exponent
 // byte_len_exponent: the number of bytes in the exponent (exponent is b in the stack representation)
@@ -295,6 +305,115 @@ func gasDynamicSStore(revision Revision) []*DynGasTest {
 		// Append test
 		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls, nil})
 	}
+	return testCases
+}
+
+type instructionGasTest struct {
+	instruction vm.OpCode
+	initialGas  uint64
+}
+
+func testsContainOpCode(op vm.OpCode, tests []instructionGasTest) bool {
+	for _, test := range tests {
+		if test.instruction == op {
+			return true
+		}
+	}
+	return false
+}
+
+// Tests for which dynamic gas should run out and OutOfGas error should happen
+func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
+	var (
+		// SSTORE has to fail if gas < 2300
+		sstoreLowGas uint64 = 2299
+		// This gas is not sufficient for cold gas access
+		accessLowGas uint64 = 300
+		// Memory expansion for a 1 word and offset by 1 gas is 6
+		memoryLowGasTwoWords uint64 = 5
+		// Same as above with added 3 static gas for instruction
+		memoryLowGasTwoWordsWithStatic = memoryLowGasTwoWords + 3
+		// Memory expanded by 1 word needs 3 gas
+		memoryLowGasOneWord uint64 = 2
+		// Copy of one word is 3 + 3 for static gas
+		copyLowGas uint64 = 5
+		// Log of size 1 needs 8 gas
+		logLowGas uint64 = 7
+		// Log static gas multiplier
+		logStaticGas uint64 = 375
+		// Exp is 50 * exponent byte len which is 1 for test
+		expLowGas uint64 = 49
+		// SHA3 static gas is 30 + needed memory expansion, then 6 * word size
+		sha3LowGas uint64 = 30 + 3 + 5
+	)
+	testCases := []*FailGasTest{}
+
+	tests := []instructionGasTest{
+		{vm.SSTORE, sstoreLowGas},
+		{vm.SLOAD, accessLowGas},
+		{vm.BALANCE, accessLowGas},
+		{vm.EXTCODESIZE, accessLowGas},
+		{vm.EXTCODEHASH, accessLowGas},
+		{vm.EXTCODECOPY, accessLowGas},
+		{vm.CALL, accessLowGas},
+		{vm.STATICCALL, accessLowGas},
+		{vm.DELEGATECALL, accessLowGas},
+		{vm.CALLCODE, accessLowGas},
+		{vm.SELFDESTRUCT, accessLowGas},
+		{vm.CREATE, accessLowGas},
+		{vm.CREATE2, accessLowGas},
+		{vm.EXP, expLowGas},
+		{vm.CODECOPY, copyLowGas},
+		{vm.CALLDATACOPY, copyLowGas},
+		{vm.MLOAD, memoryLowGasTwoWordsWithStatic},
+		{vm.MSTORE, memoryLowGasTwoWordsWithStatic},
+		{vm.MSTORE8, memoryLowGasOneWord},
+		{vm.LOG0, 1*logStaticGas + logLowGas},
+		{vm.LOG1, 2*logStaticGas + logLowGas},
+		{vm.LOG2, 3*logStaticGas + logLowGas},
+		{vm.LOG3, 4*logStaticGas + logLowGas},
+		{vm.LOG4, 5*logStaticGas + logLowGas},
+		{vm.SHA3, sha3LowGas},
+		{vm.RETURN, memoryLowGasOneWord},
+		{vm.REVERT, memoryLowGasOneWord},
+	}
+
+	// Check if all opcodes with dynamic gas calculation are present in the tests
+	for op, info := range getInstructions(revision) {
+		if op == vm.RETURNDATACOPY || // can't be tested in this way because of inner call needed
+			info.gas.dynamic == nil {
+			continue
+		} else {
+			if !testsContainOpCode(op, tests) {
+				panic(fmt.Sprintf("dynamic out of gas tests don't contain instruction %v for revision %v", op.String(), revision))
+			}
+		}
+	}
+
+	mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
+		mockStateDB.EXPECT().SlotInAccessList(gomock.Any(), gomock.Any()).AnyTimes().Return(false, false)
+		mockStateDB.EXPECT().AddressInAccessList(gomock.Any()).AnyTimes().Return(false)
+		mockStateDB.EXPECT().AddAddressToAccessList(gomock.Any()).AnyTimes()
+		mockStateDB.EXPECT().Exist(gomock.Any()).AnyTimes().Return(false)
+		mockStateDB.EXPECT().AddSlotToAccessList(gomock.Any(), gomock.Any()).AnyTimes()
+		mockStateDB.EXPECT().Empty(gomock.Any()).AnyTimes().Return(true)
+		mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(big.NewInt(0))
+		mockStateDB.EXPECT().HasSuicided(gomock.Any()).AnyTimes().Return(true)
+		mockStateDB.EXPECT().GetState(gomock.Any(), gomock.Any()).AnyTimes().Return(common.Hash{1})
+	}
+
+	// Generate test cases
+	for _, test := range tests {
+		stackValCount := getInstructions(revision)[test.instruction].stack.popped
+		stackValues := make([]*big.Int, 0)
+		for i := 0; i < stackValCount; i++ {
+			stackValues = append(stackValues, big.NewInt(1))
+		}
+		testName := fmt.Sprintf("%v using %v gas", test.instruction.String(), test.initialGas)
+
+		testCases = append(testCases, &FailGasTest{testName, test.instruction, vm.ErrOutOfGas, stackValues, test.initialGas, mockCalls})
+	}
+
 	return testCases
 }
 

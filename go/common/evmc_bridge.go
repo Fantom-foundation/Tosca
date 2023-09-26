@@ -51,6 +51,11 @@ func (e *EvmcVM) Destroy() {
 	e.vm = nil
 }
 
+// GetEvmcVM provides direct access to the VM connected through the EVMC library.
+func (e *EvmcVM) GetEvmcVM() *evmc.VM {
+	return e.vm
+}
+
 // NewEvmcInterpreter instantiates an interpreter with the given evm and config.
 func NewEvmcInterpreter(vm *EvmcVM, evm *vm.EVM, cfg vm.Config) *EvmcInterpreter {
 	return &EvmcInterpreter{

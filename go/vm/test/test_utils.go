@@ -27,6 +27,7 @@ var (
 		"evmzero-logging",
 		"evmzero-no-analysis-cache",
 		"evmzero-no-sha3-cache",
+		"evmzero-profiling",
 	}
 )
 
@@ -90,9 +91,13 @@ func canTransferFunc(stateDB vm.StateDB, callerAddress common.Address, value *bi
 }
 
 func (e *TestEVM) Run(code []byte, input []byte) (RunResult, error) {
+	return e.RunWithGas(code, input, InitialTestGas)
+}
+
+func (e *TestEVM) RunWithGas(code []byte, input []byte, initialGas uint64) (RunResult, error) {
 
 	addr := vm.AccountRef{}
-	contract := vm.NewContract(addr, addr, big.NewInt(0), InitialTestGas)
+	contract := vm.NewContract(addr, addr, big.NewInt(0), initialGas)
 	contract.CodeAddr = &common.Address{}
 	contract.Code = code
 	contract.CodeHash = crypto.Keccak256Hash(code)
@@ -101,7 +106,7 @@ func (e *TestEVM) Run(code []byte, input []byte) (RunResult, error) {
 	output, err := e.GetInterpreter().Run(contract, input, false)
 	return RunResult{
 		Output:  output,
-		GasUsed: InitialTestGas - contract.Gas,
+		GasUsed: initialGas - contract.Gas,
 	}, err
 }
 

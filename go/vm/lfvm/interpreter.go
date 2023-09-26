@@ -156,14 +156,24 @@ func Run(evm *vm.EVM, cfg vm.Config, contract *vm.Contract, code Code, data []by
 
 	var res []byte
 	if ctxt.status == RETURNED || ctxt.status == REVERTED {
-		// Extract the result from the memory.
-		offset := ctxt.result_offset.Uint64()
-		size := ctxt.result_size.Uint64()
-		res = make([]byte, size)
-		if err := ctxt.memory.EnsureCapacity(offset, size, &ctxt); err != nil {
-			return nil, err
+		size, overflow := ctxt.result_size.Uint64WithOverflow()
+		if overflow {
+			return nil, vm.ErrGasUintOverflow
 		}
-		ctxt.memory.CopyData(offset, res[:])
+
+		if size != 0 {
+			offset, overflow := ctxt.result_offset.Uint64WithOverflow()
+			if overflow {
+				return nil, vm.ErrGasUintOverflow
+			}
+
+			// Extract the result from the memory
+			if err := ctxt.memory.EnsureCapacity(offset, size, &ctxt); err != nil {
+				return nil, err
+			}
+			res = make([]byte, size)
+			ctxt.memory.CopyData(offset, res[:])
+		}
 	}
 
 	// Handle return status
@@ -373,10 +383,16 @@ func (s *stats_collector) NextOp(op OpCode) {
 var global_stats_mu = sync.Mutex{}
 var global_statistics = newStatistics()
 
-func PrintCollectedInstructionStatistics() {
+func printCollectedInstructionStatistics() {
 	global_stats_mu.Lock()
 	defer global_stats_mu.Unlock()
 	global_statistics.Print()
+}
+
+func resetCollectedInstructionStatistics() {
+	global_stats_mu.Lock()
+	defer global_stats_mu.Unlock()
+	global_statistics = newStatistics()
 }
 
 func runWithStatistics(c *context) {

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
+	"github.com/Fantom-foundation/Tosca/go/vm/registry"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
@@ -27,6 +28,22 @@ func TestFib10(t *testing.T) {
 			t.Fatalf("unexpected result, wanted %v, got %v", wanted, got.Result)
 		}
 	})
+}
+
+func TestEvmzero_DumpProfile(t *testing.T) {
+	example := examples.GetFibExample()
+	vmInstance, ok := registry.GetVirtualMachine("evmzero-profiling").(registry.ProfilingVM)
+	if !ok || vmInstance == nil {
+		t.Fatalf("profiling evmzero configuration does not support profiling")
+	}
+	interpreter := vm.NewInterpreter("evmzero-profiling", &vm.EVM{}, vm.Config{})
+	for i := 0; i < 10; i++ {
+		example.RunOn(interpreter, 10)
+		vmInstance.DumpProfile()
+		if i == 5 {
+			vmInstance.ResetProfile()
+		}
+	}
 }
 
 func BenchmarkNewEvmcInterpreter(b *testing.B) {

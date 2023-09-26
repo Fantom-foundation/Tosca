@@ -3,6 +3,7 @@ module github.com/Fantom-foundation/Tosca
 go 1.19
 
 require (
+	github.com/ethereum/evmc/v10 v10.0.0
 	github.com/ethereum/go-ethereum v1.10.25
 	github.com/golang/mock v1.6.0
 	github.com/holiman/uint256 v1.2.0
@@ -15,15 +16,13 @@ require (
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d // indirect
-	github.com/ethereum/evmc/v10 v10.0.0 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
-	github.com/ianlancetaylor/cgosymbolizer v0.0.0-20230328201059-365e72989107 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
-	github.com/mattn/go-sqlite3 v1.11.0 // indirect
+	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/tsdb v0.7.1 // indirect

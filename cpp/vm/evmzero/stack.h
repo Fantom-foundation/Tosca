@@ -16,11 +16,16 @@ namespace tosca::evmzero {
 // This data structure is used as the interpreter's stack during execution.
 class Stack {
  public:
+  static constexpr size_t kStackSize = 1024;
+
   Stack();
   Stack(const Stack&);
   Stack(Stack&&) = delete;
   Stack(std::initializer_list<uint256_t>);
   ~Stack();
+
+  uint256_t* Top() { return top_; }
+  void SetTop(uint256_t* top) { top_ = top; }
 
   uint64_t GetSize() const { return uint64_t(end_ - top_); }
   uint64_t GetMaxSize() const { return kStackSize; }
@@ -33,20 +38,6 @@ class Stack {
   uint256_t Pop() {
     TOSCA_ASSERT(GetSize() > 0);
     return *(top_++);
-  }
-
-  template <size_t N>
-  void Swap() {
-    TOSCA_ASSERT(N < GetSize());
-    auto tmp = top_[N];
-    top_[N] = top_[0];
-    top_[0] = tmp;
-  }
-
-  template <size_t N>
-  void Dup() {
-    TOSCA_ASSERT(N - 1 < GetSize());
-    Push(top_[N - 1]);
   }
 
   Stack& operator=(const Stack&);
@@ -63,8 +54,6 @@ class Stack {
   friend bool operator!=(const Stack&, const Stack&);
 
  private:
-  static constexpr size_t kStackSize = 1024;
-
   // The type retaining the actual storage for the stack.
   class Data {
    public:
@@ -85,7 +74,8 @@ class Stack {
 
     // An aligned blob of not auto-initialized data. Stack memory does not have
     // to be initialized, since any read is preceeded by a push or dup.
-    alignas(sizeof(uint256_t)) std::array<std::byte, kStackSize * sizeof(uint256_t)> data_;
+    static_assert(sizeof(uint256_t) * kStackSize * 2 == 1 << 16);
+    alignas(1 << 16) std::array<std::byte, kStackSize * sizeof(uint256_t)> data_;
 
     // A next-pointer to be used when enqueuing instances in the free list.
     Data* next_ = nullptr;

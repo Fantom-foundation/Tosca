@@ -9,6 +9,7 @@
 #include "common/lru_cache.h"
 #include "vm/evmzero/interpreter.h"
 #include "vm/evmzero/opcodes.h"
+#include "vm/evmzero/profiler.h"
 #include "vm/evmzero/sha3_cache.h"
 
 namespace tosca::evmzero {
@@ -73,7 +74,9 @@ class VM : public evmc_vm {
             .set_option = [](evmc_vm* vm, char const* name, char const* value) -> evmc_set_option_result {
               return static_cast<VM*>(vm)->SetOption(name, value);
             },
-        } {}
+        } {
+    enabled_profiler_.Start<Marker::TOTAL>();
+  }
 
   evmc_result Execute(std::span<const uint8_t> code, const evmc_bytes32* code_hash,                //
                       const evmc_message* message,                                                 //
@@ -83,26 +86,35 @@ class VM : public evmc_vm {
     if (analysis_cache_enabled_ && code_hash && *code_hash != evmc::bytes32{0}) [[likely]] {
       contract_info = contract_info_cache_.GetOrInsert(*code_hash, [&] { return ComputeContractInfo(code); });
     } else {
-      contract_info = std::make_shared<ContractInfo>(ComputeContractInfo(code));
+      contract_info = ComputeContractInfo(code);
     }
 
-    InterpreterArgs interpreter_args{
-        .padded_code = contract_info->padded_code,
-        .valid_jump_targets = contract_info->valid_jump_targets,
-        .message = message,
-        .host_interface = host_interface,
-        .host_context = host_context,
-        .revision = revision,
+    const auto make_interpreter_args = [&]<bool ProfilingEnabled>(Profiler<ProfilingEnabled>& profiler) {
+      return InterpreterArgs<ProfilingEnabled>{
+          .padded_code = contract_info->padded_code,
+          .valid_jump_targets = contract_info->valid_jump_targets,
+          .message = message,
+          .host_interface = host_interface,
+          .host_context = host_context,
+          .revision = revision,
+          .sha3_cache = sha3_cache_enabled_ ? &sha3_cache_ : nullptr,
+          .profiler = profiler,
+      };
     };
-    if (sha3_cache_enabled_) {
-      interpreter_args.sha3_cache = &sha3_cache_;
-    }
 
     InterpreterResult interpreter_result;
-    if (logging_enabled_) {
-      interpreter_result = Interpret<true>(interpreter_args);
-    } else {
-      interpreter_result = Interpret<false>(interpreter_args);
+    if (logging_enabled_ && profiling_enabled_) {
+      const auto interpreter_args = make_interpreter_args(enabled_profiler_);
+      interpreter_result = Interpret<true, true>(interpreter_args);
+    } else if (logging_enabled_ && !profiling_enabled_) {
+      const auto interpreter_args = make_interpreter_args(disabled_profiler_);
+      interpreter_result = Interpret<true, false>(interpreter_args);
+    } else if (!logging_enabled_ && profiling_enabled_) {
+      const auto interpreter_args = make_interpreter_args(enabled_profiler_);
+      interpreter_result = Interpret<false, true>(interpreter_args);
+    } else if (!logging_enabled_ && !profiling_enabled_) {
+      const auto interpreter_args = make_interpreter_args(disabled_profiler_);
+      interpreter_result = Interpret<false, false>(interpreter_args);
     }
 
     // Move output data to a dedicated buffer so we can release the interpreter
@@ -128,6 +140,7 @@ class VM : public evmc_vm {
         std::pair("logging", &logging_enabled_),
         std::pair("analysis_cache", &analysis_cache_enabled_),
         std::pair("sha3_cache", &sha3_cache_enabled_),
+        std::pair("profiling", &profiling_enabled_),
     };
 
     for (const auto& [option_name, member] : on_off_options) {
@@ -146,30 +159,49 @@ class VM : public evmc_vm {
     return EVMC_SET_OPTION_INVALID_NAME;
   }
 
+  void DumpProfile() {
+    enabled_profiler_.End<Marker::TOTAL>();
+    enabled_profiler_.Collect().Dump();
+    enabled_profiler_.Start<Marker::TOTAL>();
+  }
+
+  void ResetProfiler() {
+    enabled_profiler_.Reset();
+    enabled_profiler_.Start<Marker::TOTAL>();
+  }
+
  private:
   struct ContractInfo {
     std::vector<uint8_t> padded_code;
     op::ValidJumpTargetsBuffer valid_jump_targets;
   };
 
-  static ContractInfo ComputeContractInfo(std::span<const uint8_t> code) {
-    return ContractInfo{
+  static std::shared_ptr<ContractInfo> ComputeContractInfo(std::span<const uint8_t> code) {
+    return std::make_shared<ContractInfo>(ContractInfo{
         .padded_code = internal::PadCode(code),
         .valid_jump_targets = op::CalculateValidJumpTargets(code),
-    };
+    });
   }
 
   bool logging_enabled_ = false;
   bool analysis_cache_enabled_ = true;
   bool sha3_cache_enabled_ = true;
+  bool profiling_enabled_ = false;
 
-  LruCache<evmc::bytes32, ContractInfo, 1 << 16> contract_info_cache_;
+  LruCache<evmc::bytes32, std::shared_ptr<ContractInfo>, 1 << 16> contract_info_cache_;
 
   Sha3Cache sha3_cache_;
+
+  Profiler<false> disabled_profiler_;
+  Profiler<true> enabled_profiler_;
 };
 
 extern "C" {
 EVMC_EXPORT evmc_vm* evmc_create_evmzero() noexcept { return new VM; }
+
+EVMC_EXPORT void evmzero_dump_profile(evmc_vm* vm) noexcept { reinterpret_cast<VM*>(vm)->DumpProfile(); }
+
+EVMC_EXPORT void evmzero_reset_profiler(evmc_vm* vm) noexcept { reinterpret_cast<VM*>(vm)->ResetProfiler(); }
 }
 
 }  // namespace tosca::evmzero

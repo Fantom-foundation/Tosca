@@ -15,3 +15,6 @@
 #define TOSCA_CHECK_OVERFLOW_ADD(a, b, result) __builtin_add_overflow(a, b, result)
 
 #define TOSCA_FORCE_INLINE __attribute__((always_inline))
+
+#define TOSCA_STRINGIFY_(str) #str
+#define TOSCA_STRINGIFY(str) TOSCA_STRINGIFY_(str)

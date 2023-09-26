@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
+	tosca "github.com/Fantom-foundation/Tosca/go/vm"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -164,7 +165,13 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 
 	for _, variant := range Variants {
 		evm := GetCleanEVM(London, variant, nil)
+		vm := tosca.GetVirtualMachine(variant)
+		if pvm, ok := vm.(tosca.ProfilingVM); ok {
+			pvm.ResetProfile()
+		}
+		active := false
 		b.Run(variant, func(b *testing.B) {
+			active = true
 			for i := 0; i < b.N; i++ {
 				got, err := example.RunOn(evm.GetInterpreter(), arg)
 				if err != nil {
@@ -176,5 +183,8 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 				}
 			}
 		})
+		if pvm, ok := vm.(tosca.ProfilingVM); active && ok {
+			pvm.DumpProfile()
+		}
 	}
 }

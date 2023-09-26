@@ -8,6 +8,7 @@
 #include <evmc/evmc.hpp>
 
 #include "vm/evmzero/memory.h"
+#include "vm/evmzero/profiler.h"
 #include "vm/evmzero/sha3_cache.h"
 #include "vm/evmzero/stack.h"
 
@@ -35,6 +36,7 @@ bool IsSuccess(RunState);
 const char* ToString(RunState);
 std::ostream& operator<<(std::ostream&, RunState);
 
+template <bool ProfilingEnabled>
 struct InterpreterArgs {
   std::span<const uint8_t> padded_code;
   std::span<const uint8_t> valid_jump_targets;
@@ -43,6 +45,7 @@ struct InterpreterArgs {
   evmc_host_context* host_context = nullptr;
   evmc_revision revision = EVMC_ISTANBUL;
   Sha3Cache* sha3_cache = nullptr;
+  Profiler<ProfilingEnabled>& profiler;
 };
 
 struct InterpreterResult {
@@ -52,8 +55,8 @@ struct InterpreterResult {
   std::vector<uint8_t> return_data;
 };
 
-template <bool TracingEnabled>
-extern InterpreterResult Interpret(const InterpreterArgs&);
+template <bool TracingEnabled, bool ProfilingEnabled>
+extern InterpreterResult Interpret(const InterpreterArgs<ProfilingEnabled>&);
 
 namespace internal {
 
@@ -82,12 +85,6 @@ struct Context {
 
   Sha3Cache* sha3_cache = nullptr;
 
-  bool CheckOpcodeAvailable(evmc_revision introduced_in) noexcept;
-  bool CheckStaticCallConformance() noexcept;
-  bool CheckStackAvailable(uint64_t elements_needed) noexcept;
-  bool CheckStackOverflow(uint64_t slots_needed) noexcept;
-  bool ApplyGasCost(int64_t gas_cost) noexcept;
-
   bool CheckJumpDest(uint256_t index) noexcept;
 
   struct MemoryExpansionCostResult {
@@ -108,8 +105,8 @@ struct Context {
 // bound checks during the execution can be avoided.
 std::vector<uint8_t> PadCode(std::span<const uint8_t> code);
 
-template <bool LoggingEnabled>
-extern void RunInterpreter(Context&);
+template <bool LoggingEnabled, bool ProfilingEnabled>
+extern void RunInterpreter(Context&, Profiler<ProfilingEnabled>&);
 
 }  // namespace internal
 
