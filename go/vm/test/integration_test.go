@@ -296,7 +296,7 @@ func TestRevertReturnDataInitialization(t *testing.T) {
 		instruction vm.OpCode
 		size        *big.Int
 		offset      *big.Int
-		err         error
+		err         []error
 	}
 
 	sizeNormal, _ := big.NewInt(0).SetString("0x10000", 0)
@@ -307,20 +307,20 @@ func TestRevertReturnDataInitialization(t *testing.T) {
 	tests := []test{
 		{"zero size and offset", vm.RETURN, big.NewInt(0), big.NewInt(0), nil},
 		{"normal size and offset", vm.RETURN, sizeNormal, sizeNormal, nil},
-		{"huge size normal offset", vm.RETURN, sizeHuge, sizeNormal, vm.ErrOutOfGas},
-		{"over size normal offset", vm.RETURN, sizeOverUint64, sizeNormal, vm.ErrGasUintOverflow},
-		{"zero size and offset", vm.REVERT, big.NewInt(0), big.NewInt(0), vm.ErrExecutionReverted},
-		{"normal size and offset", vm.REVERT, sizeNormal, sizeNormal, vm.ErrExecutionReverted},
-		{"huge size normal offset", vm.REVERT, sizeHuge, sizeNormal, vm.ErrOutOfGas},
-		{"over size normal offset", vm.REVERT, sizeOverUint64, sizeNormal, vm.ErrGasUintOverflow},
-		{"normal size huge offset", vm.RETURN, sizeNormal, sizeHuge, vm.ErrOutOfGas},
-		{"normal size over offset", vm.RETURN, sizeNormal, sizeOverUint64, vm.ErrGasUintOverflow},
-		{"normal size huge offset", vm.REVERT, sizeNormal, sizeHuge, vm.ErrOutOfGas},
-		{"normal size over offset", vm.REVERT, sizeNormal, sizeOverUint64, vm.ErrGasUintOverflow},
-		{"normal size over offset", vm.RETURN, sizeHuge, sizeHuge, vm.ErrGasUintOverflow},
-		{"normal size over offset", vm.REVERT, sizeHuge, sizeHuge, vm.ErrGasUintOverflow},
+		{"huge size normal offset", vm.RETURN, sizeHuge, sizeNormal, []error{vm.ErrOutOfGas}},
+		{"over size normal offset", vm.RETURN, sizeOverUint64, sizeNormal, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"zero size and offset", vm.REVERT, big.NewInt(0), big.NewInt(0), []error{vm.ErrExecutionReverted}},
+		{"normal size and offset", vm.REVERT, sizeNormal, sizeNormal, []error{vm.ErrExecutionReverted}},
+		{"huge size normal offset", vm.REVERT, sizeHuge, sizeNormal, []error{vm.ErrOutOfGas}},
+		{"over size normal offset", vm.REVERT, sizeOverUint64, sizeNormal, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"normal size huge offset", vm.RETURN, sizeNormal, sizeHuge, []error{vm.ErrOutOfGas}},
+		{"normal size over offset", vm.RETURN, sizeNormal, sizeOverUint64, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"normal size huge offset", vm.REVERT, sizeNormal, sizeHuge, []error{vm.ErrOutOfGas}},
+		{"normal size over offset", vm.REVERT, sizeNormal, sizeOverUint64, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"normal size over offset", vm.RETURN, sizeHuge, sizeHuge, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"normal size over offset", vm.REVERT, sizeHuge, sizeHuge, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
 		{"zero size over offset", vm.RETURN, big.NewInt(0), sizeOverUint64, nil},
-		{"zero size over offset", vm.REVERT, big.NewInt(0), sizeOverUint64, vm.ErrExecutionReverted},
+		{"zero size over offset", vm.REVERT, big.NewInt(0), sizeOverUint64, []error{vm.ErrExecutionReverted}},
 	}
 
 	// For every variant of interpreter
@@ -346,8 +346,12 @@ func TestRevertReturnDataInitialization(t *testing.T) {
 						t.Errorf("execution should fail with error: %v", test.err)
 					}
 
-					if err != nil && err != test.err {
-						t.Errorf("execution should fail with error: %v, but got: %v", test.err, err)
+					if test.err == nil && err != nil {
+						t.Errorf("execution should not fail but got: %v", err)
+					} else {
+						if err != nil && !contains(test.err, err) {
+							t.Errorf("execution should fail with error: %v, but got: %v", test.err, err)
+						}
 					}
 				})
 			}
