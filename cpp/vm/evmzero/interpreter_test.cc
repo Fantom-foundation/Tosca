@@ -2260,14 +2260,28 @@ TEST(InterpreterTest, EXTCODECOPY) {
 }
 
 TEST(InterpreterTest, EXTCODECOPY_ZeroSize) {
-  const std::vector<uint8_t> code = {op::PUSH4, 0x0A, 0x0B, 0x0C, 0xD};
-
   RunInterpreterTest({
       .code = {op::EXTCODECOPY},
       .state_after = RunState::kDone,
       .gas_before = 3000,
       .gas_after = 3000 - 700,
       .stack_before = {0, 1, 2, 0x42},
+  });
+
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 2000,
+      .gas_after = 1300,
+      .stack_before = {0, uint256_t{1} << 100, 0, 0x42},
+  });
+
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 2000,
+      .gas_after = 1300,
+      .stack_before = {0, 0, uint256_t{1} << 100, 0x42},
   });
 }
 
@@ -2405,14 +2419,6 @@ TEST(InterpreterTest, EXTCODECOPY_OversizedMemory) {
       .gas_before = 10000000,
       .stack_before = {uint256_t{1} << 100, 0, 0, 0x42},
   });
-
-  RunInterpreterTest({
-      .code = {op::EXTCODECOPY},
-      .state_after = RunState::kDone,
-      .gas_before = 10000000,
-      .gas_after = 9999300,
-      .stack_before = {0, 0, uint256_t{1} << 100, 0x42},
-  });
 }
 
 TEST(InterpreterTest, EXTCODECOPY_OutOfBoundsCodeOffset) {
@@ -2491,6 +2497,17 @@ TEST(InterpreterTest, RETURNDATACOPY_OutOfBounds) {
   });
 }
 
+TEST(InterpreterTest, RETURNDATACOPY_ZeroSize) {
+  RunInterpreterTest({
+      .code = {op::RETURNDATACOPY},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 97,
+      .stack_before = {0, 0, uint256_t{1} << 100},
+      .last_call_data{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+  });
+}
+
 TEST(InterpreterTest, RETURNDATACOPY_Grow) {
   RunInterpreterTest({
       .code = {op::RETURNDATACOPY},
@@ -2540,15 +2557,6 @@ TEST(InterpreterTest, RETURNDATACOPY_OversizedMemory) {
       .state_after = RunState::kErrorGas,
       .gas_before = 10000000,
       .stack_before = {uint256_t{1} << 100, 0, 0},
-      .last_call_data{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
-  });
-
-  RunInterpreterTest({
-      .code = {op::RETURNDATACOPY},
-      .state_after = RunState::kDone,
-      .gas_before = 10000000,
-      .gas_after = 9999997,
-      .stack_before = {0, 0, uint256_t{1} << 100},
       .last_call_data{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
   });
 }
