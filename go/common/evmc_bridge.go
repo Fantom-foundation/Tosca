@@ -77,11 +77,11 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 
 	// Track the recursive call depth of this Call within a transaction.
 	// A maximum limit of params.CallCreateDepth must be enforced.
-	e.evm.Depth++
-	defer func() { e.evm.Depth-- }()
 	if e.evm.Depth > int(params.CallCreateDepth) {
 		return nil, vm.ErrDepth
 	}
+	e.evm.Depth++
+	defer func() { e.evm.Depth-- }()
 
 	host_ctx := HostContext{
 		evm:         e.evm,
@@ -164,6 +164,17 @@ func (e *EvmcInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool
 			err = &vm.ErrInvalidOpCode{}
 		case evmc.Error(C.EVMC_BAD_JUMP_DESTINATION):
 			err = vm.ErrInvalidJump
+		case evmc.Error(C.EVMC_INVALID_MEMORY_ACCESS):
+			// Technically not every EVMC_INVALID_MEMORY_ACCESS is an
+			// ErrReturnDataOutOfBounds, but there is currently no dedicated
+			// error defined in EVMC that lets us distinguish between the
+			// different cases.
+			//
+			// Similarly, the evm module does not define a generic
+			// ErrInvalidMemoryAccess that we could use here.
+			err = vm.ErrReturnDataOutOfBounds
+		case evmc.Error(C.EVMC_STATIC_MODE_VIOLATION):
+			err = vm.ErrWriteProtection
 		case evmc.Error(C.EVMC_STACK_OVERFLOW):
 			err = &vm.ErrStackOverflow{}
 		case evmc.Error(C.EVMC_STACK_UNDERFLOW):

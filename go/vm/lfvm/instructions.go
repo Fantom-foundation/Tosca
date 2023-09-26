@@ -49,8 +49,8 @@ func checkJumpDest(c *context) {
 func opJump(c *context) {
 	destination := c.stack.pop()
 	// overflow check
-	if int32(destination.Uint64())-1 < 0 {
-		c.status = ERROR
+	if !destination.IsUint64() || destination.Uint64()>>33 > 0 {
+		c.SignalError(vm.ErrInvalidJump)
 		return
 	}
 	// Update the PC to the jump destination -1 since interpreter will increase PC by 1 afterward.
@@ -61,6 +61,11 @@ func opJump(c *context) {
 func opJumpi(c *context) {
 	destination := c.stack.pop()
 	condition := c.stack.pop()
+	// overflow check
+	if !destination.IsUint64() || destination.Uint64()>>33 > 0 {
+		c.SignalError(vm.ErrInvalidJump)
+		return
+	}
 	if !condition.IsZero() {
 		// Update the PC to the jump destination -1 since interpreter will increase PC by 1 afterward.
 		c.pc = int32(destination.Uint64()) - 1

@@ -1,7 +1,6 @@
 package vm_test
 
 import (
-	"math"
 	"math/big"
 
 	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
@@ -32,7 +31,7 @@ var (
 	}
 )
 
-const InitialTestGas = math.MaxInt64
+const InitialTestGas uint64 = 1 << 44
 
 type TestEVM struct {
 	evm *vm.EVM
