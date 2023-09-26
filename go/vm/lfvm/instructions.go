@@ -188,6 +188,10 @@ func opMload(c *context) {
 	var trg = c.stack.peek()
 	var addr = *trg
 
+	if !addr.IsUint64() {
+		c.SignalError(vm.ErrGasUintOverflow)
+		return
+	}
 	offset := addr.Uint64()
 	if c.memory.EnsureCapacity(offset, 32, c) != nil {
 		return
@@ -682,12 +686,17 @@ func opCreate(c *context) {
 	var (
 		value        = c.stack.pop()
 		offset, size = c.stack.pop(), c.stack.pop()
-		input        = c.memory.GetSlice(offset.Uint64(), size.Uint64())
 	)
+	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
+		c.SignalError(err)
+		return
+	}
 
 	if c.memory.EnsureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
 		return
 	}
+
+	input := c.memory.GetSlice(offset.Uint64(), size.Uint64())
 
 	gas := c.contract.Gas
 	if true /*c.evm.chainRules.IsEIP150*/ {
@@ -724,6 +733,10 @@ func opCreate2(c *context) {
 		offset, size = c.stack.pop(), c.stack.pop()
 		salt         = c.stack.pop()
 	)
+	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
+		c.SignalError(err)
+		return
+	}
 
 	if c.memory.EnsureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
 		return
@@ -812,10 +825,20 @@ func opExtCodeCopy(c *context) {
 	}
 }
 
+func checkSizeOffsetUint64Overflow(offset, size *uint256.Int) error {
+	if size.IsZero() {
+		return nil
+	}
+	if !offset.IsUint64() || !size.IsUint64() || offset.Uint64()+size.Uint64() < offset.Uint64() {
+		return vm.ErrGasUintOverflow
+	}
+	return nil
+}
+
 func neededMemorySize(c *context, offset, size *uint256.Int) (uint64, error) {
-	if !size.IsUint64() {
-		c.status = ERROR
-		return 0, vm.ErrGasUintOverflow
+	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
+		c.SignalError(err)
+		return 0, err
 	}
 	if size.IsZero() {
 		return 0, nil
