@@ -1209,6 +1209,12 @@ func opLog(c *context, size int) {
 	topics := make([]common.Hash, size)
 	stack := c.stack
 	mStart, mSize := stack.pop(), stack.pop()
+
+	if err := checkSizeOffsetUint64Overflow(mStart, mSize); err != nil {
+		c.SignalError(err)
+		return
+	}
+
 	for i := 0; i < size; i++ {
 		addr := stack.pop()
 		topics[i] = addr.Bytes32()
