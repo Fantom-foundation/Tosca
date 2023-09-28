@@ -289,7 +289,7 @@ func TestReadOnlyStaticCall(t *testing.T) {
 	}
 }
 
-func TestRevertReturnDataInitialization(t *testing.T) {
+func TestInstructionDataInitialization(t *testing.T) {
 
 	type test struct {
 		name        string
@@ -299,28 +299,35 @@ func TestRevertReturnDataInitialization(t *testing.T) {
 		err         []error
 	}
 
+	type instructionTest struct {
+		instruction vm.OpCode
+		okError     []error
+	}
+
+	instructions := []instructionTest{
+		{vm.RETURN, nil},
+		{vm.REVERT, []error{vm.ErrExecutionReverted}},
+		{vm.SHA3, nil},
+	}
+
 	sizeNormal, _ := big.NewInt(0).SetString("0x10000", 0)
 	// Adding two huge together overflows uint64
 	sizeHuge, _ := big.NewInt(0).SetString("0x8000000000000000", 0)
 	sizeOverUint64, _ := big.NewInt(0).SetString("0x100000000000000000", 0)
 
-	tests := []test{
-		{"zero size and offset", vm.RETURN, big.NewInt(0), big.NewInt(0), nil},
-		{"normal size and offset", vm.RETURN, sizeNormal, sizeNormal, nil},
-		{"huge size normal offset", vm.RETURN, sizeHuge, sizeNormal, []error{vm.ErrOutOfGas}},
-		{"over size normal offset", vm.RETURN, sizeOverUint64, sizeNormal, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"zero size and offset", vm.REVERT, big.NewInt(0), big.NewInt(0), []error{vm.ErrExecutionReverted}},
-		{"normal size and offset", vm.REVERT, sizeNormal, sizeNormal, []error{vm.ErrExecutionReverted}},
-		{"huge size normal offset", vm.REVERT, sizeHuge, sizeNormal, []error{vm.ErrOutOfGas}},
-		{"over size normal offset", vm.REVERT, sizeOverUint64, sizeNormal, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"normal size huge offset", vm.RETURN, sizeNormal, sizeHuge, []error{vm.ErrOutOfGas}},
-		{"normal size over offset", vm.RETURN, sizeNormal, sizeOverUint64, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"normal size huge offset", vm.REVERT, sizeNormal, sizeHuge, []error{vm.ErrOutOfGas}},
-		{"normal size over offset", vm.REVERT, sizeNormal, sizeOverUint64, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"normal size over offset", vm.RETURN, sizeHuge, sizeHuge, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"normal size over offset", vm.REVERT, sizeHuge, sizeHuge, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"zero size over offset", vm.RETURN, big.NewInt(0), sizeOverUint64, nil},
-		{"zero size over offset", vm.REVERT, big.NewInt(0), sizeOverUint64, []error{vm.ErrExecutionReverted}},
+	tests := make([]test, 0)
+	for _, instructionCase := range instructions {
+		testForInstruction := []test{
+			{"zero size and offset", instructionCase.instruction, big.NewInt(0), big.NewInt(0), instructionCase.okError},
+			{"normal size and offset", instructionCase.instruction, sizeNormal, sizeNormal, instructionCase.okError},
+			{"huge size normal offset", instructionCase.instruction, sizeHuge, sizeNormal, []error{vm.ErrOutOfGas}},
+			{"over size normal offset", instructionCase.instruction, sizeOverUint64, sizeNormal, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+			{"normal size huge offset", instructionCase.instruction, sizeNormal, sizeHuge, []error{vm.ErrOutOfGas}},
+			{"normal size over offset", instructionCase.instruction, sizeNormal, sizeOverUint64, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+			{"normal size over offset", instructionCase.instruction, sizeHuge, sizeHuge, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+			{"zero size over offset", instructionCase.instruction, big.NewInt(0), sizeOverUint64, instructionCase.okError},
+		}
+		tests = append(tests, testForInstruction...)
 	}
 
 	// For every variant of interpreter
