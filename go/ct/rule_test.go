@@ -12,7 +12,7 @@ func TestCondition_Printing(t *testing.T) {
 		{And(), "true"},
 		{And(And(), And()), "true"},
 		{And(Eq(Gas(), uint64(12)), Eq(Pc(), uint16(14))), "gas = 12 ∧ PC = 14"},
-		{And(Eq(Code(), "abc")), "code = abc"},
+		{And(Eq(Code(), []byte("abc"))), "code = [97 98 99]"},
 		{And(Lt(Gas(), uint64(4))), "gas < 4"},
 		{Eq(Op(Pc()), POP), "code[PC] = POP"},
 	}
@@ -32,7 +32,7 @@ func TestCondition_CreateSatisfyingState(t *testing.T) {
 		Lt(Gas(), 10),
 		And(Eq(Gas(), 1), Eq(Pc(), 2)),
 		And(Eq(Pc(), 2), Eq(Gas(), 1)),
-		Eq(Code(), "abc"),
+		Eq(Code(), []byte("abc")),
 		Eq(Op(Pc()), POP),
 		And(Eq(Pc(), 4), Eq(Op(Pc()), POP)),
 	}
@@ -53,7 +53,7 @@ func TestCondition_CanGenerateTestSamples(t *testing.T) {
 		Lt(Gas(), 10),
 		And(Eq(Gas(), 1), Eq(Pc(), 2)),
 		And(Eq(Pc(), 2), Eq(Gas(), 1)),
-		Eq(Code(), "abc"),
+		Eq(Code(), []byte("abc")),
 		Eq(Op(Pc()), POP),
 		And(Eq(Pc(), 4), Eq(Op(Pc()), POP)),
 	}
