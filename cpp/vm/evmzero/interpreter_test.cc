@@ -1507,6 +1507,15 @@ TEST(InterpreterTest, SHA3_OversizedMemory) {
   });
 }
 
+TEST(InterpreterTest, SHA3_GasCostOverflow) {
+  RunInterpreterTest({
+      .code = {op::SHA3},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1000000,
+      .stack_before = {uint256_t{0x8000000000000000, 0}, uint256_t{0x8000000000000000, 0}},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // ADDRESS
 TEST(InterpreterTest, ADDRESS) {
