@@ -287,6 +287,92 @@ func (c *in[T]) String() string {
 	return fmt.Sprintf("%s ∈ %v", c.lhs, c.rhs)
 }
 
+type isCode struct {
+	position Expression[uint16]
+}
+
+func IsCode(position Expression[uint16]) Condition {
+	return &isCode{position}
+}
+
+func (c *isCode) Check(s State) bool {
+	return s.IsCode(int(c.position.Eval(s)))
+}
+
+func (c *isCode) restrict(builder *StateBuilder) {
+	// For now only support that the PC needs to be pointing
+	// to a code position.
+	if _, isPc := c.position.(pc); !isPc {
+		panic("so far only examples where PC is pointing to Code can be generated")
+	}
+
+	// pick a random PC in the code.
+	length := builder.GetCodeLength()
+	pc := builder.random.Int31n(int32(length))
+	pc = int32(builder.state.GetNextCodePosition(int(pc)))
+	builder.SetPc(uint16(pc))
+}
+
+func (c *isCode) enumerateTestCases(builder *StateBuilder, consumer func(*StateBuilder)) {
+	positive := builder.Clone()
+	c.restrict(positive)
+	consumer(positive)
+
+	negative := builder.Clone()
+	IsData(c.position).restrict(negative)
+	consumer(negative)
+}
+
+func (c *isCode) String() string {
+	return fmt.Sprintf("isCode[%s]", c.position)
+}
+
+type isData struct {
+	position Expression[uint16]
+}
+
+func IsData(position Expression[uint16]) Condition {
+	return &isData{position}
+}
+
+func (c *isData) Check(s State) bool {
+	return !s.IsCode(int(c.position.Eval(s)))
+}
+
+func (c *isData) restrict(builder *StateBuilder) {
+	// For now only support that the PC needs to be pointing
+	// to a data position.
+	if _, isPc := c.position.(pc); !isPc {
+		panic("so far only examples where PC is pointing to Code can be generated")
+	}
+
+	// pick a random PC in the code.
+	length := builder.GetCodeLength()
+	pc := builder.random.Int31n(int32(length))
+
+	data, found := builder.state.GetNextDataPosition(int(pc))
+	if !found {
+		// TODO: restart with new code (make sure it was not fixed before)
+		panic("there is no data section in the program")
+	}
+
+	builder.SetPc(uint16(data))
+}
+
+func (c *isData) enumerateTestCases(builder *StateBuilder, consumer func(*StateBuilder)) {
+	positive := builder.Clone()
+	c.restrict(positive)
+	consumer(positive)
+
+	negative := builder.Clone()
+	IsCode(c.position).restrict(negative)
+	consumer(negative)
+}
+
+func (c *isData) String() string {
+	return fmt.Sprintf("isData[%s]", c.position)
+}
+
 // ----------------------------------------------------------------------------
 //                                   Domains
 // ----------------------------------------------------------------------------

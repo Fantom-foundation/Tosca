@@ -39,7 +39,17 @@ var Specification = ct.NewSpecification(
 		Name: "invalid_operation",
 		Condition: ct.And(
 			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
 			ct.In(ct.Op(ct.Pc()), getInvalidOps()),
+		),
+		Effect: Fail(),
+	},
+
+	ct.Rule{
+		Name: "invalid_pc",
+		Condition: ct.And(
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsData(ct.Pc()),
 		),
 		Effect: Fail(),
 	},
@@ -50,6 +60,7 @@ var Specification = ct.NewSpecification(
 		Name: "stop_terminates_interpreter",
 		Condition: ct.And(
 			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
 			ct.Eq(ct.Op(ct.Pc()), ct.STOP),
 		),
 		Effect: ct.Update(func(s ct.State) ct.State {
@@ -64,6 +75,7 @@ var Specification = ct.NewSpecification(
 		Name: "pop_with_too_little_gas",
 		Condition: ct.And(
 			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
 			ct.Eq(ct.Op(ct.Pc()), ct.POP),
 			ct.Lt(ct.Gas(), 2),
 		),
@@ -74,6 +86,7 @@ var Specification = ct.NewSpecification(
 		Name: "pop_with_no_element",
 		Condition: ct.And(
 			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
 			ct.Eq(ct.Op(ct.Pc()), ct.POP),
 			ct.Ge(ct.Gas(), 2),
 			ct.Lt(ct.StackSize(), 1),
@@ -85,6 +98,7 @@ var Specification = ct.NewSpecification(
 		Name: "pop_regular",
 		Condition: ct.And(
 			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
 			ct.Eq(ct.Op(ct.Pc()), ct.POP),
 			ct.Ge(ct.Gas(), 2),
 			ct.Ge(ct.StackSize(), 1),
@@ -103,6 +117,7 @@ var Specification = ct.NewSpecification(
 		Name: "push1_with_too_little_gas",
 		Condition: ct.And(
 			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
 			ct.Eq(ct.Op(ct.Pc()), ct.PUSH1),
 			ct.Lt(ct.Gas(), 3),
 		),
@@ -113,6 +128,7 @@ var Specification = ct.NewSpecification(
 		Name: "push1_with_no_empty_space",
 		Condition: ct.And(
 			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
 			ct.Eq(ct.Op(ct.Pc()), ct.PUSH1),
 			ct.Ge(ct.Gas(), 3),
 			ct.Ge(ct.StackSize(), 1024),
@@ -124,6 +140,7 @@ var Specification = ct.NewSpecification(
 		Name: "push1_regular",
 		Condition: ct.And(
 			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
 			ct.Eq(ct.Op(ct.Pc()), ct.PUSH1),
 			ct.Ge(ct.Gas(), 3),
 			ct.Lt(ct.StackSize(), 1024),
@@ -146,6 +163,7 @@ var Specification = ct.NewSpecification(
 		Name: "add_with_too_little_gas",
 		Condition: ct.And(
 			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
 			ct.Eq(ct.Op(ct.Pc()), ct.ADD),
 			ct.Lt(ct.Gas(), 3),
 		),
@@ -156,6 +174,7 @@ var Specification = ct.NewSpecification(
 		Name: "add_with_too_few_elements",
 		Condition: ct.And(
 			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
 			ct.Eq(ct.Op(ct.Pc()), ct.ADD),
 			ct.Ge(ct.Gas(), 3),
 			ct.Lt(ct.StackSize(), 2),
@@ -167,6 +186,7 @@ var Specification = ct.NewSpecification(
 		Name: "add_regular",
 		Condition: ct.And(
 			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
 			ct.Eq(ct.Op(ct.Pc()), ct.ADD),
 			ct.Ge(ct.Gas(), 3),
 			ct.Ge(ct.StackSize(), 2),
