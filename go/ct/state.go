@@ -43,24 +43,72 @@ type State struct {
 	Stack  Stack
 }
 
-func (s State) Equal(other State) bool {
+// TODO: test this
+func (s *State) IsCode(position int) bool {
+	if position >= len(s.Code) {
+		return false
+	}
+	return s.GetNextCodePosition(position) == position
+}
+
+func (s *State) GetNextCodePosition(start int) int {
+	if start >= len(s.Code) {
+		return 0
+	}
+	i := 0
+	for ; i < start; i++ {
+		cur := s.Code[i]
+		if byte(PUSH1) <= cur && cur <= byte(PUSH32) {
+			i = i + int(cur-byte(PUSH1)+1)
+		}
+	}
+	return i
+}
+
+func (s *State) GetNextDataPosition(start int) (position int, found bool) {
+	if start >= len(s.Code) {
+		start = 0
+	}
+	i := 0
+	for ; i < start; i++ {
+		cur := s.Code[i]
+		if byte(PUSH1) <= cur && cur <= byte(PUSH32) {
+			i = i + int(cur-byte(PUSH1)+1)
+		}
+	}
+	if i > start {
+		return start, true
+	}
+	// Keep searching for next data section.
+	for ; i < len(s.Code); i++ {
+		cur := s.Code[i]
+		if byte(PUSH1) <= cur && cur <= byte(PUSH32) {
+			return i + 1, true
+		}
+	}
+	return 0, false
+}
+
+func (s *State) Equal(other *State) bool {
 	return reflect.DeepEqual(s, other)
 }
 
-func (s State) Clone() State {
-	res := s
+func (s *State) Clone() *State {
+	res := *s
 	res.Code = make([]byte, len(s.Code))
 	copy(res.Code, s.Code)
 	res.Stack = s.Stack.Clone()
-	return res
+	return &res
 }
 
-func (s State) String() string {
+func (s *State) String() string {
 	builder := strings.Builder{}
 	builder.WriteString("{\n")
 	builder.WriteString(fmt.Sprintf("\tStatus: %v,\n", s.Status))
 	builder.WriteString(fmt.Sprintf("\tPc: %d", s.Pc))
-	if s.Pc < uint16(len(s.Code)) {
+	if !s.IsCode(int(s.Pc)) {
+		builder.WriteString(" (points to data)\n")
+	} else if s.Pc < uint16(len(s.Code)) {
 		builder.WriteString(fmt.Sprintf(" (operation: %v)\n", OpCode(s.Code[s.Pc])))
 	} else {
 		builder.WriteString(" (out of bound)\n")

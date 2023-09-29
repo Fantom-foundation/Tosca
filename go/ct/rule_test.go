@@ -15,6 +15,8 @@ func TestCondition_Printing(t *testing.T) {
 		{And(Eq(Code(), []byte("abc"))), "code = [97 98 99]"},
 		{And(Lt(Gas(), uint64(4))), "gas < 4"},
 		{Eq(Op(Pc()), POP), "code[PC] = POP"},
+		{IsCode(Pc()), "isCode[PC]"},
+		{IsData(Pc()), "isData[PC]"},
 	}
 
 	for _, test := range tests {
@@ -35,12 +37,14 @@ func TestCondition_CreateSatisfyingState(t *testing.T) {
 		Eq(Code(), []byte("abc")),
 		Eq(Op(Pc()), POP),
 		And(Eq(Pc(), 4), Eq(Op(Pc()), POP)),
+		IsCode(Pc()),
+		IsData(Pc()),
 	}
 
 	for _, test := range tests {
 		res := GetSatisfyingState(Rule{Condition: test})
 		if !test.Check(res) {
-			t.Errorf("Generated state does not satisfy condition %v: %v", test, res)
+			t.Errorf("Generated state does not satisfy condition %v: %v", test, &res)
 		}
 	}
 }
@@ -56,6 +60,8 @@ func TestCondition_CanGenerateTestSamples(t *testing.T) {
 		Eq(Code(), []byte("abc")),
 		Eq(Op(Pc()), POP),
 		And(Eq(Pc(), 4), Eq(Op(Pc()), POP)),
+		IsCode(Pc()),
+		IsData(Pc()),
 	}
 
 	for _, test := range tests {

@@ -51,7 +51,7 @@ func NewStateBuilderWithSeed(seed int64) *StateBuilder {
 
 func (b *StateBuilder) Clone() *StateBuilder {
 	return &StateBuilder{
-		state:  b.state.Clone(),
+		state:  *b.state.Clone(),
 		fixed:  b.fixed,
 		random: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
@@ -92,6 +92,11 @@ func (b *StateBuilder) SetCodeLength(length uint16) {
 	b.state.Code = code
 
 	b.markFixed(sp_CodeLength)
+}
+
+func (b *StateBuilder) GetCodeLength() uint16 {
+	b.fixCodeLength(0)
+	return uint16(len(b.state.Code))
 }
 
 func (b *StateBuilder) fixCodeLength(minimumLength uint16) {

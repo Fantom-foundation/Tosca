@@ -13,10 +13,10 @@ func TestSpecification_RulesCoverTestCases(t *testing.T) {
 	for _, cur := range cases {
 		rules := Specification.GetRulesFor(cur)
 		if len(rules) == 0 {
-			t.Fatalf("no specification for state %v", cur)
+			t.Fatalf("no specification for state %v", &cur)
 		}
 		if len(rules) > 1 {
-			t.Fatalf("multiple rules for state %v: %v", cur, rules)
+			t.Fatalf("multiple rules for state %v: %v", &cur, rules)
 		}
 	}
 }
@@ -28,10 +28,10 @@ func TestSpecification_RulesCoverRandomStates(t *testing.T) {
 		state := ct.GetRandomState()
 		rules := Specification.GetRulesFor(state)
 		if len(rules) == 0 {
-			t.Fatalf("no specification for state %v", state)
+			t.Fatalf("no specification for state %v", &state)
 		}
 		if len(rules) > 1 {
-			t.Fatalf("multiple rules for state %v: %v", state, rules)
+			t.Fatalf("multiple rules for state %v: %v", &state, rules)
 		}
 	}
 }
