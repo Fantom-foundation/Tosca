@@ -26,7 +26,7 @@ func (s *specification) GetRulesFor(state State) []Rule {
 func (s *specification) GetTestCases() []State {
 	res := []State{}
 	for _, rule := range s.rules {
-		res = append(res, GetTestSamples(rule.Condition)...)
+		res = append(res, GetTestSamples(rule)...)
 	}
 	return res
 }

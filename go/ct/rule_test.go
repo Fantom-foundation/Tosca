@@ -38,7 +38,7 @@ func TestCondition_CreateSatisfyingState(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		res := GetSatisfyingState(test)
+		res := GetSatisfyingState(Rule{Condition: test})
 		if !test.Check(res) {
 			t.Errorf("Generated state does not satisfy condition %v: %v", test, res)
 		}
@@ -59,11 +59,43 @@ func TestCondition_CanGenerateTestSamples(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		samples := GetTestSamples(test)
+		samples := GetTestSamples(Rule{Condition: test})
 		matches := 0
 		misses := 0
 		for _, sample := range samples {
 			if test.Check(sample) {
+				matches++
+			} else {
+				misses++
+			}
+		}
+		if matches == 0 {
+			t.Errorf("none of the %d generated samples is a match", len(samples))
+		}
+		if len(samples) > 1 && misses == 0 {
+			t.Errorf("none of the %d generated samples is a miss", len(samples))
+		}
+	}
+}
+
+func TestCondition_CanGenerateTestSamplesForParameters(t *testing.T) {
+	tests := []Rule{
+		{
+			Condition: Eq(StackSize(), 4),
+			Parameter: []Parameter{
+				NumericParameter{},
+				NumericParameter{},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		samples := GetTestSamples(test)
+
+		matches := 0
+		misses := 0
+		for _, sample := range samples {
+			if test.Condition.Check(sample) {
 				matches++
 			} else {
 				misses++
