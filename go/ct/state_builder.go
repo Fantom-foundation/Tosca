@@ -51,7 +51,7 @@ func NewStateBuilderWithSeed(seed int64) *StateBuilder {
 
 func (b *StateBuilder) Clone() *StateBuilder {
 	return &StateBuilder{
-		state:  b.state,
+		state:  b.state.Clone(),
 		fixed:  b.fixed,
 		random: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
@@ -211,29 +211,38 @@ func (b *StateBuilder) fixGas() {
 
 // --- Stack ---
 
-func (b *StateBuilder) SetStackSize(size uint16) {
+func (b *StateBuilder) SetStackSize(size int) {
 	if b.isFixed(sp_StackSize) {
 		panic("cannot only define stack size once")
 	}
 	b.markFixed(sp_StackSize)
-	b.state.Stack = make([]uint256.Int, size)
-	for i := range b.state.Stack {
+	for i := 0; i < size; i++ {
 		var value [32]byte
 		b.random.Read(value[:])
-		b.state.Stack[i].SetBytes(value[:])
+		var element uint256.Int
+		element.SetBytes(value[:])
+		b.state.Stack.Push(element)
 	}
 }
 
-func (b *StateBuilder) GetStackSize() uint16 {
+func (b *StateBuilder) GetStackSize() int {
 	b.fixStackSize()
-	return uint16(len(b.state.Stack))
+	return b.state.Stack.Size()
 }
 
 func (b *StateBuilder) fixStackSize() {
 	if b.isFixed(sp_StackSize) {
 		return
 	}
-	b.SetStackSize(uint16(b.random.Int31n(1024 + 10))) // ~ 1% chance of overflow
+	b.SetStackSize(int(b.random.Int31n(1025))) // range [0,1024]
+}
+
+func (b *StateBuilder) SetStackValue(pos int, value uint256.Int) {
+	b.fixStackSize()
+	if pos >= b.state.Stack.Size() {
+		return
+	}
+	b.state.Stack.Set(pos, value)
 }
 
 // --- Build ---

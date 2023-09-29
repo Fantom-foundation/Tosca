@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/holiman/uint256"
 	"golang.org/x/exp/slices"
 )
 
@@ -26,6 +27,7 @@ type Effect interface {
 type Rule struct {
 	Name      string
 	Condition Condition
+	Parameter []Parameter
 	Effect    Effect
 }
 
@@ -38,6 +40,10 @@ type Domain[T any] interface {
 	SamplesForAll([]T) []T
 }
 
+type Parameter interface {
+	Samples() []uint256.Int
+}
+
 type Expression[T any] interface {
 	Domain() Domain[T]
 	Eval(State) T
@@ -48,22 +54,36 @@ type Expression[T any] interface {
 }
 
 // GetSatisfyingState produces a state satisfying the given condition.
-func GetSatisfyingState(condition Condition) State {
+func GetSatisfyingState(rule Rule) State {
 	builder := NewStateBuilder()
-	condition.restrict(builder)
+	rule.Condition.restrict(builder)
 	return builder.Build()
 }
 
 // GetTestSamples produces a list of states representing relevant test
 // cases for the given condition. At least one of those cases is satisfying
 // the condition.
-func GetTestSamples(condition Condition) []State {
+func GetTestSamples(rule Rule) []State {
 	res := []State{}
 	builder := NewStateBuilder()
-	condition.enumerateTestCases(builder, func(s *StateBuilder) {
-		res = append(res, s.Build())
+	rule.Condition.enumerateTestCases(builder, func(s *StateBuilder) {
+		enumerateParameters(0, rule.Parameter, s, func(s *StateBuilder) {
+			res = append(res, s.Build())
+		})
 	})
 	return res
+}
+
+func enumerateParameters(pos int, params []Parameter, builder *StateBuilder, consume func(s *StateBuilder)) {
+	if len(params) == 0 {
+		consume(builder)
+		return
+	}
+	for _, value := range params[0].Samples() {
+		clone := builder.Clone()
+		clone.SetStackValue(pos, value)
+		enumerateParameters(pos+1, params[1:], clone, consume)
+	}
 }
 
 // ----------------------------------------------------------------------------
@@ -368,23 +388,27 @@ func (opCodeDomain) SamplesForAll([]OpCode) []OpCode {
 
 type stackSizeDomain struct{}
 
-func (stackSizeDomain) Equal(a uint16, b uint16) bool { return a == b }
-func (stackSizeDomain) Less(a uint16, b uint16) bool  { return a < b }
-func (stackSizeDomain) Predecessor(a uint16) uint16   { return a - 1 }
-func (stackSizeDomain) Successor(a uint16) uint16     { return a + 1 }
-func (d stackSizeDomain) Samples(a uint16) []uint16 {
-	return d.SamplesForAll([]uint16{a})
+func (stackSizeDomain) Equal(a int, b int) bool { return a == b }
+func (stackSizeDomain) Less(a int, b int) bool  { return a < b }
+func (stackSizeDomain) Predecessor(a int) int   { return a - 1 }
+func (stackSizeDomain) Successor(a int) int     { return a + 1 }
+func (d stackSizeDomain) Samples(a int) []int {
+	return d.SamplesForAll([]int{a})
 }
-func (stackSizeDomain) SamplesForAll(as []uint16) []uint16 {
-	res := []uint16{0, 1023, 1024, 1025} // extreme values and overflow
+func (stackSizeDomain) SamplesForAll(as []int) []int {
+	res := []int{0, 1024} // extreme values
 
 	// Test every element off by one.
 	for _, a := range as {
-		if a != 0 {
-			res = append(res, a-1)
+		if 0 <= a && a <= 1024 {
+			if a != 0 {
+				res = append(res, a-1)
+			}
+			res = append(res, a)
+			if a != 1024 {
+				res = append(res, a+1)
+			}
 		}
-		res = append(res, a)
-		res = append(res, a+1)
 	}
 
 	// TODO: consider removing duplicates.
@@ -543,21 +567,21 @@ func (o op) String() string {
 
 type stackSize struct{}
 
-func StackSize() Expression[uint16] {
+func StackSize() Expression[int] {
 	return stackSize{}
 }
 
-func (stackSize) Domain() Domain[uint16] { return stackSizeDomain{} }
+func (stackSize) Domain() Domain[int] { return stackSizeDomain{} }
 
-func (stackSize) Eval(s State) uint16 {
-	return uint16(len(s.Stack))
+func (stackSize) Eval(s State) int {
+	return s.Stack.Size()
 }
 
-func (stackSize) eval(s *StateBuilder) uint16 {
+func (stackSize) eval(s *StateBuilder) int {
 	return s.GetStackSize()
 }
 
-func (stackSize) set(stackSize uint16, builder *StateBuilder) {
+func (stackSize) set(stackSize int, builder *StateBuilder) {
 	builder.SetStackSize(stackSize)
 }
 
@@ -587,6 +611,24 @@ func (e *effect) String() string {
 	return "change"
 }
 
-func NoEffect() Effect {
-	return Update(func(s State) State { return s })
+// ----------------------------------------------------------------------------
+//                                   Parameter
+// ----------------------------------------------------------------------------
+
+type NumericParameter struct{}
+
+func (NumericParameter) Samples() []uint256.Int {
+	return []uint256.Int{
+		*uint256.NewInt(0),
+		*uint256.NewInt(1),
+		*uint256.NewInt(1 << 8),
+		*uint256.NewInt(1 << 16),
+		*uint256.NewInt(1 << 32),
+		*uint256.NewInt(1 << 48),
+		*uint256.NewInt(1).Lsh(uint256.NewInt(1), 64),
+		*uint256.NewInt(1).Lsh(uint256.NewInt(1), 128),
+		*uint256.NewInt(1).Lsh(uint256.NewInt(1), 192),
+		*uint256.NewInt(1).Lsh(uint256.NewInt(1), 255),
+		*uint256.NewInt(0).Not(uint256.NewInt(0)),
+	}
 }
