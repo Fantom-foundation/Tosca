@@ -344,7 +344,7 @@ func (s *State) opPUSH(n int) {
 	if !s.applyGasCost(3) {
 		return
 	}
-	if len(s.Stack)+n > MaxStackLength {
+	if len(s.Stack)+1 > MaxStackLength {
 		s.Status = ErrorStackOverflow
 		return
 	}
