@@ -780,7 +780,7 @@ func (o op) set(op OpCode, builder *StateBuilder) {
 	pos := o.position.eval(builder)
 	if !pos.IsUint64() || pos.Uint64() > uint64(math.MaxUint16) {
 		// TODO: provide feedback to the caller that this set was not effective
-		fmt.Printf("failed to set operation %d to %v\n", pos, op)
+		fmt.Printf("WARNING failed to set operation %d to %v\n", pos, op)
 		//panic("out of range")
 		return
 	}

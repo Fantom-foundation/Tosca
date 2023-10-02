@@ -1,6 +1,7 @@
 package ct
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"strings"
@@ -168,4 +169,36 @@ func (s *Stack) Pop() uint256.Int {
 
 func (s *Stack) Push(value uint256.Int) {
 	s.stack = append(s.stack, value)
+}
+
+func Diff(a *State, b *State) []string {
+	res := []string{}
+
+	if a.Status != b.Status {
+		res = append(res, fmt.Sprintf("Different status: %v vs %v", a.Status, b.Status))
+	}
+
+	if a.Gas != b.Gas {
+		res = append(res, fmt.Sprintf("Different gas: %v vs %v", a.Gas, b.Gas))
+	}
+
+	if a.Pc != b.Pc {
+		res = append(res, fmt.Sprintf("Different pc: %v vs %v", a.Pc, b.Pc))
+	}
+
+	if !bytes.Equal(a.Code, b.Code) {
+		res = append(res, "Different code!")
+	}
+
+	if as, bs := a.Stack.Size(), b.Stack.Size(); as != bs {
+		res = append(res, fmt.Sprintf("Different stack size: %v vs %v", as, bs))
+	} else {
+		for i := 0; i < as; i++ {
+			if av, bv := a.Stack.Get(i), b.Stack.Get(i); !av.Eq(&bv) {
+				res = append(res, fmt.Sprintf("Different stack value at position %d: %x vs %x", i, av, bv))
+			}
+		}
+	}
+
+	return res
 }
