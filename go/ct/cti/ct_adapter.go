@@ -23,7 +23,7 @@ func decodeCtState(input ct.State) (output State) {
 	output.Status = Status(input.Status)
 
 	output.Pc = int(input.Pc)
-	output.GasLeft = int64(input.Gas)
+	output.GasLeft = input.Gas
 
 	output.Code = make([]OpCode, len(input.Code))
 	for i := range input.Code {
@@ -49,11 +49,7 @@ func encodeCtState(input State) (output ct.State, err error) {
 		return output, errors.New("program counter out of range")
 	}
 	output.Pc = uint16(input.Pc)
-
-	if input.GasLeft < 0 {
-		return output, errors.New("gas left out of range")
-	}
-	output.Gas = uint64(input.GasLeft)
+	output.Gas = input.GasLeft
 
 	output.Code = make([]byte, len(input.Code))
 	for i := range input.Code {

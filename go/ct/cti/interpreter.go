@@ -49,7 +49,7 @@ const (
 type State struct {
 	Status  Status
 	Pc      int
-	GasLeft int64
+	GasLeft uint64
 	Code    []OpCode
 	Stack   []uint256.Int
 }
@@ -130,6 +130,15 @@ func (s *State) Step() {
 	}
 }
 
+func (s *State) applyGasCost(cost uint64) bool {
+	if cost > s.GasLeft {
+		s.Status = ErrorGas
+		return false
+	}
+	s.GasLeft -= cost
+	return true
+}
+
 func (s *State) pushStack(i *uint256.Int) {
 	s.Stack = append(s.Stack, *i)
 }
@@ -164,8 +173,7 @@ func (s *State) checkJumpDest(target uint256.Int) bool {
 }
 
 func (s *State) opADD() {
-	if s.GasLeft -= 3; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(3) {
 		return
 	}
 	if len(s.Stack) < 2 {
@@ -181,8 +189,7 @@ func (s *State) opADD() {
 }
 
 func (s *State) opLT() {
-	if s.GasLeft -= 3; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(3) {
 		return
 	}
 	if len(s.Stack) < 2 {
@@ -202,8 +209,7 @@ func (s *State) opLT() {
 }
 
 func (s *State) opEQ() {
-	if s.GasLeft -= 3; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(3) {
 		return
 	}
 	if len(s.Stack) < 2 {
@@ -223,8 +229,7 @@ func (s *State) opEQ() {
 }
 
 func (s *State) opAND() {
-	if s.GasLeft -= 3; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(3) {
 		return
 	}
 	if len(s.Stack) < 2 {
@@ -240,8 +245,7 @@ func (s *State) opAND() {
 }
 
 func (s *State) opOR() {
-	if s.GasLeft -= 3; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(3) {
 		return
 	}
 	if len(s.Stack) < 2 {
@@ -257,8 +261,7 @@ func (s *State) opOR() {
 }
 
 func (s *State) opNOT() {
-	if s.GasLeft -= 3; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(3) {
 		return
 	}
 	if len(s.Stack) < 1 {
@@ -273,8 +276,7 @@ func (s *State) opNOT() {
 }
 
 func (s *State) opJUMP() {
-	if s.GasLeft -= 8; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(8) {
 		return
 	}
 	if len(s.Stack) < 1 {
@@ -292,8 +294,7 @@ func (s *State) opJUMP() {
 }
 
 func (s *State) opJUMPI() {
-	if s.GasLeft -= 10; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(10) {
 		return
 	}
 	if len(s.Stack) < 2 {
@@ -318,8 +319,7 @@ func (s *State) opJUMPI() {
 }
 
 func (s *State) opJUMPDEST() {
-	if s.GasLeft -= 1; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(1) {
 		return
 	}
 
@@ -327,8 +327,7 @@ func (s *State) opJUMPDEST() {
 }
 
 func (s *State) opPOP() {
-	if s.GasLeft -= 2; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(2) {
 		return
 	}
 	if len(s.Stack) < 1 {
@@ -342,8 +341,7 @@ func (s *State) opPOP() {
 }
 
 func (s *State) opPUSH(n int) {
-	if s.GasLeft -= 3; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(3) {
 		return
 	}
 	if len(s.Stack)+n > MaxStackLength {
@@ -366,8 +364,7 @@ func (s *State) opPUSH(n int) {
 }
 
 func (s *State) opDUP(n int) {
-	if s.GasLeft -= 3; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(3) {
 		return
 	}
 	if len(s.Stack) < n {
@@ -385,8 +382,7 @@ func (s *State) opDUP(n int) {
 }
 
 func (s *State) opSWAP(n int) {
-	if s.GasLeft -= 3; s.GasLeft < 0 {
-		s.Status = ErrorGas
+	if !s.applyGasCost(3) {
 		return
 	}
 	if len(s.Stack) < n+1 {
