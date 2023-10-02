@@ -312,6 +312,7 @@ func TestInstructionDataInitialization(t *testing.T) {
 		{vm.REVERT, []error{vm.ErrExecutionReverted}},
 		{vm.SHA3, nil},
 		{vm.LOG0, nil},
+		{vm.CODECOPY, nil},
 	}
 
 	sizeNormal, _ := big.NewInt(0).SetString("0x10000", 0)
@@ -328,7 +329,7 @@ func TestInstructionDataInitialization(t *testing.T) {
 			{"over size normal offset", instructionCase.instruction, sizeOverUint64, sizeNormal, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
 			{"normal size huge offset", instructionCase.instruction, sizeNormal, sizeHuge, []error{vm.ErrOutOfGas}},
 			{"normal size over offset", instructionCase.instruction, sizeNormal, sizeOverUint64, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-			{"normal size over offset", instructionCase.instruction, sizeHuge, sizeHuge, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+			{"huge size huge offset", instructionCase.instruction, sizeHuge, sizeHuge, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
 			{"zero size over offset", instructionCase.instruction, big.NewInt(0), sizeOverUint64, instructionCase.okError},
 		}
 		tests = append(tests, testForInstruction...)
@@ -349,6 +350,9 @@ func TestInstructionDataInitialization(t *testing.T) {
 					setDefaultCallStateDBMock(mockStateDB, common.Address{byte(0)}, make([]byte, 0))
 
 					callStackValues := []*big.Int{test.size, test.offset}
+					if test.instruction == vm.CODECOPY {
+						callStackValues = append(callStackValues, test.offset)
+					}
 					code, _ := addValuesToStack(callStackValues, 0)
 					code = append(code, byte(test.instruction))
 
