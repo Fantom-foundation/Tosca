@@ -1,6 +1,7 @@
 package ct
 
 type Specification interface {
+	GetRules() []Rule
 	GetRulesFor(State) []Rule
 	GetTestCases() []State
 }
@@ -11,6 +12,10 @@ type specification struct {
 
 func NewSpecification(rules ...Rule) Specification {
 	return &specification{rules}
+}
+
+func (s *specification) GetRules() []Rule {
+	return s.rules
 }
 
 func (s *specification) GetRulesFor(state State) []Rule {

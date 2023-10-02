@@ -11,7 +11,7 @@ func TestCtiAdapter(t *testing.T) {
 	s := ct.State{
 		Status: ct.Running,
 		Gas:    100,
-		Code:   []byte{ct.ADD},
+		Code:   []byte{byte(ct.ADD)},
 		Stack:  ct.NewStack([]uint256.Int{*uint256.NewInt(21), *uint256.NewInt(42)}),
 	}
 

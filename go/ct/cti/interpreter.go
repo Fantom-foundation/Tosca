@@ -83,16 +83,18 @@ func (s *State) Step() {
 		s.Status = Done
 	case ADD:
 		s.opADD()
-	case LT:
-		s.opLT()
-	case EQ:
-		s.opEQ()
-	case AND:
-		s.opAND()
-	case OR:
-		s.opOR()
-	case NOT:
-		s.opNOT()
+		/*
+			case LT:
+				s.opLT()
+			case EQ:
+				s.opEQ()
+			case AND:
+				s.opAND()
+			case OR:
+				s.opOR()
+			case NOT:
+				s.opNOT()
+		*/
 	case JUMP:
 		s.opJUMP()
 	case JUMPI:
@@ -103,24 +105,26 @@ func (s *State) Step() {
 		s.opPOP()
 	case PUSH1:
 		s.opPUSH(1)
-	case PUSH2:
-		s.opPUSH(2)
-	case PUSH16:
-		s.opPUSH(16)
-	case PUSH32:
-		s.opPUSH(32)
-	case DUP1:
-		s.opDUP(1)
-	case DUP2:
-		s.opDUP(2)
-	case DUP16:
-		s.opDUP(16)
-	case SWAP1:
-		s.opSWAP(1)
-	case SWAP2:
-		s.opSWAP(2)
-	case SWAP16:
-		s.opSWAP(16)
+		/*
+			case PUSH2:
+				s.opPUSH(2)
+			case PUSH16:
+				s.opPUSH(16)
+			case PUSH32:
+				s.opPUSH(32)
+			case DUP1:
+				s.opDUP(1)
+			case DUP2:
+				s.opDUP(2)
+			case DUP16:
+				s.opDUP(16)
+			case SWAP1:
+				s.opSWAP(1)
+			case SWAP2:
+				s.opSWAP(2)
+			case SWAP16:
+				s.opSWAP(16)
+		*/
 	default:
 		s.Status = Invalid
 	}
