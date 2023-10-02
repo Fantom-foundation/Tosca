@@ -138,6 +138,10 @@ type Stack struct {
 	stack []uint256.Int
 }
 
+func NewStack(values []uint256.Int) Stack {
+	return Stack{values}
+}
+
 func (s *Stack) Clone() Stack {
 	res := make([]uint256.Int, len(s.stack))
 	copy(res, s.stack)
