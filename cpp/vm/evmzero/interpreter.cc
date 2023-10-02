@@ -628,9 +628,14 @@ struct Impl<OpCode::CODECOPY> {
 
     const auto [mem_cost, memory_offset, size] = ctx.MemoryExpansionCost(memory_offset_u256, size_u256);
     const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
-    int64_t dynamic_gas = mem_cost + 3 * minimum_word_size;
-    if (gas < dynamic_gas) [[unlikely]]
-      return {.dynamic_gas_costs = dynamic_gas};
+
+    int64_t dynamic_gas = 0;
+    {
+      bool overflowed = TOSCA_CHECK_OVERFLOW_MUL(3, minimum_word_size, &dynamic_gas) ||
+                        TOSCA_CHECK_OVERFLOW_ADD(dynamic_gas, mem_cost, &dynamic_gas);
+      if (overflowed || gas < dynamic_gas) [[unlikely]]
+        return {.state = RunState::kErrorGas};
+    }
 
     std::span<const uint8_t> code_view;
     if (code_offset_u256 < ctx.padded_code.size() - kStopBytePadding) {
