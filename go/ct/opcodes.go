@@ -7,6 +7,11 @@ type OpCode byte
 const (
 	STOP     OpCode = 0
 	ADD      OpCode = 0x01
+	LT       OpCode = 0x10
+	EQ       OpCode = 0x14
+	AND      OpCode = 0x16
+	OR       OpCode = 0x17
+	NOT      OpCode = 0x19
 	POP      OpCode = 0x50
 	JUMP     OpCode = 0x56
 	JUMPI    OpCode = 0x57
@@ -23,6 +28,16 @@ func (op OpCode) String() string {
 		return "STOP"
 	case ADD:
 		return "ADD"
+	case LT:
+		return "LT"
+	case EQ:
+		return "EQ"
+	case AND:
+		return "AND"
+	case OR:
+		return "OR"
+	case NOT:
+		return "NOT"
 	case POP:
 		return "POP"
 	case JUMP:
