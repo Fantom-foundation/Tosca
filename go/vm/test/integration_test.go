@@ -313,6 +313,7 @@ func TestInstructionDataInitialization(t *testing.T) {
 		{vm.SHA3, nil},
 		{vm.LOG0, nil},
 		{vm.CODECOPY, nil},
+		{vm.EXTCODECOPY, nil},
 	}
 
 	sizeNormal, _ := big.NewInt(0).SetString("0x10000", 0)
@@ -350,8 +351,11 @@ func TestInstructionDataInitialization(t *testing.T) {
 					setDefaultCallStateDBMock(mockStateDB, common.Address{byte(0)}, make([]byte, 0))
 
 					callStackValues := []*big.Int{test.size, test.offset}
-					if test.instruction == vm.CODECOPY {
+					if test.instruction == vm.CODECOPY || test.instruction == vm.EXTCODECOPY {
 						callStackValues = append(callStackValues, test.offset)
+					}
+					if test.instruction == vm.EXTCODECOPY {
+						callStackValues = append(callStackValues, big.NewInt(0))
 					}
 					code, _ := addValuesToStack(callStackValues, 0)
 					code = append(code, byte(test.instruction))
