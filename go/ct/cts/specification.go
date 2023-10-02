@@ -275,6 +275,128 @@ var Specification = ct.NewSpecification(
 			return s
 		}),
 	},
+
+	// --- JUMPI ---
+
+	ct.Rule{
+		Name: "jumpi_with_too_little_gas",
+		Condition: ct.And(
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMPI),
+			ct.Lt(ct.Gas(), 10),
+		),
+		Effect: Fail(),
+	},
+
+	ct.Rule{
+		Name: "jumpi_with_too_few_elements",
+		Condition: ct.And(
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMPI),
+			ct.Ge(ct.Gas(), 10),
+			ct.Lt(ct.StackSize(), 2),
+		),
+		Effect: Fail(),
+	},
+
+	ct.Rule{
+		Name: "jumpi_not_taken",
+		Condition: ct.And(
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMPI),
+			ct.Ge(ct.Gas(), 10),
+			ct.Ge(ct.StackSize(), 2),
+			ct.Eq(ct.Param(1), *uint256.NewInt(0)),
+		),
+		Effect: ct.Update(func(s ct.State) ct.State {
+			s.Gas = s.Gas - 10
+			s.Stack.Pop()
+			s.Stack.Pop()
+			s.Pc = s.Pc + 1
+			return s
+		}),
+	},
+
+	ct.Rule{
+		Name: "jumpi_to_data",
+		Condition: ct.And(
+			ct.Ge(ct.StackSize(), 2),
+			ct.IsData(ct.Param(0)),
+			ct.Ne(ct.Param(1), *uint256.NewInt(0)),
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMPI),
+			ct.Ge(ct.Gas(), 10),
+		),
+		Effect: Fail(),
+	},
+
+	ct.Rule{
+		Name: "jumpi_to_invalid_destination",
+		Condition: ct.And(
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMPI),
+			ct.Ge(ct.Gas(), 10),
+			ct.Ge(ct.StackSize(), 2),
+			ct.IsCode(ct.Param(0)),
+			ct.Ne(ct.Op(ct.Param(0)), ct.JUMPDEST),
+			ct.Ne(ct.Param(1), *uint256.NewInt(0)),
+		),
+		Effect: Fail(),
+	},
+
+	ct.Rule{
+		Name: "jumpi_valid_target",
+		Condition: ct.And(
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMPI),
+			ct.Ge(ct.Gas(), 10),
+			ct.Ge(ct.StackSize(), 2),
+			ct.IsCode(ct.Param(0)),
+			ct.Eq(ct.Op(ct.Param(0)), ct.JUMPDEST),
+			ct.Ne(ct.Param(1), *uint256.NewInt(0)),
+		),
+		Effect: ct.Update(func(s ct.State) ct.State {
+			s.Gas = s.Gas - 10
+			target := s.Stack.Pop()
+			s.Stack.Pop()
+			s.Pc = uint16(target.Uint64())
+			return s
+		}),
+	},
+
+	// --- JUMPDEST ---
+
+	ct.Rule{
+		Name: "jumpdest_with_too_little_gas",
+		Condition: ct.And(
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMPDEST),
+			ct.Lt(ct.Gas(), 1),
+		),
+		Effect: Fail(),
+	},
+
+	ct.Rule{
+		Name: "jumpdest_regular",
+		Condition: ct.And(
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMPDEST),
+			ct.Ge(ct.Gas(), 1),
+		),
+		Effect: ct.Update(func(s ct.State) ct.State {
+			s.Gas = s.Gas - 1
+			s.Pc++
+			return s
+		}),
+	},
 )
 
 func NoEffect() ct.Effect {
@@ -294,7 +416,7 @@ func getInvalidOps() []ct.OpCode {
 	for i := 0; i < 256; i++ {
 		op := ct.OpCode(i)
 		switch op {
-		case ct.STOP, ct.POP, ct.ADD, ct.PUSH1, ct.JUMP:
+		case ct.STOP, ct.POP, ct.ADD, ct.PUSH1, ct.JUMP, ct.JUMPI, ct.JUMPDEST:
 			// skip
 		default:
 			res = append(res, op)
