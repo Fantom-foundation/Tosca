@@ -35,6 +35,11 @@ func TestComplianceTest_RandomTestCases(t *testing.T) {
 func run(spec ct.Specification, interpreter cti.CtAdapter, state ct.State, t *testing.T) {
 	t.Helper()
 
+	// Skip test where PC is pointing to Data (this are unreachable states).
+	if ct.IsData(ct.Pc()).Check(state) {
+		return
+	}
+
 	in := *state.Clone()
 
 	// run on interpreter
