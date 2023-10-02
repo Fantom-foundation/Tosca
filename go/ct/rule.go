@@ -2,6 +2,7 @@ package ct
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/holiman/uint256"
@@ -36,6 +37,7 @@ type Domain[T any] interface {
 	Less(T, T) bool
 	Predecessor(T) T
 	Successor(T) T
+	SomethingNotEqual(T) T
 	Samples(T) []T
 	SamplesForAll([]T) []T
 }
@@ -184,6 +186,38 @@ func (e *eq[T]) String() string {
 	return fmt.Sprintf("%s = %v", e.lhs, e.rhs)
 }
 
+type ne[T any] struct {
+	lhs Expression[T]
+	rhs T
+}
+
+func Ne[T any](lhs Expression[T], rhs T) Condition {
+	return &ne[T]{lhs, rhs}
+}
+
+func (e *ne[T]) Check(s State) bool {
+	domain := e.lhs.Domain()
+	return !domain.Equal(e.lhs.Eval(s), e.rhs)
+}
+
+func (e *ne[T]) restrict(builder *StateBuilder) {
+	domain := e.lhs.Domain()
+	e.lhs.set(domain.SomethingNotEqual(e.rhs), builder)
+}
+
+func (e *ne[T]) enumerateTestCases(builder *StateBuilder, consumer func(*StateBuilder)) {
+	domain := e.lhs.Domain()
+	for _, value := range domain.Samples(e.rhs) {
+		clone := builder.Clone()
+		e.lhs.set(value, clone)
+		consumer(clone)
+	}
+}
+
+func (e *ne[T]) String() string {
+	return fmt.Sprintf("%s ≠ %v", e.lhs, e.rhs)
+}
+
 type lt[T any] struct {
 	lhs Expression[T]
 	rhs T
@@ -288,29 +322,38 @@ func (c *in[T]) String() string {
 }
 
 type isCode struct {
-	position Expression[uint16]
+	position Expression[uint256.Int]
 }
 
-func IsCode(position Expression[uint16]) Condition {
+func IsCode(position Expression[uint256.Int]) Condition {
 	return &isCode{position}
 }
 
 func (c *isCode) Check(s State) bool {
-	return s.IsCode(int(c.position.Eval(s)))
+	pos := c.position.Eval(s)
+	if !pos.IsUint64() {
+		return false
+	}
+	if pos.Uint64() > math.MaxInt {
+		return false
+	}
+	return s.IsCode(int(pos.Uint64()))
 }
 
 func (c *isCode) restrict(builder *StateBuilder) {
-	// For now only support that the PC needs to be pointing
-	// to a code position.
-	if _, isPc := c.position.(pc); !isPc {
-		panic("so far only examples where PC is pointing to Code can be generated")
-	}
-
 	// pick a random PC in the code.
 	length := builder.GetCodeLength()
-	pc := builder.random.Int31n(int32(length))
-	pc = int32(builder.state.GetNextCodePosition(int(pc)))
-	builder.SetPc(uint16(pc))
+	pos := int(builder.random.Int31n(int32(length)))
+	pos = builder.state.GetNextCodePosition(pos)
+
+	// For now, only certain types of position parameters are supported
+	if _, isPc := c.position.(pc); isPc {
+		builder.SetPc(uint16(pos))
+	} else if _, isParam := c.position.(param); isParam {
+		builder.SetStackValue(c.position.(param).position, *uint256.NewInt(uint64(pos)))
+	} else {
+		panic("so far only Pc(..) and Param(..) values are supported if isCode constraints")
+	}
 }
 
 func (c *isCode) enumerateTestCases(builder *StateBuilder, consumer func(*StateBuilder)) {
@@ -328,35 +371,49 @@ func (c *isCode) String() string {
 }
 
 type isData struct {
-	position Expression[uint16]
+	position Expression[uint256.Int]
 }
 
-func IsData(position Expression[uint16]) Condition {
+func IsData(position Expression[uint256.Int]) Condition {
 	return &isData{position}
 }
 
 func (c *isData) Check(s State) bool {
-	return !s.IsCode(int(c.position.Eval(s)))
+	return !IsCode(c.position).Check(s)
 }
 
 func (c *isData) restrict(builder *StateBuilder) {
-	// For now only support that the PC needs to be pointing
-	// to a data position.
-	if _, isPc := c.position.(pc); !isPc {
-		panic("so far only examples where PC is pointing to Code can be generated")
-	}
-
+	backup := builder.Clone()
 	// pick a random PC in the code.
 	length := builder.GetCodeLength()
-	pc := builder.random.Int31n(int32(length))
+	pos := int(builder.random.Int31n(int32(length)))
 
-	data, found := builder.state.GetNextDataPosition(int(pc))
+	data, found := builder.state.GetNextDataPosition(pos)
 	if !found {
-		// TODO: restart with new code (make sure it was not fixed before)
-		panic("there is no data section in the program")
+		// If there is no data in the code we can restart the generation
+		// with some different code.
+		if backup.isFixed(sp_CodeLength) {
+			// TODO: handle this case better, e.g. by reporting back an issue
+			fmt.Printf("WARNING: there is no data section in the program and the program was already fixed\n")
+			return
+			//panic("there is no data section in the program and can't change the program")
+		}
+		// TODO: add some check making sure this does not loop forever
+		state := builder.Build()
+		fmt.Printf("state: %v\n", &state)
+		builder.Restore(backup)
+		c.restrict(builder)
+		return
 	}
 
-	builder.SetPc(uint16(data))
+	// For now, only certain types of position parameters are supported
+	if _, isPc := c.position.(pc); isPc {
+		builder.SetPc(uint16(data))
+	} else if _, isParam := c.position.(param); isParam {
+		builder.SetStackValue(c.position.(param).position, *uint256.NewInt(uint64(data)))
+	} else {
+		panic("so far only Pc(..) and Param(..) values are supported if isData constraints")
+	}
 }
 
 func (c *isData) enumerateTestCases(builder *StateBuilder, consumer func(*StateBuilder)) {
@@ -383,6 +440,12 @@ func (statusCodeDomain) Equal(a StatusCode, b StatusCode) bool { return a == b }
 func (statusCodeDomain) Less(a StatusCode, b StatusCode) bool  { panic("not useful") }
 func (statusCodeDomain) Predecessor(a StatusCode) StatusCode   { panic("not useful") }
 func (statusCodeDomain) Successor(a StatusCode) StatusCode     { panic("not useful") }
+func (statusCodeDomain) SomethingNotEqual(a StatusCode) StatusCode {
+	if a == Running {
+		return Stopped
+	}
+	return Running
+}
 func (statusCodeDomain) Samples(a StatusCode) []StatusCode {
 	return []StatusCode{Running, Stopped, Returned, Reverted, Failed}
 }
@@ -392,10 +455,11 @@ func (statusCodeDomain) SamplesForAll(a []StatusCode) []StatusCode {
 
 type uint16Domain struct{}
 
-func (uint16Domain) Equal(a uint16, b uint16) bool { return a == b }
-func (uint16Domain) Less(a uint16, b uint16) bool  { return a < b }
-func (uint16Domain) Predecessor(a uint16) uint16   { return a - 1 }
-func (uint16Domain) Successor(a uint16) uint16     { return a + 1 }
+func (uint16Domain) Equal(a uint16, b uint16) bool     { return a == b }
+func (uint16Domain) Less(a uint16, b uint16) bool      { return a < b }
+func (uint16Domain) Predecessor(a uint16) uint16       { return a - 1 }
+func (uint16Domain) Successor(a uint16) uint16         { return a + 1 }
+func (uint16Domain) SomethingNotEqual(a uint16) uint16 { return a + 1 }
 func (d uint16Domain) Samples(a uint16) []uint16 {
 	return d.SamplesForAll([]uint16{a})
 }
@@ -421,10 +485,11 @@ func (uint16Domain) SamplesForAll(as []uint16) []uint16 {
 
 type uint64Domain struct{}
 
-func (uint64Domain) Equal(a uint64, b uint64) bool { return a == b }
-func (uint64Domain) Less(a uint64, b uint64) bool  { return a < b }
-func (uint64Domain) Predecessor(a uint64) uint64   { return a - 1 }
-func (uint64Domain) Successor(a uint64) uint64     { return a + 1 }
+func (uint64Domain) Equal(a uint64, b uint64) bool     { return a == b }
+func (uint64Domain) Less(a uint64, b uint64) bool      { return a < b }
+func (uint64Domain) Predecessor(a uint64) uint64       { return a - 1 }
+func (uint64Domain) Successor(a uint64) uint64         { return a + 1 }
+func (uint64Domain) SomethingNotEqual(a uint64) uint64 { return a + 1 }
 func (d uint64Domain) Samples(a uint64) []uint64 {
 	return d.SamplesForAll([]uint64{a})
 }
@@ -448,22 +513,81 @@ func (uint64Domain) SamplesForAll(as []uint64) []uint64 {
 	return res
 }
 
+type uint256Domain struct{}
+
+func (uint256Domain) Equal(a uint256.Int, b uint256.Int) bool { return a == b }
+func (uint256Domain) Less(a uint256.Int, b uint256.Int) bool  { return a.Lt(&b) }
+func (uint256Domain) Predecessor(a uint256.Int) uint256.Int   { return *a.Sub(&a, uint256.NewInt(1)) }
+func (uint256Domain) Successor(a uint256.Int) uint256.Int     { return *a.Add(&a, uint256.NewInt(1)) }
+func (uint256Domain) SomethingNotEqual(a uint256.Int) uint256.Int {
+	return *a.Add(&a, uint256.NewInt(1))
+}
+func (d uint256Domain) Samples(a uint256.Int) []uint256.Int {
+	return d.SamplesForAll([]uint256.Int{a})
+}
+func (d uint256Domain) SamplesForAll(as []uint256.Int) []uint256.Int {
+	res := []uint256.Int{}
+
+	// Test every element off by one.
+	for _, a := range as {
+		res = append(res, d.Predecessor(a))
+		res = append(res, a)
+		res = append(res, d.Successor(a))
+	}
+
+	// Add more interesting values.
+	res = append(res, NumericParameter{}.Samples()...)
+
+	// TODO: consider removing duplicates.
+
+	return res
+}
+
+type pcDomain struct{}
+
+func (pcDomain) Equal(a uint256.Int, b uint256.Int) bool     { return a == b }
+func (pcDomain) Less(a uint256.Int, b uint256.Int) bool      { return a.Lt(&b) }
+func (pcDomain) Predecessor(a uint256.Int) uint256.Int       { return *a.Sub(&a, uint256.NewInt(1)) }
+func (pcDomain) Successor(a uint256.Int) uint256.Int         { return *a.Add(&a, uint256.NewInt(1)) }
+func (pcDomain) SomethingNotEqual(a uint256.Int) uint256.Int { return *a.Add(&a, uint256.NewInt(1)) }
+func (d pcDomain) Samples(a uint256.Int) []uint256.Int {
+	return d.SamplesForAll([]uint256.Int{a})
+}
+func (pcDomain) SamplesForAll(as []uint256.Int) []uint256.Int {
+	pcs := []uint16{}
+	for _, a := range as {
+		if a.IsUint64() && a.Uint64() <= uint64(math.MaxUint16) {
+			pcs = append(pcs, uint16(a.Uint64()))
+		}
+	}
+
+	pcs = uint16Domain{}.SamplesForAll(pcs)
+
+	res := make([]uint256.Int, 0, len(pcs))
+	for _, cur := range pcs {
+		res = append(res, *uint256.NewInt(uint64(cur)))
+	}
+	return res
+}
+
 type codeDomain struct{}
 
-func (codeDomain) Equal(a []byte, b []byte) bool   { return slices.Equal(a, b) }
-func (codeDomain) Less(a []byte, b []byte) bool    { panic("not useful") }
-func (codeDomain) Predecessor(a []byte) []byte     { panic("not useful") }
-func (codeDomain) Successor(a []byte) []byte       { panic("not useful") }
-func (codeDomain) Samples(a []byte) [][]byte       { return [][]byte{a} }
-func (codeDomain) SamplesForAll([][]byte) [][]byte { panic("not useful") }
+func (codeDomain) Equal(a []byte, b []byte) bool     { return slices.Equal(a, b) }
+func (codeDomain) Less(a []byte, b []byte) bool      { panic("not useful") }
+func (codeDomain) Predecessor(a []byte) []byte       { panic("not useful") }
+func (codeDomain) Successor(a []byte) []byte         { panic("not useful") }
+func (codeDomain) SomethingNotEqual(a []byte) []byte { panic("not implemented") }
+func (codeDomain) Samples(a []byte) [][]byte         { return [][]byte{a} }
+func (codeDomain) SamplesForAll([][]byte) [][]byte   { panic("not useful") }
 
 type opCodeDomain struct{}
 
-func (opCodeDomain) Equal(a OpCode, b OpCode) bool { return a == b }
-func (opCodeDomain) Less(a OpCode, b OpCode) bool  { panic("not useful") }
-func (opCodeDomain) Predecessor(a OpCode) OpCode   { panic("not useful") }
-func (opCodeDomain) Successor(a OpCode) OpCode     { panic("not useful") }
-func (opCodeDomain) Samples(a OpCode) []OpCode     { return []OpCode{a} }
+func (opCodeDomain) Equal(a OpCode, b OpCode) bool     { return a == b }
+func (opCodeDomain) Less(a OpCode, b OpCode) bool      { panic("not useful") }
+func (opCodeDomain) Predecessor(a OpCode) OpCode       { panic("not useful") }
+func (opCodeDomain) Successor(a OpCode) OpCode         { panic("not useful") }
+func (opCodeDomain) SomethingNotEqual(a OpCode) OpCode { return a + 1 }
+func (opCodeDomain) Samples(a OpCode) []OpCode         { return []OpCode{a, a + 1} }
 func (opCodeDomain) SamplesForAll([]OpCode) []OpCode {
 	res := make([]OpCode, 0, 256)
 	for i := 0; i < 256; i++ {
@@ -474,10 +598,11 @@ func (opCodeDomain) SamplesForAll([]OpCode) []OpCode {
 
 type stackSizeDomain struct{}
 
-func (stackSizeDomain) Equal(a int, b int) bool { return a == b }
-func (stackSizeDomain) Less(a int, b int) bool  { return a < b }
-func (stackSizeDomain) Predecessor(a int) int   { return a - 1 }
-func (stackSizeDomain) Successor(a int) int     { return a + 1 }
+func (stackSizeDomain) Equal(a int, b int) bool     { return a == b }
+func (stackSizeDomain) Less(a int, b int) bool      { return a < b }
+func (stackSizeDomain) Predecessor(a int) int       { return a - 1 }
+func (stackSizeDomain) Successor(a int) int         { return a + 1 }
+func (stackSizeDomain) SomethingNotEqual(a int) int { return (a + 1) % 1024 }
 func (d stackSizeDomain) Samples(a int) []int {
 	return d.SamplesForAll([]int{a})
 }
@@ -562,22 +687,25 @@ func (code) String() string {
 
 type pc struct{}
 
-func Pc() Expression[uint16] {
+func Pc() Expression[uint256.Int] {
 	return pc{}
 }
 
-func (pc) Domain() Domain[uint16] { return uint16Domain{} }
+func (pc) Domain() Domain[uint256.Int] { return pcDomain{} }
 
-func (pc) Eval(s State) uint16 {
-	return s.Pc
+func (pc) Eval(s State) uint256.Int {
+	return *uint256.NewInt(uint64(s.Pc))
 }
 
-func (pc) eval(s *StateBuilder) uint16 {
-	return s.GetPc()
+func (pc) eval(s *StateBuilder) uint256.Int {
+	return *uint256.NewInt(uint64(s.GetPc()))
 }
 
-func (pc) set(pc uint16, builder *StateBuilder) {
-	builder.SetPc(pc)
+func (pc) set(pc uint256.Int, builder *StateBuilder) {
+	if !pc.IsUint64() || pc.Uint64() > uint64(math.MaxUint16) {
+		panic("invalid value for PC")
+	}
+	builder.SetPc(uint16(pc.Uint64()))
 }
 
 func (pc) String() string {
@@ -613,10 +741,10 @@ func (gas) String() string {
 // --- Operations ---
 
 type op struct {
-	position Expression[uint16]
+	position Expression[uint256.Int]
 }
 
-func Op(position Expression[uint16]) Expression[OpCode] {
+func Op(position Expression[uint256.Int]) Expression[OpCode] {
 	return op{position}
 }
 
@@ -624,25 +752,40 @@ func (op) Domain() Domain[OpCode] { return opCodeDomain{} }
 
 func (e op) Eval(s State) OpCode {
 	pos := e.position.Eval(s)
+	if !pos.IsUint64() || pos.Uint64() > uint64(math.MaxUint16) {
+		return STOP
+	}
+
 	code := []byte(s.Code)
-	if pos < uint16(len(code)) {
-		return OpCode(code[pos])
+	if int(pos.Uint64()) < len(code) {
+		return OpCode(code[pos.Uint64()])
 	}
 	return STOP
 }
 
 func (o op) eval(builder *StateBuilder) OpCode {
 	pos := o.position.eval(builder)
+	if !pos.IsUint64() || pos.Uint64() > uint64(math.MaxUint16) {
+		return STOP
+	}
+
 	code := []byte(builder.GetCode())
-	if pos < uint16(len(code)) {
-		return OpCode(code[pos])
+	if int(pos.Uint64()) < len(code) {
+		return OpCode(code[pos.Uint64()])
 	}
 	return STOP
 }
 
 func (o op) set(op OpCode, builder *StateBuilder) {
 	pos := o.position.eval(builder)
-	builder.SetOpCode(pos, op)
+	if !pos.IsUint64() || pos.Uint64() > uint64(math.MaxUint16) {
+		// TODO: provide feedback to the caller that this set was not effective
+		fmt.Printf("failed to set operation %d to %v\n", pos, op)
+		//panic("out of range")
+		return
+	}
+
+	builder.SetOpCode(uint16(pos.Uint64()), op)
 }
 
 func (o op) String() string {
@@ -673,6 +816,38 @@ func (stackSize) set(stackSize int, builder *StateBuilder) {
 
 func (stackSize) String() string {
 	return "stackSize"
+}
+
+// --- parameter ---
+
+type param struct {
+	position int
+}
+
+func Param(pos int) Expression[uint256.Int] {
+	return param{pos}
+}
+
+func (param) Domain() Domain[uint256.Int] { return uint256Domain{} }
+
+func (p param) Eval(s State) uint256.Int {
+	stack := &s.Stack
+	if p.position >= stack.Size() {
+		return uint256.Int{}
+	}
+	return stack.Get(p.position)
+}
+
+func (p param) eval(builder *StateBuilder) uint256.Int {
+	return builder.GetStackValue(p.position)
+}
+
+func (p param) set(value uint256.Int, builder *StateBuilder) {
+	builder.SetStackValue(p.position, value)
+}
+
+func (p param) String() string {
+	return fmt.Sprintf("param[%v]", p.position)
 }
 
 // ----------------------------------------------------------------------------
