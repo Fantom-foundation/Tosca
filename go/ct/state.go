@@ -3,10 +3,10 @@ package ct
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/holiman/uint256"
+	"golang.org/x/exp/slices"
 )
 
 type StatusCode int
@@ -91,7 +91,23 @@ func (s *State) GetNextDataPosition(start int) (position int, found bool) {
 }
 
 func (s *State) Equal(other *State) bool {
-	return reflect.DeepEqual(s, other)
+	if s.Status != other.Status {
+		return false
+	}
+	// All failed states are the same.
+	if s.Status == Failed {
+		return true
+	}
+	if s.Gas != other.Gas {
+		return false
+	}
+	if s.Pc != other.Pc {
+		return false
+	}
+	if !s.Stack.Equal(&other.Stack) {
+		return false
+	}
+	return bytes.Equal(s.Code, other.Code)
 }
 
 func (s *State) Clone() *State {
@@ -147,6 +163,10 @@ func (s *Stack) Clone() Stack {
 	res := make([]uint256.Int, len(s.stack))
 	copy(res, s.stack)
 	return Stack{res}
+}
+
+func (s *Stack) Equal(other *Stack) bool {
+	return slices.Equal(s.stack, other.stack)
 }
 
 func (s *Stack) Size() int {
