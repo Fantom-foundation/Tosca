@@ -820,10 +820,7 @@ func opExtCodeCopy(c *context) {
 		c.SignalError(vm.ErrGasUintOverflow)
 		return
 	}
-	uint64CodeOffset, overflow := codeOffset.Uint64WithOverflow()
-	if overflow {
-		uint64CodeOffset = 0xffffffffffffffff
-	}
+	uint64CodeOffset := codeOffset.Uint64()
 
 	// Charge for length of copied code
 	words := (length.Uint64() + 31) / 32
