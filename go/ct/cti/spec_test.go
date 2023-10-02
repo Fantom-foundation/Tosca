@@ -50,7 +50,7 @@ func run(spec ct.Specification, interpreter cti.CtAdapter, state ct.State, t *te
 	}
 
 	rule := rules[0]
-	want := *in.Clone()
+	want := *state.Clone()
 	want = rule.Effect.Apply(want)
 
 	if !want.Equal(&got) {
