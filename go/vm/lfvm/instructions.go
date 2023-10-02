@@ -1198,6 +1198,11 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
+	if err := checkSizeOffsetUint64Overflow(memOffset, length); err != nil {
+		c.SignalError(err)
+		return
+	}
+
 	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
