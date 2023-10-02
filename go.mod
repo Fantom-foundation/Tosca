@@ -10,6 +10,8 @@ require (
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 )
 
+require pgregory.net/rand v1.0.2 // indirect
+
 require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect

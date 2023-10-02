@@ -2,17 +2,16 @@ package ct
 
 import (
 	"fmt"
-	"math/rand"
-	"time"
 
 	"github.com/holiman/uint256"
+	"pgregory.net/rand"
 )
 
 func GetRandomState() State {
-	return GetRandomStateWithSeed(time.Now().UnixNano())
+	return NewStateBuilder().Build()
 }
 
-func GetRandomStateWithSeed(seed int64) State {
+func GetRandomStateWithSeed(seed uint64) State {
 	return NewStateBuilderWithSeed(seed).Build()
 }
 
@@ -44,12 +43,14 @@ const (
 )
 
 func NewStateBuilder() *StateBuilder {
-	return NewStateBuilderWithSeed(time.Now().UnixNano())
+	return &StateBuilder{
+		random: rand.New(),
+	}
 }
 
-func NewStateBuilderWithSeed(seed int64) *StateBuilder {
+func NewStateBuilderWithSeed(seed uint64) *StateBuilder {
 	return &StateBuilder{
-		random:   rand.New(rand.NewSource(seed)),
+		random:   rand.New(seed),
 		fixedOps: map[uint16]struct{}{},
 	}
 }
@@ -66,7 +67,7 @@ func (b *StateBuilder) Clone() *StateBuilder {
 		state:    *b.state.Clone(),
 		fixed:    b.fixed,
 		fixedOps: fixedOps,
-		random:   rand.New(rand.NewSource(time.Now().UnixNano())),
+		random:   rand.New(),
 	}
 }
 
