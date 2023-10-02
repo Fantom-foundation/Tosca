@@ -83,11 +83,11 @@ func (s *State) Step() {
 		s.Status = Done
 	case ADD:
 		s.opADD()
+	case LT:
+		s.opLT()
+	case EQ:
+		s.opEQ()
 		/*
-			case LT:
-				s.opLT()
-			case EQ:
-				s.opEQ()
 			case AND:
 				s.opAND()
 			case OR:
@@ -105,13 +105,13 @@ func (s *State) Step() {
 		s.opPOP()
 	case PUSH1:
 		s.opPUSH(1)
+	case PUSH2:
+		s.opPUSH(2)
+	case PUSH16:
+		s.opPUSH(16)
+	case PUSH32:
+		s.opPUSH(32)
 		/*
-			case PUSH2:
-				s.opPUSH(2)
-			case PUSH16:
-				s.opPUSH(16)
-			case PUSH32:
-				s.opPUSH(32)
 			case DUP1:
 				s.opDUP(1)
 			case DUP2:
@@ -344,7 +344,7 @@ func (s *State) opPUSH(n int) {
 	if !s.applyGasCost(3) {
 		return
 	}
-	if len(s.Stack)+n > MaxStackLength {
+	if len(s.Stack)+1 > MaxStackLength {
 		s.Status = ErrorStackOverflow
 		return
 	}

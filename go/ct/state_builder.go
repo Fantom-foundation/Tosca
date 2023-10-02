@@ -217,7 +217,12 @@ func (b *StateBuilder) fixPc(allowInvalid bool) {
 		}
 		b.SetPc(pos)
 	} else {
-		b.SetPc(uint16(b.random.Int31n(int32(len(b.state.Code)))))
+		codeSize := len(b.state.Code)
+		if codeSize == 0 {
+			b.SetPc(0)
+		} else {
+			b.SetPc(uint16(b.random.Int31n(int32(codeSize))))
+		}
 	}
 }
 
