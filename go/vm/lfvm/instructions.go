@@ -816,6 +816,10 @@ func opExtCodeCopy(c *context) {
 		codeOffset = stack.pop()
 		length     = stack.pop()
 	)
+	if checkSizeOffsetUint64Overflow(memOffset, length) != nil || checkSizeOffsetUint64Overflow(codeOffset, length) != nil {
+		c.SignalError(vm.ErrGasUintOverflow)
+		return
+	}
 	uint64CodeOffset, overflow := codeOffset.Uint64WithOverflow()
 	if overflow {
 		uint64CodeOffset = 0xffffffffffffffff
