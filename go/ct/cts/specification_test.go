@@ -22,7 +22,7 @@ func TestSpecification_RulesCoverTestCases(t *testing.T) {
 }
 
 func TestSpecification_RulesCoverRandomStates(t *testing.T) {
-	const N = 1000
+	const N = 10000
 
 	for i := 0; i < N; i++ {
 		state := ct.GetRandomState()

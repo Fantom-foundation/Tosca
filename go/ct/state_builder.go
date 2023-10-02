@@ -1,6 +1,7 @@
 package ct
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -24,6 +25,9 @@ type StateBuilder struct {
 	// A set of fixed properties that can no longer be altered.
 	fixed uint64
 
+	// Code positions that are fixed and can no longer be altered.
+	fixedOps map[uint16]struct{}
+
 	random *rand.Rand
 }
 
@@ -45,16 +49,32 @@ func NewStateBuilder() *StateBuilder {
 
 func NewStateBuilderWithSeed(seed int64) *StateBuilder {
 	return &StateBuilder{
-		random: rand.New(rand.NewSource(seed)),
+		random:   rand.New(rand.NewSource(seed)),
+		fixedOps: map[uint16]struct{}{},
 	}
 }
 
 func (b *StateBuilder) Clone() *StateBuilder {
-	return &StateBuilder{
-		state:  *b.state.Clone(),
-		fixed:  b.fixed,
-		random: rand.New(rand.NewSource(time.Now().UnixNano())),
+	var fixedOps map[uint16]struct{}
+	if len(b.fixedOps) > 0 {
+		fixedOps = map[uint16]struct{}{}
+		for k := range b.fixedOps {
+			fixedOps[k] = struct{}{}
+		}
 	}
+	return &StateBuilder{
+		state:    *b.state.Clone(),
+		fixed:    b.fixed,
+		fixedOps: fixedOps,
+		random:   rand.New(rand.NewSource(time.Now().UnixNano())),
+	}
+}
+
+func (b *StateBuilder) Restore(backup *StateBuilder) {
+	b.state = backup.state
+	b.fixed = backup.fixed
+	b.fixedOps = backup.fixedOps
+	b.random = backup.random
 }
 
 // --- Status ---
@@ -136,16 +156,24 @@ func (b *StateBuilder) fixCode() {
 }
 
 func (b *StateBuilder) SetOpCode(pos uint16, op OpCode) {
-	// TODO: support defining more than one OpCode
 	if b.isFixed(sp_Code) {
 		panic("can only define the code once")
+	}
+	if _, fixed := b.fixedOps[pos]; fixed {
+		// TODO: add some warning as a return value that this operation had no effect
+		fmt.Printf("WARNING: code position %d has been fixed before\n", pos)
+		//panic("code position has been fixed before")
+		return
 	}
 	b.fixCodeLength(pos + 1)
 	if pos >= uint16(len(b.state.Code)) {
 		return
 	}
 	b.state.Code[pos] = byte(op)
-	b.markFixed(sp_Code)
+	if b.fixedOps == nil {
+		b.fixedOps = map[uint16]struct{}{}
+	}
+	b.fixedOps[pos] = struct{}{}
 }
 
 func (b *StateBuilder) GetOpCode(pos uint16) OpCode {
@@ -248,6 +276,14 @@ func (b *StateBuilder) SetStackValue(pos int, value uint256.Int) {
 		return
 	}
 	b.state.Stack.Set(pos, value)
+}
+
+func (b *StateBuilder) GetStackValue(pos int) uint256.Int {
+	b.fixStackSize()
+	if pos >= b.state.Stack.Size() {
+		return *uint256.NewInt(0)
+	}
+	return b.state.Stack.Get(pos)
 }
 
 // --- Build ---

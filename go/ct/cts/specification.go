@@ -204,6 +204,77 @@ var Specification = ct.NewSpecification(
 			return s
 		}),
 	},
+
+	// --- JUMP ---
+
+	ct.Rule{
+		Name: "jump_with_too_little_gas",
+		Condition: ct.And(
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMP),
+			ct.Lt(ct.Gas(), 8),
+		),
+		Effect: Fail(),
+	},
+
+	ct.Rule{
+		Name: "jump_with_too_few_elements",
+		Condition: ct.And(
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMP),
+			ct.Ge(ct.Gas(), 8),
+			ct.Lt(ct.StackSize(), 1),
+		),
+		Effect: Fail(),
+	},
+
+	ct.Rule{
+		Name: "jump_to_data",
+		Condition: ct.And(
+			ct.Ge(ct.StackSize(), 1),
+			ct.IsData(ct.Param(0)),
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMP),
+			ct.Ge(ct.Gas(), 8),
+		),
+		Effect: Fail(),
+	},
+
+	ct.Rule{
+		Name: "jump_to_invalid_destination",
+		Condition: ct.And(
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMP),
+			ct.Ge(ct.Gas(), 8),
+			ct.Ge(ct.StackSize(), 1),
+			ct.IsCode(ct.Param(0)),
+			ct.Ne(ct.Op(ct.Param(0)), ct.JUMPDEST),
+		),
+		Effect: Fail(),
+	},
+
+	ct.Rule{
+		Name: "jump_valid_target",
+		Condition: ct.And(
+			ct.Eq(ct.Status(), ct.Running),
+			ct.IsCode(ct.Pc()),
+			ct.Eq(ct.Op(ct.Pc()), ct.JUMP),
+			ct.Ge(ct.Gas(), 8),
+			ct.Ge(ct.StackSize(), 1),
+			ct.IsCode(ct.Param(0)),
+			ct.Eq(ct.Op(ct.Param(0)), ct.JUMPDEST),
+		),
+		Effect: ct.Update(func(s ct.State) ct.State {
+			s.Gas = s.Gas - 8
+			target := s.Stack.Pop()
+			s.Pc = uint16(target.Uint64())
+			return s
+		}),
+	},
 )
 
 func NoEffect() ct.Effect {
@@ -223,7 +294,7 @@ func getInvalidOps() []ct.OpCode {
 	for i := 0; i < 256; i++ {
 		op := ct.OpCode(i)
 		switch op {
-		case ct.STOP, ct.POP, ct.ADD, ct.PUSH1:
+		case ct.STOP, ct.POP, ct.ADD, ct.PUSH1, ct.JUMP:
 			// skip
 		default:
 			res = append(res, op)
