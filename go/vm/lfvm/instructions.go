@@ -500,6 +500,11 @@ var hashCache = newHashCache(1<<16, 1<<18)
 func opSha3(c *context) {
 	offset, size := c.stack.pop(), c.stack.peek()
 
+	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
+		c.SignalError(err)
+		return
+	}
+
 	if c.memory.EnsureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
 		return
 	}

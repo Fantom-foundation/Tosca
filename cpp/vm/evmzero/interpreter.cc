@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "common/assert.h"
+#include "common/macros.h"
 #include "vm/evmzero/opcodes.h"
 
 namespace tosca::evmzero {
@@ -455,9 +456,14 @@ struct Impl<OpCode::SHA3> {
 
     const auto [mem_cost, offset, size] = ctx.MemoryExpansionCost(offset_u256, size_u256);
     const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
-    int64_t dynamic_gas = mem_cost + 6 * minimum_word_size;
-    if (gas < dynamic_gas) [[unlikely]]
-      return {.dynamic_gas_costs = dynamic_gas};
+
+    int64_t dynamic_gas = 0;
+    {
+      bool overflowed = TOSCA_CHECK_OVERFLOW_MUL(6, minimum_word_size, &dynamic_gas) ||
+                        TOSCA_CHECK_OVERFLOW_ADD(dynamic_gas, mem_cost, &dynamic_gas);
+      if (overflowed || gas < dynamic_gas) [[unlikely]]
+        return {.state = RunState::kErrorGas};
+    }
 
     auto memory_span = ctx.memory.GetSpan(offset, size);
     if (ctx.sha3_cache) {
