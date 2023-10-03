@@ -565,6 +565,94 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 	}
 }
 
+func TestNoReturnDataForCreate(t *testing.T) {
+
+	var mockCtrl *gomock.Controller
+	var mockStateDB *vm_mock.MockStateDB
+
+	account := common.Address{byte(0)}
+	type test struct {
+		name              string
+		createInstruction vm.OpCode
+		returnInstruction vm.OpCode
+		returnDataSize    uint64
+	}
+
+	tests := []test{
+		{"no return data", vm.CREATE, vm.RETURN, 0},
+		{"no return data", vm.CREATE2, vm.RETURN, 0},
+		{"has revert data", vm.CREATE, vm.REVERT, 32},
+		{"has revert data", vm.CREATE2, vm.REVERT, 32},
+	}
+
+	// For every variant of interpreter
+	for _, variant := range Variants {
+
+		for _, revision := range revisions {
+
+			for _, test := range tests {
+
+				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, test.name, test.createInstruction), func(t *testing.T) {
+
+					mockCtrl = gomock.NewController(t)
+					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+
+					createStackValues := []*big.Int{big.NewInt(32), big.NewInt(0), big.NewInt(0)}
+					if test.createInstruction == vm.CREATE2 {
+						createStackValues = append([]*big.Int{big.NewInt(0)}, createStackValues...)
+					}
+					createInputCode := []byte{
+						byte(vm.PUSH1), byte(32),
+						byte(vm.PUSH1), byte(0),
+						byte(test.returnInstruction)}
+
+					createInputBytes := common.RightPadBytes(createInputCode, 32)
+					createInputValue := []*big.Int{big.NewInt(0).SetBytes(createInputBytes)}
+
+					code, _ := addValuesToStack(createInputValue, 0)
+					code = append(code,
+						byte(vm.PUSH1), byte(0),
+						byte(vm.MSTORE))
+
+					pushCode, _ := addValuesToStack(createStackValues, 0)
+					code = append(code, pushCode...)
+					code = append(code, byte(test.createInstruction))
+					code = append(code,
+						byte(vm.RETURNDATASIZE),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.MSTORE),
+						byte(vm.PUSH1), byte(32),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.RETURN))
+
+					contractAddr := crypto.CreateAddress2(account, [32]byte{}, crypto.Keccak256Hash(createInputBytes).Bytes())
+
+					// set mock for inner call
+					setDefaultCallStateDBMock(mockStateDB, account, make([]byte, 0))
+					mockStateDB.EXPECT().GetCodeHash(contractAddr).AnyTimes().Return(common.Hash{byte(0)})
+					mockStateDB.EXPECT().CreateAccount(contractAddr).AnyTimes()
+					mockStateDB.EXPECT().SetCode(contractAddr, gomock.Any()).AnyTimes()
+
+					evm := GetCleanEVM(revision, variant, mockStateDB)
+
+					// Run an interpreter
+					result, err := evm.Run(code, []byte{})
+					returnDataSize := big.NewInt(0).SetBytes(result.Output[0:32])
+
+					// Check the result.
+					if returnDataSize.Uint64() != test.returnDataSize {
+						t.Errorf("expected return data size: %v, but got: %v", test.returnDataSize, returnDataSize)
+					}
+
+					if err != nil {
+						t.Errorf("execution should not fail but got: %v", err)
+					}
+				})
+			}
+		}
+	}
+}
+
 // Get array of random big Integers
 func getRandomBigIntArray(count int) []*big.Int {
 	ret := make([]*big.Int, count)
