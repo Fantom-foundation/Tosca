@@ -45,9 +45,6 @@ type HashCache struct {
 	head64, tail64 *hashCacheEntry64
 	nextFree64     int
 	lock64         sync.Mutex
-
-	// Statistics.
-	hit, miss int
 }
 
 // newHashCache creates a HashCache with the given capacity of entries.
@@ -103,7 +100,6 @@ func (h *HashCache) hash(c *context, data []byte) common.Hash {
 	if len(data) == 64 {
 		return h.getHash64(c, data)
 	}
-	h.miss++
 	return getHash(c, data)
 }
 
@@ -112,7 +108,6 @@ func (h *HashCache) getHash32(c *context, data []byte) common.Hash {
 	copy(key[:], data)
 	h.lock32.Lock()
 	if entry, found := h.index32[key]; found {
-		h.hit++
 		// Move entry to the front.
 		if entry != h.head32 {
 			// Remove from current place.
@@ -131,7 +126,6 @@ func (h *HashCache) getHash32(c *context, data []byte) common.Hash {
 		h.lock32.Unlock()
 		return entry.hash
 	}
-	h.miss++
 
 	// Compute the hash without holding the lock.
 	h.lock32.Unlock()
@@ -162,7 +156,6 @@ func (h *HashCache) getHash64(c *context, data []byte) common.Hash {
 	copy(key[:], data)
 	h.lock64.Lock()
 	if entry, found := h.index64[key]; found {
-		h.hit++
 		// Move entry to the front.
 		if entry != h.head64 {
 			// Remove from current place.
@@ -181,7 +174,6 @@ func (h *HashCache) getHash64(c *context, data []byte) common.Hash {
 		h.lock64.Unlock()
 		return entry.hash
 	}
-	h.miss++
 
 	// Compute the hash without holding the lock.
 	h.lock64.Unlock()
