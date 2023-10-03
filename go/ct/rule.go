@@ -56,24 +56,22 @@ type Expression[T any] interface {
 }
 
 // GetSatisfyingState produces a state satisfying the given condition.
-func GetSatisfyingState(rule Rule) State {
+func (rule *Rule) GetSatisfyingState() State {
 	builder := NewStateBuilder()
 	rule.Condition.restrict(builder)
 	return builder.Build()
 }
 
-// GetTestSamples produces a list of states representing relevant test
+// EnumerateTestCases enumerates a list of states representing relevant test
 // cases for the given condition. At least one of those cases is satisfying
 // the condition.
-func GetTestSamples(rule Rule) []State {
-	res := []State{}
+func (rule *Rule) EnumerateTestCases(consume func(s State)) {
 	builder := NewStateBuilder()
 	rule.Condition.enumerateTestCases(builder, func(s *StateBuilder) {
 		enumerateParameters(0, rule.Parameter, s, func(s *StateBuilder) {
-			res = append(res, s.Build())
+			consume(s.Build())
 		})
 	})
-	return res
 }
 
 func enumerateParameters(pos int, params []Parameter, builder *StateBuilder, consume func(s *StateBuilder)) {
