@@ -648,6 +648,12 @@ func opCodeCopy(c *context) {
 		codeOffset = c.stack.pop()
 		length     = c.stack.pop()
 	)
+
+	if checkSizeOffsetUint64Overflow(memOffset, length) != nil || checkSizeOffsetUint64Overflow(codeOffset, length) != nil {
+		c.SignalError(vm.ErrGasUintOverflow)
+		return
+	}
+
 	uint64CodeOffset, overflow := codeOffset.Uint64WithOverflow()
 	if overflow {
 		uint64CodeOffset = 0xffffffffffffffff
@@ -810,10 +816,11 @@ func opExtCodeCopy(c *context) {
 		codeOffset = stack.pop()
 		length     = stack.pop()
 	)
-	uint64CodeOffset, overflow := codeOffset.Uint64WithOverflow()
-	if overflow {
-		uint64CodeOffset = 0xffffffffffffffff
+	if checkSizeOffsetUint64Overflow(memOffset, length) != nil || checkSizeOffsetUint64Overflow(codeOffset, length) != nil {
+		c.SignalError(vm.ErrGasUintOverflow)
+		return
 	}
+	uint64CodeOffset := codeOffset.Uint64()
 
 	// Charge for length of copied code
 	words := (length.Uint64() + 31) / 32
@@ -1188,6 +1195,11 @@ func opReturnDataCopy(c *context) {
 	end64, overflow := end.Uint64WithOverflow()
 	if overflow || uint64(len(c.return_data)) < end64 {
 		c.SignalError(vm.ErrReturnDataOutOfBounds)
+		return
+	}
+
+	if err := checkSizeOffsetUint64Overflow(memOffset, length); err != nil {
+		c.SignalError(err)
 		return
 	}
 
