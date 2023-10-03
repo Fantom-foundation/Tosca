@@ -88,7 +88,7 @@ func (c *context) IsShadowed() bool {
 }
 
 func Run(evm *vm.EVM, cfg vm.Config, contract *vm.Contract, code Code, data []byte, readOnly bool, state vm.StateDB, with_shadow_vm, with_statistics bool, no_shaCache bool, logging bool) ([]byte, error) {
-	if evm.Depth == 0 {
+	if evm.Depth == 0 && with_shadow_vm {
 		ClearShadowValues()
 	}
 
