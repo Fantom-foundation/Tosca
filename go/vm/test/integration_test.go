@@ -3,6 +3,7 @@ package vm_test
 import (
 	"fmt"
 	"math/big"
+	"math/rand"
 	"testing"
 
 	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/test/mocks"
@@ -446,6 +447,132 @@ func TestCreateDataInitialization(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
+
+	var mockCtrl *gomock.Controller
+	var mockStateDB *vm_mock.MockStateDB
+
+	zeroVal := big.NewInt(0)
+	size32 := big.NewInt(32)
+	size64 := big.NewInt(64)
+
+	type callsType struct {
+		instruction       vm.OpCode
+		callOutputMemSize *big.Int
+		afterCallMemSize  *big.Int
+		memShouldChange   bool
+	}
+
+	// all types of inner call to be tested
+	calls := []callsType{
+		{vm.CALL, zeroVal, size32, false},
+		{vm.STATICCALL, zeroVal, size32, false},
+		{vm.DELEGATECALL, zeroVal, size32, false},
+		{vm.CALLCODE, zeroVal, size32, false},
+		{vm.CALL, size64, size64, true},
+		{vm.STATICCALL, size64, size64, true},
+		{vm.DELEGATECALL, size64, size64, true},
+		{vm.CALLCODE, size64, size64, true},
+	}
+
+	// For every variant of interpreter
+	for _, variant := range Variants {
+
+		for _, revision := range revisions {
+
+			for _, call := range calls {
+
+				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, call.instruction, call.callOutputMemSize), func(t *testing.T) {
+
+					mockCtrl = gomock.NewController(t)
+					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+
+					account := common.Address{byte(0)}
+
+					// Store data into memory to test, if it would be overwritten
+					wantMemWord := getRandomBigIntArray(1)
+					wantMemWord = append(wantMemWord, zeroVal)
+					code, _ := addValuesToStack(wantMemWord, 0)
+					code = append(code,
+						byte(vm.MSTORE))
+
+					// stack values for inner contract call
+					var callStackValues []*big.Int
+					if call.instruction == vm.CALL || call.instruction == vm.CALLCODE {
+						callStackValues = []*big.Int{call.callOutputMemSize, zeroVal, zeroVal, zeroVal, zeroVal, account.Hash().Big(), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
+					} else {
+						callStackValues = []*big.Int{call.callOutputMemSize, zeroVal, zeroVal, zeroVal, account.Hash().Big(), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
+					}
+					pushCode, _ := addValuesToStack(callStackValues, 0)
+					code = append(code, pushCode...)
+					code = append(code,
+						byte(call.instruction),
+						byte(vm.MSIZE),
+						byte(vm.PUSH1), byte(32),
+						byte(vm.MSTORE),
+						byte(vm.PUSH1), byte(64),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.RETURN))
+
+					// code for inner call
+					// return 32 bytes of memory
+					innerCallCode := []byte{
+						byte(vm.PUSH1), byte(32),
+						byte(vm.DUP1),
+						byte(vm.RETURN)}
+
+					// set mock for inner call
+					setDefaultCallStateDBMock(mockStateDB, account, innerCallCode)
+
+					evm := GetCleanEVM(revision, variant, mockStateDB)
+
+					// Run an interpreter
+					result, err := evm.Run(code, []byte{})
+
+					gotMemWord := big.NewInt(0).SetBytes(result.Output[0:32])
+					gotMemSize := big.NewInt(0).SetBytes(result.Output[0:64])
+
+					// compare results
+					memWordIsSame := gotMemWord.Cmp(wantMemWord[0]) == 0
+					if memWordIsSame == call.memShouldChange {
+						if call.memShouldChange {
+							t.Errorf("memmory should change when return data size > 0, but it didn't")
+						} else {
+							t.Errorf("memmory should not change when return data size is 0, but it did")
+						}
+					}
+
+					if gotMemSize.Uint64() != call.afterCallMemSize.Uint64() {
+						t.Errorf("memmory size after call is not as expected, want %v, got %v", call.afterCallMemSize.Uint64(), gotMemSize.Uint64())
+					}
+
+					if err != nil {
+						t.Errorf("execution should not return an error, but got:%v", err)
+					}
+				})
+			}
+		}
+	}
+}
+
+// Get array of random big Integers
+func getRandomBigIntArray(count int) []*big.Int {
+	ret := make([]*big.Int, count)
+	for i := 0; i < count; i++ {
+		ret[i] = big.NewInt(0).SetBytes(getRadomByte32())
+	}
+	return ret
+}
+
+// Get 32 byte array of random bytes
+func getRadomByte32() []byte {
+	array := make([]byte, 32)
+	for i := 0; i < 32; i++ {
+		array[i] = byte(rand.Intn(256))
+	}
+	return array
 }
 
 func contains(s []error, elem error) bool {
