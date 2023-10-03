@@ -462,7 +462,7 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 		instruction       vm.OpCode
 		callOutputMemSize *big.Int
 		afterCallMemSize  *big.Int
-		memShouldCahnge   bool
+		memShouldChange   bool
 	}
 
 	// all types of inner call to be tested
@@ -536,8 +536,8 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 
 					// compare results
 					memWordIsSame := gotMemWord.Cmp(wantMemWord[0]) == 0
-					if memWordIsSame == call.memShouldCahnge {
-						if call.memShouldCahnge {
+					if memWordIsSame == call.memShouldChange {
+						if call.memShouldChange {
 							t.Errorf("memmory should change when return data size > 0, but it didn't")
 						} else {
 							t.Errorf("memmory should not change when return data size is 0, but it did")
