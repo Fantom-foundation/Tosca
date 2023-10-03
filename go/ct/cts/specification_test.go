@@ -9,8 +9,10 @@ import (
 func TestSpecification_RulesCoverTestCases(t *testing.T) {
 	rules := Specification.GetRules()
 	for _, rule := range rules {
+		rule := rule
 		t.Run(rule.Name, func(t *testing.T) {
-			for _, cur := range ct.GetTestSamples(rule) {
+			t.Parallel()
+			rule.EnumerateTestCases(func(cur ct.State) {
 				rules := Specification.GetRulesFor(cur)
 				if len(rules) == 0 {
 					t.Fatalf("no specification for state %v", &cur)
@@ -18,7 +20,7 @@ func TestSpecification_RulesCoverTestCases(t *testing.T) {
 				if len(rules) > 1 {
 					t.Fatalf("multiple rules for state %v: %v", &cur, rules)
 				}
-			}
+			})
 		})
 	}
 }

@@ -13,10 +13,12 @@ func TestComplianceTest_DerivedTestCases(t *testing.T) {
 	spec := cts.Specification
 	adapter := cti.CtAdapter{}
 	for _, rule := range spec.GetRules() {
+		rule := rule
 		t.Run(rule.Name, func(t *testing.T) {
-			for _, state := range ct.GetTestSamples(rule) {
+			t.Parallel()
+			rule.EnumerateTestCases(func(state ct.State) {
 				run(spec, adapter, state, t)
-			}
+			})
 		})
 	}
 }
