@@ -2128,6 +2128,19 @@ TEST(InterpreterTest, CODECOPY_OversizedMemory) {
   });
 }
 
+TEST(InterpreterTest, CODECOPY_GasCostOverflow) {
+  RunInterpreterTest({
+      .code = {op::PUSH1, 23,  //
+               op::POP,        //
+               op::PUSH1, 42,  //
+               op::POP,        //
+               op::CODECOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {0x8000000000000000, 0x8000000000000000, 0x8000000000000000},
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // GASPRICE
 TEST(InterpreterTest, GASPRICE) {
@@ -2440,6 +2453,15 @@ TEST(InterpreterTest, EXTCODECOPY_OutOfBoundsCodeOffset) {
       .stack_before = {4, uint256_t{1} << 100, 0, 0x42},
       .memory_before = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE},
       .memory_after = {0x00, 0x00, 0x00, 0x00, 0xEE},
+  });
+}
+
+TEST(InterpreterTest, EXTCODECOPY_GasCostOverflow) {
+  RunInterpreterTest({
+      .code = {op::EXTCODECOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 10000000,
+      .stack_before = {0x8000000000000000, 0x8000000000000000, 0x8000000000000000, 0x42},
   });
 }
 
