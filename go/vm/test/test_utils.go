@@ -29,6 +29,14 @@ var (
 		"evmzero-no-sha3-cache",
 		"evmzero-profiling",
 	}
+
+	DisabledTest = map[string]map[string]bool{
+		"TestNoReturnDataForCreate": {
+			"evmone":          true,
+			"evmone-basic":    true,
+			"evmone-advanced": true,
+		},
+	}
 )
 
 const InitialTestGas uint64 = 1 << 44
@@ -112,4 +120,12 @@ func (e *TestEVM) RunWithGas(code []byte, input []byte, initialGas uint64) (RunR
 
 func (e *TestEVM) GetInterpreter() vm.EVMInterpreter {
 	return e.evm.Interpreter()
+}
+
+// skipTestForVariant returns true, if test should be skipped for variant
+func skipTestForVariant(testName string, variant string) bool {
+	if disabled, found := DisabledTest[testName][variant]; found && disabled {
+		return true
+	}
+	return false
 }
