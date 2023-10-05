@@ -124,7 +124,7 @@ func (e *TestEVM) GetInterpreter() vm.EVMInterpreter {
 
 // skipTestForVariant returns true, if test should be skipped for variant
 func skipTestForVariant(testName string, variant string) bool {
-	if _, ok := DisabledTest[testName][variant]; ok {
+	if disabled, found := DisabledTest[testName][variant]; found && disabled {
 		return true
 	}
 	return false
