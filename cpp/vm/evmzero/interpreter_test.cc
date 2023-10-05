@@ -70,6 +70,8 @@ struct InterpreterTestDescription {
 };
 
 void RunInterpreterTest(const InterpreterTestDescription& desc) {
+  MockHost fallback_mock_host;
+
   auto valid_jump_targets = op::CalculateValidJumpTargets(desc.code);
 
   auto padded_code = internal::PadCode(desc.code);
@@ -83,7 +85,7 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
       .memory = desc.memory_before,
       .stack = desc.stack_before,
       .message = &desc.message,
-      .host = desc.host,
+      .host = desc.host ? desc.host : &fallback_mock_host,
       .revision = desc.revision,
   };
 
