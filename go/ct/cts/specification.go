@@ -448,9 +448,11 @@ func getPushOpRules(size int) []ct.Rule {
 			Effect: ct.Update(func(s ct.State) ct.State {
 				s.Gas = s.Gas - 3
 				value := uint256.NewInt(0)
-				if int(s.Pc+1) < len(s.Code) {
-					value.SetBytes(s.Code[s.Pc+1 : s.Pc+1+uint16(size)])
+				data := make([]byte, size)
+				for i := 0; i < size && int(s.Pc)+1+i < len(s.Code); i++ {
+					data[i] = s.Code[int(s.Pc)+1+i]
 				}
+				value.SetBytes(data)
 				s.Stack.Push(*value)
 				s.Pc = s.Pc + 1 + uint16(size)
 				return s
