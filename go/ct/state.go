@@ -39,52 +39,58 @@ func (s StatusCode) String() string {
 type State struct {
 	Status StatusCode
 	Code   []byte
+	isCode []bool
 	Pc     uint16
 	Gas    uint64
 	Stack  Stack
 }
 
+func (s *State) setCodeMask() {
+	if len(s.isCode) == len(s.Code) {
+		return
+	}
+	s.isCode = make([]bool, len(s.Code))
+	for i := 0; i < len(s.Code); i++ {
+		s.isCode[i] = true
+		op := s.Code[i]
+		if byte(PUSH1) <= op && op <= byte(PUSH32) {
+			i = i + int(op-byte(PUSH1)+1)
+		}
+	}
+}
+
 // TODO: test this
 func (s *State) IsCode(position int) bool {
-	if position >= len(s.Code) {
-		return false
-	}
-	return s.GetNextCodePosition(position) == position
+	s.setCodeMask()
+	return position >= 0 && position < len(s.isCode) && s.isCode[position]
 }
 
 func (s *State) GetNextCodePosition(start int) int {
 	if start >= len(s.Code) {
 		return 0
 	}
-	i := 0
-	for ; i < start; i++ {
-		cur := s.Code[i]
-		if byte(PUSH1) <= cur && cur <= byte(PUSH32) {
-			i = i + int(cur-byte(PUSH1)+1)
+	s.setCodeMask()
+	for i := start; i < len(s.isCode); i++ {
+		if s.isCode[i] {
+			return i
 		}
 	}
-	return i
+	return 0
 }
 
 func (s *State) GetNextDataPosition(start int) (position int, found bool) {
 	if start >= len(s.Code) {
 		start = 0
 	}
-	i := 0
-	for ; i < start; i++ {
-		cur := s.Code[i]
-		if byte(PUSH1) <= cur && cur <= byte(PUSH32) {
-			i = i + int(cur-byte(PUSH1)+1)
+	s.setCodeMask()
+	for i := start; i < len(s.isCode); i++ {
+		if !s.isCode[i] {
+			return i, true
 		}
 	}
-	if i > start {
-		return start, true
-	}
-	// Keep searching for next data section.
-	for ; i < len(s.Code); i++ {
-		cur := s.Code[i]
-		if byte(PUSH1) <= cur && cur <= byte(PUSH32) {
-			return i + 1, true
+	for i := 0; i < start; i++ {
+		if !s.isCode[i] {
+			return i, true
 		}
 	}
 	return 0, false
@@ -114,6 +120,8 @@ func (s *State) Clone() *State {
 	res := *s
 	res.Code = make([]byte, len(s.Code))
 	copy(res.Code, s.Code)
+	res.isCode = make([]bool, len(s.isCode))
+	copy(res.isCode, s.isCode)
 	res.Stack = s.Stack.Clone()
 	return &res
 }
@@ -133,7 +141,7 @@ func (s *State) String() string {
 	}
 	builder.WriteString(fmt.Sprintf("\tGas: %d,\n", s.Gas))
 	if len(s.Code) > 20 {
-		builder.WriteString(fmt.Sprintf("\tCode: %x...\n", s.Code[:20]))
+		builder.WriteString(fmt.Sprintf("\tCode: %x... (size: %d)\n", s.Code[:20], len(s.Code)))
 	} else {
 		builder.WriteString(fmt.Sprintf("\tCode: %x\n", s.Code))
 	}
