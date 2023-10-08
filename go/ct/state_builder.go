@@ -40,6 +40,7 @@ const (
 	sp_Gas
 	sp_StackSize
 	sp_Stack
+	sp_Storage
 )
 
 func NewStateBuilder() *StateBuilder {
@@ -256,11 +257,7 @@ func (b *StateBuilder) SetStackSize(size int) {
 	}
 	b.markFixed(sp_StackSize)
 	for i := 0; i < size; i++ {
-		var value [32]byte
-		b.random.Read(value[:])
-		var element uint256.Int
-		element.SetBytes(value[:])
-		b.state.Stack.Push(element)
+		b.state.Stack.Push(b.randomUint256())
 	}
 }
 
@@ -292,6 +289,31 @@ func (b *StateBuilder) GetStackValue(pos int) uint256.Int {
 	return b.state.Stack.Get(pos)
 }
 
+// --- Storage ---
+
+func (b *StateBuilder) fixStorage() {
+	if b.isFixed(sp_Storage) {
+		return
+	}
+	b.markFixed(sp_Storage)
+
+	// Add a few elements at referenced memory locations.
+	for _, key := range (NumericParameter{}).Samples() {
+		if b.random.Int31n(3) != 0 {
+			value := b.randomUint256()
+			b.state.Storage.Set(key, value)
+		}
+	}
+
+	// Add random elements.
+	num := b.random.Int31n(5)
+	for i := int32(0); i < num; i++ {
+		key := b.randomUint256()
+		value := b.randomUint256()
+		b.state.Storage.Set(key, value)
+	}
+}
+
 // --- Build ---
 
 func (b *StateBuilder) Build() State {
@@ -301,6 +323,7 @@ func (b *StateBuilder) Build() State {
 	b.fixPc(true)
 	b.fixGas()
 	b.fixStackSize()
+	b.fixStorage()
 	return b.state
 }
 
@@ -310,4 +333,12 @@ func (b *StateBuilder) isFixed(property stateProperty) bool {
 
 func (b *StateBuilder) markFixed(property stateProperty) {
 	b.fixed = b.fixed | (1 << int(property))
+}
+
+func (b *StateBuilder) randomUint256() uint256.Int {
+	var value [32]byte
+	b.random.Read(value[:])
+	var res uint256.Int
+	res.SetBytes(value[:])
+	return res
 }

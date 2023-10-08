@@ -141,6 +141,104 @@ var Specification = func() ct.Specification {
 		return boolToUint256(a.Eq(&b))
 	})...)
 
+	// --- SLOAD / STORE ---
+
+	// SLOAD (with constant gas costs)
+	rules = append(rules, []ct.Rule{
+		{
+			Name: "sload_with_too_little_gas",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.SLOAD),
+				ct.Lt(ct.Gas(), 100),
+			),
+			Effect: Fail(),
+		},
+
+		{
+			Name: "sload_with_too_few_elements",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.SLOAD),
+				ct.Ge(ct.Gas(), 100),
+				ct.Lt(ct.StackSize(), 1),
+			),
+			Effect: Fail(),
+		},
+
+		{
+			Name: "sload_regular",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.SLOAD),
+				ct.Ge(ct.Gas(), 100),
+				ct.Ge(ct.StackSize(), 1),
+			),
+			Parameter: []ct.Parameter{
+				ct.NumericParameter{},
+			},
+			Effect: ct.Update(func(s ct.State) ct.State {
+				s.Gas = s.Gas - 100
+				s.Pc++
+				a := s.Stack.Pop()
+				s.Stack.Push(s.Storage.Get(a))
+				return s
+			}),
+		},
+	}...)
+
+	// SSTORE (with constant gas costs)
+	rules = append(rules, []ct.Rule{
+		{
+			Name: "sstore_with_too_little_gas",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.SSTORE),
+				ct.Lt(ct.Gas(), 100),
+			),
+			Effect: Fail(),
+		},
+
+		{
+			Name: "sstore_with_too_few_elements",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.SSTORE),
+				ct.Ge(ct.Gas(), 100),
+				ct.Lt(ct.StackSize(), 2),
+			),
+			Effect: Fail(),
+		},
+
+		{
+			Name: "sstore_regular",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.SSTORE),
+				ct.Ge(ct.Gas(), 100),
+				ct.Ge(ct.StackSize(), 2),
+			),
+			Parameter: []ct.Parameter{
+				ct.NumericParameter{},
+				ct.NumericParameter{},
+			},
+			Effect: ct.Update(func(s ct.State) ct.State {
+				s.Gas = s.Gas - 100
+				s.Pc++
+				a := s.Stack.Pop()
+				b := s.Stack.Pop()
+				s.Storage.Set(a, b)
+				return s
+			}),
+		},
+	}...)
+
 	// --- JUMP ---
 
 	rules = append(rules, []ct.Rule{
@@ -469,7 +567,8 @@ func getInvalidOps() []ct.OpCode {
 		case ct.STOP,
 			ct.ADD, ct.LT, ct.EQ,
 			ct.POP, ct.PUSH1, ct.PUSH2, ct.PUSH16, ct.PUSH32,
-			ct.JUMP, ct.JUMPI, ct.JUMPDEST:
+			ct.JUMP, ct.JUMPI, ct.JUMPDEST,
+			ct.SLOAD, ct.SSTORE:
 			// skip
 		default:
 			res = append(res, op)
