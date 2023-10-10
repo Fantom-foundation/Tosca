@@ -40,6 +40,7 @@ const (
 	sp_Gas
 	sp_StackSize
 	sp_Stack
+	sp_Memory
 	sp_Storage
 )
 
@@ -289,6 +290,22 @@ func (b *StateBuilder) GetStackValue(pos int) uint256.Int {
 	return b.state.Stack.Get(pos)
 }
 
+// --- Memory ---
+
+func (b *StateBuilder) fixMemory() {
+	if b.isFixed(sp_Memory) {
+		return
+	}
+	b.markFixed(sp_Memory)
+
+	numWords := b.random.Int31n(5)
+	for i := int32(0); i < numWords; i++ {
+		word := b.randomUint256()
+		wordBytes := word.Bytes32()
+		b.state.Memory.Append(wordBytes[:])
+	}
+}
+
 // --- Storage ---
 
 func (b *StateBuilder) fixStorage() {
@@ -323,6 +340,7 @@ func (b *StateBuilder) Build() State {
 	b.fixPc(true)
 	b.fixGas()
 	b.fixStackSize()
+	b.fixMemory()
 	b.fixStorage()
 	return b.state
 }

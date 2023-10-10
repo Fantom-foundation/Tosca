@@ -141,6 +141,182 @@ var Specification = func() ct.Specification {
 		return boolToUint256(a.Eq(&b))
 	})...)
 
+	// --- MLOAD / MSTORE / MSTORE8
+	rules = append(rules, []ct.Rule{
+		// MLOAD
+
+		{
+			Name: "mload_with_too_little_static_gas",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.MLOAD),
+				ct.Lt(ct.Gas(), 3),
+			),
+			Effect: Fail(),
+		},
+
+		{
+			Name: "mload_with_too_few_elements",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.MLOAD),
+				ct.Ge(ct.Gas(), 3),
+				ct.Lt(ct.StackSize(), 1),
+			),
+			Effect: Fail(),
+		},
+
+		{
+			Name: "mload_regular",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.MLOAD),
+				ct.Ge(ct.Gas(), 3),
+				ct.Ge(ct.StackSize(), 1),
+			),
+			Parameter: []ct.Parameter{
+				ct.NumericParameter{},
+			},
+			Effect: ct.Update(func(s ct.State) ct.State {
+				offset_u256 := s.Stack.Pop()
+				memCost, offset, _ := s.Memory.ExpansionCosts(&offset_u256, *uint256.NewInt(32))
+
+				if s.Gas < 3+memCost {
+					s.Status = ct.Failed
+					s.Gas = 0
+					return s
+				}
+				s.Gas -= 3 + memCost
+
+				var value uint256.Int
+				value.SetBytes32(s.Memory.ReadFrom(offset, 32))
+				s.Stack.Push(value)
+
+				s.Pc++
+				return s
+			}),
+		},
+
+		// MSTORE
+
+		{
+			Name: "mstore_with_too_little_static_gas",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.MSTORE),
+				ct.Lt(ct.Gas(), 3),
+			),
+			Effect: Fail(),
+		},
+
+		{
+			Name: "mstore_with_too_few_elements",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.MSTORE),
+				ct.Ge(ct.Gas(), 3),
+				ct.Lt(ct.StackSize(), 2),
+			),
+			Effect: Fail(),
+		},
+
+		{
+			Name: "mstore_regular",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.MSTORE),
+				ct.Ge(ct.Gas(), 3),
+				ct.Ge(ct.StackSize(), 2),
+			),
+			Parameter: []ct.Parameter{
+				ct.NumericParameter{},
+				ct.NumericParameter{},
+			},
+			Effect: ct.Update(func(s ct.State) ct.State {
+				offset_u256 := s.Stack.Pop()
+				value := s.Stack.Pop()
+				memCost, offset, _ := s.Memory.ExpansionCosts(&offset_u256, *uint256.NewInt(32))
+
+				if s.Gas < 3+memCost {
+					s.Status = ct.Failed
+					s.Gas = 0
+					return s
+				}
+				s.Gas -= 3 + memCost
+
+				valueBytes := value.Bytes32()
+				s.Memory.WriteTo(valueBytes[:], offset)
+
+				s.Pc++
+				return s
+			}),
+		},
+
+		// MSTORE8
+
+		{
+			Name: "mstore8_with_too_little_static_gas",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.MSTORE8),
+				ct.Lt(ct.Gas(), 3),
+			),
+			Effect: Fail(),
+		},
+
+		{
+			Name: "mstore8_with_too_few_elements",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.MSTORE8),
+				ct.Ge(ct.Gas(), 3),
+				ct.Lt(ct.StackSize(), 2),
+			),
+			Effect: Fail(),
+		},
+
+		{
+			Name: "mstore8_regular",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.MSTORE8),
+				ct.Ge(ct.Gas(), 3),
+				ct.Ge(ct.StackSize(), 2),
+			),
+			Parameter: []ct.Parameter{
+				ct.NumericParameter{},
+				ct.NumericParameter{},
+			},
+			Effect: ct.Update(func(s ct.State) ct.State {
+				offset_u256 := s.Stack.Pop()
+				value_u256 := s.Stack.Pop()
+				value := value_u256.Bytes32()[31]
+				memCost, offset, _ := s.Memory.ExpansionCosts(&offset_u256, *uint256.NewInt(1))
+
+				if s.Gas < 3+memCost {
+					s.Status = ct.Failed
+					s.Gas = 0
+					return s
+				}
+				s.Gas -= 3 + memCost
+
+				s.Memory.WriteTo([]byte{value}, offset)
+
+				s.Pc++
+				return s
+			}),
+		},
+	}...)
+
 	// --- SLOAD / STORE ---
 
 	// SLOAD (with constant gas costs)
@@ -568,6 +744,7 @@ func getInvalidOps() []ct.OpCode {
 			ct.ADD, ct.LT, ct.EQ,
 			ct.POP, ct.PUSH1, ct.PUSH2, ct.PUSH16, ct.PUSH32,
 			ct.JUMP, ct.JUMPI, ct.JUMPDEST,
+			ct.MLOAD, ct.MSTORE, ct.MSTORE8,
 			ct.SLOAD, ct.SSTORE:
 			// skip
 		default:
