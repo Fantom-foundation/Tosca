@@ -20,6 +20,7 @@ const (
 	JUMPI    OpCode = 0x57
 	JUMPDEST OpCode = 0x5B
 	POP      OpCode = 0x50
+	MSTORE   OpCode = 0x52
 	PUSH1    OpCode = 0x60
 	PUSH2    OpCode = 0x61
 	PUSH16   OpCode = 0x6F
@@ -52,6 +53,7 @@ type State struct {
 	GasLeft uint64
 	Code    []OpCode
 	Stack   []uint256.Int
+	Memory  []byte
 }
 
 const MaxStackLength = 1024
@@ -103,6 +105,8 @@ func (s *State) Step() {
 		s.opJUMPDEST()
 	case POP:
 		s.opPOP()
+	case MSTORE:
+		s.opMSTORE()
 	case PUSH1:
 		s.opPUSH(1)
 	case PUSH2:
@@ -151,6 +155,48 @@ func (s *State) popStack() uint256.Int {
 
 func (s *State) peekStack() *uint256.Int {
 	return &s.Stack[len(s.Stack)-1]
+}
+
+func (s *State) memoryExpansionCost(offset_u256 uint256.Int, size_u256 uint256.Int) (memCost uint64, offset uint64, size uint64) {
+	if offset_u256.GtUint64(math.MaxUint64) || size_u256.GtUint64(math.MaxUint64) {
+		return math.MaxUint64, 0, 0
+	}
+
+	offset = offset_u256.Uint64()
+	size = size_u256.Uint64()
+
+	if size == 0 {
+		memCost = 0
+		return
+	}
+
+	newSize := offset + size
+	if newSize <= uint64(len(s.Memory)) {
+		memCost = 0
+		return
+	}
+
+	calcMemoryCost := func(size uint64) uint64 {
+		memorySizeWord := (size + 31) / 32
+		return (memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord)
+	}
+	memCost = calcMemoryCost(newSize) - calcMemoryCost(uint64(len(s.Memory)))
+	return
+}
+
+func (s *State) writeToMemory(data []byte, offset uint64) {
+	s.growMemory(offset, uint64(len(data)))
+	copy(s.Memory[offset:], data)
+}
+
+func (s *State) growMemory(offset uint64, size uint64) {
+	if size != 0 {
+		newSize := offset + size
+		if newSize > uint64(len(s.Memory)) {
+			newSize = ((newSize + 31) / 32) * 32
+			s.Memory = append(s.Memory, make([]byte, newSize-uint64(len(s.Memory)))...)
+		}
+	}
 }
 
 func (s *State) checkJumpDest(target uint256.Int) bool {
@@ -336,6 +382,29 @@ func (s *State) opPOP() {
 	}
 
 	s.popStack()
+
+	s.Pc += 1
+}
+
+func (s *State) opMSTORE() {
+	if !s.applyGasCost(3) {
+		return
+	}
+	if len(s.Stack) < 2 {
+		s.Status = ErrorStackUnderflow
+		return
+	}
+
+	offset_u256 := s.popStack()
+	value := s.popStack()
+
+	memCost, offset, _ := s.memoryExpansionCost(offset_u256, *uint256.NewInt(32))
+	if !s.applyGasCost(memCost) {
+		return
+	}
+
+	bytes := value.Bytes32()
+	s.writeToMemory(bytes[:], offset)
 
 	s.Pc += 1
 }
