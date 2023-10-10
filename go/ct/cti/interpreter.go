@@ -21,6 +21,7 @@ const (
 	JUMPDEST OpCode = 0x5B
 	POP      OpCode = 0x50
 	MSTORE   OpCode = 0x52
+	MSTORE8  OpCode = 0x53
 	PUSH1    OpCode = 0x60
 	PUSH2    OpCode = 0x61
 	PUSH16   OpCode = 0x6F
@@ -107,6 +108,8 @@ func (s *State) Step() {
 		s.opPOP()
 	case MSTORE:
 		s.opMSTORE()
+	case MSTORE8:
+		s.opMSTORE8()
 	case PUSH1:
 		s.opPUSH(1)
 	case PUSH2:
@@ -405,6 +408,29 @@ func (s *State) opMSTORE() {
 
 	bytes := value.Bytes32()
 	s.writeToMemory(bytes[:], offset)
+
+	s.Pc += 1
+}
+
+func (s *State) opMSTORE8() {
+	if !s.applyGasCost(3) {
+		return
+	}
+	if len(s.Stack) < 2 {
+		s.Status = ErrorStackUnderflow
+		return
+	}
+
+	offset_u256 := s.popStack()
+	value_u256 := s.popStack()
+	value := value_u256.Bytes32()[31]
+
+	memCost, offset, _ := s.memoryExpansionCost(offset_u256, *uint256.NewInt(1))
+	if !s.applyGasCost(memCost) {
+		return
+	}
+
+	s.writeToMemory([]byte{value}, offset)
 
 	s.Pc += 1
 }

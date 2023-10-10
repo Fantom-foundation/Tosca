@@ -143,3 +143,23 @@ func TestMStore(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestMStore8(t *testing.T) {
+	s := State{
+		Status:  Running,
+		GasLeft: 10,
+		Code:    []OpCode{MSTORE8},
+		Stack:   []uint256.Int{*uint256.NewInt(0x3b2a), *uint256.NewInt(2)},
+	}
+	s.Run()
+
+	expectedMem := make([]byte, 32)
+	expectedMem[2] = 0x2a
+
+	ok := s.Status == Done &&
+		s.GasLeft == 4 &&
+		memoryEq(&s, expectedMem)
+	if !ok {
+		t.Fail()
+	}
+}
