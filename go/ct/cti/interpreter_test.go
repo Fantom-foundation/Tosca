@@ -124,7 +124,33 @@ func TestJUMP_Invalid(t *testing.T) {
 	}
 }
 
-func TestMStore(t *testing.T) {
+func TestMLOAD(t *testing.T) {
+	s := State{
+		Status:  Running,
+		GasLeft: 10,
+		Code:    []OpCode{MLOAD},
+		Stack:   []uint256.Int{*uint256.NewInt(2)},
+		Memory: []byte{
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0x2a},
+	}
+	s.Run()
+
+	expectedMem := make([]byte, 64)
+	expectedMem[31] = 42
+
+	ok := s.Status == Done &&
+		s.GasLeft == 4 &&
+		s.Stack[0].Eq(uint256.NewInt(0x2a0000)) &&
+		memoryEq(&s, expectedMem)
+	if !ok {
+		t.Fail()
+	}
+}
+
+func TestMSTORE(t *testing.T) {
 	s := State{
 		Status:  Running,
 		GasLeft: 10,
@@ -144,7 +170,7 @@ func TestMStore(t *testing.T) {
 	}
 }
 
-func TestMStore8(t *testing.T) {
+func TestMSTORE8(t *testing.T) {
 	s := State{
 		Status:  Running,
 		GasLeft: 10,

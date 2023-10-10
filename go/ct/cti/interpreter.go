@@ -20,6 +20,7 @@ const (
 	JUMPI    OpCode = 0x57
 	JUMPDEST OpCode = 0x5B
 	POP      OpCode = 0x50
+	MLOAD    OpCode = 0x51
 	MSTORE   OpCode = 0x52
 	MSTORE8  OpCode = 0x53
 	PUSH1    OpCode = 0x60
@@ -106,6 +107,8 @@ func (s *State) Step() {
 		s.opJUMPDEST()
 	case POP:
 		s.opPOP()
+	case MLOAD:
+		s.opMLOAD()
 	case MSTORE:
 		s.opMSTORE()
 	case MSTORE8:
@@ -185,6 +188,13 @@ func (s *State) memoryExpansionCost(offset_u256 uint256.Int, size_u256 uint256.I
 	}
 	memCost = calcMemoryCost(newSize) - calcMemoryCost(uint64(len(s.Memory)))
 	return
+}
+
+func (s *State) readFromMemory(offset uint64, size uint64) []byte {
+	s.growMemory(offset, size)
+	data := make([]byte, size)
+	copy(data, s.Memory[offset:])
+	return data
 }
 
 func (s *State) writeToMemory(data []byte, offset uint64) {
@@ -385,6 +395,29 @@ func (s *State) opPOP() {
 	}
 
 	s.popStack()
+
+	s.Pc += 1
+}
+
+func (s *State) opMLOAD() {
+	if !s.applyGasCost(3) {
+		return
+	}
+	if len(s.Stack) < 1 {
+		s.Status = ErrorStackUnderflow
+		return
+	}
+
+	offset_u256 := s.popStack()
+
+	memCost, offset, _ := s.memoryExpansionCost(offset_u256, *uint256.NewInt(32))
+	if !s.applyGasCost(memCost) {
+		return
+	}
+
+	var value uint256.Int
+	value.SetBytes32(s.readFromMemory(offset, 32))
+	s.pushStack(&value)
 
 	s.Pc += 1
 }
