@@ -416,7 +416,14 @@ func opShl(c *context) {
 func opSar(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	// Note: this does not check for byte overflow!
+	if !a.IsUint64() || a.Uint64()>>32 > 0 {
+		if b.Sign() >= 0 {
+			b.Clear()
+		} else {
+			b.SetAllOne()
+		}
+		return
+	}
 	b.SRsh(b, uint(a.Uint64()))
 }
 
