@@ -4,19 +4,8 @@ import (
 	"testing"
 
 	"github.com/holiman/uint256"
+	"golang.org/x/exp/slices"
 )
-
-func stackEq(s *State, expected []uint256.Int) bool {
-	if len(s.Stack) != len(expected) {
-		return false
-	}
-	for i := 0; i < len(expected); i++ {
-		if s.Stack[i] != expected[i] {
-			return false
-		}
-	}
-	return true
-}
 
 func TestSTOP(t *testing.T) {
 	s := State{
@@ -52,7 +41,7 @@ func TestADD(t *testing.T) {
 	s.Run()
 	ok := s.Status == Done &&
 		s.GasLeft == 100-3 &&
-		stackEq(&s, []uint256.Int{*uint256.NewInt(21 + 42)})
+		slices.Equal(s.Stack, []uint256.Int{*uint256.NewInt(21 + 42)})
 	if !ok {
 		t.Fail()
 	}
@@ -108,6 +97,72 @@ func TestJUMP_Invalid(t *testing.T) {
 	}
 	s.Run()
 	if s.Status != ErrorJump {
+		t.Fail()
+	}
+}
+
+func TestMLOAD(t *testing.T) {
+	s := State{
+		Status:  Running,
+		GasLeft: 10,
+		Code:    []OpCode{MLOAD},
+		Stack:   []uint256.Int{*uint256.NewInt(2)},
+		Memory: []byte{
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0x2a},
+	}
+	s.Run()
+
+	expectedMem := make([]byte, 64)
+	expectedMem[31] = 42
+
+	ok := s.Status == Done &&
+		s.GasLeft == 4 &&
+		s.Stack[0].Eq(uint256.NewInt(0x2a0000)) &&
+		slices.Equal(s.Memory, expectedMem)
+	if !ok {
+		t.Fail()
+	}
+}
+
+func TestMSTORE(t *testing.T) {
+	s := State{
+		Status:  Running,
+		GasLeft: 10,
+		Code:    []OpCode{MSTORE},
+		Stack:   []uint256.Int{*uint256.NewInt(42), *uint256.NewInt(2)},
+	}
+	s.Run()
+
+	expectedMem := make([]byte, 64)
+	expectedMem[33] = 42
+
+	ok := s.Status == Done &&
+		s.GasLeft == 1 &&
+		slices.Equal(s.Memory, expectedMem)
+	if !ok {
+		t.Fail()
+	}
+}
+
+func TestMSTORE8(t *testing.T) {
+	s := State{
+		Status:  Running,
+		GasLeft: 10,
+		Code:    []OpCode{MSTORE8},
+		Stack:   []uint256.Int{*uint256.NewInt(0x3b2a), *uint256.NewInt(2)},
+	}
+	s.Run()
+
+	expectedMem := make([]byte, 32)
+	expectedMem[2] = 0x2a
+
+	ok := s.Status == Done &&
+		s.GasLeft == 4 &&
+		slices.Equal(s.Memory, expectedMem)
+	if !ok {
 		t.Fail()
 	}
 }
