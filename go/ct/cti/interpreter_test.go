@@ -4,31 +4,8 @@ import (
 	"testing"
 
 	"github.com/holiman/uint256"
+	"golang.org/x/exp/slices"
 )
-
-func stackEq(s *State, expected []uint256.Int) bool {
-	if len(s.Stack) != len(expected) {
-		return false
-	}
-	for i := 0; i < len(expected); i++ {
-		if s.Stack[i] != expected[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func memoryEq(s *State, expected []byte) bool {
-	if len(s.Memory) != len(expected) {
-		return false
-	}
-	for i := range s.Memory {
-		if s.Memory[i] != expected[i] {
-			return false
-		}
-	}
-	return true
-}
 
 func TestSTOP(t *testing.T) {
 	s := State{
@@ -64,7 +41,7 @@ func TestADD(t *testing.T) {
 	s.Run()
 	ok := s.Status == Done &&
 		s.GasLeft == 100-3 &&
-		stackEq(&s, []uint256.Int{*uint256.NewInt(21 + 42)})
+		slices.Equal(s.Stack, []uint256.Int{*uint256.NewInt(21 + 42)})
 	if !ok {
 		t.Fail()
 	}
@@ -144,7 +121,7 @@ func TestMLOAD(t *testing.T) {
 	ok := s.Status == Done &&
 		s.GasLeft == 4 &&
 		s.Stack[0].Eq(uint256.NewInt(0x2a0000)) &&
-		memoryEq(&s, expectedMem)
+		slices.Equal(s.Memory, expectedMem)
 	if !ok {
 		t.Fail()
 	}
@@ -164,7 +141,7 @@ func TestMSTORE(t *testing.T) {
 
 	ok := s.Status == Done &&
 		s.GasLeft == 1 &&
-		memoryEq(&s, expectedMem)
+		slices.Equal(s.Memory, expectedMem)
 	if !ok {
 		t.Fail()
 	}
@@ -184,7 +161,7 @@ func TestMSTORE8(t *testing.T) {
 
 	ok := s.Status == Done &&
 		s.GasLeft == 4 &&
-		memoryEq(&s, expectedMem)
+		slices.Equal(s.Memory, expectedMem)
 	if !ok {
 		t.Fail()
 	}
