@@ -668,16 +668,8 @@ func getNegativeBigIntSignInBits(value *big.Int) *big.Int {
 
 func TestSARInstruction(t *testing.T) {
 
-	type testCase struct {
-		name   string
-		value  *big.Int
-		shift  *big.Int
-		result *big.Int
-	}
-
 	sizeOverUint64, _ := big.NewInt(0).SetString("0x100000000000000001", 0)
 	sizeOverUint64ByOne, _ := big.NewInt(0).SetString("0x80000000000000000", 0)
-
 	sizeMaxIntPositive, _ := big.NewInt(0).SetString("0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
 
 	sizeMaxIntNegative, _ := big.NewInt(0).SetString("0x8000000000000000000000000000000000000000000000000000000000000001", 0)
@@ -691,7 +683,7 @@ func TestSARInstruction(t *testing.T) {
 	// It is -1 if all bits are set to 1
 	mostNegativeShiftRight := uint256.NewInt(0).SetAllOne().ToBig()
 
-	tests := []testCase{
+	tests := []shiftTestCase{
 		{"all zero", big.NewInt(0), big.NewInt(0), big.NewInt(0)},
 		{"0>>1", big.NewInt(0), big.NewInt(1), big.NewInt(0)},
 		{"over64>>1", sizeOverUint64, big.NewInt(1), sizeOverUint64ByOne},
@@ -707,7 +699,34 @@ func TestSARInstruction(t *testing.T) {
 		{"maxNegativeInt256>>254", sizeMaxIntNegative, big.NewInt(254), getNegativeBigIntSignInBits(big.NewInt(-2))},
 		{"maxNegativeInt256>>over64", sizeMaxIntNegative, sizeOverUint64, mostNegativeShiftRight},
 	}
+	runShiftTests(t, vm.SAR, tests)
+}
 
+func TestSHRInstruction(t *testing.T) {
+
+	sizeOverUint64, _ := big.NewInt(0).SetString("0x100000000000000001", 0)
+	sizeOverUint64ByOne, _ := big.NewInt(0).SetString("0x80000000000000000", 0)
+	sizeMaxUint256, _ := big.NewInt(0).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
+
+	tests := []shiftTestCase{
+		{"all zero", big.NewInt(0), big.NewInt(0), big.NewInt(0)},
+		{"0>>1", big.NewInt(0), big.NewInt(1), big.NewInt(0)},
+		{"over64>>1", sizeOverUint64, big.NewInt(1), sizeOverUint64ByOne},
+		{"over64>>over64", sizeOverUint64, sizeOverUint64, big.NewInt(0)},
+		{"maxPositiveInt256>>255", sizeMaxUint256, big.NewInt(255), big.NewInt(1)},
+	}
+
+	runShiftTests(t, vm.SHR, tests)
+}
+
+type shiftTestCase struct {
+	name   string
+	value  *big.Int
+	shift  *big.Int
+	result *big.Int
+}
+
+func runShiftTests(t *testing.T, instruction vm.OpCode, tests []shiftTestCase) {
 	// For every variant of interpreter
 	for _, variant := range Variants {
 
@@ -721,7 +740,7 @@ func TestSARInstruction(t *testing.T) {
 
 					// Generate code
 					code, _ := addValuesToStack([]*big.Int{test.value, test.shift}, 0)
-					code = append(code, byte(vm.SAR))
+					code = append(code, byte(instruction))
 					returnCode, _ := getReturnStackCode(1, 0, 0)
 					code = append(code, returnCode...)
 
