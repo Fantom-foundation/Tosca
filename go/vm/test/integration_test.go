@@ -713,10 +713,28 @@ func TestSHRInstruction(t *testing.T) {
 		{"0>>1", big.NewInt(0), big.NewInt(1), big.NewInt(0)},
 		{"over64>>1", sizeOverUint64, big.NewInt(1), sizeOverUint64ByOne},
 		{"over64>>over64", sizeOverUint64, sizeOverUint64, big.NewInt(0)},
-		{"maxPositiveInt256>>255", sizeMaxUint256, big.NewInt(255), big.NewInt(1)},
+		{"sizeMaxUint256>>255", sizeMaxUint256, big.NewInt(255), big.NewInt(1)},
 	}
-
 	runShiftTests(t, vm.SHR, tests)
+}
+
+func TestSHLInstruction(t *testing.T) {
+
+	sizeOverUint64, _ := big.NewInt(0).SetString("0x100000000000000001", 0)
+	sizeOverUint64ByOne, _ := big.NewInt(0).SetString("0x200000000000000002", 0)
+	sizeUint256, _ := big.NewInt(0).SetString("0x4000000000000000000000000000000000000000000000000000000000000000", 0)
+	sizeMaxUint256, _ := big.NewInt(0).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
+	sizeUint256result, _ := big.NewInt(0).SetString("0x8000000000000000000000000000000000000000000000000000000000000000", 0)
+
+	tests := []shiftTestCase{
+		{"all zero", big.NewInt(0), big.NewInt(0), big.NewInt(0)},
+		{"0<<1", big.NewInt(0), big.NewInt(1), big.NewInt(0)},
+		{"over64<<1", sizeOverUint64, big.NewInt(1), sizeOverUint64ByOne},
+		{"over64<<over64", sizeOverUint64, sizeOverUint64, big.NewInt(0)},
+		{"sizeUint256<<1", sizeUint256, big.NewInt(1), sizeUint256result},
+		{"sizeMaxUint256<<255", sizeMaxUint256, big.NewInt(255), sizeUint256result},
+	}
+	runShiftTests(t, vm.SHL, tests)
 }
 
 type shiftTestCase struct {
