@@ -402,7 +402,10 @@ func opSgt(c *context) {
 func opShr(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	// Note: this does not check for byte overflow!
+	if !a.IsUint64() || a.Uint64()>>32 > 0 {
+		b.Clear()
+		return
+	}
 	b.Rsh(b, uint(a.Uint64()))
 }
 
