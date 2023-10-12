@@ -35,6 +35,8 @@ func decodeCtState(input ct.State) (output State) {
 		output.Stack[i] = input.Stack.Get(input.Stack.Size() - 1 - i)
 	}
 
+	output.Storage = input.Storage.ToMap()
+
 	return
 }
 
@@ -58,6 +60,12 @@ func encodeCtState(input State) (output ct.State, err error) {
 
 	for _, v := range input.Stack {
 		output.Stack.Push(v)
+	}
+
+	if input.Storage != nil {
+		for k, v := range input.Storage {
+			output.Storage.Set(k, v)
+		}
 	}
 
 	return
