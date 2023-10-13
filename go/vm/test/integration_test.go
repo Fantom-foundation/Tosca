@@ -664,6 +664,7 @@ func TestExtCodeHashOnEmptyAccount(t *testing.T) {
 
 	type extCodeHashTest struct {
 		name   string
+		exist  bool
 		empty  bool
 		result common.Hash
 		hash   common.Hash
@@ -672,8 +673,10 @@ func TestExtCodeHashOnEmptyAccount(t *testing.T) {
 	codeHash := common.Hash{byte(2)}
 
 	tests := []extCodeHashTest{
-		{"has for slot is empty", true, common.Hash{byte(0)}, codeHash},
-		{"has for slot is not empty", false, codeHash, codeHash},
+		{"account for slot exist and is empty", true, true, common.Hash{byte(0)}, codeHash},
+		{"account for slot doesn't exist is empty", false, true, common.Hash{byte(0)}, codeHash},
+		{"account for slot exist and is not empty", true, false, codeHash, codeHash},
+		{"account for slot doesn't exist and is not empty", false, false, common.Hash{byte(0)}, codeHash},
 	}
 
 	// For every variant of interpreter
@@ -707,9 +710,15 @@ func TestExtCodeHashOnEmptyAccount(t *testing.T) {
 
 					// set mock for inner call
 					mockStateDB.EXPECT().Empty(account).AnyTimes().Return(test.empty)
+					mockStateDB.EXPECT().Exist(account).AnyTimes().Return(test.exist)
 					mockStateDB.EXPECT().AddressInAccessList(account).AnyTimes().Return(false)
 					mockStateDB.EXPECT().AddAddressToAccessList(account).AnyTimes()
-					mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(test.hash)
+					// when account doesn't exists stateDB should take care about it
+					if test.exist {
+						mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(test.hash)
+					} else {
+						mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(common.Hash{byte(0)})
+					}
 
 					evm := GetCleanEVM(revision, variant, mockStateDB)
 
