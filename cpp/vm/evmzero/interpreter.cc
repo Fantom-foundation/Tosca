@@ -437,7 +437,7 @@ struct Impl<OpCode::SAR> {
         top[1] |= (kUint256Max << (255 - top[0]));
       }
     } else {
-      top[1] = 0;
+      top[1] = is_negative ? kUint256Max : 0;
     }
 
     return {};
