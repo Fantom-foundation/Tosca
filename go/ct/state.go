@@ -283,7 +283,7 @@ func (m *Memory) Size() int {
 }
 
 func (m *Memory) Set(data []byte) {
-	m.mem = data
+	m.mem = slices.Clone(data)
 }
 
 func (m *Memory) Append(data []byte) {
