@@ -56,6 +56,7 @@ type State struct {
 	Code    []OpCode
 	Stack   []uint256.Int
 	Memory  []byte
+	Storage map[uint256.Int]uint256.Int
 }
 
 const MaxStackLength = 1024

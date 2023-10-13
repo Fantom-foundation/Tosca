@@ -290,6 +290,17 @@ func (s *Storage) Clone() Storage {
 	return res
 }
 
+func (s *Storage) ToMap() map[uint256.Int]uint256.Int {
+	if s.store == nil {
+		return nil
+	}
+	clone := make(map[uint256.Int]uint256.Int)
+	for key, value := range s.store {
+		clone[key] = value
+	}
+	return clone
+}
+
 func (s *Storage) Equal(o *Storage) bool {
 	if len(s.store) != len(o.store) {
 		return false
