@@ -36,11 +36,6 @@ var (
 			"evmone-basic":    true,
 			"evmone-advanced": true,
 		},
-		"TestExtCodeHashOnEmptyAccount": {
-			"evmone":          true,
-			"evmone-basic":    true,
-			"evmone-advanced": true,
-		},
 	}
 )
 
