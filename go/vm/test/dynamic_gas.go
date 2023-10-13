@@ -174,6 +174,7 @@ func gasDynamicAccountAccess(revision Revision) []*DynGasTest {
 			mockStateDB.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
 			mockStateDB.EXPECT().Empty(address).AnyTimes().Return(false)
 			mockStateDB.EXPECT().GetBalance(address).AnyTimes().Return(big.NewInt(0))
+			mockStateDB.EXPECT().Exist(address).AnyTimes().Return(true)
 		}
 		// Append test
 		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls, nil})
