@@ -294,10 +294,10 @@ func (ctx *HostContext) GetCodeSize(addr evmc.Address) int {
 }
 
 func (ctx *HostContext) GetCodeHash(addr evmc.Address) evmc.Hash {
-	if ctx.interpreter.evm.StateDB.Exist((common.Address)(addr)) {
-		return evmc.Hash(ctx.interpreter.evm.StateDB.GetCodeHash((common.Address)(addr)))
-	} else {
+	if !ctx.interpreter.evm.StateDB.Exist((common.Address)(addr)) || ctx.interpreter.evm.StateDB.Empty((common.Address)(addr)) {
 		return evmc.Hash{0}
+	} else {
+		return evmc.Hash(ctx.interpreter.evm.StateDB.GetCodeHash((common.Address)(addr)))
 	}
 }
 
