@@ -432,6 +432,22 @@ func (c *isData) String() string {
 //                                   Domains
 // ----------------------------------------------------------------------------
 
+type booleanDomain struct{}
+
+func (booleanDomain) Equal(a bool, b bool) bool { return a == b }
+func (booleanDomain) Less(a bool, b bool) bool  { panic("not useful") }
+func (booleanDomain) Predecessor(a bool) bool   { panic("not useful") }
+func (booleanDomain) Successor(a bool) bool     { panic("not useful") }
+func (booleanDomain) SomethingNotEqual(a bool) bool {
+	return !a
+}
+func (booleanDomain) Samples(bool) []bool {
+	return []bool{false, true}
+}
+func (booleanDomain) SamplesForAll(_ []bool) []bool {
+	return []bool{false, true}
+}
+
 type statusCodeDomain struct{}
 
 func (statusCodeDomain) Equal(a StatusCode, b StatusCode) bool { return a == b }
@@ -653,6 +669,32 @@ func (status) set(status StatusCode, builder *StateBuilder) {
 
 func (status) String() string {
 	return "status"
+}
+
+// --- static ---
+
+type static struct{}
+
+func Static() Expression[bool] {
+	return static{}
+}
+
+func (static) Domain() Domain[bool] { return booleanDomain{} }
+
+func (static) Eval(s State) bool {
+	return s.Static
+}
+
+func (static) eval(s *StateBuilder) bool {
+	return s.GetStatic()
+}
+
+func (static) set(static bool, builder *StateBuilder) {
+	builder.SetStatic(static)
+}
+
+func (static) String() string {
+	return "static"
 }
 
 // --- code ---

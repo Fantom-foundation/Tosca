@@ -392,6 +392,19 @@ var Specification = func() ct.Specification {
 		},
 
 		{
+			Name: "sstore_in_static_mode",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.SSTORE),
+				ct.Ge(ct.Gas(), 100),
+				ct.Ge(ct.StackSize(), 2),
+				ct.Eq(ct.Static(), true),
+			),
+			Effect: Fail(),
+		},
+
+		{
 			Name: "sstore_regular",
 			Condition: ct.And(
 				ct.Eq(ct.Status(), ct.Running),
@@ -399,6 +412,7 @@ var Specification = func() ct.Specification {
 				ct.Eq(ct.Op(ct.Pc()), ct.SSTORE),
 				ct.Ge(ct.Gas(), 100),
 				ct.Ge(ct.StackSize(), 2),
+				ct.Eq(ct.Static(), false),
 			),
 			Parameter: []ct.Parameter{
 				ct.NumericParameter{},

@@ -21,6 +21,7 @@ func (evm *CtAdapter) StepN(init ct.State, numSteps int) (ct.State, error) {
 func decodeCtState(input ct.State) (output State) {
 	// ct.Failed maps to cti.Invalid
 	output.Status = Status(input.Status)
+	output.Static = input.Static
 
 	output.Pc = int(input.Pc)
 	output.GasLeft = input.Gas
@@ -50,6 +51,7 @@ func encodeCtState(input State) (output ct.State, err error) {
 	} else {
 		output.Status = ct.Failed
 	}
+	output.Static = input.Static
 
 	if input.Pc > math.MaxUint16 {
 		return output, errors.New("program counter out of range")
