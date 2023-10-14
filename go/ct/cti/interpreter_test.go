@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/holiman/uint256"
+	"go.uber.org/mock/gomock"
 	"golang.org/x/exp/slices"
 )
 
@@ -162,6 +163,58 @@ func TestMSTORE8(t *testing.T) {
 	ok := s.Status == Done &&
 		s.GasLeft == 4 &&
 		slices.Equal(s.Memory, expectedMem)
+	if !ok {
+		t.Fail()
+	}
+}
+
+func TestSLOAD(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	host := NewMockHost(ctrl)
+
+	key := *uint256.NewInt(12)
+	value := *uint256.NewInt(14)
+
+	host.EXPECT().GetStorage(key).Return(value)
+
+	s := State{
+		Status:  Running,
+		GasLeft: 220,
+		Code:    []OpCode{SLOAD},
+		Stack:   []uint256.Int{key},
+		host:    host,
+	}
+	s.Run()
+
+	ok := s.Status == Done &&
+		s.GasLeft == 120 &&
+		slices.Equal(s.Stack, []uint256.Int{value})
+	if !ok {
+		t.Fail()
+	}
+}
+
+func TestSSTORE(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	host := NewMockHost(ctrl)
+
+	key := *uint256.NewInt(12)
+	value := *uint256.NewInt(14)
+
+	host.EXPECT().SetStorage(key, value)
+
+	s := State{
+		Status:  Running,
+		GasLeft: 220,
+		Code:    []OpCode{SSTORE},
+		Stack:   []uint256.Int{value, key},
+		host:    host,
+	}
+	s.Run()
+
+	ok := s.Status == Done &&
+		s.GasLeft == 120 &&
+		slices.Equal(s.Stack, []uint256.Int{})
 	if !ok {
 		t.Fail()
 	}

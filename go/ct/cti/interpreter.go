@@ -23,6 +23,8 @@ const (
 	MLOAD    OpCode = 0x51
 	MSTORE   OpCode = 0x52
 	MSTORE8  OpCode = 0x53
+	SLOAD    OpCode = 0x54
+	SSTORE   OpCode = 0x55
 	PUSH1    OpCode = 0x60
 	PUSH2    OpCode = 0x61
 	PUSH16   OpCode = 0x6F
@@ -56,7 +58,7 @@ type State struct {
 	Code    []OpCode
 	Stack   []uint256.Int
 	Memory  []byte
-	Storage map[uint256.Int]uint256.Int
+	host    Host
 }
 
 const MaxStackLength = 1024
@@ -114,6 +116,10 @@ func (s *State) Step() {
 		s.opMSTORE()
 	case MSTORE8:
 		s.opMSTORE8()
+	case SLOAD:
+		s.opSLOAD()
+	case SSTORE:
+		s.opSSTORE()
 	case PUSH1:
 		s.opPUSH(1)
 	case PUSH2:
@@ -465,6 +471,42 @@ func (s *State) opMSTORE8() {
 	}
 
 	s.writeToMemory([]byte{value}, offset)
+
+	s.Pc += 1
+}
+
+func (s *State) opSLOAD() {
+	// Note: this implementation does deliberately not handle gas costs
+	// right now; to be added in the future;
+	if !s.applyGasCost(100) {
+		return
+	}
+	if len(s.Stack) < 1 {
+		s.Status = ErrorStackUnderflow
+		return
+	}
+
+	key := s.popStack()
+	value := s.host.GetStorage(key)
+	s.pushStack(&value)
+
+	s.Pc += 1
+}
+
+func (s *State) opSSTORE() {
+	// Note: this implementation does deliberately not handle gas costs
+	// right now; to be added in the future;
+	if !s.applyGasCost(100) {
+		return
+	}
+	if len(s.Stack) < 2 {
+		s.Status = ErrorStackUnderflow
+		return
+	}
+
+	key := s.popStack()
+	value := s.popStack()
+	s.host.SetStorage(key, value)
 
 	s.Pc += 1
 }

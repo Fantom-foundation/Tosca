@@ -36,7 +36,10 @@ func decodeCtState(input ct.State) (output State) {
 	}
 
 	output.Memory = input.Memory.ReadFrom(0, uint64(input.Memory.Size()))
-	output.Storage = input.Storage.ToMap()
+
+	output.host = &adapterHost{
+		storage: input.Storage.ToMap(),
+	}
 
 	return
 }
@@ -65,11 +68,25 @@ func encodeCtState(input State) (output ct.State, err error) {
 
 	output.Memory.Set(input.Memory)
 
-	if input.Storage != nil {
-		for k, v := range input.Storage {
-			output.Storage.Set(k, v)
-		}
+	adapterHost, ok := input.host.(*adapterHost)
+	if !ok {
+		return output, errors.New("unable to convert generic host into CT state")
+	}
+	for k, v := range adapterHost.storage {
+		output.Storage.Set(k, v)
 	}
 
 	return
+}
+
+type adapterHost struct {
+	storage map[uint256.Int]uint256.Int
+}
+
+func (h *adapterHost) GetStorage(key uint256.Int) uint256.Int {
+	return h.storage[key]
+}
+
+func (h *adapterHost) SetStorage(key uint256.Int, value uint256.Int) {
+	h.storage[key] = value
 }
