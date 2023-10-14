@@ -34,6 +34,22 @@ func (m *MockHost) EXPECT() *MockHostMockRecorder {
 	return m.recorder
 }
 
+// Call mocks base method.
+func (m *MockHost) Call(gasSent, address, value uint256.Int, message []byte) (bool, uint256.Int, []byte) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Call", gasSent, address, value, message)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(uint256.Int)
+	ret2, _ := ret[2].([]byte)
+	return ret0, ret1, ret2
+}
+
+// Call indicates an expected call of Call.
+func (mr *MockHostMockRecorder) Call(gasSent, address, value, message interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Call", reflect.TypeOf((*MockHost)(nil).Call), gasSent, address, value, message)
+}
+
 // GetStorage mocks base method.
 func (m *MockHost) GetStorage(arg0 uint256.Int) uint256.Int {
 	m.ctrl.T.Helper()

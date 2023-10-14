@@ -1,6 +1,7 @@
 package cti_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -17,7 +18,9 @@ func TestComplianceTest_DerivedTestCases(t *testing.T) {
 		t.Run(rule.Name, func(t *testing.T) {
 			t.Parallel()
 			rule.EnumerateTestCases(func(state ct.State) {
-				run(spec, adapter, state, t)
+				if err := run(spec, adapter, state, t); err != nil {
+					t.Fatalf("Failed test case: %v", err)
+				}
 			})
 		})
 	}
@@ -30,44 +33,46 @@ func TestComplianceTest_RandomTestCases(t *testing.T) {
 	adapter := cti.CtAdapter{}
 	for i := 0; i < N; i++ {
 		state := ct.GetRandomState()
-		run(spec, adapter, state, t)
+		if err := run(spec, adapter, state, t); err != nil {
+			t.Fatalf("Failed test case: %v", err)
+		}
 	}
 }
 
-func run(spec ct.Specification, interpreter cti.CtAdapter, state ct.State, t *testing.T) {
+func run(spec ct.Specification, interpreter cti.CtAdapter, state ct.State, t *testing.T) error {
 	t.Helper()
 
 	// Skip test where PC is pointing to Data (this are unreachable states).
 	if ct.IsData(ct.Pc()).Check(state) {
-		return
+		return nil
 	}
 
-	in := *state.Clone()
-
 	// run on interpreter
+	in := *state.Clone()
 	got, err := interpreter.StepN(in, 1)
 	if err != nil {
-		t.Fatalf("evaluation failed with error: %v", err)
+		return fmt.Errorf("evaluation failed with error: %v", err)
 	}
 
 	// check rule for this in specification
+	in = *state.Clone()
 	rules := spec.GetRulesFor(in)
 	if len(rules) != 1 {
-		t.Fatalf("missing rule for input state %v", in)
+		return fmt.Errorf("missing rule for input state %v", in)
 	}
 
 	rule := rules[0]
-	want := *state.Clone()
-	want = rule.Effect.Apply(want)
+	want := rule.Effect.Apply(in)
 
 	if !want.Equal(&got) {
 		diffs := ct.Diff(&want, &got)
-		t.Fatalf("Unexpected result state after rule '%s' with in %v, wanted %v, got %v, diffs:\n%v",
+		return fmt.Errorf("Unexpected result state after rule '%s' with in %v, wanted %v, got %v, diffs:\n%v",
 			rule.Name,
-			&in,
+			&state,
 			&want,
 			&got,
 			strings.Join(diffs, "\n\t"),
 		)
 	}
+	return nil
 }
