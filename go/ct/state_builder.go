@@ -34,6 +34,7 @@ type stateProperty int
 
 const (
 	sp_Status stateProperty = iota
+	sp_Static
 	sp_CodeLength
 	sp_Code
 	sp_Pc
@@ -100,6 +101,28 @@ func (b *StateBuilder) fixStatus() {
 		return
 	}
 	b.SetStatus(StatusCode(b.random.Int31n(int32(numStatuses))))
+}
+
+// --- Static ---
+
+func (b *StateBuilder) SetStatic(static bool) {
+	if b.isFixed(sp_Static) {
+		panic("can only set static state once")
+	}
+	b.state.Static = static
+	b.markFixed(sp_Static)
+}
+
+func (b *StateBuilder) GetStatic() bool {
+	b.fixStatus()
+	return b.state.Static
+}
+
+func (b *StateBuilder) fixStatic() {
+	if b.isFixed(sp_Static) {
+		return
+	}
+	b.SetStatic(b.random.Int31n(2) == 1)
 }
 
 // --- Code ---
@@ -336,6 +359,7 @@ func (b *StateBuilder) fixStorage() {
 func (b *StateBuilder) Build() State {
 	// Fix everything that is not yet fixed.
 	b.fixStatus()
+	b.fixStatic()
 	b.fixCodeLength(0)
 	b.fixPc(true)
 	b.fixGas()

@@ -47,6 +47,7 @@ type State struct {
 	Stack   Stack
 	Memory  Memory
 	Storage Storage
+	Static  bool // true if no modifications are allowed
 }
 
 func (s *State) setCodeMask() {
@@ -108,6 +109,9 @@ func (s *State) Equal(other *State) bool {
 	if s.Status == Failed {
 		return true
 	}
+	if s.Static != other.Static {
+		return false
+	}
 	if s.Gas != other.Gas {
 		return false
 	}
@@ -131,6 +135,10 @@ func Diff(a *State, b *State) []string {
 
 	if a.Status != b.Status {
 		res = append(res, fmt.Sprintf("Different status: %v vs %v", a.Status, b.Status))
+	}
+
+	if a.Static != b.Static {
+		res = append(res, fmt.Sprintf("Different static mode: %t vs %t", a.Static, b.Static))
 	}
 
 	if a.Gas != b.Gas {
@@ -167,6 +175,7 @@ func (s *State) String() string {
 	builder := strings.Builder{}
 	builder.WriteString("{\n")
 	builder.WriteString(fmt.Sprintf("\tStatus: %v,\n", s.Status))
+	builder.WriteString(fmt.Sprintf("\tStatic: %t,\n", s.Static))
 	builder.WriteString(fmt.Sprintf("\tPc: %d (=0x%x)", s.Pc, s.Pc))
 	if !s.IsCode(int(s.Pc)) {
 		builder.WriteString(" (points to data)\n")

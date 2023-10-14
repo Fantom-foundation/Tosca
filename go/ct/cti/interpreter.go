@@ -40,19 +40,21 @@ const (
 type Status byte
 
 const (
-	Running             Status = 0
-	Done                Status = 1
-	Return              Status = 2
-	Revert              Status = 3
-	Invalid             Status = 4
-	ErrorGas            Status = 5
-	ErrorStackUnderflow Status = 6
-	ErrorStackOverflow  Status = 7
-	ErrorJump           Status = 8
+	Running Status = iota
+	Done
+	Return
+	Revert
+	Invalid
+	ErrorGas
+	ErrorStackUnderflow
+	ErrorStackOverflow
+	ErrorJump
+	ErrorReadOnlyViolation
 )
 
 type State struct {
 	Status  Status
+	Static  bool
 	Pc      int
 	GasLeft uint64
 	Code    []OpCode
@@ -501,6 +503,10 @@ func (s *State) opSSTORE() {
 	}
 	if len(s.Stack) < 2 {
 		s.Status = ErrorStackUnderflow
+		return
+	}
+	if s.Static {
+		s.Status = ErrorReadOnlyViolation
 		return
 	}
 
