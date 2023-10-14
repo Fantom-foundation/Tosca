@@ -43,6 +43,7 @@ const (
 	sp_Stack
 	sp_Memory
 	sp_Storage
+	sp_ExpectedCall
 )
 
 func NewStateBuilder() *StateBuilder {
@@ -338,7 +339,7 @@ func (b *StateBuilder) fixStorage() {
 	b.markFixed(sp_Storage)
 
 	// Add a few elements at referenced memory locations.
-	for _, key := range (NumericParameter{}).Samples() {
+	for _, key := range (NumericParameter{}).SampleValues() {
 		if b.random.Int31n(3) != 0 {
 			value := b.randomUint256()
 			b.state.Storage.Set(key, value)
@@ -354,6 +355,19 @@ func (b *StateBuilder) fixStorage() {
 	}
 }
 
+// --- Calls ---
+
+func (b *StateBuilder) fixExpectedCall() {
+	if b.isFixed(sp_ExpectedCall) {
+		return
+	}
+	b.markFixed(sp_ExpectedCall)
+
+	// Create a random call context.
+	b.state.PastCalls = b.randomCalls()
+	b.state.FutureResults = b.randomResults()
+}
+
 // --- Build ---
 
 func (b *StateBuilder) Build() State {
@@ -366,6 +380,7 @@ func (b *StateBuilder) Build() State {
 	b.fixStackSize()
 	b.fixMemory()
 	b.fixStorage()
+	b.fixExpectedCall()
 	return b.state
 }
 
@@ -383,4 +398,31 @@ func (b *StateBuilder) randomUint256() uint256.Int {
 	var res uint256.Int
 	res.SetBytes(value[:])
 	return res
+}
+
+func (b *StateBuilder) randomCalls() []CallDescription {
+	// So far there is no need to produce more than one random call.
+	return []CallDescription{
+		{
+			GasSent: b.randomUint256(),
+			Address: b.randomUint256(),
+			Message: nil,
+			Result: CallResult{
+				Success:  b.random.Int31n(2) == 1,
+				GasLeft:  b.randomUint256(),
+				Response: nil,
+			},
+		},
+	}
+}
+
+func (b *StateBuilder) randomResults() []CallResult {
+	// So far there is no need to produce more than one random call.
+	return []CallResult{
+		{
+			Success:  b.random.Int31n(2) == 1,
+			GasLeft:  b.randomUint256(),
+			Response: nil,
+		},
+	}
 }

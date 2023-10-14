@@ -1,6 +1,7 @@
 package cti
 
 import (
+	"bytes"
 	"errors"
 	"math"
 
@@ -38,8 +39,11 @@ func decodeCtState(input ct.State) (output State) {
 
 	output.Memory = input.Memory.ReadFrom(0, uint64(input.Memory.Size()))
 
+	// TODO: this should be deep-copied; but for efficiency this is skipped
 	output.host = &adapterHost{
-		storage: input.Storage.ToMap(),
+		storage:       input.Storage.ToMap(),
+		recordedCalls: input.PastCalls,
+		futureResults: input.FutureResults,
 	}
 
 	return
@@ -77,12 +81,17 @@ func encodeCtState(input State) (output ct.State, err error) {
 	for k, v := range adapterHost.storage {
 		output.Storage.Set(k, v)
 	}
+	// TODO: this should be deep-copied; but for efficiency this is skipped
+	output.PastCalls = adapterHost.recordedCalls
+	output.FutureResults = adapterHost.futureResults
 
 	return
 }
 
 type adapterHost struct {
-	storage map[uint256.Int]uint256.Int
+	storage       map[uint256.Int]uint256.Int
+	futureResults []ct.CallResult
+	recordedCalls []ct.CallDescription
 }
 
 func (h *adapterHost) GetStorage(key uint256.Int) uint256.Int {
@@ -91,4 +100,41 @@ func (h *adapterHost) GetStorage(key uint256.Int) uint256.Int {
 
 func (h *adapterHost) SetStorage(key uint256.Int, value uint256.Int) {
 	h.storage[key] = value
+}
+
+func (h *adapterHost) Call(
+	gasSent uint256.Int,
+	address uint256.Int,
+	value uint256.Int,
+	message []byte,
+) (
+	success bool,
+	gasLeft uint256.Int,
+	result []byte,
+) {
+	// TODO: handle mismatches of expectations and actual calls better
+	if len(h.futureResults) == 0 {
+		panic("unexpected call -- no expectation set")
+	}
+
+	callResult := h.futureResults[0]
+	h.futureResults = h.futureResults[1:]
+
+	success = callResult.Success
+	gasLeft = callResult.GasLeft
+	result = bytes.Clone(callResult.Response)
+
+	h.recordedCalls = append(h.recordedCalls, ct.CallDescription{
+		GasSent: gasSent,
+		Address: address,
+		Value:   value,
+		Message: bytes.Clone(message),
+		Result: ct.CallResult{
+			Success:  success,
+			GasLeft:  gasLeft,
+			Response: bytes.Clone(result),
+		},
+	})
+
+	return
 }

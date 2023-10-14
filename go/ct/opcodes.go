@@ -25,6 +25,7 @@ const (
 	PUSH2    OpCode = 0x61
 	PUSH16   OpCode = 0x6F
 	PUSH32   OpCode = 0x7F
+	CALL     OpCode = 0xF1
 )
 
 func (op OpCode) String() string {
@@ -69,6 +70,8 @@ func (op OpCode) String() string {
 		return "PUSH16"
 	case PUSH32:
 		return "PUSH32"
+	case CALL:
+		return "CALL"
 	default:
 		return fmt.Sprintf("op(%d)", op)
 	}

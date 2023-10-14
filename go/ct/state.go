@@ -48,6 +48,9 @@ type State struct {
 	Memory  Memory
 	Storage Storage
 	Static  bool // true if no modifications are allowed
+
+	PastCalls     []CallDescription // The summary of past calls
+	FutureResults []CallResult      // The results to be produced by future calls
 }
 
 func (s *State) setCodeMask() {
@@ -127,6 +130,7 @@ func (s *State) Equal(other *State) bool {
 	if !s.Storage.Equal(&other.Storage) {
 		return false
 	}
+
 	return bytes.Equal(s.Code, other.Code)
 }
 
@@ -157,6 +161,30 @@ func Diff(a *State, b *State) []string {
 	res = append(res, a.Memory.Diff(&b.Memory)...)
 	res = append(res, a.Storage.Diff(&b.Storage)...)
 
+	if la, lb := len(a.PastCalls), len(b.PastCalls); la != lb {
+		res = append(res, fmt.Sprintf("Different number of past calls: %v vs %v", la, lb))
+	} else {
+		for i := range a.PastCalls {
+			ca := a.PastCalls[i]
+			cb := b.PastCalls[i]
+			for _, issue := range ca.Diff(&cb) {
+				res = append(res, fmt.Sprintf("issue in past call #%d: %s", i+1, issue))
+			}
+		}
+	}
+
+	if la, lb := len(a.FutureResults), len(b.FutureResults); la != lb {
+		res = append(res, fmt.Sprintf("Different number of future calls: %v vs %v", la, lb))
+	} else {
+		for i := range a.FutureResults {
+			ca := a.FutureResults[i]
+			cb := b.FutureResults[i]
+			for _, issue := range ca.Diff(&cb) {
+				res = append(res, fmt.Sprintf("issue in future call #%d: %s", i+1, issue))
+			}
+		}
+	}
+
 	return res
 }
 
@@ -167,7 +195,16 @@ func (s *State) Clone() *State {
 	res.isCode = make([]bool, len(s.isCode))
 	copy(res.isCode, s.isCode)
 	res.Stack = s.Stack.Clone()
+	res.Memory = s.Memory.Clone()
 	res.Storage = s.Storage.Clone()
+	res.PastCalls = make([]CallDescription, 0, len(s.PastCalls))
+	for _, call := range s.PastCalls {
+		res.PastCalls = append(res.PastCalls, *call.Clone())
+	}
+	res.FutureResults = make([]CallResult, 0, len(s.FutureResults))
+	for _, call := range s.FutureResults {
+		res.FutureResults = append(res.FutureResults, *call.Clone())
+	}
 	return &res
 }
 
@@ -193,12 +230,13 @@ func (s *State) String() string {
 	}
 
 	size := s.Stack.Size()
+	maxShownStackElements := 7
 	builder.WriteString(fmt.Sprintf("\tStack: %d elements\n", size))
-	for i := 0; i < size && i < 5; i++ {
+	for i := 0; i < size && i < maxShownStackElements; i++ {
 		value := s.Stack.Get(i)
 		builder.WriteString(fmt.Sprintf("\t\t%5d: [%016x %016x %016x %016x]\n", i, value[3], value[2], value[1], value[0]))
 	}
-	if size > 5 {
+	if size > maxShownStackElements {
 		builder.WriteString("\t\t    ...\n")
 	}
 
@@ -225,6 +263,19 @@ func (s *State) String() string {
 		value := s.Storage.Get(key)
 		builder.WriteString(fmt.Sprintf("\t\t%016x => %016x\n", key, value))
 	}
+
+	builder.WriteString(fmt.Sprintf("\tPast calls (total: %d):\n", len(s.PastCalls)))
+	for i, call := range s.PastCalls {
+		builder.WriteString(fmt.Sprintf("\t\tCall #%d:\n", i+1))
+		call.AppendToString(&builder, "\t\t\t")
+	}
+
+	builder.WriteString(fmt.Sprintf("\tFuture results (total: %d):\n", len(s.FutureResults)))
+	for i, call := range s.FutureResults {
+		builder.WriteString(fmt.Sprintf("\t\tCall #%d:\n", i+1))
+		call.AppendToString(&builder, "\t\t\t")
+	}
+
 	builder.WriteString("}")
 	return builder.String()
 }
@@ -266,6 +317,9 @@ func (s *Stack) Pop() uint256.Int {
 }
 
 func (s *Stack) Push(value uint256.Int) {
+	if s.stack == nil {
+		s.stack = make([]uint256.Int, 0, 1025)
+	}
 	s.stack = append(s.stack, value)
 }
 
@@ -292,7 +346,7 @@ func (m *Memory) Size() int {
 }
 
 func (m *Memory) Set(data []byte) {
-	m.mem = slices.Clone(data)
+	m.mem = bytes.Clone(data)
 }
 
 func (m *Memory) Append(data []byte) {
@@ -300,11 +354,17 @@ func (m *Memory) Append(data []byte) {
 }
 
 func (m *Memory) ReadFrom(offset uint64, size uint64) []byte {
+	if size == 0 {
+		return nil
+	}
 	m.Grow(offset, size)
 	return m.mem[offset : offset+size]
 }
 
 func (m *Memory) WriteTo(data []byte, offset uint64) {
+	if len(data) == 0 {
+		return
+	}
 	m.Grow(offset, uint64(len(data)))
 	copy(m.mem[offset:], data)
 }
@@ -349,7 +409,7 @@ func (m *Memory) Clone() Memory {
 }
 
 func (m *Memory) Equal(o *Memory) bool {
-	return slices.Equal(m.mem, o.mem)
+	return bytes.Equal(m.mem, o.mem)
 }
 
 func (m *Memory) Diff(o *Memory) []string {
@@ -359,7 +419,7 @@ func (m *Memory) Diff(o *Memory) []string {
 	} else {
 		for i := range m.mem {
 			if m.mem[i] != o.mem[i] {
-				res = append(res, fmt.Sprintf("Memory mismatch at %d: want %v, got %v", i, m.mem[i], o.mem[i]))
+				res = append(res, fmt.Sprintf("Memory mismatch at %d: want 0x%x, got 0x%x", i, m.mem[i], o.mem[i]))
 			}
 		}
 	}
@@ -439,4 +499,105 @@ func (s *Storage) Diff(o *Storage) []string {
 		}
 	}
 	return res
+}
+
+type CallResult struct {
+	Success  bool
+	GasLeft  uint256.Int
+	Response []byte
+}
+
+func (d *CallResult) Clone() *CallResult {
+	if d == nil {
+		return nil
+	}
+	return &CallResult{
+		Success:  d.Success,
+		GasLeft:  d.GasLeft,
+		Response: bytes.Clone(d.Response),
+	}
+}
+
+func (r *CallResult) Equal(o *CallResult) bool {
+	return r.Success == o.Success &&
+		r.GasLeft == o.GasLeft &&
+		bytes.Equal(r.Response, o.Response)
+}
+
+func (r *CallResult) Diff(o *CallResult) []string {
+	res := []string{}
+	if want, got := r.Success, o.Success; want != got {
+		res = append(res, fmt.Sprintf("Incorrect value for Success: want %v, got %v", want, got))
+	}
+	if want, got := r.GasLeft, o.GasLeft; want != got {
+		res = append(res, fmt.Sprintf("Incorrect value for GasLeft: want %v, got %v", want, got))
+	}
+	if want, got := r.Response, o.Response; !bytes.Equal(want, got) {
+		res = append(res, fmt.Sprintf("Incorrect value for Response: want %x, got %x", want, got))
+	}
+	return res
+}
+
+func (r *CallResult) AppendToString(builder *strings.Builder, prefix string) {
+	builder.WriteString(fmt.Sprintf("%sSuccess: %t\n", prefix, r.Success))
+	builder.WriteString(fmt.Sprintf("%sGasLeft: %x\n", prefix, &r.GasLeft))
+	builder.WriteString(fmt.Sprintf("%sResponse: %x\n", prefix, r.Response))
+}
+
+type CallDescription struct {
+	// Input
+	GasSent uint256.Int
+	Address uint256.Int
+	Value   uint256.Int
+	Message []byte
+
+	// Output
+	Result CallResult
+}
+
+func (d *CallDescription) Clone() *CallDescription {
+	if d == nil {
+		return nil
+	}
+	return &CallDescription{
+		GasSent: d.GasSent,
+		Address: d.Address,
+		Value:   d.Value,
+		Message: bytes.Clone(d.Message),
+		Result:  *d.Result.Clone(),
+	}
+}
+
+func (d *CallDescription) Equal(o *CallDescription) bool {
+	return d.GasSent == o.GasSent &&
+		d.Address == o.Address &&
+		d.Value == o.Value &&
+		bytes.Equal(d.Message, o.Message) &&
+		d.Result.Equal(&o.Result)
+}
+
+func (d *CallDescription) Diff(o *CallDescription) []string {
+	res := []string{}
+	if want, got := d.GasSent, o.GasSent; want != got {
+		res = append(res, fmt.Sprintf("Incorrect value for GasSent: want %v, got %v", want, got))
+	}
+	if want, got := d.Address, o.Address; want != got {
+		res = append(res, fmt.Sprintf("Incorrect value for Address: want %x, got %x", want, got))
+	}
+	if want, got := d.Value, o.Value; want != got {
+		res = append(res, fmt.Sprintf("Incorrect value for Value: want %x, got %x", want, got))
+	}
+	if want, got := d.Message, o.Message; !bytes.Equal(want, got) {
+		res = append(res, fmt.Sprintf("Incorrect value for Message: want %x, got %x", want, got))
+	}
+	res = append(res, d.Result.Diff(&o.Result)...)
+	return res
+}
+
+func (d *CallDescription) AppendToString(builder *strings.Builder, prefix string) {
+	builder.WriteString(fmt.Sprintf("%sGasSent: %x\n", prefix, &d.GasSent))
+	builder.WriteString(fmt.Sprintf("%sAddress: %x\n", prefix, d.Address))
+	builder.WriteString(fmt.Sprintf("%sValue:   %x\n", prefix, d.Value))
+	builder.WriteString(fmt.Sprintf("%sMessage: %x\n", prefix, &d.Message))
+	d.Result.AppendToString(builder, prefix)
 }

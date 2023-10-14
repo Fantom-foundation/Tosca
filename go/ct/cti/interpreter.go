@@ -35,6 +35,7 @@ const (
 	SWAP1    OpCode = 0x90
 	SWAP2    OpCode = 0x91
 	SWAP16   OpCode = 0x9F
+	CALL     OpCode = 0xF1
 )
 
 type Status byte
@@ -50,6 +51,7 @@ const (
 	ErrorStackOverflow
 	ErrorJump
 	ErrorReadOnlyViolation
+	ErrorUintOverflow
 )
 
 type State struct {
@@ -144,6 +146,8 @@ func (s *State) Step() {
 			case SWAP16:
 				s.opSWAP(16)
 		*/
+	case CALL:
+		s.opCALL()
 	default:
 		s.Status = Invalid
 	}
@@ -200,6 +204,9 @@ func (s *State) memoryExpansionCost(offset_u256 uint256.Int, size_u256 uint256.I
 }
 
 func (s *State) readFromMemory(offset uint64, size uint64) []byte {
+	if size == 0 {
+		return nil
+	}
 	s.growMemory(offset, size)
 	data := make([]byte, size)
 	copy(data, s.Memory[offset:])
@@ -207,6 +214,9 @@ func (s *State) readFromMemory(offset uint64, size uint64) []byte {
 }
 
 func (s *State) writeToMemory(data []byte, offset uint64) {
+	if len(data) == 0 {
+		return
+	}
 	s.growMemory(offset, uint64(len(data)))
 	copy(s.Memory[offset:], data)
 }
@@ -230,7 +240,7 @@ func (s *State) checkJumpDest(target uint256.Int) bool {
 		for i := 0; i < len(s.Code); i++ {
 			instruction := s.Code[i]
 			if PUSH1 <= instruction && instruction <= PUSH32 {
-				i += int(instruction - PUSH1 + 1) // skip push layload
+				i += int(instruction - PUSH1 + 1) // skip push payload
 			}
 			if i == target_i32 {
 				return instruction == JUMPDEST
@@ -574,4 +584,53 @@ func (s *State) opSWAP(n int) {
 	s.Stack[len(s.Stack)-1-n] = a
 
 	s.Pc += 1
+}
+
+func (s *State) opCALL() {
+	if !s.applyGasCost(100) {
+		return
+	}
+	if len(s.Stack) < 7 {
+		s.Status = ErrorStackUnderflow
+		return
+	}
+
+	gas := s.popStack()
+	addr := s.popStack()
+	value := s.popStack()
+	argOffset := s.popStack()
+	argSize := s.popStack()
+	retOffset := s.popStack()
+	retSize := s.popStack()
+
+	if !isValidRange(argOffset, argSize) {
+		s.Status = ErrorUintOverflow
+		return
+	}
+	if !isValidRange(retOffset, retSize) {
+		s.Status = ErrorUintOverflow
+		return
+	}
+
+	msg := s.readFromMemory(argOffset.Uint64(), argSize.Uint64())
+
+	success, _, response := s.host.Call(gas, addr, value, msg)
+
+	data := make([]byte, retSize.Uint64())
+	copy(data, response)
+	s.writeToMemory(data, retOffset.Uint64())
+
+	if success {
+		s.pushStack(uint256.NewInt(1))
+	} else {
+		s.pushStack(uint256.NewInt(0))
+	}
+
+	s.Pc += 1
+}
+
+func isValidRange(offset uint256.Int, size uint256.Int) bool {
+	return offset.IsUint64() &&
+		size.IsUint64() &&
+		uint256.NewInt(0).Add(&offset, &size).IsUint64()
 }

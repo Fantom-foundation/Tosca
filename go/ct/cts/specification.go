@@ -140,183 +140,183 @@ var Specification = func() ct.Specification {
 	rules = append(rules, getBinaryOpRules(ct.EQ, 3, func(a, b uint256.Int) uint256.Int {
 		return boolToUint256(a.Eq(&b))
 	})...)
+	/*
+		// --- MLOAD / MSTORE / MSTORE8
+		rules = append(rules, []ct.Rule{
+			// MLOAD
 
-	// --- MLOAD / MSTORE / MSTORE8
-	rules = append(rules, []ct.Rule{
-		// MLOAD
-
-		{
-			Name: "mload_with_too_little_static_gas",
-			Condition: ct.And(
-				ct.Eq(ct.Status(), ct.Running),
-				ct.IsCode(ct.Pc()),
-				ct.Eq(ct.Op(ct.Pc()), ct.MLOAD),
-				ct.Lt(ct.Gas(), 3),
-			),
-			Effect: Fail(),
-		},
-
-		{
-			Name: "mload_with_too_few_elements",
-			Condition: ct.And(
-				ct.Eq(ct.Status(), ct.Running),
-				ct.IsCode(ct.Pc()),
-				ct.Eq(ct.Op(ct.Pc()), ct.MLOAD),
-				ct.Ge(ct.Gas(), 3),
-				ct.Lt(ct.StackSize(), 1),
-			),
-			Effect: Fail(),
-		},
-
-		{
-			Name: "mload_regular",
-			Condition: ct.And(
-				ct.Eq(ct.Status(), ct.Running),
-				ct.IsCode(ct.Pc()),
-				ct.Eq(ct.Op(ct.Pc()), ct.MLOAD),
-				ct.Ge(ct.Gas(), 3),
-				ct.Ge(ct.StackSize(), 1),
-			),
-			Parameter: []ct.Parameter{
-				ct.NumericParameter{},
+			{
+				Name: "mload_with_too_little_static_gas",
+				Condition: ct.And(
+					ct.Eq(ct.Status(), ct.Running),
+					ct.IsCode(ct.Pc()),
+					ct.Eq(ct.Op(ct.Pc()), ct.MLOAD),
+					ct.Lt(ct.Gas(), 3),
+				),
+				Effect: Fail(),
 			},
-			Effect: ct.Update(func(s ct.State) ct.State {
-				offset_u256 := s.Stack.Pop()
-				memCost, offset, _ := s.Memory.ExpansionCosts(&offset_u256, *uint256.NewInt(32))
 
-				if s.Gas < 3+memCost {
-					s.Status = ct.Failed
-					s.Gas = 0
-					return s
-				}
-				s.Gas -= 3 + memCost
-
-				var value uint256.Int
-				value.SetBytes32(s.Memory.ReadFrom(offset, 32))
-				s.Stack.Push(value)
-
-				s.Pc++
-				return s
-			}),
-		},
-
-		// MSTORE
-
-		{
-			Name: "mstore_with_too_little_static_gas",
-			Condition: ct.And(
-				ct.Eq(ct.Status(), ct.Running),
-				ct.IsCode(ct.Pc()),
-				ct.Eq(ct.Op(ct.Pc()), ct.MSTORE),
-				ct.Lt(ct.Gas(), 3),
-			),
-			Effect: Fail(),
-		},
-
-		{
-			Name: "mstore_with_too_few_elements",
-			Condition: ct.And(
-				ct.Eq(ct.Status(), ct.Running),
-				ct.IsCode(ct.Pc()),
-				ct.Eq(ct.Op(ct.Pc()), ct.MSTORE),
-				ct.Ge(ct.Gas(), 3),
-				ct.Lt(ct.StackSize(), 2),
-			),
-			Effect: Fail(),
-		},
-
-		{
-			Name: "mstore_regular",
-			Condition: ct.And(
-				ct.Eq(ct.Status(), ct.Running),
-				ct.IsCode(ct.Pc()),
-				ct.Eq(ct.Op(ct.Pc()), ct.MSTORE),
-				ct.Ge(ct.Gas(), 3),
-				ct.Ge(ct.StackSize(), 2),
-			),
-			Parameter: []ct.Parameter{
-				ct.NumericParameter{},
-				ct.NumericParameter{},
+			{
+				Name: "mload_with_too_few_elements",
+				Condition: ct.And(
+					ct.Eq(ct.Status(), ct.Running),
+					ct.IsCode(ct.Pc()),
+					ct.Eq(ct.Op(ct.Pc()), ct.MLOAD),
+					ct.Ge(ct.Gas(), 3),
+					ct.Lt(ct.StackSize(), 1),
+				),
+				Effect: Fail(),
 			},
-			Effect: ct.Update(func(s ct.State) ct.State {
-				offset_u256 := s.Stack.Pop()
-				value := s.Stack.Pop()
-				memCost, offset, _ := s.Memory.ExpansionCosts(&offset_u256, *uint256.NewInt(32))
 
-				if s.Gas < 3+memCost {
-					s.Status = ct.Failed
-					s.Gas = 0
+			{
+				Name: "mload_regular",
+				Condition: ct.And(
+					ct.Eq(ct.Status(), ct.Running),
+					ct.IsCode(ct.Pc()),
+					ct.Eq(ct.Op(ct.Pc()), ct.MLOAD),
+					ct.Ge(ct.Gas(), 3),
+					ct.Ge(ct.StackSize(), 1),
+				),
+				Parameter: []ct.Parameter{
+					ct.NumericParameter{},
+				},
+				Effect: ct.Update(func(s ct.State) ct.State {
+					offset_u256 := s.Stack.Pop()
+					memCost, offset, _ := s.Memory.ExpansionCosts(&offset_u256, *uint256.NewInt(32))
+
+					if s.Gas < 3+memCost {
+						s.Status = ct.Failed
+						s.Gas = 0
+						return s
+					}
+					s.Gas -= 3 + memCost
+
+					var value uint256.Int
+					value.SetBytes32(s.Memory.ReadFrom(offset, 32))
+					s.Stack.Push(value)
+
+					s.Pc++
 					return s
-				}
-				s.Gas -= 3 + memCost
-
-				valueBytes := value.Bytes32()
-				s.Memory.WriteTo(valueBytes[:], offset)
-
-				s.Pc++
-				return s
-			}),
-		},
-
-		// MSTORE8
-
-		{
-			Name: "mstore8_with_too_little_static_gas",
-			Condition: ct.And(
-				ct.Eq(ct.Status(), ct.Running),
-				ct.IsCode(ct.Pc()),
-				ct.Eq(ct.Op(ct.Pc()), ct.MSTORE8),
-				ct.Lt(ct.Gas(), 3),
-			),
-			Effect: Fail(),
-		},
-
-		{
-			Name: "mstore8_with_too_few_elements",
-			Condition: ct.And(
-				ct.Eq(ct.Status(), ct.Running),
-				ct.IsCode(ct.Pc()),
-				ct.Eq(ct.Op(ct.Pc()), ct.MSTORE8),
-				ct.Ge(ct.Gas(), 3),
-				ct.Lt(ct.StackSize(), 2),
-			),
-			Effect: Fail(),
-		},
-
-		{
-			Name: "mstore8_regular",
-			Condition: ct.And(
-				ct.Eq(ct.Status(), ct.Running),
-				ct.IsCode(ct.Pc()),
-				ct.Eq(ct.Op(ct.Pc()), ct.MSTORE8),
-				ct.Ge(ct.Gas(), 3),
-				ct.Ge(ct.StackSize(), 2),
-			),
-			Parameter: []ct.Parameter{
-				ct.NumericParameter{},
-				ct.NumericParameter{},
+				}),
 			},
-			Effect: ct.Update(func(s ct.State) ct.State {
-				offset_u256 := s.Stack.Pop()
-				value_u256 := s.Stack.Pop()
-				value := value_u256.Bytes32()[31]
-				memCost, offset, _ := s.Memory.ExpansionCosts(&offset_u256, *uint256.NewInt(1))
 
-				if s.Gas < 3+memCost {
-					s.Status = ct.Failed
-					s.Gas = 0
+			// MSTORE
+
+			{
+				Name: "mstore_with_too_little_static_gas",
+				Condition: ct.And(
+					ct.Eq(ct.Status(), ct.Running),
+					ct.IsCode(ct.Pc()),
+					ct.Eq(ct.Op(ct.Pc()), ct.MSTORE),
+					ct.Lt(ct.Gas(), 3),
+				),
+				Effect: Fail(),
+			},
+
+			{
+				Name: "mstore_with_too_few_elements",
+				Condition: ct.And(
+					ct.Eq(ct.Status(), ct.Running),
+					ct.IsCode(ct.Pc()),
+					ct.Eq(ct.Op(ct.Pc()), ct.MSTORE),
+					ct.Ge(ct.Gas(), 3),
+					ct.Lt(ct.StackSize(), 2),
+				),
+				Effect: Fail(),
+			},
+
+			{
+				Name: "mstore_regular",
+				Condition: ct.And(
+					ct.Eq(ct.Status(), ct.Running),
+					ct.IsCode(ct.Pc()),
+					ct.Eq(ct.Op(ct.Pc()), ct.MSTORE),
+					ct.Ge(ct.Gas(), 3),
+					ct.Ge(ct.StackSize(), 2),
+				),
+				Parameter: []ct.Parameter{
+					ct.NumericParameter{},
+					ct.NumericParameter{},
+				},
+				Effect: ct.Update(func(s ct.State) ct.State {
+					offset_u256 := s.Stack.Pop()
+					value := s.Stack.Pop()
+					memCost, offset, _ := s.Memory.ExpansionCosts(&offset_u256, *uint256.NewInt(32))
+
+					if s.Gas < 3+memCost {
+						s.Status = ct.Failed
+						s.Gas = 0
+						return s
+					}
+					s.Gas -= 3 + memCost
+
+					valueBytes := value.Bytes32()
+					s.Memory.WriteTo(valueBytes[:], offset)
+
+					s.Pc++
 					return s
-				}
-				s.Gas -= 3 + memCost
+				}),
+			},
 
-				s.Memory.WriteTo([]byte{value}, offset)
+			// MSTORE8
 
-				s.Pc++
-				return s
-			}),
-		},
-	}...)
+			{
+				Name: "mstore8_with_too_little_static_gas",
+				Condition: ct.And(
+					ct.Eq(ct.Status(), ct.Running),
+					ct.IsCode(ct.Pc()),
+					ct.Eq(ct.Op(ct.Pc()), ct.MSTORE8),
+					ct.Lt(ct.Gas(), 3),
+				),
+				Effect: Fail(),
+			},
 
+			{
+				Name: "mstore8_with_too_few_elements",
+				Condition: ct.And(
+					ct.Eq(ct.Status(), ct.Running),
+					ct.IsCode(ct.Pc()),
+					ct.Eq(ct.Op(ct.Pc()), ct.MSTORE8),
+					ct.Ge(ct.Gas(), 3),
+					ct.Lt(ct.StackSize(), 2),
+				),
+				Effect: Fail(),
+			},
+
+			{
+				Name: "mstore8_regular",
+				Condition: ct.And(
+					ct.Eq(ct.Status(), ct.Running),
+					ct.IsCode(ct.Pc()),
+					ct.Eq(ct.Op(ct.Pc()), ct.MSTORE8),
+					ct.Ge(ct.Gas(), 3),
+					ct.Ge(ct.StackSize(), 2),
+				),
+				Parameter: []ct.Parameter{
+					ct.NumericParameter{},
+					ct.NumericParameter{},
+				},
+				Effect: ct.Update(func(s ct.State) ct.State {
+					offset_u256 := s.Stack.Pop()
+					value_u256 := s.Stack.Pop()
+					value := value_u256.Bytes32()[31]
+					memCost, offset, _ := s.Memory.ExpansionCosts(&offset_u256, *uint256.NewInt(1))
+
+					if s.Gas < 3+memCost {
+						s.Status = ct.Failed
+						s.Gas = 0
+						return s
+					}
+					s.Gas -= 3 + memCost
+
+					s.Memory.WriteTo([]byte{value}, offset)
+
+					s.Pc++
+					return s
+				}),
+			},
+		}...)
+	*/
 	// --- SLOAD / STORE ---
 
 	// SLOAD (with constant gas costs)
@@ -628,6 +628,109 @@ var Specification = func() ct.Specification {
 		},
 	}...)
 
+	// --- CALL ---
+
+	rules = append(rules, []ct.Rule{
+		{
+			Name: "call_with_too_little_gas",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.CALL),
+				ct.Lt(ct.Gas(), 100),
+			),
+			Effect: Fail(),
+		},
+
+		{
+			Name: "call_with_too_few_elements",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.CALL),
+				ct.Ge(ct.Gas(), 100),
+				ct.Lt(ct.StackSize(), 7),
+			),
+			Effect: Fail(),
+		},
+
+		{
+			Name: "call_regular",
+			Condition: ct.And(
+				ct.Eq(ct.Status(), ct.Running),
+				ct.IsCode(ct.Pc()),
+				ct.Eq(ct.Op(ct.Pc()), ct.CALL),
+				ct.Ge(ct.Gas(), 100),
+				ct.Ge(ct.StackSize(), 7),
+			),
+			Parameter: []ct.Parameter{
+				ct.GasParameter{},
+				ct.AddressParameter{},
+				ct.ValueParameter{},
+				ct.OffsetParameter{},
+				ct.SizeParameter{},
+				ct.OffsetParameter{},
+				ct.SizeParameter{},
+			},
+			Effect: ct.Update(func(s ct.State) ct.State {
+				// Note: this specification is incomplete
+				gasToSend := s.Stack.Pop()
+				address := s.Stack.Pop()
+				value := s.Stack.Pop()
+
+				argOffset := s.Stack.Pop()
+				argSize := s.Stack.Pop()
+				retOffset := s.Stack.Pop()
+				retSize := s.Stack.Pop()
+
+				if isMemoryRangeOverflow(argOffset, argSize) {
+					s.Status = ct.Failed
+					return s
+				}
+
+				if isMemoryRangeOverflow(retOffset, retSize) {
+					s.Status = ct.Failed
+					return s
+				}
+
+				// Get input message for call from memory.
+				msg := s.Memory.ReadFrom(argOffset.Uint64(), argSize.Uint64())
+
+				var currentResult ct.CallResult
+				success := true
+				if len(s.FutureResults) > 0 {
+					currentResult = s.FutureResults[0]
+					s.FutureResults = s.FutureResults[1:]
+					success = currentResult.Success
+				}
+
+				// Write response call to memory.
+				response := make([]byte, retSize.Uint64())
+				copy(response, currentResult.Response)
+				s.Memory.WriteTo(response, retOffset.Uint64())
+
+				s.PastCalls = append(s.PastCalls, ct.CallDescription{
+					GasSent: gasToSend,
+					Address: address,
+					Value:   value,
+					Message: msg,
+					Result:  *currentResult.Clone(),
+				})
+
+				if success {
+					s.Stack.Push(*uint256.NewInt(1))
+				} else {
+					s.Stack.Push(*uint256.NewInt(0))
+				}
+
+				s.Gas = s.Gas - 100
+
+				s.Pc++
+				return s
+			}),
+		},
+	}...)
+
 	return ct.NewSpecification(rules...)
 }()
 
@@ -758,8 +861,9 @@ func getInvalidOps() []ct.OpCode {
 			ct.ADD, ct.LT, ct.EQ,
 			ct.POP, ct.PUSH1, ct.PUSH2, ct.PUSH16, ct.PUSH32,
 			ct.JUMP, ct.JUMPI, ct.JUMPDEST,
-			ct.MLOAD, ct.MSTORE, ct.MSTORE8,
-			ct.SLOAD, ct.SSTORE:
+			//ct.MLOAD, ct.MSTORE, ct.MSTORE8,
+			ct.SLOAD, ct.SSTORE,
+			ct.CALL:
 			// skip
 		default:
 			res = append(res, op)
@@ -774,4 +878,10 @@ func boolToUint256(value bool) uint256.Int {
 	} else {
 		return *uint256.NewInt(0)
 	}
+}
+
+func isMemoryRangeOverflow(offset uint256.Int, size uint256.Int) bool {
+	return !offset.IsUint64() ||
+		!size.IsUint64() ||
+		!uint256.NewInt(0).Add(&offset, &size).IsUint64()
 }

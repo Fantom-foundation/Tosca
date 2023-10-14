@@ -43,7 +43,7 @@ type Domain[T any] interface {
 }
 
 type Parameter interface {
-	Samples() []uint256.Int
+	Samples(example uint256.Int) []uint256.Int
 }
 
 type Expression[T any] interface {
@@ -79,7 +79,8 @@ func enumerateParameters(pos int, params []Parameter, builder *StateBuilder, con
 		consume(builder)
 		return
 	}
-	for _, value := range params[0].Samples() {
+	current := builder.GetStackValue(pos)
+	for _, value := range params[0].Samples(current) {
 		clone := builder.Clone()
 		clone.SetStackValue(pos, value)
 		enumerateParameters(pos+1, params[1:], clone, consume)
@@ -550,7 +551,7 @@ func (d uint256Domain) SamplesForAll(as []uint256.Int) []uint256.Int {
 	}
 
 	// Add more interesting values.
-	res = append(res, NumericParameter{}.Samples()...)
+	res = append(res, NumericParameter{}.SampleValues()...)
 
 	// TODO: consider removing duplicates.
 
@@ -918,7 +919,11 @@ func (e *effect) String() string {
 
 type NumericParameter struct{}
 
-func (NumericParameter) Samples() []uint256.Int {
+func (n NumericParameter) Samples(uint256.Int) []uint256.Int {
+	return n.SampleValues()
+}
+
+func (NumericParameter) SampleValues() []uint256.Int {
 	return []uint256.Int{
 		*uint256.NewInt(0),
 		*uint256.NewInt(1),
@@ -931,5 +936,51 @@ func (NumericParameter) Samples() []uint256.Int {
 		*uint256.NewInt(1).Lsh(uint256.NewInt(1), 192),
 		*uint256.NewInt(1).Lsh(uint256.NewInt(1), 255),
 		*uint256.NewInt(0).Not(uint256.NewInt(0)),
+	}
+}
+
+type AddressParameter struct{}
+
+func (AddressParameter) Samples(example uint256.Int) []uint256.Int {
+	return []uint256.Int{example}
+}
+
+type GasParameter struct{}
+
+func (GasParameter) Samples(uint256.Int) []uint256.Int {
+	return []uint256.Int{
+		*uint256.NewInt(0),
+		*uint256.NewInt(1),
+		*uint256.NewInt(1 << 32),
+	}
+}
+
+type ValueParameter struct{}
+
+func (ValueParameter) Samples(uint256.Int) []uint256.Int {
+	return []uint256.Int{
+		*uint256.NewInt(0),
+		*uint256.NewInt(120),
+		*uint256.NewInt(0).Not(uint256.NewInt(0)),
+	}
+}
+
+type SizeParameter struct{}
+
+func (SizeParameter) Samples(uint256.Int) []uint256.Int {
+	return []uint256.Int{
+		*uint256.NewInt(0),
+		*uint256.NewInt(32),
+		// TODO: expand when generator performance allows to
+	}
+}
+
+type OffsetParameter struct{}
+
+func (OffsetParameter) Samples(uint256.Int) []uint256.Int {
+	return []uint256.Int{
+		*uint256.NewInt(0),
+		*uint256.NewInt(127),
+		// TODO: expand when generator performance allows to
 	}
 }
