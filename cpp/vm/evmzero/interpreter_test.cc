@@ -1404,7 +1404,7 @@ TEST(InterpreterTest, SAR) {
       .gas_before = 7,
       .gas_after = 4,
       .stack_before = {kUint256Max, 256},
-      .stack_after = {0},
+      .stack_after = {kUint256Max},
   });
 }
 
