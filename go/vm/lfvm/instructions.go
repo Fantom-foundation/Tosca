@@ -402,21 +402,34 @@ func opSgt(c *context) {
 func opShr(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	// Note: this does not check for byte overflow!
-	b.Rsh(b, uint(a.Uint64()))
+	if a.LtUint64(256) {
+		b.Rsh(b, uint(a.Uint64()))
+	} else {
+		b.Clear()
+	}
 }
 
 func opShl(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	// Note: this does not check for byte overflow!
-	b.Lsh(b, uint(a.Uint64()))
+	if a.LtUint64(256) {
+		b.Lsh(b, uint(a.Uint64()))
+	} else {
+		b.Clear()
+	}
 }
 
 func opSar(c *context) {
 	a := c.stack.pop()
 	b := c.stack.peek()
-	// Note: this does not check for byte overflow!
+	if a.GtUint64(256) {
+		if b.Sign() >= 0 {
+			b.Clear()
+		} else {
+			b.SetAllOne()
+		}
+		return
+	}
 	b.SRsh(b, uint(a.Uint64()))
 }
 

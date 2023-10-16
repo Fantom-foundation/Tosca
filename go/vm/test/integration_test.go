@@ -2,6 +2,7 @@ package vm_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -12,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
+	"github.com/holiman/uint256"
 )
 
 const HUGE_GAS_SENT_WITH_CALL int64 = 1000000000000
@@ -737,6 +739,177 @@ func TestExtCodeHashOnEmptyAccount(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Returns *big.Int with bits set as signed integer
+func getNegativeBigIntSignInBits(value *big.Int) *big.Int {
+	neg, _ := uint256.FromBig(value)
+	return neg.ToBig()
+}
+
+func TestSARInstruction(t *testing.T) {
+
+	sizeOverUint64, _ := big.NewInt(0).SetString("0x100000000000000001", 0)
+	sizeOverUint64ByOne, _ := big.NewInt(0).SetString("0x80000000000000000", 0)
+	sizeMaxIntPositive, _ := big.NewInt(0).SetString("0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
+
+	sizeMaxIntNegative, _ := big.NewInt(0).SetString("0x8000000000000000000000000000000000000000000000000000000000000001", 0)
+	sizeMaxIntNegativeByOne, _ := big.NewInt(0).SetString("0xc000000000000000000000000000000000000000000000000000000000000000", 0)
+
+	negativeInt := getNegativeBigIntSignInBits(big.NewInt(-32))
+	negativeOverUint64 := getNegativeBigIntSignInBits(big.NewInt(0).Neg(sizeOverUint64))
+	negOverUint64ByOne, _ := big.NewInt(0).SetString("0x80000000000000001", 0)
+	negativeOverUint64ByOne := getNegativeBigIntSignInBits(big.NewInt(0).Neg(negOverUint64ByOne))
+
+	// It is -1 if all bits are set to 1
+	mostNegativeShiftRight := uint256.NewInt(0).SetAllOne().ToBig()
+
+	tests := []shiftTestCase{
+		{"all zero", big.NewInt(0), big.NewInt(0), big.NewInt(0)},
+		{"0>>1", big.NewInt(0), big.NewInt(1), big.NewInt(0)},
+		{"over64>>1", sizeOverUint64, big.NewInt(1), sizeOverUint64ByOne},
+		{"over64>>over64", sizeOverUint64, sizeOverUint64, big.NewInt(0)},
+		{"maxPositiveInt256>>254", sizeMaxIntPositive, big.NewInt(254), big.NewInt(1)},
+
+		{"negative>>0", negativeInt, big.NewInt(0), negativeInt},
+		{"negative>>2", negativeInt, big.NewInt(2), getNegativeBigIntSignInBits(big.NewInt(-8))},
+		{"negativeOver64>>1", negativeOverUint64, big.NewInt(1), negativeOverUint64ByOne},
+		{"negativeOver64>>257", negativeOverUint64, big.NewInt(257), mostNegativeShiftRight},
+		{"negativeOver64>>over64", negativeOverUint64, sizeOverUint64, mostNegativeShiftRight},
+		{"maxNegativeInt256>>1", sizeMaxIntNegative, big.NewInt(1), sizeMaxIntNegativeByOne},
+		{"maxNegativeInt256>>254", sizeMaxIntNegative, big.NewInt(254), getNegativeBigIntSignInBits(big.NewInt(-2))},
+		{"maxNegativeInt256>>over64", sizeMaxIntNegative, sizeOverUint64, mostNegativeShiftRight},
+	}
+	runShiftTests(t, vm.SAR, tests)
+}
+
+func TestSHRInstruction(t *testing.T) {
+
+	sizeOverUint64, _ := big.NewInt(0).SetString("0x100000000000000001", 0)
+	sizeOverUint64ByOne, _ := big.NewInt(0).SetString("0x80000000000000000", 0)
+	sizeMaxUint256, _ := big.NewInt(0).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
+
+	tests := []shiftTestCase{
+		{"all zero", big.NewInt(0), big.NewInt(0), big.NewInt(0)},
+		{"0>>1", big.NewInt(0), big.NewInt(1), big.NewInt(0)},
+		{"over64>>1", sizeOverUint64, big.NewInt(1), sizeOverUint64ByOne},
+		{"over64>>over64", sizeOverUint64, sizeOverUint64, big.NewInt(0)},
+		{"sizeMaxUint256>>255", sizeMaxUint256, big.NewInt(255), big.NewInt(1)},
+	}
+	runShiftTests(t, vm.SHR, tests)
+}
+
+func TestSHLInstruction(t *testing.T) {
+
+	sizeOverUint64, _ := big.NewInt(0).SetString("0x100000000000000001", 0)
+	sizeOverUint64ByOne, _ := big.NewInt(0).SetString("0x200000000000000002", 0)
+	sizeUint256, _ := big.NewInt(0).SetString("0x4000000000000000000000000000000000000000000000000000000000000000", 0)
+	sizeMaxUint256, _ := big.NewInt(0).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
+	sizeUint256result, _ := big.NewInt(0).SetString("0x8000000000000000000000000000000000000000000000000000000000000000", 0)
+
+	tests := []shiftTestCase{
+		{"all zero", big.NewInt(0), big.NewInt(0), big.NewInt(0)},
+		{"0<<1", big.NewInt(0), big.NewInt(1), big.NewInt(0)},
+		{"over64<<1", sizeOverUint64, big.NewInt(1), sizeOverUint64ByOne},
+		{"over64<<over64", sizeOverUint64, sizeOverUint64, big.NewInt(0)},
+		{"sizeUint256<<1", sizeUint256, big.NewInt(1), sizeUint256result},
+		{"sizeMaxUint256<<255", sizeMaxUint256, big.NewInt(255), sizeUint256result},
+	}
+	runShiftTests(t, vm.SHL, tests)
+}
+
+type shiftTestCase struct {
+	name   string
+	value  *big.Int
+	shift  *big.Int
+	result *big.Int
+}
+
+func runShiftTests(t *testing.T, instruction vm.OpCode, tests []shiftTestCase) {
+	// For every variant of interpreter
+	for _, variant := range Variants {
+
+		for _, revision := range revisions {
+
+			for _, test := range tests {
+
+				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, "SAR", test.name), func(t *testing.T) {
+
+					evm := GetCleanEVM(revision, variant, nil)
+
+					// Generate code
+					code, _ := addValuesToStack([]*big.Int{test.value, test.shift}, 0)
+					code = append(code, byte(instruction))
+					returnCode, _ := getReturnStackCode(1, 0, 0)
+					code = append(code, returnCode...)
+
+					// Run an interpreter
+					res, err := evm.Run(code, []byte{})
+
+					// Check the result.
+					if res.Output != nil && len(res.Output) >= 32 {
+						result := big.NewInt(0).SetBytes(res.Output[0:32])
+						if result.Cmp(test.result) != 0 {
+							t.Errorf("execution result is different want: %v, got: %v", test.result, result)
+						}
+					} else {
+						t.Errorf("execution should return a result with stack values")
+					}
+
+					if err != nil {
+						t.Errorf("execution should not fail with error, but got: %v", err)
+					}
+				})
+			}
+		}
+	}
+}
+
+// Creates EVM code for returning specified number of 32byte values from stack
+func getReturnStackCode(valuesCount uint32, initialOffset uint64, pushGas uint64) ([]byte, uint64) {
+	var (
+		retCode []byte = make([]byte, 0)
+		usedGas uint64
+	)
+	for i := 0; i < int(valuesCount); i++ {
+		bytes := getBytes(uint64(i*32) + initialOffset)
+		retCode, usedGas = addBytesTostack(bytes, retCode, usedGas, pushGas)
+		retCode = append(retCode, byte(vm.MSTORE))
+		// Add 3 gas for MSTORE instruction static gas
+		usedGas += 3
+	}
+
+	size := uint64(valuesCount * 32)
+	usedGas += memoryExpansionGasCost(size)
+	returtnCode, returnGas := getReturnMemoryCode(size, initialOffset, pushGas)
+
+	return append(retCode, returtnCode...), usedGas + returnGas
+}
+
+// Creates EVM code for returning specified size of memory
+func getReturnMemoryCode(size uint64, offset uint64, pushGas uint64) ([]byte, uint64) {
+	var (
+		retCode []byte = make([]byte, 0)
+		gasUsed uint64
+	)
+
+	// memory size to return
+	bytes := getBytes(size)
+	retCode, gasUsed = addBytesTostack(bytes, retCode, gasUsed, pushGas)
+
+	bytes = getBytes(offset)
+	retCode, gasUsed = addBytesTostack(bytes, retCode, gasUsed, pushGas)
+
+	retCode = append(retCode, byte(vm.RETURN))
+	return retCode, gasUsed
+}
+
+// Returns trimmed byte array for uint64 number
+func getBytes(num uint64) []byte {
+	ret := make([]byte, 8)
+	binary.BigEndian.PutUint64(ret, num)
+	ret = bytes.TrimLeft(ret, string(byte(0)))
+	return ret
 }
 
 // Get array of random big Integers
