@@ -660,6 +660,87 @@ func TestNoReturnDataForCreate(t *testing.T) {
 	}
 }
 
+func TestExtCodeHashOnEmptyAccount(t *testing.T) {
+	var mockCtrl *gomock.Controller
+	var mockStateDB *vm_mock.MockStateDB
+
+	type extCodeHashTest struct {
+		name   string
+		exist  bool
+		empty  bool
+		result common.Hash
+		hash   common.Hash
+	}
+
+	codeHash := common.Hash{byte(2)}
+
+	tests := []extCodeHashTest{
+		{"account for slot exist and is empty", true, true, common.Hash{byte(0)}, codeHash},
+		{"account for slot doesn't exist is empty", false, true, common.Hash{byte(0)}, codeHash},
+		{"account for slot exist and is not empty", true, false, codeHash, codeHash},
+		{"account for slot doesn't exist and is not empty", false, false, common.Hash{byte(0)}, codeHash},
+	}
+
+	// For every variant of interpreter
+	for _, variant := range Variants {
+
+		if skipTestForVariant(t.Name(), variant) {
+			continue
+		}
+
+		for _, revision := range revisions {
+			for _, test := range tests {
+
+				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, test.name), func(t *testing.T) {
+
+					mockCtrl = gomock.NewController(t)
+					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+
+					account := common.Address{byte(1)}
+
+					// stack values for inner contract call
+					code, _ := addValuesToStack([]*big.Int{account.Hash().Big()}, 0)
+
+					// code for inner contract call
+					code = append(code, []byte{
+						byte(vm.EXTCODEHASH),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.MSTORE),
+						byte(vm.PUSH1), byte(32),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.RETURN)}...)
+
+					// set mock for inner call
+					mockStateDB.EXPECT().Empty(account).AnyTimes().Return(test.empty)
+					mockStateDB.EXPECT().Exist(account).AnyTimes().Return(test.exist)
+					mockStateDB.EXPECT().AddressInAccessList(account).AnyTimes().Return(false)
+					mockStateDB.EXPECT().AddAddressToAccessList(account).AnyTimes()
+					// when account doesn't exists stateDB should take care about it
+					if test.exist {
+						mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(test.hash)
+					} else {
+						mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(common.Hash{byte(0)})
+					}
+
+					evm := GetCleanEVM(revision, variant, mockStateDB)
+
+					// Run an interpreter
+					result, err := evm.Run(code, []byte{})
+
+					// Check the result.
+					if !bytes.Equal(result.Output, test.result.Bytes()) {
+						t.Errorf("execution should return zero value on stack, got, %v", result.Output)
+					}
+
+					if err != nil {
+						t.Errorf("execution should not fail, but got error: %v", err)
+					}
+				})
+			}
+		}
+	}
+}
+
 // Returns *big.Int with bits set as signed integer
 func getNegativeBigIntSignInBits(value *big.Int) *big.Int {
 	neg, _ := uint256.FromBig(value)

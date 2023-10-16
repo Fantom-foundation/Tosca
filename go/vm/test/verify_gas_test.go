@@ -25,6 +25,7 @@ func TestStaticGas(t *testing.T) {
 	mockStateDB.EXPECT().SubRefund(gomock.Any()).AnyTimes()
 	mockStateDB.EXPECT().AddRefund(gomock.Any()).AnyTimes()
 	mockStateDB.EXPECT().GetCodeHash(gomock.Any()).AnyTimes().Return(common.Hash{0})
+	mockStateDB.EXPECT().Exist(common.Address{0}).AnyTimes().Return(true)
 
 	// For every variant of interpreter
 	for _, variant := range Variants {
