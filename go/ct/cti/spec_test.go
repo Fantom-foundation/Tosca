@@ -57,8 +57,10 @@ func run(spec ct.Specification, interpreter cti.CtAdapter, state ct.State, t *te
 	// check rule for this in specification
 	in = *state.Clone()
 	rules := spec.GetRulesFor(in)
-	if len(rules) != 1 {
-		return fmt.Errorf("missing rule for input state %v", in)
+	if len(rules) < 1 {
+		return fmt.Errorf("missing rule for input state %v", &in)
+	} else if len(rules) > 1 {
+		return fmt.Errorf("multiple rules for input state %v", &in)
 	}
 
 	rule := rules[0]
