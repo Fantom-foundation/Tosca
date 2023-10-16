@@ -13,6 +13,9 @@ const (
 	OR       OpCode = 0x17
 	NOT      OpCode = 0x19
 	POP      OpCode = 0x50
+	MLOAD    OpCode = 0x51
+	MSTORE   OpCode = 0x52
+	MSTORE8  OpCode = 0x53
 	SLOAD    OpCode = 0x54
 	SSTORE   OpCode = 0x55
 	JUMP     OpCode = 0x56
@@ -42,6 +45,12 @@ func (op OpCode) String() string {
 		return "NOT"
 	case POP:
 		return "POP"
+	case MLOAD:
+		return "MLOAD"
+	case MSTORE:
+		return "MSTORE"
+	case MSTORE8:
+		return "MSTORE8"
 	case SLOAD:
 		return "SLOAD"
 	case SSTORE:

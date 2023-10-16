@@ -3,6 +3,7 @@ package ct
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -44,6 +45,7 @@ type State struct {
 	Pc      uint16
 	Gas     uint64
 	Stack   Stack
+	Memory  Memory
 	Storage Storage
 }
 
@@ -115,6 +117,9 @@ func (s *State) Equal(other *State) bool {
 	if !s.Stack.Equal(&other.Stack) {
 		return false
 	}
+	if !s.Memory.Equal(&other.Memory) {
+		return false
+	}
 	if !s.Storage.Equal(&other.Storage) {
 		return false
 	}
@@ -141,6 +146,7 @@ func Diff(a *State, b *State) []string {
 	}
 
 	res = append(res, a.Stack.Diff(&b.Stack)...)
+	res = append(res, a.Memory.Diff(&b.Memory)...)
 	res = append(res, a.Storage.Diff(&b.Storage)...)
 
 	return res
@@ -186,6 +192,15 @@ func (s *State) String() string {
 	if size > 5 {
 		builder.WriteString("\t\t    ...\n")
 	}
+
+	builder.WriteString(fmt.Sprintf("\tMemory: %d elements", s.Memory.Size()))
+	for i, b := range s.Memory.mem {
+		if i%16 == 0 {
+			builder.WriteString(fmt.Sprintf("\n\t\t%5d: ", i))
+		}
+		builder.WriteString(fmt.Sprintf("%02x ", b))
+	}
+	builder.WriteString("\n")
 
 	// Sort store keys for printing.
 	// TODO: move stack and store printing in type specific member functions.
@@ -253,6 +268,89 @@ func (s *Stack) Diff(o *Stack) []string {
 		for i := 0; i < as; i++ {
 			if av, bv := s.Get(i), o.Get(i); !av.Eq(&bv) {
 				res = append(res, fmt.Sprintf("Different stack value at position %d: %x vs %x", i, av, bv))
+			}
+		}
+	}
+	return res
+}
+
+type Memory struct {
+	mem []byte
+}
+
+func (m *Memory) Size() int {
+	return len(m.mem)
+}
+
+func (m *Memory) Set(data []byte) {
+	m.mem = slices.Clone(data)
+}
+
+func (m *Memory) Append(data []byte) {
+	m.mem = append(m.mem, data...)
+}
+
+func (m *Memory) ReadFrom(offset uint64, size uint64) []byte {
+	m.Grow(offset, size)
+	return m.mem[offset : offset+size]
+}
+
+func (m *Memory) WriteTo(data []byte, offset uint64) {
+	m.Grow(offset, uint64(len(data)))
+	copy(m.mem[offset:], data)
+}
+
+func (m *Memory) Grow(offset uint64, size uint64) {
+	if size != 0 {
+		newSize := offset + size
+		if newSize > uint64(len(m.mem)) {
+			newSize = ((newSize + 31) / 32) * 32
+			m.mem = append(m.mem, make([]byte, newSize-uint64(len(m.mem)))...)
+		}
+	}
+}
+
+func (m *Memory) ExpansionCosts(offset_u256 *uint256.Int, size_u256 uint256.Int) (memCost uint64, offset uint64, size uint64) {
+	if offset_u256.GtUint64(math.MaxUint64) || size_u256.GtUint64(math.MaxUint64) {
+		return math.MaxUint64, 0, 0
+	}
+	offset = offset_u256.Uint64()
+	size = size_u256.Uint64()
+	if size == 0 {
+		memCost = 0
+		return
+	}
+	newSize := offset + size
+	if newSize <= uint64(m.Size()) {
+		memCost = 0
+		return
+	}
+	calcMemoryCost := func(size uint64) uint64 {
+		memorySizeWord := (size + 31) / 32
+		return (memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord)
+	}
+	memCost = calcMemoryCost(newSize) - calcMemoryCost(uint64(m.Size()))
+	return
+}
+
+func (m *Memory) Clone() Memory {
+	mem := make([]byte, len(m.mem))
+	copy(mem, m.mem)
+	return Memory{mem}
+}
+
+func (m *Memory) Equal(o *Memory) bool {
+	return slices.Equal(m.mem, o.mem)
+}
+
+func (m *Memory) Diff(o *Memory) []string {
+	res := []string{}
+	if as, bs := len(m.mem), len(o.mem); as != bs {
+		res = append(res, fmt.Sprintf("Different memory size: %v vs %v", as, bs))
+	} else {
+		for i := range m.mem {
+			if m.mem[i] != o.mem[i] {
+				res = append(res, fmt.Sprintf("Memory mismatch at %d: want %v, got %v", i, m.mem[i], o.mem[i]))
 			}
 		}
 	}
