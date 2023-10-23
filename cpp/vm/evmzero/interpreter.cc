@@ -1376,7 +1376,7 @@ struct CreateImpl {
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
-    if (ctx.message->depth > 1024) [[unlikely]]
+    if (ctx.message->depth > internal::kMaxCallDepth) [[unlikely]]
       return {.state = RunState::kErrorCreate};
 
     const int64_t initial_gas = gas;
@@ -1450,7 +1450,7 @@ struct CallImpl {
   };
 
   static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
-    if (ctx.message->depth > 1024) [[unlikely]]
+    if (ctx.message->depth > internal::kMaxCallDepth) [[unlikely]]
       return {.state = RunState::kErrorCall};
 
     const int64_t initial_gas = gas;

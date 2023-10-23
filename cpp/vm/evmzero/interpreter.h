@@ -59,6 +59,7 @@ extern InterpreterResult Interpret(const InterpreterArgs&, Observer&);
 namespace internal {
 
 constexpr int64_t kMaxGas = std::numeric_limits<int64_t>::max();
+constexpr int32_t kMaxCallDepth = 1024;
 
 struct Context {
   RunState state = RunState::kRunning;
