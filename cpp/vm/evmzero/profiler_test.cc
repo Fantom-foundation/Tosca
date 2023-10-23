@@ -448,5 +448,58 @@ TEST(ProfilerExternalTest, InternalMarkersIgnored) {
   });
 }
 
+TEST(ProfilerTest, RecursiveCalls) {
+  RunProfilerTest({
+      .test =
+          [](auto& profiler) {
+            const auto call_depth = 0;
+            const auto msg = evmc_message{.depth = call_depth};
+            const auto args = InterpreterArgs{.message = &msg};
+            const auto ctx = internal::Context{.message = &msg};
+
+            profiler.PreRun(args);
+            profiler.PreInstruction(op::CALL, ctx);
+
+            const auto call_msg = evmc_message{.depth = msg.depth + 1};
+            const auto call_args = InterpreterArgs{.message = &call_msg};
+            const auto call_ctx = internal::Context{.message = &call_msg};
+            profiler.PreRun(call_args);
+            profiler.PreInstruction(op::ADD, call_ctx);
+            profiler.PostInstruction(op::ADD, call_ctx);
+            profiler.PostRun(call_args);
+
+            profiler.PostInstruction(op::CALL, ctx);
+            profiler.PostRun(args);
+          },
+      .num_calls_before = ExpectAllNumCallsEmpty(),
+      .num_calls_after =
+          {
+              {op::OpCode::CALL, [](auto value) { EXPECT_EQ(value, 1); }},
+              {op::OpCode::ADD, [](auto value) { EXPECT_EQ(value, 1); }},
+          },
+      .total_time_before = ExpectAllTotalTimesEmpty(),
+      .total_time_after =
+          {
+              {op::OpCode::CALL, [](auto value) { EXPECT_GT(value, 0ns); }},
+              {op::OpCode::ADD, [](auto value) { EXPECT_GT(value, 0ns); }},
+          },
+      .total_ticks_before = ExpectAllTotalTicksEmpty(),
+      .total_ticks_after =
+          {
+              {op::OpCode::CALL, [](auto value) { EXPECT_GT(value, 0); }},
+              {op::OpCode::ADD, [](auto value) { EXPECT_GT(value, 0); }},
+          },
+      .relative_time_before = {{{op::OpCode::CALL, op::OpCode::ADD},
+                                [](auto first, auto second) {
+                                  EXPECT_EQ(first, 0);
+                                  EXPECT_EQ(second, 0);
+                                }}},
+      .relative_time_after = {{{op::OpCode::CALL, op::OpCode::ADD},
+                               [](auto first, auto second) { EXPECT_LE(second, first); }}},
+      .interpreter_before = ExpectInterpreterEmpty(),
+      .interpreter_after = ExpectInterpreterCalled(1),
+  });
+}
+
 }  // namespace
 }  // namespace tosca::evmzero
