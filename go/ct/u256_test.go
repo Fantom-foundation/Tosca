@@ -2,6 +2,7 @@ package ct
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -202,6 +203,13 @@ func TestU256Shl(t *testing.T) {
 func TestU256Shr(t *testing.T) {
 	x := NewU256(0, 42)
 	if x.Shr(NewU256(64)).Ne(NewU256(42)) {
+		t.Fail()
+	}
+}
+
+func TestU256String(t *testing.T) {
+	x := NewU256(42, 13, 47, 1)
+	if fmt.Sprint(x) != "000000000000002a 000000000000000d 000000000000002f 0000000000000001" {
 		t.Fail()
 	}
 }

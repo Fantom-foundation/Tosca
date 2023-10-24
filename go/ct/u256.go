@@ -1,6 +1,8 @@
 package ct
 
 import (
+	"fmt"
+
 	"github.com/holiman/uint256"
 )
 
@@ -152,4 +154,8 @@ func (a U256) Shr(b U256) (z U256) {
 		z.internal.Rsh(&a.internal, uint(b.internal.Uint64()))
 	}
 	return
+}
+
+func (i U256) String() string {
+	return fmt.Sprintf("%016x %016x %016x %016x", i.internal[0], i.internal[1], i.internal[2], i.internal[3])
 }
