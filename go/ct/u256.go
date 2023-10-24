@@ -6,19 +6,22 @@ import (
 	"github.com/holiman/uint256"
 )
 
+// U256 is a 256-bit integer type. Contrary to holiman/uint256.Int the API
+// operates on values rather than pointers.
 type U256 struct {
 	internal uint256.Int
 }
 
+// NewU256 creates a new U256 instance from up to 4 uint64 arguments. The
+// arguments are given in the order from least significant to most significant.
+// No argument results in a value of zero.
 func NewU256(args ...uint64) (result U256) {
+	if len(args) > 4 {
+		panic("To many arguments")
+	}
 	for i := 0; i < len(args) && i < len(result.internal); i++ {
 		result.internal[i] = args[i]
 	}
-	return
-}
-
-func U256FromUint64(i uint64) (result U256) {
-	result.internal.SetUint64(i)
 	return
 }
 
