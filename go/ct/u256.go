@@ -13,14 +13,15 @@ type U256 struct {
 }
 
 // NewU256 creates a new U256 instance from up to 4 uint64 arguments. The
-// arguments are given in the order from least significant to most significant.
-// No argument results in a value of zero.
+// arguments are given in the order from most significant to least significant
+// by padding leading zeros as needed. No argument results in a value of zero.
 func NewU256(args ...uint64) (result U256) {
 	if len(args) > 4 {
 		panic("To many arguments")
 	}
+	offset := 4 - len(args)
 	for i := 0; i < len(args) && i < len(result.internal); i++ {
-		result.internal[i] = args[i]
+		result.internal[3-i-offset] = args[i]
 	}
 	return
 }
@@ -160,5 +161,5 @@ func (a U256) Shr(b U256) (z U256) {
 }
 
 func (i U256) String() string {
-	return fmt.Sprintf("%016x %016x %016x %016x", i.internal[0], i.internal[1], i.internal[2], i.internal[3])
+	return fmt.Sprintf("%016x %016x %016x %016x", i.internal[3], i.internal[2], i.internal[1], i.internal[0])
 }
