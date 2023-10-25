@@ -9,6 +9,7 @@ require (
 	github.com/holiman/uint256 v1.2.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
+	pgregory.net/rand v1.0.2
 )
 
 require (
