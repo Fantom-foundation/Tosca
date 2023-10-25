@@ -10,15 +10,8 @@ import (
 	"pgregory.net/rand"
 )
 
-// CodeGenerator is a utility class for generating Codes. It provides two
-// capabilities:
-//   - The specification of constraints and the generation of a code satisfying
-//     those constraints or the identification of unsatisfiable constraints.
-//     This constraint solver is sound and complete.
-//   - Support for cloning a generator state and restoring it.
-//
-// The goal of the CodeGenerator is to produce high entropy results by setting
-// all unconstrained degrees of freedom for the final code to random values.
+// CodeGenerator is a utility class for generating Codes. See StateGenerator for
+// more information on generators.
 type CodeGenerator struct {
 	// Constraints
 	sizes []int
@@ -30,14 +23,11 @@ type opConstraint struct {
 	op  st.OpCode
 }
 
-// NewCodeGenerator creates a generator without any initial constraints.
 func NewCodeGenerator() *CodeGenerator {
 	return &CodeGenerator{}
 }
 
-// SetSize adds a constraint on the size of the resulting code. Multiple size
-// constraints may be added, though conflicting constraints will result in an
-// error signalling unsatisfiability during the generation process.
+// SetSize adds a constraint on the size of the resulting code.
 func (g *CodeGenerator) SetSize(size int) {
 	if !slices.Contains(g.sizes, size) {
 		g.sizes = append(g.sizes, size)
@@ -50,7 +40,7 @@ func (g *CodeGenerator) SetOperation(pos int, op st.OpCode) {
 }
 
 // Generate produces a Code instance satisfying the constraints set on this
-// generator or returns an error indicating unsatisfiability.
+// generator or returns ErrUnsatisfiable on conflicting constraints.
 func (g *CodeGenerator) Generate(rnd *rand.Rand) (*st.Code, error) {
 	// Pick a size.
 	if len(g.sizes) > 1 {
@@ -141,8 +131,8 @@ func (g *CodeGenerator) Generate(rnd *rand.Rand) (*st.Code, error) {
 	return st.NewCode(code), nil
 }
 
-// Clone creates an independent copy of a generator in its current state. Future
-// modifications are isolated from each other.
+// Clone creates an independent copy of the generator in its current state.
+// Future modifications are isolated from each other.
 func (g *CodeGenerator) Clone() *CodeGenerator {
 	return &CodeGenerator{
 		sizes: slices.Clone(g.sizes),
