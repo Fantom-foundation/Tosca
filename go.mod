@@ -1,6 +1,6 @@
 module github.com/Fantom-foundation/Tosca
 
-go 1.19
+go 1.21
 
 require (
 	github.com/ethereum/evmc/v10 v10.0.0
@@ -8,6 +8,8 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/holiman/uint256 v1.2.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
+	pgregory.net/rand v1.0.2
 )
 
 require (
@@ -33,7 +35,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/urfave/cli/v2 v2.3.0 // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.3.7 // indirect
 )
 
