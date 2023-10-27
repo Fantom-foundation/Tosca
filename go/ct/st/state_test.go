@@ -3,6 +3,7 @@ package st
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -227,5 +228,60 @@ func TestState_PrinterAbbreviatedCode(t *testing.T) {
 	got = match[2]
 	if want != got {
 		t.Errorf("invalid print, wanted %s, got %s", want, got)
+	}
+}
+
+func TestState_DiffMatch(t *testing.T) {
+	s1 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
+	s1.Status = Running
+	s1.Revision = London
+	s1.Pc = 3
+	s1.Gas = 42
+
+	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
+	s2.Status = Running
+	s2.Revision = London
+	s2.Pc = 3
+	s2.Gas = 42
+
+	diffs := s1.Diff(s2)
+
+	if len(diffs) != 0 {
+		t.Logf("invalid diff, expected no differences, found %d:\n", len(diffs))
+		for _, diff := range diffs {
+			t.Logf("%s\n", diff)
+		}
+		t.Fail()
+	}
+}
+
+func TestState_DiffMismatch(t *testing.T) {
+	s1 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD)}))
+	s1.Status = Stopped
+	s1.Revision = Berlin
+	s1.Pc = 0
+	s1.Gas = 7
+
+	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
+	s2.Status = Running
+	s2.Revision = London
+	s2.Pc = 3
+	s2.Gas = 42
+
+	diffs := s1.Diff(s2)
+	expectedDiffs := []string{"Different status", "Different revision", "Different pc", "Different gas", "Different code"}
+
+	if len(diffs) != len(expectedDiffs) {
+		t.Logf("invalid diff, expected %d differences, found %d:\n", len(expectedDiffs), len(diffs))
+		for _, diff := range diffs {
+			t.Logf("%s\n", diff)
+		}
+		t.FailNow()
+	}
+
+	for i := 0; i < len(diffs); i++ {
+		if !strings.Contains(diffs[i], expectedDiffs[i]) {
+			t.Errorf("invalid diff, expected '%s' found '%s'", diffs[i], expectedDiffs[i])
+		}
 	}
 }

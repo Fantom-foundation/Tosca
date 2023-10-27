@@ -115,3 +115,29 @@ func (s *State) String() string {
 	builder.WriteString("}")
 	return builder.String()
 }
+
+func (s *State) Diff(o *State) []string {
+	res := []string{}
+
+	if s.Status != o.Status {
+		res = append(res, fmt.Sprintf("Different status: %v vs %v", s.Status, o.Status))
+	}
+
+	if s.Revision != o.Revision {
+		res = append(res, fmt.Sprintf("Different revision: %v vs %v", s.Revision, o.Revision))
+	}
+
+	if s.Pc != o.Pc {
+		res = append(res, fmt.Sprintf("Different pc: %v vs %v", s.Pc, o.Pc))
+	}
+
+	if s.Gas != o.Gas {
+		res = append(res, fmt.Sprintf("Different gas: %v vs %v", s.Gas, o.Gas))
+	}
+
+	if !s.Code.Eq(o.Code) {
+		res = append(res, fmt.Sprintf("Different code: size %d vs %d", len(s.Code.code), len(o.Code.code)))
+	}
+
+	return res
+}
