@@ -1,6 +1,9 @@
 package st
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 ////////////////////////////////////////////////////////////
 
@@ -86,4 +89,29 @@ func (s *State) Eq(other *State) bool {
 		s.Pc == other.Pc &&
 		s.Gas == other.Gas &&
 		s.Code.Eq(other.Code)
+}
+
+const codeCutoffLength = 20
+
+func (s *State) String() string {
+	builder := strings.Builder{}
+	builder.WriteString("{\n")
+	builder.WriteString(fmt.Sprintf("\tStatus: %v\n", s.Status))
+	builder.WriteString(fmt.Sprintf("\tRevision: %v\n", s.Revision))
+	builder.WriteString(fmt.Sprintf("\tPc: %d (0x%04x)\n", s.Pc, s.Pc))
+	if !s.Code.IsCode(int(s.Pc)) {
+		builder.WriteString("\t    (points to data)\n")
+	} else if s.Pc < uint16(len(s.Code.code)) {
+		builder.WriteString(fmt.Sprintf("\t    (operation: %v)\n", OpCode(s.Code.code[s.Pc])))
+	} else {
+		builder.WriteString("\t    (out of bounds)\n")
+	}
+	builder.WriteString(fmt.Sprintf("\tGas: %d\n", s.Gas))
+	if len(s.Code.code) > codeCutoffLength {
+		builder.WriteString(fmt.Sprintf("\tCode: %x... (size: %d)\n", s.Code.code[:codeCutoffLength], len(s.Code.code)))
+	} else {
+		builder.WriteString(fmt.Sprintf("\tCode: %v\n", s.Code))
+	}
+	builder.WriteString("}")
+	return builder.String()
 }
