@@ -83,6 +83,19 @@ func (c *Code) Eq(other *Code) bool {
 	return bytes.Equal(c.code, other.code)
 }
 
+func (a *Code) Diff(b *Code) (res []string) {
+	if a.Length() != b.Length() {
+		res = append(res, fmt.Sprintf("Different code size: %v vs %v", a.Length(), b.Length()))
+		return
+	}
+	for i := 0; i < a.Length(); i++ {
+		if aValue, bValue := a.code[i], b.code[i]; aValue != bValue {
+			res = append(res, fmt.Sprintf("Different code/data at position %d: 0x%02x vs 0x%02x", i, aValue, bValue))
+		}
+	}
+	return
+}
+
 func (c *Code) CopyTo(dst []byte) int {
 	return copy(dst, c.code)
 }

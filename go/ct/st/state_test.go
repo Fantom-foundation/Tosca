@@ -321,7 +321,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Gas = 7
 	s1.Stack.Push(NewU256(42))
 
-	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
+	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
 	s2.Revision = London
 	s2.Pc = 3

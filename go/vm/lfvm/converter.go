@@ -125,6 +125,72 @@ func convert(code []byte, with_super_instructions bool) (Code, error) {
 	return res.toCode(), nil
 }
 
+// PcMap is a bidirectional map to map program counters between evm <-> lfvm.
+type PcMap struct {
+	evmToLfvm map[uint16]uint16
+	lfvmToEvm map[uint16]uint16
+}
+
+// GenPcMap creates a bidirectional program counter map for a given code,
+// allowing mapping from a program counter in evm code to lfvm and vice versa.
+func GenPcMap(code []byte, with_super_instructions bool) (*PcMap, error) {
+	if with_super_instructions {
+		return nil, errors.New("super instructions are not yet supported for program counter mapping")
+	}
+
+	pcMap := PcMap{make(map[uint16]uint16, len(code)), make(map[uint16]uint16, len(code))}
+	// Entry point always maps from 0 <-> 0, even when there is no code.
+	pcMap.evmToLfvm[0] = 0
+	pcMap.lfvmToEvm[0] = 0
+	res := newCodeBuilder(len(code))
+
+	// Convert each individual instruction.
+	for i := 0; i < len(code); {
+		// Handle jump destinations.
+		if code[i] == byte(vm.JUMPDEST) {
+			if res.length() > i {
+				return nil, errors.New("unable to convert code, encountered target block larger than input")
+			}
+
+			// All lfvm opcodes from jmpto until jmpdest, including the potential nops in between map to evm jmpdest.
+			for j := res.nextPos; j <= i; j++ {
+				pcMap.lfvmToEvm[uint16(j)] = uint16(i)
+			}
+
+			// Jump to the next jump destination and fill space with noops.
+			if res.length() < i {
+				res.appendOp(JUMP_TO, uint16(i))
+			}
+			res.padNoOpsUntil(i)
+			res.appendCode(JUMPDEST)
+
+			// Jumpdest in lfvm and evm share the same PC.
+			pcMap.evmToLfvm[uint16(i)] = uint16(i)
+			i++
+			continue
+		}
+
+		// Convert instructions.
+		pcMap.evmToLfvm[uint16(i)] = uint16(res.nextPos)
+		pcMap.lfvmToEvm[uint16(res.nextPos)] = uint16(i)
+		inc := appendInstructions(&res, i, code, with_super_instructions)
+		i += inc + 1
+	}
+	return &pcMap, nil
+}
+
+// GenPcMapWithSuperInstructions creates a bidirectional program counter map for a given code,
+// allowing mapping from a program counter in evm code to lfvm code utilizing super instructions and vice versa.
+func GenPcMapWithSuperInstructions(code []byte) (*PcMap, error) {
+	return GenPcMap(code, true)
+}
+
+// GenPcMapWithoutSuperInstructions creates a bidirectional program counter map for a given code,
+// allowing mapping from a program counter in evm code to lfvm code not making use of super instructions and vice versa.
+func GenPcMapWithoutSuperInstructions(code []byte) (*PcMap, error) {
+	return GenPcMap(code, false)
+}
+
 func appendInstructions(res *codeBuilder, pos int, code []byte, with_super_instructions bool) int {
 	// Convert super instructions.
 	if with_super_instructions {

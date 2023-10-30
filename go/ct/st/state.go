@@ -159,7 +159,7 @@ func (s *State) Diff(o *State) []string {
 	}
 
 	if !s.Code.Eq(o.Code) {
-		res = append(res, fmt.Sprintf("Different code: size %d vs %d", len(s.Code.code), len(o.Code.code)))
+		res = append(res, s.Code.Diff(o.Code)...)
 	}
 
 	if !s.Stack.Eq(o.Stack) {
