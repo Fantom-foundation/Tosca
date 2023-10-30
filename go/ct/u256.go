@@ -39,6 +39,10 @@ func (i U256) IsUint64() bool {
 	return i.internal.IsUint64()
 }
 
+func (i U256) Uint64() uint64 {
+	return i.internal.Uint64()
+}
+
 func (i U256) Bytes32be() [32]byte {
 	return i.internal.Bytes32()
 }
