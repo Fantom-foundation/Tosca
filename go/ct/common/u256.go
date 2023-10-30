@@ -54,6 +54,10 @@ func (i U256) Uint64() uint64 {
 	return i.internal.Uint64()
 }
 
+func (i U256) Uint256() uint256.Int {
+	return i.internal
+}
+
 func (i U256) Bytes32be() [32]byte {
 	return i.internal.Bytes32()
 }
