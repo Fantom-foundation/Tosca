@@ -9,7 +9,7 @@ import (
 )
 
 func TestCodeGenerator_UnconstrainedGeneratorCanProduceCode(t *testing.T) {
-	rnd := rand.New()
+	rnd := rand.New(0)
 	generator := NewCodeGenerator()
 	if _, err := generator.Generate(rnd); err != nil {
 		t.Fatalf("unexpected error during build: %v", err)
@@ -19,7 +19,7 @@ func TestCodeGenerator_UnconstrainedGeneratorCanProduceCode(t *testing.T) {
 func TestCodeGenerator_SetCodeSizeIsEnforced(t *testing.T) {
 	sizes := []int{0, 1, 2, 1 << 20, 1 << 23}
 
-	rnd := rand.New()
+	rnd := rand.New(0)
 	for _, size := range sizes {
 		generator := NewCodeGenerator()
 		generator.SetSize(size)
@@ -37,7 +37,7 @@ func TestCodeGenerator_ConflictingSizesAreDetected(t *testing.T) {
 	generator := NewCodeGenerator()
 	generator.SetSize(12)
 	generator.SetSize(14)
-	rnd := rand.New()
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
@@ -46,7 +46,7 @@ func TestCodeGenerator_ConflictingSizesAreDetected(t *testing.T) {
 func TestCodeGenerator_NegativeCodeSizesAreDetected(t *testing.T) {
 	generator := NewCodeGenerator()
 	generator.SetSize(-12)
-	rnd := rand.New()
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
@@ -56,7 +56,7 @@ func TestCodeGenerator_NonConflictingSizesAreAccepted(t *testing.T) {
 	generator := NewCodeGenerator()
 	generator.SetSize(12)
 	generator.SetSize(12)
-	rnd := rand.New()
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); err != nil {
 		t.Errorf("generation failed: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestCodeGenerator_OperationConstraintsAreEnforced(t *testing.T) {
 		"wide":             {{2, st.PUSH1}, {20000, st.PUSH1}},
 	}
 
-	rnd := rand.New()
+	rnd := rand.New(0)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			generator := NewCodeGenerator()
@@ -121,7 +121,7 @@ func TestCodeGenerator_ImpossibleConstraintsAreDetected(t *testing.T) {
 		"add_operation_making_other_operation_data": {size: 40, ops: []op{{16, st.PUSH32}, {0, st.PUSH32}}},
 	}
 
-	rnd := rand.New()
+	rnd := rand.New(0)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			generator := NewCodeGenerator()
@@ -139,7 +139,7 @@ func TestCodeGenerator_ImpossibleConstraintsAreDetected(t *testing.T) {
 	}
 }
 
-func TestCodeGenerator_CloneCopiesBuilderState(t *testing.T) {
+func TestCodeGenerator_CloneCopiesGeneratorState(t *testing.T) {
 	original := NewCodeGenerator()
 	original.SetSize(12)
 	original.SetOperation(4, st.PUSH2)
@@ -175,7 +175,7 @@ func TestCodeGenerator_ClonesAreIndependent(t *testing.T) {
 	}
 }
 
-func TestCodeGenerator_ClonesCanBeUsedToResetBuilder(t *testing.T) {
+func TestCodeGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	generator := NewCodeGenerator()
 	generator.SetOperation(4, st.STOP)
 

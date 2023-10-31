@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/Fantom-foundation/Tosca/go/ct"
 )
 
 func TestState_Eq(t *testing.T) {
@@ -41,6 +43,16 @@ func TestState_Eq(t *testing.T) {
 		t.Fail()
 	}
 	s2.Gas = 1
+
+	s1.Stack.Push(ct.NewU256(1))
+	if s1.Eq(s2) {
+		t.Fail()
+	}
+	s2.Stack.Push(ct.NewU256(1))
+
+	if !s1.Eq(s2) {
+		t.Fail()
+	}
 
 	s1 = NewState(NewCode([]byte{byte(ADD), byte(STOP)}))
 	s2 = NewState(NewCode([]byte{byte(ADD), byte(ADD)}))
@@ -231,18 +243,38 @@ func TestState_PrinterAbbreviatedCode(t *testing.T) {
 	}
 }
 
+func TestState_PrinterStackSize(t *testing.T) {
+	s := NewState(NewCode([]byte{}))
+	s.Stack.Push(ct.NewU256(1))
+	s.Stack.Push(ct.NewU256(2))
+	s.Stack.Push(ct.NewU256(3))
+
+	r := regexp.MustCompile(`Stack size: ([[:digit:]]+)`)
+	match := r.FindStringSubmatch(s.String())
+
+	if len(match) != 2 {
+		t.Fatal("invalid print, did not find stack size")
+	}
+
+	if want, got := "3", match[1]; want != got {
+		t.Errorf("invalid stack size, want %v, got %v", want, got)
+	}
+}
+
 func TestState_DiffMatch(t *testing.T) {
 	s1 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s1.Status = Running
 	s1.Revision = London
 	s1.Pc = 3
 	s1.Gas = 42
+	s1.Stack.Push(ct.NewU256(42))
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
 	s2.Revision = London
 	s2.Pc = 3
 	s2.Gas = 42
+	s2.Stack.Push(ct.NewU256(42))
 
 	diffs := s1.Diff(s2)
 
@@ -261,15 +293,18 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Revision = Berlin
 	s1.Pc = 0
 	s1.Gas = 7
+	s1.Stack.Push(ct.NewU256(42))
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
 	s2.Revision = London
 	s2.Pc = 3
 	s2.Gas = 42
+	s2.Stack.Push(ct.NewU256(16))
 
 	diffs := s1.Diff(s2)
-	expectedDiffs := []string{"Different status", "Different revision", "Different pc", "Different gas", "Different code"}
+
+	expectedDiffs := []string{"Different status", "Different revision", "Different pc", "Different gas", "Different code", "Different stack"}
 
 	if len(diffs) != len(expectedDiffs) {
 		t.Logf("invalid diff, expected %d differences, found %d:\n", len(expectedDiffs), len(diffs))
