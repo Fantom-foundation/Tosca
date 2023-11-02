@@ -202,3 +202,38 @@ func (pcDomain) SamplesForAll(as []ct.U256) []ct.U256 {
 	}
 	return res
 }
+
+////////////////////////////////////////////////////////////
+// Stack Size
+
+type stackSizeDomain struct{}
+
+func (stackSizeDomain) Equal(a int, b int) bool     { return a == b }
+func (stackSizeDomain) Less(a int, b int) bool      { return a < b }
+func (stackSizeDomain) Predecessor(a int) int       { return a - 1 }
+func (stackSizeDomain) Successor(a int) int         { return a + 1 }
+func (stackSizeDomain) SomethingNotEqual(a int) int { return (a + 1) % 1024 }
+
+func (d stackSizeDomain) Samples(a int) []int {
+	return d.SamplesForAll([]int{a})
+}
+func (stackSizeDomain) SamplesForAll(as []int) []int {
+	res := []int{0, 1024} // extreme values
+
+	// Test every element off by one.
+	for _, a := range as {
+		if 0 <= a && a <= 1024 {
+			if a != 0 {
+				res = append(res, a-1)
+			}
+			res = append(res, a)
+			if a != 1024 {
+				res = append(res, a+1)
+			}
+		}
+	}
+
+	// TODO: consider removing duplicates.
+
+	return res
+}
