@@ -3,8 +3,6 @@ package rlz
 import (
 	"errors"
 
-	"pgregory.net/rand"
-
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
@@ -16,20 +14,20 @@ type Rule struct {
 }
 
 // GenerateSatisfyingState produces an st.State satisfying this Rule.
-func (rule *Rule) GenerateSatisfyingState(rnd *rand.Rand) (*st.State, error) {
-	generator := gen.NewStateGenerator()
+func (rule *Rule) GenerateSatisfyingState(seed uint64) (*st.State, error) {
+	generator := gen.NewStateGeneratorWithSeed(seed)
 	rule.Condition.Restrict(generator)
-	return generator.Generate(rnd)
+	return generator.Generate()
 }
 
 // EnumerateTestCases generates interesting st.States according to this Rule.
 // Each valid st.State is passed to the given consume function.
-func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(s *st.State)) error {
+func (rule *Rule) EnumerateTestCases(seed uint64, consume func(s *st.State)) error {
 	var generatorErrors []error
 
-	generator := gen.NewStateGenerator()
+	generator := gen.NewStateGeneratorWithSeed(seed)
 	rule.Condition.EnumerateTestCases(generator, func(g *gen.StateGenerator) {
-		state, err := g.Generate(rnd)
+		state, err := g.Generate()
 		if errors.Is(err, gen.ErrUnsatisfiable) {
 			return // ignored
 		}

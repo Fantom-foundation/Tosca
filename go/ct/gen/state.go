@@ -37,13 +37,27 @@ type StateGenerator struct {
 	// Generators
 	codeGen  *CodeGenerator
 	stackGen *StackGenerator
+
+	rnd *rand.Rand
 }
 
-// NewStateGenerator creates a generator without any initial constraints.
+// NewStateGenerator creates a generator without any initial constraints and a
+// fixed seed.
 func NewStateGenerator() *StateGenerator {
 	return &StateGenerator{
 		codeGen:  NewCodeGenerator(),
 		stackGen: NewStackGenerator(),
+		rnd:      rand.New(0),
+	}
+}
+
+// NewStateGenerator creates a generator without any initial constraints
+// and the given seed.
+func NewStateGeneratorWithSeed(seed uint64) *StateGenerator {
+	return &StateGenerator{
+		codeGen:  NewCodeGenerator(),
+		stackGen: NewStackGenerator(),
+		rnd:      rand.New(seed),
 	}
 }
 
@@ -98,11 +112,11 @@ func (g *StateGenerator) SetStackValue(pos int, value ct.U256) {
 // Generate produces a State instance satisfying the constraints set on this
 // generator or returns ErrUnsatisfiable on conflicting constraints. Subsequent
 // generators are invoked automatically.
-func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
+func (g *StateGenerator) Generate() (*st.State, error) {
 	// Pick a status.
 	var resultStatus st.StatusCode
 	if len(g.statusConstraints) == 0 {
-		resultStatus = st.StatusCode(rnd.Int31n(int32(st.NumStatusCodes)))
+		resultStatus = st.StatusCode(g.rnd.Int31n(int32(st.NumStatusCodes)))
 	} else if len(g.statusConstraints) == 1 {
 		resultStatus = g.statusConstraints[0]
 		if resultStatus < 0 || resultStatus >= st.NumStatusCodes {
@@ -115,7 +129,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	// Pick a revision.
 	var resultRevision st.Revision
 	if len(g.revisionConstraints) == 0 {
-		resultRevision = st.Revision(rnd.Int31n(int32(st.NumRevisions)))
+		resultRevision = st.Revision(g.rnd.Int31n(int32(st.NumRevisions)))
 	} else if len(g.revisionConstraints) == 1 {
 		resultRevision = g.revisionConstraints[0]
 		if resultRevision < 0 || resultRevision >= st.NumRevisions {
@@ -126,7 +140,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Invoke CodeGenerator
-	resultCode, err := g.codeGen.Generate(rnd)
+	resultCode, err := g.codeGen.Generate(g.rnd)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +149,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	var resultPc uint16
 	if len(g.pcConstraints) == 0 {
 		// Generate a random program counter that points into the code slice.
-		resultPc = uint16(rnd.Int31n(int32(resultCode.Length())))
+		resultPc = uint16(g.rnd.Int31n(int32(resultCode.Length())))
 	} else if len(g.pcConstraints) == 1 {
 		resultPc = g.pcConstraints[0]
 	} else {
@@ -145,7 +159,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	// Pick a gas counter.
 	var resultGas uint64
 	if len(g.gasConstraints) == 0 {
-		resultGas = rnd.Uint64()
+		resultGas = g.rnd.Uint64()
 	} else if len(g.gasConstraints) == 1 {
 		resultGas = g.gasConstraints[0]
 	} else {
@@ -153,7 +167,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Invoke StackGenerator
-	resultStack, err := g.stackGen.Generate(rnd)
+	resultStack, err := g.stackGen.Generate(g.rnd)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +182,9 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 }
 
 // Clone creates an independent copy of the generator in its current state.
-// Future modifications are isolated from each other.
+// Future modifications are isolated from each other. Note that the RNG is
+// reused, if you intend to pass the new instance to a different thread, use
+// CloneWithNewRNG instead.
 func (g *StateGenerator) Clone() *StateGenerator {
 	return &StateGenerator{
 		statusConstraints:   slices.Clone(g.statusConstraints),
@@ -177,7 +193,16 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		gasConstraints:      slices.Clone(g.gasConstraints),
 		codeGen:             g.codeGen.Clone(),
 		stackGen:            g.stackGen.Clone(),
+		rnd:                 g.rnd,
 	}
+}
+
+// CloneWithNewRNG is the same as Clone, but creates a new RNG with the given
+// seed. The new instance can be used in parallel with the original instance.
+func (g *StateGenerator) CloneWithNewRNG(seed uint64) *StateGenerator {
+	clone := g.Clone()
+	clone.rnd = rand.New(seed)
+	return clone
 }
 
 // Restore copies the state of the provided generator into this generator.
