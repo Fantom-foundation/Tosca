@@ -71,3 +71,49 @@ func (pc) Restrict(pc ct.U256, generator *gen.StateGenerator) {
 func (pc) String() string {
 	return "PC"
 }
+
+////////////////////////////////////////////////////////////
+// Gas Counter
+
+type gas struct{}
+
+func Gas() Expression[uint64] {
+	return gas{}
+}
+
+func (gas) Domain() Domain[uint64] { return uint64Domain{} }
+
+func (gas) Eval(s *st.State) uint64 {
+	return s.Gas
+}
+
+func (gas) Restrict(amount uint64, generator *gen.StateGenerator) {
+	generator.SetGas(amount)
+}
+
+func (gas) String() string {
+	return "Gas"
+}
+
+////////////////////////////////////////////////////////////
+// Stack Size
+
+type stackSize struct{}
+
+func StackSize() Expression[int] {
+	return stackSize{}
+}
+
+func (stackSize) Domain() Domain[int] { return stackSizeDomain{} }
+
+func (stackSize) Eval(s *st.State) int {
+	return s.Stack.Size()
+}
+
+func (stackSize) Restrict(size int, generator *gen.StateGenerator) {
+	generator.SetStackSize(size)
+}
+
+func (stackSize) String() string {
+	return "stackSize"
+}
