@@ -20,7 +20,8 @@ func TestExpression_StatusEval(t *testing.T) {
 
 func TestExpression_StatusRestrict(t *testing.T) {
 	generator := gen.NewStateGenerator()
-	Status().Restrict(st.Reverted, generator)
+	rnd := rand.New(0)
+	Status().Restrict(st.Reverted, generator, rnd)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {
@@ -41,7 +42,8 @@ func TestExpression_PcEval(t *testing.T) {
 
 func TestExpression_PcRestrict(t *testing.T) {
 	generator := gen.NewStateGenerator()
-	Pc().Restrict(ct.NewU256(42), generator)
+	rnd := rand.New(0)
+	Pc().Restrict(ct.NewU256(42), generator, rnd)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {

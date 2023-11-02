@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"pgregory.net/rand"
 )
 
 // Condition represents a state property.
@@ -15,11 +16,11 @@ type Condition interface {
 
 	// Restrict sets constraints on the given StateGenerator such that this
 	// Condition holds.
-	Restrict(*gen.StateGenerator)
+	Restrict(*gen.StateGenerator, *rand.Rand)
 
 	// EnumerateTestCases sets constraints on a copy of the given generator and
 	// invokes the given consumer function with it.
-	EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator))
+	EnumerateTestCases(generator *gen.StateGenerator, rnd *rand.Rand, consumer func(*gen.StateGenerator))
 
 	fmt.Stringer
 }
@@ -56,20 +57,20 @@ func (c *conjunction) Check(s *st.State) bool {
 	return true
 }
 
-func (c *conjunction) Restrict(generator *gen.StateGenerator) {
+func (c *conjunction) Restrict(generator *gen.StateGenerator, rnd *rand.Rand) {
 	for _, cur := range c.conditions {
-		cur.Restrict(generator)
+		cur.Restrict(generator, rnd)
 	}
 }
 
-func (c *conjunction) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator)) {
+func (c *conjunction) EnumerateTestCases(generator *gen.StateGenerator, rnd *rand.Rand, consumer func(*gen.StateGenerator)) {
 	if len(c.conditions) == 0 {
 		consumer(generator)
 		return
 	}
 	rest := And(c.conditions[1:]...)
-	c.conditions[0].EnumerateTestCases(generator, func(generator *gen.StateGenerator) {
-		rest.EnumerateTestCases(generator, consumer)
+	c.conditions[0].EnumerateTestCases(generator, rnd, func(generator *gen.StateGenerator) {
+		rest.EnumerateTestCases(generator, rnd, consumer)
 	})
 }
 
@@ -107,15 +108,15 @@ func (e *eq[T]) Check(s *st.State) bool {
 	return domain.Equal(e.lhs.Eval(s), e.rhs)
 }
 
-func (e *eq[T]) Restrict(generator *gen.StateGenerator) {
-	e.lhs.Restrict(e.rhs, generator)
+func (e *eq[T]) Restrict(generator *gen.StateGenerator, rnd *rand.Rand) {
+	e.lhs.Restrict(e.rhs, generator, rnd)
 }
 
-func (e *eq[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator)) {
+func (e *eq[T]) EnumerateTestCases(generator *gen.StateGenerator, rnd *rand.Rand, consumer func(*gen.StateGenerator)) {
 	domain := e.lhs.Domain()
 	for _, value := range domain.Samples(e.rhs) {
 		clone := generator.Clone()
-		e.lhs.Restrict(value, clone)
+		e.lhs.Restrict(value, clone, rnd)
 		consumer(clone)
 	}
 }
@@ -141,16 +142,16 @@ func (e *ne[T]) Check(s *st.State) bool {
 	return !domain.Equal(e.lhs.Eval(s), e.rhs)
 }
 
-func (e *ne[T]) Restrict(generator *gen.StateGenerator) {
+func (e *ne[T]) Restrict(generator *gen.StateGenerator, rnd *rand.Rand) {
 	domain := e.lhs.Domain()
-	e.lhs.Restrict(domain.SomethingNotEqual(e.rhs), generator)
+	e.lhs.Restrict(domain.SomethingNotEqual(e.rhs), generator, rnd)
 }
 
-func (e *ne[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator)) {
+func (e *ne[T]) EnumerateTestCases(generator *gen.StateGenerator, rnd *rand.Rand, consumer func(*gen.StateGenerator)) {
 	domain := e.lhs.Domain()
 	for _, value := range domain.Samples(e.rhs) {
 		clone := generator.Clone()
-		e.lhs.Restrict(value, clone)
+		e.lhs.Restrict(value, clone, rnd)
 		consumer(clone)
 	}
 }
@@ -176,16 +177,16 @@ func (c *lt[T]) Check(s *st.State) bool {
 	return domain.Less(c.lhs.Eval(s), c.rhs)
 }
 
-func (c *lt[T]) Restrict(generator *gen.StateGenerator) {
+func (c *lt[T]) Restrict(generator *gen.StateGenerator, rnd *rand.Rand) {
 	domain := c.lhs.Domain()
-	c.lhs.Restrict(domain.Predecessor(c.rhs), generator)
+	c.lhs.Restrict(domain.Predecessor(c.rhs), generator, rnd)
 }
 
-func (c *lt[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator)) {
+func (c *lt[T]) EnumerateTestCases(generator *gen.StateGenerator, rnd *rand.Rand, consumer func(*gen.StateGenerator)) {
 	domain := c.lhs.Domain()
 	for _, value := range domain.Samples(c.rhs) {
 		clone := generator.Clone()
-		c.lhs.Restrict(value, clone)
+		c.lhs.Restrict(value, clone, rnd)
 		consumer(clone)
 	}
 }
@@ -212,15 +213,15 @@ func (c *le[T]) Check(s *st.State) bool {
 	return domain.Less(e, c.rhs) || domain.Equal(e, c.rhs)
 }
 
-func (c *le[T]) Restrict(generator *gen.StateGenerator) {
-	c.lhs.Restrict(c.rhs, generator)
+func (c *le[T]) Restrict(generator *gen.StateGenerator, rnd *rand.Rand) {
+	c.lhs.Restrict(c.rhs, generator, rnd)
 }
 
-func (c *le[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator)) {
+func (c *le[T]) EnumerateTestCases(generator *gen.StateGenerator, rnd *rand.Rand, consumer func(*gen.StateGenerator)) {
 	domain := c.lhs.Domain()
 	for _, value := range domain.Samples(c.rhs) {
 		clone := generator.Clone()
-		c.lhs.Restrict(value, clone)
+		c.lhs.Restrict(value, clone, rnd)
 		consumer(clone)
 	}
 }
@@ -247,16 +248,16 @@ func (c *gt[T]) Check(s *st.State) bool {
 	return !(domain.Less(e, c.rhs) || domain.Equal(e, c.rhs))
 }
 
-func (c *gt[T]) Restrict(generator *gen.StateGenerator) {
+func (c *gt[T]) Restrict(generator *gen.StateGenerator, rnd *rand.Rand) {
 	domain := c.lhs.Domain()
-	c.lhs.Restrict(domain.Successor(c.rhs), generator)
+	c.lhs.Restrict(domain.Successor(c.rhs), generator, rnd)
 }
 
-func (c *gt[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator)) {
+func (c *gt[T]) EnumerateTestCases(generator *gen.StateGenerator, rnd *rand.Rand, consumer func(*gen.StateGenerator)) {
 	domain := c.lhs.Domain()
 	for _, value := range domain.Samples(c.rhs) {
 		clone := generator.Clone()
-		c.lhs.Restrict(value, clone)
+		c.lhs.Restrict(value, clone, rnd)
 		consumer(clone)
 	}
 }
@@ -282,15 +283,15 @@ func (c *ge[T]) Check(s *st.State) bool {
 	return !domain.Less(c.lhs.Eval(s), c.rhs)
 }
 
-func (c *ge[T]) Restrict(generator *gen.StateGenerator) {
-	c.lhs.Restrict(c.rhs, generator)
+func (c *ge[T]) Restrict(generator *gen.StateGenerator, rnd *rand.Rand) {
+	c.lhs.Restrict(c.rhs, generator, rnd)
 }
 
-func (c *ge[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator)) {
+func (c *ge[T]) EnumerateTestCases(generator *gen.StateGenerator, rnd *rand.Rand, consumer func(*gen.StateGenerator)) {
 	domain := c.lhs.Domain()
 	for _, value := range domain.Samples(c.rhs) {
 		clone := generator.Clone()
-		c.lhs.Restrict(value, clone)
+		c.lhs.Restrict(value, clone, rnd)
 		consumer(clone)
 	}
 }

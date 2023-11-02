@@ -39,6 +39,18 @@ func (g *CodeGenerator) SetOperation(pos int, op st.OpCode) {
 	g.ops = append(g.ops, opConstraint{pos: pos, op: op})
 }
 
+func (g *CodeGenerator) PickOperation(pos int, rnd *rand.Rand) st.OpCode {
+	for _, op := range g.ops {
+		if op.pos == pos {
+			return op.op
+		}
+	}
+
+	op := st.STOP // TODO random
+	g.SetOperation(pos, op)
+	return op
+}
+
 // Generate produces a Code instance satisfying the constraints set on this
 // generator or returns ErrUnsatisfiable on conflicting constraints.
 func (g *CodeGenerator) Generate(rnd *rand.Rand) (*st.Code, error) {

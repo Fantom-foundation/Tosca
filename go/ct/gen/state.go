@@ -54,6 +54,15 @@ func (g *StateGenerator) SetStatus(status st.StatusCode) {
 	}
 }
 
+// PickStatus provides an st.StatusCode satisfying the constraints (assuming
+// generator is satisfiable). Constraints are added if needed.
+func (g *StateGenerator) PickStatus(rnd *rand.Rand) st.StatusCode {
+	if len(g.statusConstraints) == 0 {
+		g.SetStatus(st.StatusCode(rnd.Int31n(int32(st.NumStatusCodes))))
+	}
+	return g.statusConstraints[0]
+}
+
 // SetRevision adds a constraint on the State's revision.
 func (g *StateGenerator) SetRevision(revision st.Revision) {
 	if !slices.Contains(g.revisionConstraints, revision) {
@@ -85,6 +94,10 @@ func (g *StateGenerator) SetCodeOperation(pos int, op st.OpCode) {
 	g.codeGen.SetOperation(pos, op)
 }
 
+func (g *StateGenerator) PickCodeOperation(pos int, rnd *rand.Rand) st.OpCode {
+	return g.codeGen.PickOperation(pos, rnd)
+}
+
 // SetStackSize wraps StackGenerator.SetSize.
 func (g *StateGenerator) SetStackSize(size int) {
 	g.stackGen.SetSize(size)
@@ -102,7 +115,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	// Pick a status.
 	var resultStatus st.StatusCode
 	if len(g.statusConstraints) == 0 {
-		resultStatus = st.StatusCode(rnd.Int31n(int32(st.NumStatusCodes)))
+		resultStatus = g.PickStatus(rnd)
 	} else if len(g.statusConstraints) == 1 {
 		resultStatus = g.statusConstraints[0]
 		if resultStatus < 0 || resultStatus >= st.NumStatusCodes {

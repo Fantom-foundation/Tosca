@@ -202,3 +202,23 @@ func (pcDomain) SamplesForAll(as []ct.U256) []ct.U256 {
 	}
 	return res
 }
+
+////////////////////////////////////////////////////////////
+// Op Codes
+
+type opCodeDomain struct{}
+
+func (opCodeDomain) Equal(a st.OpCode, b st.OpCode) bool     { return a == b }
+func (opCodeDomain) Less(a st.OpCode, b st.OpCode) bool      { panic("not useful") }
+func (opCodeDomain) Predecessor(a st.OpCode) st.OpCode       { panic("not useful") }
+func (opCodeDomain) Successor(a st.OpCode) st.OpCode         { panic("not useful") }
+func (opCodeDomain) SomethingNotEqual(a st.OpCode) st.OpCode { return a + 1 }
+func (opCodeDomain) Samples(a st.OpCode) []st.OpCode         { return []st.OpCode{a, a + 1} }
+
+func (opCodeDomain) SamplesForAll([]st.OpCode) []st.OpCode {
+	res := make([]st.OpCode, 0, 256)
+	for i := 0; i < 256; i++ {
+		res = append(res, st.OpCode(i))
+	}
+	return res
+}
