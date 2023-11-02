@@ -23,6 +23,12 @@ type Expression[T any] interface {
 	fmt.Stringer
 }
 
+type Bindable[T any] interface {
+	Expression[T]
+	GetVariable() gen.Variable
+	BindTo(generator *gen.StateGenerator)
+}
+
 ////////////////////////////////////////////////////////////
 // st.Status
 
@@ -51,7 +57,7 @@ func (status) String() string {
 
 type pc struct{}
 
-func Pc() Expression[ct.U256] {
+func Pc() Bindable[ct.U256] {
 	return pc{}
 }
 
@@ -70,6 +76,14 @@ func (pc) Restrict(pc ct.U256, generator *gen.StateGenerator) {
 
 func (pc) String() string {
 	return "PC"
+}
+
+func (pc) GetVariable() gen.Variable {
+	return gen.Variable("PC")
+}
+
+func (p pc) BindTo(generator *gen.StateGenerator) {
+	generator.BindPc(p.GetVariable())
 }
 
 ////////////////////////////////////////////////////////////
@@ -116,4 +130,77 @@ func (stackSize) Restrict(size int, generator *gen.StateGenerator) {
 
 func (stackSize) String() string {
 	return "stackSize"
+}
+
+////////////////////////////////////////////////////////////
+// Code Operation
+
+type op struct {
+	position Bindable[ct.U256]
+}
+
+func Op(position Bindable[ct.U256]) Expression[st.OpCode] {
+	return op{position}
+}
+
+func (op) Domain() Domain[st.OpCode] { return opCodeDomain{} }
+
+func (e op) Eval(s *st.State) st.OpCode {
+	pos := e.position.Eval(s)
+	if pos.Gt(ct.NewU256(math.MaxInt)) {
+		return st.STOP
+	}
+
+	op, err := s.Code.GetOperation(int(pos.Uint64()))
+	if err != nil {
+		panic(err) // TODO
+	}
+	return op
+}
+
+func (e op) Restrict(op st.OpCode, generator *gen.StateGenerator) {
+	variable := e.position.GetVariable()
+	e.position.BindTo(generator)
+	generator.AddCodeOperation(variable, op)
+}
+
+func (e op) String() string {
+	return fmt.Sprintf("code[%v]", e.position)
+}
+
+////////////////////////////////////////////////////////////
+// Instruction Parameter
+
+type param struct {
+	position int
+}
+
+func Param(pos int) Bindable[ct.U256] {
+	return param{pos}
+}
+
+func (param) Domain() Domain[ct.U256] { return u256Domain{} }
+
+func (p param) Eval(s *st.State) ct.U256 {
+	stack := s.Stack
+	if p.position >= stack.Size() {
+		return ct.U256{}
+	}
+	return stack.Get(p.position)
+}
+
+func (p param) Restrict(value ct.U256, generator *gen.StateGenerator) {
+	generator.SetStackValue(p.position, value)
+}
+
+func (p param) String() string {
+	return fmt.Sprintf("param[%v]", p.position)
+}
+
+func (p param) GetVariable() gen.Variable {
+	return gen.Variable(fmt.Sprintf("param_%d", p.position))
+}
+
+func (p param) BindTo(generator *gen.StateGenerator) {
+	generator.BindStackValue(p.position, p.GetVariable())
 }

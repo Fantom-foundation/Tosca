@@ -13,20 +13,33 @@ import (
 )
 
 type StackGenerator struct {
-	sizes  []int
-	values []valueConstraint
+	sizes          []int
+	constValues    []constValueConstraint
+	variableValues []variableValueConstraint
 }
 
-type valueConstraint struct {
+type constValueConstraint struct {
 	pos   int
 	value ct.U256
 }
 
-func (c *valueConstraint) Less(o *valueConstraint) bool {
+func (c *constValueConstraint) Less(o *constValueConstraint) bool {
 	if c.pos != o.pos {
 		return c.pos < o.pos
 	}
 	return c.value.Lt(o.value)
+}
+
+type variableValueConstraint struct {
+	pos      int
+	variable Variable
+}
+
+func (c *variableValueConstraint) Less(o *variableValueConstraint) bool {
+	if c.pos != o.pos {
+		return c.pos < o.pos
+	}
+	return c.variable < o.variable
 }
 
 func NewStackGenerator() *StackGenerator {
@@ -40,13 +53,35 @@ func (g *StackGenerator) SetSize(size int) {
 }
 
 func (g *StackGenerator) SetValue(pos int, value ct.U256) {
-	v := valueConstraint{pos, value}
-	if !slices.Contains(g.values, v) {
-		g.values = append(g.values, v)
+	v := constValueConstraint{pos, value}
+	if !slices.Contains(g.constValues, v) {
+		g.constValues = append(g.constValues, v)
 	}
 }
 
-func (g *StackGenerator) Generate(rnd *rand.Rand) (*st.Stack, error) {
+func (g *StackGenerator) BindValue(pos int, variable Variable) {
+	v := variableValueConstraint{pos, variable}
+	if !slices.Contains(g.variableValues, v) {
+		g.variableValues = append(g.variableValues, v)
+	}
+}
+
+func (g *StackGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Stack, error) {
+
+	// convert variable constraints to constant constraints
+	constraints := make([]constValueConstraint, len(g.constValues), len(g.constValues)+len(g.variableValues))
+	copy(constraints, g.constValues)
+	for _, cur := range g.variableValues {
+		value, found := assignment[cur.variable]
+		if !found {
+			return nil, fmt.Errorf("internal error, variable %v not bound", cur.variable)
+		}
+		constraints = append(constraints, constValueConstraint{
+			pos:   cur.pos,
+			value: value,
+		})
+	}
+
 	// Pick a size
 	size := 0
 	if len(g.sizes) > 1 {
@@ -56,11 +91,11 @@ func (g *StackGenerator) Generate(rnd *rand.Rand) (*st.Stack, error) {
 		if size < 0 {
 			return nil, fmt.Errorf("%w, can not produce stack with negative size %d", ErrUnsatisfiable, size)
 		}
-		if maxInValues := g.maxPositionInValues(); size <= maxInValues {
+		if maxInValues := maxPositionInValues(constraints); size <= maxInValues {
 			return nil, fmt.Errorf("%w, set stack size %d too small for max position in value constraints %d", ErrUnsatisfiable, size, maxInValues)
 		}
 	} else {
-		size = int(rnd.Int31n(5)) + g.maxPositionInValues() + 1
+		size = int(rnd.Int31n(5)) + maxPositionInValues(constraints) + 1
 	}
 	if size > 1024 {
 		return nil, fmt.Errorf("%w, can not produce stack larger than 1024 elements %d", ErrUnsatisfiable, size)
@@ -70,7 +105,7 @@ func (g *StackGenerator) Generate(rnd *rand.Rand) (*st.Stack, error) {
 	stackMask := make([]bool, size)
 
 	// Apply value constraints
-	for _, value := range g.values {
+	for _, value := range constraints {
 		if value.pos < 0 {
 			return nil, fmt.Errorf("%w, cannot satisfy constraint value[%d]=%v", ErrUnsatisfiable, value.pos, value.value)
 		}
@@ -91,9 +126,9 @@ func (g *StackGenerator) Generate(rnd *rand.Rand) (*st.Stack, error) {
 	return stack, nil
 }
 
-func (g *StackGenerator) maxPositionInValues() int {
+func maxPositionInValues(constraints []constValueConstraint) int {
 	max := -1
-	for _, value := range g.values {
+	for _, value := range constraints {
 		if value.pos > max {
 			max = value.pos
 		}
@@ -103,8 +138,9 @@ func (g *StackGenerator) maxPositionInValues() int {
 
 func (g *StackGenerator) Clone() *StackGenerator {
 	return &StackGenerator{
-		sizes:  slices.Clone(g.sizes),
-		values: slices.Clone(g.values),
+		sizes:          slices.Clone(g.sizes),
+		constValues:    slices.Clone(g.constValues),
+		variableValues: slices.Clone(g.variableValues),
 	}
 }
 
@@ -113,7 +149,8 @@ func (g *StackGenerator) Restore(other *StackGenerator) {
 		return
 	}
 	g.sizes = slices.Clone(other.sizes)
-	g.values = slices.Clone(other.values)
+	g.constValues = slices.Clone(other.constValues)
+	g.variableValues = slices.Clone(other.variableValues)
 }
 
 func (g *StackGenerator) String() string {
@@ -124,9 +161,14 @@ func (g *StackGenerator) String() string {
 		parts = append(parts, fmt.Sprintf("size=%d", size))
 	}
 
-	sort.Slice(g.values, func(i, j int) bool { return g.values[i].Less(&g.values[j]) })
-	for _, value := range g.values {
+	sort.Slice(g.constValues, func(i, j int) bool { return g.constValues[i].Less(&g.constValues[j]) })
+	for _, value := range g.constValues {
 		parts = append(parts, fmt.Sprintf("value[%d]=%v", value.pos, value.value))
+	}
+
+	sort.Slice(g.variableValues, func(i, j int) bool { return g.variableValues[i].Less(&g.variableValues[j]) })
+	for _, value := range g.variableValues {
+		parts = append(parts, fmt.Sprintf("value[%d]=%v", value.pos, value.variable))
 	}
 
 	return "{" + strings.Join(parts, ",") + "}"

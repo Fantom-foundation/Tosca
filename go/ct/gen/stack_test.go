@@ -11,7 +11,7 @@ import (
 func TestStackGenerator_UnconstrainedGeneratorCanProduceStack(t *testing.T) {
 	rnd := rand.New(0)
 	generator := NewStackGenerator()
-	if _, err := generator.Generate(rnd); err != nil {
+	if _, err := generator.Generate(nil, rnd); err != nil {
 		t.Fatalf("unexpected error during build: %v", err)
 	}
 }
@@ -23,7 +23,7 @@ func TestStackGenerator_SetSizeIsEnforced(t *testing.T) {
 	for _, size := range sizes {
 		generator := NewStackGenerator()
 		generator.SetSize(size)
-		stack, err := generator.Generate(rnd)
+		stack, err := generator.Generate(nil, rnd)
 		if err != nil {
 			t.Fatalf("unexpected error during build: %v", err)
 		}
@@ -38,7 +38,7 @@ func TestStackGenerator_NonConflictingSizesAreAccepted(t *testing.T) {
 	generator.SetSize(12)
 	generator.SetSize(12)
 	rnd := rand.New(0)
-	if _, err := generator.Generate(rnd); err != nil {
+	if _, err := generator.Generate(nil, rnd); err != nil {
 		t.Errorf("generation failed: %v", err)
 	}
 }
@@ -48,7 +48,7 @@ func TestStackGenerator_ConflictingSizesAreDetected(t *testing.T) {
 	generator.SetSize(12)
 	generator.SetSize(14)
 	rnd := rand.New(0)
-	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
+	if _, err := generator.Generate(nil, rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
 }
@@ -72,7 +72,7 @@ func TestStackGenerator_SetValueIsEnforced(t *testing.T) {
 			generator.SetValue(v.pos, v.value)
 		}
 
-		stack, err := generator.Generate(rnd)
+		stack, err := generator.Generate(nil, rnd)
 		if err != nil {
 			t.Fatalf("unexpected error during build: %v", err)
 		}
@@ -89,7 +89,7 @@ func TestStackGenerator_NegativeValuePositionsAreDetected(t *testing.T) {
 	generator := NewStackGenerator()
 	generator.SetValue(-1, ct.NewU256(42))
 	rnd := rand.New(0)
-	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
+	if _, err := generator.Generate(nil, rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
 }
@@ -99,7 +99,7 @@ func TestStackGenerator_NonConflictingValuesAreAccepted(t *testing.T) {
 	generator.SetValue(0, ct.NewU256(42))
 	generator.SetValue(0, ct.NewU256(42))
 	rnd := rand.New(0)
-	if _, err := generator.Generate(rnd); err != nil {
+	if _, err := generator.Generate(nil, rnd); err != nil {
 		t.Errorf("generation failed: %v", err)
 	}
 }
@@ -109,7 +109,7 @@ func TestStackGenerator_ConflictingValuesAreDetected(t *testing.T) {
 	generator.SetValue(0, ct.NewU256(42))
 	generator.SetValue(0, ct.NewU256(21))
 	rnd := rand.New(0)
-	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
+	if _, err := generator.Generate(nil, rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
 }
@@ -119,7 +119,7 @@ func TestStackGenerator_ConflictingValuePositionsWithSizesAreDetected(t *testing
 	generator.SetSize(10)
 	generator.SetValue(10, ct.NewU256(21))
 	rnd := rand.New(0)
-	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
+	if _, err := generator.Generate(nil, rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
 }

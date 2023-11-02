@@ -15,6 +15,8 @@ func TestRule_GenerateSatisfyingState(t *testing.T) {
 		Eq(Status(), st.Failed),
 		Eq(Pc(), ct.NewU256(42)),
 		And(Eq(Status(), st.Failed), Eq(Pc(), ct.NewU256(42))),
+		And(Eq(Op(Pc()), st.ADD)),
+		And(Eq(Op(Pc()), st.JUMP), Eq(Op(Param(0)), st.JUMPDEST)),
 	}
 
 	rnd := rand.New(0)
@@ -23,7 +25,7 @@ func TestRule_GenerateSatisfyingState(t *testing.T) {
 		rule := Rule{Condition: test}
 		state, err := rule.GenerateSatisfyingState(rnd)
 		if err != nil {
-			t.Errorf("Failed to generate state: %v", err)
+			t.Fatalf("Failed to generate state: %v", err)
 		}
 		if !test.Check(state) {
 			t.Errorf("Generated state does not satisfy condition %v: %v", test, &state)
@@ -37,6 +39,8 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 		Eq(Status(), st.Failed),
 		Eq(Pc(), ct.NewU256(42)),
 		And(Eq(Status(), st.Failed), Eq(Pc(), ct.NewU256(42))),
+		And(Eq(Op(Pc()), st.ADD)),
+		And(Eq(Op(Pc()), st.JUMP), Eq(Op(Param(0)), st.JUMPDEST)),
 	}
 
 	rnd := rand.New(0)
