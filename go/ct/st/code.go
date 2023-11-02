@@ -40,6 +40,10 @@ func NewCode(code []byte) *Code {
 	}
 }
 
+func (c *Code) Clone() *Code {
+	return c
+}
+
 func (c *Code) Length() int {
 	return len(c.code)
 }
