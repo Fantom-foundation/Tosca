@@ -68,6 +68,7 @@ type State struct {
 	Pc       uint16
 	Gas      uint64
 	Code     *Code
+	Stack    *Stack
 }
 
 // NewState creates a new State instance with the given code.
@@ -76,6 +77,7 @@ func NewState(code *Code) *State {
 		Status:   Running,
 		Revision: Istanbul,
 		Code:     code,
+		Stack:    NewStack(),
 	}
 }
 
@@ -88,10 +90,12 @@ func (s *State) Eq(other *State) bool {
 		s.Revision == other.Revision &&
 		s.Pc == other.Pc &&
 		s.Gas == other.Gas &&
-		s.Code.Eq(other.Code)
+		s.Code.Eq(other.Code) &&
+		s.Stack.Eq(other.Stack)
 }
 
 const codeCutoffLength = 20
+const stackCutOffLength = 5
 
 func (s *State) String() string {
 	builder := strings.Builder{}
@@ -111,6 +115,13 @@ func (s *State) String() string {
 		builder.WriteString(fmt.Sprintf("\tCode: %x... (size: %d)\n", s.Code.code[:codeCutoffLength], len(s.Code.code)))
 	} else {
 		builder.WriteString(fmt.Sprintf("\tCode: %v\n", s.Code))
+	}
+	builder.WriteString(fmt.Sprintf("\tStack size: %d\n", s.Stack.Size()))
+	for i := 0; i < s.Stack.Size() && i < stackCutOffLength; i++ {
+		builder.WriteString(fmt.Sprintf("\t    %d: %v\n", i, s.Stack.Get(i)))
+	}
+	if s.Stack.Size() > stackCutOffLength {
+		builder.WriteString("\t    ...\n")
 	}
 	builder.WriteString("}")
 	return builder.String()
@@ -137,6 +148,10 @@ func (s *State) Diff(o *State) []string {
 
 	if !s.Code.Eq(o.Code) {
 		res = append(res, fmt.Sprintf("Different code: size %d vs %d", len(s.Code.code), len(o.Code.code)))
+	}
+
+	if !s.Stack.Eq(o.Stack) {
+		res = append(res, s.Stack.Diff(o.Stack)...)
 	}
 
 	return res

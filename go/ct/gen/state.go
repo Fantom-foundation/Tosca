@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Fantom-foundation/Tosca/go/ct"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"pgregory.net/rand"
 )
@@ -34,13 +35,15 @@ type StateGenerator struct {
 	gasConstraints      []uint64
 
 	// Generators
-	codeGen *CodeGenerator
+	codeGen  *CodeGenerator
+	stackGen *StackGenerator
 }
 
 // NewStateGenerator creates a generator without any initial constraints.
 func NewStateGenerator() *StateGenerator {
 	return &StateGenerator{
-		codeGen: NewCodeGenerator(),
+		codeGen:  NewCodeGenerator(),
+		stackGen: NewStackGenerator(),
 	}
 }
 
@@ -77,9 +80,19 @@ func (g *StateGenerator) SetCodeSize(size int) {
 	g.codeGen.SetSize(size)
 }
 
-// SetCodeOperation wraps CodeGen.SetOperation.
+// SetCodeOperation wraps CodeGenerator.SetOperation.
 func (g *StateGenerator) SetCodeOperation(pos int, op st.OpCode) {
 	g.codeGen.SetOperation(pos, op)
+}
+
+// SetStackSize wraps StackGenerator.SetSize.
+func (g *StateGenerator) SetStackSize(size int) {
+	g.stackGen.SetSize(size)
+}
+
+// SetStackValue wraps StackGenerator.SetValue.
+func (g *StateGenerator) SetStackValue(pos int, value ct.U256) {
+	g.stackGen.SetValue(pos, value)
 }
 
 // Generate produces a State instance satisfying the constraints set on this
@@ -139,11 +152,18 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting gas counter constraints defined: %v", ErrUnsatisfiable, g.gasConstraints)
 	}
 
+	// Invoke StackGenerator
+	resultStack, err := g.stackGen.Generate(rnd)
+	if err != nil {
+		return nil, err
+	}
+
 	result := st.NewState(resultCode)
 	result.Status = resultStatus
 	result.Revision = resultRevision
 	result.Pc = resultPc
 	result.Gas = resultGas
+	result.Stack = resultStack
 	return result, nil
 }
 
@@ -156,6 +176,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		pcConstraints:       slices.Clone(g.pcConstraints),
 		gasConstraints:      slices.Clone(g.gasConstraints),
 		codeGen:             g.codeGen.Clone(),
+		stackGen:            g.stackGen.Clone(),
 	}
 }
 
@@ -167,6 +188,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.pcConstraints = slices.Clone(other.pcConstraints)
 		g.gasConstraints = slices.Clone(other.gasConstraints)
 		g.codeGen.Restore(other.codeGen)
+		g.stackGen.Restore(other.stackGen)
 	}
 }
 
@@ -194,6 +216,7 @@ func (g *StateGenerator) String() string {
 	}
 
 	parts = append(parts, fmt.Sprintf("code=%v", g.codeGen))
+	parts = append(parts, fmt.Sprintf("stack=%v", g.stackGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }

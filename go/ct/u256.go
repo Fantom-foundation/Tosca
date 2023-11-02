@@ -3,6 +3,8 @@ package ct
 import (
 	"fmt"
 
+	"pgregory.net/rand"
+
 	"github.com/holiman/uint256"
 )
 
@@ -24,6 +26,15 @@ func NewU256(args ...uint64) (result U256) {
 		result.internal[3-i-offset] = args[i]
 	}
 	return
+}
+
+func RandU256(rnd *rand.Rand) U256 {
+	var bytes [32]byte
+	rnd.Read(bytes[:])
+
+	var value U256
+	value.internal.SetBytes(bytes[:])
+	return value
 }
 
 func MaxU256() (result U256) {

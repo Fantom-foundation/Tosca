@@ -225,19 +225,21 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone1.SetRevision(st.London)
 	clone1.SetGas(5)
 	clone1.SetCodeSize(20)
+	clone1.SetStackSize(2)
 
 	clone2 := base.Clone()
 	clone2.SetStatus(st.Running)
 	clone2.SetRevision(st.Berlin)
 	clone2.SetGas(6)
 	clone2.SetCodeSize(30)
+	clone2.SetStackSize(3)
 
-	want := "{status=reverted,revision=London,pc=4,gas=5,code={size=20}}"
+	want := "{status=reverted,revision=London,pc=4,gas=5,code={size=20},stack={size=2}}"
 	if got := clone1.String(); want != got {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
 
-	want = "{status=running,revision=Berlin,pc=4,gas=6,code={size=30}}"
+	want = "{status=running,revision=Berlin,pc=4,gas=6,code={size=30},stack={size=3}}"
 	if got := clone2.String(); want != got {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
@@ -250,14 +252,14 @@ func TestStateGenerator_CloneCanBeUsedToResetBuilder(t *testing.T) {
 	backup := gen.Clone()
 
 	gen.SetGas(42)
-	want := "{pc=4,gas=42,code={}}"
+	want := "{pc=4,gas=42,code={},stack={}}"
 	if got := gen.String(); want != got {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
 
 	gen.Restore(backup)
 
-	want = "{pc=4,code={}}"
+	want = "{pc=4,code={},stack={}}"
 	if got := gen.String(); want != got {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
