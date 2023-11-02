@@ -12,6 +12,7 @@ import (
 type Rule struct {
 	Name      string
 	Condition Condition
+	Effect    Effect
 }
 
 // GenerateSatisfyingState produces an st.State satisfying this Rule.

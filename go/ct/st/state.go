@@ -81,6 +81,16 @@ func NewState(code *Code) *State {
 	}
 }
 
+func (s *State) Clone() *State {
+	clone := NewState(s.Code.Clone())
+	clone.Status = s.Status
+	clone.Revision = s.Revision
+	clone.Pc = s.Pc
+	clone.Gas = s.Gas
+	clone.Stack = s.Stack.Clone()
+	return clone
+}
+
 func (s *State) Eq(other *State) bool {
 	// All failure states are considered equal.
 	if s.Status == Failed && other.Status == Failed {

@@ -9,6 +9,32 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct"
 )
 
+func TestState_CloneIsIndependent(t *testing.T) {
+	state := NewState(NewCode([]byte{byte(ADD)}))
+	state.Status = Stopped
+	state.Revision = London
+	state.Pc = 1
+	state.Gas = 2
+	state.Stack.Push(ct.NewU256(3))
+
+	clone := state.Clone()
+	clone.Status = Running
+	clone.Revision = Berlin
+	clone.Pc = 4
+	clone.Gas = 5
+	clone.Stack.Push(ct.NewU256(6))
+
+	ok := state.Status == Stopped &&
+		state.Revision == London &&
+		state.Pc == 1 &&
+		state.Gas == 2 &&
+		state.Stack.Size() == 1 &&
+		state.Stack.Get(0).Uint64() == 3
+	if !ok {
+		t.Errorf("clone is not independent")
+	}
+}
+
 func TestState_Eq(t *testing.T) {
 	s1 := NewState(NewCode([]byte{}))
 	s2 := NewState(NewCode([]byte{}))
