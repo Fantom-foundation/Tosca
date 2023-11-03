@@ -62,7 +62,7 @@ func (status) String() string {
 
 type pc struct{}
 
-func Pc() Expression[U256] {
+func Pc() BindableExpression[U256] {
 	return pc{}
 }
 
@@ -81,6 +81,14 @@ func (pc) Restrict(pc U256, generator *gen.StateGenerator) {
 
 func (pc) String() string {
 	return "PC"
+}
+
+func (pc) GetVariable() gen.Variable {
+	return gen.Variable("PC")
+}
+
+func (e pc) BindTo(generator *gen.StateGenerator) {
+	generator.BindPc(e.GetVariable())
 }
 
 ////////////////////////////////////////////////////////////
