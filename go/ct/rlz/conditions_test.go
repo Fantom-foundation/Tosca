@@ -3,7 +3,7 @@ package rlz
 import (
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/ct"
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
@@ -26,20 +26,20 @@ func TestCondition_Check(t *testing.T) {
 		valid     *st.State
 		invalid   *st.State
 	}{
-		{Eq(Pc(), ct.NewU256(42)), newStateWithPc(42), newStateWithPc(41)},
-		{Ne(Pc(), ct.NewU256(42)), newStateWithPc(41), newStateWithPc(42)},
-		{Lt(Pc(), ct.NewU256(42)), newStateWithPc(41), newStateWithPc(42)},
-		{Lt(Pc(), ct.NewU256(42)), newStateWithPc(41), newStateWithPc(43)},
-		{Le(Pc(), ct.NewU256(42)), newStateWithPc(41), newStateWithPc(43)},
-		{Le(Pc(), ct.NewU256(42)), newStateWithPc(42), newStateWithPc(43)},
-		{Le(Pc(), ct.NewU256(42)), newStateWithPc(42), newStateWithPc(44)},
-		{Gt(Pc(), ct.NewU256(42)), newStateWithPc(43), newStateWithPc(42)},
-		{Gt(Pc(), ct.NewU256(42)), newStateWithPc(43), newStateWithPc(41)},
-		{Ge(Pc(), ct.NewU256(42)), newStateWithPc(42), newStateWithPc(41)},
-		{Ge(Pc(), ct.NewU256(42)), newStateWithPc(43), newStateWithPc(41)},
-		{Ge(Pc(), ct.NewU256(42)), newStateWithPc(43), newStateWithPc(40)},
-		{And(Eq(Status(), st.Reverted), Eq(Pc(), ct.NewU256(42))), newStateWithStatusAndPc(st.Reverted, 42), newStateWithStatusAndPc(st.Returned, 42)},
-		{And(Eq(Status(), st.Reverted), Eq(Pc(), ct.NewU256(42))), newStateWithStatusAndPc(st.Reverted, 42), newStateWithStatusAndPc(st.Reverted, 41)},
+		{Eq(Pc(), NewU256(42)), newStateWithPc(42), newStateWithPc(41)},
+		{Ne(Pc(), NewU256(42)), newStateWithPc(41), newStateWithPc(42)},
+		{Lt(Pc(), NewU256(42)), newStateWithPc(41), newStateWithPc(42)},
+		{Lt(Pc(), NewU256(42)), newStateWithPc(41), newStateWithPc(43)},
+		{Le(Pc(), NewU256(42)), newStateWithPc(41), newStateWithPc(43)},
+		{Le(Pc(), NewU256(42)), newStateWithPc(42), newStateWithPc(43)},
+		{Le(Pc(), NewU256(42)), newStateWithPc(42), newStateWithPc(44)},
+		{Gt(Pc(), NewU256(42)), newStateWithPc(43), newStateWithPc(42)},
+		{Gt(Pc(), NewU256(42)), newStateWithPc(43), newStateWithPc(41)},
+		{Ge(Pc(), NewU256(42)), newStateWithPc(42), newStateWithPc(41)},
+		{Ge(Pc(), NewU256(42)), newStateWithPc(43), newStateWithPc(41)},
+		{Ge(Pc(), NewU256(42)), newStateWithPc(43), newStateWithPc(40)},
+		{And(Eq(Status(), st.Reverted), Eq(Pc(), NewU256(42))), newStateWithStatusAndPc(st.Reverted, 42), newStateWithStatusAndPc(st.Returned, 42)},
+		{And(Eq(Status(), st.Reverted), Eq(Pc(), NewU256(42))), newStateWithStatusAndPc(st.Reverted, 42), newStateWithStatusAndPc(st.Reverted, 41)},
 	}
 
 	for _, test := range tests {
@@ -59,12 +59,12 @@ func TestCondition_String(t *testing.T) {
 	}{
 		{And(), "true"},
 		{And(And(), And()), "true"},
-		{Eq(Pc(), ct.NewU256(42)), "PC = 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
-		{Ne(Pc(), ct.NewU256(42)), "PC ≠ 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
-		{Lt(Pc(), ct.NewU256(42)), "PC < 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
-		{Le(Pc(), ct.NewU256(42)), "PC ≤ 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
-		{Gt(Pc(), ct.NewU256(42)), "PC > 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
-		{Ge(Pc(), ct.NewU256(42)), "PC ≥ 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
+		{Eq(Pc(), NewU256(42)), "PC = 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
+		{Ne(Pc(), NewU256(42)), "PC ≠ 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
+		{Lt(Pc(), NewU256(42)), "PC < 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
+		{Le(Pc(), NewU256(42)), "PC ≤ 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
+		{Gt(Pc(), NewU256(42)), "PC > 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
+		{Ge(Pc(), NewU256(42)), "PC ≥ 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
 		{And(Eq(Status(), st.Running), Eq(Status(), st.Failed)), "status = running ∧ status = failed"},
 	}
 

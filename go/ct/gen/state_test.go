@@ -5,8 +5,9 @@ import (
 	"math"
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"pgregory.net/rand"
+
+	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
 func TestStateGenerator_UnconstrainedGeneratorCanProduceState(t *testing.T) {

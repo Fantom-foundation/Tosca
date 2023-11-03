@@ -6,8 +6,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"pgregory.net/rand"
+
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
 // CodeGenerator is a utility class for generating Codes. See StateGenerator for
@@ -20,7 +22,7 @@ type CodeGenerator struct {
 
 type opConstraint struct {
 	pos int
-	op  st.OpCode
+	op  OpCode
 }
 
 func NewCodeGenerator() *CodeGenerator {
@@ -35,7 +37,7 @@ func (g *CodeGenerator) SetSize(size int) {
 }
 
 // SetOperation fixes an operation to be placed at a given offset.
-func (g *CodeGenerator) SetOperation(pos int, op st.OpCode) {
+func (g *CodeGenerator) SetOperation(pos int, op OpCode) {
 	g.ops = append(g.ops, opConstraint{pos: pos, op: op})
 }
 
@@ -87,7 +89,7 @@ func (g *CodeGenerator) Generate(rnd *rand.Rand) (*st.Code, error) {
 	ops := g.ops
 	for i := 0; i < size; i++ {
 		// Pick the next operation.
-		op := st.INVALID
+		op := INVALID
 		nextFixedPosition := ops[0].pos
 		if nextFixedPosition < i {
 			return nil, fmt.Errorf(
@@ -101,13 +103,13 @@ func (g *CodeGenerator) Generate(rnd *rand.Rand) (*st.Code, error) {
 			ops = ops[1:]
 		} else {
 			// Pick a random operation, but make sure to not overshoot to next position.
-			limit := st.PUSH32
+			limit := PUSH32
 			if maxDataSize := nextFixedPosition - i - 1; maxDataSize < 32 {
-				limit = st.OpCode(int(st.PUSH1) + maxDataSize - 1)
+				limit = OpCode(int(PUSH1) + maxDataSize - 1)
 			}
 
-			op = st.OpCode(rnd.Int())
-			if limit < op && op <= st.PUSH32 {
+			op = OpCode(rnd.Int())
+			if limit < op && op <= PUSH32 {
 				op = limit
 			}
 		}
@@ -121,8 +123,8 @@ func (g *CodeGenerator) Generate(rnd *rand.Rand) (*st.Code, error) {
 		}
 
 		// Fill data if needed and continue with the rest.
-		if st.PUSH1 <= op && op <= st.PUSH32 {
-			width := int(op - st.PUSH1 + 1)
+		if PUSH1 <= op && op <= PUSH32 {
+			width := int(op - PUSH1 + 1)
 			rnd.Read(code[i+1 : i+1+width])
 			i += width
 		}

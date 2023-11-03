@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/Fantom-foundation/Tosca/go/ct"
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
@@ -51,17 +51,17 @@ func (status) String() string {
 
 type pc struct{}
 
-func Pc() Expression[ct.U256] {
+func Pc() Expression[U256] {
 	return pc{}
 }
 
-func (pc) Domain() Domain[ct.U256] { return pcDomain{} }
+func (pc) Domain() Domain[U256] { return pcDomain{} }
 
-func (pc) Eval(s *st.State) ct.U256 {
-	return ct.NewU256(uint64(s.Pc))
+func (pc) Eval(s *st.State) U256 {
+	return NewU256(uint64(s.Pc))
 }
 
-func (pc) Restrict(pc ct.U256, generator *gen.StateGenerator) {
+func (pc) Restrict(pc U256, generator *gen.StateGenerator) {
 	if !pc.IsUint64() || pc.Uint64() > uint64(math.MaxUint16) {
 		panic("invalid value for PC")
 	}
