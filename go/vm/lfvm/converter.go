@@ -88,8 +88,8 @@ func (b *codeBuilder) appendData(data uint16) *codeBuilder {
 }
 
 func (b *codeBuilder) padNoOpsUntil(pos int) {
-	for _, op := range b.code[b.nextPos:pos] {
-		op.opcode = NOOP
+	for i := b.nextPos; i < pos; i++ {
+		b.code[i].opcode = NOOP
 	}
 	b.nextPos = pos
 }
