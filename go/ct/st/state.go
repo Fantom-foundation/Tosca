@@ -3,6 +3,8 @@ package st
 import (
 	"fmt"
 	"strings"
+
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
 ////////////////////////////////////////////////////////////

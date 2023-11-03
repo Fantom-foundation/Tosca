@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/Fantom-foundation/Tosca/go/ct/common"
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
 // Code is an immutable representation of EVM byte code which may be freely
@@ -17,7 +17,7 @@ type Code struct {
 
 // ErrInvalidPosition is an error produced by observer functions on the Code if
 // specified positions are invalid.
-const ErrInvalidPosition = common.ConstErr("invalid position")
+const ErrInvalidPosition = ConstErr("invalid position")
 
 // NewCode creates an immutable code representation based on the given raw
 // code representation. The resulting code contains a copy of the provided code

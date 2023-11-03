@@ -8,7 +8,7 @@ import (
 
 	"pgregory.net/rand"
 
-	"github.com/Fantom-foundation/Tosca/go/ct"
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
@@ -19,7 +19,7 @@ type StackGenerator struct {
 
 type valueConstraint struct {
 	pos   int
-	value ct.U256
+	value U256
 }
 
 func (c *valueConstraint) Less(o *valueConstraint) bool {
@@ -39,7 +39,7 @@ func (g *StackGenerator) SetSize(size int) {
 	}
 }
 
-func (g *StackGenerator) SetValue(pos int, value ct.U256) {
+func (g *StackGenerator) SetValue(pos int, value U256) {
 	v := valueConstraint{pos, value}
 	if !slices.Contains(g.values, v) {
 		g.values = append(g.values, v)
@@ -84,7 +84,7 @@ func (g *StackGenerator) Generate(rnd *rand.Rand) (*st.Stack, error) {
 	// Fill in remaining slots
 	for i, isSet := range stackMask {
 		if !isSet {
-			stack.Set(i, ct.RandU256(rnd))
+			stack.Set(i, RandU256(rnd))
 		}
 	}
 

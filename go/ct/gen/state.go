@@ -6,9 +6,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Fantom-foundation/Tosca/go/ct"
-	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"pgregory.net/rand"
+
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
 // StateGenerator is a utility class for generating States. It provides two
@@ -81,7 +82,7 @@ func (g *StateGenerator) SetCodeSize(size int) {
 }
 
 // SetCodeOperation wraps CodeGenerator.SetOperation.
-func (g *StateGenerator) SetCodeOperation(pos int, op st.OpCode) {
+func (g *StateGenerator) SetCodeOperation(pos int, op OpCode) {
 	g.codeGen.SetOperation(pos, op)
 }
 
@@ -91,7 +92,7 @@ func (g *StateGenerator) SetStackSize(size int) {
 }
 
 // SetStackValue wraps StackGenerator.SetValue.
-func (g *StateGenerator) SetStackValue(pos int, value ct.U256) {
+func (g *StateGenerator) SetStackValue(pos int, value U256) {
 	g.stackGen.SetValue(pos, value)
 }
 

@@ -4,8 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/ct"
 	"pgregory.net/rand"
+
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
 func TestStackGenerator_UnconstrainedGeneratorCanProduceStack(t *testing.T) {
@@ -56,12 +57,12 @@ func TestStackGenerator_ConflictingSizesAreDetected(t *testing.T) {
 func TestStackGenerator_SetValueIsEnforced(t *testing.T) {
 	type value struct {
 		pos   int
-		value ct.U256
+		value U256
 	}
 	tests := [][]value{
-		{{0, ct.NewU256(1)}},
-		{{3, ct.NewU256(6)}},
-		{{42, ct.NewU256(21)}},
+		{{0, NewU256(1)}},
+		{{3, NewU256(6)}},
+		{{42, NewU256(21)}},
 	}
 
 	rnd := rand.New(0)
@@ -87,7 +88,7 @@ func TestStackGenerator_SetValueIsEnforced(t *testing.T) {
 
 func TestStackGenerator_NegativeValuePositionsAreDetected(t *testing.T) {
 	generator := NewStackGenerator()
-	generator.SetValue(-1, ct.NewU256(42))
+	generator.SetValue(-1, NewU256(42))
 	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
@@ -96,8 +97,8 @@ func TestStackGenerator_NegativeValuePositionsAreDetected(t *testing.T) {
 
 func TestStackGenerator_NonConflictingValuesAreAccepted(t *testing.T) {
 	generator := NewStackGenerator()
-	generator.SetValue(0, ct.NewU256(42))
-	generator.SetValue(0, ct.NewU256(42))
+	generator.SetValue(0, NewU256(42))
+	generator.SetValue(0, NewU256(42))
 	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); err != nil {
 		t.Errorf("generation failed: %v", err)
@@ -106,8 +107,8 @@ func TestStackGenerator_NonConflictingValuesAreAccepted(t *testing.T) {
 
 func TestStackGenerator_ConflictingValuesAreDetected(t *testing.T) {
 	generator := NewStackGenerator()
-	generator.SetValue(0, ct.NewU256(42))
-	generator.SetValue(0, ct.NewU256(21))
+	generator.SetValue(0, NewU256(42))
+	generator.SetValue(0, NewU256(21))
 	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
@@ -117,7 +118,7 @@ func TestStackGenerator_ConflictingValuesAreDetected(t *testing.T) {
 func TestStackGenerator_ConflictingValuePositionsWithSizesAreDetected(t *testing.T) {
 	generator := NewStackGenerator()
 	generator.SetSize(10)
-	generator.SetValue(10, ct.NewU256(21))
+	generator.SetValue(10, NewU256(21))
 	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
@@ -127,8 +128,8 @@ func TestStackGenerator_ConflictingValuePositionsWithSizesAreDetected(t *testing
 func TestStackGenerator_CloneCopiesGeneratorState(t *testing.T) {
 	original := NewStackGenerator()
 	original.SetSize(5)
-	original.SetValue(0, ct.NewU256(42))
-	original.SetValue(0, ct.NewU256(43))
+	original.SetValue(0, NewU256(42))
+	original.SetValue(0, NewU256(43))
 
 	clone := original.Clone()
 
@@ -142,10 +143,10 @@ func TestStackGenerator_ClonesAreIndependent(t *testing.T) {
 	base.SetSize(5)
 
 	clone1 := base.Clone()
-	clone1.SetValue(0, ct.NewU256(16))
+	clone1.SetValue(0, NewU256(16))
 
 	clone2 := base.Clone()
-	clone2.SetValue(0, ct.NewU256(17))
+	clone2.SetValue(0, NewU256(17))
 
 	want := "{size=5,value[0]=0000000000000000 0000000000000000 0000000000000000 0000000000000010}"
 	if got := clone1.String(); got != want {
@@ -160,12 +161,12 @@ func TestStackGenerator_ClonesAreIndependent(t *testing.T) {
 
 func TestStackGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	generator := NewStackGenerator()
-	generator.SetValue(0, ct.NewU256(42))
+	generator.SetValue(0, NewU256(42))
 
 	backup := generator.Clone()
 
 	generator.SetSize(5)
-	generator.SetValue(1, ct.NewU256(16))
+	generator.SetValue(1, NewU256(16))
 
 	want := "{size=5,value[0]=0000000000000000 0000000000000000 0000000000000000 000000000000002a,value[1]=0000000000000000 0000000000000000 0000000000000000 0000000000000010}"
 	if got := generator.String(); got != want {

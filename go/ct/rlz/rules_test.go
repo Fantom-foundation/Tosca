@@ -5,7 +5,7 @@ import (
 
 	"pgregory.net/rand"
 
-	"github.com/Fantom-foundation/Tosca/go/ct"
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
@@ -13,8 +13,8 @@ func TestRule_GenerateSatisfyingState(t *testing.T) {
 	tests := []Condition{
 		And(), // = anything
 		Eq(Status(), st.Failed),
-		Eq(Pc(), ct.NewU256(42)),
-		And(Eq(Status(), st.Failed), Eq(Pc(), ct.NewU256(42))),
+		Eq(Pc(), NewU256(42)),
+		And(Eq(Status(), st.Failed), Eq(Pc(), NewU256(42))),
 	}
 
 	rnd := rand.New(0)
@@ -35,8 +35,8 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 	tests := []Condition{
 		And(), // = anything
 		Eq(Status(), st.Failed),
-		Eq(Pc(), ct.NewU256(42)),
-		And(Eq(Status(), st.Failed), Eq(Pc(), ct.NewU256(42))),
+		Eq(Pc(), NewU256(42)),
+		And(Eq(Status(), st.Failed), Eq(Pc(), NewU256(42))),
 	}
 
 	rnd := rand.New(0)

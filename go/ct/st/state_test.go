@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/ct"
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
 func TestState_CloneIsIndependent(t *testing.T) {
@@ -15,14 +15,14 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.Revision = London
 	state.Pc = 1
 	state.Gas = 2
-	state.Stack.Push(ct.NewU256(3))
+	state.Stack.Push(NewU256(3))
 
 	clone := state.Clone()
 	clone.Status = Running
 	clone.Revision = Berlin
 	clone.Pc = 4
 	clone.Gas = 5
-	clone.Stack.Push(ct.NewU256(6))
+	clone.Stack.Push(NewU256(6))
 
 	ok := state.Status == Stopped &&
 		state.Revision == London &&
@@ -70,11 +70,11 @@ func TestState_Eq(t *testing.T) {
 	}
 	s2.Gas = 1
 
-	s1.Stack.Push(ct.NewU256(1))
+	s1.Stack.Push(NewU256(1))
 	if s1.Eq(s2) {
 		t.Fail()
 	}
-	s2.Stack.Push(ct.NewU256(1))
+	s2.Stack.Push(NewU256(1))
 
 	if !s1.Eq(s2) {
 		t.Fail()
@@ -271,9 +271,9 @@ func TestState_PrinterAbbreviatedCode(t *testing.T) {
 
 func TestState_PrinterStackSize(t *testing.T) {
 	s := NewState(NewCode([]byte{}))
-	s.Stack.Push(ct.NewU256(1))
-	s.Stack.Push(ct.NewU256(2))
-	s.Stack.Push(ct.NewU256(3))
+	s.Stack.Push(NewU256(1))
+	s.Stack.Push(NewU256(2))
+	s.Stack.Push(NewU256(3))
 
 	r := regexp.MustCompile(`Stack size: ([[:digit:]]+)`)
 	match := r.FindStringSubmatch(s.String())
@@ -293,14 +293,14 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.Revision = London
 	s1.Pc = 3
 	s1.Gas = 42
-	s1.Stack.Push(ct.NewU256(42))
+	s1.Stack.Push(NewU256(42))
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
 	s2.Revision = London
 	s2.Pc = 3
 	s2.Gas = 42
-	s2.Stack.Push(ct.NewU256(42))
+	s2.Stack.Push(NewU256(42))
 
 	diffs := s1.Diff(s2)
 
@@ -319,14 +319,14 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Revision = Berlin
 	s1.Pc = 0
 	s1.Gas = 7
-	s1.Stack.Push(ct.NewU256(42))
+	s1.Stack.Push(NewU256(42))
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
 	s2.Revision = London
 	s2.Pc = 3
 	s2.Gas = 42
-	s2.Stack.Push(ct.NewU256(16))
+	s2.Stack.Push(NewU256(16))
 
 	diffs := s1.Diff(s2)
 

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"testing"
+
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
 func TestCode_IsCode(t *testing.T) {

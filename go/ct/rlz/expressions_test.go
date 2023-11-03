@@ -5,7 +5,7 @@ import (
 
 	"pgregory.net/rand"
 
-	"github.com/Fantom-foundation/Tosca/go/ct"
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
@@ -34,14 +34,14 @@ func TestExpression_StatusRestrict(t *testing.T) {
 func TestExpression_PcEval(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Pc = 42
-	if Pc().Eval(state) != ct.NewU256(42) {
+	if Pc().Eval(state) != NewU256(42) {
 		t.Fail()
 	}
 }
 
 func TestExpression_PcRestrict(t *testing.T) {
 	generator := gen.NewStateGenerator()
-	Pc().Restrict(ct.NewU256(42), generator)
+	Pc().Restrict(NewU256(42), generator)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {
@@ -75,9 +75,9 @@ func TestExpression_GasRestrict(t *testing.T) {
 
 func TestExpression_StackSizeEval(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
-	state.Stack.Push(ct.NewU256(1))
-	state.Stack.Push(ct.NewU256(2))
-	state.Stack.Push(ct.NewU256(4))
+	state.Stack.Push(NewU256(1))
+	state.Stack.Push(NewU256(2))
+	state.Stack.Push(NewU256(4))
 	if StackSize().Eval(state) != 3 {
 		t.Fail()
 	}
