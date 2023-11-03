@@ -13,7 +13,7 @@ import (
 func TestExpression_StatusEval(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Status = st.Reverted
-	if Status().Eval(state) != st.Reverted {
+	if s, err := Status().Eval(state); err != nil || s != st.Reverted {
 		t.Fail()
 	}
 }
@@ -34,7 +34,7 @@ func TestExpression_StatusRestrict(t *testing.T) {
 func TestExpression_PcEval(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Pc = 42
-	if Pc().Eval(state) != NewU256(42) {
+	if pc, err := Pc().Eval(state); err != nil || pc != NewU256(42) {
 		t.Fail()
 	}
 }
@@ -55,7 +55,7 @@ func TestExpression_PcRestrict(t *testing.T) {
 func TestExpression_GasEval(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Gas = 42
-	if Gas().Eval(state) != 42 {
+	if gas, err := Gas().Eval(state); err != nil || gas != 42 {
 		t.Fail()
 	}
 }
@@ -78,7 +78,7 @@ func TestExpression_StackSizeEval(t *testing.T) {
 	state.Stack.Push(NewU256(1))
 	state.Stack.Push(NewU256(2))
 	state.Stack.Push(NewU256(4))
-	if StackSize().Eval(state) != 3 {
+	if size, err := StackSize().Eval(state); err != nil || size != 3 {
 		t.Fail()
 	}
 }
