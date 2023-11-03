@@ -16,8 +16,7 @@ import (
 // more information on generators.
 type CodeGenerator struct {
 	// Constraints
-	sizes []int
-	ops   []opConstraint
+	ops []opConstraint
 }
 
 type opConstraint struct {
@@ -29,13 +28,6 @@ func NewCodeGenerator() *CodeGenerator {
 	return &CodeGenerator{}
 }
 
-// SetSize adds a constraint on the size of the resulting code.
-func (g *CodeGenerator) SetSize(size int) {
-	if !slices.Contains(g.sizes, size) {
-		g.sizes = append(g.sizes, size)
-	}
-}
-
 // SetOperation fixes an operation to be placed at a given offset.
 func (g *CodeGenerator) SetOperation(pos int, op OpCode) {
 	g.ops = append(g.ops, opConstraint{pos: pos, op: op})
@@ -44,27 +36,14 @@ func (g *CodeGenerator) SetOperation(pos int, op OpCode) {
 // Generate produces a Code instance satisfying the constraints set on this
 // generator or returns ErrUnsatisfiable on conflicting constraints.
 func (g *CodeGenerator) Generate(rnd *rand.Rand) (*st.Code, error) {
-	// Pick a size.
-	if len(g.sizes) > 1 {
-		return nil, fmt.Errorf("%w, multiple conflicting sizes defined: %v", ErrUnsatisfiable, g.sizes)
-	}
-
+	// Pick a random size that is large enough for all operation constraints.
 	size := 0
-	if len(g.sizes) == 1 {
-		size = g.sizes[0]
-		if size < 0 {
-			return nil, fmt.Errorf("%w, can not produce code with negative size %d", ErrUnsatisfiable, size)
+	for _, constraint := range g.ops {
+		if constraint.pos > size {
+			size = constraint.pos + 1
 		}
-	} else {
-		// Pick a random size that is large enough for all operation constraints.
-		minSize := 0
-		for _, constraint := range g.ops {
-			if constraint.pos > minSize {
-				minSize = constraint.pos + 1
-			}
-		}
-		size = int(rnd.Int31n(int32(24576+1-minSize))) + minSize
 	}
+	size = int(rnd.Int31n(int32(24576+1-size))) + size
 
 	// Create the code and fill in content based on the operation constraints.
 	code := make([]byte, size)
@@ -137,8 +116,7 @@ func (g *CodeGenerator) Generate(rnd *rand.Rand) (*st.Code, error) {
 // Future modifications are isolated from each other.
 func (g *CodeGenerator) Clone() *CodeGenerator {
 	return &CodeGenerator{
-		sizes: slices.Clone(g.sizes),
-		ops:   slices.Clone(g.ops),
+		ops: slices.Clone(g.ops),
 	}
 }
 
@@ -147,17 +125,11 @@ func (g *CodeGenerator) Restore(other *CodeGenerator) {
 	if g == other {
 		return
 	}
-	g.sizes = slices.Clone(other.sizes)
 	g.ops = slices.Clone(other.ops)
 }
 
 func (g *CodeGenerator) String() string {
 	var parts []string
-
-	sort.Slice(g.sizes, func(i, j int) bool { return g.sizes[i] < g.sizes[j] })
-	for _, size := range g.sizes {
-		parts = append(parts, fmt.Sprintf("size=%d", size))
-	}
 
 	sort.Slice(g.ops, func(i, j int) bool { return g.ops[i].pos < g.ops[j].pos })
 	for _, op := range g.ops {

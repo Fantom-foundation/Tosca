@@ -7,6 +7,7 @@ import (
 
 	"pgregory.net/rand"
 
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
@@ -125,7 +126,6 @@ func TestStateGenerator_SetPcIsEnforced(t *testing.T) {
 	rnd := rand.New()
 	for _, pc := range pcs {
 		generator := NewStateGenerator()
-		generator.SetCodeSize(16)
 		generator.SetPc(pc)
 		state, err := generator.Generate(rnd)
 		if err != nil {
@@ -139,7 +139,6 @@ func TestStateGenerator_SetPcIsEnforced(t *testing.T) {
 
 func TestStateGenerator_ConflictingPcesAreDetected(t *testing.T) {
 	generator := NewStateGenerator()
-	generator.SetCodeSize(16)
 	generator.SetPc(0)
 	generator.SetPc(1)
 	rnd := rand.New()
@@ -150,7 +149,6 @@ func TestStateGenerator_ConflictingPcesAreDetected(t *testing.T) {
 
 func TestStateGenerator_NonConflictingPcesAreAccepted(t *testing.T) {
 	generator := NewStateGenerator()
-	generator.SetCodeSize(16)
 	generator.SetPc(1)
 	generator.SetPc(1)
 	rnd := rand.New()
@@ -208,7 +206,6 @@ func TestStateGenerator_CloneCopiesBuilderState(t *testing.T) {
 	original.SetRevision(st.London)
 	original.SetPc(4)
 	original.SetGas(5)
-	original.SetCodeSize(42)
 
 	clone := original.Clone()
 
@@ -225,22 +222,22 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone1.SetStatus(st.Reverted)
 	clone1.SetRevision(st.London)
 	clone1.SetGas(5)
-	clone1.SetCodeSize(20)
+	clone1.SetCodeOperation(20, ADD)
 	clone1.SetStackSize(2)
 
 	clone2 := base.Clone()
 	clone2.SetStatus(st.Running)
 	clone2.SetRevision(st.Berlin)
 	clone2.SetGas(6)
-	clone2.SetCodeSize(30)
+	clone2.SetCodeOperation(30, ADD)
 	clone2.SetStackSize(3)
 
-	want := "{status=reverted,revision=London,pc=4,gas=5,code={size=20},stack={size=2}}"
+	want := "{status=reverted,revision=London,pc=4,gas=5,code={op[20]=ADD},stack={size=2}}"
 	if got := clone1.String(); want != got {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
 
-	want = "{status=running,revision=Berlin,pc=4,gas=6,code={size=30},stack={size=3}}"
+	want = "{status=running,revision=Berlin,pc=4,gas=6,code={op[30]=ADD},stack={size=3}}"
 	if got := clone2.String(); want != got {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
