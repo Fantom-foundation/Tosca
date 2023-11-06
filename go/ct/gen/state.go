@@ -76,11 +76,6 @@ func (g *StateGenerator) SetGas(gas uint64) {
 	}
 }
 
-// SetCodeSize wraps CodeGenerator.SetSize.
-func (g *StateGenerator) SetCodeSize(size int) {
-	g.codeGen.SetSize(size)
-}
-
 // SetCodeOperation wraps CodeGenerator.SetOperation.
 func (g *StateGenerator) SetCodeOperation(pos int, op OpCode) {
 	g.codeGen.SetOperation(pos, op)
