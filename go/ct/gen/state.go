@@ -133,7 +133,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Invoke CodeGenerator
-	resultCode, err := g.codeGen.Generate(rnd)
+	resultCode, err := g.codeGen.Generate(assignment, rnd)
 	if err != nil {
 		return nil, err
 	}
