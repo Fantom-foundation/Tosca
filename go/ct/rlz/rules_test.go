@@ -15,6 +15,7 @@ func TestRule_GenerateSatisfyingState(t *testing.T) {
 		Eq(Status(), st.Failed),
 		Eq(Pc(), NewU256(42)),
 		And(Eq(Status(), st.Failed), Eq(Pc(), NewU256(42))),
+		And(Eq(Op(Pc()), ADD)),
 	}
 
 	rnd := rand.New(0)
@@ -42,6 +43,7 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 		Eq(Status(), st.Failed),
 		Eq(Pc(), NewU256(42)),
 		And(Eq(Status(), st.Failed), Eq(Pc(), NewU256(42))),
+		And(Eq(Op(Pc()), ADD)),
 	}
 
 	rnd := rand.New(0)
