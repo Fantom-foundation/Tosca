@@ -176,6 +176,11 @@ func GenPcMap(code []byte, with_super_instructions bool) (*PcMap, error) {
 		inc := appendInstructions(&res, i, code, with_super_instructions)
 		i += inc + 1
 	}
+
+	// One past the end is a valid state for the PC after the execution has stopped.
+	pcMap.evmToLfvm[uint16(len(code))] = uint16(res.length())
+	pcMap.lfvmToEvm[uint16(res.length())] = uint16(len(code))
+
 	return &pcMap, nil
 }
 

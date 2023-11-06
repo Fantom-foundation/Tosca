@@ -80,9 +80,10 @@ func TestConvertToLfvm_Pc(t *testing.T) {
 		evmPc   uint16
 		lfvmPc  uint16
 	}{
-		"empty": {{}},
-		"pos-0": {{[]byte{byte(ct.STOP)}, 0, 0}},
-		"pos-1": {{[]byte{byte(ct.STOP), byte(ct.STOP), byte(ct.STOP)}, 1, 1}},
+		"empty":        {{}},
+		"pos-0":        {{[]byte{byte(ct.STOP)}, 0, 0}},
+		"pos-1":        {{[]byte{byte(ct.STOP), byte(ct.STOP), byte(ct.STOP)}, 1, 1}},
+		"one-past-end": {{[]byte{byte(ct.STOP)}, 1, 1}},
 		"shifted": {{[]byte{
 			byte(ct.PUSH1), 0x01,
 			byte(ct.PUSH1), 0x02,
@@ -377,9 +378,10 @@ func TestConvertToCt_Pc(t *testing.T) {
 		lfvmPc  uint16
 		evmPc   uint16
 	}{
-		"empty": {{}},
-		"pos-0": {{[]byte{byte(ct.STOP)}, 0, 0}},
-		"pos-1": {{[]byte{byte(ct.STOP), byte(ct.STOP), byte(ct.STOP)}, 1, 1}},
+		"empty":        {{}},
+		"pos-0":        {{[]byte{byte(ct.STOP)}, 0, 0}},
+		"pos-1":        {{[]byte{byte(ct.STOP), byte(ct.STOP), byte(ct.STOP)}, 1, 1}},
+		"one-past-end": {{[]byte{byte(ct.STOP)}, 1, 1}},
 		"shifted": {{[]byte{
 			byte(ct.PUSH1), 0x01,
 			byte(ct.PUSH1), 0x02,
