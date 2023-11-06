@@ -23,6 +23,17 @@ type Expression[T any] interface {
 	fmt.Stringer
 }
 
+// Bindable is an Expression that can be referenced as a Variable.
+type BindableExpression[T any] interface {
+	// GetVariable returns the variable referring to this Expression.
+	GetVariable() gen.Variable
+
+	// BindTo adds constraints to the given generator modelling this Expression.
+	BindTo(generator *gen.StateGenerator)
+
+	Expression[T]
+}
+
 ////////////////////////////////////////////////////////////
 // st.Status
 
@@ -51,7 +62,7 @@ func (status) String() string {
 
 type pc struct{}
 
-func Pc() Expression[U256] {
+func Pc() BindableExpression[U256] {
 	return pc{}
 }
 
@@ -70,6 +81,14 @@ func (pc) Restrict(pc U256, generator *gen.StateGenerator) {
 
 func (pc) String() string {
 	return "PC"
+}
+
+func (pc) GetVariable() gen.Variable {
+	return gen.Variable("PC")
+}
+
+func (e pc) BindTo(generator *gen.StateGenerator) {
+	generator.BindPc(e.GetVariable())
 }
 
 ////////////////////////////////////////////////////////////
@@ -93,6 +112,46 @@ func (gas) Restrict(amount uint64, generator *gen.StateGenerator) {
 
 func (gas) String() string {
 	return "Gas"
+}
+
+////////////////////////////////////////////////////////////
+// Code Operation
+
+type op struct {
+	position BindableExpression[U256]
+}
+
+func Op(position BindableExpression[U256]) Expression[OpCode] {
+	return op{position}
+}
+
+func (op) Domain() Domain[OpCode] { return opCodeDomain{} }
+
+func (e op) Eval(s *st.State) (OpCode, error) {
+	pos, err := e.position.Eval(s)
+	if err != nil {
+		return INVALID, err
+	}
+
+	if pos.Gt(NewU256(math.MaxInt)) {
+		return STOP, nil
+	}
+
+	op, err := s.Code.GetOperation(int(pos.Uint64()))
+	if err != nil {
+		return INVALID, err
+	}
+	return op, nil
+}
+
+func (e op) Restrict(op OpCode, generator *gen.StateGenerator) {
+	variable := e.position.GetVariable()
+	e.position.BindTo(generator)
+	generator.AddCodeOperation(variable, op)
+}
+
+func (e op) String() string {
+	return fmt.Sprintf("code[%v]", e.position)
 }
 
 ////////////////////////////////////////////////////////////

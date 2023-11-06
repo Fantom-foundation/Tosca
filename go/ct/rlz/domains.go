@@ -204,6 +204,26 @@ func (pcDomain) SamplesForAll(as []U256) []U256 {
 }
 
 ////////////////////////////////////////////////////////////
+// Op Codes
+
+type opCodeDomain struct{}
+
+func (opCodeDomain) Equal(a OpCode, b OpCode) bool     { return a == b }
+func (opCodeDomain) Less(a OpCode, b OpCode) bool      { panic("not useful") }
+func (opCodeDomain) Predecessor(a OpCode) OpCode       { panic("not useful") }
+func (opCodeDomain) Successor(a OpCode) OpCode         { panic("not useful") }
+func (opCodeDomain) SomethingNotEqual(a OpCode) OpCode { return a + 1 }
+func (opCodeDomain) Samples(a OpCode) []OpCode         { return []OpCode{a, a + 1} }
+
+func (opCodeDomain) SamplesForAll([]OpCode) []OpCode {
+	res := make([]OpCode, 0, 256)
+	for i := 0; i < 256; i++ {
+		res = append(res, OpCode(i))
+	}
+	return res
+}
+
+////////////////////////////////////////////////////////////
 // Stack Size
 
 type stackSizeDomain struct{}
