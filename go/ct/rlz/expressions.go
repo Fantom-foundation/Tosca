@@ -13,7 +13,7 @@ type Expression[T any] interface {
 	Domain() Domain[T]
 
 	// Eval evaluates this expression on the given state.
-	Eval(*st.State) T
+	Eval(*st.State) (T, error)
 
 	// Restrict applies constraints to the given generator such that this
 	// expression evaluates to the given value when invoked on the generated
@@ -34,8 +34,8 @@ func Status() Expression[st.StatusCode] {
 
 func (status) Domain() Domain[st.StatusCode] { return statusCodeDomain{} }
 
-func (status) Eval(s *st.State) st.StatusCode {
-	return s.Status
+func (status) Eval(s *st.State) (st.StatusCode, error) {
+	return s.Status, nil
 }
 
 func (status) Restrict(status st.StatusCode, generator *gen.StateGenerator) {
@@ -57,8 +57,8 @@ func Pc() Expression[U256] {
 
 func (pc) Domain() Domain[U256] { return pcDomain{} }
 
-func (pc) Eval(s *st.State) U256 {
-	return NewU256(uint64(s.Pc))
+func (pc) Eval(s *st.State) (U256, error) {
+	return NewU256(uint64(s.Pc)), nil
 }
 
 func (pc) Restrict(pc U256, generator *gen.StateGenerator) {
@@ -83,8 +83,8 @@ func Gas() Expression[uint64] {
 
 func (gas) Domain() Domain[uint64] { return uint64Domain{} }
 
-func (gas) Eval(s *st.State) uint64 {
-	return s.Gas
+func (gas) Eval(s *st.State) (uint64, error) {
+	return s.Gas, nil
 }
 
 func (gas) Restrict(amount uint64, generator *gen.StateGenerator) {
@@ -106,8 +106,8 @@ func StackSize() Expression[int] {
 
 func (stackSize) Domain() Domain[int] { return stackSizeDomain{} }
 
-func (stackSize) Eval(s *st.State) int {
-	return s.Stack.Size()
+func (stackSize) Eval(s *st.State) (int, error) {
+	return s.Stack.Size(), nil
 }
 
 func (stackSize) Restrict(size int, generator *gen.StateGenerator) {

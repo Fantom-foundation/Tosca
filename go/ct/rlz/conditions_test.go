@@ -43,10 +43,19 @@ func TestCondition_Check(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if !test.condition.Check(test.valid) {
+		valid, err := test.condition.Check(test.valid)
+		if err != nil {
+			t.Errorf("Condition check error %v", err)
+		}
+		if !valid {
 			t.Errorf("Condition %v should be valid for\n%v", test.condition, test.valid)
 		}
-		if test.condition.Check(test.invalid) {
+
+		invalid, err := test.condition.Check(test.invalid)
+		if err != nil {
+			t.Errorf("Condition check error %v", err)
+		}
+		if invalid {
 			t.Errorf("Condition %v should not be valid for\n%v", test.condition, test.invalid)
 		}
 	}

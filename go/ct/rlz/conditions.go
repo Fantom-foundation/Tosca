@@ -11,7 +11,7 @@ import (
 // Condition represents a state property.
 type Condition interface {
 	// Check evaluates the Condition.
-	Check(*st.State) bool
+	Check(*st.State) (bool, error)
 
 	// Restrict sets constraints on the given StateGenerator such that this
 	// Condition holds.
@@ -47,13 +47,16 @@ func And(conditions ...Condition) Condition {
 	return &conjunction{conditions: res}
 }
 
-func (c *conjunction) Check(s *st.State) bool {
+func (c *conjunction) Check(s *st.State) (bool, error) {
+	result := true
 	for _, cur := range c.conditions {
-		if !cur.Check(s) {
-			return false
+		r, err := cur.Check(s)
+		if err != nil {
+			return false, err
 		}
+		result = r && result
 	}
-	return true
+	return result, nil
 }
 
 func (c *conjunction) Restrict(generator *gen.StateGenerator) {
@@ -102,9 +105,13 @@ func Eq[T any](lhs Expression[T], rhs T) Condition {
 	return &eq[T]{lhs, rhs}
 }
 
-func (e *eq[T]) Check(s *st.State) bool {
+func (e *eq[T]) Check(s *st.State) (bool, error) {
 	domain := e.lhs.Domain()
-	return domain.Equal(e.lhs.Eval(s), e.rhs)
+	lhs, err := e.lhs.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return domain.Equal(lhs, e.rhs), nil
 }
 
 func (e *eq[T]) Restrict(generator *gen.StateGenerator) {
@@ -136,9 +143,13 @@ func Ne[T any](lhs Expression[T], rhs T) Condition {
 	return &ne[T]{lhs, rhs}
 }
 
-func (e *ne[T]) Check(s *st.State) bool {
+func (e *ne[T]) Check(s *st.State) (bool, error) {
 	domain := e.lhs.Domain()
-	return !domain.Equal(e.lhs.Eval(s), e.rhs)
+	lhs, err := e.lhs.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return !domain.Equal(lhs, e.rhs), nil
 }
 
 func (e *ne[T]) Restrict(generator *gen.StateGenerator) {
@@ -171,9 +182,13 @@ func Lt[T any](lhs Expression[T], rhs T) Condition {
 	return &lt[T]{lhs, rhs}
 }
 
-func (c *lt[T]) Check(s *st.State) bool {
+func (c *lt[T]) Check(s *st.State) (bool, error) {
 	domain := c.lhs.Domain()
-	return domain.Less(c.lhs.Eval(s), c.rhs)
+	lhs, err := c.lhs.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return domain.Less(lhs, c.rhs), nil
 }
 
 func (c *lt[T]) Restrict(generator *gen.StateGenerator) {
@@ -206,10 +221,13 @@ func Le[T any](lhs Expression[T], rhs T) Condition {
 	return &le[T]{lhs, rhs}
 }
 
-func (c *le[T]) Check(s *st.State) bool {
+func (c *le[T]) Check(s *st.State) (bool, error) {
 	domain := c.lhs.Domain()
-	e := c.lhs.Eval(s)
-	return domain.Less(e, c.rhs) || domain.Equal(e, c.rhs)
+	lhs, err := c.lhs.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return domain.Less(lhs, c.rhs) || domain.Equal(lhs, c.rhs), nil
 }
 
 func (c *le[T]) Restrict(generator *gen.StateGenerator) {
@@ -241,10 +259,13 @@ func Gt[T any](lhs Expression[T], rhs T) Condition {
 	return &gt[T]{lhs, rhs}
 }
 
-func (c *gt[T]) Check(s *st.State) bool {
+func (c *gt[T]) Check(s *st.State) (bool, error) {
 	domain := c.lhs.Domain()
-	e := c.lhs.Eval(s)
-	return !(domain.Less(e, c.rhs) || domain.Equal(e, c.rhs))
+	lhs, err := c.lhs.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return !(domain.Less(lhs, c.rhs) || domain.Equal(lhs, c.rhs)), nil
 }
 
 func (c *gt[T]) Restrict(generator *gen.StateGenerator) {
@@ -277,9 +298,13 @@ func Ge[T any](lhs Expression[T], rhs T) Condition {
 	return &ge[T]{lhs, rhs}
 }
 
-func (c *ge[T]) Check(s *st.State) bool {
+func (c *ge[T]) Check(s *st.State) (bool, error) {
 	domain := c.lhs.Domain()
-	return !domain.Less(c.lhs.Eval(s), c.rhs)
+	lhs, err := c.lhs.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return !domain.Less(lhs, c.rhs), nil
 }
 
 func (c *ge[T]) Restrict(generator *gen.StateGenerator) {

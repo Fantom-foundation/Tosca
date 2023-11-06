@@ -25,7 +25,12 @@ func TestRule_GenerateSatisfyingState(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to generate state: %v", err)
 		}
-		if !test.Check(state) {
+
+		satisfied, err := test.Check(state)
+		if err != nil {
+			t.Errorf("Condition check error %v", err)
+		}
+		if !satisfied {
 			t.Errorf("Generated state does not satisfy condition %v: %v", test, &state)
 		}
 	}
@@ -47,7 +52,11 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 
 		rule := Rule{Condition: test}
 		err := rule.EnumerateTestCases(rnd, func(sample *st.State) {
-			if test.Check(sample) {
+			match, err := test.Check(sample)
+			if err != nil {
+				t.Errorf("Condition check error %v", err)
+			}
+			if match {
 				matches++
 			} else {
 				misses++
