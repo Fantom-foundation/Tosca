@@ -90,6 +90,12 @@ func (g *StateGenerator) SetCodeOperation(pos int, op OpCode) {
 	g.codeGen.SetOperation(pos, op)
 }
 
+// AddCodeOperation add a constraint to ensure the existence of an operation in
+// the generated code at a variable position.
+func (g *StateGenerator) AddCodeOperation(v Variable, op OpCode) {
+	g.codeGen.AddOperation(v, op)
+}
+
 // SetStackSize wraps StackGenerator.SetSize.
 func (g *StateGenerator) SetStackSize(size int) {
 	g.stackGen.SetSize(size)

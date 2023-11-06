@@ -73,6 +73,27 @@ func TestExpression_GasRestrict(t *testing.T) {
 	}
 }
 
+func TestExpression_OpEval(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{byte(STOP), byte(STOP), byte(ADD)}))
+	state.Pc = 2
+	if op, err := Op(Pc()).Eval(state); err != nil || op != ADD {
+		t.Fail()
+	}
+}
+
+func TestExpression_OpRestrict(t *testing.T) {
+	generator := gen.NewStateGenerator()
+	Op(Pc()).Restrict(ADD, generator)
+
+	state, err := generator.Generate(rand.New(0))
+	if err != nil {
+		t.Errorf("State generation failed %v", err)
+	}
+	if op, err := state.Code.GetOperation(int(state.Pc)); err != nil || op != ADD {
+		t.Errorf("Generator was not restricted by expression")
+	}
+}
+
 func TestExpression_StackSizeEval(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Stack.Push(NewU256(1))
