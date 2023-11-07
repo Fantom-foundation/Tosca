@@ -29,11 +29,11 @@ func NewU256(args ...uint64) (result U256) {
 }
 
 func RandU256(rnd *rand.Rand) U256 {
-	var bytes [32]byte
-	rnd.Read(bytes[:])
-
 	var value U256
-	value.internal.SetBytes(bytes[:])
+	value.internal[0] = rnd.Uint64()
+	value.internal[1] = rnd.Uint64()
+	value.internal[2] = rnd.Uint64()
+	value.internal[3] = rnd.Uint64()
 	return value
 }
 
