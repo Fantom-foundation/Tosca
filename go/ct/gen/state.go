@@ -106,6 +106,11 @@ func (g *StateGenerator) SetStackValue(pos int, value U256) {
 	g.stackGen.SetValue(pos, value)
 }
 
+// BindStackValue wraps StackGenerator.BindValue.
+func (g *StateGenerator) BindStackValue(pos int, v Variable) {
+	g.stackGen.BindValue(pos, v)
+}
+
 // Generate produces a State instance satisfying the constraints set on this
 // generator or returns ErrUnsatisfiable on conflicting constraints. Subsequent
 // generators are invoked automatically.
@@ -179,7 +184,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Invoke StackGenerator
-	resultStack, err := g.stackGen.Generate(rnd)
+	resultStack, err := g.stackGen.Generate(assignment, rnd)
 	if err != nil {
 		return nil, err
 	}

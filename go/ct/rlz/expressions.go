@@ -176,3 +176,42 @@ func (stackSize) Restrict(size int, generator *gen.StateGenerator) {
 func (stackSize) String() string {
 	return "stackSize"
 }
+
+////////////////////////////////////////////////////////////
+// Instruction Parameter
+
+type param struct {
+	position int
+}
+
+const ErrStackOutOfBoundsAccess = ConstErr("out-of-bounds stack access")
+
+func Param(pos int) BindableExpression[U256] {
+	return param{pos}
+}
+
+func (param) Domain() Domain[U256] { return u256Domain{} }
+
+func (p param) Eval(s *st.State) (U256, error) {
+	stack := s.Stack
+	if p.position >= stack.Size() {
+		return NewU256(0), ErrStackOutOfBoundsAccess
+	}
+	return stack.Get(p.position), nil
+}
+
+func (p param) Restrict(value U256, generator *gen.StateGenerator) {
+	generator.SetStackValue(p.position, value)
+}
+
+func (p param) String() string {
+	return fmt.Sprintf("param[%v]", p.position)
+}
+
+func (p param) GetVariable() gen.Variable {
+	return gen.Variable(fmt.Sprintf("param_%d", p.position))
+}
+
+func (p param) BindTo(generator *gen.StateGenerator) {
+	generator.BindStackValue(p.position, p.GetVariable())
+}
