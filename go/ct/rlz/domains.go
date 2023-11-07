@@ -139,7 +139,7 @@ func (d u256Domain) SamplesForAll(as []U256) []U256 {
 	}
 
 	// Add more interesting values.
-	res = append(res, NumericParameter{}.SampleValues()...)
+	res = append(res, NumericParameter{}.Samples()...)
 
 	// TODO: consider removing duplicates.
 

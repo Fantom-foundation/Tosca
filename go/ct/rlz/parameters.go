@@ -5,16 +5,12 @@ import (
 )
 
 type Parameter interface {
-	Samples(example U256) []U256
+	Samples() []U256
 }
 
 type NumericParameter struct{}
 
-func (n NumericParameter) Samples(U256) []U256 {
-	return n.SampleValues()
-}
-
-func (NumericParameter) SampleValues() []U256 {
+func (NumericParameter) Samples() []U256 {
 	return []U256{
 		NewU256(0),
 		NewU256(1),
