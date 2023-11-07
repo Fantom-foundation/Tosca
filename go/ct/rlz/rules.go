@@ -12,6 +12,7 @@ import (
 type Rule struct {
 	Name      string
 	Condition Condition
+	Parameter []Parameter
 	Effect    Effect
 }
 
@@ -29,16 +30,30 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(s *st.State)) 
 
 	generator := gen.NewStateGenerator()
 	rule.Condition.EnumerateTestCases(generator, func(g *gen.StateGenerator) {
-		state, err := g.Generate(rnd)
-		if errors.Is(err, gen.ErrUnsatisfiable) {
-			return // ignored
-		}
-		if err != nil {
-			generatorErrors = append(generatorErrors, err)
-			return
-		}
-		consume(state)
+		enumerateParameters(0, rule.Parameter, g, func(g *gen.StateGenerator) {
+			state, err := g.Generate(rnd)
+			if errors.Is(err, gen.ErrUnsatisfiable) {
+				return // ignored
+			}
+			if err != nil {
+				generatorErrors = append(generatorErrors, err)
+				return
+			}
+			consume(state)
+		})
 	})
 
 	return errors.Join(generatorErrors...)
+}
+
+func enumerateParameters(pos int, params []Parameter, generator *gen.StateGenerator, consume func(g *gen.StateGenerator)) {
+	if len(params) == 0 {
+		consume(generator)
+		return
+	}
+	for _, value := range params[0].Samples() {
+		clone := generator.Clone()
+		clone.SetStackValue(pos, value)
+		enumerateParameters(pos+1, params[1:], clone, consume)
+	}
 }
