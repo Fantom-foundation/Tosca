@@ -1,10 +1,13 @@
 package lfvm
 
-import "github.com/Fantom-foundation/Tosca/go/ct/st"
+import (
+	"github.com/Fantom-foundation/Tosca/go/ct"
+	"github.com/Fantom-foundation/Tosca/go/ct/st"
+)
 
 type ctAdapter struct{}
 
-func NewConformanceTestingTarget() st.Evm {
+func NewConformanceTestingTarget() ct.Evm {
 	return ctAdapter{}
 }
 
