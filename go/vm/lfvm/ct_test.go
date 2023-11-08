@@ -244,7 +244,7 @@ func TestConvertToLfvm_Code(t *testing.T) {
 func TestConvertToLfvm_Stack(t *testing.T) {
 	newLfvmStack := func(values ...ct.U256) *Stack {
 		stack := NewStack()
-		for i := len(values) - 1; i >= 0; i-- {
+		for i := 0; i < len(values); i++ {
 			value := values[i].Uint256()
 			stack.push(&value)
 		}
@@ -437,7 +437,7 @@ func TestConvertToCt_Gas(t *testing.T) {
 func TestConvertToCt_Stack(t *testing.T) {
 	newLfvmStack := func(values ...ct.U256) *Stack {
 		stack := NewStack()
-		for i := len(values) - 1; i >= 0; i-- {
+		for i := 0; i < len(values); i++ {
 			value := values[i].Uint256()
 			stack.push(&value)
 		}
