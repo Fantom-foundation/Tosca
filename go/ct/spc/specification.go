@@ -84,6 +84,7 @@ var Spec = func() Specification {
 		),
 		Effect: Change(func(s *st.State) {
 			s.Status = st.Stopped
+			s.Pc++
 		}),
 	})
 
