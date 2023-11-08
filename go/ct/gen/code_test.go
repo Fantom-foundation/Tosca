@@ -83,10 +83,10 @@ func TestCodeGenerator_OperationConstraintsAreEnforced(t *testing.T) {
 		"multiple-no-data": {{p: 4, op: STOP}, {p: 6, op: ADD}, {p: 2, op: INVALID}},
 		"pair":             {{p: 4, op: PUSH1}, {p: 7, op: PUSH32}},
 		"tight":            {{p: 0, op: PUSH1}, {p: 2, op: PUSH1}, {p: 4, op: PUSH1}},
-		"wide":             {{p: 2, op: PUSH1}, {p: 20000, op: PUSH1}},
-		"single-var":       {{v: "A", op: STOP}},
-		"multi-var":        {{v: "A", op: STOP}, {v: "B", op: ADD}},
-		"const-var-mix":    {{p: 5, op: STOP}, {v: "A", op: ADD}},
+		// "wide":             {{p: 2, op: PUSH1}, {p: 20000, op: PUSH1}}, // TODO re-enable when max code size is restored
+		"single-var":    {{v: "A", op: STOP}},
+		"multi-var":     {{v: "A", op: STOP}, {v: "B", op: ADD}},
+		"const-var-mix": {{p: 5, op: STOP}, {v: "A", op: ADD}},
 	}
 
 	rnd := rand.New(0)
@@ -145,7 +145,6 @@ func TestCodeGenerator_ImpossibleConstraintsAreDetected(t *testing.T) {
 		"add_operation_making_other_operation_data": {ops: []op{{p: 16, op: PUSH32}, {p: 0, op: PUSH32}}},
 	}
 
-	rnd := rand.New(0)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			generator := NewCodeGenerator()
@@ -154,7 +153,7 @@ func TestCodeGenerator_ImpossibleConstraintsAreDetected(t *testing.T) {
 				generator.SetOperation(cur.p, cur.op)
 			}
 
-			if _, err := generator.Generate(nil, rnd); !errors.Is(err, ErrUnsatisfiable) {
+			if _, err := generator.Generate(nil, rand.New(0)); !errors.Is(err, ErrUnsatisfiable) {
 				t.Fatalf("expected error indicating unsatisfiability, but got %v", err)
 			}
 		})

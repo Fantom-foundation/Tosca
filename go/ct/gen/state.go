@@ -165,7 +165,9 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		}
 		if len(values) == 0 {
 			// Generate a random program counter that points into the code slice.
-			resultPc = uint16(rnd.Int31n(int32(resultCode.Length())))
+			if resultCode.Length() > 0 {
+				resultPc = uint16(rnd.Int31n(int32(resultCode.Length())))
+			}
 		} else if len(values) == 1 {
 			resultPc = values[0]
 		} else {

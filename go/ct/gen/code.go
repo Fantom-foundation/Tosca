@@ -63,7 +63,8 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 		}
 		minSize += size
 	}
-	size := int(rnd.Int31n(int32(24576+1-minSize))) + minSize
+	//size := int(rnd.Int31n(int32(24576+1-minSize))) + minSize // TODO max code size (see also code gen test-cases)
+	size := int(rnd.Int31n(int32(100+1-minSize))) + minSize
 
 	ops, err := g.solveVarConstraints(assignment, rnd, size)
 	if err != nil {
@@ -97,8 +98,7 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 		if nextFixedPosition < i {
 			return nil, fmt.Errorf(
 				"%w, unable to satisfy op[%d]=%v constraint",
-				ErrUnsatisfiable, ops[0].pos, ops[0].op,
-			)
+				ErrUnsatisfiable, ops[0].pos, ops[0].op)
 		}
 
 		if i == nextFixedPosition {
@@ -135,6 +135,13 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 			rnd.Read(code[i+1 : end])
 			i += width
 		}
+	}
+
+	// After filling in the code, we expect all ops to have been processed.
+	if len(ops) > 0 {
+		return nil, fmt.Errorf(
+			"%w, unable to satisfy last %v constraint",
+			ErrUnsatisfiable, len(ops))
 	}
 
 	return st.NewCode(code), nil

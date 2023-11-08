@@ -31,3 +31,16 @@ func (c *change) Apply(state *st.State) {
 func (c *change) String() string {
 	return "change"
 }
+
+////////////////////////////////////////////////////////////
+
+func NoEffect() Effect {
+	return Change(func(*st.State) {})
+}
+
+func FailEffect() Effect {
+	return Change(func(s *st.State) {
+		s.Status = st.Failed
+		s.Gas = 0
+	})
+}
