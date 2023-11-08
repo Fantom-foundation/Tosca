@@ -67,7 +67,8 @@ func convertLfvmPcToCtPc(ctx *context, originalCode *st.Code) (uint16, error) {
 
 func convertLfvmStackToCtStack(ctx *context) *st.Stack {
 	stack := st.NewStack()
-	for i := ctx.stack.len() - 1; i >= 0; i-- {
+
+	for i := 0; i < ctx.stack.len(); i++ {
 		val := ctx.stack.Data()[i]
 		stack.Push(ct.NewU256(val[3], val[2], val[1], val[0]))
 	}
@@ -147,7 +148,7 @@ func convertCtStatusToLfvmStatus(state *st.State) (Status, error) {
 
 func convertCtStackToLfvmStack(state *st.State) *Stack {
 	stack := NewStack()
-	for i := 0; i < state.Stack.Size(); i++ {
+	for i := state.Stack.Size() - 1; i >= 0; i-- {
 		val := state.Stack.Get(i).Uint256()
 		stack.push(&val)
 	}
