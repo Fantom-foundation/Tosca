@@ -11,11 +11,27 @@ func NewConformanceTestingTarget() ct.Evm {
 	return ctAdapter{}
 }
 
-func (ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
-	code := make([]byte, state.Code.Length())
-	state.Code.CopyTo(code)
+var pcMapCache = map[[32]byte]*PcMap{}
 
-	pcMap, err := GenPcMapWithoutSuperInstructions(code)
+func getPcMap(code *st.Code) (*PcMap, error) {
+	pcMap, ok := pcMapCache[code.Hash()]
+
+	if !ok {
+		byteCode := make([]byte, code.Length())
+		code.CopyTo(byteCode)
+		pcMap, err := GenPcMapWithoutSuperInstructions(byteCode)
+		if err != nil {
+			return nil, err
+		}
+		pcMapCache[code.Hash()] = pcMap
+		return pcMap, nil
+	}
+
+	return pcMap, nil
+}
+
+func (ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
+	pcMap, err := getPcMap(state.Code)
 	if err != nil {
 		return nil, err
 	}
