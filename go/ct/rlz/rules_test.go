@@ -55,7 +55,7 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 		misses := 0
 
 		rule := Rule{Condition: test}
-		err := rule.EnumerateTestCases(rnd, func(sample *st.State) {
+		err := rule.EnumerateTestCases(rnd, func(sample *st.State) error {
 			match, err := test.Check(sample)
 			if err != nil {
 				t.Errorf("Condition check error %v", err)
@@ -65,6 +65,7 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 			} else {
 				misses++
 			}
+			return nil
 		})
 		if err != nil {
 			t.Errorf("EnumerateTestCases failed %v", err)

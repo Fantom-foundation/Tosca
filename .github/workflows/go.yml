@@ -45,3 +45,6 @@ jobs:
 
     - name: Test
       run: make test-go
+
+    - name: CT on LFVM
+      run: go run ./go/ct/driver run lfvm
