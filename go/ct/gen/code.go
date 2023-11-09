@@ -63,8 +63,7 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 		}
 		minSize += size
 	}
-	//size := int(rnd.Int31n(int32(24576+1-minSize))) + minSize // TODO max code size (see also code gen test-cases)
-	size := int(rnd.Int31n(int32(100+1-minSize))) + minSize
+	size := int(rnd.Int31n(int32(24576+1-minSize))) + minSize
 
 	ops, err := g.solveVarConstraints(assignment, rnd, size)
 	if err != nil {
