@@ -12,7 +12,15 @@ func NewConformanceTestingTarget() ct.Evm {
 }
 
 func (ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
-	c, err := ConvertCtStateToLfvmContext(state)
+	code := make([]byte, state.Code.Length())
+	state.Code.CopyTo(code)
+
+	pcMap, err := GenPcMapWithoutSuperInstructions(code)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := ConvertCtStateToLfvmContext(state, pcMap)
 	if err != nil {
 		return nil, err
 	}
@@ -21,5 +29,5 @@ func (ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		step(c)
 	}
 
-	return ConvertLfvmContextToCtState(c, state.Code)
+	return ConvertLfvmContextToCtState(c, state.Code, pcMap)
 }

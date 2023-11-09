@@ -51,20 +51,6 @@ func convertLfvmRevisionToCtRevision(ctx *context) (st.Revision, error) {
 	}
 }
 
-func convertLfvmPcToCtPc(ctx *context, originalCode *st.Code) (uint16, error) {
-	code := make([]byte, originalCode.Length())
-	originalCode.CopyTo(code)
-	pcMap, err := GenPcMapWithoutSuperInstructions(code)
-	if err != nil {
-		return 0, err
-	}
-	pc, ok := pcMap.lfvmToEvm[uint16(ctx.pc)]
-	if !ok {
-		return 0, fmt.Errorf("unable to convert lfvm pc %d to evm pc", ctx.pc)
-	}
-	return pc, nil
-}
-
 func convertLfvmStackToCtStack(ctx *context) *st.Stack {
 	stack := st.NewStack()
 
@@ -78,15 +64,15 @@ func convertLfvmStackToCtStack(ctx *context) *st.Stack {
 ////////////////////////////////////////////////////////////
 // lfvm -> ct
 
-func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code) (*st.State, error) {
+func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcMap) (*st.State, error) {
 	status, err := convertLfvmStatusToCtStatus(ctx.status)
 	if err != nil {
 		return nil, err
 	}
 
-	pc, err := convertLfvmPcToCtPc(ctx, originalCode)
-	if err != nil {
-		return nil, err
+	pc, ok := pcMap.lfvmToEvm[uint16(ctx.pc)]
+	if !ok {
+		return nil, fmt.Errorf("unable to convert lfvm pc %d to evm pc", ctx.pc)
 	}
 
 	revision, err := convertLfvmRevisionToCtRevision(ctx)
@@ -108,20 +94,6 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code) (*st.State
 
 ////////////////////////////////////////////////////////////
 // ct -> lfvm : helper functions
-
-func convertCtPcToLfvmPc(state *st.State) (int32, error) {
-	code := make([]byte, state.Code.Length())
-	state.Code.CopyTo(code)
-	pcMap, err := GenPcMapWithoutSuperInstructions(code)
-	if err != nil {
-		return 0, err
-	}
-	pc, ok := pcMap.evmToLfvm[state.Pc]
-	if !ok {
-		return 0, fmt.Errorf("unable to convert evm pc %d to lfvm pc", state.Pc)
-	}
-	return int32(pc), nil
-}
 
 func convertCtCodeToLfvmCode(state *st.State) (Code, error) {
 	code := make([]byte, state.Code.Length())
@@ -172,14 +144,14 @@ func convertCtRevisionToLfvmRevision(revision st.Revision, ctx *context) error {
 ////////////////////////////////////////////////////////////
 // ct -> lfvm
 
-func ConvertCtStateToLfvmContext(state *st.State) (*context, error) {
+func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error) {
 	// Create a dummy contract.
 	addr := vm.AccountRef{}
 	contract := vm.NewContract(addr, addr, big.NewInt(0), state.Gas)
 
-	pc, err := convertCtPcToLfvmPc(state)
-	if err != nil {
-		return nil, err
+	pc, ok := pcMap.evmToLfvm[state.Pc]
+	if !ok {
+		return nil, fmt.Errorf("unable to convert evm pc %d to lfvm pc", state.Pc)
 	}
 
 	status, err := convertCtStatusToLfvmStatus(state)
@@ -197,7 +169,7 @@ func ConvertCtStateToLfvmContext(state *st.State) (*context, error) {
 	// Create execution context.
 	ctx := context{
 		evm:      &vm.EVM{StateDB: nil},
-		pc:       pc,
+		pc:       int32(pc),
 		stack:    convertCtStackToLfvmStack(state),
 		memory:   NewMemory(),
 		stateDB:  nil,
