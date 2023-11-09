@@ -11,9 +11,15 @@ func NewConformanceTestingTarget() ct.Evm {
 	return ctAdapter{}
 }
 
+const maxPcMapCacheSize = 4096
+
 var pcMapCache = map[[32]byte]*PcMap{}
 
 func getPcMap(code *st.Code) (*PcMap, error) {
+	if len(pcMapCache) > maxPcMapCacheSize {
+		pcMapCache = make(map[[32]byte]*PcMap)
+	}
+
 	pcMap, ok := pcMapCache[code.Hash()]
 
 	if !ok {
