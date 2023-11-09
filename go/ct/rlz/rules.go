@@ -25,9 +25,13 @@ func (rule *Rule) GenerateSatisfyingState(rnd *rand.Rand) (*st.State, error) {
 
 // EnumerateTestCases generates interesting st.States according to this Rule.
 // Each valid st.State is passed to the given consume function. consume must
-// *not* modify the provided state.
-func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State)) error {
-	var generatorErrors []error
+// *not* modify the provided state. Errors are accumulated.
+func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) error) error {
+	var accumulatedErrors []error
+
+	onError := func(err error) {
+		accumulatedErrors = append(accumulatedErrors, err)
+	}
 
 	rule.Condition.EnumerateTestCases(gen.NewStateGenerator(), func(generator *gen.StateGenerator) {
 		state, err := generator.Generate(rnd)
@@ -35,31 +39,38 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State)) er
 			return // ignored
 		}
 		if err != nil {
-			generatorErrors = append(generatorErrors, err)
+			onError(err)
 			return
 		}
 
-		enumerateParameters(0, rule.Parameter, state, consume)
+		enumerateParameters(0, rule.Parameter, state, consume, onError)
+		if err != nil {
+			onError(err)
+			return
+		}
 	})
 
-	return errors.Join(generatorErrors...)
+	return errors.Join(accumulatedErrors...)
 }
 
-func enumerateParameters(pos int, params []Parameter, state *st.State, consume func(*st.State)) {
+func enumerateParameters(pos int, params []Parameter, state *st.State, consume func(*st.State) error, onError func(error)) {
 	if len(params) == 0 || pos >= state.Stack.Size() {
-		consume(state)
+		err := consume(state)
+		if err != nil {
+			onError(err)
+		}
 		return
 	}
 
 	current := state.Stack.Get(pos)
 
 	// Cross product with current parameter value, as set by generator.
-	enumerateParameters(pos+1, params[1:], state, consume)
+	enumerateParameters(pos+1, params[1:], state, consume, onError)
 
 	// Cross product with different samples for parameter.
 	for _, value := range params[0].Samples() {
 		state.Stack.Set(pos, value)
-		enumerateParameters(pos+1, params[1:], state, consume)
+		enumerateParameters(pos+1, params[1:], state, consume, onError)
 	}
 
 	state.Stack.Set(pos, current)

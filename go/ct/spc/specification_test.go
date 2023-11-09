@@ -22,7 +22,7 @@ func TestSpecification_RulesCoverTestCases(t *testing.T) {
 			// single test case.
 			atLeastOne := false
 
-			rule.EnumerateTestCases(rand.New(0), func(state *st.State) {
+			rule.EnumerateTestCases(rand.New(0), func(state *st.State) error {
 				rules := Spec.GetRulesFor(state)
 				if len(rules) > 0 {
 					atLeastOne = true
@@ -30,6 +30,7 @@ func TestSpecification_RulesCoverTestCases(t *testing.T) {
 				if len(rules) > 1 {
 					t.Fatalf("multiple rules for state %v: %v", &state, rules)
 				}
+				return nil
 			})
 
 			if !atLeastOne {
