@@ -14,11 +14,22 @@ func getEmptyState() *st.State {
 	return st.NewState(st.NewCode([]byte{}))
 }
 
+func getByteCodeFromState(state *st.State) []byte {
+	code := make([]byte, state.Code.Length())
+	state.Code.CopyTo(code)
+	return code
+}
+
 func TestConvertToLfvm_StatusCode(t *testing.T) {
 	state := getEmptyState()
 	state.Status = st.Stopped
 
-	ctx, err := ConvertCtStateToLfvmContext(state)
+	pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
+	if err != nil {
+		t.Fatalf("failed to generate pc map: %v", err)
+	}
+
+	ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
 
 	if err != nil {
 		t.Fatalf("failed to convert ct state to lfvm context: %v", err)
@@ -33,7 +44,12 @@ func TestConvertToLfvm_InvalidStatusCode(t *testing.T) {
 	state := getEmptyState()
 	state.Status = st.NumStatusCodes
 
-	ctx, err := ConvertCtStateToLfvmContext(state)
+	pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
+	if err != nil {
+		t.Fatalf("failed to generate pc map: %v", err)
+	}
+
+	ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
 
 	if err == nil {
 		t.Errorf("expected invalid status, but got: %v", ctx.status)
@@ -58,7 +74,12 @@ func TestConvertToLfvm_Revision(t *testing.T) {
 				state := getEmptyState()
 				state.Revision = cur.ctRevision
 
-				ctx, err := ConvertCtStateToLfvmContext(state)
+				pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
+				if err != nil {
+					t.Fatalf("failed to generate pc map: %v", err)
+				}
+
+				ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
 
 				if want, got := cur.convertSuccess, (err == nil); want != got {
 					t.Errorf("unexpected conversion error: wanted %v, got %v", want, got)
@@ -103,7 +124,12 @@ func TestConvertToLfvm_Pc(t *testing.T) {
 				state := st.NewState(code)
 				state.Pc = cur.evmPc
 
-				ctx, err := ConvertCtStateToLfvmContext(state)
+				pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
+				if err != nil {
+					t.Fatalf("failed to generate pc map: %v", err)
+				}
+
+				ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
 
 				if err != nil {
 					t.Fatalf("failed to convert ct state to lfvm context: %v", err)
@@ -121,7 +147,12 @@ func TestConvertToLfvm_Gas(t *testing.T) {
 	state := getEmptyState()
 	state.Gas = 777
 
-	ctx, err := ConvertCtStateToLfvmContext(state)
+	pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
+	if err != nil {
+		t.Fatalf("failed to generate pc map: %v", err)
+	}
+
+	ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
 
 	if err != nil {
 		t.Fatalf("failed to convert ct state to lfvm context: %v", err)
@@ -218,7 +249,13 @@ func TestConvertToLfvm_Code(t *testing.T) {
 			for _, cur := range test {
 				code := st.NewCode(cur.evmCode)
 				state := st.NewState(code)
-				ctx, err := ConvertCtStateToLfvmContext(state)
+
+				pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
+				if err != nil {
+					t.Fatalf("failed to generate pc map: %v", err)
+				}
+
+				ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
 
 				if err != nil {
 					t.Fatalf("failed to convert ct state to lfvm context: %v", err)
@@ -275,7 +312,12 @@ func TestConvertToLfvm_Stack(t *testing.T) {
 				state := getEmptyState()
 				state.Stack = cur.ctStack
 
-				ctx, err := ConvertCtStateToLfvmContext(state)
+				pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
+				if err != nil {
+					t.Fatalf("failed to generate pc map: %v", err)
+				}
+
+				ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
 
 				if err != nil {
 					t.Fatalf("failed to convert ct state to lfvm context: %v", err)
@@ -315,8 +357,14 @@ func getContextWithEvmCode(code *st.Code) (*context, error) {
 func TestConvertToCt_StatusCode(t *testing.T) {
 	ctx := getEmptyContext()
 	ctx.status = STOPPED
+	code := []byte{}
 
-	state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode([]byte{}))
+	pcMap, err := GenPcMapWithoutSuperInstructions(code)
+	if err != nil {
+		t.Fatalf("failed to generate pc map: %v", err)
+	}
+
+	state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
 
 	if err != nil {
 		t.Fatalf("failed to convert lfvm context to ct state: %v", err)
@@ -330,8 +378,14 @@ func TestConvertToCt_StatusCode(t *testing.T) {
 func TestConvertToCt_InvalidStatusCode(t *testing.T) {
 	ctx := getEmptyContext()
 	ctx.status = 0xFF
+	code := []byte{}
 
-	state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode([]byte{}))
+	pcMap, err := GenPcMapWithoutSuperInstructions(code)
+	if err != nil {
+		t.Fatalf("failed to generate pc map: %v", err)
+	}
+
+	state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
 
 	if err == nil {
 		t.Errorf("expected invalid status, but got: %v", state.Status)
@@ -355,8 +409,14 @@ func TestConvertToCt_Revision(t *testing.T) {
 			for _, cur := range test {
 				ctx := getEmptyContext()
 				cur.lfvmRevisionSetter(&ctx)
+				code := []byte{}
 
-				state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode([]byte{}))
+				pcMap, err := GenPcMapWithoutSuperInstructions(code)
+				if err != nil {
+					t.Fatalf("failed to generate pc map: %v", err)
+				}
+
+				state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
 
 				if want, got := cur.convertSuccess, (err == nil); want != got {
 					t.Errorf("unexpected conversion error: wanted %v, got %v", want, got)
@@ -405,7 +465,12 @@ func TestConvertToCt_Pc(t *testing.T) {
 
 				ctx.pc = int32(cur.lfvmPc)
 
-				state, err := ConvertLfvmContextToCtState(ctx, origCode)
+				pcMap, err := GenPcMapWithoutSuperInstructions(cur.evmCode)
+				if err != nil {
+					t.Fatalf("failed to generate pc map: %v", err)
+				}
+
+				state, err := ConvertLfvmContextToCtState(ctx, origCode, pcMap)
 
 				if err != nil {
 					t.Fatalf("failed to convert lfvm context to ct state: %v", err)
@@ -422,8 +487,14 @@ func TestConvertToCt_Pc(t *testing.T) {
 func TestConvertToCt_Gas(t *testing.T) {
 	ctx := getEmptyContext()
 	ctx.contract.Gas = 777
+	code := []byte{}
 
-	state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode([]byte{}))
+	pcMap, err := GenPcMapWithoutSuperInstructions(code)
+	if err != nil {
+		t.Fatalf("failed to generate pc map: %v", err)
+	}
+
+	state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
 
 	if err != nil {
 		t.Fatalf("failed to convert lfvm context to ct state: %v", err)
@@ -467,8 +538,14 @@ func TestConvertToCt_Stack(t *testing.T) {
 			for _, cur := range test {
 				ctx := getEmptyContext()
 				ctx.stack = cur.lfvmStack
+				code := []byte{}
 
-				state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode([]byte{}))
+				pcMap, err := GenPcMapWithoutSuperInstructions(code)
+				if err != nil {
+					t.Fatalf("failed to generate pc map: %v", err)
+				}
+
+				state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
 
 				if err != nil {
 					t.Fatalf("failed to convert lfvm context to ct state: %v", err)
