@@ -3,10 +3,23 @@ package st
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
+
+func TestCode_Hash(t *testing.T) {
+	empty := NewCode([]byte{})
+	if fmt.Sprintf("%x", empty.Hash()) != "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470" {
+		t.Fatal("invalid code hash for empty")
+	}
+
+	add := NewCode([]byte{byte(ADD)})
+	if fmt.Sprintf("%x", add.Hash()) != "5fe7f977e71dba2ea1a68e21057beebb9be2ac30c6410aa38d4f3fbe41dcffd2" {
+		t.Fatal("invalid code hash for single ADD")
+	}
+}
 
 func TestCode_IsCode(t *testing.T) {
 	code := NewCode([]byte{byte(ADD), byte(PUSH1), 0, byte(PUSH2), 1})

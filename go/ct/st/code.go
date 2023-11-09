@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"slices"
 
+	"golang.org/x/crypto/sha3"
+
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
@@ -13,6 +15,7 @@ import (
 type Code struct {
 	code   []byte
 	isCode []bool
+	hash   [32]byte
 }
 
 // ErrInvalidPosition is an error produced by observer functions on the Code if
@@ -34,10 +37,16 @@ func NewCode(code []byte) *Code {
 		}
 	}
 
-	return &Code{
+	result := &Code{
 		code:   slices.Clone(code),
 		isCode: isCode,
 	}
+
+	hasher := sha3.NewLegacyKeccak256()
+	hasher.Write(code)
+	copy(result.hash[:], hasher.Sum(nil)[:])
+
+	return result
 }
 
 func (c *Code) Clone() *Code {
@@ -46,6 +55,10 @@ func (c *Code) Clone() *Code {
 
 func (c *Code) Length() int {
 	return len(c.code)
+}
+
+func (c *Code) Hash() [32]byte {
+	return c.hash
 }
 
 func (c *Code) IsCode(pos int) bool {
@@ -80,7 +93,7 @@ func (c *Code) GetData(pos int) (byte, error) {
 }
 
 func (c *Code) Eq(other *Code) bool {
-	return bytes.Equal(c.code, other.code)
+	return c.hash == other.hash && bytes.Equal(c.code, other.code)
 }
 
 func (a *Code) Diff(b *Code) (res []string) {
