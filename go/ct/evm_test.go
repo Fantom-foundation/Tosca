@@ -32,7 +32,7 @@ func TestSpecOnLfvm(t *testing.T) {
 				expected := state.Clone()
 				rule.Effect.Apply(expected)
 
-				result, err := evm.StepN(state, 1)
+				result, err := evm.StepN(input.Clone(), 1)
 				if err != nil {
 					t.Fatal(err)
 				}

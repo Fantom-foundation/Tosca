@@ -24,36 +24,43 @@ func (rule *Rule) GenerateSatisfyingState(rnd *rand.Rand) (*st.State, error) {
 }
 
 // EnumerateTestCases generates interesting st.States according to this Rule.
-// Each valid st.State is passed to the given consume function.
-func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(s *st.State)) error {
+// Each valid st.State is passed to the given consume function. consume must
+// *not* modify the provided state.
+func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State)) error {
 	var generatorErrors []error
 
-	generator := gen.NewStateGenerator()
-	rule.Condition.EnumerateTestCases(generator, func(g *gen.StateGenerator) {
-		enumerateParameters(0, rule.Parameter, g, func(g *gen.StateGenerator) {
-			state, err := g.Generate(rnd)
-			if errors.Is(err, gen.ErrUnsatisfiable) {
-				return // ignored
-			}
-			if err != nil {
-				generatorErrors = append(generatorErrors, err)
-				return
-			}
-			consume(state)
-		})
+	rule.Condition.EnumerateTestCases(gen.NewStateGenerator(), func(generator *gen.StateGenerator) {
+		state, err := generator.Generate(rnd)
+		if errors.Is(err, gen.ErrUnsatisfiable) {
+			return // ignored
+		}
+		if err != nil {
+			generatorErrors = append(generatorErrors, err)
+			return
+		}
+
+		enumerateParameters(0, rule.Parameter, state, consume)
 	})
 
 	return errors.Join(generatorErrors...)
 }
 
-func enumerateParameters(pos int, params []Parameter, generator *gen.StateGenerator, consume func(g *gen.StateGenerator)) {
-	if len(params) == 0 {
-		consume(generator)
+func enumerateParameters(pos int, params []Parameter, state *st.State, consume func(*st.State)) {
+	if len(params) == 0 || pos >= state.Stack.Size() {
+		consume(state)
 		return
 	}
+
+	current := state.Stack.Get(pos)
+
+	// Cross product with current parameter value, as set by generator.
+	enumerateParameters(pos+1, params[1:], state, consume)
+
+	// Cross product with different samples for parameter.
 	for _, value := range params[0].Samples() {
-		clone := generator.Clone()
-		clone.SetStackValue(pos, value)
-		enumerateParameters(pos+1, params[1:], clone, consume)
+		state.Stack.Set(pos, value)
+		enumerateParameters(pos+1, params[1:], state, consume)
 	}
+
+	state.Stack.Set(pos, current)
 }

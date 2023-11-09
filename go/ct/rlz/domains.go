@@ -238,7 +238,7 @@ func (d stackSizeDomain) Samples(a int) []int {
 	return d.SamplesForAll([]int{a})
 }
 func (stackSizeDomain) SamplesForAll(as []int) []int {
-	res := []int{0, 10} // extreme values // TODO max stack size
+	res := []int{0, 1024} // extreme values
 
 	// Test every element off by one.
 	for _, a := range as {
