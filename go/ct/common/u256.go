@@ -179,6 +179,17 @@ func (a U256) Shr(b U256) (z U256) {
 	return
 }
 
+func (a U256) Srsh(b U256) (z U256) {
+	if b.internal.GtUint64(256) {
+		if a.internal.IsZero() || a.internal.Sign() >= 0 {
+			return NewU256(0)
+		}
+		return MaxU256()
+	}
+	z.internal.SRsh(&a.internal, uint(b.internal.Uint64()))
+	return
+}
+
 func (i U256) String() string {
 	return fmt.Sprintf("%016x %016x %016x %016x", i.internal[3], i.internal[2], i.internal[1], i.internal[0])
 }
