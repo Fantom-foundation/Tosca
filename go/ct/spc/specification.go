@@ -209,6 +209,188 @@ var Spec = func() Specification {
 		return value.Srsh(shift)
 	})...)
 
+	// --- JUMP ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "jump_with_too_little_gas",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMP),
+				Lt(Gas(), 8),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jump_with_too_few_elements",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMP),
+				Ge(Gas(), 8),
+				Lt(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jump_to_data",
+			Condition: And(
+				Ge(StackSize(), 1),
+				IsData(Param(0)),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMP),
+				Ge(Gas(), 8),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jump_to_invalid_destination",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMP),
+				Ge(Gas(), 8),
+				Ge(StackSize(), 1),
+				IsCode(Param(0)),
+				Ne(Op(Param(0)), JUMPDEST),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jump_valid_target",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMP),
+				Ge(Gas(), 8),
+				Ge(StackSize(), 1),
+				IsCode(Param(0)),
+				Eq(Op(Param(0)), JUMPDEST),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 8
+				target := s.Stack.Pop()
+				s.Pc = uint16(target.Uint64())
+			}),
+		},
+	}...)
+
+	// --- JUMPI ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "jumpi_with_too_little_gas",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMPI),
+				Lt(Gas(), 10),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jumpi_with_too_few_elements",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMPI),
+				Ge(Gas(), 10),
+				Lt(StackSize(), 2),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jumpi_not_taken",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMPI),
+				Ge(Gas(), 10),
+				Ge(StackSize(), 2),
+				Eq(Param(1), NewU256(0)),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 10
+				s.Stack.Pop()
+				s.Stack.Pop()
+				s.Pc += 1
+			}),
+		},
+
+		{
+			Name: "jumpi_to_data",
+			Condition: And(
+				Ge(StackSize(), 2),
+				IsData(Param(0)),
+				Ne(Param(1), NewU256(0)),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMPI),
+				Ge(Gas(), 10),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jumpi_to_invalid_destination",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMPI),
+				Ge(Gas(), 10),
+				Ge(StackSize(), 2),
+				IsCode(Param(0)),
+				Ne(Op(Param(0)), JUMPDEST),
+				Ne(Param(1), NewU256(0)),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jumpi_valid_target",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMPI),
+				Ge(Gas(), 10),
+				Ge(StackSize(), 2),
+				IsCode(Param(0)),
+				Eq(Op(Param(0)), JUMPDEST),
+				Ne(Param(1), NewU256(0)),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 10
+				target := s.Stack.Pop()
+				s.Stack.Pop()
+				s.Pc = uint16(target.Uint64())
+			}),
+		},
+	}...)
+
+	// --- JUMPDEST ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "jumpdest_with_too_little_gas",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMPDEST),
+				Lt(Gas(), 1),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jumpdest_regular",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMPDEST),
+				Ge(Gas(), 1),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 1
+				s.Pc++
+			}),
+		},
+	}...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)
