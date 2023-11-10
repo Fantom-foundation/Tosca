@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"pgregory.net/rand"
@@ -18,9 +19,14 @@ var RunCmd = cli.Command{
 	Usage:     "Run Conformance Tests on an EVM implementation",
 	ArgsUsage: "<EVM>",
 	Flags: []cli.Flag{
+		&cli.IntFlag{
+			Name:  "max-errors",
+			Usage: "maximum number of errors to display (0 displays all errors)",
+			Value: 1,
+		},
 		&cli.Uint64Flag{
 			Name:  "seed",
-			Usage: "seed for the random number genertor",
+			Usage: "seed for the random number generator",
 		},
 	},
 }
@@ -49,7 +55,7 @@ func doRun(context *cli.Context) error {
 	rules := spc.Spec.GetRules()
 	for _, rule := range rules {
 		fmt.Println(rule)
-		err := rule.EnumerateTestCases(rnd, func(state *st.State) error {
+		errs := rule.EnumerateTestCases(rnd, func(state *st.State) error {
 			if applies, err := rule.Condition.Check(state); !applies || err != nil {
 				return err
 			}
@@ -70,16 +76,28 @@ func doRun(context *cli.Context) error {
 			}
 
 			if !result.Eq(expected) {
-				fmt.Println(result.Diff(expected))
-				fmt.Println("input state:", input)
-				fmt.Println("result state:", result)
-				fmt.Println("expected state:", expected)
-				return fmt.Errorf("EVM not conformant")
+				errMsg := fmt.Sprintln(result.Diff(expected))
+				errMsg += fmt.Sprintln("input state:", input)
+				errMsg += fmt.Sprintln("result state:", result)
+				errMsg += fmt.Sprintln("expected state:", expected)
+				return fmt.Errorf(errMsg)
 			}
 
 			return nil
 		})
+
+		maxErrors := context.Int("max-errors")
+		if maxErrors <= 0 {
+			maxErrors = len(errs)
+		} else {
+			maxErrors = min(len(errs), maxErrors)
+		}
+
+		printErrors := errs[0:maxErrors]
+		err := errors.Join(printErrors...)
+
 		if err != nil {
+			err = errors.Join(err, fmt.Errorf("total errors: %d", len(errs)))
 			return err
 		}
 	}
