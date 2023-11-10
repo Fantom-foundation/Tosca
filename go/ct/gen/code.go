@@ -15,8 +15,10 @@ import (
 // CodeGenerator is a utility class for generating Codes. See StateGenerator for
 // more information on generators.
 type CodeGenerator struct {
-	constOps []constOpConstraint
-	varOps   []varOpConstraint
+	constOps             []constOpConstraint
+	varOps               []varOpConstraint
+	varIsCodeConstraints []varIsCodeConstraint
+	varIsDataConstraints []varIsDataConstraint
 }
 
 type constOpConstraint struct {
@@ -27,6 +29,14 @@ type constOpConstraint struct {
 type varOpConstraint struct {
 	variable Variable
 	op       OpCode
+}
+
+type varIsCodeConstraint struct {
+	variable Variable
+}
+
+type varIsDataConstraint struct {
+	variable Variable
 }
 
 func NewCodeGenerator() *CodeGenerator {
@@ -43,11 +53,23 @@ func (g *CodeGenerator) AddOperation(v Variable, op OpCode) {
 	g.varOps = append(g.varOps, varOpConstraint{variable: v, op: op})
 }
 
+// AddIsCode adds a constraint such that the generator will produce a code
+// segment where the byte at v is an instruction (not data).
+func (g *CodeGenerator) AddIsCode(v Variable) {
+	g.varIsCodeConstraints = append(g.varIsCodeConstraints, varIsCodeConstraint{v})
+}
+
+// AddIsData adds a constraint such that the generator will produce a code
+// segment where the byte at v is data.
+func (g *CodeGenerator) AddIsData(v Variable) {
+	g.varIsDataConstraints = append(g.varIsDataConstraints, varIsDataConstraint{v})
+}
+
 // Generate produces a Code instance satisfying the constraints set on this
 // generator or returns ErrUnsatisfiable on conflicting constraints. Updates the
 // given assignment along the way.
 func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Code, error) {
-	// Pick a random size that is large enough for all operation constraints.
+	// Pick a random size that is large enough for all const constraints.
 	minSize := 0
 	for _, constraint := range g.constOps {
 		if constraint.pos > minSize {
@@ -63,6 +85,7 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 		}
 		minSize += size
 	}
+
 	size := int(rnd.Int31n(int32(24576+1-minSize))) + minSize
 
 	ops, err := g.solveVarConstraints(assignment, rnd, size)
@@ -152,7 +175,7 @@ func (g *CodeGenerator) solveVarConstraints(assignment Assignment, rnd *rand.Ran
 	ops := slices.Clone(g.constOps)
 	sort.Slice(ops, func(i, j int) bool { return ops[i].pos < ops[j].pos })
 
-	if len(g.varOps) == 0 {
+	if len(g.varOps) == 0 && len(g.varIsCodeConstraints) == 0 && len(g.varIsDataConstraints) == 0 {
 		return ops, nil
 	}
 
@@ -165,24 +188,29 @@ func (g *CodeGenerator) solveVarConstraints(assignment Assignment, rnd *rand.Ran
 	bound := map[Variable]OpCode{}
 
 	// track used code positions
-	used := map[int]bool{}
+	used := map[int]int{}
+
+	const isUnused = 0
+	const isCode = 1
+	const isData = 2
+
 	markUsed := func(pos int, op OpCode) {
-		used[pos] = true
+		used[pos] = isCode
 		if PUSH1 <= op && op <= PUSH32 {
 			width := int(op - PUSH1 + 1)
 			for i := 0; i < width; i++ {
-				used[pos+i+1] = true
+				used[pos+i+1] = isData
 			}
 		}
 	}
 	fits := func(pos int, op OpCode) bool {
-		if used[pos] {
+		if used[pos] != isUnused {
 			return false
 		}
 		if PUSH1 <= op && op <= PUSH32 {
 			width := int(op - PUSH1 + 1)
 			for i := 0; i < width; i++ {
-				if used[pos+i+1] {
+				if used[pos+i+1] != isUnused {
 					return false
 				}
 			}
@@ -228,6 +256,72 @@ func (g *CodeGenerator) solveVarConstraints(assignment Assignment, rnd *rand.Ran
 		}
 		ops = append(ops, constOpConstraint{pos, cur.op})
 	}
+
+	for _, cur := range g.varIsCodeConstraints {
+		// All assigned variables already point to code by processing g.varOps.
+		if _, isAssigned := assignment[cur.variable]; isAssigned {
+			continue
+		}
+
+		// For the remaining variables, find a position and either populate an
+		// unused slot, or use a slot with code in it. Code position 0 is
+		// guaranteed to be unused or contain code.
+		pos := int(rnd.Int31n(int32(codeSize)))
+		startPos := pos
+		for used[pos] == isData {
+			pos++
+			if pos >= codeSize {
+				pos = 0
+			}
+			if pos == startPos {
+				return nil, fmt.Errorf("%w, unable to fit isCode constraint in given code size", ErrUnsatisfiable)
+			}
+		}
+
+		// Record and enforce the variable position.
+		if assignment != nil {
+			assignment[cur.variable] = NewU256(uint64(pos))
+		}
+
+		if used[pos] == isUnused {
+			// Using JUMPDEST as *some* code instruction.
+			ops = append(ops, constOpConstraint{pos, JUMPDEST})
+			markUsed(pos, JUMPDEST)
+		}
+	}
+
+	for _, cur := range g.varIsDataConstraints {
+		// All assigned variables already point to code!
+		if _, isAssigned := assignment[cur.variable]; isAssigned {
+			return nil, fmt.Errorf("%w, unable to satisfy isData[%v]", ErrUnsatisfiable, cur.variable)
+		}
+
+		// For the remaining variables, find a position and either populate an
+		// unused slot, or use a slot with data in it.
+		pos := int(rnd.Int31n(int32(codeSize)))
+		startPos := pos
+		for used[pos] != isData && !(used[pos] == isUnused && fits(pos, PUSH1)) {
+			pos++
+			if pos >= codeSize {
+				pos = 0
+			}
+			if pos == startPos {
+				return nil, fmt.Errorf("%w, unable to fit isData constraint in given code size", ErrUnsatisfiable)
+			}
+		}
+
+		if used[pos] == isUnused {
+			ops = append(ops, constOpConstraint{pos, PUSH1})
+			markUsed(pos, PUSH1)
+			pos++
+		}
+
+		// Record and enforce the variable position.
+		if assignment != nil {
+			assignment[cur.variable] = NewU256(uint64(pos))
+		}
+	}
+
 	return ops, nil
 }
 
@@ -235,8 +329,10 @@ func (g *CodeGenerator) solveVarConstraints(assignment Assignment, rnd *rand.Ran
 // Future modifications are isolated from each other.
 func (g *CodeGenerator) Clone() *CodeGenerator {
 	return &CodeGenerator{
-		constOps: slices.Clone(g.constOps),
-		varOps:   slices.Clone(g.varOps),
+		constOps:             slices.Clone(g.constOps),
+		varOps:               slices.Clone(g.varOps),
+		varIsCodeConstraints: slices.Clone(g.varIsCodeConstraints),
+		varIsDataConstraints: slices.Clone(g.varIsDataConstraints),
 	}
 }
 
@@ -247,6 +343,8 @@ func (g *CodeGenerator) Restore(other *CodeGenerator) {
 	}
 	g.constOps = slices.Clone(other.constOps)
 	g.varOps = slices.Clone(other.varOps)
+	g.varIsCodeConstraints = slices.Clone(other.varIsCodeConstraints)
+	g.varIsDataConstraints = slices.Clone(other.varIsDataConstraints)
 }
 
 func (g *CodeGenerator) String() string {
@@ -260,6 +358,16 @@ func (g *CodeGenerator) String() string {
 	sort.Slice(g.varOps, func(i, j int) bool { return g.varOps[i].variable < g.varOps[j].variable })
 	for _, op := range g.varOps {
 		parts = append(parts, fmt.Sprintf("op[%v]=%v", op.variable, op.op))
+	}
+
+	sort.Slice(g.varIsCodeConstraints, func(i, j int) bool { return g.varIsCodeConstraints[i].variable < g.varIsCodeConstraints[j].variable })
+	for _, con := range g.varIsCodeConstraints {
+		parts = append(parts, fmt.Sprintf("isCode[%v]", con.variable))
+	}
+
+	sort.Slice(g.varIsDataConstraints, func(i, j int) bool { return g.varIsDataConstraints[i].variable < g.varIsDataConstraints[j].variable })
+	for _, con := range g.varIsDataConstraints {
+		parts = append(parts, fmt.Sprintf("isData[%v]", con.variable))
 	}
 
 	return "{" + strings.Join(parts, ",") + "}"

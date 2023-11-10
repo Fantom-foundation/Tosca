@@ -2,8 +2,10 @@ package rlz
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
+	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
@@ -322,4 +324,88 @@ func (c *ge[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(
 
 func (c *ge[T]) String() string {
 	return fmt.Sprintf("%s ≥ %v", c.lhs, c.rhs)
+}
+
+////////////////////////////////////////////////////////////
+// Is Code
+
+type isCode struct {
+	position BindableExpression[U256]
+}
+
+func IsCode(position BindableExpression[U256]) Condition {
+	return &isCode{position}
+}
+
+func (c *isCode) Check(s *st.State) (bool, error) {
+	pos, err := c.position.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	if pos.Gt(NewU256(math.MaxInt)) {
+		return false, nil
+	}
+	return s.Code.IsCode(int(pos.Uint64())), nil
+}
+
+func (c *isCode) Restrict(generator *gen.StateGenerator) {
+	variable := c.position.GetVariable()
+	c.position.BindTo(generator)
+	generator.AddIsCode(variable)
+}
+
+func (c *isCode) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
+	positive := generator.Clone()
+	c.Restrict(positive)
+	consume(positive)
+
+	negative := generator.Clone()
+	IsData(c.position).Restrict(negative)
+	consume(negative)
+}
+
+func (c *isCode) String() string {
+	return fmt.Sprintf("isCode[%s]", c.position)
+}
+
+////////////////////////////////////////////////////////////
+// Is Data
+
+type isData struct {
+	position BindableExpression[U256]
+}
+
+func IsData(position BindableExpression[U256]) Condition {
+	return &isData{position}
+}
+
+func (c *isData) Check(s *st.State) (bool, error) {
+	pos, err := c.position.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	if pos.Gt(NewU256(math.MaxInt)) {
+		return false, nil
+	}
+	return s.Code.IsData(int(pos.Uint64())), nil
+}
+
+func (c *isData) Restrict(generator *gen.StateGenerator) {
+	variable := c.position.GetVariable()
+	c.position.BindTo(generator)
+	generator.AddIsData(variable)
+}
+
+func (c *isData) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
+	positive := generator.Clone()
+	c.Restrict(positive)
+	consume(positive)
+
+	negative := generator.Clone()
+	IsCode(c.position).Restrict(negative)
+	consume(negative)
+}
+
+func (c *isData) String() string {
+	return fmt.Sprintf("isData[%s]", c.position)
 }

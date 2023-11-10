@@ -96,6 +96,16 @@ func (g *StateGenerator) AddCodeOperation(v Variable, op OpCode) {
 	g.codeGen.AddOperation(v, op)
 }
 
+// AddIsCode wraps CodeGenerator.AddIsCode.
+func (g *StateGenerator) AddIsCode(v Variable) {
+	g.codeGen.AddIsCode(v)
+}
+
+// AddIsData wraps CodeGenerator.AddIsData.
+func (g *StateGenerator) AddIsData(v Variable) {
+	g.codeGen.AddIsData(v)
+}
+
 // SetStackSize wraps StackGenerator.SetSize.
 func (g *StateGenerator) SetStackSize(size int) {
 	g.stackGen.SetSize(size)
