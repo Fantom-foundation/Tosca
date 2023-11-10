@@ -32,6 +32,7 @@ const (
 	SHR        OpCode = 0x1C
 	SAR        OpCode = 0x1D
 	JUMP       OpCode = 0x56
+	JUMPI      OpCode = 0x57
 	JUMPDEST   OpCode = 0x5B
 	PUSH1      OpCode = 0x60
 	PUSH2      OpCode = 0x61
@@ -97,6 +98,8 @@ func (op OpCode) String() string {
 		return "SAR"
 	case JUMP:
 		return "JUMP"
+	case JUMPI:
+		return "JUMPI"
 	case JUMPDEST:
 		return "JUMPDEST"
 	case PUSH1:
