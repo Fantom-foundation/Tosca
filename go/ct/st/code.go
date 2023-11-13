@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"slices"
+	"sync"
 
 	"golang.org/x/crypto/sha3"
 
@@ -13,9 +14,11 @@ import (
 // Code is an immutable representation of EVM byte code which may be freely
 // copied and shared through shallow copies.
 type Code struct {
-	code   []byte
-	isCode []bool
-	hash   [32]byte
+	code           []byte
+	isCode         []bool
+	hash           [32]byte
+	hashCalculated bool
+	hashMutex      sync.Mutex
 }
 
 // ErrInvalidPosition is an error produced by observer functions on the Code if
@@ -37,16 +40,10 @@ func NewCode(code []byte) *Code {
 		}
 	}
 
-	result := &Code{
+	return &Code{
 		code:   slices.Clone(code),
 		isCode: isCode,
 	}
-
-	hasher := sha3.NewLegacyKeccak256()
-	hasher.Write(code)
-	copy(result.hash[:], hasher.Sum(nil)[:])
-
-	return result
 }
 
 func (c *Code) Clone() *Code {
@@ -58,6 +55,15 @@ func (c *Code) Length() int {
 }
 
 func (c *Code) Hash() [32]byte {
+	c.hashMutex.Lock()
+	defer c.hashMutex.Unlock()
+
+	if !c.hashCalculated {
+		hasher := sha3.NewLegacyKeccak256()
+		hasher.Write(c.code)
+		copy(c.hash[:], hasher.Sum(nil)[:])
+		c.hashCalculated = true
+	}
 	return c.hash
 }
 
@@ -93,7 +99,7 @@ func (c *Code) GetData(pos int) (byte, error) {
 }
 
 func (c *Code) Eq(other *Code) bool {
-	return c.hash == other.hash && bytes.Equal(c.code, other.code)
+	return c.Hash() == other.Hash() && bytes.Equal(c.code, other.code)
 }
 
 func (a *Code) Diff(b *Code) (res []string) {
