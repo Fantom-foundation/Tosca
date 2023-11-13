@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"slices"
+	"sync"
 
 	"golang.org/x/crypto/sha3"
 
@@ -17,6 +18,7 @@ type Code struct {
 	isCode         []bool
 	hash           [32]byte
 	hashCalculated bool
+	hashMutex      sync.Mutex
 }
 
 // ErrInvalidPosition is an error produced by observer functions on the Code if
@@ -53,6 +55,9 @@ func (c *Code) Length() int {
 }
 
 func (c *Code) Hash() [32]byte {
+	c.hashMutex.Lock()
+	defer c.hashMutex.Unlock()
+
 	if !c.hashCalculated {
 		hasher := sha3.NewLegacyKeccak256()
 		hasher.Write(c.code)
