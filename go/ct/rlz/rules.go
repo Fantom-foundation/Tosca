@@ -25,8 +25,8 @@ func (rule *Rule) GenerateSatisfyingState(rnd *rand.Rand) (*st.State, error) {
 
 // EnumerateTestCases generates interesting st.States according to this Rule.
 // Each valid st.State is passed to the given consume function. consume must
-// *not* modify the provided state. Errors are accumulated.
-func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) error) error {
+// *not* modify the provided state. Errors are accumulated and a list of all errors is returned.
+func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) error) []error {
 	var accumulatedErrors []error
 
 	onError := func(err error) {
@@ -50,7 +50,7 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) err
 		}
 	})
 
-	return errors.Join(accumulatedErrors...)
+	return accumulatedErrors
 }
 
 func enumerateParameters(pos int, params []Parameter, state *st.State, consume func(*st.State) error, onError func(error)) {
