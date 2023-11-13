@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"regexp"
+	"sort"
 
 	"pgregory.net/rand"
 
@@ -19,6 +21,15 @@ var RunCmd = cli.Command{
 	Usage:     "Run Conformance Tests on an EVM implementation",
 	ArgsUsage: "<EVM>",
 	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "filter",
+			Usage: "run only rules which name matches the given regex",
+			Value: ".*",
+		},
+		&cli.BoolFlag{
+			Name:  "list",
+			Usage: "list all rules by name",
+		},
 		&cli.IntFlag{
 			Name:  "max-errors",
 			Usage: "maximum number of errors to display (0 displays all errors)",
@@ -36,6 +47,15 @@ var evms = map[string]ct.Evm{
 }
 
 func doRun(context *cli.Context) error {
+	if context.Bool("list") {
+		rules := spc.Spec.GetRules()
+		sort.Slice(rules, func(i, j int) bool { return rules[i].Name < rules[j].Name })
+		for _, rule := range rules {
+			fmt.Println(rule.Name)
+		}
+		return nil
+	}
+
 	var evmIdentifier string
 	if context.Args().Len() >= 1 {
 		evmIdentifier = context.Args().Get(0)
@@ -50,10 +70,19 @@ func doRun(context *cli.Context) error {
 		return fmt.Errorf("invalid EVM identifier, use one of: %v", availableIdentifiers)
 	}
 
+	filter, err := regexp.Compile(context.String("filter"))
+	if err != nil {
+		return err
+	}
+
 	rnd := rand.New(context.Uint64("seed"))
 
 	rules := spc.Spec.GetRules()
 	for _, rule := range rules {
+		if !filter.MatchString(rule.Name) {
+			continue
+		}
+
 		fmt.Println(rule)
 		errs := rule.EnumerateTestCases(rnd, func(state *st.State) error {
 			if applies, err := rule.Condition.Check(state); !applies || err != nil {
