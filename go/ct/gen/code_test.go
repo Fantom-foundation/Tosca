@@ -92,7 +92,7 @@ func TestCodeGenerator_IsCodeConstraint(t *testing.T) {
 	}
 
 	if !state.IsCode(int(pos.Uint64())) {
-		t.Error("IsCode constraint not satisfies")
+		t.Error("IsCode constraint not satisfied")
 	}
 }
 
@@ -115,7 +115,7 @@ func TestCodeGenerator_IsDataConstraint(t *testing.T) {
 	}
 
 	if !state.IsData(int(pos.Uint64())) {
-		t.Error("IsCode constraint not satisfies")
+		t.Error("IsCode constraint not satisfied")
 	}
 }
 
@@ -260,5 +260,62 @@ func TestCodeGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	want = "{op[4]=STOP}"
 	if got := generator.String(); got != want {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
+	}
+}
+
+func TestVarCodeConstraintSolver_fitsOnEmpty(t *testing.T) {
+	tests := []struct {
+		pos  int
+		op   OpCode
+		fits bool
+	}{
+		{0, JUMP, true},
+		{1, JUMP, true},
+		{2, JUMP, true},
+		{3, JUMP, false},
+		{4, JUMP, false},
+		{0, PUSH1, true},
+		{1, PUSH1, true},
+		{2, PUSH1, false},
+		{0, PUSH2, true},
+		{1, PUSH2, false},
+		{2, PUSH2, false},
+		{0, PUSH3, false},
+		{1, PUSH3, false},
+	}
+	for _, test := range tests {
+		solver := newVarCodeConstraintSolver(3, nil, nil, nil)
+		if want, got := test.fits, solver.fits(test.pos, test.op); want != got {
+			t.Fatalf("incorrect fit want %v, got %v", want, got)
+		}
+	}
+}
+
+func TestVarCodeConstraintSolver_fitsOnUsed(t *testing.T) {
+	tests := []struct {
+		pos  int
+		op   OpCode
+		fits bool
+	}{
+		{0, JUMP, true},
+		{1, JUMP, true},
+		{2, JUMP, true},
+		{3, JUMP, false},
+		{4, JUMP, false},
+		{0, PUSH1, true},
+		{1, PUSH1, true},
+		{2, PUSH1, false},
+		{0, PUSH2, true},
+		{1, PUSH2, false},
+		{2, PUSH2, false},
+		{0, PUSH3, false},
+		{1, PUSH3, false},
+	}
+	for _, test := range tests {
+		solver := newVarCodeConstraintSolver(4, nil, nil, nil)
+		solver.markUsed(3, JUMPDEST)
+		if want, got := test.fits, solver.fits(test.pos, test.op); want != got {
+			t.Fatalf("incorrect fit want %v, got %v", want, got)
+		}
 	}
 }

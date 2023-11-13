@@ -69,6 +69,8 @@ func (g *CodeGenerator) AddIsData(v Variable) {
 // generator or returns ErrUnsatisfiable on conflicting constraints. Updates the
 // given assignment along the way.
 func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Code, error) {
+	var err error
+
 	// Pick a random size that is large enough for all const constraints.
 	minSize := 0
 	for _, constraint := range g.constOps {
@@ -88,9 +90,16 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 
 	size := int(rnd.Int31n(int32(24576+1-minSize))) + minSize
 
-	ops, err := g.solveVarConstraints(assignment, rnd, size)
-	if err != nil {
-		return nil, err
+	ops := slices.Clone(g.constOps)
+
+	// Solve variable constraints. constOpConstraints are generated, the
+	// assignment is updated.
+	if len(g.varOps)+len(g.varIsCodeConstraints)+len(g.varIsDataConstraints) != 0 {
+		solver := newVarCodeConstraintSolver(size, ops, assignment, rnd)
+		ops, err = solver.solve(g.varOps, g.varIsCodeConstraints, g.varIsDataConstraints)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Create the code and fill in content based on the operation constraints.
@@ -169,191 +178,6 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 	return st.NewCode(code), nil
 }
 
-// solveVarConstraints converts the variable op-constraints into const
-// constraints by fixing their position.
-func (g *CodeGenerator) solveVarConstraints(assignment Assignment, rnd *rand.Rand, codeSize int) ([]constOpConstraint, error) {
-	ops := slices.Clone(g.constOps)
-	sort.Slice(ops, func(i, j int) bool { return ops[i].pos < ops[j].pos })
-
-	if len(g.varOps) == 0 && len(g.varIsCodeConstraints) == 0 && len(g.varIsDataConstraints) == 0 {
-		return ops, nil
-	}
-
-	// Note: this solver for constraints with variables is sound but not
-	// complete. There may be cases where variable positions may be assigned to
-	// fit into a given code size which are missed due to a fragmentation of the
-	// code into too small code sections, eliminating the possibility to fit in
-	// larger push operations. However, this can only happen with sets of
-	// constraints with more than one variable, which should not be needed.
-	bound := map[Variable]OpCode{}
-
-	// track used code positions
-	used := map[int]int{}
-
-	const isUnused = 0
-	const isCode = 1
-	const isData = 2
-
-	markUsed := func(pos int, op OpCode) {
-		used[pos] = isCode
-		if PUSH1 <= op && op <= PUSH32 {
-			width := int(op - PUSH1 + 1)
-			for i := 0; i < width; i++ {
-				used[pos+i+1] = isData
-			}
-		}
-	}
-	fits := func(pos int, op OpCode) bool {
-		if used[pos] != isUnused {
-			return false
-		}
-		if PUSH1 <= op && op <= PUSH32 {
-			width := int(op - PUSH1 + 1)
-			for i := 0; i < width; i++ {
-				if used[pos+i+1] != isUnused {
-					return false
-				}
-			}
-		}
-		return true
-	}
-
-	for _, cur := range g.constOps {
-		markUsed(cur.pos, cur.op)
-	}
-	for _, cur := range g.varOps {
-		if op, found := bound[cur.variable]; found {
-			if op != cur.op {
-				return nil, fmt.Errorf(
-					"%w, unable to satisfy conflicting constraint for op[%v]=%v and op[%v]=%v",
-					ErrUnsatisfiable, cur.variable, op, cur.variable, cur.op,
-				)
-			}
-			continue
-		}
-		bound[cur.variable] = cur.op
-
-		// select a suitable code position for the current variable constraint
-		pos := int(rnd.Int31n(int32(codeSize)))
-		startPos := pos
-		for !fits(pos, cur.op) {
-			pos++
-			if pos >= codeSize {
-				pos = 0
-			}
-			if pos == startPos {
-				return nil, fmt.Errorf(
-					"%w, unable to fit operations in given code size",
-					ErrUnsatisfiable,
-				)
-			}
-		}
-		markUsed(pos, cur.op)
-
-		// Record and enforce the variable position.
-		if assignment != nil {
-			assignment[cur.variable] = NewU256(uint64(pos))
-		}
-		ops = append(ops, constOpConstraint{pos, cur.op})
-	}
-
-	for _, cur := range g.varIsCodeConstraints {
-		// All variables used in g.varOps already point to code.
-		if slices.ContainsFunc(g.varOps, func(e varOpConstraint) bool { return e.variable == cur.variable }) {
-			continue
-		}
-
-		// For the remaining variables, find a position and either populate an
-		// unused slot, or use a slot with code in it. Code position 0 is
-		// guaranteed to be unused or contain code.
-		pos := int(rnd.Int31n(int32(codeSize)))
-		startPos := pos
-		for used[pos] == isData {
-			pos++
-			if pos >= codeSize {
-				pos = 0
-			}
-			if pos == startPos {
-				return nil, fmt.Errorf("%w, unable to fit isCode constraint in given code size", ErrUnsatisfiable)
-			}
-		}
-
-		// Record and enforce the variable position.
-		if assignment != nil {
-			assignment[cur.variable] = NewU256(uint64(pos))
-		}
-
-		if used[pos] == isUnused {
-			// Pick some random op from the list and lock it in.
-			randomOps := []OpCode{STOP, ADD, JUMP, JUMPI, JUMPDEST}
-			op := randomOps[rnd.Intn(len(randomOps))]
-			ops = append(ops, constOpConstraint{pos, op})
-			markUsed(pos, op)
-		}
-	}
-
-	for _, cur := range g.varIsDataConstraints {
-		// Check if the variable is already assigned and points to a slot marked
-		// as code. If so, we cannot satisfy this constraint!
-		if pos, isAssigned := assignment[cur.variable]; isAssigned {
-			if pos.Lt(NewU256(uint64(len(used)))) && used[int(pos.Uint64())] == isCode {
-				return nil, fmt.Errorf("%w, unable to satisfy isData[%v]", ErrUnsatisfiable, cur.variable)
-			}
-		}
-
-		// For the remaining variables, find a position and either populate an
-		// unused slot, or use a slot with data in it.
-		pos := int(rnd.Int31n(int32(codeSize)))
-		startPos := pos
-		pushOp := PUSH1
-
-		for {
-			if used[pos] == isData {
-				break
-			}
-
-			if used[pos] == isUnused {
-				largestFit := 32
-				for ; largestFit >= 0; largestFit-- {
-					if largestFit == 0 {
-						break // no PUSH op fits
-					}
-					if fits(pos, OpCode(int(PUSH1)-1+largestFit)) {
-						break // PUSH ops up to length largestFit fit here
-					}
-				}
-
-				if largestFit != 0 {
-					pushLength := rnd.Intn(largestFit) + 1
-					pushOp = OpCode(int(PUSH1) - 1 + pushLength)
-					break
-				}
-			}
-
-			pos++
-			if pos >= codeSize {
-				pos = 0
-			}
-			if pos == startPos {
-				return nil, fmt.Errorf("%w, unable to fit isData constraint in given code size", ErrUnsatisfiable)
-			}
-		}
-
-		if used[pos] == isUnused {
-			ops = append(ops, constOpConstraint{pos, pushOp})
-			markUsed(pos, pushOp)
-			pos++
-		}
-
-		// Record and enforce the variable position.
-		if assignment != nil {
-			assignment[cur.variable] = NewU256(uint64(pos))
-		}
-	}
-
-	return ops, nil
-}
-
 // Clone creates an independent copy of the generator in its current state.
 // Future modifications are isolated from each other.
 func (g *CodeGenerator) Clone() *CodeGenerator {
@@ -400,4 +224,238 @@ func (g *CodeGenerator) String() string {
 	}
 
 	return "{" + strings.Join(parts, ",") + "}"
+}
+
+////////////////////////////////////////////////////////////
+// Variable Constraint Solver
+
+// varCodeConstraintSolver is a solver for the CodeGenerator's variable
+// constraints (including isCode and isData constraints).
+//
+// Note: this solver for constraints with variables is sound but not complete.
+// There may be cases where variable positions may be assigned to fit into a
+// given code size which are missed due to a fragmentation of the code into too
+// small code sections, eliminating the possibility to fit in larger push
+// operations. However, this can only happen with sets of constraints with more
+// than one variable, which should not be needed.
+type varCodeConstraintSolver struct {
+	codeSize      int
+	ops           []constOpConstraint
+	assignment    Assignment
+	usedPositions map[int]Used
+	rnd           *rand.Rand
+}
+
+type Used int
+
+const (
+	isUnused = 0
+	isCode   = 1
+	isData   = 2
+)
+
+// newVarCodeConstraintSolver creates a solver for the given codeSize. The
+// provided constOps are honored. The given assignment is updated in-place.
+func newVarCodeConstraintSolver(codeSize int, constOps []constOpConstraint, assignment Assignment, rnd *rand.Rand) varCodeConstraintSolver {
+	solver := varCodeConstraintSolver{
+		codeSize:      codeSize,
+		ops:           constOps,
+		assignment:    assignment,
+		usedPositions: make(map[int]Used),
+		rnd:           rnd,
+	}
+	for _, con := range constOps {
+		solver.markUsed(con.pos, con.op)
+	}
+	return solver
+}
+
+// solve is the entry point for varCodeConstraintSolver, other functions are
+// considered internal.
+func (s *varCodeConstraintSolver) solve(
+	varOps []varOpConstraint,
+	varIsCodeConstraints []varIsCodeConstraint,
+	varIsDataConstraints []varIsDataConstraint) ([]constOpConstraint, error) {
+
+	err := s.solveVarOps(varOps)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.solveIsCode(varIsCodeConstraints)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.solveIsData(varIsDataConstraints)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.ops, nil
+}
+
+func (s *varCodeConstraintSolver) markUsed(pos int, op OpCode) {
+	s.usedPositions[pos] = isCode
+	for i := 1; i <= op.Width()-1; i++ {
+		s.usedPositions[pos+i] = isData
+	}
+}
+
+// fits returns true iff the op can be placed at pos.
+func (s *varCodeConstraintSolver) fits(pos int, op OpCode) bool {
+	if op.Width() > s.codeSize-pos {
+		return false
+	}
+	for i := 0; i <= op.Width()-1; i++ {
+		if s.usedPositions[pos+i] != isUnused {
+			return false
+		}
+	}
+	return true
+}
+
+// largestFit returns the number of subsequent unused slots starting at pos. The
+// maximum is 33 since this is the largest instruction we have.
+func (s *varCodeConstraintSolver) largestFit(pos int) int {
+	n := 0
+	for ; n <= 33 && pos+n < s.codeSize; n++ {
+		if s.usedPositions[pos+n] != isUnused {
+			break
+		}
+	}
+	return n
+}
+
+func (s *varCodeConstraintSolver) assign(v Variable, pos int) {
+	if s.assignment != nil {
+		s.assignment[v] = NewU256(uint64(pos))
+	}
+}
+
+func (solver *varCodeConstraintSolver) solveVarOps(varOps []varOpConstraint) error {
+	boundVariables := make(map[Variable]OpCode)
+	for _, cur := range varOps {
+		if op, found := boundVariables[cur.variable]; found {
+			if op != cur.op {
+				return fmt.Errorf("%w, unable to satisfy conflicting constraint for op[%v]=%v and op[%v]=%v", ErrUnsatisfiable, cur.variable, op, cur.variable, cur.op)
+			}
+			continue
+		}
+
+		// Select a suitable code position for the current variable constraint.
+		pos := int(solver.rnd.Int31n(int32(solver.codeSize)))
+		startPos := pos
+		for !solver.fits(pos, cur.op) {
+			pos++
+			if pos >= solver.codeSize {
+				pos = 0
+			}
+			if pos == startPos {
+				return fmt.Errorf("%w, unable to fit operations in given code size", ErrUnsatisfiable)
+			}
+		}
+
+		boundVariables[cur.variable] = cur.op
+
+		solver.markUsed(pos, cur.op)
+		solver.ops = append(solver.ops, constOpConstraint{pos, cur.op})
+
+		solver.assign(cur.variable, pos)
+	}
+	return nil
+}
+
+func (solver *varCodeConstraintSolver) solveIsCode(varIsCodeConstraints []varIsCodeConstraint) error {
+	for _, cur := range varIsCodeConstraints {
+		// Check if the variable is already assigned and points to a slot marked
+		// as code.
+		if pos, isAssigned := solver.assignment[cur.variable]; isAssigned {
+			if !pos.Lt(NewU256(uint64(solver.codeSize))) {
+				return fmt.Errorf("%w, unable to satisfy isCode[%v], out-of-bounds", ErrUnsatisfiable, cur.variable)
+			}
+			if solver.usedPositions[int(pos.Uint64())] == isCode {
+				continue // already satisfied
+			}
+		}
+
+		// For the remaining variables, find a position and either populate an
+		// unused slot, or use a slot with code in it. Code position 0 is
+		// guaranteed to be either unused or contain code.
+		pos := int(solver.rnd.Int31n(int32(solver.codeSize)))
+		startPos := pos
+		for solver.usedPositions[pos] == isData {
+			pos++
+			if pos >= solver.codeSize {
+				pos = 0
+			}
+			if pos == startPos {
+				return fmt.Errorf("%w, unable to fit isCode constraint in given code size", ErrUnsatisfiable)
+			}
+		}
+
+		if solver.usedPositions[pos] == isUnused {
+			// Pick a random op and lock it in.
+			randomOps := ValidOpCodesNoPush()
+			op := randomOps[solver.rnd.Intn(len(randomOps))]
+			solver.markUsed(pos, op)
+			solver.ops = append(solver.ops, constOpConstraint{pos, op})
+		}
+
+		solver.assign(cur.variable, pos)
+	}
+	return nil
+}
+
+func (solver *varCodeConstraintSolver) solveIsData(varIsDataConstraints []varIsDataConstraint) error {
+	for _, cur := range varIsDataConstraints {
+		// Check if the variable is already assigned and points to a slot marked
+		// as code. If so, we cannot satisfy this constraint!
+		if pos, isAssigned := solver.assignment[cur.variable]; isAssigned {
+			if pos.Lt(NewU256(uint64(solver.codeSize))) && solver.usedPositions[int(pos.Uint64())] == isCode {
+				return fmt.Errorf("%w, unable to satisfy isData[%v]", ErrUnsatisfiable, cur.variable)
+			}
+		}
+
+		// For the remaining variables, find a position and either populate an
+		// unused slot, or use a slot with data in it.
+		pos := int(solver.rnd.Int31n(int32(solver.codeSize)))
+		startPos := pos
+		pushOp := PUSH1
+
+		for {
+			if solver.usedPositions[pos] == isData {
+				break // using this pos
+			}
+
+			if solver.usedPositions[pos] == isUnused {
+				// Pick a random PUSH op that fits here, if one fits at all.
+				if largestFit := solver.largestFit(pos); largestFit >= 2 {
+					pushOp = OpCode(int(PUSH1) + solver.rnd.Intn(largestFit-1))
+					break // picked one
+				}
+			}
+
+			pos++
+			if pos >= solver.codeSize {
+				pos = 0
+			}
+			if pos == startPos {
+				return fmt.Errorf("%w, unable to fit isData constraint in given code size", ErrUnsatisfiable)
+			}
+		}
+
+		if solver.usedPositions[pos] == isUnused {
+			// set PUSH op
+			solver.markUsed(pos, pushOp)
+			solver.ops = append(solver.ops, constOpConstraint{pos, pushOp})
+
+			// pick some data byte for the variable's value
+			pos = pos + 1 + solver.rnd.Intn(int(pushOp-PUSH1)+1)
+
+		}
+
+		solver.assign(cur.variable, pos)
+	}
+	return nil
 }

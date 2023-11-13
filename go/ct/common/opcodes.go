@@ -1,6 +1,10 @@
 package common
 
-import "fmt"
+import (
+	"fmt"
+
+	"golang.org/x/exp/slices"
+)
 
 type OpCode byte
 
@@ -41,6 +45,49 @@ const (
 	PUSH32     OpCode = 0x7F
 	INVALID    OpCode = 0xFE
 )
+
+func (op OpCode) Width() int {
+	if PUSH1 <= op && op <= PUSH32 {
+		return int(op-PUSH1) + 2
+	} else {
+		return 1
+	}
+}
+
+// OpCodesNoPush returns a slice of valid op codes, but no PUSH instruction.
+func ValidOpCodesNoPush() []OpCode {
+	return slices.Clone([]OpCode{
+		STOP,
+		ADD,
+		MUL,
+		SUB,
+		DIV,
+		SDIV,
+		MOD,
+		SMOD,
+		ADDMOD,
+		MULMOD,
+		EXP,
+		SIGNEXTEND,
+		LT,
+		GT,
+		SLT,
+		SGT,
+		EQ,
+		ISZERO,
+		AND,
+		OR,
+		XOR,
+		NOT,
+		BYTE,
+		SHL,
+		SHR,
+		SAR,
+		JUMP,
+		JUMPI,
+		JUMPDEST,
+	})
+}
 
 func (op OpCode) String() string {
 	switch op {
