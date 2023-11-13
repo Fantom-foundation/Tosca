@@ -258,8 +258,8 @@ func (g *CodeGenerator) solveVarConstraints(assignment Assignment, rnd *rand.Ran
 	}
 
 	for _, cur := range g.varIsCodeConstraints {
-		// All assigned variables already point to code by processing g.varOps.
-		if _, isAssigned := assignment[cur.variable]; isAssigned {
+		// All variables used in g.varOps already point to code.
+		if slices.ContainsFunc(g.varOps, func(e varOpConstraint) bool { return e.variable == cur.variable }) {
 			continue
 		}
 
@@ -284,23 +284,52 @@ func (g *CodeGenerator) solveVarConstraints(assignment Assignment, rnd *rand.Ran
 		}
 
 		if used[pos] == isUnused {
-			// Using JUMPDEST as *some* code instruction.
-			ops = append(ops, constOpConstraint{pos, JUMPDEST})
-			markUsed(pos, JUMPDEST)
+			// Pick some random op from the list and lock it in.
+			randomOps := []OpCode{STOP, ADD, JUMP, JUMPI, JUMPDEST}
+			op := randomOps[rnd.Intn(len(randomOps))]
+			ops = append(ops, constOpConstraint{pos, op})
+			markUsed(pos, op)
 		}
 	}
 
 	for _, cur := range g.varIsDataConstraints {
-		// All assigned variables already point to code!
-		if _, isAssigned := assignment[cur.variable]; isAssigned {
-			return nil, fmt.Errorf("%w, unable to satisfy isData[%v]", ErrUnsatisfiable, cur.variable)
+		// Check if the variable is already assigned and points to a slot marked
+		// as code. If so, we cannot satisfy this constraint!
+		if pos, isAssigned := assignment[cur.variable]; isAssigned {
+			if pos.Lt(NewU256(uint64(len(used)))) && used[int(pos.Uint64())] == isCode {
+				return nil, fmt.Errorf("%w, unable to satisfy isData[%v]", ErrUnsatisfiable, cur.variable)
+			}
 		}
 
 		// For the remaining variables, find a position and either populate an
 		// unused slot, or use a slot with data in it.
 		pos := int(rnd.Int31n(int32(codeSize)))
 		startPos := pos
-		for used[pos] != isData && !(used[pos] == isUnused && fits(pos, PUSH1)) {
+		pushOp := PUSH1
+
+		for {
+			if used[pos] == isData {
+				break
+			}
+
+			if used[pos] == isUnused {
+				largestFit := 32
+				for ; largestFit >= 0; largestFit-- {
+					if largestFit == 0 {
+						break // no PUSH op fits
+					}
+					if fits(pos, OpCode(int(PUSH1)-1+largestFit)) {
+						break // PUSH ops up to length largestFit fit here
+					}
+				}
+
+				if largestFit != 0 {
+					pushLength := rnd.Intn(largestFit) + 1
+					pushOp = OpCode(int(PUSH1) - 1 + pushLength)
+					break
+				}
+			}
+
 			pos++
 			if pos >= codeSize {
 				pos = 0
@@ -311,8 +340,8 @@ func (g *CodeGenerator) solveVarConstraints(assignment Assignment, rnd *rand.Ran
 		}
 
 		if used[pos] == isUnused {
-			ops = append(ops, constOpConstraint{pos, PUSH1})
-			markUsed(pos, PUSH1)
+			ops = append(ops, constOpConstraint{pos, pushOp})
+			markUsed(pos, pushOp)
 			pos++
 		}
 
