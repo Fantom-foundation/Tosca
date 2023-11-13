@@ -71,7 +71,9 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 	}
 
 	pc, ok := pcMap.lfvmToEvm[uint16(ctx.pc)]
-	if !ok {
+
+	// Since two failed states are considered equal, the PC conversion may fail when the status is failed.
+	if !ok && status != st.Failed {
 		return nil, fmt.Errorf("unable to convert lfvm pc %d to evm pc", ctx.pc)
 	}
 
