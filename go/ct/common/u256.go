@@ -19,12 +19,24 @@ type U256 struct {
 // by padding leading zeros as needed. No argument results in a value of zero.
 func NewU256(args ...uint64) (result U256) {
 	if len(args) > 4 {
-		panic("To many arguments")
+		panic("Too many arguments")
 	}
 	offset := 4 - len(args)
 	for i := 0; i < len(args) && i < len(result.internal); i++ {
 		result.internal[3-i-offset] = args[i]
 	}
+	return
+}
+
+// NewU256FromBytes creates a new U256 instance from up to 32 byte arguments.
+// The arguments are given in the order from most significant to least
+// significant by padding leading zeros as needed. No argument results in a
+// value of zero.
+func NewU256FromBytes(bytes ...byte) (result U256) {
+	if len(bytes) > 32 {
+		panic("Too many arguments")
+	}
+	result.internal.SetBytes(bytes)
 	return
 }
 

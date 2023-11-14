@@ -42,6 +42,33 @@ const (
 	PUSH1      OpCode = 0x60
 	PUSH2      OpCode = 0x61
 	PUSH3      OpCode = 0x62
+	PUSH4      OpCode = 0x63
+	PUSH5      OpCode = 0x64
+	PUSH6      OpCode = 0x65
+	PUSH7      OpCode = 0x66
+	PUSH8      OpCode = 0x67
+	PUSH9      OpCode = 0x68
+	PUSH10     OpCode = 0x69
+	PUSH11     OpCode = 0x6A
+	PUSH12     OpCode = 0x6B
+	PUSH13     OpCode = 0x6C
+	PUSH14     OpCode = 0x6D
+	PUSH15     OpCode = 0x6E
+	PUSH16     OpCode = 0x6F
+	PUSH17     OpCode = 0x70
+	PUSH18     OpCode = 0x71
+	PUSH19     OpCode = 0x72
+	PUSH20     OpCode = 0x73
+	PUSH21     OpCode = 0x74
+	PUSH22     OpCode = 0x75
+	PUSH23     OpCode = 0x76
+	PUSH24     OpCode = 0x77
+	PUSH25     OpCode = 0x78
+	PUSH26     OpCode = 0x79
+	PUSH27     OpCode = 0x7A
+	PUSH28     OpCode = 0x7B
+	PUSH29     OpCode = 0x7C
+	PUSH30     OpCode = 0x7D
 	PUSH31     OpCode = 0x7E
 	PUSH32     OpCode = 0x7F
 	DUP1       OpCode = 0x80
@@ -223,6 +250,60 @@ func (op OpCode) String() string {
 		return "PUSH2"
 	case PUSH3:
 		return "PUSH3"
+	case PUSH4:
+		return "PUSH4"
+	case PUSH5:
+		return "PUSH5"
+	case PUSH6:
+		return "PUSH6"
+	case PUSH7:
+		return "PUSH7"
+	case PUSH8:
+		return "PUSH8"
+	case PUSH9:
+		return "PUSH9"
+	case PUSH10:
+		return "PUSH10"
+	case PUSH11:
+		return "PUSH11"
+	case PUSH12:
+		return "PUSH12"
+	case PUSH13:
+		return "PUSH13"
+	case PUSH14:
+		return "PUSH14"
+	case PUSH15:
+		return "PUSH15"
+	case PUSH16:
+		return "PUSH16"
+	case PUSH17:
+		return "PUSH17"
+	case PUSH18:
+		return "PUSH18"
+	case PUSH19:
+		return "PUSH19"
+	case PUSH20:
+		return "PUSH20"
+	case PUSH21:
+		return "PUSH21"
+	case PUSH22:
+		return "PUSH22"
+	case PUSH23:
+		return "PUSH23"
+	case PUSH24:
+		return "PUSH24"
+	case PUSH25:
+		return "PUSH25"
+	case PUSH26:
+		return "PUSH26"
+	case PUSH27:
+		return "PUSH27"
+	case PUSH28:
+		return "PUSH28"
+	case PUSH29:
+		return "PUSH29"
+	case PUSH30:
+		return "PUSH30"
 	case PUSH31:
 		return "PUSH31"
 	case PUSH32:
