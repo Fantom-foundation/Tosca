@@ -232,22 +232,22 @@ func (stackSizeDomain) Equal(a int, b int) bool     { return a == b }
 func (stackSizeDomain) Less(a int, b int) bool      { return a < b }
 func (stackSizeDomain) Predecessor(a int) int       { return a - 1 }
 func (stackSizeDomain) Successor(a int) int         { return a + 1 }
-func (stackSizeDomain) SomethingNotEqual(a int) int { return (a + 1) % 1024 }
+func (stackSizeDomain) SomethingNotEqual(a int) int { return (a + 1) % st.MaxStackSize }
 
 func (d stackSizeDomain) Samples(a int) []int {
 	return d.SamplesForAll([]int{a})
 }
 func (stackSizeDomain) SamplesForAll(as []int) []int {
-	res := []int{0, 1024} // extreme values
+	res := []int{0, st.MaxStackSize} // extreme values
 
 	// Test every element off by one.
 	for _, a := range as {
-		if 0 <= a && a <= 1024 {
+		if 0 <= a && a <= st.MaxStackSize {
 			if a != 0 {
 				res = append(res, a-1)
 			}
 			res = append(res, a)
-			if a != 1024 {
+			if a != st.MaxStackSize {
 				res = append(res, a+1)
 			}
 		}

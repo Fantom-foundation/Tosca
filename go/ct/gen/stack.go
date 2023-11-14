@@ -96,8 +96,8 @@ func (g *StackGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.St
 	} else {
 		size = int(rnd.Int31n(5)) + maxPositionInValues(constraints) + 1
 	}
-	if size > 1024 {
-		return nil, fmt.Errorf("%w, can not produce stack larger than 1024 elements %d", ErrUnsatisfiable, size)
+	if size > st.MaxStackSize {
+		return nil, fmt.Errorf("%w, can not produce stack larger than %d elements %d", ErrUnsatisfiable, st.MaxStackSize, size)
 	}
 
 	stack := st.NewStackWithSize(size)

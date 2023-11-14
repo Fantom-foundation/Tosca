@@ -44,6 +44,22 @@ const (
 	PUSH3      OpCode = 0x62
 	PUSH31     OpCode = 0x7E
 	PUSH32     OpCode = 0x7F
+	DUP1       OpCode = 0x80
+	DUP2       OpCode = 0x81
+	DUP3       OpCode = 0x82
+	DUP4       OpCode = 0x83
+	DUP5       OpCode = 0x84
+	DUP6       OpCode = 0x85
+	DUP7       OpCode = 0x86
+	DUP8       OpCode = 0x87
+	DUP9       OpCode = 0x88
+	DUP10      OpCode = 0x89
+	DUP11      OpCode = 0x8A
+	DUP12      OpCode = 0x8B
+	DUP13      OpCode = 0x8C
+	DUP14      OpCode = 0x8D
+	DUP15      OpCode = 0x8E
+	DUP16      OpCode = 0x8F
 	INVALID    OpCode = 0xFE
 )
 
@@ -88,6 +104,22 @@ func ValidOpCodesNoPush() []OpCode {
 		JUMP,
 		JUMPI,
 		JUMPDEST,
+		DUP1,
+		DUP2,
+		DUP3,
+		DUP4,
+		DUP5,
+		DUP6,
+		DUP7,
+		DUP8,
+		DUP9,
+		DUP10,
+		DUP11,
+		DUP12,
+		DUP13,
+		DUP14,
+		DUP15,
+		DUP16,
 	})
 }
 
@@ -163,6 +195,38 @@ func (op OpCode) String() string {
 		return "PUSH31"
 	case PUSH32:
 		return "PUSH32"
+	case DUP1:
+		return "DUP1"
+	case DUP2:
+		return "DUP2"
+	case DUP3:
+		return "DUP3"
+	case DUP4:
+		return "DUP4"
+	case DUP5:
+		return "DUP5"
+	case DUP6:
+		return "DUP6"
+	case DUP7:
+		return "DUP7"
+	case DUP8:
+		return "DUP8"
+	case DUP9:
+		return "DUP9"
+	case DUP10:
+		return "DUP10"
+	case DUP11:
+		return "DUP11"
+	case DUP12:
+		return "DUP12"
+	case DUP13:
+		return "DUP13"
+	case DUP14:
+		return "DUP14"
+	case DUP15:
+		return "DUP15"
+	case DUP16:
+		return "DUP16"
 	case INVALID:
 		return "INVALID"
 	default:

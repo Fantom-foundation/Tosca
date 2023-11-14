@@ -432,6 +432,12 @@ var Spec = func() Specification {
 		},
 	}...)
 
+	// --- Stack DUP ---
+
+	for i := 1; i <= 16; i++ {
+		rules = append(rules, dupOp(i)...)
+	}
+
 	// --- End ---
 
 	return NewSpecification(rules...)
@@ -600,6 +606,64 @@ func unaryOp(
 				Eq(Op(Pc()), op),
 				Ge(Gas(), costs),
 				Lt(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+	}
+}
+
+func dupOp(n int) []Rule {
+	op := OpCode(int(DUP1) + n - 1)
+	name := strings.ToLower(op.String())
+	return []Rule{
+		{
+			Name: fmt.Sprintf("%v_regular", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(Gas(), 3),
+				Ge(StackSize(), n),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 3
+				s.Stack.Push(s.Stack.Get(n - 1))
+			}),
+		},
+
+		{
+			Name: fmt.Sprintf("%v_with_too_little_gas", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Lt(Gas(), 3),
+				Ge(StackSize(), n),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: fmt.Sprintf("%v_with_too_few_elements", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(Gas(), 3),
+				Lt(StackSize(), n),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: fmt.Sprintf("%v_with_not_enough_space", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(Gas(), 3),
+				Ge(StackSize(), n),
+				Ge(StackSize(), st.MaxStackSize),
 			),
 			Effect: FailEffect(),
 		},
