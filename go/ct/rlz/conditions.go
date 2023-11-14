@@ -340,7 +340,7 @@ func (c *isCode) Check(s *st.State) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if pos.Gt(NewU256(math.MaxInt)) {
+	if !pos.IsUint64() || pos.Uint64() > math.MaxInt {
 		return false, nil
 	}
 	return s.Code.IsCode(int(pos.Uint64())), nil
@@ -382,7 +382,7 @@ func (c *isData) Check(s *st.State) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if pos.Gt(NewU256(math.MaxInt)) {
+	if !pos.IsUint64() || pos.Uint64() > math.MaxInt {
 		return false, nil
 	}
 	return s.Code.IsData(int(pos.Uint64())), nil
