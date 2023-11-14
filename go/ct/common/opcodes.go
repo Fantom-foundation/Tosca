@@ -60,6 +60,22 @@ const (
 	DUP14      OpCode = 0x8D
 	DUP15      OpCode = 0x8E
 	DUP16      OpCode = 0x8F
+	SWAP1      OpCode = 0x90
+	SWAP2      OpCode = 0x91
+	SWAP3      OpCode = 0x92
+	SWAP4      OpCode = 0x93
+	SWAP5      OpCode = 0x94
+	SWAP6      OpCode = 0x95
+	SWAP7      OpCode = 0x96
+	SWAP8      OpCode = 0x97
+	SWAP9      OpCode = 0x98
+	SWAP10     OpCode = 0x99
+	SWAP11     OpCode = 0x9A
+	SWAP12     OpCode = 0x9B
+	SWAP13     OpCode = 0x9C
+	SWAP14     OpCode = 0x9D
+	SWAP15     OpCode = 0x9E
+	SWAP16     OpCode = 0x9F
 	INVALID    OpCode = 0xFE
 )
 
@@ -120,6 +136,22 @@ func ValidOpCodesNoPush() []OpCode {
 		DUP14,
 		DUP15,
 		DUP16,
+		SWAP1,
+		SWAP2,
+		SWAP3,
+		SWAP4,
+		SWAP5,
+		SWAP6,
+		SWAP7,
+		SWAP8,
+		SWAP9,
+		SWAP10,
+		SWAP11,
+		SWAP12,
+		SWAP13,
+		SWAP14,
+		SWAP15,
+		SWAP16,
 	})
 }
 
@@ -227,6 +259,38 @@ func (op OpCode) String() string {
 		return "DUP15"
 	case DUP16:
 		return "DUP16"
+	case SWAP1:
+		return "SWAP1"
+	case SWAP2:
+		return "SWAP2"
+	case SWAP3:
+		return "SWAP3"
+	case SWAP4:
+		return "SWAP4"
+	case SWAP5:
+		return "SWAP5"
+	case SWAP6:
+		return "SWAP6"
+	case SWAP7:
+		return "SWAP7"
+	case SWAP8:
+		return "SWAP8"
+	case SWAP9:
+		return "SWAP9"
+	case SWAP10:
+		return "SWAP10"
+	case SWAP11:
+		return "SWAP11"
+	case SWAP12:
+		return "SWAP12"
+	case SWAP13:
+		return "SWAP13"
+	case SWAP14:
+		return "SWAP14"
+	case SWAP15:
+		return "SWAP15"
+	case SWAP16:
+		return "SWAP16"
 	case INVALID:
 		return "INVALID"
 	default:

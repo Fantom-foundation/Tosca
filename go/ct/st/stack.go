@@ -31,6 +31,7 @@ func (s *Stack) Clone() *Stack {
 	return &Stack{slices.Clone(s.stack)}
 }
 
+// Size returns the number of elements on the stack.
 func (s *Stack) Size() int {
 	return len(s.stack)
 }
