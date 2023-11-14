@@ -35,6 +35,7 @@ const (
 	SHL        OpCode = 0x1B
 	SHR        OpCode = 0x1C
 	SAR        OpCode = 0x1D
+	POP        OpCode = 0x50
 	JUMP       OpCode = 0x56
 	JUMPI      OpCode = 0x57
 	JUMPDEST   OpCode = 0x5B
@@ -83,6 +84,7 @@ func ValidOpCodesNoPush() []OpCode {
 		SHL,
 		SHR,
 		SAR,
+		POP,
 		JUMP,
 		JUMPI,
 		JUMPDEST,
@@ -143,6 +145,8 @@ func (op OpCode) String() string {
 		return "SHR"
 	case SAR:
 		return "SAR"
+	case POP:
+		return "POP"
 	case JUMP:
 		return "JUMP"
 	case JUMPI:

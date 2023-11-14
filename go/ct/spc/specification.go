@@ -391,6 +391,47 @@ var Spec = func() Specification {
 		},
 	}...)
 
+	// --- Stack POP ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "pop_regular",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), POP),
+				Ge(Gas(), 2),
+				Ge(StackSize(), 1),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 2
+				s.Pc++
+				s.Stack.Pop()
+			}),
+		},
+
+		{
+			Name: "pop_with_too_little_gas",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), POP),
+				Lt(Gas(), 2),
+				Ge(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "pop_with_too_few_elements",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), POP),
+				Ge(Gas(), 2),
+				Lt(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+	}...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)
