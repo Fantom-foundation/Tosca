@@ -21,6 +21,12 @@ func TestCondition_Check(t *testing.T) {
 		return state
 	}
 
+	newStateWithPcAndCode := func(pc uint16, ops ...byte) *st.State {
+		state := st.NewState(st.NewCode(ops))
+		state.Pc = pc
+		return state
+	}
+
 	tests := []struct {
 		condition Condition
 		valid     *st.State
@@ -40,6 +46,8 @@ func TestCondition_Check(t *testing.T) {
 		{Ge(Pc(), NewU256(42)), newStateWithPc(43), newStateWithPc(40)},
 		{And(Eq(Status(), st.Reverted), Eq(Pc(), NewU256(42))), newStateWithStatusAndPc(st.Reverted, 42), newStateWithStatusAndPc(st.Returned, 42)},
 		{And(Eq(Status(), st.Reverted), Eq(Pc(), NewU256(42))), newStateWithStatusAndPc(st.Reverted, 42), newStateWithStatusAndPc(st.Reverted, 41)},
+		{IsCode(Pc()), newStateWithPcAndCode(1, byte(ADD), byte(ADD)), newStateWithPcAndCode(1, byte(PUSH1), byte(0))},
+		{IsData(Pc()), newStateWithPcAndCode(1, byte(PUSH1), byte(0)), newStateWithPcAndCode(1, byte(ADD), byte(ADD))},
 	}
 
 	for _, test := range tests {
@@ -74,6 +82,8 @@ func TestCondition_String(t *testing.T) {
 		{Le(Pc(), NewU256(42)), "PC ≤ 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
 		{Gt(Pc(), NewU256(42)), "PC > 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
 		{Ge(Pc(), NewU256(42)), "PC ≥ 0000000000000000 0000000000000000 0000000000000000 000000000000002a"},
+		{IsCode(Pc()), "isCode[PC]"},
+		{IsData(Pc()), "isData[PC]"},
 		{And(Eq(Status(), st.Running), Eq(Status(), st.Failed)), "status = running ∧ status = failed"},
 	}
 

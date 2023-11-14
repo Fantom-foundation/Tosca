@@ -73,6 +73,52 @@ func TestCodeGenerator_ConflictingVariablesAreDetected(t *testing.T) {
 	}
 }
 
+func TestCodeGenerator_IsCodeConstraint(t *testing.T) {
+	variable := Variable("X")
+
+	generator := NewCodeGenerator()
+	generator.AddIsCode(variable)
+
+	assignment := Assignment{}
+
+	state, err := generator.Generate(assignment, rand.New(0))
+	if err != nil {
+		t.Error(err)
+	}
+
+	pos, found := assignment[variable]
+	if !found {
+		t.Errorf("free variable %v not bound by generator", variable)
+	}
+
+	if !state.IsCode(int(pos.Uint64())) {
+		t.Error("IsCode constraint not satisfied")
+	}
+}
+
+func TestCodeGenerator_IsDataConstraint(t *testing.T) {
+	variable := Variable("X")
+
+	generator := NewCodeGenerator()
+	generator.AddIsData(variable)
+
+	assignment := Assignment{}
+
+	state, err := generator.Generate(assignment, rand.New(0))
+	if err != nil {
+		t.Error(err)
+	}
+
+	pos, found := assignment[variable]
+	if !found {
+		t.Errorf("free variable %v not bound by generator", variable)
+	}
+
+	if !state.IsData(int(pos.Uint64())) {
+		t.Error("IsCode constraint not satisfied")
+	}
+}
+
 func TestCodeGenerator_OperationConstraintsAreEnforced(t *testing.T) {
 	tests := map[string][]struct {
 		p  int
@@ -164,6 +210,8 @@ func TestCodeGenerator_CloneCopiesGeneratorState(t *testing.T) {
 	original := NewCodeGenerator()
 	original.SetOperation(4, PUSH2)
 	original.SetOperation(7, STOP)
+	original.AddIsCode(Variable("X"))
+	original.AddIsData(Variable("Y"))
 
 	clone := original.Clone()
 
@@ -178,16 +226,18 @@ func TestCodeGenerator_ClonesAreIndependent(t *testing.T) {
 
 	clone1 := base.Clone()
 	clone1.SetOperation(7, INVALID)
+	clone1.AddIsCode(Variable("X"))
 
 	clone2 := base.Clone()
 	clone2.SetOperation(7, PUSH2)
+	clone2.AddIsData(Variable("Y"))
 
-	want := "{op[4]=STOP,op[7]=INVALID}"
+	want := "{op[4]=STOP,op[7]=INVALID,isCode[$X]}"
 	if got := clone1.String(); got != want {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
 
-	want = "{op[4]=STOP,op[7]=PUSH2}"
+	want = "{op[4]=STOP,op[7]=PUSH2,isData[$Y]}"
 	if got := clone2.String(); got != want {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
@@ -200,7 +250,8 @@ func TestCodeGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	backup := generator.Clone()
 
 	generator.SetOperation(7, INVALID)
-	want := "{op[4]=STOP,op[7]=INVALID}"
+	generator.AddIsCode(Variable("X"))
+	want := "{op[4]=STOP,op[7]=INVALID,isCode[$X]}"
 	if got := generator.String(); got != want {
 		t.Errorf("unexpected generator state, wanted %s, got %s", want, got)
 	}
@@ -209,5 +260,62 @@ func TestCodeGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	want = "{op[4]=STOP}"
 	if got := generator.String(); got != want {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
+	}
+}
+
+func TestVarCodeConstraintSolver_fitsOnEmpty(t *testing.T) {
+	tests := []struct {
+		pos  int
+		op   OpCode
+		fits bool
+	}{
+		{0, JUMP, true},
+		{1, JUMP, true},
+		{2, JUMP, true},
+		{3, JUMP, false},
+		{4, JUMP, false},
+		{0, PUSH1, true},
+		{1, PUSH1, true},
+		{2, PUSH1, false},
+		{0, PUSH2, true},
+		{1, PUSH2, false},
+		{2, PUSH2, false},
+		{0, PUSH3, false},
+		{1, PUSH3, false},
+	}
+	for _, test := range tests {
+		solver := newVarCodeConstraintSolver(3, nil, nil, nil)
+		if want, got := test.fits, solver.fits(test.pos, test.op); want != got {
+			t.Fatalf("incorrect fit want %v, got %v", want, got)
+		}
+	}
+}
+
+func TestVarCodeConstraintSolver_fitsOnUsed(t *testing.T) {
+	tests := []struct {
+		pos  int
+		op   OpCode
+		fits bool
+	}{
+		{0, JUMP, true},
+		{1, JUMP, true},
+		{2, JUMP, true},
+		{3, JUMP, false},
+		{4, JUMP, false},
+		{0, PUSH1, true},
+		{1, PUSH1, true},
+		{2, PUSH1, false},
+		{0, PUSH2, true},
+		{1, PUSH2, false},
+		{2, PUSH2, false},
+		{0, PUSH3, false},
+		{1, PUSH3, false},
+	}
+	for _, test := range tests {
+		solver := newVarCodeConstraintSolver(4, nil, nil, nil)
+		solver.markUsed(3, JUMPDEST)
+		if want, got := test.fits, solver.fits(test.pos, test.op); want != got {
+			t.Fatalf("incorrect fit want %v, got %v", want, got)
+		}
 	}
 }
