@@ -50,15 +50,13 @@ func And(conditions ...Condition) Condition {
 }
 
 func (c *conjunction) Check(s *st.State) (bool, error) {
-	result := true
 	for _, cur := range c.conditions {
 		r, err := cur.Check(s)
-		if err != nil {
+		if !r || err != nil {
 			return false, err
 		}
-		result = r && result
 	}
-	return result, nil
+	return true, nil
 }
 
 func (c *conjunction) Restrict(generator *gen.StateGenerator) {
