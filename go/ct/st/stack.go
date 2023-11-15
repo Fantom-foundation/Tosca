@@ -8,6 +8,8 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
+const MaxStackSize = 1024
+
 // Stack represent's the EVM's execution stack.
 type Stack struct {
 	stack []U256
@@ -29,6 +31,7 @@ func (s *Stack) Clone() *Stack {
 	return &Stack{slices.Clone(s.stack)}
 }
 
+// Size returns the number of elements on the stack.
 func (s *Stack) Size() int {
 	return len(s.stack)
 }
@@ -58,10 +61,12 @@ func (s *Stack) Pop() U256 {
 	return value
 }
 
+// Eq returns true if the two stacks are equal.
 func (a *Stack) Eq(b *Stack) bool {
 	return slices.Equal(a.stack, b.stack)
 }
 
+// Diff returns a list of differences between the two stacks.
 func (a *Stack) Diff(b *Stack) (res []string) {
 	if a.Size() != b.Size() {
 		res = append(res, fmt.Sprintf("Different stack size: %v vs %v", a.Size(), b.Size()))

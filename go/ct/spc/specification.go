@@ -391,6 +391,65 @@ var Spec = func() Specification {
 		},
 	}...)
 
+	// --- Stack PUSH ---
+
+	for i := 1; i <= 32; i++ {
+		rules = append(rules, pushOp(i)...)
+	}
+
+	// --- Stack POP ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "pop_regular",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), POP),
+				Ge(Gas(), 2),
+				Ge(StackSize(), 1),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 2
+				s.Pc++
+				s.Stack.Pop()
+			}),
+		},
+
+		{
+			Name: "pop_with_too_little_gas",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), POP),
+				Lt(Gas(), 2),
+				Ge(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "pop_with_too_few_elements",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), POP),
+				Ge(Gas(), 2),
+				Lt(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+	}...)
+
+	// --- Stack DUP ---
+
+	for i := 1; i <= 16; i++ {
+		rules = append(rules, dupOp(i)...)
+	}
+
+	// --- Stack SWAP ---
+
+	for i := 1; i <= 16; i++ {
+		rules = append(rules, swapOp(i)...)
+	}
+
 	// --- End ---
 
 	return NewSpecification(rules...)
@@ -559,6 +618,161 @@ func unaryOp(
 				Eq(Op(Pc()), op),
 				Ge(Gas(), costs),
 				Lt(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+	}
+}
+
+func pushOp(n int) []Rule {
+	op := OpCode(int(PUSH1) + n - 1)
+	name := strings.ToLower(op.String())
+	return []Rule{
+		{
+			Name: fmt.Sprintf("%v_regular", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(Gas(), 3),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 3
+				data := make([]byte, n)
+				for i := 0; i < n; i++ {
+					b, err := s.Code.GetData(int(s.Pc) + i + 1)
+					if err != nil {
+						panic(err)
+					}
+					data[i] = b
+				}
+				s.Stack.Push(NewU256FromBytes(data...))
+				s.Pc += uint16(n) + 1
+			}),
+		},
+
+		{
+			Name: fmt.Sprintf("%v_with_too_little_gas", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Lt(Gas(), 3),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: fmt.Sprintf("%v_with_not_enough_space", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(Gas(), 3),
+				Ge(StackSize(), st.MaxStackSize),
+			),
+			Effect: FailEffect(),
+		},
+	}
+}
+
+func dupOp(n int) []Rule {
+	op := OpCode(int(DUP1) + n - 1)
+	name := strings.ToLower(op.String())
+	return []Rule{
+		{
+			Name: fmt.Sprintf("%v_regular", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(Gas(), 3),
+				Ge(StackSize(), n),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 3
+				s.Stack.Push(s.Stack.Get(n - 1))
+			}),
+		},
+
+		{
+			Name: fmt.Sprintf("%v_with_too_little_gas", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Lt(Gas(), 3),
+				Ge(StackSize(), n),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: fmt.Sprintf("%v_with_too_few_elements", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(Gas(), 3),
+				Lt(StackSize(), n),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: fmt.Sprintf("%v_with_not_enough_space", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(Gas(), 3),
+				Ge(StackSize(), n),
+				Ge(StackSize(), st.MaxStackSize),
+			),
+			Effect: FailEffect(),
+		},
+	}
+}
+
+func swapOp(n int) []Rule {
+	op := OpCode(int(SWAP1) + n - 1)
+	name := strings.ToLower(op.String())
+	return []Rule{
+		{
+			Name: fmt.Sprintf("%v_regular", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(Gas(), 3),
+				Ge(StackSize(), n+1),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 3
+				a := s.Stack.Get(0)
+				b := s.Stack.Get(n)
+				s.Stack.Set(0, b)
+				s.Stack.Set(n, a)
+			}),
+		},
+
+		{
+			Name: fmt.Sprintf("%v_with_too_little_gas", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Lt(Gas(), 3),
+				Ge(StackSize(), n+1),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: fmt.Sprintf("%v_with_too_few_elements", name),
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(Gas(), 3),
+				Lt(StackSize(), n+1),
 			),
 			Effect: FailEffect(),
 		},
