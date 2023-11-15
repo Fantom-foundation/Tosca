@@ -71,6 +71,7 @@ type State struct {
 	Gas      uint64
 	Code     *Code
 	Stack    *Stack
+	Memory   *Memory
 }
 
 // NewState creates a new State instance with the given code.
@@ -80,6 +81,7 @@ func NewState(code *Code) *State {
 		Revision: Istanbul,
 		Code:     code,
 		Stack:    NewStack(),
+		Memory:   NewMemory(),
 	}
 }
 
@@ -90,6 +92,7 @@ func (s *State) Clone() *State {
 	clone.Pc = s.Pc
 	clone.Gas = s.Gas
 	clone.Stack = s.Stack.Clone()
+	clone.Memory = s.Memory.Clone()
 	return clone
 }
 
@@ -103,7 +106,8 @@ func (s *State) Eq(other *State) bool {
 		s.Pc == other.Pc &&
 		s.Gas == other.Gas &&
 		s.Code.Eq(other.Code) &&
-		s.Stack.Eq(other.Stack)
+		s.Stack.Eq(other.Stack) &&
+		s.Memory.Eq(other.Memory)
 }
 
 const codeCutoffLength = 20
@@ -135,6 +139,7 @@ func (s *State) String() string {
 	if s.Stack.Size() > stackCutOffLength {
 		builder.WriteString("\t    ...\n")
 	}
+	builder.WriteString(fmt.Sprintf("\tMemory size: %d\n", s.Memory.Size()))
 	builder.WriteString("}")
 	return builder.String()
 }
@@ -164,6 +169,10 @@ func (s *State) Diff(o *State) []string {
 
 	if !s.Stack.Eq(o.Stack) {
 		res = append(res, s.Stack.Diff(o.Stack)...)
+	}
+
+	if !s.Memory.Eq(o.Memory) {
+		res = append(res, s.Memory.Diff(o.Memory)...)
 	}
 
 	return res
