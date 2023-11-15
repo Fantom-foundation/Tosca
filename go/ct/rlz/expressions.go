@@ -133,7 +133,7 @@ func (e op) Eval(s *st.State) (OpCode, error) {
 		return INVALID, err
 	}
 
-	if pos.Gt(NewU256(math.MaxInt)) {
+	if !pos.IsUint64() || pos.Uint64() > math.MaxInt {
 		return STOP, nil
 	}
 

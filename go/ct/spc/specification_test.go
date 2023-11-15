@@ -60,3 +60,17 @@ func TestSpecification_RulesCoverRandomStates(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkSpecification_RulesConditionCheck(b *testing.B) {
+	state, err := gen.NewStateGenerator().Generate(rand.New(0))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		rules := Spec.GetRules()
+		for _, rule := range rules {
+			rule.Condition.Check(state)
+		}
+	}
+}

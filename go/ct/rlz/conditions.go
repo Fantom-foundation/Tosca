@@ -50,15 +50,13 @@ func And(conditions ...Condition) Condition {
 }
 
 func (c *conjunction) Check(s *st.State) (bool, error) {
-	result := true
 	for _, cur := range c.conditions {
 		r, err := cur.Check(s)
-		if err != nil {
+		if !r || err != nil {
 			return false, err
 		}
-		result = r && result
 	}
-	return result, nil
+	return true, nil
 }
 
 func (c *conjunction) Restrict(generator *gen.StateGenerator) {
@@ -342,7 +340,7 @@ func (c *isCode) Check(s *st.State) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if pos.Gt(NewU256(math.MaxInt)) {
+	if !pos.IsUint64() || pos.Uint64() > math.MaxInt {
 		return false, nil
 	}
 	return s.Code.IsCode(int(pos.Uint64())), nil
@@ -384,7 +382,7 @@ func (c *isData) Check(s *st.State) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if pos.Gt(NewU256(math.MaxInt)) {
+	if !pos.IsUint64() || pos.Uint64() > math.MaxInt {
 		return false, nil
 	}
 	return s.Code.IsData(int(pos.Uint64())), nil
