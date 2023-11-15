@@ -6,6 +6,7 @@ import (
 
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/holiman/uint256"
 )
@@ -100,7 +101,8 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 func convertCtCodeToLfvmCode(state *st.State) (Code, error) {
 	code := make([]byte, state.Code.Length())
 	state.Code.CopyTo(code)
-	return convert(code, false)
+	addr := common.Address{}
+	return Convert(addr, code, false, 0, false, false, state.Code.Hash())
 }
 
 func convertCtStatusToLfvmStatus(state *st.State) (Status, error) {
