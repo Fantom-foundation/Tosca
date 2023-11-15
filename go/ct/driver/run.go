@@ -3,7 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
+	"runtime/pprof"
 	"sort"
 
 	"pgregory.net/rand"
@@ -39,6 +41,10 @@ var RunCmd = cli.Command{
 			Name:  "seed",
 			Usage: "seed for the random number generator",
 		},
+		&cli.StringFlag{
+			Name:  "cpuprofile",
+			Usage: "store CPU profile in the provided filename",
+		},
 	},
 }
 
@@ -54,6 +60,17 @@ func doRun(context *cli.Context) error {
 			fmt.Println(rule.Name)
 		}
 		return nil
+	}
+
+	if cpuprofileFilename := context.String("cpuprofile"); cpuprofileFilename != "" {
+		f, err := os.Create(cpuprofileFilename)
+		if err != nil {
+			return fmt.Errorf("could not create CPU profile: %s", err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			return fmt.Errorf("could not start CPU profile: %s", err)
+		}
+		defer pprof.StopCPUProfile()
 	}
 
 	var evmIdentifier string
