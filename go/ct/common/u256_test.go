@@ -5,6 +5,31 @@ import (
 	"testing"
 )
 
+func TestNewU256FromBytes_WithLessThan32Bytes(t *testing.T) {
+	x := NewU256FromBytes([]byte{1, 2, 3, 4}...)
+	xBytes := x.Bytes32be()
+	if !bytes.Equal(xBytes[:], []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4}) {
+		t.Fail()
+	}
+}
+
+func TestNewU256FromBytes_With32Bytes(t *testing.T) {
+	x := NewU256FromBytes([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}...)
+	xBytes := x.Bytes32be()
+	if !bytes.Equal(xBytes[:], []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}) {
+		t.Fail()
+	}
+}
+
+func TestNewU256FromBytes_PanicsWithMoreThan32Bytes(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fail()
+		}
+	}()
+	_ = NewU256FromBytes([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33}...)
+}
+
 func TestU256IsZero(t *testing.T) {
 	zero := NewU256()
 	if !zero.IsZero() {
