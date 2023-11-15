@@ -308,7 +308,7 @@ func TestState_PrinterMemorySize(t *testing.T) {
 	}
 
 	if want, got := "64", match[1]; want != got {
-		t.Errorf("invalid stack size, want %v, got %v", want, got)
+		t.Errorf("invalid memory size, want %v, got %v", want, got)
 	}
 }
 
