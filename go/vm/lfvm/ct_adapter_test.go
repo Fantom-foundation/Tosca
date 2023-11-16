@@ -18,8 +18,8 @@ func TestCtAdapter_Add(t *testing.T) {
 	s.Revision = st.Istanbul
 	s.Pc = 0
 	s.Gas = 100
-	s.Stack = st.NewStack()
-	s.Memory = st.NewMemory()
+	s.Stack = st.NewStack(ctcommon.NewU256(1), ctcommon.NewU256(2))
+	s.Memory = st.NewMemory(1, 2, 3)
 
 	c := NewConformanceTestingTarget()
 
