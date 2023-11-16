@@ -36,6 +36,9 @@ const (
 	SHR        OpCode = 0x1C
 	SAR        OpCode = 0x1D
 	POP        OpCode = 0x50
+	MLOAD      OpCode = 0x51
+	MSTORE     OpCode = 0x52
+	MSTORE8    OpCode = 0x53
 	JUMP       OpCode = 0x56
 	JUMPI      OpCode = 0x57
 	JUMPDEST   OpCode = 0x5B
@@ -144,6 +147,9 @@ func ValidOpCodesNoPush() []OpCode {
 		SHR,
 		SAR,
 		POP,
+		MLOAD,
+		MSTORE,
+		MSTORE8,
 		JUMP,
 		JUMPI,
 		JUMPDEST,
@@ -238,6 +244,12 @@ func (op OpCode) String() string {
 		return "SAR"
 	case POP:
 		return "POP"
+	case MLOAD:
+		return "MLOAD"
+	case MSTORE:
+		return "MSTORE"
+	case MSTORE8:
+		return "MSTORE8"
 	case JUMP:
 		return "JUMP"
 	case JUMPI:
