@@ -9,18 +9,17 @@ import (
 )
 
 func TestCtAdapter_Add(t *testing.T) {
-	s := &st.State{
-		Status:   st.Running,
-		Revision: st.Istanbul,
-		Pc:       0,
-		Gas:      100,
-		Code: st.NewCode([]byte{
-			byte(ctcommon.PUSH1), 3,
-			byte(ctcommon.PUSH1), 4,
-			byte(ctcommon.ADD),
-		}),
-		Stack: st.NewStack(),
-	}
+	s := st.NewState(st.NewCode([]byte{
+		byte(ctcommon.PUSH1), 3,
+		byte(ctcommon.PUSH1), 4,
+		byte(ctcommon.ADD),
+	}))
+	s.Status = st.Running
+	s.Revision = st.Istanbul
+	s.Pc = 0
+	s.Gas = 100
+	s.Stack = st.NewStack()
+	s.Memory = st.NewMemory()
 
 	c := NewConformanceTestingTarget()
 

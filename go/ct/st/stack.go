@@ -10,7 +10,7 @@ import (
 
 const MaxStackSize = 1024
 
-// Stack represent's the EVM's execution stack.
+// Stack represents the EVM's execution stack.
 type Stack struct {
 	stack []U256
 }

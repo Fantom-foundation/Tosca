@@ -62,6 +62,12 @@ func convertLfvmStackToCtStack(ctx *context) *st.Stack {
 	return stack
 }
 
+func convertLfvmMemoryToCtMemory(ctx *context) *st.Memory {
+	memory := st.NewMemory()
+	memory.Set(ctx.memory.GetSlice(0, ctx.memory.Len()))
+	return memory
+}
+
 ////////////////////////////////////////////////////////////
 // lfvm -> ct
 
@@ -83,16 +89,15 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 		return nil, err
 	}
 
-	state := st.State{
-		Status:   status,
-		Revision: revision,
-		Pc:       pc,
-		Gas:      ctx.contract.Gas,
-		Code:     originalCode,
-		Stack:    convertLfvmStackToCtStack(ctx),
-	}
-
-	return &state, nil
+	state := st.NewState(originalCode)
+	state.Status = status
+	state.Revision = revision
+	state.Pc = pc
+	state.Gas = ctx.contract.Gas
+	state.Code = originalCode
+	state.Stack = convertLfvmStackToCtStack(ctx)
+	state.Memory = convertLfvmMemoryToCtMemory(ctx)
+	return state, nil
 }
 
 ////////////////////////////////////////////////////////////
@@ -129,6 +134,14 @@ func convertCtStackToLfvmStack(state *st.State) *Stack {
 		stack.push(&val)
 	}
 	return stack
+}
+
+func convertCtMemoryToLfvmMemory(state *st.State) (*Memory, error) {
+	data := state.Memory.Read(0, uint64(state.Memory.Size()))
+
+	memory := NewMemory()
+	err := memory.Set(0, uint64(len(data)), data)
+	return memory, err
 }
 
 func convertCtRevisionToLfvmRevision(revision st.Revision, ctx *context) error {
@@ -168,6 +181,11 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 		return nil, err
 	}
 
+	memory, err := convertCtMemoryToLfvmMemory(state)
+	if err != nil {
+		return nil, err
+	}
+
 	data := []byte{}
 
 	// Create execution context.
@@ -175,7 +193,7 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 		evm:      &vm.EVM{StateDB: nil},
 		pc:       int32(pc),
 		stack:    convertCtStackToLfvmStack(state),
-		memory:   NewMemory(),
+		memory:   memory,
 		stateDB:  nil,
 		status:   status,
 		contract: contract,
