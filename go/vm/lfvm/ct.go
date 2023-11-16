@@ -140,6 +140,7 @@ func convertCtMemoryToLfvmMemory(state *st.State) (*Memory, error) {
 	data := state.Memory.Read(0, uint64(state.Memory.Size()))
 
 	memory := NewMemory()
+	memory.EnsureCapacityWithoutGas(uint64(len(data)), nil)
 	err := memory.Set(0, uint64(len(data)), data)
 	return memory, err
 }

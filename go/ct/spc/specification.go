@@ -209,6 +209,174 @@ var Spec = func() Specification {
 		return value.Srsh(shift)
 	})...)
 
+	// --- MLOAD ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "mload_with_too_little_static_gas",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), MLOAD),
+				Lt(Gas(), 3),
+				Ge(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "mload_with_too_few_elements",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), MLOAD),
+				Ge(Gas(), 3),
+				Lt(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "mload_regular",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), MLOAD),
+				Ge(Gas(), 3),
+				Ge(StackSize(), 1),
+			),
+			Parameter: []Parameter{
+				MemoryOffsetParameter{},
+			},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 3
+				s.Pc++
+				offset_u256 := s.Stack.Pop()
+
+				cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
+				if s.Gas < cost {
+					s.Status = st.Failed
+					s.Gas = 0
+					return
+				}
+				s.Gas -= cost
+
+				value := NewU256FromBytes(s.Memory.Read(offset, 32)...)
+				s.Stack.Push(value)
+			}),
+		},
+	}...)
+
+	// --- MSTORE ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "mstore_with_too_little_static_gas",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), MSTORE),
+				Lt(Gas(), 3),
+				Ge(StackSize(), 2),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "mstore_with_too_few_elements",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), MSTORE),
+				Ge(Gas(), 3),
+				Lt(StackSize(), 2),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "mstore_regular",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), MSTORE),
+				Ge(Gas(), 3),
+				Ge(StackSize(), 2),
+			),
+			Parameter: []Parameter{
+				MemoryOffsetParameter{},
+				NumericParameter{},
+			},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 3
+				s.Pc++
+				offset_u256 := s.Stack.Pop()
+				value := s.Stack.Pop()
+
+				cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
+				if s.Gas < cost {
+					s.Status = st.Failed
+					s.Gas = 0
+					return
+				}
+				s.Gas -= cost
+
+				bytes := value.Bytes32be()
+				s.Memory.Write(bytes[:], offset)
+			}),
+		},
+	}...)
+
+	// --- MSTORE8 ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "mstore8_with_too_little_static_gas",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), MSTORE8),
+				Lt(Gas(), 3),
+				Ge(StackSize(), 2),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "mstore8_with_too_few_elements",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), MSTORE8),
+				Ge(Gas(), 3),
+				Lt(StackSize(), 2),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "mstore8_regular",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), MSTORE8),
+				Ge(Gas(), 3),
+				Ge(StackSize(), 2),
+			),
+			Parameter: []Parameter{
+				MemoryOffsetParameter{},
+				NumericParameter{},
+			},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 3
+				s.Pc++
+				offset_u256 := s.Stack.Pop()
+				value := s.Stack.Pop()
+
+				cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(1))
+				if s.Gas < cost {
+					s.Status = st.Failed
+					s.Gas = 0
+					return
+				}
+				s.Gas -= cost
+
+				s.Memory.Write([]byte{value.Bytes32be()[31]}, offset)
+			}),
+		},
+	}...)
+
 	// --- JUMP ---
 
 	rules = append(rules, []Rule{

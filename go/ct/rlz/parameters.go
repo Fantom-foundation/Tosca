@@ -25,3 +25,15 @@ func (NumericParameter) Samples() []U256 {
 		NewU256(0).Not(),
 	}
 }
+
+type MemoryOffsetParameter struct{}
+
+func (MemoryOffsetParameter) Samples() []U256 {
+	return []U256{
+		NewU256(0),
+		NewU256(1),
+		NewU256(31),
+		NewU256(32),
+		NewU256(1, 0),
+	}
+}

@@ -37,15 +37,17 @@ type StateGenerator struct {
 	gasConstraints        []uint64
 
 	// Generators
-	codeGen  *CodeGenerator
-	stackGen *StackGenerator
+	codeGen   *CodeGenerator
+	stackGen  *StackGenerator
+	memoryGen *MemoryGenerator
 }
 
 // NewStateGenerator creates a generator without any initial constraints.
 func NewStateGenerator() *StateGenerator {
 	return &StateGenerator{
-		codeGen:  NewCodeGenerator(),
-		stackGen: NewStackGenerator(),
+		codeGen:   NewCodeGenerator(),
+		stackGen:  NewStackGenerator(),
+		memoryGen: NewMemoryGenerator(),
 	}
 }
 
@@ -201,12 +203,19 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
+	// Invoke MemoryGenerator
+	resultMemory, err := g.memoryGen.Generate(rnd)
+	if err != nil {
+		return nil, err
+	}
+
 	result := st.NewState(resultCode)
 	result.Status = resultStatus
 	result.Revision = resultRevision
 	result.Pc = resultPc
 	result.Gas = resultGas
 	result.Stack = resultStack
+	result.Memory = resultMemory
 	return result, nil
 }
 
@@ -221,6 +230,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		gasConstraints:        slices.Clone(g.gasConstraints),
 		codeGen:               g.codeGen.Clone(),
 		stackGen:              g.stackGen.Clone(),
+		memoryGen:             g.memoryGen.Clone(),
 	}
 }
 
@@ -234,6 +244,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.gasConstraints = slices.Clone(other.gasConstraints)
 		g.codeGen.Restore(other.codeGen)
 		g.stackGen.Restore(other.stackGen)
+		g.memoryGen.Restore(other.memoryGen)
 	}
 }
 
@@ -267,6 +278,7 @@ func (g *StateGenerator) String() string {
 
 	parts = append(parts, fmt.Sprintf("code=%v", g.codeGen))
 	parts = append(parts, fmt.Sprintf("stack=%v", g.stackGen))
+	parts = append(parts, fmt.Sprintf("memory=%v", g.memoryGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }
