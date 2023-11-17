@@ -16,6 +16,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	vm "github.com/Fantom-foundation/Tosca/go/vm/geth"
 	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 	"github.com/urfave/cli/v2"
 )
@@ -54,6 +55,7 @@ var RunCmd = cli.Command{
 
 var evms = map[string]ct.Evm{
 	"lfvm": lfvm.NewConformanceTestingTarget(),
+	"geth": vm.NewConformanceTestingTarget(),
 }
 
 func doRun(context *cli.Context) error {
@@ -114,7 +116,7 @@ func doRun(context *cli.Context) error {
 
 					// TODO: program counter pointing to data not supported by LFVM
 					// converter.
-					if !state.Code.IsCode(int(state.Pc)) {
+					if evmIdentifier == "lfvm" && !state.Code.IsCode(int(state.Pc)) {
 						return nil // ignored
 					}
 
