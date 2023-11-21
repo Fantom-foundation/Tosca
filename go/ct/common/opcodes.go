@@ -31,6 +31,7 @@ const (
 	OR         OpCode = 0x17
 	XOR        OpCode = 0x18
 	NOT        OpCode = 0x19
+	SHA3       OpCode = 0x20
 	BYTE       OpCode = 0x1A
 	SHL        OpCode = 0x1B
 	SHR        OpCode = 0x1C
@@ -142,6 +143,7 @@ func ValidOpCodesNoPush() []OpCode {
 		OR,
 		XOR,
 		NOT,
+		SHA3,
 		BYTE,
 		SHL,
 		SHR,
@@ -234,6 +236,8 @@ func (op OpCode) String() string {
 		return "XOR"
 	case NOT:
 		return "NOT"
+	case SHA3:
+		return "SHA3"
 	case BYTE:
 		return "BYTE"
 	case SHL:

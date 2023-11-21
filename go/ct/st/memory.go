@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"golang.org/x/crypto/sha3"
 )
 
 // Memory represents the EVM's execution memory.
@@ -74,7 +75,7 @@ func (m *Memory) Grow(offset, size uint64) {
 // ExpansionCosts calculates the expansion costs for the given offset and size.
 // It does not grow memory. It also returns offset and size converted to uint64.
 func (m *Memory) ExpansionCosts(offset_u256, size_u256 U256) (memCost, offset, size uint64) {
-	if !offset_u256.IsUint64() || !size_u256.IsUint64() {
+	if !size_u256.IsUint64() || (!offset_u256.IsUint64() && !size_u256.IsZero()) {
 		return math.MaxUint64, 0, 0
 	}
 	offset = offset_u256.Uint64()
@@ -93,6 +94,22 @@ func (m *Memory) ExpansionCosts(offset_u256, size_u256 U256) (memCost, offset, s
 		return (memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord)
 	}
 	memCost = calcMemoryCost(newSize) - calcMemoryCost(uint64(m.Size()))
+	return
+}
+
+// Hash calculates the hash of the given memory span. Memory is grown automatically.
+func (m *Memory) Hash(offset, size uint64) (hash [32]byte) {
+	m.Grow(offset, size)
+
+	hasher := sha3.NewLegacyKeccak256()
+
+	// slice[offset:_] panics if offset is out-of-bounds, even when the
+	// resulting slice would be empty.
+	if size > 0 {
+		hasher.Write(m.mem[offset : offset+size])
+	}
+
+	copy(hash[:], hasher.Sum(nil)[:])
 	return
 }
 

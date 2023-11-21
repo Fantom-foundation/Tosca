@@ -209,6 +209,70 @@ var Spec = func() Specification {
 		return value.Srsh(shift)
 	})...)
 
+	// --- SHA3 ---
+	rules = append(rules, []Rule{
+		{
+			Name: "sha3_with_too_little_static_gas",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SHA3),
+				Lt(Gas(), 30),
+				Ge(StackSize(), 2),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "sha3_with_too_few_elements",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SHA3),
+				Ge(Gas(), 30),
+				Lt(StackSize(), 2),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "sha3_regular",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SHA3),
+				Ge(Gas(), 30),
+				Ge(StackSize(), 2),
+			),
+			Parameter: []Parameter{
+				MemoryOffsetParameter{},
+				MemorySizeParameter{},
+			},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 30
+				s.Pc++
+				offset_u256 := s.Stack.Pop()
+				size_u256 := s.Stack.Pop()
+
+				memExpCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
+				if s.Gas < memExpCost {
+					s.Status = st.Failed
+					s.Gas = 0
+					return
+				}
+				s.Gas -= memExpCost
+
+				wordCost := 6 * ((size + 31) / 32)
+				if s.Gas < wordCost {
+					s.Status = st.Failed
+					s.Gas = 0
+					return
+				}
+				s.Gas -= wordCost
+
+				hash := s.Memory.Hash(offset, size)
+				s.Stack.Push(NewU256FromBytes(hash[:]...))
+			}),
+		},
+	}...)
+
 	// --- MLOAD ---
 
 	rules = append(rules, []Rule{
