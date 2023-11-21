@@ -17,6 +17,8 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.Gas = 2
 	state.Stack.Push(NewU256(3))
 	state.Memory.Write([]byte{1, 2, 3}, 1)
+	state.Storage.Current[NewU256(4)] = NewU256(5)
+	state.Storage.Original[NewU256(6)] = NewU256(7)
 
 	clone := state.Clone()
 	clone.Status = Running
@@ -25,6 +27,9 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.Gas = 5
 	clone.Stack.Push(NewU256(6))
 	clone.Memory.Write([]byte{4, 5, 6, 7}, 64)
+	clone.Storage.Current[NewU256(7)] = NewU256(16)
+	clone.Storage.Original[NewU256(6)] = NewU256(6)
+	clone.Storage.MarkWarm(NewU256(42))
 
 	ok := state.Status == Stopped &&
 		state.Revision == London &&
@@ -32,7 +37,11 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.Gas == 2 &&
 		state.Stack.Size() == 1 &&
 		state.Stack.Get(0).Uint64() == 3 &&
-		state.Memory.Size() == 32
+		state.Memory.Size() == 32 &&
+		state.Storage.Current[NewU256(4)].Eq(NewU256(5)) &&
+		state.Storage.Current[NewU256(7)].IsZero() &&
+		state.Storage.Original[NewU256(6)].Eq(NewU256(7)) &&
+		!state.Storage.IsWarm(NewU256(42))
 	if !ok {
 		t.Errorf("clone is not independent")
 	}
@@ -88,6 +97,12 @@ func TestState_Eq(t *testing.T) {
 		t.Fail()
 	}
 	s2.Memory.Write([]byte{1, 2, 3}, 1)
+
+	s1.Storage.Current[NewU256(42)] = NewU256(32)
+	if s1.Eq(s2) {
+		t.Fail()
+	}
+	s2.Storage.Current[NewU256(42)] = NewU256(32)
 
 	s1 = NewState(NewCode([]byte{byte(ADD), byte(STOP)}))
 	s2 = NewState(NewCode([]byte{byte(ADD), byte(ADD)}))
@@ -320,6 +335,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.Gas = 42
 	s1.Stack.Push(NewU256(42))
 	s1.Memory.Write([]byte{1, 2, 3}, 31)
+	s1.Storage.MarkWarm(NewU256(42))
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -328,6 +344,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.Gas = 42
 	s2.Stack.Push(NewU256(42))
 	s2.Memory.Write([]byte{1, 2, 3}, 31)
+	s2.Storage.MarkWarm(NewU256(42))
 
 	diffs := s1.Diff(s2)
 
@@ -348,6 +365,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Gas = 7
 	s1.Stack.Push(NewU256(42))
 	s1.Memory.Write([]byte{1, 2, 3}, 31)
+	s1.Storage.MarkWarm(NewU256(42))
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -356,10 +374,20 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.Gas = 42
 	s2.Stack.Push(NewU256(16))
 	s2.Memory.Write([]byte{1, 2, 4}, 31)
+	s2.Storage.MarkCold(NewU256(42))
 
 	diffs := s1.Diff(s2)
 
-	expectedDiffs := []string{"Different status", "Different revision", "Different pc", "Different gas", "Different code", "Different stack", "Different memory value"}
+	expectedDiffs := []string{
+		"Different status",
+		"Different revision",
+		"Different pc",
+		"Different gas",
+		"Different code",
+		"Different stack",
+		"Different memory value",
+		"Different warm entry",
+	}
 
 	if len(diffs) != len(expectedDiffs) {
 		t.Logf("invalid diff, expected %d differences, found %d:\n", len(expectedDiffs), len(diffs))

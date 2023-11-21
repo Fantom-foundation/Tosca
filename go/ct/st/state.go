@@ -72,6 +72,7 @@ type State struct {
 	Code     *Code
 	Stack    *Stack
 	Memory   *Memory
+	Storage  *Storage
 }
 
 // NewState creates a new State instance with the given code.
@@ -82,6 +83,7 @@ func NewState(code *Code) *State {
 		Code:     code,
 		Stack:    NewStack(),
 		Memory:   NewMemory(),
+		Storage:  NewStorage(),
 	}
 }
 
@@ -93,6 +95,7 @@ func (s *State) Clone() *State {
 	clone.Gas = s.Gas
 	clone.Stack = s.Stack.Clone()
 	clone.Memory = s.Memory.Clone()
+	clone.Storage = s.Storage.Clone()
 	return clone
 }
 
@@ -107,7 +110,8 @@ func (s *State) Eq(other *State) bool {
 		s.Gas == other.Gas &&
 		s.Code.Eq(other.Code) &&
 		s.Stack.Eq(other.Stack) &&
-		s.Memory.Eq(other.Memory)
+		s.Memory.Eq(other.Memory) &&
+		s.Storage.Eq(other.Storage)
 }
 
 const codeCutoffLength = 20
@@ -140,6 +144,19 @@ func (s *State) String() string {
 		builder.WriteString("\t    ...\n")
 	}
 	builder.WriteString(fmt.Sprintf("\tMemory size: %d\n", s.Memory.Size()))
+	builder.WriteString("\tStorage.Current:\n")
+	for k, v := range s.Storage.Current {
+		builder.WriteString(fmt.Sprintf("\t    [%v]=%v\n", k, v))
+	}
+	builder.WriteString("\tStorage.Original:\n")
+	for k, v := range s.Storage.Original {
+		builder.WriteString(fmt.Sprintf("\t    [%v]=%v\n", k, v))
+	}
+	builder.WriteString("\tStorage.Warm:\n")
+	for k := range s.Storage.warm {
+		builder.WriteString(fmt.Sprintf("\t    [%v]\n", k))
+	}
+
 	builder.WriteString("}")
 	return builder.String()
 }
@@ -173,6 +190,10 @@ func (s *State) Diff(o *State) []string {
 
 	if !s.Memory.Eq(o.Memory) {
 		res = append(res, s.Memory.Diff(o.Memory)...)
+	}
+
+	if !s.Storage.Eq(o.Storage) {
+		res = append(res, s.Storage.Diff(o.Storage)...)
 	}
 
 	return res
