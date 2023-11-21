@@ -34,6 +34,14 @@ func (s *Storage) IsWarm(key U256) bool {
 	return s.warm[key]
 }
 
+func (s *Storage) MarkWarmCold(key U256, warm bool) {
+	if warm {
+		s.MarkWarm(key)
+	} else {
+		s.MarkCold(key)
+	}
+}
+
 func (s *Storage) MarkWarm(key U256) {
 	s.warm[key] = true
 }

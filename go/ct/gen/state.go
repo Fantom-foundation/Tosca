@@ -37,17 +37,19 @@ type StateGenerator struct {
 	gasConstraints        []uint64
 
 	// Generators
-	codeGen   *CodeGenerator
-	stackGen  *StackGenerator
-	memoryGen *MemoryGenerator
+	codeGen    *CodeGenerator
+	stackGen   *StackGenerator
+	memoryGen  *MemoryGenerator
+	storageGen *StorageGenerator
 }
 
 // NewStateGenerator creates a generator without any initial constraints.
 func NewStateGenerator() *StateGenerator {
 	return &StateGenerator{
-		codeGen:   NewCodeGenerator(),
-		stackGen:  NewStackGenerator(),
-		memoryGen: NewMemoryGenerator(),
+		codeGen:    NewCodeGenerator(),
+		stackGen:   NewStackGenerator(),
+		memoryGen:  NewMemoryGenerator(),
+		storageGen: NewStorageGenerator(),
 	}
 }
 
@@ -121,6 +123,21 @@ func (g *StateGenerator) SetStackValue(pos int, value U256) {
 // BindStackValue wraps StackGenerator.BindValue.
 func (g *StateGenerator) BindStackValue(pos int, v Variable) {
 	g.stackGen.BindValue(pos, v)
+}
+
+// BindStorageValue wraps StorageGenerator.BindCurrent.
+func (g *StateGenerator) BindStorageValue(key Variable, value U256) {
+	g.storageGen.BindCurrent(key, value)
+}
+
+// BindIsStorageWarm wraps StorageGenerator.BindWarm.
+func (g *StateGenerator) BindIsStorageWarm(key Variable) {
+	g.storageGen.BindWarm(key)
+}
+
+// BindIsStorageCold wraps StorageGenerator.BindCold.
+func (g *StateGenerator) BindIsStorageCold(key Variable) {
+	g.storageGen.BindCold(key)
 }
 
 // Generate produces a State instance satisfying the constraints set on this
@@ -197,14 +214,24 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting gas counter constraints defined: %v", ErrUnsatisfiable, g.gasConstraints)
 	}
 
-	// Invoke StackGenerator
-	resultStack, err := g.stackGen.Generate(assignment, rnd)
+	// Sub-generators can modify the assignment when unassigned variables are
+	// encountered. The order in which sub-generators are invoked influences
+	// this process.
+
+	// Invoke StorageGenerator
+	resultStorage, err := g.storageGen.Generate(assignment, rnd)
 	if err != nil {
 		return nil, err
 	}
 
 	// Invoke MemoryGenerator
 	resultMemory, err := g.memoryGen.Generate(rnd)
+	if err != nil {
+		return nil, err
+	}
+
+	// Invoke StackGenerator
+	resultStack, err := g.stackGen.Generate(assignment, rnd)
 	if err != nil {
 		return nil, err
 	}
@@ -216,6 +243,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.Gas = resultGas
 	result.Stack = resultStack
 	result.Memory = resultMemory
+	result.Storage = resultStorage
 	return result, nil
 }
 
@@ -231,6 +259,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		codeGen:               g.codeGen.Clone(),
 		stackGen:              g.stackGen.Clone(),
 		memoryGen:             g.memoryGen.Clone(),
+		storageGen:            g.storageGen.Clone(),
 	}
 }
 
@@ -245,6 +274,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.codeGen.Restore(other.codeGen)
 		g.stackGen.Restore(other.stackGen)
 		g.memoryGen.Restore(other.memoryGen)
+		g.storageGen.Restore(other.storageGen)
 	}
 }
 
@@ -279,6 +309,7 @@ func (g *StateGenerator) String() string {
 	parts = append(parts, fmt.Sprintf("code=%v", g.codeGen))
 	parts = append(parts, fmt.Sprintf("stack=%v", g.stackGen))
 	parts = append(parts, fmt.Sprintf("memory=%v", g.memoryGen))
+	parts = append(parts, fmt.Sprintf("storage=%v", g.storageGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }
