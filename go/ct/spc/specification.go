@@ -444,6 +444,150 @@ var Spec = func() Specification {
 		},
 	}...)
 
+	// --- SLOAD ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "sload_regular_cold",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Ge(Gas(), 100),
+				Ge(StackSize(), 1),
+				IsStorageCold(Param(0)),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+			},
+			Effect: Change(func(s *st.State) {
+				if s.Gas < 2100 {
+					s.Status = st.Failed
+					s.Gas = 0
+					return
+				}
+				s.Gas -= 2100
+
+				s.Pc++
+				key := s.Stack.Pop()
+				s.Stack.Push(s.Storage.Current[key])
+				s.Storage.MarkWarm(key)
+			}),
+		},
+
+		{
+			Name: "sload_regular_warm",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Ge(Gas(), 100),
+				Ge(StackSize(), 1),
+				IsStorageWarm(Param(0)),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+			},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 100
+				s.Pc++
+				key := s.Stack.Pop()
+				s.Stack.Push(s.Storage.Current[key])
+			}),
+		},
+
+		{
+			Name: "sload_with_too_little_min_gas",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Lt(Gas(), 100),
+				Ge(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "sload_with_too_few_elements",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Ge(Gas(), 100),
+				Lt(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+	}...)
+
+	// --- SSTORE ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "sstore_regular_cold",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SSTORE),
+				Ge(Gas(), 2300),
+				Ge(StackSize(), 2),
+				IsStorageCold(Param(0)),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+				NumericParameter{},
+			},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 2200
+				s.Pc++
+				key := s.Stack.Pop()
+				value := s.Stack.Pop()
+				s.Storage.Current[key] = value
+				s.Storage.MarkWarm(key)
+			}),
+		},
+
+		{
+			Name: "sstore_regular_warm",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SSTORE),
+				Ge(Gas(), 2300),
+				Ge(StackSize(), 2),
+				IsStorageWarm(Param(0)),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+				NumericParameter{},
+			},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 100
+				s.Pc++
+				key := s.Stack.Pop()
+				value := s.Stack.Pop()
+				s.Storage.Current[key] = value
+			}),
+		},
+
+		{
+			Name: "sstore_with_too_little_gas_EIP2200",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SSTORE),
+				Lt(Gas(), 2300),
+				Ge(StackSize(), 2),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "sstore_with_too_few_elements",
+			Condition: And(
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SSTORE),
+				Ge(Gas(), 2300),
+				Lt(StackSize(), 2),
+			),
+			Effect: FailEffect(),
+		},
+	}...)
+
 	// --- JUMPI ---
 
 	rules = append(rules, []Rule{
