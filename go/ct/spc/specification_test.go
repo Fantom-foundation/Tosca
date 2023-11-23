@@ -28,7 +28,7 @@ func TestSpecification_RulesCoverTestCases(t *testing.T) {
 					atLeastOne = true
 				}
 				if len(rules) > 1 {
-					t.Fatalf("multiple rules for state %v: %v", &state, rules)
+					t.Fatalf("multiple rules for state %v: %v", state, rules)
 				}
 				return nil
 			})
