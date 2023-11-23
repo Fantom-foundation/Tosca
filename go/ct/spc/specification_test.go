@@ -34,7 +34,7 @@ func TestSpecification_RulesCoverTestCases(t *testing.T) {
 			})
 
 			if !atLeastOne {
-				t.Fail()
+				t.Fatalf("No rule matches any of the generated test cases")
 			}
 		})
 	}

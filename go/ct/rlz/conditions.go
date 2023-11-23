@@ -407,3 +407,81 @@ func (c *isData) EnumerateTestCases(generator *gen.StateGenerator, consume func(
 func (c *isData) String() string {
 	return fmt.Sprintf("isData[%s]", c.position)
 }
+
+////////////////////////////////////////////////////////////
+// Is Storage Warm
+
+type isStorageWarm struct {
+	key BindableExpression[U256]
+}
+
+func IsStorageWarm(key BindableExpression[U256]) Condition {
+	return &isStorageWarm{key}
+}
+
+func (c *isStorageWarm) Check(s *st.State) (bool, error) {
+	key, err := c.key.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return s.Storage.IsWarm(key), nil
+}
+
+func (c *isStorageWarm) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+	generator.BindIsStorageWarm(key)
+}
+
+func (c *isStorageWarm) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
+	positive := generator.Clone()
+	c.Restrict(positive)
+	consume(positive)
+
+	negative := generator.Clone()
+	IsStorageCold(c.key).Restrict(negative)
+	consume(negative)
+}
+
+func (c *isStorageWarm) String() string {
+	return fmt.Sprintf("warm(%v)", c.key)
+}
+
+////////////////////////////////////////////////////////////
+// Is Storage Cold
+
+type isStorageCold struct {
+	key BindableExpression[U256]
+}
+
+func IsStorageCold(key BindableExpression[U256]) Condition {
+	return &isStorageCold{key}
+}
+
+func (c *isStorageCold) Check(s *st.State) (bool, error) {
+	key, err := c.key.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return !s.Storage.IsWarm(key), nil
+}
+
+func (c *isStorageCold) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+	generator.BindIsStorageCold(key)
+}
+
+func (c *isStorageCold) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
+	positive := generator.Clone()
+	c.Restrict(positive)
+	consume(positive)
+
+	negative := generator.Clone()
+	IsStorageWarm(c.key).Restrict(negative)
+	consume(negative)
+}
+
+func (c *isStorageCold) String() string {
+	return fmt.Sprintf("cold(%v)", c.key)
+}

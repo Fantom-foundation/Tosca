@@ -69,6 +69,28 @@ func TestCondition_Check(t *testing.T) {
 	}
 }
 
+func TestCondition_CheckWarmCold(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.Pc = 42
+	state.Storage.MarkWarm(NewU256(42))
+
+	isCold, err := IsStorageCold(Pc()).Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if isCold {
+		t.Fatal("Storage key is cold, should be warm")
+	}
+
+	isWarm, err := IsStorageWarm(Pc()).Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !isWarm {
+		t.Fatal("Storage key is not warm")
+	}
+}
+
 func TestCondition_String(t *testing.T) {
 	tests := []struct {
 		condition Condition
