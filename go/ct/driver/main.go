@@ -16,6 +16,7 @@ func main() {
 		Commands: []*cli.Command{
 			&RunCmd,
 			&ListCmd,
+			&TestCmd,
 		},
 	}
 
