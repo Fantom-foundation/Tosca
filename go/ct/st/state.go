@@ -45,7 +45,7 @@ const (
 	Istanbul Revision = iota
 	Berlin
 	London
-	NumRevisions // not an actual revision
+	UnknownNextRevision
 )
 
 func (r Revision) String() string {
@@ -56,6 +56,8 @@ func (r Revision) String() string {
 		return "Berlin"
 	case London:
 		return "London"
+	case UnknownNextRevision:
+		return "UnknownNextRevision"
 	default:
 		return fmt.Sprintf("Revision(%d)", r)
 	}

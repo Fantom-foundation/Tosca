@@ -48,7 +48,7 @@ func convertLfvmRevisionToCtRevision(ctx *context) (st.Revision, error) {
 	} else if !ctx.isBerlin && !ctx.isLondon {
 		return st.Istanbul, nil
 	} else {
-		return st.NumRevisions, fmt.Errorf("invalid revision, both berlin and london set")
+		return -1, fmt.Errorf("invalid revision, both berlin and london set")
 	}
 }
 

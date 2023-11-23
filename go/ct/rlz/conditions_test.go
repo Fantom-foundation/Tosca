@@ -69,6 +69,55 @@ func TestCondition_Check(t *testing.T) {
 	}
 }
 
+func TestCondition_CheckRevisions(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.Revision = st.London
+
+	validConditions := []Condition{
+		AnyRevision(),
+		Revision(st.London),
+		RevisionBounds(st.London, st.London),
+		RevisionBounds(st.Istanbul, st.London),
+	}
+	for _, cond := range validConditions {
+		isValid, err := cond.Check(state)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !isValid {
+			t.Fatalf("valid condition check failed %v", cond)
+		}
+	}
+
+	invalidConditions := []Condition{
+		Revision(st.Berlin),
+		Revision(st.UnknownNextRevision),
+		RevisionBounds(st.Istanbul, st.Berlin),
+	}
+	for _, cond := range invalidConditions {
+		isValid, err := cond.Check(state)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if isValid {
+			t.Fatalf("invalid condition check failed %v", cond)
+		}
+	}
+}
+
+func TestCondition_UnknownNextRevisionIsNotAnyRevision(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.Revision = st.UnknownNextRevision
+
+	isValid, err := AnyRevision().Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if isValid {
+		t.Fatal("AnyRevision matches UnknownNextRevision")
+	}
+}
+
 func TestCondition_CheckWarmCold(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Pc = 42

@@ -31,7 +31,7 @@ import (
 type StateGenerator struct {
 	// Constraints
 	statusConstraints     []st.StatusCode
-	revisionConstraints   []st.Revision
+	revisionConstraints   []RevisionBounds
 	pcConstantConstraints []uint16
 	pcVariableConstraints []Variable
 	gasConstraints        []uint64
@@ -60,10 +60,35 @@ func (g *StateGenerator) SetStatus(status st.StatusCode) {
 	}
 }
 
+type RevisionBounds struct{ min, max st.Revision }
+
+func (a RevisionBounds) Less(b RevisionBounds) bool {
+	if a.min != b.min {
+		return a.min < b.min
+	} else {
+		return a.max < b.max
+	}
+}
+
+func (r RevisionBounds) String() string {
+	if r.min == r.max {
+		return fmt.Sprintf("%v", r.min)
+	}
+	return fmt.Sprintf("%v-%v", r.min, r.max)
+}
+
 // SetRevision adds a constraint on the State's revision.
 func (g *StateGenerator) SetRevision(revision st.Revision) {
-	if !slices.Contains(g.revisionConstraints, revision) {
-		g.revisionConstraints = append(g.revisionConstraints, revision)
+	g.SetRevisionBounds(revision, revision)
+}
+
+func (g *StateGenerator) SetRevisionBounds(min, max st.Revision) {
+	if min > max {
+		min, max = max, min
+	}
+	r := RevisionBounds{min, max}
+	if !slices.Contains(g.revisionConstraints, r) {
+		g.revisionConstraints = append(g.revisionConstraints, r)
 	}
 }
 
@@ -159,17 +184,27 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting status constraints defined: %v", ErrUnsatisfiable, g.statusConstraints)
 	}
 
-	// Pick a revision.
 	var resultRevision st.Revision
 	if len(g.revisionConstraints) == 0 {
-		resultRevision = st.Revision(rnd.Int31n(int32(st.NumRevisions)))
-	} else if len(g.revisionConstraints) == 1 {
-		resultRevision = g.revisionConstraints[0]
-		if resultRevision < 0 || resultRevision >= st.NumRevisions {
-			return nil, fmt.Errorf("%w, invalid Revision provided %v", ErrUnsatisfiable, resultRevision)
-		}
+		resultRevision = st.Revision(rnd.Int31n(int32(st.UnknownNextRevision)))
 	} else {
-		return nil, fmt.Errorf("%w, multiple conflicting revision constraints defined: %v", ErrUnsatisfiable, g.statusConstraints)
+		bounds := RevisionBounds{st.Revision(0), st.UnknownNextRevision}
+		for _, con := range g.revisionConstraints {
+			if con.min > bounds.min {
+				bounds.min = con.min
+			}
+			if con.max < bounds.max {
+				bounds.max = con.max
+			}
+		}
+		if bounds.min > bounds.max {
+			return nil, fmt.Errorf("%w, conflicting revision constraints defined: %v", ErrUnsatisfiable, g.revisionConstraints)
+		}
+		if bounds.min == bounds.max {
+			resultRevision = bounds.min
+		} else {
+			resultRevision = st.Revision(rnd.Int31n(int32(bounds.max-bounds.min))) + bounds.min
+		}
 	}
 
 	// Invoke CodeGenerator
@@ -286,7 +321,7 @@ func (g *StateGenerator) String() string {
 		parts = append(parts, fmt.Sprintf("status=%v", status))
 	}
 
-	sort.Slice(g.revisionConstraints, func(i, j int) bool { return g.revisionConstraints[i] < g.revisionConstraints[j] })
+	sort.Slice(g.revisionConstraints, func(i, j int) bool { return g.revisionConstraints[i].Less(g.revisionConstraints[j]) })
 	for _, revision := range g.revisionConstraints {
 		parts = append(parts, fmt.Sprintf("revision=%v", revision))
 	}
