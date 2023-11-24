@@ -116,31 +116,3 @@ func TestExpression_StackSizeRestrict(t *testing.T) {
 		t.Errorf("Generator was not restricted by expression")
 	}
 }
-
-func TestExpression_StorageValueEval(t *testing.T) {
-	state := st.NewState(st.NewCode([]byte{}))
-	state.Stack.Push(NewU256(42))
-	state.Storage.Current[NewU256(42)] = NewU256(1024)
-
-	value, err := StorageValue(Param(0)).Eval(state)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !value.Eq(NewU256(1024)) {
-		t.Fail()
-	}
-}
-
-func TestExpression_StorageValueRestrict(t *testing.T) {
-	generator := gen.NewStateGenerator()
-	StorageValue(Param(0)).Restrict(NewU256(1024), generator)
-
-	state, err := generator.Generate(rand.New(0))
-	if err != nil {
-		t.Fatalf("State generation failed %v", err)
-	}
-	key := state.Stack.Get(0)
-	if state.Storage.Current[key] != NewU256(1024) {
-		t.Fail()
-	}
-}

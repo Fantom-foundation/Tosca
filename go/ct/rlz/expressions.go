@@ -215,33 +215,3 @@ func (p param) GetVariable() gen.Variable {
 func (p param) BindTo(generator *gen.StateGenerator) {
 	generator.BindStackValue(p.position, p.GetVariable())
 }
-
-////////////////////////////////////////////////////////////
-// Storage Value
-
-type storageValue struct {
-	key BindableExpression[U256]
-}
-
-func StorageValue(key BindableExpression[U256]) Expression[U256] {
-	return storageValue{key}
-}
-
-func (storageValue) Domain() Domain[U256] { return u256Domain{} }
-
-func (v storageValue) Eval(s *st.State) (U256, error) {
-	key, err := v.key.Eval(s)
-	if err != nil {
-		return NewU256(0), err
-	}
-	return s.Storage.Current[key], nil
-}
-
-func (v storageValue) Restrict(value U256, generator *gen.StateGenerator) {
-	v.key.BindTo(generator)
-	generator.BindStorageValue(v.key.GetVariable(), value)
-}
-
-func (v storageValue) String() string {
-	return fmt.Sprintf("storage[%v]", v.key)
-}

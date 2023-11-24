@@ -528,3 +528,50 @@ func (c *isStorageCold) EnumerateTestCases(generator *gen.StateGenerator, consum
 func (c *isStorageCold) String() string {
 	return fmt.Sprintf("cold(%v)", c.key)
 }
+
+////////////////////////////////////////////////////////////
+// Storage Configuration
+
+type storageConfiguration struct {
+	config   gen.StorageCfg
+	key      BindableExpression[U256]
+	newValue BindableExpression[U256]
+}
+
+func StorageConfiguration(config gen.StorageCfg, key, newValue BindableExpression[U256]) Condition {
+	return &storageConfiguration{config, key, newValue}
+}
+
+func (c *storageConfiguration) Check(s *st.State) (bool, error) {
+	key, err := c.key.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	newValue, err := c.newValue.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return c.config.Check(s.Storage.Original[key], s.Storage.Current[key], newValue), nil
+}
+
+func (c *storageConfiguration) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+
+	newValue := c.newValue.GetVariable()
+	c.newValue.BindTo(generator)
+
+	generator.BindStorageConfiguration(c.config, key, newValue)
+}
+
+func (c *storageConfiguration) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
+	// For now, we only create the positive test case. It is assumed that all
+	// storage configurations are covered by the specification.
+	positive := generator.Clone()
+	c.Restrict(positive)
+	consume(positive)
+}
+
+func (c *storageConfiguration) String() string {
+	return fmt.Sprintf("StorageConfiguration(%v,%v,%v)", c.config, c.key, c.newValue)
+}

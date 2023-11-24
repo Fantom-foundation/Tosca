@@ -150,9 +150,9 @@ func (g *StateGenerator) BindStackValue(pos int, v Variable) {
 	g.stackGen.BindValue(pos, v)
 }
 
-// BindStorageValue wraps StorageGenerator.BindCurrent.
-func (g *StateGenerator) BindStorageValue(key Variable, value U256) {
-	g.storageGen.BindCurrent(key, value)
+// BindStorageConfiguration wraps StorageGenerator.BindConfiguration.
+func (g *StateGenerator) BindStorageConfiguration(config StorageCfg, key, newValue Variable) {
+	g.storageGen.BindConfiguration(config, key, newValue)
 }
 
 // BindIsStorageWarm wraps StorageGenerator.BindWarm.
