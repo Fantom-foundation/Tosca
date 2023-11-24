@@ -86,7 +86,7 @@ var Spec = func() Specification {
 	rules = append(rules, []Rule{
 		{
 			Name:      "unknown_revision_is_end",
-			Condition: Revision(st.UnknownNextRevision),
+			Condition: IsRevision(R99_UnknownNextRevision),
 			Effect:    FailEffect(),
 		},
 	}...)

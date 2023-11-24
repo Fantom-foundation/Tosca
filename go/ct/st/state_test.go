@@ -12,7 +12,7 @@ import (
 func TestState_CloneIsIndependent(t *testing.T) {
 	state := NewState(NewCode([]byte{byte(ADD)}))
 	state.Status = Stopped
-	state.Revision = London
+	state.Revision = R10_London
 	state.Pc = 1
 	state.Gas = 2
 	state.Stack.Push(NewU256(3))
@@ -22,7 +22,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 
 	clone := state.Clone()
 	clone.Status = Running
-	clone.Revision = Berlin
+	clone.Revision = R09_Berlin
 	clone.Pc = 4
 	clone.Gas = 5
 	clone.Stack.Push(NewU256(6))
@@ -32,7 +32,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.Storage.MarkWarm(NewU256(42))
 
 	ok := state.Status == Stopped &&
-		state.Revision == London &&
+		state.Revision == R10_London &&
 		state.Pc == 1 &&
 		state.Gas == 2 &&
 		state.Stack.Size() == 1 &&
@@ -61,12 +61,12 @@ func TestState_Eq(t *testing.T) {
 	}
 	s2.Status = Running
 
-	s1.Revision = Istanbul
-	s2.Revision = London
+	s1.Revision = R07_Istanbul
+	s2.Revision = R10_London
 	if s1.Eq(s2) {
 		t.Fail()
 	}
-	s2.Revision = Istanbul
+	s2.Revision = R07_Istanbul
 
 	s1.Pc = 1
 	s2.Pc = 2
@@ -147,7 +147,7 @@ func TestState_PrinterStatus(t *testing.T) {
 
 func TestState_PrinterRevision(t *testing.T) {
 	s := NewState(NewCode([]byte{}))
-	s.Revision = London
+	s.Revision = R10_London
 
 	r := regexp.MustCompile("Revision: ([[:alpha:]]+)")
 	match := r.FindStringSubmatch(s.String())
@@ -330,7 +330,7 @@ func TestState_PrinterMemorySize(t *testing.T) {
 func TestState_DiffMatch(t *testing.T) {
 	s1 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s1.Status = Running
-	s1.Revision = London
+	s1.Revision = R10_London
 	s1.Pc = 3
 	s1.Gas = 42
 	s1.Stack.Push(NewU256(42))
@@ -339,7 +339,7 @@ func TestState_DiffMatch(t *testing.T) {
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
-	s2.Revision = London
+	s2.Revision = R10_London
 	s2.Pc = 3
 	s2.Gas = 42
 	s2.Stack.Push(NewU256(42))
@@ -360,7 +360,7 @@ func TestState_DiffMatch(t *testing.T) {
 func TestState_DiffMismatch(t *testing.T) {
 	s1 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD)}))
 	s1.Status = Stopped
-	s1.Revision = Berlin
+	s1.Revision = R09_Berlin
 	s1.Pc = 0
 	s1.Gas = 7
 	s1.Stack.Push(NewU256(42))
@@ -369,7 +369,7 @@ func TestState_DiffMismatch(t *testing.T) {
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
-	s2.Revision = London
+	s2.Revision = R10_London
 	s2.Pc = 3
 	s2.Gas = 42
 	s2.Stack.Push(NewU256(16))

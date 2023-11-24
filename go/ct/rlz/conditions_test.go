@@ -71,13 +71,13 @@ func TestCondition_Check(t *testing.T) {
 
 func TestCondition_CheckRevisions(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
-	state.Revision = st.London
+	state.Revision = R10_London
 
 	validConditions := []Condition{
 		AnyKnownRevision(),
-		Revision(st.London),
-		RevisionBounds(st.London, st.London),
-		RevisionBounds(st.Istanbul, st.London),
+		IsRevision(R10_London),
+		RevisionBounds(R10_London, R10_London),
+		RevisionBounds(R07_Istanbul, R10_London),
 	}
 	for _, cond := range validConditions {
 		isValid, err := cond.Check(state)
@@ -90,9 +90,9 @@ func TestCondition_CheckRevisions(t *testing.T) {
 	}
 
 	invalidConditions := []Condition{
-		Revision(st.Berlin),
-		Revision(st.UnknownNextRevision),
-		RevisionBounds(st.Istanbul, st.Berlin),
+		IsRevision(R09_Berlin),
+		IsRevision(R99_UnknownNextRevision),
+		RevisionBounds(R07_Istanbul, R09_Berlin),
 	}
 	for _, cond := range invalidConditions {
 		isValid, err := cond.Check(state)
@@ -105,9 +105,9 @@ func TestCondition_CheckRevisions(t *testing.T) {
 	}
 }
 
-func TestCondition_UnknownNextRevisionIsNotAnyKnownRevision(t *testing.T) {
+func TestCondition_UnknownNextRevisionIsNotAnyKnownIsRevision(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
-	state.Revision = st.UnknownNextRevision
+	state.Revision = R99_UnknownNextRevision
 
 	isValid, err := AnyKnownRevision().Check(state)
 	if err != nil {

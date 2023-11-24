@@ -40,13 +40,13 @@ func convertLfvmStatusToCtStatus(status Status) (st.StatusCode, error) {
 	}
 }
 
-func convertLfvmRevisionToCtRevision(ctx *context) (st.Revision, error) {
+func convertLfvmRevisionToCtRevision(ctx *context) (ct.Revision, error) {
 	if ctx.isBerlin && !ctx.isLondon {
-		return st.Berlin, nil
+		return ct.R09_Berlin, nil
 	} else if !ctx.isBerlin && ctx.isLondon {
-		return st.London, nil
+		return ct.R10_London, nil
 	} else if !ctx.isBerlin && !ctx.isLondon {
-		return st.Istanbul, nil
+		return ct.R07_Istanbul, nil
 	} else {
 		return -1, fmt.Errorf("invalid revision, both berlin and london set")
 	}
@@ -145,13 +145,13 @@ func convertCtMemoryToLfvmMemory(state *st.State) (*Memory, error) {
 	return memory, err
 }
 
-func convertCtRevisionToLfvmRevision(revision st.Revision, ctx *context) error {
+func convertCtRevisionToLfvmRevision(revision ct.Revision, ctx *context) error {
 	switch revision {
-	case st.Istanbul:
+	case ct.R07_Istanbul:
 		// True by default in context.
-	case st.Berlin:
+	case ct.R09_Berlin:
 		ctx.isBerlin = true
-	case st.London:
+	case ct.R10_London:
 		ctx.isLondon = true
 	default:
 		return fmt.Errorf("failed to convert revision: %v", revision)
@@ -202,8 +202,8 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 		data:     data,
 		callsize: *uint256.NewInt(uint64(len(data))),
 		readOnly: false,
-		isBerlin: state.Revision == st.Berlin,
-		isLondon: state.Revision == st.London,
+		isBerlin: state.Revision == ct.R09_Berlin,
+		isLondon: state.Revision == ct.R10_London,
 	}
 
 	err = convertCtRevisionToLfvmRevision(state.Revision, &ctx)

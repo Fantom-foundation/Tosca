@@ -58,14 +58,14 @@ func TestConvertToLfvm_InvalidStatusCode(t *testing.T) {
 
 func TestConvertToLfvm_Revision(t *testing.T) {
 	tests := map[string][]struct {
-		ctRevision            st.Revision
+		ctRevision            ct.Revision
 		convertSuccess        bool
 		lfvmRevisionPredicate func(ctx *context) bool
 	}{
-		"istanbul": {{st.Istanbul, true, func(ctx *context) bool { return !ctx.isBerlin && !ctx.isLondon }}},
-		"berlin":   {{st.Berlin, true, func(ctx *context) bool { return ctx.isBerlin && !ctx.isLondon }}},
-		"london":   {{st.London, true, func(ctx *context) bool { return !ctx.isBerlin && ctx.isLondon }}},
-		// TODO "next":     {{st.UnknownNextRevision, true, func(ctx *context) bool { }}},
+		"istanbul": {{ct.R07_Istanbul, true, func(ctx *context) bool { return !ctx.isBerlin && !ctx.isLondon }}},
+		"berlin":   {{ct.R09_Berlin, true, func(ctx *context) bool { return ctx.isBerlin && !ctx.isLondon }}},
+		"london":   {{ct.R10_London, true, func(ctx *context) bool { return !ctx.isBerlin && ctx.isLondon }}},
+		// TODO "next":     {{ct.R99_UnknownNextRevision, true, func(ctx *context) bool { }}},
 		"invalid": {{-1, false, nil}},
 	}
 
@@ -397,12 +397,12 @@ func TestConvertToCt_Revision(t *testing.T) {
 	tests := map[string][]struct {
 		lfvmRevisionSetter func(ctx *context)
 		convertSuccess     bool
-		ctRevision         st.Revision
+		ctRevision         ct.Revision
 	}{
-		"istanbul": {{func(ctx *context) { ctx.isBerlin = false; ctx.isLondon = false }, true, st.Istanbul}},
-		"berlin":   {{func(ctx *context) { ctx.isBerlin = true; ctx.isLondon = false }, true, st.Berlin}},
-		"london":   {{func(ctx *context) { ctx.isBerlin = false; ctx.isLondon = true }, true, st.London}},
-		// TODO "next":     {{func(ctx *context) {  }, true, st.UnknownNextRevision}},
+		"istanbul": {{func(ctx *context) { ctx.isBerlin = false; ctx.isLondon = false }, true, ct.R07_Istanbul}},
+		"berlin":   {{func(ctx *context) { ctx.isBerlin = true; ctx.isLondon = false }, true, ct.R09_Berlin}},
+		"london":   {{func(ctx *context) { ctx.isBerlin = false; ctx.isLondon = true }, true, ct.R10_London}},
+		// TODO "next":     {{func(ctx *context) {  }, true, ct.R99_UnknownNextRevision}},
 		"invalid": {{func(ctx *context) { ctx.isBerlin = true; ctx.isLondon = true }, false, -1}},
 	}
 

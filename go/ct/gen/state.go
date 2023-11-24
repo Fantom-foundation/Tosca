@@ -60,7 +60,7 @@ func (g *StateGenerator) SetStatus(status st.StatusCode) {
 	}
 }
 
-type RevisionBounds struct{ min, max st.Revision }
+type RevisionBounds struct{ min, max Revision }
 
 func (a RevisionBounds) Less(b RevisionBounds) bool {
 	if a.min != b.min {
@@ -78,11 +78,11 @@ func (r RevisionBounds) String() string {
 }
 
 // SetRevision adds a constraint on the State's revision.
-func (g *StateGenerator) SetRevision(revision st.Revision) {
+func (g *StateGenerator) SetRevision(revision Revision) {
 	g.SetRevisionBounds(revision, revision)
 }
 
-func (g *StateGenerator) SetRevisionBounds(min, max st.Revision) {
+func (g *StateGenerator) SetRevisionBounds(min, max Revision) {
 	if min > max {
 		min, max = max, min
 	}
@@ -184,11 +184,11 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting status constraints defined: %v", ErrUnsatisfiable, g.statusConstraints)
 	}
 
-	var resultRevision st.Revision
+	var resultRevision Revision
 	if len(g.revisionConstraints) == 0 {
-		resultRevision = st.Revision(rnd.Int31n(int32(st.UnknownNextRevision)+1))
+		resultRevision = Revision(rnd.Int31n(int32(R99_UnknownNextRevision) + 1))
 	} else {
-		bounds := RevisionBounds{st.Revision(0), st.UnknownNextRevision}
+		bounds := RevisionBounds{Revision(0), R99_UnknownNextRevision}
 		for _, con := range g.revisionConstraints {
 			if con.min > bounds.min {
 				bounds.min = con.min
@@ -200,7 +200,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		if bounds.min > bounds.max {
 			return nil, fmt.Errorf("%w, conflicting revision constraints defined: %v", ErrUnsatisfiable, g.revisionConstraints)
 		}
-		resultRevision = st.Revision(rnd.Int31n(int32(bounds.max-bounds.min)+1)) + bounds.min
+		resultRevision = Revision(rnd.Int31n(int32(bounds.max-bounds.min)+1)) + bounds.min
 	}
 
 	// Invoke CodeGenerator

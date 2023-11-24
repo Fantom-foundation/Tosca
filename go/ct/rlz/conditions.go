@@ -327,21 +327,21 @@ func (c *ge[T]) String() string {
 ////////////////////////////////////////////////////////////
 // Revision Bounds
 
-type revisionBounds struct{ min, max st.Revision }
+type revisionBounds struct{ min, max Revision }
 
-func RevisionBounds(min, max st.Revision) Condition {
+func RevisionBounds(min, max Revision) Condition {
 	if min > max {
 		min, max = max, min
 	}
 	return &revisionBounds{min, max}
 }
 
-func Revision(revision st.Revision) Condition {
+func IsRevision(revision Revision) Condition {
 	return RevisionBounds(revision, revision)
 }
 
 func AnyKnownRevision() Condition {
-	return RevisionBounds(st.Revision(0), st.UnknownNextRevision-1)
+	return RevisionBounds(Revision(0), R99_UnknownNextRevision-1)
 }
 
 func (c *revisionBounds) Check(s *st.State) (bool, error) {
@@ -353,7 +353,7 @@ func (c *revisionBounds) Restrict(generator *gen.StateGenerator) {
 }
 
 func (*revisionBounds) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
-	for r := st.Revision(0); r <= st.UnknownNextRevision; r++ {
+	for r := Revision(0); r <= R99_UnknownNextRevision; r++ {
 		g := generator.Clone()
 		g.SetRevision(r)
 		consume(g)
