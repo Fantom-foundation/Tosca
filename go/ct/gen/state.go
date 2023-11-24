@@ -186,7 +186,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 
 	var resultRevision st.Revision
 	if len(g.revisionConstraints) == 0 {
-		resultRevision = st.Revision(rnd.Int31n(int32(st.UnknownNextRevision)))
+		resultRevision = st.Revision(rnd.Int31n(int32(st.UnknownNextRevision)+1))
 	} else {
 		bounds := RevisionBounds{st.Revision(0), st.UnknownNextRevision}
 		for _, con := range g.revisionConstraints {
@@ -200,11 +200,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		if bounds.min > bounds.max {
 			return nil, fmt.Errorf("%w, conflicting revision constraints defined: %v", ErrUnsatisfiable, g.revisionConstraints)
 		}
-		if bounds.min == bounds.max {
-			resultRevision = bounds.min
-		} else {
-			resultRevision = st.Revision(rnd.Int31n(int32(bounds.max-bounds.min))) + bounds.min
-		}
+		resultRevision = st.Revision(rnd.Int31n(int32(bounds.max-bounds.min)+1)) + bounds.min
 	}
 
 	// Invoke CodeGenerator

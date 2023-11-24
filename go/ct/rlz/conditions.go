@@ -340,7 +340,7 @@ func Revision(revision st.Revision) Condition {
 	return RevisionBounds(revision, revision)
 }
 
-func AnyRevision() Condition {
+func AnyKnownRevision() Condition {
 	return RevisionBounds(st.Revision(0), st.UnknownNextRevision-1)
 }
 
@@ -352,8 +352,8 @@ func (c *revisionBounds) Restrict(generator *gen.StateGenerator) {
 	generator.SetRevisionBounds(c.min, c.max)
 }
 
-func (c *revisionBounds) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
-	for r := c.min; r <= c.max; r++ {
+func (*revisionBounds) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
+	for r := st.Revision(0); r <= st.UnknownNextRevision; r++ {
 		g := generator.Clone()
 		g.SetRevision(r)
 		consume(g)

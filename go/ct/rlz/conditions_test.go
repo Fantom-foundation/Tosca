@@ -74,7 +74,7 @@ func TestCondition_CheckRevisions(t *testing.T) {
 	state.Revision = st.London
 
 	validConditions := []Condition{
-		AnyRevision(),
+		AnyKnownRevision(),
 		Revision(st.London),
 		RevisionBounds(st.London, st.London),
 		RevisionBounds(st.Istanbul, st.London),
@@ -105,16 +105,16 @@ func TestCondition_CheckRevisions(t *testing.T) {
 	}
 }
 
-func TestCondition_UnknownNextRevisionIsNotAnyRevision(t *testing.T) {
+func TestCondition_UnknownNextRevisionIsNotAnyKnownRevision(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Revision = st.UnknownNextRevision
 
-	isValid, err := AnyRevision().Check(state)
+	isValid, err := AnyKnownRevision().Check(state)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if isValid {
-		t.Fatal("AnyRevision matches UnknownNextRevision")
+		t.Fatal("AnyKnownRevision matches UnknownNextRevision")
 	}
 }
 

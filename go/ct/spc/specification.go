@@ -58,25 +58,25 @@ var Spec = func() Specification {
 	rules = append(rules, []Rule{
 		{
 			Name:      "stopped_is_end",
-			Condition: And(AnyRevision(), Eq(Status(), st.Stopped)),
+			Condition: And(AnyKnownRevision(), Eq(Status(), st.Stopped)),
 			Effect:    NoEffect(),
 		},
 
 		{
 			Name:      "returned_is_end",
-			Condition: And(AnyRevision(), Eq(Status(), st.Returned)),
+			Condition: And(AnyKnownRevision(), Eq(Status(), st.Returned)),
 			Effect:    NoEffect(),
 		},
 
 		{
 			Name:      "reverted_is_end",
-			Condition: And(AnyRevision(), Eq(Status(), st.Reverted)),
+			Condition: And(AnyKnownRevision(), Eq(Status(), st.Reverted)),
 			Effect:    NoEffect(),
 		},
 
 		{
 			Name:      "failed_is_end",
-			Condition: And(AnyRevision(), Eq(Status(), st.Failed)),
+			Condition: And(AnyKnownRevision(), Eq(Status(), st.Failed)),
 			Effect:    NoEffect(),
 		},
 	}...)
@@ -96,7 +96,7 @@ var Spec = func() Specification {
 	rules = append(rules, Rule{
 		Name: "stop_terminates_interpreter",
 		Condition: And(
-			AnyRevision(),
+			AnyKnownRevision(),
 			Eq(Status(), st.Running),
 			Eq(Op(Pc()), STOP),
 		),
@@ -225,7 +225,7 @@ var Spec = func() Specification {
 		{
 			Name: "sha3_with_too_little_static_gas",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SHA3),
 				Lt(Gas(), 30),
@@ -237,7 +237,7 @@ var Spec = func() Specification {
 		{
 			Name: "sha3_with_too_few_elements",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SHA3),
 				Ge(Gas(), 30),
@@ -249,7 +249,7 @@ var Spec = func() Specification {
 		{
 			Name: "sha3_regular",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SHA3),
 				Ge(Gas(), 30),
@@ -293,7 +293,7 @@ var Spec = func() Specification {
 		{
 			Name: "mload_with_too_little_static_gas",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MLOAD),
 				Lt(Gas(), 3),
@@ -305,7 +305,7 @@ var Spec = func() Specification {
 		{
 			Name: "mload_with_too_few_elements",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MLOAD),
 				Ge(Gas(), 3),
@@ -317,7 +317,7 @@ var Spec = func() Specification {
 		{
 			Name: "mload_regular",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MLOAD),
 				Ge(Gas(), 3),
@@ -351,7 +351,7 @@ var Spec = func() Specification {
 		{
 			Name: "mstore_with_too_little_static_gas",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MSTORE),
 				Lt(Gas(), 3),
@@ -363,7 +363,7 @@ var Spec = func() Specification {
 		{
 			Name: "mstore_with_too_few_elements",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MSTORE),
 				Ge(Gas(), 3),
@@ -375,7 +375,7 @@ var Spec = func() Specification {
 		{
 			Name: "mstore_regular",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MSTORE),
 				Ge(Gas(), 3),
@@ -411,7 +411,7 @@ var Spec = func() Specification {
 		{
 			Name: "mstore8_with_too_little_static_gas",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MSTORE8),
 				Lt(Gas(), 3),
@@ -423,7 +423,7 @@ var Spec = func() Specification {
 		{
 			Name: "mstore8_with_too_few_elements",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MSTORE8),
 				Ge(Gas(), 3),
@@ -435,7 +435,7 @@ var Spec = func() Specification {
 		{
 			Name: "mstore8_regular",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MSTORE8),
 				Ge(Gas(), 3),
@@ -470,7 +470,7 @@ var Spec = func() Specification {
 		{
 			Name: "jump_with_too_little_gas",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMP),
 				Lt(Gas(), 8),
@@ -481,7 +481,7 @@ var Spec = func() Specification {
 		{
 			Name: "jump_with_too_few_elements",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMP),
 				Ge(Gas(), 8),
@@ -493,7 +493,7 @@ var Spec = func() Specification {
 		{
 			Name: "jump_to_data",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMP),
 				Ge(Gas(), 8),
@@ -506,7 +506,7 @@ var Spec = func() Specification {
 		{
 			Name: "jump_to_invalid_destination",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMP),
 				Ge(Gas(), 8),
@@ -520,7 +520,7 @@ var Spec = func() Specification {
 		{
 			Name: "jump_valid_target",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMP),
 				Ge(Gas(), 8),
@@ -542,7 +542,7 @@ var Spec = func() Specification {
 		{
 			Name: "sload_regular_cold",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SLOAD),
 				Ge(Gas(), 100),
@@ -570,7 +570,7 @@ var Spec = func() Specification {
 		{
 			Name: "sload_regular_warm",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SLOAD),
 				Ge(Gas(), 100),
@@ -591,7 +591,7 @@ var Spec = func() Specification {
 		{
 			Name: "sload_with_too_little_min_gas",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SLOAD),
 				Lt(Gas(), 100),
@@ -603,7 +603,7 @@ var Spec = func() Specification {
 		{
 			Name: "sload_with_too_few_elements",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SLOAD),
 				Ge(Gas(), 100),
@@ -619,7 +619,7 @@ var Spec = func() Specification {
 		{
 			Name: "sstore_regular_cold",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SSTORE),
 				Ge(Gas(), 2300),
@@ -643,7 +643,7 @@ var Spec = func() Specification {
 		{
 			Name: "sstore_regular_warm",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SSTORE),
 				Ge(Gas(), 2300),
@@ -666,7 +666,7 @@ var Spec = func() Specification {
 		{
 			Name: "sstore_with_too_little_gas_EIP2200",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SSTORE),
 				Lt(Gas(), 2300),
@@ -678,7 +678,7 @@ var Spec = func() Specification {
 		{
 			Name: "sstore_with_too_few_elements",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SSTORE),
 				Ge(Gas(), 2300),
@@ -694,7 +694,7 @@ var Spec = func() Specification {
 		{
 			Name: "jumpi_with_too_little_gas",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMPI),
 				Lt(Gas(), 10),
@@ -705,7 +705,7 @@ var Spec = func() Specification {
 		{
 			Name: "jumpi_with_too_few_elements",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMPI),
 				Ge(Gas(), 10),
@@ -717,7 +717,7 @@ var Spec = func() Specification {
 		{
 			Name: "jumpi_not_taken",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMPI),
 				Ge(Gas(), 10),
@@ -735,7 +735,7 @@ var Spec = func() Specification {
 		{
 			Name: "jumpi_to_data",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMPI),
 				Ge(Gas(), 10),
@@ -749,7 +749,7 @@ var Spec = func() Specification {
 		{
 			Name: "jumpi_to_invalid_destination",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMPI),
 				Ge(Gas(), 10),
@@ -764,7 +764,7 @@ var Spec = func() Specification {
 		{
 			Name: "jumpi_valid_target",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMPI),
 				Ge(Gas(), 10),
@@ -788,7 +788,7 @@ var Spec = func() Specification {
 		{
 			Name: "jumpdest_with_too_little_gas",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMPDEST),
 				Lt(Gas(), 1),
@@ -799,7 +799,7 @@ var Spec = func() Specification {
 		{
 			Name: "jumpdest_regular",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMPDEST),
 				Ge(Gas(), 1),
@@ -823,7 +823,7 @@ var Spec = func() Specification {
 		{
 			Name: "pop_regular",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), POP),
 				Ge(Gas(), 2),
@@ -839,7 +839,7 @@ var Spec = func() Specification {
 		{
 			Name: "pop_with_too_little_gas",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), POP),
 				Lt(Gas(), 2),
@@ -851,7 +851,7 @@ var Spec = func() Specification {
 		{
 			Name: "pop_with_too_few_elements",
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), POP),
 				Ge(Gas(), 2),
@@ -889,7 +889,7 @@ func binaryOpWithDynamicCost(
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), costs),
@@ -918,7 +918,7 @@ func binaryOpWithDynamicCost(
 		{
 			Name: fmt.Sprintf("%v_with_too_little_gas", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Lt(Gas(), costs),
@@ -929,7 +929,7 @@ func binaryOpWithDynamicCost(
 		{
 			Name: fmt.Sprintf("%v_with_too_few_elements", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), costs),
@@ -958,7 +958,7 @@ func trinaryOp(
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), costs),
@@ -982,7 +982,7 @@ func trinaryOp(
 		{
 			Name: fmt.Sprintf("%v_with_too_little_gas", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Lt(Gas(), costs),
@@ -993,7 +993,7 @@ func trinaryOp(
 		{
 			Name: fmt.Sprintf("%v_with_too_few_elements", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), costs),
@@ -1014,7 +1014,7 @@ func unaryOp(
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), costs),
@@ -1034,7 +1034,7 @@ func unaryOp(
 		{
 			Name: fmt.Sprintf("%v_with_too_little_gas", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Lt(Gas(), costs),
@@ -1045,7 +1045,7 @@ func unaryOp(
 		{
 			Name: fmt.Sprintf("%v_with_too_few_elements", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), costs),
@@ -1063,7 +1063,7 @@ func pushOp(n int) []Rule {
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), 3),
@@ -1087,7 +1087,7 @@ func pushOp(n int) []Rule {
 		{
 			Name: fmt.Sprintf("%v_with_too_little_gas", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Lt(Gas(), 3),
@@ -1099,7 +1099,7 @@ func pushOp(n int) []Rule {
 		{
 			Name: fmt.Sprintf("%v_with_not_enough_space", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), 3),
@@ -1117,7 +1117,7 @@ func dupOp(n int) []Rule {
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), 3),
@@ -1134,7 +1134,7 @@ func dupOp(n int) []Rule {
 		{
 			Name: fmt.Sprintf("%v_with_too_little_gas", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Lt(Gas(), 3),
@@ -1147,7 +1147,7 @@ func dupOp(n int) []Rule {
 		{
 			Name: fmt.Sprintf("%v_with_too_few_elements", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), 3),
@@ -1160,7 +1160,7 @@ func dupOp(n int) []Rule {
 		{
 			Name: fmt.Sprintf("%v_with_not_enough_space", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), 3),
@@ -1179,7 +1179,7 @@ func swapOp(n int) []Rule {
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), 3),
@@ -1198,7 +1198,7 @@ func swapOp(n int) []Rule {
 		{
 			Name: fmt.Sprintf("%v_with_too_little_gas", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Lt(Gas(), 3),
@@ -1210,7 +1210,7 @@ func swapOp(n int) []Rule {
 		{
 			Name: fmt.Sprintf("%v_with_too_few_elements", name),
 			Condition: And(
-				AnyRevision(),
+				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Ge(Gas(), 3),
