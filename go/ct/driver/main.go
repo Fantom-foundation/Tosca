@@ -15,6 +15,8 @@ func main() {
 		Flags:     []cli.Flag{},
 		Commands: []*cli.Command{
 			&RunCmd,
+			&ListCmd,
+			&TestCmd,
 		},
 	}
 

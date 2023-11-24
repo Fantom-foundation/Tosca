@@ -15,7 +15,7 @@ func TestCtAdapter_Add(t *testing.T) {
 		byte(ctcommon.ADD),
 	}))
 	s.Status = st.Running
-	s.Revision = st.Istanbul
+	s.Revision = ctcommon.R07_Istanbul
 	s.Pc = 0
 	s.Gas = 100
 	s.Stack = st.NewStack(ctcommon.NewU256(1), ctcommon.NewU256(2))

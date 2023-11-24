@@ -12,7 +12,7 @@ import (
 )
 
 func TestStateGenerator_UnconstrainedGeneratorCanProduceState(t *testing.T) {
-	rnd := rand.New()
+	rnd := rand.New(0)
 	generator := NewStateGenerator()
 	if _, err := generator.Generate(rnd); err != nil {
 		t.Fatalf("unexpected error during build: %v", err)
@@ -25,7 +25,7 @@ func TestStateGenerator_UnconstrainedGeneratorCanProduceState(t *testing.T) {
 func TestStateGenerator_SetStatusIsEnforced(t *testing.T) {
 	statuses := []st.StatusCode{st.Running, st.Failed, st.Reverted}
 
-	rnd := rand.New()
+	rnd := rand.New(0)
 	for _, status := range statuses {
 		generator := NewStateGenerator()
 		generator.SetStatus(status)
@@ -43,7 +43,7 @@ func TestStateGenerator_ConflictingStatusesAreDetected(t *testing.T) {
 	generator := NewStateGenerator()
 	generator.SetStatus(st.Running)
 	generator.SetStatus(st.Failed)
-	rnd := rand.New()
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
@@ -52,7 +52,7 @@ func TestStateGenerator_ConflictingStatusesAreDetected(t *testing.T) {
 func TestStateGenerator_NegativeStatusesAreDetected(t *testing.T) {
 	generator := NewStateGenerator()
 	generator.SetStatus(st.StatusCode(-12))
-	rnd := rand.New()
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
@@ -62,7 +62,7 @@ func TestStateGenerator_NonConflictingStatusesAreAccepted(t *testing.T) {
 	generator := NewStateGenerator()
 	generator.SetStatus(st.Reverted)
 	generator.SetStatus(st.Reverted)
-	rnd := rand.New()
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); err != nil {
 		t.Errorf("generation failed: %v", err)
 	}
@@ -72,9 +72,9 @@ func TestStateGenerator_NonConflictingStatusesAreAccepted(t *testing.T) {
 // Revision
 
 func TestStateGenerator_SetRevisionIsEnforced(t *testing.T) {
-	revisions := []st.Revision{st.Istanbul, st.Berlin, st.London}
+	revisions := []Revision{R07_Istanbul, R09_Berlin, R10_London}
 
-	rnd := rand.New()
+	rnd := rand.New(0)
 	for _, revision := range revisions {
 		generator := NewStateGenerator()
 		generator.SetRevision(revision)
@@ -90,9 +90,9 @@ func TestStateGenerator_SetRevisionIsEnforced(t *testing.T) {
 
 func TestStateGenerator_ConflictingRevisionsAreDetected(t *testing.T) {
 	generator := NewStateGenerator()
-	generator.SetRevision(st.Istanbul)
-	generator.SetRevision(st.London)
-	rnd := rand.New()
+	generator.SetRevision(R07_Istanbul)
+	generator.SetRevision(R10_London)
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
@@ -100,8 +100,8 @@ func TestStateGenerator_ConflictingRevisionsAreDetected(t *testing.T) {
 
 func TestStateGenerator_NegativeRevisionsAreDetected(t *testing.T) {
 	generator := NewStateGenerator()
-	generator.SetRevision(st.Revision(-12))
-	rnd := rand.New()
+	generator.SetRevision(Revision(-12))
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
@@ -109,11 +109,35 @@ func TestStateGenerator_NegativeRevisionsAreDetected(t *testing.T) {
 
 func TestStateGenerator_NonConflictingRevisionsAreAccepted(t *testing.T) {
 	generator := NewStateGenerator()
-	generator.SetRevision(st.London)
-	generator.SetRevision(st.London)
-	rnd := rand.New()
+	generator.SetRevision(R10_London)
+	generator.SetRevision(R10_London)
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); err != nil {
 		t.Errorf("generation failed: %v", err)
+	}
+}
+
+func TestStateGenerator_SetRevisionBoundsIsEnforced(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.SetRevisionBounds(R07_Istanbul, R09_Berlin)
+	generator.SetRevisionBounds(R09_Berlin, R10_London)
+
+	state, err := generator.Generate(rand.New(0))
+	if err != nil {
+		t.Fatalf("unexpected error during build: %v", err)
+	}
+	if want, got := R09_Berlin, state.Revision; want != got {
+		t.Fatalf("Revision bounds not working, want %v, got %v", want, got)
+	}
+}
+
+func TestStateGenerator_ConflictingRevisionBoundsAreDetected(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.SetRevisionBounds(R07_Istanbul, R09_Berlin)
+	generator.SetRevisionBounds(R10_London, R99_UnknownNextRevision)
+
+	if _, err := generator.Generate(rand.New(0)); !errors.Is(err, ErrUnsatisfiable) {
+		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
 }
 
@@ -123,7 +147,7 @@ func TestStateGenerator_NonConflictingRevisionsAreAccepted(t *testing.T) {
 func TestStateGenerator_SetPcIsEnforced(t *testing.T) {
 	pcs := []uint16{0, 2, 4}
 
-	rnd := rand.New()
+	rnd := rand.New(0)
 	for _, pc := range pcs {
 		generator := NewStateGenerator()
 		generator.SetPc(pc)
@@ -141,7 +165,7 @@ func TestStateGenerator_ConflictingPcesAreDetected(t *testing.T) {
 	generator := NewStateGenerator()
 	generator.SetPc(0)
 	generator.SetPc(1)
-	rnd := rand.New()
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
@@ -151,7 +175,7 @@ func TestStateGenerator_NonConflictingPcesAreAccepted(t *testing.T) {
 	generator := NewStateGenerator()
 	generator.SetPc(1)
 	generator.SetPc(1)
-	rnd := rand.New()
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); err != nil {
 		t.Errorf("generation failed: %v", err)
 	}
@@ -163,7 +187,7 @@ func TestStateGenerator_NonConflictingPcesAreAccepted(t *testing.T) {
 func TestStateGenerator_SetGasIsEnforced(t *testing.T) {
 	gasCounts := []uint64{0, 42, math.MaxUint64}
 
-	rnd := rand.New()
+	rnd := rand.New(0)
 	for _, gas := range gasCounts {
 		generator := NewStateGenerator()
 		generator.SetGas(gas)
@@ -181,7 +205,7 @@ func TestStateGenerator_ConflictingGasAreDetected(t *testing.T) {
 	generator := NewStateGenerator()
 	generator.SetGas(0)
 	generator.SetGas(42)
-	rnd := rand.New()
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
 	}
@@ -191,7 +215,7 @@ func TestStateGenerator_NonConflictingGasAreAccepted(t *testing.T) {
 	generator := NewStateGenerator()
 	generator.SetGas(42)
 	generator.SetGas(42)
-	rnd := rand.New()
+	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); err != nil {
 		t.Errorf("generation failed: %v", err)
 	}
@@ -203,7 +227,7 @@ func TestStateGenerator_NonConflictingGasAreAccepted(t *testing.T) {
 func TestStateGenerator_CloneCopiesBuilderState(t *testing.T) {
 	original := NewStateGenerator()
 	original.SetStatus(st.Reverted)
-	original.SetRevision(st.London)
+	original.SetRevision(R10_London)
 	original.SetPc(4)
 	original.SetGas(5)
 
@@ -220,14 +244,14 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 
 	clone1 := base.Clone()
 	clone1.SetStatus(st.Reverted)
-	clone1.SetRevision(st.London)
+	clone1.SetRevision(R10_London)
 	clone1.SetGas(5)
 	clone1.SetCodeOperation(20, ADD)
 	clone1.SetStackSize(2)
 
 	clone2 := base.Clone()
 	clone2.SetStatus(st.Running)
-	clone2.SetRevision(st.Berlin)
+	clone2.SetRevision(R09_Berlin)
 	clone2.SetGas(6)
 	clone2.SetCodeOperation(30, ADD)
 	clone2.SetStackSize(3)

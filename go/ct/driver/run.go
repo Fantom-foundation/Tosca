@@ -6,7 +6,6 @@ import (
 	"os"
 	"regexp"
 	"runtime/pprof"
-	"sort"
 
 	"pgregory.net/rand"
 
@@ -27,10 +26,6 @@ var RunCmd = cli.Command{
 			Name:  "filter",
 			Usage: "run only rules which name matches the given regex",
 			Value: ".*",
-		},
-		&cli.BoolFlag{
-			Name:  "list",
-			Usage: "list all rules by name",
 		},
 		&cli.IntFlag{
 			Name:  "max-errors",
@@ -53,15 +48,6 @@ var evms = map[string]ct.Evm{
 }
 
 func doRun(context *cli.Context) error {
-	if context.Bool("list") {
-		rules := spc.Spec.GetRules()
-		sort.Slice(rules, func(i, j int) bool { return rules[i].Name < rules[j].Name })
-		for _, rule := range rules {
-			fmt.Println(rule.Name)
-		}
-		return nil
-	}
-
 	if cpuprofileFilename := context.String("cpuprofile"); cpuprofileFilename != "" {
 		f, err := os.Create(cpuprofileFilename)
 		if err != nil {

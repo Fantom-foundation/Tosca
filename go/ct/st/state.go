@@ -39,30 +39,6 @@ func (s StatusCode) String() string {
 
 ////////////////////////////////////////////////////////////
 
-type Revision int
-
-const (
-	Istanbul Revision = iota
-	Berlin
-	London
-	NumRevisions // not an actual revision
-)
-
-func (r Revision) String() string {
-	switch r {
-	case Istanbul:
-		return "Istanbul"
-	case Berlin:
-		return "Berlin"
-	case London:
-		return "London"
-	default:
-		return fmt.Sprintf("Revision(%d)", r)
-	}
-}
-
-////////////////////////////////////////////////////////////
-
 // State represents an EVM's execution state.
 type State struct {
 	Status   StatusCode
@@ -79,7 +55,7 @@ type State struct {
 func NewState(code *Code) *State {
 	return &State{
 		Status:   Running,
-		Revision: Istanbul,
+		Revision: R07_Istanbul,
 		Code:     code,
 		Stack:    NewStack(),
 		Memory:   NewMemory(),

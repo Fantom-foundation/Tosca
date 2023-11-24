@@ -36,5 +36,8 @@ jobs:
     - name: Run Go tests
       run: make test-go
 
+    - name: CT rule coverage test
+      run: go run ./go/ct/driver test
+
     #- name: CT on LFVM
     #  run: go run ./go/ct/driver run lfvm

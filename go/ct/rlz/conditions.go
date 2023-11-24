@@ -325,6 +325,49 @@ func (c *ge[T]) String() string {
 }
 
 ////////////////////////////////////////////////////////////
+// Revision Bounds
+
+type revisionBounds struct{ min, max Revision }
+
+func RevisionBounds(min, max Revision) Condition {
+	if min > max {
+		min, max = max, min
+	}
+	return &revisionBounds{min, max}
+}
+
+func IsRevision(revision Revision) Condition {
+	return RevisionBounds(revision, revision)
+}
+
+func AnyKnownRevision() Condition {
+	return RevisionBounds(Revision(0), R99_UnknownNextRevision-1)
+}
+
+func (c *revisionBounds) Check(s *st.State) (bool, error) {
+	return c.min <= s.Revision && s.Revision <= c.max, nil
+}
+
+func (c *revisionBounds) Restrict(generator *gen.StateGenerator) {
+	generator.SetRevisionBounds(c.min, c.max)
+}
+
+func (*revisionBounds) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
+	for r := Revision(0); r <= R99_UnknownNextRevision; r++ {
+		g := generator.Clone()
+		g.SetRevision(r)
+		consume(g)
+	}
+}
+
+func (c *revisionBounds) String() string {
+	if c.min == c.max {
+		return fmt.Sprintf("revision(%v)", c.min)
+	}
+	return fmt.Sprintf("revision(%v-%v)", c.min, c.max)
+}
+
+////////////////////////////////////////////////////////////
 // Is Code
 
 type isCode struct {
