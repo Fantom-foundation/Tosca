@@ -68,7 +68,15 @@ func doTest(context *cli.Context) error {
 					atLeastOne = true
 				}
 				if len(rules) > 1 {
-					return fmt.Errorf("multiple rules for state %v: %v", state, rules)
+					s0 := state.Clone()
+					rules[0].Effect.Apply(s0)
+					for i := 1; i < len(rules)-1; i++ {
+						s := state.Clone()
+						rules[i].Effect.Apply(s)
+						if !s.Eq(s0) {
+							return fmt.Errorf("multiple conflicting rules for state %v: %v", state, rules)
+						}
+					}
 				}
 				return nil
 			})

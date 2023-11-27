@@ -21,10 +21,16 @@ func TestSpecification_RulesCoverRandomStates(t *testing.T) {
 		}
 
 		rules := Spec.GetRulesFor(state)
-
-		// TODO: Enforce that exactly one rule applies
 		if len(rules) > 1 {
-			t.Fatalf("multiple rules for state %v: %v", &state, rules)
+			s0 := state.Clone()
+			rules[0].Effect.Apply(s0)
+			for i := 1; i < len(rules)-1; i++ {
+				s := state.Clone()
+				rules[i].Effect.Apply(s)
+				if !s.Eq(s0) {
+					t.Fatalf("multiple conflicting rules for state %v: %v", state, rules)
+				}
+			}
 		}
 	}
 }
