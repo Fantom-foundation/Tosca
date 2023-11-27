@@ -115,6 +115,29 @@ func (gas) String() string {
 }
 
 ////////////////////////////////////////////////////////////
+// Gas Refund Counter
+
+type gasRefund struct{}
+
+func GasRefund() Expression[uint64] {
+	return gasRefund{}
+}
+
+func (gasRefund) Domain() Domain[uint64] { return uint64Domain{} }
+
+func (gasRefund) Eval(s *st.State) (uint64, error) {
+	return s.GasRefund, nil
+}
+
+func (gasRefund) Restrict(amount uint64, generator *gen.StateGenerator) {
+	generator.SetGasRefund(amount)
+}
+
+func (gasRefund) String() string {
+	return "GasRefund"
+}
+
+////////////////////////////////////////////////////////////
 // Code Operation
 
 type op struct {

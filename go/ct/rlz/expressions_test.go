@@ -73,6 +73,27 @@ func TestExpression_GasRestrict(t *testing.T) {
 	}
 }
 
+func TestExpression_GasRefundEval(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.GasRefund = 42
+	if gas, err := GasRefund().Eval(state); err != nil || gas != 42 {
+		t.Fail()
+	}
+}
+
+func TestExpression_GasRefundRestrict(t *testing.T) {
+	generator := gen.NewStateGenerator()
+	GasRefund().Restrict(42, generator)
+
+	state, err := generator.Generate(rand.New(0))
+	if err != nil {
+		t.Errorf("State generation failed %v", err)
+	}
+	if state.GasRefund != 42 {
+		t.Errorf("Generator was not restricted by expression")
+	}
+}
+
 func TestExpression_OpEval(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{byte(STOP), byte(STOP), byte(ADD)}))
 	state.Pc = 2
