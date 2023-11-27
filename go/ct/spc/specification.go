@@ -457,77 +457,6 @@ var Spec = func() Specification {
 		},
 	}...)
 
-	// --- JUMP ---
-
-	rules = append(rules, []Rule{
-		{
-			Name: "jump_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMP),
-				Lt(Gas(), 8),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "jump_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMP),
-				Lt(StackSize(), 1),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "jump_to_data",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMP),
-				Ge(Gas(), 8),
-				Ge(StackSize(), 1),
-				IsData(Param(0)),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "jump_to_invalid_destination",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMP),
-				Ge(Gas(), 8),
-				Ge(StackSize(), 1),
-				IsCode(Param(0)),
-				Ne(Op(Param(0)), JUMPDEST),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "jump_valid_target",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMP),
-				Ge(Gas(), 8),
-				Ge(StackSize(), 1),
-				IsCode(Param(0)),
-				Eq(Op(Param(0)), JUMPDEST),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 8
-				target := s.Stack.Pop()
-				s.Pc = uint16(target.Uint64())
-			}),
-		},
-	}...)
-
 	// --- SLOAD ---
 
 	rules = append(rules, []Rule{
@@ -674,6 +603,77 @@ var Spec = func() Specification {
 				Lt(StackSize(), 2),
 			),
 			Effect: FailEffect(),
+		},
+	}...)
+
+	// --- JUMP ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "jump_with_too_little_gas",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMP),
+				Lt(Gas(), 8),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jump_with_too_few_elements",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMP),
+				Lt(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jump_to_data",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMP),
+				Ge(Gas(), 8),
+				Ge(StackSize(), 1),
+				IsData(Param(0)),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jump_to_invalid_destination",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMP),
+				Ge(Gas(), 8),
+				Ge(StackSize(), 1),
+				IsCode(Param(0)),
+				Ne(Op(Param(0)), JUMPDEST),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "jump_valid_target",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMP),
+				Ge(Gas(), 8),
+				Ge(StackSize(), 1),
+				IsCode(Param(0)),
+				Eq(Op(Param(0)), JUMPDEST),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 8
+				target := s.Stack.Pop()
+				s.Pc = uint16(target.Uint64())
+			}),
 		},
 	}...)
 
