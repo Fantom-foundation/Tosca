@@ -463,10 +463,10 @@ var Spec = func() Specification {
 		{
 			Name: "sload_regular_cold",
 			Condition: And(
-				AnyKnownRevision(),
+				RevisionBounds(R09_Berlin, R10_London),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SLOAD),
-				Ge(Gas(), 100),
+				Ge(Gas(), 2100),
 				Ge(StackSize(), 1),
 				IsStorageCold(Param(0)),
 			),
@@ -474,13 +474,7 @@ var Spec = func() Specification {
 				NumericParameter{},
 			},
 			Effect: Change(func(s *st.State) {
-				if s.Gas < 2100 {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
 				s.Gas -= 2100
-
 				s.Pc++
 				key := s.Stack.Pop()
 				s.Stack.Push(s.Storage.Current[key])
@@ -489,9 +483,24 @@ var Spec = func() Specification {
 		},
 
 		{
+			Name: "sload_with_too_little_gas_cold",
+			Condition: And(
+				RevisionBounds(R09_Berlin, R10_London),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Lt(Gas(), 2100),
+				IsStorageCold(Param(0)),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+			},
+			Effect: FailEffect(),
+		},
+
+		{
 			Name: "sload_regular_warm",
 			Condition: And(
-				AnyKnownRevision(),
+				RevisionBounds(R09_Berlin, R10_London),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SLOAD),
 				Ge(Gas(), 100),
@@ -510,13 +519,51 @@ var Spec = func() Specification {
 		},
 
 		{
-			Name: "sload_with_too_little_min_gas",
+			Name: "sload_with_too_little_gas_warm",
 			Condition: And(
-				AnyKnownRevision(),
+				RevisionBounds(R09_Berlin, R10_London),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SLOAD),
 				Lt(Gas(), 100),
+				IsStorageWarm(Param(0)),
 			),
+			Parameter: []Parameter{
+				NumericParameter{},
+			},
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "sload_regular_pre_berlin",
+			Condition: And(
+				RevisionBounds(R07_Istanbul, R07_Istanbul),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Ge(Gas(), 800),
+				Ge(StackSize(), 1),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+			},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 800
+				s.Pc++
+				key := s.Stack.Pop()
+				s.Stack.Push(s.Storage.Current[key])
+			}),
+		},
+
+		{
+			Name: "sload_with_too_little_gas_pre_berlin",
+			Condition: And(
+				RevisionBounds(R07_Istanbul, R07_Istanbul),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Lt(Gas(), 800),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+			},
 			Effect: FailEffect(),
 		},
 
