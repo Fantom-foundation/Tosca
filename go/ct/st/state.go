@@ -41,14 +41,15 @@ func (s StatusCode) String() string {
 
 // State represents an EVM's execution state.
 type State struct {
-	Status   StatusCode
-	Revision Revision
-	Pc       uint16
-	Gas      uint64
-	Code     *Code
-	Stack    *Stack
-	Memory   *Memory
-	Storage  *Storage
+	Status    StatusCode
+	Revision  Revision
+	Pc        uint16
+	Gas       uint64
+	GasRefund uint64
+	Code      *Code
+	Stack     *Stack
+	Memory    *Memory
+	Storage   *Storage
 }
 
 // NewState creates a new State instance with the given code.
@@ -69,6 +70,7 @@ func (s *State) Clone() *State {
 	clone.Revision = s.Revision
 	clone.Pc = s.Pc
 	clone.Gas = s.Gas
+	clone.GasRefund = s.GasRefund
 	clone.Stack = s.Stack.Clone()
 	clone.Memory = s.Memory.Clone()
 	clone.Storage = s.Storage.Clone()
@@ -84,6 +86,7 @@ func (s *State) Eq(other *State) bool {
 		s.Revision == other.Revision &&
 		s.Pc == other.Pc &&
 		s.Gas == other.Gas &&
+		s.GasRefund == other.GasRefund &&
 		s.Code.Eq(other.Code) &&
 		s.Stack.Eq(other.Stack) &&
 		s.Memory.Eq(other.Memory) &&
@@ -107,6 +110,7 @@ func (s *State) String() string {
 		builder.WriteString("\t    (out of bounds)\n")
 	}
 	builder.WriteString(fmt.Sprintf("\tGas: %d\n", s.Gas))
+	builder.WriteString(fmt.Sprintf("\tGas refund: %d\n", s.GasRefund))
 	if len(s.Code.code) > codeCutoffLength {
 		builder.WriteString(fmt.Sprintf("\tCode: %x... (size: %d)\n", s.Code.code[:codeCutoffLength], len(s.Code.code)))
 	} else {
@@ -154,6 +158,10 @@ func (s *State) Diff(o *State) []string {
 
 	if s.Gas != o.Gas {
 		res = append(res, fmt.Sprintf("Different gas: %v vs %v", s.Gas, o.Gas))
+	}
+
+	if s.GasRefund != o.GasRefund {
+		res = append(res, fmt.Sprintf("Different gas refund: %v vs %v", s.GasRefund, o.GasRefund))
 	}
 
 	if !s.Code.Eq(o.Code) {

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
@@ -624,6 +625,7 @@ var Spec = func() Specification {
 				Eq(Op(Pc()), SSTORE),
 				Ge(Gas(), 2300),
 				Ge(StackSize(), 2),
+				StorageConfiguration(gen.StorageAdded, Param(0), Param(1)),
 				IsStorageCold(Param(0)),
 			),
 			Parameter: []Parameter{
