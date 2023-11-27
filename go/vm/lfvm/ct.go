@@ -7,6 +7,7 @@ import (
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/holiman/uint256"
 )
@@ -97,6 +98,9 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 	state.Code = originalCode
 	state.Stack = convertLfvmStackToCtStack(ctx)
 	state.Memory = convertLfvmMemoryToCtMemory(ctx)
+	if ctx.stateDB != nil {
+		state.Storage = ctx.stateDB.(*conformanceTestStateDb).storage
+	}
 	return state, nil
 }
 
@@ -189,13 +193,17 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 
 	data := []byte{}
 
+	stateDb := &conformanceTestStateDb{
+		storage: state.Storage,
+	}
+
 	// Create execution context.
 	ctx := context{
-		evm:      &vm.EVM{StateDB: nil},
+		evm:      &vm.EVM{StateDB: stateDb},
 		pc:       int32(pc),
 		stack:    convertCtStackToLfvmStack(state),
 		memory:   memory,
-		stateDB:  nil,
+		stateDB:  stateDb,
 		status:   status,
 		contract: contract,
 		code:     code,
@@ -212,4 +220,145 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 	}
 
 	return &ctx, nil
+}
+
+// conformanceTestStateDb is an adapter between the CT framework's storage
+// representation and the StateDB interface expected by the LFVM.
+type conformanceTestStateDb struct {
+	storage *st.Storage
+}
+
+func (db *conformanceTestStateDb) GetCommittedState(_ common.Address, key common.Hash) common.Hash {
+	k := ct.NewU256FromBytes(key[:]...)
+	db.storage.MarkWarm(k)
+	return db.storage.Original[k].Bytes32be()
+}
+
+func (db *conformanceTestStateDb) GetState(_ common.Address, key common.Hash) common.Hash {
+	k := ct.NewU256FromBytes(key[:]...)
+	db.storage.MarkWarm(k)
+	return db.storage.Current[k].Bytes32be()
+}
+
+func (db *conformanceTestStateDb) SetState(_ common.Address, key common.Hash, value common.Hash) {
+	k := ct.NewU256FromBytes(key[:]...)
+	v := ct.NewU256FromBytes(value[:]...)
+	db.storage.MarkWarm(k)
+	db.storage.Current[k] = v
+}
+
+func (db *conformanceTestStateDb) SlotInAccessList(_ common.Address, key common.Hash) (addressOk bool, slotOk bool) {
+	k := ct.NewU256FromBytes(key[:]...)
+	return true, db.storage.IsWarm(k)
+}
+
+func (db *conformanceTestStateDb) AddSlotToAccessList(_ common.Address, key common.Hash) {
+	k := ct.NewU256FromBytes(key[:]...)
+	db.storage.MarkWarm(k)
+}
+
+func (db *conformanceTestStateDb) GetCode(common.Address) []byte {
+	panic("not implemented yet")
+}
+
+func (db *conformanceTestStateDb) GetCodeHash(common.Address) common.Hash {
+	panic("not implemented yet")
+}
+
+func (db *conformanceTestStateDb) GetCodeSize(common.Address) int {
+	panic("not implemented yet")
+}
+
+func (db *conformanceTestStateDb) AddRefund(uint64) {
+	panic("not implemented yet")
+}
+
+func (db *conformanceTestStateDb) SubRefund(uint64) {
+	panic("not implemented yet")
+}
+
+func (db *conformanceTestStateDb) GetRefund() uint64 {
+	panic("not implemented yet")
+}
+
+func (db *conformanceTestStateDb) CreateAccount(common.Address) {
+	panic("not implemented yet")
+}
+
+func (db *conformanceTestStateDb) Suicide(common.Address) bool {
+	panic("not implemented yet")
+}
+
+func (db *conformanceTestStateDb) AddLog(*types.Log) {
+	panic("not implemented yet")
+}
+
+// -- StateDB interface methods that should not be needed ---
+
+// The remaining methods of the conformanceTestStateDb are needed to satisfy
+// the interface definition of a StateDB but are not relevant for testing the
+// interpreter. These functions are used by the enclosing EVM implementation.
+
+func (db *conformanceTestStateDb) SubBalance(common.Address, *big.Int) {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) AddBalance(common.Address, *big.Int) {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) GetBalance(common.Address) *big.Int {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) GetNonce(common.Address) uint64 {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) SetNonce(common.Address, uint64) {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) SetCode(common.Address, []byte) {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) AddressInAccessList(addr common.Address) bool {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) AddAddressToAccessList(addr common.Address) {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) HasSuicided(common.Address) bool {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) Exist(common.Address) bool {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) Empty(common.Address) bool {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) PrepareAccessList(sender common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) RevertToSnapshot(int) {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) Snapshot() int {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) AddPreimage(common.Hash, []byte) {
+	panic("should not be needed")
+}
+
+func (db *conformanceTestStateDb) ForEachStorage(common.Address, func(common.Hash, common.Hash) bool) error {
+	panic("should not be needed")
 }
