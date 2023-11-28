@@ -1297,12 +1297,6 @@ func sstoreOpRegular(params sstoreOpParams) Rule {
 			NumericParameter{},
 		},
 		Effect: Change(func(s *st.State) {
-			if s.Gas < params.gasCost {
-				s.Status = st.Failed
-				s.Gas = 0
-				return
-			}
-
 			if params.gasRefund < 0 {
 				if s.GasRefund < uint64(-params.gasRefund) {
 					// Gas refund must not become negative!
