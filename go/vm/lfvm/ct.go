@@ -6,6 +6,7 @@ import (
 
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/ct/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/holiman/uint256"
@@ -40,15 +41,13 @@ func convertLfvmStatusToCtStatus(status Status) (st.StatusCode, error) {
 	}
 }
 
-func convertLfvmRevisionToCtRevision(ctx *context) (ct.Revision, error) {
-	if ctx.isBerlin && !ctx.isLondon {
-		return ct.R09_Berlin, nil
-	} else if !ctx.isBerlin && ctx.isLondon {
-		return ct.R10_London, nil
-	} else if !ctx.isBerlin && !ctx.isLondon {
-		return ct.R07_Istanbul, nil
+func convertLfvmRevisionToCtRevision(ctx *context) ct.Revision {
+	if ctx.isLondon {
+		return ct.R10_London
+	} else if ctx.isBerlin {
+		return ct.R09_Berlin
 	} else {
-		return -1, fmt.Errorf("invalid revision, both berlin and london set")
+		return ct.R07_Istanbul
 	}
 }
 
@@ -84,19 +83,20 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 		return nil, fmt.Errorf("unable to convert lfvm pc %d to evm pc", ctx.pc)
 	}
 
-	revision, err := convertLfvmRevisionToCtRevision(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	state := st.NewState(originalCode)
 	state.Status = status
-	state.Revision = revision
+	state.Revision = convertLfvmRevisionToCtRevision(ctx)
 	state.Pc = pc
 	state.Gas = ctx.contract.Gas
+	if ctx.stateDB != nil {
+		state.GasRefund = ctx.stateDB.GetRefund()
+	}
 	state.Code = originalCode
 	state.Stack = convertLfvmStackToCtStack(ctx)
 	state.Memory = convertLfvmMemoryToCtMemory(ctx)
+	if ctx.stateDB != nil {
+		state.Storage = ctx.stateDB.(*utils.ConformanceTestStateDb).Storage
+	}
 	return state, nil
 }
 
@@ -152,6 +152,8 @@ func convertCtRevisionToLfvmRevision(revision ct.Revision, ctx *context) error {
 	case ct.R09_Berlin:
 		ctx.isBerlin = true
 	case ct.R10_London:
+		// London implies Berlin.
+		ctx.isBerlin = true
 		ctx.isLondon = true
 	default:
 		return fmt.Errorf("failed to convert revision: %v", revision)
@@ -163,6 +165,13 @@ func convertCtRevisionToLfvmRevision(revision ct.Revision, ctx *context) error {
 // ct -> lfvm
 
 func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error) {
+	// Special handling for unknown revision, because lfvm cannot represent an invalid revision.
+	// So we mark the status as failed already.
+	if state.Revision > ct.R10_London {
+		state.Revision = ct.R10_London
+		state.Status = st.Failed
+	}
+
 	// Create a dummy contract.
 	addr := vm.AccountRef{}
 	contract := vm.NewContract(addr, addr, big.NewInt(0), state.Gas)
@@ -189,21 +198,23 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 
 	data := []byte{}
 
+	stateDb := utils.NewConformanceTestStateDb(state.Storage, state.Revision)
+
+	stateDb.AddRefund(state.GasRefund)
+
 	// Create execution context.
 	ctx := context{
-		evm:      &vm.EVM{StateDB: nil},
+		evm:      &vm.EVM{StateDB: stateDb},
 		pc:       int32(pc),
 		stack:    convertCtStackToLfvmStack(state),
 		memory:   memory,
-		stateDB:  nil,
+		stateDB:  stateDb,
 		status:   status,
 		contract: contract,
 		code:     code,
 		data:     data,
 		callsize: *uint256.NewInt(uint64(len(data))),
 		readOnly: false,
-		isBerlin: state.Revision == ct.R09_Berlin,
-		isLondon: state.Revision == ct.R10_London,
 	}
 
 	err = convertCtRevisionToLfvmRevision(state.Revision, &ctx)

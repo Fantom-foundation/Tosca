@@ -64,7 +64,7 @@ func TestConvertToLfvm_Revision(t *testing.T) {
 	}{
 		"istanbul": {{ct.R07_Istanbul, true, func(ctx *context) bool { return !ctx.isBerlin && !ctx.isLondon }}},
 		"berlin":   {{ct.R09_Berlin, true, func(ctx *context) bool { return ctx.isBerlin && !ctx.isLondon }}},
-		"london":   {{ct.R10_London, true, func(ctx *context) bool { return !ctx.isBerlin && ctx.isLondon }}},
+		"london":   {{ct.R10_London, true, func(ctx *context) bool { return ctx.isBerlin && ctx.isLondon }}},
 		// TODO "next":     {{ct.R99_UnknownNextRevision, true, func(ctx *context) bool { }}},
 		"invalid": {{-1, false, nil}},
 	}
@@ -403,7 +403,6 @@ func TestConvertToCt_Revision(t *testing.T) {
 		"berlin":   {{func(ctx *context) { ctx.isBerlin = true; ctx.isLondon = false }, true, ct.R09_Berlin}},
 		"london":   {{func(ctx *context) { ctx.isBerlin = false; ctx.isLondon = true }, true, ct.R10_London}},
 		// TODO "next":     {{func(ctx *context) {  }, true, ct.R99_UnknownNextRevision}},
-		"invalid": {{func(ctx *context) { ctx.isBerlin = true; ctx.isLondon = true }, false, -1}},
 	}
 
 	for name, test := range tests {
