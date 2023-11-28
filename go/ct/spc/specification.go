@@ -581,55 +581,66 @@ var Spec = func() Specification {
 
 	// --- SSTORE ---
 
+	sstoreRules := []sstoreOpParams{
+		{revision: R07_Istanbul, config: gen.StorageAssigned, gasCost: 800},
+		{revision: R07_Istanbul, config: gen.StorageAdded, gasCost: 20000},
+		{revision: R07_Istanbul, config: gen.StorageAddedDeleted, gasCost: 800, gasRefund: 19200},
+		{revision: R07_Istanbul, config: gen.StorageDeletedRestored, gasCost: 800, gasRefund: -10800},
+		{revision: R07_Istanbul, config: gen.StorageDeletedAdded, gasCost: 800, gasRefund: -15000},
+		{revision: R07_Istanbul, config: gen.StorageDeleted, gasCost: 5000, gasRefund: 15000},
+		{revision: R07_Istanbul, config: gen.StorageModified, gasCost: 5000},
+		{revision: R07_Istanbul, config: gen.StorageModifiedDeleted, gasCost: 800, gasRefund: 15000},
+		{revision: R07_Istanbul, config: gen.StorageModifiedRestored, gasCost: 800, gasRefund: 4200},
+
+		// Certain storage configurations imply warm access. Not all
+		// combinations are possible; invalid ones are marked below.
+
+		{revision: R09_Berlin, warm: false, config: gen.StorageAssigned, gasCost: 2200}, // invalid
+		{revision: R09_Berlin, warm: false, config: gen.StorageAdded, gasCost: 22100},
+		{revision: R09_Berlin, warm: false, config: gen.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},     // invalid
+		{revision: R09_Berlin, warm: false, config: gen.StorageDeletedRestored, gasCost: 2200, gasRefund: -10800}, // invalid
+		{revision: R09_Berlin, warm: false, config: gen.StorageDeletedAdded, gasCost: 2200, gasRefund: -15000},    // invalid
+		{revision: R09_Berlin, warm: false, config: gen.StorageDeleted, gasCost: 5000, gasRefund: 15000},
+		{revision: R09_Berlin, warm: false, config: gen.StorageModified, gasCost: 5000},
+		{revision: R09_Berlin, warm: false, config: gen.StorageModifiedDeleted, gasCost: 2200, gasRefund: 15000}, // invalid
+		{revision: R09_Berlin, warm: false, config: gen.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
+
+		{revision: R09_Berlin, warm: true, config: gen.StorageAssigned, gasCost: 100},
+		{revision: R09_Berlin, warm: true, config: gen.StorageAdded, gasCost: 20000},
+		{revision: R09_Berlin, warm: true, config: gen.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
+		{revision: R09_Berlin, warm: true, config: gen.StorageDeletedRestored, gasCost: 100, gasRefund: -12200},
+		{revision: R09_Berlin, warm: true, config: gen.StorageDeletedAdded, gasCost: 100, gasRefund: -15000},
+		{revision: R09_Berlin, warm: true, config: gen.StorageDeleted, gasCost: 2900, gasRefund: 15000},
+		{revision: R09_Berlin, warm: true, config: gen.StorageModified, gasCost: 2900},
+		{revision: R09_Berlin, warm: true, config: gen.StorageModifiedDeleted, gasCost: 100, gasRefund: 15000},
+		{revision: R09_Berlin, warm: true, config: gen.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
+
+		{revision: R10_London, warm: false, config: gen.StorageAssigned, gasCost: 2200}, // invalid
+		{revision: R10_London, warm: false, config: gen.StorageAdded, gasCost: 22100},
+		{revision: R10_London, warm: false, config: gen.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},  // invalid
+		{revision: R10_London, warm: false, config: gen.StorageDeletedRestored, gasCost: 2200, gasRefund: 100}, // invalid
+		{revision: R10_London, warm: false, config: gen.StorageDeletedAdded, gasCost: 2200, gasRefund: -4800},  // invalid
+		{revision: R10_London, warm: false, config: gen.StorageDeleted, gasCost: 5000, gasRefund: 4800},
+		{revision: R10_London, warm: false, config: gen.StorageModified, gasCost: 5000},
+		{revision: R10_London, warm: false, config: gen.StorageModifiedDeleted, gasCost: 2200, gasRefund: 4800},  // invalid
+		{revision: R10_London, warm: false, config: gen.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
+
+		{revision: R10_London, warm: true, config: gen.StorageAssigned, gasCost: 100},
+		{revision: R10_London, warm: true, config: gen.StorageAdded, gasCost: 20000},
+		{revision: R10_London, warm: true, config: gen.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
+		{revision: R10_London, warm: true, config: gen.StorageDeletedRestored, gasCost: 100, gasRefund: -2000},
+		{revision: R10_London, warm: true, config: gen.StorageDeletedAdded, gasCost: 100, gasRefund: -4800},
+		{revision: R10_London, warm: true, config: gen.StorageDeleted, gasCost: 2900, gasRefund: 4800},
+		{revision: R10_London, warm: true, config: gen.StorageModified, gasCost: 2900},
+		{revision: R10_London, warm: true, config: gen.StorageModifiedDeleted, gasCost: 100, gasRefund: 4800},
+		{revision: R10_London, warm: true, config: gen.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
+	}
+	for _, params := range sstoreRules {
+		rules = append(rules, sstoreOpRegular(params))
+		rules = append(rules, sstoreOpTooLittleGas(params))
+	}
+
 	rules = append(rules, []Rule{
-		{
-			Name: "sstore_regular_cold",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SSTORE),
-				Ge(Gas(), 2300),
-				Ge(StackSize(), 2),
-				StorageConfiguration(gen.StorageAdded, Param(0), Param(1)),
-				IsStorageCold(Param(0)),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 2200
-				s.Pc++
-				key := s.Stack.Pop()
-				value := s.Stack.Pop()
-				s.Storage.Current[key] = value
-				s.Storage.MarkWarm(key)
-			}),
-		},
-
-		{
-			Name: "sstore_regular_warm",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SSTORE),
-				Ge(Gas(), 2300),
-				Ge(StackSize(), 2),
-				IsStorageWarm(Param(0)),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 100
-				s.Pc++
-				key := s.Stack.Pop()
-				value := s.Stack.Pop()
-				s.Storage.Current[key] = value
-			}),
-		},
-
 		{
 			Name: "sstore_with_too_little_gas_EIP2200",
 			Condition: And(
@@ -1240,5 +1251,111 @@ func swapOp(n int) []Rule {
 			),
 			Effect: FailEffect(),
 		},
+	}
+}
+
+type sstoreOpParams struct {
+	revision  Revision
+	warm      bool
+	config    gen.StorageCfg
+	gasCost   uint64
+	gasRefund int64
+}
+
+func sstoreOpRegular(params sstoreOpParams) Rule {
+	name := fmt.Sprintf("sstore_regular_%v_%v", params.revision, params.config)
+
+	gasLimit := uint64(2300) // EIP2200
+	if params.gasCost > gasLimit {
+		gasLimit = params.gasCost
+	}
+
+	conditions := []Condition{
+		IsRevision(params.revision),
+		Eq(Status(), st.Running),
+		Eq(Op(Pc()), SSTORE),
+		Ge(Gas(), gasLimit),
+		Ge(StackSize(), 2),
+		StorageConfiguration(params.config, Param(0), Param(1)),
+	}
+
+	if params.revision >= R09_Berlin {
+		if params.warm {
+			name += "_warm"
+			conditions = append(conditions, IsStorageWarm(Param(0)))
+		} else {
+			name += "_cold"
+			conditions = append(conditions, IsStorageCold(Param(0)))
+		}
+	}
+
+	return Rule{
+		Name:      name,
+		Condition: And(conditions...),
+		Parameter: []Parameter{
+			NumericParameter{},
+			NumericParameter{},
+		},
+		Effect: Change(func(s *st.State) {
+			if s.Gas < params.gasCost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+
+			if params.gasRefund < 0 {
+				if s.GasRefund < uint64(-params.gasRefund) {
+					// Gas refund must not become negative!
+					s.Status = st.Failed
+					s.Gas = 0
+					return
+				}
+				s.GasRefund -= uint64(-params.gasRefund)
+			} else {
+				s.GasRefund += uint64(params.gasRefund)
+			}
+
+			s.Gas -= params.gasCost
+			s.Pc++
+			key := s.Stack.Pop()
+			value := s.Stack.Pop()
+			s.Storage.Current[key] = value
+			if s.Revision >= R09_Berlin {
+				s.Storage.MarkWarm(key)
+			}
+		}),
+	}
+}
+
+func sstoreOpTooLittleGas(params sstoreOpParams) Rule {
+	name := fmt.Sprintf("sstore_with_too_little_gas_%v_%v", params.revision, params.config)
+
+	conditions := []Condition{
+		IsRevision(params.revision),
+		Eq(Status(), st.Running),
+		Eq(Op(Pc()), SSTORE),
+		Lt(Gas(), params.gasCost),
+		Ge(StackSize(), 2),
+		StorageConfiguration(params.config, Param(0), Param(1)),
+	}
+
+	if params.revision >= R09_Berlin {
+		if params.warm {
+			name += "_warm"
+			conditions = append(conditions, IsStorageWarm(Param(0)))
+		} else {
+			name += "_cold"
+			conditions = append(conditions, IsStorageCold(Param(0)))
+		}
+	}
+
+	return Rule{
+		Name:      name,
+		Condition: And(conditions...),
+		Parameter: []Parameter{
+			NumericParameter{},
+			NumericParameter{},
+		},
+		Effect: FailEffect(),
 	}
 }
