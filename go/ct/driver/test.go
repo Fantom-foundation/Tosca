@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"regexp"
+	"runtime/pprof"
 	"strings"
 	"sync"
 	"time"
@@ -27,10 +29,25 @@ var TestCmd = cli.Command{
 			Name:  "seed",
 			Usage: "seed for the random number generator",
 		},
+		&cli.StringFlag{
+			Name:  "cpuprofile",
+			Usage: "store CPU profile in the provided filename",
+		},
 	},
 }
 
 func doTest(context *cli.Context) error {
+	if cpuprofileFilename := context.String("cpuprofile"); cpuprofileFilename != "" {
+		f, err := os.Create(cpuprofileFilename)
+		if err != nil {
+			return fmt.Errorf("could not create CPU profile: %s", err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			return fmt.Errorf("could not start CPU profile: %s", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+
 	filter, err := regexp.Compile(context.String("filter"))
 	if err != nil {
 		return nil
