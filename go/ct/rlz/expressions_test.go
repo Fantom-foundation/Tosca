@@ -73,6 +73,27 @@ func TestExpression_GasRestrict(t *testing.T) {
 	}
 }
 
+func TestExpression_GasRefundEval(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.GasRefund = 42
+	if gas, err := GasRefund().Eval(state); err != nil || gas != 42 {
+		t.Fail()
+	}
+}
+
+func TestExpression_GasRefundRestrict(t *testing.T) {
+	generator := gen.NewStateGenerator()
+	GasRefund().Restrict(42, generator)
+
+	state, err := generator.Generate(rand.New(0))
+	if err != nil {
+		t.Errorf("State generation failed %v", err)
+	}
+	if state.GasRefund != 42 {
+		t.Errorf("Generator was not restricted by expression")
+	}
+}
+
 func TestExpression_OpEval(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{byte(STOP), byte(STOP), byte(ADD)}))
 	state.Pc = 2
@@ -114,33 +135,5 @@ func TestExpression_StackSizeRestrict(t *testing.T) {
 	}
 	if state.Stack.Size() != 4 {
 		t.Errorf("Generator was not restricted by expression")
-	}
-}
-
-func TestExpression_StorageValueEval(t *testing.T) {
-	state := st.NewState(st.NewCode([]byte{}))
-	state.Stack.Push(NewU256(42))
-	state.Storage.Current[NewU256(42)] = NewU256(1024)
-
-	value, err := StorageValue(Param(0)).Eval(state)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !value.Eq(NewU256(1024)) {
-		t.Fail()
-	}
-}
-
-func TestExpression_StorageValueRestrict(t *testing.T) {
-	generator := gen.NewStateGenerator()
-	StorageValue(Param(0)).Restrict(NewU256(1024), generator)
-
-	state, err := generator.Generate(rand.New(0))
-	if err != nil {
-		t.Fatalf("State generation failed %v", err)
-	}
-	key := state.Stack.Get(0)
-	if state.Storage.Current[key] != NewU256(1024) {
-		t.Fail()
 	}
 }

@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"regexp"
+	"runtime/pprof"
 	"strings"
 	"sync"
 	"time"
@@ -27,10 +29,25 @@ var TestCmd = cli.Command{
 			Name:  "seed",
 			Usage: "seed for the random number generator",
 		},
+		&cli.StringFlag{
+			Name:  "cpuprofile",
+			Usage: "store CPU profile in the provided filename",
+		},
 	},
 }
 
 func doTest(context *cli.Context) error {
+	if cpuprofileFilename := context.String("cpuprofile"); cpuprofileFilename != "" {
+		f, err := os.Create(cpuprofileFilename)
+		if err != nil {
+			return fmt.Errorf("could not create CPU profile: %s", err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			return fmt.Errorf("could not start CPU profile: %s", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+
 	filter, err := regexp.Compile(context.String("filter"))
 	if err != nil {
 		return nil
@@ -68,7 +85,15 @@ func doTest(context *cli.Context) error {
 					atLeastOne = true
 				}
 				if len(rules) > 1 {
-					return fmt.Errorf("multiple rules for state %v: %v", state, rules)
+					s0 := state.Clone()
+					rules[0].Effect.Apply(s0)
+					for i := 1; i < len(rules)-1; i++ {
+						s := state.Clone()
+						rules[i].Effect.Apply(s)
+						if !s.Eq(s0) {
+							return fmt.Errorf("multiple conflicting rules for state %v: %v", state, rules)
+						}
+					}
 				}
 				return nil
 			})

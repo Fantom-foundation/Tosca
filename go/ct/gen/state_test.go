@@ -222,6 +222,46 @@ func TestStateGenerator_NonConflictingGasAreAccepted(t *testing.T) {
 }
 
 ////////////////////////////////////////////////////////////
+// Gas Refund Counter
+
+func TestStateGenerator_SetGasRefundIsEnforced(t *testing.T) {
+	gasRefundCounts := []uint64{0, 42, math.MaxUint64}
+
+	rnd := rand.New(0)
+	for _, gasRefund := range gasRefundCounts {
+		generator := NewStateGenerator()
+		generator.SetGasRefund(gasRefund)
+		state, err := generator.Generate(rnd)
+		if err != nil {
+			t.Fatalf("unexpected error during build: %v", err)
+		}
+		if want, got := gasRefund, state.GasRefund; want != got {
+			t.Errorf("unexpected amount of gas refund, wanted %d, got %d", want, got)
+		}
+	}
+}
+
+func TestStateGenerator_ConflictingGasRefundAreDetected(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.SetGasRefund(0)
+	generator.SetGasRefund(42)
+	rnd := rand.New(0)
+	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
+		t.Errorf("unsatisfiable constraint not detected, got %v", err)
+	}
+}
+
+func TestStateGenerator_NonConflictingGasRefundAreAccepted(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.SetGasRefund(42)
+	generator.SetGasRefund(42)
+	rnd := rand.New(0)
+	if _, err := generator.Generate(rnd); err != nil {
+		t.Errorf("generation failed: %v", err)
+	}
+}
+
+////////////////////////////////////////////////////////////
 // Clone / Restore
 
 func TestStateGenerator_CloneCopiesBuilderState(t *testing.T) {
@@ -230,6 +270,7 @@ func TestStateGenerator_CloneCopiesBuilderState(t *testing.T) {
 	original.SetRevision(R10_London)
 	original.SetPc(4)
 	original.SetGas(5)
+	original.SetGasRefund(6)
 
 	clone := original.Clone()
 
@@ -246,22 +287,24 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone1.SetStatus(st.Reverted)
 	clone1.SetRevision(R10_London)
 	clone1.SetGas(5)
+	clone1.SetGasRefund(6)
 	clone1.SetCodeOperation(20, ADD)
 	clone1.SetStackSize(2)
 
 	clone2 := base.Clone()
 	clone2.SetStatus(st.Running)
 	clone2.SetRevision(R09_Berlin)
-	clone2.SetGas(6)
+	clone2.SetGas(7)
+	clone2.SetGasRefund(8)
 	clone2.SetCodeOperation(30, ADD)
 	clone2.SetStackSize(3)
 
-	want := "{status=reverted,revision=London,pc=4,gas=5,code={op[20]=ADD},stack={size=2},memory={},storage={}}"
+	want := "{status=reverted,revision=London,pc=4,gas=5,gasRefund=6,code={op[20]=ADD},stack={size=2},memory={},storage={}}"
 	if got := clone1.String(); want != got {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
 
-	want = "{status=running,revision=Berlin,pc=4,gas=6,code={op[30]=ADD},stack={size=3},memory={},storage={}}"
+	want = "{status=running,revision=Berlin,pc=4,gas=7,gasRefund=8,code={op[30]=ADD},stack={size=3},memory={},storage={}}"
 	if got := clone2.String(); want != got {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
@@ -274,7 +317,8 @@ func TestStateGenerator_CloneCanBeUsedToResetBuilder(t *testing.T) {
 	backup := gen.Clone()
 
 	gen.SetGas(42)
-	want := "{pc=4,gas=42,code={},stack={},memory={},storage={}}"
+	gen.SetGasRefund(17)
+	want := "{pc=4,gas=42,gasRefund=17,code={},stack={},memory={},storage={}}"
 	if got := gen.String(); want != got {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}

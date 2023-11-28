@@ -15,6 +15,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.Revision = R10_London
 	state.Pc = 1
 	state.Gas = 2
+	state.GasRefund = 15
 	state.Stack.Push(NewU256(3))
 	state.Memory.Write([]byte{1, 2, 3}, 1)
 	state.Storage.Current[NewU256(4)] = NewU256(5)
@@ -25,6 +26,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.Revision = R09_Berlin
 	clone.Pc = 4
 	clone.Gas = 5
+	clone.GasRefund = 16
 	clone.Stack.Push(NewU256(6))
 	clone.Memory.Write([]byte{4, 5, 6, 7}, 64)
 	clone.Storage.Current[NewU256(7)] = NewU256(16)
@@ -35,6 +37,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.Revision == R10_London &&
 		state.Pc == 1 &&
 		state.Gas == 2 &&
+		state.GasRefund == 15 &&
 		state.Stack.Size() == 1 &&
 		state.Stack.Get(0).Uint64() == 3 &&
 		state.Memory.Size() == 32 &&
@@ -81,6 +84,13 @@ func TestState_Eq(t *testing.T) {
 		t.Fail()
 	}
 	s2.Gas = 1
+
+	s1.GasRefund = 1
+	s2.GasRefund = 2
+	if s1.Eq(s2) {
+		t.Fail()
+	}
+	s2.GasRefund = 1
 
 	s1.Stack.Push(NewU256(1))
 	if s1.Eq(s2) {
@@ -333,6 +343,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.Revision = R10_London
 	s1.Pc = 3
 	s1.Gas = 42
+	s1.GasRefund = 63
 	s1.Stack.Push(NewU256(42))
 	s1.Memory.Write([]byte{1, 2, 3}, 31)
 	s1.Storage.MarkWarm(NewU256(42))
@@ -342,6 +353,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.Revision = R10_London
 	s2.Pc = 3
 	s2.Gas = 42
+	s2.GasRefund = 63
 	s2.Stack.Push(NewU256(42))
 	s2.Memory.Write([]byte{1, 2, 3}, 31)
 	s2.Storage.MarkWarm(NewU256(42))
@@ -363,6 +375,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Revision = R09_Berlin
 	s1.Pc = 0
 	s1.Gas = 7
+	s1.GasRefund = 8
 	s1.Stack.Push(NewU256(42))
 	s1.Memory.Write([]byte{1, 2, 3}, 31)
 	s1.Storage.MarkWarm(NewU256(42))
@@ -372,6 +385,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.Revision = R10_London
 	s2.Pc = 3
 	s2.Gas = 42
+	s2.GasRefund = 9
 	s2.Stack.Push(NewU256(16))
 	s2.Memory.Write([]byte{1, 2, 4}, 31)
 	s2.Storage.MarkCold(NewU256(42))
@@ -383,6 +397,7 @@ func TestState_DiffMismatch(t *testing.T) {
 		"Different revision",
 		"Different pc",
 		"Different gas",
+		"Different gas refund",
 		"Different code",
 		"Different stack",
 		"Different memory value",

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
@@ -229,7 +230,6 @@ var Spec = func() Specification {
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SHA3),
 				Lt(Gas(), 30),
-				Ge(StackSize(), 2),
 			),
 			Effect: FailEffect(),
 		},
@@ -240,7 +240,6 @@ var Spec = func() Specification {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SHA3),
-				Ge(Gas(), 30),
 				Lt(StackSize(), 2),
 			),
 			Effect: FailEffect(),
@@ -297,7 +296,6 @@ var Spec = func() Specification {
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MLOAD),
 				Lt(Gas(), 3),
-				Ge(StackSize(), 1),
 			),
 			Effect: FailEffect(),
 		},
@@ -308,7 +306,6 @@ var Spec = func() Specification {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MLOAD),
-				Ge(Gas(), 3),
 				Lt(StackSize(), 1),
 			),
 			Effect: FailEffect(),
@@ -355,7 +352,6 @@ var Spec = func() Specification {
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MSTORE),
 				Lt(Gas(), 3),
-				Ge(StackSize(), 2),
 			),
 			Effect: FailEffect(),
 		},
@@ -366,7 +362,6 @@ var Spec = func() Specification {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MSTORE),
-				Ge(Gas(), 3),
 				Lt(StackSize(), 2),
 			),
 			Effect: FailEffect(),
@@ -415,7 +410,6 @@ var Spec = func() Specification {
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MSTORE8),
 				Lt(Gas(), 3),
-				Ge(StackSize(), 2),
 			),
 			Effect: FailEffect(),
 		},
@@ -426,7 +420,6 @@ var Spec = func() Specification {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MSTORE8),
-				Ge(Gas(), 3),
 				Lt(StackSize(), 2),
 			),
 			Effect: FailEffect(),
@@ -464,6 +457,213 @@ var Spec = func() Specification {
 		},
 	}...)
 
+	// --- SLOAD ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "sload_regular_cold",
+			Condition: And(
+				RevisionBounds(R09_Berlin, R10_London),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Ge(Gas(), 2100),
+				Ge(StackSize(), 1),
+				IsStorageCold(Param(0)),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+			},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 2100
+				s.Pc++
+				key := s.Stack.Pop()
+				s.Stack.Push(s.Storage.Current[key])
+				s.Storage.MarkWarm(key)
+			}),
+		},
+
+		{
+			Name: "sload_with_too_little_gas_cold",
+			Condition: And(
+				RevisionBounds(R09_Berlin, R10_London),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Lt(Gas(), 2100),
+				IsStorageCold(Param(0)),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+			},
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "sload_regular_warm",
+			Condition: And(
+				RevisionBounds(R09_Berlin, R10_London),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Ge(Gas(), 100),
+				Ge(StackSize(), 1),
+				IsStorageWarm(Param(0)),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+			},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 100
+				s.Pc++
+				key := s.Stack.Pop()
+				s.Stack.Push(s.Storage.Current[key])
+			}),
+		},
+
+		{
+			Name: "sload_with_too_little_gas_warm",
+			Condition: And(
+				RevisionBounds(R09_Berlin, R10_London),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Lt(Gas(), 100),
+				IsStorageWarm(Param(0)),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+			},
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "sload_regular_pre_berlin",
+			Condition: And(
+				RevisionBounds(R07_Istanbul, R07_Istanbul),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Ge(Gas(), 800),
+				Ge(StackSize(), 1),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+			},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 800
+				s.Pc++
+				key := s.Stack.Pop()
+				s.Stack.Push(s.Storage.Current[key])
+			}),
+		},
+
+		{
+			Name: "sload_with_too_little_gas_pre_berlin",
+			Condition: And(
+				RevisionBounds(R07_Istanbul, R07_Istanbul),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Lt(Gas(), 800),
+			),
+			Parameter: []Parameter{
+				NumericParameter{},
+			},
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "sload_with_too_few_elements",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SLOAD),
+				Lt(StackSize(), 1),
+			),
+			Effect: FailEffect(),
+		},
+	}...)
+
+	// --- SSTORE ---
+
+	sstoreRules := []sstoreOpParams{
+		{revision: R07_Istanbul, config: gen.StorageAssigned, gasCost: 800},
+		{revision: R07_Istanbul, config: gen.StorageAdded, gasCost: 20000},
+		{revision: R07_Istanbul, config: gen.StorageAddedDeleted, gasCost: 800, gasRefund: 19200},
+		{revision: R07_Istanbul, config: gen.StorageDeletedRestored, gasCost: 800, gasRefund: -10800},
+		{revision: R07_Istanbul, config: gen.StorageDeletedAdded, gasCost: 800, gasRefund: -15000},
+		{revision: R07_Istanbul, config: gen.StorageDeleted, gasCost: 5000, gasRefund: 15000},
+		{revision: R07_Istanbul, config: gen.StorageModified, gasCost: 5000},
+		{revision: R07_Istanbul, config: gen.StorageModifiedDeleted, gasCost: 800, gasRefund: 15000},
+		{revision: R07_Istanbul, config: gen.StorageModifiedRestored, gasCost: 800, gasRefund: 4200},
+
+		// Certain storage configurations imply warm access. Not all
+		// combinations are possible; invalid ones are marked below.
+
+		// {revision: R09_Berlin, warm: false, config: gen.StorageAssigned, gasCost: 2200}, // invalid
+		{revision: R09_Berlin, warm: false, config: gen.StorageAdded, gasCost: 22100},
+		// {revision: R09_Berlin, warm: false, config: gen.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},     // invalid
+		// {revision: R09_Berlin, warm: false, config: gen.StorageDeletedRestored, gasCost: 2200, gasRefund: -10800}, // invalid
+		// {revision: R09_Berlin, warm: false, config: gen.StorageDeletedAdded, gasCost: 2200, gasRefund: -15000},    // invalid
+		{revision: R09_Berlin, warm: false, config: gen.StorageDeleted, gasCost: 5000, gasRefund: 15000},
+		{revision: R09_Berlin, warm: false, config: gen.StorageModified, gasCost: 5000},
+		// {revision: R09_Berlin, warm: false, config: gen.StorageModifiedDeleted, gasCost: 2200, gasRefund: 15000}, // invalid
+		// {revision: R09_Berlin, warm: false, config: gen.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
+
+		{revision: R09_Berlin, warm: true, config: gen.StorageAssigned, gasCost: 100},
+		{revision: R09_Berlin, warm: true, config: gen.StorageAdded, gasCost: 20000},
+		{revision: R09_Berlin, warm: true, config: gen.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
+		{revision: R09_Berlin, warm: true, config: gen.StorageDeletedRestored, gasCost: 100, gasRefund: -12200},
+		{revision: R09_Berlin, warm: true, config: gen.StorageDeletedAdded, gasCost: 100, gasRefund: -15000},
+		{revision: R09_Berlin, warm: true, config: gen.StorageDeleted, gasCost: 2900, gasRefund: 15000},
+		{revision: R09_Berlin, warm: true, config: gen.StorageModified, gasCost: 2900},
+		{revision: R09_Berlin, warm: true, config: gen.StorageModifiedDeleted, gasCost: 100, gasRefund: 15000},
+		{revision: R09_Berlin, warm: true, config: gen.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
+
+		// {revision: R10_London, warm: false, config: gen.StorageAssigned, gasCost: 2200}, // invalid
+		{revision: R10_London, warm: false, config: gen.StorageAdded, gasCost: 22100},
+		// {revision: R10_London, warm: false, config: gen.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},  // invalid
+		// {revision: R10_London, warm: false, config: gen.StorageDeletedRestored, gasCost: 2200, gasRefund: 100}, // invalid
+		// {revision: R10_London, warm: false, config: gen.StorageDeletedAdded, gasCost: 2200, gasRefund: -4800},  // invalid
+		{revision: R10_London, warm: false, config: gen.StorageDeleted, gasCost: 5000, gasRefund: 4800},
+		{revision: R10_London, warm: false, config: gen.StorageModified, gasCost: 5000},
+		// {revision: R10_London, warm: false, config: gen.StorageModifiedDeleted, gasCost: 2200, gasRefund: 4800},  // invalid
+		// {revision: R10_London, warm: false, config: gen.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
+
+		{revision: R10_London, warm: true, config: gen.StorageAssigned, gasCost: 100},
+		{revision: R10_London, warm: true, config: gen.StorageAdded, gasCost: 20000},
+		{revision: R10_London, warm: true, config: gen.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
+		{revision: R10_London, warm: true, config: gen.StorageDeletedRestored, gasCost: 100, gasRefund: -2000},
+		{revision: R10_London, warm: true, config: gen.StorageDeletedAdded, gasCost: 100, gasRefund: -4800},
+		{revision: R10_London, warm: true, config: gen.StorageDeleted, gasCost: 2900, gasRefund: 4800},
+		{revision: R10_London, warm: true, config: gen.StorageModified, gasCost: 2900},
+		{revision: R10_London, warm: true, config: gen.StorageModifiedDeleted, gasCost: 100, gasRefund: 4800},
+		{revision: R10_London, warm: true, config: gen.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
+	}
+	for _, params := range sstoreRules {
+		rules = append(rules, sstoreOpRegular(params))
+		rules = append(rules, sstoreOpTooLittleGas(params))
+	}
+
+	rules = append(rules, []Rule{
+		{
+			Name: "sstore_with_too_little_gas_EIP2200",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SSTORE),
+				Le(Gas(), 2300),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "sstore_with_too_few_elements",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), SSTORE),
+				Lt(StackSize(), 2),
+			),
+			Effect: FailEffect(),
+		},
+	}...)
+
 	// --- JUMP ---
 
 	rules = append(rules, []Rule{
@@ -484,7 +684,6 @@ var Spec = func() Specification {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMP),
-				Ge(Gas(), 8),
 				Lt(StackSize(), 1),
 			),
 			Effect: FailEffect(),
@@ -536,158 +735,6 @@ var Spec = func() Specification {
 		},
 	}...)
 
-	// --- SLOAD ---
-
-	rules = append(rules, []Rule{
-		{
-			Name: "sload_regular_cold",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SLOAD),
-				Ge(Gas(), 100),
-				Ge(StackSize(), 1),
-				IsStorageCold(Param(0)),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				if s.Gas < 2100 {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas -= 2100
-
-				s.Pc++
-				key := s.Stack.Pop()
-				s.Stack.Push(s.Storage.Current[key])
-				s.Storage.MarkWarm(key)
-			}),
-		},
-
-		{
-			Name: "sload_regular_warm",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SLOAD),
-				Ge(Gas(), 100),
-				Ge(StackSize(), 1),
-				IsStorageWarm(Param(0)),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 100
-				s.Pc++
-				key := s.Stack.Pop()
-				s.Stack.Push(s.Storage.Current[key])
-			}),
-		},
-
-		{
-			Name: "sload_with_too_little_min_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SLOAD),
-				Lt(Gas(), 100),
-				Ge(StackSize(), 1),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "sload_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SLOAD),
-				Ge(Gas(), 100),
-				Lt(StackSize(), 1),
-			),
-			Effect: FailEffect(),
-		},
-	}...)
-
-	// --- SSTORE ---
-
-	rules = append(rules, []Rule{
-		{
-			Name: "sstore_regular_cold",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SSTORE),
-				Ge(Gas(), 2300),
-				Ge(StackSize(), 2),
-				IsStorageCold(Param(0)),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 2200
-				s.Pc++
-				key := s.Stack.Pop()
-				value := s.Stack.Pop()
-				s.Storage.Current[key] = value
-				s.Storage.MarkWarm(key)
-			}),
-		},
-
-		{
-			Name: "sstore_regular_warm",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SSTORE),
-				Ge(Gas(), 2300),
-				Ge(StackSize(), 2),
-				IsStorageWarm(Param(0)),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 100
-				s.Pc++
-				key := s.Stack.Pop()
-				value := s.Stack.Pop()
-				s.Storage.Current[key] = value
-			}),
-		},
-
-		{
-			Name: "sstore_with_too_little_gas_EIP2200",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SSTORE),
-				Lt(Gas(), 2300),
-				Ge(StackSize(), 2),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "sstore_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SSTORE),
-				Ge(Gas(), 2300),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
-		},
-	}...)
-
 	// --- JUMPI ---
 
 	rules = append(rules, []Rule{
@@ -708,7 +755,6 @@ var Spec = func() Specification {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), JUMPI),
-				Ge(Gas(), 10),
 				Lt(StackSize(), 2),
 			),
 			Effect: FailEffect(),
@@ -843,7 +889,6 @@ var Spec = func() Specification {
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), POP),
 				Lt(Gas(), 2),
-				Ge(StackSize(), 1),
 			),
 			Effect: FailEffect(),
 		},
@@ -854,7 +899,6 @@ var Spec = func() Specification {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), POP),
-				Ge(Gas(), 2),
 				Lt(StackSize(), 1),
 			),
 			Effect: FailEffect(),
@@ -932,7 +976,6 @@ func binaryOpWithDynamicCost(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
-				Ge(Gas(), costs),
 				Lt(StackSize(), 2),
 			),
 			Effect: FailEffect(),
@@ -996,7 +1039,6 @@ func trinaryOp(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
-				Ge(Gas(), costs),
 				Lt(StackSize(), 3),
 			),
 			Effect: FailEffect(),
@@ -1048,7 +1090,6 @@ func unaryOp(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
-				Ge(Gas(), costs),
 				Lt(StackSize(), 1),
 			),
 			Effect: FailEffect(),
@@ -1091,7 +1132,6 @@ func pushOp(n int) []Rule {
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Lt(Gas(), 3),
-				Lt(StackSize(), st.MaxStackSize),
 			),
 			Effect: FailEffect(),
 		},
@@ -1102,7 +1142,6 @@ func pushOp(n int) []Rule {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
-				Ge(Gas(), 3),
 				Ge(StackSize(), st.MaxStackSize),
 			),
 			Effect: FailEffect(),
@@ -1138,8 +1177,6 @@ func dupOp(n int) []Rule {
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Lt(Gas(), 3),
-				Ge(StackSize(), n),
-				Lt(StackSize(), st.MaxStackSize),
 			),
 			Effect: FailEffect(),
 		},
@@ -1150,7 +1187,6 @@ func dupOp(n int) []Rule {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
-				Ge(Gas(), 3),
 				Lt(StackSize(), n),
 				Lt(StackSize(), st.MaxStackSize),
 			),
@@ -1163,7 +1199,6 @@ func dupOp(n int) []Rule {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
-				Ge(Gas(), 3),
 				Ge(StackSize(), n),
 				Ge(StackSize(), st.MaxStackSize),
 			),
@@ -1202,7 +1237,6 @@ func swapOp(n int) []Rule {
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Lt(Gas(), 3),
-				Ge(StackSize(), n+1),
 			),
 			Effect: FailEffect(),
 		},
@@ -1213,10 +1247,109 @@ func swapOp(n int) []Rule {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
-				Ge(Gas(), 3),
 				Lt(StackSize(), n+1),
 			),
 			Effect: FailEffect(),
 		},
+	}
+}
+
+type sstoreOpParams struct {
+	revision  Revision
+	warm      bool
+	config    gen.StorageCfg
+	gasCost   uint64
+	gasRefund int64
+}
+
+func sstoreOpRegular(params sstoreOpParams) Rule {
+	name := fmt.Sprintf("sstore_regular_%v_%v", params.revision, params.config)
+
+	gasLimit := uint64(2301) // EIP2200
+	if params.gasCost > gasLimit {
+		gasLimit = params.gasCost
+	}
+
+	conditions := []Condition{
+		IsRevision(params.revision),
+		Eq(Status(), st.Running),
+		Eq(Op(Pc()), SSTORE),
+		Ge(Gas(), gasLimit),
+		Ge(StackSize(), 2),
+		StorageConfiguration(params.config, Param(0), Param(1)),
+	}
+
+	if params.revision >= R09_Berlin {
+		if params.warm {
+			name += "_warm"
+			conditions = append(conditions, IsStorageWarm(Param(0)))
+		} else {
+			name += "_cold"
+			conditions = append(conditions, IsStorageCold(Param(0)))
+		}
+	}
+
+	return Rule{
+		Name:      name,
+		Condition: And(conditions...),
+		Parameter: []Parameter{
+			NumericParameter{},
+			NumericParameter{},
+		},
+		Effect: Change(func(s *st.State) {
+			if params.gasRefund < 0 {
+				if s.GasRefund < uint64(-params.gasRefund) {
+					// Gas refund must not become negative!
+					s.Status = st.Failed
+					s.Gas = 0
+					return
+				}
+				s.GasRefund -= uint64(-params.gasRefund)
+			} else {
+				s.GasRefund += uint64(params.gasRefund)
+			}
+
+			s.Gas -= params.gasCost
+			s.Pc++
+			key := s.Stack.Pop()
+			value := s.Stack.Pop()
+			s.Storage.Current[key] = value
+			if s.Revision >= R09_Berlin {
+				s.Storage.MarkWarm(key)
+			}
+		}),
+	}
+}
+
+func sstoreOpTooLittleGas(params sstoreOpParams) Rule {
+	name := fmt.Sprintf("sstore_with_too_little_gas_%v_%v", params.revision, params.config)
+
+	conditions := []Condition{
+		IsRevision(params.revision),
+		Eq(Status(), st.Running),
+		Eq(Op(Pc()), SSTORE),
+		Lt(Gas(), params.gasCost),
+		Ge(StackSize(), 2),
+		StorageConfiguration(params.config, Param(0), Param(1)),
+	}
+
+	if params.revision >= R09_Berlin {
+		if params.warm {
+			name += "_warm"
+			conditions = append(conditions, IsStorageWarm(Param(0)))
+		} else {
+			name += "_cold"
+			conditions = append(conditions, IsStorageCold(Param(0)))
+		}
+	}
+
+	return Rule{
+		Name:      name,
+		Condition: And(conditions...),
+		Parameter: []Parameter{
+			NumericParameter{},
+			NumericParameter{},
+		},
+		Effect: FailEffect(),
 	}
 }

@@ -16,35 +16,61 @@ func TestStorageGenerator_UnconstraintGeneratorCanProduceStorage(t *testing.T) {
 	}
 }
 
-func TestStorageGenerator_CurrentStorageValueIsEnforced(t *testing.T) {
-	v1 := Variable("v1")
-	assignment := Assignment{}
-	assignment[v1] = NewU256(42)
+func TestStorageGenerator_StorageConfigurationsAreEnforced(t *testing.T) {
+	for _, cfg := range []StorageCfg{StorageAdded, StorageAddedDeleted, StorageDeletedRestored, StorageDeletedAdded, StorageDeleted, StorageModified, StorageModifiedDeleted, StorageModifiedRestored} {
+		vKey := Variable("key")
+		vNewValue := Variable("newValue")
 
-	generator := NewStorageGenerator()
-	generator.BindCurrent(v1, NewU256(15))
-	storage, err := generator.Generate(assignment, rand.New(0))
-	if err != nil {
-		t.Fatal(err)
-	}
+		assignment := Assignment{}
 
-	if storage.Current[NewU256(42)] != NewU256(15) {
-		t.Fail()
+		generator := NewStorageGenerator()
+		generator.BindConfiguration(cfg, vKey, vNewValue)
+		storage, err := generator.Generate(assignment, rand.New(0))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		org := storage.Original[assignment[vKey]]
+		cur := storage.Current[assignment[vKey]]
+		new := assignment[vNewValue]
+
+		fail := false
+		switch cfg {
+		case StorageAdded:
+			fail = !org.IsZero() || !cur.IsZero() || new.IsZero()
+		case StorageAddedDeleted:
+			fail = !org.IsZero() || cur.IsZero() || !new.IsZero()
+		case StorageDeletedRestored:
+			fail = org.IsZero() || !cur.IsZero() || !org.Eq(new)
+		case StorageDeletedAdded:
+			fail = org.IsZero() || !cur.IsZero() || new.IsZero() || org.Eq(new)
+		case StorageDeleted:
+			fail = org.IsZero() || !cur.Eq(org) || !new.IsZero()
+		case StorageModified:
+			fail = org.IsZero() || !cur.Eq(org) || new.IsZero() || new.Eq(cur)
+		case StorageModifiedDeleted:
+			fail = org.IsZero() || cur.IsZero() || org.Eq(cur) || !new.IsZero()
+		case StorageModifiedRestored:
+			fail = org.IsZero() || cur.IsZero() || org.Eq(cur) || !org.Eq(new)
+		}
+
+		if fail {
+			t.Fatalf("%v failed:\norg: %v\ncur: %v\nnew: %v", cfg, org, cur, new)
+		}
 	}
 }
 
-func TestStorageGenerator_ConflictingValueConstraintsAreDetected(t *testing.T) {
+func TestStorageGenerator_ConflictingStorageConfigurationsAreDetected(t *testing.T) {
 	v1 := Variable("v1")
-	assignment := Assignment{}
-	assignment[v1] = NewU256(42)
+	v2 := Variable("v2")
 
 	generator := NewStorageGenerator()
-	generator.BindCurrent(v1, NewU256(1))
-	generator.BindCurrent(v1, NewU256(2))
+	generator.BindConfiguration(StorageDeleted, v1, v2)
+	generator.BindConfiguration(StorageAdded, v1, v2)
 
-	_, err := generator.Generate(assignment, rand.New(0))
+	_, err := generator.Generate(nil, rand.New(0))
 	if !errors.Is(err, ErrUnsatisfiable) {
-		t.Fatal("Conflicting warm/cold constraints not detected")
+		t.Fatal("Conflicting value constraints for current not detected")
 	}
 }
 
@@ -82,26 +108,31 @@ func TestStorageGenerator_ConflictingWarmColdConstraintsAreDetected(t *testing.T
 
 func TestStorageGenerator_AssignmentIsUpdated(t *testing.T) {
 	v1 := Variable("v1")
+	v2 := Variable("v2")
 	assignment := Assignment{}
 
 	generator := NewStorageGenerator()
-	generator.BindCurrent(v1, NewU256(1))
+	generator.BindConfiguration(StorageModified, v1, v2)
 	_, err := generator.Generate(assignment, rand.New(0))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if _, isAssigned := assignment[v1]; !isAssigned {
-		t.Fail()
+		t.Fatal("v1 not assigned by original value constraint")
+	}
+	if _, isAssigned := assignment[v1]; !isAssigned {
+		t.Fatal("v2 not assigned by current value constraint")
 	}
 }
 
 func TestStorageGenerator_ClonesAreEqual(t *testing.T) {
 	v1 := Variable("v1")
+	v2 := Variable("v2")
 
 	original := NewStorageGenerator()
-	original.BindCurrent(v1, NewU256(1))
-	original.BindWarm(v1)
+	original.BindConfiguration(StorageModified, v1, v2)
+	original.BindWarm(v2)
 
 	clone := original.Clone()
 
@@ -113,52 +144,54 @@ func TestStorageGenerator_ClonesAreEqual(t *testing.T) {
 func TestStorageGenerator_ClonesAreIndependent(t *testing.T) {
 	v1 := Variable("v1")
 	v2 := Variable("v2")
+	v3 := Variable("v3")
+	v4 := Variable("v4")
 
 	base := NewStorageGenerator()
-	base.BindCurrent(v1, NewU256(1))
-	base.BindWarm(v1)
+	base.BindConfiguration(StorageAdded, v1, v2)
+	base.BindWarm(v2)
 
 	clone1 := base.Clone()
-	clone1.BindCurrent(v2, NewU256(2))
-	clone1.BindWarm(v2)
+	clone1.BindConfiguration(StorageDeleted, v3, v4)
+	clone1.BindWarm(v4)
 
 	clone2 := base.Clone()
-	clone2.BindCurrent(v2, NewU256(3))
-	clone2.BindCold(v2)
+	clone2.BindConfiguration(StorageModifiedRestored, v3, v4)
+	clone2.BindCold(v4)
 
-	want := "{[$v1]=0000000000000000 0000000000000000 0000000000000000 0000000000000001,[$v2]=0000000000000000 0000000000000000 0000000000000000 0000000000000002,warm($v1),warm($v2)}"
+	want := "{cfg[$v1]=(StorageAdded,$v2),cfg[$v3]=(StorageDeleted,$v4),warm($v2),warm($v4)}"
 	if got := clone1.String(); got != want {
-		t.Errorf("invalid clone, wanted %s, got %s", want, got)
+		t.Errorf("invalid clone, wanted\n%s\n\tgot\n%s", want, got)
 	}
 
-	want = "{[$v1]=0000000000000000 0000000000000000 0000000000000000 0000000000000001,[$v2]=0000000000000000 0000000000000000 0000000000000000 0000000000000003,warm($v1),cold($v2)}"
+	want = "{cfg[$v1]=(StorageAdded,$v2),cfg[$v3]=(StorageModifiedRestored,$v4),warm($v2),cold($v4)}"
 	if got := clone2.String(); got != want {
-		t.Errorf("invalid clone, wanted %s, got %s", want, got)
+		t.Errorf("invalid clone, wanted\n%s\n\tgot\n%s", want, got)
 	}
 }
 
 func TestStorageGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	v1 := Variable("v1")
 	v2 := Variable("v2")
+	v3 := Variable("v3")
 
 	generator := NewStorageGenerator()
-	generator.BindCurrent(v1, NewU256(1))
+	generator.BindConfiguration(StorageDeleted, v1, v2)
 	generator.BindWarm(v1)
 
 	backup := generator.Clone()
 
-	generator.BindCurrent(v2, NewU256(2))
+	generator.BindConfiguration(StorageModified, v2, v3)
 	generator.BindWarm(v2)
 
-	want := "{[$v1]=0000000000000000 0000000000000000 0000000000000000 0000000000000001,[$v2]=0000000000000000 0000000000000000 0000000000000000 0000000000000002,warm($v1),warm($v2)}"
+	want := "{cfg[$v1]=(StorageDeleted,$v2),cfg[$v2]=(StorageModified,$v3),warm($v1),warm($v2)}"
 	if got := generator.String(); got != want {
-		t.Errorf("invalid clone, wanted %s, got %s", want, got)
+		t.Errorf("invalid clone, wanted\n%s\ngot\n%s", want, got)
 	}
 
 	generator.Restore(backup)
 
-	want = "{[$v1]=0000000000000000 0000000000000000 0000000000000000 0000000000000001,warm($v1)}"
-	if got := generator.String(); got != want {
-		t.Errorf("invalid clone, wanted %s, got %s", want, got)
+	if want, got := "{cfg[$v1]=(StorageDeleted,$v2),warm($v1)}", generator.String(); got != want {
+		t.Errorf("invalid clone, wanted \n%s\n\tgot\n%s", want, got)
 	}
 }

@@ -35,6 +35,7 @@ type StateGenerator struct {
 	pcConstantConstraints []uint16
 	pcVariableConstraints []Variable
 	gasConstraints        []uint64
+	gasRefundConstraints  []uint64
 
 	// Generators
 	codeGen    *CodeGenerator
@@ -114,6 +115,13 @@ func (g *StateGenerator) SetGas(gas uint64) {
 	}
 }
 
+// SetGasRefund adds a constraint on the State's gas refund counter.
+func (g *StateGenerator) SetGasRefund(gasRefund uint64) {
+	if !slices.Contains(g.gasRefundConstraints, gasRefund) {
+		g.gasRefundConstraints = append(g.gasRefundConstraints, gasRefund)
+	}
+}
+
 // SetCodeOperation wraps CodeGenerator.SetOperation.
 func (g *StateGenerator) SetCodeOperation(pos int, op OpCode) {
 	g.codeGen.SetOperation(pos, op)
@@ -150,9 +158,9 @@ func (g *StateGenerator) BindStackValue(pos int, v Variable) {
 	g.stackGen.BindValue(pos, v)
 }
 
-// BindStorageValue wraps StorageGenerator.BindCurrent.
-func (g *StateGenerator) BindStorageValue(key Variable, value U256) {
-	g.storageGen.BindCurrent(key, value)
+// BindStorageConfiguration wraps StorageGenerator.BindConfiguration.
+func (g *StateGenerator) BindStorageConfiguration(config StorageCfg, key, newValue Variable) {
+	g.storageGen.BindConfiguration(config, key, newValue)
 }
 
 // BindIsStorageWarm wraps StorageGenerator.BindWarm.
@@ -245,6 +253,16 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting gas counter constraints defined: %v", ErrUnsatisfiable, g.gasConstraints)
 	}
 
+	// Pick a gas refund counter.
+	var resultGasRefund uint64
+	if len(g.gasRefundConstraints) == 0 {
+		resultGasRefund = rnd.Uint64()
+	} else if len(g.gasRefundConstraints) == 1 {
+		resultGasRefund = g.gasRefundConstraints[0]
+	} else {
+		return nil, fmt.Errorf("%w, multiple conflicting gas refund counter constraints defined: %v", ErrUnsatisfiable, g.gasRefundConstraints)
+	}
+
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences
 	// this process.
@@ -272,6 +290,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.Revision = resultRevision
 	result.Pc = resultPc
 	result.Gas = resultGas
+	result.GasRefund = resultGasRefund
 	result.Stack = resultStack
 	result.Memory = resultMemory
 	result.Storage = resultStorage
@@ -287,6 +306,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		pcConstantConstraints: slices.Clone(g.pcConstantConstraints),
 		pcVariableConstraints: slices.Clone(g.pcVariableConstraints),
 		gasConstraints:        slices.Clone(g.gasConstraints),
+		gasRefundConstraints:  slices.Clone(g.gasRefundConstraints),
 		codeGen:               g.codeGen.Clone(),
 		stackGen:              g.stackGen.Clone(),
 		memoryGen:             g.memoryGen.Clone(),
@@ -302,6 +322,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.pcConstantConstraints = slices.Clone(other.pcConstantConstraints)
 		g.pcVariableConstraints = slices.Clone(other.pcVariableConstraints)
 		g.gasConstraints = slices.Clone(other.gasConstraints)
+		g.gasRefundConstraints = slices.Clone(other.gasRefundConstraints)
 		g.codeGen.Restore(other.codeGen)
 		g.stackGen.Restore(other.stackGen)
 		g.memoryGen.Restore(other.memoryGen)
@@ -335,6 +356,11 @@ func (g *StateGenerator) String() string {
 	sort.Slice(g.gasConstraints, func(i, j int) bool { return g.gasConstraints[i] < g.gasConstraints[j] })
 	for _, gas := range g.gasConstraints {
 		parts = append(parts, fmt.Sprintf("gas=%d", gas))
+	}
+
+	sort.Slice(g.gasRefundConstraints, func(i, j int) bool { return g.gasRefundConstraints[i] < g.gasRefundConstraints[j] })
+	for _, gas := range g.gasRefundConstraints {
+		parts = append(parts, fmt.Sprintf("gasRefund=%d", gas))
 	}
 
 	parts = append(parts, fmt.Sprintf("code=%v", g.codeGen))

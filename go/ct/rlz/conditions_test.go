@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
@@ -115,6 +116,61 @@ func TestCondition_UnknownNextRevisionIsNotAnyKnownIsRevision(t *testing.T) {
 	}
 	if isValid {
 		t.Fatal("AnyKnownRevision matches UnknownNextRevision")
+	}
+}
+
+func TestCondition_CheckStorageConfiguration(t *testing.T) {
+	allConfigs := []gen.StorageCfg{
+		gen.StorageAssigned,
+		gen.StorageAdded,
+		gen.StorageAddedDeleted,
+		gen.StorageDeletedRestored,
+		gen.StorageDeletedAdded,
+		gen.StorageDeleted,
+		gen.StorageModified,
+		gen.StorageModifiedDeleted,
+		gen.StorageModifiedRestored,
+	}
+
+	tests := []struct {
+		config        gen.StorageCfg
+		org, cur, new U256
+	}{
+		{gen.StorageAssigned, NewU256(1), NewU256(2), NewU256(3)},
+		{gen.StorageAdded, NewU256(0), NewU256(0), NewU256(1)},
+		{gen.StorageAddedDeleted, NewU256(0), NewU256(1), NewU256(0)},
+		{gen.StorageDeletedRestored, NewU256(1), NewU256(0), NewU256(1)},
+		{gen.StorageDeletedAdded, NewU256(1), NewU256(0), NewU256(2)},
+		{gen.StorageDeleted, NewU256(1), NewU256(1), NewU256(0)},
+		{gen.StorageModified, NewU256(1), NewU256(1), NewU256(2)},
+		{gen.StorageModifiedDeleted, NewU256(1), NewU256(2), NewU256(0)},
+		{gen.StorageModifiedRestored, NewU256(1), NewU256(2), NewU256(1)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.config.String(), func(t *testing.T) {
+			state := st.NewState(st.NewCode([]byte{}))
+
+			key := NewU256(42)
+			state.Storage.Original[key] = test.org
+			state.Storage.Current[key] = test.cur
+
+			state.Stack.Push(test.new)
+			state.Stack.Push(key)
+
+			for _, config := range allConfigs {
+				satisfied, err := StorageConfiguration(config, Param(0), Param(1)).Check(state)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if config == test.config && !satisfied {
+					t.Fatalf("StorageConfiguration %v is not satisfied for %v", config, state)
+				}
+				if config != test.config && satisfied {
+					t.Fatalf("StorageConfiguration %v should not be satisfied for %v", config, state)
+				}
+			}
+		})
 	}
 }
 
