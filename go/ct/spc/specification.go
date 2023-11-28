@@ -647,7 +647,7 @@ var Spec = func() Specification {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), SSTORE),
-				Lt(Gas(), 2300),
+				Le(Gas(), 2300),
 			),
 			Effect: FailEffect(),
 		},
@@ -1265,7 +1265,7 @@ type sstoreOpParams struct {
 func sstoreOpRegular(params sstoreOpParams) Rule {
 	name := fmt.Sprintf("sstore_regular_%v_%v", params.revision, params.config)
 
-	gasLimit := uint64(2300) // EIP2200
+	gasLimit := uint64(2301) // EIP2200
 	if params.gasCost > gasLimit {
 		gasLimit = params.gasCost
 	}
