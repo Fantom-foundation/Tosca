@@ -109,6 +109,11 @@ const (
 	SWAP14     OpCode = 0x9D
 	SWAP15     OpCode = 0x9E
 	SWAP16     OpCode = 0x9F
+	LOG0       OpCode = 0xA0
+	LOG1       OpCode = 0xA1
+	LOG2       OpCode = 0xA2
+	LOG3       OpCode = 0xA3
+	LOG4       OpCode = 0xA4
 	INVALID    OpCode = 0xFE
 )
 
@@ -191,6 +196,11 @@ func ValidOpCodesNoPush() []OpCode {
 		SWAP14,
 		SWAP15,
 		SWAP16,
+		LOG0,
+		LOG1,
+		LOG2,
+		LOG3,
+		LOG4,
 	})
 }
 
@@ -396,6 +406,16 @@ func (op OpCode) String() string {
 		return "SWAP15"
 	case SWAP16:
 		return "SWAP16"
+	case LOG0:
+		return "LOG0"
+	case LOG1:
+		return "LOG1"
+	case LOG2:
+		return "LOG2"
+	case LOG3:
+		return "LOG3"
+	case LOG4:
+		return "LOG4"
 	case INVALID:
 		return "INVALID"
 	default:
