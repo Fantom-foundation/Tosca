@@ -20,6 +20,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.Memory.Write([]byte{1, 2, 3}, 1)
 	state.Storage.Current[NewU256(4)] = NewU256(5)
 	state.Storage.Original[NewU256(6)] = NewU256(7)
+	state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
 
 	clone := state.Clone()
 	clone.Status = Running
@@ -32,6 +33,8 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.Storage.Current[NewU256(7)] = NewU256(16)
 	clone.Storage.Original[NewU256(6)] = NewU256(6)
 	clone.Storage.MarkWarm(NewU256(42))
+	clone.Logs.Entries[0].Data[0] = 31
+	clone.Logs.Entries[0].Topics[0] = NewU256(41)
 
 	ok := state.Status == Stopped &&
 		state.Revision == R10_London &&
@@ -44,7 +47,9 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.Storage.Current[NewU256(4)].Eq(NewU256(5)) &&
 		state.Storage.Current[NewU256(7)].IsZero() &&
 		state.Storage.Original[NewU256(6)].Eq(NewU256(7)) &&
-		!state.Storage.IsWarm(NewU256(42))
+		!state.Storage.IsWarm(NewU256(42)) &&
+		state.Logs.Entries[0].Data[0] == 10 &&
+		state.Logs.Entries[0].Topics[0] == NewU256(21)
 	if !ok {
 		t.Errorf("clone is not independent")
 	}
@@ -113,6 +118,12 @@ func TestState_Eq(t *testing.T) {
 		t.Fail()
 	}
 	s2.Storage.Current[NewU256(42)] = NewU256(32)
+
+	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
+	if s1.Eq(s2) {
+		t.Fail()
+	}
+	s2.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 
 	s1 = NewState(NewCode([]byte{byte(ADD), byte(STOP)}))
 	s2 = NewState(NewCode([]byte{byte(ADD), byte(ADD)}))
@@ -347,6 +358,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.Stack.Push(NewU256(42))
 	s1.Memory.Write([]byte{1, 2, 3}, 31)
 	s1.Storage.MarkWarm(NewU256(42))
+	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -357,6 +369,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.Stack.Push(NewU256(42))
 	s2.Memory.Write([]byte{1, 2, 3}, 31)
 	s2.Storage.MarkWarm(NewU256(42))
+	s2.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 
 	diffs := s1.Diff(s2)
 
@@ -379,6 +392,8 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Stack.Push(NewU256(42))
 	s1.Memory.Write([]byte{1, 2, 3}, 31)
 	s1.Storage.MarkWarm(NewU256(42))
+	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
+	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -389,6 +404,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.Stack.Push(NewU256(16))
 	s2.Memory.Write([]byte{1, 2, 4}, 31)
 	s2.Storage.MarkCold(NewU256(42))
+	s2.Logs.AddLog([]byte{4, 7, 6}, NewU256(24), NewU256(22))
 
 	diffs := s1.Diff(s2)
 
@@ -402,6 +418,9 @@ func TestState_DiffMismatch(t *testing.T) {
 		"Different stack",
 		"Different memory value",
 		"Different warm entry",
+		"Different log count",
+		"Different topics for log entry",
+		"Different data for log entry",
 	}
 
 	if len(diffs) != len(expectedDiffs) {
