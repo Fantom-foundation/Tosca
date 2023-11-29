@@ -49,3 +49,14 @@ func (MemorySizeParameter) Samples() []U256 {
 		NewU256(1, 0),
 	}
 }
+
+type TopicParameter struct{}
+
+func (TopicParameter) Samples() []U256 {
+	return []U256{
+		// Two samples to ensure topic order is correct. Adding more samples
+		// here will create significant more test cases for LOG instructions.
+		NewU256(101),
+		NewU256(102),
+	}
+}
