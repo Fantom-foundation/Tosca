@@ -13,14 +13,16 @@ import (
 // representation and the StateDB interface expected by an evm interpreter.
 type ConformanceTestStateDb struct {
 	Storage   *st.Storage
+	Logs      *st.Logs
 	revision  Revision
 	gasRefund uint64
 }
 
 // NewConformanceTestStateDb creates a new ConformanceTestStateDb.
-func NewConformanceTestStateDb(storage *st.Storage, revision Revision) *ConformanceTestStateDb {
+func NewConformanceTestStateDb(storage *st.Storage, logs *st.Logs, revision Revision) *ConformanceTestStateDb {
 	return &ConformanceTestStateDb{
 		Storage:  storage,
+		Logs:     logs,
 		revision: revision,
 	}
 }
@@ -85,8 +87,12 @@ func (db *ConformanceTestStateDb) Suicide(common.Address) bool {
 	panic("not implemented yet")
 }
 
-func (db *ConformanceTestStateDb) AddLog(*types.Log) {
-	panic("not implemented yet")
+func (db *ConformanceTestStateDb) AddLog(log *types.Log) {
+	var topics []U256
+	for _, topic := range log.Topics {
+		topics = append(topics, NewU256FromBytes(topic[:]...))
+	}
+	db.Logs.AddLog(log.Data, topics...)
 }
 
 // -- StateDB interface methods that should not be needed ---
