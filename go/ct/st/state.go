@@ -50,6 +50,7 @@ type State struct {
 	Stack     *Stack
 	Memory    *Memory
 	Storage   *Storage
+	Logs      *Logs
 }
 
 // NewState creates a new State instance with the given code.
@@ -61,6 +62,7 @@ func NewState(code *Code) *State {
 		Stack:    NewStack(),
 		Memory:   NewMemory(),
 		Storage:  NewStorage(),
+		Logs:     NewLogs(),
 	}
 }
 
@@ -74,6 +76,7 @@ func (s *State) Clone() *State {
 	clone.Stack = s.Stack.Clone()
 	clone.Memory = s.Memory.Clone()
 	clone.Storage = s.Storage.Clone()
+	clone.Logs = s.Logs.Clone()
 	return clone
 }
 
@@ -90,7 +93,8 @@ func (s *State) Eq(other *State) bool {
 		s.Code.Eq(other.Code) &&
 		s.Stack.Eq(other.Stack) &&
 		s.Memory.Eq(other.Memory) &&
-		s.Storage.Eq(other.Storage)
+		s.Storage.Eq(other.Storage) &&
+		s.Logs.Eq(other.Logs)
 }
 
 const codeCutoffLength = 20
@@ -136,6 +140,14 @@ func (s *State) String() string {
 	for k := range s.Storage.warm {
 		builder.WriteString(fmt.Sprintf("\t    [%v]\n", k))
 	}
+	builder.WriteString("\tLogs:\n")
+	for entryId, entry := range s.Logs.Entries {
+		builder.WriteString(fmt.Sprintf("\t    entry %02d:\n", entryId))
+		for topicId, topic := range entry.Topics {
+			builder.WriteString(fmt.Sprintf("\t        topic %02d: %v\n", topicId, topic))
+		}
+		builder.WriteString(fmt.Sprintf("\t        data: %x\n", entry.Data))
+	}
 
 	builder.WriteString("}")
 	return builder.String()
@@ -178,6 +190,10 @@ func (s *State) Diff(o *State) []string {
 
 	if !s.Storage.Eq(o.Storage) {
 		res = append(res, s.Storage.Diff(o.Storage)...)
+	}
+
+	if !s.Logs.Eq(o.Logs) {
+		res = append(res, s.Logs.Diff(o.Logs)...)
 	}
 
 	return res

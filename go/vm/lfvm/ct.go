@@ -96,6 +96,7 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 	state.Memory = convertLfvmMemoryToCtMemory(ctx)
 	if ctx.stateDB != nil {
 		state.Storage = ctx.stateDB.(*utils.ConformanceTestStateDb).Storage
+		state.Logs = ctx.stateDB.(*utils.ConformanceTestStateDb).Logs
 	}
 	return state, nil
 }
@@ -198,13 +199,18 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 
 	data := []byte{}
 
-	stateDb := utils.NewConformanceTestStateDb(state.Storage, state.Revision)
+	stateDb := utils.NewConformanceTestStateDb(state.Storage, state.Logs, state.Revision)
 
 	stateDb.AddRefund(state.GasRefund)
 
 	// Create execution context.
 	ctx := context{
-		evm:      &vm.EVM{StateDB: stateDb},
+		evm: &vm.EVM{
+			StateDB: stateDb,
+			Context: vm.BlockContext{
+				BlockNumber: big.NewInt(0), // TODO
+			},
+		},
 		pc:       int32(pc),
 		stack:    convertCtStackToLfvmStack(state),
 		memory:   memory,

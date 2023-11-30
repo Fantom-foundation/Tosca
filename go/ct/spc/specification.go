@@ -917,6 +917,12 @@ var Spec = func() Specification {
 		rules = append(rules, swapOp(i)...)
 	}
 
+	// --- LOG ---
+
+	for i := 0; i <= 4; i++ {
+		rules = append(rules, logOp(i)...)
+	}
+
 	// --- End ---
 
 	return NewSpecification(rules...)
@@ -1351,5 +1357,83 @@ func sstoreOpTooLittleGas(params sstoreOpParams) Rule {
 			NumericParameter{},
 		},
 		Effect: FailEffect(),
+	}
+}
+
+func logOp(n int) []Rule {
+	op := OpCode(int(LOG0) + n)
+	name := strings.ToLower(op.String())
+	minGas := uint64(375 + 375*n)
+
+	parameter := []Parameter{
+		MemoryOffsetParameter{},
+		MemorySizeParameter{},
+	}
+	for i := 0; i < n; i++ {
+		parameter = append(parameter, TopicParameter{})
+	}
+
+	return []Rule{
+		{
+			Name: fmt.Sprintf("%v_regular", name),
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(Gas(), minGas),
+				Ge(StackSize(), 2+n),
+			),
+			Parameter: parameter,
+			Effect: Change(func(s *st.State) {
+				s.Gas -= minGas
+				s.Pc++
+				offset_u256 := s.Stack.Pop()
+				size_u256 := s.Stack.Pop()
+
+				topics := []U256{}
+				for i := 0; i < n; i++ {
+					topics = append(topics, s.Stack.Pop())
+				}
+
+				memExpCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
+				if s.Gas < memExpCost {
+					s.Status = st.Failed
+					s.Gas = 0
+					return
+				}
+				s.Gas -= memExpCost
+
+				if s.Gas < 8*size {
+					s.Status = st.Failed
+					s.Gas = 0
+					return
+				}
+				s.Gas -= 8 * size
+
+				s.Logs.AddLog(s.Memory.Read(offset, size), topics...)
+			}),
+		},
+
+		{
+			Name: fmt.Sprintf("%v_with_too_little_min_gas", name),
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Lt(Gas(), minGas),
+			),
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: fmt.Sprintf("%v_with_too_few_elements", name),
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Lt(StackSize(), 2+n),
+			),
+			Effect: FailEffect(),
+		},
 	}
 }
