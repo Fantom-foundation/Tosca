@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"pgregory.net/rand"
@@ -99,6 +100,7 @@ func doRun(context *cli.Context) error {
 
 	failed := false
 	errorCount := 0
+	var skippedCount atomic.Uint64
 
 	ruleCh := make(chan rlz.Rule, jobCount)
 
@@ -117,6 +119,7 @@ func doRun(context *cli.Context) error {
 					// TODO: program counter pointing to data not supported by LFVM
 					// converter.
 					if evmIdentifier == "lfvm" && !state.Code.IsCode(int(state.Pc)) {
+						skippedCount.Add(1)
 						return nil // ignored
 					}
 
@@ -178,6 +181,9 @@ func doRun(context *cli.Context) error {
 
 	if failed {
 		return fmt.Errorf("total errors: %d", errorCount)
+	}
+	if cnt := skippedCount.Load(); cnt > 0 {
+		fmt.Printf("Skipped tests: %d\n", cnt)
 	}
 	return nil
 }
