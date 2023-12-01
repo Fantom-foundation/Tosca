@@ -85,9 +85,19 @@ func (s *State) Eq(other *State) bool {
 	if s.Status == Failed && other.Status == Failed {
 		return true
 	}
+
+	isHaltedState := func(s *State) bool {
+		return s.Status == Stopped || s.Status == Returned || s.Status == Reverted
+	}
+	pcIsEqual := s.Pc == other.Pc
+	if isHaltedState(s) && isHaltedState(other) {
+		// The program counter does not matter for halted states.
+		pcIsEqual = true
+	}
+
 	return s.Status == other.Status &&
 		s.Revision == other.Revision &&
-		s.Pc == other.Pc &&
+		pcIsEqual &&
 		s.Gas == other.Gas &&
 		s.GasRefund == other.GasRefund &&
 		s.Code.Eq(other.Code) &&

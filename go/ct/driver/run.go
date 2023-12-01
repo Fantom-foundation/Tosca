@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"pgregory.net/rand"
@@ -16,6 +17,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	vm "github.com/Fantom-foundation/Tosca/go/vm/geth"
 	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 	"github.com/urfave/cli/v2"
 )
@@ -54,6 +56,7 @@ var RunCmd = cli.Command{
 
 var evms = map[string]ct.Evm{
 	"lfvm": lfvm.NewConformanceTestingTarget(),
+	"geth": vm.NewConformanceTestingTarget(),
 }
 
 func doRun(context *cli.Context) error {
@@ -95,8 +98,9 @@ func doRun(context *cli.Context) error {
 	var mutex sync.Mutex
 	var wg sync.WaitGroup
 
-	failed := false
-	errorCount := 0
+	var errorsPrinted atomic.Int32
+	var errorCount atomic.Int32
+	var skippedCount atomic.Int32
 
 	ruleCh := make(chan rlz.Rule, jobCount)
 
@@ -114,7 +118,8 @@ func doRun(context *cli.Context) error {
 
 					// TODO: program counter pointing to data not supported by LFVM
 					// converter.
-					if !state.Code.IsCode(int(state.Pc)) {
+					if evmIdentifier == "lfvm" && !state.Code.IsCode(int(state.Pc)) {
+						skippedCount.Add(1)
 						return nil // ignored
 					}
 
@@ -138,25 +143,30 @@ func doRun(context *cli.Context) error {
 					return nil
 				})
 
+				ok := "OK"
+				if len(errs) > 0 {
+					ok = "Failed"
+				}
+
+				errorCount.Add(int32(len(errs)))
+
+				errorsToPrint := len(errs)
+				if maxErrors := context.Int("max-errors"); maxErrors > 0 {
+					errorsLeftToPrint := max(maxErrors-int(errorsPrinted.Load()), 0)
+					errorsToPrint = min(len(errs), errorsLeftToPrint)
+				}
+
+				errorsPrinted.Add(int32(errorsToPrint))
+
+				printErrors := errs[0:errorsToPrint]
+				err := errors.Join(printErrors...)
+
 				mutex.Lock()
 				{
-					ok := "OK"
-					if len(errs) > 0 {
-						ok = "Failed"
-					}
 					fmt.Printf("%v: %v (%v)\n", ok, rule, time.Since(tstart).Round(10*time.Millisecond))
 
-					errorsToPrint := len(errs)
-					if maxErrors := context.Int("max-errors"); maxErrors > 0 {
-						errorsToPrint = min(len(errs), maxErrors-errorCount)
-					}
-					errorCount += errorsToPrint
-
-					printErrors := errs[0:errorsToPrint]
-					err := errors.Join(printErrors...)
 					if err != nil {
 						fmt.Println(err)
-						failed = true
 					}
 				}
 				mutex.Unlock()
@@ -174,8 +184,12 @@ func doRun(context *cli.Context) error {
 	close(ruleCh)
 	wg.Wait()
 
-	if failed {
-		return fmt.Errorf("total errors: %d", errorCount)
+	if cnt := skippedCount.Load(); cnt > 0 {
+		fmt.Printf("Skipped tests: %d\n", cnt)
 	}
+	if cnt := errorCount.Load(); cnt > 0 {
+		return fmt.Errorf("total errors: %d", cnt)
+	}
+
 	return nil
 }
