@@ -49,6 +49,9 @@ struct InterpreterTestDescription {
   RunState state_after = RunState::kDone;
   bool is_static_call = false;
 
+  uint64_t pc_before = 0;
+  uint64_t pc_after = 0;
+
   int64_t gas_before = 0;
   int64_t gas_after = 0;
   int64_t gas_refund_before = 0;
@@ -101,6 +104,39 @@ void RunInterpreterTest(const InterpreterTestDescription& desc) {
     EXPECT_EQ(ctx.memory, desc.memory_after);
     EXPECT_EQ(ctx.return_data, desc.return_data);
   }
+}
+
+void RunInterpreterStepTest(const InterpreterTestDescription& desc, int steps = 1) {
+  MockHost fallback_mock_host;
+
+  auto valid_jump_targets = op::CalculateValidJumpTargets(desc.code);
+
+  auto padded_code = internal::PadCode(desc.code);
+  internal::Context ctx{
+      .is_static_call = desc.is_static_call,
+      .pc = desc.pc_before,
+      .gas = desc.gas_before,
+      .gas_refunds = desc.gas_refund_before,
+      .padded_code = padded_code,
+      .return_data = desc.last_call_data,
+      .valid_jump_targets = valid_jump_targets,
+      .memory = desc.memory_before,
+      .stack = desc.stack_before,
+      .message = &desc.message,
+      .host = desc.host ? desc.host : &fallback_mock_host,
+      .revision = desc.revision,
+  };
+
+  auto observer = NoObserver{};
+  internal::RunInterpreter<NoObserver, true>(ctx, observer, steps);
+
+  EXPECT_EQ(ctx.state, desc.state_after);
+  EXPECT_EQ(ctx.pc, desc.pc_after);
+  EXPECT_EQ(ctx.gas, desc.gas_after);
+  EXPECT_EQ(ctx.gas_refunds, desc.gas_refund_after);
+  EXPECT_EQ(ctx.stack, desc.stack_after);
+  EXPECT_EQ(ctx.memory, desc.memory_after);
+  EXPECT_EQ(ctx.return_data, desc.return_data);
 }
 
 ///////////////////////////////////////////////////////////
@@ -4717,6 +4753,124 @@ TEST(InterpreterTest, SELFDESTRUCT_StaticCallViolation) {
       .gas_before = 5000,
       .stack_before = {0x43},
   });
+}
+
+///////////////////////////////////////////////////////////
+// Stepping interpreter
+TEST(InterpreterTest, Step_None) {
+  RunInterpreterStepTest(
+      {
+          .code = {op::PUSH1, 3,  //
+                   op::PUSH1, 4,  //
+                   op::ADD},
+          .state_after = RunState::kRunning,
+          .pc_before = 0,
+          .pc_after = 0,
+          .gas_before = 3,
+          .gas_after = 3,
+          .stack_before = {},
+          .stack_after = {},
+      },
+      0);
+}
+
+TEST(InterpreterTest, Step_Single_Add) {
+  RunInterpreterStepTest(
+      {
+          .code = {op::PUSH1, 3,  //
+                   op::PUSH1, 4,  //
+                   op::ADD},
+          .state_after = RunState::kRunning,
+          .pc_before = 0,
+          .pc_after = 2,
+          .gas_before = 3,
+          .gas_after = 0,
+          .stack_before = {},
+          .stack_after = {3},
+      },
+      1);
+}
+
+TEST(InterpreterTest, Step_Two_Add) {
+  RunInterpreterStepTest(
+      {
+          .code = {op::PUSH1, 3,  //
+                   op::PUSH1, 4,  //
+                   op::ADD},
+          .state_after = RunState::kRunning,
+          .pc_before = 0,
+          .pc_after = 4,
+          .gas_before = 6,
+          .gas_after = 0,
+          .stack_before = {},
+          .stack_after = {3, 4},
+      },
+      2);
+}
+
+TEST(InterpreterTest, Step_Three_Add) {
+  RunInterpreterStepTest(
+      {
+          .code = {op::PUSH1, 3,  //
+                   op::PUSH1, 4,  //
+                   op::ADD},
+          .state_after = RunState::kRunning,
+          .pc_before = 0,
+          .pc_after = 5,
+          .gas_before = 9,
+          .gas_after = 0,
+          .stack_before = {},
+          .stack_after = {7},
+      },
+      3);
+}
+
+TEST(InterpreterTest, Step_Four_Add) {
+  RunInterpreterStepTest(
+      {
+          .code =
+              {
+                  op::PUSH1, 3,  //
+                  op::PUSH1, 4,  //
+                  op::ADD        //
+                                 // implicit op::STOP
+              },
+          .state_after = RunState::kDone,
+          .pc_before = 0,
+          .pc_after = 6,
+          .gas_before = 9,
+          .gas_after = 0,
+          .stack_before = {},
+          .stack_after = {7},
+      },
+      4);
+}
+
+TEST(InterpreterTest, Step_Single_Memory) {
+  RunInterpreterStepTest(
+      {
+          .code = {op::MSTORE},
+          .state_after = RunState::kRunning,
+          .pc_before = 0,
+          .pc_after = 1,
+          .gas_before = 10,
+          .gas_after = 7,
+          .stack_before = {0xFF, 0},
+          .stack_after = {},
+          .memory_before{
+              0, 0, 0, 0, 0, 0, 0, 0,  //
+              0, 0, 0, 0, 0, 0, 0, 0,  //
+              0, 0, 0, 0, 0, 0, 0, 0,  //
+              0, 0, 0, 0, 0, 0, 0, 0,  //
+          },
+          .memory_after{
+              0, 0, 0, 0, 0, 0, 0, 0,     //
+              0, 0, 0, 0, 0, 0, 0, 0,     //
+              0, 0, 0, 0, 0, 0, 0, 0,     //
+              0, 0, 0, 0, 0, 0, 0, 0xFF,  //
+          },
+      },
+      1);
 }
 
 }  // namespace

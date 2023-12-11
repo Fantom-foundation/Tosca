@@ -104,8 +104,8 @@ struct Context {
 // bound checks during the execution can be avoided.
 std::vector<uint8_t> PadCode(std::span<const uint8_t> code);
 
-template <Observer Observer>
-extern void RunInterpreter(Context&, Observer&);
+template <Observer Observer, bool Stepping = false>
+extern void RunInterpreter(Context&, Observer&, int steps = -1);
 
 }  // namespace internal
 

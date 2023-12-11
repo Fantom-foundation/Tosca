@@ -1776,9 +1776,11 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, int32_t stack_
   };
 }
 
-template <Observer Observer>
-void RunInterpreter(Context& ctx, Observer& observer) {
+template <Observer Observer, bool Stepping>
+void RunInterpreter(Context& ctx, Observer& observer, int steps) {
   EVMZERO_PROFILE_ZONE();
+
+  int steps_executed = 0;
 
   // The state, pc, and stack state are owned by this function and
   // should not escape this function.
@@ -1789,6 +1791,10 @@ void RunInterpreter(Context& ctx, Observer& observer) {
 
   auto* padded_code = ctx.padded_code.data();
   auto* pc = padded_code;
+
+  if constexpr (Stepping) {
+    pc += ctx.pc;
+  }
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
@@ -1806,6 +1812,11 @@ void RunInterpreter(Context& ctx, Observer& observer) {
 // for the handling code.
 #define DISPATCH()                     \
   do {                                 \
+    if constexpr (Stepping) {          \
+      if (steps_executed++ >= steps) { \
+        goto end;                      \
+      }                                \
+    }                                  \
     if (state == RunState::kRunning) { \
       goto* dispatch_table[*pc];       \
     } else {                           \
@@ -1842,10 +1853,21 @@ void RunInterpreter(Context& ctx, Observer& observer) {
 #pragma GCC diagnostic pop
 
 end:
-  if (IsSuccess(state)) {
-    ctx.gas = gas;
+  if constexpr (Stepping) {
+    if (state == RunState::kDone       //
+        || state == RunState::kReturn  //
+        || state == RunState::kRevert  //
+        || state == RunState::kRunning) {
+      ctx.gas = gas;
+    } else {
+      ctx.gas = 0;
+    }
   } else {
-    ctx.gas = 0;
+    if (IsSuccess(state)) {
+      ctx.gas = gas;
+    } else {
+      ctx.gas = 0;
+    }
   }
 
   // Keep return data only when we are supposed to return something.
@@ -1855,12 +1877,17 @@ end:
 
   ctx.state = state;
   ctx.stack.SetTop(top);
+
+  if constexpr (Stepping) {
+    ctx.pc = static_cast<uint64_t>(pc - padded_code);
+  }
 }
 
-template void RunInterpreter<NoObserver>(Context&, NoObserver&);
-template void RunInterpreter<Profiler<ProfilerMode::kFull>>(Context&, Profiler<ProfilerMode::kFull>&);
-template void RunInterpreter<Profiler<ProfilerMode::kExternal>>(Context&, Profiler<ProfilerMode::kExternal>&);
-template void RunInterpreter<Logger>(Context&, Logger&);
+template void RunInterpreter<NoObserver, false>(Context&, NoObserver&, int);
+template void RunInterpreter<NoObserver, true>(Context&, NoObserver&, int);
+template void RunInterpreter<Profiler<ProfilerMode::kFull>>(Context&, Profiler<ProfilerMode::kFull>&, int);
+template void RunInterpreter<Profiler<ProfilerMode::kExternal>>(Context&, Profiler<ProfilerMode::kExternal>&, int);
+template void RunInterpreter<Logger>(Context&, Logger&, int);
 
 }  // namespace internal
 
