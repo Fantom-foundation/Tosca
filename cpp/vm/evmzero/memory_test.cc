@@ -12,11 +12,27 @@ TEST(MemoryTest, DefaultInit) {
 
 TEST(MemoryTest, InitializerList) {
   Memory memory = {1, 2, 3};
-  EXPECT_EQ(memory.GetSize(), 32);
+  ASSERT_EQ(memory.GetSize(), 32);
 
   EXPECT_EQ(memory[0], 1);
   EXPECT_EQ(memory[1], 2);
   EXPECT_EQ(memory[2], 3);
+  for (uint64_t i = 3; i < memory.GetSize(); ++i) {
+    EXPECT_EQ(memory[i], 0);
+  }
+}
+
+TEST(MemoryTest, InitializerSpan) {
+  const auto elements = std::array<uint8_t, 3>{1, 2, 3};
+  Memory memory(elements);
+  ASSERT_EQ(memory.GetSize(), 32);
+
+  EXPECT_EQ(memory[0], 1);
+  EXPECT_EQ(memory[1], 2);
+  EXPECT_EQ(memory[2], 3);
+  for (uint64_t i = 3; i < memory.GetSize(); ++i) {
+    EXPECT_EQ(memory[i], 0);
+  }
 }
 
 TEST(MemoryTest, ReadFrom) {
@@ -25,7 +41,7 @@ TEST(MemoryTest, ReadFrom) {
   std::vector<uint8_t> buffer = {1, 2, 3};
   memory.ReadFrom(buffer, 1);
 
-  EXPECT_EQ(memory.GetSize(), 32);
+  ASSERT_EQ(memory.GetSize(), 32);
 
   EXPECT_EQ(memory[0], 0);  // zero initialized
   EXPECT_EQ(memory[1], 1);
@@ -62,7 +78,7 @@ TEST(MemoryTest, ReadFromWithSize_SmallerSize) {
   std::vector<uint8_t> buffer = {1, 2, 3};
   memory.ReadFromWithSize(buffer, 1, 2);
 
-  EXPECT_EQ(memory.GetSize(), 32);
+  ASSERT_EQ(memory.GetSize(), 32);
 
   EXPECT_EQ(memory[0], 0);  // zero initialized
   EXPECT_EQ(memory[1], 1);
@@ -76,7 +92,7 @@ TEST(MemoryTest, ReadFromWithSize_LargerSize) {
   std::vector<uint8_t> buffer = {1, 2};
   memory.ReadFromWithSize(buffer, 1, 3);
 
-  EXPECT_EQ(memory.GetSize(), 32);
+  ASSERT_EQ(memory.GetSize(), 32);
 
   EXPECT_EQ(memory[0], 0xFF);
   EXPECT_EQ(memory[1], 1);
@@ -123,6 +139,8 @@ TEST(MemoryTest, WriteTo_Grows) {
   std::vector<uint8_t> buffer(3);
   memory.WriteTo(buffer, 1);
 
+  ASSERT_EQ(memory.GetSize(), 32);
+
   EXPECT_EQ(memory[0], 1);
   EXPECT_EQ(memory[1], 2);
   EXPECT_EQ(memory[2], 3);
@@ -158,6 +176,8 @@ TEST(MemoryTest, Grow_ZeroSize) {
 
 TEST(MemoryTest, Subscript) {
   Memory memory = {1, 2, 3};
+
+  ASSERT_EQ(memory.GetSize(), 32);
 
   memory[1] = 42;
 

@@ -20,6 +20,7 @@ class Memory {
  public:
   Memory() = default;
   Memory(std::initializer_list<uint8_t>);
+  Memory(std::span<const uint8_t>);
 
   uint64_t GetSize() const { return memory_.size(); }
 

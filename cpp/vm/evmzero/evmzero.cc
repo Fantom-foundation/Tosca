@@ -49,6 +49,39 @@ evmc_status_code ToEvmcStatusCode(RunState state) {
   return EVMC_FAILURE;
 }
 
+RunState ToRunStateCode(evmc_step_status_code state) {
+  switch (state) {
+    case EVMC_STEP_RUNNING:
+      return RunState::kRunning;
+    case EVMC_STEP_STOPPED:
+      return RunState::kDone;
+    case EVMC_STEP_RETURNED:
+      return RunState::kReturn;
+    case EVMC_STEP_REVERTED:
+      return RunState::kRevert;
+    case EVMC_STEP_FAILED:
+      return RunState::kInvalid;
+  }
+  return RunState::kErrorOpcode;
+}
+
+evmc_step_status_code ToEvmcStepStatusCode(RunState state) {
+  switch (state) {
+    case RunState::kRunning:
+      return EVMC_STEP_RUNNING;
+    case RunState::kDone:
+      return EVMC_STEP_STOPPED;
+    case RunState::kReturn:
+      return EVMC_STEP_RETURNED;
+    case RunState::kRevert:
+      return EVMC_STEP_REVERTED;
+    case RunState::kInvalid:
+      return EVMC_STEP_FAILED;
+    default:
+      return EVMC_STEP_FAILED;
+  }
+}
+
 // This class represents the evmzero virtual machine (VM) which consists
 // primarily of the evmzero interpreter. This class connects evmzero to the host
 // infrastructure via the evmc interface.
@@ -127,6 +160,87 @@ class VM : public evmc_vm {
     };
   }
 
+  evmc_step_result StepN(std::span<const uint8_t> code, const evmc_bytes32* code_hash,                //
+                         const evmc_message* message,                                                 //
+                         const evmc_host_interface* host_interface, evmc_host_context* host_context,  //
+                         evmc_revision revision, evmc_step_status_code status, uint64_t pc, int64_t gas_refunds,
+                         std::span<evmc_uint256be> stack, std::span<uint8_t> memory, int32_t steps) {
+    std::shared_ptr<const ContractInfo> contract_info;
+    if (analysis_cache_enabled_ && code_hash && *code_hash != evmc::bytes32{0}) [[likely]] {
+      contract_info = contract_info_cache_.GetOrInsert(*code_hash, [&] { return ComputeContractInfo(code); });
+    } else {
+      contract_info = ComputeContractInfo(code);
+    }
+
+    auto convertedStack = Stack();
+    for (const auto& value : stack) {
+      const auto v = ToUint256(value);
+      convertedStack.Push(v);
+    }
+
+    auto stepping_args = SteppingArgs{};
+    stepping_args.padded_code = contract_info->padded_code;
+    stepping_args.valid_jump_targets = contract_info->valid_jump_targets;
+    stepping_args.message = message;
+    stepping_args.host_interface = host_interface;
+    stepping_args.host_context = host_context;
+    stepping_args.revision = revision;
+    stepping_args.sha3_cache = sha3_cache_enabled_ ? &sha3_cache_ : nullptr;
+    stepping_args.state = ToRunStateCode(status);
+    stepping_args.pc = pc;
+    stepping_args.gas_refunds = gas_refunds;
+    stepping_args.stack = convertedStack;
+    stepping_args.memory = Memory(memory);
+    stepping_args.steps = status == EVMC_STEP_RUNNING ? steps : 0;
+
+    auto stepping_result = InterpretNSteps(stepping_args);
+
+    // Move output data to a dedicated buffer so we can release the interpreter
+    // result.
+    uint8_t* output_data = nullptr;
+    if (!stepping_result.return_data.empty()) {
+      output_data = new uint8_t[stepping_result.return_data.size()];
+      std::copy(stepping_result.return_data.begin(), stepping_result.return_data.end(), output_data);
+    }
+
+    // Copy stack to raw buffer.
+    evmc_uint256be* stack_data = nullptr;
+    if (stepping_result.stack.GetSize()) {
+      stack_data = new evmc_uint256be[stepping_result.stack.GetSize()];
+      for (size_t i = 0; i < stepping_result.stack.GetSize(); ++i) {
+        stack_data[i] = ToEvmcBytes(stepping_result.stack[i]);
+      }
+    }
+
+    // Copy memory to raw buffer.
+    uint8_t* memory_data = nullptr;
+    if (stepping_result.memory.GetSize()) {
+      memory_data = new uint8_t[stepping_result.memory.GetSize()];
+      stepping_result.memory.WriteTo({memory_data, stepping_result.memory.GetSize()}, 0);
+    }
+
+    return {
+        .step_status_code = ToEvmcStepStatusCode(stepping_result.state),
+        .status_code = ToEvmcStatusCode(stepping_result.state),
+        .revision = revision,
+        .pc = stepping_result.pc,
+        .gas_left = stepping_result.remaining_gas,
+        .gas_refund = stepping_result.refunded_gas,
+        .output_data = output_data,
+        .output_size = stepping_result.return_data.size(),
+        .stack = stack_data,
+        .stack_size = stepping_result.stack.GetSize(),
+        .memory = memory_data,
+        .memory_size = stepping_result.memory.GetSize(),
+        .release =
+            [](const evmc_step_result* result) {
+              delete[] result->output_data;
+              delete[] result->stack;
+              delete[] result->memory;
+            },
+    };
+  }
+
   evmc_set_option_result SetOption(std::string_view name, std::string_view value) {
     const auto on_off_options = {
         std::pair("logging", &logging_enabled_),
@@ -197,8 +311,40 @@ class VM : public evmc_vm {
   Profiler<ProfilerMode::kExternal> profiler_external_;
 };
 
+// This class represents the evmzero virtual machine (VM) which consists
+// primarily of the evmzero interpreter. This class connects evmzero to the host
+// infrastructure via the evmc interface.
+class VMSteppable : public evmc_vm_steppable {
+ public:
+  VMSteppable(evmc_vm* vm) noexcept
+      : evmc_vm_steppable{
+            .vm = vm,
+
+            .step_n = [](evmc_vm_steppable* vm, const evmc_host_interface* host_interface,
+                         evmc_host_context* host_context, evmc_revision revision, const evmc_message* message,
+                         const evmc_bytes32* code_hash, const uint8_t* code, size_t code_size,
+                         evmc_step_status_code status, uint64_t pc, int64_t gas_refunds, evmc_uint256be* stack,
+                         size_t stack_size, uint8_t* memory, size_t memory_size, int32_t steps) -> evmc_step_result {
+              return static_cast<VM*>(vm->vm)->StepN({code, code_size}, code_hash, message, host_interface,
+                                                     host_context, revision, status, pc, gas_refunds,
+                                                     {stack, stack_size}, {memory, memory_size}, steps);
+            },
+
+            .destroy =
+                [](evmc_vm_steppable* vm) {
+                  vm->vm->destroy(vm->vm);
+                  delete static_cast<VMSteppable*>(vm);
+                },
+
+        } {}
+};
+
 extern "C" {
 EVMC_EXPORT evmc_vm* evmc_create_evmzero() noexcept { return new VM; }
+
+EVMC_EXPORT evmc_vm_steppable* evmc_create_steppable_evmzero() noexcept {
+  return new VMSteppable(evmc_create_evmzero());
+}
 
 EVMC_EXPORT void evmzero_dump_profile(evmc_vm* vm) noexcept { reinterpret_cast<VM*>(vm)->DumpProfile(); }
 

@@ -56,6 +56,23 @@ struct InterpreterResult {
 template <Observer Observer>
 extern InterpreterResult Interpret(const InterpreterArgs&, Observer&);
 
+struct SteppingArgs : InterpreterArgs {
+  RunState state = RunState::kRunning;
+  uint64_t pc = 0;
+  int64_t gas_refunds = 0;
+  Stack stack;
+  Memory memory;
+  int steps = -1;
+};
+
+struct SteppingResult : InterpreterResult {
+  uint64_t pc = 0;
+  Stack stack;
+  Memory memory;
+};
+
+extern SteppingResult InterpretNSteps(const SteppingArgs& args);
+
 namespace internal {
 
 constexpr int64_t kMaxGas = std::numeric_limits<int64_t>::max();
