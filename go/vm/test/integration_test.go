@@ -868,6 +868,28 @@ func runOverflowTests(t *testing.T, instruction vm.OpCode, tests []overflowTestC
 	}
 }
 
+func TestCallDataLoadInstructionInputOverflow(t *testing.T) {
+
+	sizeUint64, _ := big.NewInt(0).SetString("0x8000000000000001", 0)
+	sizeOverUint64, _ := big.NewInt(0).SetString("0x100000000000000001", 0)
+	sizeUint256, _ := big.NewInt(0).SetString("0x4000000000000000000000000000000000000000000000000000000000000001", 0)
+
+	b := []byte{1}
+	input := common.LeftPadBytes(b[:], 32)
+
+	tests := []overflowTestCase{
+		{"all zero", big.NewInt(0), big.NewInt(0), zeroInput, big.NewInt(0)},
+		{"data input one", big.NewInt(0), big.NewInt(0), input, big.NewInt(1)},
+		{"data input one, offset one", big.NewInt(0), big.NewInt(1), input, big.NewInt(256)},
+		{"data input one, offset 31", big.NewInt(0), big.NewInt(31), input, big.NewInt(0).SetBytes(common.RightPadBytes(b[:], 32))},
+		{"data input one, offset 300", big.NewInt(0), big.NewInt(300), input, big.NewInt(0)},
+		{"data input one, offset uint64", big.NewInt(0), sizeUint64, input, big.NewInt(0)},
+		{"data input one, offset over64", big.NewInt(0), sizeOverUint64, input, big.NewInt(0)},
+		{"data input one, offset uint256", big.NewInt(0), sizeUint256, input, big.NewInt(0)},
+	}
+	runOverflowTests(t, vm.CALLDATALOAD, tests)
+}
+
 // Creates EVM code for returning specified number of 32byte values from stack
 func getReturnStackCode(valuesCount uint32, initialOffset uint64, pushGas uint64) ([]byte, uint64) {
 	var (
