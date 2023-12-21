@@ -268,8 +268,12 @@ func opCallDatasize(c *context) {
 
 func opCallDataload(c *context) {
 	top := c.stack.peek()
-	offset := top.Uint64()
+	if !top.IsUint64() {
+		top.Clear()
+		return
+	}
 
+	offset := top.Uint64()
 	var value [32]byte
 	for i := 0; i < 32; i++ {
 		pos := i + int(offset)
