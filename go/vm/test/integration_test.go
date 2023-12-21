@@ -764,23 +764,23 @@ func TestSARInstruction(t *testing.T) {
 	// It is -1 if all bits are set to 1
 	mostNegativeShiftRight := uint256.NewInt(0).SetAllOne().ToBig()
 
-	tests := []shiftTestCase{
-		{"all zero", big.NewInt(0), big.NewInt(0), big.NewInt(0)},
-		{"0>>1", big.NewInt(0), big.NewInt(1), big.NewInt(0)},
-		{"over64>>1", sizeOverUint64, big.NewInt(1), sizeOverUint64ByOne},
-		{"over64>>over64", sizeOverUint64, sizeOverUint64, big.NewInt(0)},
-		{"maxPositiveInt256>>254", sizeMaxIntPositive, big.NewInt(254), big.NewInt(1)},
+	tests := []overflowTestCase{
+		{"all zero", big.NewInt(0), big.NewInt(0), zeroInput, big.NewInt(0)},
+		{"0>>1", big.NewInt(0), big.NewInt(1), zeroInput, big.NewInt(0)},
+		{"over64>>1", sizeOverUint64, big.NewInt(1), zeroInput, sizeOverUint64ByOne},
+		{"over64>>over64", sizeOverUint64, sizeOverUint64, zeroInput, big.NewInt(0)},
+		{"maxPositiveInt256>>254", sizeMaxIntPositive, big.NewInt(254), zeroInput, big.NewInt(1)},
 
-		{"negative>>0", negativeInt, big.NewInt(0), negativeInt},
-		{"negative>>2", negativeInt, big.NewInt(2), getNegativeBigIntSignInBits(big.NewInt(-8))},
-		{"negativeOver64>>1", negativeOverUint64, big.NewInt(1), negativeOverUint64ByOne},
-		{"negativeOver64>>257", negativeOverUint64, big.NewInt(257), mostNegativeShiftRight},
-		{"negativeOver64>>over64", negativeOverUint64, sizeOverUint64, mostNegativeShiftRight},
-		{"maxNegativeInt256>>1", sizeMaxIntNegative, big.NewInt(1), sizeMaxIntNegativeByOne},
-		{"maxNegativeInt256>>254", sizeMaxIntNegative, big.NewInt(254), getNegativeBigIntSignInBits(big.NewInt(-2))},
-		{"maxNegativeInt256>>over64", sizeMaxIntNegative, sizeOverUint64, mostNegativeShiftRight},
+		{"negative>>0", negativeInt, big.NewInt(0), zeroInput, negativeInt},
+		{"negative>>2", negativeInt, big.NewInt(2), zeroInput, getNegativeBigIntSignInBits(big.NewInt(-8))},
+		{"negativeOver64>>1", negativeOverUint64, big.NewInt(1), zeroInput, negativeOverUint64ByOne},
+		{"negativeOver64>>257", negativeOverUint64, big.NewInt(257), zeroInput, mostNegativeShiftRight},
+		{"negativeOver64>>over64", negativeOverUint64, sizeOverUint64, zeroInput, mostNegativeShiftRight},
+		{"maxNegativeInt256>>1", sizeMaxIntNegative, big.NewInt(1), zeroInput, sizeMaxIntNegativeByOne},
+		{"maxNegativeInt256>>254", sizeMaxIntNegative, big.NewInt(254), zeroInput, getNegativeBigIntSignInBits(big.NewInt(-2))},
+		{"maxNegativeInt256>>over64", sizeMaxIntNegative, sizeOverUint64, zeroInput, mostNegativeShiftRight},
 	}
-	runShiftTests(t, vm.SAR, tests)
+	runOverflowTests(t, vm.SAR, tests)
 }
 
 func TestSHRInstruction(t *testing.T) {
@@ -789,14 +789,14 @@ func TestSHRInstruction(t *testing.T) {
 	sizeOverUint64ByOne, _ := big.NewInt(0).SetString("0x80000000000000000", 0)
 	sizeMaxUint256, _ := big.NewInt(0).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
 
-	tests := []shiftTestCase{
-		{"all zero", big.NewInt(0), big.NewInt(0), big.NewInt(0)},
-		{"0>>1", big.NewInt(0), big.NewInt(1), big.NewInt(0)},
-		{"over64>>1", sizeOverUint64, big.NewInt(1), sizeOverUint64ByOne},
-		{"over64>>over64", sizeOverUint64, sizeOverUint64, big.NewInt(0)},
-		{"sizeMaxUint256>>255", sizeMaxUint256, big.NewInt(255), big.NewInt(1)},
+	tests := []overflowTestCase{
+		{"all zero", big.NewInt(0), big.NewInt(0), zeroInput, big.NewInt(0)},
+		{"0>>1", big.NewInt(0), big.NewInt(1), zeroInput, big.NewInt(0)},
+		{"over64>>1", sizeOverUint64, big.NewInt(1), zeroInput, sizeOverUint64ByOne},
+		{"over64>>over64", sizeOverUint64, sizeOverUint64, zeroInput, big.NewInt(0)},
+		{"sizeMaxUint256>>255", sizeMaxUint256, big.NewInt(255), zeroInput, big.NewInt(1)},
 	}
-	runShiftTests(t, vm.SHR, tests)
+	runOverflowTests(t, vm.SHR, tests)
 }
 
 func TestSHLInstruction(t *testing.T) {
@@ -807,25 +807,28 @@ func TestSHLInstruction(t *testing.T) {
 	sizeMaxUint256, _ := big.NewInt(0).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
 	sizeUint256result, _ := big.NewInt(0).SetString("0x8000000000000000000000000000000000000000000000000000000000000000", 0)
 
-	tests := []shiftTestCase{
-		{"all zero", big.NewInt(0), big.NewInt(0), big.NewInt(0)},
-		{"0<<1", big.NewInt(0), big.NewInt(1), big.NewInt(0)},
-		{"over64<<1", sizeOverUint64, big.NewInt(1), sizeOverUint64ByOne},
-		{"over64<<over64", sizeOverUint64, sizeOverUint64, big.NewInt(0)},
-		{"sizeUint256<<1", sizeUint256, big.NewInt(1), sizeUint256result},
-		{"sizeMaxUint256<<255", sizeMaxUint256, big.NewInt(255), sizeUint256result},
+	tests := []overflowTestCase{
+		{"all zero", big.NewInt(0), big.NewInt(0), zeroInput, big.NewInt(0)},
+		{"0<<1", big.NewInt(0), big.NewInt(1), zeroInput, big.NewInt(0)},
+		{"over64<<1", sizeOverUint64, big.NewInt(1), zeroInput, sizeOverUint64ByOne},
+		{"over64<<over64", sizeOverUint64, sizeOverUint64, zeroInput, big.NewInt(0)},
+		{"sizeUint256<<1", sizeUint256, big.NewInt(1), zeroInput, sizeUint256result},
+		{"sizeMaxUint256<<255", sizeMaxUint256, big.NewInt(255), zeroInput, sizeUint256result},
 	}
-	runShiftTests(t, vm.SHL, tests)
+	runOverflowTests(t, vm.SHL, tests)
 }
 
-type shiftTestCase struct {
+var zeroInput = []byte{}
+
+type overflowTestCase struct {
 	name   string
 	value  *big.Int
 	shift  *big.Int
+	input  []byte
 	result *big.Int
 }
 
-func runShiftTests(t *testing.T, instruction vm.OpCode, tests []shiftTestCase) {
+func runOverflowTests(t *testing.T, instruction vm.OpCode, tests []overflowTestCase) {
 	// For every variant of interpreter
 	for _, variant := range Variants {
 
@@ -833,7 +836,7 @@ func runShiftTests(t *testing.T, instruction vm.OpCode, tests []shiftTestCase) {
 
 			for _, test := range tests {
 
-				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, "SAR", test.name), func(t *testing.T) {
+				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, instruction, test.name), func(t *testing.T) {
 
 					evm := GetCleanEVM(revision, variant, nil)
 
@@ -844,7 +847,7 @@ func runShiftTests(t *testing.T, instruction vm.OpCode, tests []shiftTestCase) {
 					code = append(code, returnCode...)
 
 					// Run an interpreter
-					res, err := evm.Run(code, []byte{})
+					res, err := evm.Run(code, test.input)
 
 					// Check the result.
 					if res.Output != nil && len(res.Output) >= 32 {
