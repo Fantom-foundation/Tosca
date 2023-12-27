@@ -70,7 +70,7 @@ func (b *codeBuilder) length() int {
 	return b.nextPos
 }
 
-func (b *codeBuilder) appendOp(opcode OpCode, arg uint16) *codeBuilder {
+func (b *codeBuilder) appendOp(opcode OpCode, arg uint32) *codeBuilder {
 	b.code[b.nextPos].opcode = opcode
 	b.code[b.nextPos].arg = arg
 	b.nextPos++
@@ -83,7 +83,7 @@ func (b *codeBuilder) appendCode(opcode OpCode) *codeBuilder {
 	return b
 }
 
-func (b *codeBuilder) appendData(data uint16) *codeBuilder {
+func (b *codeBuilder) appendData(data uint32) *codeBuilder {
 	return b.appendOp(DATA, data)
 }
 
@@ -110,7 +110,7 @@ func convert(code []byte, with_super_instructions bool) (Code, error) {
 			}
 			// Jump to the next jump destination and fill space with noops
 			if res.length() < i {
-				res.appendOp(JUMP_TO, uint16(i))
+				res.appendOp(JUMP_TO, uint32(i))
 			}
 			res.padNoOpsUntil(i)
 			res.appendCode(JUMPDEST)
@@ -159,7 +159,7 @@ func GenPcMap(code []byte, with_super_instructions bool) (*PcMap, error) {
 
 			// Jump to the next jump destination and fill space with noops.
 			if res.length() < i {
-				res.appendOp(JUMP_TO, uint16(i))
+				res.appendOp(JUMP_TO, uint32(i))
 			}
 			res.padNoOpsUntil(i)
 			res.appendCode(JUMPDEST)
@@ -209,14 +209,14 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, with_super_instr
 			op6 := vm.OpCode(code[pos+6])
 			op7 := vm.OpCode(code[pos+7])
 			if op0 == vm.PUSH1 && op2 == vm.PUSH4 && op7 == vm.DUP3 {
-				res.appendOp(PUSH1_PUSH4_DUP3, uint16(op1)<<8)
-				res.appendData(uint16(op3)<<8 | uint16(op4))
-				res.appendData(uint16(op5)<<8 | uint16(op6))
+				res.appendOp(PUSH1_PUSH4_DUP3, uint32(op1)<<8)
+				res.appendData(uint32(op3)<<8 | uint32(op4))
+				res.appendData(uint32(op5)<<8 | uint32(op6))
 				return 7
 			}
 			if op0 == vm.PUSH1 && op2 == vm.PUSH1 && op4 == vm.PUSH1 && op6 == vm.SHL && op7 == vm.SUB {
-				res.appendOp(PUSH1_PUSH1_PUSH1_SHL_SUB, uint16(op1)<<8|uint16(op3))
-				res.appendData(uint16(op5))
+				res.appendOp(PUSH1_PUSH1_PUSH1_SHL_SUB, uint32(op1)<<8|uint32(op3))
+				res.appendData(uint32(op5))
 				return 7
 			}
 		}
@@ -231,7 +231,7 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, with_super_instr
 				return 4
 			}
 			if op0 == vm.ISZERO && op1 == vm.PUSH2 && op4 == vm.JUMPI {
-				res.appendOp(ISZERO_PUSH2_JUMPI, uint16(op2)<<8|uint16(op3))
+				res.appendOp(ISZERO_PUSH2_JUMPI, uint32(op2)<<8|uint32(op3))
 				return 4
 			}
 		}
@@ -253,15 +253,15 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, with_super_instr
 				return 3
 			}
 			if op0 == vm.PUSH2 && op3 == vm.JUMP {
-				res.appendOp(PUSH2_JUMP, uint16(op1)<<8|uint16(op2))
+				res.appendOp(PUSH2_JUMP, uint32(op1)<<8|uint32(op2))
 				return 3
 			}
 			if op0 == vm.PUSH2 && op3 == vm.JUMPI {
-				res.appendOp(PUSH2_JUMPI, uint16(op1)<<8|uint16(op2))
+				res.appendOp(PUSH2_JUMPI, uint32(op1)<<8|uint32(op2))
 				return 3
 			}
 			if op0 == vm.PUSH1 && op2 == vm.PUSH1 {
-				res.appendOp(PUSH1_PUSH1, uint16(op1)<<8|uint16(op3))
+				res.appendOp(PUSH1_PUSH1, uint32(op1)<<8|uint32(op3))
 				return 3
 			}
 		}
@@ -270,15 +270,15 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, with_super_instr
 			op1 := vm.OpCode(code[pos+1])
 			op2 := vm.OpCode(code[pos+2])
 			if op0 == vm.PUSH1 && op2 == vm.ADD {
-				res.appendOp(PUSH1_ADD, uint16(op1))
+				res.appendOp(PUSH1_ADD, uint32(op1))
 				return 2
 			}
 			if op0 == vm.PUSH1 && op2 == vm.SHL {
-				res.appendOp(PUSH1_SHL, uint16(op1))
+				res.appendOp(PUSH1_SHL, uint32(op1))
 				return 2
 			}
 			if op0 == vm.PUSH1 && op2 == vm.DUP1 {
-				res.appendOp(PUSH1_DUP1, uint16(op1))
+				res.appendOp(PUSH1_DUP1, uint32(op1))
 				return 2
 			}
 		}
@@ -324,7 +324,7 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, with_super_instr
 			res.appendCode(INVALID)
 			return 1
 		}
-		res.appendOp(PC, uint16(pos))
+		res.appendOp(PC, uint32(pos))
 		return 0
 	}
 
@@ -353,17 +353,17 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, with_super_instr
 
 		// Fix the op-codes of the resulting instructions
 		if n == 1 {
-			res.appendOp(PUSH1, uint16(data[0])<<8)
+			res.appendOp(PUSH1, uint32(data[0])<<8)
 		} else {
-			res.appendOp(PUSH1+OpCode(n-1), uint16(data[0])<<8|uint16(data[1]))
+			res.appendOp(PUSH1+OpCode(n-1), uint32(data[0])<<8|uint32(data[1]))
 		}
 
 		// Fix the arguments by packing them in pairs into the instructions.
 		for i := 2; i < n-1; i += 2 {
-			res.appendData(uint16(data[i])<<8 | uint16(data[i+1]))
+			res.appendData(uint32(data[i])<<8 | uint32(data[i+1]))
 		}
 		if n > 1 && n%2 == 1 {
-			res.appendData(uint16(data[n-1]) << 8)
+			res.appendData(uint32(data[n-1]) << 8)
 		}
 
 		return n

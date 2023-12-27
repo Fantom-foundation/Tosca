@@ -12,7 +12,7 @@ func TestPushN(t *testing.T) {
 
 	code := make([]Instruction, 16)
 	for i := 0; i < 32; i++ {
-		code[i/2].arg = code[i/2].arg<<8 | uint16(data[i])
+		code[i/2].arg = code[i/2].arg<<8 | uint32(data[i])
 	}
 
 	for n := 1; n <= 32; n++ {

@@ -10,7 +10,7 @@ type Instruction struct {
 	// The op-code of this instruction.
 	opcode OpCode
 	// An argument value for this instruction.
-	arg uint16
+	arg uint32
 }
 
 // Instruction stack boundries for execution
