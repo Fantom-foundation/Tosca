@@ -115,6 +115,7 @@ const (
 	LOG3       OpCode = 0xA3
 	LOG4       OpCode = 0xA4
 	INVALID    OpCode = 0xFE
+	ADDRESS    OpCode = 0x30
 )
 
 func (op OpCode) Width() int {
@@ -201,6 +202,7 @@ func ValidOpCodesNoPush() []OpCode {
 		LOG2,
 		LOG3,
 		LOG4,
+		ADDRESS,
 	})
 }
 
@@ -418,6 +420,8 @@ func (op OpCode) String() string {
 		return "LOG4"
 	case INVALID:
 		return "INVALID"
+	case ADDRESS:
+		return "ADDRESS"
 	default:
 		return fmt.Sprintf("op(%d)", op)
 	}

@@ -923,6 +923,10 @@ var Spec = func() Specification {
 		rules = append(rules, logOp(i)...)
 	}
 
+	// -- ADDRESS
+
+	rules = append(rules, addressOp()...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)
@@ -1434,6 +1438,49 @@ func logOp(n int) []Rule {
 				Lt(StackSize(), 2+n),
 			),
 			Effect: FailEffect(),
+		},
+	}
+}
+
+func addressOp() []Rule {
+	op := ADDRESS
+	name := strings.ToLower(op.String())
+	minGas := uint64(2)
+	return []Rule{
+		{
+			Name: fmt.Sprintf("%v_with_too_little_gas", name),
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Lt(Gas(), minGas),
+			),
+			Effect: FailEffect(),
+		},
+		{
+			Name: fmt.Sprintf("%v_with_not_enough_space", name),
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(StackSize(), st.MaxStackSize),
+			),
+			Effect: FailEffect(),
+		},
+		{
+			Name: fmt.Sprintf("%v_regular", name),
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(Gas(), minGas+1),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= minGas
+				s.Stack.Push(NewU256FromBytes(s.Context.Contract.CallerAddress.Address...))
+			}),
 		},
 	}
 }
