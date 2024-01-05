@@ -1,7 +1,6 @@
 package st
 
 import (
-	"crypto/rand"
 	"fmt"
 	"slices"
 	"strings"
@@ -41,59 +40,46 @@ func (s StatusCode) String() string {
 
 ////////////////////////////////////////////////////////////
 
-type Mock_address struct {
-	Address []byte
+type Address [20]byte
+
+func NewAddress() *Address {
+	return &Address{}
 }
 
-func (ma *Mock_address) Eq(other *Mock_address) bool {
-	return slices.Equal(ma.Address, other.Address)
+func (ca *Address) Eq(other *Address) bool {
+	return slices.Equal(ca[:], other[:])
 }
 
-type Mock_contract struct {
-	CallerAddress *Mock_address
-}
-
-func newRandomAddr() *Mock_address {
-	maddr := Mock_address{}
-	maddr.Address = make([]byte, 20)
-	rand.Read(maddr.Address)
-	return &maddr
-}
-
-type Mock_context struct {
-	Contract Mock_contract
-}
-
-func newMockContext() Mock_context {
-	return Mock_context{Mock_contract{newRandomAddr()}}
+func (ca *Address) Diff(other *Address) bool {
+	return !ca.Eq(other)
 }
 
 // State represents an EVM's execution state.
 type State struct {
-	Status    StatusCode
-	Revision  Revision
-	Pc        uint16
-	Gas       uint64
-	GasRefund uint64
-	Code      *Code
-	Stack     *Stack
-	Memory    *Memory
-	Storage   *Storage
-	Logs      *Logs
-	Context   Mock_context
+	Status        StatusCode
+	Revision      Revision
+	Pc            uint16
+	Gas           uint64
+	GasRefund     uint64
+	Code          *Code
+	Stack         *Stack
+	Memory        *Memory
+	Storage       *Storage
+	Logs          *Logs
+	CallerAddress *Address
 }
 
 // NewState creates a new State instance with the given code.
 func NewState(code *Code) *State {
 	return &State{
-		Status:   Running,
-		Revision: R07_Istanbul,
-		Code:     code,
-		Stack:    NewStack(),
-		Memory:   NewMemory(),
-		Storage:  NewStorage(),
-		Logs:     NewLogs(),
-		Context:  newMockContext(),
+		Status:        Running,
+		Revision:      R07_Istanbul,
+		Code:          code,
+		Stack:         NewStack(),
+		Memory:        NewMemory(),
+		Storage:       NewStorage(),
+		Logs:          NewLogs(),
+		CallerAddress: NewAddress(),
 	}
 }
 
@@ -108,7 +94,7 @@ func (s *State) Clone() *State {
 	clone.Memory = s.Memory.Clone()
 	clone.Storage = s.Storage.Clone()
 	clone.Logs = s.Logs.Clone()
-	clone.Context = s.Context
+	clone.CallerAddress = s.CallerAddress
 	return clone
 }
 
@@ -137,7 +123,7 @@ func (s *State) Eq(other *State) bool {
 		s.Memory.Eq(other.Memory) &&
 		s.Storage.Eq(other.Storage) &&
 		s.Logs.Eq(other.Logs) &&
-		s.Context.Contract.CallerAddress.Eq(other.Context.Contract.CallerAddress)
+		s.CallerAddress.Eq(other.CallerAddress)
 }
 
 const codeCutoffLength = 20
@@ -191,7 +177,7 @@ func (s *State) String() string {
 		}
 		builder.WriteString(fmt.Sprintf("\t        data: %x\n", entry.Data))
 	}
-	builder.WriteString(fmt.Sprintf("\tContext.Contract.Address %v", string(s.Context.Contract.CallerAddress.Address)))
+	builder.WriteString(fmt.Sprintf("\tCallerAddress %v", s.CallerAddress))
 
 	builder.WriteString("}")
 	return builder.String()
@@ -240,8 +226,8 @@ func (s *State) Diff(o *State) []string {
 		res = append(res, s.Logs.Diff(o.Logs)...)
 	}
 
-	if s.Context.Contract.CallerAddress != o.Context.Contract.CallerAddress {
-		res = append(res, fmt.Sprintf("Different caller addreess: %v vs %v", s.Context.Contract.CallerAddress.Address, o.Context.Contract.CallerAddress.Address))
+	if !s.CallerAddress.Eq(o.CallerAddress) {
+		res = append(res, fmt.Sprintf("Different caller addreess: %v vs %v", s.CallerAddress, o.CallerAddress))
 	}
 
 	return res

@@ -36,6 +36,7 @@ const (
 	SHL        OpCode = 0x1B
 	SHR        OpCode = 0x1C
 	SAR        OpCode = 0x1D
+	ADDRESS    OpCode = 0x30
 	POP        OpCode = 0x50
 	MLOAD      OpCode = 0x51
 	MSTORE     OpCode = 0x52
@@ -115,7 +116,6 @@ const (
 	LOG3       OpCode = 0xA3
 	LOG4       OpCode = 0xA4
 	INVALID    OpCode = 0xFE
-	ADDRESS    OpCode = 0x30
 )
 
 func (op OpCode) Width() int {

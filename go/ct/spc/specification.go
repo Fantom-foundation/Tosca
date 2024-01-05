@@ -923,7 +923,7 @@ var Spec = func() Specification {
 		rules = append(rules, logOp(i)...)
 	}
 
-	// -- ADDRESS
+	// --- ADDRESS ---
 
 	rules = append(rules, addressOp()...)
 
@@ -1473,13 +1473,13 @@ func addressOp() []Rule {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
-				Ge(Gas(), minGas+1),
+				Ge(Gas(), minGas),
 				Lt(StackSize(), st.MaxStackSize),
 			),
 			Effect: Change(func(s *st.State) {
 				s.Pc++
 				s.Gas -= minGas
-				s.Stack.Push(NewU256FromBytes(s.Context.Contract.CallerAddress.Address...))
+				s.Stack.Push(NewU256FromBytes(s.CallerAddress[:]...))
 			}),
 		},
 	}
