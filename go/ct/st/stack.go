@@ -74,7 +74,7 @@ func (a *Stack) Diff(b *Stack) (res []string) {
 	}
 	for i := 0; i < a.Size(); i++ {
 		if aValue, bValue := a.Get(i), b.Get(i); !aValue.Eq(bValue) {
-			res = append(res, fmt.Sprintf("Different stack value at position %d:\n    %v\n    vs\n    %v", i, aValue, bValue))
+			res = append(res, fmt.Sprintf("Different stack value at position %d:\n    %v\n    vs\n    %v\n", i, aValue, bValue))
 		}
 	}
 	return
