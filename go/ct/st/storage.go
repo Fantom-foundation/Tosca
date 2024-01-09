@@ -50,8 +50,25 @@ func (s *Storage) MarkCold(key U256) {
 	delete(s.warm, key)
 }
 
+func mapEqualIgnoringZeroValues(a map[U256]U256, b map[U256]U256) bool {
+	for key, valueA := range a {
+		valueB, contained := b[key]
+		if !contained && valueA != NewU256(0) {
+			return false
+		} else if valueA != valueB {
+			return false
+		}
+	}
+	for key, valueB := range b {
+		if _, contained := a[key]; !contained && valueB != NewU256(0) {
+			return false
+		}
+	}
+	return true
+}
+
 func (a *Storage) Eq(b *Storage) bool {
-	return maps.Equal(a.Current, b.Current) &&
+	return mapEqualIgnoringZeroValues(a.Current, b.Current) &&
 		maps.Equal(a.Original, b.Original) &&
 		maps.Equal(a.warm, b.warm)
 }
@@ -59,14 +76,14 @@ func (a *Storage) Eq(b *Storage) bool {
 func (a *Storage) Diff(b *Storage) (res []string) {
 	for key, valueA := range a.Current {
 		valueB, contained := b.Current[key]
-		if !contained {
+		if !contained && valueA != NewU256(0) {
 			res = append(res, fmt.Sprintf("Different current entry:\n\t[%v]=%v\n\tvs\n\tmissing", key, valueA))
 		} else if valueA != valueB {
 			res = append(res, fmt.Sprintf("Different current entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", key, valueA, key, valueB))
 		}
 	}
 	for key, valueB := range b.Current {
-		if _, contained := a.Current[key]; !contained {
+		if _, contained := a.Current[key]; !contained && valueB != NewU256(0) {
 			res = append(res, fmt.Sprintf("Different current entry:\n\tmissing\n\tvs\n\t[%v]=%v", key, valueB))
 		}
 	}
