@@ -2,7 +2,6 @@ package st
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -40,46 +39,32 @@ func (s StatusCode) String() string {
 
 ////////////////////////////////////////////////////////////
 
-type Address [20]byte
-
-func NewAddress() *Address {
-	return &Address{}
-}
-
-func (ca *Address) Eq(other *Address) bool {
-	return slices.Equal(ca[:], other[:])
-}
-
-func (ca *Address) Diff(other *Address) bool {
-	return !ca.Eq(other)
-}
-
 // State represents an EVM's execution state.
 type State struct {
-	Status        StatusCode
-	Revision      Revision
-	Pc            uint16
-	Gas           uint64
-	GasRefund     uint64
-	Code          *Code
-	Stack         *Stack
-	Memory        *Memory
-	Storage       *Storage
-	Logs          *Logs
-	CallerAddress *Address
+	Status     StatusCode
+	Revision   Revision
+	Pc         uint16
+	Gas        uint64
+	GasRefund  uint64
+	Code       *Code
+	Stack      *Stack
+	Memory     *Memory
+	Storage    *Storage
+	Logs       *Logs
+	MsgContext *MessageCtx
 }
 
 // NewState creates a new State instance with the given code.
 func NewState(code *Code) *State {
 	return &State{
-		Status:        Running,
-		Revision:      R07_Istanbul,
-		Code:          code,
-		Stack:         NewStack(),
-		Memory:        NewMemory(),
-		Storage:       NewStorage(),
-		Logs:          NewLogs(),
-		CallerAddress: NewAddress(),
+		Status:     Running,
+		Revision:   R07_Istanbul,
+		Code:       code,
+		Stack:      NewStack(),
+		Memory:     NewMemory(),
+		Storage:    NewStorage(),
+		Logs:       NewLogs(),
+		MsgContext: NewMsgCtx(),
 	}
 }
 
@@ -94,7 +79,7 @@ func (s *State) Clone() *State {
 	clone.Memory = s.Memory.Clone()
 	clone.Storage = s.Storage.Clone()
 	clone.Logs = s.Logs.Clone()
-	clone.CallerAddress = s.CallerAddress
+	clone.MsgContext = s.MsgContext.Clone()
 	return clone
 }
 
@@ -123,7 +108,7 @@ func (s *State) Eq(other *State) bool {
 		s.Memory.Eq(other.Memory) &&
 		s.Storage.Eq(other.Storage) &&
 		s.Logs.Eq(other.Logs) &&
-		s.CallerAddress.Eq(other.CallerAddress)
+		s.MsgContext.Eq(other.MsgContext)
 }
 
 const codeCutoffLength = 20
@@ -177,7 +162,7 @@ func (s *State) String() string {
 		}
 		builder.WriteString(fmt.Sprintf("\t        data: %x\n", entry.Data))
 	}
-	builder.WriteString(fmt.Sprintf("\tCallerAddress %v", s.CallerAddress))
+	builder.WriteString(fmt.Sprintf("\tContract Address: %v", s.MsgContext.contractAddr))
 
 	builder.WriteString("}")
 	return builder.String()
@@ -226,8 +211,8 @@ func (s *State) Diff(o *State) []string {
 		res = append(res, s.Logs.Diff(o.Logs)...)
 	}
 
-	if !s.CallerAddress.Eq(o.CallerAddress) {
-		res = append(res, fmt.Sprintf("Different caller addreess: %v vs %v", s.CallerAddress, o.CallerAddress))
+	if !s.MsgContext.contractAddr.Eq(o.MsgContext.contractAddr) {
+		res = append(res, fmt.Sprintf("Different Contract Address : %v vs %v", s.MsgContext.contractAddr, o.MsgContext.contractAddr))
 	}
 
 	return res

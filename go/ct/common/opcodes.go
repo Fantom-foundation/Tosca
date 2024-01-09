@@ -156,6 +156,7 @@ func ValidOpCodesNoPush() []OpCode {
 		SHL,
 		SHR,
 		SAR,
+		ADDRESS,
 		POP,
 		MLOAD,
 		MSTORE,
@@ -202,7 +203,6 @@ func ValidOpCodesNoPush() []OpCode {
 		LOG2,
 		LOG3,
 		LOG4,
-		ADDRESS,
 	})
 }
 
@@ -262,6 +262,8 @@ func (op OpCode) String() string {
 		return "SHR"
 	case SAR:
 		return "SAR"
+	case ADDRESS:
+		return "ADDRESS"
 	case POP:
 		return "POP"
 	case MLOAD:
@@ -420,8 +422,6 @@ func (op OpCode) String() string {
 		return "LOG4"
 	case INVALID:
 		return "INVALID"
-	case ADDRESS:
-		return "ADDRESS"
 	default:
 		return fmt.Sprintf("op(%d)", op)
 	}

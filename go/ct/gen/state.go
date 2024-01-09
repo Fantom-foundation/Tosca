@@ -263,10 +263,9 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting gas refund counter constraints defined: %v", ErrUnsatisfiable, g.gasRefundConstraints)
 	}
 
-	// Pick a caller Address
-	var resultCallerAddress *st.Address
-	resultCallerAddress = &st.Address{}
-	rand.Read(resultCallerAddress[:])
+	// Pick a Contract Address
+	// TODO: check for constraints
+	resultContractAddress := RandAddress(rnd)
 
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences
@@ -299,7 +298,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.Stack = resultStack
 	result.Memory = resultMemory
 	result.Storage = resultStorage
-	result.CallerAddress = resultCallerAddress
+	result.MsgContext.CloneContractAddr(resultContractAddress)
 
 	return result, nil
 }
