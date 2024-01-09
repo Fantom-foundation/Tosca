@@ -264,73 +264,30 @@ func (stackSizeDomain) SamplesForAll(as []int) []int {
 
 type addressDomain struct{}
 
-type address [20]byte
-
-func (addressDomain) Equal(a, b address) bool {
+func (addressDomain) Equal(a, b Address) bool {
 	return slices.Equal(a[:], b[:])
 }
 
-func (addressDomain) Less(address, address) bool  { panic("not useful") }
-func (addressDomain) Predecessor(address) address { panic("not useful") }
-func (addressDomain) Successor(address) address   { panic("not useful") }
+func (addressDomain) Less(Address, Address) bool  { panic("not useful") }
+func (addressDomain) Predecessor(Address) Address { panic("not useful") }
+func (addressDomain) Successor(Address) Address   { panic("not useful") }
 
-func (addressDomain) SomethingNotEqual(a address) address {
-	return address{a[0] + 1}
+func (addressDomain) SomethingNotEqual(a Address) Address {
+	return Address{a[0] + 1}
 }
 
-func (ad addressDomain) Samples(a address) []address {
-	return ad.SamplesForAll([]address{a})
+func (ad addressDomain) Samples(a Address) []Address {
+	return ad.SamplesForAll([]Address{a})
 }
 
-func (addressDomain) SamplesForAll(as []address) []address {
-	ret := []address{}
+func (addressDomain) SamplesForAll(as []Address) []Address {
+	ret := []Address{}
 
-	zero := address{0}
-	one := address{1}
-
-	max := address{}
-	for i := range max {
-		max[i] = 0xff
-	}
-
-	endZero := max
-	endZero[19] = 0x00
-
-	beginZero := max
-	beginZero[0] = 0x00
+	zero := Address{}
+	ffs := Address{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 
 	ret = append(ret, zero)
-	ret = append(ret, one)
-	ret = append(ret, max)
-	ret = append(ret, beginZero)
-	ret = append(ret, endZero)
-
-	duplicated := false
-	for _, a := range as {
-		for _, v := range ret {
-			if slices.Equal(a[:], v[:]) {
-				duplicated = true
-				break
-			}
-		}
-		if !duplicated {
-			ret = append(ret, a)
-			aBegMinus := a
-			aBegMinus[0]--
-			aBegPlus := a
-			aBegPlus[0]++
-			aEndMinus := a
-			aEndMinus[19]--
-			aEndPlus := a
-			aEndPlus[19]++
-
-			ret = append(ret, a)
-			ret = append(ret, aBegMinus)
-			ret = append(ret, aBegPlus)
-			ret = append(ret, aEndMinus)
-			ret = append(ret, aEndPlus)
-		}
-	}
+	ret = append(ret, ffs)
 
 	return ret
 }

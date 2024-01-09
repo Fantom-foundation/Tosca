@@ -162,7 +162,7 @@ func (s *State) String() string {
 		}
 		builder.WriteString(fmt.Sprintf("\t        data: %x\n", entry.Data))
 	}
-	builder.WriteString(fmt.Sprintf("\tContract Address: %v", s.MsgContext.contractAddr))
+	builder.WriteString(fmt.Sprintf("\tAccount Address: %v", s.MsgContext.AccountAddr))
 
 	builder.WriteString("}")
 	return builder.String()
@@ -211,8 +211,8 @@ func (s *State) Diff(o *State) []string {
 		res = append(res, s.Logs.Diff(o.Logs)...)
 	}
 
-	if !s.MsgContext.contractAddr.Eq(o.MsgContext.contractAddr) {
-		res = append(res, fmt.Sprintf("Different Contract Address : %v vs %v", s.MsgContext.contractAddr, o.MsgContext.contractAddr))
+	if !s.MsgContext.AccountAddr.Eq(o.MsgContext.AccountAddr) {
+		res = append(res, s.MsgContext.Diff(o.MsgContext)...)
 	}
 
 	return res

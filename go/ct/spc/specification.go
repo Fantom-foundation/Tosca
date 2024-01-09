@@ -940,7 +940,7 @@ var Spec = func() Specification {
 			Effect: Change(func(s *st.State) {
 				s.Pc++
 				s.Gas -= 2
-				s.Stack.Push(NewU256FromBytes(s.MsgContext.GetContractAddr()[:]...))
+				s.Stack.Push(NewU256FromBytes(s.MsgContext.AccountAddr[:]...))
 			}),
 		},
 	}...)

@@ -18,10 +18,10 @@ func (a *Address) Eq(other *Address) bool {
 }
 
 // Diff returns a list of differences between the two addresses.
-func (a *Address) Diff(b *Address) (res []string) {
+func (a *Address) Diff(b *Address, addressName string) (res []string) {
 	for i := 0; i < 20; i++ {
 		if a[i] != b[i] {
-			res = append(res, fmt.Sprintf("Different address value at position %d:\n    %v\n    vs\n    %v", i, a[i], b[i]))
+			res = append(res, fmt.Sprintf("Different %v with different value at position %d:\n    %v\n    vs\n    %v", addressName, i, a[i], b[i]))
 		}
 	}
 	return
@@ -31,4 +31,18 @@ func RandAddress(rnd *rand.Rand) *Address {
 	addr := Address{}
 	rnd.Read(addr[:])
 	return &addr
+}
+
+func (a *Address) Clone() *Address {
+	newAddr := Address{}
+	copy(newAddr[:], a[:])
+	return &newAddr
+}
+
+func (a Address) String() string {
+	s := "0x"
+	for _, v := range a[:] {
+		s += fmt.Sprintf("%02x", v)
+	}
+	return s
 }

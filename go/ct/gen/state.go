@@ -263,7 +263,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting gas refund counter constraints defined: %v", ErrUnsatisfiable, g.gasRefundConstraints)
 	}
 
-	// Pick a Contract Address
+	// Pick a Account Address
 	// TODO: check for constraints
 	resultContractAddress := RandAddress(rnd)
 
@@ -298,7 +298,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.Stack = resultStack
 	result.Memory = resultMemory
 	result.Storage = resultStorage
-	result.MsgContext.CloneContractAddr(resultContractAddress)
+	result.MsgContext.AccountAddr = resultContractAddress
 
 	return result, nil
 }
