@@ -2,10 +2,12 @@ package geth
 
 import (
 	"math/big"
+	"slices"
 	"testing"
 
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
@@ -258,6 +260,21 @@ func TestConvertToGeth_Stack(t *testing.T) {
 	}
 }
 
+func TestConvertToGeth_CallCtx(t *testing.T) {
+	state := getEmptyState()
+	state.CallCtx.AccountAddr = &ct.Address{0xff}
+
+	_, gethState, err := ConvertCtStateToGeth(state)
+
+	if err != nil {
+		t.Fatalf("failed to convert ct state to geth: %v", err)
+	}
+
+	if want, got := (common.Address{0xff}), gethState.Contract.CallerAddress; want != got {
+		t.Errorf("unexpected address. wanted %v, got %v", want, got)
+	}
+}
+
 ////////////////////////////////////////////////////////////
 // geth -> ct
 
@@ -440,5 +457,20 @@ func TestConvertToCt_Stack(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestConvertToCt_CallCtx(t *testing.T) {
+	interpreter, gethState := getEmptyGeth(ct.R07_Istanbul)
+	gethState.Contract.CallerAddress = common.Address{0xff}
+
+	state, err := ConvertGethToCtState(interpreter, gethState)
+
+	if err != nil {
+		t.Fatalf("failed to convert geth to ct state: %v", err)
+	}
+
+	if want, got := (ct.Address{0xff}), state.CallCtx.AccountAddr; !slices.Equal(want[:], got[:]) {
+		t.Errorf("unexpected gas value, wanted %v, got %v", want, got)
 	}
 }

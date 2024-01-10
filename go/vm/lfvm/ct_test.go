@@ -1,10 +1,12 @@
 package lfvm
 
 import (
+	"slices"
 	"testing"
 
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 ////////////////////////////////////////////////////////////
@@ -340,6 +342,27 @@ func TestConvertToLfvm_Stack(t *testing.T) {
 	}
 }
 
+func TestConvertToLfvm_callContext(t *testing.T) {
+	state := getEmptyState()
+	state.CallCtx.AccountAddr = &ct.Address{0xff}
+	code := []byte{}
+	pcMap, err := GenPcMapWithoutSuperInstructions(code)
+	if err != nil {
+		t.Fatalf("failed to generate pc map: %v", err)
+	}
+
+	context, err := ConvertCtStateToLfvmContext(state, pcMap)
+
+	if err != nil {
+		t.Fatalf("failed to convert ct state to lfvm context: %v", err)
+	}
+
+	if want, got := (common.Address{0xff}), context.contract.CallerAddress; want != got {
+		t.Errorf("unexpected address. wanted %v, got %v", want, got)
+	}
+
+}
+
 ////////////////////////////////////////////////////////////
 // lfvm -> ct
 
@@ -562,5 +585,26 @@ func TestConvertToCt_Stack(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestConvertToCt_CallCtx(t *testing.T) {
+	ctx := getEmptyContext()
+	ctx.contract.CallerAddress = common.Address{0xff}
+	code := []byte{}
+
+	pcMap, err := GenPcMapWithoutSuperInstructions(code)
+	if err != nil {
+		t.Fatalf("failed to generate pc map: %v", err)
+	}
+
+	state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
+
+	if err != nil {
+		t.Fatalf("failed to convert lfvm context to ct state: %v", err)
+	}
+
+	if want, got := (ct.Address{0xff}), state.CallCtx.AccountAddr; !slices.Equal(want[:], got[:]) {
+		t.Errorf("unexpected address, wanted %v, got %v", want, got)
 	}
 }

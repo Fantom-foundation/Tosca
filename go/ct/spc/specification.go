@@ -925,11 +925,9 @@ var Spec = func() Specification {
 
 	// --- ADDRESS ---
 
-	rules = append(rules, basicFailOp(ADDRESS, 2)...)
-
 	rules = append(rules, []Rule{
 		{
-			Name: fmt.Sprintf("%v_regular", strings.ToLower(ADDRESS.String())),
+			Name: "address_regular",
 			Condition: And(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
@@ -940,8 +938,28 @@ var Spec = func() Specification {
 			Effect: Change(func(s *st.State) {
 				s.Pc++
 				s.Gas -= 2
-				s.Stack.Push(NewU256FromBytes(s.MsgContext.AccountAddr[:]...))
+				s.Stack.Push(NewU256FromBytes(s.CallCtx.AccountAddr[:]...))
 			}),
+		},
+		{
+			Name: "address_with_too_little_gas",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), ADDRESS),
+				Lt(Gas(), 2),
+			),
+			Effect: FailEffect(),
+		},
+		{
+			Name: "address_with_not_enough_space",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), ADDRESS),
+				Ge(StackSize(), st.MaxStackSize),
+			),
+			Effect: FailEffect(),
 		},
 	}...)
 
@@ -1454,32 +1472,6 @@ func logOp(n int) []Rule {
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
 				Lt(StackSize(), 2+n),
-			),
-			Effect: FailEffect(),
-		},
-	}
-}
-
-func basicFailOp(op OpCode, minGas uint64) []Rule {
-	name := strings.ToLower(op.String())
-	return []Rule{
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), minGas),
-			),
-			Effect: FailEffect(),
-		},
-		{
-			Name: fmt.Sprintf("%v_with_not_enough_space", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Ge(StackSize(), st.MaxStackSize),
 			),
 			Effect: FailEffect(),
 		},

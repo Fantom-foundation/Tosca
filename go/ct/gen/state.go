@@ -265,7 +265,11 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 
 	// Pick a Account Address
 	// TODO: check for constraints
-	resultContractAddress := RandAddress(rnd)
+	resultAccountAddress, err := RandAddress(rnd)
+	if err != nil {
+		fmt.Errorf("Eror generating random address %v", err)
+		return st.NewState(st.NewCode([]byte{})), err
+	}
 
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences
@@ -298,7 +302,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.Stack = resultStack
 	result.Memory = resultMemory
 	result.Storage = resultStorage
-	result.MsgContext.AccountAddr = resultContractAddress
+	result.CallCtx.AccountAddr = resultAccountAddress
 
 	return result, nil
 }
