@@ -172,10 +172,70 @@ TEST(InterpreterTest, MemoryExpansionCost_ZeroSize) {
 TEST(InterpreterTest, MemoryExpansionCost_Overflow) {
   internal::Context ctx;
 
-  const auto [cost, offset, size] = ctx.MemoryExpansionCost(1ul << 63, 1ul << 63);
-  EXPECT_EQ(cost, internal::kMaxGas);
-  EXPECT_EQ(offset, 1ul << 63);
-  EXPECT_EQ(size, 1ul << 63);
+  constexpr auto kUint64Max = std::numeric_limits<uint64_t>::max();
+
+  {
+    const auto [cost, offset, size] = ctx.MemoryExpansionCost(0, 1ul << 63);
+    EXPECT_EQ(cost, internal::kMaxGas);
+    EXPECT_EQ(offset, 0);
+    EXPECT_EQ(size, 1ul << 63);
+  }
+
+  {
+    const auto [cost, offset, size] = ctx.MemoryExpansionCost(1ul << 63, 1);
+    EXPECT_EQ(cost, internal::kMaxGas);
+    EXPECT_EQ(offset, 1ul << 63);
+    EXPECT_EQ(size, 1);
+  }
+
+  {
+    const auto [cost, offset, size] = ctx.MemoryExpansionCost(1ul << 63, 1ul << 63);
+    EXPECT_EQ(cost, internal::kMaxGas);
+    EXPECT_EQ(offset, 1ul << 63);
+    EXPECT_EQ(size, 1ul << 63);
+  }
+
+  {
+    const auto [cost, offset, size] = ctx.MemoryExpansionCost(0, kUint64Max);
+    EXPECT_EQ(cost, internal::kMaxGas);
+    EXPECT_EQ(offset, 0);
+    EXPECT_EQ(size, kUint64Max);
+  }
+
+  {
+    const auto [cost, offset, size] = ctx.MemoryExpansionCost(kUint64Max, 1);
+    EXPECT_EQ(cost, internal::kMaxGas);
+    EXPECT_EQ(offset, kUint64Max);
+    EXPECT_EQ(size, 1);
+  }
+
+  {
+    const auto [cost, offset, size] = ctx.MemoryExpansionCost(kUint64Max, kUint64Max);
+    EXPECT_EQ(cost, internal::kMaxGas);
+    EXPECT_EQ(offset, kUint64Max);
+    EXPECT_EQ(size, kUint64Max);
+  }
+
+  {
+    const auto [cost, offset, size] = ctx.MemoryExpansionCost(0, kUint64Max - 1);
+    EXPECT_EQ(cost, internal::kMaxGas);
+    EXPECT_EQ(offset, 0);
+    EXPECT_EQ(size, kUint64Max - 1);
+  }
+
+  {
+    const auto [cost, offset, size] = ctx.MemoryExpansionCost(kUint64Max - 1, 1);
+    EXPECT_EQ(cost, internal::kMaxGas);
+    EXPECT_EQ(offset, kUint64Max - 1);
+    EXPECT_EQ(size, 1);
+  }
+
+  {
+    const auto [cost, offset, size] = ctx.MemoryExpansionCost(kUint64Max - 1, kUint64Max - 1);
+    EXPECT_EQ(cost, internal::kMaxGas);
+    EXPECT_EQ(offset, kUint64Max - 1);
+    EXPECT_EQ(size, kUint64Max - 1);
+  }
 }
 
 TEST(InterpreterTest, MemoryExpansionCost_OversizedMemory) {
