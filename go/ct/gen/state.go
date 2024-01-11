@@ -42,6 +42,7 @@ type StateGenerator struct {
 	stackGen   *StackGenerator
 	memoryGen  *MemoryGenerator
 	storageGen *StorageGenerator
+	callCtxGen *CallCtxGenerator
 }
 
 // NewStateGenerator creates a generator without any initial constraints.
@@ -51,6 +52,7 @@ func NewStateGenerator() *StateGenerator {
 		stackGen:   NewStackGenerator(),
 		memoryGen:  NewMemoryGenerator(),
 		storageGen: NewStorageGenerator(),
+		callCtxGen: NewCallCtxGenerator(),
 	}
 }
 
@@ -263,11 +265,10 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting gas refund counter constraints defined: %v", ErrUnsatisfiable, g.gasRefundConstraints)
 	}
 
-	// Pick an Account Address
+	// Invoke CallContextGenerator
 	// TODO: check for constraints
-	resultAccountAddress, err := RandAddress(rnd)
+	resultCallCtx, err := g.callCtxGen.Generate(rnd)
 	if err != nil {
-		fmt.Errorf("Error generating random address %v", err)
 		return nil, err
 	}
 
@@ -302,7 +303,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.Stack = resultStack
 	result.Memory = resultMemory
 	result.Storage = resultStorage
-	result.CallCtx.AccountAddr = resultAccountAddress
+	result.CallCtx = resultCallCtx
 
 	return result, nil
 }
@@ -321,6 +322,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		stackGen:              g.stackGen.Clone(),
 		memoryGen:             g.memoryGen.Clone(),
 		storageGen:            g.storageGen.Clone(),
+		callCtxGen:            g.callCtxGen.Clone(),
 	}
 }
 
@@ -337,6 +339,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.stackGen.Restore(other.stackGen)
 		g.memoryGen.Restore(other.memoryGen)
 		g.storageGen.Restore(other.storageGen)
+		g.callCtxGen.Restore(other.callCtxGen)
 	}
 }
 
@@ -377,6 +380,7 @@ func (g *StateGenerator) String() string {
 	parts = append(parts, fmt.Sprintf("stack=%v", g.stackGen))
 	parts = append(parts, fmt.Sprintf("memory=%v", g.memoryGen))
 	parts = append(parts, fmt.Sprintf("storage=%v", g.storageGen))
+	parts = append(parts, fmt.Sprintf("callcontext=%v", g.callCtxGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }
