@@ -261,6 +261,8 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 		readOnly: false,
 	}
 
+	ctx.evm.Origin = (common.Address)(state.CallContext.OriginAddress[:])
+
 	err = convertCtRevisionToLfvmRevision(state.Revision, &ctx)
 	if err != nil {
 		return nil, err
