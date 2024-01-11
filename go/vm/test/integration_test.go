@@ -867,12 +867,12 @@ func runOverflowTests(t *testing.T, instruction vm.OpCode, tests []overflowTestC
 							t.Errorf("execution should not fail with error, but got: %v", err)
 						} else {
 							if !contains(test.err, err) {
-								t.Errorf("execution should fail with error %v, but got: %v", test.result, err)
+								t.Errorf("execution should fail with error %v, but got: %v", test.err, err)
 							}
 						}
 					} else {
 						if test.err != nil {
-							t.Errorf("execution should fail with error %v, but did not fail", test.result)
+							t.Errorf("execution should fail with error %v, but did not fail", test.err)
 						}
 					}
 				})
