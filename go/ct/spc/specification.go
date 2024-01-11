@@ -654,11 +654,9 @@ var Spec = func() Specification {
 
 	// --- ORIGIN ---
 
-	// rules = append(rules, basicFailOp(ORIGIN, 2)...)
-
 	rules = append(rules, []Rule{
 		{
-			Name: fmt.Sprintf("%v_regular", strings.ToLower(ORIGIN.String())),
+			Name: "origin_regular",
 			Condition: And(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
@@ -671,6 +669,26 @@ var Spec = func() Specification {
 				s.Gas -= 2
 				s.Stack.Push(NewU256FromBytes(s.CallContext.OriginAddress[:]...))
 			}),
+		},
+		{
+			Name: "origin_with_too_little_gas",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), ORIGIN),
+				Lt(Gas(), 2),
+			),
+			Effect: FailEffect(),
+		},
+		{
+			Name: "origin_with_not_enough_space",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), ORIGIN),
+				Ge(StackSize(), st.MaxStackSize),
+			),
+			Effect: FailEffect(),
 		},
 	}...)
 

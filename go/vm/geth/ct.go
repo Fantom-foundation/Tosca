@@ -279,7 +279,6 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 	stateDb.AddRefund(state.GasRefund)
 
 	geth, err := getGethEvm(state.Revision, stateDb)
-
 	if err != nil {
 		return nil, nil, err
 	}

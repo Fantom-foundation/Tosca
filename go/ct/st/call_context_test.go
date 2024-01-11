@@ -8,11 +8,16 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
-func TestCallContext_NewCallContext(t *testing.T) {
-	callContext := NewCallContext()
-	if want, got := (Address{}), callContext.AccountAddress; want != got {
+func test_newaddr(t *testing.T, address *Address) {
+	if want, got := (Address{}), *address; want != got {
 		t.Errorf("Unexpected address, want %v, got %v", want, got)
 	}
+}
+
+func TestCallContext_NewCallContext(t *testing.T) {
+	callContext := NewCallContext()
+	test_newaddr(t, &callContext.AccountAddress)
+	test_newaddr(t, &callContext.OriginAddress)
 }
 
 func TestCallContext_Clone(t *testing.T) {
@@ -24,8 +29,10 @@ func TestCallContext_Clone(t *testing.T) {
 	}
 
 	callContext2.AccountAddress = Address{0xff}
+	callContext2.OriginAddress = Address{0xfe}
 
-	if callContext1.AccountAddress == callContext2.AccountAddress {
+	if callContext1.AccountAddress == callContext2.AccountAddress ||
+		callContext1.OriginAddress == callContext2.OriginAddress {
 		t.Errorf("Clone is not independent from original")
 	}
 }
@@ -47,6 +54,13 @@ func TestCallContext_Eq(t *testing.T) {
 	if callContext1.Eq(callContext2) {
 		t.Error("Different call context considered the same")
 	}
+
+	callContext2 = callContext1.Clone()
+	callContext2.OriginAddress = Address{0xff}
+	if callContext1.Eq(callContext2) {
+		t.Error("Different call context considered the same")
+	}
+
 }
 
 func TestCallContext_Diff(t *testing.T) {
@@ -58,6 +72,12 @@ func TestCallContext_Diff(t *testing.T) {
 	}
 
 	callContext2.AccountAddress = Address{0xff}
+	if diffs := callContext1.Diff(callContext2); len(diffs) == 0 {
+		t.Errorf("No difference found in different call contexts")
+	}
+
+	callContext2 = NewCallContext()
+	callContext2.OriginAddress = Address{0xff}
 	if diffs := callContext1.Diff(callContext2); len(diffs) == 0 {
 		t.Errorf("No difference found in different call contexts")
 	}
