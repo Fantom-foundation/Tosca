@@ -307,7 +307,7 @@ func opCallDataCopy(c *context) {
 	}
 
 	length64, overflow := length.Uint64WithOverflow()
-	if overflow {
+	if overflow || length64+31 < length64 {
 		c.status = OUT_OF_GAS
 		return
 	}
