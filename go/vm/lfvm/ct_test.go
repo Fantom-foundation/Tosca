@@ -1,11 +1,13 @@
 package lfvm
 
 import (
+	"math/big"
 	"testing"
 
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/vm"
 )
 
 ////////////////////////////////////////////////////////////
@@ -344,6 +346,9 @@ func TestConvertToLfvm_Stack(t *testing.T) {
 func TestConvertToLfvm_callContext(t *testing.T) {
 	state := getEmptyState()
 	state.CallContext.AccountAddress = ct.Address{0xff}
+	state.CallContext.OriginAddress = ct.Address{0xfe}
+	state.CallContext.CallerAddress = ct.Address{0xfd}
+
 	code := []byte{}
 	pcMap, err := GenPcMapWithoutSuperInstructions(code)
 	if err != nil {
@@ -356,7 +361,13 @@ func TestConvertToLfvm_callContext(t *testing.T) {
 		t.Fatalf("failed to convert ct state to lfvm context: %v", err)
 	}
 
-	if want, got := (common.Address{0xff}), context.contract.CallerAddress; want != got {
+	if want, got := (common.Address{0xff}), context.contract.Address(); want != got {
+		t.Errorf("unexpected address. wanted %v, got %v", want, got)
+	}
+	if want, got := (common.Address{0xfe}), context.evm.Origin; want != got {
+		t.Errorf("unexpected address. wanted %v, got %v", want, got)
+	}
+	if want, got := (common.Address{0xfd}), context.contract.CallerAddress; want != got {
 		t.Errorf("unexpected address. wanted %v, got %v", want, got)
 	}
 
@@ -589,7 +600,11 @@ func TestConvertToCt_Stack(t *testing.T) {
 
 func TestConvertToCt_CallContext(t *testing.T) {
 	ctx := getEmptyContext()
-	ctx.contract.CallerAddress = common.Address{0xff}
+	objAddr := vm.AccountRef{0xff}
+	callerAddr := vm.AccountRef{0xfe}
+	contract := vm.NewContract(callerAddr, objAddr, big.NewInt(0), 0)
+	ctx.contract = contract
+	ctx.evm.Origin = common.Address{0xfd}
 	code := []byte{}
 
 	pcMap, err := GenPcMapWithoutSuperInstructions(code)
@@ -606,4 +621,11 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	if want, got := (ct.Address{0xff}), state.CallContext.AccountAddress; want != got {
 		t.Errorf("unexpected address, wanted %v, got %v", want, got)
 	}
+	if want, got := (ct.Address{0xfe}), state.CallContext.CallerAddress; want != got {
+		t.Errorf("unexpected address, wanted %v, got %v", want, got)
+	}
+	if want, got := (ct.Address{0xfd}), state.CallContext.OriginAddress; want != got {
+		t.Errorf("unexpected address, wanted %v, got %v", want, got)
+	}
+
 }

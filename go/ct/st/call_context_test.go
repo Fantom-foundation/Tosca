@@ -81,21 +81,28 @@ func TestCallContext_Diff(t *testing.T) {
 	if diffs := callContext1.Diff(callContext2); len(diffs) == 0 {
 		t.Errorf("No difference found in different call contexts")
 	}
+
+	callContext2 = NewCallContext()
+	callContext2.CallerAddress = Address{0xff}
+	if diffs := callContext1.Diff(callContext2); len(diffs) == 0 {
+		t.Errorf("No difference found in different call contexts")
+	}
 }
 
 func TestCallContext_String(t *testing.T) {
 	s := NewState(NewCode([]byte{}))
 	s.CallContext = NewCallContext()
-	s.CallContext.AccountAddress = Address{}
 	s.CallContext.AccountAddress[19] = 0xff
-	s.CallContext.OriginAddress = Address{}
-	s.CallContext.OriginAddress[19] = 0xff
+	s.CallContext.OriginAddress[19] = 0xfe
+	s.CallContext.CallerAddress[19] = 0xfd
 
 	if !strings.Contains(s.String(), fmt.Sprintf("Account Address: %s", s.CallContext.AccountAddress)) {
 		t.Errorf("Did not find account address string.")
 	}
-
 	if !strings.Contains(s.String(), fmt.Sprintf("Origin Address: %s", s.CallContext.OriginAddress)) {
-		t.Errorf("Did not find account address string.")
+		t.Errorf("Did not find origin address string.")
+	}
+	if !strings.Contains(s.String(), fmt.Sprintf("Caller Address: %s", s.CallContext.CallerAddress)) {
+		t.Errorf("Did not find caller address string.")
 	}
 }

@@ -25,9 +25,15 @@ func (*CallContextGenerator) Generate(rnd *rand.Rand) (*st.CallContext, error) {
 		return nil, err
 	}
 
+	callerAddress, err := common.RandAddress(rnd)
+	if err != nil {
+		return nil, err
+	}
+
 	newCC := st.NewCallContext()
 	newCC.AccountAddress = accountAddress
 	newCC.OriginAddress = originAddress
+	newCC.CallerAddress = callerAddress
 
 	return newCC, nil
 }

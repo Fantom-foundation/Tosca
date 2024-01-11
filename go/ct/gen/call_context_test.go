@@ -23,4 +23,5 @@ func TestCallContextGen_Generate(t *testing.T) {
 
 	testAddr(t, &newCC.AccountAddress, "account")
 	testAddr(t, &newCC.OriginAddress, "origin")
+	testAddr(t, &newCC.CallerAddress, "caller")
 }

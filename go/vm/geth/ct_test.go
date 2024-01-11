@@ -262,16 +262,25 @@ func TestConvertToGeth_Stack(t *testing.T) {
 func TestConvertToGeth_CallContext(t *testing.T) {
 	state := getEmptyState()
 	state.CallContext.AccountAddress = ct.Address{0xff}
+	state.CallContext.OriginAddress = ct.Address{0xfe}
+	state.CallContext.CallerAddress = ct.Address{0xfd}
 
-	_, gethState, err := ConvertCtStateToGeth(state)
+	gethInterpreter, gethState, err := ConvertCtStateToGeth(state)
 
 	if err != nil {
 		t.Fatalf("failed to convert ct state to geth: %v", err)
 	}
 
-	if want, got := (common.Address{0xff}), gethState.Contract.CallerAddress; want != got {
+	if want, got := (common.Address{0xff}), gethState.Contract.Address(); want != got {
 		t.Errorf("unexpected address. wanted %v, got %v", want, got)
 	}
+	if want, got := (common.Address{0xfe}), gethInterpreter.evm.Origin; want != got {
+		t.Errorf("unexpected address. wanted %v, got %v", want, got)
+	}
+	if want, got := (common.Address{0xfd}), gethState.Contract.CallerAddress; want != got {
+		t.Errorf("unexpected address. wanted %v, got %v", want, got)
+	}
+
 }
 
 ////////////////////////////////////////////////////////////
@@ -461,7 +470,11 @@ func TestConvertToCt_Stack(t *testing.T) {
 
 func TestConvertToCt_CallContext(t *testing.T) {
 	interpreter, gethState := getEmptyGeth(ct.R07_Istanbul)
-	gethState.Contract.CallerAddress = common.Address{0xff}
+	objAddr := vm.AccountRef{0xff}
+	callerAddr := vm.AccountRef{0xfe}
+	contract := vm.NewContract(callerAddr, objAddr, big.NewInt(0), 0)
+	gethState.Contract = contract
+	interpreter.evm.Origin = common.Address{0xfd}
 
 	state, err := ConvertGethToCtState(interpreter, gethState)
 
@@ -470,6 +483,12 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	}
 
 	if want, got := (ct.Address{0xff}), state.CallContext.AccountAddress; want != got {
+		t.Errorf("unexpected address value, wanted %v, got %v", want, got)
+	}
+	if want, got := (ct.Address{0xfe}), state.CallContext.CallerAddress; want != got {
+		t.Errorf("unexpected address value, wanted %v, got %v", want, got)
+	}
+	if want, got := (ct.Address{0xfd}), state.CallContext.OriginAddress; want != got {
 		t.Errorf("unexpected address value, wanted %v, got %v", want, got)
 	}
 }

@@ -694,7 +694,43 @@ var Spec = func() Specification {
 
 	// --- CALLER ---
 
-	// rules = append(rules, basicFailOp(CALLER, 2)...)
+	rules = append(rules, []Rule{
+		{
+			Name: "caller_regular",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), CALLER),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 2
+				s.Stack.Push(NewU256FromBytes(s.CallContext.CallerAddress[:]...))
+			}),
+		},
+		{
+			Name: "caller_with_too_little_gas",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), CALLER),
+				Lt(Gas(), 2),
+			),
+			Effect: FailEffect(),
+		},
+		{
+			Name: "caller_with_not_enough_space",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), CALLER),
+				Ge(StackSize(), st.MaxStackSize),
+			),
+			Effect: FailEffect(),
+		},
+	}...)
 
 	// --- CALLVALUE ---
 
