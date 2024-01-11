@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -911,6 +912,7 @@ func TestCallDataCopyInstructionInputOverflow(t *testing.T) {
 	tests := []overflowTestCase{
 		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0), nil},
 		{"length 100", []*big.Int{big.NewInt(1), big.NewInt(100), big.NewInt(0), big.NewInt(0)}, input, big.NewInt(1), nil},
+		{"length maxUint64", []*big.Int{big.NewInt(1), big.NewInt(0).SetUint64(math.MaxUint64), big.NewInt(0), big.NewInt(0)}, input, nil, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
 		{"length over64", []*big.Int{big.NewInt(1), sizeOverUint64, big.NewInt(0), big.NewInt(0)}, input, nil, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
 		{"length uint256", []*big.Int{big.NewInt(1), sizeUint256, big.NewInt(0), big.NewInt(0)}, input, nil, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
 		{"memory offset 100", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(0), big.NewInt(100)}, input, big.NewInt(1), nil},
