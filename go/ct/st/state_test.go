@@ -180,6 +180,12 @@ func TestState_Eq(t *testing.T) {
 	if s1.Eq(s2) {
 		t.Fail()
 	}
+
+	s1.CallContext.CallerAddress = Address{0x02}
+	s2.CallContext.CallerAddress = Address{0xfd}
+	if s1.Eq(s2) {
+		t.Fail()
+	}
 }
 
 func TestState_EqFailureStates(t *testing.T) {
