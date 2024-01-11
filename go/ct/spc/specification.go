@@ -718,6 +718,36 @@ var Spec = func() Specification {
 
 	// rules = append(rules, basicFailOp(CALLVALUE, 2)...)
 
+	// --- ORIGIN ---
+
+	// rules = append(rules, basicFailOp(ORIGIN, 2)...)
+
+	rules = append(rules, []Rule{
+		{
+			Name: fmt.Sprintf("%v_regular", strings.ToLower(ORIGIN.String())),
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), ORIGIN),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 2
+				s.Stack.Push(NewU256FromBytes(s.CallContext.OriginAddress[:]...))
+			}),
+		},
+	}...)
+
+	// --- CALLER ---
+
+	// rules = append(rules, basicFailOp(CALLER, 2)...)
+
+	// --- CALLVALUE ---
+
+	// rules = append(rules, basicFailOp(CALLVALUE, 2)...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)
