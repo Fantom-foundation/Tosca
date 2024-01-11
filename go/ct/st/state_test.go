@@ -163,6 +163,12 @@ func TestState_Eq(t *testing.T) {
 	if s1.Eq(s2) {
 		t.Fail()
 	}
+
+	s1.CallContext.CallerAddress = Address{0x02}
+	s2.CallContext.CallerAddress = Address{0xfd}
+	if s1.Eq(s2) {
+		t.Fail()
+	}
 }
 
 func TestState_EqFailureStates(t *testing.T) {
@@ -437,6 +443,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.CallContext.AccountAddress = Address{0xff}
 	s1.CallContext.OriginAddress = Address{0xee}
+	s1.CallContext.CallerAddress = Address{0xdd}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -450,6 +457,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.Logs.AddLog([]byte{4, 7, 6}, NewU256(24), NewU256(22))
 	s2.CallContext.AccountAddress = Address{0xef}
 	s2.CallContext.OriginAddress = Address{0xfe}
+	s2.CallContext.CallerAddress = Address{0xfd}
 
 	diffs := s1.Diff(s2)
 

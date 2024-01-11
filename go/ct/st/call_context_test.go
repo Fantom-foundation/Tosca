@@ -49,12 +49,6 @@ func TestCallContext_Diff(t *testing.T) {
 			}
 		})
 	}
-
-	callContext2 = NewCallContext()
-	callContext2.OriginAddress = Address{0xff}
-	if diffs := callContext1.Diff(callContext2); len(diffs) == 0 {
-		t.Errorf("No difference found in different call contexts")
-	}
 }
 
 func TestCallContext_String(t *testing.T) {
