@@ -263,12 +263,12 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting gas refund counter constraints defined: %v", ErrUnsatisfiable, g.gasRefundConstraints)
 	}
 
-	// Pick a Account Address
+	// Pick an Account Address
 	// TODO: check for constraints
 	resultAccountAddress, err := RandAddress(rnd)
 	if err != nil {
-		fmt.Errorf("Eror generating random address %v", err)
-		return st.NewState(st.NewCode([]byte{})), err
+		fmt.Errorf("Error generating random address %v", err)
+		return nil, err
 	}
 
 	// Sub-generators can modify the assignment when unassigned variables are

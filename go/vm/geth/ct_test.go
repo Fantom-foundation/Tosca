@@ -471,6 +471,6 @@ func TestConvertToCt_CallCtx(t *testing.T) {
 	}
 
 	if want, got := (ct.Address{0xff}), state.CallCtx.AccountAddr; !slices.Equal(want[:], got[:]) {
-		t.Errorf("unexpected gas value, wanted %v, got %v", want, got)
+		t.Errorf("unexpected address value, wanted %v, got %v", want, got)
 	}
 }

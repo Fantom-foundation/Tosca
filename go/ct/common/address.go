@@ -21,7 +21,7 @@ func (a *Address) Eq(other *Address) bool {
 func (a *Address) Diff(b *Address) (res []string) {
 	for i := 0; i < 20; i++ {
 		if a[i] != b[i] {
-			res = append(res, fmt.Sprintf("different value at position %d:\n    %v\n    vs\n    %v", i, a[i], b[i]))
+			res = append(res, fmt.Sprintf("Different value at position %d:\n    %v\n    vs\n    %v", i, a[i], b[i]))
 		}
 	}
 	return

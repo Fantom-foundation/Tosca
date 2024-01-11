@@ -58,7 +58,7 @@ func TestCallCtx_Diff(t *testing.T) {
 
 	callCtx2.AccountAddr = &Address{0xff}
 	if diffs := callCtx1.Diff(callCtx2); len(diffs) == 0 {
-		t.Errorf("Different not found in different call contexts")
+		t.Errorf("No difference found in different call contexts")
 	}
 }
 

@@ -75,9 +75,9 @@ func TestAddress_Clone(t *testing.T) {
 }
 
 func TestAddress_String(t *testing.T) {
-	addr1 := NewAddress()
+	addr1 := &Address{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13}
 	str := addr1.String()
-	if str != "0x0000000000000000000000000000000000000000" {
+	if str != "0x000102030405060708090a0b0c0d0e0f10111213" {
 		t.Errorf("Invalid address string.")
 	}
 

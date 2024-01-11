@@ -6,8 +6,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
-// CallCtx Analogous to evmc_message
-// Relevant data for a call
+// CallCtx holds all data needed for the call-group of instructions
 type CallCtx struct {
 	AccountAddr *Address
 }
@@ -16,7 +15,7 @@ func NewCallCtx() *CallCtx {
 	return &CallCtx{NewAddress()}
 }
 
-// Clone create a copy and return it.
+// Clone creates an independent copy of the call context.
 func (mc *CallCtx) Clone() *CallCtx {
 	ret := CallCtx{}
 	ret.AccountAddr = mc.AccountAddr.Clone()
@@ -27,7 +26,7 @@ func (mc *CallCtx) Eq(other *CallCtx) bool {
 	return mc.AccountAddr.Eq(other.AccountAddr)
 }
 
-// Diff returns a list of differences between the two addresses.
+// Diff returns a list of differences between the two call contexts.
 func (mc *CallCtx) Diff(other *CallCtx) []string {
 	ret := []string{}
 
