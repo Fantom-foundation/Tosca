@@ -9,21 +9,24 @@ import (
 // CallContext holds all data needed for the call-group of instructions
 type CallContext struct {
 	AccountAddress Address // Address of currently executing account
+	OriginAddress  Address // Address of execution origination
 }
 
 func NewCallContext() *CallContext {
-	return &CallContext{Address{}}
+	return &CallContext{Address{}, Address{}}
 }
 
 // Clone creates an independent copy of the call context.
 func (c *CallContext) Clone() *CallContext {
 	ret := CallContext{}
 	ret.AccountAddress = c.AccountAddress.Clone()
+	ret.OriginAddress = c.OriginAddress.Clone()
 	return &ret
 }
 
 func (c *CallContext) Eq(other *CallContext) bool {
-	return c.AccountAddress == other.AccountAddress
+	return c.AccountAddress == other.AccountAddress &&
+		c.OriginAddress == other.OriginAddress
 }
 
 // Diff returns a list of differences between the two call contexts.
@@ -36,7 +39,15 @@ func (c *CallContext) Diff(other *CallContext) []string {
 		for _, dif := range differences {
 			str += dif
 		}
+		ret = append(ret, str)
+	}
 
+	differences = c.OriginAddress.Diff(other.OriginAddress)
+	if len(differences) != 0 {
+		str := fmt.Sprintf("Different origin address: ")
+		for _, dif := range differences {
+			str += dif
+		}
 		ret = append(ret, str)
 	}
 
@@ -44,5 +55,5 @@ func (c *CallContext) Diff(other *CallContext) []string {
 }
 
 func (c *CallContext) String() string {
-	return fmt.Sprintf("Call Context: (Account Address: %v)", c.AccountAddress)
+	return fmt.Sprintf("Call Context: (Account Address: %v, Origin Address: %v)", c.AccountAddress, c.OriginAddress)
 }

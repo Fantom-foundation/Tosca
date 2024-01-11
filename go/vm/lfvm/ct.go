@@ -99,6 +99,7 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 		state.Logs = ctx.stateDB.(*utils.ConformanceTestStateDb).Logs
 	}
 	state.CallContext.AccountAddress = (ct.Address)(ctx.contract.CallerAddress.Bytes())
+	state.CallContext.OriginAddress = (ct.Address)(ctx.evm.Origin.Bytes())
 	return state, nil
 }
 
@@ -228,6 +229,8 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 		callsize: *uint256.NewInt(uint64(len(data))),
 		readOnly: false,
 	}
+
+	ctx.evm.Origin = (common.Address)(state.CallContext.OriginAddress[:])
 
 	err = convertCtRevisionToLfvmRevision(state.Revision, &ctx)
 	if err != nil {

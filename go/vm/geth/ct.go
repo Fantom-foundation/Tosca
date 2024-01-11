@@ -95,6 +95,7 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 		ctState.Logs = geth.evm.StateDB.(*utils.ConformanceTestStateDb).Logs
 	}
 	ctState.CallContext.AccountAddress = (ct.Address)(state.Contract.CallerAddress.Bytes())
+	ctState.CallContext.OriginAddress = (ct.Address)(geth.evm.Origin.Bytes())
 
 	return ctState, nil
 }
@@ -283,6 +284,7 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 		return nil, nil, err
 	}
 
+	geth.evm.Origin = (common.Address)(state.CallContext.OriginAddress)
 	address := (vm.AccountRef)(state.CallContext.AccountAddress)
 	contract := vm.NewContract(address, address, big.NewInt(0), state.Gas)
 	contract.Code = convertCtCodeToGethCode(state)

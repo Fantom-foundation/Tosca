@@ -68,9 +68,14 @@ func TestCallContext_String(t *testing.T) {
 	s.CallContext = NewCallContext()
 	s.CallContext.AccountAddress = Address{}
 	s.CallContext.AccountAddress[19] = 0xff
+	s.CallContext.OriginAddress = Address{}
+	s.CallContext.OriginAddress[19] = 0xff
 
 	if !strings.Contains(s.String(), fmt.Sprintf("Account Address: %s", s.CallContext.AccountAddress)) {
 		t.Errorf("Did not find account address string.")
 	}
 
+	if !strings.Contains(s.String(), fmt.Sprintf("Origin Address: %s", s.CallContext.OriginAddress)) {
+		t.Errorf("Did not find account address string.")
+	}
 }
