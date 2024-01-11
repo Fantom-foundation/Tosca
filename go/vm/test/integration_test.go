@@ -765,20 +765,20 @@ func TestSARInstruction(t *testing.T) {
 	mostNegativeShiftRight := uint256.NewInt(0).SetAllOne().ToBig()
 
 	tests := []overflowTestCase{
-		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0)},
-		{"0>>1", []*big.Int{big.NewInt(0), big.NewInt(1)}, zeroInput, big.NewInt(0)},
-		{"over64>>1", []*big.Int{sizeOverUint64, big.NewInt(1)}, zeroInput, sizeOverUint64ByOne},
-		{"over64>>over64", []*big.Int{sizeOverUint64, sizeOverUint64}, zeroInput, big.NewInt(0)},
-		{"maxPositiveInt256>>254", []*big.Int{sizeMaxIntPositive, big.NewInt(254)}, zeroInput, big.NewInt(1)},
+		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0), nil},
+		{"0>>1", []*big.Int{big.NewInt(0), big.NewInt(1)}, zeroInput, big.NewInt(0), nil},
+		{"over64>>1", []*big.Int{sizeOverUint64, big.NewInt(1)}, zeroInput, sizeOverUint64ByOne, nil},
+		{"over64>>over64", []*big.Int{sizeOverUint64, sizeOverUint64}, zeroInput, big.NewInt(0), nil},
+		{"maxPositiveInt256>>254", []*big.Int{sizeMaxIntPositive, big.NewInt(254)}, zeroInput, big.NewInt(1), nil},
 
-		{"negative>>0", []*big.Int{negativeInt, big.NewInt(0)}, zeroInput, negativeInt},
-		{"negative>>2", []*big.Int{negativeInt, big.NewInt(2)}, zeroInput, getNegativeBigIntSignInBits(big.NewInt(-8))},
-		{"negativeOver64>>1", []*big.Int{negativeOverUint64, big.NewInt(1)}, zeroInput, negativeOverUint64ByOne},
-		{"negativeOver64>>257", []*big.Int{negativeOverUint64, big.NewInt(257)}, zeroInput, mostNegativeShiftRight},
-		{"negativeOver64>>over64", []*big.Int{negativeOverUint64, sizeOverUint64}, zeroInput, mostNegativeShiftRight},
-		{"maxNegativeInt256>>1", []*big.Int{sizeMaxIntNegative, big.NewInt(1)}, zeroInput, sizeMaxIntNegativeByOne},
-		{"maxNegativeInt256>>254", []*big.Int{sizeMaxIntNegative, big.NewInt(254)}, zeroInput, getNegativeBigIntSignInBits(big.NewInt(-2))},
-		{"maxNegativeInt256>>over64", []*big.Int{sizeMaxIntNegative, sizeOverUint64}, zeroInput, mostNegativeShiftRight},
+		{"negative>>0", []*big.Int{negativeInt, big.NewInt(0)}, zeroInput, negativeInt, nil},
+		{"negative>>2", []*big.Int{negativeInt, big.NewInt(2)}, zeroInput, getNegativeBigIntSignInBits(big.NewInt(-8)), nil},
+		{"negativeOver64>>1", []*big.Int{negativeOverUint64, big.NewInt(1)}, zeroInput, negativeOverUint64ByOne, nil},
+		{"negativeOver64>>257", []*big.Int{negativeOverUint64, big.NewInt(257)}, zeroInput, mostNegativeShiftRight, nil},
+		{"negativeOver64>>over64", []*big.Int{negativeOverUint64, sizeOverUint64}, zeroInput, mostNegativeShiftRight, nil},
+		{"maxNegativeInt256>>1", []*big.Int{sizeMaxIntNegative, big.NewInt(1)}, zeroInput, sizeMaxIntNegativeByOne, nil},
+		{"maxNegativeInt256>>254", []*big.Int{sizeMaxIntNegative, big.NewInt(254)}, zeroInput, getNegativeBigIntSignInBits(big.NewInt(-2)), nil},
+		{"maxNegativeInt256>>over64", []*big.Int{sizeMaxIntNegative, sizeOverUint64}, zeroInput, mostNegativeShiftRight, nil},
 	}
 	runOverflowTests(t, vm.SAR, tests)
 }
@@ -790,11 +790,11 @@ func TestSHRInstruction(t *testing.T) {
 	sizeMaxUint256, _ := big.NewInt(0).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0)
 
 	tests := []overflowTestCase{
-		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0)},
-		{"0>>1", []*big.Int{big.NewInt(0), big.NewInt(1)}, zeroInput, big.NewInt(0)},
-		{"over64>>1", []*big.Int{sizeOverUint64, big.NewInt(1)}, zeroInput, sizeOverUint64ByOne},
-		{"over64>>over64", []*big.Int{sizeOverUint64, sizeOverUint64}, zeroInput, big.NewInt(0)},
-		{"sizeMaxUint256>>255", []*big.Int{sizeMaxUint256, big.NewInt(255)}, zeroInput, big.NewInt(1)},
+		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0), nil},
+		{"0>>1", []*big.Int{big.NewInt(0), big.NewInt(1)}, zeroInput, big.NewInt(0), nil},
+		{"over64>>1", []*big.Int{sizeOverUint64, big.NewInt(1)}, zeroInput, sizeOverUint64ByOne, nil},
+		{"over64>>over64", []*big.Int{sizeOverUint64, sizeOverUint64}, zeroInput, big.NewInt(0), nil},
+		{"sizeMaxUint256>>255", []*big.Int{sizeMaxUint256, big.NewInt(255)}, zeroInput, big.NewInt(1), nil},
 	}
 	runOverflowTests(t, vm.SHR, tests)
 }
@@ -808,12 +808,12 @@ func TestSHLInstruction(t *testing.T) {
 	sizeUint256result, _ := big.NewInt(0).SetString("0x8000000000000000000000000000000000000000000000000000000000000000", 0)
 
 	tests := []overflowTestCase{
-		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0)},
-		{"0<<1", []*big.Int{big.NewInt(0), big.NewInt(1)}, zeroInput, big.NewInt(0)},
-		{"over64<<1", []*big.Int{sizeOverUint64, big.NewInt(1)}, zeroInput, sizeOverUint64ByOne},
-		{"over64<<over64", []*big.Int{sizeOverUint64, sizeOverUint64}, zeroInput, big.NewInt(0)},
-		{"sizeUint256<<1", []*big.Int{sizeUint256, big.NewInt(1)}, zeroInput, sizeUint256result},
-		{"sizeMaxUint256<<255", []*big.Int{sizeMaxUint256, big.NewInt(255)}, zeroInput, sizeUint256result},
+		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0), nil},
+		{"0<<1", []*big.Int{big.NewInt(0), big.NewInt(1)}, zeroInput, big.NewInt(0), nil},
+		{"over64<<1", []*big.Int{sizeOverUint64, big.NewInt(1)}, zeroInput, sizeOverUint64ByOne, nil},
+		{"over64<<over64", []*big.Int{sizeOverUint64, sizeOverUint64}, zeroInput, big.NewInt(0), nil},
+		{"sizeUint256<<1", []*big.Int{sizeUint256, big.NewInt(1)}, zeroInput, sizeUint256result, nil},
+		{"sizeMaxUint256<<255", []*big.Int{sizeMaxUint256, big.NewInt(255)}, zeroInput, sizeUint256result, nil},
 	}
 	runOverflowTests(t, vm.SHL, tests)
 }
@@ -821,10 +821,11 @@ func TestSHLInstruction(t *testing.T) {
 var zeroInput = []byte{}
 
 type overflowTestCase struct {
-	name   string
-	values []*big.Int
-	input  []byte
-	result interface{}
+	name      string
+	arguments []*big.Int
+	input     []byte
+	result    *big.Int
+	err       []error
 }
 
 func runOverflowTests(t *testing.T, instruction vm.OpCode, tests []overflowTestCase) {
@@ -840,7 +841,7 @@ func runOverflowTests(t *testing.T, instruction vm.OpCode, tests []overflowTestC
 					evm := GetCleanEVM(revision, variant, nil)
 
 					// Generate code
-					code, _ := addValuesToStack(test.values, 0)
+					code, _ := addValuesToStack(test.arguments, 0)
 					code = append(code, byte(instruction))
 					returnCode, _ := getReturnStackCode(1, 0, 0)
 					code = append(code, returnCode...)
@@ -850,25 +851,28 @@ func runOverflowTests(t *testing.T, instruction vm.OpCode, tests []overflowTestC
 
 					// Check the result.
 					if test.result != nil {
-						switch test.result.(type) {
-						case *big.Int:
-							if res.Output != nil && len(res.Output) >= 32 {
-								result := big.NewInt(0).SetBytes(res.Output[0:32])
-								if result.Cmp(test.result.(*big.Int)) != 0 {
-									t.Errorf("execution result is different want: %v, got: %v", test.result, result)
-								}
-							} else {
-								t.Errorf("execution should return a result with stack values")
+
+						if res.Output != nil && len(res.Output) >= 32 {
+							result := big.NewInt(0).SetBytes(res.Output[0:32])
+							if result.Cmp(test.result) != 0 {
+								t.Errorf("execution result is different want: %v, got: %v", test.result, result)
 							}
-							if err != nil {
-								t.Errorf("execution should not fail with error, but got: %v", err)
-							}
-						case []error:
-							if err == nil {
-								t.Errorf("execution should fail with error %v, but did not fail", test.result)
-							} else if !contains(test.result.([]error), err) {
+						} else {
+							t.Errorf("execution has no return value, should have %v", test.result)
+						}
+
+					}
+					if err != nil {
+						if test.err == nil {
+							t.Errorf("execution should not fail with error, but got: %v", err)
+						} else {
+							if !contains(test.err, err) {
 								t.Errorf("execution should fail with error %v, but got: %v", test.result, err)
 							}
+						}
+					} else {
+						if test.err != nil {
+							t.Errorf("execution should fail with error %v, but did not fail", test.result)
 						}
 					}
 				})
@@ -885,14 +889,14 @@ func TestCallDataLoadInstructionInputOverflow(t *testing.T) {
 	input := common.LeftPadBytes(b[:], 32)
 
 	tests := []overflowTestCase{
-		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0)},
-		{"data input one", []*big.Int{big.NewInt(0), big.NewInt(0)}, input, big.NewInt(1)},
-		{"data input one, offset one", []*big.Int{big.NewInt(0), big.NewInt(1)}, input, big.NewInt(256)},
-		{"data input one, offset 31", []*big.Int{big.NewInt(0), big.NewInt(31)}, input, big.NewInt(0).SetBytes(common.RightPadBytes(b[:], 32))},
-		{"data input one, offset 300", []*big.Int{big.NewInt(0), big.NewInt(300)}, input, big.NewInt(0)},
-		{"data input one, offset uint64", []*big.Int{big.NewInt(0), sizeUint64}, input, big.NewInt(0)},
-		{"data input one, offset over64", []*big.Int{big.NewInt(0), sizeOverUint64}, input, big.NewInt(0)},
-		{"data input one, offset uint256", []*big.Int{big.NewInt(0), sizeUint256}, input, big.NewInt(0)},
+		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0), nil},
+		{"data input one", []*big.Int{big.NewInt(0), big.NewInt(0)}, input, big.NewInt(1), nil},
+		{"data input one, offset one", []*big.Int{big.NewInt(0), big.NewInt(1)}, input, big.NewInt(256), nil},
+		{"data input one, offset 31", []*big.Int{big.NewInt(0), big.NewInt(31)}, input, big.NewInt(0).SetBytes(common.RightPadBytes(b[:], 32)), nil},
+		{"data input one, offset 300", []*big.Int{big.NewInt(0), big.NewInt(300)}, input, big.NewInt(0), nil},
+		{"data input one, offset uint64", []*big.Int{big.NewInt(0), sizeUint64}, input, big.NewInt(0), nil},
+		{"data input one, offset over64", []*big.Int{big.NewInt(0), sizeOverUint64}, input, big.NewInt(0), nil},
+		{"data input one, offset uint256", []*big.Int{big.NewInt(0), sizeUint256}, input, big.NewInt(0), nil},
 	}
 	runOverflowTests(t, vm.CALLDATALOAD, tests)
 }
@@ -905,16 +909,16 @@ func TestCallDataCopyInstructionInputOverflow(t *testing.T) {
 	input := common.LeftPadBytes(b[:], 32)
 
 	tests := []overflowTestCase{
-		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0)},
-		{"length 100", []*big.Int{big.NewInt(1), big.NewInt(100), big.NewInt(0), big.NewInt(0)}, input, big.NewInt(1)},
-		{"length over64", []*big.Int{big.NewInt(1), sizeOverUint64, big.NewInt(0), big.NewInt(0)}, input, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"length uint256", []*big.Int{big.NewInt(1), sizeUint256, big.NewInt(0), big.NewInt(0)}, input, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"memory offset 100", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(0), big.NewInt(100)}, input, big.NewInt(1)},
-		{"memory offset over64", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(0), sizeOverUint64}, input, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"memory offset uint256", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(0), sizeUint256}, input, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"data offset 100", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(1), big.NewInt(100), big.NewInt(0)}, input, big.NewInt(1)},
-		{"data offset over64", []*big.Int{big.NewInt(1), big.NewInt(1), sizeOverUint64, big.NewInt(0)}, input, big.NewInt(1)},
-		{"data offset uint256", []*big.Int{big.NewInt(1), big.NewInt(1), sizeUint256, big.NewInt(0)}, input, big.NewInt(1)},
+		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0), nil},
+		{"length 100", []*big.Int{big.NewInt(1), big.NewInt(100), big.NewInt(0), big.NewInt(0)}, input, big.NewInt(1), nil},
+		{"length over64", []*big.Int{big.NewInt(1), sizeOverUint64, big.NewInt(0), big.NewInt(0)}, input, nil, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"length uint256", []*big.Int{big.NewInt(1), sizeUint256, big.NewInt(0), big.NewInt(0)}, input, nil, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"memory offset 100", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(0), big.NewInt(100)}, input, big.NewInt(1), nil},
+		{"memory offset over64", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(0), sizeOverUint64}, input, nil, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"memory offset uint256", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(0), sizeUint256}, input, nil, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"data offset 100", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(1), big.NewInt(100), big.NewInt(0)}, input, big.NewInt(1), nil},
+		{"data offset over64", []*big.Int{big.NewInt(1), big.NewInt(1), sizeOverUint64, big.NewInt(0)}, input, big.NewInt(1), nil},
+		{"data offset uint256", []*big.Int{big.NewInt(1), big.NewInt(1), sizeUint256, big.NewInt(0)}, input, big.NewInt(1), nil},
 	}
 	runOverflowTests(t, vm.CALLDATACOPY, tests)
 }
