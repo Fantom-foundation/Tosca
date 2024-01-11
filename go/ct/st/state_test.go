@@ -174,6 +174,12 @@ func TestState_Eq(t *testing.T) {
 	if s1.Eq(s2) {
 		t.Fail()
 	}
+
+	s1.CallContext.OriginAddress = Address{0x01}
+	s2.CallContext.OriginAddress = Address{0xfe}
+	if s1.Eq(s2) {
+		t.Fail()
+	}
 }
 
 func TestState_EqFailureStates(t *testing.T) {
