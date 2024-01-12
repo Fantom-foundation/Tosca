@@ -26,7 +26,6 @@ func TestCallContext_NewCallContext(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestCallContext_Diff(t *testing.T) {
