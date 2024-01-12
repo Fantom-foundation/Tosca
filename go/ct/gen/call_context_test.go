@@ -7,17 +7,14 @@ import (
 	"pgregory.net/rand"
 )
 
-func TestCallCtxGen_Generate(t *testing.T) {
+func TestCallContextGen_Generate(t *testing.T) {
 	rnd := rand.New(0)
-	callctxGen := NewCallCtxGenerator()
+	callctxGen := NewCallContextGenerator()
 	newCC, err := callctxGen.Generate(rnd)
 	if err != nil {
 		t.Errorf("Error generating call context: %v", err)
 	}
-	if newCC.AccountAddr == nil {
-		t.Errorf("Generated context does not generate account address")
-	}
-	if newCC.AccountAddr.Eq(common.NewAddress()) {
+	if newCC.AccountAddress == common.NewAddress() {
 		t.Errorf("Generated account address has default value.")
 	}
 }

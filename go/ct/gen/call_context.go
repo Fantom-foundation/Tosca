@@ -7,32 +7,32 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
-type CallCtxGenerator struct {
+type CallContextGenerator struct {
 }
 
-func NewCallCtxGenerator() *CallCtxGenerator {
-	return &CallCtxGenerator{}
+func NewCallContextGenerator() *CallContextGenerator {
+	return &CallContextGenerator{}
 }
 
-func (ccg *CallCtxGenerator) Generate(rnd *rand.Rand) (*st.CallCtx, error) {
-	accountAddr, err := common.RandAddress(rnd)
+func (*CallContextGenerator) Generate(rnd *rand.Rand) (*st.CallContext, error) {
+	accountAddress, err := common.RandAddress(rnd)
 	if err != nil {
 		return nil, err
 	}
 
-	newCC := st.NewCallCtx()
-	newCC.AccountAddr = accountAddr
+	newCC := st.NewCallContext()
+	newCC.AccountAddress = *accountAddress
 
 	return newCC, nil
 }
 
-func (ccg *CallCtxGenerator) Clone() *CallCtxGenerator {
-	return &CallCtxGenerator{}
+func (*CallContextGenerator) Clone() *CallContextGenerator {
+	return &CallContextGenerator{}
 }
 
-func (*CallCtxGenerator) Restore(*CallCtxGenerator) {
+func (*CallContextGenerator) Restore(*CallContextGenerator) {
 }
 
-func (ccg *CallCtxGenerator) String() string {
+func (*CallContextGenerator) String() string {
 	return "{}"
 }

@@ -1,11 +1,12 @@
 package rlz
 
 import (
+	"fmt"
 	"math"
-	"slices"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"pgregory.net/rand"
 )
 
 // Domain represents the domain of values for a given type.
@@ -264,13 +265,13 @@ func (stackSizeDomain) SamplesForAll(as []int) []int {
 
 type addressDomain struct{}
 
-func (addressDomain) Equal(a, b Address) bool {
-	return slices.Equal(a[:], b[:])
+func (addressDomain) Equal(a, b *Address) bool {
+	return *a == *b
 }
 
-func (addressDomain) Less(Address, Address) bool  { panic("not useful") }
-func (addressDomain) Predecessor(Address) Address { panic("not useful") }
-func (addressDomain) Successor(Address) Address   { panic("not useful") }
+func (addressDomain) Less(Address, Address) bool  { panic("not implemented") }
+func (addressDomain) Predecessor(Address) Address { panic("not implemented") }
+func (addressDomain) Successor(Address) Address   { panic("not implemented") }
 
 func (addressDomain) SomethingNotEqual(a Address) Address {
 	return Address{a[0] + 1}
@@ -285,9 +286,16 @@ func (addressDomain) SamplesForAll(as []Address) []Address {
 
 	zero := Address{}
 	ffs := Address{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+	rnd := rand.New(0)
+	random, err := RandAddress(rnd)
+	if err != nil {
+		fmt.Errorf("Error generating random address, %v", err)
+		return nil
+	}
 
 	ret = append(ret, zero)
 	ret = append(ret, ffs)
+	ret = append(ret, *random)
 
 	return ret
 }

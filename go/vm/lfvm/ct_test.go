@@ -1,7 +1,6 @@
 package lfvm
 
 import (
-	"slices"
 	"testing"
 
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -344,7 +343,7 @@ func TestConvertToLfvm_Stack(t *testing.T) {
 
 func TestConvertToLfvm_callContext(t *testing.T) {
 	state := getEmptyState()
-	state.CallCtx.AccountAddr = &ct.Address{0xff}
+	state.CallContext.AccountAddress = ct.Address{0xff}
 	code := []byte{}
 	pcMap, err := GenPcMapWithoutSuperInstructions(code)
 	if err != nil {
@@ -588,7 +587,7 @@ func TestConvertToCt_Stack(t *testing.T) {
 	}
 }
 
-func TestConvertToCt_CallCtx(t *testing.T) {
+func TestConvertToCt_CallContext(t *testing.T) {
 	ctx := getEmptyContext()
 	ctx.contract.CallerAddress = common.Address{0xff}
 	code := []byte{}
@@ -604,7 +603,7 @@ func TestConvertToCt_CallCtx(t *testing.T) {
 		t.Fatalf("failed to convert lfvm context to ct state: %v", err)
 	}
 
-	if want, got := (ct.Address{0xff}), state.CallCtx.AccountAddr; !slices.Equal(want[:], got[:]) {
+	if want, got := (ct.Address{0xff}), state.CallContext.AccountAddress; want != got {
 		t.Errorf("unexpected address, wanted %v, got %v", want, got)
 	}
 }

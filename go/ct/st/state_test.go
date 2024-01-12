@@ -21,7 +21,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.Storage.Current[NewU256(4)] = NewU256(5)
 	state.Storage.Original[NewU256(6)] = NewU256(7)
 	state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
-	state.CallCtx.AccountAddr = &Address{0xff}
+	state.CallContext.AccountAddress = Address{0xff}
 
 	clone := state.Clone()
 	clone.Status = Running
@@ -36,7 +36,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.Storage.MarkWarm(NewU256(42))
 	clone.Logs.Entries[0].Data[0] = 31
 	clone.Logs.Entries[0].Topics[0] = NewU256(41)
-	clone.CallCtx.AccountAddr = &Address{0x01}
+	clone.CallContext.AccountAddress = Address{0x01}
 
 	ok := state.Status == Stopped &&
 		state.Revision == R10_London &&
@@ -52,7 +52,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		!state.Storage.IsWarm(NewU256(42)) &&
 		state.Logs.Entries[0].Data[0] == 10 &&
 		state.Logs.Entries[0].Topics[0] == NewU256(21) &&
-		state.CallCtx.AccountAddr.Eq(&Address{0xff})
+		state.CallContext.AccountAddress == Address{0xff}
 	if !ok {
 		t.Errorf("clone is not independent")
 	}
@@ -134,8 +134,8 @@ func TestState_Eq(t *testing.T) {
 		t.Fail()
 	}
 
-	s1.CallCtx.AccountAddr = &Address{0x00}
-	s2.CallCtx.AccountAddr = &Address{0xff}
+	s1.CallContext.AccountAddress = Address{0x00}
+	s2.CallContext.AccountAddress = Address{0xff}
 	if s1.Eq(s2) {
 		t.Fail()
 	}
@@ -368,7 +368,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.Memory.Write([]byte{1, 2, 3}, 31)
 	s1.Storage.MarkWarm(NewU256(42))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s1.CallCtx.AccountAddr = &Address{0xff}
+	s1.CallContext.AccountAddress = Address{0xff}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -380,7 +380,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.Memory.Write([]byte{1, 2, 3}, 31)
 	s2.Storage.MarkWarm(NewU256(42))
 	s2.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s2.CallCtx.AccountAddr = &Address{0xff}
+	s2.CallContext.AccountAddress = Address{0xff}
 
 	diffs := s1.Diff(s2)
 
@@ -405,7 +405,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Storage.MarkWarm(NewU256(42))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s1.CallCtx.AccountAddr = &Address{0xff}
+	s1.CallContext.AccountAddress = Address{0xff}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -417,7 +417,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.Memory.Write([]byte{1, 2, 4}, 31)
 	s2.Storage.MarkCold(NewU256(42))
 	s2.Logs.AddLog([]byte{4, 7, 6}, NewU256(24), NewU256(22))
-	s2.CallCtx.AccountAddr = &Address{0xef}
+	s2.CallContext.AccountAddress = Address{0xef}
 
 	diffs := s1.Diff(s2)
 

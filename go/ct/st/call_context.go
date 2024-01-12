@@ -6,31 +6,31 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
-// CallCtx holds all data needed for the call-group of instructions
-type CallCtx struct {
-	AccountAddr *Address
+// CallContext holds all data needed for the call-group of instructions
+type CallContext struct {
+	AccountAddress Address // Address of currently executing account
 }
 
-func NewCallCtx() *CallCtx {
-	return &CallCtx{NewAddress()}
+func NewCallContext() *CallContext {
+	return &CallContext{NewAddress()}
 }
 
 // Clone creates an independent copy of the call context.
-func (mc *CallCtx) Clone() *CallCtx {
-	ret := CallCtx{}
-	ret.AccountAddr = mc.AccountAddr.Clone()
+func (mc *CallContext) Clone() *CallContext {
+	ret := CallContext{}
+	ret.AccountAddress = *mc.AccountAddress.Clone()
 	return &ret
 }
 
-func (mc *CallCtx) Eq(other *CallCtx) bool {
-	return mc.AccountAddr.Eq(other.AccountAddr)
+func (mc *CallContext) Eq(other *CallContext) bool {
+	return mc.AccountAddress == other.AccountAddress
 }
 
 // Diff returns a list of differences between the two call contexts.
-func (mc *CallCtx) Diff(other *CallCtx) []string {
+func (mc *CallContext) Diff(other *CallContext) []string {
 	ret := []string{}
 
-	differences := mc.AccountAddr.Diff(other.AccountAddr)
+	differences := mc.AccountAddress.Diff(&other.AccountAddress)
 	if len(differences) != 0 {
 		str := fmt.Sprintf("Different account address: ")
 		for _, dif := range differences {
@@ -43,6 +43,6 @@ func (mc *CallCtx) Diff(other *CallCtx) []string {
 	return ret
 }
 
-func (mc *CallCtx) String() string {
-	return fmt.Sprintf("Call Context: (Account Address: %v)", mc.AccountAddr.String())
+func (mc *CallContext) String() string {
+	return fmt.Sprintf("Call Context: (Account Address: %v)", mc.AccountAddress)
 }

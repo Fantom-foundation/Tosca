@@ -938,7 +938,7 @@ var Spec = func() Specification {
 			Effect: Change(func(s *st.State) {
 				s.Pc++
 				s.Gas -= 2
-				s.Stack.Push(NewU256FromBytes(s.CallCtx.AccountAddr[:]...))
+				s.Stack.Push(NewU256FromBytes(s.CallContext.AccountAddress[:]...))
 			}),
 		},
 		{
