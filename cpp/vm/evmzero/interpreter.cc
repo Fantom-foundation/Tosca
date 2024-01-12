@@ -1681,8 +1681,15 @@ Context::MemoryExpansionCostResult Context::MemoryExpansionCost(uint256_t offset
   }
 
   auto calc_memory_cost = [](uint64_t size) -> int64_t {
-    const int64_t memory_size_word = static_cast<int64_t>((size + 31) / 32);
-    return (memory_size_word * memory_size_word) / 512 + (3 * memory_size_word);
+    if (TOSCA_CHECK_OVERFLOW_ADD(size, 31, &size)) [[unlikely]] {
+      return kMaxGas;
+    }
+    const int64_t memory_size_word = static_cast<int64_t>(size / 32);
+    int64_t squared_size_word = 0;
+    if (TOSCA_CHECK_OVERFLOW_MUL(memory_size_word, memory_size_word, &squared_size_word)) [[unlikely]] {
+      return kMaxGas;
+    }
+    return squared_size_word / 512 + (3 * memory_size_word);
   };
 
   return {

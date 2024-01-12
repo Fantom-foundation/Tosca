@@ -300,8 +300,17 @@ func opCallDataCopy(c *context) {
 	if overflow {
 		dataOffset64 = 0xffffffffffffffff
 	}
-	memOffset64 := memOffset.Uint64()
-	length64 := length.Uint64()
+
+	memOffset64, overflow := memOffset.Uint64WithOverflow()
+	if overflow {
+		memOffset64 = 0xffffffffffffffff
+	}
+
+	length64, overflow := length.Uint64WithOverflow()
+	if overflow || length64+31 < length64 {
+		c.status = OUT_OF_GAS
+		return
+	}
 
 	// Charge for the copy costs
 	words := (length64 + 31) / 32
