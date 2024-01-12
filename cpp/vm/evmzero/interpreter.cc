@@ -1713,7 +1713,7 @@ struct Result {
   int64_t gas_left = 0;
 };
 
-template <op::OpCode op_code>
+template <op::OpCode op_code, bool Stepping>
 inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, int32_t stack_size, const uint8_t* code,
                   Context& ctx) {
   using Impl = op::Impl<op_code>;
@@ -1753,13 +1753,17 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, int32_t stack_
         return Result{.state = ctx.state};
       }
 
-      // Immediately subtract gas for JUMPDEST
-      if (gas < op::Impl<op::JUMPDEST>::kInfo.static_gas) [[unlikely]] {
-        return Result{.state = RunState::kErrorGas};
-      }
-      gas -= op::Impl<op::JUMPDEST>::kInfo.static_gas;
+      pc = code + static_cast<uint32_t>(*top);
 
-      pc = code + static_cast<uint32_t>(*top) + 1 /* skip JUMPDEST */;
+      // If we are not stepping we can immediately execute the JUMPDEST instruction.
+      if constexpr (!Stepping) {
+        // Immediately subtract gas for JUMPDEST
+        if (gas < op::Impl<op::JUMPDEST>::kInfo.static_gas) [[unlikely]] {
+          return Result{.state = RunState::kErrorGas};
+        }
+        gas -= op::Impl<op::JUMPDEST>::kInfo.static_gas;
+        pc += 1;  // skip JUMPDEST
+      }
     } else {
       pc += 1;
     }
@@ -1791,7 +1795,7 @@ void RunInterpreter(Context& ctx, Observer& observer, int steps) {
 
   // The state, pc, and stack state are owned by this function and
   // should not escape this function.
-  RunState state = RunState::kRunning;
+  RunState state = ctx.state;
   int64_t gas = ctx.gas;
   uint256_t* top = ctx.stack.Top();
   int32_t size = static_cast<int32_t>(ctx.stack.GetSize());
@@ -1837,18 +1841,18 @@ void RunInterpreter(Context& ctx, Observer& observer, int steps) {
 // A valid op code is executed, followed by another DISPATCH call. Since the
 // profiler currently doesn't work with recursive op codes, we don't profile
 // CREATE and CALL op codes.
-#define RUN_OPCODE(opcode)                                            \
-  op_##opcode : {                                                     \
-    EVMZERO_PROFILE_ZONE_N(#opcode);                                  \
-    observer.PreInstruction(op::opcode, ctx);                         \
-    auto res = Run<op::opcode>(pc, gas, top, size, padded_code, ctx); \
-    state = res.state;                                                \
-    pc = res.pc;                                                      \
-    gas = res.gas_left;                                               \
-    top -= op::Impl<op::opcode>::kInfo.GetStackDelta();               \
-    size += op::Impl<op::opcode>::kInfo.GetStackDelta();              \
-    observer.PostInstruction(op::opcode, ctx);                        \
-  }                                                                   \
+#define RUN_OPCODE(opcode)                                                      \
+  op_##opcode : {                                                               \
+    EVMZERO_PROFILE_ZONE_N(#opcode);                                            \
+    observer.PreInstruction(op::opcode, ctx);                                   \
+    auto res = Run<op::opcode, Stepping>(pc, gas, top, size, padded_code, ctx); \
+    state = res.state;                                                          \
+    pc = res.pc;                                                                \
+    gas = res.gas_left;                                                         \
+    top -= op::Impl<op::opcode>::kInfo.GetStackDelta();                         \
+    size += op::Impl<op::opcode>::kInfo.GetStackDelta();                        \
+    observer.PostInstruction(op::opcode, ctx);                                  \
+  }                                                                             \
   DISPATCH();
 
 #define EVMZERO_OPCODE(name, value) RUN_OPCODE(name)
@@ -1861,6 +1865,11 @@ void RunInterpreter(Context& ctx, Observer& observer, int steps) {
 
 end:
   if constexpr (Stepping) {
+    // When the stack under/overflows the top pointer will be invalid, so we reset it here.
+    if (state == RunState::kErrorStackUnderflow || state == RunState::kErrorStackOverflow) {
+      top = ctx.stack.Top();
+    }
+
     if (state == RunState::kDone       //
         || state == RunState::kReturn  //
         || state == RunState::kRevert  //
@@ -1886,7 +1895,9 @@ end:
   ctx.stack.SetTop(top);
 
   if constexpr (Stepping) {
-    ctx.pc = static_cast<uint64_t>(pc - padded_code);
+    if (pc != nullptr) {
+      ctx.pc = static_cast<uint64_t>(pc - padded_code);
+    }
   }
 }
 

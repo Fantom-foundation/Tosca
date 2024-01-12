@@ -4035,6 +4035,15 @@ TEST(InterpreterTest, JUMP_OutOfGas) {
       .gas_before = 7,
       .stack_before = {0},
   });
+
+  RunInterpreterTest({
+      .code = {op::JUMP,       //
+               op::PUSH1, 24,  // should be skipped
+               op::JUMPDEST},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 8,
+      .stack_before = {3},
+  });
 }
 
 TEST(InterpreterTest, JUMP_StackError) {
@@ -4929,6 +4938,93 @@ TEST(InterpreterTest, Step_Single_Memory) {
               0, 0, 0, 0, 0, 0, 0, 0,     //
               0, 0, 0, 0, 0, 0, 0, 0xFF,  //
           },
+      },
+      1);
+}
+
+///////////////////////////////////////////////////////////
+// Stepping interpreter - JUMP
+TEST(InterpreterTest, Step_JUMP) {
+  RunInterpreterStepTest(
+      {
+          .code = {op::JUMP,       //
+                   op::PUSH1, 24,  // should be skipped
+                   op::JUMPDEST,   //
+                   op::PUSH1, 42},
+          .state_after = RunState::kRunning,
+          .pc_before = 0,
+          .pc_after = 3,
+          .gas_before = 8,
+          .gas_after = 0,
+          .stack_before = {3},
+          .stack_after = {},
+      },
+      1);
+}
+
+TEST(InterpreterTest, Step_JUMP_OutOfGas) {
+  RunInterpreterStepTest(
+      {
+          .code =
+              {
+                  op::JUMP,
+                  op::STOP,
+                  op::JUMPDEST,
+              },
+          .state_after = RunState::kErrorGas,
+          .pc_before = 0,
+          .gas_before = 7,
+          .stack_before = {2},
+      },
+      1);
+}
+
+///////////////////////////////////////////////////////////
+// Stepping interpreter - JUMPI
+TEST(InterpreterTest, Step_JUMPI) {
+  RunInterpreterStepTest(
+      {
+          .code = {op::JUMPI,      //
+                   op::PUSH1, 24,  //
+                   op::JUMPDEST,   //
+                   op::PUSH1, 42},
+          .state_after = RunState::kRunning,
+          .pc_before = 0,
+          .pc_after = 1,
+          .gas_before = 10,
+          .gas_after = 0,
+          .stack_before = {0, 3},
+          .stack_after = {},
+      },
+      1);
+
+  RunInterpreterStepTest(
+      {
+          .code = {op::JUMPI,      //
+                   op::PUSH1, 24,  //
+                   op::JUMPDEST,   //
+                   op::PUSH1, 42},
+          .state_after = RunState::kRunning,
+          .pc_before = 0,
+          .pc_after = 3,
+          .gas_before = 10,
+          .gas_after = 0,
+          .stack_before = {1, 3},
+          .stack_after = {},
+      },
+      1);
+}
+
+TEST(InterpreterTest, Step_JUMPI_OutOfGas) {
+  RunInterpreterStepTest(
+      {
+          .code = {op::JUMPI,      //
+                   op::PUSH1, 24,  //
+                   op::JUMPDEST,   //
+                   op::PUSH1, 42},
+          .state_after = RunState::kErrorGas,
+          .gas_before = 9,
+          .stack_before = {0, 3},
       },
       1);
 }
