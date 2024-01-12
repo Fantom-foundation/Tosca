@@ -348,6 +348,7 @@ func TestConvertToLfvm_callContext(t *testing.T) {
 	state.CallContext.AccountAddress = ct.Address{0xff}
 	state.CallContext.OriginAddress = ct.Address{0xfe}
 	state.CallContext.CallerAddress = ct.Address{0xfd}
+	state.CallContext.Value = big.NewInt(252)
 
 	code := []byte{}
 	pcMap, err := GenPcMapWithoutSuperInstructions(code)
@@ -369,6 +370,9 @@ func TestConvertToLfvm_callContext(t *testing.T) {
 	}
 	if want, got := (common.Address{0xfd}), context.contract.CallerAddress; want != got {
 		t.Errorf("unexpected address. wanted %v, got %v", want, got)
+	}
+	if want, got := big.NewInt(252), context.contract.Value(); want.Cmp(got) != 0 {
+		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
 	}
 
 }
@@ -602,7 +606,7 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	ctx := getEmptyContext()
 	objAddr := vm.AccountRef{0xff}
 	callerAddr := vm.AccountRef{0xfe}
-	contract := vm.NewContract(callerAddr, objAddr, big.NewInt(0), 0)
+	contract := vm.NewContract(callerAddr, objAddr, big.NewInt(252), 0)
 	ctx.contract = contract
 	ctx.evm.Origin = common.Address{0xfd}
 	code := []byte{}
@@ -627,5 +631,7 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	if want, got := (ct.Address{0xfd}), state.CallContext.OriginAddress; want != got {
 		t.Errorf("unexpected address, wanted %v, got %v", want, got)
 	}
-
+	if want, got := big.NewInt(252), state.CallContext.Value; want.Cmp(got) != 0 {
+		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
+	}
 }

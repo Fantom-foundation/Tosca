@@ -463,6 +463,7 @@ func TestState_DiffMismatch(t *testing.T) {
 		"Different account address",
 		"Different origin address",
 		"Different caller address",
+		"Different call value",
 	}
 
 	if len(diffs) != len(expectedDiffs) {

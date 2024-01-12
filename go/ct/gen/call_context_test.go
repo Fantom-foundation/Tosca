@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -24,4 +25,11 @@ func TestCallContextGen_Generate(t *testing.T) {
 	testAddr(t, &newCC.AccountAddress, "account")
 	testAddr(t, &newCC.OriginAddress, "origin")
 	testAddr(t, &newCC.CallerAddress, "caller")
+
+	if newCC.Value == nil {
+		t.Errorf("Generated context does not generate call value")
+	}
+	if newCC.Value.Cmp(big.NewInt(0)) == 0 {
+		t.Errorf("Generated call value has default value.")
+	}
 }
