@@ -312,6 +312,9 @@ func TestConvertToGeth_BlockContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to convert ct state to geth: %v", err)
 	}
+	if want, got := big.NewInt(252), gethState.Contract.Value(); want.Cmp(got) != 0 {
+		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
+	}
 
 	if want, got := big.NewInt(5), gethInterpreter.evm.Context.BlockNumber; want.Cmp(got) != 0 {
 		t.Errorf("unexpected block number. wanted %v, got %v", want, got)
@@ -548,6 +551,9 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	}
 	if want, got := (ct.Address{0xfd}), state.CallContext.OriginAddress; want != got {
 		t.Errorf("unexpected address value, wanted %v, got %v", want, got)
+	}
+	if want, got := big.NewInt(252), state.CallContext.Value; want.Cmp(got) != 0 {
+		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
 	}
 }
 

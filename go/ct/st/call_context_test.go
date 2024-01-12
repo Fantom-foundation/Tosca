@@ -26,13 +26,6 @@ func TestCallContext_NewCallContext(t *testing.T) {
 			}
 		})
 	}
-
-	callContext2 = callContext1.Clone()
-	callContext2.OriginAddress = Address{0xff}
-	if callContext1.Eq(callContext2) {
-		t.Error("Different call context considered the same")
-	}
-
 }
 
 func TestCallContext_Diff(t *testing.T) {
@@ -54,18 +47,6 @@ func TestCallContext_Diff(t *testing.T) {
 				t.Errorf("No difference found in modified %v", name)
 			}
 		})
-	}
-
-	callContext2 = NewCallContext()
-	callContext2.OriginAddress = Address{0xff}
-	if diffs := callContext1.Diff(callContext2); len(diffs) == 0 {
-		t.Errorf("No difference found in different call contexts")
-	}
-
-	callContext2 = NewCallContext()
-	callContext2.CallerAddress = Address{0xff}
-	if diffs := callContext1.Diff(callContext2); len(diffs) == 0 {
-		t.Errorf("No difference found in different call contexts")
 	}
 }
 

@@ -679,7 +679,6 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	if want, got := (ct.Address{0xfd}), state.CallContext.OriginAddress; want != got {
 		t.Errorf("unexpected address, wanted %v, got %v", want, got)
 	}
-
 }
 
 func TestConvertToCt_BlockContext(t *testing.T) {
