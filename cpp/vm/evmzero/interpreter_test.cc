@@ -814,6 +814,14 @@ TEST(InterpreterTest, SIGNEXTEND) {
       .stack_before = {0xFF7F, 1},
       .stack_after = {kUint256Max - 0x80},
   });
+  RunInterpreterTest({
+      .code = {op::SIGNEXTEND},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 5,
+      .stack_before = {0x100, 0x100},
+      .stack_after = {0x100},
+  });
 }
 
 TEST(InterpreterTest, SIGNEXTEND_OutOfGas) {
