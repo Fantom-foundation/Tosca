@@ -16,7 +16,11 @@ type CallContext struct {
 }
 
 func NewCallContext() *CallContext {
-	return &CallContext{Address{}, Address{}, Address{}, big.NewInt(0)}
+	return &CallContext{
+		AccountAddress: Address{},
+		OriginAddress:  Address{},
+		CallerAddress:  Address{},
+		Value:          big.NewInt(0)}
 }
 
 // Clone creates an independent copy of the call context.
@@ -36,7 +40,7 @@ func (c *CallContext) Eq(other *CallContext) bool {
 		c.Value.Cmp(other.Value) == 0
 }
 
-func address_differences(diffs []string, name string) []string {
+func addressDifferences(diffs []string, name string) []string {
 	ret := []string{}
 	if len(diffs) != 0 {
 		str := fmt.Sprintf("Different %v address: ", name)
@@ -53,13 +57,13 @@ func (c *CallContext) Diff(other *CallContext) []string {
 	ret := []string{}
 
 	differences := c.AccountAddress.Diff(other.AccountAddress)
-	ret = append(ret, address_differences(differences, "account")...)
+	ret = append(ret, addressDifferences(differences, "account")...)
 
 	differences = c.OriginAddress.Diff(other.OriginAddress)
-	ret = append(ret, address_differences(differences, "origin")...)
+	ret = append(ret, addressDifferences(differences, "origin")...)
 
 	differences = c.CallerAddress.Diff(other.CallerAddress)
-	ret = append(ret, address_differences(differences, "caller")...)
+	ret = append(ret, addressDifferences(differences, "caller")...)
 
 	if c.Value != other.Value {
 		ret = append(ret, fmt.Sprintf("Different call value %v vs %v.", c.Value, other.Value))

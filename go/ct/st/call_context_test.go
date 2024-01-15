@@ -9,17 +9,21 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
-func test_newAddress(t *testing.T, address *Address, name string) {
-	if want, got := (Address{}), *address; want != got {
-		t.Errorf("Unexpected %v address, want %v, got %v", name, want, got)
-	}
-}
-
 func TestCallContext_NewCallContext(t *testing.T) {
 	callContext := NewCallContext()
-	test_newAddress(t, &callContext.AccountAddress, "account")
-	test_newAddress(t, &callContext.OriginAddress, "origin")
-	test_newAddress(t, &callContext.CallerAddress, "caller")
+
+	if want, got := (Address{}), callContext.AccountAddress; want != got {
+		t.Errorf("Unexpected account address, want %v, got %v", want, got)
+	}
+
+	if want, got := (Address{}), callContext.OriginAddress; want != got {
+		t.Errorf("Unexpected origin address, want %v, got %v", want, got)
+	}
+
+	if want, got := (Address{}), callContext.CallerAddress; want != got {
+		t.Errorf("Unexpected caller address, want %v, got %v", want, got)
+	}
+
 	if want, got := big.NewInt(0), callContext.Value; want.Cmp(got) != 0 {
 		t.Errorf("Unexpected call value, want %v got %v", want, got)
 	}
