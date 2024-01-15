@@ -9,17 +9,17 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
-func test_newaddr(t *testing.T, address *Address) {
+func test_newAddress(t *testing.T, address *Address, name string) {
 	if want, got := (Address{}), *address; want != got {
-		t.Errorf("Unexpected address, want %v, got %v", want, got)
+		t.Errorf("Unexpected %v address, want %v, got %v", name, want, got)
 	}
 }
 
 func TestCallContext_NewCallContext(t *testing.T) {
 	callContext := NewCallContext()
-	test_newaddr(t, &callContext.AccountAddress)
-	test_newaddr(t, &callContext.OriginAddress)
-	test_newaddr(t, &callContext.CallerAddress)
+	test_newAddress(t, &callContext.AccountAddress, "account")
+	test_newAddress(t, &callContext.OriginAddress, "origin")
+	test_newAddress(t, &callContext.CallerAddress, "caller")
 	if want, got := big.NewInt(0), callContext.Value; want.Cmp(got) != 0 {
 		t.Errorf("Unexpected call value, want %v got %v", want, got)
 	}
@@ -71,7 +71,7 @@ func TestCallContext_Eq(t *testing.T) {
 		t.Error("Different call context considered the same")
 	}
 
-	callContext2 = callContext2.Clone()
+	callContext2 = callContext1.Clone()
 	callContext2.CallerAddress = Address{0xff}
 	if callContext1.Eq(callContext2) {
 		t.Error("Different call context considered the same")

@@ -8,7 +8,7 @@ import (
 	"pgregory.net/rand"
 )
 
-func testAddr(t *testing.T, address *common.Address, name string) {
+func testAddress(t *testing.T, address *common.Address, name string) {
 	if *address == (common.Address{}) {
 		t.Errorf("Generated %v address has default value.", name)
 	}
@@ -22,9 +22,9 @@ func TestCallContextGen_Generate(t *testing.T) {
 		t.Errorf("Error generating call context: %v", err)
 	}
 
-	testAddr(t, &newCC.AccountAddress, "account")
-	testAddr(t, &newCC.OriginAddress, "origin")
-	testAddr(t, &newCC.CallerAddress, "caller")
+	testAddress(t, &newCC.AccountAddress, "account")
+	testAddress(t, &newCC.OriginAddress, "origin")
+	testAddress(t, &newCC.CallerAddress, "caller")
 
 	if newCC.Value == nil {
 		t.Errorf("Generated context does not generate call value")

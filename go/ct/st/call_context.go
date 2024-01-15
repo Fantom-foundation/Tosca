@@ -36,7 +36,7 @@ func (c *CallContext) Eq(other *CallContext) bool {
 		c.Value.Cmp(other.Value) == 0
 }
 
-func addr_differences(diffs []string, name string) []string {
+func address_differences(diffs []string, name string) []string {
 	ret := []string{}
 	if len(diffs) != 0 {
 		str := fmt.Sprintf("Different %v address: ", name)
@@ -53,13 +53,13 @@ func (c *CallContext) Diff(other *CallContext) []string {
 	ret := []string{}
 
 	differences := c.AccountAddress.Diff(other.AccountAddress)
-	ret = append(ret, addr_differences(differences, "account")...)
+	ret = append(ret, address_differences(differences, "account")...)
 
 	differences = c.OriginAddress.Diff(other.OriginAddress)
-	ret = append(ret, addr_differences(differences, "origin")...)
+	ret = append(ret, address_differences(differences, "origin")...)
 
 	differences = c.CallerAddress.Diff(other.CallerAddress)
-	ret = append(ret, addr_differences(differences, "caller")...)
+	ret = append(ret, address_differences(differences, "caller")...)
 
 	if c.Value != other.Value {
 		ret = append(ret, fmt.Sprintf("Different call value %v vs %v.", c.Value, other.Value))

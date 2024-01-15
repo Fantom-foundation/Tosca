@@ -363,13 +363,13 @@ func TestConvertToLfvm_callContext(t *testing.T) {
 	}
 
 	if want, got := (common.Address{0xff}), context.contract.Address(); want != got {
-		t.Errorf("unexpected address. wanted %v, got %v", want, got)
+		t.Errorf("unexpected account address. wanted %v, got %v", want, got)
 	}
 	if want, got := (common.Address{0xfe}), context.evm.Origin; want != got {
-		t.Errorf("unexpected address. wanted %v, got %v", want, got)
+		t.Errorf("unexpected origin address. wanted %v, got %v", want, got)
 	}
 	if want, got := (common.Address{0xfd}), context.contract.CallerAddress; want != got {
-		t.Errorf("unexpected address. wanted %v, got %v", want, got)
+		t.Errorf("unexpected caller address. wanted %v, got %v", want, got)
 	}
 	if want, got := big.NewInt(252), context.contract.Value(); want.Cmp(got) != 0 {
 		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
@@ -604,9 +604,9 @@ func TestConvertToCt_Stack(t *testing.T) {
 
 func TestConvertToCt_CallContext(t *testing.T) {
 	ctx := getEmptyContext()
-	objAddr := vm.AccountRef{0xff}
-	callerAddr := vm.AccountRef{0xfe}
-	contract := vm.NewContract(callerAddr, objAddr, big.NewInt(252), 0)
+	objAddress := vm.AccountRef{0xff}
+	callerAddress := vm.AccountRef{0xfe}
+	contract := vm.NewContract(callerAddress, objAddress, big.NewInt(252), 0)
 	ctx.contract = contract
 	ctx.evm.Origin = common.Address{0xfd}
 	code := []byte{}
@@ -623,13 +623,13 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	}
 
 	if want, got := (ct.Address{0xff}), state.CallContext.AccountAddress; want != got {
-		t.Errorf("unexpected address, wanted %v, got %v", want, got)
+		t.Errorf("unexpected account address, wanted %v, got %v", want, got)
 	}
 	if want, got := (ct.Address{0xfe}), state.CallContext.CallerAddress; want != got {
-		t.Errorf("unexpected address, wanted %v, got %v", want, got)
+		t.Errorf("unexpected caller address, wanted %v, got %v", want, got)
 	}
 	if want, got := (ct.Address{0xfd}), state.CallContext.OriginAddress; want != got {
-		t.Errorf("unexpected address, wanted %v, got %v", want, got)
+		t.Errorf("unexpected origin address, wanted %v, got %v", want, got)
 	}
 	if want, got := big.NewInt(252), state.CallContext.Value; want.Cmp(got) != 0 {
 		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
