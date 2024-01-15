@@ -2,6 +2,7 @@ package st
 
 import (
 	"fmt"
+	"math/big"
 	"regexp"
 	"strings"
 	"testing"
@@ -166,6 +167,12 @@ func TestState_Eq(t *testing.T) {
 
 	s1.CallContext.CallerAddress = Address{0x02}
 	s2.CallContext.CallerAddress = Address{0xfd}
+	if s1.Eq(s2) {
+		t.Fail()
+	}
+
+	s1.CallContext.Value = big.NewInt(3)
+	s2.CallContext.Value = big.NewInt(252)
 	if s1.Eq(s2) {
 		t.Fail()
 	}
@@ -444,6 +451,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.CallContext.AccountAddress = Address{0xff}
 	s1.CallContext.OriginAddress = Address{0xee}
 	s1.CallContext.CallerAddress = Address{0xdd}
+	s1.CallContext.Value = big.NewInt(212)
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -458,6 +466,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.CallContext.AccountAddress = Address{0xef}
 	s2.CallContext.OriginAddress = Address{0xfe}
 	s2.CallContext.CallerAddress = Address{0xfd}
+	s2.CallContext.Value = big.NewInt(252)
 
 	diffs := s1.Diff(s2)
 
