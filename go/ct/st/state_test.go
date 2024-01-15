@@ -186,6 +186,12 @@ func TestState_Eq(t *testing.T) {
 	if s1.Eq(s2) {
 		t.Fail()
 	}
+
+	s1.CallContext.Value = NewU256(3)
+	s2.CallContext.Value = NewU256(252)
+	if s1.Eq(s2) {
+		t.Fail()
+	}
 }
 
 func TestState_EqFailureStates(t *testing.T) {
