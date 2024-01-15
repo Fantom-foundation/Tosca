@@ -41,28 +41,30 @@ func (s StatusCode) String() string {
 
 // State represents an EVM's execution state.
 type State struct {
-	Status    StatusCode
-	Revision  Revision
-	Pc        uint16
-	Gas       uint64
-	GasRefund uint64
-	Code      *Code
-	Stack     *Stack
-	Memory    *Memory
-	Storage   *Storage
-	Logs      *Logs
+	Status      StatusCode
+	Revision    Revision
+	Pc          uint16
+	Gas         uint64
+	GasRefund   uint64
+	Code        *Code
+	Stack       *Stack
+	Memory      *Memory
+	Storage     *Storage
+	Logs        *Logs
+	CallContext *CallContext
 }
 
 // NewState creates a new State instance with the given code.
 func NewState(code *Code) *State {
 	return &State{
-		Status:   Running,
-		Revision: R07_Istanbul,
-		Code:     code,
-		Stack:    NewStack(),
-		Memory:   NewMemory(),
-		Storage:  NewStorage(),
-		Logs:     NewLogs(),
+		Status:      Running,
+		Revision:    R07_Istanbul,
+		Code:        code,
+		Stack:       NewStack(),
+		Memory:      NewMemory(),
+		Storage:     NewStorage(),
+		Logs:        NewLogs(),
+		CallContext: NewCallContext(),
 	}
 }
 
@@ -77,6 +79,7 @@ func (s *State) Clone() *State {
 	clone.Memory = s.Memory.Clone()
 	clone.Storage = s.Storage.Clone()
 	clone.Logs = s.Logs.Clone()
+	clone.CallContext = s.CallContext.Clone()
 	return clone
 }
 
@@ -104,7 +107,8 @@ func (s *State) Eq(other *State) bool {
 		s.Stack.Eq(other.Stack) &&
 		s.Memory.Eq(other.Memory) &&
 		s.Storage.Eq(other.Storage) &&
-		s.Logs.Eq(other.Logs)
+		s.Logs.Eq(other.Logs) &&
+		s.CallContext.Eq(other.CallContext)
 }
 
 const codeCutoffLength = 20
@@ -158,6 +162,7 @@ func (s *State) String() string {
 		}
 		builder.WriteString(fmt.Sprintf("\t        data: %x\n", entry.Data))
 	}
+	builder.WriteString(s.CallContext.String())
 
 	builder.WriteString("}")
 	return builder.String()
@@ -204,6 +209,10 @@ func (s *State) Diff(o *State) []string {
 
 	if !s.Logs.Eq(o.Logs) {
 		res = append(res, s.Logs.Diff(o.Logs)...)
+	}
+
+	if !s.CallContext.Eq(o.CallContext) {
+		res = append(res, s.CallContext.Diff(o.CallContext)...)
 	}
 
 	return res

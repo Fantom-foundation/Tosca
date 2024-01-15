@@ -923,6 +923,46 @@ var Spec = func() Specification {
 		rules = append(rules, logOp(i)...)
 	}
 
+	// --- ADDRESS ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "address_regular",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), ADDRESS),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 2
+				s.Stack.Push(NewU256FromBytes(s.CallContext.AccountAddress[:]...))
+			}),
+		},
+		{
+			Name: "address_with_too_little_gas",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), ADDRESS),
+				Lt(Gas(), 2),
+			),
+			Effect: FailEffect(),
+		},
+		{
+			Name: "address_with_not_enough_space",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), ADDRESS),
+				Ge(StackSize(), st.MaxStackSize),
+			),
+			Effect: FailEffect(),
+		},
+	}...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)

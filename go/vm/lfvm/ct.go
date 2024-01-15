@@ -98,6 +98,7 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 		state.Storage = ctx.stateDB.(*utils.ConformanceTestStateDb).Storage
 		state.Logs = ctx.stateDB.(*utils.ConformanceTestStateDb).Logs
 	}
+	state.CallContext.AccountAddress = (ct.Address)(ctx.contract.CallerAddress.Bytes())
 	return state, nil
 }
 
@@ -107,8 +108,8 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 func convertCtCodeToLfvmCode(state *st.State) (Code, error) {
 	code := make([]byte, state.Code.Length())
 	state.Code.CopyTo(code)
-	addr := common.Address{}
-	return Convert(addr, code, false, 0, false, false, state.Code.Hash())
+	address := common.Address{}
+	return Convert(address, code, false, 0, false, false, state.Code.Hash())
 }
 
 func convertCtStatusToLfvmStatus(state *st.State) (Status, error) {
@@ -174,8 +175,8 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 	}
 
 	// Create a dummy contract.
-	addr := vm.AccountRef{}
-	contract := vm.NewContract(addr, addr, big.NewInt(0), state.Gas)
+	address := (vm.AccountRef)(state.CallContext.AccountAddress[:])
+	contract := vm.NewContract(address, address, big.NewInt(0), state.Gas)
 
 	pc, ok := pcMap.evmToLfvm[state.Pc]
 	if !ok {

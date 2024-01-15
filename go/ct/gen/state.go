@@ -38,19 +38,21 @@ type StateGenerator struct {
 	gasRefundConstraints  []uint64
 
 	// Generators
-	codeGen    *CodeGenerator
-	stackGen   *StackGenerator
-	memoryGen  *MemoryGenerator
-	storageGen *StorageGenerator
+	codeGen        *CodeGenerator
+	stackGen       *StackGenerator
+	memoryGen      *MemoryGenerator
+	storageGen     *StorageGenerator
+	callContextGen *CallContextGenerator
 }
 
 // NewStateGenerator creates a generator without any initial constraints.
 func NewStateGenerator() *StateGenerator {
 	return &StateGenerator{
-		codeGen:    NewCodeGenerator(),
-		stackGen:   NewStackGenerator(),
-		memoryGen:  NewMemoryGenerator(),
-		storageGen: NewStorageGenerator(),
+		codeGen:        NewCodeGenerator(),
+		stackGen:       NewStackGenerator(),
+		memoryGen:      NewMemoryGenerator(),
+		storageGen:     NewStorageGenerator(),
+		callContextGen: NewCallContextGenerator(),
 	}
 }
 
@@ -263,6 +265,12 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting gas refund counter constraints defined: %v", ErrUnsatisfiable, g.gasRefundConstraints)
 	}
 
+	// Invoke CallContextGenerator
+	resultCallContext, err := g.callContextGen.Generate(rnd)
+	if err != nil {
+		return nil, err
+	}
+
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences
 	// this process.
@@ -294,6 +302,8 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.Stack = resultStack
 	result.Memory = resultMemory
 	result.Storage = resultStorage
+	result.CallContext = resultCallContext
+
 	return result, nil
 }
 
@@ -311,6 +321,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		stackGen:              g.stackGen.Clone(),
 		memoryGen:             g.memoryGen.Clone(),
 		storageGen:            g.storageGen.Clone(),
+		callContextGen:        g.callContextGen.Clone(),
 	}
 }
 
@@ -327,6 +338,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.stackGen.Restore(other.stackGen)
 		g.memoryGen.Restore(other.memoryGen)
 		g.storageGen.Restore(other.storageGen)
+		g.callContextGen.Restore(other.callContextGen)
 	}
 }
 
@@ -367,6 +379,7 @@ func (g *StateGenerator) String() string {
 	parts = append(parts, fmt.Sprintf("stack=%v", g.stackGen))
 	parts = append(parts, fmt.Sprintf("memory=%v", g.memoryGen))
 	parts = append(parts, fmt.Sprintf("storage=%v", g.storageGen))
+	parts = append(parts, fmt.Sprintf("callcontext=%v", g.callContextGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }

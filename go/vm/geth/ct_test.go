@@ -6,6 +6,7 @@ import (
 
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
@@ -258,6 +259,21 @@ func TestConvertToGeth_Stack(t *testing.T) {
 	}
 }
 
+func TestConvertToGeth_CallContext(t *testing.T) {
+	state := getEmptyState()
+	state.CallContext.AccountAddress = ct.Address{0xff}
+
+	_, gethState, err := ConvertCtStateToGeth(state)
+
+	if err != nil {
+		t.Fatalf("failed to convert ct state to geth: %v", err)
+	}
+
+	if want, got := (common.Address{0xff}), gethState.Contract.CallerAddress; want != got {
+		t.Errorf("unexpected address. wanted %v, got %v", want, got)
+	}
+}
+
 ////////////////////////////////////////////////////////////
 // geth -> ct
 
@@ -267,8 +283,8 @@ func getEmptyGeth(revision ct.Revision) (*gethInterpreter, *vm.GethState) {
 		panic(err)
 	}
 
-	addr := vm.AccountRef{}
-	contract := vm.NewContract(addr, addr, big.NewInt(0), 0)
+	address := vm.AccountRef{}
+	contract := vm.NewContract(address, address, big.NewInt(0), 0)
 	contract.Code = make([]byte, 0)
 
 	interpreterState := vm.NewGethState(contract, vm.NewMemory(), vm.NewStack(), 0)
@@ -440,5 +456,20 @@ func TestConvertToCt_Stack(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestConvertToCt_CallContext(t *testing.T) {
+	interpreter, gethState := getEmptyGeth(ct.R07_Istanbul)
+	gethState.Contract.CallerAddress = common.Address{0xff}
+
+	state, err := ConvertGethToCtState(interpreter, gethState)
+
+	if err != nil {
+		t.Fatalf("failed to convert geth to ct state: %v", err)
+	}
+
+	if want, got := (ct.Address{0xff}), state.CallContext.AccountAddress; want != got {
+		t.Errorf("unexpected address value, wanted %v, got %v", want, got)
 	}
 }

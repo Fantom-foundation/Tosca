@@ -257,3 +257,37 @@ func (stackSizeDomain) SamplesForAll(as []int) []int {
 
 	return res
 }
+
+////////////////////////////////////////////////////////////
+// Address
+
+type addressDomain struct{}
+
+func (addressDomain) Equal(a, b Address) bool {
+	return a == b
+}
+
+func (addressDomain) Less(Address, Address) bool  { panic("not implemented") }
+func (addressDomain) Predecessor(Address) Address { panic("not implemented") }
+func (addressDomain) Successor(Address) Address   { panic("not implemented") }
+
+func (addressDomain) SomethingNotEqual(a Address) Address {
+	return Address{a[0] + 1}
+}
+
+func (ad addressDomain) Samples(a Address) []Address {
+	return ad.SamplesForAll([]Address{a})
+}
+
+func (addressDomain) SamplesForAll(as []Address) []Address {
+	ret := []Address{}
+	ret = append(ret, as...)
+
+	zero := Address{}
+	ffs := Address{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+
+	ret = append(ret, zero)
+	ret = append(ret, ffs)
+
+	return ret
+}
