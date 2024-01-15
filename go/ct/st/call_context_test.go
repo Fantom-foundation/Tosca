@@ -46,7 +46,7 @@ func TestCallContext_Clone(t *testing.T) {
 	if callContext1.AccountAddress == callContext2.AccountAddress ||
 		callContext1.OriginAddress == callContext2.OriginAddress ||
 		callContext1.CallerAddress == callContext2.CallerAddress ||
-		callContext1.Value == callContext2.Value {
+		callContext1.Value.Cmp(callContext2.Value) == 0 {
 		t.Errorf("Clone is not independent from original")
 	}
 }

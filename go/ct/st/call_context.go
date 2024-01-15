@@ -65,7 +65,7 @@ func (c *CallContext) Diff(other *CallContext) []string {
 	differences = c.CallerAddress.Diff(other.CallerAddress)
 	ret = append(ret, addressDifferences(differences, "caller")...)
 
-	if c.Value != other.Value {
+	if c.Value.Cmp(other.Value) != 0 {
 		ret = append(ret, fmt.Sprintf("Different call value %v vs %v.", c.Value, other.Value))
 	}
 
