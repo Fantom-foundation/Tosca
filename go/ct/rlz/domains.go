@@ -1,12 +1,10 @@
 package rlz
 
 import (
-	"fmt"
 	"math"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"pgregory.net/rand"
 )
 
 // Domain represents the domain of values for a given type.
@@ -265,8 +263,8 @@ func (stackSizeDomain) SamplesForAll(as []int) []int {
 
 type addressDomain struct{}
 
-func (addressDomain) Equal(a, b *Address) bool {
-	return *a == *b
+func (addressDomain) Equal(a, b Address) bool {
+	return a == b
 }
 
 func (addressDomain) Less(Address, Address) bool  { panic("not implemented") }
@@ -283,19 +281,15 @@ func (ad addressDomain) Samples(a Address) []Address {
 
 func (addressDomain) SamplesForAll(as []Address) []Address {
 	ret := []Address{}
+	for _, a := range as {
+		ret = append(ret, a)
+	}
 
 	zero := Address{}
 	ffs := Address{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
-	rnd := rand.New(0)
-	random, err := RandAddress(rnd)
-	if err != nil {
-		fmt.Errorf("Error generating random address, %v", err)
-		return nil
-	}
 
 	ret = append(ret, zero)
 	ret = append(ret, ffs)
-	ret = append(ret, *random)
 
 	return ret
 }

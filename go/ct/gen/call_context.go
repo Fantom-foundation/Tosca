@@ -21,7 +21,7 @@ func (*CallContextGenerator) Generate(rnd *rand.Rand) (*st.CallContext, error) {
 	}
 
 	newCC := st.NewCallContext()
-	newCC.AccountAddress = *accountAddress
+	newCC.AccountAddress = accountAddress
 
 	return newCC, nil
 }

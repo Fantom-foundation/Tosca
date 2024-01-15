@@ -8,31 +8,25 @@ import (
 
 type Address [20]byte
 
-func NewAddress() Address {
-	return Address{}
-}
-
 // Diff returns a list of differences between the two addresses.
-func (a *Address) Diff(b *Address) (res []string) {
-	if *a != *b {
+func (a *Address) Diff(b Address) (res []string) {
+	if *a != b {
 		res = append(res, fmt.Sprintf("Different address, want %v, got %v", a, b))
 	}
 	return
 }
 
-func RandAddress(rnd *rand.Rand) (*Address, error) {
+func RandAddress(rnd *rand.Rand) (Address, error) {
 	address := Address{}
 	_, err := rnd.Read(address[:])
 	if err != nil {
-		return nil, err
+		return Address{}, err
 	}
-	return &address, nil
+	return address, nil
 }
 
-func (a *Address) Clone() *Address {
-	newAddress := Address{}
-	copy(newAddress[:], a[:])
-	return &newAddress
+func (a *Address) Clone() Address {
+	return *a
 }
 
 func (a Address) String() string {

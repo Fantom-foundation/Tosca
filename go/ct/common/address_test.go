@@ -8,7 +8,7 @@ import (
 )
 
 func TestAddress_NewAddress(t *testing.T) {
-	address := NewAddress()
+	address := Address{}
 
 	if address != [20]byte{} {
 		t.Errorf("New address must be default value.")
@@ -16,7 +16,7 @@ func TestAddress_NewAddress(t *testing.T) {
 }
 
 func TestAddress_Eq(t *testing.T) {
-	address1 := NewAddress()
+	address1 := Address{}
 	address2 := Address{0xff}
 
 	if address1 != address1 {
@@ -29,9 +29,9 @@ func TestAddress_Eq(t *testing.T) {
 }
 
 func TestAddress_Diff(t *testing.T) {
-	address1 := NewAddress()
+	address1 := Address{}
 	address2 := Address{0xff}
-	str := address1.Diff(&address2)
+	str := address1.Diff(address2)
 
 	if len(str) != 1 {
 		t.Errorf("Wrong amount of differences found.")
@@ -43,7 +43,7 @@ func TestAddress_Diff(t *testing.T) {
 }
 
 func TestAddress_RandAddress(t *testing.T) {
-	address1 := NewAddress()
+	address1 := Address{}
 	rnd := rand.New(0)
 	address2, err := RandAddress(rnd)
 
@@ -51,21 +51,21 @@ func TestAddress_RandAddress(t *testing.T) {
 		t.Errorf("Error generating random %v", err)
 	}
 
-	if address1 == *address2 {
+	if address1 == address2 {
 		t.Errorf("Random Address is same as default value")
 	}
 }
 
 func TestAddress_Clone(t *testing.T) {
-	address1 := NewAddress()
+	address1 := Address{}
 	address2 := address1.Clone()
 
-	if address1 != *address2 {
+	if address1 != address2 {
 		t.Error("Clones are not equal")
 	}
 
 	address2[0] = 0xff
-	if address1 == *address2 {
+	if address1 == address2 {
 		t.Errorf("Clones are not independent")
 	}
 }

@@ -14,7 +14,7 @@ func TestCallContextGen_Generate(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error generating call context: %v", err)
 	}
-	if newCC.AccountAddress == common.NewAddress() {
+	if newCC.AccountAddress == (common.Address{}) {
 		t.Errorf("Generated account address has default value.")
 	}
 }

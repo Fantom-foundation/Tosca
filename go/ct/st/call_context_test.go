@@ -10,7 +10,7 @@ import (
 
 func TestCallContext_NewCallContext(t *testing.T) {
 	callContext := NewCallContext()
-	if want, got := NewAddress(), callContext.AccountAddress; want != got {
+	if want, got := (Address{}), callContext.AccountAddress; want != got {
 		t.Errorf("Unexpected address, want %v, got %v", want, got)
 	}
 }

@@ -12,27 +12,27 @@ type CallContext struct {
 }
 
 func NewCallContext() *CallContext {
-	return &CallContext{NewAddress()}
+	return &CallContext{Address{}}
 }
 
 // Clone creates an independent copy of the call context.
-func (mc *CallContext) Clone() *CallContext {
+func (c *CallContext) Clone() *CallContext {
 	ret := CallContext{}
-	ret.AccountAddress = *mc.AccountAddress.Clone()
+	ret.AccountAddress = c.AccountAddress.Clone()
 	return &ret
 }
 
-func (mc *CallContext) Eq(other *CallContext) bool {
-	return mc.AccountAddress == other.AccountAddress
+func (c *CallContext) Eq(other *CallContext) bool {
+	return c.AccountAddress == other.AccountAddress
 }
 
 // Diff returns a list of differences between the two call contexts.
-func (mc *CallContext) Diff(other *CallContext) []string {
+func (c *CallContext) Diff(other *CallContext) []string {
 	ret := []string{}
 
-	differences := mc.AccountAddress.Diff(&other.AccountAddress)
+	differences := c.AccountAddress.Diff(other.AccountAddress)
 	if len(differences) != 0 {
-		str := fmt.Sprintf("Different account address: ")
+		str := "Different account address: "
 		for _, dif := range differences {
 			str += dif
 		}
@@ -43,6 +43,6 @@ func (mc *CallContext) Diff(other *CallContext) []string {
 	return ret
 }
 
-func (mc *CallContext) String() string {
-	return fmt.Sprintf("Call Context: (Account Address: %v)", mc.AccountAddress)
+func (c *CallContext) String() string {
+	return fmt.Sprintf("Call Context: (Account Address: %v)", c.AccountAddress)
 }
