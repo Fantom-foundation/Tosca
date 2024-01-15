@@ -7,12 +7,6 @@ import (
 	"pgregory.net/rand"
 )
 
-func testAddress(t *testing.T, address *common.Address, name string) {
-	if *address == (common.Address{}) {
-		t.Errorf("Generated %v address has default value.", name)
-	}
-}
-
 func TestCallContextGen_Generate(t *testing.T) {
 	rnd := rand.New(0)
 	callctxGen := NewCallContextGenerator()
