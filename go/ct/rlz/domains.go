@@ -281,9 +281,7 @@ func (ad addressDomain) Samples(a Address) []Address {
 
 func (addressDomain) SamplesForAll(as []Address) []Address {
 	ret := []Address{}
-	for _, a := range as {
-		ret = append(ret, a)
-	}
+	ret = append(ret, as...)
 
 	zero := Address{}
 	ffs := Address{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
