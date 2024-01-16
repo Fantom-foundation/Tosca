@@ -588,9 +588,21 @@ struct Impl<OpCode::CALLDATACOPY> {
 
     const auto [mem_cost, memory_offset, size] = ctx.MemoryExpansionCost(memory_offset_u256, size_u256);
     const int64_t minimum_word_size = static_cast<int64_t>((size + 31) / 32);
-    int64_t dynamic_gas = mem_cost + 3 * minimum_word_size;
-    if (gas < dynamic_gas) [[unlikely]]
-      return {.dynamic_gas_costs = dynamic_gas};
+
+    int64_t dynamic_gas = 0;
+    {
+      bool overflowed = TOSCA_CHECK_OVERFLOW_MUL(3, minimum_word_size, &dynamic_gas) ||
+                        TOSCA_CHECK_OVERFLOW_ADD(dynamic_gas, mem_cost, &dynamic_gas);
+      if (overflowed || gas < dynamic_gas) [[unlikely]]
+        // The dynamic gas costs exceed the available gas but due to a potential overflow
+        // the actual gas price may be unknown. However, everything the caller needs to
+        // know is whether the dynamic gas costs exceed to available gas. Thus, we signal
+        // to the caller that the gas costs in this case are 1 unit larger than the
+        // available gas, which is going to trigger an out-of-gas error in the interpreter.
+        // The +1 can not overflow since the gas counter at this point has already been
+        // reduced by the static_gas costs of this instruction.
+        return {.dynamic_gas_costs = gas + 1};
+    }
 
     std::span<const uint8_t> data_view;
     if (data_offset_u256 < ctx.message->input_size) {
