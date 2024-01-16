@@ -2,6 +2,7 @@ package common
 
 import (
 	"bytes"
+	"math/big"
 	"testing"
 )
 
@@ -250,4 +251,48 @@ func TestU256String(t *testing.T) {
 			t.Errorf("Unexpected print, wanted %s, got %s", want, got)
 		}
 	}
+}
+
+func TestU256ToBig(t *testing.T) {
+	u256 := NewU256(123456789)
+	bigInt := u256.ToBig()
+	if want, got := big.NewInt(123456789), bigInt; want.Cmp(got) != 0 {
+		t.Errorf("Failed conversion from U256 to bigInt, want: %v, got: %v", want, got)
+	}
+
+	maxU256 := MaxU256()
+	bigInt = maxU256.ToBig()
+	if want, got := new(big.Int).Sub(big.NewInt(0).Exp(big.NewInt(2), big.NewInt(256), nil), big.NewInt(1)),
+		bigInt; want.Cmp(got) != 0 {
+		t.Errorf("Failed conversion from maxU256 to bigInt, want: %v, got: %v", want, got)
+	}
+
+}
+
+func TestU256U256FromBig(t *testing.T) {
+	negBigInt := big.NewInt(-1)
+	u256 := U256FromBig(negBigInt)
+	if want, got := NewU256(0), u256; !want.Eq(*got) {
+		t.Errorf("Failed to convert negative bigInt to U256, want: %v, got: %v", want, got)
+	}
+
+	bigInt := big.NewInt(123456789)
+	if want, got := NewU256(123456789), U256FromBig(bigInt); !want.Eq(*got) {
+		t.Errorf("Failed conversion from big int to U256, want %v, got %v", want, got)
+	}
+
+	tooBigInt := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
+	defer func() {
+		r := recover()
+		if r == nil || (r != nil && r != "big.Int has more than 256-bits.") {
+			t.Error("Failed to panic on conversion overflow.")
+		}
+	}()
+	notEnoughU256 := U256FromBig(tooBigInt)
+
+	if want, got := U256FromBig(new(big.Int).Sub(big.NewInt(0).Exp(big.NewInt(2), big.NewInt(256), nil), big.NewInt(1))),
+		notEnoughU256; want.Eq(*got) {
+		t.Errorf("Unexpected bigInt to u256 conversion, want: %v, got: %v", want, got)
+	}
+
 }

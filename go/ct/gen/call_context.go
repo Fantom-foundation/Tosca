@@ -1,8 +1,6 @@
 package gen
 
 import (
-	"math/big"
-
 	"pgregory.net/rand"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -36,7 +34,7 @@ func (*CallContextGenerator) Generate(rnd *rand.Rand) (*st.CallContext, error) {
 	newCC.AccountAddress = accountAddress
 	newCC.OriginAddress = originAddress
 	newCC.CallerAddress = callerAddress
-	newCC.Value = big.NewInt(rnd.Int63())
+	newCC.Value = common.RandU256(rnd)
 
 	return newCC, nil
 }

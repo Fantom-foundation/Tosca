@@ -2,7 +2,6 @@ package st
 
 import (
 	"fmt"
-	"math/big"
 	"regexp"
 	"strings"
 	"testing"
@@ -25,7 +24,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.CallContext.AccountAddress = Address{0xff}
 	state.CallContext.OriginAddress = Address{0xfe}
 	state.CallContext.CallerAddress = Address{0xfd}
-	state.CallContext.Value = big.NewInt(252)
+	state.CallContext.Value = NewU256(252)
 
 	clone := state.Clone()
 	clone.Status = Running
@@ -43,7 +42,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.CallContext.AccountAddress = Address{0x01}
 	clone.CallContext.OriginAddress = Address{0x02}
 	clone.CallContext.CallerAddress = Address{0x03}
-	clone.CallContext.Value = big.NewInt(4)
+	clone.CallContext.Value = NewU256(4)
 
 	ok := state.Status == Stopped &&
 		state.Revision == R10_London &&
@@ -62,7 +61,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.CallContext.AccountAddress == Address{0xff} &&
 		state.CallContext.OriginAddress == Address{0xfe} &&
 		state.CallContext.CallerAddress == Address{0xfd} &&
-		state.CallContext.Value.Cmp(big.NewInt(252)) == 0
+		state.CallContext.Value.Eq(NewU256(252))
 	if !ok {
 		t.Errorf("clone is not independent")
 	}
@@ -143,30 +142,35 @@ func TestState_Eq(t *testing.T) {
 	if s1.Eq(s2) {
 		t.Fail()
 	}
+	s2 = NewState(NewCode([]byte{byte(ADD), byte(STOP)}))
 
 	s1.CallContext.AccountAddress = Address{0x00}
 	s2.CallContext.AccountAddress = Address{0xff}
 	if s1.Eq(s2) {
 		t.Fail()
 	}
+	s2.CallContext.AccountAddress = Address{0x00}
 
 	s1.CallContext.OriginAddress = Address{0x01}
 	s2.CallContext.OriginAddress = Address{0xfe}
 	if s1.Eq(s2) {
 		t.Fail()
 	}
+	s2.CallContext.OriginAddress = Address{0x01}
 
 	s1.CallContext.CallerAddress = Address{0x02}
 	s2.CallContext.CallerAddress = Address{0xfd}
 	if s1.Eq(s2) {
 		t.Fail()
 	}
+	s2.CallContext.CallerAddress = Address{0x02}
 
-	s1.CallContext.Value = big.NewInt(3)
-	s2.CallContext.Value = big.NewInt(252)
+	s1.CallContext.Value = NewU256(3)
+	s2.CallContext.Value = NewU256(252)
 	if s1.Eq(s2) {
 		t.Fail()
 	}
+	s2.CallContext.Value = NewU256(3)
 }
 
 func TestState_EqFailureStates(t *testing.T) {
@@ -399,7 +403,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.CallContext.AccountAddress = Address{0xff}
 	s1.CallContext.OriginAddress = Address{0xfe}
 	s1.CallContext.CallerAddress = Address{0xfd}
-	s1.CallContext.Value = big.NewInt(252)
+	s1.CallContext.Value = NewU256(252)
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -414,7 +418,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.CallContext.AccountAddress = Address{0xff}
 	s2.CallContext.OriginAddress = Address{0xfe}
 	s2.CallContext.CallerAddress = Address{0xfd}
-	s2.CallContext.Value = big.NewInt(252)
+	s2.CallContext.Value = NewU256(252)
 
 	diffs := s1.Diff(s2)
 
@@ -442,7 +446,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.CallContext.AccountAddress = Address{0xff}
 	s1.CallContext.OriginAddress = Address{0xee}
 	s1.CallContext.CallerAddress = Address{0xdd}
-	s1.CallContext.Value = big.NewInt(212)
+	s1.CallContext.Value = NewU256(212)
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -457,7 +461,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.CallContext.AccountAddress = Address{0xef}
 	s2.CallContext.OriginAddress = Address{0xfe}
 	s2.CallContext.CallerAddress = Address{0xfd}
-	s2.CallContext.Value = big.NewInt(252)
+	s2.CallContext.Value = NewU256(252)
 
 	diffs := s1.Diff(s2)
 

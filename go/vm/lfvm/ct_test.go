@@ -348,7 +348,7 @@ func TestConvertToLfvm_callContext(t *testing.T) {
 	state.CallContext.AccountAddress = ct.Address{0xff}
 	state.CallContext.OriginAddress = ct.Address{0xfe}
 	state.CallContext.CallerAddress = ct.Address{0xfd}
-	state.CallContext.Value = big.NewInt(252)
+	state.CallContext.Value = ct.NewU256(252)
 
 	code := []byte{}
 	pcMap, err := GenPcMapWithoutSuperInstructions(code)
@@ -631,7 +631,7 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	if want, got := (ct.Address{0xfd}), state.CallContext.OriginAddress; want != got {
 		t.Errorf("unexpected origin address, wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(252), state.CallContext.Value; want.Cmp(got) != 0 {
+	if want, got := ct.NewU256(252), state.CallContext.Value; !want.Eq(got) {
 		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
 	}
 }
