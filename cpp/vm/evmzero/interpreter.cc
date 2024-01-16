@@ -273,7 +273,7 @@ struct Impl<OpCode::SIGNEXTEND> {
 
   static OpResult Run(uint256_t* top) noexcept {
     uint8_t leading_byte_index = static_cast<uint8_t>(top[0]);
-    if (leading_byte_index > 31) {
+    if (top[0] > 31) {
       leading_byte_index = 31;
     }
 
