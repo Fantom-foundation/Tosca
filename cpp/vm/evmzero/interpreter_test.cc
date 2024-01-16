@@ -2025,6 +2025,15 @@ TEST(InterpreterTest, CALLDATACOPY_OutOfGas_Dynamic) {
   });
 }
 
+TEST(InterpreterTest, CALLDATACOPY_DynamicGas_Overflow) {
+  RunInterpreterTest({
+      .code = {op::CALLDATACOPY},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 100,
+      .stack_before = {672, 0, 320000000000000000},
+  });
+}
+
 TEST(InterpreterTest, CALLDATACOPY_StackError) {
   RunInterpreterTest({
       .code = {op::CALLDATACOPY},
