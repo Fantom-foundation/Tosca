@@ -507,13 +507,4 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	if want, got := ct.NewU256(252), state.CallContext.Value; !want.Eq(got) {
 		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
 	}
-	if want, got := (ct.Address{0xfe}), state.CallContext.CallerAddress; want != got {
-		t.Errorf("unexpected caller address value, wanted %v, got %v", want, got)
-	}
-	if want, got := (ct.Address{0xfd}), state.CallContext.OriginAddress; want != got {
-		t.Errorf("unexpected origin address value, wanted %v, got %v", want, got)
-	}
-	if want, got := big.NewInt(252), state.CallContext.Value; want.Cmp(got) != 0 {
-		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
-	}
 }
