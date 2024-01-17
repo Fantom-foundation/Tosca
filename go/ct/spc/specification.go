@@ -42,6 +42,18 @@ func (s *specification) GetRulesFor(state *st.State) []Rule {
 	return result
 }
 
+// instruction holds the basic information for the 4 basic rules
+// these are not enough gas, stack overflow, stack underflow, and a regular behaviour case
+type instruction struct {
+	op         OpCode
+	static_gas uint64
+	pops       int
+	pushes     int
+	conditions Condition   // conditions for the regular case
+	parmeters  []Parameter // parameters for the regular case
+	effect     Effect      // effect for the regular case
+}
+
 ////////////////////////////////////////////////////////////
 
 func boolToU256(value bool) U256 {
@@ -223,122 +235,120 @@ var Spec = func() Specification {
 
 	// --- SHA3 ---
 
-	rules = append(rules, tooLittleGas(SHA3, 30, "static")...)
-	rules = append(rules, tooFewElements(SHA3, 2)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "sha3_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SHA3),
-				Ge(Gas(), 30),
-				Ge(StackSize(), 2),
-			),
-			Parameter: []Parameter{
-				MemoryOffsetParameter{},
-				MemorySizeParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 30
-				s.Pc++
-				offset_u256 := s.Stack.Pop()
-				size_u256 := s.Stack.Pop()
-
-				memExpCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
-				if s.Gas < memExpCost {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas -= memExpCost
-
-				wordCost := 6 * ((size + 31) / 32)
-				if s.Gas < wordCost {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas -= wordCost
-
-				hash := s.Memory.Hash(offset, size)
-				s.Stack.Push(NewU256FromBytes(hash[:]...))
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         SHA3,
+		static_gas: 30,
+		pops:       2,
+		pushes:     1,
+		conditions: And(
+			AnyKnownRevision(),
+			Eq(Status(), st.Running),
+			Eq(Op(Pc()), SHA3),
+			Ge(Gas(), 30),
+			Ge(StackSize(), 2),
+		),
+		parmeters: []Parameter{
+			MemoryOffsetParameter{},
+			MemorySizeParameter{},
 		},
-	}...)
+		effect: Change(func(s *st.State) {
+			s.Gas -= 30
+			s.Pc++
+			offset_u256 := s.Stack.Pop()
+			size_u256 := s.Stack.Pop()
+
+			memExpCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
+			if s.Gas < memExpCost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= memExpCost
+
+			wordCost := 6 * ((size + 31) / 32)
+			if s.Gas < wordCost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= wordCost
+
+			hash := s.Memory.Hash(offset, size)
+			s.Stack.Push(NewU256FromBytes(hash[:]...))
+		}),
+	})...)
 
 	// --- MLOAD ---
-	rules = append(rules, tooLittleGas(MLOAD, 3, "static")...)
-	rules = append(rules, tooFewElements(MLOAD, 1)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "mload_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MLOAD),
-				Ge(Gas(), 3),
-				Ge(StackSize(), 1),
-			),
-			Parameter: []Parameter{
-				MemoryOffsetParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 3
-				s.Pc++
-				offset_u256 := s.Stack.Pop()
 
-				cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
-				if s.Gas < cost {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas -= cost
-
-				value := NewU256FromBytes(s.Memory.Read(offset, 32)...)
-				s.Stack.Push(value)
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         MLOAD,
+		static_gas: 3,
+		pops:       1,
+		pushes:     1,
+		conditions: And(
+			AnyKnownRevision(),
+			Eq(Status(), st.Running),
+			Eq(Op(Pc()), MLOAD),
+			Ge(Gas(), 3),
+			Ge(StackSize(), 1),
+		),
+		parmeters: []Parameter{
+			MemoryOffsetParameter{},
 		},
-	}...)
+		effect: Change(func(s *st.State) {
+			s.Gas -= 3
+			s.Pc++
+			offset_u256 := s.Stack.Pop()
+
+			cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
+			if s.Gas < cost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= cost
+
+			value := NewU256FromBytes(s.Memory.Read(offset, 32)...)
+			s.Stack.Push(value)
+		}),
+	})...)
 
 	// --- MSTORE ---
 
-	rules = append(rules, tooLittleGas(MSTORE, 3, "static")...)
-	rules = append(rules, tooFewElements(MSTORE, 2)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "mstore_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MSTORE),
-				Ge(Gas(), 3),
-				Ge(StackSize(), 2),
-			),
-			Parameter: []Parameter{
-				MemoryOffsetParameter{},
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 3
-				s.Pc++
-				offset_u256 := s.Stack.Pop()
-				value := s.Stack.Pop()
-
-				cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
-				if s.Gas < cost {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas -= cost
-
-				bytes := value.Bytes32be()
-				s.Memory.Write(bytes[:], offset)
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         MSTORE,
+		static_gas: 3,
+		pops:       2,
+		pushes:     0,
+		conditions: And(
+			AnyKnownRevision(),
+			Eq(Status(), st.Running),
+			Eq(Op(Pc()), MSTORE),
+			Ge(Gas(), 3),
+			Ge(StackSize(), 2),
+		),
+		parmeters: []Parameter{
+			MemoryOffsetParameter{},
+			NumericParameter{},
 		},
-	}...)
+		effect: Change(func(s *st.State) {
+			s.Gas -= 3
+			s.Pc++
+			offset_u256 := s.Stack.Pop()
+			value := s.Stack.Pop()
+
+			cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
+			if s.Gas < cost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= cost
+
+			bytes := value.Bytes32be()
+			s.Memory.Write(bytes[:], offset)
+		}),
+	})...)
 
 	// --- MSTORE8 ---
 
@@ -745,7 +755,7 @@ var Spec = func() Specification {
 	// --- ADDRESS ---
 
 	rules = append(rules, tooLittleGas(ADDRESS, 2)...)
-	rules = append(rules, notEnoughSpace(ADDRESS)...)
+	rules = append(rules, notEnoughSpace(ADDRESS, st.MaxStackSize)...)
 	rules = append(rules, []Rule{
 		{
 			Name: "address_regular",
@@ -918,7 +928,7 @@ func pushOp(n int) []Rule {
 		},
 	}
 	ret = append(ret, tooLittleGas(op, 3)...)
-	ret = append(ret, notEnoughSpace(op)...)
+	ret = append(ret, notEnoughSpace(op, st.MaxStackSize)...)
 
 	return ret
 }
@@ -927,8 +937,8 @@ func dupOp(n int) []Rule {
 	op := OpCode(int(DUP1) + n - 1)
 	name := strings.ToLower(op.String())
 	ret := tooLittleGas(op, 3)
-	ret = append(ret, tooFewElements(op, n, Lt(StackSize(), st.MaxStackSize))...)
-	ret = append(ret, notEnoughSpace(op, Ge(StackSize(), n))...)
+	ret = append(ret, tooFewElements(op, n)...)
+	ret = append(ret, notEnoughSpace(op, n)...)
 	return append(ret, []Rule{
 		{
 			Name: fmt.Sprintf("%v_regular", name),
@@ -1156,7 +1166,7 @@ func tooLittleGas(op OpCode, minGas uint64, name ...string) []Rule {
 	}}
 }
 
-func notEnoughSpace(op OpCode, conditions ...Condition) []Rule {
+func notEnoughSpace(op OpCode, neededSpace int, conditions ...Condition) []Rule {
 	return []Rule{{
 		Name: fmt.Sprintf("%v_with_not_enough_space", strings.ToLower(op.String())),
 		Condition: And(
@@ -1164,7 +1174,7 @@ func notEnoughSpace(op OpCode, conditions ...Condition) []Rule {
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), op),
-				Ge(StackSize(), st.MaxStackSize))...,
+				Ge(StackSize(), neededSpace))...,
 		),
 		Effect: FailEffect(),
 	}}
@@ -1182,4 +1192,26 @@ func tooFewElements(op OpCode, minElems int, conditions ...Condition) []Rule {
 		),
 		Effect: FailEffect(),
 	}}
+}
+
+// rulesFor instanciates the basic rules depending on the instruction info.
+// extra rules should be instanciated as need bases
+func rulesFor(i instruction) []Rule {
+	res := []Rule{}
+	res = append(res, tooLittleGas(i.op, uint64(i.static_gas))...)
+	if i.pops > 0 {
+		res = append(res, tooFewElements(i.op, i.pops)...)
+	}
+	if i.pushes > i.pops {
+		res = append(res, notEnoughSpace(i.op, i.pushes)...)
+	}
+	res = append(res, []Rule{
+		{
+			Name:      fmt.Sprintf("%s_regular", strings.ToLower(i.op.String())),
+			Condition: i.conditions,
+			Parameter: i.parmeters,
+			Effect:    i.effect,
+		},
+	}...)
+	return res
 }
