@@ -144,33 +144,12 @@ func TestState_Eq(t *testing.T) {
 	}
 	s2 = NewState(NewCode([]byte{byte(ADD), byte(STOP)}))
 
-	s1.CallContext.AccountAddress = Address{0x00}
-	s2.CallContext.AccountAddress = Address{0xff}
+	s1.CallContext = &CallContext{Address{0x00}, Address{0x01}, Address{0x02}, NewU256(3)}
+	s2.CallContext = &CallContext{Address{0xff}, Address{0xfe}, Address{0xfd}, NewU256(252)}
 	if s1.Eq(s2) {
 		t.Fail()
 	}
-	s2.CallContext.AccountAddress = Address{0x00}
-
-	s1.CallContext.OriginAddress = Address{0x01}
-	s2.CallContext.OriginAddress = Address{0xfe}
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.CallContext.OriginAddress = Address{0x01}
-
-	s1.CallContext.CallerAddress = Address{0x02}
-	s2.CallContext.CallerAddress = Address{0xfd}
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.CallContext.CallerAddress = Address{0x02}
-
-	s1.CallContext.Value = NewU256(3)
-	s2.CallContext.Value = NewU256(252)
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.CallContext.Value = NewU256(3)
+	s2.CallContext = &CallContext{Address{0x00}, Address{0x01}, Address{0x02}, NewU256(3)}
 }
 
 func TestState_EqFailureStates(t *testing.T) {
