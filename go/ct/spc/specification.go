@@ -794,7 +794,7 @@ var Spec = func() Specification {
 			Condition: And(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), CALLVALUE),
+				Eq(Op(Pc()), NUMBER),
 				Ge(Gas(), 2),
 				Lt(StackSize(), st.MaxStackSize),
 			),
@@ -807,10 +807,114 @@ var Spec = func() Specification {
 	}...)
 
 	// --- COINBASE ---
+
+	rules = append(rules, tooLittleGas(COINBASE, 2)...)
+	rules = append(rules, notEnoughSpace(COINBASE)...)
+	rules = append(rules, []Rule{
+		{
+			Name: "coinbase_regular",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), COINBASE),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 2
+				s.Stack.Push(NewU256FromBytes(s.BlockContext.CoinBase[:]...))
+			}),
+		},
+	}...)
+
 	// --- GASLIMIT ---
+
+	rules = append(rules, tooLittleGas(GASLIMIT, 2)...)
+	rules = append(rules, notEnoughSpace(GASLIMIT)...)
+	rules = append(rules, []Rule{
+		{
+			Name: "gaslimit_regular",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), GASLIMIT),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 2
+				s.Stack.Push(s.BlockContext.GasLimit)
+			}),
+		},
+	}...)
+
 	// --- PREVRANDO ---
+
+	rules = append(rules, tooLittleGas(PREVRANDO, 2)...)
+	rules = append(rules, notEnoughSpace(PREVRANDO)...)
+	rules = append(rules, []Rule{
+		{
+			Name: "prevrandao_regular",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), PREVRANDO),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 2
+				s.Stack.Push(NewU256FromBytes(s.BlockContext.PrevRandao[:]...))
+			}),
+		},
+	}...)
+
 	// --- GASPRICE ---
+
+	rules = append(rules, tooLittleGas(GASPRICE, 2)...)
+	rules = append(rules, notEnoughSpace(GASPRICE)...)
+	rules = append(rules, []Rule{
+		{
+			Name: "gasprice_regular",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), GASPRICE),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 2
+				s.Stack.Push(s.BlockContext.GasPrice)
+			}),
+		},
+	}...)
+
 	// --- TIMESTAMP ---
+
+	rules = append(rules, tooLittleGas(TIMESTAMP, 2)...)
+	rules = append(rules, notEnoughSpace(TIMESTAMP)...)
+	rules = append(rules, []Rule{
+		{
+			Name: "timestamp_regular",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), TIMESTAMP),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 2
+				s.Stack.Push(NewU256(uint64(s.BlockContext.TimeStamp.Unix())))
+			}),
+		},
+	}...)
 
 	// --- End ---
 
