@@ -762,11 +762,11 @@ var Spec = func() Specification {
 
 	// --- ORIGIN ---
 
-	// rules = append(rules, basicFailOp(ORIGIN, 2)...)
-
+	rules = append(rules, tooLittleGas(ORIGIN, 2)...)
+	rules = append(rules, notEnoughSpace(ORIGIN)...)
 	rules = append(rules, []Rule{
 		{
-			Name: fmt.Sprintf("%v_regular", strings.ToLower(ORIGIN.String())),
+			Name: "origin_regular",
 			Condition: And(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
@@ -784,11 +784,75 @@ var Spec = func() Specification {
 
 	// --- CALLER ---
 
-	// rules = append(rules, basicFailOp(CALLER, 2)...)
+	rules = append(rules, tooLittleGas(CALLER, 2)...)
+	rules = append(rules, notEnoughSpace(CALLER)...)
+	rules = append(rules, []Rule{
+		{
+			Name: "caller_regular",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), CALLER),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 2
+				s.Stack.Push(NewU256FromBytes(s.CallContext.CallerAddress[:]...))
+			}),
+		},
+	}...)
 
 	// --- CALLVALUE ---
 
-	// rules = append(rules, basicFailOp(CALLVALUE, 2)...)
+	rules = append(rules, tooLittleGas(CALLVALUE, 2)...)
+	rules = append(rules, notEnoughSpace(CALLVALUE)...)
+	rules = append(rules, []Rule{
+		{
+			Name: "callvalue_regular",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), CALLVALUE),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 2
+				s.Stack.Push(NewU256(s.CallContext.Value.Uint64()))
+			}),
+		},
+	}...)
+
+	// --- NUMBER ---
+
+	rules = append(rules, tooLittleGas(NUMBER, 2)...)
+	rules = append(rules, notEnoughSpace(NUMBER)...)
+	rules = append(rules, []Rule{
+		{
+			Name: "number_regular",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), CALLVALUE),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Pc++
+				s.Gas -= 2
+				s.Stack.Push(NewU256(uint64(s.BlockContext.BlockNumber)))
+			}),
+		},
+	}...)
+
+	// --- COINBASE ---
+	// --- GASLIMIT ---
+	// --- PREVRANDO ---
+	// --- GASPRICE ---
+	// --- TIMESTAMP ---
 
 	// --- End ---
 
