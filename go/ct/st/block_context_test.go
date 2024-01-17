@@ -68,7 +68,7 @@ func TestBlockContext_Eq(t *testing.T) {
 	b1 := NewBlockContext()
 	b2 := b1.Clone()
 
-	if !b1.Eq(b1) {
+	if !b1.Eq(&b1) {
 		t.Error("Self-comparison is broken")
 	}
 
@@ -118,37 +118,37 @@ func TestBlockContext_Diff(t *testing.T) {
 	b2 := NewBlockContext()
 	diffs := []string{}
 
-	if diffs = b1.Diff(b2); len(diffs) != 0 {
+	if diffs = b1.Diff(&b2); len(diffs) != 0 {
 		t.Error("Found differencees in two new block contexts.")
 	}
 
 	b2.BlockNumber++
-	if diffs = b1.Diff(b2); len(diffs) == 0 {
+	if diffs = b1.Diff(&b2); len(diffs) == 0 {
 		t.Error("No difference found in different block numbers")
 	}
 
 	b2.CoinBase[0] = 0xff
-	if diffs = b1.Diff(b2); len(diffs) == 0 {
+	if diffs = b1.Diff(&b2); len(diffs) == 0 {
 		t.Error("No difference found in different coinbase")
 	}
 
 	b2.GasLimit = NewU256(1)
-	if diffs = b1.Diff(b2); len(diffs) == 0 {
+	if diffs = b1.Diff(&b2); len(diffs) == 0 {
 		t.Error("No difference found in different gas limit")
 	}
 
 	b2.GasPrice = NewU256(1)
-	if diffs = b1.Diff(b2); len(diffs) == 0 {
+	if diffs = b1.Diff(&b2); len(diffs) == 0 {
 		t.Error("No difference found in different gas price")
 	}
 
 	b2.PrevRandao[0] = 0xff
-	if diffs = b1.Diff(b2); len(diffs) == 0 {
+	if diffs = b1.Diff(&b2); len(diffs) == 0 {
 		t.Error("No difference found in different prev randao")
 	}
 
 	b2.TimeStamp = time.Now()
-	if diffs = b1.Diff(b2); len(diffs) == 0 {
+	if diffs = b1.Diff(&b2); len(diffs) == 0 {
 		t.Error("No difference found in different timestamp")
 	}
 

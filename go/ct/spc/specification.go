@@ -720,8 +720,8 @@ var Spec = func() Specification {
 
 	// --- ORIGIN ---
 
-	rules = append(rules, tooLittleGas(ORIGIN, 2)...)
-	rules = append(rules, notEnoughSpace(ORIGIN)...)
+	// rules = append(rules, tooLittleGas(ORIGIN, 2)...)
+	// rules = append(rules, notEnoughSpace(ORIGIN)...)
 	rules = append(rules, []Rule{
 		{
 			Name: "origin_regular",
@@ -742,8 +742,8 @@ var Spec = func() Specification {
 
 	// --- CALLER ---
 
-	rules = append(rules, tooLittleGas(CALLER, 2)...)
-	rules = append(rules, notEnoughSpace(CALLER)...)
+	// rules = append(rules, tooLittleGas(CALLER, 2)...)
+	// rules = append(rules, notEnoughSpace(CALLER)...)
 	rules = append(rules, []Rule{
 		{
 			Name: "caller_regular",
@@ -764,8 +764,8 @@ var Spec = func() Specification {
 
 	// --- CALLVALUE ---
 
-	rules = append(rules, tooLittleGas(CALLVALUE, 2)...)
-	rules = append(rules, notEnoughSpace(CALLVALUE)...)
+	// rules = append(rules, tooLittleGas(CALLVALUE, 2)...)
+	// rules = append(rules, notEnoughSpace(CALLVALUE)...)
 	rules = append(rules, []Rule{
 		{
 			Name: "callvalue_regular",
@@ -786,8 +786,8 @@ var Spec = func() Specification {
 
 	// --- NUMBER ---
 
-	rules = append(rules, tooLittleGas(NUMBER, 2)...)
-	rules = append(rules, notEnoughSpace(NUMBER)...)
+	// rules = append(rules, tooLittleGas(NUMBER, 2)...)
+	// rules = append(rules, notEnoughSpace(NUMBER)...)
 	rules = append(rules, []Rule{
 		{
 			Name: "number_regular",

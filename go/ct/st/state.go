@@ -111,7 +111,8 @@ func (s *State) Eq(other *State) bool {
 		s.Memory.Eq(other.Memory) &&
 		s.Storage.Eq(other.Storage) &&
 		s.Logs.Eq(other.Logs) &&
-		s.CallContext == other.CallContext
+		s.CallContext == other.CallContext &&
+		s.BlockContext == other.BlockContext
 }
 
 const codeCutoffLength = 20
