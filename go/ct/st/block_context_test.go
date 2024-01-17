@@ -78,3 +78,33 @@ func TestBlockContext_String(t *testing.T) {
 		})
 	}
 }
+
+func TestBlockContext_String(t *testing.T) {
+	b := NewBlockContext()
+	b.BlockNumber++
+	b.CoinBase[0] = 0xff
+	b.GasLimit = NewU256(1)
+	b.GasPrice = NewU256(1)
+	b.PrevRandao[0] = 0xff
+	b.TimeStamp = time.Now()
+	str := b.String()
+
+	if !strings.Contains(str, fmt.Sprintf("Block Number: %s", b.BlockNumber)) {
+		t.Errorf("Did not find block number string.")
+	}
+	if !strings.Contains(str, fmt.Sprintf("Coinbase: %s", b.CoinBase)) {
+		t.Errorf("Did not find coinbase string.")
+	}
+	if !strings.Contains(str, fmt.Sprintf("Gas Limit: %s", b.GasLimit)) {
+		t.Errorf("Did not find gas limit string.")
+	}
+	if !strings.Contains(str, fmt.Sprintf("Gas Price: %s", b.GasPrice)) {
+		t.Errorf("Did not find gas price string.")
+	}
+	if !strings.Contains(str, fmt.Sprintf("Prev Randao: %s", b.PrevRandao)) {
+		t.Errorf("Did not find prev randao string.")
+	}
+	if !strings.Contains(str, fmt.Sprintf("Timestamp: %s", b.TimeStamp)) {
+		t.Errorf("Did not find timestamp string.")
+	}
+}
