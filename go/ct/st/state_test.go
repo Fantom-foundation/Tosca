@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
@@ -174,6 +175,27 @@ func TestState_Eq(t *testing.T) {
 	if s1.Eq(s2) {
 		t.Fail()
 	}
+	s2.CallContext = s1.CallContext
+
+	timeNow := time.Now()
+	s1.BlockContext = BlockContext{
+		BlockNumber: 0,
+		CoinBase:    Address{0x01},
+		GasLimit:    NewU256(2),
+		GasPrice:    NewU256(3),
+		PrevRandao:  [32]byte{0x04},
+		TimeStamp:   timeNow}
+	s2.BlockContext = BlockContext{
+		BlockNumber: 251,
+		CoinBase:    Address{0xfa},
+		GasLimit:    NewU256(249),
+		GasPrice:    NewU256(248),
+		PrevRandao:  [32]byte{0xf7},
+		TimeStamp:   timeNow.Add(time.Second * 4)}
+	if s1.Eq(s2) {
+		t.Fail()
+	}
+	s2.BlockContext = s1.BlockContext
 }
 
 func TestState_EqFailureStates(t *testing.T) {
