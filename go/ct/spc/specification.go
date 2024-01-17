@@ -654,6 +654,8 @@ var Spec = func() Specification {
 
 	// --- ORIGIN ---
 
+	rules = append(rules, tooLittleGas(ORIGIN, 2)...)
+	rules = append(rules, notEnoughSpace(ORIGIN)...)
 	rules = append(rules, []Rule{
 		{
 			Name: "origin_regular",
@@ -670,30 +672,12 @@ var Spec = func() Specification {
 				s.Stack.Push(NewU256FromBytes(s.CallContext.OriginAddress[:]...))
 			}),
 		},
-		{
-			Name: "origin_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), ORIGIN),
-				Lt(Gas(), 2),
-			),
-			Effect: FailEffect(),
-		},
-		{
-			Name: "origin_with_not_enough_space",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), ORIGIN),
-				Ge(StackSize(), st.MaxStackSize),
-			),
-			Effect: FailEffect(),
-		},
 	}...)
 
 	// --- CALLER ---
 
+	rules = append(rules, tooLittleGas(CALLER, 2)...)
+	rules = append(rules, notEnoughSpace(CALLER)...)
 	rules = append(rules, []Rule{
 		{
 			Name: "caller_regular",
@@ -710,30 +694,12 @@ var Spec = func() Specification {
 				s.Stack.Push(NewU256FromBytes(s.CallContext.CallerAddress[:]...))
 			}),
 		},
-		{
-			Name: "caller_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), CALLER),
-				Lt(Gas(), 2),
-			),
-			Effect: FailEffect(),
-		},
-		{
-			Name: "caller_with_not_enough_space",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), CALLER),
-				Ge(StackSize(), st.MaxStackSize),
-			),
-			Effect: FailEffect(),
-		},
 	}...)
 
 	// --- CALLVALUE ---
 
+	rules = append(rules, tooLittleGas(CALLVALUE, 2)...)
+	rules = append(rules, notEnoughSpace(CALLVALUE)...)
 	rules = append(rules, []Rule{
 		{
 			Name: "callvalue_regular",
@@ -749,26 +715,6 @@ var Spec = func() Specification {
 				s.Gas -= 2
 				s.Stack.Push(NewU256(s.CallContext.Value.Uint64()))
 			}),
-		},
-		{
-			Name: "callvalue_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), CALLVALUE),
-				Lt(Gas(), 2),
-			),
-			Effect: FailEffect(),
-		},
-		{
-			Name: "callvalue_with_not_enough_space",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), CALLVALUE),
-				Ge(StackSize(), st.MaxStackSize),
-			),
-			Effect: FailEffect(),
 		},
 	}...)
 
