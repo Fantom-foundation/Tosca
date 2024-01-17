@@ -222,29 +222,10 @@ var Spec = func() Specification {
 	})...)
 
 	// --- SHA3 ---
+
+	rules = append(rules, tooLittleGas(SHA3, 30, "static")...)
+	rules = append(rules, tooFewElements(SHA3, 2)...)
 	rules = append(rules, []Rule{
-		{
-			Name: "sha3_with_too_little_static_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SHA3),
-				Lt(Gas(), 30),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "sha3_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SHA3),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
-		},
-
 		{
 			Name: "sha3_regular",
 			Condition: And(
@@ -287,30 +268,9 @@ var Spec = func() Specification {
 	}...)
 
 	// --- MLOAD ---
-
+	rules = append(rules, tooLittleGas(MLOAD, 3, "static")...)
+	rules = append(rules, tooFewElements(MLOAD, 1)...)
 	rules = append(rules, []Rule{
-		{
-			Name: "mload_with_too_little_static_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MLOAD),
-				Lt(Gas(), 3),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "mload_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MLOAD),
-				Lt(StackSize(), 1),
-			),
-			Effect: FailEffect(),
-		},
-
 		{
 			Name: "mload_regular",
 			Condition: And(
@@ -344,29 +304,9 @@ var Spec = func() Specification {
 
 	// --- MSTORE ---
 
+	rules = append(rules, tooLittleGas(MSTORE, 3, "static")...)
+	rules = append(rules, tooFewElements(MSTORE, 2)...)
 	rules = append(rules, []Rule{
-		{
-			Name: "mstore_with_too_little_static_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MSTORE),
-				Lt(Gas(), 3),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "mstore_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MSTORE),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
-		},
-
 		{
 			Name: "mstore_regular",
 			Condition: And(
@@ -402,29 +342,9 @@ var Spec = func() Specification {
 
 	// --- MSTORE8 ---
 
+	rules = append(rules, tooLittleGas(MSTORE8, 3, "static")...)
+	rules = append(rules, tooFewElements(MSTORE8, 2)...)
 	rules = append(rules, []Rule{
-		{
-			Name: "mstore8_with_too_little_static_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MSTORE8),
-				Lt(Gas(), 3),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "mstore8_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MSTORE8),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
-		},
-
 		{
 			Name: "mstore8_regular",
 			Condition: And(
@@ -459,6 +379,7 @@ var Spec = func() Specification {
 
 	// --- SLOAD ---
 
+	rules = append(rules, tooFewElements(SLOAD, 1)...)
 	rules = append(rules, []Rule{
 		{
 			Name: "sload_regular_cold",
@@ -566,17 +487,6 @@ var Spec = func() Specification {
 			},
 			Effect: FailEffect(),
 		},
-
-		{
-			Name: "sload_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SLOAD),
-				Lt(StackSize(), 1),
-			),
-			Effect: FailEffect(),
-		},
 	}...)
 
 	// --- SSTORE ---
@@ -640,55 +550,14 @@ var Spec = func() Specification {
 		rules = append(rules, sstoreOpTooLittleGas(params))
 	}
 
-	rules = append(rules, []Rule{
-		{
-			Name: "sstore_with_too_little_gas_EIP2200",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SSTORE),
-				Le(Gas(), 2300),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "sstore_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SSTORE),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
-		},
-	}...)
+	rules = append(rules, tooLittleGas(SSTORE, 2300, "EIP2200")...)
+	rules = append(rules, tooFewElements(SSTORE, 2)...)
 
 	// --- JUMP ---
 
+	rules = append(rules, tooLittleGas(JUMP, 8)...)
+	rules = append(rules, tooFewElements(JUMP, 1)...)
 	rules = append(rules, []Rule{
-		{
-			Name: "jump_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMP),
-				Lt(Gas(), 8),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "jump_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMP),
-				Lt(StackSize(), 1),
-			),
-			Effect: FailEffect(),
-		},
-
 		{
 			Name: "jump_to_data",
 			Condition: And(
@@ -737,29 +606,9 @@ var Spec = func() Specification {
 
 	// --- JUMPI ---
 
+	rules = append(rules, tooLittleGas(JUMPI, 10)...)
+	rules = append(rules, tooFewElements(JUMPI, 2)...)
 	rules = append(rules, []Rule{
-		{
-			Name: "jumpi_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMPI),
-				Lt(Gas(), 10),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "jumpi_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMPI),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
-		},
-
 		{
 			Name: "jumpi_not_taken",
 			Condition: And(
@@ -830,18 +679,8 @@ var Spec = func() Specification {
 
 	// --- JUMPDEST ---
 
+	rules = append(rules, tooLittleGas(JUMPDEST, 1)...)
 	rules = append(rules, []Rule{
-		{
-			Name: "jumpdest_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMPDEST),
-				Lt(Gas(), 1),
-			),
-			Effect: FailEffect(),
-		},
-
 		{
 			Name: "jumpdest_regular",
 			Condition: And(
@@ -865,6 +704,8 @@ var Spec = func() Specification {
 
 	// --- Stack POP ---
 
+	rules = append(rules, tooLittleGas(POP, 2)...)
+	rules = append(rules, tooFewElements(POP, 1)...)
 	rules = append(rules, []Rule{
 		{
 			Name: "pop_regular",
@@ -880,28 +721,6 @@ var Spec = func() Specification {
 				s.Pc++
 				s.Stack.Pop()
 			}),
-		},
-
-		{
-			Name: "pop_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), POP),
-				Lt(Gas(), 2),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "pop_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), POP),
-				Lt(StackSize(), 1),
-			),
-			Effect: FailEffect(),
 		},
 	}...)
 
@@ -925,6 +744,8 @@ var Spec = func() Specification {
 
 	// --- ADDRESS ---
 
+	rules = append(rules, tooLittleGas(ADDRESS, 2)...)
+	rules = append(rules, notEnoughSpace(ADDRESS)...)
 	rules = append(rules, []Rule{
 		{
 			Name: "address_regular",
@@ -940,28 +761,7 @@ var Spec = func() Specification {
 				s.Gas -= 2
 				s.Stack.Push(NewU256FromBytes(s.CallContext.AccountAddress[:]...))
 			}),
-		},
-		{
-			Name: "address_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), ADDRESS),
-				Lt(Gas(), 2),
-			),
-			Effect: FailEffect(),
-		},
-		{
-			Name: "address_with_not_enough_space",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), ADDRESS),
-				Ge(StackSize(), st.MaxStackSize),
-			),
-			Effect: FailEffect(),
-		},
-	}...)
+		}}...)
 
 	// --- End ---
 
@@ -975,7 +775,7 @@ func binaryOpWithDynamicCost(
 	dynamicCost func(a, b U256) uint64,
 ) []Rule {
 	name := strings.ToLower(op.String())
-	return []Rule{
+	ret := []Rule{
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
@@ -1004,29 +804,11 @@ func binaryOpWithDynamicCost(
 				s.Stack.Push(effect(a, b))
 			}),
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), costs),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_few_elements", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
-		},
 	}
+	ret = append(ret, tooLittleGas(op, costs)...)
+	ret = append(ret, tooFewElements(op, 2)...)
+
+	return ret
 }
 
 func binaryOp(
@@ -1043,7 +825,7 @@ func trinaryOp(
 	effect func(a, b, c U256) U256,
 ) []Rule {
 	name := strings.ToLower(op.String())
-	return []Rule{
+	ret := []Rule{
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
@@ -1067,29 +849,11 @@ func trinaryOp(
 				s.Stack.Push(effect(a, b, c))
 			}),
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), costs),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_few_elements", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(StackSize(), 3),
-			),
-			Effect: FailEffect(),
-		},
 	}
+	ret = append(ret, tooLittleGas(op, costs)...)
+	ret = append(ret, tooFewElements(op, 3)...)
+
+	return ret
 }
 
 func unaryOp(
@@ -1098,7 +862,7 @@ func unaryOp(
 	effect func(a U256) U256,
 ) []Rule {
 	name := strings.ToLower(op.String())
-	return []Rule{
+	ret := []Rule{
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
@@ -1118,35 +882,17 @@ func unaryOp(
 				s.Stack.Push(effect(a))
 			}),
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), costs),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_few_elements", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(StackSize(), 1),
-			),
-			Effect: FailEffect(),
-		},
 	}
+	ret = append(ret, tooLittleGas(op, costs)...)
+	ret = append(ret, tooFewElements(op, 1)...)
+
+	return ret
 }
 
 func pushOp(n int) []Rule {
 	op := OpCode(int(PUSH1) + n - 1)
 	name := strings.ToLower(op.String())
-	return []Rule{
+	ret := []Rule{
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
@@ -1170,35 +916,20 @@ func pushOp(n int) []Rule {
 				s.Pc += uint16(n) + 1
 			}),
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), 3),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_not_enough_space", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Ge(StackSize(), st.MaxStackSize),
-			),
-			Effect: FailEffect(),
-		},
 	}
+	ret = append(ret, tooLittleGas(op, 3)...)
+	ret = append(ret, notEnoughSpace(op)...)
+
+	return ret
 }
 
 func dupOp(n int) []Rule {
 	op := OpCode(int(DUP1) + n - 1)
 	name := strings.ToLower(op.String())
-	return []Rule{
+	ret := tooLittleGas(op, 3)
+	ret = append(ret, tooFewElements(op, n, Lt(StackSize(), st.MaxStackSize))...)
+	ret = append(ret, notEnoughSpace(op, Ge(StackSize(), n))...)
+	return append(ret, []Rule{
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
@@ -1215,48 +946,13 @@ func dupOp(n int) []Rule {
 				s.Stack.Push(s.Stack.Get(n - 1))
 			}),
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), 3),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_few_elements", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(StackSize(), n),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_not_enough_space", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Ge(StackSize(), n),
-				Ge(StackSize(), st.MaxStackSize),
-			),
-			Effect: FailEffect(),
-		},
-	}
+	}...)
 }
 
 func swapOp(n int) []Rule {
 	op := OpCode(int(SWAP1) + n - 1)
 	name := strings.ToLower(op.String())
-	return []Rule{
+	ret := []Rule{
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
@@ -1275,29 +971,11 @@ func swapOp(n int) []Rule {
 				s.Stack.Set(n, a)
 			}),
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), 3),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_few_elements", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(StackSize(), n+1),
-			),
-			Effect: FailEffect(),
-		},
 	}
+	ret = append(ret, tooLittleGas(op, 3)...)
+	ret = append(ret, tooFewElements(op, n+1)...)
+
+	return ret
 }
 
 type sstoreOpParams struct {
@@ -1413,7 +1091,7 @@ func logOp(n int) []Rule {
 		parameter = append(parameter, TopicParameter{})
 	}
 
-	return []Rule{
+	ret := []Rule{
 		{
 			Name: fmt.Sprintf("%v_regular", name),
 			Condition: And(
@@ -1453,27 +1131,55 @@ func logOp(n int) []Rule {
 				s.Logs.AddLog(s.Memory.Read(offset, size), topics...)
 			}),
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_min_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), minGas),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_few_elements", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(StackSize(), 2+n),
-			),
-			Effect: FailEffect(),
-		},
 	}
+	ret = append(ret, tooLittleGas(op, minGas)...)
+	ret = append(ret, tooFewElements(op, 2+n)...)
+
+	return ret
+}
+
+func tooLittleGas(op OpCode, minGas uint64, name ...string) []Rule {
+	extraName := ""
+	if len(name) != 0 {
+		extraName = "_" + name[0]
+	}
+
+	return []Rule{{
+		Name: fmt.Sprintf("%v_with_too_little_gas%v", strings.ToLower(op.String()), extraName),
+		Condition: And(
+			AnyKnownRevision(),
+			Eq(Status(), st.Running),
+			Eq(Op(Pc()), op),
+			Lt(Gas(), minGas),
+		),
+		Effect: FailEffect(),
+	}}
+}
+
+func notEnoughSpace(op OpCode, conditions ...Condition) []Rule {
+	return []Rule{{
+		Name: fmt.Sprintf("%v_with_not_enough_space", strings.ToLower(op.String())),
+		Condition: And(
+			append(conditions,
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Ge(StackSize(), st.MaxStackSize))...,
+		),
+		Effect: FailEffect(),
+	}}
+}
+
+func tooFewElements(op OpCode, minElems int, conditions ...Condition) []Rule {
+	return []Rule{{
+		Name: fmt.Sprintf("%v_with_too_few_elements", strings.ToLower(op.String())),
+		Condition: And(
+			append(conditions,
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), op),
+				Lt(StackSize(), minElems))...,
+		),
+		Effect: FailEffect(),
+	}}
 }
