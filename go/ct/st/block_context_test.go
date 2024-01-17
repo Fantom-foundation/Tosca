@@ -12,7 +12,7 @@ import (
 func TestBlockContext_NewBlockContext(t *testing.T) {
 	blockContext := NewBlockContext()
 
-	if want, got := 0, blockContext.BlockNumber; want != got {
+	if want, got := uint64(0), blockContext.BlockNumber; want != got {
 		t.Errorf("Unexpected block number, want %v, got %v", want, got)
 	}
 
@@ -80,31 +80,37 @@ func TestBlockContext_Eq(t *testing.T) {
 	if b1.Eq(b2) {
 		t.Error("Different block number is considered the same")
 	}
+	b2.BlockNumber--
 
 	b2.CoinBase = Address{0xff}
 	if b1.Eq(b2) {
 		t.Error("Different coinbase is considered the same")
 	}
+	b2.CoinBase = Address{}
 
 	b2.GasLimit = NewU256(1)
 	if b1.Eq(b2) {
 		t.Error("Different gas limit is considered the same")
 	}
+	b2.GasLimit = NewU256(0)
 
 	b2.GasPrice = NewU256(1)
 	if b1.Eq(b2) {
 		t.Error("Different gas price is considered the same")
 	}
+	b2.GasPrice = NewU256(0)
 
 	b2.PrevRandao[0] = 0xff
 	if b1.Eq(b2) {
 		t.Error("Different prev randao is considered the same")
 	}
+	b2.PrevRandao[0] = 0x00
 
 	b2.TimeStamp = time.Now()
 	if b1.Eq(b2) {
 		t.Error("Different timestamp is considered the same")
 	}
+	b2.TimeStamp = time.Time{}
 }
 
 func TestBlockContext_Diff(t *testing.T) {
@@ -158,22 +164,22 @@ func TestBlockContext_String(t *testing.T) {
 	b.TimeStamp = time.Now()
 	str := b.String()
 
-	if !strings.Contains(str, fmt.Sprintf("Block Number: %s", b.BlockNumber)) {
+	if !strings.Contains(str, fmt.Sprintf("Block Number: %v", b.BlockNumber)) {
 		t.Errorf("Did not find block number string.")
 	}
-	if !strings.Contains(str, fmt.Sprintf("Coinbase: %s", b.CoinBase)) {
+	if !strings.Contains(str, fmt.Sprintf("CoinBase: %v", b.CoinBase)) {
 		t.Errorf("Did not find coinbase string.")
 	}
-	if !strings.Contains(str, fmt.Sprintf("Gas Limit: %s", b.GasLimit)) {
+	if !strings.Contains(str, fmt.Sprintf("Gas Limit: %v", b.GasLimit)) {
 		t.Errorf("Did not find gas limit string.")
 	}
-	if !strings.Contains(str, fmt.Sprintf("Gas Price: %s", b.GasPrice)) {
+	if !strings.Contains(str, fmt.Sprintf("Gas Price: %v", b.GasPrice)) {
 		t.Errorf("Did not find gas price string.")
 	}
-	if !strings.Contains(str, fmt.Sprintf("Prev Randao: %s", b.PrevRandao)) {
+	if !strings.Contains(str, fmt.Sprintf("Prev Randao: %v", b.PrevRandao)) {
 		t.Errorf("Did not find prev randao string.")
 	}
-	if !strings.Contains(str, fmt.Sprintf("Timestamp: %s", b.TimeStamp)) {
+	if !strings.Contains(str, fmt.Sprintf("Timestamp: %v", b.TimeStamp)) {
 		t.Errorf("Did not find timestamp string.")
 	}
 }

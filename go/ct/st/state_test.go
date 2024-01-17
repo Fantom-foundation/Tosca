@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
@@ -25,6 +26,13 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.CallContext.OriginAddress = Address{0xfe}
 	state.CallContext.CallerAddress = Address{0xfd}
 	state.CallContext.Value = NewU256(252)
+	state.BlockContext.BlockNumber = 251
+	state.BlockContext.CoinBase[0] = 0xfa
+	state.BlockContext.GasLimit = NewU256(249)
+	state.BlockContext.GasPrice = NewU256(248)
+	state.BlockContext.PrevRandao[0] = 0xf7
+	timeNow := time.Now()
+	state.BlockContext.TimeStamp = timeNow
 
 	clone := state.Clone()
 	clone.Status = Running
@@ -43,6 +51,12 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.CallContext.OriginAddress = Address{0x02}
 	clone.CallContext.CallerAddress = Address{0x03}
 	clone.CallContext.Value = NewU256(4)
+	clone.BlockContext.BlockNumber = 5
+	clone.BlockContext.CoinBase[0] = 0x06
+	clone.BlockContext.GasLimit = NewU256(7)
+	clone.BlockContext.GasPrice = NewU256(8)
+	clone.BlockContext.PrevRandao[0] = 0x0a
+	clone.BlockContext.TimeStamp = time.Now().Add(time.Second * 4)
 
 	ok := state.Status == Stopped &&
 		state.Revision == R10_London &&
@@ -61,7 +75,13 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.CallContext.AccountAddress == Address{0xff} &&
 		state.CallContext.OriginAddress == Address{0xfe} &&
 		state.CallContext.CallerAddress == Address{0xfd} &&
-		state.CallContext.Value.Eq(NewU256(252))
+		state.CallContext.Value.Eq(NewU256(252)) &&
+		state.BlockContext.BlockNumber == 251 &&
+		state.BlockContext.CoinBase[0] == 0xfa &&
+		state.BlockContext.GasLimit == NewU256(249) &&
+		state.BlockContext.GasPrice == NewU256(248) &&
+		state.BlockContext.PrevRandao[0] == 0xf7 &&
+		state.BlockContext.TimeStamp == timeNow
 	if !ok {
 		t.Errorf("clone is not independent")
 	}

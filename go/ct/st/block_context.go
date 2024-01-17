@@ -9,7 +9,7 @@ import (
 
 // BlockContext holds the block environment information
 type BlockContext struct {
-	BlockNumber int       // Block's number
+	BlockNumber uint64    // Block's number
 	CoinBase    Address   // Address of the block's benficiary
 	GasLimit    U256      // Block's gas limit
 	GasPrice    U256      // Price of gas in current environment
@@ -18,20 +18,19 @@ type BlockContext struct {
 }
 
 // NewBlockContext returns a newly created instance with all default values.
-func NewBlockContext() *BlockContext {
-	return &BlockContext{}
+func NewBlockContext() BlockContext {
+	return BlockContext{}
 }
 
 // Clone creates an independent copy of the block context
 func (b *BlockContext) Clone() *BlockContext {
-	ret := NewBlockContext()
+	ret := *b
 	ret.BlockNumber = b.BlockNumber
-	ret.CoinBase = b.CoinBase
 	ret.GasLimit = b.GasLimit
 	ret.GasPrice = b.GasPrice
 	ret.PrevRandao = b.PrevRandao
 	ret.TimeStamp = b.TimeStamp
-	return ret
+	return &ret
 }
 
 // Eq compares all fiels of the block context

@@ -41,30 +41,32 @@ func (s StatusCode) String() string {
 
 // State represents an EVM's execution state.
 type State struct {
-	Status      StatusCode
-	Revision    Revision
-	Pc          uint16
-	Gas         uint64
-	GasRefund   uint64
-	Code        *Code
-	Stack       *Stack
-	Memory      *Memory
-	Storage     *Storage
-	Logs        *Logs
-	CallContext CallContext
+	Status       StatusCode
+	Revision     Revision
+	Pc           uint16
+	Gas          uint64
+	GasRefund    uint64
+	Code         *Code
+	Stack        *Stack
+	Memory       *Memory
+	Storage      *Storage
+	Logs         *Logs
+	CallContext  CallContext
+	BlockContext BlockContext
 }
 
 // NewState creates a new State instance with the given code.
 func NewState(code *Code) *State {
 	return &State{
-		Status:      Running,
-		Revision:    R07_Istanbul,
-		Code:        code,
-		Stack:       NewStack(),
-		Memory:      NewMemory(),
-		Storage:     NewStorage(),
-		Logs:        NewLogs(),
-		CallContext: NewCallContext(),
+		Status:       Running,
+		Revision:     R07_Istanbul,
+		Code:         code,
+		Stack:        NewStack(),
+		Memory:       NewMemory(),
+		Storage:      NewStorage(),
+		Logs:         NewLogs(),
+		CallContext:  NewCallContext(),
+		BlockContext: NewBlockContext(),
 	}
 }
 
@@ -80,6 +82,7 @@ func (s *State) Clone() *State {
 	clone.Storage = s.Storage.Clone()
 	clone.Logs = s.Logs.Clone()
 	clone.CallContext = s.CallContext
+	clone.BlockContext = s.BlockContext
 	return clone
 }
 
@@ -163,6 +166,7 @@ func (s *State) String() string {
 		builder.WriteString(fmt.Sprintf("\t        data: %x\n", entry.Data))
 	}
 	builder.WriteString(s.CallContext.String())
+	builder.WriteString(s.BlockContext.String())
 
 	builder.WriteString("}")
 	return builder.String()
@@ -213,6 +217,10 @@ func (s *State) Diff(o *State) []string {
 
 	if s.CallContext != o.CallContext {
 		res = append(res, s.CallContext.Diff(&o.CallContext)...)
+	}
+
+	if !s.BlockContext.Eq(&o.BlockContext) {
+		res = append(res, s.BlockContext.Diff(&o.BlockContext)...)
 	}
 
 	return res
