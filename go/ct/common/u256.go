@@ -207,7 +207,7 @@ func (i U256) String() string {
 	return fmt.Sprintf("%016x %016x %016x %016x", i.internal[3], i.internal[2], i.internal[1], i.internal[0])
 }
 
-// ToBig() returns a bigInt version of i
+// ToBig returns a bigInt version of i
 func (i U256) ToBig() *big.Int {
 	return i.internal.ToBig()
 }
@@ -223,7 +223,7 @@ func U256FromBig(b *big.Int) *U256 {
 	newInternal, overflow := uint256.FromBig(b)
 	if overflow {
 		// since EVMs handle at most 256-bit values, this case should never happen.
-		// IF it ever did, it would most certainly an error, and execution halted.
+		// IF it ever did, it would most certainly be an error, and execution halted.
 		panic("big.Int has more than 256-bits.")
 	}
 	ret.internal = *newInternal

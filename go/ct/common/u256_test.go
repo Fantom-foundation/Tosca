@@ -262,7 +262,8 @@ func TestU256ToBig(t *testing.T) {
 
 	maxU256 := MaxU256()
 	bigInt = maxU256.ToBig()
-	if want, got := new(big.Int).Sub(big.NewInt(0).Exp(big.NewInt(2), big.NewInt(256), nil), big.NewInt(1)),
+	bigExp := big.NewInt(1).Exp(big.NewInt(2), big.NewInt(256), nil)
+	if want, got := new(big.Int).Sub(bigExp, big.NewInt(1)),
 		bigInt; want.Cmp(got) != 0 {
 		t.Errorf("Failed conversion from maxU256 to bigInt, want: %v, got: %v", want, got)
 	}
@@ -289,8 +290,8 @@ func TestU256U256FromBig(t *testing.T) {
 		}
 	}()
 	notEnoughU256 := U256FromBig(tooBigInt)
-
-	if want, got := U256FromBig(new(big.Int).Sub(big.NewInt(0).Exp(big.NewInt(2), big.NewInt(256), nil), big.NewInt(1))),
+	bigExp := big.NewInt(1).Exp(big.NewInt(2), big.NewInt(256), nil)
+	if want, got := U256FromBig(new(big.Int).Sub(bigExp, big.NewInt(1))),
 		notEnoughU256; want.Eq(*got) {
 		t.Errorf("Unexpected bigInt to u256 conversion, want: %v, got: %v", want, got)
 	}
