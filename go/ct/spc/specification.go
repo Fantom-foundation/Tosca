@@ -654,69 +654,42 @@ var Spec = func() Specification {
 
 	// --- ORIGIN ---
 
-	rules = append(rules, tooLittleGas(ORIGIN, 2)...)
-	rules = append(rules, notEnoughSpace(ORIGIN)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "origin_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), ORIGIN),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(NewU256FromBytes(s.CallContext.OriginAddress[:]...))
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         ORIGIN,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		conditions: And(Lt(StackSize(), st.MaxStackSize)),
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256FromBytes(s.CallContext.OriginAddress[:]...))
 		},
-	}...)
+	})...)
 
 	// --- CALLER ---
 
-	rules = append(rules, tooLittleGas(CALLER, 2)...)
-	rules = append(rules, notEnoughSpace(CALLER)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "caller_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), CALLER),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(NewU256FromBytes(s.CallContext.CallerAddress[:]...))
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         CALLER,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		conditions: And(Lt(StackSize(), st.MaxStackSize)),
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256FromBytes(s.CallContext.CallerAddress[:]...))
 		},
-	}...)
+	})...)
 
 	// --- CALLVALUE ---
 
-	rules = append(rules, tooLittleGas(CALLVALUE, 2)...)
-	rules = append(rules, notEnoughSpace(CALLVALUE)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "callvalue_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), CALLVALUE),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(NewU256(s.CallContext.Value.Uint64()))
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         CALLVALUE,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		conditions: And(Lt(StackSize(), st.MaxStackSize)),
+		effect: func(s *st.State) {
+			s.Stack.Push(s.CallContext.Value)
 		},
-	}...)
+	})...)
 
 	// --- End ---
 
