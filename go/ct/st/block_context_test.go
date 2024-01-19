@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
@@ -77,35 +76,5 @@ func TestBlockContext_String(t *testing.T) {
 				t.Errorf("Did not find %v string", name)
 			}
 		})
-	}
-}
-
-func TestBlockContext_String(t *testing.T) {
-	b := NewBlockContext()
-	b.BlockNumber++
-	b.CoinBase[0] = 0xff
-	b.GasLimit = NewU256(1)
-	b.GasPrice = NewU256(1)
-	b.PrevRandao[0] = 0xff
-	b.TimeStamp = time.Now()
-	str := b.String()
-
-	if !strings.Contains(str, fmt.Sprintf("Block Number: %v", b.BlockNumber)) {
-		t.Errorf("Did not find block number string.")
-	}
-	if !strings.Contains(str, fmt.Sprintf("CoinBase: %v", b.CoinBase)) {
-		t.Errorf("Did not find coinbase string.")
-	}
-	if !strings.Contains(str, fmt.Sprintf("Gas Limit: %v", b.GasLimit)) {
-		t.Errorf("Did not find gas limit string.")
-	}
-	if !strings.Contains(str, fmt.Sprintf("Gas Price: %v", b.GasPrice)) {
-		t.Errorf("Did not find gas price string.")
-	}
-	if !strings.Contains(str, fmt.Sprintf("Prev Randao: %v", b.PrevRandao)) {
-		t.Errorf("Did not find prev randao string.")
-	}
-	if !strings.Contains(str, fmt.Sprintf("Timestamp: %v", b.TimeStamp)) {
-		t.Errorf("Did not find timestamp string.")
 	}
 }
