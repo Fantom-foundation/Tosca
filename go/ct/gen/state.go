@@ -38,21 +38,23 @@ type StateGenerator struct {
 	gasRefundConstraints  []uint64
 
 	// Generators
-	codeGen        *CodeGenerator
-	stackGen       *StackGenerator
-	memoryGen      *MemoryGenerator
-	storageGen     *StorageGenerator
-	callContextGen *CallContextGenerator
+	codeGen         *CodeGenerator
+	stackGen        *StackGenerator
+	memoryGen       *MemoryGenerator
+	storageGen      *StorageGenerator
+	callContextGen  *CallContextGenerator
+	BlockContextGen *BlockContextGenerator
 }
 
 // NewStateGenerator creates a generator without any initial constraints.
 func NewStateGenerator() *StateGenerator {
 	return &StateGenerator{
-		codeGen:        NewCodeGenerator(),
-		stackGen:       NewStackGenerator(),
-		memoryGen:      NewMemoryGenerator(),
-		storageGen:     NewStorageGenerator(),
-		callContextGen: NewCallContextGenerator(),
+		codeGen:         NewCodeGenerator(),
+		stackGen:        NewStackGenerator(),
+		memoryGen:       NewMemoryGenerator(),
+		storageGen:      NewStorageGenerator(),
+		callContextGen:  NewCallContextGenerator(),
+		BlockContextGen: NewBlockContextGenerator(),
 	}
 }
 
@@ -271,6 +273,12 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
+	// Invoke BlockContextGenrator
+	resultBlockContext, err := g.BlockContextGen.Generate(rnd)
+	if err != nil {
+		return nil, err
+	}
+
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences
 	// this process.
@@ -303,6 +311,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.Memory = resultMemory
 	result.Storage = resultStorage
 	result.CallContext = resultCallContext
+	result.BlockContext = resultBlockContext
 
 	return result, nil
 }
@@ -322,6 +331,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		memoryGen:             g.memoryGen.Clone(),
 		storageGen:            g.storageGen.Clone(),
 		callContextGen:        g.callContextGen.Clone(),
+		BlockContextGen:       g.BlockContextGen.Clone(),
 	}
 }
 
@@ -339,6 +349,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.memoryGen.Restore(other.memoryGen)
 		g.storageGen.Restore(other.storageGen)
 		g.callContextGen.Restore(other.callContextGen)
+		g.BlockContextGen.Restore(other.BlockContextGen)
 	}
 }
 
@@ -380,6 +391,7 @@ func (g *StateGenerator) String() string {
 	parts = append(parts, fmt.Sprintf("memory=%v", g.memoryGen))
 	parts = append(parts, fmt.Sprintf("storage=%v", g.storageGen))
 	parts = append(parts, fmt.Sprintf("callcontext=%v", g.callContextGen))
+	parts = append(parts, fmt.Sprintf("blockcontext=%v", g.BlockContextGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }

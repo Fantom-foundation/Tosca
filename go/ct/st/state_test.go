@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
@@ -28,11 +27,10 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.CallContext.Value = NewU256(252)
 	state.BlockContext.BlockNumber = 251
 	state.BlockContext.CoinBase[0] = 0xfa
-	state.BlockContext.GasLimit = NewU256(249)
+	state.BlockContext.GasLimit = 249
 	state.BlockContext.GasPrice = NewU256(248)
 	state.BlockContext.PrevRandao[0] = 0xf7
-	timeNow := time.Now()
-	state.BlockContext.TimeStamp = timeNow
+	state.BlockContext.TimeStamp = 246
 
 	clone := state.Clone()
 	clone.Status = Running
@@ -53,10 +51,10 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.CallContext.Value = NewU256(4)
 	clone.BlockContext.BlockNumber = 5
 	clone.BlockContext.CoinBase[0] = 0x06
-	clone.BlockContext.GasLimit = NewU256(7)
+	clone.BlockContext.GasLimit = 7
 	clone.BlockContext.GasPrice = NewU256(8)
 	clone.BlockContext.PrevRandao[0] = 0x0a
-	clone.BlockContext.TimeStamp = time.Now().Add(time.Second * 4)
+	clone.BlockContext.TimeStamp = 11
 
 	ok := state.Status == Stopped &&
 		state.Revision == R10_London &&
@@ -78,10 +76,10 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.CallContext.Value.Eq(NewU256(252)) &&
 		state.BlockContext.BlockNumber == 251 &&
 		state.BlockContext.CoinBase[0] == 0xfa &&
-		state.BlockContext.GasLimit == NewU256(249) &&
+		state.BlockContext.GasLimit == 249 &&
 		state.BlockContext.GasPrice == NewU256(248) &&
 		state.BlockContext.PrevRandao[0] == 0xf7 &&
-		state.BlockContext.TimeStamp == timeNow
+		state.BlockContext.TimeStamp == 246
 	if !ok {
 		t.Errorf("clone is not independent")
 	}
@@ -179,21 +177,20 @@ func TestState_Eq(t *testing.T) {
 	}
 	s2.CallContext = s1.CallContext
 
-	timeNow := time.Now()
 	s1.BlockContext = BlockContext{
 		BlockNumber: 0,
 		CoinBase:    Address{0x01},
-		GasLimit:    NewU256(2),
+		GasLimit:    2,
 		GasPrice:    NewU256(3),
 		PrevRandao:  [32]byte{0x04},
-		TimeStamp:   timeNow}
+		TimeStamp:   5}
 	s2.BlockContext = BlockContext{
 		BlockNumber: 251,
 		CoinBase:    Address{0xfa},
-		GasLimit:    NewU256(249),
+		GasLimit:    249,
 		GasPrice:    NewU256(248),
 		PrevRandao:  [32]byte{0xf7},
-		TimeStamp:   timeNow.Add(time.Second * 4)}
+		TimeStamp:   246}
 	if s1.Eq(s2) {
 		t.Fail()
 	}
@@ -432,14 +429,13 @@ func TestState_DiffMatch(t *testing.T) {
 		OriginAddress:  Address{0x01},
 		CallerAddress:  Address{0x02},
 		Value:          NewU256(3)}
-	timeNow := time.Now()
 	s1.BlockContext = BlockContext{
 		BlockNumber: 0,
 		CoinBase:    Address{0x01},
-		GasLimit:    NewU256(2),
+		GasLimit:    2,
 		GasPrice:    NewU256(3),
 		PrevRandao:  [32]byte{0x04},
-		TimeStamp:   timeNow}
+		TimeStamp:   5}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -459,10 +455,10 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.BlockContext = BlockContext{
 		BlockNumber: 0,
 		CoinBase:    Address{0x01},
-		GasLimit:    NewU256(2),
+		GasLimit:    2,
 		GasPrice:    NewU256(3),
 		PrevRandao:  [32]byte{0x04},
-		TimeStamp:   timeNow}
+		TimeStamp:   5}
 
 	diffs := s1.Diff(s2)
 
@@ -488,14 +484,13 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.CallContext.AccountAddress = Address{0xff}
-	timeNow := time.Now()
 	s1.BlockContext = BlockContext{
 		BlockNumber: 0,
 		CoinBase:    Address{0x01},
-		GasLimit:    NewU256(2),
+		GasLimit:    2,
 		GasPrice:    NewU256(3),
 		PrevRandao:  [32]byte{0x04},
-		TimeStamp:   timeNow}
+		TimeStamp:   5}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -511,10 +506,10 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.BlockContext = BlockContext{
 		BlockNumber: 251,
 		CoinBase:    Address{0xfa},
-		GasLimit:    NewU256(249),
+		GasLimit:    249,
 		GasPrice:    NewU256(248),
 		PrevRandao:  [32]byte{0xf7},
-		TimeStamp:   timeNow.Add(time.Second * 4)}
+		TimeStamp:   246}
 
 	diffs := s1.Diff(s2)
 

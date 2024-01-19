@@ -103,6 +103,13 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 	state.CallContext.CallerAddress = (ct.Address)(ctx.contract.CallerAddress.Bytes())
 	state.CallContext.Value = *ct.U256FromBigInt(ctx.contract.Value())
 
+	state.BlockContext.BlockNumber = ctx.evm.Context.BlockNumber.Uint64()
+	state.BlockContext.CoinBase = (ct.Address)(ctx.evm.Context.Coinbase)
+	state.BlockContext.GasLimit = ctx.evm.Context.GasLimit
+	state.BlockContext.GasPrice = *ct.U256FromBigInt(ctx.evm.GasPrice)
+	copy(state.BlockContext.PrevRandao[:], ctx.evm.Context.Difficulty.Bytes())
+	state.BlockContext.TimeStamp = ctx.evm.Context.Time.Uint64()
+
 	return state, nil
 }
 
@@ -214,12 +221,24 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 
 	stateDb.AddRefund(state.GasRefund)
 
+	newBlockNumber := big.NewInt(0).SetUint64(state.BlockContext.BlockNumber)
+	newDifficulty := big.NewInt(0).SetBytes(state.BlockContext.PrevRandao[:])
+	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
+
 	// Create execution context.
 	ctx := context{
 		evm: &vm.EVM{
 			StateDB: stateDb,
 			Context: vm.BlockContext{
-				BlockNumber: big.NewInt(0), // TODO
+				BlockNumber: newBlockNumber,
+				Coinbase:    (vm.AccountRef)(state.BlockContext.CoinBase[:]).Address(),
+				GasLimit:    state.BlockContext.GasLimit,
+				Difficulty:  newDifficulty,
+				Time:        newTimestamp,
+			},
+			TxContext: vm.TxContext{
+				Origin:   (common.Address)(state.CallContext.OriginAddress[:]),
+				GasPrice: state.BlockContext.GasPrice.ToBigInt(),
 			},
 		},
 		pc:       int32(pc),
@@ -233,8 +252,6 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 		callsize: *uint256.NewInt(uint64(len(data))),
 		readOnly: false,
 	}
-
-	ctx.evm.Origin = (common.Address)(state.CallContext.OriginAddress[:])
 
 	err = convertCtRevisionToLfvmRevision(state.Revision, &ctx)
 	if err != nil {

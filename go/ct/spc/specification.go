@@ -688,233 +688,77 @@ var Spec = func() Specification {
 		},
 	})...)
 
-	// --- ORIGIN ---
-
-	// rules = append(rules, basicFailOp(ORIGIN, 2)...)
-
-	rules = append(rules, []Rule{
-		{
-			Name: fmt.Sprintf("%v_regular", strings.ToLower(ORIGIN.String())),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), ORIGIN),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(NewU256FromBytes(s.CallContext.OriginAddress[:]...))
-			}),
-		},
-	}...)
-
-	// --- CALLER ---
-
-	// rules = append(rules, basicFailOp(CALLER, 2)...)
-
-	// --- CALLVALUE ---
-
-	// rules = append(rules, basicFailOp(CALLVALUE, 2)...)
-
-	// --- ORIGIN ---
-
-	// rules = append(rules, tooLittleGas(ORIGIN, 2)...)
-	// rules = append(rules, notEnoughSpace(ORIGIN)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "origin_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), ORIGIN),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(NewU256FromBytes(s.CallContext.OriginAddress[:]...))
-			}),
-		},
-	}...)
-
-	// --- CALLER ---
-
-	// rules = append(rules, tooLittleGas(CALLER, 2)...)
-	// rules = append(rules, notEnoughSpace(CALLER)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "caller_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), CALLER),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(NewU256FromBytes(s.CallContext.CallerAddress[:]...))
-			}),
-		},
-	}...)
-
-	// --- CALLVALUE ---
-
-	// rules = append(rules, tooLittleGas(CALLVALUE, 2)...)
-	// rules = append(rules, notEnoughSpace(CALLVALUE)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "callvalue_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), CALLVALUE),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(NewU256(s.CallContext.Value.Uint64()))
-			}),
-		},
-	}...)
-
 	// --- NUMBER ---
 
-	// rules = append(rules, tooLittleGas(NUMBER, 2)...)
-	// rules = append(rules, notEnoughSpace(NUMBER)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "number_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), NUMBER),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(NewU256(uint64(s.BlockContext.BlockNumber)))
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         NUMBER,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(uint64(s.BlockContext.BlockNumber)))
 		},
-	}...)
+	})...)
 
 	// --- COINBASE ---
 
-	rules = append(rules, tooLittleGas(COINBASE, 2)...)
-	rules = append(rules, notEnoughSpace(COINBASE)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "coinbase_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), COINBASE),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(NewU256FromBytes(s.BlockContext.CoinBase[:]...))
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         COINBASE,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256FromBytes(s.BlockContext.CoinBase[:]...))
 		},
-	}...)
+	})...)
 
 	// --- GASLIMIT ---
 
-	rules = append(rules, tooLittleGas(GASLIMIT, 2)...)
-	rules = append(rules, notEnoughSpace(GASLIMIT)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "gaslimit_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), GASLIMIT),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(s.BlockContext.GasLimit)
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         GASLIMIT,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(uint64(s.BlockContext.GasLimit)))
 		},
-	}...)
+	})...)
 
-	// --- PREVRANDO ---
+	// --- PREVRANDAO ---
 
-	rules = append(rules, tooLittleGas(PREVRANDO, 2)...)
-	rules = append(rules, notEnoughSpace(PREVRANDO)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "prevrandao_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), PREVRANDO),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(NewU256FromBytes(s.BlockContext.PrevRandao[:]...))
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         PREVRANDAO,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256FromBytes(s.BlockContext.PrevRandao[:]...))
 		},
-	}...)
+	})...)
 
 	// --- GASPRICE ---
 
-	rules = append(rules, tooLittleGas(GASPRICE, 2)...)
-	rules = append(rules, notEnoughSpace(GASPRICE)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "gasprice_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), GASPRICE),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(s.BlockContext.GasPrice)
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         GASPRICE,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(s.BlockContext.GasPrice)
 		},
-	}...)
+	})...)
 
 	// --- TIMESTAMP ---
 
-	rules = append(rules, tooLittleGas(TIMESTAMP, 2)...)
-	rules = append(rules, notEnoughSpace(TIMESTAMP)...)
-	rules = append(rules, []Rule{
-		{
-			Name: "timestamp_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), TIMESTAMP),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(NewU256(uint64(s.BlockContext.TimeStamp.Unix())))
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         TIMESTAMP,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(s.BlockContext.TimeStamp))
 		},
-	}...)
+	})...)
 
 	// --- End ---
 

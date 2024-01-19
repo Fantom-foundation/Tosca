@@ -44,7 +44,7 @@ const (
 	COINBASE   OpCode = 0x41
 	TIMESTAMP  OpCode = 0x42
 	NUMBER     OpCode = 0x43
-	PREVRANDO  OpCode = 0x44
+	PREVRANDAO OpCode = 0x44
 	GASLIMIT   OpCode = 0x45
 	POP        OpCode = 0x50
 	MLOAD      OpCode = 0x51
@@ -173,7 +173,7 @@ func ValidOpCodesNoPush() []OpCode {
 		COINBASE,
 		TIMESTAMP,
 		NUMBER,
-		PREVRANDO,
+		PREVRANDAO,
 		GASLIMIT,
 		POP,
 		MLOAD,
@@ -296,8 +296,8 @@ func (op OpCode) String() string {
 		return "TIMESTAMP"
 	case NUMBER:
 		return "NUMBER"
-	case PREVRANDO:
-		return "PREVRANDO"
+	case PREVRANDAO:
+		return "PREVRANDAO"
 	case GASLIMIT:
 		return "GASLIMIT"
 	case POP:

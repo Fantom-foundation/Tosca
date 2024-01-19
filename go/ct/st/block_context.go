@@ -2,19 +2,18 @@ package st
 
 import (
 	"fmt"
-	"time"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
 // BlockContext holds the block environment information
 type BlockContext struct {
-	BlockNumber uint64    // Block's number
-	CoinBase    Address   // Address of the block's benficiary
-	GasLimit    U256      // Block's gas limit
-	GasPrice    U256      // Price of gas in current environment
-	PrevRandao  [32]byte  // Previous block's RANDAO mix
-	TimeStamp   time.Time // Block's timestamp, it should be returned in format.
+	BlockNumber uint64   // Block's number
+	CoinBase    Address  // Address of the block's benficiary
+	GasLimit    uint64   // Block's gas limit
+	GasPrice    U256     // Price of gas in current environment
+	PrevRandao  [32]byte // Previous block's RANDAO mix
+	TimeStamp   uint64   // Block's timestamp, it should be returned in format.
 }
 
 // NewBlockContext returns a newly created instance with all default values.
@@ -37,7 +36,7 @@ func (b *BlockContext) Clone() *BlockContext {
 func (b *BlockContext) Eq(other *BlockContext) bool {
 	return b.BlockNumber == other.BlockNumber &&
 		b.CoinBase == other.CoinBase &&
-		b.GasLimit.Eq(other.GasLimit) &&
+		b.GasLimit == other.GasLimit &&
 		b.GasPrice.Eq(other.GasPrice) &&
 		b.PrevRandao == other.PrevRandao &&
 		b.TimeStamp == other.TimeStamp
@@ -59,7 +58,7 @@ func (b *BlockContext) Diff(other *BlockContext) []string {
 		ret = append(ret, str)
 	}
 
-	if !b.GasLimit.Eq(other.GasLimit) {
+	if b.GasLimit != other.GasLimit {
 		ret = append(ret, fmt.Sprintf("Different gas limit: %v vs %v", b.GasLimit, other.GasLimit))
 	}
 

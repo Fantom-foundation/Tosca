@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
@@ -20,7 +19,7 @@ func TestBlockContext_NewBlockContext(t *testing.T) {
 		t.Errorf("Unexpected codebase, want %v, got %v", want, got)
 	}
 
-	if want, got := NewU256(0), blockContext.GasLimit; !want.Eq(got) {
+	if want, got := uint64(0), blockContext.GasLimit; want != got {
 		t.Errorf("Unexpected gas limit, want %v, got %v", want, got)
 	}
 
@@ -32,7 +31,7 @@ func TestBlockContext_NewBlockContext(t *testing.T) {
 		t.Errorf("Unexpected prev randao, want %v, got %v", want, got)
 	}
 
-	if want, got := (time.Time{}), blockContext.TimeStamp; want != got {
+	if want, got := (uint64(0)), blockContext.TimeStamp; want != got {
 		t.Errorf("Unexpected timestamp, want %v, got %v", want, got)
 	}
 
@@ -48,10 +47,10 @@ func TestBlockContext_Clone(t *testing.T) {
 
 	b2.BlockNumber++
 	b2.CoinBase[0] = 0xff
-	b2.GasLimit = NewU256(1)
+	b2.GasLimit = 1
 	b2.GasPrice = NewU256(1)
 	b2.PrevRandao[0] = 0xff
-	b2.TimeStamp = time.Now()
+	b2.TimeStamp++
 
 	if b1.BlockNumber == b2.BlockNumber ||
 		b1.CoinBase == b2.CoinBase ||
@@ -88,11 +87,11 @@ func TestBlockContext_Eq(t *testing.T) {
 	}
 	b2.CoinBase = Address{}
 
-	b2.GasLimit = NewU256(1)
+	b2.GasLimit = 1
 	if b1.Eq(b2) {
 		t.Error("Different gas limit is considered the same")
 	}
-	b2.GasLimit = NewU256(0)
+	b2.GasLimit = 0
 
 	b2.GasPrice = NewU256(1)
 	if b1.Eq(b2) {
@@ -106,11 +105,11 @@ func TestBlockContext_Eq(t *testing.T) {
 	}
 	b2.PrevRandao[0] = 0x00
 
-	b2.TimeStamp = time.Now()
+	b2.TimeStamp = 1
 	if b1.Eq(b2) {
 		t.Error("Different timestamp is considered the same")
 	}
-	b2.TimeStamp = time.Time{}
+	b2.TimeStamp = 0
 }
 
 func TestBlockContext_Diff(t *testing.T) {
@@ -132,7 +131,7 @@ func TestBlockContext_Diff(t *testing.T) {
 		t.Error("No difference found in different coinbase")
 	}
 
-	b2.GasLimit = NewU256(1)
+	b2.GasLimit = 1
 	if diffs = b1.Diff(&b2); len(diffs) == 0 {
 		t.Error("No difference found in different gas limit")
 	}
@@ -147,7 +146,7 @@ func TestBlockContext_Diff(t *testing.T) {
 		t.Error("No difference found in different prev randao")
 	}
 
-	b2.TimeStamp = time.Now()
+	b2.TimeStamp = 1
 	if diffs = b1.Diff(&b2); len(diffs) == 0 {
 		t.Error("No difference found in different timestamp")
 	}
@@ -158,10 +157,10 @@ func TestBlockContext_String(t *testing.T) {
 	b := NewBlockContext()
 	b.BlockNumber++
 	b.CoinBase[0] = 0xff
-	b.GasLimit = NewU256(1)
+	b.GasLimit = 1
 	b.GasPrice = NewU256(1)
 	b.PrevRandao[0] = 0xff
-	b.TimeStamp = time.Now()
+	b.TimeStamp = 1
 	str := b.String()
 
 	if !strings.Contains(str, fmt.Sprintf("Block Number: %v", b.BlockNumber)) {

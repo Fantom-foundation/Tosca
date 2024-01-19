@@ -1,8 +1,6 @@
 package gen
 
 import (
-	"time"
-
 	"pgregory.net/rand"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -16,14 +14,14 @@ func NewBlockContextGenerator() *BlockContextGenerator {
 	return &BlockContextGenerator{}
 }
 
-func (*BlockContextGenerator) Generate(rnd *rand.Rand) (*st.BlockContext, error) {
+func (*BlockContextGenerator) Generate(rnd *rand.Rand) (st.BlockContext, error) {
 
 	blockNumber := rnd.Uint64()
 	coinbase, err := common.RandAddress(rnd)
 	if err != nil {
 		return nil, err
 	}
-	gasLimit := common.RandU256(rnd)
+	gasLimit := rnd.Uint64()
 	gasPrice := common.RandU256(rnd)
 
 	prevRandao := [32]byte{}
@@ -32,7 +30,7 @@ func (*BlockContextGenerator) Generate(rnd *rand.Rand) (*st.BlockContext, error)
 		return nil, err
 	}
 
-	timestamp := time.Now().Add(time.Duration(rnd.Intn(rnd.Int())))
+	timestamp := rnd.Uint64()
 
 	newBC := st.NewBlockContext()
 	newBC.BlockNumber = blockNumber

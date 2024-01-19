@@ -2,7 +2,6 @@ package gen
 
 import (
 	"testing"
-	"time"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"pgregory.net/rand"
@@ -25,7 +24,7 @@ func TestBlockContextGen_Generate(t *testing.T) {
 		t.Errorf("Generated coinbase has default value.")
 	}
 
-	if newBC.GasLimit == (common.NewU256()) {
+	if newBC.GasLimit == (uint64(0)) {
 		t.Errorf("Generated gas limit has default value.")
 	}
 
@@ -37,7 +36,7 @@ func TestBlockContextGen_Generate(t *testing.T) {
 		t.Errorf("Generated prev randao has default value.")
 	}
 
-	if newBC.TimeStamp == (time.Time{}) {
+	if newBC.TimeStamp == (uint64(0)) {
 		t.Errorf("Generated timestamp has default value.")
 	}
 }
