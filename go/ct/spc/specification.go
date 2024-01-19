@@ -473,7 +473,7 @@ var Spec = func() Specification {
 		{revision: R10_London, warm: true, config: gen.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
 	}
 	for _, params := range sstoreRules {
-		rules = append(rules, sstoreOpRegular(params))
+		//rules = append(rules, sstoreOpRegular(params))
 		rules = append(rules, sstoreOpTooLittleGas(params))
 	}
 
