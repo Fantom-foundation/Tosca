@@ -50,7 +50,7 @@ type instruction struct {
 	pops       int
 	pushes     int
 	conditions Condition         // conditions for the regular case
-	parmeters  []Parameter       // parameters for the regular case
+	parameters []Parameter       // parameters for the regular case
 	effect     func(s *st.State) // effect for the regular case
 	name       string
 }
@@ -241,7 +241,7 @@ var Spec = func() Specification {
 		static_gas: 30,
 		pops:       2,
 		pushes:     1,
-		parmeters: []Parameter{
+		parameters: []Parameter{
 			MemoryOffsetParameter{},
 			MemorySizeParameter{},
 		},
@@ -277,7 +277,7 @@ var Spec = func() Specification {
 		static_gas: 3,
 		pops:       1,
 		pushes:     1,
-		parmeters: []Parameter{
+		parameters: []Parameter{
 			MemoryOffsetParameter{},
 		},
 		effect: func(s *st.State) {
@@ -303,7 +303,7 @@ var Spec = func() Specification {
 		static_gas: 3,
 		pops:       2,
 		pushes:     0,
-		parmeters: []Parameter{
+		parameters: []Parameter{
 			MemoryOffsetParameter{},
 			NumericParameter{},
 		},
@@ -331,7 +331,7 @@ var Spec = func() Specification {
 		static_gas: 3,
 		pops:       2,
 		pushes:     0,
-		parmeters: []Parameter{
+		parameters: []Parameter{
 			MemoryOffsetParameter{},
 			NumericParameter{},
 		},
@@ -364,7 +364,7 @@ var Spec = func() Specification {
 			RevisionBounds(R09_Berlin, R10_London),
 			IsStorageCold(Param(0)),
 		),
-		parmeters: []Parameter{
+		parameters: []Parameter{
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
@@ -385,7 +385,7 @@ var Spec = func() Specification {
 			RevisionBounds(R09_Berlin, R10_London),
 			IsStorageWarm(Param(0)),
 		),
-		parmeters: []Parameter{
+		parameters: []Parameter{
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
@@ -404,7 +404,7 @@ var Spec = func() Specification {
 		conditions: And(
 			RevisionBounds(R07_Istanbul, R07_Istanbul),
 		),
-		parmeters: []Parameter{
+		parameters: []Parameter{
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
@@ -471,7 +471,7 @@ var Spec = func() Specification {
 		{revision: R10_London, warm: true, config: gen.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
 	}
 	for _, params := range sstoreRules {
-		rules = append(rules, sstoreOpRegular(params))
+		//rules = append(rules, sstoreOpRegular(params))
 		rules = append(rules, sstoreOpTooLittleGas(params))
 	}
 
@@ -668,7 +668,7 @@ func binaryOpWithDynamicCost(
 		static_gas: costs,
 		pops:       2,
 		pushes:     1,
-		parmeters: []Parameter{
+		parameters: []Parameter{
 			NumericParameter{},
 			NumericParameter{},
 		},
@@ -706,7 +706,7 @@ func trinaryOp(
 		static_gas: costs,
 		pops:       3,
 		pushes:     1,
-		parmeters: []Parameter{
+		parameters: []Parameter{
 			NumericParameter{},
 			NumericParameter{},
 			NumericParameter{},
@@ -730,7 +730,7 @@ func unaryOp(
 		static_gas: costs,
 		pops:       1,
 		pushes:     1,
-		parmeters: []Parameter{
+		parameters: []Parameter{
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
@@ -910,7 +910,7 @@ func logOp(n int) []Rule {
 		static_gas: minGas,
 		pops:       2 + n,
 		pushes:     0,
-		parmeters:  parameter,
+		parameters: parameter,
 		effect: func(s *st.State) {
 			offset_u256 := s.Stack.Pop()
 			size_u256 := s.Stack.Pop()
@@ -1039,7 +1039,7 @@ func rulesFor(i instruction) []Rule {
 		{
 			Name:      fmt.Sprintf("%s_regular%v", strings.ToLower(i.op.String()), extraName),
 			Condition: And(localConditions...),
-			Parameter: i.parmeters,
+			Parameter: i.parameters,
 			Effect: Change(func(s *st.State) {
 				s.Gas -= i.static_gas
 				s.Pc++
