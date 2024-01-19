@@ -73,6 +73,11 @@ func TestConvertToGeth_Revision(t *testing.T) {
 			for _, cur := range test {
 				state := getEmptyState()
 				state.Revision = cur.ctRevision
+				newBlockNumber, err := ct.GetForkBlock(cur.ctRevision)
+				if err != nil && cur.ctRevision != -1 {
+					t.Errorf("error generating block number: %v", err)
+				}
+				state.BlockContext.BlockNumber = uint64(newBlockNumber)
 
 				interpreter, _, err := ConvertCtStateToGeth(state)
 

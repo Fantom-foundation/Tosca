@@ -8,6 +8,7 @@ import (
 
 	"pgregory.net/rand"
 
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
@@ -274,7 +275,11 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Invoke BlockContextGenrator
-	resultBlockContext, err := g.BlockContextGen.Generate(rnd)
+	blockRevision := resultRevision
+	if blockRevision == common.R99_UnknownNextRevision {
+		blockRevision = Revision(rnd.Int31n(int32(R99_UnknownNextRevision)))
+	}
+	resultBlockContext, err := g.BlockContextGen.Generate(rnd, blockRevision)
 	if err != nil {
 		return nil, err
 	}

@@ -25,3 +25,15 @@ func (r Revision) String() string {
 		return fmt.Sprintf("Revision(%d)", r)
 	}
 }
+
+func GetForkBlock(revision Revision) (int64, error) {
+	switch revision {
+	case R07_Istanbul:
+		return 0, nil
+	case R09_Berlin:
+		return 10, nil
+	case R10_London:
+		return 20, nil
+	}
+	return -1, fmt.Errorf("unknown revision: %v", revision)
+}

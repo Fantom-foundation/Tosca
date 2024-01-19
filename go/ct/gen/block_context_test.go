@@ -10,7 +10,7 @@ import (
 func TestBlockContextGen_Generate(t *testing.T) {
 	rnd := rand.New(0)
 	blockContextGenerator := NewBlockContextGenerator()
-	newBC, err := blockContextGenerator.Generate(rnd)
+	newBC, err := blockContextGenerator.Generate(rnd, common.Revision(rnd.Int31n(int32(common.R99_UnknownNextRevision)+1)))
 
 	if err != nil {
 		t.Errorf("Error generating block context: %v", err)

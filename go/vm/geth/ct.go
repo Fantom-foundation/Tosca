@@ -185,18 +185,6 @@ func (g *gethInterpreter) isLondon() bool {
 	return g.chainConfig.IsLondon(blockNr)
 }
 
-func getForkBlock(revision ct.Revision) (int64, error) {
-	switch revision {
-	case ct.R07_Istanbul:
-		return 0, nil
-	case ct.R09_Berlin:
-		return 10, nil
-	case ct.R10_London:
-		return 20, nil
-	}
-	return -1, fmt.Errorf("unknown revision: %v", revision)
-}
-
 // transferFunc subtracts amount from sender and adds amount to recipient using the given Db
 // Now is doing nothing as this is not changing gas computation
 func transferFunc(stateDB vm.StateDB, callerAddress common.Address, to common.Address, value *big.Int) {
@@ -211,15 +199,15 @@ func canTransferFunc(stateDB vm.StateDB, callerAddress common.Address, value *bi
 }
 
 func getGethEvm(revision ct.Revision, stateDb vm.StateDB) (*gethInterpreter, error) {
-	istanbulBlock, err := getForkBlock(ct.R07_Istanbul)
+	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
 	if err != nil {
 		return nil, err
 	}
-	berlinBlock, err := getForkBlock(ct.R09_Berlin)
+	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
 	if err != nil {
 		return nil, err
 	}
-	londonBlock, err := getForkBlock(ct.R10_London)
+	londonBlock, err := ct.GetForkBlock(ct.R10_London)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +226,7 @@ func getGethEvm(revision ct.Revision, stateDb vm.StateDB) (*gethInterpreter, err
 	}
 
 	// Create empty block context based on block number
-	blockNr, err := getForkBlock(revision)
+	blockNr, err := ct.GetForkBlock(revision)
 	if err != nil {
 		return nil, err
 	}
