@@ -26,6 +26,12 @@ func clearConversionCache() {
 	cache = map[common.Hash]cache_val{}
 }
 
+func getConversionCacheLength() int {
+	mu.Lock()
+	defer mu.Unlock()
+	return len(cache)
+}
+
 func Convert(addr common.Address, code []byte, with_super_instructions bool, blk uint64, create bool, noCodeCache bool, codeHash common.Hash) (Code, error) {
 	mu.Lock()
 	res, exists := cache[codeHash]

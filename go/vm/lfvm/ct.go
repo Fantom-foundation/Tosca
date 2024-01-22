@@ -106,6 +106,11 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 // ct -> lfvm : helper functions
 
 func convertCtCodeToLfvmCode(state *st.State) (Code, error) {
+	const maxConversionCacheLength = 1024
+	if getConversionCacheLength() > maxConversionCacheLength {
+		clearConversionCache()
+	}
+
 	code := make([]byte, state.Code.Length())
 	state.Code.CopyTo(code)
 	address := common.Address{}
