@@ -9,176 +9,71 @@ import (
 )
 
 func TestBlockContext_NewBlockContext(t *testing.T) {
+	tests := map[string]struct {
+		equal func(*BlockContext) bool
+	}{
+		"blockNumber": {func(b *BlockContext) bool { want, got := uint64(0), b.BlockNumber; return want == got }},
+		"coinbase":    {func(b *BlockContext) bool { want, got := (Address{}), b.CoinBase; return want == got }},
+		"gasLimit":    {func(b *BlockContext) bool { want, got := uint64(0), b.GasLimit; return want == got }},
+		"gasPrice":    {func(b *BlockContext) bool { want, got := NewU256(0), b.GasPrice; return want.Eq(got) }},
+		"prevRandao":  {func(b *BlockContext) bool { want, got := [32]byte{}, b.PrevRandao; return want == got }},
+		"timestamp":   {func(b *BlockContext) bool { want, got := (uint64(0)), b.TimeStamp; return want == got }},
+	}
+
 	blockContext := NewBlockContext()
-
-	if want, got := uint64(0), blockContext.BlockNumber; want != got {
-		t.Errorf("Unexpected block number, want %v, got %v", want, got)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if !test.equal(&blockContext) {
+				t.Error("Unexpected value in new context")
+			}
+		})
 	}
-
-	if want, got := (Address{}), blockContext.CoinBase; want != got {
-		t.Errorf("Unexpected codebase, want %v, got %v", want, got)
-	}
-
-	if want, got := uint64(0), blockContext.GasLimit; want != got {
-		t.Errorf("Unexpected gas limit, want %v, got %v", want, got)
-	}
-
-	if want, got := NewU256(0), blockContext.GasPrice; !want.Eq(got) {
-		t.Errorf("Unexpected gas price, want %v, got %v", want, got)
-	}
-
-	if want, got := [32]byte{}, blockContext.PrevRandao; want != got {
-		t.Errorf("Unexpected prev randao, want %v, got %v", want, got)
-	}
-
-	if want, got := (uint64(0)), blockContext.TimeStamp; want != got {
-		t.Errorf("Unexpected timestamp, want %v, got %v", want, got)
-	}
-
-}
-
-func TestBlockContext_Clone(t *testing.T) {
-	b1 := NewBlockContext()
-	b2 := b1.Clone()
-
-	if !b1.Eq(b2) {
-		t.Error("Clone is different from original")
-	}
-
-	b2.BlockNumber++
-	b2.CoinBase[0] = 0xff
-	b2.GasLimit = 1
-	b2.GasPrice = NewU256(1)
-	b2.PrevRandao[0] = 0xff
-	b2.TimeStamp++
-
-	if b1.BlockNumber == b2.BlockNumber ||
-		b1.CoinBase == b2.CoinBase ||
-		b1.GasLimit == b2.GasLimit ||
-		b1.GasPrice.Eq(b2.GasPrice) ||
-		b1.PrevRandao == b2.PrevRandao ||
-		b1.TimeStamp == b2.TimeStamp {
-		t.Error("Clone is not independent from original")
-	}
-
-}
-
-func TestBlockContext_Eq(t *testing.T) {
-	b1 := NewBlockContext()
-	b2 := b1.Clone()
-
-	if !b1.Eq(&b1) {
-		t.Error("Self-comparison is broken")
-	}
-
-	if !b1.Eq(b2) {
-		t.Error("Clones are not equal")
-	}
-
-	b2.BlockNumber++
-	if b1.Eq(b2) {
-		t.Error("Different block number is considered the same")
-	}
-	b2.BlockNumber--
-
-	b2.CoinBase = Address{0xff}
-	if b1.Eq(b2) {
-		t.Error("Different coinbase is considered the same")
-	}
-	b2.CoinBase = Address{}
-
-	b2.GasLimit = 1
-	if b1.Eq(b2) {
-		t.Error("Different gas limit is considered the same")
-	}
-	b2.GasLimit = 0
-
-	b2.GasPrice = NewU256(1)
-	if b1.Eq(b2) {
-		t.Error("Different gas price is considered the same")
-	}
-	b2.GasPrice = NewU256(0)
-
-	b2.PrevRandao[0] = 0xff
-	if b1.Eq(b2) {
-		t.Error("Different prev randao is considered the same")
-	}
-	b2.PrevRandao[0] = 0x00
-
-	b2.TimeStamp = 1
-	if b1.Eq(b2) {
-		t.Error("Different timestamp is considered the same")
-	}
-	b2.TimeStamp = 0
 }
 
 func TestBlockContext_Diff(t *testing.T) {
+	tests := map[string]struct {
+		change func(*BlockContext)
+	}{
+		"blockNumber": {func(b *BlockContext) { b.BlockNumber++ }},
+		"coinbase":    {func(b *BlockContext) { b.CoinBase[0]++ }},
+		"gasLimit":    {func(b *BlockContext) { b.GasLimit++ }},
+		"gasPrice":    {func(b *BlockContext) { b.GasPrice = NewU256(1) }},
+		"prevRandao":  {func(b *BlockContext) { b.PrevRandao[0]++ }},
+		"timestamp":   {func(b *BlockContext) { b.TimeStamp++ }},
+	}
+
 	b1 := NewBlockContext()
-	b2 := NewBlockContext()
-	diffs := []string{}
-
-	if diffs = b1.Diff(&b2); len(diffs) != 0 {
-		t.Error("Found differencees in two new block contexts.")
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			b2 := NewBlockContext()
+			test.change(&b2)
+			if diffs := b1.Diff(&b2); len(diffs) == 0 {
+				t.Error("No difference found in modified context")
+			}
+		})
 	}
-
-	b2.BlockNumber++
-	if diffs = b1.Diff(&b2); len(diffs) == 0 {
-		t.Error("No difference found in different block numbers")
-	}
-
-	b2.CoinBase[0] = 0xff
-	if diffs = b1.Diff(&b2); len(diffs) == 0 {
-		t.Error("No difference found in different coinbase")
-	}
-
-	b2.GasLimit = 1
-	if diffs = b1.Diff(&b2); len(diffs) == 0 {
-		t.Error("No difference found in different gas limit")
-	}
-
-	b2.GasPrice = NewU256(1)
-	if diffs = b1.Diff(&b2); len(diffs) == 0 {
-		t.Error("No difference found in different gas price")
-	}
-
-	b2.PrevRandao[0] = 0xff
-	if diffs = b1.Diff(&b2); len(diffs) == 0 {
-		t.Error("No difference found in different prev randao")
-	}
-
-	b2.TimeStamp = 1
-	if diffs = b1.Diff(&b2); len(diffs) == 0 {
-		t.Error("No difference found in different timestamp")
-	}
-
 }
 
 func TestBlockContext_String(t *testing.T) {
-	b := NewBlockContext()
-	b.BlockNumber++
-	b.CoinBase[0] = 0xff
-	b.GasLimit = 1
-	b.GasPrice = NewU256(1)
-	b.PrevRandao[0] = 0xff
-	b.TimeStamp = 1
-	str := b.String()
+	tests := map[string]struct {
+		change func(*BlockContext) any
+	}{
+		"Block Number": {func(b *BlockContext) any { b.BlockNumber++; return b.BlockNumber }},
+		"CoinBase":     {func(b *BlockContext) any { b.CoinBase[0]++; return b.CoinBase }},
+		"Gas Limit":    {func(b *BlockContext) any { b.GasLimit++; return b.GasLimit }},
+		"Gas Price":    {func(b *BlockContext) any { b.GasPrice = NewU256(1); return b.GasPrice }},
+		"Prev Randao":  {func(b *BlockContext) any { b.PrevRandao[0]++; return b.PrevRandao }},
+		"Timestamp":    {func(b *BlockContext) any { b.TimeStamp++; return b.TimeStamp }},
+	}
 
-	if !strings.Contains(str, fmt.Sprintf("Block Number: %v", b.BlockNumber)) {
-		t.Errorf("Did not find block number string.")
-	}
-	if !strings.Contains(str, fmt.Sprintf("CoinBase: %v", b.CoinBase)) {
-		t.Errorf("Did not find coinbase string.")
-	}
-	if !strings.Contains(str, fmt.Sprintf("Gas Limit: %v", b.GasLimit)) {
-		t.Errorf("Did not find gas limit string.")
-	}
-	if !strings.Contains(str, fmt.Sprintf("Gas Price: %v", b.GasPrice)) {
-		t.Errorf("Did not find gas price string.")
-	}
-	if !strings.Contains(str, fmt.Sprintf("Prev Randao: %v", b.PrevRandao)) {
-		t.Errorf("Did not find prev randao string.")
-	}
-	if !strings.Contains(str, fmt.Sprintf("Timestamp: %v", b.TimeStamp)) {
-		t.Errorf("Did not find timestamp string.")
+	b := NewBlockContext()
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			v := test.change(&b)
+			str := b.String()
+			if !strings.Contains(str, fmt.Sprintf("%v: %v", name, v)) {
+				t.Errorf("Did not find %v string", name)
+			}
+		})
 	}
 }

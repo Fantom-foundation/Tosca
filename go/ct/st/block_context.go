@@ -13,7 +13,7 @@ type BlockContext struct {
 	GasLimit    uint64   // Block's gas limit
 	GasPrice    U256     // Price of gas in current environment
 	PrevRandao  [32]byte // Previous block's RANDAO mix
-	TimeStamp   uint64   // Block's timestamp, it should be returned in format.
+	TimeStamp   uint64   // Block's timestamp
 }
 
 // NewBlockContext returns a newly created instance with all default values.
@@ -21,57 +21,32 @@ func NewBlockContext() BlockContext {
 	return BlockContext{}
 }
 
-// Clone creates an independent copy of the block context
-func (b *BlockContext) Clone() *BlockContext {
-	ret := *b
-	ret.BlockNumber = b.BlockNumber
-	ret.GasLimit = b.GasLimit
-	ret.GasPrice = b.GasPrice
-	ret.PrevRandao = b.PrevRandao
-	ret.TimeStamp = b.TimeStamp
-	return &ret
-}
-
-// Eq compares all fiels of the block context
-func (b *BlockContext) Eq(other *BlockContext) bool {
-	return b.BlockNumber == other.BlockNumber &&
-		b.CoinBase == other.CoinBase &&
-		b.GasLimit == other.GasLimit &&
-		b.GasPrice.Eq(other.GasPrice) &&
-		b.PrevRandao == other.PrevRandao &&
-		b.TimeStamp == other.TimeStamp
-}
-
 // Diff returns a list of differences between the two contexts
 func (b *BlockContext) Diff(other *BlockContext) []string {
 	ret := []string{}
-
+	blockDifference := "Different block context "
 	if b.BlockNumber != other.BlockNumber {
-		ret = append(ret, fmt.Sprintf("Different block number: %v vs %v", b.BlockNumber, other.BlockNumber))
+		ret = append(ret, blockDifference+fmt.Sprintf("block number: %v vs %v", b.BlockNumber, other.BlockNumber))
 	}
 
 	if b.CoinBase != other.CoinBase {
-		str := "Different coinbase address: "
-		for _, dif := range b.CoinBase.Diff(other.CoinBase) {
-			str += dif
-		}
-		ret = append(ret, str)
+		ret = append(ret, blockDifference+fmt.Sprintf("coinbase address: %v vs. %v", b.CoinBase, other.CoinBase))
 	}
 
 	if b.GasLimit != other.GasLimit {
-		ret = append(ret, fmt.Sprintf("Different gas limit: %v vs %v", b.GasLimit, other.GasLimit))
+		ret = append(ret, blockDifference+fmt.Sprintf("gas limit: %v vs %v", b.GasLimit, other.GasLimit))
 	}
 
 	if !b.GasPrice.Eq(other.GasPrice) {
-		ret = append(ret, fmt.Sprintf("Different gas price: %v vs %v", b.GasPrice, other.GasPrice))
+		ret = append(ret, blockDifference+fmt.Sprintf("gas price: %v vs %v", b.GasPrice, other.GasPrice))
 	}
 
 	if b.PrevRandao != other.PrevRandao {
-		ret = append(ret, fmt.Sprintf("Different prev randao mix: %v vs %v", b.PrevRandao, other.PrevRandao))
+		ret = append(ret, blockDifference+fmt.Sprintf("prev randao mix: %v vs %v", b.PrevRandao, other.PrevRandao))
 	}
 
 	if b.TimeStamp != other.TimeStamp {
-		ret = append(ret, fmt.Sprintf("Different timestamp: %v vs %v", b.TimeStamp, other.TimeStamp))
+		ret = append(ret, blockDifference+fmt.Sprintf("timestamp: %v vs %v", b.TimeStamp, other.TimeStamp))
 	}
 
 	return ret

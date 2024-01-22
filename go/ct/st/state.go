@@ -220,7 +220,7 @@ func (s *State) Diff(o *State) []string {
 		res = append(res, s.CallContext.Diff(&o.CallContext)...)
 	}
 
-	if !s.BlockContext.Eq(&o.BlockContext) {
+	if s.BlockContext != o.BlockContext {
 		res = append(res, s.BlockContext.Diff(&o.BlockContext)...)
 	}
 

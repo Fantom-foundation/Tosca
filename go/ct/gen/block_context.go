@@ -14,16 +14,16 @@ func NewBlockContextGenerator() *BlockContextGenerator {
 	return &BlockContextGenerator{}
 }
 
-func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision) (*st.BlockContext, error) {
+func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision) (st.BlockContext, error) {
 
 	revNumber, err := common.GetForkBlock(revision)
 	if err != nil {
-		return nil, err
+		return st.NewBlockContext(), err
 	}
 	blockNumber := uint64(revNumber) + rnd.Uint64()
 	coinbase, err := common.RandAddress(rnd)
 	if err != nil {
-		return nil, err
+		return st.NewBlockContext(), err
 	}
 	gasLimit := rnd.Uint64()
 	gasPrice := common.RandU256(rnd)
@@ -31,7 +31,7 @@ func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision)
 	prevRandao := [32]byte{}
 	_, err = rnd.Read(prevRandao[:])
 	if err != nil {
-		return nil, err
+		return st.NewBlockContext(), err
 	}
 
 	timestamp := rnd.Uint64()
@@ -44,7 +44,7 @@ func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision)
 	newBC.PrevRandao = prevRandao
 	newBC.TimeStamp = timestamp
 
-	return &newBC, nil
+	return newBC, nil
 }
 
 func (*BlockContextGenerator) Clone() *BlockContextGenerator {

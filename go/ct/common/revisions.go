@@ -26,6 +26,8 @@ func (r Revision) String() string {
 	}
 }
 
+// GetForkBlock returns the block number associated with a specific blockchain
+// revision or -1 for unknown revisions.
 func GetForkBlock(revision Revision) (int64, error) {
 	switch revision {
 	case R07_Istanbul:

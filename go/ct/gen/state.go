@@ -8,7 +8,6 @@ import (
 
 	"pgregory.net/rand"
 
-	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
@@ -275,14 +274,8 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Invoke BlockContextGenrator
-	blockRevision := resultRevision
-	if blockRevision == common.R99_UnknownNextRevision {
-		blockRevision = Revision(rnd.Int31n(int32(R99_UnknownNextRevision)))
-	}
-	resultBlockContext, err := g.BlockContextGen.Generate(rnd, blockRevision)
-	if err != nil {
-		return nil, err
-	}
+	// we don't check for the error value here because some tests need a state with an unknown revision.
+	resultBlockContext, _ := g.BlockContextGen.Generate(rnd, resultRevision)
 
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences

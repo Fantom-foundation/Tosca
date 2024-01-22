@@ -107,7 +107,7 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 	state.BlockContext.CoinBase = (ct.Address)(ctx.evm.Context.Coinbase)
 	state.BlockContext.GasLimit = ctx.evm.Context.GasLimit
 	state.BlockContext.GasPrice = *ct.U256FromBigInt(ctx.evm.GasPrice)
-	copy(state.BlockContext.PrevRandao[:], ctx.evm.Context.Difficulty.Bytes())
+	ctx.evm.Context.Difficulty.FillBytes(state.BlockContext.PrevRandao[:])
 	state.BlockContext.TimeStamp = ctx.evm.Context.Time.Uint64()
 
 	return state, nil

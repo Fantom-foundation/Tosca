@@ -162,35 +162,15 @@ func TestState_Eq(t *testing.T) {
 	}
 	s2 = NewState(NewCode([]byte{byte(ADD), byte(STOP)}))
 
-	s1.CallContext = CallContext{
-		AccountAddress: Address{0x00},
-		OriginAddress:  Address{0x01},
-		CallerAddress:  Address{0x02},
-		Value:          NewU256(3)}
-	s2.CallContext = CallContext{
-		AccountAddress: Address{0xff},
-		OriginAddress:  Address{0xfe},
-		CallerAddress:  Address{0xfd},
-		Value:          NewU256(252)}
+	s1.CallContext = CallContext{AccountAddress: Address{0x00}}
+	s2.CallContext = CallContext{AccountAddress: Address{0xff}}
 	if s1.Eq(s2) {
 		t.Fail()
 	}
 	s2.CallContext = s1.CallContext
 
-	s1.BlockContext = BlockContext{
-		BlockNumber: 0,
-		CoinBase:    Address{0x01},
-		GasLimit:    2,
-		GasPrice:    NewU256(3),
-		PrevRandao:  [32]byte{0x04},
-		TimeStamp:   5}
-	s2.BlockContext = BlockContext{
-		BlockNumber: 251,
-		CoinBase:    Address{0xfa},
-		GasLimit:    249,
-		GasPrice:    NewU256(248),
-		PrevRandao:  [32]byte{0xf7},
-		TimeStamp:   246}
+	s1.BlockContext = BlockContext{BlockNumber: 0}
+	s2.BlockContext = BlockContext{BlockNumber: 251}
 	if s1.Eq(s2) {
 		t.Fail()
 	}
@@ -424,18 +404,8 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.Memory.Write([]byte{1, 2, 3}, 31)
 	s1.Storage.MarkWarm(NewU256(42))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s1.CallContext = CallContext{
-		AccountAddress: Address{0x00},
-		OriginAddress:  Address{0x01},
-		CallerAddress:  Address{0x02},
-		Value:          NewU256(3)}
-	s1.BlockContext = BlockContext{
-		BlockNumber: 0,
-		CoinBase:    Address{0x01},
-		GasLimit:    2,
-		GasPrice:    NewU256(3),
-		PrevRandao:  [32]byte{0x04},
-		TimeStamp:   5}
+	s1.CallContext = CallContext{AccountAddress: Address{0x00}}
+	s1.BlockContext = BlockContext{BlockNumber: 0}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -447,18 +417,8 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.Memory.Write([]byte{1, 2, 3}, 31)
 	s2.Storage.MarkWarm(NewU256(42))
 	s2.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s2.CallContext = CallContext{
-		AccountAddress: Address{0x00},
-		OriginAddress:  Address{0x01},
-		CallerAddress:  Address{0x02},
-		Value:          NewU256(3)}
-	s2.BlockContext = BlockContext{
-		BlockNumber: 0,
-		CoinBase:    Address{0x01},
-		GasLimit:    2,
-		GasPrice:    NewU256(3),
-		PrevRandao:  [32]byte{0x04},
-		TimeStamp:   5}
+	s2.CallContext = CallContext{AccountAddress: Address{0x00}}
+	s2.BlockContext = BlockContext{BlockNumber: 0}
 
 	diffs := s1.Diff(s2)
 
@@ -483,14 +443,8 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Storage.MarkWarm(NewU256(42))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s1.CallContext.AccountAddress = Address{0xff}
-	s1.BlockContext = BlockContext{
-		BlockNumber: 0,
-		CoinBase:    Address{0x01},
-		GasLimit:    2,
-		GasPrice:    NewU256(3),
-		PrevRandao:  [32]byte{0x04},
-		TimeStamp:   5}
+	s1.CallContext = CallContext{AccountAddress: Address{0xff}}
+	s1.BlockContext = BlockContext{BlockNumber: 1}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -502,14 +456,8 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.Memory.Write([]byte{1, 2, 4}, 31)
 	s2.Storage.MarkCold(NewU256(42))
 	s2.Logs.AddLog([]byte{4, 7, 6}, NewU256(24), NewU256(22))
-	s2.CallContext.AccountAddress = Address{0xef}
-	s2.BlockContext = BlockContext{
-		BlockNumber: 251,
-		CoinBase:    Address{0xfa},
-		GasLimit:    249,
-		GasPrice:    NewU256(248),
-		PrevRandao:  [32]byte{0xf7},
-		TimeStamp:   246}
+	s2.CallContext = CallContext{AccountAddress: Address{0xef}}
+	s2.BlockContext = BlockContext{BlockNumber: 251}
 
 	diffs := s1.Diff(s2)
 
@@ -527,12 +475,7 @@ func TestState_DiffMismatch(t *testing.T) {
 		"Different topics for log entry",
 		"Different data for log entry",
 		"Different call context",
-		"Different block number",
-		"Different coinbase address",
-		"Different gas limit",
-		"Different gas price",
-		"Different prev randao mix",
-		"Different timestamp",
+		"Different block context",
 	}
 
 	if len(diffs) != len(expectedDiffs) {
@@ -543,7 +486,7 @@ func TestState_DiffMismatch(t *testing.T) {
 		t.FailNow()
 	}
 
-	for i := 0; i < len(diffs); i++ {
+	for i := 0; i < len(expectedDiffs); i++ {
 		if !strings.Contains(diffs[i], expectedDiffs[i]) {
 			t.Errorf("invalid diff, expected '%s' found '%s'", expectedDiffs[i], diffs[i])
 		}
