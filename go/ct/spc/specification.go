@@ -49,7 +49,7 @@ type instruction struct {
 	static_gas uint64
 	pops       int
 	pushes     int
-	conditions Condition         // conditions for the regular case
+	conditions []Condition       // conditions for the regular case
 	parameters []Parameter       // parameters for the regular case
 	effect     func(s *st.State) // effect for the regular case
 	name       string
@@ -360,10 +360,10 @@ var Spec = func() Specification {
 		static_gas: 100 + 2000, // 2000 are from the dynamic cost of cold mem
 		pops:       1,
 		pushes:     1,
-		conditions: And(
+		conditions: []Condition{
 			RevisionBounds(R09_Berlin, R10_London),
 			IsStorageCold(Param(0)),
-		),
+		},
 		parameters: []Parameter{
 			NumericParameter{},
 		},
@@ -372,7 +372,7 @@ var Spec = func() Specification {
 			s.Stack.Push(s.Storage.Current[key])
 			s.Storage.MarkWarm(key)
 		},
-		name: "cold",
+		name: "_cold",
 	})...)
 
 	// warm
@@ -381,10 +381,10 @@ var Spec = func() Specification {
 		static_gas: 100,
 		pops:       1,
 		pushes:     1,
-		conditions: And(
+		conditions: []Condition{
 			RevisionBounds(R09_Berlin, R10_London),
 			IsStorageWarm(Param(0)),
-		),
+		},
 		parameters: []Parameter{
 			NumericParameter{},
 		},
@@ -392,7 +392,7 @@ var Spec = func() Specification {
 			key := s.Stack.Pop()
 			s.Stack.Push(s.Storage.Current[key])
 		},
-		name: "warm",
+		name: "_warm",
 	})...)
 
 	// pre_berlin
@@ -401,9 +401,9 @@ var Spec = func() Specification {
 		static_gas: 800,
 		pops:       1,
 		pushes:     1,
-		conditions: And(
+		conditions: []Condition{
 			RevisionBounds(R07_Istanbul, R07_Istanbul),
-		),
+		},
 		parameters: []Parameter{
 			NumericParameter{},
 		},
@@ -411,7 +411,7 @@ var Spec = func() Specification {
 			key := s.Stack.Pop()
 			s.Stack.Push(s.Storage.Current[key])
 		},
-		name: "pre_berlin",
+		name: "_pre_berlin",
 	})...)
 
 	// --- SSTORE ---
@@ -471,12 +471,12 @@ var Spec = func() Specification {
 		{revision: R10_London, warm: true, config: gen.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
 	}
 	for _, params := range sstoreRules {
-		//rules = append(rules, sstoreOpRegular(params))
+		rules = append(rules, sstoreOpRegular(params))
 		rules = append(rules, sstoreOpTooLittleGas(params))
 	}
 
-	rules = append(rules, tooLittleGas(SSTORE, 2300, "EIP2200")...)
-	rules = append(rules, tooFewElements(SSTORE, 2, "")...)
+	rules = append(rules, tooLittleGas(instruction{op: SSTORE, static_gas: 2300, name: "_EIP2200"})...)
+	rules = append(rules, tooFewElements(instruction{op: SSTORE, static_gas: 2})...)
 
 	// --- JUMP ---
 
@@ -485,10 +485,10 @@ var Spec = func() Specification {
 		static_gas: 8,
 		pops:       1,
 		pushes:     0,
-		conditions: And(
+		conditions: []Condition{
 			IsCode(Param(0)),
 			Eq(Op(Param(0)), JUMPDEST),
-		),
+		},
 		effect: func(s *st.State) {
 			target := s.Stack.Pop()
 			s.Pc = uint16(target.Uint64())
@@ -531,11 +531,11 @@ var Spec = func() Specification {
 		static_gas: 10,
 		pops:       2,
 		pushes:     0,
-		conditions: And(
+		conditions: []Condition{
 			IsCode(Param(0)),
 			Eq(Op(Param(0)), JUMPDEST),
 			Ne(Param(1), NewU256(0)),
-		),
+		},
 		effect: func(s *st.State) {
 			target := s.Stack.Pop()
 			s.Stack.Pop()
@@ -646,7 +646,6 @@ var Spec = func() Specification {
 		static_gas: 2,
 		pops:       0,
 		pushes:     1,
-		conditions: And(Lt(StackSize(), st.MaxStackSize)),
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256FromBytes(s.CallContext.AccountAddress[:]...))
 		},
@@ -747,7 +746,6 @@ func pushOp(n int) []Rule {
 		static_gas: 3,
 		pops:       0,
 		pushes:     1,
-		conditions: And(Lt(StackSize(), st.MaxStackSize)),
 		effect: func(s *st.State) {
 			data := make([]byte, n)
 			for i := 0; i < n; i++ {
@@ -768,9 +766,8 @@ func dupOp(n int) []Rule {
 	return rulesFor(instruction{
 		op:         op,
 		static_gas: 3,
-		pops:       n, // need to check for get, no real pop
-		pushes:     n,
-		conditions: And(Lt(StackSize(), st.MaxStackSize)),
+		pops:       n, // need to check for get
+		pushes:     n + 1,
 		effect: func(s *st.State) {
 			s.Stack.Push(s.Stack.Get(n - 1))
 		},
@@ -782,8 +779,8 @@ func swapOp(n int) []Rule {
 	return rulesFor(instruction{
 		op:         op,
 		static_gas: 3,
-		pops:       n + 1, // does not really do pops, but needs to check for that many elements
-		pushes:     0,
+		pops:       n + 1, // need to check for get
+		pushes:     n + 1,
 		effect: func(s *st.State) {
 			a := s.Stack.Get(0)
 			b := s.Stack.Get(n)
@@ -940,66 +937,40 @@ func logOp(n int) []Rule {
 	})
 }
 
-func tooLittleGas(op OpCode, minGas uint64, name string, conditions ...Condition) []Rule {
-	localConditions := []Condition{
+func tooLittleGas(i instruction) []Rule {
+	localConditions := append(i.conditions,
 		AnyKnownRevision(),
 		Eq(Status(), st.Running),
-		Eq(Op(Pc()), op),
-		Lt(Gas(), minGas),
-	}
-	if len(conditions) != 0 && conditions[0] != nil {
-		localConditions = append(localConditions, conditions...)
-	}
-	for _, c := range localConditions {
-		if c == nil {
-			fmt.Printf("null condition")
-		}
-	}
+		Eq(Op(Pc()), i.op),
+		Lt(Gas(), i.static_gas))
 	return []Rule{{
-		Name:      fmt.Sprintf("%v_with_too_little_gas%v", strings.ToLower(op.String()), name),
+		Name:      fmt.Sprintf("%v_with_too_little_gas%v", strings.ToLower(i.op.String()), i.name),
 		Condition: And(localConditions...),
 		Effect:    FailEffect(),
 	}}
 }
 
-func notEnoughSpace(op OpCode, neededSpace int, name string, conditions ...Condition) []Rule {
-	localConditions := []Condition{
+func notEnoughSpace(i instruction) []Rule {
+	localConditions := append(i.conditions,
 		AnyKnownRevision(),
 		Eq(Status(), st.Running),
-		Eq(Op(Pc()), op),
-		Ge(StackSize(), st.MaxStackSize),
-	}
-	if len(conditions) != 0 && conditions[0] != nil {
-		localConditions = append(localConditions, conditions...)
-	}
-	for _, c := range localConditions {
-		if c == nil {
-			fmt.Printf("null condition")
-		}
-	}
+		Eq(Op(Pc()), i.op),
+		Ge(StackSize(), st.MaxStackSize))
 	return []Rule{{
-		Name:      fmt.Sprintf("%v_with_not_enough_space%v", strings.ToLower(op.String()), name),
+		Name:      fmt.Sprintf("%v_with_not_enough_space%v", strings.ToLower(i.op.String()), i.name),
 		Condition: And(localConditions...),
 		Effect:    FailEffect(),
 	}}
 }
 
-func tooFewElements(op OpCode, minElems int, name string, conditions ...Condition) []Rule {
-	localConditions := []Condition{
+func tooFewElements(i instruction) []Rule {
+	localConditions := append(i.conditions,
 		AnyKnownRevision(),
 		Eq(Status(), st.Running),
-		Eq(Op(Pc()), op),
-		Lt(StackSize(), minElems)}
-	if len(conditions) != 0 && conditions[0] != nil {
-		localConditions = append(localConditions, conditions...)
-	}
-	for _, c := range localConditions {
-		if c == nil {
-			fmt.Printf("null condition")
-		}
-	}
+		Eq(Op(Pc()), i.op),
+		Lt(StackSize(), i.pops))
 	return []Rule{{
-		Name:      fmt.Sprintf("%v_with_too_few_elements%v", strings.ToLower(op.String()), name),
+		Name:      fmt.Sprintf("%v_with_too_few_elements%v", strings.ToLower(i.op.String()), i.name),
 		Condition: And(localConditions...),
 		Effect:    FailEffect(),
 	}}
@@ -1008,36 +979,25 @@ func tooFewElements(op OpCode, minElems int, name string, conditions ...Conditio
 // rulesFor instantiates the basic rules depending on the instruction info.
 // any rule that cannot be expressed using this function must be implemented manually
 func rulesFor(i instruction) []Rule {
-	extraName := ""
-	if len(i.name) != 0 {
-		extraName = "_" + i.name
-	}
 	res := []Rule{}
-	res = append(res, tooLittleGas(i.op, uint64(i.static_gas), extraName, i.conditions)...)
+	res = append(res, tooLittleGas(i)...)
 	if i.pops > 0 {
-		res = append(res, tooFewElements(i.op, i.pops, extraName, i.conditions)...)
+		res = append(res, tooFewElements(i)...)
 	}
 	if i.pushes > i.pops {
-		res = append(res, notEnoughSpace(i.op, i.pushes, extraName, i.conditions)...)
+		res = append(res, notEnoughSpace(i)...)
 	}
-	localConditions := []Condition{
+	localConditions := append(i.conditions,
 		AnyKnownRevision(),
 		Eq(Status(), st.Running),
 		Eq(Op(Pc()), i.op),
 		Ge(Gas(), i.static_gas),
 		Ge(StackSize(), i.pops),
-	}
-	if i.conditions != nil {
-		localConditions = append(localConditions, i.conditions)
-	}
-	for _, c := range localConditions {
-		if c == nil {
-			fmt.Printf("null condition")
-		}
-	}
+		Lt(StackSize(), st.MaxStackSize-(max(i.pushes-i.pops, 0))),
+	)
 	res = append(res, []Rule{
 		{
-			Name:      fmt.Sprintf("%s_regular%v", strings.ToLower(i.op.String()), extraName),
+			Name:      fmt.Sprintf("%s_regular%v", strings.ToLower(i.op.String()), i.name),
 			Condition: And(localConditions...),
 			Parameter: i.parameters,
 			Effect: Change(func(s *st.State) {
