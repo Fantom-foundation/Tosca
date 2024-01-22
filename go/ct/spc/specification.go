@@ -659,7 +659,6 @@ var Spec = func() Specification {
 		static_gas: 2,
 		pops:       0,
 		pushes:     1,
-		conditions: And(Lt(StackSize(), st.MaxStackSize)),
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256FromBytes(s.CallContext.OriginAddress[:]...))
 		},
@@ -672,7 +671,6 @@ var Spec = func() Specification {
 		static_gas: 2,
 		pops:       0,
 		pushes:     1,
-		conditions: And(Lt(StackSize(), st.MaxStackSize)),
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256FromBytes(s.CallContext.CallerAddress[:]...))
 		},
@@ -685,7 +683,6 @@ var Spec = func() Specification {
 		static_gas: 2,
 		pops:       0,
 		pushes:     1,
-		conditions: And(Lt(StackSize(), st.MaxStackSize)),
 		effect: func(s *st.State) {
 			s.Stack.Push(s.CallContext.Value)
 		},

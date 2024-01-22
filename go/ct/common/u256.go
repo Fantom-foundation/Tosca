@@ -207,18 +207,18 @@ func (i U256) String() string {
 	return fmt.Sprintf("%016x %016x %016x %016x", i.internal[3], i.internal[2], i.internal[1], i.internal[0])
 }
 
-// ToBig returns a bigInt version of i
-func (i U256) ToBig() *big.Int {
+// ToBigInt returns a bigInt version of i
+func (i U256) ToBigInt() *big.Int {
 	return i.internal.ToBig()
 }
 
-// U256FromBig returns a U256 version of b.
+// U256FromBigInt returns a U256 version of b.
 // This conversion can panic on overflow conversion.
-func U256FromBig(b *big.Int) *U256 {
+func U256FromBigInt(b *big.Int) *U256 {
 	ret := NewU256()
 	// if big int contains a negative number, we return zero
 	if b.Cmp(big.NewInt(0)) == -1 {
-		return &ret
+		panic("Tried converting negative big.Ing to unsigend.")
 	}
 	newInternal, overflow := uint256.FromBig(b)
 	if overflow {

@@ -21,7 +21,6 @@ func NewCallContext() *CallContext {
 // Clone creates an independent copy of the call context.
 func (c *CallContext) Clone() *CallContext {
 	ret := *c
-	ret.Value = c.Value
 	return &ret
 }
 

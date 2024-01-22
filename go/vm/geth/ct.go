@@ -97,7 +97,13 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 	ctState.CallContext.AccountAddress = (ct.Address)(state.Contract.Address().Bytes())
 	ctState.CallContext.OriginAddress = (ct.Address)(geth.evm.Origin.Bytes())
 	ctState.CallContext.CallerAddress = (ct.Address)(state.Contract.CallerAddress.Bytes())
-	ctState.CallContext.Value = *ct.U256FromBig(state.Contract.Value())
+	defer func() {
+		r := recover()
+		if r != nil {
+			fmt.Printf("Cannot convert %v to U256 because: %v", state.Contract.Value(), r)
+		}
+	}()
+	ctState.CallContext.Value = *ct.U256FromBigInt(state.Contract.Value())
 
 	return ctState, nil
 }
@@ -288,7 +294,7 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 	geth.evm.Origin = (common.Address)(state.CallContext.OriginAddress)
 	objectAddress := (vm.AccountRef)(state.CallContext.AccountAddress)
 	callerAddress := (vm.AccountRef)(state.CallContext.CallerAddress)
-	contract := vm.NewContract(callerAddress, objectAddress, state.CallContext.Value.ToBig(), state.Gas)
+	contract := vm.NewContract(callerAddress, objectAddress, state.CallContext.Value.ToBigInt(), state.Gas)
 	contract.Code = convertCtCodeToGethCode(state)
 
 	interpreterState := vm.NewGethState(

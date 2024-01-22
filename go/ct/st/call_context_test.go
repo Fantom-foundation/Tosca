@@ -120,23 +120,22 @@ func TestCallContext_Diff(t *testing.T) {
 }
 
 func TestCallContext_String(t *testing.T) {
-	CallContext := NewCallContext()
-	CallContext = NewCallContext()
-	CallContext.AccountAddress[19] = 0xff
-	CallContext.OriginAddress[19] = 0xfe
-	CallContext.CallerAddress[19] = 0xfd
-	CallContext.Value = NewU256(1)
+	callContext := NewCallContext()
+	callContext.AccountAddress[19] = 0xff
+	callContext.OriginAddress[19] = 0xfe
+	callContext.CallerAddress[19] = 0xfd
+	callContext.Value = NewU256(1)
 
-	if !strings.Contains(CallContext.String(), fmt.Sprintf("Account Address: %s", CallContext.AccountAddress)) {
+	if !strings.Contains(callContext.String(), fmt.Sprintf("Account Address: %s", callContext.AccountAddress)) {
 		t.Errorf("Did not find account address string.")
 	}
-	if !strings.Contains(CallContext.String(), fmt.Sprintf("Origin Address: %s", CallContext.OriginAddress)) {
+	if !strings.Contains(callContext.String(), fmt.Sprintf("Origin Address: %s", callContext.OriginAddress)) {
 		t.Errorf("Did not find origin address string.")
 	}
-	if !strings.Contains(CallContext.String(), fmt.Sprintf("Caller Address: %s", CallContext.CallerAddress)) {
+	if !strings.Contains(callContext.String(), fmt.Sprintf("Caller Address: %s", callContext.CallerAddress)) {
 		t.Errorf("Did not find caller address string.")
 	}
-	if !strings.Contains(CallContext.String(), fmt.Sprintf("Value: %s", CallContext.Value)) {
+	if !strings.Contains(callContext.String(), fmt.Sprintf("Value: %s", callContext.Value)) {
 		t.Errorf("Did not find value string.")
 	}
 }

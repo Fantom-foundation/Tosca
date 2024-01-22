@@ -157,11 +157,7 @@ func TestState_Eq(t *testing.T) {
 	if s1.Eq(s2) {
 		t.Fail()
 	}
-	s2.CallContext = &CallContext{
-		AccountAddress: Address{0x00},
-		OriginAddress:  Address{0x01},
-		CallerAddress:  Address{0x02},
-		Value:          NewU256(3)}
+	s2.CallContext = s1.CallContext
 }
 
 func TestState_EqFailureStates(t *testing.T) {
