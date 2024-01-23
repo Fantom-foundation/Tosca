@@ -8,7 +8,9 @@ import (
 
 // BlockContext holds the block environment information
 type BlockContext struct {
+	BaseFee     U256    // Base fee in wei
 	BlockNumber uint64  // Block's number
+	ChainID     U256    // Chain id of the network
 	CoinBase    Address // Address of the block's benficiary
 	GasLimit    uint64  // Block's gas limit
 	GasPrice    U256    // Price of gas in current environment
@@ -25,8 +27,17 @@ func NewBlockContext() BlockContext {
 func (b *BlockContext) Diff(other *BlockContext) []string {
 	ret := []string{}
 	blockDifference := "Different block context "
+
+	if !b.BaseFee.Eq(other.BaseFee) {
+		ret = append(ret, blockDifference+fmt.Sprintf("base fee: %v vs %v", b.BaseFee, other.BaseFee))
+	}
+
 	if b.BlockNumber != other.BlockNumber {
 		ret = append(ret, blockDifference+fmt.Sprintf("block number: %v vs %v\n", b.BlockNumber, other.BlockNumber))
+	}
+
+	if !b.ChainID.Eq(other.ChainID) {
+		ret = append(ret, blockDifference+fmt.Sprintf("chain id: %v vs %v", b.ChainID, other.ChainID))
 	}
 
 	if b.CoinBase != other.CoinBase {

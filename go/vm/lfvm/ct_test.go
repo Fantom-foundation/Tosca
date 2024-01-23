@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 ////////////////////////////////////////////////////////////
@@ -684,18 +685,40 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	newGasPrice := big.NewInt(252)
 	newDifficulty := big.NewInt(251)
 	newTimestamp := big.NewInt(250)
+	newBaseFee := big.NewInt(249)
+	newChainID := big.NewInt(248)
 
-	ctx.evm = &vm.EVM{
-		Context: vm.BlockContext{
-			BlockNumber: newBlockNumber,
-			Coinbase:    newCoinBase.Address(),
-			GasLimit:    newGasLimit,
-			Difficulty:  newDifficulty,
-			Time:        newTimestamp,
-		},
-		TxContext: vm.TxContext{
-			GasPrice: newGasPrice,
-		}}
+	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
+	if err != nil {
+		t.Fatalf("failed to get revision fork: %v", err)
+	}
+	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
+	if err != nil {
+		t.Fatalf("failed to get revision fork: %v", err)
+	}
+	londonBlock, err := ct.GetForkBlock(ct.R10_London)
+	if err != nil {
+		t.Fatalf("failed to get revision fork: %v", err)
+	}
+
+	// Set hard forks for chainconfig
+	chainConfig := params.AllEthashProtocolChanges
+	chainConfig.ChainID = newChainID
+	chainConfig.IstanbulBlock = big.NewInt(0).SetUint64(istanbulBlock)
+	chainConfig.BerlinBlock = big.NewInt(0).SetUint64(berlinBlock)
+	chainConfig.LondonBlock = big.NewInt(0).SetUint64(londonBlock)
+
+	ctx.evm = vm.NewEVM(vm.BlockContext{
+		BaseFee:     newBaseFee,
+		BlockNumber: newBlockNumber,
+		Coinbase:    newCoinBase.Address(),
+		GasLimit:    newGasLimit,
+		Difficulty:  newDifficulty,
+		Time:        newTimestamp,
+	},
+		vm.TxContext{GasPrice: newGasPrice},
+		ctx.stateDB,
+		chainConfig, vm.Config{})
 
 	code := []byte{}
 
@@ -727,6 +750,12 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	}
 	if want, got := uint64(250), state.BlockContext.TimeStamp; want != got {
 		t.Errorf("unexpected timestamp, wanted %v, got %v", want, got)
+	}
+	if want, got := ct.NewU256(249), state.BlockContext.BaseFee; !want.Eq(got) {
+		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
+	}
+	if want, got := ct.NewU256(248), state.BlockContext.ChainID; !want.Eq(got) {
+		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
 	}
 
 }

@@ -12,7 +12,9 @@ func TestBlockContext_NewBlockContext(t *testing.T) {
 	tests := map[string]struct {
 		equal func(*BlockContext) bool
 	}{
+		"basefee":     {func(b *BlockContext) bool { want, got := NewU256(0), b.BaseFee; return want.Eq(got) }},
 		"blockNumber": {func(b *BlockContext) bool { want, got := uint64(0), b.BlockNumber; return want == got }},
+		"chainid":     {func(b *BlockContext) bool { want, got := NewU256(0), b.ChainID; return want.Eq(got) }},
 		"coinbase":    {func(b *BlockContext) bool { want, got := (Address{}), b.CoinBase; return want == got }},
 		"gasLimit":    {func(b *BlockContext) bool { want, got := uint64(0), b.GasLimit; return want == got }},
 		"gasPrice":    {func(b *BlockContext) bool { want, got := NewU256(0), b.GasPrice; return want.Eq(got) }},
@@ -34,7 +36,9 @@ func TestBlockContext_Diff(t *testing.T) {
 	tests := map[string]struct {
 		change func(*BlockContext)
 	}{
+		"basefee":     {func(b *BlockContext) { b.BaseFee = NewU256(1) }},
 		"blockNumber": {func(b *BlockContext) { b.BlockNumber++ }},
+		"chainid":     {func(b *BlockContext) { b.ChainID = NewU256(1) }},
 		"coinbase":    {func(b *BlockContext) { b.CoinBase[0]++ }},
 		"gasLimit":    {func(b *BlockContext) { b.GasLimit++ }},
 		"gasPrice":    {func(b *BlockContext) { b.GasPrice = NewU256(1) }},
@@ -58,7 +62,9 @@ func TestBlockContext_String(t *testing.T) {
 	tests := map[string]struct {
 		change func(*BlockContext) any
 	}{
+		"Base Fee":     {func(b *BlockContext) any { b.BaseFee = NewU256(1); return b.BaseFee }},
 		"Block Number": {func(b *BlockContext) any { b.BlockNumber++; return b.BlockNumber }},
+		"Chain ID":     {func(b *BlockContext) any { b.ChainID = NewU256(1); return b.ChainID }},
 		"CoinBase":     {func(b *BlockContext) any { b.CoinBase[0]++; return b.CoinBase }},
 		"Gas Limit":    {func(b *BlockContext) any { b.GasLimit++; return b.GasLimit }},
 		"Gas Price":    {func(b *BlockContext) any { b.GasPrice = NewU256(1); return b.GasPrice }},

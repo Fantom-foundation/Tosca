@@ -43,7 +43,9 @@ func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision)
 	timestamp := rnd.Uint64()
 
 	newBC := st.NewBlockContext()
+	newBC.BaseFee = baseFee
 	newBC.BlockNumber = blockNumber
+	newBC.ChainID = chainId
 	newBC.CoinBase = coinbase
 	newBC.GasLimit = gasLimit
 	newBC.GasPrice = gasPrice
