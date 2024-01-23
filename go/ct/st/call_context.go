@@ -39,10 +39,6 @@ func (c *CallContext) Diff(other *CallContext) []string {
 		ret = append(ret, callContextDiff+fmt.Sprintf("call value %v vs %v.", c.Value, other.Value))
 	}
 
-	if !c.Value.Eq(other.Value) {
-		ret = append(ret, fmt.Sprintf("Different call value %v vs %v.", c.Value, other.Value))
-	}
-
 	return ret
 }
 
