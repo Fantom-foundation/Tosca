@@ -55,6 +55,8 @@ type instruction struct {
 	name       string
 }
 
+func noEffect(st *st.State) {}
+
 ////////////////////////////////////////////////////////////
 
 func boolToU256(value bool) U256 {
@@ -599,8 +601,7 @@ var Spec = func() Specification {
 		static_gas: 1,
 		pops:       0,
 		pushes:     0,
-		effect: func(s *st.State) {
-		},
+		effect:     noEffect,
 	})...)
 
 	// --- Stack PUSH ---
@@ -761,12 +762,14 @@ func pushOp(n int) []Rule {
 	})
 }
 
+// we call rulesFor with n pops values because they call stack.Get and for that
+// we need to ensure that there are enough elements in the stack.
 func dupOp(n int) []Rule {
 	op := OpCode(int(DUP1) + n - 1)
 	return rulesFor(instruction{
 		op:         op,
 		static_gas: 3,
-		pops:       n, // need to check for get
+		pops:       n,
 		pushes:     n + 1,
 		effect: func(s *st.State) {
 			s.Stack.Push(s.Stack.Get(n - 1))
@@ -774,12 +777,14 @@ func dupOp(n int) []Rule {
 	})
 }
 
+// we call rulesFor with n+1 pops values because they call stack.Get and for that
+// we need to ensure that there are enough elements in the stack.
 func swapOp(n int) []Rule {
 	op := OpCode(int(SWAP1) + n - 1)
 	return rulesFor(instruction{
 		op:         op,
 		static_gas: 3,
-		pops:       n + 1, // need to check for get
+		pops:       n + 1,
 		pushes:     n + 1,
 		effect: func(s *st.State) {
 			a := s.Stack.Get(0)
@@ -977,7 +982,10 @@ func tooFewElements(i instruction) []Rule {
 }
 
 // rulesFor instantiates the basic rules depending on the instruction info.
-// any rule that cannot be expressed using this function must be implemented manually
+// any rule that cannot be expressed using this function must be implemented manually.
+// This function substract i.static_gas from state.Gas and increases state.Pc in one,
+// these two are always done before calling i.effect. This should be kept
+// in mind when implementing the effects of new rules.
 func rulesFor(i instruction) []Rule {
 	res := []Rule{}
 	res = append(res, tooLittleGas(i)...)
