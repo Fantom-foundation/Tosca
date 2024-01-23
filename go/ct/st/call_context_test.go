@@ -9,133 +9,66 @@ import (
 )
 
 func TestCallContext_NewCallContext(t *testing.T) {
+	tests := map[string]struct {
+		equal func(*CallContext) bool
+	}{
+		"AccountAddress": {func(c *CallContext) bool { want, got := (Address{}), c.AccountAddress; return want == got }},
+		"OriginAddress":  {func(c *CallContext) bool { want, got := (Address{}), c.OriginAddress; return want == got }},
+		"CallerAddress":  {func(c *CallContext) bool { want, got := (Address{}), c.CallerAddress; return want == got }},
+		"Value":          {func(c *CallContext) bool { want, got := (NewU256()), c.Value; return want.Eq(got) }},
+	}
+
 	callContext := NewCallContext()
-
-	if want, got := (Address{}), callContext.AccountAddress; want != got {
-		t.Errorf("Unexpected account address, want %v, got %v", want, got)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if !test.equal(&callContext) {
+				t.Error("Unexpected value in new context")
+			}
+		})
 	}
 
-	if want, got := (Address{}), callContext.OriginAddress; want != got {
-		t.Errorf("Unexpected origin address, want %v, got %v", want, got)
-	}
-
-	if want, got := (Address{}), callContext.CallerAddress; want != got {
-		t.Errorf("Unexpected caller address, want %v, got %v", want, got)
-	}
-
-	if want, got := NewU256(), callContext.Value; !want.Eq(got) {
-		t.Errorf("Unexpected call value, want %v got %v", want, got)
-	}
-
-}
-
-func TestCallContext_Clone(t *testing.T) {
-	callContext1 := NewCallContext()
-	callContext2 := callContext1.Clone()
-
-	if !callContext1.Eq(callContext2) {
-		t.Errorf("Clone is different from original")
-	}
-
-	callContext2.AccountAddress = Address{0xff}
-	callContext2.OriginAddress = Address{0xfe}
-	callContext2.CallerAddress = Address{0xfd}
-	callContext2.Value = NewU256(1)
-
-	if callContext1.AccountAddress == callContext2.AccountAddress ||
-		callContext1.OriginAddress == callContext2.OriginAddress ||
-		callContext1.CallerAddress == callContext2.CallerAddress ||
-		callContext1.Value.Eq(callContext2.Value) {
-		t.Errorf("Clone is not independent from original")
-	}
-}
-
-func TestCallContext_Eq(t *testing.T) {
-	callContext1 := NewCallContext()
-	callContext2 := callContext1.Clone()
-
-	if !callContext1.Eq(callContext1) {
-		t.Error("Self-comparison is broken")
-	}
-
-	if !callContext1.Eq(callContext2) {
-		t.Error("Clones are not equal")
-	}
-
-	callContext2.AccountAddress = Address{0xff}
-	if callContext1.Eq(callContext2) {
-		t.Error("Different call context considered the same")
-	}
-	callContext2.AccountAddress = Address{}
-
-	callContext2.OriginAddress = Address{0xff}
-	if callContext1.Eq(callContext2) {
-		t.Error("Different call context considered the same")
-	}
-	callContext2.OriginAddress = Address{}
-
-	callContext2.CallerAddress = Address{0xff}
-	if callContext1.Eq(callContext2) {
-		t.Error("Different call context considered the same")
-	}
-	callContext2.CallerAddress = Address{}
-
-	callContext2.Value = NewU256(2)
-	if callContext1.Eq(callContext2) {
-		t.Error("Different call context considered the same")
-	}
 }
 
 func TestCallContext_Diff(t *testing.T) {
-	callContext1 := NewCallContext()
-	callContext2 := NewCallContext()
-
-	if diffs := callContext1.Diff(callContext1); len(diffs) != 0 {
-		t.Errorf("Found differences in same call context.")
+	tests := map[string]struct {
+		change func(*CallContext)
+	}{
+		"Account Address": {func(c *CallContext) { c.AccountAddress[0]++ }},
+		"Origin Address":  {func(c *CallContext) { c.OriginAddress[0]++ }},
+		"Caller Address":  {func(c *CallContext) { c.CallerAddress[0]++ }},
+		"Value":           {func(c *CallContext) { c.Value = NewU256(1) }},
 	}
 
-	callContext2.AccountAddress = Address{0xff}
-	if diffs := callContext1.Diff(callContext2); len(diffs) == 0 {
-		t.Errorf("No difference found in different call contexts account address")
+	callContext := NewCallContext()
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			c2 := NewCallContext()
+			test.change(&c2)
+			if diffs := callContext.Diff(&c2); len(diffs) == 0 {
+				t.Errorf("No difference found in modified %v", name)
+			}
+		})
 	}
-	callContext2.AccountAddress = Address{}
-
-	callContext2.OriginAddress = Address{0xff}
-	if diffs := callContext1.Diff(callContext2); len(diffs) == 0 {
-		t.Errorf("No difference found in different call contexts origin address")
-	}
-	callContext2.OriginAddress = Address{}
-
-	callContext2.CallerAddress = Address{0xff}
-	if diffs := callContext1.Diff(callContext2); len(diffs) == 0 {
-		t.Errorf("No difference found in different call contexts caller address")
-	}
-	callContext2.CallerAddress = Address{}
-
-	callContext2.Value = NewU256(2)
-	if diffs := callContext1.Diff(callContext2); len(diffs) == 0 {
-		t.Errorf("No difference found in different call contexts value")
-	}
-	callContext2.Value = NewU256()
 }
 
 func TestCallContext_String(t *testing.T) {
-	callContext := NewCallContext()
-	callContext.AccountAddress[19] = 0xff
-	callContext.OriginAddress[19] = 0xfe
-	callContext.CallerAddress[19] = 0xfd
-	callContext.Value = NewU256(1)
+	tests := map[string]struct {
+		change func(*CallContext) any
+	}{
+		"Account Address": {func(c *CallContext) any { c.AccountAddress[19] = 0xff; return c.AccountAddress }},
+		"Origin Address":  {func(c *CallContext) any { c.OriginAddress[19] = 0xfe; return c.OriginAddress }},
+		"Caller Address":  {func(c *CallContext) any { c.CallerAddress[19] = 0xfd; return c.CallerAddress }},
+		"Value":           {func(c *CallContext) any { c.Value = NewU256(1); return c.Value }},
+	}
 
-	if !strings.Contains(callContext.String(), fmt.Sprintf("Account Address: %s", callContext.AccountAddress)) {
-		t.Errorf("Did not find account address string.")
-	}
-	if !strings.Contains(callContext.String(), fmt.Sprintf("Origin Address: %s", callContext.OriginAddress)) {
-		t.Errorf("Did not find origin address string.")
-	}
-	if !strings.Contains(callContext.String(), fmt.Sprintf("Caller Address: %s", callContext.CallerAddress)) {
-		t.Errorf("Did not find caller address string.")
-	}
-	if !strings.Contains(callContext.String(), fmt.Sprintf("Value: %s", callContext.Value)) {
-		t.Errorf("Did not find value string.")
+	c := NewCallContext()
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			v := test.change(&c)
+			str := c.String()
+			if !strings.Contains(str, fmt.Sprintf("%v: %v", name, v)) {
+				t.Errorf("Did not find %v string", name)
+			}
+		})
 	}
 }

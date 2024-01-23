@@ -258,11 +258,10 @@ func TestU256ToBigInt(t *testing.T) {
 	bigExp := new(big.Int).Sub(tooBigInt, big.NewInt(1))
 	testCases := map[string]struct {
 		input U256
-		err   string
 		want  big.Int
 	}{
-		"regular": {NewU256(123456789), "", *big.NewInt(123456789)},
-		"maxU256": {MaxU256(), "", *bigExp},
+		"regular": {NewU256(123456789), *big.NewInt(123456789)},
+		"maxU256": {MaxU256(), *bigExp},
 	}
 
 	for name, tc := range testCases {

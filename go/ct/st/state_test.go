@@ -144,12 +144,12 @@ func TestState_Eq(t *testing.T) {
 	}
 	s2 = NewState(NewCode([]byte{byte(ADD), byte(STOP)}))
 
-	s1.CallContext = &CallContext{
+	s1.CallContext = CallContext{
 		AccountAddress: Address{0x00},
 		OriginAddress:  Address{0x01},
 		CallerAddress:  Address{0x02},
 		Value:          NewU256(3)}
-	s2.CallContext = &CallContext{
+	s2.CallContext = CallContext{
 		AccountAddress: Address{0xff},
 		OriginAddress:  Address{0xfe},
 		CallerAddress:  Address{0xfd},
@@ -431,9 +431,6 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.CallContext.AccountAddress = Address{0xff}
-	s1.CallContext.OriginAddress = Address{0xee}
-	s1.CallContext.CallerAddress = Address{0xdd}
-	s1.CallContext.Value = NewU256(212)
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -446,9 +443,6 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.Storage.MarkCold(NewU256(42))
 	s2.Logs.AddLog([]byte{4, 7, 6}, NewU256(24), NewU256(22))
 	s2.CallContext.AccountAddress = Address{0xef}
-	s2.CallContext.OriginAddress = Address{0xfe}
-	s2.CallContext.CallerAddress = Address{0xfd}
-	s2.CallContext.Value = NewU256(252)
 
 	diffs := s1.Diff(s2)
 
@@ -465,10 +459,7 @@ func TestState_DiffMismatch(t *testing.T) {
 		"Different log count",
 		"Different topics for log entry",
 		"Different data for log entry",
-		"Different account address",
-		"Different origin address",
-		"Different caller address",
-		"Different call value",
+		"Different call context",
 	}
 
 	if len(diffs) != len(expectedDiffs) {
