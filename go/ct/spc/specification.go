@@ -762,8 +762,8 @@ func pushOp(n int) []Rule {
 	})
 }
 
-// we call rulesFor with n pops values because they call stack.Get and for that
-// we need to ensure that there are enough elements in the stack.
+// An implementation does not necessarily do `n` pops and `n+1` pushes, since arbitrary stack positions could be accessed directly.
+// However, the result is as if `n` pops and `n+1` pushes were performed.
 func dupOp(n int) []Rule {
 	op := OpCode(int(DUP1) + n - 1)
 	return rulesFor(instruction{
@@ -777,8 +777,8 @@ func dupOp(n int) []Rule {
 	})
 }
 
-// we call rulesFor with n+1 pops values because they call stack.Get and for that
-// we need to ensure that there are enough elements in the stack.
+// An implementation does not necessarily do `n` pops and `n+1` pushes, since arbitrary stack positions could be accessed directly.
+// However, the result is as if `n` pops and `n+1` pushes were performed.
 func swapOp(n int) []Rule {
 	op := OpCode(int(SWAP1) + n - 1)
 	return rulesFor(instruction{
@@ -983,7 +983,7 @@ func tooFewElements(i instruction) []Rule {
 
 // rulesFor instantiates the basic rules depending on the instruction info.
 // any rule that cannot be expressed using this function must be implemented manually.
-// This function substract i.static_gas from state.Gas and increases state.Pc in one,
+// This function subtracts i.static_gas from state.Gas and increases state.Pc by one,
 // these two are always done before calling i.effect. This should be kept
 // in mind when implementing the effects of new rules.
 func rulesFor(i instruction) []Rule {
