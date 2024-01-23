@@ -297,16 +297,6 @@ func TestConvertToGeth_CallContext(t *testing.T) {
 	if want, got := big.NewInt(252), gethState.Contract.Value(); want.Cmp(got) != 0 {
 		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
 	}
-	if want, got := (common.Address{0xfe}), gethInterpreter.evm.Origin; want != got {
-		t.Errorf("unexpected origin address. wanted %v, got %v", want, got)
-	}
-	if want, got := (common.Address{0xfd}), gethState.Contract.CallerAddress; want != got {
-		t.Errorf("unexpected caller address. wanted %v, got %v", want, got)
-	}
-	if want, got := big.NewInt(252), gethState.Contract.Value(); want.Cmp(got) != 0 {
-		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
-	}
-
 }
 
 func TestConvertToGeth_BlockContext(t *testing.T) {
