@@ -36,7 +36,7 @@ func (c *CallContext) Diff(other *CallContext) []string {
 	}
 
 	if !c.Value.Eq(other.Value) {
-		ret = append(ret, fmt.Sprintf("Different call value %v vs %v.", c.Value, other.Value))
+		ret = append(ret, callContextDiff+fmt.Sprintf("call value %v vs %v.", c.Value, other.Value))
 	}
 
 	return ret
@@ -44,7 +44,7 @@ func (c *CallContext) Diff(other *CallContext) []string {
 
 func (c *CallContext) String() string {
 	return fmt.Sprintf(
-		"Call Context: (Account Address: %v, Origin Address: %v, Caller Address: %v,"+
-			" Call Value: %v)",
+		"Call Context:\n Account Address: %v,\n Origin Address: %v,\n Caller Address: %v,\n"+
+			" Call Value: %v\n",
 		c.AccountAddress, c.OriginAddress, c.CallerAddress, c.Value)
 }

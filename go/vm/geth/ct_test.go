@@ -284,7 +284,6 @@ func TestConvertToGeth_CallContext(t *testing.T) {
 	if want, got := big.NewInt(252), gethState.Contract.Value(); want.Cmp(got) != 0 {
 		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
 	}
-
 }
 
 ////////////////////////////////////////////////////////////

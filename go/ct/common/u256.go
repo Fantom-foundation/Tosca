@@ -216,7 +216,6 @@ func (i U256) ToBigInt() *big.Int {
 // This conversion can panic on overflow conversion.
 func U256FromBigInt(b *big.Int) *U256 {
 	ret := NewU256()
-	// if big int contains a negative number, we return zero
 	if b.Cmp(big.NewInt(0)) == -1 {
 		panic("Tried converting negative big.Ing to unsigend.")
 	}

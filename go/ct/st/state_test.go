@@ -157,7 +157,6 @@ func TestState_Eq(t *testing.T) {
 	if s1.Eq(s2) {
 		t.Fail()
 	}
-	s2.CallContext = s1.CallContext
 }
 
 func TestState_EqFailureStates(t *testing.T) {
