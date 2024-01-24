@@ -215,11 +215,12 @@ func getGethEvm(revision ct.Revision, stateDb vm.StateDB) (*gethInterpreter, err
 	}
 
 	// Set hard forks for chainconfig
-	chainConfig := params.AllEthashProtocolChanges
+	chainConfig := &params.ChainConfig{}
 	chainConfig.ChainID = big.NewInt(0)
 	chainConfig.IstanbulBlock = big.NewInt(istanbulBlock)
 	chainConfig.BerlinBlock = big.NewInt(berlinBlock)
 	chainConfig.LondonBlock = big.NewInt(londonBlock)
+	chainConfig.Ethash = new(params.EthashConfig)
 
 	// Hashing function used in the context for BLOCKHASH instruction
 	getHash := func(num uint64) common.Hash {
