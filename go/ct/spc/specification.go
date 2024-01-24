@@ -42,6 +42,21 @@ func (s *specification) GetRulesFor(state *st.State) []Rule {
 	return result
 }
 
+// instruction holds the basic information for the 4 basic rules
+// these are not enough gas, stack overflow, stack underflow, and a regular behaviour case
+type instruction struct {
+	op         OpCode
+	static_gas uint64
+	pops       int
+	pushes     int
+	conditions []Condition       // conditions for the regular case
+	parameters []Parameter       // parameters for the regular case
+	effect     func(s *st.State) // effect for the regular case
+	name       string
+}
+
+func noEffect(st *st.State) {}
+
 ////////////////////////////////////////////////////////////
 
 func boolToU256(value bool) U256 {
@@ -222,362 +237,184 @@ var Spec = func() Specification {
 	})...)
 
 	// --- SHA3 ---
-	rules = append(rules, []Rule{
-		{
-			Name: "sha3_with_too_little_static_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SHA3),
-				Lt(Gas(), 30),
-			),
-			Effect: FailEffect(),
+
+	rules = append(rules, rulesFor(instruction{
+		op:         SHA3,
+		static_gas: 30,
+		pops:       2,
+		pushes:     1,
+		parameters: []Parameter{
+			MemoryOffsetParameter{},
+			MemorySizeParameter{},
 		},
+		effect: func(s *st.State) {
+			offset_u256 := s.Stack.Pop()
+			size_u256 := s.Stack.Pop()
 
-		{
-			Name: "sha3_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SHA3),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
+			memExpCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
+			if s.Gas < memExpCost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= memExpCost
+
+			wordCost := 6 * ((size + 31) / 32)
+			if s.Gas < wordCost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= wordCost
+
+			hash := s.Memory.Hash(offset, size)
+			s.Stack.Push(NewU256FromBytes(hash[:]...))
 		},
-
-		{
-			Name: "sha3_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SHA3),
-				Ge(Gas(), 30),
-				Ge(StackSize(), 2),
-			),
-			Parameter: []Parameter{
-				MemoryOffsetParameter{},
-				MemorySizeParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 30
-				s.Pc++
-				offset_u256 := s.Stack.Pop()
-				size_u256 := s.Stack.Pop()
-
-				memExpCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
-				if s.Gas < memExpCost {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas -= memExpCost
-
-				wordCost := 6 * ((size + 31) / 32)
-				if s.Gas < wordCost {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas -= wordCost
-
-				hash := s.Memory.Hash(offset, size)
-				s.Stack.Push(NewU256FromBytes(hash[:]...))
-			}),
-		},
-	}...)
+	})...)
 
 	// --- MLOAD ---
 
-	rules = append(rules, []Rule{
-		{
-			Name: "mload_with_too_little_static_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MLOAD),
-				Lt(Gas(), 3),
-			),
-			Effect: FailEffect(),
+	rules = append(rules, rulesFor(instruction{
+		op:         MLOAD,
+		static_gas: 3,
+		pops:       1,
+		pushes:     1,
+		parameters: []Parameter{
+			MemoryOffsetParameter{},
 		},
+		effect: func(s *st.State) {
+			offset_u256 := s.Stack.Pop()
 
-		{
-			Name: "mload_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MLOAD),
-				Lt(StackSize(), 1),
-			),
-			Effect: FailEffect(),
+			cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
+			if s.Gas < cost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= cost
+
+			value := NewU256FromBytes(s.Memory.Read(offset, 32)...)
+			s.Stack.Push(value)
 		},
-
-		{
-			Name: "mload_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MLOAD),
-				Ge(Gas(), 3),
-				Ge(StackSize(), 1),
-			),
-			Parameter: []Parameter{
-				MemoryOffsetParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 3
-				s.Pc++
-				offset_u256 := s.Stack.Pop()
-
-				cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
-				if s.Gas < cost {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas -= cost
-
-				value := NewU256FromBytes(s.Memory.Read(offset, 32)...)
-				s.Stack.Push(value)
-			}),
-		},
-	}...)
+	})...)
 
 	// --- MSTORE ---
 
-	rules = append(rules, []Rule{
-		{
-			Name: "mstore_with_too_little_static_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MSTORE),
-				Lt(Gas(), 3),
-			),
-			Effect: FailEffect(),
+	rules = append(rules, rulesFor(instruction{
+		op:         MSTORE,
+		static_gas: 3,
+		pops:       2,
+		pushes:     0,
+		parameters: []Parameter{
+			MemoryOffsetParameter{},
+			NumericParameter{},
 		},
+		effect: func(s *st.State) {
+			offset_u256 := s.Stack.Pop()
+			value := s.Stack.Pop()
 
-		{
-			Name: "mstore_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MSTORE),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
+			cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
+			if s.Gas < cost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= cost
+
+			bytes := value.Bytes32be()
+			s.Memory.Write(bytes[:], offset)
 		},
-
-		{
-			Name: "mstore_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MSTORE),
-				Ge(Gas(), 3),
-				Ge(StackSize(), 2),
-			),
-			Parameter: []Parameter{
-				MemoryOffsetParameter{},
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 3
-				s.Pc++
-				offset_u256 := s.Stack.Pop()
-				value := s.Stack.Pop()
-
-				cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
-				if s.Gas < cost {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas -= cost
-
-				bytes := value.Bytes32be()
-				s.Memory.Write(bytes[:], offset)
-			}),
-		},
-	}...)
+	})...)
 
 	// --- MSTORE8 ---
 
-	rules = append(rules, []Rule{
-		{
-			Name: "mstore8_with_too_little_static_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MSTORE8),
-				Lt(Gas(), 3),
-			),
-			Effect: FailEffect(),
+	rules = append(rules, rulesFor(instruction{
+		op:         MSTORE8,
+		static_gas: 3,
+		pops:       2,
+		pushes:     0,
+		parameters: []Parameter{
+			MemoryOffsetParameter{},
+			NumericParameter{},
 		},
+		effect: func(s *st.State) {
+			offset_u256 := s.Stack.Pop()
+			value := s.Stack.Pop()
 
-		{
-			Name: "mstore8_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MSTORE8),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
+			cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(1))
+			if s.Gas < cost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= cost
+
+			s.Memory.Write([]byte{value.Bytes32be()[31]}, offset)
+
 		},
-
-		{
-			Name: "mstore8_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), MSTORE8),
-				Ge(Gas(), 3),
-				Ge(StackSize(), 2),
-			),
-			Parameter: []Parameter{
-				MemoryOffsetParameter{},
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 3
-				s.Pc++
-				offset_u256 := s.Stack.Pop()
-				value := s.Stack.Pop()
-
-				cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(1))
-				if s.Gas < cost {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas -= cost
-
-				s.Memory.Write([]byte{value.Bytes32be()[31]}, offset)
-			}),
-		},
-	}...)
+	})...)
 
 	// --- SLOAD ---
 
-	rules = append(rules, []Rule{
-		{
-			Name: "sload_regular_cold",
-			Condition: And(
-				RevisionBounds(R09_Berlin, R10_London),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SLOAD),
-				Ge(Gas(), 2100),
-				Ge(StackSize(), 1),
-				IsStorageCold(Param(0)),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 2100
-				s.Pc++
-				key := s.Stack.Pop()
-				s.Stack.Push(s.Storage.Current[key])
-				s.Storage.MarkWarm(key)
-			}),
+	// cold
+	rules = append(rules, rulesFor(instruction{
+		op:         SLOAD,
+		static_gas: 100 + 2000, // 2000 are from the dynamic cost of cold mem
+		pops:       1,
+		pushes:     1,
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R10_London),
+			IsStorageCold(Param(0)),
 		},
+		parameters: []Parameter{
+			NumericParameter{},
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			s.Stack.Push(s.Storage.Current[key])
+			s.Storage.MarkWarm(key)
+		},
+		name: "_cold",
+	})...)
 
-		{
-			Name: "sload_with_too_little_gas_cold",
-			Condition: And(
-				RevisionBounds(R09_Berlin, R10_London),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SLOAD),
-				Lt(Gas(), 2100),
-				IsStorageCold(Param(0)),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-			},
-			Effect: FailEffect(),
+	// warm
+	rules = append(rules, rulesFor(instruction{
+		op:         SLOAD,
+		static_gas: 100,
+		pops:       1,
+		pushes:     1,
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R10_London),
+			IsStorageWarm(Param(0)),
 		},
+		parameters: []Parameter{
+			NumericParameter{},
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			s.Stack.Push(s.Storage.Current[key])
+		},
+		name: "_warm",
+	})...)
 
-		{
-			Name: "sload_regular_warm",
-			Condition: And(
-				RevisionBounds(R09_Berlin, R10_London),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SLOAD),
-				Ge(Gas(), 100),
-				Ge(StackSize(), 1),
-				IsStorageWarm(Param(0)),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 100
-				s.Pc++
-				key := s.Stack.Pop()
-				s.Stack.Push(s.Storage.Current[key])
-			}),
+	// pre_berlin
+	rules = append(rules, rulesFor(instruction{
+		op:         SLOAD,
+		static_gas: 800,
+		pops:       1,
+		pushes:     1,
+		conditions: []Condition{
+			RevisionBounds(R07_Istanbul, R07_Istanbul),
 		},
-
-		{
-			Name: "sload_with_too_little_gas_warm",
-			Condition: And(
-				RevisionBounds(R09_Berlin, R10_London),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SLOAD),
-				Lt(Gas(), 100),
-				IsStorageWarm(Param(0)),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-			},
-			Effect: FailEffect(),
+		parameters: []Parameter{
+			NumericParameter{},
 		},
-
-		{
-			Name: "sload_regular_pre_berlin",
-			Condition: And(
-				RevisionBounds(R07_Istanbul, R07_Istanbul),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SLOAD),
-				Ge(Gas(), 800),
-				Ge(StackSize(), 1),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 800
-				s.Pc++
-				key := s.Stack.Pop()
-				s.Stack.Push(s.Storage.Current[key])
-			}),
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			s.Stack.Push(s.Storage.Current[key])
 		},
-
-		{
-			Name: "sload_with_too_little_gas_pre_berlin",
-			Condition: And(
-				RevisionBounds(R07_Istanbul, R07_Istanbul),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SLOAD),
-				Lt(Gas(), 800),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-			},
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "sload_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SLOAD),
-				Lt(StackSize(), 1),
-			),
-			Effect: FailEffect(),
-		},
-	}...)
+		name: "_pre_berlin",
+	})...)
 
 	// --- SSTORE ---
 
@@ -640,55 +477,27 @@ var Spec = func() Specification {
 		rules = append(rules, sstoreOpTooLittleGas(params))
 	}
 
-	rules = append(rules, []Rule{
-		{
-			Name: "sstore_with_too_little_gas_EIP2200",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SSTORE),
-				Le(Gas(), 2300),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "sstore_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), SSTORE),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
-		},
-	}...)
+	rules = append(rules, tooLittleGas(instruction{op: SSTORE, static_gas: 2300, name: "_EIP2200"})...)
+	rules = append(rules, tooFewElements(instruction{op: SSTORE, static_gas: 2})...)
 
 	// --- JUMP ---
 
+	rules = append(rules, rulesFor(instruction{
+		op:         JUMP,
+		static_gas: 8,
+		pops:       1,
+		pushes:     0,
+		conditions: []Condition{
+			IsCode(Param(0)),
+			Eq(Op(Param(0)), JUMPDEST),
+		},
+		effect: func(s *st.State) {
+			target := s.Stack.Pop()
+			s.Pc = uint16(target.Uint64())
+		},
+	})...)
+
 	rules = append(rules, []Rule{
-		{
-			Name: "jump_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMP),
-				Lt(Gas(), 8),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "jump_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMP),
-				Lt(StackSize(), 1),
-			),
-			Effect: FailEffect(),
-		},
-
 		{
 			Name: "jump_to_data",
 			Condition: And(
@@ -715,51 +524,28 @@ var Spec = func() Specification {
 			),
 			Effect: FailEffect(),
 		},
-
-		{
-			Name: "jump_valid_target",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMP),
-				Ge(Gas(), 8),
-				Ge(StackSize(), 1),
-				IsCode(Param(0)),
-				Eq(Op(Param(0)), JUMPDEST),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 8
-				target := s.Stack.Pop()
-				s.Pc = uint16(target.Uint64())
-			}),
-		},
 	}...)
 
 	// --- JUMPI ---
 
+	rules = append(rules, rulesFor(instruction{
+		op:         JUMPI,
+		static_gas: 10,
+		pops:       2,
+		pushes:     0,
+		conditions: []Condition{
+			IsCode(Param(0)),
+			Eq(Op(Param(0)), JUMPDEST),
+			Ne(Param(1), NewU256(0)),
+		},
+		effect: func(s *st.State) {
+			target := s.Stack.Pop()
+			s.Stack.Pop()
+			s.Pc = uint16(target.Uint64())
+		},
+	})...)
+
 	rules = append(rules, []Rule{
-		{
-			Name: "jumpi_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMPI),
-				Lt(Gas(), 10),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "jumpi_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMPI),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
-		},
-
 		{
 			Name: "jumpi_not_taken",
 			Condition: And(
@@ -806,56 +592,17 @@ var Spec = func() Specification {
 			),
 			Effect: FailEffect(),
 		},
-
-		{
-			Name: "jumpi_valid_target",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMPI),
-				Ge(Gas(), 10),
-				Ge(StackSize(), 2),
-				IsCode(Param(0)),
-				Eq(Op(Param(0)), JUMPDEST),
-				Ne(Param(1), NewU256(0)),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 10
-				target := s.Stack.Pop()
-				s.Stack.Pop()
-				s.Pc = uint16(target.Uint64())
-			}),
-		},
 	}...)
 
 	// --- JUMPDEST ---
 
-	rules = append(rules, []Rule{
-		{
-			Name: "jumpdest_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMPDEST),
-				Lt(Gas(), 1),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "jumpdest_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMPDEST),
-				Ge(Gas(), 1),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 1
-				s.Pc++
-			}),
-		},
-	}...)
+	rules = append(rules, rulesFor(instruction{
+		op:         JUMPDEST,
+		static_gas: 1,
+		pops:       0,
+		pushes:     0,
+		effect:     noEffect,
+	})...)
 
 	// --- Stack PUSH ---
 
@@ -865,45 +612,15 @@ var Spec = func() Specification {
 
 	// --- Stack POP ---
 
-	rules = append(rules, []Rule{
-		{
-			Name: "pop_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), POP),
-				Ge(Gas(), 2),
-				Ge(StackSize(), 1),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 2
-				s.Pc++
-				s.Stack.Pop()
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         POP,
+		static_gas: 2,
+		pops:       1,
+		pushes:     0,
+		effect: func(s *st.State) {
+			s.Stack.Pop()
 		},
-
-		{
-			Name: "pop_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), POP),
-				Lt(Gas(), 2),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "pop_with_too_few_elements",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), POP),
-				Lt(StackSize(), 1),
-			),
-			Effect: FailEffect(),
-		},
-	}...)
+	})...)
 
 	// --- Stack DUP ---
 
@@ -925,43 +642,15 @@ var Spec = func() Specification {
 
 	// --- ADDRESS ---
 
-	rules = append(rules, []Rule{
-		{
-			Name: "address_regular",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), ADDRESS),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 2
-				s.Stack.Push(NewU256FromBytes(s.CallContext.AccountAddress[:]...))
-			}),
+	rules = append(rules, rulesFor(instruction{
+		op:         ADDRESS,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256FromBytes(s.CallContext.AccountAddress[:]...))
 		},
-		{
-			Name: "address_with_too_little_gas",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), ADDRESS),
-				Lt(Gas(), 2),
-			),
-			Effect: FailEffect(),
-		},
-		{
-			Name: "address_with_not_enough_space",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), ADDRESS),
-				Ge(StackSize(), st.MaxStackSize),
-			),
-			Effect: FailEffect(),
-		},
-	}...)
+	})...)
 
 	// --- End ---
 
@@ -974,59 +663,29 @@ func binaryOpWithDynamicCost(
 	effect func(a, b U256) U256,
 	dynamicCost func(a, b U256) uint64,
 ) []Rule {
-	name := strings.ToLower(op.String())
-	return []Rule{
-		{
-			Name: fmt.Sprintf("%v_regular", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Ge(Gas(), costs),
-				Ge(StackSize(), 2),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				a := s.Stack.Pop()
-				b := s.Stack.Pop()
-				cost := costs + dynamicCost(a, b)
-				// TODO: Improve handling of dynamic gas through dedicated constraint.
-				if s.Gas < cost {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas = s.Gas - cost
-				s.Stack.Push(effect(a, b))
-			}),
+	return rulesFor(instruction{
+		op:         op,
+		static_gas: costs,
+		pops:       2,
+		pushes:     1,
+		parameters: []Parameter{
+			NumericParameter{},
+			NumericParameter{},
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), costs),
-			),
-			Effect: FailEffect(),
+		effect: func(s *st.State) {
+			a := s.Stack.Pop()
+			b := s.Stack.Pop()
+			dynamicCost := dynamicCost(a, b)
+			// TODO: Improve handling of dynamic gas through dedicated constraint.
+			if s.Gas < dynamicCost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= dynamicCost
+			s.Stack.Push(effect(a, b))
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_few_elements", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(StackSize(), 2),
-			),
-			Effect: FailEffect(),
-		},
-	}
+	})
 }
 
 func binaryOp(
@@ -1042,54 +701,23 @@ func trinaryOp(
 	costs uint64,
 	effect func(a, b, c U256) U256,
 ) []Rule {
-	name := strings.ToLower(op.String())
-	return []Rule{
-		{
-			Name: fmt.Sprintf("%v_regular", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Ge(Gas(), costs),
-				Ge(StackSize(), 3),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-				NumericParameter{},
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Gas = s.Gas - costs
-				s.Pc++
-				a := s.Stack.Pop()
-				b := s.Stack.Pop()
-				c := s.Stack.Pop()
-				s.Stack.Push(effect(a, b, c))
-			}),
+	return rulesFor(instruction{
+		op:         op,
+		static_gas: costs,
+		pops:       3,
+		pushes:     1,
+		parameters: []Parameter{
+			NumericParameter{},
+			NumericParameter{},
+			NumericParameter{},
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), costs),
-			),
-			Effect: FailEffect(),
+		effect: func(s *st.State) {
+			a := s.Stack.Pop()
+			b := s.Stack.Pop()
+			c := s.Stack.Pop()
+			s.Stack.Push(effect(a, b, c))
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_few_elements", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(StackSize(), 3),
-			),
-			Effect: FailEffect(),
-		},
-	}
+	})
 }
 
 func unaryOp(
@@ -1097,207 +725,74 @@ func unaryOp(
 	costs uint64,
 	effect func(a U256) U256,
 ) []Rule {
-	name := strings.ToLower(op.String())
-	return []Rule{
-		{
-			Name: fmt.Sprintf("%v_regular", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Ge(Gas(), costs),
-				Ge(StackSize(), 1),
-			),
-			Parameter: []Parameter{
-				NumericParameter{},
-			},
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				a := s.Stack.Pop()
-				s.Gas = s.Gas - costs
-				s.Stack.Push(effect(a))
-			}),
+	return rulesFor(instruction{
+		op:         op,
+		static_gas: costs,
+		pops:       1,
+		pushes:     1,
+		parameters: []Parameter{
+			NumericParameter{},
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), costs),
-			),
-			Effect: FailEffect(),
+		effect: func(s *st.State) {
+			a := s.Stack.Pop()
+			s.Stack.Push(effect(a))
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_few_elements", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(StackSize(), 1),
-			),
-			Effect: FailEffect(),
-		},
-	}
+	})
 }
 
 func pushOp(n int) []Rule {
 	op := OpCode(int(PUSH1) + n - 1)
-	name := strings.ToLower(op.String())
-	return []Rule{
-		{
-			Name: fmt.Sprintf("%v_regular", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Ge(Gas(), 3),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 3
-				data := make([]byte, n)
-				for i := 0; i < n; i++ {
-					b, err := s.Code.GetData(int(s.Pc) + i + 1)
-					if err != nil {
-						panic(err)
-					}
-					data[i] = b
+	return rulesFor(instruction{
+		op:         op,
+		static_gas: 3,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			data := make([]byte, n)
+			for i := 0; i < n; i++ {
+				b, err := s.Code.GetData(int(s.Pc) + i)
+				if err != nil {
+					panic(err)
 				}
-				s.Stack.Push(NewU256FromBytes(data...))
-				s.Pc += uint16(n) + 1
-			}),
+				data[i] = b
+			}
+			s.Stack.Push(NewU256FromBytes(data...))
+			s.Pc += uint16(n)
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), 3),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_not_enough_space", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Ge(StackSize(), st.MaxStackSize),
-			),
-			Effect: FailEffect(),
-		},
-	}
+	})
 }
 
+// An implementation does not necessarily do `n` pops and `n+1` pushes, since arbitrary stack positions could be accessed directly.
+// However, the result is as if `n` pops and `n+1` pushes were performed.
 func dupOp(n int) []Rule {
 	op := OpCode(int(DUP1) + n - 1)
-	name := strings.ToLower(op.String())
-	return []Rule{
-		{
-			Name: fmt.Sprintf("%v_regular", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Ge(Gas(), 3),
-				Ge(StackSize(), n),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 3
-				s.Stack.Push(s.Stack.Get(n - 1))
-			}),
+	return rulesFor(instruction{
+		op:         op,
+		static_gas: 3,
+		pops:       n,
+		pushes:     n + 1,
+		effect: func(s *st.State) {
+			s.Stack.Push(s.Stack.Get(n - 1))
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), 3),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_few_elements", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(StackSize(), n),
-				Lt(StackSize(), st.MaxStackSize),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_not_enough_space", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Ge(StackSize(), n),
-				Ge(StackSize(), st.MaxStackSize),
-			),
-			Effect: FailEffect(),
-		},
-	}
+	})
 }
 
+// An implementation does not necessarily do `n` pops and `n+1` pushes, since arbitrary stack positions could be accessed directly.
+// However, the result is as if `n` pops and `n+1` pushes were performed.
 func swapOp(n int) []Rule {
 	op := OpCode(int(SWAP1) + n - 1)
-	name := strings.ToLower(op.String())
-	return []Rule{
-		{
-			Name: fmt.Sprintf("%v_regular", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Ge(Gas(), 3),
-				Ge(StackSize(), n+1),
-			),
-			Effect: Change(func(s *st.State) {
-				s.Pc++
-				s.Gas -= 3
-				a := s.Stack.Get(0)
-				b := s.Stack.Get(n)
-				s.Stack.Set(0, b)
-				s.Stack.Set(n, a)
-			}),
+	return rulesFor(instruction{
+		op:         op,
+		static_gas: 3,
+		pops:       n + 1,
+		pushes:     n + 1,
+		effect: func(s *st.State) {
+			a := s.Stack.Get(0)
+			b := s.Stack.Get(n)
+			s.Stack.Set(0, b)
+			s.Stack.Set(n, a)
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), 3),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_few_elements", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(StackSize(), n+1),
-			),
-			Effect: FailEffect(),
-		},
-	}
+	})
 }
 
 type sstoreOpParams struct {
@@ -1402,7 +897,6 @@ func sstoreOpTooLittleGas(params sstoreOpParams) Rule {
 
 func logOp(n int) []Rule {
 	op := OpCode(int(LOG0) + n)
-	name := strings.ToLower(op.String())
 	minGas := uint64(375 + 375*n)
 
 	parameter := []Parameter{
@@ -1413,67 +907,113 @@ func logOp(n int) []Rule {
 		parameter = append(parameter, TopicParameter{})
 	}
 
-	return []Rule{
+	return rulesFor(instruction{
+		op:         op,
+		static_gas: minGas,
+		pops:       2 + n,
+		pushes:     0,
+		parameters: parameter,
+		effect: func(s *st.State) {
+			offset_u256 := s.Stack.Pop()
+			size_u256 := s.Stack.Pop()
+
+			topics := []U256{}
+			for i := 0; i < n; i++ {
+				topics = append(topics, s.Stack.Pop())
+			}
+
+			memExpCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
+			if s.Gas < memExpCost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= memExpCost
+
+			if s.Gas < 8*size {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= 8 * size
+
+			s.Logs.AddLog(s.Memory.Read(offset, size), topics...)
+		},
+	})
+}
+
+func tooLittleGas(i instruction) []Rule {
+	localConditions := append(i.conditions,
+		AnyKnownRevision(),
+		Eq(Status(), st.Running),
+		Eq(Op(Pc()), i.op),
+		Lt(Gas(), i.static_gas))
+	return []Rule{{
+		Name:      fmt.Sprintf("%v_with_too_little_gas%v", strings.ToLower(i.op.String()), i.name),
+		Condition: And(localConditions...),
+		Effect:    FailEffect(),
+	}}
+}
+
+func notEnoughSpace(i instruction) []Rule {
+	localConditions := append(i.conditions,
+		AnyKnownRevision(),
+		Eq(Status(), st.Running),
+		Eq(Op(Pc()), i.op),
+		Ge(StackSize(), st.MaxStackSize))
+	return []Rule{{
+		Name:      fmt.Sprintf("%v_with_not_enough_space%v", strings.ToLower(i.op.String()), i.name),
+		Condition: And(localConditions...),
+		Effect:    FailEffect(),
+	}}
+}
+
+func tooFewElements(i instruction) []Rule {
+	localConditions := append(i.conditions,
+		AnyKnownRevision(),
+		Eq(Status(), st.Running),
+		Eq(Op(Pc()), i.op),
+		Lt(StackSize(), i.pops))
+	return []Rule{{
+		Name:      fmt.Sprintf("%v_with_too_few_elements%v", strings.ToLower(i.op.String()), i.name),
+		Condition: And(localConditions...),
+		Effect:    FailEffect(),
+	}}
+}
+
+// rulesFor instantiates the basic rules depending on the instruction info.
+// any rule that cannot be expressed using this function must be implemented manually.
+// This function subtracts i.static_gas from state.Gas and increases state.Pc by one,
+// these two are always done before calling i.effect. This should be kept
+// in mind when implementing the effects of new rules.
+func rulesFor(i instruction) []Rule {
+	res := []Rule{}
+	res = append(res, tooLittleGas(i)...)
+	if i.pops > 0 {
+		res = append(res, tooFewElements(i)...)
+	}
+	if i.pushes > i.pops {
+		res = append(res, notEnoughSpace(i)...)
+	}
+	localConditions := append(i.conditions,
+		AnyKnownRevision(),
+		Eq(Status(), st.Running),
+		Eq(Op(Pc()), i.op),
+		Ge(Gas(), i.static_gas),
+		Ge(StackSize(), i.pops),
+		Lt(StackSize(), st.MaxStackSize-(max(i.pushes-i.pops, 0))),
+	)
+	res = append(res, []Rule{
 		{
-			Name: fmt.Sprintf("%v_regular", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Ge(Gas(), minGas),
-				Ge(StackSize(), 2+n),
-			),
-			Parameter: parameter,
+			Name:      fmt.Sprintf("%s_regular%v", strings.ToLower(i.op.String()), i.name),
+			Condition: And(localConditions...),
+			Parameter: i.parameters,
 			Effect: Change(func(s *st.State) {
-				s.Gas -= minGas
+				s.Gas -= i.static_gas
 				s.Pc++
-				offset_u256 := s.Stack.Pop()
-				size_u256 := s.Stack.Pop()
-
-				topics := []U256{}
-				for i := 0; i < n; i++ {
-					topics = append(topics, s.Stack.Pop())
-				}
-
-				memExpCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
-				if s.Gas < memExpCost {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas -= memExpCost
-
-				if s.Gas < 8*size {
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.Gas -= 8 * size
-
-				s.Logs.AddLog(s.Memory.Read(offset, size), topics...)
+				i.effect(s)
 			}),
 		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_little_min_gas", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(Gas(), minGas),
-			),
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: fmt.Sprintf("%v_with_too_few_elements", name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), op),
-				Lt(StackSize(), 2+n),
-			),
-			Effect: FailEffect(),
-		},
-	}
+	}...)
+	return res
 }
