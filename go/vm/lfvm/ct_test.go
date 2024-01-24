@@ -8,7 +8,6 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 ////////////////////////////////////////////////////////////
@@ -385,6 +384,8 @@ func TestConvertToLfvm_BlockContext(t *testing.T) {
 	state.BlockContext.GasPrice = ct.NewU256(8)
 	state.BlockContext.Difficulty = ct.NewU256(9)
 	state.BlockContext.TimeStamp = 10
+	state.BlockContext.BaseFee = ct.NewU256(11)
+	state.BlockContext.ChainID = ct.NewU256(12)
 
 	code := []byte{}
 	pcMap, err := GenPcMapWithoutSuperInstructions(code)
@@ -414,6 +415,26 @@ func TestConvertToLfvm_BlockContext(t *testing.T) {
 	}
 	if want, got := big.NewInt(10), context.evm.Context.Time; want.Cmp(got) != 0 {
 		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
+	}
+	if want, got := big.NewInt(12), context.evm.Context.BaseFee; want.Cmp(got) != 0 {
+		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
+	}
+	if want, got := big.NewInt(13), context.evm.ChainConfig().ChainID; want.Cmp(got) != 0 {
+		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
+	}
+}
+
+func TestConvertToLfvm_ChainConfig(t *testing.T) {
+	state := getEmptyState()
+	state.BlockContext.ChainID = ct.NewU256(1)
+
+	chainConfig, err := convertCtChainConfigtoLfvm(state)
+	if err != nil {
+		t.Fatalf("failed to convert ct state to lfvm chain config: %v", err)
+	}
+
+	if want, got := big.NewInt(1), chainConfig.ChainID; want.Cmp(got) != 0 {
+		t.Errorf("Unexpected chain id. wanted: %v, got %v", want, got)
 	}
 }
 
@@ -688,25 +709,10 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	newBaseFee := big.NewInt(249)
 	newChainID := big.NewInt(248)
 
-	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
+	chainConfig, err := getChainConfig(newChainID)
 	if err != nil {
-		t.Fatalf("failed to get revision fork: %v", err)
+		t.Error(err)
 	}
-	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
-	if err != nil {
-		t.Fatalf("failed to get revision fork: %v", err)
-	}
-	londonBlock, err := ct.GetForkBlock(ct.R10_London)
-	if err != nil {
-		t.Fatalf("failed to get revision fork: %v", err)
-	}
-
-	// Set hard forks for chainconfig
-	chainConfig := params.AllEthashProtocolChanges
-	chainConfig.ChainID = newChainID
-	chainConfig.IstanbulBlock = big.NewInt(0).SetUint64(istanbulBlock)
-	chainConfig.BerlinBlock = big.NewInt(0).SetUint64(berlinBlock)
-	chainConfig.LondonBlock = big.NewInt(0).SetUint64(londonBlock)
 
 	ctx.evm = vm.NewEVM(vm.BlockContext{
 		BaseFee:     newBaseFee,

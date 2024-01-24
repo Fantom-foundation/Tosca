@@ -233,40 +233,10 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 
 	stateDb.AddRefund(state.GasRefund)
 
-	newBlockNumber := big.NewInt(0).SetUint64(state.BlockContext.BlockNumber)
-	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
-
-	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
+	evm, err := getLfvmEvm(state, stateDb)
 	if err != nil {
 		return nil, err
 	}
-	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
-	if err != nil {
-		return nil, err
-	}
-	londonBlock, err := ct.GetForkBlock(ct.R10_London)
-	if err != nil {
-		return nil, err
-	}
-
-	// Set hard forks for chainconfig
-	chainConfig := params.AllEthashProtocolChanges
-	chainConfig.ChainID = state.BlockContext.ChainID.ToBigInt()
-	chainConfig.IstanbulBlock = big.NewInt(0).SetUint64(istanbulBlock)
-	chainConfig.BerlinBlock = big.NewInt(0).SetUint64(berlinBlock)
-	chainConfig.LondonBlock = big.NewInt(0).SetUint64(londonBlock)
-
-	evm := vm.NewEVM(vm.BlockContext{
-		BaseFee:     state.BlockContext.BaseFee.ToBigInt(),
-		BlockNumber: newBlockNumber,
-		Coinbase:    (vm.AccountRef)(state.BlockContext.CoinBase[:]).Address(),
-		GasLimit:    state.BlockContext.GasLimit,
-		Difficulty:  state.BlockContext.Difficulty.ToBigInt(),
-		Time:        newTimestamp},
-		vm.TxContext{
-			Origin:   (common.Address)(state.CallContext.OriginAddress[:]),
-			GasPrice: state.BlockContext.GasPrice.ToBigInt(),
-		}, stateDb, chainConfig, vm.Config{})
 
 	// Create execution context.
 	ctx := context{
@@ -291,4 +261,61 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 	}
 
 	return &ctx, nil
+}
+
+func convertCtChainConfigtoLfvm(state *st.State) (*params.ChainConfig, error) {
+	return getChainConfig(state.BlockContext.ChainID.ToBigInt())
+}
+
+func getChainConfig(chainId *big.Int) (*params.ChainConfig, error) {
+	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
+	if err != nil {
+		return nil, fmt.Errorf("counld not get IstanbulBlock. %v", err)
+	}
+	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
+	if err != nil {
+		return nil, fmt.Errorf("counld not get BerlinBlock. %v", err)
+	}
+	londonBlock, err := ct.GetForkBlock(ct.R10_London)
+	if err != nil {
+		return nil, fmt.Errorf("counld not get LondonBlock. %v", err)
+	}
+
+	chainConfig := &params.ChainConfig{}
+	chainConfig.ChainID = chainId
+	chainConfig.IstanbulBlock = big.NewInt(0).SetUint64(istanbulBlock)
+	chainConfig.BerlinBlock = big.NewInt(0).SetUint64(berlinBlock)
+	chainConfig.LondonBlock = big.NewInt(0).SetUint64(londonBlock)
+	chainConfig.Ethash = new(params.EthashConfig)
+
+	return chainConfig, nil
+}
+
+func getLfvmEvm(state *st.State, stateDB vm.StateDB) (*vm.EVM, error) {
+	if state.Revision == -1 {
+		return nil, fmt.Errorf("unknown revision: %v", state.Revision)
+	}
+
+	chainConfig, err := convertCtChainConfigtoLfvm(state)
+	if err != nil {
+		return nil, err
+	}
+
+	newBlockNumber := big.NewInt(0).SetUint64(state.BlockContext.BlockNumber)
+	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
+
+	blockCtx := vm.BlockContext{
+		BaseFee:     state.BlockContext.BaseFee.ToBigInt(),
+		BlockNumber: newBlockNumber,
+		Coinbase:    (vm.AccountRef)(state.BlockContext.CoinBase[:]).Address(),
+		Difficulty:  state.BlockContext.Difficulty.ToBigInt(),
+		GasLimit:    state.BlockContext.GasLimit,
+		Time:        newTimestamp,
+	}
+	txCtx := vm.TxContext{
+		Origin:   (common.Address)(state.CallContext.OriginAddress),
+		GasPrice: state.BlockContext.GasPrice.ToBigInt(),
+	}
+
+	return vm.NewEVM(blockCtx, txCtx, stateDB, chainConfig, vm.Config{}), nil
 }

@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"testing"
 
-	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
 	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/test/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -44,26 +43,6 @@ func getContext(code Code, data []byte, stackPtr int, stateDB vm.StateDB, gas ui
 	// Create a dummy contract
 	addr := vm.AccountRef{}
 	contract := vm.NewContract(addr, addr, big.NewInt(0), gas)
-
-	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
-	if err != nil {
-		return context{}
-	}
-	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
-	if err != nil {
-		return context{}
-	}
-	londonBlock, err := ct.GetForkBlock(ct.R10_London)
-	if err != nil {
-		return context{}
-	}
-
-	// Set hard forks for chainconfig
-	chainConfig := params.AllEthashProtocolChanges
-	chainConfig.ChainID = big.NewInt(0)
-	chainConfig.IstanbulBlock = big.NewInt(0).SetUint64(istanbulBlock)
-	chainConfig.BerlinBlock = big.NewInt(0).SetUint64(berlinBlock)
-	chainConfig.LondonBlock = big.NewInt(0).SetUint64(londonBlock)
 
 	// Create execution context.
 	ctxt := context{

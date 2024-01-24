@@ -66,11 +66,14 @@ func (b *BlockContext) Diff(other *BlockContext) []string {
 func (b *BlockContext) String() string {
 	return fmt.Sprintf(
 		"Block Context:"+
+			"\n\t    Base Fee: %v,"+
 			"\n\t    Block Number: %v,"+
+			"\n\t    ChainID: %v,"+
 			"\n\t    CoinBase: %v,"+
 			"\n\t    Gas Limit: %v,"+
 			"\n\t    Gas Price: %v,"+
 			"\n\t    Difficulty: %v,"+
 			"\n\t    Timestamp: %v\n",
-		b.BlockNumber, b.CoinBase, b.GasLimit, b.GasPrice, b.Difficulty, b.TimeStamp)
+		b.BaseFee, b.BlockNumber, b.ChainID, b.CoinBase, b.GasLimit, b.GasPrice,
+		b.Difficulty, b.TimeStamp)
 }

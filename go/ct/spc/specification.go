@@ -767,10 +767,18 @@ var Spec = func() Specification {
 		static_gas: 2,
 		pops:       0,
 		pushes:     1,
+		conditions: []Condition{IsRevision(R10_London)},
 		effect: func(s *st.State) {
 			s.Stack.Push(s.BlockContext.BaseFee)
 		},
 	})...)
+	rules = append(rules, []Rule{
+		{
+			Name:      "basefee_invalid_revision",
+			Condition: RevisionBounds(R07_Istanbul, R09_Berlin),
+			Effect:    NoEffect(),
+		},
+	}...)
 
 	// --- CHAINID ---
 

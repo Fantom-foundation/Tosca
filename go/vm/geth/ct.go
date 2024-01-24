@@ -101,7 +101,7 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 
 	ctState.BlockContext.BaseFee = *ct.U256FromBigInt(geth.evm.Context.BaseFee)
 	ctState.BlockContext.BlockNumber = geth.evm.Context.BlockNumber.Uint64()
-	// ctState.BlockContext.ChainID = *ct.U256FromBigInt(geth.evm.ChainConfig().ChainID)
+	ctState.BlockContext.ChainID = *ct.U256FromBigInt(geth.evm.ChainConfig().ChainID)
 	ctState.BlockContext.CoinBase = (ct.Address)(geth.evm.Context.Coinbase)
 	ctState.BlockContext.GasLimit = geth.evm.Context.GasLimit
 	ctState.BlockContext.GasPrice = ct.NewU256FromBigInt(geth.evm.GasPrice)
@@ -200,57 +200,47 @@ func canTransferFunc(stateDB vm.StateDB, callerAddress common.Address, value *bi
 	return stateDB.GetBalance(callerAddress).Cmp(value) >= 0
 }
 
-func getGethEvm(revision ct.Revision, stateDb vm.StateDB) (*gethInterpreter, error) {
-	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
-	if err != nil {
-		return nil, err
-	}
-	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
-	if err != nil {
-		return nil, err
-	}
-	londonBlock, err := ct.GetForkBlock(ct.R10_London)
-	if err != nil {
-		return nil, err
+func getGethEvm(state *st.State) (*gethInterpreter, error) {
+	if state.Revision == -1 {
+		return nil, fmt.Errorf("unknown revision: %v", state.Revision)
 	}
 
-	// Set hard forks for chainconfig
-	chainConfig := &params.ChainConfig{}
-	chainConfig.ChainID = big.NewInt(0)
-	chainConfig.IstanbulBlock = big.NewInt(int64(istanbulBlock))
-	chainConfig.BerlinBlock = big.NewInt(int64(berlinBlock))
-	chainConfig.LondonBlock = big.NewInt(int64(londonBlock))
-	chainConfig.Ethash = new(params.EthashConfig)
+	chainConfig, err := convertCtChainConfigtoGeth(state)
+	if err != nil {
+		return nil, err
+	}
 
 	// Hashing function used in the context for BLOCKHASH instruction
 	getHash := func(num uint64) common.Hash {
 		return common.Hash{}
 	}
 
-	// Create empty block context based on block number
-	blockNr, err := ct.GetForkBlock(revision)
-	if err != nil {
-		return nil, err
-	}
+	newBlockNumber := big.NewInt(0).SetUint64(state.BlockContext.BlockNumber)
+	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
 
 	blockCtx := vm.BlockContext{
-		BlockNumber: big.NewInt(int64(blockNr) + 2),
-		Time:        big.NewInt(1),
-		Difficulty:  big.NewInt(1),
-		GasLimit:    1 << 62,
-		GetHash:     getHash,
-		BaseFee:     big.NewInt(100),
-		Transfer:    transferFunc,
+		BaseFee:     state.BlockContext.BaseFee.ToBigInt(),
+		BlockNumber: newBlockNumber,
 		CanTransfer: canTransferFunc,
+		Coinbase:    (vm.AccountRef)(state.BlockContext.CoinBase[:]).Address(),
+		Difficulty:  state.BlockContext.Difficulty.ToBigInt(),
+		GasLimit:    state.BlockContext.GasLimit,
+		GetHash:     getHash,
+		Time:        newTimestamp,
+		Transfer:    transferFunc,
 	}
 	// Create empty tx context
 	txCtx := vm.TxContext{
-		GasPrice: big.NewInt(1),
+		Origin:   (common.Address)(state.CallContext.OriginAddress),
+		GasPrice: state.BlockContext.GasPrice.ToBigInt(),
 	}
 	// Set interpreter variant for this VM
 	config := vm.Config{
 		InterpreterImpl: "geth",
 	}
+
+	stateDb := utils.NewConformanceTestStateDb(state.Storage, state.Logs, state.Revision)
+	stateDb.AddRefund(state.GasRefund)
 
 	evm := vm.NewEVM(blockCtx, txCtx, stateDb, chainConfig, config)
 
@@ -274,31 +264,15 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 		state.Status = st.Failed
 	}
 
-	stateDb := utils.NewConformanceTestStateDb(state.Storage, state.Logs, state.Revision)
-
-	stateDb.AddRefund(state.GasRefund)
-
-	geth, err := getGethEvm(state.Revision, stateDb)
+	geth, err := getGethEvm(state)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	geth.evm.Origin = (common.Address)(state.CallContext.OriginAddress)
 	objectAddress := (vm.AccountRef)(state.CallContext.AccountAddress)
 	callerAddress := (vm.AccountRef)(state.CallContext.CallerAddress)
 	contract := vm.NewContract(callerAddress, objectAddress, state.CallContext.Value.ToBigInt(), state.Gas)
 	contract.Code = convertCtCodeToGethCode(state)
-
-	newBlockNumber := big.NewInt(0).SetUint64(state.BlockContext.BlockNumber)
-	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
-
-	geth.evm.Context.BaseFee = state.BlockContext.BaseFee.ToBigInt()
-	geth.evm.Context.BlockNumber = newBlockNumber
-	geth.evm.Context.Coinbase = (common.Address)(state.BlockContext.CoinBase)
-	geth.evm.Context.GasLimit = state.BlockContext.GasLimit
-	geth.evm.Context.Difficulty = state.BlockContext.Difficulty.ToBigInt()
-	geth.evm.Context.Time = newTimestamp
-	geth.evm.TxContext.GasPrice = state.BlockContext.GasPrice.ToBigInt()
 
 	interpreterState := vm.NewGethState(
 		contract,
@@ -311,4 +285,32 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 	}
 
 	return geth, interpreterState, nil
+}
+
+func convertCtChainConfigtoGeth(state *st.State) (*params.ChainConfig, error) {
+	return getChainConfig(state.BlockContext.ChainID.ToBigInt())
+}
+
+func getChainConfig(chainId *big.Int) (*params.ChainConfig, error) {
+	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
+	if err != nil {
+		return nil, fmt.Errorf("counld not get IstanbulBlock. %v", err)
+	}
+	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
+	if err != nil {
+		return nil, fmt.Errorf("counld not get BerlinBlock. %v", err)
+	}
+	londonBlock, err := ct.GetForkBlock(ct.R10_London)
+	if err != nil {
+		return nil, fmt.Errorf("counld not get LondonBlock. %v", err)
+	}
+
+	chainConfig := &params.ChainConfig{}
+	chainConfig.ChainID = chainId
+	chainConfig.IstanbulBlock = big.NewInt(0).SetUint64(istanbulBlock)
+	chainConfig.BerlinBlock = big.NewInt(0).SetUint64(berlinBlock)
+	chainConfig.LondonBlock = big.NewInt(0).SetUint64(londonBlock)
+	chainConfig.Ethash = new(params.EthashConfig)
+
+	return chainConfig, nil
 }
