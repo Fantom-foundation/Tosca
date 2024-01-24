@@ -71,7 +71,8 @@ func TestBlockContext_String(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			v := test.change(&b)
 			str := b.String()
-			if !strings.Contains(str, fmt.Sprintf("%v: %v", name, v)) {
+			want := fmt.Sprintf("%v: %v", name, v)
+			if !strings.Contains(str, want) {
 				t.Errorf("Did not find %v string", name)
 			}
 		})

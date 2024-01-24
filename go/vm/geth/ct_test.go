@@ -542,7 +542,7 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	interpreter.evm.Context.Coinbase = vm.AccountRef{0xfe}.Address()
 	interpreter.evm.Context.GasLimit = uint64(253)
 	interpreter.evm.TxContext.GasPrice = big.NewInt(252)
-	interpreter.evm.Context.Difficulty = big.NewInt(0).SetBytes([]byte{251})
+	interpreter.evm.Context.Difficulty = big.NewInt(251)
 	interpreter.evm.Context.Time = big.NewInt(250)
 
 	state, err := ConvertGethToCtState(interpreter, gethState)
@@ -562,7 +562,9 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	if want, got := ct.NewU256(252), state.BlockContext.GasPrice; !want.Eq(got) {
 		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
 	}
-	if want, got := ([32]byte{0xfb}), state.BlockContext.PrevRandao; want != got {
+	prevRandao := [32]byte{}
+	prevRandao[31] = 0xfb
+	if want, got := prevRandao, state.BlockContext.PrevRandao; want != got {
 		t.Errorf("unexpected prev randao, wanted %v, got %v", want, got)
 	}
 	if want, got := uint64(250), state.BlockContext.TimeStamp; want != got {

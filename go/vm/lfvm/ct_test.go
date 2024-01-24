@@ -727,7 +727,7 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
 	}
 	bigIntToBytes := [32]byte{}
-	bigIntToBytes[31] = 251
+	bigIntToBytes[31] = 0xfb
 	if want, got := bigIntToBytes, state.BlockContext.PrevRandao; want != got {
 		t.Errorf("unexpected prev randao, wanted %v, got %v", want, got)
 	}

@@ -166,8 +166,8 @@ func (s *State) String() string {
 		}
 		builder.WriteString(fmt.Sprintf("\t        data: %x\n", entry.Data))
 	}
-	builder.WriteString(s.CallContext.String())
-	builder.WriteString(s.BlockContext.String())
+	builder.WriteString(fmt.Sprintf("\t%v", s.CallContext.String()))
+	builder.WriteString(fmt.Sprintf("\t%v", s.BlockContext.String()))
 
 	builder.WriteString("}")
 	return builder.String()
