@@ -101,12 +101,6 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 	state.CallContext.AccountAddress = (ct.Address)(ctx.contract.Address().Bytes())
 	state.CallContext.OriginAddress = (ct.Address)(ctx.evm.Origin.Bytes())
 	state.CallContext.CallerAddress = (ct.Address)(ctx.contract.CallerAddress.Bytes())
-	defer func() {
-		r := recover()
-		if r != nil {
-			fmt.Printf("Cannot convert %v to U256 because: %v", ctx.contract.Value(), r)
-		}
-	}()
 	state.CallContext.Value = *ct.U256FromBigInt(ctx.contract.Value())
 
 	return state, nil
