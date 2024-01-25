@@ -485,7 +485,7 @@ func TestState_DiffMismatch(t *testing.T) {
 		t.FailNow()
 	}
 
-	for i := 0; i < len(expectedDiffs); i++ {
+	for i := 0; i < len(diffs); i++ {
 		if !strings.Contains(diffs[i], expectedDiffs[i]) {
 			t.Errorf("invalid diff, expected '%s' found '%s'", expectedDiffs[i], diffs[i])
 		}
