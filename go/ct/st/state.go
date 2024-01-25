@@ -2,6 +2,7 @@ package st
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -54,6 +55,7 @@ type State struct {
 	Logs         *Logs
 	CallContext  CallContext
 	BlockContext BlockContext
+	CallData     []byte
 }
 
 // NewState creates a new State instance with the given code.
@@ -66,6 +68,7 @@ func NewState(code *Code) *State {
 		Memory:   NewMemory(),
 		Storage:  NewStorage(),
 		Logs:     NewLogs(),
+		CallData: make([]byte, 0),
 	}
 }
 
@@ -83,6 +86,7 @@ func (s *State) Clone() *State {
 	clone.Logs = s.Logs.Clone()
 	clone.CallContext = s.CallContext
 	clone.BlockContext = s.BlockContext
+	copy(clone.CallData, s.CallData)
 	return clone
 }
 
@@ -113,7 +117,8 @@ func (s *State) Eq(other *State) bool {
 		s.Storage.Eq(other.Storage) &&
 		s.Logs.Eq(other.Logs) &&
 		s.CallContext == other.CallContext &&
-		s.BlockContext == other.BlockContext
+		s.BlockContext == other.BlockContext &&
+		slices.Equal(s.CallData, other.CallData)
 }
 
 const codeCutoffLength = 20
@@ -170,6 +175,7 @@ func (s *State) String() string {
 	}
 	builder.WriteString(fmt.Sprintf("\t%v", s.CallContext.String()))
 	builder.WriteString(fmt.Sprintf("\t%v", s.BlockContext.String()))
+	builder.WriteString(fmt.Sprintf("\tCallData: %v", s.CallData))
 
 	builder.WriteString("}")
 	return builder.String()
@@ -228,6 +234,10 @@ func (s *State) Diff(o *State) []string {
 
 	if s.BlockContext != o.BlockContext {
 		res = append(res, s.BlockContext.Diff(&o.BlockContext)...)
+	}
+
+	if !slices.Equal(s.CallData, o.CallData) {
+		res = append(res, fmt.Sprintf("Different calldata: %v vs %v", s.CallData, o.CallData))
 	}
 
 	return res

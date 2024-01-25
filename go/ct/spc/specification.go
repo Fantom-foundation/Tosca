@@ -886,6 +886,18 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- CALLDATASIZE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        CALLDATASIZE,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(uint64(len(s.CallData))))
+		},
+	})...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)
