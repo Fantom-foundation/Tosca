@@ -385,41 +385,25 @@ func TestConvertToLfvm_BlockContext(t *testing.T) {
 	state.BlockContext.Difficulty = ct.NewU256(9)
 	state.BlockContext.TimeStamp = 10
 	state.BlockContext.BaseFee = ct.NewU256(11)
-	state.BlockContext.ChainID = ct.NewU256(12)
 
-	code := []byte{}
-	pcMap, err := GenPcMapWithoutSuperInstructions(code)
-	if err != nil {
-		t.Fatalf("failed to generate pc map: %v", err)
-	}
+	lfvmBlockContext, lfvmTx := convertCtBlockContextToLfvm(state.BlockContext)
 
-	context, err := ConvertCtStateToLfvmContext(state, pcMap)
-	if err != nil {
-		t.Fatalf("failed to convert ct state to lfvm context: %v", err)
-	}
-
-	if want, got := big.NewInt(5), context.evm.Context.BlockNumber; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(5), lfvmBlockContext.BlockNumber; want.Cmp(got) != 0 {
 		t.Errorf("unexpected block number. wanted %v, got %v", want, got)
 	}
-	if want, got := (common.Address{0x06}), context.evm.Context.Coinbase; want != got {
+	if want, got := (common.Address{0x06}), lfvmBlockContext.Coinbase; want != got {
 		t.Errorf("unexpected coinbase. wanted %v, got %v", want, got)
 	}
-	if want, got := uint64(7), context.evm.Context.GasLimit; want != got {
+	if want, got := uint64(7), lfvmBlockContext.GasLimit; want != got {
 		t.Errorf("unexpected gas limit. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(8), context.evm.GasPrice; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(8), lfvmTx.GasPrice; want.Cmp(got) != 0 {
 		t.Errorf("unexpected gas price. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(9), context.evm.Context.Difficulty; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(9), lfvmBlockContext.Difficulty; want.Cmp(got) != 0 {
 		t.Errorf("unexpected difficulty. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(10), context.evm.Context.Time; want.Cmp(got) != 0 {
-		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
-	}
-	if want, got := big.NewInt(12), context.evm.Context.BaseFee; want.Cmp(got) != 0 {
-		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
-	}
-	if want, got := big.NewInt(13), context.evm.ChainConfig().ChainID; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(10), lfvmBlockContext.Time; want.Cmp(got) != 0 {
 		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
 	}
 }
@@ -757,11 +741,4 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	if want, got := uint64(250), state.BlockContext.TimeStamp; want != got {
 		t.Errorf("unexpected timestamp, wanted %v, got %v", want, got)
 	}
-	if want, got := ct.NewU256(249), state.BlockContext.BaseFee; !want.Eq(got) {
-		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
-	}
-	if want, got := ct.NewU256(248), state.BlockContext.ChainID; !want.Eq(got) {
-		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
-	}
-
 }

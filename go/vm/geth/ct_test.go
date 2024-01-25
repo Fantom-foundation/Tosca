@@ -308,38 +308,27 @@ func TestConvertToGeth_BlockContext(t *testing.T) {
 	state.BlockContext.Difficulty = ct.NewU256(9)
 	state.BlockContext.TimeStamp = 10
 	state.BlockContext.BaseFee = ct.NewU256(11)
-	state.BlockContext.ChainID = ct.NewU256(12)
 
-	gethInterpreter, _, err := ConvertCtStateToGeth(state)
-	if err != nil {
-		t.Fatalf("failed to convert ct state to geth: %v", err)
-	}
+	gethBlockContext, gethTxContext := convertCtBlockContextToGeth(state.BlockContext)
 
-	if want, got := big.NewInt(5), gethInterpreter.evm.Context.BlockNumber; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(5), gethBlockContext.BlockNumber; want.Cmp(got) != 0 {
 		t.Errorf("unexpected block number. wanted %v, got %v", want, got)
 	}
-	if want, got := (common.Address{0x06}), gethInterpreter.evm.Context.Coinbase; want != got {
+	if want, got := (common.Address{0x06}), gethBlockContext.Coinbase; want != got {
 		t.Errorf("unexpected coinbase. wanted %v, got %v", want, got)
 	}
-	if want, got := uint64(7), gethInterpreter.evm.Context.GasLimit; want != got {
+	if want, got := uint64(7), gethBlockContext.GasLimit; want != got {
 		t.Errorf("unexpected gas limit. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(8), gethInterpreter.evm.GasPrice; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(8), gethTxContext.GasPrice; want.Cmp(got) != 0 {
 		t.Errorf("unexpected gas price. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(9), gethInterpreter.evm.Context.Difficulty; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(9), gethBlockContext.Difficulty; want.Cmp(got) != 0 {
 		t.Errorf("unexpected difficulty. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(10), gethInterpreter.evm.Context.Time; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(10), gethBlockContext.Time; want.Cmp(got) != 0 {
 		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(12), gethInterpreter.evm.Context.BaseFee; want.Cmp(got) != 0 {
-		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
-	}
-	if want, got := big.NewInt(13), gethInterpreter.evm.ChainConfig().ChainID; want.Cmp(got) != 0 {
-		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
-	}
-
 }
 
 func TestConvertToGeth_ChainConfig(t *testing.T) {

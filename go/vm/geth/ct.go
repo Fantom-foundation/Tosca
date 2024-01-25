@@ -200,6 +200,28 @@ func canTransferFunc(stateDB vm.StateDB, callerAddress common.Address, value *bi
 	return stateDB.GetBalance(callerAddress).Cmp(value) >= 0
 }
 
+func convertCtBlockContextToGeth(ctBlock st.BlockContext) (vm.BlockContext, vm.TxContext) {
+
+	// Hashing function used in the context for BLOCKHASH instruction
+	getHash := func(num uint64) common.Hash {
+		return common.Hash{}
+	}
+
+	gethBlock := vm.BlockContext{
+		BaseFee:     ctBlock.BaseFee.ToBigInt(),
+		BlockNumber: big.NewInt(0).SetUint64(ctBlock.BlockNumber),
+		CanTransfer: canTransferFunc,
+		Coinbase:    (common.Address)(ctBlock.CoinBase[:]),
+		Difficulty:  ctBlock.Difficulty.ToBigInt(),
+		GasLimit:    ctBlock.GasLimit,
+		GetHash:     getHash,
+		Time:        big.NewInt(0).SetUint64(ctBlock.TimeStamp),
+		Transfer:    transferFunc,
+	}
+	gethTx := vm.TxContext{GasPrice: ctBlock.GasPrice.ToBigInt()}
+	return gethBlock, gethTx
+}
+
 func getGethEvm(state *st.State) (*gethInterpreter, error) {
 	if state.Revision == -1 {
 		return nil, fmt.Errorf("unknown revision: %v", state.Revision)
@@ -210,30 +232,10 @@ func getGethEvm(state *st.State) (*gethInterpreter, error) {
 		return nil, err
 	}
 
-	// Hashing function used in the context for BLOCKHASH instruction
-	getHash := func(num uint64) common.Hash {
-		return common.Hash{}
-	}
-
-	newBlockNumber := big.NewInt(0).SetUint64(state.BlockContext.BlockNumber)
-	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
-
-	blockCtx := vm.BlockContext{
-		BaseFee:     state.BlockContext.BaseFee.ToBigInt(),
-		BlockNumber: newBlockNumber,
-		CanTransfer: canTransferFunc,
-		Coinbase:    (vm.AccountRef)(state.BlockContext.CoinBase[:]).Address(),
-		Difficulty:  state.BlockContext.Difficulty.ToBigInt(),
-		GasLimit:    state.BlockContext.GasLimit,
-		GetHash:     getHash,
-		Time:        newTimestamp,
-		Transfer:    transferFunc,
-	}
+	blockCtx, txCtx := convertCtBlockContextToGeth(state.BlockContext)
 	// Create empty tx context
-	txCtx := vm.TxContext{
-		Origin:   (common.Address)(state.CallContext.OriginAddress),
-		GasPrice: state.BlockContext.GasPrice.ToBigInt(),
-	}
+	txCtx.Origin = (common.Address)(state.CallContext.OriginAddress)
+
 	// Set interpreter variant for this VM
 	config := vm.Config{
 		InterpreterImpl: "geth",

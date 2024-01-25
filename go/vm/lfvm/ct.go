@@ -291,6 +291,24 @@ func getChainConfig(chainId *big.Int) (*params.ChainConfig, error) {
 	return chainConfig, nil
 }
 
+func convertCtBlockContextToLfvm(ctBlock st.BlockContext) (vm.BlockContext, vm.TxContext) {
+	getHash := func(num uint64) common.Hash {
+		return common.Hash{}
+	}
+
+	lfvmBlock := vm.BlockContext{
+		BaseFee:     ctBlock.BaseFee.ToBigInt(),
+		BlockNumber: big.NewInt(0).SetUint64(ctBlock.BlockNumber),
+		Coinbase:    (common.Address)(ctBlock.CoinBase[:]),
+		Difficulty:  ctBlock.Difficulty.ToBigInt(),
+		GasLimit:    ctBlock.GasLimit,
+		GetHash:     getHash,
+		Time:        big.NewInt(0).SetUint64(ctBlock.TimeStamp),
+	}
+	lfvmTx := vm.TxContext{GasPrice: ctBlock.GasPrice.ToBigInt()}
+	return lfvmBlock, lfvmTx
+}
+
 func getLfvmEvm(state *st.State, stateDB vm.StateDB) (*vm.EVM, error) {
 	if state.Revision == -1 {
 		return nil, fmt.Errorf("unknown revision: %v", state.Revision)
@@ -301,21 +319,8 @@ func getLfvmEvm(state *st.State, stateDB vm.StateDB) (*vm.EVM, error) {
 		return nil, err
 	}
 
-	newBlockNumber := big.NewInt(0).SetUint64(state.BlockContext.BlockNumber)
-	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
-
-	blockCtx := vm.BlockContext{
-		BaseFee:     state.BlockContext.BaseFee.ToBigInt(),
-		BlockNumber: newBlockNumber,
-		Coinbase:    (vm.AccountRef)(state.BlockContext.CoinBase[:]).Address(),
-		Difficulty:  state.BlockContext.Difficulty.ToBigInt(),
-		GasLimit:    state.BlockContext.GasLimit,
-		Time:        newTimestamp,
-	}
-	txCtx := vm.TxContext{
-		Origin:   (common.Address)(state.CallContext.OriginAddress),
-		GasPrice: state.BlockContext.GasPrice.ToBigInt(),
-	}
+	blockCtx, txCtx := convertCtBlockContextToLfvm(state.BlockContext)
+	txCtx.Origin = (common.Address)(state.CallContext.OriginAddress)
 
 	return vm.NewEVM(blockCtx, txCtx, stateDB, chainConfig, vm.Config{}), nil
 }
