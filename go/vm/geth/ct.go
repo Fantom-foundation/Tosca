@@ -292,7 +292,7 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
 
 	geth.evm.Context.BlockNumber = newBlockNumber
-	geth.evm.Context.Coinbase = (vm.AccountRef)(state.BlockContext.CoinBase[:]).Address()
+	geth.evm.Context.Coinbase = (common.Address)(state.BlockContext.CoinBase)
 	geth.evm.Context.GasLimit = state.BlockContext.GasLimit
 	geth.evm.Context.Difficulty = newDifficulty
 	geth.evm.Context.Time = newTimestamp
