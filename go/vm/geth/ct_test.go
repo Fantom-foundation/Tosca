@@ -290,7 +290,7 @@ func TestConvertToGeth_CallContext(t *testing.T) {
 	}
 }
 
-func TestConvertToLfvm_BlockContext(t *testing.T) {
+func TestConvertToGeth_BlockContext(t *testing.T) {
 	state := getEmptyState()
 	state.BlockContext.BlockNumber = 5
 	state.BlockContext.CoinBase[0] = 0x06
@@ -493,7 +493,7 @@ func TestConvertToCt_Stack(t *testing.T) {
 				state, err := ConvertGethToCtState(interpreter, gethState)
 
 				if err != nil {
-					t.Fatalf("failed to convert lfvm context to ct state: %v", err)
+					t.Fatalf("failed to convert geth context to ct state: %v", err)
 				}
 
 				want := cur.ctStack

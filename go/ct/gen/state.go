@@ -275,7 +275,10 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 
 	// Invoke BlockContextGenrator
 	// we don't check for the error value here because some tests need a state with an unknown revision.
-	resultBlockContext, _ := g.BlockContextGen.Generate(rnd, resultRevision)
+	resultBlockContext, err := g.BlockContextGen.Generate(rnd, resultRevision)
+	if err != nil && !strings.Contains(err.Error(), "unknown revision") {
+		return nil, err
+	}
 
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences
