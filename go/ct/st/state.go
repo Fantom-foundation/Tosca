@@ -51,7 +51,7 @@ type State struct {
 	Memory      *Memory
 	Storage     *Storage
 	Logs        *Logs
-	CallContext *CallContext
+	CallContext CallContext
 }
 
 // NewState creates a new State instance with the given code.
@@ -79,7 +79,7 @@ func (s *State) Clone() *State {
 	clone.Memory = s.Memory.Clone()
 	clone.Storage = s.Storage.Clone()
 	clone.Logs = s.Logs.Clone()
-	clone.CallContext = s.CallContext.Clone()
+	clone.CallContext = s.CallContext
 	return clone
 }
 
@@ -108,7 +108,7 @@ func (s *State) Eq(other *State) bool {
 		s.Memory.Eq(other.Memory) &&
 		s.Storage.Eq(other.Storage) &&
 		s.Logs.Eq(other.Logs) &&
-		s.CallContext.Eq(other.CallContext)
+		s.CallContext == other.CallContext
 }
 
 const codeCutoffLength = 20
@@ -211,8 +211,8 @@ func (s *State) Diff(o *State) []string {
 		res = append(res, s.Logs.Diff(o.Logs)...)
 	}
 
-	if !s.CallContext.Eq(o.CallContext) {
-		res = append(res, s.CallContext.Diff(o.CallContext)...)
+	if s.CallContext != o.CallContext {
+		res = append(res, s.CallContext.Diff(&o.CallContext)...)
 	}
 
 	return res

@@ -94,7 +94,10 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 		ctState.Storage = geth.evm.StateDB.(*utils.ConformanceTestStateDb).Storage
 		ctState.Logs = geth.evm.StateDB.(*utils.ConformanceTestStateDb).Logs
 	}
-	ctState.CallContext.AccountAddress = (ct.Address)(state.Contract.CallerAddress.Bytes())
+	ctState.CallContext.AccountAddress = (ct.Address)(state.Contract.Address().Bytes())
+	ctState.CallContext.OriginAddress = (ct.Address)(geth.evm.Origin.Bytes())
+	ctState.CallContext.CallerAddress = (ct.Address)(state.Contract.CallerAddress.Bytes())
+	ctState.CallContext.Value = *ct.U256FromBigInt(state.Contract.Value())
 
 	return ctState, nil
 }
@@ -279,13 +282,14 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 	stateDb.AddRefund(state.GasRefund)
 
 	geth, err := getGethEvm(state.Revision, stateDb)
-
 	if err != nil {
 		return nil, nil, err
 	}
 
-	address := (vm.AccountRef)(state.CallContext.AccountAddress)
-	contract := vm.NewContract(address, address, big.NewInt(0), state.Gas)
+	geth.evm.Origin = (common.Address)(state.CallContext.OriginAddress)
+	objectAddress := (vm.AccountRef)(state.CallContext.AccountAddress)
+	callerAddress := (vm.AccountRef)(state.CallContext.CallerAddress)
+	contract := vm.NewContract(callerAddress, objectAddress, state.CallContext.Value.ToBigInt(), state.Gas)
 	contract.Code = convertCtCodeToGethCode(state)
 
 	interpreterState := vm.NewGethState(

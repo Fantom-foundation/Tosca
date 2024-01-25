@@ -9,40 +9,42 @@ import (
 // CallContext holds all data needed for the call-group of instructions
 type CallContext struct {
 	AccountAddress Address // Address of currently executing account
+	OriginAddress  Address // Address of execution origination
+	CallerAddress  Address // Address of the caller
+	Value          U256    // Deposited value by the instruction/transaction responsible for this execution
 }
 
-func NewCallContext() *CallContext {
-	return &CallContext{Address{}}
-}
-
-// Clone creates an independent copy of the call context.
-func (c *CallContext) Clone() *CallContext {
-	ret := CallContext{}
-	ret.AccountAddress = c.AccountAddress.Clone()
-	return &ret
-}
-
-func (c *CallContext) Eq(other *CallContext) bool {
-	return c.AccountAddress == other.AccountAddress
+func NewCallContext() CallContext {
+	return CallContext{}
 }
 
 // Diff returns a list of differences between the two call contexts.
 func (c *CallContext) Diff(other *CallContext) []string {
 	ret := []string{}
+	callContextDiff := "Different call context "
 
-	differences := c.AccountAddress.Diff(other.AccountAddress)
-	if len(differences) != 0 {
-		str := "Different account address: "
-		for _, dif := range differences {
-			str += dif
-		}
+	if c.AccountAddress != other.AccountAddress {
+		ret = append(ret, callContextDiff+fmt.Sprintf("account address: %v vs. %v", c.AccountAddress, other.AccountAddress))
+	}
 
-		ret = append(ret, str)
+	if c.OriginAddress != other.OriginAddress {
+		ret = append(ret, callContextDiff+fmt.Sprintf("origin address: %v vs. %v", c.OriginAddress, other.OriginAddress))
+	}
+
+	if c.CallerAddress != other.CallerAddress {
+		ret = append(ret, callContextDiff+fmt.Sprintf("caller address: %v vs. %v", c.CallerAddress, other.CallerAddress))
+	}
+
+	if !c.Value.Eq(other.Value) {
+		ret = append(ret, callContextDiff+fmt.Sprintf("call value %v vs %v.", c.Value, other.Value))
 	}
 
 	return ret
 }
 
 func (c *CallContext) String() string {
-	return fmt.Sprintf("Call Context: (Account Address: %v)", c.AccountAddress)
+	return fmt.Sprintf(
+		"Call Context:\n Account Address: %v,\n Origin Address: %v,\n Caller Address: %v,\n"+
+			" Call Value: %v\n",
+		c.AccountAddress, c.OriginAddress, c.CallerAddress, c.Value)
 }

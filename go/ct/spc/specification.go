@@ -652,6 +652,42 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- ORIGIN ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         ORIGIN,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256FromBytes(s.CallContext.OriginAddress[:]...))
+		},
+	})...)
+
+	// --- CALLER ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         CALLER,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256FromBytes(s.CallContext.CallerAddress[:]...))
+		},
+	})...)
+
+	// --- CALLVALUE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         CALLVALUE,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(s.CallContext.Value)
+		},
+	})...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)

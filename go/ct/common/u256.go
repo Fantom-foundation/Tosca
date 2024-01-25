@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"math/big"
 
 	"pgregory.net/rand"
 
@@ -204,4 +205,26 @@ func (a U256) Srsh(b U256) (z U256) {
 
 func (i U256) String() string {
 	return fmt.Sprintf("%016x %016x %016x %016x", i.internal[3], i.internal[2], i.internal[1], i.internal[0])
+}
+
+// ToBigInt returns a bigInt version of i
+func (i U256) ToBigInt() *big.Int {
+	return i.internal.ToBig()
+}
+
+// U256FromBigInt returns a U256 version of b.
+// This conversion can panic on overflow conversion.
+func U256FromBigInt(b *big.Int) *U256 {
+	ret := NewU256()
+	if b.Cmp(big.NewInt(0)) == -1 {
+		panic("Tried converting negative big.Ing to unsigend.")
+	}
+	newInternal, overflow := uint256.FromBig(b)
+	if overflow {
+		// since EVMs handle at most 256-bit values, this case should never happen.
+		// IF it ever did, it would most certainly be an error, and execution halted.
+		panic("big.Int has more than 256-bits.")
+	}
+	ret.internal = *newInternal
+	return &ret
 }

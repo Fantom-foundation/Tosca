@@ -2,6 +2,7 @@ package common
 
 import (
 	"bytes"
+	"math/big"
 	"testing"
 )
 
@@ -249,5 +250,56 @@ func TestU256String(t *testing.T) {
 		if want, got := test.print, test.value.String(); want != got {
 			t.Errorf("Unexpected print, wanted %s, got %s", want, got)
 		}
+	}
+}
+
+func TestU256ToBigInt(t *testing.T) {
+	tooBigInt := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
+	bigExp := new(big.Int).Sub(tooBigInt, big.NewInt(1))
+	testCases := map[string]struct {
+		input U256
+		want  big.Int
+	}{
+		"regular": {NewU256(123456789), *big.NewInt(123456789)},
+		"maxU256": {MaxU256(), *bigExp},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.input.ToBigInt()
+			if tc.want.Cmp(got) != 0 {
+				t.Fatalf("Unexpected value after conversion from U256 to big.Int, want %v, got %v", tc.want, got)
+			}
+
+		})
+	}
+}
+
+func TestU256U256FromBig(t *testing.T) {
+	tooBigInt := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
+	testCases := map[string]struct {
+		input big.Int
+		err   string
+		want  U256
+	}{
+		"negative": {*big.NewInt(-1), "Tried converting negative big.Ing to unsigend.", NewU256(0)},
+		"regular":  {*big.NewInt(123456789), "", NewU256(123456789)},
+		"too_big":  {*tooBigInt, "big.Int has more than 256-bits.", NewU256(0)},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if len(tc.err) > 0 && (r == nil || r != nil && r != tc.err) {
+					t.Errorf("Failed to panic. Expected %v, but got %v", tc.err, r)
+				}
+			}()
+			got := U256FromBigInt(&tc.input)
+			if !tc.want.Eq(*got) {
+				t.Fatalf("Unexpected value after conversion from big int to U256, want %v, got %v", tc.want, got)
+			}
+
+		})
 	}
 }
