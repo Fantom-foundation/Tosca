@@ -56,17 +56,7 @@ func getContext(code Code, data []byte, stackPtr int, stateDB vm.StateDB, gas ui
 		stateDB:  stateDB,
 		isBerlin: isBerlin,
 		isLondon: isLondon,
-		evm: &vm.EVM{
-			StateDB: stateDB,
-			Context: vm.BlockContext{
-				BlockNumber: big.NewInt(0),
-				Difficulty:  big.NewInt(0),
-				Time:        big.NewInt(0),
-			},
-			TxContext: vm.TxContext{
-				GasPrice: big.NewInt(0),
-			},
-		},
+		evm:      &vm.EVM{StateDB: stateDB},
 	}
 
 	// Set start conditions

@@ -103,7 +103,7 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 	ctState.BlockContext.CoinBase = (ct.Address)(geth.evm.Context.Coinbase)
 	ctState.BlockContext.GasLimit = geth.evm.Context.GasLimit
 	ctState.BlockContext.GasPrice = *ct.U256FromBigInt(geth.evm.GasPrice)
-	geth.evm.Context.Difficulty.FillBytes(ctState.BlockContext.PrevRandao[:])
+	ctState.BlockContext.PrevRandao = *ct.U256FromBigInt(geth.evm.Context.Difficulty)
 	ctState.BlockContext.TimeStamp = geth.evm.Context.Time.Uint64()
 
 	return ctState, nil
@@ -215,9 +215,9 @@ func getGethEvm(revision ct.Revision, stateDb vm.StateDB) (*gethInterpreter, err
 	// Set hard forks for chainconfig
 	chainConfig := &params.ChainConfig{}
 	chainConfig.ChainID = big.NewInt(0)
-	chainConfig.IstanbulBlock = big.NewInt(istanbulBlock)
-	chainConfig.BerlinBlock = big.NewInt(berlinBlock)
-	chainConfig.LondonBlock = big.NewInt(londonBlock)
+	chainConfig.IstanbulBlock = big.NewInt(int64(istanbulBlock))
+	chainConfig.BerlinBlock = big.NewInt(int64(berlinBlock))
+	chainConfig.LondonBlock = big.NewInt(int64(londonBlock))
 	chainConfig.Ethash = new(params.EthashConfig)
 
 	// Hashing function used in the context for BLOCKHASH instruction
@@ -232,7 +232,7 @@ func getGethEvm(revision ct.Revision, stateDb vm.StateDB) (*gethInterpreter, err
 	}
 
 	blockCtx := vm.BlockContext{
-		BlockNumber: big.NewInt(blockNr + 2),
+		BlockNumber: big.NewInt(int64(blockNr) + 2),
 		Time:        big.NewInt(1),
 		Difficulty:  big.NewInt(1),
 		GasLimit:    1 << 62,
@@ -288,13 +288,12 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 	contract.Code = convertCtCodeToGethCode(state)
 
 	newBlockNumber := big.NewInt(0).SetUint64(state.BlockContext.BlockNumber)
-	newDifficulty := big.NewInt(0).SetBytes(state.BlockContext.PrevRandao[:])
 	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
 
 	geth.evm.Context.BlockNumber = newBlockNumber
 	geth.evm.Context.Coinbase = (common.Address)(state.BlockContext.CoinBase)
 	geth.evm.Context.GasLimit = state.BlockContext.GasLimit
-	geth.evm.Context.Difficulty = newDifficulty
+	geth.evm.Context.Difficulty = state.BlockContext.PrevRandao.ToBigInt()
 	geth.evm.Context.Time = newTimestamp
 	geth.evm.TxContext.GasPrice = state.BlockContext.GasPrice.ToBigInt()
 

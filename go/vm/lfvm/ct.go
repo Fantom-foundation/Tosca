@@ -70,6 +70,20 @@ func convertLfvmMemoryToCtMemory(ctx *context) *st.Memory {
 ////////////////////////////////////////////////////////////
 // lfvm -> ct
 
+func verifyContext(ctx *context) {
+	checkInitBigInt := func(bigint **big.Int) {
+		if *bigint == nil {
+			newbigInt := big.NewInt(0)
+			*bigint = newbigInt
+		}
+	}
+	checkInitBigInt(&ctx.evm.Context.BlockNumber)
+	checkInitBigInt(&ctx.evm.Context.Time)
+	checkInitBigInt(&ctx.evm.Context.Difficulty)
+	checkInitBigInt(&ctx.evm.Context.BaseFee)
+	checkInitBigInt(&ctx.evm.TxContext.GasPrice)
+}
+
 func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcMap) (*st.State, error) {
 	status, err := convertLfvmStatusToCtStatus(ctx.status)
 	if err != nil {
@@ -83,6 +97,7 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 		return nil, fmt.Errorf("unable to convert lfvm pc %d to evm pc", ctx.pc)
 	}
 
+	verifyContext(ctx)
 	state := st.NewState(originalCode)
 	state.Status = status
 	state.Revision = convertLfvmRevisionToCtRevision(ctx)
@@ -107,7 +122,7 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 	state.BlockContext.CoinBase = (ct.Address)(ctx.evm.Context.Coinbase)
 	state.BlockContext.GasLimit = ctx.evm.Context.GasLimit
 	state.BlockContext.GasPrice = *ct.U256FromBigInt(ctx.evm.GasPrice)
-	ctx.evm.Context.Difficulty.FillBytes(state.BlockContext.PrevRandao[:])
+	state.BlockContext.PrevRandao = *ct.U256FromBigInt(ctx.evm.Context.Difficulty)
 	state.BlockContext.TimeStamp = ctx.evm.Context.Time.Uint64()
 
 	return state, nil
@@ -222,7 +237,6 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 	stateDb.AddRefund(state.GasRefund)
 
 	newBlockNumber := big.NewInt(0).SetUint64(state.BlockContext.BlockNumber)
-	newDifficulty := big.NewInt(0).SetBytes(state.BlockContext.PrevRandao[:])
 	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
 
 	// Create execution context.
@@ -233,7 +247,7 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 				BlockNumber: newBlockNumber,
 				Coinbase:    (vm.AccountRef)(state.BlockContext.CoinBase[:]).Address(),
 				GasLimit:    state.BlockContext.GasLimit,
-				Difficulty:  newDifficulty,
+				Difficulty:  state.BlockContext.PrevRandao.ToBigInt(),
 				Time:        newTimestamp,
 			},
 			TxContext: vm.TxContext{

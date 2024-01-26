@@ -29,7 +29,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.BlockContext.CoinBase[0] = 0xfa
 	state.BlockContext.GasLimit = 249
 	state.BlockContext.GasPrice = NewU256(248)
-	state.BlockContext.PrevRandao[0] = 0xf7
+	state.BlockContext.PrevRandao = NewU256(247)
 	state.BlockContext.TimeStamp = 246
 
 	clone := state.Clone()
@@ -53,8 +53,8 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.BlockContext.CoinBase[0] = 0x06
 	clone.BlockContext.GasLimit = 7
 	clone.BlockContext.GasPrice = NewU256(8)
-	clone.BlockContext.PrevRandao[0] = 0x0a
-	clone.BlockContext.TimeStamp = 11
+	clone.BlockContext.PrevRandao = NewU256(9)
+	clone.BlockContext.TimeStamp = 10
 
 	ok := state.Status == Stopped &&
 		state.Revision == R10_London &&
@@ -78,7 +78,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.BlockContext.CoinBase[0] == 0xfa &&
 		state.BlockContext.GasLimit == 249 &&
 		state.BlockContext.GasPrice == NewU256(248) &&
-		state.BlockContext.PrevRandao[0] == 0xf7 &&
+		state.BlockContext.PrevRandao == NewU256(247) &&
 		state.BlockContext.TimeStamp == 246
 	if !ok {
 		t.Errorf("clone is not independent")

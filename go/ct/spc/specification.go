@@ -720,7 +720,7 @@ var Spec = func() Specification {
 		pops:       0,
 		pushes:     1,
 		effect: func(s *st.State) {
-			s.Stack.Push(NewU256(uint64(s.BlockContext.GasLimit)))
+			s.Stack.Push(NewU256(s.BlockContext.GasLimit))
 		},
 	})...)
 
@@ -732,7 +732,7 @@ var Spec = func() Specification {
 		pops:       0,
 		pushes:     1,
 		effect: func(s *st.State) {
-			s.Stack.Push(NewU256FromBytes(s.BlockContext.PrevRandao[:]...))
+			s.Stack.Push(s.BlockContext.PrevRandao)
 		},
 	})...)
 

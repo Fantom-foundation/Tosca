@@ -8,12 +8,12 @@ import (
 
 // BlockContext holds the block environment information
 type BlockContext struct {
-	BlockNumber uint64   // Block's number
-	CoinBase    Address  // Address of the block's benficiary
-	GasLimit    uint64   // Block's gas limit
-	GasPrice    U256     // Price of gas in current environment
-	PrevRandao  [32]byte // Previous block's RANDAO mix
-	TimeStamp   uint64   // Block's timestamp
+	BlockNumber uint64  // Block's number
+	CoinBase    Address // Address of the block's benficiary
+	GasLimit    uint64  // Block's gas limit
+	GasPrice    U256    // Price of gas in current environment
+	PrevRandao  U256    // Previous block's RANDAO mix
+	TimeStamp   uint64  // Block's timestamp
 }
 
 // NewBlockContext returns a newly created instance with all default values.

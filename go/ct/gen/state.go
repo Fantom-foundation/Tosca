@@ -276,7 +276,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	// Invoke BlockContextGenrator
 	// we don't check for the error value here because some tests need a state with an unknown revision.
 	resultBlockContext, err := g.BlockContextGen.Generate(rnd, resultRevision)
-	if err != nil && !strings.Contains(err.Error(), "unknown revision") {
+	if err != nil {
 		return nil, err
 	}
 

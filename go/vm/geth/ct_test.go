@@ -296,8 +296,8 @@ func TestConvertToGeth_BlockContext(t *testing.T) {
 	state.BlockContext.CoinBase[0] = 0x06
 	state.BlockContext.GasLimit = 7
 	state.BlockContext.GasPrice = ct.NewU256(8)
-	state.BlockContext.PrevRandao[31] = 0x0a
-	state.BlockContext.TimeStamp = 11
+	state.BlockContext.PrevRandao = ct.NewU256(9)
+	state.BlockContext.TimeStamp = 10
 
 	gethInterpreter, _, err := ConvertCtStateToGeth(state)
 	if err != nil {
@@ -316,10 +316,10 @@ func TestConvertToGeth_BlockContext(t *testing.T) {
 	if want, got := big.NewInt(8), gethInterpreter.evm.GasPrice; want.Cmp(got) != 0 {
 		t.Errorf("unexpected gas price. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(10), gethInterpreter.evm.Context.Difficulty; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(9), gethInterpreter.evm.Context.Difficulty; want.Cmp(got) != 0 {
 		t.Errorf("unexpected prev randao. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(11), gethInterpreter.evm.Context.Time; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(10), gethInterpreter.evm.Context.Time; want.Cmp(got) != 0 {
 		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
 	}
 }
@@ -562,9 +562,7 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	if want, got := ct.NewU256(252), state.BlockContext.GasPrice; !want.Eq(got) {
 		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
 	}
-	prevRandao := [32]byte{}
-	prevRandao[31] = 0xfb
-	if want, got := prevRandao, state.BlockContext.PrevRandao; want != got {
+	if want, got := ct.NewU256(251), state.BlockContext.PrevRandao; !want.Eq(got) {
 		t.Errorf("unexpected prev randao, wanted %v, got %v", want, got)
 	}
 	if want, got := uint64(250), state.BlockContext.TimeStamp; want != got {

@@ -20,23 +20,15 @@ func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision)
 	if err != nil {
 		return st.NewBlockContext(), err
 	}
-
-	// if it's the last supported revision, the blockNumber range has no limit.
-	// if it's not, we want to limit this range to the firt block number of next revision.
-	revisionNumberRange := uint64(0)
-	if revision != (common.R99_UnknownNextRevision - 1) {
-		nextRevisionNumber, err := common.GetForkBlock(revision + 1)
-		if err != nil {
-			return st.NewBlockContext(), err
-		}
-		// since we know both numbers are positive, and nextRevisionNumber is bigger,
-		// we can safely converet them to uint64
-		revisionNumberRange = uint64(nextRevisionNumber - revisionNumber)
+	revisionNumberRange := common.GetBlockRangeLengthFor(revision)
+	var randomOffset uint64
+	if revisionNumberRange != 0 {
+		randomOffset = rnd.Uint64n(revisionNumberRange)
 	} else {
-		revisionNumberRange = rnd.Uint64()
+		randomOffset = rnd.Uint64()
 	}
+	blockNumber := uint64(revisionNumber) + randomOffset
 
-	blockNumber := uint64(revisionNumber) + rnd.Uint64n(revisionNumberRange)
 	coinbase, err := common.RandAddress(rnd)
 	if err != nil {
 		return st.NewBlockContext(), err
@@ -44,8 +36,7 @@ func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision)
 	gasLimit := rnd.Uint64()
 	gasPrice := common.RandU256(rnd)
 
-	prevRandao := [32]byte{}
-	_, err = rnd.Read(prevRandao[:])
+	prevRandao := common.RandU256(rnd)
 	if err != nil {
 		return st.NewBlockContext(), err
 	}
