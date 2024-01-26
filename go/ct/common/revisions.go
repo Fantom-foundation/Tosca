@@ -13,6 +13,13 @@ const (
 	R99_UnknownNextRevision
 )
 
+var validRevisions = map[Revision]bool{
+	R07_Istanbul:            true,
+	R09_Berlin:              true,
+	R10_London:              true,
+	R99_UnknownNextRevision: true,
+}
+
 func (r Revision) String() string {
 	switch r {
 	case R07_Istanbul:
@@ -26,6 +33,10 @@ func (r Revision) String() string {
 	default:
 		return fmt.Sprintf("Revision(%d)", r)
 	}
+}
+
+func IsValidRevision(revision Revision) bool {
+	return validRevisions[revision]
 }
 
 // GetForkBlock returns the first block a given revision is considered to be

@@ -774,9 +774,13 @@ var Spec = func() Specification {
 	})...)
 	rules = append(rules, []Rule{
 		{
-			Name:      "basefee_invalid_revision",
-			Condition: RevisionBounds(R07_Istanbul, R09_Berlin),
-			Effect:    NoEffect(),
+			Name: "basefee_invalid_revision",
+			Condition: And(
+				RevisionBounds(R07_Istanbul, R09_Berlin),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), BASEFEE),
+			),
+			Effect: FailEffect(),
 		},
 	}...)
 
