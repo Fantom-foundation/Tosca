@@ -80,6 +80,33 @@ func getIfNotNil(bigint *big.Int) *big.Int {
 	return bigint
 }
 
+func convertLfvmContextToCTCallContext(ctx *context) *st.CallContext {
+	newCC := st.NewCallContext()
+	newCC.AccountAddress = (ct.Address)(ctx.contract.Address().Bytes())
+	newCC.CallerAddress = (ct.Address)(ctx.contract.CallerAddress.Bytes())
+	newCC.Value = ct.NewU256FromBigInt(getIfNotNil(ctx.contract.Value()))
+	newCC.OriginAddress = (ct.Address)(ctx.evm.Origin.Bytes())
+	return &newCC
+}
+
+func convertLfvmContextToCTBlockContextt(ctx *context) *st.BlockContext {
+	newBC := st.NewBlockContext()
+	newBC.BaseFee = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.Context.BaseFee))
+	newBC.BlockNumber = getIfNotNil(ctx.evm.Context.BlockNumber).Uint64()
+	// if chainConfig is not initialized, chainID would be default initialized.
+	if ctx.evm.ChainConfig() != nil {
+		newBC.ChainID = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.ChainConfig().ChainID))
+	} else {
+		newBC.ChainID = ct.NewU256(0)
+	}
+	newBC.CoinBase = (ct.Address)(ctx.evm.Context.Coinbase)
+	newBC.GasLimit = ctx.evm.Context.GasLimit
+	newBC.GasPrice = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.GasPrice))
+	newBC.Difficulty = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.Context.Difficulty))
+	newBC.TimeStamp = getIfNotNil(ctx.evm.Context.Time).Uint64()
+	return &newBC
+}
+
 func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcMap) (*st.State, error) {
 	status, err := convertLfvmStatusToCtStatus(ctx.status)
 	if err != nil {
@@ -108,19 +135,10 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 		state.Storage = ctx.stateDB.(*utils.ConformanceTestStateDb).Storage
 		state.Logs = ctx.stateDB.(*utils.ConformanceTestStateDb).Logs
 	}
-	state.CallContext.AccountAddress = (ct.Address)(ctx.contract.Address().Bytes())
-	state.CallContext.CallerAddress = (ct.Address)(ctx.contract.CallerAddress.Bytes())
-	state.CallContext.Value = ct.NewU256FromBigInt(getIfNotNil(ctx.contract.Value()))
-	state.CallContext.OriginAddress = (ct.Address)(ctx.evm.Origin.Bytes())
 
-	state.BlockContext.BaseFee = *ct.U256FromBigInt(getIfNotNil(ctx.evm.Context.BaseFee))
-	state.BlockContext.BlockNumber = getIfNotNil(ctx.evm.Context.BlockNumber).Uint64()
-	state.BlockContext.ChainID = *ct.U256FromBigInt(getIfNotNil(ctx.evm.ChainConfig().ChainID))
-	state.BlockContext.CoinBase = (ct.Address)(ctx.evm.Context.Coinbase)
-	state.BlockContext.GasLimit = ctx.evm.Context.GasLimit
-	state.BlockContext.GasPrice = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.GasPrice))
-	state.BlockContext.Difficulty = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.Context.Difficulty))
-	state.BlockContext.TimeStamp = getIfNotNil(ctx.evm.Context.Time).Uint64()
+	state.CallContext = *convertLfvmContextToCTCallContext(ctx)
+
+	state.BlockContext = *convertLfvmContextToCTBlockContextt(ctx)
 
 	return state, nil
 }
