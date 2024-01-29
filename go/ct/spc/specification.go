@@ -696,7 +696,7 @@ var Spec = func() Specification {
 		pops:       0,
 		pushes:     1,
 		effect: func(s *st.State) {
-			s.Stack.Push(NewU256(uint64(s.BlockContext.BlockNumber)))
+			s.Stack.Push(NewU256(s.BlockContext.BlockNumber))
 		},
 	})...)
 
@@ -724,15 +724,15 @@ var Spec = func() Specification {
 		},
 	})...)
 
-	// --- PREVRANDAO ---
+	// --- DIFFICULTY ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         PREVRANDAO,
+		op:         DIFFICULTY,
 		static_gas: 2,
 		pops:       0,
 		pushes:     1,
 		effect: func(s *st.State) {
-			s.Stack.Push(s.BlockContext.PrevRandao)
+			s.Stack.Push(s.BlockContext.Difficulty)
 		},
 	})...)
 

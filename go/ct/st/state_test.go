@@ -29,7 +29,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.BlockContext.CoinBase[0] = 0xfa
 	state.BlockContext.GasLimit = 249
 	state.BlockContext.GasPrice = NewU256(248)
-	state.BlockContext.PrevRandao = NewU256(247)
+	state.BlockContext.Difficulty = NewU256(247)
 	state.BlockContext.TimeStamp = 246
 
 	clone := state.Clone()
@@ -53,7 +53,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.BlockContext.CoinBase[0] = 0x06
 	clone.BlockContext.GasLimit = 7
 	clone.BlockContext.GasPrice = NewU256(8)
-	clone.BlockContext.PrevRandao = NewU256(9)
+	clone.BlockContext.Difficulty = NewU256(9)
 	clone.BlockContext.TimeStamp = 10
 
 	ok := state.Status == Stopped &&
@@ -78,7 +78,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.BlockContext.CoinBase[0] == 0xfa &&
 		state.BlockContext.GasLimit == 249 &&
 		state.BlockContext.GasPrice == NewU256(248) &&
-		state.BlockContext.PrevRandao == NewU256(247) &&
+		state.BlockContext.Difficulty == NewU256(247) &&
 		state.BlockContext.TimeStamp == 246
 	if !ok {
 		t.Errorf("clone is not independent")
@@ -174,7 +174,6 @@ func TestState_Eq(t *testing.T) {
 	if s1.Eq(s2) {
 		t.Fail()
 	}
-	s2.BlockContext = s1.BlockContext
 }
 
 func TestState_EqFailureStates(t *testing.T) {
@@ -404,8 +403,8 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.Memory.Write([]byte{1, 2, 3}, 31)
 	s1.Storage.MarkWarm(NewU256(42))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s1.CallContext = CallContext{AccountAddress: Address{0x00}}
-	s1.BlockContext = BlockContext{BlockNumber: 0}
+	s1.CallContext = CallContext{AccountAddress: Address{0x01}}
+	s1.BlockContext = BlockContext{BlockNumber: 1}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -417,8 +416,8 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.Memory.Write([]byte{1, 2, 3}, 31)
 	s2.Storage.MarkWarm(NewU256(42))
 	s2.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s2.CallContext = CallContext{AccountAddress: Address{0x00}}
-	s2.BlockContext = BlockContext{BlockNumber: 0}
+	s2.CallContext = CallContext{AccountAddress: Address{0x01}}
+	s2.BlockContext = BlockContext{BlockNumber: 1}
 
 	diffs := s1.Diff(s2)
 

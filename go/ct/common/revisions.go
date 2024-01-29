@@ -2,8 +2,6 @@ package common
 
 import (
 	"fmt"
-
-	"pgregory.net/rand"
 )
 
 type Revision int
@@ -49,10 +47,13 @@ func GetForkBlock(revision Revision) (uint64, error) {
 	return 0, fmt.Errorf("unknown revision: %v", revision)
 }
 
-// returns the number of block numbers between the given revision and the following
+// GetBlockRangeLengthFor returns the number of block numbers between the given revision and the following
 // in case of an Unknown revision, 0 is returned.
-func GetBlockRangeLengthFor(revision Revision) uint64 {
-	revisionNumber, _ := GetForkBlock(revision)
+func GetBlockRangeLengthFor(revision Revision) (uint64, error) {
+	revisionNumber, err := GetForkBlock(revision)
+	if err != nil {
+		return 0, err
+	}
 	revisionNumberRange := uint64(0)
 
 	// if it's the last supported revision, the blockNumber range has no limit.
@@ -60,14 +61,11 @@ func GetBlockRangeLengthFor(revision Revision) uint64 {
 	if revision < R99_UnknownNextRevision {
 		nextRevisionNumber, err := GetForkBlock(revision + 1)
 		if err != nil {
-			return uint64(0)
+			return 0, err
 		}
 		// since we know both numbers are positive, and nextRevisionNumber is bigger,
 		// we can safely converet them to uint64
 		revisionNumberRange = nextRevisionNumber - revisionNumber
-	} else {
-		rnd := rand.Rand{}
-		revisionNumberRange = rnd.Uint64()
 	}
-	return revisionNumberRange
+	return revisionNumberRange, nil
 }

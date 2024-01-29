@@ -12,8 +12,8 @@ type BlockContext struct {
 	CoinBase    Address // Address of the block's benficiary
 	GasLimit    uint64  // Block's gas limit
 	GasPrice    U256    // Price of gas in current environment
-	PrevRandao  U256    // Previous block's RANDAO mix
-	TimeStamp   uint64  // Block's timestamp
+	Difficulty  U256    // Current block's difficulty
+	TimeStamp   uint64  // Block's timestamp in unix time in seconds
 }
 
 // NewBlockContext returns a newly created instance with all default values.
@@ -41,8 +41,8 @@ func (b *BlockContext) Diff(other *BlockContext) []string {
 		ret = append(ret, blockDifference+fmt.Sprintf("gas price: %v vs %v\n", b.GasPrice, other.GasPrice))
 	}
 
-	if b.PrevRandao != other.PrevRandao {
-		ret = append(ret, blockDifference+fmt.Sprintf("prev randao mix: %v vs %v\n", b.PrevRandao, other.PrevRandao))
+	if b.Difficulty != other.Difficulty {
+		ret = append(ret, blockDifference+fmt.Sprintf("prev randao mix: %v vs %v\n", b.Difficulty, other.Difficulty))
 	}
 
 	if b.TimeStamp != other.TimeStamp {
@@ -53,7 +53,13 @@ func (b *BlockContext) Diff(other *BlockContext) []string {
 }
 
 func (b *BlockContext) String() string {
-	return fmt.Sprintf("Block Context:\n\t    Block Number: %v,\n\t    CoinBase: %v,\n\t"+
-		"    Gas Limit: %v,\n\t    Gas Price: %v,\n\t    Prev Randao: %v,\n\t    Timestamp: %v\n",
-		b.BlockNumber, b.CoinBase, b.GasLimit, b.GasPrice, b.PrevRandao, b.TimeStamp)
+	return fmt.Sprintf(
+		"Block Context:"+
+			"\n\t    Block Number: %v,"+
+			"\n\t    CoinBase: %v,"+
+			"\n\t    Gas Limit: %v,"+
+			"\n\t    Gas Price: %v,"+
+			"\n\t    Prev Randao: %v,"+
+			"\n\t    Timestamp: %v\n",
+		b.BlockNumber, b.CoinBase, b.GasLimit, b.GasPrice, b.Difficulty, b.TimeStamp)
 }

@@ -32,7 +32,7 @@ func TestBlockContextGen_Generate(t *testing.T) {
 		t.Errorf("Generated gas price has default value.")
 	}
 
-	if newBC.PrevRandao == (common.NewU256()) {
+	if newBC.Difficulty == (common.NewU256()) {
 		t.Errorf("Generated prev randao has default value.")
 	}
 

@@ -68,8 +68,8 @@ func TestConvertToLfvm_Revision(t *testing.T) {
 		"istanbul": {{ct.R07_Istanbul, true, func(ctx *context) bool { return !ctx.isBerlin && !ctx.isLondon }}},
 		"berlin":   {{ct.R09_Berlin, true, func(ctx *context) bool { return ctx.isBerlin && !ctx.isLondon }}},
 		"london":   {{ct.R10_London, true, func(ctx *context) bool { return ctx.isBerlin && ctx.isLondon }}},
-		// TODO "next":     {{ct.R99_UnknownNextRevision, true, func(ctx *context) bool { }}},
-		"invalid": {{-1, false, nil}},
+		"next":     {{ct.R99_UnknownNextRevision, true, func(ctx *context) bool { return ctx.isBerlin && ctx.isLondon }}},
+		"invalid":  {{-1, false, nil}},
 	}
 
 	for name, test := range tests {
@@ -374,10 +374,6 @@ func TestConvertToLfvm_callContext(t *testing.T) {
 	if want, got := big.NewInt(252), context.contract.Value(); want.Cmp(got) != 0 {
 		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(252), context.contract.Value(); want.Cmp(got) != 0 {
-		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
-	}
-
 }
 
 func TestConvertToLfvm_BlockContext(t *testing.T) {
@@ -386,7 +382,7 @@ func TestConvertToLfvm_BlockContext(t *testing.T) {
 	state.BlockContext.CoinBase[0] = 0x06
 	state.BlockContext.GasLimit = 7
 	state.BlockContext.GasPrice = ct.NewU256(8)
-	state.BlockContext.PrevRandao = ct.NewU256(9)
+	state.BlockContext.Difficulty = ct.NewU256(9)
 	state.BlockContext.TimeStamp = 10
 
 	code := []byte{}
@@ -726,7 +722,7 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
 	}
 
-	if want, got := ct.NewU256(251), state.BlockContext.PrevRandao; !want.Eq(got) {
+	if want, got := ct.NewU256(251), state.BlockContext.Difficulty; !want.Eq(got) {
 		t.Errorf("unexpected prev randao, wanted %v, got %v", want, got)
 	}
 	if want, got := uint64(250), state.BlockContext.TimeStamp; want != got {

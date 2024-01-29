@@ -103,7 +103,7 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 	ctState.BlockContext.CoinBase = (ct.Address)(geth.evm.Context.Coinbase)
 	ctState.BlockContext.GasLimit = geth.evm.Context.GasLimit
 	ctState.BlockContext.GasPrice = *ct.U256FromBigInt(geth.evm.GasPrice)
-	ctState.BlockContext.PrevRandao = *ct.U256FromBigInt(geth.evm.Context.Difficulty)
+	ctState.BlockContext.Difficulty = *ct.U256FromBigInt(geth.evm.Context.Difficulty)
 	ctState.BlockContext.TimeStamp = geth.evm.Context.Time.Uint64()
 
 	return ctState, nil
@@ -183,6 +183,15 @@ func (g *gethInterpreter) isBerlin() bool {
 func (g *gethInterpreter) isLondon() bool {
 	blockNr := g.evm.Context.BlockNumber
 	return g.chainConfig.IsLondon(blockNr)
+}
+
+func (g *gethInterpreter) isFutureRevision() bool {
+	blockNr := g.evm.Context.BlockNumber
+	futureBlockNr, err := ct.GetForkBlock(ct.R99_UnknownNextRevision)
+	if err != nil {
+		panic(fmt.Errorf("error getting fork block number of future revision. %v", err))
+	}
+	return blockNr.Uint64() >= futureBlockNr
 }
 
 // transferFunc subtracts amount from sender and adds amount to recipient using the given Db
@@ -293,7 +302,7 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 	geth.evm.Context.BlockNumber = newBlockNumber
 	geth.evm.Context.Coinbase = (common.Address)(state.BlockContext.CoinBase)
 	geth.evm.Context.GasLimit = state.BlockContext.GasLimit
-	geth.evm.Context.Difficulty = state.BlockContext.PrevRandao.ToBigInt()
+	geth.evm.Context.Difficulty = state.BlockContext.Difficulty.ToBigInt()
 	geth.evm.Context.Time = newTimestamp
 	geth.evm.TxContext.GasPrice = state.BlockContext.GasPrice.ToBigInt()
 

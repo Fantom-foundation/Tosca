@@ -64,8 +64,7 @@ func TestConvertToGeth_Revision(t *testing.T) {
 		"istanbul": {{ct.R07_Istanbul, true, func(interpreter *gethInterpreter) bool { return interpreter.isIstanbul() }}},
 		"berlin":   {{ct.R09_Berlin, true, func(interpreter *gethInterpreter) bool { return interpreter.isBerlin() }}},
 		"london":   {{ct.R10_London, true, func(interpreter *gethInterpreter) bool { return interpreter.isLondon() }}},
-		// TODO "next":     {{ct.R99_UnknownNextRevision, true, func(interpreter *gethInterpreter) bool {}}},
-		"invalid": {{-1, false, nil}},
+		"next":     {{ct.R99_UnknownNextRevision, true, func(interpreter *gethInterpreter) bool { return interpreter.isFutureRevision() }}},
 	}
 
 	for name, test := range tests {
@@ -74,10 +73,10 @@ func TestConvertToGeth_Revision(t *testing.T) {
 				state := getEmptyState()
 				state.Revision = cur.ctRevision
 				newBlockNumber, err := ct.GetForkBlock(cur.ctRevision)
-				if err != nil && cur.ctRevision != -1 {
+				if err != nil {
 					t.Errorf("error generating block number: %v", err)
 				}
-				state.BlockContext.BlockNumber = uint64(newBlockNumber)
+				state.BlockContext.BlockNumber = newBlockNumber
 
 				interpreter, _, err := ConvertCtStateToGeth(state)
 
@@ -296,7 +295,7 @@ func TestConvertToGeth_BlockContext(t *testing.T) {
 	state.BlockContext.CoinBase[0] = 0x06
 	state.BlockContext.GasLimit = 7
 	state.BlockContext.GasPrice = ct.NewU256(8)
-	state.BlockContext.PrevRandao = ct.NewU256(9)
+	state.BlockContext.Difficulty = ct.NewU256(9)
 	state.BlockContext.TimeStamp = 10
 
 	gethInterpreter, _, err := ConvertCtStateToGeth(state)
@@ -539,7 +538,7 @@ func TestConvertToCt_CallContext(t *testing.T) {
 func TestConvertToCt_BlockContext(t *testing.T) {
 	interpreter, gethState := getEmptyGeth(ct.R07_Istanbul)
 	interpreter.evm.Context.BlockNumber = big.NewInt(255)
-	interpreter.evm.Context.Coinbase = vm.AccountRef{0xfe}.Address()
+	interpreter.evm.Context.Coinbase = common.Address{0xfe}
 	interpreter.evm.Context.GasLimit = uint64(253)
 	interpreter.evm.TxContext.GasPrice = big.NewInt(252)
 	interpreter.evm.Context.Difficulty = big.NewInt(251)
@@ -562,7 +561,7 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	if want, got := ct.NewU256(252), state.BlockContext.GasPrice; !want.Eq(got) {
 		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
 	}
-	if want, got := ct.NewU256(251), state.BlockContext.PrevRandao; !want.Eq(got) {
+	if want, got := ct.NewU256(251), state.BlockContext.Difficulty; !want.Eq(got) {
 		t.Errorf("unexpected prev randao, wanted %v, got %v", want, got)
 	}
 	if want, got := uint64(250), state.BlockContext.TimeStamp; want != got {

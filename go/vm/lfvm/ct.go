@@ -70,18 +70,14 @@ func convertLfvmMemoryToCtMemory(ctx *context) *st.Memory {
 ////////////////////////////////////////////////////////////
 // lfvm -> ct
 
-func verifyContext(ctx *context) {
-	checkInitBigInt := func(bigint **big.Int) {
-		if *bigint == nil {
-			newbigInt := big.NewInt(0)
-			*bigint = newbigInt
-		}
+// getIfNotNil returns the input value if it is initialized
+// or a default initialized new big.Int if not
+func getIfNotNil(bigint *big.Int) *big.Int {
+	newbigInt := big.NewInt(0)
+	if bigint != nil {
+		newbigInt = bigint
 	}
-	checkInitBigInt(&ctx.evm.Context.BlockNumber)
-	checkInitBigInt(&ctx.evm.Context.Time)
-	checkInitBigInt(&ctx.evm.Context.Difficulty)
-	checkInitBigInt(&ctx.evm.Context.BaseFee)
-	checkInitBigInt(&ctx.evm.TxContext.GasPrice)
+	return newbigInt
 }
 
 func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcMap) (*st.State, error) {
@@ -97,7 +93,6 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 		return nil, fmt.Errorf("unable to convert lfvm pc %d to evm pc", ctx.pc)
 	}
 
-	verifyContext(ctx)
 	state := st.NewState(originalCode)
 	state.Status = status
 	state.Revision = convertLfvmRevisionToCtRevision(ctx)
@@ -114,16 +109,16 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 		state.Logs = ctx.stateDB.(*utils.ConformanceTestStateDb).Logs
 	}
 	state.CallContext.AccountAddress = (ct.Address)(ctx.contract.Address().Bytes())
-	state.CallContext.OriginAddress = (ct.Address)(ctx.evm.Origin.Bytes())
 	state.CallContext.CallerAddress = (ct.Address)(ctx.contract.CallerAddress.Bytes())
-	state.CallContext.Value = *ct.U256FromBigInt(ctx.contract.Value())
+	state.CallContext.Value = *ct.U256FromBigInt(getIfNotNil(ctx.contract.Value()))
+	state.CallContext.OriginAddress = (ct.Address)(ctx.evm.Origin.Bytes())
 
-	state.BlockContext.BlockNumber = ctx.evm.Context.BlockNumber.Uint64()
+	state.BlockContext.BlockNumber = getIfNotNil(ctx.evm.Context.BlockNumber).Uint64()
 	state.BlockContext.CoinBase = (ct.Address)(ctx.evm.Context.Coinbase)
 	state.BlockContext.GasLimit = ctx.evm.Context.GasLimit
-	state.BlockContext.GasPrice = *ct.U256FromBigInt(ctx.evm.GasPrice)
-	state.BlockContext.PrevRandao = *ct.U256FromBigInt(ctx.evm.Context.Difficulty)
-	state.BlockContext.TimeStamp = ctx.evm.Context.Time.Uint64()
+	state.BlockContext.GasPrice = *ct.U256FromBigInt(getIfNotNil(ctx.evm.GasPrice))
+	state.BlockContext.Difficulty = *ct.U256FromBigInt(getIfNotNil(ctx.evm.Context.Difficulty))
+	state.BlockContext.TimeStamp = getIfNotNil(ctx.evm.Context.Time).Uint64()
 
 	return state, nil
 }
@@ -188,6 +183,10 @@ func convertCtRevisionToLfvmRevision(revision ct.Revision, ctx *context) error {
 		// London implies Berlin.
 		ctx.isBerlin = true
 		ctx.isLondon = true
+	case ct.R99_UnknownNextRevision:
+		// Unknown next implies both previous, but still valid.
+		ctx.isBerlin = true
+		ctx.isLondon = true
 	default:
 		return fmt.Errorf("failed to convert revision: %v", revision)
 	}
@@ -247,7 +246,7 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 				BlockNumber: newBlockNumber,
 				Coinbase:    (vm.AccountRef)(state.BlockContext.CoinBase[:]).Address(),
 				GasLimit:    state.BlockContext.GasLimit,
-				Difficulty:  state.BlockContext.PrevRandao.ToBigInt(),
+				Difficulty:  state.BlockContext.Difficulty.ToBigInt(),
 				Time:        newTimestamp,
 			},
 			TxContext: vm.TxContext{
