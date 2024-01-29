@@ -69,6 +69,28 @@ func convertGethMemoryToCtMemory(state *vm.GethState) *st.Memory {
 ////////////////////////////////////////////////////////////
 // geth -> ct
 
+func convertGethToCtCallContext(geth *gethInterpreter, state *vm.GethState) *st.CallContext {
+	newCC := st.NewCallContext()
+	newCC.AccountAddress = (ct.Address)(state.Contract.Address().Bytes())
+	newCC.OriginAddress = (ct.Address)(geth.evm.Origin.Bytes())
+	newCC.CallerAddress = (ct.Address)(state.Contract.CallerAddress.Bytes())
+	newCC.Value = ct.NewU256FromBigInt(state.Contract.Value())
+	return &newCC
+}
+
+func convertGethToCTBlockContext(geth *gethInterpreter) *st.BlockContext {
+	newBC := st.NewBlockContext()
+	newBC.BaseFee = ct.NewU256FromBigInt(geth.evm.Context.BaseFee)
+	newBC.BlockNumber = geth.evm.Context.BlockNumber.Uint64()
+	newBC.ChainID = ct.NewU256FromBigInt(geth.evm.ChainConfig().ChainID)
+	newBC.CoinBase = (ct.Address)(geth.evm.Context.Coinbase)
+	newBC.GasLimit = geth.evm.Context.GasLimit
+	newBC.GasPrice = ct.NewU256FromBigInt(geth.evm.GasPrice)
+	newBC.Difficulty = ct.NewU256FromBigInt(geth.evm.Context.Difficulty)
+	newBC.TimeStamp = geth.evm.Context.Time.Uint64()
+	return &newBC
+}
+
 func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State, error) {
 	status, err := convertGethStatusToCtStatus(state)
 	if err != nil {
@@ -94,20 +116,9 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 		ctState.Storage = geth.evm.StateDB.(*utils.ConformanceTestStateDb).Storage
 		ctState.Logs = geth.evm.StateDB.(*utils.ConformanceTestStateDb).Logs
 	}
-	ctState.CallContext.AccountAddress = (ct.Address)(state.Contract.Address().Bytes())
-	ctState.CallContext.OriginAddress = (ct.Address)(geth.evm.Origin.Bytes())
-	ctState.CallContext.CallerAddress = (ct.Address)(state.Contract.CallerAddress.Bytes())
-	ctState.CallContext.Value = ct.NewU256FromBigInt(state.Contract.Value())
 
-	ctState.BlockContext.BaseFee = *ct.U256FromBigInt(geth.evm.Context.BaseFee)
-	ctState.BlockContext.BlockNumber = geth.evm.Context.BlockNumber.Uint64()
-	ctState.BlockContext.ChainID = *ct.U256FromBigInt(geth.evm.ChainConfig().ChainID)
-	ctState.BlockContext.CoinBase = (ct.Address)(geth.evm.Context.Coinbase)
-	ctState.BlockContext.GasLimit = geth.evm.Context.GasLimit
-	ctState.BlockContext.GasPrice = ct.NewU256FromBigInt(geth.evm.GasPrice)
-	ctState.BlockContext.Difficulty = ct.NewU256FromBigInt(geth.evm.Context.Difficulty)
-	ctState.BlockContext.TimeStamp = geth.evm.Context.Time.Uint64()
-
+	ctState.CallContext = *convertGethToCtCallContext(geth, state)
+	ctState.BlockContext = *convertGethToCTBlockContext(geth)
 	return ctState, nil
 }
 

@@ -64,7 +64,7 @@ func TestBlockContext_String(t *testing.T) {
 	}{
 		"Base Fee":     {func(b *BlockContext) any { b.BaseFee = NewU256(1); return b.BaseFee }},
 		"Block Number": {func(b *BlockContext) any { b.BlockNumber++; return b.BlockNumber }},
-		"Chain ID":     {func(b *BlockContext) any { b.ChainID = NewU256(1); return b.ChainID }},
+		"ChainID":      {func(b *BlockContext) any { b.ChainID = NewU256(1); return b.ChainID }},
 		"CoinBase":     {func(b *BlockContext) any { b.CoinBase[0]++; return b.CoinBase }},
 		"Gas Limit":    {func(b *BlockContext) any { b.GasLimit++; return b.GasLimit }},
 		"Gas Price":    {func(b *BlockContext) any { b.GasPrice = NewU256(1); return b.GasPrice }},
