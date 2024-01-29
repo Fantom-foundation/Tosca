@@ -182,6 +182,10 @@ func convertCtRevisionToLfvmRevision(revision ct.Revision, ctx *context) error {
 		// London implies Berlin.
 		ctx.isBerlin = true
 		ctx.isLondon = true
+	case ct.R99_UnknownNextRevision:
+		// Unknown next implies both previous, but still valid.
+		ctx.isBerlin = true
+		ctx.isLondon = true
 	default:
 		return fmt.Errorf("failed to convert revision: %v", revision)
 	}
