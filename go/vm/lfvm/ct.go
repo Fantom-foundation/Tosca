@@ -70,6 +70,15 @@ func convertLfvmMemoryToCtMemory(ctx *context) *st.Memory {
 ////////////////////////////////////////////////////////////
 // lfvm -> ct
 
+// getIfNotNil returns the input value if it is initialized
+// or a default initialized new big.Int if not
+func getIfNotNil(bigint *big.Int) *big.Int {
+	if bigint == nil {
+		return big.NewInt(0)
+	}
+	return bigint
+}
+
 func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcMap) (*st.State, error) {
 	status, err := convertLfvmStatusToCtStatus(ctx.status)
 	if err != nil {
@@ -99,9 +108,16 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 		state.Logs = ctx.stateDB.(*utils.ConformanceTestStateDb).Logs
 	}
 	state.CallContext.AccountAddress = (ct.Address)(ctx.contract.Address().Bytes())
-	state.CallContext.OriginAddress = (ct.Address)(ctx.evm.Origin.Bytes())
 	state.CallContext.CallerAddress = (ct.Address)(ctx.contract.CallerAddress.Bytes())
-	state.CallContext.Value = *ct.U256FromBigInt(ctx.contract.Value())
+	state.CallContext.Value = *ct.U256FromBigInt(getIfNotNil(ctx.contract.Value()))
+	state.CallContext.OriginAddress = (ct.Address)(ctx.evm.Origin.Bytes())
+
+	state.BlockContext.BlockNumber = getIfNotNil(ctx.evm.Context.BlockNumber).Uint64()
+	state.BlockContext.CoinBase = (ct.Address)(ctx.evm.Context.Coinbase)
+	state.BlockContext.GasLimit = ctx.evm.Context.GasLimit
+	state.BlockContext.GasPrice = *ct.U256FromBigInt(getIfNotNil(ctx.evm.GasPrice))
+	state.BlockContext.Difficulty = *ct.U256FromBigInt(getIfNotNil(ctx.evm.Context.Difficulty))
+	state.BlockContext.TimeStamp = getIfNotNil(ctx.evm.Context.Time).Uint64()
 
 	return state, nil
 }
@@ -214,12 +230,23 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 
 	stateDb.AddRefund(state.GasRefund)
 
+	newBlockNumber := big.NewInt(0).SetUint64(state.BlockContext.BlockNumber)
+	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
+
 	// Create execution context.
 	ctx := context{
 		evm: &vm.EVM{
 			StateDB: stateDb,
 			Context: vm.BlockContext{
-				BlockNumber: big.NewInt(0), // TODO
+				BlockNumber: newBlockNumber,
+				Coinbase:    (vm.AccountRef)(state.BlockContext.CoinBase[:]).Address(),
+				GasLimit:    state.BlockContext.GasLimit,
+				Difficulty:  state.BlockContext.Difficulty.ToBigInt(),
+				Time:        newTimestamp,
+			},
+			TxContext: vm.TxContext{
+				Origin:   (common.Address)(state.CallContext.OriginAddress[:]),
+				GasPrice: state.BlockContext.GasPrice.ToBigInt(),
 			},
 		},
 		pc:       int32(pc),
@@ -233,8 +260,6 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 		callsize: *uint256.NewInt(uint64(len(data))),
 		readOnly: false,
 	}
-
-	ctx.evm.Origin = (common.Address)(state.CallContext.OriginAddress[:])
 
 	err = convertCtRevisionToLfvmRevision(state.Revision, &ctx)
 	if err != nil {

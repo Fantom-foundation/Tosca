@@ -99,6 +99,13 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 	ctState.CallContext.CallerAddress = (ct.Address)(state.Contract.CallerAddress.Bytes())
 	ctState.CallContext.Value = *ct.U256FromBigInt(state.Contract.Value())
 
+	ctState.BlockContext.BlockNumber = geth.evm.Context.BlockNumber.Uint64()
+	ctState.BlockContext.CoinBase = (ct.Address)(geth.evm.Context.Coinbase)
+	ctState.BlockContext.GasLimit = geth.evm.Context.GasLimit
+	ctState.BlockContext.GasPrice = *ct.U256FromBigInt(geth.evm.GasPrice)
+	ctState.BlockContext.Difficulty = *ct.U256FromBigInt(geth.evm.Context.Difficulty)
+	ctState.BlockContext.TimeStamp = geth.evm.Context.Time.Uint64()
+
 	return ctState, nil
 }
 
@@ -178,18 +185,6 @@ func (g *gethInterpreter) isLondon() bool {
 	return g.chainConfig.IsLondon(blockNr)
 }
 
-func getForkBlock(revision ct.Revision) (int64, error) {
-	switch revision {
-	case ct.R07_Istanbul:
-		return 0, nil
-	case ct.R09_Berlin:
-		return 10, nil
-	case ct.R10_London:
-		return 20, nil
-	}
-	return -1, fmt.Errorf("unknown revision: %v", revision)
-}
-
 // transferFunc subtracts amount from sender and adds amount to recipient using the given Db
 // Now is doing nothing as this is not changing gas computation
 func transferFunc(stateDB vm.StateDB, callerAddress common.Address, to common.Address, value *big.Int) {
@@ -204,15 +199,15 @@ func canTransferFunc(stateDB vm.StateDB, callerAddress common.Address, value *bi
 }
 
 func getGethEvm(revision ct.Revision, stateDb vm.StateDB) (*gethInterpreter, error) {
-	istanbulBlock, err := getForkBlock(ct.R07_Istanbul)
+	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
 	if err != nil {
 		return nil, err
 	}
-	berlinBlock, err := getForkBlock(ct.R09_Berlin)
+	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
 	if err != nil {
 		return nil, err
 	}
-	londonBlock, err := getForkBlock(ct.R10_London)
+	londonBlock, err := ct.GetForkBlock(ct.R10_London)
 	if err != nil {
 		return nil, err
 	}
@@ -220,9 +215,9 @@ func getGethEvm(revision ct.Revision, stateDb vm.StateDB) (*gethInterpreter, err
 	// Set hard forks for chainconfig
 	chainConfig := &params.ChainConfig{}
 	chainConfig.ChainID = big.NewInt(0)
-	chainConfig.IstanbulBlock = big.NewInt(istanbulBlock)
-	chainConfig.BerlinBlock = big.NewInt(berlinBlock)
-	chainConfig.LondonBlock = big.NewInt(londonBlock)
+	chainConfig.IstanbulBlock = big.NewInt(int64(istanbulBlock))
+	chainConfig.BerlinBlock = big.NewInt(int64(berlinBlock))
+	chainConfig.LondonBlock = big.NewInt(int64(londonBlock))
 	chainConfig.Ethash = new(params.EthashConfig)
 
 	// Hashing function used in the context for BLOCKHASH instruction
@@ -231,13 +226,13 @@ func getGethEvm(revision ct.Revision, stateDb vm.StateDB) (*gethInterpreter, err
 	}
 
 	// Create empty block context based on block number
-	blockNr, err := getForkBlock(revision)
+	blockNr, err := ct.GetForkBlock(revision)
 	if err != nil {
 		return nil, err
 	}
 
 	blockCtx := vm.BlockContext{
-		BlockNumber: big.NewInt(blockNr + 2),
+		BlockNumber: big.NewInt(int64(blockNr) + 2),
 		Time:        big.NewInt(1),
 		Difficulty:  big.NewInt(1),
 		GasLimit:    1 << 62,
@@ -291,6 +286,16 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 	callerAddress := (vm.AccountRef)(state.CallContext.CallerAddress)
 	contract := vm.NewContract(callerAddress, objectAddress, state.CallContext.Value.ToBigInt(), state.Gas)
 	contract.Code = convertCtCodeToGethCode(state)
+
+	newBlockNumber := big.NewInt(0).SetUint64(state.BlockContext.BlockNumber)
+	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
+
+	geth.evm.Context.BlockNumber = newBlockNumber
+	geth.evm.Context.Coinbase = (common.Address)(state.BlockContext.CoinBase)
+	geth.evm.Context.GasLimit = state.BlockContext.GasLimit
+	geth.evm.Context.Difficulty = state.BlockContext.Difficulty.ToBigInt()
+	geth.evm.Context.Time = newTimestamp
+	geth.evm.TxContext.GasPrice = state.BlockContext.GasPrice.ToBigInt()
 
 	interpreterState := vm.NewGethState(
 		contract,

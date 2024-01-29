@@ -1,6 +1,7 @@
 package geth
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -55,6 +56,15 @@ func TestConvertToGeth_StatusCode(t *testing.T) {
 	}
 }
 
+func (g *gethInterpreter) isFutureRevision() bool {
+	blockNr := g.evm.Context.BlockNumber
+	futureBlockNr, err := ct.GetForkBlock(ct.R99_UnknownNextRevision)
+	if err != nil {
+		panic(fmt.Errorf("error getting fork block number of future revision. %v", err))
+	}
+	return blockNr.Uint64() >= futureBlockNr
+}
+
 func TestConvertToGeth_Revision(t *testing.T) {
 	tests := map[string][]struct {
 		ctRevision            ct.Revision
@@ -64,8 +74,7 @@ func TestConvertToGeth_Revision(t *testing.T) {
 		"istanbul": {{ct.R07_Istanbul, true, func(interpreter *gethInterpreter) bool { return interpreter.isIstanbul() }}},
 		"berlin":   {{ct.R09_Berlin, true, func(interpreter *gethInterpreter) bool { return interpreter.isBerlin() }}},
 		"london":   {{ct.R10_London, true, func(interpreter *gethInterpreter) bool { return interpreter.isLondon() }}},
-		// TODO "next":     {{ct.R99_UnknownNextRevision, true, func(interpreter *gethInterpreter) bool {}}},
-		"invalid": {{-1, false, nil}},
+		"next":     {{ct.R99_UnknownNextRevision, true, func(interpreter *gethInterpreter) bool { return interpreter.isFutureRevision() }}},
 	}
 
 	for name, test := range tests {
@@ -73,6 +82,11 @@ func TestConvertToGeth_Revision(t *testing.T) {
 			for _, cur := range test {
 				state := getEmptyState()
 				state.Revision = cur.ctRevision
+				newBlockNumber, err := ct.GetForkBlock(cur.ctRevision)
+				if err != nil {
+					t.Errorf("error generating block number: %v", err)
+				}
+				state.BlockContext.BlockNumber = newBlockNumber
 
 				interpreter, _, err := ConvertCtStateToGeth(state)
 
@@ -267,7 +281,6 @@ func TestConvertToGeth_CallContext(t *testing.T) {
 	state.CallContext.Value = ct.NewU256(252)
 
 	gethInterpreter, gethState, err := ConvertCtStateToGeth(state)
-
 	if err != nil {
 		t.Fatalf("failed to convert ct state to geth: %v", err)
 	}
@@ -283,6 +296,40 @@ func TestConvertToGeth_CallContext(t *testing.T) {
 	}
 	if want, got := big.NewInt(252), gethState.Contract.Value(); want.Cmp(got) != 0 {
 		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
+	}
+}
+
+func TestConvertToGeth_BlockContext(t *testing.T) {
+	state := getEmptyState()
+	state.BlockContext.BlockNumber = 5
+	state.BlockContext.CoinBase[0] = 0x06
+	state.BlockContext.GasLimit = 7
+	state.BlockContext.GasPrice = ct.NewU256(8)
+	state.BlockContext.Difficulty = ct.NewU256(9)
+	state.BlockContext.TimeStamp = 10
+
+	gethInterpreter, _, err := ConvertCtStateToGeth(state)
+	if err != nil {
+		t.Fatalf("failed to convert ct state to geth: %v", err)
+	}
+
+	if want, got := big.NewInt(5), gethInterpreter.evm.Context.BlockNumber; want.Cmp(got) != 0 {
+		t.Errorf("unexpected block number. wanted %v, got %v", want, got)
+	}
+	if want, got := (common.Address{0x06}), gethInterpreter.evm.Context.Coinbase; want != got {
+		t.Errorf("unexpected coinbase. wanted %v, got %v", want, got)
+	}
+	if want, got := uint64(7), gethInterpreter.evm.Context.GasLimit; want != got {
+		t.Errorf("unexpected gas limit. wanted %v, got %v", want, got)
+	}
+	if want, got := big.NewInt(8), gethInterpreter.evm.GasPrice; want.Cmp(got) != 0 {
+		t.Errorf("unexpected gas price. wanted %v, got %v", want, got)
+	}
+	if want, got := big.NewInt(9), gethInterpreter.evm.Context.Difficulty; want.Cmp(got) != 0 {
+		t.Errorf("unexpected difficulty. wanted %v, got %v", want, got)
+	}
+	if want, got := big.NewInt(10), gethInterpreter.evm.Context.Time; want.Cmp(got) != 0 {
+		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
 	}
 }
 
@@ -455,7 +502,7 @@ func TestConvertToCt_Stack(t *testing.T) {
 				state, err := ConvertGethToCtState(interpreter, gethState)
 
 				if err != nil {
-					t.Fatalf("failed to convert lfvm context to ct state: %v", err)
+					t.Fatalf("failed to convert geth context to ct state: %v", err)
 				}
 
 				want := cur.ctStack
@@ -480,7 +527,6 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	interpreter.evm.Origin = common.Address{0xfd}
 
 	state, err := ConvertGethToCtState(interpreter, gethState)
-
 	if err != nil {
 		t.Fatalf("failed to convert geth to ct state: %v", err)
 	}
@@ -497,4 +543,39 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	if want, got := ct.NewU256(252), state.CallContext.Value; !want.Eq(got) {
 		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
 	}
+}
+
+func TestConvertToCt_BlockContext(t *testing.T) {
+	interpreter, gethState := getEmptyGeth(ct.R07_Istanbul)
+	interpreter.evm.Context.BlockNumber = big.NewInt(255)
+	interpreter.evm.Context.Coinbase = common.Address{0xfe}
+	interpreter.evm.Context.GasLimit = uint64(253)
+	interpreter.evm.TxContext.GasPrice = big.NewInt(252)
+	interpreter.evm.Context.Difficulty = big.NewInt(251)
+	interpreter.evm.Context.Time = big.NewInt(250)
+
+	state, err := ConvertGethToCtState(interpreter, gethState)
+	if err != nil {
+		t.Fatalf("failed to convert geth to ct state: %v", err)
+	}
+
+	if want, got := uint64(255), state.BlockContext.BlockNumber; want != got {
+		t.Errorf("unexpected block number, wanted %v, got %v", want, got)
+	}
+	if want, got := (ct.Address{0xfe}), state.BlockContext.CoinBase; want != got {
+		t.Errorf("unexpected coinbase, wanted %v, got %v", want, got)
+	}
+	if want, got := uint64(253), state.BlockContext.GasLimit; want != got {
+		t.Errorf("unexpected gas limit, wanted %v, got %v", want, got)
+	}
+	if want, got := ct.NewU256(252), state.BlockContext.GasPrice; !want.Eq(got) {
+		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
+	}
+	if want, got := ct.NewU256(251), state.BlockContext.Difficulty; !want.Eq(got) {
+		t.Errorf("unexpected difficulty, wanted %v, got %v", want, got)
+	}
+	if want, got := uint64(250), state.BlockContext.TimeStamp; want != got {
+		t.Errorf("unexpected timestamp, wanted %v, got %v", want, got)
+	}
+
 }

@@ -688,6 +688,78 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- NUMBER ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         NUMBER,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(s.BlockContext.BlockNumber))
+		},
+	})...)
+
+	// --- COINBASE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         COINBASE,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256FromBytes(s.BlockContext.CoinBase[:]...))
+		},
+	})...)
+
+	// --- GASLIMIT ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         GASLIMIT,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(s.BlockContext.GasLimit))
+		},
+	})...)
+
+	// --- DIFFICULTY ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         DIFFICULTY,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(s.BlockContext.Difficulty)
+		},
+	})...)
+
+	// --- GASPRICE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         GASPRICE,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(s.BlockContext.GasPrice)
+		},
+	})...)
+
+	// --- TIMESTAMP ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         TIMESTAMP,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(s.BlockContext.TimeStamp))
+		},
+	})...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)

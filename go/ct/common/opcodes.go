@@ -40,6 +40,12 @@ const (
 	ORIGIN     OpCode = 0x32
 	CALLER     OpCode = 0x33
 	CALLVALUE  OpCode = 0x34
+	GASPRICE   OpCode = 0x3A
+	COINBASE   OpCode = 0x41
+	TIMESTAMP  OpCode = 0x42
+	NUMBER     OpCode = 0x43
+	DIFFICULTY OpCode = 0x44
+	GASLIMIT   OpCode = 0x45
 	POP        OpCode = 0x50
 	MLOAD      OpCode = 0x51
 	MSTORE     OpCode = 0x52
@@ -163,6 +169,12 @@ func ValidOpCodesNoPush() []OpCode {
 		ORIGIN,
 		CALLER,
 		CALLVALUE,
+		GASPRICE,
+		COINBASE,
+		TIMESTAMP,
+		NUMBER,
+		DIFFICULTY,
+		GASLIMIT,
 		POP,
 		MLOAD,
 		MSTORE,
@@ -276,6 +288,18 @@ func (op OpCode) String() string {
 		return "CALLER"
 	case CALLVALUE:
 		return "CALLVALUE"
+	case GASPRICE:
+		return "GASPRICE"
+	case COINBASE:
+		return "COINBASE"
+	case TIMESTAMP:
+		return "TIMESTAMP"
+	case NUMBER:
+		return "NUMBER"
+	case DIFFICULTY:
+		return "DIFFICULTY"
+	case GASLIMIT:
+		return "GASLIMIT"
 	case POP:
 		return "POP"
 	case MLOAD:
