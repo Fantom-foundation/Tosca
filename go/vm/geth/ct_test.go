@@ -1,6 +1,7 @@
 package geth
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -53,6 +54,15 @@ func TestConvertToGeth_StatusCode(t *testing.T) {
 			}
 		})
 	}
+}
+
+func (g *gethInterpreter) isFutureRevision() bool {
+	blockNr := g.evm.Context.BlockNumber
+	futureBlockNr, err := ct.GetForkBlock(ct.R99_UnknownNextRevision)
+	if err != nil {
+		panic(fmt.Errorf("error getting fork block number of future revision. %v", err))
+	}
+	return blockNr.Uint64() >= futureBlockNr
 }
 
 func TestConvertToGeth_Revision(t *testing.T) {

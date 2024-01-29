@@ -73,11 +73,10 @@ func convertLfvmMemoryToCtMemory(ctx *context) *st.Memory {
 // getIfNotNil returns the input value if it is initialized
 // or a default initialized new big.Int if not
 func getIfNotNil(bigint *big.Int) *big.Int {
-	newbigInt := big.NewInt(0)
-	if bigint != nil {
-		newbigInt = bigint
+	if bigint == nil {
+		return big.NewInt(0)
 	}
-	return newbigInt
+	return bigint
 }
 
 func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcMap) (*st.State, error) {
@@ -181,10 +180,6 @@ func convertCtRevisionToLfvmRevision(revision ct.Revision, ctx *context) error {
 		ctx.isBerlin = true
 	case ct.R10_London:
 		// London implies Berlin.
-		ctx.isBerlin = true
-		ctx.isLondon = true
-	case ct.R99_UnknownNextRevision:
-		// Unknown next implies both previous, but still valid.
 		ctx.isBerlin = true
 		ctx.isLondon = true
 	default:

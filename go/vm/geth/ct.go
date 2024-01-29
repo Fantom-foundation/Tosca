@@ -185,15 +185,6 @@ func (g *gethInterpreter) isLondon() bool {
 	return g.chainConfig.IsLondon(blockNr)
 }
 
-func (g *gethInterpreter) isFutureRevision() bool {
-	blockNr := g.evm.Context.BlockNumber
-	futureBlockNr, err := ct.GetForkBlock(ct.R99_UnknownNextRevision)
-	if err != nil {
-		panic(fmt.Errorf("error getting fork block number of future revision. %v", err))
-	}
-	return blockNr.Uint64() >= futureBlockNr
-}
-
 // transferFunc subtracts amount from sender and adds amount to recipient using the given Db
 // Now is doing nothing as this is not changing gas computation
 func transferFunc(stateDB vm.StateDB, callerAddress common.Address, to common.Address, value *big.Int) {
