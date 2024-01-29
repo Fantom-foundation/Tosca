@@ -33,7 +33,7 @@ func TestBlockContextGen_Generate(t *testing.T) {
 	}
 
 	if newBC.Difficulty == (common.NewU256()) {
-		t.Errorf("Generated prev randao has default value.")
+		t.Errorf("Generated difficulty has default value.")
 	}
 
 	if newBC.TimeStamp == (uint64(0)) {

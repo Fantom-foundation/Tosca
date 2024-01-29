@@ -62,7 +62,7 @@ func TestBlockContext_String(t *testing.T) {
 		"CoinBase":     {func(b *BlockContext) any { b.CoinBase[0]++; return b.CoinBase }},
 		"Gas Limit":    {func(b *BlockContext) any { b.GasLimit++; return b.GasLimit }},
 		"Gas Price":    {func(b *BlockContext) any { b.GasPrice = NewU256(1); return b.GasPrice }},
-		"Prev Randao":  {func(b *BlockContext) any { b.Difficulty = NewU256(1); return b.Difficulty }},
+		"Difficulty":   {func(b *BlockContext) any { b.Difficulty = NewU256(1); return b.Difficulty }},
 		"Timestamp":    {func(b *BlockContext) any { b.TimeStamp++; return b.TimeStamp }},
 	}
 

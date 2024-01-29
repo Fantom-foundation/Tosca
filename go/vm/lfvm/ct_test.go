@@ -409,7 +409,7 @@ func TestConvertToLfvm_BlockContext(t *testing.T) {
 		t.Errorf("unexpected gas price. wanted %v, got %v", want, got)
 	}
 	if want, got := big.NewInt(9), context.evm.Context.Difficulty; want.Cmp(got) != 0 {
-		t.Errorf("unexpected prev randao. wanted %v, got %v", want, got)
+		t.Errorf("unexpected difficulty. wanted %v, got %v", want, got)
 	}
 	if want, got := big.NewInt(10), context.evm.Context.Time; want.Cmp(got) != 0 {
 		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
@@ -723,7 +723,7 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	}
 
 	if want, got := ct.NewU256(251), state.BlockContext.Difficulty; !want.Eq(got) {
-		t.Errorf("unexpected prev randao, wanted %v, got %v", want, got)
+		t.Errorf("unexpected difficulty, wanted %v, got %v", want, got)
 	}
 	if want, got := uint64(250), state.BlockContext.TimeStamp; want != got {
 		t.Errorf("unexpected timestamp, wanted %v, got %v", want, got)

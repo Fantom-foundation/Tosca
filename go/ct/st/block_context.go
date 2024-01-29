@@ -42,7 +42,7 @@ func (b *BlockContext) Diff(other *BlockContext) []string {
 	}
 
 	if b.Difficulty != other.Difficulty {
-		ret = append(ret, blockDifference+fmt.Sprintf("prev randao mix: %v vs %v\n", b.Difficulty, other.Difficulty))
+		ret = append(ret, blockDifference+fmt.Sprintf("difficulty: %v vs %v\n", b.Difficulty, other.Difficulty))
 	}
 
 	if b.TimeStamp != other.TimeStamp {
@@ -59,7 +59,7 @@ func (b *BlockContext) String() string {
 			"\n\t    CoinBase: %v,"+
 			"\n\t    Gas Limit: %v,"+
 			"\n\t    Gas Price: %v,"+
-			"\n\t    Prev Randao: %v,"+
+			"\n\t    Difficulty: %v,"+
 			"\n\t    Timestamp: %v\n",
 		b.BlockNumber, b.CoinBase, b.GasLimit, b.GasPrice, b.Difficulty, b.TimeStamp)
 }
