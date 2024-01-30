@@ -329,6 +329,9 @@ func TestConvertToGeth_BlockContext(t *testing.T) {
 	if want, got := big.NewInt(10), gethBlockContext.Time; want.Cmp(got) != 0 {
 		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
 	}
+	if want, got := big.NewInt(11), gethBlockContext.BaseFee; want.Cmp(got) != 0 {
+		t.Errorf("unexpected base fee. wanted %v, got %v", want, got)
+	}
 }
 
 func TestConvertToGeth_ChainConfig(t *testing.T) {

@@ -75,7 +75,7 @@ func TestBlockContextGen_BlockNumber(t *testing.T) {
 		"Istanbul": {common.R07_Istanbul, istanbulBase, berlinBase},
 		"Berlin":   {common.R09_Berlin, berlinBase, londonBase},
 		"London":   {common.R10_London, londonBase, unknownBase},
-		"future":   {common.R99_UnknownNextRevision, 0, 0},
+		"Unknown":  {common.R99_UnknownNextRevision, 0, 0},
 	}
 	rnd := rand.New(0)
 	for name, test := range tests {
@@ -92,5 +92,13 @@ func TestBlockContextGen_BlockNumber(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestBlockContextGen_BlockNumberError(t *testing.T) {
+	rnd := rand.New(0)
+	blockContextGenerator := NewBlockContextGenerator()
+	_, err := blockContextGenerator.Generate(rnd, common.R99_UnknownNextRevision+1)
+	if err == nil {
+		t.Errorf("Failed to produce error with invalid revision.")
+	}
 }

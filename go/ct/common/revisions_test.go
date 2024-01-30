@@ -67,3 +67,23 @@ func TestRevisions_GetForkBlockInvalid(t *testing.T) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 }
+
+func TestRevisions_isValidRevision(t *testing.T) {
+	tests := map[string]struct {
+		revision Revision
+		valid    bool
+	}{
+		"Istanbul":    {R07_Istanbul, true},
+		"Berlin":      {R09_Berlin, true},
+		"London":      {R10_London, true},
+		"UnknownNext": {R99_UnknownNextRevision, true},
+		"Invalid":     {R99_UnknownNextRevision + 1, false},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if IsValidRevision(test.revision) != test.valid {
+				t.Errorf("Unexpected revision validty evaluation")
+			}
+		})
+	}
+}
