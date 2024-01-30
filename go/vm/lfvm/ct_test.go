@@ -430,7 +430,7 @@ func TestConvertToLfvm_CallData(t *testing.T) {
 	}
 
 	if !slices.Equal(context.data, state.CallData) {
-		t.Error("unexpected calldata value from ct.state.")
+		t.Error("unexpected calldata value in lfvm context.")
 	}
 
 }
@@ -752,6 +752,6 @@ func TestConvertToCt_CallData(t *testing.T) {
 	}
 
 	if !slices.Equal(state.CallData, ctx.data) {
-		t.Error("unexpectetd state calldata from lfvm context")
+		t.Error("unexpectetd state calldata from ct state")
 	}
 }
