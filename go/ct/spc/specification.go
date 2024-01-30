@@ -919,6 +919,10 @@ var Spec = func() Specification {
 		static_gas: 3,
 		pops:       3,
 		pushes:     0,
+		parameters: []Parameter{
+			MemoryOffsetParameter{},
+			MemoryOffsetParameter{},
+			NumericParameter{}},
 		effect: func(s *st.State) {
 			destOffset := s.Stack.Pop()
 			offset_u256 := s.Stack.Pop()
