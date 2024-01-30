@@ -228,6 +228,9 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 	objectAddress := (vm.AccountRef)(state.CallContext.AccountAddress[:])
 	callerAddress := (vm.AccountRef)(state.CallContext.CallerAddress[:])
 	contract := vm.NewContract(callerAddress, objectAddress, state.CallContext.Value.ToBigInt(), state.Gas)
+	codeInBytes := make([]byte, state.Code.Length())
+	state.Code.CopyTo(codeInBytes)
+	contract.Code = codeInBytes
 
 	pc, ok := pcMap.evmToLfvm[state.Pc]
 	if !ok {

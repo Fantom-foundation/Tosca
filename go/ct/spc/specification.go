@@ -834,6 +834,33 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- CODESIZE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         CODESIZE,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(uint64(s.Code.Length())))
+		},
+	})...)
+
+	// --- CODECOPY ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         CODECOPY,
+		static_gas: 3,
+		pops:       3,
+		pushes:     0,
+		effect: func(s *st.State) {
+			destOffset := s.Stack.Pop()
+			offset := s.Stack.Pop()
+			size := s.Stack.Pop()
+			s.Memory.Write(s.Memory.Read(offset.Uint64(), size.Uint64()), destOffset.Uint64())
+		},
+	})...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)
