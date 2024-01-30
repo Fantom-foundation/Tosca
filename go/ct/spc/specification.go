@@ -898,6 +898,56 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- CALLDATALOAD ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         CALLDATALOAD,
+		static_gas: 3,
+		pops:       1,
+		pushes:     1,
+		parameters: []Parameter{NumericParameter{}},
+		effect: func(s *st.State) {
+			offset := s.Stack.Pop()
+			s.Stack.Push(NewU256FromBytes(s.CallData[offset.Uint64():]...))
+		},
+	})...)
+
+	// --- CALLDATACOPY ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         CALLDATACOPY,
+		static_gas: 3,
+		pops:       3,
+		pushes:     0,
+		effect: func(s *st.State) {
+			destOffset := s.Stack.Pop()
+			offset_u256 := s.Stack.Pop()
+			size := s.Stack.Pop()
+
+			cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(1))
+			if s.Gas < cost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= cost
+
+			words := (size.Uint64() + 31) / 32
+			price := 3 * words
+			if s.Gas < price {
+				return
+			}
+
+			s.Gas -= price
+			// make sure there is enough memory space
+			s.Memory.Grow(offset, size.Uint64())
+			readUntil := offset + size.Uint64()
+
+			s.Memory.Write(s.CallData[offset:readUntil], destOffset.Uint64())
+			//s.Stack.Push(NewU256FromBytes(s.CallData[offset:]...))
+		},
+	})...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)

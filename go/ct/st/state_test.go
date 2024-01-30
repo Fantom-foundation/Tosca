@@ -31,6 +31,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.BlockContext.GasPrice = NewU256(248)
 	state.BlockContext.Difficulty = NewU256(247)
 	state.BlockContext.TimeStamp = 246
+	state.CallData = append(state.CallData, 1)
 
 	clone := state.Clone()
 	clone.Status = Running
@@ -55,6 +56,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.BlockContext.GasPrice = NewU256(8)
 	clone.BlockContext.Difficulty = NewU256(9)
 	clone.BlockContext.TimeStamp = 10
+	clone.CallData = append(clone.CallData, 11)
 
 	ok := state.Status == Stopped &&
 		state.Revision == R10_London &&
@@ -79,7 +81,8 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.BlockContext.GasLimit == 249 &&
 		state.BlockContext.GasPrice == NewU256(248) &&
 		state.BlockContext.Difficulty == NewU256(247) &&
-		state.BlockContext.TimeStamp == 246
+		state.BlockContext.TimeStamp == 246 &&
+		state.CallData[0] == 1
 	if !ok {
 		t.Errorf("clone is not independent")
 	}
@@ -171,6 +174,13 @@ func TestState_Eq(t *testing.T) {
 
 	s1.BlockContext = BlockContext{BlockNumber: 0}
 	s2.BlockContext = BlockContext{BlockNumber: 251}
+	if s1.Eq(s2) {
+		t.Fail()
+	}
+	s2.BlockContext = s1.BlockContext
+
+	s1.CallData = append(s1.CallData, 1)
+	s2.CallData = append(s2.CallData, 250)
 	if s1.Eq(s2) {
 		t.Fail()
 	}
@@ -405,6 +415,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.CallContext = CallContext{AccountAddress: Address{0x01}}
 	s1.BlockContext = BlockContext{BlockNumber: 1}
+	s1.CallData = append(s1.CallData, 1)
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -418,6 +429,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s2.CallContext = CallContext{AccountAddress: Address{0x01}}
 	s2.BlockContext = BlockContext{BlockNumber: 1}
+	s2.CallData = append(s2.CallData, 1)
 
 	diffs := s1.Diff(s2)
 
@@ -444,6 +456,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.CallContext = CallContext{AccountAddress: Address{0xff}}
 	s1.BlockContext = BlockContext{BlockNumber: 1}
+	s1.CallData = append(s1.CallData, 1)
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -457,6 +470,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.Logs.AddLog([]byte{4, 7, 6}, NewU256(24), NewU256(22))
 	s2.CallContext = CallContext{AccountAddress: Address{0xef}}
 	s2.BlockContext = BlockContext{BlockNumber: 251}
+	s2.CallData = append(s2.CallData, 250)
 
 	diffs := s1.Diff(s2)
 
@@ -475,6 +489,7 @@ func TestState_DiffMismatch(t *testing.T) {
 		"Different data for log entry",
 		"Different call context",
 		"Different block context",
+		"Different calldata",
 	}
 
 	if len(diffs) != len(expectedDiffs) {

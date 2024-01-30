@@ -2,6 +2,7 @@ package lfvm
 
 import (
 	"math/big"
+	"slices"
 	"testing"
 
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -412,6 +413,28 @@ func TestConvertToLfvm_BlockContext(t *testing.T) {
 	}
 }
 
+func TestConvertToLfvm_CallData(t *testing.T) {
+	state := getEmptyState()
+	state.CallData = make([]byte, 1)
+	state.CallData[0] = 1
+
+	code := []byte{}
+	pcMap, err := GenPcMapWithoutSuperInstructions(code)
+	if err != nil {
+		t.Fatalf("failed to generate pc map: %v", err)
+	}
+
+	context, err := ConvertCtStateToLfvmContext(state, pcMap)
+	if err != nil {
+		t.Fatalf("failed to convert ct state to lfvm context: %v", err)
+	}
+
+	if !slices.Equal(context.data, state.CallData) {
+		t.Error("unexpected calldata value from ct.state.")
+	}
+
+}
+
 ////////////////////////////////////////////////////////////
 // lfvm -> ct
 
@@ -708,5 +731,27 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	}
 	if want, got := ct.NewU256(248), blockContext.ChainID; !want.Eq(got) {
 		t.Errorf("unexpected chainid, wanted %v, got %v", want, got)
+	}
+}
+
+func TestConvertToCt_CallData(t *testing.T) {
+	ctx := getEmptyContext()
+	ctx.data = make([]byte, 1)
+	ctx.data[0] = 1
+
+	code := []byte{}
+
+	pcMap, err := GenPcMapWithoutSuperInstructions(code)
+	if err != nil {
+		t.Fatalf("failed to generate pc map: %v", err)
+	}
+
+	state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
+	if err != nil {
+		t.Fatalf("failed to convert lfvm context to ct state: %v", err)
+	}
+
+	if !slices.Equal(state.CallData, ctx.data) {
+		t.Error("unexpectetd state calldata from lfvm context")
 	}
 }

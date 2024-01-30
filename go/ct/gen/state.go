@@ -312,6 +312,13 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
+	// Pick a random calldata
+	resultCallData := make([]byte, 32)
+	_, err = rnd.Read(resultCallData)
+	if err != nil {
+		return nil, err
+	}
+
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences
 	// this process.
@@ -346,6 +353,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.Storage = resultStorage
 	result.CallContext = resultCallContext
 	result.BlockContext = resultBlockContext
+	result.CallData = resultCallData
 
 	return result, nil
 }
