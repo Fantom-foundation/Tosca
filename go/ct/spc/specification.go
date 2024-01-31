@@ -926,9 +926,9 @@ var Spec = func() Specification {
 		effect: func(s *st.State) {
 			destOffset := s.Stack.Pop()
 			offset_u256 := s.Stack.Pop()
-			size := s.Stack.Pop()
+			size_u256 := s.Stack.Pop()
 
-			expansionCost, offset, _ := s.Memory.ExpansionCosts(offset_u256, size)
+			expansionCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -936,7 +936,7 @@ var Spec = func() Specification {
 			}
 			s.Gas -= expansionCost
 
-			words := (size.Uint64() + 31) / 32
+			words := (size + 31) / 32
 			wordsPrice := 3 * words
 			if s.Gas < wordsPrice {
 				s.Status = st.Failed
@@ -945,7 +945,11 @@ var Spec = func() Specification {
 			}
 			s.Gas -= wordsPrice
 
-			readUntil := offset + size.Uint64()
+			readUntil := offset + size
+			if len(s.CallData) < int(readUntil) {
+				s.Memory.Grow(offset, size)
+				readUntil = uint64(len(s.CallData))
+			}
 			s.Memory.Write(s.CallData[offset:readUntil], destOffset.Uint64())
 		},
 	})...)
