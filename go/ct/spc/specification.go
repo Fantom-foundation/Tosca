@@ -928,7 +928,7 @@ var Spec = func() Specification {
 			offset_u256 := s.Stack.Pop()
 			size := s.Stack.Pop()
 
-			expansionCost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(1))
+			expansionCost, offset, _ := s.Memory.ExpansionCosts(offset_u256, size)
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -945,10 +945,7 @@ var Spec = func() Specification {
 			}
 			s.Gas -= wordsPrice
 
-			// make sure there is enough memory space
-			s.Memory.Grow(offset, size.Uint64())
 			readUntil := offset + size.Uint64()
-
 			s.Memory.Write(s.CallData[offset:readUntil], destOffset.Uint64())
 		},
 	})...)
