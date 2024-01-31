@@ -233,8 +233,14 @@ func convertCtBlockContextToGeth(ctBlock st.BlockContext) (vm.BlockContext, vm.T
 	return gethBlock, gethTx
 }
 
+func IsValidRevision(revision ct.Revision) bool {
+	return revision == ct.R07_Istanbul ||
+		revision == ct.R09_Berlin ||
+		revision == ct.R10_London
+}
+
 func getGethEvm(state *st.State) (*gethInterpreter, error) {
-	if !ct.IsValidRevision(state.Revision) {
+	if !IsValidRevision(state.Revision) {
 		return nil, fmt.Errorf("unknown revision: %v", state.Revision)
 	}
 
