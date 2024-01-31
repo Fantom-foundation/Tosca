@@ -859,9 +859,16 @@ var Spec = func() Specification {
 			NumericParameter{}},
 		effect: func(s *st.State) {
 			destOffset := s.Stack.Pop()
-			offset := s.Stack.Pop()
-			size := s.Stack.Pop()
-			s.Memory.Write(s.Memory.Read(offset.Uint64(), size.Uint64()), destOffset.Uint64())
+			offset_u256 := s.Stack.Pop()
+			size_u256 := s.Stack.Pop()
+
+			expansionCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
+			if s.Gas < expansionCost {
+				s.Status = st.Failed
+				return
+			}
+
+			s.Memory.Write(s.Memory.Read(offset, size), destOffset.Uint64())
 		},
 	})...)
 
