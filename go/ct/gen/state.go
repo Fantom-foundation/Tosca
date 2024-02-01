@@ -47,6 +47,7 @@ type StateGenerator struct {
 	accountsGen     *AccountsGenerator
 	callContextGen  *CallContextGenerator
 	BlockContextGen *BlockContextGenerator
+	returnDataGen   *ReturnDateGenerator
 }
 
 // NewStateGenerator creates a generator without any initial constraints.
@@ -59,6 +60,7 @@ func NewStateGenerator() *StateGenerator {
 		accountsGen:     NewAccountGenerator(),
 		callContextGen:  NewCallContextGenerator(),
 		BlockContextGen: NewBlockContextGenerator(),
+		returnDataGen:   NewReturnDateGenerator(),
 	}
 }
 
@@ -421,6 +423,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		accountsGen:           g.accountsGen.Clone(),
 		callContextGen:        g.callContextGen.Clone(),
 		BlockContextGen:       g.BlockContextGen.Clone(),
+		returnDataGen:         g.returnDataGen.Clone(),
 	}
 }
 
@@ -441,6 +444,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.accountsGen.Restore(other.accountsGen)
 		g.callContextGen.Restore(other.callContextGen)
 		g.BlockContextGen.Restore(other.BlockContextGen)
+		g.returnDataGen.Restore(other.returnDataGen)
 	}
 }
 
@@ -488,6 +492,7 @@ func (g *StateGenerator) String() string {
 	parts = append(parts, fmt.Sprintf("accounts=%v", g.accountsGen))
 	parts = append(parts, fmt.Sprintf("callcontext=%v", g.callContextGen))
 	parts = append(parts, fmt.Sprintf("blockcontext=%v", g.BlockContextGen))
+	parts = append(parts, fmt.Sprintf("returndata=%v", g.returnDataGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }

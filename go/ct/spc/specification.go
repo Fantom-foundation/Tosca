@@ -1253,6 +1253,76 @@ var Spec = func() Specification {
 
 	// --- RETURNDATACOPY ---
 
+	rules = append(rules, []Rule{
+		{
+			Name: "returnddatacopy_size_overflow",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), RETURNDATACOPY),
+				Ge(StackSize(), 3),
+				Ge(Param(2), MaxU256()),
+				Ge(Param(1), NewU256(1)),
+			),
+			Parameter: []Parameter{
+				MemoryOffsetParameter{},
+				MemoryOffsetParameter{},
+				NumericParameter{}},
+			Effect: FailEffect(),
+		},
+		{
+			Name: "returnddatacopy_offset_overflow",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), RETURNDATACOPY),
+				Ge(StackSize(), 3),
+				Ge(Param(1), MaxU256()),
+				Lt(Param(2), NewU256(3)),
+			),
+			Parameter: []Parameter{
+				MemoryOffsetParameter{},
+				MemoryOffsetParameter{},
+				NumericParameter{}},
+			Effect: FailEffect(),
+		},
+
+		{
+			Name: "returnddatacopy_size_over_returndatasize",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), RETURNDATACOPY),
+				Ge(StackSize(), 3),
+				Eq(ReturnDataSize(), 5),
+				Ge(Param(2), MaxU256()),
+				Lt(Param(1), NewU256(2)),
+			),
+			Parameter: []Parameter{
+				MemoryOffsetParameter{},
+				MemoryOffsetParameter{},
+				NumericParameter{}},
+			Effect: FailEffect(),
+		},
+		{
+			Name: "returnddatacopy_offset_over_returndatasize",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), RETURNDATACOPY),
+				Ge(StackSize(), 3),
+				Eq(ReturnDataSize(), 5),
+				Ge(Param(1), MaxU256()),
+				Lt(Param(2), NewU256(2)),
+			),
+			Parameter: []Parameter{
+				MemoryOffsetParameter{},
+				MemoryOffsetParameter{},
+				NumericParameter{}},
+			Effect: FailEffect(),
+		},
+	}...)
+
 	rules = append(rules, rulesFor(instruction{
 		op:        RETURNDATACOPY,
 		staticGas: 3,
