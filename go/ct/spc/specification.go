@@ -908,7 +908,11 @@ var Spec = func() Specification {
 		parameters: []Parameter{NumericParameter{}},
 		effect: func(s *st.State) {
 			offset := s.Stack.Pop()
-			s.Stack.Push(NewU256FromBytes(s.CallData[offset.Uint64():]...))
+			pushData := NewU256(0)
+			if int(offset.Uint64()) < len(s.CallData) {
+				pushData = NewU256FromBytes(s.CallData[offset.Uint64():]...)
+			}
+			s.Stack.Push(pushData)
 		},
 	})...)
 
