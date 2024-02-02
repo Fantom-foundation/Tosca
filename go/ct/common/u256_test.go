@@ -275,31 +275,32 @@ func TestU256ToBigInt(t *testing.T) {
 	}
 }
 
-func TestU256U256FromBig(t *testing.T) {
-	tooBigInt := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
+func TestNewU256FromBigInt(t *testing.T) {
+	want := NewU256(123456789)
+	got := NewU256FromBigInt(big.NewInt(123456789))
+	if !want.Eq(got) {
+		t.Fatalf("Unexpected value after conversion from big int to U256: want %v, got %v", want, got)
+	}
+}
+
+func TestNewU256FromBigInt_PanicsWithInvalidInput(t *testing.T) {
+	tooBigInt := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(256), nil)
 	testCases := map[string]struct {
-		input big.Int
-		err   string
+		input *big.Int
 		want  U256
 	}{
-		"negative": {*big.NewInt(-1), "Tried converting negative big.Ing to unsigend.", NewU256(0)},
-		"regular":  {*big.NewInt(123456789), "", NewU256(123456789)},
-		"too_big":  {*tooBigInt, "big.Int has more than 256-bits.", NewU256(0)},
+		"negative": {big.NewInt(-1), NewU256(0)},
+		"overflow": {tooBigInt, NewU256(0)},
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			defer func() {
-				r := recover()
-				if len(tc.err) > 0 && (r == nil || r != nil && r != tc.err) {
-					t.Errorf("Failed to panic. Expected %v, but got %v", tc.err, r)
+				if r := recover(); r == nil {
+					t.Errorf("Expected panic when converting big int to U256 with value %v", tc.input)
 				}
 			}()
-			got := U256FromBigInt(&tc.input)
-			if !tc.want.Eq(*got) {
-				t.Fatalf("Unexpected value after conversion from big int to U256, want %v, got %v", tc.want, got)
-			}
-
+			_ = NewU256FromBigInt(tc.input)
 		})
 	}
 }
