@@ -31,7 +31,10 @@ func TestConvertToGeth_StatusCode(t *testing.T) {
 		"failed": {{st.Failed, true, func(state *vm.GethState) bool {
 			return state.Halted && state.Err != vm.ErrExecutionReverted && state.Err != nil
 		}}},
-		"invalid": {{st.NumStatusCodes, false, nil}},
+		"invalidCode": {{st.Invalid, true, func(state *vm.GethState) bool {
+			return state.Halted && state.Err != nil && state.Err == vm.ErrInvalidCode
+		}}},
+		"invalidStatus": {{st.NumStatusCodes, false, nil}},
 	}
 
 	for name, test := range tests {
@@ -357,11 +360,12 @@ func TestConvertToCt_StatusCode(t *testing.T) {
 		convertSuccess   bool
 		ctStatus         st.StatusCode
 	}{
-		"running":  {{func(state *vm.GethState) { state.Halted = false; state.Err = nil }, true, st.Running}},
-		"stopped":  {{func(state *vm.GethState) { state.Halted = true; state.Err = nil }, true, st.Stopped}},
-		"returned": {{func(state *vm.GethState) { state.Halted = true; state.Err = nil; state.Result = make([]byte, 0) }, true, st.Returned}},
-		"reverted": {{func(state *vm.GethState) { state.Halted = true; state.Err = vm.ErrExecutionReverted }, true, st.Reverted}},
-		"failed":   {{func(state *vm.GethState) { state.Halted = true; state.Err = vm.ErrInvalidCode }, true, st.Failed}},
+		"running":     {{func(state *vm.GethState) { state.Halted = false; state.Err = nil }, true, st.Running}},
+		"stopped":     {{func(state *vm.GethState) { state.Halted = true; state.Err = nil }, true, st.Stopped}},
+		"returned":    {{func(state *vm.GethState) { state.Halted = true; state.Err = nil; state.Result = make([]byte, 0) }, true, st.Returned}},
+		"reverted":    {{func(state *vm.GethState) { state.Halted = true; state.Err = vm.ErrExecutionReverted }, true, st.Reverted}},
+		"failed":      {{func(state *vm.GethState) { state.Halted = true; state.Err = vm.ErrMaxCodeSizeExceeded }, true, st.Failed}},
+		"invalidCode": {{func(state *vm.GethState) { state.Halted = true; state.Err = &(vm.ErrInvalidOpCode{}) }, true, st.Invalid}},
 	}
 
 	for name, test := range tests {

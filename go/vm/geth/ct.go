@@ -3,6 +3,7 @@ package geth
 import (
 	"fmt"
 	"math/big"
+	"strings"
 
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
@@ -11,6 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 )
+
+var invalid_opcode_error_string string = "invalid opcode:"
 
 ////////////////////////////////////////////////////////////
 // geth -> ct : helper functions
@@ -22,6 +25,10 @@ func convertGethStatusToCtStatus(state *vm.GethState) (st.StatusCode, error) {
 
 	if state.Err == vm.ErrExecutionReverted {
 		return st.Reverted, nil
+	}
+
+	if state.Err != nil && strings.Contains(state.Err.Error(), invalid_opcode_error_string) {
+		return st.Invalid, nil
 	}
 
 	if state.Err != nil {
@@ -85,6 +92,11 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 	ctState.Revision = revision
 	ctState.Pc = uint16(state.Pc)
 	ctState.Gas = state.Contract.Gas
+	// Hack: The interpreter itself does not consume all the gas, this is handled by other components.
+	// Those components are not being used when running the CT, so we are consuming all the gas here.
+	if state.Err != nil && strings.Contains(state.Err.Error(), invalid_opcode_error_string) {
+		ctState.Gas = 0
+	}
 	if geth.evm.StateDB != nil {
 		ctState.GasRefund = geth.evm.StateDB.GetRefund()
 	}
@@ -134,6 +146,9 @@ func convertCtStatusToGethStatus(ctState *st.State, geth *gethInterpreter, state
 		state.Halted = true
 		state.Err = vm.ErrExecutionReverted
 	case st.Failed:
+		state.Halted = true
+		state.Err = vm.ErrMaxCodeSizeExceeded
+	case st.Invalid:
 		state.Halted = true
 		state.Err = vm.ErrInvalidCode
 	default:

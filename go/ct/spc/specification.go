@@ -95,6 +95,12 @@ var Spec = func() Specification {
 			Condition: And(AnyKnownRevision(), Eq(Status(), st.Failed)),
 			Effect:    NoEffect(),
 		},
+
+		{
+			Name:      "invalid_is_end",
+			Condition: And(AnyKnownRevision(), Eq(Status(), st.Invalid)),
+			Effect:    NoEffect(),
+		},
 	}...)
 
 	// --- Error States ---
@@ -759,6 +765,24 @@ var Spec = func() Specification {
 			s.Stack.Push(NewU256(s.BlockContext.TimeStamp))
 		},
 	})...)
+
+	// --- INVALID ---
+
+	rules = append(rules, []Rule{
+		{
+			Name: "invalid_regular",
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Ne(Status(), st.Failed),
+				Eq(Op(Pc()), INVALID),
+			),
+			Effect: Change(func(s *st.State) {
+				s.Status = st.Invalid
+				s.Gas = 0
+			}),
+		},
+	}...)
 
 	// --- End ---
 

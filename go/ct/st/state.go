@@ -17,6 +17,7 @@ const (
 	Returned                         // finished successfully
 	Reverted                         // finished with revert signal
 	Failed                           // failed (for any reason)
+	Invalid                          // invalid instruction
 	NumStatusCodes                   // not an actual status
 )
 
@@ -32,6 +33,8 @@ func (s StatusCode) String() string {
 		return "reverted"
 	case Failed:
 		return "failed"
+	case Invalid:
+		return "invalid"
 	default:
 		return fmt.Sprintf("StatusCode(%d)", s)
 	}
@@ -89,6 +92,12 @@ func (s *State) Clone() *State {
 func (s *State) Eq(other *State) bool {
 	// All failure states are considered equal.
 	if s.Status == Failed && other.Status == Failed {
+		return true
+	}
+
+	// Invalid status must have consume all gas.
+	if s.Status == Invalid && other.Status == Invalid &&
+		s.Gas == 0 && other.Gas == 0 {
 		return true
 	}
 

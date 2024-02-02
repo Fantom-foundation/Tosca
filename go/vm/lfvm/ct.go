@@ -3,6 +3,7 @@ package lfvm
 import (
 	"fmt"
 	"math/big"
+	"strings"
 
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
@@ -12,11 +13,13 @@ import (
 	"github.com/holiman/uint256"
 )
 
+var invalid_code_error_string string = "invalid code:"
+
 ////////////////////////////////////////////////////////////
 // lfvm -> ct : helper functions
 
-func convertLfvmStatusToCtStatus(status Status) (st.StatusCode, error) {
-	switch status {
+func convertLfvmStatusToCtStatus(ctx *context) (st.StatusCode, error) {
+	switch ctx.status {
 	case RUNNING:
 		return st.Running, nil
 	case STOPPED:
@@ -29,15 +32,18 @@ func convertLfvmStatusToCtStatus(status Status) (st.StatusCode, error) {
 		// Suicide is not yet modeled by the CT, and for now it just maps to the STOPPED status.
 		return st.Stopped, nil
 	case INVALID_INSTRUCTION:
-		return st.Failed, nil
+		return st.Invalid, nil
 	case OUT_OF_GAS:
 		return st.Failed, nil
 	case SEGMENTATION_FAULT:
 		return st.Failed, nil
 	case ERROR:
+		if ctx.err != nil && strings.Contains(ctx.err.Error(), invalid_code_error_string) {
+			return st.Invalid, nil
+		}
 		return st.Failed, nil
 	default:
-		return st.Failed, fmt.Errorf("unable to convert lfvm status %v to ct status", status)
+		return st.Failed, fmt.Errorf("unable to convert lfvm status %v to ct status", ctx.status)
 	}
 }
 
@@ -80,9 +86,14 @@ func getIfNotNil(bigint *big.Int) *big.Int {
 }
 
 func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcMap) (*st.State, error) {
-	status, err := convertLfvmStatusToCtStatus(ctx.status)
+	status, err := convertLfvmStatusToCtStatus(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if status == st.Invalid {
+		// Hack: The interpreter itself does not consume all the gas, this is handled by other components.
+		// Those components are not being used when running the CT, so we are consuming all the gas here.
+		ctx.contract.Gas = 0
 	}
 
 	pc, ok := pcMap.lfvmToEvm[uint16(ctx.pc)]
@@ -97,6 +108,11 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 	state.Revision = convertLfvmRevisionToCtRevision(ctx)
 	state.Pc = pc
 	state.Gas = ctx.contract.Gas
+	// Hack: The interpreter itself does not consume all the gas, this is handled by other components.
+	// Those components are not being used when running the CT, so we are consuming all the gas here.
+	if ctx.err != nil && strings.Contains(ctx.err.Error(), invalid_code_error_string) {
+		state.Gas = 0
+	}
 	if ctx.stateDB != nil {
 		state.GasRefund = ctx.stateDB.GetRefund()
 	}
@@ -149,6 +165,8 @@ func convertCtStatusToLfvmStatus(state *st.State) (Status, error) {
 		return REVERTED, nil
 	case st.Failed:
 		return ERROR, nil
+	case st.Invalid:
+		return INVALID_INSTRUCTION, nil
 	default:
 		return ERROR, fmt.Errorf("unable to convert ct status %v to lfvm status", state.Status)
 	}

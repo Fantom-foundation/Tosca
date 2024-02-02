@@ -23,7 +23,7 @@ func TestStateGenerator_UnconstrainedGeneratorCanProduceState(t *testing.T) {
 // Status
 
 func TestStateGenerator_SetStatusIsEnforced(t *testing.T) {
-	statuses := []st.StatusCode{st.Running, st.Failed, st.Reverted}
+	statuses := []st.StatusCode{st.Running, st.Failed, st.Reverted, st.Invalid}
 
 	rnd := rand.New(0)
 	for _, status := range statuses {
