@@ -1108,8 +1108,7 @@ func rulesFor(i instruction) []Rule {
 		Eq(Status(), st.Running),
 		Eq(Op(Pc()), i.op),
 		Ge(Gas(), i.static_gas),
-		Ge(StackSize(), i.pops),
-		Lt(StackSize(), st.MaxStackSize-(max(i.pushes-i.pops, 0))),
+		StackSizeBounds(i.pops, st.MaxStackSize-(max(i.pushes-i.pops, 0))),
 	)
 	res = append(res, []Rule{
 		{

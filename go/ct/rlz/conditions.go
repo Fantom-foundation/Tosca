@@ -368,6 +368,41 @@ func (c *revisionBounds) String() string {
 }
 
 ////////////////////////////////////////////////////////////
+// Stack Size Bounds
+
+type stackSizeBounds struct{ min, max int }
+
+func StackSizeBounds(min, max int) Condition {
+	if min > max {
+		min, max = max, min
+	}
+	return &stackSizeBounds{min, max}
+}
+
+func (c *stackSizeBounds) Check(s *st.State) (bool, error) {
+	return c.min <= s.Stack.Size() && s.Stack.Size() <= c.max, nil
+}
+
+func (c *stackSizeBounds) Restrict(generator *gen.StateGenerator) {
+	generator.SetStackSizeBounds(c.min, c.max)
+}
+
+func (c *stackSizeBounds) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
+	for s := c.min; s < c.max; s++ {
+		g := generator.Clone()
+		g.SetStackSize(s)
+		consume(g)
+	}
+}
+
+func (c *stackSizeBounds) String() string {
+	if c.min == c.max {
+		return fmt.Sprintf("stack size(%v)", c.min)
+	}
+	return fmt.Sprintf("stack size(%v-%v)", c.min, c.max)
+}
+
+////////////////////////////////////////////////////////////
 // Is Code
 
 type isCode struct {

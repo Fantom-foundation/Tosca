@@ -152,6 +152,11 @@ func (g *StateGenerator) SetStackSize(size int) {
 	g.stackGen.SetSize(size)
 }
 
+// SetStackSizeBounds wraps StackGenerator.SetSizeBounds.
+func (g *StateGenerator) SetStackSizeBounds(min, max int) {
+	g.stackGen.SetSizeBounds(min, max)
+}
+
 // SetStackValue wraps StackGenerator.SetValue.
 func (g *StateGenerator) SetStackValue(pos int, value U256) {
 	g.stackGen.SetValue(pos, value)
@@ -196,6 +201,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting status constraints defined: %v", ErrUnsatisfiable, g.statusConstraints)
 	}
 
+	// Pick a revision.
 	var resultRevision Revision
 	if len(g.revisionConstraints) == 0 {
 		resultRevision = Revision(rnd.Int31n(int32(R99_UnknownNextRevision) + 1))

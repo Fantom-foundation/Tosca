@@ -36,6 +36,7 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) err
 	rule.Condition.EnumerateTestCases(gen.NewStateGenerator(), func(generator *gen.StateGenerator) {
 		state, err := generator.Generate(rnd)
 		if errors.Is(err, gen.ErrUnsatisfiable) {
+			//fmt.Printf("%v: warning ignored: %v\n", rule.Name, err)
 			return // ignored
 		}
 		if err != nil {
