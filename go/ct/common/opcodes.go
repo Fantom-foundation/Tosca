@@ -46,6 +46,8 @@ const (
 	NUMBER     OpCode = 0x43
 	DIFFICULTY OpCode = 0x44
 	GASLIMIT   OpCode = 0x45
+	CHAINID    OpCode = 0x46
+	BASEFEE    OpCode = 0x48
 	POP        OpCode = 0x50
 	MLOAD      OpCode = 0x51
 	MSTORE     OpCode = 0x52
@@ -175,6 +177,8 @@ func ValidOpCodesNoPush() []OpCode {
 		NUMBER,
 		DIFFICULTY,
 		GASLIMIT,
+		CHAINID,
+		BASEFEE,
 		POP,
 		MLOAD,
 		MSTORE,
@@ -300,6 +304,10 @@ func (op OpCode) String() string {
 		return "DIFFICULTY"
 	case GASLIMIT:
 		return "GASLIMIT"
+	case CHAINID:
+		return "CHAINID"
+	case BASEFEE:
+		return "BASEFEE"
 	case POP:
 		return "POP"
 	case MLOAD:

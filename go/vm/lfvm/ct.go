@@ -9,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
 
@@ -70,13 +71,45 @@ func convertLfvmMemoryToCtMemory(ctx *context) *st.Memory {
 ////////////////////////////////////////////////////////////
 // lfvm -> ct
 
-// getIfNotNil returns the input value if it is initialized
+// getBigIntIfNotNil returns the input value if it is initialized
 // or a default initialized new big.Int if not
-func getIfNotNil(bigint *big.Int) *big.Int {
-	if bigint == nil {
+func getBigIntIfNotNil(b *big.Int) *big.Int {
+	if b == nil {
 		return big.NewInt(0)
 	}
-	return bigint
+	return b
+}
+
+// getChainConfigIfNotNil returns the input value if it is initialized
+// or a default initialized new params.ChainConfig if not
+func getChainConfigIfNotNil(c *params.ChainConfig) *params.ChainConfig {
+	if c == nil {
+		return &params.ChainConfig{}
+	}
+	return c
+}
+
+func convertLfvmContextToCtCallContext(ctx *context) st.CallContext {
+	newCC := st.NewCallContext()
+	newCC.AccountAddress = (ct.Address)(ctx.contract.Address())
+	newCC.CallerAddress = (ct.Address)(ctx.contract.CallerAddress)
+	newCC.Value = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.contract.Value()))
+	newCC.OriginAddress = (ct.Address)(ctx.evm.Origin)
+	return newCC
+}
+
+func convertLfvmContextToCtBlockContextt(ctx *context) st.BlockContext {
+	newBC := st.NewBlockContext()
+	newBC.BaseFee = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.Context.BaseFee))
+	newBC.BlockNumber = getBigIntIfNotNil(ctx.evm.Context.BlockNumber).Uint64()
+	chainConfig := getChainConfigIfNotNil(ctx.evm.ChainConfig())
+	newBC.ChainID = ct.NewU256FromBigInt(getBigIntIfNotNil(chainConfig.ChainID))
+	newBC.CoinBase = (ct.Address)(ctx.evm.Context.Coinbase)
+	newBC.GasLimit = ctx.evm.Context.GasLimit
+	newBC.GasPrice = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.GasPrice))
+	newBC.Difficulty = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.Context.Difficulty))
+	newBC.TimeStamp = getBigIntIfNotNil(ctx.evm.Context.Time).Uint64()
+	return newBC
 }
 
 func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcMap) (*st.State, error) {
@@ -107,17 +140,10 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 		state.Storage = ctx.stateDB.(*utils.ConformanceTestStateDb).Storage
 		state.Logs = ctx.stateDB.(*utils.ConformanceTestStateDb).Logs
 	}
-	state.CallContext.AccountAddress = (ct.Address)(ctx.contract.Address().Bytes())
-	state.CallContext.CallerAddress = (ct.Address)(ctx.contract.CallerAddress.Bytes())
-	state.CallContext.Value = ct.NewU256FromBigInt(getIfNotNil(ctx.contract.Value()))
-	state.CallContext.OriginAddress = (ct.Address)(ctx.evm.Origin.Bytes())
 
-	state.BlockContext.BlockNumber = getIfNotNil(ctx.evm.Context.BlockNumber).Uint64()
-	state.BlockContext.CoinBase = (ct.Address)(ctx.evm.Context.Coinbase)
-	state.BlockContext.GasLimit = ctx.evm.Context.GasLimit
-	state.BlockContext.GasPrice = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.GasPrice))
-	state.BlockContext.Difficulty = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.Context.Difficulty))
-	state.BlockContext.TimeStamp = getIfNotNil(ctx.evm.Context.Time).Uint64()
+	state.CallContext = convertLfvmContextToCtCallContext(ctx)
+
+	state.BlockContext = convertLfvmContextToCtBlockContextt(ctx)
 
 	return state, nil
 }
@@ -230,25 +256,14 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 
 	stateDb.AddRefund(state.GasRefund)
 
-	newBlockNumber := big.NewInt(0).SetUint64(state.BlockContext.BlockNumber)
-	newTimestamp := big.NewInt(0).SetUint64(state.BlockContext.TimeStamp)
+	evm, err := getLfvmEvm(state, stateDb)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create execution context.
 	ctx := context{
-		evm: &vm.EVM{
-			StateDB: stateDb,
-			Context: vm.BlockContext{
-				BlockNumber: newBlockNumber,
-				Coinbase:    (vm.AccountRef)(state.BlockContext.CoinBase[:]).Address(),
-				GasLimit:    state.BlockContext.GasLimit,
-				Difficulty:  state.BlockContext.Difficulty.ToBigInt(),
-				Time:        newTimestamp,
-			},
-			TxContext: vm.TxContext{
-				Origin:   (common.Address)(state.CallContext.OriginAddress[:]),
-				GasPrice: state.BlockContext.GasPrice.ToBigInt(),
-			},
-		},
+		evm:      evm,
 		pc:       int32(pc),
 		stack:    convertCtStackToLfvmStack(state),
 		memory:   memory,
@@ -261,10 +276,70 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 		readOnly: false,
 	}
 
+	ctx.evm.Origin = (common.Address)(state.CallContext.OriginAddress[:])
+
 	err = convertCtRevisionToLfvmRevision(state.Revision, &ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	return &ctx, nil
+}
+
+func convertCtChainConfigToLfvm(state *st.State) (*params.ChainConfig, error) {
+	return getChainConfig(state.BlockContext.ChainID.ToBigInt())
+}
+
+func getChainConfig(chainId *big.Int) (*params.ChainConfig, error) {
+	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
+	if err != nil {
+		return nil, fmt.Errorf("could not get IstanbulBlock. %v", err)
+	}
+	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
+	if err != nil {
+		return nil, fmt.Errorf("could not get BerlinBlock. %v", err)
+	}
+	londonBlock, err := ct.GetForkBlock(ct.R10_London)
+	if err != nil {
+		return nil, fmt.Errorf("could not get LondonBlock. %v", err)
+	}
+
+	chainConfig := &params.ChainConfig{}
+	chainConfig.ChainID = chainId
+	chainConfig.IstanbulBlock = big.NewInt(0).SetUint64(istanbulBlock)
+	chainConfig.BerlinBlock = big.NewInt(0).SetUint64(berlinBlock)
+	chainConfig.LondonBlock = big.NewInt(0).SetUint64(londonBlock)
+	chainConfig.Ethash = new(params.EthashConfig)
+
+	return chainConfig, nil
+}
+
+func convertCtBlockContextToLfvm(ctBlock st.BlockContext) (vm.BlockContext, vm.TxContext) {
+	getHash := func(num uint64) common.Hash {
+		return common.Hash{}
+	}
+
+	lfvmBlock := vm.BlockContext{
+		BaseFee:     ctBlock.BaseFee.ToBigInt(),
+		BlockNumber: big.NewInt(0).SetUint64(ctBlock.BlockNumber),
+		Coinbase:    (common.Address)(ctBlock.CoinBase[:]),
+		Difficulty:  ctBlock.Difficulty.ToBigInt(),
+		GasLimit:    ctBlock.GasLimit,
+		GetHash:     getHash,
+		Time:        big.NewInt(0).SetUint64(ctBlock.TimeStamp),
+	}
+	lfvmTx := vm.TxContext{GasPrice: ctBlock.GasPrice.ToBigInt()}
+	return lfvmBlock, lfvmTx
+}
+
+func getLfvmEvm(state *st.State, stateDB vm.StateDB) (*vm.EVM, error) {
+	chainConfig, err := convertCtChainConfigToLfvm(state)
+	if err != nil {
+		return nil, err
+	}
+
+	blockCtx, txCtx := convertCtBlockContextToLfvm(state.BlockContext)
+	txCtx.Origin = (common.Address)(state.CallContext.OriginAddress)
+
+	return vm.NewEVM(blockCtx, txCtx, stateDB, chainConfig, vm.Config{}), nil
 }

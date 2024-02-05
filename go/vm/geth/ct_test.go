@@ -300,36 +300,51 @@ func TestConvertToGeth_CallContext(t *testing.T) {
 }
 
 func TestConvertToGeth_BlockContext(t *testing.T) {
-	state := getEmptyState()
-	state.BlockContext.BlockNumber = 5
-	state.BlockContext.CoinBase[0] = 0x06
-	state.BlockContext.GasLimit = 7
-	state.BlockContext.GasPrice = ct.NewU256(8)
-	state.BlockContext.Difficulty = ct.NewU256(9)
-	state.BlockContext.TimeStamp = 10
+	newBlockContext := st.NewBlockContext()
+	newBlockContext.BlockNumber = 5
+	newBlockContext.CoinBase[0] = 0x06
+	newBlockContext.GasLimit = 7
+	newBlockContext.GasPrice = ct.NewU256(8)
+	newBlockContext.Difficulty = ct.NewU256(9)
+	newBlockContext.TimeStamp = 10
+	newBlockContext.BaseFee = ct.NewU256(11)
 
-	gethInterpreter, _, err := ConvertCtStateToGeth(state)
-	if err != nil {
-		t.Fatalf("failed to convert ct state to geth: %v", err)
-	}
+	gethBlockContext, gethTxContext := convertCtBlockContextToGeth(newBlockContext)
 
-	if want, got := big.NewInt(5), gethInterpreter.evm.Context.BlockNumber; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(5), gethBlockContext.BlockNumber; want.Cmp(got) != 0 {
 		t.Errorf("unexpected block number. wanted %v, got %v", want, got)
 	}
-	if want, got := (common.Address{0x06}), gethInterpreter.evm.Context.Coinbase; want != got {
+	if want, got := (common.Address{0x06}), gethBlockContext.Coinbase; want != got {
 		t.Errorf("unexpected coinbase. wanted %v, got %v", want, got)
 	}
-	if want, got := uint64(7), gethInterpreter.evm.Context.GasLimit; want != got {
+	if want, got := uint64(7), gethBlockContext.GasLimit; want != got {
 		t.Errorf("unexpected gas limit. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(8), gethInterpreter.evm.GasPrice; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(8), gethTxContext.GasPrice; want.Cmp(got) != 0 {
 		t.Errorf("unexpected gas price. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(9), gethInterpreter.evm.Context.Difficulty; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(9), gethBlockContext.Difficulty; want.Cmp(got) != 0 {
 		t.Errorf("unexpected difficulty. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(10), gethInterpreter.evm.Context.Time; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(10), gethBlockContext.Time; want.Cmp(got) != 0 {
 		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
+	}
+	if want, got := big.NewInt(11), gethBlockContext.BaseFee; want.Cmp(got) != 0 {
+		t.Errorf("unexpected base fee. wanted %v, got %v", want, got)
+	}
+}
+
+func TestConvertToGeth_ChainConfig(t *testing.T) {
+	state := getEmptyState()
+	state.BlockContext.ChainID = ct.NewU256(1)
+
+	gethChainConfig, err := convertCtChainConfigToGeth(state)
+	if err != nil {
+		t.Fatalf("failed to convert ct chainConfig to geth: %v", err)
+	}
+
+	if want, got := big.NewInt(1), gethChainConfig.ChainID; want.Cmp(got) != 0 {
+		t.Errorf("Unexpected chain id. wanted: %v, got %v", want, got)
 	}
 }
 
@@ -337,7 +352,11 @@ func TestConvertToGeth_BlockContext(t *testing.T) {
 // geth -> ct
 
 func getEmptyGeth(revision ct.Revision) (*gethInterpreter, *vm.GethState) {
-	geth, err := getGethEvm(revision, nil)
+	state := getEmptyState()
+	state.Revision = revision
+	newBlockNumber, _ := ct.GetForkBlock(revision)
+	state.BlockContext.BlockNumber = uint64(newBlockNumber)
+	geth, err := getGethEvm(state)
 	if err != nil {
 		panic(err)
 	}
@@ -526,56 +545,57 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	gethState.Contract = contract
 	interpreter.evm.Origin = common.Address{0xfd}
 
-	state, err := ConvertGethToCtState(interpreter, gethState)
-	if err != nil {
-		t.Fatalf("failed to convert geth to ct state: %v", err)
-	}
+	ctCallContext := convertGethToCtCallContext(interpreter, gethState)
 
-	if want, got := (ct.Address{0xff}), state.CallContext.AccountAddress; want != got {
+	if want, got := (ct.Address{0xff}), ctCallContext.AccountAddress; want != got {
 		t.Errorf("unexpected account address value, wanted %v, got %v", want, got)
 	}
-	if want, got := (ct.Address{0xfe}), state.CallContext.CallerAddress; want != got {
+	if want, got := (ct.Address{0xfe}), ctCallContext.CallerAddress; want != got {
 		t.Errorf("unexpected caller address value, wanted %v, got %v", want, got)
 	}
-	if want, got := (ct.Address{0xfd}), state.CallContext.OriginAddress; want != got {
+	if want, got := (ct.Address{0xfd}), ctCallContext.OriginAddress; want != got {
 		t.Errorf("unexpected origin address value, wanted %v, got %v", want, got)
 	}
-	if want, got := ct.NewU256(252), state.CallContext.Value; !want.Eq(got) {
+	if want, got := ct.NewU256(252), ctCallContext.Value; !want.Eq(got) {
 		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
 	}
 }
 
 func TestConvertToCt_BlockContext(t *testing.T) {
-	interpreter, gethState := getEmptyGeth(ct.R07_Istanbul)
+	interpreter, _ := getEmptyGeth(ct.R07_Istanbul)
 	interpreter.evm.Context.BlockNumber = big.NewInt(255)
 	interpreter.evm.Context.Coinbase = common.Address{0xfe}
 	interpreter.evm.Context.GasLimit = uint64(253)
 	interpreter.evm.TxContext.GasPrice = big.NewInt(252)
 	interpreter.evm.Context.Difficulty = big.NewInt(251)
 	interpreter.evm.Context.Time = big.NewInt(250)
+	interpreter.evm.Context.BaseFee = big.NewInt(249)
+	interpreter.evm.ChainConfig().ChainID = big.NewInt(248)
 
-	state, err := ConvertGethToCtState(interpreter, gethState)
-	if err != nil {
-		t.Fatalf("failed to convert geth to ct state: %v", err)
-	}
+	ctBlockContext := convertGethToCtBlockContext(interpreter)
 
-	if want, got := uint64(255), state.BlockContext.BlockNumber; want != got {
+	if want, got := uint64(255), ctBlockContext.BlockNumber; want != got {
 		t.Errorf("unexpected block number, wanted %v, got %v", want, got)
 	}
-	if want, got := (ct.Address{0xfe}), state.BlockContext.CoinBase; want != got {
+	if want, got := (ct.Address{0xfe}), ctBlockContext.CoinBase; want != got {
 		t.Errorf("unexpected coinbase, wanted %v, got %v", want, got)
 	}
-	if want, got := uint64(253), state.BlockContext.GasLimit; want != got {
+	if want, got := uint64(253), ctBlockContext.GasLimit; want != got {
 		t.Errorf("unexpected gas limit, wanted %v, got %v", want, got)
 	}
-	if want, got := ct.NewU256(252), state.BlockContext.GasPrice; !want.Eq(got) {
+	if want, got := ct.NewU256(252), ctBlockContext.GasPrice; !want.Eq(got) {
 		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
 	}
-	if want, got := ct.NewU256(251), state.BlockContext.Difficulty; !want.Eq(got) {
+	if want, got := ct.NewU256(251), ctBlockContext.Difficulty; !want.Eq(got) {
 		t.Errorf("unexpected difficulty, wanted %v, got %v", want, got)
 	}
-	if want, got := uint64(250), state.BlockContext.TimeStamp; want != got {
+	if want, got := uint64(250), ctBlockContext.TimeStamp; want != got {
 		t.Errorf("unexpected timestamp, wanted %v, got %v", want, got)
 	}
-
+	if want, got := ct.NewU256(249), ctBlockContext.BaseFee; !want.Eq(got) {
+		t.Errorf("unexpected base fee, wanted %v, got %v", want, got)
+	}
+	if want, got := ct.NewU256(248), ctBlockContext.ChainID; !want.Eq(got) {
+		t.Errorf("unexpected chainid, wanted %v, got %v", want, got)
+	}
 }
