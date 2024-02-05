@@ -779,6 +779,8 @@ var Spec = func() Specification {
 				RevisionBounds(R07_Istanbul, R09_Berlin),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), BASEFEE),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize),
 			),
 			Effect: FailEffect(),
 		},

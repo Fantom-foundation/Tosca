@@ -71,14 +71,14 @@ func convertGethMemoryToCtMemory(state *vm.GethState) *st.Memory {
 
 func convertGethToCtCallContext(geth *gethInterpreter, state *vm.GethState) *st.CallContext {
 	newCC := st.NewCallContext()
-	newCC.AccountAddress = (ct.Address)(state.Contract.Address().Bytes())
-	newCC.OriginAddress = (ct.Address)(geth.evm.Origin.Bytes())
-	newCC.CallerAddress = (ct.Address)(state.Contract.CallerAddress.Bytes())
+	newCC.AccountAddress = (ct.Address)(state.Contract.Address())
+	newCC.OriginAddress = (ct.Address)(geth.evm.Origin)
+	newCC.CallerAddress = (ct.Address)(state.Contract.CallerAddress)
 	newCC.Value = ct.NewU256FromBigInt(state.Contract.Value())
 	return &newCC
 }
 
-func convertGethToCTBlockContext(geth *gethInterpreter) *st.BlockContext {
+func convertGethToCtBlockContext(geth *gethInterpreter) *st.BlockContext {
 	newBC := st.NewBlockContext()
 	newBC.BaseFee = ct.NewU256FromBigInt(geth.evm.Context.BaseFee)
 	newBC.BlockNumber = geth.evm.Context.BlockNumber.Uint64()
@@ -118,7 +118,7 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 	}
 
 	ctState.CallContext = *convertGethToCtCallContext(geth, state)
-	ctState.BlockContext = *convertGethToCTBlockContext(geth)
+	ctState.BlockContext = *convertGethToCtBlockContext(geth)
 	return ctState, nil
 }
 
@@ -235,13 +235,12 @@ func convertCtBlockContextToGeth(ctBlock st.BlockContext) (vm.BlockContext, vm.T
 
 func getGethEvm(state *st.State) (*gethInterpreter, error) {
 
-	chainConfig, err := convertCtChainConfigtoGeth(state)
+	chainConfig, err := convertCtChainConfigToGeth(state)
 	if err != nil {
 		return nil, err
 	}
 
 	blockCtx, txCtx := convertCtBlockContextToGeth(state.BlockContext)
-	// Create empty tx context
 	txCtx.Origin = (common.Address)(state.CallContext.OriginAddress)
 
 	// Set interpreter variant for this VM
@@ -297,22 +296,22 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 	return geth, interpreterState, nil
 }
 
-func convertCtChainConfigtoGeth(state *st.State) (*params.ChainConfig, error) {
+func convertCtChainConfigToGeth(state *st.State) (*params.ChainConfig, error) {
 	return getChainConfig(state.BlockContext.ChainID.ToBigInt())
 }
 
 func getChainConfig(chainId *big.Int) (*params.ChainConfig, error) {
 	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
 	if err != nil {
-		return nil, fmt.Errorf("counld not get IstanbulBlock. %v", err)
+		return nil, fmt.Errorf("could not get IstanbulBlock. %v", err)
 	}
 	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
 	if err != nil {
-		return nil, fmt.Errorf("counld not get BerlinBlock. %v", err)
+		return nil, fmt.Errorf("could not get BerlinBlock. %v", err)
 	}
 	londonBlock, err := ct.GetForkBlock(ct.R10_London)
 	if err != nil {
-		return nil, fmt.Errorf("counld not get LondonBlock. %v", err)
+		return nil, fmt.Errorf("could not get LondonBlock. %v", err)
 	}
 
 	chainConfig := &params.ChainConfig{}

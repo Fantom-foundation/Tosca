@@ -17,7 +17,7 @@ func TestBlockContextGen_Generate(t *testing.T) {
 	}
 
 	if newBC.BaseFee == (common.NewU256()) {
-		t.Errorf("Generated gas price has default value.")
+		t.Errorf("Generated base price has default value.")
 	}
 
 	if newBC.BlockNumber == (uint64(0)) {
@@ -25,7 +25,7 @@ func TestBlockContextGen_Generate(t *testing.T) {
 	}
 
 	if newBC.ChainID == (common.NewU256()) {
-		t.Errorf("Generated gas price has default value.")
+		t.Errorf("Generated chainid has default value.")
 	}
 
 	if newBC.CoinBase == (common.Address{}) {

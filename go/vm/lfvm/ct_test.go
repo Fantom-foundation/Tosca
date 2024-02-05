@@ -386,7 +386,7 @@ func TestConvertToLfvm_BlockContext(t *testing.T) {
 	state.BlockContext.TimeStamp = 10
 	state.BlockContext.BaseFee = ct.NewU256(11)
 
-	lfvmBlockContext, lfvmTx := convertCtBlockContextToLfvm(state.BlockContext)
+	lfvmBlockContext, lfvmTxContext := convertCtBlockContextToLfvm(state.BlockContext)
 
 	if want, got := big.NewInt(5), lfvmBlockContext.BlockNumber; want.Cmp(got) != 0 {
 		t.Errorf("unexpected block number. wanted %v, got %v", want, got)
@@ -397,7 +397,7 @@ func TestConvertToLfvm_BlockContext(t *testing.T) {
 	if want, got := uint64(7), lfvmBlockContext.GasLimit; want != got {
 		t.Errorf("unexpected gas limit. wanted %v, got %v", want, got)
 	}
-	if want, got := big.NewInt(8), lfvmTx.GasPrice; want.Cmp(got) != 0 {
+	if want, got := big.NewInt(8), lfvmTxContext.GasPrice; want.Cmp(got) != 0 {
 		t.Errorf("unexpected gas price. wanted %v, got %v", want, got)
 	}
 	if want, got := big.NewInt(9), lfvmBlockContext.Difficulty; want.Cmp(got) != 0 {
@@ -415,7 +415,7 @@ func TestConvertToLfvm_ChainConfig(t *testing.T) {
 	state := getEmptyState()
 	state.BlockContext.ChainID = ct.NewU256(1)
 
-	chainConfig, err := convertCtChainConfigtoLfvm(state)
+	chainConfig, err := convertCtChainConfigToLfvm(state)
 	if err != nil {
 		t.Fatalf("failed to convert ct state to lfvm chain config: %v", err)
 	}
@@ -658,7 +658,7 @@ func TestConvertToCt_CallContext(t *testing.T) {
 	ctx.contract = contract
 	ctx.evm.Origin = common.Address{0xfd}
 
-	callContext := convertLfvmContextToCTCallContext(&ctx)
+	callContext := convertLfvmContextToCtCallContext(&ctx)
 
 	if want, got := (ct.Address{0xff}), callContext.AccountAddress; want != got {
 		t.Errorf("unexpected account address, wanted %v, got %v", want, got)
@@ -691,19 +691,20 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 		t.Error(err)
 	}
 
-	ctx.evm = vm.NewEVM(vm.BlockContext{
-		BaseFee:     newBaseFee,
-		BlockNumber: newBlockNumber,
-		Coinbase:    newCoinBase.Address(),
-		GasLimit:    newGasLimit,
-		Difficulty:  newDifficulty,
-		Time:        newTimestamp,
-	},
+	ctx.evm = vm.NewEVM(
+		vm.BlockContext{
+			BaseFee:     newBaseFee,
+			BlockNumber: newBlockNumber,
+			Coinbase:    newCoinBase.Address(),
+			GasLimit:    newGasLimit,
+			Difficulty:  newDifficulty,
+			Time:        newTimestamp,
+		},
 		vm.TxContext{GasPrice: newGasPrice},
 		ctx.stateDB,
 		chainConfig, vm.Config{})
 
-	blockContext := convertLfvmContextToCTBlockContextt(&ctx)
+	blockContext := convertLfvmContextToCtBlockContextt(&ctx)
 
 	if want, got := uint64(255), blockContext.BlockNumber; want != got {
 		t.Errorf("unexpected block number, wanted %v, got %v", want, got)

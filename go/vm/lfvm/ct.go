@@ -80,16 +80,16 @@ func getIfNotNil(bigint *big.Int) *big.Int {
 	return bigint
 }
 
-func convertLfvmContextToCTCallContext(ctx *context) *st.CallContext {
+func convertLfvmContextToCtCallContext(ctx *context) *st.CallContext {
 	newCC := st.NewCallContext()
-	newCC.AccountAddress = (ct.Address)(ctx.contract.Address().Bytes())
-	newCC.CallerAddress = (ct.Address)(ctx.contract.CallerAddress.Bytes())
+	newCC.AccountAddress = (ct.Address)(ctx.contract.Address())
+	newCC.CallerAddress = (ct.Address)(ctx.contract.CallerAddress)
 	newCC.Value = ct.NewU256FromBigInt(getIfNotNil(ctx.contract.Value()))
-	newCC.OriginAddress = (ct.Address)(ctx.evm.Origin.Bytes())
+	newCC.OriginAddress = (ct.Address)(ctx.evm.Origin)
 	return &newCC
 }
 
-func convertLfvmContextToCTBlockContextt(ctx *context) *st.BlockContext {
+func convertLfvmContextToCtBlockContextt(ctx *context) *st.BlockContext {
 	newBC := st.NewBlockContext()
 	newBC.BaseFee = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.Context.BaseFee))
 	newBC.BlockNumber = getIfNotNil(ctx.evm.Context.BlockNumber).Uint64()
@@ -136,9 +136,9 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 		state.Logs = ctx.stateDB.(*utils.ConformanceTestStateDb).Logs
 	}
 
-	state.CallContext = *convertLfvmContextToCTCallContext(ctx)
+	state.CallContext = *convertLfvmContextToCtCallContext(ctx)
 
-	state.BlockContext = *convertLfvmContextToCTBlockContextt(ctx)
+	state.BlockContext = *convertLfvmContextToCtBlockContextt(ctx)
 
 	return state, nil
 }
@@ -281,22 +281,22 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 	return &ctx, nil
 }
 
-func convertCtChainConfigtoLfvm(state *st.State) (*params.ChainConfig, error) {
+func convertCtChainConfigToLfvm(state *st.State) (*params.ChainConfig, error) {
 	return getChainConfig(state.BlockContext.ChainID.ToBigInt())
 }
 
 func getChainConfig(chainId *big.Int) (*params.ChainConfig, error) {
 	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
 	if err != nil {
-		return nil, fmt.Errorf("counld not get IstanbulBlock. %v", err)
+		return nil, fmt.Errorf("could not get IstanbulBlock. %v", err)
 	}
 	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
 	if err != nil {
-		return nil, fmt.Errorf("counld not get BerlinBlock. %v", err)
+		return nil, fmt.Errorf("could not get BerlinBlock. %v", err)
 	}
 	londonBlock, err := ct.GetForkBlock(ct.R10_London)
 	if err != nil {
-		return nil, fmt.Errorf("counld not get LondonBlock. %v", err)
+		return nil, fmt.Errorf("could not get LondonBlock. %v", err)
 	}
 
 	chainConfig := &params.ChainConfig{}
@@ -328,11 +328,7 @@ func convertCtBlockContextToLfvm(ctBlock st.BlockContext) (vm.BlockContext, vm.T
 }
 
 func getLfvmEvm(state *st.State, stateDB vm.StateDB) (*vm.EVM, error) {
-	if state.Revision == -1 {
-		return nil, fmt.Errorf("unknown revision: %v", state.Revision)
-	}
-
-	chainConfig, err := convertCtChainConfigtoLfvm(state)
+	chainConfig, err := convertCtChainConfigToLfvm(state)
 	if err != nil {
 		return nil, err
 	}

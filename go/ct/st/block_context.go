@@ -29,7 +29,7 @@ func (b *BlockContext) Diff(other *BlockContext) []string {
 	blockDifference := "Different block context "
 
 	if !b.BaseFee.Eq(other.BaseFee) {
-		ret = append(ret, blockDifference+fmt.Sprintf("base fee: %v vs %v", b.BaseFee, other.BaseFee))
+		ret = append(ret, blockDifference+fmt.Sprintf("base fee: %v vs %v\n", b.BaseFee, other.BaseFee))
 	}
 
 	if b.BlockNumber != other.BlockNumber {
@@ -37,7 +37,7 @@ func (b *BlockContext) Diff(other *BlockContext) []string {
 	}
 
 	if !b.ChainID.Eq(other.ChainID) {
-		ret = append(ret, blockDifference+fmt.Sprintf("chain id: %v vs %v", b.ChainID, other.ChainID))
+		ret = append(ret, blockDifference+fmt.Sprintf("chain id: %v vs %v\n", b.ChainID, other.ChainID))
 	}
 
 	if b.CoinBase != other.CoinBase {
