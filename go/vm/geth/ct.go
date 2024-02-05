@@ -69,16 +69,16 @@ func convertGethMemoryToCtMemory(state *vm.GethState) *st.Memory {
 ////////////////////////////////////////////////////////////
 // geth -> ct
 
-func convertGethToCtCallContext(geth *gethInterpreter, state *vm.GethState) *st.CallContext {
+func convertGethToCtCallContext(geth *gethInterpreter, state *vm.GethState) st.CallContext {
 	newCC := st.NewCallContext()
 	newCC.AccountAddress = (ct.Address)(state.Contract.Address())
 	newCC.OriginAddress = (ct.Address)(geth.evm.Origin)
 	newCC.CallerAddress = (ct.Address)(state.Contract.CallerAddress)
 	newCC.Value = ct.NewU256FromBigInt(state.Contract.Value())
-	return &newCC
+	return newCC
 }
 
-func convertGethToCtBlockContext(geth *gethInterpreter) *st.BlockContext {
+func convertGethToCtBlockContext(geth *gethInterpreter) st.BlockContext {
 	newBC := st.NewBlockContext()
 	newBC.BaseFee = ct.NewU256FromBigInt(geth.evm.Context.BaseFee)
 	newBC.BlockNumber = geth.evm.Context.BlockNumber.Uint64()
@@ -88,7 +88,7 @@ func convertGethToCtBlockContext(geth *gethInterpreter) *st.BlockContext {
 	newBC.GasPrice = ct.NewU256FromBigInt(geth.evm.GasPrice)
 	newBC.Difficulty = ct.NewU256FromBigInt(geth.evm.Context.Difficulty)
 	newBC.TimeStamp = geth.evm.Context.Time.Uint64()
-	return &newBC
+	return newBC
 }
 
 func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State, error) {
@@ -117,8 +117,8 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 		ctState.Logs = geth.evm.StateDB.(*utils.ConformanceTestStateDb).Logs
 	}
 
-	ctState.CallContext = *convertGethToCtCallContext(geth, state)
-	ctState.BlockContext = *convertGethToCtBlockContext(geth)
+	ctState.CallContext = convertGethToCtCallContext(geth, state)
+	ctState.BlockContext = convertGethToCtBlockContext(geth)
 	return ctState, nil
 }
 

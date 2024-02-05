@@ -89,16 +89,16 @@ func getChainConfigIfNotNil(c *params.ChainConfig) *params.ChainConfig {
 	return c
 }
 
-func convertLfvmContextToCtCallContext(ctx *context) *st.CallContext {
+func convertLfvmContextToCtCallContext(ctx *context) st.CallContext {
 	newCC := st.NewCallContext()
 	newCC.AccountAddress = (ct.Address)(ctx.contract.Address())
 	newCC.CallerAddress = (ct.Address)(ctx.contract.CallerAddress)
 	newCC.Value = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.contract.Value()))
 	newCC.OriginAddress = (ct.Address)(ctx.evm.Origin)
-	return &newCC
+	return newCC
 }
 
-func convertLfvmContextToCtBlockContextt(ctx *context) *st.BlockContext {
+func convertLfvmContextToCtBlockContextt(ctx *context) st.BlockContext {
 	newBC := st.NewBlockContext()
 	newBC.BaseFee = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.Context.BaseFee))
 	newBC.BlockNumber = getBigIntIfNotNil(ctx.evm.Context.BlockNumber).Uint64()
@@ -109,7 +109,7 @@ func convertLfvmContextToCtBlockContextt(ctx *context) *st.BlockContext {
 	newBC.GasPrice = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.GasPrice))
 	newBC.Difficulty = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.Context.Difficulty))
 	newBC.TimeStamp = getBigIntIfNotNil(ctx.evm.Context.Time).Uint64()
-	return &newBC
+	return newBC
 }
 
 func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcMap) (*st.State, error) {
@@ -141,9 +141,9 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 		state.Logs = ctx.stateDB.(*utils.ConformanceTestStateDb).Logs
 	}
 
-	state.CallContext = *convertLfvmContextToCtCallContext(ctx)
+	state.CallContext = convertLfvmContextToCtCallContext(ctx)
 
-	state.BlockContext = *convertLfvmContextToCtBlockContextt(ctx)
+	state.BlockContext = convertLfvmContextToCtBlockContextt(ctx)
 
 	return state, nil
 }
