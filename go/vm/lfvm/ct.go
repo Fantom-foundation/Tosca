@@ -71,39 +71,44 @@ func convertLfvmMemoryToCtMemory(ctx *context) *st.Memory {
 ////////////////////////////////////////////////////////////
 // lfvm -> ct
 
-// getIfNotNil returns the input value if it is initialized
+// getBigIntIfNotNil returns the input value if it is initialized
 // or a default initialized new big.Int if not
-func getIfNotNil(bigint *big.Int) *big.Int {
-	if bigint == nil {
+func getBigIntIfNotNil(b *big.Int) *big.Int {
+	if b == nil {
 		return big.NewInt(0)
 	}
-	return bigint
+	return b
+}
+
+// getChainConfigIfNotNil returns the input value if it is initialized
+// or a default initialized new params.ChainConfig if not
+func getChainConfigIfNotNil(c *params.ChainConfig) *params.ChainConfig {
+	if c == nil {
+		return &params.ChainConfig{}
+	}
+	return c
 }
 
 func convertLfvmContextToCtCallContext(ctx *context) *st.CallContext {
 	newCC := st.NewCallContext()
 	newCC.AccountAddress = (ct.Address)(ctx.contract.Address())
 	newCC.CallerAddress = (ct.Address)(ctx.contract.CallerAddress)
-	newCC.Value = ct.NewU256FromBigInt(getIfNotNil(ctx.contract.Value()))
+	newCC.Value = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.contract.Value()))
 	newCC.OriginAddress = (ct.Address)(ctx.evm.Origin)
 	return &newCC
 }
 
 func convertLfvmContextToCtBlockContextt(ctx *context) *st.BlockContext {
 	newBC := st.NewBlockContext()
-	newBC.BaseFee = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.Context.BaseFee))
-	newBC.BlockNumber = getIfNotNil(ctx.evm.Context.BlockNumber).Uint64()
-	// if chainConfig is not initialized, chainID would be default initialized.
-	if ctx.evm.ChainConfig() != nil {
-		newBC.ChainID = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.ChainConfig().ChainID))
-	} else {
-		newBC.ChainID = ct.NewU256(0)
-	}
+	newBC.BaseFee = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.Context.BaseFee))
+	newBC.BlockNumber = getBigIntIfNotNil(ctx.evm.Context.BlockNumber).Uint64()
+	chainConfig := getChainConfigIfNotNil(ctx.evm.ChainConfig())
+	newBC.ChainID = ct.NewU256FromBigInt(getBigIntIfNotNil(chainConfig.ChainID))
 	newBC.CoinBase = (ct.Address)(ctx.evm.Context.Coinbase)
 	newBC.GasLimit = ctx.evm.Context.GasLimit
-	newBC.GasPrice = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.GasPrice))
-	newBC.Difficulty = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.Context.Difficulty))
-	newBC.TimeStamp = getIfNotNil(ctx.evm.Context.Time).Uint64()
+	newBC.GasPrice = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.GasPrice))
+	newBC.Difficulty = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.Context.Difficulty))
+	newBC.TimeStamp = getBigIntIfNotNil(ctx.evm.Context.Time).Uint64()
 	return &newBC
 }
 
