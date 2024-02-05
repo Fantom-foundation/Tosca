@@ -46,7 +46,7 @@ func (s *specification) GetRulesFor(state *st.State) []Rule {
 // these are not enough gas, stack overflow, stack underflow, and a regular behaviour case
 type instruction struct {
 	op         OpCode
-	static_gas uint64
+	staticGas  uint64
 	pops       int
 	pushes     int
 	conditions []Condition       // conditions for the regular case
@@ -239,10 +239,10 @@ var Spec = func() Specification {
 	// --- SHA3 ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         SHA3,
-		static_gas: 30,
-		pops:       2,
-		pushes:     1,
+		op:        SHA3,
+		staticGas: 30,
+		pops:      2,
+		pushes:    1,
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
 			MemorySizeParameter{},
@@ -275,10 +275,10 @@ var Spec = func() Specification {
 	// --- MLOAD ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         MLOAD,
-		static_gas: 3,
-		pops:       1,
-		pushes:     1,
+		op:        MLOAD,
+		staticGas: 3,
+		pops:      1,
+		pushes:    1,
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
 		},
@@ -301,10 +301,10 @@ var Spec = func() Specification {
 	// --- MSTORE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         MSTORE,
-		static_gas: 3,
-		pops:       2,
-		pushes:     0,
+		op:        MSTORE,
+		staticGas: 3,
+		pops:      2,
+		pushes:    0,
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
 			NumericParameter{},
@@ -329,10 +329,10 @@ var Spec = func() Specification {
 	// --- MSTORE8 ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         MSTORE8,
-		static_gas: 3,
-		pops:       2,
-		pushes:     0,
+		op:        MSTORE8,
+		staticGas: 3,
+		pops:      2,
+		pushes:    0,
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
 			NumericParameter{},
@@ -358,10 +358,10 @@ var Spec = func() Specification {
 
 	// cold
 	rules = append(rules, rulesFor(instruction{
-		op:         SLOAD,
-		static_gas: 100 + 2000, // 2000 are from the dynamic cost of cold mem
-		pops:       1,
-		pushes:     1,
+		op:        SLOAD,
+		staticGas: 100 + 2000, // 2000 are from the dynamic cost of cold mem
+		pops:      1,
+		pushes:    1,
 		conditions: []Condition{
 			RevisionBounds(R09_Berlin, R10_London),
 			IsStorageCold(Param(0)),
@@ -379,10 +379,10 @@ var Spec = func() Specification {
 
 	// warm
 	rules = append(rules, rulesFor(instruction{
-		op:         SLOAD,
-		static_gas: 100,
-		pops:       1,
-		pushes:     1,
+		op:        SLOAD,
+		staticGas: 100,
+		pops:      1,
+		pushes:    1,
 		conditions: []Condition{
 			RevisionBounds(R09_Berlin, R10_London),
 			IsStorageWarm(Param(0)),
@@ -399,10 +399,10 @@ var Spec = func() Specification {
 
 	// pre_berlin
 	rules = append(rules, rulesFor(instruction{
-		op:         SLOAD,
-		static_gas: 800,
-		pops:       1,
-		pushes:     1,
+		op:        SLOAD,
+		staticGas: 800,
+		pops:      1,
+		pushes:    1,
 		conditions: []Condition{
 			RevisionBounds(R07_Istanbul, R07_Istanbul),
 		},
@@ -477,16 +477,16 @@ var Spec = func() Specification {
 		rules = append(rules, sstoreOpTooLittleGas(params))
 	}
 
-	rules = append(rules, tooLittleGas(instruction{op: SSTORE, static_gas: 2300, name: "_EIP2200"})...)
-	rules = append(rules, tooFewElements(instruction{op: SSTORE, static_gas: 2, pops: 2})...)
+	rules = append(rules, tooLittleGas(instruction{op: SSTORE, staticGas: 2300, name: "_EIP2200"})...)
+	rules = append(rules, tooFewElements(instruction{op: SSTORE, staticGas: 2, pops: 2})...)
 
 	// --- JUMP ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         JUMP,
-		static_gas: 8,
-		pops:       1,
-		pushes:     0,
+		op:        JUMP,
+		staticGas: 8,
+		pops:      1,
+		pushes:    0,
 		conditions: []Condition{
 			IsCode(Param(0)),
 			Eq(Op(Param(0)), JUMPDEST),
@@ -529,10 +529,10 @@ var Spec = func() Specification {
 	// --- JUMPI ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         JUMPI,
-		static_gas: 10,
-		pops:       2,
-		pushes:     0,
+		op:        JUMPI,
+		staticGas: 10,
+		pops:      2,
+		pushes:    0,
 		conditions: []Condition{
 			IsCode(Param(0)),
 			Eq(Op(Param(0)), JUMPDEST),
@@ -633,11 +633,11 @@ var Spec = func() Specification {
 	// --- JUMPDEST ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         JUMPDEST,
-		static_gas: 1,
-		pops:       0,
-		pushes:     0,
-		effect:     noEffect,
+		op:        JUMPDEST,
+		staticGas: 1,
+		pops:      0,
+		pushes:    0,
+		effect:    noEffect,
 	})...)
 
 	// --- Stack PUSH ---
@@ -649,10 +649,10 @@ var Spec = func() Specification {
 	// --- Stack POP ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         POP,
-		static_gas: 2,
-		pops:       1,
-		pushes:     0,
+		op:        POP,
+		staticGas: 2,
+		pops:      1,
+		pushes:    0,
 		effect: func(s *st.State) {
 			s.Stack.Pop()
 		},
@@ -679,10 +679,10 @@ var Spec = func() Specification {
 	// --- ADDRESS ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         ADDRESS,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        ADDRESS,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256FromBytes(s.CallContext.AccountAddress[:]...))
 		},
@@ -691,10 +691,10 @@ var Spec = func() Specification {
 	// --- ORIGIN ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         ORIGIN,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        ORIGIN,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256FromBytes(s.CallContext.OriginAddress[:]...))
 		},
@@ -703,10 +703,10 @@ var Spec = func() Specification {
 	// --- CALLER ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         CALLER,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        CALLER,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256FromBytes(s.CallContext.CallerAddress[:]...))
 		},
@@ -715,10 +715,10 @@ var Spec = func() Specification {
 	// --- CALLVALUE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         CALLVALUE,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        CALLVALUE,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(s.CallContext.Value)
 		},
@@ -727,10 +727,10 @@ var Spec = func() Specification {
 	// --- NUMBER ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         NUMBER,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        NUMBER,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256(s.BlockContext.BlockNumber))
 		},
@@ -739,10 +739,10 @@ var Spec = func() Specification {
 	// --- COINBASE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         COINBASE,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        COINBASE,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256FromBytes(s.BlockContext.CoinBase[:]...))
 		},
@@ -751,10 +751,10 @@ var Spec = func() Specification {
 	// --- GASLIMIT ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         GASLIMIT,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        GASLIMIT,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256(s.BlockContext.GasLimit))
 		},
@@ -763,10 +763,10 @@ var Spec = func() Specification {
 	// --- DIFFICULTY ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         DIFFICULTY,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        DIFFICULTY,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(s.BlockContext.Difficulty)
 		},
@@ -775,10 +775,10 @@ var Spec = func() Specification {
 	// --- GASPRICE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         GASPRICE,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        GASPRICE,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(s.BlockContext.GasPrice)
 		},
@@ -787,10 +787,10 @@ var Spec = func() Specification {
 	// --- TIMESTAMP ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         TIMESTAMP,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        TIMESTAMP,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256(s.BlockContext.TimeStamp))
 		},
@@ -800,7 +800,7 @@ var Spec = func() Specification {
 
 	rules = append(rules, rulesFor(instruction{
 		op:         BASEFEE,
-		static_gas: 2,
+		staticGas:  2,
 		pops:       0,
 		pushes:     1,
 		conditions: []Condition{IsRevision(R10_London)},
@@ -825,10 +825,10 @@ var Spec = func() Specification {
 	// --- CHAINID ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         CHAINID,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        CHAINID,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(s.BlockContext.ChainID)
 		},
@@ -837,10 +837,10 @@ var Spec = func() Specification {
 	// --- CODESIZE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         CODESIZE,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        CODESIZE,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256(uint64(s.Code.Length())))
 		},
@@ -849,26 +849,34 @@ var Spec = func() Specification {
 	// --- CODECOPY ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         CODECOPY,
-		static_gas: 3,
-		pops:       3,
-		pushes:     0,
+		op:        CODECOPY,
+		staticGas: 3,
+		pops:      3,
+		pushes:    0,
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
 			MemoryOffsetParameter{},
 			NumericParameter{}},
 		effect: func(s *st.State) {
 			destOffset := s.Stack.Pop()
-			offset_u256 := s.Stack.Pop()
-			size_u256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
 
-			expansionCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
+			expansionCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				return
 			}
 
-			s.Memory.Write(s.Memory.Read(offset, size), destOffset.Uint64())
+			var codeBuffer []byte
+			for i := 0; i < int(size); i++ {
+				data, err := s.Code.GetData(int(offset) + i)
+				if err != nil {
+					data = 0
+				}
+				codeBuffer = append(codeBuffer, data)
+			}
+			s.Memory.Write(codeBuffer, destOffset.Uint64())
 		},
 	})...)
 
@@ -884,10 +892,10 @@ func binaryOpWithDynamicCost(
 	dynamicCost func(a, b U256) uint64,
 ) []Rule {
 	return rulesFor(instruction{
-		op:         op,
-		static_gas: costs,
-		pops:       2,
-		pushes:     1,
+		op:        op,
+		staticGas: costs,
+		pops:      2,
+		pushes:    1,
 		parameters: []Parameter{
 			NumericParameter{},
 			NumericParameter{},
@@ -922,10 +930,10 @@ func trinaryOp(
 	effect func(a, b, c U256) U256,
 ) []Rule {
 	return rulesFor(instruction{
-		op:         op,
-		static_gas: costs,
-		pops:       3,
-		pushes:     1,
+		op:        op,
+		staticGas: costs,
+		pops:      3,
+		pushes:    1,
 		parameters: []Parameter{
 			NumericParameter{},
 			NumericParameter{},
@@ -946,10 +954,10 @@ func unaryOp(
 	effect func(a U256) U256,
 ) []Rule {
 	return rulesFor(instruction{
-		op:         op,
-		static_gas: costs,
-		pops:       1,
-		pushes:     1,
+		op:        op,
+		staticGas: costs,
+		pops:      1,
+		pushes:    1,
 		parameters: []Parameter{
 			NumericParameter{},
 		},
@@ -963,10 +971,10 @@ func unaryOp(
 func pushOp(n int) []Rule {
 	op := OpCode(int(PUSH1) + n - 1)
 	return rulesFor(instruction{
-		op:         op,
-		static_gas: 3,
-		pops:       0,
-		pushes:     1,
+		op:        op,
+		staticGas: 3,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			data := make([]byte, n)
 			for i := 0; i < n; i++ {
@@ -987,10 +995,10 @@ func pushOp(n int) []Rule {
 func dupOp(n int) []Rule {
 	op := OpCode(int(DUP1) + n - 1)
 	return rulesFor(instruction{
-		op:         op,
-		static_gas: 3,
-		pops:       n,
-		pushes:     n + 1,
+		op:        op,
+		staticGas: 3,
+		pops:      n,
+		pushes:    n + 1,
 		effect: func(s *st.State) {
 			s.Stack.Push(s.Stack.Get(n - 1))
 		},
@@ -1002,10 +1010,10 @@ func dupOp(n int) []Rule {
 func swapOp(n int) []Rule {
 	op := OpCode(int(SWAP1) + n - 1)
 	return rulesFor(instruction{
-		op:         op,
-		static_gas: 3,
-		pops:       n + 1,
-		pushes:     n + 1,
+		op:        op,
+		staticGas: 3,
+		pops:      n + 1,
+		pushes:    n + 1,
 		effect: func(s *st.State) {
 			a := s.Stack.Get(0)
 			b := s.Stack.Get(n)
@@ -1129,7 +1137,7 @@ func logOp(n int) []Rule {
 
 	return rulesFor(instruction{
 		op:         op,
-		static_gas: minGas,
+		staticGas:  minGas,
 		pops:       2 + n,
 		pushes:     0,
 		parameters: parameter,
@@ -1167,7 +1175,7 @@ func tooLittleGas(i instruction) []Rule {
 		AnyKnownRevision(),
 		Eq(Status(), st.Running),
 		Eq(Op(Pc()), i.op),
-		Lt(Gas(), i.static_gas))
+		Lt(Gas(), i.staticGas))
 	return []Rule{{
 		Name:      fmt.Sprintf("%v_with_too_little_gas%v", strings.ToLower(i.op.String()), i.name),
 		Condition: And(localConditions...),
@@ -1203,7 +1211,7 @@ func tooFewElements(i instruction) []Rule {
 
 // rulesFor instantiates the basic rules depending on the instruction info.
 // any rule that cannot be expressed using this function must be implemented manually.
-// This function subtracts i.static_gas from state.Gas and increases state.Pc by one,
+// This function subtracts i.staticGas from state.Gas and increases state.Pc by one,
 // these two are always done before calling i.effect. This should be kept
 // in mind when implementing the effects of new rules.
 func rulesFor(i instruction) []Rule {
@@ -1219,7 +1227,7 @@ func rulesFor(i instruction) []Rule {
 		AnyKnownRevision(),
 		Eq(Status(), st.Running),
 		Eq(Op(Pc()), i.op),
-		Ge(Gas(), i.static_gas),
+		Ge(Gas(), i.staticGas),
 		Ge(StackSize(), i.pops),
 		Le(StackSize(), st.MaxStackSize-(max(i.pushes-i.pops, 0))),
 	)
@@ -1230,7 +1238,7 @@ func rulesFor(i instruction) []Rule {
 			Condition: And(localConditions...),
 			Parameter: i.parameters,
 			Effect: Change(func(s *st.State) {
-				s.Gas -= i.static_gas
+				s.Gas -= i.staticGas
 				s.Pc++
 				i.effect(s)
 			}),
