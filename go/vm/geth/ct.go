@@ -97,13 +97,13 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 	ctState.CallContext.AccountAddress = (ct.Address)(state.Contract.Address().Bytes())
 	ctState.CallContext.OriginAddress = (ct.Address)(geth.evm.Origin.Bytes())
 	ctState.CallContext.CallerAddress = (ct.Address)(state.Contract.CallerAddress.Bytes())
-	ctState.CallContext.Value = *ct.U256FromBigInt(state.Contract.Value())
+	ctState.CallContext.Value = ct.NewU256FromBigInt(state.Contract.Value())
 
 	ctState.BlockContext.BlockNumber = geth.evm.Context.BlockNumber.Uint64()
 	ctState.BlockContext.CoinBase = (ct.Address)(geth.evm.Context.Coinbase)
 	ctState.BlockContext.GasLimit = geth.evm.Context.GasLimit
-	ctState.BlockContext.GasPrice = *ct.U256FromBigInt(geth.evm.GasPrice)
-	ctState.BlockContext.Difficulty = *ct.U256FromBigInt(geth.evm.Context.Difficulty)
+	ctState.BlockContext.GasPrice = ct.NewU256FromBigInt(geth.evm.GasPrice)
+	ctState.BlockContext.Difficulty = ct.NewU256FromBigInt(geth.evm.Context.Difficulty)
 	ctState.BlockContext.TimeStamp = geth.evm.Context.Time.Uint64()
 
 	return ctState, nil

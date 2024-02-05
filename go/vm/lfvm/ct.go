@@ -109,14 +109,14 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 	}
 	state.CallContext.AccountAddress = (ct.Address)(ctx.contract.Address().Bytes())
 	state.CallContext.CallerAddress = (ct.Address)(ctx.contract.CallerAddress.Bytes())
-	state.CallContext.Value = *ct.U256FromBigInt(getIfNotNil(ctx.contract.Value()))
+	state.CallContext.Value = ct.NewU256FromBigInt(getIfNotNil(ctx.contract.Value()))
 	state.CallContext.OriginAddress = (ct.Address)(ctx.evm.Origin.Bytes())
 
 	state.BlockContext.BlockNumber = getIfNotNil(ctx.evm.Context.BlockNumber).Uint64()
 	state.BlockContext.CoinBase = (ct.Address)(ctx.evm.Context.Coinbase)
 	state.BlockContext.GasLimit = ctx.evm.Context.GasLimit
-	state.BlockContext.GasPrice = *ct.U256FromBigInt(getIfNotNil(ctx.evm.GasPrice))
-	state.BlockContext.Difficulty = *ct.U256FromBigInt(getIfNotNil(ctx.evm.Context.Difficulty))
+	state.BlockContext.GasPrice = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.GasPrice))
+	state.BlockContext.Difficulty = ct.NewU256FromBigInt(getIfNotNil(ctx.evm.Context.Difficulty))
 	state.BlockContext.TimeStamp = getIfNotNil(ctx.evm.Context.Time).Uint64()
 
 	return state, nil
