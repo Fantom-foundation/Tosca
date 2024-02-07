@@ -2,6 +2,7 @@ package spc
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -856,27 +857,50 @@ var Spec = func() Specification {
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
 			MemoryOffsetParameter{},
-			NumericParameter{}},
+			MemorySizeParameter{}},
 		effect: func(s *st.State) {
-			destOffset := s.Stack.Pop()
+			destOffsetU256 := s.Stack.Pop()
 			offsetU256 := s.Stack.Pop()
 			sizeU256 := s.Stack.Pop()
 
-			expansionCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
-			if s.Gas < expansionCost {
+			staticCost := uint64(3)
+			minWordCost := uint64(3)
+			if sizeU256 == NewU256(0) {
+				s.Gas -= 3
+				s.Pc++
+				return
+			}
+
+			expansionCost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
+			if (s.Gas-staticCost-minWordCost) < expansionCost ||
+				s.Gas < staticCost+minWordCost {
 				s.Status = st.Failed
 				return
 			}
 
+			offset := offsetU256.Uint64()
+			codeLen := uint64(s.Code.Length())
 			var codeBuffer []byte
-			for i := 0; i < int(size); i++ {
-				data, err := s.Code.GetData(int(offset) + i)
-				if err != nil {
-					data = 0
+			readUntil := offset + size
+
+			if offsetU256.Gt(NewU256(codeLen)) {
+				// HACK: when sparse memory is implemented remove this.
+				if size < math.MaxUint32 {
+					size = math.MaxUint32
 				}
-				codeBuffer = append(codeBuffer, data)
+				codeBuffer = make([]byte, size)
+			} else if readUntil > codeLen {
+				actualRead := size - (readUntil - codeLen)
+				// we do not check for the error here, since the if's condition already prevents invalid indexing
+				codeBuffer, _ = s.Code.GetSection(int(offset), int(codeLen))
+				codeBuffer = append(codeBuffer, make([]byte, int(size-actualRead))...)
+			} else {
+				codeBuffer, _ = s.Code.GetSection(int(offset), int(offset+size))
 			}
-			s.Memory.Write(codeBuffer, destOffset.Uint64())
+
+			s.Memory.Write(codeBuffer, destOffset)
+			s.Pc++
+			s.Gas -= staticCost + minWordCost + expansionCost
 		},
 	})...)
 

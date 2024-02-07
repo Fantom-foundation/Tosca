@@ -102,6 +102,16 @@ func (c *Code) GetData(pos int) (byte, error) {
 	return c.code[pos], nil
 }
 
+func (c *Code) GetSection(offset, until int) ([]byte, error) {
+	if offset == until {
+		return []byte{}, nil
+	}
+	if until > c.Length() {
+		return nil, ErrInvalidPosition
+	}
+	return c.code[offset:until], nil
+}
+
 func (c *Code) Eq(other *Code) bool {
 	return c.Hash() == other.Hash() && bytes.Equal(c.code, other.code)
 }
