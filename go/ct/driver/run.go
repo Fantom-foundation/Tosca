@@ -111,8 +111,11 @@ func doRun(context *cli.Context) error {
 			for rule := range ruleCh {
 				tstart := time.Now()
 
-				errs := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
+				errs, executionCount := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
 					if applies, err := rule.Condition.Check(state); !applies || err != nil {
+						if err == nil {
+							err = rlz.ErrUnapplicable
+						}
 						return err
 					}
 
@@ -120,7 +123,7 @@ func doRun(context *cli.Context) error {
 					// converter.
 					if evmIdentifier == "lfvm" && !state.Code.IsCode(int(state.Pc)) {
 						skippedCount.Add(1)
-						return nil // ignored
+						return rlz.ErrSkipped
 					}
 
 					input := state.Clone()
@@ -143,6 +146,10 @@ func doRun(context *cli.Context) error {
 					return nil
 				})
 
+				if executionCount == 0 {
+					errs = append(errs, rlz.ErrNoExecution)
+				}
+
 				ok := "OK"
 				if len(errs) > 0 {
 					ok = "Failed"
@@ -163,7 +170,7 @@ func doRun(context *cli.Context) error {
 
 				mutex.Lock()
 				{
-					fmt.Printf("%v: %v (%v)\n", ok, rule, time.Since(tstart).Round(10*time.Millisecond))
+					fmt.Printf("%v: (rules executed: %v) %v (%v)\n", ok, executionCount, rule, time.Since(tstart).Round(10*time.Millisecond))
 
 					if err != nil {
 						fmt.Println(err)

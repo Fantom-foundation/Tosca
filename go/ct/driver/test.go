@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/urfave/cli/v2"
@@ -79,8 +80,19 @@ func doTest(context *cli.Context) error {
 			tstart := time.Now()
 
 			rnd := rand.New(context.Uint64("seed"))
-			errs := rule.EnumerateTestCases(rnd, func(state *st.State) error {
+			errs, executedCount := rule.EnumerateTestCases(rnd, func(state *st.State) error {
 				rules := spc.Spec.GetRulesFor(state)
+				// confirm desired rules is included in the rules list.
+				containsRule := false
+				for _, r := range rules {
+					if r.Name == rule.Name {
+						containsRule = true
+					}
+				}
+
+				if len(rules) == 0 || !containsRule {
+					return rlz.ErrUnapplicable
+				}
 				if len(rules) > 0 {
 					atLeastOne = true
 				}
@@ -100,6 +112,10 @@ func doTest(context *cli.Context) error {
 
 			mutex.Lock()
 			defer mutex.Unlock()
+			executedCountErr := ""
+			if executedCount == 0 {
+				executedCountErr = fmt.Sprint("FAIL: No state executed.\n")
+			}
 
 			if len(errs) != 0 {
 				builder := strings.Builder{}
@@ -107,18 +123,18 @@ func doTest(context *cli.Context) error {
 				for _, e := range errs {
 					builder.WriteString(fmt.Sprintf("%v\n", e))
 				}
-				fmt.Print(builder.String())
+				fmt.Print(builder.String() + executedCountErr)
 				failed = true
 				return
 			}
 
 			if !atLeastOne {
-				fmt.Printf("FAIL: %v: No rule matches any of the generated test cases\n", rule.Name)
+				fmt.Printf("FAIL: %v: No rule matches any of the generated test cases\n"+executedCountErr, rule.Name)
 				failed = true
 				return
 			}
 
-			fmt.Printf("OK: %v (%v)\n", rule.Name, time.Since(tstart).Round(10*time.Millisecond))
+			fmt.Printf("OK: %v (execution count: %v) (%v)\n", rule.Name, executedCount, time.Since(tstart).Round(10*time.Millisecond))
 		}()
 	}
 
