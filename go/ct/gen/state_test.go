@@ -357,5 +357,31 @@ func TestStateGenerator_CallDataGen(t *testing.T) {
 			t.Error("failed to generate a non-zero calldata")
 		}
 	}
+}
 
+// //////////////////////////////////////////////////////////
+// Return data
+
+func TestStateGenerator_LastCallReturnDataGen(t *testing.T) {
+	gen := NewStateGenerator()
+	rnd := rand.New(0)
+	state, err := gen.Generate(rnd)
+	if err != nil {
+		t.Errorf("error generating new state: %v", err)
+	}
+
+	if len(state.LastCallReturnData) == 0 {
+		t.Error("failed to generate a non-empty last call return data")
+	} else {
+		allzeros := true
+		for _, b := range state.LastCallReturnData {
+			if b != 0 {
+				allzeros = false
+				break
+			}
+		}
+		if allzeros {
+			t.Error("failed to generate a non-zero last call return data")
+		}
+	}
 }

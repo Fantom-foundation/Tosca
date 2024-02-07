@@ -107,6 +107,7 @@ SteppingResult InterpretNSteps(const SteppingArgs& args) {
       .gas = args.message->gas,
       .gas_refunds = args.gas_refunds,
       .padded_code = args.padded_code,
+      .return_data = args.last_call_return_data,
       .valid_jump_targets = args.valid_jump_targets,
       .memory = std::move(args.memory),
       .stack = args.stack,
@@ -1930,7 +1931,7 @@ end:
   }
 
   // Keep return data only when we are supposed to return something.
-  if (state != RunState::kReturn && state != RunState::kRevert) {
+  if (state != RunState::kReturn && state != RunState::kRevert && state != RunState::kRunning) {
     ctx.return_data.clear();
   }
 

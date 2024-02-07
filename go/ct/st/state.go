@@ -47,35 +47,37 @@ func (s StatusCode) String() string {
 
 // State represents an EVM's execution state.
 type State struct {
-	Status       StatusCode
-	Revision     Revision
-	ReadOnly     bool
-	Pc           uint16
-	Gas          uint64
-	GasRefund    uint64
-	Code         *Code
-	Stack        *Stack
-	Memory       *Memory
-	Storage      *Storage
-	Balance      *Balance
-	Logs         *Logs
-	CallContext  CallContext
-	BlockContext BlockContext
-	CallData     []byte
+	Status             StatusCode
+	Revision           Revision
+	ReadOnly           bool
+	Pc                 uint16
+	Gas                uint64
+	GasRefund          uint64
+	Code               *Code
+	Stack              *Stack
+	Memory             *Memory
+	Storage            *Storage
+	Balance            *Balance
+	Logs               *Logs
+	CallContext        CallContext
+	BlockContext       BlockContext
+	CallData           []byte
+	LastCallReturnData []byte
 }
 
 // NewState creates a new State instance with the given code.
 func NewState(code *Code) *State {
 	return &State{
-		Status:   Running,
-		Revision: R07_Istanbul,
-		Code:     code,
-		Stack:    NewStack(),
-		Memory:   NewMemory(),
-		Storage:  NewStorage(),
-		Balance:  NewBalance(),
-		Logs:     NewLogs(),
-		CallData: make([]byte, 0),
+		Status:             Running,
+		Revision:           R07_Istanbul,
+		Code:               code,
+		Stack:              NewStack(),
+		Memory:             NewMemory(),
+		Storage:            NewStorage(),
+		Balance:            NewBalance(),
+		Logs:               NewLogs(),
+		CallData:           make([]byte, 0),
+		LastCallReturnData: make([]byte, 0),
 	}
 }
 
@@ -95,6 +97,7 @@ func (s *State) Clone() *State {
 	clone.CallContext = s.CallContext
 	clone.BlockContext = s.BlockContext
 	clone.CallData = bytes.Clone(s.CallData)
+	clone.LastCallReturnData = bytes.Clone(s.LastCallReturnData)
 	return clone
 }
 
@@ -127,7 +130,8 @@ func (s *State) Eq(other *State) bool {
 		s.Logs.Eq(other.Logs) &&
 		s.CallContext == other.CallContext &&
 		s.BlockContext == other.BlockContext &&
-		slices.Equal(s.CallData, other.CallData)
+		slices.Equal(s.CallData, other.CallData) &&
+		slices.Equal(s.LastCallReturnData, other.LastCallReturnData)
 }
 
 const dataCutoffLength = 20
@@ -194,9 +198,15 @@ func (s *State) String() string {
 	builder.WriteString(fmt.Sprintf("\t%v", s.BlockContext.String()))
 
 	if len(s.CallData) > dataCutoffLength {
-		builder.WriteString(fmt.Sprintf("\tCalldata: %x... (size: %d)\n", s.CallData[:dataCutoffLength], len(s.CallData)))
+		builder.WriteString(fmt.Sprintf("\tCallData: %x... (size: %d)\n", s.CallData[:dataCutoffLength], len(s.CallData)))
 	} else {
-		builder.WriteString(fmt.Sprintf("\tCalldata: %v\n", s.CallData))
+		builder.WriteString(fmt.Sprintf("\tCallData: %v\n", s.CallData))
+	}
+
+	if len(s.LastCallReturnData) > dataCutoffLength {
+		builder.WriteString(fmt.Sprintf("\tLastCallReturnData: %x... (size: %d)\n", s.LastCallReturnData[:dataCutoffLength], len(s.LastCallReturnData)))
+	} else {
+		builder.WriteString(fmt.Sprintf("\tLastCallReturnData: %v\n", s.LastCallReturnData))
 	}
 
 	builder.WriteString("}")
@@ -263,7 +273,11 @@ func (s *State) Diff(o *State) []string {
 	}
 
 	if !slices.Equal(s.CallData, o.CallData) {
-		res = append(res, fmt.Sprintf("Different calldata: %v vs %v", s.CallData, o.CallData))
+		res = append(res, fmt.Sprintf("Different call data: %v vs %v", s.CallData, o.CallData))
+	}
+
+	if !slices.Equal(s.LastCallReturnData, o.LastCallReturnData) {
+		res = append(res, fmt.Sprintf("Different last call return data: %v vs %v.", s.LastCallReturnData, o.LastCallReturnData))
 	}
 
 	return res

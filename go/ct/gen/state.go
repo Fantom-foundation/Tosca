@@ -342,6 +342,17 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
+	// Generate return data of last call
+	size = uint(rand / (1 / expectedSize))
+	if size > st.MaxDataSize {
+		size = st.MaxDataSize
+	}
+	resultLastCallReturnData := make([]byte, size)
+	_, err = rnd.Read(resultLastCallReturnData)
+	if err != nil {
+		return nil, err
+	}
+
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences
 	// this process.
@@ -384,6 +395,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.CallContext = resultCallContext
 	result.BlockContext = resultBlockContext
 	result.CallData = resultCallData
+	result.LastCallReturnData = resultLastCallReturnData
 
 	return result, nil
 }
