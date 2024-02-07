@@ -81,9 +81,8 @@ func doTest(context *cli.Context) error {
 
 			enumeratedCount := 0
 			rnd := rand.New(context.Uint64("seed"))
-			errs := rule.EnumerateTestCases(rnd, func(state *st.State) error {
+			errs, _ := rule.EnumerateTestCases(rnd, func(state *st.State) error {
 				rules := spc.Spec.GetRulesFor(state)
-
 				if len(rules) > 0 {
 					atLeastOne = true
 				}

@@ -115,8 +115,11 @@ func doRun(context *cli.Context) error {
 				tstart := time.Now()
 
 				enumeratedCount := 0
-				errs := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
+				errs, _ := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
 					if applies, err := rule.Condition.Check(state); !applies || err != nil {
+						if err == nil {
+							err = rlz.ErrUnapplicable
+						}
 						return err
 					}
 
@@ -124,7 +127,7 @@ func doRun(context *cli.Context) error {
 					// converter.
 					if evmIdentifier == "lfvm" && !state.Code.IsCode(int(state.Pc)) {
 						skippedCount.Add(1)
-						return nil // ignored
+						return rlz.ErrSkipped
 					}
 
 					enumeratedCount++

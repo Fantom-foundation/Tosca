@@ -2,6 +2,7 @@ package rlz
 
 import (
 	"errors"
+	"slices"
 
 	"pgregory.net/rand"
 
@@ -26,11 +27,19 @@ func (rule *Rule) GenerateSatisfyingState(rnd *rand.Rand) (*st.State, error) {
 // EnumerateTestCases generates interesting st.States according to this Rule.
 // Each valid st.State is passed to the given consume function. consume must
 // *not* modify the provided state. Errors are accumulated and a list of all errors is returned.
-func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) error) []error {
+func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) error) ([]error, int) {
 	var accumulatedErrors []error
 
 	onError := func(err error) {
-		accumulatedErrors = append(accumulatedErrors, err)
+		if err != ErrSkipped {
+			accumulatedErrors = append(accumulatedErrors, err)
+		}
+	}
+
+	executionCount := 0
+
+	onSuccess := func() {
+		executionCount++
 	}
 
 	rule.Condition.EnumerateTestCases(gen.NewStateGenerator(), func(generator *gen.StateGenerator) {
@@ -43,16 +52,18 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) err
 			return
 		}
 
-		enumerateParameters(0, rule.Parameter, state, consume, onError)
+		enumerateParameters(0, rule.Parameter, state, consume, onError, onSuccess)
 	})
 
-	return accumulatedErrors
+	return accumulatedErrors, executionCount
 }
 
-func enumerateParameters(pos int, params []Parameter, state *st.State, consume func(*st.State) error, onError func(error)) {
+func enumerateParameters(pos int, params []Parameter, state *st.State, consume func(*st.State) error, onError func(error), onSuccess func()) {
 	if len(params) == 0 || pos >= state.Stack.Size() {
 		err := consume(state)
-		if err != nil {
+		if err == nil {
+			onSuccess()
+		} else if !slices.Contains(IgnoredErrors, err) {
 			onError(err)
 		}
 		return
@@ -61,12 +72,12 @@ func enumerateParameters(pos int, params []Parameter, state *st.State, consume f
 	current := state.Stack.Get(pos)
 
 	// Cross product with current parameter value, as set by generator.
-	enumerateParameters(pos+1, params[1:], state, consume, onError)
+	enumerateParameters(pos+1, params[1:], state, consume, onError, onSuccess)
 
 	// Cross product with different samples for parameter.
 	for _, value := range params[0].Samples() {
 		state.Stack.Set(pos, value)
-		enumerateParameters(pos+1, params[1:], state, consume, onError)
+		enumerateParameters(pos+1, params[1:], state, consume, onError, onSuccess)
 	}
 
 	state.Stack.Set(pos, current)
