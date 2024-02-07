@@ -400,7 +400,7 @@ func TestStateGenerator_CallDataGen(t *testing.T) {
 }
 
 // //////////////////////////////////////////////////////////
-// Return data
+// Last Call Return data
 
 func TestStateGenerator_LastCallReturnDataGen(t *testing.T) {
 	gen := NewStateGenerator()
