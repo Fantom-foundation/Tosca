@@ -357,46 +357,91 @@ var Spec = func() Specification {
 	// --- SLOAD ---
 
 	// cold
-	rules = append(rules, rulesFor(instruction{
+
+	// we have to do it manually so that we can call tooFewElements without both
+	// conditions IsStorageCold(Param(0)) and Lt(StackSize(), i.pops))
+	sloadColdInstruction := instruction{
 		op:         SLOAD,
 		static_gas: 100 + 2000, // 2000 are from the dynamic cost of cold mem
 		pops:       1,
 		pushes:     1,
-		conditions: []Condition{
-			RevisionBounds(R09_Berlin, R10_London),
-			IsStorageCold(Param(0)),
-		},
+		conditions: []Condition{RevisionBounds(R09_Berlin, R10_London)},
 		parameters: []Parameter{
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
+			s.Gas -= 2100
+			s.Pc++
 			key := s.Stack.Pop()
 			s.Stack.Push(s.Storage.Current[key])
 			s.Storage.MarkWarm(key)
 		},
 		name: "_cold",
-	})...)
+	}
+
+	rules = append(rules, tooLittleGas(sloadColdInstruction)...)
+	rules = append(rules, tooFewElements(sloadColdInstruction)...)
+
+	sloadColdInstruction.conditions = []Condition{
+		RevisionBounds(R09_Berlin, R10_London),
+		IsStorageCold(Param(0)),
+		Eq(Status(), st.Running),
+		Eq(Op(Pc()), sloadColdInstruction.op),
+		Ge(Gas(), sloadColdInstruction.static_gas),
+		Ge(StackSize(), sloadColdInstruction.pops),
+		Lt(StackSize(), st.MaxStackSize),
+	}
+	rules = append(rules, []Rule{
+		{
+			Name: fmt.Sprintf("%s_regular%v",
+				strings.ToLower(sloadColdInstruction.op.String()),
+				sloadColdInstruction.name),
+			Condition: And(sloadColdInstruction.conditions...),
+			Parameter: sloadColdInstruction.parameters,
+			Effect:    Change(sloadColdInstruction.effect),
+		},
+	}...)
 
 	// warm
-	rules = append(rules, rulesFor(instruction{
+	sloadWarmInstruction := instruction{
 		op:         SLOAD,
 		static_gas: 100,
 		pops:       1,
 		pushes:     1,
-		conditions: []Condition{
-			RevisionBounds(R09_Berlin, R10_London),
-			IsStorageWarm(Param(0)),
-		},
+		conditions: []Condition{RevisionBounds(R09_Berlin, R10_London)},
 		parameters: []Parameter{
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
+			s.Gas -= 100
+			s.Pc++
 			key := s.Stack.Pop()
 			s.Stack.Push(s.Storage.Current[key])
 		},
 		name: "_warm",
-	})...)
+	}
 
+	rules = append(rules, tooLittleGas(sloadWarmInstruction)...)
+	rules = append(rules, tooFewElements(sloadWarmInstruction)...)
+	sloadWarmInstruction.conditions = []Condition{
+		RevisionBounds(R09_Berlin, R10_London),
+		IsStorageWarm(Param(0)),
+		Eq(Status(), st.Running),
+		Eq(Op(Pc()), sloadColdInstruction.op),
+		Ge(Gas(), sloadColdInstruction.static_gas),
+		Ge(StackSize(), sloadColdInstruction.pops),
+		Lt(StackSize(), st.MaxStackSize),
+	}
+	rules = append(rules, []Rule{
+		{
+			Name: fmt.Sprintf("%s_regular%v",
+				strings.ToLower(sloadColdInstruction.op.String()),
+				sloadColdInstruction.name),
+			Condition: And(sloadColdInstruction.conditions...),
+			Parameter: sloadColdInstruction.parameters,
+			Effect:    Change(sloadColdInstruction.effect),
+		},
+	}...)
 	// pre_berlin
 	rules = append(rules, rulesFor(instruction{
 		op:         SLOAD,
