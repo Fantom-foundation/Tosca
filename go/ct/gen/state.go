@@ -37,6 +37,8 @@ type StateGenerator struct {
 	gasConstraints        []uint64
 	gasRefundConstraints  []uint64
 
+	HasPcConstraints bool
+
 	// Generators
 	codeGen         *CodeGenerator
 	stackGen        *StackGenerator
@@ -101,6 +103,7 @@ func (g *StateGenerator) SetRevisionBounds(min, max Revision) {
 func (g *StateGenerator) SetPc(pc uint16) {
 	if !slices.Contains(g.pcConstantConstraints, pc) {
 		g.pcConstantConstraints = append(g.pcConstantConstraints, pc)
+		g.HasPcConstraints = true
 	}
 }
 
@@ -109,6 +112,7 @@ func (g *StateGenerator) SetPc(pc uint16) {
 func (g *StateGenerator) BindPc(pc Variable) {
 	if !slices.Contains(g.pcVariableConstraints, pc) {
 		g.pcVariableConstraints = append(g.pcVariableConstraints, pc)
+		g.HasPcConstraints = true
 	}
 }
 
@@ -326,6 +330,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		pcVariableConstraints: slices.Clone(g.pcVariableConstraints),
 		gasConstraints:        slices.Clone(g.gasConstraints),
 		gasRefundConstraints:  slices.Clone(g.gasRefundConstraints),
+		HasPcConstraints:      g.HasPcConstraints,
 		codeGen:               g.codeGen.Clone(),
 		stackGen:              g.stackGen.Clone(),
 		memoryGen:             g.memoryGen.Clone(),
@@ -344,6 +349,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.pcVariableConstraints = slices.Clone(other.pcVariableConstraints)
 		g.gasConstraints = slices.Clone(other.gasConstraints)
 		g.gasRefundConstraints = slices.Clone(other.gasRefundConstraints)
+		g.gasConstraints = other.gasConstraints
 		g.codeGen.Restore(other.codeGen)
 		g.stackGen.Restore(other.stackGen)
 		g.memoryGen.Restore(other.memoryGen)

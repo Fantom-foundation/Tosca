@@ -52,6 +52,26 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) err
 			return
 		}
 
+		// in case the Program Counter has no constraints we want to make sure we are testing
+		// both possible cases, where it points to data and when it points to code.
+		if !generator.HasPcConstraints {
+			alternateState := state.Clone()
+			findFirst := func(check func(int) bool) {
+				for i := 0; i < state.Code.Length(); i++ {
+					if check(i) {
+						alternateState.Pc = uint16(i)
+						return
+					}
+				}
+			}
+			if state.Code.IsCode(int(state.Pc)) {
+				isNotCode := func(i int) bool { return !state.Code.IsCode(i) }
+				findFirst(isNotCode)
+			} else {
+				findFirst(state.Code.IsCode)
+			}
+			enumerateParameters(0, rule.Parameter, alternateState, consume, onError, onSuccess)
+		}
 		enumerateParameters(0, rule.Parameter, state, consume, onError, onSuccess)
 	})
 
