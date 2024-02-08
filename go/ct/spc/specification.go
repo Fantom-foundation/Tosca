@@ -356,49 +356,42 @@ var Spec = func() Specification {
 
 	// --- SLOAD ---
 
-	// cold
+	// we have to do it manually for cold/warm so that we can call tooFewElements
+	// without both conditions IsStorageCold(Param(0)) and Lt(StackSize(), i.pops))
+	// because this would produces an ErrUnsatisfiable since it can't have stacksize
+	// of less than 1 and still constraint Param(0).
 
-	// we have to do it manually so that we can call tooFewElements without both
-	// conditions IsStorageCold(Param(0)) and Lt(StackSize(), i.pops))
+	// cold
 	sloadColdInstruction := instruction{
 		op:         SLOAD,
 		static_gas: 100 + 2000, // 2000 are from the dynamic cost of cold mem
 		pops:       1,
 		pushes:     1,
 		conditions: []Condition{RevisionBounds(R09_Berlin, R10_London)},
-		parameters: []Parameter{
-			NumericParameter{},
-		},
-		effect: func(s *st.State) {
-			s.Gas -= 2100
-			s.Pc++
-			key := s.Stack.Pop()
-			s.Stack.Push(s.Storage.Current[key])
-			s.Storage.MarkWarm(key)
-		},
-		name: "_cold",
+		name:       "_cold",
 	}
-
 	rules = append(rules, tooLittleGas(sloadColdInstruction)...)
 	rules = append(rules, tooFewElements(sloadColdInstruction)...)
-
-	sloadColdInstruction.conditions = []Condition{
-		RevisionBounds(R09_Berlin, R10_London),
-		IsStorageCold(Param(0)),
-		Eq(Status(), st.Running),
-		Eq(Op(Pc()), sloadColdInstruction.op),
-		Ge(Gas(), sloadColdInstruction.static_gas),
-		Ge(StackSize(), sloadColdInstruction.pops),
-		Lt(StackSize(), st.MaxStackSize),
-	}
 	rules = append(rules, []Rule{
 		{
 			Name: fmt.Sprintf("%s_regular%v",
 				strings.ToLower(sloadColdInstruction.op.String()),
 				sloadColdInstruction.name),
-			Condition: And(sloadColdInstruction.conditions...),
-			Parameter: sloadColdInstruction.parameters,
-			Effect:    Change(sloadColdInstruction.effect),
+			Condition: And(RevisionBounds(R09_Berlin, R10_London),
+				IsStorageCold(Param(0)),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), sloadColdInstruction.op),
+				Ge(Gas(), sloadColdInstruction.static_gas),
+				Ge(StackSize(), sloadColdInstruction.pops),
+				Lt(StackSize(), st.MaxStackSize)),
+			Parameter: []Parameter{NumericParameter{}},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 2100
+				s.Pc++
+				key := s.Stack.Pop()
+				s.Stack.Push(s.Storage.Current[key])
+				s.Storage.MarkWarm(key)
+			}),
 		},
 	}...)
 
@@ -409,39 +402,33 @@ var Spec = func() Specification {
 		pops:       1,
 		pushes:     1,
 		conditions: []Condition{RevisionBounds(R09_Berlin, R10_London)},
-		parameters: []Parameter{
-			NumericParameter{},
-		},
-		effect: func(s *st.State) {
-			s.Gas -= 100
-			s.Pc++
-			key := s.Stack.Pop()
-			s.Stack.Push(s.Storage.Current[key])
-		},
-		name: "_warm",
+		name:       "_warm",
 	}
 
 	rules = append(rules, tooLittleGas(sloadWarmInstruction)...)
 	rules = append(rules, tooFewElements(sloadWarmInstruction)...)
-	sloadWarmInstruction.conditions = []Condition{
-		RevisionBounds(R09_Berlin, R10_London),
-		IsStorageWarm(Param(0)),
-		Eq(Status(), st.Running),
-		Eq(Op(Pc()), sloadColdInstruction.op),
-		Ge(Gas(), sloadColdInstruction.static_gas),
-		Ge(StackSize(), sloadColdInstruction.pops),
-		Lt(StackSize(), st.MaxStackSize),
-	}
 	rules = append(rules, []Rule{
 		{
 			Name: fmt.Sprintf("%s_regular%v",
 				strings.ToLower(sloadColdInstruction.op.String()),
 				sloadColdInstruction.name),
-			Condition: And(sloadColdInstruction.conditions...),
-			Parameter: sloadColdInstruction.parameters,
-			Effect:    Change(sloadColdInstruction.effect),
+			Condition: And(RevisionBounds(R09_Berlin, R10_London),
+				IsStorageWarm(Param(0)),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), sloadColdInstruction.op),
+				Ge(Gas(), sloadColdInstruction.static_gas),
+				Ge(StackSize(), sloadColdInstruction.pops),
+				Lt(StackSize(), st.MaxStackSize)),
+			Parameter: []Parameter{NumericParameter{}},
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 100
+				s.Pc++
+				key := s.Stack.Pop()
+				s.Stack.Push(s.Storage.Current[key])
+			}),
 		},
 	}...)
+
 	// pre_berlin
 	rules = append(rules, rulesFor(instruction{
 		op:         SLOAD,
@@ -523,24 +510,48 @@ var Spec = func() Specification {
 	}
 
 	rules = append(rules, tooLittleGas(instruction{op: SSTORE, static_gas: 2300, name: "_EIP2200"})...)
-	rules = append(rules, tooFewElements(instruction{op: SSTORE, static_gas: 2})...)
+	rules = append(rules, tooFewElements(instruction{op: SSTORE, static_gas: 2, pops: 2})...)
 
 	// --- JUMP ---
 
-	rules = append(rules, rulesFor(instruction{
+	// we have to do it manually for jump/jumpi so that we can call tooFewElements
+	// without both conditions IsStorageCold(Param(0)) and Lt(StackSize(), i.pops))
+	// because this would produces an ErrUnsatisfiable since it can't have stacksize
+	// of less than 1 and still constraint Param(0).
+
+	jumpInstruction := instruction{
 		op:         JUMP,
 		static_gas: 8,
 		pops:       1,
 		pushes:     0,
-		conditions: []Condition{
-			IsCode(Param(0)),
-			Eq(Op(Param(0)), JUMPDEST),
+	}
+
+	rules = append(rules, tooLittleGas(jumpInstruction)...)
+	rules = append(rules, tooFewElements(jumpInstruction)...)
+	rules = append(rules, []Rule{
+		{
+			Name: fmt.Sprintf("%s_regular%v",
+				strings.ToLower(jumpInstruction.op.String()),
+				jumpInstruction.name),
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), jumpInstruction.op),
+				Ge(Gas(), jumpInstruction.static_gas),
+				Ge(StackSize(), jumpInstruction.pops),
+				Lt(StackSize(), st.MaxStackSize),
+				IsCode(Param(0)),
+				Eq(Op(Param(0)), JUMPDEST),
+			),
+			Parameter: jumpInstruction.parameters,
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 8
+				s.Pc++
+				target := s.Stack.Pop()
+				s.Pc = uint16(target.Uint64())
+			}),
 		},
-		effect: func(s *st.State) {
-			target := s.Stack.Pop()
-			s.Pc = uint16(target.Uint64())
-		},
-	})...)
+	}...)
 
 	rules = append(rules, []Rule{
 		{
@@ -573,22 +584,39 @@ var Spec = func() Specification {
 
 	// --- JUMPI ---
 
-	rules = append(rules, rulesFor(instruction{
+	jumpiInstruction := instruction{
 		op:         JUMPI,
 		static_gas: 10,
 		pops:       2,
 		pushes:     0,
-		conditions: []Condition{
-			IsCode(Param(0)),
-			Eq(Op(Param(0)), JUMPDEST),
-			Ne(Param(1), NewU256(0)),
+	}
+
+	rules = append(rules, tooLittleGas(jumpiInstruction)...)
+	rules = append(rules, tooFewElements(jumpiInstruction)...)
+	rules = append(rules, []Rule{
+		{
+			Name: fmt.Sprintf("%s_regular%v",
+				strings.ToLower(jumpiInstruction.op.String()),
+				jumpiInstruction.name),
+			Condition: And(
+				AnyKnownRevision(),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), jumpiInstruction.op),
+				Ge(Gas(), jumpiInstruction.static_gas),
+				Ge(StackSize(), jumpiInstruction.pops),
+				Lt(StackSize(), st.MaxStackSize),
+				IsCode(Param(0)),
+				Eq(Op(Param(0)), JUMPDEST),
+				Ne(Param(1), NewU256(0))),
+			Parameter: jumpiInstruction.parameters,
+			Effect: Change(func(s *st.State) {
+				s.Gas -= 10
+				target := s.Stack.Pop()
+				s.Stack.Pop()
+				s.Pc = uint16(target.Uint64())
+			}),
 		},
-		effect: func(s *st.State) {
-			target := s.Stack.Pop()
-			s.Stack.Pop()
-			s.Pc = uint16(target.Uint64())
-		},
-	})...)
+	}...)
 
 	rules = append(rules, []Rule{
 		{
