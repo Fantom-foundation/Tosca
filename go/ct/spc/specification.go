@@ -427,6 +427,8 @@ var Spec = func() Specification {
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
+			s.Gas -= 2100
+			s.Pc++
 			key := s.Stack.Pop()
 			s.Stack.Push(s.Storage.Current[key])
 			s.Storage.MarkWarm(key)
@@ -448,6 +450,8 @@ var Spec = func() Specification {
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
+			s.Gas -= 100
+			s.Pc++
 			key := s.Stack.Pop()
 			s.Stack.Push(s.Storage.Current[key])
 		},
