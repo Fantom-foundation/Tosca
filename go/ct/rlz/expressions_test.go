@@ -129,11 +129,11 @@ func TestExpression_StackSizeRestrict(t *testing.T) {
 	generator := gen.NewStateGenerator()
 	StackSize().Restrict(4, generator)
 
-	state, err := generator.Generate(rand.New(0))
+	states, err := generator.Generate(rand.New(0))
 	if err != nil {
 		t.Errorf("State generation failed %v", err)
 	}
-	if state.Stack.Size() != 4 {
+	if states[0].Stack.Size() != 4 {
 		t.Errorf("Generator was not restricted by expression")
 	}
 }

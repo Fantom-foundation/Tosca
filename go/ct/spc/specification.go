@@ -1207,7 +1207,7 @@ func tooFewElements(i instruction) []Rule {
 // in mind when implementing the effects of new rules.
 func rulesFor(i instruction) []Rule {
 	res := []Rule{}
-	res = append(res, tooLittleGas(i)...)
+	// res = append(res, tooLittleGas(i)...)
 	if i.pops > 0 {
 		res = append(res, tooFewElements(i)...)
 	}

@@ -29,11 +29,11 @@ func TestStateGenerator_SetStatusIsEnforced(t *testing.T) {
 	for _, status := range statuses {
 		generator := NewStateGenerator()
 		generator.SetStatus(status)
-		state, err := generator.Generate(rnd)
+		states, err := generator.Generate(rnd)
 		if err != nil {
 			t.Fatalf("unexpected error during build: %v", err)
 		}
-		if want, got := status, state.Status; want != got {
+		if want, got := status, states[0].Status; want != got {
 			t.Errorf("unexpected status, wanted %d, got %d", want, got)
 		}
 	}
@@ -78,11 +78,11 @@ func TestStateGenerator_SetRevisionIsEnforced(t *testing.T) {
 	for _, revision := range revisions {
 		generator := NewStateGenerator()
 		generator.SetRevision(revision)
-		state, err := generator.Generate(rnd)
+		states, err := generator.Generate(rnd)
 		if err != nil {
 			t.Fatalf("unexpected error during build: %v", err)
 		}
-		if want, got := revision, state.Revision; want != got {
+		if want, got := revision, states[0].Revision; want != got {
 			t.Errorf("unexpected revision, wanted %d, got %d", want, got)
 		}
 	}
@@ -122,11 +122,11 @@ func TestStateGenerator_SetRevisionBoundsIsEnforced(t *testing.T) {
 	generator.SetRevisionBounds(R07_Istanbul, R09_Berlin)
 	generator.SetRevisionBounds(R09_Berlin, R10_London)
 
-	state, err := generator.Generate(rand.New(0))
+	states, err := generator.Generate(rand.New(0))
 	if err != nil {
 		t.Fatalf("unexpected error during build: %v", err)
 	}
-	if want, got := R09_Berlin, state.Revision; want != got {
+	if want, got := R09_Berlin, states[0].Revision; want != got {
 		t.Fatalf("Revision bounds not working, want %v, got %v", want, got)
 	}
 }
@@ -151,11 +151,11 @@ func TestStateGenerator_SetPcIsEnforced(t *testing.T) {
 	for _, pc := range pcs {
 		generator := NewStateGenerator()
 		generator.SetPc(pc)
-		state, err := generator.Generate(rnd)
+		states, err := generator.Generate(rnd)
 		if err != nil {
 			t.Fatalf("unexpected error during build: %v", err)
 		}
-		if want, got := pc, state.Pc; want != got {
+		if want, got := pc, states[0].Pc; want != got {
 			t.Errorf("unexpected program counter, wanted %d, got %d", want, got)
 		}
 	}
@@ -191,11 +191,11 @@ func TestStateGenerator_SetGasIsEnforced(t *testing.T) {
 	for _, gas := range gasCounts {
 		generator := NewStateGenerator()
 		generator.SetGas(gas)
-		state, err := generator.Generate(rnd)
+		states, err := generator.Generate(rnd)
 		if err != nil {
 			t.Fatalf("unexpected error during build: %v", err)
 		}
-		if want, got := gas, state.Gas; want != got {
+		if want, got := gas, states[0].Gas; want != got {
 			t.Errorf("unexpected amount of gas, wanted %d, got %d", want, got)
 		}
 	}
@@ -231,11 +231,11 @@ func TestStateGenerator_SetGasRefundIsEnforced(t *testing.T) {
 	for _, gasRefund := range gasRefundCounts {
 		generator := NewStateGenerator()
 		generator.SetGasRefund(gasRefund)
-		state, err := generator.Generate(rnd)
+		states, err := generator.Generate(rnd)
 		if err != nil {
 			t.Fatalf("unexpected error during build: %v", err)
 		}
-		if want, got := gasRefund, state.GasRefund; want != got {
+		if want, got := gasRefund, states[0].GasRefund; want != got {
 			t.Errorf("unexpected amount of gas refund, wanted %d, got %d", want, got)
 		}
 	}

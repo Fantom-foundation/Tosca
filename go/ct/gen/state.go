@@ -177,11 +177,44 @@ func (g *StateGenerator) BindIsStorageCold(key Variable) {
 	g.storageGen.BindCold(key)
 }
 
+func (g *StateGenerator) Generate(rnd *rand.Rand) ([]*st.State, error) {
+	states := []*st.State{}
+
+	newState, err := g.internalGenerate(rnd)
+	if err != nil {
+		return nil, err
+	}
+	states = append(states, newState)
+
+	// enforce PC isData and isCode
+	if len(g.pcConstantConstraints) == 0 && len(g.pcVariableConstraints) == 0 {
+		alternateState := newState.Clone()
+		findFirst := func(check func(int) bool) {
+			for i := 0; i < newState.Code.Length(); i++ {
+				if check(i) {
+					alternateState.Pc = uint16(i)
+					return
+				}
+			}
+		}
+		if newState.Code.IsCode(int(newState.Pc)) {
+			isNotCode := func(i int) bool { return !newState.Code.IsCode(i) }
+			findFirst(isNotCode)
+		} else {
+			findFirst(newState.Code.IsCode)
+		}
+		states = append(states, alternateState)
+	}
+
+	return states, nil
+}
+
 // Generate produces a State instance satisfying the constraints set on this
 // generator or returns ErrUnsatisfiable on conflicting constraints. Subsequent
 // generators are invoked automatically.
-func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
+func (g *StateGenerator) internalGenerate(rnd *rand.Rand) (*st.State, error) {
 	assignment := Assignment{}
+	// states := []*st.State{}
 
 	// Pick a status.
 	var resultStatus st.StatusCode

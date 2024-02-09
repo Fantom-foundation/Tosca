@@ -21,7 +21,8 @@ type Rule struct {
 func (rule *Rule) GenerateSatisfyingState(rnd *rand.Rand) (*st.State, error) {
 	generator := gen.NewStateGenerator()
 	rule.Condition.Restrict(generator)
-	return generator.Generate(rnd)
+	states, err := generator.Generate(rnd)
+	return states[0], err
 }
 
 // EnumerateTestCases generates interesting st.States according to this Rule.
@@ -43,7 +44,7 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) err
 	}
 
 	rule.Condition.EnumerateTestCases(gen.NewStateGenerator(), func(generator *gen.StateGenerator) {
-		state, err := generator.Generate(rnd)
+		states, err := generator.Generate(rnd)
 		if errors.Is(err, gen.ErrUnsatisfiable) {
 			return // ignored
 		}
@@ -52,7 +53,13 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) err
 			return
 		}
 
-		enumerateParameters(0, rule.Parameter, state, consume, onError, onSuccess)
+		for _, state := range states {
+			enumerateParameters(0, rule.Parameter, state, consume, onError, onSuccess)
+			if err != nil {
+				onError(err)
+				return
+			}
+		}
 	})
 
 	return accumulatedErrors, executionCount
