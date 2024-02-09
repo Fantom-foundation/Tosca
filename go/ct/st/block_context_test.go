@@ -8,30 +8,6 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
-func TestBlockContext_NewBlockContext(t *testing.T) {
-	tests := map[string]struct {
-		equal func(*BlockContext) bool
-	}{
-		"basefee":     {func(b *BlockContext) bool { want, got := NewU256(0), b.BaseFee; return want.Eq(got) }},
-		"blockNumber": {func(b *BlockContext) bool { want, got := uint64(0), b.BlockNumber; return want == got }},
-		"chainid":     {func(b *BlockContext) bool { want, got := NewU256(0), b.ChainID; return want.Eq(got) }},
-		"coinbase":    {func(b *BlockContext) bool { want, got := (Address{}), b.CoinBase; return want == got }},
-		"gasLimit":    {func(b *BlockContext) bool { want, got := uint64(0), b.GasLimit; return want == got }},
-		"gasPrice":    {func(b *BlockContext) bool { want, got := NewU256(0), b.GasPrice; return want.Eq(got) }},
-		"difficulty":  {func(b *BlockContext) bool { want, got := NewU256(0), b.Difficulty; return want.Eq(got) }},
-		"timestamp":   {func(b *BlockContext) bool { want, got := uint64(0), b.TimeStamp; return want == got }},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			blockContext := NewBlockContext()
-			if !test.equal(&blockContext) {
-				t.Error("Unexpected value in new context")
-			}
-		})
-	}
-}
-
 func TestBlockContext_Diff(t *testing.T) {
 	tests := map[string]struct {
 		change func(*BlockContext)
@@ -48,8 +24,8 @@ func TestBlockContext_Diff(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			b1 := NewBlockContext()
-			b2 := NewBlockContext()
+			b1 := BlockContext{}
+			b2 := BlockContext{}
 			test.change(&b2)
 			if diffs := b1.Diff(&b2); len(diffs) == 0 {
 				t.Error("No difference found in modified context")
@@ -74,7 +50,7 @@ func TestBlockContext_String(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			b := NewBlockContext()
+			b := BlockContext{}
 			v := test.change(&b)
 			str := b.String()
 			want := fmt.Sprintf("%v: %v", name, v)

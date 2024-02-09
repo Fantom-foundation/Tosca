@@ -63,29 +63,13 @@ func canTransferFunc(stateDB vm.StateDB, callerAddress common.Address, value *bi
 	return stateDB.GetBalance(callerAddress).Cmp(value) >= 0
 }
 
-func getSteppableEvmzero(state *st.State, stateDb vm.StateDB) (*evmzeroSteppableInterpreter, error) {
-	istanbulBlock, err := ctcommon.GetForkBlock(ctcommon.R07_Istanbul)
-	if err != nil {
-		return nil, err
-	}
-	berlinBlock, err := ctcommon.GetForkBlock(ctcommon.R09_Berlin)
-	if err != nil {
-		return nil, err
-	}
-	londonBlock, err := ctcommon.GetForkBlock(ctcommon.R10_London)
-	if err != nil {
-		return nil, err
-	}
-
-	// Set hard forks for chainconfig
-	chainConfig := &params.ChainConfig{}
-	chainConfig.ChainID = big.NewInt(0)
-	chainConfig.IstanbulBlock = big.NewInt(int64(istanbulBlock))
-	chainConfig.BerlinBlock = big.NewInt(int64(berlinBlock))
-	chainConfig.LondonBlock = big.NewInt(int64(londonBlock))
-	chainConfig.Ethash = new(params.EthashConfig)
-
+func getSteppableEvmzero(state *st.State) (*evmzeroSteppableInterpreter, error) {
 	blockCtx, txCtx := convertCtBlockContextToEvmc(state.BlockContext)
+
+	stateDb := utils.NewConformanceTestStateDb(state.Storage, state.Logs, state.Revision)
+	stateDb.AddRefund(state.GasRefund)
+
+	chainConfig := convertCtChainConfigToEvmc(state)
 
 	// Set interpreter variant for this VM
 	config := vm.Config{
@@ -185,7 +169,7 @@ func convertCtBlockContextToEvmc(blockCtx st.BlockContext) (vm.BlockContext, vm.
 		BlockNumber: big.NewInt(0).SetUint64(blockCtx.BlockNumber),
 		Time:        big.NewInt(0).SetUint64(blockCtx.TimeStamp),
 		Difficulty:  blockCtx.Difficulty.ToBigInt(),
-		BaseFee:     big.NewInt(100),
+		BaseFee:     blockCtx.BaseFee.ToBigInt(),
 	}
 
 	evmcTxCtx := vm.TxContext{
@@ -193,6 +177,10 @@ func convertCtBlockContextToEvmc(blockCtx st.BlockContext) (vm.BlockContext, vm.
 	}
 
 	return evmcBlockCtx, evmcTxCtx
+}
+
+func convertCtChainConfigToEvmc(state *st.State) *params.ChainConfig {
+	return ctcommon.GetChainConfig(state.BlockContext.ChainID.ToBigInt())
 }
 
 func CreateEvaluation(state *st.State) (e *evaluation) {
@@ -212,10 +200,7 @@ func CreateEvaluation(state *st.State) (e *evaluation) {
 		return
 	}
 
-	stateDb := utils.NewConformanceTestStateDb(state.Storage, state.Logs, state.Revision)
-	stateDb.AddRefund(state.GasRefund)
-
-	evmzero, err := getSteppableEvmzero(state, stateDb)
+	evmzero, err := getSteppableEvmzero(state)
 	if err != nil {
 		e.issues = append(e.issues, err)
 		return
@@ -334,7 +319,9 @@ func convertEvmzeroStateToCallContext(e *evaluation) st.CallContext {
 
 func convertEvmzeroStateToBlockContext(e *evaluation) st.BlockContext {
 	return st.BlockContext{
+		BaseFee:     ctcommon.NewU256FromBigInt(e.evmzero.evm.Context.BaseFee),
 		BlockNumber: e.evmzero.evm.Context.BlockNumber.Uint64(),
+		ChainID:     ctcommon.NewU256FromBigInt(e.evmzero.chainConfig.ChainID),
 		CoinBase:    (ctcommon.Address)(e.evmzero.evm.Context.Coinbase),
 		GasLimit:    e.evmzero.evm.Context.GasLimit,
 		GasPrice:    ctcommon.NewU256FromBigInt(e.evmzero.evm.TxContext.GasPrice),

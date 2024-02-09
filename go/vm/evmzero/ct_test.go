@@ -379,8 +379,10 @@ func TestConvertToEvmzero_CallContext(t *testing.T) {
 
 func TestConvertToEvmzero_BlockContext(t *testing.T) {
 	state := getEmptyState()
+	state.BlockContext.BaseFee = ct.NewU256(4)
 	state.BlockContext.BlockNumber = 5
-	state.BlockContext.CoinBase[0] = 0x06
+	state.BlockContext.ChainID = ct.NewU256(11)
+	state.BlockContext.CoinBase = ct.Address{0x06}
 	state.BlockContext.GasLimit = 7
 	state.BlockContext.GasPrice = ct.NewU256(8)
 	state.BlockContext.Difficulty = ct.NewU256(9)
@@ -391,8 +393,14 @@ func TestConvertToEvmzero_BlockContext(t *testing.T) {
 		t.Fatalf("failed to convert ct state to evmzero: %v", errors.Join(evmzeroEvaluation.issues...))
 	}
 
+	if want, got := big.NewInt(4), evmzeroEvaluation.evmzero.evm.Context.BaseFee; want.Cmp(got) != 0 {
+		t.Errorf("unexpected base fee. wanted %v, got %v", want, got)
+	}
 	if want, got := big.NewInt(5), evmzeroEvaluation.evmzero.evm.Context.BlockNumber; want.Cmp(got) != 0 {
 		t.Errorf("unexpected block number. wanted %v, got %v", want, got)
+	}
+	if want, got := big.NewInt(11), evmzeroEvaluation.evmzero.chainConfig.ChainID; want.Cmp(got) != 0 {
+		t.Errorf("unexpected chain ID. wanted %v, got %v", want, got)
 	}
 	if want, got := (common.Address{0x06}), evmzeroEvaluation.evmzero.evm.Context.Coinbase; want != got {
 		t.Errorf("unexpected coinbase. wanted %v, got %v", want, got)
@@ -747,7 +755,9 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 		t.Fatalf("failed to convert ct state to evmzero: %v", errors.Join(evmzeroEvaluation.issues...))
 	}
 
+	evmzeroEvaluation.evmzero.evm.Context.BaseFee = big.NewInt(254)
 	evmzeroEvaluation.evmzero.evm.Context.BlockNumber = big.NewInt(255)
+	evmzeroEvaluation.evmzero.chainConfig.ChainID = big.NewInt(256)
 	evmzeroEvaluation.evmzero.evm.Context.Coinbase = common.Address{0xfe}
 	evmzeroEvaluation.evmzero.evm.Context.GasLimit = uint64(253)
 	evmzeroEvaluation.evmzero.evm.TxContext.GasPrice = big.NewInt(252)
@@ -764,8 +774,14 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 		t.Fatalf("failed to convert evmzero to ct state: %v", err)
 	}
 
+	if want, got := ct.NewU256(254), state.BlockContext.BaseFee; !want.Eq(got) {
+		t.Errorf("unexpected base fee, wanted %v, got %v", want, got)
+	}
 	if want, got := uint64(255), state.BlockContext.BlockNumber; want != got {
 		t.Errorf("unexpected block number, wanted %v, got %v", want, got)
+	}
+	if want, got := ct.NewU256(256), state.BlockContext.ChainID; !want.Eq(got) {
+		t.Errorf("unexpected chain ID, wanted %v, got %v", want, got)
 	}
 	if want, got := (ct.Address{0xfe}), state.BlockContext.CoinBase; want != got {
 		t.Errorf("unexpected coinbase, wanted %v, got %v", want, got)

@@ -17,26 +17,25 @@ func NewCallContextGenerator() *CallContextGenerator {
 func (*CallContextGenerator) Generate(rnd *rand.Rand) (st.CallContext, error) {
 	accountAddress, err := common.RandAddress(rnd)
 	if err != nil {
-		return st.NewCallContext(), err
+		return st.CallContext{}, err
 	}
 
 	originAddress, err := common.RandAddress(rnd)
 	if err != nil {
-		return st.NewCallContext(), err
+		return st.CallContext{}, err
 	}
 
 	callerAddress, err := common.RandAddress(rnd)
 	if err != nil {
-		return st.NewCallContext(), err
+		return st.CallContext{}, err
 	}
 
-	newCC := st.NewCallContext()
-	newCC.AccountAddress = accountAddress
-	newCC.OriginAddress = originAddress
-	newCC.CallerAddress = callerAddress
-	newCC.Value = common.RandU256(rnd)
-
-	return newCC, nil
+	return st.CallContext{
+		AccountAddress: accountAddress,
+		OriginAddress:  originAddress,
+		CallerAddress:  callerAddress,
+		Value:          common.RandU256(rnd),
+	}, nil
 }
 
 func (*CallContextGenerator) Clone() *CallContextGenerator {

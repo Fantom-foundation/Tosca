@@ -90,26 +90,25 @@ func getChainConfigIfNotNil(c *params.ChainConfig) *params.ChainConfig {
 }
 
 func convertLfvmContextToCtCallContext(ctx *context) st.CallContext {
-	newCC := st.NewCallContext()
-	newCC.AccountAddress = (ct.Address)(ctx.contract.Address())
-	newCC.CallerAddress = (ct.Address)(ctx.contract.CallerAddress)
-	newCC.Value = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.contract.Value()))
-	newCC.OriginAddress = (ct.Address)(ctx.evm.Origin)
-	return newCC
+	return st.CallContext{
+		AccountAddress: (ct.Address)(ctx.contract.Address()),
+		OriginAddress:  (ct.Address)(ctx.evm.Origin),
+		CallerAddress:  (ct.Address)(ctx.contract.CallerAddress),
+		Value:          ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.contract.Value())),
+	}
 }
 
 func convertLfvmContextToCtBlockContextt(ctx *context) st.BlockContext {
-	newBC := st.NewBlockContext()
-	newBC.BaseFee = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.Context.BaseFee))
-	newBC.BlockNumber = getBigIntIfNotNil(ctx.evm.Context.BlockNumber).Uint64()
-	chainConfig := getChainConfigIfNotNil(ctx.evm.ChainConfig())
-	newBC.ChainID = ct.NewU256FromBigInt(getBigIntIfNotNil(chainConfig.ChainID))
-	newBC.CoinBase = (ct.Address)(ctx.evm.Context.Coinbase)
-	newBC.GasLimit = ctx.evm.Context.GasLimit
-	newBC.GasPrice = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.GasPrice))
-	newBC.Difficulty = ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.Context.Difficulty))
-	newBC.TimeStamp = getBigIntIfNotNil(ctx.evm.Context.Time).Uint64()
-	return newBC
+	return st.BlockContext{
+		BaseFee:     ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.Context.BaseFee)),
+		BlockNumber: getBigIntIfNotNil(ctx.evm.Context.BlockNumber).Uint64(),
+		ChainID:     ct.NewU256FromBigInt(getBigIntIfNotNil(getChainConfigIfNotNil(ctx.evm.ChainConfig()).ChainID)),
+		CoinBase:    (ct.Address)(ctx.evm.Context.Coinbase),
+		GasLimit:    ctx.evm.Context.GasLimit,
+		GasPrice:    ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.GasPrice)),
+		Difficulty:  ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.Context.Difficulty)),
+		TimeStamp:   getBigIntIfNotNil(ctx.evm.Context.Time).Uint64(),
+	}
 }
 
 func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcMap) (*st.State, error) {
@@ -286,32 +285,8 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 	return &ctx, nil
 }
 
-func convertCtChainConfigToLfvm(state *st.State) (*params.ChainConfig, error) {
-	return getChainConfig(state.BlockContext.ChainID.ToBigInt())
-}
-
-func getChainConfig(chainId *big.Int) (*params.ChainConfig, error) {
-	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
-	if err != nil {
-		return nil, fmt.Errorf("could not get IstanbulBlock. %v", err)
-	}
-	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
-	if err != nil {
-		return nil, fmt.Errorf("could not get BerlinBlock. %v", err)
-	}
-	londonBlock, err := ct.GetForkBlock(ct.R10_London)
-	if err != nil {
-		return nil, fmt.Errorf("could not get LondonBlock. %v", err)
-	}
-
-	chainConfig := &params.ChainConfig{}
-	chainConfig.ChainID = chainId
-	chainConfig.IstanbulBlock = big.NewInt(0).SetUint64(istanbulBlock)
-	chainConfig.BerlinBlock = big.NewInt(0).SetUint64(berlinBlock)
-	chainConfig.LondonBlock = big.NewInt(0).SetUint64(londonBlock)
-	chainConfig.Ethash = new(params.EthashConfig)
-
-	return chainConfig, nil
+func convertCtChainConfigToLfvm(state *st.State) *params.ChainConfig {
+	return ct.GetChainConfig(state.BlockContext.ChainID.ToBigInt())
 }
 
 func convertCtBlockContextToLfvm(ctBlock st.BlockContext) (vm.BlockContext, vm.TxContext) {
@@ -333,10 +308,7 @@ func convertCtBlockContextToLfvm(ctBlock st.BlockContext) (vm.BlockContext, vm.T
 }
 
 func getLfvmEvm(state *st.State, stateDB vm.StateDB) (*vm.EVM, error) {
-	chainConfig, err := convertCtChainConfigToLfvm(state)
-	if err != nil {
-		return nil, err
-	}
+	chainConfig := convertCtChainConfigToLfvm(state)
 
 	blockCtx, txCtx := convertCtBlockContextToLfvm(state.BlockContext)
 	txCtx.Origin = (common.Address)(state.CallContext.OriginAddress)

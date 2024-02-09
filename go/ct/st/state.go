@@ -58,15 +58,13 @@ type State struct {
 // NewState creates a new State instance with the given code.
 func NewState(code *Code) *State {
 	return &State{
-		Status:       Running,
-		Revision:     R07_Istanbul,
-		Code:         code,
-		Stack:        NewStack(),
-		Memory:       NewMemory(),
-		Storage:      NewStorage(),
-		Logs:         NewLogs(),
-		CallContext:  NewCallContext(),
-		BlockContext: NewBlockContext(),
+		Status:   Running,
+		Revision: R07_Istanbul,
+		Code:     code,
+		Stack:    NewStack(),
+		Memory:   NewMemory(),
+		Storage:  NewStorage(),
+		Logs:     NewLogs(),
 	}
 }
 

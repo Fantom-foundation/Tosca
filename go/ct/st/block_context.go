@@ -11,16 +11,11 @@ type BlockContext struct {
 	BaseFee     U256    // Base fee in wei
 	BlockNumber uint64  // Block's number
 	ChainID     U256    // Chain id of the network
-	CoinBase    Address // Address of the block's benficiary
+	CoinBase    Address // Address of the block's beneficiary
 	GasLimit    uint64  // Block's gas limit
 	GasPrice    U256    // Price of gas in current environment
 	Difficulty  U256    // Current block's difficulty
 	TimeStamp   uint64  // Block's timestamp in unix time in seconds
-}
-
-// NewBlockContext returns a newly created instance with all default values.
-func NewBlockContext() BlockContext {
-	return BlockContext{}
 }
 
 // Diff returns a list of differences between the two contexts
