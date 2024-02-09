@@ -356,10 +356,10 @@ var Spec = func() Specification {
 
 	// --- SLOAD ---
 
-	// we have to do it manually for cold/warm so that we can call tooFewElements
-	// without both conditions IsStorageCold(Param(0)) and Lt(StackSize(), i.pops))
-	// because this would produces an ErrUnsatisfiable since it can't have stacksize
-	// of less than 1 and still constraint Param(0).
+	// The following rules are constructed manually instead of calling `rulesFor`,
+	// because they put constraints on specific stack elements, which is not compatible
+	// with `tooFewElements`, because this would result in an unsatisfiable state, since
+	// it adds a constraint that there should not be any stack elements.
 
 	// cold
 	sloadColdInstruction := instruction{
@@ -514,10 +514,10 @@ var Spec = func() Specification {
 
 	// --- JUMP ---
 
-	// we have to do it manually for jump/jumpi so that we can call tooFewElements
-	// without both conditions IsStorageCold(Param(0)) and Lt(StackSize(), i.pops))
-	// because this would produces an ErrUnsatisfiable since it can't have stacksize
-	// of less than 1 and still constraint Param(0).
+	// The following rules are constructed manually instead of calling `rulesFor`,
+	// because they put constraints on specific stack elements, which is not compatible
+	// with `tooFewElements`, because this would result in an unsatisfiable state, since
+	// it adds a constraint that there should not be any stack elements.
 
 	jumpInstruction := instruction{
 		op:         JUMP,

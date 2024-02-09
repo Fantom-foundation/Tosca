@@ -113,10 +113,10 @@ func doRun(context *cli.Context) error {
 			for rule := range ruleCh {
 				tstart := time.Now()
 
-				errs, executionCount := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
+				errs, enumerationCount := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
 					if applies, err := rule.Condition.Check(state); !applies || err != nil {
 						if err == nil {
-							err = rlz.ErrUnapplicable
+							err = rlz.ErrInapplicable
 						}
 						return err
 					}
@@ -148,8 +148,8 @@ func doRun(context *cli.Context) error {
 					return nil
 				})
 
-				if executionCount == 0 {
-					errs = append(errs, rlz.ErrNoExecution)
+				if enumerationCount == 0 {
+					errs = append(errs, rlz.ErrNoEnumeration)
 				}
 
 				ok := "OK"
@@ -172,7 +172,7 @@ func doRun(context *cli.Context) error {
 
 				mutex.Lock()
 				{
-					fmt.Printf("%v: (rules executed: %v) %v (%v)\n", ok, executionCount, rule, time.Since(tstart).Round(10*time.Millisecond))
+					fmt.Printf("%v: (rules enumerated: %v) %v (%v)\n", ok, enumerationCount, rule, time.Since(tstart).Round(10*time.Millisecond))
 
 					if err != nil {
 						fmt.Println(err)

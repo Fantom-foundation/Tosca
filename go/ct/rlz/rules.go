@@ -36,10 +36,10 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) err
 		}
 	}
 
-	executionCount := 0
+	enumerationCount := 0
 
 	onSuccess := func() {
-		executionCount++
+		enumerationCount++
 	}
 
 	rule.Condition.EnumerateTestCases(gen.NewStateGenerator(), func(generator *gen.StateGenerator) {
@@ -55,7 +55,7 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) err
 		enumerateParameters(0, rule.Parameter, state, consume, onError, onSuccess)
 	})
 
-	return accumulatedErrors, executionCount
+	return accumulatedErrors, enumerationCount
 }
 
 func enumerateParameters(pos int, params []Parameter, state *st.State, consume func(*st.State) error, onError func(error), onSuccess func()) {
