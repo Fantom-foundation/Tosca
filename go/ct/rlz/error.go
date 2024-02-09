@@ -1,9 +1,9 @@
 package rlz
 
-import "errors"
+import "github.com/Fantom-foundation/Tosca/go/ct/common"
 
-var ErrNoExecution = errors.New("NO STATE FULFILLED ALL CONDITIONS")
-var ErrSkipped = errors.New("Skipped test")
-var ErrUnapplicable = errors.New("State does not apply")
+var ErrNoEnumeration = common.ConstErr("None of the generated states fulfilled all the conditions")
+var ErrSkipped = common.ConstErr("Skipped test")
+var ErrInapplicable = common.ConstErr("State does not apply")
 
-var IgnoredErrors []error = []error{ErrSkipped, ErrUnapplicable}
+var IgnoredErrors []error = []error{ErrSkipped, ErrInapplicable}
