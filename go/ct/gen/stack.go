@@ -169,7 +169,7 @@ func (g *StackGenerator) Restore(other *StackGenerator) {
 func (g *StackGenerator) String() string {
 	var parts []string
 
-	if g.minSize != 0 || g.maxSize != 1024 {
+	if g.minSize != 0 || g.maxSize != st.MaxStackSize {
 		parts = append(parts, fmt.Sprintf("%d≤size≤%d", g.minSize, g.maxSize))
 	}
 
