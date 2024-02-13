@@ -88,7 +88,13 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 		minSize += size
 	}
 
-	size := int(rnd.Int31n(int32(24576+1-minSize))) + minSize
+	// We use an exponential distribution for the code size here since long codes
+	// extend the runtime but are expected the reveal limited extra code coverage.
+	const expectedSize float64 = 200
+	size := int(rnd.ExpFloat64()/(1/expectedSize)) + minSize
+	if size > 24576 {
+		size = 24576
+	}
 
 	ops := slices.Clone(g.constOps)
 
