@@ -9,25 +9,22 @@ import (
 
 func TestCallContextGen_Generate(t *testing.T) {
 	rnd := rand.New(0)
-	callctxGen := NewCallContextGenerator()
-	newCC, err := callctxGen.Generate(rnd)
+	callCtxGen := NewCallContextGenerator()
+	callCtx, err := callCtxGen.Generate(rnd)
 	if err != nil {
 		t.Errorf("Error generating call context: %v", err)
 	}
 
-	if newCC.AccountAddress == (common.Address{}) {
+	if callCtx.AccountAddress == (common.Address{}) {
 		t.Errorf("Generated account address has default value.")
 	}
-
-	if newCC.OriginAddress == (common.Address{}) {
+	if callCtx.OriginAddress == (common.Address{}) {
 		t.Errorf("Generated origin address has default value.")
 	}
-
-	if newCC.CallerAddress == (common.Address{}) {
+	if callCtx.CallerAddress == (common.Address{}) {
 		t.Errorf("Generated caller address has default value.")
 	}
-
-	if newCC.Value.Eq(common.NewU256(0)) {
+	if callCtx.Value.Eq(common.NewU256(0)) {
 		t.Errorf("Generated call value has default value.")
 	}
 }

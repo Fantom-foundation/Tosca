@@ -26,6 +26,86 @@ type EvmcVM struct {
 	vm *evmc.VM
 }
 
+type EvmcVMSteppable struct {
+	vm *evmc.VMSteppable
+}
+
+type EvmcSteppableInterpreter struct {
+	evmc        *EvmcVMSteppable
+	interpreter *EvmcInterpreter
+}
+
+// NewEvmcSteppableInterpreter instantiates an interpreter with the given evm and config.
+func NewEvmcSteppableInterpreter(vm *EvmcVMSteppable, evm *vm.EVM, cfg vm.Config) *EvmcSteppableInterpreter {
+	return &EvmcSteppableInterpreter{
+		evmc: vm,
+		interpreter: &EvmcInterpreter{
+			evmc: (*EvmcVM)(vm.vm.GetBaseHandle()),
+			evm:  evm,
+			cfg:  cfg,
+		},
+	}
+}
+
+func (e *EvmcSteppableInterpreter) StepN(contract *vm.Contract, revision evmc.Revision, gasRefund uint64, input []byte, stepStatus evmc.StepStatus, pc uint64, stack []byte, memory []byte, numSteps int) (evmc.StepResult, error) {
+	host_ctx := HostContext{
+		evm:         e.interpreter.evm,
+		interpreter: e.interpreter,
+		contract:    contract,
+	}
+
+	// The EVMC binding uses int64 to represent gas values while Geth utilizes
+	// uint64. Thus, everything larger than math.MaxInt64 will lead to negative
+	// values after the conversion. However, in practice, gas limits should be
+	// way below MaxInt64, which would by 2^63-1 gas units -- an equivalent of
+	// 10 days processing if 10.000 gas/ns would get burned. It would also cost
+	// more than 10 Billion FTM (assuming 1 Gwei/gas, which is usally >100) to
+	// run this contract, which is > 3x more than there is in existence.
+	// The assumption is that gas endowments > MaxInt64 are test cases.
+	gasBefore := int64(contract.Gas)
+	if contract.Gas > math.MaxInt64 {
+		gasBefore = math.MaxInt64
+	}
+	gasRefundBefore := int64(gasRefund)
+	if gasRefund > math.MaxInt64 {
+		gasRefundBefore = math.MaxInt64
+	}
+
+	value, err := bigIntToHash(contract.Value())
+	if err != nil {
+		panic(fmt.Sprintf("Could not convert value: %v", err))
+	}
+
+	codeHash := evmc.Hash(contract.CodeHash)
+
+	params := evmc.StepParameters{
+		Context:        &host_ctx,
+		Revision:       revision,
+		Kind:           evmc.Call,
+		Static:         false,
+		Depth:          e.interpreter.evm.Depth - 1,
+		Gas:            gasBefore,
+		GasRefund:      gasRefundBefore,
+		Recipient:      evmc.Address(contract.Address()),
+		Sender:         evmc.Address(contract.Caller()),
+		Input:          input,
+		Value:          value,
+		CodeHash:       &codeHash,
+		Code:           contract.Code,
+		StepStatusCode: stepStatus,
+		Pc:             pc,
+		Stack:          stack,
+		Memory:         memory,
+		NumSteps:       numSteps,
+	}
+
+	return e.evmc.vm.StepN(params)
+}
+
+func (e *EvmcSteppableInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool) (ret []byte, err error) {
+	return e.interpreter.Run(contract, input, readOnly)
+}
+
 // LoadEvmcVM attempts to load an EVM implementation from a given library.
 // The `library` parameter should name the library file, while the actual
 // path to the library should be enforced using an rpath (see evmone
@@ -36,6 +116,18 @@ func LoadEvmcVM(library string) (*EvmcVM, error) {
 		return nil, err
 	}
 	return &EvmcVM{vm: vm}, nil
+}
+
+// LoadEvmcVMSteppable attempts to load an EVM implementation from a given library.
+// The `library` parameter should name the library file, while the actual
+// path to the library should be enforced using an rpath (see evmone
+// implementation for an example).
+func LoadEvmcVMSteppable(library string) (*EvmcVMSteppable, error) {
+	vm, err := evmc.LoadSteppable(library)
+	if err != nil {
+		return nil, err
+	}
+	return &EvmcVMSteppable{vm: vm}, nil
 }
 
 // SetOption enables the configuration of implementation specific options.

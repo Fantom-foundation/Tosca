@@ -15,16 +15,15 @@ func NewBlockContextGenerator() *BlockContextGenerator {
 }
 
 func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision) (st.BlockContext, error) {
-
 	baseFee := common.RandU256(rnd)
 
 	revisionNumber, err := common.GetForkBlock(revision)
 	if err != nil {
-		return st.NewBlockContext(), err
+		return st.BlockContext{}, err
 	}
 	revisionNumberRange, err := common.GetBlockRangeLengthFor(revision)
 	if err != nil {
-		return st.NewBlockContext(), err
+		return st.BlockContext{}, err
 	}
 	var randomOffset uint64
 	if revisionNumberRange != 0 {
@@ -37,7 +36,7 @@ func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision)
 	chainId := common.RandU256(rnd)
 	coinbase, err := common.RandAddress(rnd)
 	if err != nil {
-		return st.NewBlockContext(), err
+		return st.BlockContext{}, err
 	}
 	gasLimit := rnd.Uint64()
 	gasPrice := common.RandU256(rnd)
@@ -45,17 +44,16 @@ func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision)
 	difficulty := common.RandU256(rnd)
 	timestamp := rnd.Uint64()
 
-	newBC := st.NewBlockContext()
-	newBC.BaseFee = baseFee
-	newBC.BlockNumber = blockNumber
-	newBC.ChainID = chainId
-	newBC.CoinBase = coinbase
-	newBC.GasLimit = gasLimit
-	newBC.GasPrice = gasPrice
-	newBC.Difficulty = difficulty
-	newBC.TimeStamp = timestamp
-
-	return newBC, nil
+	return st.BlockContext{
+		BaseFee:     baseFee,
+		BlockNumber: blockNumber,
+		ChainID:     chainId,
+		CoinBase:    coinbase,
+		GasLimit:    gasLimit,
+		GasPrice:    gasPrice,
+		Difficulty:  difficulty,
+		TimeStamp:   timestamp,
+	}, nil
 }
 
 func (*BlockContextGenerator) Clone() *BlockContextGenerator {

@@ -5,8 +5,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
-type ctAdapter struct {
-}
+type ctAdapter struct{}
 
 func NewConformanceTestingTarget() ct.Evm {
 	return ctAdapter{}

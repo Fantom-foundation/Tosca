@@ -377,16 +377,17 @@ func TestConvertToLfvm_callContext(t *testing.T) {
 }
 
 func TestConvertToLfvm_BlockContext(t *testing.T) {
-	state := getEmptyState()
-	state.BlockContext.BlockNumber = 5
-	state.BlockContext.CoinBase[0] = 0x06
-	state.BlockContext.GasLimit = 7
-	state.BlockContext.GasPrice = ct.NewU256(8)
-	state.BlockContext.Difficulty = ct.NewU256(9)
-	state.BlockContext.TimeStamp = 10
-	state.BlockContext.BaseFee = ct.NewU256(11)
+	blockCtx := st.BlockContext{
+		BaseFee:     ct.NewU256(11),
+		BlockNumber: 5,
+		CoinBase:    ct.Address{0x06},
+		GasLimit:    7,
+		GasPrice:    ct.NewU256(8),
+		Difficulty:  ct.NewU256(9),
+		TimeStamp:   10,
+	}
 
-	lfvmBlockContext, lfvmTxContext := convertCtBlockContextToLfvm(state.BlockContext)
+	lfvmBlockContext, lfvmTxContext := convertCtBlockContextToLfvm(blockCtx)
 
 	if want, got := big.NewInt(5), lfvmBlockContext.BlockNumber; want.Cmp(got) != 0 {
 		t.Errorf("unexpected block number. wanted %v, got %v", want, got)
@@ -408,20 +409,6 @@ func TestConvertToLfvm_BlockContext(t *testing.T) {
 	}
 	if want, got := big.NewInt(11), lfvmBlockContext.BaseFee; want.Cmp(got) != 0 {
 		t.Errorf("unexpected base fee. wanted %v, got %v", want, got)
-	}
-}
-
-func TestConvertToLfvm_ChainConfig(t *testing.T) {
-	state := getEmptyState()
-	state.BlockContext.ChainID = ct.NewU256(1)
-
-	chainConfig, err := convertCtChainConfigToLfvm(state)
-	if err != nil {
-		t.Fatalf("failed to convert ct state to lfvm chain config: %v", err)
-	}
-
-	if want, got := big.NewInt(1), chainConfig.ChainID; want.Cmp(got) != 0 {
-		t.Errorf("Unexpected chain id. wanted: %v, got %v", want, got)
 	}
 }
 
@@ -677,55 +664,47 @@ func TestConvertToCt_CallContext(t *testing.T) {
 func TestConvertToCt_BlockContext(t *testing.T) {
 	ctx := getEmptyContext()
 
-	newBlockNumber := big.NewInt(255)
-	newCoinBase := vm.AccountRef{0xfe}
-	newGasLimit := uint64(253)
-	newGasPrice := big.NewInt(252)
-	newDifficulty := big.NewInt(251)
-	newTimestamp := big.NewInt(250)
-	newBaseFee := big.NewInt(249)
-	newChainID := big.NewInt(248)
-
-	chainConfig, err := getChainConfig(newChainID)
-	if err != nil {
-		t.Error(err)
-	}
+	chainConfig := ct.GetChainConfig(big.NewInt(248))
 
 	ctx.evm = vm.NewEVM(
 		vm.BlockContext{
-			BaseFee:     newBaseFee,
-			BlockNumber: newBlockNumber,
-			Coinbase:    newCoinBase.Address(),
-			GasLimit:    newGasLimit,
-			Difficulty:  newDifficulty,
-			Time:        newTimestamp,
+			Coinbase:    common.Address{0xfe},
+			GasLimit:    253,
+			BlockNumber: big.NewInt(255),
+			Time:        big.NewInt(250),
+			Difficulty:  big.NewInt(251),
+			BaseFee:     big.NewInt(249),
 		},
-		vm.TxContext{GasPrice: newGasPrice},
+		vm.TxContext{
+			GasPrice: big.NewInt(252),
+		},
 		ctx.stateDB,
-		chainConfig, vm.Config{})
+		chainConfig,
+		vm.Config{},
+	)
 
 	blockContext := convertLfvmContextToCtBlockContextt(&ctx)
 
-	if want, got := uint64(255), blockContext.BlockNumber; want != got {
-		t.Errorf("unexpected block number, wanted %v, got %v", want, got)
-	}
 	if want, got := (ct.Address{0xfe}), blockContext.CoinBase; want != got {
 		t.Errorf("unexpected coinbase, wanted %v, got %v", want, got)
 	}
 	if want, got := uint64(253), blockContext.GasLimit; want != got {
 		t.Errorf("unexpected gas limit, wanted %v, got %v", want, got)
 	}
-	if want, got := ct.NewU256(252), blockContext.GasPrice; !want.Eq(got) {
-		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
-	}
-	if want, got := ct.NewU256(251), blockContext.Difficulty; !want.Eq(got) {
-		t.Errorf("unexpected difficulty, wanted %v, got %v", want, got)
+	if want, got := uint64(255), blockContext.BlockNumber; want != got {
+		t.Errorf("unexpected block number, wanted %v, got %v", want, got)
 	}
 	if want, got := uint64(250), blockContext.TimeStamp; want != got {
 		t.Errorf("unexpected timestamp, wanted %v, got %v", want, got)
 	}
+	if want, got := ct.NewU256(251), blockContext.Difficulty; !want.Eq(got) {
+		t.Errorf("unexpected difficulty, wanted %v, got %v", want, got)
+	}
 	if want, got := ct.NewU256(249), blockContext.BaseFee; !want.Eq(got) {
 		t.Errorf("unexpected base fee, wanted %v, got %v", want, got)
+	}
+	if want, got := ct.NewU256(252), blockContext.GasPrice; !want.Eq(got) {
+		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
 	}
 	if want, got := ct.NewU256(248), blockContext.ChainID; !want.Eq(got) {
 		t.Errorf("unexpected chainid, wanted %v, got %v", want, got)

@@ -14,10 +14,6 @@ type CallContext struct {
 	Value          U256    // Deposited value by the instruction/transaction responsible for this execution
 }
 
-func NewCallContext() CallContext {
-	return CallContext{}
-}
-
 // Diff returns a list of differences between the two call contexts.
 func (c *CallContext) Diff(other *CallContext) []string {
 	ret := []string{}

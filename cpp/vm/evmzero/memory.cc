@@ -9,6 +9,11 @@ Memory::Memory(std::initializer_list<uint8_t> init) : memory_(init) {
   memory_.resize(((init.size() + 31) / 32) * 32);
 }
 
+Memory::Memory(std::span<const uint8_t> init) : memory_(init.begin(), init.end()) {
+  // Ensure size is a multiple of 32.
+  memory_.resize(((init.size() + 31) / 32) * 32);
+}
+
 std::ostream& operator<<(std::ostream& out, const Memory& memory) {
   const auto flag_backup = out.flags();
   out << std::hex;

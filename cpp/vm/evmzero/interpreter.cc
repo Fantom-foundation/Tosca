@@ -97,6 +97,39 @@ template InterpreterResult Interpret<Profiler<ProfilerMode::kExternal>>(const In
                                                                         Profiler<ProfilerMode::kExternal>&);
 template InterpreterResult Interpret<Logger>(const InterpreterArgs&, Logger&);
 
+SteppingResult InterpretNSteps(const SteppingArgs& args) {
+  evmc::HostContext host(*args.host_interface, args.host_context);
+
+  internal::Context ctx{
+      .state = args.state,
+      .is_static_call = static_cast<bool>(args.message->flags & EVMC_STATIC),
+      .pc = args.pc,
+      .gas = args.message->gas,
+      .gas_refunds = args.gas_refunds,
+      .padded_code = args.padded_code,
+      .valid_jump_targets = args.valid_jump_targets,
+      .memory = std::move(args.memory),
+      .stack = args.stack,
+      .message = args.message,
+      .host = &host,
+      .revision = args.revision,
+      .sha3_cache = args.sha3_cache,
+  };
+
+  auto no_observer = NoObserver{};
+  internal::RunInterpreter<NoObserver, true>(ctx, no_observer, args.steps);
+
+  auto res = SteppingResult{};
+  res.state = ctx.state;
+  res.remaining_gas = ctx.gas;
+  res.refunded_gas = ctx.gas_refunds;
+  res.return_data = ctx.return_data;
+  res.pc = ctx.pc;
+  res.stack = ctx.stack;
+  res.memory = std::move(ctx.memory);
+  return res;
+}
+
 ///////////////////////////////////////////////////////////
 
 namespace op {
@@ -1882,10 +1915,7 @@ end:
       top = ctx.stack.Top();
     }
 
-    if (state == RunState::kDone       //
-        || state == RunState::kReturn  //
-        || state == RunState::kRevert  //
-        || state == RunState::kRunning) {
+    if (IsSuccess(state) || state == RunState::kRunning) {
       ctx.gas = gas;
     } else {
       ctx.gas = 0;

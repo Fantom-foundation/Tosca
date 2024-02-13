@@ -8,26 +8,6 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
-func TestCallContext_NewCallContext(t *testing.T) {
-	tests := map[string]struct {
-		equal func(*CallContext) bool
-	}{
-		"AccountAddress": {func(c *CallContext) bool { want, got := (Address{}), c.AccountAddress; return want == got }},
-		"OriginAddress":  {func(c *CallContext) bool { want, got := (Address{}), c.OriginAddress; return want == got }},
-		"CallerAddress":  {func(c *CallContext) bool { want, got := (Address{}), c.CallerAddress; return want == got }},
-		"Value":          {func(c *CallContext) bool { want, got := (NewU256()), c.Value; return want.Eq(got) }},
-	}
-
-	callContext := NewCallContext()
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			if !test.equal(&callContext) {
-				t.Error("Unexpected value in new context")
-			}
-		})
-	}
-}
-
 func TestCallContext_Diff(t *testing.T) {
 	tests := map[string]struct {
 		change func(*CallContext)
@@ -38,10 +18,10 @@ func TestCallContext_Diff(t *testing.T) {
 		"Value":           {func(c *CallContext) { c.Value = NewU256(1) }},
 	}
 
-	callContext := NewCallContext()
+	callContext := CallContext{}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			c2 := NewCallContext()
+			c2 := CallContext{}
 			test.change(&c2)
 			if diffs := callContext.Diff(&c2); len(diffs) == 0 {
 				t.Errorf("No difference found in modified %v", name)
@@ -60,7 +40,7 @@ func TestCallContext_String(t *testing.T) {
 		"Value":           {func(c *CallContext) any { c.Value = NewU256(1); return c.Value }},
 	}
 
-	c := NewCallContext()
+	c := CallContext{}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			v := test.change(&c)
