@@ -92,8 +92,8 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 	// extend the runtime but are expected to reveal limited extra code coverage.
 	const expectedSize float64 = 200
 	size := int(rnd.ExpFloat64()/(1/expectedSize)) + minSize
-	if size > 24576 {
-		size = 24576
+	if size > st.MaxCodeSize {
+		size = st.MaxCodeSize
 	}
 
 	ops := slices.Clone(g.constOps)
