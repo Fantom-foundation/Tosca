@@ -289,7 +289,8 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone1.SetGas(5)
 	clone1.SetGasRefund(6)
 	clone1.SetCodeOperation(20, ADD)
-	clone1.SetStackSize(2)
+	clone1.SetMinStackSize(2)
+	clone1.SetMaxStackSize(200)
 
 	clone2 := base.Clone()
 	clone2.SetStatus(st.Running)
@@ -297,14 +298,15 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone2.SetGas(7)
 	clone2.SetGasRefund(8)
 	clone2.SetCodeOperation(30, ADD)
-	clone2.SetStackSize(3)
+	clone2.SetMinStackSize(3)
+	clone2.SetMaxStackSize(300)
 
-	want := "{status=reverted,revision=London,pc=4,gas=5,gasRefund=6,code={op[20]=ADD},stack={size=2},memory={},storage={},callcontext={},blockcontext={}}"
+	want := "{status=reverted,revision=London,pc=4,gas=5,gasRefund=6,code={op[20]=ADD},stack={2≤size≤200},memory={},storage={},callcontext={},blockcontext={}}"
 	if got := clone1.String(); want != got {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
 
-	want = "{status=running,revision=Berlin,pc=4,gas=7,gasRefund=8,code={op[30]=ADD},stack={size=3},memory={},storage={},callcontext={},blockcontext={}}"
+	want = "{status=running,revision=Berlin,pc=4,gas=7,gasRefund=8,code={op[30]=ADD},stack={3≤size≤300},memory={},storage={},callcontext={},blockcontext={}}"
 	if got := clone2.String(); want != got {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}

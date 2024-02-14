@@ -478,7 +478,7 @@ var Spec = func() Specification {
 	}
 
 	rules = append(rules, tooLittleGas(instruction{op: SSTORE, static_gas: 2300, name: "_EIP2200"})...)
-	rules = append(rules, tooFewElements(instruction{op: SSTORE, static_gas: 2})...)
+	rules = append(rules, tooFewElements(instruction{op: SSTORE, static_gas: 2, pops: 2})...)
 
 	// --- JUMP ---
 
@@ -1115,7 +1115,7 @@ func notEnoughSpace(i instruction) []Rule {
 }
 
 func tooFewElements(i instruction) []Rule {
-	localConditions := append(i.conditions,
+	localConditions := append([]Condition{},
 		AnyKnownRevision(),
 		Eq(Status(), st.Running),
 		Eq(Op(Pc()), i.op),
@@ -1147,8 +1147,9 @@ func rulesFor(i instruction) []Rule {
 		Eq(Op(Pc()), i.op),
 		Ge(Gas(), i.static_gas),
 		Ge(StackSize(), i.pops),
-		Lt(StackSize(), st.MaxStackSize-(max(i.pushes-i.pops, 0))),
+		Le(StackSize(), st.MaxStackSize-(max(i.pushes-i.pops, 0))),
 	)
+
 	res = append(res, []Rule{
 		{
 			Name:      fmt.Sprintf("%s_regular%v", strings.ToLower(i.op.String()), i.name),

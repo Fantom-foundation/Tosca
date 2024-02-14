@@ -11,6 +11,10 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
+// MaxCodeSize is the maximum size of a contract stored on a Ethereum
+// compatible block chain.
+const MaxCodeSize = 1<<14 + 1<<13 // = 24576
+
 // Code is an immutable representation of EVM byte code which may be freely
 // copied and shared through shallow copies.
 type Code struct {

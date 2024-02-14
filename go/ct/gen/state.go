@@ -147,6 +147,16 @@ func (g *StateGenerator) AddIsData(v Variable) {
 	g.codeGen.AddIsData(v)
 }
 
+// SetMinStackSize wraps StackGenerator.SetMinSize.
+func (g *StateGenerator) SetMinStackSize(size int) {
+	g.stackGen.SetMinSize(size)
+}
+
+// SetMaxStackSize wraps StackGenerator.SetMaxSize.
+func (g *StateGenerator) SetMaxStackSize(size int) {
+	g.stackGen.SetMaxSize(size)
+}
+
 // SetStackSize wraps StackGenerator.SetSize.
 func (g *StateGenerator) SetStackSize(size int) {
 	g.stackGen.SetSize(size)

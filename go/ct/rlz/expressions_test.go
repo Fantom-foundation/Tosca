@@ -20,7 +20,7 @@ func TestExpression_StatusEval(t *testing.T) {
 
 func TestExpression_StatusRestrict(t *testing.T) {
 	generator := gen.NewStateGenerator()
-	Status().Restrict(st.Reverted, generator)
+	Status().Restrict(RestrictEqual, st.Reverted, generator)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {
@@ -41,7 +41,7 @@ func TestExpression_PcEval(t *testing.T) {
 
 func TestExpression_PcRestrict(t *testing.T) {
 	generator := gen.NewStateGenerator()
-	Pc().Restrict(NewU256(42), generator)
+	Pc().Restrict(RestrictEqual, NewU256(42), generator)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {
@@ -62,7 +62,7 @@ func TestExpression_GasEval(t *testing.T) {
 
 func TestExpression_GasRestrict(t *testing.T) {
 	generator := gen.NewStateGenerator()
-	Gas().Restrict(42, generator)
+	Gas().Restrict(RestrictEqual, 42, generator)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {
@@ -83,7 +83,7 @@ func TestExpression_GasRefundEval(t *testing.T) {
 
 func TestExpression_GasRefundRestrict(t *testing.T) {
 	generator := gen.NewStateGenerator()
-	GasRefund().Restrict(42, generator)
+	GasRefund().Restrict(RestrictEqual, 42, generator)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {
@@ -104,7 +104,7 @@ func TestExpression_OpEval(t *testing.T) {
 
 func TestExpression_OpRestrict(t *testing.T) {
 	generator := gen.NewStateGenerator()
-	Op(Pc()).Restrict(ADD, generator)
+	Op(Pc()).Restrict(RestrictEqual, ADD, generator)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {
@@ -127,7 +127,7 @@ func TestExpression_StackSizeEval(t *testing.T) {
 
 func TestExpression_StackSizeRestrict(t *testing.T) {
 	generator := gen.NewStateGenerator()
-	StackSize().Restrict(4, generator)
+	StackSize().Restrict(RestrictEqual, 4, generator)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {
