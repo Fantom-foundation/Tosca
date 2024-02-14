@@ -28,6 +28,7 @@ func main() {
 		Commands: []*cli.Command{
 			&GeneratorInfoCmd,
 			&ListCmd,
+			&ProbeCmd,
 			&RegressionsCmd,
 			&RunCmd,
 			&StatsCmd,

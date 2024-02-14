@@ -84,7 +84,26 @@ func getAllRules() []Rule {
 			Condition: And(AnyKnownRevision(), Eq(Status(), st.Failed)),
 			Effect:    NoEffect(),
 		},
+
+		{
+			Name:      "pc_on_data_is_ignored",
+			Condition: IsData(Pc()),
+			Effect:    NoEffect(),
+		},
 	}...)
+
+	// --- Invalid Instructions ---
+
+	for i := 0; i < 256; i++ {
+		op := OpCode(i)
+		if !IsValid(op) {
+			rules = append(rules, Rule{
+				Name:      fmt.Sprintf("%v_invalid", op),
+				Condition: And(Eq(Status(), st.Running), Eq(Op(Pc()), op)),
+				Effect:    FailEffect(),
+			})
+		}
+	}
 
 	// --- Error States ---
 
@@ -1060,8 +1079,6 @@ func getAllRules() []Rule {
 				RevisionBounds(R07_Istanbul, R09_Berlin),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), BASEFEE),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
 			),
 			Effect: FailEffect(),
 		},

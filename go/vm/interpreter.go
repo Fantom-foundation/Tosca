@@ -12,11 +12,7 @@
 
 package vm
 
-import (
-	"encoding/hex"
-	"fmt"
-	"log"
-)
+import "fmt"
 
 //go:generate mockgen -source interpreter.go -destination interpreter_mock.go -package vm
 
@@ -110,17 +106,6 @@ type Value [32]byte
 // Hash represents the 256-bit (32 bytes) hash of a code, a block, a topic
 // or similar sequence of cryptographic summary information.
 type Hash [32]byte
-
-func HexToHash(hexStr string) Hash {
-	bytes, err := hex.DecodeString(hexStr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var hash Hash
-	copy(hash[len(hash)-len(bytes):], bytes)
-	return hash
-}
 
 // TransactionContext contains information about current transaction and block.
 type TransactionContext struct {

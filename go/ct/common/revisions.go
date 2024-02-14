@@ -166,10 +166,10 @@ func GetBlockRangeLengthFor(revision Revision) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	revisionNumberLength := uint64(math.MaxUint64)
+	revisionNumberRange := uint64(math.MaxUint64)
 
-	// if it's the last supported revision, the blockNumber length has no limit.
-	// if it's not, we want to limit this length to the first block number of next revision.
+	// if it's the last supported revision, the blockNumber range has no limit.
+	// if it's not, we want to limit this range to the first block number of next revision.
 	if revision < R99_UnknownNextRevision {
 		nextRevisionNumber, err := GetForkBlock(revision + 1)
 		if err != nil {
@@ -177,7 +177,7 @@ func GetBlockRangeLengthFor(revision Revision) (uint64, error) {
 		}
 		// since we know both numbers are positive, and nextRevisionNumber is bigger,
 		// we can safely convert them to uint64
-		revisionNumberLength = nextRevisionNumber - revisionNumber
+		revisionNumberRange = nextRevisionNumber - revisionNumber
 	}
-	return revisionNumberLength, nil
+	return revisionNumberRange, nil
 }

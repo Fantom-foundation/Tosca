@@ -30,7 +30,7 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-var StatsCmd = cli.Command{
+var StatsCmd = AddCommonFlags(cli.Command{
 	Action: doStats,
 	Name:   "stats",
 	Usage:  "Computes statistics on rule coverage",
@@ -41,7 +41,7 @@ var StatsCmd = cli.Command{
 		cliUtils.CpuProfileFlag,
 		cliUtils.FullModeFlag,
 	},
-}
+})
 
 func doStats(context *cli.Context) error {
 	if cpuprofileFilename := cliUtils.CpuProfileFlag.Fetch(context); cpuprofileFilename != "" {
