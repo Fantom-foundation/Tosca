@@ -6,6 +6,7 @@ import (
 	"pgregory.net/rand"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
+	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
 func TestSpecification_RulesCoverRandomStates(t *testing.T) {
@@ -32,6 +33,36 @@ func TestSpecification_RulesCoverRandomStates(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestSpecification_EachRuleProducesAMatchingTestCase(t *testing.T) {
+	for _, rule := range Spec.GetRules() {
+		rule := rule
+		t.Run(rule.Name, func(t *testing.T) {
+			t.Parallel()
+			hits := 0
+			misses := 0
+			rnd := rand.New(0)
+			rule.EnumerateTestCases(rnd, func(state *st.State) error {
+				match, err := rule.Condition.Check(state)
+				if err != nil {
+					t.Errorf("failed to check rule condition for %v: %v", rule.Name, err)
+				} else if match {
+					hits++
+				} else {
+					misses++
+				}
+				return nil
+			})
+
+			if hits == 0 {
+				t.Errorf("no matching test case produced for rule %v", rule.Name)
+			}
+			if misses == 0 {
+				t.Errorf("no non-matching test case produced for rule %v", rule.Name)
+			}
+		})
 	}
 }
 
