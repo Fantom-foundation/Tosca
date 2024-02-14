@@ -9,6 +9,16 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
+type RestrictionKind int
+
+const (
+	RestrictLess RestrictionKind = iota
+	RestrictLessEqual
+	RestrictEqual
+	RestrictGreaterEqual
+	RestrictGreater
+)
+
 type Expression[T any] interface {
 	Domain() Domain[T]
 
@@ -18,7 +28,7 @@ type Expression[T any] interface {
 	// Restrict applies constraints to the given generator such that this
 	// expression evaluates to the given value when invoked on the generated
 	// states.
-	Restrict(value T, generator *gen.StateGenerator)
+	Restrict(kind RestrictionKind, value T, generator *gen.StateGenerator)
 
 	fmt.Stringer
 }
@@ -49,7 +59,10 @@ func (status) Eval(s *st.State) (st.StatusCode, error) {
 	return s.Status, nil
 }
 
-func (status) Restrict(status st.StatusCode, generator *gen.StateGenerator) {
+func (status) Restrict(kind RestrictionKind, status st.StatusCode, generator *gen.StateGenerator) {
+	if kind != RestrictEqual {
+		panic("Status can only support equality constraints")
+	}
 	generator.SetStatus(status)
 }
 
@@ -72,7 +85,10 @@ func (pc) Eval(s *st.State) (U256, error) {
 	return NewU256(uint64(s.Pc)), nil
 }
 
-func (pc) Restrict(pc U256, generator *gen.StateGenerator) {
+func (pc) Restrict(kind RestrictionKind, pc U256, generator *gen.StateGenerator) {
+	if kind != RestrictEqual {
+		panic("PC can only support equality constraints")
+	}
 	if !pc.IsUint64() || pc.Uint64() > uint64(math.MaxUint16) {
 		panic("invalid value for PC")
 	}
@@ -106,8 +122,15 @@ func (gas) Eval(s *st.State) (uint64, error) {
 	return s.Gas, nil
 }
 
-func (gas) Restrict(amount uint64, generator *gen.StateGenerator) {
-	generator.SetGas(amount)
+func (gas) Restrict(kind RestrictionKind, amount uint64, generator *gen.StateGenerator) {
+	switch kind {
+	case RestrictLess:
+		generator.SetGas(amount - 1)
+	case RestrictLessEqual, RestrictEqual, RestrictGreaterEqual:
+		generator.SetGas(amount)
+	case RestrictGreater:
+		generator.SetGas(amount + 1)
+	}
 }
 
 func (gas) String() string {
@@ -129,7 +152,10 @@ func (gasRefund) Eval(s *st.State) (uint64, error) {
 	return s.GasRefund, nil
 }
 
-func (gasRefund) Restrict(amount uint64, generator *gen.StateGenerator) {
+func (gasRefund) Restrict(kind RestrictionKind, amount uint64, generator *gen.StateGenerator) {
+	if kind != RestrictEqual {
+		panic("GasRefund only supports equality constraints")
+	}
 	generator.SetGasRefund(amount)
 }
 
@@ -167,7 +193,10 @@ func (e op) Eval(s *st.State) (OpCode, error) {
 	return op, nil
 }
 
-func (e op) Restrict(op OpCode, generator *gen.StateGenerator) {
+func (e op) Restrict(kind RestrictionKind, op OpCode, generator *gen.StateGenerator) {
+	if kind != RestrictEqual {
+		panic("Operation codes only support equality constraints")
+	}
 	variable := e.position.GetVariable()
 	e.position.BindTo(generator)
 	generator.AddCodeOperation(variable, op)
@@ -192,8 +221,19 @@ func (stackSize) Eval(s *st.State) (int, error) {
 	return s.Stack.Size(), nil
 }
 
-func (stackSize) Restrict(size int, generator *gen.StateGenerator) {
-	generator.SetStackSize(size)
+func (stackSize) Restrict(kind RestrictionKind, size int, generator *gen.StateGenerator) {
+	switch kind {
+	case RestrictLess:
+		generator.SetMaxStackSize(size - 1)
+	case RestrictLessEqual:
+		generator.SetMaxStackSize(size)
+	case RestrictEqual:
+		generator.SetStackSize(size)
+	case RestrictGreaterEqual:
+		generator.SetMinStackSize(size)
+	case RestrictGreater:
+		generator.SetMinStackSize(size + 1)
+	}
 }
 
 func (stackSize) String() string {
@@ -223,7 +263,10 @@ func (p param) Eval(s *st.State) (U256, error) {
 	return stack.Get(p.position), nil
 }
 
-func (p param) Restrict(value U256, generator *gen.StateGenerator) {
+func (p param) Restrict(kind RestrictionKind, value U256, generator *gen.StateGenerator) {
+	if kind != RestrictEqual {
+		panic("Parameters only support equality constraints")
+	}
 	generator.SetStackValue(p.position, value)
 }
 
