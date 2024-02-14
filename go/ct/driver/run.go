@@ -113,7 +113,8 @@ func doRun(context *cli.Context) error {
 			for rule := range ruleCh {
 				tstart := time.Now()
 
-				errs, enumerationCount := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
+				enumerationCount := 0
+				errs := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
 					if applies, err := rule.Condition.Check(state); !applies || err != nil {
 						if err == nil {
 							err = rlz.ErrInapplicable
@@ -127,6 +128,8 @@ func doRun(context *cli.Context) error {
 						skippedCount.Add(1)
 						return rlz.ErrSkipped
 					}
+
+					enumerationCount++
 
 					input := state.Clone()
 					expected := state.Clone()

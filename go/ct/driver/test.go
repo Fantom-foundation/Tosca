@@ -79,8 +79,9 @@ func doTest(context *cli.Context) error {
 
 			tstart := time.Now()
 
+			enumeratedCount := 0
 			rnd := rand.New(context.Uint64("seed"))
-			errs, enumeratedCount := rule.EnumerateTestCases(rnd, func(state *st.State) error {
+			errs := rule.EnumerateTestCases(rnd, func(state *st.State) error {
 				rules := spc.Spec.GetRulesFor(state)
 				// confirm desired rule is included in the rules list.
 				containsRule := false
@@ -107,6 +108,7 @@ func doTest(context *cli.Context) error {
 						}
 					}
 				}
+				enumeratedCount++
 				return nil
 			})
 

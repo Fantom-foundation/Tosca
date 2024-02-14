@@ -56,7 +56,7 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 		misses := 0
 
 		rule := Rule{Condition: test}
-		errs, enumerationCount := rule.EnumerateTestCases(rnd, func(sample *st.State) error {
+		errs := rule.EnumerateTestCases(rnd, func(sample *st.State) error {
 			match, err := test.Check(sample)
 			if err != nil {
 				t.Errorf("Condition check error %v", err)
@@ -72,36 +72,11 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 		if err != nil {
 			t.Errorf("EnumerateTestCases failed %v", err)
 		}
-		if enumerationCount == 0 {
-			t.Errorf("no state executed, count: %v", enumerationCount)
-		}
 		if matches == 0 {
 			t.Errorf("none of the %d generated samples for %v is a match", matches+misses, test)
 		}
 		if matches+misses > 1 && misses == 0 {
 			t.Errorf("none of the %d generated samples for %v is a miss", matches+misses, test)
 		}
-	}
-}
-
-func TestRule_EnumerateTestCasesUnapplicable(t *testing.T) {
-	rnd := rand.New(0)
-	condition := And(Eq(Status(), st.Failed), Eq(Status(), st.Running))
-	rule := Rule{Condition: condition}
-	errs, enumerationCount := rule.EnumerateTestCases(rnd, func(sample *st.State) error {
-		if applies, err := rule.Condition.Check(sample); !applies || err != nil {
-			if err == nil {
-				err = ErrInapplicable
-			}
-			return err
-		}
-		return nil
-	})
-
-	if errs != nil {
-		t.Errorf("unexpected error. wanted: nil, got: %v", errs)
-	}
-	if enumerationCount != 0 {
-		t.Errorf("unexpected enumeration of imposible state. executed: %v", enumerationCount)
 	}
 }
