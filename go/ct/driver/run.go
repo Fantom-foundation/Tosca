@@ -115,7 +115,7 @@ func doRun(context *cli.Context) error {
 				tstart := time.Now()
 
 				enumeratedCount := 0
-				errs, _ := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
+				errs := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
 					if applies, err := rule.Condition.Check(state); !applies || err != nil {
 						if err == nil {
 							err = rlz.ErrInapplicable
