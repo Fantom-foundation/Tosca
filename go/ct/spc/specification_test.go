@@ -27,8 +27,8 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
-func TestSpecification_RulesCoverRandomStates(t *testing.T) {
-	const N = 10000
+func TestSpecification_SpecificationIsSound(t *testing.T) {
+	const N = 100000
 
 	rnd := rand.New(0)
 	generator := gen.NewStateGenerator()
@@ -50,6 +50,22 @@ func TestSpecification_RulesCoverRandomStates(t *testing.T) {
 					t.Fatalf("multiple conflicting rules for state %v: %v", state, rules)
 				}
 			}
+		}
+	}
+}
+
+func TestSpecification_SpecificationIsComplete(t *testing.T) {
+	const N = 100000
+	rnd := rand.New(0)
+	generator := gen.NewStateGenerator()
+	for i := 0; i < N; i++ {
+		state, err := generator.Generate(rnd)
+		if err != nil {
+			t.Errorf("failed to generate a random state: %v", err)
+		}
+		rules := Spec.GetRulesFor(state)
+		if len(rules) == 0 {
+			t.Fatalf("no rule found for \n%v", state)
 		}
 	}
 }
