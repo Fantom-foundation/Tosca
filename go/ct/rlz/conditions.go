@@ -384,7 +384,7 @@ func (c *isCode) Check(s *st.State) (bool, error) {
 		return false, err
 	}
 	if !pos.IsUint64() || pos.Uint64() > math.MaxInt {
-		return false, nil
+		return true, nil // Out-of-bounds is considered code.
 	}
 	return s.Code.IsCode(int(pos.Uint64())), nil
 }
@@ -426,7 +426,7 @@ func (c *isData) Check(s *st.State) (bool, error) {
 		return false, err
 	}
 	if !pos.IsUint64() || pos.Uint64() > math.MaxInt {
-		return false, nil
+		return false, nil // Out-of-bounds is considered code.
 	}
 	return s.Code.IsData(int(pos.Uint64())), nil
 }
