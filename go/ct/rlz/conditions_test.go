@@ -28,6 +28,12 @@ func TestCondition_Check(t *testing.T) {
 		return state
 	}
 
+	newStateWithStack := func(stack *st.Stack) *st.State {
+		state := st.NewState(st.NewCode([]byte{byte(PUSH1), byte(0)}))
+		state.Stack = stack
+		return state
+	}
+
 	tests := []struct {
 		condition Condition
 		valid     *st.State
@@ -48,7 +54,11 @@ func TestCondition_Check(t *testing.T) {
 		{And(Eq(Status(), st.Reverted), Eq(Pc(), NewU256(42))), newStateWithStatusAndPc(st.Reverted, 42), newStateWithStatusAndPc(st.Returned, 42)},
 		{And(Eq(Status(), st.Reverted), Eq(Pc(), NewU256(42))), newStateWithStatusAndPc(st.Reverted, 42), newStateWithStatusAndPc(st.Reverted, 41)},
 		{IsCode(Pc()), newStateWithPcAndCode(1, byte(ADD), byte(ADD)), newStateWithPcAndCode(1, byte(PUSH1), byte(0))},
+		{IsCode(Pc()), newStateWithPcAndCode(2, byte(ADD), byte(ADD)), newStateWithPcAndCode(1, byte(PUSH1), byte(0))},
+		{IsCode(Param(0)), newStateWithStack(st.NewStack(NewU256(1, 1))), newStateWithStack(st.NewStack(NewU256(1)))},
 		{IsData(Pc()), newStateWithPcAndCode(1, byte(PUSH1), byte(0)), newStateWithPcAndCode(1, byte(ADD), byte(ADD))},
+		{IsData(Pc()), newStateWithPcAndCode(1, byte(PUSH1), byte(0)), newStateWithPcAndCode(2, byte(ADD), byte(ADD))},
+		{IsData(Param(0)), newStateWithStack(st.NewStack(NewU256(1))), newStateWithStack(st.NewStack(NewU256(1, 1)))},
 	}
 
 	for _, test := range tests {
