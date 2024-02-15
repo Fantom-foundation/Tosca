@@ -106,7 +106,7 @@ func (c *Code) GetSection(offset, until int) ([]byte, error) {
 	if offset == until {
 		return []byte{}, nil
 	}
-	if until > c.Length() {
+	if until > c.Length() || offset > until {
 		return nil, ErrInvalidPosition
 	}
 	return c.code[offset:until], nil

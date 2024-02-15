@@ -863,17 +863,11 @@ var Spec = func() Specification {
 			offsetU256 := s.Stack.Pop()
 			sizeU256 := s.Stack.Pop()
 
-			staticCost := uint64(3)
-			minWordCost := uint64(3)
-			if sizeU256 == NewU256(0) {
-				s.Gas -= 3
-				s.Pc++
-				return
-			}
-
 			expansionCost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			if (s.Gas-staticCost-minWordCost) < expansionCost ||
-				s.Gas < staticCost+minWordCost {
+			minWordSize := (size + 31) / 32
+			minWordCost := uint64(3 * minWordSize)
+			if (s.Gas-minWordCost) < expansionCost ||
+				s.Gas < minWordCost {
 				s.Status = st.Failed
 				return
 			}
@@ -885,7 +879,7 @@ var Spec = func() Specification {
 
 			if offsetU256.Gt(NewU256(codeLen)) {
 				// HACK: when sparse memory is implemented remove this.
-				if size < math.MaxUint32 {
+				if size > math.MaxUint32 {
 					size = math.MaxUint32
 				}
 				codeBuffer = make([]byte, size)
@@ -899,8 +893,7 @@ var Spec = func() Specification {
 			}
 
 			s.Memory.Write(codeBuffer, destOffset)
-			s.Pc++
-			s.Gas -= staticCost + minWordCost + expansionCost
+			s.Gas -= minWordCost + expansionCost
 		},
 	})...)
 

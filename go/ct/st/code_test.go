@@ -109,7 +109,7 @@ func TestCode_Printer(t *testing.T) {
 func TestCode_GetSection(t *testing.T) {
 	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
 	want := []byte{byte(PUSH1), 5, byte(PUSH2)}
-	got, err := code.GetSection(1, 2)
+	got, err := code.GetSection(1, 4)
 	if err != nil {
 		t.Errorf("unexpected error, %v", err)
 	}
@@ -123,9 +123,8 @@ func TestCode_GetSectionInvalid(t *testing.T) {
 		offset int
 		size   int
 	}{
-		"offset+size": {1, 1},
-		"offset":      {2, 1},
-		"size":        {1, 2},
+		"offset": {2, 1},
+		"size":   {1, 2},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
