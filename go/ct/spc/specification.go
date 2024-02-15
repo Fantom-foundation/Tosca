@@ -356,78 +356,46 @@ var Spec = func() Specification {
 
 	// --- SLOAD ---
 
-	// The following rules are constructed manually instead of calling `rulesFor`,
-	// because they put constraints on specific stack elements, which is not compatible
-	// with `tooFewElements`, because this would result in an unsatisfiable state, since
-	// it adds a constraint that there should not be any stack elements.
-
 	// cold
-	sloadColdInstruction := instruction{
+	rules = append(rules, rulesFor(instruction{
 		op:         SLOAD,
 		static_gas: 100 + 2000, // 2000 are from the dynamic cost of cold mem
 		pops:       1,
 		pushes:     1,
-		conditions: []Condition{RevisionBounds(R09_Berlin, R10_London)},
-		name:       "_cold",
-	}
-	rules = append(rules, tooLittleGas(sloadColdInstruction)...)
-	rules = append(rules, tooFewElements(sloadColdInstruction)...)
-	rules = append(rules, []Rule{
-		{
-			Name: fmt.Sprintf("%s_regular%v",
-				strings.ToLower(sloadColdInstruction.op.String()),
-				sloadColdInstruction.name),
-			Condition: And(RevisionBounds(R09_Berlin, R10_London),
-				IsStorageCold(Param(0)),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), sloadColdInstruction.op),
-				Ge(Gas(), sloadColdInstruction.static_gas),
-				Ge(StackSize(), sloadColdInstruction.pops),
-				Lt(StackSize(), st.MaxStackSize)),
-			Parameter: []Parameter{NumericParameter{}},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 2100
-				s.Pc++
-				key := s.Stack.Pop()
-				s.Stack.Push(s.Storage.Current[key])
-				s.Storage.MarkWarm(key)
-			}),
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R10_London),
+			IsStorageCold(Param(0)),
 		},
-	}...)
+		parameters: []Parameter{
+			NumericParameter{},
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			s.Stack.Push(s.Storage.Current[key])
+			s.Storage.MarkWarm(key)
+		},
+		name: "_cold",
+	})...)
 
 	// warm
-	sloadWarmInstruction := instruction{
+	rules = append(rules, rulesFor(instruction{
 		op:         SLOAD,
 		static_gas: 100,
 		pops:       1,
 		pushes:     1,
-		conditions: []Condition{RevisionBounds(R09_Berlin, R10_London)},
-		name:       "_warm",
-	}
-
-	rules = append(rules, tooLittleGas(sloadWarmInstruction)...)
-	rules = append(rules, tooFewElements(sloadWarmInstruction)...)
-	rules = append(rules, []Rule{
-		{
-			Name: fmt.Sprintf("%s_regular%v",
-				strings.ToLower(sloadColdInstruction.op.String()),
-				sloadColdInstruction.name),
-			Condition: And(RevisionBounds(R09_Berlin, R10_London),
-				IsStorageWarm(Param(0)),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), sloadColdInstruction.op),
-				Ge(Gas(), sloadColdInstruction.static_gas),
-				Ge(StackSize(), sloadColdInstruction.pops),
-				Lt(StackSize(), st.MaxStackSize)),
-			Parameter: []Parameter{NumericParameter{}},
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 100
-				s.Pc++
-				key := s.Stack.Pop()
-				s.Stack.Push(s.Storage.Current[key])
-			}),
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R10_London),
+			IsStorageWarm(Param(0)),
 		},
-	}...)
+		parameters: []Parameter{
+			NumericParameter{},
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			s.Stack.Push(s.Storage.Current[key])
+		},
+		name: "_warm",
+	})...)
 
 	// pre_berlin
 	rules = append(rules, rulesFor(instruction{
@@ -514,44 +482,20 @@ var Spec = func() Specification {
 
 	// --- JUMP ---
 
-	// The following rules are constructed manually instead of calling `rulesFor`,
-	// because they put constraints on specific stack elements, which is not compatible
-	// with `tooFewElements`, because this would result in an unsatisfiable state, since
-	// it adds a constraint that there should not be any stack elements.
-
-	jumpInstruction := instruction{
+	rules = append(rules, rulesFor(instruction{
 		op:         JUMP,
 		static_gas: 8,
 		pops:       1,
 		pushes:     0,
-	}
-
-	rules = append(rules, tooLittleGas(jumpInstruction)...)
-	rules = append(rules, tooFewElements(jumpInstruction)...)
-	rules = append(rules, []Rule{
-		{
-			Name: fmt.Sprintf("%s_regular%v",
-				strings.ToLower(jumpInstruction.op.String()),
-				jumpInstruction.name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), jumpInstruction.op),
-				Ge(Gas(), jumpInstruction.static_gas),
-				Ge(StackSize(), jumpInstruction.pops),
-				Lt(StackSize(), st.MaxStackSize),
-				IsCode(Param(0)),
-				Eq(Op(Param(0)), JUMPDEST),
-			),
-			Parameter: jumpInstruction.parameters,
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 8
-				s.Pc++
-				target := s.Stack.Pop()
-				s.Pc = uint16(target.Uint64())
-			}),
+		conditions: []Condition{
+			IsCode(Param(0)),
+			Eq(Op(Param(0)), JUMPDEST),
 		},
-	}...)
+		effect: func(s *st.State) {
+			target := s.Stack.Pop()
+			s.Pc = uint16(target.Uint64())
+		},
+	})...)
 
 	rules = append(rules, []Rule{
 		{
@@ -584,39 +528,22 @@ var Spec = func() Specification {
 
 	// --- JUMPI ---
 
-	jumpiInstruction := instruction{
+	rules = append(rules, rulesFor(instruction{
 		op:         JUMPI,
 		static_gas: 10,
 		pops:       2,
 		pushes:     0,
-	}
-
-	rules = append(rules, tooLittleGas(jumpiInstruction)...)
-	rules = append(rules, tooFewElements(jumpiInstruction)...)
-	rules = append(rules, []Rule{
-		{
-			Name: fmt.Sprintf("%s_regular%v",
-				strings.ToLower(jumpiInstruction.op.String()),
-				jumpiInstruction.name),
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), jumpiInstruction.op),
-				Ge(Gas(), jumpiInstruction.static_gas),
-				Ge(StackSize(), jumpiInstruction.pops),
-				Lt(StackSize(), st.MaxStackSize),
-				IsCode(Param(0)),
-				Eq(Op(Param(0)), JUMPDEST),
-				Ne(Param(1), NewU256(0))),
-			Parameter: jumpiInstruction.parameters,
-			Effect: Change(func(s *st.State) {
-				s.Gas -= 10
-				target := s.Stack.Pop()
-				s.Stack.Pop()
-				s.Pc = uint16(target.Uint64())
-			}),
+		conditions: []Condition{
+			IsCode(Param(0)),
+			Eq(Op(Param(0)), JUMPDEST),
+			Ne(Param(1), NewU256(0)),
 		},
-	}...)
+		effect: func(s *st.State) {
+			target := s.Stack.Pop()
+			s.Stack.Pop()
+			s.Pc = uint16(target.Uint64())
+		},
+	})...)
 
 	rules = append(rules, []Rule{
 		{
