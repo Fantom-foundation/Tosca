@@ -427,8 +427,6 @@ var Spec = func() Specification {
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
-			s.Gas -= 2100
-			s.Pc++
 			key := s.Stack.Pop()
 			s.Stack.Push(s.Storage.Current[key])
 			s.Storage.MarkWarm(key)
@@ -450,8 +448,6 @@ var Spec = func() Specification {
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
-			s.Gas -= 100
-			s.Pc++
 			key := s.Stack.Pop()
 			s.Stack.Push(s.Storage.Current[key])
 		},
@@ -553,6 +549,10 @@ var Spec = func() Specification {
 			IsCode(Param(0)),
 			Eq(Op(Param(0)), JUMPDEST),
 		},
+		effect: func(s *st.State) {
+			target := s.Stack.Pop()
+			s.Pc = uint16(target.Uint64())
+		},
 	})...)
 
 	rules = append(rules, []Rule{
@@ -595,6 +595,11 @@ var Spec = func() Specification {
 			IsCode(Param(0)),
 			Eq(Op(Param(0)), JUMPDEST),
 			Ne(Param(1), NewU256(0)),
+		},
+		effect: func(s *st.State) {
+			target := s.Stack.Pop()
+			s.Stack.Pop()
+			s.Pc = uint16(target.Uint64())
 		},
 	})...)
 
