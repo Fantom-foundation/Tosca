@@ -2,6 +2,7 @@ package spc
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -248,10 +249,10 @@ var Spec = func() Specification {
 			MemorySizeParameter{},
 		},
 		effect: func(s *st.State) {
-			offset_u256 := s.Stack.Pop()
-			size_u256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
 
-			memExpCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
+			memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < memExpCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -283,9 +284,9 @@ var Spec = func() Specification {
 			MemoryOffsetParameter{},
 		},
 		effect: func(s *st.State) {
-			offset_u256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
 
-			cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
+			cost, offset, _ := s.Memory.ExpansionCosts(offsetU256, NewU256(32))
 			if s.Gas < cost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -310,10 +311,10 @@ var Spec = func() Specification {
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
-			offset_u256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
 			value := s.Stack.Pop()
 
-			cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
+			cost, offset, _ := s.Memory.ExpansionCosts(offsetU256, NewU256(32))
 			if s.Gas < cost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -338,10 +339,10 @@ var Spec = func() Specification {
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
-			offset_u256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
 			value := s.Stack.Pop()
 
-			cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(1))
+			cost, offset, _ := s.Memory.ExpansionCosts(offsetU256, NewU256(1))
 			if s.Gas < cost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -902,15 +903,16 @@ var Spec = func() Specification {
 
 	rules = append(rules, rulesFor(instruction{
 		op:         CALLDATALOAD,
-		static_gas: 3,
+		staticGas:  3,
 		pops:       1,
 		pushes:     1,
 		parameters: []Parameter{NumericParameter{}},
 		effect: func(s *st.State) {
-			offset := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
+			offsetU64 := offsetU256.Uint64()
 			pushData := NewU256(0)
-			if int(offset.Uint64()) < len(s.CallData) {
-				pushData = NewU256FromBytes(s.CallData[offset.Uint64():]...)
+			if offsetU64 < uint64(len(s.CallData)) {
+				pushData = NewU256FromBytes(s.CallData[offsetU64:]...)
 			}
 			s.Stack.Push(pushData)
 		},
@@ -919,20 +921,20 @@ var Spec = func() Specification {
 	// --- CALLDATACOPY ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         CALLDATACOPY,
-		static_gas: 3,
-		pops:       3,
-		pushes:     0,
+		op:        CALLDATACOPY,
+		staticGas: 3,
+		pops:      3,
+		pushes:    0,
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
 			MemoryOffsetParameter{},
-			NumericParameter{}},
+			MemorySizeParameter{}},
 		effect: func(s *st.State) {
-			destOffset := s.Stack.Pop()
-			offset_u256 := s.Stack.Pop()
-			size_u256 := s.Stack.Pop()
+			destOffsetU256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
 
-			expansionCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
+			expansionCost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -948,13 +950,24 @@ var Spec = func() Specification {
 				return
 			}
 			s.Gas -= wordsPrice
-
+			offset := offsetU256.Uint64()
 			readUntil := offset + size
-			if len(s.CallData) < int(readUntil) {
-				s.Memory.Grow(offset, size)
-				readUntil = uint64(len(s.CallData))
+			callDataLen := uint64(len(s.CallData))
+			var dataBuffer []byte
+
+			if offset > uint64(len(s.CallData)) {
+				// HACK: when sparse memory is implemented remove this.
+				if size > math.MaxUint32 {
+					size = math.MaxUint32
+				}
+				dataBuffer = make([]byte, size)
+			} else if callDataLen < readUntil {
+				dataBuffer = make([]byte, size)
+				copy(dataBuffer, s.CallData[offset:])
+			} else {
+				dataBuffer = s.CallData[offset:readUntil]
 			}
-			s.Memory.Write(s.CallData[offset:readUntil], destOffset.Uint64())
+			s.Memory.Write(dataBuffer, destOffset)
 		},
 	})...)
 
@@ -1255,15 +1268,15 @@ func logOp(n int) []Rule {
 		conditions: conditions,
 		parameters: parameter,
 		effect: func(s *st.State) {
-			offset_u256 := s.Stack.Pop()
-			size_u256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
 
 			topics := []U256{}
 			for i := 0; i < n; i++ {
 				topics = append(topics, s.Stack.Pop())
 			}
 
-			memExpCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
+			memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < memExpCost {
 				s.Status = st.Failed
 				s.Gas = 0
