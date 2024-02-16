@@ -274,7 +274,7 @@ func addValuesToStack(stackValues []*big.Int, pushGas uint64) ([]byte, uint64) {
 	)
 
 	for i := 0; i < stackValuesCount; i++ {
-		code, wantGas = addBytesTostack(stackValues[i].Bytes(), code, wantGas, pushGas)
+		code, wantGas = addBytesToStack(stackValues[i].Bytes(), code, wantGas, pushGas)
 	}
 	return code, wantGas
 }
@@ -288,15 +288,15 @@ func addMemToStack(stackValues []*big.Int, pushGas uint64) ([]byte, uint64) {
 	)
 
 	for i := 0; i < stackValuesCount; i += 2 {
-		code, wantGas = addBytesTostack(stackValues[i].Bytes(), code, wantGas, pushGas)
-		code, wantGas = addBytesTostack(stackValues[i+1].Bytes(), code, wantGas, pushGas)
+		code, wantGas = addBytesToStack(stackValues[i].Bytes(), code, wantGas, pushGas)
+		code, wantGas = addBytesToStack(stackValues[i+1].Bytes(), code, wantGas, pushGas)
 		code = append(code, byte(vm.MSTORE))
 		wantGas += memoryExpansionGasCost(32)
 	}
 	return code, wantGas
 }
 
-func addBytesTostack(valueBytes []byte, code []byte, wantGas uint64, pushGas uint64) ([]byte, uint64) {
+func addBytesToStack(valueBytes []byte, code []byte, wantGas uint64, pushGas uint64) ([]byte, uint64) {
 	if len(valueBytes) == 0 {
 		valueBytes = []byte{0}
 	}
