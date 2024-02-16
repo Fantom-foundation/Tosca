@@ -126,6 +126,123 @@ func TestInvalidJumpOverflow(t *testing.T) {
 	}
 }
 
+func TestCodeCopy(t *testing.T) {
+	var mockCtrl *gomock.Controller
+	var mockStateDB *vm_mock.MockStateDB
+
+	type test struct {
+		offset *big.Int
+		size   *big.Int
+	}
+
+	const codeSize = 40
+	zero := big.NewInt(0)
+	overflowValue, _ := big.NewInt(0).SetString("0x1000000000000000d", 0)
+	if overflowValue.IsUint64() {
+		t.Fatalf("overflow value does not overflow!")
+	}
+
+	tests := map[string]test{
+		"read_zero_bytes_from_start": {
+			offset: big.NewInt(0),
+			size:   big.NewInt(0),
+		},
+		"read_one_byte_from_start": {
+			offset: big.NewInt(0),
+			size:   big.NewInt(1),
+		},
+		"read_two_bytes_from_start": {
+			offset: big.NewInt(0),
+			size:   big.NewInt(2),
+		},
+		"read_two_bytes_from_end": {
+			offset: big.NewInt(codeSize - 2),
+			size:   big.NewInt(2),
+		},
+		"read_two_bytes_from_near_end": {
+			offset: big.NewInt(codeSize - 3),
+			size:   big.NewInt(2),
+		},
+		"read_ten_bytes_crossing_end": {
+			offset: big.NewInt(codeSize - 5),
+			size:   big.NewInt(10),
+		},
+		"read_ten_bytes_beyond_the_end": {
+			offset: big.NewInt(codeSize + 5),
+			size:   big.NewInt(10),
+		},
+		"read_ten_bytes_beyond_the_64_bit_range": {
+			offset: overflowValue,
+			size:   big.NewInt(10),
+		},
+	}
+
+	// For every variant of interpreter
+	for _, variant := range Variants {
+		for _, revision := range revisions {
+			for name, test := range tests {
+				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, name), func(t *testing.T) {
+
+					mockCtrl = gomock.NewController(t)
+					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+
+					// Create a program that
+					// - runs CODECOPY for the range specified by the test case spec
+					// - returns the data extracted from CODECOPY as the result of the program
+
+					// create code preparing the parameters for the code copy call
+					codeCopyParameters := []*big.Int{
+						test.size,
+						test.offset,
+						zero,
+					}
+					code, _ := addValuesToStack(codeCopyParameters, 0)
+					code = append(code, byte(vm.CODECOPY))
+
+					returnParameter := []*big.Int{
+						test.size,
+						zero,
+					}
+					returnParameterSetupCode, _ := addValuesToStack(returnParameter, 0)
+					code = append(code, returnParameterSetupCode...)
+					code = append(code, byte(vm.RETURN))
+
+					if got, limit := len(code), codeSize; got > limit {
+						t.Fatalf("unexpected code size, limit %d, got %d", limit, got)
+					}
+
+					// pad the code with extra data to match the code size
+					for len(code) < codeSize {
+						code = append(code, byte(len(code)))
+					}
+
+					// Run the code through an interpreter.
+					evm := GetCleanEVM(revision, variant, mockStateDB)
+					res, err := evm.Run(code, []byte{})
+
+					if err != nil {
+						t.Fatalf("unexpected execution error: %v", err)
+					}
+
+					// Check the output.
+					want := make([]byte, test.size.Int64())
+					if test.offset.Cmp(big.NewInt(int64(len(code)))) < 0 {
+						start := int(test.offset.Uint64())
+						end := start + int(test.size.Uint64())
+						if end > len(code) {
+							end = len(code)
+						}
+						copy(want, code[start:end])
+					}
+					if got := res.Output; !bytes.Equal(got, want) {
+						t.Errorf("unexpected result, wanted %x, got %x", want, got)
+					}
+				})
+			}
+		}
+	}
+}
+
 func TestReturnDataCopy(t *testing.T) {
 	var mockCtrl *gomock.Controller
 	var mockStateDB *vm_mock.MockStateDB
@@ -941,7 +1058,7 @@ func getReturnStackCode(valuesCount uint32, initialOffset uint64, pushGas uint64
 	)
 	for i := 0; i < int(valuesCount); i++ {
 		bytes := getBytes(uint64(i*32) + initialOffset)
-		retCode, usedGas = addBytesTostack(bytes, retCode, usedGas, pushGas)
+		retCode, usedGas = addBytesToStack(bytes, retCode, usedGas, pushGas)
 		retCode = append(retCode, byte(vm.MSTORE))
 		// Add 3 gas for MSTORE instruction static gas
 		usedGas += 3
@@ -963,10 +1080,10 @@ func getReturnMemoryCode(size uint64, offset uint64, pushGas uint64) ([]byte, ui
 
 	// memory size to return
 	bytes := getBytes(size)
-	retCode, gasUsed = addBytesTostack(bytes, retCode, gasUsed, pushGas)
+	retCode, gasUsed = addBytesToStack(bytes, retCode, gasUsed, pushGas)
 
 	bytes = getBytes(offset)
-	retCode, gasUsed = addBytesTostack(bytes, retCode, gasUsed, pushGas)
+	retCode, gasUsed = addBytesToStack(bytes, retCode, gasUsed, pushGas)
 
 	retCode = append(retCode, byte(vm.RETURN))
 	return retCode, gasUsed
