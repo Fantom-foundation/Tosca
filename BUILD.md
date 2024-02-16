@@ -21,12 +21,14 @@ git submodule update --init --recursive
 - [CMake](https://cmake.org/)
     - Ubuntu/Debian package: `cmake`
 
-¹ Go installs programs into `$GOPATH/bin`, where `GOPATH` defaults to `$HOME/go`.
-  Add this `bin` directory to your `PATH`.
 
-Note that some package managers (e.g. apt) currently do not offer a package with a sufficiently high go version.
-Check your currently installed version with the command `go version`.
-Follow the instructions on the official [go website](https://go.dev/doc/install) to download and install the newest version.
+### Go Setup Remarks
+
+Note that in some package managers (e.g. apt) the default Go package is an outdated version which is not sufficient for Tosca. Newer versions can be installed by explicitly specifying the Go version, such as `golang-1.21`. Check your currently installed version with the command `go version`. 
+
+If no packages are available, follow the instructions on the official [go website](https://go.dev/doc/install) to download and install the newest version.
+
+Go installs programs into `$GOPATH/bin`, where `GOPATH` defaults to `$HOME/go`, add this `bin` directory to your `PATH`. 
 
 ## Building
 
