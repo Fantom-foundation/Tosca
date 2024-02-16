@@ -323,8 +323,11 @@ func (returnDataSize) Eval(s *st.State) (int, error) {
 	return len(s.ReturnData), nil
 }
 
-func (returnDataSize) Restrict(size int, generator *gen.StateGenerator) {
-	generator.SetReturnDataSize(size)
+func (returnDataSize) Restrict(kind RestrictionKind, value int, generator *gen.StateGenerator) {
+	if kind != RestrictEqual {
+		panic("Parameters only support equality constraints")
+	}
+	generator.SetReturnDataSize(value)
 }
 
 func (returnDataSize) String() string {
