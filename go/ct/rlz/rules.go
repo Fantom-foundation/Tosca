@@ -2,7 +2,6 @@ package rlz
 
 import (
 	"errors"
-	"slices"
 
 	"pgregory.net/rand"
 
@@ -31,9 +30,7 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) err
 	var accumulatedErrors []error
 
 	onError := func(err error) {
-		if err != ErrSkipped {
-			accumulatedErrors = append(accumulatedErrors, err)
-		}
+		accumulatedErrors = append(accumulatedErrors, err)
 	}
 
 	rule.Condition.EnumerateTestCases(gen.NewStateGenerator(), func(generator *gen.StateGenerator) {
@@ -55,7 +52,7 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) err
 func enumerateParameters(pos int, params []Parameter, state *st.State, consume func(*st.State) error, onError func(error)) {
 	if len(params) == 0 || pos >= state.Stack.Size() {
 		err := consume(state)
-		if err != nil && !slices.Contains(IgnoredErrors, err) {
+		if err != nil {
 			onError(err)
 		}
 		return
