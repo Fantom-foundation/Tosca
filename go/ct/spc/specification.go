@@ -2,7 +2,6 @@ package spc
 
 import (
 	"fmt"
-	"math"
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -935,6 +934,8 @@ var Spec = func() Specification {
 			sizeU256 := s.Stack.Pop()
 
 			expansionCost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
+			words := (size + 31) / 32
+			expansionCost += 3 * words
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -942,31 +943,13 @@ var Spec = func() Specification {
 			}
 			s.Gas -= expansionCost
 
-			words := (size + 31) / 32
-			wordsPrice := 3 * words
-			if s.Gas < wordsPrice {
-				s.Status = st.Failed
-				s.Gas = 0
-				return
+			dataBuffer := make([]byte, size)
+			start := offsetU256.Uint64()
+			if start > uint64(len(s.CallData)) {
+				start = uint64(len(s.CallData))
 			}
-			s.Gas -= wordsPrice
-			offset := offsetU256.Uint64()
-			readUntil := offset + size
-			callDataLen := uint64(len(s.CallData))
-			var dataBuffer []byte
-
-			if offset > uint64(len(s.CallData)) {
-				// HACK: when sparse memory is implemented remove this.
-				if size > math.MaxUint32 {
-					size = math.MaxUint32
-				}
-				dataBuffer = make([]byte, size)
-			} else if callDataLen < readUntil {
-				dataBuffer = make([]byte, size)
-				copy(dataBuffer, s.CallData[offset:])
-			} else {
-				dataBuffer = s.CallData[offset:readUntil]
-			}
+			end := min(start+size, uint64(len(s.CallData)))
+			copy(dataBuffer, s.CallData[start:end])
 			s.Memory.Write(dataBuffer, destOffset)
 		},
 	})...)
