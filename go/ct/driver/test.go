@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/urfave/cli/v2"
@@ -83,17 +82,7 @@ func doTest(context *cli.Context) error {
 			rnd := rand.New(context.Uint64("seed"))
 			errs := rule.EnumerateTestCases(rnd, func(state *st.State) error {
 				rules := spc.Spec.GetRulesFor(state)
-				// confirm desired rule is included in the rules list.
-				containsRule := false
-				for _, r := range rules {
-					if r.Name == rule.Name {
-						containsRule = true
-					}
-				}
 
-				if len(rules) == 0 || !containsRule {
-					return rlz.ErrInapplicable
-				}
 				if len(rules) > 0 {
 					atLeastOne = true
 				}
