@@ -24,6 +24,10 @@ git submodule update --init --recursive
 ¹ Go installs programs into `$GOPATH/bin`, where `GOPATH` defaults to `$HOME/go`.
   Add this `bin` directory to your `PATH`.
 
+Note that some package managers (e.g. apt) currently do not offer a package with a sufficiently high go version.
+Check your currently installed version with the command `go version`.
+Follow the instructions on the official [go website](https://go.dev/doc/install) to download and install the newest version.
+
 ## Building
 
 Use the provided Makefile to build and test the project.
@@ -166,7 +170,13 @@ Go has an integrated CPU profiler that can be enabled using the `-cpuprofile` fl
 go test ./go/vm/test -run=NONE -bench Fib/20/evmzero -cpuprofile cpu.log
 ```
 
-This command runs the benchmark and collects CPU performance data which can be visualized using
+This command runs the benchmark and collects CPU performance data which can be shown in tabular form using
+
+```
+go tool pprof -text -nodecount=10 cpu.log
+```
+
+or can be visualized by the following command (requires the graphviz libary)
 
 ```
 go tool pprof -http "localhost:8000" ./cpu.log
@@ -190,7 +200,7 @@ To compare the benchmark results of two different code versions, the [benchstat]
 go install golang.org/x/perf/cmd/benchstat@latest
 ```
 
-which places the binary `benchstat` into your `$GOPATH/bin` directoy.
+which places the binary `benchstat` into your `$GOPATH/bin` directory.
 
 The tool produces reports on the impact of code changes on the performance of benchmarks in the following format:
 
