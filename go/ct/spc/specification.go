@@ -2,7 +2,6 @@ package spc
 
 import (
 	"fmt"
-	"math"
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -863,37 +862,27 @@ var Spec = func() Specification {
 			offsetU256 := s.Stack.Pop()
 			sizeU256 := s.Stack.Pop()
 
-			expansionCost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			minWordSize := (size + 31) / 32
-			minWordCost := uint64(3 * minWordSize)
-			if (s.Gas-minWordCost) < expansionCost ||
-				s.Gas < minWordCost {
+			cost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
+			minimumWordSize := (size + 31) / 32
+			cost += 3 * minimumWordSize
+			if s.Gas < cost {
 				s.Status = st.Failed
+				s.Gas = 0
 				return
 			}
+			s.Gas -= cost
 
-			offset := offsetU256.Uint64()
-			codeLen := uint64(s.Code.Length())
-			var codeBuffer []byte
-			readUntil := offset + size
+			codeCopy := make([]byte, size)
+			start := offsetU256.Uint64()
 
-			if offsetU256.Gt(NewU256(codeLen)) {
-				// HACK: when sparse memory is implemented remove this.
-				if size > math.MaxUint32 {
-					size = math.MaxUint32
-				}
-				codeBuffer = make([]byte, size)
-			} else if readUntil > codeLen {
-				actualRead := size - (readUntil - codeLen)
-				// we do not check for the error here, since the if's condition already prevents invalid indexing
-				codeBuffer, _ = s.Code.GetSection(int(offset), int(codeLen))
-				codeBuffer = append(codeBuffer, make([]byte, int(size-actualRead))...)
-			} else {
-				codeBuffer, _ = s.Code.GetSection(int(offset), int(offset+size))
+			if offsetU256.Gt(NewU256(uint64(s.Code.Length()))) {
+				start = uint64(s.Code.Length())
 			}
+			end := min(start+size, uint64(s.Code.Length()))
 
-			s.Memory.Write(codeBuffer, destOffset)
-			s.Gas -= minWordCost + expansionCost
+			copy(codeCopy, s.Code.GetSlice(int(start), int(end)))
+
+			s.Memory.Write(codeCopy, destOffset)
 		},
 	})...)
 

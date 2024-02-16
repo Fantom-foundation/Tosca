@@ -108,29 +108,24 @@ func TestCode_Printer(t *testing.T) {
 
 func TestCode_GetSection(t *testing.T) {
 	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
-	want := []byte{byte(PUSH1), 5, byte(PUSH2)}
-	got, err := code.GetSection(1, 4)
-	if err != nil {
-		t.Errorf("unexpected error, %v", err)
-	}
-	if !slices.Equal(want, got) {
-		t.Errorf("unexpected code, wanted %v, got %v", want, got)
-	}
-}
+	sizeOverflowCode := append(code.code, []byte{0, 0}...)
 
-func TestCode_GetSectionInvalid(t *testing.T) {
 	tests := map[string]struct {
+		code   *Code
 		offset int
 		size   int
+		want   []byte
 	}{
-		"offset": {2, 1},
-		"size":   {1, 2},
+		"regular":        {code, 1, 4, []byte{byte(PUSH1), 5, byte(PUSH2)}},
+		"sizeZero":       {code, 1, 0, []byte{}},
+		"offsetOverflow": {code, 5, 1, []byte{}},
+		"sizeOverflow":   {code, 0, 6, sizeOverflowCode},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			code := NewCode([]byte{byte(ADD)})
-			if _, err := code.GetSection(test.offset, test.size); err == nil {
-				t.Errorf("failed fo report invalid %v", name)
+			got := test.code.GetSlice(test.offset, test.size)
+			if !slices.Equal(test.want, got) {
+				t.Errorf("unexpected code, wanted %v, got %v", test.want, got)
 			}
 		})
 	}

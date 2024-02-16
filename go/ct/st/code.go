@@ -102,14 +102,14 @@ func (c *Code) GetData(pos int) (byte, error) {
 	return c.code[pos], nil
 }
 
-func (c *Code) GetSection(offset, until int) ([]byte, error) {
-	if offset == until {
-		return []byte{}, nil
+func (c *Code) GetSlice(start, end int) []byte {
+	if start == end {
+		return []byte{}
 	}
-	if until > c.Length() || offset > until {
-		return nil, ErrInvalidPosition
+	if start > c.Length() || start > end {
+		return []byte{}
 	}
-	return c.code[offset:until], nil
+	return c.code[start:end]
 }
 
 func (c *Code) Eq(other *Code) bool {
