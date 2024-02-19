@@ -24,7 +24,7 @@ git submodule update --init --recursive
 
 ### Go Setup Remarks
 
-Note that in some package managers (e.g. apt) the default Go package is an outdated version which is not sufficient for Tosca. Newer versions can be installed by explicitly specifying the Go version, such as `golang-1.21`. Check your currently installed version with the command `go version`. 
+Note that in some package managers (e.g. apt) the default Go package is an outdated version which is not sufficient for Tosca. Newer versions can be installed by explicitly specifying the Go version, such as `golang-1.21`. Check your currently installed version with the command `go version`. Depending on your installation process it might be required to set `GOROOT`, this can be done in your `.bashrc`.
 
 If no packages are available, follow the instructions on the official [go website](https://go.dev/doc/install) to download and install the newest version.
 
