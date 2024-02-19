@@ -106,7 +106,7 @@ func TestCode_Printer(t *testing.T) {
 	}
 }
 
-func TestCode_GetSection(t *testing.T) {
+func TestCode_GetSlice(t *testing.T) {
 	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
 	sizeOverflowCode := append(code.code, []byte{0, 0}...)
 
