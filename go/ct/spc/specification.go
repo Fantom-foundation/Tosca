@@ -606,6 +606,18 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- GAS ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         GAS,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(s.Gas))
+		},
+	})...)
+
 	// --- JUMPDEST ---
 
 	rules = append(rules, rulesFor(instruction{
