@@ -1361,6 +1361,35 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- RETURN ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         RETURN,
+		static_gas: 0,
+		pops:       2,
+		pushes:     0,
+		parameters: []Parameter{
+			MemoryOffsetParameter{},
+			MemorySizeParameter{}},
+		effect: func(s *st.State) {
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
+
+			expansionCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
+			words := (size + 31) / 32
+			wordCost := 3 * words
+			if s.Gas < expansionCost+wordCost && expansionCost > 0 {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= expansionCost
+
+			copy(s.ReturnData, s.Memory.Read(offset, size))
+			s.Status = st.Returned
+		},
+	})...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)
@@ -1771,7 +1800,9 @@ func tooFewElements(i instruction) []Rule {
 // in mind when implementing the effects of new rules.
 func rulesFor(i instruction) []Rule {
 	res := []Rule{}
-	res = append(res, tooLittleGas(i)...)
+	if i.static_gas > 0 {
+		res = append(res, tooLittleGas(i)...)
+	}
 	if i.pops > 0 {
 		res = append(res, tooFewElements(i)...)
 	}
