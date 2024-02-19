@@ -21,8 +21,14 @@ git submodule update --init --recursive
 - [CMake](https://cmake.org/)
     - Ubuntu/Debian package: `cmake`
 
-¹ Go installs programs into `$GOPATH/bin`, where `GOPATH` defaults to `$HOME/go`.
-  Add this `bin` directory to your `PATH`.
+
+### Go Setup Remarks
+
+Note that in some package managers (e.g. apt) the default Go package is an outdated version which is not sufficient for Tosca. Newer versions can be installed by explicitly specifying the Go version, such as `golang-1.21`. Check your currently installed version with the command `go version`. Depending on your installation process it might be required to set `GOROOT`, this can be done in your `.bashrc`.
+
+If no packages are available, follow the instructions on the official [go website](https://go.dev/doc/install) to download and install the newest version.
+
+Go installs programs into `$GOPATH/bin`, where `GOPATH` defaults to `$HOME/go`, add this `bin` directory to your `PATH`. 
 
 ## Building
 
@@ -166,7 +172,13 @@ Go has an integrated CPU profiler that can be enabled using the `-cpuprofile` fl
 go test ./go/vm/test -run=NONE -bench Fib/20/evmzero -cpuprofile cpu.log
 ```
 
-This command runs the benchmark and collects CPU performance data which can be visualized using
+This command runs the benchmark and collects CPU performance data which can be shown in tabular form using
+
+```
+go tool pprof -text -nodecount=10 cpu.log
+```
+
+or can be visualized by the following command (requires the graphviz libary)
 
 ```
 go tool pprof -http "localhost:8000" ./cpu.log
@@ -190,7 +202,7 @@ To compare the benchmark results of two different code versions, the [benchstat]
 go install golang.org/x/perf/cmd/benchstat@latest
 ```
 
-which places the binary `benchstat` into your `$GOPATH/bin` directoy.
+which places the binary `benchstat` into your `$GOPATH/bin` directory.
 
 The tool produces reports on the impact of code changes on the performance of benchmarks in the following format:
 
