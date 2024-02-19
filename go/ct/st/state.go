@@ -105,6 +105,7 @@ type State struct {
 	BlockContext       BlockContext
 	CallData           []byte
 	LastCallReturnData []byte
+	ReturnData         []byte
 }
 
 // NewState creates a new State instance with the given code.
@@ -140,6 +141,7 @@ func (s *State) Clone() *State {
 	clone.BlockContext = s.BlockContext
 	clone.CallData = bytes.Clone(s.CallData)
 	clone.LastCallReturnData = bytes.Clone(s.LastCallReturnData)
+	clone.ReturnData = bytes.Clone(s.ReturnData)
 	return clone
 }
 
@@ -158,7 +160,13 @@ func (s *State) Eq(other *State) bool {
 		pcIsEqual = true
 	}
 
-	return s.Status == other.Status &&
+	equalReturnData := true
+	if s.Status == Stopped || other.Status == Reverted {
+		equalReturnData = bytes.Equal(s.ReturnData, other.ReturnData)
+	}
+
+	return equalReturnData &&
+		s.Status == other.Status &&
 		s.Revision == other.Revision &&
 		s.ReadOnly == other.ReadOnly &&
 		pcIsEqual &&
@@ -255,6 +263,12 @@ func (s *State) String() string {
 		builder.WriteString(fmt.Sprintf("\tLastCallReturnData: %x\n", s.LastCallReturnData))
 	}
 
+	if len(s.ReturnData) > dataCutoffLength {
+		builder.WriteString(fmt.Sprintf("\tReturnData: %x... (size: %d)\n", s.ReturnData[:dataCutoffLength], len(s.ReturnData)))
+	} else {
+		builder.WriteString(fmt.Sprintf("\tReturnData: %x\n", s.ReturnData))
+	}
+
 	builder.WriteString("}")
 	return builder.String()
 }
@@ -319,11 +333,15 @@ func (s *State) Diff(o *State) []string {
 	}
 
 	if !slices.Equal(s.CallData, o.CallData) {
-		res = append(res, fmt.Sprintf("Different call data: %v vs %v", s.CallData, o.CallData))
+		res = append(res, fmt.Sprintf("Different call data: %x vs %x", s.CallData, o.CallData))
 	}
 
 	if !slices.Equal(s.LastCallReturnData, o.LastCallReturnData) {
-		res = append(res, fmt.Sprintf("Different last call return data: %v vs %v.", s.LastCallReturnData, o.LastCallReturnData))
+		res = append(res, fmt.Sprintf("Different last call return data: %x vs %x.", s.LastCallReturnData, o.LastCallReturnData))
+	}
+
+	if (s.Status == Stopped || o.Status == Reverted) && !slices.Equal(s.ReturnData, o.ReturnData) {
+		res = append(res, fmt.Sprintf("Different return data: %x vs %x", s.ReturnData, o.ReturnData))
 	}
 
 	return res

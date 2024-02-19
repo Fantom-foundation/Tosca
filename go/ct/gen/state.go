@@ -227,6 +227,19 @@ func (g *StateGenerator) BindToColdAddress(key Variable) {
 	g.accountsGen.BindCold(key)
 }
 
+func getRandomData(rnd *rand.Rand) ([]byte, error) {
+	size := uint(rnd.ExpFloat64() * float64(200))
+	if size > st.MaxDataSize {
+		size = st.MaxDataSize
+	}
+	dataBuffer := make([]byte, size)
+	_, err := rnd.Read(dataBuffer)
+	if err != nil {
+		return nil, err
+	}
+	return dataBuffer, nil
+}
+
 // Generate produces a State instance satisfying the constraints set on this
 // generator or returns ErrUnsatisfiable on conflicting constraints. Subsequent
 // generators are invoked automatically.
@@ -361,25 +374,19 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Pick a random calldata
-	rand := rnd.ExpFloat64()
-	const expectedSize float64 = 200
-	size := uint(rand * expectedSize)
-	if size > st.MaxDataSize {
-		size = st.MaxDataSize
-	}
-	resultCallData := make([]byte, size)
-	_, err = rnd.Read(resultCallData)
+	resultCallData, err := getRandomData(rnd)
 	if err != nil {
 		return nil, err
 	}
 
 	// Generate return data of last call
-	size = uint(rand * expectedSize)
-	if size > st.MaxDataSize {
-		size = st.MaxDataSize
+	resultLastCallReturnData, err := getRandomData(rnd)
+	if err != nil {
+		return nil, err
 	}
-	resultLastCallReturnData := make([]byte, size)
-	_, err = rnd.Read(resultLastCallReturnData)
+
+	// Generate return data
+	resultReturnData, err := getRandomData(rnd)
 	if err != nil {
 		return nil, err
 	}
@@ -427,6 +434,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.BlockContext = resultBlockContext
 	result.CallData = resultCallData
 	result.LastCallReturnData = resultLastCallReturnData
+	result.ReturnData = resultReturnData
 
 	return result, nil
 }

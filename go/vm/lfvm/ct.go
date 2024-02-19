@@ -84,6 +84,11 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		step(ctxt)
 	}
 
+	result, err := getResult(ctxt)
+	if err != nil {
+		ctxt.status = OUT_OF_GAS
+	}
+
 	// Update the resulting state.
 	state.Status, err = convertLfvmStatusToCtStatus(ctxt.status)
 	if err != nil {
@@ -96,11 +101,12 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 			return nil, fmt.Errorf("failed to convert program counter %d", ctxt.pc)
 		}
 	}
+
 	state.Gas = ctxt.gas
 	state.GasRefund = ctxt.refund
 	state.Stack = convertLfvmStackToCtStack(ctxt.stack)
 	state.Memory = convertLfvmMemoryToCtMemory(ctxt.memory)
-
+	state.ReturnData = result
 	return state, nil
 }
 

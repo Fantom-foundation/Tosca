@@ -613,3 +613,30 @@ func TestState_StatusCodeUnmarshalError(t *testing.T) {
 		}
 	}
 }
+
+func TestState_EqReturnDataCompare(t *testing.T) {
+	dataValue := make([]byte, 1)
+	dataValue[0]++
+	tests := map[string]struct {
+		status StatusCode
+		wanted bool
+	}{
+		"stopped":  {Stopped, false},
+		"reverted": {Reverted, false},
+		"running":  {Running, true},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			s1 := getNewFilledState()
+			s1.ReturnData = dataValue
+			s2 := s1.Clone()
+			s2.ReturnData[0]++
+			s1.Status = test.status
+			s2.Status = test.status
+			if s1.Eq(s2) != test.wanted {
+				t.Error("Compared return data when not stopped")
+			}
+		})
+	}
+}
