@@ -1295,8 +1295,8 @@ var Spec = func() Specification {
 				Eq(Op(Pc()), RETURNDATACOPY),
 				Ge(StackSize(), 3),
 				Eq(ReturnDataSize(), 5),
-				Eq(Param(2), MaxU256()),
-				Eq(Param(1), NewU256(2)),
+				Eq(Param(2), NewU256(6)),
+				Eq(Param(1), NewU256(1)),
 			),
 			Parameter: []Parameter{
 				MemoryOffsetParameter{},
@@ -1312,8 +1312,8 @@ var Spec = func() Specification {
 				Eq(Op(Pc()), RETURNDATACOPY),
 				Ge(StackSize(), 3),
 				Eq(ReturnDataSize(), 5),
-				Eq(Param(1), MaxU256()),
-				Eq(Param(2), NewU256(2)),
+				Eq(Param(1), NewU256(6)),
+				Eq(Param(2), NewU256(1)),
 			),
 			Parameter: []Parameter{
 				MemoryOffsetParameter{},
