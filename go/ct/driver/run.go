@@ -114,7 +114,7 @@ func doRun(context *cli.Context) error {
 			for rule := range ruleCh {
 				tstart := time.Now()
 
-				enumerationCount := 0
+				enumeratedCount := 0
 				errs := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
 					if applies, err := rule.Condition.Check(state); !applies || err != nil {
 						return err
@@ -127,7 +127,7 @@ func doRun(context *cli.Context) error {
 						return nil // ignored
 					}
 
-					enumerationCount++
+					enumeratedCount++
 
 					input := state.Clone()
 					expected := state.Clone()
@@ -149,7 +149,7 @@ func doRun(context *cli.Context) error {
 					return nil
 				})
 
-				if enumerationCount == 0 {
+				if enumeratedCount == 0 {
 					errs = append(errs, common.ConstErr("None of the generated states fulfilled all the conditions"))
 				}
 
@@ -173,7 +173,7 @@ func doRun(context *cli.Context) error {
 
 				mutex.Lock()
 				{
-					fmt.Printf("%v: (rules enumerated: %v) %v (%v)\n", ok, enumerationCount, rule, time.Since(tstart).Round(10*time.Millisecond))
+					fmt.Printf("%v: (rules enumerated: %v) %v (%v)\n", ok, enumeratedCount, rule, time.Since(tstart).Round(10*time.Millisecond))
 
 					if err != nil {
 						fmt.Println(err)

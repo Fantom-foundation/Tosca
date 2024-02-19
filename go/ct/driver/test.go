@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/urfave/cli/v2"
@@ -103,9 +104,8 @@ func doTest(context *cli.Context) error {
 
 			mutex.Lock()
 			defer mutex.Unlock()
-			enumeratedCountErr := ""
 			if enumeratedCount == 0 {
-				enumeratedCountErr = "FAIL: No state executed.\n"
+				errs = append(errs, common.ConstErr("None of the generated states fulfilled all the conditions"))
 			}
 
 			if len(errs) != 0 {
@@ -114,18 +114,17 @@ func doTest(context *cli.Context) error {
 				for _, e := range errs {
 					builder.WriteString(fmt.Sprintf("%v\n", e))
 				}
-				fmt.Printf("%v %v", builder.String(), enumeratedCountErr)
 				failed = true
 				return
 			}
 
 			if !atLeastOne {
-				fmt.Printf("FAIL: %v: No rule matches any of the generated test cases\n%v", rule.Name, enumeratedCountErr)
+				fmt.Printf("FAIL: %v: No rule matches any of the generated test cases\n", rule.Name)
 				failed = true
 				return
 			}
 
-			fmt.Printf("OK: %v (enumeration count: %v) (%v)\n", rule.Name, enumeratedCount, time.Since(tstart).Round(10*time.Millisecond))
+			fmt.Printf("OK: %v (rules enumerated: %v) (%v)\n", rule.Name, enumeratedCount, time.Since(tstart).Round(10*time.Millisecond))
 		}()
 	}
 
