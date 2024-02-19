@@ -103,9 +103,6 @@ func (c *Code) GetData(pos int) (byte, error) {
 }
 
 func (c *Code) GetSlice(start, end int) []byte {
-	if start == end || start > c.Length() || start > end {
-		return []byte{}
-	}
 	return c.code[start:end]
 }
 

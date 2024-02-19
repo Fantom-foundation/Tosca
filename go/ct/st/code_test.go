@@ -108,25 +108,44 @@ func TestCode_Printer(t *testing.T) {
 
 func TestCode_GetSlice(t *testing.T) {
 	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
-	sizeOverflowCode := append(code.code, []byte{0, 0}...)
-
 	tests := map[string]struct {
-		code   *Code
-		offset int
-		size   int
-		want   []byte
+		code  *Code
+		start int
+		end   int
+		want  []byte
 	}{
-		"regular":        {code, 1, 4, []byte{byte(PUSH1), 5, byte(PUSH2)}},
-		"sizeZero":       {code, 1, 0, []byte{}},
-		"offsetOverflow": {code, 5, 1, []byte{}},
-		"sizeOverflow":   {code, 0, 6, sizeOverflowCode},
+		"regular":  {code, 1, 4, []byte{byte(PUSH1), 5, byte(PUSH2)}},
+		"sizeZero": {code, 1, 1, []byte{}},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := test.code.GetSlice(test.offset, test.size)
+			got := test.code.GetSlice(test.start, test.end)
 			if !slices.Equal(test.want, got) {
 				t.Errorf("unexpected code, wanted %v, got %v", test.want, got)
 			}
+		})
+	}
+}
+
+func TestCode_GetSliceInvalid(t *testing.T) {
+	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
+	tests := map[string]struct {
+		code  *Code
+		start int
+		end   int
+	}{
+		"startOverflow":  {code, 6, 1},
+		"endBeforeStart": {code, 2, 0},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic.")
+				}
+			}()
+			wtf := test.code.GetSlice(test.start, test.end)
+			fmt.Print(wtf)
 		})
 	}
 }
