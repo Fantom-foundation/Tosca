@@ -57,6 +57,7 @@ const (
 	JUMP       OpCode = 0x56
 	JUMPI      OpCode = 0x57
 	PC         OpCode = 0x58
+	MSIZE      OpCode = 0x59
 	GAS        OpCode = 0x5A
 	JUMPDEST   OpCode = 0x5B
 	PUSH1      OpCode = 0x60
@@ -190,6 +191,7 @@ func ValidOpCodesNoPush() []OpCode {
 		JUMP,
 		JUMPI,
 		PC,
+		MSIZE,
 		GAS,
 		JUMPDEST,
 		DUP1,
@@ -330,6 +332,8 @@ func (op OpCode) String() string {
 		return "JUMPI"
 	case PC:
 		return "PC"
+	case MSIZE:
+		return "MSIZE"
 	case GAS:
 		return "GAS"
 	case JUMPDEST:
