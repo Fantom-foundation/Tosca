@@ -44,10 +44,6 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) err
 		}
 
 		enumerateParameters(0, rule.Parameter, state, consume, onError)
-		if err != nil {
-			onError(err)
-			return
-		}
 	})
 
 	return accumulatedErrors
