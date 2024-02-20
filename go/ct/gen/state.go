@@ -12,6 +12,10 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
+// Upperbound for gas, this limit is required since emcv defines a signed type for the gas
+// as dicussed in issue 293: https://github.com/Fantom-foundation/Tosca/issues/293
+const GasUpperbound = 1 << 60
+
 // StateGenerator is a utility class for generating States. It provides two
 // capabilities:
 //
@@ -260,7 +264,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	// Pick a gas counter.
 	var resultGas uint64
 	if len(g.gasConstraints) == 0 {
-		resultGas = rnd.Uint64()
+		resultGas = rnd.Uint64n(GasUpperbound)
 	} else if len(g.gasConstraints) == 1 {
 		resultGas = g.gasConstraints[0]
 	} else {

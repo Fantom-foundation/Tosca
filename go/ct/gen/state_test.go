@@ -185,7 +185,7 @@ func TestStateGenerator_NonConflictingPcesAreAccepted(t *testing.T) {
 // Gas Counter
 
 func TestStateGenerator_SetGasIsEnforced(t *testing.T) {
-	gasCounts := []uint64{0, 42, math.MaxUint64}
+	gasCounts := []uint64{0, 42, GasUpperbound}
 
 	rnd := rand.New(0)
 	for _, gas := range gasCounts {
