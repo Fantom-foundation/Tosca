@@ -4,7 +4,7 @@ import (
 	"math"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/ct/gen" // only requied for GasUpperbound
+	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
@@ -294,7 +294,7 @@ func (addressDomain) SamplesForAll(as []Address) []Address {
 }
 
 ////////////////////////////////////////////////////////////
-// gas domain, based on uint64 but with an upperbound at gasUpperbound
+// Gas with upper bound
 
 type gasDomain struct{}
 
@@ -318,9 +318,9 @@ func (gasDomain) SamplesForAll(as []uint64) []uint64 {
 		res = append(res, a+1)
 	}
 
-	// Add all powers of 2 until upperbound.
-	for i := 0; i < 60; i++ {
-		res = append(res, uint64(1<<i))
+	// Add all powers of 2 until upper bound.
+	for value := uint64(1); value < gen.GasUpperbound; value <<= 1 {
+		res = append(res, value)
 	}
 
 	// TODO: consider removing duplicates.
