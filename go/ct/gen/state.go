@@ -12,8 +12,9 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
-// Upper bound for gas, this limit is required since evmc defines a signed type for the gas
-// as discussed in issue 293: https://github.com/Fantom-foundation/Tosca/issues/293
+// Upper bound for gas, this limit is required since evmc defines a signed type for gas.
+// Limiting gas also solves issue 293 regarding out of memory failures,
+// discussed here: https://github.com/Fantom-foundation/Tosca/issues/293
 const GasUpperbound = 1 << 60
 
 // StateGenerator is a utility class for generating States. It provides two
