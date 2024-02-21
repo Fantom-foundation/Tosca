@@ -597,10 +597,10 @@ var Spec = func() Specification {
 	// --- PC ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         PC,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        PC,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256(uint64(s.Pc) - 1))
 		},
@@ -609,10 +609,10 @@ var Spec = func() Specification {
 	// --- MSIZE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         MSIZE,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        MSIZE,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256(uint64(s.Memory.Size())))
 		},
@@ -621,10 +621,10 @@ var Spec = func() Specification {
 	// --- GAS ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         GAS,
-		static_gas: 2,
-		pops:       0,
-		pushes:     1,
+		op:        GAS,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256(s.Gas))
 		},
