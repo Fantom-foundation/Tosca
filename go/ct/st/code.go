@@ -102,8 +102,13 @@ func (c *Code) GetData(pos int) (byte, error) {
 	return c.code[pos], nil
 }
 
-func (c *Code) GetSlice(start, end int) []byte {
-	return c.code[start:end]
+// CopySlice returns the copy of a slice of code.
+// start overflow will no modify the destination slice
+func (c *Code) CopyCode(start, end int, dst []byte) int {
+	if start >= len(c.code) || start == end {
+		return 0
+	}
+	return copy(dst, c.code[start:end])
 }
 
 func (c *Code) Eq(other *Code) bool {

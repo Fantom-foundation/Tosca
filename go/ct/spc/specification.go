@@ -855,8 +855,8 @@ var Spec = func() Specification {
 		pushes:    0,
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
-			MemoryOffsetParameter{},
-			MemorySizeParameter{}},
+			DataOffsetParameter{},
+			DataSizeParameter{}},
 		effect: func(s *st.State) {
 			destOffsetU256 := s.Stack.Pop()
 			offsetU256 := s.Stack.Pop()
@@ -872,15 +872,14 @@ var Spec = func() Specification {
 			}
 			s.Gas -= cost
 
-			codeCopy := make([]byte, size)
 			start := offsetU256.Uint64()
-
 			if offsetU256.Gt(NewU256(uint64(s.Code.Length()))) {
 				start = uint64(s.Code.Length())
 			}
 			end := min(start+size, uint64(s.Code.Length()))
 
-			copy(codeCopy, s.Code.GetSlice(int(start), int(end)))
+			codeCopy := make([]byte, size)
+			_ = s.Code.CopyCode(int(start), int(end), codeCopy)
 
 			s.Memory.Write(codeCopy, destOffset)
 		},

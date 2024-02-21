@@ -60,3 +60,6 @@ func (TopicParameter) Samples() []U256 {
 		NewU256(102),
 	}
 }
+
+type DataOffsetParameter = MemoryOffsetParameter
+type DataSizeParameter = MemorySizeParameter
