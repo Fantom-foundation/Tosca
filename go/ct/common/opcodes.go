@@ -56,6 +56,9 @@ const (
 	SSTORE     OpCode = 0x55
 	JUMP       OpCode = 0x56
 	JUMPI      OpCode = 0x57
+	PC         OpCode = 0x58
+	MSIZE      OpCode = 0x59
+	GAS        OpCode = 0x5A
 	JUMPDEST   OpCode = 0x5B
 	PUSH1      OpCode = 0x60
 	PUSH2      OpCode = 0x61
@@ -187,6 +190,9 @@ func ValidOpCodesNoPush() []OpCode {
 		SSTORE,
 		JUMP,
 		JUMPI,
+		PC,
+		MSIZE,
+		GAS,
 		JUMPDEST,
 		DUP1,
 		DUP2,
@@ -324,6 +330,12 @@ func (op OpCode) String() string {
 		return "JUMP"
 	case JUMPI:
 		return "JUMPI"
+	case PC:
+		return "PC"
+	case MSIZE:
+		return "MSIZE"
+	case GAS:
+		return "GAS"
 	case JUMPDEST:
 		return "JUMPDEST"
 	case PUSH1:

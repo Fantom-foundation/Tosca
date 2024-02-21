@@ -594,6 +594,42 @@ var Spec = func() Specification {
 		},
 	}...)
 
+	// --- PC ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         PC,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(uint64(s.Pc) - 1))
+		},
+	})...)
+
+	// --- MSIZE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         MSIZE,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(uint64(s.Memory.Size())))
+		},
+	})...)
+
+	// --- GAS ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         GAS,
+		static_gas: 2,
+		pops:       0,
+		pushes:     1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(s.Gas))
+		},
+	})...)
+
 	// --- JUMPDEST ---
 
 	rules = append(rules, rulesFor(instruction{

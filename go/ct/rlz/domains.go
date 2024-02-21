@@ -4,6 +4,7 @@ import (
 	"math"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
@@ -290,4 +291,39 @@ func (addressDomain) SamplesForAll(as []Address) []Address {
 	ret = append(ret, ffs)
 
 	return ret
+}
+
+////////////////////////////////////////////////////////////
+// Gas with upper bound
+
+type gasDomain struct{}
+
+func (gasDomain) Equal(a uint64, b uint64) bool     { return a == b }
+func (gasDomain) Less(a uint64, b uint64) bool      { return a < b }
+func (gasDomain) Predecessor(a uint64) uint64       { return a - 1 }
+func (gasDomain) Successor(a uint64) uint64         { return a + 1 }
+func (gasDomain) SomethingNotEqual(a uint64) uint64 { return a + 1 }
+
+func (d gasDomain) Samples(a uint64) []uint64 {
+	return d.SamplesForAll([]uint64{a})
+}
+
+func (gasDomain) SamplesForAll(as []uint64) []uint64 {
+	res := []uint64{0, gen.GasUpperbound}
+
+	// Test every element off by one.
+	for _, a := range as {
+		res = append(res, a-1)
+		res = append(res, a)
+		res = append(res, a+1)
+	}
+
+	// Add all powers of 2 until upper bound.
+	for value := uint64(1); value < gen.GasUpperbound; value <<= 1 {
+		res = append(res, value)
+	}
+
+	// TODO: consider removing duplicates.
+
+	return res
 }

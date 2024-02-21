@@ -116,7 +116,7 @@ func Gas() Expression[uint64] {
 	return gas{}
 }
 
-func (gas) Domain() Domain[uint64] { return uint64Domain{} }
+func (gas) Domain() Domain[uint64] { return gasDomain{} }
 
 func (gas) Eval(s *st.State) (uint64, error) {
 	return s.Gas, nil
