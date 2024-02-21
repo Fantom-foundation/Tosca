@@ -338,8 +338,7 @@ func TestConvertToGeth_BlockContext(t *testing.T) {
 
 func TestConvertToGeth_CallData(t *testing.T) {
 	state := getEmptyState()
-	state.CallData = make([]byte, 1)
-	state.CallData[0]++
+	state.CallData = []byte{1}
 
 	_, gethState, err := ConvertCtStateToGeth(state)
 	if err != nil {
@@ -605,8 +604,7 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 
 func TestConvertToCt_CallData(t *testing.T) {
 	interpreter, gethState := getEmptyGeth(ct.R07_Istanbul)
-	gethState.Contract.Input = make([]byte, 1)
-	gethState.Contract.Input[0]++
+	gethState.Contract.Input = []byte{1}
 
 	state, err := ConvertGethToCtState(interpreter, gethState)
 	if err != nil {

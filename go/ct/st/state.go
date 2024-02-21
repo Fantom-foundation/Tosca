@@ -1,12 +1,15 @@
 package st
 
 import (
+	"bytes"
 	"fmt"
 	"slices"
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
+
+const MaxDataSize = 1024
 
 ////////////////////////////////////////////////////////////
 
@@ -86,7 +89,7 @@ func (s *State) Clone() *State {
 	clone.Logs = s.Logs.Clone()
 	clone.CallContext = s.CallContext
 	clone.BlockContext = s.BlockContext
-	copy(clone.CallData, s.CallData)
+	clone.CallData = bytes.Clone(s.CallData)
 	return clone
 }
 
@@ -175,7 +178,12 @@ func (s *State) String() string {
 	}
 	builder.WriteString(fmt.Sprintf("\t%v", s.CallContext.String()))
 	builder.WriteString(fmt.Sprintf("\t%v", s.BlockContext.String()))
-	builder.WriteString(fmt.Sprintf("\tCallData: %v", s.CallData))
+
+	if len(s.CallData) > codeCutoffLength {
+		builder.WriteString(fmt.Sprintf("\tCalldata: %x... (size: %d)\n", s.CallData[:codeCutoffLength], len(s.CallData)))
+	} else {
+		builder.WriteString(fmt.Sprintf("\tCalldata: %v\n", s.CallData))
+	}
 
 	builder.WriteString("}")
 	return builder.String()

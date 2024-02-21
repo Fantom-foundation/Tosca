@@ -415,8 +415,7 @@ func TestConvertToLfvm_BlockContext(t *testing.T) {
 
 func TestConvertToLfvm_CallData(t *testing.T) {
 	state := getEmptyState()
-	state.CallData = make([]byte, 1)
-	state.CallData[0] = 1
+	state.CallData = []byte{1}
 
 	code := []byte{}
 	pcMap, err := GenPcMapWithoutSuperInstructions(code)
@@ -736,8 +735,7 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 
 func TestConvertToCt_CallData(t *testing.T) {
 	ctx := getEmptyContext()
-	ctx.data = make([]byte, 1)
-	ctx.data[0] = 1
+	ctx.data = []byte{1}
 
 	code := []byte{}
 

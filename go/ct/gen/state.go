@@ -313,7 +313,13 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Pick a random calldata
-	resultCallData := make([]byte, 32)
+	rand := rnd.ExpFloat64()
+	const expectedSize float64 = 200
+	size := uint(rand/(1/expectedSize)) + 32
+	if size > st.MaxDataSize {
+		size = st.MaxDataSize
+	}
+	resultCallData := make([]byte, size)
 	_, err = rnd.Read(resultCallData)
 	if err != nil {
 		return nil, err

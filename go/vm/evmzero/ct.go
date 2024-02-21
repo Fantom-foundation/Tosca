@@ -1,6 +1,7 @@
 package evmzero
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -215,6 +216,7 @@ func CreateEvaluation(state *st.State) (e *evaluation) {
 	callerAddress := (vm.AccountRef)(state.CallContext.CallerAddress)
 	contract := vm.NewContract(callerAddress, objectAddress, state.CallContext.Value.ToBigInt(), uint64(convertedGas))
 	contract.Code = convertCtCodeToEvmcCode(state.Code)
+	contract.Input = bytes.Clone(state.CallData)
 
 	status, err := convertCtStatusToEvmcStatus(state.Status)
 	if err != nil {
@@ -361,6 +363,7 @@ func (e *evaluation) convertEvmzeroStateToCtState(result evmc.StepResult) (*st.S
 		Memory:       convertEvmcMemoryToCtMemory(result.Memory),
 		CallContext:  convertEvmzeroStateToCallContext(e),
 		BlockContext: convertEvmzeroStateToBlockContext(e),
+		CallData:     e.contract.Input,
 	}
 
 	if e.evmzero.evm.StateDB != nil {

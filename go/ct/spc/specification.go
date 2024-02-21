@@ -908,11 +908,19 @@ var Spec = func() Specification {
 		parameters: []Parameter{NumericParameter{}},
 		effect: func(s *st.State) {
 			offsetU256 := s.Stack.Pop()
-			offsetU64 := offsetU256.Uint64()
 			pushData := NewU256(0)
-			if offsetU64 < uint64(len(s.CallData)) {
-				pushData = NewU256FromBytes(s.CallData[offsetU64:]...)
+			if offsetU256.IsUint64() {
+
+				start := offsetU256.Uint64()
+				if start > uint64(len(s.CallData)) {
+					start = uint64(len(s.CallData))
+				}
+				end := min(start+32, uint64(len(s.CallData)))
+				data := make([]byte, (32))
+				copy(data, s.CallData[start:end])
+				pushData = NewU256FromBytes(data...)
 			}
+
 			s.Stack.Push(pushData)
 		},
 	})...)
@@ -926,8 +934,8 @@ var Spec = func() Specification {
 		pushes:    0,
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
-			MemoryOffsetParameter{},
-			MemorySizeParameter{}},
+			DataOffsetParameter{},
+			DataSizeParameter{}},
 		effect: func(s *st.State) {
 			destOffsetU256 := s.Stack.Pop()
 			offsetU256 := s.Stack.Pop()
@@ -945,7 +953,7 @@ var Spec = func() Specification {
 
 			dataBuffer := make([]byte, size)
 			start := offsetU256.Uint64()
-			if start > uint64(len(s.CallData)) {
+			if offsetU256.Gt(NewU256(uint64(len(s.CallData)))) {
 				start = uint64(len(s.CallData))
 			}
 			end := min(start+size, uint64(len(s.CallData)))

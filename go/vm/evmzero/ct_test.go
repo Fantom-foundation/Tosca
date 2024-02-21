@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"math/big"
+	"slices"
 	"testing"
 
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -419,6 +420,20 @@ func TestConvertToEvmzero_BlockContext(t *testing.T) {
 	}
 }
 
+func TestConvertToEvmzero_Calldata(t *testing.T) {
+	state := getEmptyState()
+	state.CallData = []byte{1}
+
+	evmzeroEvaluation := CreateEvaluation(state)
+	if len(evmzeroEvaluation.issues) > 0 {
+		t.Fatalf("failed to convert ct state to evmzero: %v", errors.Join(evmzeroEvaluation.issues...))
+	}
+
+	if want, got := state.CallData, evmzeroEvaluation.contract.Input; !slices.Equal(want, got) {
+		t.Errorf("unexpected calldata value. wanted %v, got %v", want, got)
+	}
+}
+
 ////////////////////////////////////////////////////////////
 // evmzero -> ct
 
@@ -797,5 +812,27 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	}
 	if want, got := uint64(250), state.BlockContext.TimeStamp; want != got {
 		t.Errorf("unexpected timestamp, wanted %v, got %v", want, got)
+	}
+}
+
+func TestConvertToCt_Calldata(t *testing.T) {
+	evmzeroEvaluation := CreateEvaluation(st.NewState(st.NewCode([]byte{})))
+	if len(evmzeroEvaluation.issues) > 0 {
+		t.Fatalf("failed to convert ct state to evmzero: %v", errors.Join(evmzeroEvaluation.issues...))
+	}
+	evmzeroEvaluation.contract.Input = []byte{1}
+
+	stepResult := evmc.StepResult{
+		StepStatusCode: evmc.Running,
+		Revision:       evmc.Istanbul,
+	}
+
+	state, err := evmzeroEvaluation.convertEvmzeroStateToCtState(stepResult)
+	if err != nil {
+		t.Fatalf("failed to convert evmzero to ct state: %v", err)
+	}
+
+	if want, got := evmzeroEvaluation.contract.Input, state.CallData; !slices.Equal(want, got) {
+		t.Errorf("unexpected calldata value. wanted %v, got %v", want, got)
 	}
 }

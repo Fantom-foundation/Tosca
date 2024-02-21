@@ -9,6 +9,36 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
+func TestState_Clone(t *testing.T) {
+	state := NewState(NewCode([]byte{byte(ADD)}))
+	state.Status = Stopped
+	state.Revision = R10_London
+	state.Pc = 1
+	state.Gas = 2
+	state.GasRefund = 15
+	state.Stack.Push(NewU256(3))
+	state.Memory.Write([]byte{1, 2, 3}, 1)
+	state.Storage.Current[NewU256(4)] = NewU256(5)
+	state.Storage.Original[NewU256(6)] = NewU256(7)
+	state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
+	state.CallContext.AccountAddress = Address{0xff}
+	state.CallContext.OriginAddress = Address{0xfe}
+	state.CallContext.CallerAddress = Address{0xfd}
+	state.CallContext.Value = NewU256(252)
+	state.BlockContext.BlockNumber = 251
+	state.BlockContext.CoinBase[0] = 0xfa
+	state.BlockContext.GasLimit = 249
+	state.BlockContext.GasPrice = NewU256(248)
+	state.BlockContext.Difficulty = NewU256(247)
+	state.BlockContext.TimeStamp = 246
+	state.CallData = append(state.CallData, 1)
+
+	clone := state.Clone()
+	if !state.Eq(clone) {
+		t.Errorf("clone failed to copy. %v", state.Diff(clone))
+	}
+}
+
 func TestState_CloneIsIndependent(t *testing.T) {
 	state := NewState(NewCode([]byte{byte(ADD)}))
 	state.Status = Stopped

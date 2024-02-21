@@ -1,6 +1,7 @@
 package geth
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 
@@ -121,8 +122,7 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 	ctState.CallContext = convertGethToCtCallContext(geth, state)
 	ctState.BlockContext = convertGethToCtBlockContext(geth)
 
-	ctState.CallData = make([]byte, len(state.Contract.Input))
-	copy(ctState.CallData, state.Contract.Input)
+	ctState.CallData = bytes.Clone(state.Contract.Input)
 
 	return ctState, nil
 }
@@ -282,8 +282,7 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 	callerAddress := (vm.AccountRef)(state.CallContext.CallerAddress)
 	contract := vm.NewContract(callerAddress, objectAddress, state.CallContext.Value.ToBigInt(), state.Gas)
 	contract.Code = convertCtCodeToGethCode(state)
-	contract.Input = make([]byte, len(state.CallData))
-	copy(contract.Input, state.CallData)
+	contract.Input = bytes.Clone(state.CallData)
 
 	interpreterState := vm.NewGethState(
 		contract,
