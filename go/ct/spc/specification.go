@@ -475,6 +475,7 @@ var Spec = func() Specification {
 	for _, params := range sstoreRules {
 		rules = append(rules, sstoreOpRegular(params))
 		rules = append(rules, sstoreOpTooLittleGas(params))
+		rules = append(rules, sstoreOpReadOnlyMode(params))
 	}
 
 	rules = append(rules, tooLittleGas(instruction{op: SSTORE, static_gas: 2300, name: "_EIP2200"})...)
@@ -674,6 +675,9 @@ var Spec = func() Specification {
 
 	for i := 0; i <= 4; i++ {
 		rules = append(rules, logOp(i)...)
+	}
+	for i := 0; i <= 4; i++ {
+		rules = append(rules, logOpReadOnlyMode(i)...)
 	}
 
 	// --- ADDRESS ---
@@ -998,6 +1002,7 @@ func sstoreOpRegular(params sstoreOpParams) Rule {
 		Eq(Status(), st.Running),
 		Eq(Op(Pc()), SSTORE),
 		Ge(Gas(), gasLimit),
+		Eq(ReadOnly(), false),
 		Ge(StackSize(), 2),
 		StorageConfiguration(params.config, Param(0), Param(1)),
 	}
@@ -1052,6 +1057,7 @@ func sstoreOpTooLittleGas(params sstoreOpParams) Rule {
 		Eq(Status(), st.Running),
 		Eq(Op(Pc()), SSTORE),
 		Lt(Gas(), params.gasCost),
+		Eq(ReadOnly(), false),
 		Ge(StackSize(), 2),
 		StorageConfiguration(params.config, Param(0), Param(1)),
 	}
@@ -1077,9 +1083,41 @@ func sstoreOpTooLittleGas(params sstoreOpParams) Rule {
 	}
 }
 
+func sstoreOpReadOnlyMode(params sstoreOpParams) Rule {
+	name := fmt.Sprintf("sstore_in_read_only_mode_%v_%v", params.revision, params.config)
+
+	gasLimit := uint64(2301) // EIP2200
+	if params.gasCost > gasLimit {
+		gasLimit = params.gasCost
+	}
+
+	conditions := []Condition{
+		IsRevision(params.revision),
+		Eq(Status(), st.Running),
+		Eq(Op(Pc()), SSTORE),
+		Ge(Gas(), gasLimit),
+		Eq(ReadOnly(), true),
+		Ge(StackSize(), 2),
+		StorageConfiguration(params.config, Param(0), Param(1)),
+	}
+
+	return Rule{
+		Name:      name,
+		Condition: And(conditions...),
+		Parameter: []Parameter{
+			NumericParameter{},
+			NumericParameter{},
+		},
+		Effect: FailEffect(),
+	}
+}
+
 func logOp(n int) []Rule {
 	op := OpCode(int(LOG0) + n)
 	minGas := uint64(375 + 375*n)
+	condition := []Condition{
+		Eq(ReadOnly(), false),
+	}
 
 	parameter := []Parameter{
 		MemoryOffsetParameter{},
@@ -1094,6 +1132,7 @@ func logOp(n int) []Rule {
 		static_gas: minGas,
 		pops:       2 + n,
 		pushes:     0,
+		conditions: condition,
 		parameters: parameter,
 		effect: func(s *st.State) {
 			offset_u256 := s.Stack.Pop()
@@ -1122,6 +1161,19 @@ func logOp(n int) []Rule {
 			s.Logs.AddLog(s.Memory.Read(offset, size), topics...)
 		},
 	})
+}
+
+func logOpReadOnlyMode(n int) []Rule {
+	op := OpCode(int(LOG0) + n)
+	conditions := []Condition{
+		Eq(ReadOnly(), true),
+	}
+
+	return []Rule{{
+		Name:      fmt.Sprintf("%v_in_read_only_mode", strings.ToLower(op.String())),
+		Condition: And(conditions...),
+		Effect:    FailEffect(),
+	}}
 }
 
 func tooLittleGas(i instruction) []Rule {

@@ -163,6 +163,31 @@ func (gasRefund) String() string {
 	return "GasRefund"
 }
 
+// //////////////////////////////////////////////////////////
+// Read Only Mode
+type readOnly struct{}
+
+func ReadOnly() Expression[bool] {
+	return readOnly{}
+}
+
+func (readOnly) Domain() Domain[bool] { return boolDomain{} }
+
+func (readOnly) Eval(s *st.State) (bool, error) {
+	return s.ReadOnly, nil
+}
+
+func (readOnly) Restrict(kind RestrictionKind, isSet bool, generator *gen.StateGenerator) {
+	if kind != RestrictEqual {
+		panic("ReadOnly only supports equality constraints")
+	}
+	generator.SetReadOnly(isSet)
+}
+
+func (readOnly) String() string {
+	return "readOnly"
+}
+
 ////////////////////////////////////////////////////////////
 // Code Operation
 

@@ -46,6 +46,7 @@ type State struct {
 	Pc           uint16
 	Gas          uint64
 	GasRefund    uint64
+	ReadOnly     bool
 	Code         *Code
 	Stack        *Stack
 	Memory       *Memory
@@ -75,6 +76,7 @@ func (s *State) Clone() *State {
 	clone.Pc = s.Pc
 	clone.Gas = s.Gas
 	clone.GasRefund = s.GasRefund
+	clone.ReadOnly = s.ReadOnly
 	clone.Stack = s.Stack.Clone()
 	clone.Memory = s.Memory.Clone()
 	clone.Storage = s.Storage.Clone()
@@ -104,6 +106,7 @@ func (s *State) Eq(other *State) bool {
 		pcIsEqual &&
 		s.Gas == other.Gas &&
 		s.GasRefund == other.GasRefund &&
+		s.ReadOnly == other.ReadOnly &&
 		s.Code.Eq(other.Code) &&
 		s.Stack.Eq(other.Stack) &&
 		s.Memory.Eq(other.Memory) &&
@@ -131,6 +134,7 @@ func (s *State) String() string {
 	}
 	builder.WriteString(fmt.Sprintf("\tGas: %d\n", s.Gas))
 	builder.WriteString(fmt.Sprintf("\tGas refund: %d\n", s.GasRefund))
+	builder.WriteString(fmt.Sprintf("\tStatic mode: %v\n", s.ReadOnly))
 	if len(s.Code.code) > codeCutoffLength {
 		builder.WriteString(fmt.Sprintf("\tCode: %x... (size: %d)\n", s.Code.code[:codeCutoffLength], len(s.Code.code)))
 	} else {
@@ -192,6 +196,10 @@ func (s *State) Diff(o *State) []string {
 
 	if s.GasRefund != o.GasRefund {
 		res = append(res, fmt.Sprintf("Different gas refund: %v vs %v", s.GasRefund, o.GasRefund))
+	}
+
+	if s.ReadOnly != o.ReadOnly {
+		res = append(res, fmt.Sprintf("Different static mode: %v vs %v", s.ReadOnly, o.ReadOnly))
 	}
 
 	if !s.Code.Eq(o.Code) {
