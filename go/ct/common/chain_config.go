@@ -23,6 +23,7 @@ func GetChainConfig(chainId *big.Int) *params.ChainConfig {
 
 	chainConfig := &params.ChainConfig{}
 	chainConfig.ChainID = chainId
+	chainConfig.ByzantiumBlock = big.NewInt(0)
 	chainConfig.IstanbulBlock = big.NewInt(0).SetUint64(istanbulBlock)
 	chainConfig.BerlinBlock = big.NewInt(0).SetUint64(berlinBlock)
 	chainConfig.LondonBlock = big.NewInt(0).SetUint64(londonBlock)

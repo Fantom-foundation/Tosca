@@ -284,6 +284,8 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 		convertCtStackToGethStack(state),
 		uint64(state.Pc))
 
+	interpreterState.ReadOnly = state.ReadOnly
+
 	if err = convertCtStatusToGethStatus(state, geth, interpreterState); err != nil {
 		return nil, nil, err
 	}
