@@ -1165,8 +1165,14 @@ func logOp(n int) []Rule {
 
 func logOpReadOnlyMode(n int) []Rule {
 	op := OpCode(int(LOG0) + n)
+	minGas := uint64(375 + 375*n)
 	conditions := []Condition{
+		AnyKnownRevision(),
+		Eq(Status(), st.Running),
+		Eq(Op(Pc()), op),
+		Ge(Gas(), minGas),
 		Eq(ReadOnly(), true),
+		Ge(StackSize(), 2+n),
 	}
 
 	return []Rule{{
