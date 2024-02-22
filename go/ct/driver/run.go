@@ -14,7 +14,6 @@ import (
 	"pgregory.net/rand"
 
 	"github.com/Fantom-foundation/Tosca/go/ct"
-	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
@@ -114,7 +113,7 @@ func doRun(context *cli.Context) error {
 			for rule := range ruleCh {
 				tstart := time.Now()
 
-				enumeratedCount := 0
+				evaluationCount := 0
 				errs := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
 					if applies, err := rule.Condition.Check(state); !applies || err != nil {
 						return err
@@ -127,7 +126,7 @@ func doRun(context *cli.Context) error {
 						return nil // ignored
 					}
 
-					enumeratedCount++
+					evaluationCount++
 
 					input := state.Clone()
 					expected := state.Clone()
@@ -149,8 +148,9 @@ func doRun(context *cli.Context) error {
 					return nil
 				})
 
-				if enumeratedCount == 0 {
-					errs = append(errs, common.ConstErr("None of the generated states fulfilled all the conditions"))
+				// If no state was evaluated because it was skipped, this is not an error.
+				if evaluationCount == 0 && skippedCount.Load() == 0 {
+					errs = append(errs, fmt.Errorf("none of the generated states fulfilled all the conditions"))
 				}
 
 				ok := "OK"
@@ -173,7 +173,7 @@ func doRun(context *cli.Context) error {
 
 				mutex.Lock()
 				{
-					fmt.Printf("%v: (rules enumerated: %v) %v (%v)\n", ok, enumeratedCount, rule, time.Since(tstart).Round(10*time.Millisecond))
+					fmt.Printf("%v: (rules evaluated: %v) %v (%v)\n", ok, evaluationCount, rule, time.Since(tstart).Round(10*time.Millisecond))
 
 					if err != nil {
 						fmt.Println(err)
