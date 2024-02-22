@@ -429,7 +429,7 @@ func TestConvertToEvmzero_Calldata(t *testing.T) {
 		t.Fatalf("failed to convert ct state to evmzero: %v", errors.Join(evmzeroEvaluation.issues...))
 	}
 
-	if want, got := state.CallData, evmzeroEvaluation.contract.Input; !slices.Equal(want, got) {
+	if want, got := state.CallData, evmzeroEvaluation.input; !slices.Equal(want, got) {
 		t.Errorf("unexpected calldata value. wanted %v, got %v", want, got)
 	}
 }
@@ -820,7 +820,7 @@ func TestConvertToCt_Calldata(t *testing.T) {
 	if len(evmzeroEvaluation.issues) > 0 {
 		t.Fatalf("failed to convert ct state to evmzero: %v", errors.Join(evmzeroEvaluation.issues...))
 	}
-	evmzeroEvaluation.contract.Input = []byte{1}
+	evmzeroEvaluation.input = []byte{1}
 
 	stepResult := evmc.StepResult{
 		StepStatusCode: evmc.Running,
@@ -832,7 +832,7 @@ func TestConvertToCt_Calldata(t *testing.T) {
 		t.Fatalf("failed to convert evmzero to ct state: %v", err)
 	}
 
-	if want, got := evmzeroEvaluation.contract.Input, state.CallData; !slices.Equal(want, got) {
+	if want, got := evmzeroEvaluation.input, state.CallData; !slices.Equal(want, got) {
 		t.Errorf("unexpected calldata value. wanted %v, got %v", want, got)
 	}
 }

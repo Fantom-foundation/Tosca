@@ -216,7 +216,6 @@ func CreateEvaluation(state *st.State) (e *evaluation) {
 	callerAddress := (vm.AccountRef)(state.CallContext.CallerAddress)
 	contract := vm.NewContract(callerAddress, objectAddress, state.CallContext.Value.ToBigInt(), uint64(convertedGas))
 	contract.Code = convertCtCodeToEvmcCode(state.Code)
-	contract.Input = bytes.Clone(state.CallData)
 
 	status, err := convertCtStatusToEvmcStatus(state.Status)
 	if err != nil {
@@ -228,7 +227,7 @@ func CreateEvaluation(state *st.State) (e *evaluation) {
 	e.contract = contract
 	e.revision = revision
 	e.gasRefund = convertedGasRefund
-	e.input = make([]byte, 0)
+	e.input = bytes.Clone(state.CallData)
 	e.status = status
 	e.pc = uint64(state.Pc)
 	e.readOnly = state.ReadOnly
@@ -363,7 +362,7 @@ func (e *evaluation) convertEvmzeroStateToCtState(result evmc.StepResult) (*st.S
 		Memory:       convertEvmcMemoryToCtMemory(result.Memory),
 		CallContext:  convertEvmzeroStateToCallContext(e),
 		BlockContext: convertEvmzeroStateToBlockContext(e),
-		CallData:     e.contract.Input,
+		CallData:     e.input,
 	}
 
 	if e.evmzero.evm.StateDB != nil {
