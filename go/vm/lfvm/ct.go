@@ -132,6 +132,7 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 	if ctx.stateDB != nil {
 		state.GasRefund = ctx.stateDB.GetRefund()
 	}
+	state.ReadOnly = ctx.readOnly
 	state.Code = originalCode
 	state.Stack = convertLfvmStackToCtStack(ctx)
 	state.Memory = convertLfvmMemoryToCtMemory(ctx)
@@ -272,7 +273,7 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 		code:     code,
 		data:     data,
 		callsize: *uint256.NewInt(uint64(len(data))),
-		readOnly: false,
+		readOnly: state.ReadOnly,
 	}
 
 	ctx.evm.Origin = (common.Address)(state.CallContext.OriginAddress[:])
