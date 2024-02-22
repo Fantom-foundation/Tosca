@@ -107,6 +107,7 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 	ctState.Revision = revision
 	ctState.Pc = uint16(state.Pc)
 	ctState.Gas = state.Contract.Gas
+	ctState.ReadOnly = state.ReadOnly
 	if geth.evm.StateDB != nil {
 		ctState.GasRefund = geth.evm.StateDB.GetRefund()
 	}
