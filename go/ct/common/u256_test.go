@@ -317,6 +317,8 @@ func TestU256_Marshalling(t *testing.T) {
 		{NewU256(1, 2), []byte("0000000000000000 0000000000000000 0000000000000001 0000000000000002")},
 		{NewU256(1, 2, 3), []byte("0000000000000000 0000000000000001 0000000000000002 0000000000000003")},
 		{NewU256(42, 13, 47, 1), []byte("000000000000002a 000000000000000d 000000000000002f 0000000000000001")},
+		{NewU256(0xa000000000000000, 0xb000000000000000, 0xc000000000000000, 0xd000000000000000), []byte("a000000000000000 b000000000000000 c000000000000000 d000000000000000")},
+		{NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), []byte("ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff")},
 	}
 
 	for _, test := range tests {
@@ -342,6 +344,7 @@ func TestU256_Unmarshalling(t *testing.T) {
 		{[]byte("0000000000000000 0000000000000001 0000000000000002 0000000000000003"), NewU256(1, 2, 3)},
 		{[]byte("000000000000002a 000000000000000d 000000000000002f 0000000000000001"), NewU256(42, 13, 47, 1)},
 		{[]byte("a000000000000000 B000000000000000 C000000000000000 d000000000000000"), NewU256(0xa000000000000000, 0xb000000000000000, 0xc000000000000000, 0xd000000000000000)},
+		{[]byte("ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff"), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff)},
 	}
 
 	for _, test := range tests {
@@ -405,6 +408,7 @@ func TestU256_MarshallingRoundTrip(t *testing.T) {
 		{NewU256(1, 2, 3)},
 		{NewU256(42, 13, 47, 1)},
 		{NewU256(0xa000000000000000, 0xb000000000000000, 0xc000000000000000, 0xd000000000000000)},
+		{NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff)},
 	}
 
 	for _, test := range tests {
