@@ -304,3 +304,122 @@ func TestNewU256FromBigInt_PanicsWithInvalidInput(t *testing.T) {
 		})
 	}
 }
+
+func TestU256_Marshalling(t *testing.T) {
+	tests := []struct {
+		value      U256
+		marshalled []byte
+	}{
+		{U256{}, []byte("0000000000000000 0000000000000000 0000000000000000 0000000000000000")},
+		{NewU256(0), []byte("0000000000000000 0000000000000000 0000000000000000 0000000000000000")},
+		{NewU256(1), []byte("0000000000000000 0000000000000000 0000000000000000 0000000000000001")},
+		{NewU256(2), []byte("0000000000000000 0000000000000000 0000000000000000 0000000000000002")},
+		{NewU256(1, 2), []byte("0000000000000000 0000000000000000 0000000000000001 0000000000000002")},
+		{NewU256(1, 2, 3), []byte("0000000000000000 0000000000000001 0000000000000002 0000000000000003")},
+		{NewU256(42, 13, 47, 1), []byte("000000000000002a 000000000000000d 000000000000002f 0000000000000001")},
+	}
+
+	for _, test := range tests {
+		marshalled, err := test.value.MarshalText()
+		if err != nil {
+			t.Fatalf("Unexpected error when marshalling U256: %v", err)
+		}
+		if !bytes.Equal(marshalled, test.marshalled) {
+			t.Errorf("Unexpected marshalled value: want %v, got %v", test.marshalled, marshalled)
+		}
+	}
+}
+
+func TestU256_Unmarshalling(t *testing.T) {
+	tests := []struct {
+		marshalled []byte
+		want       U256
+	}{
+		{[]byte("0000000000000000 0000000000000000 0000000000000000 0000000000000000"), U256{}},
+		{[]byte("0000000000000000 0000000000000000 0000000000000000 0000000000000001"), NewU256(1)},
+		{[]byte("0000000000000000 0000000000000000 0000000000000000 0000000000000002"), NewU256(2)},
+		{[]byte("0000000000000000 0000000000000000 0000000000000001 0000000000000002"), NewU256(1, 2)},
+		{[]byte("0000000000000000 0000000000000001 0000000000000002 0000000000000003"), NewU256(1, 2, 3)},
+		{[]byte("000000000000002a 000000000000000d 000000000000002f 0000000000000001"), NewU256(42, 13, 47, 1)},
+		{[]byte("a000000000000000 B000000000000000 C000000000000000 d000000000000000"), NewU256(0xa000000000000000, 0xb000000000000000, 0xc000000000000000, 0xd000000000000000)},
+	}
+
+	for _, test := range tests {
+		var u U256
+		err := u.UnmarshalText(test.marshalled)
+		if err != nil {
+			t.Fatalf("Unexpected error when unmarshalling U256: %v", err)
+		}
+		if !u.Eq(test.want) {
+			t.Errorf("Unexpected unmarshalled value: want %v, got %v", test.want, u)
+		}
+	}
+}
+
+func TestU256_UnmarshallingError(t *testing.T) {
+	testCases := map[string][]byte{
+		"first value too short":  []byte("000000000000000 0000000000000001 0000000000000002 0000000000000003"),
+		"second value too short": []byte("0000000000000004 000000000000000 0000000000000005 0000000000000006"),
+		"third value too short":  []byte("0000000000000007 0000000000000008 000000000000000 0000000000000009"),
+		"fourth value too short": []byte("000000000000000a 000000000000000b 000000000000000c 000000000000000"),
+		"one value missing":      []byte("000000000000000d 000000000000000e 000000000000000f"),
+		"two values missing":     []byte("1000000000000000 2000000000000000"),
+		"three values missing":   []byte("3000000000000000"),
+		"four values missing":    []byte(""),
+		"first value invalid":    []byte("000000000000000g 4000000000000000 5000000000000000 6000000000000000"),
+		"second value invalid":   []byte("7000000000000000 000000000000000g 8000000000000000 9000000000000000"),
+		"third value invalid":    []byte("a000000000000000 b000000000000000 000000000000000g c000000000000000"),
+		"fourth value invalid":   []byte("d000000000000000 e000000000000000 f000000000000000 000000000000000g"),
+		"first value too long":   []byte("00000000000000000 0000000000000000 0000000000000000 0000000000000000"),
+		"second value too long":  []byte("0000000000000000 00000000000000000 0000000000000000 0000000000000000"),
+		"third value too long":   []byte("0000000000000000 0000000000000000 00000000000000000 0000000000000000"),
+		"fourth value too long":  []byte("0000000000000000 0000000000000000 0000000000000000 00000000000000000"),
+		"one value too many":     []byte("0000000000000000 0000000000000000 0000000000000000 0000000000000000 0000000000000000"),
+		"leading space":          []byte(" 0000000000000000 0000000000000000 0000000000000000 0000000000000000"),
+		"trailing space":         []byte("0000000000000000 0000000000000000 0000000000000000 0000000000000000 "),
+		"more than one space":    []byte("0000000000000000  0000000000000000 0000000000000000 0000000000000000"),
+		"tab separated":          []byte("0000000000000000\t0000000000000000\t0000000000000000\t0000000000000000"),
+		"newline separated":      []byte("0000000000000000\n0000000000000000\n0000000000000000\n0000000000000000"),
+		"no separator":           []byte("0000000000000000000000000000000000000000000000000000000000000000"),
+	}
+
+	for name, input := range testCases {
+		t.Run(name, func(t *testing.T) {
+			var u U256
+			err := u.UnmarshalText(input)
+			if err == nil {
+				t.Fatalf("Expected error when unmarshalling input with: %s", name)
+			}
+		})
+	}
+}
+
+func TestU256_MarshallingRoundTrip(t *testing.T) {
+	tests := []struct {
+		value U256
+	}{
+		{U256{}},
+		{NewU256(1)},
+		{NewU256(2)},
+		{NewU256(1, 2)},
+		{NewU256(1, 2, 3)},
+		{NewU256(42, 13, 47, 1)},
+		{NewU256(0xa000000000000000, 0xb000000000000000, 0xc000000000000000, 0xd000000000000000)},
+	}
+
+	for _, test := range tests {
+		marshalled, err := test.value.MarshalText()
+		if err != nil {
+			t.Fatalf("Unexpected error when marshalling U256: %v", err)
+		}
+
+		var u U256
+		err = u.UnmarshalText(marshalled)
+		if err != nil {
+			t.Fatalf("Unexpected error when unmarshalling U256: %v", err)
+		}
+		if !u.Eq(test.value) {
+			t.Errorf("Unexpected unmarshalled value: want %v, got %v", test.value, u)
+		}
+	}
+}

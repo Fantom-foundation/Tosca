@@ -3,6 +3,8 @@ package common
 import (
 	"fmt"
 	"math/big"
+	"regexp"
+	"strconv"
 
 	"pgregory.net/rand"
 
@@ -218,6 +220,28 @@ func (a U256) Srsh(b U256) (z U256) {
 
 func (i U256) String() string {
 	return fmt.Sprintf("%016x %016x %016x %016x", i.internal[3], i.internal[2], i.internal[1], i.internal[0])
+}
+
+func (i U256) MarshalText() ([]byte, error) {
+	return []byte(i.String()), nil
+}
+
+func (i *U256) UnmarshalText(text []byte) error {
+	r := regexp.MustCompile("^([[:xdigit:]]{16}) ([[:xdigit:]]{16}) ([[:xdigit:]]{16}) ([[:xdigit:]]{16})$")
+	match := r.FindSubmatch(text)
+
+	if len(match) != 5 {
+		return fmt.Errorf("invalid U256: %s", text)
+	}
+
+	for j := 0; j < 4; j++ {
+		var err error
+		i.internal[j], err = strconv.ParseUint(string(match[4-j]), 16, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse U256 (%v): %s", err, text)
+		}
+	}
+	return nil
 }
 
 // ToBigInt returns a bigInt version of i
