@@ -879,7 +879,7 @@ var Spec = func() Specification {
 			end := min(start+size, uint64(s.Code.Length()))
 
 			codeCopy := make([]byte, size)
-			_ = s.Code.CopyCode(int(start), int(end), codeCopy)
+			_ = s.Code.CopyCodeSlice(int(start), int(end), codeCopy)
 
 			s.Memory.Write(codeCopy, destOffset)
 		},

@@ -106,7 +106,7 @@ func TestCode_Printer(t *testing.T) {
 	}
 }
 
-func TestCode_CopyCode(t *testing.T) {
+func TestCode_CopyCodeSlice(t *testing.T) {
 	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
 	tests := map[string]struct {
 		start int
@@ -121,7 +121,7 @@ func TestCode_CopyCode(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			got := make([]byte, test.end-test.start)
-			_ = code.CopyCode(test.start, test.end, got)
+			_ = code.CopyCodeSlice(test.start, test.end, got)
 			if !slices.Equal(test.want, got) {
 				t.Errorf("unexpected code, wanted %v, got %v", test.want, got)
 			}
@@ -129,7 +129,7 @@ func TestCode_CopyCode(t *testing.T) {
 	}
 }
 
-func TestCode_CopyCodeInvalid(t *testing.T) {
+func TestCode_CopyCodeSliceInvalid(t *testing.T) {
 	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
 	tests := map[string]struct {
 		start int
@@ -146,7 +146,7 @@ func TestCode_CopyCodeInvalid(t *testing.T) {
 				}
 			}()
 			buffer := make([]byte, max(test.end-test.start, 4))
-			_ = code.CopyCode(test.start, test.end, buffer)
+			_ = code.CopyCodeSlice(test.start, test.end, buffer)
 		})
 	}
 }
