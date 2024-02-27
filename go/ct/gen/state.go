@@ -37,11 +37,11 @@ type StateGenerator struct {
 	// Constraints
 	statusConstraints     []st.StatusCode
 	revisionConstraints   []RevisionBounds
+	readOnlyConstraints   []bool
 	pcConstantConstraints []uint16
 	pcVariableConstraints []Variable
 	gasConstraints        []uint64
 	gasRefundConstraints  []uint64
-	readOnlyConstraints   []bool
 
 	// Generators
 	codeGen         *CodeGenerator
@@ -103,6 +103,13 @@ func (g *StateGenerator) SetRevisionBounds(min, max Revision) {
 	}
 }
 
+// SetReadOnly adds a constraint on the states static mode.
+func (g *StateGenerator) SetReadOnly(readOnly bool) {
+	if !slices.Contains(g.readOnlyConstraints, readOnly) {
+		g.readOnlyConstraints = append(g.readOnlyConstraints, readOnly)
+	}
+}
+
 // SetPc adds a constraint on the State's program counter.
 func (g *StateGenerator) SetPc(pc uint16) {
 	if !slices.Contains(g.pcConstantConstraints, pc) {
@@ -129,13 +136,6 @@ func (g *StateGenerator) SetGas(gas uint64) {
 func (g *StateGenerator) SetGasRefund(gasRefund uint64) {
 	if !slices.Contains(g.gasRefundConstraints, gasRefund) {
 		g.gasRefundConstraints = append(g.gasRefundConstraints, gasRefund)
-	}
-}
-
-// SetReadOnly adds a constraint on the states static mode.
-func (g *StateGenerator) SetReadOnly(readOnly bool) {
-	if !slices.Contains(g.readOnlyConstraints, readOnly) {
-		g.readOnlyConstraints = append(g.readOnlyConstraints, readOnly)
 	}
 }
 
@@ -244,6 +244,16 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
+	// Choose if state is in static mode
+	var resultReadOnly bool
+	if len(g.readOnlyConstraints) == 0 {
+		resultReadOnly = rnd.Uint32n(2) == 1
+	} else if len(g.readOnlyConstraints) == 1 {
+		resultReadOnly = g.readOnlyConstraints[0]
+	} else {
+		return nil, fmt.Errorf("%w, multiple conflicting read only constraints defined: %v", ErrUnsatisfiable, g.readOnlyConstraints)
+	}
+
 	// Pick a program counter.
 	var resultPc uint16
 	{
@@ -290,16 +300,6 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting gas refund counter constraints defined: %v", ErrUnsatisfiable, g.gasRefundConstraints)
 	}
 
-	// Choose if state is in static mode
-	var resultReadOnly bool
-	if len(g.readOnlyConstraints) == 0 {
-		resultReadOnly = rnd.Uint32n(2) == 1
-	} else if len(g.readOnlyConstraints) == 1 {
-		resultReadOnly = g.readOnlyConstraints[0]
-	} else {
-		return nil, fmt.Errorf("%w, multiple conflicting read only constraints defined: %v", ErrUnsatisfiable, g.readOnlyConstraints)
-	}
-
 	// Invoke CallContextGenerator
 	resultCallContext, err := g.callContextGen.Generate(rnd)
 	if err != nil {
@@ -337,10 +337,10 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result := st.NewState(resultCode)
 	result.Status = resultStatus
 	result.Revision = resultRevision
+	result.ReadOnly = resultReadOnly
 	result.Pc = resultPc
 	result.Gas = resultGas
 	result.GasRefund = resultGasRefund
-	result.ReadOnly = resultReadOnly
 	result.Stack = resultStack
 	result.Memory = resultMemory
 	result.Storage = resultStorage
@@ -356,11 +356,11 @@ func (g *StateGenerator) Clone() *StateGenerator {
 	return &StateGenerator{
 		statusConstraints:     slices.Clone(g.statusConstraints),
 		revisionConstraints:   slices.Clone(g.revisionConstraints),
+		readOnlyConstraints:   slices.Clone(g.readOnlyConstraints),
 		pcConstantConstraints: slices.Clone(g.pcConstantConstraints),
 		pcVariableConstraints: slices.Clone(g.pcVariableConstraints),
 		gasConstraints:        slices.Clone(g.gasConstraints),
 		gasRefundConstraints:  slices.Clone(g.gasRefundConstraints),
-		readOnlyConstraints:   slices.Clone(g.readOnlyConstraints),
 		codeGen:               g.codeGen.Clone(),
 		stackGen:              g.stackGen.Clone(),
 		memoryGen:             g.memoryGen.Clone(),
@@ -375,11 +375,11 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 	if g != other {
 		g.statusConstraints = slices.Clone(other.statusConstraints)
 		g.revisionConstraints = slices.Clone(other.revisionConstraints)
+		g.readOnlyConstraints = slices.Clone(other.readOnlyConstraints)
 		g.pcConstantConstraints = slices.Clone(other.pcConstantConstraints)
 		g.pcVariableConstraints = slices.Clone(other.pcVariableConstraints)
 		g.gasConstraints = slices.Clone(other.gasConstraints)
 		g.gasRefundConstraints = slices.Clone(other.gasRefundConstraints)
-		g.readOnlyConstraints = slices.Clone(other.readOnlyConstraints)
 		g.codeGen.Restore(other.codeGen)
 		g.stackGen.Restore(other.stackGen)
 		g.memoryGen.Restore(other.memoryGen)
@@ -402,6 +402,10 @@ func (g *StateGenerator) String() string {
 		parts = append(parts, fmt.Sprintf("revision=%v", revision))
 	}
 
+	for _, mode := range g.readOnlyConstraints {
+		parts = append(parts, fmt.Sprintf("readOnly mode=%v", mode))
+	}
+
 	sort.Slice(g.pcConstantConstraints, func(i, j int) bool { return g.pcConstantConstraints[i] < g.pcConstantConstraints[j] })
 	for _, pc := range g.pcConstantConstraints {
 		parts = append(parts, fmt.Sprintf("pc=%d", pc))
@@ -420,10 +424,6 @@ func (g *StateGenerator) String() string {
 	sort.Slice(g.gasRefundConstraints, func(i, j int) bool { return g.gasRefundConstraints[i] < g.gasRefundConstraints[j] })
 	for _, gas := range g.gasRefundConstraints {
 		parts = append(parts, fmt.Sprintf("gasRefund=%d", gas))
-	}
-
-	for _, mode := range g.readOnlyConstraints {
-		parts = append(parts, fmt.Sprintf("readOnly mode=%v", mode))
 	}
 
 	parts = append(parts, fmt.Sprintf("code=%v", g.codeGen))

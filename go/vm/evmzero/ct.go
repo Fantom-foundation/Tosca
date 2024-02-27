@@ -245,14 +245,14 @@ func (e *evaluation) Run(numSteps int) (*st.State, error) {
 	res, err := e.evmzero.interpreter.StepN(
 		e.contract,
 		e.revision,
+		e.readOnly,
 		e.gasRefund,
 		e.input,
 		e.status,
 		e.pc,
 		e.stack,
 		e.memory,
-		numSteps,
-		e.readOnly)
+		numSteps)
 	if err != nil {
 		return nil, err
 	}

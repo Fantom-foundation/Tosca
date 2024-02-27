@@ -31,6 +31,31 @@ func TestExpression_StatusRestrict(t *testing.T) {
 	}
 }
 
+func TestExpression_ReadOnlyEval(t *testing.T) {
+	for _, readOnlyWant := range []bool{false, true} {
+		state := st.NewState(st.NewCode([]byte{}))
+		state.ReadOnly = readOnlyWant
+		if readOnlyGet, err := ReadOnly().Eval(state); err != nil || readOnlyWant != readOnlyGet {
+			t.Fail()
+		}
+	}
+}
+
+func TestExpression_ReadOnlyRestrict(t *testing.T) {
+	for _, readOnly := range []bool{false, true} {
+		generator := gen.NewStateGenerator()
+		ReadOnly().Restrict(RestrictEqual, readOnly, generator)
+
+		state, err := generator.Generate(rand.New(0))
+		if err != nil {
+			t.Errorf("State generation failed %v", err)
+		}
+		if state.ReadOnly != readOnly {
+			t.Errorf("Generator was not restricted by expression")
+		}
+	}
+}
+
 func TestExpression_PcEval(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Pc = 42
@@ -90,27 +115,6 @@ func TestExpression_GasRefundRestrict(t *testing.T) {
 		t.Errorf("State generation failed %v", err)
 	}
 	if state.GasRefund != 42 {
-		t.Errorf("Generator was not restricted by expression")
-	}
-}
-
-func TestExpression_ReadOnlyEval(t *testing.T) {
-	state := st.NewState(st.NewCode([]byte{}))
-	state.ReadOnly = true
-	if readOnly, err := ReadOnly().Eval(state); err != nil || readOnly != true {
-		t.Fail()
-	}
-}
-
-func TestExpression_ReadOnlyRestrict(t *testing.T) {
-	generator := gen.NewStateGenerator()
-	ReadOnly().Restrict(RestrictEqual, true, generator)
-
-	state, err := generator.Generate(rand.New(0))
-	if err != nil {
-		t.Errorf("State generation failed %v", err)
-	}
-	if state.ReadOnly != true {
 		t.Errorf("Generator was not restricted by expression")
 	}
 }

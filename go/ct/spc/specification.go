@@ -676,9 +676,6 @@ var Spec = func() Specification {
 	for i := 0; i <= 4; i++ {
 		rules = append(rules, logOp(i)...)
 	}
-	for i := 0; i <= 4; i++ {
-		rules = append(rules, logOpReadOnlyMode(i)...)
-	}
 
 	// --- ADDRESS ---
 
@@ -1115,7 +1112,7 @@ func sstoreOpReadOnlyMode(params sstoreOpParams) Rule {
 func logOp(n int) []Rule {
 	op := OpCode(int(LOG0) + n)
 	minGas := uint64(375 + 375*n)
-	condition := []Condition{
+	conditions := []Condition{
 		Eq(ReadOnly(), false),
 	}
 
@@ -1127,12 +1124,12 @@ func logOp(n int) []Rule {
 		parameter = append(parameter, TopicParameter{})
 	}
 
-	return rulesFor(instruction{
+	rules := rulesFor(instruction{
 		op:         op,
 		static_gas: minGas,
 		pops:       2 + n,
 		pushes:     0,
-		conditions: condition,
+		conditions: conditions,
 		parameters: parameter,
 		effect: func(s *st.State) {
 			offset_u256 := s.Stack.Pop()
@@ -1161,12 +1158,9 @@ func logOp(n int) []Rule {
 			s.Logs.AddLog(s.Memory.Read(offset, size), topics...)
 		},
 	})
-}
 
-func logOpReadOnlyMode(n int) []Rule {
-	op := OpCode(int(LOG0) + n)
-	minGas := uint64(375 + 375*n)
-	conditions := []Condition{
+	// Read only mode
+	conditions = []Condition{
 		AnyKnownRevision(),
 		Eq(Status(), st.Running),
 		Eq(Op(Pc()), op),
@@ -1175,11 +1169,13 @@ func logOpReadOnlyMode(n int) []Rule {
 		Ge(StackSize(), 2+n),
 	}
 
-	return []Rule{{
+	rules = append(rules, []Rule{{
 		Name:      fmt.Sprintf("%v_in_read_only_mode", strings.ToLower(op.String())),
 		Condition: And(conditions...),
 		Effect:    FailEffect(),
-	}}
+	}}...)
+
+	return rules
 }
 
 func tooLittleGas(i instruction) []Rule {
