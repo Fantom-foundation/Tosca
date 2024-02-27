@@ -39,6 +39,6 @@ require (
 	golang.org/x/sys v0.13.0 // indirect
 )
 
-replace github.com/ethereum/go-ethereum => github.com/Fantom-foundation/go-ethereum-substate v1.1.1-0.20231130120720-dd62171089ad
+replace github.com/ethereum/go-ethereum => github.com/Fantom-foundation/go-ethereum-substate v1.1.1-0.20240227132411-c08de2b3341f
 
 replace github.com/ethereum/evmc/v10 => ./third_party/evmc
