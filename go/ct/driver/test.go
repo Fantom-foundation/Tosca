@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/urfave/cli/v2"
@@ -79,7 +78,7 @@ func doTest(context *cli.Context) error {
 
 			tstart := time.Now()
 
-			enumeratedCount := 0
+			enumerationCount := 0
 			rnd := rand.New(context.Uint64("seed"))
 			errs := rule.EnumerateTestCases(rnd, func(state *st.State) error {
 				rules := spc.Spec.GetRulesFor(state)
@@ -98,15 +97,16 @@ func doTest(context *cli.Context) error {
 						}
 					}
 				}
-				enumeratedCount++
+				enumerationCount++
 				return nil
 			})
 
+			if enumerationCount == 0 {
+				errs = append(errs, fmt.Errorf("none of the generated states fulfilled all the conditions"))
+			}
+
 			mutex.Lock()
 			defer mutex.Unlock()
-			if enumeratedCount == 0 {
-				errs = append(errs, common.ConstErr("None of the generated states fulfilled all the conditions"))
-			}
 
 			if len(errs) != 0 {
 				builder := strings.Builder{}
@@ -114,6 +114,7 @@ func doTest(context *cli.Context) error {
 				for _, e := range errs {
 					builder.WriteString(fmt.Sprintf("%v\n", e))
 				}
+				fmt.Print(builder.String())
 				failed = true
 				return
 			}
@@ -124,7 +125,7 @@ func doTest(context *cli.Context) error {
 				return
 			}
 
-			fmt.Printf("OK: %v (rules enumerated: %v) (%v)\n", rule.Name, enumeratedCount, time.Since(tstart).Round(10*time.Millisecond))
+			fmt.Printf("OK: %v (rules enumerated: %v) (%v)\n", rule.Name, enumerationCount, time.Since(tstart).Round(10*time.Millisecond))
 		}()
 	}
 
