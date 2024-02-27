@@ -124,7 +124,7 @@ func (s *State) String() string {
 	builder.WriteString("{\n")
 	builder.WriteString(fmt.Sprintf("\tStatus: %v\n", s.Status))
 	builder.WriteString(fmt.Sprintf("\tRevision: %v\n", s.Revision))
-	builder.WriteString(fmt.Sprintf("\tStatic mode: %t\n", s.ReadOnly))
+	builder.WriteString(fmt.Sprintf("\tRead only mode: %t\n", s.ReadOnly))
 	builder.WriteString(fmt.Sprintf("\tPc: %d (0x%04x)\n", s.Pc, s.Pc))
 	if !s.Code.IsCode(int(s.Pc)) {
 		builder.WriteString("\t    (points to data)\n")
@@ -187,7 +187,7 @@ func (s *State) Diff(o *State) []string {
 	}
 
 	if s.ReadOnly != o.ReadOnly {
-		res = append(res, fmt.Sprintf("Different static mode: %t vs %t", s.ReadOnly, o.ReadOnly))
+		res = append(res, fmt.Sprintf("Different read only mode: %t vs %t", s.ReadOnly, o.ReadOnly))
 	}
 
 	if s.Pc != o.Pc {

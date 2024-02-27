@@ -103,7 +103,7 @@ func (g *StateGenerator) SetRevisionBounds(min, max Revision) {
 	}
 }
 
-// SetReadOnly adds a constraint on the states static mode.
+// SetReadOnly adds a constraint on the states read only mode.
 func (g *StateGenerator) SetReadOnly(readOnly bool) {
 	if !slices.Contains(g.readOnlyConstraints, readOnly) {
 		g.readOnlyConstraints = append(g.readOnlyConstraints, readOnly)
@@ -244,7 +244,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
-	// Choose if state is in static mode
+	// Choose if state is in read only mode
 	var resultReadOnly bool
 	if len(g.readOnlyConstraints) == 0 {
 		resultReadOnly = rnd.Uint32n(2) == 1
