@@ -113,10 +113,8 @@ func TestCode_CopyCodeSlice(t *testing.T) {
 		end   int
 		want  []byte
 	}{
-		"regular":             {1, 4, []byte{byte(PUSH1), 5, byte(PUSH2)}},
-		"sizeZero":            {1, 1, []byte{}},
-		"partiallyOutOfBound": {1, 6, []byte{byte(PUSH1), 5, byte(PUSH2), 0, 0}},
-		"fullyOutOfBound":     {6, 8, []byte{0, 0}},
+		"regular":  {1, 4, []byte{byte(PUSH1), 5, byte(PUSH2)}},
+		"sizeZero": {1, 1, []byte{}},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -135,8 +133,10 @@ func TestCode_CopyCodeSliceInvalid(t *testing.T) {
 		start int
 		end   int
 	}{
-		"endBeforeStart": {2, 0},
-		"negativeOffset": {-2, 2},
+		"endBeforeStart":      {2, 0},
+		"negativeOffset":      {-2, 2},
+		"partiallyOutOfBound": {1, 6},
+		"fullyOutOfBound":     {6, 8},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
