@@ -31,6 +31,31 @@ func TestExpression_StatusRestrict(t *testing.T) {
 	}
 }
 
+func TestExpression_ReadOnlyEval(t *testing.T) {
+	for _, readOnlyWant := range []bool{false, true} {
+		state := st.NewState(st.NewCode([]byte{}))
+		state.ReadOnly = readOnlyWant
+		if readOnlyGet, err := ReadOnly().Eval(state); err != nil || readOnlyWant != readOnlyGet {
+			t.Fail()
+		}
+	}
+}
+
+func TestExpression_ReadOnlyRestrict(t *testing.T) {
+	for _, readOnly := range []bool{false, true} {
+		generator := gen.NewStateGenerator()
+		ReadOnly().Restrict(RestrictEqual, readOnly, generator)
+
+		state, err := generator.Generate(rand.New(0))
+		if err != nil {
+			t.Errorf("State generation failed %v", err)
+		}
+		if state.ReadOnly != readOnly {
+			t.Errorf("Generator was not restricted by expression")
+		}
+	}
+}
+
 func TestExpression_PcEval(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Pc = 42

@@ -47,7 +47,7 @@ func NewEvmcSteppableInterpreter(vm *EvmcVMSteppable, evm *vm.EVM, cfg vm.Config
 	}
 }
 
-func (e *EvmcSteppableInterpreter) StepN(contract *vm.Contract, revision evmc.Revision, gasRefund uint64, input []byte, stepStatus evmc.StepStatus, pc uint64, stack []byte, memory []byte, numSteps int) (evmc.StepResult, error) {
+func (e *EvmcSteppableInterpreter) StepN(contract *vm.Contract, revision evmc.Revision, readOnly bool, gasRefund uint64, input []byte, stepStatus evmc.StepStatus, pc uint64, stack []byte, memory []byte, numSteps int) (evmc.StepResult, error) {
 	host_ctx := HostContext{
 		evm:         e.interpreter.evm,
 		interpreter: e.interpreter,
@@ -82,7 +82,7 @@ func (e *EvmcSteppableInterpreter) StepN(contract *vm.Contract, revision evmc.Re
 		Context:        &host_ctx,
 		Revision:       revision,
 		Kind:           evmc.Call,
-		Static:         false,
+		Static:         readOnly,
 		Depth:          e.interpreter.evm.Depth - 1,
 		Gas:            gasBefore,
 		GasRefund:      gasRefundBefore,

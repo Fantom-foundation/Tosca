@@ -1910,15 +1910,16 @@ void RunInterpreter(Context& ctx, Observer& observer, int steps) {
 
 end:
   if constexpr (Stepping) {
-    // When the stack under/overflows the top pointer will be invalid, so we reset it here.
-    if (state == RunState::kErrorStackUnderflow || state == RunState::kErrorStackOverflow) {
-      top = ctx.stack.Top();
-    }
-
     if (IsSuccess(state) || state == RunState::kRunning) {
       ctx.gas = gas;
     } else {
       ctx.gas = 0;
+
+      // If the execution of the instruction has identified an issue
+      // leading to the termination of the execution the stack pointer
+      // should have not been moved after the operation. If this
+      // happened, we are undoing it.
+      top = ctx.stack.Top();
     }
   } else {
     if (IsSuccess(state)) {

@@ -39,6 +39,7 @@ type evaluation struct {
 	input     []byte
 	status    evmc.StepStatus
 	pc        uint64
+	readOnly  bool
 	stack     []byte
 	memory    []byte
 
@@ -228,6 +229,7 @@ func CreateEvaluation(state *st.State) (e *evaluation) {
 	e.input = make([]byte, 0)
 	e.status = status
 	e.pc = uint64(state.Pc)
+	e.readOnly = state.ReadOnly
 	e.stack = convertCtStackToEvmcStack(state.Stack)
 	e.memory = convertCtMemoryToEvmcMemory(state.Memory)
 	e.gasReduction = gasReduction
@@ -243,6 +245,7 @@ func (e *evaluation) Run(numSteps int) (*st.State, error) {
 	res, err := e.evmzero.interpreter.StepN(
 		e.contract,
 		e.revision,
+		e.readOnly,
 		e.gasRefund,
 		e.input,
 		e.status,
@@ -352,6 +355,7 @@ func (e *evaluation) convertEvmzeroStateToCtState(result evmc.StepResult) (*st.S
 		Pc:           uint16(result.Pc),
 		Gas:          uint64(result.GasLeft) + e.gasReduction,
 		GasRefund:    uint64(result.GasRefund) + e.gasRefundReduction,
+		ReadOnly:     e.readOnly,
 		Code:         st.NewCode(e.contract.Code),
 		Stack:        stack,
 		Memory:       convertEvmcMemoryToCtMemory(result.Memory),

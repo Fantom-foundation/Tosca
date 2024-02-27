@@ -105,6 +105,7 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 	ctState := st.NewState(st.NewCode(state.Contract.Code))
 	ctState.Status = status
 	ctState.Revision = revision
+	ctState.ReadOnly = state.ReadOnly
 	ctState.Pc = uint16(state.Pc)
 	ctState.Gas = state.Contract.Gas
 	if geth.evm.StateDB != nil {
@@ -283,6 +284,8 @@ func ConvertCtStateToGeth(state *st.State) (*gethInterpreter, *vm.GethState, err
 		convertCtMemoryToGethMemory(state),
 		convertCtStackToGethStack(state),
 		uint64(state.Pc))
+
+	interpreterState.ReadOnly = state.ReadOnly
 
 	if err = convertCtStatusToGethStatus(state, geth, interpreterState); err != nil {
 		return nil, nil, err

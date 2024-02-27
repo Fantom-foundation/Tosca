@@ -4992,6 +4992,7 @@ TEST(InterpreterTest, Step_JUMP_OutOfGas) {
           .pc_before = 0,
           .gas_before = 7,
           .stack_before = {2},
+          .stack_after = {2},
       },
       1);
 }
@@ -5042,6 +5043,7 @@ TEST(InterpreterTest, Step_JUMPI_OutOfGas) {
           .state_after = RunState::kErrorGas,
           .gas_before = 9,
           .stack_before = {0, 3},
+          .stack_after = {0, 3},
       },
       1);
 }
