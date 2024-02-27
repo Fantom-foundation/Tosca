@@ -10,6 +10,31 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
+func TestCode_NewCode(t *testing.T) {
+	code := NewCode([]byte{})
+	if want, got := 0, code.Length(); want != got {
+		t.Errorf("unexpected code length, want %v, got %v", want, got)
+	}
+
+	code = NewCode([]byte{byte(ADD), byte(PUSH1), 0, byte(PUSH2)})
+	if want, got := 4, code.Length(); want != got {
+		t.Errorf("unexpected code length, want %v, got %v", want, got)
+	}
+}
+
+func TestCode_NewCodeIsIndependent(t *testing.T) {
+	src := []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
+	code := NewCode(src)
+	if want, got := 4, code.Length(); want != got {
+		t.Fatalf("unexpected code length, want %v, got %v", want, got)
+	}
+
+	src[0] = byte(PUSH1)
+	if want, got := byte(ADD), code.code[0]; want != got {
+		t.Errorf("unexpected code, want %v, got %v", want, got)
+	}
+}
+
 func TestCode_Hash(t *testing.T) {
 	empty := NewCode([]byte{})
 	if fmt.Sprintf("%x", empty.Hash()) != "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470" {

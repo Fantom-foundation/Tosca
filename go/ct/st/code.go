@@ -3,6 +3,7 @@ package st
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"sync"
 
 	"golang.org/x/crypto/sha3"
@@ -44,7 +45,7 @@ func NewCode(code []byte) *Code {
 	}
 
 	return &Code{
-		code:   code[:len(code):len(code)],
+		code:   slices.Clone(code)[:len(code):len(code)],
 		isCode: isCode,
 	}
 }
