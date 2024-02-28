@@ -9,6 +9,11 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
+// MaxDataSize is the maximum length of the call data vector generated for a test state. While
+// the maximum size is not limited in a real-world setup, larger inputs are not expected to trigger
+// additional issues in EVM implementations (with the exception of resource issues). Thus, this
+// limit was chosen to avoid excessive overhead during the generation of states, their execution
+// and their comparison.
 const MaxDataSize = 1024
 
 ////////////////////////////////////////////////////////////
@@ -124,7 +129,7 @@ func (s *State) Eq(other *State) bool {
 		slices.Equal(s.CallData, other.CallData)
 }
 
-const codeCutoffLength = 20
+const dataCutoffLength = 20
 const stackCutOffLength = 5
 
 func (s *State) String() string {
@@ -143,8 +148,8 @@ func (s *State) String() string {
 	}
 	builder.WriteString(fmt.Sprintf("\tGas: %d\n", s.Gas))
 	builder.WriteString(fmt.Sprintf("\tGas refund: %d\n", s.GasRefund))
-	if len(s.Code.code) > codeCutoffLength {
-		builder.WriteString(fmt.Sprintf("\tCode: %x... (size: %d)\n", s.Code.code[:codeCutoffLength], len(s.Code.code)))
+	if len(s.Code.code) > dataCutoffLength {
+		builder.WriteString(fmt.Sprintf("\tCode: %x... (size: %d)\n", s.Code.code[:dataCutoffLength], len(s.Code.code)))
 	} else {
 		builder.WriteString(fmt.Sprintf("\tCode: %v\n", s.Code))
 	}
@@ -179,8 +184,8 @@ func (s *State) String() string {
 	builder.WriteString(fmt.Sprintf("\t%v", s.CallContext.String()))
 	builder.WriteString(fmt.Sprintf("\t%v", s.BlockContext.String()))
 
-	if len(s.CallData) > codeCutoffLength {
-		builder.WriteString(fmt.Sprintf("\tCalldata: %x... (size: %d)\n", s.CallData[:codeCutoffLength], len(s.CallData)))
+	if len(s.CallData) > dataCutoffLength {
+		builder.WriteString(fmt.Sprintf("\tCalldata: %x... (size: %d)\n", s.CallData[:dataCutoffLength], len(s.CallData)))
 	} else {
 		builder.WriteString(fmt.Sprintf("\tCalldata: %v\n", s.CallData))
 	}

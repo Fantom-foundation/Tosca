@@ -315,7 +315,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	// Pick a random calldata
 	rand := rnd.ExpFloat64()
 	const expectedSize float64 = 200
-	size := uint(rand/(1/expectedSize)) + 32
+	size := uint(rand / (1 / expectedSize))
 	if size > st.MaxDataSize {
 		size = st.MaxDataSize
 	}

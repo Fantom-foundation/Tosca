@@ -909,14 +909,14 @@ var Spec = func() Specification {
 		effect: func(s *st.State) {
 			offsetU256 := s.Stack.Pop()
 			pushData := NewU256(0)
-			if offsetU256.IsUint64() {
 
+			if offsetU256.IsUint64() {
 				start := offsetU256.Uint64()
 				if start > uint64(len(s.CallData)) {
 					start = uint64(len(s.CallData))
 				}
 				end := min(start+32, uint64(len(s.CallData)))
-				data := make([]byte, (32))
+				data := make([]byte, 32)
 				copy(data, s.CallData[start:end])
 				pushData = NewU256FromBytes(data...)
 			}

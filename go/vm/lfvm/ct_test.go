@@ -750,6 +750,6 @@ func TestConvertToCt_CallData(t *testing.T) {
 	}
 
 	if !slices.Equal(state.CallData, ctx.data) {
-		t.Error("unexpectetd state calldata from ct state")
+		t.Error("unexpectetd calldata value in ct state")
 	}
 }

@@ -336,7 +336,7 @@ func TestStateGenerator_CloneCanBeUsedToResetBuilder(t *testing.T) {
 // //////////////////////////////////////////////////////////
 // Call data
 
-func TestStateGenerator_callDataGen(t *testing.T) {
+func TestStateGenerator_CallDataGen(t *testing.T) {
 	gen := NewStateGenerator()
 	rnd := rand.New(0)
 	state, err := gen.Generate(rnd)

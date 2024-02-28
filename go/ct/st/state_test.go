@@ -9,7 +9,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
-func TestState_Clone(t *testing.T) {
+func TestState_CloneCreatesEqualState(t *testing.T) {
 	state := NewState(NewCode([]byte{byte(ADD)}))
 	state.Status = Stopped
 	state.Revision = R10_London
@@ -86,7 +86,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.BlockContext.GasPrice = NewU256(8)
 	clone.BlockContext.Difficulty = NewU256(9)
 	clone.BlockContext.TimeStamp = 10
-	clone.CallData = append(clone.CallData, 11)
+	clone.CallData[0] = 11
 
 	ok := state.Status == Stopped &&
 		state.Revision == R10_London &&
@@ -372,7 +372,7 @@ func TestState_PrinterCode(t *testing.T) {
 
 func TestState_PrinterAbbreviatedCode(t *testing.T) {
 	var longCode []byte
-	for i := 0; i < codeCutoffLength+1; i++ {
+	for i := 0; i < dataCutoffLength+1; i++ {
 		longCode = append(longCode, byte(INVALID))
 	}
 
@@ -385,7 +385,7 @@ func TestState_PrinterAbbreviatedCode(t *testing.T) {
 		t.Fatal("invalid print, did not find 'Code' text")
 	}
 
-	want := fmt.Sprintf("%x", s.Code.code[:codeCutoffLength])
+	want := fmt.Sprintf("%x", s.Code.code[:dataCutoffLength])
 	got := match[1]
 	if want != got {
 		t.Errorf("invalid print, wanted %s, got %s", want, got)

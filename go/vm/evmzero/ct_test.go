@@ -420,7 +420,7 @@ func TestConvertToEvmzero_BlockContext(t *testing.T) {
 	}
 }
 
-func TestConvertToEvmzero_Calldata(t *testing.T) {
+func TestConvertToEvmzero_CallData(t *testing.T) {
 	state := getEmptyState()
 	state.CallData = []byte{1}
 
@@ -815,7 +815,7 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	}
 }
 
-func TestConvertToCt_Calldata(t *testing.T) {
+func TestConvertToCt_CallData(t *testing.T) {
 	evmzeroEvaluation := CreateEvaluation(st.NewState(st.NewCode([]byte{})))
 	if len(evmzeroEvaluation.issues) > 0 {
 		t.Fatalf("failed to convert ct state to evmzero: %v", errors.Join(evmzeroEvaluation.issues...))
