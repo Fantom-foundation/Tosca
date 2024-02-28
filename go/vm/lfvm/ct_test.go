@@ -683,7 +683,7 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 		vm.Config{},
 	)
 
-	blockContext := convertLfvmContextToCtBlockContextt(&ctx)
+	blockContext := convertLfvmContextToCtBlockContext(&ctx)
 
 	if want, got := (ct.Address{0xfe}), blockContext.CoinBase; want != got {
 		t.Errorf("unexpected coinbase, wanted %v, got %v", want, got)

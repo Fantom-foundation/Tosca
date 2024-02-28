@@ -45,7 +45,7 @@ func NewCode(code []byte) *Code {
 	}
 
 	return &Code{
-		code:   slices.Clone(code),
+		code:   slices.Clone(code)[:len(code):len(code)],
 		isCode: isCode,
 	}
 }
@@ -100,6 +100,12 @@ func (c *Code) GetData(pos int) (byte, error) {
 		return 0, nil
 	}
 	return c.code[pos], nil
+}
+
+// CopyCodeSlice copies code from the slice [start:end] to dst.
+// Returns the number of elements copied.
+func (c *Code) CopyCodeSlice(start, end int, dst []byte) int {
+	return copy(dst, c.code[start:end])
 }
 
 func (c *Code) Eq(other *Code) bool {

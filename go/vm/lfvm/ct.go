@@ -98,7 +98,7 @@ func convertLfvmContextToCtCallContext(ctx *context) st.CallContext {
 	}
 }
 
-func convertLfvmContextToCtBlockContextt(ctx *context) st.BlockContext {
+func convertLfvmContextToCtBlockContext(ctx *context) st.BlockContext {
 	return st.BlockContext{
 		BaseFee:     ct.NewU256FromBigInt(getBigIntIfNotNil(ctx.evm.Context.BaseFee)),
 		BlockNumber: getBigIntIfNotNil(ctx.evm.Context.BlockNumber).Uint64(),
@@ -143,7 +143,7 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 
 	state.CallContext = convertLfvmContextToCtCallContext(ctx)
 
-	state.BlockContext = convertLfvmContextToCtBlockContextt(ctx)
+	state.BlockContext = convertLfvmContextToCtBlockContext(ctx)
 
 	return state, nil
 }
@@ -229,6 +229,9 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 	objectAddress := (vm.AccountRef)(state.CallContext.AccountAddress[:])
 	callerAddress := (vm.AccountRef)(state.CallContext.CallerAddress[:])
 	contract := vm.NewContract(callerAddress, objectAddress, state.CallContext.Value.ToBigInt(), state.Gas)
+	codeInBytes := make([]byte, state.Code.Length())
+	state.Code.CopyTo(codeInBytes)
+	contract.Code = codeInBytes
 
 	pc, ok := pcMap.evmToLfvm[state.Pc]
 	if !ok {

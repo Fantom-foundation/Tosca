@@ -4,10 +4,36 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
+
+func TestCode_NewCode(t *testing.T) {
+	code := NewCode([]byte{})
+	if want, got := 0, code.Length(); want != got {
+		t.Errorf("unexpected code length, want %v, got %v", want, got)
+	}
+
+	code = NewCode([]byte{byte(ADD), byte(PUSH1), 0, byte(PUSH2)})
+	if want, got := 4, code.Length(); want != got {
+		t.Errorf("unexpected code length, want %v, got %v", want, got)
+	}
+}
+
+func TestCode_NewCodeIsIndependent(t *testing.T) {
+	src := []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
+	code := NewCode(src)
+	if want, got := 4, code.Length(); want != got {
+		t.Fatalf("unexpected code length, want %v, got %v", want, got)
+	}
+
+	src[0] = byte(PUSH1)
+	if want, got := byte(ADD), code.code[0]; want != got {
+		t.Errorf("unexpected code, want %v, got %v", want, got)
+	}
+}
 
 func TestCode_Hash(t *testing.T) {
 	empty := NewCode([]byte{})
@@ -102,5 +128,50 @@ func TestCode_Printer(t *testing.T) {
 	want := "01600561"
 	if got := code.String(); want != got {
 		t.Errorf("invalid print, wanted %s, got %s", want, got)
+	}
+}
+
+func TestCode_CopyCodeSlice(t *testing.T) {
+	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
+	tests := map[string]struct {
+		start int
+		end   int
+		want  []byte
+	}{
+		"regular":  {1, 4, []byte{byte(PUSH1), 5, byte(PUSH2)}},
+		"sizeZero": {1, 1, []byte{}},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := make([]byte, test.end-test.start)
+			_ = code.CopyCodeSlice(test.start, test.end, got)
+			if !slices.Equal(test.want, got) {
+				t.Errorf("unexpected code, wanted %v, got %v", test.want, got)
+			}
+		})
+	}
+}
+
+func TestCode_CopyCodeSliceInvalid(t *testing.T) {
+	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
+	tests := map[string]struct {
+		start int
+		end   int
+	}{
+		"endBeforeStart":      {2, 0},
+		"negativeOffset":      {-2, 2},
+		"partiallyOutOfBound": {1, 6},
+		"fullyOutOfBound":     {6, 8},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic.")
+				}
+			}()
+			buffer := make([]byte, max(test.end-test.start, 4))
+			_ = code.CopyCodeSlice(test.start, test.end, buffer)
+		})
 	}
 }
