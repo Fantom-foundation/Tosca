@@ -63,6 +63,29 @@ func TestBalanceGenerator_ConflictingWarmColdConstraintsAreDetected(t *testing.T
 	}
 }
 
+func TestBalanceGenerator_AssignmentIsUpdated(t *testing.T) {
+	v1 := Variable("v1")
+	v2 := Variable("v2")
+	assignment := Assignment{}
+
+	rnd := rand.New(0)
+	generator := NewBalanceGenerator()
+	generator.BindConfiguration(v1, v2)
+	accountAddress, err := RandAddress(rnd)
+	if err != nil {
+		t.Errorf("Unexpected random address generation error: %v", err)
+	}
+
+	_, err = generator.Generate(assignment, rand.New(0), accountAddress)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, isAssigned := assignment[v1]; !isAssigned {
+		t.Fatal("v1 not assigned by current value constraint")
+	}
+}
+
 func TestBalanceGenerator_ClonesAreEqual(t *testing.T) {
 	v1 := Variable("v1")
 	v2 := Variable("v2")

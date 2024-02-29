@@ -21,8 +21,6 @@ type balanceConfigConstraint struct {
 	newValue Variable
 }
 
-type BalanceCfg int
-
 func (a *balanceConfigConstraint) Less(b *balanceConfigConstraint) bool {
 	if a.key != b.key {
 		return a.key < b.key
@@ -149,9 +147,7 @@ func (g *BalanceGenerator) Generate(assignment Assignment, rnd *rand.Rand, accou
 	// Process balance configuration constraints.
 	for _, con := range g.cfg {
 		key := getKey(con.key)
-
 		value := assignment[con.newValue]
-
 		balance.Current[key] = value
 		balance.MarkWarmCold(key, rnd.Intn(2) == 1)
 	}

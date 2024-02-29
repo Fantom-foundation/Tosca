@@ -322,7 +322,7 @@ var Spec = func() Specification {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R07_Istanbul, R07_Istanbul),
+			IsRevision(R07_Istanbul),
 		},
 		parameters: []Parameter{
 			NumericParameter{},

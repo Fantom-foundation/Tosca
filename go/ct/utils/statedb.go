@@ -57,6 +57,18 @@ func (db *ConformanceTestStateDb) AddSlotToAccessList(_ common.Address, key comm
 	}
 }
 
+func (db *ConformanceTestStateDb) GetBalance(addr common.Address) *big.Int {
+	return db.Balance.Current[Address(addr)].ToBigInt()
+}
+
+func (db *ConformanceTestStateDb) AddressInAccessList(addr common.Address) bool {
+	return db.Balance.IsWarm(Address(addr))
+}
+
+func (db *ConformanceTestStateDb) AddAddressToAccessList(addr common.Address) {
+	db.Balance.MarkWarm(Address(addr))
+}
+
 func (db *ConformanceTestStateDb) GetCode(common.Address) []byte {
 	panic("not implemented yet")
 }
@@ -87,18 +99,6 @@ func (db *ConformanceTestStateDb) CreateAccount(common.Address) {
 
 func (db *ConformanceTestStateDb) Suicide(common.Address) bool {
 	panic("not implemented yet")
-}
-
-func (db *ConformanceTestStateDb) GetBalance(addr common.Address) *big.Int {
-	return db.Balance.Current[Address(addr)].ToBigInt()
-}
-
-func (db *ConformanceTestStateDb) AddressInAccessList(addr common.Address) bool {
-	return db.Balance.IsWarm(Address(addr))
-}
-
-func (db *ConformanceTestStateDb) AddAddressToAccessList(addr common.Address) {
-	db.Balance.MarkWarm(Address(addr))
 }
 
 func (db *ConformanceTestStateDb) AddLog(log *types.Log) {
