@@ -1024,6 +1024,20 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- SELFBALANCE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        SELFBALANCE,
+		staticGas: 5,
+		pops:      0,
+		pushes:    1,
+		effect: func(s *st.State) {
+			address := s.CallContext.AccountAddress
+			balance := s.Balance.Current[address]
+			s.Stack.Push(balance)
+		},
+	})...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)
