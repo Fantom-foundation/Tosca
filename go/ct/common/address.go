@@ -16,6 +16,18 @@ func (a *Address) Diff(b Address) (res []string) {
 	return
 }
 
+func NewAddress(in U256) Address {
+	return in.internal.Bytes20()
+}
+
+func NewAddressFromInt(in uint64) Address {
+	return NewAddress(NewU256(in))
+}
+
+func (a *Address) ToU256() U256 {
+	return NewU256FromBytes(a[:]...)
+}
+
 func RandAddress(rnd *rand.Rand) (Address, error) {
 	address := Address{}
 	_, err := rnd.Read(address[:])

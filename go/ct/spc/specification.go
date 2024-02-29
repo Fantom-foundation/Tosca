@@ -272,6 +272,44 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- BALANCE ---
+
+	// cold
+	rules = append(rules, rulesFor(instruction{
+		op:        BALANCE,
+		staticGas: 0 + 2600, // 2600 dynamic cost for cold address
+		pops:      1,
+		pushes:    1,
+		parameters: []Parameter{
+			NumericParameter{},
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			s.Stack.Push(s.Balance.Current[NewAddress(key)])
+			s.Balance.MarkWarm(NewAddress(key))
+		},
+		name: "_cold",
+	})...)
+
+	// warm
+	rules = append(rules, rulesFor(instruction{
+		op:        BALANCE,
+		staticGas: 0 + 100, // 100 dynamic cost for warm address
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			IsBalanceWarm(Param(0)),
+		},
+		parameters: []Parameter{
+			NumericParameter{},
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			s.Stack.Push(s.Balance.Current[NewAddress(key)])
+		},
+		name: "_warm",
+	})...)
+
 	// --- MLOAD ---
 
 	rules = append(rules, rulesFor(instruction{

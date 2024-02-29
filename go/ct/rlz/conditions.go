@@ -575,3 +575,81 @@ func (c *storageConfiguration) EnumerateTestCases(generator *gen.StateGenerator,
 func (c *storageConfiguration) String() string {
 	return fmt.Sprintf("StorageConfiguration(%v,%v,%v)", c.config, c.key, c.newValue)
 }
+
+////////////////////////////////////////////////////////////
+// Is Balance Warm
+
+type isBalanceWarm struct {
+	key BindableExpression[U256]
+}
+
+func IsBalanceWarm(key BindableExpression[U256]) Condition {
+	return &isBalanceWarm{key}
+}
+
+func (c *isBalanceWarm) Check(s *st.State) (bool, error) {
+	key, err := c.key.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return s.Balance.IsWarm(NewAddress(key)), nil
+}
+
+func (c *isBalanceWarm) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+	generator.BindIsBalanceWarm(key)
+}
+
+func (c *isBalanceWarm) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
+	positive := generator.Clone()
+	c.Restrict(positive)
+	consume(positive)
+
+	negative := generator.Clone()
+	IsBalanceCold(c.key).Restrict(negative)
+	consume(negative)
+}
+
+func (c *isBalanceWarm) String() string {
+	return fmt.Sprintf("warm(%v)", c.key)
+}
+
+////////////////////////////////////////////////////////////
+// Is Balance Cold
+
+type isBalanceCold struct {
+	key BindableExpression[U256]
+}
+
+func IsBalanceCold(key BindableExpression[U256]) Condition {
+	return &isBalanceCold{key}
+}
+
+func (c *isBalanceCold) Check(s *st.State) (bool, error) {
+	key, err := c.key.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return s.Balance.IsCold(NewAddress(key)), nil
+}
+
+func (c *isBalanceCold) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+	generator.BindIsBalanceCold(key)
+}
+
+func (c *isBalanceCold) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
+	positive := generator.Clone()
+	c.Restrict(positive)
+	consume(positive)
+
+	negative := generator.Clone()
+	IsBalanceCold(c.key).Restrict(negative)
+	consume(negative)
+}
+
+func (c *isBalanceCold) String() string {
+	return fmt.Sprintf("cold(%v)", c.key)
+}

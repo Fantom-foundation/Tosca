@@ -36,6 +36,7 @@ const (
 	SHR          OpCode = 0x1C
 	SAR          OpCode = 0x1D
 	ADDRESS      OpCode = 0x30
+	BALANCE      OpCode = 0x31
 	ORIGIN       OpCode = 0x32
 	CALLER       OpCode = 0x33
 	CALLVALUE    OpCode = 0x34
@@ -218,6 +219,8 @@ func (op OpCode) String() string {
 		return "NOT"
 	case SHA3:
 		return "SHA3"
+	case BALANCE:
+		return "BALANCE"
 	case BYTE:
 		return "BYTE"
 	case SHL:
