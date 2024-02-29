@@ -280,13 +280,17 @@ var Spec = func() Specification {
 		staticGas: 0 + 2600, // 2600 dynamic cost for cold address
 		pops:      1,
 		pushes:    1,
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			IsBalanceCold(Param(0)),
+		},
 		parameters: []Parameter{
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
-			key := s.Stack.Pop()
-			s.Stack.Push(s.Balance.Current[NewAddress(key)])
-			s.Balance.MarkWarm(NewAddress(key))
+			address := NewAddress(s.Stack.Pop())
+			s.Stack.Push(s.Balance.Current[address])
+			s.Balance.MarkWarm(address)
 		},
 		name: "_cold",
 	})...)
@@ -298,6 +302,7 @@ var Spec = func() Specification {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
 			IsBalanceWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -308,6 +313,25 @@ var Spec = func() Specification {
 			s.Stack.Push(s.Balance.Current[NewAddress(key)])
 		},
 		name: "_warm",
+	})...)
+
+	// pre Berlin
+	rules = append(rules, rulesFor(instruction{
+		op:        BALANCE,
+		staticGas: 700,
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			RevisionBounds(R07_Istanbul, R07_Istanbul),
+		},
+		parameters: []Parameter{
+			NumericParameter{},
+		},
+		effect: func(s *st.State) {
+			address := NewAddress(s.Stack.Pop())
+			s.Stack.Push(s.Balance.Current[address])
+		},
+		name: "_preBerlin",
 	})...)
 
 	// --- MLOAD ---

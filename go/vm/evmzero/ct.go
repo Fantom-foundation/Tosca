@@ -68,7 +68,7 @@ func canTransferFunc(stateDB vm.StateDB, callerAddress common.Address, value *bi
 func getSteppableEvmzero(state *st.State) (*evmzeroSteppableInterpreter, error) {
 	blockCtx, txCtx := convertCtBlockContextToEvmc(state.BlockContext)
 
-	stateDb := utils.NewConformanceTestStateDb(state.Storage, state.Logs, state.Revision)
+	stateDb := utils.NewConformanceTestStateDb(state.Storage, state.Balance, state.Logs, state.Revision)
 	stateDb.AddRefund(state.GasRefund)
 
 	chainConfig := convertCtChainConfigToEvmc(state)
@@ -371,6 +371,7 @@ func (e *evaluation) convertEvmzeroStateToCtState(result evmc.StepResult) (*st.S
 			return nil, fmt.Errorf("unexpected StateDB type: %T", e.evmzero.evm.StateDB)
 		}
 		res.Storage = stateDb.Storage
+		res.Balance = stateDb.Balance
 		res.Logs = stateDb.Logs
 	}
 
