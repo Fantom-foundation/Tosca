@@ -79,12 +79,6 @@ var Spec = func() Specification {
 		},
 
 		{
-			Name:      "returned_is_end",
-			Condition: And(AnyKnownRevision(), Eq(Status(), st.Returned)),
-			Effect:    NoEffect(),
-		},
-
-		{
 			Name:      "reverted_is_end",
 			Condition: And(AnyKnownRevision(), Eq(Status(), st.Reverted)),
 			Effect:    NoEffect(),

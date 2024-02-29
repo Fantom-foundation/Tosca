@@ -51,7 +51,7 @@ func TestCondition_Check(t *testing.T) {
 		{Ge(Pc(), NewU256(42)), newStateWithPc(42), newStateWithPc(41)},
 		{Ge(Pc(), NewU256(42)), newStateWithPc(43), newStateWithPc(41)},
 		{Ge(Pc(), NewU256(42)), newStateWithPc(43), newStateWithPc(40)},
-		{And(Eq(Status(), st.Reverted), Eq(Pc(), NewU256(42))), newStateWithStatusAndPc(st.Reverted, 42), newStateWithStatusAndPc(st.Returned, 42)},
+		{And(Eq(Status(), st.Reverted), Eq(Pc(), NewU256(42))), newStateWithStatusAndPc(st.Reverted, 42), newStateWithStatusAndPc(st.Stopped, 42)},
 		{And(Eq(Status(), st.Reverted), Eq(Pc(), NewU256(42))), newStateWithStatusAndPc(st.Reverted, 42), newStateWithStatusAndPc(st.Reverted, 41)},
 		{IsCode(Pc()), newStateWithPcAndCode(1, byte(ADD), byte(ADD)), newStateWithPcAndCode(1, byte(PUSH1), byte(0))},
 		{IsCode(Pc()), newStateWithPcAndCode(2, byte(ADD), byte(ADD)), newStateWithPcAndCode(1, byte(PUSH1), byte(0))},

@@ -14,7 +14,6 @@ type StatusCode int
 const (
 	Running        StatusCode = iota // still running
 	Stopped                          // stopped execution successfully
-	Returned                         // finished successfully
 	Reverted                         // finished with revert signal
 	Failed                           // failed (for any reason)
 	NumStatusCodes                   // not an actual status
@@ -26,8 +25,6 @@ func (s StatusCode) String() string {
 		return "running"
 	case Stopped:
 		return "stopped"
-	case Returned:
-		return "returned"
 	case Reverted:
 		return "reverted"
 	case Failed:
@@ -93,7 +90,7 @@ func (s *State) Eq(other *State) bool {
 	}
 
 	isHaltedState := func(s *State) bool {
-		return s.Status == Stopped || s.Status == Returned || s.Status == Reverted
+		return s.Status == Stopped || s.Status == Reverted
 	}
 	pcIsEqual := s.Pc == other.Pc
 	if isHaltedState(s) && isHaltedState(other) {

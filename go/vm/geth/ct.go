@@ -28,10 +28,6 @@ func convertGethStatusToCtStatus(state *vm.GethState) (st.StatusCode, error) {
 		return st.Failed, nil
 	}
 
-	if state.Result != nil {
-		return st.Returned, nil
-	}
-
 	if state.Halted {
 		return st.Stopped, nil
 	}
@@ -140,10 +136,6 @@ func convertCtStatusToGethStatus(ctState *st.State, geth *gethInterpreter, state
 	case st.Stopped:
 		state.Halted = true
 		state.Err = nil
-	case st.Returned:
-		state.Halted = true
-		state.Err = nil
-		state.Result = make([]byte, 0)
 	case st.Reverted:
 		state.Halted = true
 		state.Err = vm.ErrExecutionReverted
