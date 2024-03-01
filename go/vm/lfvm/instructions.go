@@ -5,12 +5,11 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 	"golang.org/x/crypto/sha3"
+
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 var (
@@ -42,7 +41,7 @@ func opPc(c *context) {
 
 func checkJumpDest(c *context) {
 	if int(c.pc+1) >= len(c.code) || c.code[c.pc+1].opcode != JUMPDEST {
-		c.SignalError(vm.ErrInvalidJump)
+		c.SignalError(ErrInvalidJump)
 	}
 }
 
@@ -50,7 +49,7 @@ func opJump(c *context) {
 	destination := c.stack.pop()
 	// overflow check
 	if !destination.IsUint64() || destination.Uint64()>>33 > 0 {
-		c.SignalError(vm.ErrInvalidJump)
+		c.SignalError(ErrInvalidJump)
 		return
 	}
 	// Update the PC to the jump destination -1 since interpreter will increase PC by 1 afterward.
@@ -64,7 +63,7 @@ func opJumpi(c *context) {
 	if !condition.IsZero() {
 		// overflow check
 		if !destination.IsUint64() || destination.Uint64()>>33 > 0 {
-			c.SignalError(vm.ErrInvalidJump)
+			c.SignalError(ErrInvalidJump)
 			return
 		}
 		// Update the PC to the jump destination -1 since interpreter will increase PC by 1 afterward.
@@ -194,7 +193,7 @@ func opMload(c *context) {
 	var addr = *trg
 
 	if !addr.IsUint64() {
-		c.SignalError(vm.ErrGasUintOverflow)
+		c.SignalError(ErrGasUintOverflow)
 		return
 	}
 	offset := addr.Uint64()
@@ -222,24 +221,24 @@ func opSstore(c *context) {
 		return
 	}
 
-	var key = c.stack.pop()
-	var value = c.stack.pop()
+	var key = vm.Key(c.stack.pop().Bytes32())
+	var value = vm.Word(c.stack.pop().Bytes32())
 
 	// Perform storage update
-	c.stateDB.SetState(c.contract.Address(), key.Bytes32(), value.Bytes32())
+	c.context.SetStorage(c.params.Recipient, key, value)
 }
 
 func opSload(c *context) {
 	var top = c.stack.peek()
 
+	slot := vm.Key(top.Bytes32())
 	if c.isBerlin {
-		slot := common.Hash(top.Bytes32())
 		// Check slot presence in the access list
-		if _, slotPresent := c.evm.StateDB.SlotInAccessList(c.contract.Address(), slot); !slotPresent {
+		if _, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
 			// If the caller cannot afford the cost, this change will be rolled back
 			// If he does afford it, we can skip checking the same thing later on, during execution
 			if !c.IsShadowed() {
-				c.evm.StateDB.AddSlotToAccessList(c.contract.Address(), slot)
+				c.context.AccessStorage(c.params.Recipient, slot)
 			}
 			if !c.UseGas(params.ColdSloadCostEIP2929) {
 				return
@@ -250,20 +249,21 @@ func opSload(c *context) {
 			}
 		}
 	}
-	top.SetBytes32(c.stateDB.GetState(c.contract.Address(), top.Bytes32()).Bytes())
+	value := c.context.GetStorage(c.params.Recipient, slot)
+	top.SetBytes32(value[:])
 }
 
 func opCaller(c *context) {
-	c.stack.pushEmpty().SetBytes20(c.contract.CallerAddress[:])
+	c.stack.pushEmpty().SetBytes20(c.params.Sender[:])
 }
 
 func opCallvalue(c *context) {
-	v, _ := uint256.FromBig(c.contract.Value())
-	c.stack.push(v)
+	c.stack.pushEmpty().SetBytes32(c.params.Value[:])
 }
 
 func opCallDatasize(c *context) {
-	c.stack.push(&c.callsize)
+	size := len(c.params.Input)
+	c.stack.pushEmpty().SetUint64(uint64(size))
 }
 
 func opCallDataload(c *context) {
@@ -274,6 +274,7 @@ func opCallDataload(c *context) {
 	}
 
 	offset := top.Uint64()
+	input := c.params.Input
 	var value [32]byte
 	for i := 0; i < 32; i++ {
 		pos := i + int(offset)
@@ -281,8 +282,8 @@ func opCallDataload(c *context) {
 			top.Clear()
 			return
 		}
-		if pos < len(c.data) {
-			value[i] = c.data[pos]
+		if pos < len(input) {
+			value[i] = input[pos]
 		} else {
 			value[i] = 0
 		}
@@ -322,7 +323,7 @@ func opCallDataCopy(c *context) {
 	if c.memory.EnsureCapacity(memOffset64, length64, c) != nil {
 		return
 	}
-	if err := c.memory.Set(memOffset64, length64, getData(c.data, dataOffset64, length64)); err != nil {
+	if err := c.memory.Set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64)); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -514,7 +515,7 @@ func opSMod(c *context) {
 
 func opExp(c *context) {
 	base, exponent := c.stack.pop(), c.stack.peek()
-	if !c.UseGas(uint64(50 * exponent.ByteLen())) {
+	if !c.UseGas(vm.Gas(50 * exponent.ByteLen())) {
 		return
 	}
 	exponent.Exp(base, exponent)
@@ -537,7 +538,7 @@ func opSha3(c *context) {
 	data := c.memory.GetSlice(offset.Uint64(), size.Uint64())
 
 	// charge dynamic gas price
-	minimum_word_size := uint64((size.Uint64() + 31) / 32)
+	minimum_word_size := vm.Gas((size.Uint64() + 31) / 32)
 	price := 6 * minimum_word_size
 	if !c.UseGas(price) {
 		return
@@ -559,55 +560,59 @@ func opSha3(c *context) {
 }
 
 func opGas(c *context) {
-	c.stack.pushEmpty().SetUint64(c.contract.Gas)
+	c.stack.pushEmpty().SetUint64(uint64(c.gas))
 }
 
 func opDifficulty(c *context) {
-	v, _ := uint256.FromBig(c.evm.Context.Difficulty)
-	c.stack.push(v)
+	difficulty := c.context.GetTransactionContext().PrevRandao
+	c.stack.pushEmpty().SetBytes32(difficulty[:])
 }
 
 func opTimestamp(c *context) {
-	v, _ := uint256.FromBig(c.evm.Context.Time)
-	c.stack.push(v)
+	time := c.context.GetTransactionContext().Timestamp
+	c.stack.pushEmpty().SetUint64(uint64(time))
 }
 
 func opNumber(c *context) {
-	v, _ := uint256.FromBig(c.evm.Context.BlockNumber)
-	c.stack.push(v)
+	number := c.context.GetTransactionContext().BlockNumber
+	c.stack.pushEmpty().SetUint64(uint64(number))
 }
 
 func opCoinbase(c *context) {
-	c.stack.pushEmpty().SetBytes(c.evm.Context.Coinbase[:])
+	coinbase := c.context.GetTransactionContext().Coinbase
+	c.stack.pushEmpty().SetBytes32(coinbase[:])
 }
 
 func opGasLimit(c *context) {
-	c.stack.pushEmpty().SetUint64(c.evm.Context.GasLimit)
+	limit := c.context.GetTransactionContext().GasLimit
+	c.stack.pushEmpty().SetUint64(uint64(limit))
 }
 
 func opGasPrice(c *context) {
-	v, _ := uint256.FromBig(c.evm.GasPrice)
-	c.stack.push(v)
+	price := c.context.GetTransactionContext().GasPrice
+	c.stack.pushEmpty().SetBytes32(price[:])
 }
 
 func opBalance(c *context) {
 	slot := c.stack.peek()
-	address := common.Address(slot.Bytes20())
+	address := vm.Address(slot.Bytes20())
 	err := gasEip2929AccountCheck(c, address)
 	if err != nil {
 		return
 	}
-	slot.SetFromBig(c.evm.StateDB.GetBalance(address))
+	balance := c.context.GetBalance(address)
+	slot.SetBytes32(balance[:])
 }
 
 func opSelfbalance(c *context) {
-	c.stack.pushEmpty().SetFromBig(c.evm.StateDB.GetBalance(c.contract.Address()))
+	balance := c.context.GetBalance(c.params.Recipient)
+	c.stack.pushEmpty().SetBytes32(balance[:])
 }
 
 func opBaseFee(c *context) {
 	if c.isLondon {
-		baseFee, _ := uint256.FromBig(c.evm.Context.BaseFee)
-		c.stack.push(baseFee)
+		fee := c.context.GetTransactionContext().BaseFee
+		c.stack.pushEmpty().SetBytes32(fee[:])
 	} else {
 		c.status = INVALID_INSTRUCTION
 		return
@@ -620,18 +625,17 @@ func opSelfdestruct(c *context) {
 		gasfunc = gasSelfdestructEIP2929
 	}
 	// even death is not for free
-	if !c.UseGas(gasfunc(c)) {
+	if !c.UseGas(vm.Gas(gasfunc(c))) {
 		return
 	}
-	beneficiary := c.stack.pop()
-	balance := c.stateDB.GetBalance(c.contract.Address())
-	c.stateDB.AddBalance(beneficiary.Bytes20(), balance)
-	c.stateDB.Suicide(c.contract.Address())
+	beneficiary := vm.Address(c.stack.pop().Bytes20())
+	c.context.SelfDestruct(c.params.Recipient, beneficiary)
 	c.status = SUICIDED
 }
 
 func opChainId(c *context) {
-	c.stack.pushEmpty().SetFromBig(c.evm.ChainConfig().ChainID)
+	id := c.context.GetTransactionContext().ChainID
+	c.stack.pushEmpty().SetBytes32(id[:])
 }
 
 func opBlockhash(c *context) {
@@ -643,29 +647,31 @@ func opBlockhash(c *context) {
 		return
 	}
 	var upper, lower uint64
-	upper = c.evm.Context.BlockNumber.Uint64()
+	upper = uint64(c.context.GetTransactionContext().BlockNumber)
 	if upper < 257 {
 		lower = 0
 	} else {
 		lower = upper - 256
 	}
 	if num64 >= lower && num64 < upper {
-		num.SetBytes(c.evm.Context.GetHash(num64).Bytes())
+		hash := c.context.GetBlockHash(int64(num64))
+		num.SetBytes(hash[:])
 	} else {
 		num.Clear()
 	}
 }
 
 func opAddress(c *context) {
-	c.stack.pushEmpty().SetBytes20(c.contract.Address().Bytes())
+	c.stack.pushEmpty().SetBytes20(c.params.Recipient[:])
 }
 
 func opOrigin(c *context) {
-	c.stack.pushEmpty().SetBytes20(c.evm.Origin.Bytes())
+	c.stack.pushEmpty().SetBytes20(c.params.Sender[:])
 }
 
 func opCodeSize(c *context) {
-	c.stack.pushEmpty().SetUint64(uint64(len(c.contract.Code)))
+	size := len(c.params.Code)
+	c.stack.pushEmpty().SetUint64(uint64(size))
 }
 
 func opCodeCopy(c *context) {
@@ -676,7 +682,7 @@ func opCodeCopy(c *context) {
 	)
 
 	if checkSizeOffsetUint64Overflow(memOffset, length) != nil {
-		c.SignalError(vm.ErrGasUintOverflow)
+		c.SignalError(ErrGasUintOverflow)
 		return
 	}
 
@@ -687,11 +693,11 @@ func opCodeCopy(c *context) {
 
 	// Charge for length of copied code
 	words := (length.Uint64() + 31) / 32
-	if !c.UseGas(3 * words) {
+	if !c.UseGas(vm.Gas(3 * words)) {
 		return
 	}
 
-	codeCopy := getData(c.contract.Code, uint64CodeOffset, length.Uint64())
+	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
 	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
@@ -702,31 +708,32 @@ func opCodeCopy(c *context) {
 
 func opExtcodesize(c *context) {
 	top := c.stack.peek()
-	addr := top.Bytes20()
+	addr := vm.Address(top.Bytes20())
 	err := gasEip2929AccountCheck(c, addr)
 	if err != nil {
 		return
 	}
-	top.SetUint64(uint64(c.stateDB.GetCodeSize(addr)))
+	top.SetUint64(uint64(c.context.GetCodeSize(addr)))
 }
 
 func opExtcodehash(c *context) {
 	slot := c.stack.peek()
-	address := common.Address(slot.Bytes20())
+	address := vm.Address(slot.Bytes20())
 	err := gasEip2929AccountCheck(c, address)
 	if err != nil {
 		return
 	}
-	if c.evm.StateDB.Empty(address) {
+	if !c.context.AccountExists(address) {
 		slot.Clear()
 	} else {
-		slot.SetBytes32(c.evm.StateDB.GetCodeHash(address).Bytes())
+		hash := c.context.GetCodeHash(address)
+		slot.SetBytes32(hash[:])
 	}
 }
 
 func opCreate(c *context) {
 	var (
-		value        = c.stack.pop()
+		value        = vm.Value(c.stack.pop().Bytes32())
 		offset, size = c.stack.pop(), c.stack.pop()
 	)
 	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
@@ -740,29 +747,37 @@ func opCreate(c *context) {
 
 	input := c.memory.GetSlice(offset.Uint64(), size.Uint64())
 
-	gas := c.contract.Gas
+	gas := c.gas
 	if true /*c.evm.chainRules.IsEIP150*/ {
 		gas -= gas / 64
 	}
 
-	c.contract.UseGas(gas)
-	//TODO: use uint256.Int instead of converting with toBig()
-	var bigVal = big0
-	if !value.IsZero() {
-		bigVal = value.ToBig()
-	}
+	c.UseGas(gas)
 
-	res, addr, returnGas, suberr := c.evm.Create(c.contract, input, gas, bigVal)
+	res, gasLeft, gasRefund, createdAddr, reverted, subErr := c.context.Call(
+		vm.Create,
+		vm.Address{}, // < recipient
+		c.params.Recipient, // < sender
+		value,
+		input,
+		gas,
+		c.params.Depth + 1,
+		false,
+		vm.Hash{}, // salt
+		vm.Address{}, // codeAddress
+	)
+
+	c.gas = gasLeft
+	c.refund += gasRefund
 
 	success := c.stack.pushEmpty()
-	if suberr != nil {
+	if reverted || subErr != nil {
 		success.Clear()
 	} else {
-		success.SetBytes(addr.Bytes())
+		success.SetBytes20(createdAddr[:])
 	}
-	c.contract.Gas += returnGas
-
-	if suberr == vm.ErrExecutionReverted {
+	
+	if reverted {
 		c.return_data = res
 	} else {
 		c.return_data = nil

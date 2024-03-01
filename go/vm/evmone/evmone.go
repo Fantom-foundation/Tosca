@@ -34,21 +34,21 @@ func init() {
 		panic(fmt.Errorf("failed to load evmone library: %s", err))
 	}
 	if err := vm.SetOption("advanced", "on"); err != nil {
-		panic(fmt.Errorf("failed to configure evmone advnaced mode: %v", err))
+		panic(fmt.Errorf("failed to configure evmone advanced mode: %v", err))
 	}
 	evmoneAdvanced = vm
 }
 
-func newInterpreter(vm *common.EvmcVM, evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return common.NewEvmcInterpreter(vm, evm, cfg)
+func newInterpreter(vm *common.EvmcVM, evm *vm.EVM) vm.EVMInterpreter {
+	return common.NewEvmcInterpreter(vm, evm)
 }
 
 func NewBasicInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return newInterpreter(evmoneBasic, evm, cfg)
+	return newInterpreter(evmoneBasic, evm)
 }
 
 func NewAdvancedInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return newInterpreter(evmoneAdvanced, evm, cfg)
+	return newInterpreter(evmoneAdvanced, evm)
 }
 
 func init() {

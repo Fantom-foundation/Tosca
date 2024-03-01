@@ -5,9 +5,10 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
+
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 const UNKNOWN_GAS_PRICE = 999999
@@ -273,42 +274,43 @@ func gasSStore(c *context) (uint64, error) {
 //     2.2.2.2. Otherwise, add SSTORE_RESET_GAS - SLOAD_GAS gas to refund counter.
 func gasSStoreEIP2200(c *context) (uint64, error) {
 	// If we fail the minimum gas availability invariant, fail (0)
-	if c.contract.Gas <= params.SstoreSentryGasEIP2200 {
+	if c.gas <= vm.Gas(params.SstoreSentryGasEIP2200) {
 		c.status = OUT_OF_GAS
 		return 0, errors.New("not enough gas for reentrancy sentry")
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
 	var (
-		y, x    = c.stack.Back(1), c.stack.Back(0)
-		current = c.stateDB.GetState(c.contract.Address(), x.Bytes32())
+		zero = vm.Word{}
+		key = vm.Key(c.stack.Back(0).Bytes32())
+		value = vm.Word(c.stack.Back(1).Bytes32())
+		current = c.context.GetStorage(c.params.Recipient, key)
 	)
-	value := common.Hash(y.Bytes32())
 
 	if current == value { // noop (1)
 		return params.SloadGasEIP2200, nil
 	}
-	original := c.stateDB.GetCommittedState(c.contract.Address(), x.Bytes32())
+	original := c.context.GetCommittedStorage(c.params.Recipient, key)
 	if original == current {
-		if original == (common.Hash{}) { // create slot (2.1.1)
+		if original == zero { // create slot (2.1.1)
 			return params.SstoreSetGasEIP2200, nil
 		}
-		if value == (common.Hash{}) { // delete slot (2.1.2b)
-			c.stateDB.AddRefund(params.SstoreClearsScheduleRefundEIP2200)
+		if value == zero { // delete slot (2.1.2b)
+			c.refund += vm.Gas(params.SstoreClearsScheduleRefundEIP2200)
 		}
 		return params.SstoreResetGasEIP2200, nil // write existing slot (2.1.2)
 	}
-	if original != (common.Hash{}) {
-		if current == (common.Hash{}) { // recreate slot (2.2.1.1)
-			c.stateDB.SubRefund(params.SstoreClearsScheduleRefundEIP2200)
-		} else if value == (common.Hash{}) { // delete slot (2.2.1.2)
-			c.stateDB.AddRefund(params.SstoreClearsScheduleRefundEIP2200)
+	if original != zero {
+		if current == zero { // recreate slot (2.2.1.1)
+			c.refund -= vm.Gas(params.SstoreClearsScheduleRefundEIP2200)
+		} else if value == zero { // delete slot (2.2.1.2)
+			c.refund += vm.Gas(params.SstoreClearsScheduleRefundEIP2200)
 		}
 	}
 	if original == value {
-		if original == (common.Hash{}) { // reset to original inexistent slot (2.2.2.1)
-			c.stateDB.AddRefund(params.SstoreSetGasEIP2200 - params.SloadGasEIP2200)
+		if original == zero { // reset to original inexistent slot (2.2.2.1)
+			c.refund += vm.Gas(params.SstoreSetGasEIP2200 - params.SloadGasEIP2200)
 		} else { // reset to original existing slot (2.2.2.2)
-			c.stateDB.AddRefund(params.SstoreResetGasEIP2200 - params.SloadGasEIP2200)
+			c.refund += vm.Gas(params.SstoreResetGasEIP2200 - params.SloadGasEIP2200)
 		}
 	}
 	return params.SloadGasEIP2200, nil // dirty update (2.2)
@@ -316,25 +318,26 @@ func gasSStoreEIP2200(c *context) (uint64, error) {
 
 func gasSStoreEIP2929(c *context) (uint64, error) {
 
-	clearingRefund := params.SstoreClearsScheduleRefundEIP2200
+	clearingRefund := vm.Gas(params.SstoreClearsScheduleRefundEIP2200)
 	if c.isLondon {
-		clearingRefund = params.SstoreClearsScheduleRefundEIP3529
+		clearingRefund = vm.Gas(params.SstoreClearsScheduleRefundEIP3529)
 	}
 
 	// If we fail the minimum gas availability invariant, fail (0)
-	if c.contract.Gas <= params.SstoreSentryGasEIP2200 {
+	if c.gas <= vm.Gas(params.SstoreSentryGasEIP2200) {
 		c.status = OUT_OF_GAS
 		return 0, errors.New("not enough gas for reentrancy sentry")
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
 	var (
+		zero = vm.Word{}
 		y, x    = c.stack.Back(1), c.stack.peek()
-		slot    = common.Hash(x.Bytes32())
-		current = c.evm.StateDB.GetState(c.contract.Address(), slot)
+		slot    = vm.Key(x.Bytes32())
+		current = c.context.GetStorage(c.params.Recipient, slot)
 		cost    = uint64(0)
 	)
 	// Check slot presence in the access list
-	if addrPresent, slotPresent := c.evm.StateDB.SlotInAccessList(c.contract.Address(), slot); !slotPresent {
+	if addrPresent, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
 		if !addrPresent {
 			c.status = ERROR
 			return 0, errors.New("address was not present in access list during sstore op")
@@ -342,50 +345,50 @@ func gasSStoreEIP2929(c *context) (uint64, error) {
 		cost = params.ColdSloadCostEIP2929
 		// If the caller cannot afford the cost, this change will be rolled back
 		if !c.IsShadowed() {
-			c.evm.StateDB.AddSlotToAccessList(c.contract.Address(), slot)
+			c.context.AccessStorage(c.params.Recipient, slot)
 		}
 	}
-	value := common.Hash(y.Bytes32())
+	value := vm.Word(y.Bytes32())
 
 	if current == value { // noop (1)
 		return cost + params.WarmStorageReadCostEIP2929, nil // SLOAD_GAS
 	}
-	original := c.evm.StateDB.GetCommittedState(c.contract.Address(), x.Bytes32())
+	original := c.context.GetCommittedStorage(c.params.Recipient, slot)
 	if original == current {
-		if original == (common.Hash{}) { // create slot (2.1.1)
+		if original == zero { // create slot (2.1.1)
 			return cost + params.SstoreSetGasEIP2200, nil
 		}
-		if value == (common.Hash{}) { // delete slot (2.1.2b)
-			c.evm.StateDB.AddRefund(clearingRefund)
+		if value == zero { // delete slot (2.1.2b)
+			c.refund += clearingRefund
 		}
 		return cost + (params.SstoreResetGasEIP2200 - params.ColdSloadCostEIP2929), nil // write existing slot (2.1.2)
 	}
-	if original != (common.Hash{}) {
-		if current == (common.Hash{}) { // recreate slot (2.2.1.1)
-			c.evm.StateDB.SubRefund(clearingRefund)
-		} else if value == (common.Hash{}) { // delete slot (2.2.1.2)
-			c.evm.StateDB.AddRefund(clearingRefund)
+	if original != zero {
+		if current == zero { // recreate slot (2.2.1.1)
+			c.refund -= clearingRefund
+		} else if value == zero { // delete slot (2.2.1.2)
+			c.refund += clearingRefund
 		}
 	}
 	if original == value {
-		if original == (common.Hash{}) { // reset to original inexistent slot (2.2.2.1)
-			c.evm.StateDB.AddRefund(params.SstoreSetGasEIP2200 - params.WarmStorageReadCostEIP2929)
+		if original == zero { // reset to original inexistent slot (2.2.2.1)
+			c.refund += vm.Gas(params.SstoreSetGasEIP2200 - params.WarmStorageReadCostEIP2929)
 		} else { // reset to original existing slot (2.2.2.2)
-			c.evm.StateDB.AddRefund((params.SstoreResetGasEIP2200 - params.ColdSloadCostEIP2929) - params.WarmStorageReadCostEIP2929)
+			c.refund += vm.Gas((params.SstoreResetGasEIP2200 - params.ColdSloadCostEIP2929) - params.WarmStorageReadCostEIP2929)
 		}
 	}
 	return cost + params.WarmStorageReadCostEIP2929, nil // dirty update (2.2)
 }
 
-func gasEip2929AccountCheck(c *context, address common.Address) error {
+func gasEip2929AccountCheck(c *context, address vm.Address) error {
 	if c.isBerlin {
 		// Charge extra for cold locations.
-		if !c.evm.StateDB.AddressInAccessList(address) {
+		if !c.context.IsAddressInAccessList(address) {
 			if !c.UseGas(params.ColdAccountAccessCostEIP2929 - params.WarmStorageReadCostEIP2929) {
-				return vm.ErrOutOfGas
+				return ErrOutOfGas
 			}
 			if !c.IsShadowed() {
-				c.evm.StateDB.AddAddressToAccessList(address)
+				c.context.AccessAccount(address)
 			}
 		}
 	}
@@ -395,21 +398,20 @@ func gasEip2929AccountCheck(c *context, address common.Address) error {
 func addressInAccessList(c *context) (warmAccess bool, coldCost uint64, err error) {
 	warmAccess = true
 	if c.isBerlin {
-		addr := common.Address(c.stack.Back(1).Bytes20())
+		addr := vm.Address(c.stack.Back(1).Bytes20())
 		// Check slot presence in the access list
-		warmAccess = c.evm.StateDB.AddressInAccessList(addr)
+		warmAccess = c.context.IsAddressInAccessList(addr)
 		// The WarmStorageReadCostEIP2929 (100) is already deducted in the form of a constant cost, so
 		// the cost to charge for cold access, if any, is Cold - Warm
 		coldCost = params.ColdAccountAccessCostEIP2929 - params.WarmStorageReadCostEIP2929
 		if !warmAccess {
 			if !c.IsShadowed() {
-				c.evm.StateDB.AddAddressToAccessList(addr)
+				c.context.AccessAccount(addr)
 			}
 			// Charge the remaining difference here already, to correctly calculate available
 			// gas for call
-			if !c.contract.UseGas(coldCost) {
-				c.status = OUT_OF_GAS
-				return false, 0, vm.ErrOutOfGas
+			if !c.UseGas(coldCost) {
+				return false, 0, ErrOutOfGas
 			}
 		}
 	}
@@ -418,14 +420,14 @@ func addressInAccessList(c *context) (warmAccess bool, coldCost uint64, err erro
 
 func gasSelfdestruct(c *context) uint64 {
 	gas := params.SelfdestructGasEIP150
-	var address = common.Address(c.stack.Back(0).Bytes20())
+	var address = vm.Address(c.stack.Back(0).Bytes20())
 
 	// if beneficiary needs to be created
-	if c.stateDB.Empty(address) && c.stateDB.GetBalance(c.contract.Address()).Sign() != 0 {
+	if !c.context.AccountExists(address) {
 		gas += params.CreateBySelfdestructGas
 	}
-	if !c.stateDB.HasSuicided(c.contract.Address()) {
-		c.stateDB.AddRefund(params.SelfdestructRefundGas)
+	if !c.context.HasSelfDestructed(c.params.Recipient) {
+		c.refund += vm.Gas(params.SelfdestructRefundGas)
 	}
 	return gas
 }
@@ -433,23 +435,23 @@ func gasSelfdestruct(c *context) uint64 {
 func gasSelfdestructEIP2929(c *context) uint64 {
 	var (
 		gas     uint64
-		address = common.Address(c.stack.Back(0).Bytes20())
+		address = vm.Address(c.stack.Back(0).Bytes20())
 	)
-	if !c.evm.StateDB.AddressInAccessList(address) {
+	if !c.context.IsAddressInAccessList(address) {
 		// If the caller cannot afford the cost, this change will be rolled back
 		if !c.IsShadowed() {
-			c.evm.StateDB.AddAddressToAccessList(address)
+			c.context.AccessAccount(address)
 		}
 		gas = params.ColdAccountAccessCostEIP2929
 	}
 	// if empty and transfers value
-	if c.evm.StateDB.Empty(address) && c.evm.StateDB.GetBalance(c.contract.Address()).Sign() != 0 {
+	if !c.context.AccountExists(address) {
 		gas += params.CreateBySelfdestructGas
 	}
 	// do this only for Berlin and not after London fork
-	if !c.evm.ChainConfig().IsLondon(c.evm.Context.BlockNumber) {
-		if !c.evm.StateDB.HasSuicided(c.contract.Address()) {
-			c.evm.StateDB.AddRefund(params.SelfdestructRefundGas)
+	if c.isBerlin && !c.isLondon {
+		if !c.context.HasSelfDestructed(c.params.Recipient) {
+			c.refund += vm.Gas(params.SelfdestructRefundGas)
 		}
 	}
 	return gas
