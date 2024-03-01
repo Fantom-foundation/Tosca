@@ -8,9 +8,13 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/holiman/uint256"
+	"github.com/Fantom-foundation/Tosca/go/vm"
+
+	// The EVM dependency is needed to support the debugging mode
+	// in which the LFVM and the Geth EVM are run in lock-step mode
+	// to find problems. TODO: consider removing this
+	evm "github.com/ethereum/go-ethereum/core/vm"
 )
 
 type Status byte
@@ -37,22 +41,20 @@ type keccakState interface {
 
 type context struct {
 	// Context instances
-	evm *vm.EVM
+	params  vm.Parameters
+	context vm.RunContext
 
 	// Execution state
 	pc      int32
+	gas     vm.Gas
+	refund  vm.Gas
 	stack   *Stack
 	memory  *Memory
-	stateDB vm.StateDB
 	status  Status
 	err     error
 
 	// Inputs
-	contract *vm.Contract
 	code     Code
-	data     []byte
-	callsize uint256.Int
-	readOnly bool
 	isBerlin bool
 	isLondon bool
 	shaCache bool
@@ -60,20 +62,22 @@ type context struct {
 	// Intermediate data
 	return_data []byte
 	hasher      keccakState // Keccak256 hasher instance shared across opcodes
-	hasherBuf   common.Hash
+	hasherBuf   vm.Hash
 
 	// Outputs
 	result_offset uint256.Int
 	result_size   uint256.Int
 
 	// Debugging
-	interpreter *vm.InterpreterState
+	interpreter *evm.InterpreterState
 }
 
-func (c *context) UseGas(amount uint64) bool {
-	if c.contract.UseGas(amount) {
+func (c *context) UseGas(amount vm.Gas) bool {
+	if c.gas >= amount {
+		c.gas -= amount
 		return true
 	}
+	c.gas = 0
 	c.status = OUT_OF_GAS
 	return false
 }
@@ -87,7 +91,14 @@ func (c *context) IsShadowed() bool {
 	return c.interpreter != nil
 }
 
-func Run(evm *vm.EVM, cfg vm.Config, contract *vm.Contract, code Code, data []byte, readOnly bool, state vm.StateDB, with_shadow_vm, with_statistics bool, no_shaCache bool, logging bool) ([]byte, error) {
+func Run(
+	params vm.Parameters,
+	code Code,
+	with_shadow_vm bool, 
+	with_statistics bool, 
+	no_shaCache bool, 
+	logging bool,
+) (vm.Result, error) {
 	if evm.Depth == 0 && with_shadow_vm {
 		ClearShadowValues()
 	}

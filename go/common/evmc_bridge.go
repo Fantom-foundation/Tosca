@@ -42,7 +42,6 @@ func NewEvmcSteppableInterpreter(vm *EvmcVMSteppable, evm *vm.EVM, cfg vm.Config
 		interpreter: &EvmcInterpreter{
 			evmc: (*EvmcVM)(vm.vm.GetBaseHandle()),
 			evm:  evm,
-			cfg:  cfg,
 		},
 	}
 }
@@ -149,18 +148,16 @@ func (e *EvmcVM) GetEvmcVM() *evmc.VM {
 }
 
 // NewEvmcInterpreter instantiates an interpreter with the given evm and config.
-func NewEvmcInterpreter(vm *EvmcVM, evm *vm.EVM, cfg vm.Config) *EvmcInterpreter {
+func NewEvmcInterpreter(vm *EvmcVM, evm *vm.EVM) *EvmcInterpreter {
 	return &EvmcInterpreter{
 		evmc: vm,
 		evm:  evm,
-		cfg:  cfg,
 	}
 }
 
 type EvmcInterpreter struct {
 	evmc          *EvmcVM
 	evm           *vm.EVM
-	cfg           vm.Config
 	readOnly      bool
 	lastGasRefund int64
 }
