@@ -9,13 +9,13 @@ import (
 
 type Balance struct {
 	Current map[Address]U256
-	warm    map[Address]bool
+	warm    map[Address]struct{}
 }
 
 func NewBalance() *Balance {
 	return &Balance{
 		Current: make(map[Address]U256),
-		warm:    make(map[Address]bool),
+		warm:    make(map[Address]struct{}),
 	}
 }
 
@@ -34,14 +34,14 @@ func (a *Balance) Eq(b *Balance) bool {
 func (a *Balance) Diff(b *Balance) (res []string) {
 	for key, valueA := range a.Current {
 		valueB, contained := b.Current[key]
-		if !contained && valueA != NewU256(0) {
+		if !contained {
 			res = append(res, fmt.Sprintf("Different current entry:\n\t[%v]=%v\n\tvs\n\tmissing", key, valueA))
 		} else if valueA != valueB {
 			res = append(res, fmt.Sprintf("Different current entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", key, valueA, key, valueB))
 		}
 	}
 	for key, valueB := range b.Current {
-		if _, contained := a.Current[key]; !contained && valueB != NewU256(0) {
+		if _, contained := a.Current[key]; !contained {
 			res = append(res, fmt.Sprintf("Different current entry:\n\tmissing\n\tvs\n\t[%v]=%v", key, valueB))
 		}
 	}
@@ -61,22 +61,24 @@ func (a *Balance) Diff(b *Balance) (res []string) {
 }
 
 func (b *Balance) IsWarm(key Address) bool {
-	return b.warm[key]
+	_, contains := b.warm[key]
+	return contains
 }
 
 func (b *Balance) IsCold(key Address) bool {
-	return !b.warm[key]
+	_, contains := b.warm[key]
+	return !contains
 }
 
 func (b *Balance) MarkWarm(key Address) {
-	b.warm[key] = true
+	b.warm[key] = struct{}{}
 }
 
 func (b *Balance) MarkCold(key Address) {
 	delete(b.warm, key)
 }
 
-func (b *Balance) MarkWarmCold(key Address, warm bool) {
+func (b *Balance) SetWarm(key Address, warm bool) {
 	if warm {
 		b.MarkWarm(key)
 	} else {

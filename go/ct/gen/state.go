@@ -202,13 +202,13 @@ func (g *StateGenerator) BindIsStorageCold(key Variable) {
 	g.storageGen.BindCold(key)
 }
 
-// BindIsBalanceWarm wraps BalanceGenerator.BindWarm.
-func (g *StateGenerator) BindIsBalanceWarm(key Variable) {
+// BindToWarmAddress wraps BalanceGenerator.BindWarm.
+func (g *StateGenerator) BindToWarmAddress(key Variable) {
 	g.balanceGen.BindWarm(key)
 }
 
-// BindIsBalanceCold wraps BalanceGenerator.BindCold.
-func (g *StateGenerator) BindIsBalanceCold(key Variable) {
+// BindToColdAddress wraps BalanceGenerator.BindCold.
+func (g *StateGenerator) BindToColdAddress(key Variable) {
 	g.balanceGen.BindCold(key)
 }
 

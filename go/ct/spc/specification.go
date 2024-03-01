@@ -282,10 +282,10 @@ var Spec = func() Specification {
 		pushes:    1,
 		conditions: []Condition{
 			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
-			IsBalanceCold(Param(0)),
+			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
-			NumericParameter{},
+			AddressParameter{},
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
@@ -303,14 +303,14 @@ var Spec = func() Specification {
 		pushes:    1,
 		conditions: []Condition{
 			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
-			IsBalanceWarm(Param(0)),
+			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
-			NumericParameter{},
+			AddressParameter{},
 		},
 		effect: func(s *st.State) {
-			key := s.Stack.Pop()
-			s.Stack.Push(s.Balance.Current[NewAddress(key)])
+			address := NewAddress(s.Stack.Pop())
+			s.Stack.Push(s.Balance.Current[address])
 		},
 		name: "_warm",
 	})...)
@@ -325,7 +325,7 @@ var Spec = func() Specification {
 			IsRevision(R07_Istanbul),
 		},
 		parameters: []Parameter{
-			NumericParameter{},
+			AddressParameter{},
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())

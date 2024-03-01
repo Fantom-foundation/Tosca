@@ -181,7 +181,7 @@ func (s *State) String() string {
 	for k, v := range s.Balance.Current {
 		builder.WriteString(fmt.Sprintf("\t    [%v]=%v\n", k, v))
 	}
-	builder.WriteString("\tBalance.Warm:\n")
+	builder.WriteString("\tAddress.Warm:\n")
 	for k := range s.Balance.warm {
 		builder.WriteString(fmt.Sprintf("\t    [%v]\n", k))
 	}

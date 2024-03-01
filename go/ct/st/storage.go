@@ -50,7 +50,7 @@ func (s *Storage) MarkCold(key U256) {
 	delete(s.warm, key)
 }
 
-func mapEqualIgnoringZeroValues(a map[U256]U256, b map[U256]U256) bool {
+func mapEqualIgnoringZeroValues[K comparable](a map[K]U256, b map[K]U256) bool {
 	for key, valueA := range a {
 		valueB, contained := b[key]
 		if !contained && valueA != NewU256(0) {

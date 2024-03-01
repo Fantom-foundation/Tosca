@@ -16,7 +16,7 @@ func TestBalanceGenerator_UnconstrainedGeneratorCanProduceBalance(t *testing.T) 
 		t.Errorf("Unexpected random address generation error: %v", err)
 	}
 	if _, err := generator.Generate(nil, rnd, accountAddress); err != nil {
-		t.Fatalf("unexpected error during build: %v", err)
+		t.Errorf("Unexpected error during generation: %v", err)
 	}
 }
 
@@ -34,11 +34,11 @@ func TestBalanceGenerator_WarmConstraintIsEnforced(t *testing.T) {
 	generator.BindWarm(v1)
 	balance, err := generator.Generate(assignment, rnd, accountAddress)
 	if err != nil {
-		t.Fatal(err)
+		t.Errorf("Unexpected error during generation: %v", err)
 	}
 
 	if !balance.IsWarm(NewAddressFromInt(42)) {
-		t.Fail()
+		t.Errorf("Expected constraint address to be warm, but generated state marked as cold")
 	}
 }
 
@@ -49,109 +49,42 @@ func TestBalanceGenerator_ConflictingWarmColdConstraintsAreDetected(t *testing.T
 
 	rnd := rand.New(0)
 	generator := NewBalanceGenerator()
-	accountAddress, err := RandAddress(rnd)
-	if err != nil {
-		t.Errorf("Unexpected random address generation error: %v", err)
-	}
+	accountAddress := NewAddress(NewU256(42))
 
 	generator.BindCold(v1)
 	generator.BindWarm(v1)
 
-	_, err = generator.Generate(assignment, rnd, accountAddress)
+	_, err := generator.Generate(assignment, rnd, accountAddress)
 	if !errors.Is(err, ErrUnsatisfiable) {
-		t.Fatal("Conflicting warm/cold constraints not detected")
+		t.Errorf("Conflicting warm/cold constraints not detected")
 	}
 }
 
-func TestBalanceGenerator_AssignmentIsUpdated(t *testing.T) {
+func TestBalanceGenerator_WarmColdConstraintsNoAssignment(t *testing.T) {
 	v1 := Variable("v1")
 	v2 := Variable("v2")
 	assignment := Assignment{}
-
 	rnd := rand.New(0)
 	generator := NewBalanceGenerator()
-	generator.BindConfiguration(v1, v2)
-	accountAddress, err := RandAddress(rnd)
-	if err != nil {
-		t.Errorf("Unexpected random address generation error: %v", err)
-	}
 
-	_, err = generator.Generate(assignment, rand.New(0), accountAddress)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if _, isAssigned := assignment[v1]; !isAssigned {
-		t.Fatal("v1 not assigned by current value constraint")
-	}
-}
-
-func TestBalanceGenerator_ClonesAreEqual(t *testing.T) {
-	v1 := Variable("v1")
-	v2 := Variable("v2")
-
-	original := NewBalanceGenerator()
-	original.BindConfiguration(v1, v2)
-	original.BindWarm(v2)
-
-	clone := original.Clone()
-
-	if want, got := original.String(), clone.String(); want != got {
-		t.Errorf("invalid clone, wanted %s, got %s", want, got)
-	}
-}
-
-func TestBalanceGenerator_ClonesAreIndependent(t *testing.T) {
-	v1 := Variable("v1")
-	v2 := Variable("v2")
-	v3 := Variable("v3")
-	v4 := Variable("v4")
-
-	base := NewBalanceGenerator()
-	base.BindConfiguration(v1, v2)
-	base.BindWarm(v2)
-
-	clone1 := base.Clone()
-	clone1.BindConfiguration(v3, v4)
-	clone1.BindWarm(v4)
-
-	clone2 := base.Clone()
-	clone2.BindConfiguration(v3, v4)
-	clone2.BindCold(v4)
-
-	want := "{cfg[$v1]=$v2,cfg[$v3]=$v4,warm($v2),warm($v4)}"
-	if got := clone1.String(); got != want {
-		t.Errorf("invalid clone, wanted\n%s\n\tgot\n%s", want, got)
-	}
-
-	want = "{cfg[$v1]=$v2,cfg[$v3]=$v4,warm($v2),cold($v4)}"
-	if got := clone2.String(); got != want {
-		t.Errorf("invalid clone, wanted\n%s\n\tgot\n%s", want, got)
-	}
-}
-
-func TestBalanceGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
-	v1 := Variable("v1")
-	v2 := Variable("v2")
-	v3 := Variable("v3")
-
-	generator := NewBalanceGenerator()
-	generator.BindConfiguration(v1, v2)
 	generator.BindWarm(v1)
+	generator.BindCold(v2)
 
-	backup := generator.Clone()
-
-	generator.BindConfiguration(v2, v3)
-	generator.BindWarm(v2)
-
-	want := "{cfg[$v1]=$v2,cfg[$v2]=$v3,warm($v1),warm($v2)}"
-	if got := generator.String(); got != want {
-		t.Errorf("invalid clone, wanted\n%s\ngot\n%s", want, got)
+	balance, err := generator.Generate(assignment, rnd, NewAddressFromInt(8))
+	if err != nil {
+		t.Fatalf("Unexpected error during balance generation")
 	}
 
-	generator.Restore(backup)
+	pos1, found1 := assignment[v1]
+	pos2, found2 := assignment[v2]
 
-	if want, got := "{cfg[$v1]=$v2,warm($v1)}", generator.String(); got != want {
-		t.Errorf("invalid clone, wanted \n%s\n\tgot\n%s", want, got)
+	if !found1 || !found2 {
+		t.Fatalf("Variable not bound by generator")
+	}
+	if !balance.IsWarm(NewAddress(pos1)) {
+		t.Errorf("Expected address to be warm but got cold")
+	}
+	if balance.IsWarm(NewAddress(pos2)) {
+		t.Errorf("Expected address to be cold but got warm")
 	}
 }

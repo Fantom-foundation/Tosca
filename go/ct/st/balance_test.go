@@ -7,9 +7,8 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
-func TestBalance_NewBalance(t *testing.T) {
+func TestBalance_MarkWarmMarksAddressesAsWarm(t *testing.T) {
 	b := NewBalance()
-	b.Current[NewAddressFromInt(42)] = NewU256(42)
 	b.MarkWarm(NewAddressFromInt(42))
 
 	if want, got := true, b.IsWarm(NewAddressFromInt(42)); want != got {
@@ -21,64 +20,97 @@ func TestBalance_NewBalance(t *testing.T) {
 }
 
 func TestBalance_Clone(t *testing.T) {
-	b1 := NewBalance()
 	a := NewAddressFromInt(42)
-	b1.Current[a] = NewU256(1)
-	b1.MarkWarm(a)
-
-	b2 := b1.Clone()
-	if !b1.Eq(b2) {
-		t.Fatalf("Clones are not equal")
+	b := NewAddressFromInt(48)
+	tests := map[string]struct {
+		change func(*Balance)
+	}{
+		"add-balance": {func(balance *Balance) {
+			balance.Current[b] = NewU256(3)
+		}},
+		"modify-balance": {func(balance *Balance) {
+			balance.Current[a] = NewU256(3)
+		}},
+		"remove-balance": {func(balance *Balance) {
+			delete(balance.Current, a)
+		}},
+		"mark-cold": {func(balance *Balance) {
+			balance.MarkCold(a)
+		}},
+		"mark-warm": {func(balance *Balance) {
+			balance.MarkWarm(b)
+		}},
 	}
 
-	b2.Current[NewAddressFromInt(42)] = NewU256(3)
-	if b1.Eq(b2) {
-		t.Fatalf("Clones are not independent")
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			b1 := NewBalance()
+			b1.Current[a] = NewU256(1)
+			b1.MarkWarm(a)
+			b2 := b1.Clone()
+			if !b1.Eq(b2) {
+				t.Fatalf("clones are not equal")
+			}
+			test.change(b2)
+			if b1.Eq(b2) {
+				t.Errorf("clones are not independent")
+			}
+		})
 	}
-	b2.Current[NewAddressFromInt(42)] = NewU256(1)
+}
 
-	b2.MarkCold(NewAddressFromInt(42))
-	if b1.Eq(b2) {
-		t.Fatalf("Clones are not independent")
+func TestBalance_AccountsWithZeroBalanceAreTreatedTheSameByEqAndDiff(t *testing.T) {
+	b1 := NewBalance()
+	b1.Current[Address{1}] = NewU256(0)
+	b2 := NewBalance()
+
+	equal := b1.Eq(b2)
+	diff := b1.Diff(b2)
+
+	if equal != (len(diff) == 0) {
+		t.Errorf("Eq and Diff not compatible, Eq returns %t, Diff %v", equal, diff)
 	}
-	b2.MarkWarm(NewAddressFromInt(42))
 }
 
 func TestBalance_Diff(t *testing.T) {
-	b1 := NewBalance()
-	b1.Current[NewAddressFromInt(42)] = NewU256(1)
-	b1.MarkWarm(NewAddressFromInt(42))
-
-	b2 := b1.Clone()
-
-	diff := b1.Diff(b2)
-	if len(diff) != 0 {
-		t.Fatalf("Clone are different: %v", diff)
+	a := NewAddressFromInt(42)
+	b := NewAddressFromInt(48)
+	tests := map[string]struct {
+		change  func(*Balance)
+		outcome string
+	}{
+		"add-balance": {func(balance *Balance) {
+			balance.Current[b] = NewU256(3)
+		}, "Different current entry"},
+		"modify-balance": {func(balance *Balance) {
+			balance.Current[a] = NewU256(3)
+		}, "Different current entry"},
+		"remove-balance": {func(balance *Balance) {
+			delete(balance.Current, a)
+		}, "Different current entry"},
+		"mark-cold": {func(balance *Balance) {
+			balance.MarkCold(a)
+		}, "Different warm entry"},
+		"mark-warm": {func(balance *Balance) {
+			balance.MarkWarm(b)
+		}, "Different warm entry"},
 	}
 
-	b2.Current[NewAddressFromInt(42)] = NewU256(3)
-	diff = b1.Diff(b2)
-	if !strings.Contains(diff[0], "current") {
-		t.Fatalf("Difference in current not found: %v", diff)
-	}
-
-	delete(b2.Current, NewAddressFromInt(42))
-	diff = b1.Diff(b2)
-	if !strings.Contains(diff[0], "current") {
-		t.Fatalf("Difference in current not found: %v", diff)
-	}
-
-	b2 = b1.Clone()
-	b2.MarkCold(NewAddressFromInt(42))
-	diff = b1.Diff(b2)
-	if !strings.Contains(diff[0], "warm") {
-		t.Fatalf("Difference in warm not found: %v", diff)
-	}
-
-	b2 = b1.Clone()
-	b2.MarkWarm(NewAddressFromInt(43))
-	diff = b1.Diff(b2)
-	if !strings.Contains(diff[0], "warm") {
-		t.Fatalf("Difference in warm not found: %v", diff)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			b1 := NewBalance()
+			b1.Current[a] = NewU256(1)
+			b1.MarkWarm(a)
+			b2 := b1.Clone()
+			diff := b1.Diff(b2)
+			if len(diff) != 0 {
+				t.Errorf("Clone are different: %v", diff)
+			}
+			test.change(b2)
+			diff = b1.Diff(b2)
+			if !strings.Contains(diff[0], test.outcome) {
+				t.Errorf("Difference in balance not found: %v", diff)
+			}
+		})
 	}
 }
