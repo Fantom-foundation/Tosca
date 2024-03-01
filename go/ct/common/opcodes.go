@@ -141,7 +141,7 @@ func (op OpCode) Width() int {
 	}
 }
 
-// IsValid determines wether the given OpCode is a valid operation
+// IsValid determines whether the given OpCode is a valid operation
 // for any revision.
 func IsValid(op OpCode) bool {
 	if op == INVALID {
