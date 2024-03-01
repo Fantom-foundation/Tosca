@@ -2,8 +2,7 @@ package common
 
 import (
 	"fmt"
-
-	"golang.org/x/exp/slices"
+	"strings"
 )
 
 type OpCode byte
@@ -142,100 +141,30 @@ func (op OpCode) Width() int {
 	}
 }
 
+// IsValid determines wether the given OpCode is a valid operation
+// for any revision.
+func IsValid(op OpCode) bool {
+	if op == INVALID {
+		return false
+	}
+	// We use the fact that all valid instructions have a non-generic
+	// print output.
+	return !strings.HasPrefix(op.String(), "op(")
+}
+
 // OpCodesNoPush returns a slice of valid op codes, but no PUSH instruction.
 func ValidOpCodesNoPush() []OpCode {
-	return slices.Clone([]OpCode{
-		STOP,
-		ADD,
-		MUL,
-		SUB,
-		DIV,
-		SDIV,
-		MOD,
-		SMOD,
-		ADDMOD,
-		MULMOD,
-		EXP,
-		SIGNEXTEND,
-		LT,
-		GT,
-		SLT,
-		SGT,
-		EQ,
-		ISZERO,
-		AND,
-		OR,
-		XOR,
-		NOT,
-		SHA3,
-		BYTE,
-		SHL,
-		SHR,
-		SAR,
-		ADDRESS,
-		ORIGIN,
-		CALLER,
-		CALLVALUE,
-		CODESIZE,
-		CODECOPY,
-		GASPRICE,
-		COINBASE,
-		TIMESTAMP,
-		NUMBER,
-		DIFFICULTY,
-		GASLIMIT,
-		CHAINID,
-		BASEFEE,
-		POP,
-		MLOAD,
-		MSTORE,
-		MSTORE8,
-		SLOAD,
-		SSTORE,
-		JUMP,
-		JUMPI,
-		PC,
-		MSIZE,
-		GAS,
-		JUMPDEST,
-		DUP1,
-		DUP2,
-		DUP3,
-		DUP4,
-		DUP5,
-		DUP6,
-		DUP7,
-		DUP8,
-		DUP9,
-		DUP10,
-		DUP11,
-		DUP12,
-		DUP13,
-		DUP14,
-		DUP15,
-		DUP16,
-		SWAP1,
-		SWAP2,
-		SWAP3,
-		SWAP4,
-		SWAP5,
-		SWAP6,
-		SWAP7,
-		SWAP8,
-		SWAP9,
-		SWAP10,
-		SWAP11,
-		SWAP12,
-		SWAP13,
-		SWAP14,
-		SWAP15,
-		SWAP16,
-		LOG0,
-		LOG1,
-		LOG2,
-		LOG3,
-		LOG4,
-	})
+	res := make([]OpCode, 0, 256)
+	for i := 0; i < 256; i++ {
+		op := OpCode(i)
+		if PUSH1 <= op && op <= PUSH32 {
+			continue
+		}
+		if IsValid(op) {
+			res = append(res, op)
+		}
+	}
+	return res
 }
 
 func (op OpCode) String() string {

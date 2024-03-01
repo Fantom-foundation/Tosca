@@ -6,6 +6,22 @@ import (
 	"testing"
 )
 
+func TestOpCode_ValidOpCodes(t *testing.T) {
+	noPrettyPrint := regexp.MustCompile(`^op\(\d+\)$`)
+	for i := 0; i < 256; i++ {
+		op := OpCode(i)
+
+		want := !noPrettyPrint.MatchString(op.String())
+		if op == INVALID {
+			want = false
+		}
+		got := IsValid(op)
+		if want != got {
+			t.Errorf("invalid classification of instruction %v, wanted %t, got %t", op, want, got)
+		}
+	}
+}
+
 func TestOpCode_ValidOpCodesNoPush(t *testing.T) {
 	validOps := ValidOpCodesNoPush()
 
