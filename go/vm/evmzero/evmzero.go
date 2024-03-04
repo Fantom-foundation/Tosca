@@ -12,123 +12,106 @@ import (
 	"fmt"
 
 	"github.com/Fantom-foundation/Tosca/go/common"
-	"github.com/Fantom-foundation/Tosca/go/vm/registry"
-	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
-
-var evmzero *common.EvmcVM
-var evmzeroWithLogging *common.EvmcVM
-var evmzeroWithoutAnalysisCache *common.EvmcVM
-var evmzeroWithoutSha3Cache *common.EvmcVM
-var evmzeroWithProfiling *common.EvmcVM
-var evmzeroWithProfilingExternal *common.EvmcVM
-
-var evmzeroSteppable *common.EvmcVMSteppable
 
 func init() {
 	// In the CGO instructions at the top of this file the build directory
 	// of the evmzero project is added to the rpath of the resulting library.
 	// This way, the libevmzero.so file can be found during runtime, even if
 	// the LD_LIBRARY_PATH is not set accordingly.
-	vm, err := common.LoadEvmcVM("libevmzero.so")
+	cur, err := common.LoadEvmcVM("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
 	// This instance remains in its basic configuration.
-	evmzero = vm
+	evmzero := cur
 
 	// We create a second instance in which we enable logging.
-	vm, err = common.LoadEvmcVM("libevmzero.so")
+	cur, err = common.LoadEvmcVM("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
-	if err = vm.SetOption("logging", "true"); err != nil {
+	if err = cur.SetOption("logging", "true"); err != nil {
 		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 	}
-	evmzeroWithLogging = vm
+	evmzeroWithLogging := cur
 
 	// A third instance without analysis cache.
-	vm, err = common.LoadEvmcVM("libevmzero.so")
+	cur, err = common.LoadEvmcVM("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
-	if err = vm.SetOption("analysis_cache", "false"); err != nil {
+	if err = cur.SetOption("analysis_cache", "false"); err != nil {
 		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 	}
-	evmzeroWithoutAnalysisCache = vm
+	evmzeroWithoutAnalysisCache := cur
 
 	// Another instance without SHA3 cache.
-	vm, err = common.LoadEvmcVM("libevmzero.so")
+	cur, err = common.LoadEvmcVM("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
-	if err = vm.SetOption("sha3_cache", "false"); err != nil {
+	if err = cur.SetOption("sha3_cache", "false"); err != nil {
 		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 	}
-	evmzeroWithoutSha3Cache = vm
+	evmzeroWithoutSha3Cache := cur
 
 	// Another instance in which we enable profiling.
-	vm, err = common.LoadEvmcVM("libevmzero.so")
+	cur, err = common.LoadEvmcVM("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
-	if err = vm.SetOption("profiling", "true"); err != nil {
+	if err = cur.SetOption("profiling", "true"); err != nil {
 		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 	}
-	evmzeroWithProfiling = vm
+	evmzeroWithProfiling := cur
 
 	// Another instance in which we enable profiling external.
-	vm, err = common.LoadEvmcVM("libevmzero.so")
+	cur, err = common.LoadEvmcVM("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
-	if err = vm.SetOption("profiling_external", "true"); err != nil {
+	if err = cur.SetOption("profiling_external", "true"); err != nil {
 		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 	}
-	evmzeroWithProfilingExternal = vm
+	evmzeroWithProfilingExternal := cur
 
-	// A steppable instance.
-	vmSteppable, err := common.LoadEvmcVMSteppable("libevmzero.so")
-	if err != nil {
-		panic(fmt.Errorf("failed to load evmzero library: %s", err))
-	}
-	evmzeroSteppable = vmSteppable
-}
+	/*
+		// A steppable instance.
+		vmSteppable, err := common.LoadEvmcVMSteppable("libevmzero.so")
+		if err != nil {
+			panic(fmt.Errorf("failed to load evmzero library: %s", err))
+		}
+		evmzeroSteppable = vmSteppable
+	*/
 
-func init() {
-	registry.RegisterVirtualMachine("evmzero", &evmzeroInstance{evmzero})
-	registry.RegisterVirtualMachine("evmzero-logging", &evmzeroInstance{evmzeroWithLogging})
-	registry.RegisterVirtualMachine("evmzero-no-analysis-cache", &evmzeroInstance{evmzeroWithoutAnalysisCache})
-	registry.RegisterVirtualMachine("evmzero-no-sha3-cache", &evmzeroInstance{evmzeroWithoutSha3Cache})
-	registry.RegisterVirtualMachine("evmzero-profiling", &evmzeroInstanceWithProfiler{evmzeroInstance{evmzeroWithProfiling}})
-	registry.RegisterVirtualMachine("evmzero-profiling-external", &evmzeroInstanceWithProfiler{evmzeroInstance{evmzeroWithProfilingExternal}})
-	registry.RegisterVirtualMachine("evmzero-steppable", &evmzeroSteppableInstance{evmzeroSteppable})
-}
-
-// evmzeroInstance implements the vm.VirtualMachine interface and is used for all
-// configurations not collecting profiling data.
-type evmzeroInstance struct {
-	vm *common.EvmcVM
-}
-
-func (e *evmzeroInstance) NewInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return common.NewEvmcInterpreter(e.vm, evm, cfg)
+	vm.RegisterVirtualMachine("evmzero", evmzero)
+	vm.RegisterVirtualMachine("evmzero-logging", evmzeroWithLogging)
+	vm.RegisterVirtualMachine("evmzero-no-analysis-cache", evmzeroWithoutAnalysisCache)
+	vm.RegisterVirtualMachine("evmzero-no-sha3-cache", evmzeroWithoutSha3Cache)
+	vm.RegisterVirtualMachine("evmzero-profiling", &evmzeroInstanceWithProfiler{evmzeroWithProfiling})
+	vm.RegisterVirtualMachine("evmzero-profiling-external", &evmzeroInstanceWithProfiler{evmzeroWithProfilingExternal})
+	/*
+		vm.RegisterVirtualMachine("evmzero-steppable", &evmzeroSteppableInstance{evmzeroSteppable})
+	*/
 }
 
 // evmzeroInstanceWithProfiler implements the vm.ProfilingVM interface and is used for all
 // configurations collecting profiling data.
 type evmzeroInstanceWithProfiler struct {
-	evmzeroInstance
+	*common.EvmcVM
 }
 
 func (e *evmzeroInstanceWithProfiler) DumpProfile() {
-	C.evmzero_dump_profile(e.evmzeroInstance.vm.GetEvmcVM().GetHandle())
+	C.evmzero_dump_profile(e.GetEvmcVM().GetHandle())
 }
 
 func (e *evmzeroInstanceWithProfiler) ResetProfile() {
-	C.evmzero_reset_profiler(e.evmzeroInstance.vm.GetEvmcVM().GetHandle())
+	C.evmzero_reset_profiler(e.GetEvmcVM().GetHandle())
 }
 
+/*
 // evmzeroSteppableInstance implements the vm.VirtualMachine interface and supports
 // stepping through the execution.
 type evmzeroSteppableInstance struct {
@@ -138,3 +121,4 @@ type evmzeroSteppableInstance struct {
 func (e *evmzeroSteppableInstance) NewInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
 	return common.NewEvmcSteppableInterpreter(e.vm, evm, cfg)
 }
+*/

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
-	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 var variants = []string{
@@ -23,25 +23,14 @@ func TestFib10(t *testing.T) {
 
 	for _, variant := range variants {
 		t.Run(variant, func(t *testing.T) {
-			interpreter := vm.NewInterpreter(variant, &vm.EVM{}, vm.Config{})
-
-			got, err := example.RunOn(interpreter, arg)
+			vm := vm.GetVirtualMachine(variant)
+			got, err := example.RunOn(vm, arg)
 			if err != nil {
 				t.Fatalf("running the fib example failed: %v", err)
 			}
 
 			if got.Result != wanted {
 				t.Fatalf("unexpected result, wanted %v, got %v", wanted, got.Result)
-			}
-		})
-	}
-}
-
-func BenchmarkNewEvmcInterpreter(b *testing.B) {
-	for _, variant := range variants {
-		b.Run(variant, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				vm.NewInterpreter(variant, &vm.EVM{}, vm.Config{})
 			}
 		})
 	}
@@ -59,10 +48,9 @@ func benchmarkFib(b *testing.B, arg int) {
 
 	for _, variant := range variants {
 		b.Run(variant, func(b *testing.B) {
-			interpreter := vm.NewInterpreter(variant, &vm.EVM{}, vm.Config{})
-
+			vm := vm.GetVirtualMachine(variant)
 			for i := 0; i < b.N; i++ {
-				got, err := example.RunOn(interpreter, arg)
+				got, err := example.RunOn(vm, arg)
 				if err != nil {
 					b.Fatalf("running the fib example failed: %v", err)
 				}

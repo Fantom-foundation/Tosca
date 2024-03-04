@@ -43,7 +43,7 @@ func (v *VM) Run(params vm.Parameters) (vm.Result, error) {
 		return vm.Result{}, err
 	}
 
-	return Run(params, converted, e.with_shadow_evm, e.with_statistics, e.no_shaCache, e.logging)
+	return Run(params, converted, v.with_shadow_evm, v.with_statistics, v.no_shaCache, v.logging)
 }
 
 func (e *VM) DumpProfile() {

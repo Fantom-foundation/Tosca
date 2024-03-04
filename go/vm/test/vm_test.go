@@ -2,15 +2,10 @@ package vm_test
 
 import (
 	"fmt"
-	"math"
-	"math/big"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
-	tosca "github.com/Fantom-foundation/Tosca/go/vm"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 	// Enable this import to see C/C++ symbols in CPU profile data.
 	// This import is commented out because it would affect all binaries this
 	// package gets imported in and in some cases this library causes Go
@@ -35,11 +30,11 @@ var (
 func TestExamples_ComputesCorrectResult(t *testing.T) {
 	for _, example := range testExamples {
 		for _, variant := range Variants {
-			evm := GetCleanEVM(London, variant, nil)
+			vm := vm.GetVirtualMachine(variant)
 			for i := 0; i < 10; i++ {
 				t.Run(fmt.Sprintf("%s-%s-%d", example.Name, variant, i), func(t *testing.T) {
 					want := example.RunReference(i)
-					got, err := example.RunOn(evm.GetInterpreter(), i)
+					got, err := example.RunOn(vm, i)
 					if err != nil {
 						t.Fatalf("error processing contract: %v", err)
 					}
@@ -55,17 +50,17 @@ func TestExamples_ComputesCorrectResult(t *testing.T) {
 func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 	for _, example := range testExamples {
 		for _, revision := range revisions {
-			reference := GetCleanEVM(revision, "geth", nil)
+			reference := vm.GetVirtualMachine("geth")
 			for _, variant := range Variants {
-				evm := GetCleanEVM(revision, variant, nil)
+				vm := vm.GetVirtualMachine(variant)
 				for i := 0; i < 10; i++ {
 					t.Run(fmt.Sprintf("%s-%s-%s-%d", example.Name, revision, variant, i), func(t *testing.T) {
-						want, err := example.RunOn(reference.GetInterpreter(), i)
+						want, err := example.RunOn(reference, i)
 						if err != nil {
 							t.Fatalf("failed to run reference VM: %v", err)
 						}
 
-						got, err := example.RunOn(evm.GetInterpreter(), i)
+						got, err := example.RunOn(vm, i)
 						if err != nil {
 							t.Fatalf("error processing contract: %v", err)
 						}
@@ -81,17 +76,12 @@ func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 }
 
 func BenchmarkEmpty(b *testing.B) {
-	addr := vm.AccountRef{}
-	contract := vm.NewContract(addr, addr, big.NewInt(0), math.MaxInt64)
-	contract.Code = []byte{0}
-	contract.CodeHash = crypto.Keccak256Hash(contract.Code)
-	contract.CodeAddr = &common.Address{}
-
+	emptyRunParameters := vm.Parameters{}
 	for _, variant := range Variants {
-		evm := GetCleanEVM(London, variant, nil)
+		vm := vm.GetVirtualMachine(variant)
 		b.Run(variant, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := evm.GetInterpreter().Run(contract, []byte{}, false)
+				_, err := vm.Run(emptyRunParameters)
 				if err != nil {
 					b.Fatalf("error running empty example: %v", err)
 				}
@@ -153,7 +143,7 @@ func BenchmarkAnalysis(b *testing.B) {
 		examples.GetPush32AnalysisExample(),
 	}
 	for _, example := range examples {
-		b.Run(fmt.Sprintf("%s", example.Name), func(b *testing.B) {
+		b.Run(example.Name, func(b *testing.B) {
 			benchmark(b, example, 0)
 		})
 	}
@@ -164,16 +154,15 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 	wanted := example.RunReference(arg)
 
 	for _, variant := range Variants {
-		evm := GetCleanEVM(London, variant, nil)
-		vm := tosca.GetVirtualMachine(variant)
-		if pvm, ok := vm.(tosca.ProfilingVM); ok {
+		evm := vm.GetVirtualMachine(variant)
+		if pvm, ok := evm.(vm.ProfilingVM); ok {
 			pvm.ResetProfile()
 		}
 		active := false
 		b.Run(variant, func(b *testing.B) {
 			active = true
 			for i := 0; i < b.N; i++ {
-				got, err := example.RunOn(evm.GetInterpreter(), arg)
+				got, err := example.RunOn(evm, arg)
 				if err != nil {
 					b.Fatalf("running the %s example failed: %v", example.Name, err)
 				}
@@ -183,7 +172,7 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 				}
 			}
 		})
-		if pvm, ok := vm.(tosca.ProfilingVM); active && ok {
+		if pvm, ok := evm.(vm.ProfilingVM); active && ok {
 			pvm.DumpProfile()
 		}
 	}

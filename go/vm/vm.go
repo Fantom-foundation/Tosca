@@ -1,5 +1,7 @@
 package vm
 
+//go:generate mockgen -source vm.go -destination vm_mock.go -package vm
+
 // VirtualMachine (VM) represents an instance of an EVM-byte-code execution engine
 // loaded in memory. A VM instance is capable of running multiple code executions
 // in parallel.
@@ -52,10 +54,7 @@ type RunContext interface {
 	GetTransactionContext() TransactionContext
 	GetBlockHash(number int64) Hash
 	EmitLog(addr Address, topics []Hash, data []byte)
-	Call(kind CallKind,
-		recipient Address, sender Address, value Value, input []byte, gas Gas, depth int,
-		static bool, salt Hash, codeAddress Address) (output []byte, gasLeft Gas, gasRefund Gas,
-		createAddr Address, reverted bool, err error)
+	Call(kind CallKind, parameter CallParameter) (CallResult, error)
 	SelfDestruct(addr Address, beneficiary Address) bool
 	AccessAccount(addr Address) AccessStatus
 	AccessStorage(addr Address, key Key) AccessStatus
@@ -73,7 +72,7 @@ type RunContext interface {
 }
 
 // Gas represents the type used to represent the Gas values.
-type Gas uint64
+type Gas int64
 
 // Address represents the 160-bit (20 bytes) address of an account.
 type Address [20]byte
@@ -93,15 +92,15 @@ type Hash [32]byte
 
 // TransactionContext contains information about current transaction and block.
 type TransactionContext struct {
-	GasPrice   Value
-	Origin     Address
-	Coinbase   Address
-	BlockNumber     int64
-	Timestamp  int64
-	GasLimit   Gas
-	PrevRandao Hash
-	ChainID    Word
-	BaseFee    Value
+	GasPrice    Value
+	Origin      Address
+	Coinbase    Address
+	BlockNumber int64
+	Timestamp   int64
+	GasLimit    Gas
+	PrevRandao  Hash
+	ChainID     Word
+	BaseFee     Value
 }
 
 type AccessStatus bool
@@ -113,6 +112,7 @@ const (
 
 type StorageStatus int
 
+// See t.ly/b5HPf for the definition of the return status.
 const (
 	StorageAssigned StorageStatus = iota
 	StorageAdded
@@ -130,10 +130,29 @@ type CallKind int
 const (
 	Call CallKind = iota
 	DelegateCall
+	StaticCall
 	CallCode
 	Create
 	Create2
 )
+
+type CallParameter struct {
+	Sender      Address // TODO: remove and handle implicit
+	Recipient   Address // < not relevant for CREATE and CREATE2 // TODO: remove and handle implicit
+	Value       Value   // < ignored by static calls, considered to be 0
+	Input       []byte
+	Gas         Gas
+	Salt        Hash    // < only relevant for CREATE2 call
+	CodeAddress Address // < only relevant for CALLCODE
+}
+
+type CallResult struct {
+	Output         []byte
+	GasLeft        Gas
+	GasRefund      Gas
+	CreatedAddress Address
+	Reverted       bool
+}
 
 type Revision int
 

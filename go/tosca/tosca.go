@@ -18,7 +18,7 @@ import (
 	_ "github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 )
 
-func GetVirtualMachine(name string) (VirtualMachine, error) {
+func GetVirtualMachine(name string) VirtualMachine {
 	return vm.GetVirtualMachine(name)
 }
 
