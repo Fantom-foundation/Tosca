@@ -3,17 +3,15 @@ package examples
 import (
 	"fmt"
 	"math"
-	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/Fantom-foundation/Tosca/go/vm"
+	"golang.org/x/crypto/sha3"
 )
 
 // Example is an executable description of a contract and an entry point with a (int)->int signature.
 type Example struct {
 	exampleSpec
-	codeHash common.Hash // the hash of the code
+	codeHash vm.Hash // the hash of the code
 }
 
 // exampleSpec specifies a contract and an entry point with a (int)->int signature.
@@ -25,9 +23,13 @@ type exampleSpec struct {
 }
 
 func (s exampleSpec) build() Example {
+	hasher := sha3.NewLegacyKeccak256()
+	hasher.Write(s.code)
+	var hash vm.Hash
+	hasher.Sum(hash[0:0])
 	return Example{
 		exampleSpec: s,
-		codeHash:    crypto.Keccak256Hash(s.code),
+		codeHash:    hash,
 	}
 }
 
@@ -37,29 +39,29 @@ type Result struct {
 }
 
 // RunOn runs this example on the given interpreter, using the given argument.
-func (e *Example) RunOn(interpreter vm.EVMInterpreter, argument int) (Result, error) {
+func (e *Example) RunOn(interpreter vm.VirtualMachine, argument int) (Result, error) {
+
 	const initialGas = math.MaxInt64
-	input := encodeArgument(e.function, argument)
+	params := vm.Parameters{
+		Context:  &exampleRunContext{},
+		Code:     e.code,
+		CodeHash: (*vm.Hash)(&e.codeHash),
+		Input:    encodeArgument(e.function, argument),
+		Gas:      initialGas,
+	}
 
-	// create a dummy contract
-	addr := vm.AccountRef{}
-	contract := vm.NewContract(addr, addr, big.NewInt(0), initialGas)
-	contract.Code = e.code
-	contract.CodeHash = e.codeHash
-	contract.CodeAddr = &common.Address{}
-
-	output, err := interpreter.Run(contract, input, false)
+	res, err := interpreter.Run(params)
 	if err != nil {
 		return Result{}, err
 	}
 
-	result, err := decodeOutput(output)
+	result, err := decodeOutput(res.Output)
 	if err != nil {
 		return Result{}, err
 	}
 	return Result{
 		Result:  result,
-		UsedGas: initialGas - int64(contract.Gas),
+		UsedGas: initialGas - int64(res.GasLeft),
 	}, nil
 }
 
@@ -92,4 +94,79 @@ func decodeOutput(output []byte) (int, error) {
 		return 0, fmt.Errorf("unexpected length of output; wanted 32, got %d", len(output))
 	}
 	return (int(output[28]) << 24) | (int(output[29]) << 16) | (int(output[30]) << 8) | (int(output[31]) << 0), nil
+}
+
+type exampleRunContext struct{}
+
+func (c *exampleRunContext) AccountExists(vm.Address) bool {
+	return false
+}
+
+func (c *exampleRunContext) GetStorage(vm.Address, vm.Key) vm.Word {
+	return vm.Word{}
+}
+
+func (c *exampleRunContext) SetStorage(vm.Address, vm.Key, vm.Word) vm.StorageStatus {
+	return vm.StorageAdded
+}
+
+func (c *exampleRunContext) GetBalance(vm.Address) vm.Value {
+	return vm.Value{}
+}
+
+func (c *exampleRunContext) GetCodeSize(vm.Address) int {
+	return 0
+}
+
+func (c *exampleRunContext) GetCodeHash(vm.Address) vm.Hash {
+	return vm.Hash{}
+}
+
+func (c *exampleRunContext) GetCode(vm.Address) []byte {
+	return nil
+}
+
+func (c *exampleRunContext) GetTransactionContext() vm.TransactionContext {
+	return vm.TransactionContext{}
+}
+
+func (c *exampleRunContext) GetBlockHash(int64) vm.Hash {
+	return vm.Hash{}
+}
+
+func (c *exampleRunContext) EmitLog(vm.Address, []vm.Hash, []byte) {
+}
+
+func (c *exampleRunContext) Call(vm.CallKind, vm.CallParameter) (vm.CallResult, error) {
+	return vm.CallResult{}, nil
+}
+
+func (c *exampleRunContext) SelfDestruct(vm.Address, vm.Address) bool {
+	return false
+}
+
+func (c *exampleRunContext) AccessAccount(vm.Address) vm.AccessStatus {
+	return vm.ColdAccess
+}
+
+func (c *exampleRunContext) AccessStorage(vm.Address, vm.Key) vm.AccessStatus {
+	return vm.ColdAccess
+}
+
+// -- legacy API needed by LFVM and Geth, to be removed in the future ---
+
+func (c *exampleRunContext) GetCommittedStorage(vm.Address, vm.Key) vm.Word {
+	return vm.Word{}
+}
+
+func (c *exampleRunContext) IsAddressInAccessList(vm.Address) bool {
+	return false
+}
+
+func (c *exampleRunContext) IsSlotInAccessList(vm.Address, vm.Key) (bool, bool) {
+	return false, false
+}
+
+func (c *exampleRunContext) HasSelfDestructed(vm.Address) bool {
+	return false
 }

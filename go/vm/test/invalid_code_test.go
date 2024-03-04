@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/core/vm"
+	// This is only imported to get the EVM opcode definitions.
+	// TODO: write up our own op-code definition and remove this dependency.
+	vm "github.com/ethereum/go-ethereum/core/vm"
 )
 
 func TestEmptyCodeShouldBeIgnored(t *testing.T) {
@@ -48,8 +50,13 @@ func TestDetectsJumpOutOfCode(t *testing.T) {
 				byte(vm.JUMP),
 			}
 			input := []byte{}
-			if _, err := evm.Run(code, input); err != vm.ErrInvalidJump {
-				t.Errorf("failed to detect invalid jump, got %v", err)
+
+			result, err := evm.Run(code, input)
+			if err != nil {
+				t.Fatalf("unexpected failure in VM execution: %v", err)
+			}
+			if result.Success {
+				t.Errorf("expected VM to fail, got %v", result)
 			}
 		})
 	}
@@ -65,8 +72,13 @@ func TestDetectsJumpToNonJumpDestTarget(t *testing.T) {
 				byte(vm.STOP),
 			}
 			input := []byte{}
-			if _, err := evm.Run(code, input); err != vm.ErrInvalidJump {
-				t.Errorf("failed to detect invalid jump, got %v", err)
+
+			result, err := evm.Run(code, input)
+			if err != nil {
+				t.Fatalf("unexpected failure in VM execution: %v", err)
+			}
+			if result.Success {
+				t.Errorf("expected VM to fail, got %v", result)
 			}
 		})
 	}

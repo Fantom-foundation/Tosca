@@ -4,8 +4,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
-	"github.com/Fantom-foundation/Tosca/go/vm/registry"
-	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 func TestFib10(t *testing.T) {
@@ -16,29 +15,25 @@ func TestFib10(t *testing.T) {
 	// compute expected value
 	wanted := example.RunReference(arg)
 
-	t.Run("evmzero", func(t *testing.T) {
-		interpreter := vm.NewInterpreter("evmzero", &vm.EVM{}, vm.Config{})
+	vm := vm.GetVirtualMachine("evmzero")
+	got, err := example.RunOn(vm, arg)
+	if err != nil {
+		t.Fatalf("running the fib example failed: %v", err)
+	}
 
-		got, err := example.RunOn(interpreter, arg)
-		if err != nil {
-			t.Fatalf("running the fib example failed: %v", err)
-		}
-
-		if got.Result != wanted {
-			t.Fatalf("unexpected result, wanted %v, got %v", wanted, got.Result)
-		}
-	})
+	if got.Result != wanted {
+		t.Fatalf("unexpected result, wanted %v, got %v", wanted, got.Result)
+	}
 }
 
 func TestEvmzero_DumpProfile(t *testing.T) {
 	example := examples.GetFibExample()
-	vmInstance, ok := registry.GetVirtualMachine("evmzero-profiling").(registry.ProfilingVM)
+	vmInstance, ok := vm.GetVirtualMachine("evmzero-profiling").(vm.ProfilingVM)
 	if !ok || vmInstance == nil {
 		t.Fatalf("profiling evmzero configuration does not support profiling")
 	}
-	interpreter := vm.NewInterpreter("evmzero-profiling", &vm.EVM{}, vm.Config{})
 	for i := 0; i < 10; i++ {
-		example.RunOn(interpreter, 10)
+		example.RunOn(vmInstance, 10)
 		vmInstance.DumpProfile()
 		if i == 5 {
 			vmInstance.ResetProfile()
@@ -49,7 +44,7 @@ func TestEvmzero_DumpProfile(t *testing.T) {
 func BenchmarkNewEvmcInterpreter(b *testing.B) {
 	b.Run("evmzero", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			vm.NewInterpreter("evmzero", &vm.EVM{}, vm.Config{})
+			vm.GetVirtualMachine("evmzero")
 		}
 	})
 }
@@ -65,10 +60,9 @@ func benchmarkFib(b *testing.B, arg int) {
 	wanted := example.RunReference(arg)
 
 	b.Run("evmzero", func(b *testing.B) {
-		interpreter := vm.NewInterpreter("evmzero", &vm.EVM{}, vm.Config{})
-
+		vm := vm.GetVirtualMachine("evmzero")
 		for i := 0; i < b.N; i++ {
-			got, err := example.RunOn(interpreter, arg)
+			got, err := example.RunOn(vm, arg)
 			if err != nil {
 				b.Fatalf("running the fib example failed: %v", err)
 			}

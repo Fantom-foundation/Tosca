@@ -4,31 +4,32 @@ import (
 	"fmt"
 	"math/big"
 
-	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/test/mocks"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/golang/mock/gomock"
-	"github.com/holiman/uint256"
+	"github.com/Fantom-foundation/Tosca/go/vm"
+	"go.uber.org/mock/gomock"
+	"golang.org/x/crypto/sha3"
+
+	// This is only imported to get the EVM opcode definitions.
+	// TODO: write up our own op-code definition and remove this dependency.
+	evm "github.com/ethereum/go-ethereum/core/vm"
 )
 
 // Structure for dynamic gas instruction test
 type DynGasTest struct {
-	testName    string                                 // test name
-	stackValues []*big.Int                             // values to be put on stack
-	expectedGas uint64                                 // gas amout after test evaluation
-	mockCalls   func(mockStateDB *vm_mock.MockStateDB) // defines expected stateDB calls during test execution
-	memValues   []*big.Int
+	testName       string                  // test name
+	stackValues    []*big.Int              // values to be put on stack
+	expectedGas    vm.Gas                  // gas amount after test evaluation
+	expectedRefund vm.Gas                  // expected amount of gas refund
+	mockCalls      func(mock *MockStateDB) // defines expected stateDB calls during test execution
+	memValues      []*big.Int
 }
 
 // Structure for dynamic gas instruction test
 type FailGasTest struct {
-	testName      string                                 // test name
-	instruction   vm.OpCode                              // tested instruction opcode
-	expectedError error                                  // error at the end of execution
-	stackValues   []*big.Int                             // values to be put on stack
-	initialGas    uint64                                 // gas amout for the test
-	mockCalls     func(mockStateDB *vm_mock.MockStateDB) // defines expected stateDB calls during test execution
+	testName    string                  // test name
+	instruction evm.OpCode              // tested instruction opcode
+	stackValues []*big.Int              // values to be put on stack
+	initialGas  vm.Gas                  // gas amount for the test
+	mockCalls   func(mock *MockStateDB) // defines expected stateDB calls during test execution
 }
 
 // EXP instruction
@@ -43,9 +44,9 @@ func gasEXP(revision Revision) []*DynGasTest {
 		num := big.NewInt(5)
 		testName := fmt.Sprint(num) + "**1<<" + fmt.Sprint(i*8)
 		stackValues := []*big.Int{exp.Lsh(exp, uint(i)*8), num}
-		expectedGas := uint64(10 + (i+1)*50)
+		expectedGas := vm.Gas(10 + (i+1)*50)
 		// Append test
-		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, nil, nil})
+		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, 0, nil, nil})
 	}
 	return testCases
 }
@@ -86,9 +87,9 @@ func getDynamicMemGas(gasCoeficient uint64, numStackValues int) []*DynGasTest {
 				stackValues = append(stackValues, offset)
 			}
 		}
-		expectedGas := gasCoeficient*getDataSizeWords(dataSize) + memoryExpansionGasCost(dataSize)
+		expectedGas := vm.Gas(gasCoeficient*getDataSizeWords(dataSize)) + memoryExpansionGasCost(dataSize)
 		// Append test
-		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, nil, nil})
+		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, 0, nil, nil})
 	}
 	return testCases
 }
@@ -111,8 +112,8 @@ func gasDynamicExtCodeCopy(revision Revision) []*DynGasTest {
 	name := []string{"Address in access list", "Address not in access list"}
 
 	for i := 0; i < 10; i++ {
-		address := common.Address{byte(i + 1)}
-		hash := common.Hash{byte(i + 1)}
+		address := vm.Address{byte(i + 1)}
+		hash := vm.Hash{byte(i + 1)}
 
 		inAccessList := i%2 == 0
 		accessCost := getAccessCost(revision, inAccessList, false)
@@ -121,19 +122,19 @@ func gasDynamicExtCodeCopy(revision Revision) []*DynGasTest {
 		var dataSize uint64 = 256 * uint64(i)
 		offset := big.NewInt(0)
 		testName := name[i%2] + " size " + fmt.Sprint(dataSize)
-		stackValues := []*big.Int{big.NewInt(int64(dataSize)), offset, offset, address.Hash().Big()}
+		stackValues := []*big.Int{big.NewInt(int64(dataSize)), offset, offset, new(big.Int).SetBytes(address[:])}
 
 		// Expected gas calculation
-		expectedGas := accessCost + 3*getDataSizeWords(dataSize) + memoryExpansionGasCost(dataSize)
+		expectedGas := accessCost + vm.Gas(3*getDataSizeWords(dataSize)) + memoryExpansionGasCost(dataSize)
 
-		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
-			mockStateDB.EXPECT().GetCode(address).AnyTimes().Return(copyCode)
-			mockStateDB.EXPECT().AddressInAccessList(address).AnyTimes().Return(inAccessList)
-			mockStateDB.EXPECT().AddAddressToAccessList(address).AnyTimes()
+		mockCalls := func(mock *MockStateDB) {
+			mock.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
+			mock.EXPECT().GetCode(address).AnyTimes().Return(copyCode)
+			mock.EXPECT().IsAddressInAccessList(address).AnyTimes().Return(inAccessList)
+			mock.EXPECT().AccessAccount(address).AnyTimes()
 		}
 		// Append test
-		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, mockCalls, nil})
+		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, 0, mockCalls, nil})
 	}
 	return testCases
 }
@@ -161,23 +162,22 @@ func gasDynamicAccountAccess(revision Revision) []*DynGasTest {
 	testCases := []*DynGasTest{}
 
 	for i, test := range tests {
-		address := common.Address{byte(i + 1)}
-		hash := common.Hash{byte(i + 1)}
+		address := vm.Address{byte(i + 1)}
+		hash := vm.Hash{byte(i + 1)}
 		inAccessList := test.addrInAccessList
 		// Expected gas calculation
 		expectedGas := getAccessCost(revision, test.addrInAccessList, false)
-		stackValues := []*big.Int{address.Hash().Big()}
-		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().AddressInAccessList(address).AnyTimes().Return(inAccessList)
-			mockStateDB.EXPECT().AddAddressToAccessList(address).AnyTimes()
-			mockStateDB.EXPECT().GetCodeSize(address).AnyTimes().Return(0)
-			mockStateDB.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
-			mockStateDB.EXPECT().Empty(address).AnyTimes().Return(false)
-			mockStateDB.EXPECT().GetBalance(address).AnyTimes().Return(big.NewInt(0))
-			mockStateDB.EXPECT().Exist(address).AnyTimes().Return(true)
+		stackValues := []*big.Int{addressToBigInt(address)}
+		mockCalls := func(mock *MockStateDB) {
+			mock.EXPECT().IsAddressInAccessList(address).AnyTimes().Return(inAccessList)
+			mock.EXPECT().AccessAccount(address).AnyTimes()
+			mock.EXPECT().GetCodeSize(address).AnyTimes().Return(0)
+			mock.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
+			mock.EXPECT().AccountExists(address).AnyTimes().Return(false)
+			mock.EXPECT().GetBalance(address).AnyTimes().Return(big.NewInt(0))
 		}
 		// Append test
-		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls, nil})
+		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, 0, mockCalls, nil})
 	}
 	return testCases
 }
@@ -204,20 +204,20 @@ func gasDynamicSLoad(revision Revision) []*DynGasTest {
 	testCases := []*DynGasTest{}
 
 	for i, test := range tests {
-		address := common.Address{byte(0)}
-		slot := common.Hash{byte(i + 1)}
+		address := vm.Address{byte(0)}
+		slot := vm.Key{byte(i + 1)}
 		slotInACL := test.slotInAccessList
-		stackValues := []*big.Int{slot.Big()}
-		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().SlotInAccessList(address, slot).AnyTimes().Return(true, slotInACL)
-			mockStateDB.EXPECT().AddSlotToAccessList(address, slot).AnyTimes()
-			mockStateDB.EXPECT().GetState(address, slot).AnyTimes().Return(common.Hash{})
+		stackValues := []*big.Int{keyToBigInt(slot)}
+		mockCalls := func(mock *MockStateDB) {
+			mock.EXPECT().IsSlotInAccessList(address, slot).AnyTimes().Return(true, slotInACL)
+			mock.EXPECT().AccessStorage(address, slot).AnyTimes()
+			mock.EXPECT().GetStorage(address, slot).AnyTimes().Return(vm.Word{})
 		}
 		// Expected gas calculation
 		expectedGas := getAccessCost(revision, test.slotInAccessList, true)
 
 		// Append test
-		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls, nil})
+		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, 0, mockCalls, nil})
 	}
 	return testCases
 }
@@ -234,14 +234,14 @@ func gasDynamicSStore(revision Revision) []*DynGasTest {
 		testName            string
 		addressInAccessList bool
 		slotInAccessList    bool
-		origValue           common.Hash
-		currentValue        common.Hash
-		newValue            common.Hash
+		origValue           vm.Word
+		currentValue        vm.Word
+		newValue            vm.Word
 	}
 
-	val0 := common.Hash{0}
-	val1 := common.Hash{1}
-	val2 := common.Hash{2}
+	val0 := vm.Word{0}
+	val1 := vm.Word{1}
+	val2 := vm.Word{2}
 
 	tests := []sloadTest{
 		{"Address in ACL, slot in ACL", true, true, val1, val2, val2},
@@ -260,8 +260,8 @@ func gasDynamicSStore(revision Revision) []*DynGasTest {
 	testCases := []*DynGasTest{}
 
 	for i, test := range tests {
-		address := common.Address{byte(0)}
-		key := common.Hash{byte(i + 1)}
+		address := vm.Address{byte(0)}
+		key := vm.Key{byte(i + 1)}
 
 		origValue := test.origValue
 		currentValue := test.currentValue
@@ -269,13 +269,13 @@ func gasDynamicSStore(revision Revision) []*DynGasTest {
 
 		addressInACL := test.addressInAccessList
 		slotInACL := test.slotInAccessList
-		stackValues := []*big.Int{newValue.Big(), key.Big()}
+		stackValues := []*big.Int{wordToBigInt(newValue), keyToBigInt(key)}
 
 		// TODO: if remaining gas < 2300 there has to be OUT_OF_GAS error
 
 		// Expected gas calculation
-		var expectedGas uint64
-		var gasRefund int
+		var expectedGas vm.Gas
+		var gasRefund vm.Gas
 
 		// Access list access for slots in SSTORE
 		warmAccessCost, coldAccessCost := getSStoreAccessCost(revision, true)
@@ -288,33 +288,26 @@ func gasDynamicSStore(revision Revision) []*DynGasTest {
 
 		expectedGas, gasRefund = calculateSStoreGas(origValue, currentValue, newValue, expectedGas, warmAccessCost, coldAccessCost, refundGas, resetGas)
 
-		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().SlotInAccessList(address, key).AnyTimes().Return(addressInACL, slotInACL)
-			mockStateDB.EXPECT().AddSlotToAccessList(address, key).AnyTimes()
-			mockStateDB.EXPECT().GetCommittedState(address, key).AnyTimes().Return(origValue)
-			mockStateDB.EXPECT().GetState(address, key).AnyTimes().Return(currentValue)
-			mockStateDB.EXPECT().SetState(address, key, newValue).AnyTimes()
-			if gasRefund != 0 {
-				if gasRefund > 0 {
-					mockStateDB.EXPECT().AddRefund(uint64(gasRefund))
-				} else {
-					mockStateDB.EXPECT().SubRefund(uint64(gasRefund * -1))
-				}
-			}
+		mockCalls := func(mock *MockStateDB) {
+			mock.EXPECT().IsSlotInAccessList(address, key).AnyTimes().Return(addressInACL, slotInACL)
+			mock.EXPECT().AccessStorage(address, key).AnyTimes()
+			mock.EXPECT().GetCommittedStorage(address, key).AnyTimes().Return(origValue)
+			mock.EXPECT().GetStorage(address, key).AnyTimes().Return(currentValue)
+			mock.EXPECT().SetStorage(address, key, newValue).AnyTimes()
 		}
 
 		// Append test
-		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls, nil})
+		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, gasRefund, mockCalls, nil})
 	}
 	return testCases
 }
 
 type instructionGasTest struct {
-	instruction vm.OpCode
-	initialGas  uint64
+	instruction evm.OpCode
+	initialGas  vm.Gas
 }
 
-func testsContainOpCode(op vm.OpCode, tests []instructionGasTest) bool {
+func testsContainOpCode(op evm.OpCode, tests []instructionGasTest) bool {
 	for _, test := range tests {
 		if test.instruction == op {
 			return true
@@ -327,61 +320,61 @@ func testsContainOpCode(op vm.OpCode, tests []instructionGasTest) bool {
 func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 	var (
 		// SSTORE has to fail if gas < 2300
-		sstoreLowGas uint64 = 2299
+		sstoreLowGas vm.Gas = 2299
 		// This gas is not sufficient for cold gas access
-		accessLowGas uint64 = 300
+		accessLowGas vm.Gas = 300
 		// Memory expansion for a 1 word and offset by 1 gas is 6
-		memoryLowGasTwoWords uint64 = 5
+		memoryLowGasTwoWords vm.Gas = 5
 		// Same as above with added 3 static gas for instruction
 		memoryLowGasTwoWordsWithStatic = memoryLowGasTwoWords + 3
 		// Memory expanded by 1 word needs 3 gas
-		memoryLowGasOneWord uint64 = 2
+		memoryLowGasOneWord vm.Gas = 2
 		// Copy of one word is 3 + 3 for static gas
-		copyLowGas uint64 = 5
+		copyLowGas vm.Gas = 5
 		// Log of size 1 needs 8 gas
-		logLowGas uint64 = 7
+		logLowGas vm.Gas = 7
 		// Log static gas multiplier
-		logStaticGas uint64 = 375
+		logStaticGas vm.Gas = 375
 		// Exp is 50 * exponent byte len which is 1 for test
-		expLowGas uint64 = 49
+		expLowGas vm.Gas = 49
 		// SHA3 static gas is 30 + needed memory expansion, then 6 * word size
-		sha3LowGas uint64 = 30 + 3 + 5
+		sha3LowGas vm.Gas = 30 + 3 + 5
 	)
 	testCases := []*FailGasTest{}
 
 	tests := []instructionGasTest{
-		{vm.SSTORE, sstoreLowGas},
-		{vm.SLOAD, accessLowGas},
-		{vm.BALANCE, accessLowGas},
-		{vm.EXTCODESIZE, accessLowGas},
-		{vm.EXTCODEHASH, accessLowGas},
-		{vm.EXTCODECOPY, accessLowGas},
-		{vm.CALL, accessLowGas},
-		{vm.STATICCALL, accessLowGas},
-		{vm.DELEGATECALL, accessLowGas},
-		{vm.CALLCODE, accessLowGas},
-		{vm.SELFDESTRUCT, accessLowGas},
-		{vm.CREATE, accessLowGas},
-		{vm.CREATE2, accessLowGas},
-		{vm.EXP, expLowGas},
-		{vm.CODECOPY, copyLowGas},
-		{vm.CALLDATACOPY, copyLowGas},
-		{vm.MLOAD, memoryLowGasTwoWordsWithStatic},
-		{vm.MSTORE, memoryLowGasTwoWordsWithStatic},
-		{vm.MSTORE8, memoryLowGasOneWord},
-		{vm.LOG0, 1*logStaticGas + logLowGas},
-		{vm.LOG1, 2*logStaticGas + logLowGas},
-		{vm.LOG2, 3*logStaticGas + logLowGas},
-		{vm.LOG3, 4*logStaticGas + logLowGas},
-		{vm.LOG4, 5*logStaticGas + logLowGas},
-		{vm.SHA3, sha3LowGas},
-		{vm.RETURN, memoryLowGasOneWord},
-		{vm.REVERT, memoryLowGasOneWord},
+		{evm.SSTORE, sstoreLowGas},
+		{evm.SLOAD, accessLowGas},
+		{evm.BALANCE, accessLowGas},
+		{evm.EXTCODESIZE, accessLowGas},
+		{evm.EXTCODEHASH, accessLowGas},
+		{evm.EXTCODECOPY, accessLowGas},
+		{evm.CALL, accessLowGas},
+		{evm.STATICCALL, accessLowGas},
+		{evm.DELEGATECALL, accessLowGas},
+		{evm.CALLCODE, accessLowGas},
+		{evm.SELFDESTRUCT, accessLowGas},
+		{evm.CREATE, accessLowGas},
+		{evm.CREATE2, accessLowGas},
+		{evm.EXP, expLowGas},
+		{evm.CODECOPY, copyLowGas},
+		{evm.CALLDATACOPY, copyLowGas},
+		{evm.MLOAD, memoryLowGasTwoWordsWithStatic},
+		{evm.MSTORE, memoryLowGasTwoWordsWithStatic},
+		{evm.MSTORE8, memoryLowGasOneWord},
+		{evm.LOG0, 1*logStaticGas + logLowGas},
+		{evm.LOG1, 2*logStaticGas + logLowGas},
+		{evm.LOG2, 3*logStaticGas + logLowGas},
+		{evm.LOG3, 4*logStaticGas + logLowGas},
+		{evm.LOG4, 5*logStaticGas + logLowGas},
+		{evm.SHA3, sha3LowGas},
+		{evm.RETURN, memoryLowGasOneWord},
+		{evm.REVERT, memoryLowGasOneWord},
 	}
 
 	// Check if all opcodes with dynamic gas calculation are present in the tests
 	for op, info := range getInstructions(revision) {
-		if op == vm.RETURNDATACOPY || // can't be tested in this way because of inner call needed
+		if op == evm.RETURNDATACOPY || // can't be tested in this way because of inner call needed
 			info.gas.dynamic == nil {
 			continue
 		} else {
@@ -391,16 +384,15 @@ func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 		}
 	}
 
-	mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
-		mockStateDB.EXPECT().SlotInAccessList(gomock.Any(), gomock.Any()).AnyTimes().Return(false, false)
-		mockStateDB.EXPECT().AddressInAccessList(gomock.Any()).AnyTimes().Return(false)
-		mockStateDB.EXPECT().AddAddressToAccessList(gomock.Any()).AnyTimes()
-		mockStateDB.EXPECT().Exist(gomock.Any()).AnyTimes().Return(false)
-		mockStateDB.EXPECT().AddSlotToAccessList(gomock.Any(), gomock.Any()).AnyTimes()
-		mockStateDB.EXPECT().Empty(gomock.Any()).AnyTimes().Return(true)
-		mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(big.NewInt(0))
-		mockStateDB.EXPECT().HasSuicided(gomock.Any()).AnyTimes().Return(true)
-		mockStateDB.EXPECT().GetState(gomock.Any(), gomock.Any()).AnyTimes().Return(common.Hash{1})
+	mockCalls := func(mock *MockStateDB) {
+		mock.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).AnyTimes().Return(false, false)
+		mock.EXPECT().IsAddressInAccessList(gomock.Any()).AnyTimes().Return(false)
+		mock.EXPECT().AccessAccount(gomock.Any()).AnyTimes()
+		mock.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(false)
+		mock.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).AnyTimes()
+		mock.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(big.NewInt(0))
+		mock.EXPECT().HasSelfDestructed(gomock.Any()).AnyTimes().Return(true)
+		mock.EXPECT().GetStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(vm.Word{1})
 	}
 
 	// Generate test cases
@@ -412,14 +404,14 @@ func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 		}
 		testName := fmt.Sprintf("%v using %v gas", test.instruction.String(), test.initialGas)
 
-		testCases = append(testCases, &FailGasTest{testName, test.instruction, vm.ErrOutOfGas, stackValues, test.initialGas, mockCalls})
+		testCases = append(testCases, &FailGasTest{testName, test.instruction, stackValues, test.initialGas, mockCalls})
 	}
 
 	return testCases
 }
 
 // Returns refund and reset gas values according to revision
-func getSStoreGasAmounts(revision Revision) (int, uint64) {
+func getSStoreGasAmounts(revision Revision) (refund vm.Gas, reset vm.Gas) {
 	switch revision {
 	case Istanbul:
 		return 15000, 5000
@@ -433,9 +425,9 @@ func getSStoreGasAmounts(revision Revision) (int, uint64) {
 }
 
 // Returns expected gas and gas to refund for a SSTORE instruction
-func calculateSStoreGas(origValue common.Hash, currentValue common.Hash, newValue common.Hash, expectedGas uint64, warmAccessCost uint64, coldAccessCost uint64, refundAmount int, resetGasAmount uint64) (uint64, int) {
-	zeroVal := common.Hash{0}
-	var gasRefund int
+func calculateSStoreGas(origValue vm.Word, currentValue vm.Word, newValue vm.Word, expectedGas vm.Gas, warmAccessCost vm.Gas, coldAccessCost vm.Gas, refundAmount vm.Gas, resetGasAmount vm.Gas) (vm.Gas, vm.Gas) {
+	zeroVal := vm.Word{}
+	var gasRefund vm.Gas
 
 	if newValue == currentValue {
 		expectedGas += warmAccessCost
@@ -460,9 +452,9 @@ func calculateSStoreGas(origValue common.Hash, currentValue common.Hash, newValu
 			}
 			if newValue == origValue {
 				if origValue == zeroVal {
-					gasRefund += 20000 - int(warmAccessCost)
+					gasRefund += 20000 - warmAccessCost
 				} else {
-					gasRefund += 5000 - int(coldAccessCost) - int(warmAccessCost)
+					gasRefund += 5000 - coldAccessCost - warmAccessCost
 				}
 			}
 		}
@@ -498,24 +490,24 @@ func gasDynamicLog(revision Revision, size int) []*DynGasTest {
 	for i := 0; i < 100; i++ {
 
 		// Steps of 256 bytes memory addition to check non linear gas cost for expansion
-		var dataSize uint64 = 256 * uint64(i)
+		dataSize := 256 * i
 		offset := big.NewInt(0)
 		testName := "size " + fmt.Sprint(dataSize)
 
 		stackValues := []*big.Int{}
 		for j := 0; j < size; j++ {
-			stackValues = append(stackValues, common.Hash{byte(j)}.Big())
+			stackValues = append(stackValues, big.NewInt(int64(j)))
 		}
 		stackValues = append(stackValues, big.NewInt(int64(dataSize)), offset)
 
 		// Expected gas calculation
-		expectedGas := uint64(375+375*size) + 8*dataSize + memoryExpansionGasCost(dataSize)
+		expectedGas := vm.Gas(375+375*size+8*dataSize) + memoryExpansionGasCost(uint64(dataSize))
 
-		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().AddLog(gomock.Any()).AnyTimes()
+		mockCalls := func(mock *MockStateDB) {
+			mock.EXPECT().EmitLog(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 		}
 		// Append test
-		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, mockCalls, nil})
+		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, 0, mockCalls, nil})
 	}
 	return testCases
 }
@@ -556,7 +548,7 @@ func gasDynamicCallCodeCall(revision Revision) []*DynGasTest {
 
 func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationGas bool) []*DynGasTest {
 
-	calledCode := []byte{byte(vm.STOP)}
+	calledCode := []byte{byte(evm.STOP)}
 
 	type callTest struct {
 		testName         string
@@ -580,20 +572,16 @@ func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationG
 	testCases := []*DynGasTest{}
 
 	for i, test := range tests {
-		address := common.Address{byte(i + 1)}
-		hash := common.Hash{byte(i + 1)}
+		address := vm.Address{byte(i + 1)}
+		hash := vm.Hash{byte(i + 1)}
 		exist := test.addrExist
 		inAccessList := test.addrInAccessList
-		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().Snapshot().AnyTimes().Return(0)
-			mockStateDB.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
-			mockStateDB.EXPECT().GetCode(address).AnyTimes().Return(calledCode)
-			mockStateDB.EXPECT().Exist(address).AnyTimes().Return(exist)
-			mockStateDB.EXPECT().AddressInAccessList(address).AnyTimes().Return(inAccessList)
-			mockStateDB.EXPECT().AddAddressToAccessList(address).AnyTimes()
-			mockStateDB.EXPECT().CreateAccount(address).AnyTimes()
-			mockStateDB.EXPECT().AddBalance(address, big.NewInt(0)).AnyTimes()
-			mockStateDB.EXPECT().Empty(address).AnyTimes().Return(!exist)
+		mockCalls := func(mock *MockStateDB) {
+			mock.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
+			mock.EXPECT().GetCode(address).AnyTimes().Return(calledCode)
+			mock.EXPECT().AccountExists(address).AnyTimes().Return(exist)
+			mock.EXPECT().IsAddressInAccessList(address).AnyTimes().Return(inAccessList)
+			mock.EXPECT().AccessAccount(address).AnyTimes()
 		}
 
 		// The WarmStorageReadCostEIP2929 (100) is already deducted in the form of a constant cost, so
@@ -615,10 +603,10 @@ func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationG
 		}
 
 		// gas_sent_with_call
-		requestedGas := uint64(InitialTestGas)
+		requestedGas := InitialTestGas
 		remainingGas := InitialTestGas - expectedGas
-		allButOne64th := remainingGas - (remainingGas / uint64(64))
-		var gasSentWithCall uint64
+		allButOne64th := remainingGas - (remainingGas / 64)
+		var gasSentWithCall vm.Gas
 		if requestedGas < allButOne64th {
 			gasSentWithCall = requestedGas
 		} else {
@@ -630,14 +618,14 @@ func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationG
 		var stackValues []*big.Int
 		if useCallValue {
 			// retSize, retOffset, inSize, inOffset, value, addr, provided_gas
-			stackValues = []*big.Int{zeroVal, zeroVal, dataSize, zeroVal, test.callValue, address.Hash().Big(), big.NewInt(int64(gasSentWithCall))}
+			stackValues = []*big.Int{zeroVal, zeroVal, dataSize, zeroVal, test.callValue, addressToBigInt(address), big.NewInt(int64(gasSentWithCall))}
 		} else {
 			// retSize, retOffset, inSize, inOffset, addr, provided_gas
-			stackValues = []*big.Int{zeroVal, zeroVal, dataSize, zeroVal, address.Hash().Big(), big.NewInt(int64(gasSentWithCall))}
+			stackValues = []*big.Int{zeroVal, zeroVal, dataSize, zeroVal, addressToBigInt(address), big.NewInt(int64(gasSentWithCall))}
 		}
 
 		// Append test
-		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls, nil})
+		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, 0, mockCalls, nil})
 	}
 	return testCases
 }
@@ -657,7 +645,7 @@ func gasDynamicMemory(revision Revision) []*DynGasTest {
 	expectedGas := memoryExpansionGasCost(data)
 
 	// Append test
-	testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, nil, nil})
+	testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, 0, nil, nil})
 
 	return testCases
 }
@@ -684,82 +672,63 @@ func gasDynamicCreate2(revision Revision) []*DynGasTest {
 }
 
 func gasDynCreate(revision Revision, isCreate2 bool) []*DynGasTest {
-
-	var emptyCodeHash = crypto.Keccak256Hash(nil)
-
 	testCases := []*DynGasTest{}
 	for i := 0; i < 3; i++ {
 
 		offset := big.NewInt(0)
 		value := big.NewInt(0)
 		returnSize := 4 * i // different sizes of returned data
-		code, retrunGas, codeLength := getCreateContractCode(returnSize)
+		code, returnGas, codeLength := getCreateContractCode(returnSize)
 		codeVal := big.NewInt(0).SetBytes(code)
 
 		// Values to put into evm memory
 		memValues := []*big.Int{codeVal, offset}
 		dataSize := len(code)
 
-		callerAddress := common.Address{0}
-		hash := crypto.Keccak256Hash(code)
 		testName := "return size " + fmt.Sprint(returnSize)
 
 		// Expected gas calculation
-		expectedGas := uint64(retrunGas) // For gas used in new contract execution
+		expectedGas := returnGas // For gas used in new contract execution
 
-		var contractAddr common.Address
 		var stackValues []*big.Int
 		if isCreate2 {
 			salt := big.NewInt(1)
-			saltBytes := uint256.NewInt(1)
 			stackValues = []*big.Int{salt, big.NewInt(int64(dataSize)), offset, value}
-			contractAddr = crypto.CreateAddress2(callerAddress, saltBytes.Bytes32(), hash.Bytes())
-			expectedGas += getDataSizeWords(codeLength) * 6
+			expectedGas += vm.Gas(getDataSizeWords(codeLength) * 6)
 		} else {
-			contractAddr = crypto.CreateAddress(callerAddress, 0)
 			stackValues = []*big.Int{big.NewInt(int64(dataSize)), offset, value}
 		}
 		// memory expansion cost
 		expectedGas += memoryExpansionGasCost(uint64(dataSize))
 		// code_deposit_cost
-		expectedGas += uint64(200 * returnSize)
+		expectedGas += vm.Gas(200 * returnSize)
 
-		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetNonce(callerAddress).AnyTimes().Return(uint64(0))
-			mockStateDB.EXPECT().SetNonce(callerAddress, uint64(1))
-			mockStateDB.EXPECT().GetCodeHash(contractAddr).Return(emptyCodeHash)
-			mockStateDB.EXPECT().GetNonce(contractAddr).Return(uint64(0))
-			mockStateDB.EXPECT().Snapshot().Return(1)
-			mockStateDB.EXPECT().CreateAccount(contractAddr)
-			mockStateDB.EXPECT().SetCode(contractAddr, gomock.Any())
-			mockStateDB.EXPECT().AddAddressToAccessList(contractAddr).AnyTimes()
-			mockStateDB.EXPECT().SetNonce(contractAddr, uint64(1))
-		}
+		mockCalls := func(mock *MockStateDB) {}
 		// Append test
-		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, mockCalls, memValues})
+		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, 0, mockCalls, memValues})
 	}
 	return testCases
 }
 
 // Returns contract code with its gas cost for CREATE instruction
-func getCreateContractCode(returnSize int) ([]byte, uint64, uint64) {
+func getCreateContractCode(returnSize int) ([]byte, vm.Gas, uint64) {
 	code := [32]byte{}
-	code[0] = byte(vm.PUSH1)
+	code[0] = byte(evm.PUSH1)
 	code[1] = byte(0)
-	code[2] = byte(vm.PUSH1)
+	code[2] = byte(evm.PUSH1)
 	code[3] = byte(returnSize)
-	code[4] = byte(vm.MSTORE)
-	code[5] = byte(vm.PUSH1)
+	code[4] = byte(evm.MSTORE)
+	code[5] = byte(evm.PUSH1)
 	code[6] = byte(returnSize)
-	code[7] = byte(vm.PUSH1)
+	code[7] = byte(evm.PUSH1)
 	code[8] = byte(0)
-	code[9] = byte(vm.RETURN)
+	code[9] = byte(evm.RETURN)
 
 	codeLength := uint64(10)
 
 	expansionCost := memoryExpansionGasCost(uint64(returnSize))
 	// 18 = 4x3 for PUSH1 + 3 for MSTORE + 3 for RETURN
-	execGas := uint64(18) + expansionCost
+	execGas := 18 + expansionCost
 
 	return code[:], execGas, codeLength
 }
@@ -807,17 +776,17 @@ func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
 
 	for i, test := range tests {
 		// Offset target address from contract address
-		targetAddress := common.Address{byte(i + 1)}
-		contractAddress := common.Address{0}
+		targetAddress := vm.Address{byte(i + 1)}
+		contractAddress := vm.Address{0}
 		empty := test.targetAddrEmpty
 		balance := test.balance
 		inAcl := test.targetAddrInACL
 		suicided := test.hasSuicided
 
-		stackValues := []*big.Int{targetAddress.Hash().Big()}
+		stackValues := []*big.Int{addressToBigInt(targetAddress)}
 
 		// Expected gas calculation
-		expectedGas := uint64(5000)
+		expectedGas := vm.Gas(5000)
 
 		// Sending balance to an empty address
 		if empty && balance > 0 {
@@ -829,24 +798,22 @@ func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
 			expectedGas += 2600
 		}
 
-		mockCalls := func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().HasSuicided(contractAddress).AnyTimes().Return(suicided)
-			mockStateDB.EXPECT().Empty(targetAddress).AnyTimes().Return(empty)
+		mockCalls := func(mock *MockStateDB) {
+			mock.EXPECT().HasSelfDestructed(contractAddress).AnyTimes().Return(suicided)
+			mock.EXPECT().AccountExists(targetAddress).AnyTimes().Return(!empty)
 
-			mockStateDB.EXPECT().Suicide(contractAddress).AnyTimes().Return(true)
-			mockStateDB.EXPECT().GetBalance(contractAddress).AnyTimes().Return(big.NewInt(int64(balance)))
-			mockStateDB.EXPECT().AddBalance(targetAddress, big.NewInt(int64(balance))).AnyTimes()
-			mockStateDB.EXPECT().Exist(targetAddress).AnyTimes().Return(!empty)
-			mockStateDB.EXPECT().AddressInAccessList(targetAddress).AnyTimes().Return(inAcl)
-			mockStateDB.EXPECT().AddAddressToAccessList(targetAddress).AnyTimes()
-			if revision < London {
-				if !suicided {
-					mockStateDB.EXPECT().AddRefund(uint64(24000))
-				}
-			}
+			mock.EXPECT().SelfDestruct(contractAddress, targetAddress).AnyTimes().Return(true)
+			mock.EXPECT().IsAddressInAccessList(targetAddress).AnyTimes().Return(inAcl)
+			mock.EXPECT().AccessAccount(targetAddress).AnyTimes()
 		}
+
+		expectedRefund := vm.Gas(0)
+		if revision < London && !suicided {
+			expectedRefund = 24000
+		}
+
 		// Append test
-		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, mockCalls, nil})
+		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, expectedRefund, mockCalls, nil})
 	}
 	return testCases
 }
@@ -856,10 +823,10 @@ func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
 // new_mem_size_words = (new_mem_size + 31) // 32
 // gas_cost = (new_mem_size_words ^ 2 // 512) + (3 * new_mem_size_words)
 // The memory cost function is linear up to 724 bytes of memory used, at which point additional memory costs substantially more.
-func memoryExpansionGasCost(newMemSize uint64) uint64 {
+func memoryExpansionGasCost(newMemSize uint64) vm.Gas {
 	newMemSizeWords := (newMemSize + 31) / 32
 	gasCost := ((newMemSizeWords * newMemSizeWords) / 512) + (3 * newMemSizeWords)
-	return gasCost
+	return vm.Gas(gasCost)
 }
 
 // Address access
@@ -873,7 +840,7 @@ func memoryExpansionGasCost(newMemSize uint64) uint64 {
 //
 // Static access cost is included in the instruction info and added during
 // dynamic gas computation
-func getAccessCost(revision Revision, warmAccess bool, isSlot bool) uint64 {
+func getAccessCost(revision Revision, warmAccess bool, isSlot bool) vm.Gas {
 
 	if warmAccess {
 		// Warm access is already included as a static gas in instruction info
@@ -897,7 +864,7 @@ func getAccessCost(revision Revision, warmAccess bool, isSlot bool) uint64 {
 
 // Returns ACL access cost for SSTORE
 // No static gas for instruction is involved
-func getSStoreAccessCost(revision Revision, warmAccess bool) (uint64, uint64) {
+func getSStoreAccessCost(revision Revision, warmAccess bool) (vm.Gas, vm.Gas) {
 	switch revision {
 	case Istanbul:
 		return 800, 0
@@ -910,4 +877,24 @@ func getSStoreAccessCost(revision Revision, warmAccess bool) (uint64, uint64) {
 func getDataSizeWords(dataSize uint64) uint64 {
 	dataSizeWords := (dataSize + 31) / 32
 	return dataSizeWords
+}
+
+func keccak256Hash(data []byte) vm.Hash {
+	hasher := sha3.NewLegacyKeccak256()
+	hasher.Write(data)
+	var hash vm.Hash
+	hasher.Sum(hash[0:0])
+	return hash
+}
+
+func addressToBigInt(address vm.Address) *big.Int {
+	return new(big.Int).SetBytes(address[:])
+}
+
+func keyToBigInt(key vm.Key) *big.Int {
+	return new(big.Int).SetBytes(key[:])
+}
+
+func wordToBigInt(word vm.Word) *big.Int {
+	return new(big.Int).SetBytes(word[:])
 }

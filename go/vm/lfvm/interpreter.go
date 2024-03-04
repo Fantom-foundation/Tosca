@@ -8,8 +8,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/holiman/uint256"
 	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/holiman/uint256"
 
 	// The EVM dependency is needed to support the debugging mode
 	// in which the LFVM and the Geth EVM are run in lock-step mode
@@ -45,13 +45,13 @@ type context struct {
 	context vm.RunContext
 
 	// Execution state
-	pc      int32
-	gas     vm.Gas
-	refund  vm.Gas
-	stack   *Stack
-	memory  *Memory
-	status  Status
-	err     error
+	pc     int32
+	gas    vm.Gas
+	refund vm.Gas
+	stack  *Stack
+	memory *Memory
+	status Status
+	err    error
 
 	// Inputs
 	code     Code
@@ -77,7 +77,6 @@ func (c *context) UseGas(amount vm.Gas) bool {
 		c.gas -= amount
 		return true
 	}
-	c.gas = 0
 	c.status = OUT_OF_GAS
 	return false
 }
@@ -94,61 +93,59 @@ func (c *context) IsShadowed() bool {
 func Run(
 	params vm.Parameters,
 	code Code,
-	with_shadow_vm bool, 
-	with_statistics bool, 
-	no_shaCache bool, 
+	with_shadow_vm bool,
+	with_statistics bool,
+	no_shaCache bool,
 	logging bool,
 ) (vm.Result, error) {
-	if evm.Depth == 0 && with_shadow_vm {
+	if params.Depth == 0 && with_shadow_vm {
 		ClearShadowValues()
 	}
 
 	// Don't bother with the execution if there's no code.
-	if len(contract.Code) == 0 {
-		return nil, nil
+	if len(params.Code) == 0 {
+		return vm.Result{
+			Output:  nil,
+			GasLeft: params.Gas,
+		}, nil
 	}
 
-	// Increment the call depth which is restricted to 1024
-	evm.Depth++
-	defer func() { evm.Depth-- }()
-
-	main_evm := *evm
-
-	var shadow_interpreter *vm.InterpreterState
+	//var shadow_interpreter *vm.InterpreterState
 	if with_shadow_vm {
-		// Set up a shadow context for the EVM implementation
-		shadow_contract := *contract
-		shadow_evm := *evm
-		shadow_call_context := ShadowCallContext{}
-		shadow_evm.CallContext = &shadow_call_context
-		shadow_evm.StateDB = ShadowStateDB{state: state}
+		panic("shadow_vm mode not supported")
+		/*
+			// Set up a shadow context for the EVM implementation
+			shadow_contract := *contract
+			shadow_evm := *evm
+			shadow_call_context := ShadowCallContext{}
+			shadow_evm.CallContext = &shadow_call_context
+			shadow_evm.StateDB = ShadowStateDB{state: state}
 
-		// Introduce an interceptor for recursive EVM calls
-		main_evm.CallContext = &CaptureCallContext{evm, &shadow_call_context}
+			// Introduce an interceptor for recursive EVM calls
+			main_evm.CallContext = &CaptureCallContext{evm, &shadow_call_context}
 
-		// Start shadow interceptor
-		shadow_interpreter = vm.NewEVMInterpreter(&shadow_evm, cfg).Start(&shadow_contract, data, readOnly)
+			// Start shadow interceptor
+			shadow_interpreter = vm.NewEVMInterpreter(&shadow_evm, cfg).Start(&shadow_contract, data, readOnly)
 
-		defer func() {
-			shadow_interpreter.Stop()
-		}()
+			defer func() {
+				shadow_interpreter.Stop()
+			}()
+		*/
 	}
 
 	// Set up execution context.
 	var ctxt = context{
-		evm:         &main_evm,
-		contract:    contract,
-		code:        code,
-		data:        data,
-		stack:       NewStack(),
-		memory:      NewMemory(),
-		stateDB:     state,
-		callsize:    *uint256.NewInt(uint64(len(data))),
-		interpreter: shadow_interpreter,
-		readOnly:    readOnly,
-		isBerlin:    evm.ChainConfig().IsBerlin(evm.Context.BlockNumber),
-		isLondon:    evm.ChainConfig().IsLondon(evm.Context.BlockNumber),
-		shaCache:    !no_shaCache,
+		params:   params,
+		context:  params.Context,
+		gas:      params.Gas,
+		stack:    NewStack(),
+		memory:   NewMemory(),
+		status:   RUNNING,
+		code:     code,
+		isBerlin: params.Revision >= vm.R09_Berlin,
+		isLondon: params.Revision >= vm.R10_London,
+		shaCache: !no_shaCache,
+		//interpreter: shadow_interpreter,
 	}
 	defer func() {
 		ReturnStack(ctxt.stack)
@@ -169,18 +166,18 @@ func Run(
 	if ctxt.status == RETURNED || ctxt.status == REVERTED {
 		size, overflow := ctxt.result_size.Uint64WithOverflow()
 		if overflow {
-			return nil, vm.ErrGasUintOverflow
+			return vm.Result{}, ErrGasUintOverflow
 		}
 
 		if size != 0 {
 			offset, overflow := ctxt.result_offset.Uint64WithOverflow()
 			if overflow {
-				return nil, vm.ErrGasUintOverflow
+				return vm.Result{}, ErrGasUintOverflow
 			}
 
 			// Extract the result from the memory
 			if err := ctxt.memory.EnsureCapacity(offset, size, &ctxt); err != nil {
-				return nil, err
+				return vm.Result{}, err
 			}
 			res = make([]byte, size)
 			ctxt.memory.CopyData(offset, res[:])
@@ -189,32 +186,31 @@ func Run(
 
 	// Handle return status
 	switch ctxt.status {
-	case STOPPED:
-		return nil, nil
+	case STOPPED, SUICIDED:
+		return vm.Result{
+			Success:   true,
+			GasLeft:   ctxt.gas,
+			GasRefund: ctxt.refund,
+		}, nil
 	case RETURNED:
-		return res, nil
+		return vm.Result{
+			Success:   true,
+			Output:    res,
+			GasLeft:   ctxt.gas,
+			GasRefund: ctxt.refund,
+		}, nil
 	case REVERTED:
-		return res, vm.ErrExecutionReverted
-	case SUICIDED:
-		return res, nil
-	case OUT_OF_GAS:
-		return nil, vm.ErrOutOfGas
-	case INVALID_INSTRUCTION:
-		return nil, vm.ErrInvalidCode
-	case SEGMENTATION_FAULT:
-		return nil, vm.ErrInvalidCode
-	case ERROR:
-		if ctxt.err != nil {
-			return nil, ctxt.err
-		}
-		return nil, fmt.Errorf("unspecified error in interpreter")
-	}
-
-	if ctxt.err != nil {
-		ctxt.status = ERROR
-		return nil, fmt.Errorf("unknown interpreter status %d with error %v", ctxt.status, ctxt.err)
-	} else {
-		return nil, fmt.Errorf("unknown interpreter status %d", ctxt.status)
+		return vm.Result{
+			Success: false,
+			Output:  res,
+			GasLeft: ctxt.gas,
+		}, nil
+	case INVALID_INSTRUCTION, OUT_OF_GAS, SEGMENTATION_FAULT, ERROR:
+		return vm.Result{
+			Success: false,
+		}, nil
+	default:
+		return vm.Result{}, fmt.Errorf("unexpected error in interpreter: %w", ctxt.err)
 	}
 }
 
@@ -245,7 +241,7 @@ func runWithShadowInterpreter(c *context) {
 		log.Printf("%5d - % 92v\n", count, c.interpreter.GetCurrentOpCode())
 		c.interpreter.Step()
 
-		// Compare states and look for missalignments.
+		// Compare states and look for misalignments.
 		if (c.status != RUNNING) != (c.interpreter.IsDone()) {
 			log.Printf("Left done:  %t\n", c.status != RUNNING)
 			log.Printf("Right done: %t\n", c.interpreter.IsDone())
@@ -254,10 +250,10 @@ func runWithShadowInterpreter(c *context) {
 		if c.status != RUNNING {
 			continue
 		}
-		if c.contract.Gas != c.interpreter.Contract.Gas {
-			log.Printf("Left:  %v\n", c.contract.Gas)
+		if c.gas != vm.Gas(c.interpreter.Contract.Gas) {
+			log.Printf("Left:  %v\n", c.gas)
 			log.Printf("Right: %v\n", c.interpreter.Contract.Gas)
-			log.Printf("Diff:  %v\n", int64(c.contract.Gas)-int64(c.interpreter.Contract.Gas))
+			log.Printf("Diff:  %v\n", int64(c.gas)-int64(c.interpreter.Contract.Gas))
 			panic("Gas value diverged!")
 		}
 		if c.stack.len() != c.interpreter.Stack.Len() {
@@ -268,19 +264,19 @@ func runWithShadowInterpreter(c *context) {
 		if c.stack.len() > 0 && *c.stack.peek() != *c.interpreter.Stack.Back(0) {
 			log.Printf("Left:  %v\n", *c.stack.peek())
 			log.Printf("Right: %v\n", *c.interpreter.Stack.Back(0))
-			panic("Stack top value divereged!")
+			panic("Stack top value diverged!")
 		}
 		if c.memory.Len() != uint64(c.interpreter.Memory.Len()) {
 			log.Printf("Left:  %v\n", c.memory.Len())
 			log.Printf("Right: %v\n", c.interpreter.Memory.Len())
-			panic("Memory size divereged!")
+			panic("Memory size diverged!")
 		}
 		if !bytes.Equal(c.memory.Data(), c.interpreter.Memory.Data()) {
 			log.Printf("Left:\n")
 			c.memory.Print()
 			log.Printf("Right:\n")
 			c.interpreter.Memory.Print()
-			panic("Memory content divereged!")
+			panic("Memory content diverged!")
 		}
 	}
 }
@@ -425,7 +421,7 @@ func runWithLogging(c *context) {
 			if c.stack.len() > 0 {
 				top = c.stack.peek().ToBig().String()
 			}
-			fmt.Printf("%v, %d, %v\n", c.code[c.pc].opcode, c.contract.Gas, top)
+			fmt.Printf("%v, %d, %v\n", c.code[c.pc].opcode, c.gas, top)
 		}
 		step(c)
 	}
@@ -442,12 +438,12 @@ func stepToEnd(c *context) {
 func checkStackBoundry(c *context, op OpCode) error {
 	stackLen := c.stack.len()
 	if stackLen < staticStackBoundry[op].stackMin {
-		c.err = &vm.ErrStackUnderflow{}
+		c.err = ErrStackUnderflow
 		c.status = ERROR
 		return c.err
 	}
 	if stackLen > staticStackBoundry[op].stackMax {
-		c.err = &vm.ErrStackOverflow{}
+		c.err = ErrStackOverflow
 		c.status = ERROR
 		return c.err
 	}
@@ -473,7 +469,7 @@ func steps(c *context, one_step_only bool) {
 
 		// Catch invalid op-codes here, to avoid the need to check them at other places multiple times.
 		if op >= NUM_EXECUTABLE_OPCODES {
-			c.SignalError(vm.ErrInvalidCode)
+			c.SignalError(ErrInvalidCode)
 			return
 		}
 
@@ -487,8 +483,8 @@ func steps(c *context, one_step_only bool) {
 		// for a call operation is the value. Transferring value from one
 		// account to the others means the state is modified and should also
 		// return with an error.
-		if c.readOnly && (isWriteInstruction(op) || (op == CALL && c.stack.Back(2).Sign() != 0)) {
-			c.err = vm.ErrWriteProtection
+		if c.params.Static && (isWriteInstruction(op) || (op == CALL && c.stack.Back(2).Sign() != 0)) {
+			c.err = ErrWriteProtection
 			c.status = ERROR
 			return
 		}

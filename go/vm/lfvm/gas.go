@@ -4,8 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/params" // < TODO: remove
 	"github.com/holiman/uint256"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
@@ -13,11 +12,11 @@ import (
 
 const UNKNOWN_GAS_PRICE = 999999
 
-var static_gas_prices = [NUM_OPCODES]uint64{}
-var static_gas_prices_berlin = [NUM_OPCODES]uint64{}
+var static_gas_prices = [NUM_OPCODES]vm.Gas{}
+var static_gas_prices_berlin = [NUM_OPCODES]vm.Gas{}
 
 func init() {
-	var gp uint64
+	var gp vm.Gas
 	for i := 0; i < int(NUM_EXECUTABLE_OPCODES); i++ {
 		gp = getStaticGasPriceInternal(OpCode(i))
 		static_gas_prices[i] = gp
@@ -27,10 +26,10 @@ func init() {
 
 	for i := 0; i < int(NUM_EXECUTABLE_OPCODES); i++ {
 		if static_gas_prices[i] == UNKNOWN_GAS_PRICE {
-			panic(fmt.Sprintf("Gas price for %v is unkown", OpCode(i)))
+			panic(fmt.Sprintf("Gas price for %v is unknown", OpCode(i)))
 		}
 		if static_gas_prices_berlin[i] == UNKNOWN_GAS_PRICE {
-			panic(fmt.Sprintf("Berlin gas price for %v is unkown", OpCode(i)))
+			panic(fmt.Sprintf("Berlin gas price for %v is unknown", OpCode(i)))
 		}
 	}
 }
@@ -49,14 +48,14 @@ func initBerlinGasPrice() {
 	static_gas_prices_berlin[SELFDESTRUCT] = 5000
 }
 
-func getStaticGasPrices(isBerlin bool) []uint64 {
+func getStaticGasPrices(isBerlin bool) []vm.Gas {
 	if isBerlin {
 		return static_gas_prices_berlin[:]
 	}
 	return static_gas_prices[:]
 }
 
-func getStaticGasPriceInternal(op OpCode) uint64 {
+func getStaticGasPriceInternal(op OpCode) vm.Gas {
 	price := getStaticGasPriceInternal
 	if PUSH1 <= op && op <= PUSH32 {
 		return 3
@@ -245,17 +244,17 @@ func getStaticGasPriceInternal(op OpCode) uint64 {
 //
 // The cost of gas was changed during the homestead price change HF.
 // As part of EIP 150 (TangerineWhistle), the returned gas is gas - base * 63 / 64.
-func callGas(availableGas, base uint64, callCost *uint256.Int) uint64 {
+func callGas(availableGas, base vm.Gas, callCost *uint256.Int) vm.Gas {
 	availableGas = availableGas - base
 	gas := availableGas - availableGas/64
-	if !callCost.IsUint64() || gas < callCost.Uint64() {
+	if !callCost.IsUint64() || gas < vm.Gas(callCost.Uint64()) {
 		return gas
 	}
-	return callCost.Uint64()
+	return vm.Gas(callCost.Uint64())
 }
 
 // Computes the costs for an SSTORE operation
-func gasSStore(c *context) (uint64, error) {
+func gasSStore(c *context) (vm.Gas, error) {
 	return gasSStoreEIP2200(c)
 }
 
@@ -272,7 +271,7 @@ func gasSStore(c *context) (uint64, error) {
 //     2.2.2. If original value equals new value (this storage slot is reset):
 //     2.2.2.1. If original value is 0, add SSTORE_SET_GAS - SLOAD_GAS to refund counter.
 //     2.2.2.2. Otherwise, add SSTORE_RESET_GAS - SLOAD_GAS gas to refund counter.
-func gasSStoreEIP2200(c *context) (uint64, error) {
+func gasSStoreEIP2200(c *context) (vm.Gas, error) {
 	// If we fail the minimum gas availability invariant, fail (0)
 	if c.gas <= vm.Gas(params.SstoreSentryGasEIP2200) {
 		c.status = OUT_OF_GAS
@@ -287,17 +286,17 @@ func gasSStoreEIP2200(c *context) (uint64, error) {
 	)
 
 	if current == value { // noop (1)
-		return params.SloadGasEIP2200, nil
+		return vm.Gas(params.SloadGasEIP2200), nil
 	}
 	original := c.context.GetCommittedStorage(c.params.Recipient, key)
 	if original == current {
 		if original == zero { // create slot (2.1.1)
-			return params.SstoreSetGasEIP2200, nil
+			return vm.Gas(params.SstoreSetGasEIP2200), nil
 		}
 		if value == zero { // delete slot (2.1.2b)
 			c.refund += vm.Gas(params.SstoreClearsScheduleRefundEIP2200)
 		}
-		return params.SstoreResetGasEIP2200, nil // write existing slot (2.1.2)
+		return vm.Gas(params.SstoreResetGasEIP2200), nil // write existing slot (2.1.2)
 	}
 	if original != zero {
 		if current == zero { // recreate slot (2.2.1.1)
@@ -313,10 +312,10 @@ func gasSStoreEIP2200(c *context) (uint64, error) {
 			c.refund += vm.Gas(params.SstoreResetGasEIP2200 - params.SloadGasEIP2200)
 		}
 	}
-	return params.SloadGasEIP2200, nil // dirty update (2.2)
+	return vm.Gas(params.SloadGasEIP2200), nil // dirty update (2.2)
 }
 
-func gasSStoreEIP2929(c *context) (uint64, error) {
+func gasSStoreEIP2929(c *context) (vm.Gas, error) {
 
 	clearingRefund := vm.Gas(params.SstoreClearsScheduleRefundEIP2200)
 	if c.isLondon {
@@ -334,7 +333,7 @@ func gasSStoreEIP2929(c *context) (uint64, error) {
 		y, x    = c.stack.Back(1), c.stack.peek()
 		slot    = vm.Key(x.Bytes32())
 		current = c.context.GetStorage(c.params.Recipient, slot)
-		cost    = uint64(0)
+		cost    = vm.Gas(0)
 	)
 	// Check slot presence in the access list
 	if addrPresent, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
@@ -342,7 +341,7 @@ func gasSStoreEIP2929(c *context) (uint64, error) {
 			c.status = ERROR
 			return 0, errors.New("address was not present in access list during sstore op")
 		}
-		cost = params.ColdSloadCostEIP2929
+		cost = vm.Gas(params.ColdSloadCostEIP2929)
 		// If the caller cannot afford the cost, this change will be rolled back
 		if !c.IsShadowed() {
 			c.context.AccessStorage(c.params.Recipient, slot)
@@ -351,17 +350,17 @@ func gasSStoreEIP2929(c *context) (uint64, error) {
 	value := vm.Word(y.Bytes32())
 
 	if current == value { // noop (1)
-		return cost + params.WarmStorageReadCostEIP2929, nil // SLOAD_GAS
+		return cost + vm.Gas(params.WarmStorageReadCostEIP2929), nil // SLOAD_GAS
 	}
 	original := c.context.GetCommittedStorage(c.params.Recipient, slot)
 	if original == current {
 		if original == zero { // create slot (2.1.1)
-			return cost + params.SstoreSetGasEIP2200, nil
+			return cost + vm.Gas(params.SstoreSetGasEIP2200), nil
 		}
 		if value == zero { // delete slot (2.1.2b)
 			c.refund += clearingRefund
 		}
-		return cost + (params.SstoreResetGasEIP2200 - params.ColdSloadCostEIP2929), nil // write existing slot (2.1.2)
+		return cost + vm.Gas(params.SstoreResetGasEIP2200 - params.ColdSloadCostEIP2929), nil // write existing slot (2.1.2)
 	}
 	if original != zero {
 		if current == zero { // recreate slot (2.2.1.1)
@@ -377,14 +376,14 @@ func gasSStoreEIP2929(c *context) (uint64, error) {
 			c.refund += vm.Gas((params.SstoreResetGasEIP2200 - params.ColdSloadCostEIP2929) - params.WarmStorageReadCostEIP2929)
 		}
 	}
-	return cost + params.WarmStorageReadCostEIP2929, nil // dirty update (2.2)
+	return cost + vm.Gas(params.WarmStorageReadCostEIP2929), nil // dirty update (2.2)
 }
 
 func gasEip2929AccountCheck(c *context, address vm.Address) error {
 	if c.isBerlin {
 		// Charge extra for cold locations.
 		if !c.context.IsAddressInAccessList(address) {
-			if !c.UseGas(params.ColdAccountAccessCostEIP2929 - params.WarmStorageReadCostEIP2929) {
+			if !c.UseGas(vm.Gas(params.ColdAccountAccessCostEIP2929 - params.WarmStorageReadCostEIP2929)) {
 				return ErrOutOfGas
 			}
 			if !c.IsShadowed() {
@@ -395,7 +394,7 @@ func gasEip2929AccountCheck(c *context, address vm.Address) error {
 	return nil
 }
 
-func addressInAccessList(c *context) (warmAccess bool, coldCost uint64, err error) {
+func addressInAccessList(c *context) (warmAccess bool, coldCost vm.Gas, err error) {
 	warmAccess = true
 	if c.isBerlin {
 		addr := vm.Address(c.stack.Back(1).Bytes20())
@@ -403,7 +402,7 @@ func addressInAccessList(c *context) (warmAccess bool, coldCost uint64, err erro
 		warmAccess = c.context.IsAddressInAccessList(addr)
 		// The WarmStorageReadCostEIP2929 (100) is already deducted in the form of a constant cost, so
 		// the cost to charge for cold access, if any, is Cold - Warm
-		coldCost = params.ColdAccountAccessCostEIP2929 - params.WarmStorageReadCostEIP2929
+		coldCost = vm.Gas(params.ColdAccountAccessCostEIP2929 - params.WarmStorageReadCostEIP2929)
 		if !warmAccess {
 			if !c.IsShadowed() {
 				c.context.AccessAccount(addr)

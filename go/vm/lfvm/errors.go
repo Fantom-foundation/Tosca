@@ -2,9 +2,14 @@ package lfvm
 
 
 const (
-	ErrOutOfGas = ConstError("out of gas")
-	ErrInvalidJump = ConstError("invalid jump destination")
 	ErrGasUintOverflow = ConstError("gas uint64 overflow")
+	ErrInvalidCode = ConstError("invalid code")
+	ErrInvalidJump = ConstError("invalid jump destination")
+	ErrOutOfGas = ConstError("out of gas")
+	ErrReturnDataOutOfBounds = ConstError("return data out of bounds")
+	ErrStackOverflow = ConstError("stack overflow")
+	ErrStackUnderflow = ConstError("stack underflow")
+	ErrWriteProtection = ConstError("write protection")
 )
 
 
