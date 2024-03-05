@@ -428,24 +428,41 @@ func getContextWithEvmCode(code *st.Code) (*context, error) {
 }
 
 func TestConvertToCt_StatusCode(t *testing.T) {
-	ctx := getEmptyContext()
-	ctx.status = STOPPED
-	code := []byte{}
 
-	pcMap, err := GenPcMapWithoutSuperInstructions(code)
-	if err != nil {
-		t.Fatalf("failed to generate pc map: %v", err)
+	tests := map[string][]struct {
+		status         Status
+		ctStatus       st.StatusCode
+		convertSuccess bool
+	}{
+		"running":  {{RUNNING, st.Running, true}},
+		"stopped":  {{STOPPED, st.Stopped, true}},
+		"returned": {{RETURNED, st.Stopped, true}},
+		"reverted": {{REVERTED, st.Reverted, true}},
+		"failed":   {{INVALID_INSTRUCTION, st.Failed, true}},
+		"error":    {{ERROR + 1, st.NumStatusCodes, false}},
 	}
 
-	state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			for _, cur := range test {
 
-	if err != nil {
-		t.Fatalf("failed to convert lfvm context to ct state: %v", err)
+				got, err := convertLfvmStatusToCtStatus(cur.status)
+
+				if cur.convertSuccess && err != nil {
+					t.Fatalf("unexpected conversion error: %v", err)
+				}
+
+				if !cur.convertSuccess && err == nil {
+					t.Fatalf("expected conversion error, but got none")
+				}
+
+				if want := cur.ctStatus; cur.convertSuccess && want != got {
+					t.Errorf("unexpected status: wanted %v, got %v", want, got)
+				}
+			}
+		})
 	}
 
-	if want, got := st.Stopped, state.Status; want != got {
-		t.Errorf("unexpected status, wanted %v, got %v", want, got)
-	}
 }
 
 func TestConvertToCt_InvalidStatusCode(t *testing.T) {

@@ -364,6 +364,7 @@ func TestConvertToCt_StatusCode(t *testing.T) {
 	}{
 		"running":  {{func(state *vm.GethState) { state.Halted = false; state.Err = nil }, true, st.Running}},
 		"stopped":  {{func(state *vm.GethState) { state.Halted = true; state.Err = nil }, true, st.Stopped}},
+		"returned": {{func(state *vm.GethState) { state.Halted = true; state.Err = nil; state.Result = make([]byte, 0) }, true, st.Stopped}},
 		"reverted": {{func(state *vm.GethState) { state.Halted = true; state.Err = vm.ErrExecutionReverted }, true, st.Reverted}},
 		"failed":   {{func(state *vm.GethState) { state.Halted = true; state.Err = vm.ErrInvalidCode }, true, st.Failed}},
 	}

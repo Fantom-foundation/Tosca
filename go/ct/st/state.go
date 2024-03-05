@@ -90,7 +90,7 @@ func (s *State) Eq(other *State) bool {
 	}
 
 	isHaltedState := func(s *State) bool {
-		return s.Status == Stopped || s.Status == Reverted
+		return s.Status != Running
 	}
 	pcIsEqual := s.Pc == other.Pc
 	if isHaltedState(s) && isHaltedState(other) {
