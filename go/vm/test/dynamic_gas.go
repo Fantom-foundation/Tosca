@@ -127,11 +127,16 @@ func gasDynamicExtCodeCopy(revision Revision) []*DynGasTest {
 		// Expected gas calculation
 		expectedGas := accessCost + vm.Gas(3*getDataSizeWords(dataSize)) + memoryExpansionGasCost(dataSize)
 
+		accessState := vm.ColdAccess
+		if inAccessList {
+			accessState = vm.WarmAccess
+		}
+
 		mockCalls := func(mock *MockStateDB) {
 			mock.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
 			mock.EXPECT().GetCode(address).AnyTimes().Return(copyCode)
 			mock.EXPECT().IsAddressInAccessList(address).AnyTimes().Return(inAccessList)
-			mock.EXPECT().AccessAccount(address).AnyTimes()
+			mock.EXPECT().AccessAccount(address).AnyTimes().Return(accessState)
 		}
 		// Append test
 		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, 0, mockCalls, nil})
@@ -150,13 +155,13 @@ func gasDynamicExtCodeCopy(revision Revision) []*DynGasTest {
 func gasDynamicAccountAccess(revision Revision) []*DynGasTest {
 
 	type accessTest struct {
-		testName         string
-		addrInAccessList bool
+		testName           string
+		accountAccessState vm.AccessStatus
 	}
 
 	tests := []accessTest{
-		{"Address in access list", true},
-		{"Address not in access list", false},
+		{"Address in access list", vm.WarmAccess},
+		{"Address not in access list", vm.ColdAccess},
 	}
 
 	testCases := []*DynGasTest{}
@@ -164,17 +169,18 @@ func gasDynamicAccountAccess(revision Revision) []*DynGasTest {
 	for i, test := range tests {
 		address := vm.Address{byte(i + 1)}
 		hash := vm.Hash{byte(i + 1)}
-		inAccessList := test.addrInAccessList
+		accessState := test.accountAccessState
+		inAccessList := accessState == vm.WarmAccess
 		// Expected gas calculation
-		expectedGas := getAccessCost(revision, test.addrInAccessList, false)
+		expectedGas := getAccessCost(revision, inAccessList, false)
 		stackValues := []*big.Int{addressToBigInt(address)}
 		mockCalls := func(mock *MockStateDB) {
 			mock.EXPECT().IsAddressInAccessList(address).AnyTimes().Return(inAccessList)
-			mock.EXPECT().AccessAccount(address).AnyTimes()
+			mock.EXPECT().AccessAccount(address).AnyTimes().Return(accessState)
 			mock.EXPECT().GetCodeSize(address).AnyTimes().Return(0)
 			mock.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
 			mock.EXPECT().AccountExists(address).AnyTimes().Return(false)
-			mock.EXPECT().GetBalance(address).AnyTimes().Return(big.NewInt(0))
+			mock.EXPECT().GetBalance(address).AnyTimes().Return(vm.Value{})
 		}
 		// Append test
 		testCases = append(testCases, &DynGasTest{test.testName, stackValues, expectedGas, 0, mockCalls, nil})
@@ -208,9 +214,13 @@ func gasDynamicSLoad(revision Revision) []*DynGasTest {
 		slot := vm.Key{byte(i + 1)}
 		slotInACL := test.slotInAccessList
 		stackValues := []*big.Int{keyToBigInt(slot)}
+		slotState := vm.ColdAccess
+		if slotInACL {
+			slotState = vm.WarmAccess
+		}
 		mockCalls := func(mock *MockStateDB) {
 			mock.EXPECT().IsSlotInAccessList(address, slot).AnyTimes().Return(true, slotInACL)
-			mock.EXPECT().AccessStorage(address, slot).AnyTimes()
+			mock.EXPECT().AccessStorage(address, slot).AnyTimes().Return(slotState)
 			mock.EXPECT().GetStorage(address, slot).AnyTimes().Return(vm.Word{})
 		}
 		// Expected gas calculation
@@ -289,8 +299,17 @@ func gasDynamicSStore(revision Revision) []*DynGasTest {
 		expectedGas, gasRefund = calculateSStoreGas(origValue, currentValue, newValue, expectedGas, warmAccessCost, coldAccessCost, refundGas, resetGas)
 
 		mockCalls := func(mock *MockStateDB) {
+			accountAccessStatus := vm.ColdAccess
+			if addressInACL {
+				accountAccessStatus = vm.WarmAccess
+			}
+			slotAccessStatus := vm.ColdAccess
+			if slotInACL {
+				slotAccessStatus = vm.WarmAccess
+			}
 			mock.EXPECT().IsSlotInAccessList(address, key).AnyTimes().Return(addressInACL, slotInACL)
-			mock.EXPECT().AccessStorage(address, key).AnyTimes()
+			mock.EXPECT().AccessAccount(address).AnyTimes().Return(accountAccessStatus)
+			mock.EXPECT().AccessStorage(address, key).AnyTimes().Return(slotAccessStatus)
 			mock.EXPECT().GetCommittedStorage(address, key).AnyTimes().Return(origValue)
 			mock.EXPECT().GetStorage(address, key).AnyTimes().Return(currentValue)
 			mock.EXPECT().SetStorage(address, key, newValue).AnyTimes()
@@ -387,10 +406,10 @@ func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 	mockCalls := func(mock *MockStateDB) {
 		mock.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).AnyTimes().Return(false, false)
 		mock.EXPECT().IsAddressInAccessList(gomock.Any()).AnyTimes().Return(false)
-		mock.EXPECT().AccessAccount(gomock.Any()).AnyTimes()
+		mock.EXPECT().AccessAccount(gomock.Any()).AnyTimes().Return(vm.ColdAccess)
 		mock.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(false)
-		mock.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).AnyTimes()
-		mock.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(big.NewInt(0))
+		mock.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(vm.ColdAccess)
+		mock.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(vm.Value{})
 		mock.EXPECT().HasSelfDestructed(gomock.Any()).AnyTimes().Return(true)
 		mock.EXPECT().GetStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(vm.Word{1})
 	}
@@ -576,12 +595,16 @@ func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationG
 		hash := vm.Hash{byte(i + 1)}
 		exist := test.addrExist
 		inAccessList := test.addrInAccessList
+		accountState := vm.ColdAccess
+		if inAccessList {
+			accountState = vm.WarmAccess
+		}
 		mockCalls := func(mock *MockStateDB) {
 			mock.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
 			mock.EXPECT().GetCode(address).AnyTimes().Return(calledCode)
 			mock.EXPECT().AccountExists(address).AnyTimes().Return(exist)
 			mock.EXPECT().IsAddressInAccessList(address).AnyTimes().Return(inAccessList)
-			mock.EXPECT().AccessAccount(address).AnyTimes()
+			mock.EXPECT().AccessAccount(address).AnyTimes().Return(accountState)
 		}
 
 		// The WarmStorageReadCostEIP2929 (100) is already deducted in the form of a constant cost, so
@@ -800,11 +823,10 @@ func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
 
 		mockCalls := func(mock *MockStateDB) {
 			mock.EXPECT().HasSelfDestructed(contractAddress).AnyTimes().Return(suicided)
+			mock.EXPECT().GetBalance(contractAddress).AnyTimes().Return(vm.Value{byte(balance)})
 			mock.EXPECT().AccountExists(targetAddress).AnyTimes().Return(!empty)
-
-			mock.EXPECT().SelfDestruct(contractAddress, targetAddress).AnyTimes().Return(true)
 			mock.EXPECT().IsAddressInAccessList(targetAddress).AnyTimes().Return(inAcl)
-			mock.EXPECT().AccessAccount(targetAddress).AnyTimes()
+			mock.EXPECT().AccessAccount(targetAddress).AnyTimes().Return(vm.AccessStatus(inAcl))
 		}
 
 		expectedRefund := vm.Gas(0)

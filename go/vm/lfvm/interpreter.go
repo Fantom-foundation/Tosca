@@ -107,6 +107,7 @@ func Run(
 		return vm.Result{
 			Output:  nil,
 			GasLeft: params.Gas,
+			Success: true,
 		}, nil
 	}
 
@@ -166,18 +167,18 @@ func Run(
 	if ctxt.status == RETURNED || ctxt.status == REVERTED {
 		size, overflow := ctxt.result_size.Uint64WithOverflow()
 		if overflow {
-			return vm.Result{}, ErrGasUintOverflow
+			return vm.Result{Success: false}, nil
 		}
 
 		if size != 0 {
 			offset, overflow := ctxt.result_offset.Uint64WithOverflow()
 			if overflow {
-				return vm.Result{}, ErrGasUintOverflow
+				return vm.Result{Success: false}, nil
 			}
 
 			// Extract the result from the memory
 			if err := ctxt.memory.EnsureCapacity(offset, size, &ctxt); err != nil {
-				return vm.Result{}, err
+				return vm.Result{Success: false}, nil
 			}
 			res = make([]byte, size)
 			ctxt.memory.CopyData(offset, res[:])

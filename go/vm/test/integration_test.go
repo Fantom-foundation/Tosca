@@ -1,73 +1,82 @@
 package vm_test
 
 import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"math"
+	"math/big"
+	"math/rand"
 	"testing"
+
+	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/holiman/uint256"
+	"go.uber.org/mock/gomock"
+
 	// This is only imported to get the EVM opcode definitions.
 	// TODO: write up our own op-code definition and remove this dependency.
+	geth "github.com/ethereum/go-ethereum/core/vm"
 )
 
 const HUGE_GAS_SENT_WITH_CALL int64 = 1000000000000
 
 func TestMaxCallDepth(t *testing.T) {
-	/*
-		// For every variant of interpreter
-		for _, variant := range Variants {
-			for _, revision := range revisions {
-				t.Run(fmt.Sprintf("%s/%s", variant, revision), func(t *testing.T) {
-					ctrl := gomock.NewController(t)
-					ctxt := vm.NewMockRunContext(ctrl)
+	// For every variant of interpreter
+	for _, variant := range Variants {
+		for _, revision := range revisions {
+			t.Run(fmt.Sprintf("%s/%s", variant, revision), func(t *testing.T) {
+				ctrl := gomock.NewController(t)
+				mockStateDB := NewMockStateDB(ctrl)
 
-					zeroVal := big.NewInt(0)
-					account := vm.Address{byte(0)}
+				zeroVal := big.NewInt(0)
+				account := vm.Address{}
 
-					// return and input data size is 32bytes, memory offset is 0 for all
-					callStackValues := []*big.Int{big.NewInt(32), zeroVal, big.NewInt(32), zeroVal, zeroVal, account.Hash().Big(), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
-					pushCode, _ := addValuesToStack(callStackValues, 0)
+				// return and input data size is 32bytes, memory offset is 0 for all
+				callStackValues := []*big.Int{big.NewInt(32), zeroVal, big.NewInt(32), zeroVal, zeroVal, addressToBigInt(account), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
+				pushCode, _ := addValuesToStack(callStackValues, 0)
 
-					// put 32byte input value with 0 offset from memory to stack, add 1 to it and put it back to memory with 0 offset
-					code := []byte{
-						byte(evm.PUSH1), byte(0),
-						byte(evm.CALLDATALOAD),
-						byte(evm.PUSH1), byte(1),
-						byte(evm.ADD),
-						byte(evm.PUSH1), byte(0),
-						byte(evm.MSTORE)}
+				// put 32byte input value with 0 offset from memory to stack, add 1 to it and put it back to memory with 0 offset
+				code := []byte{
+					byte(geth.PUSH1), byte(0),
+					byte(geth.CALLDATALOAD),
+					byte(geth.PUSH1), byte(1),
+					byte(geth.ADD),
+					byte(geth.PUSH1), byte(0),
+					byte(geth.MSTORE)}
 
-					// add stack values for call instruction
-					code = append(code, pushCode...)
+				// add stack values for call instruction
+				code = append(code, pushCode...)
 
-					// make inner call and return 32byte value with 0 offset from memory
-					codeReturn := []byte{
-						byte(evm.CALL),
-						byte(evm.PUSH1), byte(32),
-						byte(evm.PUSH1), byte(0),
-						byte(evm.RETURN)}
-					code = append(code, codeReturn...)
+				// make inner call and return 32byte value with 0 offset from memory
+				codeReturn := []byte{
+					byte(geth.CALL),
+					byte(geth.PUSH1), byte(32),
+					byte(geth.PUSH1), byte(0),
+					byte(geth.RETURN)}
+				code = append(code, codeReturn...)
 
-					setDefaultCallStateDBMock(mockStateDB, account, code)
+				setDefaultCallStateDBMock(mockStateDB, account, code)
 
-					evm := GetCleanEVM(revision, variant, mockStateDB)
+				evm := GetCleanEVM(revision, variant, mockStateDB)
 
-					// Run an interpreter
-					result, err := evm.Run(code, []byte{})
+				// Run an interpreter
+				result, err := evm.Run(code, []byte{})
 
-					// Check the result.
-					if err != nil {
-						t.Errorf("execution failed and should not fail, error is: %v", err)
-					} else {
-						expectedDepth := 1025
-						depth := big.NewInt(0).SetBytes(result.Output).Uint64()
-						if depth != uint64(expectedDepth) {
-							t.Errorf("expected call depth is %v, got %v", expectedDepth, depth)
-						}
+				// Check the result.
+				if err != nil || !result.Success {
+					t.Errorf("execution failed and should not fail, error is: %v, result %v", err, result)
+				} else {
+					expectedDepth := 1025
+					depth := big.NewInt(0).SetBytes(result.Output).Uint64()
+					if depth != uint64(expectedDepth) {
+						t.Errorf("expected call depth is %v, got %v", expectedDepth, depth)
 					}
-				})
-			}
+				}
+			})
 		}
-	*/
+	}
 }
 
-/*
 func TestInvalidJumpOverflow(t *testing.T) {
 
 	// For every variant of interpreter
@@ -75,7 +84,7 @@ func TestInvalidJumpOverflow(t *testing.T) {
 
 		for _, revision := range revisions {
 
-			testInstructions := []vm.OpCode{vm.JUMP, vm.JUMPI}
+			testInstructions := []geth.OpCode{geth.JUMP, geth.JUMPI}
 
 			for _, instruction := range testInstructions {
 
@@ -90,21 +99,20 @@ func TestInvalidJumpOverflow(t *testing.T) {
 					code, _ := addValuesToStack([]*big.Int{condition, dst}, 0)
 					codeJump := []byte{
 						byte(instruction),
-						byte(vm.JUMPDEST),
-						byte(vm.PUSH1), byte(0),
-						byte(vm.STOP)}
+						byte(geth.JUMPDEST),
+						byte(geth.PUSH1), byte(0),
+						byte(geth.STOP)}
 					code = append(code, codeJump...)
 
 					// Run an interpreter
-					_, err := evm.Run(code, []byte{})
+					result, err := evm.Run(code, []byte{})
 
 					// Check the result.
-					if err == nil {
-						t.Errorf("execution should fail with error : %v", vm.ErrInvalidJump)
-					} else {
-						if err != vm.ErrInvalidJump {
-							t.Errorf("execution should fail with error : %v but got: %v", vm.ErrInvalidJump, err)
-						}
+					if err != nil {
+						t.Fatalf("unexpected internal interpreter error: %v", err)
+					}
+					if result.Success {
+						t.Errorf("execution should fail, but got: %v", result)
 					}
 				})
 			}
@@ -113,9 +121,6 @@ func TestInvalidJumpOverflow(t *testing.T) {
 }
 
 func TestCodeCopy(t *testing.T) {
-	var mockCtrl *gomock.Controller
-	var mockStateDB *vm_mock.MockStateDB
-
 	type test struct {
 		offset *big.Int
 		size   *big.Int
@@ -168,9 +173,8 @@ func TestCodeCopy(t *testing.T) {
 		for _, revision := range revisions {
 			for name, test := range tests {
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, name), func(t *testing.T) {
-
-					mockCtrl = gomock.NewController(t)
-					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+					mockCtrl := gomock.NewController(t)
+					mockStateDB := NewMockStateDB(mockCtrl)
 
 					// Create a program that
 					// - runs CODECOPY for the range specified by the test case spec
@@ -183,7 +187,7 @@ func TestCodeCopy(t *testing.T) {
 						zero,
 					}
 					code, _ := addValuesToStack(codeCopyParameters, 0)
-					code = append(code, byte(vm.CODECOPY))
+					code = append(code, byte(geth.CODECOPY))
 
 					returnParameter := []*big.Int{
 						test.size,
@@ -191,7 +195,7 @@ func TestCodeCopy(t *testing.T) {
 					}
 					returnParameterSetupCode, _ := addValuesToStack(returnParameter, 0)
 					code = append(code, returnParameterSetupCode...)
-					code = append(code, byte(vm.RETURN))
+					code = append(code, byte(geth.RETURN))
 
 					if got, limit := len(code), codeSize; got > limit {
 						t.Fatalf("unexpected code size, limit %d, got %d", limit, got)
@@ -230,15 +234,12 @@ func TestCodeCopy(t *testing.T) {
 }
 
 func TestReturnDataCopy(t *testing.T) {
-	var mockCtrl *gomock.Controller
-	var mockStateDB *vm_mock.MockStateDB
-
 	type test struct {
 		name           string
 		dataSize       uint
 		dataOffset     *big.Int
 		returnDataSize uint
-		err            error
+		expectFailure  bool
 	}
 
 	zero := big.NewInt(0)
@@ -246,13 +247,13 @@ func TestReturnDataCopy(t *testing.T) {
 	overflowValue, _ := big.NewInt(0).SetString("0x1000000000000000d", 0)
 
 	tests := []test{
-		{name: "no data", dataSize: 0, dataOffset: zero, returnDataSize: 0, err: nil},
-		{name: "offset > return data", dataSize: 0, dataOffset: one, returnDataSize: 0, err: vm.ErrReturnDataOutOfBounds},
-		{name: "same data", dataSize: 0, dataOffset: one, returnDataSize: 1, err: nil},
-		{name: "size > return data", dataSize: 1, dataOffset: zero, returnDataSize: 0, err: vm.ErrReturnDataOutOfBounds},
-		{name: "size + offset > return data", dataSize: 1, dataOffset: one, returnDataSize: 0, err: vm.ErrReturnDataOutOfBounds},
-		{name: "same data", dataSize: 1, dataOffset: zero, returnDataSize: 2, err: nil},
-		{name: "offset overflow", dataSize: 0, dataOffset: overflowValue, returnDataSize: 0, err: vm.ErrReturnDataOutOfBounds},
+		{name: "no data", dataSize: 0, dataOffset: zero, returnDataSize: 0, expectFailure: false},
+		{name: "offset > return data", dataSize: 0, dataOffset: one, returnDataSize: 0, expectFailure: true},
+		{name: "same data", dataSize: 0, dataOffset: one, returnDataSize: 1, expectFailure: false},
+		{name: "size > return data", dataSize: 1, dataOffset: zero, returnDataSize: 0, expectFailure: true},
+		{name: "size + offset > return data", dataSize: 1, dataOffset: one, returnDataSize: 0, expectFailure: true},
+		{name: "same data", dataSize: 1, dataOffset: zero, returnDataSize: 2, expectFailure: false},
+		{name: "offset overflow", dataSize: 0, dataOffset: overflowValue, returnDataSize: 0, expectFailure: true},
 	}
 	// For every variant of interpreter
 	for _, variant := range Variants {
@@ -263,30 +264,30 @@ func TestReturnDataCopy(t *testing.T) {
 
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, tst.name), func(t *testing.T) {
 
-					mockCtrl = gomock.NewController(t)
-					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+					mockCtrl := gomock.NewController(t)
+					mockStateDB := NewMockStateDB(mockCtrl)
 
 					zeroVal := big.NewInt(0)
-					account := common.Address{byte(0)}
+					account := vm.Address{}
 					returnDataSize := big.NewInt(10)
 
 					// stack values for inner contract call
-					callStackValues := []*big.Int{returnDataSize, zeroVal, zeroVal, zeroVal, zeroVal, account.Hash().Big(), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
+					callStackValues := []*big.Int{returnDataSize, zeroVal, zeroVal, zeroVal, zeroVal, addressToBigInt(account), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
 					code, _ := addValuesToStack(callStackValues, 0)
-					code = append(code, byte(vm.CALL))
+					code = append(code, byte(geth.CALL))
 
 					callStackValues = []*big.Int{big.NewInt(int64(tst.dataSize)), tst.dataOffset, zeroVal}
 					codeValues, _ := addValuesToStack(callStackValues, 0)
 					code = append(code, codeValues...)
 					code = append(code,
-						byte(vm.RETURNDATACOPY),
-						byte(vm.STOP))
+						byte(geth.RETURNDATACOPY),
+						byte(geth.STOP))
 
 					// code for inner contract call
 					codeReturn := []byte{
-						byte(vm.PUSH1), byte(tst.returnDataSize),
-						byte(vm.PUSH1), byte(0),
-						byte(vm.RETURN)}
+						byte(geth.PUSH1), byte(tst.returnDataSize),
+						byte(geth.PUSH1), byte(0),
+						byte(geth.RETURN)}
 
 					// set mock for inner call
 					setDefaultCallStateDBMock(mockStateDB, account, codeReturn)
@@ -294,15 +295,15 @@ func TestReturnDataCopy(t *testing.T) {
 					evm := GetCleanEVM(revision, variant, mockStateDB)
 
 					// Run an interpreter
-					_, err := evm.Run(code, []byte{})
+					result, err := evm.Run(code, []byte{})
 
 					// Check the result.
-					if err != tst.err {
-						if tst.err == nil {
-							t.Errorf("execution should not fail, but got error: %v", err)
-						} else {
-							t.Errorf("execution should fail with error: %v, but got:%v", tst.err, err)
-						}
+					if err != nil {
+						t.Fatalf("unexpected internal interpreter error: %v", err)
+					}
+
+					if want, got := !tst.expectFailure, result.Success; want != got {
+						t.Errorf("unexpected result, wanted success to be %t got %t", want, got)
 					}
 				})
 			}
@@ -311,27 +312,24 @@ func TestReturnDataCopy(t *testing.T) {
 }
 
 func TestReadOnlyStaticCall(t *testing.T) {
-	var mockCtrl *gomock.Controller
-	var mockStateDB *vm_mock.MockStateDB
-
 	type callsType struct {
-		instruction vm.OpCode
+		instruction geth.OpCode
 		shouldFail  bool
 	}
 
 	// all types of inner call to be tested
 	calls := []callsType{
-		{vm.CALL, false},
-		{vm.STATICCALL, true},
-		{vm.DELEGATECALL, false},
-		{vm.CALLCODE, false},
-		{vm.CREATE, false},
-		{vm.CREATE2, false},
+		{geth.CALL, false},
+		{geth.STATICCALL, true},
+		{geth.DELEGATECALL, false},
+		{geth.CALLCODE, false},
+		{geth.CREATE, false},
+		{geth.CREATE2, false},
 	}
 
-	readOnlyInstructions := []vm.OpCode{
-		vm.LOG0, vm.LOG1, vm.LOG2, vm.LOG3, vm.LOG4,
-		vm.SSTORE, vm.CREATE, vm.CREATE2, vm.SELFDESTRUCT,
+	readOnlyInstructions := []geth.OpCode{
+		geth.LOG0, geth.LOG1, geth.LOG2, geth.LOG3, geth.LOG4,
+		geth.SSTORE, geth.CREATE, geth.CREATE2, geth.SELFDESTRUCT,
 	}
 
 	// For every variant of interpreter
@@ -345,33 +343,33 @@ func TestReadOnlyStaticCall(t *testing.T) {
 
 					t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, call.instruction, instruction), func(t *testing.T) {
 
-						mockCtrl = gomock.NewController(t)
-						mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+						mockCtrl := gomock.NewController(t)
+						mockStateDB := NewMockStateDB(mockCtrl)
 
 						zeroVal := big.NewInt(0)
-						account := common.Address{byte(0)}
+						account := vm.Address{byte(0)}
 
 						// stack values for inner contract call
-						callStackValues := []*big.Int{zeroVal, zeroVal, zeroVal, zeroVal, zeroVal, account.Hash().Big(), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
+						callStackValues := []*big.Int{zeroVal, zeroVal, zeroVal, zeroVal, zeroVal, addressToBigInt(account), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
 						code, _ := addValuesToStack(callStackValues, 0)
 						code = append(code,
 							byte(call.instruction),
-							byte(vm.PUSH1), byte(0),
-							byte(vm.MSTORE),
-							byte(vm.PUSH1), byte(32),
-							byte(vm.PUSH1), byte(0),
-							byte(vm.RETURN))
+							byte(geth.PUSH1), byte(0),
+							byte(geth.MSTORE),
+							byte(geth.PUSH1), byte(32),
+							byte(geth.PUSH1), byte(0),
+							byte(geth.RETURN))
 
 						// code for inner contract call
 						innerCallCode := []byte{
 							// push zero values to stack to have data for write instructions
-							byte(vm.PUSH1), byte(0),
-							byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1),
-							byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1),
+							byte(geth.PUSH1), byte(0),
+							byte(geth.DUP1), byte(geth.DUP1), byte(geth.DUP1), byte(geth.DUP1),
+							byte(geth.DUP1), byte(geth.DUP1), byte(geth.DUP1), byte(geth.DUP1),
 							byte(instruction),
-							byte(vm.PUSH1), byte(0),
-							byte(vm.DUP1),
-							byte(vm.RETURN)}
+							byte(geth.PUSH1), byte(0),
+							byte(geth.DUP1),
+							byte(geth.RETURN)}
 
 						// set mock for inner call
 						setDefaultCallStateDBMock(mockStateDB, account, innerCallCode)
@@ -381,14 +379,16 @@ func TestReadOnlyStaticCall(t *testing.T) {
 						// Run an interpreter
 						result, err := evm.Run(code, []byte{})
 
-						res := big.NewInt(0).SetBytes(result.Output[0:32])
-						success := res.Cmp(zeroVal) != 0
-						if success == call.shouldFail {
-							t.Errorf("execution should fail because of read only call, but did not fail")
+						// Check for internal errors.
+						if err != nil {
+							t.Fatalf("unexpected internal error: %v", err)
 						}
 
-						if err != nil {
-							t.Errorf("execution should not return an error, but got:%v", err)
+						res := big.NewInt(0).SetBytes(result.Output[0:32])
+						success := res.Cmp(zeroVal) != 0
+						want := !call.shouldFail
+						if success != want {
+							t.Errorf("unexpected result of execution, wanted success=%t, got %t", want, success)
 						}
 					})
 				}
@@ -399,29 +399,26 @@ func TestReadOnlyStaticCall(t *testing.T) {
 
 func TestInstructionDataInitialization(t *testing.T) {
 
-	var mockCtrl *gomock.Controller
-	var mockStateDB *vm_mock.MockStateDB
-
 	type test struct {
 		name        string
-		instruction vm.OpCode
+		instruction geth.OpCode
 		size        *big.Int
 		offset      *big.Int
 		err         []error
 	}
 
 	type instructionTest struct {
-		instruction vm.OpCode
+		instruction geth.OpCode
 		okError     []error
 	}
 
 	instructions := []instructionTest{
-		{vm.RETURN, nil},
-		{vm.REVERT, []error{vm.ErrExecutionReverted}},
-		{vm.SHA3, nil},
-		{vm.LOG0, nil},
-		{vm.CODECOPY, nil},
-		{vm.EXTCODECOPY, nil},
+		{geth.RETURN, nil},
+		{geth.REVERT, []error{geth.ErrExecutionReverted}},
+		{geth.SHA3, nil},
+		{geth.LOG0, nil},
+		{geth.CODECOPY, nil},
+		{geth.EXTCODECOPY, nil},
 	}
 
 	sizeNormal, _ := big.NewInt(0).SetString("0x10000", 0)
@@ -434,11 +431,11 @@ func TestInstructionDataInitialization(t *testing.T) {
 		testForInstruction := []test{
 			{"zero size and offset", instructionCase.instruction, big.NewInt(0), big.NewInt(0), instructionCase.okError},
 			{"normal size and offset", instructionCase.instruction, sizeNormal, sizeNormal, instructionCase.okError},
-			{"huge size normal offset", instructionCase.instruction, sizeHuge, sizeNormal, []error{vm.ErrOutOfGas}},
-			{"over size normal offset", instructionCase.instruction, sizeOverUint64, sizeNormal, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-			{"normal size huge offset", instructionCase.instruction, sizeNormal, sizeHuge, []error{vm.ErrOutOfGas}},
-			{"normal size over offset", instructionCase.instruction, sizeNormal, sizeOverUint64, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-			{"huge size huge offset", instructionCase.instruction, sizeHuge, sizeHuge, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+			{"huge size normal offset", instructionCase.instruction, sizeHuge, sizeNormal, []error{geth.ErrOutOfGas}},
+			{"over size normal offset", instructionCase.instruction, sizeOverUint64, sizeNormal, []error{geth.ErrGasUintOverflow, geth.ErrOutOfGas}},
+			{"normal size huge offset", instructionCase.instruction, sizeNormal, sizeHuge, []error{geth.ErrOutOfGas}},
+			{"normal size over offset", instructionCase.instruction, sizeNormal, sizeOverUint64, []error{geth.ErrGasUintOverflow, geth.ErrOutOfGas}},
+			{"huge size huge offset", instructionCase.instruction, sizeHuge, sizeHuge, []error{geth.ErrGasUintOverflow, geth.ErrOutOfGas}},
 			{"zero size over offset", instructionCase.instruction, big.NewInt(0), sizeOverUint64, instructionCase.okError},
 		}
 		tests = append(tests, testForInstruction...)
@@ -453,16 +450,16 @@ func TestInstructionDataInitialization(t *testing.T) {
 
 				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, test.instruction, test.name), func(t *testing.T) {
 
-					mockCtrl = gomock.NewController(t)
-					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+					mockCtrl := gomock.NewController(t)
+					mockStateDB := NewMockStateDB(mockCtrl)
 					// set mock for inner call
-					setDefaultCallStateDBMock(mockStateDB, common.Address{byte(0)}, make([]byte, 0))
+					setDefaultCallStateDBMock(mockStateDB, vm.Address{byte(0)}, make([]byte, 0))
 
 					callStackValues := []*big.Int{test.size, test.offset}
-					if test.instruction == vm.CODECOPY || test.instruction == vm.EXTCODECOPY {
+					if test.instruction == geth.CODECOPY || test.instruction == geth.EXTCODECOPY {
 						callStackValues = append(callStackValues, test.offset)
 					}
-					if test.instruction == vm.EXTCODECOPY {
+					if test.instruction == geth.EXTCODECOPY {
 						callStackValues = append(callStackValues, big.NewInt(0))
 					}
 					code, _ := addValuesToStack(callStackValues, 0)
@@ -471,19 +468,16 @@ func TestInstructionDataInitialization(t *testing.T) {
 					evm := GetCleanEVM(revision, variant, mockStateDB)
 
 					// Run an interpreter
-					_, err := evm.Run(code, []byte{})
+					result, err := evm.Run(code, []byte{})
 
 					// Check the result.
-					if err == nil && test.err != nil {
-						t.Errorf("execution should fail with error: %v", test.err)
+					if err != nil {
+						t.Fatalf("unexpected internal failure in EVM: %v", err)
 					}
-
-					if test.err == nil && err != nil {
-						t.Errorf("execution should not fail but got: %v", err)
-					} else {
-						if err != nil && !contains(test.err, err) {
-							t.Errorf("execution should fail with error: %v, but got: %v", test.err, err)
-						}
+					want := len(test.err) == 0
+					got := result.Success
+					if want != got {
+						t.Errorf("unexpected result, wanted success=%t, got %t", want, got)
 					}
 				})
 			}
@@ -493,10 +487,7 @@ func TestInstructionDataInitialization(t *testing.T) {
 
 func TestCreateDataInitialization(t *testing.T) {
 
-	var mockCtrl *gomock.Controller
-	var mockStateDB *vm_mock.MockStateDB
-
-	account := common.Address{byte(0)}
+	account := vm.Address{byte(0)}
 	type test struct {
 		name   string
 		size   *big.Int
@@ -508,12 +499,12 @@ func TestCreateDataInitialization(t *testing.T) {
 	numHuge, _ := big.NewInt(0).SetString("0x8000000000000000", 0)
 	numOverUint64, _ := big.NewInt(0).SetString("0x100000000000000000", 0)
 
-	instructions := []vm.OpCode{vm.CREATE, vm.CREATE2}
+	instructions := []geth.OpCode{geth.CREATE, geth.CREATE2}
 	tests := []test{
 		{"zero size over offset", big.NewInt(0), numOverUint64, nil},
-		{"over size zero offset", numOverUint64, big.NewInt(0), []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"over size over offset", numOverUint64, numOverUint64, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"add size and offset overflows", numHuge, numHuge, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"over size zero offset", numOverUint64, big.NewInt(0), []error{geth.ErrGasUintOverflow, geth.ErrOutOfGas}},
+		{"over size over offset", numOverUint64, numOverUint64, []error{geth.ErrGasUintOverflow, geth.ErrOutOfGas}},
+		{"add size and offset overflows", numHuge, numHuge, []error{geth.ErrGasUintOverflow, geth.ErrOutOfGas}},
 	}
 
 	// For every variant of interpreter
@@ -527,11 +518,11 @@ func TestCreateDataInitialization(t *testing.T) {
 
 					t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, instruction, test.name), func(t *testing.T) {
 
-						mockCtrl = gomock.NewController(t)
-						mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+						mockCtrl := gomock.NewController(t)
+						mockStateDB := NewMockStateDB(mockCtrl)
 
 						callStackValues := []*big.Int{test.size, test.offset, big.NewInt(0)}
-						if instruction == vm.CREATE2 {
+						if instruction == geth.CREATE2 {
 							callStackValues = append([]*big.Int{big.NewInt(0)}, callStackValues...)
 						}
 
@@ -543,19 +534,16 @@ func TestCreateDataInitialization(t *testing.T) {
 
 						evm := GetCleanEVM(revision, variant, mockStateDB)
 						// Run an interpreter
-						_, err := evm.Run(code, []byte{})
+						result, err := evm.Run(code, []byte{})
 
 						// Check the result.
-						if err == nil && test.err != nil {
-							t.Errorf("execution should fail with error: %v", test.err)
+						if err != nil {
+							t.Fatalf("unexpected internal failure in EVM: %v", err)
 						}
-
-						if test.err == nil && err != nil {
-							t.Errorf("execution should not fail but got: %v", err)
-						} else {
-							if err != nil && !contains(test.err, err) {
-								t.Errorf("execution should fail with error: %v, but got: %v", test.err, err)
-							}
+						want := len(test.err) == 0
+						got := result.Success
+						if want != got {
+							t.Errorf("expected success to be %t, got %t", want, got)
 						}
 					})
 				}
@@ -565,16 +553,12 @@ func TestCreateDataInitialization(t *testing.T) {
 }
 
 func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
-
-	var mockCtrl *gomock.Controller
-	var mockStateDB *vm_mock.MockStateDB
-
 	zeroVal := big.NewInt(0)
 	size32 := big.NewInt(32)
 	size64 := big.NewInt(64)
 
 	type callsType struct {
-		instruction       vm.OpCode
+		instruction       geth.OpCode
 		callOutputMemSize *big.Int
 		afterCallMemSize  *big.Int
 		memShouldChange   bool
@@ -582,14 +566,14 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 
 	// all types of inner call to be tested
 	calls := []callsType{
-		{vm.CALL, zeroVal, size32, false},
-		{vm.STATICCALL, zeroVal, size32, false},
-		{vm.DELEGATECALL, zeroVal, size32, false},
-		{vm.CALLCODE, zeroVal, size32, false},
-		{vm.CALL, size64, size64, true},
-		{vm.STATICCALL, size64, size64, true},
-		{vm.DELEGATECALL, size64, size64, true},
-		{vm.CALLCODE, size64, size64, true},
+		{geth.CALL, zeroVal, size32, false},
+		{geth.STATICCALL, zeroVal, size32, false},
+		{geth.DELEGATECALL, zeroVal, size32, false},
+		{geth.CALLCODE, zeroVal, size32, false},
+		{geth.CALL, size64, size64, true},
+		{geth.STATICCALL, size64, size64, true},
+		{geth.DELEGATECALL, size64, size64, true},
+		{geth.CALLCODE, size64, size64, true},
 	}
 
 	// For every variant of interpreter
@@ -601,42 +585,42 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 
 				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, call.instruction, call.callOutputMemSize), func(t *testing.T) {
 
-					mockCtrl = gomock.NewController(t)
-					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+					mockCtrl := gomock.NewController(t)
+					mockStateDB := NewMockStateDB(mockCtrl)
 
-					account := common.Address{byte(0)}
+					account := vm.Address{}
 
 					// Store data into memory to test, if it would be overwritten
 					wantMemWord := getRandomBigIntArray(1)
 					wantMemWord = append(wantMemWord, zeroVal)
 					code, _ := addValuesToStack(wantMemWord, 0)
 					code = append(code,
-						byte(vm.MSTORE))
+						byte(geth.MSTORE))
 
 					// stack values for inner contract call
 					var callStackValues []*big.Int
-					if call.instruction == vm.CALL || call.instruction == vm.CALLCODE {
-						callStackValues = []*big.Int{call.callOutputMemSize, zeroVal, zeroVal, zeroVal, zeroVal, account.Hash().Big(), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
+					if call.instruction == geth.CALL || call.instruction == geth.CALLCODE {
+						callStackValues = []*big.Int{call.callOutputMemSize, zeroVal, zeroVal, zeroVal, zeroVal, addressToBigInt(account), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
 					} else {
-						callStackValues = []*big.Int{call.callOutputMemSize, zeroVal, zeroVal, zeroVal, account.Hash().Big(), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
+						callStackValues = []*big.Int{call.callOutputMemSize, zeroVal, zeroVal, zeroVal, addressToBigInt(account), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
 					}
 					pushCode, _ := addValuesToStack(callStackValues, 0)
 					code = append(code, pushCode...)
 					code = append(code,
 						byte(call.instruction),
-						byte(vm.MSIZE),
-						byte(vm.PUSH1), byte(32),
-						byte(vm.MSTORE),
-						byte(vm.PUSH1), byte(64),
-						byte(vm.PUSH1), byte(0),
-						byte(vm.RETURN))
+						byte(geth.MSIZE),
+						byte(geth.PUSH1), byte(32),
+						byte(geth.MSTORE),
+						byte(geth.PUSH1), byte(64),
+						byte(geth.PUSH1), byte(0),
+						byte(geth.RETURN))
 
 					// code for inner call
 					// return 32 bytes of memory
 					innerCallCode := []byte{
-						byte(vm.PUSH1), byte(32),
-						byte(vm.DUP1),
-						byte(vm.RETURN)}
+						byte(geth.PUSH1), byte(32),
+						byte(geth.DUP1),
+						byte(geth.RETURN)}
 
 					// set mock for inner call
 					setDefaultCallStateDBMock(mockStateDB, account, innerCallCode)
@@ -653,14 +637,14 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 					memWordIsSame := gotMemWord.Cmp(wantMemWord[0]) == 0
 					if memWordIsSame == call.memShouldChange {
 						if call.memShouldChange {
-							t.Errorf("memmory should change when return data size > 0, but it didn't")
+							t.Errorf("memory should change when return data size > 0, but it didn't")
 						} else {
-							t.Errorf("memmory should not change when return data size is 0, but it did")
+							t.Errorf("memory should not change when return data size is 0, but it did")
 						}
 					}
 
 					if gotMemSize.Uint64() != call.afterCallMemSize.Uint64() {
-						t.Errorf("memmory size after call is not as expected, want %v, got %v", call.afterCallMemSize.Uint64(), gotMemSize.Uint64())
+						t.Errorf("memory size after call is not as expected, want %v, got %v", call.afterCallMemSize.Uint64(), gotMemSize.Uint64())
 					}
 
 					if err != nil {
@@ -673,23 +657,19 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 }
 
 func TestNoReturnDataForCreate(t *testing.T) {
-
-	var mockCtrl *gomock.Controller
-	var mockStateDB *vm_mock.MockStateDB
-
-	account := common.Address{byte(0)}
+	account := vm.Address{byte(0)}
 	type test struct {
 		name              string
-		createInstruction vm.OpCode
-		returnInstruction vm.OpCode
+		createInstruction geth.OpCode
+		returnInstruction geth.OpCode
 		returnDataSize    uint64
 	}
 
 	tests := []test{
-		{"no return data", vm.CREATE, vm.RETURN, 0},
-		{"no return data", vm.CREATE2, vm.RETURN, 0},
-		{"has revert data", vm.CREATE, vm.REVERT, 32},
-		{"has revert data", vm.CREATE2, vm.REVERT, 32},
+		{"no return data", geth.CREATE, geth.RETURN, 0},
+		{"no return data", geth.CREATE2, geth.RETURN, 0},
+		{"has revert data", geth.CREATE, geth.REVERT, 32},
+		{"has revert data", geth.CREATE2, geth.REVERT, 32},
 	}
 
 	// For every variant of interpreter
@@ -705,58 +685,56 @@ func TestNoReturnDataForCreate(t *testing.T) {
 
 				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, test.name, test.createInstruction), func(t *testing.T) {
 
-					mockCtrl = gomock.NewController(t)
-					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+					mockCtrl := gomock.NewController(t)
+					mockStateDB := NewMockStateDB(mockCtrl)
 
 					createStackValues := []*big.Int{big.NewInt(32), big.NewInt(0), big.NewInt(0)}
-					if test.createInstruction == vm.CREATE2 {
+					if test.createInstruction == geth.CREATE2 {
 						createStackValues = append([]*big.Int{big.NewInt(0)}, createStackValues...)
 					}
 					createInputCode := []byte{
-						byte(vm.PUSH1), byte(32),
-						byte(vm.PUSH1), byte(0),
+						byte(geth.PUSH1), byte(32),
+						byte(geth.PUSH1), byte(0),
 						byte(test.returnInstruction)}
 
-					createInputBytes := common.RightPadBytes(createInputCode, 32)
+					createInputBytes := rightPadBytes(createInputCode, 32)
 					createInputValue := []*big.Int{big.NewInt(0).SetBytes(createInputBytes)}
 
 					code, _ := addValuesToStack(createInputValue, 0)
 					code = append(code,
-						byte(vm.PUSH1), byte(0),
-						byte(vm.MSTORE))
+						byte(geth.PUSH1), byte(0),
+						byte(geth.MSTORE))
 
 					pushCode, _ := addValuesToStack(createStackValues, 0)
 					code = append(code, pushCode...)
 					code = append(code, byte(test.createInstruction))
 					code = append(code,
-						byte(vm.RETURNDATASIZE),
-						byte(vm.PUSH1), byte(0),
-						byte(vm.MSTORE),
-						byte(vm.PUSH1), byte(32),
-						byte(vm.PUSH1), byte(0),
-						byte(vm.RETURN))
+						byte(geth.RETURNDATASIZE),
+						byte(geth.PUSH1), byte(0),
+						byte(geth.MSTORE),
+						byte(geth.PUSH1), byte(32),
+						byte(geth.PUSH1), byte(0),
+						byte(geth.RETURN))
 
-					contractAddr := crypto.CreateAddress2(account, [32]byte{}, crypto.Keccak256Hash(createInputBytes).Bytes())
+					contractAddr := TestEvmCreatedAccountAddress
 
 					// set mock for inner call
 					setDefaultCallStateDBMock(mockStateDB, account, make([]byte, 0))
-					mockStateDB.EXPECT().GetCodeHash(contractAddr).AnyTimes().Return(common.Hash{byte(0)})
-					mockStateDB.EXPECT().CreateAccount(contractAddr).AnyTimes()
-					mockStateDB.EXPECT().SetCode(contractAddr, gomock.Any()).AnyTimes()
+					mockStateDB.EXPECT().GetCodeHash(contractAddr).AnyTimes().Return(vm.Hash{})
 
 					evm := GetCleanEVM(revision, variant, mockStateDB)
 
 					// Run an interpreter
 					result, err := evm.Run(code, []byte{})
+					if err != nil {
+						t.Errorf("unexpected internal interpreter failure: %v", err)
+					}
+
 					returnDataSize := big.NewInt(0).SetBytes(result.Output[0:32])
 
 					// Check the result.
 					if returnDataSize.Uint64() != test.returnDataSize {
 						t.Errorf("expected return data size: %v, but got: %v", test.returnDataSize, returnDataSize)
-					}
-
-					if err != nil {
-						t.Errorf("execution should not fail but got: %v", err)
 					}
 				})
 			}
@@ -765,24 +743,21 @@ func TestNoReturnDataForCreate(t *testing.T) {
 }
 
 func TestExtCodeHashOnEmptyAccount(t *testing.T) {
-	var mockCtrl *gomock.Controller
-	var mockStateDB *vm_mock.MockStateDB
 
 	type extCodeHashTest struct {
 		name   string
 		exist  bool
 		empty  bool
-		result common.Hash
-		hash   common.Hash
+		result vm.Hash
 	}
 
-	codeHash := common.Hash{byte(2)}
+	codeHash := vm.Hash{byte(2)}
 
 	tests := []extCodeHashTest{
-		{"account for slot exist and is empty", true, true, common.Hash{byte(0)}, codeHash},
-		{"account for slot doesn't exist is empty", false, true, common.Hash{byte(0)}, codeHash},
-		{"account for slot exist and is not empty", true, false, codeHash, codeHash},
-		{"account for slot doesn't exist and is not empty", false, false, common.Hash{byte(0)}, codeHash},
+		{"account for slot exist and is empty", true, true, vm.Hash{}},
+		{"account for slot doesn't exist is empty", false, true, vm.Hash{}},
+		{"account for slot exist and is not empty", true, false, codeHash},
+		{"account for slot doesn't exist and is not empty", false, false, vm.Hash{}},
 	}
 
 	// For every variant of interpreter
@@ -797,47 +772,45 @@ func TestExtCodeHashOnEmptyAccount(t *testing.T) {
 
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, test.name), func(t *testing.T) {
 
-					mockCtrl = gomock.NewController(t)
-					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
+					mockCtrl := gomock.NewController(t)
+					mockStateDB := NewMockStateDB(mockCtrl)
 
-					account := common.Address{byte(1)}
+					account := vm.Address{byte(1)}
 
 					// stack values for inner contract call
-					code, _ := addValuesToStack([]*big.Int{account.Hash().Big()}, 0)
+					code, _ := addValuesToStack([]*big.Int{addressToBigInt(account)}, 0)
 
 					// code for inner contract call
 					code = append(code, []byte{
-						byte(vm.EXTCODEHASH),
-						byte(vm.PUSH1), byte(0),
-						byte(vm.MSTORE),
-						byte(vm.PUSH1), byte(32),
-						byte(vm.PUSH1), byte(0),
-						byte(vm.RETURN)}...)
+						byte(geth.EXTCODEHASH),
+						byte(geth.PUSH1), byte(0),
+						byte(geth.MSTORE),
+						byte(geth.PUSH1), byte(32),
+						byte(geth.PUSH1), byte(0),
+						byte(geth.RETURN)}...)
 
 					// set mock for inner call
-					mockStateDB.EXPECT().Empty(account).AnyTimes().Return(test.empty)
-					mockStateDB.EXPECT().Exist(account).AnyTimes().Return(test.exist)
-					mockStateDB.EXPECT().AddressInAccessList(account).AnyTimes().Return(false)
-					mockStateDB.EXPECT().AddAddressToAccessList(account).AnyTimes()
+					mockStateDB.EXPECT().AccountExists(account).AnyTimes().Return(test.exist)
+					mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(false)
+					mockStateDB.EXPECT().AccessAccount(account).AnyTimes().Return(vm.ColdAccess)
 					// when account doesn't exists stateDB should take care about it
-					if test.exist {
-						mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(test.hash)
+					if test.exist && !test.empty {
+						mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(codeHash)
 					} else {
-						mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(common.Hash{byte(0)})
+						mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(vm.Hash{byte(0)})
 					}
 
 					evm := GetCleanEVM(revision, variant, mockStateDB)
 
 					// Run an interpreter
 					result, err := evm.Run(code, []byte{})
-
-					// Check the result.
-					if !bytes.Equal(result.Output, test.result.Bytes()) {
-						t.Errorf("execution should return zero value on stack, got, %v", result.Output)
+					if err != nil {
+						t.Fatalf("unexpected internal failure in EVM: %v", err)
 					}
 
-					if err != nil {
-						t.Errorf("execution should not fail, but got error: %v", err)
+					// Check the result.
+					if want, got := test.result[:], result.Output; !bytes.Equal(want, got) {
+						t.Errorf("expected hash %v, got %v", want, got)
 					}
 				})
 			}
@@ -884,7 +857,7 @@ func TestSARInstruction(t *testing.T) {
 		{"maxNegativeInt256>>254", []*big.Int{sizeMaxIntNegative, big.NewInt(254)}, zeroInput, getNegativeBigIntSignInBits(big.NewInt(-2)), nil},
 		{"maxNegativeInt256>>over64", []*big.Int{sizeMaxIntNegative, sizeOverUint64}, zeroInput, mostNegativeShiftRight, nil},
 	}
-	runOverflowTests(t, vm.SAR, tests)
+	runOverflowTests(t, geth.SAR, tests)
 }
 
 func TestSHRInstruction(t *testing.T) {
@@ -900,7 +873,7 @@ func TestSHRInstruction(t *testing.T) {
 		{"over64>>over64", []*big.Int{sizeOverUint64, sizeOverUint64}, zeroInput, big.NewInt(0), nil},
 		{"sizeMaxUint256>>255", []*big.Int{sizeMaxUint256, big.NewInt(255)}, zeroInput, big.NewInt(1), nil},
 	}
-	runOverflowTests(t, vm.SHR, tests)
+	runOverflowTests(t, geth.SHR, tests)
 }
 
 func TestSHLInstruction(t *testing.T) {
@@ -919,7 +892,7 @@ func TestSHLInstruction(t *testing.T) {
 		{"sizeUint256<<1", []*big.Int{sizeUint256, big.NewInt(1)}, zeroInput, sizeUint256result, nil},
 		{"sizeMaxUint256<<255", []*big.Int{sizeMaxUint256, big.NewInt(255)}, zeroInput, sizeUint256result, nil},
 	}
-	runOverflowTests(t, vm.SHL, tests)
+	runOverflowTests(t, geth.SHL, tests)
 }
 
 var zeroInput = []byte{}
@@ -932,7 +905,7 @@ type overflowTestCase struct {
 	err       []error
 }
 
-func runOverflowTests(t *testing.T, instruction vm.OpCode, tests []overflowTestCase) {
+func runOverflowTests(t *testing.T, instruction geth.OpCode, tests []overflowTestCase) {
 	// For every variant of interpreter
 	for _, variant := range Variants {
 
@@ -952,6 +925,9 @@ func runOverflowTests(t *testing.T, instruction vm.OpCode, tests []overflowTestC
 
 					// Run an interpreter
 					res, err := evm.Run(code, test.input)
+					if err != nil {
+						t.Fatalf("unexpected internal interpreter error: %v", err)
+					}
 
 					// Check the result.
 					if test.result != nil {
@@ -966,18 +942,11 @@ func runOverflowTests(t *testing.T, instruction vm.OpCode, tests []overflowTestC
 						}
 
 					}
-					if err != nil {
-						if test.err == nil {
-							t.Errorf("execution should not fail with error, but got: %v", err)
-						} else {
-							if !contains(test.err, err) {
-								t.Errorf("execution should fail with error %v, but got: %v", test.err, err)
-							}
-						}
-					} else {
-						if test.err != nil {
-							t.Errorf("execution should fail with error %v, but did not fail", test.err)
-						}
+
+					want := len(test.err) == 0
+					got := res.Success
+					if want != got {
+						t.Errorf("wanted success = %t, got %t", want, got)
 					}
 				})
 			}
@@ -990,19 +959,19 @@ func TestCallDataLoadInstructionInputOverflow(t *testing.T) {
 	sizeUint64, sizeOverUint64, sizeUint256 := getCornerSizeValues()
 
 	b := []byte{1}
-	input := common.LeftPadBytes(b[:], 32)
+	input := leftPadBytes(b[:], 32)
 
 	tests := []overflowTestCase{
 		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0), nil},
 		{"data input one", []*big.Int{big.NewInt(0), big.NewInt(0)}, input, big.NewInt(1), nil},
 		{"data input one, offset one", []*big.Int{big.NewInt(0), big.NewInt(1)}, input, big.NewInt(256), nil},
-		{"data input one, offset 31", []*big.Int{big.NewInt(0), big.NewInt(31)}, input, big.NewInt(0).SetBytes(common.RightPadBytes(b[:], 32)), nil},
+		{"data input one, offset 31", []*big.Int{big.NewInt(0), big.NewInt(31)}, input, big.NewInt(0).SetBytes(rightPadBytes(b[:], 32)), nil},
 		{"data input one, offset 300", []*big.Int{big.NewInt(0), big.NewInt(300)}, input, big.NewInt(0), nil},
 		{"data input one, offset uint64", []*big.Int{big.NewInt(0), sizeUint64}, input, big.NewInt(0), nil},
 		{"data input one, offset over64", []*big.Int{big.NewInt(0), sizeOverUint64}, input, big.NewInt(0), nil},
 		{"data input one, offset uint256", []*big.Int{big.NewInt(0), sizeUint256}, input, big.NewInt(0), nil},
 	}
-	runOverflowTests(t, vm.CALLDATALOAD, tests)
+	runOverflowTests(t, geth.CALLDATALOAD, tests)
 }
 
 func TestCallDataCopyInstructionInputOverflow(t *testing.T) {
@@ -1010,22 +979,22 @@ func TestCallDataCopyInstructionInputOverflow(t *testing.T) {
 	_, sizeOverUint64, sizeUint256 := getCornerSizeValues()
 
 	b := []byte{1}
-	input := common.LeftPadBytes(b[:], 32)
+	input := leftPadBytes(b[:], 32)
 
 	tests := []overflowTestCase{
 		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0), nil},
 		{"length 100", []*big.Int{big.NewInt(1), big.NewInt(100), big.NewInt(0), big.NewInt(0)}, input, big.NewInt(1), nil},
-		{"length maxUint64", []*big.Int{big.NewInt(1), big.NewInt(0).SetUint64(math.MaxUint64), big.NewInt(0), big.NewInt(0)}, input, nil, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"length over64", []*big.Int{big.NewInt(1), sizeOverUint64, big.NewInt(0), big.NewInt(0)}, input, nil, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"length uint256", []*big.Int{big.NewInt(1), sizeUint256, big.NewInt(0), big.NewInt(0)}, input, nil, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"length maxUint64", []*big.Int{big.NewInt(1), big.NewInt(0).SetUint64(math.MaxUint64), big.NewInt(0), big.NewInt(0)}, input, nil, []error{geth.ErrGasUintOverflow, geth.ErrOutOfGas}},
+		{"length over64", []*big.Int{big.NewInt(1), sizeOverUint64, big.NewInt(0), big.NewInt(0)}, input, nil, []error{geth.ErrGasUintOverflow, geth.ErrOutOfGas}},
+		{"length uint256", []*big.Int{big.NewInt(1), sizeUint256, big.NewInt(0), big.NewInt(0)}, input, nil, []error{geth.ErrGasUintOverflow, geth.ErrOutOfGas}},
 		{"memory offset 100", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(0), big.NewInt(100)}, input, big.NewInt(1), nil},
-		{"memory offset over64", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(0), sizeOverUint64}, input, nil, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
-		{"memory offset uint256", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(0), sizeUint256}, input, nil, []error{vm.ErrGasUintOverflow, vm.ErrOutOfGas}},
+		{"memory offset over64", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(0), sizeOverUint64}, input, nil, []error{geth.ErrGasUintOverflow, geth.ErrOutOfGas}},
+		{"memory offset uint256", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(0), sizeUint256}, input, nil, []error{geth.ErrGasUintOverflow, geth.ErrOutOfGas}},
 		{"data offset 100", []*big.Int{big.NewInt(1), big.NewInt(1), big.NewInt(1), big.NewInt(100), big.NewInt(0)}, input, big.NewInt(1), nil},
 		{"data offset over64", []*big.Int{big.NewInt(1), big.NewInt(1), sizeOverUint64, big.NewInt(0)}, input, big.NewInt(1), nil},
 		{"data offset uint256", []*big.Int{big.NewInt(1), big.NewInt(1), sizeUint256, big.NewInt(0)}, input, big.NewInt(1), nil},
 	}
-	runOverflowTests(t, vm.CALLDATACOPY, tests)
+	runOverflowTests(t, geth.CALLDATACOPY, tests)
 }
 
 // Returns predefined memory offset or size corner values
@@ -1037,15 +1006,15 @@ func getCornerSizeValues() (sizeUint64, sizeOverUint64, sizeUint256 *big.Int) {
 }
 
 // Creates EVM code for returning specified number of 32byte values from stack
-func getReturnStackCode(valuesCount uint32, initialOffset uint64, pushGas uint64) ([]byte, uint64) {
+func getReturnStackCode(valuesCount uint32, initialOffset uint64, pushGas vm.Gas) ([]byte, vm.Gas) {
 	var (
 		retCode []byte = make([]byte, 0)
-		usedGas uint64
+		usedGas vm.Gas
 	)
 	for i := 0; i < int(valuesCount); i++ {
 		bytes := getBytes(uint64(i*32) + initialOffset)
 		retCode, usedGas = addBytesToStack(bytes, retCode, usedGas, pushGas)
-		retCode = append(retCode, byte(vm.MSTORE))
+		retCode = append(retCode, byte(geth.MSTORE))
 		// Add 3 gas for MSTORE instruction static gas
 		usedGas += 3
 	}
@@ -1058,10 +1027,10 @@ func getReturnStackCode(valuesCount uint32, initialOffset uint64, pushGas uint64
 }
 
 // Creates EVM code for returning specified size of memory
-func getReturnMemoryCode(size uint64, offset uint64, pushGas uint64) ([]byte, uint64) {
+func getReturnMemoryCode(size uint64, offset uint64, pushGas vm.Gas) ([]byte, vm.Gas) {
 	var (
 		retCode []byte = make([]byte, 0)
-		gasUsed uint64
+		gasUsed vm.Gas
 	)
 
 	// memory size to return
@@ -1071,7 +1040,7 @@ func getReturnMemoryCode(size uint64, offset uint64, pushGas uint64) ([]byte, ui
 	bytes = getBytes(offset)
 	retCode, gasUsed = addBytesToStack(bytes, retCode, gasUsed, pushGas)
 
-	retCode = append(retCode, byte(vm.RETURN))
+	retCode = append(retCode, byte(geth.RETURN))
 	return retCode, gasUsed
 }
 
@@ -1101,49 +1070,41 @@ func getRadomByte32() []byte {
 	return array
 }
 
-func contains(s []error, elem error) bool {
-	for _, a := range s {
-		if a == elem {
-			return true
-		}
-	}
-	return false
-}
+func setDefaultCallStateDBMock(mockStateDB *MockStateDB, account vm.Address, code []byte) {
 
-func setDefaultCallStateDBMock(mockStateDB *vm_mock.MockStateDB, account common.Address, code []byte) {
-
-	var emptyCodeHash = crypto.Keccak256Hash(nil)
-	contractAddrCreate := crypto.CreateAddress(account, 0)
-	contractAddrCreate2 := crypto.CreateAddress2(account, [32]byte{}, emptyCodeHash.Bytes())
-	balance, _ := big.NewInt(0).SetString("0x2000000000000000", 0)
+	/*
+		var emptyCodeHash = keccak256Hash(nil)
+			contractAddrCreate := crypto.CreateAddress(account, 0)
+			contractAddrCreate2 := crypto.CreateAddress2(account, [32]byte{}, emptyCodeHash.Bytes())
+	*/
 
 	// mock state calls for call instruction
-	mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
-	mockStateDB.EXPECT().SubRefund(gomock.Any()).AnyTimes()
-	mockStateDB.EXPECT().AddRefund(gomock.Any()).AnyTimes()
-	mockStateDB.EXPECT().AddBalance(gomock.Any(), gomock.Any()).AnyTimes()
-	mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(balance)
-	mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(common.Hash{byte(0)})
-	mockStateDB.EXPECT().GetCodeHash(contractAddrCreate).AnyTimes().Return(common.Hash{byte(0)})
-	mockStateDB.EXPECT().CreateAccount(contractAddrCreate).AnyTimes()
-	mockStateDB.EXPECT().GetCodeHash(contractAddrCreate2).AnyTimes().Return(common.Hash{byte(0)})
-	mockStateDB.EXPECT().CreateAccount(contractAddrCreate2).AnyTimes()
-	mockStateDB.EXPECT().Snapshot().AnyTimes().Return(0)
-	mockStateDB.EXPECT().Exist(account).AnyTimes().Return(true)
+	mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(vm.Value{1})
+	mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(vm.Hash{})
+	/*
+		mockStateDB.EXPECT().GetCodeHash(contractAddrCreate).AnyTimes().Return(common.Hash{byte(0)})
+		mockStateDB.EXPECT().GetCodeHash(contractAddrCreate2).AnyTimes().Return(common.Hash{byte(0)})
+	*/
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(code)
-	mockStateDB.EXPECT().SetCode(contractAddrCreate, gomock.Any()).AnyTimes()
-	mockStateDB.EXPECT().SetCode(contractAddrCreate2, gomock.Any()).AnyTimes()
-	mockStateDB.EXPECT().AddressInAccessList(account).AnyTimes().Return(true)
-	mockStateDB.EXPECT().RevertToSnapshot(gomock.Any()).AnyTimes()
-	mockStateDB.EXPECT().AddLog(gomock.Any()).AnyTimes()
-	mockStateDB.EXPECT().GetState(gomock.Any(), gomock.Any()).AnyTimes().Return(common.Hash{byte(0)})
-	mockStateDB.EXPECT().SetState(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
-	mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes().Return(uint64(0))
-	mockStateDB.EXPECT().SetNonce(gomock.Any(), gomock.Any()).AnyTimes()
-	mockStateDB.EXPECT().Empty(gomock.Any()).AnyTimes().Return(true)
-	mockStateDB.EXPECT().HasSuicided(gomock.Any()).AnyTimes().Return(true)
-	mockStateDB.EXPECT().Suicide(gomock.Any()).AnyTimes().Return(true)
-	mockStateDB.EXPECT().SlotInAccessList(gomock.Any(), gomock.Any()).AnyTimes().Return(true, true)
-	mockStateDB.EXPECT().AddAddressToAccessList(gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(true)
+	mockStateDB.EXPECT().EmitLog(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().GetStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(vm.Word{})
+	mockStateDB.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(true)
+	mockStateDB.EXPECT().HasSelfDestructed(gomock.Any()).AnyTimes().Return(true)
+	mockStateDB.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).AnyTimes().Return(true, true)
+	mockStateDB.EXPECT().AccessAccount(gomock.Any()).AnyTimes().Return(vm.WarmAccess)
+	mockStateDB.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(vm.WarmAccess)
 }
-*/
+
+func rightPadBytes(data []byte, size int) []byte {
+	res := make([]byte, size)
+	copy(res, data)
+	return res
+}
+
+func leftPadBytes(data []byte, size int) []byte {
+	res := make([]byte, size)
+	copy(res[size-len(data):], data)
+	return res
+}

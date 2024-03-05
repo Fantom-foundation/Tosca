@@ -77,7 +77,6 @@ func TestStaticGas(t *testing.T) {
 	}
 }
 
-/*
 func TestDynamicGas(t *testing.T) {
 	account := vm.Address{0}
 	accountBalance := vm.Value{100}
@@ -155,25 +154,18 @@ func TestDynamicGas(t *testing.T) {
 }
 
 func TestOutOfDynamicGas(t *testing.T) {
-	var mockCtrl *gomock.Controller
-	var mockStateDB *vm_mock.MockStateDB
-
 	// For every variant of interpreter
 	for _, variant := range Variants {
 		for _, revision := range revisions {
 			// Get static gas for frequently used instructions
-			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
+			pushGas := getInstructions(revision)[geth.PUSH1].gas.static
 
 			for _, testCase := range getOutOfDynamicGasTests(revision) {
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, testCase.testName), func(t *testing.T) {
 
 					// Need new mock for every testcase
-					mockCtrl = gomock.NewController(t)
-					mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
-
-					// evmone needs following in addition to geth and lfvm
-					mockStateDB.EXPECT().GetRefund().AnyTimes().Return(uint64(0))
-					mockStateDB.EXPECT().SubRefund(uint64(0)).AnyTimes()
+					mockCtrl := gomock.NewController(t)
+					mockStateDB := NewMockStateDB(mockCtrl)
 
 					// Init stateDB mock calls from test function
 					if testCase.mockCalls != nil {
@@ -195,10 +187,11 @@ func TestOutOfDynamicGas(t *testing.T) {
 					res, err := evm.RunWithGas(code, []byte{}, testCase.initialGas+pushGasAdded)
 
 					// Check the result.
-					if err != nil && err != testCase.expectedError {
-						t.Errorf("execution failed %v should fail with %v but got error: %v", testCase.testName, testCase.expectedError, err)
-					} else if err == nil {
-						t.Errorf("execution of %v should fail with ErrOutOfGas but there is no error, used %v, put %v", testCase.testName, res.GasUsed, testCase.initialGas+pushGasAdded)
+					if err != nil {
+						t.Fatalf("failed to run test code: %v", err)
+					}
+					if res.Success {
+						t.Errorf("execution should have failed due to too little gas, got %v", res)
 					}
 				})
 			}
@@ -211,7 +204,7 @@ func TestOutOfStaticGasOnly(t *testing.T) {
 	for _, variant := range Variants {
 		for _, revision := range revisions {
 			// Get static gas for frequently used instructions
-			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
+			pushGas := getInstructions(revision)[geth.PUSH1].gas.static
 			for op, info := range getInstructions(revision) {
 
 				if info.gas.static == 0 || info.gas.dynamic != nil {
@@ -236,20 +229,20 @@ func TestOutOfStaticGasOnly(t *testing.T) {
 					code = append(code, byte(op))
 
 					// Run an interpreter with gas set to fail
-					_, err := evm.RunWithGas(code, []byte{}, info.gas.static+needGas-1)
+					res, err := evm.RunWithGas(code, []byte{}, info.gas.static+needGas-1)
 
 					// Check the result.
-					if err != nil && err != vm.ErrOutOfGas {
-						t.Errorf("execution should fail with %v but got error: %v", vm.ErrOutOfGas, err)
-					} else if err == nil {
-						t.Errorf("execution should fail with ErrOutOfGas but there is no error")
+					if err != nil {
+						t.Fatalf("failed to run test code: %v", err)
+					}
+					if res.Success {
+						t.Errorf("execution should have failed due to too little gas, got %v", res)
 					}
 				})
 			}
 		}
 	}
 }
-*/
 
 func addValuesToStack(stackValues []*big.Int, pushGas vm.Gas) ([]byte, vm.Gas) {
 	stackValuesCount := len(stackValues)
@@ -307,10 +300,6 @@ func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) vm.
 	}
 	mockCtrl := gomock.NewController(t)
 	mockStateDB := NewMockStateDB(mockCtrl)
-
-	// evmone needs following in addition to geth and lfvm
-	mockStateDB.EXPECT().GetCodeHash(account).Return(vm.Hash{byte(accountNumber)})
-	mockStateDB.EXPECT().AccountExists(account).AnyTimes().Return(true)
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(callCode)
 	mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(true)
 
@@ -364,6 +353,7 @@ func putCallReturnValue(t *testing.T, revision Revision, code []byte, mockStateD
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(codeWithReturnValue)
 	mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(vm.Hash{byte(accountNumber)})
 	mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(true)
+	mockStateDB.EXPECT().AccessAccount(account).AnyTimes().Return(vm.WarmAccess)
 	// Get needed gas from a CALL execution for this code and revision
 	gas = getCallInstructionGas(t, revision, codeWithReturnValue)
 

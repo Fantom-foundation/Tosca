@@ -626,7 +626,7 @@ func opSelfdestruct(c *context) {
 		gasfunc = gasSelfdestructEIP2929
 	}
 	// even death is not for free
-	if !c.UseGas(vm.Gas(gasfunc(c))) {
+	if !c.UseGas(gasfunc(c)) {
 		return
 	}
 	beneficiary := vm.Address(c.stack.pop().Bytes20())
@@ -762,7 +762,7 @@ func opCreate(c *context) {
 		Gas:    gas,
 	})
 
-	c.gas = res.GasLeft
+	c.gas += res.GasLeft
 	c.refund += res.GasRefund
 
 	success := c.stack.pushEmpty()

@@ -234,26 +234,10 @@ func (mr *MockStateDBMockRecorder) IsSlotInAccessList(arg0, arg1 any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSlotInAccessList", reflect.TypeOf((*MockStateDB)(nil).IsSlotInAccessList), arg0, arg1)
 }
 
-// SelfDestruct mocks base method.
-func (m *MockStateDB) SelfDestruct(arg0, arg1 vm.Address) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SelfDestruct", arg0, arg1)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// SelfDestruct indicates an expected call of SelfDestruct.
-func (mr *MockStateDBMockRecorder) SelfDestruct(arg0, arg1 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfDestruct", reflect.TypeOf((*MockStateDB)(nil).SelfDestruct), arg0, arg1)
-}
-
 // SetStorage mocks base method.
-func (m *MockStateDB) SetStorage(arg0 vm.Address, arg1 vm.Key, arg2 vm.Word) vm.StorageStatus {
+func (m *MockStateDB) SetStorage(arg0 vm.Address, arg1 vm.Key, arg2 vm.Word) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetStorage", arg0, arg1, arg2)
-	ret0, _ := ret[0].(vm.StorageStatus)
-	return ret0
+	m.ctrl.Call(m, "SetStorage", arg0, arg1, arg2)
 }
 
 // SetStorage indicates an expected call of SetStorage.
