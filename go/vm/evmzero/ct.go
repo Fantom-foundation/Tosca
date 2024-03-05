@@ -362,7 +362,7 @@ func (e *evaluation) convertEvmzeroStateToCtState(result evmc.StepResult) (*st.S
 		Memory:       convertEvmcMemoryToCtMemory(result.Memory),
 		CallContext:  convertEvmzeroStateToCallContext(e),
 		BlockContext: convertEvmzeroStateToBlockContext(e),
-		CallData:     e.input, // implicit assumption: no instruction alters the input data
+		CallData:     bytes.Clone(e.input),
 	}
 
 	if e.evmzero.evm.StateDB != nil {
