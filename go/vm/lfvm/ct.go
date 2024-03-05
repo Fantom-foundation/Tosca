@@ -1,6 +1,7 @@
 package lfvm
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 
@@ -145,6 +146,8 @@ func ConvertLfvmContextToCtState(ctx *context, originalCode *st.Code, pcMap *PcM
 
 	state.BlockContext = convertLfvmContextToCtBlockContext(ctx)
 
+	state.CallData = bytes.Clone(ctx.data)
+
 	return state, nil
 }
 
@@ -253,7 +256,7 @@ func ConvertCtStateToLfvmContext(state *st.State, pcMap *PcMap) (*context, error
 		return nil, err
 	}
 
-	data := []byte{}
+	data := bytes.Clone(state.CallData)
 
 	stateDb := utils.NewConformanceTestStateDb(state.Storage, state.Logs, state.Revision)
 

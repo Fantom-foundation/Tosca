@@ -332,3 +332,30 @@ func TestStateGenerator_CloneCanBeUsedToResetBuilder(t *testing.T) {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
 }
+
+// //////////////////////////////////////////////////////////
+// Call data
+
+func TestStateGenerator_CallDataGen(t *testing.T) {
+	gen := NewStateGenerator()
+	rnd := rand.New(0)
+	state, err := gen.Generate(rnd)
+	if err != nil {
+		t.Errorf("error generating new state: %v", err)
+	}
+	if len(state.CallData) == 0 {
+		t.Error("failed to generate a non-empty calldata")
+	} else {
+		allzeros := true
+		for b := range state.CallData {
+			if b != 0 {
+				allzeros = false
+				break
+			}
+		}
+		if allzeros {
+			t.Error("failed to generate a non-zero calldata")
+		}
+	}
+
+}

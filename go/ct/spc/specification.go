@@ -248,10 +248,10 @@ var Spec = func() Specification {
 			MemorySizeParameter{},
 		},
 		effect: func(s *st.State) {
-			offset_u256 := s.Stack.Pop()
-			size_u256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
 
-			memExpCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
+			memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < memExpCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -283,9 +283,9 @@ var Spec = func() Specification {
 			MemoryOffsetParameter{},
 		},
 		effect: func(s *st.State) {
-			offset_u256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
 
-			cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
+			cost, offset, _ := s.Memory.ExpansionCosts(offsetU256, NewU256(32))
 			if s.Gas < cost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -310,10 +310,10 @@ var Spec = func() Specification {
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
-			offset_u256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
 			value := s.Stack.Pop()
 
-			cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(32))
+			cost, offset, _ := s.Memory.ExpansionCosts(offsetU256, NewU256(32))
 			if s.Gas < cost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -338,10 +338,10 @@ var Spec = func() Specification {
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
-			offset_u256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
 			value := s.Stack.Pop()
 
-			cost, offset, _ := s.Memory.ExpansionCosts(offset_u256, NewU256(1))
+			cost, offset, _ := s.Memory.ExpansionCosts(offsetU256, NewU256(1))
 			if s.Gas < cost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -886,6 +886,82 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- CALLDATASIZE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        CALLDATASIZE,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(uint64(len(s.CallData))))
+		},
+	})...)
+
+	// --- CALLDATALOAD ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         CALLDATALOAD,
+		staticGas:  3,
+		pops:       1,
+		pushes:     1,
+		parameters: []Parameter{NumericParameter{}},
+		effect: func(s *st.State) {
+			offsetU256 := s.Stack.Pop()
+			pushData := NewU256(0)
+
+			if offsetU256.IsUint64() {
+				start := offsetU256.Uint64()
+				if start > uint64(len(s.CallData)) {
+					start = uint64(len(s.CallData))
+				}
+				end := min(start+32, uint64(len(s.CallData)))
+				data := make([]byte, 32)
+				copy(data, s.CallData[start:end])
+				pushData = NewU256FromBytes(data...)
+			}
+
+			s.Stack.Push(pushData)
+		},
+	})...)
+
+	// --- CALLDATACOPY ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        CALLDATACOPY,
+		staticGas: 3,
+		pops:      3,
+		pushes:    0,
+		parameters: []Parameter{
+			MemoryOffsetParameter{},
+			DataOffsetParameter{},
+			DataSizeParameter{}},
+		effect: func(s *st.State) {
+			destOffsetU256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
+
+			expansionCost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
+			words := (size + 31) / 32
+			expansionCost += 3 * words
+			if s.Gas < expansionCost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= expansionCost
+
+			dataBuffer := make([]byte, size)
+			start := offsetU256.Uint64()
+			if offsetU256.Gt(NewU256(uint64(len(s.CallData)))) {
+				start = uint64(len(s.CallData))
+			}
+			end := min(start+size, uint64(len(s.CallData)))
+			copy(dataBuffer, s.CallData[start:end])
+			s.Memory.Write(dataBuffer, destOffset)
+		},
+	})...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)
@@ -1183,15 +1259,15 @@ func logOp(n int) []Rule {
 		conditions: conditions,
 		parameters: parameter,
 		effect: func(s *st.State) {
-			offset_u256 := s.Stack.Pop()
-			size_u256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
 
 			topics := []U256{}
 			for i := 0; i < n; i++ {
 				topics = append(topics, s.Stack.Pop())
 			}
 
-			memExpCost, offset, size := s.Memory.ExpansionCosts(offset_u256, size_u256)
+			memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < memExpCost {
 				s.Status = st.Failed
 				s.Gas = 0

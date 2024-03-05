@@ -3,6 +3,7 @@ package geth
 import (
 	"fmt"
 	"math/big"
+	"slices"
 	"testing"
 
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -335,6 +336,20 @@ func TestConvertToGeth_BlockContext(t *testing.T) {
 	}
 }
 
+func TestConvertToGeth_CallData(t *testing.T) {
+	state := getEmptyState()
+	state.CallData = []byte{1}
+
+	_, gethState, err := ConvertCtStateToGeth(state)
+	if err != nil {
+		t.Fatalf("failed to convert ct state to geth: %v", err)
+	}
+
+	if !slices.Equal(gethState.Contract.Input, state.CallData) {
+		t.Error("unexpected calldata in geth state")
+	}
+}
+
 ////////////////////////////////////////////////////////////
 // geth -> ct
 
@@ -584,5 +599,19 @@ func TestConvertToCt_BlockContext(t *testing.T) {
 	}
 	if want, got := uint64(250), ctBlockContext.TimeStamp; want != got {
 		t.Errorf("unexpected timestamp, wanted %v, got %v", want, got)
+	}
+}
+
+func TestConvertToCt_CallData(t *testing.T) {
+	interpreter, gethState := getEmptyGeth(ct.R07_Istanbul)
+	gethState.Contract.Input = []byte{1}
+
+	state, err := ConvertGethToCtState(interpreter, gethState)
+	if err != nil {
+		t.Fatalf("failed to convert geth to ct state: %v", err)
+	}
+
+	if !slices.Equal(gethState.Contract.Input, state.CallData) {
+		t.Error("unexpected calldata in ct state")
 	}
 }
