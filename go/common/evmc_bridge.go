@@ -267,8 +267,8 @@ func (ctx *HostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender 
 	if err != nil {
 		return nil, 0, 0, evmc.Address{}, err
 	}
-	if !result.Reverted {
-		return nil, 0, 0, evmc.Address{}, evmc.Revert
+	if result.Reverted {
+		return result.Output, 0, 0, evmc.Address{}, evmc.Revert
 	}
 
 	return result.Output,

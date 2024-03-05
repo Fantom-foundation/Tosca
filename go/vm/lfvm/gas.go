@@ -279,9 +279,9 @@ func gasSStoreEIP2200(c *context) (vm.Gas, error) {
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
 	var (
-		zero = vm.Word{}
-		key = vm.Key(c.stack.Back(0).Bytes32())
-		value = vm.Word(c.stack.Back(1).Bytes32())
+		zero    = vm.Word{}
+		key     = vm.Key(c.stack.Back(0).Bytes32())
+		value   = vm.Word(c.stack.Back(1).Bytes32())
 		current = c.context.GetStorage(c.params.Recipient, key)
 	)
 
@@ -329,7 +329,7 @@ func gasSStoreEIP2929(c *context) (vm.Gas, error) {
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
 	var (
-		zero = vm.Word{}
+		zero    = vm.Word{}
 		y, x    = c.stack.Back(1), c.stack.peek()
 		slot    = vm.Key(x.Bytes32())
 		current = c.context.GetStorage(c.params.Recipient, slot)
@@ -360,7 +360,7 @@ func gasSStoreEIP2929(c *context) (vm.Gas, error) {
 		if value == zero { // delete slot (2.1.2b)
 			c.refund += clearingRefund
 		}
-		return cost + vm.Gas(params.SstoreResetGasEIP2200 - params.ColdSloadCostEIP2929), nil // write existing slot (2.1.2)
+		return cost + vm.Gas(params.SstoreResetGasEIP2200-params.ColdSloadCostEIP2929), nil // write existing slot (2.1.2)
 	}
 	if original != zero {
 		if current == zero { // recreate slot (2.2.1.1)
@@ -417,13 +417,13 @@ func addressInAccessList(c *context) (warmAccess bool, coldCost vm.Gas, err erro
 	return warmAccess, coldCost, nil
 }
 
-func gasSelfdestruct(c *context) uint64 {
-	gas := params.SelfdestructGasEIP150
+func gasSelfdestruct(c *context) vm.Gas {
+	gas := vm.Gas(params.SelfdestructGasEIP150)
 	var address = vm.Address(c.stack.Back(0).Bytes20())
 
 	// if beneficiary needs to be created
-	if !c.context.AccountExists(address) {
-		gas += params.CreateBySelfdestructGas
+	if !c.context.AccountExists(address) && c.context.GetBalance(c.params.Recipient) != (vm.Value{}) {
+		gas += vm.Gas(params.CreateBySelfdestructGas)
 	}
 	if !c.context.HasSelfDestructed(c.params.Recipient) {
 		c.refund += vm.Gas(params.SelfdestructRefundGas)
@@ -431,9 +431,9 @@ func gasSelfdestruct(c *context) uint64 {
 	return gas
 }
 
-func gasSelfdestructEIP2929(c *context) uint64 {
+func gasSelfdestructEIP2929(c *context) vm.Gas {
 	var (
-		gas     uint64
+		gas     vm.Gas
 		address = vm.Address(c.stack.Back(0).Bytes20())
 	)
 	if !c.context.IsAddressInAccessList(address) {
@@ -441,11 +441,11 @@ func gasSelfdestructEIP2929(c *context) uint64 {
 		if !c.IsShadowed() {
 			c.context.AccessAccount(address)
 		}
-		gas = params.ColdAccountAccessCostEIP2929
+		gas = vm.Gas(params.ColdAccountAccessCostEIP2929)
 	}
 	// if empty and transfers value
-	if !c.context.AccountExists(address) {
-		gas += params.CreateBySelfdestructGas
+	if !c.context.AccountExists(address) && c.context.GetBalance(c.params.Recipient) != (vm.Value{}) {
+		gas += vm.Gas(params.CreateBySelfdestructGas)
 	}
 	// do this only for Berlin and not after London fork
 	if c.isBerlin && !c.isLondon {

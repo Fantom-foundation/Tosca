@@ -11,17 +11,18 @@ import (
 
 const InitialTestGas vm.Gas = 1 << 44
 
+var TestEvmCreatedAccountAddress = vm.Address{42}
+
 type StateDB interface {
 	AccountExists(vm.Address) bool
 	GetStorage(vm.Address, vm.Key) vm.Word
-	SetStorage(vm.Address, vm.Key, vm.Word) vm.StorageStatus
+	SetStorage(vm.Address, vm.Key, vm.Word)
 	GetBalance(vm.Address) vm.Value
 	GetCodeSize(vm.Address) int
 	GetCodeHash(vm.Address) vm.Hash
 	GetCode(vm.Address) []byte
 	GetBlockHash(int64) vm.Hash
 	EmitLog(vm.Address, []vm.Hash, []byte)
-	SelfDestruct(vm.Address, vm.Address) bool
 	AccessAccount(vm.Address) vm.AccessStatus
 	AccessStorage(vm.Address, vm.Key) vm.AccessStatus
 	GetCommittedStorage(vm.Address, vm.Key) vm.Word
@@ -38,6 +39,8 @@ type TestEVM struct {
 	vm       vm.VirtualMachine
 	revision vm.Revision
 	state    StateDB
+	depth    int
+	readOnly bool
 }
 
 func GetCleanEVM(revision Revision, interpreter string, stateDB StateDB) TestEVM {
@@ -69,33 +72,98 @@ func (e *TestEVM) Run(code []byte, input []byte) (RunResult, error) {
 }
 
 func (e *TestEVM) RunWithGas(code []byte, input []byte, initialGas vm.Gas) (RunResult, error) {
-
-	params := vm.Parameters{
-		Context:  &runContextAdapter{e.state},
-		Revision: e.revision,
-		Code:     code,
-		Input:    input,
-		Gas:      initialGas,
-		Depth:    0,
-		Static:   false,
-	}
-
-	result, err := e.vm.Run(params)
+	result, err := e.runInternal(code, input, initialGas, false)
 	if err != nil {
 		return RunResult{}, err
 	}
 
 	return RunResult{
 		Output:  result.Output,
-		GasUsed: initialGas - result.GasLeft,
+		GasUsed: InitialTestGas - result.GasLeft,
 		Success: result.Success,
 	}, nil
+}
+
+func (e *TestEVM) runInternal(code []byte, input []byte, gas vm.Gas, readOnly bool) (vm.Result, error) {
+
+	params := vm.Parameters{
+		Context: &runContextAdapter{
+			StateDB: e.state,
+			evm:     e,
+		},
+		Revision: e.revision,
+		Code:     code,
+		Input:    input,
+		Gas:      gas,
+		Depth:    0,
+		Static:   readOnly,
+	}
+
+	return e.vm.Run(params)
 }
 
 // --- adapter ---
 
 type runContextAdapter struct {
 	StateDB
+	evm *TestEVM
+}
+
+func (a *runContextAdapter) SetStorage(addr vm.Address, key vm.Key, newValue vm.Word) vm.StorageStatus {
+	var zero = vm.Word{}
+
+	// See t.ly/b5HPf for the definition of the return status.
+	stateDB := a.StateDB
+	currentValue := stateDB.GetStorage(addr, key)
+	if currentValue == newValue {
+		return vm.StorageAssigned
+	}
+	stateDB.SetStorage(addr, key, newValue)
+
+	originalValue := stateDB.GetCommittedStorage(addr, key)
+
+	// 0 -> 0 -> Z
+	if originalValue == zero && currentValue == zero && newValue != zero {
+		return vm.StorageAdded
+	}
+
+	// X -> X -> 0
+	if originalValue != zero && currentValue == originalValue && newValue == zero {
+		return vm.StorageDeleted
+	}
+
+	// X -> X -> Z
+	if originalValue != zero && currentValue == originalValue && newValue != zero && newValue != originalValue {
+		return vm.StorageModified
+	}
+
+	// X -> 0 -> Z
+	if originalValue != zero && currentValue == zero && newValue != originalValue && newValue != zero {
+		return vm.StorageDeletedAdded
+	}
+
+	// X -> Y -> 0
+	if originalValue != zero && currentValue != originalValue && currentValue != zero && newValue == zero {
+		return vm.StorageModifiedDeleted
+	}
+
+	// X -> 0 -> X
+	if originalValue != zero && currentValue == zero && newValue == originalValue {
+		return vm.StorageDeletedRestored
+	}
+
+	// 0 -> Y -> 0
+	if originalValue == zero && currentValue != zero && newValue == zero {
+		return vm.StorageAddedDeleted
+	}
+
+	// X -> Y -> X
+	if originalValue != zero && currentValue != originalValue && currentValue != zero && newValue == originalValue {
+		return vm.StorageModifiedRestored
+	}
+
+	// Default
+	return vm.StorageAssigned
 }
 
 func (a *runContextAdapter) GetTransactionContext() vm.TransactionContext {
@@ -103,5 +171,70 @@ func (a *runContextAdapter) GetTransactionContext() vm.TransactionContext {
 }
 
 func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameter) (vm.CallResult, error) {
-	panic("not implemented")
+	// This is a simple implementation of an EVM handling recursive calls for tests.
+	// A full implementation would need to consider additional side-effects of calls
+	// like the transfer of values, StateDB snapshots, and precompiled contracts.
+
+	// Check the maximum nesting depth, tracked by the EVM, not the interpreter.
+	if a.evm.depth >= 1024 {
+		return vm.CallResult{
+			Reverted: true,
+		}, nil
+	}
+	a.evm.depth++
+	defer func() {
+		a.evm.depth--
+	}()
+
+	// Get code to be executed.
+	var code []byte
+	switch kind {
+	case vm.Create, vm.Create2:
+		code = parameter.Input
+	case vm.Call, vm.StaticCall:
+		code = a.GetCode(parameter.Recipient)
+	case vm.CallCode, vm.DelegateCall:
+		code = a.GetCode(parameter.CodeAddress)
+	default:
+		panic("not implemented")
+	}
+
+	// Switch to read-only mode if this call is a static call.
+	// Also this is tracked outside the interpreter implementation.
+	if kind == vm.StaticCall && !a.evm.readOnly {
+		a.evm.readOnly = true
+		defer func() {
+			a.evm.readOnly = false
+		}()
+	}
+
+	result, err := a.evm.runInternal(code, parameter.Input, parameter.Gas, a.evm.readOnly)
+	if err != nil {
+		return vm.CallResult{}, err
+	}
+
+	// Charge extra costs for creating the contract -- 200 gas per byte.
+	if (kind == vm.Create || kind == vm.Create2) && result.Success {
+		initCodeCost := vm.Gas(200 * len(result.Output))
+		if result.GasLeft < initCodeCost {
+			return vm.CallResult{Reverted: true}, nil
+		}
+		result.GasLeft -= initCodeCost
+	}
+
+	return vm.CallResult{
+		Output:         result.Output,
+		GasLeft:        result.GasLeft,
+		GasRefund:      result.GasRefund,
+		CreatedAddress: TestEvmCreatedAccountAddress,
+		Reverted:       !result.Success,
+	}, err
+}
+
+func (a *runContextAdapter) SelfDestruct(address vm.Address, beneficiary vm.Address) bool {
+	if a.AccountExists(beneficiary) {
+		return false
+	}
+	balance := a.GetBalance(address)
+	return balance != (vm.Value{})
 }
