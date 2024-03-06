@@ -5,7 +5,7 @@ package vm
 // VirtualMachine (VM) represents an instance of an EVM-byte-code execution engine
 // loaded in memory. A VM instance is capable of running multiple code executions
 // in parallel.
-// To obtain a VM instance, client could should use the GetVirtualMachine() provided
+// To obtain a VM instance, client code should use GetVirtualMachine() provided
 // by the registry file in this package.
 type VirtualMachine interface {
 	// Run executes the code provided by the parameters in the specified context
