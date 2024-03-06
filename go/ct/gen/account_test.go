@@ -10,7 +10,7 @@ import (
 
 func TestBalanceGenerator_UnconstrainedGeneratorCanProduceBalance(t *testing.T) {
 	rnd := rand.New(0)
-	generator := NewBalanceGenerator()
+	generator := NewAccountGenerator()
 	accountAddress, err := RandAddress(rnd)
 	if err != nil {
 		t.Errorf("Unexpected random address generation error: %v", err)
@@ -26,7 +26,7 @@ func TestBalanceGenerator_WarmConstraintIsEnforced(t *testing.T) {
 	assignment[v1] = NewU256(42)
 
 	rnd := rand.New(0)
-	generator := NewBalanceGenerator()
+	generator := NewAccountGenerator()
 	accountAddress, err := RandAddress(rnd)
 	if err != nil {
 		t.Errorf("Unexpected random address generation error: %v", err)
@@ -48,7 +48,7 @@ func TestBalanceGenerator_ConflictingWarmColdConstraintsAreDetected(t *testing.T
 	assignment[v1] = NewU256(42)
 
 	rnd := rand.New(0)
-	generator := NewBalanceGenerator()
+	generator := NewAccountGenerator()
 	accountAddress := NewAddress(NewU256(42))
 
 	generator.BindCold(v1)
@@ -65,7 +65,7 @@ func TestBalanceGenerator_WarmColdConstraintsNoAssignment(t *testing.T) {
 	v2 := Variable("v2")
 	assignment := Assignment{}
 	rnd := rand.New(0)
-	generator := NewBalanceGenerator()
+	generator := NewAccountGenerator()
 
 	generator.BindWarm(v1)
 	generator.BindCold(v2)

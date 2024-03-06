@@ -283,8 +283,8 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			s.Stack.Push(s.Balance.Current[address])
-			s.Balance.MarkWarm(address)
+			s.Stack.Push(s.Account.Balance[address])
+			s.Account.MarkWarm(address)
 		},
 		name: "_cold",
 	})...)
@@ -304,7 +304,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			s.Stack.Push(s.Balance.Current[address])
+			s.Stack.Push(s.Account.Balance[address])
 		},
 		name: "_warm",
 	})...)
@@ -323,7 +323,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			s.Stack.Push(s.Balance.Current[address])
+			s.Stack.Push(s.Account.Balance[address])
 		},
 		name: "_preBerlin",
 	})...)
@@ -1027,7 +1027,7 @@ var Spec = func() Specification {
 		pushes:    1,
 		effect: func(s *st.State) {
 			address := s.CallContext.AccountAddress
-			balance := s.Balance.Current[address]
+			balance := s.Account.Balance[address]
 			s.Stack.Push(balance)
 		},
 	})...)

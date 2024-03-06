@@ -11,42 +11,42 @@ import (
 	"pgregory.net/rand"
 )
 
-type BalanceGenerator struct {
+type AccountGenerator struct {
 	warmCold []warmColdConstraint
 }
 
-func NewBalanceGenerator() *BalanceGenerator {
-	return &BalanceGenerator{}
+func NewAccountGenerator() *AccountGenerator {
+	return &AccountGenerator{}
 }
 
-func (g *BalanceGenerator) Clone() *BalanceGenerator {
-	return &BalanceGenerator{
+func (g *AccountGenerator) Clone() *AccountGenerator {
+	return &AccountGenerator{
 		warmCold: slices.Clone(g.warmCold),
 	}
 }
 
-func (g *BalanceGenerator) Restore(other *BalanceGenerator) {
+func (g *AccountGenerator) Restore(other *AccountGenerator) {
 	if g == other {
 		return
 	}
 	g.warmCold = slices.Clone(other.warmCold)
 }
 
-func (g *BalanceGenerator) BindWarm(address Variable) {
+func (g *AccountGenerator) BindWarm(address Variable) {
 	v := warmColdConstraint{address, true}
 	if !slices.Contains(g.warmCold, v) {
 		g.warmCold = append(g.warmCold, v)
 	}
 }
 
-func (g *BalanceGenerator) BindCold(address Variable) {
+func (g *AccountGenerator) BindCold(address Variable) {
 	v := warmColdConstraint{address, false}
 	if !slices.Contains(g.warmCold, v) {
 		g.warmCold = append(g.warmCold, v)
 	}
 }
 
-func (g *BalanceGenerator) String() string {
+func (g *AccountGenerator) String() string {
 	var parts []string
 
 	sort.Slice(g.warmCold, func(i, j int) bool { return g.warmCold[i].Less(&g.warmCold[j]) })
@@ -61,7 +61,7 @@ func (g *BalanceGenerator) String() string {
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
-func (g *BalanceGenerator) Generate(assignment Assignment, rnd *rand.Rand, accountAddress Address) (*st.Balance, error) {
+func (g *AccountGenerator) Generate(assignment Assignment, rnd *rand.Rand, accountAddress Address) (*st.Account, error) {
 	// Check for conflicts among warm/cold constraints.
 	sort.Slice(g.warmCold, func(i, j int) bool { return g.warmCold[i].Less(&g.warmCold[j]) })
 	for i := 0; i < len(g.warmCold)-1; i++ {
@@ -102,26 +102,26 @@ func (g *BalanceGenerator) Generate(assignment Assignment, rnd *rand.Rand, accou
 		return address
 	}
 
-	balance := st.NewBalance()
+	account := st.NewAccount()
 	// Process warm/cold constraints.
 	for _, con := range g.warmCold {
 		address := getAddress(con.key)
-		if _, isPresent := balance.Current[address]; !isPresent {
-			balance.Current[address] = RandU256(rnd)
+		if _, isPresent := account.Balance[address]; !isPresent {
+			account.Balance[address] = RandU256(rnd)
 		}
-		balance.SetWarm(address, con.warm)
+		account.SetWarm(address, con.warm)
 	}
 
 	// Some random entries.
 	for i, max := 0, rnd.Intn(5); i < max; i++ {
 		address := getUnusedAddress()
-		balance.Current[address] = RandU256(rnd)
-		balance.SetWarm(address, rnd.Intn(2) == 1)
+		account.Balance[address] = RandU256(rnd)
+		account.SetWarm(address, rnd.Intn(2) == 1)
 	}
 
 	// Add own account address
 	address := accountAddress
-	balance.Current[address] = RandU256(rnd)
+	account.Balance[address] = RandU256(rnd)
 
-	return balance, nil
+	return account, nil
 }

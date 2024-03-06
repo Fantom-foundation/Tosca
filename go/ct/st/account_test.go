@@ -7,8 +7,8 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
-func TestBalance_MarkWarmMarksAddressesAsWarm(t *testing.T) {
-	b := NewBalance()
+func TestAccount_MarkWarmMarksAddressesAsWarm(t *testing.T) {
+	b := NewAccount()
 	b.MarkWarm(NewAddressFromInt(42))
 
 	if want, got := true, b.IsWarm(NewAddressFromInt(42)); want != got {
@@ -19,33 +19,33 @@ func TestBalance_MarkWarmMarksAddressesAsWarm(t *testing.T) {
 	}
 }
 
-func TestBalance_Clone(t *testing.T) {
+func TestAccount_Clone(t *testing.T) {
 	a := NewAddressFromInt(42)
 	b := NewAddressFromInt(48)
 	tests := map[string]struct {
-		change func(*Balance)
+		change func(*Account)
 	}{
-		"add-balance": {func(balance *Balance) {
-			balance.Current[b] = NewU256(3)
+		"add-balance": {func(account *Account) {
+			account.Balance[b] = NewU256(3)
 		}},
-		"modify-balance": {func(balance *Balance) {
-			balance.Current[a] = NewU256(3)
+		"modify-balance": {func(account *Account) {
+			account.Balance[a] = NewU256(3)
 		}},
-		"remove-balance": {func(balance *Balance) {
-			delete(balance.Current, a)
+		"remove-balance": {func(account *Account) {
+			delete(account.Balance, a)
 		}},
-		"mark-cold": {func(balance *Balance) {
-			balance.MarkCold(a)
+		"mark-cold": {func(account *Account) {
+			account.MarkCold(a)
 		}},
-		"mark-warm": {func(balance *Balance) {
-			balance.MarkWarm(b)
+		"mark-warm": {func(account *Account) {
+			account.MarkWarm(b)
 		}},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			b1 := NewBalance()
-			b1.Current[a] = NewU256(1)
+			b1 := NewAccount()
+			b1.Balance[a] = NewU256(1)
 			b1.MarkWarm(a)
 			b2 := b1.Clone()
 			if !b1.Eq(b2) {
@@ -59,10 +59,10 @@ func TestBalance_Clone(t *testing.T) {
 	}
 }
 
-func TestBalance_AccountsWithZeroBalanceAreTreatedTheSameByEqAndDiff(t *testing.T) {
-	b1 := NewBalance()
-	b1.Current[Address{1}] = NewU256(0)
-	b2 := NewBalance()
+func TestAccount_AccountsWithZeroBalanceAreTreatedTheSameByEqAndDiff(t *testing.T) {
+	b1 := NewAccount()
+	b1.Balance[Address{1}] = NewU256(0)
+	b2 := NewAccount()
 
 	equal := b1.Eq(b2)
 	diff := b1.Diff(b2)
@@ -72,34 +72,34 @@ func TestBalance_AccountsWithZeroBalanceAreTreatedTheSameByEqAndDiff(t *testing.
 	}
 }
 
-func TestBalance_Diff(t *testing.T) {
+func TestAccount_Diff(t *testing.T) {
 	a := NewAddressFromInt(42)
 	b := NewAddressFromInt(48)
 	tests := map[string]struct {
-		change  func(*Balance)
+		change  func(*Account)
 		outcome string
 	}{
-		"add-balance": {func(balance *Balance) {
-			balance.Current[b] = NewU256(3)
-		}, "Different current entry"},
-		"modify-balance": {func(balance *Balance) {
-			balance.Current[a] = NewU256(3)
-		}, "Different current entry"},
-		"remove-balance": {func(balance *Balance) {
-			delete(balance.Current, a)
-		}, "Different current entry"},
-		"mark-cold": {func(balance *Balance) {
-			balance.MarkCold(a)
+		"add-balance": {func(account *Account) {
+			account.Balance[b] = NewU256(3)
+		}, "Different balance entry"},
+		"modify-balance": {func(account *Account) {
+			account.Balance[a] = NewU256(3)
+		}, "Different balance entry"},
+		"remove-balance": {func(account *Account) {
+			delete(account.Balance, a)
+		}, "Different balance entry"},
+		"mark-cold": {func(account *Account) {
+			account.MarkCold(a)
 		}, "Different warm entry"},
-		"mark-warm": {func(balance *Balance) {
-			balance.MarkWarm(b)
+		"mark-warm": {func(account *Account) {
+			account.MarkWarm(b)
 		}, "Different warm entry"},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			b1 := NewBalance()
-			b1.Current[a] = NewU256(1)
+			b1 := NewAccount()
+			b1.Balance[a] = NewU256(1)
 			b1.MarkWarm(a)
 			b2 := b1.Clone()
 			diff := b1.Diff(b2)

@@ -57,7 +57,7 @@ type State struct {
 	Stack              *Stack
 	Memory             *Memory
 	Storage            *Storage
-	Balance            *Balance
+	Account            *Account
 	Logs               *Logs
 	CallContext        CallContext
 	BlockContext       BlockContext
@@ -74,7 +74,7 @@ func NewState(code *Code) *State {
 		Stack:              NewStack(),
 		Memory:             NewMemory(),
 		Storage:            NewStorage(),
-		Balance:            NewBalance(),
+		Account:            NewAccount(),
 		Logs:               NewLogs(),
 		CallData:           make([]byte, 0),
 		LastCallReturnData: make([]byte, 0),
@@ -92,7 +92,7 @@ func (s *State) Clone() *State {
 	clone.Stack = s.Stack.Clone()
 	clone.Memory = s.Memory.Clone()
 	clone.Storage = s.Storage.Clone()
-	clone.Balance = s.Balance.Clone()
+	clone.Account = s.Account.Clone()
 	clone.Logs = s.Logs.Clone()
 	clone.CallContext = s.CallContext
 	clone.BlockContext = s.BlockContext
@@ -126,7 +126,7 @@ func (s *State) Eq(other *State) bool {
 		s.Stack.Eq(other.Stack) &&
 		s.Memory.Eq(other.Memory) &&
 		s.Storage.Eq(other.Storage) &&
-		s.Balance.Eq(other.Balance) &&
+		s.Account.Eq(other.Account) &&
 		s.Logs.Eq(other.Logs) &&
 		s.CallContext == other.CallContext &&
 		s.BlockContext == other.BlockContext &&
@@ -178,12 +178,12 @@ func (s *State) String() string {
 	for k := range s.Storage.warm {
 		builder.WriteString(fmt.Sprintf("\t    [%v]\n", k))
 	}
-	builder.WriteString("\tBalance.Current:\n")
-	for k, v := range s.Balance.Current {
+	builder.WriteString("\tAccount.Balance:\n")
+	for k, v := range s.Account.Balance {
 		builder.WriteString(fmt.Sprintf("\t    [%v]=%v\n", k, v))
 	}
 	builder.WriteString("\tAddress.Warm:\n")
-	for k := range s.Balance.warm {
+	for k := range s.Account.warm {
 		builder.WriteString(fmt.Sprintf("\t    [%v]\n", k))
 	}
 	builder.WriteString("\tLogs:\n")
@@ -256,8 +256,8 @@ func (s *State) Diff(o *State) []string {
 		res = append(res, s.Storage.Diff(o.Storage)...)
 	}
 
-	if !s.Balance.Eq(o.Balance) {
-		res = append(res, s.Balance.Diff(o.Balance)...)
+	if !s.Account.Eq(o.Account) {
+		res = append(res, s.Account.Diff(o.Account)...)
 	}
 
 	if !s.Logs.Eq(o.Logs) {
