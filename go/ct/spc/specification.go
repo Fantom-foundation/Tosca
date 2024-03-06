@@ -272,6 +272,68 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- BALANCE ---
+
+	// cold
+	rules = append(rules, rulesFor(instruction{
+		op:        BALANCE,
+		staticGas: 0 + 2600, // 2600 dynamic cost for cold address
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			IsAddressCold(Param(0)),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+		},
+		effect: func(s *st.State) {
+			address := NewAddress(s.Stack.Pop())
+			s.Stack.Push(s.Balance.Current[address])
+			s.Balance.MarkWarm(address)
+		},
+		name: "_cold",
+	})...)
+
+	// warm
+	rules = append(rules, rulesFor(instruction{
+		op:        BALANCE,
+		staticGas: 0 + 100, // 100 dynamic cost for warm address
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			IsAddressWarm(Param(0)),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+		},
+		effect: func(s *st.State) {
+			address := NewAddress(s.Stack.Pop())
+			s.Stack.Push(s.Balance.Current[address])
+		},
+		name: "_warm",
+	})...)
+
+	// pre Berlin
+	rules = append(rules, rulesFor(instruction{
+		op:        BALANCE,
+		staticGas: 700,
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			IsRevision(R07_Istanbul),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+		},
+		effect: func(s *st.State) {
+			address := NewAddress(s.Stack.Pop())
+			s.Stack.Push(s.Balance.Current[address])
+		},
+		name: "_preBerlin",
+	})...)
+
 	// --- MLOAD ---
 
 	rules = append(rules, rulesFor(instruction{
@@ -959,6 +1021,20 @@ var Spec = func() Specification {
 			end := min(start+size, uint64(len(s.CallData)))
 			copy(dataBuffer, s.CallData[start:end])
 			s.Memory.Write(dataBuffer, destOffset)
+		},
+	})...)
+
+	// --- SELFBALANCE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        SELFBALANCE,
+		staticGas: 5,
+		pops:      0,
+		pushes:    1,
+		effect: func(s *st.State) {
+			address := s.CallContext.AccountAddress
+			balance := s.Balance.Current[address]
+			s.Stack.Push(balance)
 		},
 	})...)
 

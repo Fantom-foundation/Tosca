@@ -61,5 +61,17 @@ func (TopicParameter) Samples() []U256 {
 	}
 }
 
+type AddressParameter struct{}
+
+func (AddressParameter) Samples() []U256 {
+	return []U256{
+		NewU256(0),
+		NewU256(1),
+		NewU256(1).Shl(NewU256(20*8 - 1)), // < first bit of 20-byte address set
+		NewU256(3).Shl(NewU256(20*8 - 1)), // < first bit beyond 20-byte address set as well (should be the same address as above)
+		NewU256(0).Not(),
+	}
+}
+
 type DataOffsetParameter = MemoryOffsetParameter
 type DataSizeParameter = MemorySizeParameter

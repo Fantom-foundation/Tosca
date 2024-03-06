@@ -575,3 +575,81 @@ func (c *storageConfiguration) EnumerateTestCases(generator *gen.StateGenerator,
 func (c *storageConfiguration) String() string {
 	return fmt.Sprintf("StorageConfiguration(%v,%v,%v)", c.config, c.key, c.newValue)
 }
+
+////////////////////////////////////////////////////////////
+// Is Address Warm
+
+type isAddressWarm struct {
+	key BindableExpression[U256]
+}
+
+func IsAddressWarm(key BindableExpression[U256]) Condition {
+	return &isAddressWarm{key}
+}
+
+func (c *isAddressWarm) Check(s *st.State) (bool, error) {
+	key, err := c.key.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return s.Balance.IsWarm(NewAddress(key)), nil
+}
+
+func (c *isAddressWarm) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+	generator.BindToWarmAddress(key)
+}
+
+func (c *isAddressWarm) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
+	positive := generator.Clone()
+	c.Restrict(positive)
+	consume(positive)
+
+	negative := generator.Clone()
+	IsAddressCold(c.key).Restrict(negative)
+	consume(negative)
+}
+
+func (c *isAddressWarm) String() string {
+	return fmt.Sprintf("warm(%v)", c.key)
+}
+
+////////////////////////////////////////////////////////////
+// Is Address Cold
+
+type isAddressCold struct {
+	key BindableExpression[U256]
+}
+
+func IsAddressCold(key BindableExpression[U256]) Condition {
+	return &isAddressCold{key}
+}
+
+func (c *isAddressCold) Check(s *st.State) (bool, error) {
+	key, err := c.key.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return s.Balance.IsCold(NewAddress(key)), nil
+}
+
+func (c *isAddressCold) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+	generator.BindToColdAddress(key)
+}
+
+func (c *isAddressCold) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator)) {
+	positive := generator.Clone()
+	c.Restrict(positive)
+	consume(positive)
+
+	negative := generator.Clone()
+	IsAddressCold(c.key).Restrict(negative)
+	consume(negative)
+}
+
+func (c *isAddressCold) String() string {
+	return fmt.Sprintf("cold(%v)", c.key)
+}

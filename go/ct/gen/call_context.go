@@ -14,12 +14,7 @@ func NewCallContextGenerator() *CallContextGenerator {
 	return &CallContextGenerator{}
 }
 
-func (*CallContextGenerator) Generate(rnd *rand.Rand) (st.CallContext, error) {
-	accountAddress, err := common.RandAddress(rnd)
-	if err != nil {
-		return st.CallContext{}, err
-	}
-
+func (*CallContextGenerator) Generate(rnd *rand.Rand, accountAddress common.Address) (st.CallContext, error) {
 	originAddress, err := common.RandAddress(rnd)
 	if err != nil {
 		return st.CallContext{}, err

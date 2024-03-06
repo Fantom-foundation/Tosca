@@ -36,6 +36,7 @@ const (
 	SHR          OpCode = 0x1C
 	SAR          OpCode = 0x1D
 	ADDRESS      OpCode = 0x30
+	BALANCE      OpCode = 0x31
 	ORIGIN       OpCode = 0x32
 	CALLER       OpCode = 0x33
 	CALLVALUE    OpCode = 0x34
@@ -51,6 +52,7 @@ const (
 	DIFFICULTY   OpCode = 0x44
 	GASLIMIT     OpCode = 0x45
 	CHAINID      OpCode = 0x46
+	SELFBALANCE  OpCode = 0x47
 	BASEFEE      OpCode = 0x48
 	POP          OpCode = 0x50
 	MLOAD        OpCode = 0x51
@@ -216,8 +218,6 @@ func (op OpCode) String() string {
 		return "XOR"
 	case NOT:
 		return "NOT"
-	case SHA3:
-		return "SHA3"
 	case BYTE:
 		return "BYTE"
 	case SHL:
@@ -226,8 +226,12 @@ func (op OpCode) String() string {
 		return "SHR"
 	case SAR:
 		return "SAR"
+	case SHA3:
+		return "SHA3"
 	case ADDRESS:
 		return "ADDRESS"
+	case BALANCE:
+		return "BALANCE"
 	case ORIGIN:
 		return "ORIGIN"
 	case CALLER:
@@ -258,6 +262,8 @@ func (op OpCode) String() string {
 		return "GASLIMIT"
 	case CHAINID:
 		return "CHAINID"
+	case SELFBALANCE:
+		return "SELFBALANCE"
 	case BASEFEE:
 		return "BASEFEE"
 	case POP:

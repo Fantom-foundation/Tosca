@@ -116,6 +116,7 @@ func ConvertGethToCtState(geth *gethInterpreter, state *vm.GethState) (*st.State
 	ctState.Memory = convertGethMemoryToCtMemory(state)
 	if geth.evm.StateDB != nil {
 		ctState.Storage = geth.evm.StateDB.(*utils.ConformanceTestStateDb).Storage
+		ctState.Balance = geth.evm.StateDB.(*utils.ConformanceTestStateDb).Balance
 		ctState.Logs = geth.evm.StateDB.(*utils.ConformanceTestStateDb).Logs
 	}
 
@@ -248,7 +249,7 @@ func getGethEvm(state *st.State) (*gethInterpreter, error) {
 		InterpreterImpl: "geth",
 	}
 
-	stateDb := utils.NewConformanceTestStateDb(state.Storage, state.Logs, state.Revision)
+	stateDb := utils.NewConformanceTestStateDb(state.Storage, state.Balance, state.Logs, state.Revision)
 	stateDb.AddRefund(state.GasRefund)
 
 	evm := vm.NewEVM(blockCtx, txCtx, stateDb, chainConfig, config)

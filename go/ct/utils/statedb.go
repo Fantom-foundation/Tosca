@@ -13,15 +13,17 @@ import (
 // representation and the StateDB interface expected by an evm interpreter.
 type ConformanceTestStateDb struct {
 	Storage   *st.Storage
+	Balance   *st.Balance
 	Logs      *st.Logs
 	revision  Revision
 	gasRefund uint64
 }
 
 // NewConformanceTestStateDb creates a new ConformanceTestStateDb.
-func NewConformanceTestStateDb(storage *st.Storage, logs *st.Logs, revision Revision) *ConformanceTestStateDb {
+func NewConformanceTestStateDb(storage *st.Storage, balance *st.Balance, logs *st.Logs, revision Revision) *ConformanceTestStateDb {
 	return &ConformanceTestStateDb{
 		Storage:  storage,
+		Balance:  balance,
 		Logs:     logs,
 		revision: revision,
 	}
@@ -53,6 +55,18 @@ func (db *ConformanceTestStateDb) AddSlotToAccessList(_ common.Address, key comm
 	if db.revision != R07_Istanbul {
 		db.Storage.MarkWarm(k)
 	}
+}
+
+func (db *ConformanceTestStateDb) GetBalance(addr common.Address) *big.Int {
+	return db.Balance.Current[Address(addr)].ToBigInt()
+}
+
+func (db *ConformanceTestStateDb) AddressInAccessList(addr common.Address) bool {
+	return db.Balance.IsWarm(Address(addr))
+}
+
+func (db *ConformanceTestStateDb) AddAddressToAccessList(addr common.Address) {
+	db.Balance.MarkWarm(Address(addr))
 }
 
 func (db *ConformanceTestStateDb) GetCode(common.Address) []byte {
@@ -109,10 +123,6 @@ func (db *ConformanceTestStateDb) AddBalance(common.Address, *big.Int) {
 	panic("should not be needed")
 }
 
-func (db *ConformanceTestStateDb) GetBalance(common.Address) *big.Int {
-	panic("should not be needed")
-}
-
 func (db *ConformanceTestStateDb) GetNonce(common.Address) uint64 {
 	panic("should not be needed")
 }
@@ -122,14 +132,6 @@ func (db *ConformanceTestStateDb) SetNonce(common.Address, uint64) {
 }
 
 func (db *ConformanceTestStateDb) SetCode(common.Address, []byte) {
-	panic("should not be needed")
-}
-
-func (db *ConformanceTestStateDb) AddressInAccessList(addr common.Address) bool {
-	panic("should not be needed")
-}
-
-func (db *ConformanceTestStateDb) AddAddressToAccessList(addr common.Address) {
 	panic("should not be needed")
 }
 

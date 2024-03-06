@@ -60,6 +60,7 @@ type State struct {
 	Stack        *Stack
 	Memory       *Memory
 	Storage      *Storage
+	Balance      *Balance
 	Logs         *Logs
 	CallContext  CallContext
 	BlockContext BlockContext
@@ -75,6 +76,7 @@ func NewState(code *Code) *State {
 		Stack:    NewStack(),
 		Memory:   NewMemory(),
 		Storage:  NewStorage(),
+		Balance:  NewBalance(),
 		Logs:     NewLogs(),
 		CallData: make([]byte, 0),
 	}
@@ -91,6 +93,7 @@ func (s *State) Clone() *State {
 	clone.Stack = s.Stack.Clone()
 	clone.Memory = s.Memory.Clone()
 	clone.Storage = s.Storage.Clone()
+	clone.Balance = s.Balance.Clone()
 	clone.Logs = s.Logs.Clone()
 	clone.CallContext = s.CallContext
 	clone.BlockContext = s.BlockContext
@@ -123,6 +126,7 @@ func (s *State) Eq(other *State) bool {
 		s.Stack.Eq(other.Stack) &&
 		s.Memory.Eq(other.Memory) &&
 		s.Storage.Eq(other.Storage) &&
+		s.Balance.Eq(other.Balance) &&
 		s.Logs.Eq(other.Logs) &&
 		s.CallContext == other.CallContext &&
 		s.BlockContext == other.BlockContext &&
@@ -171,6 +175,14 @@ func (s *State) String() string {
 	}
 	builder.WriteString("\tStorage.Warm:\n")
 	for k := range s.Storage.warm {
+		builder.WriteString(fmt.Sprintf("\t    [%v]\n", k))
+	}
+	builder.WriteString("\tBalance.Current:\n")
+	for k, v := range s.Balance.Current {
+		builder.WriteString(fmt.Sprintf("\t    [%v]=%v\n", k, v))
+	}
+	builder.WriteString("\tAddress.Warm:\n")
+	for k := range s.Balance.warm {
 		builder.WriteString(fmt.Sprintf("\t    [%v]\n", k))
 	}
 	builder.WriteString("\tLogs:\n")
@@ -235,6 +247,10 @@ func (s *State) Diff(o *State) []string {
 
 	if !s.Storage.Eq(o.Storage) {
 		res = append(res, s.Storage.Diff(o.Storage)...)
+	}
+
+	if !s.Balance.Eq(o.Balance) {
+		res = append(res, s.Balance.Diff(o.Balance)...)
 	}
 
 	if !s.Logs.Eq(o.Logs) {
