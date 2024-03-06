@@ -61,6 +61,22 @@ func (g *AccountGenerator) String() string {
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
+func randCode(rnd *rand.Rand) []byte {
+	size := rnd.Intn(42)
+	code := make([]byte, 0, size)
+	for i := 0; i < size; i++ {
+		var op OpCode
+		for {
+			op = OpCode(rnd.Intn(256))
+			if IsValid(op) {
+				break
+			}
+		}
+		code = append(code, byte(op))
+	}
+	return code
+}
+
 func (g *AccountGenerator) Generate(assignment Assignment, rnd *rand.Rand, accountAddress Address) (*st.Account, error) {
 	// Check for conflicts among warm/cold constraints.
 	sort.Slice(g.warmCold, func(i, j int) bool { return g.warmCold[i].Less(&g.warmCold[j]) })
@@ -108,6 +124,7 @@ func (g *AccountGenerator) Generate(assignment Assignment, rnd *rand.Rand, accou
 		address := getAddress(con.key)
 		if _, isPresent := account.Balance[address]; !isPresent {
 			account.Balance[address] = RandU256(rnd)
+			account.Code[address] = randCode(rnd)
 		}
 		account.SetWarm(address, con.warm)
 	}
@@ -116,12 +133,15 @@ func (g *AccountGenerator) Generate(assignment Assignment, rnd *rand.Rand, accou
 	for i, max := 0, rnd.Intn(5); i < max; i++ {
 		address := getUnusedAddress()
 		account.Balance[address] = RandU256(rnd)
+		if rnd.Intn(2) == 1 {
+			account.Code[address] = randCode(rnd)
+		}
 		account.SetWarm(address, rnd.Intn(2) == 1)
 	}
 
 	// Add own account address
-	address := accountAddress
-	account.Balance[address] = RandU256(rnd)
+	account.Balance[accountAddress] = RandU256(rnd)
+	account.Code[accountAddress] = randCode(rnd)
 
 	return account, nil
 }

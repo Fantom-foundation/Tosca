@@ -46,6 +46,9 @@ const (
 	CODESIZE       OpCode = 0x38
 	CODECOPY       OpCode = 0x39
 	GASPRICE       OpCode = 0x3A
+	EXTCODESIZE    OpCode = 0x3B
+	EXTCODECOPY    OpCode = 0x3C
+	EXTCODEHASH    OpCode = 0x3F
 	RETURNDATASIZE OpCode = 0x3D
 	RETURNDATACOPY OpCode = 0x3E
 	COINBASE       OpCode = 0x41
@@ -252,6 +255,12 @@ func (op OpCode) String() string {
 		return "CODECOPY"
 	case GASPRICE:
 		return "GASPRICE"
+	case EXTCODESIZE:
+		return "EXTCODESIZE"
+	case EXTCODECOPY:
+		return "EXTCODECOPY"
+	case EXTCODEHASH:
+		return "EXTCODEHASH"
 	case RETURNDATASIZE:
 		return "RETURNDATASIZE"
 	case RETURNDATACOPY:

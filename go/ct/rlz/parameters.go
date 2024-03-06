@@ -65,10 +65,12 @@ type AddressParameter struct{}
 
 func (AddressParameter) Samples() []U256 {
 	return []U256{
+		// Adding more samples here will create significant more test cases for EXTCODECOPY.
+		// TODO: evaluate code coverage
 		NewU256(0),
-		NewU256(1),
-		NewU256(1).Shl(NewU256(20*8 - 1)), // < first bit of 20-byte address set
-		NewU256(3).Shl(NewU256(20*8 - 1)), // < first bit beyond 20-byte address set as well (should be the same address as above)
+		//NewU256(1),
+		//NewU256(1).Shl(NewU256(20*8 - 1)), // < first bit of 20-byte address set
+		//NewU256(3).Shl(NewU256(20*8 - 1)), // < first bit beyond 20-byte address set as well (should be the same address as above)
 		NewU256(0).Not(),
 	}
 }

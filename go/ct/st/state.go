@@ -182,6 +182,10 @@ func (s *State) String() string {
 	for k, v := range s.Account.Balance {
 		builder.WriteString(fmt.Sprintf("\t    [%v]=%v\n", k, v))
 	}
+	builder.WriteString("\tAccount.Code:\n")
+	for k, v := range s.Account.Code {
+		builder.WriteString(fmt.Sprintf("\t    [%v]=%v\n", k, v))
+	}
 	builder.WriteString("\tAddress.Warm:\n")
 	for k := range s.Account.warm {
 		builder.WriteString(fmt.Sprintf("\t    [%v]\n", k))
