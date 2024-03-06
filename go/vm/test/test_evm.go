@@ -110,9 +110,6 @@ type runContextAdapter struct {
 }
 
 func (a *runContextAdapter) SetStorage(addr vm.Address, key vm.Key, newValue vm.Word) vm.StorageStatus {
-	var zero = vm.Word{}
-
-	// See t.ly/b5HPf for the definition of the return status.
 	stateDB := a.StateDB
 	currentValue := stateDB.GetStorage(addr, key)
 	if currentValue == newValue {
@@ -121,49 +118,7 @@ func (a *runContextAdapter) SetStorage(addr vm.Address, key vm.Key, newValue vm.
 	stateDB.SetStorage(addr, key, newValue)
 
 	originalValue := stateDB.GetCommittedStorage(addr, key)
-
-	// 0 -> 0 -> Z
-	if originalValue == zero && currentValue == zero && newValue != zero {
-		return vm.StorageAdded
-	}
-
-	// X -> X -> 0
-	if originalValue != zero && currentValue == originalValue && newValue == zero {
-		return vm.StorageDeleted
-	}
-
-	// X -> X -> Z
-	if originalValue != zero && currentValue == originalValue && newValue != zero && newValue != originalValue {
-		return vm.StorageModified
-	}
-
-	// X -> 0 -> Z
-	if originalValue != zero && currentValue == zero && newValue != originalValue && newValue != zero {
-		return vm.StorageDeletedAdded
-	}
-
-	// X -> Y -> 0
-	if originalValue != zero && currentValue != originalValue && currentValue != zero && newValue == zero {
-		return vm.StorageModifiedDeleted
-	}
-
-	// X -> 0 -> X
-	if originalValue != zero && currentValue == zero && newValue == originalValue {
-		return vm.StorageDeletedRestored
-	}
-
-	// 0 -> Y -> 0
-	if originalValue == zero && currentValue != zero && newValue == zero {
-		return vm.StorageAddedDeleted
-	}
-
-	// X -> Y -> X
-	if originalValue != zero && currentValue != originalValue && currentValue != zero && newValue == originalValue {
-		return vm.StorageModifiedRestored
-	}
-
-	// Default
-	return vm.StorageAssigned
+	return vm.GetStorageStatus(originalValue, currentValue, newValue)
 }
 
 func (a *runContextAdapter) GetTransactionContext() vm.TransactionContext {

@@ -5,8 +5,8 @@ import (
 	"log"
 	"testing"
 
-	"go.uber.org/mock/gomock"
 	"github.com/ethereum/go-ethereum/params"
+	"go.uber.org/mock/gomock"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
 )
@@ -34,14 +34,14 @@ func getContext(code Code, data []byte, runContext vm.RunContext, stackPtr int, 
 	ctxt := context{
 		params: vm.Parameters{
 			Revision: revision,
-			Gas:       gas,
-			Input: data,
+			Gas:      gas,
+			Input:    data,
 		},
-		context: runContext,
-		gas: gas,
+		context:  runContext,
+		gas:      gas,
 		stack:    NewStack(),
 		memory:   NewMemory(),
-		status: RUNNING,
+		status:   RUNNING,
 		code:     code,
 		isBerlin: revision >= vm.R09_Berlin,
 		isLondon: revision >= vm.R10_London,
@@ -82,12 +82,12 @@ type OpcodeTest struct {
 	stackPtrPos int
 	argData     uint16
 	endStatus   Status
-	isBerlin    bool  // < TODO: replace with revision
+	isBerlin    bool // < TODO: replace with revision
 	isLondon    bool
 	mockCalls   func(*vm.MockRunContext)
 	gasStart    vm.Gas
 	gasConsumed vm.Gas
-	gasRefund vm.Gas
+	gasRefund   vm.Gas
 }
 
 func getInstructions(start OpCode, end OpCode) (opCodes []OpCode) {
@@ -474,13 +474,13 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 	// Create execution context.
 	ctxt := context{
 		params: vm.Parameters{
-			Input:     data,
+			Input:  data,
 			Static: true,
 		},
-		gas: 1<<62,
-		code:     converted,
-		stack:    NewStack(),
-		memory:   NewMemory(),
+		gas:    1 << 62,
+		code:   converted,
+		stack:  NewStack(),
+		memory: NewMemory(),
 	}
 
 	// Compute expected value.
@@ -532,15 +532,14 @@ func BenchmarkIsWriteInstruction(b *testing.B) {
 	}
 }
 
-func toKey(value byte) vm.Key{
+func toKey(value byte) vm.Key {
 	res := vm.Key{}
 	res[len(res)-1] = value
 	return res
 }
 
-func toWord(value byte) vm.Word{
+func toWord(value byte) vm.Word {
 	res := vm.Word{}
 	res[len(res)-1] = value
 	return res
 }
-

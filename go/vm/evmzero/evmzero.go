@@ -77,24 +77,12 @@ func init() {
 	}
 	evmzeroWithProfilingExternal := cur
 
-	/*
-		// A steppable instance.
-		vmSteppable, err := common.LoadEvmcVMSteppable("libevmzero.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmzero library: %s", err))
-		}
-		evmzeroSteppable = vmSteppable
-	*/
-
 	vm.RegisterVirtualMachine("evmzero", evmzero)
 	vm.RegisterVirtualMachine("evmzero-logging", evmzeroWithLogging)
 	vm.RegisterVirtualMachine("evmzero-no-analysis-cache", evmzeroWithoutAnalysisCache)
 	vm.RegisterVirtualMachine("evmzero-no-sha3-cache", evmzeroWithoutSha3Cache)
 	vm.RegisterVirtualMachine("evmzero-profiling", &evmzeroInstanceWithProfiler{evmzeroWithProfiling})
 	vm.RegisterVirtualMachine("evmzero-profiling-external", &evmzeroInstanceWithProfiler{evmzeroWithProfilingExternal})
-	/*
-		vm.RegisterVirtualMachine("evmzero-steppable", &evmzeroSteppableInstance{evmzeroSteppable})
-	*/
 }
 
 // evmzeroInstanceWithProfiler implements the vm.ProfilingVM interface and is used for all
@@ -110,15 +98,3 @@ func (e *evmzeroInstanceWithProfiler) DumpProfile() {
 func (e *evmzeroInstanceWithProfiler) ResetProfile() {
 	C.evmzero_reset_profiler(e.GetEvmcVM().GetHandle())
 }
-
-/*
-// evmzeroSteppableInstance implements the vm.VirtualMachine interface and supports
-// stepping through the execution.
-type evmzeroSteppableInstance struct {
-	vm *common.EvmcVMSteppable
-}
-
-func (e *evmzeroSteppableInstance) NewInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return common.NewEvmcSteppableInterpreter(e.vm, evm, cfg)
-}
-*/

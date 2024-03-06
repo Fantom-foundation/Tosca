@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
-	
+
 	// This is only imported to get the EVM opcode definitions.
 	// TODO: write up our own op-code definition and remove this dependency.
 	evm "github.com/ethereum/go-ethereum/core/vm"

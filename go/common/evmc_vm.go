@@ -27,20 +27,6 @@ func LoadEvmcVM(library string) (*EvmcVM, error) {
 	return &EvmcVM{vm: vm}, nil
 }
 
-/*
-// LoadEvmcVMSteppable attempts to load an EVM implementation from a given library.
-// The `library` parameter should name the library file, while the actual
-// path to the library should be enforced using an rpath (see evmone
-// implementation for an example).
-func LoadEvmcVMSteppable(library string) (*EvmcVMSteppable, error) {
-	vm, err := evmc.LoadSteppable(library)
-	if err != nil {
-		return nil, err
-	}
-	return &EvmcVMSteppable{vm: vm}, nil
-}
-*/
-
 // EvmcVM is a VirtualMachine implementation accessible through the EVMC library.
 type EvmcVM struct {
 	vm *evmc.VM
@@ -57,17 +43,9 @@ func (e *EvmcVM) Run(params vm.Parameters) (vm.Result, error) {
 		context: params.Context,
 	}
 
-	// Pick proper EVM revision based on block height.
-	var revision evmc.Revision
-	switch params.Revision {
-	case vm.R07_Istanbul:
-		revision = evmc.Istanbul
-	case vm.R09_Berlin:
-		revision = evmc.Berlin
-	case vm.R10_London:
-		revision = evmc.London
-	default:
-		return vm.Result{}, fmt.Errorf("unsupported revision: %v", params.Revision)
+	revision, err := toEvmcRevision(params.Revision)
+	if err != nil {
+		return vm.Result{}, err
 	}
 
 	var codeHash *evmc.Hash
@@ -141,6 +119,20 @@ func (e *EvmcVM) Destroy() {
 		e.vm.Destroy()
 	}
 	e.vm = nil
+}
+
+func toEvmcRevision(revision vm.Revision) (evmc.Revision, error) {
+	// Pick proper EVM revision based on block height.
+	switch revision {
+	case vm.R07_Istanbul:
+		return evmc.Istanbul, nil
+	case vm.R09_Berlin:
+		return evmc.Berlin, nil
+	case vm.R10_London:
+		return evmc.London, nil
+	default:
+		return 0, fmt.Errorf("unsupported revision: %v", revision)
+	}
 }
 
 // The HostContext allows a non-Go EVM implementation to access the StateDB and
