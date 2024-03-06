@@ -112,8 +112,6 @@ func convertCtStatusToEvmcStatus(status st.StatusCode) (evmc.StepStatus, error) 
 		return evmc.Running, nil
 	case st.Stopped:
 		return evmc.Stopped, nil
-	case st.Returned:
-		return evmc.Returned, nil
 	case st.Reverted:
 		return evmc.Reverted, nil
 	case st.Failed:
@@ -271,7 +269,7 @@ func convertEvmcStatusToCtStatus(stepStatus evmc.StepStatus) (st.StatusCode, err
 	case evmc.Stopped:
 		return st.Stopped, nil
 	case evmc.Returned:
-		return st.Returned, nil
+		return st.Stopped, nil
 	case evmc.Reverted:
 		return st.Reverted, nil
 	case evmc.Failed:

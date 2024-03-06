@@ -27,7 +27,6 @@ func TestConvertToGeth_StatusCode(t *testing.T) {
 	}{
 		"running":  {{st.Running, true, func(state *vm.GethState) bool { return !state.Halted && state.Err == nil }}},
 		"stopped":  {{st.Stopped, true, func(state *vm.GethState) bool { return state.Halted && state.Err == nil }}},
-		"returned": {{st.Returned, true, func(state *vm.GethState) bool { return state.Halted && state.Err == nil && state.Result != nil }}},
 		"reverted": {{st.Reverted, true, func(state *vm.GethState) bool { return state.Halted && state.Err == vm.ErrExecutionReverted }}},
 		"failed": {{st.Failed, true, func(state *vm.GethState) bool {
 			return state.Halted && state.Err != vm.ErrExecutionReverted && state.Err != nil
@@ -380,7 +379,7 @@ func TestConvertToCt_StatusCode(t *testing.T) {
 	}{
 		"running":  {{func(state *vm.GethState) { state.Halted = false; state.Err = nil }, true, st.Running}},
 		"stopped":  {{func(state *vm.GethState) { state.Halted = true; state.Err = nil }, true, st.Stopped}},
-		"returned": {{func(state *vm.GethState) { state.Halted = true; state.Err = nil; state.Result = make([]byte, 0) }, true, st.Returned}},
+		"returned": {{func(state *vm.GethState) { state.Halted = true; state.Err = nil; state.Result = make([]byte, 0) }, true, st.Stopped}},
 		"reverted": {{func(state *vm.GethState) { state.Halted = true; state.Err = vm.ErrExecutionReverted }, true, st.Reverted}},
 		"failed":   {{func(state *vm.GethState) { state.Halted = true; state.Err = vm.ErrInvalidCode }, true, st.Failed}},
 	}

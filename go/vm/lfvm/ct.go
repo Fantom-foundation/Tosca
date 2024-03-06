@@ -26,7 +26,7 @@ func convertLfvmStatusToCtStatus(status Status) (st.StatusCode, error) {
 	case REVERTED:
 		return st.Reverted, nil
 	case RETURNED:
-		return st.Returned, nil
+		return st.Stopped, nil
 	case SUICIDED:
 		// Suicide is not yet modeled by the CT, and for now it just maps to the STOPPED status.
 		return st.Stopped, nil
@@ -173,8 +173,6 @@ func convertCtStatusToLfvmStatus(state *st.State) (Status, error) {
 		return RUNNING, nil
 	case st.Stopped:
 		return STOPPED, nil
-	case st.Returned:
-		return RETURNED, nil
 	case st.Reverted:
 		return REVERTED, nil
 	case st.Failed:
