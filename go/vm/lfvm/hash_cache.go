@@ -3,8 +3,8 @@ package lfvm
 import (
 	"sync"
 
-	"golang.org/x/crypto/sha3"
 	"github.com/Fantom-foundation/Tosca/go/vm"
+	"golang.org/x/crypto/sha3"
 )
 
 // hashCacheEntry32 is an entry of a cache for hashes of 32-byte long inputs.

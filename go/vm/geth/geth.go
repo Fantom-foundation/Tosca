@@ -119,6 +119,19 @@ func (m *gethVm) Run(parameters vm.Parameters) (vm.Result, error) {
 
 // --- Adapter ---
 
+// transferFunc subtracts amount from sender and adds amount to recipient using the given Db
+// Now is doing nothing as this is not changing gas computation
+func transferFunc(stateDB geth.StateDB, callerAddress common.Address, to common.Address, value *big.Int) {
+	// Can be something like this:
+	// stateDB.SubBalance(callerAddress, value)
+	// stateDB.AddBalance(to, value)
+}
+
+// canTransferFunc is the signature of a transfer function
+func canTransferFunc(stateDB geth.StateDB, callerAddress common.Address, value *big.Int) bool {
+	return stateDB.GetBalance(callerAddress).Cmp(value) >= 0
+}
+
 type stateDbAdapter struct {
 	context vm.RunContext
 	refund  uint64

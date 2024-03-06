@@ -10,7 +10,6 @@ func init() {
 	vm.RegisterVirtualMachine("lfvm-no-sha-cache", &VM{no_shaCache: true})
 	vm.RegisterVirtualMachine("lfvm-si", &VM{with_super_instructions: true})
 	vm.RegisterVirtualMachine("lfvm-si-no-sha-cache", &VM{with_super_instructions: true, no_shaCache: true})
-	vm.RegisterVirtualMachine("lfvm-dbg", &VM{with_shadow_evm: true})
 	vm.RegisterVirtualMachine("lfvm-stats", &VM{with_statistics: true})
 	vm.RegisterVirtualMachine("lfvm-si-stats", &VM{with_super_instructions: true, with_statistics: true})
 	vm.RegisterVirtualMachine("lfvm-no-code-cache", &VM{no_code_cache: true})
@@ -19,7 +18,6 @@ func init() {
 
 type VM struct {
 	with_super_instructions bool
-	with_shadow_evm         bool
 	with_statistics         bool
 	no_shaCache             bool
 	no_code_cache           bool
@@ -43,7 +41,7 @@ func (v *VM) Run(params vm.Parameters) (vm.Result, error) {
 		return vm.Result{}, err
 	}
 
-	return Run(params, converted, v.with_shadow_evm, v.with_statistics, v.no_shaCache, v.logging)
+	return Run(params, converted, v.with_statistics, v.no_shaCache, v.logging)
 }
 
 func (e *VM) DumpProfile() {

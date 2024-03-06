@@ -1,7 +1,6 @@
 package lfvm
 
 import (
-	"bytes"
 	"fmt"
 	"hash"
 	"log"
@@ -10,11 +9,6 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
 	"github.com/holiman/uint256"
-
-	// The EVM dependency is needed to support the debugging mode
-	// in which the LFVM and the Geth EVM are run in lock-step mode
-	// to find problems. TODO: consider removing this
-	evm "github.com/ethereum/go-ethereum/core/vm"
 )
 
 type Status byte
@@ -67,9 +61,6 @@ type context struct {
 	// Outputs
 	result_offset uint256.Int
 	result_size   uint256.Int
-
-	// Debugging
-	interpreter *evm.InterpreterState
 }
 
 func (c *context) UseGas(amount vm.Gas) bool {
@@ -86,22 +77,13 @@ func (c *context) SignalError(err error) {
 	c.err = err
 }
 
-func (c *context) IsShadowed() bool {
-	return c.interpreter != nil
-}
-
 func Run(
 	params vm.Parameters,
 	code Code,
-	with_shadow_vm bool,
 	with_statistics bool,
 	no_shaCache bool,
 	logging bool,
 ) (vm.Result, error) {
-	if params.Depth == 0 && with_shadow_vm {
-		ClearShadowValues()
-	}
-
 	// Don't bother with the execution if there's no code.
 	if len(params.Code) == 0 {
 		return vm.Result{
@@ -109,29 +91,6 @@ func Run(
 			GasLeft: params.Gas,
 			Success: true,
 		}, nil
-	}
-
-	//var shadow_interpreter *vm.InterpreterState
-	if with_shadow_vm {
-		panic("shadow_vm mode not supported")
-		/*
-			// Set up a shadow context for the EVM implementation
-			shadow_contract := *contract
-			shadow_evm := *evm
-			shadow_call_context := ShadowCallContext{}
-			shadow_evm.CallContext = &shadow_call_context
-			shadow_evm.StateDB = ShadowStateDB{state: state}
-
-			// Introduce an interceptor for recursive EVM calls
-			main_evm.CallContext = &CaptureCallContext{evm, &shadow_call_context}
-
-			// Start shadow interceptor
-			shadow_interpreter = vm.NewEVMInterpreter(&shadow_evm, cfg).Start(&shadow_contract, data, readOnly)
-
-			defer func() {
-				shadow_interpreter.Stop()
-			}()
-		*/
 	}
 
 	// Set up execution context.
@@ -146,16 +105,14 @@ func Run(
 		isBerlin: params.Revision >= vm.R09_Berlin,
 		isLondon: params.Revision >= vm.R10_London,
 		shaCache: !no_shaCache,
-		//interpreter: shadow_interpreter,
 	}
+
 	defer func() {
 		ReturnStack(ctxt.stack)
 	}()
 
 	// Run interpreter.
-	if ctxt.IsShadowed() {
-		runWithShadowInterpreter(&ctxt)
-	} else if with_statistics {
+	if with_statistics {
 		runWithStatistics(&ctxt)
 	} else if logging {
 		runWithLogging(&ctxt)
@@ -217,69 +174,6 @@ func Run(
 
 func run(c *context) {
 	stepToEnd(c)
-}
-
-func runWithShadowInterpreter(c *context) {
-	count := 0
-	for c.status == RUNNING {
-
-		if int(c.pc) >= len(c.code) {
-			opStop(c)
-			return
-		}
-
-		for c.code[c.pc].opcode == JUMP_TO {
-			step(c)
-			c.interpreter.Step()
-		}
-		count++
-
-		// Make a step in this interpreter.
-		log.Printf("%5d - %v\n", count, c.code[c.pc].opcode)
-		step(c)
-
-		// Make a step in the shadow interpreter
-		log.Printf("%5d - % 92v\n", count, c.interpreter.GetCurrentOpCode())
-		c.interpreter.Step()
-
-		// Compare states and look for misalignments.
-		if (c.status != RUNNING) != (c.interpreter.IsDone()) {
-			log.Printf("Left done:  %t\n", c.status != RUNNING)
-			log.Printf("Right done: %t\n", c.interpreter.IsDone())
-			panic("One side terminated while other hasn't")
-		}
-		if c.status != RUNNING {
-			continue
-		}
-		if c.gas != vm.Gas(c.interpreter.Contract.Gas) {
-			log.Printf("Left:  %v\n", c.gas)
-			log.Printf("Right: %v\n", c.interpreter.Contract.Gas)
-			log.Printf("Diff:  %v\n", int64(c.gas)-int64(c.interpreter.Contract.Gas))
-			panic("Gas value diverged!")
-		}
-		if c.stack.len() != c.interpreter.Stack.Len() {
-			log.Printf("Left:  %d\n", c.stack.len())
-			log.Printf("Right: %d\n", c.interpreter.Stack.Len())
-			panic("Stack length diverged!")
-		}
-		if c.stack.len() > 0 && *c.stack.peek() != *c.interpreter.Stack.Back(0) {
-			log.Printf("Left:  %v\n", *c.stack.peek())
-			log.Printf("Right: %v\n", *c.interpreter.Stack.Back(0))
-			panic("Stack top value diverged!")
-		}
-		if c.memory.Len() != uint64(c.interpreter.Memory.Len()) {
-			log.Printf("Left:  %v\n", c.memory.Len())
-			log.Printf("Right: %v\n", c.interpreter.Memory.Len())
-			panic("Memory size diverged!")
-		}
-		if !bytes.Equal(c.memory.Data(), c.interpreter.Memory.Data()) {
-			log.Printf("Left:\n")
-			c.memory.Print()
-			log.Printf("Right:\n")
-			c.interpreter.Memory.Print()
-			panic("Memory content diverged!")
-		}
-	}
 }
 
 type entry struct {

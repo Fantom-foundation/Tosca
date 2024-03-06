@@ -238,9 +238,7 @@ func opSload(c *context) {
 		if _, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
 			// If the caller cannot afford the cost, this change will be rolled back
 			// If he does afford it, we can skip checking the same thing later on, during execution
-			if !c.IsShadowed() {
-				c.context.AccessStorage(c.params.Recipient, slot)
-			}
+			c.context.AccessStorage(c.params.Recipient, slot)
 			if !c.UseGas(vm.Gas(params.ColdSloadCostEIP2929)) {
 				return
 			}
@@ -667,7 +665,8 @@ func opAddress(c *context) {
 }
 
 func opOrigin(c *context) {
-	c.stack.pushEmpty().SetBytes20(c.params.Sender[:])
+	origin := c.params.Context.GetTransactionContext().Origin
+	c.stack.pushEmpty().SetBytes20(origin[:])
 }
 
 func opCodeSize(c *context) {
