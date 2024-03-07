@@ -20,7 +20,7 @@ func init() {
 	// of the evmzero project is added to the rpath of the resulting library.
 	// This way, the libevmzero.so file can be found during runtime, even if
 	// the LD_LIBRARY_PATH is not set accordingly.
-	cur, err := common.LoadEvmcVM("libevmzero.so")
+	cur, err := common.LoadEvmcInterpreter("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
@@ -28,7 +28,7 @@ func init() {
 	evmzero := cur
 
 	// We create a second instance in which we enable logging.
-	cur, err = common.LoadEvmcVM("libevmzero.so")
+	cur, err = common.LoadEvmcInterpreter("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
@@ -38,7 +38,7 @@ func init() {
 	evmzeroWithLogging := cur
 
 	// A third instance without analysis cache.
-	cur, err = common.LoadEvmcVM("libevmzero.so")
+	cur, err = common.LoadEvmcInterpreter("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
@@ -48,7 +48,7 @@ func init() {
 	evmzeroWithoutAnalysisCache := cur
 
 	// Another instance without SHA3 cache.
-	cur, err = common.LoadEvmcVM("libevmzero.so")
+	cur, err = common.LoadEvmcInterpreter("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
@@ -58,7 +58,7 @@ func init() {
 	evmzeroWithoutSha3Cache := cur
 
 	// Another instance in which we enable profiling.
-	cur, err = common.LoadEvmcVM("libevmzero.so")
+	cur, err = common.LoadEvmcInterpreter("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
@@ -68,7 +68,7 @@ func init() {
 	evmzeroWithProfiling := cur
 
 	// Another instance in which we enable profiling external.
-	cur, err = common.LoadEvmcVM("libevmzero.so")
+	cur, err = common.LoadEvmcInterpreter("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
@@ -88,7 +88,7 @@ func init() {
 // evmzeroInstanceWithProfiler implements the vm.ProfilingVM interface and is used for all
 // configurations collecting profiling data.
 type evmzeroInstanceWithProfiler struct {
-	*common.EvmcVM
+	*common.EvmcInterpreter
 }
 
 func (e *evmzeroInstanceWithProfiler) DumpProfile() {

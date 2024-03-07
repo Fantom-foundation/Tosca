@@ -15,30 +15,30 @@ import (
 	"github.com/ethereum/evmc/v10/bindings/go/evmc"
 )
 
-// LoadEvmcVM attempts to load an EVM implementation from a given library.
-// The `library` parameter should name the library file, while the actual
-// path to the library should be enforced using an rpath (see evmone
+// LoadEvmcInterpreter attempts to load an Interpreter implementation from a
+// given library. The `library` parameter should name the library file, while
+// the actual path to the library should be enforced using an rpath (see evmone
 // implementation for an example).
-func LoadEvmcVM(library string) (*EvmcVM, error) {
+func LoadEvmcInterpreter(library string) (*EvmcInterpreter, error) {
 	vm, err := evmc.Load(library)
 	if err != nil {
 		return nil, err
 	}
-	return &EvmcVM{vm: vm}, nil
+	return &EvmcInterpreter{vm: vm}, nil
 }
 
-// EvmcVM is a VirtualMachine implementation accessible through the EVMC library.
-type EvmcVM struct {
+// EvmcInterpreter is an Interpreter implementation accessible through the EVMC library.
+type EvmcInterpreter struct {
 	vm *evmc.VM
 }
 
 // SetOption enables the configuration of implementation specific options.
-func (e *EvmcVM) SetOption(property string, value string) error {
+func (e *EvmcInterpreter) SetOption(property string, value string) error {
 	return e.vm.SetOption(property, value)
 }
 
-func (e *EvmcVM) Run(params vm.Parameters) (vm.Result, error) {
-	host_ctx := HostContext{
+func (e *EvmcInterpreter) Run(params vm.Parameters) (vm.Result, error) {
+	host_ctx := hostContext{
 		params:  params,
 		context: params.Context,
 	}
@@ -108,13 +108,13 @@ func (e *EvmcVM) Run(params vm.Parameters) (vm.Result, error) {
 	}
 }
 
-// GetEvmcVM provides direct access to the VM connected through the EVMC library.
-func (e *EvmcVM) GetEvmcVM() *evmc.VM {
+// GetEvmcVM provides direct access to the Evmc VM connected through the EVMC library.
+func (e *EvmcInterpreter) GetEvmcVM() *evmc.VM {
 	return e.vm
 }
 
 // Destroy releases resources bound by this VM instance.
-func (e *EvmcVM) Destroy() {
+func (e *EvmcInterpreter) Destroy() {
 	if e.vm != nil {
 		e.vm.Destroy()
 	}
@@ -135,23 +135,23 @@ func toEvmcRevision(revision vm.Revision) (evmc.Revision, error) {
 	}
 }
 
-// The HostContext allows a non-Go EVM implementation to access the StateDB and
-// other systems external to the interpreter. This implementation leverages
-// evmc's Go bindings.
-type HostContext struct {
+// hostContext allows a non-Go Interpreter implementation to access transaction
+// context and chain state information external to the the interpreter.
+// It implements the host interface of evmc's Go bindings.
+type hostContext struct {
 	params  vm.Parameters
 	context vm.RunContext
 }
 
-func (ctx *HostContext) AccountExists(addr evmc.Address) bool {
+func (ctx *hostContext) AccountExists(addr evmc.Address) bool {
 	return ctx.context.AccountExists(vm.Address(addr))
 }
 
-func (ctx *HostContext) GetStorage(addr evmc.Address, key evmc.Hash) evmc.Hash {
+func (ctx *hostContext) GetStorage(addr evmc.Address, key evmc.Hash) evmc.Hash {
 	return evmc.Hash(ctx.context.GetStorage(vm.Address(addr), vm.Key(key)))
 }
 
-func (ctx *HostContext) SetStorage(addr evmc.Address, key evmc.Hash, value evmc.Hash) evmc.StorageStatus {
+func (ctx *hostContext) SetStorage(addr evmc.Address, key evmc.Hash, value evmc.Hash) evmc.StorageStatus {
 	status := ctx.context.SetStorage(vm.Address(addr), vm.Key(key), vm.Word(value))
 	switch status {
 	case vm.StorageAssigned:
@@ -177,27 +177,27 @@ func (ctx *HostContext) SetStorage(addr evmc.Address, key evmc.Hash, value evmc.
 	}
 }
 
-func (ctx *HostContext) GetBalance(addr evmc.Address) evmc.Hash {
+func (ctx *hostContext) GetBalance(addr evmc.Address) evmc.Hash {
 	return evmc.Hash(ctx.context.GetBalance(vm.Address(addr)))
 }
 
-func (ctx *HostContext) GetCodeSize(addr evmc.Address) int {
+func (ctx *hostContext) GetCodeSize(addr evmc.Address) int {
 	return ctx.context.GetCodeSize(vm.Address(addr))
 }
 
-func (ctx *HostContext) GetCodeHash(addr evmc.Address) evmc.Hash {
+func (ctx *hostContext) GetCodeHash(addr evmc.Address) evmc.Hash {
 	return evmc.Hash(ctx.context.GetCodeHash(vm.Address(addr)))
 }
 
-func (ctx *HostContext) GetCode(addr evmc.Address) []byte {
+func (ctx *hostContext) GetCode(addr evmc.Address) []byte {
 	return ctx.context.GetCode(vm.Address(addr))
 }
 
-func (ctx *HostContext) Selfdestruct(addr evmc.Address, beneficiary evmc.Address) bool {
+func (ctx *hostContext) Selfdestruct(addr evmc.Address, beneficiary evmc.Address) bool {
 	return ctx.context.SelfDestruct(vm.Address(addr), vm.Address(beneficiary))
 }
 
-func (ctx *HostContext) GetTxContext() evmc.TxContext {
+func (ctx *hostContext) GetTxContext() evmc.TxContext {
 	ctxt := ctx.context.GetTransactionContext()
 	return evmc.TxContext{
 		GasPrice:   evmc.Hash(ctxt.GasPrice),
@@ -212,11 +212,11 @@ func (ctx *HostContext) GetTxContext() evmc.TxContext {
 	}
 }
 
-func (ctx *HostContext) GetBlockHash(number int64) evmc.Hash {
+func (ctx *hostContext) GetBlockHash(number int64) evmc.Hash {
 	return evmc.Hash(ctx.context.GetBlockHash(number))
 }
 
-func (ctx *HostContext) EmitLog(addr evmc.Address, topics_in []evmc.Hash, data []byte) {
+func (ctx *hostContext) EmitLog(addr evmc.Address, topics_in []evmc.Hash, data []byte) {
 	topics := make([]vm.Hash, len(topics_in))
 	for i := range topics {
 		topics[i] = vm.Hash(topics_in[i])
@@ -224,7 +224,7 @@ func (ctx *HostContext) EmitLog(addr evmc.Address, topics_in []evmc.Hash, data [
 	ctx.context.EmitLog(vm.Address(addr), topics, data)
 }
 
-func (ctx *HostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender evmc.Address, value evmc.Hash, input []byte, gas int64, depth int, static bool, salt evmc.Hash, codeAddress evmc.Address) (output []byte, gasLeft int64, gasRefund int64, createAddr evmc.Address, err error) {
+func (ctx *hostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender evmc.Address, value evmc.Hash, input []byte, gas int64, depth int, static bool, salt evmc.Hash, codeAddress evmc.Address) (output []byte, gasLeft int64, gasRefund int64, createAddr evmc.Address, err error) {
 
 	var callKind vm.CallKind
 	switch kind {
@@ -270,14 +270,14 @@ func (ctx *HostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender 
 		nil
 }
 
-func (ctx *HostContext) AccessAccount(addr evmc.Address) evmc.AccessStatus {
+func (ctx *hostContext) AccessAccount(addr evmc.Address) evmc.AccessStatus {
 	if ctx.context.AccessAccount(vm.Address(addr)) == vm.WarmAccess {
 		return evmc.WarmAccess
 	}
 	return evmc.ColdAccess
 }
 
-func (ctx *HostContext) AccessStorage(addr evmc.Address, key evmc.Hash) evmc.AccessStatus {
+func (ctx *hostContext) AccessStorage(addr evmc.Address, key evmc.Hash) evmc.AccessStatus {
 	if ctx.context.AccessStorage(vm.Address(addr), vm.Key(key)) == vm.WarmAccess {
 		return evmc.WarmAccess
 	}
