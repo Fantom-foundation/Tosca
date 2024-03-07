@@ -11,10 +11,6 @@ import (
 ////////////////////////////////////////////////////////////
 // ct -> evmzero
 
-func getEmptyState() *st.State {
-	return st.NewState(st.NewCode([]byte{}))
-}
-
 func TestConvertToEvmzero_StatusCode(t *testing.T) {
 	tests := map[string][]struct {
 		ctStatus       st.StatusCode
@@ -142,10 +138,7 @@ func TestConvertToEvmzero_Stack(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				state := getEmptyState()
-				state.Stack = cur.ctStack
-
-				evmcStack := convertCtStackToEvmcStack(state.Stack)
+				evmcStack := convertCtStackToEvmcStack(cur.ctStack)
 
 				if want, got := len(cur.evmcStack), len(evmcStack); want != got {
 					t.Fatalf("unexpected stack size, wanted %v, got %v", want, got)
