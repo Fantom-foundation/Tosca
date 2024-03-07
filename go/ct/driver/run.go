@@ -55,7 +55,7 @@ var RunCmd = cli.Command{
 }
 
 var evms = map[string]ct.Evm{
-	"lfvm": lfvm.NewConformanceTestingTarget(), // < TODO: fix and reenable
+	"lfvm": lfvm.NewConformanceTestingTarget(),
 	// "geth":    vm.NewConformanceTestingTarget(), // < TODO: fix and reenable
 	"evmzero": evmzero.NewConformanceTestingTarget(),
 }
