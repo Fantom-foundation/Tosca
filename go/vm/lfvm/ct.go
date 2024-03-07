@@ -46,7 +46,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		return nil, err
 	}
 
-	memory, err := convertCtMemoryToLfvmMemory(state)
+	memory, err := convertCtMemoryToLfvmMemory(state.Memory)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.Gas = uint64(ctxt.gas)
 	state.GasRefund = uint64(ctxt.refund)
 	state.Stack = convertLfvmStackToCtStack(ctxt.stack)
-	state.Memory = convertLfvmMemoryToCtMemory(ctxt)
+	state.Memory = convertLfvmMemoryToCtMemory(ctxt.memory)
 
 	return state, nil
 }
@@ -141,13 +141,7 @@ func convertLfvmStatusToCtStatus(status Status) (st.StatusCode, error) {
 	case SUICIDED:
 		// Suicide is not yet modeled by the CT, and for now it just maps to the STOPPED status.
 		return st.Stopped, nil
-	case INVALID_INSTRUCTION:
-		return st.Failed, nil
-	case OUT_OF_GAS:
-		return st.Failed, nil
-	case SEGMENTATION_FAULT:
-		return st.Failed, nil
-	case ERROR:
+	case INVALID_INSTRUCTION, OUT_OF_GAS, SEGMENTATION_FAULT, ERROR:
 		return st.Failed, nil
 	default:
 		return st.Failed, fmt.Errorf("unable to convert lfvm status %v to ct status", status)
@@ -172,17 +166,17 @@ func convertLfvmStackToCtStack(stack *Stack) *st.Stack {
 	return result
 }
 
-func convertCtMemoryToLfvmMemory(state *st.State) (*Memory, error) {
-	data := state.Memory.Read(0, uint64(state.Memory.Size()))
+func convertCtMemoryToLfvmMemory(memory *st.Memory) (*Memory, error) {
+	data := memory.Read(0, uint64(memory.Size()))
 
-	memory := NewMemory()
-	memory.EnsureCapacityWithoutGas(uint64(len(data)), nil)
-	err := memory.Set(0, uint64(len(data)), data)
-	return memory, err
+	result := NewMemory()
+	result.EnsureCapacityWithoutGas(uint64(len(data)), nil)
+	err := result.Set(0, uint64(len(data)), data)
+	return result, err
 }
 
-func convertLfvmMemoryToCtMemory(ctx *context) *st.Memory {
-	memory := st.NewMemory()
-	memory.Set(ctx.memory.GetSlice(0, ctx.memory.Len()))
-	return memory
+func convertLfvmMemoryToCtMemory(memory *Memory) *st.Memory {
+	result := st.NewMemory()
+	result.Set(memory.GetSlice(0, memory.Len()))
+	return result
 }

@@ -765,13 +765,13 @@ func opCreate(c *context) {
 	c.refund += res.GasRefund
 
 	success := c.stack.pushEmpty()
-	if res.Reverted || err != nil {
+	if !res.Success || err != nil {
 		success.Clear()
 	} else {
 		success.SetBytes20(res.CreatedAddress[:])
 	}
 
-	if res.Reverted && err == nil {
+	if !res.Success && err == nil {
 		c.return_data = res.Output
 	} else {
 		c.return_data = nil
@@ -817,13 +817,13 @@ func opCreate2(c *context) {
 
 	// Push item on the stack based on the returned error.
 	success := c.stack.pushEmpty()
-	if res.Reverted || err != nil {
+	if !res.Success || err != nil {
 		success.Clear()
 	} else {
 		success.SetBytes20(res.CreatedAddress[:])
 	}
 
-	if res.Reverted && err == nil {
+	if !res.Success && err == nil {
 		c.return_data = res.Output
 	} else {
 		c.return_data = nil
@@ -987,7 +987,7 @@ func opCall(c *context) {
 	}
 
 	success := stack.pushEmpty()
-	if err != nil || ret.Reverted {
+	if err != nil || !ret.Success {
 		success.Clear()
 	} else {
 		success.SetOne()
@@ -1074,7 +1074,7 @@ func opCallCode(c *context) {
 	}
 
 	success := stack.pushEmpty()
-	if err != nil || ret.Reverted {
+	if err != nil || !ret.Success {
 		success.Clear()
 	} else {
 		success.SetOne()
@@ -1147,7 +1147,7 @@ func opStaticCall(c *context) {
 	}
 
 	success := stack.pushEmpty()
-	if err != nil || ret.Reverted {
+	if err != nil || !ret.Success {
 		success.Clear()
 	} else {
 		success.SetOne()
@@ -1221,7 +1221,7 @@ func opDelegateCall(c *context) {
 	}
 
 	success := stack.pushEmpty()
-	if err != nil || ret.Reverted {
+	if err != nil || !ret.Success {
 		success.Clear()
 	} else {
 		success.SetOne()

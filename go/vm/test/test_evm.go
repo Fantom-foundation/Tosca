@@ -13,24 +13,6 @@ const InitialTestGas vm.Gas = 1 << 44
 
 var TestEvmCreatedAccountAddress = vm.Address{42}
 
-type StateDB interface {
-	AccountExists(vm.Address) bool
-	GetStorage(vm.Address, vm.Key) vm.Word
-	SetStorage(vm.Address, vm.Key, vm.Word)
-	GetBalance(vm.Address) vm.Value
-	GetCodeSize(vm.Address) int
-	GetCodeHash(vm.Address) vm.Hash
-	GetCode(vm.Address) []byte
-	GetBlockHash(int64) vm.Hash
-	EmitLog(vm.Address, []vm.Hash, []byte)
-	AccessAccount(vm.Address) vm.AccessStatus
-	AccessStorage(vm.Address, vm.Key) vm.AccessStatus
-	GetCommittedStorage(vm.Address, vm.Key) vm.Word
-	IsAddressInAccessList(vm.Address) bool
-	IsSlotInAccessList(vm.Address, vm.Key) (addressPresent, slotPresent bool)
-	HasSelfDestructed(vm.Address) bool
-}
-
 // TestEVM is a minimal EVM implementation wrapping an Interpreter into an EVM
 // instance capable of processing recursive calls. It is only intended to be be
 // utilized for integration tests in this package, and thus misses almost all
@@ -61,6 +43,25 @@ func GetCleanEVM(revision Revision, interpreter string, stateDB StateDB) TestEVM
 	}
 }
 
+// StateDB is a TestEVM interface that is mocked by tests to formulate
+// expectations on chain-state side-effects of interpreter operations.
+type StateDB interface {
+	AccountExists(vm.Address) bool
+	GetStorage(vm.Address, vm.Key) vm.Word
+	SetStorage(vm.Address, vm.Key, vm.Word)
+	GetBalance(vm.Address) vm.Value
+	GetCodeSize(vm.Address) int
+	GetCodeHash(vm.Address) vm.Hash
+	GetCode(vm.Address) []byte
+	GetBlockHash(int64) vm.Hash
+	EmitLog(vm.Address, []vm.Hash, []byte)
+	AccessAccount(vm.Address) vm.AccessStatus
+	AccessStorage(vm.Address, vm.Key) vm.AccessStatus
+	GetCommittedStorage(vm.Address, vm.Key) vm.Word
+	IsAddressInAccessList(vm.Address) bool
+	IsSlotInAccessList(vm.Address, vm.Key) (addressPresent, slotPresent bool)
+	HasSelfDestructed(vm.Address) bool
+}
 type RunResult struct {
 	Output  []byte
 	GasUsed vm.Gas
@@ -104,6 +105,8 @@ func (e *TestEVM) runInternal(code []byte, input []byte, gas vm.Gas, readOnly bo
 
 // --- adapter ---
 
+// runContextAdapter is an internal implementation of the vm.RunContext mapping operations
+// to the TestEVM and its StateDB interface to be implemented by tests, mostly through mocks.
 type runContextAdapter struct {
 	StateDB
 	evm *TestEVM
@@ -133,7 +136,7 @@ func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameter) (
 	// Check the maximum nesting depth, tracked by the EVM, not the interpreter.
 	if a.evm.depth >= 1024 {
 		return vm.CallResult{
-			Reverted: true,
+			Success: false,
 		}, nil
 	}
 	a.evm.depth++
@@ -172,7 +175,7 @@ func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameter) (
 	if (kind == vm.Create || kind == vm.Create2) && result.Success {
 		initCodeCost := vm.Gas(200 * len(result.Output))
 		if result.GasLeft < initCodeCost {
-			return vm.CallResult{Reverted: true}, nil
+			return vm.CallResult{Success: false}, nil
 		}
 		result.GasLeft -= initCodeCost
 	}
@@ -182,7 +185,7 @@ func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameter) (
 		GasLeft:        result.GasLeft,
 		GasRefund:      result.GasRefund,
 		CreatedAddress: TestEvmCreatedAccountAddress,
-		Reverted:       !result.Success,
+		Success:        result.Success,
 	}, err
 }
 

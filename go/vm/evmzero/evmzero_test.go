@@ -15,8 +15,8 @@ func TestFib10(t *testing.T) {
 	// compute expected value
 	wanted := example.RunReference(arg)
 
-	vm := vm.GetInterpreter("evmzero")
-	got, err := example.RunOn(vm, arg)
+	interpreter := vm.GetInterpreter("evmzero")
+	got, err := example.RunOn(interpreter, arg)
 	if err != nil {
 		t.Fatalf("running the fib example failed: %v", err)
 	}
@@ -28,15 +28,15 @@ func TestFib10(t *testing.T) {
 
 func TestEvmzero_DumpProfile(t *testing.T) {
 	example := examples.GetFibExample()
-	vmInstance, ok := vm.GetInterpreter("evmzero-profiling").(vm.ProfilingInterpreter)
-	if !ok || vmInstance == nil {
+	interpreter, ok := vm.GetInterpreter("evmzero-profiling").(vm.ProfilingInterpreter)
+	if !ok || interpreter == nil {
 		t.Fatalf("profiling evmzero configuration does not support profiling")
 	}
 	for i := 0; i < 10; i++ {
-		example.RunOn(vmInstance, 10)
-		vmInstance.DumpProfile()
+		example.RunOn(interpreter, 10)
+		interpreter.DumpProfile()
 		if i == 5 {
-			vmInstance.ResetProfile()
+			interpreter.ResetProfile()
 		}
 	}
 }
@@ -60,9 +60,9 @@ func benchmarkFib(b *testing.B, arg int) {
 	wanted := example.RunReference(arg)
 
 	b.Run("evmzero", func(b *testing.B) {
-		vm := vm.GetInterpreter("evmzero")
+		interpreter := vm.GetInterpreter("evmzero")
 		for i := 0; i < b.N; i++ {
-			got, err := example.RunOn(vm, arg)
+			got, err := example.RunOn(interpreter, arg)
 			if err != nil {
 				b.Fatalf("running the fib example failed: %v", err)
 			}

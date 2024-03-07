@@ -14,11 +14,11 @@ import (
 var evmzeroSteppable *vmc.SteppableEvmcInterpreter
 
 func init() {
-	vmSteppable, err := vmc.LoadSteppableEvmcInterpreter("libevmzero.so")
+	interpreter, err := vmc.LoadSteppableEvmcInterpreter("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}
-	evmzeroSteppable = vmSteppable
+	evmzeroSteppable = interpreter
 }
 
 func NewConformanceTestingTarget() ct.Evm {
@@ -28,8 +28,6 @@ func NewConformanceTestingTarget() ct.Evm {
 type ctAdapter struct{}
 
 func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
-	// TODO: generalize
-
 	// Hack: Special handling for unknown revision, because evmzero cannot represent an invalid revision.
 	// So we mark the status as failed already.
 	// TODO: Fix this once we add full revision support to the CT and evmzero.
