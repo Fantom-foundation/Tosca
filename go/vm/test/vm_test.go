@@ -30,7 +30,7 @@ var (
 func TestExamples_ComputesCorrectResult(t *testing.T) {
 	for _, example := range testExamples {
 		for _, variant := range Variants {
-			vm := vm.GetVirtualMachine(variant)
+			vm := vm.GetInterpreter(variant)
 			for i := 0; i < 10; i++ {
 				t.Run(fmt.Sprintf("%s-%s-%d", example.Name, variant, i), func(t *testing.T) {
 					want := example.RunReference(i)
@@ -50,9 +50,9 @@ func TestExamples_ComputesCorrectResult(t *testing.T) {
 func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 	for _, example := range testExamples {
 		for _, revision := range revisions {
-			reference := vm.GetVirtualMachine("geth")
+			reference := vm.GetInterpreter("geth")
 			for _, variant := range Variants {
-				vm := vm.GetVirtualMachine(variant)
+				vm := vm.GetInterpreter(variant)
 				for i := 0; i < 10; i++ {
 					t.Run(fmt.Sprintf("%s-%s-%s-%d", example.Name, revision, variant, i), func(t *testing.T) {
 						want, err := example.RunOn(reference, i)
@@ -78,7 +78,7 @@ func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 func BenchmarkEmpty(b *testing.B) {
 	emptyRunParameters := vm.Parameters{}
 	for _, variant := range Variants {
-		vm := vm.GetVirtualMachine(variant)
+		vm := vm.GetInterpreter(variant)
 		b.Run(variant, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_, err := vm.Run(emptyRunParameters)
@@ -154,8 +154,8 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 	wanted := example.RunReference(arg)
 
 	for _, variant := range Variants {
-		evm := vm.GetVirtualMachine(variant)
-		if pvm, ok := evm.(vm.ProfilingVM); ok {
+		evm := vm.GetInterpreter(variant)
+		if pvm, ok := evm.(vm.ProfilingInterpreter); ok {
 			pvm.ResetProfile()
 		}
 		active := false
@@ -172,7 +172,7 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 				}
 			}
 		})
-		if pvm, ok := evm.(vm.ProfilingVM); active && ok {
+		if pvm, ok := evm.(vm.ProfilingInterpreter); active && ok {
 			pvm.DumpProfile()
 		}
 	}

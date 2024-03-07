@@ -77,12 +77,12 @@ func init() {
 	}
 	evmzeroWithProfilingExternal := cur
 
-	vm.RegisterVirtualMachine("evmzero", evmzero)
-	vm.RegisterVirtualMachine("evmzero-logging", evmzeroWithLogging)
-	vm.RegisterVirtualMachine("evmzero-no-analysis-cache", evmzeroWithoutAnalysisCache)
-	vm.RegisterVirtualMachine("evmzero-no-sha3-cache", evmzeroWithoutSha3Cache)
-	vm.RegisterVirtualMachine("evmzero-profiling", &evmzeroInstanceWithProfiler{evmzeroWithProfiling})
-	vm.RegisterVirtualMachine("evmzero-profiling-external", &evmzeroInstanceWithProfiler{evmzeroWithProfilingExternal})
+	vm.RegisterInterpreter("evmzero", evmzero)
+	vm.RegisterInterpreter("evmzero-logging", evmzeroWithLogging)
+	vm.RegisterInterpreter("evmzero-no-analysis-cache", evmzeroWithoutAnalysisCache)
+	vm.RegisterInterpreter("evmzero-no-sha3-cache", evmzeroWithoutSha3Cache)
+	vm.RegisterInterpreter("evmzero-profiling", &evmzeroInstanceWithProfiler{evmzeroWithProfiling})
+	vm.RegisterInterpreter("evmzero-profiling-external", &evmzeroInstanceWithProfiler{evmzeroWithProfilingExternal})
 }
 
 // evmzeroInstanceWithProfiler implements the vm.ProfilingVM interface and is used for all

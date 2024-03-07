@@ -1,19 +1,20 @@
 package vm
 
-//go:generate mockgen -source vm.go -destination vm_mock.go -package vm
+//go:generate mockgen -source interpreter.go -destination interpreter_mock.go -package vm
 
-// VirtualMachine (VM) represents an instance of an EVM-byte-code execution engine
-// loaded in memory. A VM instance is capable of running multiple code executions
-// in parallel.
-// To obtain a VM instance, client code should use GetVirtualMachine() provided
+// Interpreter is a component capable of executing EVM byte-code. It is the main
+// part of an EVM implementation, though a full EVM adds the ability to handle
+// recursive contract calls and transaction handling.
+// To obtain an Interpreter instance, client code should use GetInterpreter() provided
 // by the registry file in this package.
-type VirtualMachine interface {
+type Interpreter interface {
 	// Run executes the code provided by the parameters in the specified context
 	// and returns the processing result. The resulting error is nil whenever the
 	// code was correctly executed (even if the execution was aborted due do to
-	// a discovered issue). The error is not nil if some problem within the VM
-	// caused the VM to fail the correct execution. In this case the result is
-	// undefined.
+	// a code-internal issue). The error is not nil if some problem within the
+	// interpreter caused the execution to fail to correct process the provided
+	// program. In such a case the result is undefined. Interpreters are required
+	// to be thread-safe. Thus, multiple runs may be conducted in parallel.
 	Run(Parameters) (Result, error)
 }
 
@@ -163,18 +164,21 @@ const (
 	R10_London
 )
 
-// ProfilingVM is an optional extension to the VirtualMachine interface above which
-// may be implemented by VM implementations collecting statistical data regarding
-// their execution.
-type ProfilingVM interface {
-	VirtualMachine
+// ProfilingInterpreter is an optional extension to the Interpreter interface
+// above which may be implemented by interpreters collecting statistical data
+// on their executions.
+type ProfilingInterpreter interface {
+	Interpreter
 
-	// ResetProfile resets the operation statistic collected by the underlying VM implementation.
-	// Use this, for instance, at the beginning of a benchmark. It should not be called while
-	// running operations on the VM implementations in parallel.
+	// ResetProfile resets the operation statistic collected by the underlying
+	// Interpreter implementation. Use this, for instance, at the beginning of
+	// a benchmark. It should not be called while running operations on the
+	// Interpreter in parallel.
 	ResetProfile()
 
-	// DumpProfile prints a snapshot of the profiling data collected since the last reset to stdout.
-	// In the future this interface will be changed to return the result instead of printing it.
+	// DumpProfile prints a snapshot of the profiling data collected since the
+	// last reset to stdout. In the future this interface will be changed to
+	// return the result instead of printing it.
+	// TODO: produce the result as a string
 	DumpProfile()
 }

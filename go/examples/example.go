@@ -39,7 +39,7 @@ type Result struct {
 }
 
 // RunOn runs this example on the given interpreter, using the given argument.
-func (e *Example) RunOn(interpreter vm.VirtualMachine, argument int) (Result, error) {
+func (e *Example) RunOn(interpreter vm.Interpreter, argument int) (Result, error) {
 
 	const initialGas = math.MaxInt64
 	params := vm.Parameters{
