@@ -23,8 +23,8 @@ func init() {
 	}
 	// This instance remains in its basic configuration and is registered
 	// as the default "evmone" VM and as the "evmone-basic" VM.
-	vm.RegisterVirtualMachine("evmone", evmone)
-	vm.RegisterVirtualMachine("evmone-basic", evmone)
+	vm.RegisterInterpreter("evmone", evmone)
+	vm.RegisterInterpreter("evmone-basic", evmone)
 
 	// A second instance is configured to use the advanced execution mode.
 	evmone, err = common.LoadEvmcVM("libevmone.so")
@@ -34,5 +34,5 @@ func init() {
 	if err := evmone.SetOption("advanced", "on"); err != nil {
 		panic(fmt.Errorf("failed to configure evmone advanced mode: %v", err))
 	}
-	vm.RegisterVirtualMachine("evmone-advanced", evmone)
+	vm.RegisterInterpreter("evmone-advanced", evmone)
 }

@@ -31,16 +31,16 @@ type StateDB interface {
 	HasSelfDestructed(vm.Address) bool
 }
 
-// TestEVM is a minimal EVM implementation wrapping a VirtualMachine into an EVM
+// TestEVM is a minimal EVM implementation wrapping an Interpreter into an EVM
 // instance capable of processing recursive calls. It is only intended to be be
 // utilized for integration tests in this package, and thus misses almost all
 // features of a fully functional EVM.
 type TestEVM struct {
-	vm       vm.VirtualMachine
-	revision vm.Revision
-	state    StateDB
-	depth    int
-	readOnly bool
+	interpreter vm.Interpreter
+	revision    vm.Revision
+	state       StateDB
+	depth       int
+	readOnly    bool
 }
 
 func GetCleanEVM(revision Revision, interpreter string, stateDB StateDB) TestEVM {
@@ -55,9 +55,9 @@ func GetCleanEVM(revision Revision, interpreter string, stateDB StateDB) TestEVM
 	}
 
 	return TestEVM{
-		vm:       vm.GetVirtualMachine(interpreter),
-		revision: rev,
-		state:    stateDB,
+		interpreter: vm.GetInterpreter(interpreter),
+		revision:    rev,
+		state:       stateDB,
 	}
 }
 
@@ -99,7 +99,7 @@ func (e *TestEVM) runInternal(code []byte, input []byte, gas vm.Gas, readOnly bo
 		Static:   readOnly,
 	}
 
-	return e.vm.Run(params)
+	return e.interpreter.Run(params)
 }
 
 // --- adapter ---

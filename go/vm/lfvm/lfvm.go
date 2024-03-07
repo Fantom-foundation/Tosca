@@ -6,14 +6,14 @@ import (
 
 // Registers the long-form EVM as a possible interpreter implementation.
 func init() {
-	vm.RegisterVirtualMachine("lfvm", &VM{})
-	vm.RegisterVirtualMachine("lfvm-no-sha-cache", &VM{no_shaCache: true})
-	vm.RegisterVirtualMachine("lfvm-si", &VM{with_super_instructions: true})
-	vm.RegisterVirtualMachine("lfvm-si-no-sha-cache", &VM{with_super_instructions: true, no_shaCache: true})
-	vm.RegisterVirtualMachine("lfvm-stats", &VM{with_statistics: true})
-	vm.RegisterVirtualMachine("lfvm-si-stats", &VM{with_super_instructions: true, with_statistics: true})
-	vm.RegisterVirtualMachine("lfvm-no-code-cache", &VM{no_code_cache: true})
-	vm.RegisterVirtualMachine("lfvm-logging", &VM{logging: true})
+	vm.RegisterInterpreter("lfvm", &VM{})
+	vm.RegisterInterpreter("lfvm-no-sha-cache", &VM{no_shaCache: true})
+	vm.RegisterInterpreter("lfvm-si", &VM{with_super_instructions: true})
+	vm.RegisterInterpreter("lfvm-si-no-sha-cache", &VM{with_super_instructions: true, no_shaCache: true})
+	vm.RegisterInterpreter("lfvm-stats", &VM{with_statistics: true})
+	vm.RegisterInterpreter("lfvm-si-stats", &VM{with_super_instructions: true, with_statistics: true})
+	vm.RegisterInterpreter("lfvm-no-code-cache", &VM{no_code_cache: true})
+	vm.RegisterInterpreter("lfvm-logging", &VM{logging: true})
 }
 
 type VM struct {

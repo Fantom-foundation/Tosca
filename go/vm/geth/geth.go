@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	vm.RegisterVirtualMachine("geth", &gethVm{})
+	vm.RegisterInterpreter("geth", &gethVm{})
 }
 
 type gethVm struct{}
