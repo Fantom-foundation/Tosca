@@ -247,7 +247,7 @@ func getStaticGasPriceInternal(op OpCode) vm.Gas {
 func callGas(availableGas, base vm.Gas, callCost *uint256.Int) vm.Gas {
 	availableGas = availableGas - base
 	gas := availableGas - availableGas/64
-	if !callCost.IsUint64() || gas < vm.Gas(callCost.Uint64()) {
+	if !callCost.IsUint64() || (gas >= 0 && gas < vm.Gas(callCost.Uint64())) {
 		return gas
 	}
 	return vm.Gas(callCost.Uint64())

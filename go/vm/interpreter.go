@@ -152,7 +152,7 @@ type CallParameter struct {
 	Input       []byte
 	Gas         Gas
 	Salt        Hash    // < only relevant for CREATE2 calls
-	CodeAddress Address // < only relevant for CALLCODE calls
+	CodeAddress Address // < only relevant for DELEGATECALL and CALLCODE calls
 }
 
 type CallResult struct {

@@ -38,6 +38,13 @@ func getConversionCacheLength() int {
 func Convert(code []byte, with_super_instructions bool, create bool, noCodeCache bool, codeHash vm.Hash) (Code, error) {
 	// TODO: clean up this code; it does some checks that seems to be once used
 	// for debugging an issue that do not make sense any more.
+
+	// Do not cache use-once code in create calls.
+	// In those cases the codeHash is also invalid.
+	if create {
+		return convert(code, with_super_instructions)
+	}
+
 	mu.Lock()
 	res, exists := cache[codeHash]
 	if exists && !create {
