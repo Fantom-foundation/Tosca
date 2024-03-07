@@ -8,10 +8,20 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
+// ToVmParameters converts the given state into a set of interpreter Parameters.
+// The resulting parameters depends partially on the internal state of the
+// provided CT state. It should thus not be modified during the life-time of
+// the resulting parameter set. Furthermore, when providing these parameters
+// to an Interpreter, effects of state modifications are passed on to the given
+// state. Thus, effects of an execution can be observed in the provided state
+// after the execution of an interpreter.
 func ToVmParameters(state *st.State) vm.Parameters {
 
-	code := make([]byte, state.Code.Length())
-	state.Code.CopyTo(code)
+	var code []byte
+	if state.Code != nil {
+		code = make([]byte, state.Code.Length())
+		state.Code.CopyTo(code)
+	}
 
 	var revision vm.Revision
 	switch state.Revision {
@@ -41,6 +51,9 @@ func ToVmParameters(state *st.State) vm.Parameters {
 	}
 }
 
+// ctRunContext adapts a st.State to the vm.RunContext interface utilized
+// by Tosca Interpreter implementations. In particular, it makes global state
+// information like Storage visible and mutable to Interpreters.
 type ctRunContext struct {
 	state *st.State
 }
