@@ -970,7 +970,13 @@ func opCall(c *context) {
 
 	// Get the arguments from the memory.
 	args := c.memory.GetSlice(inOffset.Uint64(), inSize.Uint64())
-	ret, err := c.context.Call(vm.Call, vm.CallParameter{
+
+	kind := vm.Call
+	if c.params.Static {
+		kind = vm.StaticCall
+	}
+
+	ret, err := c.context.Call(kind, vm.CallParameter{
 		Sender:    c.params.Recipient,
 		Recipient: toAddr,
 		Input:     args,
