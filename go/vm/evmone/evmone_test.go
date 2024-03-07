@@ -23,8 +23,8 @@ func TestFib10(t *testing.T) {
 
 	for _, variant := range variants {
 		t.Run(variant, func(t *testing.T) {
-			vm := vm.GetInterpreter(variant)
-			got, err := example.RunOn(vm, arg)
+			interpreter := vm.GetInterpreter(variant)
+			got, err := example.RunOn(interpreter, arg)
 			if err != nil {
 				t.Fatalf("running the fib example failed: %v", err)
 			}
@@ -48,9 +48,9 @@ func benchmarkFib(b *testing.B, arg int) {
 
 	for _, variant := range variants {
 		b.Run(variant, func(b *testing.B) {
-			vm := vm.GetInterpreter(variant)
+			interpreter := vm.GetInterpreter(variant)
 			for i := 0; i < b.N; i++ {
-				got, err := example.RunOn(vm, arg)
+				got, err := example.RunOn(interpreter, arg)
 				if err != nil {
 					b.Fatalf("running the fib example failed: %v", err)
 				}

@@ -1071,20 +1071,9 @@ func getRadomByte32() []byte {
 }
 
 func setDefaultCallStateDBMock(mockStateDB *MockStateDB, account vm.Address, code []byte) {
-
-	/*
-		var emptyCodeHash = keccak256Hash(nil)
-			contractAddrCreate := crypto.CreateAddress(account, 0)
-			contractAddrCreate2 := crypto.CreateAddress2(account, [32]byte{}, emptyCodeHash.Bytes())
-	*/
-
 	// mock state calls for call instruction
 	mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(vm.Value{1})
 	mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(vm.Hash{})
-	/*
-		mockStateDB.EXPECT().GetCodeHash(contractAddrCreate).AnyTimes().Return(common.Hash{byte(0)})
-		mockStateDB.EXPECT().GetCodeHash(contractAddrCreate2).AnyTimes().Return(common.Hash{byte(0)})
-	*/
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(code)
 	mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(true)
 	mockStateDB.EXPECT().EmitLog(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()

@@ -43,7 +43,7 @@ func (e *Example) RunOn(interpreter vm.Interpreter, argument int) (Result, error
 
 	const initialGas = math.MaxInt64
 	params := vm.Parameters{
-		Context:  &exampleRunContext{},
+		Context:  &noOpRunContext{},
 		Code:     e.code,
 		CodeHash: (*vm.Hash)(&e.codeHash),
 		Input:    encodeArgument(e.function, argument),
@@ -96,77 +96,79 @@ func decodeOutput(output []byte) (int, error) {
 	return (int(output[28]) << 24) | (int(output[29]) << 16) | (int(output[30]) << 8) | (int(output[31]) << 0), nil
 }
 
-type exampleRunContext struct{}
+// noOpRunContext is a simple vm.RunContext implementation for example codes
+// not depending on any chain state. No operation has any effect.
+type noOpRunContext struct{}
 
-func (c *exampleRunContext) AccountExists(vm.Address) bool {
+func (c *noOpRunContext) AccountExists(vm.Address) bool {
 	return false
 }
 
-func (c *exampleRunContext) GetStorage(vm.Address, vm.Key) vm.Word {
+func (c *noOpRunContext) GetStorage(vm.Address, vm.Key) vm.Word {
 	return vm.Word{}
 }
 
-func (c *exampleRunContext) SetStorage(vm.Address, vm.Key, vm.Word) vm.StorageStatus {
+func (c *noOpRunContext) SetStorage(vm.Address, vm.Key, vm.Word) vm.StorageStatus {
 	return vm.StorageAdded
 }
 
-func (c *exampleRunContext) GetBalance(vm.Address) vm.Value {
+func (c *noOpRunContext) GetBalance(vm.Address) vm.Value {
 	return vm.Value{}
 }
 
-func (c *exampleRunContext) GetCodeSize(vm.Address) int {
+func (c *noOpRunContext) GetCodeSize(vm.Address) int {
 	return 0
 }
 
-func (c *exampleRunContext) GetCodeHash(vm.Address) vm.Hash {
+func (c *noOpRunContext) GetCodeHash(vm.Address) vm.Hash {
 	return vm.Hash{}
 }
 
-func (c *exampleRunContext) GetCode(vm.Address) []byte {
+func (c *noOpRunContext) GetCode(vm.Address) []byte {
 	return nil
 }
 
-func (c *exampleRunContext) GetTransactionContext() vm.TransactionContext {
+func (c *noOpRunContext) GetTransactionContext() vm.TransactionContext {
 	return vm.TransactionContext{}
 }
 
-func (c *exampleRunContext) GetBlockHash(int64) vm.Hash {
+func (c *noOpRunContext) GetBlockHash(int64) vm.Hash {
 	return vm.Hash{}
 }
 
-func (c *exampleRunContext) EmitLog(vm.Address, []vm.Hash, []byte) {
+func (c *noOpRunContext) EmitLog(vm.Address, []vm.Hash, []byte) {
 }
 
-func (c *exampleRunContext) Call(vm.CallKind, vm.CallParameter) (vm.CallResult, error) {
+func (c *noOpRunContext) Call(vm.CallKind, vm.CallParameter) (vm.CallResult, error) {
 	return vm.CallResult{}, nil
 }
 
-func (c *exampleRunContext) SelfDestruct(vm.Address, vm.Address) bool {
+func (c *noOpRunContext) SelfDestruct(vm.Address, vm.Address) bool {
 	return false
 }
 
-func (c *exampleRunContext) AccessAccount(vm.Address) vm.AccessStatus {
+func (c *noOpRunContext) AccessAccount(vm.Address) vm.AccessStatus {
 	return vm.ColdAccess
 }
 
-func (c *exampleRunContext) AccessStorage(vm.Address, vm.Key) vm.AccessStatus {
+func (c *noOpRunContext) AccessStorage(vm.Address, vm.Key) vm.AccessStatus {
 	return vm.ColdAccess
 }
 
 // -- legacy API needed by LFVM and Geth, to be removed in the future ---
 
-func (c *exampleRunContext) GetCommittedStorage(vm.Address, vm.Key) vm.Word {
+func (c *noOpRunContext) GetCommittedStorage(vm.Address, vm.Key) vm.Word {
 	return vm.Word{}
 }
 
-func (c *exampleRunContext) IsAddressInAccessList(vm.Address) bool {
+func (c *noOpRunContext) IsAddressInAccessList(vm.Address) bool {
 	return false
 }
 
-func (c *exampleRunContext) IsSlotInAccessList(vm.Address, vm.Key) (bool, bool) {
+func (c *noOpRunContext) IsSlotInAccessList(vm.Address, vm.Key) (bool, bool) {
 	return false, false
 }
 
-func (c *exampleRunContext) HasSelfDestructed(vm.Address) bool {
+func (c *noOpRunContext) HasSelfDestructed(vm.Address) bool {
 	return false
 }

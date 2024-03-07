@@ -104,6 +104,8 @@ type TransactionContext struct {
 	BaseFee     Value
 }
 
+// AccessStatus is an enum utilized to indicate cold and warm account or
+// storage slot accesses.
 type AccessStatus bool
 
 const (
@@ -111,9 +113,13 @@ const (
 	WarmAccess AccessStatus = true
 )
 
+// StorageStatus is an enum utilized to indicate the effect of a storage
+// slot update on the respective slot in the context of the current
+// transaction. It is needed to perform proper gas price calculations of
+// SSTORE operations.
 type StorageStatus int
 
-// See t.ly/b5HPf for the definition of the return status.
+// See t.ly/b5HPf for the definition of these values.
 const (
 	StorageAssigned StorageStatus = iota
 	StorageAdded
@@ -126,6 +132,8 @@ const (
 	StorageModifiedRestored
 )
 
+// CallKind is an enum enabling the differentiation of the different types
+// of recursive contract calls supported in the EVM.
 type CallKind int
 
 const (
@@ -143,18 +151,19 @@ type CallParameter struct {
 	Value       Value   // < ignored by static calls, considered to be 0
 	Input       []byte
 	Gas         Gas
-	Salt        Hash    // < only relevant for CREATE2 call
-	CodeAddress Address // < only relevant for CALLCODE
+	Salt        Hash    // < only relevant for CREATE2 calls
+	CodeAddress Address // < only relevant for CALLCODE calls
 }
 
 type CallResult struct {
 	Output         []byte
 	GasLeft        Gas
 	GasRefund      Gas
-	CreatedAddress Address
-	Reverted       bool
+	CreatedAddress Address // < only meaningful for CREATE and CREATE2
+	Success        bool    // false if the execution ended in a revert, true otherwise
 }
 
+// Revision is an enumeration for EVM specification revisions (aka. Hard-Forks).
 type Revision int
 
 // The list of revisions supported so far by Tosca.
