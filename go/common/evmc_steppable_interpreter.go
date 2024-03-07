@@ -9,28 +9,28 @@ import (
 	"github.com/ethereum/evmc/v10/bindings/go/evmc"
 )
 
-// LoadEvmcVMSteppable attempts to load an EVM implementation from a given library.
-// The `library` parameter should name the library file, while the actual
-// path to the library should be enforced using an rpath (see evmone
+// LoadSteppableEvmcInterpreter attempts to load an Interpreter implementation from a
+// given library. The `library` parameter should name the library file, while
+// the actual path to the library should be enforced using an rpath (see evmone
 // implementation for an example).
-func LoadEvmcVMSteppable(library string) (*EvmcVMSteppable, error) {
+func LoadSteppableEvmcInterpreter(library string) (*SteppableEvmcInterpreter, error) {
 	vm, err := evmc.LoadSteppable(library)
 	if err != nil {
 		return nil, err
 	}
-	return &EvmcVMSteppable{vm: vm}, nil
+	return &SteppableEvmcInterpreter{vm: vm}, nil
 }
 
-type EvmcVMSteppable struct {
+type SteppableEvmcInterpreter struct {
 	vm *evmc.VMSteppable
 }
 
-func (e *EvmcVMSteppable) StepN(
+func (e *SteppableEvmcInterpreter) StepN(
 	params vm.Parameters,
 	state *st.State,
 	numSteps int,
 ) (*st.State, error) {
-	host_ctx := HostContext{
+	host_ctx := hostContext{
 		params:  params,
 		context: params.Context,
 	}
