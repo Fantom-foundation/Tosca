@@ -27,6 +27,10 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			func(s *st.State) { s.Code = st.NewCode([]byte{1, 2, 3}) },
 			func(p vm.Parameters) (any, any) { return []byte{1, 2, 3}, p.Code },
 		},
+		"input": {
+			func(s *st.State) { s.CallData = []byte{1, 2, 3} },
+			func(p vm.Parameters) (any, any) { return []byte{1, 2, 3}, p.Input },
+		},
 		"read-only-true": {
 			func(s *st.State) { s.ReadOnly = true },
 			func(p vm.Parameters) (any, any) { return true, p.Static },
@@ -170,6 +174,68 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 				ctxt := p.Context
 				_, res := ctxt.IsSlotInAccessList(vm.Address{}, vm.Key{})
 				return true, res
+			},
+		},
+		"balance-unspecified": {
+			func(s *st.State) {
+				s.Balance = &st.Balance{}
+				s.Balance.Current = map[cc.Address]cc.U256{
+					{1}: cc.NewU256(2),
+				}
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+				return vm.Value{}, ctxt.GetBalance(vm.Address{})
+			},
+		},
+		"balance-specified": {
+			func(s *st.State) {
+				s.Balance = &st.Balance{}
+				s.Balance.Current = map[cc.Address]cc.U256{
+					{1}: cc.NewU256(2),
+				}
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+				return vm.Value(cc.NewU256(2).Bytes32be()), ctxt.GetBalance(vm.Address{1})
+			},
+		},
+		"cold-account": {
+			func(s *st.State) {
+				s.Balance = st.NewBalance()
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+				return vm.ColdAccess, ctxt.AccessAccount(vm.Address{})
+			},
+		},
+		"warm-account": {
+			func(s *st.State) {
+				s.Balance = st.NewBalance()
+				s.Balance.MarkWarm(cc.Address{})
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+				return vm.WarmAccess, ctxt.AccessAccount(vm.Address{})
+			},
+		},
+		"cold-account-legacy": {
+			func(s *st.State) {
+				s.Balance = st.NewBalance()
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+				return false, ctxt.IsAddressInAccessList(vm.Address{})
+			},
+		},
+		"warm-account-legacy": {
+			func(s *st.State) {
+				s.Balance = st.NewBalance()
+				s.Balance.MarkWarm(cc.Address{})
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+				return true, ctxt.IsAddressInAccessList(vm.Address{})
 			},
 		},
 	}

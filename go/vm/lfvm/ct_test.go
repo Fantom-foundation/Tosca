@@ -61,7 +61,7 @@ func TestConvertToLfvm_StatusCode(t *testing.T) {
 	expected := map[Status]st.StatusCode{
 		RUNNING:  st.Running,
 		REVERTED: st.Reverted,
-		RETURNED: st.Returned,
+		RETURNED: st.Stopped,
 		STOPPED:  st.Stopped,
 		SUICIDED: st.Stopped,
 	}
