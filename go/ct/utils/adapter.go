@@ -44,7 +44,7 @@ func ToVmParameters(state *st.State) vm.Parameters {
 		Gas:       vm.Gas(state.Gas),
 		Recipient: vm.Address(state.CallContext.AccountAddress),
 		Sender:    vm.Address(state.CallContext.CallerAddress),
-		Input:     nil, // TODO: add call context information
+		Input:     state.CallData,
 		Value:     vm.Value(state.CallContext.Value.Bytes32be()),
 		CodeHash:  nil,
 		Code:      code,
@@ -77,7 +77,8 @@ func (c *ctRunContext) SetStorage(addr vm.Address, key vm.Key, value vm.Word) vm
 }
 
 func (c *ctRunContext) GetBalance(addr vm.Address) vm.Value {
-	panic("not implemented")
+	balance := c.state.Balance.Current[cc.Address(addr)]
+	return vm.Value(balance.Bytes32be())
 }
 
 func (c *ctRunContext) GetCodeSize(addr vm.Address) int {
@@ -128,7 +129,12 @@ func (c *ctRunContext) SelfDestruct(addr vm.Address, beneficiary vm.Address) boo
 }
 
 func (c *ctRunContext) AccessAccount(addr vm.Address) vm.AccessStatus {
-	panic("not implemented")
+	warm := c.state.Balance.IsWarm(cc.Address(addr))
+	c.state.Balance.MarkWarm(cc.Address(addr))
+	if warm {
+		return vm.WarmAccess
+	}
+	return vm.ColdAccess
 }
 
 func (c *ctRunContext) AccessStorage(addr vm.Address, key vm.Key) vm.AccessStatus {
@@ -149,7 +155,7 @@ func (c *ctRunContext) GetCommittedStorage(addr vm.Address, key vm.Key) vm.Word 
 }
 
 func (c *ctRunContext) IsAddressInAccessList(addr vm.Address) bool {
-	panic("not implemented")
+	return c.state.Balance.IsWarm(cc.Address(addr))
 }
 
 func (c *ctRunContext) IsSlotInAccessList(addr vm.Address, key vm.Key) (addressPresent, slotPresent bool) {
