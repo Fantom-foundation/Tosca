@@ -26,7 +26,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		return state, nil
 	}
 
-	// No need to run everything that is not in a running state.
+	// No need to run anything that is not in a running state.
 	if state.Status != st.Running {
 		return state, nil
 	}
