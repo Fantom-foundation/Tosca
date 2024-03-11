@@ -100,7 +100,7 @@ func (e *EvmcInterpreter) Run(params vm.Parameters) (vm.Result, error) {
 		evmc.Error(C.EVMC_STACK_OVERFLOW),
 		evmc.Error(C.EVMC_STACK_UNDERFLOW):
 		// These are errors in the executed contract, but not VM errors.
-		// The result is thus marked as not successfully, and all gas is
+		// The result is thus marked as not successful, and all gas is
 		// removed. Also, all refunds are removed and no data is returned.
 		return vm.Result{Success: false}, nil
 	default:

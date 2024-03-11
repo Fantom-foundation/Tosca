@@ -12,7 +12,7 @@ type Interpreter interface {
 	// and returns the processing result. The resulting error is nil whenever the
 	// code was correctly executed (even if the execution was aborted due do to
 	// a code-internal issue). The error is not nil if some problem within the
-	// interpreter caused the execution to fail to correct process the provided
+	// interpreter caused the execution to fail to correctly process the provided
 	// program. In such a case the result is undefined. Interpreters are required
 	// to be thread-safe. Thus, multiple runs may be conducted in parallel.
 	Run(Parameters) (Result, error)

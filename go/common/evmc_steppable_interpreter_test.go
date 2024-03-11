@@ -9,9 +9,9 @@ import (
 )
 
 ////////////////////////////////////////////////////////////
-// ct -> evmzero
+// ct -> evmc
 
-func TestConvertToEvmzero_StatusCode(t *testing.T) {
+func TestConvertToEvmc_StatusCode(t *testing.T) {
 	tests := map[string][]struct {
 		ctStatus       st.StatusCode
 		evmcStatus     evmc.StepStatus
@@ -79,7 +79,7 @@ func TestConvertToCt_StatusCode(t *testing.T) {
 	}
 }
 
-func TestConvertToEvmzero_Stack(t *testing.T) {
+func TestConvertToEvmc_Stack(t *testing.T) {
 	tests := map[string][]struct {
 		ctStack   *st.Stack
 		evmcStack []byte
