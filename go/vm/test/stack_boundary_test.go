@@ -40,7 +40,7 @@ func TestStackMaxBoundary(t *testing.T) {
 						t.Errorf("execution should have failed due to a stack overflow, got result %v", res)
 					}
 					// Note: the amount of consumed gas is not relevant, since
-					// in case of a stack underflow all remaining gas is consumed.
+					// in case of a stack overflow all remaining gas is consumed.
 				})
 			}
 		}
