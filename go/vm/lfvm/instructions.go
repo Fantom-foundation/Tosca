@@ -963,9 +963,6 @@ func opCall(c *context) {
 	// when out of gas is happening, then mem should not be resized
 	c.memory.EnsureCapacityWithoutGas(needed_memory_size, c)
 
-	//TODO: use uint256.Int instead of converting with toBig()
-	// By using big0 here, we save an alloc for the most common case (non-ether-transferring contract calls),
-	// but it would make more sense to extend the usage of uint256.Int
 	if !value.IsZero() {
 		cost += vm.Gas(params.CallStipend)
 	}

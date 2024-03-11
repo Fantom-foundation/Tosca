@@ -47,7 +47,10 @@ func getContext(code Code, data []byte, runContext vm.RunContext, stackPtr int, 
 		isLondon: revision >= vm.R10_London,
 	}
 
-	// Fix stack.
+	// Move the stack pointer to the required hight.
+	// For the tests using the resulting context the actual
+	// stack content is not relevant. It is merely used for
+	// checking stack over- or under-flows.
 	ctxt.stack.stack_ptr = stackPtr
 
 	return ctxt

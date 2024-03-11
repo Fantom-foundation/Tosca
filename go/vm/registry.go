@@ -3,6 +3,7 @@ package vm
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"golang.org/x/exp/maps"
 )
@@ -20,12 +21,16 @@ import (
 // the registry. The result is nil if no interpreter was registered under the
 // given name.
 func GetInterpreter(name string) Interpreter {
-	return interpreter_registry[strings.ToLower(name)]
+	interpreterRegistryLock.Lock()
+	defer interpreterRegistryLock.Unlock()
+	return interpreterRegistry[strings.ToLower(name)]
 }
 
 // GetAllRegisteredInterpreters obtains all registered implementations.
 func GetAllRegisteredInterpreters() map[string]Interpreter {
-	return maps.Clone(interpreter_registry)
+	interpreterRegistryLock.Lock()
+	defer interpreterRegistryLock.Unlock()
+	return maps.Clone(interpreterRegistry)
 }
 
 // RegisterInterpreter can be used to register a new Interpreter implementation
@@ -38,12 +43,17 @@ func RegisterInterpreter(name string, impl Interpreter) {
 	if impl == nil {
 		panic(fmt.Sprintf("invalid initialization: cannot register nil-interpreter using `%s`", key))
 	}
-	if _, found := interpreter_registry[key]; found {
+	interpreterRegistryLock.Lock()
+	defer interpreterRegistryLock.Unlock()
+	if _, found := interpreterRegistry[key]; found {
 		panic(fmt.Sprintf("invalid initialization: multiple Interpreters registered for `%s`", key))
 	}
-	interpreter_registry[key] = impl
+	interpreterRegistry[key] = impl
 }
 
-// interpreter_registry is a global registry for Interpreter instances of
+// interpreterRegistry is a global registry for Interpreter instances of
 // different implementations and configurations.
-var interpreter_registry = map[string]Interpreter{}
+var interpreterRegistry = map[string]Interpreter{}
+
+// interpreterRegistryLock to protect access to the registry.
+var interpreterRegistryLock sync.Mutex
