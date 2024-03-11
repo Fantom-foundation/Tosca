@@ -50,7 +50,7 @@ func TestExamples_ComputesCorrectResult(t *testing.T) {
 func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 	for _, example := range testExamples {
 		for _, revision := range revisions {
-			reference := vm.GetInterpreter("geth")
+			reference := vm.GetInterpreter("lfvm")
 			for _, variant := range Variants {
 				vm := vm.GetInterpreter(variant)
 				for i := 0; i < 10; i++ {

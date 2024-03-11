@@ -23,7 +23,7 @@ func GetSha3Example() Example {
 		// Compute one hash step.
 		byte(vm.PUSH1), 32,
 		byte(vm.PUSH1), 0,
-		byte(vm.SHA3),
+		byte(vm.KECCAK256),
 		byte(vm.PUSH1), 0,
 		byte(vm.MSTORE),
 

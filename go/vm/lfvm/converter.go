@@ -402,6 +402,7 @@ func createOpToOpMap() []OpCode {
 
 	// Stack operations
 	res[evm.POP] = POP
+	res[evm.PUSH0] = PUSH0
 
 	res[evm.DUP1] = DUP1
 	res[evm.DUP2] = DUP2
@@ -442,6 +443,11 @@ func createOpToOpMap() []OpCode {
 	res[evm.MSTORE] = MSTORE
 	res[evm.MSTORE8] = MSTORE8
 	res[evm.MSIZE] = MSIZE
+	res[evm.MCOPY] = MCOPY
+
+	// Transient Storage operations
+	res[evm.TLOAD] = TLOAD
+	res[evm.TSTORE] = TSTORE
 
 	// Storage operations
 	res[evm.SLOAD] = SLOAD
@@ -471,7 +477,7 @@ func createOpToOpMap() []OpCode {
 	res[evm.SIGNEXTEND] = SIGNEXTEND
 
 	// Complex function
-	res[evm.SHA3] = SHA3
+	res[evm.KECCAK256] = SHA3
 
 	// Comparison operations
 	res[evm.LT] = LT
@@ -527,6 +533,8 @@ func createOpToOpMap() []OpCode {
 	res[evm.CHAINID] = CHAINID
 	res[evm.SELFBALANCE] = SELFBALANCE
 	res[evm.BASEFEE] = BASEFEE
+	res[evm.BLOBHASH] = BLOCKHASH
+	res[evm.BLOBBASEFEE] = BLOBBASEFEE
 
 	// Log instructions
 	res[evm.LOG0] = LOG0
@@ -540,7 +548,7 @@ func createOpToOpMap() []OpCode {
 		code := evm.OpCode(i)
 
 		// Known OpCodes that are indeed invalid.
-		if code == evm.INVALID || code == evm.PUSH || code == evm.SWAP || code == evm.DUP {
+		if code == evm.INVALID {
 			continue
 		}
 

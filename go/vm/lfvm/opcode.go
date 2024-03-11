@@ -11,6 +11,7 @@ type OpCode uint16
 const (
 	// Stack operations
 	POP OpCode = iota
+	PUSH0
 	PUSH1
 	PUSH2
 	PUSH3
@@ -126,6 +127,11 @@ const (
 	MSTORE8
 	MLOAD
 	MSIZE
+	MCOPY
+
+	// Transient Storage
+	TLOAD
+	TSTORE
 
 	// Storage
 	SLOAD
@@ -174,6 +180,8 @@ const (
 	CHAINID
 	SELFBALANCE
 	BASEFEE
+	BLOBHASH
+	BLOBBASEFEE
 
 	// long-form EVM special instructions
 	JUMP_TO
@@ -244,6 +252,7 @@ var op_to_string = map[OpCode]string{
 	REVERT:   "REVERT",
 	PUSH32:   "PUSH32",
 
+	PUSH0:  "PUSH0",
 	PUSH3:  "PUSH3",
 	PUSH5:  "PUSH5",
 	PUSH6:  "PUSH6",
@@ -324,6 +333,10 @@ var op_to_string = map[OpCode]string{
 	MSTORE8: "MSTORE8",
 	MLOAD:   "MLOAD",
 	MSIZE:   "MSIZE",
+	MCOPY:   "MCOPY",
+
+	TLOAD:  "TLOAD",
+	TSTORE: "TSTORE",
 
 	SLOAD:  "SLOAD",
 	SSTORE: "SSTORE",

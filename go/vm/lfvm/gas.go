@@ -75,6 +75,8 @@ func getStaticGasPriceInternal(op OpCode) vm.Gas {
 	switch op {
 	case POP:
 		return 2
+	case PUSH0:
+		return 2
 	case ADD:
 		return 3
 	case SUB:
@@ -137,12 +139,22 @@ func getStaticGasPriceInternal(op OpCode) vm.Gas {
 		return 5
 	case BASEFEE:
 		return 2
+	case BLOBHASH:
+		return 0 // TODO: fix this when supporting Cancun
+	case BLOBBASEFEE:
+		return 0 // TODO: fix this when supporting Cancun
 	case MLOAD:
 		return 3
 	case MSTORE:
 		return 3
 	case MSTORE8:
 		return 3
+	case MCOPY:
+		return 0 // TODO: fix this when supporting MCOPY
+	case TLOAD:
+		return 0 // TODO: fix this when supporting transient memory
+	case TSTORE:
+		return 0 // TODO: fix this when supporting transient memory
 	case SLOAD:
 		return 800 // This is supposed to be 100 for warm and 2100 for cold accesses
 	case SSTORE:

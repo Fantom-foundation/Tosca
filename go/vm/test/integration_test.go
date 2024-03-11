@@ -415,7 +415,7 @@ func TestInstructionDataInitialization(t *testing.T) {
 	instructions := []instructionTest{
 		{geth.RETURN, nil},
 		{geth.REVERT, []error{geth.ErrExecutionReverted}},
-		{geth.SHA3, nil},
+		{geth.KECCAK256, nil},
 		{geth.LOG0, nil},
 		{geth.CODECOPY, nil},
 		{geth.EXTCODECOPY, nil},

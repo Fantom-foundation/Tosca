@@ -51,13 +51,13 @@ func gasEXP(revision Revision) []*DynGasTest {
 	return testCases
 }
 
-// SHA3 instruction
+// KECCAK256 instruction
 // 30 is a static gas
 // gas_cost = 30 + 6 * data_size_words + mem_expansion_cost
 // data_size: size of the message to hash in bytes (len in the stack representation)
 // data_size_words = (data_size + 31) // 32: number of (32-byte) words in the message to hash
 // mem_expansion_cost: the cost of any memory expansion required (see A0-1)
-func gasDynamicSHA3(revision Revision) []*DynGasTest {
+func gasDynamicKeccak256(revision Revision) []*DynGasTest {
 	return getDynamicMemGas(6, 2)
 }
 
@@ -72,7 +72,7 @@ func gasDynamicCopy(revision Revision) []*DynGasTest {
 	return getDynamicMemGas(3, 3)
 }
 
-// Common function for SHA3, CALLDATACOPY, CODECOPY and RETURNDATACOPY
+// Common function for KECCAK256, CALLDATACOPY, CODECOPY and RETURNDATACOPY
 func getDynamicMemGas(gasCoeficient uint64, numStackValues int) []*DynGasTest {
 	testCases := []*DynGasTest{}
 
@@ -356,8 +356,8 @@ func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 		logStaticGas vm.Gas = 375
 		// Exp is 50 * exponent byte len which is 1 for test
 		expLowGas vm.Gas = 49
-		// SHA3 static gas is 30 + needed memory expansion, then 6 * word size
-		sha3LowGas vm.Gas = 30 + 3 + 5
+		// KECCAK256 static gas is 30 + needed memory expansion, then 6 * word size
+		keccak256LowGas vm.Gas = 30 + 3 + 5
 	)
 	testCases := []*FailGasTest{}
 
@@ -386,7 +386,7 @@ func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 		{evm.LOG2, 3*logStaticGas + logLowGas},
 		{evm.LOG3, 4*logStaticGas + logLowGas},
 		{evm.LOG4, 5*logStaticGas + logLowGas},
-		{evm.SHA3, sha3LowGas},
+		{evm.KECCAK256, keccak256LowGas},
 		{evm.RETURN, memoryLowGasOneWord},
 		{evm.REVERT, memoryLowGasOneWord},
 	}
