@@ -20,7 +20,7 @@ type gethVm struct{}
 
 func (m *gethVm) Run(parameters vm.Parameters) (vm.Result, error) {
 	// Set hard forks for chainconfig
-	chainConfig := params.AllEthashProtocolChanges
+	chainConfig := *params.AllEthashProtocolChanges
 	chainConfig.ChainID = big.NewInt(0)
 	chainConfig.IstanbulBlock = big.NewInt(int64(vm.R07_Istanbul) * 10)
 	chainConfig.BerlinBlock = big.NewInt(int64(vm.R09_Berlin) * 10)
@@ -57,7 +57,7 @@ func (m *gethVm) Run(parameters vm.Parameters) (vm.Result, error) {
 	}
 
 	stateDb := &stateDbAdapter{context: parameters.Context}
-	evm := geth.NewEVM(blockCtx, txCtx, stateDb, chainConfig, config)
+	evm := geth.NewEVM(blockCtx, txCtx, stateDb, &chainConfig, config)
 
 	addr := geth.AccountRef{}
 	contract := geth.NewContract(addr, addr, big.NewInt(0), uint64(parameters.Gas))
