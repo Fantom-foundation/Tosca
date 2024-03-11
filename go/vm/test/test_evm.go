@@ -14,7 +14,7 @@ const InitialTestGas vm.Gas = 1 << 44
 var TestEvmCreatedAccountAddress = vm.Address{42}
 
 // TestEVM is a minimal EVM implementation wrapping an Interpreter into an EVM
-// instance capable of processing recursive calls. It is only intended to be be
+// instance capable of processing recursive calls. It is only intended to be
 // utilized for integration tests in this package, and thus misses almost all
 // features of a fully functional EVM.
 type TestEVM struct {

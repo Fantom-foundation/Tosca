@@ -11,7 +11,7 @@ const (
 	ErrWriteProtection       = ConstError("write protection")
 )
 
-// ConstError is a error type that can be used to define immutable
+// ConstError is an error type that can be used to define immutable
 // error constants.
 type ConstError string
 
