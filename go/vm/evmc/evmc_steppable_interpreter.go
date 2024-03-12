@@ -1,4 +1,4 @@
-package common
+package evmc
 
 import (
 	"fmt"
@@ -114,6 +114,8 @@ func convertEvmcStatusToCtStatus(stepStatus evmc.StepStatus) (st.StatusCode, err
 		return st.Stopped, nil
 	case evmc.Reverted:
 		return st.Reverted, nil
+	case evmc.Returned:
+		return st.Stopped, nil
 	case evmc.Failed:
 		return st.Failed, nil
 	}

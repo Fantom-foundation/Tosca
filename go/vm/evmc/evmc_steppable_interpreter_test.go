@@ -1,4 +1,4 @@
-package common
+package evmc
 
 import (
 	"testing"
@@ -54,6 +54,7 @@ func TestConvertToCt_StatusCode(t *testing.T) {
 		"running":  {{evmc.Running, st.Running, true}},
 		"stopped":  {{evmc.Stopped, st.Stopped, true}},
 		"reverted": {{evmc.Reverted, st.Reverted, true}},
+		"returned": {{evmc.Returned, st.Stopped, true}},
 		"failed":   {{evmc.Failed, st.Failed, true}},
 		"error":    {{-1, st.NumStatusCodes, false}},
 	}

@@ -8,8 +8,8 @@ import "C"
 import (
 	"fmt"
 
-	"github.com/Fantom-foundation/Tosca/go/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/vm/evmc"
 )
 
 func init() {
@@ -17,7 +17,7 @@ func init() {
 	// of the evmone project is added to the rpath of the resulting library.
 	// This way, the libevmone.so file can be found during runtime, even if
 	// the LD_LIBRARY_PATH is not set accordingly.
-	evmone, err := common.LoadEvmcInterpreter("libevmone.so")
+	evmone, err := evmc.LoadEvmcInterpreter("libevmone.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmone library: %s", err))
 	}
@@ -27,7 +27,7 @@ func init() {
 	vm.RegisterInterpreter("evmone-basic", evmone)
 
 	// A second instance is configured to use the advanced execution mode.
-	evmone, err = common.LoadEvmcInterpreter("libevmone.so")
+	evmone, err = evmc.LoadEvmcInterpreter("libevmone.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmone library: %s", err))
 	}

@@ -7,14 +7,13 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/ct/utils"
-
-	vmc "github.com/Fantom-foundation/Tosca/go/common"
+	"github.com/Fantom-foundation/Tosca/go/vm/evmc"
 )
 
-var evmzeroSteppable *vmc.SteppableEvmcInterpreter
+var evmzeroSteppable *evmc.SteppableEvmcInterpreter
 
 func init() {
-	interpreter, err := vmc.LoadSteppableEvmcInterpreter("libevmzero.so")
+	interpreter, err := evmc.LoadSteppableEvmcInterpreter("libevmzero.so")
 	if err != nil {
 		panic(fmt.Errorf("failed to load evmzero library: %s", err))
 	}

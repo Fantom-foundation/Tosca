@@ -1,7 +1,7 @@
-package common
+package evmc
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../third_party/evmc/include -Wall -Wextra
+#cgo CFLAGS: -I${SRCDIR}/../../../third_party/evmc/include -Wall -Wextra
 #cgo !windows LDFLAGS: -ldl
 
 #include <evmc/evmc.h>
