@@ -1,15 +1,47 @@
 package lfvm
 
 import (
-	"math/big"
-	"slices"
 	"testing"
 
-	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/ct"
+	cc "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
 )
+
+func TestCtAdapter_Add(t *testing.T) {
+	s := st.NewState(st.NewCode([]byte{
+		byte(cc.PUSH1), 3,
+		byte(cc.PUSH1), 4,
+		byte(cc.ADD),
+	}))
+	s.Status = st.Running
+	s.Revision = cc.R07_Istanbul
+	s.Pc = 0
+	s.Gas = 100
+	s.Stack = st.NewStack(cc.NewU256(1), cc.NewU256(2))
+	s.Memory = st.NewMemory(1, 2, 3)
+
+	c := NewConformanceTestingTarget()
+
+	s, err := c.StepN(s, 4)
+
+	if err != nil {
+		t.Fatalf("unexpected conversion error: %v", err)
+	}
+
+	if want, got := st.Stopped, s.Status; want != got {
+		t.Fatalf("unexpected status: wanted %v, got %v", want, got)
+	}
+
+	if want, got := cc.NewU256(3+4), s.Stack.Get(0); !want.Eq(got) {
+		t.Errorf("unexpected result: wanted %s, got %s", want, got)
+	}
+}
+
+func TestCtAdapter_Interface(t *testing.T) {
+	// Compile time check that ctAdapter implements the st.Evm interface.
+	var _ ct.Evm = ctAdapter{}
+}
 
 ////////////////////////////////////////////////////////////
 // ct -> lfvm
@@ -25,78 +57,31 @@ func getByteCodeFromState(state *st.State) []byte {
 }
 
 func TestConvertToLfvm_StatusCode(t *testing.T) {
-	state := getEmptyState()
-	state.Status = st.Stopped
 
-	pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
-	if err != nil {
-		t.Fatalf("failed to generate pc map: %v", err)
+	expected := map[Status]st.StatusCode{
+		RUNNING:  st.Running,
+		REVERTED: st.Reverted,
+		RETURNED: st.Stopped,
+		STOPPED:  st.Stopped,
+		SUICIDED: st.Stopped,
 	}
 
-	ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
-
-	if err != nil {
-		t.Fatalf("failed to convert ct state to lfvm context: %v", err)
-	}
-
-	if want, got := STOPPED, ctx.status; want != got {
-		t.Errorf("unexpected status, wanted %v, got %v", want, got)
-	}
-}
-
-func TestConvertToLfvm_InvalidStatusCode(t *testing.T) {
-	state := getEmptyState()
-	state.Status = st.NumStatusCodes
-
-	pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
-	if err != nil {
-		t.Fatalf("failed to generate pc map: %v", err)
-	}
-
-	ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
-
-	if err == nil {
-		t.Errorf("expected invalid status, but got: %v", ctx.status)
-	}
-}
-
-func TestConvertToLfvm_Revision(t *testing.T) {
-	tests := map[string][]struct {
-		ctRevision            ct.Revision
-		convertSuccess        bool
-		lfvmRevisionPredicate func(ctx *context) bool
-	}{
-		"istanbul": {{ct.R07_Istanbul, true, func(ctx *context) bool { return !ctx.isBerlin && !ctx.isLondon }}},
-		"berlin":   {{ct.R09_Berlin, true, func(ctx *context) bool { return ctx.isBerlin && !ctx.isLondon }}},
-		"london":   {{ct.R10_London, true, func(ctx *context) bool { return ctx.isBerlin && ctx.isLondon }}},
-		"next":     {{ct.R99_UnknownNextRevision, true, func(ctx *context) bool { return ctx.isBerlin && ctx.isLondon }}},
-		"invalid":  {{-1, false, nil}},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			for _, cur := range test {
-				state := getEmptyState()
-				state.Revision = cur.ctRevision
-
-				pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
-				if err != nil {
-					t.Fatalf("failed to generate pc map: %v", err)
-				}
-
-				ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
-
-				if want, got := cur.convertSuccess, (err == nil); want != got {
-					t.Errorf("unexpected conversion error: wanted %v, got %v", want, got)
-				}
-
-				if err == nil {
-					if !cur.lfvmRevisionPredicate(ctx) {
-						t.Errorf("revision check for %v failed", cur.ctRevision)
-					}
-				}
+	for i := 0; i < 100; i++ {
+		status := Status(i)
+		want, found := expected[status]
+		if !found {
+			want = st.Failed
+		}
+		got, err := convertLfvmStatusToCtStatus(status)
+		if err != nil {
+			if found {
+				t.Errorf("failed conversion of %v, wanted %v, got error %v", status, want, err)
 			}
-		})
+		} else {
+			if want != got {
+				t.Errorf("invalid conversion of %v, expected %v, got %v", status, want, got)
+			}
+		}
 	}
 }
 
@@ -107,64 +92,36 @@ func TestConvertToLfvm_Pc(t *testing.T) {
 		lfvmPc  uint16
 	}{
 		"empty":        {{}},
-		"pos-0":        {{[]byte{byte(ct.STOP)}, 0, 0}},
-		"pos-1":        {{[]byte{byte(ct.STOP), byte(ct.STOP), byte(ct.STOP)}, 1, 1}},
-		"one-past-end": {{[]byte{byte(ct.STOP)}, 1, 1}},
+		"pos-0":        {{[]byte{byte(cc.STOP)}, 0, 0}},
+		"pos-1":        {{[]byte{byte(cc.STOP), byte(cc.STOP), byte(cc.STOP)}, 1, 1}},
+		"one-past-end": {{[]byte{byte(cc.STOP)}, 1, 1}},
 		"shifted": {{[]byte{
-			byte(ct.PUSH1), 0x01,
-			byte(ct.PUSH1), 0x02,
-			byte(ct.ADD)}, 2, 1}},
+			byte(cc.PUSH1), 0x01,
+			byte(cc.PUSH1), 0x02,
+			byte(cc.ADD)}, 2, 1}},
 		"jumpdest": {{[]byte{
-			byte(ct.PUSH3), 0x00, 0x00, 0x06,
-			byte(ct.JUMP),
-			byte(ct.INVALID),
-			byte(ct.JUMPDEST)},
+			byte(cc.PUSH3), 0x00, 0x00, 0x06,
+			byte(cc.JUMP),
+			byte(cc.INVALID),
+			byte(cc.JUMPDEST)},
 			6, 6}},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				code := st.NewCode(cur.evmCode)
-				state := st.NewState(code)
-				state.Pc = cur.evmPc
-
-				pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
+				pcMap, err := GenPcMapWithoutSuperInstructions(cur.evmCode)
 				if err != nil {
 					t.Fatalf("failed to generate pc map: %v", err)
 				}
-
-				ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
-
-				if err != nil {
-					t.Fatalf("failed to convert ct state to lfvm context: %v", err)
-				}
-
-				if want, got := cur.lfvmPc, uint16(ctx.pc); want != got {
-					t.Errorf("unexpected program counter, wanted %d, got %d", want, got)
+				lfvmPc, found := pcMap.evmToLfvm[cur.evmPc]
+				if !found {
+					t.Errorf("failed to resolve evm PC of %d in converted code", cur.evmPc)
+				} else if want, got := cur.lfvmPc, lfvmPc; want != got {
+					t.Errorf("invalid conversion, wanted %d, got %d", want, got)
 				}
 			}
 		})
-	}
-}
-
-func TestConvertToLfvm_Gas(t *testing.T) {
-	state := getEmptyState()
-	state.Gas = 777
-
-	pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
-	if err != nil {
-		t.Fatalf("failed to generate pc map: %v", err)
-	}
-
-	ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
-
-	if err != nil {
-		t.Fatalf("failed to convert ct state to lfvm context: %v", err)
-	}
-
-	if want, got := uint64(777), ctx.contract.Gas; want != got {
-		t.Errorf("unexpected gas value, wanted %v, got %v", want, got)
 	}
 }
 
@@ -174,29 +131,29 @@ func TestConvertToLfvm_Code(t *testing.T) {
 		lfvmCode Code
 	}{
 		"empty": {{}},
-		"stop":  {{[]byte{byte(ct.STOP)}, Code{Instruction{STOP, 0x0000}}}},
+		"stop":  {{[]byte{byte(cc.STOP)}, Code{Instruction{STOP, 0x0000}}}},
 		"add": {{[]byte{
-			byte(ct.PUSH1), 0x01,
-			byte(ct.PUSH1), 0x02,
-			byte(ct.ADD)},
+			byte(cc.PUSH1), 0x01,
+			byte(cc.PUSH1), 0x02,
+			byte(cc.ADD)},
 			Code{Instruction{PUSH1, 0x0100},
 				Instruction{PUSH1, 0x0200},
 				Instruction{ADD, 0x0000}}}},
 		"jump": {{[]byte{
-			byte(ct.PUSH1), 0x04,
-			byte(ct.JUMP),
-			byte(ct.INVALID),
-			byte(ct.JUMPDEST)},
+			byte(cc.PUSH1), 0x04,
+			byte(cc.JUMP),
+			byte(cc.INVALID),
+			byte(cc.JUMPDEST)},
 			Code{Instruction{PUSH1, 0x0400},
 				Instruction{JUMP, 0x0000},
 				Instruction{INVALID, 0x0000},
 				Instruction{JUMP_TO, 0x0004},
 				Instruction{JUMPDEST, 0x0000}}}},
 		"jumpdest": {{[]byte{
-			byte(ct.PUSH3), 0x00, 0x00, 0x06,
-			byte(ct.JUMP),
-			byte(ct.INVALID),
-			byte(ct.JUMPDEST)},
+			byte(cc.PUSH3), 0x00, 0x00, 0x06,
+			byte(cc.JUMP),
+			byte(cc.INVALID),
+			byte(cc.JUMPDEST)},
 			Code{Instruction{PUSH3, 0x0000},
 				Instruction{DATA, 0x0600},
 				Instruction{JUMP, 0x0000},
@@ -204,10 +161,10 @@ func TestConvertToLfvm_Code(t *testing.T) {
 				Instruction{JUMP_TO, 0x0006},
 				Instruction{NOOP, 0x0000},
 				Instruction{JUMPDEST, 0x0000}}}},
-		"push2": {{[]byte{byte(ct.PUSH2), 0xBA, 0xAD}, Code{Instruction{PUSH2, 0xBAAD}}}},
-		"push3": {{[]byte{byte(ct.PUSH3), 0xBA, 0xAD, 0xC0}, Code{Instruction{PUSH3, 0xBAAD}, Instruction{DATA, 0xC000}}}},
+		"push2": {{[]byte{byte(cc.PUSH2), 0xBA, 0xAD}, Code{Instruction{PUSH2, 0xBAAD}}}},
+		"push3": {{[]byte{byte(cc.PUSH3), 0xBA, 0xAD, 0xC0}, Code{Instruction{PUSH3, 0xBAAD}, Instruction{DATA, 0xC000}}}},
 		"push31": {{[]byte{
-			byte(ct.PUSH31),
+			byte(cc.PUSH31),
 			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
 			0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F},
 			Code{Instruction{PUSH31, 0x0102},
@@ -227,7 +184,7 @@ func TestConvertToLfvm_Code(t *testing.T) {
 				Instruction{DATA, 0x1D1E},
 				Instruction{DATA, 0x1F00}}}},
 		"push32": {{[]byte{
-			byte(ct.PUSH32),
+			byte(cc.PUSH32),
 			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
 			0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0xFF},
 			Code{Instruction{PUSH32, 0x0102},
@@ -246,28 +203,18 @@ func TestConvertToLfvm_Code(t *testing.T) {
 				Instruction{DATA, 0x1B1C},
 				Instruction{DATA, 0x1D1E},
 				Instruction{DATA, 0x1FFF}}}},
-		"invalid": {{[]byte{byte(ct.INVALID)}, Code{Instruction{INVALID, 0x0000}}}},
+		"invalid": {{[]byte{byte(cc.INVALID)}, Code{Instruction{INVALID, 0x0000}}}},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				code := st.NewCode(cur.evmCode)
-				state := st.NewState(code)
-
-				pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
+				got, err := convert(cur.evmCode, false)
 				if err != nil {
-					t.Fatalf("failed to generate pc map: %v", err)
-				}
-
-				ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
-
-				if err != nil {
-					t.Fatalf("failed to convert ct state to lfvm context: %v", err)
+					t.Fatalf("failed to convert VM code to lfvm context: %v", err)
 				}
 
 				want := cur.lfvmCode
-				got := ctx.code
 
 				if wantSize, gotSize := len(want), len(got); wantSize != gotSize {
 					t.Fatalf("unexpected code size, wanted %d, got %d", wantSize, gotSize)
@@ -284,7 +231,7 @@ func TestConvertToLfvm_Code(t *testing.T) {
 }
 
 func TestConvertToLfvm_Stack(t *testing.T) {
-	newLfvmStack := func(values ...ct.U256) *Stack {
+	newLfvmStack := func(values ...cc.U256) *Stack {
 		stack := NewStack()
 		for i := 0; i < len(values); i++ {
 			value := values[i].Uint256()
@@ -301,40 +248,28 @@ func TestConvertToLfvm_Stack(t *testing.T) {
 			st.NewStack(),
 			newLfvmStack()}},
 		"one-element": {{
-			st.NewStack(ct.NewU256(7)),
-			newLfvmStack(ct.NewU256(7))}},
+			st.NewStack(cc.NewU256(7)),
+			newLfvmStack(cc.NewU256(7))}},
 		"two-elements": {{
-			st.NewStack(ct.NewU256(1), ct.NewU256(2)),
-			newLfvmStack(ct.NewU256(1), ct.NewU256(2))}},
+			st.NewStack(cc.NewU256(1), cc.NewU256(2)),
+			newLfvmStack(cc.NewU256(1), cc.NewU256(2))}},
 		"three-elements": {{
-			st.NewStack(ct.NewU256(1), ct.NewU256(2), ct.NewU256(3)),
-			newLfvmStack(ct.NewU256(1), ct.NewU256(2), ct.NewU256(3))}},
+			st.NewStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3)),
+			newLfvmStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3))}},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				state := getEmptyState()
-				state.Stack = cur.ctStack
+				stack := convertCtStackToLfvmStack(cur.ctStack)
 
-				pcMap, err := GenPcMapWithoutSuperInstructions(getByteCodeFromState(state))
-				if err != nil {
-					t.Fatalf("failed to generate pc map: %v", err)
-				}
-
-				ctx, err := ConvertCtStateToLfvmContext(state, pcMap)
-
-				if err != nil {
-					t.Fatalf("failed to convert ct state to lfvm context: %v", err)
-				}
-
-				if want, got := cur.lfvmStack.len(), ctx.stack.len(); want != got {
+				if want, got := cur.lfvmStack.len(), stack.len(); want != got {
 					t.Fatalf("unexpected stack size, wanted %v, got %v", want, got)
 				}
 
-				for i := 0; i < ctx.stack.len(); i++ {
+				for i := 0; i < stack.len(); i++ {
 					want := cur.lfvmStack.Data()[i]
-					got := ctx.stack.Data()[i]
+					got := stack.Data()[i]
 					if want != got {
 						t.Errorf("unexpected stack value, wanted %v, got %v", want, got)
 					}
@@ -344,205 +279,8 @@ func TestConvertToLfvm_Stack(t *testing.T) {
 	}
 }
 
-func TestConvertToLfvm_callContext(t *testing.T) {
-	state := getEmptyState()
-	state.CallContext.AccountAddress = ct.Address{0xff}
-	state.CallContext.OriginAddress = ct.Address{0xfe}
-	state.CallContext.CallerAddress = ct.Address{0xfd}
-	state.CallContext.Value = ct.NewU256(252)
-
-	code := []byte{}
-	pcMap, err := GenPcMapWithoutSuperInstructions(code)
-	if err != nil {
-		t.Fatalf("failed to generate pc map: %v", err)
-	}
-
-	context, err := ConvertCtStateToLfvmContext(state, pcMap)
-
-	if err != nil {
-		t.Fatalf("failed to convert ct state to lfvm context: %v", err)
-	}
-
-	if want, got := (common.Address{0xff}), context.contract.Address(); want != got {
-		t.Errorf("unexpected account address. wanted %v, got %v", want, got)
-	}
-	if want, got := (common.Address{0xfe}), context.evm.Origin; want != got {
-		t.Errorf("unexpected origin address. wanted %v, got %v", want, got)
-	}
-	if want, got := (common.Address{0xfd}), context.contract.CallerAddress; want != got {
-		t.Errorf("unexpected caller address. wanted %v, got %v", want, got)
-	}
-	if want, got := big.NewInt(252), context.contract.Value(); want.Cmp(got) != 0 {
-		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
-	}
-}
-
-func TestConvertToLfvm_BlockContext(t *testing.T) {
-	blockCtx := st.BlockContext{
-		BaseFee:     ct.NewU256(11),
-		BlockNumber: 5,
-		CoinBase:    ct.Address{0x06},
-		GasLimit:    7,
-		GasPrice:    ct.NewU256(8),
-		Difficulty:  ct.NewU256(9),
-		TimeStamp:   10,
-	}
-
-	lfvmBlockContext, lfvmTxContext := convertCtBlockContextToLfvm(blockCtx)
-
-	if want, got := big.NewInt(5), lfvmBlockContext.BlockNumber; want.Cmp(got) != 0 {
-		t.Errorf("unexpected block number. wanted %v, got %v", want, got)
-	}
-	if want, got := (common.Address{0x06}), lfvmBlockContext.Coinbase; want != got {
-		t.Errorf("unexpected coinbase. wanted %v, got %v", want, got)
-	}
-	if want, got := uint64(7), lfvmBlockContext.GasLimit; want != got {
-		t.Errorf("unexpected gas limit. wanted %v, got %v", want, got)
-	}
-	if want, got := big.NewInt(8), lfvmTxContext.GasPrice; want.Cmp(got) != 0 {
-		t.Errorf("unexpected gas price. wanted %v, got %v", want, got)
-	}
-	if want, got := big.NewInt(9), lfvmBlockContext.Difficulty; want.Cmp(got) != 0 {
-		t.Errorf("unexpected difficulty. wanted %v, got %v", want, got)
-	}
-	if want, got := big.NewInt(10), lfvmBlockContext.Time; want.Cmp(got) != 0 {
-		t.Errorf("unexpected timestamp. wanted %v, got %v", want, got)
-	}
-	if want, got := big.NewInt(11), lfvmBlockContext.BaseFee; want.Cmp(got) != 0 {
-		t.Errorf("unexpected base fee. wanted %v, got %v", want, got)
-	}
-}
-
-func TestConvertToLfvm_CallData(t *testing.T) {
-	state := getEmptyState()
-	state.CallData = []byte{1}
-
-	code := []byte{}
-	pcMap, err := GenPcMapWithoutSuperInstructions(code)
-	if err != nil {
-		t.Fatalf("failed to generate pc map: %v", err)
-	}
-
-	context, err := ConvertCtStateToLfvmContext(state, pcMap)
-	if err != nil {
-		t.Fatalf("failed to convert ct state to lfvm context: %v", err)
-	}
-
-	if !slices.Equal(context.data, state.CallData) {
-		t.Error("unexpected calldata value in lfvm context.")
-	}
-
-}
-
 ////////////////////////////////////////////////////////////
 // lfvm -> ct
-
-func getContextWithEvmCode(code *st.Code) (*context, error) {
-	byteCode := make([]byte, code.Length())
-	code.CopyTo(byteCode)
-	lfvmCode, err := convert(byteCode, false)
-	if err != nil {
-		return nil, err
-	}
-	data := make([]byte, 0)
-	ctx := getContext(lfvmCode, data, 0, nil, 0, false, false)
-	return &ctx, nil
-}
-
-func TestConvertToCt_StatusCode(t *testing.T) {
-
-	tests := map[string][]struct {
-		status         Status
-		ctStatus       st.StatusCode
-		convertSuccess bool
-	}{
-		"running":  {{RUNNING, st.Running, true}},
-		"stopped":  {{STOPPED, st.Stopped, true}},
-		"returned": {{RETURNED, st.Stopped, true}},
-		"reverted": {{REVERTED, st.Reverted, true}},
-		"failed":   {{INVALID_INSTRUCTION, st.Failed, true}},
-		"error":    {{ERROR + 1, st.NumStatusCodes, false}},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			for _, cur := range test {
-
-				got, err := convertLfvmStatusToCtStatus(cur.status)
-
-				if cur.convertSuccess && err != nil {
-					t.Fatalf("unexpected conversion error: %v", err)
-				}
-
-				if !cur.convertSuccess && err == nil {
-					t.Fatalf("expected conversion error, but got none")
-				}
-
-				if want := cur.ctStatus; cur.convertSuccess && want != got {
-					t.Errorf("unexpected status: wanted %v, got %v", want, got)
-				}
-			}
-		})
-	}
-
-}
-
-func TestConvertToCt_InvalidStatusCode(t *testing.T) {
-	ctx := getEmptyContext()
-	ctx.status = 0xFF
-	code := []byte{}
-
-	pcMap, err := GenPcMapWithoutSuperInstructions(code)
-	if err != nil {
-		t.Fatalf("failed to generate pc map: %v", err)
-	}
-
-	state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
-
-	if err == nil {
-		t.Errorf("expected invalid status, but got: %v", state.Status)
-	}
-}
-
-func TestConvertToCt_Revision(t *testing.T) {
-	tests := map[string][]struct {
-		lfvmRevisionSetter func(ctx *context)
-		convertSuccess     bool
-		ctRevision         ct.Revision
-	}{
-		"istanbul": {{func(ctx *context) { ctx.isBerlin = false; ctx.isLondon = false }, true, ct.R07_Istanbul}},
-		"berlin":   {{func(ctx *context) { ctx.isBerlin = true; ctx.isLondon = false }, true, ct.R09_Berlin}},
-		"london":   {{func(ctx *context) { ctx.isBerlin = false; ctx.isLondon = true }, true, ct.R10_London}},
-		// TODO "next":     {{func(ctx *context) {  }, true, ct.R99_UnknownNextRevision}},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			for _, cur := range test {
-				ctx := getEmptyContext()
-				cur.lfvmRevisionSetter(&ctx)
-				code := []byte{}
-
-				pcMap, err := GenPcMapWithoutSuperInstructions(code)
-				if err != nil {
-					t.Fatalf("failed to generate pc map: %v", err)
-				}
-
-				state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
-
-				if want, got := cur.convertSuccess, (err == nil); want != got {
-					t.Errorf("unexpected conversion error: wanted %v, got %v", want, got)
-				}
-
-				if err == nil {
-					if want, got := cur.ctRevision, state.Revision; want != got {
-						t.Errorf("failed to convert revision: wanted %v, got %v", want, got)
-					}
-				}
-			}
-		})
-	}
-}
 
 func TestConvertToCt_Pc(t *testing.T) {
 	tests := map[string][]struct {
@@ -551,74 +289,41 @@ func TestConvertToCt_Pc(t *testing.T) {
 		evmPc   uint16
 	}{
 		"empty":        {{}},
-		"pos-0":        {{[]byte{byte(ct.STOP)}, 0, 0}},
-		"pos-1":        {{[]byte{byte(ct.STOP), byte(ct.STOP), byte(ct.STOP)}, 1, 1}},
-		"one-past-end": {{[]byte{byte(ct.STOP)}, 1, 1}},
+		"pos-0":        {{[]byte{byte(cc.STOP)}, 0, 0}},
+		"pos-1":        {{[]byte{byte(cc.STOP), byte(cc.STOP), byte(cc.STOP)}, 1, 1}},
+		"one-past-end": {{[]byte{byte(cc.STOP)}, 1, 1}},
 		"shifted": {{[]byte{
-			byte(ct.PUSH1), 0x01,
-			byte(ct.PUSH1), 0x02,
-			byte(ct.ADD)}, 1, 2}},
+			byte(cc.PUSH1), 0x01,
+			byte(cc.PUSH1), 0x02,
+			byte(cc.ADD)}, 1, 2}},
 		"jumpdest": {{[]byte{
-			byte(ct.PUSH3), 0x00, 0x00, 0x06,
-			byte(ct.JUMP),
-			byte(ct.INVALID),
-			byte(ct.JUMPDEST)},
+			byte(cc.PUSH3), 0x00, 0x00, 0x06,
+			byte(cc.JUMP),
+			byte(cc.INVALID),
+			byte(cc.JUMPDEST)},
 			6, 6}},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				origCode := st.NewCode(cur.evmCode)
-				ctx, err := getContextWithEvmCode(origCode)
-				if err != nil {
-					t.Fatalf("failed to create lfvm context with code: %v", err)
-				}
-
-				ctx.pc = int32(cur.lfvmPc)
-
 				pcMap, err := GenPcMapWithoutSuperInstructions(cur.evmCode)
 				if err != nil {
 					t.Fatalf("failed to generate pc map: %v", err)
 				}
-
-				state, err := ConvertLfvmContextToCtState(ctx, origCode, pcMap)
-
-				if err != nil {
-					t.Fatalf("failed to convert lfvm context to ct state: %v", err)
-				}
-
-				if want, got := cur.evmPc, state.Pc; want != got {
-					t.Errorf("unexpected program counter, wanted %d, got %d", want, got)
+				evmPc, found := pcMap.lfvmToEvm[cur.lfvmPc]
+				if !found {
+					t.Errorf("failed to resolve lfvm PC of %d in converted code", cur.evmPc)
+				} else if want, got := cur.evmPc, evmPc; want != got {
+					t.Errorf("invalid conversion, wanted %d, got %d", want, got)
 				}
 			}
 		})
 	}
 }
 
-func TestConvertToCt_Gas(t *testing.T) {
-	ctx := getEmptyContext()
-	ctx.contract.Gas = 777
-	code := []byte{}
-
-	pcMap, err := GenPcMapWithoutSuperInstructions(code)
-	if err != nil {
-		t.Fatalf("failed to generate pc map: %v", err)
-	}
-
-	state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
-
-	if err != nil {
-		t.Fatalf("failed to convert lfvm context to ct state: %v", err)
-	}
-
-	if want, got := uint64(777), state.Gas; want != got {
-		t.Errorf("unexpected gas value, wanted %v, got %v", want, got)
-	}
-}
-
 func TestConvertToCt_Stack(t *testing.T) {
-	newLfvmStack := func(values ...ct.U256) *Stack {
+	newLfvmStack := func(values ...cc.U256) *Stack {
 		stack := NewStack()
 		for i := 0; i < len(values); i++ {
 			value := values[i].Uint256()
@@ -635,36 +340,21 @@ func TestConvertToCt_Stack(t *testing.T) {
 			newLfvmStack(),
 			st.NewStack()}},
 		"one-element": {{
-			newLfvmStack(ct.NewU256(7)),
-			st.NewStack(ct.NewU256(7))}},
+			newLfvmStack(cc.NewU256(7)),
+			st.NewStack(cc.NewU256(7))}},
 		"two-elements": {{
-			newLfvmStack(ct.NewU256(1), ct.NewU256(2)),
-			st.NewStack(ct.NewU256(1), ct.NewU256(2))}},
+			newLfvmStack(cc.NewU256(1), cc.NewU256(2)),
+			st.NewStack(cc.NewU256(1), cc.NewU256(2))}},
 		"three-elements": {{
-			newLfvmStack(ct.NewU256(1), ct.NewU256(2), ct.NewU256(3)),
-			st.NewStack(ct.NewU256(1), ct.NewU256(2), ct.NewU256(3))}},
+			newLfvmStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3)),
+			st.NewStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3))}},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				ctx := getEmptyContext()
-				ctx.stack = cur.lfvmStack
-				code := []byte{}
-
-				pcMap, err := GenPcMapWithoutSuperInstructions(code)
-				if err != nil {
-					t.Fatalf("failed to generate pc map: %v", err)
-				}
-
-				state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
-
-				if err != nil {
-					t.Fatalf("failed to convert lfvm context to ct state: %v", err)
-				}
-
 				want := cur.ctStack
-				got := state.Stack
+				got := convertLfvmStackToCtStack(cur.lfvmStack)
 
 				diffs := got.Diff(want)
 
@@ -673,100 +363,5 @@ func TestConvertToCt_Stack(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestConvertToCt_CallContext(t *testing.T) {
-	ctx := getEmptyContext()
-	objAddress := vm.AccountRef{0xff}
-	callerAddress := vm.AccountRef{0xfe}
-	contract := vm.NewContract(callerAddress, objAddress, big.NewInt(252), 0)
-	ctx.contract = contract
-	ctx.evm.Origin = common.Address{0xfd}
-
-	callContext := convertLfvmContextToCtCallContext(&ctx)
-
-	if want, got := (ct.Address{0xff}), callContext.AccountAddress; want != got {
-		t.Errorf("unexpected account address, wanted %v, got %v", want, got)
-	}
-	if want, got := (ct.Address{0xfe}), callContext.CallerAddress; want != got {
-		t.Errorf("unexpected caller address, wanted %v, got %v", want, got)
-	}
-	if want, got := (ct.Address{0xfd}), callContext.OriginAddress; want != got {
-		t.Errorf("unexpected origin address, wanted %v, got %v", want, got)
-	}
-	if want, got := ct.NewU256(252), callContext.Value; !want.Eq(got) {
-		t.Errorf("unexpected call value. wanted %v, got %v", want, got)
-	}
-}
-
-func TestConvertToCt_BlockContext(t *testing.T) {
-	ctx := getEmptyContext()
-
-	chainConfig := ct.GetChainConfig(big.NewInt(248))
-
-	ctx.evm = vm.NewEVM(
-		vm.BlockContext{
-			Coinbase:    common.Address{0xfe},
-			GasLimit:    253,
-			BlockNumber: big.NewInt(255),
-			Time:        big.NewInt(250),
-			Difficulty:  big.NewInt(251),
-			BaseFee:     big.NewInt(249),
-		},
-		vm.TxContext{
-			GasPrice: big.NewInt(252),
-		},
-		ctx.stateDB,
-		chainConfig,
-		vm.Config{},
-	)
-
-	blockContext := convertLfvmContextToCtBlockContext(&ctx)
-
-	if want, got := (ct.Address{0xfe}), blockContext.CoinBase; want != got {
-		t.Errorf("unexpected coinbase, wanted %v, got %v", want, got)
-	}
-	if want, got := uint64(253), blockContext.GasLimit; want != got {
-		t.Errorf("unexpected gas limit, wanted %v, got %v", want, got)
-	}
-	if want, got := uint64(255), blockContext.BlockNumber; want != got {
-		t.Errorf("unexpected block number, wanted %v, got %v", want, got)
-	}
-	if want, got := uint64(250), blockContext.TimeStamp; want != got {
-		t.Errorf("unexpected timestamp, wanted %v, got %v", want, got)
-	}
-	if want, got := ct.NewU256(251), blockContext.Difficulty; !want.Eq(got) {
-		t.Errorf("unexpected difficulty, wanted %v, got %v", want, got)
-	}
-	if want, got := ct.NewU256(249), blockContext.BaseFee; !want.Eq(got) {
-		t.Errorf("unexpected base fee, wanted %v, got %v", want, got)
-	}
-	if want, got := ct.NewU256(252), blockContext.GasPrice; !want.Eq(got) {
-		t.Errorf("unexpected gas price, wanted %v, got %v", want, got)
-	}
-	if want, got := ct.NewU256(248), blockContext.ChainID; !want.Eq(got) {
-		t.Errorf("unexpected chainid, wanted %v, got %v", want, got)
-	}
-}
-
-func TestConvertToCt_CallData(t *testing.T) {
-	ctx := getEmptyContext()
-	ctx.data = []byte{1}
-
-	code := []byte{}
-
-	pcMap, err := GenPcMapWithoutSuperInstructions(code)
-	if err != nil {
-		t.Fatalf("failed to generate pc map: %v", err)
-	}
-
-	state, err := ConvertLfvmContextToCtState(&ctx, st.NewCode(code), pcMap)
-	if err != nil {
-		t.Fatalf("failed to convert lfvm context to ct state: %v", err)
-	}
-
-	if !slices.Equal(state.CallData, ctx.data) {
-		t.Error("unexpectetd calldata value in ct state")
 	}
 }

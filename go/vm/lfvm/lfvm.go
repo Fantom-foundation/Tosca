@@ -1,80 +1,57 @@
 package lfvm
 
 import (
-	"github.com/Fantom-foundation/Tosca/go/vm/registry"
-	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
-type EVMInterpreter struct {
-	evm                     *vm.EVM
-	cfg                     vm.Config
+// Registers the long-form EVM as a possible interpreter implementation.
+func init() {
+	vm.RegisterInterpreter("lfvm", &VM{})
+	vm.RegisterInterpreter("lfvm-no-sha-cache", &VM{no_shaCache: true})
+	vm.RegisterInterpreter("lfvm-si", &VM{with_super_instructions: true})
+	vm.RegisterInterpreter("lfvm-si-no-sha-cache", &VM{with_super_instructions: true, no_shaCache: true})
+	vm.RegisterInterpreter("lfvm-stats", &VM{with_statistics: true})
+	vm.RegisterInterpreter("lfvm-si-stats", &VM{with_super_instructions: true, with_statistics: true})
+	vm.RegisterInterpreter("lfvm-no-code-cache", &VM{no_code_cache: true})
+	vm.RegisterInterpreter("lfvm-logging", &VM{logging: true})
+}
+
+type VM struct {
 	with_super_instructions bool
-	with_shadow_evm         bool
 	with_statistics         bool
-	readOnly                bool
 	no_shaCache             bool
 	no_code_cache           bool
 	logging                 bool
 }
 
-// Registers the long-form EVM as a possible interpreter implementation.
-func init() {
-	registry.RegisterInterpreterFactory("lfvm", func(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-		return &EVMInterpreter{evm: evm, cfg: cfg}
-	})
-	registry.RegisterInterpreterFactory("lfvm-no-sha-cache", func(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-		return &EVMInterpreter{evm: evm, cfg: cfg, no_shaCache: true}
-	})
-	registry.RegisterInterpreterFactory("lfvm-si", func(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-		return &EVMInterpreter{evm: evm, cfg: cfg, with_super_instructions: true}
-	})
-	registry.RegisterInterpreterFactory("lfvm-si-no-sha-cache", func(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-		return &EVMInterpreter{evm: evm, cfg: cfg, with_super_instructions: true, no_shaCache: true}
-	})
-	registry.RegisterInterpreterFactory("lfvm-dbg", func(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-		return &EVMInterpreter{evm: evm, cfg: cfg, with_shadow_evm: true}
-	})
-	registry.RegisterVirtualMachine("lfvm-stats", &lfvmInstanceWithProfiler{func(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-		return &EVMInterpreter{evm: evm, cfg: cfg, with_statistics: true}
-	}})
-	registry.RegisterVirtualMachine("lfvm-si-stats", &lfvmInstanceWithProfiler{func(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-		return &EVMInterpreter{evm: evm, cfg: cfg, with_super_instructions: true, with_statistics: true}
-	}})
-	registry.RegisterInterpreterFactory("lfvm-no-code-cache", func(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-		return &EVMInterpreter{evm: evm, cfg: cfg, no_code_cache: true}
-	})
-	registry.RegisterInterpreterFactory("lfvm-logging", func(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-		return &EVMInterpreter{evm: evm, cfg: cfg, logging: true}
-	})
-}
+func (v *VM) Run(params vm.Parameters) (vm.Result, error) {
+	var codeHash vm.Hash
+	if params.CodeHash != nil {
+		codeHash = *params.CodeHash
+	}
 
-func (e *EVMInterpreter) Run(contract *vm.Contract, input []byte, readOnly bool) (ret []byte, err error) {
-	converted, err := Convert(*contract.CodeAddr, contract.Code, e.with_super_instructions, e.evm.Context.BlockNumber.Uint64(), input == nil, e.no_code_cache, contract.CodeHash)
+	converted, err := Convert(
+		params.Code,
+		v.with_super_instructions,
+		params.CodeHash == nil,
+		v.no_code_cache,
+		codeHash,
+	)
 	if err != nil {
-		return nil, err
+		return vm.Result{}, err
 	}
 
-	// Make sure the readOnly is only set if we aren't in readOnly yet.
-	// This also makes sure that the readOnly flag isn't removed for child calls.
-	if readOnly && !e.readOnly {
-		e.readOnly = true
-		defer func() { e.readOnly = false }()
+	return Run(params, converted, v.with_statistics, v.no_shaCache, v.logging)
+}
+
+func (e *VM) DumpProfile() {
+	if e.with_statistics {
+		printCollectedInstructionStatistics()
 	}
-	return Run(e.evm, e.cfg, contract, converted, input, e.readOnly, e.evm.StateDB, e.with_shadow_evm, e.with_statistics, e.no_shaCache, e.logging)
 }
 
-type lfvmInstanceWithProfiler struct {
-	factory vm.InterpreterFactory
-}
-
-func (e *lfvmInstanceWithProfiler) NewInterpreter(evm *vm.EVM, cfg vm.Config) vm.EVMInterpreter {
-	return e.factory(evm, cfg)
-}
-
-func (e *lfvmInstanceWithProfiler) DumpProfile() {
-	printCollectedInstructionStatistics()
-}
-
-func (e *lfvmInstanceWithProfiler) ResetProfile() {
-	resetCollectedInstructionStatistics()
+func (e *VM) ResetProfile() {
+	if e.with_statistics {
+		resetCollectedInstructionStatistics()
+	}
 }

@@ -3,7 +3,7 @@ package lfvm
 import (
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -12,7 +12,7 @@ type hashCacheEntry32 struct {
 	// key is the input value cache entries are indexed by.
 	key [32]byte
 	// hash is the cached (Sha3) hash of the key.
-	hash common.Hash
+	hash vm.Hash
 	// pred/succ pointers are used for a double linked list for the LRU order.
 	pred, succ *hashCacheEntry32
 }
@@ -22,7 +22,7 @@ type hashCacheEntry64 struct {
 	// key is the input value cache entries are indexed by.
 	key [64]byte
 	// hash is the cached (Sha3) hash of the key.
-	hash common.Hash
+	hash vm.Hash
 	// pred/succ pointers are used for a double linked list for the LRU order.
 	pred, succ *hashCacheEntry64
 }
@@ -69,7 +69,7 @@ func newHashCache(capacity32 int, capacity64 int) *HashCache {
 	hasher.Reset()
 	var data32 [32]byte
 	hasher.Write(data32[:])
-	var hash32 common.Hash
+	var hash32 vm.Hash
 	hasher.Read(hash32[:])
 	res.head32.hash = hash32
 
@@ -82,7 +82,7 @@ func newHashCache(capacity32 int, capacity64 int) *HashCache {
 	hasher.Reset()
 	var data64 [64]byte
 	hasher.Write(data64[:])
-	var hash64 common.Hash
+	var hash64 vm.Hash
 	hasher.Read(hash64[:])
 	res.head64.hash = hash64
 
@@ -93,7 +93,7 @@ func newHashCache(capacity32 int, capacity64 int) *HashCache {
 
 // hash fetches a cached hash or computes the hash for the provided data
 // using the hasher in the given context.
-func (h *HashCache) hash(c *context, data []byte) common.Hash {
+func (h *HashCache) hash(c *context, data []byte) vm.Hash {
 	if len(data) == 32 {
 		return h.getHash32(c, data)
 	}
@@ -103,7 +103,7 @@ func (h *HashCache) hash(c *context, data []byte) common.Hash {
 	return getHash(c, data)
 }
 
-func (h *HashCache) getHash32(c *context, data []byte) common.Hash {
+func (h *HashCache) getHash32(c *context, data []byte) vm.Hash {
 	var key [32]byte
 	copy(key[:], data)
 	h.lock32.Lock()
@@ -151,7 +151,7 @@ func (h *HashCache) getHash32(c *context, data []byte) common.Hash {
 	return entry.hash
 }
 
-func (h *HashCache) getHash64(c *context, data []byte) common.Hash {
+func (h *HashCache) getHash64(c *context, data []byte) vm.Hash {
 	var key [64]byte
 	copy(key[:], data)
 	h.lock64.Lock()
@@ -231,8 +231,8 @@ func (h *HashCache) getFree64() *hashCacheEntry64 {
 
 // getHash computes a Sha3 hash of the given data using the hasher
 // instance in the provided context.
-func getHash(c *context, data []byte) common.Hash {
-	res := common.Hash{}
+func getHash(c *context, data []byte) vm.Hash {
+	res := vm.Hash{}
 
 	if c.hasher == nil {
 		c.hasher = sha3.NewLegacyKeccak256().(keccakState)

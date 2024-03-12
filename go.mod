@@ -5,9 +5,9 @@ go 1.21
 require (
 	github.com/ethereum/evmc/v10 v10.0.0
 	github.com/ethereum/go-ethereum v1.10.25
-	github.com/golang/mock v1.6.0
 	github.com/holiman/uint256 v1.2.0
 	github.com/urfave/cli/v2 v2.10.2
+	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 	pgregory.net/rand v1.0.2
@@ -22,6 +22,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect

@@ -3,13 +3,13 @@ package lfvm
 import (
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 	"github.com/holiman/uint256"
 )
 
 type Memory struct {
 	store             []byte
-	total_memory_cost uint64
+	total_memory_cost vm.Gas
 }
 
 func NewMemory() *Memory {
@@ -21,13 +21,13 @@ func toValidMemorySize(size uint64) uint64 {
 	return ((size + 31) / 32) * 32
 }
 
-func (m *Memory) ExpansionCosts(size uint64) uint64 {
+func (m *Memory) ExpansionCosts(size uint64) vm.Gas {
 	if m.Len() >= size {
 		return 0
 	}
 	size = toValidMemorySize(size)
 	memory_size_word := uint64((size + 31) / 32)
-	new_costs := (memory_size_word*memory_size_word)/512 + (3 * memory_size_word)
+	new_costs := vm.Gas((memory_size_word*memory_size_word)/512 + (3 * memory_size_word))
 	fee := new_costs - m.total_memory_cost
 	return fee
 }
@@ -39,15 +39,15 @@ func (m *Memory) EnsureCapacity(offset, size uint64, c *context) error {
 	needed := offset + size
 	// check overflow
 	if needed < offset {
-		c.SignalError(vm.ErrGasUintOverflow)
-		return vm.ErrGasUintOverflow
+		c.SignalError(errGasUintOverflow)
+		return errGasUintOverflow
 	}
 	if m.Len() < needed {
 		needed = toValidMemorySize(needed)
 		fee := m.ExpansionCosts(needed)
 		if !c.UseGas(fee) {
-			c.SignalError(vm.ErrOutOfGas)
-			return vm.ErrOutOfGas
+			c.SignalError(errOutOfGas)
+			return errOutOfGas
 		}
 		m.total_memory_cost += fee
 		m.store = append(m.store, make([]byte, needed-m.Len())...)
@@ -127,7 +127,7 @@ func (m *Memory) SetWord(offset uint64, value *uint256.Int) error {
 func (m *Memory) Set(offset, size uint64, value []byte) error {
 	if size > 0 {
 		if offset+size < offset {
-			return vm.ErrGasUintOverflow
+			return errGasUintOverflow
 		}
 		if offset+size > m.Len() {
 			return fmt.Errorf("memory too small, size %d, attempted to write %d bytes at %d", m.Len(), size, offset)

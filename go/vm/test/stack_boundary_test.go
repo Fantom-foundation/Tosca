@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"testing"
 
-	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/test/mocks"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
+
+	// This is only imported to get the EVM opcode definitions.
+	// TODO: write up our own op-code definition and remove this dependency.
+	evm "github.com/ethereum/go-ethereum/core/vm"
 )
 
-func TestStackMaxBoundry(t *testing.T) {
+func TestStackMaxBoundary(t *testing.T) {
 	// For every variant of interpreter
 	for _, variant := range Variants {
 		for _, revision := range revisions {
@@ -18,8 +20,7 @@ func TestStackMaxBoundry(t *testing.T) {
 					continue
 				}
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, op), func(t *testing.T) {
-					var stateDB vm.StateDB
-					evm := GetCleanEVM(revision, variant, stateDB)
+					evm := GetCleanEVM(revision, variant, nil)
 
 					// push size
 					size := info.stack.pushed - info.stack.popped
@@ -29,11 +30,14 @@ func TestStackMaxBoundry(t *testing.T) {
 					code := getCode(size, op)
 
 					// Run an interpreter
-					_, err := evm.Run(code, []byte{})
+					res, err := evm.Run(code, []byte{})
 
 					// Check the result.
-					if _, isOverflow := err.(*vm.ErrStackOverflow); !isOverflow {
-						t.Errorf("execution failed %v should end with stack overflow: status is %v", op, err)
+					if err != nil {
+						t.Fatalf("unexpected error during EVM execution: %v", err)
+					}
+					if res.Success {
+						t.Errorf("execution should have failed due to a stack overflow, got result %v", res)
 					}
 					// Note: the amount of consumed gas is not relevant, since
 					// in case of a stack overflow all remaining gas is consumed.
@@ -43,7 +47,7 @@ func TestStackMaxBoundry(t *testing.T) {
 	}
 }
 
-func TestStackMinBoundry(t *testing.T) {
+func TestStackMinBoundary(t *testing.T) {
 	// For every variant of interpreter
 	for _, variant := range Variants {
 		for _, revision := range revisions {
@@ -52,17 +56,18 @@ func TestStackMinBoundry(t *testing.T) {
 					continue
 				}
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, op), func(t *testing.T) {
-					var stateDB *vm_mock.MockStateDB
-
-					evm := GetCleanEVM(revision, variant, stateDB)
+					evm := GetCleanEVM(revision, variant, nil)
 					code := getCode(info.stack.popped-1, op)
 
 					// Run an interpreter
-					_, err := evm.Run(code, []byte{})
+					res, err := evm.Run(code, []byte{})
 
 					// Check the result.
-					if _, isUnderflow := err.(*vm.ErrStackUnderflow); !isUnderflow {
-						t.Errorf("execution failed %v should end with stack underflow: status is %v", op, err)
+					if err != nil {
+						t.Fatalf("unexpected error during EVM execution: %v", err)
+					}
+					if res.Success {
+						t.Errorf("execution should have failed due to a stack underflow, got result %v", res)
 					}
 					// Note: the amount of consumed gas is not relevant, since
 					// in case of a stack underflow all remaining gas is consumed.
@@ -72,12 +77,12 @@ func TestStackMinBoundry(t *testing.T) {
 	}
 }
 
-func getCode(stackLength int, op vm.OpCode) []byte {
+func getCode(stackLength int, op evm.OpCode) []byte {
 	code := make([]byte, 0, stackLength*2+1)
 
 	// Add to stack PUSH1 instructions
 	for i := 0; i < stackLength; i++ {
-		code = append(code, []byte{byte(vm.PUSH1), byte(0)}...)
+		code = append(code, []byte{byte(evm.PUSH1), byte(0)}...)
 	}
 
 	// Set a tested instruction as the last one.

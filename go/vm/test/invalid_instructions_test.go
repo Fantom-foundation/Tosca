@@ -27,16 +27,16 @@ func TestInterpreterDetectsInvalidInstruction(t *testing.T) {
 				t.Run(fmt.Sprintf("%s-%s-%s", variant, rev, op), func(t *testing.T) {
 					code := []byte{byte(op), byte(vm.STOP)}
 					input := []byte{}
-					if _, err := evm.Run(code, input); !isInvalidOpCodeError(err) {
-						t.Errorf("failed to identify invalid OpCode %v as invalid instruction, got %v", op, err)
+
+					result, err := evm.Run(code, input)
+					if err != nil {
+						t.Fatalf("unexpected failure of EVM execution: %v", err)
+					}
+					if result.Success {
+						t.Errorf("expected execution to fail, but got %v", result)
 					}
 				})
 			}
 		}
 	}
-}
-
-func isInvalidOpCodeError(err error) bool {
-	_, ok := err.(*vm.ErrInvalidOpCode)
-	return ok
 }

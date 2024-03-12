@@ -3,15 +3,12 @@ package lfvm
 import (
 	"encoding/hex"
 	"log"
-	"math/big"
 	"testing"
 
-	vm_mock "github.com/Fantom-foundation/Tosca/go/vm/test/mocks"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/golang/mock/gomock"
-	"github.com/holiman/uint256"
+	"go.uber.org/mock/gomock"
+
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 // To run the benchmark use
@@ -23,45 +20,37 @@ type example struct {
 }
 
 const MAX_STACK_SIZE int = 1024
-const GAS_START uint64 = 1 << 32
-
-var (
-	HASH_0    = common.Hash{0}
-	HASH_1    = common.BigToHash(big.NewInt(1))
-	HASH_2    = common.BigToHash(big.NewInt(2))
-	ADDRESS_0 = common.Address{0}
-)
+const GAS_START vm.Gas = 1 << 32
 
 func getEmptyContext() context {
 	code := make([]Instruction, 0)
 	data := make([]byte, 0)
-	return getContext(code, data, 0, nil, GAS_START, false, false)
+	return getContext(code, data, nil, 0, GAS_START, vm.R07_Istanbul)
 }
 
-func getContext(code Code, data []byte, stackPtr int, stateDB vm.StateDB, gas uint64, isBerlin bool, isLondon bool) context {
-
-	// Create a dummy contract
-	addr := vm.AccountRef{}
-	contract := vm.NewContract(addr, addr, big.NewInt(0), gas)
+func getContext(code Code, data []byte, runContext vm.RunContext, stackPtr int, gas vm.Gas, revision vm.Revision) context {
 
 	// Create execution context.
 	ctxt := context{
-		code:     code,
-		data:     data,
-		callsize: *uint256.NewInt(uint64(len(data))),
+		params: vm.Parameters{
+			Revision: revision,
+			Gas:      gas,
+			Input:    data,
+		},
+		context:  runContext,
+		gas:      gas,
 		stack:    NewStack(),
 		memory:   NewMemory(),
-		readOnly: false,
-		contract: contract,
-		stateDB:  stateDB,
-		isBerlin: isBerlin,
-		isLondon: isLondon,
-		evm:      &vm.EVM{StateDB: stateDB},
+		status:   RUNNING,
+		code:     code,
+		isBerlin: revision >= vm.R09_Berlin,
+		isLondon: revision >= vm.R10_London,
 	}
 
-	// Set start conditions
-	ctxt.pc = 0
-	ctxt.status = RUNNING
+	// Move the stack pointer to the required hight.
+	// For the tests using the resulting context the actual
+	// stack content is not relevant. It is merely used for
+	// checking stack over- or under-flows.
 	ctxt.stack.stack_ptr = stackPtr
 
 	return ctxt
@@ -70,20 +59,20 @@ func getContext(code Code, data []byte, stackPtr int, stateDB vm.StateDB, gas ui
 // Test UseGas function and correct status after running out of gas
 func TestGasFunc(t *testing.T) {
 	ctx := getEmptyContext()
-	ctx.contract.Gas = 100
+	ctx.gas = 100
 	ok := ctx.UseGas(10)
 	if !ok {
 		t.Errorf("expected not failed useGas function, got failed")
 	}
-	if ctx.contract.Gas != 90 {
-		t.Errorf("expected gas of contract in context is 90, got %d", ctx.contract.Gas)
+	if ctx.gas != 90 {
+		t.Errorf("expected gas in context is 90, got %d", ctx.gas)
 	}
 	ok = ctx.UseGas(100)
 	if ok {
 		t.Errorf("expected failed useGas function, got ok")
 	}
-	if ctx.contract.Gas != 90 {
-		t.Errorf("expected gas of contract in context is 90 also after failing, got %d", ctx.contract.Gas)
+	if ctx.gas != 90 {
+		t.Errorf("expected gas in context is 90 also after failing, got %d", ctx.gas)
 	}
 	if ctx.status != OUT_OF_GAS {
 		t.Errorf("expected OUT_OF_GAS status 6, got %d", ctx.status)
@@ -96,11 +85,12 @@ type OpcodeTest struct {
 	stackPtrPos int
 	argData     uint16
 	endStatus   Status
-	isBerlin    bool
+	isBerlin    bool // < TODO: replace with revision
 	isLondon    bool
-	mockCalls   func(mockStateDB *vm_mock.MockStateDB)
-	gasStart    uint64
-	gasConsumed uint64
+	mockCalls   func(*vm.MockRunContext)
+	gasStart    vm.Gas
+	gasConsumed vm.Gas
+	gasRefund   vm.Gas
 }
 
 func getInstructions(start OpCode, end OpCode) (opCodes []OpCode) {
@@ -110,7 +100,7 @@ func getInstructions(start OpCode, end OpCode) (opCodes []OpCode) {
 	return
 }
 
-func getInstructionsWithGas(start OpCode, end OpCode, gas uint64) (opCodes []OpCodeWithGas) {
+func getInstructionsWithGas(start OpCode, end OpCode, gas vm.Gas) (opCodes []OpCodeWithGas) {
 	for i := start; i <= end; i++ {
 		opCode := OpCodeWithGas{OpCode(i), gas}
 		opCodes = append(opCodes, opCode)
@@ -150,7 +140,7 @@ func addFullStackFailOpCodes(tests []OpcodeTest) []OpcodeTest {
 	opCodes = append(opCodes, getInstructions(PUSH1, PUSH32)...)
 	opCodes = append(opCodes, getInstructions(DUP1, DUP16)...)
 	for _, opCode := range opCodes {
-		addedTests = append(addedTests, OpcodeTest{opCode.String(), []Instruction{{opCode, 1}}, MAX_STACK_SIZE, 0, ERROR, false, false, nil, GAS_START, 0})
+		addedTests = append(addedTests, OpcodeTest{opCode.String(), []Instruction{{opCode, 1}}, MAX_STACK_SIZE, 0, ERROR, false, false, nil, GAS_START, 0, 0})
 	}
 	return addedTests
 }
@@ -164,7 +154,7 @@ func addEmptyStackFailOpCodes(tests []OpcodeTest) []OpcodeTest {
 	opCodes = append(opCodes, getInstructions(SWAP1, SWAP16)...)
 	opCodes = append(opCodes, getInstructions(LOG0, LOG4)...)
 	for _, opCode := range opCodes {
-		addedTests = append(addedTests, OpcodeTest{opCode.String(), []Instruction{{opCode, 1}}, 0, 0, ERROR, false, false, nil, GAS_START, 0})
+		addedTests = append(addedTests, OpcodeTest{opCode.String(), []Instruction{{opCode, 1}}, 0, 0, ERROR, false, false, nil, GAS_START, 0, 0})
 	}
 	return addedTests
 }
@@ -241,134 +231,124 @@ func TestStackMaxBoundry(t *testing.T) {
 }
 
 var opcodeTests = []OpcodeTest{
-	{"POP", []Instruction{{PUSH1, 1 << 8}, {POP, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 5},
-	{"JUMP", []Instruction{{PUSH1, 2 << 8}, {JUMP, 0}, {JUMPDEST, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 12},
-	{"JUMPI", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 3 << 8}, {JUMPI, 0}, {JUMPDEST, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 17},
-	{"JUMPDEST", []Instruction{{JUMPDEST, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 1},
-	{"RETURN", []Instruction{{RETURN, 0}}, 20, 0, RETURNED, false, false, nil, GAS_START, 0},
-	{"REVERT", []Instruction{{REVERT, 0}}, 20, 0, REVERTED, false, false, nil, GAS_START, 0},
-	{"PC", []Instruction{{PC, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 2},
-	{"STOP", []Instruction{{STOP, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 0},
+	{"POP", []Instruction{{PUSH1, 1 << 8}, {POP, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 5, 0},
+	{"JUMP", []Instruction{{PUSH1, 2 << 8}, {JUMP, 0}, {JUMPDEST, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 12, 0},
+	{"JUMPI", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 3 << 8}, {JUMPI, 0}, {JUMPDEST, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 17, 0},
+	{"JUMPDEST", []Instruction{{JUMPDEST, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 1, 0},
+	{"RETURN", []Instruction{{RETURN, 0}}, 20, 0, RETURNED, false, false, nil, GAS_START, 0, 0},
+	{"REVERT", []Instruction{{REVERT, 0}}, 20, 0, REVERTED, false, false, nil, GAS_START, 0, 0},
+	{"PC", []Instruction{{PC, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 2, 0},
+	{"STOP", []Instruction{{STOP, 0}}, 0, 0, STOPPED, false, false, nil, GAS_START, 0, 0},
 	{"SLOAD", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(common.Address{0}, common.Hash{0}).Return(common.Hash{0})
-		}, GAS_START, 803},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(0))
+		}, GAS_START, 803, 0},
 	{"SLOAD Berlin", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(common.Address{0}, common.Hash{0}).Return(common.Hash{0})
-			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, common.Hash{0}).Return(true, true)
-		}, GAS_START, 103},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(0))
+			mock.EXPECT().IsSlotInAccessList(vm.Address{0}, toKey(0)).Return(true, true)
+		}, GAS_START, 103, 0},
 	{"SLOAD Berlin no slot", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(common.Address{0}, common.Hash{0}).Return(common.Hash{0})
-			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, common.Hash{0}).Return(false, false)
-			mockStateDB.EXPECT().AddSlotToAccessList(common.Address{0}, common.Hash{0})
-		}, GAS_START, 2103},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(0))
+			mock.EXPECT().IsSlotInAccessList(vm.Address{0}, toKey(0)).Return(false, false)
+			mock.EXPECT().AccessStorage(vm.Address{0}, toKey(0))
+		}, GAS_START, 2103, 0},
 	{"SSTORE same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_0)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_0)
-		}, GAS_START, 806},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(0))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(0), toWord(0))
+		}, GAS_START, 806, 0},
 	{"SSTORE diff value, same state as db, db is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_0)
-			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_0)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_1)
-		}, GAS_START, 20006},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(0))
+			mock.EXPECT().GetCommittedStorage(vm.Address{0}, toKey(0)).Return(toWord(0))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(0), toWord(1))
+		}, GAS_START, 20006, 0},
 	{"SSTORE diff value, same state as db, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_1)
-			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_1)
-			mockStateDB.EXPECT().AddRefund(params.SstoreClearsScheduleRefundEIP2200)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_0)
-		}, GAS_START, 5006},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(1))
+			mock.EXPECT().GetCommittedStorage(vm.Address{0}, toKey(0)).Return(toWord(1))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(0), toWord(0))
+		}, GAS_START, 5006, vm.Gas(params.SstoreClearsScheduleRefundEIP2200)},
 	{"SSTORE diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_0)
-			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_2)
-			mockStateDB.EXPECT().SubRefund(params.SstoreClearsScheduleRefundEIP2200)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_1)
-		}, GAS_START, 806},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(0))
+			mock.EXPECT().GetCommittedStorage(vm.Address{0}, toKey(0)).Return(toWord(2))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(0), toWord(1))
+		}, GAS_START, 806, vm.Gas(-int(params.SstoreClearsScheduleRefundEIP2200))},
 	{"SSTORE diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_1)
-			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_2)
-			mockStateDB.EXPECT().AddRefund(params.SstoreClearsScheduleRefundEIP2200)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_0)
-		}, GAS_START, 806},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(1))
+			mock.EXPECT().GetCommittedStorage(vm.Address{0}, toKey(0)).Return(toWord(2))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(0), toWord(0))
+		}, GAS_START, 806, vm.Gas(params.SstoreClearsScheduleRefundEIP2200)},
 	{"SSTORE diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_1).Return(HASH_1)
-			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_1).Return(HASH_0)
-			mockStateDB.EXPECT().AddRefund(params.SstoreSetGasEIP2200 - params.SloadGasEIP2200)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_1, HASH_0)
-		}, GAS_START, 806},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(1)).Return(toWord(1))
+			mock.EXPECT().GetCommittedStorage(vm.Address{0}, toKey(1)).Return(toWord(0))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(1), toWord(0))
+		}, GAS_START, 806, vm.Gas(params.SstoreSetGasEIP2200 - params.SloadGasEIP2200)},
 	{"SSTORE diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_1)
-			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_2)
-			mockStateDB.EXPECT().AddRefund(params.SstoreResetGasEIP2200 - params.SloadGasEIP2200)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_2)
-		}, GAS_START, 806},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(1))
+			mock.EXPECT().GetCommittedStorage(vm.Address{0}, toKey(0)).Return(toWord(2))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(0), toWord(2))
+		}, GAS_START, 806, vm.Gas(params.SstoreResetGasEIP2200 - params.SloadGasEIP2200)},
 	{"SSTORE Berlin same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_0)
-			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_0).Return(true, false)
-			mockStateDB.EXPECT().AddSlotToAccessList(ADDRESS_0, HASH_0)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_0)
-		}, GAS_START, 2206},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(0))
+			mock.EXPECT().IsSlotInAccessList(vm.Address{0}, toKey(0)).Return(true, false)
+			mock.EXPECT().AccessStorage(vm.Address{0}, toKey(0))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(0), toWord(0))
+		}, GAS_START, 2206, 0},
 	{"SSTORE Berlin diff value, same state as db, db is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_0)
-			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_0).Return(true, true)
-			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_0)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_1)
-		}, GAS_START, 20006},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(0))
+			mock.EXPECT().IsSlotInAccessList(vm.Address{0}, toKey(0)).Return(true, true)
+			mock.EXPECT().GetCommittedStorage(vm.Address{0}, toKey(0)).Return(toWord(0))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(0), toWord(1))
+		}, GAS_START, 20006, 0},
 	{"SSTORE Berlin diff value, same state as db, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_1)
-			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_0).Return(true, true)
-			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_1)
-			mockStateDB.EXPECT().AddRefund(params.SstoreClearsScheduleRefundEIP2200)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_0)
-		}, GAS_START, 2906},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(1))
+			mock.EXPECT().IsSlotInAccessList(vm.Address{0}, toKey(0)).Return(true, true)
+			mock.EXPECT().GetCommittedStorage(vm.Address{0}, toKey(0)).Return(toWord(1))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(0), toWord(0))
+		}, GAS_START, 2906, vm.Gas(params.SstoreClearsScheduleRefundEIP2200)},
 	{"SSTORE Berlin diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_0)
-			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_0).Return(true, true)
-			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_2)
-			mockStateDB.EXPECT().SubRefund(params.SstoreClearsScheduleRefundEIP2200)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_1)
-		}, GAS_START, 106},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(0))
+			mock.EXPECT().IsSlotInAccessList(vm.Address{0}, toKey(0)).Return(true, true)
+			mock.EXPECT().GetCommittedStorage(vm.Address{0}, toKey(0)).Return(toWord(2))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(0), toWord(1))
+		}, GAS_START, 106, vm.Gas(-int(params.SstoreClearsScheduleRefundEIP2200))},
 	{"SSTORE Berlin diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_1)
-			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_0).Return(true, true)
-			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_2)
-			mockStateDB.EXPECT().AddRefund(params.SstoreClearsScheduleRefundEIP2200)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_0)
-		}, GAS_START, 106},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(1))
+			mock.EXPECT().IsSlotInAccessList(vm.Address{0}, toKey(0)).Return(true, true)
+			mock.EXPECT().GetCommittedStorage(vm.Address{0}, toKey(0)).Return(toWord(2))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(0), toWord(0))
+		}, GAS_START, 106, vm.Gas(params.SstoreClearsScheduleRefundEIP2200)},
 	{"SSTORE Berlin diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_1).Return(HASH_1)
-			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_1).Return(true, true)
-			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_1).Return(HASH_0)
-			mockStateDB.EXPECT().AddRefund(params.SstoreSetGasEIP2200 - params.WarmStorageReadCostEIP2929)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_1, HASH_0)
-		}, GAS_START, 106},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(1)).Return(toWord(1))
+			mock.EXPECT().IsSlotInAccessList(vm.Address{0}, toKey(1)).Return(true, true)
+			mock.EXPECT().GetCommittedStorage(vm.Address{0}, toKey(1)).Return(toWord(0))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(1), toWord(0))
+		}, GAS_START, 106, vm.Gas(params.SstoreSetGasEIP2200 - params.WarmStorageReadCostEIP2929)},
 	{"SSTORE Berlin diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
-		func(mockStateDB *vm_mock.MockStateDB) {
-			mockStateDB.EXPECT().GetState(ADDRESS_0, HASH_0).Return(HASH_1)
-			mockStateDB.EXPECT().SlotInAccessList(common.Address{0}, HASH_0).Return(true, true)
-			mockStateDB.EXPECT().GetCommittedState(ADDRESS_0, HASH_0).Return(HASH_2)
-			mockStateDB.EXPECT().AddRefund((params.SstoreResetGasEIP2200 - params.ColdSloadCostEIP2929) - params.WarmStorageReadCostEIP2929)
-			mockStateDB.EXPECT().SetState(ADDRESS_0, HASH_0, HASH_2)
-		}, GAS_START, 106},
+		func(mock *vm.MockRunContext) {
+			mock.EXPECT().GetStorage(vm.Address{0}, toKey(0)).Return(toWord(1))
+			mock.EXPECT().IsSlotInAccessList(vm.Address{0}, toKey(0)).Return(true, true)
+			mock.EXPECT().GetCommittedStorage(vm.Address{0}, toKey(0)).Return(toWord(2))
+			mock.EXPECT().SetStorage(vm.Address{0}, toKey(0), toWord(2))
+		}, GAS_START, 106, vm.Gas((params.SstoreResetGasEIP2200 - params.ColdSloadCostEIP2929) - params.WarmStorageReadCostEIP2929)},
 }
 
 type OpCodeWithGas struct {
 	OpCode
-	gas uint64
+	gas vm.Gas
 }
 
 func addOKOpCodes(tests []OpcodeTest) []OpcodeTest {
@@ -380,7 +360,7 @@ func addOKOpCodes(tests []OpcodeTest) []OpcodeTest {
 		for j := 0; j < dataNum; j++ {
 			code = append(code, Instruction{DATA, 1})
 		}
-		addedTests = append(addedTests, OpcodeTest{i.String(), code, 20, 0, STOPPED, false, false, nil, GAS_START, 3})
+		addedTests = append(addedTests, OpcodeTest{i.String(), code, 20, 0, STOPPED, false, false, nil, GAS_START, 3, 0})
 	}
 	var opCodes []OpCodeWithGas
 	opCodes = append(opCodes, getInstructionsWithGas(DUP1, SWAP16, 3)...)
@@ -405,43 +385,44 @@ func addOKOpCodes(tests []OpcodeTest) []OpcodeTest {
 	opCodes = append(opCodes, OpCodeWithGas{DUP2_LT, 6})
 	for _, opCode := range opCodes {
 		code := []Instruction{{opCode.OpCode, 0}}
-		addedTests = append(addedTests, OpcodeTest{opCode.String(), code, 20, 0, STOPPED, false, false, nil, GAS_START, opCode.gas})
+		addedTests = append(addedTests, OpcodeTest{opCode.String(), code, 20, 0, STOPPED, false, false, nil, GAS_START, opCode.gas, 0})
 	}
 	return addedTests
 }
 
 func TestOKInstructionPath(t *testing.T) {
-
-	var mockCtrl *gomock.Controller
-	var mockStateDB *vm_mock.MockStateDB
-
 	for _, test := range addOKOpCodes(opcodeTests) {
 		t.Run(test.name, func(t *testing.T) {
-
+			ctrl := gomock.NewController(t)
+			runContext := vm.NewMockRunContext(ctrl)
 			if test.mockCalls != nil {
-				mockCtrl = gomock.NewController(t)
-				mockStateDB = vm_mock.NewMockStateDB(mockCtrl)
-				test.mockCalls(mockStateDB)
-			} else {
-				mockStateDB = nil
+				test.mockCalls(runContext)
 			}
-			ctxt := getContext(test.code, make([]byte, 0), test.stackPtrPos, mockStateDB, test.gasStart, test.isBerlin, test.isLondon)
+			revision := vm.R07_Istanbul
+			if test.isBerlin {
+				revision = vm.R09_Berlin
+			}
+			if test.isLondon {
+				revision = vm.R10_London
+			}
+			ctxt := getContext(test.code, make([]byte, 0), runContext, test.stackPtrPos, test.gasStart, revision)
 
 			// Run testing code
 			run(&ctxt)
 
-			if test.mockCalls != nil {
-				mockCtrl.Finish()
-			}
-
 			// Check the result.
 			if ctxt.status != test.endStatus {
-				t.Errorf("execution failed %v: status is %v, wanted %v, error %v", test.name, ctxt.status, test.endStatus, ctxt.err)
+				t.Errorf("execution failed: status is %v, wanted %v, error %v", ctxt.status, test.endStatus, ctxt.err)
 			}
 
 			// Check gas consumption
-			if test.gasStart-ctxt.contract.Gas != test.gasConsumed {
-				t.Errorf("execution failed %v: gas consumption is %v, wanted %v", test.name, test.gasStart-ctxt.contract.Gas, test.gasConsumed)
+			if want, got := test.gasConsumed, test.gasStart-ctxt.gas; want != got {
+				t.Errorf("execution failed: gas consumption is %v, wanted %v", got, want)
+			}
+
+			// Check gas refund
+			if want, got := test.gasRefund, ctxt.refund; want != got {
+				t.Errorf("execution failed: gas refund is %v, wanted %v", got, want)
 			}
 		})
 	}
@@ -493,19 +474,16 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 	data[6+28] = byte(arg >> 8)
 	data[7+28] = byte(arg)
 
-	// Create a dummy contract
-	addr := vm.AccountRef{}
-	contract := vm.NewContract(addr, addr, big.NewInt(0), 1<<63)
-
 	// Create execution context.
 	ctxt := context{
-		code:     converted,
-		data:     data,
-		callsize: *uint256.NewInt(uint64(len(data))),
-		stack:    NewStack(),
-		memory:   NewMemory(),
-		readOnly: true,
-		contract: contract,
+		params: vm.Parameters{
+			Input:  data,
+			Static: true,
+		},
+		gas:    1 << 62,
+		code:   converted,
+		stack:  NewStack(),
+		memory: NewMemory(),
 	}
 
 	// Compute expected value.
@@ -515,7 +493,7 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 		// Reset the context.
 		ctxt.pc = 0
 		ctxt.status = RUNNING
-		ctxt.contract.Gas = 1 << 31
+		ctxt.gas = 1 << 31
 		ctxt.stack.stack_ptr = 0
 
 		// Run the code (actual benchmark).
@@ -555,4 +533,16 @@ func BenchmarkIsWriteInstruction(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		sink = isWriteInstruction(OpCode(i % int(NUM_EXECUTABLE_OPCODES)))
 	}
+}
+
+func toKey(value byte) vm.Key {
+	res := vm.Key{}
+	res[len(res)-1] = value
+	return res
+}
+
+func toWord(value byte) vm.Word {
+	res := vm.Word{}
+	res[len(res)-1] = value
+	return res
 }
