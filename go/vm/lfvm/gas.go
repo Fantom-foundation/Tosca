@@ -382,7 +382,7 @@ func gasEip2929AccountCheck(c *context, address vm.Address) error {
 		// Charge extra for cold locations.
 		if !c.context.IsAddressInAccessList(address) {
 			if !c.UseGas(vm.Gas(params.ColdAccountAccessCostEIP2929 - params.WarmStorageReadCostEIP2929)) {
-				return ErrOutOfGas
+				return errOutOfGas
 			}
 			c.context.AccessAccount(address)
 		}
@@ -404,7 +404,7 @@ func addressInAccessList(c *context) (warmAccess bool, coldCost vm.Gas, err erro
 			// Charge the remaining difference here already, to correctly calculate available
 			// gas for call
 			if !c.UseGas(coldCost) {
-				return false, 0, ErrOutOfGas
+				return false, 0, errOutOfGas
 			}
 		}
 	}

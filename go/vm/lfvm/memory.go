@@ -39,15 +39,15 @@ func (m *Memory) EnsureCapacity(offset, size uint64, c *context) error {
 	needed := offset + size
 	// check overflow
 	if needed < offset {
-		c.SignalError(ErrGasUintOverflow)
-		return ErrGasUintOverflow
+		c.SignalError(errGasUintOverflow)
+		return errGasUintOverflow
 	}
 	if m.Len() < needed {
 		needed = toValidMemorySize(needed)
 		fee := m.ExpansionCosts(needed)
 		if !c.UseGas(fee) {
-			c.SignalError(ErrOutOfGas)
-			return ErrOutOfGas
+			c.SignalError(errOutOfGas)
+			return errOutOfGas
 		}
 		m.total_memory_cost += fee
 		m.store = append(m.store, make([]byte, needed-m.Len())...)
@@ -127,7 +127,7 @@ func (m *Memory) SetWord(offset uint64, value *uint256.Int) error {
 func (m *Memory) Set(offset, size uint64, value []byte) error {
 	if size > 0 {
 		if offset+size < offset {
-			return ErrGasUintOverflow
+			return errGasUintOverflow
 		}
 		if offset+size > m.Len() {
 			return fmt.Errorf("memory too small, size %d, attempted to write %d bytes at %d", m.Len(), size, offset)

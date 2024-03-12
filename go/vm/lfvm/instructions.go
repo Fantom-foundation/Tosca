@@ -42,7 +42,7 @@ func opPc(c *context) {
 
 func checkJumpDest(c *context) {
 	if int(c.pc+1) >= len(c.code) || c.code[c.pc+1].opcode != JUMPDEST {
-		c.SignalError(ErrInvalidJump)
+		c.SignalError(errInvalidJump)
 	}
 }
 
@@ -50,7 +50,7 @@ func opJump(c *context) {
 	destination := c.stack.pop()
 	// overflow check
 	if !destination.IsUint64() || destination.Uint64()>>33 > 0 {
-		c.SignalError(ErrInvalidJump)
+		c.SignalError(errInvalidJump)
 		return
 	}
 	// Update the PC to the jump destination -1 since interpreter will increase PC by 1 afterward.
@@ -64,7 +64,7 @@ func opJumpi(c *context) {
 	if !condition.IsZero() {
 		// overflow check
 		if !destination.IsUint64() || destination.Uint64()>>33 > 0 {
-			c.SignalError(ErrInvalidJump)
+			c.SignalError(errInvalidJump)
 			return
 		}
 		// Update the PC to the jump destination -1 since interpreter will increase PC by 1 afterward.
@@ -194,7 +194,7 @@ func opMload(c *context) {
 	var addr = *trg
 
 	if !addr.IsUint64() {
-		c.SignalError(ErrGasUintOverflow)
+		c.SignalError(errGasUintOverflow)
 		return
 	}
 	offset := addr.Uint64()
@@ -682,7 +682,7 @@ func opCodeCopy(c *context) {
 	)
 
 	if checkSizeOffsetUint64Overflow(memOffset, length) != nil {
-		c.SignalError(ErrGasUintOverflow)
+		c.SignalError(errGasUintOverflow)
 		return
 	}
 
@@ -855,7 +855,7 @@ func opExtCodeCopy(c *context) {
 		length     = stack.pop()
 	)
 	if checkSizeOffsetUint64Overflow(memOffset, length) != nil || checkSizeOffsetUint64Overflow(codeOffset, length) != nil {
-		c.SignalError(ErrGasUintOverflow)
+		c.SignalError(errGasUintOverflow)
 		return
 	}
 	uint64CodeOffset := codeOffset.Uint64()
@@ -885,7 +885,7 @@ func checkSizeOffsetUint64Overflow(offset, size *uint256.Int) error {
 		return nil
 	}
 	if !offset.IsUint64() || !size.IsUint64() || offset.Uint64()+size.Uint64() < offset.Uint64() {
-		return ErrGasUintOverflow
+		return errGasUintOverflow
 	}
 	return nil
 }
@@ -1241,7 +1241,7 @@ func opReturnDataCopy(c *context) {
 
 	offset64, overflow := dataOffset.Uint64WithOverflow()
 	if overflow {
-		c.SignalError(ErrReturnDataOutOfBounds)
+		c.SignalError(errReturnDataOutOfBounds)
 		return
 	}
 	// we can reuse dataOffset now (aliasing it for clarity)
@@ -1249,7 +1249,7 @@ func opReturnDataCopy(c *context) {
 	end.Add(dataOffset, length)
 	end64, overflow := end.Uint64WithOverflow()
 	if overflow || uint64(len(c.return_data)) < end64 {
-		c.SignalError(ErrReturnDataOutOfBounds)
+		c.SignalError(errReturnDataOutOfBounds)
 		return
 	}
 

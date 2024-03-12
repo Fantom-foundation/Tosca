@@ -333,12 +333,12 @@ func stepToEnd(c *context) {
 func checkStackBoundry(c *context, op OpCode) error {
 	stackLen := c.stack.len()
 	if stackLen < staticStackBoundry[op].stackMin {
-		c.err = ErrStackUnderflow
+		c.err = errStackUnderflow
 		c.status = ERROR
 		return c.err
 	}
 	if stackLen > staticStackBoundry[op].stackMax {
-		c.err = ErrStackOverflow
+		c.err = errStackOverflow
 		c.status = ERROR
 		return c.err
 	}
@@ -364,7 +364,7 @@ func steps(c *context, one_step_only bool) {
 
 		// Catch invalid op-codes here, to avoid the need to check them at other places multiple times.
 		if op >= NUM_EXECUTABLE_OPCODES {
-			c.SignalError(ErrInvalidCode)
+			c.SignalError(errInvalidCode)
 			return
 		}
 
@@ -379,7 +379,7 @@ func steps(c *context, one_step_only bool) {
 		// account to the others means the state is modified and should also
 		// return with an error.
 		if c.params.Static && (isWriteInstruction(op) || (op == CALL && c.stack.Back(2).Sign() != 0)) {
-			c.err = ErrWriteProtection
+			c.err = errWriteProtection
 			c.status = ERROR
 			return
 		}

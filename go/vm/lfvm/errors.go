@@ -1,14 +1,14 @@
 package lfvm
 
 const (
-	ErrGasUintOverflow       = ConstError("gas uint64 overflow")
-	ErrInvalidCode           = ConstError("invalid code")
-	ErrInvalidJump           = ConstError("invalid jump destination")
-	ErrOutOfGas              = ConstError("out of gas")
-	ErrReturnDataOutOfBounds = ConstError("return data out of bounds")
-	ErrStackOverflow         = ConstError("stack overflow")
-	ErrStackUnderflow        = ConstError("stack underflow")
-	ErrWriteProtection       = ConstError("write protection")
+	errGasUintOverflow       = ConstError("gas uint64 overflow")
+	errInvalidCode           = ConstError("invalid code")
+	errInvalidJump           = ConstError("invalid jump destination")
+	errOutOfGas              = ConstError("out of gas")
+	errReturnDataOutOfBounds = ConstError("return data out of bounds")
+	errStackOverflow         = ConstError("stack overflow")
+	errStackUnderflow        = ConstError("stack underflow")
+	errWriteProtection       = ConstError("write protection")
 )
 
 // ConstError is an error type that can be used to define immutable
