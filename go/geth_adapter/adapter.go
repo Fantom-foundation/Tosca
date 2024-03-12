@@ -285,14 +285,14 @@ func (a *runContextAdapter) EmitLog(addr vm.Address, topics_in []vm.Hash, data [
 func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameter) (result vm.CallResult, reserr error) {
 	if adapterDebug {
 		fmt.Printf("Start of call:\n")
-		fmt.Printf("\ttype:         %v\n", kind)
-		fmt.Printf("\trecipient:    %v\n", parameter.Recipient)
-		fmt.Printf("\tsender:       %v\n", parameter.Sender)
-		fmt.Printf("\tgas:          %v\n", parameter.Gas)
-		fmt.Printf("\tinput:        %v\n", parameter.Input)
-		fmt.Printf("\tvalue:        %v\n", parameter.Value)
-		fmt.Printf("\tsale:         %v\n", parameter.Salt)
-		fmt.Printf("\tcode address: %v\n", parameter.CodeAddress)
+		fmt.Printf("\tType:         %v\n", kind)
+		fmt.Printf("\tRecipient:    %v\n", parameter.Recipient)
+		fmt.Printf("\tSender:       %v\n", parameter.Sender)
+		fmt.Printf("\tGas:          %v\n", parameter.Gas)
+		fmt.Printf("\tInput:        %v\n", parameter.Input)
+		fmt.Printf("\tValue:        %v\n", parameter.Value)
+		fmt.Printf("\tSalt:         %v\n", parameter.Salt)
+		fmt.Printf("\tCode address: %v\n", parameter.CodeAddress)
 
 		defer func() {
 			fmt.Printf("End of call:\n")
@@ -359,7 +359,7 @@ func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameter) (
 	}
 
 	if err != nil {
-		// translate vm errors to vm errors
+		// translate geth errors to vm errors
 		switch err {
 		case geth.ErrExecutionReverted:
 			// revert errors are not an error in Tosca
@@ -405,7 +405,7 @@ func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameter) (
 	return vm.CallResult{
 		Output:         output,
 		GasLeft:        vm.Gas(returnGas),
-		GasRefund:      0, //vm.Gas(refundAfter - refundBefore),
+		GasRefund:      0, // refunds of nested calls are managed by the geth EVM and this adapter
 		CreatedAddress: createdAddress,
 		Success:        err == nil,
 	}, nil
