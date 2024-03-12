@@ -8,7 +8,7 @@ import (
 	"pgregory.net/rand"
 )
 
-func TestBalanceGenerator_UnconstrainedGeneratorCanProduceBalance(t *testing.T) {
+func TestAccountsGenerator_UnconstrainedGeneratorCanProduceBalance(t *testing.T) {
 	rnd := rand.New(0)
 	generator := NewAccountGenerator()
 	accountAddress, err := RandAddress(rnd)
@@ -20,7 +20,7 @@ func TestBalanceGenerator_UnconstrainedGeneratorCanProduceBalance(t *testing.T) 
 	}
 }
 
-func TestBalanceGenerator_WarmConstraintIsEnforced(t *testing.T) {
+func TestAccountsGenerator_WarmConstraintIsEnforced(t *testing.T) {
 	v1 := Variable("v1")
 	assignment := Assignment{}
 	assignment[v1] = NewU256(42)
@@ -32,17 +32,17 @@ func TestBalanceGenerator_WarmConstraintIsEnforced(t *testing.T) {
 		t.Errorf("Unexpected random address generation error: %v", err)
 	}
 	generator.BindWarm(v1)
-	balance, err := generator.Generate(assignment, rnd, accountAddress)
+	accounts, err := generator.Generate(assignment, rnd, accountAddress)
 	if err != nil {
 		t.Errorf("Unexpected error during generation: %v", err)
 	}
 
-	if !balance.IsWarm(NewAddressFromInt(42)) {
+	if !accounts.IsWarm(NewAddressFromInt(42)) {
 		t.Errorf("Expected constraint address to be warm, but generated state marked as cold")
 	}
 }
 
-func TestBalanceGenerator_ConflictingWarmColdConstraintsAreDetected(t *testing.T) {
+func TestAccountsGenerator_ConflictingWarmColdConstraintsAreDetected(t *testing.T) {
 	v1 := Variable("v1")
 	assignment := Assignment{}
 	assignment[v1] = NewU256(42)
@@ -60,7 +60,7 @@ func TestBalanceGenerator_ConflictingWarmColdConstraintsAreDetected(t *testing.T
 	}
 }
 
-func TestBalanceGenerator_WarmColdConstraintsNoAssignment(t *testing.T) {
+func TestAccountsGenerator_WarmColdConstraintsNoAssignment(t *testing.T) {
 	v1 := Variable("v1")
 	v2 := Variable("v2")
 	assignment := Assignment{}
@@ -70,7 +70,7 @@ func TestBalanceGenerator_WarmColdConstraintsNoAssignment(t *testing.T) {
 	generator.BindWarm(v1)
 	generator.BindCold(v2)
 
-	balance, err := generator.Generate(assignment, rnd, NewAddressFromInt(8))
+	accounts, err := generator.Generate(assignment, rnd, NewAddressFromInt(8))
 	if err != nil {
 		t.Fatalf("Unexpected error during balance generation")
 	}
@@ -81,10 +81,10 @@ func TestBalanceGenerator_WarmColdConstraintsNoAssignment(t *testing.T) {
 	if !found1 || !found2 {
 		t.Fatalf("Variable not bound by generator")
 	}
-	if !balance.IsWarm(NewAddress(pos1)) {
+	if !accounts.IsWarm(NewAddress(pos1)) {
 		t.Errorf("Expected address to be warm but got cold")
 	}
-	if balance.IsWarm(NewAddress(pos2)) {
+	if accounts.IsWarm(NewAddress(pos2)) {
 		t.Errorf("Expected address to be cold but got warm")
 	}
 }

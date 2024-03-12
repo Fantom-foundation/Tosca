@@ -283,8 +283,8 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			s.Stack.Push(s.Account.Balance[address])
-			s.Account.MarkWarm(address)
+			s.Stack.Push(s.Accounts.Balance[address])
+			s.Accounts.MarkWarm(address)
 		},
 		name: "_cold",
 	})...)
@@ -304,7 +304,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			s.Stack.Push(s.Account.Balance[address])
+			s.Stack.Push(s.Accounts.Balance[address])
 		},
 		name: "_warm",
 	})...)
@@ -323,7 +323,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			s.Stack.Push(s.Account.Balance[address])
+			s.Stack.Push(s.Accounts.Balance[address])
 		},
 		name: "_preBerlin",
 	})...)
@@ -858,9 +858,9 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			size := len(s.Account.Code[address])
+			size := len(s.Accounts.Code[address])
 			s.Stack.Push(NewU256(uint64(size)))
-			s.Account.MarkWarm(address)
+			s.Accounts.MarkWarm(address)
 		},
 		name: "_cold",
 	})...)
@@ -880,7 +880,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			size := len(s.Account.Code[address])
+			size := len(s.Accounts.Code[address])
 			s.Stack.Push(NewU256(uint64(size)))
 		},
 		name: "_warm",
@@ -900,7 +900,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			size := len(s.Account.Code[address])
+			size := len(s.Accounts.Code[address])
 			s.Stack.Push(NewU256(uint64(size)))
 		},
 		name: "_preBerlin",
@@ -1025,13 +1025,13 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			if _, exists := s.Account.Balance[address]; !exists {
+			if _, exists := s.Accounts.Balance[address]; !exists {
 				s.Stack.Push(NewU256(0))
 			} else {
-				hash := s.Account.HashCode(address)
+				hash := s.Accounts.GetCodeHash(address)
 				s.Stack.Push(NewU256FromBytes(hash[:]...))
 			}
-			s.Account.MarkWarm(address)
+			s.Accounts.MarkWarm(address)
 		},
 		name: "_cold",
 	})...)
@@ -1051,10 +1051,10 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			if _, exists := s.Account.Balance[address]; !exists {
+			if _, exists := s.Accounts.Balance[address]; !exists {
 				s.Stack.Push(NewU256(0))
 			} else {
-				hash := s.Account.HashCode(address)
+				hash := s.Accounts.GetCodeHash(address)
 				s.Stack.Push(NewU256FromBytes(hash[:]...))
 			}
 		},
@@ -1075,10 +1075,10 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			if _, exists := s.Account.Balance[address]; !exists {
+			if _, exists := s.Accounts.Balance[address]; !exists {
 				s.Stack.Push(NewU256(0))
 			} else {
-				hash := s.Account.HashCode(address)
+				hash := s.Accounts.GetCodeHash(address)
 				s.Stack.Push(NewU256FromBytes(hash[:]...))
 			}
 		},
@@ -1233,7 +1233,7 @@ var Spec = func() Specification {
 		pushes:    1,
 		effect: func(s *st.State) {
 			address := s.CallContext.AccountAddress
-			balance := s.Account.Balance[address]
+			balance := s.Accounts.Balance[address]
 			s.Stack.Push(balance)
 		},
 	})...)
@@ -1450,18 +1450,18 @@ func extcodecopyEffect(s *st.State, markWarm bool) {
 	s.Gas -= cost
 
 	start := offsetU256.Uint64()
-	codeSize := uint64(len(s.Account.Code[address]))
+	codeSize := uint64(len(s.Accounts.Code[address]))
 	if offsetU256.Gt(NewU256(codeSize)) {
 		start = codeSize
 	}
 	end := min(start+size, codeSize)
 
 	codeCopy := make([]byte, size)
-	copy(codeCopy, s.Account.Code[address][start:end])
+	copy(codeCopy, s.Accounts.Code[address][start:end])
 
 	s.Memory.Write(codeCopy, destOffset)
 	if markWarm {
-		s.Account.MarkWarm(address)
+		s.Accounts.MarkWarm(address)
 	}
 }
 

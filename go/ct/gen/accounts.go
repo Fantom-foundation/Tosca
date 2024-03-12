@@ -11,42 +11,42 @@ import (
 	"pgregory.net/rand"
 )
 
-type AccountGenerator struct {
+type AccountsGenerator struct {
 	warmCold []warmColdConstraint
 }
 
-func NewAccountGenerator() *AccountGenerator {
-	return &AccountGenerator{}
+func NewAccountGenerator() *AccountsGenerator {
+	return &AccountsGenerator{}
 }
 
-func (g *AccountGenerator) Clone() *AccountGenerator {
-	return &AccountGenerator{
+func (g *AccountsGenerator) Clone() *AccountsGenerator {
+	return &AccountsGenerator{
 		warmCold: slices.Clone(g.warmCold),
 	}
 }
 
-func (g *AccountGenerator) Restore(other *AccountGenerator) {
+func (g *AccountsGenerator) Restore(other *AccountsGenerator) {
 	if g == other {
 		return
 	}
 	g.warmCold = slices.Clone(other.warmCold)
 }
 
-func (g *AccountGenerator) BindWarm(address Variable) {
+func (g *AccountsGenerator) BindWarm(address Variable) {
 	v := warmColdConstraint{address, true}
 	if !slices.Contains(g.warmCold, v) {
 		g.warmCold = append(g.warmCold, v)
 	}
 }
 
-func (g *AccountGenerator) BindCold(address Variable) {
+func (g *AccountsGenerator) BindCold(address Variable) {
 	v := warmColdConstraint{address, false}
 	if !slices.Contains(g.warmCold, v) {
 		g.warmCold = append(g.warmCold, v)
 	}
 }
 
-func (g *AccountGenerator) String() string {
+func (g *AccountsGenerator) String() string {
 	var parts []string
 
 	sort.Slice(g.warmCold, func(i, j int) bool { return g.warmCold[i].Less(&g.warmCold[j]) })
@@ -64,20 +64,11 @@ func (g *AccountGenerator) String() string {
 func randCode(rnd *rand.Rand) []byte {
 	size := rnd.Intn(42)
 	code := make([]byte, 0, size)
-	for i := 0; i < size; i++ {
-		var op OpCode
-		for {
-			op = OpCode(rnd.Intn(256))
-			if IsValid(op) {
-				break
-			}
-		}
-		code = append(code, byte(op))
-	}
+	rnd.Read(code)
 	return code
 }
 
-func (g *AccountGenerator) Generate(assignment Assignment, rnd *rand.Rand, accountAddress Address) (*st.Account, error) {
+func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, accountAddress Address) (*st.Accounts, error) {
 	// Check for conflicts among warm/cold constraints.
 	sort.Slice(g.warmCold, func(i, j int) bool { return g.warmCold[i].Less(&g.warmCold[j]) })
 	for i := 0; i < len(g.warmCold)-1; i++ {
@@ -118,10 +109,11 @@ func (g *AccountGenerator) Generate(assignment Assignment, rnd *rand.Rand, accou
 		return address
 	}
 
-	account := st.NewAccount()
+	account := st.NewAccounts()
 	// Process warm/cold constraints.
 	for _, con := range g.warmCold {
 		address := getAddress(con.key)
+		// TODO: Not every warm address requires balance or code
 		if _, isPresent := account.Balance[address]; !isPresent {
 			account.Balance[address] = RandU256(rnd)
 			account.Code[address] = randCode(rnd)

@@ -1,6 +1,7 @@
 package st
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 
@@ -9,42 +10,42 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-type Account struct {
+type Accounts struct {
 	Balance map[Address]U256
 	Code    map[Address][]byte
 	warm    map[Address]struct{}
 }
 
-func NewAccount() *Account {
-	return &Account{
+func NewAccounts() *Accounts {
+	return &Accounts{
 		Balance: make(map[Address]U256),
 		Code:    make(map[Address][]byte),
 		warm:    make(map[Address]struct{}),
 	}
 }
 
-func (a *Account) HashCode(address Address) (hash [32]byte) {
+func (a *Accounts) GetCodeHash(address Address) (hash [32]byte) {
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(a.Code[address])
-	copy(hash[:], hasher.Sum(nil)[:])
+	hasher.Sum(hash[:])
 	return
 }
 
-func (a *Account) Clone() *Account {
-	return &Account{
+func (a *Accounts) Clone() *Accounts {
+	return &Accounts{
 		Balance: maps.Clone(a.Balance),
 		Code:    maps.Clone(a.Code),
 		warm:    maps.Clone(a.warm),
 	}
 }
 
-func (a *Account) Eq(b *Account) bool {
+func (a *Accounts) Eq(b *Accounts) bool {
 	return maps.Equal(a.Balance, b.Balance) &&
 		reflect.DeepEqual(a.Code, b.Code) &&
 		maps.Equal(a.warm, b.warm)
 }
 
-func (a *Account) Diff(b *Account) (res []string) {
+func (a *Accounts) Diff(b *Accounts) (res []string) {
 	for key, valueA := range a.Balance {
 		valueB, contained := b.Balance[key]
 		if !contained {
@@ -63,7 +64,7 @@ func (a *Account) Diff(b *Account) (res []string) {
 		valueB, contained := b.Code[address]
 		if !contained {
 			res = append(res, fmt.Sprintf("Different code entry:\n\t[%v]=%v\n\tvs\n\tmissing", address, valueA))
-		} else if !reflect.DeepEqual(valueA, valueB) {
+		} else if !bytes.Equal(valueA, valueB) {
 			res = append(res, fmt.Sprintf("Different code entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", address, valueA, address, valueB))
 		}
 	}
@@ -87,28 +88,28 @@ func (a *Account) Diff(b *Account) (res []string) {
 	return
 }
 
-func (b *Account) IsWarm(key Address) bool {
-	_, contains := b.warm[key]
+func (a *Accounts) IsWarm(key Address) bool {
+	_, contains := a.warm[key]
 	return contains
 }
 
-func (b *Account) IsCold(key Address) bool {
-	_, contains := b.warm[key]
+func (a *Accounts) IsCold(key Address) bool {
+	_, contains := a.warm[key]
 	return !contains
 }
 
-func (b *Account) MarkWarm(key Address) {
-	b.warm[key] = struct{}{}
+func (a *Accounts) MarkWarm(key Address) {
+	a.warm[key] = struct{}{}
 }
 
-func (b *Account) MarkCold(key Address) {
-	delete(b.warm, key)
+func (a *Accounts) MarkCold(key Address) {
+	delete(a.warm, key)
 }
 
-func (b *Account) SetWarm(key Address, warm bool) {
+func (a *Accounts) SetWarm(key Address, warm bool) {
 	if warm {
-		b.MarkWarm(key)
+		a.MarkWarm(key)
 	} else {
-		b.MarkCold(key)
+		a.MarkCold(key)
 	}
 }
