@@ -20,69 +20,74 @@ func init() {
 	// of the evmzero project is added to the rpath of the resulting library.
 	// This way, the libevmzero.so file can be found during runtime, even if
 	// the LD_LIBRARY_PATH is not set accordingly.
-	cur, err := evmc.LoadEvmcInterpreter("libevmzero.so")
-	if err != nil {
-		panic(fmt.Errorf("failed to load evmzero library: %s", err))
+	{
+		evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
+		if err != nil {
+			panic(fmt.Errorf("failed to load evmzero library: %s", err))
+		}
+		// This instance remains in its basic configuration.
+		vm.RegisterInterpreter("evmzero", evm)
 	}
-	// This instance remains in its basic configuration.
-	evmzero := cur
 
 	// We create a second instance in which we enable logging.
-	cur, err = evmc.LoadEvmcInterpreter("libevmzero.so")
-	if err != nil {
-		panic(fmt.Errorf("failed to load evmzero library: %s", err))
+	{
+		evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
+		if err != nil {
+			panic(fmt.Errorf("failed to load evmzero library: %s", err))
+		}
+		if err = evm.SetOption("logging", "true"); err != nil {
+			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+		}
+		vm.RegisterInterpreter("evmzero-logging", evm)
 	}
-	if err = cur.SetOption("logging", "true"); err != nil {
-		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-	}
-	evmzeroWithLogging := cur
 
 	// A third instance without analysis cache.
-	cur, err = evmc.LoadEvmcInterpreter("libevmzero.so")
-	if err != nil {
-		panic(fmt.Errorf("failed to load evmzero library: %s", err))
+	{
+		evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
+		if err != nil {
+			panic(fmt.Errorf("failed to load evmzero library: %s", err))
+		}
+		if err = evm.SetOption("analysis_cache", "false"); err != nil {
+			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+		}
+		vm.RegisterInterpreter("evmzero-no-analysis-cache", evm)
 	}
-	if err = cur.SetOption("analysis_cache", "false"); err != nil {
-		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-	}
-	evmzeroWithoutAnalysisCache := cur
 
 	// Another instance without SHA3 cache.
-	cur, err = evmc.LoadEvmcInterpreter("libevmzero.so")
-	if err != nil {
-		panic(fmt.Errorf("failed to load evmzero library: %s", err))
+	{
+		evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
+		if err != nil {
+			panic(fmt.Errorf("failed to load evmzero library: %s", err))
+		}
+		if err = evm.SetOption("sha3_cache", "false"); err != nil {
+			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+		}
+		vm.RegisterInterpreter("evmzero-no-sha3-cache", evm)
 	}
-	if err = cur.SetOption("sha3_cache", "false"); err != nil {
-		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-	}
-	evmzeroWithoutSha3Cache := cur
 
 	// Another instance in which we enable profiling.
-	cur, err = evmc.LoadEvmcInterpreter("libevmzero.so")
-	if err != nil {
-		panic(fmt.Errorf("failed to load evmzero library: %s", err))
+	{
+		evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
+		if err != nil {
+			panic(fmt.Errorf("failed to load evmzero library: %s", err))
+		}
+		if err = evm.SetOption("profiling", "true"); err != nil {
+			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+		}
+		vm.RegisterInterpreter("evmzero-profiling", &evmzeroInstanceWithProfiler{evm})
 	}
-	if err = cur.SetOption("profiling", "true"); err != nil {
-		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-	}
-	evmzeroWithProfiling := cur
 
 	// Another instance in which we enable profiling external.
-	cur, err = evmc.LoadEvmcInterpreter("libevmzero.so")
-	if err != nil {
-		panic(fmt.Errorf("failed to load evmzero library: %s", err))
+	{
+		evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
+		if err != nil {
+			panic(fmt.Errorf("failed to load evmzero library: %s", err))
+		}
+		if err = evm.SetOption("profiling_external", "true"); err != nil {
+			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+		}
+		vm.RegisterInterpreter("evmzero-profiling-external", &evmzeroInstanceWithProfiler{evm})
 	}
-	if err = cur.SetOption("profiling_external", "true"); err != nil {
-		panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-	}
-	evmzeroWithProfilingExternal := cur
-
-	vm.RegisterInterpreter("evmzero", evmzero)
-	vm.RegisterInterpreter("evmzero-logging", evmzeroWithLogging)
-	vm.RegisterInterpreter("evmzero-no-analysis-cache", evmzeroWithoutAnalysisCache)
-	vm.RegisterInterpreter("evmzero-no-sha3-cache", evmzeroWithoutSha3Cache)
-	vm.RegisterInterpreter("evmzero-profiling", &evmzeroInstanceWithProfiler{evmzeroWithProfiling})
-	vm.RegisterInterpreter("evmzero-profiling-external", &evmzeroInstanceWithProfiler{evmzeroWithProfilingExternal})
 }
 
 // evmzeroInstanceWithProfiler implements the vm.ProfilingVM interface and is used for all
