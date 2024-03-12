@@ -841,6 +841,7 @@ func getData(data []byte, start uint64, size uint64) []byte {
 	if end > length {
 		end = length
 	}
+	// Apply some right-padding to the result.
 	res := make([]byte, int(size))
 	copy(res, data[start:end])
 	return res

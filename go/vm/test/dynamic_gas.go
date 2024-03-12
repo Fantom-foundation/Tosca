@@ -444,7 +444,7 @@ func getSStoreGasAmounts(revision Revision) (refund vm.Gas, reset vm.Gas) {
 }
 
 // Returns expected gas and gas to refund for a SSTORE instruction
-func calculateSStoreGas(origValue vm.Word, currentValue vm.Word, newValue vm.Word, expectedGas vm.Gas, warmAccessCost vm.Gas, coldAccessCost vm.Gas, refundAmount vm.Gas, resetGasAmount vm.Gas) (vm.Gas, vm.Gas) {
+func calculateSStoreGas(origValue, currentValue, newValue vm.Word, expectedGas, warmAccessCost, coldAccessCost, refundAmount, resetGasAmount vm.Gas) (vm.Gas, vm.Gas) {
 	zeroVal := vm.Word{}
 	var gasRefund vm.Gas
 
