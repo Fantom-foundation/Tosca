@@ -260,14 +260,13 @@ func (ctx *hostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender 
 		return nil, 0, 0, evmc.Address{}, err
 	}
 	if !result.Success {
-		return result.Output, 0, 0, evmc.Address{}, evmc.Revert
+		err = evmc.Revert
 	}
-
 	return result.Output,
 		int64(result.GasLeft),
 		int64(result.GasRefund),
 		evmc.Address(result.CreatedAddress),
-		nil
+		err
 }
 
 func (ctx *hostContext) AccessAccount(addr evmc.Address) evmc.AccessStatus {
