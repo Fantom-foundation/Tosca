@@ -55,9 +55,11 @@ type stateSerializable struct {
 	Stack        []U256
 	Memory       []byte
 	Storage      *storageSerializable
+	Balance      *balanceSerializable
 	Logs         *Logs
 	CallContext  CallContext
 	BlockContext BlockContext
+	CallData     []byte
 }
 
 // storageSerializable is a serializable representation of the Storage struct.
@@ -65,6 +67,12 @@ type storageSerializable struct {
 	Current  map[U256]U256
 	Original map[U256]U256
 	Warm     map[U256]bool
+}
+
+// balanceSerializable is a serializable representation of the Balance struct.
+type balanceSerializable struct {
+	Current map[Address]U256
+	Warm    map[Address]bool
 }
 
 // newStateSerializableFromState creates a new stateSerializable instance from the given State instance.
@@ -81,9 +89,11 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		Stack:        slices.Clone(state.Stack.stack),
 		Memory:       bytes.Clone(state.Memory.mem),
 		Storage:      newStorageSerializable(state.Storage),
+		Balance:      newBalanceSerializable(state.Balance),
 		Logs:         state.Logs.Clone(),
 		CallContext:  state.CallContext,
 		BlockContext: state.BlockContext,
+		CallData:     bytes.Clone(state.CallData),
 	}
 }
 
@@ -119,11 +129,19 @@ func (s *stateSerializable) deserialize() *State {
 		state.Storage.Original = maps.Clone(s.Storage.Original)
 		state.Storage.warm = maps.Clone(s.Storage.Warm)
 	}
+	state.Balance = NewBalance()
+	if s.Balance != nil {
+		state.Balance.Current = maps.Clone(s.Balance.Current)
+		for key := range s.Balance.Warm {
+			state.Balance.MarkWarm(key)
+		}
+	}
 	if s.Logs != nil {
 		state.Logs = s.Logs.Clone()
 	}
 	state.CallContext = s.CallContext
 	state.BlockContext = s.BlockContext
+	state.CallData = bytes.Clone(s.CallData)
 	return state
 }
 
@@ -133,5 +151,17 @@ func newStorageSerializable(storage *Storage) *storageSerializable {
 		Current:  maps.Clone(storage.Current),
 		Original: maps.Clone(storage.Original),
 		Warm:     maps.Clone(storage.warm),
+	}
+}
+
+// newBalanceSerializable creates a new balanceSerializable instance from the given Balance instance.
+func newBalanceSerializable(balance *Balance) *balanceSerializable {
+	warm := make(map[Address]bool)
+	for key := range balance.warm {
+		warm[key] = true
+	}
+	return &balanceSerializable{
+		Current: maps.Clone(balance.Current),
+		Warm:    warm,
 	}
 }

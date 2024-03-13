@@ -24,9 +24,13 @@ func getNewFilledState() *State {
 	s.Storage.Current[NewU256(42)] = NewU256(7)
 	s.Storage.Original[NewU256(77)] = NewU256(4)
 	s.Storage.MarkWarm(NewU256(9))
+	s.Balance = NewBalance()
+	s.Balance.Current[Address{0x01}] = NewU256(42)
+	s.Balance.MarkWarm(Address{0x02})
 	s.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s.CallContext = CallContext{AccountAddress: Address{0x01}}
 	s.BlockContext = BlockContext{BlockNumber: 1}
+	s.CallData = []byte{1}
 	return s
 }
 
@@ -164,10 +168,13 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 	serializableState.Storage.Current[NewU256(42)] = NewU256(4)
 	serializableState.Storage.Original[NewU256(77)] = NewU256(7)
 	serializableState.Storage.Warm[NewU256(9)] = false
+	serializableState.Balance.Current[Address{0x01}] = NewU256(77)
+	delete(serializableState.Balance.Warm, Address{0x02})
 	serializableState.Logs.Entries[0].Data[0] = 99
 	serializableState.Logs.Entries[0].Topics[0] = NewU256(42)
 	serializableState.CallContext.AccountAddress = Address{0x02}
 	serializableState.BlockContext.BlockNumber = 42
+	serializableState.CallData = []byte{4}
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -185,10 +192,14 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.Storage.Current[NewU256(7)].IsZero() &&
 		s.Storage.Original[NewU256(77)].Eq(NewU256(4)) &&
 		s.Storage.IsWarm(NewU256(9)) &&
+		s.Balance.Current[Address{0x01}].Eq(NewU256(42)) &&
+		s.Balance.IsWarm(Address{0x02}) &&
 		s.Logs.Entries[0].Data[0] == 4 &&
 		s.Logs.Entries[0].Topics[0] == NewU256(21) &&
 		s.CallContext.AccountAddress == Address{0x01} &&
-		s.BlockContext.BlockNumber == 1
+		s.BlockContext.BlockNumber == 1 &&
+		len(s.CallData) == 1 &&
+		s.CallData[0] == 1
 	if !ok {
 		t.Errorf("new serializable state is not independent")
 	}
@@ -210,10 +221,13 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.Storage.Current[NewU256(42)] = NewU256(4)
 	deserializedState.Storage.Original[NewU256(77)] = NewU256(7)
 	deserializedState.Storage.warm[NewU256(9)] = false
+	deserializedState.Balance.Current[Address{0x01}] = NewU256(77)
+	delete(deserializedState.Balance.warm, Address{0x02})
 	deserializedState.Logs.Entries[0].Data[0] = 99
 	deserializedState.Logs.Entries[0].Topics[0] = NewU256(42)
 	deserializedState.CallContext.AccountAddress = Address{0x02}
 	deserializedState.BlockContext.BlockNumber = 42
+	deserializedState.CallData = []byte{4}
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -231,10 +245,14 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 		s.Storage.Current[NewU256(7)].IsZero() &&
 		s.Storage.Original[NewU256(77)].Eq(NewU256(4)) &&
 		s.Storage.Warm[NewU256(9)] == true &&
+		s.Balance.Current[Address{0x01}].Eq(NewU256(42)) &&
+		s.Balance.Warm[Address{0x02}] == true &&
 		s.Logs.Entries[0].Data[0] == 4 &&
 		s.Logs.Entries[0].Topics[0] == NewU256(21) &&
 		s.CallContext.AccountAddress == Address{0x01} &&
-		s.BlockContext.BlockNumber == 1
+		s.BlockContext.BlockNumber == 1 &&
+		len(s.CallData) == 1 &&
+		s.CallData[0] == 1
 	if !ok {
 		t.Errorf("deserialized state is not independent")
 	}
