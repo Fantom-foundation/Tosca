@@ -200,13 +200,13 @@ func (s *State) String() string {
 	if len(s.CallData) > dataCutoffLength {
 		builder.WriteString(fmt.Sprintf("\tCallData: %x... (size: %d)\n", s.CallData[:dataCutoffLength], len(s.CallData)))
 	} else {
-		builder.WriteString(fmt.Sprintf("\tCallData: %v\n", s.CallData))
+		builder.WriteString(fmt.Sprintf("\tCallData: %x\n", s.CallData))
 	}
 
 	if len(s.LastCallReturnData) > dataCutoffLength {
 		builder.WriteString(fmt.Sprintf("\tLastCallReturnData: %x... (size: %d)\n", s.LastCallReturnData[:dataCutoffLength], len(s.LastCallReturnData)))
 	} else {
-		builder.WriteString(fmt.Sprintf("\tLastCallReturnData: %v\n", s.LastCallReturnData))
+		builder.WriteString(fmt.Sprintf("\tLastCallReturnData: %x\n", s.LastCallReturnData))
 	}
 
 	builder.WriteString("}")

@@ -371,7 +371,7 @@ func TestStateGenerator_LastCallReturnDataGen(t *testing.T) {
 	}
 
 	if len(state.LastCallReturnData) == 0 {
-		t.Error("failed to generate a non-empty last call return data")
+		t.Error("failed to generate non-empty last call return data")
 	} else {
 		allzeros := true
 		for _, b := range state.LastCallReturnData {
@@ -381,7 +381,7 @@ func TestStateGenerator_LastCallReturnDataGen(t *testing.T) {
 			}
 		}
 		if allzeros {
-			t.Error("failed to generate a non-zero last call return data")
+			t.Error("failed to generate non-zero last call return data")
 		}
 	}
 }

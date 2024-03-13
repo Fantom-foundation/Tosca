@@ -1064,7 +1064,6 @@ var Spec = func() Specification {
 			offset := offsetU256.Uint64()
 			readUntil := offset + sizeU256.Uint64()
 			if !offsetU256.IsUint64() || !sizeU256.IsUint64() ||
-				!offsetU256.Add(sizeU256).IsUint64() ||
 				readUntil > uint64(len(s.LastCallReturnData)) {
 				s.Status = st.Failed
 				s.Gas = 0
