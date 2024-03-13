@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -26,6 +27,35 @@ func (r Revision) String() string {
 	default:
 		return fmt.Sprintf("Revision(%d)", r)
 	}
+}
+
+func (r Revision) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.String())
+}
+
+func (r *Revision) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+	var revision Revision
+
+	switch s {
+	case "Istanbul":
+		revision = R07_Istanbul
+	case "Berlin":
+		revision = R09_Berlin
+	case "London":
+		revision = R10_London
+	case "UnknownNextRevision":
+		revision = R99_UnknownNextRevision
+	default:
+		return &json.InvalidUnmarshalError{}
+	}
+
+	*r = revision
+	return nil
 }
 
 // GetForkBlock returns the first block a given revision is considered to be

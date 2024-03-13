@@ -3,8 +3,10 @@ package st
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"slices"
+	"strconv"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
@@ -52,7 +54,7 @@ type stateSerializable struct {
 	Pc                 uint16
 	Gas                vm.Gas
 	GasRefund          vm.Gas
-	Code               []byte
+	Code               codeSerializable
 	Stack              []U256
 	Memory             []byte
 	Storage            *storageSerializable
@@ -63,6 +65,9 @@ type stateSerializable struct {
 	CallData           []byte
 	LastCallReturnData []byte
 }
+
+// codeSerializable is a wrapper to achieve hex code output
+type codeSerializable []byte
 
 // storageSerializable is a serializable representation of the Storage struct.
 type storageSerializable struct {
@@ -112,7 +117,7 @@ func newStateSerializableFromSerialized(data []byte) (*stateSerializable, error)
 
 // serialize serializes the stateSerializable instance.
 func (s *stateSerializable) serialize() ([]byte, error) {
-	return json.Marshal(s)
+	return json.MarshalIndent(s, "", "  ")
 }
 
 // deserialize converts the stateSerializable to a State instance.
@@ -171,4 +176,31 @@ func newAccountsSerializable(accounts *Accounts) *accountsSerializable {
 		Code:    maps.Clone(accounts.Code),
 		Warm:    warm,
 	}
+}
+
+func (c codeSerializable) MarshalJSON() ([]byte, error) {
+	hexCode := make([]string, 0, len(c))
+
+	for _, op := range c {
+		hexCode = append(hexCode, fmt.Sprintf("%x", op))
+	}
+
+	return json.Marshal(hexCode)
+}
+
+func (c *codeSerializable) UnmarshalJSON(data []byte) error {
+	var s []string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+	code := make([]byte, 0, len(s))
+
+	for _, op := range s {
+		operand, _ := strconv.ParseUint(op, 16, 8)
+		code = append(code, byte(operand))
+	}
+
+	*c = code
+	return nil
 }
