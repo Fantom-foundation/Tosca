@@ -60,7 +60,10 @@ type ctRunContext struct {
 }
 
 func (c *ctRunContext) AccountExists(addr vm.Address) bool {
-	panic("not implemented")
+	_, existsCode := c.state.Accounts.Code[cc.Address(addr)]
+	_, existsBalance := c.state.Accounts.Balance[cc.Address(addr)]
+	existsWarm := c.state.Accounts.IsWarm(cc.Address(addr))
+	return existsCode || existsBalance || existsWarm
 }
 
 func (c *ctRunContext) GetStorage(addr vm.Address, key vm.Key) vm.Word {
@@ -78,20 +81,20 @@ func (c *ctRunContext) SetStorage(addr vm.Address, key vm.Key, value vm.Word) vm
 }
 
 func (c *ctRunContext) GetBalance(addr vm.Address) vm.Value {
-	balance := c.state.Balance.Current[cc.Address(addr)]
+	balance := c.state.Accounts.Balance[cc.Address(addr)]
 	return vm.Value(balance.Bytes32be())
 }
 
 func (c *ctRunContext) GetCodeSize(addr vm.Address) int {
-	panic("not implemented")
+	return len(c.state.Accounts.Code[cc.Address(addr)])
 }
 
 func (c *ctRunContext) GetCodeHash(addr vm.Address) vm.Hash {
-	panic("not implemented")
+	return c.state.Accounts.GetCodeHash(cc.Address(addr))
 }
 
 func (c *ctRunContext) GetCode(addr vm.Address) []byte {
-	panic("not implemented")
+	return c.state.Accounts.Code[cc.Address(addr)]
 }
 
 func (c *ctRunContext) GetTransactionContext() vm.TransactionContext {
@@ -130,8 +133,8 @@ func (c *ctRunContext) SelfDestruct(addr vm.Address, beneficiary vm.Address) boo
 }
 
 func (c *ctRunContext) AccessAccount(addr vm.Address) vm.AccessStatus {
-	warm := c.state.Balance.IsWarm(cc.Address(addr))
-	c.state.Balance.MarkWarm(cc.Address(addr))
+	warm := c.state.Accounts.IsWarm(cc.Address(addr))
+	c.state.Accounts.MarkWarm(cc.Address(addr))
 	if warm {
 		return vm.WarmAccess
 	}
@@ -156,7 +159,7 @@ func (c *ctRunContext) GetCommittedStorage(addr vm.Address, key vm.Key) vm.Word 
 }
 
 func (c *ctRunContext) IsAddressInAccessList(addr vm.Address) bool {
-	return c.state.Balance.IsWarm(cc.Address(addr))
+	return c.state.Accounts.IsWarm(cc.Address(addr))
 }
 
 func (c *ctRunContext) IsSlotInAccessList(addr vm.Address, key vm.Key) (addressPresent, slotPresent bool) {

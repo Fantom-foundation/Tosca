@@ -178,8 +178,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"balance-unspecified": {
 			func(s *st.State) {
-				s.Balance = &st.Balance{}
-				s.Balance.Current = map[cc.Address]cc.U256{
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Balance = map[cc.Address]cc.U256{
 					{1}: cc.NewU256(2),
 				}
 			},
@@ -190,8 +190,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"balance-specified": {
 			func(s *st.State) {
-				s.Balance = &st.Balance{}
-				s.Balance.Current = map[cc.Address]cc.U256{
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Balance = map[cc.Address]cc.U256{
 					{1}: cc.NewU256(2),
 				}
 			},
@@ -202,7 +202,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"cold-account": {
 			func(s *st.State) {
-				s.Balance = st.NewBalance()
+				s.Accounts = st.NewAccounts()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -211,8 +211,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"warm-account": {
 			func(s *st.State) {
-				s.Balance = st.NewBalance()
-				s.Balance.MarkWarm(cc.Address{})
+				s.Accounts = st.NewAccounts()
+				s.Accounts.MarkWarm(cc.Address{})
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -221,7 +221,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"cold-account-legacy": {
 			func(s *st.State) {
-				s.Balance = st.NewBalance()
+				s.Accounts = st.NewAccounts()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -230,8 +230,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"warm-account-legacy": {
 			func(s *st.State) {
-				s.Balance = st.NewBalance()
-				s.Balance.MarkWarm(cc.Address{})
+				s.Accounts = st.NewAccounts()
+				s.Accounts.MarkWarm(cc.Address{})
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
