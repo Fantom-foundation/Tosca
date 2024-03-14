@@ -2,6 +2,8 @@ package common
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 
 	"pgregory.net/rand"
 )
@@ -43,4 +45,27 @@ func (a *Address) Clone() Address {
 
 func (a Address) String() string {
 	return fmt.Sprintf("0x%x", ([20]byte)(a))
+}
+
+func (a Address) MarshalText() ([]byte, error) {
+	return []byte(a.String()), nil
+}
+
+func (a *Address) UnmarshalText(text []byte) error {
+	r := regexp.MustCompile("^0x([[:xdigit:]]{40})$")
+	match := r.FindSubmatch(text)
+
+	if len(match) != 2 {
+		return fmt.Errorf("invalid address: %s", text)
+	}
+
+	for i := 0; i < 20; i++ {
+		b := match[1][i*2 : i*2+2]
+		parsed, err := strconv.ParseUint(string(b), 16, 8)
+		if err != nil {
+			return err
+		}
+		a[i] = byte(parsed)
+	}
+	return nil
 }

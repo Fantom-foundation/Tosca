@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -103,4 +104,103 @@ func TestAddress_String(t *testing.T) {
 		t.Errorf("Invalid address string.")
 	}
 
+}
+
+func TestAddress_Marshalling(t *testing.T) {
+	tests := []struct {
+		address    Address
+		marshalled []byte
+	}{
+		{Address{}, []byte("0x0000000000000000000000000000000000000000")},
+		{Address{0x00}, []byte("0x0000000000000000000000000000000000000000")},
+		{Address{0x01}, []byte("0x0100000000000000000000000000000000000000")},
+		{Address{0x02}, []byte("0x0200000000000000000000000000000000000000")},
+		{Address{0x01, 0x02}, []byte("0x0102000000000000000000000000000000000000")},
+		{Address{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13}, []byte("0x000102030405060708090a0b0c0d0e0f10111213")},
+	}
+
+	for _, test := range tests {
+		marshalled, err := test.address.MarshalText()
+		if err != nil {
+			t.Fatalf("Unexpected error when marshalling address: %v", err)
+		}
+		if !bytes.Equal(marshalled, test.marshalled) {
+			t.Errorf("Unexpected marshalled value: want %v, got %v", test.marshalled, marshalled)
+		}
+	}
+}
+
+func TestAddress_Unmarshalling(t *testing.T) {
+	tests := []struct {
+		marshalled []byte
+		want       Address
+	}{
+		{[]byte("0x0000000000000000000000000000000000000000"), Address{}},
+		{[]byte("0x0000000000000000000000000000000000000000"), Address{0x00}},
+		{[]byte("0x0100000000000000000000000000000000000000"), Address{0x01}},
+		{[]byte("0x0200000000000000000000000000000000000000"), Address{0x02}},
+		{[]byte("0x0102000000000000000000000000000000000000"), Address{0x01, 0x02}},
+		{[]byte("0x000102030405060708090a0b0c0d0e0f10111213"), Address{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13}},
+	}
+
+	for _, test := range tests {
+		var a Address
+		err := a.UnmarshalText(test.marshalled)
+		if err != nil {
+			t.Fatalf("Unexpected error when unmarshalling address: %v", err)
+		}
+		if a != test.want {
+			t.Errorf("Unexpected unmarshalled value: want %v, got %v", test.want, a)
+		}
+	}
+}
+
+func TestAddress_UnmarshallingError(t *testing.T) {
+	testCases := map[string][]byte{
+		"empty":                 []byte(""),
+		"empty with hex prefix": []byte("0x"),
+		"no hex prefix":         []byte("0000000000000000000000000000000000000000"),
+		"too short":             []byte("0x00000000000000000000000000000000000000"),
+		"too long":              []byte("0x000000000000000000000000000000000000000000"),
+		"invalid hex":           []byte("0x0g00000000000000000000000000000000000000"),
+	}
+
+	for name, input := range testCases {
+		t.Run(name, func(t *testing.T) {
+			var a Address
+			err := a.UnmarshalText(input)
+			if err == nil {
+				t.Fatalf("Expected error when unmarshalling input with: %s", name)
+			}
+		})
+	}
+}
+
+func TestAddress_MarshallingRoundTrip(t *testing.T) {
+	tests := []struct {
+		address Address
+	}{
+		{Address{}},
+		{Address{0x00}},
+		{Address{0x01}},
+		{Address{0x02}},
+		{Address{0x01, 0x02}},
+		{Address{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13}},
+	}
+
+	for _, test := range tests {
+		marshalled, err := test.address.MarshalText()
+		if err != nil {
+			t.Fatalf("Unexpected error when marshalling address: %v", err)
+		}
+
+		var a Address
+		err = a.UnmarshalText(marshalled)
+		if err != nil {
+			t.Fatalf("Unexpected error when unmarshalling address: %v", err)
+		}
+		if a != test.address {
+			t.Errorf("Unexpected unmarshalled value: want %v, got %v", test.address, a)
+		}
+	}
 }
