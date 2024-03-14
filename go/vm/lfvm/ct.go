@@ -61,17 +61,18 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	// Set up execution context.
 	var ctxt = &context{
-		pc:       int32(pcMap.evmToLfvm[state.Pc]),
-		params:   params,
-		context:  params.Context,
-		gas:      params.Gas,
-		refund:   vm.Gas(state.GasRefund),
-		stack:    convertCtStackToLfvmStack(state.Stack),
-		memory:   memory,
-		status:   RUNNING,
-		code:     converted,
-		isBerlin: params.Revision >= vm.R09_Berlin,
-		isLondon: params.Revision >= vm.R10_London,
+		pc:          int32(pcMap.evmToLfvm[state.Pc]),
+		params:      params,
+		context:     params.Context,
+		gas:         params.Gas,
+		refund:      vm.Gas(state.GasRefund),
+		stack:       convertCtStackToLfvmStack(state.Stack),
+		memory:      memory,
+		status:      RUNNING,
+		code:        converted,
+		isBerlin:    params.Revision >= vm.R09_Berlin,
+		isLondon:    params.Revision >= vm.R10_London,
+		return_data: params.LastCallReturnData,
 	}
 
 	defer func() {

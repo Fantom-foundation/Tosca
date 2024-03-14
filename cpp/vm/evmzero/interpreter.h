@@ -63,6 +63,7 @@ struct SteppingArgs : InterpreterArgs {
   Stack stack;
   Memory memory;
   int steps = -1;
+  std::vector<uint8_t> last_call_return_data;
 };
 
 struct SteppingResult : InterpreterResult {

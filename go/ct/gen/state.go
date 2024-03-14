@@ -332,12 +332,23 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	// Pick a random calldata
 	rand := rnd.ExpFloat64()
 	const expectedSize float64 = 200
-	size := uint(rand / (1 / expectedSize))
+	size := uint(rand * expectedSize)
 	if size > st.MaxDataSize {
 		size = st.MaxDataSize
 	}
 	resultCallData := make([]byte, size)
 	_, err = rnd.Read(resultCallData)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate return data of last call
+	size = uint(rand * expectedSize)
+	if size > st.MaxDataSize {
+		size = st.MaxDataSize
+	}
+	resultLastCallReturnData := make([]byte, size)
+	_, err = rnd.Read(resultLastCallReturnData)
 	if err != nil {
 		return nil, err
 	}
@@ -384,6 +395,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.CallContext = resultCallContext
 	result.BlockContext = resultBlockContext
 	result.CallData = resultCallData
+	result.LastCallReturnData = resultLastCallReturnData
 
 	return result, nil
 }

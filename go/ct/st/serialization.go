@@ -45,21 +45,22 @@ func ImportStateJSON(filePath string) (*State, error) {
 // stateSerializable is a serializable representation of the State struct.
 // It can be used to serialize and deserialize a State struct.
 type stateSerializable struct {
-	Status       StatusCode
-	Revision     Revision
-	ReadOnly     bool
-	Pc           uint16
-	Gas          uint64
-	GasRefund    uint64
-	Code         []byte
-	Stack        []U256
-	Memory       []byte
-	Storage      *storageSerializable
-	Balance      *balanceSerializable
-	Logs         *Logs
-	CallContext  CallContext
-	BlockContext BlockContext
-	CallData     []byte
+	Status             StatusCode
+	Revision           Revision
+	ReadOnly           bool
+	Pc                 uint16
+	Gas                uint64
+	GasRefund          uint64
+	Code               []byte
+	Stack              []U256
+	Memory             []byte
+	Storage            *storageSerializable
+	Balance            *balanceSerializable
+	Logs               *Logs
+	CallContext        CallContext
+	BlockContext       BlockContext
+	CallData           []byte
+	LastCallReturnData []byte
 }
 
 // storageSerializable is a serializable representation of the Storage struct.
@@ -79,21 +80,22 @@ type balanceSerializable struct {
 // The data of the input state is deep copied.
 func newStateSerializableFromState(state *State) *stateSerializable {
 	return &stateSerializable{
-		Status:       state.Status,
-		Revision:     state.Revision,
-		ReadOnly:     state.ReadOnly,
-		Pc:           state.Pc,
-		Gas:          state.Gas,
-		GasRefund:    state.GasRefund,
-		Code:         bytes.Clone(state.Code.code),
-		Stack:        slices.Clone(state.Stack.stack),
-		Memory:       bytes.Clone(state.Memory.mem),
-		Storage:      newStorageSerializable(state.Storage),
-		Balance:      newBalanceSerializable(state.Balance),
-		Logs:         state.Logs.Clone(),
-		CallContext:  state.CallContext,
-		BlockContext: state.BlockContext,
-		CallData:     bytes.Clone(state.CallData),
+		Status:             state.Status,
+		Revision:           state.Revision,
+		ReadOnly:           state.ReadOnly,
+		Pc:                 state.Pc,
+		Gas:                state.Gas,
+		GasRefund:          state.GasRefund,
+		Code:               bytes.Clone(state.Code.code),
+		Stack:              slices.Clone(state.Stack.stack),
+		Memory:             bytes.Clone(state.Memory.mem),
+		Storage:            newStorageSerializable(state.Storage),
+		Balance:            newBalanceSerializable(state.Balance),
+		Logs:               state.Logs.Clone(),
+		CallContext:        state.CallContext,
+		BlockContext:       state.BlockContext,
+		CallData:           bytes.Clone(state.CallData),
+		LastCallReturnData: bytes.Clone(state.LastCallReturnData),
 	}
 }
 
@@ -142,6 +144,7 @@ func (s *stateSerializable) deserialize() *State {
 	state.CallContext = s.CallContext
 	state.BlockContext = s.BlockContext
 	state.CallData = bytes.Clone(s.CallData)
+	state.LastCallReturnData = bytes.Clone(s.LastCallReturnData)
 	return state
 }
 

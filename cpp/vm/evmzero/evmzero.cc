@@ -164,7 +164,8 @@ class VM : public evmc_vm {
                          const evmc_message* message,                                                 //
                          const evmc_host_interface* host_interface, evmc_host_context* host_context,  //
                          evmc_revision revision, evmc_step_status_code status, uint64_t pc, int64_t gas_refunds,
-                         std::span<evmc_uint256be> stack, std::span<uint8_t> memory, int32_t steps) {
+                         std::span<evmc_uint256be> stack, std::span<uint8_t> memory,
+                         std::span<const uint8_t> last_call_return_data, int32_t steps) {
     std::shared_ptr<const ContractInfo> contract_info;
     if (analysis_cache_enabled_ && code_hash && *code_hash != evmc::bytes32{0}) [[likely]] {
       contract_info = contract_info_cache_.GetOrInsert(*code_hash, [&] { return ComputeContractInfo(code); });
@@ -192,6 +193,7 @@ class VM : public evmc_vm {
     stepping_args.stack = convertedStack;
     stepping_args.memory = Memory(memory);
     stepping_args.steps = status == EVMC_STEP_RUNNING ? steps : 0;
+    stepping_args.last_call_return_data.assign(last_call_return_data.begin(), last_call_return_data.end());
 
     auto stepping_result = InterpretNSteps(stepping_args);
 
@@ -324,10 +326,12 @@ class VMSteppable : public evmc_vm_steppable {
                          evmc_host_context* host_context, evmc_revision revision, const evmc_message* message,
                          const evmc_bytes32* code_hash, const uint8_t* code, size_t code_size,
                          evmc_step_status_code status, uint64_t pc, int64_t gas_refunds, evmc_uint256be* stack,
-                         size_t stack_size, uint8_t* memory, size_t memory_size, int32_t steps) -> evmc_step_result {
+                         size_t stack_size, uint8_t* memory, size_t memory_size, uint8_t* last_call_return_data,
+                         size_t last_call_return_data_size, int32_t steps) -> evmc_step_result {
               return static_cast<VM*>(vm->vm)->StepN({code, code_size}, code_hash, message, host_interface,
                                                      host_context, revision, status, pc, gas_refunds,
-                                                     {stack, stack_size}, {memory, memory_size}, steps);
+                                                     {stack, stack_size}, {memory, memory_size},
+                                                     {last_call_return_data, last_call_return_data_size}, steps);
             },
 
             .destroy =

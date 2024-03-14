@@ -20,18 +20,19 @@ type Interpreter interface {
 
 // Parameters summarizes the list of input parameters required for executing code.
 type Parameters struct {
-	Context   RunContext
-	Revision  Revision
-	Kind      CallKind
-	Static    bool
-	Depth     int
-	Gas       Gas
-	Recipient Address
-	Sender    Address
-	Input     []byte
-	Value     Value
-	CodeHash  *Hash
-	Code      []byte
+	Context            RunContext
+	Revision           Revision
+	Kind               CallKind
+	Static             bool
+	Depth              int
+	Gas                Gas
+	Recipient          Address
+	Sender             Address
+	Input              []byte
+	LastCallReturnData []byte
+	Value              Value
+	CodeHash           *Hash
+	Code               []byte
 }
 
 // Result summarizes the result of a EVM code computation.

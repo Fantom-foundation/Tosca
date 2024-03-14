@@ -1032,6 +1032,58 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- RETURNDATASIZE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        RETURNDATASIZE,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(uint64(len(s.LastCallReturnData))))
+		},
+	})...)
+
+	// --- RETURNDATACOPY ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        RETURNDATACOPY,
+		staticGas: 3,
+		pops:      3,
+		pushes:    0,
+		parameters: []Parameter{
+			DataOffsetParameter{},
+			DataOffsetParameter{},
+			DataSizeParameter{}},
+		effect: func(s *st.State) {
+			destOffsetU256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
+
+			// offset + size overflows OR offset + size is larger than RETURNDATASIZE.
+			offset := offsetU256.Uint64()
+			readUntil := offset + sizeU256.Uint64()
+			if !offsetU256.IsUint64() || !sizeU256.IsUint64() ||
+				readUntil > uint64(len(s.LastCallReturnData)) {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+
+			expansionCost, destOffsetUint64, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
+			words := (size + 31) / 32
+			expansionCost += 3 * words
+			if s.Gas < expansionCost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= expansionCost
+
+			s.Memory.Write(s.LastCallReturnData[offset:readUntil], destOffsetUint64)
+		},
+	})...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)
