@@ -7,6 +7,7 @@ import (
 	cc "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/vm"
+	"golang.org/x/crypto/sha3"
 )
 
 func TestAdapter_ParameterConversion(t *testing.T) {
@@ -198,6 +199,74 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
 				return vm.Value(cc.NewU256(2).Bytes32be()), ctxt.GetBalance(vm.Address{1})
+			},
+		},
+		"getCode": {
+			func(s *st.State) {
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Code = map[cc.Address][]byte{
+					{1}: {byte(cc.ADD), byte(cc.SUB)},
+				}
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+				return []byte{byte(cc.ADD), byte(cc.SUB)}, ctxt.GetCode(vm.Address{1})
+			},
+		},
+		"getCodeHash-emptyHash": {
+			func(s *st.State) {
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Code = map[cc.Address][]byte{}
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+
+				var hash [32]byte
+				hasher := sha3.NewLegacyKeccak256()
+				hasher.Write([]byte{})
+				hasher.Sum(hash[:])
+
+				return vm.Hash(hash), ctxt.GetCodeHash(vm.Address{})
+			},
+		},
+		"getCodeHash": {
+			func(s *st.State) {
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Code = map[cc.Address][]byte{
+					{1}: {byte(cc.ADD), byte(cc.SUB)},
+				}
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+
+				var hash [32]byte
+				hasher := sha3.NewLegacyKeccak256()
+				hasher.Write([]byte{byte(cc.ADD), byte(cc.SUB)})
+				hasher.Sum(hash[:])
+
+				return vm.Hash(hash), ctxt.GetCodeHash(vm.Address{1})
+			},
+		},
+		"getCodeSize-empty": {
+			func(s *st.State) {
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Code = map[cc.Address][]byte{}
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+				return 0, ctxt.GetCodeSize(vm.Address{})
+			},
+		},
+		"getCodeSize": {
+			func(s *st.State) {
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Code = map[cc.Address][]byte{
+					{1}: {byte(cc.ADD), byte(cc.SUB)},
+				}
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+				return 2, ctxt.GetCodeSize(vm.Address{1})
 			},
 		},
 		"cold-account": {

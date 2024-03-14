@@ -109,10 +109,10 @@ func TestAccounts_Diff(t *testing.T) {
 		}, "Different code entry"},
 		"mark-cold": {func(accounts *Accounts) {
 			accounts.MarkCold(a)
-		}, "Different warm entry"},
+		}, "Different account warm entry"},
 		"mark-warm": {func(accounts *Accounts) {
 			accounts.MarkWarm(b)
-		}, "Different warm entry"},
+		}, "Different account warm entry"},
 	}
 
 	for name, test := range tests {

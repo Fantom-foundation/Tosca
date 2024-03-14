@@ -76,12 +76,12 @@ func (a *Accounts) Diff(b *Accounts) (res []string) {
 
 	for key := range a.warm {
 		if _, contained := b.warm[key]; !contained {
-			res = append(res, fmt.Sprintf("Different warm entry: %v vs missing", key))
+			res = append(res, fmt.Sprintf("Different account warm entry: %v vs missing", key))
 		}
 	}
 	for key := range b.warm {
 		if _, contained := a.warm[key]; !contained {
-			res = append(res, fmt.Sprintf("Different warm entry: missing vs %v", key))
+			res = append(res, fmt.Sprintf("Different account warm entry: missing vs %v", key))
 		}
 	}
 

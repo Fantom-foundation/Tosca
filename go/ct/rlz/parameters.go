@@ -65,7 +65,7 @@ type AddressParameter struct{}
 
 func (AddressParameter) Samples() []U256 {
 	return []U256{
-		// Adding more samples here will create significant more test cases for EXTCODECOPY.
+		// Adding more samples here will create significantly more test cases for EXTCODECOPY.
 		// TODO: evaluate code coverage
 		NewU256(0),
 		//NewU256(1),

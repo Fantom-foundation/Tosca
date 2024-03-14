@@ -924,7 +924,7 @@ var Spec = func() Specification {
 			DataOffsetParameter{},
 			DataSizeParameter{}},
 		effect: func(s *st.State) {
-			extcodecopyEffect(s, true)
+			extCodeCopyEffect(s, true)
 		},
 		name: "_cold",
 	})...)
@@ -945,7 +945,7 @@ var Spec = func() Specification {
 			DataOffsetParameter{},
 			DataSizeParameter{}},
 		effect: func(s *st.State) {
-			extcodecopyEffect(s, false)
+			extCodeCopyEffect(s, false)
 		},
 		name: "_warm",
 	})...)
@@ -965,7 +965,7 @@ var Spec = func() Specification {
 			DataOffsetParameter{},
 			DataSizeParameter{}},
 		effect: func(s *st.State) {
-			extcodecopyEffect(s, false)
+			extCodeCopyEffect(s, false)
 		},
 		name: "_preBerlin",
 	})...)
@@ -1433,7 +1433,7 @@ func swapOp(n int) []Rule {
 	})
 }
 
-func extcodecopyEffect(s *st.State, markWarm bool) {
+func extCodeCopyEffect(s *st.State, markWarm bool) {
 	address := NewAddress(s.Stack.Pop())
 	destOffsetU256 := s.Stack.Pop()
 	offsetU256 := s.Stack.Pop()

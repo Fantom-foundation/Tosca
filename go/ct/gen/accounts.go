@@ -61,6 +61,9 @@ func (g *AccountsGenerator) String() string {
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
+// Code saved in accounts is never executed,
+// to keep overhead and complexity to a minimum,
+// it is just random data with random length
 func randCode(rnd *rand.Rand) []byte {
 	size := rnd.Intn(42)
 	code := make([]byte, 0, size)
