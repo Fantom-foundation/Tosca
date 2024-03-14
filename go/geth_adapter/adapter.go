@@ -65,7 +65,15 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		a.evm.StateDB.AddRefund(refundShift)
 		defer func() {
 			if err == nil || err == geth.ErrExecutionReverted {
-				a.evm.StateDB.SubRefund(refundShift)
+				// In revert cases the accumulated refund to this point may be negative,
+				// which would cause the subtraction of the original refundShift to
+				// underflow the refund in the StateDB. Thus, the back-shift is capped
+				// by the available refund.
+				shift := refundShift
+				if cur := a.evm.StateDB.GetRefund(); cur < shift {
+					shift = cur
+				}
+				a.evm.StateDB.SubRefund(shift)
 			}
 		}()
 	}
