@@ -1,6 +1,7 @@
 package spc
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -1253,76 +1254,6 @@ var Spec = func() Specification {
 
 	// --- RETURNDATACOPY ---
 
-	rules = append(rules, []Rule{
-		{
-			Name: "returnddatacopy_size_overflow",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), RETURNDATACOPY),
-				Ge(StackSize(), 3),
-				Eq(Param(2), MaxU256()),
-				Eq(Param(1), NewU256(1)),
-			),
-			Parameter: []Parameter{
-				MemoryOffsetParameter{},
-				MemoryOffsetParameter{},
-				MemorySizeParameter{}},
-			Effect: FailEffect(),
-		},
-		{
-			Name: "returnddatacopy_offset_overflow",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), RETURNDATACOPY),
-				Ge(StackSize(), 3),
-				Eq(Param(1), MaxU256()),
-				Eq(Param(2), NewU256(3)),
-			),
-			Parameter: []Parameter{
-				MemoryOffsetParameter{},
-				MemoryOffsetParameter{},
-				MemorySizeParameter{}},
-			Effect: FailEffect(),
-		},
-
-		{
-			Name: "returnddatacopy_size_over_returndatasize",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), RETURNDATACOPY),
-				Ge(StackSize(), 3),
-				Eq(ReturnDataSize(), 5),
-				Eq(Param(2), NewU256(6)),
-				Eq(Param(1), NewU256(1)),
-			),
-			Parameter: []Parameter{
-				MemoryOffsetParameter{},
-				MemoryOffsetParameter{},
-				MemorySizeParameter{}},
-			Effect: FailEffect(),
-		},
-		{
-			Name: "returnddatacopy_offset_over_returndatasize",
-			Condition: And(
-				AnyKnownRevision(),
-				Eq(Status(), st.Running),
-				Eq(Op(Pc()), RETURNDATACOPY),
-				Ge(StackSize(), 3),
-				Eq(ReturnDataSize(), 5),
-				Eq(Param(1), NewU256(6)),
-				Eq(Param(2), NewU256(1)),
-			),
-			Parameter: []Parameter{
-				MemoryOffsetParameter{},
-				MemoryOffsetParameter{},
-				NumericParameter{}},
-			Effect: FailEffect(),
-		},
-	}...)
-
 	rules = append(rules, rulesFor(instruction{
 		op:        RETURNDATACOPY,
 		staticGas: 3,
@@ -1364,10 +1295,10 @@ var Spec = func() Specification {
 	// --- RETURN ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         RETURN,
-		static_gas: 0,
-		pops:       2,
-		pushes:     0,
+		op:        RETURN,
+		staticGas: 0,
+		pops:      2,
+		pushes:    0,
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
 			MemorySizeParameter{}},
@@ -1376,17 +1307,15 @@ var Spec = func() Specification {
 			sizeU256 := s.Stack.Pop()
 
 			expansionCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
-			words := (size + 31) / 32
-			wordCost := 3 * words
-			if s.Gas < expansionCost+wordCost && expansionCost > 0 {
+			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
 				return
 			}
 			s.Gas -= expansionCost
 
-			copy(s.ReturnData, s.Memory.Read(offset, size))
-			s.Status = st.Returned
+			s.ReturnData = bytes.Clone(s.Memory.Read(offset, size))
+			s.Status = st.Stopped
 		},
 	})...)
 
@@ -1800,7 +1729,7 @@ func tooFewElements(i instruction) []Rule {
 // in mind when implementing the effects of new rules.
 func rulesFor(i instruction) []Rule {
 	res := []Rule{}
-	if i.static_gas > 0 {
+	if i.staticGas > 0 {
 		res = append(res, tooLittleGas(i)...)
 	}
 	if i.pops > 0 {

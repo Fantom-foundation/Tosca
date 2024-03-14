@@ -47,7 +47,6 @@ type StateGenerator struct {
 	accountsGen     *AccountsGenerator
 	callContextGen  *CallContextGenerator
 	BlockContextGen *BlockContextGenerator
-	returnDataGen   *ReturnDateGenerator
 }
 
 // NewStateGenerator creates a generator without any initial constraints.
@@ -60,7 +59,6 @@ func NewStateGenerator() *StateGenerator {
 		accountsGen:     NewAccountGenerator(),
 		callContextGen:  NewCallContextGenerator(),
 		BlockContextGen: NewBlockContextGenerator(),
-		returnDataGen:   NewReturnDateGenerator(),
 	}
 }
 
@@ -358,6 +356,17 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
+	// Generate return data
+	size = uint(rand * expectedSize)
+	if size > st.MaxDataSize {
+		size = st.MaxDataSize
+	}
+	resultReturnData := make([]byte, size)
+	_, err = rnd.Read(resultReturnData)
+	if err != nil {
+		return nil, err
+	}
+
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences
 	// this process.
@@ -401,6 +410,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.BlockContext = resultBlockContext
 	result.CallData = resultCallData
 	result.LastCallReturnData = resultLastCallReturnData
+	result.ReturnData = resultReturnData
 
 	return result, nil
 }
@@ -423,7 +433,6 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		accountsGen:           g.accountsGen.Clone(),
 		callContextGen:        g.callContextGen.Clone(),
 		BlockContextGen:       g.BlockContextGen.Clone(),
-		returnDataGen:         g.returnDataGen.Clone(),
 	}
 }
 
@@ -444,7 +453,6 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.accountsGen.Restore(other.accountsGen)
 		g.callContextGen.Restore(other.callContextGen)
 		g.BlockContextGen.Restore(other.BlockContextGen)
-		g.returnDataGen.Restore(other.returnDataGen)
 	}
 }
 
@@ -492,7 +500,6 @@ func (g *StateGenerator) String() string {
 	parts = append(parts, fmt.Sprintf("accounts=%v", g.accountsGen))
 	parts = append(parts, fmt.Sprintf("callcontext=%v", g.callContextGen))
 	parts = append(parts, fmt.Sprintf("blockcontext=%v", g.BlockContextGen))
-	parts = append(parts, fmt.Sprintf("returndata=%v", g.returnDataGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }

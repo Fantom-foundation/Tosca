@@ -307,29 +307,3 @@ func (p param) GetVariable() gen.Variable {
 func (p param) BindTo(generator *gen.StateGenerator) {
 	generator.BindStackValue(p.position, p.GetVariable())
 }
-
-////////////////////////////////////////////////////////////
-// Retur Data Size
-
-type returnDataSize struct{}
-
-func ReturnDataSize() Expression[int] {
-	return returnDataSize{}
-}
-
-func (returnDataSize) Domain() Domain[int] { return stackSizeDomain{} }
-
-func (returnDataSize) Eval(s *st.State) (int, error) {
-	return len(s.ReturnData), nil
-}
-
-func (returnDataSize) Restrict(kind RestrictionKind, value int, generator *gen.StateGenerator) {
-	if kind != RestrictEqual {
-		panic("Parameters only support equality constraints")
-	}
-	generator.SetReturnDataSize(value)
-}
-
-func (returnDataSize) String() string {
-	return "returnDataSize"
-}

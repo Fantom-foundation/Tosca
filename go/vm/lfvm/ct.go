@@ -96,6 +96,9 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 			return nil, fmt.Errorf("failed to convert program counter %d", ctxt.pc)
 		}
 	}
+	if ctxt.status == RETURNED {
+		state.ReturnData = ctxt.return_data
+	}
 	state.Gas = ctxt.gas
 	state.GasRefund = ctxt.refund
 	state.Stack = convertLfvmStackToCtStack(ctxt.stack)

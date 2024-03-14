@@ -81,6 +81,9 @@ func (e *SteppableEvmcInterpreter) StepN(
 	if err != nil {
 		return nil, err
 	}
+	if result.StepStatusCode == evmc.Returned {
+		state.ReturnData = result.Output
+	}
 	state.Pc = uint16(result.Pc)
 	state.Gas = vm.Gas(result.GasLeft)
 	state.GasRefund = vm.Gas(result.GasRefund)

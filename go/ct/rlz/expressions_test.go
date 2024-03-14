@@ -254,12 +254,3 @@ func TestExpression_StackSizeRestrict(t *testing.T) {
 		t.Errorf("Generator was not restricted by expression")
 	}
 }
-
-func TestExpression_ReturnDataSize(t *testing.T) {
-	state := st.NewState(st.NewCode([]byte{}))
-	state.ReturnData = append(state.ReturnData, 1)
-	size, err := ReturnDataSize().Eval(state)
-	if err != nil || size != 1 {
-		t.Fail()
-	}
-}

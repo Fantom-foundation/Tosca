@@ -105,6 +105,7 @@ type State struct {
 	BlockContext       BlockContext
 	CallData           []byte
 	LastCallReturnData []byte
+	ReturnData         []byte
 }
 
 // NewState creates a new State instance with the given code.
@@ -140,6 +141,7 @@ func (s *State) Clone() *State {
 	clone.BlockContext = s.BlockContext
 	clone.CallData = bytes.Clone(s.CallData)
 	clone.LastCallReturnData = bytes.Clone(s.LastCallReturnData)
+	clone.ReturnData = bytes.Clone(s.ReturnData)
 	return clone
 }
 
@@ -173,7 +175,8 @@ func (s *State) Eq(other *State) bool {
 		s.CallContext == other.CallContext &&
 		s.BlockContext == other.BlockContext &&
 		slices.Equal(s.CallData, other.CallData) &&
-		slices.Equal(s.LastCallReturnData, other.LastCallReturnData)
+		slices.Equal(s.LastCallReturnData, other.LastCallReturnData) &&
+		slices.Equal(s.ReturnData, other.ReturnData)
 }
 
 const dataCutoffLength = 20
@@ -255,6 +258,12 @@ func (s *State) String() string {
 		builder.WriteString(fmt.Sprintf("\tLastCallReturnData: %x\n", s.LastCallReturnData))
 	}
 
+	if len(s.ReturnData) > dataCutoffLength {
+		builder.WriteString(fmt.Sprintf("\tReturnData: %x... (size: %d)\n", s.ReturnData[:dataCutoffLength], len(s.ReturnData)))
+	} else {
+		builder.WriteString(fmt.Sprintf("\tReturnData: %x\n", s.ReturnData))
+	}
+
 	builder.WriteString("}")
 	return builder.String()
 }
@@ -324,6 +333,10 @@ func (s *State) Diff(o *State) []string {
 
 	if !slices.Equal(s.LastCallReturnData, o.LastCallReturnData) {
 		res = append(res, fmt.Sprintf("Different last call return data: %v vs %v.", s.LastCallReturnData, o.LastCallReturnData))
+	}
+
+	if !slices.Equal(s.ReturnData, o.ReturnData) {
+		res = append(res, fmt.Sprintf("Different return data: %v vs %v", s.ReturnData, o.ReturnData))
 	}
 
 	return res
