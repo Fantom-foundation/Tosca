@@ -31,6 +31,7 @@ func getNewFilledState() *State {
 	s.CallContext = CallContext{AccountAddress: Address{0x01}}
 	s.BlockContext = BlockContext{BlockNumber: 1}
 	s.CallData = []byte{1}
+	s.LastCallReturnData = []byte{1}
 	return s
 }
 
@@ -175,6 +176,7 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 	serializableState.CallContext.AccountAddress = Address{0x02}
 	serializableState.BlockContext.BlockNumber = 42
 	serializableState.CallData = []byte{4}
+	serializableState.LastCallReturnData = []byte{6}
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -199,7 +201,9 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.CallContext.AccountAddress == Address{0x01} &&
 		s.BlockContext.BlockNumber == 1 &&
 		len(s.CallData) == 1 &&
-		s.CallData[0] == 1
+		s.CallData[0] == 1 &&
+		len(s.LastCallReturnData) == 1 &&
+		s.LastCallReturnData[0] == 1
 	if !ok {
 		t.Errorf("new serializable state is not independent")
 	}
@@ -228,6 +232,7 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.CallContext.AccountAddress = Address{0x02}
 	deserializedState.BlockContext.BlockNumber = 42
 	deserializedState.CallData = []byte{4}
+	deserializedState.LastCallReturnData = []byte{6}
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -252,7 +257,9 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 		s.CallContext.AccountAddress == Address{0x01} &&
 		s.BlockContext.BlockNumber == 1 &&
 		len(s.CallData) == 1 &&
-		s.CallData[0] == 1
+		s.CallData[0] == 1 &&
+		len(s.LastCallReturnData) == 1 &&
+		s.LastCallReturnData[0] == 1
 	if !ok {
 		t.Errorf("deserialized state is not independent")
 	}
