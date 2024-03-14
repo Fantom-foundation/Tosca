@@ -51,6 +51,13 @@ func (e *SteppableEvmcInterpreter) StepN(
 		return nil, err
 	}
 
+	var lastCallResult []byte
+	if state.Status == st.Reverted || state.Status == st.Stopped {
+		lastCallResult = state.ReturnData
+	} else {
+		lastCallResult = state.LastCallReturnData
+	}
+
 	result, err := e.vm.StepN(evmc.StepParameters{
 		Context:        &host_ctx,
 		Revision:       revision,
@@ -62,7 +69,7 @@ func (e *SteppableEvmcInterpreter) StepN(
 		Recipient:      evmc.Address(params.Recipient),
 		Sender:         evmc.Address(params.Sender),
 		Input:          params.Input,
-		LastCallResult: params.LastCallReturnData,
+		LastCallResult: lastCallResult,
 		Value:          evmc.Hash(params.Value),
 		CodeHash:       codeHash,
 		Code:           params.Code,
@@ -81,7 +88,8 @@ func (e *SteppableEvmcInterpreter) StepN(
 	if err != nil {
 		return nil, err
 	}
-	if result.StepStatusCode == evmc.Returned {
+
+	if result.StepStatusCode == evmc.Returned || result.StepStatusCode == evmc.Reverted {
 		state.ReturnData = result.Output
 	}
 	state.Pc = uint16(result.Pc)
