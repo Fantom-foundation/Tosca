@@ -62,7 +62,7 @@ func (e *SteppableEvmcInterpreter) StepN(
 		Recipient:      evmc.Address(params.Recipient),
 		Sender:         evmc.Address(params.Sender),
 		Input:          params.Input,
-		LastCallResult: params.LastCallReturnData,
+		LastCallResult: state.LastCallReturnData,
 		Value:          evmc.Hash(params.Value),
 		CodeHash:       codeHash,
 		Code:           params.Code,
