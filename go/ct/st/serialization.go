@@ -55,7 +55,7 @@ type stateSerializable struct {
 	Stack              []U256
 	Memory             []byte
 	Storage            *storageSerializable
-	Balance            *balanceSerializable
+	Accounts           *accountsSerializable
 	Logs               *Logs
 	CallContext        CallContext
 	BlockContext       BlockContext
@@ -70,9 +70,10 @@ type storageSerializable struct {
 	Warm     map[U256]bool
 }
 
-// balanceSerializable is a serializable representation of the Balance struct.
-type balanceSerializable struct {
-	Current map[Address]U256
+// accountsSerializable is a serializable representation of the Balance struct.
+type accountsSerializable struct {
+	Balance map[Address]U256
+	Code    map[Address][]byte
 	Warm    map[Address]bool
 }
 
@@ -90,7 +91,7 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		Stack:              slices.Clone(state.Stack.stack),
 		Memory:             bytes.Clone(state.Memory.mem),
 		Storage:            newStorageSerializable(state.Storage),
-		Balance:            newBalanceSerializable(state.Balance),
+		Accounts:           newAccountsSerializable(state.Accounts),
 		Logs:               state.Logs.Clone(),
 		CallContext:        state.CallContext,
 		BlockContext:       state.BlockContext,
@@ -131,11 +132,12 @@ func (s *stateSerializable) deserialize() *State {
 		state.Storage.Original = maps.Clone(s.Storage.Original)
 		state.Storage.warm = maps.Clone(s.Storage.Warm)
 	}
-	state.Balance = NewBalance()
-	if s.Balance != nil {
-		state.Balance.Current = maps.Clone(s.Balance.Current)
-		for key := range s.Balance.Warm {
-			state.Balance.MarkWarm(key)
+	state.Accounts = NewAccounts()
+	if s.Accounts != nil {
+		state.Accounts.Balance = maps.Clone(s.Accounts.Balance)
+		state.Accounts.Code = maps.Clone(s.Accounts.Code)
+		for key := range s.Accounts.Warm {
+			state.Accounts.MarkWarm(key)
 		}
 	}
 	if s.Logs != nil {
@@ -157,14 +159,15 @@ func newStorageSerializable(storage *Storage) *storageSerializable {
 	}
 }
 
-// newBalanceSerializable creates a new balanceSerializable instance from the given Balance instance.
-func newBalanceSerializable(balance *Balance) *balanceSerializable {
+// newAccountsSerializable creates a new balanceSerializable instance from the given Balance instance.
+func newAccountsSerializable(accounts *Accounts) *accountsSerializable {
 	warm := make(map[Address]bool)
-	for key := range balance.warm {
+	for key := range accounts.warm {
 		warm[key] = true
 	}
-	return &balanceSerializable{
-		Current: maps.Clone(balance.Current),
+	return &accountsSerializable{
+		Balance: maps.Clone(accounts.Balance),
+		Code:    maps.Clone(accounts.Code),
 		Warm:    warm,
 	}
 }
