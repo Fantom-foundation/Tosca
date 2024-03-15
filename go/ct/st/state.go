@@ -2,6 +2,7 @@ package st
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -47,6 +48,35 @@ func (s StatusCode) String() string {
 	default:
 		return fmt.Sprintf("StatusCode(%d)", s)
 	}
+}
+
+func (s StatusCode) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+func (s *StatusCode) UnmarshalJSON(data []byte) error {
+	var statusString string
+	err := json.Unmarshal(data, &statusString)
+	if err != nil {
+		return err
+	}
+	var status StatusCode
+
+	switch statusString {
+	case "running":
+		status = Running
+	case "stopped":
+		status = Stopped
+	case "reverted":
+		status = Reverted
+	case "failed":
+		status = Failed
+	default:
+		return &json.InvalidUnmarshalError{}
+	}
+
+	*s = status
+	return nil
 }
 
 ////////////////////////////////////////////////////////////

@@ -284,7 +284,7 @@ func TestSerialization_EmptyState(t *testing.T) {
 func TestSerialization_IncompleteSerializedData(t *testing.T) {
 	serialized := []byte(`
 	{
-		"Status": 0,
+		"Status": "running",
 		"Revision": "London",
 		"Pc": 3
 	}
