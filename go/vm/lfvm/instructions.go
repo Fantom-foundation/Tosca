@@ -855,7 +855,7 @@ func opExtCodeCopy(c *context) {
 		codeOffset = stack.pop()
 		length     = stack.pop()
 	)
-	if checkSizeOffsetUint64Overflow(memOffset, length) != nil || checkSizeOffsetUint64Overflow(codeOffset, length) != nil {
+	if checkSizeOffsetUint64Overflow(memOffset, length) != nil {
 		c.SignalError(errGasUintOverflow)
 		return
 	}
