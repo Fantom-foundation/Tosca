@@ -113,16 +113,20 @@ func doRun(context *cli.Context) error {
 				tstart := time.Now()
 
 				evaluationCount := 0
-				errs := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) error {
+				var errs []error
+				err := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) rlz.ConsumerResult {
 					if applies, err := rule.Condition.Check(state); !applies || err != nil {
-						return err
+						if err != nil {
+							errs = append(errs, err)
+						}
+						return rlz.ConsumeContinue
 					}
 
 					// TODO: program counter pointing to data not supported by LFVM
 					// converter.
 					if evmIdentifier == "lfvm" && !state.Code.IsCode(int(state.Pc)) {
 						skippedCount.Add(1)
-						return nil // ignored
+						return rlz.ConsumeContinue // ignored
 					}
 
 					evaluationCount++
@@ -133,7 +137,8 @@ func doRun(context *cli.Context) error {
 
 					result, err := evm.StepN(input.Clone(), 1)
 					if err != nil {
-						return err
+						errs = append(errs, err)
+						return rlz.ConsumeContinue
 					}
 
 					if !result.Eq(expected) {
@@ -141,11 +146,14 @@ func doRun(context *cli.Context) error {
 						errMsg += fmt.Sprintln("input state:", input)
 						errMsg += fmt.Sprintln("result state:", result)
 						errMsg += fmt.Sprintln("expected state:", expected)
-						return fmt.Errorf(errMsg)
+						errs = append(errs, fmt.Errorf(errMsg))
 					}
 
-					return nil
+					return rlz.ConsumeContinue
 				})
+				if err != nil {
+					errs = append(errs, err)
+				}
 
 				// If no state was evaluated because it was skipped, this is not an error.
 				if evaluationCount == 0 && skippedCount.Load() == 0 {
@@ -168,7 +176,7 @@ func doRun(context *cli.Context) error {
 				errorsPrinted.Add(int32(errorsToPrint))
 
 				printErrors := errs[0:errorsToPrint]
-				err := errors.Join(printErrors...)
+				err = errors.Join(printErrors...)
 
 				mutex.Lock()
 				{
