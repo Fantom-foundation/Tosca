@@ -86,12 +86,9 @@ func doRun(context *cli.Context) error {
 		return fmt.Errorf("invalid EVM identifier, use one of: %v", maps.Keys(evms))
 	}
 
-	var err error
-	var filter *regexp.Regexp
-	if pattern := context.String("filter"); pattern != ".*" {
-		if filter, err = regexp.Compile(pattern); err != nil {
-			return err
-		}
+	filter, err := regexp.Compile(context.String("filter"))
+	if err != nil {
+		return err
 	}
 
 	jobCount := context.Int("jobs")
@@ -101,7 +98,10 @@ func doRun(context *cli.Context) error {
 
 	seed := context.Uint64("seed")
 	maxErrors := context.Int("max-errors")
-	issues := runTests(evmIdentifier, evm, jobCount, seed, filter, maxErrors)
+	fullMode := context.Bool("full-mode")
+
+	// Run the actual tests.
+	issues := runTests(evmIdentifier, evm, jobCount, seed, filter, fullMode, maxErrors)
 
 	// Summarize the result.
 	if len(issues) == 0 {
@@ -117,7 +117,17 @@ func doRun(context *cli.Context) error {
 	return fmt.Errorf("failed to pass %d test cases", len(issues))
 }
 
-func runTests(evmName string, evm ct.Evm, jobCount int, seed uint64, filter *regexp.Regexp, maxNumIssues int) []issue {
+// runTests orchestrates the parallel execution of all tests derived from the EVM
+// specification using numJobs parallel workers.
+func runTests(
+	evmName string,
+	evm ct.Evm,
+	numJobs int,
+	seed uint64,
+	filter *regexp.Regexp,
+	fullMode bool,
+	maxNumIssues int,
+) []issue {
 	var wg sync.WaitGroup
 	var testCounter atomic.Int64
 	var skippedCount atomic.Int32
@@ -130,12 +140,13 @@ func runTests(evmName string, evm ct.Evm, jobCount int, seed uint64, filter *reg
 		maxNumIssues = math.MaxInt
 	}
 
-	wg.Add(jobCount)
-	stateCh := make(chan *st.State, 10*jobCount)
-	for i := 0; i < jobCount; i++ {
+	// Run go-routines processing the actual tests.
+	wg.Add(numJobs)
+	stateChannel := make(chan *st.State, 10*numJobs)
+	for i := 0; i < numJobs; i++ {
 		go func() {
 			defer wg.Done()
-			for input := range stateCh {
+			for input := range stateChannel {
 				testCounter.Add(1)
 
 				// TODO: program counter pointing to data not supported by LFVM
@@ -191,18 +202,27 @@ func runTests(evmName string, evm ct.Evm, jobCount int, seed uint64, filter *reg
 	rules := spc.Spec.GetRules()
 	rules = filterRules(rules, filter)
 	for _, rule := range rules {
-		if issuesCollector.NumIssues() < maxNumIssues {
-			fmt.Printf("Processing %v ...\n", rule.Name)
-			rule.EnumerateTestCases(rand, func(state *st.State) rlz.ConsumerResult {
-				if issuesCollector.NumIssues() > maxNumIssues {
-					return rlz.ConsumeAbort
-				}
-				stateCh <- state.Clone()
-				return rlz.ConsumeContinue
-			})
+		if issuesCollector.NumIssues() >= maxNumIssues {
+			break
 		}
+		rule.EnumerateTestCases(rand, func(state *st.State) rlz.ConsumerResult {
+			if issuesCollector.NumIssues() > maxNumIssues {
+				return rlz.ConsumeAbort
+			}
+			if !fullMode {
+				if applies, err := rule.Condition.Check(state); !applies || err != nil {
+					if err != nil {
+						issuesCollector.AddIssue(state, err)
+					}
+					return rlz.ConsumeContinue
+				}
+			}
+
+			stateChannel <- state.Clone()
+			return rlz.ConsumeContinue
+		})
 	}
-	close(stateCh)
+	close(stateChannel)
 	wg.Wait() // < releases when all test cases are processed
 
 	// Wait for the printer to be finished.
@@ -212,6 +232,8 @@ func runTests(evmName string, evm ct.Evm, jobCount int, seed uint64, filter *reg
 	return issuesCollector.issues
 }
 
+// runTest runs a single test specified by the input state on the given EVM. The
+// function returns an error in case the execution did not work as expected.
 func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp) error {
 	rules := spc.Spec.GetRulesFor(input)
 	if len(rules) == 0 {

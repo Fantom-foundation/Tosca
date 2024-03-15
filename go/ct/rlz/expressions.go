@@ -126,13 +126,7 @@ func (gas) Eval(s *st.State) (vm.Gas, error) {
 func (gas) Restrict(kind RestrictionKind, amount vm.Gas, generator *gen.StateGenerator) {
 	switch kind {
 	case RestrictLess:
-		if amount == 0 {
-			// TODO: offer different way of marking constraints unsatisfiable
-			generator.SetGas(0)
-			generator.SetGas(1)
-		} else {
-			generator.SetGas(amount - 1)
-		}
+		generator.SetGas(amount - 1)
 	case RestrictLessEqual, RestrictEqual, RestrictGreaterEqual:
 		generator.SetGas(amount)
 	case RestrictGreater:
