@@ -328,15 +328,15 @@ func (s *State) Diff(o *State) []string {
 	}
 
 	if !slices.Equal(s.CallData, o.CallData) {
-		res = append(res, fmt.Sprintf("Different call data: %v vs %v", s.CallData, o.CallData))
+		res = append(res, fmt.Sprintf("Different call data: %x vs %x", s.CallData, o.CallData))
 	}
 
 	if !slices.Equal(s.LastCallReturnData, o.LastCallReturnData) {
-		res = append(res, fmt.Sprintf("Different last call return data: %v vs %v.", s.LastCallReturnData, o.LastCallReturnData))
+		res = append(res, fmt.Sprintf("Different last call return data: %x vs %x.", s.LastCallReturnData, o.LastCallReturnData))
 	}
 
 	if !slices.Equal(s.ReturnData, o.ReturnData) {
-		res = append(res, fmt.Sprintf("Different return data: %v vs %v", s.ReturnData, o.ReturnData))
+		res = append(res, fmt.Sprintf("Different return data: %x vs %x", s.ReturnData, o.ReturnData))
 	}
 
 	return res
