@@ -7,6 +7,7 @@ import (
 	cc "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/vm"
+	"golang.org/x/crypto/sha3"
 )
 
 func TestAdapter_ParameterConversion(t *testing.T) {
@@ -178,8 +179,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"balance-unspecified": {
 			func(s *st.State) {
-				s.Balance = &st.Balance{}
-				s.Balance.Current = map[cc.Address]cc.U256{
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Balance = map[cc.Address]cc.U256{
 					{1}: cc.NewU256(2),
 				}
 			},
@@ -190,8 +191,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"balance-specified": {
 			func(s *st.State) {
-				s.Balance = &st.Balance{}
-				s.Balance.Current = map[cc.Address]cc.U256{
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Balance = map[cc.Address]cc.U256{
 					{1}: cc.NewU256(2),
 				}
 			},
@@ -200,9 +201,77 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 				return vm.Value(cc.NewU256(2).Bytes32be()), ctxt.GetBalance(vm.Address{1})
 			},
 		},
+		"getCode": {
+			func(s *st.State) {
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Code = map[cc.Address][]byte{
+					{1}: {byte(cc.ADD), byte(cc.SUB)},
+				}
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+				return []byte{byte(cc.ADD), byte(cc.SUB)}, ctxt.GetCode(vm.Address{1})
+			},
+		},
+		"getCodeHash-emptyHash": {
+			func(s *st.State) {
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Code = map[cc.Address][]byte{}
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+
+				var hash [32]byte
+				hasher := sha3.NewLegacyKeccak256()
+				hasher.Write([]byte{})
+				hasher.Sum(hash[:])
+
+				return vm.Hash(hash), ctxt.GetCodeHash(vm.Address{})
+			},
+		},
+		"getCodeHash": {
+			func(s *st.State) {
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Code = map[cc.Address][]byte{
+					{1}: {byte(cc.ADD), byte(cc.SUB)},
+				}
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+
+				var hash [32]byte
+				hasher := sha3.NewLegacyKeccak256()
+				hasher.Write([]byte{byte(cc.ADD), byte(cc.SUB)})
+				hasher.Sum(hash[:])
+
+				return vm.Hash(hash), ctxt.GetCodeHash(vm.Address{1})
+			},
+		},
+		"getCodeSize-empty": {
+			func(s *st.State) {
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Code = map[cc.Address][]byte{}
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+				return 0, ctxt.GetCodeSize(vm.Address{})
+			},
+		},
+		"getCodeSize": {
+			func(s *st.State) {
+				s.Accounts = &st.Accounts{}
+				s.Accounts.Code = map[cc.Address][]byte{
+					{1}: {byte(cc.ADD), byte(cc.SUB)},
+				}
+			},
+			func(p vm.Parameters) (any, any) {
+				ctxt := p.Context
+				return 2, ctxt.GetCodeSize(vm.Address{1})
+			},
+		},
 		"cold-account": {
 			func(s *st.State) {
-				s.Balance = st.NewBalance()
+				s.Accounts = st.NewAccounts()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -211,8 +280,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"warm-account": {
 			func(s *st.State) {
-				s.Balance = st.NewBalance()
-				s.Balance.MarkWarm(cc.Address{})
+				s.Accounts = st.NewAccounts()
+				s.Accounts.MarkWarm(cc.Address{})
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -221,7 +290,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"cold-account-legacy": {
 			func(s *st.State) {
-				s.Balance = st.NewBalance()
+				s.Accounts = st.NewAccounts()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -230,8 +299,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"warm-account-legacy": {
 			func(s *st.State) {
-				s.Balance = st.NewBalance()
-				s.Balance.MarkWarm(cc.Address{})
+				s.Accounts = st.NewAccounts()
+				s.Accounts.MarkWarm(cc.Address{})
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context

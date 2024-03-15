@@ -592,7 +592,7 @@ func (c *isAddressWarm) Check(s *st.State) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return s.Balance.IsWarm(NewAddress(key)), nil
+	return s.Accounts.IsWarm(NewAddress(key)), nil
 }
 
 func (c *isAddressWarm) Restrict(generator *gen.StateGenerator) {
@@ -631,7 +631,7 @@ func (c *isAddressCold) Check(s *st.State) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return s.Balance.IsCold(NewAddress(key)), nil
+	return s.Accounts.IsCold(NewAddress(key)), nil
 }
 
 func (c *isAddressCold) Restrict(generator *gen.StateGenerator) {

@@ -283,8 +283,8 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			s.Stack.Push(s.Balance.Current[address])
-			s.Balance.MarkWarm(address)
+			s.Stack.Push(s.Accounts.Balance[address])
+			s.Accounts.MarkWarm(address)
 		},
 		name: "_cold",
 	})...)
@@ -304,7 +304,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			s.Stack.Push(s.Balance.Current[address])
+			s.Stack.Push(s.Accounts.Balance[address])
 		},
 		name: "_warm",
 	})...)
@@ -323,7 +323,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			s.Stack.Push(s.Balance.Current[address])
+			s.Stack.Push(s.Accounts.Balance[address])
 		},
 		name: "_preBerlin",
 	})...)
@@ -841,6 +841,135 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- EXTCODESIZE ---
+
+	// cold
+	rules = append(rules, rulesFor(instruction{
+		op:        EXTCODESIZE,
+		staticGas: 0 + 2600, // 2600 dynamic cost for cold address
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			IsAddressCold(Param(0)),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+		},
+		effect: func(s *st.State) {
+			address := NewAddress(s.Stack.Pop())
+			size := len(s.Accounts.Code[address])
+			s.Stack.Push(NewU256(uint64(size)))
+			s.Accounts.MarkWarm(address)
+		},
+		name: "_cold",
+	})...)
+
+	// warm
+	rules = append(rules, rulesFor(instruction{
+		op:        EXTCODESIZE,
+		staticGas: 0 + 100, // 100 dynamic cost for warm address
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			IsAddressWarm(Param(0)),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+		},
+		effect: func(s *st.State) {
+			address := NewAddress(s.Stack.Pop())
+			size := len(s.Accounts.Code[address])
+			s.Stack.Push(NewU256(uint64(size)))
+		},
+		name: "_warm",
+	})...)
+
+	// pre Berlin
+	rules = append(rules, rulesFor(instruction{
+		op:        EXTCODESIZE,
+		staticGas: 700,
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			IsRevision(R07_Istanbul),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+		},
+		effect: func(s *st.State) {
+			address := NewAddress(s.Stack.Pop())
+			size := len(s.Accounts.Code[address])
+			s.Stack.Push(NewU256(uint64(size)))
+		},
+		name: "_preBerlin",
+	})...)
+
+	// --- EXTCODECOPY ---
+
+	// cold
+	rules = append(rules, rulesFor(instruction{
+		op:        EXTCODECOPY,
+		staticGas: 2600,
+		pops:      4,
+		pushes:    0,
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			IsAddressCold(Param(0)),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+			MemoryOffsetParameter{},
+			DataOffsetParameter{},
+			DataSizeParameter{}},
+		effect: func(s *st.State) {
+			extCodeCopyEffect(s, true)
+		},
+		name: "_cold",
+	})...)
+
+	// warm
+	rules = append(rules, rulesFor(instruction{
+		op:        EXTCODECOPY,
+		staticGas: 100,
+		pops:      4,
+		pushes:    0,
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			IsAddressWarm(Param(0)),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+			MemoryOffsetParameter{},
+			DataOffsetParameter{},
+			DataSizeParameter{}},
+		effect: func(s *st.State) {
+			extCodeCopyEffect(s, false)
+		},
+		name: "_warm",
+	})...)
+
+	// pre Berlin
+	rules = append(rules, rulesFor(instruction{
+		op:        EXTCODECOPY,
+		staticGas: 700,
+		pops:      4,
+		pushes:    0,
+		conditions: []Condition{
+			IsRevision(R07_Istanbul),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+			MemoryOffsetParameter{},
+			DataOffsetParameter{},
+			DataSizeParameter{}},
+		effect: func(s *st.State) {
+			extCodeCopyEffect(s, false)
+		},
+		name: "_preBerlin",
+	})...)
+
 	// --- TIMESTAMP ---
 
 	rules = append(rules, rulesFor(instruction{
@@ -878,6 +1007,83 @@ var Spec = func() Specification {
 			Effect: FailEffect(),
 		},
 	}...)
+
+	// --- EXTCODEHASH ---
+
+	// cold
+	rules = append(rules, rulesFor(instruction{
+		op:        EXTCODEHASH,
+		staticGas: 0 + 2600, // 2600 dynamic cost for cold address
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			IsAddressCold(Param(0)),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+		},
+		effect: func(s *st.State) {
+			address := NewAddress(s.Stack.Pop())
+			if _, exists := s.Accounts.Balance[address]; !exists {
+				s.Stack.Push(NewU256(0))
+			} else {
+				hash := s.Accounts.GetCodeHash(address)
+				s.Stack.Push(NewU256FromBytes(hash[:]...))
+			}
+			s.Accounts.MarkWarm(address)
+		},
+		name: "_cold",
+	})...)
+
+	// warm
+	rules = append(rules, rulesFor(instruction{
+		op:        EXTCODEHASH,
+		staticGas: 0 + 100, // 100 dynamic cost for warm address
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			IsAddressWarm(Param(0)),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+		},
+		effect: func(s *st.State) {
+			address := NewAddress(s.Stack.Pop())
+			if _, exists := s.Accounts.Balance[address]; !exists {
+				s.Stack.Push(NewU256(0))
+			} else {
+				hash := s.Accounts.GetCodeHash(address)
+				s.Stack.Push(NewU256FromBytes(hash[:]...))
+			}
+		},
+		name: "_warm",
+	})...)
+
+	// pre Berlin
+	rules = append(rules, rulesFor(instruction{
+		op:        EXTCODEHASH,
+		staticGas: 700,
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			IsRevision(R07_Istanbul),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+		},
+		effect: func(s *st.State) {
+			address := NewAddress(s.Stack.Pop())
+			if _, exists := s.Accounts.Balance[address]; !exists {
+				s.Stack.Push(NewU256(0))
+			} else {
+				hash := s.Accounts.GetCodeHash(address)
+				s.Stack.Push(NewU256FromBytes(hash[:]...))
+			}
+		},
+		name: "_preBerlin",
+	})...)
 
 	// --- CHAINID ---
 
@@ -1027,7 +1233,7 @@ var Spec = func() Specification {
 		pushes:    1,
 		effect: func(s *st.State) {
 			address := s.CallContext.AccountAddress
-			balance := s.Balance.Current[address]
+			balance := s.Accounts.Balance[address]
 			s.Stack.Push(balance)
 		},
 	})...)
@@ -1225,6 +1431,38 @@ func swapOp(n int) []Rule {
 			s.Stack.Set(n, a)
 		},
 	})
+}
+
+func extCodeCopyEffect(s *st.State, markWarm bool) {
+	address := NewAddress(s.Stack.Pop())
+	destOffsetU256 := s.Stack.Pop()
+	offsetU256 := s.Stack.Pop()
+	sizeU256 := s.Stack.Pop()
+
+	cost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
+	minimumWordSize := (size + 31) / 32
+	cost += 3 * minimumWordSize
+	if s.Gas < cost {
+		s.Status = st.Failed
+		s.Gas = 0
+		return
+	}
+	s.Gas -= cost
+
+	start := offsetU256.Uint64()
+	codeSize := uint64(len(s.Accounts.Code[address]))
+	if offsetU256.Gt(NewU256(codeSize)) {
+		start = codeSize
+	}
+	end := min(start+size, codeSize)
+
+	codeCopy := make([]byte, size)
+	copy(codeCopy, s.Accounts.Code[address][start:end])
+
+	s.Memory.Write(codeCopy, destOffset)
+	if markWarm {
+		s.Accounts.MarkWarm(address)
+	}
 }
 
 type sstoreOpParams struct {
