@@ -51,6 +51,10 @@ var RunCmd = cli.Command{
 			Name:  "cpuprofile",
 			Usage: "store CPU profile in the provided filename",
 		},
+		&cli.BoolFlag{ // < TODO: make every run a full mode once tests pass
+			Name:  "full-mode",
+			Usage: "if enabled, test cases targeting rules other than the one generating the case will be executed",
+		},
 	},
 }
 
@@ -96,6 +100,8 @@ func doRun(context *cli.Context) error {
 		jobCount = runtime.NumCPU()
 	}
 
+	fullMode := context.Bool("full-mode")
+
 	var mutex sync.Mutex
 	var wg sync.WaitGroup
 
@@ -105,6 +111,7 @@ func doRun(context *cli.Context) error {
 
 	ruleCh := make(chan rlz.Rule, jobCount)
 
+	spec := spc.Spec
 	for i := 0; i < jobCount; i++ {
 		wg.Add(1)
 		go func() {
@@ -115,11 +122,13 @@ func doRun(context *cli.Context) error {
 				evaluationCount := 0
 				var errs []error
 				err := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) rlz.ConsumerResult {
-					if applies, err := rule.Condition.Check(state); !applies || err != nil {
-						if err != nil {
-							errs = append(errs, err)
+					if !fullMode {
+						if applies, err := rule.Condition.Check(state); !applies || err != nil {
+							if err != nil {
+								errs = append(errs, err)
+							}
+							return rlz.ConsumeContinue
 						}
-						return rlz.ConsumeContinue
 					}
 
 					// TODO: program counter pointing to data not supported by LFVM
@@ -132,8 +141,14 @@ func doRun(context *cli.Context) error {
 					evaluationCount++
 
 					input := state.Clone()
+
+					rules := spec.GetRulesFor(input)
+					if len(rules) == 0 {
+						// TODO: produce an error once spec is required to be complete
+						return rlz.ConsumeContinue // < ignore
+					}
 					expected := state.Clone()
-					rule.Effect.Apply(expected)
+					rules[0].Effect.Apply(expected)
 
 					result, err := evm.StepN(input.Clone(), 1)
 					if err != nil {
@@ -191,8 +206,7 @@ func doRun(context *cli.Context) error {
 		}()
 	}
 
-	rules := spc.Spec.GetRules()
-	for _, rule := range rules {
+	for _, rule := range spec.GetRules() {
 		if filter.MatchString(rule.Name) {
 			ruleCh <- rule
 		}
