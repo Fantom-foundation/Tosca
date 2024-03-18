@@ -6,6 +6,7 @@ import (
 	"pgregory.net/rand"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
+	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
@@ -44,7 +45,7 @@ func TestSpecification_EachRuleProducesAMatchingTestCase(t *testing.T) {
 			hits := 0
 			misses := 0
 			rnd := rand.New(0)
-			rule.EnumerateTestCases(rnd, func(state *st.State) error {
+			rule.EnumerateTestCases(rnd, func(state *st.State) rlz.ConsumerResult {
 				match, err := rule.Condition.Check(state)
 				if err != nil {
 					t.Errorf("failed to check rule condition for %v: %v", rule.Name, err)
@@ -53,7 +54,10 @@ func TestSpecification_EachRuleProducesAMatchingTestCase(t *testing.T) {
 				} else {
 					misses++
 				}
-				return nil
+				if hits > 0 && misses > 0 {
+					return rlz.ConsumeAbort
+				}
+				return rlz.ConsumeContinue
 			})
 
 			if hits == 0 {

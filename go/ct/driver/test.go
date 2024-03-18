@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/urfave/cli/v2"
@@ -80,7 +81,8 @@ func doTest(context *cli.Context) error {
 
 			enumerationCount := 0
 			rnd := rand.New(context.Uint64("seed"))
-			errs := rule.EnumerateTestCases(rnd, func(state *st.State) error {
+			var errs []error
+			err := rule.EnumerateTestCases(rnd, func(state *st.State) rlz.ConsumerResult {
 				rules := spc.Spec.GetRulesFor(state)
 				if len(rules) > 0 {
 					atLeastOne = true
@@ -92,13 +94,17 @@ func doTest(context *cli.Context) error {
 						s := state.Clone()
 						rules[i].Effect.Apply(s)
 						if !s.Eq(s0) {
-							return fmt.Errorf("multiple conflicting rules for state %v: %v", state, rules)
+							errs = append(errs, fmt.Errorf("multiple conflicting rules for state %v: %v", state, rules))
+							return rlz.ConsumeContinue
 						}
 					}
 				}
 				enumerationCount++
-				return nil
+				return rlz.ConsumeContinue
 			})
+			if err != nil {
+				errs = append(errs, err)
+			}
 
 			if enumerationCount == 0 {
 				errs = append(errs, fmt.Errorf("none of the generated states fulfilled all the conditions"))

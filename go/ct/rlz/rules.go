@@ -25,49 +25,45 @@ func (rule *Rule) GenerateSatisfyingState(rnd *rand.Rand) (*st.State, error) {
 
 // EnumerateTestCases generates interesting st.States according to this Rule.
 // Each valid st.State is passed to the given consume function. consume must
-// *not* modify the provided state. Errors are accumulated and a list of all errors is returned.
-func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) error) []error {
-	var accumulatedErrors []error
-
-	onError := func(err error) {
-		accumulatedErrors = append(accumulatedErrors, err)
-	}
-
-	rule.Condition.EnumerateTestCases(gen.NewStateGenerator(), func(generator *gen.StateGenerator) {
+// *not* modify the provided state.  An error is returned if the enumeration
+// process fails due to an unexpected internal state generation error.
+func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) ConsumerResult) error {
+	var enumError error
+	rule.Condition.EnumerateTestCases(gen.NewStateGenerator(), func(generator *gen.StateGenerator) ConsumerResult {
 		state, err := generator.Generate(rnd)
 		if errors.Is(err, gen.ErrUnsatisfiable) {
-			return // ignored
+			return ConsumeContinue // ignored
 		}
 		if err != nil {
-			onError(err)
-			return
+			enumError = err
+			return ConsumeAbort
 		}
-
-		enumerateParameters(0, rule.Parameter, state, consume, onError)
+		return enumerateParameters(0, rule.Parameter, state, consume)
 	})
 
-	return accumulatedErrors
+	return enumError
 }
 
-func enumerateParameters(pos int, params []Parameter, state *st.State, consume func(*st.State) error, onError func(error)) {
+func enumerateParameters(pos int, params []Parameter, state *st.State, consume func(*st.State) ConsumerResult) ConsumerResult {
 	if len(params) == 0 || pos >= state.Stack.Size() {
-		err := consume(state)
-		if err != nil {
-			onError(err)
-		}
-		return
+		return consume(state)
 	}
 
 	current := state.Stack.Get(pos)
 
 	// Cross product with current parameter value, as set by generator.
-	enumerateParameters(pos+1, params[1:], state, consume, onError)
+	if enumerateParameters(pos+1, params[1:], state, consume) == ConsumeAbort {
+		return ConsumeAbort
+	}
 
 	// Cross product with different samples for parameter.
 	for _, value := range params[0].Samples() {
 		state.Stack.Set(pos, value)
-		enumerateParameters(pos+1, params[1:], state, consume, onError)
+		if enumerateParameters(pos+1, params[1:], state, consume) == ConsumeAbort {
+			return ConsumeAbort
+		}
 	}
 
 	state.Stack.Set(pos, current)
+	return ConsumeContinue
 }

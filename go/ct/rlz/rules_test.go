@@ -1,7 +1,6 @@
 package rlz
 
 import (
-	"errors"
 	"testing"
 
 	"pgregory.net/rand"
@@ -56,7 +55,7 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 		misses := 0
 
 		rule := Rule{Condition: test}
-		errs := rule.EnumerateTestCases(rnd, func(sample *st.State) error {
+		err := rule.EnumerateTestCases(rnd, func(sample *st.State) ConsumerResult {
 			match, err := test.Check(sample)
 			if err != nil {
 				t.Errorf("Condition check error %v", err)
@@ -66,9 +65,8 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 			} else {
 				misses++
 			}
-			return nil
+			return ConsumeContinue
 		})
-		err := errors.Join(errs...)
 		if err != nil {
 			t.Errorf("EnumerateTestCases failed %v", err)
 		}
