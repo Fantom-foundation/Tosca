@@ -180,9 +180,9 @@ func runTests(
 				relativeTime := curTime.Sub(startTime)
 				rate := float64(diffCounter) / diffTime.Seconds()
 				fmt.Printf(
-					"[t=%4d:%02d] - Processing ~%.1e tests per second, total %d, skipped %d, found issues %d\n",
+					"[t=%4d:%02d] - Processing ~%s tests per second, total %d, skipped %d, found issues %d\n",
 					int(relativeTime.Seconds())/60, int(relativeTime.Seconds())%60,
-					rate, cur, skippedCount.Load(), issuesCollector.NumIssues(),
+					unitconv.FormatPrefix(rate, unitconv.SI, 0), cur, skippedCount.Load(), issuesCollector.NumIssues(),
 				)
 			}
 		}
