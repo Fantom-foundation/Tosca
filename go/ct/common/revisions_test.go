@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -65,5 +66,65 @@ func TestRevisions_GetForkBlockInvalid(t *testing.T) {
 	_, err := GetForkBlock(R99_UnknownNextRevision + 1)
 	if err == nil {
 		t.Errorf("Unexpected error: %v", err)
+	}
+}
+
+func TestRevisions_Marshal(t *testing.T) {
+	tests := map[Revision]string{
+		R07_Istanbul:            "\"Istanbul\"",
+		R09_Berlin:              "\"Berlin\"",
+		R10_London:              "\"London\"",
+		R99_UnknownNextRevision: "\"UnknownNextRevision\"",
+	}
+
+	for input, expected := range tests {
+		marshaled, err := input.MarshalJSON()
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if !bytes.Equal(marshaled, []byte(expected)) {
+			t.Errorf("Unexpected marshaled revision, wanted: %v vs got: %v", expected, marshaled)
+		}
+	}
+}
+
+func TestRevisions_MarshalError(t *testing.T) {
+	revisions := []Revision{Revision(42), Revision(100)}
+	for _, rev := range revisions {
+		marshaled, err := rev.MarshalJSON()
+		if err == nil {
+			t.Errorf("Expected error but got: %v", marshaled)
+		}
+	}
+}
+
+func TestRevisions_Unmarshal(t *testing.T) {
+	tests := map[string]Revision{
+		"\"Istanbul\"":            R07_Istanbul,
+		"\"Berlin\"":              R09_Berlin,
+		"\"London\"":              R10_London,
+		"\"UnknownNextRevision\"": R99_UnknownNextRevision,
+	}
+
+	for input, expected := range tests {
+		var rev Revision
+		err := rev.UnmarshalJSON([]byte(input))
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if rev != expected {
+			t.Errorf("Unexpected unmarshaled revision, wanted: %v vs got: %v", expected, rev)
+		}
+	}
+}
+
+func TestRevisions_UnmarshalError(t *testing.T) {
+	inputs := []string{"Error", "Revision(42)", "Istanbul"}
+	for _, input := range inputs {
+		var rev Revision
+		err := rev.UnmarshalJSON([]byte(input))
+		if err == nil {
+			t.Errorf("Expected error but got: %v", rev)
+		}
 	}
 }

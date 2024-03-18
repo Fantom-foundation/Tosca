@@ -83,7 +83,7 @@ type accountsSerializable struct {
 	Warm    map[Address]bool
 }
 
-// accountsSerializable is a serializable representation of the Log.
+// logsSerializable is a serializable representation of the Log.
 type logsSerializable struct {
 	Entries []logEntrySerializable
 }
@@ -93,7 +93,15 @@ type logEntrySerializable struct {
 	Data   byteSliceSerializable
 }
 
-func (l *logsSerializable) AddLog(data byteSliceSerializable, topics ...U256) {
+func newLogsSerializable(logs *Logs) *logsSerializable {
+	serializable := &logsSerializable{}
+	for _, entry := range logs.Entries {
+		serializable.addLog(entry.Data, entry.Topics...)
+	}
+	return serializable
+}
+
+func (l *logsSerializable) addLog(data byteSliceSerializable, topics ...U256) {
 	l.Entries = append(l.Entries, logEntrySerializable{
 		slices.Clone(topics),
 		slices.Clone(data),
@@ -103,10 +111,6 @@ func (l *logsSerializable) AddLog(data byteSliceSerializable, topics ...U256) {
 // newStateSerializableFromState creates a new stateSerializable instance from the given State instance.
 // The data of the input state is deep copied.
 func newStateSerializableFromState(state *State) *stateSerializable {
-	logs := &logsSerializable{}
-	for _, entry := range state.Logs.Entries {
-		logs.AddLog(entry.Data, entry.Topics...)
-	}
 	return &stateSerializable{
 		Status:             state.Status,
 		Revision:           state.Revision,
@@ -119,7 +123,7 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		Memory:             bytes.Clone(state.Memory.mem),
 		Storage:            newStorageSerializable(state.Storage),
 		Accounts:           newAccountsSerializable(state.Accounts),
-		Logs:               logs,
+		Logs:               newLogsSerializable(state.Logs),
 		CallContext:        state.CallContext,
 		BlockContext:       state.BlockContext,
 		CallData:           bytes.Clone(state.CallData),

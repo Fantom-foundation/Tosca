@@ -330,3 +330,61 @@ func TestSerialization_InvalidData(t *testing.T) {
 		t.Errorf("expected error, got nil")
 	}
 }
+
+func TestSerialization_byteSliceMarshal(t *testing.T) {
+	tests := []struct {
+		slice    byteSliceSerializable
+		expected string
+	}{
+		{[]byte{byte(0x01)}, "\"01\""},
+		{[]byte{byte(0xff)}, "\"ff\""},
+		{[]byte{byte(0x01), byte(0x02), byte(0x03), byte(0x04), byte(0x05), byte(0x06)}, "\"010203040506\""},
+		{[]byte{byte(0xfa), byte(0xfb), byte(0xfc), byte(0xfd), byte(0xfe), byte(0xff)}, "\"fafbfcfdfeff\""},
+		{[]byte{byte(0x01), byte(0x23), byte(0x45), byte(0x67), byte(0x89), byte(0xab)}, "\"0123456789ab\""},
+	}
+
+	for _, test := range tests {
+		marshaled, err := test.slice.MarshalJSON()
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if !bytes.Equal(marshaled, []byte(test.expected)) {
+			t.Errorf("Unexpected marshaled byte slice, wanted: %v vs got: %v", test.expected, marshaled)
+		}
+	}
+}
+
+func TestSerialization_byteSliceUnmarshal(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected byteSliceSerializable
+	}{
+		{"\"01\"", []byte{byte(0x01)}},
+		{"\"ff\"", []byte{byte(0xff)}},
+		{"\"010203040506\"", []byte{byte(0x01), byte(0x02), byte(0x03), byte(0x04), byte(0x05), byte(0x06)}},
+		{"\"fafbfcfdfeff\"", []byte{byte(0xfa), byte(0xfb), byte(0xfc), byte(0xfd), byte(0xfe), byte(0xff)}},
+		{"\"0123456789ab\"", []byte{byte(0x01), byte(0x23), byte(0x45), byte(0x67), byte(0x89), byte(0xab)}},
+	}
+
+	for _, test := range tests {
+		var slice byteSliceSerializable
+		err := slice.UnmarshalJSON([]byte(test.input))
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if !bytes.Equal(slice, test.expected) {
+			t.Errorf("Unexpected unmarshaled byte slice, wanted: %v vs got: %v", test.expected, slice)
+		}
+	}
+}
+
+func TestSerialization_byteSliceUnmarshalError(t *testing.T) {
+	inputs := []string{"error", "-1", "ABCDEFG"}
+	for _, input := range inputs {
+		var slice byteSliceSerializable
+		err := slice.UnmarshalJSON([]byte(input))
+		if err == nil {
+			t.Errorf("Expected error but got: %v", slice)
+		}
+	}
+}

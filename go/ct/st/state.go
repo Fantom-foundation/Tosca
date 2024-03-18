@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -51,7 +52,12 @@ func (s StatusCode) String() string {
 }
 
 func (s StatusCode) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.String())
+	statusString := s.String()
+	reg := regexp.MustCompile(`StatusCode\([0-9]+\)`)
+	if reg.MatchString(statusString) {
+		return nil, &json.UnsupportedValueError{}
+	}
+	return json.Marshal(statusString)
 }
 
 func (s *StatusCode) UnmarshalJSON(data []byte) error {

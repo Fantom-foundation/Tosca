@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 )
 
 type Revision int
@@ -30,7 +31,12 @@ func (r Revision) String() string {
 }
 
 func (r Revision) MarshalJSON() ([]byte, error) {
-	return json.Marshal(r.String())
+	revString := r.String()
+	reg := regexp.MustCompile(`Revision\([0-9]+\)`)
+	if reg.MatchString(revString) {
+		return nil, &json.UnsupportedValueError{}
+	}
+	return json.Marshal(revString)
 }
 
 func (r *Revision) UnmarshalJSON(data []byte) error {
@@ -87,14 +93,14 @@ func GetBlockRangeLengthFor(revision Revision) (uint64, error) {
 	revisionNumberRange := uint64(0)
 
 	// if it's the last supported revision, the blockNumber range has no limit.
-	// if it's not, we want to limit this range to the firt block number of next revision.
+	// if it's not, we want to limit this range to the first block number of next revision.
 	if revision < R99_UnknownNextRevision {
 		nextRevisionNumber, err := GetForkBlock(revision + 1)
 		if err != nil {
 			return 0, err
 		}
 		// since we know both numbers are positive, and nextRevisionNumber is bigger,
-		// we can safely converet them to uint64
+		// we can safely convert them to uint64
 		revisionNumberRange = nextRevisionNumber - revisionNumber
 	}
 	return revisionNumberRange, nil
