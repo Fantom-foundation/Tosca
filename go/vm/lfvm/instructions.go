@@ -928,11 +928,11 @@ func opCall(c *context) {
 
 	// We need to check the existence of the target account before removing
 	// the gas price for the other cost factors to make sure that the read
-	// in the state DB is always happening. This is the current EVM behaviour,
+	// in the state DB is always happening. This is the current EVM behavior,
 	// and not doing it would be identified by the replay tool as an error.
 	toAddr := vm.Address(addr.Bytes20())
 
-	// Charge for transfering value to a new address
+	// Charge for transferring value to a new address
 	if !value.IsZero() {
 		base_gas += vm.Gas(params.CallValueTransferGas)
 	}
@@ -968,9 +968,24 @@ func opCall(c *context) {
 		cost += vm.Gas(params.CallStipend)
 	}
 
+	// If we are in static mode, recursive calls are to be treated like
+	// static calls. This is a consequence of the unification of the
+	// interpreter interfaces of EVMC and Geth.
+	// This problem was encountered in block 58413779, transaction 7.
+	kind := vm.Call
+	if c.params.Static {
+		kind = vm.StaticCall
+
+		// In a static call, no value must be transferred.
+		if !value.IsZero() {
+			c.SignalError(errWriteProtection)
+			return
+		}
+	}
+
 	// Get the arguments from the memory.
 	args := c.memory.GetSlice(inOffset.Uint64(), inSize.Uint64())
-	ret, err := c.context.Call(vm.Call, vm.CallParameter{
+	ret, err := c.context.Call(kind, vm.CallParameter{
 		Sender:    c.params.Recipient,
 		Recipient: toAddr,
 		Input:     args,
