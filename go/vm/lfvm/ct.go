@@ -96,8 +96,8 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 			return nil, fmt.Errorf("failed to convert program counter %d", ctxt.pc)
 		}
 	}
-	state.Gas = uint64(ctxt.gas)
-	state.GasRefund = uint64(ctxt.refund)
+	state.Gas = ctxt.gas
+	state.GasRefund = ctxt.refund
 	state.Stack = convertLfvmStackToCtStack(ctxt.stack)
 	state.Memory = convertLfvmMemoryToCtMemory(ctxt.memory)
 

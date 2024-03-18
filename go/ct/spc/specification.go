@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 // Specification defines the interface for handling specifications.
@@ -46,7 +47,7 @@ func (s *specification) GetRulesFor(state *st.State) []Rule {
 // these are not enough gas, stack overflow, stack underflow, and a regular behaviour case
 type instruction struct {
 	op         OpCode
-	staticGas  uint64
+	staticGas  vm.Gas
 	pops       int
 	pushes     int
 	conditions []Condition       // conditions for the regular case
@@ -156,12 +157,12 @@ var Spec = func() Specification {
 
 	rules = append(rules, binaryOpWithDynamicCost(EXP, 10, func(a, e U256) U256 {
 		return a.Exp(e)
-	}, func(a, e U256) uint64 {
-		const gasFactor = uint64(50)
+	}, func(a, e U256) vm.Gas {
+		const gasFactor = vm.Gas(50)
 		expBytes := e.Bytes32be()
 		for i := 0; i < 32; i++ {
 			if expBytes[i] != 0 {
-				return gasFactor * uint64(32-i)
+				return gasFactor * vm.Gas(32-i)
 			}
 		}
 		return 0
@@ -253,7 +254,7 @@ var Spec = func() Specification {
 			}
 			s.Gas -= memExpCost
 
-			wordCost := 6 * ((size + 31) / 32)
+			wordCost := vm.Gas(6 * ((size + 31) / 32))
 			if s.Gas < wordCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -683,7 +684,7 @@ var Spec = func() Specification {
 		pops:      0,
 		pushes:    1,
 		effect: func(s *st.State) {
-			s.Stack.Push(NewU256(s.Gas))
+			s.Stack.Push(NewU256(uint64(s.Gas)))
 		},
 	})...)
 
@@ -1127,7 +1128,7 @@ var Spec = func() Specification {
 
 			cost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
 			minimumWordSize := (size + 31) / 32
-			cost += 3 * minimumWordSize
+			cost += vm.Gas(3 * minimumWordSize)
 			if s.Gas < cost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1205,7 +1206,7 @@ var Spec = func() Specification {
 
 			expansionCost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
 			words := (size + 31) / 32
-			expansionCost += 3 * words
+			expansionCost += vm.Gas(3 * words)
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1278,7 +1279,7 @@ var Spec = func() Specification {
 
 			expansionCost, destOffsetUint64, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
 			words := (size + 31) / 32
-			expansionCost += 3 * words
+			expansionCost += vm.Gas(3 * words)
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1297,9 +1298,9 @@ var Spec = func() Specification {
 
 func binaryOpWithDynamicCost(
 	op OpCode,
-	costs uint64,
+	costs vm.Gas,
 	effect func(a, b U256) U256,
-	dynamicCost func(a, b U256) uint64,
+	dynamicCost func(a, b U256) vm.Gas,
 ) []Rule {
 	return rulesFor(instruction{
 		op:        op,
@@ -1328,15 +1329,15 @@ func binaryOpWithDynamicCost(
 
 func binaryOp(
 	op OpCode,
-	costs uint64,
+	costs vm.Gas,
 	effect func(a, b U256) U256,
 ) []Rule {
-	return binaryOpWithDynamicCost(op, costs, effect, func(_, _ U256) uint64 { return 0 })
+	return binaryOpWithDynamicCost(op, costs, effect, func(_, _ U256) vm.Gas { return 0 })
 }
 
 func trinaryOp(
 	op OpCode,
-	costs uint64,
+	costs vm.Gas,
 	effect func(a, b, c U256) U256,
 ) []Rule {
 	return rulesFor(instruction{
@@ -1360,7 +1361,7 @@ func trinaryOp(
 
 func unaryOp(
 	op OpCode,
-	costs uint64,
+	costs vm.Gas,
 	effect func(a U256) U256,
 ) []Rule {
 	return rulesFor(instruction{
@@ -1441,7 +1442,7 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 
 	cost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
 	minimumWordSize := (size + 31) / 32
-	cost += 3 * minimumWordSize
+	cost += vm.Gas(3 * minimumWordSize)
 	if s.Gas < cost {
 		s.Status = st.Failed
 		s.Gas = 0
@@ -1469,14 +1470,14 @@ type sstoreOpParams struct {
 	revision  Revision
 	warm      bool
 	config    gen.StorageCfg
-	gasCost   uint64
-	gasRefund int64
+	gasCost   vm.Gas
+	gasRefund vm.Gas
 }
 
 func sstoreOpRegular(params sstoreOpParams) Rule {
 	name := fmt.Sprintf("sstore_regular_%v_%v", params.revision, params.config)
 
-	gasLimit := uint64(2301) // EIP2200
+	gasLimit := vm.Gas(2301) // EIP2200
 	if params.gasCost > gasLimit {
 		gasLimit = params.gasCost
 	}
@@ -1510,15 +1511,15 @@ func sstoreOpRegular(params sstoreOpParams) Rule {
 		},
 		Effect: Change(func(s *st.State) {
 			if params.gasRefund < 0 {
-				if s.GasRefund < uint64(-params.gasRefund) {
+				if s.GasRefund < -params.gasRefund {
 					// Gas refund must not become negative!
 					s.Status = st.Failed
 					s.Gas = 0
 					return
 				}
-				s.GasRefund -= uint64(-params.gasRefund)
+				s.GasRefund -= -params.gasRefund
 			} else {
-				s.GasRefund += uint64(params.gasRefund)
+				s.GasRefund += params.gasRefund
 			}
 
 			s.Gas -= params.gasCost
@@ -1570,7 +1571,7 @@ func sstoreOpTooLittleGas(params sstoreOpParams) Rule {
 func sstoreOpReadOnlyMode(params sstoreOpParams) Rule {
 	name := fmt.Sprintf("sstore_in_read_only_mode_%v_%v", params.revision, params.config)
 
-	gasLimit := uint64(2301) // EIP2200
+	gasLimit := vm.Gas(2301) // EIP2200
 	if params.gasCost > gasLimit {
 		gasLimit = params.gasCost
 	}
@@ -1598,7 +1599,7 @@ func sstoreOpReadOnlyMode(params sstoreOpParams) Rule {
 
 func logOp(n int) []Rule {
 	op := OpCode(int(LOG0) + n)
-	minGas := uint64(375 + 375*n)
+	minGas := vm.Gas(375 + 375*n)
 	conditions := []Condition{
 		Eq(ReadOnly(), false),
 	}
@@ -1635,12 +1636,12 @@ func logOp(n int) []Rule {
 			}
 			s.Gas -= memExpCost
 
-			if s.Gas < 8*size {
+			if s.Gas < vm.Gas(8*size) {
 				s.Status = st.Failed
 				s.Gas = 0
 				return
 			}
-			s.Gas -= 8 * size
+			s.Gas -= vm.Gas(8 * size)
 
 			s.Logs.AddLog(s.Memory.Read(offset, size), topics...)
 		},

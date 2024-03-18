@@ -10,12 +10,8 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
-
-// Upper bound for gas, this limit is required since evmc defines a signed type for gas.
-// Limiting gas also solves issue 293 regarding out of memory failures,
-// discussed here: https://github.com/Fantom-foundation/Tosca/issues/293
-const GasUpperbound = 1 << 60
 
 // StateGenerator is a utility class for generating States. It provides two
 // capabilities:
@@ -40,8 +36,8 @@ type StateGenerator struct {
 	readOnlyConstraints   []bool
 	pcConstantConstraints []uint16
 	pcVariableConstraints []Variable
-	gasConstraints        []uint64
-	gasRefundConstraints  []uint64
+	gasConstraints        []vm.Gas
+	gasRefundConstraints  []vm.Gas
 
 	// Generators
 	codeGen         *CodeGenerator
@@ -128,14 +124,14 @@ func (g *StateGenerator) BindPc(pc Variable) {
 }
 
 // SetGas adds a constraint on the State's gas counter.
-func (g *StateGenerator) SetGas(gas uint64) {
+func (g *StateGenerator) SetGas(gas vm.Gas) {
 	if !slices.Contains(g.gasConstraints, gas) {
 		g.gasConstraints = append(g.gasConstraints, gas)
 	}
 }
 
 // SetGasRefund adds a constraint on the State's gas refund counter.
-func (g *StateGenerator) SetGasRefund(gasRefund uint64) {
+func (g *StateGenerator) SetGasRefund(gasRefund vm.Gas) {
 	if !slices.Contains(g.gasRefundConstraints, gasRefund) {
 		g.gasRefundConstraints = append(g.gasRefundConstraints, gasRefund)
 	}
@@ -293,19 +289,26 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Pick a gas counter.
-	var resultGas uint64
+	var resultGas vm.Gas
 	if len(g.gasConstraints) == 0 {
-		resultGas = rnd.Uint64n(GasUpperbound)
+		resultGas = vm.Gas(rnd.Int63n(int64(st.MaxGas)))
 	} else if len(g.gasConstraints) == 1 {
 		resultGas = g.gasConstraints[0]
+		if resultGas < 0 || resultGas > st.MaxGas {
+			return nil, fmt.Errorf(
+				"%w: gas out of bounds, constraint defined %d not in range [%d,%d]",
+				ErrUnsatisfiable, resultGas, 0, st.MaxGas,
+			)
+		}
 	} else {
 		return nil, fmt.Errorf("%w, multiple conflicting gas counter constraints defined: %v", ErrUnsatisfiable, g.gasConstraints)
 	}
 
 	// Pick a gas refund counter.
-	var resultGasRefund uint64
+	var resultGasRefund vm.Gas
 	if len(g.gasRefundConstraints) == 0 {
-		resultGasRefund = rnd.Uint64()
+		// Refunds can be positive or negative, of any value, and should be tracked accordingly.
+		resultGasRefund = vm.Gas(rnd.Uint64())
 	} else if len(g.gasRefundConstraints) == 1 {
 		resultGasRefund = g.gasRefundConstraints[0]
 	} else {
