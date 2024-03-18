@@ -313,9 +313,13 @@ func (gasDomain) SamplesForAll(as []vm.Gas) []vm.Gas {
 
 	// Test every element off by one.
 	for _, a := range as {
-		res = append(res, a-1)
+		if a > 0 {
+			res = append(res, a-1)
+		}
 		res = append(res, a)
-		res = append(res, a+1)
+		if a < math.MaxInt64 {
+			res = append(res, a+1)
+		}
 	}
 
 	// Add all powers of 2 until upper bound.

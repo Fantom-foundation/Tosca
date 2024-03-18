@@ -1,8 +1,8 @@
 package main
 
 import (
-	"errors"
 	"fmt"
+	"math"
 	"os"
 	"regexp"
 	"runtime"
@@ -11,8 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"pgregory.net/rand"
-
 	"github.com/Fantom-foundation/Tosca/go/ct"
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
@@ -20,6 +18,8 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/vm/evmzero"
 	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/exp/maps"
+	"pgregory.net/rand"
 )
 
 var RunCmd = cli.Command{
@@ -40,8 +40,8 @@ var RunCmd = cli.Command{
 		},
 		&cli.IntFlag{
 			Name:  "max-errors",
-			Usage: "maximum number of errors to display (0 displays all errors)",
-			Value: 1,
+			Usage: "aborts testing after the given number of issues",
+			Value: -1,
 		},
 		&cli.Uint64Flag{
 			Name:  "seed",
@@ -83,16 +83,15 @@ func doRun(context *cli.Context) error {
 
 	evm, ok := evms[evmIdentifier]
 	if !ok {
-		availableIdentifiers := make([]string, 0, len(evms))
-		for k := range evms {
-			availableIdentifiers = append(availableIdentifiers, k)
-		}
-		return fmt.Errorf("invalid EVM identifier, use one of: %v", availableIdentifiers)
+		return fmt.Errorf("invalid EVM identifier, use one of: %v", maps.Keys(evms))
 	}
 
-	filter, err := regexp.Compile(context.String("filter"))
-	if err != nil {
-		return err
+	var err error
+	var filter *regexp.Regexp
+	if pattern := context.String("filter"); pattern != ".*" {
+		if filter, err = regexp.Compile(pattern); err != nil {
+			return err
+		}
 	}
 
 	jobCount := context.Int("jobs")
@@ -100,127 +99,186 @@ func doRun(context *cli.Context) error {
 		jobCount = runtime.NumCPU()
 	}
 
-	fullMode := context.Bool("full-mode")
+	seed := context.Uint64("seed")
+	maxErrors := context.Int("max-errors")
+	issues := runTests(evmIdentifier, evm, jobCount, seed, filter, maxErrors)
 
-	var mutex sync.Mutex
+	// Summarize the result.
+	if len(issues) == 0 {
+		fmt.Printf("All tests passed successfully!\n")
+		return nil
+	}
+
+	for _, issue := range issues {
+		// TODO: write input state of found issues into files
+		fmt.Printf("----------------------------\n")
+		fmt.Printf("%s\n", issue.err)
+	}
+	return fmt.Errorf("failed to pass %d test cases", len(issues))
+}
+
+func runTests(evmName string, evm ct.Evm, jobCount int, seed uint64, filter *regexp.Regexp, maxNumIssues int) []issue {
 	var wg sync.WaitGroup
-
-	var errorsPrinted atomic.Int32
-	var errorCount atomic.Int32
+	var testCounter atomic.Int64
 	var skippedCount atomic.Int32
+	issuesCollector := issuesCollector{}
 
-	ruleCh := make(chan rlz.Rule, jobCount)
+	fmt.Printf("Starting Conformance Tests on %v with seed %d ..\n", evmName, seed)
+	if maxNumIssues > 0 {
+		fmt.Printf("Testing will abort after identifying %d issues\n", maxNumIssues)
+	} else {
+		maxNumIssues = math.MaxInt
+	}
 
-	spec := spc.Spec
+	wg.Add(jobCount)
+	stateCh := make(chan *st.State, 10*jobCount)
 	for i := 0; i < jobCount; i++ {
-		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for rule := range ruleCh {
-				tstart := time.Now()
+			for input := range stateCh {
+				testCounter.Add(1)
 
-				evaluationCount := 0
-				var errs []error
-				err := rule.EnumerateTestCases(rand.New(context.Uint64("seed")), func(state *st.State) rlz.ConsumerResult {
-					if !fullMode {
-						if applies, err := rule.Condition.Check(state); !applies || err != nil {
-							if err != nil {
-								errs = append(errs, err)
-							}
-							return rlz.ConsumeContinue
-						}
-					}
-
-					// TODO: program counter pointing to data not supported by LFVM
-					// converter.
-					if evmIdentifier == "lfvm" && !state.Code.IsCode(int(state.Pc)) {
-						skippedCount.Add(1)
-						return rlz.ConsumeContinue // ignored
-					}
-
-					evaluationCount++
-
-					input := state.Clone()
-
-					rules := spec.GetRulesFor(input)
-					if len(rules) == 0 {
-						// TODO: produce an error once spec is required to be complete
-						return rlz.ConsumeContinue // < ignore
-					}
-					expected := state.Clone()
-					rules[0].Effect.Apply(expected)
-
-					result, err := evm.StepN(input.Clone(), 1)
-					if err != nil {
-						errs = append(errs, err)
-						return rlz.ConsumeContinue
-					}
-
-					if !result.Eq(expected) {
-						errMsg := fmt.Sprintln(result.Diff(expected))
-						errMsg += fmt.Sprintln("input state:", input)
-						errMsg += fmt.Sprintln("result state:", result)
-						errMsg += fmt.Sprintln("expected state:", expected)
-						errs = append(errs, fmt.Errorf(errMsg))
-					}
-
-					return rlz.ConsumeContinue
-				})
-				if err != nil {
-					errs = append(errs, err)
+				// TODO: program counter pointing to data not supported by LFVM
+				// converter. Fix this.
+				if evmName == "lfvm" && !input.Code.IsCode(int(input.Pc)) {
+					skippedCount.Add(1)
+					continue
 				}
 
-				// If no state was evaluated because it was skipped, this is not an error.
-				if evaluationCount == 0 && skippedCount.Load() == 0 {
-					errs = append(errs, fmt.Errorf("none of the generated states fulfilled all the conditions"))
+				if err := runTest(input, evm, filter); err != nil {
+					issuesCollector.AddIssue(input, err)
 				}
-
-				ok := "OK"
-				if len(errs) > 0 {
-					ok = "Failed"
-				}
-
-				errorCount.Add(int32(len(errs)))
-
-				errorsToPrint := len(errs)
-				if maxErrors := context.Int("max-errors"); maxErrors > 0 {
-					errorsLeftToPrint := max(maxErrors-int(errorsPrinted.Load()), 0)
-					errorsToPrint = min(len(errs), errorsLeftToPrint)
-				}
-
-				errorsPrinted.Add(int32(errorsToPrint))
-
-				printErrors := errs[0:errorsToPrint]
-				err = errors.Join(printErrors...)
-
-				mutex.Lock()
-				{
-					fmt.Printf("%v: (rules evaluated: %v) %v (%v)\n", ok, evaluationCount, rule, time.Since(tstart).Round(10*time.Millisecond))
-
-					if err != nil {
-						fmt.Println(err)
-					}
-				}
-				mutex.Unlock()
 			}
 		}()
 	}
 
-	for _, rule := range spec.GetRules() {
-		if filter.MatchString(rule.Name) {
-			ruleCh <- rule
+	// Run a go-routine printing some progress information for the user.
+	done := make(chan bool)
+	printerDone := make(chan bool)
+	go func() {
+		defer close(printerDone)
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		startTime := time.Now()
+		lastTime := startTime
+		lastTestCounter := int64(0)
+		for {
+			select {
+			case <-done:
+				return
+			case curTime := <-ticker.C:
+				cur := testCounter.Load()
+
+				diffCounter := cur - lastTestCounter
+				diffTime := curTime.Sub(lastTime)
+
+				lastTime = curTime
+				lastTestCounter = cur
+
+				relativeTime := curTime.Sub(startTime)
+				rate := float64(diffCounter) / diffTime.Seconds()
+				fmt.Printf(
+					"[t=%4d:%02d] - Processing ~%.1e tests per second, total %d, skipped %d, found issues %d\n",
+					int(relativeTime.Seconds())/60, int(relativeTime.Seconds())%60,
+					rate, cur, skippedCount.Load(), issuesCollector.NumIssues(),
+				)
+			}
+		}
+	}()
+
+	// Generate test states and wait until they are all finished.
+	rand := rand.New(seed)
+	rules := spc.Spec.GetRules()
+	rules = filterRules(rules, filter)
+	for _, rule := range rules {
+		if issuesCollector.NumIssues() < maxNumIssues {
+			fmt.Printf("Processing %v ...\n", rule.Name)
+			rule.EnumerateTestCases(rand, func(state *st.State) rlz.ConsumerResult {
+				if issuesCollector.NumIssues() > maxNumIssues {
+					return rlz.ConsumeAbort
+				}
+				stateCh <- state.Clone()
+				return rlz.ConsumeContinue
+			})
 		}
 	}
+	close(stateCh)
+	wg.Wait() // < releases when all test cases are processed
 
-	close(ruleCh)
-	wg.Wait()
+	// Wait for the printer to be finished.
+	close(done)   // < signals progress printer to stop
+	<-printerDone // < blocks until channel is closed by progress printer
 
-	if cnt := skippedCount.Load(); cnt > 0 {
-		fmt.Printf("Skipped tests: %d\n", cnt)
+	return issuesCollector.issues
+}
+
+func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp) error {
+	rules := spc.Spec.GetRulesFor(input)
+	if len(rules) == 0 {
+		return nil // < TODO: make this an error once the specification is complete
+		//return fmt.Errorf("no rule found for state %v", input)
 	}
-	if cnt := errorCount.Load(); cnt > 0 {
-		return fmt.Errorf("total errors: %d", cnt)
+
+	// filter out unwanted rules
+	rules = filterRules(rules, filter)
+	if len(rules) == 0 {
+		return nil // < this is fine, the targeted rules are filtered out by the user
 	}
 
-	return nil
+	// TODO: enable optional rule consistency check
+	rule := rules[0]
+	expected := input.Clone()
+	rule.Effect.Apply(expected)
+
+	result, err := evm.StepN(input.Clone(), 1)
+	if err != nil {
+		return fmt.Errorf("failed to process input state %v: %w", input, err)
+	}
+
+	if result.Eq(expected) {
+		return nil
+	}
+	errMsg := fmt.Sprintln("input state:", input)
+	errMsg += fmt.Sprintln("result state:", result)
+	errMsg += fmt.Sprintln("expected state:", expected)
+	errMsg += "Differences:\n"
+	for _, diff := range result.Diff(expected) {
+		errMsg += fmt.Sprintf("\t%s\n", diff)
+	}
+	return fmt.Errorf(errMsg)
+}
+
+type issue struct {
+	input *st.State
+	err   error
+}
+
+type issuesCollector struct {
+	issues []issue
+	mu     sync.Mutex
+}
+
+func (c *issuesCollector) AddIssue(state *st.State, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.issues = append(c.issues, issue{state.Clone(), err})
+}
+
+func (c *issuesCollector) NumIssues() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.issues)
+}
+
+func filterRules(rules []rlz.Rule, filter *regexp.Regexp) []rlz.Rule {
+	if filter == nil {
+		return rules
+	}
+	res := make([]rlz.Rule, 0, len(rules))
+	for _, rule := range rules {
+		if filter.MatchString(rule.Name) {
+			res = append(res, rule)
+		}
+	}
+	return res
 }
