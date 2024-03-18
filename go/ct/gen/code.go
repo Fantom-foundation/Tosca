@@ -71,16 +71,30 @@ func (g *CodeGenerator) AddIsData(v Variable) {
 func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Code, error) {
 	var err error
 
+	// Convert operation constraints referencing bound variables to constant constraints.
+	ops := slices.Clone(g.constOps)
+	varOps := make([]varOpConstraint, 0, len(g.varOps))
+	for _, cur := range g.varOps {
+		if value, found := assignment[cur.variable]; found {
+			if !value.IsUint64() || value.Uint64() > st.MaxCodeSize {
+				return nil, fmt.Errorf("%w: unable to constrain code at position %v", ErrUnsatisfiable, value)
+			}
+			ops = append(ops, constOpConstraint{pos: int(value.Uint64()), op: cur.op})
+		} else {
+			varOps = append(varOps, cur)
+		}
+	}
+
 	// Pick a random size that is large enough for all const constraints.
 	minSize := 0
-	for _, constraint := range g.constOps {
+	for _, constraint := range ops {
 		if constraint.pos > minSize {
 			minSize = constraint.pos + 1
 		}
 	}
 	// Make extra space for worst-case size requirements of variable operation
 	// constraints.
-	for _, constraint := range g.varOps {
+	for _, constraint := range varOps {
 		size := 1
 		if PUSH1 <= constraint.op && constraint.op <= PUSH32 {
 			size += int(constraint.op - PUSH1 + 1)
@@ -96,13 +110,11 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 		size = st.MaxCodeSize
 	}
 
-	ops := slices.Clone(g.constOps)
-
 	// Solve variable constraints. constOpConstraints are generated, the
 	// assignment is updated.
-	if len(g.varOps)+len(g.varIsCodeConstraints)+len(g.varIsDataConstraints) != 0 {
+	if len(varOps)+len(g.varIsCodeConstraints)+len(g.varIsDataConstraints) != 0 {
 		solver := newVarCodeConstraintSolver(size, ops, assignment, rnd)
-		ops, err = solver.solve(g.varOps, g.varIsCodeConstraints, g.varIsDataConstraints)
+		ops, err = solver.solve(varOps, g.varIsCodeConstraints, g.varIsDataConstraints)
 		if err != nil {
 			return nil, err
 		}

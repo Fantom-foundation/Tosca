@@ -38,6 +38,7 @@ type StateGenerator struct {
 	pcVariableConstraints []Variable
 	gasConstraints        []vm.Gas
 	gasRefundConstraints  []vm.Gas
+	variableBindings      []variableBinding
 
 	// Generators
 	codeGen         *CodeGenerator
@@ -59,6 +60,24 @@ func NewStateGenerator() *StateGenerator {
 		accountsGen:     NewAccountGenerator(),
 		callContextGen:  NewCallContextGenerator(),
 		BlockContextGen: NewBlockContextGenerator(),
+	}
+}
+
+// variableBinding binds a constant value to a variable.
+type variableBinding struct {
+	variable Variable
+	value    U256
+}
+
+func (a *variableBinding) Less(b *variableBinding) bool {
+	return a.variable < b.variable || (a.variable == b.variable && a.value.Lt(b.value))
+}
+
+// BindValue binds a U256 value to a variable.
+func (g *StateGenerator) BindValue(variable Variable, value U256) {
+	binding := variableBinding{variable, value}
+	if !slices.Contains(g.variableBindings, binding) {
+		g.variableBindings = append(g.variableBindings, binding)
 	}
 }
 
@@ -213,6 +232,15 @@ func (g *StateGenerator) BindToColdAddress(key Variable) {
 // generators are invoked automatically.
 func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	assignment := Assignment{}
+
+	// Enforce variable assignments.
+	for _, binding := range g.variableBindings {
+		cur, found := assignment[binding.variable]
+		if found && cur != binding.value {
+			return nil, fmt.Errorf("%w: unsatisfiable variable binding", ErrUnsatisfiable)
+		}
+		assignment[binding.variable] = binding.value
+	}
 
 	// Pick a status.
 	var resultStatus st.StatusCode
@@ -414,6 +442,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		pcVariableConstraints: slices.Clone(g.pcVariableConstraints),
 		gasConstraints:        slices.Clone(g.gasConstraints),
 		gasRefundConstraints:  slices.Clone(g.gasRefundConstraints),
+		variableBindings:      slices.Clone(g.variableBindings),
 		codeGen:               g.codeGen.Clone(),
 		stackGen:              g.stackGen.Clone(),
 		memoryGen:             g.memoryGen.Clone(),
@@ -434,6 +463,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.pcVariableConstraints = slices.Clone(other.pcVariableConstraints)
 		g.gasConstraints = slices.Clone(other.gasConstraints)
 		g.gasRefundConstraints = slices.Clone(other.gasRefundConstraints)
+		g.variableBindings = slices.Clone(g.variableBindings)
 		g.codeGen.Restore(other.codeGen)
 		g.stackGen.Restore(other.stackGen)
 		g.memoryGen.Restore(other.memoryGen)
@@ -446,6 +476,11 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 
 func (g *StateGenerator) String() string {
 	var parts []string
+
+	sort.Slice(g.variableBindings, func(i, j int) bool { return g.variableBindings[i].Less(&g.variableBindings[j]) })
+	for _, binding := range g.variableBindings {
+		parts = append(parts, fmt.Sprintf("%v=%v", binding.variable, binding.value))
+	}
 
 	sort.Slice(g.statusConstraints, func(i, j int) bool { return g.statusConstraints[i] < g.statusConstraints[j] })
 	for _, status := range g.statusConstraints {
