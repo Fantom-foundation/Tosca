@@ -195,6 +195,9 @@ func runTests(
 		go func() {
 			defer stateWaitGroup.Done()
 			for input := range stateChannel {
+				if issuesCollector.NumIssues() >= maxNumIssues {
+					continue
+				}
 				testCounter.Add(1)
 
 				// TODO: program counter pointing to data not supported by LFVM
@@ -221,12 +224,12 @@ func runTests(
 			defer rulesWaitGroup.Done()
 			for rule := range ruleChannel {
 				if issuesCollector.NumIssues() >= maxNumIssues {
-					break
+					continue
 				}
 				// random is re-seeded for each rule to be reproducible.
 				rand := rand.New(seed)
-				rule.EnumerateTestCases(rand, func(state *st.State) rlz.ConsumerResult {
-					if issuesCollector.NumIssues() > maxNumIssues {
+				err := rule.EnumerateTestCases(rand, func(state *st.State) rlz.ConsumerResult {
+					if issuesCollector.NumIssues() >= maxNumIssues {
 						return rlz.ConsumeAbort
 					}
 					if !fullMode {
@@ -241,6 +244,9 @@ func runTests(
 					stateChannel <- state.Clone()
 					return rlz.ConsumeContinue
 				})
+				if err != nil {
+					issuesCollector.AddIssue(nil, fmt.Errorf("failed to enumerate test cases for %v: %w", rule, err))
+				}
 			}
 		}()
 	}
@@ -315,7 +321,11 @@ type issuesCollector struct {
 func (c *issuesCollector) AddIssue(state *st.State, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.issues = append(c.issues, issue{state.Clone(), err})
+	var clone *st.State
+	if state != nil {
+		clone = state.Clone()
+	}
+	c.issues = append(c.issues, issue{clone, err})
 }
 
 func (c *issuesCollector) NumIssues() int {
