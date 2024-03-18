@@ -128,7 +128,21 @@ func runTests(
 	fullMode bool,
 	maxNumIssues int,
 ) []issue {
-	var wg sync.WaitGroup
+	// The execution of test cases is distributed to parallel goroutines in a three-step
+	// process:
+	//   - this goroutine writes the list of rules to be tested into a channel
+	//   - a team of goroutines fetches rules from the first channel, runs the
+	//     test state enumeration for the retrieved rule, and forward those states
+	//     into a second channel
+	//   - another team of goroutines fetches test-input states from the second
+	//     channel and processes the actual tests.
+	// Additionally, a goroutine periodically reporting progress information to the
+	// console is started.
+	// To avoid dead-locks in this goroutine, consuming goroutines are started before
+	// producing routines. Thus, the order in which goroutines and teams of goroutines
+	// are started below is in the reverse order as listed above.
+
+	var stateWaitGroup sync.WaitGroup
 	var testCounter atomic.Int64
 	var skippedCount atomic.Int32
 	issuesCollector := issuesCollector{}
@@ -140,30 +154,7 @@ func runTests(
 		maxNumIssues = math.MaxInt
 	}
 
-	// Run go-routines processing the actual tests.
-	wg.Add(numJobs)
-	stateChannel := make(chan *st.State, 10*numJobs)
-	for i := 0; i < numJobs; i++ {
-		go func() {
-			defer wg.Done()
-			for input := range stateChannel {
-				testCounter.Add(1)
-
-				// TODO: program counter pointing to data not supported by LFVM
-				// converter. Fix this.
-				if evmName == "lfvm" && !input.Code.IsCode(int(input.Pc)) {
-					skippedCount.Add(1)
-					continue
-				}
-
-				if err := runTest(input, evm, filter); err != nil {
-					issuesCollector.AddIssue(input, err)
-				}
-			}
-		}()
-	}
-
-	// Run a go-routine printing some progress information for the user.
+	// Run a goroutine printing some progress information for the user.
 	done := make(chan bool)
 	printerDone := make(chan bool)
 	go func() {
@@ -197,33 +188,74 @@ func runTests(
 		}
 	}()
 
-	// Generate test states and wait until they are all finished.
-	rand := rand.New(seed)
+	// Run goroutines processing the actual tests.
+	stateWaitGroup.Add(numJobs)
+	stateChannel := make(chan *st.State, 10*numJobs)
+	for i := 0; i < numJobs; i++ {
+		go func() {
+			defer stateWaitGroup.Done()
+			for input := range stateChannel {
+				testCounter.Add(1)
+
+				// TODO: program counter pointing to data not supported by LFVM
+				// converter. Fix this.
+				if evmName == "lfvm" && !input.Code.IsCode(int(input.Pc)) {
+					skippedCount.Add(1)
+					continue
+				}
+
+				if err := runTest(input, evm, filter); err != nil {
+					issuesCollector.AddIssue(input, err)
+				}
+			}
+		}()
+	}
+
+	// Generate test states in parallel (generation can be the bottleneck if there
+	// are many workers processing test cases in parallel).
+	ruleChannel := make(chan rlz.Rule, 10*numJobs)
+	var rulesWaitGroup sync.WaitGroup
+	rulesWaitGroup.Add(numJobs)
+	for i := 0; i < numJobs; i++ {
+		go func() {
+			defer rulesWaitGroup.Done()
+			for rule := range ruleChannel {
+				if issuesCollector.NumIssues() >= maxNumIssues {
+					break
+				}
+				// random is re-seeded for each rule to be reproducible.
+				rand := rand.New(seed)
+				rule.EnumerateTestCases(rand, func(state *st.State) rlz.ConsumerResult {
+					if issuesCollector.NumIssues() > maxNumIssues {
+						return rlz.ConsumeAbort
+					}
+					if !fullMode {
+						if applies, err := rule.Condition.Check(state); !applies || err != nil {
+							if err != nil {
+								issuesCollector.AddIssue(state, err)
+							}
+							return rlz.ConsumeContinue
+						}
+					}
+
+					stateChannel <- state.Clone()
+					return rlz.ConsumeContinue
+				})
+			}
+		}()
+	}
+
+	// Feed the rule generator workers with rules.
 	rules := spc.Spec.GetRules()
 	rules = filterRules(rules, filter)
 	for _, rule := range rules {
-		if issuesCollector.NumIssues() >= maxNumIssues {
-			break
-		}
-		rule.EnumerateTestCases(rand, func(state *st.State) rlz.ConsumerResult {
-			if issuesCollector.NumIssues() > maxNumIssues {
-				return rlz.ConsumeAbort
-			}
-			if !fullMode {
-				if applies, err := rule.Condition.Check(state); !applies || err != nil {
-					if err != nil {
-						issuesCollector.AddIssue(state, err)
-					}
-					return rlz.ConsumeContinue
-				}
-			}
-
-			stateChannel <- state.Clone()
-			return rlz.ConsumeContinue
-		})
+		ruleChannel <- rule
 	}
+	close(ruleChannel)
+	rulesWaitGroup.Wait()
+
 	close(stateChannel)
-	wg.Wait() // < releases when all test cases are processed
+	stateWaitGroup.Wait() // < releases when all test cases are processed
 
 	// Wait for the printer to be finished.
 	close(done)   // < signals progress printer to stop
