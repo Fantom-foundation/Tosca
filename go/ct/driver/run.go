@@ -17,6 +17,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/vm/evmzero"
 	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
+	"github.com/dsnet/golib/unitconv"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/exp/maps"
 	"pgregory.net/rand"
@@ -149,7 +150,7 @@ func runTests(
 
 	fmt.Printf("Starting Conformance Tests on %v with seed %d ..\n", evmName, seed)
 	if maxNumIssues > 0 {
-		fmt.Printf("Testing will abort after identifying %d issues\n", maxNumIssues)
+		fmt.Printf("Testing will abort after identifying %d issue(s)\n", maxNumIssues)
 	} else {
 		maxNumIssues = math.MaxInt
 	}
@@ -301,6 +302,7 @@ func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp) error {
 	errMsg := fmt.Sprintln("input state:", input)
 	errMsg += fmt.Sprintln("result state:", result)
 	errMsg += fmt.Sprintln("expected state:", expected)
+	errMsg += fmt.Sprintln("expectation defined by rule: ", rule.Name)
 	errMsg += "Differences:\n"
 	for _, diff := range result.Diff(expected) {
 		errMsg += fmt.Sprintf("\t%s\n", diff)
