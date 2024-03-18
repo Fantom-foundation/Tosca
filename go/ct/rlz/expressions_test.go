@@ -1,6 +1,8 @@
 package rlz
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"pgregory.net/rand"
@@ -8,6 +10,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 func TestExpression_StatusEval(t *testing.T) {
@@ -95,6 +98,95 @@ func TestExpression_GasRestrict(t *testing.T) {
 	}
 	if state.Gas != 42 {
 		t.Errorf("Generator was not restricted by expression")
+	}
+}
+
+func TestExpression_GasConstraints(t *testing.T) {
+	tests := []struct {
+		condition     Condition
+		valid         bool // < if the condition holds for every gas value
+		unsatisfiable bool // < if there is no gas value satisfying the condition
+	}{
+		// Equality
+		{condition: Eq(Gas(), vm.Gas(0))},
+		{condition: Eq(Gas(), vm.Gas(1))},
+		{condition: Eq(Gas(), vm.Gas(5))},
+		{condition: Eq(Gas(), st.MaxGas)},
+
+		// Not Equal
+		{condition: Ne(Gas(), vm.Gas(0))},
+		{condition: Ne(Gas(), vm.Gas(1))},
+		{condition: Ne(Gas(), vm.Gas(5))},
+		{condition: Ne(Gas(), st.MaxGas)},
+
+		// Less
+		{condition: Lt(Gas(), vm.Gas(0)), unsatisfiable: true},
+		{condition: Lt(Gas(), vm.Gas(1))},
+		{condition: Lt(Gas(), vm.Gas(5))},
+		{condition: Lt(Gas(), st.MaxGas)},
+
+		// Less or equal
+		{condition: Le(Gas(), vm.Gas(0))},
+		{condition: Le(Gas(), vm.Gas(1))},
+		{condition: Le(Gas(), vm.Gas(5))},
+		{condition: Le(Gas(), st.MaxGas), valid: true},
+
+		// Greater or equal
+		{condition: Ge(Gas(), vm.Gas(0)), valid: true},
+		{condition: Ge(Gas(), vm.Gas(1))},
+		{condition: Ge(Gas(), vm.Gas(5))},
+		{condition: Ge(Gas(), st.MaxGas)},
+
+		// Greater
+		{condition: Gt(Gas(), vm.Gas(0))},
+		{condition: Gt(Gas(), vm.Gas(1))},
+		{condition: Gt(Gas(), vm.Gas(5))},
+		{condition: Gt(Gas(), st.MaxGas), unsatisfiable: true},
+
+		// Ranges
+		{condition: And(Ge(Gas(), vm.Gas(4)), Le(Gas(), vm.Gas(10)))},
+		{condition: And(Ge(Gas(), vm.Gas(4)), Le(Gas(), vm.Gas(4)))},
+		{condition: And(Gt(Gas(), vm.Gas(4)), Le(Gas(), vm.Gas(5)))},
+		{condition: And(Ge(Gas(), vm.Gas(4)), Lt(Gas(), vm.Gas(5)))},
+
+		{condition: And(Ge(Gas(), vm.Gas(0)), Le(Gas(), st.MaxGas)), valid: true},
+		{condition: And(Ge(Gas(), vm.Gas(10)), Le(Gas(), vm.Gas(4))), unsatisfiable: true},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%v", test.condition), func(t *testing.T) {
+			random := rand.New()
+			hits := 0
+			misses := 0
+			test.condition.EnumerateTestCases(gen.NewStateGenerator(), func(g *gen.StateGenerator) ConsumerResult {
+				state, err := g.Generate(random)
+				if errors.Is(err, gen.ErrUnsatisfiable) {
+					return ConsumeContinue // ignored
+				}
+				if err != nil {
+					t.Fatalf("failed to generate test case: %v", err)
+				}
+				match, err := test.condition.Check(state)
+				if err != nil {
+					t.Fatalf("failed to check condition: %v", err)
+				}
+				if match {
+					hits++
+				} else {
+					misses++
+				}
+				if hits > 0 && misses > 0 {
+					return ConsumeAbort
+				}
+				return ConsumeContinue
+			})
+			if hits == 0 && !test.unsatisfiable {
+				t.Errorf("failed to generate matching test case")
+			}
+			if misses == 0 && !test.valid {
+				t.Errorf("failed to generate non-matching test case")
+			}
+		})
 	}
 }
 

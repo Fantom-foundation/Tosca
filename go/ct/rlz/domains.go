@@ -4,8 +4,8 @@ import (
 	"math"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 // Domain represents the domain of values for a given type.
@@ -298,18 +298,18 @@ func (addressDomain) SamplesForAll(as []Address) []Address {
 
 type gasDomain struct{}
 
-func (gasDomain) Equal(a uint64, b uint64) bool     { return a == b }
-func (gasDomain) Less(a uint64, b uint64) bool      { return a < b }
-func (gasDomain) Predecessor(a uint64) uint64       { return a - 1 }
-func (gasDomain) Successor(a uint64) uint64         { return a + 1 }
-func (gasDomain) SomethingNotEqual(a uint64) uint64 { return a + 1 }
+func (gasDomain) Equal(a vm.Gas, b vm.Gas) bool     { return a == b }
+func (gasDomain) Less(a vm.Gas, b vm.Gas) bool      { return a < b }
+func (gasDomain) Predecessor(a vm.Gas) vm.Gas       { return a - 1 }
+func (gasDomain) Successor(a vm.Gas) vm.Gas         { return a + 1 }
+func (gasDomain) SomethingNotEqual(a vm.Gas) vm.Gas { return a + 1 }
 
-func (d gasDomain) Samples(a uint64) []uint64 {
-	return d.SamplesForAll([]uint64{a})
+func (d gasDomain) Samples(a vm.Gas) []vm.Gas {
+	return d.SamplesForAll([]vm.Gas{a})
 }
 
-func (gasDomain) SamplesForAll(as []uint64) []uint64 {
-	res := []uint64{0, gen.GasUpperbound}
+func (gasDomain) SamplesForAll(as []vm.Gas) []vm.Gas {
+	res := []vm.Gas{0, st.MaxGas}
 
 	// Test every element off by one.
 	for _, a := range as {
@@ -319,7 +319,7 @@ func (gasDomain) SamplesForAll(as []uint64) []uint64 {
 	}
 
 	// Add all powers of 2 until upper bound.
-	for value := uint64(1); value < gen.GasUpperbound; value <<= 1 {
+	for value := vm.Gas(1); value < st.MaxGas; value <<= 1 {
 		res = append(res, value)
 	}
 

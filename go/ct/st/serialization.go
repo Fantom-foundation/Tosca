@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 	"golang.org/x/exp/maps"
 )
 
@@ -49,8 +50,8 @@ type stateSerializable struct {
 	Revision           Revision
 	ReadOnly           bool
 	Pc                 uint16
-	Gas                uint64
-	GasRefund          uint64
+	Gas                vm.Gas
+	GasRefund          vm.Gas
 	Code               []byte
 	Stack              []U256
 	Memory             []byte

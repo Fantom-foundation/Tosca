@@ -7,6 +7,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 func TestMemory_NewMemory(t *testing.T) {
@@ -123,7 +124,7 @@ func TestMemory_ExpansionCosts(t *testing.T) {
 	mem := NewMemory()
 
 	cost, offset, size := mem.ExpansionCosts(NewU256(128), NewU256(32))
-	if want, got := uint64(15), cost; want != got {
+	if want, got := vm.Gas(15), cost; want != got {
 		t.Errorf("Expansion cost calculation wrong, want %v got %v", want, got)
 	}
 
@@ -139,7 +140,7 @@ func TestMemory_ExpansionCostsSizeTooBig(t *testing.T) {
 	mem := NewMemory()
 
 	cost, offset, size := mem.ExpansionCosts(NewU256(128), NewU256(1, 0))
-	if want, got := uint64(math.MaxUint64), cost; want != got {
+	if want, got := vm.Gas(math.MaxInt64), cost; want != got {
 		t.Errorf("Expansion cost calculation wrong, want %v got %v", want, got)
 	}
 
@@ -155,7 +156,7 @@ func TestMemory_ExpansionCostsOffsetTooBig(t *testing.T) {
 	mem := NewMemory()
 
 	cost, offset, size := mem.ExpansionCosts(NewU256(1, 0), NewU256(32))
-	if want, got := uint64(math.MaxUint64), cost; want != got {
+	if want, got := vm.Gas(math.MaxInt64), cost; want != got {
 		t.Errorf("Expansion cost calculation wrong, want %v got %v", want, got)
 	}
 

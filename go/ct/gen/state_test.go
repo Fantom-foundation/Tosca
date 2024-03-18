@@ -9,6 +9,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 func TestStateGenerator_UnconstrainedGeneratorCanProduceState(t *testing.T) {
@@ -185,7 +186,7 @@ func TestStateGenerator_NonConflictingPcesAreAccepted(t *testing.T) {
 // Gas Counter
 
 func TestStateGenerator_SetGasIsEnforced(t *testing.T) {
-	gasCounts := []uint64{0, 42, GasUpperbound}
+	gasCounts := []vm.Gas{0, 42, st.MaxGas}
 
 	rnd := rand.New(0)
 	for _, gas := range gasCounts {
@@ -225,7 +226,7 @@ func TestStateGenerator_NonConflictingGasAreAccepted(t *testing.T) {
 // Gas Refund Counter
 
 func TestStateGenerator_SetGasRefundIsEnforced(t *testing.T) {
-	gasRefundCounts := []uint64{0, 42, math.MaxUint64}
+	gasRefundCounts := []vm.Gas{0, 42, math.MaxInt64}
 
 	rnd := rand.New(0)
 	for _, gasRefund := range gasRefundCounts {

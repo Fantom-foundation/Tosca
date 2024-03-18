@@ -7,6 +7,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 type RestrictionKind int
@@ -112,17 +113,17 @@ func (e pc) BindTo(generator *gen.StateGenerator) {
 
 type gas struct{}
 
-func Gas() Expression[uint64] {
+func Gas() Expression[vm.Gas] {
 	return gas{}
 }
 
-func (gas) Domain() Domain[uint64] { return gasDomain{} }
+func (gas) Domain() Domain[vm.Gas] { return gasDomain{} }
 
-func (gas) Eval(s *st.State) (uint64, error) {
+func (gas) Eval(s *st.State) (vm.Gas, error) {
 	return s.Gas, nil
 }
 
-func (gas) Restrict(kind RestrictionKind, amount uint64, generator *gen.StateGenerator) {
+func (gas) Restrict(kind RestrictionKind, amount vm.Gas, generator *gen.StateGenerator) {
 	switch kind {
 	case RestrictLess:
 		generator.SetGas(amount - 1)
@@ -142,17 +143,17 @@ func (gas) String() string {
 
 type gasRefund struct{}
 
-func GasRefund() Expression[uint64] {
+func GasRefund() Expression[vm.Gas] {
 	return gasRefund{}
 }
 
-func (gasRefund) Domain() Domain[uint64] { return uint64Domain{} }
+func (gasRefund) Domain() Domain[vm.Gas] { return gasDomain{} }
 
-func (gasRefund) Eval(s *st.State) (uint64, error) {
+func (gasRefund) Eval(s *st.State) (vm.Gas, error) {
 	return s.GasRefund, nil
 }
 
-func (gasRefund) Restrict(kind RestrictionKind, amount uint64, generator *gen.StateGenerator) {
+func (gasRefund) Restrict(kind RestrictionKind, amount vm.Gas, generator *gen.StateGenerator) {
 	if kind != RestrictEqual {
 		panic("GasRefund only supports equality constraints")
 	}

@@ -82,8 +82,8 @@ func (e *SteppableEvmcInterpreter) StepN(
 		return nil, err
 	}
 	state.Pc = uint16(result.Pc)
-	state.Gas = uint64(result.GasLeft)
-	state.GasRefund = uint64(result.GasRefund)
+	state.Gas = vm.Gas(result.GasLeft)
+	state.GasRefund = vm.Gas(result.GasRefund)
 	state.Memory = convertEvmcMemoryToCtMemory(result.Memory)
 	state.Stack, err = convertEvmcStackToCtStack(result.Stack)
 	if err != nil {
