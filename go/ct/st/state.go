@@ -2,7 +2,9 @@ package st
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -47,6 +49,40 @@ func (s StatusCode) String() string {
 	default:
 		return fmt.Sprintf("StatusCode(%d)", s)
 	}
+}
+
+func (s StatusCode) MarshalJSON() ([]byte, error) {
+	statusString := s.String()
+	reg := regexp.MustCompile(`StatusCode\([0-9]+\)`)
+	if reg.MatchString(statusString) {
+		return nil, &json.UnsupportedValueError{}
+	}
+	return json.Marshal(statusString)
+}
+
+func (s *StatusCode) UnmarshalJSON(data []byte) error {
+	var statusString string
+	err := json.Unmarshal(data, &statusString)
+	if err != nil {
+		return err
+	}
+	var status StatusCode
+
+	switch statusString {
+	case "running":
+		status = Running
+	case "stopped":
+		status = Stopped
+	case "reverted":
+		status = Reverted
+	case "failed":
+		status = Failed
+	default:
+		return &json.InvalidUnmarshalError{}
+	}
+
+	*s = status
+	return nil
 }
 
 ////////////////////////////////////////////////////////////

@@ -1,6 +1,7 @@
 package st
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"strings"
@@ -549,6 +550,66 @@ func TestState_DiffMismatch(t *testing.T) {
 	for i := 0; i < len(diffs); i++ {
 		if !strings.Contains(diffs[i], expectedDiffs[i]) {
 			t.Errorf("invalid diff, expected '%s' found '%s'", expectedDiffs[i], diffs[i])
+		}
+	}
+}
+
+func TestState_StatusCodeMarshal(t *testing.T) {
+	tests := map[StatusCode]string{
+		Running:  "\"running\"",
+		Stopped:  "\"stopped\"",
+		Reverted: "\"reverted\"",
+		Failed:   "\"failed\"",
+	}
+
+	for input, expected := range tests {
+		marshaled, err := input.MarshalJSON()
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if !bytes.Equal(marshaled, []byte(expected)) {
+			t.Errorf("Unexpected marshaled status code, wanted: %v vs got: %v", expected, marshaled)
+		}
+	}
+}
+
+func TestState_StatusCodeMarshalError(t *testing.T) {
+	statusCodes := []StatusCode{StatusCode(42), StatusCode(100)}
+	for _, status := range statusCodes {
+		marshaled, err := status.MarshalJSON()
+		if err == nil {
+			t.Errorf("Expected error but got: %v", marshaled)
+		}
+	}
+}
+
+func TestState_StatusCodeUnmarshal(t *testing.T) {
+	tests := map[string]StatusCode{
+		"\"running\"":  Running,
+		"\"stopped\"":  Stopped,
+		"\"reverted\"": Reverted,
+		"\"failed\"":   Failed,
+	}
+
+	for input, expected := range tests {
+		var status StatusCode
+		err := status.UnmarshalJSON([]byte(input))
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if status != expected {
+			t.Errorf("Unexpected unmarshaled status, wanted: %v vs got: %v", expected, status)
+		}
+	}
+}
+
+func TestState_StatusCodeUnmarshalError(t *testing.T) {
+	tests := []string{"StatusCode(42)", "Error", "running"}
+	var status StatusCode
+	for _, input := range tests {
+		err := status.UnmarshalJSON([]byte(input))
+		if err == nil {
+			t.Errorf("Expected error but got: %v", status)
 		}
 	}
 }

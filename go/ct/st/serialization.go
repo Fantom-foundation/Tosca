@@ -2,7 +2,9 @@ package st
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"slices"
 
@@ -52,17 +54,20 @@ type stateSerializable struct {
 	Pc                 uint16
 	Gas                vm.Gas
 	GasRefund          vm.Gas
-	Code               []byte
+	Code               byteSliceSerializable
 	Stack              []U256
-	Memory             []byte
+	Memory             byteSliceSerializable
 	Storage            *storageSerializable
 	Accounts           *accountsSerializable
-	Logs               *Logs
+	Logs               *logsSerializable
 	CallContext        CallContext
 	BlockContext       BlockContext
-	CallData           []byte
-	LastCallReturnData []byte
+	CallData           byteSliceSerializable
+	LastCallReturnData byteSliceSerializable
 }
+
+// byteSliceSerializable is a wrapper to achieve hex code output
+type byteSliceSerializable []byte
 
 // storageSerializable is a serializable representation of the Storage struct.
 type storageSerializable struct {
@@ -71,11 +76,36 @@ type storageSerializable struct {
 	Warm     map[U256]bool
 }
 
-// accountsSerializable is a serializable representation of the Balance struct.
+// accountsSerializable is a serializable representation of the Accounts struct.
 type accountsSerializable struct {
 	Balance map[Address]U256
-	Code    map[Address][]byte
+	Code    map[Address]byteSliceSerializable
 	Warm    map[Address]bool
+}
+
+// logsSerializable is a serializable representation of the Log.
+type logsSerializable struct {
+	Entries []logEntrySerializable
+}
+
+type logEntrySerializable struct {
+	Topics []U256
+	Data   byteSliceSerializable
+}
+
+func newLogsSerializable(logs *Logs) *logsSerializable {
+	serializable := &logsSerializable{}
+	for _, entry := range logs.Entries {
+		serializable.addLog(entry.Data, entry.Topics...)
+	}
+	return serializable
+}
+
+func (l *logsSerializable) addLog(data byteSliceSerializable, topics ...U256) {
+	l.Entries = append(l.Entries, logEntrySerializable{
+		slices.Clone(topics),
+		slices.Clone(data),
+	})
 }
 
 // newStateSerializableFromState creates a new stateSerializable instance from the given State instance.
@@ -93,7 +123,7 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		Memory:             bytes.Clone(state.Memory.mem),
 		Storage:            newStorageSerializable(state.Storage),
 		Accounts:           newAccountsSerializable(state.Accounts),
-		Logs:               state.Logs.Clone(),
+		Logs:               newLogsSerializable(state.Logs),
 		CallContext:        state.CallContext,
 		BlockContext:       state.BlockContext,
 		CallData:           bytes.Clone(state.CallData),
@@ -112,7 +142,7 @@ func newStateSerializableFromSerialized(data []byte) (*stateSerializable, error)
 
 // serialize serializes the stateSerializable instance.
 func (s *stateSerializable) serialize() ([]byte, error) {
-	return json.Marshal(s)
+	return json.MarshalIndent(s, "", "  ")
 }
 
 // deserialize converts the stateSerializable to a State instance.
@@ -136,13 +166,21 @@ func (s *stateSerializable) deserialize() *State {
 	state.Accounts = NewAccounts()
 	if s.Accounts != nil {
 		state.Accounts.Balance = maps.Clone(s.Accounts.Balance)
-		state.Accounts.Code = maps.Clone(s.Accounts.Code)
+
+		state.Accounts.Code = make(map[Address][]byte)
+		for address, code := range s.Accounts.Code {
+			state.Accounts.Code[address] = code
+		}
+
 		for key := range s.Accounts.Warm {
 			state.Accounts.MarkWarm(key)
 		}
 	}
 	if s.Logs != nil {
-		state.Logs = s.Logs.Clone()
+		state.Logs = NewLogs()
+		for _, entry := range s.Logs.Entries {
+			state.Logs.AddLog(entry.Data, entry.Topics...)
+		}
 	}
 	state.CallContext = s.CallContext
 	state.BlockContext = s.BlockContext
@@ -166,9 +204,35 @@ func newAccountsSerializable(accounts *Accounts) *accountsSerializable {
 	for key := range accounts.warm {
 		warm[key] = true
 	}
+
+	codes := make(map[Address]byteSliceSerializable)
+	for address, code := range accounts.Code {
+		codes[address] = code
+	}
+
 	return &accountsSerializable{
 		Balance: maps.Clone(accounts.Balance),
-		Code:    maps.Clone(accounts.Code),
+		Code:    codes,
 		Warm:    warm,
 	}
+}
+
+func (c byteSliceSerializable) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%x\"", c)), nil
+}
+
+func (c *byteSliceSerializable) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+
+	code, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+
+	*c = code
+	return nil
 }
