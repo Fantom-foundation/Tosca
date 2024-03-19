@@ -1510,18 +1510,7 @@ func sstoreOpRegular(params sstoreOpParams) Rule {
 			NumericParameter{},
 		},
 		Effect: Change(func(s *st.State) {
-			if params.gasRefund < 0 {
-				if s.GasRefund < -params.gasRefund {
-					// Gas refund must not become negative!
-					s.Status = st.Failed
-					s.Gas = 0
-					return
-				}
-				s.GasRefund -= -params.gasRefund
-			} else {
-				s.GasRefund += params.gasRefund
-			}
-
+			s.GasRefund += params.gasRefund
 			s.Gas -= params.gasCost
 			s.Pc++
 			key := s.Stack.Pop()
