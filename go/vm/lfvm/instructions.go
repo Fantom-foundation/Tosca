@@ -3,6 +3,7 @@ package lfvm
 import (
 	"bytes"
 	"errors"
+	"math"
 	"math/big"
 	"math/bits"
 
@@ -49,7 +50,7 @@ func checkJumpDest(c *context) {
 func opJump(c *context) {
 	destination := c.stack.pop()
 	// overflow check
-	if !destination.IsUint64() || destination.Uint64()>>33 > 0 {
+	if !destination.IsUint64() || destination.Uint64() > math.MaxInt32 {
 		c.SignalError(errInvalidJump)
 		return
 	}
@@ -63,7 +64,7 @@ func opJumpi(c *context) {
 	condition := c.stack.pop()
 	if !condition.IsZero() {
 		// overflow check
-		if !destination.IsUint64() || destination.Uint64()>>33 > 0 {
+		if !destination.IsUint64() || destination.Uint64() > math.MaxInt32 {
 			c.SignalError(errInvalidJump)
 			return
 		}
