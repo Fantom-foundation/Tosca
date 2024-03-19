@@ -85,13 +85,20 @@ func (m *Memory) ExpansionCosts(offset_u256, size_u256 U256) (memCost vm.Gas, of
 		memCost = 0
 		return
 	}
+	if offset > math.MaxUint64-size || size > math.MaxUint64-offset {
+		memCost = math.MaxInt64
+		return
+	}
 	newSize := offset + size
 	if newSize <= uint64(m.Size()) {
 		memCost = 0
 		return
 	}
 	calcMemoryCost := func(size uint64) vm.Gas {
-		memorySizeWord := (size + 31) / 32
+		memorySizeWord := size / 32
+		if size%32 != 0 {
+			memorySizeWord++
+		}
 		return vm.Gas((memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord))
 	}
 	memCost = calcMemoryCost(newSize) - calcMemoryCost(uint64(m.Size()))
