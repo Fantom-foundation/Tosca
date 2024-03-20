@@ -307,3 +307,42 @@ func (p param) GetVariable() gen.Variable {
 func (p param) BindTo(generator *gen.StateGenerator) {
 	generator.BindStackValue(p.position, p.GetVariable())
 }
+
+////////////////////////////////////////////////////////////
+// Constants
+
+type constant struct {
+	value U256
+}
+
+// Constant creates a bindable expression that can only be bounded to the
+// provided value. It can, for instance, be used to fix the operation at
+// a fixed position in the code.
+func Constant(value U256) BindableExpression[U256] {
+	return constant{value}
+}
+
+func (constant) Domain() Domain[U256] { return u256Domain{} }
+
+func (c constant) Eval(*st.State) (U256, error) {
+	return c.value, nil
+}
+
+func (c constant) Restrict(kind RestrictionKind, value U256, generator *gen.StateGenerator) {
+	panic("not implemented")
+}
+
+func (c constant) String() string {
+	if c.value.IsUint64() {
+		return fmt.Sprintf("%d", c.value.Uint64())
+	}
+	return fmt.Sprintf("%v", c.value)
+}
+
+func (c constant) GetVariable() gen.Variable {
+	return gen.Variable(fmt.Sprintf("constant_%s", c.String()))
+}
+
+func (c constant) BindTo(generator *gen.StateGenerator) {
+	generator.BindValue(c.GetVariable(), c.value)
+}

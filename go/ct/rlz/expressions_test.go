@@ -254,3 +254,50 @@ func TestExpression_StackSizeRestrict(t *testing.T) {
 		t.Errorf("Generator was not restricted by expression")
 	}
 }
+
+func TestConstant_HumanFriendlyPrinting(t *testing.T) {
+	tests := []struct {
+		expression BindableExpression[U256]
+		print      string
+	}{
+		{Constant(NewU256(0)), "0"},
+		{Constant(NewU256(1)), "1"},
+		{Constant(NewU256(256)), "256"},
+		{Constant(NewU256(123456)), "123456"},
+		{Constant(NewU256(1, 2, 3, 4)), "0000000000000001 0000000000000002 0000000000000003 0000000000000004"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.print, func(t *testing.T) {
+			if want, got := test.print, test.expression.String(); want != got {
+				t.Errorf("unexpected print, wanted %s, got %s", want, got)
+			}
+			if want, got := "$constant_"+test.print, test.expression.GetVariable().String(); want != got {
+				t.Errorf("unexpected print, wanted %s, got %s", want, got)
+			}
+		})
+	}
+}
+
+func TestConstant_EvalReturnsValue(t *testing.T) {
+	tests := []U256{
+		NewU256(0),
+		NewU256(1),
+		NewU256(256),
+		NewU256(123456),
+		NewU256(1, 2, 3, 4),
+	}
+
+	for _, test := range tests {
+		t.Run(test.String(), func(t *testing.T) {
+			c := Constant(test)
+			value, err := c.Eval(nil)
+			if err != nil {
+				t.Fatalf("failed to evaluate constant: %v", err)
+			}
+			if value != test {
+				t.Errorf("unexpected value for constant, wanted %v, got %v", test, value)
+			}
+		})
+	}
+}

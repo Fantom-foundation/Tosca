@@ -17,6 +17,7 @@ func TestRule_GenerateSatisfyingState(t *testing.T) {
 		And(Eq(Status(), st.Failed), Eq(Pc(), NewU256(42))),
 		And(Eq(Op(Pc()), ADD)),
 		And(Eq(Op(Pc()), JUMP), Eq(Op(Param(0)), JUMPDEST)),
+		And(Eq(Op(Constant(NewU256(12))), ADD), Eq(Op(Constant(NewU256(3))), JUMP)),
 	}
 
 	rnd := rand.New(0)

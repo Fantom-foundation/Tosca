@@ -63,6 +63,85 @@ func TestCodeGenerator_VariablesAreSupported(t *testing.T) {
 	}
 }
 
+func TestCodeGenerator_PreDefinedVariablesAreAccepted(t *testing.T) {
+	constraints := []struct {
+		variable  Variable
+		operation OpCode
+	}{
+		{Variable("A"), ADD},
+		{Variable("B"), JUMP},
+		{Variable("C"), PUSH2},
+	}
+
+	generator := NewCodeGenerator()
+	for _, cur := range constraints {
+		generator.AddOperation(cur.variable, cur.operation)
+	}
+
+	assignment := Assignment{}
+	for i, cur := range constraints {
+		assignment[cur.variable] = NewU256(uint64(i))
+	}
+
+	rnd := rand.New(0)
+	code, err := generator.Generate(assignment, rnd)
+	if err != nil {
+		t.Fatalf("generation failed: %v", err)
+	}
+
+	for i, cur := range constraints {
+		pos, found := assignment[cur.variable]
+		if !found {
+			t.Fatalf("pre-bound variable freed by generator: %v", cur.variable)
+		}
+		if want, got := NewU256(uint64(i)), pos; want != got {
+			t.Errorf("variable bound to wrong value, wanted %d, got %d", want, got)
+		}
+		if op, err := code.GetOperation(int(i)); err != nil || op != cur.operation {
+			t.Errorf("unsatisfied constraint, wanted %v, got %v, err %v", cur.operation, op, err)
+		}
+	}
+}
+
+func TestCodeGenerator_ConflictInPredefinedVariablesIsDetected(t *testing.T) {
+	opCode := PUSH4 // < the op-code to be used for all variables
+	tests := map[string]map[Variable]uint64{
+		"position_collision": {
+			Variable("A"): 12,
+			Variable("B"): 12,
+		},
+		"in_the_data_of_another_instruction": {
+			Variable("A"): 12,
+			Variable("B"): 14,
+		},
+		"at_the_end_of_the_data_of_another_instruction": {
+			Variable("A"): 12,
+			Variable("B"): 16,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			assignment := Assignment{}
+			for v, p := range test {
+				assignment[v] = NewU256(p)
+			}
+
+			generator := NewCodeGenerator()
+			for v := range test {
+				generator.AddOperation(v, opCode)
+			}
+
+			rnd := rand.New(0)
+			_, err := generator.Generate(assignment, rnd)
+			if !errors.Is(err, ErrUnsatisfiable) {
+				t.Errorf("failed to detect unsatisfiability in %v: %v", generator, err)
+			}
+		})
+	}
+}
+
 func TestCodeGenerator_ConflictingVariablesAreDetected(t *testing.T) {
 	generator := NewCodeGenerator()
 	generator.AddOperation(Variable("X"), ADD)
