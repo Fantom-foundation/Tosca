@@ -32,6 +32,12 @@ jobs:
     - name: Test
       run: make test-go
 
+    - name: CT regression tests LFVM
+      run: go run ./go/ct/driver regressions lfvm
+
+    - name: CT regression tests evmzero
+      run: go run ./go/ct/driver regressions evmzero
+
     # see issue #316
     #- name: CT rule coverage test
     #  run: go run ./go/ct/driver test
