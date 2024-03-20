@@ -49,10 +49,10 @@ func TestCt_ExplicitCases(t *testing.T) {
 
 			input, err := generator.Generate(random)
 			if err != nil {
-				t.Fatalf("failed to generate satisfying state: %v", err)
+				t.Fatalf("failed to generate satisfying state for %v: %v", condition, err)
 			}
 			if ok, err := condition.Check(input); !ok || err != nil {
-				t.Fatalf("failed to generate satisfying state: %v, %v, %v", input, ok, err)
+				t.Fatalf("failed to generate satisfying state for %v, got %v, satisfying: %v, error:%v", condition, input, ok, err)
 			}
 
 			rules := spc.Spec.GetRulesFor(input)
