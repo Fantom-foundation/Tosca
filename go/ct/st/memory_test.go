@@ -120,51 +120,42 @@ func TestMemory_WriteSize0(t *testing.T) {
 	}
 }
 
-func TestMemory_ExpansionCosts(t *testing.T) {
-	mem := NewMemory()
+func TestMemory_MemoryExpansionCosts(t *testing.T) {
+	tests := map[string]struct {
+		offset U256
+		size   U256
 
-	cost, offset, size := mem.ExpansionCosts(NewU256(128), NewU256(32))
-	if want, got := vm.Gas(15), cost; want != got {
-		t.Errorf("Expansion cost calculation wrong, want %v got %v", want, got)
+		wantCost   vm.Gas
+		wantOffset uint64
+		wantSize   uint64
+	}{
+		"large size no overflow":            {NewU256(0), NewU256(math.MaxUint64), vm.Gas(0x1800000000000000), 0, math.MaxUint64},
+		"large offset no overflow":          {NewU256(math.MaxUint64 - 1), NewU256(1), vm.Gas(0x1800000000000000), math.MaxUint64 - 1, 1},
+		"large offset and size no overflow": {NewU256(math.MaxUint64 / 2), NewU256(math.MaxUint64 / 2), vm.Gas(0x1800000000000000), math.MaxUint64 / 2, math.MaxUint64 / 2},
+		"size overflow":                     {NewU256(0), NewU256(1, 0), vm.Gas(math.MaxInt64), 0, 0},
+		"offset overflow":                   {NewU256(1, 0), NewU256(1), vm.Gas(math.MaxInt64), 0, 0},
+		"offset overflow with zero size":    {NewU256(1, 0), NewU256(0), vm.Gas(0), 0, 0},
+		"large offset and size overflow":    {NewU256(math.MaxUint64/2 + 1), NewU256(math.MaxUint64/2 + 1), vm.Gas(math.MaxInt64), math.MaxUint64/2 + 1, math.MaxUint64/2 + 1},
 	}
 
-	if want, got := uint64(128), offset; want != got {
-		t.Errorf("Offset conversion wrong, want %v got %v", want, got)
-	}
-	if want, got := uint64(32), size; want != got {
-		t.Errorf("Size conversion wrong, want %v got %v", want, got)
-	}
-}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			mem := NewMemory()
 
-func TestMemory_ExpansionCostsSizeTooBig(t *testing.T) {
-	mem := NewMemory()
+			cost, offset, size := mem.ExpansionCosts(test.offset, test.size)
 
-	cost, offset, size := mem.ExpansionCosts(NewU256(128), NewU256(1, 0))
-	if want, got := vm.Gas(math.MaxInt64), cost; want != got {
-		t.Errorf("Expansion cost calculation wrong, want %v got %v", want, got)
-	}
+			if want, got := test.wantCost, cost; want != got {
+				t.Errorf("Expansion cost calculation wrong, want %v got %v", want, got)
+			}
 
-	if want, got := uint64(0), offset; want != got {
-		t.Errorf("Offset conversion wrong, want %v got %v", want, got)
-	}
-	if want, got := uint64(0), size; want != got {
-		t.Errorf("Size conversion wrong, want %v got %v", want, got)
-	}
-}
+			if want, got := test.wantOffset, offset; want != got {
+				t.Errorf("Offset conversion wrong, want %v got %v", want, got)
+			}
 
-func TestMemory_ExpansionCostsOffsetTooBig(t *testing.T) {
-	mem := NewMemory()
-
-	cost, offset, size := mem.ExpansionCosts(NewU256(1, 0), NewU256(32))
-	if want, got := vm.Gas(math.MaxInt64), cost; want != got {
-		t.Errorf("Expansion cost calculation wrong, want %v got %v", want, got)
-	}
-
-	if want, got := uint64(0), offset; want != got {
-		t.Errorf("Offset conversion wrong, want %v got %v", want, got)
-	}
-	if want, got := uint64(0), size; want != got {
-		t.Errorf("Size conversion wrong, want %v got %v", want, got)
+			if want, got := test.wantSize, size; want != got {
+				t.Errorf("Size conversion wrong, want %v got %v", want, got)
+			}
+		})
 	}
 }
 
