@@ -160,7 +160,13 @@ func (s *State) Eq(other *State) bool {
 		pcIsEqual = true
 	}
 
-	return s.Status == other.Status &&
+	equalReturnData := true
+	if s.Status == Stopped && other.Status == Stopped {
+		equalReturnData = bytes.Equal(s.ReturnData, other.ReturnData)
+	}
+
+	return equalReturnData &&
+		s.Status == other.Status &&
 		s.Revision == other.Revision &&
 		s.ReadOnly == other.ReadOnly &&
 		pcIsEqual &&
@@ -175,8 +181,7 @@ func (s *State) Eq(other *State) bool {
 		s.CallContext == other.CallContext &&
 		s.BlockContext == other.BlockContext &&
 		slices.Equal(s.CallData, other.CallData) &&
-		slices.Equal(s.LastCallReturnData, other.LastCallReturnData) &&
-		slices.Equal(s.ReturnData, other.ReturnData)
+		slices.Equal(s.LastCallReturnData, other.LastCallReturnData)
 }
 
 const dataCutoffLength = 20
