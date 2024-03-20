@@ -36,19 +36,18 @@ func ToVmParameters(state *st.State) vm.Parameters {
 	}
 
 	return vm.Parameters{
-		Context:            &ctRunContext{state},
-		Revision:           revision,
-		Kind:               vm.Call,
-		Static:             state.ReadOnly,
-		Depth:              0,
-		Gas:                vm.Gas(state.Gas),
-		Recipient:          vm.Address(state.CallContext.AccountAddress),
-		Sender:             vm.Address(state.CallContext.CallerAddress),
-		Input:              state.CallData,
-		LastCallReturnData: state.LastCallReturnData,
-		Value:              vm.Value(state.CallContext.Value.Bytes32be()),
-		CodeHash:           nil,
-		Code:               code,
+		Context:   &ctRunContext{state},
+		Revision:  revision,
+		Kind:      vm.Call,
+		Static:    state.ReadOnly,
+		Depth:     0,
+		Gas:       vm.Gas(state.Gas),
+		Recipient: vm.Address(state.CallContext.AccountAddress),
+		Sender:    vm.Address(state.CallContext.CallerAddress),
+		Input:     state.CallData,
+		Value:     vm.Value(state.CallContext.Value.Bytes32be()),
+		CodeHash:  nil,
+		Code:      code,
 	}
 }
 

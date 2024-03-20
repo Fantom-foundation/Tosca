@@ -72,7 +72,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		code:        converted,
 		isBerlin:    params.Revision >= vm.R09_Berlin,
 		isLondon:    params.Revision >= vm.R10_London,
-		return_data: params.LastCallReturnData,
+		return_data: state.LastCallReturnData,
 	}
 
 	defer func() {
