@@ -23,6 +23,7 @@ struct Context;
 // The PreInstruction/PostInstruction get called before/after interpreting each instruction, respectively.
 template <typename O>
 concept Observer = requires(O o, const InterpreterArgs &args, op::OpCode opcode, const internal::Context &ctx) {
+  { o.uses_context } -> std::same_as<const bool &>;
   { o.PreRun(args) } -> std::same_as<void>;
   { o.PreInstruction(opcode, ctx) } -> std::same_as<void>;
   { o.PostInstruction(opcode, ctx) } -> std::same_as<void>;
@@ -31,6 +32,7 @@ concept Observer = requires(O o, const InterpreterArgs &args, op::OpCode opcode,
 
 // This type serves as a no-op implementation of the observer concept that is used when no observer is to be used.
 struct NoObserver {
+  static constexpr bool uses_context = false;
   inline void PreRun(const InterpreterArgs &) {}
   inline void PreInstruction(op::OpCode, const internal::Context &) {}
   inline void PostInstruction(op::OpCode, const internal::Context &) {}
