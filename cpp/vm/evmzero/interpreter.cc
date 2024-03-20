@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <intx/intx.hpp>
 #include <iostream>
+#include <type_traits>
 
 #include "common/assert.h"
 #include "common/macros.h"
@@ -1898,6 +1899,10 @@ void RunInterpreter(Context& ctx, Observer& observer, int steps) {
     top -= op::Impl<op::opcode>::kInfo.GetStackDelta();                         \
     size += op::Impl<op::opcode>::kInfo.GetStackDelta();                        \
     observer.PostInstruction(op::opcode, ctx);                                  \
+    if constexpr (std::is_same<Observer, Logger>::value) {                      \
+      ctx.gas = gas;                                                            \
+      ctx.stack.SetTop(top);                                                    \
+    }                                                                           \
   }                                                                             \
   DISPATCH();
 
