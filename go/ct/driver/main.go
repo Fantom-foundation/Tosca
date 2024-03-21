@@ -17,6 +17,7 @@ func main() {
 			&RunCmd,
 			&ListCmd,
 			&TestCmd,
+			&RegressionsCmd,
 		},
 	}
 
