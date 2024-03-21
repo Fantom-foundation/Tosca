@@ -1897,6 +1897,10 @@ void RunInterpreter(Context& ctx, Observer& observer, int steps) {
     gas = res.gas_left;                                                         \
     top -= op::Impl<op::opcode>::kInfo.GetStackDelta();                         \
     size += op::Impl<op::opcode>::kInfo.GetStackDelta();                        \
+    if (Observer::uses_context) {                                               \
+      ctx.gas = gas;                                                            \
+      ctx.stack.SetTop(top);                                                    \
+    }                                                                           \
     observer.PostInstruction(op::opcode, ctx);                                  \
   }                                                                             \
   DISPATCH();

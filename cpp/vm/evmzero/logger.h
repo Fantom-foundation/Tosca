@@ -7,6 +7,8 @@ namespace tosca::evmzero {
 
 class Logger {
  public:
+  static constexpr bool uses_context = true;
+
   inline void PreRun(const InterpreterArgs&) {}
 
   inline void PreInstruction(op::OpCode opcode, const internal::Context& ctx) {

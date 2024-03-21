@@ -212,6 +212,8 @@ class Profiler {
   Profiler& operator=(const Profiler&) = delete;
   Profiler& operator=(Profiler&&) = delete;
 
+  static constexpr bool uses_context = false;
+
   // Construct the profiler from an already existing profile.
   explicit Profiler(const Profile<Mode>& profile) noexcept : profile_(profile) {}
 
