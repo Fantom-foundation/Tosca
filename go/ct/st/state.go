@@ -340,7 +340,7 @@ func (s *State) Diff(o *State) []string {
 		res = append(res, fmt.Sprintf("Different last call return data: %x vs %x.", s.LastCallReturnData, o.LastCallReturnData))
 	}
 
-	if (s.Status == Stopped || o.Status == Reverted) && !slices.Equal(s.ReturnData, o.ReturnData) {
+	if (s.Status == Stopped || s.Status == Reverted) && !slices.Equal(s.ReturnData, o.ReturnData) {
 		res = append(res, fmt.Sprintf("Different return data: %x vs %x", s.ReturnData, o.ReturnData))
 	}
 

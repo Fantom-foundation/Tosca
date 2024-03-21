@@ -30,6 +30,7 @@ func (e *SteppableEvmcInterpreter) StepN(
 	state *st.State,
 	numSteps int,
 ) (*st.State, error) {
+
 	host_ctx := hostContext{
 		params:  params,
 		context: params.Context,

@@ -34,5 +34,11 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		state.Status = st.Failed
 		return state, nil
 	}
+
+	// No need to run anything that is not in a running state.
+	if state.Status != st.Running {
+		return state, nil
+	}
+
 	return evmzeroSteppable.StepN(utils.ToVmParameters(state), state, numSteps)
 }

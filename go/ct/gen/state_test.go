@@ -407,7 +407,7 @@ func testData(data []byte, name string, t *testing.T) {
 // //////////////////////////////////////////////////////////
 // Call data
 // Last Call Return data
-//  Return data
+// Return data
 
 func TestStateGenerator_DataGeneration(t *testing.T) {
 	state := genRandomState(t)
