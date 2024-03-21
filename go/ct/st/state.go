@@ -161,7 +161,7 @@ func (s *State) Eq(other *State) bool {
 	}
 
 	equalReturnData := true
-	if s.Status == Stopped || other.Status == Reverted {
+	if s.Status == Stopped || s.Status == Reverted {
 		equalReturnData = bytes.Equal(s.ReturnData, other.ReturnData)
 	}
 
