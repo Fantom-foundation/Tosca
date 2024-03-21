@@ -30,6 +30,7 @@ func (e *SteppableEvmcInterpreter) StepN(
 	state *st.State,
 	numSteps int,
 ) (*st.State, error) {
+
 	host_ctx := hostContext{
 		params:  params,
 		context: params.Context,
@@ -80,6 +81,10 @@ func (e *SteppableEvmcInterpreter) StepN(
 	state.Status, err = convertEvmcStatusToCtStatus(result.StepStatusCode)
 	if err != nil {
 		return nil, err
+	}
+
+	if result.StepStatusCode == evmc.Returned || result.StepStatusCode == evmc.Reverted {
+		state.ReturnData = result.Output
 	}
 	state.Pc = uint16(result.Pc)
 	state.Gas = vm.Gas(result.GasLeft)

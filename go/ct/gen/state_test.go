@@ -374,54 +374,44 @@ func TestStateGenerator_CloneCanBeUsedToResetBuilder(t *testing.T) {
 }
 
 // //////////////////////////////////////////////////////////
-// Call data
 
-func TestStateGenerator_CallDataGen(t *testing.T) {
+func genRandomState(t *testing.T) *st.State {
+	t.Helper()
 	gen := NewStateGenerator()
 	rnd := rand.New(0)
 	state, err := gen.Generate(rnd)
 	if err != nil {
-		t.Errorf("error generating new state: %v", err)
+		t.Fatalf("error generating new state: %v", err)
 	}
-	if len(state.CallData) == 0 {
-		t.Error("failed to generate a non-empty calldata")
+	return state
+}
+
+func testData(data []byte, name string, t *testing.T) {
+	t.Helper()
+	if len(data) == 0 {
+		t.Errorf("failed to generate a non-empty %v", name)
 	} else {
 		allzeros := true
-		for b := range state.CallData {
+		for b := range data {
 			if b != 0 {
 				allzeros = false
 				break
 			}
 		}
 		if allzeros {
-			t.Error("failed to generate a non-zero calldata")
+			t.Errorf("failed to generate a non-zero %v", name)
 		}
 	}
 }
 
 // //////////////////////////////////////////////////////////
+// Call data
+// Last Call Return data
 // Return data
 
-func TestStateGenerator_LastCallReturnDataGen(t *testing.T) {
-	gen := NewStateGenerator()
-	rnd := rand.New(0)
-	state, err := gen.Generate(rnd)
-	if err != nil {
-		t.Errorf("error generating new state: %v", err)
-	}
-
-	if len(state.LastCallReturnData) == 0 {
-		t.Error("failed to generate non-empty last call return data")
-	} else {
-		allzeros := true
-		for _, b := range state.LastCallReturnData {
-			if b != 0 {
-				allzeros = false
-				break
-			}
-		}
-		if allzeros {
-			t.Error("failed to generate non-zero last call return data")
-		}
-	}
+func TestStateGenerator_DataGeneration(t *testing.T) {
+	state := genRandomState(t)
+	testData(state.CallData, "call data", t)
+	testData(state.LastCallReturnData, "last call return data", t)
+	testData(state.ReturnData, "return data", t)
 }

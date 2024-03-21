@@ -120,26 +120,9 @@ func Run(
 		run(&ctxt)
 	}
 
-	var res []byte
-	if ctxt.status == RETURNED || ctxt.status == REVERTED {
-		size, overflow := ctxt.result_size.Uint64WithOverflow()
-		if overflow {
-			return vm.Result{Success: false}, nil
-		}
-
-		if size != 0 {
-			offset, overflow := ctxt.result_offset.Uint64WithOverflow()
-			if overflow {
-				return vm.Result{Success: false}, nil
-			}
-
-			// Extract the result from the memory
-			if err := ctxt.memory.EnsureCapacity(offset, size, &ctxt); err != nil {
-				return vm.Result{Success: false}, nil
-			}
-			res = make([]byte, size)
-			ctxt.memory.CopyData(offset, res[:])
-		}
+	res, err := getResult(&ctxt)
+	if err != nil {
+		return vm.Result{Success: false}, nil
 	}
 
 	// Handle return status
@@ -170,6 +153,31 @@ func Run(
 	default:
 		return vm.Result{}, fmt.Errorf("unexpected error in interpreter: %w", ctxt.err)
 	}
+}
+
+func getResult(ctxt *context) ([]byte, error) {
+	var res []byte
+	if ctxt.status == RETURNED || ctxt.status == REVERTED {
+		size, overflow := ctxt.result_size.Uint64WithOverflow()
+		if overflow {
+			return nil, errGasUintOverflow
+		}
+
+		if size != 0 {
+			offset, overflow := ctxt.result_offset.Uint64WithOverflow()
+			if overflow {
+				return nil, errGasUintOverflow
+			}
+
+			// Extract the result from the memory
+			if err := ctxt.memory.EnsureCapacity(offset, size, ctxt); err != nil {
+				return nil, err
+			}
+			res = make([]byte, size)
+			ctxt.memory.CopyData(offset, res[:])
+		}
+	}
+	return res, nil
 }
 
 func run(c *context) {

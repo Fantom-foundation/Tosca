@@ -1,6 +1,7 @@
 package spc
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -1291,6 +1292,60 @@ var Spec = func() Specification {
 		},
 	})...)
 
+	// --- RETURN ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        RETURN,
+		staticGas: 0,
+		pops:      2,
+		pushes:    0,
+		parameters: []Parameter{
+			MemoryOffsetParameter{},
+			MemorySizeParameter{}},
+		effect: func(s *st.State) {
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
+
+			expansionCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
+			if s.Gas < expansionCost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= expansionCost
+
+			s.ReturnData = bytes.Clone(s.Memory.Read(offset, size))
+			s.Status = st.Stopped
+		},
+	})...)
+
+	// --- REVERT ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        REVERT,
+		staticGas: 0,
+		pops:      2,
+		pushes:    0,
+		parameters: []Parameter{
+			MemoryOffsetParameter{},
+			MemorySizeParameter{}},
+		effect: func(s *st.State) {
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
+
+			expansionCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
+			if s.Gas < expansionCost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= expansionCost
+
+			s.ReturnData = bytes.Clone(s.Memory.Read(offset, size))
+			s.Status = st.Reverted
+		},
+	})...)
+
 	// --- End ---
 
 	return NewSpecification(rules...)
@@ -1701,7 +1756,9 @@ func tooFewElements(i instruction) []Rule {
 // in mind when implementing the effects of new rules.
 func rulesFor(i instruction) []Rule {
 	res := []Rule{}
-	res = append(res, tooLittleGas(i)...)
+	if i.staticGas > 0 {
+		res = append(res, tooLittleGas(i)...)
+	}
 	if i.pops > 0 {
 		res = append(res, tooFewElements(i)...)
 	}
