@@ -41,15 +41,15 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			func(p vm.Parameters) (any, any) { return false, p.Static },
 		},
 		"recipient": {
-			func(s *st.State) { s.CallContext.AccountAddress = cc.Address{1, 2, 3} },
+			func(s *st.State) { s.CallContext.AccountAddress = vm.Address{1, 2, 3} },
 			func(p vm.Parameters) (any, any) { return vm.Address{1, 2, 3}, p.Recipient },
 		},
 		"sender": {
-			func(s *st.State) { s.CallContext.CallerAddress = cc.Address{1, 2, 3} },
+			func(s *st.State) { s.CallContext.CallerAddress = vm.Address{1, 2, 3} },
 			func(p vm.Parameters) (any, any) { return vm.Address{1, 2, 3}, p.Sender },
 		},
 		"origin": {
-			func(s *st.State) { s.CallContext.OriginAddress = cc.Address{1, 2, 3} },
+			func(s *st.State) { s.CallContext.OriginAddress = vm.Address{1, 2, 3} },
 			func(p vm.Parameters) (any, any) { return vm.Address{1, 2, 3}, p.Context.GetTransactionContext().Origin },
 		},
 		"value": {
@@ -63,7 +63,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 		},
 		"coinbase": {
-			func(s *st.State) { s.BlockContext.CoinBase = cc.Address{1, 2, 3} },
+			func(s *st.State) { s.BlockContext.CoinBase = vm.Address{1, 2, 3} },
 			func(p vm.Parameters) (any, any) {
 				return vm.Address{1, 2, 3}, p.Context.GetTransactionContext().Coinbase
 			},
@@ -180,7 +180,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"balance-unspecified": {
 			func(s *st.State) {
 				s.Accounts = &st.Accounts{}
-				s.Accounts.Balance = map[cc.Address]cc.U256{
+				s.Accounts.Balance = map[vm.Address]cc.U256{
 					{1}: cc.NewU256(2),
 				}
 			},
@@ -192,7 +192,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"balance-specified": {
 			func(s *st.State) {
 				s.Accounts = &st.Accounts{}
-				s.Accounts.Balance = map[cc.Address]cc.U256{
+				s.Accounts.Balance = map[vm.Address]cc.U256{
 					{1}: cc.NewU256(2),
 				}
 			},
@@ -204,7 +204,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"getCode": {
 			func(s *st.State) {
 				s.Accounts = &st.Accounts{}
-				s.Accounts.Code = map[cc.Address][]byte{
+				s.Accounts.Code = map[vm.Address][]byte{
 					{1}: {byte(cc.ADD), byte(cc.SUB)},
 				}
 			},
@@ -216,7 +216,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"getCodeHash-emptyHash": {
 			func(s *st.State) {
 				s.Accounts = &st.Accounts{}
-				s.Accounts.Code = map[cc.Address][]byte{}
+				s.Accounts.Code = map[vm.Address][]byte{}
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -232,7 +232,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"getCodeHash": {
 			func(s *st.State) {
 				s.Accounts = &st.Accounts{}
-				s.Accounts.Code = map[cc.Address][]byte{
+				s.Accounts.Code = map[vm.Address][]byte{
 					{1}: {byte(cc.ADD), byte(cc.SUB)},
 				}
 			},
@@ -250,7 +250,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"getCodeSize-empty": {
 			func(s *st.State) {
 				s.Accounts = &st.Accounts{}
-				s.Accounts.Code = map[cc.Address][]byte{}
+				s.Accounts.Code = map[vm.Address][]byte{}
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -260,7 +260,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"getCodeSize": {
 			func(s *st.State) {
 				s.Accounts = &st.Accounts{}
-				s.Accounts.Code = map[cc.Address][]byte{
+				s.Accounts.Code = map[vm.Address][]byte{
 					{1}: {byte(cc.ADD), byte(cc.SUB)},
 				}
 			},
@@ -281,7 +281,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"warm-account": {
 			func(s *st.State) {
 				s.Accounts = st.NewAccounts()
-				s.Accounts.MarkWarm(cc.Address{})
+				s.Accounts.MarkWarm(vm.Address{})
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -300,7 +300,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"warm-account-legacy": {
 			func(s *st.State) {
 				s.Accounts = st.NewAccounts()
-				s.Accounts.MarkWarm(cc.Address{})
+				s.Accounts.MarkWarm(vm.Address{})
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context

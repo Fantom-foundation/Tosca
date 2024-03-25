@@ -7,34 +7,40 @@ import (
 	"strings"
 )
 
-func (a Address) MarshalJSON() ([]byte, error) {
-	res := fmt.Sprintf("%x", a)
-	return json.Marshal(res)
+func (a Address) String() string {
+	return fmt.Sprintf("0x%x", a[:])
 }
 
-func (a *Address) UnmarshalJSON(data []byte) error {
-	return jsonToBytes(a[:], data)
+func (a Address) MarshalText() ([]byte, error) {
+	return bytesToText(a[:])
 }
 
-func (v Value) MarshalJSON() ([]byte, error) {
-	return bytesToJSON(v[:])
+func (a *Address) UnmarshalText(data []byte) error {
+	return textToBytes(a[:], data)
 }
 
-func (v *Value) UnmarshalJSON(data []byte) error {
-	return jsonToBytes(v[:], data)
+func (v Value) String() string {
+	return fmt.Sprintf("0x%x", v[:])
 }
 
-func bytesToJSON(data []byte) ([]byte, error) {
-	res := fmt.Sprintf("%x", data)
-	return json.Marshal(res)
+func (v Value) MarshalText() ([]byte, error) {
+	return bytesToText(v[:])
 }
 
-func jsonToBytes(trg []byte, data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
+func (v *Value) UnmarshalText(data []byte) error {
+	return textToBytes(v[:], data)
+}
+
+func bytesToText(data []byte) ([]byte, error) {
+	return []byte(fmt.Sprintf("0x%x", data)), nil
+}
+
+func textToBytes(trg []byte, data []byte) error {
+	s := string(data)
+	if !strings.HasPrefix(s, "0x") {
+		return fmt.Errorf("invalid format, does not start with 0x: %v", s)
 	}
-	data, err := hex.DecodeString(s)
+	data, err := hex.DecodeString(s[2:])
 	if err != nil {
 		return err
 	}
@@ -67,18 +73,8 @@ func (k CallKind) String() string {
 func (k CallKind) MarshalJSON() ([]byte, error) {
 	var res string
 	switch k {
-	case Call:
-		res = "call"
-	case StaticCall:
-		res = "static_call"
-	case DelegateCall:
-		res = "delegate_call"
-	case CallCode:
-		res = "call_code"
-	case Create:
-		res = "create"
-	case Create2:
-		res = "create2"
+	case Call, StaticCall, DelegateCall, CallCode, Create, Create2:
+		res = k.String()
 	default:
 		return nil, fmt.Errorf("invalid call kind: %v", k)
 	}

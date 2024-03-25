@@ -5,17 +5,25 @@ import (
 	"testing"
 )
 
+func TestAddress_NewAddress(t *testing.T) {
+	address := Address{}
+
+	if address != [20]byte{} {
+		t.Errorf("New address must be default value.")
+	}
+}
+
 func TestAddress_JSON_Encoding(t *testing.T) {
 	tests := []struct {
 		address Address
 		json    string
 	}{
-		{Address{}, "\"0000000000000000000000000000000000000000\""},
-		{Address{1}, "\"0100000000000000000000000000000000000000\""},
-		{Address{0xAB}, "\"ab00000000000000000000000000000000000000\""},
+		{Address{}, "\"0x0000000000000000000000000000000000000000\""},
+		{Address{1}, "\"0x0100000000000000000000000000000000000000\""},
+		{Address{0xAB}, "\"0xab00000000000000000000000000000000000000\""},
 		{
 			Address{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19},
-			"\"000102030405060708090a0b0c0d0e0f10111213\"",
+			"\"0x000102030405060708090a0b0c0d0e0f10111213\"",
 		},
 	}
 
@@ -42,18 +50,23 @@ func TestAddress_JSON_Encoding(t *testing.T) {
 
 func TestAddress_JSON_InvalidValueDecodingFails(t *testing.T) {
 	tests := map[string]string{
-		"way to short":      "\"123\"",
-		"just to short":     "\"000102030405060708090a0b0c0d0e0f1011121\"",
-		"just to long":      "\"000102030405060708090a0b0c0d0e0f101112131\"",
-		"not hex":           "\"hello, this is a test with 20 characters\"",
-		"not a JSON string": "000102030405060708090a0b0c0d0e0f10111213",
+		"empty":                 "\"\"",
+		"empty with hex prefix": "\"0x\"",
+		"no hex prefix":         "\"0000000000000000000000000000000000000000\"",
+		"too short":             "\"0x00000000000000000000000000000000000000\"",
+		"just too short":        "\"0x000102030405060708090a0b0c0d0e0f1011121\"",
+		"just too long":         "\"0x000102030405060708090a0b0c0d0e0f101112131\"",
+		"too long":              "\"0x000000000000000000000000000000000000000000\"",
+		"invalid hex":           "\"0x0g00000000000000000000000000000000000000\"",
+		"not hex":               "\"hello, this is a test with 20 characters\"",
+		"not a JSON string":     "0x000102030405060708090a0b0c0d0e0f10111213",
 	}
 
 	for name, data := range tests {
 		t.Run(name, func(t *testing.T) {
 			var address Address
 			if json.Unmarshal([]byte(data), &address) == nil {
-				t.Errorf("expected decoding to fail, but instead it produced a result")
+				t.Errorf("expected decoding to fail, but instead it produced %v", address)
 			}
 		})
 	}
@@ -64,9 +77,9 @@ func TestValue_JSON_Encoding(t *testing.T) {
 		value Value
 		json  string
 	}{
-		{Value{}, "\"0000000000000000000000000000000000000000000000000000000000000000\""},
-		{Value{1}, "\"0100000000000000000000000000000000000000000000000000000000000000\""},
-		{Value{0xAB}, "\"ab00000000000000000000000000000000000000000000000000000000000000\""},
+		{Value{}, "\"0x0000000000000000000000000000000000000000000000000000000000000000\""},
+		{Value{1}, "\"0x0100000000000000000000000000000000000000000000000000000000000000\""},
+		{Value{0xAB}, "\"0xab00000000000000000000000000000000000000000000000000000000000000\""},
 		{
 			Value{
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
@@ -74,7 +87,7 @@ func TestValue_JSON_Encoding(t *testing.T) {
 				20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
 				30, 31,
 			},
-			"\"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\"",
+			"\"0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\"",
 		},
 	}
 

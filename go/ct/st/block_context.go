@@ -4,18 +4,19 @@ import (
 	"fmt"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 // BlockContext holds the block environment information
 type BlockContext struct {
-	BaseFee     U256    // Base fee in wei
-	BlockNumber uint64  // Block's number
-	ChainID     U256    // Chain id of the network
-	CoinBase    Address // Address of the block's beneficiary
-	GasLimit    uint64  // Block's gas limit
-	GasPrice    U256    // Price of gas in current environment
-	Difficulty  U256    // Current block's difficulty
-	TimeStamp   uint64  // Block's timestamp in unix time in seconds
+	BaseFee     U256       // Base fee in wei
+	BlockNumber uint64     // Block's number
+	ChainID     U256       // Chain id of the network
+	CoinBase    vm.Address // Address of the block's beneficiary
+	GasLimit    uint64     // Block's gas limit
+	GasPrice    U256       // Price of gas in current environment
+	Difficulty  U256       // Current block's difficulty
+	TimeStamp   uint64     // Block's timestamp in unix time in seconds
 }
 
 // Diff returns a list of differences between the two contexts

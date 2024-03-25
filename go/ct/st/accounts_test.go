@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 func TestAccounts_MarkWarmMarksAddressesAsWarm(t *testing.T) {
@@ -71,7 +72,7 @@ func TestAccounts_Clone(t *testing.T) {
 
 func TestAccounts_AccountsWithZeroBalanceAreTreatedTheSameByEqAndDiff(t *testing.T) {
 	a1 := NewAccounts()
-	a1.Balance[Address{1}] = NewU256(0)
+	a1.Balance[vm.Address{1}] = NewU256(0)
 	a2 := NewAccounts()
 
 	equal := a1.Eq(a2)

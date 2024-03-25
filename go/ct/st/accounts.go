@@ -6,25 +6,26 @@ import (
 	"reflect"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/exp/maps"
 )
 
 type Accounts struct {
-	Balance map[Address]U256
-	Code    map[Address][]byte
-	warm    map[Address]struct{}
+	Balance map[vm.Address]U256
+	Code    map[vm.Address][]byte
+	warm    map[vm.Address]struct{}
 }
 
 func NewAccounts() *Accounts {
 	return &Accounts{
-		Balance: make(map[Address]U256),
-		Code:    make(map[Address][]byte),
-		warm:    make(map[Address]struct{}),
+		Balance: make(map[vm.Address]U256),
+		Code:    make(map[vm.Address][]byte),
+		warm:    make(map[vm.Address]struct{}),
 	}
 }
 
-func (a *Accounts) GetCodeHash(address Address) (hash [32]byte) {
+func (a *Accounts) GetCodeHash(address vm.Address) (hash [32]byte) {
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(a.Code[address])
 	hasher.Sum(hash[:])
@@ -88,25 +89,25 @@ func (a *Accounts) Diff(b *Accounts) (res []string) {
 	return
 }
 
-func (a *Accounts) IsWarm(key Address) bool {
+func (a *Accounts) IsWarm(key vm.Address) bool {
 	_, contains := a.warm[key]
 	return contains
 }
 
-func (a *Accounts) IsCold(key Address) bool {
+func (a *Accounts) IsCold(key vm.Address) bool {
 	_, contains := a.warm[key]
 	return !contains
 }
 
-func (a *Accounts) MarkWarm(key Address) {
+func (a *Accounts) MarkWarm(key vm.Address) {
 	a.warm[key] = struct{}{}
 }
 
-func (a *Accounts) MarkCold(key Address) {
+func (a *Accounts) MarkCold(key vm.Address) {
 	delete(a.warm, key)
 }
 
-func (a *Accounts) SetWarm(key Address, warm bool) {
+func (a *Accounts) SetWarm(key vm.Address, warm bool) {
 	if warm {
 		a.MarkWarm(key)
 	} else {

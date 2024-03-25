@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 func TestState_CloneCreatesEqualState(t *testing.T) {
@@ -22,9 +23,9 @@ func TestState_CloneCreatesEqualState(t *testing.T) {
 	state.Storage.Current[NewU256(4)] = NewU256(5)
 	state.Storage.Original[NewU256(6)] = NewU256(7)
 	state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
-	state.CallContext.AccountAddress = Address{0xff}
-	state.CallContext.OriginAddress = Address{0xfe}
-	state.CallContext.CallerAddress = Address{0xfd}
+	state.CallContext.AccountAddress = vm.Address{0xff}
+	state.CallContext.OriginAddress = vm.Address{0xfe}
+	state.CallContext.CallerAddress = vm.Address{0xfd}
 	state.CallContext.Value = NewU256(252)
 	state.BlockContext.BlockNumber = 251
 	state.BlockContext.CoinBase[0] = 0xfa
@@ -53,9 +54,9 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.Storage.Current[NewU256(4)] = NewU256(5)
 	state.Storage.Original[NewU256(6)] = NewU256(7)
 	state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
-	state.CallContext.AccountAddress = Address{0xff}
-	state.CallContext.OriginAddress = Address{0xfe}
-	state.CallContext.CallerAddress = Address{0xfd}
+	state.CallContext.AccountAddress = vm.Address{0xff}
+	state.CallContext.OriginAddress = vm.Address{0xfe}
+	state.CallContext.CallerAddress = vm.Address{0xfd}
 	state.CallContext.Value = NewU256(252)
 	state.BlockContext.BlockNumber = 251
 	state.BlockContext.CoinBase[0] = 0xfa
@@ -79,9 +80,9 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.Storage.MarkWarm(NewU256(42))
 	clone.Logs.Entries[0].Data[0] = 31
 	clone.Logs.Entries[0].Topics[0] = NewU256(41)
-	clone.CallContext.AccountAddress = Address{0x01}
-	clone.CallContext.OriginAddress = Address{0x02}
-	clone.CallContext.CallerAddress = Address{0x03}
+	clone.CallContext.AccountAddress = vm.Address{0x01}
+	clone.CallContext.OriginAddress = vm.Address{0x02}
+	clone.CallContext.CallerAddress = vm.Address{0x03}
 	clone.CallContext.Value = NewU256(4)
 	clone.BlockContext.BlockNumber = 5
 	clone.BlockContext.CoinBase[0] = 0x06
@@ -106,9 +107,9 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		!state.Storage.IsWarm(NewU256(42)) &&
 		state.Logs.Entries[0].Data[0] == 10 &&
 		state.Logs.Entries[0].Topics[0] == NewU256(21) &&
-		state.CallContext.AccountAddress == Address{0xff} &&
-		state.CallContext.OriginAddress == Address{0xfe} &&
-		state.CallContext.CallerAddress == Address{0xfd} &&
+		state.CallContext.AccountAddress == vm.Address{0xff} &&
+		state.CallContext.OriginAddress == vm.Address{0xfe} &&
+		state.CallContext.CallerAddress == vm.Address{0xfd} &&
 		state.CallContext.Value.Eq(NewU256(252)) &&
 		state.BlockContext.BlockNumber == 251 &&
 		state.BlockContext.CoinBase[0] == 0xfa &&
@@ -200,8 +201,8 @@ func TestState_Eq(t *testing.T) {
 	}
 	s2 = NewState(NewCode([]byte{byte(ADD), byte(STOP)}))
 
-	s1.CallContext = CallContext{AccountAddress: Address{0x00}}
-	s2.CallContext = CallContext{AccountAddress: Address{0xff}}
+	s1.CallContext = CallContext{AccountAddress: vm.Address{0x00}}
+	s2.CallContext = CallContext{AccountAddress: vm.Address{0xff}}
 	if s1.Eq(s2) {
 		t.Fail()
 	}
@@ -455,7 +456,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.Memory.Write([]byte{1, 2, 3}, 31)
 	s1.Storage.MarkWarm(NewU256(42))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s1.CallContext = CallContext{AccountAddress: Address{0x01}}
+	s1.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
 	s1.BlockContext = BlockContext{BlockNumber: 1}
 	s1.CallData = append(s1.CallData, 1)
 	s1.LastCallReturnData = append(s1.LastCallReturnData, 1)
@@ -470,7 +471,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.Memory.Write([]byte{1, 2, 3}, 31)
 	s2.Storage.MarkWarm(NewU256(42))
 	s2.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s2.CallContext = CallContext{AccountAddress: Address{0x01}}
+	s2.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
 	s2.BlockContext = BlockContext{BlockNumber: 1}
 	s2.CallData = append(s2.CallData, 1)
 	s2.LastCallReturnData = append(s2.LastCallReturnData, 1)
@@ -498,7 +499,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Storage.MarkWarm(NewU256(42))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s1.CallContext = CallContext{AccountAddress: Address{0xff}}
+	s1.CallContext = CallContext{AccountAddress: vm.Address{0xff}}
 	s1.BlockContext = BlockContext{BlockNumber: 1}
 	s1.CallData = append(s1.CallData, 1)
 	s1.LastCallReturnData = append(s1.LastCallReturnData, 1)
@@ -513,7 +514,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.Memory.Write([]byte{1, 2, 4}, 31)
 	s2.Storage.MarkCold(NewU256(42))
 	s2.Logs.AddLog([]byte{4, 7, 6}, NewU256(24), NewU256(22))
-	s2.CallContext = CallContext{AccountAddress: Address{0xef}}
+	s2.CallContext = CallContext{AccountAddress: vm.Address{0xef}}
 	s2.BlockContext = BlockContext{BlockNumber: 251}
 	s2.CallData = append(s2.CallData, 250)
 	s2.LastCallReturnData = append(s2.LastCallReturnData, 249)

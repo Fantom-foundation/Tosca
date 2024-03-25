@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 ////////////////////////////////////////////////////////////
@@ -26,11 +27,11 @@ func getNewFilledState() *State {
 	s.Storage.Original[NewU256(77)] = NewU256(4)
 	s.Storage.MarkWarm(NewU256(9))
 	s.Accounts = NewAccounts()
-	s.Accounts.Balance[Address{0x01}] = NewU256(42)
-	s.Accounts.Code[Address{0x01}] = []byte{byte(PUSH1), byte(6)}
-	s.Accounts.MarkWarm(Address{0x02})
+	s.Accounts.Balance[vm.Address{0x01}] = NewU256(42)
+	s.Accounts.Code[vm.Address{0x01}] = []byte{byte(PUSH1), byte(6)}
+	s.Accounts.MarkWarm(vm.Address{0x02})
 	s.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s.CallContext = CallContext{AccountAddress: Address{0x01}}
+	s.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
 	s.BlockContext = BlockContext{BlockNumber: 1}
 	s.CallData = []byte{1}
 	s.LastCallReturnData = []byte{1}
@@ -171,12 +172,12 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 	serializableState.Storage.Current[NewU256(42)] = NewU256(4)
 	serializableState.Storage.Original[NewU256(77)] = NewU256(7)
 	serializableState.Storage.Warm[NewU256(9)] = false
-	serializableState.Accounts.Balance[Address{0x01}] = NewU256(77)
-	serializableState.Accounts.Code[Address{0x01}] = []byte{byte(INVALID)}
-	delete(serializableState.Accounts.Warm, Address{0x02})
+	serializableState.Accounts.Balance[vm.Address{0x01}] = NewU256(77)
+	serializableState.Accounts.Code[vm.Address{0x01}] = []byte{byte(INVALID)}
+	delete(serializableState.Accounts.Warm, vm.Address{0x02})
 	serializableState.Logs.Entries[0].Data[0] = 99
 	serializableState.Logs.Entries[0].Topics[0] = NewU256(42)
-	serializableState.CallContext.AccountAddress = Address{0x02}
+	serializableState.CallContext.AccountAddress = vm.Address{0x02}
 	serializableState.BlockContext.BlockNumber = 42
 	serializableState.CallData = []byte{4}
 	serializableState.LastCallReturnData = []byte{6}
@@ -197,12 +198,12 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.Storage.Current[NewU256(7)].IsZero() &&
 		s.Storage.Original[NewU256(77)].Eq(NewU256(4)) &&
 		s.Storage.IsWarm(NewU256(9)) &&
-		s.Accounts.Balance[Address{0x01}].Eq(NewU256(42)) &&
-		bytes.Equal(s.Accounts.Code[Address{0x01}], []byte{byte(PUSH1), byte(6)}) &&
-		s.Accounts.IsWarm(Address{0x02}) &&
+		s.Accounts.Balance[vm.Address{0x01}].Eq(NewU256(42)) &&
+		bytes.Equal(s.Accounts.Code[vm.Address{0x01}], []byte{byte(PUSH1), byte(6)}) &&
+		s.Accounts.IsWarm(vm.Address{0x02}) &&
 		s.Logs.Entries[0].Data[0] == 4 &&
 		s.Logs.Entries[0].Topics[0] == NewU256(21) &&
-		s.CallContext.AccountAddress == Address{0x01} &&
+		s.CallContext.AccountAddress == vm.Address{0x01} &&
 		s.BlockContext.BlockNumber == 1 &&
 		len(s.CallData) == 1 &&
 		s.CallData[0] == 1 &&
@@ -229,12 +230,12 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.Storage.Current[NewU256(42)] = NewU256(4)
 	deserializedState.Storage.Original[NewU256(77)] = NewU256(7)
 	deserializedState.Storage.warm[NewU256(9)] = false
-	deserializedState.Accounts.Balance[Address{0x01}] = NewU256(77)
-	deserializedState.Accounts.Code[Address{0x01}] = []byte{byte(INVALID)}
-	delete(deserializedState.Accounts.warm, Address{0x02})
+	deserializedState.Accounts.Balance[vm.Address{0x01}] = NewU256(77)
+	deserializedState.Accounts.Code[vm.Address{0x01}] = []byte{byte(INVALID)}
+	delete(deserializedState.Accounts.warm, vm.Address{0x02})
 	deserializedState.Logs.Entries[0].Data[0] = 99
 	deserializedState.Logs.Entries[0].Topics[0] = NewU256(42)
-	deserializedState.CallContext.AccountAddress = Address{0x02}
+	deserializedState.CallContext.AccountAddress = vm.Address{0x02}
 	deserializedState.BlockContext.BlockNumber = 42
 	deserializedState.CallData = []byte{4}
 	deserializedState.LastCallReturnData = []byte{6}
@@ -255,12 +256,12 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 		s.Storage.Current[NewU256(7)].IsZero() &&
 		s.Storage.Original[NewU256(77)].Eq(NewU256(4)) &&
 		s.Storage.Warm[NewU256(9)] == true &&
-		s.Accounts.Balance[Address{0x01}].Eq(NewU256(42)) &&
-		bytes.Equal(s.Accounts.Code[Address{0x01}], []byte{byte(PUSH1), byte(6)}) &&
-		s.Accounts.Warm[Address{0x02}] == true &&
+		s.Accounts.Balance[vm.Address{0x01}].Eq(NewU256(42)) &&
+		bytes.Equal(s.Accounts.Code[vm.Address{0x01}], []byte{byte(PUSH1), byte(6)}) &&
+		s.Accounts.Warm[vm.Address{0x02}] == true &&
 		s.Logs.Entries[0].Data[0] == 4 &&
 		s.Logs.Entries[0].Topics[0] == NewU256(21) &&
-		s.CallContext.AccountAddress == Address{0x01} &&
+		s.CallContext.AccountAddress == vm.Address{0x01} &&
 		s.BlockContext.BlockNumber == 1 &&
 		len(s.CallData) == 1 &&
 		s.CallData[0] == 1 &&
