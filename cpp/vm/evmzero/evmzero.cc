@@ -221,6 +221,15 @@ class VM : public evmc_vm {
       stepping_result.memory.WriteTo({memory_data, stepping_result.memory.GetSize()}, 0);
     }
 
+    // Copy last return data to buffer.
+    uint8_t* output_last_call_return_data = nullptr;
+    size_t output_last_call_return_data_size = stepping_result.last_call_return_data.size();
+    if (output_last_call_return_data_size > 0) {
+      output_last_call_return_data = new uint8_t[output_last_call_return_data_size];
+      memcpy(output_last_call_return_data, stepping_result.last_call_return_data.data(),
+             output_last_call_return_data_size);
+    }
+
     return {
         .step_status_code = ToEvmcStepStatusCode(stepping_result.state),
         .status_code = ToEvmcStatusCode(stepping_result.state),
@@ -234,11 +243,14 @@ class VM : public evmc_vm {
         .stack_size = stepping_result.stack.GetSize(),
         .memory = memory_data,
         .memory_size = stepping_result.memory.GetSize(),
+        .last_call_return_data = output_last_call_return_data,
+        .last_call_return_data_size = output_last_call_return_data_size,
         .release =
             [](const evmc_step_result* result) {
               delete[] result->output_data;
               delete[] result->stack;
               delete[] result->memory;
+              delete[] result->last_call_return_data;
             },
     };
   }

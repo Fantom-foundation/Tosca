@@ -128,6 +128,7 @@ SteppingResult InterpretNSteps(const SteppingArgs& args) {
   res.pc = ctx.pc;
   res.stack = ctx.stack;
   res.memory = std::move(ctx.memory);
+  res.last_call_return_data = std::move(ctx.return_data);
   return res;
 }
 
