@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"runtime/pprof"
@@ -110,11 +111,28 @@ func doRun(context *cli.Context) error {
 		return nil
 	}
 
-	for _, issue := range issues {
-		// TODO: write input state of found issues into files
-		fmt.Printf("----------------------------\n")
-		fmt.Printf("%s\n", issue.err)
+	if len(issues) > 0 {
+		jsonDir, err := os.MkdirTemp("", "ct_issues_*")
+		if err != nil {
+			return fmt.Errorf("failed to create output directory for %d issues", len(issues))
+		}
+		for i, issue := range issues {
+			fmt.Printf("----------------------------\n")
+			fmt.Printf("%s\n", issue.err)
+
+			// If there is an input state for this issue, it is exported into a file
+			// to aid its debugging using the regression test infrastructure.
+			if issue.input != nil {
+				path := filepath.Join(jsonDir, fmt.Sprintf("issue_%06d.json", i))
+				if err := st.ExportStateJSON(issue.input, path); err == nil {
+					fmt.Printf("Input state dumped to %s\n", path)
+				} else {
+					fmt.Printf("failed to dump state: %v\n", err)
+				}
+			}
+		}
 	}
+
 	return fmt.Errorf("failed to pass %d test cases", len(issues))
 }
 
@@ -299,15 +317,19 @@ func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp) error {
 	if result.Eq(expected) {
 		return nil
 	}
-	errMsg := fmt.Sprintln("input state:", input)
-	errMsg += fmt.Sprintln("result state:", result)
-	errMsg += fmt.Sprintln("expected state:", expected)
-	errMsg += fmt.Sprintln("expectation defined by rule: ", rule.Name)
-	errMsg += "Differences:\n"
+	return fmt.Errorf(formatDiffForUser(input, result, expected, rule.Name))
+}
+
+func formatDiffForUser(input, result, expected *st.State, ruleName string) string {
+	res := fmt.Sprintln("input state:", input)
+	res += fmt.Sprintln("result state:", result)
+	res += fmt.Sprintln("expected state:", expected)
+	res += fmt.Sprintln("expectation defined by rule: ", ruleName)
+	res += "Differences:\n"
 	for _, diff := range result.Diff(expected) {
-		errMsg += fmt.Sprintf("\t%s\n", diff)
+		res += fmt.Sprintf("\t%s\n", diff)
 	}
-	return fmt.Errorf(errMsg)
+	return res
 }
 
 type issue struct {
