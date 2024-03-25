@@ -91,6 +91,7 @@ func (e *SteppableEvmcInterpreter) StepN(
 	state.GasRefund = vm.Gas(result.GasRefund)
 	state.Memory = convertEvmcMemoryToCtMemory(result.Memory)
 	state.Stack, err = convertEvmcStackToCtStack(result.Stack)
+	state.LastCallReturnData = result.LastCallReturnData
 	if err != nil {
 		return nil, err
 	}

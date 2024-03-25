@@ -70,6 +70,7 @@ struct SteppingResult : InterpreterResult {
   uint64_t pc = 0;
   Stack stack;
   Memory memory;
+  std::vector<uint8_t> last_call_return_data;
 };
 
 extern SteppingResult InterpretNSteps(const SteppingArgs& args);
