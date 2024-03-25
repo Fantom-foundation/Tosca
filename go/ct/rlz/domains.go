@@ -264,28 +264,28 @@ func (stackSizeDomain) SamplesForAll(as []int) []int {
 
 type addressDomain struct{}
 
-func (addressDomain) Equal(a, b Address) bool {
+func (addressDomain) Equal(a, b vm.Address) bool {
 	return a == b
 }
 
-func (addressDomain) Less(Address, Address) bool  { panic("not implemented") }
-func (addressDomain) Predecessor(Address) Address { panic("not implemented") }
-func (addressDomain) Successor(Address) Address   { panic("not implemented") }
+func (addressDomain) Less(vm.Address, vm.Address) bool  { panic("not implemented") }
+func (addressDomain) Predecessor(vm.Address) vm.Address { panic("not implemented") }
+func (addressDomain) Successor(vm.Address) vm.Address   { panic("not implemented") }
 
-func (addressDomain) SomethingNotEqual(a Address) Address {
-	return Address{a[0] + 1}
+func (addressDomain) SomethingNotEqual(a vm.Address) vm.Address {
+	return vm.Address{a[0] + 1}
 }
 
-func (ad addressDomain) Samples(a Address) []Address {
-	return ad.SamplesForAll([]Address{a})
+func (ad addressDomain) Samples(a vm.Address) []vm.Address {
+	return ad.SamplesForAll([]vm.Address{a})
 }
 
-func (addressDomain) SamplesForAll(as []Address) []Address {
-	ret := []Address{}
+func (addressDomain) SamplesForAll(as []vm.Address) []vm.Address {
+	ret := []vm.Address{}
 	ret = append(ret, as...)
 
-	zero := Address{}
-	ffs := Address{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+	zero := vm.Address{}
+	ffs := vm.Address{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 
 	ret = append(ret, zero)
 	ret = append(ret, ffs)

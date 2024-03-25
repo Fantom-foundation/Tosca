@@ -5,12 +5,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
-	"golang.org/x/exp/maps"
 )
 
 ////////////////////////////////////////////////////////////
@@ -79,9 +79,9 @@ type storageSerializable struct {
 
 // accountsSerializable is a serializable representation of the Accounts struct.
 type accountsSerializable struct {
-	Balance map[Address]U256
-	Code    map[Address]byteSliceSerializable
-	Warm    map[Address]bool
+	Balance map[vm.Address]U256
+	Code    map[vm.Address]byteSliceSerializable
+	Warm    map[vm.Address]bool
 }
 
 // logsSerializable is a serializable representation of the Log.
@@ -169,7 +169,7 @@ func (s *stateSerializable) deserialize() *State {
 	if s.Accounts != nil {
 		state.Accounts.Balance = maps.Clone(s.Accounts.Balance)
 
-		state.Accounts.Code = make(map[Address][]byte)
+		state.Accounts.Code = make(map[vm.Address][]byte)
 		for address, code := range s.Accounts.Code {
 			state.Accounts.Code[address] = code
 		}
@@ -203,12 +203,12 @@ func newStorageSerializable(storage *Storage) *storageSerializable {
 
 // newAccountsSerializable creates a new balanceSerializable instance from the given Balance instance.
 func newAccountsSerializable(accounts *Accounts) *accountsSerializable {
-	warm := make(map[Address]bool)
+	warm := make(map[vm.Address]bool)
 	for key := range accounts.warm {
 		warm[key] = true
 	}
 
-	codes := make(map[Address]byteSliceSerializable)
+	codes := make(map[vm.Address]byteSliceSerializable)
 	for address, code := range accounts.Code {
 		codes[address] = code
 	}

@@ -8,6 +8,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 	"pgregory.net/rand"
 )
 
@@ -71,7 +72,7 @@ func randCode(rnd *rand.Rand) []byte {
 	return code
 }
 
-func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, accountAddress Address) (*st.Accounts, error) {
+func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, accountAddress vm.Address) (*st.Accounts, error) {
 	// Check for conflicts among warm/cold constraints.
 	sort.Slice(g.warmCold, func(i, j int) bool { return g.warmCold[i].Less(&g.warmCold[j]) })
 	for i := 0; i < len(g.warmCold)-1; i++ {
@@ -83,14 +84,14 @@ func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, acco
 
 	// When handling unbound variables, we need to generate an unused address for
 	// them. We therefore track which addresses have already been used.
-	addressesInUse := map[Address]bool{}
+	addressesInUse := map[vm.Address]bool{}
 	addressesInUse[accountAddress] = true
 	for _, con := range g.warmCold {
 		if pos, isBound := assignment[con.key]; isBound {
 			addressesInUse[NewAddress(pos)] = true
 		}
 	}
-	getUnusedAddress := func() Address {
+	getUnusedAddress := func() vm.Address {
 		for {
 			address, _ := RandAddress(rnd)
 
@@ -101,12 +102,12 @@ func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, acco
 		}
 	}
 
-	getAddress := func(v Variable) Address {
+	getAddress := func(v Variable) vm.Address {
 		key, isBound := assignment[v]
 		address := NewAddress(key)
 		if !isBound {
 			address = getUnusedAddress()
-			assignment[v] = address.ToU256()
+			assignment[v] = AddressToU256(address)
 		}
 
 		return address

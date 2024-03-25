@@ -59,9 +59,9 @@ type ctRunContext struct {
 }
 
 func (c *ctRunContext) AccountExists(addr vm.Address) bool {
-	_, existsCode := c.state.Accounts.Code[cc.Address(addr)]
-	_, existsBalance := c.state.Accounts.Balance[cc.Address(addr)]
-	existsWarm := c.state.Accounts.IsWarm(cc.Address(addr))
+	_, existsCode := c.state.Accounts.Code[addr]
+	_, existsBalance := c.state.Accounts.Balance[addr]
+	existsWarm := c.state.Accounts.IsWarm(addr)
 	return existsCode || existsBalance || existsWarm
 }
 
@@ -80,20 +80,20 @@ func (c *ctRunContext) SetStorage(addr vm.Address, key vm.Key, value vm.Word) vm
 }
 
 func (c *ctRunContext) GetBalance(addr vm.Address) vm.Value {
-	balance := c.state.Accounts.Balance[cc.Address(addr)]
+	balance := c.state.Accounts.Balance[addr]
 	return vm.Value(balance.Bytes32be())
 }
 
 func (c *ctRunContext) GetCodeSize(addr vm.Address) int {
-	return len(c.state.Accounts.Code[cc.Address(addr)])
+	return len(c.state.Accounts.Code[addr])
 }
 
 func (c *ctRunContext) GetCodeHash(addr vm.Address) vm.Hash {
-	return c.state.Accounts.GetCodeHash(cc.Address(addr))
+	return c.state.Accounts.GetCodeHash(addr)
 }
 
 func (c *ctRunContext) GetCode(addr vm.Address) []byte {
-	return c.state.Accounts.Code[cc.Address(addr)]
+	return c.state.Accounts.Code[addr]
 }
 
 func (c *ctRunContext) GetTransactionContext() vm.TransactionContext {
@@ -132,8 +132,8 @@ func (c *ctRunContext) SelfDestruct(addr vm.Address, beneficiary vm.Address) boo
 }
 
 func (c *ctRunContext) AccessAccount(addr vm.Address) vm.AccessStatus {
-	warm := c.state.Accounts.IsWarm(cc.Address(addr))
-	c.state.Accounts.MarkWarm(cc.Address(addr))
+	warm := c.state.Accounts.IsWarm(addr)
+	c.state.Accounts.MarkWarm(addr)
 	if warm {
 		return vm.WarmAccess
 	}
@@ -158,7 +158,7 @@ func (c *ctRunContext) GetCommittedStorage(addr vm.Address, key vm.Key) vm.Word 
 }
 
 func (c *ctRunContext) IsAddressInAccessList(addr vm.Address) bool {
-	return c.state.Accounts.IsWarm(cc.Address(addr))
+	return c.state.Accounts.IsWarm(addr)
 }
 
 func (c *ctRunContext) IsSlotInAccessList(addr vm.Address, key vm.Key) (addressPresent, slotPresent bool) {

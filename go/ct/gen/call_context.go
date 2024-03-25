@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 type CallContextGenerator struct {
@@ -14,7 +15,7 @@ func NewCallContextGenerator() *CallContextGenerator {
 	return &CallContextGenerator{}
 }
 
-func (*CallContextGenerator) Generate(rnd *rand.Rand, accountAddress common.Address) (st.CallContext, error) {
+func (*CallContextGenerator) Generate(rnd *rand.Rand, accountAddress vm.Address) (st.CallContext, error) {
 	originAddress, err := common.RandAddress(rnd)
 	if err != nil {
 		return st.CallContext{}, err
