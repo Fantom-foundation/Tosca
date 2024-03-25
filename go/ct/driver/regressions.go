@@ -113,11 +113,7 @@ func doRegressionTests(context *cli.Context) error {
 			}
 
 			if !result.Eq(expected) {
-				errMsg := fmt.Sprintln(result.Diff(expected))
-				errMsg += fmt.Sprintln("input state:", input)
-				errMsg += fmt.Sprintln("result state:", result)
-				errMsg += fmt.Sprintln("expected state:", expected)
-				fmt.Printf("Failed to evaluate rule %v: %v\n", rule, errMsg)
+				fmt.Printf("Failed to evaluate rule %v: %v\n", rule, formatDiffForUser(input, result, expected, rule.Name))
 				continue
 			}
 
