@@ -146,41 +146,40 @@ func (s *State) Clone() *State {
 }
 
 func (s *State) Eq(other *State) bool {
+	if s.Status != other.Status {
+		return false
+	}
+
 	// All failure states are considered equal.
 	if s.Status == Failed && other.Status == Failed {
 		return true
 	}
 
-	isHaltedState := func(s *State) bool {
-		return s.Status != Running
-	}
-	pcIsEqual := s.Pc == other.Pc
-	if isHaltedState(s) && isHaltedState(other) {
-		// The program counter does not matter for halted states.
-		pcIsEqual = true
-	}
-
-	equalReturnData := true
-	if s.Status == Stopped || s.Status == Reverted {
-		equalReturnData = bytes.Equal(s.ReturnData, other.ReturnData)
-	}
-
-	return equalReturnData &&
-		s.Status == other.Status &&
+	// Check public observable state properties first.
+	equivalent := true &&
+		s.Code.Eq(other.Code) &&
 		s.Revision == other.Revision &&
 		s.ReadOnly == other.ReadOnly &&
-		pcIsEqual &&
 		s.Gas == other.Gas &&
 		s.GasRefund == other.GasRefund &&
-		s.Code.Eq(other.Code) &&
-		s.Stack.Eq(other.Stack) &&
-		s.Memory.Eq(other.Memory) &&
-		s.Storage.Eq(other.Storage) &&
-		s.Accounts.Eq(other.Accounts) &&
-		s.Logs.Eq(other.Logs) &&
 		s.CallContext == other.CallContext &&
 		s.BlockContext == other.BlockContext &&
 		slices.Equal(s.CallData, other.CallData) &&
+		s.Storage.Eq(other.Storage) &&
+		s.Accounts.Eq(other.Accounts) &&
+		s.Logs.Eq(other.Logs)
+
+	// For terminal states, internal state can be ignored, but the result is important.
+	if s.Status != Running {
+		return equivalent &&
+			bytes.Equal(s.ReturnData, other.ReturnData)
+	}
+
+	// If the state is running, internal state is relevant, but the result can be ignored.
+	return equivalent &&
+		s.Pc == other.Pc &&
+		s.Stack.Eq(other.Stack) &&
+		s.Memory.Eq(other.Memory) &&
 		slices.Equal(s.LastCallReturnData, other.LastCallReturnData)
 }
 

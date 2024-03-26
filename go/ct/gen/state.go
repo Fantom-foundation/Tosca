@@ -385,10 +385,13 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
-	// Generate return data
-	resultReturnData, err := getRandomData(rnd)
-	if err != nil {
-		return nil, err
+	// Generate return data for terminal states.
+	var resultReturnData []byte
+	if resultStatus == st.Stopped || resultStatus == st.Reverted {
+		resultReturnData, err = getRandomData(rnd)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Sub-generators can modify the assignment when unassigned variables are
