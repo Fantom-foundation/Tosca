@@ -407,11 +407,19 @@ func testData(data []byte, name string, t *testing.T) {
 // //////////////////////////////////////////////////////////
 // Call data
 // Last Call Return data
-// Return data
 
 func TestStateGenerator_DataGeneration(t *testing.T) {
 	state := genRandomState(t)
 	testData(state.CallData, "call data", t)
 	testData(state.LastCallReturnData, "last call return data", t)
-	testData(state.ReturnData, "return data", t)
+}
+
+// //////////////////////////////////////////////////////////
+// Return data should always be empty
+
+func TestStateGenerator_ReturnDataShouldBeEmpty(t *testing.T) {
+	state := genRandomState(t)
+	if want, got := 0, len(state.ReturnData); want != got {
+		t.Errorf("unexpected length of generated return data, wanted %d, got %d", want, got)
+	}
 }

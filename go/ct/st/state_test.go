@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -615,7 +616,7 @@ func TestState_StatusCodeUnmarshalError(t *testing.T) {
 	}
 }
 
-func TestState_EqReturnDataCompare(t *testing.T) {
+func TestState_EqualConsidersReturnDataOnlyWhenStoppedOrReverted(t *testing.T) {
 	dataValue := make([]byte, 1)
 	dataValue[0]++
 	tests := map[string]struct {
@@ -625,18 +626,130 @@ func TestState_EqReturnDataCompare(t *testing.T) {
 		"stopped":  {Stopped, false},
 		"reverted": {Reverted, false},
 		"running":  {Running, true},
+		"failed":   {Failed, true},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			s1 := getNewFilledState()
+			s1.Status = test.status
 			s1.ReturnData = dataValue
 			s2 := s1.Clone()
 			s2.ReturnData[0]++
-			s1.Status = test.status
-			s2.Status = test.status
-			if s1.Eq(s2) != test.wanted {
-				t.Error("Compared return data when not stopped")
+			if want, got := test.wanted, s1.Eq(s2); want != got {
+				t.Errorf("unexpected equality result, wanted %t, got %t", want, got)
+			}
+		})
+	}
+}
+
+func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
+	allButFailed := []StatusCode{Running, Stopped, Reverted}
+	allStatusCodes := append(allButFailed, Failed)
+	if int(NumStatusCodes) != len(allStatusCodes) {
+		t.Fatalf("Missing status codes in test, got %v", allStatusCodes)
+	}
+
+	onlyRunning := []StatusCode{Running}
+	tests := map[string]struct {
+		modify      func(*State)
+		relevantFor []StatusCode
+	}{
+		"status": {
+			modify:      func(s *State) { s.Status++ },
+			relevantFor: allStatusCodes,
+		},
+		"revision": {
+			modify:      func(s *State) { s.Revision++ },
+			relevantFor: allButFailed,
+		},
+		"read_only": {
+			modify:      func(s *State) { s.ReadOnly = !s.ReadOnly },
+			relevantFor: allButFailed,
+		},
+		"gas": {
+			modify:      func(s *State) { s.Gas++ },
+			relevantFor: allButFailed,
+		},
+		"gas_refund": {
+			modify:      func(s *State) { s.GasRefund++ },
+			relevantFor: allButFailed,
+		},
+		"code": {
+			modify:      func(s *State) { s.Code = NewCode([]byte{3, 2, 1}) },
+			relevantFor: allButFailed,
+		},
+		"pc": {
+			modify:      func(s *State) { s.Pc++ },
+			relevantFor: onlyRunning,
+		},
+		"stack": {
+			modify: func(s *State) {
+				if s.Stack.Size() > 0 {
+					s.Stack.Pop()
+				} else {
+					s.Stack.Push(U256{})
+				}
+			},
+			relevantFor: onlyRunning,
+		},
+		"memory": {
+			modify:      func(s *State) { s.Memory.Append([]byte{1}) },
+			relevantFor: onlyRunning,
+		},
+		"storage": {
+			modify:      func(s *State) { s.Storage.Current[NewU256(1)] = NewU256(2) },
+			relevantFor: allButFailed,
+		},
+		"accounts": {
+			modify:      func(s *State) { s.Accounts.Balance[vm.Address{}] = NewU256(1) },
+			relevantFor: allButFailed,
+		},
+		"logs": {
+			modify:      func(s *State) { s.Logs.AddLog([]byte{}) },
+			relevantFor: allButFailed,
+		},
+		"call_context": {
+			modify:      func(s *State) { s.CallContext.AccountAddress[0]++ },
+			relevantFor: allButFailed,
+		},
+		"block_context": {
+			modify:      func(s *State) { s.BlockContext.BlockNumber++ },
+			relevantFor: allButFailed,
+		},
+		"call_data": {
+			modify:      func(s *State) { s.CallData = []byte{1, 2, 3} },
+			relevantFor: allButFailed,
+		},
+		"last_call_return_data": {
+			modify:      func(s *State) { s.LastCallReturnData = []byte{1, 2, 3} },
+			relevantFor: onlyRunning,
+		},
+		"return_data": {
+			modify:      func(s *State) { s.ReturnData = []byte{1, 2, 3} },
+			relevantFor: []StatusCode{Stopped, Reverted},
+		},
+	}
+
+	code := NewCode([]byte{1, 2, 3})
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			for _, status := range allStatusCodes {
+				t.Run(fmt.Sprintf("%v", status), func(t *testing.T) {
+					s1 := NewState(code)
+					s1.Status = status
+					s2 := s1.Clone()
+					test.modify(s2)
+
+					wantToBeDetected := slices.Contains(test.relevantFor, status)
+					detectedAsDifferent := !s1.Eq(s2)
+					if wantToBeDetected != detectedAsDifferent {
+						t.Errorf(
+							"wanted change to be considered = %t, got %t",
+							wantToBeDetected, detectedAsDifferent,
+						)
+					}
+				})
 			}
 		})
 	}
