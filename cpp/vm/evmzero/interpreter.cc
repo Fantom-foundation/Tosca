@@ -1575,6 +1575,11 @@ struct CallImpl {
 
     ctx.return_data.clear();
 
+    // Grow the memory for the output for which gas has been charged above.
+    // This has to happen before reading the input as a span to avoid invalidating
+    // the input_data span with the capacity grow.
+    ctx.memory.Grow(output_offset, output_size);
+
     auto input_data = ctx.memory.GetSpan(input_offset, input_size);
 
     int64_t call_gas = kMaxGas;
@@ -1611,7 +1616,6 @@ struct CallImpl {
     const evmc::Result result = ctx.host->call(msg);
     ctx.return_data.assign(result.output_data, result.output_data + result.output_size);
 
-    ctx.memory.Grow(output_offset, output_size);
     if (ctx.return_data.size() > 0) {
       ctx.memory.ReadFromWithSize(ctx.return_data, output_offset, output_size);
     }
