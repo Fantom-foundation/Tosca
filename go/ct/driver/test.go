@@ -2,10 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"math"
+	"net/http"
 	"regexp"
 	"runtime"
 	"sync/atomic"
 	"time"
+
+	_ "net/http/pprof"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
@@ -32,6 +37,11 @@ var TestCmd = cli.Command{
 			Name:  "cpuprofile",
 			Usage: "store CPU profile in the provided filename",
 		},
+		&cli.Int64Flag{
+			Name:  "diagnostic-port",
+			Usage: "enable hosting of a realtime diagnostic server by providing a port",
+			Value: 0,
+		},
 		&cli.BoolFlag{ // < TODO: make every run a full mode once tests pass
 			Name:  "full-mode",
 			Usage: "if enabled, test cases targeting rules other than the one generating the case will be executed",
@@ -40,6 +50,22 @@ var TestCmd = cli.Command{
 }
 
 func doTest(context *cli.Context) error {
+
+	port := context.Int64("diagnostic-port")
+	if port > 0 {
+		if port > math.MaxUint16 {
+			return fmt.Errorf("invalid port for diagnostic server: %d", port)
+		}
+		fmt.Printf("Starting diagnostic server at port http://localhost:%d (see https://pkg.go.dev/net/http/pprof#hdr-Usage_examples for usage examples)", port)
+		fmt.Printf("Block and mutex sampling rate is set to 100%% for diagnostics, which may impact overall performance")
+		go func() {
+			addr := fmt.Sprintf("localhost:%d", port)
+			log.Println(http.ListenAndServe(addr, nil))
+		}()
+		runtime.SetBlockProfileRate(1)
+		runtime.SetMutexProfileFraction(1)
+	}
+
 	filter, err := regexp.Compile(context.String("filter"))
 	if err != nil {
 		return err
