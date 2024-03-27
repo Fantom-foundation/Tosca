@@ -1617,7 +1617,8 @@ struct CallImpl {
     ctx.return_data.assign(result.output_data, result.output_data + result.output_size);
 
     if (ctx.return_data.size() > 0) {
-      ctx.memory.ReadFromWithSize(ctx.return_data, output_offset, output_size);
+      auto size = std::min(output_size, ctx.return_data.size());
+      ctx.memory.ReadFromWithSize(ctx.return_data, output_offset, size);
     }
 
     if (gas -= msg.gas - result.gas_left; gas < 0) [[unlikely]]
