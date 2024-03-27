@@ -53,7 +53,7 @@ var RunCmd = cli.Command{
 			Name:  "cpuprofile",
 			Usage: "store CPU profile in the provided filename",
 		},
-		&cli.BoolFlag{ // < TODO: make every run a full mode once tests pass
+		&cli.BoolFlag{
 			Name:  "full-mode",
 			Usage: "if enabled, test cases targeting rules other than the one generating the case will be executed",
 		},
@@ -100,12 +100,54 @@ func doRun(context *cli.Context) error {
 
 	seed := context.Uint64("seed")
 	maxErrors := context.Int("max-errors")
+	if maxErrors <= 0 {
+		maxErrors = math.MaxInt
+	}
 	fullMode := context.Bool("full-mode")
 
-	// Run the actual tests.
-	issues := runTests(evmIdentifier, evm, jobCount, seed, filter, fullMode, maxErrors)
+	issuesCollector := issuesCollector{}
+	var skippedCount atomic.Int32
+
+	printIssueCounts := func(relativeTime time.Duration, rate float64, current int64) {
+		fmt.Printf(
+			"[t=%4d:%02d] - Processing ~%s tests per second, total %d, skipped %d, found issues %d\n",
+			int(relativeTime.Seconds())/60, int(relativeTime.Seconds())%60,
+			unitconv.FormatPrefix(rate, unitconv.SI, 0), current, skippedCount.Load(), issuesCollector.NumIssues(),
+		)
+	}
+
+	opRun := func(state *st.State) rlz.ConsumerResult {
+		if issuesCollector.NumIssues() >= maxErrors {
+			return rlz.ConsumeAbort
+		}
+
+		// TODO: program counter pointing to data not supported by LFVM
+		// converter. Fix this.
+		if evmIdentifier == "lfvm" && !state.Code.IsCode(int(state.Pc)) {
+			skippedCount.Add(1)
+			return rlz.ConsumeContinue
+		}
+
+		if err := runTest(state, evm, filter); err != nil {
+			issuesCollector.AddIssue(state, err)
+		}
+
+		return rlz.ConsumeContinue
+	}
+
+	fmt.Printf("Starting Conformance Tests with seed %d ...\n", seed)
+
+	err = forEachState(opRun, printIssueCounts, jobCount, seed, fullMode, filter)
+	if err != nil {
+		return fmt.Errorf("error generating States: %v", err)
+	}
+	issues := issuesCollector.issues
 
 	// Summarize the result.
+	if skippedCount.Load() > 0 {
+		fmt.Printf("Number of skipped tests: %d", skippedCount.Load())
+	}
+
 	if len(issues) == 0 {
 		fmt.Printf("All tests passed successfully!\n")
 		return nil
@@ -116,7 +158,7 @@ func doRun(context *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to create output directory for %d issues", len(issues))
 		}
-		for i, issue := range issues {
+		for i, issue := range issuesCollector.issues {
 			fmt.Printf("----------------------------\n")
 			fmt.Printf("%s\n", issue.err)
 
@@ -136,17 +178,14 @@ func doRun(context *cli.Context) error {
 	return fmt.Errorf("failed to pass %d test cases", len(issues))
 }
 
-// runTests orchestrates the parallel execution of all tests derived from the EVM
-// specification using numJobs parallel workers.
-func runTests(
-	evmName string,
-	evm ct.Evm,
+func forEachState(
+	opFunction func(state *st.State) rlz.ConsumerResult,
+	printIssueCounts func(relativeTime time.Duration, rate float64, current int64),
 	numJobs int,
 	seed uint64,
-	filter *regexp.Regexp,
 	fullMode bool,
-	maxNumIssues int,
-) []issue {
+	filter *regexp.Regexp,
+) error {
 	// The execution of test cases is distributed to parallel goroutines in a three-step
 	// process:
 	//   - this goroutine writes the list of rules to be tested into a channel
@@ -163,17 +202,9 @@ func runTests(
 
 	var stateWaitGroup sync.WaitGroup
 	var testCounter atomic.Int64
-	var skippedCount atomic.Int32
-	issuesCollector := issuesCollector{}
+	var abortTests atomic.Bool
+	abortTests.Store(false)
 
-	fmt.Printf("Starting Conformance Tests on %v with seed %d ..\n", evmName, seed)
-	if maxNumIssues > 0 {
-		fmt.Printf("Testing will abort after identifying %d issue(s)\n", maxNumIssues)
-	} else {
-		maxNumIssues = math.MaxInt
-	}
-
-	// Run a goroutine printing some progress information for the user.
 	done := make(chan bool)
 	printerDone := make(chan bool)
 	go func() {
@@ -198,11 +229,7 @@ func runTests(
 
 				relativeTime := curTime.Sub(startTime)
 				rate := float64(diffCounter) / diffTime.Seconds()
-				fmt.Printf(
-					"[t=%4d:%02d] - Processing ~%s tests per second, total %d, skipped %d, found issues %d\n",
-					int(relativeTime.Seconds())/60, int(relativeTime.Seconds())%60,
-					unitconv.FormatPrefix(rate, unitconv.SI, 0), cur, skippedCount.Load(), issuesCollector.NumIssues(),
-				)
+				printIssueCounts(relativeTime, rate, cur)
 			}
 		}
 	}()
@@ -213,22 +240,10 @@ func runTests(
 	for i := 0; i < numJobs; i++ {
 		go func() {
 			defer stateWaitGroup.Done()
-			for input := range stateChannel {
-				if issuesCollector.NumIssues() >= maxNumIssues {
-					continue
-				}
+			for state := range stateChannel {
 				testCounter.Add(1)
-
-				// TODO: program counter pointing to data not supported by LFVM
-				// converter. Fix this.
-				if evmName == "lfvm" && !input.Code.IsCode(int(input.Pc)) {
-					skippedCount.Add(1)
-					continue
-				}
-
-				if err := runTest(input, evm, filter); err != nil {
-					issuesCollector.AddIssue(input, err)
-				}
+				consumeStatus := opFunction(state)
+				abortTests.Store(consumeStatus == rlz.ConsumeAbort)
 			}
 		}()
 	}
@@ -238,24 +253,25 @@ func runTests(
 	ruleChannel := make(chan rlz.Rule, 10*numJobs)
 	var rulesWaitGroup sync.WaitGroup
 	rulesWaitGroup.Add(numJobs)
+
+	var errorMutex sync.Mutex
+	var returnError error
+
 	for i := 0; i < numJobs; i++ {
 		go func() {
 			defer rulesWaitGroup.Done()
 			for rule := range ruleChannel {
-				if issuesCollector.NumIssues() >= maxNumIssues {
-					continue
+				if abortTests.Load() {
+					return
 				}
 				// random is re-seeded for each rule to be reproducible.
 				rand := rand.New(seed)
 				err := rule.EnumerateTestCases(rand, func(state *st.State) rlz.ConsumerResult {
-					if issuesCollector.NumIssues() >= maxNumIssues {
+					if abortTests.Load() {
 						return rlz.ConsumeAbort
 					}
 					if !fullMode {
 						if applies, err := rule.Condition.Check(state); !applies || err != nil {
-							if err != nil {
-								issuesCollector.AddIssue(state, err)
-							}
 							return rlz.ConsumeContinue
 						}
 					}
@@ -264,7 +280,11 @@ func runTests(
 					return rlz.ConsumeContinue
 				})
 				if err != nil {
-					issuesCollector.AddIssue(nil, fmt.Errorf("failed to enumerate test cases for %v: %w", rule, err))
+					abortTests.Store(true)
+					errorMutex.Lock()
+					defer errorMutex.Unlock()
+					returnError = err
+					return
 				}
 			}
 		}()
@@ -276,6 +296,7 @@ func runTests(
 	for _, rule := range rules {
 		ruleChannel <- rule
 	}
+
 	close(ruleChannel)
 	rulesWaitGroup.Wait()
 
@@ -286,7 +307,7 @@ func runTests(
 	close(done)   // < signals progress printer to stop
 	<-printerDone // < blocks until channel is closed by progress printer
 
-	return issuesCollector.issues
+	return returnError
 }
 
 // runTest runs a single test specified by the input state on the given EVM. The
