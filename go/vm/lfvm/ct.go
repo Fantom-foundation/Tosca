@@ -107,6 +107,8 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.Stack = convertLfvmStackToCtStack(ctxt.stack)
 	state.Memory = convertLfvmMemoryToCtMemory(ctxt.memory)
 	state.ReturnData = result
+	state.LastCallReturnData = ctxt.return_data
+
 	return state, nil
 }
 

@@ -102,6 +102,7 @@ type State struct {
 	Accounts           *Accounts
 	Logs               *Logs
 	CallContext        CallContext
+	CallJournal        *CallJournal
 	BlockContext       BlockContext
 	CallData           []byte
 	LastCallReturnData []byte
@@ -119,6 +120,7 @@ func NewState(code *Code) *State {
 		Storage:            NewStorage(),
 		Accounts:           NewAccounts(),
 		Logs:               NewLogs(),
+		CallJournal:        NewCallJournal(),
 		CallData:           make([]byte, 0),
 		LastCallReturnData: make([]byte, 0),
 	}
@@ -138,6 +140,7 @@ func (s *State) Clone() *State {
 	clone.Accounts = s.Accounts.Clone()
 	clone.Logs = s.Logs.Clone()
 	clone.CallContext = s.CallContext
+	clone.CallJournal = s.CallJournal.Clone()
 	clone.BlockContext = s.BlockContext
 	clone.CallData = bytes.Clone(s.CallData)
 	clone.LastCallReturnData = bytes.Clone(s.LastCallReturnData)
@@ -146,6 +149,10 @@ func (s *State) Clone() *State {
 }
 
 func (s *State) Eq(other *State) bool {
+	if s == other {
+		return true
+	}
+
 	if s.Status != other.Status {
 		return false
 	}
@@ -163,6 +170,7 @@ func (s *State) Eq(other *State) bool {
 		s.Gas == other.Gas &&
 		s.GasRefund == other.GasRefund &&
 		s.CallContext == other.CallContext &&
+		s.CallJournal.Equal(other.CallJournal) &&
 		s.BlockContext == other.BlockContext &&
 		slices.Equal(s.CallData, other.CallData) &&
 		s.Storage.Eq(other.Storage) &&
@@ -188,87 +196,119 @@ const stackCutOffLength = 5
 
 func (s *State) String() string {
 	builder := strings.Builder{}
-	builder.WriteString("{\n")
-	builder.WriteString(fmt.Sprintf("\tStatus: %v\n", s.Status))
-	builder.WriteString(fmt.Sprintf("\tRevision: %v\n", s.Revision))
-	builder.WriteString(fmt.Sprintf("\tRead only mode: %t\n", s.ReadOnly))
-	builder.WriteString(fmt.Sprintf("\tPc: %d (0x%04x)\n", s.Pc, s.Pc))
+
+	write := func(pattern string, args ...any) {
+		builder.WriteString(fmt.Sprintf(pattern, args...))
+	}
+
+	write("{\n")
+	write("\tStatus: %v\n", s.Status)
+	write("\tRevision: %v\n", s.Revision)
+	write("\tRead only mode: %t\n", s.ReadOnly)
+	write("\tPc: %d (0x%04x)\n", s.Pc, s.Pc)
 	if !s.Code.IsCode(int(s.Pc)) {
-		builder.WriteString("\t    (points to data)\n")
+		write("\t    (points to data)\n")
 	} else if s.Pc < uint16(len(s.Code.code)) {
-		builder.WriteString(fmt.Sprintf("\t    (operation: %v)\n", OpCode(s.Code.code[s.Pc])))
+		write("\t    (operation: %v)\n", OpCode(s.Code.code[s.Pc]))
 	} else {
-		builder.WriteString("\t    (out of bounds)\n")
+		write("\t    (out of bounds)\n")
 	}
-	builder.WriteString(fmt.Sprintf("\tGas: %d\n", s.Gas))
-	builder.WriteString(fmt.Sprintf("\tGas refund: %d\n", s.GasRefund))
+	write("\tGas: %d\n", s.Gas)
+	write("\tGas refund: %d\n", s.GasRefund)
 	if len(s.Code.code) > dataCutoffLength {
-		builder.WriteString(fmt.Sprintf("\tCode: %x... (size: %d)\n", s.Code.code[:dataCutoffLength], len(s.Code.code)))
+		write("\tCode: %x... (size: %d)\n", s.Code.code[:dataCutoffLength], len(s.Code.code))
 	} else {
-		builder.WriteString(fmt.Sprintf("\tCode: %v\n", s.Code))
+		write("\tCode: %v\n", s.Code)
 	}
-	builder.WriteString(fmt.Sprintf("\tStack size: %d\n", s.Stack.Size()))
+	write("\tStack size: %d\n", s.Stack.Size())
 	for i := 0; i < s.Stack.Size() && i < stackCutOffLength; i++ {
-		builder.WriteString(fmt.Sprintf("\t    %d: %v\n", i, s.Stack.Get(i)))
+		write("\t    %d: %v\n", i, s.Stack.Get(i))
 	}
 	if s.Stack.Size() > stackCutOffLength {
-		builder.WriteString("\t    ...\n")
+		write("\t    ...\n")
 	}
-	builder.WriteString(fmt.Sprintf("\tMemory size: %d\n", s.Memory.Size()))
-	builder.WriteString("\tStorage.Current:\n")
+	write("\tMemory size: %d\n", s.Memory.Size())
+	write("\tStorage.Current:\n")
 	for k, v := range s.Storage.Current {
-		builder.WriteString(fmt.Sprintf("\t    [%v]=%v\n", k, v))
+		write("\t    [%v]=%v\n", k, v)
 	}
-	builder.WriteString("\tStorage.Original:\n")
+	write("\tStorage.Original:\n")
 	for k, v := range s.Storage.Original {
-		builder.WriteString(fmt.Sprintf("\t    [%v]=%v\n", k, v))
+		write("\t    [%v]=%v\n", k, v)
 	}
-	builder.WriteString("\tStorage.Warm:\n")
+	write("\tStorage.Warm:\n")
 	for k := range s.Storage.warm {
-		builder.WriteString(fmt.Sprintf("\t    [%v]\n", k))
+		write("\t    [%v]\n", k)
 	}
-	builder.WriteString("\tAccount.Balance:\n")
+	write("\tAccount.Balance:\n")
 	for k, v := range s.Accounts.Balance {
-		builder.WriteString(fmt.Sprintf("\t    [%v]=%v\n", k, v))
+		write("\t    [%v]=%v\n", k, v)
 	}
-	builder.WriteString("\tAccount.Code:\n")
+	write("\tAccount.Code:\n")
 	for k, v := range s.Accounts.Code {
-		builder.WriteString(fmt.Sprintf("\t    [%v]=%v\n", k, v))
+		write("\t    [%v]=%v\n", k, v)
 	}
-	builder.WriteString("\tAddress.Warm:\n")
+	write("\tAddress.Warm:\n")
 	for k := range s.Accounts.warm {
-		builder.WriteString(fmt.Sprintf("\t    [%v]\n", k))
+		write("\t    [%v]\n", k)
 	}
-	builder.WriteString("\tLogs:\n")
+	write("\tLogs:\n")
 	for entryId, entry := range s.Logs.Entries {
-		builder.WriteString(fmt.Sprintf("\t    entry %02d:\n", entryId))
+		write("\t    entry %02d:\n", entryId)
 		for topicId, topic := range entry.Topics {
-			builder.WriteString(fmt.Sprintf("\t        topic %02d: %v\n", topicId, topic))
+			write("\t        topic %02d: %v\n", topicId, topic)
 		}
-		builder.WriteString(fmt.Sprintf("\t        data: %x\n", entry.Data))
+		write("\t        data: %x\n", entry.Data)
 	}
-	builder.WriteString(fmt.Sprintf("\t%v", s.CallContext.String()))
-	builder.WriteString(fmt.Sprintf("\t%v", s.BlockContext.String()))
+	write("\t%v", s.CallContext.String())
+	write("\t%v", s.BlockContext.String())
+
+	write("\tPast Calls:\n")
+	for i, cur := range s.CallJournal.Past {
+		write("\t\tCall %d:\n", i)
+		write("\t\t\tKind:      %v\n", cur.Kind)
+		write("\t\t\tRecipient: %v\n", cur.Recipient)
+		write("\t\t\tSender:    %v\n", cur.Sender)
+		write("\t\t\tInput:     %v\n", cur.Input)
+		write("\t\t\tValue:     %v\n", cur.Value)
+		write("\t\t\tGas:       %v\n", cur.Gas)
+	}
+
+	write("\tFuture Calls:\n")
+	for i, cur := range s.CallJournal.Future {
+		write("\t\tCall %d:\n", i)
+		write("\t\t\tSuccess:  %t\n", cur.Success)
+		write("\t\t\tOutput:   %v\n", cur.Output)
+		write("\t\t\tGasCosts: %v\n", cur.GasCosts)
+	}
+
+	for entryId, entry := range s.Logs.Entries {
+		write("\t    entry %02d:\n", entryId)
+		for topicId, topic := range entry.Topics {
+			write("\t        topic %02d: %v\n", topicId, topic)
+		}
+		write("\t        data: %x\n", entry.Data)
+	}
 
 	if len(s.CallData) > dataCutoffLength {
-		builder.WriteString(fmt.Sprintf("\tCallData: %x... (size: %d)\n", s.CallData[:dataCutoffLength], len(s.CallData)))
+		write("\tCallData: %x... (size: %d)\n", s.CallData[:dataCutoffLength], len(s.CallData))
 	} else {
-		builder.WriteString(fmt.Sprintf("\tCallData: %x\n", s.CallData))
+		write("\tCallData: %x\n", s.CallData)
 	}
 
 	if len(s.LastCallReturnData) > dataCutoffLength {
-		builder.WriteString(fmt.Sprintf("\tLastCallReturnData: %x... (size: %d)\n", s.LastCallReturnData[:dataCutoffLength], len(s.LastCallReturnData)))
+		write("\tLastCallReturnData: %x... (size: %d)\n", s.LastCallReturnData[:dataCutoffLength], len(s.LastCallReturnData))
 	} else {
-		builder.WriteString(fmt.Sprintf("\tLastCallReturnData: %x\n", s.LastCallReturnData))
+		write("\tLastCallReturnData: %x\n", s.LastCallReturnData)
 	}
 
 	if len(s.ReturnData) > dataCutoffLength {
-		builder.WriteString(fmt.Sprintf("\tReturnData: %x... (size: %d)\n", s.ReturnData[:dataCutoffLength], len(s.ReturnData)))
+		write("\tReturnData: %x... (size: %d)\n", s.ReturnData[:dataCutoffLength], len(s.ReturnData))
 	} else {
-		builder.WriteString(fmt.Sprintf("\tReturnData: %x\n", s.ReturnData))
+		write("\tReturnData: %x\n", s.ReturnData)
 	}
 
-	builder.WriteString("}")
+	write("}")
 	return builder.String()
 }
 
@@ -292,7 +332,7 @@ func (s *State) Diff(o *State) []string {
 	}
 
 	if s.Gas != o.Gas {
-		res = append(res, fmt.Sprintf("Different gas: %v vs %v", s.Gas, o.Gas))
+		res = append(res, fmt.Sprintf("Different gas: %v vs %v (diff: %d)", s.Gas, o.Gas, o.Gas-s.Gas))
 	}
 
 	if s.GasRefund != o.GasRefund {
@@ -325,6 +365,10 @@ func (s *State) Diff(o *State) []string {
 
 	if s.CallContext != o.CallContext {
 		res = append(res, s.CallContext.Diff(&o.CallContext)...)
+	}
+
+	if !s.CallJournal.Equal(o.CallJournal) {
+		res = append(res, s.CallJournal.Diff(o.CallJournal)...)
 	}
 
 	if s.BlockContext != o.BlockContext {

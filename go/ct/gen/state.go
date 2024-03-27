@@ -47,6 +47,7 @@ type StateGenerator struct {
 	storageGen      *StorageGenerator
 	accountsGen     *AccountsGenerator
 	callContextGen  *CallContextGenerator
+	callJournalGen  *CallJournalGenerator
 	BlockContextGen *BlockContextGenerator
 }
 
@@ -59,6 +60,7 @@ func NewStateGenerator() *StateGenerator {
 		storageGen:      NewStorageGenerator(),
 		accountsGen:     NewAccountGenerator(),
 		callContextGen:  NewCallContextGenerator(),
+		callJournalGen:  NewCallJournalGenerator(),
 		BlockContextGen: NewBlockContextGenerator(),
 	}
 }
@@ -367,6 +369,11 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
+	resultCallJournal, err := g.callJournalGen.Generate(rnd)
+	if err != nil {
+		return nil, err
+	}
+
 	// Invoke BlockContextGenerator
 	resultBlockContext, err := g.BlockContextGen.Generate(rnd, resultRevision)
 	if err != nil {
@@ -434,6 +441,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.Storage = resultStorage
 	result.Accounts = resultAccounts
 	result.CallContext = resultCallContext
+	result.CallJournal = resultCallJournal
 	result.BlockContext = resultBlockContext
 	result.CallData = resultCallData
 	result.LastCallReturnData = resultLastCallReturnData
@@ -460,6 +468,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		storageGen:            g.storageGen.Clone(),
 		accountsGen:           g.accountsGen.Clone(),
 		callContextGen:        g.callContextGen.Clone(),
+		callJournalGen:        g.callJournalGen.Clone(),
 		BlockContextGen:       g.BlockContextGen.Clone(),
 	}
 }
@@ -481,6 +490,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.storageGen.Restore(other.storageGen)
 		g.accountsGen.Restore(other.accountsGen)
 		g.callContextGen.Restore(other.callContextGen)
+		g.callJournalGen.Restore(other.callJournalGen)
 		g.BlockContextGen.Restore(other.BlockContextGen)
 	}
 }
@@ -532,8 +542,9 @@ func (g *StateGenerator) String() string {
 	parts = append(parts, fmt.Sprintf("memory=%v", g.memoryGen))
 	parts = append(parts, fmt.Sprintf("storage=%v", g.storageGen))
 	parts = append(parts, fmt.Sprintf("accounts=%v", g.accountsGen))
-	parts = append(parts, fmt.Sprintf("callcontext=%v", g.callContextGen))
-	parts = append(parts, fmt.Sprintf("blockcontext=%v", g.BlockContextGen))
+	parts = append(parts, fmt.Sprintf("callContext=%v", g.callContextGen))
+	parts = append(parts, fmt.Sprintf("callJournal=%v", g.callJournalGen))
+	parts = append(parts, fmt.Sprintf("blockContext=%v", g.BlockContextGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }

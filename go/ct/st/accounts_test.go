@@ -135,3 +135,38 @@ func TestAccounts_Diff(t *testing.T) {
 		})
 	}
 }
+
+func TestAccounts_IsEmptyDependsOnBalanceAndCode(t *testing.T) {
+	zero := NewU256(0)
+	nonzero := NewU256(1)
+	tests := map[string]struct {
+		balance *U256
+		code    []byte
+		empty   bool
+	}{
+		"no_balance_no_code":                 {empty: true},
+		"zero_balance_no_code":               {balance: &zero, empty: true},
+		"nonzero_balance_no_code":            {balance: &nonzero, empty: false},
+		"no_balance_with_empty_code":         {code: []byte{}, empty: true},
+		"no_balance_with_nonempty_code":      {code: []byte{1, 2, 3}, empty: false},
+		"nonzero_balance_with_empty_code":    {balance: &nonzero, code: []byte{}, empty: false},
+		"nonzero_balance_with_nonempty_code": {balance: &nonzero, code: []byte{1, 2, 3}, empty: false},
+	}
+
+	addr := vm.Address{}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			accounts := NewAccounts()
+			if test.balance != nil {
+				accounts.Balance[addr] = *test.balance
+			}
+			if test.code != nil {
+				accounts.Code[addr] = test.code
+			}
+			if want, got := test.empty, accounts.IsEmpty(addr); want != got {
+				t.Errorf("unexpected result, wanted %t, got %t", want, got)
+			}
+		})
+	}
+
+}
