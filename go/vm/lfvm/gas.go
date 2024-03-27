@@ -246,6 +246,9 @@ func getStaticGasPriceInternal(op OpCode) vm.Gas {
 // As part of EIP 150 (TangerineWhistle), the returned gas is gas - base * 63 / 64.
 func callGas(availableGas, base vm.Gas, callCost *uint256.Int) vm.Gas {
 	availableGas = availableGas - base
+	if availableGas < 0 { // < TODO: create a bug for this + regression test
+		return base
+	}
 	gas := availableGas - availableGas/64
 	if !callCost.IsUint64() || (gas >= 0 && gas < vm.Gas(callCost.Uint64())) {
 		return gas
