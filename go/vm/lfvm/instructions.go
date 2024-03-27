@@ -986,6 +986,20 @@ func opCall(c *context) {
 
 	// Get the arguments from the memory.
 	args := c.memory.GetSlice(inOffset.Uint64(), inSize.Uint64())
+
+	// Check that the caller has enough balance to transfer the requested value.
+	if !value.IsZero() {
+		balance := c.context.GetBalance(c.params.Recipient)
+		balanceU256 := new(uint256.Int).SetBytes32(balance[:])
+		if balanceU256.Lt(value) {
+			c.stack.pushEmpty().Clear()
+			c.return_data = nil
+			c.gas += cost // the gas send to the nested contract is returned
+			return
+		}
+	}
+
+	// Perform the call.
 	ret, err := c.context.Call(kind, vm.CallParameter{
 		Sender:    c.params.Recipient,
 		Recipient: toAddr,

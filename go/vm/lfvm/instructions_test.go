@@ -2,6 +2,10 @@ package lfvm
 
 import (
 	"testing"
+
+	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/holiman/uint256"
+	"go.uber.org/mock/gomock"
 )
 
 func TestPushN(t *testing.T) {
@@ -187,5 +191,46 @@ func TestPush4(t *testing.T) {
 	}
 	if got[3] != 0x78 {
 		t.Errorf("expected %d for 4th byte, got %d", 0x78, got[3])
+	}
+}
+
+func TestCallChecksBalances(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	runContext := vm.NewMockRunContext(ctrl)
+
+	source := vm.Address{1}
+	target := vm.Address{2}
+	ctxt := context{
+		status: RUNNING,
+		params: vm.Parameters{
+			Recipient: source,
+		},
+		context: runContext,
+		stack:   NewStack(),
+		memory:  NewMemory(),
+		gas:     1 << 20,
+	}
+
+	// Prepare stack arguments.
+	ctxt.stack.stack_ptr = 7
+	ctxt.stack.data[4].Set(uint256.NewInt(1)) // < the value to be transferred
+	ctxt.stack.data[5].SetBytes(target[:])    // < the target address for the call
+
+	// The target account should exist and the source account without funds.
+	runContext.EXPECT().AccountExists(target).Return(true)
+	runContext.EXPECT().GetBalance(source).Return(vm.Value{})
+
+	opCall(&ctxt)
+
+	if want, got := RUNNING, ctxt.status; want != got {
+		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+	}
+
+	if want, got := 1, ctxt.stack.len(); want != got {
+		t.Fatalf("unexpected stack size, wanted %d, got %d", want, got)
+	}
+
+	if want, got := *uint256.NewInt(0), ctxt.stack.data[0]; want != got {
+		t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
 	}
 }
