@@ -194,7 +194,7 @@ func TestPush4(t *testing.T) {
 	}
 }
 
-func TestCallChecksBalances(t *testing.T) {
+func TestCall_ChecksBalances(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	runContext := vm.NewMockRunContext(ctrl)
 
@@ -232,5 +232,43 @@ func TestCallChecksBalances(t *testing.T) {
 
 	if want, got := *uint256.NewInt(0), ctxt.stack.data[0]; want != got {
 		t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
+	}
+}
+
+func TestCall_ExpandsMemoryForResultOnlyAfterCall(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	runContext := vm.NewMockRunContext(ctrl)
+
+	source := vm.Address{1}
+	target := vm.Address{2}
+	argSize := uint64(32)
+	retSize := uint64(64)
+	ctxt := context{
+		status: RUNNING,
+		params: vm.Parameters{
+			Recipient: source,
+		},
+		context: runContext,
+		stack:   NewStack(),
+		memory:  NewMemory(),
+		gas:     1 << 20,
+	}
+
+	// Prepare stack that would expand the memory for the result after the
+	// call, but the call is not conducted because there is not enough balance.
+	ctxt.stack.stack_ptr = 7
+	ctxt.stack.data[0].Set(uint256.NewInt(retSize))
+	ctxt.stack.data[2].Set(uint256.NewInt(argSize))
+	ctxt.stack.data[4].Set(uint256.NewInt(1)) // < the value to be transferred
+	ctxt.stack.data[5].SetBytes(target[:])    // < the target address for the call
+
+	// The target account should exist and the source account without funds.
+	runContext.EXPECT().AccountExists(target).Return(true)
+	runContext.EXPECT().GetBalance(source).Return(vm.Value{})
+
+	opCall(&ctxt)
+
+	if want, got := argSize, ctxt.memory.Len(); want != got {
+		t.Errorf("expected memory to be of size %d, got %d", want, got)
 	}
 }

@@ -962,8 +962,10 @@ func opCall(c *context) {
 	}
 
 	// first use static and dynamic gas cost and then resize the memory
-	// when out of gas is happening, then mem should not be resized
-	c.memory.EnsureCapacityWithoutGas(needed_memory_size, c)
+	// when out of gas is happening, then mem should not be resized. Also,
+	// memory usage is increased for arguments first, and only if the result
+	// is delivered, also for the result data.
+	c.memory.EnsureCapacityWithoutGas(arg_memory_size, c)
 
 	if !value.IsZero() {
 		cost += vm.Gas(params.CallStipend)
@@ -1009,6 +1011,7 @@ func opCall(c *context) {
 	})
 
 	if err == nil {
+		c.memory.EnsureCapacityWithoutGas(ret_memory_size, c)
 		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
 			c.SignalError(memSetErr)
 		}
