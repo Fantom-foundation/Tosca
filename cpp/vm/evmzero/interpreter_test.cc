@@ -4842,6 +4842,44 @@ TEST(InterpreterTest, SELFDESTRUCT_StaticCallViolation) {
 }
 
 ///////////////////////////////////////////////////////////
+// CALL
+
+TEST(InterpreterTest, CALL_GrowsMemoryForResultAlsoIfNoCallIsMade) {
+  MockHost host;
+  EXPECT_CALL(host, account_exists(evmc::address(0x00))).WillOnce(Return(true));
+  EXPECT_CALL(host, get_balance(evmc::address(0x00))).WillOnce(Return(evmc::uint256be(0)));
+
+  RunInterpreterTest({
+      .code = {op::CALL},
+      .gas_before = 50000,
+      .gas_after = 42594,
+      .stack_before =
+          {
+              0x40,  // < ret_size
+              0x00,  // < ret_offset
+              0x20,  // < arg_size
+              0x00,  // < arg_offset
+              0x01,  // < value (the call will not take place because there is not enough balance)
+              0x00,  // < address
+              0x00,  // < gas
+          },
+      .stack_after = {0x00},
+      .memory_before{},
+      .memory_after{
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+          0, 0, 0, 0, 0, 0, 0, 0,  //
+      },
+      .host = &host,
+  });
+}
+
+///////////////////////////////////////////////////////////
 // Stepping interpreter
 TEST(InterpreterTest, Step_None) {
   RunInterpreterStepTest(
