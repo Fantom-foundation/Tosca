@@ -4879,6 +4879,42 @@ TEST(InterpreterTest, CALL_GrowsMemoryForResultAlsoIfNoCallIsMade) {
   });
 }
 
+TEST(InterpreterTest, CALL_NoZeroPaddingForCallResult) {
+  uint8_t output_data[5] = {0x55, 0x66, 0x77, 0x88, 0x99};
+  MockHost host;
+  EXPECT_CALL(host, call(_)).WillOnce(Return(evmc::Result(EVMC_SUCCESS, 1000, 0, output_data, 5)));
+
+  RunInterpreterTest({
+      .code = {op::CALL},
+      .gas_before = 50000,
+      .gas_after = 10300,
+      .stack_before =
+          {
+              0x10,   // < ret_size (the target size)
+              0x00,   // < ret_offset
+              0x00,   // < arg_size
+              0x00,   // < arg_offset
+              0x00,   // < value
+              0x00,   // < address
+              40000,  // < gas
+          },
+      .stack_after = {0x01},
+      .memory_before{
+          0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,  //
+          0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,  //
+          0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,  //
+          0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48,  //
+      },
+      .memory_after{
+          0x55, 0x66, 0x77, 0x88, 0x99, 0x16, 0x17, 0x18,  //
+          0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,  //
+          0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,  //
+          0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48,  //
+      },
+      .host = &host,
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // Stepping interpreter
 TEST(InterpreterTest, Step_None) {
