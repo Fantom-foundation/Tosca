@@ -721,6 +721,10 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 			modify:      func(s *State) { s.CallData = []byte{1, 2, 3} },
 			relevantFor: allButFailed,
 		},
+		"call_journal": {
+			modify:      func(s *State) { s.CallJournal.Future = []FutureCall{{Success: false}} },
+			relevantFor: allButFailed,
+		},
 		"last_call_return_data": {
 			modify:      func(s *State) { s.LastCallReturnData = []byte{1, 2, 3} },
 			relevantFor: onlyRunning,

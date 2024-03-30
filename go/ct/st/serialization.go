@@ -65,6 +65,7 @@ type stateSerializable struct {
 	CallData           byteSliceSerializable
 	LastCallReturnData byteSliceSerializable
 	ReturnData         byteSliceSerializable
+	CallJournal        *CallJournal
 }
 
 // byteSliceSerializable is a wrapper to achieve hex code output
@@ -130,6 +131,7 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		CallData:           bytes.Clone(state.CallData),
 		LastCallReturnData: bytes.Clone(state.LastCallReturnData),
 		ReturnData:         bytes.Clone(state.ReturnData),
+		CallJournal:        state.CallJournal,
 	}
 }
 
@@ -189,6 +191,9 @@ func (s *stateSerializable) deserialize() *State {
 	state.CallData = bytes.Clone(s.CallData)
 	state.LastCallReturnData = bytes.Clone(s.LastCallReturnData)
 	state.ReturnData = bytes.Clone(s.ReturnData)
+	if s.CallJournal != nil {
+		state.CallJournal = s.CallJournal.Clone()
+	}
 	return state
 }
 

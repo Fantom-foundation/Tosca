@@ -331,8 +331,9 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"memory={}",
 		"storage={}",
 		"accounts={}",
-		"callcontext={}",
-		"blockcontext={}",
+		"callContext={}",
+		"callJournal={}",
+		"blockContext={}",
 	})
 
 	checkPrint(clone2, []string{
@@ -347,8 +348,9 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"memory={}",
 		"storage={}",
 		"accounts={}",
-		"callcontext={}",
-		"blockcontext={}",
+		"callContext={}",
+		"callJournal={}",
+		"blockContext={}",
 	})
 }
 
@@ -360,16 +362,14 @@ func TestStateGenerator_CloneCanBeUsedToResetBuilder(t *testing.T) {
 
 	gen.SetGas(42)
 	gen.SetGasRefund(17)
-	want := "{pc=4,gas=42,gasRefund=17,code={},stack={},memory={},storage={},accounts={},callcontext={},blockcontext={}}"
-	if got := gen.String(); want != got {
-		t.Errorf("invalid clone, wanted %s, got %s", want, got)
+	if base, modified := backup.String(), gen.String(); base == modified {
+		t.Errorf("clones are not independent")
 	}
 
 	gen.Restore(backup)
 
-	want = "{pc=4,code={},stack={},memory={},storage={},accounts={},callcontext={},blockcontext={}}"
-	if got := gen.String(); want != got {
-		t.Errorf("invalid clone, wanted %s, got %s", want, got)
+	if want, got := backup.String(), gen.String(); want != got {
+		t.Errorf("restore did not work, wanted %s, got %s", want, got)
 	}
 }
 

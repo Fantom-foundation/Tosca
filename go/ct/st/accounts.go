@@ -32,6 +32,13 @@ func (a *Accounts) GetCodeHash(address vm.Address) (hash [32]byte) {
 	return
 }
 
+func (a *Accounts) IsEmpty(address vm.Address) bool {
+	// By definition, an account is empty if it has an empty balance,
+	// a nonce that is 0, and an empty code. However, we do not model
+	// nonces in this state, so we only check the balance and code.
+	return a.Balance[address] == U256{} && len(a.Code[address]) == 0
+}
+
 func (a *Accounts) Clone() *Accounts {
 	return &Accounts{
 		Balance: maps.Clone(a.Balance),

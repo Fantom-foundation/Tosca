@@ -17,11 +17,13 @@ func AddressToU256(a vm.Address) U256 {
 	return NewU256FromBytes(a[:]...)
 }
 
+// Deprecated: use RandomAddress instead
 func RandAddress(rnd *rand.Rand) (vm.Address, error) {
+	return RandomAddress(rnd), nil
+}
+
+func RandomAddress(rnd *rand.Rand) vm.Address {
 	address := vm.Address{}
-	_, err := rnd.Read(address[:])
-	if err != nil {
-		return vm.Address{}, err
-	}
-	return address, nil
+	rnd.Read(address[:]) // never returns an error
+	return address
 }

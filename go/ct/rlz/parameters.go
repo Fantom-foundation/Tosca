@@ -77,3 +77,26 @@ func (AddressParameter) Samples() []U256 {
 
 type DataOffsetParameter = MemoryOffsetParameter
 type DataSizeParameter = MemorySizeParameter
+
+type GasParameter struct{}
+
+func (GasParameter) Samples() []U256 {
+	return []U256{
+		NewU256(0),
+		NewU256(1),
+		NewU256(1 << 10),
+		NewU256(1 << 20),
+		NewU256(1 << 62),
+		MaxU256(),
+	}
+}
+
+type ValueParameter struct{}
+
+func (ValueParameter) Samples() []U256 {
+	return []U256{
+		NewU256(0),
+		NewU256(1),
+		MaxU256(),
+	}
+}

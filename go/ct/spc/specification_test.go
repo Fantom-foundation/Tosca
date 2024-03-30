@@ -1,6 +1,7 @@
 package spc
 
 import (
+	"math"
 	"testing"
 
 	"pgregory.net/rand"
@@ -8,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 func TestSpecification_RulesCoverRandomStates(t *testing.T) {
@@ -81,5 +83,64 @@ func BenchmarkSpecification_RulesConditionCheck(b *testing.B) {
 		for _, rule := range rules {
 			rule.Condition.Check(state)
 		}
+	}
+}
+
+func TestSumWithOverflow(t *testing.T) {
+	max := vm.Gas(math.MaxInt64)
+	tests := map[string]struct {
+		inputs   []vm.Gas
+		result   vm.Gas
+		overflow bool
+	}{
+		"nil": {
+			inputs: nil,
+			result: 0,
+		},
+		"empty": {
+			inputs: []vm.Gas{},
+			result: 0,
+		},
+		"single": {
+			inputs: []vm.Gas{12},
+			result: 12,
+		},
+		"single_max": {
+			inputs: []vm.Gas{max},
+			result: max,
+		},
+		"pair_without_overflow": {
+			inputs: []vm.Gas{1, 2},
+			result: 3,
+		},
+		"pair_with_overflow": {
+			inputs:   []vm.Gas{max - 1, 2},
+			overflow: true,
+		},
+		"triple_without_overflow": {
+			inputs: []vm.Gas{1, 2, 3},
+			result: 6,
+		},
+		"triple_with_overflow_in_first_pair": {
+			inputs:   []vm.Gas{max - 1, 2, 4},
+			overflow: true,
+		},
+		"triple_with_overflow_with_last_element": {
+			inputs:   []vm.Gas{max - 3, 2, 4},
+			overflow: true,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, overflow := sumWithOverflow(test.inputs...)
+			if test.overflow {
+				if !overflow {
+					t.Errorf("expected sum to overflow, but it did not")
+				}
+			} else if want := test.result; want != got {
+				t.Errorf("unexpected result, wanted %d, got %d", want, got)
+			}
+		})
 	}
 }
