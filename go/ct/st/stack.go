@@ -2,6 +2,7 @@ package st
 
 import (
 	"fmt"
+	"sync"
 
 	"golang.org/x/exp/slices"
 
@@ -10,6 +11,24 @@ import (
 
 const MaxStackSize = 1024
 
+// https://blog.mike.norgate.xyz/unlocking-go-slice-performance-navigating-sync-pool-for-enhanced-efficiency-7cb63b0b453e
+var stackPool = sync.Pool{
+	New: func() interface{} {
+		s := make([]U256, 0, MaxStackSize)
+		return &s
+	},
+}
+
+func getStackData() []U256 {
+	ptr := stackPool.Get().(*[]U256)
+	return *ptr
+}
+
+func returnStack(data []U256) {
+	data = data[0:0]
+	stackPool.Put(&data)
+}
+
 // Stack represents the EVM's execution stack.
 type Stack struct {
 	stack []U256
@@ -17,13 +36,22 @@ type Stack struct {
 
 // NewStack creates a new stack filled with the given values.
 func NewStack(values ...U256) *Stack {
-	return &Stack{values}
+	data := getStackData()
+	data = append(data, values...)
+	return &Stack{data}
 }
 
 // NewStackWithSize creates a new stack with the given size, all elements
 // initialized to zero.
 func NewStackWithSize(size int) *Stack {
-	return &Stack{make([]U256, size)}
+	data := getStackData()
+	data = data[0:size]
+	return &Stack{data}
+}
+
+func (s *Stack) Release() {
+	returnStack(s.stack)
+	s.stack = nil
 }
 
 // Clone creates an independent copy of the stack.

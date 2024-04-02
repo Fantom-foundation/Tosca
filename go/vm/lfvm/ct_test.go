@@ -372,6 +372,7 @@ func Benchmark_LfvmStackToCtStack(b *testing.B) {
 		stack.pushEmpty().SetUint64(uint64(i))
 	}
 	for i := 0; i < b.N; i++ {
-		convertLfvmStackToCtStack(stack)
+		s := convertLfvmStackToCtStack(stack)
+		s.Release()
 	}
 }
