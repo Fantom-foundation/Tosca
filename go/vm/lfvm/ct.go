@@ -173,10 +173,11 @@ func convertCtStackToLfvmStack(stack *st.Stack) *Stack {
 }
 
 func convertLfvmStackToCtStack(stack *Stack) *st.Stack {
-	result := st.NewStack()
-	for i := 0; i < stack.len(); i++ {
+	size := stack.len()
+	result := st.NewStackWithSize(size)
+	for i := 0; i < size; i++ {
 		val := stack.Data()[i]
-		result.Push(common.NewU256(val[3], val[2], val[1], val[0]))
+		result.Set(size-i-1, common.NewU256FromUint256(val))
 	}
 	return result
 }
