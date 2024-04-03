@@ -758,3 +758,11 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkState_CloneState(b *testing.B) {
+	original := NewState(NewCode([]byte{byte(INVALID)}))
+	for i := 0; i < b.N; i++ {
+		clone := original.Clone()
+		_ = clone
+	}
+}

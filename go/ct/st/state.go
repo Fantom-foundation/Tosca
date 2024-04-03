@@ -127,7 +127,8 @@ func NewState(code *Code) *State {
 }
 
 func (s *State) Clone() *State {
-	clone := NewState(s.Code.Clone())
+	clone := &State{}
+	clone.Code = s.Code.Clone()
 	clone.Status = s.Status
 	clone.Revision = s.Revision
 	clone.ReadOnly = s.ReadOnly
