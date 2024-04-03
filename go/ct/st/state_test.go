@@ -758,3 +758,11 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkState_CloneState(b *testing.B) {
+	state := getNewFilledState()
+	for i := 0; i < b.N; i++ {
+		clone := state.Clone()
+		_ = clone
+	}
+}
