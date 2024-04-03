@@ -53,7 +53,7 @@ var RunCmd = cli.Command{
 			Name:  "cpuprofile",
 			Usage: "store CPU profile in the provided filename",
 		},
-		&cli.BoolFlag{
+		&cli.BoolFlag{ // < TODO: make every run a full mode once tests pass
 			Name:  "full-mode",
 			Usage: "if enabled, test cases targeting rules other than the one generating the case will be executed",
 		},
@@ -70,10 +70,10 @@ func doRun(context *cli.Context) error {
 	if cpuprofileFilename := context.String("cpuprofile"); cpuprofileFilename != "" {
 		f, err := os.Create(cpuprofileFilename)
 		if err != nil {
-			return fmt.Errorf("could not create CPU profile: %s", err)
+			return fmt.Errorf("could not create CPU profile: %w", err)
 		}
 		if err := pprof.StartCPUProfile(f); err != nil {
-			return fmt.Errorf("could not start CPU profile: %s", err)
+			return fmt.Errorf("could not start CPU profile: %w", err)
 		}
 		defer pprof.StopCPUProfile()
 	}
@@ -139,7 +139,7 @@ func doRun(context *cli.Context) error {
 
 	err = forEachState(opRun, printIssueCounts, jobCount, seed, fullMode, filter)
 	if err != nil {
-		return fmt.Errorf("error generating States: %v", err)
+		return fmt.Errorf("error generating States: %w", err)
 	}
 	issues := issuesCollector.issues
 
@@ -243,7 +243,9 @@ func forEachState(
 			for state := range stateChannel {
 				testCounter.Add(1)
 				consumeStatus := opFunction(state)
-				abortTests.Store(consumeStatus == rlz.ConsumeAbort)
+				if consumeStatus == rlz.ConsumeAbort {
+					abortTests.Store(false)
+				}
 			}
 		}()
 	}

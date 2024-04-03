@@ -50,10 +50,10 @@ func doTest(context *cli.Context) error {
 	if cpuprofileFilename := context.String("cpuprofile"); cpuprofileFilename != "" {
 		f, err := os.Create(cpuprofileFilename)
 		if err != nil {
-			return fmt.Errorf("could not create CPU profile: %s", err)
+			return fmt.Errorf("could not create CPU profile: %w", err)
 		}
 		if err := pprof.StartCPUProfile(f); err != nil {
-			return fmt.Errorf("could not start CPU profile: %s", err)
+			return fmt.Errorf("could not start CPU profile: %w", err)
 		}
 		defer pprof.StopCPUProfile()
 	}
@@ -86,7 +86,7 @@ func doTest(context *cli.Context) error {
 				s := state.Clone()
 				rules[i].Effect.Apply(s)
 				if !s.Eq(s0) {
-					issuesCollector.AddIssue(nil, fmt.Errorf("multiple conflicting rules for state %v: %v", state, rules))
+					issuesCollector.AddIssue(state, fmt.Errorf("multiple conflicting rules for state: %v", rules))
 					return rlz.ConsumeContinue
 				}
 			}
@@ -98,7 +98,7 @@ func doTest(context *cli.Context) error {
 
 	err = forEachState(opTest, printIssueCounts, jobCount, seed, fullMode, filter)
 	if err != nil {
-		return fmt.Errorf("error generating States: %v", err)
+		return fmt.Errorf("error generating States: %w", err)
 	}
 
 	// Summarize the result.
