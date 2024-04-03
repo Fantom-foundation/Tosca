@@ -365,3 +365,13 @@ func TestConvertToCt_Stack(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkLfvmStackToCtStack(b *testing.B) {
+	stack := NewStack()
+	for i := 0; i < MAX_STACK_SIZE/2; i++ {
+		stack.pushEmpty().SetUint64(uint64(i))
+	}
+	for i := 0; i < b.N; i++ {
+		convertLfvmStackToCtStack(stack)
+	}
+}
