@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"math/big"
 	"testing"
+
+	"github.com/holiman/uint256"
 )
 
 func TestNewU256FromBytes_WithLessThan32Bytes(t *testing.T) {
@@ -29,6 +31,28 @@ func TestNewU256FromBytes_PanicsWithMoreThan32Bytes(t *testing.T) {
 		}
 	}()
 	_ = NewU256FromBytes([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33}...)
+}
+
+func TestNewU256FromUint256(t *testing.T) {
+	tests := []struct {
+		in  *uint256.Int
+		out U256
+	}{
+		{uint256.NewInt(0), NewU256()},
+		{uint256.NewInt(1), NewU256(1)},
+		{uint256.NewInt(256), NewU256(256)},
+		{new(uint256.Int).Lsh(uint256.NewInt(1), 64), NewU256(1, 0)},
+		{new(uint256.Int).Lsh(uint256.NewInt(1), 128), NewU256(1, 0, 0)},
+		{new(uint256.Int).Lsh(uint256.NewInt(1), 192), NewU256(1, 0, 0, 0)},
+	}
+
+	for _, test := range tests {
+		got := NewU256FromUint256(test.in)
+		want := test.out
+		if want != got {
+			t.Errorf("failed to convert %v to U256, wanted %v, got %v", test.in, want, got)
+		}
+	}
 }
 
 func TestU256IsZero(t *testing.T) {

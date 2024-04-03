@@ -56,6 +56,7 @@ func NewU256FromBigInt(b *big.Int) (result U256) {
 	return
 }
 
+// NewU256FromUint256 creates a new U256 instance from the given uint256.Int.
 func NewU256FromUint256(value *uint256.Int) U256 {
 	return U256{*value}
 }
