@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"slices"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
@@ -41,9 +42,9 @@ func (a *Accounts) IsEmpty(address vm.Address) bool {
 
 func (a *Accounts) Clone() *Accounts {
 	return &Accounts{
-		Balance: maps.Clone(a.Balance),
-		Code:    maps.Clone(a.Code),
-		warm:    maps.Clone(a.warm),
+		Balance: a.Balance,
+		Code:    a.Code,
+		warm:    a.warm,
 	}
 }
 
@@ -107,10 +108,12 @@ func (a *Accounts) IsCold(key vm.Address) bool {
 }
 
 func (a *Accounts) MarkWarm(key vm.Address) {
+	a.warm = maps.Clone(a.warm)
 	a.warm[key] = struct{}{}
 }
 
 func (a *Accounts) MarkCold(key vm.Address) {
+	a.warm = maps.Clone(a.warm)
 	delete(a.warm, key)
 }
 
@@ -120,4 +123,24 @@ func (a *Accounts) SetWarm(key vm.Address, warm bool) {
 	} else {
 		a.MarkCold(key)
 	}
+}
+
+func (a *Accounts) SetBalance(key vm.Address, balance U256) {
+	a.Balance = maps.Clone(a.Balance)
+	a.Balance[key] = balance
+}
+
+func (a *Accounts) RemoveBalance(key vm.Address) {
+	a.Balance = maps.Clone(a.Balance)
+	delete(a.Balance, key)
+}
+
+func (a *Accounts) SetCode(key vm.Address, code []byte) {
+	a.Code = maps.Clone(a.Code)
+	a.Code[key] = slices.Clone(code)
+}
+
+func (a *Accounts) RemoveCode(key vm.Address) {
+	a.Code = maps.Clone(a.Code)
+	delete(a.Code, key)
 }

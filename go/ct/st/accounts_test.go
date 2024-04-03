@@ -27,22 +27,22 @@ func TestAccounts_Clone(t *testing.T) {
 		change func(*Accounts)
 	}{
 		"add-balance": {func(accounts *Accounts) {
-			accounts.Balance[b] = NewU256(3)
+			accounts.SetBalance(b, NewU256(3))
 		}},
 		"modify-balance": {func(accounts *Accounts) {
-			accounts.Balance[a] = NewU256(3)
+			accounts.SetBalance(a, NewU256(3))
 		}},
 		"remove-balance": {func(accounts *Accounts) {
-			delete(accounts.Balance, a)
+			accounts.RemoveBalance(a)
 		}},
 		"add-code": {func(accounts *Accounts) {
-			accounts.Code[b] = []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
+			accounts.SetCode(b, []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
 		}},
 		"modify-code": {func(accounts *Accounts) {
-			accounts.Code[a] = []byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)}
+			accounts.SetCode(a, []byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)})
 		}},
 		"remove-code": {func(accounts *Accounts) {
-			delete(accounts.Code, a)
+			accounts.RemoveCode(a)
 		}},
 		"mark-cold": {func(accounts *Accounts) {
 			accounts.MarkCold(a)
@@ -55,8 +55,8 @@ func TestAccounts_Clone(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			b1 := NewAccounts()
-			b1.Balance[a] = NewU256(1)
-			b1.Code[a] = []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}
+			b1.SetBalance(a, NewU256(1))
+			b1.SetCode(a, []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)})
 			b1.MarkWarm(a)
 			b2 := b1.Clone()
 			if !b1.Eq(b2) {
@@ -72,7 +72,7 @@ func TestAccounts_Clone(t *testing.T) {
 
 func TestAccounts_AccountsWithZeroBalanceAreTreatedTheSameByEqAndDiff(t *testing.T) {
 	a1 := NewAccounts()
-	a1.Balance[vm.Address{1}] = NewU256(0)
+	a1.SetBalance(vm.Address{1}, NewU256(0))
 	a2 := NewAccounts()
 
 	equal := a1.Eq(a2)
@@ -91,22 +91,22 @@ func TestAccounts_Diff(t *testing.T) {
 		outcome string
 	}{
 		"add-balance": {func(accounts *Accounts) {
-			accounts.Balance[b] = NewU256(3)
+			accounts.SetBalance(b, NewU256(3))
 		}, "Different balance entry"},
 		"modify-balance": {func(accounts *Accounts) {
-			accounts.Balance[a] = NewU256(3)
+			accounts.SetBalance(a, NewU256(3))
 		}, "Different balance entry"},
 		"remove-balance": {func(accounts *Accounts) {
-			delete(accounts.Balance, a)
+			accounts.RemoveBalance(a)
 		}, "Different balance entry"},
 		"add-code": {func(accounts *Accounts) {
-			accounts.Code[b] = []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
+			accounts.SetCode(b, []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
 		}, "Different code entry"},
 		"modify-code": {func(accounts *Accounts) {
-			accounts.Code[a] = []byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)}
+			accounts.SetCode(a, []byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)})
 		}, "Different code entry"},
 		"remove-code": {func(accounts *Accounts) {
-			delete(accounts.Code, a)
+			accounts.RemoveCode(a)
 		}, "Different code entry"},
 		"mark-cold": {func(accounts *Accounts) {
 			accounts.MarkCold(a)
@@ -119,8 +119,8 @@ func TestAccounts_Diff(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			a1 := NewAccounts()
-			a1.Balance[a] = NewU256(1)
-			a1.Code[a] = []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}
+			a1.SetBalance(a, NewU256(1))
+			a1.SetCode(a, []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)})
 			a1.MarkWarm(a)
 			a2 := a1.Clone()
 			diff := a1.Diff(a2)
@@ -168,5 +168,47 @@ func TestAccounts_IsEmptyDependsOnBalanceAndCode(t *testing.T) {
 			}
 		})
 	}
+}
 
+func accountInit(a vm.Address) *Accounts {
+	b1 := NewAccounts()
+	b1.Balance[a] = NewU256(1)
+	b1.Code[a] = []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}
+	b1.MarkWarm(a)
+	return b1
+}
+
+func BenchmarkAccountClone(b *testing.B) {
+	a := NewAddressFromInt(42)
+	b1 := accountInit(a)
+	for i := 0; i < b.N; i++ {
+		_ = b1.Clone()
+	}
+}
+
+func BenchmarkAccountCloneBalance(b *testing.B) {
+	a := NewAddressFromInt(42)
+	b1 := accountInit(a)
+	for i := 0; i < b.N; i++ {
+		b2 := b1.Clone()
+		b2.SetBalance(a, NewU256(3))
+	}
+}
+
+func BenchmarkAccountCloneCode(b *testing.B) {
+	a := NewAddressFromInt(42)
+	b1 := accountInit(a)
+	for i := 0; i < b.N; i++ {
+		b2 := b1.Clone()
+		b2.SetCode(a, []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
+	}
+}
+
+func BenchmarkAccountCloneWarm(b *testing.B) {
+	a := NewAddressFromInt(42)
+	b1 := accountInit(a)
+	for i := 0; i < b.N; i++ {
+		b2 := b1.Clone()
+		b2.SetWarm(a, false)
+	}
 }
