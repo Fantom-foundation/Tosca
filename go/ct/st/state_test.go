@@ -22,7 +22,7 @@ func TestState_CloneCreatesEqualState(t *testing.T) {
 	state.Stack.Push(NewU256(3))
 	state.Memory.Write([]byte{1, 2, 3}, 1)
 	state.Storage.current[NewU256(4)] = NewU256(5)
-	state.Storage.Original[NewU256(6)] = NewU256(7)
+	state.Storage.original[NewU256(6)] = NewU256(7)
 	state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
 	state.CallContext.AccountAddress = vm.Address{0xff}
 	state.CallContext.OriginAddress = vm.Address{0xfe}
@@ -53,7 +53,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.Stack.Push(NewU256(3))
 	state.Memory.Write([]byte{1, 2, 3}, 1)
 	state.Storage.current[NewU256(4)] = NewU256(5)
-	state.Storage.Original[NewU256(6)] = NewU256(7)
+	state.Storage.original[NewU256(6)] = NewU256(7)
 	state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
 	state.CallContext.AccountAddress = vm.Address{0xff}
 	state.CallContext.OriginAddress = vm.Address{0xfe}
@@ -77,7 +77,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.Stack.Push(NewU256(6))
 	clone.Memory.Write([]byte{4, 5, 6, 7}, 64)
 	clone.Storage.current[NewU256(7)] = NewU256(16)
-	clone.Storage.Original[NewU256(6)] = NewU256(6)
+	clone.Storage.original[NewU256(6)] = NewU256(6)
 	clone.Storage.MarkWarm(NewU256(42))
 	clone.Logs.Entries[0].Data[0] = 31
 	clone.Logs.Entries[0].Topics[0] = NewU256(41)
@@ -104,7 +104,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.Memory.Size() == 32 &&
 		state.Storage.current[NewU256(4)].Eq(NewU256(5)) &&
 		state.Storage.current[NewU256(7)].IsZero() &&
-		state.Storage.Original[NewU256(6)].Eq(NewU256(7)) &&
+		state.Storage.original[NewU256(6)].Eq(NewU256(7)) &&
 		!state.Storage.IsWarm(NewU256(42)) &&
 		state.Logs.Entries[0].Data[0] == 10 &&
 		state.Logs.Entries[0].Topics[0] == NewU256(21) &&

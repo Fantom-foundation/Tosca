@@ -162,7 +162,7 @@ func TestCondition_CheckStorageConfiguration(t *testing.T) {
 			state := st.NewState(st.NewCode([]byte{}))
 
 			key := NewU256(42)
-			state.Storage.Original[key] = test.org
+			state.Storage.SetOriginal(key, test.org)
 			state.Storage.SetCurrent(key, test.cur)
 
 			state.Stack.Push(test.new)

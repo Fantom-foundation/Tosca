@@ -128,10 +128,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"storage-original-unspecified": {
 			func(s *st.State) {
-				s.Storage = &st.Storage{}
-				s.Storage.Original = map[cc.U256]cc.U256{
-					cc.NewU256(1): cc.NewU256(2),
-				}
+				s.Storage = st.NewStorage()
+				s.Storage.SetOriginal(cc.NewU256(1), cc.NewU256(2))
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -140,10 +138,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"storage-original-specified": {
 			func(s *st.State) {
-				s.Storage = &st.Storage{}
-				s.Storage.Original = map[cc.U256]cc.U256{
-					cc.NewU256(1): cc.NewU256(2),
-				}
+				s.Storage = st.NewStorage()
+				s.Storage.SetOriginal(cc.NewU256(1), cc.NewU256(2))
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context

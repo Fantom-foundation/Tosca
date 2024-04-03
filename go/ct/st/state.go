@@ -233,7 +233,7 @@ func (s *State) String() string {
 		write("\t    [%v]=%v\n", k, v)
 	}
 	write("\tStorage.Original:\n")
-	for k, v := range s.Storage.Original {
+	for k, v := range s.Storage.original {
 		write("\t    [%v]=%v\n", k, v)
 	}
 	write("\tStorage.Warm:\n")

@@ -10,14 +10,14 @@ import (
 
 type Storage struct {
 	current  map[U256]U256
-	Original map[U256]U256
+	original map[U256]U256
 	warm     map[U256]bool
 }
 
 func NewStorage() *Storage {
 	return &Storage{
 		current:  make(map[U256]U256),
-		Original: make(map[U256]U256),
+		original: make(map[U256]U256),
 		warm:     make(map[U256]bool),
 	}
 }
@@ -25,14 +25,28 @@ func NewStorage() *Storage {
 func (s *Storage) SetCurrent(key U256, value U256) {
 	s.current[key] = value
 }
-func (s *Storage) GetCurrent(in U256) U256 {
-	return s.current[in]
+
+func (s *Storage) GetCurrent(key U256) U256 {
+	return s.current[key]
+}
+
+func (s *Storage) SetOriginal(key U256, value U256) {
+	s.original[key] = value
+}
+
+func (s *Storage) GetOriginal(key U256) U256 {
+	return s.original[key]
+}
+
+func (s *Storage) IsInOriginal(key U256) bool {
+	_, isIn := s.original[key]
+	return isIn
 }
 
 func (s *Storage) Clone() *Storage {
 	return &Storage{
 		current:  maps.Clone(s.current),
-		Original: maps.Clone(s.Original),
+		original: maps.Clone(s.original),
 		warm:     maps.Clone(s.warm),
 	}
 }
@@ -76,7 +90,7 @@ func mapEqualIgnoringZeroValues[K comparable](a map[K]U256, b map[K]U256) bool {
 
 func (a *Storage) Eq(b *Storage) bool {
 	return mapEqualIgnoringZeroValues(a.current, b.current) &&
-		maps.Equal(a.Original, b.Original) &&
+		maps.Equal(a.original, b.original) &&
 		maps.Equal(a.warm, b.warm)
 }
 
@@ -95,16 +109,16 @@ func (a *Storage) Diff(b *Storage) (res []string) {
 		}
 	}
 
-	for key, valueA := range a.Original {
-		valueB, contained := b.Original[key]
+	for key, valueA := range a.original {
+		valueB, contained := b.original[key]
 		if !contained {
 			res = append(res, fmt.Sprintf("Different original entry:\n\t[%v]=%v\n\tvs\n\tmissing", key, valueA))
 		} else if valueA != valueB {
 			res = append(res, fmt.Sprintf("Different original entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", key, valueA, key, valueB))
 		}
 	}
-	for key, valueB := range b.Original {
-		if _, contained := a.Original[key]; !contained {
+	for key, valueB := range b.original {
+		if _, contained := a.original[key]; !contained {
 			res = append(res, fmt.Sprintf("Different original entry:\n\tmissing\n\tvs\n\t[%v]=%v", key, valueB))
 		}
 	}

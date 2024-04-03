@@ -10,7 +10,7 @@ import (
 func TestStorage_NewStorage(t *testing.T) {
 	s := NewStorage()
 	s.current[NewU256(42)] = NewU256(1)
-	s.Original[NewU256(42)] = NewU256(2)
+	s.original[NewU256(42)] = NewU256(2)
 	s.MarkWarm(NewU256(42))
 
 	if want, got := true, s.IsWarm(NewU256(42)); want != got {
@@ -24,7 +24,7 @@ func TestStorage_NewStorage(t *testing.T) {
 func TestStorage_Clone(t *testing.T) {
 	s1 := NewStorage()
 	s1.current[NewU256(42)] = NewU256(1)
-	s1.Original[NewU256(42)] = NewU256(2)
+	s1.original[NewU256(42)] = NewU256(2)
 	s1.MarkWarm(NewU256(42))
 
 	s2 := s1.Clone()
@@ -38,11 +38,11 @@ func TestStorage_Clone(t *testing.T) {
 	}
 	s2.current[NewU256(42)] = NewU256(1)
 
-	s2.Original[NewU256(42)] = NewU256(4)
+	s2.original[NewU256(42)] = NewU256(4)
 	if s1.Eq(s2) {
 		t.Fatalf("Clones are not independent")
 	}
-	s2.Original[NewU256(42)] = NewU256(2)
+	s2.original[NewU256(42)] = NewU256(2)
 
 	s2.MarkCold(NewU256(42))
 	if s1.Eq(s2) {
@@ -54,7 +54,7 @@ func TestStorage_Clone(t *testing.T) {
 func TestStorage_Diff(t *testing.T) {
 	s1 := NewStorage()
 	s1.current[NewU256(42)] = NewU256(1)
-	s1.Original[NewU256(42)] = NewU256(2)
+	s1.original[NewU256(42)] = NewU256(2)
 	s1.MarkWarm(NewU256(42))
 
 	s2 := s1.Clone()
@@ -77,13 +77,13 @@ func TestStorage_Diff(t *testing.T) {
 	}
 
 	s2 = s1.Clone()
-	s2.Original[NewU256(42)] = NewU256(4)
+	s2.original[NewU256(42)] = NewU256(4)
 	diff = s1.Diff(s2)
 	if !strings.Contains(diff[0], "original") {
 		t.Fatalf("Difference in original not found: %v", diff)
 	}
 
-	delete(s2.Original, NewU256(42))
+	delete(s2.original, NewU256(42))
 	diff = s1.Diff(s2)
 	if !strings.Contains(diff[0], "original") {
 		t.Fatalf("Difference in original not found: %v", diff)

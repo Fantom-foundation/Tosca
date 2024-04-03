@@ -164,7 +164,7 @@ func (s *stateSerializable) deserialize() *State {
 	state.Storage = NewStorage()
 	if s.Storage != nil {
 		state.Storage.current = maps.Clone(s.Storage.Current)
-		state.Storage.Original = maps.Clone(s.Storage.Original)
+		state.Storage.original = maps.Clone(s.Storage.Original)
 		state.Storage.warm = maps.Clone(s.Storage.Warm)
 	}
 	state.Accounts = NewAccounts()
@@ -201,7 +201,7 @@ func (s *stateSerializable) deserialize() *State {
 func newStorageSerializable(storage *Storage) *storageSerializable {
 	return &storageSerializable{
 		Current:  maps.Clone(storage.current),
-		Original: maps.Clone(storage.Original),
+		Original: maps.Clone(storage.original),
 		Warm:     maps.Clone(storage.warm),
 	}
 }
