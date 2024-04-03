@@ -9,22 +9,29 @@ import (
 )
 
 type Storage struct {
-	Current  map[U256]U256
+	current  map[U256]U256
 	Original map[U256]U256
 	warm     map[U256]bool
 }
 
 func NewStorage() *Storage {
 	return &Storage{
-		Current:  make(map[U256]U256),
+		current:  make(map[U256]U256),
 		Original: make(map[U256]U256),
 		warm:     make(map[U256]bool),
 	}
 }
 
+func (s *Storage) SetCurrent(key U256, value U256) {
+	s.current[key] = value
+}
+func (s *Storage) GetCurrent(in U256) U256 {
+	return s.current[in]
+}
+
 func (s *Storage) Clone() *Storage {
 	return &Storage{
-		Current:  maps.Clone(s.Current),
+		current:  maps.Clone(s.current),
 		Original: maps.Clone(s.Original),
 		warm:     maps.Clone(s.warm),
 	}
@@ -68,22 +75,22 @@ func mapEqualIgnoringZeroValues[K comparable](a map[K]U256, b map[K]U256) bool {
 }
 
 func (a *Storage) Eq(b *Storage) bool {
-	return mapEqualIgnoringZeroValues(a.Current, b.Current) &&
+	return mapEqualIgnoringZeroValues(a.current, b.current) &&
 		maps.Equal(a.Original, b.Original) &&
 		maps.Equal(a.warm, b.warm)
 }
 
 func (a *Storage) Diff(b *Storage) (res []string) {
-	for key, valueA := range a.Current {
-		valueB, contained := b.Current[key]
+	for key, valueA := range a.current {
+		valueB, contained := b.current[key]
 		if !contained && valueA != NewU256(0) {
 			res = append(res, fmt.Sprintf("Different current entry:\n\t[%v]=%v\n\tvs\n\tmissing", key, valueA))
 		} else if valueA != valueB {
 			res = append(res, fmt.Sprintf("Different current entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", key, valueA, key, valueB))
 		}
 	}
-	for key, valueB := range b.Current {
-		if _, contained := a.Current[key]; !contained && valueB != NewU256(0) {
+	for key, valueB := range b.current {
+		if _, contained := a.current[key]; !contained && valueB != NewU256(0) {
 			res = append(res, fmt.Sprintf("Different current entry:\n\tmissing\n\tvs\n\t[%v]=%v", key, valueB))
 		}
 	}

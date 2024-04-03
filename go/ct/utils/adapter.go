@@ -67,15 +67,15 @@ func (c *ctRunContext) AccountExists(addr vm.Address) bool {
 
 func (c *ctRunContext) GetStorage(addr vm.Address, key vm.Key) vm.Word {
 	k := cc.NewU256FromBytes(key[:]...)
-	return c.state.Storage.Current[k].Bytes32be()
+	return c.state.Storage.GetCurrent(k).Bytes32be()
 }
 
 func (c *ctRunContext) SetStorage(addr vm.Address, key vm.Key, value vm.Word) vm.StorageStatus {
 	k := cc.NewU256FromBytes(key[:]...)
 	v := cc.NewU256FromBytes(value[:]...)
 	original := vm.Word(c.state.Storage.Original[k].Bytes32be())
-	current := vm.Word(c.state.Storage.Current[k].Bytes32be())
-	c.state.Storage.Current[k] = v
+	current := vm.Word(c.state.Storage.GetCurrent(k).Bytes32be())
+	c.state.Storage.SetCurrent(k, v)
 	return vm.GetStorageStatus(original, current, value)
 }
 

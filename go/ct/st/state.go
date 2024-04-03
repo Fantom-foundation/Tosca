@@ -229,7 +229,7 @@ func (s *State) String() string {
 	}
 	write("\tMemory size: %d\n", s.Memory.Size())
 	write("\tStorage.Current:\n")
-	for k, v := range s.Storage.Current {
+	for k, v := range s.Storage.current {
 		write("\t    [%v]=%v\n", k, v)
 	}
 	write("\tStorage.Original:\n")

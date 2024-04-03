@@ -163,7 +163,7 @@ func (s *stateSerializable) deserialize() *State {
 	state.Memory = NewMemory(slices.Clone(s.Memory)...)
 	state.Storage = NewStorage()
 	if s.Storage != nil {
-		state.Storage.Current = maps.Clone(s.Storage.Current)
+		state.Storage.current = maps.Clone(s.Storage.Current)
 		state.Storage.Original = maps.Clone(s.Storage.Original)
 		state.Storage.warm = maps.Clone(s.Storage.Warm)
 	}
@@ -200,7 +200,7 @@ func (s *stateSerializable) deserialize() *State {
 // newStorageSerializable creates a new storageSerializable instance from the given Storage instance.
 func newStorageSerializable(storage *Storage) *storageSerializable {
 	return &storageSerializable{
-		Current:  maps.Clone(storage.Current),
+		Current:  maps.Clone(storage.current),
 		Original: maps.Clone(storage.Original),
 		Warm:     maps.Clone(storage.warm),
 	}

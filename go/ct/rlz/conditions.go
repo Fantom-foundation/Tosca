@@ -579,7 +579,7 @@ func (c *storageConfiguration) Check(s *st.State) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return c.config.Check(s.Storage.Original[key], s.Storage.Current[key], newValue), nil
+	return c.config.Check(s.Storage.Original[key], s.Storage.GetCurrent(key), newValue), nil
 }
 
 func (c *storageConfiguration) Restrict(generator *gen.StateGenerator) {

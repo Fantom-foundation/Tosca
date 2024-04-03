@@ -23,7 +23,7 @@ func getNewFilledState() *State {
 	s.GasRefund = 63
 	s.Stack.Push(NewU256(42))
 	s.Memory.Write([]byte{1, 2, 3}, 31)
-	s.Storage.Current[NewU256(42)] = NewU256(7)
+	s.Storage.current[NewU256(42)] = NewU256(7)
 	s.Storage.Original[NewU256(77)] = NewU256(4)
 	s.Storage.MarkWarm(NewU256(9))
 	s.Accounts = NewAccounts()
@@ -194,8 +194,8 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.Stack.Get(0).Uint64() == 42 &&
 		s.Memory.Size() == 64 &&
 		s.Memory.mem[31] == 1 &&
-		s.Storage.Current[NewU256(42)].Eq(NewU256(7)) &&
-		s.Storage.Current[NewU256(7)].IsZero() &&
+		s.Storage.current[NewU256(42)].Eq(NewU256(7)) &&
+		s.Storage.current[NewU256(7)].IsZero() &&
 		s.Storage.Original[NewU256(77)].Eq(NewU256(4)) &&
 		s.Storage.IsWarm(NewU256(9)) &&
 		s.Accounts.Balance[vm.Address{0x01}].Eq(NewU256(42)) &&
@@ -227,7 +227,7 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.Code.code[0] = byte(INVALID)
 	deserializedState.Stack.stack[0] = NewU256(77)
 	deserializedState.Memory.mem[0] = 42
-	deserializedState.Storage.Current[NewU256(42)] = NewU256(4)
+	deserializedState.Storage.current[NewU256(42)] = NewU256(4)
 	deserializedState.Storage.Original[NewU256(77)] = NewU256(7)
 	deserializedState.Storage.warm[NewU256(9)] = false
 	deserializedState.Accounts.Balance[vm.Address{0x01}] = NewU256(77)

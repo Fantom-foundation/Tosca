@@ -106,10 +106,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"storage-current-unspecified": {
 			func(s *st.State) {
-				s.Storage = &st.Storage{}
-				s.Storage.Current = map[cc.U256]cc.U256{
-					cc.NewU256(1): cc.NewU256(2),
-				}
+				s.Storage = st.NewStorage()
+				s.Storage.SetCurrent(cc.NewU256(1), cc.NewU256(2))
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -118,10 +116,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"storage-current-specified": {
 			func(s *st.State) {
-				s.Storage = &st.Storage{}
-				s.Storage.Current = map[cc.U256]cc.U256{
-					cc.NewU256(1): cc.NewU256(2),
-				}
+				s.Storage = st.NewStorage()
+				s.Storage.SetCurrent(cc.NewU256(1), cc.NewU256(2))
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context

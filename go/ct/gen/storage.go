@@ -276,7 +276,7 @@ func (g *StorageGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.
 		}
 
 		storage.Original[key] = orgValue
-		storage.Current[key] = curValue
+		storage.SetCurrent(key, curValue)
 		storage.MarkWarmCold(key, rnd.Intn(2) == 1)
 	}
 
@@ -285,7 +285,7 @@ func (g *StorageGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.
 		key := getKey(con.key)
 		if _, isPresent := storage.Original[key]; !isPresent {
 			storage.Original[key] = RandU256(rnd)
-			storage.Current[key] = RandU256(rnd)
+			storage.SetCurrent(key, RandU256(rnd))
 		}
 		storage.MarkWarmCold(key, con.warm)
 	}
@@ -294,7 +294,7 @@ func (g *StorageGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.
 	for i, max := 0, rnd.Intn(5); i < max; i++ {
 		key := getUnusedKey()
 		storage.Original[key] = RandU256(rnd)
-		storage.Current[key] = RandU256(rnd)
+		storage.SetCurrent(key, RandU256(rnd))
 		storage.MarkWarmCold(key, rnd.Intn(2) == 1)
 	}
 
