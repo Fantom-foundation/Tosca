@@ -88,3 +88,17 @@ func TestAccountsGenerator_WarmColdConstraintsNoAssignment(t *testing.T) {
 		t.Errorf("Expected address to be cold but got warm")
 	}
 }
+
+func BenchmarkAccountGen(b *testing.B) {
+	v1 := Variable("v1")
+	v2 := Variable("v2")
+	assignment := Assignment{}
+	rnd := rand.New(0)
+	generator := NewAccountGenerator()
+
+	generator.BindWarm(v1)
+	generator.BindCold(v2)
+	for i := 0; i < b.N; i++ {
+		_, _ = generator.Generate(assignment, rnd, NewAddressFromInt(8))
+	}
+}
