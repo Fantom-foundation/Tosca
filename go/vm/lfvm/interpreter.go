@@ -45,7 +45,6 @@ type context struct {
 	stack  *Stack
 	memory *Memory
 	status Status
-	err    error
 
 	// Inputs
 	code     Code
@@ -74,7 +73,6 @@ func (c *context) UseGas(amount vm.Gas) bool {
 
 func (c *context) SignalError(err error) {
 	c.status = ERROR
-	c.err = err
 }
 
 func Run(
@@ -151,7 +149,7 @@ func Run(
 			Success: false,
 		}, nil
 	default:
-		return vm.Result{}, fmt.Errorf("unexpected error in interpreter: %w", ctxt.err)
+		return vm.Result{}, fmt.Errorf("unexpected error in interpreter, unknown status: %v", ctxt.status)
 	}
 }
 
@@ -341,14 +339,12 @@ func stepToEnd(c *context) {
 func checkStackBoundry(c *context, op OpCode) error {
 	stackLen := c.stack.len()
 	if stackLen < staticStackBoundry[op].stackMin {
-		c.err = errStackUnderflow
 		c.status = ERROR
-		return c.err
+		return errStackUnderflow
 	}
 	if stackLen > staticStackBoundry[op].stackMax {
-		c.err = errStackOverflow
 		c.status = ERROR
-		return c.err
+		return errStackOverflow
 	}
 	return nil
 }
@@ -387,7 +383,6 @@ func steps(c *context, one_step_only bool) {
 		// account to the others means the state is modified and should also
 		// return with an error.
 		if c.params.Static && (isWriteInstruction(op) || (op == CALL && c.stack.Back(2).Sign() != 0)) {
-			c.err = errWriteProtection
 			c.status = ERROR
 			return
 		}

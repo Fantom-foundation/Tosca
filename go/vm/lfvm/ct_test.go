@@ -46,16 +46,6 @@ func TestCtAdapter_Interface(t *testing.T) {
 ////////////////////////////////////////////////////////////
 // ct -> lfvm
 
-func getEmptyState() *st.State {
-	return st.NewState(st.NewCode([]byte{}))
-}
-
-func getByteCodeFromState(state *st.State) []byte {
-	code := make([]byte, state.Code.Length())
-	state.Code.CopyTo(code)
-	return code
-}
-
 func TestConvertToLfvm_StatusCode(t *testing.T) {
 
 	expected := map[Status]st.StatusCode{

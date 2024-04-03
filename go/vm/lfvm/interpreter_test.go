@@ -201,7 +201,7 @@ func TestStackMinBoundry(t *testing.T) {
 
 		// Check the result.
 		if ctxt.status != test.endStatus {
-			t.Errorf("execution failed %v: status is %v, wanted %v, error %v", test.name, ctxt.status, test.endStatus, ctxt.err)
+			t.Errorf("execution failed %v: status is %v, wanted %v", test.name, ctxt.status, test.endStatus)
 		} else {
 			t.Log("Success", test.name)
 		}
@@ -223,7 +223,7 @@ func TestStackMaxBoundry(t *testing.T) {
 
 		// Check the result.
 		if ctxt.status != test.endStatus {
-			t.Errorf("execution failed %v: status is %v, wanted %v, error %v", test.name, ctxt.status, test.endStatus, ctxt.err)
+			t.Errorf("execution failed %v: status is %v, wanted %v", test.name, ctxt.status, test.endStatus)
 		} else {
 			t.Log("Success", test.name)
 		}
@@ -412,7 +412,7 @@ func TestOKInstructionPath(t *testing.T) {
 
 			// Check the result.
 			if ctxt.status != test.endStatus {
-				t.Errorf("execution failed: status is %v, wanted %v, error %v", ctxt.status, test.endStatus, ctxt.err)
+				t.Errorf("execution failed: status is %v, wanted %v", ctxt.status, test.endStatus)
 			}
 
 			// Check gas consumption
@@ -501,7 +501,7 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 
 		// Check the result.
 		if ctxt.status != RETURNED {
-			b.Fatalf("execution failed: status is %v, error %v", ctxt.status, ctxt.err)
+			b.Fatalf("execution failed: status is %v", ctxt.status)
 		}
 
 		size := ctxt.result_size

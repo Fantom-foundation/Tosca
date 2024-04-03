@@ -29,12 +29,6 @@ func clearConversionCache() {
 	cache = map[vm.Hash]cache_val{}
 }
 
-func getConversionCacheLength() int {
-	mu.Lock()
-	defer mu.Unlock()
-	return len(cache)
-}
-
 func Convert(code []byte, with_super_instructions bool, create bool, noCodeCache bool, codeHash vm.Hash) (Code, error) {
 	// TODO: clean up this code; it does some checks that seems to be once used
 	// for debugging an issue that do not make sense any more.
@@ -52,7 +46,7 @@ func Convert(code []byte, with_super_instructions bool, create bool, noCodeCache
 		if noCodeCache {
 
 			if !bytes.Equal(res.oldCode, code) {
-				log.Println(fmt.Sprintf("Different code for hash %v", codeHash))
+				log.Printf("Different code for hash %v", codeHash)
 				isEqual = false
 			}
 		}
