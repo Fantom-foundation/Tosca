@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"math"
-	"math/big"
 	"math/bits"
 
 	"github.com/ethereum/go-ethereum/params"
@@ -12,10 +11,6 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
-)
-
-var (
-	big0 = big.NewInt(0)
 )
 
 func opStop(c *context) {
