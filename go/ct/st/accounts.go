@@ -40,9 +40,9 @@ func (a *Accounts) IsEmpty(address vm.Address) bool {
 
 func (a *Accounts) Clone() *Accounts {
 	return &Accounts{
-		balance: maps.Clone(a.balance),
-		code:    maps.Clone(a.code),
-		warm:    maps.Clone(a.warm),
+		balance: a.balance,
+		code:    a.code,
+		warm:    a.warm,
 	}
 }
 
@@ -106,10 +106,12 @@ func (a *Accounts) IsCold(key vm.Address) bool {
 }
 
 func (a *Accounts) MarkWarm(key vm.Address) {
+	a.warm = maps.Clone(a.warm)
 	a.warm[key] = struct{}{}
 }
 
 func (a *Accounts) MarkCold(key vm.Address) {
+	a.warm = maps.Clone(a.warm)
 	delete(a.warm, key)
 }
 
@@ -122,6 +124,7 @@ func (a *Accounts) SetWarm(key vm.Address, warm bool) {
 }
 
 func (a *Accounts) SetBalance(address vm.Address, val U256) {
+	a.balance = maps.Clone(a.balance)
 	a.balance[address] = val
 }
 
@@ -129,12 +132,23 @@ func (a *Accounts) GetBalance(address vm.Address) U256 {
 	return a.balance[address]
 }
 
+func (a *Accounts) RemoveBalance(address vm.Address) {
+	a.balance = maps.Clone(a.balance)
+	delete(a.balance, address)
+}
+
 func (a *Accounts) SetCode(address vm.Address, code Bytes) {
+	a.code = maps.Clone(a.code)
 	a.code[address] = code
 }
 
 func (a *Accounts) GetCode(address vm.Address) Bytes {
 	return a.code[address]
+}
+
+func (a *Accounts) RemoveCode(address vm.Address) {
+	a.code = maps.Clone(a.code)
+	delete(a.code, address)
 }
 
 func (a *Accounts) Exist(address vm.Address) bool {

@@ -45,22 +45,22 @@ func TestAccounts_Clone(t *testing.T) {
 		change func(*Accounts)
 	}{
 		"add-balance": {func(accounts *Accounts) {
-			accounts.balance[b] = NewU256(3)
+			accounts.SetBalance(b, NewU256(3))
 		}},
 		"modify-balance": {func(accounts *Accounts) {
-			accounts.balance[a] = NewU256(3)
+			accounts.SetBalance(b, NewU256(3))
 		}},
 		"remove-balance": {func(accounts *Accounts) {
-			delete(accounts.balance, a)
+			accounts.RemoveBalance(a)
 		}},
 		"add-code": {func(accounts *Accounts) {
-			accounts.code[b] = NewBytes([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
+			accounts.SetCode(b, NewBytes([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}))
 		}},
 		"modify-code": {func(accounts *Accounts) {
-			accounts.code[a] = NewBytes([]byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)})
+			accounts.SetCode(a, NewBytes([]byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)}))
 		}},
 		"remove-code": {func(accounts *Accounts) {
-			delete(accounts.code, a)
+			accounts.RemoveCode(a)
 		}},
 		"mark-cold": {func(accounts *Accounts) {
 			accounts.MarkCold(a)
@@ -109,22 +109,22 @@ func TestAccounts_Diff(t *testing.T) {
 		outcome string
 	}{
 		"add-balance": {func(accounts *Accounts) {
-			accounts.balance[b] = NewU256(3)
+			accounts.SetBalance(b, NewU256(3))
 		}, "Different balance entry"},
 		"modify-balance": {func(accounts *Accounts) {
-			accounts.balance[a] = NewU256(3)
+			accounts.SetBalance(a, NewU256(3))
 		}, "Different balance entry"},
 		"remove-balance": {func(accounts *Accounts) {
-			delete(accounts.balance, a)
+			accounts.RemoveBalance(a)
 		}, "Different balance entry"},
 		"add-code": {func(accounts *Accounts) {
-			accounts.code[b] = NewBytes([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
+			accounts.SetCode(b, NewBytes([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}))
 		}, "Different code entry"},
 		"modify-code": {func(accounts *Accounts) {
-			accounts.code[a] = NewBytes([]byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)})
+			accounts.SetCode(a, NewBytes([]byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)}))
 		}, "Different code entry"},
 		"remove-code": {func(accounts *Accounts) {
-			delete(accounts.code, a)
+			accounts.RemoveCode(a)
 		}, "Different code entry"},
 		"mark-cold": {func(accounts *Accounts) {
 			accounts.MarkCold(a)
