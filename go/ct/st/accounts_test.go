@@ -170,3 +170,46 @@ func TestAccounts_IsEmptyDependsOnBalanceAndCode(t *testing.T) {
 	}
 
 }
+
+func accountInit(a vm.Address) *Accounts {
+	b1 := NewAccounts()
+	b1.Balance[a] = NewU256(1)
+	b1.Code[a] = []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}
+	b1.MarkWarm(a)
+	return b1
+}
+
+func BenchmarkAccountClone(b *testing.B) {
+	a := NewAddressFromInt(42)
+	b1 := accountInit(a)
+	for i := 0; i < b.N; i++ {
+		b1.Clone()
+	}
+}
+
+func BenchmarkAccountCloneModifyBalance(b *testing.B) {
+	a := NewAddressFromInt(42)
+	b1 := accountInit(a)
+	for i := 0; i < b.N; i++ {
+		b2 := b1.Clone()
+		b2.Balance[a] = NewU256(3)
+	}
+}
+
+func BenchmarkAccountCloneModifyCode(b *testing.B) {
+	a := NewAddressFromInt(42)
+	b1 := accountInit(a)
+	for i := 0; i < b.N; i++ {
+		b2 := b1.Clone()
+		b2.Code[a] = []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
+	}
+}
+
+func BenchmarkAccountCloneModifyWarm(b *testing.B) {
+	a := NewAddressFromInt(42)
+	b1 := accountInit(a)
+	for i := 0; i < b.N; i++ {
+		b2 := b1.Clone()
+		b2.SetWarm(a, false)
+	}
+}
