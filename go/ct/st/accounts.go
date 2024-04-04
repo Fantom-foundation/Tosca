@@ -13,21 +13,21 @@ import (
 
 type Accounts struct {
 	balance map[vm.Address]U256
-	code    map[vm.Address][]byte
+	code    map[vm.Address]Bytes
 	warm    map[vm.Address]struct{}
 }
 
 func NewAccounts() *Accounts {
 	return &Accounts{
 		balance: make(map[vm.Address]U256),
-		code:    make(map[vm.Address][]byte),
+		code:    make(map[vm.Address]Bytes),
 		warm:    make(map[vm.Address]struct{}),
 	}
 }
 
 func (a *Accounts) GetCodeHash(address vm.Address) (hash [32]byte) {
 	hasher := sha3.NewLegacyKeccak256()
-	hasher.Write(a.code[address])
+	hasher.Write(a.code[address].ToBytes())
 	hasher.Sum(hash[:])
 	return
 }
@@ -36,7 +36,7 @@ func (a *Accounts) IsEmpty(address vm.Address) bool {
 	// By definition, an account is empty if it has an empty balance,
 	// a nonce that is 0, and an empty code. However, we do not model
 	// nonces in this state, so we only check the balance and code.
-	return a.balance[address] == U256{} && len(a.code[address]) == 0
+	return a.balance[address] == U256{} && len(a.code[address].ToBytes()) == 0
 }
 
 func (a *Accounts) Clone() *Accounts {
@@ -72,7 +72,7 @@ func (a *Accounts) Diff(b *Accounts) (res []string) {
 		valueB, contained := b.code[address]
 		if !contained {
 			res = append(res, fmt.Sprintf("Different code entry:\n\t[%v]=%v\n\tvs\n\tmissing", address, valueA))
-		} else if !bytes.Equal(valueA, valueB) {
+		} else if !bytes.Equal(valueA.ToBytes(), valueB.ToBytes()) {
 			res = append(res, fmt.Sprintf("Different code entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", address, valueA, address, valueB))
 		}
 	}
@@ -131,11 +131,11 @@ func (a *Accounts) GetBalance(address vm.Address) U256 {
 }
 
 func (a *Accounts) SetCode(address vm.Address, code []byte) {
-	a.code[address] = code
+	a.code[address] = NewBytes(code)
 }
 
 func (a *Accounts) GetCode(address vm.Address) []byte {
-	return a.code[address]
+	return a.code[address].ToBytes()
 }
 
 func (a *Accounts) Exist(address vm.Address) bool {
@@ -144,28 +144,16 @@ func (a *Accounts) Exist(address vm.Address) bool {
 	return existsBalance || existsCode
 }
 
-func AccountBuilder(balance map[vm.Address]U256, code map[vm.Address][]byte) *Accounts {
-	newAcc := Accounts{}
-	newAcc.balance = balance
-	newAcc.code = code
-	newAcc.warm = make(map[vm.Address]struct{})
-	return &newAcc
-}
-
-func AccountBuilderWithWarm(balance map[vm.Address]U256, code map[vm.Address][]byte, warm map[vm.Address]struct{}) *Accounts {
-	newAcc := Accounts{}
-	newAcc.balance = balance
-	newAcc.code = code
-	newAcc.warm = warm
-	return &newAcc
-}
-
-func (a *Accounts) CloneBalance() map[vm.Address]U256 {
+func (a *Accounts) GetBalances() map[vm.Address]U256 {
 	return maps.Clone(a.balance)
 }
 
-func (a *Accounts) CloneCode() map[vm.Address][]byte {
-	return maps.Clone(a.code)
+func (a *Accounts) GetCodes() map[vm.Address][]byte {
+	codes := make(map[vm.Address][]byte)
+	for addr, code := range a.code {
+		codes[addr] = code.ToBytes()
+	}
+	return codes
 }
 
 func (a *Accounts) String() string {
@@ -187,4 +175,36 @@ func (a *Accounts) String() string {
 	}
 
 	return retString
+}
+
+type AccountsBuilder struct {
+	accounts Accounts
+}
+
+func NewAccountsBuilder() *AccountsBuilder {
+	ab := AccountsBuilder{}
+	ab.accounts = *NewAccounts()
+	return &ab
+}
+
+func (ab *AccountsBuilder) Build() *Accounts {
+	acc := ab.accounts
+	ab.accounts = Accounts{}
+	return &acc
+}
+
+func (ab *AccountsBuilder) SetBalance(addr vm.Address, value U256) {
+	ab.accounts.balance[addr] = value
+}
+
+func (ab *AccountsBuilder) SetCode(addr vm.Address, code []byte) {
+	ab.accounts.code[addr] = NewBytes(code)
+}
+
+func (ab *AccountsBuilder) SetWarm(addr vm.Address) {
+	ab.accounts.warm[addr] = struct{}{}
+}
+
+func (ab *AccountsBuilder) Exists(addr vm.Address) bool {
+	return ab.accounts.Exist(addr)
 }

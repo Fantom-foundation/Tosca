@@ -113,44 +113,36 @@ func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, acco
 		return address
 	}
 
-	balance := make(map[vm.Address]U256)
-	code := make(map[vm.Address][]byte)
-	warm := make(map[vm.Address]struct{})
-
-	addressExists := func(addr vm.Address) bool {
-		_, existsBalance := balance[addr]
-		_, existsCode := code[addr]
-		return existsBalance || existsCode
-	}
+	accountsBuilder := st.NewAccountsBuilder()
 
 	// Process warm/cold constraints.
 	for _, con := range g.warmCold {
 		address := getAddress(con.key)
 		// TODO: Not every warm address requires balance or code
-		if !addressExists(address) {
-			balance[address] = RandU256(rnd)
-			code[address] = randCode(rnd)
+		if !accountsBuilder.Exists(address) {
+			accountsBuilder.SetBalance(address, RandU256(rnd))
+			accountsBuilder.SetCode(address, randCode(rnd))
 		}
 		if con.warm {
-			warm[address] = struct{}{}
+			accountsBuilder.SetWarm(address)
 		}
 	}
 
 	// Some random entries.
 	for i, max := 0, rnd.Intn(5); i < max; i++ {
 		address := getUnusedAddress()
-		balance[address] = RandU256(rnd)
+		accountsBuilder.SetBalance(address, RandU256(rnd))
 		if rnd.Intn(2) == 1 {
-			code[address] = randCode(rnd)
+			accountsBuilder.SetCode(address, randCode(rnd))
 		}
 		if rnd.Intn(2) == 1 {
-			warm[address] = struct{}{}
+			accountsBuilder.SetWarm(address)
 		}
 	}
 
 	// Add own account address
-	balance[accountAddress] = RandU256(rnd)
-	code[accountAddress] = randCode(rnd)
+	accountsBuilder.SetBalance(accountAddress, RandU256(rnd))
+	accountsBuilder.SetCode(accountAddress, randCode(rnd))
 
-	return st.AccountBuilderWithWarm(balance, code, warm), nil
+	return accountsBuilder.Build(), nil
 }
