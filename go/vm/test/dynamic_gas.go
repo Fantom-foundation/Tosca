@@ -726,7 +726,10 @@ func gasDynCreate(revision Revision, isCreate2 bool) []*DynGasTest {
 		// code_deposit_cost
 		expectedGas += vm.Gas(200 * returnSize)
 
-		mockCalls := func(mock *MockStateDB) {}
+		mockCalls := func(mock *MockStateDB) {
+			mock.EXPECT().AccessAccount(gomock.Any()).AnyTimes()
+			mock.EXPECT().GetCodeHash(gomock.Any()).AnyTimes()
+		}
 		// Append test
 		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, 0, mockCalls, memValues})
 	}
