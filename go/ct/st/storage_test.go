@@ -138,3 +138,42 @@ func TestStorage_ZeroConsideredPresent(t *testing.T) {
 		t.Fatalf("%v and %v considered different", s1.GetCurrent(NewU256(42)), s2.GetCurrent(NewU256(42)))
 	}
 }
+
+func BenchmarkStorage_CloneNotModified(b *testing.B) {
+	keyAndValue := NewU256(42)
+	original := NewStorage()
+	original.SetCurrent(keyAndValue, keyAndValue)
+	original.SetOriginal(keyAndValue, keyAndValue)
+	original.MarkWarm(keyAndValue)
+
+	for i := 0; i < b.N; i++ {
+		clone := original.Clone()
+
+		_ = clone.GetCurrent(keyAndValue)
+		_ = clone.GetOriginal(keyAndValue)
+		_ = clone.IsWarm(keyAndValue)
+	}
+}
+
+func BenchmarkStorage_CloneModified(b *testing.B) {
+	original := NewStorage()
+	for i := 0; i < 32; i++ {
+		original.SetCurrent(NewU256(uint64(i)), NewU256(uint64(i)))
+		original.SetOriginal(NewU256(uint64(8+i)), NewU256(uint64(i)))
+		original.MarkWarmCold(NewU256(uint64(16+i)), i%2 == 0)
+	}
+
+	keyAndValue := NewU256(42)
+
+	for i := 0; i < b.N; i++ {
+		clone := original.Clone()
+		clone.SetCurrent(keyAndValue, keyAndValue)
+		clone.SetOriginal(keyAndValue, keyAndValue)
+		clone.MarkWarm(keyAndValue)
+
+		_ = clone.GetCurrent(keyAndValue)
+		_ = clone.GetOriginal(keyAndValue)
+		_ = clone.IsWarm(keyAndValue)
+	}
+
+}
