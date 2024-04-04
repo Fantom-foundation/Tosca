@@ -22,33 +22,46 @@ func TestStorage_NewStorage(t *testing.T) {
 }
 
 func TestStorage_Clone(t *testing.T) {
+	tests := map[string]struct {
+		change func(*Storage)
+	}{
+		"set-current": {func(s *Storage) {
+			s.SetCurrent(NewU256(1), NewU256(17))
+		}},
+		"set-original": {func(s *Storage) {
+			s.SetOriginal(NewU256(1), NewU256(17))
+		}},
+		"set-warm": {func(s *Storage) {
+			s.MarkWarm(NewU256(1))
+		}},
+		"remove-current": {func(s *Storage) {
+			s.RemoveCurrent(NewU256(42))
+		}},
+		"remove-original": {func(s *Storage) {
+			s.RemoveOriginal(NewU256(42))
+		}},
+		"unset-warm": {func(s *Storage) {
+			s.MarkCold(NewU256(42))
+		}},
+	}
+
 	s1 := NewStorage()
 	s1.SetCurrent(NewU256(42), NewU256(1))
 	s1.SetOriginal(NewU256(42), NewU256(2))
 	s1.MarkWarm(NewU256(42))
 
-	s2 := s1.Clone()
-	if !s1.Eq(s2) {
-		t.Fatalf("Clones are not equal")
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			s2 := s1.Clone()
+			if !s1.Eq(s2) {
+				t.Fatalf("clones are not equal")
+			}
+			test.change(s2)
+			if s1.Eq(s2) {
+				t.Errorf("clones are not independent")
+			}
+		})
 	}
-
-	s2.SetCurrent(NewU256(42), NewU256(3))
-	if s1.Eq(s2) {
-		t.Fatalf("Clones are not independent")
-	}
-	s2.SetCurrent(NewU256(42), NewU256(1))
-
-	s2.SetOriginal(NewU256(42), NewU256(4))
-	if s1.Eq(s2) {
-		t.Fatalf("Clones are not independent")
-	}
-	s2.SetOriginal(NewU256(42), NewU256(2))
-
-	s2.MarkCold(NewU256(42))
-	if s1.Eq(s2) {
-		t.Fatalf("Clones are not independent")
-	}
-	s2.MarkWarm(NewU256(42))
 }
 
 func TestStorage_Diff(t *testing.T) {

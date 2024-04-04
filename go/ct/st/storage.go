@@ -41,6 +41,10 @@ func (s *Storage) GetCurrent(key U256) U256 {
 }
 
 func (s *Storage) RemoveCurrent(key U256) {
+	if !s.modifiableCurrent {
+		s.current = maps.Clone(s.current)
+		s.modifiableCurrent = true
+	}
 	delete(s.current, key)
 }
 
@@ -57,6 +61,10 @@ func (s *Storage) GetOriginal(key U256) U256 {
 }
 
 func (s *Storage) RemoveOriginal(key U256) {
+	if !s.modifiableOriginal {
+		s.original = maps.Clone(s.original)
+		s.modifiableOriginal = true
+	}
 	delete(s.original, key)
 }
 
