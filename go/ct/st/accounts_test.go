@@ -88,7 +88,7 @@ func TestAccounts_Clone(t *testing.T) {
 	}
 }
 
-func TestAccounts_AccountsWithZerobalanceAreTreatedTheSameByEqAndDiff(t *testing.T) {
+func TestAccounts_AccountsWithZeroBalanceAreTreatedTheSameByEqAndDiff(t *testing.T) {
 	a1 := NewAccounts()
 	a1.balance[vm.Address{1}] = NewU256(0)
 	a2 := NewAccounts()
@@ -154,7 +154,7 @@ func TestAccounts_Diff(t *testing.T) {
 	}
 }
 
-func TestAccounts_IsEmptyDependsOnbalanceAndcode(t *testing.T) {
+func TestAccounts_IsEmptyDependsOnBalanceAndCode(t *testing.T) {
 	zero := NewU256(0)
 	nonzero := NewU256(1)
 	tests := map[string]struct {
