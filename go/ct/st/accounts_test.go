@@ -183,7 +183,7 @@ func BenchmarkAccountClone(b *testing.B) {
 	a := NewAddressFromInt(42)
 	b1 := accountInit(a)
 	for i := 0; i < b.N; i++ {
-		_ = b1.Clone()
+		b1.Clone()
 	}
 }
 

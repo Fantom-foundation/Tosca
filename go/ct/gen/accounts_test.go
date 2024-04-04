@@ -99,7 +99,7 @@ func BenchmarkAccountGenWithConstraint(b *testing.B) {
 	generator.BindWarm(v1)
 	generator.BindCold(v2)
 	for i := 0; i < b.N; i++ {
-		_, _ = generator.Generate(assignment, rnd, NewAddressFromInt(8))
+		generator.Generate(assignment, rnd, NewAddressFromInt(8))
 	}
 }
 
@@ -109,6 +109,6 @@ func BenchmarkAccountGenWithOutConstraint(b *testing.B) {
 	generator := NewAccountGenerator()
 
 	for i := 0; i < b.N; i++ {
-		_, _ = generator.Generate(assignment, rnd, NewAddressFromInt(8))
+		generator.Generate(assignment, rnd, NewAddressFromInt(8))
 	}
 }
