@@ -1,6 +1,8 @@
 package st
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -18,6 +20,23 @@ func TestAccounts_MarkWarmMarksAddressesAsWarm(t *testing.T) {
 	if want, got := false, b.IsWarm(NewAddressFromInt(8)); want != got {
 		t.Fatalf("IsWarm is broken, want %v, got %v", want, got)
 	}
+}
+
+func TestAccounts_SetWarm(t *testing.T) {
+	acc := NewAccounts()
+	addr := NewAddressFromInt(42)
+	if want, got := true, acc.IsCold(addr); want != got {
+		t.Fatalf("IsCold is broken, want %v, got %v", want, got)
+	}
+	acc.SetWarm(addr, true)
+	if want, got := false, acc.IsCold(addr); want != got {
+		t.Fatalf("SetWarm is broken, want %v, got %v", want, got)
+	}
+	acc.SetWarm(addr, false)
+	if want, got := true, acc.IsCold(addr); want != got {
+		t.Fatalf("SetWarm to cold is broken, want %v, got %v", want, got)
+	}
+
 }
 
 func TestAccounts_Clone(t *testing.T) {
@@ -170,6 +189,77 @@ func TestAccounts_IsEmptyDependsOnbalanceAndcode(t *testing.T) {
 	}
 
 }
+
+func TestAccounts_Exists(t *testing.T) {
+	acc := NewAccounts()
+	addr := NewAddressFromInt(42)
+	if want, got := false, acc.Exist(addr); want != got {
+		t.Errorf("Exist is broken, want %v but got %v", want, got)
+	}
+	acc.balance[addr] = NewU256(1)
+	if want, got := true, acc.Exist(addr); want != got {
+		t.Errorf("Exist is broken, want %v but got %v", want, got)
+	}
+	delete(acc.balance, addr)
+	if want, got := false, acc.Exist(addr); want != got {
+		t.Errorf("Exist is broken, want %v but got %v", want, got)
+	}
+	acc.code[addr] = []byte{}
+	if want, got := true, acc.Exist(addr); want != got {
+		t.Errorf("Exist is broken, want %v but got %v", want, got)
+	}
+}
+
+func TestAccounts_AccountBuilder(t *testing.T) {
+	addr1 := NewAddressFromInt(42)
+	addr2 := NewAddressFromInt(24)
+	balance := map[vm.Address]U256{addr1: NewU256(1)}
+	code := map[vm.Address][]byte{addr2: {1, 2, 3}}
+	acc := AccountBuilder(balance, code)
+	if want, got := NewU256(1), acc.GetBalance(addr1); !want.Eq(got) {
+		t.Errorf("Accountbuilder balance is broken, wante %v but got %v", want, got)
+	}
+	if want, got := []byte{1, 2, 3}, acc.GetCode(addr1); slices.Equal(want, got) {
+		t.Errorf("Accountbuilder code is broken, wante %v but got %v", want, got)
+	}
+}
+
+func TestAccounts_AccountBuilderWithWarm(t *testing.T) {
+	addr1 := NewAddressFromInt(42)
+	addr2 := NewAddressFromInt(24)
+	balance := map[vm.Address]U256{addr1: NewU256(1)}
+	code := map[vm.Address][]byte{addr2: {1, 2, 3}}
+	warm := map[vm.Address]struct{}{
+		addr1: {},
+		addr2: {},
+	}
+	acc := AccountBuilderWithWarm(balance, code, warm)
+	if want, got := NewU256(1), acc.GetBalance(addr1); !want.Eq(got) {
+		t.Errorf("AccountBuilderWithWarm balance is broken, wante %v but got %v", want, got)
+	}
+	if want, got := []byte{1, 2, 3}, acc.GetCode(addr1); slices.Equal(want, got) {
+		t.Errorf("AccountBuilderWithWarm code is broken, wante %v but got %v", want, got)
+	}
+	if want, got := true, acc.IsWarm(addr1); want != got {
+		t.Errorf("AccountBuilderWithWarm warm is broken, wante %v but got %v", want, got)
+	}
+}
+
+func TestAccounts_String(t *testing.T) {
+	addr := NewAddressFromInt(42)
+	acc := NewAccounts()
+	acc.balance[addr] = NewU256(1)
+	acc.code[addr] = []byte{1}
+	acc.warm[addr] = struct{}{}
+	want := fmt.Sprintf("\tAccount.Balance:\n\t    [%v]=%v\n", addr, NewU256(1))
+	want += fmt.Sprintf("\tAccount.Code:\n\t    [%v]=%v\n", addr, []byte{1})
+	want += fmt.Sprintf("\tAccount.Warm:\n\t    [%v]={}\n", addr)
+	if got := acc.String(); want != got {
+		t.Errorf("Accounts.String broken, wanted:\n %v\n but got:\n %v", want, got)
+	}
+}
+
+// -- Benchmarks
 
 func accountInit(a vm.Address) *Accounts {
 	b1 := NewAccounts()
