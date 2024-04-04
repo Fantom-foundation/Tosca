@@ -300,7 +300,9 @@ func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) vm.
 	}
 	mockCtrl := gomock.NewController(t)
 	mockStateDB := NewMockStateDB(mockCtrl)
+	mockStateDB.EXPECT().AccountExists(account).AnyTimes().Return(true)
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(callCode)
+	mockStateDB.EXPECT().GetCodeHash(account).AnyTimes()
 	mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(true)
 
 	// Minimum stack values to execute CALL instruction

@@ -9,7 +9,7 @@ import (
 
 var (
 	Variants = []string{
-		//"geth", // TODO: reenable once the geth EVM dependency is resolved
+		"geth",
 		"lfvm",
 		"lfvm-si",
 		"lfvm-no-sha-cache",

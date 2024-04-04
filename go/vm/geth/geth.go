@@ -123,8 +123,8 @@ func (m *gethVm) Run(parameters vm.Parameters) (vm.Result, error) {
 // Now is doing nothing as this is not changing gas computation
 func transferFunc(stateDB geth.StateDB, callerAddress common.Address, to common.Address, value *big.Int) {
 	// Can be something like this:
-	// stateDB.SubBalance(callerAddress, value)
-	// stateDB.AddBalance(to, value)
+	stateDB.SubBalance(callerAddress, value)
+	stateDB.AddBalance(to, value)
 }
 
 // canTransferFunc is the signature of a transfer function
@@ -132,21 +132,24 @@ func canTransferFunc(stateDB geth.StateDB, callerAddress common.Address, value *
 	return stateDB.GetBalance(callerAddress).Cmp(value) >= 0
 }
 
+// stateDbAdapter adapts the vm.RunContext interface for its usage as a geth.StateDB in test
+// environment setups. The main purpose is to facilitate unit, integration, and conformance
+// testing for the geth interpreter.
 type stateDbAdapter struct {
 	context vm.RunContext
 	refund  uint64
 }
 
 func (s *stateDbAdapter) CreateAccount(common.Address) {
-	panic("should not be needed for a single contract execution")
+	// ignored: effect not needed in test environments
 }
 
 func (s *stateDbAdapter) SubBalance(common.Address, *big.Int) {
-	panic("should not be needed for a single contract execution")
+	// ignored: effect not needed in test environments
 }
 
 func (s *stateDbAdapter) AddBalance(common.Address, *big.Int) {
-	panic("should not be needed for a single contract execution")
+	// ignored: effect not needed in test environments
 }
 
 func (s *stateDbAdapter) GetBalance(addr common.Address) *big.Int {
@@ -155,11 +158,12 @@ func (s *stateDbAdapter) GetBalance(addr common.Address) *big.Int {
 }
 
 func (s *stateDbAdapter) GetNonce(common.Address) uint64 {
-	panic("should not be needed for a single contract execution")
+	// ignored: effect not needed in test environments
+	return 0
 }
 
 func (s *stateDbAdapter) SetNonce(common.Address, uint64) {
-	panic("should not be needed for a single contract execution")
+	// ignored: effect not needed in test environments
 }
 
 func (s *stateDbAdapter) GetCodeHash(addr common.Address) common.Hash {
@@ -171,7 +175,7 @@ func (s *stateDbAdapter) GetCode(addr common.Address) []byte {
 }
 
 func (s *stateDbAdapter) SetCode(common.Address, []byte) {
-	panic("should not be needed for a single contract execution")
+	// ignored: effect not needed in test environments
 }
 
 func (s *stateDbAdapter) GetCodeSize(addr common.Address) int {
@@ -203,7 +207,8 @@ func (s *stateDbAdapter) SetState(addr common.Address, key common.Hash, value co
 }
 
 func (s *stateDbAdapter) Suicide(addr common.Address) bool {
-	panic("not implemented")
+	// ignored: effect not needed in test environments
+	return false
 }
 
 func (s *stateDbAdapter) HasSuicided(addr common.Address) bool {
@@ -215,11 +220,11 @@ func (s *stateDbAdapter) Exist(addr common.Address) bool {
 }
 
 func (s *stateDbAdapter) Empty(addr common.Address) bool {
-	return s.context.AccountExists(vm.Address(addr))
+	return !s.context.AccountExists(vm.Address(addr))
 }
 
 func (s *stateDbAdapter) PrepareAccessList(sender common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
-	panic("should not be needed for a single contract execution")
+	// ignored: effect not needed in test environments
 }
 
 func (s *stateDbAdapter) AddressInAccessList(addr common.Address) bool {
@@ -239,11 +244,11 @@ func (s *stateDbAdapter) AddSlotToAccessList(addr common.Address, slot common.Ha
 }
 
 func (s *stateDbAdapter) RevertToSnapshot(int) {
-	panic("should not be needed for a single contract execution")
+	// ignored: effect not needed in test environments
 }
 
 func (s *stateDbAdapter) Snapshot() int {
-	panic("should not be needed for a single contract execution")
+	return 0 // not relevant in test setups
 }
 
 func (s *stateDbAdapter) AddLog(log *types.Log) {
@@ -255,9 +260,9 @@ func (s *stateDbAdapter) AddLog(log *types.Log) {
 }
 
 func (s *stateDbAdapter) AddPreimage(common.Hash, []byte) {
-	panic("should not be needed for a single contract execution")
+	panic("should not be needed in test environments")
 }
 
 func (s *stateDbAdapter) ForEachStorage(common.Address, func(common.Hash, common.Hash) bool) error {
-	panic("should not be needed for a single contract execution")
+	panic("should not be needed in test environments")
 }
