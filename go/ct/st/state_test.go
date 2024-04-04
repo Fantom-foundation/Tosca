@@ -702,7 +702,7 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 			relevantFor: allButFailed,
 		},
 		"accounts": {
-			modify:      func(s *State) { s.Accounts.Balance[vm.Address{}] = NewU256(1) },
+			modify:      func(s *State) { s.Accounts.SetBalance(vm.Address{}, NewU256(1)) },
 			relevantFor: allButFailed,
 		},
 		"logs": {

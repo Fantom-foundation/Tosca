@@ -27,22 +27,22 @@ func TestAccounts_Clone(t *testing.T) {
 		change func(*Accounts)
 	}{
 		"add-balance": {func(accounts *Accounts) {
-			accounts.Balance[b] = NewU256(3)
+			accounts.balance[b] = NewU256(3)
 		}},
 		"modify-balance": {func(accounts *Accounts) {
-			accounts.Balance[a] = NewU256(3)
+			accounts.balance[a] = NewU256(3)
 		}},
 		"remove-balance": {func(accounts *Accounts) {
-			delete(accounts.Balance, a)
+			delete(accounts.balance, a)
 		}},
 		"add-code": {func(accounts *Accounts) {
-			accounts.Code[b] = []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
+			accounts.code[b] = []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
 		}},
 		"modify-code": {func(accounts *Accounts) {
-			accounts.Code[a] = []byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)}
+			accounts.code[a] = []byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)}
 		}},
 		"remove-code": {func(accounts *Accounts) {
-			delete(accounts.Code, a)
+			delete(accounts.code, a)
 		}},
 		"mark-cold": {func(accounts *Accounts) {
 			accounts.MarkCold(a)
@@ -55,8 +55,8 @@ func TestAccounts_Clone(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			b1 := NewAccounts()
-			b1.Balance[a] = NewU256(1)
-			b1.Code[a] = []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}
+			b1.balance[a] = NewU256(1)
+			b1.code[a] = []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}
 			b1.MarkWarm(a)
 			b2 := b1.Clone()
 			if !b1.Eq(b2) {
@@ -70,9 +70,9 @@ func TestAccounts_Clone(t *testing.T) {
 	}
 }
 
-func TestAccounts_AccountsWithZeroBalanceAreTreatedTheSameByEqAndDiff(t *testing.T) {
+func TestAccounts_AccountsWithZerobalanceAreTreatedTheSameByEqAndDiff(t *testing.T) {
 	a1 := NewAccounts()
-	a1.Balance[vm.Address{1}] = NewU256(0)
+	a1.balance[vm.Address{1}] = NewU256(0)
 	a2 := NewAccounts()
 
 	equal := a1.Eq(a2)
@@ -91,22 +91,22 @@ func TestAccounts_Diff(t *testing.T) {
 		outcome string
 	}{
 		"add-balance": {func(accounts *Accounts) {
-			accounts.Balance[b] = NewU256(3)
+			accounts.balance[b] = NewU256(3)
 		}, "Different balance entry"},
 		"modify-balance": {func(accounts *Accounts) {
-			accounts.Balance[a] = NewU256(3)
+			accounts.balance[a] = NewU256(3)
 		}, "Different balance entry"},
 		"remove-balance": {func(accounts *Accounts) {
-			delete(accounts.Balance, a)
+			delete(accounts.balance, a)
 		}, "Different balance entry"},
 		"add-code": {func(accounts *Accounts) {
-			accounts.Code[b] = []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
+			accounts.code[b] = []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
 		}, "Different code entry"},
 		"modify-code": {func(accounts *Accounts) {
-			accounts.Code[a] = []byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)}
+			accounts.code[a] = []byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)}
 		}, "Different code entry"},
 		"remove-code": {func(accounts *Accounts) {
-			delete(accounts.Code, a)
+			delete(accounts.code, a)
 		}, "Different code entry"},
 		"mark-cold": {func(accounts *Accounts) {
 			accounts.MarkCold(a)
@@ -119,8 +119,8 @@ func TestAccounts_Diff(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			a1 := NewAccounts()
-			a1.Balance[a] = NewU256(1)
-			a1.Code[a] = []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}
+			a1.balance[a] = NewU256(1)
+			a1.code[a] = []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}
 			a1.MarkWarm(a)
 			a2 := a1.Clone()
 			diff := a1.Diff(a2)
@@ -136,7 +136,7 @@ func TestAccounts_Diff(t *testing.T) {
 	}
 }
 
-func TestAccounts_IsEmptyDependsOnBalanceAndCode(t *testing.T) {
+func TestAccounts_IsEmptyDependsOnbalanceAndcode(t *testing.T) {
 	zero := NewU256(0)
 	nonzero := NewU256(1)
 	tests := map[string]struct {
@@ -158,10 +158,10 @@ func TestAccounts_IsEmptyDependsOnBalanceAndCode(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			accounts := NewAccounts()
 			if test.balance != nil {
-				accounts.Balance[addr] = *test.balance
+				accounts.balance[addr] = *test.balance
 			}
 			if test.code != nil {
-				accounts.Code[addr] = test.code
+				accounts.code[addr] = test.code
 			}
 			if want, got := test.empty, accounts.IsEmpty(addr); want != got {
 				t.Errorf("unexpected result, wanted %t, got %t", want, got)
@@ -173,8 +173,8 @@ func TestAccounts_IsEmptyDependsOnBalanceAndCode(t *testing.T) {
 
 func accountInit(a vm.Address) *Accounts {
 	b1 := NewAccounts()
-	b1.Balance[a] = NewU256(1)
-	b1.Code[a] = []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}
+	b1.balance[a] = NewU256(1)
+	b1.code[a] = []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}
 	b1.MarkWarm(a)
 	return b1
 }
@@ -192,7 +192,7 @@ func BenchmarkAccountCloneModifyBalance(b *testing.B) {
 	b1 := accountInit(a)
 	for i := 0; i < b.N; i++ {
 		b2 := b1.Clone()
-		b2.Balance[a] = NewU256(3)
+		b2.balance[a] = NewU256(3)
 	}
 }
 
@@ -201,7 +201,7 @@ func BenchmarkAccountCloneModifyCode(b *testing.B) {
 	b1 := accountInit(a)
 	for i := 0; i < b.N; i++ {
 		b2 := b1.Clone()
-		b2.Code[a] = []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
+		b2.code[a] = []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
 	}
 }
 

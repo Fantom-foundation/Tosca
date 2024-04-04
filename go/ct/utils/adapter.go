@@ -58,11 +58,11 @@ type ctRunContext struct {
 	state *st.State
 }
 
+// TODO: add unit test
 func (c *ctRunContext) AccountExists(addr vm.Address) bool {
-	_, existsCode := c.state.Accounts.Code[addr]
-	_, existsBalance := c.state.Accounts.Balance[addr]
+	existsAddr := c.state.Accounts.Exist(addr)
 	existsWarm := c.state.Accounts.IsWarm(addr)
-	return existsCode || existsBalance || existsWarm
+	return existsAddr || existsWarm
 }
 
 func (c *ctRunContext) GetStorage(addr vm.Address, key vm.Key) vm.Word {
@@ -70,6 +70,7 @@ func (c *ctRunContext) GetStorage(addr vm.Address, key vm.Key) vm.Word {
 	return c.state.Storage.Current[k].Bytes32be()
 }
 
+// TODO: add unit test
 func (c *ctRunContext) SetStorage(addr vm.Address, key vm.Key, value vm.Word) vm.StorageStatus {
 	k := cc.NewU256FromBytes(key[:]...)
 	v := cc.NewU256FromBytes(value[:]...)
@@ -80,12 +81,12 @@ func (c *ctRunContext) SetStorage(addr vm.Address, key vm.Key, value vm.Word) vm
 }
 
 func (c *ctRunContext) GetBalance(addr vm.Address) vm.Value {
-	balance := c.state.Accounts.Balance[addr]
+	balance := c.state.Accounts.GetBalance(addr)
 	return vm.Value(balance.Bytes32be())
 }
 
 func (c *ctRunContext) GetCodeSize(addr vm.Address) int {
-	return len(c.state.Accounts.Code[addr])
+	return len(c.state.Accounts.GetCode(addr))
 }
 
 func (c *ctRunContext) GetCodeHash(addr vm.Address) vm.Hash {
@@ -93,7 +94,7 @@ func (c *ctRunContext) GetCodeHash(addr vm.Address) vm.Hash {
 }
 
 func (c *ctRunContext) GetCode(addr vm.Address) []byte {
-	return c.state.Accounts.Code[addr]
+	return c.state.Accounts.GetCode(addr)
 }
 
 func (c *ctRunContext) GetTransactionContext() vm.TransactionContext {
@@ -114,6 +115,7 @@ func (c *ctRunContext) GetBlockHash(number int64) vm.Hash {
 	panic("not implemented")
 }
 
+// TODO: add unit test
 func (c *ctRunContext) EmitLog(addr vm.Address, topics []vm.Hash, data []byte) {
 	var ctTopics []cc.U256
 	for _, topic := range topics {
@@ -123,6 +125,7 @@ func (c *ctRunContext) EmitLog(addr vm.Address, topics []vm.Hash, data []byte) {
 	c.state.Logs.AddLog(data, ctTopics...)
 }
 
+// TODO: add unit test
 func (c *ctRunContext) Call(kind vm.CallKind, parameter vm.CallParameter) (vm.CallResult, error) {
 	res := c.state.CallJournal.Call(kind, parameter)
 	return vm.CallResult{
@@ -146,6 +149,7 @@ func (c *ctRunContext) AccessAccount(addr vm.Address) vm.AccessStatus {
 	return vm.ColdAccess
 }
 
+// TODO: add unit test
 func (c *ctRunContext) AccessStorage(addr vm.Address, key vm.Key) vm.AccessStatus {
 	k := cc.NewU256FromBytes(key[:]...)
 	isWarm := c.state.Storage.IsWarm(k)

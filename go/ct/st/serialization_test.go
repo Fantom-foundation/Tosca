@@ -27,8 +27,8 @@ func getNewFilledState() *State {
 	s.Storage.Original[NewU256(77)] = NewU256(4)
 	s.Storage.MarkWarm(NewU256(9))
 	s.Accounts = NewAccounts()
-	s.Accounts.Balance[vm.Address{0x01}] = NewU256(42)
-	s.Accounts.Code[vm.Address{0x01}] = []byte{byte(PUSH1), byte(6)}
+	s.Accounts.SetBalance(vm.Address{0x01}, NewU256(42))
+	s.Accounts.SetCode(vm.Address{0x01}, []byte{byte(PUSH1), byte(6)})
 	s.Accounts.MarkWarm(vm.Address{0x02})
 	s.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
@@ -198,8 +198,8 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.Storage.Current[NewU256(7)].IsZero() &&
 		s.Storage.Original[NewU256(77)].Eq(NewU256(4)) &&
 		s.Storage.IsWarm(NewU256(9)) &&
-		s.Accounts.Balance[vm.Address{0x01}].Eq(NewU256(42)) &&
-		bytes.Equal(s.Accounts.Code[vm.Address{0x01}], []byte{byte(PUSH1), byte(6)}) &&
+		s.Accounts.GetBalance(vm.Address{0x01}).Eq(NewU256(42)) &&
+		bytes.Equal(s.Accounts.GetCode(vm.Address{0x01}), []byte{byte(PUSH1), byte(6)}) &&
 		s.Accounts.IsWarm(vm.Address{0x02}) &&
 		s.Logs.Entries[0].Data[0] == 4 &&
 		s.Logs.Entries[0].Topics[0] == NewU256(21) &&
@@ -230,8 +230,8 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.Storage.Current[NewU256(42)] = NewU256(4)
 	deserializedState.Storage.Original[NewU256(77)] = NewU256(7)
 	deserializedState.Storage.warm[NewU256(9)] = false
-	deserializedState.Accounts.Balance[vm.Address{0x01}] = NewU256(77)
-	deserializedState.Accounts.Code[vm.Address{0x01}] = []byte{byte(INVALID)}
+	deserializedState.Accounts.SetBalance(vm.Address{0x01}, NewU256(77))
+	deserializedState.Accounts.SetCode(vm.Address{0x01}, []byte{byte(INVALID)})
 	delete(deserializedState.Accounts.warm, vm.Address{0x02})
 	deserializedState.Logs.Entries[0].Data[0] = 99
 	deserializedState.Logs.Entries[0].Topics[0] = NewU256(42)

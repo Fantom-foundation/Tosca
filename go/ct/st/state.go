@@ -241,18 +241,7 @@ func (s *State) String() string {
 	for k := range s.Storage.warm {
 		write("\t    [%v]\n", k)
 	}
-	write("\tAccount.Balance:\n")
-	for k, v := range s.Accounts.Balance {
-		write("\t    [%v]=%v\n", k, v)
-	}
-	write("\tAccount.Code:\n")
-	for k, v := range s.Accounts.Code {
-		write("\t    [%v]=%v\n", k, v)
-	}
-	write("\tAddress.Warm:\n")
-	for k := range s.Accounts.warm {
-		write("\t    [%v]\n", k)
-	}
+	write(s.Accounts.String())
 	write("\tLogs:\n")
 	for entryId, entry := range s.Logs.Entries {
 		write("\t    entry %02d:\n", entryId)
