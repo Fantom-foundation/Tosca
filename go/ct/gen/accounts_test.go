@@ -89,7 +89,7 @@ func TestAccountsGenerator_WarmColdConstraintsNoAssignment(t *testing.T) {
 	}
 }
 
-func BenchmarkAccountGen(b *testing.B) {
+func BenchmarkAccountGenWithConstraint(b *testing.B) {
 	v1 := Variable("v1")
 	v2 := Variable("v2")
 	assignment := Assignment{}
@@ -98,6 +98,16 @@ func BenchmarkAccountGen(b *testing.B) {
 
 	generator.BindWarm(v1)
 	generator.BindCold(v2)
+	for i := 0; i < b.N; i++ {
+		_, _ = generator.Generate(assignment, rnd, NewAddressFromInt(8))
+	}
+}
+
+func BenchmarkAccountGenWithOutConstraint(b *testing.B) {
+	assignment := Assignment{}
+	rnd := rand.New(0)
+	generator := NewAccountGenerator()
+
 	for i := 0; i < b.N; i++ {
 		_, _ = generator.Generate(assignment, rnd, NewAddressFromInt(8))
 	}

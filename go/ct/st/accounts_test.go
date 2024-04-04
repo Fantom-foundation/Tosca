@@ -187,7 +187,7 @@ func BenchmarkAccountClone(b *testing.B) {
 	}
 }
 
-func BenchmarkAccountCloneBalance(b *testing.B) {
+func BenchmarkAccountCloneModifyBalance(b *testing.B) {
 	a := NewAddressFromInt(42)
 	b1 := accountInit(a)
 	for i := 0; i < b.N; i++ {
@@ -196,7 +196,7 @@ func BenchmarkAccountCloneBalance(b *testing.B) {
 	}
 }
 
-func BenchmarkAccountCloneCode(b *testing.B) {
+func BenchmarkAccountCloneModifyCode(b *testing.B) {
 	a := NewAddressFromInt(42)
 	b1 := accountInit(a)
 	for i := 0; i < b.N; i++ {
@@ -205,7 +205,7 @@ func BenchmarkAccountCloneCode(b *testing.B) {
 	}
 }
 
-func BenchmarkAccountCloneWarm(b *testing.B) {
+func BenchmarkAccountCloneModifyWarm(b *testing.B) {
 	a := NewAddressFromInt(42)
 	b1 := accountInit(a)
 	for i := 0; i < b.N; i++ {
