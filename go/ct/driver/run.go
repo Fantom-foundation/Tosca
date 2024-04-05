@@ -264,7 +264,7 @@ func forEachState(
 			defer rulesWaitGroup.Done()
 			for rule := range ruleChannel {
 				if abortTests.Load() {
-					return
+					continue // keep consume rules in the ruleChannel
 				}
 				// random is re-seeded for each rule to be reproducible.
 				rand := rand.New(seed)
@@ -284,9 +284,9 @@ func forEachState(
 				if err != nil {
 					abortTests.Store(true)
 					errorMutex.Lock()
-					defer errorMutex.Unlock()
 					returnError = err
-					return
+					errorMutex.Unlock()
+					continue
 				}
 			}
 		}()
