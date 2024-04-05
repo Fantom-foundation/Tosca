@@ -23,14 +23,8 @@ func NewStorageBuilder() *StorageBuilder {
 }
 
 func (s *StorageBuilder) Build() *Storage {
-	res := Storage{
-		current:  s.s.current,
-		original: s.s.original,
-		warm:     s.s.warm,
-	}
-	s.s.current = nil
-	s.s.original = nil
-	s.s.warm = nil
+	res := s.s
+	s.s = Storage{}
 
 	return &res
 }
@@ -52,10 +46,12 @@ func (s *StorageBuilder) SetOriginal(key, value U256) *StorageBuilder {
 }
 
 func (s *StorageBuilder) SetWarm(key U256, value bool) *StorageBuilder {
-	if s.s.warm == nil {
-		s.s.warm = make(map[U256]bool)
+	if value {
+		if s.s.warm == nil {
+			s.s.warm = make(map[U256]bool)
+		}
+		s.s.warm[key] = value
 	}
-	s.s.warm[key] = value
 	return s
 }
 
@@ -78,9 +74,7 @@ func (s *Storage) GetCurrent(key U256) U256 {
 }
 
 func (s *Storage) RemoveCurrent(key U256) {
-	if s.current == nil {
-		s.current = make(map[U256]U256)
-	} else {
+	if s.current != nil {
 		s.current = maps.Clone(s.current)
 	}
 	delete(s.current, key)
@@ -100,9 +94,7 @@ func (s *Storage) GetOriginal(key U256) U256 {
 }
 
 func (s *Storage) RemoveOriginal(key U256) {
-	if s.original == nil {
-		s.original = make(map[U256]U256)
-	} else {
+	if s.original != nil {
 		s.original = maps.Clone(s.original)
 	}
 	delete(s.original, key)
@@ -122,9 +114,7 @@ func (s *Storage) MarkWarm(key U256) {
 }
 
 func (s *Storage) MarkCold(key U256) {
-	if s.warm == nil {
-		s.warm = make(map[U256]bool)
-	} else {
+	if s.warm != nil {
 		s.warm = maps.Clone(s.warm)
 	}
 	delete(s.warm, key)

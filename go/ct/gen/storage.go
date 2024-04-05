@@ -283,7 +283,7 @@ func (g *StorageGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.
 	// Process warm/cold constraints.
 	for _, con := range g.warmCold {
 		key := getKey(con.key)
-		if isPresent := builder.IsInOriginal(key); !isPresent {
+		if !builder.IsInOriginal(key) {
 			builder.SetOriginal(key, RandU256(rnd))
 			builder.SetCurrent(key, RandU256(rnd))
 		}
