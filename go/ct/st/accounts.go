@@ -134,30 +134,52 @@ func (a *Accounts) SetWarm(key vm.Address, warm bool) {
 }
 
 func (a *Accounts) SetBalance(address vm.Address, val U256) {
-	a.balance = maps.Clone(a.balance)
+	if a.balance == nil {
+		a.balance = make(map[vm.Address]U256)
+	} else {
+		a.balance = maps.Clone(a.balance)
+	}
 	a.balance[address] = val
 }
 
 func (a *Accounts) GetBalance(address vm.Address) U256 {
+	if a.balance == nil {
+		return NewU256()
+	}
 	return a.balance[address]
 }
 
 func (a *Accounts) RemoveBalance(address vm.Address) {
-	a.balance = maps.Clone(a.balance)
+	if a.balance == nil {
+		a.balance = make(map[vm.Address]U256)
+	} else {
+		a.balance = maps.Clone(a.balance)
+	}
 	delete(a.balance, address)
 }
 
 func (a *Accounts) SetCode(address vm.Address, code Bytes) {
-	a.code = maps.Clone(a.code)
+	if a.code == nil {
+		a.code = make(map[vm.Address]Bytes)
+	} else {
+		a.code = maps.Clone(a.code)
+	}
 	a.code[address] = code
 }
 
 func (a *Accounts) GetCode(address vm.Address) Bytes {
+	if a.code == nil {
+		return NewBytes([]byte{})
+	}
 	return a.code[address]
 }
 
 func (a *Accounts) RemoveCode(address vm.Address) {
-	a.code = maps.Clone(a.code)
+	if a.code == nil {
+		a.code = make(map[vm.Address]Bytes)
+	} else {
+		a.code = maps.Clone(a.code)
+	}
 	delete(a.code, address)
 }
 

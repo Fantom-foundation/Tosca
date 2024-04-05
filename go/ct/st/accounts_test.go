@@ -73,8 +73,8 @@ func TestAccounts_Clone(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			b1 := NewAccounts()
-			b1.balance[a] = NewU256(1)
-			b1.code[a] = NewBytes([]byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)})
+			b1.SetBalance(a, NewU256(1))
+			b1.SetCode(a, NewBytes([]byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}))
 			b1.MarkWarm(a)
 			b2 := b1.Clone()
 			if !b1.Eq(b2) {
@@ -90,7 +90,7 @@ func TestAccounts_Clone(t *testing.T) {
 
 func TestAccounts_AccountsWithZeroBalanceAreTreatedTheSameByEqAndDiff(t *testing.T) {
 	a1 := NewAccounts()
-	a1.balance[vm.Address{1}] = NewU256(0)
+	a1.SetBalance(vm.Address{1}, NewU256(0))
 	a2 := NewAccounts()
 
 	equal := a1.Eq(a2)
@@ -137,8 +137,8 @@ func TestAccounts_Diff(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			a1 := NewAccounts()
-			a1.balance[a] = NewU256(1)
-			a1.code[a] = NewBytes([]byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)})
+			a1.SetBalance(a, NewU256(1))
+			a1.SetCode(a, NewBytes([]byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}))
 			a1.MarkWarm(a)
 			a2 := a1.Clone()
 			diff := a1.Diff(a2)
@@ -176,10 +176,10 @@ func TestAccounts_IsEmptyDependsOnBalanceAndCode(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			accounts := NewAccounts()
 			if test.balance != nil {
-				accounts.balance[addr] = *test.balance
+				accounts.SetBalance(addr, *test.balance)
 			}
 			if test.code != nil {
-				accounts.code[addr] = NewBytes(test.code)
+				accounts.SetCode(addr, NewBytes(test.code))
 			}
 			if want, got := test.empty, accounts.IsEmpty(addr); want != got {
 				t.Errorf("unexpected result, wanted %t, got %t", want, got)
@@ -232,9 +232,9 @@ func TestAccountsBuilder_NewAccountsBuilder(t *testing.T) {
 func TestAccounts_String(t *testing.T) {
 	addr := NewAddressFromInt(42)
 	acc := NewAccounts()
-	acc.balance[addr] = NewU256(1)
-	acc.code[addr] = NewBytes([]byte{1})
-	acc.warm[addr] = struct{}{}
+	acc.SetBalance(addr, NewU256(1))
+	acc.SetCode(addr, NewBytes([]byte{1}))
+	acc.MarkWarm(addr)
 	want := fmt.Sprintf("\tAccount.Balance:\n\t    [%v]=%v\n", addr, NewU256(1))
 	want += fmt.Sprintf("\tAccount.Code:\n\t    [%v]=%v\n", addr, NewBytes([]byte{1}))
 	want += fmt.Sprintf("\tAccount.Warm:\n\t    [%v]={}\n", addr)
