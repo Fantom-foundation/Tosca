@@ -244,7 +244,7 @@ func forEachState(
 				testCounter.Add(1)
 				consumeStatus := opFunction(state)
 				if consumeStatus == rlz.ConsumeAbort {
-					abortTests.Store(false)
+					abortTests.Store(true)
 				}
 			}
 		}()
