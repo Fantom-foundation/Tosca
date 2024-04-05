@@ -144,14 +144,6 @@ func (a *Accounts) Exist(address vm.Address) bool {
 		(existsCode && cod.Length() > 0)
 }
 
-func (a *Accounts) GetBalances() map[vm.Address]U256 {
-	return maps.Clone(a.balance)
-}
-
-func (a *Accounts) GetCodes() map[vm.Address]Bytes {
-	return maps.Clone(a.code)
-}
-
 func (a *Accounts) String() string {
 	var retString string
 	write := func(pattern string, args ...any) {

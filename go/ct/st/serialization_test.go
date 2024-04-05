@@ -199,7 +199,7 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.Storage.Original[NewU256(77)].Eq(NewU256(4)) &&
 		s.Storage.IsWarm(NewU256(9)) &&
 		s.Accounts.GetBalance(vm.Address{0x01}).Eq(NewU256(42)) &&
-		bytes.Equal(s.Accounts.GetCode(vm.Address{0x01}).ToBytes(), []byte{byte(PUSH1), byte(6)}) &&
+		s.Accounts.GetCode(vm.Address{0x01}) == NewBytes([]byte{byte(PUSH1), byte(6)}) &&
 		s.Accounts.IsWarm(vm.Address{0x02}) &&
 		s.Logs.Entries[0].Data[0] == 4 &&
 		s.Logs.Entries[0].Topics[0] == NewU256(21) &&

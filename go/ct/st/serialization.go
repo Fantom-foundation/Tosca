@@ -169,22 +169,22 @@ func (s *stateSerializable) deserialize() *State {
 	}
 	state.Accounts = NewAccounts()
 	if s.Accounts != nil {
-		accounntsBuilder := NewAccountsBuilder()
+		accountsBuilder := NewAccountsBuilder()
 
 		for address, value := range s.Accounts.Balance {
-			accounntsBuilder.SetBalance(address, value)
+			accountsBuilder.SetBalance(address, value)
 		}
 
 		// Code needs to be manually copied because of serializablebytes
 		for address, code := range s.Accounts.Code {
-			accounntsBuilder.SetCode(address, NewBytes(code))
+			accountsBuilder.SetCode(address, NewBytes(code))
 		}
 
 		for key := range s.Accounts.Warm {
-			accounntsBuilder.SetWarm(key)
+			accountsBuilder.SetWarm(key)
 		}
 
-		state.Accounts = accounntsBuilder.Build()
+		state.Accounts = accountsBuilder.Build()
 	}
 	if s.Logs != nil {
 		state.Logs = NewLogs()
@@ -220,12 +220,12 @@ func newAccountsSerializable(accounts *Accounts) *accountsSerializable {
 	}
 
 	codes := make(map[vm.Address]byteSliceSerializable)
-	for address, code := range accounts.GetCodes() {
+	for address, code := range accounts.code {
 		codes[address] = code.ToBytes()
 	}
 
 	return &accountsSerializable{
-		Balance: accounts.GetBalances(),
+		Balance: maps.Clone(accounts.balance),
 		Code:    codes,
 		Warm:    warm,
 	}
