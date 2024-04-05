@@ -117,8 +117,9 @@ func (a *Accounts) MarkWarm(key vm.Address) {
 }
 
 func (a *Accounts) MarkCold(key vm.Address) {
-	if a.warm == nil {
-		a.warm = make(map[vm.Address]struct{})
+	_, exists := a.warm[key]
+	if a.warm == nil || !exists {
+		return
 	} else {
 		a.warm = maps.Clone(a.warm)
 	}
@@ -143,15 +144,13 @@ func (a *Accounts) SetBalance(address vm.Address, val U256) {
 }
 
 func (a *Accounts) GetBalance(address vm.Address) U256 {
-	if a.balance == nil {
-		return NewU256()
-	}
 	return a.balance[address]
 }
 
 func (a *Accounts) RemoveBalance(address vm.Address) {
-	if a.balance == nil {
-		a.balance = make(map[vm.Address]U256)
+	_, exists := a.balance[address]
+	if a.balance == nil || !exists {
+		return
 	} else {
 		a.balance = maps.Clone(a.balance)
 	}
@@ -175,8 +174,9 @@ func (a *Accounts) GetCode(address vm.Address) Bytes {
 }
 
 func (a *Accounts) RemoveCode(address vm.Address) {
-	if a.code == nil {
-		a.code = make(map[vm.Address]Bytes)
+	_, exists := a.code[address]
+	if a.code == nil || !exists {
+		return
 	} else {
 		a.code = maps.Clone(a.code)
 	}
