@@ -2,7 +2,6 @@ package st
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"testing"
 
@@ -204,7 +203,7 @@ func TestAccounts_Exists(t *testing.T) {
 	if want, got := false, acc.Exist(addr); want != got {
 		t.Errorf("Exist is broken, want %v but got %v", want, got)
 	}
-	acc.SetCode(addr, []byte{})
+	acc.SetCode(addr, NewBytes([]byte{1}))
 	if want, got := true, acc.Exist(addr); want != got {
 		t.Errorf("Exist is broken, want %v but got %v", want, got)
 	}
@@ -215,14 +214,14 @@ func TestAccountsBuilder_NewAccountsBuilder(t *testing.T) {
 	addr2 := NewAddressFromInt(24)
 	ab := NewAccountsBuilder()
 	ab.SetBalance(addr1, NewU256(1))
-	ab.SetCode(addr2, []byte{1, 2, 3})
+	ab.SetCode(addr2, NewBytes([]byte{1, 2, 3}))
 	ab.SetWarm(addr1)
 	ab.SetWarm(addr2)
 	acc := ab.Build()
 	if want, got := NewU256(1), acc.GetBalance(addr1); !want.Eq(got) {
 		t.Errorf("AccountsBuilder balance is broken, wante %v but got %v", want, got)
 	}
-	if want, got := []byte{1, 2, 3}, acc.GetCode(addr1); slices.Equal(want, got) {
+	if want, got := NewBytes([]byte{1, 2, 3}), acc.GetCode(addr2); want != got {
 		t.Errorf("AccountsBuilder code is broken, wante %v but got %v", want, got)
 	}
 	if want, got := true, acc.IsWarm(addr1) && acc.IsWarm(addr2); want != got {
@@ -249,7 +248,7 @@ func TestAccounts_String(t *testing.T) {
 func accountInit(a vm.Address) *Accounts {
 	ab := NewAccountsBuilder()
 	ab.SetBalance(a, NewU256(1))
-	ab.SetCode(a, []byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)})
+	ab.SetCode(a, NewBytes([]byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}))
 	ab.SetWarm(a)
 	acc := ab.Build()
 	return acc
@@ -277,7 +276,7 @@ func BenchmarkAccountCloneModifyCode(b *testing.B) {
 	b1 := accountInit(a)
 	for i := 0; i < b.N; i++ {
 		b2 := b1.Clone()
-		b2.SetCode(a, []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
+		b2.SetCode(a, NewBytes([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}))
 	}
 }
 

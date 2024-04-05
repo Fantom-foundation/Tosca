@@ -177,7 +177,7 @@ func (s *stateSerializable) deserialize() *State {
 
 		// Code needs to be manually copied because of serializablebytes
 		for address, code := range s.Accounts.Code {
-			accounntsBuilder.SetCode(address, code)
+			accounntsBuilder.SetCode(address, NewBytes(code))
 		}
 
 		for key := range s.Accounts.Warm {
@@ -221,7 +221,7 @@ func newAccountsSerializable(accounts *Accounts) *accountsSerializable {
 
 	codes := make(map[vm.Address]byteSliceSerializable)
 	for address, code := range accounts.GetCodes() {
-		codes[address] = code
+		codes[address] = code.ToBytes()
 	}
 
 	return &accountsSerializable{

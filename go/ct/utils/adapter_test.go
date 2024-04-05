@@ -202,7 +202,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"getCode": {
 			func(s *st.State) {
 				ab := st.NewAccountsBuilder()
-				ab.SetCode(vm.Address{1}, []byte{byte(cc.ADD), byte(cc.SUB)})
+				ab.SetCode(vm.Address{1}, cc.NewBytes([]byte{byte(cc.ADD), byte(cc.SUB)}))
 				s.Accounts = ab.Build()
 			},
 			func(p vm.Parameters) (any, any) {
@@ -228,7 +228,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"getCodeHash": {
 			func(s *st.State) {
 				ab := st.NewAccountsBuilder()
-				ab.SetCode(vm.Address{1}, []byte{byte(cc.ADD), byte(cc.SUB)})
+				ab.SetCode(vm.Address{1}, cc.NewBytes([]byte{byte(cc.ADD), byte(cc.SUB)}))
 				s.Accounts = ab.Build()
 			},
 			func(p vm.Parameters) (any, any) {
@@ -254,7 +254,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"getCodeSize": {
 			func(s *st.State) {
 				ab := st.NewAccountsBuilder()
-				ab.SetCode(vm.Address{1}, []byte{byte(cc.ADD), byte(cc.SUB)})
+				ab.SetCode(vm.Address{1}, cc.NewBytes([]byte{byte(cc.ADD), byte(cc.SUB)}))
 				s.Accounts = ab.Build()
 			},
 			func(p vm.Parameters) (any, any) {

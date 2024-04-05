@@ -861,7 +861,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			size := len(s.Accounts.GetCode(address))
+			size := s.Accounts.GetCode(address).Length()
 			s.Stack.Push(NewU256(uint64(size)))
 			s.Accounts.MarkWarm(address)
 		},
@@ -883,7 +883,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			size := len(s.Accounts.GetCode(address))
+			size := s.Accounts.GetCode(address).Length()
 			s.Stack.Push(NewU256(uint64(size)))
 		},
 		name: "_warm",
@@ -903,7 +903,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			size := len(s.Accounts.GetCode(address))
+			size := s.Accounts.GetCode(address).Length()
 			s.Stack.Push(NewU256(uint64(size)))
 		},
 		name: "_preBerlin",
@@ -1640,14 +1640,14 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 	s.Gas -= cost
 
 	start := offsetU256.Uint64()
-	codeSize := uint64(len(s.Accounts.GetCode(address)))
+	codeSize := uint64(s.Accounts.GetCode(address).Length())
 	if offsetU256.Gt(NewU256(codeSize)) {
 		start = codeSize
 	}
 	end := min(start+size, codeSize)
 
 	codeCopy := make([]byte, size)
-	copy(codeCopy, s.Accounts.GetCode(address)[start:end])
+	copy(codeCopy, s.Accounts.GetCode(address).ToBytes()[start:end])
 
 	s.Memory.Write(codeCopy, destOffset)
 	if markWarm {

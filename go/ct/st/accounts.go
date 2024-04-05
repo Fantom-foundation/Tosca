@@ -1,7 +1,6 @@
 package st
 
 import (
-	"bytes"
 	"fmt"
 	"reflect"
 
@@ -36,7 +35,7 @@ func (a *Accounts) IsEmpty(address vm.Address) bool {
 	// By definition, an account is empty if it has an empty balance,
 	// a nonce that is 0, and an empty code. However, we do not model
 	// nonces in this state, so we only check the balance and code.
-	return a.balance[address] == U256{} && len(a.code[address].ToBytes()) == 0
+	return a.balance[address] == U256{} && a.code[address].Length() == 0
 }
 
 func (a *Accounts) Clone() *Accounts {
@@ -72,7 +71,7 @@ func (a *Accounts) Diff(b *Accounts) (res []string) {
 		valueB, contained := b.code[address]
 		if !contained {
 			res = append(res, fmt.Sprintf("Different code entry:\n\t[%v]=%v\n\tvs\n\tmissing", address, valueA))
-		} else if !bytes.Equal(valueA.ToBytes(), valueB.ToBytes()) {
+		} else if valueA != valueB {
 			res = append(res, fmt.Sprintf("Different code entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", address, valueA, address, valueB))
 		}
 	}
@@ -130,30 +129,27 @@ func (a *Accounts) GetBalance(address vm.Address) U256 {
 	return a.balance[address]
 }
 
-func (a *Accounts) SetCode(address vm.Address, code []byte) {
-	a.code[address] = NewBytes(code)
+func (a *Accounts) SetCode(address vm.Address, code Bytes) {
+	a.code[address] = code
 }
 
-func (a *Accounts) GetCode(address vm.Address) []byte {
-	return a.code[address].ToBytes()
+func (a *Accounts) GetCode(address vm.Address) Bytes {
+	return a.code[address]
 }
 
 func (a *Accounts) Exist(address vm.Address) bool {
-	_, existsBalance := a.balance[address]
-	_, existsCode := a.code[address]
-	return existsBalance || existsCode
+	bal, existsBalance := a.balance[address]
+	cod, existsCode := a.code[address]
+	return (existsBalance && bal.Gt(NewU256(0))) ||
+		(existsCode && cod.Length() > 0)
 }
 
 func (a *Accounts) GetBalances() map[vm.Address]U256 {
 	return maps.Clone(a.balance)
 }
 
-func (a *Accounts) GetCodes() map[vm.Address][]byte {
-	codes := make(map[vm.Address][]byte)
-	for addr, code := range a.code {
-		codes[addr] = code.ToBytes()
-	}
-	return codes
+func (a *Accounts) GetCodes() map[vm.Address]Bytes {
+	return maps.Clone(a.code)
 }
 
 func (a *Accounts) String() string {
@@ -197,8 +193,8 @@ func (ab *AccountsBuilder) SetBalance(addr vm.Address, value U256) {
 	ab.accounts.balance[addr] = value
 }
 
-func (ab *AccountsBuilder) SetCode(addr vm.Address, code []byte) {
-	ab.accounts.code[addr] = NewBytes(code)
+func (ab *AccountsBuilder) SetCode(addr vm.Address, code Bytes) {
+	ab.accounts.code[addr] = code
 }
 
 func (ab *AccountsBuilder) SetWarm(addr vm.Address) {

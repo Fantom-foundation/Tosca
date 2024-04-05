@@ -86,7 +86,7 @@ func (c *ctRunContext) GetBalance(addr vm.Address) vm.Value {
 }
 
 func (c *ctRunContext) GetCodeSize(addr vm.Address) int {
-	return len(c.state.Accounts.GetCode(addr))
+	return c.state.Accounts.GetCode(addr).Length()
 }
 
 func (c *ctRunContext) GetCodeHash(addr vm.Address) vm.Hash {
@@ -94,7 +94,7 @@ func (c *ctRunContext) GetCodeHash(addr vm.Address) vm.Hash {
 }
 
 func (c *ctRunContext) GetCode(addr vm.Address) []byte {
-	return c.state.Accounts.GetCode(addr)
+	return c.state.Accounts.GetCode(addr).ToBytes()
 }
 
 func (c *ctRunContext) GetTransactionContext() vm.TransactionContext {

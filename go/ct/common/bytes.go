@@ -60,3 +60,7 @@ func (b *Bytes) UnmarshalJSON(data []byte) error {
 	b.data = string(data)
 	return nil
 }
+
+func (b Bytes) Length() int {
+	return len(b.data)
+}

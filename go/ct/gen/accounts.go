@@ -121,7 +121,7 @@ func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, acco
 		// TODO: Not every warm address requires balance or code
 		if !accountsBuilder.Exists(address) {
 			accountsBuilder.SetBalance(address, RandU256(rnd))
-			accountsBuilder.SetCode(address, randCode(rnd))
+			accountsBuilder.SetCode(address, NewBytes(randCode(rnd)))
 		}
 		if con.warm {
 			accountsBuilder.SetWarm(address)
@@ -133,16 +133,14 @@ func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, acco
 		address := getUnusedAddress()
 		accountsBuilder.SetBalance(address, RandU256(rnd))
 		if rnd.Intn(2) == 1 {
-			accountsBuilder.SetCode(address, randCode(rnd))
+			accountsBuilder.SetCode(address, NewBytes(randCode(rnd)))
 		}
-		if rnd.Intn(2) == 1 {
-			accountsBuilder.SetWarm(address)
-		}
+		accountsBuilder.SetWarm(address)
 	}
 
 	// Add own account address
 	accountsBuilder.SetBalance(accountAddress, RandU256(rnd))
-	accountsBuilder.SetCode(accountAddress, randCode(rnd))
+	accountsBuilder.SetCode(accountAddress, NewBytes(randCode(rnd)))
 
 	return accountsBuilder.Build(), nil
 }
