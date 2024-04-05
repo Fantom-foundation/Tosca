@@ -17,11 +17,7 @@ type Accounts struct {
 }
 
 func NewAccounts() *Accounts {
-	return &Accounts{
-		balance: make(map[vm.Address]U256),
-		code:    make(map[vm.Address]Bytes),
-		warm:    make(map[vm.Address]struct{}),
-	}
+	return &Accounts{}
 }
 
 func (a *Accounts) GetCodeHash(address vm.Address) (hash [32]byte) {
@@ -96,22 +92,36 @@ func (a *Accounts) Diff(b *Accounts) (res []string) {
 }
 
 func (a *Accounts) IsWarm(key vm.Address) bool {
+	if a.warm == nil {
+		return false
+	}
 	_, contains := a.warm[key]
 	return contains
 }
 
 func (a *Accounts) IsCold(key vm.Address) bool {
+	if a.warm == nil {
+		return true
+	}
 	_, contains := a.warm[key]
 	return !contains
 }
 
 func (a *Accounts) MarkWarm(key vm.Address) {
-	a.warm = maps.Clone(a.warm)
+	if a.warm == nil {
+		a.warm = make(map[vm.Address]struct{})
+	} else {
+		a.warm = maps.Clone(a.warm)
+	}
 	a.warm[key] = struct{}{}
 }
 
 func (a *Accounts) MarkCold(key vm.Address) {
-	a.warm = maps.Clone(a.warm)
+	if a.warm == nil {
+		a.warm = make(map[vm.Address]struct{})
+	} else {
+		a.warm = maps.Clone(a.warm)
+	}
 	delete(a.warm, key)
 }
 
@@ -152,8 +162,16 @@ func (a *Accounts) RemoveCode(address vm.Address) {
 }
 
 func (a *Accounts) Exist(address vm.Address) bool {
-	bal, existsBalance := a.balance[address]
-	cod, existsCode := a.code[address]
+	existsBalance := false
+	existsCode := false
+	bal := NewU256()
+	cod := NewBytes([]byte{})
+	if a.balance != nil {
+		bal, existsBalance = a.balance[address]
+	}
+	if a.code != nil {
+		cod, existsCode = a.code[address]
+	}
 	return (existsBalance && bal.Gt(NewU256(0))) ||
 		(existsCode && cod.Length() > 0)
 }
@@ -179,6 +197,8 @@ func (a *Accounts) String() string {
 	return retString
 }
 
+/// --- Accounts Builder
+
 type AccountsBuilder struct {
 	accounts Accounts
 }
@@ -189,6 +209,7 @@ func NewAccountsBuilder() *AccountsBuilder {
 	return &ab
 }
 
+// Build returns the immutable accounts instance and resets it's own internal accounts.
 func (ab *AccountsBuilder) Build() *Accounts {
 	acc := ab.accounts
 	ab.accounts = Accounts{}
@@ -196,14 +217,23 @@ func (ab *AccountsBuilder) Build() *Accounts {
 }
 
 func (ab *AccountsBuilder) SetBalance(addr vm.Address, value U256) {
+	if ab.accounts.balance == nil {
+		ab.accounts.balance = make(map[vm.Address]U256)
+	}
 	ab.accounts.balance[addr] = value
 }
 
 func (ab *AccountsBuilder) SetCode(addr vm.Address, code Bytes) {
+	if ab.accounts.code == nil {
+		ab.accounts.code = make(map[vm.Address]Bytes)
+	}
 	ab.accounts.code[addr] = code
 }
 
 func (ab *AccountsBuilder) SetWarm(addr vm.Address) {
+	if ab.accounts.warm == nil {
+		ab.accounts.warm = make(map[vm.Address]struct{})
+	}
 	ab.accounts.warm[addr] = struct{}{}
 }
 
