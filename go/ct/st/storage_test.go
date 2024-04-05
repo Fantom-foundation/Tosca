@@ -8,10 +8,11 @@ import (
 )
 
 func TestStorage_NewStorage(t *testing.T) {
-	s := NewStorage()
-	s.SetCurrent(NewU256(42), NewU256(1))
-	s.SetOriginal(NewU256(42), NewU256(2))
-	s.MarkWarm(NewU256(42))
+	s := NewStorageBuilder().
+		SetCurrent(NewU256(42), NewU256(1)).
+		SetOriginal(NewU256(42), NewU256(2)).
+		SetWarm(NewU256(42), true).
+		Build()
 
 	if want, got := true, s.IsWarm(NewU256(42)); want != got {
 		t.Fatalf("IsWarm is broken, want %v, got %v", want, got)
@@ -45,10 +46,11 @@ func TestStorage_Clone(t *testing.T) {
 		}},
 	}
 
-	s1 := NewStorage()
-	s1.SetCurrent(NewU256(42), NewU256(1))
-	s1.SetOriginal(NewU256(42), NewU256(2))
-	s1.MarkWarm(NewU256(42))
+	s1 := NewStorageBuilder().
+		SetCurrent(NewU256(42), NewU256(1)).
+		SetOriginal(NewU256(42), NewU256(2)).
+		SetWarm(NewU256(42), true).
+		Build()
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -65,10 +67,11 @@ func TestStorage_Clone(t *testing.T) {
 }
 
 func TestStorage_Diff(t *testing.T) {
-	s1 := NewStorage()
-	s1.SetCurrent(NewU256(42), NewU256(1))
-	s1.SetOriginal(NewU256(42), NewU256(2))
-	s1.MarkWarm(NewU256(42))
+	s1 := NewStorageBuilder().
+		SetCurrent(NewU256(42), NewU256(1)).
+		SetOriginal(NewU256(42), NewU256(2)).
+		SetWarm(NewU256(42), true).
+		Build()
 
 	s2 := s1.Clone()
 
@@ -118,7 +121,7 @@ func TestStorage_Diff(t *testing.T) {
 }
 
 func TestStorage_ZeroConsideredPresent(t *testing.T) {
-	s1 := NewStorage()
+	s1 := NewStorageBuilder().Build()
 
 	s2 := s1.Clone()
 	s2.SetCurrent(NewU256(42), NewU256(0))
@@ -154,10 +157,11 @@ func TestStorage_ZeroConsideredPresent(t *testing.T) {
 
 func BenchmarkStorage_CloneNotModified(b *testing.B) {
 	keyAndValue := NewU256(42)
-	original := NewStorage()
-	original.SetCurrent(keyAndValue, keyAndValue)
-	original.SetOriginal(keyAndValue, keyAndValue)
-	original.MarkWarm(keyAndValue)
+	original := NewStorageBuilder().
+		SetCurrent(keyAndValue, keyAndValue).
+		SetOriginal(keyAndValue, keyAndValue).
+		SetWarm(keyAndValue, true).
+		Build()
 
 	for i := 0; i < b.N; i++ {
 		clone := original.Clone()
@@ -169,13 +173,13 @@ func BenchmarkStorage_CloneNotModified(b *testing.B) {
 }
 
 func BenchmarkStorage_CloneModified(b *testing.B) {
-	original := NewStorage()
+	builder := NewStorageBuilder()
 	for i := 0; i < 32; i++ {
-		original.SetCurrent(NewU256(uint64(i)), NewU256(uint64(i)))
-		original.SetOriginal(NewU256(uint64(8+i)), NewU256(uint64(i)))
-		original.MarkWarmCold(NewU256(uint64(16+i)), i%2 == 0)
+		builder.SetCurrent(NewU256(uint64(i)), NewU256(uint64(i)))
+		builder.SetOriginal(NewU256(uint64(8+i)), NewU256(uint64(i)))
+		builder.SetWarm(NewU256(uint64(16+i)), i%2 == 0)
 	}
-
+	original := builder.Build()
 	keyAndValue := NewU256(42)
 
 	for i := 0; i < b.N; i++ {

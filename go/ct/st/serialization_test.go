@@ -23,9 +23,11 @@ func getNewFilledState() *State {
 	s.GasRefund = 63
 	s.Stack.Push(NewU256(42))
 	s.Memory.Write([]byte{1, 2, 3}, 31)
-	s.Storage.current[NewU256(42)] = NewU256(7)
-	s.Storage.original[NewU256(77)] = NewU256(4)
-	s.Storage.MarkWarm(NewU256(9))
+	s.Storage = NewStorageBuilder().
+		SetCurrent(NewU256(42), NewU256(7)).
+		SetOriginal(NewU256(77), NewU256(4)).
+		SetWarm(NewU256(9), true).
+		Build()
 	s.Accounts = NewAccounts()
 	s.Accounts.Balance[vm.Address{0x01}] = NewU256(42)
 	s.Accounts.Code[vm.Address{0x01}] = []byte{byte(PUSH1), byte(6)}
@@ -194,9 +196,9 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.Stack.Get(0).Uint64() == 42 &&
 		s.Memory.Size() == 64 &&
 		s.Memory.mem[31] == 1 &&
-		s.Storage.current[NewU256(42)].Eq(NewU256(7)) &&
-		s.Storage.current[NewU256(7)].IsZero() &&
-		s.Storage.original[NewU256(77)].Eq(NewU256(4)) &&
+		s.Storage.GetCurrent(NewU256(42)).Eq(NewU256(7)) &&
+		s.Storage.GetCurrent(NewU256(7)).IsZero() &&
+		s.Storage.GetOriginal(NewU256(77)).Eq(NewU256(4)) &&
 		s.Storage.IsWarm(NewU256(9)) &&
 		s.Accounts.Balance[vm.Address{0x01}].Eq(NewU256(42)) &&
 		bytes.Equal(s.Accounts.Code[vm.Address{0x01}], []byte{byte(PUSH1), byte(6)}) &&

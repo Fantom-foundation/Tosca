@@ -117,7 +117,7 @@ func NewState(code *Code) *State {
 		Code:               code,
 		Stack:              NewStack(),
 		Memory:             NewMemory(),
-		Storage:            NewStorage(),
+		Storage:            &Storage{},
 		Accounts:           NewAccounts(),
 		Logs:               NewLogs(),
 		CallJournal:        NewCallJournal(),

@@ -9,29 +9,66 @@ import (
 )
 
 type Storage struct {
-	current            map[U256]U256
-	original           map[U256]U256
-	warm               map[U256]bool
-	modifiableCurrent  bool
-	modifiableOriginal bool
-	modifiableWarm     bool
+	current  map[U256]U256
+	original map[U256]U256
+	warm     map[U256]bool
 }
 
-func NewStorage() *Storage {
-	return &Storage{
-		current:            make(map[U256]U256),
-		original:           make(map[U256]U256),
-		warm:               make(map[U256]bool),
-		modifiableCurrent:  true,
-		modifiableOriginal: true,
-		modifiableWarm:     true,
+type StorageBuilder struct {
+	s Storage
+}
+
+func NewStorageBuilder() *StorageBuilder {
+	return &StorageBuilder{}
+}
+
+func (s *StorageBuilder) Build() *Storage {
+	res := Storage{
+		current:  s.s.current,
+		original: s.s.original,
+		warm:     s.s.warm,
 	}
+	s.s.current = nil
+	s.s.original = nil
+	s.s.warm = nil
+
+	return &res
+}
+
+func (s *StorageBuilder) SetCurrent(key, value U256) *StorageBuilder {
+	if s.s.current == nil {
+		s.s.current = make(map[U256]U256)
+	}
+	s.s.current[key] = value
+	return s
+}
+
+func (s *StorageBuilder) SetOriginal(key, value U256) *StorageBuilder {
+	if s.s.original == nil {
+		s.s.original = make(map[U256]U256)
+	}
+	s.s.original[key] = value
+	return s
+}
+
+func (s *StorageBuilder) SetWarm(key U256, value bool) *StorageBuilder {
+	if s.s.warm == nil {
+		s.s.warm = make(map[U256]bool)
+	}
+	s.s.warm[key] = value
+	return s
+}
+
+func (s *StorageBuilder) IsInOriginal(key U256) bool {
+	_, isIn := s.s.original[key]
+	return isIn
 }
 
 func (s *Storage) SetCurrent(key U256, value U256) {
-	if !s.modifiableCurrent {
+	if s.current == nil {
+		s.current = make(map[U256]U256)
+	} else {
 		s.current = maps.Clone(s.current)
-		s.modifiableCurrent = true
 	}
 	s.current[key] = value
 }
@@ -41,17 +78,19 @@ func (s *Storage) GetCurrent(key U256) U256 {
 }
 
 func (s *Storage) RemoveCurrent(key U256) {
-	if !s.modifiableCurrent {
+	if s.current == nil {
+		s.current = make(map[U256]U256)
+	} else {
 		s.current = maps.Clone(s.current)
-		s.modifiableCurrent = true
 	}
 	delete(s.current, key)
 }
 
 func (s *Storage) SetOriginal(key U256, value U256) {
-	if !s.modifiableOriginal {
+	if s.original == nil {
+		s.original = make(map[U256]U256)
+	} else {
 		s.original = maps.Clone(s.original)
-		s.modifiableOriginal = true
 	}
 	s.original[key] = value
 }
@@ -61,59 +100,41 @@ func (s *Storage) GetOriginal(key U256) U256 {
 }
 
 func (s *Storage) RemoveOriginal(key U256) {
-	if !s.modifiableOriginal {
+	if s.original == nil {
+		s.original = make(map[U256]U256)
+	} else {
 		s.original = maps.Clone(s.original)
-		s.modifiableOriginal = true
 	}
 	delete(s.original, key)
-}
-
-func (s *Storage) IsInOriginal(key U256) bool {
-	_, isIn := s.original[key]
-	return isIn
 }
 
 func (s *Storage) IsWarm(key U256) bool {
 	return s.warm[key]
 }
 
-func (s *Storage) MarkWarmCold(key U256, warm bool) {
-	if !s.modifiableWarm {
-		s.warm = maps.Clone(s.warm)
-		s.modifiableWarm = true
-	}
-	if warm {
-		s.MarkWarm(key)
-	} else {
-		s.MarkCold(key)
-	}
-}
-
 func (s *Storage) MarkWarm(key U256) {
-	if !s.modifiableWarm {
+	if s.warm == nil {
+		s.warm = make(map[U256]bool)
+	} else {
 		s.warm = maps.Clone(s.warm)
-		s.modifiableWarm = true
 	}
 	s.warm[key] = true
 }
 
 func (s *Storage) MarkCold(key U256) {
-	if !s.modifiableWarm {
+	if s.warm == nil {
+		s.warm = make(map[U256]bool)
+	} else {
 		s.warm = maps.Clone(s.warm)
-		s.modifiableWarm = true
 	}
 	delete(s.warm, key)
 }
 
-// Clone storage uses copy on modify to avoid unnecessary copies
 func (s *Storage) Clone() *Storage {
 	return &Storage{
-		current:            s.current,
-		original:           s.original,
-		warm:               s.warm,
-		modifiableCurrent:  false,
-		modifiableOriginal: false,
-		modifiableWarm:     false,
+		current:  s.current,
+		original: s.original,
+		warm:     s.warm,
 	}
 }
 

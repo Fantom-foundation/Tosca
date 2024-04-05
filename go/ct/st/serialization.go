@@ -161,12 +161,23 @@ func (s *stateSerializable) deserialize() *State {
 	state.GasRefund = s.GasRefund
 	state.Stack = NewStack(slices.Clone(s.Stack)...)
 	state.Memory = NewMemory(slices.Clone(s.Memory)...)
-	state.Storage = NewStorage()
+
 	if s.Storage != nil {
-		state.Storage.current = maps.Clone(s.Storage.Current)
-		state.Storage.original = maps.Clone(s.Storage.Original)
-		state.Storage.warm = maps.Clone(s.Storage.Warm)
+		storageBuilder := NewStorageBuilder()
+		for key, val := range s.Storage.Current {
+			storageBuilder.SetCurrent(key, val)
+		}
+
+		for key, val := range s.Storage.Original {
+			storageBuilder.SetOriginal(key, val)
+		}
+
+		for key, val := range s.Storage.Warm {
+			storageBuilder.SetWarm(key, val)
+		}
+		state.Storage = storageBuilder.Build()
 	}
+
 	state.Accounts = NewAccounts()
 	if s.Accounts != nil {
 		state.Accounts.Balance = maps.Clone(s.Accounts.Balance)
