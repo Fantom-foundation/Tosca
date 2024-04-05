@@ -179,10 +179,9 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"balance-unspecified": {
 			func(s *st.State) {
-				s.Accounts = &st.Accounts{}
-				s.Accounts.Balance = map[vm.Address]cc.U256{
-					{1}: cc.NewU256(2),
-				}
+				ab := st.NewAccountsBuilder()
+				ab.SetBalance(vm.Address{1}, cc.NewU256(2))
+				s.Accounts = ab.Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -191,10 +190,9 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"balance-specified": {
 			func(s *st.State) {
-				s.Accounts = &st.Accounts{}
-				s.Accounts.Balance = map[vm.Address]cc.U256{
-					{1}: cc.NewU256(2),
-				}
+				ab := st.NewAccountsBuilder()
+				ab.SetBalance(vm.Address{1}, cc.NewU256(2))
+				s.Accounts = ab.Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -203,10 +201,9 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"getCode": {
 			func(s *st.State) {
-				s.Accounts = &st.Accounts{}
-				s.Accounts.Code = map[vm.Address][]byte{
-					{1}: {byte(cc.ADD), byte(cc.SUB)},
-				}
+				ab := st.NewAccountsBuilder()
+				ab.SetCode(vm.Address{1}, cc.NewBytes([]byte{byte(cc.ADD), byte(cc.SUB)}))
+				s.Accounts = ab.Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -215,8 +212,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"getCodeHash-emptyHash": {
 			func(s *st.State) {
-				s.Accounts = &st.Accounts{}
-				s.Accounts.Code = map[vm.Address][]byte{}
+				s.Accounts = st.NewAccountsBuilder().Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -231,10 +227,9 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"getCodeHash": {
 			func(s *st.State) {
-				s.Accounts = &st.Accounts{}
-				s.Accounts.Code = map[vm.Address][]byte{
-					{1}: {byte(cc.ADD), byte(cc.SUB)},
-				}
+				ab := st.NewAccountsBuilder()
+				ab.SetCode(vm.Address{1}, cc.NewBytes([]byte{byte(cc.ADD), byte(cc.SUB)}))
+				s.Accounts = ab.Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -249,8 +244,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"getCodeSize-empty": {
 			func(s *st.State) {
-				s.Accounts = &st.Accounts{}
-				s.Accounts.Code = map[vm.Address][]byte{}
+				s.Accounts = st.NewAccountsBuilder().Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -259,10 +253,9 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"getCodeSize": {
 			func(s *st.State) {
-				s.Accounts = &st.Accounts{}
-				s.Accounts.Code = map[vm.Address][]byte{
-					{1}: {byte(cc.ADD), byte(cc.SUB)},
-				}
+				ab := st.NewAccountsBuilder()
+				ab.SetCode(vm.Address{1}, cc.NewBytes([]byte{byte(cc.ADD), byte(cc.SUB)}))
+				s.Accounts = ab.Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context

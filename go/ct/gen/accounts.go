@@ -113,31 +113,34 @@ func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, acco
 		return address
 	}
 
-	account := st.NewAccounts()
+	accountsBuilder := st.NewAccountsBuilder()
+
 	// Process warm/cold constraints.
 	for _, con := range g.warmCold {
 		address := getAddress(con.key)
 		// TODO: Not every warm address requires balance or code
-		if _, isPresent := account.Balance[address]; !isPresent {
-			account.Balance[address] = RandU256(rnd)
-			account.Code[address] = randCode(rnd)
+		if !accountsBuilder.Exists(address) {
+			accountsBuilder.SetBalance(address, RandU256(rnd))
+			accountsBuilder.SetCode(address, NewBytes(randCode(rnd)))
 		}
-		account.SetWarm(address, con.warm)
+		if con.warm {
+			accountsBuilder.SetWarm(address)
+		}
 	}
 
 	// Some random entries.
 	for i, max := 0, rnd.Intn(5); i < max; i++ {
 		address := getUnusedAddress()
-		account.Balance[address] = RandU256(rnd)
+		accountsBuilder.SetBalance(address, RandU256(rnd))
 		if rnd.Intn(2) == 1 {
-			account.Code[address] = randCode(rnd)
+			accountsBuilder.SetCode(address, NewBytes(randCode(rnd)))
 		}
-		account.SetWarm(address, rnd.Intn(2) == 1)
+		accountsBuilder.SetWarm(address)
 	}
 
 	// Add own account address
-	account.Balance[accountAddress] = RandU256(rnd)
-	account.Code[accountAddress] = randCode(rnd)
+	accountsBuilder.SetBalance(accountAddress, RandU256(rnd))
+	accountsBuilder.SetCode(accountAddress, NewBytes(randCode(rnd)))
 
-	return account, nil
+	return accountsBuilder.Build(), nil
 }
