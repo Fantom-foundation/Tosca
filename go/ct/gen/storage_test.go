@@ -30,8 +30,8 @@ func TestStorageGenerator_StorageConfigurationsAreEnforced(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		org := storage.Original[assignment[vKey]]
-		cur := storage.Current[assignment[vKey]]
+		org := storage.GetOriginal(assignment[vKey])
+		cur := storage.GetCurrent(assignment[vKey])
 		new := assignment[vNewValue]
 
 		fail := false

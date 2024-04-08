@@ -21,8 +21,8 @@ func TestState_CloneCreatesEqualState(t *testing.T) {
 	state.GasRefund = 15
 	state.Stack.Push(NewU256(3))
 	state.Memory.Write([]byte{1, 2, 3}, 1)
-	state.Storage.Current[NewU256(4)] = NewU256(5)
-	state.Storage.Original[NewU256(6)] = NewU256(7)
+	state.Storage.SetCurrent(NewU256(4), NewU256(5))
+	state.Storage.SetOriginal(NewU256(6), NewU256(7))
 	state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
 	state.CallContext.AccountAddress = vm.Address{0xff}
 	state.CallContext.OriginAddress = vm.Address{0xfe}
@@ -52,8 +52,8 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.GasRefund = 15
 	state.Stack.Push(NewU256(3))
 	state.Memory.Write([]byte{1, 2, 3}, 1)
-	state.Storage.Current[NewU256(4)] = NewU256(5)
-	state.Storage.Original[NewU256(6)] = NewU256(7)
+	state.Storage.SetCurrent(NewU256(4), NewU256(5))
+	state.Storage.SetOriginal(NewU256(6), NewU256(7))
 	state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
 	state.CallContext.AccountAddress = vm.Address{0xff}
 	state.CallContext.OriginAddress = vm.Address{0xfe}
@@ -76,8 +76,8 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.GasRefund = 16
 	clone.Stack.Push(NewU256(6))
 	clone.Memory.Write([]byte{4, 5, 6, 7}, 64)
-	clone.Storage.Current[NewU256(7)] = NewU256(16)
-	clone.Storage.Original[NewU256(6)] = NewU256(6)
+	clone.Storage.SetCurrent(NewU256(7), NewU256(16))
+	clone.Storage.SetOriginal(NewU256(6), NewU256(6))
 	clone.Storage.MarkWarm(NewU256(42))
 	clone.Logs.Entries[0].Data[0] = 31
 	clone.Logs.Entries[0].Topics[0] = NewU256(41)
@@ -102,9 +102,9 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.Stack.Size() == 1 &&
 		state.Stack.Get(0).Uint64() == 3 &&
 		state.Memory.Size() == 32 &&
-		state.Storage.Current[NewU256(4)].Eq(NewU256(5)) &&
-		state.Storage.Current[NewU256(7)].IsZero() &&
-		state.Storage.Original[NewU256(6)].Eq(NewU256(7)) &&
+		state.Storage.GetCurrent(NewU256(4)).Eq(NewU256(5)) &&
+		state.Storage.GetCurrent(NewU256(7)).IsZero() &&
+		state.Storage.GetOriginal(NewU256(6)).Eq(NewU256(7)) &&
 		!state.Storage.IsWarm(NewU256(42)) &&
 		state.Logs.Entries[0].Data[0] == 10 &&
 		state.Logs.Entries[0].Topics[0] == NewU256(21) &&
@@ -183,11 +183,11 @@ func TestState_Eq(t *testing.T) {
 	}
 	s2.Memory.Write([]byte{1, 2, 3}, 1)
 
-	s1.Storage.Current[NewU256(42)] = NewU256(32)
+	s1.Storage.SetCurrent(NewU256(42), NewU256(32))
 	if s1.Eq(s2) {
 		t.Fail()
 	}
-	s2.Storage.Current[NewU256(42)] = NewU256(32)
+	s2.Storage.SetCurrent(NewU256(42), NewU256(32))
 
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	if s1.Eq(s2) {
@@ -698,7 +698,7 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 			relevantFor: onlyRunning,
 		},
 		"storage": {
-			modify:      func(s *State) { s.Storage.Current[NewU256(1)] = NewU256(2) },
+			modify:      func(s *State) { s.Storage.SetCurrent(NewU256(1), NewU256(2)) },
 			relevantFor: allButFailed,
 		},
 		"accounts": {

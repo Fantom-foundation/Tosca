@@ -106,10 +106,9 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"storage-current-unspecified": {
 			func(s *st.State) {
-				s.Storage = &st.Storage{}
-				s.Storage.Current = map[cc.U256]cc.U256{
-					cc.NewU256(1): cc.NewU256(2),
-				}
+				s.Storage = st.NewStorageBuilder().
+					SetCurrent(cc.NewU256(1), cc.NewU256(2)).
+					Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -118,10 +117,9 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"storage-current-specified": {
 			func(s *st.State) {
-				s.Storage = &st.Storage{}
-				s.Storage.Current = map[cc.U256]cc.U256{
-					cc.NewU256(1): cc.NewU256(2),
-				}
+				s.Storage = st.NewStorageBuilder().
+					SetCurrent(cc.NewU256(1), cc.NewU256(2)).
+					Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -132,10 +130,9 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"storage-original-unspecified": {
 			func(s *st.State) {
-				s.Storage = &st.Storage{}
-				s.Storage.Original = map[cc.U256]cc.U256{
-					cc.NewU256(1): cc.NewU256(2),
-				}
+				s.Storage = st.NewStorageBuilder().
+					SetCurrent(cc.NewU256(1), cc.NewU256(2)).
+					Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -144,10 +141,9 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"storage-original-specified": {
 			func(s *st.State) {
-				s.Storage = &st.Storage{}
-				s.Storage.Original = map[cc.U256]cc.U256{
-					cc.NewU256(1): cc.NewU256(2),
-				}
+				s.Storage = st.NewStorageBuilder().
+					SetOriginal(cc.NewU256(1), cc.NewU256(2)).
+					Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -158,7 +154,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"cold-slot": {
 			func(s *st.State) {
-				s.Storage = st.NewStorage()
+				s.Storage = st.NewStorageBuilder().Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context
@@ -168,8 +164,9 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		},
 		"warm-slot": {
 			func(s *st.State) {
-				s.Storage = st.NewStorage()
-				s.Storage.MarkWarm(cc.NewU256())
+				s.Storage = st.NewStorageBuilder().
+					SetWarm(cc.NewU256(), true).
+					Build()
 			},
 			func(p vm.Parameters) (any, any) {
 				ctxt := p.Context

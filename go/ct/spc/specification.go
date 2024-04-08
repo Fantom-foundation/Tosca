@@ -430,7 +430,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			key := s.Stack.Pop()
-			s.Stack.Push(s.Storage.Current[key])
+			s.Stack.Push(s.Storage.GetCurrent(key))
 			s.Storage.MarkWarm(key)
 		},
 		name: "_cold",
@@ -451,7 +451,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			key := s.Stack.Pop()
-			s.Stack.Push(s.Storage.Current[key])
+			s.Stack.Push(s.Storage.GetCurrent(key))
 		},
 		name: "_warm",
 	})...)
@@ -470,7 +470,7 @@ var Spec = func() Specification {
 		},
 		effect: func(s *st.State) {
 			key := s.Stack.Pop()
-			s.Stack.Push(s.Storage.Current[key])
+			s.Stack.Push(s.Storage.GetCurrent(key))
 		},
 		name: "_pre_berlin",
 	})...)
@@ -1704,7 +1704,7 @@ func sstoreOpRegular(params sstoreOpParams) Rule {
 			s.Pc++
 			key := s.Stack.Pop()
 			value := s.Stack.Pop()
-			s.Storage.Current[key] = value
+			s.Storage.SetCurrent(key, value)
 			if s.Revision >= R09_Berlin {
 				s.Storage.MarkWarm(key)
 			}

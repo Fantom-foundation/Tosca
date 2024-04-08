@@ -161,12 +161,23 @@ func (s *stateSerializable) deserialize() *State {
 	state.GasRefund = s.GasRefund
 	state.Stack = NewStack(slices.Clone(s.Stack)...)
 	state.Memory = NewMemory(slices.Clone(s.Memory)...)
-	state.Storage = NewStorage()
+
 	if s.Storage != nil {
-		state.Storage.Current = maps.Clone(s.Storage.Current)
-		state.Storage.Original = maps.Clone(s.Storage.Original)
-		state.Storage.warm = maps.Clone(s.Storage.Warm)
+		storageBuilder := NewStorageBuilder()
+		for key, val := range s.Storage.Current {
+			storageBuilder.SetCurrent(key, val)
+		}
+
+		for key, val := range s.Storage.Original {
+			storageBuilder.SetOriginal(key, val)
+		}
+
+		for key, val := range s.Storage.Warm {
+			storageBuilder.SetWarm(key, val)
+		}
+		state.Storage = storageBuilder.Build()
 	}
+
 	state.Accounts = NewAccounts()
 	if s.Accounts != nil {
 		accountsBuilder := NewAccountsBuilder()
@@ -206,8 +217,8 @@ func (s *stateSerializable) deserialize() *State {
 // newStorageSerializable creates a new storageSerializable instance from the given Storage instance.
 func newStorageSerializable(storage *Storage) *storageSerializable {
 	return &storageSerializable{
-		Current:  maps.Clone(storage.Current),
-		Original: maps.Clone(storage.Original),
+		Current:  maps.Clone(storage.current),
+		Original: maps.Clone(storage.original),
 		Warm:     maps.Clone(storage.warm),
 	}
 }

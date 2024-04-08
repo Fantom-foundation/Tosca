@@ -217,7 +217,7 @@ func (g *StorageGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.
 		}
 	}
 
-	storage := st.NewStorage()
+	builder := st.NewStorageBuilder()
 
 	// Process storage configuration constraints.
 	for _, con := range g.cfg {
@@ -275,30 +275,30 @@ func (g *StorageGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.
 			curValue = randValueButNot(NewU256(0), orgValue, newValue)
 		}
 
-		storage.Original[key] = orgValue
-		storage.Current[key] = curValue
-		storage.MarkWarmCold(key, rnd.Intn(2) == 1)
+		builder.SetOriginal(key, orgValue)
+		builder.SetCurrent(key, curValue)
+		builder.SetWarm(key, rnd.Intn(2) == 1)
 	}
 
 	// Process warm/cold constraints.
 	for _, con := range g.warmCold {
 		key := getKey(con.key)
-		if _, isPresent := storage.Original[key]; !isPresent {
-			storage.Original[key] = RandU256(rnd)
-			storage.Current[key] = RandU256(rnd)
+		if !builder.IsInOriginal(key) {
+			builder.SetOriginal(key, RandU256(rnd))
+			builder.SetCurrent(key, RandU256(rnd))
 		}
-		storage.MarkWarmCold(key, con.warm)
+		builder.SetWarm(key, con.warm)
 	}
 
 	// Also, add some random entries.
 	for i, max := 0, rnd.Intn(5); i < max; i++ {
 		key := getUnusedKey()
-		storage.Original[key] = RandU256(rnd)
-		storage.Current[key] = RandU256(rnd)
-		storage.MarkWarmCold(key, rnd.Intn(2) == 1)
+		builder.SetOriginal(key, RandU256(rnd))
+		builder.SetCurrent(key, RandU256(rnd))
+		builder.SetWarm(key, rnd.Intn(2) == 1)
 	}
 
-	return storage, nil
+	return builder.Build(), nil
 }
 
 func (g *StorageGenerator) Clone() *StorageGenerator {

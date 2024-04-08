@@ -117,7 +117,7 @@ func NewState(code *Code) *State {
 		Code:               code,
 		Stack:              NewStack(),
 		Memory:             NewMemory(),
-		Storage:            NewStorage(),
+		Storage:            &Storage{},
 		Accounts:           NewAccounts(),
 		Logs:               NewLogs(),
 		CallJournal:        NewCallJournal(),
@@ -230,11 +230,11 @@ func (s *State) String() string {
 	}
 	write("\tMemory size: %d\n", s.Memory.Size())
 	write("\tStorage.Current:\n")
-	for k, v := range s.Storage.Current {
+	for k, v := range s.Storage.current {
 		write("\t    [%v]=%v\n", k, v)
 	}
 	write("\tStorage.Original:\n")
-	for k, v := range s.Storage.Original {
+	for k, v := range s.Storage.original {
 		write("\t    [%v]=%v\n", k, v)
 	}
 	write("\tStorage.Warm:\n")
