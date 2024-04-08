@@ -69,6 +69,11 @@ func boolToU256(value bool) U256 {
 }
 
 var Spec = func() Specification {
+	rules := getAllRules()
+	return NewSpecification(rules...)
+}()
+
+func getAllRules() []Rule {
 	rules := []Rule{}
 
 	// --- Terminal States ---
@@ -1482,8 +1487,8 @@ var Spec = func() Specification {
 
 	// --- End ---
 
-	return NewSpecification(rules...)
-}()
+	return rules
+}
 
 func binaryOpWithDynamicCost(
 	op OpCode,
