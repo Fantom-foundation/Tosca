@@ -19,52 +19,7 @@ func init() {
 type gethVm struct{}
 
 func (m *gethVm) Run(parameters vm.Parameters) (vm.Result, error) {
-	// Set hard forks for chainconfig
-	chainConfig := *params.AllEthashProtocolChanges
-	chainConfig.ChainID = big.NewInt(0)
-	chainConfig.IstanbulBlock = big.NewInt(int64(vm.R07_Istanbul) * 10)
-	chainConfig.BerlinBlock = big.NewInt(int64(vm.R09_Berlin) * 10)
-	chainConfig.LondonBlock = big.NewInt(int64(vm.R10_London) * 10)
-
-	// Hashing function used in the context for BLOCKHASH instruction
-	getHash := func(num uint64) common.Hash {
-		return common.Hash{}
-	}
-
-	var transactionContext vm.TransactionContext
-	if parameters.Context != nil {
-		transactionContext = parameters.Context.GetTransactionContext()
-	}
-
-	// Create empty block context based on block number
-	blockCtx := geth.BlockContext{
-		BlockNumber: big.NewInt(int64(parameters.Revision)*10 + 2),
-		Time:        big.NewInt(transactionContext.Timestamp),
-		Difficulty:  big.NewInt(1),
-		GasLimit:    uint64(transactionContext.GasLimit),
-		GetHash:     getHash,
-		BaseFee:     new(big.Int).SetBytes(transactionContext.BaseFee[:]),
-		Transfer:    transferFunc,
-		CanTransfer: canTransferFunc,
-	}
-	// Create empty tx context
-	txCtx := geth.TxContext{
-		GasPrice: new(big.Int).SetBytes(transactionContext.GasPrice[:]),
-	}
-	// Set interpreter variant for this VM
-	config := geth.Config{
-		InterpreterImpl: "geth",
-	}
-
-	stateDb := &stateDbAdapter{context: parameters.Context}
-	evm := geth.NewEVM(blockCtx, txCtx, stateDb, &chainConfig, config)
-
-	addr := geth.AccountRef{}
-	contract := geth.NewContract(addr, addr, big.NewInt(0), uint64(parameters.Gas))
-	contract.CodeAddr = &common.Address{}
-	contract.Code = parameters.Code
-	contract.CodeHash = crypto.Keccak256Hash(parameters.Code)
-	contract.CallerAddress = common.Address(parameters.Sender)
+	evm, contract, stateDb := createGethInterpreterContext(parameters)
 
 	output, err := evm.Interpreter().Run(contract, parameters.Input, false)
 
@@ -115,6 +70,67 @@ func (m *gethVm) Run(parameters vm.Parameters) (vm.Result, error) {
 
 	// In all other cases an EVM error should be reported.
 	return vm.Result{}, fmt.Errorf("internal EVM error in geth: %v", err)
+}
+
+func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Contract, *stateDbAdapter) {
+	context := parameters.Context.GetTransactionContext()
+
+	// Set hard forks for chainconfig
+	chainConfig := *params.AllEthashProtocolChanges
+	chainConfig.ChainID = new(big.Int).SetBytes(context.ChainID[:])
+	chainConfig.IstanbulBlock = big.NewInt(int64(vm.R07_Istanbul) * 10)
+	chainConfig.BerlinBlock = big.NewInt(int64(vm.R09_Berlin) * 10)
+	chainConfig.LondonBlock = big.NewInt(int64(vm.R10_London) * 10)
+
+	// Hashing function used in the context for BLOCKHASH instruction
+	getHash := func(num uint64) common.Hash {
+		return common.Hash{}
+	}
+
+	var transactionContext vm.TransactionContext
+	if parameters.Context != nil {
+		transactionContext = parameters.Context.GetTransactionContext()
+	}
+
+	// Create empty block context based on block number
+	blockCtx := geth.BlockContext{
+		BlockNumber: big.NewInt(int64(parameters.Revision)*10 + 2),
+		Time:        big.NewInt(transactionContext.Timestamp),
+		Difficulty:  big.NewInt(1),
+		GasLimit:    uint64(transactionContext.GasLimit),
+		GetHash:     getHash,
+		BaseFee:     new(big.Int).SetBytes(transactionContext.BaseFee[:]),
+		Transfer:    transferFunc,
+		CanTransfer: canTransferFunc,
+	}
+	// Create empty tx context
+	txCtx := geth.TxContext{
+		GasPrice: new(big.Int).SetBytes(transactionContext.GasPrice[:]),
+	}
+	// Set interpreter variant for this VM
+	config := geth.Config{
+		InterpreterImpl: "geth",
+	}
+
+	stateDb := &stateDbAdapter{context: parameters.Context}
+	evm := geth.NewEVM(blockCtx, txCtx, stateDb, &chainConfig, config)
+
+	evm.Origin = common.Address(context.Origin)
+	evm.Context.BlockNumber = big.NewInt(context.BlockNumber)
+	evm.Context.Coinbase = common.Address(context.Coinbase)
+	evm.Context.Difficulty = new(big.Int).SetBytes(context.PrevRandao[:])
+	evm.Context.Time = new(big.Int).SetUint64(uint64(context.Timestamp))
+
+	value := new(big.Int).SetBytes(parameters.Value[:])
+	addr := geth.AccountRef(parameters.Recipient)
+	contract := geth.NewContract(addr, addr, value, uint64(parameters.Gas))
+	contract.CallerAddress = common.Address(parameters.Sender)
+	contract.CodeAddr = &common.Address{}
+	contract.Code = parameters.Code
+	contract.CodeHash = crypto.Keccak256Hash(parameters.Code)
+	contract.Input = parameters.Input
+
+	return evm, contract, stateDb
 }
 
 // --- Adapter ---
