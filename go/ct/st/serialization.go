@@ -178,7 +178,6 @@ func (s *stateSerializable) deserialize() *State {
 		state.Storage = storageBuilder.Build()
 	}
 
-	state.Accounts = NewAccounts()
 	if s.Accounts != nil {
 		accountsBuilder := NewAccountsBuilder()
 

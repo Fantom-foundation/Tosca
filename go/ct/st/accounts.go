@@ -17,11 +17,7 @@ type Accounts struct {
 }
 
 func NewAccounts() *Accounts {
-	return &Accounts{
-		balance: make(map[vm.Address]U256),
-		code:    make(map[vm.Address]Bytes),
-		warm:    make(map[vm.Address]struct{}),
-	}
+	return &Accounts{}
 }
 
 func (a *Accounts) GetCodeHash(address vm.Address) (hash [32]byte) {
@@ -40,9 +36,9 @@ func (a *Accounts) IsEmpty(address vm.Address) bool {
 
 func (a *Accounts) Clone() *Accounts {
 	return &Accounts{
-		balance: maps.Clone(a.balance),
-		code:    maps.Clone(a.code),
-		warm:    maps.Clone(a.warm),
+		balance: a.balance,
+		code:    a.code,
+		warm:    a.warm,
 	}
 }
 
@@ -96,20 +92,35 @@ func (a *Accounts) Diff(b *Accounts) (res []string) {
 }
 
 func (a *Accounts) IsWarm(key vm.Address) bool {
+	if a.warm == nil {
+		return false
+	}
 	_, contains := a.warm[key]
 	return contains
 }
 
 func (a *Accounts) IsCold(key vm.Address) bool {
+	if a.warm == nil {
+		return true
+	}
 	_, contains := a.warm[key]
 	return !contains
 }
 
 func (a *Accounts) MarkWarm(key vm.Address) {
+	if a.warm == nil {
+		a.warm = make(map[vm.Address]struct{})
+	} else {
+		a.warm = maps.Clone(a.warm)
+	}
 	a.warm[key] = struct{}{}
 }
 
 func (a *Accounts) MarkCold(key vm.Address) {
+	if a.IsCold(key) {
+		return
+	}
+	a.warm = maps.Clone(a.warm)
 	delete(a.warm, key)
 }
 
@@ -122,6 +133,11 @@ func (a *Accounts) SetWarm(key vm.Address, warm bool) {
 }
 
 func (a *Accounts) SetBalance(address vm.Address, val U256) {
+	if a.balance == nil {
+		a.balance = make(map[vm.Address]U256)
+	} else {
+		a.balance = maps.Clone(a.balance)
+	}
 	a.balance[address] = val
 }
 
@@ -129,17 +145,49 @@ func (a *Accounts) GetBalance(address vm.Address) U256 {
 	return a.balance[address]
 }
 
+func (a *Accounts) RemoveBalance(address vm.Address) {
+	if _, exists := a.balance[address]; !exists {
+		return
+	}
+	a.balance = maps.Clone(a.balance)
+	delete(a.balance, address)
+}
+
 func (a *Accounts) SetCode(address vm.Address, code Bytes) {
+	if a.code == nil {
+		a.code = make(map[vm.Address]Bytes)
+	} else {
+		a.code = maps.Clone(a.code)
+	}
 	a.code[address] = code
 }
 
 func (a *Accounts) GetCode(address vm.Address) Bytes {
+	if a.code == nil {
+		return NewBytes([]byte{})
+	}
 	return a.code[address]
 }
 
+func (a *Accounts) RemoveCode(address vm.Address) {
+	if _, exists := a.code[address]; !exists {
+		return
+	}
+	a.code = maps.Clone(a.code)
+	delete(a.code, address)
+}
+
 func (a *Accounts) Exist(address vm.Address) bool {
-	bal, existsBalance := a.balance[address]
-	cod, existsCode := a.code[address]
+	existsBalance := false
+	existsCode := false
+	bal := NewU256()
+	cod := NewBytes([]byte{})
+	if a.balance != nil {
+		bal, existsBalance = a.balance[address]
+	}
+	if a.code != nil {
+		cod, existsCode = a.code[address]
+	}
 	return (existsBalance && bal.Gt(NewU256(0))) ||
 		(existsCode && cod.Length() > 0)
 }
@@ -165,6 +213,8 @@ func (a *Accounts) String() string {
 	return retString
 }
 
+/// --- Accounts Builder
+
 type AccountsBuilder struct {
 	accounts Accounts
 }
@@ -175,6 +225,7 @@ func NewAccountsBuilder() *AccountsBuilder {
 	return &ab
 }
 
+// Build returns the immutable accounts instance and resets it's own internal accounts.
 func (ab *AccountsBuilder) Build() *Accounts {
 	acc := ab.accounts
 	ab.accounts = Accounts{}
@@ -182,14 +233,23 @@ func (ab *AccountsBuilder) Build() *Accounts {
 }
 
 func (ab *AccountsBuilder) SetBalance(addr vm.Address, value U256) {
+	if ab.accounts.balance == nil {
+		ab.accounts.balance = make(map[vm.Address]U256)
+	}
 	ab.accounts.balance[addr] = value
 }
 
 func (ab *AccountsBuilder) SetCode(addr vm.Address, code Bytes) {
+	if ab.accounts.code == nil {
+		ab.accounts.code = make(map[vm.Address]Bytes)
+	}
 	ab.accounts.code[addr] = code
 }
 
 func (ab *AccountsBuilder) SetWarm(addr vm.Address) {
+	if ab.accounts.warm == nil {
+		ab.accounts.warm = make(map[vm.Address]struct{})
+	}
 	ab.accounts.warm[addr] = struct{}{}
 }
 
