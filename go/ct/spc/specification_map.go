@@ -1,33 +1,27 @@
 package spc
 
 import (
-	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"regexp"
+	"strings"
+
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
 type specificationMap struct {
-	rules map[OpCode][]Rule
+	rules map[string][]Rule
 }
 
-var SpecMap = func() Specification {
+var Spec = func() Specification {
 	rules := getAllRules()
-	return NewSpecification(rules...)
+	return NewSpecificationMap(rules...)
 }()
 
-func NewSpecificationMap(rules ...Rule) Specification {
-	spec := &specificationMap{}
-	for _, rule := range rules {
-		op := ruleNameToOpcode(rule.Name)
-		spec.rules[op] = append(spec.rules[op], rule)
-	}
-	return spec
-}
-
 func (s *specificationMap) GetRules() []Rule {
-	// TODO check wether this is sufficient to allocate 3 rules per opcode
+	// allocating space for 5 rules per rule, checked with GetAllRules benchmark
+	allRules := make([]Rule, 0, len(s.rules)*5)
 
-	allRules := make([]Rule, 0, len(s.rules)*3)
 	for _, rules := range s.rules {
 		allRules = append(allRules, rules...)
 	}
@@ -35,14 +29,33 @@ func (s *specificationMap) GetRules() []Rule {
 	return allRules
 }
 
-func (s *specificationMap) GetRulesFor(state *st.State) []Rule {
-	result := []Rule{}
-	op, err := state.Code.GetOperation(int(state.Pc))
-	if err != nil {
-		return result
+func NewSpecificationMap(rules ...Rule) Specification {
+	spec := &specificationMap{}
+	spec.rules = make(map[string][]Rule)
+	for _, rule := range rules {
+		opString := ruleToOpString(rule)
+		spec.rules[opString] = append(spec.rules[opString], rule)
 	}
 
-	for _, rule := range s.rules[op] {
+	return spec
+}
+
+func (s *specificationMap) GetRulesFor(state *st.State) []Rule {
+	result := []Rule{}
+	var opString string
+
+	if state.Revision == common.R99_UnknownNextRevision || state.Status != st.Running {
+		opString = "noOp"
+	} else {
+		op, err := state.Code.GetOperation(int(state.Pc))
+		if err != nil {
+			opString = "noOp"
+		} else {
+			opString = op.String()
+		}
+	}
+
+	for _, rule := range s.rules[opString] {
 		if valid, err := rule.Condition.Check(state); valid && err == nil {
 			result = append(result, rule)
 		}
@@ -51,6 +64,18 @@ func (s *specificationMap) GetRulesFor(state *st.State) []Rule {
 	return result
 }
 
-func ruleNameToOpcode(name string) OpCode {
-	return INVALID
+func ruleToOpString(rule Rule) string {
+	var ruleString string
+	opString := rule.Condition.String()
+
+	reg := regexp.MustCompile(`code\[PC\] = ([^\s]+)`)
+	substring := reg.FindAllStringSubmatch(opString, 1)
+	if substring == nil {
+		ruleString = "noOp"
+		return ruleString
+	}
+
+	ruleString = strings.TrimPrefix(substring[0][0], "code[PC] = ")
+
+	return ruleString
 }
