@@ -104,7 +104,7 @@ type State struct {
 	CallContext        CallContext
 	CallJournal        *CallJournal
 	BlockContext       BlockContext
-	CallData           []byte
+	CallData           Bytes
 	LastCallReturnData []byte
 	ReturnData         []byte
 }
@@ -121,7 +121,7 @@ func NewState(code *Code) *State {
 		Accounts:           NewAccounts(),
 		Logs:               NewLogs(),
 		CallJournal:        NewCallJournal(),
-		CallData:           make([]byte, 0),
+		CallData:           NewBytes([]byte{}),
 		LastCallReturnData: make([]byte, 0),
 	}
 }
@@ -143,7 +143,7 @@ func (s *State) Clone() *State {
 	clone.CallContext = s.CallContext
 	clone.CallJournal = s.CallJournal.Clone()
 	clone.BlockContext = s.BlockContext
-	clone.CallData = bytes.Clone(s.CallData)
+	clone.CallData = s.CallData
 	clone.LastCallReturnData = bytes.Clone(s.LastCallReturnData)
 	clone.ReturnData = bytes.Clone(s.ReturnData)
 	return clone
@@ -173,7 +173,7 @@ func (s *State) Eq(other *State) bool {
 		s.CallContext == other.CallContext &&
 		s.CallJournal.Equal(other.CallJournal) &&
 		s.BlockContext == other.BlockContext &&
-		slices.Equal(s.CallData, other.CallData) &&
+		s.CallData == other.CallData &&
 		s.Storage.Eq(other.Storage) &&
 		s.Accounts.Eq(other.Accounts) &&
 		s.Logs.Eq(other.Logs)
@@ -280,8 +280,8 @@ func (s *State) String() string {
 		write("\t        data: %x\n", entry.Data)
 	}
 
-	if len(s.CallData) > dataCutoffLength {
-		write("\tCallData: %x... (size: %d)\n", s.CallData[:dataCutoffLength], len(s.CallData))
+	if s.CallData.Length() > dataCutoffLength {
+		write("\tCallData: %x... (size: %d)\n", s.CallData.Get(0, dataCutoffLength), s.CallData.Length())
 	} else {
 		write("\tCallData: %x\n", s.CallData)
 	}
@@ -365,7 +365,7 @@ func (s *State) Diff(o *State) []string {
 		res = append(res, s.BlockContext.Diff(&o.BlockContext)...)
 	}
 
-	if !slices.Equal(s.CallData, o.CallData) {
+	if s.CallData != o.CallData {
 		res = append(res, fmt.Sprintf("Different call data: %x vs %x", s.CallData, o.CallData))
 	}
 

@@ -35,7 +35,7 @@ func getNewFilledState() *State {
 	s.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
 	s.BlockContext = BlockContext{BlockNumber: 1}
-	s.CallData = []byte{1}
+	s.CallData = NewBytes([]byte{1})
 	s.LastCallReturnData = []byte{1}
 	return s
 }
@@ -207,8 +207,8 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.Logs.Entries[0].Topics[0] == NewU256(21) &&
 		s.CallContext.AccountAddress == vm.Address{0x01} &&
 		s.BlockContext.BlockNumber == 1 &&
-		len(s.CallData) == 1 &&
-		s.CallData[0] == 1 &&
+		s.CallData.Length() == 1 &&
+		s.CallData.Get(0, 1)[0] == 1 &&
 		len(s.LastCallReturnData) == 1 &&
 		s.LastCallReturnData[0] == 1
 	if !ok {
@@ -239,7 +239,7 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.Logs.Entries[0].Topics[0] = NewU256(42)
 	deserializedState.CallContext.AccountAddress = vm.Address{0x02}
 	deserializedState.BlockContext.BlockNumber = 42
-	deserializedState.CallData = []byte{4}
+	deserializedState.CallData = NewBytes([]byte{4})
 	deserializedState.LastCallReturnData = []byte{6}
 
 	ok := s.Status == Running &&

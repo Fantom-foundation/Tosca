@@ -62,16 +62,6 @@ func (g *AccountsGenerator) String() string {
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
-// Code saved in accounts is never executed,
-// to keep overhead and complexity to a minimum,
-// it is just random data with random length
-func randCode(rnd *rand.Rand) []byte {
-	size := rnd.Intn(42)
-	code := make([]byte, 0, size)
-	rnd.Read(code)
-	return code
-}
-
 func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, accountAddress vm.Address) (*st.Accounts, error) {
 	// Check for conflicts among warm/cold constraints.
 	sort.Slice(g.warmCold, func(i, j int) bool { return g.warmCold[i].Less(&g.warmCold[j]) })
@@ -121,7 +111,10 @@ func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, acco
 		// TODO: Not every warm address requires balance or code
 		if !accountsBuilder.Exists(address) {
 			accountsBuilder.SetBalance(address, RandU256(rnd))
-			accountsBuilder.SetCode(address, NewBytes(randCode(rnd)))
+			// Code saved in accounts is never executed,
+			// to keep overhead and complexity to a minimum,
+			// it is just random data with random length
+			accountsBuilder.SetCode(address, RandomBytesOfSize(rnd, 42))
 		}
 		if con.warm {
 			accountsBuilder.SetWarm(address)
@@ -133,14 +126,14 @@ func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, acco
 		address := getUnusedAddress()
 		accountsBuilder.SetBalance(address, RandU256(rnd))
 		if rnd.Intn(2) == 1 {
-			accountsBuilder.SetCode(address, NewBytes(randCode(rnd)))
+			accountsBuilder.SetCode(address, RandomBytesOfSize(rnd, 42))
 		}
 		accountsBuilder.SetWarm(address)
 	}
 
 	// Add own account address
 	accountsBuilder.SetBalance(accountAddress, RandU256(rnd))
-	accountsBuilder.SetCode(accountAddress, NewBytes(randCode(rnd)))
+	accountsBuilder.SetCode(accountAddress, RandomBytesOfSize(rnd, 42))
 
 	return accountsBuilder.Build(), nil
 }
