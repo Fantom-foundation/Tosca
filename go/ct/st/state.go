@@ -121,7 +121,7 @@ func NewState(code *Code) *State {
 		Accounts:           NewAccounts(),
 		Logs:               NewLogs(),
 		CallJournal:        NewCallJournal(),
-		CallData:           NewBytes([]byte{}),
+		CallData:           Bytes{},
 		LastCallReturnData: make([]byte, 0),
 	}
 }

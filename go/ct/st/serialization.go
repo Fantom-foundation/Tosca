@@ -128,7 +128,7 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		Logs:               newLogsSerializable(state.Logs),
 		CallContext:        state.CallContext,
 		BlockContext:       state.BlockContext,
-		CallData:           state.CallData.Get(0, uint64(state.CallData.Length())),
+		CallData:           state.CallData.ToBytes(),
 		LastCallReturnData: bytes.Clone(state.LastCallReturnData),
 		ReturnData:         bytes.Clone(state.ReturnData),
 		CallJournal:        state.CallJournal,

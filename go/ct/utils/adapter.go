@@ -44,7 +44,7 @@ func ToVmParameters(state *st.State) vm.Parameters {
 		Gas:       vm.Gas(state.Gas),
 		Recipient: vm.Address(state.CallContext.AccountAddress),
 		Sender:    vm.Address(state.CallContext.CallerAddress),
-		Input:     state.CallData.Get(0, uint64(state.CallData.Length())),
+		Input:     state.CallData.ToBytes(),
 		Value:     vm.Value(state.CallContext.Value.Bytes32be()),
 		CodeHash:  nil,
 		Code:      code,

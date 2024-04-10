@@ -388,37 +388,29 @@ func genRandomState(t *testing.T) *st.State {
 
 func testData(data []byte, name string, t *testing.T) {
 	t.Helper()
-	if len(data) == 0 {
-		t.Errorf("failed to generate a non-empty %v", name)
-	} else {
-		allzeros := true
-		for b := range data {
-			if b != 0 {
-				allzeros = false
-				break
-			}
+	allzeros := true
+	for b := range data {
+		if b != 0 {
+			allzeros = false
+			break
 		}
-		if allzeros {
-			t.Errorf("failed to generate a non-zero %v", name)
-		}
+	}
+	if allzeros {
+		t.Errorf("failed to generate a non-zero %v", name)
 	}
 }
 
 func testDataBytes(data Bytes, name string, t *testing.T) {
 	t.Helper()
-	if data.Length() == 0 {
-		t.Errorf("failed to generate a non-empty %v", name)
-	} else {
-		allzeros := true
-		for b := range data.Get(0, uint64(data.Length())) {
-			if b != 0 {
-				allzeros = false
-				break
-			}
+	allzeros := true
+	for b := range data.Get(0, uint64(data.Length())) {
+		if b != 0 {
+			allzeros = false
+			break
 		}
-		if allzeros {
-			t.Errorf("failed to generate a non-zero %v", name)
-		}
+	}
+	if allzeros {
+		t.Errorf("failed to generate a non-zero %v", name)
 	}
 }
 

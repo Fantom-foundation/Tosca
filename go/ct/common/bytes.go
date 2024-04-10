@@ -17,24 +17,8 @@ func NewBytes(data []byte) Bytes {
 	return Bytes{data: string(data)}
 }
 
-func RandomBytes(rnd *rand.Rand) Bytes {
-	const (
-		expectedSize = 200
-		maxSize      = 2000
-	)
-	rand := rnd.ExpFloat64()
-	size := int(rand * expectedSize)
-	if size > maxSize {
-		size = maxSize
-	}
-	return RandomBytesOfSize(rnd, size)
-}
-
-func RandomDataBytes(rnd *rand.Rand) Bytes {
-	const (
-		expectedSize = 200
-		maxSize      = 1024
-	)
+func RandomBytes(rnd *rand.Rand, maxSize int) Bytes {
+	const expectedSize = 200
 	rand := rnd.ExpFloat64()
 	size := int(rand * expectedSize)
 	if size > maxSize {
