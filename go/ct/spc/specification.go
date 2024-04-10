@@ -22,30 +22,12 @@ type Specification interface {
 	GetRulesFor(*st.State) []Rule
 }
 
-type specification struct {
-	rules []Rule
-}
-
-func NewSpecification(rules ...Rule) Specification {
-	return &specification{rules}
-}
-
-func (s *specification) GetRules() []Rule {
-	return s.rules
-}
-
-func (s *specification) GetRulesFor(state *st.State) []Rule {
-	result := []Rule{}
-	for _, rule := range s.rules {
-		if valid, err := rule.Condition.Check(state); valid && err == nil {
-			result = append(result, rule)
-		}
-	}
-	return result
-}
+var Spec = func() Specification {
+	return NewSpecificationMap(getAllRules()...)
+}()
 
 // instruction holds the basic information for the 4 basic rules
-// these are not enough gas, stack overflow, stack underflow, and a regular behaviour case
+// these are not enough gas, stack overflow, stack underflow, and a regular behavior case
 type instruction struct {
 	op         OpCode
 	staticGas  vm.Gas
@@ -68,7 +50,7 @@ func boolToU256(value bool) U256 {
 	return NewU256(0)
 }
 
-var Spec = func() Specification {
+func getAllRules() []Rule {
 	rules := []Rule{}
 
 	// --- Terminal States ---
@@ -1482,8 +1464,8 @@ var Spec = func() Specification {
 
 	// --- End ---
 
-	return NewSpecification(rules...)
-}()
+	return rules
+}
 
 func binaryOpWithDynamicCost(
 	op OpCode,

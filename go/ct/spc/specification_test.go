@@ -2,6 +2,9 @@ package spc
 
 import (
 	"math"
+	"regexp"
+	"slices"
+	"strings"
 	"testing"
 
 	"pgregory.net/rand"
@@ -69,6 +72,129 @@ func TestSpecification_EachRuleProducesAMatchingTestCase(t *testing.T) {
 				t.Errorf("no non-matching test case produced for rule %v", rule.Name)
 			}
 		})
+	}
+}
+
+func TestSpecificationMap_NumberOfTests(t *testing.T) {
+	rulesMap := Spec.GetRules()
+	rules := getAllRules()
+
+	if len(rulesMap) != len(rules) {
+		t.Errorf("Different number of rules: %d vs. %d", len(rules), len(rulesMap))
+	}
+}
+
+func listGetRulesFor(state *st.State) []rlz.Rule {
+	rules := getAllRules()
+	result := []rlz.Rule{}
+	for _, rule := range rules {
+		if valid, err := rule.Condition.Check(state); valid && err == nil {
+			result = append(result, rule)
+		}
+	}
+	return result
+}
+
+func TestSpecificationMap_SameRulesPerOperation(t *testing.T) {
+	const N = 1000
+
+	rnd := rand.New(0)
+	generator := gen.NewStateGenerator()
+
+	for i := 0; i < N; i++ {
+		state, err := generator.Generate(rnd)
+		if err != nil {
+			t.Fatalf("failed building state: %v", err)
+		}
+
+		allRulesForState := listGetRulesFor(state)
+		rulesFromMap := Spec.GetRulesFor(state)
+
+		if len(allRulesForState) != len(rulesFromMap) {
+			op, _ := state.Code.GetOperation(int(state.Pc))
+			t.Errorf("different number of rules for %s: %d vs %d", op.String(), len(allRulesForState), len(rulesFromMap))
+		}
+
+		for _, rule := range allRulesForState {
+			found := false
+			for _, ruleFromMap := range rulesFromMap {
+				if rule.Name == ruleFromMap.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("rule %v not found in map", rule.Name)
+			}
+		}
+	}
+}
+
+func TestSpecification_OperationNotExecutedIfNotRunning(t *testing.T) {
+	// list of known no operations
+	knownNoOps := []string{"stopped_is_end", "reverted_is_end", "failed_is_end", "unknown_revision_is_end"}
+	statusFreeRules := []string{"unknown_revision_is_end"}
+
+	rules := getAllRules()
+	for _, rule := range rules {
+		opString := rule.Condition.String()
+		reg := regexp.MustCompile(`status = ([^\s]+)`)
+		substring := reg.FindAllStringSubmatch(opString, 1)
+
+		if len(substring) > 0 {
+			statusString := strings.TrimPrefix(substring[0][0], "status = ")
+
+			if statusString != "running" && !slices.Contains(knownNoOps, rule.Name) {
+				if ruleToOpString(rule) != "noOp" {
+					t.Errorf("Rule has code operation constrain but no status")
+				}
+				t.Errorf("Rule is not an operation but not in list of known no operations")
+			}
+		} else {
+			if !slices.Contains(statusFreeRules, rule.Name) {
+				t.Errorf("Status not defined in rule %s", rule.Name)
+			}
+		}
+	}
+}
+
+func TestSpecification_AtMostOneCodeAtPC(t *testing.T) {
+	rules := getAllRules()
+
+	for _, rule := range rules {
+		opString := rule.Condition.String()
+
+		reg := regexp.MustCompile(`code\[PC\] = ([^\s]+)`)
+		substring := reg.FindAllStringSubmatch(opString, 1)
+		if len(substring) > 1 {
+			t.Errorf("It is not possible to have multiple code constrains on the same code location")
+		}
+	}
+}
+
+func BenchmarkSpecification_GetState(b *testing.B) {
+	N := 10000
+	rnd := rand.New(0)
+	generator := gen.NewStateGenerator()
+
+	states := make([]*st.State, 0, N)
+	for i := 0; i < N; i++ {
+		state, err := generator.Generate(rnd)
+		if err != nil {
+			b.Fatalf("failed building state: %v", err)
+		}
+		states = append(states, state)
+	}
+
+	b.ResetTimer()
+	for _, state := range states {
+		Spec.GetRulesFor(state)
+	}
+}
+
+func BenchmarkSpecification_GetAllRules(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Spec.GetRules()
 	}
 }
 
