@@ -2,6 +2,7 @@ package st
 
 import (
 	"fmt"
+	"sync"
 
 	"golang.org/x/exp/slices"
 
@@ -15,15 +16,37 @@ type Stack struct {
 	stack []U256
 }
 
-// NewStack creates a new stack filled with the given values.
-func NewStack(values ...U256) *Stack {
-	return &Stack{values}
+var stackPool = sync.Pool{
+	New: func() interface{} {
+		return &Stack{}
+	},
 }
 
-// NewStackWithSize creates a new stack with the given size, all elements
-// initialized to zero.
+func NewStack() *Stack {
+	return stackPool.Get().(*Stack)
+}
+
 func NewStackWithSize(size int) *Stack {
-	return &Stack{make([]U256, size)}
+	stack := stackPool.Get().(*Stack)
+	if cap(stack.stack) < size {
+		stack.stack = make([]U256, size)
+	}
+	stack.stack = stack.stack[:size]
+	return stack
+}
+
+func NewStackWithValues(values ...U256) *Stack {
+	stack := stackPool.Get().(*Stack)
+	if cap(stack.stack) < len(values) {
+		stack.stack = make([]U256, len(values))
+	}
+	stack.stack = values
+	return stack
+}
+
+func ReturnStack(s *Stack) {
+	s.stack = s.stack[:0]
+	stackPool.Put(s)
 }
 
 // Clone creates an independent copy of the stack.

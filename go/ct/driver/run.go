@@ -117,6 +117,7 @@ func doRun(context *cli.Context) error {
 		)
 	}
 
+	// todo free: state, input, output
 	opRun := func(state *st.State) rlz.ConsumerResult {
 		if issuesCollector.NumIssues() >= maxErrors {
 			return rlz.ConsumeAbort
