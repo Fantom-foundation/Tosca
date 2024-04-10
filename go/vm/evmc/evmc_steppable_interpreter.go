@@ -63,7 +63,7 @@ func (e *SteppableEvmcInterpreter) StepN(
 		Recipient:      evmc.Address(params.Recipient),
 		Sender:         evmc.Address(params.Sender),
 		Input:          params.Input,
-		LastCallResult: state.LastCallReturnData,
+		LastCallResult: state.LastCallReturnData.ToBytes(),
 		Value:          evmc.Hash(params.Value),
 		CodeHash:       codeHash,
 		Code:           params.Code,
@@ -91,7 +91,7 @@ func (e *SteppableEvmcInterpreter) StepN(
 	state.GasRefund = vm.Gas(result.GasRefund)
 	state.Memory = convertEvmcMemoryToCtMemory(result.Memory)
 	state.Stack, err = convertEvmcStackToCtStack(result.Stack)
-	state.LastCallReturnData = result.LastCallReturnData
+	state.LastCallReturnData = common.NewBytes(result.LastCallReturnData)
 	if err != nil {
 		return nil, err
 	}

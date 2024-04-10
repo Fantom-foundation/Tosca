@@ -53,7 +53,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		convertCtStackToGethStack(state),
 		uint64(state.Pc),
 	)
-	interpreterState.Result = state.LastCallReturnData
+	interpreterState.Result = state.LastCallReturnData.ToBytes()
 	interpreterState.ReadOnly = state.ReadOnly
 
 	interpreter := evm.Interpreter().(*geth_vm.GethEVMInterpreter)
@@ -76,7 +76,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.GasRefund = vm.Gas(stateDb.GetRefund())
 	state.Stack = convertGethStackToCtStack(interpreterState)
 	state.Memory = convertGethMemoryToCtMemory(interpreterState)
-	state.LastCallReturnData = interpreterState.Result
+	state.LastCallReturnData = common.NewBytes(interpreterState.Result)
 	if state.Status == st.Stopped || state.Status == st.Reverted {
 		// Right now, the interpreter state does not allow to decide whether the
 		// stopped state was reached through a STOP or RETURN instruction. Only

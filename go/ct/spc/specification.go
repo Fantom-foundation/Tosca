@@ -1233,7 +1233,7 @@ func getAllRules() []Rule {
 		pops:      0,
 		pushes:    1,
 		effect: func(s *st.State) {
-			s.Stack.Push(NewU256(uint64(len(s.LastCallReturnData))))
+			s.Stack.Push(NewU256(uint64(s.LastCallReturnData.Length())))
 		},
 	})...)
 
@@ -1257,7 +1257,7 @@ func getAllRules() []Rule {
 			offset := offsetU256.Uint64()
 			readUntil := offset + sizeU256.Uint64()
 			if !offsetU256.IsUint64() || !sizeU256.IsUint64() ||
-				readUntil > uint64(len(s.LastCallReturnData)) {
+				readUntil > uint64(s.LastCallReturnData.Length()) {
 				s.Status = st.Failed
 				s.Gas = 0
 				return
@@ -1273,7 +1273,7 @@ func getAllRules() []Rule {
 			}
 			s.Gas -= expansionCost
 
-			s.Memory.Write(s.LastCallReturnData[offset:readUntil], destOffsetUint64)
+			s.Memory.Write(s.LastCallReturnData.Get(offset, readUntil), destOffsetUint64)
 		},
 	})...)
 
@@ -1430,7 +1430,7 @@ func getAllRules() []Rule {
 				balance := s.Accounts.GetBalance(s.CallContext.AccountAddress)
 				if balance.Lt(value) {
 					s.Stack.Push(NewU256(0))
-					s.LastCallReturnData = nil
+					s.LastCallReturnData = Bytes{}
 					return
 				}
 			}
@@ -1455,7 +1455,7 @@ func getAllRules() []Rule {
 
 			s.Gas -= endowment + stipend - res.GasLeft // < the costs for the code execution
 			s.GasRefund += res.GasRefund
-			s.LastCallReturnData = res.Output
+			s.LastCallReturnData = NewBytes(res.Output)
 			if res.Success {
 				s.Stack.Push(NewU256(1))
 			} else {

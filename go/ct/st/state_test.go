@@ -35,7 +35,7 @@ func TestState_CloneCreatesEqualState(t *testing.T) {
 	state.BlockContext.Difficulty = NewU256(247)
 	state.BlockContext.TimeStamp = 246
 	state.CallData = NewBytes([]byte{245})
-	state.LastCallReturnData = append(state.LastCallReturnData, 244)
+	state.LastCallReturnData = NewBytes([]byte{244})
 
 	clone := state.Clone()
 	if !state.Eq(clone) {
@@ -66,7 +66,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.BlockContext.Difficulty = NewU256(247)
 	state.BlockContext.TimeStamp = 246
 	state.CallData = NewBytes([]byte{245})
-	state.LastCallReturnData = append(state.LastCallReturnData, 244)
+	state.LastCallReturnData = NewBytes([]byte{244})
 
 	clone := state.Clone()
 	clone.Status = Running
@@ -92,7 +92,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.BlockContext.Difficulty = NewU256(9)
 	clone.BlockContext.TimeStamp = 10
 	clone.CallData = NewBytes([]byte{11})
-	clone.LastCallReturnData[0] = 12
+	clone.LastCallReturnData = NewBytes([]byte{12})
 
 	ok := state.Status == Stopped &&
 		state.Revision == R10_London &&
@@ -119,7 +119,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.BlockContext.Difficulty == NewU256(247) &&
 		state.BlockContext.TimeStamp == 246 &&
 		state.CallData.Get(0, 1)[0] == 245 &&
-		state.LastCallReturnData[0] == 244
+		state.LastCallReturnData.Get(0, 1)[0] == 244
 	if !ok {
 		t.Errorf("clone is not independent")
 	}
@@ -223,8 +223,8 @@ func TestState_Eq(t *testing.T) {
 	}
 	s2.CallData = s1.CallData
 
-	s1.LastCallReturnData = append(s1.LastCallReturnData, 1)
-	s2.LastCallReturnData = append(s2.LastCallReturnData, 250)
+	s1.LastCallReturnData = NewBytes([]byte{1})
+	s2.LastCallReturnData = NewBytes([]byte{249})
 	if s1.Eq(s2) {
 		t.Fail()
 	}
@@ -460,7 +460,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
 	s1.BlockContext = BlockContext{BlockNumber: 1}
 	s1.CallData = NewBytes([]byte{1})
-	s1.LastCallReturnData = append(s1.LastCallReturnData, 1)
+	s1.LastCallReturnData = NewBytes([]byte{1})
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -475,7 +475,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
 	s2.BlockContext = BlockContext{BlockNumber: 1}
 	s2.CallData = NewBytes([]byte{1})
-	s2.LastCallReturnData = append(s2.LastCallReturnData, 1)
+	s2.LastCallReturnData = NewBytes([]byte{1})
 
 	diffs := s1.Diff(s2)
 
@@ -503,7 +503,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.CallContext = CallContext{AccountAddress: vm.Address{0xff}}
 	s1.BlockContext = BlockContext{BlockNumber: 1}
 	s1.CallData = NewBytes([]byte{1})
-	s1.LastCallReturnData = append(s1.LastCallReturnData, 1)
+	s1.LastCallReturnData = NewBytes([]byte{1})
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -518,7 +518,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.CallContext = CallContext{AccountAddress: vm.Address{0xef}}
 	s2.BlockContext = BlockContext{BlockNumber: 251}
 	s2.CallData = NewBytes([]byte{250})
-	s2.LastCallReturnData = append(s2.LastCallReturnData, 249)
+	s2.LastCallReturnData = NewBytes([]byte{249})
 
 	diffs := s1.Diff(s2)
 
@@ -726,7 +726,7 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 			relevantFor: allButFailed,
 		},
 		"last_call_return_data": {
-			modify:      func(s *State) { s.LastCallReturnData = []byte{1, 2, 3} },
+			modify:      func(s *State) { s.LastCallReturnData = NewBytes([]byte{1, 2, 3}) },
 			relevantFor: onlyRunning,
 		},
 		"return_data": {

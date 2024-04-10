@@ -105,7 +105,7 @@ type State struct {
 	CallJournal        *CallJournal
 	BlockContext       BlockContext
 	CallData           Bytes
-	LastCallReturnData []byte
+	LastCallReturnData Bytes
 	ReturnData         []byte
 }
 
@@ -122,7 +122,7 @@ func NewState(code *Code) *State {
 		Logs:               NewLogs(),
 		CallJournal:        NewCallJournal(),
 		CallData:           Bytes{},
-		LastCallReturnData: make([]byte, 0),
+		LastCallReturnData: Bytes{},
 	}
 }
 
@@ -144,7 +144,7 @@ func (s *State) Clone() *State {
 	clone.CallJournal = s.CallJournal.Clone()
 	clone.BlockContext = s.BlockContext
 	clone.CallData = s.CallData
-	clone.LastCallReturnData = bytes.Clone(s.LastCallReturnData)
+	clone.LastCallReturnData = s.LastCallReturnData
 	clone.ReturnData = bytes.Clone(s.ReturnData)
 	return clone
 }
@@ -189,7 +189,7 @@ func (s *State) Eq(other *State) bool {
 		s.Pc == other.Pc &&
 		s.Stack.Eq(other.Stack) &&
 		s.Memory.Eq(other.Memory) &&
-		slices.Equal(s.LastCallReturnData, other.LastCallReturnData)
+		s.LastCallReturnData == other.LastCallReturnData
 }
 
 const dataCutoffLength = 20
@@ -286,8 +286,8 @@ func (s *State) String() string {
 		write("\tCallData: %x\n", s.CallData)
 	}
 
-	if len(s.LastCallReturnData) > dataCutoffLength {
-		write("\tLastCallReturnData: %x... (size: %d)\n", s.LastCallReturnData[:dataCutoffLength], len(s.LastCallReturnData))
+	if s.LastCallReturnData.Length() > dataCutoffLength {
+		write("\tLastCallReturnData: %x... (size: %d)\n", s.LastCallReturnData.Get(0, dataCutoffLength), s.LastCallReturnData.Length())
 	} else {
 		write("\tLastCallReturnData: %x\n", s.LastCallReturnData)
 	}
@@ -369,7 +369,7 @@ func (s *State) Diff(o *State) []string {
 		res = append(res, fmt.Sprintf("Different call data: %x vs %x", s.CallData, o.CallData))
 	}
 
-	if !slices.Equal(s.LastCallReturnData, o.LastCallReturnData) {
+	if s.LastCallReturnData != o.LastCallReturnData {
 		res = append(res, fmt.Sprintf("Different last call return data: %x vs %x.", s.LastCallReturnData, o.LastCallReturnData))
 	}
 
