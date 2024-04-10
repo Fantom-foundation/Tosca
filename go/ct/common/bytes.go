@@ -27,6 +27,19 @@ func RandomBytes(rnd *rand.Rand, maxSize int) Bytes {
 	return RandomBytesOfSize(rnd, size)
 }
 
+func RandomDataBytes(rnd *rand.Rand) Bytes {
+	const (
+		expectedSize = 200
+		maxSize      = 1024
+	)
+	rand := rnd.ExpFloat64()
+	size := int(rand * expectedSize)
+	if size > maxSize {
+		size = maxSize
+	}
+	return RandomBytesOfSize(rnd, size)
+}
+
 func RandomBytesOfSize(rnd *rand.Rand, size int) Bytes {
 	data := make([]byte, size)
 	rnd.Read(data)
