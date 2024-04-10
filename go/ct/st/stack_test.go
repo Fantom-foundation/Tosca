@@ -130,3 +130,48 @@ func TestStack_Eq(t *testing.T) {
 		t.Errorf("unexpected stack equality %v vs. %v", stack1.stack, stack2.stack)
 	}
 }
+
+func TestStack_StackPool(t *testing.T) {
+	stacks := []struct {
+		stack *Stack
+		size  int
+	}{
+		{NewStack(), 0},
+		{NewStackWithSize(42), 42},
+		{NewStackWithValues(NewU256(42), NewU256(42), NewU256(42), NewU256(42)), 4},
+	}
+
+	for _, input := range stacks {
+		stack := input.stack
+		if stack == nil {
+			t.Fatal("No stack was returned by function")
+		}
+
+		if stack.Size() != input.size {
+			t.Errorf("Wanted Stack size 0 but got %d", stack.Size())
+		}
+
+		stack.Push(NewU256(42))
+		stack.Push(NewU256(42))
+		ReturnStack(stack)
+
+		new := NewStack()
+		if new.Size() != 0 {
+			t.Errorf("Wanted Stack size 0 but got %d", stack.Size())
+		}
+	}
+}
+
+func BenchmarkStack_StackGeneration(b *testing.B) {
+
+	for i := 0; i < b.N; i++ {
+		stack := NewStack()
+		ReturnStack(stack)
+
+		stack = NewStackWithValues(NewU256(42))
+		ReturnStack(stack)
+
+		stack = NewStackWithSize(42)
+		ReturnStack(stack)
+	}
+}

@@ -51,7 +51,6 @@ func NewStackWithValues(values ...U256) *Stack {
 }
 
 func ReturnStack(s *Stack) {
-	//s.stack = s.stack[:0]
 	stackPool.Put(s)
 }
 

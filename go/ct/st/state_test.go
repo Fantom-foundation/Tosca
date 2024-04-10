@@ -759,6 +759,19 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 	}
 }
 
+func TestState_RecycledMembers(t *testing.T) {
+	state := NewState(NewCode([]byte{byte(INVALID)}))
+
+	if state.Stack == nil {
+		t.Error("No stack was returned from stack pool")
+	}
+
+	ReturnState(state)
+	if state.Stack != nil {
+		t.Error("Stack should have been returned and nil")
+	}
+}
+
 func BenchmarkState_CloneState(b *testing.B) {
 	state := getNewFilledState()
 	for i := 0; i < b.N; i++ {
