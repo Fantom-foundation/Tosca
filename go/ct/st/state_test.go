@@ -617,8 +617,8 @@ func TestState_StatusCodeUnmarshalError(t *testing.T) {
 }
 
 func TestState_EqualConsidersReturnDataOnlyWhenStoppedOrReverted(t *testing.T) {
-	dataValue := make([]byte, 1)
-	dataValue[0]++
+	dataValue1 := []byte{1}
+	dataValue2 := []byte{2}
 	tests := map[string]struct {
 		status StatusCode
 		wanted bool
@@ -633,9 +633,9 @@ func TestState_EqualConsidersReturnDataOnlyWhenStoppedOrReverted(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			s1 := getNewFilledState()
 			s1.Status = test.status
-			s1.ReturnData = dataValue
+			s1.ReturnData = NewBytes(dataValue1)
 			s2 := s1.Clone()
-			s2.ReturnData[0]++
+			s2.ReturnData = NewBytes(dataValue2)
 			if want, got := test.wanted, s1.Eq(s2); want != got {
 				t.Errorf("unexpected equality result, wanted %t, got %t", want, got)
 			}
@@ -730,7 +730,7 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 			relevantFor: onlyRunning,
 		},
 		"return_data": {
-			modify:      func(s *State) { s.ReturnData = []byte{1, 2, 3} },
+			modify:      func(s *State) { s.ReturnData = NewBytes([]byte{1, 2, 3}) },
 			relevantFor: []StatusCode{Stopped, Reverted},
 		},
 	}

@@ -1,11 +1,9 @@
 package st
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -106,7 +104,7 @@ type State struct {
 	BlockContext       BlockContext
 	CallData           Bytes
 	LastCallReturnData Bytes
-	ReturnData         []byte
+	ReturnData         Bytes
 }
 
 // NewState creates a new State instance with the given code.
@@ -145,7 +143,7 @@ func (s *State) Clone() *State {
 	clone.BlockContext = s.BlockContext
 	clone.CallData = s.CallData
 	clone.LastCallReturnData = s.LastCallReturnData
-	clone.ReturnData = bytes.Clone(s.ReturnData)
+	clone.ReturnData = s.ReturnData
 	return clone
 }
 
@@ -181,7 +179,7 @@ func (s *State) Eq(other *State) bool {
 	// For terminal states, internal state can be ignored, but the result is important.
 	if s.Status != Running {
 		return equivalent &&
-			bytes.Equal(s.ReturnData, other.ReturnData)
+			s.ReturnData == other.ReturnData
 	}
 
 	// If the state is running, internal state is relevant, but the result can be ignored.
@@ -292,8 +290,8 @@ func (s *State) String() string {
 		write("\tLastCallReturnData: %x\n", s.LastCallReturnData)
 	}
 
-	if len(s.ReturnData) > dataCutoffLength {
-		write("\tReturnData: %x... (size: %d)\n", s.ReturnData[:dataCutoffLength], len(s.ReturnData))
+	if s.ReturnData.Length() > dataCutoffLength {
+		write("\tReturnData: %x... (size: %d)\n", s.ReturnData.Get(0, dataCutoffLength), s.ReturnData.Length())
 	} else {
 		write("\tReturnData: %x\n", s.ReturnData)
 	}
@@ -373,7 +371,7 @@ func (s *State) Diff(o *State) []string {
 		res = append(res, fmt.Sprintf("Different last call return data: %x vs %x.", s.LastCallReturnData, o.LastCallReturnData))
 	}
 
-	if (s.Status == Stopped || s.Status == Reverted) && !slices.Equal(s.ReturnData, o.ReturnData) {
+	if (s.Status == Stopped || s.Status == Reverted) && s.ReturnData != o.ReturnData {
 		res = append(res, fmt.Sprintf("Different return data: %x vs %x", s.ReturnData, o.ReturnData))
 	}
 

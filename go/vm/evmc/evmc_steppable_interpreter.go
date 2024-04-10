@@ -84,7 +84,7 @@ func (e *SteppableEvmcInterpreter) StepN(
 	}
 
 	if result.StepStatusCode == evmc.Returned || result.StepStatusCode == evmc.Reverted {
-		state.ReturnData = result.Output
+		state.ReturnData = common.NewBytes(result.Output)
 	}
 	state.Pc = uint16(result.Pc)
 	state.Gas = vm.Gas(result.GasLeft)
