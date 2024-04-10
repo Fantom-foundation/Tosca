@@ -23,13 +23,17 @@ var stackPool = sync.Pool{
 }
 
 func NewStack() *Stack {
-	return stackPool.Get().(*Stack)
+	stack := stackPool.Get().(*Stack)
+	stack.stack = stack.stack[:0]
+	return stack
 }
 
 func NewStackWithSize(size int) *Stack {
 	stack := stackPool.Get().(*Stack)
 	if cap(stack.stack) < size {
 		stack.stack = make([]U256, size)
+	} else {
+		stack.stack = stack.stack[:size]
 	}
 	stack.stack = stack.stack[:size]
 	return stack
@@ -39,19 +43,28 @@ func NewStackWithValues(values ...U256) *Stack {
 	stack := stackPool.Get().(*Stack)
 	if cap(stack.stack) < len(values) {
 		stack.stack = make([]U256, len(values))
+	} else {
+		stack.stack = stack.stack[:len(values)]
 	}
 	stack.stack = values
 	return stack
 }
 
 func ReturnStack(s *Stack) {
-	s.stack = s.stack[:0]
+	//s.stack = s.stack[:0]
 	stackPool.Put(s)
 }
 
 // Clone creates an independent copy of the stack.
 func (s *Stack) Clone() *Stack {
-	return &Stack{slices.Clone(s.stack)}
+	clone := stackPool.Get().(*Stack)
+	if cap(clone.stack) < s.Size() {
+		clone.stack = make([]U256, s.Size())
+	} else {
+		clone.stack = clone.stack[:s.Size()]
+	}
+	copy(clone.stack, s.stack)
+	return clone
 }
 
 // Size returns the number of elements on the stack.

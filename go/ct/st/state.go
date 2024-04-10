@@ -126,6 +126,12 @@ func NewState(code *Code) *State {
 	}
 }
 
+// Returns all member objects which are recycled
+func ReturnState(s *State) {
+	ReturnStack(s.Stack)
+	s.Stack = nil
+}
+
 func (s *State) Clone() *State {
 	clone := &State{}
 	clone.Code = s.Code.Clone()

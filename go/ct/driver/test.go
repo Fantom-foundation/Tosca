@@ -81,6 +81,8 @@ func doTest(context *cli.Context) error {
 		rules := spc.Spec.GetRulesFor(state)
 		if len(rules) > 1 {
 			s0 := state.Clone()
+			defer st.ReturnState(s0)
+
 			rules[0].Effect.Apply(s0)
 			for i := 1; i < len(rules)-1; i++ {
 				s := state.Clone()

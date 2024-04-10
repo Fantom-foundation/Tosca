@@ -117,7 +117,6 @@ func doRun(context *cli.Context) error {
 		)
 	}
 
-	// todo free: state, input, output
 	opRun := func(state *st.State) rlz.ConsumerResult {
 		if issuesCollector.NumIssues() >= maxErrors {
 			return rlz.ConsumeAbort
@@ -248,6 +247,7 @@ func forEachState(
 				if consumeStatus == rlz.ConsumeAbort {
 					abortTests.Store(true)
 				}
+				st.ReturnState(state)
 			}
 		}()
 	}
@@ -332,6 +332,8 @@ func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp) error {
 	// TODO: enable optional rule consistency check
 	rule := rules[0]
 	expected := input.Clone()
+	defer st.ReturnState(expected)
+
 	rule.Effect.Apply(expected)
 
 	result, err := evm.StepN(input.Clone(), 1)
