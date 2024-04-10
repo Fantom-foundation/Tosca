@@ -22,6 +22,10 @@ type Specification interface {
 	GetRulesFor(*st.State) []Rule
 }
 
+var Spec = func() Specification {
+	return NewSpecificationMap(getAllRules()...)
+}()
+
 // instruction holds the basic information for the 4 basic rules
 // these are not enough gas, stack overflow, stack underflow, and a regular behavior case
 type instruction struct {

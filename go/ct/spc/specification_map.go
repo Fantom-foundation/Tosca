@@ -13,11 +13,6 @@ type specificationMap struct {
 	rules map[string][]Rule
 }
 
-var Spec = func() Specification {
-	rules := getAllRules()
-	return NewSpecificationMap(rules...)
-}()
-
 func (s *specificationMap) GetRules() []Rule {
 	// allocating space for 5 rules per rule, checked with GetAllRules benchmark
 	allRules := make([]Rule, 0, len(s.rules)*5)

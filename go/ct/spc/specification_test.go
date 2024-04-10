@@ -145,6 +145,9 @@ func TestSpecification_OperationNotExecutedIfNotRunning(t *testing.T) {
 			statusString := strings.TrimPrefix(substring[0][0], "status = ")
 
 			if statusString != "running" && !slices.Contains(knownNoOps, rule.Name) {
+				if ruleToOpString(rule) != "noOp" {
+					t.Errorf("Rule has code operation constrain but no status")
+				}
 				t.Errorf("Rule is not an operation but not in list of known no operations")
 			}
 		} else {
