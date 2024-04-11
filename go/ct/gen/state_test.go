@@ -415,7 +415,7 @@ func TestStateGenerator_DataGeneration(t *testing.T) {
 
 func TestStateGenerator_ReturnDataShouldBeEmpty(t *testing.T) {
 	state := genRandomState(t)
-	if want, got := 0, len(state.ReturnData); want != got {
+	if want, got := 0, state.ReturnData.Length(); want != got {
 		t.Errorf("unexpected length of generated return data, wanted %d, got %d", want, got)
 	}
 }

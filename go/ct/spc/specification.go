@@ -1,7 +1,6 @@
 package spc
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
@@ -96,7 +95,7 @@ func getAllRules() []Rule {
 		),
 		Effect: Change(func(s *st.State) {
 			s.Status = st.Stopped
-			s.ReturnData = nil // nothing is returned by stop
+			s.ReturnData = Bytes{}
 			s.Pc++
 		}),
 	})
@@ -1299,7 +1298,7 @@ func getAllRules() []Rule {
 			}
 			s.Gas -= expansionCost
 
-			s.ReturnData = bytes.Clone(s.Memory.Read(offset, size))
+			s.ReturnData = NewBytes(s.Memory.Read(offset, size))
 			s.Status = st.Stopped
 		},
 	})...)
@@ -1326,7 +1325,7 @@ func getAllRules() []Rule {
 			}
 			s.Gas -= expansionCost
 
-			s.ReturnData = bytes.Clone(s.Memory.Read(offset, size))
+			s.ReturnData = NewBytes(s.Memory.Read(offset, size))
 			s.Status = st.Reverted
 		},
 	})...)

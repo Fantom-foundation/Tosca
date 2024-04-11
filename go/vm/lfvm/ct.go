@@ -106,7 +106,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.GasRefund = ctxt.refund
 	state.Stack = convertLfvmStackToCtStack(ctxt.stack)
 	state.Memory = convertLfvmMemoryToCtMemory(ctxt.memory)
-	state.ReturnData = result
+	state.ReturnData = common.NewBytes(result)
 	state.LastCallReturnData = common.NewBytes(ctxt.return_data)
 
 	return state, nil

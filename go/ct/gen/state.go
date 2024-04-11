@@ -387,12 +387,9 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	resultLastCallReturnData := RandomBytes(rnd, st.MaxDataSize)
 
 	// Generate return data for terminal states.
-	var resultReturnData []byte
+	var resultReturnData Bytes
 	if resultStatus == st.Stopped || resultStatus == st.Reverted {
-		resultReturnData, err = getRandomData(rnd)
-		if err != nil {
-			return nil, err
-		}
+		resultReturnData = RandomBytes(rnd, st.MaxDataSize)
 	}
 
 	// Sub-generators can modify the assignment when unassigned variables are
