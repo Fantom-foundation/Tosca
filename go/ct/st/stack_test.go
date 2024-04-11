@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"pgregory.net/rand"
 )
 
 func TestStack_NewStack(t *testing.T) {
@@ -162,16 +163,16 @@ func TestStack_StackPool(t *testing.T) {
 	}
 }
 
-func BenchmarkStack_StackGeneration(b *testing.B) {
+func BenchmarkStack_StackCreation(b *testing.B) {
 
+	rnd := rand.New(0)
 	for i := 0; i < b.N; i++ {
-		stack := NewStack()
-		ReturnStack(stack)
-
-		stack = NewStackWithValues(NewU256(42))
-		ReturnStack(stack)
-
-		stack = NewStackWithSize(42)
+		stack := NewStackWithSize(1 + rnd.Intn(1023))
+		if i%2 == 0 {
+			stack.Pop()
+		} else {
+			stack.Push(NewU256(42))
+		}
 		ReturnStack(stack)
 	}
 }
