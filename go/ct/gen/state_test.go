@@ -386,20 +386,6 @@ func genRandomState(t *testing.T) *st.State {
 	return state
 }
 
-func testData(data []byte, name string, t *testing.T) {
-	t.Helper()
-	allzeros := true
-	for b := range data {
-		if b != 0 {
-			allzeros = false
-			break
-		}
-	}
-	if allzeros {
-		t.Errorf("failed to generate a non-zero %v", name)
-	}
-}
-
 func testDataBytes(data Bytes, name string, t *testing.T) {
 	t.Helper()
 	allzeros := true
@@ -421,7 +407,7 @@ func testDataBytes(data Bytes, name string, t *testing.T) {
 func TestStateGenerator_DataGeneration(t *testing.T) {
 	state := genRandomState(t)
 	testDataBytes(state.CallData, "call data", t)
-	testData(state.LastCallReturnData, "last call return data", t)
+	testDataBytes(state.LastCallReturnData, "last call return data", t)
 }
 
 // //////////////////////////////////////////////////////////

@@ -384,10 +384,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	resultCallData := RandomBytes(rnd, st.MaxDataSize)
 
 	// Generate return data of last call
-	resultLastCallReturnData, err := getRandomData(rnd)
-	if err != nil {
-		return nil, err
-	}
+	resultLastCallReturnData := RandomBytes(rnd, st.MaxDataSize)
 
 	// Generate return data for terminal states.
 	var resultReturnData []byte

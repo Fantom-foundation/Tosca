@@ -72,7 +72,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		code:        converted,
 		isBerlin:    params.Revision >= vm.R09_Berlin,
 		isLondon:    params.Revision >= vm.R10_London,
-		return_data: state.LastCallReturnData,
+		return_data: state.LastCallReturnData.ToBytes(),
 	}
 
 	defer func() {
@@ -107,7 +107,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.Stack = convertLfvmStackToCtStack(ctxt.stack)
 	state.Memory = convertLfvmMemoryToCtMemory(ctxt.memory)
 	state.ReturnData = result
-	state.LastCallReturnData = ctxt.return_data
+	state.LastCallReturnData = common.NewBytes(ctxt.return_data)
 
 	return state, nil
 }
