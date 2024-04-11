@@ -18,7 +18,7 @@ func TestCtAdapter_Add(t *testing.T) {
 	s.Revision = cc.R07_Istanbul
 	s.Pc = 0
 	s.Gas = 100
-	s.Stack = st.NewStackWithValues(cc.NewU256(1), cc.NewU256(2))
+	s.Stack = st.NewStack(cc.NewU256(1), cc.NewU256(2))
 	s.Memory = st.NewMemory(1, 2, 3)
 
 	c := NewConformanceTestingTarget()
@@ -238,13 +238,13 @@ func TestConvertToLfvm_Stack(t *testing.T) {
 			st.NewStack(),
 			newLfvmStack()}},
 		"one-element": {{
-			st.NewStackWithValues(cc.NewU256(7)),
+			st.NewStack(cc.NewU256(7)),
 			newLfvmStack(cc.NewU256(7))}},
 		"two-elements": {{
-			st.NewStackWithValues(cc.NewU256(1), cc.NewU256(2)),
+			st.NewStack(cc.NewU256(1), cc.NewU256(2)),
 			newLfvmStack(cc.NewU256(1), cc.NewU256(2))}},
 		"three-elements": {{
-			st.NewStackWithValues(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3)),
+			st.NewStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3)),
 			newLfvmStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3))}},
 	}
 
@@ -331,13 +331,13 @@ func TestConvertToCt_Stack(t *testing.T) {
 			st.NewStack()}},
 		"one-element": {{
 			newLfvmStack(cc.NewU256(7)),
-			st.NewStackWithValues(cc.NewU256(7))}},
+			st.NewStack(cc.NewU256(7))}},
 		"two-elements": {{
 			newLfvmStack(cc.NewU256(1), cc.NewU256(2)),
-			st.NewStackWithValues(cc.NewU256(1), cc.NewU256(2))}},
+			st.NewStack(cc.NewU256(1), cc.NewU256(2))}},
 		"three-elements": {{
 			newLfvmStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3)),
-			st.NewStackWithValues(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3))}},
+			st.NewStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3))}},
 	}
 
 	for name, test := range tests {

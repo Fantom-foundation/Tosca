@@ -159,7 +159,7 @@ func (s *stateSerializable) deserialize() *State {
 	state.Pc = s.Pc
 	state.Gas = s.Gas
 	state.GasRefund = s.GasRefund
-	state.Stack = NewStackWithValues(slices.Clone(s.Stack)...)
+	state.Stack = NewStack(slices.Clone(s.Stack)...)
 	state.Memory = NewMemory(slices.Clone(s.Memory)...)
 
 	if s.Storage != nil {

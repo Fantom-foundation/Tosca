@@ -81,11 +81,12 @@ func doTest(context *cli.Context) error {
 		rules := spc.Spec.GetRulesFor(state)
 		if len(rules) > 1 {
 			s0 := state.Clone()
-			defer st.ReturnState(s0)
+			defer s0.Release()
 
 			rules[0].Effect.Apply(s0)
 			for i := 1; i < len(rules)-1; i++ {
 				s := state.Clone()
+				defer s.Release()
 				rules[i].Effect.Apply(s)
 				if !s.Eq(s0) {
 					issuesCollector.AddIssue(state, fmt.Errorf("multiple conflicting rules for state: %v", rules))

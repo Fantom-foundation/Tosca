@@ -18,39 +18,36 @@ type Stack struct {
 
 var stackPool = sync.Pool{
 	New: func() interface{} {
-		return &Stack{}
+		stack := &Stack{
+			stack: make([]U256, MaxStackSize),
+		}
+		return stack
 	},
 }
 
-func NewStack() *Stack {
+// NewStack returns a stack from the stack pool, all stacks are allocated with the maximal capacity
+func NewStack(values ...U256) *Stack {
 	stack := stackPool.Get().(*Stack)
-	stack.stack = stack.stack[:0]
+	if MaxStackSize < len(values) {
+		panic("Warning: maximal stack size exceeded")
+	}
+
+	stack.stack = stack.stack[:copy(stack.stack, values)]
 	return stack
 }
 
+// NewStackWithSize returns a stack with the given size and unspecified content
 func NewStackWithSize(size int) *Stack {
 	stack := stackPool.Get().(*Stack)
-	if cap(stack.stack) < size {
-		stack.stack = make([]U256, size)
-	} else {
-		stack.stack = stack.stack[:size]
+	if MaxStackSize < size {
+		panic("Warning: maximal stack size exceeded")
 	}
+
 	stack.stack = stack.stack[:size]
 	return stack
 }
 
-func NewStackWithValues(values ...U256) *Stack {
-	stack := stackPool.Get().(*Stack)
-	if cap(stack.stack) < len(values) {
-		stack.stack = make([]U256, len(values))
-	} else {
-		stack.stack = stack.stack[:len(values)]
-	}
-	stack.stack = values
-	return stack
-}
-
-func ReturnStack(s *Stack) {
+func (s *Stack) Release() {
 	stackPool.Put(s)
 }
 

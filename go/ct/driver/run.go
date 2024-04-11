@@ -247,7 +247,7 @@ func forEachState(
 				if consumeStatus == rlz.ConsumeAbort {
 					abortTests.Store(true)
 				}
-				st.ReturnState(state)
+				state.Release()
 			}
 		}()
 	}
@@ -332,11 +332,12 @@ func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp) error {
 	// TODO: enable optional rule consistency check
 	rule := rules[0]
 	expected := input.Clone()
-	defer st.ReturnState(expected)
+	defer expected.Release()
 
 	rule.Effect.Apply(expected)
 
 	result, err := evm.StepN(input.Clone(), 1)
+	defer result.Release()
 	if err != nil {
 		return fmt.Errorf("failed to process input state %v: %w", input, err)
 	}

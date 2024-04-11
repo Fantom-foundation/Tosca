@@ -89,7 +89,7 @@ func TestConvertToEvmc_Stack(t *testing.T) {
 			st.NewStack(),
 			[]byte{}}},
 		"one-element": {{
-			st.NewStackWithValues(ct.NewU256(0xAB000000000000CD, 0xBA000000000000AD)),
+			st.NewStack(ct.NewU256(0xAB000000000000CD, 0xBA000000000000AD)),
 			[]byte{
 				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -97,7 +97,7 @@ func TestConvertToEvmc_Stack(t *testing.T) {
 				0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAD,
 			}}},
 		"two-elements": {{
-			st.NewStackWithValues(
+			st.NewStack(
 				ct.NewU256(0xDE000000000000AD, 0xBE000000000000EF, 0, 0),
 				ct.NewU256(0xAB000000000000CD, 0xBA000000000000AD)),
 			[]byte{
@@ -112,7 +112,7 @@ func TestConvertToEvmc_Stack(t *testing.T) {
 				0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAD,
 			}}},
 		"three-elements": {{
-			st.NewStackWithValues(
+			st.NewStack(
 				ct.NewU256(0x0001020304050607, 0x0809101112131415, 0x1617181920212223, 0x2425262728293031),
 				ct.NewU256(0xDE000000000000AD, 0xBE000000000000EF, 0x0000000000000000, 0x0000000000000000),
 				ct.NewU256(0xAB000000000000CD, 0xBA000000000000AD)),
@@ -172,7 +172,7 @@ func TestConvertToCt_Stack(t *testing.T) {
 				0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCD,
 				0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAD,
 			},
-			st.NewStackWithValues(ct.NewU256(0xAB000000000000CD, 0xBA000000000000AD)),
+			st.NewStack(ct.NewU256(0xAB000000000000CD, 0xBA000000000000AD)),
 			true}},
 		"two-elements": {{
 			[]byte{
@@ -186,7 +186,7 @@ func TestConvertToCt_Stack(t *testing.T) {
 				0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCD,
 				0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAD,
 			},
-			st.NewStackWithValues(
+			st.NewStack(
 				ct.NewU256(0xAB000000000000CD, 0xBA000000000000AD),
 				ct.NewU256(0xDE000000000000AD, 0xBE000000000000EF, 0, 0)),
 			true}},
@@ -207,7 +207,7 @@ func TestConvertToCt_Stack(t *testing.T) {
 				0xAB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCD,
 				0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAD,
 			},
-			st.NewStackWithValues(
+			st.NewStack(
 				ct.NewU256(0xAB000000000000CD, 0xBA000000000000AD),
 				ct.NewU256(0xDE000000000000AD, 0xBE000000000000EF, 0x0000000000000000, 0x0000000000000000),
 				ct.NewU256(0x0001020304050607, 0x0809101112131415, 0x1617181920212223, 0x2425262728293031)),

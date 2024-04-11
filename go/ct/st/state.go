@@ -87,6 +87,13 @@ func (s *StatusCode) UnmarshalJSON(data []byte) error {
 
 ////////////////////////////////////////////////////////////
 
+// Releaser interface for object recycling
+type Releaser interface {
+	Release()
+}
+
+////////////////////////////////////////////////////////////
+
 // State represents an EVM's execution state.
 type State struct {
 	Status             StatusCode
@@ -126,9 +133,9 @@ func NewState(code *Code) *State {
 	}
 }
 
-// Returns all member objects which are recycled
-func ReturnState(s *State) {
-	ReturnStack(s.Stack)
+// Release releases all member objects to be recycled.
+func (s *State) Release() {
+	s.Stack.Release()
 	s.Stack = nil
 }
 

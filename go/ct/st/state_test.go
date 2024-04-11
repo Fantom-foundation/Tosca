@@ -766,7 +766,7 @@ func TestState_RecycledMembers(t *testing.T) {
 		t.Error("No stack was returned from stack pool")
 	}
 
-	ReturnState(state)
+	state.Release()
 	if state.Stack != nil {
 		t.Error("Stack should have been returned and nil")
 	}
