@@ -39,3 +39,26 @@ func TestSerialization_EndToEndTest(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkSerliazation_EndToEnd(b *testing.B) {
+	rnd := rand.New(0)
+	gen := gen.NewStateGenerator()
+
+	for i := 0; i < b.N; i++ {
+		state, err := gen.Generate(rnd)
+		if err != nil {
+			b.Fatalf("failed to generate random state: %v", err)
+		}
+
+		path := filepath.Join(b.TempDir(), "state.json")
+		if err := st.ExportStateJSON(state, path); err != nil {
+			b.Fatalf("failed to write state to file: %v", err)
+		}
+
+		_, err = st.ImportStateJSON(path)
+		if err != nil {
+			b.Fatalf("failed to read state from file: %v", err)
+		}
+	}
+
+}

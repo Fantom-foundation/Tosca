@@ -2,9 +2,7 @@ package st
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"maps"
 	"os"
 	"slices"
@@ -54,22 +52,19 @@ type stateSerializable struct {
 	Pc                 uint16
 	Gas                vm.Gas
 	GasRefund          vm.Gas
-	Code               byteSliceSerializable
+	Code               Bytes
 	Stack              []U256
-	Memory             byteSliceSerializable
+	Memory             Bytes
 	Storage            *storageSerializable
 	Accounts           *accountsSerializable
 	Logs               *logsSerializable
 	CallContext        CallContext
 	BlockContext       BlockContext
-	CallData           byteSliceSerializable
-	LastCallReturnData byteSliceSerializable
-	ReturnData         byteSliceSerializable
+	CallData           Bytes
+	LastCallReturnData Bytes
+	ReturnData         Bytes
 	CallJournal        *CallJournal
 }
-
-// byteSliceSerializable is a wrapper to achieve hex code output
-type byteSliceSerializable []byte
 
 // storageSerializable is a serializable representation of the Storage struct.
 type storageSerializable struct {
@@ -81,7 +76,7 @@ type storageSerializable struct {
 // accountsSerializable is a serializable representation of the Accounts struct.
 type accountsSerializable struct {
 	Balance map[vm.Address]U256
-	Code    map[vm.Address]byteSliceSerializable
+	Code    map[vm.Address]Bytes
 	Warm    map[vm.Address]bool
 }
 
@@ -92,21 +87,21 @@ type logsSerializable struct {
 
 type logEntrySerializable struct {
 	Topics []U256
-	Data   byteSliceSerializable
+	Data   Bytes
 }
 
 func newLogsSerializable(logs *Logs) *logsSerializable {
 	serializable := &logsSerializable{}
 	for _, entry := range logs.Entries {
-		serializable.addLog(entry.Data, entry.Topics...)
+		serializable.addLog(NewBytes(entry.Data), entry.Topics...)
 	}
 	return serializable
 }
 
-func (l *logsSerializable) addLog(data byteSliceSerializable, topics ...U256) {
+func (l *logsSerializable) addLog(data Bytes, topics ...U256) {
 	l.Entries = append(l.Entries, logEntrySerializable{
 		slices.Clone(topics),
-		slices.Clone(data),
+		data,
 	})
 }
 
@@ -120,17 +115,17 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		Pc:                 state.Pc,
 		Gas:                state.Gas,
 		GasRefund:          state.GasRefund,
-		Code:               bytes.Clone(state.Code.code),
+		Code:               NewBytes(state.Code.code),
 		Stack:              slices.Clone(state.Stack.stack),
-		Memory:             bytes.Clone(state.Memory.mem),
+		Memory:             NewBytes(state.Memory.mem),
 		Storage:            newStorageSerializable(state.Storage),
 		Accounts:           newAccountsSerializable(state.Accounts),
 		Logs:               newLogsSerializable(state.Logs),
 		CallContext:        state.CallContext,
 		BlockContext:       state.BlockContext,
-		CallData:           state.CallData.ToBytes(),
-		LastCallReturnData: state.LastCallReturnData.ToBytes(),
-		ReturnData:         state.ReturnData.ToBytes(),
+		CallData:           state.CallData,
+		LastCallReturnData: state.LastCallReturnData,
+		ReturnData:         state.ReturnData,
 		CallJournal:        state.CallJournal,
 	}
 }
@@ -152,7 +147,7 @@ func (s *stateSerializable) serialize() ([]byte, error) {
 // deserialize converts the stateSerializable to a State instance.
 // The data of the stateSerializable is deep copied.
 func (s *stateSerializable) deserialize() *State {
-	state := NewState(NewCode(s.Code))
+	state := NewState(NewCode(s.Code.ToBytes()))
 	state.Status = s.Status
 	state.Revision = s.Revision
 	state.ReadOnly = s.ReadOnly
@@ -160,7 +155,7 @@ func (s *stateSerializable) deserialize() *State {
 	state.Gas = s.Gas
 	state.GasRefund = s.GasRefund
 	state.Stack = NewStack(slices.Clone(s.Stack)...)
-	state.Memory = NewMemory(slices.Clone(s.Memory)...)
+	state.Memory = NewMemory(s.Memory.ToBytes()...)
 
 	if s.Storage != nil {
 		storageBuilder := NewStorageBuilder()
@@ -187,7 +182,7 @@ func (s *stateSerializable) deserialize() *State {
 
 		// Code needs to be manually copied because of serializablebytes
 		for address, code := range s.Accounts.Code {
-			accountsBuilder.SetCode(address, NewBytes(code))
+			accountsBuilder.SetCode(address, code)
 		}
 
 		for key := range s.Accounts.Warm {
@@ -199,14 +194,14 @@ func (s *stateSerializable) deserialize() *State {
 	if s.Logs != nil {
 		state.Logs = NewLogs()
 		for _, entry := range s.Logs.Entries {
-			state.Logs.AddLog(entry.Data, entry.Topics...)
+			state.Logs.AddLog(entry.Data.ToBytes(), entry.Topics...)
 		}
 	}
 	state.CallContext = s.CallContext
 	state.BlockContext = s.BlockContext
-	state.CallData = NewBytes(s.CallData)
-	state.LastCallReturnData = NewBytes(s.LastCallReturnData)
-	state.ReturnData = NewBytes(s.ReturnData)
+	state.CallData = s.CallData
+	state.LastCallReturnData = s.LastCallReturnData
+	state.ReturnData = s.ReturnData
 	if s.CallJournal != nil {
 		state.CallJournal = s.CallJournal.Clone()
 	}
@@ -229,9 +224,9 @@ func newAccountsSerializable(accounts *Accounts) *accountsSerializable {
 		warm[key] = true
 	}
 
-	codes := make(map[vm.Address]byteSliceSerializable)
+	codes := make(map[vm.Address]Bytes)
 	for address, code := range accounts.code {
-		codes[address] = code.ToBytes()
+		codes[address] = code
 	}
 
 	return &accountsSerializable{
@@ -239,24 +234,4 @@ func newAccountsSerializable(accounts *Accounts) *accountsSerializable {
 		Code:    codes,
 		Warm:    warm,
 	}
-}
-
-func (c byteSliceSerializable) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("\"%x\"", c)), nil
-}
-
-func (c *byteSliceSerializable) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return err
-	}
-
-	code, err := hex.DecodeString(s)
-	if err != nil {
-		return err
-	}
-
-	*c = code
-	return nil
 }
