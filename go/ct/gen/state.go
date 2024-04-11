@@ -381,10 +381,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Pick a random calldata
-	resultCallData, err := getRandomData(rnd)
-	if err != nil {
-		return nil, err
-	}
+	resultCallData := RandomBytes(rnd, st.MaxDataSize)
 
 	// Generate return data of last call
 	resultLastCallReturnData, err := getRandomData(rnd)

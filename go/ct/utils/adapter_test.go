@@ -29,7 +29,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			func(p vm.Parameters) (any, any) { return []byte{1, 2, 3}, p.Code },
 		},
 		"input": {
-			func(s *st.State) { s.CallData = []byte{1, 2, 3} },
+			func(s *st.State) { s.CallData = cc.NewBytes([]byte{1, 2, 3}) },
 			func(p vm.Parameters) (any, any) { return []byte{1, 2, 3}, p.Input },
 		},
 		"read-only-true": {

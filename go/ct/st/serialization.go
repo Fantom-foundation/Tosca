@@ -128,7 +128,7 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		Logs:               newLogsSerializable(state.Logs),
 		CallContext:        state.CallContext,
 		BlockContext:       state.BlockContext,
-		CallData:           bytes.Clone(state.CallData),
+		CallData:           state.CallData.ToBytes(),
 		LastCallReturnData: bytes.Clone(state.LastCallReturnData),
 		ReturnData:         bytes.Clone(state.ReturnData),
 		CallJournal:        state.CallJournal,
@@ -204,7 +204,7 @@ func (s *stateSerializable) deserialize() *State {
 	}
 	state.CallContext = s.CallContext
 	state.BlockContext = s.BlockContext
-	state.CallData = bytes.Clone(s.CallData)
+	state.CallData = NewBytes(s.CallData)
 	state.LastCallReturnData = bytes.Clone(s.LastCallReturnData)
 	state.ReturnData = bytes.Clone(s.ReturnData)
 	if s.CallJournal != nil {

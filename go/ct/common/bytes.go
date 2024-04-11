@@ -17,11 +17,8 @@ func NewBytes(data []byte) Bytes {
 	return Bytes{data: string(data)}
 }
 
-func RandomBytes(rnd *rand.Rand) Bytes {
-	const (
-		expectedSize = 200
-		maxSize      = 2000
-	)
+func RandomBytes(rnd *rand.Rand, maxSize int) Bytes {
+	const expectedSize = 200
 	rand := rnd.ExpFloat64()
 	size := int(rand * expectedSize)
 	if size > maxSize {
@@ -63,4 +60,8 @@ func (b *Bytes) UnmarshalJSON(data []byte) error {
 
 func (b Bytes) Length() int {
 	return len(b.data)
+}
+
+func (b Bytes) Get(start, end uint64) []byte {
+	return []byte(b.data)[start:end]
 }
