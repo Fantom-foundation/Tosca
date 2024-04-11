@@ -2,6 +2,7 @@ package st
 
 import (
 	"fmt"
+	"sync"
 
 	"golang.org/x/exp/slices"
 
@@ -15,20 +16,51 @@ type Stack struct {
 	stack []U256
 }
 
-// NewStack creates a new stack filled with the given values.
-func NewStack(values ...U256) *Stack {
-	return &Stack{values}
+var stackPool = sync.Pool{
+	New: func() interface{} {
+		stack := &Stack{
+			stack: make([]U256, MaxStackSize),
+		}
+		return stack
+	},
 }
 
-// NewStackWithSize creates a new stack with the given size, all elements
-// initialized to zero.
+// NewStack returns a stack from the stack pool, all stacks are allocated with the maximal capacity
+func NewStack(values ...U256) *Stack {
+	stack := stackPool.Get().(*Stack)
+	if MaxStackSize < len(values) {
+		panic("Warning: maximal stack size exceeded")
+	}
+
+	stack.stack = stack.stack[:copy(stack.stack, values)]
+	return stack
+}
+
+// NewStackWithSize returns a stack with the given size and unspecified content
 func NewStackWithSize(size int) *Stack {
-	return &Stack{make([]U256, size)}
+	stack := stackPool.Get().(*Stack)
+	if MaxStackSize < size {
+		panic("Warning: maximal stack size exceeded")
+	}
+
+	stack.stack = stack.stack[:size]
+	return stack
+}
+
+func (s *Stack) Release() {
+	stackPool.Put(s)
 }
 
 // Clone creates an independent copy of the stack.
 func (s *Stack) Clone() *Stack {
-	return &Stack{slices.Clone(s.stack)}
+	clone := stackPool.Get().(*Stack)
+	if cap(clone.stack) < s.Size() {
+		clone.stack = make([]U256, s.Size())
+	} else {
+		clone.stack = clone.stack[:s.Size()]
+	}
+	copy(clone.stack, s.stack)
+	return clone
 }
 
 // Size returns the number of elements on the stack.

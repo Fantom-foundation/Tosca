@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"pgregory.net/rand"
 )
 
 func TestStack_NewStack(t *testing.T) {
@@ -128,5 +129,50 @@ func TestStack_Eq(t *testing.T) {
 	stack2.Pop()
 	if stack1.Eq(stack2) {
 		t.Errorf("unexpected stack equality %v vs. %v", stack1.stack, stack2.stack)
+	}
+}
+
+func TestStack_NewStackFactoriesReturnStacksWithCorrectSize(t *testing.T) {
+	stacks := []struct {
+		stack *Stack
+		size  int
+	}{
+		{NewStack(), 0},
+		{NewStackWithSize(42), 42},
+		{NewStack(NewU256(42), NewU256(42), NewU256(42), NewU256(42)), 4},
+	}
+
+	for _, input := range stacks {
+		stack := input.stack
+		if stack == nil {
+			t.Fatal("No stack was returned by function")
+		}
+
+		if stack.Size() != input.size {
+			t.Errorf("Mismatching stack size, wanted %d but got %d", input.size, stack.Size())
+		}
+
+		stack.Push(NewU256(42))
+		stack.Push(NewU256(42))
+		stack.Release()
+
+		new := NewStack()
+		if new.Size() != 0 {
+			t.Errorf("Mismatching stack size, wanted 0 but got %d", stack.Size())
+		}
+	}
+}
+
+func BenchmarkStack_StackCreation(b *testing.B) {
+
+	rnd := rand.New(0)
+	for i := 0; i < b.N; i++ {
+		stack := NewStackWithSize(1 + rnd.Intn(1023))
+		if i%2 == 0 {
+			stack.Pop()
+		} else {
+			stack.Push(NewU256(42))
+		}
+		stack.Release()
 	}
 }
