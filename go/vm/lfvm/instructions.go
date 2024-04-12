@@ -855,7 +855,6 @@ func opExtCodeCopy(c *context) {
 		c.SignalError(errGasUintOverflow)
 		return
 	}
-	uint64CodeOffset := codeOffset.Uint64()
 
 	// Charge for length of copied code
 	words := (length.Uint64() + 31) / 32
@@ -867,6 +866,12 @@ func opExtCodeCopy(c *context) {
 	err := gasEip2929AccountCheck(c, addr)
 	if err != nil {
 		return
+	}
+	var uint64CodeOffset uint64
+	if codeOffset.IsUint64() {
+		uint64CodeOffset = codeOffset.Uint64()
+	} else {
+		uint64CodeOffset = math.MaxUint64
 	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
 	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {

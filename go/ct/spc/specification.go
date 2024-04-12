@@ -1622,14 +1622,15 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 	}
 	s.Gas -= cost
 
+	start := offsetU256.Uint64()
 	codeSize := uint64(s.Accounts.GetCode(address).Length())
-	codeCopy := make([]byte, size)
-
-	if offset := offsetU256.Uint64(); offset < codeSize {
-		start := offset
-		end := min(start+size, codeSize)
-		copy(codeCopy, s.Accounts.GetCode(address).ToBytes()[start:end])
+	if offsetU256.Gt(NewU256(codeSize)) {
+		start = codeSize
 	}
+	end := min(start+size, codeSize)
+
+	codeCopy := make([]byte, size)
+	copy(codeCopy, s.Accounts.GetCode(address).ToBytes()[start:end])
 
 	s.Memory.Write(codeCopy, destOffset)
 	if markWarm {
