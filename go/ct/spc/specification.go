@@ -22,6 +22,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/ct/utils"
 	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
@@ -1177,8 +1178,7 @@ func getAllRules() []Rule {
 					start = uint64(len)
 				}
 				end := min(start+32, uint64(len))
-				data := make([]byte, 32)
-				copy(data, s.CallData.Get(start, end))
+				data := utils.RightPadSlice(s.CallData.Get(start, end), 32)
 				pushData = NewU256FromBytes(data...)
 			}
 
@@ -1212,14 +1212,13 @@ func getAllRules() []Rule {
 			}
 			s.Gas -= expansionCost
 
-			dataBuffer := make([]byte, size)
 			start := offsetU256.Uint64()
 			len := s.CallData.Length()
 			if offsetU256.Gt(NewU256(uint64(len))) {
 				start = uint64(len)
 			}
 			end := min(start+size, uint64(len))
-			copy(dataBuffer, s.CallData.Get(start, end))
+			dataBuffer := utils.RightPadSlice(s.CallData.Get(start, end), int64(size))
 			s.Memory.Write(dataBuffer, destOffset)
 		},
 	})...)
@@ -1643,8 +1642,7 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 	}
 	end := min(start+size, codeSize)
 
-	codeCopy := make([]byte, size)
-	copy(codeCopy, s.Accounts.GetCode(address).ToBytes()[start:end])
+	codeCopy := utils.RightPadSlice(s.Accounts.GetCode(address).ToBytes()[start:end], int64(size))
 
 	s.Memory.Write(codeCopy, destOffset)
 	if markWarm {

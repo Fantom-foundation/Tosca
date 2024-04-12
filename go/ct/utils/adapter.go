@@ -189,3 +189,21 @@ func (c *ctRunContext) IsSlotInAccessList(addr vm.Address, key vm.Key) (addressP
 func (c *ctRunContext) HasSelfDestructed(addr vm.Address) bool {
 	panic("not implemented")
 }
+
+func RightPadSlice[T any](source []T, size int64) []T {
+	res := make([]T, size)
+	copy(res, source)
+	return res
+}
+
+func RightPadSliceWithCap[T any](source []T, len, cap int64) []T {
+	res := make([]T, len, cap)
+	copy(res, source)
+	return res
+}
+
+func LeftPadSlice[T any](source []T, size int64) []T {
+	res := make([]T, size)
+	copy(res[size-int64(len(source)):], source)
+	return res
+}
