@@ -1,0 +1,75 @@
+{
+    "Status": "running",
+    "Revision": "Istanbul",
+    "ReadOnly": false,
+    "Pc": 15,
+    "Gas": 700,
+    "GasRefund": -9102517776638199021,
+    "Code": "ff8755c0d4ba1d19626a0f290160f0f1c6dbed",
+    "Stack": [
+        "9d4681df7e285192 a9bc4dca22cd9818 7285783449602315 9f271066c084a54a",
+        "0000000000000000 0000000000000000 0000000000000000 000000000000001f",
+        "0000000000000000 0000000000000000 0000000000000000 0000000000000020",
+        "0000000000000000 0000000000000000 0000000000000000 0000000000000000",
+        "a462ec8b6fe14eb6 f6db625da7013561 c23d255a06175727 0df4546f6e670cca",
+        "0000000000000000 0000000000000000 0000000000000000 0000000000000000",
+        "70be978ef04dea4b 2d27ea09a09221c5 945a0e4566acbeef 6e796e421248dc6b",
+        "71da1ee9c69fbd91 e5b0464e766ed799 125ea5862fff53dc 9d473a7a1f90d2b4"
+    ],
+    "Memory": "",
+    "Storage": {
+        "Current": {
+            "371c1122701dc4b1 884c419878e81543 f66d1f3190368a85 a22a95f3c30d0c0b": "d4c1b33db05655b4 c45b28e2b46a5360 118e790e899c582b 29aa3bc309f08349",
+            "5702d9b903b7c249 196df73664f2a547 a3d94e51ff2bfa5b db02b24f06d9a1fc": "b0c32b64437d42ed 84a10c58228fdbba d5c8b62d11223c39 4923aa4cc60a174f"
+        },
+        "Original": {
+            "371c1122701dc4b1 884c419878e81543 f66d1f3190368a85 a22a95f3c30d0c0b": "ffb68668d2460447 f22a603a7b7bd4a7 72cfd5f1040e0b73 2e9efda3fe41d725",
+            "5702d9b903b7c249 196df73664f2a547 a3d94e51ff2bfa5b db02b24f06d9a1fc": "f186ec175bf2d670 ac568001a1d92879 afab80452df3b9b4 4626bd8f974f54a5"
+        },
+        "Warm": {
+            "5702d9b903b7c249 196df73664f2a547 a3d94e51ff2bfa5b db02b24f06d9a1fc": true
+        }
+    },
+    "Accounts": {
+        "Balance": {
+            "0xbc3b8986aa77261c53f746b2dcdb3ea3595bbd7e": "838aa26b25faa39c d0227fcd26ae9867 026aeb7e45d9def3 fd7ccb14e0f4f2a9"
+        },
+        "Code": {
+            "0xbc3b8986aa77261c53f746b2dcdb3ea3595bbd7e": "23b7f34825c23dcaaa8db27f73e3d84530de1af14c22cada72dbdd71f648c9c89e22a51220cd2995ae6f"
+        },
+        "Warm": {}
+    },
+    "Logs": {
+        "Entries": null
+    },
+    "CallContext": {
+        "AccountAddress": "0xbc3b8986aa77261c53f746b2dcdb3ea3595bbd7e",
+        "OriginAddress": "0x23673eb0910ffe90ef579eb10b6d4a53203ffd0d",
+        "CallerAddress": "0x38822f82104eb9b226494a3c3834222d84e7f6bd",
+        "Value": "57488c7a13899ab9 6b8baae8c03ca709 494d8e36acfd8391 3d668bb8e0d9b524"
+    },
+    "BlockContext": {
+        "BaseFee": "50aee7339ead9595 6bda64b5405b72dd 0a182d9760db11a6 387844df86eddbab",
+        "BlockNumber": 8,
+        "ChainID": "a41d463481d63af7 bc16a8804f92065e 600971f943389574 6cc55ec781f05c0c",
+        "CoinBase": "0x65b31fd94bceb637f361655ea82738395a905079",
+        "GasLimit": 9274970745063360864,
+        "GasPrice": "9ab4be35b7bcd2ea eca4b256de9a2126 e5099fed68425282 d29fb655a9d5e7c9",
+        "Difficulty": "00f43c922f319702 33027018fc43204b bff7b1392b30bc16 913c6960608489f3",
+        "TimeStamp": 2729457144488163063
+    },
+    "CallData": "567b0bbc03aa5916d8e2791968af1345215a4ff18bbb9fd8c8a0960a07ac5dfab3f8764c677ace9fa4b8208674054feb72452f09d75755c54d0ac9f0d5c244",
+    "LastCallReturnData": "f9ddf51cd7c9d4fcb40b6daf173bed6fa5412e9c774086ffb0e766b6e40609e43198240e30816f4892d92f7e7864e2",
+    "ReturnData": "",
+    "CallJournal": {
+        "Past": null,
+        "Future": [
+            {
+                "Success": false,
+                "Output": "f2d0a87ffe61d93e6433eefeac7beb68abe53dc656f8e9e376ef636026300217da2011bce5600e3ec81a49a35d0951840a6eca2961d4b4b74d9b740fa0768810f090595d33206c11dfd73ee0ec994fc1ee66102e59fa7ace24385bc9a1155d3b87008a4814a0805836c07f6bb2dfc55830381f8b7e33f5fa09241153d9bb6a3c8a0adf0531fb8cb21b5e257d93b133f4866a90fc5e2d57012f799750948f31042440b2adb886661d48a4312685c18d15e7af8bf1f9aa3b491f47f1b8df73fb1824cda33d517537f03597548db3e38c88a11d603a0f34db989b6618044df1e084d5b4f4e45ec79fb9553fa691c613985f0daf5e0ef93ab3796ed8550658b7a9680ad75bccb2f290d2f4068b56d3d5a5e3d96eebb338820065c464e888d78864e8dccc52af55fbbd78c8ad736674f2e6cde7720ede566e61810e0c1d72a068",
+                "GasCosts": 1010114871283845773,
+                "GasRefund": 5521141830712577240
+            }
+        ]
+    }
+}
