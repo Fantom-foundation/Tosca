@@ -111,7 +111,7 @@ func doTest(context *cli.Context) error {
 
 	fmt.Printf("Testing Conformance Tests with seed %d ...\n", seed)
 
-	err = forEachState(opTest, printIssueCounts, jobCount, seed, fullMode, filter)
+	err = ForEachState(opTest, printIssueCounts, jobCount, seed, fullMode, filter)
 	if err != nil {
 		return fmt.Errorf("error generating States: %w", err)
 	}
