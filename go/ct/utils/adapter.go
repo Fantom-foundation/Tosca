@@ -31,8 +31,7 @@ func ToVmParameters(state *st.State) vm.Parameters {
 
 	var code []byte
 	if state.Code != nil {
-		code = make([]byte, state.Code.Length())
-		state.Code.CopyTo(code)
+		code = state.Code.Copy()
 	}
 
 	var revision vm.Revision

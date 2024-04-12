@@ -13,7 +13,6 @@
 package st
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"slices"
@@ -101,22 +100,6 @@ func TestCode_GetData(t *testing.T) {
 	for _, i := range []int{0, 1, 3} {
 		if _, err := code.GetData(i); !errors.Is(err, ErrInvalidPosition) {
 			t.Errorf("unexpected error: %v", err)
-		}
-	}
-}
-
-func TestCode_CopyTo(t *testing.T) {
-	src := []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
-	code := NewCode(src)
-
-	if got, want := code.Length(), len(src); got != want {
-		t.Errorf("unexpected code length, wanted %d, got %d", want, got)
-	}
-
-	for i := 0; i < len(src); i++ {
-		dst := make([]byte, i)
-		if got := code.CopyTo(dst); got != i || !bytes.Equal(src[0:i], dst) {
-			t.Errorf("failed to copy data, expected %x, got %x, return %d", src[0:i], dst, i)
 		}
 	}
 }
