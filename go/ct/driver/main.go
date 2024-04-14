@@ -14,10 +14,11 @@ func main() {
 		Copyright: "(c) 2023 Fantom Foundation",
 		Flags:     []cli.Flag{},
 		Commands: []*cli.Command{
-			&RunCmd,
 			&ListCmd,
-			&TestCmd,
 			&RegressionsCmd,
+			&RunCmd,
+			&StatsCmd,
+			&TestCmd,
 		},
 	}
 

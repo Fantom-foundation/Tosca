@@ -1,5 +1,7 @@
 package spc
 
+//go:generate mockgen -source specification.go -destination specification_mock.go -package spc
+
 import (
 	"fmt"
 	"strings"
