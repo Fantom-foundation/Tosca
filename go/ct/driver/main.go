@@ -26,6 +26,7 @@ func main() {
 		Copyright: "(c) 2023 Fantom Foundation",
 		Flags:     []cli.Flag{},
 		Commands: []*cli.Command{
+			&GeneratorInfoCmd,
 			&ListCmd,
 			&RegressionsCmd,
 			&RunCmd,

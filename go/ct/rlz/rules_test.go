@@ -13,6 +13,7 @@
 package rlz
 
 import (
+	"strings"
 	"testing"
 
 	"pgregory.net/rand"
@@ -89,5 +90,91 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 		if matches+misses > 1 && misses == 0 {
 			t.Errorf("none of the %d generated samples for %v is a miss", matches+misses, test)
 		}
+	}
+}
+
+func TestRule_GetTestCaseEnumerationInfo(t *testing.T) {
+	conditions := []Condition{
+		Eq(Status(), st.Failed),
+		Eq(Pc(), NewU256(42)),
+	}
+
+	rule := &Rule{
+		Condition: And(conditions...),
+		Parameter: []Parameter{
+			GasParameter{},
+			MemoryOffsetParameter{},
+		},
+	}
+
+	info := rule.GetTestCaseEnumerationInfo()
+
+	if want, got := len(conditions), len(info.conditionDomainSizes); want != got {
+		t.Fatalf("unexpected length of condition domain sizes, wanted %d, got %d", want, got)
+	}
+	sizes := map[string]int{
+		conditions[0].String(): len(statusCodeDomain{}.Samples(st.Failed)),
+		conditions[1].String(): len(pcDomain{}.Samples(NewU256(42))),
+	}
+	total := 1
+	for _, cur := range conditions {
+		key := cur.String()
+		if want, got := sizes[key], info.conditionDomainSizes[key]; want != got {
+			t.Errorf("unexpected domain size for %v, wanted %d, got %d", key, want, got)
+		}
+		total *= sizes[key]
+	}
+
+	if want, got := len(rule.Parameter), len(info.parameterDomainSizes); want != got {
+		t.Fatalf("unexpected number of parameter domain sizes, wanted %d, got %d", want, got)
+	}
+
+	for i, got := range info.parameterDomainSizes {
+		want := len(rule.Parameter[i].Samples())
+		if want != got {
+			t.Errorf("unexpected size of parameter domain %d - wanted %d, got %d", i, want, got)
+		}
+		total *= want
+	}
+
+	if got := info.TotalNumberOfCases(); total != got {
+		t.Errorf("unexpected total number of test cases, wanted %d, got %d", total, got)
+	}
+}
+
+func TestTestCaseEnumerationInfo_PrintEmptyIsNice(t *testing.T) {
+	info := TestCaseEnumerationInfo{}
+	print := info.String()
+	if !strings.Contains(print, "Conditions:\n\t-none-") {
+		t.Errorf("missing summary for conditions, got %s", print)
+	}
+	if !strings.Contains(print, "Parameters:\n\t-none-") {
+		t.Errorf("missing summary for parameters, got %s", print)
+	}
+	if !strings.Contains(print, "Total number of cases: 1") {
+		t.Errorf("missing summary of total test cases, got %s", print)
+	}
+}
+
+func TestTestCaseEnumerationInfo_ConditionsAreSortedAlphabetically(t *testing.T) {
+	info := TestCaseEnumerationInfo{
+		conditionDomainSizes: map[string]int{
+			"b": 12,
+			"a": 14,
+		},
+	}
+	print := info.String()
+	if !strings.Contains(print, "a: 14\n\tb: 12") {
+		t.Errorf("constraints are not listed as expected, got %s", print)
+	}
+}
+
+func TestTestCaseEnumerationInfo_ParameterDomainsArePrintedInOrder(t *testing.T) {
+	info := TestCaseEnumerationInfo{
+		parameterDomainSizes: []int{10, 12, 14},
+	}
+	print := info.String()
+	if !strings.Contains(print, "0: 10\n\t1: 12\n\t2: 14") {
+		t.Errorf("parameter domains are not listed as expected, got %s", print)
 	}
 }
