@@ -149,7 +149,9 @@ func doRun(context *cli.Context) error {
 
 	fmt.Printf("Starting Conformance Tests with seed %d ...\n", seed)
 
-	err = ForEachState(opRun, printIssueCounts, jobCount, seed, fullMode, filter)
+	rules := spc.FilterRules(spc.Spec.GetRules(), filter)
+
+	err = spc.ForEachState(rules, opRun, printIssueCounts, jobCount, seed, fullMode)
 	if err != nil {
 		return fmt.Errorf("error generating States: %w", err)
 	}
@@ -200,7 +202,7 @@ func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp) error {
 	}
 
 	// filter out unwanted rules
-	rules = FilterRules(rules, filter)
+	rules = spc.FilterRules(rules, filter)
 	if len(rules) == 0 {
 		return nil // < this is fine, the targeted rules are filtered out by the user
 	}

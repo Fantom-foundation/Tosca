@@ -1,4 +1,4 @@
-package main
+package spc
 
 import (
 	"regexp"
@@ -7,18 +7,17 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
-	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"pgregory.net/rand"
 )
 
 func ForEachState(
+	rules []rlz.Rule,
 	opFunction func(state *st.State) rlz.ConsumerResult,
 	printIssueCounts func(relativeTime time.Duration, rate float64, current int64),
 	numJobs int,
 	seed uint64,
 	fullMode bool,
-	filter *regexp.Regexp,
 ) error {
 	// The execution of test cases is distributed to parallel goroutines in a three-step
 	// process:
@@ -102,8 +101,8 @@ func ForEachState(
 					continue // keep consume rules in the ruleChannel
 				}
 				// random is re-seeded for each rule to be reproducible.
-				rand := rand.New(seed)
-				err := rule.EnumerateTestCases(rand, func(state *st.State) rlz.ConsumerResult {
+				rnd := rand.New(seed)
+				err := rule.EnumerateTestCases(rnd, func(state *st.State) rlz.ConsumerResult {
 					if abortTests.Load() {
 						return rlz.ConsumeAbort
 					}
@@ -128,8 +127,6 @@ func ForEachState(
 	}
 
 	// Feed the rule generator workers with rules.
-	rules := spc.Spec.GetRules()
-	rules = FilterRules(rules, filter)
 	for _, rule := range rules {
 		ruleChannel <- rule
 	}
