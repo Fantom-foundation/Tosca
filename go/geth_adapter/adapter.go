@@ -1,3 +1,15 @@
+//
+// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE.TXT file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use
+// of this software will be governed by the GNU Lesser General Public Licence v3 
+//
+
 // This package registers Tosca Interpreters in the go-ethereum-substate
 // VM registry such that they can be used in tools like Aida until the
 // EVM implementation provided by go-ethereum-substate is ultimately
