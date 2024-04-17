@@ -185,5 +185,5 @@ func (c *ctRunContext) IsSlotInAccessList(addr vm.Address, key vm.Key) (addressP
 }
 
 func (c *ctRunContext) HasSelfDestructed(addr vm.Address) bool {
-	panic("not implemented")
+	return !c.state.Accounts.Exist(addr) && c.state.Accounts.IsCold(addr)
 }

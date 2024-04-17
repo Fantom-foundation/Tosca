@@ -1347,6 +1347,56 @@ func getAllRules() []Rule {
 
 	rules = append(rules, callOp()...)
 
+	// --- SELFDESTRUCT ---
+
+	// NOTE: this rule only covers the Istanbul.
+	// Follow-work is required to cover other revisions, as well
+	// as special cases currently covered in the effect function.
+	rules = append(rules, rulesFor(instruction{
+		op:        SELFDESTRUCT,
+		name:      "_istanbul",
+		staticGas: 5000,
+		pops:      1,
+		pushes:    0,
+		conditions: []Condition{
+			Eq(ReadOnly(), false),
+			IsRevision(R07_Istanbul),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+		},
+		effect: func(s *st.State) {
+			// Behavior pre cancun: the current account is registered to be destroyed, and will be at the end of the current
+			// transaction. The transfer of the current balance to the given account cannot fail. In particular,
+			// the destination account code (if any) is not executed, or, if the account does not exist, the
+			// balance is still added to the given address.
+
+			// account to send the current balance to
+			destinationAccount := s.Stack.Pop().Bytes20be()
+			currentAccount := s.CallContext.AccountAddress
+			CurrentBalance := s.Accounts.GetBalance(currentAccount)
+
+			// If a positive balance is sent to an empty account, the dynamic gas is 25000. Otherwise there is
+			// no additional cost. An account is empty if its balance is 0, its nonce is 0 and it has no code.
+			dynamicGas := vm.Gas(0)
+			if !CurrentBalance.IsZero() && !s.Accounts.Exist(destinationAccount) {
+				dynamicGas = 25000
+			}
+			if s.Gas < dynamicGas {
+				s.Status = st.Failed
+				return
+			}
+			s.Gas -= dynamicGas
+			s.Status = st.Stopped
+
+			// PC should not increase, but rulesFor does it for all regular cases, so we counter it here.
+			s.Pc--
+
+			s.ReturnData = s.LastCallReturnData
+			s.GasRefund += vm.Gas(24000)
+		},
+	})...)
+
 	// --- End ---
 
 	return rules
