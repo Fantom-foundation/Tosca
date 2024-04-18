@@ -1403,6 +1403,21 @@ func getAllRules() []Rule {
 		},
 	})...)
 
+	rules = append(rules, Rule{
+		Name: "selfdestruct_staticcall",
+		Condition: And(
+			Eq(ReadOnly(), true),
+			AnyKnownRevision(),
+			Eq(Status(), st.Running),
+			Eq(Op(Pc()), SELFDESTRUCT),
+			Ge(Gas(), 5000),
+		),
+		Parameter: []Parameter{
+			AddressParameter{},
+		},
+		Effect: FailEffect(),
+	})
+
 	// --- End ---
 
 	return rules
