@@ -204,7 +204,25 @@ func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr ge
 }
 
 func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64, value *big.Int) ([]byte, uint64, error) {
-	panic("not implemented")
+	kind := vm.CallCode
+
+	have := i.stateDb.GetBalance(me.Address())
+	if value.Cmp(have) > 0 {
+		return nil, gas, geth_vm.ErrInsufficientBalance
+	}
+
+	var vmValue vm.Value
+	value.FillBytes(vmValue[:])
+	res, err := i.makeCall(kind, vm.CallParameter{
+		Sender:      vm.Address(me.Address()),
+		Recipient:   vm.Address(me.Address()),
+		Value:       vmValue,
+		Input:       data,
+		CodeAddress: vm.Address(addr),
+		Gas:         vm.Gas(gas),
+	})
+
+	return res.Output, uint64(res.GasLeft), err
 }
 
 func (i *callInterceptor) DelegateCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64) ([]byte, uint64, error) {
