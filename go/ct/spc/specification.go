@@ -1345,7 +1345,7 @@ func getAllRules() []Rule {
 
 	// --- CALL ---
 
-	rules = append(rules, callOp()...)
+	rules = append(rules, getCallRules()...)
 
 	// --- SELFDESTRUCT ---
 
@@ -1900,32 +1900,36 @@ func rulesFor(i instruction) []Rule {
 	return res
 }
 
-func callOp() []Rule {
-	res := []Rule{}
-	// NOTE: this rule only covers Istanbul case in a coarse-grained way.
+func getCallRules() []Rule {
+	// NOTE: this rule only covers Istanbul and Berlin cases in a coarse-grained way.
 	// Follow-work is required to cover other revisions and situations,
 	// as well as special cases currently covered in the effect function.
-	res = append(res, callOpIstanbul()...)
+
+	//                         revision   warm  destColdCost valueZero
+	callFailEffect := func(s *st.State, addrAccessCost vm.Gas) {
+		FailEffect().Apply(s)
+	}
+
+	res := []Rule{}
+	revs := []Revision{R07_Istanbul, R09_Berlin}
+	for _, rev := range revs {
+		for _, warm := range []bool{true, false} {
+			for _, zeroValue := range []bool{true, false} {
+				for _, static := range []bool{true, false} {
+					if static && !zeroValue {
+						res = append(res, callOp(rev, warm, zeroValue, callFailEffect, static)...)
+					} else {
+						res = append(res, callOp(rev, warm, zeroValue, callEffect, static)...)
+					}
+				}
+			}
+		}
+	}
+
 	return res
 }
 
-func callOpIstanbul() []Rule {
-	instruction := instruction{
-		op:        CALL,
-		name:      "_istanbul",
-		staticGas: 700,
-		pops:      7,
-		pushes:    1,
-	}
-
-	isCallWithSufficientGasAndStack := And(
-		IsRevision(R07_Istanbul),
-		Eq(Status(), st.Running),
-		Eq(Op(Pc()), CALL),
-		Ge(Gas(), instruction.staticGas),
-		Ge(StackSize(), instruction.pops),
-		Le(StackSize(), st.MaxStackSize-(instruction.pushes-instruction.pops)),
-	)
+func callOp(revision Revision, warm, zeroValue bool, opEffect func(s *st.State, addrAccessCost vm.Gas), static bool) []Rule {
 
 	parameters := []Parameter{
 		GasParameter{},
@@ -1937,51 +1941,76 @@ func callOpIstanbul() []Rule {
 		MemorySizeParameter{},
 	}
 
-	performsCall := Change(func(s *st.State) {
-		s.Gas -= instruction.staticGas
-		s.Pc++
-		callEffectIstanbul(s)
+	var staticGas vm.Gas
+	if revision == R07_Istanbul {
+		staticGas = 700
+	} else if revision == R09_Berlin {
+		staticGas = 0
+	}
+
+	var addressAccessCost vm.Gas
+	if revision == R07_Istanbul {
+		addressAccessCost = 0
+	} else if revision >= R09_Berlin && warm {
+		addressAccessCost = 100
+	} else if revision >= R09_Berlin && !warm {
+		addressAccessCost = 2600
+	}
+
+	var targetWarm Condition
+	var warmColdString string
+	if warm {
+		warmColdString = "warm"
+		targetWarm = IsAddressWarm(Param(1))
+	} else {
+		warmColdString = "cold"
+		targetWarm = IsAddressCold(Param(1))
+	}
+
+	var valueZeroCondition Condition
+	var valueZeroConditionName string
+	if zeroValue {
+		valueZeroConditionName = "no_value"
+		valueZeroCondition = Eq(Param(2), NewU256(0))
+	} else {
+		valueZeroConditionName = "with_value"
+		valueZeroCondition = Ne(Param(2), NewU256(0))
+	}
+
+	var staticCondition Condition
+	var staticConditionName string
+	if static {
+		staticConditionName = "static"
+		staticCondition = Eq(ReadOnly(), true)
+	} else {
+		staticConditionName = "not_static"
+		staticCondition = Eq(ReadOnly(), false)
+	}
+
+	name := fmt.Sprintf("_%v_%v_%v_%v", strings.ToLower(revision.String()), warmColdString, valueZeroConditionName, staticConditionName)
+
+	callConditions := And(
+		IsRevision(revision),
+		targetWarm,
+		valueZeroCondition,
+		staticCondition,
+	)
+
+	return rulesFor(instruction{
+		op:         CALL,
+		name:       name,
+		staticGas:  staticGas,
+		pops:       7,
+		pushes:     1,
+		conditions: []Condition{callConditions},
+		parameters: parameters,
+		effect: func(s *st.State) {
+			opEffect(s, addressAccessCost)
+		},
 	})
-
-	res := []Rule{}
-	res = append(res, tooLittleGas(instruction)...)
-	res = append(res, tooFewElements(instruction)...)
-
-	res = append(res, Rule{
-		Name: "call_istanbul_not_static",
-		Condition: And(
-			isCallWithSufficientGasAndStack,
-			Eq(ReadOnly(), false),
-		),
-		Parameter: parameters,
-		Effect:    performsCall,
-	})
-
-	res = append(res, Rule{
-		Name: "call_istanbul_static_no_value",
-		Condition: And(
-			isCallWithSufficientGasAndStack,
-			Eq(ReadOnly(), true),
-			Eq(ValueParam(2), NewU256(0)),
-		),
-		Parameter: parameters,
-		Effect:    performsCall,
-	})
-
-	res = append(res, Rule{
-		Name: "call_istanbul_static_with_value",
-		Condition: And(
-			isCallWithSufficientGasAndStack,
-			Eq(ReadOnly(), true),
-			Ne(Param(2), NewU256(0)),
-		),
-		Effect: FailEffect(),
-	})
-
-	return res
 }
 
-func callEffectIstanbul(s *st.State) {
+func callEffect(s *st.State, addrAccessCost vm.Gas) {
 	gas := s.Stack.Pop()
 	target := s.Stack.Pop()
 	value := s.Stack.Pop()
@@ -2013,12 +2042,16 @@ func callEffectIstanbul(s *st.State) {
 	}
 
 	// Deduct the gas costs for this call, except the costs for the recursive call.
-	dynamicGas, overflow := sumWithOverflow(memoryExpansionCost, positiveValueCost, valueToEmptyAccountCost)
+	dynamicGas, overflow := sumWithOverflow(memoryExpansionCost, positiveValueCost, valueToEmptyAccountCost, addrAccessCost)
 	if s.Gas < dynamicGas || overflow {
 		s.Status = st.Failed
 		return
 	}
 	s.Gas -= dynamicGas
+
+	if s.Revision >= R09_Berlin {
+		s.Accounts.MarkWarm(target.Bytes20be())
+	}
 
 	// Grow the memory for which gas has just been deducted.
 	s.Memory.Grow(argsOffset64, argsSize64)
