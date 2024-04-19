@@ -15,6 +15,7 @@ package st
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"regexp"
 	"strings"
 
@@ -124,6 +125,7 @@ type State struct {
 	CallData           Bytes
 	LastCallReturnData Bytes
 	ReturnData         Bytes
+	HasSelfDestructed  map[vm.Address]struct{}
 }
 
 // NewState creates a new State instance with the given code.
@@ -140,6 +142,7 @@ func NewState(code *Code) *State {
 		CallJournal:        NewCallJournal(),
 		CallData:           Bytes{},
 		LastCallReturnData: Bytes{},
+		HasSelfDestructed:  make(map[vm.Address]struct{}),
 	}
 }
 
@@ -169,6 +172,7 @@ func (s *State) Clone() *State {
 	clone.CallData = s.CallData
 	clone.LastCallReturnData = s.LastCallReturnData
 	clone.ReturnData = s.ReturnData
+	clone.HasSelfDestructed = s.HasSelfDestructed
 	return clone
 }
 
@@ -199,7 +203,8 @@ func (s *State) Eq(other *State) bool {
 		s.CallData == other.CallData &&
 		s.Storage.Eq(other.Storage) &&
 		s.Accounts.Eq(other.Accounts) &&
-		s.Logs.Eq(other.Logs)
+		s.Logs.Eq(other.Logs) &&
+		maps.Equal(s.HasSelfDestructed, other.HasSelfDestructed)
 
 	// For terminal states, internal state can be ignored, but the result is important.
 	if s.Status != Running {
@@ -321,6 +326,8 @@ func (s *State) String() string {
 		write("\tReturnData: %x\n", s.ReturnData)
 	}
 
+	write("\tHasSelfDestructed: %v\n", s.HasSelfDestructed)
+
 	write("}")
 	return builder.String()
 }
@@ -398,6 +405,17 @@ func (s *State) Diff(o *State) []string {
 
 	if (s.Status == Stopped || s.Status == Reverted) && s.ReturnData != o.ReturnData {
 		res = append(res, fmt.Sprintf("Different return data: %x vs %x", s.ReturnData, o.ReturnData))
+	}
+
+	if !maps.Equal(s.HasSelfDestructed, o.HasSelfDestructed) {
+		for key, valueA := range s.HasSelfDestructed {
+			valueB, contained := o.HasSelfDestructed[key]
+			if !contained {
+				res = append(res, fmt.Sprintf("Different hasselfdestructed entry:\n\t[%v]=%v\n\tvs\n\tmissing", key, valueA))
+			} else if valueA != valueB {
+				res = append(res, fmt.Sprintf("Different hasselfdestructed entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", key, valueA, key, valueB))
+			}
+		}
 	}
 
 	return res

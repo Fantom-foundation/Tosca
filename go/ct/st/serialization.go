@@ -76,6 +76,7 @@ type stateSerializable struct {
 	LastCallReturnData Bytes
 	ReturnData         Bytes
 	CallJournal        *CallJournal
+	HasSelfDestructed  map[vm.Address]struct{}
 }
 
 // storageSerializable is a serializable representation of the Storage struct.
@@ -139,6 +140,7 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		LastCallReturnData: state.LastCallReturnData,
 		ReturnData:         state.ReturnData,
 		CallJournal:        state.CallJournal,
+		HasSelfDestructed:  maps.Clone(state.HasSelfDestructed),
 	}
 }
 
@@ -217,6 +219,7 @@ func (s *stateSerializable) deserialize() *State {
 	if s.CallJournal != nil {
 		state.CallJournal = s.CallJournal.Clone()
 	}
+	state.HasSelfDestructed = maps.Clone(s.HasSelfDestructed)
 	return state
 }
 
