@@ -53,14 +53,15 @@ type StateGenerator struct {
 	variableBindings      []variableBinding
 
 	// Generators
-	codeGen         *CodeGenerator
-	stackGen        *StackGenerator
-	memoryGen       *MemoryGenerator
-	storageGen      *StorageGenerator
-	accountsGen     *AccountsGenerator
-	callContextGen  *CallContextGenerator
-	callJournalGen  *CallJournalGenerator
-	blockContextGen *BlockContextGenerator
+	codeGen              *CodeGenerator
+	stackGen             *StackGenerator
+	memoryGen            *MemoryGenerator
+	storageGen           *StorageGenerator
+	accountsGen          *AccountsGenerator
+	callContextGen       *CallContextGenerator
+	callJournalGen       *CallJournalGenerator
+	blockContextGen      *BlockContextGenerator
+	hasSelfDestructedGen *SelfDestructedGenerator
 }
 
 // NewStateGenerator creates a generator without any initial constraints.
@@ -77,6 +78,7 @@ func NewStateGenerator() *StateGenerator {
 		revisionConstraints:  NewRangeSolver[Revision](MinRevision, MaxRevision),
 		gasConstraints:       NewRangeSolver[vm.Gas](0, st.MaxGas),
 		gasRefundConstraints: NewRangeSolver[vm.Gas](-st.MaxGas, st.MaxGas),
+		hasSelfDestructedGen: NewSelfDestructedGenerator(),
 	}
 }
 
@@ -236,6 +238,16 @@ func (g *StateGenerator) BindToWarmAddress(key Variable) {
 // BindToColdAddress wraps AccountsGenerator.BindCold.
 func (g *StateGenerator) BindToColdAddress(key Variable) {
 	g.accountsGen.BindCold(key)
+}
+
+// SelfDestruct wraps HasSelfDestructedGen.BindHasSelfDestructed.
+func (g *StateGenerator) SelfDestruct(key Variable) {
+	g.hasSelfDestructedGen.BindHasSelfDestructed(key)
+}
+
+// NotSelfDestruct wraps HasSelfDestructedGen.BindHasNotSelfDestructed.
+func (g *StateGenerator) NotSelfDestruct(key Variable) {
+	g.hasSelfDestructedGen.BindHasNotSelfDestructed(key)
 }
 
 func getRandomData(rnd *rand.Rand) ([]byte, error) {
@@ -401,6 +413,12 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
+	// Invoke SelfDestructedGenerator
+	resultHasSelfdestructed, err := g.hasSelfDestructedGen.Generate(assignment, rnd)
+	if err != nil {
+		return nil, err
+	}
+
 	result := st.NewState(resultCode)
 	result.Status = resultStatus
 	result.Revision = resultRevision
@@ -418,6 +436,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.CallData = resultCallData
 	result.LastCallReturnData = resultLastCallReturnData
 	result.ReturnData = resultReturnData
+	result.HasSelfDestructed = resultHasSelfdestructed
 
 	return result, nil
 }
@@ -442,6 +461,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		callContextGen:        g.callContextGen.Clone(),
 		callJournalGen:        g.callJournalGen.Clone(),
 		blockContextGen:       g.blockContextGen.Clone(),
+		hasSelfDestructedGen:  g.hasSelfDestructedGen.Clone(),
 	}
 }
 
@@ -507,6 +527,7 @@ func (g *StateGenerator) String() string {
 	parts = append(parts, fmt.Sprintf("callContext=%v", g.callContextGen))
 	parts = append(parts, fmt.Sprintf("callJournal=%v", g.callJournalGen))
 	parts = append(parts, fmt.Sprintf("blockContext=%v", g.blockContextGen))
+	parts = append(parts, fmt.Sprintf("selfdestruct=%v", g.hasSelfDestructedGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }

@@ -655,3 +655,87 @@ func (c *isAddressCold) GetTestValues() []TestValue {
 func (c *isAddressCold) String() string {
 	return fmt.Sprintf("cold(%v)", c.key)
 }
+
+////////////////////////////////////////////////////////////
+// Has Address Selfdestructed
+
+type hasSelfDestructed struct {
+	key BindableExpression[U256]
+}
+
+func HasSelfDestructed(addr BindableExpression[U256]) Condition {
+	return &hasSelfDestructed{addr}
+}
+
+func (c *hasSelfDestructed) Check(s *st.State) (bool, error) {
+	addr, err := c.key.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	_, ok := s.HasSelfDestructed[addr.Bytes20be()]
+	return ok, nil
+}
+
+func (c *hasSelfDestructed) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+	generator.SelfDestruct(key)
+}
+
+func (c *hasSelfDestructed) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
+	positive := generator.Clone()
+	c.Restrict(positive)
+	if consume(positive) == ConsumeAbort {
+		return ConsumeAbort
+	}
+
+	negative := generator.Clone()
+	HasSelfDestructed(c.key).Restrict(negative)
+	return consume(negative)
+}
+
+func (c *hasSelfDestructed) String() string {
+	return fmt.Sprintf("hasSelfDestructed(%v)", c.key)
+}
+
+////////////////////////////////////////////////////////////
+// Has Not Address Selfdestructed
+
+type hasNotSelfDestructed struct {
+	key BindableExpression[U256]
+}
+
+func HasNotSelfDestructed(key BindableExpression[U256]) Condition {
+	return &hasNotSelfDestructed{key}
+}
+
+func (c *hasNotSelfDestructed) Check(s *st.State) (bool, error) {
+	key, err := c.key.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	_, ok := s.HasSelfDestructed[key.Bytes20be()]
+	return !ok, nil
+}
+
+func (c *hasNotSelfDestructed) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+	generator.NotSelfDestruct(key)
+}
+
+func (c *hasNotSelfDestructed) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
+	positive := generator.Clone()
+	c.Restrict(positive)
+	if consume(positive) == ConsumeAbort {
+		return ConsumeAbort
+	}
+
+	negative := generator.Clone()
+	HasNotSelfDestructed(c.key).Restrict(negative)
+	return consume(negative)
+}
+
+func (c *hasNotSelfDestructed) String() string {
+	return fmt.Sprintf("hasNotSelfDestructed(%v)", c.key)
+}
