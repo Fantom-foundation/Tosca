@@ -1351,37 +1351,81 @@ func getAllRules() []Rule {
 
 	rules = append(rules, rulesFor(instruction{
 		op:        SELFDESTRUCT,
-		name:      "_istanbul",
+		name:      "_istanbul_cold",
 		staticGas: 5000,
 		pops:      1,
 		pushes:    0,
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
 			IsRevision(R07_Istanbul),
+			HasNotSelfDestructed(ContractAccount()),
+			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
 			AddressParameter{},
 		},
 		effect: func(s *st.State) {
-			selfDestructEffect(s, vm.Gas(0), true)
+			selfDestructEffect(s, vm.Gas(0), vm.Gas(25000), vm.Gas(24000))
 		},
 	})...)
 
 	rules = append(rules, rulesFor(instruction{
 		op:        SELFDESTRUCT,
-		name:      "_berlin",
+		name:      "_istanbul_warm",
+		staticGas: 5000,
+		pops:      1,
+		pushes:    0,
+		conditions: []Condition{
+			Eq(ReadOnly(), false),
+			IsRevision(R07_Istanbul),
+			HasNotSelfDestructed(ContractAccount()),
+			IsAddressWarm(Param(0)),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+		},
+		effect: func(s *st.State) {
+			selfDestructEffect(s, vm.Gas(0), vm.Gas(0), vm.Gas(24000))
+		},
+	})...)
+
+	rules = append(rules, rulesFor(instruction{
+		op:        SELFDESTRUCT,
+		name:      "_berlin_cold",
 		staticGas: 5000,
 		pops:      1,
 		pushes:    0,
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
 			IsRevision(R09_Berlin),
+			HasNotSelfDestructed(ContractAccount()),
+			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
 			AddressParameter{},
 		},
 		effect: func(s *st.State) {
-			selfDestructEffect(s, vm.Gas(2600), true)
+			selfDestructEffectWarm(s, vm.Gas(2600), vm.Gas(0), vm.Gas(24000))
+		},
+	})...)
+
+	rules = append(rules, rulesFor(instruction{
+		op:        SELFDESTRUCT,
+		name:      "_berlin_warm",
+		staticGas: 5000,
+		pops:      1,
+		pushes:    0,
+		conditions: []Condition{
+			Eq(ReadOnly(), false),
+			IsRevision(R09_Berlin),
+			HasNotSelfDestructed(ContractAccount()),
+			IsAddressWarm(Param(0)),
+		},
+		parameters: []Parameter{
+			AddressParameter{},
+		},
+		effect: func(s *st.State) {
+			selfDestructEffectWarm(s, vm.Gas(0), vm.Gas(0), vm.Gas(24000))
 		},
 	})...)
 
@@ -1394,12 +1438,14 @@ func getAllRules() []Rule {
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
 			IsRevision(R10_London),
+			HasNotSelfDestructed(ContractAccount()),
+			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
 			AddressParameter{},
 		},
 		effect: func(s *st.State) {
-			selfDestructEffect(s, vm.Gas(2600), false)
+			selfDestructEffect(s, vm.Gas(0), vm.Gas(0), vm.Gas(0))
 		},
 	})...)
 
@@ -1781,7 +1827,7 @@ func logOp(n int) []Rule {
 	return rules
 }
 
-func selfDestructEffect(s *st.State, destinationColdCost vm.Gas, refoundEnable bool) {
+func selfDestructEffect(s *st.State, destinationColdCost, dynamicGas, refoundGas vm.Gas) {
 	// Behavior pre cancun: the current account is registered to be destroyed, and will be at the end of the current
 	// transaction. The transfer of the current balance to the given account cannot fail. In particular,
 	// the destination account code (if any) is not executed, or, if the account does not exist, the
@@ -1794,27 +1840,60 @@ func selfDestructEffect(s *st.State, destinationColdCost vm.Gas, refoundEnable b
 
 	// If a positive balance is sent to an empty account, the dynamic gas is 25000. Otherwise there is
 	// no additional cost. An account is empty if its balance is 0, its nonce is 0 and it has no code.
-	dynamicGas := vm.Gas(0)
+	dynamicCost := vm.Gas(0)
 	if !CurrentBalance.IsZero() && !s.Accounts.Exist(destinationAccount) {
-		dynamicGas = 25000
+		dynamicCost += dynamicGas
 	}
-	if s.Accounts.IsCold(destinationAccount) {
-		dynamicGas += destinationColdCost
-	}
-	if s.Gas < dynamicGas {
+
+	dynamicCost += destinationColdCost
+
+	if s.Gas < dynamicCost {
 		s.Status = st.Failed
 		return
 	}
-	s.Gas -= dynamicGas
+	s.Gas -= dynamicCost
 	s.Status = st.Stopped
 
 	// PC should not increase, but rulesFor does it for all regular cases, so we counter it here.
 	s.Pc--
 
 	s.ReturnData = s.LastCallReturnData
-	if refoundEnable {
-		s.GasRefund += vm.Gas(24000)
+	s.GasRefund += refoundGas
+}
+
+func selfDestructEffectWarm(s *st.State, destinationColdCost, dynamicGas, refoundGas vm.Gas) {
+	// Behavior pre cancun: the current account is registered to be destroyed, and will be at the end of the current
+	// transaction. The transfer of the current balance to the given account cannot fail. In particular,
+	// the destination account code (if any) is not executed, or, if the account does not exist, the
+	// balance is still added to the given address.
+
+	// account to send the current balance to
+	destinationAccount := s.Stack.Pop().Bytes20be()
+	currentAccount := s.CallContext.AccountAddress
+	CurrentBalance := s.Accounts.GetBalance(currentAccount)
+
+	// If a positive balance is sent to an empty account, the dynamic gas is 25000. Otherwise there is
+	// no additional cost. An account is empty if its balance is 0, its nonce is 0 and it has no code.
+	dynamicCost := vm.Gas(0)
+	if !CurrentBalance.IsZero() && !s.Accounts.Exist(destinationAccount) {
+		dynamicCost += dynamicGas
 	}
+
+	dynamicCost += destinationColdCost
+
+	if s.Gas < dynamicCost {
+		s.Status = st.Failed
+		return
+	}
+	s.Gas -= dynamicCost
+	s.Accounts.MarkWarm(destinationAccount)
+	s.Status = st.Stopped
+
+	// PC should not increase, but rulesFor does it for all regular cases, so we counter it here.
+	s.Pc--
+
+	s.ReturnData = s.LastCallReturnData
+	s.GasRefund += refoundGas
 }
 
 func tooLittleGas(i instruction) []Rule {

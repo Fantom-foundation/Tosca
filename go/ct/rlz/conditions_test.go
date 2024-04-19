@@ -245,10 +245,9 @@ func TestCondition_String(t *testing.T) {
 
 func TestCondition_CheckSelfDestructed(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
-	state.Pc = 42
-	state.HasSelfDestructed[NewAddress(NewU256(42))] = struct{}{}
+	state.HasSelfDestructed[state.CallContext.CallerAddress] = struct{}{}
 
-	hasSelfDestructed, err := HasSelfDestructed(Pc()).Check(state)
+	hasSelfDestructed, err := HasSelfDestructed(ContractAccount()).Check(state)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,9 +255,9 @@ func TestCondition_CheckSelfDestructed(t *testing.T) {
 		t.Fatal("account not set as selfdestructed, when it should be")
 	}
 
-	delete(state.HasSelfDestructed, NewAddress(NewU256(42)))
+	delete(state.HasSelfDestructed, state.CallContext.CallerAddress)
 
-	hasNotSelfDestructed, err := HasNotSelfDestructed(Pc()).Check(state)
+	hasNotSelfDestructed, err := HasNotSelfDestructed(ContractAccount()).Check(state)
 	if err != nil {
 		t.Fatal(err)
 	}

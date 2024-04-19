@@ -20,6 +20,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 // Condition represents a state property.
@@ -660,10 +661,10 @@ func (c *isAddressCold) String() string {
 // Has Address Selfdestructed
 
 type hasSelfDestructed struct {
-	key BindableExpression[U256]
+	key BindableExpression[vm.Address]
 }
 
-func HasSelfDestructed(addr BindableExpression[U256]) Condition {
+func HasSelfDestructed(addr BindableExpression[vm.Address]) Condition {
 	return &hasSelfDestructed{addr}
 }
 
@@ -672,7 +673,7 @@ func (c *hasSelfDestructed) Check(s *st.State) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	_, ok := s.HasSelfDestructed[addr.Bytes20be()]
+	_, ok := s.HasSelfDestructed[addr]
 	return ok, nil
 }
 
@@ -702,10 +703,10 @@ func (c *hasSelfDestructed) String() string {
 // Has Not Address Selfdestructed
 
 type hasNotSelfDestructed struct {
-	key BindableExpression[U256]
+	key BindableExpression[vm.Address]
 }
 
-func HasNotSelfDestructed(key BindableExpression[U256]) Condition {
+func HasNotSelfDestructed(key BindableExpression[vm.Address]) Condition {
 	return &hasNotSelfDestructed{key}
 }
 
@@ -714,7 +715,7 @@ func (c *hasNotSelfDestructed) Check(s *st.State) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	_, ok := s.HasSelfDestructed[key.Bytes20be()]
+	_, ok := s.HasSelfDestructed[key]
 	return !ok, nil
 }
 
