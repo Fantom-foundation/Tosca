@@ -27,6 +27,9 @@ const (
 	R99_UnknownNextRevision
 )
 
+const MinRevision = R07_Istanbul
+const MaxRevision = R99_UnknownNextRevision
+
 func (r Revision) String() string {
 	switch r {
 	case R07_Istanbul:

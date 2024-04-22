@@ -44,12 +44,12 @@ import (
 type StateGenerator struct {
 	// Constraints
 	statusConstraints     []st.StatusCode
-	revisionConstraints   []RevisionBounds
+	revisionConstraints   *RangeSolver[Revision]
 	readOnlyConstraints   []bool
 	pcConstantConstraints []uint16
 	pcVariableConstraints []Variable
-	gasConstraints        []vm.Gas
-	gasRefundConstraints  []vm.Gas
+	gasConstraints        *RangeSolver[vm.Gas]
+	gasRefundConstraints  *RangeSolver[vm.Gas]
 	variableBindings      []variableBinding
 
 	// Generators
@@ -60,20 +60,23 @@ type StateGenerator struct {
 	accountsGen     *AccountsGenerator
 	callContextGen  *CallContextGenerator
 	callJournalGen  *CallJournalGenerator
-	BlockContextGen *BlockContextGenerator
+	blockContextGen *BlockContextGenerator
 }
 
 // NewStateGenerator creates a generator without any initial constraints.
 func NewStateGenerator() *StateGenerator {
 	return &StateGenerator{
-		codeGen:         NewCodeGenerator(),
-		stackGen:        NewStackGenerator(),
-		memoryGen:       NewMemoryGenerator(),
-		storageGen:      NewStorageGenerator(),
-		accountsGen:     NewAccountGenerator(),
-		callContextGen:  NewCallContextGenerator(),
-		callJournalGen:  NewCallJournalGenerator(),
-		BlockContextGen: NewBlockContextGenerator(),
+		codeGen:              NewCodeGenerator(),
+		stackGen:             NewStackGenerator(),
+		memoryGen:            NewMemoryGenerator(),
+		storageGen:           NewStorageGenerator(),
+		accountsGen:          NewAccountGenerator(),
+		callContextGen:       NewCallContextGenerator(),
+		callJournalGen:       NewCallJournalGenerator(),
+		blockContextGen:      NewBlockContextGenerator(),
+		revisionConstraints:  NewRangeSolver[Revision](MinRevision, MaxRevision),
+		gasConstraints:       NewRangeSolver[vm.Gas](0, st.MaxGas),
+		gasRefundConstraints: NewRangeSolver[vm.Gas](-st.MaxGas, st.MaxGas),
 	}
 }
 
@@ -102,36 +105,14 @@ func (g *StateGenerator) SetStatus(status st.StatusCode) {
 	}
 }
 
-type RevisionBounds struct{ min, max Revision }
-
-func (a RevisionBounds) Less(b RevisionBounds) bool {
-	if a.min != b.min {
-		return a.min < b.min
-	} else {
-		return a.max < b.max
-	}
-}
-
-func (r RevisionBounds) String() string {
-	if r.min == r.max {
-		return fmt.Sprintf("%v", r.min)
-	}
-	return fmt.Sprintf("%v-%v", r.min, r.max)
-}
-
 // SetRevision adds a constraint on the State's revision.
 func (g *StateGenerator) SetRevision(revision Revision) {
-	g.SetRevisionBounds(revision, revision)
+	g.revisionConstraints.AddEqualityConstraint(revision)
 }
 
-func (g *StateGenerator) SetRevisionBounds(min, max Revision) {
-	if min > max {
-		min, max = max, min
-	}
-	r := RevisionBounds{min, max}
-	if !slices.Contains(g.revisionConstraints, r) {
-		g.revisionConstraints = append(g.revisionConstraints, r)
-	}
+func (g *StateGenerator) AddRevisionBounds(min, max Revision) {
+	g.revisionConstraints.AddLowerBoundary(min)
+	g.revisionConstraints.AddUpperBoundary(max)
 }
 
 // SetReadOnly adds a constraint on the states read only mode.
@@ -158,16 +139,32 @@ func (g *StateGenerator) BindPc(pc Variable) {
 
 // SetGas adds a constraint on the State's gas counter.
 func (g *StateGenerator) SetGas(gas vm.Gas) {
-	if !slices.Contains(g.gasConstraints, gas) {
-		g.gasConstraints = append(g.gasConstraints, gas)
-	}
+	g.gasConstraints.AddEqualityConstraint(gas)
+}
+
+// AddGasLowerBound adds a constraint on the lower bound of the gas value.
+func (g *StateGenerator) AddGasLowerBound(gas vm.Gas) {
+	g.gasConstraints.AddLowerBoundary(gas)
+}
+
+// AddGasUpperBound adds a constraint on the upper bound of the gas value.
+func (g *StateGenerator) AddGasUpperBound(gas vm.Gas) {
+	g.gasConstraints.AddUpperBoundary(gas)
 }
 
 // SetGasRefund adds a constraint on the State's gas refund counter.
 func (g *StateGenerator) SetGasRefund(gasRefund vm.Gas) {
-	if !slices.Contains(g.gasRefundConstraints, gasRefund) {
-		g.gasRefundConstraints = append(g.gasRefundConstraints, gasRefund)
-	}
+	g.gasRefundConstraints.AddEqualityConstraint(gasRefund)
+}
+
+// AddGasRefundLowerBound adds a constraint on the lower bound of the gas refund value.
+func (g *StateGenerator) AddGasRefundLowerBound(gas vm.Gas) {
+	g.gasRefundConstraints.AddLowerBoundary(gas)
+}
+
+// AddGasRefundUpperBound adds a constraint on the upper bound of the gas refund value.
+func (g *StateGenerator) AddGasRefundUpperBound(gas vm.Gas) {
+	g.gasRefundConstraints.AddUpperBoundary(gas)
 }
 
 // SetCodeOperation wraps CodeGenerator.SetOperation.
@@ -191,14 +188,14 @@ func (g *StateGenerator) AddIsData(v Variable) {
 	g.codeGen.AddIsData(v)
 }
 
-// SetMinStackSize wraps StackGenerator.SetMinSize.
-func (g *StateGenerator) SetMinStackSize(size int) {
-	g.stackGen.SetMinSize(size)
+// AddStackSizeLowerBound wraps StackGenerator.SetMinSize.
+func (g *StateGenerator) AddStackSizeLowerBound(size int) {
+	g.stackGen.AddMinSize(size)
 }
 
-// SetMaxStackSize wraps StackGenerator.SetMaxSize.
-func (g *StateGenerator) SetMaxStackSize(size int) {
-	g.stackGen.SetMaxSize(size)
+// AddStackSizeUpperBound wraps StackGenerator.SetMaxSize.
+func (g *StateGenerator) AddStackSizeUpperBound(size int) {
+	g.stackGen.AddMaxSize(size)
 }
 
 // SetStackSize wraps StackGenerator.SetSize.
@@ -282,23 +279,10 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting status constraints defined: %v", ErrUnsatisfiable, g.statusConstraints)
 	}
 
-	var resultRevision Revision
-	if len(g.revisionConstraints) == 0 {
-		resultRevision = Revision(rnd.Int31n(int32(R99_UnknownNextRevision) + 1))
-	} else {
-		bounds := RevisionBounds{Revision(0), R99_UnknownNextRevision}
-		for _, con := range g.revisionConstraints {
-			if con.min > bounds.min {
-				bounds.min = con.min
-			}
-			if con.max < bounds.max {
-				bounds.max = con.max
-			}
-		}
-		if bounds.min > bounds.max {
-			return nil, fmt.Errorf("%w, conflicting revision constraints defined: %v", ErrUnsatisfiable, g.revisionConstraints)
-		}
-		resultRevision = Revision(rnd.Int31n(int32(bounds.max-bounds.min)+1)) + bounds.min
+	// Pick a revision.
+	resultRevision, err := g.revisionConstraints.Generate(rnd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve revision constraints: %w", err)
 	}
 
 	// Invoke CodeGenerator
@@ -343,31 +327,16 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		}
 	}
 
-	// Pick a gas counter.
-	var resultGas vm.Gas
-	if len(g.gasConstraints) == 0 {
-		resultGas = vm.Gas(rnd.Int63n(int64(st.MaxGas)))
-	} else if len(g.gasConstraints) == 1 {
-		resultGas = g.gasConstraints[0]
-		if resultGas < 0 || resultGas > st.MaxGas {
-			return nil, fmt.Errorf(
-				"%w: gas out of bounds, constraint defined %d not in range [%d,%d]",
-				ErrUnsatisfiable, resultGas, 0, st.MaxGas,
-			)
-		}
-	} else {
-		return nil, fmt.Errorf("%w, multiple conflicting gas counter constraints defined: %v", ErrUnsatisfiable, g.gasConstraints)
+	// Pick a gas level.
+	resultGas, err := g.gasConstraints.Generate(rnd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve gas constraints: %w", err)
 	}
 
 	// Pick a gas refund counter.
-	var resultGasRefund vm.Gas
-	if len(g.gasRefundConstraints) == 0 {
-		// Refunds can be positive or negative, of any value, and should be tracked accordingly.
-		resultGasRefund = vm.Gas(rnd.Uint64())
-	} else if len(g.gasRefundConstraints) == 1 {
-		resultGasRefund = g.gasRefundConstraints[0]
-	} else {
-		return nil, fmt.Errorf("%w, multiple conflicting gas refund counter constraints defined: %v", ErrUnsatisfiable, g.gasRefundConstraints)
+	resultGasRefund, err := g.gasRefundConstraints.Generate(rnd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve gas refund constraints: %w", err)
 	}
 
 	accountAddress, err := RandAddress(rnd)
@@ -387,7 +356,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Invoke BlockContextGenerator
-	resultBlockContext, err := g.BlockContextGen.Generate(rnd, resultRevision)
+	resultBlockContext, err := g.blockContextGen.Generate(rnd, resultRevision)
 	if err != nil {
 		return nil, err
 	}
@@ -458,12 +427,12 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 func (g *StateGenerator) Clone() *StateGenerator {
 	return &StateGenerator{
 		statusConstraints:     slices.Clone(g.statusConstraints),
-		revisionConstraints:   slices.Clone(g.revisionConstraints),
+		revisionConstraints:   g.revisionConstraints.Clone(),
 		readOnlyConstraints:   slices.Clone(g.readOnlyConstraints),
 		pcConstantConstraints: slices.Clone(g.pcConstantConstraints),
 		pcVariableConstraints: slices.Clone(g.pcVariableConstraints),
-		gasConstraints:        slices.Clone(g.gasConstraints),
-		gasRefundConstraints:  slices.Clone(g.gasRefundConstraints),
+		gasConstraints:        g.gasConstraints.Clone(),
+		gasRefundConstraints:  g.gasRefundConstraints.Clone(),
 		variableBindings:      slices.Clone(g.variableBindings),
 		codeGen:               g.codeGen.Clone(),
 		stackGen:              g.stackGen.Clone(),
@@ -472,7 +441,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		accountsGen:           g.accountsGen.Clone(),
 		callContextGen:        g.callContextGen.Clone(),
 		callJournalGen:        g.callJournalGen.Clone(),
-		BlockContextGen:       g.BlockContextGen.Clone(),
+		blockContextGen:       g.blockContextGen.Clone(),
 	}
 }
 
@@ -480,12 +449,12 @@ func (g *StateGenerator) Clone() *StateGenerator {
 func (g *StateGenerator) Restore(other *StateGenerator) {
 	if g != other {
 		g.statusConstraints = slices.Clone(other.statusConstraints)
-		g.revisionConstraints = slices.Clone(other.revisionConstraints)
+		g.revisionConstraints.Restore(other.revisionConstraints)
 		g.readOnlyConstraints = slices.Clone(other.readOnlyConstraints)
 		g.pcConstantConstraints = slices.Clone(other.pcConstantConstraints)
 		g.pcVariableConstraints = slices.Clone(other.pcVariableConstraints)
-		g.gasConstraints = slices.Clone(other.gasConstraints)
-		g.gasRefundConstraints = slices.Clone(other.gasRefundConstraints)
+		g.gasConstraints.Restore(other.gasConstraints)
+		g.gasRefundConstraints.Restore(other.gasRefundConstraints)
 		g.variableBindings = slices.Clone(g.variableBindings)
 		g.codeGen.Restore(other.codeGen)
 		g.stackGen.Restore(other.stackGen)
@@ -494,7 +463,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.accountsGen.Restore(other.accountsGen)
 		g.callContextGen.Restore(other.callContextGen)
 		g.callJournalGen.Restore(other.callJournalGen)
-		g.BlockContextGen.Restore(other.BlockContextGen)
+		g.blockContextGen.Restore(other.blockContextGen)
 	}
 }
 
@@ -511,10 +480,7 @@ func (g *StateGenerator) String() string {
 		parts = append(parts, fmt.Sprintf("status=%v", status))
 	}
 
-	sort.Slice(g.revisionConstraints, func(i, j int) bool { return g.revisionConstraints[i].Less(g.revisionConstraints[j]) })
-	for _, revision := range g.revisionConstraints {
-		parts = append(parts, fmt.Sprintf("revision=%v", revision))
-	}
+	parts = append(parts, g.revisionConstraints.Print("revision"))
 
 	for _, mode := range g.readOnlyConstraints {
 		parts = append(parts, fmt.Sprintf("readOnly mode=%v", mode))
@@ -530,15 +496,8 @@ func (g *StateGenerator) String() string {
 		parts = append(parts, fmt.Sprintf("pc=%v", pc))
 	}
 
-	sort.Slice(g.gasConstraints, func(i, j int) bool { return g.gasConstraints[i] < g.gasConstraints[j] })
-	for _, gas := range g.gasConstraints {
-		parts = append(parts, fmt.Sprintf("gas=%d", gas))
-	}
-
-	sort.Slice(g.gasRefundConstraints, func(i, j int) bool { return g.gasRefundConstraints[i] < g.gasRefundConstraints[j] })
-	for _, gas := range g.gasRefundConstraints {
-		parts = append(parts, fmt.Sprintf("gasRefund=%d", gas))
-	}
+	parts = append(parts, g.gasConstraints.Print("gas"))
+	parts = append(parts, g.gasRefundConstraints.Print("gasRefund"))
 
 	parts = append(parts, fmt.Sprintf("code=%v", g.codeGen))
 	parts = append(parts, fmt.Sprintf("stack=%v", g.stackGen))
@@ -547,7 +506,7 @@ func (g *StateGenerator) String() string {
 	parts = append(parts, fmt.Sprintf("accounts=%v", g.accountsGen))
 	parts = append(parts, fmt.Sprintf("callContext=%v", g.callContextGen))
 	parts = append(parts, fmt.Sprintf("callJournal=%v", g.callJournalGen))
-	parts = append(parts, fmt.Sprintf("blockContext=%v", g.BlockContextGen))
+	parts = append(parts, fmt.Sprintf("blockContext=%v", g.blockContextGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }

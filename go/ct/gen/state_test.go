@@ -14,7 +14,6 @@ package gen
 
 import (
 	"errors"
-	"math"
 	"slices"
 	"strings"
 	"testing"
@@ -132,10 +131,10 @@ func TestStateGenerator_NonConflictingRevisionsAreAccepted(t *testing.T) {
 	}
 }
 
-func TestStateGenerator_SetRevisionBoundsIsEnforced(t *testing.T) {
+func TestStateGenerator_AddRevisionBoundsIsEnforced(t *testing.T) {
 	generator := NewStateGenerator()
-	generator.SetRevisionBounds(R07_Istanbul, R09_Berlin)
-	generator.SetRevisionBounds(R09_Berlin, R10_London)
+	generator.AddRevisionBounds(R07_Istanbul, R09_Berlin)
+	generator.AddRevisionBounds(R09_Berlin, R10_London)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {
@@ -148,8 +147,8 @@ func TestStateGenerator_SetRevisionBoundsIsEnforced(t *testing.T) {
 
 func TestStateGenerator_ConflictingRevisionBoundsAreDetected(t *testing.T) {
 	generator := NewStateGenerator()
-	generator.SetRevisionBounds(R07_Istanbul, R09_Berlin)
-	generator.SetRevisionBounds(R10_London, R99_UnknownNextRevision)
+	generator.AddRevisionBounds(R07_Istanbul, R09_Berlin)
+	generator.AddRevisionBounds(R10_London, R99_UnknownNextRevision)
 
 	if _, err := generator.Generate(rand.New(0)); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
@@ -240,7 +239,7 @@ func TestStateGenerator_NonConflictingGasAreAccepted(t *testing.T) {
 // Gas Refund Counter
 
 func TestStateGenerator_SetGasRefundIsEnforced(t *testing.T) {
-	gasRefundCounts := []vm.Gas{0, 42, math.MaxInt64}
+	gasRefundCounts := []vm.Gas{0, 42, st.MaxGas}
 
 	rnd := rand.New(0)
 	for _, gasRefund := range gasRefundCounts {
@@ -305,8 +304,8 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone1.SetGas(5)
 	clone1.SetGasRefund(6)
 	clone1.SetCodeOperation(20, ADD)
-	clone1.SetMinStackSize(2)
-	clone1.SetMaxStackSize(200)
+	clone1.AddStackSizeLowerBound(2)
+	clone1.AddStackSizeUpperBound(200)
 	clone1.BindValue(Variable("x"), NewU256(12))
 
 	clone2 := base.Clone()
@@ -315,8 +314,8 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone2.SetGas(7)
 	clone2.SetGasRefund(8)
 	clone2.SetCodeOperation(30, ADD)
-	clone2.SetMinStackSize(3)
-	clone2.SetMaxStackSize(300)
+	clone2.AddStackSizeLowerBound(3)
+	clone2.AddStackSizeUpperBound(300)
 	clone2.BindValue(Variable("y"), NewU256(14))
 
 	checkPrint := func(clone *StateGenerator, want []string) {

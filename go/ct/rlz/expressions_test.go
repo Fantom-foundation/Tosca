@@ -193,10 +193,10 @@ func TestExpression_GasConstraints(t *testing.T) {
 				return ConsumeContinue
 			})
 			if hits == 0 && !test.unsatisfiable {
-				t.Errorf("failed to generate matching test case")
+				t.Errorf("failed to generate matching test case, got %d hits and %d misses", hits, misses)
 			}
 			if misses == 0 && !test.valid {
-				t.Errorf("failed to generate non-matching test case")
+				t.Errorf("failed to generate non-matching test case, got %d hits and %d misses", hits, misses)
 			}
 		})
 	}
