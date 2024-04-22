@@ -1,3 +1,15 @@
+//
+// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use
+// of this software will be governed by the GNU Lesser General Public Licence v3
+//
+
 package spc
 
 import (
@@ -152,7 +164,7 @@ func TestEnumeration_AbortedEnumeration(t *testing.T) {
 		t.Errorf("wrong number of generated test cases")
 	}
 
-	if counterAbort.Load() > int64(numJobs) {
+	if counterAbort.Load() > int64(numRules) {
 		t.Errorf("state enumeration did not abort correctly, number of evaluated states %d", counterAbort.Load())
 	}
 
@@ -202,7 +214,7 @@ func TestEnumeration_EmptyRules(t *testing.T) {
 }
 
 func TestEnumeration_RightNumberOfGoroutinesIsStarted(t *testing.T) {
-	numJobs := 4
+	numJobs := runtime.NumCPU()
 	seed := 0
 	fullMode := false
 	filter := regexp.MustCompile(".*")

@@ -1,3 +1,15 @@
+//
+// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use
+// of this software will be governed by the GNU Lesser General Public Licence v3
+//
+
 package main
 
 import (
@@ -88,7 +100,8 @@ func doStats(context *cli.Context) error {
 	}
 
 	fmt.Printf("Evaluating Conformance Tests with seed %d using %d jobs ...\n", seed, jobCount)
-	err = forEachState(opTest, printIssueCounts, jobCount, seed, fullMode, filter)
+	rules := spc.FilterRules(spc.Spec.GetRules(), filter)
+	err = spc.ForEachState(rules, opTest, printIssueCounts, jobCount, seed, fullMode)
 	if err != nil {
 		return fmt.Errorf("error evaluating rules: %w", err)
 	}
