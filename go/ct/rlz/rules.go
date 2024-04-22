@@ -14,7 +14,11 @@ package rlz
 
 import (
 	"errors"
+	"fmt"
+	"slices"
+	"strings"
 
+	"golang.org/x/exp/maps"
 	"pgregory.net/rand"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
@@ -78,4 +82,83 @@ func enumerateParameters(pos int, params []Parameter, state *st.State, consume f
 
 	state.Stack.Set(pos, current)
 	return ConsumeContinue
+}
+
+func (r *Rule) GetTestCaseEnumerationInfo() TestCaseEnumerationInfo {
+	res := TestCaseEnumerationInfo{}
+	conditions := getConditions(r.Condition)
+	for _, condition := range conditions {
+		if res.conditionDomainSizes == nil {
+			res.conditionDomainSizes = make(map[string]int)
+		}
+		res.conditionDomainSizes[condition.String()] = estimateTestDomainSize(condition)
+	}
+	res.parameterDomainSizes = make([]int, 0, len(r.Parameter))
+	for _, parameter := range r.Parameter {
+		res.parameterDomainSizes = append(res.parameterDomainSizes, len(parameter.Samples()))
+	}
+	return res
+}
+
+func getConditions(condition Condition) []Condition {
+	if condition == nil {
+		return nil
+	}
+	conjunction, ok := condition.(*conjunction)
+	if !ok {
+		return []Condition{condition}
+	}
+	res := []Condition{}
+	for _, cur := range conjunction.conditions {
+		res = append(res, getConditions(cur)...)
+	}
+	return res
+}
+
+func estimateTestDomainSize(condition Condition) int {
+	counter := 0
+	generator := gen.NewStateGenerator()
+	condition.EnumerateTestCases(generator, func(*gen.StateGenerator) ConsumerResult {
+		counter++
+		return ConsumeContinue
+	})
+	return counter
+}
+
+type TestCaseEnumerationInfo struct {
+	conditionDomainSizes map[string]int
+	parameterDomainSizes []int
+}
+
+func (i *TestCaseEnumerationInfo) TotalNumberOfCases() int {
+	res := 1
+	for _, size := range i.conditionDomainSizes {
+		res *= size
+	}
+	for _, size := range i.parameterDomainSizes {
+		res *= size
+	}
+	return res
+}
+
+func (i *TestCaseEnumerationInfo) String() string {
+	builder := strings.Builder{}
+	builder.WriteString("Conditions:\n")
+	keys := maps.Keys(i.conditionDomainSizes)
+	slices.Sort(keys)
+	for _, key := range keys {
+		builder.WriteString(fmt.Sprintf("\t%s: %d\n", key, i.conditionDomainSizes[key]))
+	}
+	if len(i.conditionDomainSizes) == 0 {
+		builder.WriteString("\t-none-\n")
+	}
+	builder.WriteString("Parameters:\n")
+	for i, size := range i.parameterDomainSizes {
+		builder.WriteString(fmt.Sprintf("\t%d: %d\n", i, size))
+	}
+	if len(i.parameterDomainSizes) == 0 {
+		builder.WriteString("\t-none-\n")
+	}
+	builder.WriteString(fmt.Sprintf("Total number of cases: %d\n", i.TotalNumberOfCases()))
+	return builder.String()
 }
