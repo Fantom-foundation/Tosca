@@ -37,7 +37,7 @@ type Domain[T any] interface {
 type boolDomain struct{}
 
 func (boolDomain) Equal(a bool, b bool) bool { return a == b }
-func (boolDomain) Less(a bool, b bool) bool  { panic("not useful") }
+func (boolDomain) Less(a bool, b bool) bool  { return !a && b }
 func (boolDomain) Predecessor(a bool) bool   { panic("not useful") }
 func (boolDomain) Successor(a bool) bool     { panic("not useful") }
 
@@ -82,8 +82,6 @@ func (uint16Domain) SamplesForAll(as []uint16) []uint16 {
 	for i := 0; i < 16; i++ {
 		res = append(res, uint16(1<<i))
 	}
-
-	// TODO: consider removing duplicates.
 
 	return res
 }
@@ -160,12 +158,45 @@ func (d u256Domain) SamplesForAll(as []U256) []U256 {
 }
 
 ////////////////////////////////////////////////////////////
+// Revision
+
+type revisionDomain struct{}
+
+func (revisionDomain) Equal(a Revision, b Revision) bool { return a == b }
+func (revisionDomain) Less(a Revision, b Revision) bool  { return a < b }
+func (revisionDomain) Predecessor(a Revision) Revision {
+	numRevisions := R99_UnknownNextRevision + 1
+	return (a + numRevisions - 1) % numRevisions
+}
+
+func (revisionDomain) Successor(a Revision) Revision {
+	numRevisions := R99_UnknownNextRevision + 1
+	return (a + 1) % numRevisions
+}
+
+func (d revisionDomain) SomethingNotEqual(a Revision) Revision {
+	return d.Successor(a)
+}
+
+func (d revisionDomain) Samples(a Revision) []Revision {
+	return d.SamplesForAll(nil)
+}
+
+func (revisionDomain) SamplesForAll(a []Revision) []Revision {
+	res := []Revision{}
+	for r := R07_Istanbul; r <= R99_UnknownNextRevision; r++ {
+		res = append(res, r)
+	}
+	return res
+}
+
+////////////////////////////////////////////////////////////
 // st.Status
 
 type statusCodeDomain struct{}
 
 func (statusCodeDomain) Equal(a st.StatusCode, b st.StatusCode) bool { return a == b }
-func (statusCodeDomain) Less(a st.StatusCode, b st.StatusCode) bool  { panic("not useful") }
+func (statusCodeDomain) Less(a st.StatusCode, b st.StatusCode) bool  { return a < b }
 func (statusCodeDomain) Predecessor(a st.StatusCode) st.StatusCode   { panic("not useful") }
 func (statusCodeDomain) Successor(a st.StatusCode) st.StatusCode     { panic("not useful") }
 
@@ -222,7 +253,7 @@ func (pcDomain) SamplesForAll(as []U256) []U256 {
 type opCodeDomain struct{}
 
 func (opCodeDomain) Equal(a OpCode, b OpCode) bool     { return a == b }
-func (opCodeDomain) Less(a OpCode, b OpCode) bool      { panic("not useful") }
+func (opCodeDomain) Less(a OpCode, b OpCode) bool      { return a < b }
 func (opCodeDomain) Predecessor(a OpCode) OpCode       { panic("not useful") }
 func (opCodeDomain) Successor(a OpCode) OpCode         { panic("not useful") }
 func (opCodeDomain) SomethingNotEqual(a OpCode) OpCode { return a + 1 }
@@ -329,13 +360,6 @@ func (gasDomain) SamplesForAll(as []vm.Gas) []vm.Gas {
 		res = append(res, a)
 		res = append(res, a+1)
 	}
-
-	// Add all powers of 2 until upper bound.
-	for value := vm.Gas(1); value < st.MaxGas; value <<= 1 {
-		res = append(res, value)
-	}
-
-	// TODO: consider removing duplicates.
 
 	return res
 }

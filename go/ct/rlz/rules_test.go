@@ -16,6 +16,7 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/exp/maps"
 	"pgregory.net/rand"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -109,28 +110,26 @@ func TestRule_GetTestCaseEnumerationInfo(t *testing.T) {
 
 	info := rule.GetTestCaseEnumerationInfo()
 
-	if want, got := len(conditions), len(info.conditionDomainSizes); want != got {
+	if want, got := len(conditions), len(info.conditions); want != got {
 		t.Fatalf("unexpected length of condition domain sizes, wanted %d, got %d", want, got)
 	}
-	sizes := map[string]int{
-		conditions[0].String(): len(statusCodeDomain{}.Samples(st.Failed)),
-		conditions[1].String(): len(pcDomain{}.Samples(NewU256(42))),
+	sizes := map[Property]int{
+		Status().Property(): len(statusCodeDomain{}.Samples(st.Failed)),
+		Pc().Property():     len(pcDomain{}.Samples(NewU256(42))),
 	}
 	total := 1
-	for _, cur := range conditions {
-		key := cur.String()
-		if want, got := sizes[key], info.conditionDomainSizes[key]; want != got {
-			t.Errorf("unexpected domain size for %v, wanted %d, got %d", key, want, got)
+	for _, property := range maps.Keys(sizes) {
+		if want, got := sizes[property], len(info.propertyDomains[property]); want != got {
+			t.Errorf("unexpected domain size for %v, wanted %d, got %d", property, want, got)
 		}
-		total *= sizes[key]
+		total *= sizes[property]
 	}
 
 	if want, got := len(rule.Parameter), len(info.parameterDomainSizes); want != got {
 		t.Fatalf("unexpected number of parameter domain sizes, wanted %d, got %d", want, got)
 	}
-
 	for i, got := range info.parameterDomainSizes {
-		want := len(rule.Parameter[i].Samples())
+		want := len(rule.Parameter[i].Samples()) + 1 // 1 random value
 		if want != got {
 			t.Errorf("unexpected size of parameter domain %d - wanted %d, got %d", i, want, got)
 		}
@@ -148,6 +147,9 @@ func TestTestCaseEnumerationInfo_PrintEmptyIsNice(t *testing.T) {
 	if !strings.Contains(print, "Conditions:\n\t-none-") {
 		t.Errorf("missing summary for conditions, got %s", print)
 	}
+	if !strings.Contains(print, "Domains:\n\t-none-") {
+		t.Errorf("missing summary for property domains, got %s", print)
+	}
 	if !strings.Contains(print, "Parameters:\n\t-none-") {
 		t.Errorf("missing summary for parameters, got %s", print)
 	}
@@ -158,14 +160,24 @@ func TestTestCaseEnumerationInfo_PrintEmptyIsNice(t *testing.T) {
 
 func TestTestCaseEnumerationInfo_ConditionsAreSortedAlphabetically(t *testing.T) {
 	info := TestCaseEnumerationInfo{
-		conditionDomainSizes: map[string]int{
-			"b": 12,
-			"a": 14,
+		conditions: []string{"b", "a"},
+	}
+	print := info.String()
+	if !strings.Contains(print, "a\n\tb") {
+		t.Errorf("constraints are not listed as expected, got %s", print)
+	}
+}
+
+func TestTestCaseEnumerationInfo_PropertyDomainsAreSortedAlphabetically(t *testing.T) {
+	info := TestCaseEnumerationInfo{
+		propertyDomains: map[Property][]string{
+			"b": {"x", "y", "z"},
+			"a": {"1", "2"},
 		},
 	}
 	print := info.String()
-	if !strings.Contains(print, "a: 14\n\tb: 12") {
-		t.Errorf("constraints are not listed as expected, got %s", print)
+	if !strings.Contains(print, "a: N=2, {1, 2}\n\tb: N=3, {x, y, z}") {
+		t.Errorf("domains are not listed as expected, got %s", print)
 	}
 }
 

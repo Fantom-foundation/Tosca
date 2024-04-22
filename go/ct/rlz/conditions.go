@@ -31,9 +31,9 @@ type Condition interface {
 	// Condition holds.
 	Restrict(*gen.StateGenerator)
 
-	// EnumerateTestCases sets constraints on a copy of the given generator and
-	// invokes the given consumer function with it.
-	EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator) ConsumerResult) ConsumerResult
+	// GetTestValues produces a list of test values probing the boundary defined
+	// by this constraint.
+	GetTestValues() []TestValue
 
 	fmt.Stringer
 }
@@ -77,14 +77,12 @@ func (c *conjunction) Restrict(generator *gen.StateGenerator) {
 	}
 }
 
-func (c *conjunction) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	if len(c.conditions) == 0 {
-		return consumer(generator)
+func (c *conjunction) GetTestValues() []TestValue {
+	res := []TestValue{}
+	for _, cur := range c.conditions {
+		res = append(res, cur.GetTestValues()...)
 	}
-	rest := And(c.conditions[1:]...)
-	return c.conditions[0].EnumerateTestCases(generator, func(generator *gen.StateGenerator) ConsumerResult {
-		return rest.EnumerateTestCases(generator, consumer)
-	})
+	return res
 }
 
 func (c *conjunction) String() string {
@@ -129,16 +127,17 @@ func (e *eq[T]) Restrict(generator *gen.StateGenerator) {
 	e.lhs.Restrict(RestrictEqual, e.rhs, generator)
 }
 
-func (e *eq[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
+func (e *eq[T]) GetTestValues() []TestValue {
+	property := e.lhs.Property()
 	domain := e.lhs.Domain()
-	for _, value := range domain.Samples(e.rhs) {
-		clone := generator.Clone()
-		e.lhs.Restrict(RestrictEqual, value, clone)
-		if consumer(clone) == ConsumeAbort {
-			return ConsumeAbort
-		}
+	restrict := func(generator *gen.StateGenerator, value T) {
+		e.lhs.Restrict(RestrictEqual, value, generator)
 	}
-	return ConsumeContinue
+	res := []TestValue{}
+	for _, value := range domain.Samples(e.rhs) {
+		res = append(res, newTestValue(property, domain, value, restrict))
+	}
+	return res
 }
 
 func (e *eq[T]) String() string {
@@ -171,16 +170,8 @@ func (e *ne[T]) Restrict(generator *gen.StateGenerator) {
 	e.lhs.Restrict(RestrictEqual, domain.SomethingNotEqual(e.rhs), generator)
 }
 
-func (e *ne[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	domain := e.lhs.Domain()
-	for _, value := range domain.Samples(e.rhs) {
-		clone := generator.Clone()
-		e.lhs.Restrict(RestrictEqual, value, clone)
-		if consumer(clone) == ConsumeAbort {
-			return ConsumeAbort
-		}
-	}
-	return ConsumeContinue
+func (e *ne[T]) GetTestValues() []TestValue {
+	return Eq(e.lhs, e.rhs).GetTestValues()
 }
 
 func (e *ne[T]) String() string {
@@ -213,16 +204,8 @@ func (c *lt[T]) Restrict(generator *gen.StateGenerator) {
 	c.lhs.Restrict(RestrictLess, domain.Predecessor(c.rhs), generator)
 }
 
-func (c *lt[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	domain := c.lhs.Domain()
-	for _, value := range domain.Samples(c.rhs) {
-		clone := generator.Clone()
-		c.lhs.Restrict(RestrictLess, value, clone)
-		if consumer(clone) == ConsumeAbort {
-			return ConsumeAbort
-		}
-	}
-	return ConsumeContinue
+func (c *lt[T]) GetTestValues() []TestValue {
+	return Eq(c.lhs, c.rhs).GetTestValues()
 }
 
 func (c *lt[T]) String() string {
@@ -254,16 +237,8 @@ func (c *le[T]) Restrict(generator *gen.StateGenerator) {
 	c.lhs.Restrict(RestrictLessEqual, c.rhs, generator)
 }
 
-func (c *le[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	domain := c.lhs.Domain()
-	for _, value := range domain.Samples(c.rhs) {
-		clone := generator.Clone()
-		c.lhs.Restrict(RestrictLessEqual, value, clone)
-		if consumer(clone) == ConsumeAbort {
-			return ConsumeAbort
-		}
-	}
-	return ConsumeContinue
+func (c *le[T]) GetTestValues() []TestValue {
+	return Eq(c.lhs, c.rhs).GetTestValues()
 }
 
 func (c *le[T]) String() string {
@@ -296,16 +271,8 @@ func (c *gt[T]) Restrict(generator *gen.StateGenerator) {
 	c.lhs.Restrict(RestrictGreater, domain.Successor(c.rhs), generator)
 }
 
-func (c *gt[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	domain := c.lhs.Domain()
-	for _, value := range domain.Samples(c.rhs) {
-		clone := generator.Clone()
-		c.lhs.Restrict(RestrictGreater, value, clone)
-		if consumer(clone) == ConsumeAbort {
-			return ConsumeAbort
-		}
-	}
-	return ConsumeContinue
+func (c *gt[T]) GetTestValues() []TestValue {
+	return Eq(c.lhs, c.rhs).GetTestValues()
 }
 
 func (c *gt[T]) String() string {
@@ -337,16 +304,8 @@ func (c *ge[T]) Restrict(generator *gen.StateGenerator) {
 	c.lhs.Restrict(RestrictGreaterEqual, c.rhs, generator)
 }
 
-func (c *ge[T]) EnumerateTestCases(generator *gen.StateGenerator, consumer func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	domain := c.lhs.Domain()
-	for _, value := range domain.Samples(c.rhs) {
-		clone := generator.Clone()
-		c.lhs.Restrict(RestrictGreaterEqual, value, clone)
-		if consumer(clone) == ConsumeAbort {
-			return ConsumeAbort
-		}
-	}
-	return ConsumeContinue
+func (c *ge[T]) GetTestValues() []TestValue {
+	return Eq(c.lhs, c.rhs).GetTestValues()
 }
 
 func (c *ge[T]) String() string {
@@ -381,15 +340,17 @@ func (c *revisionBounds) Restrict(generator *gen.StateGenerator) {
 	generator.SetRevisionBounds(c.min, c.max)
 }
 
-func (*revisionBounds) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	for r := Revision(0); r <= R99_UnknownNextRevision; r++ {
-		g := generator.Clone()
-		g.SetRevision(r)
-		if consume(g) == ConsumeAbort {
-			return ConsumeAbort
-		}
+func (e *revisionBounds) GetTestValues() []TestValue {
+	property := Property("revision")
+	domain := revisionDomain{}
+	restrict := func(generator *gen.StateGenerator, revision Revision) {
+		generator.SetRevision(revision)
 	}
-	return ConsumeContinue
+	res := []TestValue{}
+	for r := Revision(0); r <= R99_UnknownNextRevision; r++ {
+		res = append(res, newTestValue(property, domain, r, restrict))
+	}
+	return res
 }
 
 func (c *revisionBounds) String() string {
@@ -427,16 +388,22 @@ func (c *isCode) Restrict(generator *gen.StateGenerator) {
 	generator.AddIsCode(variable)
 }
 
-func (c *isCode) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	positive := generator.Clone()
-	c.Restrict(positive)
-	if consume(positive) == ConsumeAbort {
-		return ConsumeAbort
+func (c *isCode) GetTestValues() []TestValue {
+	property := Property(c.String())
+	domain := boolDomain{}
+	restrict := func(generator *gen.StateGenerator, isCode bool) {
+		variable := c.position.GetVariable()
+		c.position.BindTo(generator)
+		if isCode {
+			generator.AddIsCode(variable)
+		} else {
+			generator.AddIsData(variable)
+		}
 	}
-
-	negative := generator.Clone()
-	IsData(c.position).Restrict(negative)
-	return consume(negative)
+	return []TestValue{
+		newTestValue(property, domain, true, restrict),
+		newTestValue(property, domain, false, restrict),
+	}
 }
 
 func (c *isCode) String() string {
@@ -471,16 +438,8 @@ func (c *isData) Restrict(generator *gen.StateGenerator) {
 	generator.AddIsData(variable)
 }
 
-func (c *isData) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	positive := generator.Clone()
-	c.Restrict(positive)
-	if consume(positive) == ConsumeAbort {
-		return ConsumeAbort
-	}
-
-	negative := generator.Clone()
-	IsCode(c.position).Restrict(negative)
-	return consume(negative)
+func (c *isData) GetTestValues() []TestValue {
+	return IsCode(c.position).GetTestValues()
 }
 
 func (c *isData) String() string {
@@ -512,16 +471,22 @@ func (c *isStorageWarm) Restrict(generator *gen.StateGenerator) {
 	generator.BindIsStorageWarm(key)
 }
 
-func (c *isStorageWarm) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	positive := generator.Clone()
-	c.Restrict(positive)
-	if consume(positive) == ConsumeAbort {
-		return ConsumeAbort
+func (c *isStorageWarm) GetTestValues() []TestValue {
+	property := Property(c.String())
+	domain := boolDomain{}
+	restrict := func(generator *gen.StateGenerator, isWarm bool) {
+		key := c.key.GetVariable()
+		c.key.BindTo(generator)
+		if isWarm {
+			generator.BindIsStorageWarm(key)
+		} else {
+			generator.BindIsStorageCold(key)
+		}
 	}
-
-	negative := generator.Clone()
-	IsStorageCold(c.key).Restrict(negative)
-	return consume(negative)
+	return []TestValue{
+		newTestValue(property, domain, true, restrict),
+		newTestValue(property, domain, false, restrict),
+	}
 }
 
 func (c *isStorageWarm) String() string {
@@ -553,16 +518,8 @@ func (c *isStorageCold) Restrict(generator *gen.StateGenerator) {
 	generator.BindIsStorageCold(key)
 }
 
-func (c *isStorageCold) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	positive := generator.Clone()
-	c.Restrict(positive)
-	if consume(positive) == ConsumeAbort {
-		return ConsumeAbort
-	}
-
-	negative := generator.Clone()
-	IsStorageWarm(c.key).Restrict(negative)
-	return consume(negative)
+func (c *isStorageCold) GetTestValues() []TestValue {
+	return IsStorageWarm(c.key).GetTestValues()
 }
 
 func (c *isStorageCold) String() string {
@@ -604,12 +561,15 @@ func (c *storageConfiguration) Restrict(generator *gen.StateGenerator) {
 	generator.BindStorageConfiguration(c.config, key, newValue)
 }
 
-func (c *storageConfiguration) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
+func (c *storageConfiguration) GetTestValues() []TestValue {
 	// For now, we only create the positive test case. It is assumed that all
 	// storage configurations are covered by the specification.
-	positive := generator.Clone()
-	c.Restrict(positive)
-	return consume(positive)
+	property := Property(c.String())
+	domain := boolDomain{} // the domain is ignored
+	restrict := func(generator *gen.StateGenerator, _ bool) {
+		c.Restrict(generator)
+	}
+	return []TestValue{newTestValue(property, domain, true, restrict)}
 }
 
 func (c *storageConfiguration) String() string {
@@ -641,16 +601,22 @@ func (c *isAddressWarm) Restrict(generator *gen.StateGenerator) {
 	generator.BindToWarmAddress(key)
 }
 
-func (c *isAddressWarm) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	positive := generator.Clone()
-	c.Restrict(positive)
-	if consume(positive) == ConsumeAbort {
-		return ConsumeAbort
+func (c *isAddressWarm) GetTestValues() []TestValue {
+	property := Property(c.String())
+	domain := boolDomain{}
+	restrict := func(generator *gen.StateGenerator, isWarm bool) {
+		key := c.key.GetVariable()
+		c.key.BindTo(generator)
+		if isWarm {
+			generator.BindToWarmAddress(key)
+		} else {
+			generator.BindToColdAddress(key)
+		}
 	}
-
-	negative := generator.Clone()
-	IsAddressCold(c.key).Restrict(negative)
-	return consume(negative)
+	return []TestValue{
+		newTestValue(property, domain, true, restrict),
+		newTestValue(property, domain, false, restrict),
+	}
 }
 
 func (c *isAddressWarm) String() string {
@@ -682,16 +648,8 @@ func (c *isAddressCold) Restrict(generator *gen.StateGenerator) {
 	generator.BindToColdAddress(key)
 }
 
-func (c *isAddressCold) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	positive := generator.Clone()
-	c.Restrict(positive)
-	if consume(positive) == ConsumeAbort {
-		return ConsumeAbort
-	}
-
-	negative := generator.Clone()
-	IsAddressCold(c.key).Restrict(negative)
-	return consume(negative)
+func (c *isAddressCold) GetTestValues() []TestValue {
+	return IsAddressWarm(c.key).GetTestValues()
 }
 
 func (c *isAddressCold) String() string {

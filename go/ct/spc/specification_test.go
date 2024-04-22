@@ -184,6 +184,30 @@ func TestSpecification_AtMostOneCodeAtPC(t *testing.T) {
 	}
 }
 
+func TestSpecification_NumberOfTestCasesMatchesRuleInfo(t *testing.T) {
+	rules := getAllRules()
+
+	for _, rule := range rules {
+		rule := rule
+		t.Run(rule.Name, func(t *testing.T) {
+			t.Parallel()
+
+			info := rule.GetTestCaseEnumerationInfo()
+
+			counter := 0
+			rand := rand.New(0)
+			rule.EnumerateTestCases(rand, func(*st.State) rlz.ConsumerResult {
+				counter++
+				return rlz.ConsumeContinue
+			})
+
+			if got, limit := counter, info.TotalNumberOfCases(); got > limit {
+				t.Errorf("inconsistent number of test cases, got %d, limit %d", got, limit)
+			}
+		})
+	}
+}
+
 func BenchmarkSpecification_GetState(b *testing.B) {
 	N := 10000
 	rnd := rand.New(0)

@@ -170,7 +170,7 @@ func TestExpression_GasConstraints(t *testing.T) {
 			random := rand.New()
 			hits := 0
 			misses := 0
-			test.condition.EnumerateTestCases(gen.NewStateGenerator(), func(g *gen.StateGenerator) ConsumerResult {
+			enumerateTestCases(test.condition, gen.NewStateGenerator(), func(g *gen.StateGenerator) ConsumerResult {
 				state, err := g.Generate(random)
 				if errors.Is(err, gen.ErrUnsatisfiable) {
 					return ConsumeContinue // ignored

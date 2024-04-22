@@ -33,6 +33,7 @@ const (
 )
 
 type Expression[T any] interface {
+	Property() Property
 	Domain() Domain[T]
 
 	// Eval evaluates this expression on the given state.
@@ -66,6 +67,8 @@ func Status() Expression[st.StatusCode] {
 	return status{}
 }
 
+func (status) Property() Property { return Property("status") }
+
 func (status) Domain() Domain[st.StatusCode] { return statusCodeDomain{} }
 
 func (status) Eval(s *st.State) (st.StatusCode, error) {
@@ -91,6 +94,8 @@ type pc struct{}
 func Pc() BindableExpression[U256] {
 	return pc{}
 }
+
+func (pc) Property() Property { return Property("pc") }
 
 func (pc) Domain() Domain[U256] { return pcDomain{} }
 
@@ -129,6 +134,8 @@ func Gas() Expression[vm.Gas] {
 	return gas{}
 }
 
+func (gas) Property() Property { return Property("gas") }
+
 func (gas) Domain() Domain[vm.Gas] { return gasDomain{} }
 
 func (gas) Eval(s *st.State) (vm.Gas, error) {
@@ -159,6 +166,8 @@ func GasRefund() Expression[vm.Gas] {
 	return gasRefund{}
 }
 
+func (gasRefund) Property() Property { return Property("gasRefund") }
+
 func (gasRefund) Domain() Domain[vm.Gas] { return gasDomain{} }
 
 func (gasRefund) Eval(s *st.State) (vm.Gas, error) {
@@ -183,6 +192,8 @@ type readOnly struct{}
 func ReadOnly() Expression[bool] {
 	return readOnly{}
 }
+
+func (readOnly) Property() Property { return Property("readOnly") }
 
 func (readOnly) Domain() Domain[bool] { return boolDomain{} }
 
@@ -211,6 +222,8 @@ type op struct {
 func Op(position BindableExpression[U256]) Expression[OpCode] {
 	return op{position}
 }
+
+func (e op) Property() Property { return Property(e.String()) }
 
 func (op) Domain() Domain[OpCode] { return opCodeDomain{} }
 
@@ -253,6 +266,8 @@ func StackSize() Expression[int] {
 	return stackSize{}
 }
 
+func (stackSize) Property() Property { return Property("stackSize") }
+
 func (stackSize) Domain() Domain[int] { return stackSizeDomain{} }
 
 func (stackSize) Eval(s *st.State) (int, error) {
@@ -290,6 +305,8 @@ const ErrStackOutOfBoundsAccess = ConstErr("out-of-bounds stack access")
 func Param(pos int) BindableExpression[U256] {
 	return param{pos}
 }
+
+func (p param) Property() Property { return Property(p.String()) }
 
 func (param) Domain() Domain[U256] { return u256Domain{} }
 
@@ -333,6 +350,8 @@ type constant struct {
 func Constant(value U256) BindableExpression[U256] {
 	return constant{value}
 }
+
+func (constant) Property() Property { return Property("constant") }
 
 func (constant) Domain() Domain[U256] { return u256Domain{} }
 
