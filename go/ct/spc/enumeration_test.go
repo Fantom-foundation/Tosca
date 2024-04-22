@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -14,10 +15,10 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
-// Test Condition
+// Test condition used for state enumeration tests
 type testCondition struct {
-	fits      bool
-	numStates int
+	fits      bool // wether the enumerated test states fit the rule
+	numStates int  // the number of test cases to be generated
 }
 
 func condition(fitsRule bool, numStates int) rlz.Condition {
@@ -47,7 +48,7 @@ func (e testCondition) String() string {
 	return "Test Condition"
 }
 
-func TestCoordination_GenerateMultipleStatesPerRule(t *testing.T) {
+func TestEnumeration_GenerateMultipleStatesPerRule(t *testing.T) {
 	numJobs := runtime.NumCPU()
 	seed := 0
 	var counter atomic.Int64
@@ -58,15 +59,8 @@ func TestCoordination_GenerateMultipleStatesPerRule(t *testing.T) {
 	printFunction := func(time time.Duration, rate float64, current int64) {}
 
 	statesPerRule := 15
+	rules := []rlz.Rule{{Condition: condition(true, statesPerRule)}}
 
-	//var condition testCondition
-	rules := []rlz.Rule{}
-	testRule := rlz.Rule{
-		Name:      "test_rule",
-		Condition: condition(true, statesPerRule),
-		Effect:    rlz.NoEffect(),
-	}
-	rules = append(rules, testRule)
 	err := ForEachState(rules, opFunction, printFunction, numJobs, uint64(seed), false)
 	if err != nil {
 		t.Errorf("Unexpected error during state generation %v", err)
@@ -77,7 +71,7 @@ func TestCoordination_GenerateMultipleStatesPerRule(t *testing.T) {
 	}
 }
 
-func TestCoordination_AllRulesAreEnumerated(t *testing.T) {
+func TestEnumeration_DisabledFullModeFiltersNonMatchingRules(t *testing.T) {
 	numJobs := runtime.NumCPU()
 	seed := 0
 	var counter atomic.Int64
@@ -87,17 +81,12 @@ func TestCoordination_AllRulesAreEnumerated(t *testing.T) {
 	}
 	printFunction := func(time time.Duration, rate float64, current int64) {}
 
-	//var condition testCondition
 	rules := []rlz.Rule{}
 	testRuleFit := rlz.Rule{
-		Name:      "test_rule",
 		Condition: condition(true, 1),
-		Effect:    rlz.NoEffect(),
 	}
 	testRuleNoFit := rlz.Rule{
-		Name:      "test_rule",
 		Condition: condition(false, 1),
-		Effect:    rlz.NoEffect(),
 	}
 
 	for i := 0; i < rand.Intn(42); i++ {
@@ -126,13 +115,53 @@ func TestCoordination_AllRulesAreEnumerated(t *testing.T) {
 	}
 }
 
-func TestCoordination_FilterRules(t *testing.T) {
+func TestEnumeration_AbortedEnumeration(t *testing.T) {
+	numJobs := runtime.NumCPU()
+	seed := 0
+	numRules := 42
+	numStates := 42
+	var counterContinue atomic.Int64
+	var counterAbort atomic.Int64
+	opFunctionContinue := func(state *st.State) rlz.ConsumerResult {
+		counterContinue.Add(1)
+		return rlz.ConsumeContinue
+	}
+	opFunctionAbort := func(state *st.State) rlz.ConsumerResult {
+		counterAbort.Add(1)
+		return rlz.ConsumeAbort
+	}
+	printFunction := func(time time.Duration, rate float64, current int64) {}
+	rules := []rlz.Rule{}
+	testRule := rlz.Rule{
+		Condition: condition(true, numStates),
+	}
+	for i := 0; i < numRules; i++ {
+		rules = append(rules, testRule)
+	}
+	err := ForEachState(rules, opFunctionContinue, printFunction, numJobs, uint64(seed), true)
+	if err != nil {
+		t.Errorf("Unexpected error during state generation %v", err)
+	}
+
+	err = ForEachState(rules, opFunctionAbort, printFunction, numJobs, uint64(seed), true)
+	if err != nil {
+		t.Errorf("Unexpected error during state generation %v", err)
+	}
+
+	if int(counterContinue.Load()) != numRules*numStates {
+		t.Errorf("wrong number of generated test cases")
+	}
+
+	if counterAbort.Load() > int64(numJobs) {
+		t.Errorf("state enumeration did not abort correctly, number of evaluated states %d", counterAbort.Load())
+	}
+
+}
+
+func TestEnumeration_FilterRules(t *testing.T) {
 	filters := []string{"add", "sub", "mul", "copy", "call"}
 	for _, subString := range filters {
-		filter, err := regexp.Compile(subString)
-		if err != nil {
-			t.Error("regular expression not compilable")
-		}
+		filter := regexp.MustCompile(subString)
 		rules := Spec.GetRules()
 		rules = FilterRules(rules, filter)
 
@@ -146,10 +175,18 @@ func TestCoordination_FilterRules(t *testing.T) {
 				t.Errorf("rules not filtered correctly %v", name)
 			}
 		}
+
+		for _, rule := range Spec.GetRules() {
+			if strings.Contains(rule.Name, subString) {
+				if !slices.Contains(ruleNames, rule.Name) {
+					t.Errorf("rule %v is missing in filtered rules", rule.Name)
+				}
+			}
+		}
 	}
 }
 
-func TestCoordination_EmptyRules(t *testing.T) {
+func TestEnumeration_EmptyRules(t *testing.T) {
 	numJobs := 1
 	seed := 0
 	fullMode := false
@@ -164,16 +201,17 @@ func TestCoordination_EmptyRules(t *testing.T) {
 	}
 }
 
-func TestCoordination_RightNumberOfGoroutinesIsStarted(t *testing.T) {
+func TestEnumeration_RightNumberOfGoroutinesIsStarted(t *testing.T) {
 	numJobs := 4
 	seed := 0
 	fullMode := false
 	filter := regexp.MustCompile(".*")
 
-	opFunction := func(state *st.State) rlz.ConsumerResult {
+	// sweeper, scavenger and finalizer goroutines are started by default
+	defaultNumGoroutines := runtime.NumGoroutine()
 
-		// 3 goroutines (sweeper, scavenger and finalizer) are started by default
-		if want, got := numJobs*2+3, runtime.NumGoroutine(); want != got {
+	opFunction := func(state *st.State) rlz.ConsumerResult {
+		if want, got := numJobs*2+1+defaultNumGoroutines, runtime.NumGoroutine(); want != got {
 			t.Errorf("wrong number of go routines during execution: want %d, got %d", want, got)
 		}
 		return rlz.ConsumeAbort

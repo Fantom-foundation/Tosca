@@ -33,7 +33,7 @@ var RegressionsCmd = cli.Command{
 		&cli.StringSliceFlag{
 			Name:  "input",
 			Usage: "run given input file, or all files in the given directory (recursively)",
-			Value: cli.NewStringSlice("./go/ct/regression_inputs"),
+			Value: cli.NewStringSlice("./regression_inputs"),
 		},
 	},
 }
