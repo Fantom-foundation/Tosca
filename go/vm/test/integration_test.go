@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/ct/utils"
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
 	"github.com/holiman/uint256"
 	"go.uber.org/mock/gomock"
@@ -710,7 +710,7 @@ func TestNoReturnDataForCreate(t *testing.T) {
 						byte(geth.PUSH1), byte(0),
 						byte(test.returnInstruction)}
 
-					createInputBytes := utils.RightPadSlice(createInputCode, 32)
+					createInputBytes := common.RightPadSlice(createInputCode, 32)
 					createInputValue := []*big.Int{big.NewInt(0).SetBytes(createInputBytes)}
 
 					code, _ := addValuesToStack(createInputValue, 0)
@@ -972,13 +972,13 @@ func TestCallDataLoadInstructionInputOverflow(t *testing.T) {
 	sizeUint64, sizeOverUint64, sizeUint256 := getCornerSizeValues()
 
 	b := []byte{1}
-	input := utils.LeftPadSlice(b[:], 32)
+	input := common.LeftPadSlice(b[:], 32)
 
 	tests := []overflowTestCase{
 		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0), nil},
 		{"data input one", []*big.Int{big.NewInt(0), big.NewInt(0)}, input, big.NewInt(1), nil},
 		{"data input one, offset one", []*big.Int{big.NewInt(0), big.NewInt(1)}, input, big.NewInt(256), nil},
-		{"data input one, offset 31", []*big.Int{big.NewInt(0), big.NewInt(31)}, input, big.NewInt(0).SetBytes(utils.RightPadSlice(b[:], 32)), nil},
+		{"data input one, offset 31", []*big.Int{big.NewInt(0), big.NewInt(31)}, input, big.NewInt(0).SetBytes(common.RightPadSlice(b[:], 32)), nil},
 		{"data input one, offset 300", []*big.Int{big.NewInt(0), big.NewInt(300)}, input, big.NewInt(0), nil},
 		{"data input one, offset uint64", []*big.Int{big.NewInt(0), sizeUint64}, input, big.NewInt(0), nil},
 		{"data input one, offset over64", []*big.Int{big.NewInt(0), sizeOverUint64}, input, big.NewInt(0), nil},
@@ -992,7 +992,7 @@ func TestCallDataCopyInstructionInputOverflow(t *testing.T) {
 	_, sizeOverUint64, sizeUint256 := getCornerSizeValues()
 
 	b := []byte{1}
-	input := utils.LeftPadSlice(b[:], 32)
+	input := common.LeftPadSlice(b[:], 32)
 
 	tests := []overflowTestCase{
 		{"all zero", []*big.Int{big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0)}, zeroInput, big.NewInt(0), nil},

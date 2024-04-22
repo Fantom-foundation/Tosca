@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/ct/utils"
 	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
@@ -1178,7 +1178,7 @@ func getAllRules() []Rule {
 					start = uint64(len)
 				}
 				end := min(start+32, uint64(len))
-				data := utils.RightPadSlice(s.CallData.Get(start, end), 32)
+				data := common.RightPadSlice(s.CallData.Get(start, end), 32)
 				pushData = NewU256FromBytes(data...)
 			}
 
@@ -1218,7 +1218,7 @@ func getAllRules() []Rule {
 				start = uint64(len)
 			}
 			end := min(start+size, uint64(len))
-			dataBuffer := utils.RightPadSlice(s.CallData.Get(start, end), int64(size))
+			dataBuffer := common.RightPadSlice(s.CallData.Get(start, end), int(size))
 			s.Memory.Write(dataBuffer, destOffset)
 		},
 	})...)
@@ -1642,7 +1642,7 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 	}
 	end := min(start+size, codeSize)
 
-	codeCopy := utils.RightPadSlice(s.Accounts.GetCode(address).ToBytes()[start:end], int64(size))
+	codeCopy := common.RightPadSlice(s.Accounts.GetCode(address).ToBytes()[start:end], int(size))
 
 	s.Memory.Write(codeCopy, destOffset)
 	if markWarm {

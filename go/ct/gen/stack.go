@@ -22,7 +22,6 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/ct/utils"
 )
 
 type StackGenerator struct {
@@ -95,7 +94,9 @@ func (g *StackGenerator) BindValue(pos int, variable Variable) {
 }
 
 func (g *StackGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Stack, error) {
-	constraints := utils.RightPadSliceWithCap(g.constValues, int64(len(g.constValues)), int64(len(g.constValues)+len(g.varValues)))
+	// convert variable constraints to constant constraints
+	constraints := make([]constValueConstraint, len(g.constValues), len(g.constValues)+len(g.varValues))
+	copy(constraints, g.constValues)
 
 	for _, cur := range g.varValues {
 		value, found := assignment[cur.variable]
