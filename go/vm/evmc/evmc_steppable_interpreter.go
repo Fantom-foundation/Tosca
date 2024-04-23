@@ -148,6 +148,7 @@ func convertCtStackToEvmcStack(stack *st.Stack) []byte {
 		val := stack.Get(i).Bytes32be()
 		copy(evmcStack[stackBytes-(i+1)*32:], val[:])
 	}
+	stack.Release()
 	return evmcStack
 }
 

@@ -43,7 +43,6 @@ func NewStack(values ...U256) *Stack {
 	if MaxStackSize < len(values) {
 		panic("Warning: maximal stack size exceeded")
 	}
-
 	stack.stack = stack.stack[:copy(stack.stack, values)]
 	return stack
 }
@@ -54,7 +53,6 @@ func NewStackWithSize(size int) *Stack {
 	if MaxStackSize < size {
 		panic("Warning: maximal stack size exceeded")
 	}
-
 	stack.stack = stack.stack[:size]
 	return stack
 }

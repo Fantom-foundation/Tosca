@@ -150,6 +150,7 @@ func convertCtStackToGethStack(state *st.State) *geth_vm.Stack {
 		val := state.Stack.Get(i).Uint256()
 		stack.Push(&val)
 	}
+	state.Stack.Release()
 	return stack
 }
 

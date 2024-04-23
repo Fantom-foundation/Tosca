@@ -132,7 +132,7 @@ func NewState(code *Code) *State {
 		Status:             Running,
 		Revision:           R07_Istanbul,
 		Code:               code,
-		Stack:              NewStack(),
+		Stack:              &Stack{},
 		Memory:             NewMemory(),
 		Storage:            &Storage{},
 		Accounts:           NewAccounts(),

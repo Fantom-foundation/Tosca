@@ -180,6 +180,7 @@ func convertCtStackToLfvmStack(stack *st.Stack) *Stack {
 		val := stack.Get(i).Uint256()
 		result.push(&val)
 	}
+	stack.Release()
 	return result
 }
 
