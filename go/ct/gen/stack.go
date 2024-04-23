@@ -97,6 +97,7 @@ func (g *StackGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.St
 	// convert variable constraints to constant constraints
 	constraints := make([]constValueConstraint, len(g.constValues), len(g.constValues)+len(g.varValues))
 	copy(constraints, g.constValues)
+
 	for _, cur := range g.varValues {
 		value, found := assignment[cur.variable]
 		if !found {

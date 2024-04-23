@@ -144,8 +144,7 @@ func getPcMap(code *st.Code) (*PcMap, error) {
 	pcMap, ok := pcMapCache.data[code.Hash()]
 
 	if !ok {
-		byteCode := make([]byte, code.Length())
-		code.CopyTo(byteCode)
+		byteCode := code.Copy()
 		pcMap, err := GenPcMapWithoutSuperInstructions(byteCode)
 		if err != nil {
 			return nil, err

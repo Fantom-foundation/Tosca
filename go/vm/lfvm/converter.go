@@ -20,10 +20,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
 
 	// This is only imported to get the EVM opcode definitions.
 	// TODO: write up our own op-code definition and remove this dependency.
+
 	evm "github.com/ethereum/go-ethereum/core/vm"
 )
 
@@ -365,12 +367,10 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, with_super_instr
 				ext++
 			}
 			if ext > 0 {
-				ins := make([]Instruction, len(res.code)+ext)
-				copy(ins, res.code[:])
+				ins := common.RightPadSlice(res.code[:], len(res.code)+ext)
 				res.code = ins
 			}
-			data = make([]byte, n+1)
-			copy(data, code[pos+1:])
+			data = common.RightPadSlice(code[pos+1:], n+1)
 		} else {
 			data = code[pos+1 : pos+1+n]
 		}

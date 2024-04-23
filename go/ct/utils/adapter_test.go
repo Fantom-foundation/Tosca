@@ -321,7 +321,5 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 				t.Errorf("failed to verify property, wanted %v, got %v of type %v and %v", want, got, reflect.TypeOf(want), reflect.TypeOf(got))
 			}
 		})
-
 	}
-
 }

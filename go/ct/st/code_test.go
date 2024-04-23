@@ -105,7 +105,7 @@ func TestCode_GetData(t *testing.T) {
 	}
 }
 
-func TestCode_CopyTo(t *testing.T) {
+func TestCode_Copy(t *testing.T) {
 	src := []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
 	code := NewCode(src)
 
@@ -114,9 +114,8 @@ func TestCode_CopyTo(t *testing.T) {
 	}
 
 	for i := 0; i < len(src); i++ {
-		dst := make([]byte, i)
-		if got := code.CopyTo(dst); got != i || !bytes.Equal(src[0:i], dst) {
-			t.Errorf("failed to copy data, expected %x, got %x, return %d", src[0:i], dst, i)
+		if got := code.Copy(); !bytes.Equal(src, got) {
+			t.Errorf("failed to copy data, expected %x, got %x", src, got)
 		}
 	}
 }

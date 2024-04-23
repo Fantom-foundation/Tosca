@@ -137,8 +137,8 @@ func (a *Code) Diff(b *Code) (res []string) {
 	return
 }
 
-func (c *Code) CopyTo(dst []byte) int {
-	return copy(dst, c.code)
+func (c *Code) Copy() []byte {
+	return bytes.Clone(c.code)
 }
 
 func (c *Code) String() string {
