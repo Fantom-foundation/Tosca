@@ -18,6 +18,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -216,20 +217,31 @@ func TestEnumeration_RightNumberOfGoroutinesIsStarted(t *testing.T) {
 	numJobs := runtime.NumCPU()
 	seed := 0
 	fullMode := false
-	filter := regexp.MustCompile(".*")
 
-	// sweeper, scavenger and finalizer goroutines are started by default
-	defaultNumGoroutines := runtime.NumGoroutine()
-
+	activeJobs := 0
+	limitReached := false
+	condition := sync.NewCond(&sync.Mutex{})
 	opFunction := func(state *st.State) rlz.ConsumerResult {
-		if want, got := numJobs*2+1+defaultNumGoroutines, runtime.NumGoroutine(); want != got {
-			t.Errorf("wrong number of go routines during execution: want %d, got %d", want, got)
+		// make sure that numJobs are active at the same time
+		condition.L.Lock()
+		defer condition.L.Unlock()
+		if limitReached {
+			return rlz.ConsumeAbort
 		}
+
+		activeJobs++
+		condition.Broadcast()
+		for activeJobs < numJobs {
+			condition.Wait()
+		}
+		limitReached = true
 		return rlz.ConsumeAbort
 	}
+
 	printFunction := func(time time.Duration, rate float64, current int64) {}
+	ForEachState(Spec.GetRules(), opFunction, printFunction, numJobs, uint64(seed), fullMode)
 
-	rules := FilterRules(Spec.GetRules(), filter)
-	ForEachState(rules, opFunction, printFunction, numJobs, uint64(seed), fullMode)
-
+	if activeJobs != numJobs {
+		t.Errorf("unexpected number of active jobs, wanted %d, got %d", numJobs, activeJobs)
+	}
 }
