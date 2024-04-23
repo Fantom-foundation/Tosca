@@ -159,7 +159,7 @@ func doRun(context *cli.Context) error {
 
 	// Summarize the result.
 	if skippedCount.Load() > 0 {
-		fmt.Printf("Number of skipped tests: %d", skippedCount.Load())
+		fmt.Printf("Number of skipped tests: %d\n", skippedCount.Load())
 	}
 
 	if len(issues) == 0 {

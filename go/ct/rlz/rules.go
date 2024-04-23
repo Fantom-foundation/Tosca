@@ -45,7 +45,7 @@ func (rule *Rule) GenerateSatisfyingState(rnd *rand.Rand) (*st.State, error) {
 // process fails due to an unexpected internal state generation error.
 func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) ConsumerResult) error {
 	var enumError error
-	rule.Condition.EnumerateTestCases(gen.NewStateGenerator(), func(generator *gen.StateGenerator) ConsumerResult {
+	enumerateTestCases(rule.Condition, gen.NewStateGenerator(), func(generator *gen.StateGenerator) ConsumerResult {
 		state, err := generator.Generate(rnd)
 		if errors.Is(err, gen.ErrUnsatisfiable) {
 			return ConsumeContinue // ignored
@@ -88,14 +88,19 @@ func (r *Rule) GetTestCaseEnumerationInfo() TestCaseEnumerationInfo {
 	res := TestCaseEnumerationInfo{}
 	conditions := getConditions(r.Condition)
 	for _, condition := range conditions {
-		if res.conditionDomainSizes == nil {
-			res.conditionDomainSizes = make(map[string]int)
+		res.conditions = append(res.conditions, condition.String())
+	}
+	res.propertyDomains = make(map[Property][]string)
+	for property, domain := range getPropertyTestValues(r.Condition) {
+		list := make([]string, 0, len(domain))
+		for _, cur := range domain {
+			list = append(list, cur.String())
 		}
-		res.conditionDomainSizes[condition.String()] = estimateTestDomainSize(condition)
+		res.propertyDomains[property] = list
 	}
 	res.parameterDomainSizes = make([]int, 0, len(r.Parameter))
 	for _, parameter := range r.Parameter {
-		res.parameterDomainSizes = append(res.parameterDomainSizes, len(parameter.Samples()))
+		res.parameterDomainSizes = append(res.parameterDomainSizes, len(parameter.Samples())+1)
 	}
 	return res
 }
@@ -115,25 +120,16 @@ func getConditions(condition Condition) []Condition {
 	return res
 }
 
-func estimateTestDomainSize(condition Condition) int {
-	counter := 0
-	generator := gen.NewStateGenerator()
-	condition.EnumerateTestCases(generator, func(*gen.StateGenerator) ConsumerResult {
-		counter++
-		return ConsumeContinue
-	})
-	return counter
-}
-
 type TestCaseEnumerationInfo struct {
-	conditionDomainSizes map[string]int
+	conditions           []string
+	propertyDomains      map[Property][]string
 	parameterDomainSizes []int
 }
 
 func (i *TestCaseEnumerationInfo) TotalNumberOfCases() int {
 	res := 1
-	for _, size := range i.conditionDomainSizes {
-		res *= size
+	for _, domain := range i.propertyDomains {
+		res *= len(domain)
 	}
 	for _, size := range i.parameterDomainSizes {
 		res *= size
@@ -144,12 +140,25 @@ func (i *TestCaseEnumerationInfo) TotalNumberOfCases() int {
 func (i *TestCaseEnumerationInfo) String() string {
 	builder := strings.Builder{}
 	builder.WriteString("Conditions:\n")
-	keys := maps.Keys(i.conditionDomainSizes)
+	slices.Sort(i.conditions)
+	for _, condition := range i.conditions {
+		builder.WriteString(fmt.Sprintf("\t%s\n", condition))
+	}
+	if len(i.conditions) == 0 {
+		builder.WriteString("\t-none-\n")
+	}
+	builder.WriteString("Domains:\n")
+	keys := maps.Keys(i.propertyDomains)
 	slices.Sort(keys)
 	for _, key := range keys {
-		builder.WriteString(fmt.Sprintf("\t%s: %d\n", key, i.conditionDomainSizes[key]))
+		builder.WriteString(fmt.Sprintf(
+			"\t%s: N=%d, {%s}\n",
+			key,
+			len(i.propertyDomains[key]),
+			strings.Join(i.propertyDomains[key], ", "),
+		))
 	}
-	if len(i.conditionDomainSizes) == 0 {
+	if len(i.propertyDomains) == 0 {
 		builder.WriteString("\t-none-\n")
 	}
 	builder.WriteString("Parameters:\n")
