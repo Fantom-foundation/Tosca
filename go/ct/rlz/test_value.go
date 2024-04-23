@@ -115,7 +115,7 @@ type testValue[T any] struct {
 	value    T
 }
 
-func newTestValue[T any](
+func NewTestValue[T any](
 	property Property,
 	domain Domain[T],
 	value T,

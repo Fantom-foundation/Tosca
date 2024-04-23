@@ -135,7 +135,7 @@ func (e *eq[T]) GetTestValues() []TestValue {
 	}
 	res := []TestValue{}
 	for _, value := range domain.Samples(e.rhs) {
-		res = append(res, newTestValue(property, domain, value, restrict))
+		res = append(res, NewTestValue(property, domain, value, restrict))
 	}
 	return res
 }
@@ -348,7 +348,7 @@ func (e *revisionBounds) GetTestValues() []TestValue {
 	}
 	res := []TestValue{}
 	for r := Revision(0); r <= R99_UnknownNextRevision; r++ {
-		res = append(res, newTestValue(property, domain, r, restrict))
+		res = append(res, NewTestValue(property, domain, r, restrict))
 	}
 	return res
 }
@@ -401,8 +401,8 @@ func (c *isCode) GetTestValues() []TestValue {
 		}
 	}
 	return []TestValue{
-		newTestValue(property, domain, true, restrict),
-		newTestValue(property, domain, false, restrict),
+		NewTestValue(property, domain, true, restrict),
+		NewTestValue(property, domain, false, restrict),
 	}
 }
 
@@ -484,8 +484,8 @@ func (c *isStorageWarm) GetTestValues() []TestValue {
 		}
 	}
 	return []TestValue{
-		newTestValue(property, domain, true, restrict),
-		newTestValue(property, domain, false, restrict),
+		NewTestValue(property, domain, true, restrict),
+		NewTestValue(property, domain, false, restrict),
 	}
 }
 
@@ -569,7 +569,7 @@ func (c *storageConfiguration) GetTestValues() []TestValue {
 	restrict := func(generator *gen.StateGenerator, _ bool) {
 		c.Restrict(generator)
 	}
-	return []TestValue{newTestValue(property, domain, true, restrict)}
+	return []TestValue{NewTestValue(property, domain, true, restrict)}
 }
 
 func (c *storageConfiguration) String() string {
@@ -614,8 +614,8 @@ func (c *isAddressWarm) GetTestValues() []TestValue {
 		}
 	}
 	return []TestValue{
-		newTestValue(property, domain, true, restrict),
-		newTestValue(property, domain, false, restrict),
+		NewTestValue(property, domain, true, restrict),
+		NewTestValue(property, domain, false, restrict),
 	}
 }
 

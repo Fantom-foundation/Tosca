@@ -54,7 +54,7 @@ func TestRemoveDuplicates_CanSuccessfullyRemoveDuplicates(t *testing.T) {
 
 			input := []TestValue{}
 			for _, cur := range list {
-				input = append(input, newTestValue(Property("X"), uint16Domain{}, cur, nil))
+				input = append(input, NewTestValue(Property("X"), uint16Domain{}, cur, nil))
 			}
 			output := removeDuplicates(slices.Clone(input))
 
@@ -82,7 +82,7 @@ func TestRemoveDuplicates_CanSuccessfullyRemoveDuplicates(t *testing.T) {
 
 func TestTestValue_Compare(t *testing.T) {
 	newValue := func(property string, value uint16) TestValue {
-		return newTestValue(Property(property), uint16Domain{}, value, nil)
+		return NewTestValue(Property(property), uint16Domain{}, value, nil)
 	}
 	tests := []struct {
 		a, b   TestValue
