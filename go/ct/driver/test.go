@@ -110,8 +110,8 @@ func doTest(context *cli.Context) error {
 	}
 
 	fmt.Printf("Testing Conformance Tests with seed %d ...\n", seed)
-
-	err = forEachState(opTest, printIssueCounts, jobCount, seed, fullMode, filter)
+	rules := spc.FilterRules(spc.Spec.GetRules(), filter)
+	err = spc.ForEachState(rules, opTest, printIssueCounts, jobCount, seed, fullMode)
 	if err != nil {
 		return fmt.Errorf("error generating States: %w", err)
 	}
