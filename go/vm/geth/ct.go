@@ -57,7 +57,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	evm, contract, stateDb := createGethInterpreterContext(parameters)
 	stateDb.refund = uint64(state.GasRefund)
 
-	evm.CallContext = &callInterceptor{parameters.Context, stateDb}
+	evm.CallContext = &callInterceptor{parameters.Context, stateDb, state.ReadOnly}
 
 	interpreterState := geth_vm.NewGethState(
 		contract,
@@ -165,6 +165,7 @@ func convertGethStackToCtStack(state *geth_vm.GethState) *st.Stack {
 type callInterceptor struct {
 	context vm.RunContext
 	stateDb *stateDbAdapter
+	static  bool
 }
 
 func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64, value *big.Int) ([]byte, uint64, error) {
@@ -173,9 +174,14 @@ func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr ge
 		return nil, gas, geth_vm.ErrInsufficientBalance
 	}
 
+	kind := vm.Call
+	if i.static {
+		kind = vm.StaticCall
+	}
+
 	var vmValue vm.Value
 	value.FillBytes(vmValue[:])
-	res, _ := i.context.Call(vm.Call, vm.CallParameter{
+	res, _ := i.context.Call(kind, vm.CallParameter{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
 		Value:     vmValue,
