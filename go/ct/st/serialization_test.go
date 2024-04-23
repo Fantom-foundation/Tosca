@@ -20,6 +20,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
+	"golang.org/x/exp/maps"
 )
 
 ////////////////////////////////////////////////////////////
@@ -198,8 +199,6 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 	serializableState.LastCallReturnData = NewBytes([]byte{6})
 	delete(serializableState.HasSelfDestructed, vm.Address{0x01})
 
-	_, hasSelfDestructed := s.HasSelfDestructed[vm.Address{0x01}]
-
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
 		s.ReadOnly &&
@@ -227,7 +226,7 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.CallData.Get(0, 1)[0] == 1 &&
 		s.LastCallReturnData.Length() == 1 &&
 		s.LastCallReturnData.Get(0, 1)[0] == 1 &&
-		hasSelfDestructed
+		maps.Equal(s.HasSelfDestructed, map[vm.Address]struct{}{{0x01}: {}})
 
 	if !ok {
 		t.Errorf("new serializable state is not independent")
@@ -261,8 +260,6 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.LastCallReturnData = NewBytes([]byte{6})
 	delete(deserializedState.HasSelfDestructed, vm.Address{0x01})
 
-	_, hasSelfDestructed := s.HasSelfDestructed[vm.Address{0x01}]
-
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
 		s.ReadOnly &&
@@ -290,7 +287,8 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 		s.CallData.ToBytes()[0] == 1 &&
 		s.LastCallReturnData.Length() == 1 &&
 		s.LastCallReturnData.ToBytes()[0] == 1 &&
-		hasSelfDestructed
+		maps.Equal(s.HasSelfDestructed, map[vm.Address]struct{}{{0x01}: {}})
+
 	if !ok {
 		t.Errorf("deserialized state is not independent")
 	}

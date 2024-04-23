@@ -399,6 +399,8 @@ func ContractAccount() BindableExpression[vm.Address] {
 	return contractAccount{}
 }
 
+func (contractAccount) Property() Property { return Property("contractAccount") }
+
 func (contractAccount) Domain() Domain[vm.Address] { return addressDomain{} }
 
 func (contractAccount) Eval(s *st.State) (vm.Address, error) {
@@ -406,7 +408,7 @@ func (contractAccount) Eval(s *st.State) (vm.Address, error) {
 }
 
 func (contractAccount) Restrict(kind RestrictionKind, addr vm.Address, generator *gen.StateGenerator) {
-	panic("not implemented")
+	// this expression does not need to be restricted.
 }
 
 func (contractAccount) String() string {
@@ -418,5 +420,5 @@ func (contractAccount) GetVariable() gen.Variable {
 }
 
 func (e contractAccount) BindTo(generator *gen.StateGenerator) {
-	panic("not implemented")
+	// this expression does not need to be binded.
 }

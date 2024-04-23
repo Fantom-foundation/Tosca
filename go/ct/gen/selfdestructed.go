@@ -23,12 +23,12 @@ import (
 	"pgregory.net/rand"
 )
 
-type SelfDestructedConstraint struct {
+type selfDestructedConstraint struct {
 	address   Variable
 	destroyed bool
 }
 
-func (a *SelfDestructedConstraint) Less(b *SelfDestructedConstraint) bool {
+func (a *selfDestructedConstraint) Less(b *selfDestructedConstraint) bool {
 	if a.address != b.address {
 		return a.address < b.address
 	}
@@ -36,7 +36,7 @@ func (a *SelfDestructedConstraint) Less(b *SelfDestructedConstraint) bool {
 }
 
 type SelfDestructedGenerator struct {
-	hasSelfDestructed []SelfDestructedConstraint
+	hasSelfDestructed []selfDestructedConstraint
 }
 
 func NewSelfDestructedGenerator() *SelfDestructedGenerator {
@@ -57,14 +57,15 @@ func (g *SelfDestructedGenerator) Restore(other *SelfDestructedGenerator) {
 }
 
 func (g *SelfDestructedGenerator) BindHasSelfDestructed(address Variable) {
-	v := SelfDestructedConstraint{address, true}
+	v := selfDestructedConstraint{address, true}
 	if !slices.Contains(g.hasSelfDestructed, v) {
 		g.hasSelfDestructed = append(g.hasSelfDestructed, v)
 	}
+
 }
 
 func (g *SelfDestructedGenerator) BindHasNotSelfDestructed(address Variable) {
-	v := SelfDestructedConstraint{address, false}
+	v := selfDestructedConstraint{address, false}
 	if !slices.Contains(g.hasSelfDestructed, v) {
 		g.hasSelfDestructed = append(g.hasSelfDestructed, v)
 	}
@@ -78,7 +79,7 @@ func (g *SelfDestructedGenerator) String() string {
 		if con.destroyed {
 			parts = append(parts, fmt.Sprintf("destructed(%v)", con.address))
 		} else {
-			parts = append(parts, fmt.Sprintf("notdestructed(%v)", con.address))
+			parts = append(parts, fmt.Sprintf("notDestructed(%v)", con.address))
 		}
 	}
 
@@ -91,7 +92,7 @@ func (g *SelfDestructedGenerator) Generate(assignment Assignment, rnd *rand.Rand
 	for i := 0; i < len(g.hasSelfDestructed)-1; i++ {
 		a, b := g.hasSelfDestructed[i], g.hasSelfDestructed[i+1]
 		if a.address == b.address && a.destroyed != b.destroyed {
-			return nil, fmt.Errorf("%w, address %v conflicting has/has not selfdestructed constraints", ErrUnsatisfiable, a.address)
+			return nil, fmt.Errorf("%w, address %v has conflicting selfdestructed constraints", ErrUnsatisfiable, a.address)
 		}
 	}
 

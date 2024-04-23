@@ -365,7 +365,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"callContext={}",
 		"callJournal={}",
 		"blockContext={}",
-		"selfdestruct={notdestructed($y)}",
+		"selfdestruct={notDestructed($y)}",
 	})
 }
 

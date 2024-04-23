@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"maps"
 	"regexp"
+	"sort"
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -172,7 +173,7 @@ func (s *State) Clone() *State {
 	clone.CallData = s.CallData
 	clone.LastCallReturnData = s.LastCallReturnData
 	clone.ReturnData = s.ReturnData
-	clone.HasSelfDestructed = s.HasSelfDestructed
+	clone.HasSelfDestructed = maps.Clone(s.HasSelfDestructed)
 	return clone
 }
 
@@ -326,7 +327,22 @@ func (s *State) String() string {
 		write("\tReturnData: %x\n", s.ReturnData)
 	}
 
-	write("\tHasSelfDestructed: %v\n", s.HasSelfDestructed)
+	var addrs []vm.Address
+	for addr := range s.HasSelfDestructed {
+		addrs = append(addrs, addr)
+	}
+	sort.Slice(addrs, func(i, j int) bool {
+		for k := 0; i < len(addrs[i]); i++ {
+			if addrs[i][k] < addrs[j][k] {
+				return true
+			}
+		}
+		return false
+	})
+	write("\tHasSelfDestructed: \n")
+	for addr := range addrs {
+		write("\t    %v\n", addr)
+	}
 
 	write("}")
 	return builder.String()
@@ -411,9 +427,9 @@ func (s *State) Diff(o *State) []string {
 		for key, valueA := range s.HasSelfDestructed {
 			valueB, contained := o.HasSelfDestructed[key]
 			if !contained {
-				res = append(res, fmt.Sprintf("Different hasselfdestructed entry:\n\t[%v]=%v\n\tvs\n\tmissing", key, valueA))
+				res = append(res, fmt.Sprintf("Different has-self-destructed entry:\n\t[%v]=%v\n\tvs\n\tmissing", key, valueA))
 			} else if valueA != valueB {
-				res = append(res, fmt.Sprintf("Different hasselfdestructed entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", key, valueA, key, valueB))
+				res = append(res, fmt.Sprintf("Different has-self-destructed entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", key, valueA, key, valueB))
 			}
 		}
 	}

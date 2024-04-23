@@ -669,11 +669,11 @@ func HasSelfDestructed(addr BindableExpression[vm.Address]) Condition {
 }
 
 func (c *hasSelfDestructed) Check(s *st.State) (bool, error) {
-	addr, err := c.key.Eval(s)
+	key, err := c.key.Eval(s)
 	if err != nil {
 		return false, err
 	}
-	_, ok := s.HasSelfDestructed[addr]
+	_, ok := s.HasSelfDestructed[key]
 	return ok, nil
 }
 
@@ -683,16 +683,22 @@ func (c *hasSelfDestructed) Restrict(generator *gen.StateGenerator) {
 	generator.SelfDestruct(key)
 }
 
-func (c *hasSelfDestructed) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	positive := generator.Clone()
-	c.Restrict(positive)
-	if consume(positive) == ConsumeAbort {
-		return ConsumeAbort
+func (c *hasSelfDestructed) GetTestValues() []TestValue {
+	property := Property(c.String())
+	domain := boolDomain{}
+	restrict := func(generator *gen.StateGenerator, hasSelfDestructed bool) {
+		key := c.key.GetVariable()
+		c.key.BindTo(generator)
+		if hasSelfDestructed {
+			generator.HasSelfDestructedGen.BindHasSelfDestructed(key)
+		} else {
+			generator.HasSelfDestructedGen.BindHasNotSelfDestructed(key)
+		}
 	}
-
-	negative := generator.Clone()
-	HasSelfDestructed(c.key).Restrict(negative)
-	return consume(negative)
+	return []TestValue{
+		NewTestValue(property, domain, true, restrict),
+		NewTestValue(property, domain, false, restrict),
+	}
 }
 
 func (c *hasSelfDestructed) String() string {
@@ -725,16 +731,22 @@ func (c *hasNotSelfDestructed) Restrict(generator *gen.StateGenerator) {
 	generator.NotSelfDestruct(key)
 }
 
-func (c *hasNotSelfDestructed) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) ConsumerResult) ConsumerResult {
-	positive := generator.Clone()
-	c.Restrict(positive)
-	if consume(positive) == ConsumeAbort {
-		return ConsumeAbort
+func (c *hasNotSelfDestructed) GetTestValues() []TestValue {
+	property := Property(c.String())
+	domain := boolDomain{}
+	restrict := func(generator *gen.StateGenerator, hasSelfDestructed bool) {
+		key := c.key.GetVariable()
+		c.key.BindTo(generator)
+		if hasSelfDestructed {
+			generator.HasSelfDestructedGen.BindHasSelfDestructed(key)
+		} else {
+			generator.HasSelfDestructedGen.BindHasNotSelfDestructed(key)
+		}
 	}
-
-	negative := generator.Clone()
-	HasNotSelfDestructed(c.key).Restrict(negative)
-	return consume(negative)
+	return []TestValue{
+		NewTestValue(property, domain, true, restrict),
+		NewTestValue(property, domain, false, restrict),
+	}
 }
 
 func (c *hasNotSelfDestructed) String() string {

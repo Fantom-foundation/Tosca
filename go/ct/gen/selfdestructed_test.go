@@ -23,7 +23,7 @@ import (
 func TestSelfDestructedGenerator_UnconstrainedGeneratorCanProduceBalance(t *testing.T) {
 	rnd := rand.New(0)
 	generator := NewSelfDestructedGenerator()
-	if _, err := generator.Generate(nil, rnd); err != nil {
+	if _, err := generator.Generate(Assignment{}, rnd); err != nil {
 		t.Errorf("Unexpected error during generation: %v", err)
 	}
 }

@@ -22,6 +22,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
+	"golang.org/x/exp/maps"
 )
 
 func TestState_CloneCreatesEqualState(t *testing.T) {
@@ -107,9 +108,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.BlockContext.TimeStamp = 10
 	clone.CallData = NewBytes([]byte{11})
 	clone.LastCallReturnData = NewBytes([]byte{12})
-	clone.HasSelfDestructed[vm.Address{0x0d}] = struct{}{}
-
-	_, hasSelfDetructed := state.HasSelfDestructed[vm.Address{0xf3}]
+	delete(clone.HasSelfDestructed, vm.Address{0xf3})
 
 	ok := state.Status == Stopped &&
 		state.Revision == R10_London &&
@@ -137,7 +136,7 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.BlockContext.TimeStamp == 246 &&
 		state.CallData.Get(0, 1)[0] == 245 &&
 		state.LastCallReturnData.Get(0, 1)[0] == 244 &&
-		hasSelfDetructed
+		maps.Equal(state.HasSelfDestructed, map[vm.Address]struct{}{{0xf3}: {}})
 
 	if !ok {
 		t.Errorf("clone is not independent")
@@ -569,7 +568,7 @@ func TestState_DiffMismatch(t *testing.T) {
 		"Different block context",
 		"Different call data",
 		"Different last call return data",
-		"Different hasselfdestructed entry",
+		"Different has-self-destructed entry",
 	}
 
 	if len(diffs) != len(expectedDiffs) {

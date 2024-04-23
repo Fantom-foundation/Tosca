@@ -1405,7 +1405,7 @@ func getAllRules() []Rule {
 			AddressParameter{},
 		},
 		effect: func(s *st.State) {
-			selfDestructEffectWarm(s, vm.Gas(2600), vm.Gas(0), vm.Gas(24000))
+			selfDestructEffect(s, vm.Gas(2600), vm.Gas(0), vm.Gas(24000))
 		},
 	})...)
 
@@ -1425,7 +1425,7 @@ func getAllRules() []Rule {
 			AddressParameter{},
 		},
 		effect: func(s *st.State) {
-			selfDestructEffectWarm(s, vm.Gas(0), vm.Gas(0), vm.Gas(24000))
+			selfDestructEffect(s, vm.Gas(0), vm.Gas(0), vm.Gas(24000))
 		},
 	})...)
 
@@ -1449,20 +1449,16 @@ func getAllRules() []Rule {
 		},
 	})...)
 
-	rules = append(rules, Rule{
-		Name: "selfdestruct_staticcall",
-		Condition: And(
+	rules = append(rules, rulesFor(instruction{
+		op:        SELFDESTRUCT,
+		name:      "selfdestruct_staticcall",
+		staticGas: 5000,
+		conditions: []Condition{
 			Eq(ReadOnly(), true),
 			AnyKnownRevision(),
-			Eq(Status(), st.Running),
-			Eq(Op(Pc()), SELFDESTRUCT),
-			Ge(Gas(), 5000),
-		),
-		Parameter: []Parameter{
-			AddressParameter{},
 		},
-		Effect: FailEffect(),
-	})
+		effect: FailEffect().Apply,
+	})...)
 
 	// --- End ---
 
@@ -1827,7 +1823,7 @@ func logOp(n int) []Rule {
 	return rules
 }
 
-func selfDestructEffect(s *st.State, destinationColdCost, dynamicGas, refoundGas vm.Gas) {
+func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, refundGas vm.Gas) {
 	// Behavior pre cancun: the current account is registered to be destroyed, and will be at the end of the current
 	// transaction. The transfer of the current balance to the given account cannot fail. In particular,
 	// the destination account code (if any) is not executed, or, if the account does not exist, the
@@ -1838,11 +1834,9 @@ func selfDestructEffect(s *st.State, destinationColdCost, dynamicGas, refoundGas
 	currentAccount := s.CallContext.AccountAddress
 	CurrentBalance := s.Accounts.GetBalance(currentAccount)
 
-	// If a positive balance is sent to an empty account, the dynamic gas is 25000. Otherwise there is
-	// no additional cost. An account is empty if its balance is 0, its nonce is 0 and it has no code.
 	dynamicCost := vm.Gas(0)
 	if !CurrentBalance.IsZero() && !s.Accounts.Exist(destinationAccount) {
-		dynamicCost += dynamicGas
+		dynamicCost += accountCreationFee
 	}
 
 	dynamicCost += destinationColdCost
@@ -1852,48 +1846,16 @@ func selfDestructEffect(s *st.State, destinationColdCost, dynamicGas, refoundGas
 		return
 	}
 	s.Gas -= dynamicCost
+	if s.Revision > R07_Istanbul {
+		s.Accounts.MarkWarm(destinationAccount)
+	}
 	s.Status = st.Stopped
 
 	// PC should not increase, but rulesFor does it for all regular cases, so we counter it here.
 	s.Pc--
 
 	s.ReturnData = s.LastCallReturnData
-	s.GasRefund += refoundGas
-}
-
-func selfDestructEffectWarm(s *st.State, destinationColdCost, dynamicGas, refoundGas vm.Gas) {
-	// Behavior pre cancun: the current account is registered to be destroyed, and will be at the end of the current
-	// transaction. The transfer of the current balance to the given account cannot fail. In particular,
-	// the destination account code (if any) is not executed, or, if the account does not exist, the
-	// balance is still added to the given address.
-
-	// account to send the current balance to
-	destinationAccount := s.Stack.Pop().Bytes20be()
-	currentAccount := s.CallContext.AccountAddress
-	CurrentBalance := s.Accounts.GetBalance(currentAccount)
-
-	// If a positive balance is sent to an empty account, the dynamic gas is 25000. Otherwise there is
-	// no additional cost. An account is empty if its balance is 0, its nonce is 0 and it has no code.
-	dynamicCost := vm.Gas(0)
-	if !CurrentBalance.IsZero() && !s.Accounts.Exist(destinationAccount) {
-		dynamicCost += dynamicGas
-	}
-
-	dynamicCost += destinationColdCost
-
-	if s.Gas < dynamicCost {
-		s.Status = st.Failed
-		return
-	}
-	s.Gas -= dynamicCost
-	s.Accounts.MarkWarm(destinationAccount)
-	s.Status = st.Stopped
-
-	// PC should not increase, but rulesFor does it for all regular cases, so we counter it here.
-	s.Pc--
-
-	s.ReturnData = s.LastCallReturnData
-	s.GasRefund += refoundGas
+	s.GasRefund += refundGas
 }
 
 func tooLittleGas(i instruction) []Rule {
