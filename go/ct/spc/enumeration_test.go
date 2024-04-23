@@ -44,16 +44,15 @@ func (e testCondition) Check(s *st.State) (bool, error) {
 func (e testCondition) Restrict(generator *gen.StateGenerator) {
 }
 
-// the test condition produces exactly one test state per rule
-func (e testCondition) EnumerateTestCases(generator *gen.StateGenerator, consume func(*gen.StateGenerator) rlz.ConsumerResult) rlz.ConsumerResult {
+// GetTestValues produces test values for the specified number of test states.
+func (e testCondition) GetTestValues() []rlz.TestValue {
+	res := []rlz.TestValue{}
+	property := rlz.Property("test")
+	domain := rlz.StackSize().Domain()
 	for i := 0; i < e.numStates; i++ {
-		g := generator.Clone()
-		res := consume(g)
-		if res == rlz.ConsumeAbort {
-			return rlz.ConsumeAbort
-		}
+		res = append(res, rlz.NewTestValue(property, domain, i, func(*gen.StateGenerator, int) {}))
 	}
-	return rlz.ConsumeContinue
+	return res
 }
 
 func (e testCondition) String() string {
