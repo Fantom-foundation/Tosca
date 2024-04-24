@@ -57,10 +57,6 @@ func NewStackWithSize(size int) *Stack {
 	return stack
 }
 
-func (s *Stack) Release() {
-	stackPool.Put(s)
-}
-
 // Clone creates an independent copy of the stack.
 func (s *Stack) Clone() *Stack {
 	clone := stackPool.Get().(*Stack)
@@ -71,6 +67,17 @@ func (s *Stack) Clone() *Stack {
 	}
 	copy(clone.stack, s.stack)
 	return clone
+}
+
+func (s *Stack) Release() {
+	stackPool.Put(s)
+}
+
+func (s *Stack) Resize(size int) {
+	if MaxStackSize < size {
+		panic("Warning: maximal stack size exceeded")
+	}
+	s.stack = s.stack[:size]
 }
 
 // Size returns the number of elements on the stack.

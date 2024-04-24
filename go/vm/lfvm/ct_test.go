@@ -356,7 +356,8 @@ func TestConvertToCt_Stack(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
 				want := cur.ctStack
-				got := convertLfvmStackToCtStack(cur.lfvmStack)
+				ctStack := st.NewStack()
+				got := convertLfvmStackToCtStack(cur.lfvmStack, ctStack)
 
 				diffs := got.Diff(want)
 
@@ -373,7 +374,8 @@ func BenchmarkLfvmStackToCtStack(b *testing.B) {
 	for i := 0; i < MAX_STACK_SIZE/2; i++ {
 		stack.pushEmpty().SetUint64(uint64(i))
 	}
+	ctStack := st.NewStack()
 	for i := 0; i < b.N; i++ {
-		convertLfvmStackToCtStack(stack)
+		convertLfvmStackToCtStack(stack, ctStack)
 	}
 }

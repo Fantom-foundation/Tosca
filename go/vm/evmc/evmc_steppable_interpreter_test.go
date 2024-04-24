@@ -238,7 +238,8 @@ func TestConvertToCt_Stack(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				ctStack, err := convertEvmcStackToCtStack(cur.evmcStack)
+				ctStack := st.NewStack()
+				ctStack, err := convertEvmcStackToCtStack(cur.evmcStack, ctStack)
 
 				if cur.convertSuccess && err != nil {
 					t.Fatalf("unexpected conversion error: %v", err)

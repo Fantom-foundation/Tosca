@@ -773,6 +773,7 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 
 func TestState_RecycledMembers(t *testing.T) {
 	state := NewState(NewCode([]byte{byte(INVALID)}))
+	state.Stack = NewStack()
 
 	if state.Stack == nil {
 		t.Error("No stack was returned from stack pool")

@@ -116,7 +116,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	state.Gas = ctxt.gas
 	state.GasRefund = ctxt.refund
-	state.Stack = convertLfvmStackToCtStack(ctxt.stack)
+	state.Stack = convertLfvmStackToCtStack(ctxt.stack, state.Stack)
 	state.Memory = convertLfvmMemoryToCtMemory(ctxt.memory)
 	state.ReturnData = common.NewBytes(result)
 	state.LastCallReturnData = common.NewBytes(ctxt.return_data)
@@ -180,13 +180,12 @@ func convertCtStackToLfvmStack(stack *st.Stack) *Stack {
 		val := stack.Get(i).Uint256()
 		result.push(&val)
 	}
-	stack.Release()
 	return result
 }
 
-func convertLfvmStackToCtStack(stack *Stack) *st.Stack {
+func convertLfvmStackToCtStack(stack *Stack, result *st.Stack) *st.Stack {
 	len := stack.len()
-	result := st.NewStackWithSize(len)
+	result.Resize(len)
 	for i := 0; i < len; i++ {
 		result.Set(len-i-1, common.NewU256FromUint256(&stack.Data()[i]))
 	}
