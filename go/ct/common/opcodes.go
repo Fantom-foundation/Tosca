@@ -468,7 +468,7 @@ func (op OpCode) String() string {
 	case INVALID:
 		return "INVALID"
 	case SELFDESTRUCT:
-		return "SEFLDESTRUCT"
+		return "SELFDESTRUCT"
 	default:
 		return fmt.Sprintf("op(%d)", op)
 	}

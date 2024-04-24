@@ -20,7 +20,6 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
-	"golang.org/x/exp/maps"
 )
 
 ////////////////////////////////////////////////////////////
@@ -50,7 +49,8 @@ func getNewFilledState() *State {
 	s.BlockContext = BlockContext{BlockNumber: 1}
 	s.CallData = NewBytes([]byte{1})
 	s.LastCallReturnData = NewBytes([]byte{1})
-	s.HasSelfDestructed[vm.Address{0x01}] = struct{}{}
+	s.HasSelfDestructed = true
+	s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{1}, vm.Value{2}}}
 	return s
 }
 
@@ -197,7 +197,8 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 	serializableState.BlockContext.BlockNumber = 42
 	serializableState.CallData = NewBytes([]byte{4})
 	serializableState.LastCallReturnData = NewBytes([]byte{6})
-	delete(serializableState.HasSelfDestructed, vm.Address{0x01})
+	serializableState.HasSelfDestructed = false
+	serializableState.SelfDestructedJournal = []SelfDestructEntry{}
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -226,7 +227,8 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.CallData.Get(0, 1)[0] == 1 &&
 		s.LastCallReturnData.Length() == 1 &&
 		s.LastCallReturnData.Get(0, 1)[0] == 1 &&
-		maps.Equal(s.HasSelfDestructed, map[vm.Address]struct{}{{0x01}: {}})
+		s.HasSelfDestructed &&
+		len(s.SelfDestructedJournal) == 1
 
 	if !ok {
 		t.Errorf("new serializable state is not independent")
@@ -258,7 +260,8 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.BlockContext.BlockNumber = 42
 	deserializedState.CallData = NewBytes([]byte{4})
 	deserializedState.LastCallReturnData = NewBytes([]byte{6})
-	delete(deserializedState.HasSelfDestructed, vm.Address{0x01})
+	deserializedState.HasSelfDestructed = false
+	deserializedState.SelfDestructedJournal = []SelfDestructEntry{}
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -287,7 +290,8 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 		s.CallData.ToBytes()[0] == 1 &&
 		s.LastCallReturnData.Length() == 1 &&
 		s.LastCallReturnData.ToBytes()[0] == 1 &&
-		maps.Equal(s.HasSelfDestructed, map[vm.Address]struct{}{{0x01}: {}})
+		s.HasSelfDestructed &&
+		len(s.SelfDestructedJournal) == 1
 
 	if !ok {
 		t.Errorf("deserialized state is not independent")

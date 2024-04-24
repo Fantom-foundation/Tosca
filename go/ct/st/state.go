@@ -13,11 +13,11 @@
 package st
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"maps"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -47,6 +47,49 @@ const (
 	Failed                           // failed (for any reason)
 	NumStatusCodes                   // not an actual status
 )
+
+type SelfDestructEntry struct {
+	account    vm.Address
+	oldBalance vm.Value
+}
+
+func NewSelfDestructEntry(acc vm.Address, bal vm.Value) SelfDestructEntry {
+	return SelfDestructEntry{account: acc, oldBalance: bal}
+}
+
+func (s SelfDestructEntry) String() string {
+	return fmt.Sprintf("account: %v, oldBalance: %v", s.account, s.oldBalance)
+}
+
+func (s SelfDestructEntry) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+func (s *SelfDestructEntry) UnmarshalJSON(data []byte) error {
+	var entryString string
+	err := json.Unmarshal(data, &entryString)
+	if err != nil {
+		return err
+	}
+
+	reg := regexp.MustCompile(`[(account)|(oldBalance)]: 0[xX][0-9a-fA-F]+`)
+	matches := reg.FindAllString(entryString, -1)
+
+	var acc, bal []byte
+	acc, err = hex.DecodeString(matches[0][5:])
+	if err != nil {
+		fmt.Println(err)
+	}
+	bal, err = hex.DecodeString(matches[1][5:])
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	s.account = vm.Address(acc)
+	s.oldBalance = vm.Value(bal)
+
+	return nil
+}
 
 func (s StatusCode) String() string {
 	switch s {
@@ -108,42 +151,43 @@ type Releaser interface {
 
 // State represents an EVM's execution state.
 type State struct {
-	Status             StatusCode
-	Revision           Revision
-	ReadOnly           bool
-	Pc                 uint16
-	Gas                vm.Gas
-	GasRefund          vm.Gas
-	Code               *Code
-	Stack              *Stack
-	Memory             *Memory
-	Storage            *Storage
-	Accounts           *Accounts
-	Logs               *Logs
-	CallContext        CallContext
-	CallJournal        *CallJournal
-	BlockContext       BlockContext
-	CallData           Bytes
-	LastCallReturnData Bytes
-	ReturnData         Bytes
-	HasSelfDestructed  map[vm.Address]struct{}
+	Status                StatusCode
+	Revision              Revision
+	ReadOnly              bool
+	Pc                    uint16
+	Gas                   vm.Gas
+	GasRefund             vm.Gas
+	Code                  *Code
+	Stack                 *Stack
+	Memory                *Memory
+	Storage               *Storage
+	Accounts              *Accounts
+	Logs                  *Logs
+	CallContext           CallContext
+	CallJournal           *CallJournal
+	BlockContext          BlockContext
+	CallData              Bytes
+	LastCallReturnData    Bytes
+	ReturnData            Bytes
+	HasSelfDestructed     bool
+	SelfDestructedJournal []SelfDestructEntry
 }
 
 // NewState creates a new State instance with the given code.
 func NewState(code *Code) *State {
 	return &State{
-		Status:             Running,
-		Revision:           R07_Istanbul,
-		Code:               code,
-		Stack:              &Stack{},
-		Memory:             NewMemory(),
-		Storage:            &Storage{},
-		Accounts:           NewAccounts(),
-		Logs:               NewLogs(),
-		CallJournal:        NewCallJournal(),
-		CallData:           Bytes{},
-		LastCallReturnData: Bytes{},
-		HasSelfDestructed:  make(map[vm.Address]struct{}),
+		Status:                Running,
+		Revision:              R07_Istanbul,
+		Code:                  code,
+		Stack:                 &Stack{},
+		Memory:                NewMemory(),
+		Storage:               &Storage{},
+		Accounts:              NewAccounts(),
+		Logs:                  NewLogs(),
+		CallJournal:           NewCallJournal(),
+		CallData:              Bytes{},
+		LastCallReturnData:    Bytes{},
+		SelfDestructedJournal: []SelfDestructEntry{},
 	}
 }
 
@@ -173,7 +217,8 @@ func (s *State) Clone() *State {
 	clone.CallData = s.CallData
 	clone.LastCallReturnData = s.LastCallReturnData
 	clone.ReturnData = s.ReturnData
-	clone.HasSelfDestructed = maps.Clone(s.HasSelfDestructed)
+	clone.HasSelfDestructed = s.HasSelfDestructed
+	clone.SelfDestructedJournal = slices.Clone(s.SelfDestructedJournal)
 	return clone
 }
 
@@ -205,7 +250,8 @@ func (s *State) Eq(other *State) bool {
 		s.Storage.Eq(other.Storage) &&
 		s.Accounts.Eq(other.Accounts) &&
 		s.Logs.Eq(other.Logs) &&
-		maps.Equal(s.HasSelfDestructed, other.HasSelfDestructed)
+		s.HasSelfDestructed == other.HasSelfDestructed &&
+		slices.Equal(s.SelfDestructedJournal, other.SelfDestructedJournal)
 
 	// For terminal states, internal state can be ignored, but the result is important.
 	if s.Status != Running {
@@ -327,22 +373,8 @@ func (s *State) String() string {
 		write("\tReturnData: %x\n", s.ReturnData)
 	}
 
-	var addrs []vm.Address
-	for addr := range s.HasSelfDestructed {
-		addrs = append(addrs, addr)
-	}
-	sort.Slice(addrs, func(i, j int) bool {
-		for k := 0; i < len(addrs[i]); i++ {
-			if addrs[i][k] < addrs[j][k] {
-				return true
-			}
-		}
-		return false
-	})
-	write("\tHasSelfDestructed: \n")
-	for addr := range addrs {
-		write("\t    %v\n", addr)
-	}
+	write("\tHasSelfDestructed: %v\n", s.HasSelfDestructed)
+	write("\tSelfDestructedJournal: %v\n", s.SelfDestructedJournal)
 
 	write("}")
 	return builder.String()
@@ -423,13 +455,22 @@ func (s *State) Diff(o *State) []string {
 		res = append(res, fmt.Sprintf("Different return data: %x vs %x", s.ReturnData, o.ReturnData))
 	}
 
-	if !maps.Equal(s.HasSelfDestructed, o.HasSelfDestructed) {
-		for key, valueA := range s.HasSelfDestructed {
-			valueB, contained := o.HasSelfDestructed[key]
+	if s.HasSelfDestructed != o.HasSelfDestructed {
+		res = append(res, fmt.Sprintf("Different has-self-destructed: %v vs %v ", s.HasSelfDestructed, o.HasSelfDestructed))
+	}
+
+	if !slices.Equal(s.SelfDestructedJournal, o.SelfDestructedJournal) {
+		for _, pair := range s.SelfDestructedJournal {
+			contained := slices.Contains(o.SelfDestructedJournal, pair)
+			acc, beneficiary := pair.account, pair.oldBalance
 			if !contained {
-				res = append(res, fmt.Sprintf("Different has-self-destructed entry:\n\t[%v]=%v\n\tvs\n\tmissing", key, valueA))
-			} else if valueA != valueB {
-				res = append(res, fmt.Sprintf("Different has-self-destructed entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", key, valueA, key, valueB))
+				res = append(res, fmt.Sprintf("Different has-self-destructed journal entry:\n\t(%v, %v)\n\tvs\n\tmissing", acc, beneficiary))
+				for _, pair2 := range o.SelfDestructedJournal {
+					acc2, ben2 := pair2.account, pair2.oldBalance
+					if acc2 == acc && beneficiary != ben2 {
+						res = append(res, fmt.Sprintf("Different has-self-destructed journal entry:\n\t(%v, %v)\n\tvs\n\t(%v, %v)", acc, beneficiary, acc2, ben2))
+					}
+				}
 			}
 		}
 	}

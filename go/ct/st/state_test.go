@@ -22,7 +22,6 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
-	"golang.org/x/exp/maps"
 )
 
 func TestState_CloneCreatesEqualState(t *testing.T) {
@@ -49,7 +48,8 @@ func TestState_CloneCreatesEqualState(t *testing.T) {
 	state.BlockContext.TimeStamp = 246
 	state.CallData = NewBytes([]byte{245})
 	state.LastCallReturnData = NewBytes([]byte{244})
-	state.HasSelfDestructed[vm.Address{0xf3}] = struct{}{}
+	state.HasSelfDestructed = true
+	state.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Value{0x01}}}
 
 	clone := state.Clone()
 	if !state.Eq(clone) {
@@ -81,7 +81,8 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	state.BlockContext.TimeStamp = 246
 	state.CallData = NewBytes([]byte{245})
 	state.LastCallReturnData = NewBytes([]byte{244})
-	state.HasSelfDestructed[vm.Address{0xf3}] = struct{}{}
+	state.HasSelfDestructed = true
+	state.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Value{0xf3}}}
 
 	clone := state.Clone()
 	clone.Status = Running
@@ -108,7 +109,8 @@ func TestState_CloneIsIndependent(t *testing.T) {
 	clone.BlockContext.TimeStamp = 10
 	clone.CallData = NewBytes([]byte{11})
 	clone.LastCallReturnData = NewBytes([]byte{12})
-	delete(clone.HasSelfDestructed, vm.Address{0xf3})
+	clone.HasSelfDestructed = false
+	clone.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x0d}, vm.Value{0x0d}}}
 
 	ok := state.Status == Stopped &&
 		state.Revision == R10_London &&
@@ -136,7 +138,8 @@ func TestState_CloneIsIndependent(t *testing.T) {
 		state.BlockContext.TimeStamp == 246 &&
 		state.CallData.Get(0, 1)[0] == 245 &&
 		state.LastCallReturnData.Get(0, 1)[0] == 244 &&
-		maps.Equal(state.HasSelfDestructed, map[vm.Address]struct{}{{0xf3}: {}})
+		state.HasSelfDestructed &&
+		slices.Equal(state.SelfDestructedJournal, []SelfDestructEntry{{vm.Address{0xf3}, vm.Value{0xf3}}})
 
 	if !ok {
 		t.Errorf("clone is not independent")
@@ -248,8 +251,15 @@ func TestState_Eq(t *testing.T) {
 	}
 	s2.LastCallReturnData = s1.LastCallReturnData
 
-	s1.HasSelfDestructed = map[vm.Address]struct{}{{0x01}: {}}
-	s2.HasSelfDestructed = map[vm.Address]struct{}{{0xf8}: {}}
+	s1.HasSelfDestructed = true
+	s2.HasSelfDestructed = false
+	if s1.Eq(s2) {
+		t.Fail()
+	}
+	s2.HasSelfDestructed = s1.HasSelfDestructed
+
+	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Value{0x01}}}
+	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Value{0xf3}}}
 	if s1.Eq(s2) {
 		t.Fail()
 	}
@@ -486,7 +496,8 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.BlockContext = BlockContext{BlockNumber: 1}
 	s1.CallData = NewBytes([]byte{1})
 	s1.LastCallReturnData = NewBytes([]byte{1})
-	s1.HasSelfDestructed[vm.Address{0x01}] = struct{}{}
+	s1.HasSelfDestructed = true
+	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Value{0x01}}}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -502,7 +513,8 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.BlockContext = BlockContext{BlockNumber: 1}
 	s2.CallData = NewBytes([]byte{1})
 	s2.LastCallReturnData = NewBytes([]byte{1})
-	s2.HasSelfDestructed[vm.Address{0x01}] = struct{}{}
+	s2.HasSelfDestructed = true
+	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Value{0x01}}}
 
 	diffs := s1.Diff(s2)
 
@@ -531,7 +543,8 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.BlockContext = BlockContext{BlockNumber: 1}
 	s1.CallData = NewBytes([]byte{1})
 	s1.LastCallReturnData = NewBytes([]byte{1})
-	s1.HasSelfDestructed[vm.Address{0x01}] = struct{}{}
+	s1.HasSelfDestructed = true
+	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Value{0x01}}}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -547,7 +560,8 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.BlockContext = BlockContext{BlockNumber: 251}
 	s2.CallData = NewBytes([]byte{250})
 	s2.LastCallReturnData = NewBytes([]byte{249})
-	s2.HasSelfDestructed[vm.Address{0xf3}] = struct{}{}
+	s2.HasSelfDestructed = false
+	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Value{0xf3}}}
 
 	diffs := s1.Diff(s2)
 
@@ -568,7 +582,8 @@ func TestState_DiffMismatch(t *testing.T) {
 		"Different block context",
 		"Different call data",
 		"Different last call return data",
-		"Different has-self-destructed entry",
+		"Different has-self-destructed",
+		"Different has-self-destructed journal entry",
 	}
 
 	if len(diffs) != len(expectedDiffs) {
@@ -764,7 +779,11 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 			relevantFor: []StatusCode{Stopped, Reverted},
 		},
 		"has_self_destructed": {
-			modify:      func(s *State) { s.HasSelfDestructed = map[vm.Address]struct{}{{0x01}: {}} },
+			modify:      func(s *State) { s.HasSelfDestructed = true },
+			relevantFor: allButFailed,
+		},
+		"has_self_destructed_journal": {
+			modify:      func(s *State) { s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Value{0xf3}}} },
 			relevantFor: allButFailed,
 		},
 	}

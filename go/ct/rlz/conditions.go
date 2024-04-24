@@ -20,7 +20,6 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 // Condition represents a state property.
@@ -661,38 +660,33 @@ func (c *isAddressCold) String() string {
 // Has Address Selfdestructed
 
 type hasSelfDestructed struct {
-	key BindableExpression[vm.Address]
+	isSet bool
 }
 
-func HasSelfDestructed(addr BindableExpression[vm.Address]) Condition {
-	return &hasSelfDestructed{addr}
+func HasSelfDestructed() Condition {
+	return &hasSelfDestructed{true}
 }
 
 func (c *hasSelfDestructed) Check(s *st.State) (bool, error) {
-	key, err := c.key.Eval(s)
-	if err != nil {
-		return false, err
+	if c.isSet {
+		return s.HasSelfDestructed, nil
 	}
-	_, ok := s.HasSelfDestructed[key]
-	return ok, nil
+	return true, nil
+
 }
 
 func (c *hasSelfDestructed) Restrict(generator *gen.StateGenerator) {
-	key := c.key.GetVariable()
-	c.key.BindTo(generator)
-	generator.SelfDestruct(key)
+	generator.SelfDestruct()
 }
 
 func (c *hasSelfDestructed) GetTestValues() []TestValue {
 	property := Property(c.String())
 	domain := boolDomain{}
 	restrict := func(generator *gen.StateGenerator, hasSelfDestructed bool) {
-		key := c.key.GetVariable()
-		c.key.BindTo(generator)
 		if hasSelfDestructed {
-			generator.HasSelfDestructedGen.BindHasSelfDestructed(key)
+			generator.hasSelfDestructedGen.MarkAsSelfDestructed()
 		} else {
-			generator.HasSelfDestructedGen.BindHasNotSelfDestructed(key)
+			generator.hasSelfDestructedGen.MarkAsNotSelfDestructed()
 		}
 	}
 	return []TestValue{
@@ -702,45 +696,39 @@ func (c *hasSelfDestructed) GetTestValues() []TestValue {
 }
 
 func (c *hasSelfDestructed) String() string {
-	return fmt.Sprintf("hasSelfDestructed(%v)", c.key)
+	return fmt.Sprintf("hasSelfDestructed(%v)", c.isSet)
 }
 
 ////////////////////////////////////////////////////////////
 // Has Not Address Selfdestructed
 
 type hasNotSelfDestructed struct {
-	key BindableExpression[vm.Address]
+	isSet bool
 }
 
-func HasNotSelfDestructed(key BindableExpression[vm.Address]) Condition {
-	return &hasNotSelfDestructed{key}
+func HasNotSelfDestructed() Condition {
+	return &hasNotSelfDestructed{true}
 }
 
 func (c *hasNotSelfDestructed) Check(s *st.State) (bool, error) {
-	key, err := c.key.Eval(s)
-	if err != nil {
-		return false, err
+	if c.isSet {
+		return !s.HasSelfDestructed, nil
 	}
-	_, ok := s.HasSelfDestructed[key]
-	return !ok, nil
+	return true, nil
 }
 
 func (c *hasNotSelfDestructed) Restrict(generator *gen.StateGenerator) {
-	key := c.key.GetVariable()
-	c.key.BindTo(generator)
-	generator.NotSelfDestruct(key)
+	generator.NotSelfDestruct()
 }
 
 func (c *hasNotSelfDestructed) GetTestValues() []TestValue {
 	property := Property(c.String())
 	domain := boolDomain{}
 	restrict := func(generator *gen.StateGenerator, hasSelfDestructed bool) {
-		key := c.key.GetVariable()
-		c.key.BindTo(generator)
 		if hasSelfDestructed {
-			generator.HasSelfDestructedGen.BindHasSelfDestructed(key)
+			generator.hasSelfDestructedGen.MarkAsSelfDestructed()
 		} else {
-			generator.HasSelfDestructedGen.BindHasNotSelfDestructed(key)
+			generator.hasSelfDestructedGen.MarkAsNotSelfDestructed()
 		}
 	}
 	return []TestValue{
@@ -750,5 +738,5 @@ func (c *hasNotSelfDestructed) GetTestValues() []TestValue {
 }
 
 func (c *hasNotSelfDestructed) String() string {
-	return fmt.Sprintf("hasNotSelfDestructed(%v)", c.key)
+	return fmt.Sprintf("hasNotSelfDestructed(%v)", c.isSet)
 }

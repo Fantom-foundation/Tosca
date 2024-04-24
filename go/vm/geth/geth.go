@@ -241,7 +241,7 @@ func (s *stateDbAdapter) SetState(addr common.Address, key common.Hash, value co
 }
 
 func (s *stateDbAdapter) Suicide(addr common.Address) bool {
-	// ignored: effect not needed in test environments
+	// s.context.SelfDestruct(vm.Address(addr.Bytes()), conte)
 	return false
 }
 

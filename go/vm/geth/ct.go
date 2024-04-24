@@ -84,6 +84,8 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.Stack = convertGethStackToCtStack(interpreterState, state.Stack)
 	state.Memory = convertGethMemoryToCtMemory(interpreterState)
 	state.LastCallReturnData = common.NewBytes(interpreterState.Result)
+	state.HasSelfDestructed = parameters.Context.HasSelfDestructed(state.CallContext.AccountAddress)
+
 	if state.Status == st.Stopped || state.Status == st.Reverted {
 		// Right now, the interpreter state does not allow to decide whether the
 		// stopped state was reached through a STOP or RETURN instruction. Only

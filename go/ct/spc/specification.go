@@ -1349,6 +1349,9 @@ func getAllRules() []Rule {
 
 	// --- SELFDESTRUCT ---
 
+	// 											revision   warm  destColdCost accCreatFee  refund
+	// rules = append(rules, nonStaticSelfDestOp(R07_Istanbul, false, vm.Gas(0), vm.Gas(25000), vm.Gas(24000))...)
+
 	rules = append(rules, rulesFor(instruction{
 		op:        SELFDESTRUCT,
 		name:      "_istanbul_cold",
@@ -1358,7 +1361,7 @@ func getAllRules() []Rule {
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
 			IsRevision(R07_Istanbul),
-			HasNotSelfDestructed(ContractAccount()),
+			HasNotSelfDestructed(),
 			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1369,6 +1372,8 @@ func getAllRules() []Rule {
 		},
 	})...)
 
+	// 											revision   warm  destColdCost accCreatFee  refund
+	// rules = append(rules, nonStaticSelfDestOp(R07_Istanbul, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
 	rules = append(rules, rulesFor(instruction{
 		op:        SELFDESTRUCT,
 		name:      "_istanbul_warm",
@@ -1378,7 +1383,7 @@ func getAllRules() []Rule {
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
 			IsRevision(R07_Istanbul),
-			HasNotSelfDestructed(ContractAccount()),
+			HasNotSelfDestructed(),
 			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1389,6 +1394,8 @@ func getAllRules() []Rule {
 		},
 	})...)
 
+	// 											revision   warm  destColdCost accCreatFee  refund
+	// rules = append(rules, nonStaticSelfDestOp(R09_Berlin, false, vm.Gas(2600), vm.Gas(0), vm.Gas(24000))...)
 	rules = append(rules, rulesFor(instruction{
 		op:        SELFDESTRUCT,
 		name:      "_berlin_cold",
@@ -1398,7 +1405,7 @@ func getAllRules() []Rule {
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
 			IsRevision(R09_Berlin),
-			HasNotSelfDestructed(ContractAccount()),
+			HasNotSelfDestructed(),
 			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1409,6 +1416,8 @@ func getAllRules() []Rule {
 		},
 	})...)
 
+	// 											revision   warm  destColdCost accCreatFee  refund
+	// rules = append(rules, nonStaticSelfDestOp(R09_Berlin, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
 	rules = append(rules, rulesFor(instruction{
 		op:        SELFDESTRUCT,
 		name:      "_berlin_warm",
@@ -1418,7 +1427,7 @@ func getAllRules() []Rule {
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
 			IsRevision(R09_Berlin),
-			HasNotSelfDestructed(ContractAccount()),
+			HasNotSelfDestructed(),
 			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1429,6 +1438,8 @@ func getAllRules() []Rule {
 		},
 	})...)
 
+	// 											revision   warm  destColdCost accCreatFee  refund
+	// rules = append(rules, nonStaticSelfDestOp(R10_London, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
 	rules = append(rules, rulesFor(instruction{
 		op:        SELFDESTRUCT,
 		name:      "_london",
@@ -1438,7 +1449,7 @@ func getAllRules() []Rule {
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
 			IsRevision(R10_London),
-			HasNotSelfDestructed(ContractAccount()),
+			HasNotSelfDestructed(),
 			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1823,6 +1834,34 @@ func logOp(n int) []Rule {
 	return rules
 }
 
+func nonStaticSelfDestOp(revision Revision, warm bool, destinationColdCost, accountCreationFee, refundGas vm.Gas) []Rule {
+
+	var targetWarm Condition
+	if warm {
+		targetWarm = IsAddressWarm(Param(0))
+	} else {
+		targetWarm = IsAddressCold(Param(0))
+	}
+
+	inst := instruction{
+		op:        SELFDESTRUCT,
+		staticGas: 5000,
+		pops:      1,
+		conditions: []Condition{
+			Eq(ReadOnly(), false),
+			IsRevision(revision),
+			HasNotSelfDestructed(),
+			targetWarm,
+		},
+		parameters: []Parameter{AddressParameter{}},
+		effect: func(s *st.State) {
+			selfDestructEffect(s, destinationColdCost, accountCreationFee, refundGas)
+		},
+	}
+
+	return rulesFor(inst)
+}
+
 func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, refundGas vm.Gas) {
 	// Behavior pre cancun: the current account is registered to be destroyed, and will be at the end of the current
 	// transaction. The transfer of the current balance to the given account cannot fail. In particular,
@@ -1849,6 +1888,9 @@ func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, re
 	if s.Revision > R07_Istanbul {
 		s.Accounts.MarkWarm(destinationAccount)
 	}
+	// add beneficiary to list in state
+	s.HasSelfDestructed = true
+	s.SelfDestructedJournal = append(s.SelfDestructedJournal, st.NewSelfDestructEntry(s.CallContext.AccountAddress, CurrentBalance.Bytes32be()))
 	s.Status = st.Stopped
 
 	// PC should not increase, but rulesFor does it for all regular cases, so we counter it here.

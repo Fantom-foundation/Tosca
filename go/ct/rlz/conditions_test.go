@@ -18,6 +18,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"pgregory.net/rand"
 )
 
 func TestCondition_Check(t *testing.T) {
@@ -245,10 +246,10 @@ func TestCondition_String(t *testing.T) {
 
 func TestCondition_CheckSelfDestructed(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
-	state.CallContext.CallerAddress = NewAddress(NewU256(0x01))
-	state.HasSelfDestructed[state.CallContext.CallerAddress] = struct{}{}
+	state.CallContext.AccountAddress = NewAddress(NewU256(0x01))
+	state.HasSelfDestructed = true
 
-	hasSelfDestructed, err := HasSelfDestructed(ContractAccount()).Check(state)
+	hasSelfDestructed, err := HasSelfDestructed().Check(state)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,13 +257,34 @@ func TestCondition_CheckSelfDestructed(t *testing.T) {
 		t.Fatal("account not set as selfdestructed, when it should be")
 	}
 
-	delete(state.HasSelfDestructed, state.CallContext.CallerAddress)
+	state.HasSelfDestructed = false
 
-	hasNotSelfDestructed, err := HasNotSelfDestructed(ContractAccount()).Check(state)
+	hasNotSelfDestructed, err := HasNotSelfDestructed().Check(state)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !hasNotSelfDestructed {
 		t.Fatal("account set as selfdestructed, when it should not be")
+	}
+}
+
+func TestStateGenerator_HasSelfDestructedCondition(t *testing.T) {
+	condition := HasSelfDestructed()
+
+	gen := gen.NewStateGenerator()
+	condition.Restrict(gen)
+	rnd := rand.New(0)
+	state, err := gen.Generate(rnd)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	got, err := condition.Check(state)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	if !got {
+		t.Error("generated state does not satisfay condition")
 	}
 }

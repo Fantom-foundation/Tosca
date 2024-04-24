@@ -146,7 +146,13 @@ func (c *ctRunContext) Call(kind vm.CallKind, parameter vm.CallParameter) (vm.Ca
 }
 
 func (c *ctRunContext) SelfDestruct(addr vm.Address, beneficiary vm.Address) bool {
-	panic("not implemented")
+	if c.state.HasSelfDestructed {
+		return false
+	}
+	c.state.HasSelfDestructed = true
+	newPair := st.NewSelfDestructEntry(addr, c.GetBalance(addr))
+	c.state.SelfDestructedJournal = append(c.state.SelfDestructedJournal, newPair)
+	return true
 }
 
 func (c *ctRunContext) AccessAccount(addr vm.Address) vm.AccessStatus {
@@ -185,6 +191,5 @@ func (c *ctRunContext) IsSlotInAccessList(addr vm.Address, key vm.Key) (addressP
 }
 
 func (c *ctRunContext) HasSelfDestructed(addr vm.Address) bool {
-	_, ok := c.state.HasSelfDestructed[addr]
-	return ok
+	return c.state.HasSelfDestructed
 }

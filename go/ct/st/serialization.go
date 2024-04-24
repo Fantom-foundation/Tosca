@@ -58,25 +58,26 @@ func ImportStateJSON(filePath string) (*State, error) {
 // stateSerializable is a serializable representation of the State struct.
 // It can be used to serialize and deserialize a State struct.
 type stateSerializable struct {
-	Status             StatusCode
-	Revision           Revision
-	ReadOnly           bool
-	Pc                 uint16
-	Gas                vm.Gas
-	GasRefund          vm.Gas
-	Code               Bytes
-	Stack              []U256
-	Memory             Bytes
-	Storage            *storageSerializable
-	Accounts           *accountsSerializable
-	Logs               *logsSerializable
-	CallContext        CallContext
-	BlockContext       BlockContext
-	CallData           Bytes
-	LastCallReturnData Bytes
-	ReturnData         Bytes
-	CallJournal        *CallJournal
-	HasSelfDestructed  map[vm.Address]struct{}
+	Status                StatusCode
+	Revision              Revision
+	ReadOnly              bool
+	Pc                    uint16
+	Gas                   vm.Gas
+	GasRefund             vm.Gas
+	Code                  Bytes
+	Stack                 []U256
+	Memory                Bytes
+	Storage               *storageSerializable
+	Accounts              *accountsSerializable
+	Logs                  *logsSerializable
+	CallContext           CallContext
+	BlockContext          BlockContext
+	CallData              Bytes
+	LastCallReturnData    Bytes
+	ReturnData            Bytes
+	CallJournal           *CallJournal
+	HasSelfDestructed     bool
+	SelfDestructedJournal []SelfDestructEntry
 }
 
 // storageSerializable is a serializable representation of the Storage struct.
@@ -122,25 +123,26 @@ func (l *logsSerializable) addLog(data Bytes, topics ...U256) {
 // The data of the input state is deep copied.
 func newStateSerializableFromState(state *State) *stateSerializable {
 	return &stateSerializable{
-		Status:             state.Status,
-		Revision:           state.Revision,
-		ReadOnly:           state.ReadOnly,
-		Pc:                 state.Pc,
-		Gas:                state.Gas,
-		GasRefund:          state.GasRefund,
-		Code:               NewBytes(state.Code.code),
-		Stack:              slices.Clone(state.Stack.stack),
-		Memory:             NewBytes(state.Memory.mem),
-		Storage:            newStorageSerializable(state.Storage),
-		Accounts:           newAccountsSerializable(state.Accounts),
-		Logs:               newLogsSerializable(state.Logs),
-		CallContext:        state.CallContext,
-		BlockContext:       state.BlockContext,
-		CallData:           state.CallData,
-		LastCallReturnData: state.LastCallReturnData,
-		ReturnData:         state.ReturnData,
-		CallJournal:        state.CallJournal,
-		HasSelfDestructed:  maps.Clone(state.HasSelfDestructed),
+		Status:                state.Status,
+		Revision:              state.Revision,
+		ReadOnly:              state.ReadOnly,
+		Pc:                    state.Pc,
+		Gas:                   state.Gas,
+		GasRefund:             state.GasRefund,
+		Code:                  NewBytes(state.Code.code),
+		Stack:                 slices.Clone(state.Stack.stack),
+		Memory:                NewBytes(state.Memory.mem),
+		Storage:               newStorageSerializable(state.Storage),
+		Accounts:              newAccountsSerializable(state.Accounts),
+		Logs:                  newLogsSerializable(state.Logs),
+		CallContext:           state.CallContext,
+		BlockContext:          state.BlockContext,
+		CallData:              state.CallData,
+		LastCallReturnData:    state.LastCallReturnData,
+		ReturnData:            state.ReturnData,
+		CallJournal:           state.CallJournal,
+		HasSelfDestructed:     state.HasSelfDestructed,
+		SelfDestructedJournal: slices.Clone(state.SelfDestructedJournal),
 	}
 }
 
@@ -219,7 +221,8 @@ func (s *stateSerializable) deserialize() *State {
 	if s.CallJournal != nil {
 		state.CallJournal = s.CallJournal.Clone()
 	}
-	state.HasSelfDestructed = maps.Clone(s.HasSelfDestructed)
+	state.HasSelfDestructed = s.HasSelfDestructed
+	state.SelfDestructedJournal = s.SelfDestructedJournal
 	return state
 }
 

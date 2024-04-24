@@ -240,14 +240,12 @@ func (g *StateGenerator) BindToColdAddress(key Variable) {
 	g.accountsGen.BindCold(key)
 }
 
-// SelfDestruct wraps HasSelfDestructedGen.BindHasSelfDestructed.
-func (g *StateGenerator) SelfDestruct(key Variable) {
-	g.hasSelfDestructedGen.BindHasSelfDestructed(key)
+func (g *StateGenerator) SelfDestruct() {
+	g.hasSelfDestructedGen.MarkAsSelfDestructed()
 }
 
-// NotSelfDestruct wraps HasSelfDestructedGen.BindHasNotSelfDestructed.
-func (g *StateGenerator) NotSelfDestruct(key Variable) {
-	g.hasSelfDestructedGen.BindHasNotSelfDestructed(key)
+func (g *StateGenerator) NotSelfDestruct() {
+	g.hasSelfDestructedGen.MarkAsNotSelfDestructed()
 }
 
 func getRandomData(rnd *rand.Rand) ([]byte, error) {
@@ -351,10 +349,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("failed to resolve gas refund constraints: %w", err)
 	}
 
-	accountAddress, err := RandAddress(rnd)
-	if err != nil {
-		return nil, err
-	}
+	accountAddress := RandomAddress(rnd)
 
 	// Invoke CallContextGenerator
 	resultCallContext, err := g.callContextGen.Generate(rnd, accountAddress)
@@ -414,7 +409,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Invoke SelfDestructedGenerator
-	resultHasSelfdestructed, err := g.hasSelfDestructedGen.Generate(assignment, rnd)
+	resultHasSelfdestructed, err := g.hasSelfDestructedGen.Generate(rnd)
 	if err != nil {
 		return nil, err
 	}

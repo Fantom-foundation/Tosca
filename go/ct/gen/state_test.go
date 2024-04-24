@@ -307,7 +307,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone1.AddStackSizeLowerBound(2)
 	clone1.AddStackSizeUpperBound(200)
 	clone1.BindValue(Variable("x"), NewU256(12))
-	clone1.SelfDestruct(Variable("x"))
+	clone1.SelfDestruct()
 
 	clone2 := base.Clone()
 	clone2.SetStatus(st.Running)
@@ -318,7 +318,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone2.AddStackSizeLowerBound(3)
 	clone2.AddStackSizeUpperBound(300)
 	clone2.BindValue(Variable("y"), NewU256(14))
-	clone2.NotSelfDestruct(Variable("y"))
+	clone2.NotSelfDestruct()
 
 	checkPrint := func(clone *StateGenerator, want []string) {
 		t.Helper()
@@ -347,7 +347,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"callContext={}",
 		"callJournal={}",
 		"blockContext={}",
-		"selfdestruct={destructed($x)}",
+		"selfdestruct={mustDestroy(true) mustNotDestroy(false)}",
 	})
 
 	checkPrint(clone2, []string{
@@ -365,7 +365,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"callContext={}",
 		"callJournal={}",
 		"blockContext={}",
-		"selfdestruct={notDestructed($y)}",
+		"selfdestruct={mustDestroy(false) mustNotDestroy(true)}",
 	})
 }
 

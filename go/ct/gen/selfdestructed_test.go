@@ -16,103 +16,85 @@ import (
 	"errors"
 	"testing"
 
-	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"pgregory.net/rand"
 )
 
-func TestSelfDestructedGenerator_UnconstrainedGeneratorCanProduceBalance(t *testing.T) {
+func TestSelfDestructedGenerator_UnconstrainedGeneratorCanProduceState(t *testing.T) {
 	rnd := rand.New(0)
 	generator := NewSelfDestructedGenerator()
-	if _, err := generator.Generate(Assignment{}, rnd); err != nil {
-		t.Errorf("Unexpected error during generation: %v", err)
+	hasSelfDestructed, err := generator.Generate(rnd)
+	if err != nil {
+		t.Errorf("unexpected error during generation: %v", err)
+	}
+	if hasSelfDestructed {
+		t.Errorf("unexpected has-self-destructed default value %v", hasSelfDestructed)
 	}
 }
 
-func TestSelfDestructedGenerator_DestructedConstraintIsEnforced(t *testing.T) {
-	v1 := Variable("v1")
-	assignment := Assignment{}
-	assignment[v1] = NewU256(42)
-
+func TestSelfDestructedGenerator_SelfDestructedConstraintIsEnforced(t *testing.T) {
 	rnd := rand.New(0)
-	generator := NewSelfDestructedGenerator()
-	generator.BindHasSelfDestructed(v1)
-	hasSelfDestructed, err := generator.Generate(assignment, rnd)
-	if err != nil {
-		t.Errorf("Unexpected error during generation: %v", err)
+
+	tests := map[string]struct {
+		wantGenerated   bool
+		constraintEffet func(g *SelfDestructedGenerator)
+	}{
+		"SelfDestruct":    {true, func(g *SelfDestructedGenerator) { g.MarkAsSelfDestructed() }},
+		"NotSelfDestruct": {false, func(g *SelfDestructedGenerator) { g.MarkAsNotSelfDestructed() }},
 	}
 
-	if _, exist := hasSelfDestructed[NewAddressFromInt(42)]; !exist {
-		t.Errorf("Expected constraint address to be self desctructed, but generated state marked as not")
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			generator := NewSelfDestructedGenerator()
+			test.constraintEffet(generator)
+			hasSelfDestructed, err := generator.Generate(rnd)
+
+			if err != nil {
+				t.Errorf("Unexpected error during generation: %v", err)
+			}
+
+			if hasSelfDestructed != test.wantGenerated {
+				t.Errorf("unexpected generates has-self-destructed value")
+			}
+		})
 	}
 }
 
 func TestSelfDestructedGenerator_ConflictingSelfDestructedConstraintsAreDetected(t *testing.T) {
-	v1 := Variable("v1")
-	assignment := Assignment{}
-	assignment[v1] = NewU256(42)
-
 	rnd := rand.New(0)
 	generator := NewSelfDestructedGenerator()
+	generator.MarkAsSelfDestructed()
+	generator.MarkAsNotSelfDestructed()
 
-	generator.BindHasSelfDestructed(v1)
-	generator.BindHasNotSelfDestructed(v1)
-
-	_, err := generator.Generate(assignment, rnd)
+	_, err := generator.Generate(rnd)
 	if !errors.Is(err, ErrUnsatisfiable) {
-		t.Errorf("Conflicting warm/cold constraints not detected")
+		t.Errorf("Conflicting has-self-destructed constraints not detected")
 	}
 }
 
-func TestSelfDestructedGenerator_SelfDestructedConstraintsNoAssignment(t *testing.T) {
-	v1 := Variable("v1")
-	v2 := Variable("v2")
-	assignment := Assignment{}
-	rnd := rand.New(0)
+func TestSelfDestructedGenerator_String(t *testing.T) {
 	generator := NewSelfDestructedGenerator()
-
-	generator.BindHasSelfDestructed(v1)
-	generator.BindHasNotSelfDestructed(v2)
-
-	hasSelfDestructed, err := generator.Generate(assignment, rnd)
-	if err != nil {
-		t.Fatalf("Unexpected error during balance generation")
-	}
-
-	pos1, found1 := assignment[v1]
-	pos2, found2 := assignment[v2]
-
-	if !found1 || !found2 {
-		t.Fatalf("Variable not bound by generator")
-	}
-	if _, exist := hasSelfDestructed[NewAddress(pos1)]; !exist {
-		t.Errorf("Expected address to be warm but got cold")
-	}
-	if _, exist := hasSelfDestructed[NewAddress(pos2)]; exist {
-		t.Errorf("Expected address to be cold but got warm")
+	str := generator.String()
+	want := "{mustDestroy(false) mustNotDestroy(false)}"
+	if str != want {
+		t.Errorf("unexpected string: wanted %v, but got %v", want, str)
 	}
 }
 
 func BenchmarkSelfDestructedGenWithConstraint(b *testing.B) {
-	v1 := Variable("v1")
-	v2 := Variable("v2")
-	assignment := Assignment{}
 	rnd := rand.New(0)
 	generator := NewSelfDestructedGenerator()
-
-	generator.BindHasSelfDestructed(v1)
-	generator.BindHasNotSelfDestructed(v2)
+	generator.MarkAsNotSelfDestructed()
 
 	for i := 0; i < b.N; i++ {
-		generator.Generate(assignment, rnd)
+		generator.Generate(rnd)
 	}
 }
 
 func BenchmarkSelfDestructedGenWithOutConstraint(b *testing.B) {
-	assignment := Assignment{}
 	rnd := rand.New(0)
 	generator := NewSelfDestructedGenerator()
 
 	for i := 0; i < b.N; i++ {
-		generator.Generate(assignment, rnd)
+		generator.Generate(rnd)
 	}
 }

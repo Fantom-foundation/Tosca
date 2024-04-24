@@ -14,29 +14,14 @@ package gen
 
 import (
 	"fmt"
-	"slices"
-	"sort"
 	"strings"
 
-	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
 	"pgregory.net/rand"
 )
 
-type selfDestructedConstraint struct {
-	address   Variable
-	destroyed bool
-}
-
-func (a *selfDestructedConstraint) Less(b *selfDestructedConstraint) bool {
-	if a.address != b.address {
-		return a.address < b.address
-	}
-	return a.destroyed != b.destroyed && a.destroyed
-}
-
 type SelfDestructedGenerator struct {
-	hasSelfDestructed []selfDestructedConstraint
+	mustSelfDestructed    bool
+	mustNotSelfDestructed bool
 }
 
 func NewSelfDestructedGenerator() *SelfDestructedGenerator {
@@ -45,104 +30,45 @@ func NewSelfDestructedGenerator() *SelfDestructedGenerator {
 
 func (g *SelfDestructedGenerator) Clone() *SelfDestructedGenerator {
 	return &SelfDestructedGenerator{
-		hasSelfDestructed: slices.Clone(g.hasSelfDestructed),
+		mustSelfDestructed:    g.mustSelfDestructed,
+		mustNotSelfDestructed: g.mustNotSelfDestructed,
 	}
 }
 
 func (g *SelfDestructedGenerator) Restore(other *SelfDestructedGenerator) {
-	if g == other {
-		return
-	}
-	g.hasSelfDestructed = slices.Clone(other.hasSelfDestructed)
+	g = other
 }
 
-func (g *SelfDestructedGenerator) BindHasSelfDestructed(address Variable) {
-	v := selfDestructedConstraint{address, true}
-	if !slices.Contains(g.hasSelfDestructed, v) {
-		g.hasSelfDestructed = append(g.hasSelfDestructed, v)
-	}
-
+func (g *SelfDestructedGenerator) MarkAsSelfDestructed() {
+	g.mustSelfDestructed = true
 }
 
-func (g *SelfDestructedGenerator) BindHasNotSelfDestructed(address Variable) {
-	v := selfDestructedConstraint{address, false}
-	if !slices.Contains(g.hasSelfDestructed, v) {
-		g.hasSelfDestructed = append(g.hasSelfDestructed, v)
-	}
+func (g *SelfDestructedGenerator) MarkAsNotSelfDestructed() {
+	g.mustNotSelfDestructed = true
 }
 
 func (g *SelfDestructedGenerator) String() string {
 	var parts []string
 
-	sort.Slice(g.hasSelfDestructed, func(i, j int) bool { return g.hasSelfDestructed[i].Less(&g.hasSelfDestructed[j]) })
-	for _, con := range g.hasSelfDestructed {
-		if con.destroyed {
-			parts = append(parts, fmt.Sprintf("destructed(%v)", con.address))
-		} else {
-			parts = append(parts, fmt.Sprintf("notDestructed(%v)", con.address))
-		}
-	}
+	parts = append(parts, fmt.Sprintf("mustDestroy(%v)", g.mustSelfDestructed))
+	parts = append(parts, fmt.Sprintf("mustNotDestroy(%v)", g.mustNotSelfDestructed))
 
-	return "{" + strings.Join(parts, ",") + "}"
+	return "{" + strings.Join(parts, " ") + "}"
 }
 
-func (g *SelfDestructedGenerator) Generate(assignment Assignment, rnd *rand.Rand) (map[vm.Address]struct{}, error) {
-	// Check for conflicts among has/hasnot self destructed constraints.
-	sort.Slice(g.hasSelfDestructed, func(i, j int) bool { return g.hasSelfDestructed[i].Less(&g.hasSelfDestructed[j]) })
-	for i := 0; i < len(g.hasSelfDestructed)-1; i++ {
-		a, b := g.hasSelfDestructed[i], g.hasSelfDestructed[i+1]
-		if a.address == b.address && a.destroyed != b.destroyed {
-			return nil, fmt.Errorf("%w, address %v has conflicting selfdestructed constraints", ErrUnsatisfiable, a.address)
-		}
+func (g *SelfDestructedGenerator) Generate(rnd *rand.Rand) (bool, error) {
+
+	var hasSelfDestroyed bool
+	if !g.mustSelfDestructed && !g.mustNotSelfDestructed {
+		// random true/false
+		hasSelfDestroyed = rnd.Int()%2 == 0
+	} else if g.mustSelfDestructed && g.mustNotSelfDestructed {
+		return false, ErrUnsatisfiable
+	} else if g.mustSelfDestructed && !g.mustNotSelfDestructed {
+		hasSelfDestroyed = true
+	} else {
+		hasSelfDestroyed = false
 	}
 
-	// When handling unbound variables, we need to generate an unused address for
-	// them. We therefore track which addresses have already been used.
-	addressesInUse := map[vm.Address]bool{}
-	for _, con := range g.hasSelfDestructed {
-		if pos, isBound := assignment[con.address]; isBound {
-			addressesInUse[NewAddress(pos)] = true
-		}
-	}
-	getUnusedAddress := func() vm.Address {
-		for {
-			address, _ := RandAddress(rnd)
-
-			if _, isPresent := addressesInUse[address]; !isPresent {
-				addressesInUse[address] = true
-				return address
-			}
-		}
-	}
-
-	getAddress := func(v Variable) vm.Address {
-		addr, isBound := assignment[v]
-		address := NewAddress(addr)
-		if !isBound {
-			address = getUnusedAddress()
-			assignment[v] = AddressToU256(address)
-		}
-
-		return address
-	}
-
-	hasSelfDestrBuilder := make(map[vm.Address]struct{})
-
-	// Process has/has not self destructed constraints.
-	for _, con := range g.hasSelfDestructed {
-		address := getAddress(con.address)
-		if con.destroyed {
-			hasSelfDestrBuilder[address] = struct{}{}
-		} else {
-			delete(hasSelfDestrBuilder, address)
-		}
-	}
-
-	// Some random entries.
-	for i, max := 0, rnd.Intn(5); i < max; i++ {
-		address := getUnusedAddress()
-		hasSelfDestrBuilder[address] = struct{}{}
-	}
-
-	return hasSelfDestrBuilder, nil
+	return hasSelfDestroyed, nil
 }

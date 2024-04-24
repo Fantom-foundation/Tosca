@@ -115,6 +115,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.Memory = convertLfvmMemoryToCtMemory(ctxt.memory)
 	state.ReturnData = common.NewBytes(result)
 	state.LastCallReturnData = common.NewBytes(ctxt.return_data)
+	state.HasSelfDestructed = ctxt.context.HasSelfDestructed(state.CallContext.AccountAddress)
 
 	return state, nil
 }

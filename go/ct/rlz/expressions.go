@@ -389,36 +389,3 @@ func (c constant) GetVariable() gen.Variable {
 func (c constant) BindTo(generator *gen.StateGenerator) {
 	generator.BindValue(c.GetVariable(), c.value)
 }
-
-////////////////////////////////////////////////////////////
-// Contract Account
-
-type contractAccount struct{}
-
-func ContractAccount() BindableExpression[vm.Address] {
-	return contractAccount{}
-}
-
-func (contractAccount) Property() Property { return Property("contractAccount") }
-
-func (contractAccount) Domain() Domain[vm.Address] { return addressDomain{} }
-
-func (contractAccount) Eval(s *st.State) (vm.Address, error) {
-	return s.CallContext.CallerAddress, nil
-}
-
-func (contractAccount) Restrict(kind RestrictionKind, addr vm.Address, generator *gen.StateGenerator) {
-	// this expression does not need to be restricted.
-}
-
-func (contractAccount) String() string {
-	return "ContractAccount"
-}
-
-func (contractAccount) GetVariable() gen.Variable {
-	return gen.Variable("ContractAccount")
-}
-
-func (e contractAccount) BindTo(generator *gen.StateGenerator) {
-	// this expression does not need to be binded.
-}
