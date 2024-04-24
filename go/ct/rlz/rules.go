@@ -54,9 +54,10 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) Con
 			enumError = err
 			return ConsumeAbort
 		}
-		return enumerateParameters(0, rule.Parameter, state, consume)
+		res := enumerateParameters(0, rule.Parameter, state, consume)
+		state.Release()
+		return res
 	})
-
 	return enumError
 }
 

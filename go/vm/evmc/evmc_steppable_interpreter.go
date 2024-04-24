@@ -102,7 +102,7 @@ func (e *SteppableEvmcInterpreter) StepN(
 	state.Gas = vm.Gas(result.GasLeft)
 	state.GasRefund = vm.Gas(result.GasRefund)
 	state.Memory = convertEvmcMemoryToCtMemory(result.Memory)
-	state.Stack, err = convertEvmcStackToCtStack(result.Stack)
+	state.Stack, err = convertEvmcStackToCtStack(result.Stack, state.Stack)
 	state.LastCallReturnData = common.NewBytes(result.LastCallReturnData)
 	if err != nil {
 		return nil, err
@@ -151,11 +151,11 @@ func convertCtStackToEvmcStack(stack *st.Stack) []byte {
 	return evmcStack
 }
 
-func convertEvmcStackToCtStack(stack []byte) (*st.Stack, error) {
+func convertEvmcStackToCtStack(stack []byte, result *st.Stack) (*st.Stack, error) {
 	if len(stack)%32 != 0 {
 		return nil, fmt.Errorf("stack size is not a multiple of 32")
 	}
-	result := st.NewStack()
+	result.Resize(0)
 	for i := len(stack) - 32; i >= 0; i -= 32 {
 		val := common.NewU256FromBytes(stack[i : i+32]...)
 		result.Push(val)

@@ -86,7 +86,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	state.Gas = vm.Gas(contract.Gas)
 	state.GasRefund = vm.Gas(stateDb.GetRefund())
-	state.Stack = convertGethStackToCtStack(interpreterState)
+	state.Stack = convertGethStackToCtStack(interpreterState, state.Stack)
 	state.Memory = convertGethMemoryToCtMemory(interpreterState)
 	state.LastCallReturnData = common.NewBytes(interpreterState.Result)
 	if state.Status == st.Stopped || state.Status == st.Reverted {
@@ -153,8 +153,8 @@ func convertCtStackToGethStack(state *st.State) *geth_vm.Stack {
 	return stack
 }
 
-func convertGethStackToCtStack(state *geth_vm.GethState) *st.Stack {
-	stack := st.NewStack()
+func convertGethStackToCtStack(state *geth_vm.GethState, stack *st.Stack) *st.Stack {
+	stack.Resize(0)
 	for i := 0; i < state.Stack.Len(); i++ {
 		val := state.Stack.Data()[i]
 		stack.Push(common.NewU256(val[3], val[2], val[1], val[0]))
