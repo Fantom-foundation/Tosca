@@ -164,7 +164,7 @@ func TestEnumeration_AbortedEnumeration(t *testing.T) {
 		t.Errorf("wrong number of generated test cases")
 	}
 
-	if counterAbort.Load() > int64(numRules) {
+	if counterAbort.Load() >= counterContinue.Load() {
 		t.Errorf("state enumeration did not abort correctly, number of evaluated states %d", counterAbort.Load())
 	}
 
