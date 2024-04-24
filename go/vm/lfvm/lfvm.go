@@ -36,10 +36,17 @@ type VM struct {
 	logging                 bool
 }
 
+// Defines the newest supported revision for this interpreter implementation
+const NewestSupportedRevision = vm.R10_London
+
 func (v *VM) Run(params vm.Parameters) (vm.Result, error) {
 	var codeHash vm.Hash
 	if params.CodeHash != nil {
 		codeHash = *params.CodeHash
+	}
+
+	if params.Revision > NewestSupportedRevision {
+		return vm.Result{}, &vm.ErrUnsupportedRevision{}
 	}
 
 	converted, err := Convert(

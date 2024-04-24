@@ -28,7 +28,7 @@ type Interpreter interface {
 	// a code-internal issue). The error is not nil if some problem within the
 	// interpreter caused the execution to fail to correctly process the provided
 	// program. In such a case the result is undefined. During a call with an
-	// unsupported Revision a special unsupported Revision Error is returned.
+	// unsupported Revision an ErrUnsupportedRevision Error is returned.
 	// Interpreters are required to be thread-safe. Thus, multiple runs may be
 	// conducted in parallel.
 	Run(Parameters) (Result, error)
