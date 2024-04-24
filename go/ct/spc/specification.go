@@ -274,7 +274,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			RevisionBounds(R09_Berlin, NewestSupportedRevision),
 			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
@@ -295,7 +295,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			RevisionBounds(R09_Berlin, NewestSupportedRevision),
 			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -418,7 +418,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, R10_London),
+			RevisionBounds(R09_Berlin, NewestSupportedRevision),
 			IsStorageCold(Param(0)),
 		},
 		parameters: []Parameter{
@@ -439,7 +439,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, R10_London),
+			RevisionBounds(R09_Berlin, NewestSupportedRevision),
 			IsStorageWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -459,7 +459,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R07_Istanbul, R07_Istanbul),
+			IsRevision(R07_Istanbul),
 		},
 		parameters: []Parameter{
 			NumericParameter{},
@@ -849,7 +849,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			RevisionBounds(R09_Berlin, NewestSupportedRevision),
 			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
@@ -871,7 +871,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			RevisionBounds(R09_Berlin, NewestSupportedRevision),
 			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -914,7 +914,7 @@ func getAllRules() []Rule {
 		pops:      4,
 		pushes:    0,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			RevisionBounds(R09_Berlin, NewestSupportedRevision),
 			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
@@ -935,7 +935,7 @@ func getAllRules() []Rule {
 		pops:      4,
 		pushes:    0,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			RevisionBounds(R09_Berlin, NewestSupportedRevision),
 			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1016,7 +1016,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			RevisionBounds(R09_Berlin, NewestSupportedRevision),
 			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1042,7 +1042,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, R99_UnknownNextRevision),
+			RevisionBounds(R09_Berlin, NewestSupportedRevision),
 			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
