@@ -66,8 +66,8 @@ func TestStackGenerator_SizeRangesAreEnforced(t *testing.T) {
 	rnd := rand.New(0)
 	for _, size := range sizes {
 		generator := NewStackGenerator()
-		generator.SetMinSize(size.min)
-		generator.SetMaxSize(size.max)
+		generator.AddMinSize(size.min)
+		generator.AddMaxSize(size.max)
 		stack, err := generator.Generate(nil, rnd)
 		if err != nil {
 			t.Fatalf("unexpected error during build: %v", err)
@@ -99,8 +99,8 @@ func TestStackGenerator_ConflictingSizesAreDetected(t *testing.T) {
 
 func TestStackGenerator_EmptySizeIntervalIsDetected(t *testing.T) {
 	generator := NewStackGenerator()
-	generator.SetMinSize(14)
-	generator.SetMaxSize(12)
+	generator.AddMinSize(14)
+	generator.AddMaxSize(12)
 	rnd := rand.New(0)
 	if _, err := generator.Generate(nil, rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
@@ -255,8 +255,8 @@ func TestStackGenerator_NonConflictingValuePositionsWithRangeSizesAreAccepted(t 
 
 	for _, test := range tests {
 		generator := NewStackGenerator()
-		generator.SetMinSize(test.min)
-		generator.SetMaxSize(test.max)
+		generator.AddMinSize(test.min)
+		generator.AddMaxSize(test.max)
 		generator.SetValue(test.pos, NewU256(21))
 		rnd := rand.New(0)
 		stack, err := generator.Generate(nil, rnd)
@@ -301,8 +301,8 @@ func TestStackGenerator_ConflictingValuePositionsWithSizeRangeAreDetected(t *tes
 
 	for _, test := range tests {
 		generator := NewStackGenerator()
-		generator.SetMinSize(test.min)
-		generator.SetMaxSize(test.max)
+		generator.AddMinSize(test.min)
+		generator.AddMaxSize(test.max)
 		generator.SetValue(test.pos, NewU256(21))
 		rnd := rand.New(0)
 		if _, err := generator.Generate(nil, rnd); !errors.Is(err, ErrUnsatisfiable) {
@@ -356,12 +356,12 @@ func TestStackGenerator_ClonesAreIndependent(t *testing.T) {
 	clone2.SetValue(0, NewU256(17))
 	clone2.BindValue(1, v)
 
-	want := "{5≤size≤5,value[0]=0000000000000000 0000000000000000 0000000000000000 0000000000000010,value[2]=$v}"
+	want := "{size=5,value[0]=0000000000000000 0000000000000000 0000000000000000 0000000000000010,value[2]=$v}"
 	if got := clone1.String(); got != want {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
 
-	want = "{5≤size≤5,value[0]=0000000000000000 0000000000000000 0000000000000000 0000000000000011,value[1]=$v}"
+	want = "{size=5,value[0]=0000000000000000 0000000000000000 0000000000000000 0000000000000011,value[1]=$v}"
 	if got := clone2.String(); got != want {
 		t.Errorf("invalid clone, wanted %s, got %s", want, got)
 	}
@@ -380,13 +380,13 @@ func TestStackGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	generator.SetValue(1, NewU256(16))
 	generator.BindValue(3, v)
 
-	want := "{5≤size≤5,value[0]=0000000000000000 0000000000000000 0000000000000000 000000000000002a,value[1]=0000000000000000 0000000000000000 0000000000000000 0000000000000010,value[2]=$v,value[3]=$v}"
+	want := "{size=5,value[0]=0000000000000000 0000000000000000 0000000000000000 000000000000002a,value[1]=0000000000000000 0000000000000000 0000000000000000 0000000000000010,value[2]=$v,value[3]=$v}"
 	if got := generator.String(); got != want {
 		t.Errorf("unexpected generator state, wanted %s, got %s", want, got)
 	}
 
 	generator.Restore(backup)
-	want = "{value[0]=0000000000000000 0000000000000000 0000000000000000 000000000000002a,value[2]=$v}"
+	want = "{0≤size≤1024,value[0]=0000000000000000 0000000000000000 0000000000000000 000000000000002a,value[2]=$v}"
 	if got := generator.String(); got != want {
 		t.Errorf("unexpected generator state, wanted %s, got %s", want, got)
 	}

@@ -145,11 +145,15 @@ func (gas) Eval(s *st.State) (vm.Gas, error) {
 func (gas) Restrict(kind RestrictionKind, amount vm.Gas, generator *gen.StateGenerator) {
 	switch kind {
 	case RestrictLess:
-		generator.SetGas(amount - 1)
-	case RestrictLessEqual, RestrictEqual, RestrictGreaterEqual:
+		generator.AddGasUpperBound(amount - 1)
+	case RestrictLessEqual:
+		generator.AddGasUpperBound(amount)
+	case RestrictEqual:
 		generator.SetGas(amount)
+	case RestrictGreaterEqual:
+		generator.AddGasLowerBound(amount)
 	case RestrictGreater:
-		generator.SetGas(amount + 1)
+		generator.AddGasLowerBound(amount + 1)
 	}
 }
 
@@ -175,10 +179,18 @@ func (gasRefund) Eval(s *st.State) (vm.Gas, error) {
 }
 
 func (gasRefund) Restrict(kind RestrictionKind, amount vm.Gas, generator *gen.StateGenerator) {
-	if kind != RestrictEqual {
-		panic("GasRefund only supports equality constraints")
+	switch kind {
+	case RestrictLess:
+		generator.AddGasRefundUpperBound(amount - 1)
+	case RestrictLessEqual:
+		generator.AddGasRefundUpperBound(amount)
+	case RestrictEqual:
+		generator.SetGasRefund(amount)
+	case RestrictGreaterEqual:
+		generator.AddGasRefundLowerBound(amount)
+	case RestrictGreater:
+		generator.AddGasRefundLowerBound(amount + 1)
 	}
-	generator.SetGasRefund(amount)
 }
 
 func (gasRefund) String() string {
@@ -277,15 +289,15 @@ func (stackSize) Eval(s *st.State) (int, error) {
 func (stackSize) Restrict(kind RestrictionKind, size int, generator *gen.StateGenerator) {
 	switch kind {
 	case RestrictLess:
-		generator.SetMaxStackSize(size - 1)
+		generator.AddStackSizeUpperBound(size - 1)
 	case RestrictLessEqual:
-		generator.SetMaxStackSize(size)
+		generator.AddStackSizeUpperBound(size)
 	case RestrictEqual:
 		generator.SetStackSize(size)
 	case RestrictGreaterEqual:
-		generator.SetMinStackSize(size)
+		generator.AddStackSizeLowerBound(size)
 	case RestrictGreater:
-		generator.SetMinStackSize(size + 1)
+		generator.AddStackSizeLowerBound(size + 1)
 	}
 }
 

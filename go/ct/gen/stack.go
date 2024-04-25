@@ -25,8 +25,7 @@ import (
 )
 
 type StackGenerator struct {
-	minSize     int
-	maxSize     int
+	size        *RangeSolver[int]
 	constValues []constValueConstraint
 	varValues   []varValueConstraint
 }
@@ -57,26 +56,20 @@ func (c *varValueConstraint) Less(o *varValueConstraint) bool {
 
 func NewStackGenerator() *StackGenerator {
 	return &StackGenerator{
-		minSize: 0,
-		maxSize: st.MaxStackSize,
+		size: NewRangeSolver(0, st.MaxStackSize),
 	}
 }
 
-func (g *StackGenerator) SetMinSize(size int) {
-	if g.minSize < size {
-		g.minSize = size
-	}
+func (g *StackGenerator) AddMinSize(size int) {
+	g.size.AddLowerBoundary(size)
 }
 
-func (g *StackGenerator) SetMaxSize(size int) {
-	if g.maxSize > size {
-		g.maxSize = size
-	}
+func (g *StackGenerator) AddMaxSize(size int) {
+	g.size.AddUpperBoundary(size)
 }
 
 func (g *StackGenerator) SetSize(size int) {
-	g.SetMinSize(size)
-	g.SetMaxSize(size)
+	g.size.AddEqualityConstraint(size)
 }
 
 func (g *StackGenerator) SetValue(pos int, value U256) {
@@ -110,19 +103,11 @@ func (g *StackGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.St
 	}
 
 	// Pick a size
-	if g.minSize > g.maxSize {
-		return nil, fmt.Errorf("%w, stack size constraint: %d <= size <= %d", ErrUnsatisfiable, g.minSize, g.maxSize)
-	}
 	maxInValues := maxPositionInValues(constraints)
-	if maxInValues > 0 && maxInValues >= g.maxSize {
-		return nil, fmt.Errorf("%w, stack size range [%d,%d] too small for max position in value constraints %d", ErrUnsatisfiable, g.minSize, g.maxSize, maxInValues)
-	}
-	if g.minSize <= maxInValues {
-		g.minSize = maxInValues + 1
-	}
-	size := g.minSize
-	if g.maxSize > g.minSize {
-		size += int(rnd.Int31n(int32(g.maxSize - g.minSize)))
+	g.size.AddLowerBoundary(maxInValues + 1)
+	size, err := g.size.Generate(rnd)
+	if err != nil {
+		return nil, fmt.Errorf("%w, stack size constraints %v not satisfiable", err, g.size)
 	}
 
 	stack := st.NewStackWithSize(size)
@@ -162,8 +147,7 @@ func maxPositionInValues(constraints []constValueConstraint) int {
 
 func (g *StackGenerator) Clone() *StackGenerator {
 	return &StackGenerator{
-		minSize:     g.minSize,
-		maxSize:     g.maxSize,
+		size:        g.size.Clone(),
 		constValues: slices.Clone(g.constValues),
 		varValues:   slices.Clone(g.varValues),
 	}
@@ -173,8 +157,7 @@ func (g *StackGenerator) Restore(other *StackGenerator) {
 	if g == other {
 		return
 	}
-	g.minSize = other.minSize
-	g.maxSize = other.maxSize
+	g.size.Restore(other.size)
 	g.constValues = slices.Clone(other.constValues)
 	g.varValues = slices.Clone(other.varValues)
 }
@@ -182,9 +165,7 @@ func (g *StackGenerator) Restore(other *StackGenerator) {
 func (g *StackGenerator) String() string {
 	var parts []string
 
-	if g.minSize != 0 || g.maxSize != st.MaxStackSize {
-		parts = append(parts, fmt.Sprintf("%d≤size≤%d", g.minSize, g.maxSize))
-	}
+	parts = append(parts, g.size.Print("size"))
 
 	sort.Slice(g.constValues, func(i, j int) bool { return g.constValues[i].Less(&g.constValues[j]) })
 	for _, value := range g.constValues {

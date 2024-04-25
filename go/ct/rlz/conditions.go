@@ -337,7 +337,7 @@ func (c *revisionBounds) Check(s *st.State) (bool, error) {
 }
 
 func (c *revisionBounds) Restrict(generator *gen.StateGenerator) {
-	generator.SetRevisionBounds(c.min, c.max)
+	generator.AddRevisionBounds(c.min, c.max)
 }
 
 func (e *revisionBounds) GetTestValues() []TestValue {
