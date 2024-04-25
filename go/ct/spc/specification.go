@@ -1349,7 +1349,7 @@ func getAllRules() []Rule {
 
 	// --- SELFDESTRUCT ---
 
-	// 											revision   warm  destColdCost accCreatFee  refund
+	//                                          revision   warm  destColdCost accCreatFee  refund
 	rules = append(rules, nonStaticSelfDestOp(R07_Istanbul, false, vm.Gas(0), vm.Gas(25000), vm.Gas(24000))...)
 	rules = append(rules, nonStaticSelfDestOp(R07_Istanbul, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
 	rules = append(rules, nonStaticSelfDestOp(R09_Berlin, false, vm.Gas(2600), vm.Gas(0), vm.Gas(24000))...)

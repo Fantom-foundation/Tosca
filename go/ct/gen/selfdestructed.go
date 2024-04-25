@@ -36,7 +36,11 @@ func (g *SelfDestructedGenerator) Clone() *SelfDestructedGenerator {
 }
 
 func (g *SelfDestructedGenerator) Restore(other *SelfDestructedGenerator) {
-	g = other
+	if g == other {
+		return
+	}
+	g.mustNotSelfDestructed = other.mustNotSelfDestructed
+	g.mustSelfDestructed = other.mustSelfDestructed
 }
 
 func (g *SelfDestructedGenerator) MarkAsSelfDestructed() {

@@ -684,9 +684,9 @@ func (c *hasSelfDestructed) GetTestValues() []TestValue {
 	domain := boolDomain{}
 	restrict := func(generator *gen.StateGenerator, hasSelfDestructed bool) {
 		if hasSelfDestructed {
-			generator.hasSelfDestructedGen.MarkAsSelfDestructed()
+			generator.SelfDestruct()
 		} else {
-			generator.hasSelfDestructedGen.MarkAsNotSelfDestructed()
+			generator.NotSelfDestruct()
 		}
 	}
 	return []TestValue{
@@ -726,9 +726,9 @@ func (c *hasNotSelfDestructed) GetTestValues() []TestValue {
 	domain := boolDomain{}
 	restrict := func(generator *gen.StateGenerator, hasSelfDestructed bool) {
 		if hasSelfDestructed {
-			generator.hasSelfDestructedGen.MarkAsSelfDestructed()
+			generator.SelfDestruct()
 		} else {
-			generator.hasSelfDestructedGen.MarkAsNotSelfDestructed()
+			generator.NotSelfDestruct()
 		}
 	}
 	return []TestValue{

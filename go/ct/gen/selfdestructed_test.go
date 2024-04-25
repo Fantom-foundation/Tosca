@@ -19,15 +19,12 @@ import (
 	"pgregory.net/rand"
 )
 
-func TestSelfDestructedGenerator_UnconstrainedGeneratorCanProduceState(t *testing.T) {
+func TestSelfDestructedGenerator_UnconstrainedGeneratorCanGenerate(t *testing.T) {
 	rnd := rand.New(0)
 	generator := NewSelfDestructedGenerator()
-	hasSelfDestructed, err := generator.Generate(rnd)
+	_, err := generator.Generate(rnd)
 	if err != nil {
 		t.Errorf("unexpected error during generation: %v", err)
-	}
-	if hasSelfDestructed {
-		t.Errorf("unexpected has-self-destructed default value %v", hasSelfDestructed)
 	}
 }
 
@@ -77,6 +74,18 @@ func TestSelfDestructedGenerator_String(t *testing.T) {
 	want := "{mustDestroy(false) mustNotDestroy(false)}"
 	if str != want {
 		t.Errorf("unexpected string: wanted %v, but got %v", want, str)
+	}
+}
+
+func TestSelfDestructedGenerator_Restore(t *testing.T) {
+	gen1 := NewSelfDestructedGenerator()
+	gen2 := NewSelfDestructedGenerator()
+	gen2.mustNotSelfDestructed = true
+	gen2.mustSelfDestructed = true
+
+	gen1.Restore(gen2)
+	if !gen1.mustNotSelfDestructed || !gen1.mustSelfDestructed {
+		t.Error("selfDestructedGenerator's restore is broken")
 	}
 }
 

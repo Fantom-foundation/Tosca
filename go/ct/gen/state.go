@@ -380,6 +380,12 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		resultReturnData = RandomBytes(rnd, st.MaxDataSize)
 	}
 
+	// Invoke SelfDestructedGenerator
+	resultHasSelfdestructed, err := g.hasSelfDestructedGen.Generate(rnd)
+	if err != nil {
+		return nil, err
+	}
+
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences
 	// this process.
@@ -404,12 +410,6 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 
 	// Invoke StackGenerator
 	resultStack, err := g.stackGen.Generate(assignment, rnd)
-	if err != nil {
-		return nil, err
-	}
-
-	// Invoke SelfDestructedGenerator
-	resultHasSelfdestructed, err := g.hasSelfDestructedGen.Generate(rnd)
 	if err != nil {
 		return nil, err
 	}
