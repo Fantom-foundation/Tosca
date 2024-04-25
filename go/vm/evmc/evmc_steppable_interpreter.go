@@ -95,7 +95,7 @@ func (e *SteppableEvmcInterpreter) StepN(
 		return nil, err
 	}
 
-	if result.StepStatusCode == evmc.Returned || result.StepStatusCode == evmc.Reverted {
+	if result.StepStatusCode == evmc.Returned || result.StepStatusCode == evmc.Reverted || result.StepStatusCode == evmc.Stopped {
 		state.ReturnData = common.NewBytes(result.Output)
 	}
 	state.Pc = uint16(result.Pc)

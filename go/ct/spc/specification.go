@@ -1352,10 +1352,10 @@ func getAllRules() []Rule {
 	//                                          revision   warm  destColdCost accCreatFee  refund
 	rules = append(rules, nonStaticSelfDestOp(R07_Istanbul, false, vm.Gas(0), vm.Gas(25000), vm.Gas(24000))...)
 	rules = append(rules, nonStaticSelfDestOp(R07_Istanbul, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
-	rules = append(rules, nonStaticSelfDestOp(R09_Berlin, false, vm.Gas(2600), vm.Gas(0), vm.Gas(24000))...)
+	rules = append(rules, nonStaticSelfDestOp(R09_Berlin, false, vm.Gas(2600), vm.Gas(25000), vm.Gas(24000))...)
 	rules = append(rules, nonStaticSelfDestOp(R09_Berlin, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
+	rules = append(rules, nonStaticSelfDestOp(R10_London, false, vm.Gas(2600), vm.Gas(25000), vm.Gas(0))...)
 	rules = append(rules, nonStaticSelfDestOp(R10_London, true, vm.Gas(0), vm.Gas(0), vm.Gas(0))...)
-	rules = append(rules, nonStaticSelfDestOp(R10_London, false, vm.Gas(2600), vm.Gas(0), vm.Gas(0))...)
 
 	rules = append(rules, rulesFor(instruction{
 		op:        SELFDESTRUCT,
@@ -1743,7 +1743,7 @@ func nonStaticSelfDestOp(revision Revision, warm bool, destinationColdCost, acco
 		targetWarm = IsAddressCold(Param(0))
 	}
 
-	name := fmt.Sprintf("_%v_%v", revision.String(), warmColdString)
+	name := fmt.Sprintf("_%v_%v", strings.ToLower(revision.String()), warmColdString)
 
 	inst := instruction{
 		op:        SELFDESTRUCT,
