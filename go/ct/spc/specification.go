@@ -1350,119 +1350,16 @@ func getAllRules() []Rule {
 	// --- SELFDESTRUCT ---
 
 	// 											revision   warm  destColdCost accCreatFee  refund
-	// rules = append(rules, nonStaticSelfDestOp(R07_Istanbul, false, vm.Gas(0), vm.Gas(25000), vm.Gas(24000))...)
+	rules = append(rules, nonStaticSelfDestOp(R07_Istanbul, false, vm.Gas(0), vm.Gas(25000), vm.Gas(24000))...)
+	rules = append(rules, nonStaticSelfDestOp(R07_Istanbul, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
+	rules = append(rules, nonStaticSelfDestOp(R09_Berlin, false, vm.Gas(2600), vm.Gas(0), vm.Gas(24000))...)
+	rules = append(rules, nonStaticSelfDestOp(R09_Berlin, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
+	rules = append(rules, nonStaticSelfDestOp(R10_London, true, vm.Gas(0), vm.Gas(0), vm.Gas(0))...)
+	rules = append(rules, nonStaticSelfDestOp(R10_London, false, vm.Gas(2600), vm.Gas(0), vm.Gas(0))...)
 
 	rules = append(rules, rulesFor(instruction{
 		op:        SELFDESTRUCT,
-		name:      "_istanbul_cold",
-		staticGas: 5000,
-		pops:      1,
-		pushes:    0,
-		conditions: []Condition{
-			Eq(ReadOnly(), false),
-			IsRevision(R07_Istanbul),
-			HasNotSelfDestructed(),
-			IsAddressCold(Param(0)),
-		},
-		parameters: []Parameter{
-			AddressParameter{},
-		},
-		effect: func(s *st.State) {
-			selfDestructEffect(s, vm.Gas(0), vm.Gas(25000), vm.Gas(24000))
-		},
-	})...)
-
-	// 											revision   warm  destColdCost accCreatFee  refund
-	// rules = append(rules, nonStaticSelfDestOp(R07_Istanbul, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
-	rules = append(rules, rulesFor(instruction{
-		op:        SELFDESTRUCT,
-		name:      "_istanbul_warm",
-		staticGas: 5000,
-		pops:      1,
-		pushes:    0,
-		conditions: []Condition{
-			Eq(ReadOnly(), false),
-			IsRevision(R07_Istanbul),
-			HasNotSelfDestructed(),
-			IsAddressWarm(Param(0)),
-		},
-		parameters: []Parameter{
-			AddressParameter{},
-		},
-		effect: func(s *st.State) {
-			selfDestructEffect(s, vm.Gas(0), vm.Gas(0), vm.Gas(24000))
-		},
-	})...)
-
-	// 											revision   warm  destColdCost accCreatFee  refund
-	// rules = append(rules, nonStaticSelfDestOp(R09_Berlin, false, vm.Gas(2600), vm.Gas(0), vm.Gas(24000))...)
-	rules = append(rules, rulesFor(instruction{
-		op:        SELFDESTRUCT,
-		name:      "_berlin_cold",
-		staticGas: 5000,
-		pops:      1,
-		pushes:    0,
-		conditions: []Condition{
-			Eq(ReadOnly(), false),
-			IsRevision(R09_Berlin),
-			HasNotSelfDestructed(),
-			IsAddressCold(Param(0)),
-		},
-		parameters: []Parameter{
-			AddressParameter{},
-		},
-		effect: func(s *st.State) {
-			selfDestructEffect(s, vm.Gas(2600), vm.Gas(0), vm.Gas(24000))
-		},
-	})...)
-
-	// 											revision   warm  destColdCost accCreatFee  refund
-	// rules = append(rules, nonStaticSelfDestOp(R09_Berlin, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
-	rules = append(rules, rulesFor(instruction{
-		op:        SELFDESTRUCT,
-		name:      "_berlin_warm",
-		staticGas: 5000,
-		pops:      1,
-		pushes:    0,
-		conditions: []Condition{
-			Eq(ReadOnly(), false),
-			IsRevision(R09_Berlin),
-			HasNotSelfDestructed(),
-			IsAddressWarm(Param(0)),
-		},
-		parameters: []Parameter{
-			AddressParameter{},
-		},
-		effect: func(s *st.State) {
-			selfDestructEffect(s, vm.Gas(0), vm.Gas(0), vm.Gas(24000))
-		},
-	})...)
-
-	// 											revision   warm  destColdCost accCreatFee  refund
-	// rules = append(rules, nonStaticSelfDestOp(R10_London, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
-	rules = append(rules, rulesFor(instruction{
-		op:        SELFDESTRUCT,
-		name:      "_london",
-		staticGas: 5000,
-		pops:      1,
-		pushes:    0,
-		conditions: []Condition{
-			Eq(ReadOnly(), false),
-			IsRevision(R10_London),
-			HasNotSelfDestructed(),
-			IsAddressWarm(Param(0)),
-		},
-		parameters: []Parameter{
-			AddressParameter{},
-		},
-		effect: func(s *st.State) {
-			selfDestructEffect(s, vm.Gas(0), vm.Gas(0), vm.Gas(0))
-		},
-	})...)
-
-	rules = append(rules, rulesFor(instruction{
-		op:        SELFDESTRUCT,
-		name:      "selfdestruct_staticcall",
+		name:      "_staticcall",
 		staticGas: 5000,
 		conditions: []Condition{
 			Eq(ReadOnly(), true),
@@ -1837,14 +1734,20 @@ func logOp(n int) []Rule {
 func nonStaticSelfDestOp(revision Revision, warm bool, destinationColdCost, accountCreationFee, refundGas vm.Gas) []Rule {
 
 	var targetWarm Condition
+	var warmColdString string
 	if warm {
+		warmColdString = "warm"
 		targetWarm = IsAddressWarm(Param(0))
 	} else {
+		warmColdString = "cold"
 		targetWarm = IsAddressCold(Param(0))
 	}
 
+	name := fmt.Sprintf("_%v_%v", revision.String(), warmColdString)
+
 	inst := instruction{
 		op:        SELFDESTRUCT,
+		name:      name,
 		staticGas: 5000,
 		pops:      1,
 		conditions: []Condition{

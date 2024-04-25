@@ -166,12 +166,31 @@ func canTransferFunc(stateDB geth.StateDB, callerAddress common.Address, value *
 	return stateDB.GetBalance(callerAddress).Cmp(value) >= 0
 }
 
+type selfDestroyEntry struct {
+	account     common.Address
+	beneficiary common.Address
+	balance     *big.Int
+}
+
+type SelfDestructListener struct {
+	stateDb *stateDbAdapter
+}
+
+func (sdl *SelfDestructListener) Set(sda *stateDbAdapter) {
+	sdl.stateDb = sda
+}
+
+func (sdl *SelfDestructListener) Get() selfDestroyEntry {
+	return sdl.stateDb.selfDestroyRecord
+}
+
 // stateDbAdapter adapts the vm.RunContext interface for its usage as a geth.StateDB in test
 // environment setups. The main purpose is to facilitate unit, integration, and conformance
 // testing for the geth interpreter.
 type stateDbAdapter struct {
-	context vm.RunContext
-	refund  uint64
+	context           vm.RunContext
+	refund            uint64
+	selfDestroyRecord selfDestroyEntry
 }
 
 func (s *stateDbAdapter) CreateAccount(common.Address) {
@@ -182,8 +201,9 @@ func (s *stateDbAdapter) SubBalance(common.Address, *big.Int) {
 	// ignored: effect not needed in test environments
 }
 
-func (s *stateDbAdapter) AddBalance(common.Address, *big.Int) {
-	// ignored: effect not needed in test environments
+func (s *stateDbAdapter) AddBalance(addr common.Address, balance *big.Int) {
+	s.selfDestroyRecord.beneficiary = addr
+	s.selfDestroyRecord.balance = balance
 }
 
 func (s *stateDbAdapter) GetBalance(addr common.Address) *big.Int {
@@ -241,7 +261,7 @@ func (s *stateDbAdapter) SetState(addr common.Address, key common.Hash, value co
 }
 
 func (s *stateDbAdapter) Suicide(addr common.Address) bool {
-	// s.context.SelfDestruct(vm.Address(addr.Bytes()), conte)
+	s.context.SelfDestruct(vm.Address(addr), vm.Address(s.selfDestroyRecord.beneficiary))
 	return false
 }
 

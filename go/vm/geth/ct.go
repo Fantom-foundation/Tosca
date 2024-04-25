@@ -51,6 +51,8 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	evm, contract, stateDb := createGethInterpreterContext(parameters)
 	stateDb.refund = uint64(state.GasRefund)
+	selfDestructListener := SelfDestructListener{}
+	selfDestructListener.Set(stateDb)
 
 	evm.CallContext = &callInterceptor{parameters.Context, stateDb, state.ReadOnly}
 
@@ -84,7 +86,9 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.Stack = convertGethStackToCtStack(interpreterState, state.Stack)
 	state.Memory = convertGethMemoryToCtMemory(interpreterState)
 	state.LastCallReturnData = common.NewBytes(interpreterState.Result)
-	state.HasSelfDestructed = parameters.Context.HasSelfDestructed(state.CallContext.AccountAddress)
+	if vm.Address(selfDestructListener.Get().account) == state.CallContext.AccountAddress {
+		state.HasSelfDestructed = true
+	}
 
 	if state.Status == st.Stopped || state.Status == st.Reverted {
 		// Right now, the interpreter state does not allow to decide whether the
