@@ -13,8 +13,6 @@
 package utils
 
 import (
-	"fmt"
-
 	cc "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/vm"
@@ -43,7 +41,7 @@ func ToVmParameters(state *st.State) vm.Parameters {
 	case cc.R10_London:
 		revision = vm.R10_London
 	default:
-		panic(fmt.Errorf("unsupported revision: %v", state.Revision))
+		revision = vm.Revision(state.Revision)
 	}
 
 	return vm.Parameters{

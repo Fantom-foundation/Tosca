@@ -37,7 +37,7 @@ type VM struct {
 }
 
 // Defines the newest supported revision for this interpreter implementation
-const NewestSupportedRevision = vm.R10_London
+const newestSupportedRevision = vm.R10_London
 
 func (v *VM) Run(params vm.Parameters) (vm.Result, error) {
 	var codeHash vm.Hash
@@ -45,8 +45,8 @@ func (v *VM) Run(params vm.Parameters) (vm.Result, error) {
 		codeHash = *params.CodeHash
 	}
 
-	if params.Revision > NewestSupportedRevision {
-		return vm.Result{}, &vm.ErrUnsupportedRevision{}
+	if params.Revision > newestSupportedRevision {
+		return vm.Result{}, &vm.ErrUnsupportedRevision{Revision: params.Revision}
 	}
 
 	converted, err := Convert(

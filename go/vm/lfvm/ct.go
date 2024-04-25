@@ -30,17 +30,15 @@ func NewConformanceTestingTarget() ct.Evm {
 type ctAdapter struct{}
 
 func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
-	if state.Revision > common.Revision(NewestSupportedRevision) {
-		state.Status = st.Failed
-		return state, &vm.ErrUnsupportedRevision{}
+	params := utils.ToVmParameters(state)
+	if params.Revision > newestSupportedRevision {
+		return state, &vm.ErrUnsupportedRevision{Revision: params.Revision}
 	}
 
 	// No need to run anything that is not in a running state.
 	if state.Status != st.Running {
 		return state, nil
 	}
-
-	params := utils.ToVmParameters(state)
 
 	var codeHash vm.Hash
 	if params.CodeHash != nil {

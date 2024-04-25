@@ -44,9 +44,6 @@ type EvmcInterpreter struct {
 	vm *evmc.VM
 }
 
-// Defines the newest supported revision for this interpreter implementation
-const NewestSupportedRevision = vm.R10_London
-
 // SetOption enables the configuration of implementation specific options.
 func (e *EvmcInterpreter) SetOption(property string, value string) error {
 	return e.vm.SetOption(property, value)
@@ -56,10 +53,6 @@ func (e *EvmcInterpreter) Run(params vm.Parameters) (vm.Result, error) {
 	host_ctx := hostContext{
 		params:  params,
 		context: params.Context,
-	}
-
-	if params.Revision > NewestSupportedRevision {
-		return vm.Result{}, &vm.ErrUnsupportedRevision{}
 	}
 
 	revision, err := toEvmcRevision(params.Revision)

@@ -16,7 +16,6 @@ import (
 	"fmt"
 
 	"github.com/Fantom-foundation/Tosca/go/ct"
-	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/ct/utils"
 	"github.com/Fantom-foundation/Tosca/go/vm"
@@ -40,9 +39,9 @@ func NewConformanceTestingTarget() ct.Evm {
 type ctAdapter struct{}
 
 func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
-	if state.Revision > common.Revision(evmc.NewestSupportedRevision) {
-		state.Status = st.Failed
-		return state, &vm.ErrUnsupportedRevision{}
+	vmParams := utils.ToVmParameters(state)
+	if vmParams.Revision > newestSupportedRevision {
+		return state, &vm.ErrUnsupportedRevision{Revision: vmParams.Revision}
 	}
 
 	// No need to run anything that is not in a running state.
@@ -50,5 +49,5 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		return state, nil
 	}
 
-	return evmzeroSteppable.StepN(utils.ToVmParameters(state), state, numSteps)
+	return evmzeroSteppable.StepN(vmParams, state, numSteps)
 }

@@ -143,9 +143,14 @@ func doRun(context *cli.Context) error {
 			return rlz.ConsumeContinue
 		}
 
-		if err := runTest(state, evm, filter, &numUnsupportedTests); err != nil {
-			issuesCollector.AddIssue(state, err)
-			fmt.Printf("Error: %v\n", err)
+		if err := runTest(state, evm, filter); err != nil {
+			targetError := &vm.ErrUnsupportedRevision{}
+			if errors.As(err, &targetError) {
+				numUnsupportedTests.Add(1)
+				return rlz.ConsumeContinue
+			}
+
+			issuesCollector.AddIssue(state, fmt.Errorf("failed to process input state %v: %w", state, err))
 		}
 
 		return rlz.ConsumeContinue
@@ -202,7 +207,7 @@ func doRun(context *cli.Context) error {
 
 // runTest runs a single test specified by the input state on the given EVM. The
 // function returns an error in case the execution did not work as expected.
-func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp, numUnsupportedTests *atomic.Int32) error {
+func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp) error {
 	rules := spc.Spec.GetRulesFor(input)
 	if len(rules) == 0 {
 		return nil // < TODO: make this an error once the specification is complete
@@ -224,15 +229,8 @@ func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp, numUnsupportedT
 
 	result, err := evm.StepN(input.Clone(), 1)
 	defer result.Release()
-
-	targetError := &vm.ErrUnsupportedRevision{}
-	if errors.As(err, &targetError) {
-		numUnsupportedTests.Add(1)
-		return nil
-	}
-
 	if err != nil {
-		return fmt.Errorf("failed to process input state %v: %w", input, err)
+		return err
 	}
 
 	if result.Eq(expected) {

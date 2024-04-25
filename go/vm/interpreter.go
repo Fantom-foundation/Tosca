@@ -191,11 +191,11 @@ const (
 
 // Error for runs with unsupported Revision
 type ErrUnsupportedRevision struct {
-	revision Revision
+	Revision Revision
 }
 
 func (e *ErrUnsupportedRevision) Error() string {
-	return fmt.Sprintf("Unsupported revision %d", e.revision)
+	return fmt.Sprintf("Unsupported revision %d", e.Revision)
 }
 
 // ProfilingInterpreter is an optional extension to the Interpreter interface

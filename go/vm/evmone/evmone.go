@@ -35,8 +35,8 @@ func init() {
 	}
 	// This instance remains in its basic configuration and is registered
 	// as the default "evmone" VM and as the "evmone-basic" VM.
-	vm.RegisterInterpreter("evmone", evmone)
-	vm.RegisterInterpreter("evmone-basic", evmone)
+	vm.RegisterInterpreter("evmone", &evmoneInstance{evmone})
+	vm.RegisterInterpreter("evmone-basic", &evmoneInstance{evmone})
 
 	// A second instance is configured to use the advanced execution mode.
 	evmone, err = evmc.LoadEvmcInterpreter("libevmone.so")
@@ -46,5 +46,18 @@ func init() {
 	if err := evmone.SetOption("advanced", "on"); err != nil {
 		panic(fmt.Errorf("failed to configure evmone advanced mode: %v", err))
 	}
-	vm.RegisterInterpreter("evmone-advanced", evmone)
+	vm.RegisterInterpreter("evmone-advanced", &evmoneInstance{evmone})
+}
+
+type evmoneInstance struct {
+	e *evmc.EvmcInterpreter
+}
+
+const newestSupportedRevision = vm.R10_London
+
+func (e *evmoneInstance) Run(params vm.Parameters) (vm.Result, error) {
+	if params.Revision > newestSupportedRevision {
+		return vm.Result{}, &vm.ErrUnsupportedRevision{Revision: params.Revision}
+	}
+	return e.e.Run(params)
 }

@@ -33,9 +33,9 @@ func NewConformanceTestingTarget() ct.Evm {
 type ctAdapter struct{}
 
 func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
-	if state.Revision > common.Revision(NewestSupportedRevision) {
-		state.Status = st.Failed
-		return state, &vm.ErrUnsupportedRevision{}
+	parameters := utils.ToVmParameters(state)
+	if parameters.Revision > newestSupportedRevision {
+		return state, &vm.ErrUnsupportedRevision{Revision: parameters.Revision}
 	}
 
 	// No need to run anything that is not in a running state.
@@ -48,8 +48,6 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	if err == nil && op == common.STOP {
 		isStopInstruction = true
 	}
-
-	parameters := utils.ToVmParameters(state)
 
 	evm, contract, stateDb := createGethInterpreterContext(parameters)
 	stateDb.refund = uint64(state.GasRefund)

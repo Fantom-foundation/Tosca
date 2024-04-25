@@ -38,7 +38,7 @@ func init() {
 			panic(fmt.Errorf("failed to load evmzero library: %s", err))
 		}
 		// This instance remains in its basic configuration.
-		vm.RegisterInterpreter("evmzero", evm)
+		vm.RegisterInterpreter("evmzero", &evmzeroInstance{evm})
 	}
 
 	// We create a second instance in which we enable logging.
@@ -50,7 +50,7 @@ func init() {
 		if err = evm.SetOption("logging", "true"); err != nil {
 			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 		}
-		vm.RegisterInterpreter("evmzero-logging", evm)
+		vm.RegisterInterpreter("evmzero-logging", &evmzeroInstance{evm})
 	}
 
 	// A third instance without analysis cache.
@@ -62,7 +62,7 @@ func init() {
 		if err = evm.SetOption("analysis_cache", "false"); err != nil {
 			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 		}
-		vm.RegisterInterpreter("evmzero-no-analysis-cache", evm)
+		vm.RegisterInterpreter("evmzero-no-analysis-cache", &evmzeroInstance{evm})
 	}
 
 	// Another instance without SHA3 cache.
@@ -74,7 +74,7 @@ func init() {
 		if err = evm.SetOption("sha3_cache", "false"); err != nil {
 			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 		}
-		vm.RegisterInterpreter("evmzero-no-sha3-cache", evm)
+		vm.RegisterInterpreter("evmzero-no-sha3-cache", &evmzeroInstance{evm})
 	}
 
 	// Another instance in which we enable profiling.
@@ -86,7 +86,7 @@ func init() {
 		if err = evm.SetOption("profiling", "true"); err != nil {
 			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 		}
-		vm.RegisterInterpreter("evmzero-profiling", &evmzeroInstanceWithProfiler{evm})
+		vm.RegisterInterpreter("evmzero-profiling", &evmzeroInstanceWithProfiler{&evmzeroInstance{evm}})
 	}
 
 	// Another instance in which we enable profiling external.
@@ -98,20 +98,33 @@ func init() {
 		if err = evm.SetOption("profiling_external", "true"); err != nil {
 			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 		}
-		vm.RegisterInterpreter("evmzero-profiling-external", &evmzeroInstanceWithProfiler{evm})
+		vm.RegisterInterpreter("evmzero-profiling-external", &evmzeroInstanceWithProfiler{&evmzeroInstance{evm}})
 	}
+}
+
+type evmzeroInstance struct {
+	e *evmc.EvmcInterpreter
+}
+
+const newestSupportedRevision = vm.R10_London
+
+func (e *evmzeroInstance) Run(params vm.Parameters) (vm.Result, error) {
+	if params.Revision > newestSupportedRevision {
+		return vm.Result{}, &vm.ErrUnsupportedRevision{Revision: params.Revision}
+	}
+	return e.e.Run(params)
 }
 
 // evmzeroInstanceWithProfiler implements the vm.ProfilingVM interface and is used for all
 // configurations collecting profiling data.
 type evmzeroInstanceWithProfiler struct {
-	*evmc.EvmcInterpreter
+	*evmzeroInstance
 }
 
 func (e *evmzeroInstanceWithProfiler) DumpProfile() {
-	C.evmzero_dump_profile(e.GetEvmcVM().GetHandle())
+	C.evmzero_dump_profile(e.e.GetEvmcVM().GetHandle())
 }
 
 func (e *evmzeroInstanceWithProfiler) ResetProfile() {
-	C.evmzero_reset_profiler(e.GetEvmcVM().GetHandle())
+	C.evmzero_reset_profiler(e.e.GetEvmcVM().GetHandle())
 }

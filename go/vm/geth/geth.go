@@ -31,11 +31,11 @@ func init() {
 type gethVm struct{}
 
 // Defines the newest supported revision for this interpreter implementation
-const NewestSupportedRevision = vm.R10_London
+const newestSupportedRevision = vm.R10_London
 
 func (m *gethVm) Run(parameters vm.Parameters) (vm.Result, error) {
-	if parameters.Revision > NewestSupportedRevision {
-		return vm.Result{}, &vm.ErrUnsupportedRevision{}
+	if parameters.Revision > newestSupportedRevision {
+		return vm.Result{}, &vm.ErrUnsupportedRevision{Revision: parameters.Revision}
 	}
 	evm, contract, stateDb := createGethInterpreterContext(parameters)
 
