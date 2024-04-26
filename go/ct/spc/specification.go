@@ -2024,7 +2024,6 @@ func getCallRules() []Rule {
 	// NOTE: this rule only covers Istanbul, Berlin and London cases in a coarse-grained way.
 	// Follow-work is required to cover other revisions and situations,
 	// as well as special cases currently covered in the effect function.
-
 	callFailEffect := func(s *st.State, addrAccessCost vm.Gas) {
 		FailEffect().Apply(s)
 	}
@@ -2137,6 +2136,14 @@ func callEffect(s *st.State, addrAccessCost vm.Gas) {
 	argsSize := s.Stack.Pop()
 	retOffset := s.Stack.Pop()
 	retSize := s.Stack.Pop()
+
+	// --- check preconditions ---
+
+	// // No value transfer in a read-only context.
+	// if s.ReadOnly && !value.IsZero() {
+	// 	s.Status = st.Failed
+	// 	return
+	// }
 
 	// --- dynamic costs ---
 
