@@ -13,15 +13,14 @@
 package gen
 
 import (
-	"fmt"
 	"strings"
 
 	"pgregory.net/rand"
 )
 
 type SelfDestructedGenerator struct {
-	mustSelfDestructed    bool
-	mustNotSelfDestructed bool
+	mustBeSelfDestructed    bool
+	mustNotBeSelfDestructed bool
 }
 
 func NewSelfDestructedGenerator() *SelfDestructedGenerator {
@@ -30,8 +29,8 @@ func NewSelfDestructedGenerator() *SelfDestructedGenerator {
 
 func (g *SelfDestructedGenerator) Clone() *SelfDestructedGenerator {
 	return &SelfDestructedGenerator{
-		mustSelfDestructed:    g.mustSelfDestructed,
-		mustNotSelfDestructed: g.mustNotSelfDestructed,
+		mustBeSelfDestructed:    g.mustBeSelfDestructed,
+		mustNotBeSelfDestructed: g.mustNotBeSelfDestructed,
 	}
 }
 
@@ -39,23 +38,29 @@ func (g *SelfDestructedGenerator) Restore(other *SelfDestructedGenerator) {
 	if g == other {
 		return
 	}
-	g.mustNotSelfDestructed = other.mustNotSelfDestructed
-	g.mustSelfDestructed = other.mustSelfDestructed
+	*g = *other
 }
 
 func (g *SelfDestructedGenerator) MarkAsSelfDestructed() {
-	g.mustSelfDestructed = true
+	g.mustBeSelfDestructed = true
 }
 
 func (g *SelfDestructedGenerator) MarkAsNotSelfDestructed() {
-	g.mustNotSelfDestructed = true
+	g.mustNotBeSelfDestructed = true
 }
 
 func (g *SelfDestructedGenerator) String() string {
 	var parts []string
 
-	parts = append(parts, fmt.Sprintf("mustDestroy(%v)", g.mustSelfDestructed))
-	parts = append(parts, fmt.Sprintf("mustNotDestroy(%v)", g.mustNotSelfDestructed))
+	if g.mustBeSelfDestructed && g.mustNotBeSelfDestructed {
+		parts = append(parts, "false") // unsatisfiable
+	} else if !g.mustBeSelfDestructed && !g.mustNotBeSelfDestructed {
+		parts = append(parts, "true") // anything is valid
+	} else if g.mustBeSelfDestructed && !g.mustNotBeSelfDestructed {
+		parts = append(parts, "mustBeSelfDestructed")
+	} else {
+		parts = append(parts, "mustNotBeSelfDestructed")
+	}
 
 	return "{" + strings.Join(parts, " ") + "}"
 }
@@ -63,12 +68,12 @@ func (g *SelfDestructedGenerator) String() string {
 func (g *SelfDestructedGenerator) Generate(rnd *rand.Rand) (bool, error) {
 
 	var hasSelfDestroyed bool
-	if !g.mustSelfDestructed && !g.mustNotSelfDestructed {
+	if !g.mustBeSelfDestructed && !g.mustNotBeSelfDestructed {
 		// random true/false
 		hasSelfDestroyed = rnd.Int()%2 == 0
-	} else if g.mustSelfDestructed && g.mustNotSelfDestructed {
+	} else if g.mustBeSelfDestructed && g.mustNotBeSelfDestructed {
 		return false, ErrUnsatisfiable
-	} else if g.mustSelfDestructed && !g.mustNotSelfDestructed {
+	} else if g.mustBeSelfDestructed && !g.mustNotBeSelfDestructed {
 		hasSelfDestroyed = true
 	} else {
 		hasSelfDestroyed = false

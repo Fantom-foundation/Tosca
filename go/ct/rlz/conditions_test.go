@@ -254,7 +254,7 @@ func TestCondition_CheckSelfDestructed(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !hasSelfDestructed {
-		t.Fatal("account not set as selfdestructed, when it should be")
+		t.Fatal("hasSelfDestructed set to false, when it should be true")
 	}
 
 	state.HasSelfDestructed = false
@@ -264,7 +264,7 @@ func TestCondition_CheckSelfDestructed(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !hasNotSelfDestructed {
-		t.Fatal("account set as selfdestructed, when it should not be")
+		t.Fatal("hasNotSelfDestructed set to false, when it should be true")
 	}
 }
 

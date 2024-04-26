@@ -69,41 +69,38 @@ func TestSelfDestructedGenerator_ConflictingSelfDestructedConstraintsAreDetected
 }
 
 func TestSelfDestructedGenerator_String(t *testing.T) {
-	generator := NewSelfDestructedGenerator()
-	str := generator.String()
-	want := "{mustDestroy(false) mustNotDestroy(false)}"
-	if str != want {
-		t.Errorf("unexpected string: wanted %v, but got %v", want, str)
+	tests := map[struct {
+		mustDestruct    bool
+		mustNotDestruct bool
+	}]string{
+		{true, true}:   "{false}",
+		{true, false}:  "{mustBeSelfDestructed}",
+		{false, true}:  "{mustNotBeSelfDestructed}",
+		{false, false}: "{true}",
+	}
+	for values, want := range tests {
+		generator := NewSelfDestructedGenerator()
+		if values.mustDestruct {
+			generator.MarkAsSelfDestructed()
+		}
+		if values.mustNotDestruct {
+			generator.MarkAsNotSelfDestructed()
+		}
+		str := generator.String()
+		if str != want {
+			t.Errorf("unexpected string: wanted %v, but got %v", want, str)
+		}
 	}
 }
 
 func TestSelfDestructedGenerator_Restore(t *testing.T) {
 	gen1 := NewSelfDestructedGenerator()
 	gen2 := NewSelfDestructedGenerator()
-	gen2.mustNotSelfDestructed = true
-	gen2.mustSelfDestructed = true
+	gen2.mustNotBeSelfDestructed = true
+	gen2.mustBeSelfDestructed = true
 
 	gen1.Restore(gen2)
-	if !gen1.mustNotSelfDestructed || !gen1.mustSelfDestructed {
+	if !gen1.mustNotBeSelfDestructed || !gen1.mustBeSelfDestructed {
 		t.Error("selfDestructedGenerator's restore is broken")
-	}
-}
-
-func BenchmarkSelfDestructedGenWithConstraint(b *testing.B) {
-	rnd := rand.New(0)
-	generator := NewSelfDestructedGenerator()
-	generator.MarkAsNotSelfDestructed()
-
-	for i := 0; i < b.N; i++ {
-		generator.Generate(rnd)
-	}
-}
-
-func BenchmarkSelfDestructedGenWithOutConstraint(b *testing.B) {
-	rnd := rand.New(0)
-	generator := NewSelfDestructedGenerator()
-
-	for i := 0; i < b.N; i++ {
-		generator.Generate(rnd)
 	}
 }

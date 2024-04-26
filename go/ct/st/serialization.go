@@ -77,7 +77,7 @@ type stateSerializable struct {
 	ReturnData            Bytes
 	CallJournal           *CallJournal
 	HasSelfDestructed     bool
-	SelfDestructedJournal []SelfDestructEntry
+	SelfDestructedJournal []serializableSelfDestructEntry
 }
 
 // storageSerializable is a serializable representation of the Storage struct.
@@ -119,6 +119,19 @@ func (l *logsSerializable) addLog(data Bytes, topics ...U256) {
 	})
 }
 
+type serializableSelfDestructEntry struct {
+	Account     vm.Address
+	Beneficiary vm.Address
+}
+
+func newSerializableJournal(journal []SelfDestructEntry) []serializableSelfDestructEntry {
+	newJournal := []serializableSelfDestructEntry{}
+	for _, entry := range journal {
+		newJournal = append(newJournal, serializableSelfDestructEntry{entry.account, entry.beneficiary})
+	}
+	return newJournal
+}
+
 // newStateSerializableFromState creates a new stateSerializable instance from the given State instance.
 // The data of the input state is deep copied.
 func newStateSerializableFromState(state *State) *stateSerializable {
@@ -142,7 +155,7 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		ReturnData:            state.ReturnData,
 		CallJournal:           state.CallJournal,
 		HasSelfDestructed:     state.HasSelfDestructed,
-		SelfDestructedJournal: slices.Clone(state.SelfDestructedJournal),
+		SelfDestructedJournal: newSerializableJournal(state.SelfDestructedJournal),
 	}
 }
 
@@ -222,7 +235,11 @@ func (s *stateSerializable) deserialize() *State {
 		state.CallJournal = s.CallJournal.Clone()
 	}
 	state.HasSelfDestructed = s.HasSelfDestructed
-	state.SelfDestructedJournal = s.SelfDestructedJournal
+	if s.SelfDestructedJournal != nil {
+		for _, entry := range s.SelfDestructedJournal {
+			state.SelfDestructedJournal = append(state.SelfDestructedJournal, SelfDestructEntry{entry.Account, entry.Beneficiary})
+		}
+	}
 	return state
 }
 

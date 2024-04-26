@@ -1349,13 +1349,13 @@ func getAllRules() []Rule {
 
 	// --- SELFDESTRUCT ---
 
-	//                                          revision   warm  destColdCost accCreatFee  refund
-	rules = append(rules, nonStaticSelfDestOp(R07_Istanbul, false, vm.Gas(0), vm.Gas(25000), vm.Gas(24000))...)
-	rules = append(rules, nonStaticSelfDestOp(R07_Istanbul, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
-	rules = append(rules, nonStaticSelfDestOp(R09_Berlin, false, vm.Gas(2600), vm.Gas(25000), vm.Gas(24000))...)
-	rules = append(rules, nonStaticSelfDestOp(R09_Berlin, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
-	rules = append(rules, nonStaticSelfDestOp(R10_London, false, vm.Gas(2600), vm.Gas(25000), vm.Gas(0))...)
-	rules = append(rules, nonStaticSelfDestOp(R10_London, true, vm.Gas(0), vm.Gas(0), vm.Gas(0))...)
+	//                                                 revision   warm  destColdCost accCreatFee  refund
+	rules = append(rules, nonStaticSelfDestructRules(R07_Istanbul, false, vm.Gas(0), vm.Gas(25000), vm.Gas(24000))...)
+	rules = append(rules, nonStaticSelfDestructRules(R07_Istanbul, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
+	rules = append(rules, nonStaticSelfDestructRules(R09_Berlin, false, vm.Gas(2600), vm.Gas(25000), vm.Gas(24000))...)
+	rules = append(rules, nonStaticSelfDestructRules(R09_Berlin, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
+	rules = append(rules, nonStaticSelfDestructRules(R10_London, false, vm.Gas(2600), vm.Gas(25000), vm.Gas(0))...)
+	rules = append(rules, nonStaticSelfDestructRules(R10_London, true, vm.Gas(0), vm.Gas(0), vm.Gas(0))...)
 
 	rules = append(rules, rulesFor(instruction{
 		op:        SELFDESTRUCT,
@@ -1731,7 +1731,7 @@ func logOp(n int) []Rule {
 	return rules
 }
 
-func nonStaticSelfDestOp(revision Revision, warm bool, destinationColdCost, accountCreationFee, refundGas vm.Gas) []Rule {
+func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCost, accountCreationFee, refundGas vm.Gas) []Rule {
 
 	var targetWarm Condition
 	var warmColdString string
@@ -1745,7 +1745,7 @@ func nonStaticSelfDestOp(revision Revision, warm bool, destinationColdCost, acco
 
 	name := fmt.Sprintf("_%v_%v", strings.ToLower(revision.String()), warmColdString)
 
-	inst := instruction{
+	instruction := instruction{
 		op:        SELFDESTRUCT,
 		name:      name,
 		staticGas: 5000,
@@ -1762,7 +1762,7 @@ func nonStaticSelfDestOp(revision Revision, warm bool, destinationColdCost, acco
 		},
 	}
 
-	return rulesFor(inst)
+	return rulesFor(instruction)
 }
 
 func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, refundGas vm.Gas) {
@@ -1793,11 +1793,8 @@ func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, re
 	}
 	// add beneficiary to list in state
 	s.HasSelfDestructed = true
-	s.SelfDestructedJournal = append(s.SelfDestructedJournal, st.NewSelfDestructEntry(s.CallContext.AccountAddress, CurrentBalance.Bytes32be()))
+	s.SelfDestructedJournal = append(s.SelfDestructedJournal, st.NewSelfDestructEntry(s.CallContext.AccountAddress, destinationAccount))
 	s.Status = st.Stopped
-
-	// PC should not increase, but rulesFor does it for all regular cases, so we counter it here.
-	s.Pc--
 	s.GasRefund += refundGas
 }
 

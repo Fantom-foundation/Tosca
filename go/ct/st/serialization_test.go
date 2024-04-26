@@ -50,7 +50,7 @@ func getNewFilledState() *State {
 	s.CallData = NewBytes([]byte{1})
 	s.LastCallReturnData = NewBytes([]byte{1})
 	s.HasSelfDestructed = true
-	s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{1}, vm.Value{2}}}
+	s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{1}, vm.Address{2}}}
 	return s
 }
 
@@ -198,7 +198,7 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 	serializableState.CallData = NewBytes([]byte{4})
 	serializableState.LastCallReturnData = NewBytes([]byte{6})
 	serializableState.HasSelfDestructed = false
-	serializableState.SelfDestructedJournal = []SelfDestructEntry{}
+	serializableState.SelfDestructedJournal = newSerializableJournal([]SelfDestructEntry{})
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -229,7 +229,7 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.LastCallReturnData.Get(0, 1)[0] == 1 &&
 		s.HasSelfDestructed &&
 		len(s.SelfDestructedJournal) == 1 &&
-		s.SelfDestructedJournal[0] == SelfDestructEntry{vm.Address{1}, vm.Value{2}}
+		s.SelfDestructedJournal[0] == SelfDestructEntry{vm.Address{1}, vm.Address{2}}
 
 	if !ok {
 		t.Errorf("new serializable state is not independent")
@@ -293,7 +293,7 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 		s.LastCallReturnData.ToBytes()[0] == 1 &&
 		s.HasSelfDestructed &&
 		len(s.SelfDestructedJournal) == 1 &&
-		s.SelfDestructedJournal[0] == SelfDestructEntry{vm.Address{1}, vm.Value{2}}
+		s.SelfDestructedJournal[0] == serializableSelfDestructEntry{vm.Address{1}, vm.Address{2}}
 
 	if !ok {
 		t.Errorf("deserialized state is not independent")

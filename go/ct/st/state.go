@@ -13,9 +13,9 @@
 package st
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -49,46 +49,12 @@ const (
 )
 
 type SelfDestructEntry struct {
-	account    vm.Address
-	oldBalance vm.Value
+	account     vm.Address
+	beneficiary vm.Address
 }
 
-func NewSelfDestructEntry(acc vm.Address, bal vm.Value) SelfDestructEntry {
-	return SelfDestructEntry{account: acc, oldBalance: bal}
-}
-
-func (s SelfDestructEntry) String() string {
-	return fmt.Sprintf("account: %v, oldBalance: %v", s.account, s.oldBalance)
-}
-
-func (s SelfDestructEntry) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.String())
-}
-
-func (s *SelfDestructEntry) UnmarshalJSON(data []byte) error {
-	var entryString string
-	err := json.Unmarshal(data, &entryString)
-	if err != nil {
-		return err
-	}
-
-	reg := regexp.MustCompile(`[(account)|(oldBalance)]: 0[xX][0-9a-fA-F]+`)
-	matches := reg.FindAllString(entryString, -1)
-
-	var acc, bal []byte
-	acc, err = hex.DecodeString(matches[0][5:])
-	if err != nil {
-		fmt.Println(err)
-	}
-	bal, err = hex.DecodeString(matches[1][5:])
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	s.account = vm.Address(acc)
-	s.oldBalance = vm.Value(bal)
-
-	return nil
+func NewSelfDestructEntry(account vm.Address, beneficiary vm.Address) SelfDestructEntry {
+	return SelfDestructEntry{account, beneficiary}
 }
 
 func (s StatusCode) String() string {
@@ -460,16 +426,17 @@ func (s *State) Diff(o *State) []string {
 	}
 
 	if !slices.Equal(s.SelfDestructedJournal, o.SelfDestructedJournal) {
-		for _, pair := range s.SelfDestructedJournal {
-			contained := slices.Contains(o.SelfDestructedJournal, pair)
-			acc, beneficiary := pair.account, pair.oldBalance
-			if !contained {
-				res = append(res, fmt.Sprintf("Different has-self-destructed journal entry:\n\t(%v, %v)\n\tvs\n\tmissing", acc, beneficiary))
-				for _, pair2 := range o.SelfDestructedJournal {
-					acc2, ben2 := pair2.account, pair2.oldBalance
-					if acc2 == acc && beneficiary != ben2 {
-						res = append(res, fmt.Sprintf("Different has-self-destructed journal entry:\n\t(%v, %v)\n\tvs\n\t(%v, %v)", acc, beneficiary, acc2, ben2))
-					}
+		if len(s.SelfDestructedJournal) != len(o.SelfDestructedJournal) {
+			res = append(res, fmt.Sprintf("Different has-self-destructed journal length: %v vs %v",
+				len(s.SelfDestructedJournal), len(o.SelfDestructedJournal)))
+		} else {
+			for index, entry1 := range s.SelfDestructedJournal {
+				account1, beneficiary1 := entry1.account, entry1.beneficiary
+				entry2 := o.SelfDestructedJournal[index]
+				account2, beneficiary2 := entry2.account, entry2.beneficiary
+				if !reflect.DeepEqual(account1, account2) || !reflect.DeepEqual(beneficiary1, beneficiary2) {
+					res = append(res, fmt.Sprintf("Different has-self-destructed journal entry:\n\t(%v, %v)\n\tvs\n\t(%v, %v)",
+						account1, beneficiary1, account2, beneficiary2))
 				}
 			}
 		}

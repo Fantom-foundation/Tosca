@@ -660,23 +660,18 @@ func (c *isAddressCold) String() string {
 // Has Address Selfdestructed
 
 type hasSelfDestructed struct {
-	isSet bool
 }
 
 func HasSelfDestructed() Condition {
-	return &hasSelfDestructed{true}
+	return &hasSelfDestructed{}
 }
 
 func (c *hasSelfDestructed) Check(s *st.State) (bool, error) {
-	if c.isSet {
-		return s.HasSelfDestructed, nil
-	}
-	return true, nil
-
+	return s.HasSelfDestructed, nil
 }
 
 func (c *hasSelfDestructed) Restrict(generator *gen.StateGenerator) {
-	generator.SelfDestruct()
+	generator.MustBeSelfDestructed()
 }
 
 func (c *hasSelfDestructed) GetTestValues() []TestValue {
@@ -684,9 +679,9 @@ func (c *hasSelfDestructed) GetTestValues() []TestValue {
 	domain := boolDomain{}
 	restrict := func(generator *gen.StateGenerator, hasSelfDestructed bool) {
 		if hasSelfDestructed {
-			generator.SelfDestruct()
+			generator.MustBeSelfDestructed()
 		} else {
-			generator.NotSelfDestruct()
+			generator.MustNotBeSelfDestructed()
 		}
 	}
 	return []TestValue{
@@ -696,47 +691,31 @@ func (c *hasSelfDestructed) GetTestValues() []TestValue {
 }
 
 func (c *hasSelfDestructed) String() string {
-	return fmt.Sprintf("hasSelfDestructed(%v)", c.isSet)
+	return "hasSelfDestructed()"
 }
 
 ////////////////////////////////////////////////////////////
 // Has Not Address Selfdestructed
 
 type hasNotSelfDestructed struct {
-	isSet bool
 }
 
 func HasNotSelfDestructed() Condition {
-	return &hasNotSelfDestructed{true}
+	return &hasNotSelfDestructed{}
 }
 
 func (c *hasNotSelfDestructed) Check(s *st.State) (bool, error) {
-	if c.isSet {
-		return !s.HasSelfDestructed, nil
-	}
-	return true, nil
+	return !s.HasSelfDestructed, nil
 }
 
 func (c *hasNotSelfDestructed) Restrict(generator *gen.StateGenerator) {
-	generator.NotSelfDestruct()
+	generator.MustNotBeSelfDestructed()
 }
 
 func (c *hasNotSelfDestructed) GetTestValues() []TestValue {
-	property := Property(c.String())
-	domain := boolDomain{}
-	restrict := func(generator *gen.StateGenerator, hasSelfDestructed bool) {
-		if hasSelfDestructed {
-			generator.SelfDestruct()
-		} else {
-			generator.NotSelfDestruct()
-		}
-	}
-	return []TestValue{
-		NewTestValue(property, domain, true, restrict),
-		NewTestValue(property, domain, false, restrict),
-	}
+	return HasSelfDestructed().GetTestValues()
 }
 
 func (c *hasNotSelfDestructed) String() string {
-	return fmt.Sprintf("hasNotSelfDestructed(%v)", c.isSet)
+	return "hasNotSelfDestructed()"
 }

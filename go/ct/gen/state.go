@@ -240,11 +240,11 @@ func (g *StateGenerator) BindToColdAddress(key Variable) {
 	g.accountsGen.BindCold(key)
 }
 
-func (g *StateGenerator) SelfDestruct() {
+func (g *StateGenerator) MustBeSelfDestructed() {
 	g.hasSelfDestructedGen.MarkAsSelfDestructed()
 }
 
-func (g *StateGenerator) NotSelfDestruct() {
+func (g *StateGenerator) MustNotBeSelfDestructed() {
 	g.hasSelfDestructedGen.MarkAsNotSelfDestructed()
 }
 
