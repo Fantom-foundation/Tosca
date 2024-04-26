@@ -185,10 +185,7 @@ struct Impl {
 template <>
 struct Impl<OpCode::STOP> {
   constexpr static OpInfo kInfo{};
-  static OpResult Run(uint256_t*, Context& ctx) noexcept {
-    ctx.return_data = {};
-    return {.state = RunState::kDone};
-  }
+  static OpResult Run() noexcept { return {.state = RunState::kDone}; }
 };
 
 template <>
@@ -1956,8 +1953,7 @@ end:
   }
 
   // Keep return data only when we are supposed to return something.
-  if (state != RunState::kReturn && state != RunState::kRevert && state != RunState::kRunning &&
-      state != RunState::kDone) {
+  if (state != RunState::kReturn && state != RunState::kRevert && state != RunState::kRunning) {
     ctx.return_data.clear();
   }
 

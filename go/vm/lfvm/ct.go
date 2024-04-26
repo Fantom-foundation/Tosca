@@ -114,11 +114,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.Stack = convertLfvmStackToCtStack(ctxt.stack, state.Stack)
 	state.Memory = convertLfvmMemoryToCtMemory(ctxt.memory)
 	state.LastCallReturnData = common.NewBytes(ctxt.return_data)
-	if ctxt.status == SUICIDED {
-		state.ReturnData = common.NewBytes(ctxt.return_data)
-	} else {
-		state.ReturnData = common.NewBytes(result)
-	}
+	state.ReturnData = common.NewBytes(result)
 
 	return state, nil
 }

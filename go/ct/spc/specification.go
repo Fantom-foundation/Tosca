@@ -1798,8 +1798,6 @@ func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, re
 
 	// PC should not increase, but rulesFor does it for all regular cases, so we counter it here.
 	s.Pc--
-
-	s.ReturnData = s.LastCallReturnData
 	s.GasRefund += refundGas
 }
 
