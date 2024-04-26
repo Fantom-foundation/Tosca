@@ -33,12 +33,9 @@ func NewConformanceTestingTarget() ct.Evm {
 type ctAdapter struct{}
 
 func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
-	// Hack: Special handling for unknown revision, because geth cannot represent an invalid revision.
-	// So we mark the status as failed already.
-	// TODO: Fix this once we add full revision support to the CT and geth.
-	if state.Revision > common.R10_London {
-		state.Status = st.Failed
-		return state, nil
+	parameters := utils.ToVmParameters(state)
+	if parameters.Revision > newestSupportedRevision {
+		return state, &vm.ErrUnsupportedRevision{Revision: parameters.Revision}
 	}
 
 	// No need to run anything that is not in a running state.
@@ -51,8 +48,6 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	if err == nil && op == common.STOP {
 		isStopInstruction = true
 	}
-
-	parameters := utils.ToVmParameters(state)
 
 	evm, contract, stateDb := createGethInterpreterContext(parameters)
 	stateDb.refund = uint64(state.GasRefund)

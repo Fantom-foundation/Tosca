@@ -30,20 +30,15 @@ func NewConformanceTestingTarget() ct.Evm {
 type ctAdapter struct{}
 
 func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
-	// Hack: Special handling for unknown revision, because lfvm cannot represent an invalid revision.
-	// So we mark the status as failed already.
-	// TODO: Fix this once we add full revision support to the CT and lfvm.
-	if state.Revision > common.R10_London {
-		state.Status = st.Failed
-		return state, nil
+	params := utils.ToVmParameters(state)
+	if params.Revision > newestSupportedRevision {
+		return state, &vm.ErrUnsupportedRevision{Revision: params.Revision}
 	}
 
 	// No need to run anything that is not in a running state.
 	if state.Status != st.Running {
 		return state, nil
 	}
-
-	params := utils.ToVmParameters(state)
 
 	var codeHash vm.Hash
 	if params.CodeHash != nil {

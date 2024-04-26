@@ -27,6 +27,9 @@ const (
 	R99_UnknownNextRevision
 )
 
+// Newest Revision currently supported by the CT specification
+const NewestSupportedRevision = R10_London
+
 const MinRevision = R07_Istanbul
 const MaxRevision = R99_UnknownNextRevision
 

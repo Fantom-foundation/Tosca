@@ -13,6 +13,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 	"github.com/Fantom-foundation/Tosca/go/vm/evmzero"
 	"github.com/Fantom-foundation/Tosca/go/vm/geth"
 	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
@@ -119,6 +121,7 @@ func doRun(context *cli.Context) error {
 
 	issuesCollector := issuesCollector{}
 	var skippedCount atomic.Int32
+	var numUnsupportedTests atomic.Int32
 
 	printIssueCounts := func(relativeTime time.Duration, rate float64, current int64) {
 		fmt.Printf(
@@ -141,7 +144,13 @@ func doRun(context *cli.Context) error {
 		}
 
 		if err := runTest(state, evm, filter); err != nil {
-			issuesCollector.AddIssue(state, err)
+			targetError := &vm.ErrUnsupportedRevision{}
+			if errors.As(err, &targetError) {
+				numUnsupportedTests.Add(1)
+				return rlz.ConsumeContinue
+			}
+
+			issuesCollector.AddIssue(state, fmt.Errorf("failed to process input state %v: %w", state, err))
 		}
 
 		return rlz.ConsumeContinue
@@ -160,6 +169,10 @@ func doRun(context *cli.Context) error {
 	// Summarize the result.
 	if skippedCount.Load() > 0 {
 		fmt.Printf("Number of skipped tests: %d\n", skippedCount.Load())
+	}
+
+	if numUnsupportedTests.Load() > 0 {
+		fmt.Printf("Number of tests with unsupported revision: %d\n", numUnsupportedTests.Load())
 	}
 
 	if len(issues) == 0 {
@@ -217,7 +230,7 @@ func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp) error {
 	result, err := evm.StepN(input.Clone(), 1)
 	defer result.Release()
 	if err != nil {
-		return fmt.Errorf("failed to process input state %v: %w", input, err)
+		return err
 	}
 
 	if result.Eq(expected) {
