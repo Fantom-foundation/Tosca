@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
@@ -1178,7 +1177,7 @@ func getAllRules() []Rule {
 					start = uint64(len)
 				}
 				end := min(start+32, uint64(len))
-				data := common.RightPadSlice(s.CallData.Get(start, end), 32)
+				data := RightPadSlice(s.CallData.Get(start, end), 32)
 				pushData = NewU256FromBytes(data...)
 			}
 
@@ -1218,7 +1217,7 @@ func getAllRules() []Rule {
 				start = uint64(len)
 			}
 			end := min(start+size, uint64(len))
-			dataBuffer := common.RightPadSlice(s.CallData.Get(start, end), int(size))
+			dataBuffer := RightPadSlice(s.CallData.Get(start, end), int(size))
 			s.Memory.Write(dataBuffer, destOffset)
 		},
 	})...)
@@ -1346,6 +1345,72 @@ func getAllRules() []Rule {
 	// --- CALL ---
 
 	rules = append(rules, callOp()...)
+
+	// --- CREATE ---
+	rules = append(rules, rulesFor(instruction{
+		op:        CREATE,
+		staticGas: 32000,
+		pops:      3,
+		pushes:    1,
+		conditions: []Condition{
+			//	IsRevision(R07_Istanbul),
+			Eq(ReadOnly(), false),
+		},
+		parameters: []Parameter{
+			ValueParameter{},
+			MemoryOffsetParameter{},
+			MemorySizeParameter{},
+		},
+		effect: func(s *st.State) {
+			valueU256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
+
+			memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
+
+			if s.Gas < memExpCost {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= memExpCost
+
+			// TODO make address random
+			s.CallJournal.ToBeCreated = NewAddressFromInt(0)
+			address := s.CallJournal.ToBeCreated
+
+			input := s.Memory.Read(offset, size)
+
+			if !valueU256.IsZero() {
+				balance := s.Accounts.GetBalance(s.CallContext.AccountAddress)
+				if balance.Lt(valueU256) {
+					s.Stack.Push(AddressToU256(vm.Address{}))
+					s.LastCallReturnData = Bytes{}
+					return
+				}
+			}
+
+			res := s.CallJournal.Call(vm.Create, vm.CallParameter{
+				Sender:    s.CallContext.AccountAddress,
+				Recipient: address,
+				Value:     valueU256.Bytes32be(),
+				Gas:       0,
+				Input:     input,
+			})
+
+			limit := s.Gas - s.Gas/64
+			s.Gas -= limit - res.GasLeft
+			s.GasRefund += res.GasRefund
+
+			if !res.Success {
+				s.Stack.Push(AddressToU256(vm.Address{}))
+				s.LastCallReturnData = NewBytes(res.Output)
+				return
+			}
+			s.LastCallReturnData = Bytes{}
+			s.Stack.Push(AddressToU256(address))
+		},
+	})...)
 
 	// --- End ---
 
@@ -1513,7 +1578,7 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 	}
 	end := min(start+size, codeSize)
 
-	codeCopy := common.RightPadSlice(s.Accounts.GetCode(address).ToBytes()[start:end], int(size))
+	codeCopy := RightPadSlice(s.Accounts.GetCode(address).ToBytes()[start:end], int(size))
 
 	s.Memory.Write(codeCopy, destOffset)
 	if markWarm {
