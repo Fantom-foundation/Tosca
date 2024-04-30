@@ -1798,7 +1798,7 @@ func getCallRules() []Rule {
 	}
 
 	res := []Rule{}
-	revs := []Revision{R07_Istanbul, R09_Berlin}
+	revs := []Revision{R07_Istanbul, R09_Berlin, R10_London}
 	for _, rev := range revs {
 		for _, warm := range []bool{true, false} {
 			for _, zeroValue := range []bool{true, false} {
