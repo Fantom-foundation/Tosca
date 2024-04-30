@@ -1345,7 +1345,7 @@ func getAllRules() []Rule {
 
 	// --- CALL ---
 
-	rules = append(rules, callOps()...)
+	rules = append(rules, callRulesGenerator()...)
 
 	// --- End ---
 
@@ -1787,7 +1787,7 @@ func rulesFor(i instruction) []Rule {
 	return res
 }
 
-func callOps() []Rule {
+func callRulesGenerator() []Rule {
 	res := []Rule{}
 
 	// NOTE: this rule only covers Istanbul case in a coarse-grained way.
@@ -1813,11 +1813,9 @@ func callOps() []Rule {
 					}
 
 					if static && !zeroValue {
-						fmt.Printf("rev:%v, warm %v, addrAccCost %v, zeroVal %v, static %v\n", rev, warm, addressAccessCost, zeroValue, static)
 						res = append(res, callOp(rev, warm, addressAccessCost, zeroValue, callFailEffect, static)...)
 					} else {
-						fmt.Printf("rev:%v, warm %v, addrAccCost %v, zeroVal %v, static %v\n", rev, warm, addressAccessCost, zeroValue, static)
-						res = append(res, callOp(rev, warm, addressAccessCost, zeroValue, callOpEffect, static)...)
+						res = append(res, callOp(rev, warm, addressAccessCost, zeroValue, callEffect, static)...)
 					}
 				}
 			}
@@ -1885,7 +1883,6 @@ func callOp(revision Revision, warm bool, addressAccessCost vm.Gas, zeroValue bo
 		staticCondition,
 	)
 
-	fmt.Printf("%v || %v\n", name, callConditions)
 	return rulesFor(instruction{
 		op:         CALL,
 		name:       name,
@@ -1895,14 +1892,12 @@ func callOp(revision Revision, warm bool, addressAccessCost vm.Gas, zeroValue bo
 		conditions: []Condition{callConditions},
 		parameters: parameters,
 		effect: func(s *st.State) {
-			s.Gas -= staticGas
-			s.Pc++
 			opEffect(s, addressAccessCost)
 		},
 	})
 }
 
-func callOpEffect(s *st.State, addrAccessCost vm.Gas) {
+func callEffect(s *st.State, addrAccessCost vm.Gas) {
 	gas := s.Stack.Pop()
 	target := s.Stack.Pop()
 	value := s.Stack.Pop()
@@ -1910,14 +1905,6 @@ func callOpEffect(s *st.State, addrAccessCost vm.Gas) {
 	argsSize := s.Stack.Pop()
 	retOffset := s.Stack.Pop()
 	retSize := s.Stack.Pop()
-
-	// --- check preconditions ---
-
-	// // No value transfer in a read-only context.
-	// if s.ReadOnly && !value.IsZero() {
-	// 	s.Status = st.Failed
-	// 	return
-	// }
 
 	// --- dynamic costs ---
 

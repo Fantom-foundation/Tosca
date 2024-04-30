@@ -72,8 +72,7 @@ type ctRunContext struct {
 // TODO: add unit test
 func (c *ctRunContext) AccountExists(addr vm.Address) bool {
 	existsAddr := c.state.Accounts.Exist(addr)
-	existsWarm := c.state.Accounts.IsWarm(addr)
-	return existsAddr || existsWarm
+	return existsAddr
 }
 
 func (c *ctRunContext) GetStorage(addr vm.Address, key vm.Key) vm.Word {
