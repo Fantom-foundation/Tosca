@@ -1461,12 +1461,14 @@ struct CreateImpl {
 
     ctx.return_data.clear();
 
-    if (endowment != 0 && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < endowment) {
-      return {.state = RunState::kErrorCreate};
-    }
 
     auto init_code = ctx.memory.GetSpan(init_code_offset, init_code_size);
 
+    if (endowment != 0 && ToUint256(ctx.host->get_balance(ctx.message->recipient)) < endowment) {
+      top[0] = 0;
+      return {.dynamic_gas_costs = initial_gas - gas};
+    }
+    
     evmc_message msg{
         .kind = (Op == op::CREATE) ? EVMC_CREATE : EVMC_CREATE2,
         .depth = ctx.message->depth + 1,

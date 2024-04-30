@@ -1390,15 +1390,15 @@ func getAllRules() []Rule {
 				}
 			}
 
+			limit := s.Gas - s.Gas/64
 			res := s.CallJournal.Call(vm.Create, vm.CallParameter{
 				Sender:    s.CallContext.AccountAddress,
 				Recipient: address,
 				Value:     valueU256.Bytes32be(),
-				Gas:       0,
+				Gas:       limit,
 				Input:     input,
 			})
 
-			limit := s.Gas - s.Gas/64
 			s.Gas -= limit - res.GasLeft
 			s.GasRefund += res.GasRefund
 

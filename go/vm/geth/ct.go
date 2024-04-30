@@ -222,7 +222,7 @@ func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code 
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addressToBeCreated),
 		Value:     vmValue,
-		Gas:       0,
+		Gas:       vm.Gas(gas),
 		Input:     code,
 	})
 
