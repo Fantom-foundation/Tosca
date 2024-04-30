@@ -223,7 +223,30 @@ func (i *callInterceptor) StaticCall(env *geth_vm.EVM, me geth_vm.ContractRef, a
 }
 
 func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, value *big.Int) ([]byte, geth_common.Address, uint64, error) {
-	panic("not implemented")
+	addressToBeCreated := geth_common.HexToAddress("0") // TODO make address random
+	have := i.stateDb.GetBalance(me.Address())
+	if value.Cmp(have) > 0 {
+		return nil, addressToBeCreated, gas, geth_vm.ErrInsufficientBalance
+	}
+
+	var vmValue vm.Value
+	value.FillBytes(vmValue[:])
+	res, _ := i.context.Call(vm.Create, vm.CallParameter{
+		Sender:    vm.Address(me.Address()),
+		Recipient: vm.Address(addressToBeCreated),
+		Value:     vmValue,
+		Gas:       0,
+		Input:     code,
+	})
+
+	i.handleGasRefund(res.GasRefund)
+	err := geth_vm.ErrExecutionReverted
+	if res.Success {
+		err = nil
+	}
+
+	return res.Output, geth_common.Address(res.CreatedAddress), uint64(res.GasLeft), err
+
 }
 
 func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint256.Int) ([]byte, geth_common.Address, uint64, error) {

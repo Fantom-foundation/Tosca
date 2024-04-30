@@ -25,8 +25,9 @@ import (
 // of calls as well as the effect of future calls to be triggered
 // by CREATE and CALL expressions.
 type CallJournal struct {
-	Past   []PastCall
-	Future []FutureCall
+	Past        []PastCall
+	Future      []FutureCall
+	ToBeCreated vm.Address
 }
 
 func NewCallJournal() *CallJournal {
