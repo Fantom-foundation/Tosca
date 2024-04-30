@@ -2137,14 +2137,6 @@ func callEffect(s *st.State, addrAccessCost vm.Gas) {
 	retOffset := s.Stack.Pop()
 	retSize := s.Stack.Pop()
 
-	// --- check preconditions ---
-
-	// // No value transfer in a read-only context.
-	// if s.ReadOnly && !value.IsZero() {
-	// 	s.Status = st.Failed
-	// 	return
-	// }
-
 	// --- dynamic costs ---
 
 	// Compute the memory expansion costs of this call.
