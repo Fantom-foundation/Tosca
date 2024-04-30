@@ -145,11 +145,11 @@ func (c *ctRunContext) Call(kind vm.CallKind, parameter vm.CallParameter) (vm.Ca
 }
 
 func (c *ctRunContext) SelfDestruct(address vm.Address, beneficiary vm.Address) bool {
+	c.state.SelfDestructedJournal = append(c.state.SelfDestructedJournal, st.NewSelfDestructEntry(address, beneficiary))
 	if c.state.HasSelfDestructed {
 		return false
 	}
 	c.state.HasSelfDestructed = true
-	c.state.SelfDestructedJournal = append(c.state.SelfDestructedJournal, st.NewSelfDestructEntry(address, beneficiary))
 	return true
 }
 

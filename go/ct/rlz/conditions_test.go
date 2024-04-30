@@ -244,7 +244,7 @@ func TestCondition_String(t *testing.T) {
 	}
 }
 
-func TestCondition_CheckSelfDestructed(t *testing.T) {
+func TestHasSelfDestructedCondition_CheckSelfDestructed(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.CallContext.AccountAddress = NewAddress(NewU256(0x01))
 	state.HasSelfDestructed = true
@@ -254,7 +254,7 @@ func TestCondition_CheckSelfDestructed(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !hasSelfDestructed {
-		t.Fatal("hasSelfDestructed set to false, when it should be true")
+		t.Fatal("hasSelfDestructed check failed")
 	}
 
 	state.HasSelfDestructed = false
@@ -264,11 +264,11 @@ func TestCondition_CheckSelfDestructed(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !hasNotSelfDestructed {
-		t.Fatal("hasNotSelfDestructed set to false, when it should be true")
+		t.Fatal("hasNotSelfDestructed check failed")
 	}
 }
 
-func TestStateGenerator_HasSelfDestructedCondition(t *testing.T) {
+func TestHasSelfDestructedCondition_HasSelfDestructRestrictsGeneratedStateToBeSelfDestructed(t *testing.T) {
 	condition := HasSelfDestructed()
 
 	gen := gen.NewStateGenerator()
@@ -285,6 +285,6 @@ func TestStateGenerator_HasSelfDestructedCondition(t *testing.T) {
 	}
 
 	if !got {
-		t.Error("generated state does not satisfay condition")
+		t.Error("generated state does not satisfy condition")
 	}
 }

@@ -1349,18 +1349,25 @@ func getAllRules() []Rule {
 
 	// --- SELFDESTRUCT ---
 
-	//                                                 revision   warm  destColdCost accCreatFee  refund
-	rules = append(rules, nonStaticSelfDestructRules(R07_Istanbul, false, vm.Gas(0), vm.Gas(25000), vm.Gas(24000))...)
-	rules = append(rules, nonStaticSelfDestructRules(R07_Istanbul, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
-	rules = append(rules, nonStaticSelfDestructRules(R09_Berlin, false, vm.Gas(2600), vm.Gas(25000), vm.Gas(24000))...)
-	rules = append(rules, nonStaticSelfDestructRules(R09_Berlin, true, vm.Gas(0), vm.Gas(0), vm.Gas(24000))...)
-	rules = append(rules, nonStaticSelfDestructRules(R10_London, false, vm.Gas(2600), vm.Gas(25000), vm.Gas(0))...)
-	rules = append(rules, nonStaticSelfDestructRules(R10_London, true, vm.Gas(0), vm.Gas(0), vm.Gas(0))...)
+	//                                                 revision   warm  destColdCost accCreatFee  hasSelfDestructed
+	rules = append(rules, nonStaticSelfDestructRules(R07_Istanbul, false, vm.Gas(0), vm.Gas(25000), true)...)
+	rules = append(rules, nonStaticSelfDestructRules(R07_Istanbul, false, vm.Gas(0), vm.Gas(25000), false)...)
+	rules = append(rules, nonStaticSelfDestructRules(R07_Istanbul, true, vm.Gas(0), vm.Gas(0), true)...)
+	rules = append(rules, nonStaticSelfDestructRules(R07_Istanbul, true, vm.Gas(0), vm.Gas(0), false)...)
+	rules = append(rules, nonStaticSelfDestructRules(R09_Berlin, false, vm.Gas(2600), vm.Gas(25000), true)...)
+	rules = append(rules, nonStaticSelfDestructRules(R09_Berlin, false, vm.Gas(2600), vm.Gas(25000), false)...)
+	rules = append(rules, nonStaticSelfDestructRules(R09_Berlin, true, vm.Gas(0), vm.Gas(0), true)...)
+	rules = append(rules, nonStaticSelfDestructRules(R09_Berlin, true, vm.Gas(0), vm.Gas(0), false)...)
+	rules = append(rules, nonStaticSelfDestructRules(R10_London, false, vm.Gas(2600), vm.Gas(25000), true)...)
+	rules = append(rules, nonStaticSelfDestructRules(R10_London, false, vm.Gas(2600), vm.Gas(25000), false)...)
+	rules = append(rules, nonStaticSelfDestructRules(R10_London, true, vm.Gas(0), vm.Gas(0), true)...)
+	rules = append(rules, nonStaticSelfDestructRules(R10_London, true, vm.Gas(0), vm.Gas(0), false)...)
 
 	rules = append(rules, rulesFor(instruction{
 		op:        SELFDESTRUCT,
 		name:      "_staticcall",
 		staticGas: 5000,
+		pops:      1,
 		conditions: []Condition{
 			Eq(ReadOnly(), true),
 			AnyKnownRevision(),
@@ -1731,7 +1738,7 @@ func logOp(n int) []Rule {
 	return rules
 }
 
-func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCost, accountCreationFee, refundGas vm.Gas) []Rule {
+func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCost, accountCreationFee vm.Gas, hasSelfDestructed bool) []Rule {
 
 	var targetWarm Condition
 	var warmColdString string
@@ -1743,7 +1750,22 @@ func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCos
 		targetWarm = IsAddressCold(Param(0))
 	}
 
-	name := fmt.Sprintf("_%v_%v", strings.ToLower(revision.String()), warmColdString)
+	var hasSelfDestructedString string
+	var hasSelfDestructedCondition Condition
+	if hasSelfDestructed {
+		hasSelfDestructedString = "destructed"
+		hasSelfDestructedCondition = HasSelfDestructed()
+	} else {
+		hasSelfDestructedString = "not_destructed"
+		hasSelfDestructedCondition = HasNotSelfDestructed()
+	}
+
+	refundGas := vm.Gas(0)
+	if revision != R10_London && !hasSelfDestructed {
+		refundGas = 24000
+	}
+
+	name := fmt.Sprintf("_%v_%v_%v", strings.ToLower(revision.String()), warmColdString, hasSelfDestructedString)
 
 	instruction := instruction{
 		op:        SELFDESTRUCT,
@@ -1753,7 +1775,7 @@ func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCos
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
 			IsRevision(revision),
-			HasNotSelfDestructed(),
+			hasSelfDestructedCondition,
 			targetWarm,
 		},
 		parameters: []Parameter{AddressParameter{}},

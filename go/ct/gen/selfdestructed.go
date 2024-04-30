@@ -13,8 +13,6 @@
 package gen
 
 import (
-	"strings"
-
 	"pgregory.net/rand"
 )
 
@@ -50,19 +48,14 @@ func (g *SelfDestructedGenerator) MarkAsNotSelfDestructed() {
 }
 
 func (g *SelfDestructedGenerator) String() string {
-	var parts []string
-
 	if g.mustBeSelfDestructed && g.mustNotBeSelfDestructed {
-		parts = append(parts, "false") // unsatisfiable
+		return "{false}" // unsatisfiable
 	} else if !g.mustBeSelfDestructed && !g.mustNotBeSelfDestructed {
-		parts = append(parts, "true") // anything is valid
+		return "{true}" // everything is valid
 	} else if g.mustBeSelfDestructed && !g.mustNotBeSelfDestructed {
-		parts = append(parts, "mustBeSelfDestructed")
-	} else {
-		parts = append(parts, "mustNotBeSelfDestructed")
+		return "{mustBeSelfDestructed}"
 	}
-
-	return "{" + strings.Join(parts, " ") + "}"
+	return "{mustNotBeSelfDestructed}"
 }
 
 func (g *SelfDestructedGenerator) Generate(rnd *rand.Rand) (bool, error) {

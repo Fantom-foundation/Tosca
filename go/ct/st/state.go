@@ -15,7 +15,6 @@ package st
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -431,12 +430,10 @@ func (s *State) Diff(o *State) []string {
 				len(s.SelfDestructedJournal), len(o.SelfDestructedJournal)))
 		} else {
 			for index, entry1 := range s.SelfDestructedJournal {
-				account1, beneficiary1 := entry1.account, entry1.beneficiary
 				entry2 := o.SelfDestructedJournal[index]
-				account2, beneficiary2 := entry2.account, entry2.beneficiary
-				if !reflect.DeepEqual(account1, account2) || !reflect.DeepEqual(beneficiary1, beneficiary2) {
+				if entry1 != entry2 {
 					res = append(res, fmt.Sprintf("Different has-self-destructed journal entry:\n\t(%v, %v)\n\tvs\n\t(%v, %v)",
-						account1, beneficiary1, account2, beneficiary2))
+						entry1.account, entry1.beneficiary, entry2.account, entry2.beneficiary))
 				}
 			}
 		}
