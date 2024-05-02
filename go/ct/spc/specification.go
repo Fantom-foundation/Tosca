@@ -1349,19 +1349,22 @@ func getAllRules() []Rule {
 
 	// --- SELFDESTRUCT ---
 
-	//                                                 revision   warm  destColdCost accCreatFee  hasSelfDestructed
-	rules = append(rules, nonStaticSelfDestructRules(R07_Istanbul, false, vm.Gas(0), vm.Gas(25000), true)...)
-	rules = append(rules, nonStaticSelfDestructRules(R07_Istanbul, false, vm.Gas(0), vm.Gas(25000), false)...)
-	rules = append(rules, nonStaticSelfDestructRules(R07_Istanbul, true, vm.Gas(0), vm.Gas(0), true)...)
-	rules = append(rules, nonStaticSelfDestructRules(R07_Istanbul, true, vm.Gas(0), vm.Gas(0), false)...)
-	rules = append(rules, nonStaticSelfDestructRules(R09_Berlin, false, vm.Gas(2600), vm.Gas(25000), true)...)
-	rules = append(rules, nonStaticSelfDestructRules(R09_Berlin, false, vm.Gas(2600), vm.Gas(25000), false)...)
-	rules = append(rules, nonStaticSelfDestructRules(R09_Berlin, true, vm.Gas(0), vm.Gas(0), true)...)
-	rules = append(rules, nonStaticSelfDestructRules(R09_Berlin, true, vm.Gas(0), vm.Gas(0), false)...)
-	rules = append(rules, nonStaticSelfDestructRules(R10_London, false, vm.Gas(2600), vm.Gas(25000), true)...)
-	rules = append(rules, nonStaticSelfDestructRules(R10_London, false, vm.Gas(2600), vm.Gas(25000), false)...)
-	rules = append(rules, nonStaticSelfDestructRules(R10_London, true, vm.Gas(0), vm.Gas(0), true)...)
-	rules = append(rules, nonStaticSelfDestructRules(R10_London, true, vm.Gas(0), vm.Gas(0), false)...)
+	selfDestructRevisions := []Revision{R07_Istanbul, R09_Berlin, R10_London}
+	for _, revision := range selfDestructRevisions {
+		for _, warm := range []bool{true, false} {
+			for _, hasSelfDestructed := range []bool{true, false} {
+				coldTargetCost := vm.Gas(0)
+				createAccountFee := vm.Gas(0)
+				if !warm {
+					createAccountFee = 25000
+					if revision > R07_Istanbul {
+						coldTargetCost = 2600
+					}
+				}
+				rules = append(rules, nonStaticSelfDestructRules(revision, warm, coldTargetCost, createAccountFee, hasSelfDestructed)...)
+			}
+		}
+	}
 
 	rules = append(rules, rulesFor(instruction{
 		op:        SELFDESTRUCT,
