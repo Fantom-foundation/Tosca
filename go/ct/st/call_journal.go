@@ -25,9 +25,8 @@ import (
 // of calls as well as the effect of future calls to be triggered
 // by CREATE and CALL expressions.
 type CallJournal struct {
-	Past        []PastCall
-	Future      []FutureCall
-	ToBeCreated vm.Address
+	Past   []PastCall
+	Future []FutureCall
 }
 
 func NewCallJournal() *CallJournal {
@@ -181,9 +180,6 @@ func (c *FutureCall) Diff(other *FutureCall) []string {
 	}
 	if have, got := c.GasRefund, other.GasRefund; have != got {
 		res = append(res, fmt.Sprintf("different refund: %v vs %v", have, got))
-	}
-	if have, got := c.CreatedAccount, other.CreatedAccount; have != got {
-		res = append(res, fmt.Sprintf("different created account: %v vs %v", have, got))
 	}
 	return res
 }
