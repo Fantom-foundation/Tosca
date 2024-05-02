@@ -25,16 +25,15 @@ import (
 // of calls as well as the effect of future calls to be triggered
 // by CREATE and CALL expressions.
 type CallJournal struct {
-	Past        []PastCall
-	Future      []FutureCall
-	ToBeCreated vm.Address
+	Past   []PastCall
+	Future []FutureCall
 }
 
 func NewCallJournal() *CallJournal {
 	return &CallJournal{}
 }
 
-func (j *CallJournal) Call(kind vm.CallKind, parameter vm.CallParameter) vm.Result {
+func (j *CallJournal) Call(kind vm.CallKind, parameter vm.CallParameter) vm.CallResult {
 	// log the call as a past call.
 	j.Past = append(j.Past, PastCall{
 		Kind:      kind,
@@ -59,11 +58,12 @@ func (j *CallJournal) Call(kind vm.CallKind, parameter vm.CallParameter) vm.Resu
 		gasLeft -= result.GasCosts
 	}
 
-	return vm.Result{
-		Success:   result.Success,
-		Output:    result.Output.ToBytes(),
-		GasLeft:   gasLeft,
-		GasRefund: result.GasRefund,
+	return vm.CallResult{
+		Success:        result.Success,
+		Output:         result.Output.ToBytes(),
+		GasLeft:        gasLeft,
+		GasRefund:      result.GasRefund,
+		CreatedAddress: result.CreatedAccount,
 	}
 }
 
@@ -156,10 +156,11 @@ func (c *PastCall) Diff(other *PastCall) []string {
 }
 
 type FutureCall struct {
-	Success   bool
-	Output    Bytes
-	GasCosts  vm.Gas
-	GasRefund vm.Gas
+	Success        bool
+	Output         Bytes
+	GasCosts       vm.Gas
+	GasRefund      vm.Gas
+	CreatedAccount vm.Address
 }
 
 func (c *FutureCall) Equal(other *FutureCall) bool {
@@ -178,6 +179,9 @@ func (c *FutureCall) Diff(other *FutureCall) []string {
 		res = append(res, fmt.Sprintf("different gas costs: %v vs %v", have, got))
 	}
 	if have, got := c.GasRefund, other.GasRefund; have != got {
+		res = append(res, fmt.Sprintf("different refund: %v vs %v", have, got))
+	}
+	if have, got := c.CreatedAccount, other.CreatedAccount; have != got {
 		res = append(res, fmt.Sprintf("different refund: %v vs %v", have, got))
 	}
 	return res

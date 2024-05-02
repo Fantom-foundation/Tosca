@@ -1404,10 +1404,6 @@ func getAllRules() []Rule {
 				return
 			}
 			s.Gas -= memExpCost
-
-			s.CallJournal.ToBeCreated = NewAddressFromInt(0) // TODO make address random
-			address := s.CallJournal.ToBeCreated
-
 			input := s.Memory.Read(offset, size)
 
 			if !valueU256.IsZero() {
@@ -1422,11 +1418,10 @@ func getAllRules() []Rule {
 			limit := s.Gas - s.Gas/64
 
 			res := s.CallJournal.Call(vm.Create, vm.CallParameter{
-				Sender:    s.CallContext.AccountAddress,
-				Recipient: address,
-				Value:     valueU256.Bytes32be(),
-				Gas:       limit,
-				Input:     input,
+				Sender: s.CallContext.AccountAddress,
+				Value:  valueU256.Bytes32be(),
+				Gas:    limit,
+				Input:  input,
 			})
 
 			s.Gas -= limit - res.GasLeft
@@ -1438,7 +1433,7 @@ func getAllRules() []Rule {
 				return
 			}
 			s.LastCallReturnData = Bytes{}
-			s.Stack.Push(AddressToU256(address))
+			s.Stack.Push(AddressToU256(res.CreatedAddress))
 		},
 	})...)
 

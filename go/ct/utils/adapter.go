@@ -136,10 +136,11 @@ func (c *ctRunContext) EmitLog(addr vm.Address, topics []vm.Hash, data []byte) {
 func (c *ctRunContext) Call(kind vm.CallKind, parameter vm.CallParameter) (vm.CallResult, error) {
 	res := c.state.CallJournal.Call(kind, parameter)
 	return vm.CallResult{
-		Success:   res.Success,
-		Output:    res.Output,
-		GasLeft:   res.GasLeft,
-		GasRefund: res.GasRefund,
+		Success:        res.Success,
+		Output:         res.Output,
+		GasLeft:        res.GasLeft,
+		GasRefund:      res.GasRefund,
+		CreatedAddress: res.CreatedAddress,
 	}, nil
 }
 
