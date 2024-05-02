@@ -1962,7 +1962,7 @@ func callOpIstanbul() []Rule {
 		Condition: And(
 			isCallWithSufficientGasAndStack,
 			Eq(ReadOnly(), true),
-			Eq(Param(2), NewU256(0)),
+			Eq(ValueParam(2), NewU256(0)),
 		),
 		Parameter: parameters,
 		Effect:    performsCall,
