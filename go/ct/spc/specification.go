@@ -1901,26 +1901,25 @@ func rulesFor(i instruction) []Rule {
 }
 
 func getCallRules() []Rule {
-	// NOTE: this rule only covers Istanbul and Berlin cases in a coarse-grained way.
+	// NOTE: this rule only covers Istanbul, Berlin and London cases in a coarse-grained way.
 	// Follow-work is required to cover other revisions and situations,
 	// as well as special cases currently covered in the effect function.
 
-	//                         revision   warm  destColdCost valueZero
 	callFailEffect := func(s *st.State, addrAccessCost vm.Gas) {
 		FailEffect().Apply(s)
 	}
 
 	res := []Rule{}
-	revs := []Revision{R07_Istanbul, R09_Berlin}
+	revs := []Revision{R07_Istanbul, R09_Berlin, R10_London}
 	for _, rev := range revs {
 		for _, warm := range []bool{true, false} {
 			for _, zeroValue := range []bool{true, false} {
 				for _, static := range []bool{true, false} {
+					effect := callEffect
 					if static && !zeroValue {
-						res = append(res, callOp(rev, warm, zeroValue, callFailEffect, static)...)
-					} else {
-						res = append(res, callOp(rev, warm, zeroValue, callEffect, static)...)
+						effect = callFailEffect
 					}
+					res = append(res, getRulesForCall(rev, warm, zeroValue, effect, static)...)
 				}
 			}
 		}
@@ -1929,7 +1928,7 @@ func getCallRules() []Rule {
 	return res
 }
 
-func callOp(revision Revision, warm, zeroValue bool, opEffect func(s *st.State, addrAccessCost vm.Gas), static bool) []Rule {
+func getRulesForCall(revision Revision, warm, zeroValue bool, opEffect func(s *st.State, addrAccessCost vm.Gas), static bool) []Rule {
 
 	parameters := []Parameter{
 		GasParameter{},
@@ -1971,10 +1970,10 @@ func callOp(revision Revision, warm, zeroValue bool, opEffect func(s *st.State, 
 	var valueZeroConditionName string
 	if zeroValue {
 		valueZeroConditionName = "no_value"
-		valueZeroCondition = Eq(Param(2), NewU256(0))
+		valueZeroCondition = Eq(ValueParam(2), NewU256(0))
 	} else {
 		valueZeroConditionName = "with_value"
-		valueZeroCondition = Ne(Param(2), NewU256(0))
+		valueZeroCondition = Ne(ValueParam(2), NewU256(0))
 	}
 
 	var staticCondition Condition
