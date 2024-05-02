@@ -1347,6 +1347,37 @@ func getAllRules() []Rule {
 
 	rules = append(rules, callOp()...)
 
+	// --- SELFDESTRUCT ---
+
+	selfDestructRevisions := []Revision{R07_Istanbul, R09_Berlin, R10_London}
+	for _, revision := range selfDestructRevisions {
+		for _, warm := range []bool{true, false} {
+			for _, hasSelfDestructed := range []bool{true, false} {
+				coldTargetCost := vm.Gas(0)
+				createAccountFee := vm.Gas(0)
+				if !warm {
+					createAccountFee = 25000
+					if revision > R07_Istanbul {
+						coldTargetCost = 2600
+					}
+				}
+				rules = append(rules, nonStaticSelfDestructRules(revision, warm, coldTargetCost, createAccountFee, hasSelfDestructed)...)
+			}
+		}
+	}
+
+	rules = append(rules, rulesFor(instruction{
+		op:        SELFDESTRUCT,
+		name:      "_staticcall",
+		staticGas: 5000,
+		pops:      1,
+		conditions: []Condition{
+			Eq(ReadOnly(), true),
+			AnyKnownRevision(),
+		},
+		effect: FailEffect().Apply,
+	})...)
+
 	// --- End ---
 
 	return rules
@@ -1708,6 +1739,88 @@ func logOp(n int) []Rule {
 	}}...)
 
 	return rules
+}
+
+func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCost, accountCreationFee vm.Gas, hasSelfDestructed bool) []Rule {
+
+	var targetWarm Condition
+	var warmColdString string
+	if warm {
+		warmColdString = "warm"
+		targetWarm = IsAddressWarm(Param(0))
+	} else {
+		warmColdString = "cold"
+		targetWarm = IsAddressCold(Param(0))
+	}
+
+	var hasSelfDestructedString string
+	var hasSelfDestructedCondition Condition
+	if hasSelfDestructed {
+		hasSelfDestructedString = "destructed"
+		hasSelfDestructedCondition = HasSelfDestructed()
+	} else {
+		hasSelfDestructedString = "not_destructed"
+		hasSelfDestructedCondition = HasNotSelfDestructed()
+	}
+
+	refundGas := vm.Gas(0)
+	if revision != R10_London && !hasSelfDestructed {
+		refundGas = 24000
+	}
+
+	name := fmt.Sprintf("_%v_%v_%v", strings.ToLower(revision.String()), warmColdString, hasSelfDestructedString)
+
+	instruction := instruction{
+		op:        SELFDESTRUCT,
+		name:      name,
+		staticGas: 5000,
+		pops:      1,
+		conditions: []Condition{
+			Eq(ReadOnly(), false),
+			IsRevision(revision),
+			hasSelfDestructedCondition,
+			targetWarm,
+		},
+		parameters: []Parameter{AddressParameter{}},
+		effect: func(s *st.State) {
+			selfDestructEffect(s, destinationColdCost, accountCreationFee, refundGas)
+		},
+	}
+
+	return rulesFor(instruction)
+}
+
+func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, refundGas vm.Gas) {
+	// Behavior pre cancun: the current account is registered to be destroyed, and will be at the end of the current
+	// transaction. The transfer of the current balance to the given account cannot fail. In particular,
+	// the destination account code (if any) is not executed, or, if the account does not exist, the
+	// balance is still added to the given address.
+
+	// account to send the current balance to
+	destinationAccount := s.Stack.Pop().Bytes20be()
+	currentAccount := s.CallContext.AccountAddress
+	CurrentBalance := s.Accounts.GetBalance(currentAccount)
+
+	dynamicCost := vm.Gas(0)
+	if !CurrentBalance.IsZero() && !s.Accounts.Exist(destinationAccount) {
+		dynamicCost += accountCreationFee
+	}
+
+	dynamicCost += destinationColdCost
+
+	if s.Gas < dynamicCost {
+		s.Status = st.Failed
+		return
+	}
+	s.Gas -= dynamicCost
+	if s.Revision > R07_Istanbul {
+		s.Accounts.MarkWarm(destinationAccount)
+	}
+	// add beneficiary to list in state
+	s.HasSelfDestructed = true
+	s.SelfDestructedJournal = append(s.SelfDestructedJournal, st.NewSelfDestructEntry(s.CallContext.AccountAddress, destinationAccount))
+	s.Status = st.Stopped
+	s.GasRefund += refundGas
 }
 
 func tooLittleGas(i instruction) []Rule {

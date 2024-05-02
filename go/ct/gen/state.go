@@ -53,14 +53,15 @@ type StateGenerator struct {
 	variableBindings      []variableBinding
 
 	// Generators
-	codeGen         *CodeGenerator
-	stackGen        *StackGenerator
-	memoryGen       *MemoryGenerator
-	storageGen      *StorageGenerator
-	accountsGen     *AccountsGenerator
-	callContextGen  *CallContextGenerator
-	callJournalGen  *CallJournalGenerator
-	blockContextGen *BlockContextGenerator
+	codeGen              *CodeGenerator
+	stackGen             *StackGenerator
+	memoryGen            *MemoryGenerator
+	storageGen           *StorageGenerator
+	accountsGen          *AccountsGenerator
+	callContextGen       *CallContextGenerator
+	callJournalGen       *CallJournalGenerator
+	blockContextGen      *BlockContextGenerator
+	hasSelfDestructedGen *SelfDestructedGenerator
 }
 
 // NewStateGenerator creates a generator without any initial constraints.
@@ -77,6 +78,7 @@ func NewStateGenerator() *StateGenerator {
 		revisionConstraints:  NewRangeSolver[Revision](MinRevision, MaxRevision),
 		gasConstraints:       NewRangeSolver[vm.Gas](0, st.MaxGas),
 		gasRefundConstraints: NewRangeSolver[vm.Gas](-st.MaxGas, st.MaxGas),
+		hasSelfDestructedGen: NewSelfDestructedGenerator(),
 	}
 }
 
@@ -238,6 +240,14 @@ func (g *StateGenerator) BindToColdAddress(key Variable) {
 	g.accountsGen.BindCold(key)
 }
 
+func (g *StateGenerator) MustBeSelfDestructed() {
+	g.hasSelfDestructedGen.MarkAsSelfDestructed()
+}
+
+func (g *StateGenerator) MustNotBeSelfDestructed() {
+	g.hasSelfDestructedGen.MarkAsNotSelfDestructed()
+}
+
 func getRandomData(rnd *rand.Rand) ([]byte, error) {
 	size := uint(rnd.ExpFloat64() * float64(200))
 	if size > st.MaxDataSize {
@@ -339,10 +349,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("failed to resolve gas refund constraints: %w", err)
 	}
 
-	accountAddress, err := RandAddress(rnd)
-	if err != nil {
-		return nil, err
-	}
+	accountAddress := RandomAddress(rnd)
 
 	// Invoke CallContextGenerator
 	resultCallContext, err := g.callContextGen.Generate(rnd, accountAddress)
@@ -371,6 +378,12 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	var resultReturnData Bytes
 	if resultStatus == st.Stopped || resultStatus == st.Reverted {
 		resultReturnData = RandomBytes(rnd, st.MaxDataSize)
+	}
+
+	// Invoke SelfDestructedGenerator
+	resultHasSelfdestructed, err := g.hasSelfDestructedGen.Generate(rnd)
+	if err != nil {
+		return nil, err
 	}
 
 	// Sub-generators can modify the assignment when unassigned variables are
@@ -418,6 +431,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.CallData = resultCallData
 	result.LastCallReturnData = resultLastCallReturnData
 	result.ReturnData = resultReturnData
+	result.HasSelfDestructed = resultHasSelfdestructed
 
 	return result, nil
 }
@@ -442,6 +456,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		callContextGen:        g.callContextGen.Clone(),
 		callJournalGen:        g.callJournalGen.Clone(),
 		blockContextGen:       g.blockContextGen.Clone(),
+		hasSelfDestructedGen:  g.hasSelfDestructedGen.Clone(),
 	}
 }
 
@@ -507,6 +522,7 @@ func (g *StateGenerator) String() string {
 	parts = append(parts, fmt.Sprintf("callContext=%v", g.callContextGen))
 	parts = append(parts, fmt.Sprintf("callJournal=%v", g.callJournalGen))
 	parts = append(parts, fmt.Sprintf("blockContext=%v", g.blockContextGen))
+	parts = append(parts, fmt.Sprintf("selfdestruct=%v", g.hasSelfDestructedGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }

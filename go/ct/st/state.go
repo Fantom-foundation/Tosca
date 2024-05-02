@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -45,6 +46,15 @@ const (
 	Failed                           // failed (for any reason)
 	NumStatusCodes                   // not an actual status
 )
+
+type SelfDestructEntry struct {
+	account     vm.Address
+	beneficiary vm.Address
+}
+
+func NewSelfDestructEntry(account vm.Address, beneficiary vm.Address) SelfDestructEntry {
+	return SelfDestructEntry{account, beneficiary}
+}
 
 func (s StatusCode) String() string {
 	switch s {
@@ -106,40 +116,43 @@ type Releaser interface {
 
 // State represents an EVM's execution state.
 type State struct {
-	Status             StatusCode
-	Revision           Revision
-	ReadOnly           bool
-	Pc                 uint16
-	Gas                vm.Gas
-	GasRefund          vm.Gas
-	Code               *Code
-	Stack              *Stack
-	Memory             *Memory
-	Storage            *Storage
-	Accounts           *Accounts
-	Logs               *Logs
-	CallContext        CallContext
-	CallJournal        *CallJournal
-	BlockContext       BlockContext
-	CallData           Bytes
-	LastCallReturnData Bytes
-	ReturnData         Bytes
+	Status                StatusCode
+	Revision              Revision
+	ReadOnly              bool
+	Pc                    uint16
+	Gas                   vm.Gas
+	GasRefund             vm.Gas
+	Code                  *Code
+	Stack                 *Stack
+	Memory                *Memory
+	Storage               *Storage
+	Accounts              *Accounts
+	Logs                  *Logs
+	CallContext           CallContext
+	CallJournal           *CallJournal
+	BlockContext          BlockContext
+	CallData              Bytes
+	LastCallReturnData    Bytes
+	ReturnData            Bytes
+	HasSelfDestructed     bool
+	SelfDestructedJournal []SelfDestructEntry
 }
 
 // NewState creates a new State instance with the given code.
 func NewState(code *Code) *State {
 	return &State{
-		Status:             Running,
-		Revision:           R07_Istanbul,
-		Code:               code,
-		Stack:              &Stack{},
-		Memory:             NewMemory(),
-		Storage:            &Storage{},
-		Accounts:           NewAccounts(),
-		Logs:               NewLogs(),
-		CallJournal:        NewCallJournal(),
-		CallData:           Bytes{},
-		LastCallReturnData: Bytes{},
+		Status:                Running,
+		Revision:              R07_Istanbul,
+		Code:                  code,
+		Stack:                 &Stack{},
+		Memory:                NewMemory(),
+		Storage:               &Storage{},
+		Accounts:              NewAccounts(),
+		Logs:                  NewLogs(),
+		CallJournal:           NewCallJournal(),
+		CallData:              Bytes{},
+		LastCallReturnData:    Bytes{},
+		SelfDestructedJournal: []SelfDestructEntry{},
 	}
 }
 
@@ -169,6 +182,8 @@ func (s *State) Clone() *State {
 	clone.CallData = s.CallData
 	clone.LastCallReturnData = s.LastCallReturnData
 	clone.ReturnData = s.ReturnData
+	clone.HasSelfDestructed = s.HasSelfDestructed
+	clone.SelfDestructedJournal = slices.Clone(s.SelfDestructedJournal)
 	return clone
 }
 
@@ -199,7 +214,9 @@ func (s *State) Eq(other *State) bool {
 		s.CallData == other.CallData &&
 		s.Storage.Eq(other.Storage) &&
 		s.Accounts.Eq(other.Accounts) &&
-		s.Logs.Eq(other.Logs)
+		s.Logs.Eq(other.Logs) &&
+		s.HasSelfDestructed == other.HasSelfDestructed &&
+		slices.Equal(s.SelfDestructedJournal, other.SelfDestructedJournal)
 
 	// For terminal states, internal state can be ignored, but the result is important.
 	if s.Status != Running {
@@ -321,6 +338,9 @@ func (s *State) String() string {
 		write("\tReturnData: %x\n", s.ReturnData)
 	}
 
+	write("\tHasSelfDestructed: %v\n", s.HasSelfDestructed)
+	write("\tSelfDestructedJournal: %v\n", s.SelfDestructedJournal)
+
 	write("}")
 	return builder.String()
 }
@@ -398,6 +418,25 @@ func (s *State) Diff(o *State) []string {
 
 	if (s.Status == Stopped || s.Status == Reverted) && s.ReturnData != o.ReturnData {
 		res = append(res, fmt.Sprintf("Different return data: %x vs %x", s.ReturnData, o.ReturnData))
+	}
+
+	if s.HasSelfDestructed != o.HasSelfDestructed {
+		res = append(res, fmt.Sprintf("Different has-self-destructed: %v vs %v ", s.HasSelfDestructed, o.HasSelfDestructed))
+	}
+
+	if !slices.Equal(s.SelfDestructedJournal, o.SelfDestructedJournal) {
+		if len(s.SelfDestructedJournal) != len(o.SelfDestructedJournal) {
+			res = append(res, fmt.Sprintf("Different has-self-destructed journal length: %v vs %v",
+				len(s.SelfDestructedJournal), len(o.SelfDestructedJournal)))
+		} else {
+			for index, entry1 := range s.SelfDestructedJournal {
+				entry2 := o.SelfDestructedJournal[index]
+				if entry1 != entry2 {
+					res = append(res, fmt.Sprintf("Different has-self-destructed journal entry:\n\t(%v, %v)\n\tvs\n\t(%v, %v)",
+						entry1.account, entry1.beneficiary, entry2.account, entry2.beneficiary))
+				}
+			}
+		}
 	}
 
 	return res

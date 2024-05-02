@@ -18,6 +18,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"pgregory.net/rand"
 )
 
 func TestCondition_Check(t *testing.T) {
@@ -240,5 +241,50 @@ func TestCondition_String(t *testing.T) {
 		if got, want := test.condition.String(), test.result; got != want {
 			t.Errorf("unexpected print, wanted %s, got %s", want, got)
 		}
+	}
+}
+
+func TestHasSelfDestructedCondition_CheckSelfDestructed(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.CallContext.AccountAddress = NewAddress(NewU256(0x01))
+	state.HasSelfDestructed = true
+
+	hasSelfDestructed, err := HasSelfDestructed().Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasSelfDestructed {
+		t.Fatal("hasSelfDestructed check failed")
+	}
+
+	state.HasSelfDestructed = false
+
+	hasNotSelfDestructed, err := HasNotSelfDestructed().Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasNotSelfDestructed {
+		t.Fatal("hasNotSelfDestructed check failed")
+	}
+}
+
+func TestHasSelfDestructedCondition_HasSelfDestructRestrictsGeneratedStateToBeSelfDestructed(t *testing.T) {
+	condition := HasSelfDestructed()
+
+	gen := gen.NewStateGenerator()
+	condition.Restrict(gen)
+	rnd := rand.New(0)
+	state, err := gen.Generate(rnd)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	got, err := condition.Check(state)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	if !got {
+		t.Error("generated state does not satisfy condition")
 	}
 }

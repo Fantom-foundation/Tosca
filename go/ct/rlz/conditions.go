@@ -655,3 +655,67 @@ func (c *isAddressCold) GetTestValues() []TestValue {
 func (c *isAddressCold) String() string {
 	return fmt.Sprintf("cold(%v)", c.key)
 }
+
+////////////////////////////////////////////////////////////
+// Has Address Selfdestructed
+
+type hasSelfDestructed struct {
+}
+
+func HasSelfDestructed() Condition {
+	return &hasSelfDestructed{}
+}
+
+func (c *hasSelfDestructed) Check(s *st.State) (bool, error) {
+	return s.HasSelfDestructed, nil
+}
+
+func (c *hasSelfDestructed) Restrict(generator *gen.StateGenerator) {
+	generator.MustBeSelfDestructed()
+}
+
+func (c *hasSelfDestructed) GetTestValues() []TestValue {
+	property := Property(c.String())
+	domain := boolDomain{}
+	restrict := func(generator *gen.StateGenerator, hasSelfDestructed bool) {
+		if hasSelfDestructed {
+			generator.MustBeSelfDestructed()
+		} else {
+			generator.MustNotBeSelfDestructed()
+		}
+	}
+	return []TestValue{
+		NewTestValue(property, domain, true, restrict),
+		NewTestValue(property, domain, false, restrict),
+	}
+}
+
+func (c *hasSelfDestructed) String() string {
+	return "hasSelfDestructed()"
+}
+
+////////////////////////////////////////////////////////////
+// Has Not Address Selfdestructed
+
+type hasNotSelfDestructed struct {
+}
+
+func HasNotSelfDestructed() Condition {
+	return &hasNotSelfDestructed{}
+}
+
+func (c *hasNotSelfDestructed) Check(s *st.State) (bool, error) {
+	return !s.HasSelfDestructed, nil
+}
+
+func (c *hasNotSelfDestructed) Restrict(generator *gen.StateGenerator) {
+	generator.MustNotBeSelfDestructed()
+}
+
+func (c *hasNotSelfDestructed) GetTestValues() []TestValue {
+	return HasSelfDestructed().GetTestValues()
+}
+
+func (c *hasNotSelfDestructed) String() string {
+	return "hasNotSelfDestructed()"
+}

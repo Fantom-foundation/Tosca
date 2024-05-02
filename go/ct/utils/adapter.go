@@ -70,8 +70,7 @@ type ctRunContext struct {
 // TODO: add unit test
 func (c *ctRunContext) AccountExists(addr vm.Address) bool {
 	existsAddr := c.state.Accounts.Exist(addr)
-	existsWarm := c.state.Accounts.IsWarm(addr)
-	return existsAddr || existsWarm
+	return existsAddr
 }
 
 func (c *ctRunContext) GetStorage(addr vm.Address, key vm.Key) vm.Word {
@@ -145,8 +144,13 @@ func (c *ctRunContext) Call(kind vm.CallKind, parameter vm.CallParameter) (vm.Ca
 	}, nil
 }
 
-func (c *ctRunContext) SelfDestruct(addr vm.Address, beneficiary vm.Address) bool {
-	panic("not implemented")
+func (c *ctRunContext) SelfDestruct(address vm.Address, beneficiary vm.Address) bool {
+	c.state.SelfDestructedJournal = append(c.state.SelfDestructedJournal, st.NewSelfDestructEntry(address, beneficiary))
+	if c.state.HasSelfDestructed {
+		return false
+	}
+	c.state.HasSelfDestructed = true
+	return true
 }
 
 func (c *ctRunContext) AccessAccount(addr vm.Address) vm.AccessStatus {
@@ -185,5 +189,5 @@ func (c *ctRunContext) IsSlotInAccessList(addr vm.Address, key vm.Key) (addressP
 }
 
 func (c *ctRunContext) HasSelfDestructed(addr vm.Address) bool {
-	panic("not implemented")
+	return c.state.HasSelfDestructed
 }

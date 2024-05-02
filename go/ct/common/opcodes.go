@@ -156,6 +156,7 @@ const (
 	RETURN         OpCode = 0xF3
 	REVERT         OpCode = 0xFD
 	INVALID        OpCode = 0xFE
+	SELFDESTRUCT   OpCode = 0xFF
 )
 
 func (op OpCode) Width() int {
@@ -466,6 +467,8 @@ func (op OpCode) String() string {
 		return "REVERT"
 	case INVALID:
 		return "INVALID"
+	case SELFDESTRUCT:
+		return "SELFDESTRUCT"
 	default:
 		return fmt.Sprintf("op(%d)", op)
 	}

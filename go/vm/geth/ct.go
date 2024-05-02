@@ -48,6 +48,10 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	if err == nil && op == common.STOP {
 		isStopInstruction = true
 	}
+	isSelfDestructInstruction := false
+	if err == nil && op == common.SELFDESTRUCT {
+		isSelfDestructInstruction = true
+	}
 
 	evm, contract, stateDb := createGethInterpreterContext(parameters)
 	stateDb.refund = uint64(state.GasRefund)
@@ -84,6 +88,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.Stack = convertGethStackToCtStack(interpreterState, state.Stack)
 	state.Memory = convertGethMemoryToCtMemory(interpreterState)
 	state.LastCallReturnData = common.NewBytes(interpreterState.Result)
+
 	if state.Status == st.Stopped || state.Status == st.Reverted {
 		// Right now, the interpreter state does not allow to decide whether the
 		// stopped state was reached through a STOP or RETURN instruction. Only
@@ -95,7 +100,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		// when upgrading to a newer go-ethereum version. Thus, for now, this
 		// local check is performed to determine whether the result should be
 		// copied or not.
-		if !isStopInstruction {
+		if !isStopInstruction && !isSelfDestructInstruction {
 			state.ReturnData = common.NewBytes(interpreterState.Result)
 		}
 	}

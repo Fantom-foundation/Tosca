@@ -49,6 +49,8 @@ func getNewFilledState() *State {
 	s.BlockContext = BlockContext{BlockNumber: 1}
 	s.CallData = NewBytes([]byte{1})
 	s.LastCallReturnData = NewBytes([]byte{1})
+	s.HasSelfDestructed = true
+	s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{1}, vm.Address{2}}}
 	return s
 }
 
@@ -195,6 +197,8 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 	serializableState.BlockContext.BlockNumber = 42
 	serializableState.CallData = NewBytes([]byte{4})
 	serializableState.LastCallReturnData = NewBytes([]byte{6})
+	serializableState.HasSelfDestructed = false
+	serializableState.SelfDestructedJournal = newSerializableJournal([]SelfDestructEntry{})
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -222,7 +226,11 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.CallData.Length() == 1 &&
 		s.CallData.Get(0, 1)[0] == 1 &&
 		s.LastCallReturnData.Length() == 1 &&
-		s.LastCallReturnData.Get(0, 1)[0] == 1
+		s.LastCallReturnData.Get(0, 1)[0] == 1 &&
+		s.HasSelfDestructed &&
+		len(s.SelfDestructedJournal) == 1 &&
+		s.SelfDestructedJournal[0] == SelfDestructEntry{vm.Address{1}, vm.Address{2}}
+
 	if !ok {
 		t.Errorf("new serializable state is not independent")
 	}
@@ -253,6 +261,8 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.BlockContext.BlockNumber = 42
 	deserializedState.CallData = NewBytes([]byte{4})
 	deserializedState.LastCallReturnData = NewBytes([]byte{6})
+	deserializedState.HasSelfDestructed = false
+	deserializedState.SelfDestructedJournal = []SelfDestructEntry{}
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -280,7 +290,11 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 		s.CallData.Length() == 1 &&
 		s.CallData.ToBytes()[0] == 1 &&
 		s.LastCallReturnData.Length() == 1 &&
-		s.LastCallReturnData.ToBytes()[0] == 1
+		s.LastCallReturnData.ToBytes()[0] == 1 &&
+		s.HasSelfDestructed &&
+		len(s.SelfDestructedJournal) == 1 &&
+		s.SelfDestructedJournal[0] == serializableSelfDestructEntry{vm.Address{1}, vm.Address{2}}
+
 	if !ok {
 		t.Errorf("deserialized state is not independent")
 	}
