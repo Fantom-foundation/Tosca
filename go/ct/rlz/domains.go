@@ -157,6 +157,28 @@ func (d u256Domain) SamplesForAll(as []U256) []U256 {
 	return res
 }
 
+// valueDomain is a domain value parameters of call expressions.
+type valueDomain struct {
+	u256Domain
+}
+
+func (d valueDomain) Samples(a U256) []U256 {
+	return d.SamplesForAll([]U256{a})
+}
+
+func (d valueDomain) SamplesForAll(as []U256) []U256 {
+	res := []U256{}
+
+	// Test every element off by one.
+	for _, a := range as {
+		res = append(res, d.Predecessor(a))
+		res = append(res, a)
+		res = append(res, d.Successor(a))
+	}
+
+	return res
+}
+
 ////////////////////////////////////////////////////////////
 // Revision
 

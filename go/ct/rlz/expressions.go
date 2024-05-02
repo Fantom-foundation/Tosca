@@ -310,17 +310,22 @@ func (stackSize) String() string {
 
 type param struct {
 	position int
+	domain   Domain[U256]
 }
 
 const ErrStackOutOfBoundsAccess = ConstErr("out-of-bounds stack access")
 
 func Param(pos int) BindableExpression[U256] {
-	return param{pos}
+	return param{pos, u256Domain{}}
+}
+
+func ValueParam(pos int) BindableExpression[U256] {
+	return param{pos, valueDomain{}}
 }
 
 func (p param) Property() Property { return Property(p.String()) }
 
-func (param) Domain() Domain[U256] { return u256Domain{} }
+func (p param) Domain() Domain[U256] { return p.domain }
 
 func (p param) Eval(s *st.State) (U256, error) {
 	stack := s.Stack
