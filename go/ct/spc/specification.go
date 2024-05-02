@@ -1345,7 +1345,7 @@ func getAllRules() []Rule {
 
 	// --- CALL ---
 
-	rules = append(rules, getCallRules()...)
+	rules = append(rules, getCallAndStaticRules()...)
 
 	// --- SELFDESTRUCT ---
 
@@ -1823,126 +1823,6 @@ func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, re
 	s.GasRefund += refundGas
 }
 
-func callOpEffect(s *st.State, addrAccessCostFunn func(vm.Address) vm.Gas) {
-	gas := s.Stack.Pop()
-	target := s.Stack.Pop()
-	value := s.Stack.Pop()
-	argsOffset := s.Stack.Pop()
-	argsSize := s.Stack.Pop()
-	retOffset := s.Stack.Pop()
-	retSize := s.Stack.Pop()
-
-	// --- check preconditions ---
-
-	// No value transfer in a read-only context.
-	if s.ReadOnly && !value.IsZero() {
-		s.Status = st.Failed
-		return
-	}
-
-	// --- dynamic costs ---
-
-	// Compute the memory expansion costs of this call.
-	inputMemoryExpansionCost, argsOffset64, argsSize64 := s.Memory.ExpansionCosts(argsOffset, argsSize)
-	outputMemoryExpansionCost, retOffset64, retSize64 := s.Memory.ExpansionCosts(retOffset, retSize)
-	memoryExpansionCost := inputMemoryExpansionCost
-	if memoryExpansionCost < outputMemoryExpansionCost {
-		memoryExpansionCost = outputMemoryExpansionCost
-	}
-
-	// Compute the value transfer costs.
-	positiveValueCost := vm.Gas(0)
-	if !value.IsZero() {
-		positiveValueCost = 9000
-	}
-
-	// If an account is implicitly created, this costs extra.
-	valueToEmptyAccountCost := vm.Gas(0)
-	if !value.IsZero() && s.Accounts.IsEmpty(target.Bytes20be()) {
-		valueToEmptyAccountCost = 25000
-		// fmt.Printf("NonZero Val, empty acc %X\n", target.Bytes20be())
-	}
-
-	addressAccessCost := addrAccessCostFunn(target.Bytes20be())
-
-	// Deduct the gas costs for this call, except the costs for the recursive call.
-	dynamicGas, overflow := sumWithOverflow(memoryExpansionCost, positiveValueCost, valueToEmptyAccountCost, addressAccessCost)
-	if s.Gas < dynamicGas || overflow {
-		s.Status = st.Failed
-		return
-	}
-	s.Gas -= dynamicGas
-	if s.Revision == R09_Berlin {
-		s.Accounts.MarkWarm(target.Bytes20be())
-	}
-
-	// Grow the memory for which gas has just been deducted.
-	s.Memory.Grow(argsOffset64, argsSize64)
-	s.Memory.Grow(retOffset64, retSize64)
-
-	// Compute the gas provided to the nested call.
-	limit := s.Gas - s.Gas/64
-	endowment := limit
-	if gas.IsUint64() && gas.Uint64() < uint64(endowment) {
-		endowment = vm.Gas(gas.Uint64())
-	}
-
-	// If value is transferred, a stipend is granted.
-	stipend := vm.Gas(0)
-	if !value.IsZero() {
-		stipend = 2300
-	}
-	s.Gas += stipend
-
-	// Read the input from the call from memory.
-	input := s.Memory.Read(argsOffset64, argsSize64)
-
-	// --- call execution ---
-
-	// Check that the caller has enough balance to transfer the requested value.
-	if !value.IsZero() {
-		balance := s.Accounts.GetBalance(s.CallContext.AccountAddress)
-		if balance.Lt(value) {
-			s.Stack.Push(NewU256(0))
-			s.LastCallReturnData = Bytes{}
-			return
-		}
-	}
-
-	// In a static context all calls are static calls.
-	kind := vm.Call
-	if s.ReadOnly {
-		kind = vm.StaticCall
-	}
-
-	// Execute the call.
-	res := s.CallJournal.Call(kind, vm.CallParameter{
-		Sender:    s.CallContext.AccountAddress,
-		Recipient: target.Bytes20be(),
-		Value:     value.Bytes32be(),
-		Gas:       endowment + stipend,
-		Input:     input,
-	})
-
-	// Process the result.
-	if retSize64 > 0 {
-		output := res.Output
-		if len(output) > int(retSize64) {
-			output = output[0:retSize64]
-		}
-		s.Memory.Write(output, retOffset64)
-	}
-
-	s.Gas -= endowment + stipend - res.GasLeft // < the costs for the code execution
-	s.GasRefund += res.GasRefund
-	s.LastCallReturnData = NewBytes(res.Output)
-	if res.Success {
-		s.Stack.Push(NewU256(1))
-	} else {
-		s.Stack.Push(NewU256(0))
-	}
-}
-
 func tooLittleGas(i instruction) []Rule {
 	localConditions := append(i.conditions,
 		AnyKnownRevision(),
@@ -2020,7 +1900,7 @@ func rulesFor(i instruction) []Rule {
 	return res
 }
 
-func getCallRules() []Rule {
+func getCallAndStaticRules() []Rule {
 	// NOTE: this rule only covers Istanbul, Berlin and London cases in a coarse-grained way.
 	// Follow-work is required to cover other revisions and situations,
 	// as well as special cases currently covered in the effect function.
@@ -2032,14 +1912,15 @@ func getCallRules() []Rule {
 	revs := []Revision{R07_Istanbul, R09_Berlin, R10_London}
 	for _, rev := range revs {
 		for _, warm := range []bool{true, false} {
-			for _, zeroValue := range []bool{true, false} {
-				for _, static := range []bool{true, false} {
+			for _, static := range []bool{true, false} {
+				for _, zeroValue := range []bool{true, false} {
 					effect := callEffect
 					if static && !zeroValue {
 						effect = callFailEffect
 					}
 					res = append(res, getRulesForCall(rev, warm, zeroValue, effect, static)...)
 				}
+				res = append(res, staticCallOp(rev, warm, staticCallEffect, static)...)
 			}
 		}
 	}
@@ -2229,6 +2110,151 @@ func callEffect(s *st.State, addrAccessCost vm.Gas) {
 	}
 
 	s.Gas -= endowment + stipend - res.GasLeft // < the costs for the code execution
+	s.GasRefund += res.GasRefund
+	s.LastCallReturnData = NewBytes(res.Output)
+	if res.Success {
+		s.Stack.Push(NewU256(1))
+	} else {
+		s.Stack.Push(NewU256(0))
+	}
+}
+
+func staticCallOp(revision Revision, warm bool, opEffect func(s *st.State, addrAccessCost vm.Gas), static bool) []Rule {
+
+	parameters := []Parameter{
+		GasParameter{},
+		AddressParameter{},
+		MemoryOffsetParameter{},
+		MemorySizeParameter{},
+		MemoryOffsetParameter{},
+		MemorySizeParameter{},
+	}
+
+	var staticGas vm.Gas
+	if revision == R07_Istanbul {
+		staticGas = 700
+	} else if revision == R09_Berlin {
+		staticGas = 0
+	}
+
+	var addressAccessCost vm.Gas
+	if revision == R07_Istanbul {
+		addressAccessCost = 0
+	} else if revision >= R09_Berlin && warm {
+		addressAccessCost = 100
+	} else if revision >= R09_Berlin && !warm {
+		addressAccessCost = 2600
+	}
+
+	var targetWarm Condition
+	var warmColdString string
+	if warm {
+		warmColdString = "warm"
+		targetWarm = IsAddressWarm(Param(1))
+	} else {
+		warmColdString = "cold"
+		targetWarm = IsAddressCold(Param(1))
+	}
+
+	var staticCondition Condition
+	var staticConditionName string
+	if static {
+		staticConditionName = "static"
+		staticCondition = Eq(ReadOnly(), true)
+	} else {
+		staticConditionName = "not_static"
+		staticCondition = Eq(ReadOnly(), false)
+	}
+
+	name := fmt.Sprintf("_%v_%v_%v", strings.ToLower(revision.String()), warmColdString, staticConditionName)
+
+	callConditions := And(
+		IsRevision(revision),
+		targetWarm,
+		staticCondition,
+	)
+
+	return rulesFor(instruction{
+		op:         STATICCALL,
+		name:       name,
+		staticGas:  staticGas,
+		pops:       6,
+		pushes:     1,
+		conditions: []Condition{callConditions},
+		parameters: parameters,
+		effect: func(s *st.State) {
+			opEffect(s, addressAccessCost)
+		},
+	})
+}
+
+func staticCallEffect(s *st.State, addrAccessCost vm.Gas) {
+	gas := s.Stack.Pop()
+	target := s.Stack.Pop()
+	argsOffset := s.Stack.Pop()
+	argsSize := s.Stack.Pop()
+	retOffset := s.Stack.Pop()
+	retSize := s.Stack.Pop()
+
+	// --- dynamic costs ---
+
+	// Compute the memory expansion costs of this call.
+	inputMemoryExpansionCost, argsOffset64, argsSize64 := s.Memory.ExpansionCosts(argsOffset, argsSize)
+	outputMemoryExpansionCost, retOffset64, retSize64 := s.Memory.ExpansionCosts(retOffset, retSize)
+	memoryExpansionCost := inputMemoryExpansionCost
+	if memoryExpansionCost < outputMemoryExpansionCost {
+		memoryExpansionCost = outputMemoryExpansionCost
+	}
+
+	// Deduct the gas costs for this call, except the costs for the recursive call.
+	dynamicGas, overflow := sumWithOverflow(memoryExpansionCost, addrAccessCost)
+	if s.Gas < dynamicGas || overflow {
+		s.Status = st.Failed
+		return
+	}
+	s.Gas -= dynamicGas
+
+	if s.Revision >= R09_Berlin {
+		s.Accounts.MarkWarm(target.Bytes20be())
+	}
+
+	// Grow the memory for which gas has just been deducted.
+	s.Memory.Grow(argsOffset64, argsSize64)
+	s.Memory.Grow(retOffset64, retSize64)
+
+	// Compute the gas provided to the nested call.
+	limit := s.Gas - s.Gas/64
+	endowment := limit
+	if gas.IsUint64() && gas.Uint64() < uint64(endowment) {
+		endowment = vm.Gas(gas.Uint64())
+	}
+
+	// Read the input from the call from memory.
+	input := s.Memory.Read(argsOffset64, argsSize64)
+
+	// --- call execution ---
+
+	// In a static context all calls are static calls.
+	kind := vm.StaticCall
+
+	// Execute the call.
+	res := s.CallJournal.Call(kind, vm.CallParameter{
+		Sender:    s.CallContext.AccountAddress,
+		Recipient: target.Bytes20be(),
+		Gas:       endowment,
+		Input:     input,
+	})
+
+	// Process the result.
+	if retSize64 > 0 {
+		output := res.Output
+		if len(output) > int(retSize64) {
+			output = output[0:retSize64]
+		}
+		s.Memory.Write(output, retOffset64)
+	}
+
+	s.Gas -= endowment - res.GasLeft // < the costs for the code execution
 	s.GasRefund += res.GasRefund
 	s.LastCallReturnData = NewBytes(res.Output)
 	if res.Success {
