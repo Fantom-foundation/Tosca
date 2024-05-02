@@ -21,7 +21,6 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
-
     - uses: egor-tensin/setup-clang@v1
       with:
         version: 14
@@ -53,7 +52,7 @@ jobs:
     - name: CT regression tests evmzero
       run: go run ./go/ct/driver regressions evmzero
 
-    # see issue #316
+     # see issue #316
     #- name: CT rule coverage test
     #  run: go run ./go/ct/driver test
 
