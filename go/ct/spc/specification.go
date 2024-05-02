@@ -1345,7 +1345,7 @@ func getAllRules() []Rule {
 
 	// --- CALL ---
 
-	rules = append(rules, callRulesGenerator()...)
+	rules = append(rules, getCallRules()...)
 
 	// --- End ---
 
@@ -1787,35 +1787,26 @@ func rulesFor(i instruction) []Rule {
 	return res
 }
 
-func callRulesGenerator() []Rule {
-	res := []Rule{}
-
-	// NOTE: this rule only covers Istanbul case in a coarse-grained way.
+func getCallRules() []Rule {
+	// NOTE: this rule only covers Istanbul and Berlin cases in a coarse-grained way.
 	// Follow-work is required to cover other revisions and situations,
 	// as well as special cases currently covered in the effect function.
+
 	//                         revision   warm  destColdCost valueZero
 	callFailEffect := func(s *st.State, addrAccessCost vm.Gas) {
 		FailEffect().Apply(s)
 	}
 
+	res := []Rule{}
 	revs := []Revision{R07_Istanbul, R09_Berlin}
-	var addressAccessCost vm.Gas
 	for _, rev := range revs {
 		for _, warm := range []bool{true, false} {
 			for _, zeroValue := range []bool{true, false} {
 				for _, static := range []bool{true, false} {
-					if rev == R07_Istanbul {
-						addressAccessCost = 0
-					} else if rev == R09_Berlin && warm {
-						addressAccessCost = 100
-					} else if rev == R09_Berlin && !warm {
-						addressAccessCost = 2600
-					}
-
 					if static && !zeroValue {
-						res = append(res, callOp(rev, warm, addressAccessCost, zeroValue, callFailEffect, static)...)
+						res = append(res, callOp(rev, warm, zeroValue, callFailEffect, static)...)
 					} else {
-						res = append(res, callOp(rev, warm, addressAccessCost, zeroValue, callEffect, static)...)
+						res = append(res, callOp(rev, warm, zeroValue, callEffect, static)...)
 					}
 				}
 			}
@@ -1825,7 +1816,7 @@ func callRulesGenerator() []Rule {
 	return res
 }
 
-func callOp(revision Revision, warm bool, addressAccessCost vm.Gas, zeroValue bool, opEffect func(s *st.State, addrAccessCost vm.Gas), static bool) []Rule {
+func callOp(revision Revision, warm, zeroValue bool, opEffect func(s *st.State, addrAccessCost vm.Gas), static bool) []Rule {
 
 	parameters := []Parameter{
 		GasParameter{},
@@ -1842,6 +1833,15 @@ func callOp(revision Revision, warm bool, addressAccessCost vm.Gas, zeroValue bo
 		staticGas = 700
 	} else if revision == R09_Berlin {
 		staticGas = 0
+	}
+
+	var addressAccessCost vm.Gas
+	if revision == R07_Istanbul {
+		addressAccessCost = 0
+	} else if revision >= R09_Berlin && warm {
+		addressAccessCost = 100
+	} else if revision >= R09_Berlin && !warm {
+		addressAccessCost = 2600
 	}
 
 	var targetWarm Condition
@@ -1936,7 +1936,7 @@ func callEffect(s *st.State, addrAccessCost vm.Gas) {
 	}
 	s.Gas -= dynamicGas
 
-	if s.Revision == R09_Berlin {
+	if s.Revision >= R09_Berlin {
 		s.Accounts.MarkWarm(target.Bytes20be())
 	}
 
