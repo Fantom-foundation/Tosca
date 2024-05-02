@@ -1384,7 +1384,6 @@ func getAllRules() []Rule {
 		pops:      3,
 		pushes:    1,
 		conditions: []Condition{
-			//	IsRevision(R07_Istanbul),
 			Eq(ReadOnly(), false),
 		},
 		parameters: []Parameter{
@@ -1406,8 +1405,7 @@ func getAllRules() []Rule {
 			}
 			s.Gas -= memExpCost
 
-			// TODO make address random
-			s.CallJournal.ToBeCreated = NewAddressFromInt(0)
+			s.CallJournal.ToBeCreated = NewAddressFromInt(0) // TODO make address random
 			address := s.CallJournal.ToBeCreated
 
 			input := s.Memory.Read(offset, size)
@@ -1421,15 +1419,16 @@ func getAllRules() []Rule {
 				}
 			}
 
+			limit := s.Gas - s.Gas/64
+
 			res := s.CallJournal.Call(vm.Create, vm.CallParameter{
 				Sender:    s.CallContext.AccountAddress,
 				Recipient: address,
 				Value:     valueU256.Bytes32be(),
-				Gas:       0,
+				Gas:       limit,
 				Input:     input,
 			})
 
-			limit := s.Gas - s.Gas/64
 			s.Gas -= limit - res.GasLeft
 			s.GasRefund += res.GasRefund
 
