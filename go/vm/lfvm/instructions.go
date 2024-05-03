@@ -755,7 +755,7 @@ func opCreate(c *context) {
 	}
 
 	if !value.IsZero() {
-		balance := [32]byte(c.context.GetBalance(c.params.Recipient))
+		balance := c.context.GetBalance(c.params.Recipient)
 		balanceU256 := new(uint256.Int).SetBytes(balance[:])
 
 		if value.Gt(balanceU256) {
