@@ -1,5 +1,4 @@
 name: cpp-tests
-
 on:
   push:
     branches: [ "main" ]
@@ -13,15 +12,24 @@ on:
       - '.github/workflows/cpp-tests.yml'
       - 'cpp/**'
       - Makefile
-
 jobs:
   tests-check:
     name: Tests Check
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
+      - uses: egor-tensin/setup-clang@v1
+        with:
+          version: 14
+
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: '3.27.x'
+
+
 
       - name: Run C++ tests
-        run: make test-cpp-asan
+        run: make test-cpp
