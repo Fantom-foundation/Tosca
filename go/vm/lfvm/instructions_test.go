@@ -246,3 +246,42 @@ func TestCallChecksBalances(t *testing.T) {
 		t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
 	}
 }
+
+func TestCreateChecksBalance(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	runContext := vm.NewMockRunContext(ctrl)
+
+	source := vm.Address{1}
+	ctxt := context{
+		status: RUNNING,
+		params: vm.Parameters{
+			Recipient: source,
+		},
+		context: runContext,
+		stack:   NewStack(),
+		memory:  NewMemory(),
+		gas:     1 << 20,
+	}
+
+	// Prepare stack arguments.
+	ctxt.stack.stack_ptr = 3
+	ctxt.stack.data[2].Set(uint256.NewInt(1)) // < the value to be transferred
+
+	// The source account should have enough funds.
+	runContext.EXPECT().GetBalance(source).Return(vm.Value{})
+
+	opCreate(&ctxt)
+
+	if want, got := RUNNING, ctxt.status; want != got {
+		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+	}
+
+	if want, got := 1, ctxt.stack.len(); want != got {
+		t.Fatalf("unexpected stack size, wanted %d, got %d", want, got)
+	}
+
+	if want, got := *uint256.NewInt(0), ctxt.stack.data[0]; want != got {
+		t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
+	}
+
+}

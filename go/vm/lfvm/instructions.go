@@ -741,8 +741,9 @@ func opExtcodehash(c *context) {
 
 func opCreate(c *context) {
 	var (
-		value        = vm.Value(c.stack.pop().Bytes32())
-		offset, size = c.stack.pop(), c.stack.pop()
+		value  = c.stack.pop()
+		offset = c.stack.pop()
+		size   = c.stack.pop()
 	)
 	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
 		c.SignalError(err)
@@ -751,6 +752,17 @@ func opCreate(c *context) {
 
 	if c.memory.EnsureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
 		return
+	}
+
+	if !value.IsZero() {
+		balance := c.context.GetBalance(c.params.Recipient)
+		balanceU256 := new(uint256.Int).SetBytes(balance[:])
+
+		if value.Gt(balanceU256) {
+			c.stack.pushEmpty().Clear()
+			c.return_data = nil
+			return
+		}
 	}
 
 	input := c.memory.GetSlice(offset.Uint64(), size.Uint64())
@@ -764,7 +776,7 @@ func opCreate(c *context) {
 
 	res, err := c.context.Call(vm.Create, vm.CallParameter{
 		Sender: c.params.Recipient,
-		Value:  value,
+		Value:  vm.Value(value.Bytes32()),
 		Input:  input,
 		Gas:    gas,
 	})

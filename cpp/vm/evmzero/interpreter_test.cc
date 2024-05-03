@@ -4854,6 +4854,51 @@ TEST(InterpreterTest, SELFDESTRUCT_StaticCallViolation) {
 }
 
 ///////////////////////////////////////////////////////////
+// CREATE
+
+TEST(InterpreterTest, CREATE_InsuffiecientBalanceIsHandledCorrectly) {
+  MockHost host;
+  EXPECT_CALL(host, get_balance(evmc::address(0x00))).WillOnce(Return(evmc::uint256be(0)));
+
+  RunInterpreterTest({
+      .code = {op::CREATE},
+      .state_after = RunState::kDone,
+      .gas_before = 50000,
+      .gas_after = 18000,
+      .stack_before =
+          {
+              0x00,  // < size
+              0x00,  // < offset
+              0x01,  // < value
+          },
+      .stack_after = {0x00},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, CREATE_MemoryIsGrownAlsoWithInsufficientBalance) {
+  MockHost host;
+  EXPECT_CALL(host, get_balance(evmc::address(0x00))).WillOnce(Return(evmc::uint256be(0)));
+
+  RunInterpreterTest({
+      .code = {op::CREATE},
+      .state_after = RunState::kDone,
+      .gas_before = 50000,
+      .gas_after = 18000,
+      .stack_before =
+          {
+              0x05,  // < size
+              0x01,  // < offset
+              0x01,  // < value
+          },
+      .stack_after = {0x00},
+      .memory_before = {0x00},
+      .memory_after = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+      .host = &host,
+  });
+}
+
+///////////////////////////////////////////////////////////
 // CALL
 
 TEST(InterpreterTest, CALL_GrowsMemoryForResultAlsoIfNoCallIsMade) {
