@@ -1343,9 +1343,9 @@ func getAllRules() []Rule {
 		},
 	})...)
 
-	// --- CALL ---
+	// --- CALL and STATICCALL---
 
-	rules = append(rules, getCallRules()...)
+	rules = append(rules, getCallAndStaticCallRules()...)
 
 	// --- SELFDESTRUCT ---
 
@@ -1900,12 +1900,11 @@ func rulesFor(i instruction) []Rule {
 	return res
 }
 
-func getCallRules() []Rule {
+func getCallAndStaticCallRules() []Rule {
 	// NOTE: this rule only covers Istanbul, Berlin and London cases in a coarse-grained way.
 	// Follow-work is required to cover other revisions and situations,
 	// as well as special cases currently covered in the effect function.
-
-	callFailEffect := func(s *st.State, addrAccessCost vm.Gas) {
+	callFailEffect := func(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 		FailEffect().Apply(s)
 	}
 
@@ -1913,13 +1912,14 @@ func getCallRules() []Rule {
 	revs := []Revision{R07_Istanbul, R09_Berlin, R10_London}
 	for _, rev := range revs {
 		for _, warm := range []bool{true, false} {
-			for _, zeroValue := range []bool{true, false} {
-				for _, static := range []bool{true, false} {
+			for _, static := range []bool{true, false} {
+				for _, zeroValue := range []bool{true, false} {
 					effect := callEffect
+					res = append(res, getRulesForCall(STATICCALL, rev, warm, zeroValue, effect, static)...)
 					if static && !zeroValue {
 						effect = callFailEffect
 					}
-					res = append(res, getRulesForCall(rev, warm, zeroValue, effect, static)...)
+					res = append(res, getRulesForCall(CALL, rev, warm, zeroValue, effect, static)...)
 				}
 			}
 		}
@@ -1928,17 +1928,7 @@ func getCallRules() []Rule {
 	return res
 }
 
-func getRulesForCall(revision Revision, warm, zeroValue bool, opEffect func(s *st.State, addrAccessCost vm.Gas), static bool) []Rule {
-
-	parameters := []Parameter{
-		GasParameter{},
-		AddressParameter{},
-		ValueParameter{},
-		MemoryOffsetParameter{},
-		MemorySizeParameter{},
-		MemoryOffsetParameter{},
-		MemorySizeParameter{},
-	}
+func getRulesForCall(op OpCode, revision Revision, warm, zeroValue bool, opEffect func(s *st.State, addrAccessCost vm.Gas, op OpCode), static bool) []Rule {
 
 	var staticGas vm.Gas
 	if revision == R07_Istanbul {
@@ -1966,16 +1956,6 @@ func getRulesForCall(revision Revision, warm, zeroValue bool, opEffect func(s *s
 		targetWarm = IsAddressCold(Param(1))
 	}
 
-	var valueZeroCondition Condition
-	var valueZeroConditionName string
-	if zeroValue {
-		valueZeroConditionName = "no_value"
-		valueZeroCondition = Eq(ValueParam(2), NewU256(0))
-	} else {
-		valueZeroConditionName = "with_value"
-		valueZeroCondition = Ne(ValueParam(2), NewU256(0))
-	}
-
 	var staticCondition Condition
 	var staticConditionName string
 	if static {
@@ -1986,33 +1966,70 @@ func getRulesForCall(revision Revision, warm, zeroValue bool, opEffect func(s *s
 		staticCondition = Eq(ReadOnly(), false)
 	}
 
-	name := fmt.Sprintf("_%v_%v_%v_%v", strings.ToLower(revision.String()), warmColdString, valueZeroConditionName, staticConditionName)
+	// default parameters, conditions and pops are for STATICCALL
+	parameters := []Parameter{
+		GasParameter{},
+		AddressParameter{},
+	}
 
 	callConditions := And(
 		IsRevision(revision),
 		targetWarm,
-		valueZeroCondition,
 		staticCondition,
 	)
 
+	var valueZeroCondition Condition
+	var valueZeroConditionName string
+	var name string
+	pops := 6
+
+	if op == CALL {
+		parameters = append(parameters, ValueParameter{})
+
+		if zeroValue {
+			valueZeroConditionName = "_no_value"
+			valueZeroCondition = Eq(ValueParam(2), NewU256(0))
+		} else {
+			valueZeroConditionName = "_with_value"
+			valueZeroCondition = Ne(ValueParam(2), NewU256(0))
+		}
+
+		callConditions = And(callConditions, valueZeroCondition)
+
+		pops = 7
+	}
+
+	parameters = append(parameters,
+		MemoryOffsetParameter{},
+		MemorySizeParameter{},
+		MemoryOffsetParameter{},
+		MemorySizeParameter{},
+	)
+
+	name = fmt.Sprintf("_%v_%v_%v%v", strings.ToLower(revision.String()), warmColdString,
+		staticConditionName, valueZeroConditionName)
+
 	return rulesFor(instruction{
-		op:         CALL,
+		op:         op,
 		name:       name,
 		staticGas:  staticGas,
-		pops:       7,
+		pops:       pops,
 		pushes:     1,
 		conditions: []Condition{callConditions},
 		parameters: parameters,
 		effect: func(s *st.State) {
-			opEffect(s, addressAccessCost)
+			opEffect(s, addressAccessCost, op)
 		},
 	})
 }
 
-func callEffect(s *st.State, addrAccessCost vm.Gas) {
+func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 	gas := s.Stack.Pop()
 	target := s.Stack.Pop()
-	value := s.Stack.Pop()
+	var value U256
+	if op == CALL {
+		value = s.Stack.Pop()
+	}
 	argsOffset := s.Stack.Pop()
 	argsSize := s.Stack.Pop()
 	retOffset := s.Stack.Pop()
@@ -2087,7 +2104,7 @@ func callEffect(s *st.State, addrAccessCost vm.Gas) {
 
 	// In a static context all calls are static calls.
 	kind := vm.Call
-	if s.ReadOnly {
+	if s.ReadOnly || op == STATICCALL {
 		kind = vm.StaticCall
 	}
 

@@ -206,7 +206,20 @@ func (i *callInterceptor) DelegateCall(env *geth_vm.EVM, me geth_vm.ContractRef,
 }
 
 func (i *callInterceptor) StaticCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, input []byte, gas uint64) ([]byte, uint64, error) {
-	panic("not implemented")
+	kind := vm.StaticCall
+	res, _ := i.context.Call(kind, vm.CallParameter{
+		Sender:    vm.Address(me.Address()),
+		Recipient: vm.Address(addr),
+		Input:     input,
+		Gas:       vm.Gas(gas),
+	})
+
+	i.handleGasRefund(res.GasRefund)
+	err := geth_vm.ErrExecutionReverted
+	if res.Success {
+		err = nil
+	}
+	return res.Output, uint64(res.GasLeft), err
 }
 
 func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, value *big.Int) ([]byte, geth_common.Address, uint64, error) {

@@ -154,6 +154,7 @@ const (
 	LOG4           OpCode = 0xA4
 	CALL           OpCode = 0xF1
 	RETURN         OpCode = 0xF3
+	STATICCALL     OpCode = 0xFA
 	REVERT         OpCode = 0xFD
 	INVALID        OpCode = 0xFE
 	SELFDESTRUCT   OpCode = 0xFF
@@ -463,6 +464,8 @@ func (op OpCode) String() string {
 		return "CALL"
 	case RETURN:
 		return "RETURN"
+	case STATICCALL:
+		return "STATICCALL"
 	case REVERT:
 		return "REVERT"
 	case INVALID:
