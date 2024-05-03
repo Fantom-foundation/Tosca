@@ -1343,9 +1343,9 @@ func getAllRules() []Rule {
 		},
 	})...)
 
-	// --- CALL ---
+	// --- CALL and STATICCALL---
 
-	rules = append(rules, getCallAndStaticRules()...)
+	rules = append(rules, getCallAndStaticCallRules()...)
 
 	// --- SELFDESTRUCT ---
 
@@ -1900,7 +1900,7 @@ func rulesFor(i instruction) []Rule {
 	return res
 }
 
-func getCallAndStaticRules() []Rule {
+func getCallAndStaticCallRules() []Rule {
 	// NOTE: this rule only covers Istanbul, Berlin and London cases in a coarse-grained way.
 	// Follow-work is required to cover other revisions and situations,
 	// as well as special cases currently covered in the effect function.
