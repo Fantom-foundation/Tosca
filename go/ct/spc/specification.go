@@ -2110,8 +2110,6 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 	var value U256
 	if op == CALL {
 		value = s.Stack.Pop()
-	} else if isDelegateCall {
-		value = s.Accounts.GetBalance(s.CallContext.AccountAddress)
 	}
 	argsOffset := s.Stack.Pop()
 	argsSize := s.Stack.Pop()
@@ -2187,18 +2185,20 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 		}
 	}
 
-	sender := s.CallContext.CallerAddress
+	sender := s.CallContext.AccountAddress
 	recipient := target.Bytes20be()
 	codeAddress := vm.Address{}
 	// In a static context all calls are static calls.
 	kind := vm.Call
 	if op == DELEGATECALL {
 		kind = vm.DelegateCall
-		sender = s.CallContext.AccountAddress
+		sender = s.CallContext.CallerAddress
+		recipient = s.CallContext.AccountAddress
 		codeAddress = target.Bytes20be()
+		value = s.CallContext.Value
 	}
 
-	if s.ReadOnly || op == STATICCALL {
+	if (s.ReadOnly && op == CALL) || op == STATICCALL {
 		kind = vm.StaticCall
 	}
 

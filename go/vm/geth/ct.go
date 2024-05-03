@@ -56,7 +56,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	evm, contract, stateDb := createGethInterpreterContext(parameters)
 	stateDb.refund = uint64(state.GasRefund)
 
-	evm.CallContext = &callInterceptor{parameters.Context, stateDb, state.ReadOnly}
+	evm.CallContext = &callInterceptor{parameters, stateDb, state.ReadOnly}
 
 	interpreterState := geth_vm.NewGethState(
 		contract,
@@ -163,9 +163,9 @@ func convertGethStackToCtStack(state *geth_vm.GethState, stack *st.Stack) *st.St
 }
 
 type callInterceptor struct {
-	context vm.RunContext
-	stateDb *stateDbAdapter
-	static  bool
+	parameters vm.Parameters
+	stateDb    *stateDbAdapter
+	static     bool
 }
 
 func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64, value *big.Int) ([]byte, uint64, error) {
@@ -181,7 +181,7 @@ func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr ge
 
 	var vmValue vm.Value
 	value.FillBytes(vmValue[:])
-	res, _ := i.context.Call(kind, vm.CallParameter{
+	res, _ := i.parameters.Context.Call(kind, vm.CallParameter{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
 		Value:     vmValue,
@@ -203,16 +203,11 @@ func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, add
 
 func (i *callInterceptor) DelegateCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64) ([]byte, uint64, error) {
 	kind := vm.DelegateCall
-	if i.static {
-		kind = vm.StaticCall
-	}
 
-	var vmValue vm.Value
-	i.stateDb.GetBalance(me.Address()).FillBytes(vmValue[:])
-	res, _ := i.context.Call(kind, vm.CallParameter{
-		Sender:    vm.Address(me.Address()),
-		Recipient: vm.Address(addr),
-		Value:     vmValue,
+	res, _ := i.parameters.Context.Call(kind, vm.CallParameter{
+		Sender:    vm.Address(i.parameters.Sender),
+		Recipient: vm.Address(i.parameters.Recipient),
+		Value:     i.parameters.Value,
 		Input:     data,
 		Gas:       vm.Gas(gas),
 	})
@@ -227,7 +222,7 @@ func (i *callInterceptor) DelegateCall(env *geth_vm.EVM, me geth_vm.ContractRef,
 
 func (i *callInterceptor) StaticCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, input []byte, gas uint64) ([]byte, uint64, error) {
 	kind := vm.StaticCall
-	res, _ := i.context.Call(kind, vm.CallParameter{
+	res, _ := i.parameters.Context.Call(kind, vm.CallParameter{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
 		Input:     input,
