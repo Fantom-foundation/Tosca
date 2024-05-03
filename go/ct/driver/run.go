@@ -57,7 +57,7 @@ var RunCmd = cli.Command{
 		&cli.IntFlag{
 			Name:  "max-errors",
 			Usage: "aborts testing after the given number of issues",
-			Value: -1,
+			Value: 100,
 		},
 		&cli.Uint64Flag{
 			Name:  "seed",
