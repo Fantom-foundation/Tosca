@@ -114,6 +114,12 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 		minSize += size
 	}
 
+	// If there are any variables that need to be bound to code, there must be at
+	// least on instruction in the resulting code.
+	if minSize == 0 && len(g.varIsCodeConstraints) > 0 {
+		minSize = 1
+	}
+
 	// We use an exponential distribution for the code size here since long codes
 	// extend the runtime but are expected to reveal limited extra code coverage.
 	const expectedSize float64 = 200

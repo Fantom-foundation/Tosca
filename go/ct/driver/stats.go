@@ -14,10 +14,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"runtime"
-	"runtime/pprof"
 	"sort"
 	"strings"
 	"sync"
@@ -31,7 +29,7 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-var StatsCmd = cli.Command{
+var StatsCmd = AddCommonFlags(cli.Command{
 	Action: doStats,
 	Name:   "stats",
 	Usage:  "Computes statistics on rule coverage",
@@ -50,28 +48,14 @@ var StatsCmd = cli.Command{
 			Name:  "seed",
 			Usage: "seed for the random number generator",
 		},
-		&cli.StringFlag{
-			Name:  "cpuprofile",
-			Usage: "store CPU profile in the provided filename",
-		},
 		&cli.BoolFlag{
 			Name:  "full-mode",
 			Usage: "if enabled, test cases targeting rules other than the one generating the case will be executed",
 		},
 	},
-}
+})
 
 func doStats(context *cli.Context) error {
-	if cpuprofileFilename := context.String("cpuprofile"); cpuprofileFilename != "" {
-		f, err := os.Create(cpuprofileFilename)
-		if err != nil {
-			return fmt.Errorf("could not create CPU profile: %w", err)
-		}
-		if err := pprof.StartCPUProfile(f); err != nil {
-			return fmt.Errorf("could not start CPU profile: %w", err)
-		}
-		defer pprof.StopCPUProfile()
-	}
 	filter, err := regexp.Compile(context.String("filter"))
 	if err != nil {
 		return err

@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"runtime/pprof"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,7 +37,7 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-var RunCmd = cli.Command{
+var RunCmd = AddCommonFlags(cli.Command{
 	Action:    doRun,
 	Name:      "run",
 	Usage:     "Run Conformance Tests on an EVM implementation",
@@ -63,16 +62,12 @@ var RunCmd = cli.Command{
 			Name:  "seed",
 			Usage: "seed for the random number generator",
 		},
-		&cli.StringFlag{
-			Name:  "cpuprofile",
-			Usage: "store CPU profile in the provided filename",
-		},
 		&cli.BoolFlag{ // < TODO: make every run a full mode once tests pass
 			Name:  "full-mode",
 			Usage: "if enabled, test cases targeting rules other than the one generating the case will be executed",
 		},
 	},
-}
+})
 
 var evms = map[string]ct.Evm{
 	"lfvm":    lfvm.NewConformanceTestingTarget(),
@@ -81,17 +76,6 @@ var evms = map[string]ct.Evm{
 }
 
 func doRun(context *cli.Context) error {
-	if cpuprofileFilename := context.String("cpuprofile"); cpuprofileFilename != "" {
-		f, err := os.Create(cpuprofileFilename)
-		if err != nil {
-			return fmt.Errorf("could not create CPU profile: %w", err)
-		}
-		if err := pprof.StartCPUProfile(f); err != nil {
-			return fmt.Errorf("could not start CPU profile: %w", err)
-		}
-		defer pprof.StopCPUProfile()
-	}
-
 	var evmIdentifier string
 	if context.Args().Len() >= 1 {
 		evmIdentifier = context.Args().Get(0)
@@ -164,7 +148,6 @@ func doRun(context *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("error generating States: %w", err)
 	}
-	issues := issuesCollector.issues
 
 	// Summarize the result.
 	if skippedCount.Load() > 0 {
@@ -175,34 +158,17 @@ func doRun(context *cli.Context) error {
 		fmt.Printf("Number of tests with unsupported revision: %d\n", numUnsupportedTests.Load())
 	}
 
-	if len(issues) == 0 {
+	numIssues := issuesCollector.NumIssues()
+	if numIssues == 0 {
 		fmt.Printf("All tests passed successfully!\n")
 		return nil
 	}
 
-	if len(issues) > 0 {
-		jsonDir, err := os.MkdirTemp("", "ct_issues_*")
-		if err != nil {
-			return fmt.Errorf("failed to create output directory for %d issues", len(issues))
-		}
-		for i, issue := range issuesCollector.issues {
-			fmt.Printf("----------------------------\n")
-			fmt.Printf("%s\n", issue.err)
-
-			// If there is an input state for this issue, it is exported into a file
-			// to aid its debugging using the regression test infrastructure.
-			if issue.input != nil {
-				path := filepath.Join(jsonDir, fmt.Sprintf("issue_%06d.json", i))
-				if err := st.ExportStateJSON(issue.input, path); err == nil {
-					fmt.Printf("Input state dumped to %s\n", path)
-				} else {
-					fmt.Printf("failed to dump state: %v\n", err)
-				}
-			}
-		}
+	if err := issuesCollector.ExportIssues(); err != nil {
+		return err
 	}
 
-	return fmt.Errorf("failed to pass %d test cases", len(issues))
+	return fmt.Errorf("failed to pass %d test cases", numIssues)
 }
 
 // runTest runs a single test specified by the input state on the given EVM. The
@@ -275,4 +241,30 @@ func (c *issuesCollector) NumIssues() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return len(c.issues)
+}
+
+func (c *issuesCollector) ExportIssues() error {
+	if len(c.issues) == 0 {
+		return nil
+	}
+	jsonDir, err := os.MkdirTemp("", "ct_issues_*")
+	if err != nil {
+		return fmt.Errorf("failed to create output directory for %d issues", len(c.issues))
+	}
+	for i, issue := range c.issues {
+		fmt.Printf("----------------------------\n")
+		fmt.Printf("%s\n", issue.err)
+
+		// If there is an input state for this issue, it is exported into a file
+		// to aid its debugging using the regression test infrastructure.
+		if issue.input != nil {
+			path := filepath.Join(jsonDir, fmt.Sprintf("issue_%06d.json", i))
+			if err := st.ExportStateJSON(issue.input, path); err == nil {
+				fmt.Printf("Input state dumped to %s\n", path)
+			} else {
+				fmt.Printf("failed to dump state: %v\n", err)
+			}
+		}
+	}
+	return nil
 }
