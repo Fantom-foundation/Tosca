@@ -2103,7 +2103,6 @@ func getRulesForCall(op OpCode, revision Revision, warm, zeroValue bool, opEffec
 }
 
 func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
-	isDelegateCall := op == DELEGATECALL
 
 	gas := s.Stack.Pop()
 	target := s.Stack.Pop()
@@ -2136,7 +2135,7 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 
 	// If an account is implicitly created, this costs extra.
 	valueToEmptyAccountCost := vm.Gas(0)
-	if !isValueZero && s.Accounts.IsEmpty(target.Bytes20be()) && !isDelegateCall {
+	if !isValueZero && s.Accounts.IsEmpty(target.Bytes20be()) {
 		valueToEmptyAccountCost = 25000
 	}
 
