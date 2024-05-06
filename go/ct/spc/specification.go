@@ -1459,6 +1459,24 @@ func getAllRules() []Rule {
 
 	rules = append(rules, rulesFor(instruction{
 		op:        CREATE2,
+		name:      "_staticcall",
+		staticGas: 32000,
+		pops:      3,
+		pushes:    1,
+		conditions: []Condition{
+			Eq(ReadOnly(), true),
+		},
+		parameters: []Parameter{
+			ValueParameter{},
+			MemoryOffsetParameter{},
+			MemorySizeParameter{},
+			NumericParameter{},
+		},
+		effect: FailEffect().Apply,
+	})...)
+
+	rules = append(rules, rulesFor(instruction{
+		op:        CREATE2,
 		staticGas: 32000,
 		pops:      4,
 		pushes:    1,
