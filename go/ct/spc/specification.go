@@ -2130,7 +2130,7 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 
 	// Compute the value transfer costs.
 	positiveValueCost := vm.Gas(0)
-	if !isValueZero && !isDelegateCall {
+	if !isValueZero {
 		positiveValueCost = 9000
 	}
 
@@ -2165,7 +2165,7 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 
 	// If value is transferred, a stipend is granted.
 	stipend := vm.Gas(0)
-	if !isValueZero && !isDelegateCall {
+	if !isValueZero {
 		stipend = 2300
 	}
 	s.Gas += stipend
