@@ -2028,8 +2028,7 @@ func rulesFor(i instruction) []Rule {
 	return res
 }
 
-// getRulesForAllCallTypes returns rules for CALL, STATICCALL and DELEGATECALL.
-// TODO: add rules for CALLCODE
+// getRulesForAllCallTypes returns rules for CALL, CALLCODE, STATICCALL and DELEGATECALL
 func getRulesForAllCallTypes() []Rule {
 	// NOTE: this rule only covers Istanbul, Berlin and London cases in a coarse-grained way.
 	// Follow-work is required to cover other revisions and situations,
@@ -2039,7 +2038,7 @@ func getRulesForAllCallTypes() []Rule {
 	}
 
 	res := []Rule{}
-	for _, op := range []OpCode{CALL, STATICCALL, DELEGATECALL} {
+	for _, op := range []OpCode{CALL, CALLCODE, STATICCALL, DELEGATECALL} {
 		for _, rev := range []Revision{R07_Istanbul, R09_Berlin, R10_London} {
 			for _, warm := range []bool{true, false} {
 				for _, static := range []bool{true, false} {
@@ -2113,7 +2112,7 @@ func getRulesForCall(op OpCode, revision Revision, warm, zeroValue bool, opEffec
 	var name string
 	pops := 6
 
-	if op == CALL {
+	if op == CALL || op == CALLCODE {
 		parameters = append(parameters, ValueParameter{})
 
 		if zeroValue {
@@ -2158,9 +2157,10 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 	gas := s.Stack.Pop()
 	target := s.Stack.Pop()
 	var value U256
-	if op == CALL {
+	if op == CALL || op == CALLCODE {
 		value = s.Stack.Pop()
 	}
+
 	argsOffset := s.Stack.Pop()
 	argsSize := s.Stack.Pop()
 	retOffset := s.Stack.Pop()
@@ -2186,7 +2186,7 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 
 	// If an account is implicitly created, this costs extra.
 	valueToEmptyAccountCost := vm.Gas(0)
-	if !isValueZero && s.Accounts.IsEmpty(target.Bytes20be()) {
+	if !isValueZero && s.Accounts.IsEmpty(target.Bytes20be()) && op != CALLCODE {
 		valueToEmptyAccountCost = 25000
 	}
 
@@ -2246,6 +2246,11 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 		recipient = s.CallContext.AccountAddress
 		codeAddress = target.Bytes20be()
 		value = s.CallContext.Value
+	} else if op == CALLCODE {
+		kind = vm.CallCode
+		sender = s.CallContext.AccountAddress
+		recipient = s.CallContext.AccountAddress
+		codeAddress = target.Bytes20be()
 	}
 
 	if (s.ReadOnly && op == CALL) || op == STATICCALL {

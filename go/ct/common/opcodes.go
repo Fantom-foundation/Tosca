@@ -154,6 +154,7 @@ const (
 	LOG4           OpCode = 0xA4
 	CREATE         OpCode = 0xF0
 	CALL           OpCode = 0xF1
+	CALLCODE       OpCode = 0xF2
 	RETURN         OpCode = 0xF3
 	DELEGATECALL   OpCode = 0xF4
 	CREATE2        OpCode = 0xF5
@@ -467,6 +468,8 @@ func (op OpCode) String() string {
 		return "CREATE"
 	case CALL:
 		return "CALL"
+	case CALLCODE:
+		return "CALLCODE"
 	case RETURN:
 		return "RETURN"
 	case DELEGATECALL:
