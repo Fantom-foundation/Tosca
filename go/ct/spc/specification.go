@@ -1381,7 +1381,7 @@ func getAllRules() []Rule {
 
 	rules = append(rules, rulesFor(instruction{
 		op:        CREATE,
-		name:      "_staticcall",
+		name:      "_static",
 		staticGas: 32000,
 		pops:      3,
 		pushes:    1,
@@ -1410,54 +1410,105 @@ func getAllRules() []Rule {
 			MemorySizeParameter{},
 		},
 		effect: func(s *st.State) {
-			valueU256 := s.Stack.Pop()
-			offsetU256 := s.Stack.Pop()
-			sizeU256 := s.Stack.Pop()
+			createEffect(s, vm.Create)
+		},
+	})...)
 
-			memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
+	// --- CREATE2 ---
 
-			if s.Gas < memExpCost {
-				s.Status = st.Failed
-				s.Gas = 0
-				return
-			}
-			s.Gas -= memExpCost
-			input := s.Memory.Read(offset, size)
+	rules = append(rules, rulesFor(instruction{
+		op:        CREATE2,
+		name:      "_static",
+		staticGas: 32000,
+		pops:      3,
+		pushes:    1,
+		conditions: []Condition{
+			Eq(ReadOnly(), true),
+		},
+		parameters: []Parameter{
+			ValueParameter{},
+			MemoryOffsetParameter{},
+			MemorySizeParameter{},
+			NumericParameter{},
+		},
+		effect: FailEffect().Apply,
+	})...)
 
-			if !valueU256.IsZero() {
-				balance := s.Accounts.GetBalance(s.CallContext.AccountAddress)
-				if balance.Lt(valueU256) {
-					s.Stack.Push(AddressToU256(vm.Address{}))
-					s.LastCallReturnData = Bytes{}
-					return
-				}
-			}
-
-			limit := s.Gas - s.Gas/64
-
-			res := s.CallJournal.Call(vm.Create, vm.CallParameter{
-				Sender: s.CallContext.AccountAddress,
-				Value:  valueU256.Bytes32be(),
-				Gas:    limit,
-				Input:  input,
-			})
-
-			s.Gas -= limit - res.GasLeft
-			s.GasRefund += res.GasRefund
-
-			if !res.Success {
-				s.Stack.Push(AddressToU256(vm.Address{}))
-				s.LastCallReturnData = NewBytes(res.Output)
-				return
-			}
-			s.LastCallReturnData = Bytes{}
-			s.Stack.Push(AddressToU256(res.CreatedAddress))
+	rules = append(rules, rulesFor(instruction{
+		op:        CREATE2,
+		staticGas: 32000,
+		pops:      4,
+		pushes:    1,
+		conditions: []Condition{
+			Eq(ReadOnly(), false),
+		},
+		parameters: []Parameter{
+			ValueParameter{},
+			MemoryOffsetParameter{},
+			MemorySizeParameter{},
+			NumericParameter{},
+		},
+		effect: func(s *st.State) {
+			createEffect(s, vm.Create2)
 		},
 	})...)
 
 	// --- End ---
 
 	return rules
+}
+
+func createEffect(s *st.State, callKind vm.CallKind) {
+	valueU256 := s.Stack.Pop()
+	offsetU256 := s.Stack.Pop()
+	sizeU256 := s.Stack.Pop()
+	var saltU256 U256
+
+	memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
+	dynamicGas := memExpCost
+
+	if callKind == vm.Create2 {
+		saltU256 = s.Stack.Pop()
+		dynamicGas += vm.Gas(6 * ((size + 31) / 32))
+	}
+
+	if s.Gas < dynamicGas {
+		s.Status = st.Failed
+		s.Gas = 0
+		return
+	}
+	s.Gas -= dynamicGas
+	input := s.Memory.Read(offset, size)
+
+	if !valueU256.IsZero() {
+		balance := s.Accounts.GetBalance(s.CallContext.AccountAddress)
+		if balance.Lt(valueU256) {
+			s.Stack.Push(AddressToU256(vm.Address{}))
+			s.LastCallReturnData = Bytes{}
+			return
+		}
+	}
+
+	limit := s.Gas - s.Gas/64
+
+	res := s.CallJournal.Call(callKind, vm.CallParameter{
+		Sender: s.CallContext.AccountAddress,
+		Value:  valueU256.Bytes32be(),
+		Gas:    limit,
+		Input:  input,
+		Salt:   saltU256.Bytes32be(),
+	})
+
+	s.Gas -= limit - res.GasLeft
+	s.GasRefund += res.GasRefund
+
+	if !res.Success {
+		s.Stack.Push(AddressToU256(vm.Address{}))
+		s.LastCallReturnData = NewBytes(res.Output)
+		return
+	}
+	s.LastCallReturnData = Bytes{}
+	s.Stack.Push(AddressToU256(res.CreatedAddress))
 }
 
 func binaryOpWithDynamicCost(

@@ -156,6 +156,7 @@ const (
 	CALL           OpCode = 0xF1
 	RETURN         OpCode = 0xF3
 	DELEGATECALL   OpCode = 0xF4
+	CREATE2        OpCode = 0xF5
 	STATICCALL     OpCode = 0xFA
 	REVERT         OpCode = 0xFD
 	INVALID        OpCode = 0xFE
@@ -470,6 +471,8 @@ func (op OpCode) String() string {
 		return "RETURN"
 	case DELEGATECALL:
 		return "DELEGATECALL"
+	case CREATE2:
+		return "CREATE2"
 	case STATICCALL:
 		return "STATICCALL"
 	case REVERT:

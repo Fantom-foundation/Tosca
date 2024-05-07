@@ -814,6 +814,12 @@ func opCreate2(c *context) {
 		return
 	}
 
+	// Charge for the code size
+	words := (size.Uint64() + 31) / 32
+	if !c.UseGas(vm.Gas(6 * words)) {
+		return
+	}
+
 	if !value.IsZero() {
 		balance := c.context.GetBalance(c.params.Recipient)
 		balanceU256 := new(uint256.Int).SetBytes(balance[:])
@@ -826,12 +832,6 @@ func opCreate2(c *context) {
 	}
 
 	input := c.memory.GetSlice(offset.Uint64(), size.Uint64())
-
-	// Charge for the code size
-	words := (size.Uint64() + 31) / 32
-	if !c.UseGas(vm.Gas(6 * words)) {
-		return
-	}
 
 	// Apply EIP150
 	gas := c.gas

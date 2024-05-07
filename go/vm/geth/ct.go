@@ -247,8 +247,23 @@ func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code 
 
 }
 
-func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint256.Int) ([]byte, geth_common.Address, uint64, error) {
-	panic("not implemented")
+func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, value *big.Int, salt *uint256.Int) ([]byte, geth_common.Address, uint64, error) {
+	have := i.stateDb.GetBalance(me.Address())
+	if value.Cmp(have) > 0 {
+		return nil, geth_common.Address{}, gas, geth_vm.ErrInsufficientBalance
+	}
+
+	var vmValue vm.Value
+	value.FillBytes(vmValue[:])
+	res, err := i.makeCall(vm.Create2, vm.CallParameter{
+		Sender: vm.Address(me.Address()),
+		Value:  vmValue,
+		Gas:    vm.Gas(gas),
+		Input:  code,
+		Salt:   salt.Bytes32(),
+	})
+
+	return res.Output, geth_common.Address(res.CreatedAddress), uint64(res.GasLeft), err
 }
 
 func (i *callInterceptor) handleGasRefund(refund vm.Gas) {
