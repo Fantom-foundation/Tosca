@@ -56,7 +56,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	evm, contract, stateDb := createGethInterpreterContext(parameters)
 	stateDb.refund = uint64(state.GasRefund)
 
-	evm.CallContext = &callInterceptor{parameters.Context, stateDb, state.ReadOnly}
+	evm.CallContext = &callInterceptor{parameters, stateDb, state.ReadOnly}
 
 	interpreterState := geth_vm.NewGethState(
 		contract,
@@ -163,9 +163,20 @@ func convertGethStackToCtStack(state *geth_vm.GethState, stack *st.Stack) *st.St
 }
 
 type callInterceptor struct {
-	context vm.RunContext
-	stateDb *stateDbAdapter
-	static  bool
+	parameters vm.Parameters
+	stateDb    *stateDbAdapter
+	static     bool
+}
+
+func (i *callInterceptor) makeCall(kind vm.CallKind, callParam vm.CallParameter) (vm.CallResult, error) {
+	res, _ := i.parameters.Context.Call(kind, callParam)
+
+	i.handleGasRefund(res.GasRefund)
+	err := geth_vm.ErrExecutionReverted
+	if res.Success {
+		err = nil
+	}
+	return res, err
 }
 
 func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64, value *big.Int) ([]byte, uint64, error) {
@@ -181,19 +192,14 @@ func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr ge
 
 	var vmValue vm.Value
 	value.FillBytes(vmValue[:])
-	res, _ := i.context.Call(kind, vm.CallParameter{
+
+	res, err := i.makeCall(kind, vm.CallParameter{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
 		Value:     vmValue,
 		Input:     data,
 		Gas:       vm.Gas(gas),
 	})
-
-	i.handleGasRefund(res.GasRefund)
-	err := geth_vm.ErrExecutionReverted
-	if res.Success {
-		err = nil
-	}
 	return res.Output, uint64(res.GasLeft), err
 }
 
@@ -202,23 +208,23 @@ func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, add
 }
 
 func (i *callInterceptor) DelegateCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64) ([]byte, uint64, error) {
-	panic("not implemented")
+	res, err := i.makeCall(vm.DelegateCall, vm.CallParameter{
+		Sender:    i.parameters.Sender,
+		Recipient: i.parameters.Recipient,
+		Value:     i.parameters.Value,
+		Input:     data,
+		Gas:       vm.Gas(gas),
+	})
+	return res.Output, uint64(res.GasLeft), err
 }
 
 func (i *callInterceptor) StaticCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, input []byte, gas uint64) ([]byte, uint64, error) {
-	kind := vm.StaticCall
-	res, _ := i.context.Call(kind, vm.CallParameter{
+	res, err := i.makeCall(vm.StaticCall, vm.CallParameter{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
 		Input:     input,
 		Gas:       vm.Gas(gas),
 	})
-
-	i.handleGasRefund(res.GasRefund)
-	err := geth_vm.ErrExecutionReverted
-	if res.Success {
-		err = nil
-	}
 	return res.Output, uint64(res.GasLeft), err
 }
 
@@ -230,18 +236,12 @@ func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code 
 
 	var vmValue vm.Value
 	value.FillBytes(vmValue[:])
-	res, _ := i.context.Call(vm.Create, vm.CallParameter{
+	res, err := i.makeCall(vm.Create, vm.CallParameter{
 		Sender: vm.Address(me.Address()),
 		Value:  vmValue,
 		Gas:    vm.Gas(gas),
 		Input:  code,
 	})
-
-	i.handleGasRefund(res.GasRefund)
-	err := geth_vm.ErrExecutionReverted
-	if res.Success {
-		err = nil
-	}
 
 	return res.Output, geth_common.Address(res.CreatedAddress), uint64(res.GasLeft), err
 

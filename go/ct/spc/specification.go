@@ -1342,9 +1342,9 @@ func getAllRules() []Rule {
 		},
 	})...)
 
-	// --- CALL and STATICCALL---
+	// --- CALL, STATICCALL and DELEGATECALL ---
 
-	rules = append(rules, getCallAndStaticCallRules()...)
+	rules = append(rules, getRulesForAllCallTypes()...)
 
 	// --- SELFDESTRUCT ---
 
@@ -1977,7 +1977,9 @@ func rulesFor(i instruction) []Rule {
 	return res
 }
 
-func getCallAndStaticCallRules() []Rule {
+// getRulesForAllCallTypes returns rules for CALL, STATICCALL and DELEGATECALL.
+// TODO: add rules for CALLCODE
+func getRulesForAllCallTypes() []Rule {
 	// NOTE: this rule only covers Istanbul, Berlin and London cases in a coarse-grained way.
 	// Follow-work is required to cover other revisions and situations,
 	// as well as special cases currently covered in the effect function.
@@ -1986,17 +1988,17 @@ func getCallAndStaticCallRules() []Rule {
 	}
 
 	res := []Rule{}
-	revs := []Revision{R07_Istanbul, R09_Berlin, R10_London}
-	for _, rev := range revs {
-		for _, warm := range []bool{true, false} {
-			for _, static := range []bool{true, false} {
-				for _, zeroValue := range []bool{true, false} {
-					effect := callEffect
-					res = append(res, getRulesForCall(STATICCALL, rev, warm, zeroValue, effect, static)...)
-					if static && !zeroValue {
-						effect = callFailEffect
+	for _, op := range []OpCode{CALL, STATICCALL, DELEGATECALL} {
+		for _, rev := range []Revision{R07_Istanbul, R09_Berlin, R10_London} {
+			for _, warm := range []bool{true, false} {
+				for _, static := range []bool{true, false} {
+					for _, zeroValue := range []bool{true, false} {
+						effect := callEffect
+						if op == CALL && static && !zeroValue {
+							effect = callFailEffect
+						}
+						res = append(res, getRulesForCall(op, rev, warm, zeroValue, effect, static)...)
 					}
-					res = append(res, getRulesForCall(CALL, rev, warm, zeroValue, effect, static)...)
 				}
 			}
 		}
@@ -2101,6 +2103,7 @@ func getRulesForCall(op OpCode, revision Revision, warm, zeroValue bool, opEffec
 }
 
 func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
+
 	gas := s.Stack.Pop()
 	target := s.Stack.Pop()
 	var value U256
@@ -2122,15 +2125,17 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 		memoryExpansionCost = outputMemoryExpansionCost
 	}
 
+	isValueZero := value.IsZero()
+
 	// Compute the value transfer costs.
 	positiveValueCost := vm.Gas(0)
-	if !value.IsZero() {
+	if !isValueZero {
 		positiveValueCost = 9000
 	}
 
 	// If an account is implicitly created, this costs extra.
 	valueToEmptyAccountCost := vm.Gas(0)
-	if !value.IsZero() && s.Accounts.IsEmpty(target.Bytes20be()) {
+	if !isValueZero && s.Accounts.IsEmpty(target.Bytes20be()) {
 		valueToEmptyAccountCost = 25000
 	}
 
@@ -2159,7 +2164,7 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 
 	// If value is transferred, a stipend is granted.
 	stipend := vm.Gas(0)
-	if !value.IsZero() {
+	if !isValueZero {
 		stipend = 2300
 	}
 	s.Gas += stipend
@@ -2170,7 +2175,7 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 	// --- call execution ---
 
 	// Check that the caller has enough balance to transfer the requested value.
-	if !value.IsZero() {
+	if !isValueZero {
 		balance := s.Accounts.GetBalance(s.CallContext.AccountAddress)
 		if balance.Lt(value) {
 			s.Stack.Push(NewU256(0))
@@ -2179,19 +2184,31 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 		}
 	}
 
+	sender := s.CallContext.AccountAddress
+	recipient := target.Bytes20be()
+	codeAddress := vm.Address{}
 	// In a static context all calls are static calls.
 	kind := vm.Call
-	if s.ReadOnly || op == STATICCALL {
+	if op == DELEGATECALL {
+		kind = vm.DelegateCall
+		sender = s.CallContext.CallerAddress
+		recipient = s.CallContext.AccountAddress
+		codeAddress = target.Bytes20be()
+		value = s.CallContext.Value
+	}
+
+	if (s.ReadOnly && op == CALL) || op == STATICCALL {
 		kind = vm.StaticCall
 	}
 
 	// Execute the call.
 	res := s.CallJournal.Call(kind, vm.CallParameter{
-		Sender:    s.CallContext.AccountAddress,
-		Recipient: target.Bytes20be(),
-		Value:     value.Bytes32be(),
-		Gas:       endowment + stipend,
-		Input:     input,
+		Sender:      sender,
+		Recipient:   recipient,
+		Value:       value.Bytes32be(),
+		Gas:         endowment + stipend,
+		Input:       input,
+		CodeAddress: codeAddress,
 	})
 
 	// Process the result.
