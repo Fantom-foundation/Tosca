@@ -255,19 +255,13 @@ func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code
 
 	var vmValue vm.Value
 	value.FillBytes(vmValue[:])
-	res, _ := i.context.Call(vm.Create2, vm.CallParameter{
+	res, err := i.makeCall(vm.Create2, vm.CallParameter{
 		Sender: vm.Address(me.Address()),
 		Value:  vmValue,
 		Gas:    vm.Gas(gas),
 		Input:  code,
 		Salt:   salt.Bytes32(),
 	})
-
-	i.handleGasRefund(res.GasRefund)
-	err := geth_vm.ErrExecutionReverted
-	if res.Success {
-		err = nil
-	}
 
 	return res.Output, geth_common.Address(res.CreatedAddress), uint64(res.GasLeft), err
 }
