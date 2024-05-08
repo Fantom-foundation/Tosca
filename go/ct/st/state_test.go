@@ -24,244 +24,201 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
-func TestState_CloneCreatesEqualState(t *testing.T) {
-	state := NewState(NewCode([]byte{byte(ADD)}))
-	state.Status = Stopped
-	state.Revision = R10_London
-	state.Pc = 1
-	state.Gas = 2
-	state.GasRefund = 15
-	state.Stack.Push(NewU256(3))
-	state.Memory.Write([]byte{1, 2, 3}, 1)
-	state.Storage.SetCurrent(NewU256(4), NewU256(5))
-	state.Storage.SetOriginal(NewU256(6), NewU256(7))
-	state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
-	state.CallContext.AccountAddress = vm.Address{0xff}
-	state.CallContext.OriginAddress = vm.Address{0xfe}
-	state.CallContext.CallerAddress = vm.Address{0xfd}
-	state.CallContext.Value = NewU256(252)
-	state.BlockContext.BlockNumber = 251
-	state.BlockContext.CoinBase[0] = 0xfa
-	state.BlockContext.GasLimit = 249
-	state.BlockContext.GasPrice = NewU256(248)
-	state.BlockContext.Difficulty = NewU256(247)
-	state.BlockContext.TimeStamp = 246
-	state.CallData = NewBytes([]byte{245})
-	state.LastCallReturnData = NewBytes([]byte{244})
-	state.HasSelfDestructed = true
-	state.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
+////////////////////////////////////////////////////////////
+// Helper functions
 
-	clone := state.Clone()
-	if !state.Eq(clone) {
-		t.Errorf("clone failed to copy. %v", state.Diff(clone))
+func getNewFilledState() *State {
+	s := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
+	s.Status = Running
+	s.Revision = R10_London
+	s.ReadOnly = true
+	s.Pc = 3
+	s.Gas = 42
+	s.GasRefund = 63
+	s.Stack.Push(NewU256(42))
+	s.Memory.Write([]byte{1, 2, 3}, 31)
+	s.Storage = NewStorageBuilder().
+		SetCurrent(NewU256(42), NewU256(7)).
+		SetOriginal(NewU256(77), NewU256(4)).
+		SetWarm(NewU256(9), true).
+		Build()
+	s.Accounts = NewAccounts()
+	s.Accounts.SetBalance(vm.Address{0x01}, NewU256(42))
+	s.Accounts.SetCode(vm.Address{0x01}, NewBytes([]byte{byte(PUSH1), byte(6)}))
+	s.Accounts.MarkWarm(vm.Address{0x02})
+	s.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
+	s.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
+	s.BlockContext = BlockContext{BlockNumber: 1}
+	s.CallData = NewBytes([]byte{1})
+	s.LastCallReturnData = NewBytes([]byte{1})
+	s.HasSelfDestructed = true
+	s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{1}, vm.Address{2}}}
+	return s
+}
+
+type testStruct struct {
+	change func(*State)
+	want   string
+}
+
+func getTestChanges() map[string]testStruct {
+	tests := map[string]testStruct{
+		"status": {func(state *State) {
+			state.Status = Stopped
+		},
+			"Different status",
+		},
+		"revision": {func(state *State) {
+			state.Revision = R07_Istanbul
+		},
+			"Different revision",
+		},
+		"read-only": {func(state *State) {
+			state.ReadOnly = false
+		},
+			"Different read only mode",
+		},
+		"pc": {func(state *State) {
+			state.Pc = 1
+		},
+			"Different pc",
+		},
+		"gas": {func(state *State) {
+			state.Gas = 2
+		},
+			"Different gas",
+		},
+		"gas_refund": {func(state *State) {
+			state.GasRefund = 15
+		},
+			"Different gas refund",
+		},
+		"code": {func(state *State) {
+			state.Code = NewCode([]byte{byte(ADD)})
+		},
+			"Different code",
+		},
+		"stack": {func(state *State) {
+			state.Stack.Push(NewU256(3))
+		},
+			"Different stack",
+		},
+		"memory": {func(state *State) {
+			state.Memory.Write([]byte{1, 2, 3}, 1)
+		},
+			"Different memory value",
+		},
+		"storage": {func(state *State) {
+			state.Storage.SetCurrent(NewU256(4), NewU256(5))
+		},
+			"Different current entry",
+		},
+		"accounts": {func(state *State) {
+			state.Accounts.SetBalance(vm.Address{0x01}, NewU256(6))
+		}, "Different balance entry",
+		},
+		"logs": {func(state *State) {
+			state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
+		},
+			"Different log count",
+		},
+		"call_context": {func(state *State) {
+			state.CallContext.AccountAddress = vm.Address{0xff}
+		},
+			"Different call context",
+		},
+		"block_context": {func(state *State) {
+			state.BlockContext.BlockNumber = 251
+		},
+			"Different block context",
+		},
+		"call_data": {func(state *State) {
+			state.CallData = NewBytes([]byte{245})
+		},
+			"Different call data",
+		},
+		"last_call_return_data": {func(state *State) {
+			state.LastCallReturnData = NewBytes([]byte{244})
+		},
+			"Different last call return data",
+		},
+		"return_data": {func(state *State) {
+			state.Status = Stopped // return data is only checked when not running
+			state.ReturnData = NewBytes([]byte{45})
+		},
+			"Different return data",
+		},
+		"has_self_destructed": {func(state *State) {
+			state.HasSelfDestructed = false
+		},
+			"Different has-self-destructed",
+		},
+		"self_destructed_journal": {func(state *State) {
+			state.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x04}}}
+		},
+			"Different has-self-destructed journal entry",
+		},
+	}
+	return tests
+}
+
+////////////////////////////////////////////////////////////
+// State tests
+
+func TestState_Clone(t *testing.T) {
+	tests := getTestChanges()
+	s1 := getNewFilledState()
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			s2 := s1.Clone()
+			if !s1.Eq(s2) {
+				t.Fatalf("clones are not equal")
+			}
+			test.change(s2)
+			if s2.Eq(s1) {
+				t.Errorf("clones are not independent")
+			}
+		})
 	}
 }
 
-func TestState_CloneIsIndependent(t *testing.T) {
-	state := NewState(NewCode([]byte{byte(ADD)}))
-	state.Status = Stopped
-	state.Revision = R10_London
-	state.Pc = 1
-	state.Gas = 2
-	state.GasRefund = 15
-	state.Stack.Push(NewU256(3))
-	state.Memory.Write([]byte{1, 2, 3}, 1)
-	state.Storage.SetCurrent(NewU256(4), NewU256(5))
-	state.Storage.SetOriginal(NewU256(6), NewU256(7))
-	state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
-	state.CallContext.AccountAddress = vm.Address{0xff}
-	state.CallContext.OriginAddress = vm.Address{0xfe}
-	state.CallContext.CallerAddress = vm.Address{0xfd}
-	state.CallContext.Value = NewU256(252)
-	state.BlockContext.BlockNumber = 251
-	state.BlockContext.CoinBase[0] = 0xfa
-	state.BlockContext.GasLimit = 249
-	state.BlockContext.GasPrice = NewU256(248)
-	state.BlockContext.Difficulty = NewU256(247)
-	state.BlockContext.TimeStamp = 246
-	state.CallData = NewBytes([]byte{245})
-	state.LastCallReturnData = NewBytes([]byte{244})
-	state.HasSelfDestructed = true
-	state.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}}}
+func TestState_Diff(t *testing.T) {
+	tests := getTestChanges()
+	s1 := getNewFilledState()
 
-	clone := state.Clone()
-	clone.Status = Running
-	clone.Revision = R09_Berlin
-	clone.Pc = 4
-	clone.Gas = 5
-	clone.GasRefund = 16
-	clone.Stack.Push(NewU256(6))
-	clone.Memory.Write([]byte{4, 5, 6, 7}, 64)
-	clone.Storage.SetCurrent(NewU256(7), NewU256(16))
-	clone.Storage.SetOriginal(NewU256(6), NewU256(6))
-	clone.Storage.MarkWarm(NewU256(42))
-	clone.Logs.Entries[0].Data[0] = 31
-	clone.Logs.Entries[0].Topics[0] = NewU256(41)
-	clone.CallContext.AccountAddress = vm.Address{0x01}
-	clone.CallContext.OriginAddress = vm.Address{0x02}
-	clone.CallContext.CallerAddress = vm.Address{0x03}
-	clone.CallContext.Value = NewU256(4)
-	clone.BlockContext.BlockNumber = 5
-	clone.BlockContext.CoinBase[0] = 0x06
-	clone.BlockContext.GasLimit = 7
-	clone.BlockContext.GasPrice = NewU256(8)
-	clone.BlockContext.Difficulty = NewU256(9)
-	clone.BlockContext.TimeStamp = 10
-	clone.CallData = NewBytes([]byte{11})
-	clone.LastCallReturnData = NewBytes([]byte{12})
-	clone.HasSelfDestructed = false
-	clone.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x0d}, vm.Address{0x0d}}}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			s2 := getNewFilledState()
+			diffs := s1.Diff(s2)
+			if len(diffs) != 0 {
+				t.Errorf("unexpected differences: %v", diffs)
+			}
 
-	ok := state.Status == Stopped &&
-		state.Revision == R10_London &&
-		state.Pc == 1 &&
-		state.Gas == 2 &&
-		state.GasRefund == 15 &&
-		state.Stack.Size() == 1 &&
-		state.Stack.Get(0).Uint64() == 3 &&
-		state.Memory.Size() == 32 &&
-		state.Storage.GetCurrent(NewU256(4)).Eq(NewU256(5)) &&
-		state.Storage.GetCurrent(NewU256(7)).IsZero() &&
-		state.Storage.GetOriginal(NewU256(6)).Eq(NewU256(7)) &&
-		!state.Storage.IsWarm(NewU256(42)) &&
-		state.Logs.Entries[0].Data[0] == 10 &&
-		state.Logs.Entries[0].Topics[0] == NewU256(21) &&
-		state.CallContext.AccountAddress == vm.Address{0xff} &&
-		state.CallContext.OriginAddress == vm.Address{0xfe} &&
-		state.CallContext.CallerAddress == vm.Address{0xfd} &&
-		state.CallContext.Value.Eq(NewU256(252)) &&
-		state.BlockContext.BlockNumber == 251 &&
-		state.BlockContext.CoinBase[0] == 0xfa &&
-		state.BlockContext.GasLimit == 249 &&
-		state.BlockContext.GasPrice == NewU256(248) &&
-		state.BlockContext.Difficulty == NewU256(247) &&
-		state.BlockContext.TimeStamp == 246 &&
-		state.CallData.Get(0, 1)[0] == 245 &&
-		state.LastCallReturnData.Get(0, 1)[0] == 244 &&
-		state.HasSelfDestructed &&
-		slices.Equal(state.SelfDestructedJournal, []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}}})
-
-	if !ok {
-		t.Errorf("clone is not independent")
+			test.change(s2)
+			diffs = s2.Diff(s1)
+			if !strings.Contains(diffs[len(diffs)-1], test.want) {
+				t.Errorf("unexpected differences: want %s, got %s", test.want, diffs[len(diffs)-1])
+			}
+		})
 	}
 }
 
-func TestState_Eq(t *testing.T) {
-	s1 := NewState(NewCode([]byte{}))
-	s2 := NewState(NewCode([]byte{}))
-	if !s1.Eq(s2) {
-		t.Fail()
-	}
+func TestState_EqualAndDiffAreCompatible(t *testing.T) {
+	tests := getTestChanges()
+	s1 := getNewFilledState()
 
-	s1.Status = Running
-	s2.Status = Stopped
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.Status = Running
-
-	s1.Revision = R07_Istanbul
-	s2.Revision = R10_London
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.Revision = R07_Istanbul
-
-	s1.Pc = 1
-	s2.Pc = 2
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.Pc = 1
-
-	s1.Gas = 1
-	s2.Gas = 2
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.Gas = 1
-
-	s1.GasRefund = 1
-	s2.GasRefund = 2
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.GasRefund = 1
-
-	s1.Stack.Push(NewU256(1))
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.Stack.Push(NewU256(1))
-
-	if !s1.Eq(s2) {
-		t.Fail()
-	}
-
-	s1.Memory.Write([]byte{1, 2, 3}, 1)
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.Memory.Write([]byte{1, 2, 3}, 1)
-
-	s1.Storage.SetCurrent(NewU256(42), NewU256(32))
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.Storage.SetCurrent(NewU256(42), NewU256(32))
-
-	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-
-	s1 = NewState(NewCode([]byte{byte(ADD), byte(STOP)}))
-	s2 = NewState(NewCode([]byte{byte(ADD), byte(ADD)}))
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2 = NewState(NewCode([]byte{byte(ADD), byte(STOP)}))
-
-	s1.CallContext = CallContext{AccountAddress: vm.Address{0x00}}
-	s2.CallContext = CallContext{AccountAddress: vm.Address{0xff}}
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.CallContext = s1.CallContext
-
-	s1.BlockContext = BlockContext{BlockNumber: 0}
-	s2.BlockContext = BlockContext{BlockNumber: 251}
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.BlockContext = s1.BlockContext
-
-	s1.CallData = NewBytes([]byte{1})
-	s2.CallData = NewBytes([]byte{250})
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.CallData = s1.CallData
-
-	s1.LastCallReturnData = NewBytes([]byte{1})
-	s2.LastCallReturnData = NewBytes([]byte{249})
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.LastCallReturnData = s1.LastCallReturnData
-
-	s1.HasSelfDestructed = true
-	s2.HasSelfDestructed = false
-	if s1.Eq(s2) {
-		t.Fail()
-	}
-	s2.HasSelfDestructed = s1.HasSelfDestructed
-
-	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
-	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}}}
-	if s1.Eq(s2) {
-		t.Fail()
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			s2 := getNewFilledState()
+			if s1.Eq(s2) && len(s2.Diff(s1)) != 0 {
+				t.Errorf("state is equal but diffs are not empty")
+			}
+			test.change(s2)
+			if !s1.Eq(s2) && len(s2.Diff(s1)) == 0 {
+				t.Errorf("state is not equal but diffs are empty")
+			}
+		})
 	}
 }
 
@@ -276,7 +233,7 @@ func TestState_EqFailureStates(t *testing.T) {
 	s2.Gas = 2
 
 	if !s1.Eq(s2) {
-		t.Fail()
+		t.Errorf("This field should not be considered when status is Failed")
 	}
 }
 
