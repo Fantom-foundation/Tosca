@@ -154,6 +154,7 @@ func NewState(code *Code) *State {
 		CallData:              Bytes{},
 		LastCallReturnData:    Bytes{},
 		SelfDestructedJournal: []SelfDestructEntry{},
+		RecentBlockHashes:     [256]vm.Hash{},
 	}
 }
 
