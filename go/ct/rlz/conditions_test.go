@@ -288,3 +288,166 @@ func TestHasSelfDestructedCondition_HasSelfDestructRestrictsGeneratedStateToBeSe
 		t.Error("generated state does not satisfy condition")
 	}
 }
+
+func TestValidRange256_Check(t *testing.T) {
+	conditionIn := InRange256FromCurrentBlock(Param(0))
+	conditionOut := OutOfRange256FromCurrentBlock(Param(0))
+
+	gen1 := gen.NewStateGenerator()
+	conditionIn.Restrict(gen1)
+	rnd := rand.New(0)
+	state1, err := gen1.Generate(rnd)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	withinRange, err := conditionIn.Check(state1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !withinRange {
+		t.Fatal("block number is not within range")
+	}
+
+	outOfRange, err := conditionOut.Check(state1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outOfRange {
+		t.Fatal("block number is not within range")
+	}
+
+	gen2 := gen.NewStateGenerator()
+	conditionOut.Restrict(gen2)
+	state2, err := gen2.Generate(rnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	withinRange, err = conditionIn.Check(state2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if withinRange {
+		t.Fatal("block number is within range")
+	}
+
+	outOfRange, err = conditionOut.Check(state2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !outOfRange {
+		t.Fatal("block number is within range")
+	}
+}
+
+func TestCondition_InOutRange256FromCurrentBlock_Check(t *testing.T) {
+	gen := gen.NewStateGenerator()
+	rnd := rand.New(0)
+	state, err := gen.Generate(rnd)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	tests := map[string]struct {
+		condition Condition
+		function  func(*st.State)
+		want      bool
+	}{
+		"checkInWantIn": {
+			condition: InRange256FromCurrentBlock(Param(0)),
+			function:  func(state *st.State) { state.Stack.Push(NewU256(state.BlockContext.BlockNumber - 1)) },
+			want:      true,
+		},
+		"checkInWantOut": {
+			condition: InRange256FromCurrentBlock(Param(0)),
+			function:  func(state *st.State) { state.Stack.Push(NewU256(state.BlockContext.BlockNumber + 1)) },
+			want:      false,
+		},
+		"checkOutWantIn": {
+			condition: OutOfRange256FromCurrentBlock(Param(0)),
+			function:  func(state *st.State) { state.Stack.Push(NewU256(state.BlockContext.BlockNumber - 1)) },
+			want:      false,
+		},
+		"checkOutWantOut": {
+			condition: OutOfRange256FromCurrentBlock(Param(0)),
+			function:  func(state *st.State) { state.Stack.Push(NewU256(state.BlockContext.BlockNumber + 1)) },
+			want:      true,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			test.function(state)
+			got, err := test.condition.Check(state)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.want != got {
+				t.Fatal("block number is not within range")
+			}
+		})
+	}
+
+}
+
+func TestCondition_InOut_Restrict(t *testing.T) {
+	rnd := rand.New()
+
+	tests := map[string]struct {
+		condition Condition
+		function  func(*st.State)
+		want      bool
+	}{
+		"inRange": {
+			condition: InRange256FromCurrentBlock(Param(0)),
+			function:  func(state *st.State) { state.Stack.Push(NewU256(state.BlockContext.BlockNumber - 1)) },
+		},
+		"outOfRange": {
+			condition: OutOfRange256FromCurrentBlock(Param(0)),
+			function:  func(state *st.State) { state.Stack.Push(NewU256(state.BlockContext.BlockNumber - 1)) },
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			gen := gen.NewStateGenerator()
+			test.condition.Restrict(gen)
+			state, err := gen.Generate(rnd)
+			if err != nil {
+				t.Fatalf("faield to build state: %v", err)
+			}
+			if checked, err := test.condition.Check(state); err != nil || !checked {
+				t.Errorf("failed to check condition: %v", err)
+			}
+		})
+	}
+}
+
+func TestCondition_InOutOfRangeGetTestValues(t *testing.T) {
+	want := []int64{-1, 0, 1, 255, 256, 257}
+	tests := map[string]struct {
+		condition Condition
+	}{
+		"inRange": {
+			condition: InRange256FromCurrentBlock(Param(0)),
+		},
+		"outOfRange": {
+			condition: OutOfRange256FromCurrentBlock(Param(0)),
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			testValues := test.condition.GetTestValues()
+			if len(testValues) != len(want) {
+				t.Fatalf("unexpected amount test values, got %v, want %v", len(testValues), want)
+			}
+			for i, test := range testValues {
+				if test.(*testValue[int64]).value != want[i] {
+					t.Errorf("unexpected test value, got %v, want %v", test.(*testValue[int64]).value, want[i])
+				}
+			}
+		})
+	}
+}

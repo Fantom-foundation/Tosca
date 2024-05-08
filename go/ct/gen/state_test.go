@@ -307,6 +307,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone1.AddStackSizeLowerBound(2)
 	clone1.AddStackSizeUpperBound(200)
 	clone1.BindValue(Variable("x"), NewU256(12))
+	clone1.SetBlockNumberOffsetValue(Variable("t"), 13)
 	clone1.MustBeSelfDestructed()
 
 	clone2 := base.Clone()
@@ -318,6 +319,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone2.AddStackSizeLowerBound(3)
 	clone2.AddStackSizeUpperBound(300)
 	clone2.BindValue(Variable("y"), NewU256(14))
+	clone2.SetBlockNumberOffsetValue(Variable("s"), -15)
 	clone2.MustNotBeSelfDestructed()
 
 	checkPrint := func(clone *StateGenerator, want []string) {
@@ -346,7 +348,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"accounts={}",
 		"callContext={}",
 		"callJournal={}",
-		"blockContext={}",
+		"blockContext={variablesOffsetConstraints: [$t > BlockNumber - 12 Λ $t < BlockNumber - 14]}",
 		"selfdestruct={mustBeSelfDestructed}",
 	})
 
@@ -364,7 +366,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"accounts={}",
 		"callContext={}",
 		"callJournal={}",
-		"blockContext={}",
+		"blockContext={variablesOffsetConstraints: [$s > BlockNumber + 16 Λ $s < BlockNumber + 14]}",
 		"selfdestruct={mustNotBeSelfDestructed}",
 	})
 }
@@ -432,5 +434,21 @@ func TestStateGenerator_ReturnDataShouldBeEmpty(t *testing.T) {
 	state := genRandomState(t)
 	if want, got := 0, state.ReturnData.Length(); want != got {
 		t.Errorf("unexpected length of generated return data, wanted %d, got %d", want, got)
+	}
+}
+
+// //////////////////////////////////////////////////////////
+// Block number hashes
+func TestStateGenerator_BlockNumberHashes(t *testing.T) {
+	newHashes := []vm.Hash{}
+	state := genRandomState(t)
+	for i := 0; i < 256; i++ {
+		if state.RecentBlockHashes[i] == (vm.Hash{}) {
+			t.Error("unexpected hash value, should not be zero")
+		}
+		if slices.Contains(newHashes, state.RecentBlockHashes[i]) {
+			t.Errorf("unexpected hash value, should be unique %v", state.RecentBlockHashes[i])
+		}
+		newHashes = append(newHashes, state.RecentBlockHashes[i])
 	}
 }

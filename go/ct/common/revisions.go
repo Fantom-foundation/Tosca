@@ -107,17 +107,17 @@ func GetForkBlock(revision Revision) (uint64, error) {
 	case R07_Istanbul:
 		return 0, nil
 	case R09_Berlin:
-		return 10, nil
+		return 1000, nil
 	case R10_London:
-		return 20, nil
+		return 2000, nil
 	case R11_Paris:
-		return 30, nil
+		return 3000, nil
 	case R12_Shanghai:
-		return 40, nil
+		return 4000, nil
 	case R13_Cancun:
-		return 50, nil
+		return 5000, nil
 	case R99_UnknownNextRevision:
-		return 60, nil
+		return 6000, nil
 	}
 	return 0, fmt.Errorf("unknown revision: %v", revision)
 }
@@ -129,7 +129,7 @@ func GetBlockRangeLengthFor(revision Revision) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	revisionNumberRange := uint64(0)
+	revisionNumberLength := uint64(0)
 
 	// if it's the last supported revision, the blockNumber range has no limit.
 	// if it's not, we want to limit this range to the first block number of next revision.
@@ -140,7 +140,7 @@ func GetBlockRangeLengthFor(revision Revision) (uint64, error) {
 		}
 		// since we know both numbers are positive, and nextRevisionNumber is bigger,
 		// we can safely convert them to uint64
-		revisionNumberRange = nextRevisionNumber - revisionNumber
+		revisionNumberLength = nextRevisionNumber - revisionNumber
 	}
-	return revisionNumberRange, nil
+	return revisionNumberLength, nil
 }

@@ -53,6 +53,7 @@ func getNewFilledState() *State {
 	s.LastCallReturnData = NewBytes([]byte{1})
 	s.HasSelfDestructed = true
 	s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{1}, vm.Address{2}}}
+	s.RecentBlockHashes = [256]vm.Hash{{0x01}}
 	return s
 }
 
@@ -157,6 +158,11 @@ func getTestChanges() map[string]testStruct {
 			state.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x04}}}
 		},
 			"Different has-self-destructed journal entry",
+		},
+		"block_number_hashes": {func(state *State) {
+			state.RecentBlockHashes = [256]vm.Hash{{0x02}}
+		},
+			"Different block number hash at index 0: 0200000000000000000000000000000000000000000000000000000000000000 vs 0100000000000000000000000000000000000000000000000000000000000000",
 		},
 	}
 	return tests
@@ -455,6 +461,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.LastCallReturnData = NewBytes([]byte{1})
 	s1.HasSelfDestructed = true
 	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
+	s1.RecentBlockHashes = [256]vm.Hash{{0x01}}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -472,6 +479,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.LastCallReturnData = NewBytes([]byte{1})
 	s2.HasSelfDestructed = true
 	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
+	s2.RecentBlockHashes = [256]vm.Hash{{0x01}}
 
 	diffs := s1.Diff(s2)
 
@@ -502,6 +510,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.LastCallReturnData = NewBytes([]byte{1})
 	s1.HasSelfDestructed = true
 	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
+	s1.RecentBlockHashes = [256]vm.Hash{{0x01}}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -519,6 +528,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.LastCallReturnData = NewBytes([]byte{249})
 	s2.HasSelfDestructed = false
 	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}}}
+	s2.RecentBlockHashes = [256]vm.Hash{{0xf2}}
 
 	diffs := s1.Diff(s2)
 
@@ -541,6 +551,7 @@ func TestState_DiffMismatch(t *testing.T) {
 		"Different last call return data",
 		"Different has-self-destructed",
 		"Different has-self-destructed journal entry",
+		"Different block number hash at index 0: 0100000000000000000000000000000000000000000000000000000000000000 vs f200000000000000000000000000000000000000000000000000000000000000",
 	}
 
 	if len(diffs) != len(expectedDiffs) {
@@ -741,6 +752,10 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 		},
 		"has_self_destructed_journal": {
 			modify:      func(s *State) { s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}}} },
+			relevantFor: allButFailed,
+		},
+		"block_number_hashes": {
+			modify:      func(s *State) { s.RecentBlockHashes = [256]vm.Hash{{0xf2}} },
 			relevantFor: allButFailed,
 		},
 	}

@@ -136,6 +136,7 @@ type State struct {
 	ReturnData            Bytes
 	HasSelfDestructed     bool
 	SelfDestructedJournal []SelfDestructEntry
+	RecentBlockHashes     [256]vm.Hash
 }
 
 // NewState creates a new State instance with the given code.
@@ -153,6 +154,7 @@ func NewState(code *Code) *State {
 		CallData:              Bytes{},
 		LastCallReturnData:    Bytes{},
 		SelfDestructedJournal: []SelfDestructEntry{},
+		RecentBlockHashes:     [256]vm.Hash{},
 	}
 }
 
@@ -184,6 +186,7 @@ func (s *State) Clone() *State {
 	clone.ReturnData = s.ReturnData
 	clone.HasSelfDestructed = s.HasSelfDestructed
 	clone.SelfDestructedJournal = slices.Clone(s.SelfDestructedJournal)
+	clone.RecentBlockHashes = s.RecentBlockHashes
 	return clone
 }
 
@@ -216,7 +219,8 @@ func (s *State) Eq(other *State) bool {
 		s.Accounts.Eq(other.Accounts) &&
 		s.Logs.Eq(other.Logs) &&
 		s.HasSelfDestructed == other.HasSelfDestructed &&
-		slices.Equal(s.SelfDestructedJournal, other.SelfDestructedJournal)
+		slices.Equal(s.SelfDestructedJournal, other.SelfDestructedJournal) &&
+		s.RecentBlockHashes == other.RecentBlockHashes
 
 	// For terminal states, internal state can be ignored, but the result is important.
 	if s.Status != Running {
@@ -341,6 +345,14 @@ func (s *State) String() string {
 	write("\tHasSelfDestructed: %v\n", s.HasSelfDestructed)
 	write("\tSelfDestructedJournal: %v\n", s.SelfDestructedJournal)
 
+	// only print if next instruction is blockhash and the top of the stack is a valid uint64
+	if s.Code != nil && s.Code.Length() > int(s.Pc) {
+		if s.Code.IsCode(int(s.Pc)) && OpCode(s.Code.code[s.Pc]) == BLOCKHASH &&
+			s.Stack.stack[s.Stack.Size()-1].IsUint64() {
+			write("\tBlockNumberHashes: %v\n", s.RecentBlockHashes[s.Stack.stack[s.Stack.Size()-1].Uint64()])
+		}
+	}
+
 	write("}")
 	return builder.String()
 }
@@ -436,6 +448,12 @@ func (s *State) Diff(o *State) []string {
 						entry1.account, entry1.beneficiary, entry2.account, entry2.beneficiary))
 				}
 			}
+		}
+	}
+
+	for i := 0; i < 256; i++ {
+		if s.RecentBlockHashes[i] != o.RecentBlockHashes[i] {
+			res = append(res, fmt.Sprintf("Different block number hash at index %d: %x vs %x", i, s.RecentBlockHashes[i], o.RecentBlockHashes[i]))
 		}
 	}
 

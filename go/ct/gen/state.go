@@ -248,6 +248,18 @@ func (g *StateGenerator) MustNotBeSelfDestructed() {
 	g.hasSelfDestructedGen.MarkAsNotSelfDestructed()
 }
 
+func (g *StateGenerator) AddBlockNumberOffsetConstraintIn(variable Variable) {
+	g.blockContextGen.AddBlockNumberOffsetConstraintIn(variable)
+}
+
+func (g *StateGenerator) AddBlockNumberOffsetConstraintOut(variable Variable) {
+	g.blockContextGen.AddBlockNumberOffsetConstraintOut(variable)
+}
+
+func (g *StateGenerator) SetBlockNumberOffsetValue(variable Variable, value int64) {
+	g.blockContextGen.SetBlockNumberOffsetValue(variable, value)
+}
+
 func getRandomData(rnd *rand.Rand) ([]byte, error) {
 	size := uint(rnd.ExpFloat64() * float64(200))
 	if size > st.MaxDataSize {
@@ -259,6 +271,12 @@ func getRandomData(rnd *rand.Rand) ([]byte, error) {
 		return nil, err
 	}
 	return dataBuffer, nil
+}
+
+func getRandomHash(rnd *rand.Rand) vm.Hash {
+	var res vm.Hash
+	rnd.Read(res[:])
+	return res
 }
 
 // Generate produces a State instance satisfying the constraints set on this
@@ -362,12 +380,6 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
-	// Invoke BlockContextGenerator
-	resultBlockContext, err := g.blockContextGen.Generate(rnd, resultRevision)
-	if err != nil {
-		return nil, err
-	}
-
 	// Pick a random calldata
 	resultCallData := RandomBytes(rnd, st.MaxDataSize)
 
@@ -384,6 +396,12 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	resultHasSelfdestructed, err := g.hasSelfDestructedGen.Generate(rnd)
 	if err != nil {
 		return nil, err
+	}
+
+	// generate old block hashes
+	newBlockNumberHashes := [256]vm.Hash{}
+	for i := 0; i < 256; i++ {
+		newBlockNumberHashes[i] = getRandomHash(rnd)
 	}
 
 	// Sub-generators can modify the assignment when unassigned variables are
@@ -404,6 +422,12 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 
 	// Invoke MemoryGenerator
 	resultMemory, err := g.memoryGen.Generate(rnd)
+	if err != nil {
+		return nil, err
+	}
+
+	// Invoke BlockContextGenerator
+	resultBlockContext, err := g.blockContextGen.Generate(assignment, rnd, resultRevision)
 	if err != nil {
 		return nil, err
 	}
@@ -432,6 +456,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.LastCallReturnData = resultLastCallReturnData
 	result.ReturnData = resultReturnData
 	result.HasSelfDestructed = resultHasSelfdestructed
+	result.RecentBlockHashes = newBlockNumberHashes
 
 	return result, nil
 }

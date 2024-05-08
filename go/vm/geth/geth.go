@@ -107,7 +107,7 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 
 	// Hashing function used in the context for BLOCKHASH instruction
 	getHash := func(num uint64) common.Hash {
-		return common.Hash{}
+		return common.Hash(parameters.Context.GetBlockHash(int64(num)))
 	}
 
 	var transactionContext vm.TransactionContext
