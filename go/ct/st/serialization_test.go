@@ -23,38 +23,6 @@ import (
 )
 
 ////////////////////////////////////////////////////////////
-// Helper functions
-
-func getNewFilledState() *State {
-	s := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
-	s.Status = Running
-	s.Revision = R10_London
-	s.ReadOnly = true
-	s.Pc = 3
-	s.Gas = 42
-	s.GasRefund = 63
-	s.Stack.Push(NewU256(42))
-	s.Memory.Write([]byte{1, 2, 3}, 31)
-	s.Storage = NewStorageBuilder().
-		SetCurrent(NewU256(42), NewU256(7)).
-		SetOriginal(NewU256(77), NewU256(4)).
-		SetWarm(NewU256(9), true).
-		Build()
-	s.Accounts = NewAccounts()
-	s.Accounts.SetBalance(vm.Address{0x01}, NewU256(42))
-	s.Accounts.SetCode(vm.Address{0x01}, NewBytes([]byte{byte(PUSH1), byte(6)}))
-	s.Accounts.MarkWarm(vm.Address{0x02})
-	s.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
-	s.BlockContext = BlockContext{BlockNumber: 1}
-	s.CallData = NewBytes([]byte{1})
-	s.LastCallReturnData = NewBytes([]byte{1})
-	s.HasSelfDestructed = true
-	s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{1}, vm.Address{2}}}
-	return s
-}
-
-////////////////////////////////////////////////////////////
 // Importing/exporting tests
 
 const testFileName = "state_serialization_test.json"
