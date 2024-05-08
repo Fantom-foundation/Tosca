@@ -42,11 +42,11 @@ const (
 	OR             OpCode = 0x17
 	XOR            OpCode = 0x18
 	NOT            OpCode = 0x19
-	SHA3           OpCode = 0x20
 	BYTE           OpCode = 0x1A
 	SHL            OpCode = 0x1B
 	SHR            OpCode = 0x1C
 	SAR            OpCode = 0x1D
+	SHA3           OpCode = 0x20
 	ADDRESS        OpCode = 0x30
 	BALANCE        OpCode = 0x31
 	ORIGIN         OpCode = 0x32
