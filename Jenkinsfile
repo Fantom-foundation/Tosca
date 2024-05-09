@@ -19,6 +19,12 @@ pipeline {
             }
         }
 
+        stage('Check C++ sources formatting') {
+            steps {
+                sh 'find cpp/ -not -path "cpp/build/*" \\( -iname *.h -o -iname *.cc \\) | xargs clang-format --dry-run -Werror'
+            }
+        }
+
         stage('Build Go') {
             steps {
                 sh 'git submodule update --init --recursive'
@@ -41,12 +47,6 @@ pipeline {
         stage('CT regression tests evmzero') {
             steps {
                 sh 'go run ./go/ct/driver regressions evmzero'
-            }
-        }
-
-        stage('Check C++ sources formatting') {
-            steps {
-                sh 'find cpp/ -iname *.h -o -iname *.cc | xargs clang-format --dry-run -Werror'
             }
         }
 
