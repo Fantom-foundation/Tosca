@@ -1,7 +1,7 @@
 pipeline {
     agent { label 'quick' }
 
-    options { 
+    options {
         timestamps ()
         timeout(time: 2, unit: 'HOURS')
     }
@@ -15,7 +15,7 @@ pipeline {
     stages {
         stage('Check Go sources formatting') {
             steps {
-                sh 'diff=`${GOROOT}/bin/gofmt -s -d .` && echo "$diff" && test -z "$diff"' 
+                sh 'diff=`${GOROOT}/bin/gofmt -s -d .` && echo "$diff" && test -z "$diff"'
             }
         }
 
