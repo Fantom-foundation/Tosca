@@ -47,6 +47,7 @@ func (rule *Rule) EnumerateTestCases(rnd *rand.Rand, consume func(*st.State) Con
 	var enumError error
 	enumerateTestCases(rule.Condition, gen.NewStateGenerator(), func(generator *gen.StateGenerator) ConsumerResult {
 		state, err := generator.Generate(rnd)
+
 		if errors.Is(err, gen.ErrUnsatisfiable) {
 			return ConsumeContinue // ignored
 		}

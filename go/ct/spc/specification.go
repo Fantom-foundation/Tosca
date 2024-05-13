@@ -2017,11 +2017,14 @@ func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, re
 }
 
 func tooLittleGas(i instruction) []Rule {
-	localConditions := append(i.conditions,
+	localConditions := append([]Condition{}, //i.conditions,
 		AnyKnownRevision(),
 		Eq(Status(), st.Running),
 		Eq(Op(Pc()), i.op),
 		Lt(Gas(), i.staticGas))
+	if len(i.conditions) > 0 {
+		localConditions = append(localConditions, i.conditions...)
+	}
 	return []Rule{{
 		Name:      fmt.Sprintf("%v_with_too_little_gas%v", strings.ToLower(i.op.String()), i.name),
 		Condition: And(localConditions...),
@@ -2071,7 +2074,7 @@ func rulesFor(i instruction) []Rule {
 	if i.pushes > i.pops {
 		res = append(res, notEnoughSpace(i)...)
 	}
-	localConditions := append(i.conditions,
+	localConditions := append([]Condition{},
 		AnyKnownRevision(),
 		Eq(Status(), st.Running),
 		Eq(Op(Pc()), i.op),
@@ -2079,6 +2082,10 @@ func rulesFor(i instruction) []Rule {
 		Ge(StackSize(), i.pops),
 		Le(StackSize(), st.MaxStackSize-(max(i.pushes-i.pops, 0))),
 	)
+
+	if len(i.conditions) > 0 {
+		localConditions = append(localConditions, i.conditions...)
+	}
 
 	res = append(res, Rule{
 		Name:      fmt.Sprintf("%s_regular%v", strings.ToLower(i.op.String()), i.name),

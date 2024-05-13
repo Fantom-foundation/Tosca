@@ -381,7 +381,7 @@ func TestCondition_InOutRange256FromCurrentBlock_Check(t *testing.T) {
 }
 
 func TestCondition_InOut_Restrict(t *testing.T) {
-	rnd := rand.New()
+	rnd := rand.New(0)
 
 	tests := map[string]struct {
 		condition Condition
