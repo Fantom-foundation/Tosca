@@ -865,7 +865,18 @@ struct Impl<OpCode::BLOCKHASH> {
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     int64_t number = static_cast<int64_t>(top[0]);
-    top[0] = ToUint256(ctx.host->get_block_hash(number));
+    int64_t upper, lower;
+    upper = int64_t(ctx.host->get_tx_context().block_number);
+    if (upper < 257) {
+      lower = 0;
+    } else {
+      lower = upper - 256;
+    }
+    if (number >= lower && number < upper) {
+      top[0] = ToUint256(ctx.host->get_block_hash(number));
+    } else {
+      top[0] = 0;
+    }
     return {};
   }
 };

@@ -2834,9 +2834,12 @@ TEST(InterpreterTest, EXTCODEHASH_StackError) {
 
 ///////////////////////////////////////////////////////////
 // BLOCKHASH
-TEST(InterpreterTest, BLOCKHASH) {
+TEST(InterpreterTest, BLOCKHASH_inRange) {
   MockHost host;
-  EXPECT_CALL(host, get_block_hash(21))  //
+  EXPECT_CALL(host, get_tx_context())  //
+      .Times(1)
+      .WillOnce(Return(evmc_tx_context{.block_number = 1000}));
+  EXPECT_CALL(host, get_block_hash(900))  //
       .Times(1)
       .WillOnce(Return(evmc::bytes32(0x0a0b0c0d)));
 
@@ -2845,8 +2848,25 @@ TEST(InterpreterTest, BLOCKHASH) {
       .state_after = RunState::kDone,
       .gas_before = 40,
       .gas_after = 20,
-      .stack_before = {21},
+      .stack_before = {900},
       .stack_after = {0x0a0b0c0d},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, BLOCKHASH_outOfRange) {
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context())  //
+      .Times(1)
+      .WillOnce(Return(evmc_tx_context{.block_number = 1000}));
+
+  RunInterpreterTest({
+      .code = {op::BLOCKHASH},
+      .state_after = RunState::kDone,
+      .gas_before = 40,
+      .gas_after = 20,
+      .stack_before = {500},
+      .stack_after = {0},
       .host = &host,
   });
 }
