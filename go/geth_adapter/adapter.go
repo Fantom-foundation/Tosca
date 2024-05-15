@@ -29,6 +29,7 @@ import (
 	_ "github.com/Fantom-foundation/Tosca/go/vm/evmzero"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 	gc "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
 	geth "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
@@ -40,7 +41,7 @@ const adapterDebug = false
 func init() {
 	for name, interpreter := range vm.GetAllRegisteredInterpreters() {
 		interpreter := interpreter
-		geth.RegisterInterpreterFactory(name, func(evm *geth.EVM, cfg geth.Config) geth.EVMInterpreter {
+		geth.RegisterInterpreterFactory(name, func(evm *geth.EVM, cfg geth.Config) geth.GethEVMInterpreter {
 			return &gethInterpreterAdapter{
 				interpreter: interpreter,
 				evm:         evm,
@@ -64,7 +65,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		fmt.Printf("\tStatic: %v\n", readOnly)
 	}
 
-	if a.evm.Depth == 0 {
+	if a.evm.GetDepth() == 0 {
 		// Tosca EVM implementations update the refund in the StateDB only at the
 		// end of a contract execution. As a result, it may happen that the refund
 		// becomes temporary negative, since a nested contract may trigger a
@@ -97,7 +98,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	// interpreter). To circumvent this, this adapter encodes the read-only mode
 	// into the highest bit of the gas value (see Call function below). This section
 	// is eliminating this encoded information again.
-	if a.evm.Depth > 0 {
+	if a.evm.GetDepth() > 0 {
 		readOnly = readOnly || contract.Gas >= (1<<63)
 		if contract.Gas >= (1 << 63) {
 			contract.Gas -= (1 << 63)
@@ -106,11 +107,11 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 
 	// Track the recursive call depth of this Call within a transaction.
 	// A maximum limit of params.CallCreateDepth must be enforced.
-	if a.evm.Depth > int(params.CallCreateDepth) {
+	if a.evm.GetDepth() > int(params.CallCreateDepth) {
 		return nil, geth.ErrDepth
 	}
-	a.evm.Depth++
-	defer func() { a.evm.Depth-- }()
+	a.evm.SetDepth(a.evm.GetDepth() + 1)
+	defer func() { a.evm.SetDepth(a.evm.GetDepth() - 1) }()
 
 	// Pick proper Tosca revision based on block height.
 	revision := vm.R07_Istanbul
@@ -129,7 +130,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	}
 
 	// Convert the value from big-int to vm.Value.
-	value, err := bigIntToValue(contract.Value())
+	value, err := uint256ToValue(contract.Value())
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +146,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		Revision:  revision,
 		Kind:      vm.Call, // < this might be wrong, but seems to be unused
 		Static:    readOnly,
-		Depth:     a.evm.Depth - 1,
+		Depth:     a.evm.GetDepth() - 1,
 		Gas:       vm.Gas(contract.Gas),
 		Recipient: vm.Address(contract.Address()),
 		Sender:    vm.Address(contract.Caller()),
@@ -224,7 +225,7 @@ func (a *runContextAdapter) SetStorage(addr vm.Address, key vm.Key, future vm.Wo
 }
 
 func (a *runContextAdapter) GetBalance(addr vm.Address) vm.Value {
-	value, err := bigIntToValue(a.evm.StateDB.GetBalance(gc.Address(addr)))
+	value, err := uint256ToValue(a.evm.StateDB.GetBalance(gc.Address(addr)))
 	if err != nil {
 		panic(fmt.Errorf("error converting balance from DB: %w", err))
 	}
@@ -276,7 +277,7 @@ func (a *runContextAdapter) GetTransactionContext() vm.TransactionContext {
 		Origin:      vm.Address(a.evm.Origin),
 		Coinbase:    vm.Address(a.evm.Context.Coinbase),
 		BlockNumber: a.evm.Context.BlockNumber.Int64(),
-		Timestamp:   a.evm.Context.Time.Int64(),
+		Timestamp:   int64(a.evm.Context.Time),
 		GasLimit:    vm.Gas(a.evm.Context.GasLimit),
 		PrevRandao:  difficulty,
 		ChainID:     chainId,
@@ -351,7 +352,7 @@ func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameter) (
 	var createdAddress vm.Address
 	switch kind {
 	case vm.Call:
-		output, returnGas, err = a.evm.Call(a.contract, toAddr, parameter.Input, gas, valueToBigInt(parameter.Value))
+		output, returnGas, err = a.evm.Call(a.contract, toAddr, parameter.Input, gas, valueToUint256(parameter.Value))
 	case vm.StaticCall:
 		output, returnGas, err = a.evm.StaticCall(a.contract, toAddr, parameter.Input, gas)
 	case vm.DelegateCall:
@@ -359,16 +360,16 @@ func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameter) (
 		output, returnGas, err = a.evm.DelegateCall(a.contract, toAddr, parameter.Input, gas)
 	case vm.CallCode:
 		toAddr = gc.Address(parameter.CodeAddress)
-		output, returnGas, err = a.evm.CallCode(a.contract, toAddr, parameter.Input, gas, valueToBigInt(parameter.Value))
+		output, returnGas, err = a.evm.CallCode(a.contract, toAddr, parameter.Input, gas, valueToUint256(parameter.Value))
 	case vm.Create:
 		var newAddr gc.Address
-		output, newAddr, returnGas, err = a.evm.Create(a.contract, parameter.Input, gas, valueToBigInt(parameter.Value))
+		output, newAddr, returnGas, err = a.evm.Create(a.contract, parameter.Input, gas, valueToUint256(parameter.Value))
 		createdAddress = vm.Address(newAddr)
 	case vm.Create2:
 		var newAddr gc.Address
 		vmSalt := &uint256.Int{}
 		vmSalt.SetBytes(parameter.Salt[:])
-		output, newAddr, returnGas, err = a.evm.Create2(a.contract, parameter.Input, gas, valueToBigInt(parameter.Value), vmSalt)
+		output, newAddr, returnGas, err = a.evm.Create2(a.contract, parameter.Input, gas, valueToUint256(parameter.Value), vmSalt)
 		createdAddress = vm.Address(newAddr)
 	default:
 		panic(fmt.Sprintf("unsupported call kind: %v", kind))
@@ -438,12 +439,12 @@ func (a *runContextAdapter) SelfDestruct(addr vm.Address, beneficiary vm.Address
 	}
 
 	stateDb := a.evm.StateDB
-	if stateDb.HasSuicided(gc.Address(addr)) {
+	if stateDb.HasSelfDestructed(gc.Address(addr)) {
 		return false
 	}
 	balance := stateDb.GetBalance(a.contract.Address())
-	stateDb.AddBalance(gc.Address(beneficiary), balance)
-	stateDb.Suicide(gc.Address(addr))
+	stateDb.AddBalance(gc.Address(beneficiary), balance, tracing.BalanceDecreaseSelfdestruct)
+	stateDb.SelfDestruct(gc.Address(addr))
 	return true
 }
 
@@ -480,7 +481,22 @@ func (a *runContextAdapter) IsSlotInAccessList(addr vm.Address, key vm.Key) (add
 }
 
 func (a *runContextAdapter) HasSelfDestructed(addr vm.Address) bool {
-	return a.evm.StateDB.HasSuicided(gc.Address(addr))
+	return a.evm.StateDB.HasSelfDestructed(gc.Address(addr))
+}
+
+func uint256ToValue(value *uint256.Int) (result vm.Value, err error) {
+	if value == nil {
+		return result, fmt.Errorf("unable to convert nil to Hash")
+	}
+	if len(value.Bytes()) > 32 {
+		return result, fmt.Errorf("value exceeds maximum value for Hash, %v of 32 bytes max", len(value.Bytes()))
+	}
+	result = value.Bytes32()
+	return result, nil
+}
+
+func valueToUint256(value vm.Value) *uint256.Int {
+	return uint256.NewInt(0).SetBytes(value[:])
 }
 
 func bigIntToValue(value *big.Int) (result vm.Value, err error) {

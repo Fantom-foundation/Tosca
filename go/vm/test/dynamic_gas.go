@@ -398,7 +398,7 @@ func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 		{evm.LOG2, 3*logStaticGas + logLowGas},
 		{evm.LOG3, 4*logStaticGas + logLowGas},
 		{evm.LOG4, 5*logStaticGas + logLowGas},
-		{evm.SHA3, sha3LowGas},
+		{evm.KECCAK256, sha3LowGas},
 		{evm.RETURN, memoryLowGasOneWord},
 		{evm.REVERT, memoryLowGasOneWord},
 	}

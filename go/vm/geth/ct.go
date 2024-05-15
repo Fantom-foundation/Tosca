@@ -44,13 +44,13 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	}
 
 	op, err := state.Code.GetOperation(int(state.Pc))
-	isStopInstruction := false
-	if err == nil && op == common.STOP {
-		isStopInstruction = true
+	isReturnInstruction := false
+	if err == nil && op == common.RETURN {
+		isReturnInstruction = true
 	}
-	isSelfDestructInstruction := false
-	if err == nil && op == common.SELFDESTRUCT {
-		isSelfDestructInstruction = true
+	isRevertInstruction := false
+	if err == nil && op == common.REVERT {
+		isRevertInstruction = true
 	}
 
 	evm, contract, stateDb := createGethInterpreterContext(parameters)
@@ -64,10 +64,11 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		convertCtStackToGethStack(state),
 		uint64(state.Pc),
 	)
-	interpreterState.Result = state.LastCallReturnData.ToBytes()
-	interpreterState.ReadOnly = state.ReadOnly
 
-	interpreter := evm.Interpreter().(*geth_vm.GethEVMInterpreter)
+	interpreter := evm.Interpreter()
+	interpreter.SetLastCallReturnData(state.LastCallReturnData.ToBytes())
+	interpreter.SetReadOnly(state.ReadOnly)
+
 	for i := 0; i < numSteps && !interpreterState.Halted; i++ {
 		if !interpreter.Step(interpreterState) {
 			break
@@ -87,25 +88,16 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.GasRefund = vm.Gas(stateDb.GetRefund())
 	state.Stack = convertGethStackToCtStack(interpreterState, state.Stack)
 	state.Memory = convertGethMemoryToCtMemory(interpreterState)
-	state.LastCallReturnData = common.NewBytes(interpreterState.Result)
+	state.LastCallReturnData = common.NewBytes(interpreter.GetLastCallReturnData())
 
-	if state.Status == st.Stopped || state.Status == st.Reverted {
-		// Right now, the interpreter state does not allow to decide whether the
-		// stopped state was reached through a STOP or RETURN instruction. Only
-		// in the latter case the interpreterState.Result should be assigned to
-		// the resulting state.ReturnData.
-		// In general, this should be fixed in the go-ethereum-substate repository
-		// by providing the necessary information in the state. However, the CT
-		// integration in this repository will have to be re-done in the future,
-		// when upgrading to a newer go-ethereum version. Thus, for now, this
-		// local check is performed to determine whether the result should be
-		// copied or not.
-		if !isStopInstruction && !isSelfDestructInstruction {
-			state.ReturnData = common.NewBytes(interpreterState.Result)
-		}
+	if isRevertInstruction {
+		state.ReturnData = common.NewBytes(interpreter.GetLastCallReturnData())
 	}
-	return state, nil
+	if isReturnInstruction {
+		state.ReturnData = common.NewBytes(interpreterState.Result)
+	}
 
+	return state, nil
 }
 
 func convertGethStatusToCtStatus(state *geth_vm.GethState) (st.StatusCode, error) {
@@ -115,6 +107,10 @@ func convertGethStatusToCtStatus(state *geth_vm.GethState) (st.StatusCode, error
 
 	if state.Err == geth_vm.ErrExecutionReverted {
 		return st.Reverted, nil
+	}
+
+	if state.Err == geth_vm.ErrStopToken {
+		return st.Stopped, nil
 	}
 
 	if state.Err != nil {
@@ -179,10 +175,10 @@ func (i *callInterceptor) makeCall(kind vm.CallKind, callParam vm.CallParameter)
 	return res, err
 }
 
-func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64, value *big.Int) ([]byte, uint64, error) {
+func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas *big.Int, value *big.Int) ([]byte, uint64, error) {
 	have := i.stateDb.GetBalance(me.Address())
-	if value.Cmp(have) > 0 {
-		return nil, gas, geth_vm.ErrInsufficientBalance
+	if value.Cmp(have.ToBig()) > 0 {
+		return nil, gas.Uint64(), geth_vm.ErrInsufficientBalance
 	}
 
 	kind := vm.Call
@@ -198,17 +194,17 @@ func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr ge
 		Recipient: vm.Address(addr),
 		Value:     vmValue,
 		Input:     data,
-		Gas:       vm.Gas(gas),
+		Gas:       vm.Gas(gas.Uint64()),
 	})
 	return res.Output, uint64(res.GasLeft), err
 }
 
-func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64, value *big.Int) ([]byte, uint64, error) {
+func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas *big.Int, value *big.Int) ([]byte, uint64, error) {
 	kind := vm.CallCode
 
 	have := i.stateDb.GetBalance(me.Address())
-	if value.Cmp(have) > 0 {
-		return nil, gas, geth_vm.ErrInsufficientBalance
+	if value.Cmp(have.ToBig()) > 0 {
+		return nil, gas.Uint64(), geth_vm.ErrInsufficientBalance
 	}
 
 	var vmValue vm.Value
@@ -219,37 +215,37 @@ func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, add
 		Value:       vmValue,
 		Input:       data,
 		CodeAddress: vm.Address(addr),
-		Gas:         vm.Gas(gas),
+		Gas:         vm.Gas(gas.Uint64()),
 	})
 
 	return res.Output, uint64(res.GasLeft), err
 }
 
-func (i *callInterceptor) DelegateCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64) ([]byte, uint64, error) {
+func (i *callInterceptor) DelegateCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas *big.Int) ([]byte, uint64, error) {
 	res, err := i.makeCall(vm.DelegateCall, vm.CallParameter{
 		Sender:    i.parameters.Sender,
 		Recipient: i.parameters.Recipient,
 		Value:     i.parameters.Value,
 		Input:     data,
-		Gas:       vm.Gas(gas),
+		Gas:       vm.Gas(gas.Uint64()),
 	})
 	return res.Output, uint64(res.GasLeft), err
 }
 
-func (i *callInterceptor) StaticCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, input []byte, gas uint64) ([]byte, uint64, error) {
+func (i *callInterceptor) StaticCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, input []byte, gas *big.Int) ([]byte, uint64, error) {
 	res, err := i.makeCall(vm.StaticCall, vm.CallParameter{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
 		Input:     input,
-		Gas:       vm.Gas(gas),
+		Gas:       vm.Gas(gas.Uint64()),
 	})
 	return res.Output, uint64(res.GasLeft), err
 }
 
-func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, value *big.Int) ([]byte, geth_common.Address, uint64, error) {
+func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas *big.Int, value *big.Int) ([]byte, geth_common.Address, uint64, error) {
 	have := i.stateDb.GetBalance(me.Address())
-	if value.Cmp(have) > 0 {
-		return nil, geth_common.Address{}, gas, geth_vm.ErrInsufficientBalance
+	if value.Cmp(have.ToBig()) > 0 {
+		return nil, geth_common.Address{}, gas.Uint64(), geth_vm.ErrInsufficientBalance
 	}
 
 	var vmValue vm.Value
@@ -257,7 +253,7 @@ func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code 
 	res, err := i.makeCall(vm.Create, vm.CallParameter{
 		Sender: vm.Address(me.Address()),
 		Value:  vmValue,
-		Gas:    vm.Gas(gas),
+		Gas:    vm.Gas(gas.Uint64()),
 		Input:  code,
 	})
 
@@ -265,10 +261,10 @@ func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code 
 
 }
 
-func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, value *big.Int, salt *uint256.Int) ([]byte, geth_common.Address, uint64, error) {
+func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas *big.Int, value *big.Int, salt *uint256.Int) ([]byte, geth_common.Address, uint64, error) {
 	have := i.stateDb.GetBalance(me.Address())
-	if value.Cmp(have) > 0 {
-		return nil, geth_common.Address{}, gas, geth_vm.ErrInsufficientBalance
+	if value.Cmp(have.ToBig()) > 0 {
+		return nil, geth_common.Address{}, gas.Uint64(), geth_vm.ErrInsufficientBalance
 	}
 
 	var vmValue vm.Value
@@ -276,7 +272,7 @@ func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code
 	res, err := i.makeCall(vm.Create2, vm.CallParameter{
 		Sender: vm.Address(me.Address()),
 		Value:  vmValue,
-		Gas:    vm.Gas(gas),
+		Gas:    vm.Gas(gas.Uint64()),
 		Input:  code,
 		Salt:   salt.Bytes32(),
 	})
