@@ -55,8 +55,7 @@ func getContext(code Code, data []byte, runContext vm.RunContext, stackPtr int, 
 		memory:   NewMemory(),
 		status:   RUNNING,
 		code:     code,
-		isBerlin: revision >= vm.R09_Berlin,
-		isLondon: revision >= vm.R10_London,
+		revision: revision,
 	}
 
 	// Move the stack pointer to the required hight.

@@ -77,8 +77,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		memory:      memory,
 		status:      RUNNING,
 		code:        converted,
-		isBerlin:    params.Revision >= vm.R09_Berlin,
-		isLondon:    params.Revision >= vm.R10_London,
+		revision:    params.Revision,
 		return_data: state.LastCallReturnData.ToBytes(),
 	}
 

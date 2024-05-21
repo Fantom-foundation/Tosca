@@ -220,7 +220,7 @@ func opMsize(c *context) {
 
 func opSstore(c *context) {
 	gasfunc := gasSStore
-	if c.isBerlin {
+	if c.revision >= vm.R09_Berlin {
 		gasfunc = gasSStoreEIP2929
 	}
 
@@ -241,7 +241,7 @@ func opSload(c *context) {
 	var top = c.stack.peek()
 
 	slot := vm.Key(top.Bytes32())
-	if c.isBerlin {
+	if c.revision >= vm.R09_Berlin {
 		// Check slot presence in the access list
 		if _, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
 			// If the caller cannot afford the cost, this change will be rolled back
@@ -617,7 +617,7 @@ func opSelfbalance(c *context) {
 }
 
 func opBaseFee(c *context) {
-	if c.isLondon {
+	if c.revision == vm.R10_London {
 		fee := c.context.GetTransactionContext().BaseFee
 		c.stack.pushEmpty().SetBytes32(fee[:])
 	} else {
@@ -628,7 +628,7 @@ func opBaseFee(c *context) {
 
 func opSelfdestruct(c *context) {
 	gasfunc := gasSelfdestruct
-	if c.isBerlin {
+	if c.revision >= vm.R09_Berlin {
 		gasfunc = gasSelfdestructEIP2929
 	}
 	// even death is not for free

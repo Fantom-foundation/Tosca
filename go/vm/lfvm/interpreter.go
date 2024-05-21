@@ -60,9 +60,8 @@ type context struct {
 
 	// Inputs
 	code     Code
-	isBerlin bool
-	isLondon bool
 	shaCache bool
+	revision vm.Revision
 
 	// Intermediate data
 	return_data []byte
@@ -112,8 +111,7 @@ func Run(
 		memory:   NewMemory(),
 		status:   RUNNING,
 		code:     code,
-		isBerlin: params.Revision >= vm.R09_Berlin,
-		isLondon: params.Revision >= vm.R10_London,
+		revision: params.Revision,
 		shaCache: !no_shaCache,
 	}
 
@@ -363,7 +361,7 @@ func checkStackBoundry(c *context, op OpCode) error {
 
 func steps(c *context, one_step_only bool) {
 	// Idea: handle static gas price in static dispatch below (saves an array lookup)
-	static_gas_prices := getStaticGasPrices(c.isBerlin)
+	static_gas_prices := getStaticGasPrices(c.revision >= vm.R09_Berlin)
 	for c.status == RUNNING {
 		if int(c.pc) >= len(c.code) {
 			opStop(c)
