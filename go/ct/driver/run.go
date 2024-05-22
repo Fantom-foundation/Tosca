@@ -19,13 +19,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"runtime/pprof"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/Fantom-foundation/Tosca/go/ct"
+	cliUtils "github.com/Fantom-foundation/Tosca/go/ct/driver/cli"
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
@@ -44,32 +44,15 @@ var RunCmd = cli.Command{
 	Usage:     "Run Conformance Tests on an EVM implementation",
 	ArgsUsage: "<EVM>",
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "filter",
-			Usage: "run only rules which name matches the given regex",
-			Value: ".*",
-		},
-		&cli.IntFlag{
-			Name:  "jobs",
-			Usage: "number of jobs run simultaneously",
-			Value: runtime.NumCPU(),
-		},
+		cliUtils.FilterFlag.GetFlag(),
+		cliUtils.JobsFlag.GetFlag(),
+		cliUtils.SeedFlag.GetFlag(),
+		cliUtils.CpuProfileFlag.GetFlag(),
+		cliUtils.FullModeFlag.GetFlag(), // < TODO: make every run a full mode once tests pass
 		&cli.IntFlag{
 			Name:  "max-errors",
 			Usage: "aborts testing after the given number of issues",
 			Value: 100,
-		},
-		&cli.Uint64Flag{
-			Name:  "seed",
-			Usage: "seed for the random number generator",
-		},
-		&cli.StringFlag{
-			Name:  "cpuprofile",
-			Usage: "store CPU profile in the provided filename",
-		},
-		&cli.BoolFlag{ // < TODO: make every run a full mode once tests pass
-			Name:  "full-mode",
-			Usage: "if enabled, test cases targeting rules other than the one generating the case will be executed",
 		},
 	},
 }
@@ -81,7 +64,7 @@ var evms = map[string]ct.Evm{
 }
 
 func doRun(context *cli.Context) error {
-	if cpuprofileFilename := context.String("cpuprofile"); cpuprofileFilename != "" {
+	if cpuprofileFilename := cliUtils.CpuProfileFlag.Fetch(context); cpuprofileFilename != "" {
 		f, err := os.Create(cpuprofileFilename)
 		if err != nil {
 			return fmt.Errorf("could not create CPU profile: %w", err)
@@ -92,32 +75,27 @@ func doRun(context *cli.Context) error {
 		defer pprof.StopCPUProfile()
 	}
 
-	var evmIdentifier string
-	if context.Args().Len() >= 1 {
-		evmIdentifier = context.Args().Get(0)
-	}
-
-	evm, ok := evms[evmIdentifier]
-	if !ok {
-		return fmt.Errorf("invalid EVM identifier, use one of: %v", maps.Keys(evms))
-	}
-
-	filter, err := regexp.Compile(context.String("filter"))
+	jobCount := cliUtils.JobsFlag.Fetch(context)
+	seed := cliUtils.SeedFlag.Fetch(context)
+	fullMode := cliUtils.FullModeFlag.Fetch(context)
+	filter, err := cliUtils.FilterFlag.Fetch(context)
 	if err != nil {
 		return err
 	}
 
-	jobCount := context.Int("jobs")
-	if jobCount <= 0 {
-		jobCount = runtime.NumCPU()
-	}
-
-	seed := context.Uint64("seed")
 	maxErrors := context.Int("max-errors")
 	if maxErrors <= 0 {
 		maxErrors = math.MaxInt
 	}
-	fullMode := context.Bool("full-mode")
+
+	var evmIdentifier string
+	if context.Args().Len() >= 1 {
+		evmIdentifier = context.Args().Get(0)
+	}
+	evm, ok := evms[evmIdentifier]
+	if !ok {
+		return fmt.Errorf("invalid EVM identifier, use one of: %v", maps.Keys(evms))
+	}
 
 	issuesCollector := issuesCollector{}
 	var skippedCount atomic.Int32

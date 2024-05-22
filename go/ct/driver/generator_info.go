@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"sort"
 
+	cliUtils "github.com/Fantom-foundation/Tosca/go/ct/driver/cli"
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/urfave/cli/v2"
@@ -26,10 +27,18 @@ var GeneratorInfoCmd = cli.Command{
 	Action: doListGeneratorInfo,
 	Name:   "generator-info",
 	Usage:  "Lists details on the number of test cases produced per rule",
+	Flags: []cli.Flag{
+		cliUtils.FilterFlag.GetFlag(),
+	},
 }
 
 func doListGeneratorInfo(context *cli.Context) error {
-	rules := spc.Spec.GetRules()
+
+	filter, err := cliUtils.FilterFlag.Fetch(context)
+	if err != nil {
+		return err
+	}
+	rules := spc.FilterRules(spc.Spec.GetRules(), filter)
 
 	infos := map[string]rlz.TestCaseEnumerationInfo{}
 	for _, rule := range rules {
