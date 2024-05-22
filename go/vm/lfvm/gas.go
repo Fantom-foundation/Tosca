@@ -333,7 +333,7 @@ func gasSStoreEIP2200(c *context) (vm.Gas, error) {
 func gasSStoreEIP2929(c *context) (vm.Gas, error) {
 
 	clearingRefund := vm.Gas(params.SstoreClearsScheduleRefundEIP2200)
-	if c.revision == vm.R10_London {
+	if c.isLondon() {
 		clearingRefund = vm.Gas(params.SstoreClearsScheduleRefundEIP3529)
 	}
 
@@ -393,7 +393,7 @@ func gasSStoreEIP2929(c *context) (vm.Gas, error) {
 }
 
 func gasEip2929AccountCheck(c *context, address vm.Address) error {
-	if c.revision >= vm.R09_Berlin {
+	if c.isBerlin() {
 		// Charge extra for cold locations.
 		if !c.context.IsAddressInAccessList(address) {
 			if !c.UseGas(vm.Gas(params.ColdAccountAccessCostEIP2929 - params.WarmStorageReadCostEIP2929)) {
@@ -407,7 +407,7 @@ func gasEip2929AccountCheck(c *context, address vm.Address) error {
 
 func addressInAccessList(c *context) (warmAccess bool, coldCost vm.Gas, err error) {
 	warmAccess = true
-	if c.revision >= vm.R09_Berlin {
+	if c.isBerlin() {
 		addr := vm.Address(c.stack.Back(1).Bytes20())
 		// Check slot presence in the access list
 		warmAccess = c.context.IsAddressInAccessList(addr)
@@ -455,7 +455,7 @@ func gasSelfdestructEIP2929(c *context) vm.Gas {
 		gas += vm.Gas(params.CreateBySelfdestructGas)
 	}
 	// do this only for Berlin and not after London fork
-	if c.revision == vm.R09_Berlin {
+	if c.isBerlin() && !c.isLondon() {
 		if !c.context.HasSelfDestructed(c.params.Recipient) {
 			c.refund += vm.Gas(params.SelfdestructRefundGas)
 		}

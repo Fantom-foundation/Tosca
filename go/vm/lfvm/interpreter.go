@@ -86,6 +86,14 @@ func (c *context) SignalError(err error) {
 	c.status = ERROR
 }
 
+func (c *context) isBerlin() bool {
+	return c.revision >= vm.R09_Berlin
+}
+
+func (c *context) isLondon() bool {
+	return c.revision >= vm.R10_London
+}
+
 func Run(
 	params vm.Parameters,
 	code Code,
@@ -361,7 +369,7 @@ func checkStackBoundry(c *context, op OpCode) error {
 
 func steps(c *context, one_step_only bool) {
 	// Idea: handle static gas price in static dispatch below (saves an array lookup)
-	static_gas_prices := getStaticGasPrices(c.revision >= vm.R09_Berlin)
+	static_gas_prices := getStaticGasPrices(c.isBerlin())
 	for c.status == RUNNING {
 		if int(c.pc) >= len(c.code) {
 			opStop(c)
