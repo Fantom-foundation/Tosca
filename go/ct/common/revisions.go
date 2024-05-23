@@ -24,6 +24,9 @@ const (
 	R07_Istanbul Revision = iota
 	R09_Berlin
 	R10_London
+	R11_Paris
+	R12_Shanghai
+	R13_Cancun
 	R99_UnknownNextRevision
 )
 
@@ -41,6 +44,12 @@ func (r Revision) String() string {
 		return "Berlin"
 	case R10_London:
 		return "London"
+	case R11_Paris:
+		return "Paris"
+	case R12_Shanghai:
+		return "Shanghai"
+	case R13_Cancun:
+		return "Cancun"
 	case R99_UnknownNextRevision:
 		return "UnknownNextRevision"
 	default:
@@ -72,6 +81,12 @@ func (r *Revision) UnmarshalJSON(data []byte) error {
 		revision = R09_Berlin
 	case "London":
 		revision = R10_London
+	case "Paris":
+		revision = R11_Paris
+	case "Shanghai":
+		revision = R12_Shanghai
+	case "Cancun":
+		revision = R13_Cancun
 	case "UnknownNextRevision":
 		revision = R99_UnknownNextRevision
 	default:
@@ -95,8 +110,14 @@ func GetForkBlock(revision Revision) (uint64, error) {
 		return 10, nil
 	case R10_London:
 		return 20, nil
-	case R99_UnknownNextRevision:
+	case R11_Paris:
 		return 30, nil
+	case R12_Shanghai:
+		return 40, nil
+	case R13_Cancun:
+		return 50, nil
+	case R99_UnknownNextRevision:
+		return 60, nil
 	}
 	return 0, fmt.Errorf("unknown revision: %v", revision)
 }
