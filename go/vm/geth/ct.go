@@ -42,40 +42,30 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		return state, nil
 	}
 
-	op, err := state.Code.GetOperation(int(state.Pc))
-	isReturnInstruction := false
-	if err == nil && op == common.RETURN {
-		isReturnInstruction = true
-	}
-	isRevertInstruction := false
-	if err == nil && op == common.REVERT {
-		isRevertInstruction = true
-	}
-
 	evm, contract, stateDb := createGethInterpreterContext(parameters)
 	stateDb.refund = uint64(state.GasRefund)
 
 	evm.CallInterceptor = &callInterceptor{parameters, stateDb, state.ReadOnly}
 
-	interpreterState := geth_vm.NewGethState(
-		contract,
-		convertCtMemoryToGethMemory(state),
-		convertCtStackToGethStack(state),
-		uint64(state.Pc),
-	)
+	interpreterState := geth_vm.InterpreterState{
+		Contract:           contract,
+		ReadOnly:           state.ReadOnly,
+		Input:              state.CallData.ToBytes(),
+		Status:             geth_vm.Running,
+		Pc:                 uint64(state.Pc),
+		Stack:              convertCtStackToGethStack(state),
+		Memory:             convertCtMemoryToGethMemory(state),
+		LastCallReturnData: state.LastCallReturnData.ToBytes(),
+	}
 
 	interpreter := evm.Interpreter()
-	interpreter.SetLastCallReturnData(state.LastCallReturnData.ToBytes())
-	interpreter.SetReadOnly(state.ReadOnly)
-
-	for i := 0; i < numSteps && !interpreterState.Halted; i++ {
-		if !interpreter.Step(interpreterState) {
-			break
-		}
+	for i := 0; i < numSteps && interpreterState.Status == geth_vm.Running; i++ {
+		interpreter.Step(&interpreterState)
 	}
 
 	// Update the resulting state.
-	state.Status, err = convertGethStatusToCtStatus(interpreterState)
+	var err error
+	state.Status, err = convertGethStatusToCtStatus(&interpreterState)
 	if err != nil {
 		return nil, err
 	}
@@ -85,42 +75,29 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	state.Gas = vm.Gas(contract.Gas)
 	state.GasRefund = vm.Gas(stateDb.GetRefund())
-	state.Stack = convertGethStackToCtStack(interpreterState, state.Stack)
-	state.Memory = convertGethMemoryToCtMemory(interpreterState)
-	state.LastCallReturnData = common.NewBytes(interpreter.GetLastCallReturnData())
+	state.Stack = convertGethStackToCtStack(&interpreterState, state.Stack)
+	state.Memory = convertGethMemoryToCtMemory(&interpreterState)
+	state.LastCallReturnData = common.NewBytes(interpreterState.LastCallReturnData)
 
-	if isRevertInstruction {
-		state.ReturnData = common.NewBytes(interpreter.GetLastCallReturnData())
-	}
-	if isReturnInstruction {
-		state.ReturnData = common.NewBytes(interpreterState.Result)
+	if interpreterState.ReturnData != nil {
+		state.ReturnData = common.NewBytes(interpreterState.ReturnData)
 	}
 
 	return state, nil
 }
 
-func convertGethStatusToCtStatus(state *geth_vm.GethState) (st.StatusCode, error) {
-	if !state.Halted && state.Err == nil {
+func convertGethStatusToCtStatus(state *geth_vm.InterpreterState) (st.StatusCode, error) {
+	switch state.Status {
+	case geth_vm.Running:
 		return st.Running, nil
-	}
-
-	if state.Err == geth_vm.ErrExecutionReverted {
+	case geth_vm.Reverted:
 		return st.Reverted, nil
-	}
-
-	if state.Err == geth_vm.ErrStopToken {
+	case geth_vm.Stopped:
 		return st.Stopped, nil
-	}
-
-	if state.Err != nil {
+	case geth_vm.Failed:
 		return st.Failed, nil
 	}
-
-	if state.Halted {
-		return st.Stopped, nil
-	}
-
-	return st.Failed, fmt.Errorf("unable to convert geth status to ct status")
+	return 0, fmt.Errorf("unable to convert geth status to ct status")
 }
 
 func convertCtMemoryToGethMemory(state *st.State) *geth_vm.Memory {
@@ -133,7 +110,7 @@ func convertCtMemoryToGethMemory(state *st.State) *geth_vm.Memory {
 	return memory
 }
 
-func convertGethMemoryToCtMemory(state *geth_vm.GethState) *st.Memory {
+func convertGethMemoryToCtMemory(state *geth_vm.InterpreterState) *st.Memory {
 	memory := st.NewMemory()
 	memory.Set(state.Memory.Data())
 	return memory
@@ -148,7 +125,7 @@ func convertCtStackToGethStack(state *st.State) *geth_vm.Stack {
 	return stack
 }
 
-func convertGethStackToCtStack(state *geth_vm.GethState, stack *st.Stack) *st.Stack {
+func convertGethStackToCtStack(state *geth_vm.InterpreterState, stack *st.Stack) *st.Stack {
 	stack.Resize(0)
 	for i := 0; i < state.Stack.Len(); i++ {
 		val := state.Stack.Data()[i]
