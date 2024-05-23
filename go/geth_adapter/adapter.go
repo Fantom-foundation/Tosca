@@ -488,7 +488,7 @@ func uint256ToValue(value *uint256.Int) (result vm.Value, err error) {
 	if value == nil {
 		return result, fmt.Errorf("unable to convert nil to Hash")
 	}
-	if len(value.Bytes()) > 32 {
+	if value.ByteLen() > 32 {
 		return result, fmt.Errorf("value exceeds maximum value for Hash, %v of 32 bytes max", len(value.Bytes()))
 	}
 	result = value.Bytes32()

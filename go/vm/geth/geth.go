@@ -180,14 +180,17 @@ type stateDbAdapter struct {
 
 func (s *stateDbAdapter) CreateAccount(common.Address) {
 	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) CreateContract(common.Address) {
 	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) SubBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason) {
 	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) AddBalance(addr common.Address, balance *uint256.Int, change tracing.BalanceChangeReason) {
@@ -202,11 +205,12 @@ func (s *stateDbAdapter) GetBalance(addr common.Address) *uint256.Int {
 
 func (s *stateDbAdapter) GetNonce(common.Address) uint64 {
 	// ignored: effect not needed in test environments
-	return 0
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) SetNonce(common.Address, uint64) {
 	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) GetCodeHash(addr common.Address) common.Hash {
@@ -219,6 +223,7 @@ func (s *stateDbAdapter) GetCode(addr common.Address) []byte {
 
 func (s *stateDbAdapter) SetCode(common.Address, []byte) {
 	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) GetCodeSize(addr common.Address) int {
@@ -251,16 +256,17 @@ func (s *stateDbAdapter) SetState(addr common.Address, key common.Hash, value co
 
 func (s *stateDbAdapter) GetStorageRoot(addr common.Address) common.Hash {
 	// ignored: effect not needed in test environments
-	return common.Hash{}
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) GetTransientState(addr common.Address, key common.Hash) common.Hash {
 	// ignored: effect not needed in test environments (todo: implement if needed)
-	return common.Hash{}
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) SetTransientState(addr common.Address, key, value common.Hash) {
 	// ignored: effect not needed in test environments (todo: implement if needed)
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) SelfDestruct(addr common.Address) {
@@ -273,6 +279,7 @@ func (s *stateDbAdapter) HasSelfDestructed(addr common.Address) bool {
 
 func (s *stateDbAdapter) Selfdestruct6780(common.Address) {
 	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) Exist(addr common.Address) bool {
@@ -285,6 +292,7 @@ func (s *stateDbAdapter) Empty(addr common.Address) bool {
 
 func (s *stateDbAdapter) PrepareAccessList(sender common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
 	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) AddressInAccessList(addr common.Address) bool {
@@ -305,14 +313,17 @@ func (s *stateDbAdapter) AddSlotToAccessList(addr common.Address, slot common.Ha
 
 func (s *stateDbAdapter) Prepare(rules params.Rules, sender, coinbase common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
 	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) RevertToSnapshot(int) {
 	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) Snapshot() int {
-	return 0 // not relevant in test setups
+	// not relevant in test setups
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) AddLog(log *types.Log) {

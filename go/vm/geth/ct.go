@@ -14,7 +14,6 @@ package geth
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/Fantom-foundation/Tosca/go/ct"
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -56,7 +55,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	evm, contract, stateDb := createGethInterpreterContext(parameters)
 	stateDb.refund = uint64(state.GasRefund)
 
-	evm.CallContext = &callInterceptor{parameters, stateDb, state.ReadOnly}
+	evm.CallInterceptor = &callInterceptor{parameters, stateDb, state.ReadOnly}
 
 	interpreterState := geth_vm.NewGethState(
 		contract,
@@ -175,10 +174,10 @@ func (i *callInterceptor) makeCall(kind vm.CallKind, callParam vm.CallParameter)
 	return res, err
 }
 
-func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas *big.Int, value *big.Int) ([]byte, uint64, error) {
+func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64, value *uint256.Int) ([]byte, uint64, error) {
 	have := i.stateDb.GetBalance(me.Address())
-	if value.Cmp(have.ToBig()) > 0 {
-		return nil, gas.Uint64(), geth_vm.ErrInsufficientBalance
+	if value.Cmp(have) > 0 {
+		return nil, gas, geth_vm.ErrInsufficientBalance
 	}
 
 	kind := vm.Call
@@ -187,73 +186,73 @@ func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr ge
 	}
 
 	var vmValue vm.Value
-	value.FillBytes(vmValue[:])
+	value.SetBytes(vmValue[:])
 
 	res, err := i.makeCall(kind, vm.CallParameter{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
 		Value:     vmValue,
 		Input:     data,
-		Gas:       vm.Gas(gas.Uint64()),
+		Gas:       vm.Gas(gas),
 	})
 	return res.Output, uint64(res.GasLeft), err
 }
 
-func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas *big.Int, value *big.Int) ([]byte, uint64, error) {
+func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64, value *uint256.Int) ([]byte, uint64, error) {
 	kind := vm.CallCode
 
 	have := i.stateDb.GetBalance(me.Address())
-	if value.Cmp(have.ToBig()) > 0 {
-		return nil, gas.Uint64(), geth_vm.ErrInsufficientBalance
+	if value.Cmp(have) > 0 {
+		return nil, gas, geth_vm.ErrInsufficientBalance
 	}
 
 	var vmValue vm.Value
-	value.FillBytes(vmValue[:])
+	value.SetBytes(vmValue[:])
 	res, err := i.makeCall(kind, vm.CallParameter{
 		Sender:      vm.Address(me.Address()),
 		Recipient:   vm.Address(me.Address()),
 		Value:       vmValue,
 		Input:       data,
 		CodeAddress: vm.Address(addr),
-		Gas:         vm.Gas(gas.Uint64()),
+		Gas:         vm.Gas(gas),
 	})
 
 	return res.Output, uint64(res.GasLeft), err
 }
 
-func (i *callInterceptor) DelegateCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas *big.Int) ([]byte, uint64, error) {
+func (i *callInterceptor) DelegateCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64) ([]byte, uint64, error) {
 	res, err := i.makeCall(vm.DelegateCall, vm.CallParameter{
 		Sender:    i.parameters.Sender,
 		Recipient: i.parameters.Recipient,
 		Value:     i.parameters.Value,
 		Input:     data,
-		Gas:       vm.Gas(gas.Uint64()),
+		Gas:       vm.Gas(gas),
 	})
 	return res.Output, uint64(res.GasLeft), err
 }
 
-func (i *callInterceptor) StaticCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, input []byte, gas *big.Int) ([]byte, uint64, error) {
+func (i *callInterceptor) StaticCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, input []byte, gas uint64) ([]byte, uint64, error) {
 	res, err := i.makeCall(vm.StaticCall, vm.CallParameter{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
 		Input:     input,
-		Gas:       vm.Gas(gas.Uint64()),
+		Gas:       vm.Gas(gas),
 	})
 	return res.Output, uint64(res.GasLeft), err
 }
 
-func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas *big.Int, value *big.Int) ([]byte, geth_common.Address, uint64, error) {
+func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, value *uint256.Int) ([]byte, geth_common.Address, uint64, error) {
 	have := i.stateDb.GetBalance(me.Address())
-	if value.Cmp(have.ToBig()) > 0 {
-		return nil, geth_common.Address{}, gas.Uint64(), geth_vm.ErrInsufficientBalance
+	if value.Cmp(have) > 0 {
+		return nil, geth_common.Address{}, gas, geth_vm.ErrInsufficientBalance
 	}
 
 	var vmValue vm.Value
-	value.FillBytes(vmValue[:])
+	value.SetBytes(vmValue[:])
 	res, err := i.makeCall(vm.Create, vm.CallParameter{
 		Sender: vm.Address(me.Address()),
 		Value:  vmValue,
-		Gas:    vm.Gas(gas.Uint64()),
+		Gas:    vm.Gas(gas),
 		Input:  code,
 	})
 
@@ -261,18 +260,18 @@ func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code 
 
 }
 
-func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas *big.Int, value *big.Int, salt *uint256.Int) ([]byte, geth_common.Address, uint64, error) {
+func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, value *uint256.Int, salt *uint256.Int) ([]byte, geth_common.Address, uint64, error) {
 	have := i.stateDb.GetBalance(me.Address())
-	if value.Cmp(have.ToBig()) > 0 {
-		return nil, geth_common.Address{}, gas.Uint64(), geth_vm.ErrInsufficientBalance
+	if value.Cmp(have) > 0 {
+		return nil, geth_common.Address{}, gas, geth_vm.ErrInsufficientBalance
 	}
 
 	var vmValue vm.Value
-	value.FillBytes(vmValue[:])
+	value.SetBytes(vmValue[:])
 	res, err := i.makeCall(vm.Create2, vm.CallParameter{
 		Sender: vm.Address(me.Address()),
 		Value:  vmValue,
-		Gas:    vm.Gas(gas.Uint64()),
+		Gas:    vm.Gas(gas),
 		Input:  code,
 		Salt:   salt.Bytes32(),
 	})
