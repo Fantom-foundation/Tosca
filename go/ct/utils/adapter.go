@@ -112,7 +112,7 @@ func (c *ctRunContext) GetTransactionContext() vm.TransactionContext {
 		BlockNumber: int64(c.state.BlockContext.BlockNumber),
 		Timestamp:   int64(c.state.BlockContext.TimeStamp),
 		GasLimit:    vm.Gas(c.state.BlockContext.GasLimit),
-		PrevRandao:  vm.Hash(c.state.BlockContext.Difficulty.Bytes32be()),
+		PrevRandao:  vm.Hash(c.state.BlockContext.PrevRandao.Bytes32be()),
 		ChainID:     c.state.BlockContext.ChainID.Bytes32be(),
 		BaseFee:     c.state.BlockContext.BaseFee.Bytes32be(),
 	}

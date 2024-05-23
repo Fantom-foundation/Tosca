@@ -53,7 +53,7 @@ func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision)
 	gasLimit := rnd.Uint64()
 	gasPrice := common.RandU256(rnd)
 
-	difficulty := common.RandU256(rnd)
+	prevRandao := common.RandU256(rnd)
 	timestamp := rnd.Uint64()
 
 	return st.BlockContext{
@@ -63,7 +63,7 @@ func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision)
 		CoinBase:    coinbase,
 		GasLimit:    gasLimit,
 		GasPrice:    gasPrice,
-		Difficulty:  difficulty,
+		PrevRandao:  prevRandao,
 		TimeStamp:   timestamp,
 	}, nil
 }

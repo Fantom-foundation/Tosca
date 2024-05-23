@@ -99,7 +99,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 		},
 		"prev-randao": {
-			func(s *st.State) { s.BlockContext.Difficulty = cc.NewU256(123) },
+			func(s *st.State) { s.BlockContext.PrevRandao = cc.NewU256(123) },
 			func(p vm.Parameters) (any, any) {
 				return vm.Hash(cc.NewU256(123).Bytes32be()), p.Context.GetTransactionContext().PrevRandao
 			},

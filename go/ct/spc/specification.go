@@ -815,15 +815,15 @@ func getAllRules() []Rule {
 		},
 	})...)
 
-	// --- DIFFICULTY ---
+	// --- DIFFICULTY / PREVRANDAO ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        DIFFICULTY,
+		op:        PREVRANDAO,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
 		effect: func(s *st.State) {
-			s.Stack.Push(s.BlockContext.Difficulty)
+			s.Stack.Push(s.BlockContext.PrevRandao)
 		},
 	})...)
 

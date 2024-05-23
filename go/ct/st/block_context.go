@@ -27,7 +27,7 @@ type BlockContext struct {
 	CoinBase    vm.Address // Address of the block's beneficiary
 	GasLimit    uint64     // Block's gas limit
 	GasPrice    U256       // Price of gas in current environment
-	Difficulty  U256       // Current block's difficulty
+	PrevRandao  U256       // Previous block's randao mix
 	TimeStamp   uint64     // Block's timestamp in unix time in seconds
 }
 
@@ -60,8 +60,8 @@ func (b *BlockContext) Diff(other *BlockContext) []string {
 		ret = append(ret, blockDifference+fmt.Sprintf("gas price: %v vs %v\n", b.GasPrice, other.GasPrice))
 	}
 
-	if b.Difficulty != other.Difficulty {
-		ret = append(ret, blockDifference+fmt.Sprintf("difficulty: %v vs %v\n", b.Difficulty, other.Difficulty))
+	if b.PrevRandao != other.PrevRandao {
+		ret = append(ret, blockDifference+fmt.Sprintf("prevRandao: %v vs %v\n", b.PrevRandao, other.PrevRandao))
 	}
 
 	if b.TimeStamp != other.TimeStamp {
@@ -80,8 +80,8 @@ func (b *BlockContext) String() string {
 			"\n\t    CoinBase: %v,"+
 			"\n\t    Gas Limit: %v,"+
 			"\n\t    Gas Price: %v,"+
-			"\n\t    Difficulty: %v,"+
+			"\n\t    PrevRandao: %v,"+
 			"\n\t    Timestamp: %v\n",
 		b.BaseFee, b.BlockNumber, b.ChainID, b.CoinBase, b.GasLimit, b.GasPrice,
-		b.Difficulty, b.TimeStamp)
+		b.PrevRandao, b.TimeStamp)
 }
