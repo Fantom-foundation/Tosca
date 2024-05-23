@@ -40,6 +40,8 @@ func ToVmParameters(state *st.State) vm.Parameters {
 		revision = vm.R09_Berlin
 	case cc.R10_London:
 		revision = vm.R10_London
+	case cc.R11_Paris:
+		revision = vm.R11_Paris
 	default:
 		revision = vm.Revision(state.Revision)
 	}

@@ -570,9 +570,10 @@ func opGas(c *context) {
 	c.stack.pushEmpty().SetUint64(uint64(c.gas))
 }
 
-func opDifficulty(c *context) {
-	difficulty := c.context.GetTransactionContext().PrevRandao
-	c.stack.pushEmpty().SetBytes32(difficulty[:])
+// opPrevRandao / opDifficulty
+func opPrevRandao(c *context) {
+	prevRandao := c.context.GetTransactionContext().PrevRandao
+	c.stack.pushEmpty().SetBytes32(prevRandao[:])
 }
 
 func opTimestamp(c *context) {
