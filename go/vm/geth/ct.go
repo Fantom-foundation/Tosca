@@ -60,7 +60,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	interpreter := evm.Interpreter()
 	for i := 0; i < numSteps && interpreterState.Status == geth_vm.Running; i++ {
-		interpreter.Step(&interpreterState)
+		interpreter.(*geth_vm.EVMInterpreter).Step(&interpreterState)
 	}
 
 	// Update the resulting state.
@@ -162,13 +162,10 @@ func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr ge
 		kind = vm.StaticCall
 	}
 
-	var vmValue vm.Value
-	value.SetBytes(vmValue[:])
-
 	res, err := i.makeCall(kind, vm.CallParameter{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
-		Value:     vmValue,
+		Value:     vm.Uint256ToValue(value),
 		Input:     data,
 		Gas:       vm.Gas(gas),
 	})
@@ -183,12 +180,10 @@ func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, add
 		return nil, gas, geth_vm.ErrInsufficientBalance
 	}
 
-	var vmValue vm.Value
-	value.SetBytes(vmValue[:])
 	res, err := i.makeCall(kind, vm.CallParameter{
 		Sender:      vm.Address(me.Address()),
 		Recipient:   vm.Address(me.Address()),
-		Value:       vmValue,
+		Value:       vm.Uint256ToValue(value),
 		Input:       data,
 		CodeAddress: vm.Address(addr),
 		Gas:         vm.Gas(gas),
@@ -224,11 +219,9 @@ func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code 
 		return nil, geth_common.Address{}, gas, geth_vm.ErrInsufficientBalance
 	}
 
-	var vmValue vm.Value
-	value.SetBytes(vmValue[:])
 	res, err := i.makeCall(vm.Create, vm.CallParameter{
 		Sender: vm.Address(me.Address()),
-		Value:  vmValue,
+		Value:  vm.Uint256ToValue(value),
 		Gas:    vm.Gas(gas),
 		Input:  code,
 	})
@@ -243,11 +236,9 @@ func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code
 		return nil, geth_common.Address{}, gas, geth_vm.ErrInsufficientBalance
 	}
 
-	var vmValue vm.Value
-	value.SetBytes(vmValue[:])
 	res, err := i.makeCall(vm.Create2, vm.CallParameter{
 		Sender: vm.Address(me.Address()),
-		Value:  vmValue,
+		Value:  vm.Uint256ToValue(value),
 		Gas:    vm.Gas(gas),
 		Input:  code,
 		Salt:   salt.Bytes32(),

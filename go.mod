@@ -33,6 +33,6 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum/go-ethereum => github.com/Fantom-foundation/tosca-go-ethereum v0.0.0-20240523124228-5954c991a84e
+replace github.com/ethereum/go-ethereum => github.com/Fantom-foundation/tosca-go-ethereum v0.0.0-20240528081708-4db0f269681a
 
 replace github.com/ethereum/evmc/v10 => ./third_party/evmc

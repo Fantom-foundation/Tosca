@@ -556,7 +556,7 @@ func createOpToOpMap() []OpCode {
 			continue
 		}
 
-		toImplement := []evm.OpCode{evm.PREVRANDAO, evm.PUSH0, evm.TLOAD, evm.TSTORE, evm.MCOPY, evm.BLOBHASH, evm.BLOBBASEFEE} // TODO implement for new revision support
+		toImplement := []evm.OpCode{evm.PUSH0, evm.TLOAD, evm.TSTORE, evm.MCOPY, evm.BLOBHASH, evm.BLOBBASEFEE} // TODO implement for new revision support
 		opIsValid := !strings.Contains(fmt.Sprintf("%v", code), "not defined")
 		if res[code] == INVALID && opIsValid && !slices.Contains(toImplement, code) {
 			panic(fmt.Sprintf("Missing instruction coverage for: %v", code))

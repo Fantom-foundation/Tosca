@@ -142,7 +142,7 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 	evm.Context.Difficulty = new(big.Int).SetBytes(context.PrevRandao[:])
 	evm.Context.Time = uint64(context.Timestamp)
 
-	value := uint256.NewInt(0).SetBytes32(parameters.Value[:])
+	value := vm.ValueToUint256(parameters.Value)
 	addr := geth.AccountRef(parameters.Recipient)
 	contract := geth.NewContract(addr, addr, value, uint64(parameters.Gas))
 	contract.CallerAddress = common.Address(parameters.Sender)
@@ -180,17 +180,14 @@ type stateDbAdapter struct {
 
 func (s *stateDbAdapter) CreateAccount(common.Address) {
 	// ignored: effect not needed in test environments
-	panic("not implemented")
 }
 
 func (s *stateDbAdapter) CreateContract(common.Address) {
 	// ignored: effect not needed in test environments
-	panic("not implemented")
 }
 
 func (s *stateDbAdapter) SubBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason) {
 	// ignored: effect not needed in test environments
-	panic("not implemented")
 }
 
 func (s *stateDbAdapter) AddBalance(addr common.Address, balance *uint256.Int, change tracing.BalanceChangeReason) {
@@ -200,17 +197,16 @@ func (s *stateDbAdapter) AddBalance(addr common.Address, balance *uint256.Int, c
 
 func (s *stateDbAdapter) GetBalance(addr common.Address) *uint256.Int {
 	value := s.context.GetBalance(vm.Address(addr))
-	return uint256.NewInt(0).SetBytes(value[:])
+	return vm.ValueToUint256(value)
 }
 
 func (s *stateDbAdapter) GetNonce(common.Address) uint64 {
 	// ignored: effect not needed in test environments
-	panic("not implemented")
+	return 0
 }
 
 func (s *stateDbAdapter) SetNonce(common.Address, uint64) {
 	// ignored: effect not needed in test environments
-	panic("not implemented")
 }
 
 func (s *stateDbAdapter) GetCodeHash(addr common.Address) common.Hash {
@@ -223,7 +219,6 @@ func (s *stateDbAdapter) GetCode(addr common.Address) []byte {
 
 func (s *stateDbAdapter) SetCode(common.Address, []byte) {
 	// ignored: effect not needed in test environments
-	panic("not implemented")
 }
 
 func (s *stateDbAdapter) GetCodeSize(addr common.Address) int {
@@ -256,7 +251,7 @@ func (s *stateDbAdapter) SetState(addr common.Address, key common.Hash, value co
 
 func (s *stateDbAdapter) GetStorageRoot(addr common.Address) common.Hash {
 	// ignored: effect not needed in test environments
-	panic("not implemented")
+	return common.Hash{}
 }
 
 func (s *stateDbAdapter) GetTransientState(addr common.Address, key common.Hash) common.Hash {
@@ -318,12 +313,10 @@ func (s *stateDbAdapter) Prepare(rules params.Rules, sender, coinbase common.Add
 
 func (s *stateDbAdapter) RevertToSnapshot(int) {
 	// ignored: effect not needed in test environments
-	panic("not implemented")
 }
 
 func (s *stateDbAdapter) Snapshot() int {
-	// not relevant in test setups
-	panic("not implemented")
+	return 0 // not relevant in test setups
 }
 
 func (s *stateDbAdapter) AddLog(log *types.Log) {
