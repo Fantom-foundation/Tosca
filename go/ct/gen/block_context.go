@@ -23,30 +23,14 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
-type inequalityType int
-
-const (
-	offsetLessThan inequalityType = iota
-	offsetGreaterThan
-)
-
-// variableInequality represents an inequality regarding the block number to be generated.
-// it should be interpreted as
-// `variable < (currentBlock - offset)` or `variable > (currentBlock - offset)`
-type variableInequality struct {
-	variable Variable
-	kind     inequalityType
-	offset   int64
-}
-
-// constraintPari is a pair of inequalities that represent a constraint that can either be that the variable is in a range such as
-// `(currentBlock - ofset) < variable < current block`
+// constraintPair represent a constraint that on the variable, such that is in a range
+// `(currentBlock - lower) < variable < (current block - upper)`
 // or that the variable should be out of the range such as
-// `variable < (currentBlock - offset) or variable > currentBlock`
-// it is assumed that both inequalities are regarding the same variable.
+// `variable < (currentBlock - lower) or variable > (currentBlock - upper)`
 type constraintPair struct {
-	lower variableInequality
-	upper variableInequality
+	variable    Variable
+	lowerOffset int64
+	upperOffset int64
 }
 
 type BlockContextGenerator struct {
@@ -78,16 +62,16 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand, 
 
 	// if any relevant variable is already bound, then we need to constraint the block number to be generated.
 	for _, offsetConstraint := range b.variablesOffsetConstraints {
-		if assignedValue, isBound := assignment[offsetConstraint.lower.variable]; isBound {
+		if assignedValue, isBound := assignment[offsetConstraint.variable]; isBound {
 
 			assignedValueI64 := int64(assignedValue.Uint64())
-			lowerBound := assignedValueI64 - offsetConstraint.upper.offset
-			upperBound := assignedValueI64 + offsetConstraint.lower.offset - 1
+			lowerBound := assignedValueI64 - offsetConstraint.upperOffset
+			upperBound := assignedValueI64 + offsetConstraint.lowerOffset - 1
 
 			// if the range is only one number ( aka diff 2 ), then the assigned value must be within the range.
-			diff := offsetConstraint.upper.offset - offsetConstraint.lower.offset
+			diff := offsetConstraint.upperOffset - offsetConstraint.lowerOffset
 			isFixedValue := diff == 2 || diff == -2
-			isSameAsfixed := offsetConstraint.lower.offset-1 == assignedValueI64
+			isSameAsfixed := offsetConstraint.lowerOffset-1 == assignedValueI64
 			if isFixedValue && !isSameAsfixed {
 				return st.BlockContext{}, ErrUnsatisfiable
 			} else if isFixedValue && isSameAsfixed {
@@ -115,19 +99,17 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand, 
 		return st.BlockContext{}, err
 	}
 
-	variableRangeSolver := NewRangeSolver(math.MinInt64, int64(blockNumber))
-	baseSolver := NewRangeSolver(math.MinInt64, int64(blockNumber))
 	// for all non bound relevante variables, assign them a value based on the constraints.
 	for i, offsetConstraint := range b.variablesOffsetConstraints {
-		if _, isBound := assignment[offsetConstraint.lower.variable]; !isBound {
-			variableRangeSolver.Restore(baseSolver)
-			if difference := offsetConstraint.lower.offset - offsetConstraint.upper.offset; difference == 2 || difference == -2 {
+		if _, isBound := assignment[offsetConstraint.variable]; !isBound {
+			variableRangeSolver := NewRangeSolver(math.MinInt64, int64(blockNumber))
+			if difference := offsetConstraint.lowerOffset - offsetConstraint.upperOffset; difference == 2 || difference == -2 {
 				// if the difference between the two offsets is 2, then we can only generate a fix value.
-				variableRangeSolver.AddEqualityConstraint(offsetConstraint.lower.offset - 1)
-			} else if offsetConstraint.lower.offset > 1 && offsetConstraint.upper.offset < 256 {
+				variableRangeSolver.AddEqualityConstraint(offsetConstraint.lowerOffset - 1)
+			} else if offsetConstraint.lowerOffset > 1 && offsetConstraint.upperOffset < 256 {
 				// if lower offset is greater than 1 and upper is less than 256 we generate in range.
-				variableRangeSolver.AddLowerBoundary(offsetConstraint.upper.offset)
-				variableRangeSolver.AddUpperBoundary(offsetConstraint.lower.offset)
+				variableRangeSolver.AddLowerBoundary(offsetConstraint.upperOffset)
+				variableRangeSolver.AddUpperBoundary(offsetConstraint.lowerOffset)
 			} else {
 				// else have to generate out of range
 				// if blockNumber is too small, then we can only generate over the range.
@@ -144,13 +126,13 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand, 
 			if err != nil {
 				return st.BlockContext{}, err
 			}
-			assignment[offsetConstraint.lower.variable] = common.NewU256(uint64(int64(blockNumber) - newValue))
+			assignment[offsetConstraint.variable] = common.NewU256(uint64(int64(blockNumber) - newValue))
 		} else {
 			// if the variable is bound, then we need to check that it does not clash with any other constraint.
 			for _, previousConstraint := range b.variablesOffsetConstraints[:i] {
-				if previousConstraint.lower.variable == offsetConstraint.lower.variable {
-					if previousConstraint.lower.offset > offsetConstraint.upper.offset ||
-						previousConstraint.upper.offset < offsetConstraint.lower.offset {
+				if previousConstraint.variable == offsetConstraint.variable {
+					if previousConstraint.lowerOffset > offsetConstraint.upperOffset ||
+						previousConstraint.upperOffset < offsetConstraint.lowerOffset {
 						return st.BlockContext{}, ErrUnsatisfiable
 					}
 				}
@@ -200,11 +182,11 @@ func (b *BlockContextGenerator) String() string {
 
 	var variablesOffsetConstraints string
 	for _, v := range b.variablesOffsetConstraints {
-		lower := v.lower
-		upper := v.upper
-		lowerOffset, lowerOperator := defineOperatorString(lower.offset)
-		upperOffset, upperOperator := defineOperatorString(upper.offset)
-		variablesOffsetConstraints += fmt.Sprintf("[%v > BlockNumber %v %v Λ %v < BlockNumber %v %v]", upper.variable, upperOperator, upperOffset, lower.variable, lowerOperator, lowerOffset) + " "
+		lower := v.lowerOffset
+		upper := v.upperOffset
+		lowerOffset, lowerOperator := defineOperatorString(lower)
+		upperOffset, upperOperator := defineOperatorString(upper)
+		variablesOffsetConstraints += fmt.Sprintf("[%v > BlockNumber %v %v Λ %v < BlockNumber %v %v]", v.variable, upperOperator, upperOffset, v.variable, lowerOperator, lowerOffset) + " "
 	}
 	if len(variablesOffsetConstraints) != 0 {
 		variablesOffsetConstraints = variablesOffsetConstraints[:len(variablesOffsetConstraints)-1]
@@ -214,27 +196,21 @@ func (b *BlockContextGenerator) String() string {
 }
 
 func (b *BlockContextGenerator) AddBlockNumberOffsetConstraintIn(variable Variable) {
-	offsetLessThan := variableInequality{variable, offsetLessThan, 257}
-	offsetGreaterThan := variableInequality{variable, offsetGreaterThan, 0}
-	constraintIn := constraintPair{offsetLessThan, offsetGreaterThan}
+	constraintIn := constraintPair{variable: variable, lowerOffset: 257, upperOffset: 0}
 	if !slices.Contains(b.variablesOffsetConstraints, constraintIn) {
 		b.variablesOffsetConstraints = append(b.variablesOffsetConstraints, constraintIn)
 	}
 }
 
 func (b *BlockContextGenerator) AddBlockNumberOffsetConstraintOut(variable Variable) {
-	offsetLessThan := variableInequality{variable, offsetLessThan, 1}
-	offsetGreaterThan := variableInequality{variable, offsetGreaterThan, 256}
-	constraintOut := constraintPair{offsetLessThan, offsetGreaterThan}
+	constraintOut := constraintPair{variable: variable, lowerOffset: 1, upperOffset: 256}
 	if !slices.Contains(b.variablesOffsetConstraints, constraintOut) {
 		b.variablesOffsetConstraints = append(b.variablesOffsetConstraints, constraintOut)
 	}
 }
 
 func (b *BlockContextGenerator) SetBlockNumberOffsetValue(variable Variable, value int64) {
-	offsetLessThan := variableInequality{variable, offsetLessThan, value + 1}
-	offsetGreaterThan := variableInequality{variable, offsetGreaterThan, value - 1}
-	constraintValue := constraintPair{offsetLessThan, offsetGreaterThan}
+	constraintValue := constraintPair{variable: variable, lowerOffset: value + 1, upperOffset: value - 1}
 	if !slices.Contains(b.variablesOffsetConstraints, constraintValue) {
 		b.variablesOffsetConstraints = append(b.variablesOffsetConstraints, constraintValue)
 	}

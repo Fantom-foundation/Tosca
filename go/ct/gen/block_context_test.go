@@ -272,14 +272,12 @@ func TestBlockContextGen_BlockNumberOffsetVariableBound(t *testing.T) {
 func TestBlockContextGen_Clone(t *testing.T) {
 	blockContextGenerator := NewBlockContextGenerator()
 	blockContextGenerator.variablesOffsetConstraints = append(blockContextGenerator.variablesOffsetConstraints, constraintPair{
-		lower: variableInequality{variable: "v1", offset: 1},
-		upper: variableInequality{variable: "v2", offset: 2},
-	})
+		variable: "v1", lowerOffset: 1, upperOffset: 2})
 
 	clone := blockContextGenerator.Clone()
-	clone.variablesOffsetConstraints[0].lower.offset = 3
+	clone.variablesOffsetConstraints[0].lowerOffset = 3
 
-	if blockContextGenerator.variablesOffsetConstraints[0].lower.offset != 1 {
+	if blockContextGenerator.variablesOffsetConstraints[0].lowerOffset != 1 {
 		t.Errorf("Original generator should not be affected by clone.")
 	}
 }

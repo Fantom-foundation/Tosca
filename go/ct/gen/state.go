@@ -398,10 +398,10 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
-	// generate old block hashes
-	newBlockNumberHashes := [256]vm.Hash{}
+	// generate recent block hashes
+	resultRecentBlockHashes := [256]vm.Hash{}
 	for i := 0; i < 256; i++ {
-		newBlockNumberHashes[i] = getRandomHash(rnd)
+		resultRecentBlockHashes[i] = getRandomHash(rnd)
 	}
 
 	// Sub-generators can modify the assignment when unassigned variables are
@@ -456,7 +456,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.LastCallReturnData = resultLastCallReturnData
 	result.ReturnData = resultReturnData
 	result.HasSelfDestructed = resultHasSelfdestructed
-	result.RecentBlockHashes = newBlockNumberHashes
+	result.RecentBlockHashes = resultRecentBlockHashes
 
 	return result, nil
 }

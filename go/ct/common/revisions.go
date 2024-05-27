@@ -131,8 +131,8 @@ func GetBlockRangeLengthFor(revision Revision) (uint64, error) {
 	}
 	revisionNumberLength := uint64(0)
 
-	// if it's the last supported revision, the blockNumber range has no limit.
-	// if it's not, we want to limit this range to the first block number of next revision.
+	// if it's the last supported revision, the blockNumber length has no limit.
+	// if it's not, we want to limit this length to the first block number of next revision.
 	if revision < R99_UnknownNextRevision {
 		nextRevisionNumber, err := GetForkBlock(revision + 1)
 		if err != nil {
