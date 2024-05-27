@@ -404,7 +404,7 @@ func (d BlockNumberRangeDomain) Samples(a int64) []int64 {
 }
 
 func (BlockNumberRangeDomain) SamplesForAll(as []int64) []int64 {
-	res := []int64{-1, 0, 1, 255, 256, 257}
+	res := []int64{math.MinInt64, -1, 0, 1, 255, 256, 257, math.MaxInt64}
 
 	// Test every element off by one.
 	for _, a := range as {

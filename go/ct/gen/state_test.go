@@ -348,7 +348,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"accounts={}",
 		"callContext={}",
 		"callJournal={}",
-		"blockContext={variablesOffsetConstraints: [$t > BlockNumber - 12 Λ $t < BlockNumber - 14]}",
+		"blockContext={variablesOffsetConstraints: [$t => BlockNumber - 13 Λ $t <= BlockNumber - 13]}",
 		"selfdestruct={mustBeSelfDestructed}",
 	})
 
@@ -366,7 +366,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"accounts={}",
 		"callContext={}",
 		"callJournal={}",
-		"blockContext={variablesOffsetConstraints: [$s > BlockNumber + 16 Λ $s < BlockNumber + 14]}",
+		"blockContext={variablesOffsetConstraints: [$s => BlockNumber + 15 Λ $s <= BlockNumber + 15]}",
 		"selfdestruct={mustNotBeSelfDestructed}",
 	})
 }
