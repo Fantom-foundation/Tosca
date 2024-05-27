@@ -2834,9 +2834,13 @@ TEST(InterpreterTest, EXTCODEHASH_StackError) {
 
 ///////////////////////////////////////////////////////////
 // BLOCKHASH
-TEST(InterpreterTest, BLOCKHASH) {
+TEST(InterpreterTest, BLOCKHASH_inRange) {
+  const uint64_t block_number = 1000;
   MockHost host;
-  EXPECT_CALL(host, get_block_hash(21))  //
+  EXPECT_CALL(host, get_tx_context())  //
+      .Times(1)
+      .WillOnce(Return(evmc_tx_context{.block_number = block_number}));
+  EXPECT_CALL(host, get_block_hash(block_number - 1))  //
       .Times(1)
       .WillOnce(Return(evmc::bytes32(0x0a0b0c0d)));
 
@@ -2845,8 +2849,79 @@ TEST(InterpreterTest, BLOCKHASH) {
       .state_after = RunState::kDone,
       .gas_before = 40,
       .gas_after = 20,
-      .stack_before = {21},
+      .stack_before = {block_number - 1},
       .stack_after = {0x0a0b0c0d},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, BLOCKHASH_firstInRange) {
+  const uint64_t block_number = 1000;
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context())  //
+      .Times(1)
+      .WillOnce(Return(evmc_tx_context{.block_number = block_number}));
+  EXPECT_CALL(host, get_block_hash(block_number - 256))  //
+      .Times(1)
+      .WillOnce(Return(evmc::bytes32(0x0a0b0c0d)));
+
+  RunInterpreterTest({
+      .code = {op::BLOCKHASH},
+      .state_after = RunState::kDone,
+      .gas_before = 40,
+      .gas_after = 20,
+      .stack_before = {block_number - 256},
+      .stack_after = {0x0a0b0c0d},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, BLOCKHASH_outOfRange) {
+  const uint64_t block_number = 1000;
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context())  //
+      .Times(1)
+      .WillOnce(Return(evmc_tx_context{.block_number = block_number}));
+
+  RunInterpreterTest({
+      .code = {op::BLOCKHASH},
+      .state_after = RunState::kDone,
+      .gas_before = 40,
+      .gas_after = 20,
+      .stack_before = {block_number - 257},
+      .stack_after = {0},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, BLOCKHASH_sameAsCurrent) {
+  const uint64_t block_number = 1000;
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context())  //
+      .Times(1)
+      .WillOnce(Return(evmc_tx_context{.block_number = block_number}));
+
+  RunInterpreterTest({
+      .code = {op::BLOCKHASH},
+      .state_after = RunState::kDone,
+      .gas_before = 40,
+      .gas_after = 20,
+      .stack_before = {block_number},
+      .stack_after = {0},
+      .host = &host,
+  });
+}
+
+TEST(InterpreterTest, BLOCKHASH_overflow) {
+  MockHost host;
+
+  RunInterpreterTest({
+      .code = {op::BLOCKHASH},
+      .state_after = RunState::kDone,
+      .gas_before = 40,
+      .gas_after = 20,
+      .stack_before = {uint256_t{0x0000000000000001, 0x0000000000000384}},
+      .stack_after = {0},
       .host = &host,
   });
 }

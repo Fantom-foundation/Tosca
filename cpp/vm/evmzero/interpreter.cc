@@ -864,8 +864,27 @@ struct Impl<OpCode::BLOCKHASH> {
   constexpr static OpInfo kInfo = UnaryOp(20);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    if (top[0] > std::numeric_limits<int64_t>::max()) {
+      top[0] = 0;
+      return {};
+    }
+
     int64_t number = static_cast<int64_t>(top[0]);
-    top[0] = ToUint256(ctx.host->get_block_hash(number));
+    int64_t upper, lower;
+    upper = int64_t(ctx.host->get_tx_context().block_number);
+    // BLOCKHASH description states that it gets the hash of a block not older
+    // than 256 in comparison with the current block. and in case the current
+    // block number is less than 256, then the lower boundary is 0.
+    if (upper < 257) {
+      lower = 0;
+    } else {
+      lower = upper - 256;
+    }
+    if (number >= lower && number < upper) {
+      top[0] = ToUint256(ctx.host->get_block_hash(number));
+    } else {
+      top[0] = 0;
+    }
     return {};
   }
 };
