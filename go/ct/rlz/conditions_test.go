@@ -13,6 +13,7 @@
 package rlz
 
 import (
+	"math"
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -425,7 +426,7 @@ func TestCondition_InOut_Restrict(t *testing.T) {
 }
 
 func TestCondition_InOutOfRangeGetTestValues(t *testing.T) {
-	want := []int64{-1, 0, 1, 255, 256, 257}
+	want := []int64{math.MinInt64, -1, 0, 1, 255, 256, 257, math.MaxInt64}
 	tests := map[string]struct {
 		condition Condition
 	}{

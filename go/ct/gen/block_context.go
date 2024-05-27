@@ -66,8 +66,8 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand, 
 		if assignedValue, isBound := assignment[offsetConstraint.variable]; isBound {
 
 			assignedValueI64 := int64(assignedValue.Uint64())
-			lowerBound := assignedValueI64 - offsetConstraint.upperOffset
-			upperBound := assignedValueI64 + offsetConstraint.lowerOffset - 1
+			lowerBound := assignedValueI64 - offsetConstraint.upperOffset + 2
+			upperBound := assignedValueI64 + offsetConstraint.lowerOffset
 
 			// if the range is only one number, then the assigned value must be within the range.
 			isFixedValue := offsetConstraint.upperOffset-offsetConstraint.lowerOffset == 0
@@ -75,7 +75,7 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand, 
 			if isFixedValue && !isSameAsfixed {
 				return st.BlockContext{}, ErrUnsatisfiable
 			} else if isFixedValue && isSameAsfixed {
-				blockNumberRangeSolver.AddEqualityConstraint(uint64(upperBound - 1))
+				blockNumberRangeSolver.AddEqualityConstraint(uint64(upperBound))
 			}
 
 			// in case of desired out of range and bound value too small.
@@ -101,9 +101,9 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand, 
 	}
 
 	// for all non bound relevante variables, assign them a value based on the constraints.
-	for i, offsetConstraint := range b.variablesOffsetConstraints {
+	for _, offsetConstraint := range b.variablesOffsetConstraints {
 		if _, isBound := assignment[offsetConstraint.variable]; !isBound {
-			variableRangeSolver := NewRangeSolver(math.MinInt64, int64(blockNumber))
+			variableRangeSolver := NewRangeSolver[int64](math.MinInt64, math.MaxInt64)
 
 			if difference := offsetConstraint.lowerOffset - offsetConstraint.upperOffset; difference == 0 {
 				// if the difference between the two offsets is 0, then we can only generate a fix value.
@@ -117,12 +117,12 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand, 
 				// if blockNumber is too small, then we can ONLY generate OVER the current block number
 				if blockNumber < 256 {
 					variableRangeSolver.AddLowerBoundary(offsetConstraint.upperOffset + int64(blockNumber))
-					variableRangeSolver.AddUpperBoundary(offsetConstraint.lowerOffset)
+					variableRangeSolver.AddUpperBoundary(math.MaxInt64)
 
 				} else {
 					// if blockNumber is large enough, we can randomly generate under or over the range.
 					// note that we can only generate under the range if the block number is larger than the upper offset.
-					if rand.Intn(2) == 0 && blockNumber-uint64(offsetConstraint.upperOffset) >= blockNumber {
+					if rand.Intn(2) == 0 && blockNumber < 256 {
 						// generate under the range
 						variableRangeSolver.AddLowerBoundary(0)
 						variableRangeSolver.AddUpperBoundary(int64(blockNumber))
@@ -140,15 +140,22 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand, 
 			}
 			assignment[offsetConstraint.variable] = common.NewU256(uint64(int64(blockNumber) - newValue))
 		} else {
-			// if the variable is bound, then we need to check that it does not clash with any other constraint.
-			for _, previousConstraint := range b.variablesOffsetConstraints[:i] {
-				if previousConstraint.variable == offsetConstraint.variable {
-					if previousConstraint.lowerOffset < offsetConstraint.upperOffset ||
-						previousConstraint.upperOffset > offsetConstraint.lowerOffset {
-						return st.BlockContext{}, ErrUnsatisfiable
-					}
-				}
+			// if the variable is bound, then we need to check that the current constraint holds
+
+			wantsInRange := func(c constraintPair) bool { return c.lowerOffset >= c.upperOffset }
+			wantsFixValue := func(c constraintPair) bool { return c.lowerOffset == c.upperOffset }
+			isValueInRange := func(value int64) bool { return 256 >= value && value >= 1 }
+			boundedValueOffset := int64(blockNumber) - int64(assignment[offsetConstraint.variable].Uint64())
+
+			// if we want fixed value and the fixed value is different
+			if (wantsFixValue(offsetConstraint) && offsetConstraint.lowerOffset != boundedValueOffset) ||
+				// or if we want the value to be in range but is it not
+				(wantsInRange(offsetConstraint) && !isValueInRange(boundedValueOffset)) ||
+				// or if we want it to be out of range and it is in range
+				(!wantsInRange(offsetConstraint) && isValueInRange(boundedValueOffset)) {
+				return st.BlockContext{}, ErrUnsatisfiable
 			}
+
 		}
 	}
 

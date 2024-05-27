@@ -14,7 +14,6 @@ package gen
 
 import (
 	"testing"
-	"time"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
@@ -166,23 +165,25 @@ func TestBlockContextGen_BlockNumberOffsetVariableUnbound(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			assignment := Assignment{}
-			blockContextGenerator := NewBlockContextGenerator()
-			test.addConstraint(blockContextGenerator)
-			blockCtx, err := blockContextGenerator.Generate(assignment, rnd, common.MaxRevision-1)
-			if err != nil {
-				t.Errorf("Error generating block context: %v", err)
-			}
-			assignmentValue := assignment[v1].Uint64()
-			if !test.check(blockCtx.BlockNumber, assignmentValue) {
-				t.Errorf("Generated variable %v not in desired distance from block number %v.", assignment[v1].Uint64(), blockCtx.BlockNumber)
+			for i := 0; i < 1000; i++ {
+				assignment := Assignment{}
+				blockContextGenerator := NewBlockContextGenerator()
+				test.addConstraint(blockContextGenerator)
+				blockCtx, err := blockContextGenerator.Generate(assignment, rnd, common.MaxRevision-1)
+				if err != nil {
+					t.Errorf("Error generating block context: %v", err)
+				}
+				assignmentValue := assignment[v1].Uint64()
+				if !test.check(blockCtx.BlockNumber, assignmentValue) {
+					t.Errorf("Generated variable %v not in desired distance from block number %v.", assignment[v1].Uint64(), blockCtx.BlockNumber)
+				}
 			}
 		})
 	}
 }
 
 func TestBlockContextGen_BlockNumberOffsetError(t *testing.T) {
-	rnd := rand.New(0)
+	rnd := rand.New()
 
 	tests := map[string]struct {
 		fn func(*BlockContextGenerator)
@@ -195,16 +196,36 @@ func TestBlockContextGen_BlockNumberOffsetError(t *testing.T) {
 			b.AddBlockNumberOffsetConstraintIn("v1")
 			b.AddBlockNumberOffsetConstraintOut("v1")
 		}},
+		"inFix": {fn: func(b *BlockContextGenerator) {
+			b.AddBlockNumberOffsetConstraintIn("v1")
+			b.SetBlockNumberOffsetValue("v1", 300)
+		}},
+		"fixIn": {fn: func(b *BlockContextGenerator) {
+			b.SetBlockNumberOffsetValue("v1", 300)
+			b.AddBlockNumberOffsetConstraintIn("v1")
+		}},
+		"outFix": {fn: func(b *BlockContextGenerator) {
+			b.AddBlockNumberOffsetConstraintOut("v1")
+			b.SetBlockNumberOffsetValue("v1", 150)
+		}},
+		"fixOut": {fn: func(b *BlockContextGenerator) {
+			b.SetBlockNumberOffsetValue("v1", 150)
+			b.AddBlockNumberOffsetConstraintOut("v1")
+		}},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			assignment := Assignment{}
-			blockContextGenerator := NewBlockContextGenerator()
-			test.fn(blockContextGenerator)
-			_, err := blockContextGenerator.Generate(assignment, rnd, common.R07_Istanbul)
-			if err != ErrUnsatisfiable {
-				t.Errorf("Failed to produce error with conflicting range constraints.")
+
+			for i := 0; i < 1000; i++ {
+				assignment := Assignment{}
+				blockContextGenerator := NewBlockContextGenerator()
+				test.fn(blockContextGenerator)
+				result, err := blockContextGenerator.Generate(assignment, rnd, common.R07_Istanbul)
+				if err != ErrUnsatisfiable {
+					t.Errorf("Failed to produce error with conflicting range constraints. blockNumber: %v, assignment: %v",
+						result.BlockNumber, assignment["v1"].Uint64())
+				}
 			}
 		})
 	}
@@ -212,11 +233,10 @@ func TestBlockContextGen_BlockNumberOffsetError(t *testing.T) {
 
 func TestBlockContextGen_BlockNumberOffsetVariableBound(t *testing.T) {
 	v1 := Variable("v1")
-	rnd := rand.New(uint64(time.Now().UnixNano()))
-	assignment := Assignment{}
+	rnd := rand.New()
 
-	assignmentValues := []common.U256{common.NewU256(512), common.NewU256(257),
-		common.NewU256(256), common.NewU256(255), common.NewU256(1), common.NewU256(0)}
+	assignmentValues := []common.U256{common.NewU256(512), common.NewU256(257), common.NewU256(256),
+		common.NewU256(255), common.NewU256(1), common.NewU256(0)}
 
 	tests := map[string]struct {
 		fn    func(*BlockContextGenerator)
@@ -233,7 +253,7 @@ func TestBlockContextGen_BlockNumberOffsetVariableBound(t *testing.T) {
 		},
 		"outRange": {fn: func(b *BlockContextGenerator) { b.AddBlockNumberOffsetConstraintOut("v1") },
 			check: func(blockNumber, generated uint64) bool {
-				return blockNumber < generated || blockNumber-256 >= generated
+				return blockNumber <= generated || blockNumber-256 > generated
 			},
 		},
 		"fixedValue": {fn: func(b *BlockContextGenerator) { b.SetBlockNumberOffsetValue("v1", 256) },
@@ -245,24 +265,28 @@ func TestBlockContextGen_BlockNumberOffsetVariableBound(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			for _, value := range assignmentValues {
-				assignment[v1] = value
-				blockContextGenerator := NewBlockContextGenerator()
-				test.fn(blockContextGenerator)
-				blockContext, err := blockContextGenerator.Generate(assignment, rnd, common.R07_Istanbul)
-				if err != nil {
-					if value != common.NewU256(256) && err != ErrUnsatisfiable {
-						t.Errorf("Error generating block context: %v", err)
-					} else if value != common.NewU256(256) && err == ErrUnsatisfiable {
-						continue
+
+			for i := 0; i < 1000; i++ {
+				for _, value := range assignmentValues {
+					assignment := Assignment{}
+					assignment[v1] = value
+					blockContextGenerator := NewBlockContextGenerator()
+					test.fn(blockContextGenerator)
+					blockContext, err := blockContextGenerator.Generate(assignment, rnd, common.R07_Istanbul)
+					if err != nil {
+						if value != common.NewU256(256) && err != ErrUnsatisfiable {
+							t.Errorf("Error generating block context: %v", err)
+						} else if value != common.NewU256(256) && err == ErrUnsatisfiable {
+							continue
+						}
 					}
-				}
-				blckNum := blockContext.BlockNumber
-				if assignment[v1] != value {
-					t.Error("assigned value should not have changed.")
-				}
-				if !test.check(blckNum, assignment[v1].Uint64()) {
-					t.Errorf("Block number should be in the expected range. got %v. assigned %v.", blckNum, assignment[v1].Uint64())
+					blckNum := blockContext.BlockNumber
+					if assignment[v1] != value {
+						t.Error("assigned value should not have changed.")
+					}
+					if !test.check(blckNum, assignment[v1].Uint64()) {
+						t.Errorf("Block number should be in the expected range. got %v. assigned %v.", blckNum, assignment[v1].Uint64())
+					}
 				}
 			}
 		})
