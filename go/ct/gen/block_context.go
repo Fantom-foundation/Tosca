@@ -114,6 +114,7 @@ func (b *BlockContextGenerator) generateBlockNumber(assignment Assignment, rnd *
 				// if we have a condition for a variable in range, then we can not generate the first block number
 				blockNumberSolver.AddLowerBoundary(1)
 			}
+
 		}
 	}
 
