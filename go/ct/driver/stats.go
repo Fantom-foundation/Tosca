@@ -64,7 +64,8 @@ func doStats(context *cli.Context) error {
 	fullMode := cliUtils.FullModeFlag.Fetch(context)
 
 	specification := spc.Spec
-	statsCollector := newStatsCollector(specification)
+	rules := spc.FilterRules(spc.Spec.GetRules(), filter)
+	statsCollector := newStatsCollector(rules)
 
 	printIssueCounts := func(relativeTime time.Duration, rate float64, current int64) {
 		fmt.Printf(
@@ -82,13 +83,13 @@ func doStats(context *cli.Context) error {
 	}
 
 	fmt.Printf("Evaluating Conformance Tests with seed %d using %d jobs ...\n", seed, jobCount)
-	rules := spc.FilterRules(spc.Spec.GetRules(), filter)
 	err = spc.ForEachState(rules, opTest, printIssueCounts, jobCount, seed, fullMode)
 	if err != nil {
 		return fmt.Errorf("error evaluating rules: %w", err)
 	}
 
 	// Summarize the result.
+	fmt.Printf("\n")
 	fmt.Printf("%v", statsCollector.getStatistics())
 	return nil
 }
@@ -98,9 +99,9 @@ type statsCollector struct {
 	mu         sync.Mutex
 }
 
-func newStatsCollector(spec spc.Specification) *statsCollector {
+func newStatsCollector(rules []rlz.Rule) *statsCollector {
 	stats := ruleStatistics{make(map[string]ruleInfo)}
-	for _, rule := range spec.GetRules() {
+	for _, rule := range rules {
 		stats.data[rule.Name] = ruleInfo{} // initialize all rules with 0
 	}
 	return &statsCollector{statistics: stats}
