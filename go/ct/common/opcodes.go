@@ -83,6 +83,7 @@ const (
 	MSIZE          OpCode = 0x59
 	GAS            OpCode = 0x5A
 	JUMPDEST       OpCode = 0x5B
+	PUSH0          OpCode = 0x5F
 	PUSH1          OpCode = 0x60
 	PUSH2          OpCode = 0x61
 	PUSH3          OpCode = 0x62
@@ -165,6 +166,7 @@ const (
 )
 
 func (op OpCode) Width() int {
+	// PUSH0 carries no data
 	if PUSH1 <= op && op <= PUSH32 {
 		return int(op-PUSH1) + 2
 	} else {
@@ -184,6 +186,7 @@ func IsValid(op OpCode) bool {
 }
 
 // OpCodesNoPush returns a slice of valid op codes, but no PUSH instruction.
+// PUSH0 does not carry any data, therefore it is included in return set.
 func ValidOpCodesNoPush() []OpCode {
 	res := make([]OpCode, 0, 256)
 	for i := 0; i < 256; i++ {
@@ -326,6 +329,8 @@ func (op OpCode) String() string {
 		return "GAS"
 	case JUMPDEST:
 		return "JUMPDEST"
+	case PUSH0:
+		return "PUSH0"
 	case PUSH1:
 		return "PUSH1"
 	case PUSH2:
