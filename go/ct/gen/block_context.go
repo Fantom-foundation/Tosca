@@ -65,6 +65,10 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand, 
 	for _, offsetConstraint := range b.variablesOffsetConstraints {
 		if assignedValue, isBound := assignment[offsetConstraint.variable]; isBound {
 
+			if !assignedValue.IsUint64() {
+				return st.BlockContext{}, fmt.Errorf("assigned value to variable %v is not a uint64", offsetConstraint.variable)
+			}
+
 			assignedValueI64 := int64(assignedValue.Uint64())
 			lowerBound := assignedValueI64 - offsetConstraint.upperOffset + 2
 			upperBound := assignedValueI64 + offsetConstraint.lowerOffset
@@ -145,6 +149,9 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand, 
 			wantsInRange := func(c constraintPair) bool { return c.lowerOffset >= c.upperOffset }
 			wantsFixValue := func(c constraintPair) bool { return c.lowerOffset == c.upperOffset }
 			isValueInRange := func(value int64) bool { return 256 >= value && value >= 1 }
+			if !assignment[offsetConstraint.variable].IsUint64() {
+				return st.BlockContext{}, fmt.Errorf("assigned value to variable %v is not a uint64", offsetConstraint.variable)
+			}
 			boundedValueOffset := int64(blockNumber) - int64(assignment[offsetConstraint.variable].Uint64())
 
 			// if we want fixed value and the fixed value is different
@@ -205,7 +212,7 @@ func (b *BlockContextGenerator) String() string {
 		upper := v.upperOffset
 		lowerOffset, lowerOperator := defineOperatorString(lower)
 		upperOffset, upperOperator := defineOperatorString(upper)
-		variablesOffsetConstraints += fmt.Sprintf("[%v => BlockNumber %v %v Λ %v <= BlockNumber %v %v]", v.variable, upperOperator, upperOffset, v.variable, lowerOperator, lowerOffset) + " "
+		variablesOffsetConstraints += fmt.Sprintf("[%v ≥ BlockNumber %v %v Λ %v ≤ BlockNumber %v %v]", v.variable, lowerOperator, lowerOffset, v.variable, upperOperator, upperOffset) + " "
 	}
 	if len(variablesOffsetConstraints) != 0 {
 		variablesOffsetConstraints = variablesOffsetConstraints[:len(variablesOffsetConstraints)-1]
@@ -214,14 +221,14 @@ func (b *BlockContextGenerator) String() string {
 	return "{variablesOffsetConstraints: " + variablesOffsetConstraints + "}"
 }
 
-func (b *BlockContextGenerator) AddBlockNumberOffsetConstraintIn(variable Variable) {
+func (b *BlockContextGenerator) RestrictVariableToOneOfTheLast256Blocks(variable Variable) {
 	constraintIn := constraintPair{variable: variable, lowerOffset: 256, upperOffset: 1}
 	if !slices.Contains(b.variablesOffsetConstraints, constraintIn) {
 		b.variablesOffsetConstraints = append(b.variablesOffsetConstraints, constraintIn)
 	}
 }
 
-func (b *BlockContextGenerator) AddBlockNumberOffsetConstraintOut(variable Variable) {
+func (b *BlockContextGenerator) RestrictVariableToNoneOfTheLast256Blocks(variable Variable) {
 	constraintOut := constraintPair{variable: variable, lowerOffset: 0, upperOffset: 257}
 	if !slices.Contains(b.variablesOffsetConstraints, constraintOut) {
 		b.variablesOffsetConstraints = append(b.variablesOffsetConstraints, constraintOut)

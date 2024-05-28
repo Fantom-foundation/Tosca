@@ -37,7 +37,7 @@ var evms = map[string]ct.Evm{
 func TestCt_ExplicitCases(t *testing.T) {
 	tests := map[string]Condition{
 		"jump_to_2^32": And(
-			AnyKnownRevision(),
+			RevisionBounds(Revision(0), R10_London),
 			Eq(Status(), st.Running),
 			Eq(Op(Pc()), JUMP),
 			Eq(Op(Constant(NewU256(0))), JUMPDEST),
@@ -45,7 +45,7 @@ func TestCt_ExplicitCases(t *testing.T) {
 			Ge(Gas(), vm.Gas(8)),
 		),
 		"jumpi_to_2^32": And(
-			AnyKnownRevision(),
+			RevisionBounds(Revision(0), R10_London),
 			Eq(Status(), st.Running),
 			Eq(Op(Pc()), JUMPI),
 			Eq(Op(Constant(NewU256(0))), JUMPDEST),

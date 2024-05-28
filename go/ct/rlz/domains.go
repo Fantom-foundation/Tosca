@@ -389,21 +389,21 @@ func (gasDomain) SamplesForAll(as []vm.Gas) []vm.Gas {
 ////////////////////////////////////////////////////////////
 // BlockNumber Range Domain
 
-type BlockNumberRangeDomain struct{}
+type BlockNumberOffsetDomain struct{}
 
-func (BlockNumberRangeDomain) Equal(a int64, b int64) bool { return a == b }
-func (BlockNumberRangeDomain) Less(a int64, b int64) bool  { return a < b }
-func (BlockNumberRangeDomain) Predecessor(a int64) int64   { return a - 1 }
-func (BlockNumberRangeDomain) Successor(a int64) int64     { return a + 1 }
-func (BlockNumberRangeDomain) SomethingNotEqual(a int64) int64 {
+func (BlockNumberOffsetDomain) Equal(a int64, b int64) bool { return a == b }
+func (BlockNumberOffsetDomain) Less(a int64, b int64) bool  { return a < b }
+func (BlockNumberOffsetDomain) Predecessor(a int64) int64   { return a - 1 }
+func (BlockNumberOffsetDomain) Successor(a int64) int64     { return a + 1 }
+func (BlockNumberOffsetDomain) SomethingNotEqual(a int64) int64 {
 	return a + 1
 }
 
-func (d BlockNumberRangeDomain) Samples(a int64) []int64 {
+func (d BlockNumberOffsetDomain) Samples(a int64) []int64 {
 	return d.SamplesForAll([]int64{a})
 }
 
-func (BlockNumberRangeDomain) SamplesForAll(as []int64) []int64 {
+func (BlockNumberOffsetDomain) SamplesForAll(as []int64) []int64 {
 	res := []int64{math.MinInt64, -1, 0, 1, 255, 256, 257, math.MaxInt64}
 
 	// Test every element off by one.

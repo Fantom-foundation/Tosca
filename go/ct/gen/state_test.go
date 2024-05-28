@@ -307,7 +307,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone1.AddStackSizeLowerBound(2)
 	clone1.AddStackSizeUpperBound(200)
 	clone1.BindValue(Variable("x"), NewU256(12))
-	clone1.SetBlockNumberOffsetValue(Variable("t"), 13)
+	clone1.RestrictVariableToOneOfTheLast256Blocks(Variable("t"))
 	clone1.MustBeSelfDestructed()
 
 	clone2 := base.Clone()
@@ -319,7 +319,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone2.AddStackSizeLowerBound(3)
 	clone2.AddStackSizeUpperBound(300)
 	clone2.BindValue(Variable("y"), NewU256(14))
-	clone2.SetBlockNumberOffsetValue(Variable("s"), -15)
+	clone2.RestrictVariableToNoneOfTheLast256Blocks(Variable("s"))
 	clone2.MustNotBeSelfDestructed()
 
 	checkPrint := func(clone *StateGenerator, want []string) {
@@ -348,7 +348,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"accounts={}",
 		"callContext={}",
 		"callJournal={}",
-		"blockContext={variablesOffsetConstraints: [$t => BlockNumber - 13 Λ $t <= BlockNumber - 13]}",
+		"blockContext={variablesOffsetConstraints: [$t ≥ BlockNumber - 256 Λ $t ≤ BlockNumber - 1]}",
 		"selfdestruct={mustBeSelfDestructed}",
 	})
 
@@ -366,7 +366,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"accounts={}",
 		"callContext={}",
 		"callJournal={}",
-		"blockContext={variablesOffsetConstraints: [$s => BlockNumber + 15 Λ $s <= BlockNumber + 15]}",
+		"blockContext={variablesOffsetConstraints: [$s ≥ BlockNumber - 0 Λ $s ≤ BlockNumber - 257]}",
 		"selfdestruct={mustNotBeSelfDestructed}",
 	})
 }

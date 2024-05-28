@@ -751,27 +751,26 @@ func (c *inRange256FromCurrentBlock) Check(s *st.State) (bool, error) {
 func (c *inRange256FromCurrentBlock) Restrict(generator *gen.StateGenerator) {
 	paramVariable := c.blockNumber.GetVariable()
 	c.blockNumber.BindTo(generator)
-	generator.AddBlockNumberOffsetConstraintIn(paramVariable)
+	generator.RestrictVariableToOneOfTheLast256Blocks(paramVariable)
 }
 
 func (c *inRange256FromCurrentBlock) GetTestValues() []TestValue {
 	property := Property(c.String())
-	domain := BlockNumberRangeDomain{}
+	domain := BlockNumberOffsetDomain{}
 	restrict := func(generator *gen.StateGenerator, offset int64) {
 		paramVariable := c.blockNumber.GetVariable()
 		c.blockNumber.BindTo(generator)
 		generator.SetBlockNumberOffsetValue(paramVariable, offset)
 	}
 	testValues := []TestValue{}
-	var blockNumberDomain BlockNumberRangeDomain
-	for _, value := range blockNumberDomain.SamplesForAll([]int64{}) {
+	for _, value := range domain.SamplesForAll([]int64{}) {
 		testValues = append(testValues, NewTestValue(property, domain, value, restrict))
 	}
 	return testValues
 }
 
 func (c *inRange256FromCurrentBlock) String() string {
-	return fmt.Sprintf("%v in range [CurrentBlockNumber - 256, CurrentBlockNumber)", c.blockNumber)
+	return c.blockNumber.String()
 }
 
 ////////////////////////////////////////////////////////////
@@ -793,7 +792,7 @@ func (c *outOfRange256FromCurrentBlock) Check(s *st.State) (bool, error) {
 func (c *outOfRange256FromCurrentBlock) Restrict(generator *gen.StateGenerator) {
 	paramVariable := c.blockNumber.GetVariable()
 	c.blockNumber.BindTo(generator)
-	generator.AddBlockNumberOffsetConstraintOut(paramVariable)
+	generator.RestrictVariableToNoneOfTheLast256Blocks(paramVariable)
 }
 
 func (c *outOfRange256FromCurrentBlock) GetTestValues() []TestValue {
@@ -801,7 +800,7 @@ func (c *outOfRange256FromCurrentBlock) GetTestValues() []TestValue {
 }
 
 func (c *outOfRange256FromCurrentBlock) String() string {
-	return fmt.Sprintf("%v out of range [CurrentBlockNumber - 256, CurrentBlockNumber)", c.blockNumber)
+	return c.blockNumber.String()
 }
 
 ////////////////////////////////////////////////////////////

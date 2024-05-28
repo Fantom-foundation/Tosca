@@ -248,12 +248,12 @@ func (g *StateGenerator) MustNotBeSelfDestructed() {
 	g.hasSelfDestructedGen.MarkAsNotSelfDestructed()
 }
 
-func (g *StateGenerator) AddBlockNumberOffsetConstraintIn(variable Variable) {
-	g.blockContextGen.AddBlockNumberOffsetConstraintIn(variable)
+func (g *StateGenerator) RestrictVariableToOneOfTheLast256Blocks(variable Variable) {
+	g.blockContextGen.RestrictVariableToOneOfTheLast256Blocks(variable)
 }
 
-func (g *StateGenerator) AddBlockNumberOffsetConstraintOut(variable Variable) {
-	g.blockContextGen.AddBlockNumberOffsetConstraintOut(variable)
+func (g *StateGenerator) RestrictVariableToNoneOfTheLast256Blocks(variable Variable) {
+	g.blockContextGen.RestrictVariableToNoneOfTheLast256Blocks(variable)
 }
 
 func (g *StateGenerator) SetBlockNumberOffsetValue(variable Variable, value int64) {

@@ -26,7 +26,7 @@ func TestBlockContextGen_Generate(t *testing.T) {
 
 	rnd := rand.New(0)
 	blockContextGenerator := NewBlockContextGenerator()
-	blockContextGenerator.AddBlockNumberOffsetConstraintIn(v1)
+	blockContextGenerator.RestrictVariableToOneOfTheLast256Blocks(v1)
 	blockCtx, err := blockContextGenerator.Generate(assignment, rnd, common.Revision(rnd.Int31n(int32(common.R99_UnknownNextRevision)+1)))
 
 	if err != nil {
@@ -127,7 +127,7 @@ func TestBlockContextGen_BlockNumberOffsetVariableUnbound(t *testing.T) {
 		addConstraint func(*BlockContextGenerator)
 		check         func(value, assignmentValue uint64) bool
 	}{
-		"WithinRange": {addConstraint: func(b *BlockContextGenerator) { b.AddBlockNumberOffsetConstraintIn("v1") },
+		"WithinRange": {addConstraint: func(b *BlockContextGenerator) { b.RestrictVariableToOneOfTheLast256Blocks("v1") },
 			check: func(blockNumber, assignmentValue uint64) bool {
 				return blockNumber > assignmentValue && assignmentValue >= blockNumber-256
 			}},
@@ -155,7 +155,7 @@ func TestBlockContextGen_BlockNumberOffsetVariableUnbound(t *testing.T) {
 			check: func(blockNumber, assignmentValue uint64) bool {
 				return assignmentValue == blockNumber+1
 			}},
-		"OutOfRange": {addConstraint: func(b *BlockContextGenerator) { b.AddBlockNumberOffsetConstraintOut("v1") },
+		"OutOfRange": {addConstraint: func(b *BlockContextGenerator) { b.RestrictVariableToNoneOfTheLast256Blocks("v1") },
 			check: func(blockNumber, assignmentValue uint64) bool {
 				return blockNumber <= assignmentValue || assignmentValue < blockNumber-256
 			},
@@ -189,28 +189,28 @@ func TestBlockContextGen_BlockNumberOffsetError(t *testing.T) {
 		fn func(*BlockContextGenerator)
 	}{
 		"outFirst": {fn: func(b *BlockContextGenerator) {
-			b.AddBlockNumberOffsetConstraintOut("v1")
-			b.AddBlockNumberOffsetConstraintIn("v1")
+			b.RestrictVariableToNoneOfTheLast256Blocks("v1")
+			b.RestrictVariableToOneOfTheLast256Blocks("v1")
 		}},
 		"inFirst": {fn: func(b *BlockContextGenerator) {
-			b.AddBlockNumberOffsetConstraintIn("v1")
-			b.AddBlockNumberOffsetConstraintOut("v1")
+			b.RestrictVariableToOneOfTheLast256Blocks("v1")
+			b.RestrictVariableToNoneOfTheLast256Blocks("v1")
 		}},
 		"inFix": {fn: func(b *BlockContextGenerator) {
-			b.AddBlockNumberOffsetConstraintIn("v1")
+			b.RestrictVariableToOneOfTheLast256Blocks("v1")
 			b.SetBlockNumberOffsetValue("v1", 300)
 		}},
 		"fixIn": {fn: func(b *BlockContextGenerator) {
 			b.SetBlockNumberOffsetValue("v1", 300)
-			b.AddBlockNumberOffsetConstraintIn("v1")
+			b.RestrictVariableToOneOfTheLast256Blocks("v1")
 		}},
 		"outFix": {fn: func(b *BlockContextGenerator) {
-			b.AddBlockNumberOffsetConstraintOut("v1")
+			b.RestrictVariableToNoneOfTheLast256Blocks("v1")
 			b.SetBlockNumberOffsetValue("v1", 150)
 		}},
 		"fixOut": {fn: func(b *BlockContextGenerator) {
 			b.SetBlockNumberOffsetValue("v1", 150)
-			b.AddBlockNumberOffsetConstraintOut("v1")
+			b.RestrictVariableToNoneOfTheLast256Blocks("v1")
 		}},
 	}
 
@@ -242,7 +242,7 @@ func TestBlockContextGen_BlockNumberOffsetVariableBound(t *testing.T) {
 		fn    func(*BlockContextGenerator)
 		check func(uint64, uint64) bool
 	}{
-		"inRange": {fn: func(b *BlockContextGenerator) { b.AddBlockNumberOffsetConstraintIn("v1") },
+		"inRange": {fn: func(b *BlockContextGenerator) { b.RestrictVariableToOneOfTheLast256Blocks("v1") },
 			check: func(blockNumber, generated uint64) bool {
 				min := uint64(0)
 				if blockNumber > 256 {
@@ -251,7 +251,7 @@ func TestBlockContextGen_BlockNumberOffsetVariableBound(t *testing.T) {
 				return blockNumber > generated && min <= generated
 			},
 		},
-		"outRange": {fn: func(b *BlockContextGenerator) { b.AddBlockNumberOffsetConstraintOut("v1") },
+		"outRange": {fn: func(b *BlockContextGenerator) { b.RestrictVariableToNoneOfTheLast256Blocks("v1") },
 			check: func(blockNumber, generated uint64) bool {
 				return blockNumber <= generated || blockNumber-256 > generated
 			},

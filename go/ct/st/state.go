@@ -346,10 +346,11 @@ func (s *State) String() string {
 	write("\tSelfDestructedJournal: %v\n", s.SelfDestructedJournal)
 
 	// only print if next instruction is blockhash and the top of the stack is a valid uint64
-	if s.Code != nil && s.Code.Length() > int(s.Pc) {
+	if s.Code != nil && s.Code.Length() > int(s.Pc) && s.Stack != nil && s.Stack.Size() > 0 {
+		offset := s.Stack.stack[s.Stack.Size()-1]
 		if s.Code.IsCode(int(s.Pc)) && OpCode(s.Code.code[s.Pc]) == BLOCKHASH &&
-			s.Stack.stack[s.Stack.Size()-1].IsUint64() {
-			write("\tBlockNumberHashes: %v\n", s.RecentBlockHashes[s.Stack.stack[s.Stack.Size()-1].Uint64()])
+			offset.IsUint64() {
+			write("\tHash of block %d-%d: %v\n", s.BlockContext.BlockNumber, offset, s.RecentBlockHashes[offset.Uint64()])
 		}
 	}
 
