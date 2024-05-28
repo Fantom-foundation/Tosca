@@ -19,6 +19,7 @@
 
 #include <evmc/evmc.hpp>
 
+#include "evmc/evmc.h"
 #include "vm/evmzero/memory.h"
 #include "vm/evmzero/observer.h"
 #include "vm/evmzero/sha3_cache.h"
@@ -54,7 +55,7 @@ struct InterpreterArgs {
   const evmc_message* message = nullptr;
   const evmc_host_interface* host_interface = nullptr;
   evmc_host_context* host_context = nullptr;
-  evmc_revision revision = EVMC_ISTANBUL;
+  evmc_revision revision = EVMC_SHANGHAI;
   Sha3Cache* sha3_cache = nullptr;
 };
 
@@ -111,7 +112,7 @@ struct Context {
 
   evmc::HostInterface* host = nullptr;
 
-  evmc_revision revision = EVMC_ISTANBUL;
+  evmc_revision revision = EVMC_SHANGHAI;
 
   Sha3Cache* sha3_cache = nullptr;
 
