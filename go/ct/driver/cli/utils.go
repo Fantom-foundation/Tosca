@@ -23,12 +23,13 @@ type filterFlagType struct {
 	flag cli.StringFlag
 }
 
-var FilterFlag = filterFlagType{flag: cli.StringFlag{
-	Name:    "filter",
-	Aliases: []string{"f"},
-	Usage:   "execute only for rules which name matches the given regex",
-	Value:   "",
-},
+var FilterFlag = filterFlagType{
+	flag: cli.StringFlag{
+		Name:    "filter",
+		Aliases: []string{"f"},
+		Usage:   "execute only for rules which name matches the given regex",
+		Value:   "",
+	},
 }
 
 func (f *filterFlagType) GetFlag() cli.Flag {
@@ -44,7 +45,7 @@ type jobsFlagType struct {
 }
 
 var JobsFlag = jobsFlagType{
-	cli.IntFlag{
+	flag: cli.IntFlag{
 		Name:    "jobs",
 		Aliases: []string{"j"},
 		Usage:   "number of jobs run simultaneously",
@@ -65,7 +66,7 @@ type seedFlagType struct {
 }
 
 var SeedFlag = seedFlagType{
-	cli.Uint64Flag{
+	flag: cli.Uint64Flag{
 		Name:    "seed",
 		Aliases: []string{"s"},
 		Usage:   "seed for the random number generator",
@@ -85,7 +86,7 @@ type cpuProfileType struct {
 }
 
 var CpuProfileFlag = cpuProfileType{
-	cli.StringFlag{
+	flag: cli.StringFlag{
 		Name:      "cpuprofile",
 		Usage:     "store CPU profile in the provided filename",
 		TakesFile: true,
@@ -105,7 +106,7 @@ type fullModeFlagType struct {
 }
 
 var FullModeFlag = fullModeFlagType{
-	cli.BoolFlag{
+	flag: cli.BoolFlag{
 		Name:  "full-mode",
 		Usage: "if enabled, test cases targeting rules other than the one generating the case will be executed",
 	},
