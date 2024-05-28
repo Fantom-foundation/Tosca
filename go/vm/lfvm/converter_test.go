@@ -30,7 +30,7 @@ func TestConversionCacheSizeLimit(t *testing.T) {
 	// This test checks that the conversion cache does not grow indefinitely
 	// by converting a large number of different code snippets.
 	clearConversionCache()
-	const limit = 100_000
+	const limit = codeCacheCapacity
 	for i := 0; i < limit*10; i++ {
 		hash := vm.Hash{byte(i), byte(i >> 8), byte(i >> 16), byte(i >> 24)}
 		_, err := Convert([]byte{0}, false, false, false, hash)

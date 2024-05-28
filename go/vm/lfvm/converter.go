@@ -28,10 +28,12 @@ import (
 	evm "github.com/ethereum/go-ethereum/core/vm"
 )
 
+const codeCacheCapacity = 50_000 // up to ~ 1 GB for 22 KiB max code size
+
 var cache *lru.Cache[vm.Hash, Code]
 
 func init() {
-	res, err := lru.New[vm.Hash, Code](50_000) // up to ~ 1 GB for 22 KiB max code size
+	res, err := lru.New[vm.Hash, Code](codeCacheCapacity)
 	if err != nil {
 		panic(fmt.Errorf("failed to create cache: %v", err))
 	}
@@ -42,11 +44,11 @@ func clearConversionCache() {
 	cache.Purge()
 }
 
-func Convert(code []byte, with_super_instructions bool, create bool, noCodeCache bool, codeHash vm.Hash) (Code, error) {
+func Convert(code []byte, withSuperInstructions bool, isInitCode bool, noCodeCache bool, codeHash vm.Hash) (Code, error) {
 	// Do not cache use-once code in create calls.
 	// In those cases the codeHash is also invalid.
-	if create || noCodeCache {
-		return convert(code, with_super_instructions)
+	if isInitCode || noCodeCache {
+		return convert(code, withSuperInstructions)
 	}
 
 	res, exists := cache.Get(codeHash)
@@ -54,11 +56,11 @@ func Convert(code []byte, with_super_instructions bool, create bool, noCodeCache
 		return res, nil
 	}
 
-	res, error := convert(code, with_super_instructions)
+	res, error := convert(code, withSuperInstructions)
 	if error != nil {
 		return nil, error
 	}
-	if !create {
+	if !isInitCode {
 		cache.Add(codeHash, res)
 	}
 	return res, nil
