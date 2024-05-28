@@ -187,6 +187,9 @@ const (
 	R07_Istanbul Revision = iota
 	R09_Berlin
 	R10_London
+	R11_Paris
+	R12_Shanghai
+	R13_Cancun
 )
 
 // Error for runs with unsupported Revision

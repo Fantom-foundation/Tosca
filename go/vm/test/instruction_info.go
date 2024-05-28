@@ -172,7 +172,7 @@ func getIstanbulInstructions() map[evm.OpCode]*InstructionInfo {
 		evm.SHL:            {stack: op(2), gas: gasS(gasFastestStep)},
 		evm.SHR:            {stack: op(2), gas: gasS(gasFastestStep)},
 		evm.SAR:            {stack: op(2), gas: gasS(gasFastestStep)},
-		evm.SHA3:           {stack: op(2), gas: gas(gasSha3, gasDynamicSHA3)},
+		evm.KECCAK256:      {stack: op(2), gas: gas(gasSha3, gasDynamicSHA3)},
 		evm.ADDRESS:        {stack: op(0), gas: gasS(gasQuickStep)},
 		evm.BALANCE:        {stack: op(1), gas: gasS(gasBalance)},
 		evm.ORIGIN:         {stack: op(0), gas: gasS(gasQuickStep)},

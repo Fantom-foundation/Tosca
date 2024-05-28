@@ -14,7 +14,6 @@ package geth
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/Fantom-foundation/Tosca/go/ct"
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -43,39 +42,30 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		return state, nil
 	}
 
-	op, err := state.Code.GetOperation(int(state.Pc))
-	isStopInstruction := false
-	if err == nil && op == common.STOP {
-		isStopInstruction = true
-	}
-	isSelfDestructInstruction := false
-	if err == nil && op == common.SELFDESTRUCT {
-		isSelfDestructInstruction = true
-	}
-
 	evm, contract, stateDb := createGethInterpreterContext(parameters)
 	stateDb.refund = uint64(state.GasRefund)
 
-	evm.CallContext = &callInterceptor{parameters, stateDb, state.ReadOnly}
+	evm.CallInterceptor = &callInterceptor{parameters, stateDb, state.ReadOnly}
 
-	interpreterState := geth_vm.NewGethState(
-		contract,
-		convertCtMemoryToGethMemory(state),
-		convertCtStackToGethStack(state),
-		uint64(state.Pc),
-	)
-	interpreterState.Result = state.LastCallReturnData.ToBytes()
-	interpreterState.ReadOnly = state.ReadOnly
+	interpreterState := geth_vm.InterpreterState{
+		Contract:           contract,
+		ReadOnly:           state.ReadOnly,
+		Input:              state.CallData.ToBytes(),
+		Status:             geth_vm.Running,
+		Pc:                 uint64(state.Pc),
+		Stack:              convertCtStackToGethStack(state),
+		Memory:             convertCtMemoryToGethMemory(state),
+		LastCallReturnData: state.LastCallReturnData.ToBytes(),
+	}
 
-	interpreter := evm.Interpreter().(*geth_vm.GethEVMInterpreter)
-	for i := 0; i < numSteps && !interpreterState.Halted; i++ {
-		if !interpreter.Step(interpreterState) {
-			break
-		}
+	interpreter := evm.Interpreter()
+	for i := 0; i < numSteps && interpreterState.Status == geth_vm.Running; i++ {
+		interpreter.(*geth_vm.EVMInterpreter).Step(&interpreterState)
 	}
 
 	// Update the resulting state.
-	state.Status, err = convertGethStatusToCtStatus(interpreterState)
+	var err error
+	state.Status, err = convertGethStatusToCtStatus(&interpreterState)
 	if err != nil {
 		return nil, err
 	}
@@ -85,47 +75,29 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	state.Gas = vm.Gas(contract.Gas)
 	state.GasRefund = vm.Gas(stateDb.GetRefund())
-	state.Stack = convertGethStackToCtStack(interpreterState, state.Stack)
-	state.Memory = convertGethMemoryToCtMemory(interpreterState)
-	state.LastCallReturnData = common.NewBytes(interpreterState.Result)
+	state.Stack = convertGethStackToCtStack(&interpreterState, state.Stack)
+	state.Memory = convertGethMemoryToCtMemory(&interpreterState)
+	state.LastCallReturnData = common.NewBytes(interpreterState.LastCallReturnData)
 
-	if state.Status == st.Stopped || state.Status == st.Reverted {
-		// Right now, the interpreter state does not allow to decide whether the
-		// stopped state was reached through a STOP or RETURN instruction. Only
-		// in the latter case the interpreterState.Result should be assigned to
-		// the resulting state.ReturnData.
-		// In general, this should be fixed in the go-ethereum-substate repository
-		// by providing the necessary information in the state. However, the CT
-		// integration in this repository will have to be re-done in the future,
-		// when upgrading to a newer go-ethereum version. Thus, for now, this
-		// local check is performed to determine whether the result should be
-		// copied or not.
-		if !isStopInstruction && !isSelfDestructInstruction {
-			state.ReturnData = common.NewBytes(interpreterState.Result)
-		}
+	if interpreterState.ReturnData != nil {
+		state.ReturnData = common.NewBytes(interpreterState.ReturnData)
 	}
-	return state, nil
 
+	return state, nil
 }
 
-func convertGethStatusToCtStatus(state *geth_vm.GethState) (st.StatusCode, error) {
-	if !state.Halted && state.Err == nil {
+func convertGethStatusToCtStatus(state *geth_vm.InterpreterState) (st.StatusCode, error) {
+	switch state.Status {
+	case geth_vm.Running:
 		return st.Running, nil
-	}
-
-	if state.Err == geth_vm.ErrExecutionReverted {
+	case geth_vm.Reverted:
 		return st.Reverted, nil
-	}
-
-	if state.Err != nil {
+	case geth_vm.Stopped:
+		return st.Stopped, nil
+	case geth_vm.Failed:
 		return st.Failed, nil
 	}
-
-	if state.Halted {
-		return st.Stopped, nil
-	}
-
-	return st.Failed, fmt.Errorf("unable to convert geth status to ct status")
+	return 0, fmt.Errorf("unable to convert geth status to ct status")
 }
 
 func convertCtMemoryToGethMemory(state *st.State) *geth_vm.Memory {
@@ -138,7 +110,7 @@ func convertCtMemoryToGethMemory(state *st.State) *geth_vm.Memory {
 	return memory
 }
 
-func convertGethMemoryToCtMemory(state *geth_vm.GethState) *st.Memory {
+func convertGethMemoryToCtMemory(state *geth_vm.InterpreterState) *st.Memory {
 	memory := st.NewMemory()
 	memory.Set(state.Memory.Data())
 	return memory
@@ -153,7 +125,7 @@ func convertCtStackToGethStack(state *st.State) *geth_vm.Stack {
 	return stack
 }
 
-func convertGethStackToCtStack(state *geth_vm.GethState, stack *st.Stack) *st.Stack {
+func convertGethStackToCtStack(state *geth_vm.InterpreterState, stack *st.Stack) *st.Stack {
 	stack.Resize(0)
 	for i := 0; i < state.Stack.Len(); i++ {
 		val := state.Stack.Data()[i]
@@ -179,7 +151,7 @@ func (i *callInterceptor) makeCall(kind vm.CallKind, callParam vm.CallParameter)
 	return res, err
 }
 
-func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64, value *big.Int) ([]byte, uint64, error) {
+func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64, value *uint256.Int) ([]byte, uint64, error) {
 	have := i.stateDb.GetBalance(me.Address())
 	if value.Cmp(have) > 0 {
 		return nil, gas, geth_vm.ErrInsufficientBalance
@@ -190,20 +162,17 @@ func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr ge
 		kind = vm.StaticCall
 	}
 
-	var vmValue vm.Value
-	value.FillBytes(vmValue[:])
-
 	res, err := i.makeCall(kind, vm.CallParameter{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
-		Value:     vmValue,
+		Value:     vm.Uint256ToValue(value),
 		Input:     data,
 		Gas:       vm.Gas(gas),
 	})
 	return res.Output, uint64(res.GasLeft), err
 }
 
-func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64, value *big.Int) ([]byte, uint64, error) {
+func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64, value *uint256.Int) ([]byte, uint64, error) {
 	kind := vm.CallCode
 
 	have := i.stateDb.GetBalance(me.Address())
@@ -211,12 +180,10 @@ func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, add
 		return nil, gas, geth_vm.ErrInsufficientBalance
 	}
 
-	var vmValue vm.Value
-	value.FillBytes(vmValue[:])
 	res, err := i.makeCall(kind, vm.CallParameter{
 		Sender:      vm.Address(me.Address()),
 		Recipient:   vm.Address(me.Address()),
-		Value:       vmValue,
+		Value:       vm.Uint256ToValue(value),
 		Input:       data,
 		CodeAddress: vm.Address(addr),
 		Gas:         vm.Gas(gas),
@@ -246,17 +213,15 @@ func (i *callInterceptor) StaticCall(env *geth_vm.EVM, me geth_vm.ContractRef, a
 	return res.Output, uint64(res.GasLeft), err
 }
 
-func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, value *big.Int) ([]byte, geth_common.Address, uint64, error) {
+func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, value *uint256.Int) ([]byte, geth_common.Address, uint64, error) {
 	have := i.stateDb.GetBalance(me.Address())
 	if value.Cmp(have) > 0 {
 		return nil, geth_common.Address{}, gas, geth_vm.ErrInsufficientBalance
 	}
 
-	var vmValue vm.Value
-	value.FillBytes(vmValue[:])
 	res, err := i.makeCall(vm.Create, vm.CallParameter{
 		Sender: vm.Address(me.Address()),
-		Value:  vmValue,
+		Value:  vm.Uint256ToValue(value),
 		Gas:    vm.Gas(gas),
 		Input:  code,
 	})
@@ -265,17 +230,15 @@ func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code 
 
 }
 
-func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, value *big.Int, salt *uint256.Int) ([]byte, geth_common.Address, uint64, error) {
+func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code []byte, gas uint64, value *uint256.Int, salt *uint256.Int) ([]byte, geth_common.Address, uint64, error) {
 	have := i.stateDb.GetBalance(me.Address())
 	if value.Cmp(have) > 0 {
 		return nil, geth_common.Address{}, gas, geth_vm.ErrInsufficientBalance
 	}
 
-	var vmValue vm.Value
-	value.FillBytes(vmValue[:])
 	res, err := i.makeCall(vm.Create2, vm.CallParameter{
 		Sender: vm.Address(me.Address()),
-		Value:  vmValue,
+		Value:  vm.Uint256ToValue(value),
 		Gas:    vm.Gas(gas),
 		Input:  code,
 		Salt:   salt.Bytes32(),

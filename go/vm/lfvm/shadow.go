@@ -52,7 +52,7 @@ func (s ShadowStateDB) AddBalance(common.Address, *big.Int) {
 	// Ignored
 }
 func (s ShadowStateDB) GetBalance(addr common.Address) *big.Int {
-	return s.state.GetBalance(addr)
+	return s.state.GetBalance(addr).ToBig()
 }
 
 func (s ShadowStateDB) GetNonce(addr common.Address) uint64 {
@@ -116,7 +116,7 @@ func (s ShadowStateDB) Suicide(addr common.Address) bool {
 
 func (s ShadowStateDB) HasSuicided(addr common.Address) bool {
 	_, killed := suicided_contracts[addr]
-	return killed || s.state.HasSuicided(addr)
+	return killed || s.state.HasSelfDestructed(addr)
 }
 
 func (s ShadowStateDB) Exist(addr common.Address) bool {
@@ -162,22 +162,20 @@ func (s ShadowStateDB) AddPreimage(common.Hash, []byte) {
 	// Ignored
 }
 
-func (s ShadowStateDB) ForEachStorage(addr common.Address, op func(common.Hash, common.Hash) bool) error {
-	return s.state.ForEachStorage(addr, op)
-}
-
 type CaptureCallContext struct {
 	evm    *vm.EVM
 	shadow *ShadowCallContext
 }
 
 func (c *CaptureCallContext) Call(env *vm.EVM, me vm.ContractRef, addr common.Address, data []byte, gas uint64, value *big.Int) ([]byte, uint64, error) {
-	c.shadow.current_result, c.shadow.current_leftover_gas, c.shadow.current_error = c.evm.Call(me, addr, data, gas, value)
+	value256, _ := uint256.FromBig(value)
+	c.shadow.current_result, c.shadow.current_leftover_gas, c.shadow.current_error = c.evm.Call(me, addr, data, gas, value256)
 	return c.shadow.current_result, c.shadow.current_leftover_gas, c.shadow.current_error
 }
 
 func (c *CaptureCallContext) CallCode(env *vm.EVM, me vm.ContractRef, addr common.Address, data []byte, gas uint64, value *big.Int) ([]byte, uint64, error) {
-	c.shadow.current_result, c.shadow.current_leftover_gas, c.shadow.current_error = c.evm.CallCode(me, addr, data, gas, value)
+	value256, _ := uint256.FromBig(value)
+	c.shadow.current_result, c.shadow.current_leftover_gas, c.shadow.current_error = c.evm.CallCode(me, addr, data, gas, value256)
 	return c.shadow.current_result, c.shadow.current_leftover_gas, c.shadow.current_error
 }
 
@@ -192,12 +190,14 @@ func (c *CaptureCallContext) DelegateCall(env *vm.EVM, me vm.ContractRef, addr c
 }
 
 func (c *CaptureCallContext) Create(env *vm.EVM, me vm.ContractRef, data []byte, gas uint64, value *big.Int) ([]byte, common.Address, uint64, error) {
-	c.shadow.current_result, c.shadow.current_address, c.shadow.current_leftover_gas, c.shadow.current_error = c.evm.Create(me, data, gas, value)
+	value256, _ := uint256.FromBig(value)
+	c.shadow.current_result, c.shadow.current_address, c.shadow.current_leftover_gas, c.shadow.current_error = c.evm.Create(me, data, gas, value256)
 	return c.shadow.current_result, c.shadow.current_address, c.shadow.current_leftover_gas, c.shadow.current_error
 }
 
 func (c *CaptureCallContext) Create2(env *vm.EVM, me vm.ContractRef, data []byte, gas uint64, endowment *big.Int, salt *uint256.Int) ([]byte, common.Address, uint64, error) {
-	c.shadow.current_result, c.shadow.current_address, c.shadow.current_leftover_gas, c.shadow.current_error = c.evm.Create2(me, data, gas, endowment, salt)
+	endowment256, _ := uint256.FromBig(endowment)
+	c.shadow.current_result, c.shadow.current_address, c.shadow.current_leftover_gas, c.shadow.current_error = c.evm.Create2(me, data, gas, endowment256, salt)
 	return c.shadow.current_result, c.shadow.current_address, c.shadow.current_leftover_gas, c.shadow.current_error
 }
 

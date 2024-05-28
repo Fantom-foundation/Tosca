@@ -114,6 +114,10 @@ func TestDynamicGas(t *testing.T) {
 							mockStateDB.EXPECT().GetBalance(account).AnyTimes().Return(accountBalance)
 						}
 
+						if op == geth.CREATE || op == geth.CREATE2 {
+							mockStateDB.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(false)
+						}
+
 						// Init stateDB mock calls from test function
 						if testCase.mockCalls != nil {
 							testCase.mockCalls(mockStateDB)

@@ -25,6 +25,9 @@ func TestRevisions_RangeLength(t *testing.T) {
 		"Istanbul":    {R07_Istanbul, 10},
 		"Berlin":      {R09_Berlin, 10},
 		"London":      {R10_London, 10},
+		"Paris":       {R11_Paris, 10},
+		"Shanghai":    {R12_Shanghai, 10},
+		"Cancun":      {R13_Cancun, 10},
 		"UnknownNext": {R99_UnknownNextRevision, 0},
 	}
 
@@ -59,7 +62,10 @@ func TestRevisions_GetForkBlock(t *testing.T) {
 		"Istanbul":    {R07_Istanbul, 0},
 		"Berlin":      {R09_Berlin, 10},
 		"London":      {R10_London, 20},
-		"UnknownNext": {R99_UnknownNextRevision, 30},
+		"Paris":       {R11_Paris, 30},
+		"Shanghai":    {R12_Shanghai, 40},
+		"Cancun":      {R13_Cancun, 50},
+		"UnknownNext": {R99_UnknownNextRevision, 60},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -86,6 +92,9 @@ func TestRevisions_Marshal(t *testing.T) {
 		R07_Istanbul:            "\"Istanbul\"",
 		R09_Berlin:              "\"Berlin\"",
 		R10_London:              "\"London\"",
+		R11_Paris:               "\"Paris\"",
+		R12_Shanghai:            "\"Shanghai\"",
+		R13_Cancun:              "\"Cancun\"",
 		R99_UnknownNextRevision: "\"UnknownNextRevision\"",
 	}
 
@@ -115,6 +124,9 @@ func TestRevisions_Unmarshal(t *testing.T) {
 		"\"Istanbul\"":            R07_Istanbul,
 		"\"Berlin\"":              R09_Berlin,
 		"\"London\"":              R10_London,
+		"\"Paris\"":               R11_Paris,
+		"\"Shanghai\"":            R12_Shanghai,
+		"\"Cancun\"":              R13_Cancun,
 		"\"UnknownNextRevision\"": R99_UnknownNextRevision,
 	}
 

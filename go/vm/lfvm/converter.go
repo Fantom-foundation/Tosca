@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 	"sync"
 
@@ -477,7 +478,7 @@ func createOpToOpMap() []OpCode {
 	res[evm.SIGNEXTEND] = SIGNEXTEND
 
 	// Complex function
-	res[evm.SHA3] = SHA3
+	res[evm.KECCAK256] = SHA3
 
 	// Comparison operations
 	res[evm.LT] = LT
@@ -546,7 +547,7 @@ func createOpToOpMap() []OpCode {
 		code := evm.OpCode(i)
 
 		// Known OpCodes that are indeed invalid.
-		if code == evm.INVALID || code == evm.PUSH || code == evm.SWAP || code == evm.DUP {
+		if code == evm.INVALID {
 			continue
 		}
 
@@ -555,8 +556,9 @@ func createOpToOpMap() []OpCode {
 			continue
 		}
 
+		toImplement := []evm.OpCode{evm.PUSH0, evm.TLOAD, evm.TSTORE, evm.MCOPY, evm.BLOBHASH, evm.BLOBBASEFEE} // TODO implement for new revision support
 		opIsValid := !strings.Contains(fmt.Sprintf("%v", code), "not defined")
-		if res[code] == INVALID && opIsValid {
+		if res[code] == INVALID && opIsValid && !slices.Contains(toImplement, code) {
 			panic(fmt.Sprintf("Missing instruction coverage for: %v", code))
 		}
 	}

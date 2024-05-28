@@ -428,7 +428,7 @@ func TestInstructionDataInitialization(t *testing.T) {
 	instructions := []instructionTest{
 		{geth.RETURN, nil},
 		{geth.REVERT, []error{geth.ErrExecutionReverted}},
-		{geth.SHA3, nil},
+		{geth.KECCAK256, nil},
 		{geth.LOG0, nil},
 		{geth.CODECOPY, nil},
 		{geth.EXTCODECOPY, nil},
@@ -456,11 +456,8 @@ func TestInstructionDataInitialization(t *testing.T) {
 
 	// For every variant of interpreter
 	for _, variant := range Variants {
-
 		for _, revision := range revisions {
-
 			for _, test := range tests {
-
 				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, test.instruction, test.name), func(t *testing.T) {
 
 					mockCtrl := gomock.NewController(t)

@@ -13,15 +13,18 @@
 package geth
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
 	geth "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 )
 
 func init() {
@@ -31,7 +34,7 @@ func init() {
 type gethVm struct{}
 
 // Defines the newest supported revision for this interpreter implementation
-const newestSupportedRevision = vm.R10_London
+const newestSupportedRevision = vm.R13_Cancun
 
 func (m *gethVm) Run(parameters vm.Parameters) (vm.Result, error) {
 	if parameters.Revision > newestSupportedRevision {
@@ -61,21 +64,23 @@ func (m *gethVm) Run(parameters vm.Parameters) (vm.Result, error) {
 
 	// In case of an issue caused by the code execution, the result should indicate
 	// a failed execution but no error should be reported.
-	switch err {
-	case geth.ErrOutOfGas,
-		geth.ErrCodeStoreOutOfGas,
-		geth.ErrDepth,
-		geth.ErrInsufficientBalance,
-		geth.ErrContractAddressCollision,
-		geth.ErrExecutionReverted,
-		geth.ErrMaxCodeSizeExceeded,
-		geth.ErrInvalidJump,
-		geth.ErrWriteProtection,
-		geth.ErrReturnDataOutOfBounds,
-		geth.ErrGasUintOverflow,
-		geth.ErrInvalidCode:
+	switch {
+	case errors.Is(err, geth.ErrOutOfGas),
+		errors.Is(err, geth.ErrCodeStoreOutOfGas),
+		errors.Is(err, geth.ErrDepth),
+		errors.Is(err, geth.ErrInsufficientBalance),
+		errors.Is(err, geth.ErrContractAddressCollision),
+		errors.Is(err, geth.ErrExecutionReverted),
+		errors.Is(err, geth.ErrMaxCodeSizeExceeded),
+		errors.Is(err, geth.ErrInvalidJump),
+		errors.Is(err, geth.ErrWriteProtection),
+		errors.Is(err, geth.ErrReturnDataOutOfBounds),
+		errors.Is(err, geth.ErrReturnDataOutOfBounds),
+		errors.Is(err, geth.ErrGasUintOverflow),
+		errors.Is(err, geth.ErrInvalidCode):
 		return vm.Result{Success: false}, nil
 	}
+
 	if _, ok := err.(*geth.ErrStackOverflow); ok {
 		return vm.Result{Success: false}, nil
 	}
@@ -113,7 +118,7 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 	// Create empty block context based on block number
 	blockCtx := geth.BlockContext{
 		BlockNumber: big.NewInt(int64(parameters.Revision)*10 + 2),
-		Time:        big.NewInt(transactionContext.Timestamp),
+		Time:        uint64(transactionContext.Timestamp),
 		Difficulty:  big.NewInt(1),
 		GasLimit:    uint64(transactionContext.GasLimit),
 		GetHash:     getHash,
@@ -126,9 +131,7 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 		GasPrice: new(big.Int).SetBytes(transactionContext.GasPrice[:]),
 	}
 	// Set interpreter variant for this VM
-	config := geth.Config{
-		InterpreterImpl: "geth",
-	}
+	config := geth.Config{}
 
 	stateDb := &stateDbAdapter{context: parameters.Context}
 	evm := geth.NewEVM(blockCtx, txCtx, stateDb, &chainConfig, config)
@@ -137,9 +140,9 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 	evm.Context.BlockNumber = big.NewInt(context.BlockNumber)
 	evm.Context.Coinbase = common.Address(context.Coinbase)
 	evm.Context.Difficulty = new(big.Int).SetBytes(context.PrevRandao[:])
-	evm.Context.Time = new(big.Int).SetUint64(uint64(context.Timestamp))
+	evm.Context.Time = uint64(context.Timestamp)
 
-	value := new(big.Int).SetBytes(parameters.Value[:])
+	value := vm.ValueToUint256(parameters.Value)
 	addr := geth.AccountRef(parameters.Recipient)
 	contract := geth.NewContract(addr, addr, value, uint64(parameters.Gas))
 	contract.CallerAddress = common.Address(parameters.Sender)
@@ -155,14 +158,14 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 
 // transferFunc subtracts amount from sender and adds amount to recipient using the given Db
 // Now is doing nothing as this is not changing gas computation
-func transferFunc(stateDB geth.StateDB, callerAddress common.Address, to common.Address, value *big.Int) {
+func transferFunc(stateDB geth.StateDB, callerAddress common.Address, to common.Address, value *uint256.Int) {
 	// Can be something like this:
-	stateDB.SubBalance(callerAddress, value)
-	stateDB.AddBalance(to, value)
+	stateDB.SubBalance(callerAddress, value, tracing.BalanceChangeTransfer)
+	stateDB.AddBalance(to, value, tracing.BalanceChangeTransfer)
 }
 
 // canTransferFunc is the signature of a transfer function
-func canTransferFunc(stateDB geth.StateDB, callerAddress common.Address, value *big.Int) bool {
+func canTransferFunc(stateDB geth.StateDB, callerAddress common.Address, value *uint256.Int) bool {
 	return stateDB.GetBalance(callerAddress).Cmp(value) >= 0
 }
 
@@ -179,18 +182,22 @@ func (s *stateDbAdapter) CreateAccount(common.Address) {
 	// ignored: effect not needed in test environments
 }
 
-func (s *stateDbAdapter) SubBalance(common.Address, *big.Int) {
+func (s *stateDbAdapter) CreateContract(common.Address) {
 	// ignored: effect not needed in test environments
 }
 
-func (s *stateDbAdapter) AddBalance(addr common.Address, balance *big.Int) {
+func (s *stateDbAdapter) SubBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason) {
+	// ignored: effect not needed in test environments
+}
+
+func (s *stateDbAdapter) AddBalance(addr common.Address, balance *uint256.Int, change tracing.BalanceChangeReason) {
 	// we save this address to be used as the beneficiary in a selfdestruct case.
 	s.lastBeneficiary = vm.Address(addr)
 }
 
-func (s *stateDbAdapter) GetBalance(addr common.Address) *big.Int {
+func (s *stateDbAdapter) GetBalance(addr common.Address) *uint256.Int {
 	value := s.context.GetBalance(vm.Address(addr))
-	return new(big.Int).SetBytes(value[:])
+	return vm.ValueToUint256(value)
 }
 
 func (s *stateDbAdapter) GetNonce(common.Address) uint64 {
@@ -242,13 +249,32 @@ func (s *stateDbAdapter) SetState(addr common.Address, key common.Hash, value co
 	s.context.SetStorage(vm.Address(addr), vm.Key(key), vm.Word(value))
 }
 
-func (s *stateDbAdapter) Suicide(addr common.Address) bool {
-	s.context.SelfDestruct(vm.Address(addr), s.lastBeneficiary)
-	return false
+func (s *stateDbAdapter) GetStorageRoot(addr common.Address) common.Hash {
+	// ignored: effect not needed in test environments
+	return common.Hash{}
 }
 
-func (s *stateDbAdapter) HasSuicided(addr common.Address) bool {
+func (s *stateDbAdapter) GetTransientState(addr common.Address, key common.Hash) common.Hash {
+	// ignored: effect not needed in test environments (todo: implement if needed)
+	panic("not implemented")
+}
+
+func (s *stateDbAdapter) SetTransientState(addr common.Address, key, value common.Hash) {
+	// ignored: effect not needed in test environments (todo: implement if needed)
+	panic("not implemented")
+}
+
+func (s *stateDbAdapter) SelfDestruct(addr common.Address) {
+	s.context.SelfDestruct(vm.Address(addr), s.lastBeneficiary)
+}
+
+func (s *stateDbAdapter) HasSelfDestructed(addr common.Address) bool {
 	return s.context.HasSelfDestructed(vm.Address(addr))
+}
+
+func (s *stateDbAdapter) Selfdestruct6780(common.Address) {
+	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) Exist(addr common.Address) bool {
@@ -261,6 +287,7 @@ func (s *stateDbAdapter) Empty(addr common.Address) bool {
 
 func (s *stateDbAdapter) PrepareAccessList(sender common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
 	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) AddressInAccessList(addr common.Address) bool {
@@ -277,6 +304,11 @@ func (s *stateDbAdapter) AddAddressToAccessList(addr common.Address) {
 
 func (s *stateDbAdapter) AddSlotToAccessList(addr common.Address, slot common.Hash) {
 	s.context.AccessStorage(vm.Address(addr), vm.Key(slot))
+}
+
+func (s *stateDbAdapter) Prepare(rules params.Rules, sender, coinbase common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
+	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) RevertToSnapshot(int) {
