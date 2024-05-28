@@ -25,6 +25,7 @@ func TestBlockContext_Diff(t *testing.T) {
 		change func(*BlockContext)
 	}{
 		"basefee":     {func(b *BlockContext) { b.BaseFee = NewU256(1) }},
+		"blobBaseFee": {func(b *BlockContext) { b.BlobBaseFee = NewU256(1) }},
 		"blockNumber": {func(b *BlockContext) { b.BlockNumber++ }},
 		"chainid":     {func(b *BlockContext) { b.ChainID = NewU256(1) }},
 		"coinbase":    {func(b *BlockContext) { b.CoinBase[0]++ }},
@@ -50,14 +51,15 @@ func TestBlockContext_String(t *testing.T) {
 	tests := map[string]struct {
 		change func(*BlockContext) any
 	}{
-		"Base Fee":     {func(b *BlockContext) any { b.BaseFee = NewU256(1); return b.BaseFee }},
-		"Block Number": {func(b *BlockContext) any { b.BlockNumber++; return b.BlockNumber }},
-		"ChainID":      {func(b *BlockContext) any { b.ChainID = NewU256(1); return b.ChainID }},
-		"CoinBase":     {func(b *BlockContext) any { b.CoinBase[0]++; return b.CoinBase }},
-		"Gas Limit":    {func(b *BlockContext) any { b.GasLimit++; return b.GasLimit }},
-		"Gas Price":    {func(b *BlockContext) any { b.GasPrice = NewU256(1); return b.GasPrice }},
-		"PrevRandao":   {func(b *BlockContext) any { b.PrevRandao = NewU256(1); return b.PrevRandao }},
-		"Timestamp":    {func(b *BlockContext) any { b.TimeStamp++; return b.TimeStamp }},
+		"Base Fee":      {func(b *BlockContext) any { b.BaseFee = NewU256(1); return b.BaseFee }},
+		"Blob Base Fee": {func(b *BlockContext) any { b.BlobBaseFee = NewU256(1); return b.BlobBaseFee }},
+		"Block Number":  {func(b *BlockContext) any { b.BlockNumber++; return b.BlockNumber }},
+		"ChainID":       {func(b *BlockContext) any { b.ChainID = NewU256(1); return b.ChainID }},
+		"CoinBase":      {func(b *BlockContext) any { b.CoinBase[0]++; return b.CoinBase }},
+		"Gas Limit":     {func(b *BlockContext) any { b.GasLimit++; return b.GasLimit }},
+		"Gas Price":     {func(b *BlockContext) any { b.GasPrice = NewU256(1); return b.GasPrice }},
+		"PrevRandao":    {func(b *BlockContext) any { b.PrevRandao = NewU256(1); return b.PrevRandao }},
+		"Timestamp":     {func(b *BlockContext) any { b.TimeStamp++; return b.TimeStamp }},
 	}
 
 	for name, test := range tests {

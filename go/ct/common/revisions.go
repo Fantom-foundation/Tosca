@@ -31,7 +31,7 @@ const (
 )
 
 // Newest Revision currently supported by the CT specification
-const NewestSupportedRevision = R12_Shanghai
+const NewestSupportedRevision = R13_Cancun
 
 const MinRevision = R07_Istanbul
 const MaxRevision = R99_UnknownNextRevision
