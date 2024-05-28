@@ -167,6 +167,7 @@ const (
 )
 
 func (op OpCode) Width() int {
+	// PUSH0 carries no data
 	if PUSH1 <= op && op <= PUSH32 {
 		return int(op-PUSH1) + 2
 	} else {
@@ -186,6 +187,7 @@ func IsValid(op OpCode) bool {
 }
 
 // OpCodesNoPush returns a slice of valid op codes, but no PUSH instruction.
+// PUSH0 does not carry any data, therefore it is included in return set.
 func ValidOpCodesNoPush() []OpCode {
 	res := make([]OpCode, 0, 256)
 	for i := 0; i < 256; i++ {

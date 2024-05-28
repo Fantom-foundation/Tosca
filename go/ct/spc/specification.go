@@ -689,7 +689,7 @@ func getAllRules() []Rule {
 		op:        JUMPDEST,
 		staticGas: 1,
 		pops:      0,
-		pushes:    0,
+		pushes:    1,
 		effect:    NoEffect().Apply,
 	})...)
 
@@ -707,7 +707,6 @@ func getAllRules() []Rule {
 			s.Stack.Push(NewU256(0))
 		},
 	})...)
-
 	rules = append(rules, []Rule{
 		{
 			Name: "push0_invalid_revision",
