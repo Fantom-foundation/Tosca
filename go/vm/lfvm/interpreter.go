@@ -94,6 +94,10 @@ func (c *context) isLondon() bool {
 	return c.revision >= vm.R10_London
 }
 
+func (c *context) isShanghai() bool {
+	return c.revision >= vm.R12_Shanghai
+}
+
 func Run(
 	params vm.Parameters,
 	code Code,
@@ -419,6 +423,8 @@ func steps(c *context, one_step_only bool) {
 		switch op {
 		case POP:
 			opPop(c)
+		case PUSH0:
+			opPush0(c)
 		case PUSH1:
 			opPush1(c)
 		case PUSH2:

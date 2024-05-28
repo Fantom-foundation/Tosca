@@ -409,6 +409,7 @@ func createOpToOpMap() []OpCode {
 
 	// Stack operations
 	res[evm.POP] = POP
+	res[0x5F] = PUSH0 //< FIXME: fix with updated geth version, once opcode is available
 
 	res[evm.DUP1] = DUP1
 	res[evm.DUP2] = DUP2

@@ -707,6 +707,7 @@ func getAllRules() []Rule {
 			s.Stack.Push(NewU256(0))
 		},
 	})...)
+
 	rules = append(rules, []Rule{
 		{
 			Name: "push0_invalid_revision",

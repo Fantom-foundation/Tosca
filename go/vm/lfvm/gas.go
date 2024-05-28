@@ -87,6 +87,8 @@ func getStaticGasPriceInternal(op OpCode) vm.Gas {
 	switch op {
 	case POP:
 		return 2
+	case PUSH0:
+		return 2
 	case ADD:
 		return 3
 	case SUB:

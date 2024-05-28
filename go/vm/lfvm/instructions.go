@@ -112,6 +112,15 @@ func opPush(c *context, n int) {
 	c.pc += num_instructions - 1
 }
 
+func opPush0(c *context) {
+	if c.isShanghai() {
+		z := c.stack.pushEmpty()
+		z[3], z[2], z[1], z[0] = 0, 0, 0, 0
+	} else {
+		c.status = INVALID_INSTRUCTION
+	}
+}
+
 func opPush1(c *context) {
 	z := c.stack.pushEmpty()
 	z[3], z[2], z[1] = 0, 0, 0
