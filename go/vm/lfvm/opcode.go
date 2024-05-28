@@ -227,6 +227,7 @@ const (
 	NUM_OPCODES
 )
 
+// TODO: document order of this map initialization if any.
 var op_to_string = map[OpCode]string{
 	POP:      "POP",
 	PUSH2:    "PUSH2",
