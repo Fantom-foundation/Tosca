@@ -35,11 +35,11 @@ var StatsCmd = cli.Command{
 	Name:   "stats",
 	Usage:  "Computes statistics on rule coverage",
 	Flags: []cli.Flag{
-		cliUtils.FilterFlag.GetFlag(),
-		cliUtils.JobsFlag.GetFlag(),
-		cliUtils.SeedFlag.GetFlag(),
-		cliUtils.CpuProfileFlag.GetFlag(),
-		cliUtils.FullModeFlag.GetFlag(),
+		cliUtils.FilterFlag,
+		cliUtils.JobsFlag,
+		cliUtils.SeedFlag,
+		cliUtils.CpuProfileFlag,
+		cliUtils.FullModeFlag,
 	},
 }
 

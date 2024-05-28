@@ -28,7 +28,7 @@ var GeneratorInfoCmd = cli.Command{
 	Name:   "generator-info",
 	Usage:  "Lists details on the number of test cases produced per rule",
 	Flags: []cli.Flag{
-		cliUtils.FilterFlag.GetFlag(),
+		cliUtils.FilterFlag,
 	},
 }
 

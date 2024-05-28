@@ -20,11 +20,11 @@ import (
 )
 
 type filterFlagType struct {
-	flag cli.StringFlag
+	cli.StringFlag
 }
 
-var FilterFlag = filterFlagType{
-	flag: cli.StringFlag{
+var FilterFlag = &filterFlagType{
+	cli.StringFlag{
 		Name:    "filter",
 		Aliases: []string{"f"},
 		Usage:   "execute only for rules which name matches the given regex",
@@ -32,20 +32,16 @@ var FilterFlag = filterFlagType{
 	},
 }
 
-func (f *filterFlagType) GetFlag() cli.Flag {
-	return &f.flag
-}
-
 func (f *filterFlagType) Fetch(context *cli.Context) (*regexp.Regexp, error) {
-	return regexp.Compile(context.String(f.flag.Name))
+	return regexp.Compile(context.String(f.Name))
 }
 
 type jobsFlagType struct {
-	flag cli.IntFlag
+	cli.IntFlag
 }
 
-var JobsFlag = jobsFlagType{
-	flag: cli.IntFlag{
+var JobsFlag = &jobsFlagType{
+	cli.IntFlag{
 		Name:    "jobs",
 		Aliases: []string{"j"},
 		Usage:   "number of jobs run simultaneously",
@@ -53,69 +49,53 @@ var JobsFlag = jobsFlagType{
 	},
 }
 
-func (f *jobsFlagType) GetFlag() cli.Flag {
-	return &f.flag
-}
-
 func (f *jobsFlagType) Fetch(context *cli.Context) int {
-	return context.Int(f.flag.Name)
+	return context.Int(f.Name)
 }
 
 type seedFlagType struct {
-	flag cli.Uint64Flag
+	cli.Uint64Flag
 }
 
-var SeedFlag = seedFlagType{
-	flag: cli.Uint64Flag{
+var SeedFlag = &seedFlagType{
+	cli.Uint64Flag{
 		Name:    "seed",
 		Aliases: []string{"s"},
 		Usage:   "seed for the random number generator",
 	},
 }
 
-func (f *seedFlagType) GetFlag() cli.Flag {
-	return &f.flag
-}
-
 func (f *seedFlagType) Fetch(context *cli.Context) uint64 {
-	return context.Uint64(f.flag.Name)
+	return context.Uint64(f.Name)
 }
 
 type cpuProfileType struct {
-	flag cli.StringFlag
+	cli.StringFlag
 }
 
-var CpuProfileFlag = cpuProfileType{
-	flag: cli.StringFlag{
+var CpuProfileFlag = &cpuProfileType{
+	cli.StringFlag{
 		Name:      "cpuprofile",
 		Usage:     "store CPU profile in the provided filename",
 		TakesFile: true,
 	},
 }
 
-func (f *cpuProfileType) GetFlag() cli.Flag {
-	return &f.flag
-}
-
 func (f *cpuProfileType) Fetch(context *cli.Context) string {
-	return context.String(f.flag.Name)
+	return context.String(f.Name)
 }
 
 type fullModeFlagType struct {
-	flag cli.BoolFlag
+	cli.BoolFlag
 }
 
-var FullModeFlag = fullModeFlagType{
-	flag: cli.BoolFlag{
+var FullModeFlag = &fullModeFlagType{
+	cli.BoolFlag{
 		Name:  "full-mode",
 		Usage: "if enabled, test cases targeting rules other than the one generating the case will be executed",
 	},
 }
 
-func (f *fullModeFlagType) GetFlag() cli.Flag {
-	return &f.flag
-}
-
 func (f *fullModeFlagType) Fetch(context *cli.Context) bool {
-	return context.Bool(f.flag.Name)
+	return context.Bool(f.Name)
 }

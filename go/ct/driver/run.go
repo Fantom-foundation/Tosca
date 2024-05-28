@@ -44,11 +44,11 @@ var RunCmd = cli.Command{
 	Usage:     "Run Conformance Tests on an EVM implementation",
 	ArgsUsage: "<EVM>",
 	Flags: []cli.Flag{
-		cliUtils.FilterFlag.GetFlag(),
-		cliUtils.JobsFlag.GetFlag(),
-		cliUtils.SeedFlag.GetFlag(),
-		cliUtils.CpuProfileFlag.GetFlag(),
-		cliUtils.FullModeFlag.GetFlag(), // < TODO: make every run a full mode once tests pass
+		cliUtils.FilterFlag,
+		cliUtils.JobsFlag,
+		cliUtils.SeedFlag,
+		cliUtils.CpuProfileFlag,
+		cliUtils.FullModeFlag, // < TODO: make every run a full mode once tests pass
 		&cli.IntFlag{
 			Name:  "max-errors",
 			Usage: "aborts testing after the given number of issues",

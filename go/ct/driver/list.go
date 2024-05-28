@@ -26,7 +26,7 @@ var ListCmd = cli.Command{
 	Name:   "list",
 	Usage:  "List all rules by name",
 	Flags: []cli.Flag{
-		cliUtils.FilterFlag.GetFlag(),
+		cliUtils.FilterFlag,
 	},
 }
 
