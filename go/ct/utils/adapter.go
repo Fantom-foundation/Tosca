@@ -121,7 +121,16 @@ func (c *ctRunContext) GetTransactionContext() vm.TransactionContext {
 }
 
 func (c *ctRunContext) GetBlockHash(number int64) vm.Hash {
-	panic("not implemented")
+	min := int64(0)
+	max := int64(c.state.BlockContext.BlockNumber)
+	if c.state.BlockContext.BlockNumber > 256 {
+		min = max - 256
+	}
+	if min > number || number >= max {
+		return vm.Hash{0x0}
+	}
+
+	return c.state.RecentBlockHashes[max-number-1]
 }
 
 // TODO: add unit test
