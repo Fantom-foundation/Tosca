@@ -1,7 +1,7 @@
 github.com/DataDog/zstd v1.4.5 h1:EndNeuB0l9syBZhut0wns3gV1hL8zX8LIu6ZiVHWLIQ=
 github.com/DataDog/zstd v1.4.5/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
-github.com/Fantom-foundation/tosca-go-ethereum v0.0.0-20240528081708-4db0f269681a h1:GX7XWKbWRkd53I8vVZqW0vs7seiaVZrj3E8k0ikeFO0=
-github.com/Fantom-foundation/tosca-go-ethereum v0.0.0-20240528081708-4db0f269681a/go.mod h1:1STrq471D0BQbCX9He0hUj4bHxX2k6mt5nOQJhDNOJ8=
+github.com/Fantom-foundation/go-ethereum-sonic v0.0.0-20240529085303-2400937cc3b1 h1:iVbLlmFYPlK31O8psS9H+Y+uop0AC1jqCoRErauaHj0=
+github.com/Fantom-foundation/go-ethereum-sonic v0.0.0-20240529085303-2400937cc3b1/go.mod h1:6LG3apXyp0InsMXGq9YmzUiV7H0BOuUHrcu3oQY9boE=
 github.com/StackExchange/wmi v1.2.1 h1:VIkavFPXSjcnS+O8yTq7NI32k0R5Aj+v39y29VYDOSA=
 github.com/StackExchange/wmi v1.2.1/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9SBzvHz7e8=
 github.com/VictoriaMetrics/fastcache v1.12.1 h1:i0mICQuojGDL3KblA7wUNlY5lOK6a4bwt3uRKnkZU40=
