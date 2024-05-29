@@ -89,7 +89,6 @@ func doStats(context *cli.Context) error {
 	}
 
 	// Summarize the result.
-	fmt.Printf("\n")
 	fmt.Printf("%v", statsCollector.getStatistics())
 	return nil
 }
