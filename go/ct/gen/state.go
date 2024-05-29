@@ -257,7 +257,8 @@ func (g *StateGenerator) RestrictVariableToNoneOfTheLast256Blocks(variable Varia
 }
 
 func (g *StateGenerator) SetBlockNumberOffsetValue(variable Variable, value int64) {
-	g.blockContextGen.SetBlockNumberOffsetValue(variable, value)
+	panic("not implemented")
+	//g.blockContextGen.SetBlockNumberOffsetValue(variable, value)
 }
 
 func getRandomData(rnd *rand.Rand) ([]byte, error) {

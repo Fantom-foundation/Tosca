@@ -119,6 +119,7 @@ func GetForkBlock(revision Revision) (uint64, error) {
 	case R99_UnknownNextRevision:
 		return 6000, nil
 	}
+	// TODO: remove this error
 	return 0, fmt.Errorf("unknown revision: %v", revision)
 }
 

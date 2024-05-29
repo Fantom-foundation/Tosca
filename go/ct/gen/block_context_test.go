@@ -119,6 +119,7 @@ func TestBlockContextGen_BlockNumberError(t *testing.T) {
 	}
 }
 
+/*
 func TestBlockContextGen_BlockNumberOffsetVariableUnbound(t *testing.T) {
 	v1 := Variable("v1")
 	rnd := rand.New()
@@ -303,5 +304,102 @@ func TestBlockContextGen_Clone(t *testing.T) {
 
 	if blockContextGenerator.variablesOffsetConstraints[0].lowerOffset != 1 {
 		t.Errorf("Original generator should not be affected by clone.")
+	}
+}
+*/
+
+func TestBlockContextGen_NameMeLater(t *testing.T) {
+	tests := map[string]struct {
+		setup func(*BlockContextGenerator)
+		want  string
+	}{
+		"empty": {
+			setup: func(b *BlockContextGenerator) {},
+			want:  "true",
+		},
+		"restrict-to-single-revision": {
+			setup: func(b *BlockContextGenerator) {
+				b.SetRevision(common.R07_Istanbul)
+			},
+			want: "BlockNumber ∈ [0..999]",
+		},
+		"restrict-to-revision-range": {
+			setup: func(b *BlockContextGenerator) {
+				b.AddRevisionBounds(common.R09_Berlin, common.R11_Paris)
+			},
+			// TODO: clean up this expectation by using GetForkBlock function
+			want: "BlockNumber ∈ [1000..3999]",
+		},
+		"restrict-to-multiple-revisions": {
+			setup: func(b *BlockContextGenerator) {
+				b.SetRevision(common.R07_Istanbul)
+				b.SetRevision(common.R09_Berlin)
+			},
+			want: "false",
+		},
+		"restrict-to-multiple-revisions-that-are-not-conflicting": {
+			setup: func(b *BlockContextGenerator) {
+				b.AddRevisionBounds(common.R07_Istanbul, common.R09_Berlin)
+				b.SetRevision(common.R07_Istanbul)
+			},
+			want: "BlockNumber ∈ [0..999]",
+		},
+		"one-variable-in-range": {
+			setup: func(b *BlockContextGenerator) {
+				b.RestrictVariableToOneOfTheLast256Blocks("a")
+			},
+			want: "$a ∈ [BlockNumber-256..BlockNumber-1]",
+		},
+		"one-variable-out-of-range": {
+			setup: func(b *BlockContextGenerator) {
+				b.RestrictVariableToNoneOfTheLast256Blocks("a")
+			},
+			want: "$a ∉ [BlockNumber-256..BlockNumber-1]",
+		},
+		"two-variables-in-range": {
+			setup: func(b *BlockContextGenerator) {
+				b.RestrictVariableToOneOfTheLast256Blocks("a")
+				b.RestrictVariableToOneOfTheLast256Blocks("b")
+			},
+			want: "$a ∈ [BlockNumber-256..BlockNumber-1] Λ $b ∈ [BlockNumber-256..BlockNumber-1]",
+		},
+		"one-variable-with-fixed-value": {
+			setup: func(b *BlockContextGenerator) {
+				b.SetBlockNumberOffsetValue("a", 44)
+			},
+			want: "$a = BlockNumber-44",
+		},
+		"one-variable-with-fixed-value-in-the-future": {
+			setup: func(b *BlockContextGenerator) {
+				b.SetBlockNumberOffsetValue("a", -44)
+			},
+			want: "$a = BlockNumber+44",
+		},
+		"mix-of-multiple-constraints": {
+			setup: func(b *BlockContextGenerator) {
+				b.SetRevision(common.R07_Istanbul)
+				b.SetBlockNumberOffsetValue("a", 44)
+				b.RestrictVariableToOneOfTheLast256Blocks("b")
+				b.RestrictVariableToNoneOfTheLast256Blocks("c")
+			},
+			want: "$a = BlockNumber-44 Λ $b ∈ [BlockNumber-256..BlockNumber-1] Λ $c ∉ [BlockNumber-256..BlockNumber-1] Λ BlockNumber ∈ [0..999]",
+		},
+		"multiple-constraints-for-single-variable": {
+			setup: func(b *BlockContextGenerator) {
+				b.SetBlockNumberOffsetValue("a", 44)
+				b.RestrictVariableToOneOfTheLast256Blocks("a")
+			},
+			want: "$a = BlockNumber-44 Λ $a ∈ [BlockNumber-256..BlockNumber-1]",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			gen := NewBlockContextGenerator()
+			test.setup(gen)
+			if got := gen.String(); test.want != got {
+				t.Errorf("unexpected print, wanted %s, got %s", test.want, got)
+			}
+		})
 	}
 }

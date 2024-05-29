@@ -369,6 +369,14 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"blockContext={variablesOffsetConstraints: [$s ≥ BlockNumber - 0 Λ $s ≤ BlockNumber - 257]}",
 		"selfdestruct={mustNotBeSelfDestructed}",
 	})
+
+	/*
+	"$a = BlockNumber - 44 Λ $a = 12" => BlockNumber = 44+12 = 56 => revision = R07_Istanbul
+
+	revision = random(..) = R10_Berlin
+	"$a = BlockNumber - 44 Λ $a = 12"
+	"$a = BlockNumber - 44 Λ $a = 12 Λ BlockNumber >= 2000 Λ BlockNumber <= 3000" => unsatisfiable
+	*/
 }
 
 func TestStateGenerator_CloneCanBeUsedToResetBuilder(t *testing.T) {
