@@ -4372,6 +4372,15 @@ TEST(InterpreterTest, PUSH0_OutOfGas) {
   });
 }
 
+TEST(InterpreterTest, PUSH0_PreShanghai) {
+  RunInterpreterTest({
+      .code = {op::PUSH0},
+      .state_after = RunState::kErrorOpcode,
+      .gas_before = 10,
+      .revision = EVMC_BERLIN,
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // PUSH
 TEST(InterpreterTest, PUSH) {
