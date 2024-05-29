@@ -15,12 +15,11 @@ package main
 import (
 	"fmt"
 	"os"
-	"regexp"
-	"runtime"
 	"runtime/pprof"
 	"sync/atomic"
 	"time"
 
+	cliUtils "github.com/Fantom-foundation/Tosca/go/ct/driver/cli"
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
@@ -33,33 +32,16 @@ var TestCmd = cli.Command{
 	Name:   "test",
 	Usage:  "Check test case rule coverage",
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "filter",
-			Usage: "check only rules which name matches the given regex",
-			Value: ".*",
-		},
-		&cli.IntFlag{
-			Name:  "jobs",
-			Usage: "number of jobs run simultaneously",
-			Value: runtime.NumCPU(),
-		},
-		&cli.Uint64Flag{
-			Name:  "seed",
-			Usage: "seed for the random number generator",
-		},
-		&cli.StringFlag{
-			Name:  "cpuprofile",
-			Usage: "store CPU profile in the provided filename",
-		},
-		&cli.BoolFlag{
-			Name:  "full-mode",
-			Usage: "if enabled, test cases targeting rules other than the one generating the case will be executed",
-		},
+		cliUtils.FilterFlag,
+		cliUtils.JobsFlag,
+		cliUtils.SeedFlag,
+		cliUtils.CpuProfileFlag,
+		cliUtils.FullModeFlag,
 	},
 }
 
 func doTest(context *cli.Context) error {
-	if cpuprofileFilename := context.String("cpuprofile"); cpuprofileFilename != "" {
+	if cpuprofileFilename := cliUtils.CpuProfileFlag.Fetch(context); cpuprofileFilename != "" {
 		f, err := os.Create(cpuprofileFilename)
 		if err != nil {
 			return fmt.Errorf("could not create CPU profile: %w", err)
@@ -69,14 +51,14 @@ func doTest(context *cli.Context) error {
 		}
 		defer pprof.StopCPUProfile()
 	}
-	filter, err := regexp.Compile(context.String("filter"))
+
+	filter, err := cliUtils.FilterFlag.Fetch(context)
 	if err != nil {
 		return err
 	}
-
-	jobCount := context.Int("jobs")
-	seed := context.Uint64("seed")
-	fullMode := context.Bool("full-mode")
+	jobCount := cliUtils.JobsFlag.Fetch(context)
+	seed := cliUtils.SeedFlag.Fetch(context)
+	fullMode := cliUtils.FullModeFlag.Fetch(context)
 
 	issuesCollector := issuesCollector{}
 	var skippedCount atomic.Int32

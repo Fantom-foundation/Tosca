@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"sort"
 
+	cliUtils "github.com/Fantom-foundation/Tosca/go/ct/driver/cli"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/urfave/cli/v2"
 )
@@ -24,10 +25,19 @@ var ListCmd = cli.Command{
 	Action: doList,
 	Name:   "list",
 	Usage:  "List all rules by name",
+	Flags: []cli.Flag{
+		cliUtils.FilterFlag,
+	},
 }
 
 func doList(context *cli.Context) error {
-	rules := spc.Spec.GetRules()
+
+	filter, err := cliUtils.FilterFlag.Fetch(context)
+	if err != nil {
+		return err
+	}
+
+	rules := spc.FilterRules(spc.Spec.GetRules(), filter)
 	sort.Slice(rules, func(i, j int) bool { return rules[i].Name < rules[j].Name })
 	for _, rule := range rules {
 		fmt.Println(rule.Name)

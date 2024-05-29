@@ -52,7 +52,7 @@ func TestStatisticCollector_InitializesAllRulesToZero(t *testing.T) {
 		{Name: "a"}, {Name: "b"},
 	})
 
-	collector := newStatsCollector(spec)
+	collector := newStatsCollector(spec.GetRules())
 	stats := collector.getStatistics()
 
 	if want, got := 2, len(stats.data); want != got {
@@ -73,7 +73,7 @@ func TestStatisticCollector_RegisteringTestsIncreasesCounter(t *testing.T) {
 	spec := spc.NewMockSpecification(ctrl)
 	spec.EXPECT().GetRules().Return([]rlz.Rule{{Name: "a"}})
 
-	collector := newStatsCollector(spec)
+	collector := newStatsCollector(spec.GetRules())
 	if want, got := uint64(0), collector.getStatistics().getNumTestsFor("a"); want != got {
 		t.Errorf("unexpected number of tests for 'a', wanted %d, got %d", want, got)
 	}
