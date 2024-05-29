@@ -107,17 +107,17 @@ func GetForkBlock(revision Revision) (uint64, error) {
 	case R07_Istanbul:
 		return 0, nil
 	case R09_Berlin:
-		return 10, nil
+		return 1000, nil
 	case R10_London:
-		return 20, nil
+		return 2000, nil
 	case R11_Paris:
-		return 30, nil
+		return 3000, nil
 	case R12_Shanghai:
-		return 40, nil
+		return 4000, nil
 	case R13_Cancun:
-		return 50, nil
+		return 5000, nil
 	case R99_UnknownNextRevision:
-		return 60, nil
+		return 6000, nil
 	}
 	return 0, fmt.Errorf("unknown revision: %v", revision)
 }

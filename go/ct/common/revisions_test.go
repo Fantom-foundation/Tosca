@@ -22,12 +22,12 @@ func TestRevisions_RangeLength(t *testing.T) {
 		revision    Revision
 		rangeLength uint64
 	}{
-		"Istanbul":    {R07_Istanbul, 10},
-		"Berlin":      {R09_Berlin, 10},
-		"London":      {R10_London, 10},
-		"Paris":       {R11_Paris, 10},
-		"Shanghai":    {R12_Shanghai, 10},
-		"Cancun":      {R13_Cancun, 10},
+		"Istanbul":    {R07_Istanbul, 1000},
+		"Berlin":      {R09_Berlin, 1000},
+		"London":      {R10_London, 1000},
+		"Paris":       {R11_Paris, 1000},
+		"Shanghai":    {R12_Shanghai, 1000},
+		"Cancun":      {R13_Cancun, 1000},
 		"UnknownNext": {R99_UnknownNextRevision, 0},
 	}
 
@@ -60,12 +60,12 @@ func TestRevisions_GetForkBlock(t *testing.T) {
 		forkBlock uint64
 	}{
 		"Istanbul":    {R07_Istanbul, 0},
-		"Berlin":      {R09_Berlin, 10},
-		"London":      {R10_London, 20},
-		"Paris":       {R11_Paris, 30},
-		"Shanghai":    {R12_Shanghai, 40},
-		"Cancun":      {R13_Cancun, 50},
-		"UnknownNext": {R99_UnknownNextRevision, 60},
+		"Berlin":      {R09_Berlin, 1000},
+		"London":      {R10_London, 2000},
+		"Paris":       {R11_Paris, 3000},
+		"Shanghai":    {R12_Shanghai, 4000},
+		"Cancun":      {R13_Cancun, 5000},
+		"UnknownNext": {R99_UnknownNextRevision, 6000},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
