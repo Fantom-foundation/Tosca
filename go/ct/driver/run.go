@@ -228,10 +228,10 @@ func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp) error {
 	rule.Effect.Apply(expected)
 
 	result, err := evm.StepN(input.Clone(), 1)
-	defer result.Release()
 	if err != nil {
 		return err
 	}
+	defer result.Release()
 
 	if result.Eq(expected) {
 		return nil

@@ -66,7 +66,7 @@ const (
 	COINBASE       OpCode = 0x41
 	TIMESTAMP      OpCode = 0x42
 	NUMBER         OpCode = 0x43
-	DIFFICULTY     OpCode = 0x44
+	PREVRANDAO     OpCode = 0x44
 	GASLIMIT       OpCode = 0x45
 	CHAINID        OpCode = 0x46
 	SELFBALANCE    OpCode = 0x47
@@ -292,8 +292,8 @@ func (op OpCode) String() string {
 		return "TIMESTAMP"
 	case NUMBER:
 		return "NUMBER"
-	case DIFFICULTY:
-		return "DIFFICULTY"
+	case PREVRANDAO:
+		return "PREVRANDAO"
 	case GASLIMIT:
 		return "GASLIMIT"
 	case CHAINID:

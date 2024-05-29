@@ -920,7 +920,7 @@ struct Impl<OpCode::NUMBER> {
 };
 
 template <>
-struct Impl<OpCode::DIFFICULTY> {
+struct Impl<OpCode::PREVRANDAO> {
   constexpr static OpInfo kInfo = NullaryOp(2);
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {

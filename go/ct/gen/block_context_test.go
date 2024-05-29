@@ -46,8 +46,8 @@ func TestBlockContextGen_Generate(t *testing.T) {
 	if blockCtx.GasPrice == (common.NewU256()) {
 		t.Errorf("Generated gas price has default value.")
 	}
-	if blockCtx.Difficulty == (common.NewU256()) {
-		t.Errorf("Generated difficulty has default value.")
+	if blockCtx.PrevRandao == (common.NewU256()) {
+		t.Errorf("Generated prevRandao has default value.")
 	}
 	if blockCtx.TimeStamp == (uint64(0)) {
 		t.Errorf("Generated timestamp has default value.")

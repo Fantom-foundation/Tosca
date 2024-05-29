@@ -664,8 +664,8 @@ func steps(c *context, one_step_only bool) {
 			opChainId(c)
 		case GAS:
 			opGas(c)
-		case DIFFICULTY:
-			opDifficulty(c)
+		case PREVRANDAO:
+			opPrevRandao(c)
 		case TIMESTAMP:
 			opTimestamp(c)
 		case NUMBER:

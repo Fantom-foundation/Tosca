@@ -529,7 +529,7 @@ func createOpToOpMap() []OpCode {
 	res[evm.COINBASE] = COINBASE
 	res[evm.TIMESTAMP] = TIMESTAMP
 	res[evm.NUMBER] = NUMBER
-	res[evm.DIFFICULTY] = DIFFICULTY
+	res[evm.DIFFICULTY] = PREVRANDAO //TODO: update with new geth version
 	res[evm.GASLIMIT] = GASLIMIT
 	res[evm.CHAINID] = CHAINID
 	res[evm.SELFBALANCE] = SELFBALANCE

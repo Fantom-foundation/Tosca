@@ -3035,7 +3035,7 @@ TEST(InterpreterTest, DISABLED_NUMBER_StackOverflow) {}
 
 ///////////////////////////////////////////////////////////
 // DIFFICULTY / PREVRANDAO
-TEST(InterpreterTest, DIFFICULTY) {
+TEST(InterpreterTest, PREVRANDAO) {
   evmc_tx_context tx_context{
       .block_prev_randao = evmc::uint256be(42),
   };
@@ -3044,7 +3044,7 @@ TEST(InterpreterTest, DIFFICULTY) {
   EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
 
   RunInterpreterTest({
-      .code = {op::DIFFICULTY},
+      .code = {op::PREVRANDAO},
       .state_after = RunState::kDone,
       .gas_before = 10,
       .gas_after = 8,
@@ -3053,15 +3053,15 @@ TEST(InterpreterTest, DIFFICULTY) {
   });
 }
 
-TEST(InterpreterTest, DIFFICULTY_OutOfGas) {
+TEST(InterpreterTest, PREVRANDAO_OutOfGas) {
   RunInterpreterTest({
-      .code = {op::DIFFICULTY},
+      .code = {op::PREVRANDAO},
       .state_after = RunState::kErrorGas,
       .gas_before = 1,
   });
 }
 
-TEST(InterpreterTest, DISABLED_DIFFICULTY_StackOverflow) {}
+TEST(InterpreterTest, DISABLED_PREVRANDAO_StackOverflow) {}
 
 ///////////////////////////////////////////////////////////
 // GASLIMIT
