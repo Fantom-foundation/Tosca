@@ -636,6 +636,17 @@ func opBaseFee(c *context) {
 	}
 }
 
+func opBlobBaseFee(c *context) {
+	if c.isCancun() {
+		fee := c.context.GetTransactionContext().BlobBaseFee
+		c.stack.pushEmpty().SetBytes32(fee[:])
+	} else {
+		c.status = INVALID_INSTRUCTION
+		return
+
+	}
+}
+
 func opSelfdestruct(c *context) {
 	gasfunc := gasSelfdestruct
 	if c.isBerlin() {
