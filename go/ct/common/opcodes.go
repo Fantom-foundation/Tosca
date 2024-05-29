@@ -63,6 +63,7 @@ const (
 	RETURNDATASIZE OpCode = 0x3D
 	RETURNDATACOPY OpCode = 0x3E
 	EXTCODEHASH    OpCode = 0x3F
+	BLOCKHASH      OpCode = 0x40
 	COINBASE       OpCode = 0x41
 	TIMESTAMP      OpCode = 0x42
 	NUMBER         OpCode = 0x43
@@ -286,6 +287,8 @@ func (op OpCode) String() string {
 		return "RETURNDATACOPY"
 	case EXTCODEHASH:
 		return "EXTCODEHASH"
+	case BLOCKHASH:
+		return "BLOCKHASH"
 	case COINBASE:
 		return "COINBASE"
 	case TIMESTAMP:
