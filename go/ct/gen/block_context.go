@@ -67,11 +67,14 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) 
 		return st.BlockContext{}, ErrUnsatisfiable
 	}
 
-	var blockNumberSolver *RangeSolver[uint64]
+	blockNumberSolver := NewIntervalSolver[uint64](0, math.MaxUint64)
 	if b.blockNumberSolver != nil {
-		blockNumberSolver = b.blockNumberSolver.Clone()
-	} else {
-		blockNumberSolver = NewRangeSolver[uint64](0, math.MaxUint64)
+		if b.blockNumberSolver.min > 0 {
+			blockNumberSolver.Exclude(0, b.blockNumberSolver.min-1)
+		}
+		if b.blockNumberSolver.max < math.MaxUint64 {
+			blockNumberSolver.Exclude(b.blockNumberSolver.max+1, math.MaxUint64)
+		}
 	}
 
 	// apply constraints on block number derived from predefined assignments
@@ -103,9 +106,9 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) 
 					blockNumberSolver.AddUpperBoundary(upper)
 				}
 			} else {
-				// 500 \notin [BN-256..BN-1]
-				// needed: BN \in [0..500-1] || BN \in [500+256..math.MaxUint64]
-				panic("not implemented")
+				// TODO: check for assigned value overflow
+				value := assignedValue.Uint64()
+				blockNumberSolver.Exclude(value+1, value+256)
 			}
 		}
 	}

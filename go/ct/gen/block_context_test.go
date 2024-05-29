@@ -565,8 +565,8 @@ func TestBlockContextGenerator_CanProduceSatisfyingBlockNumbersForConstraints(t 
 				a["a"] = common.NewU256(8000)
 			},
 			check: func(t *testing.T, res st.BlockContext, a Assignment) {
-				if !(800 < res.BlockNumber && res.BlockNumber < 1000) {
-					t.Errorf("expected block number to be in range 801-1000, got %d", res.BlockNumber)
+				if res.BlockNumber >= 1000 {
+					t.Errorf("produced block number is not a valid Istanbul block, got %d", res.BlockNumber)
 				}
 			},
 		},
@@ -620,9 +620,9 @@ func TestBlockContextGenerator_SignalsUnsatisfiableForUnsatisfiableConstraints(t
 			a["a"] = common.NewU256(8000)
 		},
 		"conflicting-revisions-with-out-of-range-and-predefined-assignment": func(b *BlockContextGenerator, a Assignment) {
-			b.SetRevision(common.R10_London)
+			b.blockNumberSolver = NewRangeSolver[uint64](100, 200)
 			b.RestrictVariableToNoneOfTheLast256Blocks("a")
-			a["a"] = common.NewU256(2000-256)
+			a["a"] = common.NewU256(80)
 		},
 	}
 
@@ -631,9 +631,9 @@ func TestBlockContextGenerator_SignalsUnsatisfiableForUnsatisfiableConstraints(t
 			assignement := Assignment{}
 			generator := NewBlockContextGenerator()
 			test(generator, assignement)
-			_, err := generator.Generate(assignement, rand.New())
+			res, err := generator.Generate(assignement, rand.New())
 			if err != ErrUnsatisfiable {
-				t.Errorf("expected unsatisfiable error, got %v", err)
+				t.Errorf("expected unsatisfiable error, got %v with block number %d and assignment %v", err, res.BlockNumber, assignement)
 			}
 		})
 	}
