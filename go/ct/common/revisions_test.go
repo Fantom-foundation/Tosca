@@ -152,3 +152,18 @@ func TestRevisions_UnmarshalError(t *testing.T) {
 		}
 	}
 }
+
+func TestRevisions_GetRevisionForBlock(t *testing.T) {
+	for i := uint64(0); i < 10000; i++ {
+		rev := GetRevisionForBlock(i)
+		forkBlock, _ := GetForkBlock(rev)
+		if i < forkBlock {
+			t.Fatalf("wrong revision for block %v, got %v", i, rev)
+		}
+		if rev != R99_UnknownNextRevision {
+			if length, _ := GetBlockRangeLengthFor(rev); i >= forkBlock+length {
+				t.Fatalf("wrong revision for block %v, got %v", i, rev)
+			}
+		}
+	}
+}

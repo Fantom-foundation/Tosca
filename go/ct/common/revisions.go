@@ -123,6 +123,17 @@ func GetForkBlock(revision Revision) (uint64, error) {
 	return 0, fmt.Errorf("unknown revision: %v", revision)
 }
 
+// GetRevisionForBlock returns the revision that is considered to be enabled for a given block number.
+func GetRevisionForBlock(block uint64) Revision {
+	for rev := MinRevision; rev <= MaxRevision; rev++ {
+		forkBlock, _ := GetForkBlock(rev)
+		if block < forkBlock {
+			return rev - 1
+		}
+	}
+	return R99_UnknownNextRevision
+}
+
 // GetBlockRangeLengthFor returns the number of block numbers between the given revision and the following
 // in case of an Unknown revision, 0 is returned.
 func GetBlockRangeLengthFor(revision Revision) (uint64, error) {

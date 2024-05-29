@@ -14,11 +14,13 @@ package gen
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
 	"pgregory.net/rand"
 
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
@@ -45,7 +47,134 @@ func NewBlockContextGenerator() *BlockContextGenerator {
 	return &BlockContextGenerator{}
 }
 
-func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand, revision Revision) (st.BlockContext, error) {
+// TODO: to be tested
+func addOffset(value U256, offset int64) (result U256, hasOverflown bool) {
+	if offset < 0 {
+		result := value.Sub(common.NewU256(uint64(-offset)))
+		return result, result.Gt(value)
+	}
+	result = value.Add(common.NewU256(uint64(offset)))
+	return result, result.Lt(value)
+}
+
+func addWithOverflowCheck(a, b uint64) (result uint64, hasOverflown bool) {
+	result = a + b
+	return result, result < a
+}
+
+func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) (st.BlockContext, error) {
+	if b.unsatisfiable {
+		return st.BlockContext{}, ErrUnsatisfiable
+	}
+
+	var blockNumberSolver *RangeSolver[uint64]
+	if b.blockNumberSolver != nil {
+		blockNumberSolver = b.blockNumberSolver.Clone()
+	} else {
+		blockNumberSolver = NewRangeSolver[uint64](0, math.MaxUint64)
+	}
+
+	// apply constraints on block number derived from predefined assignments
+	// 1) fixed offset constraints
+	for variable, offset := range b.valueConstraint {
+		if assignedValue, isBound := assignment[variable]; isBound {
+			wantedBlock, overflow := addOffset(assignedValue, offset)
+			if overflow || !wantedBlock.IsUint64() {
+				return st.BlockContext{}, ErrUnsatisfiable
+			}
+			blockNumberSolver.AddEqualityConstraint(wantedBlock.Uint64())
+		}
+	}
+
+	// 2) add constraints on block number derived from range constraints
+	for variable, inRange := range b.rangeConstraints {
+		if assignedValue, isBound := assignment[variable]; isBound {
+			if inRange {
+				if !assignedValue.IsUint64() {
+					return st.BlockContext{}, ErrUnsatisfiable
+				}
+				value := assignedValue.Uint64()
+				if lower, overflow := addWithOverflowCheck(value, 1); !overflow {
+					blockNumberSolver.AddLowerBoundary(lower)
+				} else {
+					return st.BlockContext{}, ErrUnsatisfiable
+				}
+				if upper, overflow := addWithOverflowCheck(value, 256); !overflow {
+					blockNumberSolver.AddUpperBoundary(upper)
+				}
+			} else {
+				// 500 \notin [BN-256..BN-1]
+				// needed: BN \in [0..500-1] || BN \in [500+256..math.MaxUint64]
+				panic("not implemented")
+			}
+		}
+	}
+
+	resultingBlockNumber, err := blockNumberSolver.Generate(rnd)
+	if err != nil {
+		return st.BlockContext{}, err
+	}
+
+	// for all non bound relevant variables, assign them a value based on the constraints.
+	// 1) fixed offset constraints
+	for variable, offset := range b.valueConstraint {
+		requiredValue, underflow := addOffset(common.NewU256(resultingBlockNumber), -offset)
+		if underflow {
+			return st.BlockContext{}, ErrUnsatisfiable
+		}
+		if currentValue, isBound := assignment[variable]; isBound && currentValue != requiredValue {
+			return st.BlockContext{}, ErrUnsatisfiable
+		} else if !isBound {
+			assignment[variable] = requiredValue
+		}
+	}
+
+	// 2) range constraints
+	lowerBound := uint64(0)
+	if resultingBlockNumber > 256 {
+		lowerBound = resultingBlockNumber - 256
+	}
+	upperBound := resultingBlockNumber
+	blockNumberRangeGenerator := NewRangeSolver(lowerBound, upperBound-1)
+
+	for variable, inRange := range b.rangeConstraints {
+		if currentValue, isBound := assignment[variable]; isBound {
+			value := currentValue.Uint64()
+			if inRange {
+				if !currentValue.IsUint64() {
+					return st.BlockContext{}, ErrUnsatisfiable
+				}
+				if value < lowerBound || value >= upperBound {
+					return st.BlockContext{}, ErrUnsatisfiable
+				}
+			} else {
+				if currentValue.IsUint64() {
+					if lowerBound <= value && value < upperBound {
+						return st.BlockContext{}, ErrUnsatisfiable
+					}
+				}
+			}
+		} else { // no value bound to variable yet
+			if inRange {
+				blockNumber, err := blockNumberRangeGenerator.Generate(rnd)
+				if err != nil {
+					return st.BlockContext{}, err
+				}
+				assignment[variable] = common.NewU256(blockNumber)
+			} else {
+				number := rnd.Uint64n(math.MaxUint64 - 256)
+				if number >= lowerBound {
+					number += 256
+				}
+				assignment[variable] = common.NewU256(number)
+			}
+		}
+	}
+
+	return st.BlockContext{
+		BlockNumber: resultingBlockNumber,
+	}, nil
+
 	/*
 		baseFee := common.RandU256(rnd)
 		blockNumberRangeSolver := NewRangeSolver(uint64(0), math.MaxUint64)

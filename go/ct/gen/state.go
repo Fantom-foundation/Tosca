@@ -428,7 +428,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// Invoke BlockContextGenerator
-	resultBlockContext, err := g.blockContextGen.Generate(assignment, rnd, resultRevision)
+	resultBlockContext, err := g.blockContextGen.Generate(assignment, rnd)
 	if err != nil {
 		return nil, err
 	}

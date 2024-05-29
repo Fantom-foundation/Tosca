@@ -16,10 +16,11 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"pgregory.net/rand"
 )
 
+/*
 func TestBlockContextGen_Generate(t *testing.T) {
 	v1 := Variable("v1")
 	assignment := Assignment{}
@@ -118,7 +119,7 @@ func TestBlockContextGen_BlockNumberError(t *testing.T) {
 		t.Errorf("Failed to produce error with invalid revision.")
 	}
 }
-
+*/
 /*
 func TestBlockContextGen_BlockNumberOffsetVariableUnbound(t *testing.T) {
 	v1 := Variable("v1")
@@ -308,7 +309,7 @@ func TestBlockContextGen_Clone(t *testing.T) {
 }
 */
 
-func TestBlockContextGen_NameMeLater(t *testing.T) {
+func TestBlockContextGen_PrintProducesConstraintFormula(t *testing.T) {
 	tests := map[string]struct {
 		setup func(*BlockContextGenerator)
 		want  string
@@ -399,6 +400,240 @@ func TestBlockContextGen_NameMeLater(t *testing.T) {
 			test.setup(gen)
 			if got := gen.String(); test.want != got {
 				t.Errorf("unexpected print, wanted %s, got %s", test.want, got)
+			}
+		})
+	}
+}
+
+func TestBlockContextGenerator_CanProduceSatisfyingBlockNumbersForConstraints(t *testing.T) {
+	tests := map[string]struct {
+		setup func(*BlockContextGenerator, Assignment)
+		check func(*testing.T, st.BlockContext, Assignment)
+	}{
+		"no-constraints": {
+			setup: func(b *BlockContextGenerator, a Assignment) {},
+			check: func(t *testing.T, res st.BlockContext, a Assignment) {
+				if len(a) != 0 {
+					t.Errorf("solver should have not added any assignments, got %d", len(a))
+				}
+			},
+		},
+		"fix-revision": {
+			setup: func(b *BlockContextGenerator, a Assignment) {
+				b.SetRevision(common.R10_London)
+			},
+			check: func(t *testing.T, res st.BlockContext, a Assignment) {
+				if want, got := common.R10_London, common.GetRevisionForBlock(res.BlockNumber); want != got {
+					t.Errorf("unexpected revision, wanted %v, got %v", want, got)
+				}
+			},
+		},
+		"revision-range": {
+			setup: func(b *BlockContextGenerator, a Assignment) {
+				b.AddRevisionBounds(common.R10_London, common.R11_Paris)
+			},
+			check: func(t *testing.T, res st.BlockContext, a Assignment) {
+				got := common.GetRevisionForBlock(res.BlockNumber)
+				if got < common.R10_London || got > common.R11_Paris {
+					t.Errorf("unexpected revision, got %v, wanted something between London and Paris", got)
+				}
+			},
+		},
+		"variable-with-fixed-offset": {
+			setup: func(b *BlockContextGenerator, a Assignment) {
+				b.SetBlockNumberOffsetValue("a", 44)
+			},
+			check: func(t *testing.T, res st.BlockContext, a Assignment) {
+				if len(a) != 1 {
+					t.Errorf("expected only one variable to be assigned, got %v", a)
+				}
+				value, present := a["a"]
+				if !present {
+					t.Errorf("expected variable 'a' to be assigned, got %v", a)
+				} else if !value.IsUint64() {
+					t.Errorf("value assigned to 'a' is out of range: %v", value)
+				} else {
+					value := value.Uint64()
+					offset := res.BlockNumber - value
+					if offset != 44 {
+						t.Errorf("wanted an offset of %d, got %d, block number %d", 44, offset, res.BlockNumber)
+					}
+				}
+			},
+		},
+		"variable-with-fixed-positive-offset-and-predefined-value": {
+			setup: func(b *BlockContextGenerator, a Assignment) {
+				b.SetBlockNumberOffsetValue("a", 44)
+				a["a"] = common.NewU256(100)
+			},
+			check: func(t *testing.T, res st.BlockContext, a Assignment) {
+				if len(a) != 1 {
+					t.Errorf("expected only one variable to be assigned, got %v", a)
+				}
+				value, present := a["a"]
+				if !present {
+					t.Errorf("expected variable 'a' to be assigned, got %v", a)
+				} else if value != common.NewU256(100) {
+					t.Errorf("solver should not alter assigned value, got %v", value)
+				} else if res.BlockNumber != 144 {
+					t.Errorf("expected block number to be 144, got %d", res.BlockNumber)
+				}
+			},
+		},
+		"variable-with-fixed-negative-offset-and-predefined-value": {
+			setup: func(b *BlockContextGenerator, a Assignment) {
+				b.SetBlockNumberOffsetValue("a", -44)
+				a["a"] = common.NewU256(100)
+			},
+			check: func(t *testing.T, res st.BlockContext, a Assignment) {
+				if len(a) != 1 {
+					t.Errorf("expected only one variable to be assigned, got %v", a)
+				}
+				value, present := a["a"]
+				if !present {
+					t.Errorf("expected variable 'a' to be assigned, got %v", a)
+				} else if value != common.NewU256(100) {
+					t.Errorf("solver should not alter assigned value, got %v", value)
+				} else if res.BlockNumber != 56 {
+					t.Errorf("expected block number to be 56, got %d", res.BlockNumber)
+				}
+			},
+		},
+		"variable-with-fixed-offset-beyond-uint64-range": {
+			setup: func(b *BlockContextGenerator, a Assignment) {
+				b.SetBlockNumberOffsetValue("a", -44)
+				a["a"] = common.NewU256(1, 12) // 2^64+12
+			},
+			check: func(t *testing.T, res st.BlockContext, a Assignment) {
+				if got, want := res.BlockNumber, common.NewU256(1, 12).Sub(common.NewU256(44)).Uint64(); got != want {
+					t.Errorf("expected block number to be %d, got %d", want, got)
+				}
+			},
+		},
+		"variable-in-range": {
+			setup: func(b *BlockContextGenerator, a Assignment) {
+				b.RestrictVariableToOneOfTheLast256Blocks("a")
+			},
+			check: func(t *testing.T, res st.BlockContext, a Assignment) {
+				value, present := a["a"]
+				if !present {
+					t.Errorf("expected variable 'a' to be assigned, got %v", a)
+				} else if !value.IsUint64() {
+					t.Errorf("value assigned to 'a' is out of range: %v", value)
+				} else {
+					value := value.Uint64()
+					if res.BlockNumber-value > 256 || res.BlockNumber-value < 1 {
+						t.Errorf("unexpected distance between variable 'a' and block number, got block number %d and assignment %d", res.BlockNumber, value)
+					}
+				}
+			},
+		},
+		"variable-in-range-with-pre-assigned-value": {
+			setup: func(b *BlockContextGenerator, a Assignment) {
+				b.SetRevision(common.R07_Istanbul)
+				b.RestrictVariableToOneOfTheLast256Blocks("a")
+				a["a"] = common.NewU256(800)
+			},
+			check: func(t *testing.T, res st.BlockContext, a Assignment) {
+				if !(800 < res.BlockNumber && res.BlockNumber < 1000) {
+					t.Errorf("expected block number to be in range 801-1000, got %d", res.BlockNumber)
+				}
+			},
+		},
+		"variable-out-of-range": {
+			setup: func(b *BlockContextGenerator, a Assignment) {
+				b.RestrictVariableToNoneOfTheLast256Blocks("a")
+			},
+			check: func(t *testing.T, res st.BlockContext, a Assignment) {
+				value, present := a["a"]
+				if !present {
+					t.Errorf("expected variable 'a' to be assigned, got %v", a)
+				} else if !value.IsUint64() {
+					// this is fine, the value is out of range
+				} else {
+					value := value.Uint64()
+					if !(res.BlockNumber-value > 256 || res.BlockNumber-value < 1) {
+						t.Errorf("unexpected distance between variable 'a' and block number, got block number %d and assignment %d", res.BlockNumber, value)
+					}
+				}
+			},
+		},
+		"variable-out-of-range-with-pre-assigned-value": {
+			setup: func(b *BlockContextGenerator, a Assignment) {
+				b.SetRevision(common.R07_Istanbul)
+				b.RestrictVariableToNoneOfTheLast256Blocks("a")
+				a["a"] = common.NewU256(8000)
+			},
+			check: func(t *testing.T, res st.BlockContext, a Assignment) {
+				if !(800 < res.BlockNumber && res.BlockNumber < 1000) {
+					t.Errorf("expected block number to be in range 801-1000, got %d", res.BlockNumber)
+				}
+			},
+		},
+	}
+
+	randomSource := rand.New()
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			generator := NewBlockContextGenerator()
+			assignment := Assignment{}
+			test.setup(generator, assignment)
+			res, err := generator.Generate(assignment, randomSource)
+			if err != nil {
+				t.Fatalf("Error generating result for constraints %v and assignment %v: %v", generator, assignment, err)
+			}
+			test.check(t, res, assignment)
+		})
+	}
+}
+
+func TestBlockContextGenerator_SignalsUnsatisfiableForUnsatisfiableConstraints(t *testing.T) {
+	// TODO: add support for pre-assigned values
+	tests := map[string]func(*BlockContextGenerator, Assignment){
+		"conflicting-revisions": func(b *BlockContextGenerator, _ Assignment) {
+			b.SetRevision(common.R07_Istanbul)
+			b.SetRevision(common.R09_Berlin)
+		},
+		"conflicting-ranges": func(b *BlockContextGenerator, _ Assignment) {
+			b.RestrictVariableToOneOfTheLast256Blocks("a")
+			b.RestrictVariableToNoneOfTheLast256Blocks("a")
+		},
+		"conflicting-fixed-values": func(b *BlockContextGenerator, _ Assignment) {
+			b.SetBlockNumberOffsetValue("a", 44)
+			b.SetBlockNumberOffsetValue("a", 45)
+		},
+		"conflicting-fixed-values-with-out-of-range": func(b *BlockContextGenerator, _ Assignment) {
+			b.SetBlockNumberOffsetValue("a", 44)
+			b.RestrictVariableToNoneOfTheLast256Blocks("a")
+		},
+		"conflicting-fixed-values-with-in-range": func(b *BlockContextGenerator, _ Assignment) {
+			b.SetBlockNumberOffsetValue("a", 400)
+			b.RestrictVariableToOneOfTheLast256Blocks("a")
+		},
+		"block-number-overflow": func(b *BlockContextGenerator, a Assignment) {
+			b.SetBlockNumberOffsetValue("a", 400)
+			a["a"] = common.NewU256(1, 500) // 2^64+400
+		},
+		"conflicting-revisions-with-in-range-and-predefined-assignment": func(b *BlockContextGenerator, a Assignment) {
+			b.SetRevision(common.R07_Istanbul)
+			b.RestrictVariableToOneOfTheLast256Blocks("a")
+			a["a"] = common.NewU256(8000)
+		},
+		"conflicting-revisions-with-out-of-range-and-predefined-assignment": func(b *BlockContextGenerator, a Assignment) {
+			b.SetRevision(common.R10_London)
+			b.RestrictVariableToNoneOfTheLast256Blocks("a")
+			a["a"] = common.NewU256(2000-256)
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			assignement := Assignment{}
+			generator := NewBlockContextGenerator()
+			test(generator, assignement)
+			_, err := generator.Generate(assignement, rand.New())
+			if err != ErrUnsatisfiable {
+				t.Errorf("expected unsatisfiable error, got %v", err)
 			}
 		})
 	}
