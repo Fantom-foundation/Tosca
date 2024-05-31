@@ -17,6 +17,7 @@
 
 #include <evmc/evmc.hpp>
 
+#include "evmc/evmc.h"
 #include "vm/evmzero/opcodes.h"
 
 namespace tosca::evmzero {
@@ -4345,6 +4346,38 @@ TEST(InterpreterTest, JUMPDEST_OutOfGas) {
       .code = {op::JUMPDEST},
       .state_after = RunState::kErrorGas,
       .gas_before = 0,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// PUSH0
+TEST(InterpreterTest, PUSH0) {
+  RunInterpreterTest({
+      .code = {op::PUSH0},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_before = {},
+      .stack_after = {0x0},
+      .revision = EVMC_SHANGHAI,
+  });
+}
+
+TEST(InterpreterTest, PUSH0_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::PUSH0},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+      .revision = EVMC_SHANGHAI,
+  });
+}
+
+TEST(InterpreterTest, PUSH0_PreShanghai) {
+  RunInterpreterTest({
+      .code = {op::PUSH0},
+      .state_after = RunState::kErrorOpcode,
+      .gas_before = 10,
+      .revision = EVMC_BERLIN,
   });
 }
 

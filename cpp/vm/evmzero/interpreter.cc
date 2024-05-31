@@ -17,8 +17,8 @@
 #include <intx/intx.hpp>
 #include <iostream>
 
-#include "common/assert.h"
 #include "common/macros.h"
+#include "evmc/evmc.h"
 #include "vm/evmzero/logger.h"
 #include "vm/evmzero/observer.h"
 #include "vm/evmzero/opcodes.h"
@@ -983,6 +983,21 @@ struct Impl<OpCode::POP> {
   };
 
   static OpResult Run() noexcept { return {}; }
+};
+
+template <>
+struct Impl<OpCode::PUSH0> {
+  constexpr static OpInfo kInfo = OpInfo{
+      .pops = 0,
+      .pushes = 1,
+      .static_gas = 2,
+      .introduced_in = EVMC_SHANGHAI,
+  };
+
+  static OpResult Run(uint256_t* top) noexcept {
+    top[-1] = 0;
+    return {};
+  }
 };
 
 template <>
