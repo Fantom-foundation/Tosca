@@ -444,6 +444,24 @@ func TestState_PrinterMemorySize(t *testing.T) {
 	}
 }
 
+func TestState_PrinterRecentBlockHashes(t *testing.T) {
+	s := NewState(NewCode([]byte{byte(BLOCKHASH)}))
+	s.Stack.Push(NewU256(0))
+	s.RecentBlockHashes = [256]vm.Hash{{0x01}}
+
+	r := regexp.MustCompile(`Hash of block 0: 0x([0-9a-fA-F]+)`) // \[([0-9a-f]+)\]
+	str := s.String()
+	match := r.FindStringSubmatch(str)
+
+	if len(match) != 2 {
+		t.Fatal("invalid print, did not find recent block hashes")
+	}
+
+	if want, got := "0100000000000000000000000000000000000000000000000000000000000000", match[1]; want != got {
+		t.Errorf("invalid recent block hashes, want %v, got %v", want, got)
+	}
+}
+
 func TestState_DiffMatch(t *testing.T) {
 	s1 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s1.Status = Running

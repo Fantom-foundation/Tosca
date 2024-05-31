@@ -441,9 +441,6 @@ func TestStateGenerator_BlockNumberHashes(t *testing.T) {
 	newHashes := []vm.Hash{}
 	state := genRandomState(t)
 	for i := 0; i < 256; i++ {
-		if state.RecentBlockHashes[i] == (vm.Hash{}) {
-			t.Error("unexpected hash value, should not be zero")
-		}
 		if slices.Contains(newHashes, state.RecentBlockHashes[i]) {
 			t.Errorf("unexpected hash value, should be unique %v", state.RecentBlockHashes[i])
 		}

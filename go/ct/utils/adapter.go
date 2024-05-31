@@ -123,7 +123,7 @@ func (c *ctRunContext) GetTransactionContext() vm.TransactionContext {
 func (c *ctRunContext) GetBlockHash(number int64) vm.Hash {
 	min := int64(0)
 	max := int64(c.state.BlockContext.BlockNumber)
-	if c.state.BlockContext.BlockNumber > 256 {
+	if max > 256 {
 		min = max - 256
 	}
 	if min > number || number >= max {

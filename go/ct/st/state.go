@@ -154,7 +154,6 @@ func NewState(code *Code) *State {
 		CallData:              Bytes{},
 		LastCallReturnData:    Bytes{},
 		SelfDestructedJournal: []SelfDestructEntry{},
-		RecentBlockHashes:     [256]vm.Hash{},
 	}
 }
 
@@ -349,8 +348,8 @@ func (s *State) String() string {
 	if s.Code != nil && s.Code.Length() > int(s.Pc) && s.Stack != nil && s.Stack.Size() > 0 {
 		offset := s.Stack.stack[s.Stack.Size()-1]
 		if s.Code.IsCode(int(s.Pc)) && OpCode(s.Code.code[s.Pc]) == BLOCKHASH &&
-			offset.IsUint64() {
-			write("\tHash of block %d-%d: %v\n", s.BlockContext.BlockNumber, offset, s.RecentBlockHashes[offset.Uint64()])
+			offset.IsUint64() && offset.Uint64() < 256 {
+			write("\tHash of block %d: %#x\n", s.BlockContext.BlockNumber-offset.Uint64(), s.RecentBlockHashes[offset.Uint64()])
 		}
 	}
 
@@ -452,9 +451,9 @@ func (s *State) Diff(o *State) []string {
 		}
 	}
 
-	for i := 0; i < 256; i++ {
-		if s.RecentBlockHashes[i] != o.RecentBlockHashes[i] {
-			res = append(res, fmt.Sprintf("Different block number hash at index %d: %x vs %x", i, s.RecentBlockHashes[i], o.RecentBlockHashes[i]))
+	for i, want := range s.RecentBlockHashes {
+		if want != o.RecentBlockHashes[i] {
+			res = append(res, fmt.Sprintf("Different block number hash at index %d: %x vs %x", i, want, o.RecentBlockHashes[i]))
 		}
 	}
 
