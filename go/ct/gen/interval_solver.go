@@ -13,8 +13,12 @@ type IntervalSolver[T constraints.Integer] struct {
 }
 
 func NewIntervalSolver[T constraints.Integer](min, max T) *IntervalSolver[T] {
+	initialInterval := interval[T]{low: min, high: max}
+	if initialInterval.isEmpty() {
+		return &IntervalSolver[T]{}
+	}
 	return &IntervalSolver[T]{
-		intervals: []interval[T]{{min, max}},
+		intervals: []interval[T]{initialInterval},
 	}
 }
 
@@ -81,12 +85,15 @@ func (s *IntervalSolver[T]) IsSatisfiable() bool {
 }
 
 func (s *IntervalSolver[T]) Generate(rnd *rand.Rand) (T, error) {
-	if len(s.intervals) == 0 {
+	if s.intervals == nil || len(s.intervals) == 0 {
 		return 0, ErrUnsatisfiable
 	}
 
 	domainSize := uint64(0)
 	for _, interval := range s.intervals {
+		if interval.isEmpty() {
+			return 0, ErrUnsatisfiable
+		}
 		domainSize += uint64(interval.high - interval.low + 1)
 	}
 
@@ -140,6 +147,10 @@ type interval[T constraints.Integer] struct {
 
 func (i *interval[T]) contains(x T) bool {
 	return i.low <= x && x <= i.high
+}
+
+func (i *interval[T]) isEmpty() bool {
+	return i.low > i.high
 }
 
 type relation int

@@ -11,7 +11,7 @@ func TestIntervalSolver_CanFormulateConstraints(t *testing.T) {
 		setup func(*IntervalSolver[int32])
 		want  string
 	}{
-		"empty": {
+		"default": {
 			setup: func(s *IntervalSolver[int32]) {},
 			want:  "X ∈ [200..400]",
 		},
@@ -118,6 +118,10 @@ func TestIntervalSolver_Exclude(t *testing.T) {
 		for b := 0; b < N; b++ {
 			for c := 0; c < N; c++ {
 				for d := 0; d < N; d++ {
+					if a > b || c > d {
+						// we skip empty intervals
+						continue
+					}
 					solver := NewIntervalSolver(uint32(a), uint32(b))
 					solver.Exclude(uint32(c), uint32(d))
 					for i := 0; i < N; i++ {
@@ -132,6 +136,23 @@ func TestIntervalSolver_Exclude(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestIntervalSolver_EmptyInterval(t *testing.T) {
+	solver := NewIntervalSolver[int32](200, 100)
+	_, err := solver.Generate(rand.New())
+	if err != ErrUnsatisfiable {
+		t.Errorf("failed to generate with empty interval: %v", err)
+	}
+}
+
+func TestIntervalSolver_AddEmptyIntervalHasNoEffect(t *testing.T) {
+	solver := NewIntervalSolver[int32](200, 400)
+	clone := solver.Clone()
+	clone.Exclude(300, 250)
+	if !solver.Equals(clone) {
+		t.Fatalf("empty interval should not be modified by adding empty interval")
 	}
 }
 
@@ -204,5 +225,24 @@ func TestIntervalSolver_Equals(t *testing.T) {
 	}
 	if solver1.Equals(solver2) {
 		t.Errorf("equals fails to report different instances")
+	}
+}
+
+func TestInterval_isEmpty(t *testing.T) {
+	tests := map[string]struct {
+		interval interval[int32]
+		want     bool
+	}{
+		"empty":     {interval: interval[int32]{high: 0, low: 1}, want: true},
+		"non-empty": {interval: interval[int32]{high: 1, low: 0}, want: false},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := test.interval.isEmpty()
+			if got != test.want {
+				t.Errorf("unexpected result, got %v, want %v", got, test.want)
+			}
+		})
 	}
 }
