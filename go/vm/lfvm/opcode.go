@@ -23,6 +23,7 @@ type OpCode uint16
 const (
 	// Stack operations
 	POP OpCode = iota
+	PUSH0
 	PUSH1
 	PUSH2
 	PUSH3
@@ -256,6 +257,7 @@ var op_to_string = map[OpCode]string{
 	REVERT:   "REVERT",
 	PUSH32:   "PUSH32",
 
+	PUSH0:  "PUSH0",
 	PUSH3:  "PUSH3",
 	PUSH5:  "PUSH5",
 	PUSH6:  "PUSH6",
