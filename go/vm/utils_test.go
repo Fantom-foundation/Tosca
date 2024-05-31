@@ -9,10 +9,10 @@ import (
 
 func randomUint256(rnd *rand.Rand) *uint256.Int {
 	var value uint256.Int
-	value[0] = rand.Uint64()
-	value[1] = rand.Uint64()
-	value[2] = rand.Uint64()
-	value[3] = rand.Uint64()
+	value[0] = rnd.Uint64()
+	value[1] = rnd.Uint64()
+	value[2] = rnd.Uint64()
+	value[3] = rnd.Uint64()
 	return &value
 }
 
