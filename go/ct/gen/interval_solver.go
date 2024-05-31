@@ -8,54 +8,6 @@ import (
 	"pgregory.net/rand"
 )
 
-// [a..b] ... pick one element in the range
-// [a..b][c..d][e..f] ... pick one element in any of those ranges
-
-type interval[T constraints.Integer] struct {
-	low, high T
-}
-
-func (i *interval[T]) Contains(x T) bool {
-	return i.low <= x && x <= i.high
-}
-func (i *interval[T]) IsEmpty() bool {
-	return i.low > i.high
-}
-
-type relation int
-
-const (
-	isEqual             relation = iota // [1..3] isEqual [1..3]
-	isBefore                            // [1..3] is before [4..6]
-	isAfter                             // [4..6] is after [1..3]
-	isSubset                            // [1..6] isContained in [2..5]
-	isSuperset                          // [2..5] isEnclosed in [1..6]
-	intersectsWithStart                 // [1..3] intersectsWithStart [2..6]
-	intersectsWithEnd                   // [2..6] intersectsWithEnd [1..5]
-)
-
-func (i *interval[T]) getRelationTo(other *interval[T]) relation {
-	if *i == *other {
-		return isEqual
-	}
-	if i.high < other.low {
-		return isBefore
-	}
-	if i.low > other.high {
-		return isAfter
-	}
-	if i.low <= other.low && other.high <= i.high {
-		return isSubset
-	}
-	if other.low <= i.low && i.high <= other.high {
-		return isSuperset
-	}
-	if other.low <= i.high && i.high <= other.high {
-		return intersectsWithEnd
-	}
-	return intersectsWithStart
-}
-
 type IntervalSolver[T constraints.Integer] struct {
 	intervals []interval[T]
 }
@@ -72,35 +24,20 @@ func (s *IntervalSolver[T]) Exclude(min, max T) {
 	}
 	res := []interval[T]{}
 	for _, current := range s.intervals {
-		newLeft := interval[T]{1, 0}
-		if current.low < min {
-			newLeft = interval[T]{current.low, min - 1}
-		}
-		newRight := interval[T]{1, 0}
-		if current.high > max {
-			newRight = interval[T]{max + 1, current.high}
-		}
+		newLeft := interval[T]{current.low, min - 1}
+		newRight := interval[T]{max + 1, current.high}
 
 		switch current.getRelationTo(&interval[T]{min, max}) {
 		case isEqual:
 			continue // we remove this interval
 		case isSubset:
-			if !newLeft.IsEmpty() {
-				res = append(res, newLeft)
-			}
-			if !newRight.IsEmpty() {
-				res = append(res, newRight)
-			}
+			res = append(res, newLeft, newRight)
 		case isSuperset:
 			continue // the current interval is dropped
 		case intersectsWithStart:
-			if !newRight.IsEmpty() {
-				res = append(res, newRight)
-			}
+			res = append(res, newRight)
 		case intersectsWithEnd:
-			if !newLeft.IsEmpty() {
-				res = append(res, newLeft)
-			}
+			res = append(res, newLeft)
 		default:
 			res = append(res, current)
 		}
@@ -111,7 +48,7 @@ func (s *IntervalSolver[T]) Exclude(min, max T) {
 
 func (s *IntervalSolver[T]) Contains(value T) bool {
 	for _, interval := range s.intervals {
-		if interval.Contains(value) {
+		if interval.contains(value) {
 			return true
 		}
 	}
@@ -173,7 +110,52 @@ func (s *IntervalSolver[T]) String() string {
 	}
 	clauses := []string{}
 	for _, interval := range s.intervals {
-		clauses = append(clauses, fmt.Sprintf("X ∈ [%d..%d]", interval.low, interval.high))
+		clauses = append(clauses, fmt.Sprintf("[%d..%d]", interval.low, interval.high))
 	}
-	return strings.Join(clauses, " ∨ ")
+	return fmt.Sprintf("X ∈ %s", strings.Join(clauses, " ∪ "))
+}
+
+// [a..b] ... pick one element in the range
+// [a..b][c..d][e..f] ... pick one element in any of those ranges
+
+type interval[T constraints.Integer] struct {
+	low, high T
+}
+
+func (i *interval[T]) contains(x T) bool {
+	return i.low <= x && x <= i.high
+}
+
+type relation int
+
+const (
+	isEqual             relation = iota // [1..3] isEqual [1..3]
+	isBefore                            // [1..3] is before [4..6]
+	isAfter                             // [4..6] is after [1..3]
+	isSubset                            // [1..6] isContained in [2..5]
+	isSuperset                          // [2..5] isEnclosed in [1..6]
+	intersectsWithStart                 // [1..3] intersectsWithStart [2..6]
+	intersectsWithEnd                   // [2..6] intersectsWithEnd [1..5]
+)
+
+func (i *interval[T]) getRelationTo(other *interval[T]) relation {
+	if *i == *other {
+		return isEqual
+	}
+	if i.high < other.low {
+		return isBefore
+	}
+	if i.low > other.high {
+		return isAfter
+	}
+	if i.low < other.low && other.high < i.high {
+		return isSubset
+	}
+	if other.low <= i.low && i.high <= other.high {
+		return isSuperset
+	}
+	if other.low <= i.high && i.high <= other.high {
+		return intersectsWithEnd
+	}
+	return intersectsWithStart
 }

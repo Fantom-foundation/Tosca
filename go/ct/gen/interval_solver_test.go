@@ -37,7 +37,7 @@ func TestIntervalSolver_CanFormulateConstraints(t *testing.T) {
 			setup: func(s *IntervalSolver[int32]) {
 				s.Exclude(250, 340)
 			},
-			want: "X ∈ [200..249] ∨ X ∈ [341..400]",
+			want: "X ∈ [200..249] ∪ [341..400]",
 		},
 		"remove-superset": {
 			setup: func(s *IntervalSolver[int32]) {
@@ -62,7 +62,7 @@ func TestIntervalSolver_CanFormulateConstraints(t *testing.T) {
 				s.Exclude(250, 300)
 				s.Exclude(320, 380)
 			},
-			want: "X ∈ [200..249] ∨ X ∈ [301..319] ∨ X ∈ [381..400]",
+			want: "X ∈ [200..249] ∪ [301..319] ∪ [381..400]",
 		},
 		"fragment-range-with-overlap": {
 			setup: func(s *IntervalSolver[int32]) {
@@ -70,7 +70,7 @@ func TestIntervalSolver_CanFormulateConstraints(t *testing.T) {
 				s.Exclude(320, 380)
 				s.Exclude(220, 310)
 			},
-			want: "X ∈ [200..219] ∨ X ∈ [311..319] ∨ X ∈ [381..400]",
+			want: "X ∈ [200..219] ∪ [311..319] ∪ [381..400]",
 		},
 		"remove-empty-interval": {
 			setup: func(s *IntervalSolver[int32]) {

@@ -144,10 +144,7 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) 
 		if currentValue, isBound := assignment[variable]; isBound {
 			value := currentValue.Uint64()
 			if inRange {
-				if !currentValue.IsUint64() {
-					return st.BlockContext{}, ErrUnsatisfiable
-				}
-				if value < lowerBound || value >= upperBound {
+				if !isInRange(lowerBound, currentValue, upperBound) {
 					return st.BlockContext{}, ErrUnsatisfiable
 				}
 			} else {
@@ -322,6 +319,11 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) 
 		}, nil
 	*/
 	panic("not implemented")
+}
+
+func isInRange(lowerBound uint64, currentValue U256, upperBound uint64) bool {
+	value := currentValue.Uint64()
+	return currentValue.IsUint64() && lowerBound <= value && value <= upperBound
 }
 
 func (b *BlockContextGenerator) Clone() *BlockContextGenerator {
