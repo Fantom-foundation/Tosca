@@ -144,10 +144,6 @@ func TestIntervalSolver_Exclude(t *testing.T) {
 		for b := 0; b < N; b++ {
 			for c := 0; c < N; c++ {
 				for d := 0; d < N; d++ {
-					if a > b || c > d {
-						// we skip empty intervals
-						continue
-					}
 					solver := NewIntervalSolver(uint32(a), uint32(b))
 					solver.Exclude(uint32(c), uint32(d))
 					for i := 0; i < N; i++ {

@@ -105,15 +105,12 @@ func (s *IntervalSolver[T]) IsSatisfiable() bool {
 
 // Generate returns a random value from the domain of the solver.
 func (s *IntervalSolver[T]) Generate(rnd *rand.Rand) (T, error) {
-	if s.intervals == nil || len(s.intervals) == 0 {
+	if len(s.intervals) == 0 {
 		return 0, ErrUnsatisfiable
 	}
 
 	domainSize := uint64(0)
 	for _, interval := range s.intervals {
-		if interval.isEmpty() {
-			return 0, ErrUnsatisfiable
-		}
 		domainSize += uint64(interval.high - interval.low + 1)
 	}
 
