@@ -14,6 +14,7 @@ package common
 
 import (
 	"bytes"
+	"math"
 	"testing"
 )
 
@@ -28,7 +29,7 @@ func TestRevisions_RangeLength(t *testing.T) {
 		"Paris":       {R11_Paris, 1000},
 		"Shanghai":    {R12_Shanghai, 1000},
 		"Cancun":      {R13_Cancun, 1000},
-		"UnknownNext": {R99_UnknownNextRevision, 0},
+		"UnknownNext": {R99_UnknownNextRevision, math.MaxUint64},
 	}
 
 	for name, test := range tests {
@@ -151,4 +152,38 @@ func TestRevisions_UnmarshalError(t *testing.T) {
 			t.Errorf("Expected error but got: %v", rev)
 		}
 	}
+}
+
+func TestRevision_GetRevisionForBlock(t *testing.T) {
+
+	istanbulBlockNumber, _ := GetForkBlock(R07_Istanbul)
+	berlinBlockNumber, _ := GetForkBlock(R09_Berlin)
+	londonBlockNumber, _ := GetForkBlock(R10_London)
+	parisBlockNumber, _ := GetForkBlock(R11_Paris)
+	shanghaiBlockNumber, _ := GetForkBlock(R12_Shanghai)
+	cancunBlockNumber, _ := GetForkBlock(R13_Cancun)
+	unknownNextRevisionBlockNumber, _ := GetForkBlock(R99_UnknownNextRevision)
+
+	tests := map[string]struct {
+		blockNumber uint64
+		revision    Revision
+	}{
+		"Istanbul":    {istanbulBlockNumber + 1, R07_Istanbul},
+		"Berlin":      {berlinBlockNumber + 1, R09_Berlin},
+		"London":      {londonBlockNumber + 1, R10_London},
+		"Paris":       {parisBlockNumber + 1, R11_Paris},
+		"Shanghai":    {shanghaiBlockNumber + 1, R12_Shanghai},
+		"Cancun":      {cancunBlockNumber + 1, R13_Cancun},
+		"UnknownNext": {unknownNextRevisionBlockNumber + 1, R99_UnknownNextRevision},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := GetRevisionForBlock(test.blockNumber)
+			if test.revision != got {
+				t.Errorf("Unexpected revision for block number: %v", got)
+			}
+		})
+	}
+
 }
