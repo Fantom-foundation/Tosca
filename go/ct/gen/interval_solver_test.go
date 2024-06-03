@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"math"
 	"testing"
 
 	"pgregory.net/rand"
@@ -96,6 +97,32 @@ func TestIntervalSolver_CanFormulateConstraints(t *testing.T) {
 			},
 			want: "X ∈ [200..300]",
 		},
+		// add test for upper boundary constraint but with value off-range (lower than low, and higher than up)
+		"upper-boundary-constraint-off-range-high": {
+			setup: func(s *IntervalSolver[int32]) {
+				s.AddUpperBoundary(500)
+			},
+			want: "X ∈ [200..400]",
+		},
+		"upper-boundary-constraint-off-range-low": {
+			setup: func(s *IntervalSolver[int32]) {
+				s.AddUpperBoundary(100)
+			},
+			want: "false",
+		},
+		// add test for lower boundary constraint but with value off-range (lower than low, and higher than up)
+		"lower-boundary-constraint-off-range-high": {
+			setup: func(s *IntervalSolver[int32]) {
+				s.AddLowerBoundary(500)
+			},
+			want: "false",
+		},
+		"lower-boundary-constraint-off-range-low": {
+			setup: func(s *IntervalSolver[int32]) {
+				s.AddLowerBoundary(100)
+			},
+			want: "X ∈ [200..400]",
+		},
 	}
 
 	for name, test := range tests {
@@ -108,7 +135,6 @@ func TestIntervalSolver_CanFormulateConstraints(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestIntervalSolver_Exclude(t *testing.T) {
@@ -118,10 +144,6 @@ func TestIntervalSolver_Exclude(t *testing.T) {
 		for b := 0; b < N; b++ {
 			for c := 0; c < N; c++ {
 				for d := 0; d < N; d++ {
-					if a > b || c > d {
-						// we skip empty intervals
-						continue
-					}
 					solver := NewIntervalSolver(uint32(a), uint32(b))
 					solver.Exclude(uint32(c), uint32(d))
 					for i := 0; i < N; i++ {
@@ -143,16 +165,16 @@ func TestIntervalSolver_EmptyInterval(t *testing.T) {
 	solver := NewIntervalSolver[int32](200, 100)
 	_, err := solver.Generate(rand.New())
 	if err != ErrUnsatisfiable {
-		t.Errorf("failed to generate with empty interval: %v", err)
+		t.Errorf("empty interval should not be solvable")
 	}
 }
 
-func TestIntervalSolver_AddEmptyIntervalHasNoEffect(t *testing.T) {
+func TestIntervalSolver_ExcludeEmptyIntervalHasNoEffect(t *testing.T) {
 	solver := NewIntervalSolver[int32](200, 400)
 	clone := solver.Clone()
 	clone.Exclude(300, 250)
 	if !solver.Equals(clone) {
-		t.Fatalf("empty interval should not be modified by adding empty interval")
+		t.Errorf("excluding empty interval should have no effect")
 	}
 }
 
@@ -194,8 +216,7 @@ func TestIntervalSolver_AddBoundariesInEmptySolverHasNoEffect(t *testing.T) {
 	for name, setup := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			solver := NewIntervalSolver[int32](200, 400)
-			solver.intervals = nil
+			solver := NewIntervalSolver[int32](400, 200)
 			clone := solver.Clone()
 			setup(clone)
 			if !solver.Equals(clone) {
@@ -230,18 +251,217 @@ func TestIntervalSolver_Equals(t *testing.T) {
 
 func TestInterval_isEmpty(t *testing.T) {
 	tests := map[string]struct {
-		interval interval[int32]
-		want     bool
+		low  int32
+		high int32
+		want bool
 	}{
-		"empty":     {interval: interval[int32]{high: 0, low: 1}, want: true},
-		"non-empty": {interval: interval[int32]{high: 1, low: 0}, want: false},
+		"empty":     {low: 1, high: 0, want: true},
+		"non-empty": {low: 0, high: 1, want: false},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := test.interval.isEmpty()
+			got := (&interval[int32]{low: test.low, high: test.high}).isEmpty()
 			if got != test.want {
 				t.Errorf("unexpected result, got %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestIntervalSolver_uint64fullrangeAndEdges(t *testing.T) {
+
+	tests := map[string]struct {
+		setup func(*IntervalSolver[uint64])
+		check func(uint64) bool
+	}{
+		"full-range": {
+			setup: func(s *IntervalSolver[uint64]) {},
+			check: func(v uint64) bool { return v >= 0 && v <= math.MaxUint64 }},
+		"remove-zero": {
+			setup: func(s *IntervalSolver[uint64]) { s.Exclude(0, 0) },
+			check: func(v uint64) bool { return v > 0 && v < math.MaxUint64 }},
+		"remove-max": {
+			setup: func(s *IntervalSolver[uint64]) { s.Exclude(math.MaxUint64, math.MaxUint64) },
+			check: func(v uint64) bool { return v >= 0 && v < math.MaxUint64-1 }},
+	}
+
+	rnd := rand.New()
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			solver := NewIntervalSolver[uint64](0, math.MaxUint64)
+			test.setup(solver)
+			for i := 0; i < 10000; i++ {
+				res, err := solver.Generate(rnd)
+				if err != nil {
+					t.Fatalf("error solving intervals: %v at step %v", err, i)
+				}
+				if !test.check(res) {
+					t.Fatalf("produced unexpected result for condition %v: %d - at step %v", solver, res, i)
+				}
+			}
+		})
+	}
+}
+
+func TestIntervalSolver_int64fullrangeAndEdges(t *testing.T) {
+
+	tests := map[string]struct {
+		setup func(*IntervalSolver[int64])
+		check func(int64) bool
+	}{
+		"full-range": {
+			setup: func(s *IntervalSolver[int64]) {},
+			check: func(v int64) bool { return v >= math.MinInt64 && v <= math.MaxInt64 }},
+		"remove-min": {
+			setup: func(s *IntervalSolver[int64]) { s.Exclude(math.MinInt64, math.MinInt64) },
+			check: func(v int64) bool { return v != math.MaxInt64 }},
+		"remove-max": {
+			setup: func(s *IntervalSolver[int64]) { s.Exclude(math.MaxInt64, math.MaxInt64) },
+			check: func(v int64) bool { return v != math.MaxInt64 }},
+		"remove-all-positive": {
+			setup: func(s *IntervalSolver[int64]) { s.Exclude(0, math.MaxInt64) },
+			check: func(v int64) bool { return v < 0 }},
+		"remove-all-negative": {
+			setup: func(s *IntervalSolver[int64]) { s.Exclude(math.MinInt64, 0) },
+			check: func(v int64) bool { return v > 0 }},
+		"remove-zero": {
+			setup: func(s *IntervalSolver[int64]) { s.Exclude(0, 0) },
+			check: func(v int64) bool { return v != 0 }},
+	}
+
+	rnd := rand.New(0)
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			solver := NewIntervalSolver[int64](math.MinInt64, math.MaxInt64)
+			test.setup(solver)
+			for i := 0; i < 10000; i++ {
+				res, err := solver.Generate(rnd)
+				if err != nil {
+					t.Fatalf("error solving intervals: %v at step %v", err, i)
+				}
+				if !test.check(res) {
+					t.Fatalf("produced unexpected result for condition %v: %d - at step %v", solver, res, i)
+				}
+			}
+		})
+	}
+}
+
+func TestIntervalSolver_int64Edges(t *testing.T) {
+
+	tests := map[string]struct {
+		setup func(*IntervalSolver[int64])
+	}{
+		"add-lower": {
+			setup: func(s *IntervalSolver[int64]) { s.AddLowerBoundary(math.MinInt64) }},
+		"add-upper": {
+			setup: func(s *IntervalSolver[int64]) { s.AddUpperBoundary(math.MaxInt64) }},
+	}
+
+	rnd := rand.New(0)
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			solver := NewIntervalSolver[int64](math.MinInt64, math.MaxInt64)
+			clone := solver.Clone()
+			test.setup(clone)
+			_, err := solver.Generate(rnd)
+			if err != nil {
+				t.Fatalf("error solving intervals: %v ", err)
+			}
+			if !solver.Equals(clone) {
+				t.Fatalf("restricting beyond the current boundaries should not have any effect. want %v. got %v", solver, clone)
+			}
+		})
+	}
+}
+
+func TestIntervalSolver_int64SmallEdges(t *testing.T) {
+
+	tests := map[string]struct {
+		setup func(*IntervalSolver[int64])
+	}{
+		"add-lower": {
+			setup: func(s *IntervalSolver[int64]) { s.AddLowerBoundary(100) }},
+		"add-upper": {
+			setup: func(s *IntervalSolver[int64]) { s.AddUpperBoundary(500) }},
+	}
+
+	rnd := rand.New(0)
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			solver := NewIntervalSolver[int64](200, 400)
+			clone := solver.Clone()
+			test.setup(clone)
+			_, err := solver.Generate(rnd)
+			if err != nil {
+				t.Fatalf("error solving intervals: %v ", err)
+			}
+			if !solver.Equals(clone) {
+				t.Fatalf("restricting beyond the current boundaries should not have any effect. want %v. got %v", solver, clone)
+			}
+		})
+	}
+}
+
+func TestIntervalSolver_allValuesAreGenerated(t *testing.T) {
+
+	tests := map[string]struct {
+		solver *IntervalSolver[int32]
+		check  func(map[int32]int) bool
+	}{
+		"full-range": {
+			solver: NewIntervalSolver[int32](20, 40),
+			check: func(seen map[int32]int) bool {
+				for i := 20; i <= 40; i++ {
+					if seen[int32(i)] == 0 {
+						return false
+					}
+				}
+				return true
+			},
+		},
+		"fragmented-range": {
+			solver: func() *IntervalSolver[int32] {
+				solver := NewIntervalSolver[int32](20, 40)
+				solver.Exclude(25, 35)
+				return solver
+			}(),
+			check: func(seen map[int32]int) bool {
+				for i := 20; i <= 40; i++ {
+					if i >= 25 && i <= 35 {
+						if seen[int32(i)] != 0 {
+							return false
+						}
+					} else {
+						if seen[int32(i)] == 0 {
+
+							return false
+						}
+					}
+				}
+				return true
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			seen := map[int32]int{}
+			rnd := rand.New()
+			for i := 0; i <= 100; i++ {
+				res, err := test.solver.Generate(rnd)
+				if err != nil {
+					t.Fatalf("error solving intervals: %v", err)
+				}
+				seen[res] += 1
+			}
+			if !test.check(seen) {
+				t.Fatalf("not all values were generated")
 			}
 		})
 	}

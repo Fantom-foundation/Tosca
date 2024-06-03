@@ -2,16 +2,26 @@ package gen
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"golang.org/x/exp/constraints"
 	"pgregory.net/rand"
 )
 
+// IntervalSolver is a generic utility to solve constraints of the form
+//
+//	X ∈ [a1..b1] ∪ [a2..b2] ∪ ... ∪ [an..bn]
+//
+// The solver maintains a list of disjoint intervals [a..b] that represent the
+// domain of the variable x. The solver can exclude ranges from the domain and
+// check if the domain is empty, making the constraints unsatisfiable.
 type IntervalSolver[T constraints.Integer] struct {
 	intervals []interval[T]
 }
 
+// NewIntervalSolver creates a new IntervalSolver with the domain [min..max].
+// If min > max, the solver is initialized with an empty domain.
 func NewIntervalSolver[T constraints.Integer](min, max T) *IntervalSolver[T] {
 	initialInterval := interval[T]{low: min, high: max}
 	if initialInterval.isEmpty() {
@@ -22,7 +32,10 @@ func NewIntervalSolver[T constraints.Integer](min, max T) *IntervalSolver[T] {
 	}
 }
 
+// Exclude removes the range [min..max] from the domain of the solver.
+// If min > max, the interval would be empty and so is ignored.
 func (s *IntervalSolver[T]) Exclude(min, max T) {
+	// this insures an empty interval will never be added.
 	if max < min {
 		return
 	}
@@ -60,8 +73,8 @@ func (s *IntervalSolver[T]) Contains(value T) bool {
 }
 
 func (s *IntervalSolver[T]) AddEqualityConstraint(value T) {
-	s.AddLowerBoundary(value)
 	s.AddUpperBoundary(value)
+	s.AddLowerBoundary(value)
 }
 
 func (s *IntervalSolver[T]) AddLowerBoundary(value T) {
@@ -69,6 +82,9 @@ func (s *IntervalSolver[T]) AddLowerBoundary(value T) {
 		return
 	}
 	min := s.intervals[0].low
+	if value <= min {
+		return
+	}
 	s.Exclude(min, value-1)
 }
 
@@ -77,6 +93,9 @@ func (s *IntervalSolver[T]) AddUpperBoundary(value T) {
 		return
 	}
 	max := s.intervals[len(s.intervals)-1].high
+	if value >= max {
+		return
+	}
 	s.Exclude(value+1, max)
 }
 
@@ -84,16 +103,14 @@ func (s *IntervalSolver[T]) IsSatisfiable() bool {
 	return len(s.intervals) > 0
 }
 
+// Generate returns a random value from the domain of the solver.
 func (s *IntervalSolver[T]) Generate(rnd *rand.Rand) (T, error) {
-	if s.intervals == nil || len(s.intervals) == 0 {
+	if len(s.intervals) == 0 {
 		return 0, ErrUnsatisfiable
 	}
 
 	domainSize := uint64(0)
 	for _, interval := range s.intervals {
-		if interval.isEmpty() {
-			return 0, ErrUnsatisfiable
-		}
 		domainSize += uint64(interval.high - interval.low + 1)
 	}
 
@@ -123,24 +140,14 @@ func (s *IntervalSolver[T]) String() string {
 }
 
 func (s *IntervalSolver[T]) Clone() *IntervalSolver[T] {
-	return &IntervalSolver[T]{intervals: append([]interval[T]{}, s.intervals...)}
+	return &IntervalSolver[T]{intervals: slices.Clone(s.intervals)}
 }
 
 func (s *IntervalSolver[T]) Equals(other *IntervalSolver[T]) bool {
-	if len(s.intervals) != len(other.intervals) {
-		return false
-	}
-	for i, interval := range s.intervals {
-		if interval != other.intervals[i] {
-			return false
-		}
-	}
-	return true
+	return slices.Equal(s.intervals, other.intervals)
 }
 
-// [a..b] ... pick one element in the range
-// [a..b][c..d][e..f] ... pick one element in any of those ranges
-
+// interval represents an interval [a..b] of type T.
 type interval[T constraints.Integer] struct {
 	low, high T
 }
