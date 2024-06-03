@@ -13,16 +13,14 @@
 package lfvm
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
+	lru "github.com/hashicorp/golang-lru/v2"
 
 	// This is only imported to get the EVM opcode definitions.
 	// TODO: write up our own op-code definition and remove this dependency.
@@ -30,58 +28,42 @@ import (
 	evm "github.com/ethereum/go-ethereum/core/vm"
 )
 
-type cache_val struct {
-	oldCode []byte
-	code    Code
-}
+const codeCacheCapacity = 50_000 // up to ~ 1 GB for 22 KiB max code size
 
-var mu = sync.Mutex{}
-var cache = map[vm.Hash]cache_val{}
+var cache *lru.Cache[vm.Hash, Code]
+
+func init() {
+	res, err := lru.New[vm.Hash, Code](codeCacheCapacity)
+	if err != nil {
+		panic(fmt.Errorf("failed to create cache: %v", err))
+	}
+	cache = res
+}
 
 func clearConversionCache() {
-	mu.Lock()
-	defer mu.Unlock()
-	cache = map[vm.Hash]cache_val{}
+	cache.Purge()
 }
 
-func Convert(code []byte, with_super_instructions bool, create bool, noCodeCache bool, codeHash vm.Hash) (Code, error) {
-	// TODO: clean up this code; it does some checks that seems to be once used
-	// for debugging an issue that do not make sense any more.
-
+func Convert(code []byte, withSuperInstructions bool, isInitCode bool, noCodeCache bool, codeHash vm.Hash) (Code, error) {
 	// Do not cache use-once code in create calls.
 	// In those cases the codeHash is also invalid.
-	if create {
-		return convert(code, with_super_instructions)
+	if isInitCode || noCodeCache {
+		return convert(code, withSuperInstructions)
 	}
 
-	mu.Lock()
-	res, exists := cache[codeHash]
-	if exists && !create {
-		isEqual := true
-		if noCodeCache {
-
-			if !bytes.Equal(res.oldCode, code) {
-				log.Printf("Different code for hash %v", codeHash)
-				isEqual = false
-			}
-		}
-
-		if isEqual {
-			mu.Unlock()
-			return res.code, nil
-		}
+	res, exists := cache.Get(codeHash)
+	if exists {
+		return res, nil
 	}
-	mu.Unlock()
-	resCode, error := convert(code, with_super_instructions)
+
+	res, error := convert(code, withSuperInstructions)
 	if error != nil {
 		return nil, error
 	}
-	if !create {
-		mu.Lock()
-		cache[codeHash] = cache_val{oldCode: code, code: resCode}
-		mu.Unlock()
+	if !isInitCode {
+		cache.Add(codeHash, res)
 	}
-	return resCode, nil
+	return res, nil
 }
 
 type codeBuilder struct {

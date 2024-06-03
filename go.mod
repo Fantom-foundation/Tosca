@@ -6,6 +6,7 @@ require (
 	github.com/dsnet/golib/unitconv v1.0.2
 	github.com/ethereum/evmc/v10 v10.0.0
 	github.com/ethereum/go-ethereum v1.10.25
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/holiman/uint256 v1.2.4
 	github.com/urfave/cli/v2 v2.25.7
 	go.uber.org/mock v0.4.0
