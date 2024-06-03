@@ -434,3 +434,16 @@ func TestStateGenerator_ReturnDataShouldBeEmpty(t *testing.T) {
 		t.Errorf("unexpected length of generated return data, wanted %d, got %d", want, got)
 	}
 }
+
+// //////////////////////////////////////////////////////////
+// Block number hashes
+func TestStateGenerator_BlockNumberHashes(t *testing.T) {
+	newHashes := []vm.Hash{}
+	state := genRandomState(t)
+	for i := 0; i < 256; i++ {
+		if slices.Contains(newHashes, state.RecentBlockHashes[i]) {
+			t.Errorf("unexpected hash value, should be unique %v", state.RecentBlockHashes[i])
+		}
+		newHashes = append(newHashes, state.RecentBlockHashes[i])
+	}
+}

@@ -136,6 +136,7 @@ type State struct {
 	ReturnData            Bytes
 	HasSelfDestructed     bool
 	SelfDestructedJournal []SelfDestructEntry
+	RecentBlockHashes     [256]vm.Hash
 }
 
 // NewState creates a new State instance with the given code.
@@ -184,6 +185,7 @@ func (s *State) Clone() *State {
 	clone.ReturnData = s.ReturnData
 	clone.HasSelfDestructed = s.HasSelfDestructed
 	clone.SelfDestructedJournal = slices.Clone(s.SelfDestructedJournal)
+	clone.RecentBlockHashes = s.RecentBlockHashes
 	return clone
 }
 
@@ -216,7 +218,8 @@ func (s *State) Eq(other *State) bool {
 		s.Accounts.Eq(other.Accounts) &&
 		s.Logs.Eq(other.Logs) &&
 		s.HasSelfDestructed == other.HasSelfDestructed &&
-		slices.Equal(s.SelfDestructedJournal, other.SelfDestructedJournal)
+		slices.Equal(s.SelfDestructedJournal, other.SelfDestructedJournal) &&
+		s.RecentBlockHashes == other.RecentBlockHashes
 
 	// For terminal states, internal state can be ignored, but the result is important.
 	if s.Status != Running {
@@ -341,6 +344,15 @@ func (s *State) String() string {
 	write("\tHasSelfDestructed: %v\n", s.HasSelfDestructed)
 	write("\tSelfDestructedJournal: %v\n", s.SelfDestructedJournal)
 
+	// only print if next instruction is blockhash and the top of the stack is a valid uint64
+	if s.Code != nil && s.Code.Length() > int(s.Pc) && s.Stack != nil && s.Stack.Size() > 0 {
+		offset := s.Stack.stack[s.Stack.Size()-1]
+		if s.Code.IsCode(int(s.Pc)) && OpCode(s.Code.code[s.Pc]) == BLOCKHASH &&
+			offset.IsUint64() && offset.Uint64() < 256 {
+			write("\tHash of block %d: %#x\n", s.BlockContext.BlockNumber-offset.Uint64(), s.RecentBlockHashes[offset.Uint64()])
+		}
+	}
+
 	write("}")
 	return builder.String()
 }
@@ -436,6 +448,12 @@ func (s *State) Diff(o *State) []string {
 						entry1.account, entry1.beneficiary, entry2.account, entry2.beneficiary))
 				}
 			}
+		}
+	}
+
+	for i, want := range s.RecentBlockHashes {
+		if want != o.RecentBlockHashes[i] {
+			res = append(res, fmt.Sprintf("Different block number hash at index %d: %x vs %x", i, want, o.RecentBlockHashes[i]))
 		}
 	}
 

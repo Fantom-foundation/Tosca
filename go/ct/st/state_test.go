@@ -53,6 +53,7 @@ func getNewFilledState() *State {
 	s.LastCallReturnData = NewBytes([]byte{1})
 	s.HasSelfDestructed = true
 	s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{1}, vm.Address{2}}}
+	s.RecentBlockHashes = [256]vm.Hash{{0x01}}
 	return s
 }
 
@@ -157,6 +158,11 @@ func getTestChanges() map[string]testStruct {
 			state.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x04}}}
 		},
 			"Different has-self-destructed journal entry",
+		},
+		"block_number_hashes": {func(state *State) {
+			state.RecentBlockHashes = [256]vm.Hash{{0x02}}
+		},
+			"Different block number hash at index 0: 0200000000000000000000000000000000000000000000000000000000000000 vs 0100000000000000000000000000000000000000000000000000000000000000",
 		},
 	}
 	return tests
@@ -438,6 +444,24 @@ func TestState_PrinterMemorySize(t *testing.T) {
 	}
 }
 
+func TestState_PrinterRecentBlockHashes(t *testing.T) {
+	s := NewState(NewCode([]byte{byte(BLOCKHASH)}))
+	s.Stack.Push(NewU256(0))
+	s.RecentBlockHashes = [256]vm.Hash{{0x01}}
+
+	r := regexp.MustCompile(`Hash of block 0: 0x([0-9a-fA-F]+)`) // \[([0-9a-f]+)\]
+	str := s.String()
+	match := r.FindStringSubmatch(str)
+
+	if len(match) != 2 {
+		t.Fatal("invalid print, did not find recent block hashes")
+	}
+
+	if want, got := "0100000000000000000000000000000000000000000000000000000000000000", match[1]; want != got {
+		t.Errorf("invalid recent block hashes, want %v, got %v", want, got)
+	}
+}
+
 func TestState_DiffMatch(t *testing.T) {
 	s1 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s1.Status = Running
@@ -455,6 +479,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.LastCallReturnData = NewBytes([]byte{1})
 	s1.HasSelfDestructed = true
 	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
+	s1.RecentBlockHashes = [256]vm.Hash{{0x01}}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -472,6 +497,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.LastCallReturnData = NewBytes([]byte{1})
 	s2.HasSelfDestructed = true
 	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
+	s2.RecentBlockHashes = [256]vm.Hash{{0x01}}
 
 	diffs := s1.Diff(s2)
 
@@ -502,6 +528,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.LastCallReturnData = NewBytes([]byte{1})
 	s1.HasSelfDestructed = true
 	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
+	s1.RecentBlockHashes = [256]vm.Hash{{0x01}}
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -519,6 +546,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.LastCallReturnData = NewBytes([]byte{249})
 	s2.HasSelfDestructed = false
 	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}}}
+	s2.RecentBlockHashes = [256]vm.Hash{{0xf2}}
 
 	diffs := s1.Diff(s2)
 
@@ -541,6 +569,7 @@ func TestState_DiffMismatch(t *testing.T) {
 		"Different last call return data",
 		"Different has-self-destructed",
 		"Different has-self-destructed journal entry",
+		"Different block number hash at index 0: 0100000000000000000000000000000000000000000000000000000000000000 vs f200000000000000000000000000000000000000000000000000000000000000",
 	}
 
 	if len(diffs) != len(expectedDiffs) {
