@@ -144,6 +144,8 @@ func toEvmcRevision(revision vm.Revision) (evmc.Revision, error) {
 		return evmc.London, nil
 	case vm.R11_Paris:
 		return evmc.Paris, nil
+	case vm.R12_Shanghai:
+		return evmc.Shanghai, nil
 	default:
 		return 0, fmt.Errorf("unsupported revision: %v", revision)
 	}

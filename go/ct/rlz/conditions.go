@@ -328,8 +328,9 @@ func IsRevision(revision Revision) Condition {
 	return RevisionBounds(revision, revision)
 }
 
+// Any revision covered by the CT, excludes future revisions.
 func AnyKnownRevision() Condition {
-	return RevisionBounds(Revision(0), R99_UnknownNextRevision-1)
+	return RevisionBounds(Revision(0), NewestSupportedRevision)
 }
 
 func (c *revisionBounds) Check(s *st.State) (bool, error) {

@@ -101,9 +101,18 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 	// Set hard forks for chainconfig
 	chainConfig := *params.AllEthashProtocolChanges
 	chainConfig.ChainID = new(big.Int).SetBytes(context.ChainID[:])
-	chainConfig.IstanbulBlock = big.NewInt(int64(vm.R07_Istanbul) * 10)
-	chainConfig.BerlinBlock = big.NewInt(int64(vm.R09_Berlin) * 10)
-	chainConfig.LondonBlock = big.NewInt(int64(vm.R10_London) * 10)
+	chainConfig.IstanbulBlock = big.NewInt(int64(vm.R07_Istanbul) * 1000)
+	chainConfig.BerlinBlock = big.NewInt(int64(vm.R09_Berlin) * 1000)
+	chainConfig.LondonBlock = big.NewInt(int64(vm.R10_London) * 1000)
+	if parameters.Revision >= vm.R11_Paris {
+		chainConfig.MergeNetsplitBlock = big.NewInt(int64(vm.R11_Paris) * 1000)
+	}
+	if parameters.Revision >= vm.R12_Shanghai {
+		chainConfig.ShanghaiTime = verkleTime(vm.R12_Shanghai)
+	}
+	if parameters.Revision >= vm.R13_Cancun {
+		chainConfig.CancunTime = verkleTime(vm.R13_Cancun)
+	}
 
 	// Hashing function used in the context for BLOCKHASH instruction
 	getHash := func(num uint64) common.Hash {
@@ -117,7 +126,9 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 
 	// Create empty block context based on block number
 	blockCtx := geth.BlockContext{
-		BlockNumber: big.NewInt(int64(parameters.Revision)*10 + 2),
+		// Note: after Paris,the block number no longer indicates the revision
+		// but the existence of the random field in the block context.
+		BlockNumber: big.NewInt(int64(parameters.Revision)*1000 + 2),
 		Time:        uint64(transactionContext.Timestamp),
 		Difficulty:  big.NewInt(1),
 		GasLimit:    uint64(transactionContext.GasLimit),
@@ -126,6 +137,11 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 		Transfer:    transferFunc,
 		CanTransfer: canTransferFunc,
 	}
+
+	if parameters.Revision >= vm.R11_Paris {
+		blockCtx.Random = &common.Hash{}
+	}
+
 	// Create empty tx context
 	txCtx := geth.TxContext{
 		GasPrice: new(big.Int).SetBytes(transactionContext.GasPrice[:]),
@@ -152,6 +168,11 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 	contract.Input = parameters.Input
 
 	return evm, contract, stateDb
+}
+
+func verkleTime(revision vm.Revision) *uint64 {
+	v := uint64(revision) * 23
+	return &v
 }
 
 // --- Adapter ---

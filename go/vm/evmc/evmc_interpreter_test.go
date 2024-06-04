@@ -28,6 +28,8 @@ func TestEvmcInterpreter_RevisionConversion(t *testing.T) {
 		{vm.R07_Istanbul, evmc.Istanbul},
 		{vm.R09_Berlin, evmc.Berlin},
 		{vm.R10_London, evmc.London},
+		{vm.R11_Paris, evmc.Paris},
+		{vm.R12_Shanghai, evmc.Shanghai},
 	}
 
 	for _, test := range tests {
