@@ -116,8 +116,8 @@ func vmRevisionToCt(revision vm.Revision) ct.Revision {
 	panic(fmt.Sprintf("Unknown revision: %v", revision))
 }
 
-// GetChainConfig returns a chain config for the given chain ID and target revision.
-// The baseline config is used as a starting point, so that any prefilled configuration from go-ethereum params/config.go can be used.
+// makeChainConfig returns a chain config for the given chain ID and target revision.
+// The baseline config is used as a starting point, so that any prefilled configuration from go-ethereum:params/config.go can be used.
 // chainId needs to be prefilled as it may be accessed with the opcode CHAINID.
 // the fork-blocks and the fork-times are set to the respective values for the given revision.
 func makeChainConfig(baseline params.ChainConfig, chainId *big.Int, targetRevision ct.Revision) params.ChainConfig {
@@ -137,13 +137,13 @@ func makeChainConfig(baseline params.ChainConfig, chainId *big.Int, targetRevisi
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get Paris fork block: %v", err))
 	}
-	shanghaiTime, err := ct.GetForkTimestamp(ct.R12_Shanghai)
+	shanghaiTime, err := ct.GetForkTime(ct.R12_Shanghai)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to get Shanghai time: %v", err))
+		panic(fmt.Sprintf("Failed to get Shanghai fork time: %v", err))
 	}
-	cancunTime, err := ct.GetForkTimestamp(ct.R13_Cancun)
+	cancunTime, err := ct.GetForkTime(ct.R13_Cancun)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to get Cancun time: %v", err))
+		panic(fmt.Sprintf("Failed to get Cancun fork time: %v", err))
 	}
 
 	chainConfig := baseline

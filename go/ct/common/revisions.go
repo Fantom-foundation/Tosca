@@ -122,7 +122,7 @@ func GetForkBlock(revision Revision) (uint64, error) {
 	return 0, fmt.Errorf("unknown revision: %v", revision)
 }
 
-func GetForkTimestamp(revision Revision) (uint64, error) {
+func GetForkTime(revision Revision) (uint64, error) {
 	switch revision {
 	case R07_Istanbul:
 	case R09_Berlin:
