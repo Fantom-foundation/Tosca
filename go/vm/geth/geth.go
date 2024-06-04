@@ -139,7 +139,9 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 	}
 
 	if parameters.Revision >= vm.R11_Paris {
-		blockCtx.Random = &common.Hash{}
+		// Setting the random signals to geth that a post-merge (Paris) revision should be utilized.
+		hash := common.BytesToHash(context.PrevRandao[:])
+		blockCtx.Random = &hash
 	}
 
 	// Create empty tx context

@@ -328,7 +328,7 @@ func IsRevision(revision Revision) Condition {
 	return RevisionBounds(revision, revision)
 }
 
-// Any revision covered by the CT, excludes future revisions.
+// AnyKnownRevision restricts the revision to any revision covered by the CT specification.
 func AnyKnownRevision() Condition {
 	return RevisionBounds(Revision(0), NewestSupportedRevision)
 }
