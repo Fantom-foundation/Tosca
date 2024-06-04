@@ -178,7 +178,7 @@ func TestIntervalSolver_ExcludeEmptyIntervalHasNoEffect(t *testing.T) {
 	}
 }
 
-func TestIntervalSolver_TestIntervals(t *testing.T) {
+func TestIntervalSolver_GenerateProducesValuesFromWithinTheIntervals(t *testing.T) {
 	solver := NewIntervalSolver[int32](200, 400)
 	solver.Exclude(250, 300)
 
@@ -284,6 +284,12 @@ func TestIntervalSolver_uint64fullrangeAndEdges(t *testing.T) {
 		"remove-max": {
 			setup: func(s *IntervalSolver[uint64]) { s.Exclude(math.MaxUint64, math.MaxUint64) },
 			check: func(v uint64) bool { return v >= 0 && v < math.MaxUint64-1 }},
+		"fix-max": {
+			setup: func(s *IntervalSolver[uint64]) { s.AddEqualityConstraint(math.MaxUint64) },
+			check: func(v uint64) bool { return v == math.MaxUint64 }},
+		"fix-zero": {
+			setup: func(s *IntervalSolver[uint64]) { s.AddEqualityConstraint(0) },
+			check: func(v uint64) bool { return v == 0 }},
 	}
 
 	rnd := rand.New()
@@ -329,6 +335,12 @@ func TestIntervalSolver_int64fullrangeAndEdges(t *testing.T) {
 		"remove-zero": {
 			setup: func(s *IntervalSolver[int64]) { s.Exclude(0, 0) },
 			check: func(v int64) bool { return v != 0 }},
+		"fix-max": {
+			setup: func(s *IntervalSolver[int64]) { s.AddEqualityConstraint(math.MaxInt64) },
+			check: func(v int64) bool { return v == math.MaxInt64 }},
+		"fix-min": {
+			setup: func(s *IntervalSolver[int64]) { s.AddEqualityConstraint(math.MinInt64) },
+			check: func(v int64) bool { return v == math.MinInt64 }},
 	}
 
 	rnd := rand.New(0)
@@ -442,6 +454,24 @@ func TestIntervalSolver_allValuesAreGenerated(t *testing.T) {
 
 							return false
 						}
+					}
+				}
+				return true
+			},
+		},
+		"fix-value": {
+			solver: func() *IntervalSolver[int32] {
+				solver := NewIntervalSolver[int32](20, 40)
+				solver.AddEqualityConstraint(30)
+				return solver
+			}(),
+			check: func(seen map[int32]int) bool {
+				for i := 20; i <= 40; i++ {
+					if i == 30 && seen[int32(i)] == 0 {
+						return false
+					}
+					if i != 30 && seen[int32(i)] != 0 {
+						return false
 					}
 				}
 				return true

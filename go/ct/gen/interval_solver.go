@@ -13,7 +13,7 @@ import (
 //
 //	X ∈ [a1..b1] ∪ [a2..b2] ∪ ... ∪ [an..bn]
 //
-// The solver maintains a list of disjoint intervals [a..b] that represent the
+// The solver maintains a list of inclusive intervals [a..b] that represent the
 // domain of the variable x. The solver can exclude ranges from the domain and
 // check if the domain is empty, making the constraints unsatisfiable.
 type IntervalSolver[T constraints.Integer] struct {
@@ -166,7 +166,7 @@ const (
 	isEqual             relation = iota // [1..3] isEqual [1..3]
 	isBefore                            // [1..3] is before [4..6]
 	isAfter                             // [4..6] is after [1..3]
-	isSubset                            // [1..6] isContained in [2..5]
+	isSubset                            // [1..6] contains [2..5]
 	isSuperset                          // [2..5] isEnclosed in [1..6]
 	intersectsWithStart                 // [1..3] intersectsWithStart [2..6]
 	intersectsWithEnd                   // [2..6] intersectsWithEnd [1..5]
