@@ -122,13 +122,13 @@ func GetForkBlock(revision Revision) (uint64, error) {
 	return 0, fmt.Errorf("unknown revision: %v", revision)
 }
 
-func GetVerkleTime(revision Revision) (uint64, error) {
+func GetForkTimestamp(revision Revision) (uint64, error) {
 	switch revision {
 	case R07_Istanbul:
 	case R09_Berlin:
 	case R10_London:
 	case R11_Paris:
-		return 0, fmt.Errorf("revision: %v is too low for verkle time", revision)
+		return 0, fmt.Errorf("revision: %v is too low for timestamps", revision)
 	case R12_Shanghai:
 		return 4000, nil
 	case R13_Cancun:
