@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"math/big"
 
+	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/vm"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/tracing"
@@ -95,24 +96,92 @@ func (m *gethVm) Run(parameters vm.Parameters) (vm.Result, error) {
 	return vm.Result{}, fmt.Errorf("internal EVM error in geth: %v", err)
 }
 
+// TODO: remove once there is only one Revision definition
+func vmRevisionToCt(revision vm.Revision) ct.Revision {
+	switch revision {
+	case vm.R07_Istanbul:
+		return ct.R07_Istanbul
+	case vm.R09_Berlin:
+		return ct.R09_Berlin
+	case vm.R10_London:
+		return ct.R10_London
+	case vm.R11_Paris:
+		return ct.R11_Paris
+	case vm.R12_Shanghai:
+		return ct.R12_Shanghai
+	case vm.R13_Cancun:
+		return ct.R13_Cancun
+
+	}
+	panic(fmt.Sprintf("Unknown revision: %v", revision))
+}
+
+// GetChainConfig returns a chain config for the given chain ID and target revision.
+// The baseline config is used as a starting point, so that any prefilled configuration from go-ethereum params/config.go can be used.
+// chainId needs to be prefilled as it may be accessed with the opcode CHAINID.
+// the fork-blocks and the fork-times are set to the respective values for the given revision.
+func makeChainConfig(baseline params.ChainConfig, chainId *big.Int, targetRevision ct.Revision) params.ChainConfig {
+	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get Istanbul fork block: %v", err))
+	}
+	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get Berlin fork block: %v", err))
+	}
+	londonBlock, err := ct.GetForkBlock(ct.R10_London)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get London fork block: %v", err))
+	}
+	parisBlock, err := ct.GetForkBlock(ct.R11_Paris)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get Paris fork block: %v", err))
+	}
+	shanghaiTime, err := ct.GetForkBlock(ct.R12_Shanghai)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get Shanghai verkle time: %v", err))
+	}
+	cancunTime, err := ct.GetForkBlock(ct.R13_Cancun)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get Cancun verkle time: %v", err))
+	}
+
+	chainConfig := baseline
+	chainConfig.ChainID = chainId
+	chainConfig.ByzantiumBlock = big.NewInt(0)
+	chainConfig.IstanbulBlock = big.NewInt(0).SetUint64(istanbulBlock)
+	chainConfig.BerlinBlock = big.NewInt(0).SetUint64(berlinBlock)
+	chainConfig.LondonBlock = big.NewInt(0).SetUint64(londonBlock)
+
+	if targetRevision >= ct.R11_Paris {
+		chainConfig.MergeNetsplitBlock = big.NewInt(0).SetUint64(parisBlock)
+	}
+	if targetRevision >= ct.R12_Shanghai {
+		chainConfig.ShanghaiTime = &shanghaiTime
+	}
+	if targetRevision >= ct.R13_Cancun {
+		chainConfig.CancunTime = &cancunTime
+	}
+
+	return chainConfig
+}
+
+func currentBlock(revision ct.Revision) *big.Int {
+	block, err := ct.GetForkBlock(revision)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get fork block for %v: %v", revision, err))
+	}
+	return big.NewInt(int64(block + 2))
+}
+
 func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Contract, *stateDbAdapter) {
 	context := parameters.Context.GetTransactionContext()
 
 	// Set hard forks for chainconfig
-	chainConfig := *params.AllEthashProtocolChanges
-	chainConfig.ChainID = new(big.Int).SetBytes(context.ChainID[:])
-	chainConfig.IstanbulBlock = big.NewInt(int64(vm.R07_Istanbul) * 1000)
-	chainConfig.BerlinBlock = big.NewInt(int64(vm.R09_Berlin) * 1000)
-	chainConfig.LondonBlock = big.NewInt(int64(vm.R10_London) * 1000)
-	if parameters.Revision >= vm.R11_Paris {
-		chainConfig.MergeNetsplitBlock = big.NewInt(int64(vm.R11_Paris) * 1000)
-	}
-	if parameters.Revision >= vm.R12_Shanghai {
-		chainConfig.ShanghaiTime = verkleTime(vm.R12_Shanghai)
-	}
-	if parameters.Revision >= vm.R13_Cancun {
-		chainConfig.CancunTime = verkleTime(vm.R13_Cancun)
-	}
+	chainConfig :=
+		makeChainConfig(*params.AllEthashProtocolChanges,
+			new(big.Int).SetBytes(context.ChainID[:]),
+			vmRevisionToCt(parameters.Revision))
 
 	// Hashing function used in the context for BLOCKHASH instruction
 	getHash := func(num uint64) common.Hash {
@@ -126,9 +195,7 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 
 	// Create empty block context based on block number
 	blockCtx := geth.BlockContext{
-		// Note: after Paris,the block number no longer indicates the revision
-		// but the existence of the random field in the block context.
-		BlockNumber: big.NewInt(int64(parameters.Revision)*1000 + 2),
+		BlockNumber: currentBlock(vmRevisionToCt(parameters.Revision)),
 		Time:        uint64(transactionContext.Timestamp),
 		Difficulty:  big.NewInt(1),
 		GasLimit:    uint64(transactionContext.GasLimit),
@@ -170,11 +237,6 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 	contract.Input = parameters.Input
 
 	return evm, contract, stateDb
-}
-
-func verkleTime(revision vm.Revision) *uint64 {
-	v := uint64(revision) * 23
-	return &v
 }
 
 // --- Adapter ---

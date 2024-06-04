@@ -122,6 +122,23 @@ func GetForkBlock(revision Revision) (uint64, error) {
 	return 0, fmt.Errorf("unknown revision: %v", revision)
 }
 
+func GetVerkleTime(revision Revision) (uint64, error) {
+	switch revision {
+	case R07_Istanbul:
+	case R09_Berlin:
+	case R10_London:
+	case R11_Paris:
+		return 0, fmt.Errorf("revision: %v is too low for verkle time", revision)
+	case R12_Shanghai:
+		return 4000, nil
+	case R13_Cancun:
+		return 5000, nil
+	case R99_UnknownNextRevision:
+		return 6000, nil
+	}
+	return 0, fmt.Errorf("unknown revision: %v", revision)
+}
+
 // GetBlockRangeLengthFor returns the number of block numbers between the given revision and the following
 // in case of an Unknown revision, 0 is returned.
 func GetBlockRangeLengthFor(revision Revision) (uint64, error) {
