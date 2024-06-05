@@ -54,7 +54,10 @@ func (*BlockContextGenerator) Generate(rnd *rand.Rand, revision common.Revision)
 	gasPrice := common.RandU256(rnd)
 
 	prevRandao := common.RandU256(rnd)
-	timestamp := rnd.Uint64()
+
+	time := common.GetForkTime(revision)
+	nextTime := common.GetForkTime(revision + 1)
+	timestamp := rnd.Uint64n(nextTime-time) + time
 
 	return st.BlockContext{
 		BaseFee:     baseFee,
