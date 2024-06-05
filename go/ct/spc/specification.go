@@ -1414,6 +1414,7 @@ func getAllRules() []Rule {
 		pushes:    1,
 		conditions: []Condition{
 			Eq(ReadOnly(), true),
+			RevisionBounds(MinRevision, R11_Paris),
 		},
 		parameters: []Parameter{
 			ValueParameter{},
@@ -1430,6 +1431,7 @@ func getAllRules() []Rule {
 		pushes:    1,
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
+			RevisionBounds(MinRevision, R11_Paris),
 		},
 		parameters: []Parameter{
 			ValueParameter{},
@@ -1451,6 +1453,7 @@ func getAllRules() []Rule {
 		pushes:    1,
 		conditions: []Condition{
 			Eq(ReadOnly(), true),
+			RevisionBounds(MinRevision, R11_Paris),
 		},
 		parameters: []Parameter{
 			ValueParameter{},
@@ -1468,6 +1471,7 @@ func getAllRules() []Rule {
 		pushes:    1,
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
+			RevisionBounds(MinRevision, R11_Paris),
 		},
 		parameters: []Parameter{
 			ValueParameter{},
