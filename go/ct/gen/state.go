@@ -245,6 +245,18 @@ func (g *StateGenerator) MustNotBeSelfDestructed() {
 	g.hasSelfDestructedGen.MarkAsNotSelfDestructed()
 }
 
+func (g *StateGenerator) RestrictVariableToOneOfTheLast256Blocks(variable Variable) {
+	g.blockContextGen.RestrictVariableToOneOfTheLast256Blocks(variable)
+}
+
+func (g *StateGenerator) RestrictVariableToNoneOfTheLast256Blocks(variable Variable) {
+	g.blockContextGen.RestrictVariableToNoneOfTheLast256Blocks(variable)
+}
+
+func (g *StateGenerator) SetBlockNumberOffsetValue(variable Variable, value int64) {
+	g.blockContextGen.SetBlockNumberOffsetValue(variable, value)
+}
+
 func getRandomData(rnd *rand.Rand) ([]byte, error) {
 	size := uint(rnd.ExpFloat64() * float64(200))
 	if size > st.MaxDataSize {
