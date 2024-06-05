@@ -160,7 +160,7 @@ func TestRevision_GetRevisionForBlock(t *testing.T) {
 
 	for i := R07_Istanbul; i <= NewestSupportedRevision; i++ {
 		revisionBlockNumber, _ := GetForkBlock(i)
-		revisions[i] = revisionBlockNumber + 1
+		revisions[i] = revisionBlockNumber
 	}
 
 	for revision, revisionBlockNumber := range revisions {

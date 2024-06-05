@@ -111,13 +111,13 @@ func TestBlockContextGen_PrintProducesConstraintFormula(t *testing.T) {
 			},
 			want: "$a ∈ [BlockNumber-256..BlockNumber-1] Λ $b ∈ [BlockNumber-256..BlockNumber-1]",
 		},
-		"one-variable-with-fixed-value": {
+		"one-variable-with-fixed-offset": {
 			setup: func(b *BlockContextGenerator) {
 				b.SetBlockNumberOffsetValue("a", 44)
 			},
 			want: "$a = BlockNumber-44",
 		},
-		"one-variable-with-fixed-value-in-the-future": {
+		"one-variable-with-fixed-offset-in-the-future": {
 			setup: func(b *BlockContextGenerator) {
 				b.SetBlockNumberOffsetValue("a", -44)
 			},
@@ -208,7 +208,7 @@ func TestBlockContextGenerator_CanProduceSatisfyingBlockNumbersForConstraints(t 
 				}
 			},
 		},
-		"variable-with-fixed-positive-offset-and-predefined-value": {
+		"variable-with-fixed-positive-offset-and-predefined-offset": {
 			setup: func(b *BlockContextGenerator, a Assignment) {
 				b.SetBlockNumberOffsetValue("a", 44)
 				a["a"] = common.NewU256(100)
@@ -227,7 +227,7 @@ func TestBlockContextGenerator_CanProduceSatisfyingBlockNumbersForConstraints(t 
 				}
 			},
 		},
-		"variable-with-fixed-negative-offset-and-predefined-value": {
+		"variable-with-fixed-negative-offset-and-predefined-offset": {
 			setup: func(b *BlockContextGenerator, a Assignment) {
 				b.SetBlockNumberOffsetValue("a", -44)
 				a["a"] = common.NewU256(100)
@@ -275,7 +275,7 @@ func TestBlockContextGenerator_CanProduceSatisfyingBlockNumbersForConstraints(t 
 				}
 			},
 		},
-		"variable-in-range-with-pre-assigned-value": {
+		"variable-in-range-with-pre-assigned-offset": {
 			setup: func(b *BlockContextGenerator, a Assignment) {
 				b.SetRevision(common.R07_Istanbul)
 				b.RestrictVariableToOneOfTheLast256Blocks("a")
@@ -305,7 +305,7 @@ func TestBlockContextGenerator_CanProduceSatisfyingBlockNumbersForConstraints(t 
 				}
 			},
 		},
-		"variable-out-of-range-with-pre-assigned-value": {
+		"variable-out-of-range-with-pre-assigned-offset": {
 			setup: func(b *BlockContextGenerator, a Assignment) {
 				b.SetRevision(common.R07_Istanbul)
 				b.RestrictVariableToNoneOfTheLast256Blocks("a")
@@ -314,6 +314,20 @@ func TestBlockContextGenerator_CanProduceSatisfyingBlockNumbersForConstraints(t 
 			check: func(t *testing.T, res st.BlockContext, a Assignment) {
 				if res.BlockNumber >= 1000 {
 					t.Errorf("produced block number is not a valid Istanbul block, got %d", res.BlockNumber)
+				}
+			},
+		},
+		"tight-block-range-with-single-solution": {
+			setup: func(b *BlockContextGenerator, a Assignment) {
+				b.blockNumberSolver = NewRangeSolver[uint64](0, 1)
+				b.RestrictVariableToOneOfTheLast256Blocks("a")
+			},
+			check: func(t *testing.T, res st.BlockContext, a Assignment) {
+				if res.BlockNumber != 1 {
+					t.Errorf("expected block number to be 1, got %d", res.BlockNumber)
+				}
+				if value := a["a"]; value != common.NewU256(0) {
+					t.Errorf("expected variable 'a' to be assigned to 0, got %v", value)
 				}
 			},
 		},
@@ -349,21 +363,21 @@ func TestBlockContextGenerator_SignalsUnsatisfiableForUnsatisfiableConstraints(t
 			b.RestrictVariableToNoneOfTheLast256Blocks("a")
 			b.RestrictVariableToOneOfTheLast256Blocks("a")
 		},
-		"conflicting-fixed-values": func(b *BlockContextGenerator, _ Assignment) {
+		"conflicting-fixed-offsets": func(b *BlockContextGenerator, _ Assignment) {
 			b.SetBlockNumberOffsetValue("a", 44)
 			b.SetBlockNumberOffsetValue("a", 45)
 		},
-		"conflicting-fixed-values-with-out-of-range": func(b *BlockContextGenerator, _ Assignment) {
+		"conflicting-fixed-offsets-with-out-of-range": func(b *BlockContextGenerator, _ Assignment) {
 			b.SetBlockNumberOffsetValue("a", 44)
 			b.RestrictVariableToNoneOfTheLast256Blocks("a")
 		},
-		"conflicting-fixed-values-with-in-range": func(b *BlockContextGenerator, _ Assignment) {
+		"conflicting-fixed-offsets-with-in-range": func(b *BlockContextGenerator, _ Assignment) {
 			b.SetBlockNumberOffsetValue("a", 400)
 			b.RestrictVariableToOneOfTheLast256Blocks("a")
 		},
 		"block-number-overflow": func(b *BlockContextGenerator, a Assignment) {
 			b.SetBlockNumberOffsetValue("a", 400)
-			a["a"] = common.NewU256(1, 500) // 2^64+400
+			a["a"] = common.NewU256(1, 500) // 2^64+500
 		},
 		"block-number-underflow": func(b *BlockContextGenerator, a Assignment) {
 			b.SetRevision(common.R07_Istanbul)
@@ -384,9 +398,9 @@ func TestBlockContextGenerator_SignalsUnsatisfiableForUnsatisfiableConstraints(t
 			b.RestrictVariableToOneOfTheLast256Blocks("a")
 			a["a"] = common.NewU256(0xffffffffffffffff)
 		},
-		"coflicting-assigned-value-and-fixed-offset": func(b *BlockContextGenerator, a Assignment) {
-			b.SetBlockNumberOffsetValue("a", 440)
-			b.SetBlockNumberOffsetValue("a", 40)
+		"no-valid-block-range": func(b *BlockContextGenerator, a Assignment) {
+			b.blockNumberSolver = NewRangeSolver[uint64](0, 0)
+			b.RestrictVariableToOneOfTheLast256Blocks("a")
 		},
 	}
 
@@ -403,7 +417,6 @@ func TestBlockContextGenerator_SignalsUnsatisfiableForUnsatisfiableConstraints(t
 	}
 }
 
-// addOffset
 func TestBlockContextGen_addOffsetPositive(t *testing.T) {
 
 	tests := map[string]struct {
@@ -443,7 +456,7 @@ func TestBlockContextGen_addOffsetPositive(t *testing.T) {
 			want:     common.NewU256(0),
 			overflow: true,
 		},
-		"underdflow": {
+		"underflow": {
 			base:   common.NewU256(0),
 			offset: -1,
 			want: common.NewU256(0xffffffffffffffff, 0xffffffffffffffff,
@@ -465,7 +478,7 @@ func TestBlockContextGen_addOffsetPositive(t *testing.T) {
 	}
 }
 
-func TestBlockContextGen_addWithOverfloCheck(t *testing.T) {
+func TestBlockContextGen_addWithOverflowCheck(t *testing.T) {
 
 	tests := map[string]struct {
 		base     uint64
@@ -475,6 +488,7 @@ func TestBlockContextGen_addWithOverfloCheck(t *testing.T) {
 	}{
 		"small-positive": {base: 44, offset: 44, want: 88, overflow: false},
 		"overflow":       {base: 0xffffffffffffffff, offset: 1, want: 0, overflow: true},
+		"max":            {base: 0xffffffffffffffff, offset: 0xffffffffffffffff, want: 0xfffffffffffffffe, overflow: true},
 	}
 
 	for name, test := range tests {
@@ -511,7 +525,7 @@ func TestBlockContextGen_Restore(t *testing.T) {
 func TestBlockContexteGen_UnsatisfiableStateDoesNotChange(t *testing.T) {
 
 	tests := map[string]func(*BlockContextGenerator){
-		"fix-value":    func(b *BlockContextGenerator) { b.SetBlockNumberOffsetValue("a", 44) },
+		"fix-offset":   func(b *BlockContextGenerator) { b.SetBlockNumberOffsetValue("a", 44) },
 		"in-range":     func(b *BlockContextGenerator) { b.RestrictVariableToOneOfTheLast256Blocks("a") },
 		"out-of-range": func(b *BlockContextGenerator) { b.RestrictVariableToNoneOfTheLast256Blocks("a") },
 		"revision":     func(b *BlockContextGenerator) { b.SetRevision(common.R07_Istanbul) },

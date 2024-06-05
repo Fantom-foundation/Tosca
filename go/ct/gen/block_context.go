@@ -28,7 +28,7 @@ import (
 // BlockContextGenerator is a generator for block contexts.
 // It can take constraints on the block number, which come from
 // restricting the revision, and it can also take constraints on
-// on different variables in respect to the block number to be solved for.
+// different variables in respect to the block number to be solved for.
 // The constraints can be added in the form of fixed-value constraints
 // on variables, and constraints on the range of values that variables
 // can take.
@@ -46,7 +46,7 @@ type BlockContextGenerator struct {
 	// This map is used to keep track of fixed-value constraints of variables.
 	// the values we keep here are the offset from the block number, not the
 	// actual value, because of this, the value can be negative as well,
-	// meaaning we could want to generate a value bigger than the block number.
+	// meaning we could want to generate a value bigger than the block number.
 	valueConstraint map[Variable]int64
 
 	// This flag is set to true if the contained set of constraints
@@ -58,11 +58,11 @@ func NewBlockContextGenerator() *BlockContextGenerator {
 	return &BlockContextGenerator{}
 }
 
-// generateResultingBlockNumber generates a block number based on the constraints
+// generateBlockNumber generates a block number based on the constraints
 // added to the generator. These could be revision constraints,
 // fixed-value constraints, range constraints, or previously bound variables
 // in the given assignment.
-func (b *BlockContextGenerator) generateResultingBlockNumber(assignment Assignment, rnd *rand.Rand) (uint64, error) {
+func (b *BlockContextGenerator) generateBlockNumber(assignment Assignment, rnd *rand.Rand) (uint64, error) {
 
 	blockNumberSolver := NewIntervalSolver[uint64](0, math.MaxUint64)
 	if b.blockNumberSolver != nil {
@@ -107,8 +107,13 @@ func (b *BlockContextGenerator) generateResultingBlockNumber(assignment Assignme
 					if assignedValue.Uint64() < (max - 256) {
 						max = assignedValue.Uint64() + 256
 					}
+					blockNumberSolver.Exclude(min, max)
 				}
-				blockNumberSolver.Exclude(min, max)
+			}
+		} else {
+			if inRange {
+				// if we have a condition for a varaible in range, then we can not generate the first block number
+				blockNumberSolver.AddLowerBoundary(1)
 			}
 		}
 	}
@@ -147,17 +152,8 @@ func (b *BlockContextGenerator) bindVariablesInRangeConstraints(resultingBlockNu
 
 	for variable, inRange := range b.rangeConstraints {
 		if currentValue, isBound := assignment[variable]; isBound {
-			value := currentValue.Uint64()
-			if inRange {
-				if !isInRange(lowerBound, currentValue, upperBound) {
-					return ErrUnsatisfiable
-				}
-			} else {
-				if currentValue.IsUint64() {
-					if lowerBound <= value && value < upperBound {
-						return ErrUnsatisfiable
-					}
-				}
+			if inRange != isInRange(lowerBound, currentValue, upperBound) {
+				return ErrUnsatisfiable
 			}
 		} else { // no value bound to variable yet
 			if inRange {
@@ -167,9 +163,11 @@ func (b *BlockContextGenerator) bindVariablesInRangeConstraints(resultingBlockNu
 				}
 				assignment[variable] = NewU256(blockNumber)
 			} else {
-				number := rnd.Uint64n(math.MaxUint64 - 256)
-				if number >= lowerBound {
-					number += 256
+				numberOutOfRangeGenerator := NewIntervalSolver[uint64](0, math.MaxUint64)
+				numberOutOfRangeGenerator.Exclude(resultingBlockNumber-256, resultingBlockNumber-1)
+				number, err := numberOutOfRangeGenerator.Generate(rnd)
+				if err != nil {
+					return err
 				}
 				assignment[variable] = NewU256(number)
 			}
@@ -184,19 +182,19 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) 
 	}
 
 	// this call takes into account all preassigned values and revision constraints to generate a block number
-	resultingBlockNumber, err := b.generateResultingBlockNumber(assignment, rnd)
+	blockNumber, err := b.generateBlockNumber(assignment, rnd)
 	if err != nil {
 		return st.BlockContext{}, err
 	}
 
 	// for all non bound relevant variables, assign them a value based on the constraints.
 	// 1) fixed offset constraints
-	if err := b.bindVariablesInValueConstraints(assignment, resultingBlockNumber); err != nil {
+	if err := b.bindVariablesInValueConstraints(assignment, blockNumber); err != nil {
 		return st.BlockContext{}, err
 	}
 
 	// 2) range constraints
-	if err := b.bindVariablesInRangeConstraints(resultingBlockNumber, assignment, rnd); err != nil {
+	if err := b.bindVariablesInRangeConstraints(blockNumber, assignment, rnd); err != nil {
 		return st.BlockContext{}, err
 	}
 
@@ -212,14 +210,14 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) 
 
 	prevRandao := RandU256(rnd)
 
-	revision := GetRevisionForBlock(resultingBlockNumber)
+	revision := GetRevisionForBlock(blockNumber)
 	time := GetForkTime(revision)
 	nextTime := GetForkTime(revision + 1)
 	timestamp := rnd.Uint64n(nextTime-time) + time
 
 	return st.BlockContext{
 		BaseFee:     baseFee,
-		BlockNumber: resultingBlockNumber,
+		BlockNumber: blockNumber,
 		ChainID:     chainId,
 		CoinBase:    coinbase,
 		GasLimit:    gasLimit,
@@ -347,7 +345,7 @@ func (b *BlockContextGenerator) RestrictVariableToNoneOfTheLast256Blocks(variabl
 
 // SetBlockNumberOffsetValue adds a constraint on the variable so that it is
 // assigned with a value that is offseted from the block number.
-func (b *BlockContextGenerator) SetBlockNumberOffsetValue(variable Variable, value int64) {
+func (b *BlockContextGenerator) SetBlockNumberOffsetValue(variable Variable, offset int64) {
 	if b.unsatisfiable {
 		return
 	}
@@ -355,11 +353,11 @@ func (b *BlockContextGenerator) SetBlockNumberOffsetValue(variable Variable, val
 		b.valueConstraint = make(map[Variable]int64)
 	}
 	if existingValue, ok := b.valueConstraint[variable]; ok {
-		if existingValue != value {
+		if existingValue != offset {
 			b.markUnsatisfiable()
 		}
 	} else {
-		b.valueConstraint[variable] = value
+		b.valueConstraint[variable] = offset
 	}
 }
 
@@ -392,7 +390,7 @@ func (b *BlockContextGenerator) AddRevisionBounds(lower, upper Revision) {
 		b.markUnsatisfiable()
 		return
 	}
-	if len == math.MaxUint64 {
+	if len >= math.MaxUint64-max {
 		max = math.MaxUint64
 	} else {
 		max += len - 1
