@@ -818,6 +818,40 @@ func getAllRules() []Rule {
 		},
 	})...)
 
+	// --- BLOCKHASH ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        BLOCKHASH,
+		staticGas: 20,
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			InRange256FromCurrentBlock(Param(0)),
+		},
+		parameters: []Parameter{NumericParameter{}},
+		effect: func(s *st.State) {
+			targetBlockNumber := s.Stack.Pop()
+			index := s.BlockContext.BlockNumber - targetBlockNumber.Uint64()
+			s.Stack.Push(NewU256FromBytes(s.RecentBlockHashes[index-1][:]...))
+		},
+	})...)
+
+	rules = append(rules, rulesFor(instruction{
+		op:        BLOCKHASH,
+		name:      "_out_of_range",
+		staticGas: 20,
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			OutOfRange256FromCurrentBlock(Param(0)),
+		},
+		parameters: []Parameter{NumericParameter{}},
+		effect: func(s *st.State) {
+			s.Stack.Pop()
+			s.Stack.Push(NewU256(0))
+		},
+	})...)
+
 	// --- COINBASE ---
 
 	rules = append(rules, rulesFor(instruction{
