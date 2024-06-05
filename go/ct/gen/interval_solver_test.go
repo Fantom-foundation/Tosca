@@ -482,7 +482,7 @@ func TestIntervalSolver_allValuesAreGenerated(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			seen := map[int32]int{}
-			rnd := rand.New()
+			rnd := rand.New(0)
 			for i := 0; i <= 100; i++ {
 				res, err := test.solver.Generate(rnd)
 				if err != nil {
