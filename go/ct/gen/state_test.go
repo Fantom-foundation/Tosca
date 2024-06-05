@@ -345,7 +345,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"accounts={}",
 		"callContext={}",
 		"callJournal={}",
-		"blockContext=BlockNumber ∈ [2000..2999]",
+		"blockContext=2000≤BlockNumber≤2999",
 		"selfdestruct={mustBeSelfDestructed}",
 	})
 
@@ -362,7 +362,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"accounts={}",
 		"callContext={}",
 		"callJournal={}",
-		"blockContext=BlockNumber ∈ [1000..1999]",
+		"blockContext=1000≤BlockNumber≤1999",
 		"selfdestruct={mustNotBeSelfDestructed}",
 	})
 }

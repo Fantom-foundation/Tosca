@@ -156,31 +156,17 @@ func TestRevisions_UnmarshalError(t *testing.T) {
 
 func TestRevision_GetRevisionForBlock(t *testing.T) {
 
-	istanbulBlockNumber, _ := GetForkBlock(R07_Istanbul)
-	berlinBlockNumber, _ := GetForkBlock(R09_Berlin)
-	londonBlockNumber, _ := GetForkBlock(R10_London)
-	parisBlockNumber, _ := GetForkBlock(R11_Paris)
-	shanghaiBlockNumber, _ := GetForkBlock(R12_Shanghai)
-	cancunBlockNumber, _ := GetForkBlock(R13_Cancun)
-	unknownNextRevisionBlockNumber, _ := GetForkBlock(R99_UnknownNextRevision)
+	revisions := map[Revision]uint64{}
 
-	tests := map[string]struct {
-		blockNumber uint64
-		revision    Revision
-	}{
-		"Istanbul":    {istanbulBlockNumber + 1, R07_Istanbul},
-		"Berlin":      {berlinBlockNumber + 1, R09_Berlin},
-		"London":      {londonBlockNumber + 1, R10_London},
-		"Paris":       {parisBlockNumber + 1, R11_Paris},
-		"Shanghai":    {shanghaiBlockNumber + 1, R12_Shanghai},
-		"Cancun":      {cancunBlockNumber + 1, R13_Cancun},
-		"UnknownNext": {unknownNextRevisionBlockNumber + 1, R99_UnknownNextRevision},
+	for i := R07_Istanbul; i <= NewestSupportedRevision; i++ {
+		revisionBlockNumber, _ := GetForkBlock(i)
+		revisions[i] = revisionBlockNumber + 1
 	}
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			got := GetRevisionForBlock(test.blockNumber)
-			if test.revision != got {
+	for revision, revisionBlockNumber := range revisions {
+		t.Run(revision.String(), func(t *testing.T) {
+			got := GetRevisionForBlock(revisionBlockNumber)
+			if revision != got {
 				t.Errorf("Unexpected revision for block number: %v", got)
 			}
 		})

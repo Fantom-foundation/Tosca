@@ -28,22 +28,25 @@ import (
 // BlockContextGenerator is a generator for block contexts.
 // It can take constraints on the block number, which come from
 // restricting the revision, and it can also take constraints on
-// the on different variables to generta in respect to the block number.
+// on different variables in respect to the block number to be solved for.
 // The constraints can be added in the form of fixed-value constraints
 // on variables, and constraints on the range of values that variables
 // can take.
-// The generator can be marked as unsatisfiable if the constraints
-// added to it are conflicting.
+// if conflicting constraints are added the generator will turn
+// unsatisfiable, and return an error when trying to generate a block context.
 type BlockContextGenerator struct {
 	blockNumberSolver *RangeSolver[uint64]
 
 	// This map is used to keep track of range constraints of variables.
-	// variables limited to recent block constraints are mapped to
-	// true, variables limited to be not in recent block constraints
+	// Variables limited to recent block number range are mapped to
+	// true, variables required to be not in the recent block number range
 	// are mapped to false.
 	rangeConstraints map[Variable]bool
 
 	// This map is used to keep track of fixed-value constraints of variables.
+	// the values we keep here are the offset from the block number, not the
+	// actual value, because of this, the value can be negative as well,
+	// meaaning we could want to generate a value bigger than the block number.
 	valueConstraint map[Variable]int64
 
 	// This flag is set to true if the contained set of constraints
@@ -55,37 +58,16 @@ func NewBlockContextGenerator() *BlockContextGenerator {
 	return &BlockContextGenerator{}
 }
 
-// addOffset adds an offset to a U256 value, checking for overflow.
-func addOffset(value U256, offset int64) (result U256, hasOverflown bool) {
-	if offset < 0 {
-		result := value.Sub(NewU256(uint64(-offset)))
-		return result, result.Gt(value)
-	}
-	result = value.Add(NewU256(uint64(offset)))
-	return result, result.Lt(value)
-}
-
-// addWithOverflowCheck adds two uint64 values, checking for overflow.
-func addWithOverflowCheck(a, b uint64) (result uint64, hasOverflown bool) {
-	result = a + b
-	return result, result < a
-}
-
 // generateResultingBlockNumber generates a block number based on the constraints
-// added to the generator, this could be regarding revision constraints,
-// fixed-value constraints, range constraints, or previously assigned variables
-// ( the latter only if they are also target variable for any relevant constraint )
+// added to the generator. These could be revision constraints,
+// fixed-value constraints, range constraints, or previously bound variables
+// in the given assignment.
 func (b *BlockContextGenerator) generateResultingBlockNumber(assignment Assignment, rnd *rand.Rand) (uint64, error) {
 
 	blockNumberSolver := NewIntervalSolver[uint64](0, math.MaxUint64)
 	if b.blockNumberSolver != nil {
-		// apply constraints on block number solver derived from revision constraints
-		if b.blockNumberSolver.min > 0 {
-			blockNumberSolver.Exclude(0, b.blockNumberSolver.min-1)
-		}
-		if b.blockNumberSolver.max < math.MaxUint64 {
-			blockNumberSolver.Exclude(b.blockNumberSolver.max+1, math.MaxUint64)
-		}
+		blockNumberSolver.AddLowerBoundary(b.blockNumberSolver.min)
+		blockNumberSolver.AddUpperBoundary(b.blockNumberSolver.max)
 	}
 
 	// apply constraints on block number solver derived from predefined assignments
@@ -117,11 +99,16 @@ func (b *BlockContextGenerator) generateResultingBlockNumber(assignment Assignme
 					blockNumberSolver.AddUpperBoundary(upper)
 				}
 			} else {
-				if !assignedValue.Sub(NewU256(256)).IsUint64() {
-					return 0, ErrUnsatisfiable
-				}
+				min := uint64(math.MaxUint64)
+				max := uint64(math.MaxUint64)
 				value := assignedValue.Uint64()
-				blockNumberSolver.Exclude(value+1, value+256)
+				if assignedValue.IsUint64() && value < max {
+					min = assignedValue.Uint64() + 1
+					if assignedValue.Uint64() < (max - 256) {
+						max = assignedValue.Uint64() + 256
+					}
+				}
+				blockNumberSolver.Exclude(min, max)
 			}
 		}
 	}
@@ -129,8 +116,8 @@ func (b *BlockContextGenerator) generateResultingBlockNumber(assignment Assignme
 	return blockNumberSolver.Generate(rnd)
 }
 
-// processValueConstraint processes the fixed-value constraints on variables.
-func (b *BlockContextGenerator) processValueConstraint(assignment Assignment, resultingBlockNumber uint64) error {
+// bindVariablesInValueConstraints processes the fixed-value constraints on variables.
+func (b *BlockContextGenerator) bindVariablesInValueConstraints(assignment Assignment, resultingBlockNumber uint64) error {
 	for variable, offset := range b.valueConstraint {
 		requiredValue, underflow := addOffset(NewU256(resultingBlockNumber), -offset)
 		if underflow {
@@ -149,8 +136,8 @@ func (b *BlockContextGenerator) processValueConstraint(assignment Assignment, re
 	return nil
 }
 
-// processRangeConstraint processes the range constraints on variables.
-func (b *BlockContextGenerator) processRangeConstraint(resultingBlockNumber uint64, assignment Assignment, rnd *rand.Rand) error {
+// bindVariablesInRangeConstraints processes the range constraints on variables.
+func (b *BlockContextGenerator) bindVariablesInRangeConstraints(resultingBlockNumber uint64, assignment Assignment, rnd *rand.Rand) error {
 	lowerBound := uint64(0)
 	if resultingBlockNumber > 256 {
 		lowerBound = resultingBlockNumber - 256
@@ -204,12 +191,12 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) 
 
 	// for all non bound relevant variables, assign them a value based on the constraints.
 	// 1) fixed offset constraints
-	if err := b.processValueConstraint(assignment, resultingBlockNumber); err != nil {
+	if err := b.bindVariablesInValueConstraints(assignment, resultingBlockNumber); err != nil {
 		return st.BlockContext{}, err
 	}
 
 	// 2) range constraints
-	if err := b.processRangeConstraint(resultingBlockNumber, assignment, rnd); err != nil {
+	if err := b.bindVariablesInRangeConstraints(resultingBlockNumber, assignment, rnd); err != nil {
 		return st.BlockContext{}, err
 	}
 
@@ -242,15 +229,13 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) 
 	}, nil
 }
 
-func isInRange(lowerBound uint64, currentValue U256, upperBound uint64) bool {
-	value := currentValue.Uint64()
-	return currentValue.IsUint64() && lowerBound <= value && value <= upperBound
-}
-
 func (b *BlockContextGenerator) Clone() *BlockContextGenerator {
+	if b.unsatisfiable {
+		return &BlockContextGenerator{unsatisfiable: true}
+	}
 	var blockNumberSolverCopy *RangeSolver[uint64]
 	if b.blockNumberSolver != nil {
-		blockNumberSolverCopy = b.blockNumberSolver
+		blockNumberSolverCopy = b.blockNumberSolver.Clone()
 	}
 	return &BlockContextGenerator{
 		unsatisfiable:     b.unsatisfiable,
@@ -280,11 +265,7 @@ func (b *BlockContextGenerator) String() string {
 	clauses := []string{}
 	if b.blockNumberSolver != nil {
 		if b.blockNumberSolver.IsSatisfiable() {
-			clauses = append(clauses, fmt.Sprintf(
-				"BlockNumber ∈ [%d..%d]",
-				b.blockNumberSolver.min,
-				b.blockNumberSolver.max,
-			))
+			clauses = append(clauses, b.blockNumberSolver.Print("BlockNumber"))
 		}
 	}
 
@@ -329,10 +310,7 @@ func (b *BlockContextGenerator) String() string {
 }
 
 // RestricVariableToOneOfTheLast256Blocks adds a constraint on the variable
-// so that it is generated with a value within the last 256 blocks.'
-// If the generator is already marked as unsatisfiable or if the variable
-// is already constrained to be outside the last 256 blocks, the generator
-// remains unsatisfiable.
+// so that this generator assigns a value to it referencing one of the last 256 blocks.
 func (b *BlockContextGenerator) RestrictVariableToOneOfTheLast256Blocks(variable Variable) {
 	if b.unsatisfiable {
 		return
@@ -350,10 +328,7 @@ func (b *BlockContextGenerator) RestrictVariableToOneOfTheLast256Blocks(variable
 }
 
 // RestrictVariableToNoneOfTheLast256Blocks adds a constraint on the variable
-// so that it is generated with a value outside the last 256 blocks.'
-// If the generator is already marked as unsatisfiable or if the variable
-// is already constrained to be within the last 256 blocks, the generator
-// remains unsatisfiable.
+// so that this generator assigns a value to it referencing none of the last 256 blocks.
 func (b *BlockContextGenerator) RestrictVariableToNoneOfTheLast256Blocks(variable Variable) {
 	if b.unsatisfiable {
 		return
@@ -371,10 +346,7 @@ func (b *BlockContextGenerator) RestrictVariableToNoneOfTheLast256Blocks(variabl
 }
 
 // SetBlockNumberOffsetValue adds a constraint on the variable so that it is
-// generated with a value that is offset from the block number.
-// If the generator is already marked as unsatisfiable or if the variable
-// is already constrained to a different offset, the generator remains
-// unsatisfiable.
+// assigned with a value that is offseted from the block number.
 func (b *BlockContextGenerator) SetBlockNumberOffsetValue(variable Variable, value int64) {
 	if b.unsatisfiable {
 		return
@@ -405,9 +377,21 @@ func (b *BlockContextGenerator) AddRevisionBounds(lower, upper Revision) {
 		b.markUnsatisfiable()
 		return
 	}
-	min, _ := GetForkBlock(lower)
-	max, _ := GetForkBlock(upper)
-	len, _ := GetBlockRangeLengthFor(upper)
+	min, err := GetForkBlock(lower)
+	if err != nil {
+		b.markUnsatisfiable()
+		return
+	}
+	max, err := GetForkBlock(upper)
+	if err != nil {
+		b.markUnsatisfiable()
+		return
+	}
+	len, err := GetBlockRangeLengthFor(upper)
+	if err != nil {
+		b.markUnsatisfiable()
+		return
+	}
 	if len == math.MaxUint64 {
 		max = math.MaxUint64
 	} else {
@@ -429,4 +413,25 @@ func (b *BlockContextGenerator) markUnsatisfiable() {
 	b.blockNumberSolver = nil
 	b.rangeConstraints = nil
 	b.valueConstraint = nil
+}
+
+// addOffset adds an offset to a U256 value, checking for overflow.
+func addOffset(value U256, offset int64) (result U256, hasOverflown bool) {
+	if offset < 0 {
+		result := value.Sub(NewU256(uint64(-offset)))
+		return result, result.Gt(value)
+	}
+	result = value.Add(NewU256(uint64(offset)))
+	return result, result.Lt(value)
+}
+
+// addWithOverflowCheck adds two uint64 values, checking for overflow.
+func addWithOverflowCheck(a, b uint64) (result uint64, hasOverflown bool) {
+	result = a + b
+	return result, result < a
+}
+
+func isInRange(lowerBound uint64, currentValue U256, upperBound uint64) bool {
+	value := currentValue.Uint64()
+	return currentValue.IsUint64() && lowerBound <= value && value <= upperBound
 }

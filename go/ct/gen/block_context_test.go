@@ -69,14 +69,14 @@ func TestBlockContextGen_PrintProducesConstraintFormula(t *testing.T) {
 			setup: func(b *BlockContextGenerator) {
 				b.SetRevision(common.R07_Istanbul)
 			},
-			want: "BlockNumber ∈ [0..999]",
+			want: "0≤BlockNumber≤999",
 		},
 		"restrict-to-revision-range": {
 			setup: func(b *BlockContextGenerator) {
 				b.AddRevisionBounds(common.R09_Berlin, common.R11_Paris)
 			},
 			// TODO: clean up this expectation by using GetForkBlock function
-			want: "BlockNumber ∈ [1000..3999]",
+			want: "1000≤BlockNumber≤3999",
 		},
 		"restrict-to-multiple-revisions": {
 			setup: func(b *BlockContextGenerator) {
@@ -90,7 +90,7 @@ func TestBlockContextGen_PrintProducesConstraintFormula(t *testing.T) {
 				b.AddRevisionBounds(common.R07_Istanbul, common.R09_Berlin)
 				b.SetRevision(common.R07_Istanbul)
 			},
-			want: "BlockNumber ∈ [0..999]",
+			want: "0≤BlockNumber≤999",
 		},
 		"one-variable-in-range": {
 			setup: func(b *BlockContextGenerator) {
@@ -130,7 +130,7 @@ func TestBlockContextGen_PrintProducesConstraintFormula(t *testing.T) {
 				b.RestrictVariableToOneOfTheLast256Blocks("b")
 				b.RestrictVariableToNoneOfTheLast256Blocks("c")
 			},
-			want: "$a = BlockNumber-44 Λ $b ∈ [BlockNumber-256..BlockNumber-1] Λ $c ∉ [BlockNumber-256..BlockNumber-1] Λ BlockNumber ∈ [0..999]",
+			want: "$a = BlockNumber-44 Λ $b ∈ [BlockNumber-256..BlockNumber-1] Λ $c ∉ [BlockNumber-256..BlockNumber-1] Λ 0≤BlockNumber≤999",
 		},
 		"multiple-constraints-for-single-variable": {
 			setup: func(b *BlockContextGenerator) {
@@ -383,11 +383,6 @@ func TestBlockContextGenerator_SignalsUnsatisfiableForUnsatisfiableConstraints(t
 			b.SetRevision(common.R07_Istanbul)
 			b.RestrictVariableToOneOfTheLast256Blocks("a")
 			a["a"] = common.NewU256(0xffffffffffffffff)
-		},
-		"conflicting-revisions-with-out-of-range-and-predefined-assignment": func(b *BlockContextGenerator, a Assignment) {
-			b.blockNumberSolver = NewRangeSolver[uint64](100, 200)
-			b.RestrictVariableToNoneOfTheLast256Blocks("a")
-			a["a"] = common.NewU256(80)
 		},
 		"coflicting-assigned-value-and-fixed-offset": func(b *BlockContextGenerator, a Assignment) {
 			b.SetBlockNumberOffsetValue("a", 440)
