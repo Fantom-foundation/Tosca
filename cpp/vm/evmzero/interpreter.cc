@@ -56,6 +56,8 @@ const char* ToString(RunState state) {
       return "ErrorCreate";
     case RunState::kErrorStaticCall:
       return "ErrorStaticCall";
+    case RunState::kErrorInitCodeSizeExceeded:
+      return "ErrorInitCodeSizeExceeded";
   }
   return "UNKNOWN_STATE";
 }
@@ -1515,6 +1517,22 @@ struct CreateImpl {
         ctx.MemoryExpansionCost(init_code_offset_u256, init_code_size_u256);
     if (gas -= mem_cost; gas < 0) [[unlikely]]
       return {.dynamic_gas_costs = initial_gas - gas};
+
+    if (ctx.revision >= EVMC_SHANGHAI) {
+      const int64_t max_code_size = 24576;
+      const int64_t max_init_code_size = 2 * max_code_size;
+      const int64_t init_code_word_cost = 2;
+
+      if (init_code_size > max_init_code_size) {
+        return {
+            .state = RunState::kErrorInitCodeSizeExceeded,
+            .dynamic_gas_costs = initial_gas - gas,
+        };
+      }
+      if (gas -= init_code_word_cost * static_cast<int64_t>(((init_code_size + 31) / 32)), gas < 0) {
+        return {.dynamic_gas_costs = initial_gas - gas};
+      }
+    }
 
     if constexpr (Op == op::CREATE2) {
       const int64_t minimum_word_size = static_cast<int64_t>((init_code_size + 31) / 32);

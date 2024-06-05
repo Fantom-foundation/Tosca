@@ -41,6 +41,7 @@ enum class RunState {
   kErrorCall,
   kErrorCreate,
   kErrorStaticCall,
+  kErrorInitCodeSizeExceeded,
 };
 
 bool IsSuccess(RunState);
