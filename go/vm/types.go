@@ -16,7 +16,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
+
+	"github.com/holiman/uint256"
 )
 
 func (a Address) String() string {
@@ -31,8 +34,36 @@ func (a *Address) UnmarshalText(data []byte) error {
 	return textToBytes(a[:], data)
 }
 
+func (v Value) ToBig() *big.Int {
+	return new(big.Int).SetBytes(v[:])
+}
+
+func (v Value) ToU256() *uint256.Int {
+	return new(uint256.Int).SetBytes(v[:])
+}
+
 func (v Value) String() string {
 	return fmt.Sprintf("0x%x", v[:])
+}
+
+func (v Value) Cmp(o Value) int {
+	return v.ToU256().Cmp(o.ToU256())
+}
+
+func ValueFromUint64(value uint64) Value {
+	return Uint256ToValue(new(uint256.Int).SetUint64(value))
+}
+
+func (v Value) Add(o Value) Value {
+	a := v.ToU256()
+	b := o.ToU256()
+	return Uint256ToValue(new(uint256.Int).Add(a, b))
+}
+
+func (v Value) Sub(o Value) Value {
+	a := v.ToU256()
+	b := o.ToU256()
+	return Uint256ToValue(new(uint256.Int).Sub(a, b))
 }
 
 func (v Value) MarshalText() ([]byte, error) {
