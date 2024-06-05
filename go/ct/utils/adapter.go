@@ -136,6 +136,10 @@ func (c *ctRunContext) GetCode(addr vm.Address) vm.Code {
 	return c.state.Accounts.GetCode(addr).ToBytes()
 }
 
+func (c *ctRunContext) SetCode(addr vm.Address, code vm.Code) {
+	panic("not implemented")
+}
+
 func (c *ctRunContext) GetBlockHash(number int64) vm.Hash {
 	min := int64(0)
 	max := int64(c.state.BlockContext.BlockNumber)

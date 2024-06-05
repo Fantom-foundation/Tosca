@@ -89,6 +89,11 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		}()
 	}
 
+	/*
+		fmt.Printf("Start - Depth: %v\n", a.evm.Depth)
+		defer fmt.Printf("End - Depth: %v\n", a.evm.Depth)
+	*/
+
 	// The geth EVM infrastructure does not offer means for forwarding read-only
 	// state information through recursive interpreter calls. Internally, geth
 	// is tracking this in a non-accessible member field of the geth interpreter.
@@ -307,6 +312,10 @@ func (a *runContextAdapter) GetCodeHash(addr vm.Address) vm.Hash {
 
 func (a *runContextAdapter) GetCode(addr vm.Address) vm.Code {
 	return a.evm.StateDB.GetCode(gc.Address(addr))
+}
+
+func (a *runContextAdapter) SetCode(addr vm.Address, code vm.Code) {
+	a.evm.StateDB.SetCode(gc.Address(addr), code)
 }
 
 func (a *runContextAdapter) GetBlockHash(number int64) vm.Hash {
