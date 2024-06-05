@@ -30,6 +30,7 @@ type WorldState interface {
 	GetCode(Address) Code
 	GetCodeHash(Address) Hash
 	GetCodeSize(Address) int
+	SetCode(Address, Code)
 
 	GetStorage(Address, Key) Word
 	SetStorage(Address, Key, Word) StorageStatus

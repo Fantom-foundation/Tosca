@@ -1081,6 +1081,8 @@ func getRadomByte32() []byte {
 func setDefaultCallStateDBMock(mockStateDB *MockStateDB, account vm.Address, code []byte) {
 	// mock state calls for call instruction
 	mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(vm.Value{1})
+	mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes().Return(uint64(123))
+	mockStateDB.EXPECT().SetNonce(gomock.Any(), gomock.Any()).AnyTimes()
 	mockStateDB.EXPECT().GetCodeHash(gomock.Any()).AnyTimes().Return(vm.Hash{})
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(code)
 	mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(true)
