@@ -1584,6 +1584,21 @@ func createEffect(s *st.State, callKind vm.CallKind) {
 	memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 	dynamicGas := memExpCost
 
+	if s.Revision >= R12_Shanghai {
+		const (
+			MaxCodeSize     = 24576           // Maximum bytecode to permit for a contract
+			MaxInitCodeSize = 2 * MaxCodeSize // Maximum initcode to permit in a creation transaction and create instructions
+
+			InitCodeWordGas = 2 // Once per word of the init code when creating a contract.
+		)
+		if !sizeU256.IsUint64() || size > MaxInitCodeSize {
+			s.Gas = 0
+			s.Status = st.Failed
+			return
+		}
+		dynamicGas += vm.Gas(InitCodeWordGas * ((size + 31) / 32))
+	}
+
 	if callKind == vm.Create2 {
 		saltU256 = s.Stack.Pop()
 		dynamicGas += vm.Gas(6 * ((size + 31) / 32))
