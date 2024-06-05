@@ -137,14 +137,8 @@ func makeChainConfig(baseline params.ChainConfig, chainId *big.Int, targetRevisi
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get Paris fork block: %v", err))
 	}
-	shanghaiTime, err := ct.GetForkTime(ct.R12_Shanghai)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get Shanghai fork time: %v", err))
-	}
-	cancunTime, err := ct.GetForkTime(ct.R13_Cancun)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get Cancun fork time: %v", err))
-	}
+	shanghaiTime := ct.GetForkTime(ct.R12_Shanghai)
+	cancunTime := ct.GetForkTime(ct.R13_Cancun)
 
 	chainConfig := baseline
 	chainConfig.ChainID = chainId

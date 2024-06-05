@@ -122,21 +122,28 @@ func GetForkBlock(revision Revision) (uint64, error) {
 	return 0, fmt.Errorf("unknown revision: %v", revision)
 }
 
-func GetForkTime(revision Revision) (uint64, error) {
+// GetForkTime returns the revison fork timestamp.
+// It is intended to provide input for test state generators to produce consistent
+// fork timestamps and code revisions, as well as for adapters between the CT framework
+// and EVM interpreters to support the state conversion.
+// This function will never fail, as it may be required to generate a timestamp for an guture revision.
+func GetForkTime(revision Revision) uint64 {
 	switch revision {
 	case R07_Istanbul:
+		return 0
 	case R09_Berlin:
+		return 1000
 	case R10_London:
+		return 2000
 	case R11_Paris:
-		return 0, fmt.Errorf("revision: %v is too low for timestamps", revision)
+		return 3000
 	case R12_Shanghai:
-		return 4000, nil
+		return 4000
 	case R13_Cancun:
-		return 5000, nil
-	case R99_UnknownNextRevision:
-		return 6000, nil
+		return 5000
+	default:
+		return 6000
 	}
-	return 0, fmt.Errorf("unknown revision: %v", revision)
 }
 
 // GetBlockRangeLengthFor returns the number of block numbers between the given revision and the following
