@@ -126,7 +126,7 @@ func GetForkBlock(revision Revision) (uint64, error) {
 // It is intended to provide input for test state generators to produce consistent
 // fork timestamps and code revisions, as well as for adapters between the CT framework
 // and EVM interpreters to support the state conversion.
-// This function will never fail, as it may be required to generate a timestamp for an guture revision.
+// This function will never fail, as it may be required to generate a timestamp for an future revision.
 func GetForkTime(revision Revision) uint64 {
 	switch revision {
 	case R07_Istanbul:
