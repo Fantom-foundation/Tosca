@@ -986,6 +986,35 @@ struct Impl<OpCode::POP> {
 };
 
 template <>
+struct Impl<OpCode::MCOPY> {
+  constexpr static OpInfo kInfo = OpInfo{
+      .pops = 3,
+      .pushes = 0,
+      .static_gas = 3,
+      .introduced_in = EVMC_CANCUN,
+  };
+
+  static OpResult Run(uint256_t* top, int64_t gas, Context& ctx) noexcept {
+    const uint256_t dest_offset_u265 = top[0];
+    const uint256_t src_offset_u256 = top[1];
+    const uint256_t size_u256 = top[2];
+
+    const auto [expansion_cost_dest, dest_offset, size] = ctx.MemoryExpansionCost(dest_offset_u265, size_u256);
+    const auto [expansion_cost_src, src_offset, _] = ctx.MemoryExpansionCost(src_offset_u256, size_u256);
+    const auto words_copied_cost = 3 * static_cast<int64_t>((size + 31) / 32);
+    int64_t dynamic_gas = 0;
+    if (TOSCA_CHECK_OVERFLOW_ADD(words_copied_cost, std::max(expansion_cost_dest, expansion_cost_src), &dynamic_gas)) {
+      return {.state = RunState::kErrorGas};
+    }
+    if (gas < dynamic_gas) [[unlikely]]
+      return {.dynamic_gas_costs = dynamic_gas};
+
+    ctx.memory.MemCopy(src_offset, dest_offset, size);
+    return {.dynamic_gas_costs = dynamic_gas};
+  }
+};
+
+template <>
 struct Impl<OpCode::PUSH0> {
   constexpr static OpInfo kInfo = OpInfo{
       .pops = 0,
