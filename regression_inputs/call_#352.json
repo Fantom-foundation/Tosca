@@ -47,7 +47,7 @@
     "CoinBase": "0x0a9ed5f3712d81e497734dfe0db0e35cad9b598a",
     "GasLimit": 1046217242406792072,
     "GasPrice": "1e7b28957a2e063f 8d104757adc11203 3f455d226f722be1 6147bc4e82e15050",
-    "Difficulty": "3f6cbc4669f4ad6f 7fac6dccde9e4109 b95400b9e726bae0 615343c14be3f5f7",
+    "Prevrandao": "3f6cbc4669f4ad6f 7fac6dccde9e4109 b95400b9e726bae0 615343c14be3f5f7",
     "TimeStamp": 8608122755700819875
   },
   "CallData": "572aedb109fe86432034c5fc438e6b72840dc82523101e6c69c544af05",
