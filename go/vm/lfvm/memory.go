@@ -28,6 +28,7 @@ func NewMemory() *Memory {
 	return &Memory{}
 }
 
+// TODO: add overflow check, issue #524
 func toValidMemorySize(size uint64) uint64 {
 	// Target size seems to need to be a multiple of 32
 	return ((size + 31) / 32) * 32

@@ -800,13 +800,28 @@ func opExtcodehash(c *context) {
 	}
 }
 
-// Constants for CREATE / CREATE2 opcodes
-const (
-	MaxCodeSize     = 24576           // Maximum bytecode to permit for a contract
-	MaxInitCodeSize = 2 * MaxCodeSize // Maximum initcode to permit in a creation transaction and create instructions
+func checkInitCodeSize(c *context, size *uint256.Int) bool {
+	const (
+		MaxCodeSize     = 24576           // Maximum bytecode to permit for a contract
+		MaxInitCodeSize = 2 * MaxCodeSize // Maximum initcode to permit in a creation transaction and create instructions
+		InitCodeWordGas = 2               // Once per word of the init code when creating a contract.
+	)
 
-	InitCodeWordGas = 2 // Once per word of the init code when creating a contract.
-)
+	if !c.isShanghai() {
+		return true
+	}
+	if !size.IsUint64() || size.Uint64() > MaxInitCodeSize {
+		c.UseGas(c.gas)
+		c.status = MAX_INIT_CODE_SIZE_EXCEEDED
+		return false
+	}
+	if !c.UseGas(vm.Gas(InitCodeWordGas * ((size.Uint64() + 31) / 32))) {
+		c.status = OUT_OF_GAS
+		return false
+	}
+
+	return true
+}
 
 func opCreate(c *context) {
 	var (
@@ -823,16 +838,8 @@ func opCreate(c *context) {
 		return
 	}
 
-	if c.revision >= vm.R12_Shanghai {
-		if !size.IsUint64() || size.Uint64() > MaxInitCodeSize {
-			c.UseGas(c.gas)
-			c.status = MAX_INIT_CODE_SIZE_EXCEEDED
-			return
-		}
-		if !c.UseGas(vm.Gas(InitCodeWordGas * ((size.Uint64() + 31) / 32))) {
-			c.status = OUT_OF_GAS
-			return
-		}
+	if !checkInitCodeSize(c, size) {
+		return
 	}
 
 	if !value.IsZero() {
@@ -895,16 +902,8 @@ func opCreate2(c *context) {
 		return
 	}
 
-	if c.revision >= vm.R12_Shanghai {
-		if !size.IsUint64() || size.Uint64() > MaxInitCodeSize {
-			c.UseGas(c.gas)
-			c.status = MAX_INIT_CODE_SIZE_EXCEEDED
-			return
-		}
-		if !c.UseGas(vm.Gas(InitCodeWordGas * ((size.Uint64() + 31) / 32))) {
-			c.status = OUT_OF_GAS
-			return
-		}
+	if !checkInitCodeSize(c, size) {
+		return
 	}
 
 	// Charge for the code size
