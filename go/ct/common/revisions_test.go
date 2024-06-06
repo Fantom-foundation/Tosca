@@ -14,6 +14,7 @@ package common
 
 import (
 	"bytes"
+	"math"
 	"testing"
 )
 
@@ -28,7 +29,7 @@ func TestRevisions_RangeLength(t *testing.T) {
 		"Paris":       {R11_Paris, 1000},
 		"Shanghai":    {R12_Shanghai, 1000},
 		"Cancun":      {R13_Cancun, 1000},
-		"UnknownNext": {R99_UnknownNextRevision, 0},
+		"UnknownNext": {R99_UnknownNextRevision, math.MaxUint64},
 	}
 
 	for name, test := range tests {
@@ -151,4 +152,24 @@ func TestRevisions_UnmarshalError(t *testing.T) {
 			t.Errorf("Expected error but got: %v", rev)
 		}
 	}
+}
+
+func TestRevision_GetRevisionForBlock(t *testing.T) {
+
+	revisions := map[Revision]uint64{}
+
+	for i := R07_Istanbul; i <= NewestSupportedRevision; i++ {
+		revisionBlockNumber, _ := GetForkBlock(i)
+		revisions[i] = revisionBlockNumber
+	}
+
+	for revision, revisionBlockNumber := range revisions {
+		t.Run(revision.String(), func(t *testing.T) {
+			got := GetRevisionForBlock(revisionBlockNumber)
+			if revision != got {
+				t.Errorf("Unexpected revision for block number: %v", got)
+			}
+		})
+	}
+
 }

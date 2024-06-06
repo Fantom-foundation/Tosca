@@ -335,7 +335,6 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	checkPrint(clone1, []string{
 		"$x=0000000000000000 0000000000000000 0000000000000000 000000000000000c",
 		"status=reverted",
-		"revision=London",
 		"pc=4",
 		"gas=5",
 		"gasRefund=6",
@@ -346,14 +345,13 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"accounts={}",
 		"callContext={}",
 		"callJournal={}",
-		"blockContext={}",
+		"blockContext=2000≤BlockNumber≤2999",
 		"selfdestruct={mustBeSelfDestructed}",
 	})
 
 	checkPrint(clone2, []string{
 		"$y=0000000000000000 0000000000000000 0000000000000000 000000000000000e",
 		"status=running",
-		"revision=Berlin",
 		"pc=4",
 		"gas=7",
 		"gasRefund=8",
@@ -364,7 +362,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"accounts={}",
 		"callContext={}",
 		"callJournal={}",
-		"blockContext={}",
+		"blockContext=1000≤BlockNumber≤1999",
 		"selfdestruct={mustNotBeSelfDestructed}",
 	})
 }

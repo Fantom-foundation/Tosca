@@ -44,7 +44,6 @@ import (
 type StateGenerator struct {
 	// Constraints
 	statusConstraints     []st.StatusCode
-	revisionConstraints   *RangeSolver[Revision]
 	readOnlyConstraints   []bool
 	pcConstantConstraints []uint16
 	pcVariableConstraints []Variable
@@ -75,7 +74,6 @@ func NewStateGenerator() *StateGenerator {
 		callContextGen:       NewCallContextGenerator(),
 		callJournalGen:       NewCallJournalGenerator(),
 		blockContextGen:      NewBlockContextGenerator(),
-		revisionConstraints:  NewRangeSolver[Revision](MinRevision, MaxRevision),
 		gasConstraints:       NewRangeSolver[vm.Gas](0, st.MaxGas),
 		gasRefundConstraints: NewRangeSolver[vm.Gas](-st.MaxGas, st.MaxGas),
 		hasSelfDestructedGen: NewSelfDestructedGenerator(),
@@ -109,12 +107,11 @@ func (g *StateGenerator) SetStatus(status st.StatusCode) {
 
 // SetRevision adds a constraint on the State's revision.
 func (g *StateGenerator) SetRevision(revision Revision) {
-	g.revisionConstraints.AddEqualityConstraint(revision)
+	g.blockContextGen.SetRevision(revision)
 }
 
 func (g *StateGenerator) AddRevisionBounds(min, max Revision) {
-	g.revisionConstraints.AddLowerBoundary(min)
-	g.revisionConstraints.AddUpperBoundary(max)
+	g.blockContextGen.AddRevisionBounds(min, max)
 }
 
 // SetReadOnly adds a constraint on the states read only mode.
@@ -295,12 +292,6 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("%w, multiple conflicting status constraints defined: %v", ErrUnsatisfiable, g.statusConstraints)
 	}
 
-	// Pick a revision.
-	resultRevision, err := g.revisionConstraints.Generate(rnd)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve revision constraints: %w", err)
-	}
-
 	// Invoke CodeGenerator
 	resultCode, err := g.codeGen.Generate(assignment, rnd)
 	if err != nil {
@@ -368,12 +359,6 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
-	// Invoke BlockContextGenerator
-	resultBlockContext, err := g.blockContextGen.Generate(rnd, resultRevision)
-	if err != nil {
-		return nil, err
-	}
-
 	// Pick a random calldata
 	resultCallData := RandomBytes(rnd, st.MaxDataSize)
 
@@ -420,11 +405,19 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
+	// Invoke BlockContextGenerator
+	resultBlockContext, err := g.blockContextGen.Generate(assignment, rnd)
+	if err != nil {
+		return nil, err
+	}
+
 	// Invoke StackGenerator
 	resultStack, err := g.stackGen.Generate(assignment, rnd)
 	if err != nil {
 		return nil, err
 	}
+
+	resultRevision := GetRevisionForBlock(resultBlockContext.BlockNumber)
 
 	result := st.NewState(resultCode)
 	result.Status = resultStatus
@@ -454,7 +447,6 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 func (g *StateGenerator) Clone() *StateGenerator {
 	return &StateGenerator{
 		statusConstraints:     slices.Clone(g.statusConstraints),
-		revisionConstraints:   g.revisionConstraints.Clone(),
 		readOnlyConstraints:   slices.Clone(g.readOnlyConstraints),
 		pcConstantConstraints: slices.Clone(g.pcConstantConstraints),
 		pcVariableConstraints: slices.Clone(g.pcVariableConstraints),
@@ -477,7 +469,6 @@ func (g *StateGenerator) Clone() *StateGenerator {
 func (g *StateGenerator) Restore(other *StateGenerator) {
 	if g != other {
 		g.statusConstraints = slices.Clone(other.statusConstraints)
-		g.revisionConstraints.Restore(other.revisionConstraints)
 		g.readOnlyConstraints = slices.Clone(other.readOnlyConstraints)
 		g.pcConstantConstraints = slices.Clone(other.pcConstantConstraints)
 		g.pcVariableConstraints = slices.Clone(other.pcVariableConstraints)
@@ -507,8 +498,6 @@ func (g *StateGenerator) String() string {
 	for _, status := range g.statusConstraints {
 		parts = append(parts, fmt.Sprintf("status=%v", status))
 	}
-
-	parts = append(parts, g.revisionConstraints.Print("revision"))
 
 	for _, mode := range g.readOnlyConstraints {
 		parts = append(parts, fmt.Sprintf("readOnly mode=%v", mode))

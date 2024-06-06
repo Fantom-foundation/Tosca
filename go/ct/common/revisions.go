@@ -15,6 +15,7 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 )
 
@@ -119,10 +120,11 @@ func GetForkBlock(revision Revision) (uint64, error) {
 	case R99_UnknownNextRevision:
 		return 6000, nil
 	}
+	// TODO: remove this error
 	return 0, fmt.Errorf("unknown revision: %v", revision)
 }
 
-// GetForkTime returns the revison fork timestamp.
+// GetForkTime returns the revision fork timestamp.
 // It is intended to provide input for test state generators to produce consistent
 // fork timestamps and code revisions, as well as for adapters between the CT framework
 // and EVM interpreters to support the state conversion.
@@ -146,14 +148,25 @@ func GetForkTime(revision Revision) uint64 {
 	}
 }
 
+// GetRevisionForBlock returns the revision that is considered to be enabled for a given block number.
+func GetRevisionForBlock(block uint64) Revision {
+	for rev := MinRevision; rev <= MaxRevision; rev++ {
+		forkBlock, _ := GetForkBlock(rev)
+		if block < forkBlock {
+			return rev - 1
+		}
+	}
+	return R99_UnknownNextRevision
+}
+
 // GetBlockRangeLengthFor returns the number of block numbers between the given revision and the following
-// in case of an Unknown revision, 0 is returned.
+// in case of an Unknown revision, math.MaxUint64 is returned.
 func GetBlockRangeLengthFor(revision Revision) (uint64, error) {
 	revisionNumber, err := GetForkBlock(revision)
 	if err != nil {
 		return 0, err
 	}
-	revisionNumberRange := uint64(0)
+	revisionNumberRange := uint64(math.MaxUint64)
 
 	// if it's the last supported revision, the blockNumber range has no limit.
 	// if it's not, we want to limit this range to the first block number of next revision.
