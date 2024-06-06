@@ -319,7 +319,8 @@ type revisionBounds struct{ min, max Revision }
 
 func RevisionBounds(min, max Revision) Condition {
 	if min > max {
-		min, max = max, min
+		// This is an specification error, and should not be silently ignored
+		panic(fmt.Sprintf("Invalid revision bounds: %v > %v", min, max))
 	}
 	return &revisionBounds{min, max}
 }

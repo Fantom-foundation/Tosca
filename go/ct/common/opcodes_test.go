@@ -44,7 +44,7 @@ func TestOpCode_ValidOpCodesNoPush(t *testing.T) {
 		shouldBePresent := !noPrettyPrint.MatchString(op.String())
 		if op == INVALID {
 			shouldBePresent = false
-		} else if PUSH1 <= op && op <= PUSH32 {
+		} else if PUSH0 <= op && op <= PUSH32 {
 			shouldBePresent = false
 		}
 

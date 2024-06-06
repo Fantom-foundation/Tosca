@@ -52,8 +52,6 @@ type instruction struct {
 	name       string
 }
 
-func noEffect(st *st.State) {}
-
 ////////////////////////////////////////////////////////////
 
 func boolToU256(value bool) U256 {
@@ -692,8 +690,37 @@ func getAllRules() []Rule {
 		staticGas: 1,
 		pops:      0,
 		pushes:    0,
-		effect:    noEffect,
+		effect:    NoEffect().Apply,
 	})...)
+
+	// --- Stack PUSH0 ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        PUSH0,
+		staticGas: 2,
+		pops:      0,
+		pushes:    1,
+		conditions: []Condition{
+			RevisionBounds(R12_Shanghai, NewestSupportedRevision),
+		},
+		effect: func(s *st.State) {
+			s.Stack.Push(NewU256(0))
+		},
+	})...)
+
+	rules = append(rules, []Rule{
+		{
+			Name: "push0_invalid_revision",
+			Condition: And(
+				RevisionBounds(R07_Istanbul, R11_Paris),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), PUSH0),
+				Ge(Gas(), 2),
+				Lt(StackSize(), st.MaxStackSize-1),
+			),
+			Effect: FailEffect(),
+		},
+	}...)
 
 	// --- Stack PUSH ---
 
@@ -1387,6 +1414,7 @@ func getAllRules() []Rule {
 		pushes:    1,
 		conditions: []Condition{
 			Eq(ReadOnly(), true),
+			RevisionBounds(MinRevision, R11_Paris),
 		},
 		parameters: []Parameter{
 			ValueParameter{},
@@ -1403,6 +1431,7 @@ func getAllRules() []Rule {
 		pushes:    1,
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
+			RevisionBounds(MinRevision, R11_Paris),
 		},
 		parameters: []Parameter{
 			ValueParameter{},
@@ -1424,6 +1453,7 @@ func getAllRules() []Rule {
 		pushes:    1,
 		conditions: []Condition{
 			Eq(ReadOnly(), true),
+			RevisionBounds(MinRevision, R11_Paris),
 		},
 		parameters: []Parameter{
 			ValueParameter{},
@@ -1441,6 +1471,7 @@ func getAllRules() []Rule {
 		pushes:    1,
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
+			RevisionBounds(MinRevision, R11_Paris),
 		},
 		parameters: []Parameter{
 			ValueParameter{},
