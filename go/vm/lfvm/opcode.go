@@ -187,6 +187,7 @@ const (
 	CHAINID
 	SELFBALANCE
 	BASEFEE
+	BLOBBASEFEE
 
 	// long-form EVM special instructions
 	JUMP_TO
@@ -382,6 +383,7 @@ var op_to_string = map[OpCode]string{
 	CHAINID:     "CHAINID",
 	SELFBALANCE: "SELFBALANCE",
 	BASEFEE:     "BASEFEE",
+	BLOBBASEFEE: "BLOBBASEFEE",
 
 	JUMP_TO: "JUMP_TO",
 

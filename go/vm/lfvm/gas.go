@@ -151,6 +151,8 @@ func getStaticGasPriceInternal(op OpCode) vm.Gas {
 		return 5
 	case BASEFEE:
 		return 2
+	case BLOBBASEFEE:
+		return 2
 	case MLOAD:
 		return 3
 	case MSTORE:
