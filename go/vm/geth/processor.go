@@ -65,6 +65,9 @@ func (*processor) Run(
 
 	// Intercept the transfer function to conduct the transfer on the actual state.
 	transferFunc := func(_ geth.StateDB, from common.Address, to common.Address, amount *uint256.Int) {
+		if amount.IsZero() {
+			return
+		}
 		a := vm.Address(from)
 		b := vm.Address(to)
 		d := vm.Uint256ToValue(amount)
@@ -180,13 +183,13 @@ func (*processor) Run(
 	)
 	if contractCreation {
 		var created common.Address
-		output, created, gasLeft, vmError = evm.Create(sender, transaction.Input, uint64(transaction.GasLimit), transaction.Value.ToU256())
+		output, created, gasLeft, vmError = evm.Create(sender, transaction.Input, uint64(gas), transaction.Value.ToU256())
 		createdContract = &vm.Address{}
 		*createdContract = vm.Address(created)
 	} else {
 		// Increment the nonce to avoid double execution
 		stateDb.SetNonce(common.Address(transaction.Sender), stateDb.GetNonce(common.Address(transaction.Sender))+1)
-		output, gasLeft, vmError = evm.Call(sender, common.Address(*transaction.Recipient), transaction.Input, uint64(transaction.GasLimit), transaction.Value.ToU256())
+		output, gasLeft, vmError = evm.Call(sender, common.Address(*transaction.Recipient), transaction.Input, uint64(gas), transaction.Value.ToU256())
 	}
 
 	// For whatever reason, 10% of remaining gas is charged for non-internal transactions.
@@ -198,6 +201,7 @@ func (*processor) Run(
 
 	return vm.Receipt{
 		Success:         vmError == nil,
+		GasUsed:         transaction.GasLimit - vm.Gas(gasLeft),
 		ContractAddress: createdContract,
 		Output:          output,
 	}, nil
