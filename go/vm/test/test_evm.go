@@ -61,6 +61,8 @@ type StateDB interface {
 	AccountExists(vm.Address) bool
 	GetStorage(vm.Address, vm.Key) vm.Word
 	SetStorage(vm.Address, vm.Key, vm.Word)
+	GetTransientStorage(vm.Address, vm.Key) vm.Word
+	SetTransientStorage(vm.Address, vm.Key, vm.Word)
 	GetBalance(vm.Address) vm.Value
 	GetCodeSize(vm.Address) int
 	GetCodeHash(vm.Address) vm.Hash

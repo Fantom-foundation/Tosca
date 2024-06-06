@@ -91,6 +91,14 @@ func (c *ctRunContext) SetStorage(addr vm.Address, key vm.Key, value vm.Word) vm
 	return vm.GetStorageStatus(original, current, value)
 }
 
+func (c *ctRunContext) GetTransientStorage(addr vm.Address, key vm.Key) vm.Word {
+	panic("not implemented")
+}
+
+func (c *ctRunContext) SetTransientStorage(addr vm.Address, key vm.Key, value vm.Word) {
+	panic("not implemented")
+}
+
 func (c *ctRunContext) GetBalance(addr vm.Address) vm.Value {
 	balance := c.state.Accounts.GetBalance(addr)
 	return vm.Value(balance.Bytes32be())

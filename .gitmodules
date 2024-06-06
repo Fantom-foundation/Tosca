@@ -1,9 +1,9 @@
 [submodule "third_party/evmone"]
 	path = third_party/evmone
-	url = https://github.com/HerbertJordan/evmone.git
+	url = https://github.com/ethereum/evmone.git
 [submodule "third_party/evmc"]
 	path = third_party/evmc
-	url = https://github.com/HerbertJordan/evmc.git
+	url = https://github.com/Fantom-foundation/evmc.git
 [submodule "third_party/intx"]
 	path = third_party/intx
 	url = https://github.com/chfast/intx.git

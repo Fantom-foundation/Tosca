@@ -64,6 +64,8 @@ type RunContext interface {
 	AccountExists(addr Address) bool
 	GetStorage(addr Address, key Key) Word
 	SetStorage(addr Address, key Key, value Word) StorageStatus
+	GetTransientStorage(addr Address, key Key) Word
+	SetTransientStorage(addr Address, key Key, value Word)
 	GetBalance(addr Address) Value
 	GetCodeSize(addr Address) int
 	GetCodeHash(addr Address) Hash

@@ -67,20 +67,20 @@ func (e *EvmcInterpreter) Run(params vm.Parameters) (vm.Result, error) {
 	}
 
 	// Forward the execution call to the underlying EVM implementation.
-	result, err := e.vm.Execute(evmc.Parameters{
-		Context:   &host_ctx,
-		Revision:  revision,
-		Kind:      evmc.Call,
-		Static:    params.Static,
-		Depth:     params.Depth,
-		Gas:       int64(params.Gas),
-		Recipient: evmc.Address(params.Recipient),
-		Sender:    evmc.Address(params.Sender),
-		Input:     params.Input,
-		Value:     evmc.Hash(params.Value),
-		CodeHash:  codeHash,
-		Code:      params.Code,
-	})
+	result, err := e.vm.Execute(
+		&host_ctx,
+		revision,
+		evmc.Call,
+		params.Static,
+		params.Depth,
+		int64(params.Gas),
+		evmc.Address(params.Recipient),
+		evmc.Address(params.Sender),
+		params.Input,
+		evmc.Hash(params.Value),
+		codeHash,
+		params.Code,
+	)
 
 	// Build result struct.
 	res := vm.Result{
@@ -191,6 +191,14 @@ func (ctx *hostContext) SetStorage(addr evmc.Address, key evmc.Hash, value evmc.
 	default:
 		panic(fmt.Sprintf("unsupported storage state: %v", status))
 	}
+}
+
+func (ctx *hostContext) GetTransientStorage(addr evmc.Address, key evmc.Hash) evmc.Hash {
+	return evmc.Hash(ctx.context.GetTransientStorage(vm.Address(addr), vm.Key(key)))
+}
+
+func (ctx *hostContext) SetTransientStorage(addr evmc.Address, key evmc.Hash, value evmc.Hash) {
+	ctx.context.SetTransientStorage(vm.Address(addr), vm.Key(key), vm.Word(value))
 }
 
 func (ctx *hostContext) GetBalance(addr evmc.Address) evmc.Hash {

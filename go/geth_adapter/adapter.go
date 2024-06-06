@@ -221,6 +221,14 @@ func (a *runContextAdapter) SetStorage(addr vm.Address, key vm.Key, future vm.Wo
 	return vm.GetStorageStatus(original, current, future)
 }
 
+func (a *runContextAdapter) GetTransientStorage(addr vm.Address, key vm.Key) vm.Word {
+	return vm.Word(a.evm.StateDB.GetTransientState(gc.Address(addr), gc.Hash(key)))
+}
+
+func (a *runContextAdapter) SetTransientStorage(addr vm.Address, key vm.Key, future vm.Word) {
+	a.evm.StateDB.SetTransientState(gc.Address(addr), gc.Hash(key), gc.Hash(future))
+}
+
 func (a *runContextAdapter) GetBalance(addr vm.Address) vm.Value {
 	return vm.Uint256ToValue(a.evm.StateDB.GetBalance(gc.Address(addr)))
 }

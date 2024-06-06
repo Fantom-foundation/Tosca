@@ -124,6 +124,13 @@ func (c *noOpRunContext) SetStorage(vm.Address, vm.Key, vm.Word) vm.StorageStatu
 	return vm.StorageAdded
 }
 
+func (c *noOpRunContext) GetTransientStorage(vm.Address, vm.Key) vm.Word {
+	return vm.Word{}
+}
+
+func (c *noOpRunContext) SetTransientStorage(vm.Address, vm.Key, vm.Word) {
+}
+
 func (c *noOpRunContext) GetBalance(vm.Address) vm.Value {
 	return vm.Value{}
 }
