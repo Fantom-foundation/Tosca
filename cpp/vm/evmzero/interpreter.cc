@@ -1009,7 +1009,7 @@ struct Impl<OpCode::MCOPY> {
     if (gas < dynamic_gas) [[unlikely]]
       return {.dynamic_gas_costs = dynamic_gas};
 
-    ctx.memory.MemCopy(src_offset, dest_offset, size);
+    ctx.memory.MemCopy(dest_offset, src_offset, size);
     return {.dynamic_gas_costs = dynamic_gas};
   }
 };

@@ -71,7 +71,7 @@ class Memory {
   }
 
   // Reads from memory, writes into memory, grows memory if necessary.
-  void MemCopy(uint64_t src_offset, uint64_t dest_offset, uint64_t size) {
+  void MemCopy(uint64_t dest_offset, uint64_t src_offset, uint64_t size) {
     Grow(src_offset, size);
     Grow(dest_offset, size);
     // copy with overlap guarantees
