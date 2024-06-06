@@ -99,11 +99,10 @@ func (b *BlockContextGenerator) generateBlockNumber(assignment Assignment, rnd *
 					blockNumberSolver.AddUpperBoundary(upper)
 				}
 			} else {
-				min := uint64(math.MaxUint64)
 				max := uint64(math.MaxUint64)
 				value := assignedValue.Uint64()
 				if assignedValue.IsUint64() && value < max {
-					min = assignedValue.Uint64() + 1
+					min := assignedValue.Uint64() + 1
 					if assignedValue.Uint64() < (max - 256) {
 						max = assignedValue.Uint64() + 256
 					}
@@ -112,7 +111,7 @@ func (b *BlockContextGenerator) generateBlockNumber(assignment Assignment, rnd *
 			}
 		} else {
 			if inRange {
-				// if we have a condition for a varaible in range, then we can not generate the first block number
+				// if we have a condition for a variable in range, then we can not generate the first block number
 				blockNumberSolver.AddLowerBoundary(1)
 			}
 		}
@@ -307,7 +306,7 @@ func (b *BlockContextGenerator) String() string {
 	return strings.Join(clauses, " Λ ")
 }
 
-// RestricVariableToOneOfTheLast256Blocks adds a constraint on the variable
+// RestrictVariableToOneOfTheLast256Blocks adds a constraint on the variable
 // so that this generator assigns a value to it referencing one of the last 256 blocks.
 func (b *BlockContextGenerator) RestrictVariableToOneOfTheLast256Blocks(variable Variable) {
 	if b.unsatisfiable {

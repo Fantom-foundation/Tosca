@@ -406,12 +406,12 @@ func TestBlockContextGenerator_SignalsUnsatisfiableForUnsatisfiableConstraints(t
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			assignement := Assignment{}
+			assignment := Assignment{}
 			generator := NewBlockContextGenerator()
-			test(generator, assignement)
-			res, err := generator.Generate(assignement, rand.New())
+			test(generator, assignment)
+			res, err := generator.Generate(assignment, rand.New())
 			if err != ErrUnsatisfiable {
-				t.Errorf("expected unsatisfiable error, got %v with block number %d and assignment %v", err, res.BlockNumber, assignement)
+				t.Errorf("expected unsatisfiable error, got %v with block number %d and assignment %v", err, res.BlockNumber, assignment)
 			}
 		})
 	}
@@ -522,7 +522,7 @@ func TestBlockContextGen_Restore(t *testing.T) {
 	}
 }
 
-func TestBlockContexteGen_UnsatisfiableStateDoesNotChange(t *testing.T) {
+func TestBlockContextGen_UnsatisfiableStateDoesNotChange(t *testing.T) {
 
 	tests := map[string]func(*BlockContextGenerator){
 		"fix-offset":   func(b *BlockContextGenerator) { b.SetBlockNumberOffsetValue("a", 44) },

@@ -124,7 +124,7 @@ func GetForkBlock(revision Revision) (uint64, error) {
 	return 0, fmt.Errorf("unknown revision: %v", revision)
 }
 
-// GetForkTime returns the revison fork timestamp.
+// GetForkTime returns the revision fork timestamp.
 // It is intended to provide input for test state generators to produce consistent
 // fork timestamps and code revisions, as well as for adapters between the CT framework
 // and EVM interpreters to support the state conversion.
