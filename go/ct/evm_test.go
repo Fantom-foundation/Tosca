@@ -35,24 +35,34 @@ var evms = map[string]ct.Evm{
 }
 
 func TestCt_ExplicitCases(t *testing.T) {
-	tests := map[string]Condition{
-		"jump_to_2^32": And(
-			RevisionBounds(R07_Istanbul, NewestSupportedRevision),
-			Eq(Status(), st.Running),
-			Eq(Op(Pc()), JUMP),
-			Eq(Op(Constant(NewU256(0))), JUMPDEST),
-			Eq(Param(0), NewU256(1<<32)),
-			Ge(Gas(), vm.Gas(8)),
-		),
-		"jumpi_to_2^32": And(
-			RevisionBounds(R07_Istanbul, NewestSupportedRevision),
-			Eq(Status(), st.Running),
-			Eq(Op(Pc()), JUMPI),
-			Eq(Op(Constant(NewU256(0))), JUMPDEST),
-			Eq(Param(0), NewU256(1<<32)),
-			Ne(Param(1), NewU256(0)),
-			Ge(Gas(), vm.Gas(10)),
-		),
+
+	revisions := []Revision{}
+
+	for i := R07_Istanbul; i <= NewestSupportedRevision; i++ {
+		revisions = append(revisions, i)
+	}
+
+	tests := map[string]Condition{}
+	for _, revision := range revisions {
+		tests["jump_to_2^32_"+revision.String()] =
+			And(
+				IsRevision(revision),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMP),
+				Eq(Op(Constant(NewU256(0))), JUMPDEST),
+				Eq(Param(0), NewU256(1<<32)),
+				Ge(Gas(), vm.Gas(8)),
+			)
+		tests["jumpi_to_2^32"+revision.String()] =
+			And(
+				IsRevision(revision),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), JUMPI),
+				Eq(Op(Constant(NewU256(0))), JUMPDEST),
+				Eq(Param(0), NewU256(1<<32)),
+				Ne(Param(1), NewU256(0)),
+				Ge(Gas(), vm.Gas(10)),
+			)
 	}
 
 	random := rand.New(0)
