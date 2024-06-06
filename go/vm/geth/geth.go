@@ -272,13 +272,21 @@ func (s *stateDbAdapter) GetBalance(addr common.Address) *uint256.Int {
 	return vm.ValueToUint256(value)
 }
 
-func (s *stateDbAdapter) GetNonce(common.Address) uint64 {
+func (s *stateDbAdapter) GetNonce(addr common.Address) uint64 {
+	if ctxt, ok := s.context.(vm.TxContext); ok {
+		return ctxt.GetNonce(vm.Address(addr))
+	}
 	// ignored: effect not needed in test environments
-	return 0
+	panic("not implemented")
 }
 
-func (s *stateDbAdapter) SetNonce(common.Address, uint64) {
+func (s *stateDbAdapter) SetNonce(addr common.Address, nonce uint64) {
+	if ctxt, ok := s.context.(vm.TxContext); ok {
+		ctxt.SetNonce(vm.Address(addr), nonce)
+		return
+	}
 	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) GetCodeHash(addr common.Address) common.Hash {
@@ -289,8 +297,13 @@ func (s *stateDbAdapter) GetCode(addr common.Address) []byte {
 	return s.context.GetCode(vm.Address(addr))
 }
 
-func (s *stateDbAdapter) SetCode(common.Address, []byte) {
+func (s *stateDbAdapter) SetCode(addr common.Address, code []byte) {
+	if ctxt, ok := s.context.(vm.TxContext); ok {
+		ctxt.SetCode(vm.Address(addr), code)
+		return
+	}
 	// ignored: effect not needed in test environments
+	panic("not implemented")
 }
 
 func (s *stateDbAdapter) GetCodeSize(addr common.Address) int {
