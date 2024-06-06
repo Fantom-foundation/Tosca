@@ -214,5 +214,88 @@ TEST(MemoryTest, Equality) {
   EXPECT_EQ(m1, m2);
 }
 
+struct TestParams {
+  const size_t size;
+  const size_t start_offset;
+  const size_t dest_offset;
+};
+class ParametrizedMemoryTest : public testing::TestWithParam<TestParams> {};
+
+constexpr auto kMB = 1024 * 1024;
+constexpr auto kBufferSize = 16 * kMB;
+
+INSTANTIATE_TEST_SUITE_P(ParametrizedMemoryTestWithSizes, ParametrizedMemoryTest,
+                         testing::Values(
+                             TestParams{
+                                 .size = 4 * kMB,
+                                 .start_offset = 0,
+                                 .dest_offset = 0,
+                             },
+                             TestParams{
+                                 .size = 4 * kMB,
+                                 .start_offset = 2 * kMB,
+                                 .dest_offset = 0,
+                             },
+                             TestParams{
+                                 .size = 4 * kMB,
+                                 .start_offset = 0,
+                                 .dest_offset = 2 * kMB,
+                             },
+                             TestParams{
+                                 .size = 4 * kMB,
+                                 .start_offset = kBufferSize - 1,
+                                 .dest_offset = 0,
+                             },
+                             TestParams{
+                                 .size = 4 * kMB,
+                                 .start_offset = 0,
+                                 .dest_offset = kBufferSize - 1,
+                             })
+
+);
+
+TEST_P(ParametrizedMemoryTest, MemCopy) {
+  const auto test = GetParam();
+  const auto does_expansion = test.start_offset + test.size > kBufferSize || test.dest_offset + test.size > kBufferSize;
+  const auto effective_size = std::min(kBufferSize - test.start_offset, test.size);
+
+  std::vector<uint8_t> data(kBufferSize);
+  // Fill memory to be copied with 0xFF, so that we can detect zeroes latter on
+  std::fill(data.begin(), data.end(), 0xFF);
+  // Fill range to be copied with a pattern not congruence of 2,4,8,16... to check for aliasing
+  auto to_fill = std::span{data.data() + test.start_offset, effective_size};
+  constexpr auto kPrime = 37;
+  auto count = 0ul;
+  std::transform(to_fill.begin(), to_fill.end(), to_fill.begin(), [&](uint8_t) { return count++ % kPrime; });
+
+  Memory memory(data);
+  EXPECT_EQ(memory.GetSize(), kBufferSize);
+  auto check_pattern = [&](std::span<uint8_t> span) {
+    int count = 0ul;
+    for (auto i = 0ul; i < effective_size; ++i) {
+      EXPECT_EQ(span[i], count++ % kPrime) << "at index " << i;
+    }
+    if (does_expansion) {
+      for (auto i = effective_size; i < test.size; ++i) {
+        EXPECT_EQ(span[i], 0) << "at index " << i;
+      }
+    }
+  };
+
+  // Check pattern before copy in source range.
+  check_pattern(memory.GetSpan(test.start_offset, test.size));
+
+  memory.MemCopy(test.dest_offset, test.start_offset, test.size);
+
+  // Check that expansion did not happen. If not, the pattern_checker will check for zero padding.
+  // Memory expansion sizes is checked in the Grow test.
+  if (!does_expansion) {
+    EXPECT_EQ(memory.GetSize(), kBufferSize);
+  }
+
+  // Check pattern after copy in dst range.
+  check_pattern(memory.GetSpan(test.dest_offset, test.size));
+}
+
 }  // namespace
 }  // namespace tosca::evmzero
