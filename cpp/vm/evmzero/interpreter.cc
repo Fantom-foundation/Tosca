@@ -975,6 +975,21 @@ struct Impl<OpCode::BASEFEE> {
 };
 
 template <>
+struct Impl<OpCode::BLOBBASEFEE> {
+  constexpr static OpInfo kInfo{
+      .pops = 0,
+      .pushes = 1,
+      .static_gas = 2,
+      .introduced_in = EVMC_CANCUN,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    top[-1] = ToUint256(ctx.host->get_tx_context().blob_base_fee);
+    return {};
+  }
+};
+
+template <>
 struct Impl<OpCode::POP> {
   constexpr static OpInfo kInfo{
       .pops = 1,

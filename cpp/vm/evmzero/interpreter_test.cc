@@ -3199,6 +3199,47 @@ TEST(InterpreterTest, BASEFEE_PreRevision) {
 }
 
 ///////////////////////////////////////////////////////////
+// BLOBBASEFEE
+TEST(InterpreterTest, BLOBBASEFEE) {
+  evmc_tx_context tx_context{
+      .blob_base_fee = evmc::uint256be(42),
+  };
+
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
+
+  RunInterpreterTest({
+      .code = {op::BLOBBASEFEE},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 8,
+      .stack_after = {42},
+      .host = &host,
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, BLOBBASEFEE_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::BLOBBASEFEE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_BLOBBASEFEE_StackOverflow) {}
+
+TEST(InterpreterTest, BLOBBASEFEE_PreRevision) {
+  RunInterpreterTest({
+      .code = {op::BLOBBASEFEE},
+      .state_after = RunState::kErrorOpcode,
+      .gas_before = 10,
+      .revision = EVMC_SHANGHAI,
+  });
+}
+
+///////////////////////////////////////////////////////////
 // POP
 TEST(InterpreterTest, POP) {
   RunInterpreterTest({
