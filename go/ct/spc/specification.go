@@ -689,7 +689,7 @@ func getAllRules() []Rule {
 		op:        JUMPDEST,
 		staticGas: 1,
 		pops:      0,
-		pushes:    1,
+		pushes:    0,
 		effect:    NoEffect().Apply,
 	})...)
 

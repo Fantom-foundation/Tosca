@@ -1302,8 +1302,9 @@ struct PushImpl {
 };
 
 template <op::OpCode op_code>
-  requires(OpCode::PUSH1 <= op_code && op_code <= OpCode::PUSH32)  //
-struct Impl<op_code> : PushImpl<static_cast<uint64_t>(op_code - OpCode::PUSH1 + 1)> {};
+requires(OpCode::PUSH1 <= op_code && op_code <= OpCode::PUSH32)  //
+    struct Impl<op_code> : PushImpl<static_cast<uint64_t>(op_code - OpCode::PUSH1 + 1)> {
+};
 
 template <uint64_t N>
 struct DupImpl {
@@ -1320,8 +1321,9 @@ struct DupImpl {
 };
 
 template <op::OpCode op_code>
-  requires(OpCode::DUP1 <= op_code && op_code <= OpCode::DUP16)  //
-struct Impl<op_code> : DupImpl<static_cast<uint64_t>(op_code - OpCode::DUP1 + 1)> {};
+requires(OpCode::DUP1 <= op_code && op_code <= OpCode::DUP16)  //
+    struct Impl<op_code> : DupImpl<static_cast<uint64_t>(op_code - OpCode::DUP1 + 1)> {
+};
 
 template <uint64_t N>
 struct SwapImpl {
@@ -1338,8 +1340,9 @@ struct SwapImpl {
 };
 
 template <op::OpCode op_code>
-  requires(OpCode::SWAP1 <= op_code && op_code <= OpCode::SWAP16)  //
-struct Impl<op_code> : SwapImpl<static_cast<uint64_t>(op_code - OpCode::SWAP1 + 1)> {};
+requires(OpCode::SWAP1 <= op_code && op_code <= OpCode::SWAP16)  //
+    struct Impl<op_code> : SwapImpl<static_cast<uint64_t>(op_code - OpCode::SWAP1 + 1)> {
+};
 
 template <uint64_t N>
 struct LogImpl {
@@ -1377,8 +1380,9 @@ struct LogImpl {
 };
 
 template <op::OpCode op_code>
-  requires(OpCode::LOG0 <= op_code && op_code <= OpCode::LOG4)  //
-struct Impl<op_code> : LogImpl<static_cast<uint64_t>(op_code - OpCode::LOG0)> {};
+requires(OpCode::LOG0 <= op_code && op_code <= OpCode::LOG4)  //
+    struct Impl<op_code> : LogImpl<static_cast<uint64_t>(op_code - OpCode::LOG0)> {
+};
 
 template <RunState result_state>
 struct ReturnImpl {
