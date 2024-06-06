@@ -432,6 +432,7 @@ func createOpToOpMap() []OpCode {
 	res[evm.MSTORE] = MSTORE
 	res[evm.MSTORE8] = MSTORE8
 	res[evm.MSIZE] = MSIZE
+	res[evm.MCOPY] = MCOPY
 
 	// Storage operations
 	res[evm.SLOAD] = SLOAD

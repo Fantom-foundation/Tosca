@@ -13,6 +13,7 @@
 package lfvm
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
@@ -284,4 +285,124 @@ func TestCreateChecksBalance(t *testing.T) {
 		t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
 	}
 
+}
+func TestMCopy(t *testing.T) {
+
+	tests := map[string]struct {
+		gas            vm.Gas
+		revision       vm.Revision
+		dest           uint64
+		src            uint64
+		size           uint64
+		memSize        uint64
+		expectedStatus Status
+		memoryBefore   []byte
+		memoryAfter    []byte
+	}{
+		"empty": {
+			gas:            0,
+			revision:       vm.R13_Cancun,
+			dest:           0,
+			src:            0,
+			size:           0,
+			expectedStatus: RUNNING,
+			memoryBefore: []byte{
+				1, 2, 3, 4, 5, 6, 7, 8, // 0-7
+				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
+				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
+				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
+			},
+			memoryAfter: []byte{
+				1, 2, 3, 4, 5, 6, 7, 8, // 0-7
+				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
+				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
+				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
+			},
+		},
+		"old-revision": {
+			revision:       vm.R12_Shanghai,
+			expectedStatus: INVALID_INSTRUCTION,
+			memoryBefore:   []byte{},
+			memoryAfter:    []byte{},
+		},
+		"copy": {
+			revision:       vm.R13_Cancun,
+			gas:            3,
+			dest:           1,
+			src:            0,
+			size:           8,
+			expectedStatus: RUNNING,
+			memoryBefore: []byte{
+				1, 2, 3, 4, 5, 6, 7, 8, // 0-7
+				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
+				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
+				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
+			},
+			memoryAfter: []byte{
+				1, 1, 2, 3, 4, 5, 6, 7, // 0-7
+				8, 0, 0, 0, 0, 0, 0, 0, // 8-15
+				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
+				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
+			},
+		},
+		"memory-expansion": {
+			revision:       vm.R13_Cancun,
+			gas:            9,
+			dest:           32,
+			src:            0,
+			size:           4,
+			expectedStatus: RUNNING,
+			memoryBefore: []byte{
+				1, 2, 3, 4, 0, 0, 0, 0, // 0-7
+				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
+				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
+				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
+			},
+			memoryAfter: []byte{
+				1, 2, 3, 4, 0, 0, 0, 0, // 0-7
+				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
+				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
+				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
+				1, 2, 3, 4, 0, 0, 0, 0, // 32-39
+				0, 0, 0, 0, 0, 0, 0, 0, // 40-47
+				0, 0, 0, 0, 0, 0, 0, 0, // 48-55
+				0, 0, 0, 0, 0, 0, 0, 0, // 56-63
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			ctrl := gomock.NewController(t)
+			ctxt := context{
+				status: RUNNING,
+				params: vm.Parameters{
+					Recipient: vm.Address{1},
+				},
+				stack:  NewStack(),
+				memory: NewMemory(),
+			}
+			runContext := vm.NewMockRunContext(ctrl)
+			ctxt.context = runContext
+			ctxt.revision = test.revision
+			ctxt.gas = test.gas
+			ctxt.stack.push(uint256.NewInt(test.size))
+			ctxt.stack.push(uint256.NewInt(test.src))
+			ctxt.stack.push(uint256.NewInt(test.dest))
+			ctxt.memory.store = append(ctxt.memory.store, test.memoryBefore...)
+
+			opMcopy(&ctxt)
+
+			if ctxt.status != test.expectedStatus {
+				t.Errorf("expected status %v, got %v", test.expectedStatus, ctxt.status)
+			}
+			if ctxt.memory.Len() != uint64(len(test.memoryAfter)) {
+				t.Errorf("expected memory size %d, got %d", uint64(len(test.memoryAfter)), ctxt.memory.Len())
+			}
+			if !bytes.Equal(ctxt.memory.Data(), test.memoryAfter) {
+				t.Errorf("expected memory %v, got %v", test.memoryAfter, ctxt.memory.Data())
+			}
+		})
+	}
 }

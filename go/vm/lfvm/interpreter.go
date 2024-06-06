@@ -102,6 +102,10 @@ func (c *context) isShanghai() bool {
 	return c.revision >= vm.R12_Shanghai
 }
 
+func (c *context) isCancun() bool {
+	return c.revision >= vm.R13_Cancun
+}
+
 func Run(
 	params vm.Parameters,
 	code Code,
@@ -517,6 +521,8 @@ func steps(c *context, one_step_only bool) {
 			opMstore8(c)
 		case MSIZE:
 			opMsize(c)
+		case MCOPY:
+			opMcopy(c)
 		case LT:
 			opLt(c)
 		case SLT:

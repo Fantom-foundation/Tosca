@@ -165,7 +165,7 @@ func getStaticStackInternal(op OpCode) InstructionStack {
 	case MSTORE, MSTORE8, SSTORE, JUMPI, RETURN, REVERT,
 		POP_POP, POP_JUMP:
 		return newInstructionStack(2, 0, 0)
-	case CALLDATACOPY, CODECOPY, RETURNDATACOPY:
+	case CALLDATACOPY, CODECOPY, RETURNDATACOPY, MCOPY:
 		return newInstructionStack(3, 0, 0)
 	case EXTCODECOPY:
 		return newInstructionStack(4, 0, 0)
