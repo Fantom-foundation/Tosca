@@ -5010,6 +5010,72 @@ TEST(InterpreterTest, CREATE_MemoryIsGrownAlsoWithInsufficientBalance) {
   });
 }
 
+TEST(InterpreterTest, CREATE_ShanghaiLimitInitCodeSize) {
+  RunInterpreterTest({
+      .code = {op::CREATE},
+      .state_after = RunState::kErrorInitCodeSizeExceeded,
+      .gas_before = 50000,
+      .stack_before =
+          {
+              0xc001,  // < size
+              0x00,    // < offset
+              0x00,    // < value
+          },
+      .revision = EVMC_SHANGHAI,
+  });
+}
+
+TEST(InterpreterTest, CREATE_ShanghaiCodeDepositCost) {
+  RunInterpreterTest({
+      .code = {op::CREATE},
+      .state_after = RunState::kDone,
+      .gas_before = 32005,
+      .stack_before =
+          {
+              0x0A,  // < size
+              0x00,  // < offset
+              0x00,  // < value
+          },
+      .stack_after = {0x00},
+      .memory_before = {},
+      .memory_after = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+      .revision = EVMC_SHANGHAI,
+  });
+}
+
+TEST(InterpreterTest, CREATE_ShanghaiCodeDepositCostInsufficientGas) {
+  RunInterpreterTest({
+      .code = {op::CREATE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 32003,
+      .stack_before =
+          {
+              0x0A,  // < size
+              0x00,  // < offset
+              0x00,  // < value
+          },
+      .revision = EVMC_SHANGHAI,
+  });
+}
+
+TEST(InterpreterTest, CREATE_PreShanghaiCodeDepositCost) {
+  RunInterpreterTest({
+      .code = {op::CREATE},
+      .state_after = RunState::kDone,
+      .gas_before = 32003,
+      .stack_before =
+          {
+              0x0A,  // < size
+              0x00,  // < offset
+              0x00,  // < value
+          },
+      .stack_after = {0x00},
+      .memory_before = {},
+      .memory_after = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+      .revision = EVMC_PARIS,
+  });
+}
+
 ///////////////////////////////////////////////////////////
 // CALL
 

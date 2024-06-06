@@ -1519,17 +1519,19 @@ struct CreateImpl {
       return {.dynamic_gas_costs = initial_gas - gas};
 
     if (ctx.revision >= EVMC_SHANGHAI) {
-      const int64_t max_code_size = 24576;
-      const int64_t max_init_code_size = 2 * max_code_size;
-      const int64_t init_code_word_cost = 2;
+      const int64_t kMaxCodeSize = 24576;  // introduced with EIP-3860
+      const int64_t kMaxInitCodeSize = 2 * kMaxCodeSize;
+      const int64_t kInitCodeWordCost = 2;
 
-      if (init_code_size > max_init_code_size) {
+      if (init_code_size > kMaxInitCodeSize) {
         return {
             .state = RunState::kErrorInitCodeSizeExceeded,
             .dynamic_gas_costs = initial_gas - gas,
         };
       }
-      if (gas -= init_code_word_cost * static_cast<int64_t>(((init_code_size + 31) / 32)), gas < 0) {
+
+      const int64_t init_code_cost = kInitCodeWordCost * static_cast<int64_t>(((init_code_size + 31) / 32));
+      if (gas -= init_code_cost, gas < 0) {
         return {.dynamic_gas_costs = initial_gas - gas};
       }
     }
