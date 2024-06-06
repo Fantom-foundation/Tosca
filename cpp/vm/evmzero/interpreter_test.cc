@@ -5199,7 +5199,8 @@ TEST(InterpreterTest, Step_Single_Memory) {
 }
 
 ///////////////////////////////////////////////////////////
-// Stepping interpreter - JUMP
+// MCOPY
+
 TEST(InterpreterTest, MCOPY_PreCancun) {
   RunInterpreterStepTest({
       .code = {op::MCOPY},
