@@ -289,7 +289,8 @@ func TestCreateChecksBalance(t *testing.T) {
 func TestMCopy(t *testing.T) {
 
 	tests := map[string]struct {
-		gas            vm.Gas
+		gasBefore      vm.Gas
+		gasAfter       vm.Gas
 		revision       vm.Revision
 		dest           uint64
 		src            uint64
@@ -300,7 +301,8 @@ func TestMCopy(t *testing.T) {
 		memoryAfter    []byte
 	}{
 		"empty": {
-			gas:            0,
+			gasBefore:      0,
+			gasAfter:       0,
 			revision:       vm.R13_Cancun,
 			dest:           0,
 			src:            0,
@@ -322,12 +324,11 @@ func TestMCopy(t *testing.T) {
 		"old-revision": {
 			revision:       vm.R12_Shanghai,
 			expectedStatus: INVALID_INSTRUCTION,
-			memoryBefore:   []byte{},
-			memoryAfter:    []byte{},
 		},
 		"copy": {
 			revision:       vm.R13_Cancun,
-			gas:            3,
+			gasBefore:      1000,
+			gasAfter:       1000 - 3,
 			dest:           1,
 			src:            0,
 			size:           8,
@@ -347,7 +348,8 @@ func TestMCopy(t *testing.T) {
 		},
 		"memory-expansion": {
 			revision:       vm.R13_Cancun,
-			gas:            9,
+			gasBefore:      1000,
+			gasAfter:       1000 - 9,
 			dest:           32,
 			src:            0,
 			size:           4,
@@ -374,19 +376,13 @@ func TestMCopy(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			ctrl := gomock.NewController(t)
 			ctxt := context{
 				status: RUNNING,
-				params: vm.Parameters{
-					Recipient: vm.Address{1},
-				},
 				stack:  NewStack(),
 				memory: NewMemory(),
 			}
-			runContext := vm.NewMockRunContext(ctrl)
-			ctxt.context = runContext
 			ctxt.revision = test.revision
-			ctxt.gas = test.gas
+			ctxt.gas = test.gasBefore
 			ctxt.stack.push(uint256.NewInt(test.size))
 			ctxt.stack.push(uint256.NewInt(test.src))
 			ctxt.stack.push(uint256.NewInt(test.dest))
@@ -396,12 +392,16 @@ func TestMCopy(t *testing.T) {
 
 			if ctxt.status != test.expectedStatus {
 				t.Errorf("expected status %v, got %v", test.expectedStatus, ctxt.status)
+				return
 			}
 			if ctxt.memory.Len() != uint64(len(test.memoryAfter)) {
 				t.Errorf("expected memory size %d, got %d", uint64(len(test.memoryAfter)), ctxt.memory.Len())
 			}
 			if !bytes.Equal(ctxt.memory.Data(), test.memoryAfter) {
 				t.Errorf("expected memory %v, got %v", test.memoryAfter, ctxt.memory.Data())
+			}
+			if ctxt.gas != test.gasAfter {
+				t.Errorf("expected gas %d, got %d", test.gasAfter, ctxt.gas)
 			}
 		})
 	}
