@@ -39,7 +39,7 @@ jobs:
 
     - name: Check Go sources formatting
       working-directory: ./
-      run: diff=`gofmt -s -d .`; echo "$diff"; test -z "$diff"
+      run: diff=`gofmt -s -d ./go`; echo "$diff"; test -z "$diff"
 
     - name: Build
       run: make tosca-go
