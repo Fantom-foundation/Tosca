@@ -70,6 +70,14 @@ class Memory {
     std::copy_n(memory_.data() + memory_offset, buffer.size(), buffer.data());
   }
 
+  // Reads from memory, writes into memory, grows memory if necessary.
+  void MemCopy(uint64_t dest_offset, uint64_t src_offset, uint64_t size) {
+    Grow(src_offset, size);
+    Grow(dest_offset, size);
+    // copy with overlap guarantees
+    std::memmove(memory_.data() + dest_offset, memory_.data() + src_offset, size);
+  }
+
   // Grow memory to accommodate offset + size bytes. Memory is not grown when
   // size == 0.
   void Grow(uint64_t offset, uint64_t size) {

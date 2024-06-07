@@ -5203,6 +5203,124 @@ TEST(InterpreterTest, Step_Single_Memory) {
 }
 
 ///////////////////////////////////////////////////////////
+// MCOPY
+
+TEST(InterpreterTest, MCOPY_PreCancun) {
+  RunInterpreterStepTest({
+      .code = {op::MCOPY},
+      .state_after = RunState::kErrorOpcode,
+      .revision = EVMC_SHANGHAI,
+  });
+}
+
+TEST(InterpreterTest, MCOPY) {
+  RunInterpreterStepTest(
+      {
+          .code = {op::MCOPY},
+          .state_after = RunState::kRunning,
+          .pc_before = 0,
+          .pc_after = 1,
+          .gas_before = 1000,
+          .gas_after = 1000 - 6,
+          .stack_before =
+              {
+                  8,  // size
+                  0,  // src
+                  1   // dest
+              },
+          .stack_after = {},
+          .memory_before{
+              1, 2, 3, 4, 5, 6, 7, 8,  // 0-7
+              0, 0, 0, 0, 0, 0, 0, 0,  // 8-15
+              0, 0, 0, 0, 0, 0, 0, 0,  // 16-23
+              0, 0, 0, 0, 0, 0, 0, 0,  // 24-31
+          },
+          .memory_after{
+              1, 1, 2, 3, 4, 5, 6, 7,  // 0-7
+              8, 0, 0, 0, 0, 0, 0, 0,  // 8-15
+              0, 0, 0, 0, 0, 0, 0, 0,  // 16-23
+              0, 0, 0, 0, 0, 0, 0, 0,  // 24-31
+          },
+          .revision = EVMC_CANCUN,
+      },
+      1);
+}
+
+TEST(InterpreterTest, MCOPY_Dynamic_DestExpand) {
+  RunInterpreterStepTest(
+      {
+          .code = {op::MCOPY},
+          .state_after = RunState::kRunning,
+          .pc_before = 0,
+          .pc_after = 1,
+          .gas_before = 1000,
+          .gas_after = 1000 - 6 - 3,
+          .stack_before =
+              {
+                  4,  // size
+                  0,  // src
+                  32  // dest
+              },
+          .stack_after = {},
+          .memory_before{
+              1, 2, 3, 4, 0, 0, 0, 0,  // 0-7
+              0, 0, 0, 0, 0, 0, 0, 0,  // 8-15
+              0, 0, 0, 0, 0, 0, 0, 0,  // 16-23
+              0, 0, 0, 0, 0, 0, 0, 0,  // 24-31
+          },
+          .memory_after{
+              1, 2, 3, 4, 0, 0, 0, 0,  // 0-7
+              0, 0, 0, 0, 0, 0, 0, 0,  // 8-15
+              0, 0, 0, 0, 0, 0, 0, 0,  // 16-23
+              0, 0, 0, 0, 0, 0, 0, 0,  // 24-31
+              1, 2, 3, 4, 0, 0, 0, 0,  // 32-39
+              0, 0, 0, 0, 0, 0, 0, 0,  // 40-47
+              0, 0, 0, 0, 0, 0, 0, 0,  // 48-55
+              0, 0, 0, 0, 0, 0, 0, 0,  // 56-63
+          },
+          .revision = EVMC_CANCUN,
+      },
+      1);
+}
+
+TEST(InterpreterTest, MCOPY_Dynamic_SrcExpand) {
+  RunInterpreterStepTest(
+      {
+          .code = {op::MCOPY},
+          .state_after = RunState::kRunning,
+          .pc_before = 0,
+          .pc_after = 1,
+          .gas_before = 1000,
+          .gas_after = 1000 - 6 - 3,
+          .stack_before =
+              {
+                  4,   // size
+                  32,  // src
+                  0    // dest
+              },
+          .stack_after = {},
+          .memory_before{
+              1, 2, 3, 4, 0, 0, 0, 0,  // 0-7
+              0, 0, 0, 0, 0, 0, 0, 0,  // 8-15
+              0, 0, 0, 0, 0, 0, 0, 0,  // 16-23
+              0, 0, 0, 0, 0, 0, 0, 0,  // 24-31
+          },
+          .memory_after{
+              0, 0, 0, 0, 0, 0, 0, 0,  // 0-7
+              0, 0, 0, 0, 0, 0, 0, 0,  // 8-15
+              0, 0, 0, 0, 0, 0, 0, 0,  // 16-23
+              0, 0, 0, 0, 0, 0, 0, 0,  // 24-31
+              0, 0, 0, 0, 0, 0, 0, 0,  // 32-39
+              0, 0, 0, 0, 0, 0, 0, 0,  // 40-47
+              0, 0, 0, 0, 0, 0, 0, 0,  // 48-55
+              0, 0, 0, 0, 0, 0, 0, 0,  // 56-63
+          },
+          .revision = EVMC_CANCUN,
+      },
+      1);
+}
+
+///////////////////////////////////////////////////////////
 // Stepping interpreter - JUMP
 TEST(InterpreterTest, Step_JUMP) {
   RunInterpreterStepTest(
