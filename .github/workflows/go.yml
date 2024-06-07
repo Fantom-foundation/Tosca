@@ -22,11 +22,6 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Set up GCC
-      uses: egor-tensin/setup-gcc@v1
-      with:
-        version: 11
-
     - name: Setup cmake
       uses: jwlawson/actions-setup-cmake@v1.13
       with:
@@ -37,12 +32,6 @@ jobs:
       with:
         go-version: 1.21
         cache: false
-
-    - name: Install GCC11
-      shell: bash
-      run:  |
-            sudo apt update
-            sudo apt install gcc-11 g++-11
 
     - name: Check Go sources formatting
       working-directory: ./
