@@ -18,6 +18,7 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
 	"github.com/Fantom-foundation/Tosca/go/vm"
+	"go.uber.org/mock/gomock"
 	// Enable this import to see C/C++ symbols in CPU profile data.
 	// This import is commented out because it would affect all binaries this
 	// package gets imported in and in some cases this library causes Go
@@ -88,7 +89,12 @@ func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 }
 
 func BenchmarkEmpty(b *testing.B) {
-	emptyRunParameters := vm.Parameters{}
+	ctxt := gomock.NewController(b)
+	runContext := vm.NewMockRunContext(ctxt)
+	runContext.EXPECT().GetTransactionContext().Return(vm.TransactionContext{}).AnyTimes()
+	emptyRunParameters := vm.Parameters{
+		Context: runContext,
+	}
 	for _, variant := range Variants {
 		vm := vm.GetInterpreter(variant)
 		b.Run(variant, func(b *testing.B) {
