@@ -712,6 +712,25 @@ func getAllRules() []Rule {
 		effect:    NoEffect().Apply,
 	})...)
 
+	// --- TLOAD ---
+	rules = append(rules, rulesFor(instruction{
+		op:        TLOAD,
+		staticGas: 100,
+		pops:      1,
+		pushes:    1,
+		parameters: []Parameter{
+			StorageAccessKeyParameter{},
+		},
+		conditions: []Condition{
+			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			value := s.Transient.GetStorage(key)
+			s.Stack.Push(value)
+		},
+	})...)
+
 	// --- Stack PUSH0 ---
 
 	rules = append(rules, rulesFor(instruction{
