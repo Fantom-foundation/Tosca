@@ -83,6 +83,8 @@ func (uint16Domain) SamplesForAll(as []uint16) []uint16 {
 		res = append(res, uint16(1<<i))
 	}
 
+	res = removeDuplicatesGeneric[uint16](res)
+
 	return res
 }
 
@@ -116,7 +118,7 @@ func (uint64Domain) SamplesForAll(as []uint64) []uint64 {
 		res = append(res, uint64(1<<i))
 	}
 
-	// TODO: consider removing duplicates.
+	res = removeDuplicatesGeneric[uint64](res)
 
 	return res
 }
@@ -152,7 +154,7 @@ func (d u256Domain) SamplesForAll(as []U256) []U256 {
 	// Add more interesting values.
 	res = append(res, NumericParameter{}.Samples()...)
 
-	// TODO: consider removing duplicates.
+	res = removeDuplicatesGeneric[U256](res)
 
 	return res
 }
@@ -319,7 +321,7 @@ func (stackSizeDomain) SamplesForAll(as []int) []int {
 		}
 	}
 
-	// TODO: consider removing duplicates.
+	res = removeDuplicatesGeneric[int](res)
 
 	return res
 }
@@ -383,6 +385,8 @@ func (gasDomain) SamplesForAll(as []vm.Gas) []vm.Gas {
 		res = append(res, a+1)
 	}
 
+	res = removeDuplicatesGeneric[vm.Gas](res)
+
 	return res
 }
 
@@ -396,7 +400,7 @@ func (BlockNumberOffsetDomain) Less(a int64, b int64) bool  { return a < b }
 func (BlockNumberOffsetDomain) Predecessor(a int64) int64   { return a - 1 }
 func (BlockNumberOffsetDomain) Successor(a int64) int64     { return a + 1 }
 func (BlockNumberOffsetDomain) SomethingNotEqual(a int64) int64 {
-	return a + 1
+	return a + 2
 }
 
 func (d BlockNumberOffsetDomain) Samples(a int64) []int64 {
@@ -413,5 +417,21 @@ func (BlockNumberOffsetDomain) SamplesForAll(as []int64) []int64 {
 		res = append(res, a+1)
 	}
 
+	res = removeDuplicatesGeneric[int64](res)
+
 	return res
+}
+
+func removeDuplicatesGeneric[T comparable](slice []T) []T {
+	seen := make(map[T]bool)
+	result := []T{}
+
+	for _, value := range slice {
+		if _, ok := seen[value]; !ok {
+			seen[value] = true
+			result = append(result, value)
+		}
+	}
+
+	return result
 }
