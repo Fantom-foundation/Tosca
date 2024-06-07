@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/dsnet/golib/unitconv v1.0.2
-	github.com/ethereum/evmc/v10 v10.0.0
+	github.com/ethereum/evmc/v11 v11.0.0
 	github.com/ethereum/go-ethereum v1.10.25
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/holiman/uint256 v1.2.4
@@ -36,4 +36,4 @@ require (
 
 replace github.com/ethereum/go-ethereum => github.com/Fantom-foundation/go-ethereum-sonic v0.0.0-20240529085303-2400937cc3b1
 
-replace github.com/ethereum/evmc/v10 => ./third_party/evmc
+replace github.com/ethereum/evmc/v11 => ./third_party/evmc
