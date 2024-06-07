@@ -285,6 +285,20 @@ func (mr *MockTxContextMockRecorder) GetTransactionContext() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionContext", reflect.TypeOf((*MockTxContext)(nil).GetTransactionContext))
 }
 
+// GetTransientStorage mocks base method.
+func (m *MockTxContext) GetTransientStorage(addr Address, key Key) Word {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTransientStorage", addr, key)
+	ret0, _ := ret[0].(Word)
+	return ret0
+}
+
+// GetTransientStorage indicates an expected call of GetTransientStorage.
+func (mr *MockTxContextMockRecorder) GetTransientStorage(addr, key any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransientStorage", reflect.TypeOf((*MockTxContext)(nil).GetTransientStorage), addr, key)
+}
+
 // HasSelfDestructed mocks base method.
 func (m *MockTxContext) HasSelfDestructed(addr Address) bool {
 	m.ctrl.T.Helper()
@@ -402,4 +416,16 @@ func (m *MockTxContext) SetStorage(addr Address, key Key, value Word) StorageSta
 func (mr *MockTxContextMockRecorder) SetStorage(addr, key, value any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetStorage", reflect.TypeOf((*MockTxContext)(nil).SetStorage), addr, key, value)
+}
+
+// SetTransientStorage mocks base method.
+func (m *MockTxContext) SetTransientStorage(addr Address, key Key, value Word) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetTransientStorage", addr, key, value)
+}
+
+// SetTransientStorage indicates an expected call of SetTransientStorage.
+func (mr *MockTxContextMockRecorder) SetTransientStorage(addr, key, value any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTransientStorage", reflect.TypeOf((*MockTxContext)(nil).SetTransientStorage), addr, key, value)
 }
