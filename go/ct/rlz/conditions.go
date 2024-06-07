@@ -721,3 +721,88 @@ func (c *hasNotSelfDestructed) GetTestValues() []TestValue {
 func (c *hasNotSelfDestructed) String() string {
 	return "hasNotSelfDestructed()"
 }
+
+////////////////////////////////////////////////////////////
+// In Range 256 From Current Block
+
+type inRange256FromCurrentBlock struct {
+	blockNumber BindableExpression[U256]
+}
+
+func InRange256FromCurrentBlock(blockNumber BindableExpression[U256]) Condition {
+	return &inRange256FromCurrentBlock{blockNumber}
+}
+
+func (c *inRange256FromCurrentBlock) Check(s *st.State) (bool, error) {
+	paramBlockNumber, err := c.blockNumber.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	if !paramBlockNumber.IsUint64() {
+		return false, nil
+	}
+	uintParam := paramBlockNumber.Uint64()
+	bottom := uint64(0)
+	if s.BlockContext.BlockNumber > 256 {
+		bottom = s.BlockContext.BlockNumber - 256
+	}
+
+	return bottom <= uintParam && uintParam < s.BlockContext.BlockNumber, nil
+}
+
+func (c *inRange256FromCurrentBlock) Restrict(generator *gen.StateGenerator) {
+	paramVariable := c.blockNumber.GetVariable()
+	c.blockNumber.BindTo(generator)
+	generator.RestrictVariableToOneOfTheLast256Blocks(paramVariable)
+}
+
+func (c *inRange256FromCurrentBlock) GetTestValues() []TestValue {
+	property := Property(c.String())
+	domain := BlockNumberOffsetDomain{}
+	restrict := func(generator *gen.StateGenerator, offset int64) {
+		paramVariable := c.blockNumber.GetVariable()
+		c.blockNumber.BindTo(generator)
+		generator.SetBlockNumberOffsetValue(paramVariable, offset)
+	}
+	testValues := []TestValue{}
+	for _, value := range domain.SamplesForAll([]int64{}) {
+		testValues = append(testValues, NewTestValue(property, domain, value, restrict))
+	}
+	return testValues
+}
+
+func (c *inRange256FromCurrentBlock) String() string {
+	return c.blockNumber.String()
+}
+
+////////////////////////////////////////////////////////////
+// Out Of Range 256 From Current Block
+
+type outOfRange256FromCurrentBlock struct {
+	blockNumber BindableExpression[U256]
+}
+
+func OutOfRange256FromCurrentBlock(blockNumber BindableExpression[U256]) Condition {
+	return &outOfRange256FromCurrentBlock{blockNumber}
+}
+
+func (c *outOfRange256FromCurrentBlock) Check(s *st.State) (bool, error) {
+	res, err := InRange256FromCurrentBlock(c.blockNumber).Check(s)
+	return !res, err
+}
+
+func (c *outOfRange256FromCurrentBlock) Restrict(generator *gen.StateGenerator) {
+	paramVariable := c.blockNumber.GetVariable()
+	c.blockNumber.BindTo(generator)
+	generator.RestrictVariableToNoneOfTheLast256Blocks(paramVariable)
+}
+
+func (c *outOfRange256FromCurrentBlock) GetTestValues() []TestValue {
+	return InRange256FromCurrentBlock(c.blockNumber).GetTestValues()
+}
+
+func (c *outOfRange256FromCurrentBlock) String() string {
+	return c.blockNumber.String()
+}
+
+////////////////////////////////////////////////////////////

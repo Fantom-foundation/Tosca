@@ -13,6 +13,7 @@
 package rlz
 
 import (
+	"math"
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -286,5 +287,144 @@ func TestHasSelfDestructedCondition_HasSelfDestructRestrictsGeneratedStateToBeSe
 
 	if !got {
 		t.Error("generated state does not satisfy condition")
+	}
+}
+
+func TestCondition_InOutRange256FromCurrentBlock_Check(t *testing.T) {
+	gen := gen.NewStateGenerator()
+	rnd := rand.New(0)
+	state, err := gen.Generate(rnd)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	tests := map[string]struct {
+		condition Condition
+		offset    int64
+		want      bool
+	}{
+		"checkInWantIn-1": {
+			condition: InRange256FromCurrentBlock(Param(0)),
+			offset:    -1,
+			want:      false,
+		},
+		"checkInWantIn0": {
+			condition: InRange256FromCurrentBlock(Param(0)),
+			offset:    0,
+			want:      false,
+		},
+		"checkInWantIn1": {
+			condition: InRange256FromCurrentBlock(Param(0)),
+			offset:    1,
+			want:      true,
+		},
+		"checkInWantIn255": {
+			condition: InRange256FromCurrentBlock(Param(0)),
+			offset:    255,
+			want:      true,
+		},
+		"checkInWantIn256": {
+			condition: InRange256FromCurrentBlock(Param(0)),
+			offset:    256,
+			want:      true,
+		},
+		"checkInWantIn257": {
+			condition: InRange256FromCurrentBlock(Param(0)),
+			offset:    257,
+			want:      false,
+		},
+		"checkOutWantOut-1": {
+			condition: OutOfRange256FromCurrentBlock(Param(0)),
+			offset:    -1,
+			want:      true,
+		},
+		"checkOutWantOut0": {
+			condition: OutOfRange256FromCurrentBlock(Param(0)),
+			offset:    0,
+			want:      true,
+		},
+		"checkOutWantIn1": {
+			condition: OutOfRange256FromCurrentBlock(Param(0)),
+			offset:    1,
+			want:      false,
+		},
+		"checkOutWantIn255": {
+			condition: OutOfRange256FromCurrentBlock(Param(0)),
+			offset:    255,
+			want:      false,
+		},
+		"checkOutWantIn256": {
+			condition: OutOfRange256FromCurrentBlock(Param(0)),
+			offset:    256,
+			want:      false,
+		},
+		"checkOutWantOut257": {
+			condition: OutOfRange256FromCurrentBlock(Param(0)),
+			offset:    257,
+			want:      true,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			state.Stack.Push(NewU256(uint64(int64(state.BlockContext.BlockNumber) - test.offset)))
+			got, err := test.condition.Check(state)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.want != got {
+				t.Fatal("block number is not within range")
+			}
+		})
+	}
+
+}
+
+func TestCondition_InOut_Restrict(t *testing.T) {
+	rnd := rand.New()
+
+	tests := map[string]struct {
+		condition Condition
+	}{
+		"inRange":    {condition: InRange256FromCurrentBlock(Param(0))},
+		"outOfRange": {condition: OutOfRange256FromCurrentBlock(Param(0))},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			for i := 0; i < 1000; i++ {
+				gen := gen.NewStateGenerator()
+				test.condition.Restrict(gen)
+				state, err := gen.Generate(rnd)
+				if err != nil {
+					t.Fatalf("failed to build state: %v", err)
+				}
+				if checked, err := test.condition.Check(state); err != nil || !checked {
+					t.Errorf("failed to check condition: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestCondition_InOutOfRangeGetTestValues(t *testing.T) {
+	want := []int64{math.MinInt64, -1, 0, 1, 255, 256, 257, math.MaxInt64}
+	tests := map[string]Condition{
+		"inRange":    InRange256FromCurrentBlock(Param(0)),
+		"outOfRange": OutOfRange256FromCurrentBlock(Param(0)),
+	}
+
+	for name, condition := range tests {
+		t.Run(name, func(t *testing.T) {
+			testValues := condition.GetTestValues()
+			if len(testValues) != len(want) {
+				t.Fatalf("unexpected amount test values, got %v, want %v", len(testValues), want)
+			}
+			for i, test := range testValues {
+				if test.(*testValue[int64]).value != want[i] {
+					t.Errorf("unexpected test value, got %v, want %v", test.(*testValue[int64]).value, want[i])
+				}
+			}
+		})
 	}
 }
