@@ -104,6 +104,7 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 			minSize = constraint.pos + 1
 		}
 	}
+
 	// Make extra space for worst-case size requirements of variable operation
 	// constraints.
 	for _, constraint := range varOps {
@@ -112,6 +113,22 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 			size += int(constraint.op - PUSH1 + 1)
 		}
 		minSize += size
+	}
+
+	// Make enough space to host all the different opCodes used in condition.
+	opCount := make(map[OpCode]bool)
+	for _, constraint := range varOps {
+		opCount[constraint.op] = true
+	}
+	for _, constraint := range ops {
+		opCount[constraint.op] = true
+	}
+	minSize = max(minSize, len(opCount))
+
+	// If there are any variables that need to be bound to code, there must be at
+	// least on instruction in the resulting code.
+	if minSize == 0 && len(g.varIsCodeConstraints) > 0 {
+		minSize = 1
 	}
 
 	// We use an exponential distribution for the code size here since long codes
