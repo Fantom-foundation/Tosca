@@ -36,6 +36,9 @@ jobs:
         go-version: 1.21
         cache: false
 
+    - name: Install GCC 11
+      run: sudo apt-get install -y gcc-11 g++-11
+
     - name: Check Go sources formatting
       working-directory: ./
       run: diff=`gofmt -s -d ./go`; echo "$diff"; test -z "$diff"
