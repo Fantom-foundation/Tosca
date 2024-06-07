@@ -31,6 +31,9 @@ type CodeGenerator struct {
 	varOps               []varOpConstraint
 	varIsCodeConstraints []varIsCodeConstraint
 	varIsDataConstraints []varIsDataConstraint
+
+	// testing only
+	codeSize *int
 }
 
 type constOpConstraint struct {
@@ -131,12 +134,17 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 		minSize = 1
 	}
 
-	// We use an exponential distribution for the code size here since long codes
-	// extend the runtime but are expected to reveal limited extra code coverage.
-	const expectedSize float64 = 200
-	size := int(rnd.ExpFloat64()/(1/expectedSize)) + minSize
-	if size > st.MaxCodeSize {
-		size = st.MaxCodeSize
+	var size int
+	if g.codeSize != nil {
+		size = *g.codeSize + minSize
+	} else {
+		// We use an exponential distribution for the code size here since long codes
+		// extend the runtime but are expected to reveal limited extra code coverage.
+		const expectedSize float64 = 200
+		size = int(rnd.ExpFloat64()/(1/expectedSize)) + minSize
+		if size > st.MaxCodeSize {
+			size = st.MaxCodeSize
+		}
 	}
 
 	// Solve variable constraints. constOpConstraints are generated, the
