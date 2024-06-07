@@ -18,7 +18,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/vm"
-	"github.com/ethereum/evmc/v10/bindings/go/evmc"
+	"github.com/ethereum/evmc/v11/bindings/go/evmc"
 )
 
 // LoadSteppableEvmcInterpreter attempts to load an Interpreter implementation from a

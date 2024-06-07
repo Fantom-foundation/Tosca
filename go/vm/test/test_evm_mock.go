@@ -203,6 +203,20 @@ func (mr *MockStateDBMockRecorder) GetStorage(arg0, arg1 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStorage", reflect.TypeOf((*MockStateDB)(nil).GetStorage), arg0, arg1)
 }
 
+// GetTransientStorage mocks base method.
+func (m *MockStateDB) GetTransientStorage(arg0 vm.Address, arg1 vm.Key) vm.Word {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTransientStorage", arg0, arg1)
+	ret0, _ := ret[0].(vm.Word)
+	return ret0
+}
+
+// GetTransientStorage indicates an expected call of GetTransientStorage.
+func (mr *MockStateDBMockRecorder) GetTransientStorage(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransientStorage", reflect.TypeOf((*MockStateDB)(nil).GetTransientStorage), arg0, arg1)
+}
+
 // HasSelfDestructed mocks base method.
 func (m *MockStateDB) HasSelfDestructed(arg0 vm.Address) bool {
 	m.ctrl.T.Helper()
@@ -256,4 +270,16 @@ func (m *MockStateDB) SetStorage(arg0 vm.Address, arg1 vm.Key, arg2 vm.Word) {
 func (mr *MockStateDBMockRecorder) SetStorage(arg0, arg1, arg2 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetStorage", reflect.TypeOf((*MockStateDB)(nil).SetStorage), arg0, arg1, arg2)
+}
+
+// SetTransientStorage mocks base method.
+func (m *MockStateDB) SetTransientStorage(arg0 vm.Address, arg1 vm.Key, arg2 vm.Word) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetTransientStorage", arg0, arg1, arg2)
+}
+
+// SetTransientStorage indicates an expected call of SetTransientStorage.
+func (mr *MockStateDBMockRecorder) SetTransientStorage(arg0, arg1, arg2 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTransientStorage", reflect.TypeOf((*MockStateDB)(nil).SetTransientStorage), arg0, arg1, arg2)
 }

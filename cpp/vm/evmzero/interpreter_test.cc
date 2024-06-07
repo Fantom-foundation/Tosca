@@ -38,6 +38,10 @@ class MockHost : public evmc::Host {
               (const, noexcept, override));
   MOCK_METHOD(evmc_storage_status, set_storage,
               (const evmc::address& addr, const evmc::bytes32& key, const evmc::bytes32& value), (noexcept, override));
+  MOCK_METHOD(evmc::bytes32, get_transient_storage, (const evmc::address& addr, const evmc::bytes32& key),
+              (const, noexcept, override));
+  MOCK_METHOD(void, set_transient_storage,
+              (const evmc::address& addr, const evmc::bytes32& key, const evmc::bytes32& value), (noexcept, override));
   MOCK_METHOD(evmc::uint256be, get_balance, (const evmc::address& addr), (const, noexcept, override));
   MOCK_METHOD(size_t, get_code_size, (const evmc::address& addr), (const, noexcept, override));
   MOCK_METHOD(evmc::bytes32, get_code_hash, (const evmc::address& addr), (const, noexcept, override));

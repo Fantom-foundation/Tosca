@@ -29,7 +29,7 @@ tosca-cpp:
 evmone:
 	@cd third_party/evmone ; \
 	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so ; \
-	cmake --build build --parallel
+	cmake --build build --parallel -t evmone
 
 test: test-go test-cpp
 

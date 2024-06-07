@@ -17,7 +17,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
-	"github.com/ethereum/evmc/v10/bindings/go/evmc"
+	"github.com/ethereum/evmc/v11/bindings/go/evmc"
 )
 
 func TestEvmcInterpreter_RevisionConversion(t *testing.T) {
