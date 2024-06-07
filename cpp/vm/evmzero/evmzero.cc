@@ -136,6 +136,7 @@ class VM : public evmc_vm {
 
     const auto interpreter_args = InterpreterArgs{
         .padded_code = contract_info->padded_code,
+        .converted_code = contract_info->converted_code,
         .valid_jump_targets = contract_info->valid_jump_targets,
         .message = message,
         .host_interface = host_interface,
@@ -195,6 +196,7 @@ class VM : public evmc_vm {
 
     auto stepping_args = SteppingArgs{};
     stepping_args.padded_code = contract_info->padded_code;
+    stepping_args.converted_code = contract_info->converted_code;
     stepping_args.valid_jump_targets = contract_info->valid_jump_targets;
     stepping_args.message = message;
     stepping_args.host_interface = host_interface;
@@ -313,12 +315,14 @@ class VM : public evmc_vm {
  private:
   struct ContractInfo {
     std::vector<uint8_t> padded_code;
+    mutable std::vector<const void*> converted_code;
     op::ValidJumpTargetsBuffer valid_jump_targets;
   };
 
   static std::shared_ptr<ContractInfo> ComputeContractInfo(std::span<const uint8_t> code) {
     return std::make_shared<ContractInfo>(ContractInfo{
         .padded_code = internal::PadCode(code),
+        .converted_code = std::vector<const void*>(code.size() + 33),
         .valid_jump_targets = op::CalculateValidJumpTargets(code),
     });
   }

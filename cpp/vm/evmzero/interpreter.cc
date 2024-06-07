@@ -83,6 +83,7 @@ InterpreterResult Interpret(const InterpreterArgs& args, Observer& observer) {
       .is_static_call = static_cast<bool>(args.message->flags & EVMC_STATIC),
       .gas = args.message->gas,
       .padded_code = args.padded_code,
+      .converted_code = args.converted_code,
       .valid_jump_targets = args.valid_jump_targets,
       .message = args.message,
       .host = &host,
@@ -119,6 +120,7 @@ SteppingResult InterpretNSteps(const SteppingArgs& args) {
       .gas = args.message->gas,
       .gas_refunds = args.gas_refunds,
       .padded_code = args.padded_code,
+      .converted_code = args.converted_code,
       .return_data = args.last_call_return_data,
       .valid_jump_targets = args.valid_jump_targets,
       .memory = std::move(args.memory),
@@ -1253,8 +1255,8 @@ template <>
 struct Impl<OpCode::PC> {
   constexpr static OpInfo kInfo = NullaryOp(2);
 
-  static OpResult Run(uint256_t* top, const uint8_t* pc, Context& ctx) noexcept {
-    top[-1] = pc - ctx.padded_code.data();
+  static OpResult Run(uint256_t* top, const void** pc, Context& ctx) noexcept {
+    top[-1] = pc - ctx.converted_code.data();
     return {};
   }
 };
@@ -1299,11 +1301,12 @@ struct PushImpl {
       .instruction_length = 1 + N,
   };
 
-  static OpResult Run(uint256_t* top, const uint8_t* pc) noexcept {
+  static OpResult Run(uint256_t* top, const void** pc, Context& ctx) noexcept {
     constexpr auto num_full_words = N / sizeof(uint64_t);
     constexpr auto num_partial_bytes = N % sizeof(uint64_t);
 
-    const uint8_t* data = pc + 1;
+    auto offset = pc - ctx.converted_code.data();
+    const uint8_t* data = ctx.padded_code.data() + offset + 1;
 
     // TODO: hide stack details.
     uint256_t& value = *(--top);
@@ -1717,43 +1720,43 @@ struct Impl<OpCode::DELEGATECALL> : CallImpl<OpCode::DELEGATECALL> {};
 template <>
 struct Impl<OpCode::STATICCALL> : CallImpl<OpCode::STATICCALL> {};
 
-inline OpResult Invoke(uint256_t*, const uint8_t*, int64_t, Context&,  //
+inline OpResult Invoke(uint256_t*, const void**, int64_t, Context&,  //
                        OpResult (*op)() noexcept                       //
                        ) noexcept {
   return op();
 }
 
-inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context&,  //
+inline OpResult Invoke(uint256_t* top, const void**, int64_t, Context&,  //
                        OpResult (*op)(uint256_t* top) noexcept             //
                        ) noexcept {
   return op(top);
 }
 
-inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context&,  //
+inline OpResult Invoke(uint256_t* top, const void**, int64_t gas, Context&,  //
                        OpResult (*op)(uint256_t* top, int64_t gas) noexcept    //
                        ) noexcept {
   return op(top, gas);
 }
 
-inline OpResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, Context&,       //
-                       OpResult (*op)(uint256_t* top, const uint8_t* pc) noexcept  //
+inline OpResult Invoke(uint256_t* top, const void** pc, int64_t, Context&,       //
+                       OpResult (*op)(uint256_t* top, const void** pc) noexcept  //
                        ) noexcept {
   return op(top, pc);
 }
 
-inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t, Context& ctx,  //
+inline OpResult Invoke(uint256_t* top, const void**, int64_t, Context& ctx,  //
                        OpResult (*op)(uint256_t* top, Context&) noexcept       //
                        ) noexcept {
   return op(top, ctx);
 }
 
-inline OpResult Invoke(uint256_t* top, const uint8_t* pc, int64_t, Context& ctx,             //
-                       OpResult (*op)(uint256_t* top, const uint8_t* pc, Context&) noexcept  //
+inline OpResult Invoke(uint256_t* top, const void** pc, int64_t, Context& ctx,             //
+                       OpResult (*op)(uint256_t* top, const void** pc, Context&) noexcept  //
                        ) noexcept {
   return op(top, pc, ctx);
 }
 
-inline OpResult Invoke(uint256_t* top, const uint8_t*, int64_t gas, Context& ctx,      //
+inline OpResult Invoke(uint256_t* top, const void**, int64_t gas, Context& ctx,      //
                        OpResult (*op)(uint256_t* top, int64_t gas, Context&) noexcept  //
                        ) noexcept {
   return op(top, gas, ctx);
@@ -1837,12 +1840,12 @@ std::vector<uint8_t> PadCode(std::span<const uint8_t> code) {
 
 struct Result {
   RunState state = RunState::kDone;
-  const uint8_t* pc = nullptr;
+  const void** pc = nullptr;
   int64_t gas_left = 0;
 };
 
 template <op::OpCode op_code, bool Stepping>
-inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, int32_t stack_size, const uint8_t* code,
+inline Result Run(const void** pc, int64_t gas, uint256_t* top, int32_t stack_size, const uint8_t* code,
                   Context& ctx) {
   using Impl = op::Impl<op_code>;
 
@@ -1881,7 +1884,7 @@ inline Result Run(const uint8_t* pc, int64_t gas, uint256_t* top, int32_t stack_
         return Result{.state = ctx.state};
       }
 
-      pc = code + static_cast<uint32_t>(*top);
+      pc = ctx.converted_code.data() + static_cast<uint32_t>(*top);
 
       // If we are not stepping we can immediately execute the JUMPDEST instruction.
       if constexpr (!Stepping) {
@@ -1929,11 +1932,6 @@ void RunInterpreter(Context& ctx, Observer& observer, int steps) {
   int32_t size = static_cast<int32_t>(ctx.stack.GetSize());
 
   auto* padded_code = ctx.padded_code.data();
-  auto* pc = padded_code;
-
-  if constexpr (Stepping) {
-    pc += ctx.pc;
-  }
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
@@ -1947,6 +1945,20 @@ void RunInterpreter(Context& ctx, Observer& observer, int steps) {
   };
   static_assert(dispatch_table.size() == op::kNumUsedAndUnusedOpCodes);
 
+  auto* converted_code = ctx.converted_code.data();
+  if (*converted_code == nullptr) {
+    for (size_t i = 0; i < ctx.padded_code.size(); i++) {
+      converted_code[i] = dispatch_table[padded_code[i]];
+    }
+    std::cout << "Conversion done!\n" << std::flush;
+  }
+
+  auto* pc = converted_code;
+
+  if constexpr (Stepping) {
+    pc += ctx.pc;
+  }
+
 // On each dispatch, the dispatch_table is used to resolve the target address
 // for the handling code.
 #define DISPATCH()                     \
@@ -1957,7 +1969,7 @@ void RunInterpreter(Context& ctx, Observer& observer, int steps) {
       }                                \
     }                                  \
     if (state == RunState::kRunning) { \
-      goto* dispatch_table[*pc];       \
+      goto* *pc;       \
     } else {                           \
       goto end;                        \
     }                                  \
@@ -2026,7 +2038,7 @@ end:
 
   if constexpr (Stepping) {
     if (pc != nullptr) {
-      ctx.pc = static_cast<uint64_t>(pc - padded_code);
+      ctx.pc = static_cast<uint64_t>(pc - converted_code);
     }
   }
 }

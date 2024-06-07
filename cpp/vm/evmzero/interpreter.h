@@ -50,6 +50,7 @@ std::ostream& operator<<(std::ostream&, RunState);
 
 struct InterpreterArgs {
   std::span<const uint8_t> padded_code;
+  std::span<const void*> converted_code;
   std::span<const uint8_t> valid_jump_targets;
   const evmc_message* message = nullptr;
   const evmc_host_interface* host_interface = nullptr;
@@ -101,6 +102,7 @@ struct Context {
   int64_t gas_refunds = 0;
 
   std::span<const uint8_t> padded_code;
+  std::span<const void*> converted_code;
   std::vector<uint8_t> return_data;
   std::span<const uint8_t> valid_jump_targets;
 
