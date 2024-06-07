@@ -283,5 +283,64 @@ func TestCreateChecksBalance(t *testing.T) {
 	if want, got := *uint256.NewInt(0), ctxt.stack.data[0]; want != got {
 		t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
 	}
+}
 
+func TestBlobBaseFee(t *testing.T) {
+
+	blobBaseFeeValue := vm.Value{1}
+
+	tests := map[string]struct {
+		setup    func(*vm.MockRunContext)
+		gas      vm.Gas
+		revision vm.Revision
+		status   Status
+		want     vm.Value
+	}{
+		"regular": {
+			setup: func(runContext *vm.MockRunContext) {
+				runContext.EXPECT().GetTransactionContext().Return(vm.TransactionContext{BlobBaseFee: blobBaseFeeValue})
+			},
+			gas:      2,
+			revision: vm.R13_Cancun,
+			status:   RUNNING,
+			want:     blobBaseFeeValue,
+		},
+		"old-revision": {
+			setup:    func(runContext *vm.MockRunContext) {},
+			gas:      2,
+			revision: vm.R12_Shanghai,
+			status:   INVALID_INSTRUCTION,
+			want:     vm.Value{},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			ctrl := gomock.NewController(t)
+			ctxt := context{
+				status: RUNNING,
+				params: vm.Parameters{
+					Recipient: vm.Address{1},
+				},
+				stack:  NewStack(),
+				memory: NewMemory(),
+			}
+			ctxt.gas = test.gas
+			ctxt.revision = test.revision
+
+			runContext := vm.NewMockRunContext(ctrl)
+			test.setup(runContext)
+			ctxt.context = runContext
+
+			opBlobBaseFee(&ctxt)
+
+			if ctxt.status != test.status {
+				t.Fatalf("unexpected status, wanted %v, got %v", test.status, ctxt.status)
+			}
+			if want, got := test.want, ctxt.stack.data[0]; got.Cmp(new(uint256.Int).SetBytes(want[:])) != 0 && ctxt.status == RUNNING {
+				t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
+			}
+		})
+	}
 }

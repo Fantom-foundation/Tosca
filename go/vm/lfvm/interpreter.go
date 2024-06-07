@@ -102,6 +102,10 @@ func (c *context) isShanghai() bool {
 	return c.revision >= vm.R12_Shanghai
 }
 
+func (c *context) isCancun() bool {
+	return c.revision >= vm.R13_Cancun
+}
+
 func Run(
 	params vm.Parameters,
 	code Code,
@@ -668,6 +672,8 @@ func steps(c *context, one_step_only bool) {
 			opSelfbalance(c)
 		case BASEFEE:
 			opBaseFee(c)
+		case BLOBBASEFEE:
+			opBlobBaseFee(c)
 		case SELFDESTRUCT:
 			opSelfdestruct(c)
 		case CHAINID:

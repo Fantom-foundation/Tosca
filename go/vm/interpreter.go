@@ -118,6 +118,7 @@ type TransactionContext struct {
 	PrevRandao  Hash
 	ChainID     Word
 	BaseFee     Value
+	BlobBaseFee Value
 }
 
 // AccessStatus is an enum utilized to indicate cold and warm account or
