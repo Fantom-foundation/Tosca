@@ -24,7 +24,7 @@ jobs:
 
     - uses: egor-tensin/setup-clang@v1
       with:
-        version: 18
+        version: 14
 
     - name: Setup cmake
       uses: jwlawson/actions-setup-cmake@v1.13
