@@ -772,6 +772,10 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 			modify:      func(s *State) { s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}}} },
 			relevantFor: allButFailed,
 		},
+		"block_number_hashes": {
+			modify:      func(s *State) { s.RecentBlockHashes = [256]vm.Hash{{0xf2}} },
+			relevantFor: allButFailed,
+		},
 	}
 
 	code := NewCode([]byte{1, 2, 3})
