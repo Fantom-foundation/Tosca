@@ -163,38 +163,34 @@ func (a *Storage) Eq(b *Storage) bool {
 		maps.Equal(a.warm, b.warm)
 }
 
-func mapDiffIgnoringZeroValues[K comparable](a map[K]U256, b map[K]U256) (res []string) {
+func mapDiffIgnoringZeroValues[K comparable](a map[K]U256, b map[K]U256, name string) (res []string) {
 	for key, valueA := range a {
 		valueB, contained := b[key]
 		if !contained && valueA != NewU256(0) {
-			res = append(res, fmt.Sprintf("Different entry:\n\t[%v]=%v\n\tvs\n\tmissing", key, valueA))
+			res = append(res, fmt.Sprintf("Different %s entry:\n\t[%v]=%v\n\tvs\n\tmissing", name, key, valueA))
 		} else if valueA != valueB {
-			res = append(res, fmt.Sprintf("Different entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", key, valueA, key, valueB))
+			res = append(res, fmt.Sprintf("Different %s entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", name, key, valueA, key, valueB))
 		}
 	}
 	for key, valueB := range b {
 		if _, contained := a[key]; !contained && valueB != NewU256(0) {
-			res = append(res, fmt.Sprintf("Different entry:\n\tmissing\n\tvs\n\t[%v]=%v", key, valueB))
+			res = append(res, fmt.Sprintf("Different %s entry:\n\tmissing\n\tvs\n\t[%v]=%v", name, key, valueB))
 		}
 	}
 	return
 }
 
 func (a *Storage) Diff(b *Storage) (res []string) {
-	res = append(res, "Current:\n")
-	res = append(res, mapDiffIgnoringZeroValues(a.current, b.current)...)
-	res = append(res, "Original:\n")
-	res = append(res, mapDiffIgnoringZeroValues(a.original, b.original)...)
-	res = append(res, "Warm:\n")
-
+	res = append(res, mapDiffIgnoringZeroValues(a.current, b.current, "current")...)
+	res = append(res, mapDiffIgnoringZeroValues(a.original, b.original, "original")...)
 	for key := range a.warm {
 		if _, contained := b.warm[key]; !contained {
-			res = append(res, fmt.Sprintf("Different entry: %v vs missing", key))
+			res = append(res, fmt.Sprintf("Different warm entry: %v vs missing", key))
 		}
 	}
 	for key := range b.warm {
 		if _, contained := a.warm[key]; !contained {
-			res = append(res, fmt.Sprintf("Different entry: missing vs %v", key))
+			res = append(res, fmt.Sprintf("Different warm entry: missing vs %v", key))
 		}
 	}
 

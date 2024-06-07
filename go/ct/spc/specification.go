@@ -713,6 +713,7 @@ func getAllRules() []Rule {
 	})...)
 
 	// --- TLOAD ---
+
 	rules = append(rules, rulesFor(instruction{
 		op:        TLOAD,
 		staticGas: 100,
@@ -730,6 +731,67 @@ func getAllRules() []Rule {
 			s.Stack.Push(value)
 		},
 	})...)
+
+	rules = append(rules, Rule{
+		Name: "tload_pre_cancun",
+		Condition: And(
+			RevisionBounds(R07_Istanbul, R11_Paris),
+			Eq(Status(), st.Running),
+			Eq(Op(Pc()), TSTORE),
+			Ge(Gas(), 100),
+			Lt(StackSize(), st.MaxStackSize-1),
+			Ge(StackSize(), 1),
+		),
+		Effect: FailEffect(),
+	})
+
+	// --- TSTORE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        TSTORE,
+		staticGas: 100,
+		pops:      2,
+		pushes:    0,
+		parameters: []Parameter{
+			StorageAccessKeyParameter{},
+			NumericParameter{},
+		},
+		conditions: []Condition{
+			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			Eq(ReadOnly(), false),
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			value := s.Stack.Pop()
+			s.Transient.SetStorage(key, value)
+		},
+	})...)
+
+	rules = append(rules, Rule{
+		Name: "tstore_pre_cancun",
+		Condition: And(
+			RevisionBounds(R07_Istanbul, R11_Paris),
+			Eq(Status(), st.Running),
+			Eq(Op(Pc()), TSTORE),
+			Ge(Gas(), 100),
+			Ge(StackSize(), 2),
+			Eq(ReadOnly(), false),
+		),
+		Effect: FailEffect(),
+	})
+
+	rules = append(rules, Rule{
+		Name: "tstore_read_only",
+		Condition: And(
+			AnyKnownRevision(),
+			Eq(Status(), st.Running),
+			Eq(Op(Pc()), TSTORE),
+			Ge(Gas(), 100),
+			Ge(StackSize(), 2),
+			Eq(ReadOnly(), true),
+		),
+		Effect: FailEffect(),
+	})
 
 	// --- Stack PUSH0 ---
 
