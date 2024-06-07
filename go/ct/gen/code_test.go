@@ -354,6 +354,142 @@ func TestCodeGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	}
 }
 
+func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
+
+	type constOp struct {
+		p  int
+		op OpCode
+	}
+
+	type varOp struct {
+		v  string
+		op OpCode
+	}
+
+	tests := map[string]struct {
+		offset       int
+		constOps     []constOp
+		varOps       []varOp
+		containsCode bool
+		wantedLength int
+	}{
+		"Empty code": {
+			offset:       0,
+			wantedLength: 0,
+		},
+		"Empty code size 1": {
+			offset:       1,
+			wantedLength: 1,
+		},
+		"Empty code with containsCode": {
+			offset:       0,
+			containsCode: true,
+			wantedLength: 1,
+		},
+		"Empty code with containsCode size 1": {
+			offset:       1,
+			containsCode: true,
+			wantedLength: 2,
+		},
+		"Single constOp": {
+			offset: 0,
+			constOps: []constOp{
+				{p: 0, op: STOP},
+			},
+			wantedLength: 1,
+		},
+		"Single constOp size 1": {
+			offset: 0,
+			constOps: []constOp{
+				{p: 0, op: STOP},
+			},
+			wantedLength: 1,
+		},
+		"Multiple constOps": {
+			offset: 0,
+			constOps: []constOp{
+				{p: 0, op: STOP},
+				{p: 1, op: ADDMOD},
+				{p: 2, op: BALANCE},
+			},
+			wantedLength: 3,
+		},
+		"Multiple constOps size 1": {
+			offset: 1,
+			constOps: []constOp{
+				{p: 0, op: STOP},
+				{p: 1, op: ADDMOD},
+				{p: 2, op: BALANCE},
+			},
+			wantedLength: 4,
+		},
+		"Multiple constOps with containsCode": {
+			offset: 0,
+			constOps: []constOp{
+				{p: 0, op: STOP},
+				{p: 1, op: ADDMOD},
+				{p: 2, op: BALANCE},
+			},
+			containsCode: true,
+			wantedLength: 3,
+		},
+		"Multiple constOps and varOps": {
+			offset: 0,
+			constOps: []constOp{
+				{p: 0, op: STOP},
+				{p: 1, op: ADDMOD},
+				{p: 2, op: BALANCE},
+			},
+			varOps: []varOp{
+				{v: "a", op: ADD},
+				{v: "b", op: BASEFEE},
+				{v: "c", op: BYTE},
+			},
+			wantedLength: 6,
+		},
+		"Multiple constOps and varOps with containsCode": {
+			offset: 0,
+			constOps: []constOp{
+				{p: 0, op: STOP},
+				{p: 1, op: ADDMOD},
+				{p: 2, op: BALANCE},
+			},
+			varOps: []varOp{
+				{v: "a", op: ADD},
+				{v: "b", op: BASEFEE},
+				{v: "c", op: BYTE},
+			},
+			containsCode: true,
+			wantedLength: 6,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			generator := NewCodeGenerator()
+			generator.codeSize = &test.offset
+			if test.containsCode {
+				generator.AddIsCode(Variable("X"))
+			}
+			for _, op := range test.constOps {
+				generator.SetOperation(op.p, op.op)
+			}
+			for _, op := range test.varOps {
+				generator.AddOperation(Variable(op.v), op.op)
+			}
+
+			code, err := generator.Generate(Assignment{}, rand.New(0))
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if code.Length() != test.wantedLength {
+				t.Errorf("unexpected code length: wanted %d, got %d", test.wantedLength, code.Length())
+			}
+		})
+	}
+}
+
 func TestVarCodeConstraintSolver_fitsOnEmpty(t *testing.T) {
 	tests := []struct {
 		pos  int
