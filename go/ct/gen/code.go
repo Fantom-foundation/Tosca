@@ -382,7 +382,7 @@ func (solver *varCodeConstraintSolver) solveVarOps(varOps []varOpConstraint) err
 				pos = 0
 			}
 			if pos == startPos {
-				return fmt.Errorf("%w, unable to fit operations in given code size", ErrUnsatisfiable)
+				return fmt.Errorf("%w, unable to fit operations in given code size %d, (%d=%d)", ErrUnsatisfiable, solver.codeSize, pos, startPos)
 			}
 		}
 

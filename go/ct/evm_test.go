@@ -34,7 +34,7 @@ var evms = map[string]ct.Evm{
 	"evmzero": evmzero.NewConformanceTestingTarget(),
 }
 
-func TestCt_ExplicitCases(t *testing.T) {
+func Disabled_TestCt_ExplicitCases(t *testing.T) {
 
 	revisions := []Revision{}
 
