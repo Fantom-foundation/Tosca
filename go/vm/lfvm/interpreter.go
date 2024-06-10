@@ -521,6 +521,8 @@ func steps(c *context, one_step_only bool) {
 			opMstore8(c)
 		case MSIZE:
 			opMsize(c)
+		case MCOPY:
+			opMcopy(c)
 		case LT:
 			opLt(c)
 		case SLT:

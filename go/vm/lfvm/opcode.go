@@ -139,6 +139,7 @@ const (
 	MSTORE8
 	MLOAD
 	MSIZE
+	MCOPY
 
 	// Storage
 	SLOAD
@@ -339,6 +340,7 @@ var op_to_string = map[OpCode]string{
 	MSTORE8: "MSTORE8",
 	MLOAD:   "MLOAD",
 	MSIZE:   "MSIZE",
+	MCOPY:   "MCOPY",
 
 	SLOAD:  "SLOAD",
 	SSTORE: "SSTORE",

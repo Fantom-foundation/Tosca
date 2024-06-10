@@ -13,6 +13,7 @@
 package lfvm
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
@@ -340,6 +341,126 @@ func TestBlobBaseFee(t *testing.T) {
 			}
 			if want, got := test.want, ctxt.stack.data[0]; got.Cmp(new(uint256.Int).SetBytes(want[:])) != 0 && ctxt.status == RUNNING {
 				t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
+			}
+		})
+	}
+}
+func TestMCopy(t *testing.T) {
+
+	tests := map[string]struct {
+		gasBefore      vm.Gas
+		gasAfter       vm.Gas
+		revision       vm.Revision
+		dest           uint64
+		src            uint64
+		size           uint64
+		memSize        uint64
+		expectedStatus Status
+		memoryBefore   []byte
+		memoryAfter    []byte
+	}{
+		"empty": {
+			gasBefore:      0,
+			gasAfter:       0,
+			revision:       vm.R13_Cancun,
+			dest:           0,
+			src:            0,
+			size:           0,
+			expectedStatus: RUNNING,
+			memoryBefore: []byte{
+				1, 2, 3, 4, 5, 6, 7, 8, // 0-7
+				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
+				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
+				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
+			},
+			memoryAfter: []byte{
+				1, 2, 3, 4, 5, 6, 7, 8, // 0-7
+				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
+				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
+				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
+			},
+		},
+		"old-revision": {
+			revision:       vm.R12_Shanghai,
+			expectedStatus: INVALID_INSTRUCTION,
+		},
+		"copy": {
+			revision:       vm.R13_Cancun,
+			gasBefore:      1000,
+			gasAfter:       1000 - 3,
+			dest:           1,
+			src:            0,
+			size:           8,
+			expectedStatus: RUNNING,
+			memoryBefore: []byte{
+				1, 2, 3, 4, 5, 6, 7, 8, // 0-7
+				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
+				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
+				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
+			},
+			memoryAfter: []byte{
+				1, 1, 2, 3, 4, 5, 6, 7, // 0-7
+				8, 0, 0, 0, 0, 0, 0, 0, // 8-15
+				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
+				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
+			},
+		},
+		"memory-expansion": {
+			revision:       vm.R13_Cancun,
+			gasBefore:      1000,
+			gasAfter:       1000 - 9,
+			dest:           32,
+			src:            0,
+			size:           4,
+			expectedStatus: RUNNING,
+			memoryBefore: []byte{
+				1, 2, 3, 4, 0, 0, 0, 0, // 0-7
+				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
+				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
+				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
+			},
+			memoryAfter: []byte{
+				1, 2, 3, 4, 0, 0, 0, 0, // 0-7
+				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
+				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
+				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
+				1, 2, 3, 4, 0, 0, 0, 0, // 32-39
+				0, 0, 0, 0, 0, 0, 0, 0, // 40-47
+				0, 0, 0, 0, 0, 0, 0, 0, // 48-55
+				0, 0, 0, 0, 0, 0, 0, 0, // 56-63
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			ctxt := context{
+				status: RUNNING,
+				stack:  NewStack(),
+				memory: NewMemory(),
+			}
+			ctxt.revision = test.revision
+			ctxt.gas = test.gasBefore
+			ctxt.stack.push(uint256.NewInt(test.size))
+			ctxt.stack.push(uint256.NewInt(test.src))
+			ctxt.stack.push(uint256.NewInt(test.dest))
+			ctxt.memory.store = append(ctxt.memory.store, test.memoryBefore...)
+
+			opMcopy(&ctxt)
+
+			if ctxt.status != test.expectedStatus {
+				t.Errorf("expected status %v, got %v", test.expectedStatus, ctxt.status)
+				return
+			}
+			if ctxt.memory.Len() != uint64(len(test.memoryAfter)) {
+				t.Errorf("expected memory size %d, got %d", uint64(len(test.memoryAfter)), ctxt.memory.Len())
+			}
+			if !bytes.Equal(ctxt.memory.Data(), test.memoryAfter) {
+				t.Errorf("expected memory %v, got %v", test.memoryAfter, ctxt.memory.Data())
+			}
+			if ctxt.gas != test.gasAfter {
+				t.Errorf("expected gas %d, got %d", test.gasAfter, ctxt.gas)
 			}
 		})
 	}

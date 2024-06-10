@@ -206,6 +206,47 @@ func opMstore8(c *context) {
 	}
 }
 
+func opMcopy(c *context) {
+
+	if !c.isCancun() {
+		c.status = INVALID_INSTRUCTION
+		c.gas = 0
+		return
+	}
+
+	var destAddr = c.stack.pop()
+	var srcAddr = c.stack.pop()
+	var sizeU256 = c.stack.pop()
+
+	if sizeU256.IsZero() {
+		// zero size skips expansions although offset may be off-bounds
+		return
+	}
+
+	destOffset, destOverflow := destAddr.Uint64WithOverflow()
+	srcOffset, srcOverflow := srcAddr.Uint64WithOverflow()
+	if destOverflow || srcOverflow || !sizeU256.IsUint64() {
+		c.status = ERROR
+		return
+	}
+
+	size := sizeU256.Uint64()
+	price := vm.Gas(3 * ((size + 31) / 32))
+	if !c.UseGas(price) {
+		return
+	}
+
+	if c.memory.EnsureCapacity(destOffset, size, c) != nil {
+		return
+	}
+	if c.memory.EnsureCapacity(srcOffset, size, c) != nil {
+		return
+	}
+
+	data := c.memory.GetSlice(srcOffset, size)
+	c.memory.Set(destOffset, size, data)
+}
+
 func opMload(c *context) {
 	var trg = c.stack.peek()
 	var addr = *trg
