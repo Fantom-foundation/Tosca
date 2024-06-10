@@ -156,6 +156,14 @@ void RunInterpreterStepTest(const InterpreterTestDescription& desc, int steps = 
   EXPECT_EQ(ctx.return_data, desc.return_data);
 }
 
+Stack& fullStack() {
+  static auto stack = Stack();
+  for (size_t i = 0; i < Stack::kStackSize; i++) {
+    stack.Push(uint256_t(0));
+  }
+  return stack;
+}
+
 ///////////////////////////////////////////////////////////
 // MemoryExpansionCost
 TEST(InterpreterTest, MemoryExpansionCost) {
@@ -3228,7 +3236,15 @@ TEST(InterpreterTest, BLOBBASEFEE_OutOfGas) {
   });
 }
 
-TEST(InterpreterTest, DISABLED_BLOBBASEFEE_StackOverflow) {}
+TEST(InterpreterTest, BLOBBASEFEE_StackOverflow) {
+  RunInterpreterTest({
+      .code = {op::BLOBBASEFEE},
+      .state_after = RunState::kErrorStackOverflow,
+      .gas_before = 10,
+      .stack_before = fullStack(),
+      .revision = EVMC_CANCUN,
+  });
+}
 
 TEST(InterpreterTest, BLOBBASEFEE_PreRevision) {
   RunInterpreterTest({
