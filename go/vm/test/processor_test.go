@@ -51,7 +51,7 @@ func TestProcessor_SimpleValueTransfer(t *testing.T) {
 			// TODO: clean up expectations
 			// TODO: provide a better way to define expectations
 			// - use a before/after pattern
-			state := vm.NewMockState(ctrl)
+			state := vm.NewMockWorldState(ctrl)
 
 			state.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
 			state.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
@@ -71,7 +71,7 @@ func TestProcessor_SimpleValueTransfer(t *testing.T) {
 			state.EXPECT().GetTransactionContext().Return(txContext)
 
 			// Execute the transaction.
-			receipt, err := processor.Run(vm.R07_Istanbul, transaction, blockInfo, state)
+			receipt, err := processor.Run(blockInfo, transaction, state)
 			if err != nil {
 				t.Errorf("error: %v", err)
 			}
@@ -104,7 +104,7 @@ func TestProcessor_ContractCallThatSucceeds(t *testing.T) {
 			blockInfo := vm.BlockInfo{}
 			txContext := vm.TransactionContext{}
 
-			state := vm.NewMockState(ctrl)
+			state := vm.NewMockWorldState(ctrl)
 
 			state.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
 			state.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
@@ -128,7 +128,7 @@ func TestProcessor_ContractCallThatSucceeds(t *testing.T) {
 			state.EXPECT().GetTransactionContext().Return(txContext)
 
 			// Execute the transaction.
-			receipt, err := processor.Run(vm.R07_Istanbul, transaction, blockInfo, state)
+			receipt, err := processor.Run(blockInfo, transaction, state)
 			if err != nil {
 				t.Errorf("error: %v", err)
 			}
@@ -161,7 +161,7 @@ func TestProcessor_ContractCallThatReverts(t *testing.T) {
 			blockInfo := vm.BlockInfo{}
 			txContext := vm.TransactionContext{}
 
-			state := vm.NewMockState(ctrl)
+			state := vm.NewMockWorldState(ctrl)
 
 			state.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
 			state.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
@@ -186,7 +186,7 @@ func TestProcessor_ContractCallThatReverts(t *testing.T) {
 			state.EXPECT().GetTransactionContext().Return(txContext)
 
 			// Execute the transaction.
-			receipt, err := processor.Run(vm.R07_Istanbul, transaction, blockInfo, state)
+			receipt, err := processor.Run(blockInfo, transaction, state)
 			if err != nil {
 				t.Errorf("error: %v", err)
 			}
@@ -222,7 +222,7 @@ func TestProcessor_ContractCreation(t *testing.T) {
 			blockInfo := vm.BlockInfo{}
 			txContext := vm.TransactionContext{}
 
-			state := vm.NewMockState(ctrl)
+			state := vm.NewMockWorldState(ctrl)
 
 			state.EXPECT().GetTransactionContext().Return(txContext)
 
@@ -246,7 +246,7 @@ func TestProcessor_ContractCreation(t *testing.T) {
 			})
 
 			// Execute the transaction.
-			receipt, err := processor.Run(vm.R07_Istanbul, transaction, blockInfo, state)
+			receipt, err := processor.Run(blockInfo, transaction, state)
 			if err != nil {
 				t.Errorf("error: %v", err)
 			}

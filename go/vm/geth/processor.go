@@ -61,10 +61,9 @@ func NewProcessor() vm.Processor {
 }
 
 func (*processor) Run(
-	revision vm.Revision,
-	transaction vm.Transaction,
 	blockInfo vm.BlockInfo,
-	state vm.State,
+	transaction vm.Transaction,
+	state vm.WorldState,
 ) (vm.Receipt, error) {
 
 	// --- setup ---
@@ -115,7 +114,7 @@ func (*processor) Run(
 	chainConfig :=
 		makeChainConfig(*params.AllEthashProtocolChanges,
 			new(big.Int).SetBytes(blockInfo.ChainID[:]),
-			vmRevisionToCt(revision))
+			vmRevisionToCt(blockInfo.Revision))
 
 	stateDb := &stateDbAdapter{context: state}
 	evm := geth.NewEVM(blockCtx, txCtx, stateDb, &chainConfig, config)
@@ -160,7 +159,7 @@ func (*processor) Run(
 	contractCreation := transaction.Recipient == nil
 
 	// Set up the initial access list.
-	if revision >= vm.R09_Berlin {
+	if blockInfo.Revision >= vm.R09_Berlin {
 		var dest *common.Address
 		if transaction.Recipient != nil {
 			dest = &common.Address{}
@@ -268,7 +267,7 @@ func keccak(data []byte) vm.Hash {
 	return res
 }
 
-func preCheck(transaction vm.Transaction, state vm.State) error {
+func preCheck(transaction vm.Transaction, state vm.WorldState) error {
 	// Only check transactions that are not fake
 	// TODO: add support for non-checked transactions
 
@@ -293,7 +292,7 @@ func preCheck(transaction vm.Transaction, state vm.State) error {
 	return buyGas(transaction, state)
 }
 
-func buyGas(tx vm.Transaction, state vm.State) error {
+func buyGas(tx vm.Transaction, state vm.WorldState) error {
 	// TODO: support arithmetic operations with Value type
 	gasPrice := state.GetTransactionContext().GasPrice.ToU256()
 	mgval := uint256.NewInt(uint64(tx.GasLimit))
