@@ -51,7 +51,7 @@ func (m *MockProcessor) EXPECT() *MockProcessorMockRecorder {
 }
 
 // Run mocks base method.
-func (m *MockProcessor) Run(arg0 Revision, arg1 Transaction, arg2 BlockInfo, arg3 State) (Receipt, error) {
+func (m *MockProcessor) Run(arg0 Revision, arg1 Transaction, arg2 BlockInfo, arg3 WorldState) (Receipt, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Run", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(Receipt)
@@ -65,31 +65,31 @@ func (mr *MockProcessorMockRecorder) Run(arg0, arg1, arg2, arg3 any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockProcessor)(nil).Run), arg0, arg1, arg2, arg3)
 }
 
-// MockState is a mock of State interface.
-type MockState struct {
+// MockWorldState is a mock of WorldState interface.
+type MockWorldState struct {
 	ctrl     *gomock.Controller
-	recorder *MockStateMockRecorder
+	recorder *MockWorldStateMockRecorder
 }
 
-// MockStateMockRecorder is the mock recorder for MockState.
-type MockStateMockRecorder struct {
-	mock *MockState
+// MockWorldStateMockRecorder is the mock recorder for MockWorldState.
+type MockWorldStateMockRecorder struct {
+	mock *MockWorldState
 }
 
-// NewMockState creates a new mock instance.
-func NewMockState(ctrl *gomock.Controller) *MockState {
-	mock := &MockState{ctrl: ctrl}
-	mock.recorder = &MockStateMockRecorder{mock}
+// NewMockWorldState creates a new mock instance.
+func NewMockWorldState(ctrl *gomock.Controller) *MockWorldState {
+	mock := &MockWorldState{ctrl: ctrl}
+	mock.recorder = &MockWorldStateMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockState) EXPECT() *MockStateMockRecorder {
+func (m *MockWorldState) EXPECT() *MockWorldStateMockRecorder {
 	return m.recorder
 }
 
 // AccessAccount mocks base method.
-func (m *MockState) AccessAccount(addr Address) AccessStatus {
+func (m *MockWorldState) AccessAccount(addr Address) AccessStatus {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AccessAccount", addr)
 	ret0, _ := ret[0].(AccessStatus)
@@ -97,13 +97,13 @@ func (m *MockState) AccessAccount(addr Address) AccessStatus {
 }
 
 // AccessAccount indicates an expected call of AccessAccount.
-func (mr *MockStateMockRecorder) AccessAccount(addr any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) AccessAccount(addr any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccessAccount", reflect.TypeOf((*MockState)(nil).AccessAccount), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccessAccount", reflect.TypeOf((*MockWorldState)(nil).AccessAccount), addr)
 }
 
 // AccessStorage mocks base method.
-func (m *MockState) AccessStorage(addr Address, key Key) AccessStatus {
+func (m *MockWorldState) AccessStorage(addr Address, key Key) AccessStatus {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AccessStorage", addr, key)
 	ret0, _ := ret[0].(AccessStatus)
@@ -111,13 +111,13 @@ func (m *MockState) AccessStorage(addr Address, key Key) AccessStatus {
 }
 
 // AccessStorage indicates an expected call of AccessStorage.
-func (mr *MockStateMockRecorder) AccessStorage(addr, key any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) AccessStorage(addr, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccessStorage", reflect.TypeOf((*MockState)(nil).AccessStorage), addr, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccessStorage", reflect.TypeOf((*MockWorldState)(nil).AccessStorage), addr, key)
 }
 
 // AccountExists mocks base method.
-func (m *MockState) AccountExists(addr Address) bool {
+func (m *MockWorldState) AccountExists(addr Address) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AccountExists", addr)
 	ret0, _ := ret[0].(bool)
@@ -125,13 +125,13 @@ func (m *MockState) AccountExists(addr Address) bool {
 }
 
 // AccountExists indicates an expected call of AccountExists.
-func (mr *MockStateMockRecorder) AccountExists(addr any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) AccountExists(addr any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccountExists", reflect.TypeOf((*MockState)(nil).AccountExists), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccountExists", reflect.TypeOf((*MockWorldState)(nil).AccountExists), addr)
 }
 
 // Call mocks base method.
-func (m *MockState) Call(kind CallKind, parameter CallParameter) (CallResult, error) {
+func (m *MockWorldState) Call(kind CallKind, parameter CallParameter) (CallResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Call", kind, parameter)
 	ret0, _ := ret[0].(CallResult)
@@ -140,13 +140,13 @@ func (m *MockState) Call(kind CallKind, parameter CallParameter) (CallResult, er
 }
 
 // Call indicates an expected call of Call.
-func (mr *MockStateMockRecorder) Call(kind, parameter any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) Call(kind, parameter any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Call", reflect.TypeOf((*MockState)(nil).Call), kind, parameter)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Call", reflect.TypeOf((*MockWorldState)(nil).Call), kind, parameter)
 }
 
 // CreateSnapshot mocks base method.
-func (m *MockState) CreateSnapshot() int {
+func (m *MockWorldState) CreateSnapshot() int {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateSnapshot")
 	ret0, _ := ret[0].(int)
@@ -154,25 +154,25 @@ func (m *MockState) CreateSnapshot() int {
 }
 
 // CreateSnapshot indicates an expected call of CreateSnapshot.
-func (mr *MockStateMockRecorder) CreateSnapshot() *gomock.Call {
+func (mr *MockWorldStateMockRecorder) CreateSnapshot() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSnapshot", reflect.TypeOf((*MockState)(nil).CreateSnapshot))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSnapshot", reflect.TypeOf((*MockWorldState)(nil).CreateSnapshot))
 }
 
 // EmitLog mocks base method.
-func (m *MockState) EmitLog(addr Address, topics []Hash, data []byte) {
+func (m *MockWorldState) EmitLog(addr Address, topics []Hash, data []byte) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "EmitLog", addr, topics, data)
 }
 
 // EmitLog indicates an expected call of EmitLog.
-func (mr *MockStateMockRecorder) EmitLog(addr, topics, data any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) EmitLog(addr, topics, data any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EmitLog", reflect.TypeOf((*MockState)(nil).EmitLog), addr, topics, data)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EmitLog", reflect.TypeOf((*MockWorldState)(nil).EmitLog), addr, topics, data)
 }
 
 // GetBalance mocks base method.
-func (m *MockState) GetBalance(addr Address) Value {
+func (m *MockWorldState) GetBalance(addr Address) Value {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBalance", addr)
 	ret0, _ := ret[0].(Value)
@@ -180,13 +180,13 @@ func (m *MockState) GetBalance(addr Address) Value {
 }
 
 // GetBalance indicates an expected call of GetBalance.
-func (mr *MockStateMockRecorder) GetBalance(addr any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) GetBalance(addr any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBalance", reflect.TypeOf((*MockState)(nil).GetBalance), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBalance", reflect.TypeOf((*MockWorldState)(nil).GetBalance), addr)
 }
 
 // GetBlockHash mocks base method.
-func (m *MockState) GetBlockHash(number int64) Hash {
+func (m *MockWorldState) GetBlockHash(number int64) Hash {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBlockHash", number)
 	ret0, _ := ret[0].(Hash)
@@ -194,13 +194,13 @@ func (m *MockState) GetBlockHash(number int64) Hash {
 }
 
 // GetBlockHash indicates an expected call of GetBlockHash.
-func (mr *MockStateMockRecorder) GetBlockHash(number any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) GetBlockHash(number any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockHash", reflect.TypeOf((*MockState)(nil).GetBlockHash), number)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockHash", reflect.TypeOf((*MockWorldState)(nil).GetBlockHash), number)
 }
 
 // GetCode mocks base method.
-func (m *MockState) GetCode(addr Address) []byte {
+func (m *MockWorldState) GetCode(addr Address) []byte {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCode", addr)
 	ret0, _ := ret[0].([]byte)
@@ -208,13 +208,13 @@ func (m *MockState) GetCode(addr Address) []byte {
 }
 
 // GetCode indicates an expected call of GetCode.
-func (mr *MockStateMockRecorder) GetCode(addr any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) GetCode(addr any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCode", reflect.TypeOf((*MockState)(nil).GetCode), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCode", reflect.TypeOf((*MockWorldState)(nil).GetCode), addr)
 }
 
 // GetCodeHash mocks base method.
-func (m *MockState) GetCodeHash(addr Address) Hash {
+func (m *MockWorldState) GetCodeHash(addr Address) Hash {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCodeHash", addr)
 	ret0, _ := ret[0].(Hash)
@@ -222,13 +222,13 @@ func (m *MockState) GetCodeHash(addr Address) Hash {
 }
 
 // GetCodeHash indicates an expected call of GetCodeHash.
-func (mr *MockStateMockRecorder) GetCodeHash(addr any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) GetCodeHash(addr any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCodeHash", reflect.TypeOf((*MockState)(nil).GetCodeHash), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCodeHash", reflect.TypeOf((*MockWorldState)(nil).GetCodeHash), addr)
 }
 
 // GetCodeSize mocks base method.
-func (m *MockState) GetCodeSize(addr Address) int {
+func (m *MockWorldState) GetCodeSize(addr Address) int {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCodeSize", addr)
 	ret0, _ := ret[0].(int)
@@ -236,13 +236,13 @@ func (m *MockState) GetCodeSize(addr Address) int {
 }
 
 // GetCodeSize indicates an expected call of GetCodeSize.
-func (mr *MockStateMockRecorder) GetCodeSize(addr any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) GetCodeSize(addr any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCodeSize", reflect.TypeOf((*MockState)(nil).GetCodeSize), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCodeSize", reflect.TypeOf((*MockWorldState)(nil).GetCodeSize), addr)
 }
 
 // GetCommittedStorage mocks base method.
-func (m *MockState) GetCommittedStorage(addr Address, key Key) Word {
+func (m *MockWorldState) GetCommittedStorage(addr Address, key Key) Word {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCommittedStorage", addr, key)
 	ret0, _ := ret[0].(Word)
@@ -250,13 +250,13 @@ func (m *MockState) GetCommittedStorage(addr Address, key Key) Word {
 }
 
 // GetCommittedStorage indicates an expected call of GetCommittedStorage.
-func (mr *MockStateMockRecorder) GetCommittedStorage(addr, key any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) GetCommittedStorage(addr, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommittedStorage", reflect.TypeOf((*MockState)(nil).GetCommittedStorage), addr, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommittedStorage", reflect.TypeOf((*MockWorldState)(nil).GetCommittedStorage), addr, key)
 }
 
 // GetNonce mocks base method.
-func (m *MockState) GetNonce(arg0 Address) uint64 {
+func (m *MockWorldState) GetNonce(arg0 Address) uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNonce", arg0)
 	ret0, _ := ret[0].(uint64)
@@ -264,13 +264,13 @@ func (m *MockState) GetNonce(arg0 Address) uint64 {
 }
 
 // GetNonce indicates an expected call of GetNonce.
-func (mr *MockStateMockRecorder) GetNonce(arg0 any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) GetNonce(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNonce", reflect.TypeOf((*MockState)(nil).GetNonce), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNonce", reflect.TypeOf((*MockWorldState)(nil).GetNonce), arg0)
 }
 
 // GetStorage mocks base method.
-func (m *MockState) GetStorage(addr Address, key Key) Word {
+func (m *MockWorldState) GetStorage(addr Address, key Key) Word {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStorage", addr, key)
 	ret0, _ := ret[0].(Word)
@@ -278,13 +278,13 @@ func (m *MockState) GetStorage(addr Address, key Key) Word {
 }
 
 // GetStorage indicates an expected call of GetStorage.
-func (mr *MockStateMockRecorder) GetStorage(addr, key any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) GetStorage(addr, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStorage", reflect.TypeOf((*MockState)(nil).GetStorage), addr, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStorage", reflect.TypeOf((*MockWorldState)(nil).GetStorage), addr, key)
 }
 
 // GetTransactionContext mocks base method.
-func (m *MockState) GetTransactionContext() TransactionContext {
+func (m *MockWorldState) GetTransactionContext() TransactionContext {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTransactionContext")
 	ret0, _ := ret[0].(TransactionContext)
@@ -292,13 +292,13 @@ func (m *MockState) GetTransactionContext() TransactionContext {
 }
 
 // GetTransactionContext indicates an expected call of GetTransactionContext.
-func (mr *MockStateMockRecorder) GetTransactionContext() *gomock.Call {
+func (mr *MockWorldStateMockRecorder) GetTransactionContext() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionContext", reflect.TypeOf((*MockState)(nil).GetTransactionContext))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionContext", reflect.TypeOf((*MockWorldState)(nil).GetTransactionContext))
 }
 
 // GetTransientStorage mocks base method.
-func (m *MockState) GetTransientStorage(addr Address, key Key) Word {
+func (m *MockWorldState) GetTransientStorage(addr Address, key Key) Word {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTransientStorage", addr, key)
 	ret0, _ := ret[0].(Word)
@@ -306,13 +306,13 @@ func (m *MockState) GetTransientStorage(addr Address, key Key) Word {
 }
 
 // GetTransientStorage indicates an expected call of GetTransientStorage.
-func (mr *MockStateMockRecorder) GetTransientStorage(addr, key any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) GetTransientStorage(addr, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransientStorage", reflect.TypeOf((*MockState)(nil).GetTransientStorage), addr, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransientStorage", reflect.TypeOf((*MockWorldState)(nil).GetTransientStorage), addr, key)
 }
 
 // HasSelfDestructed mocks base method.
-func (m *MockState) HasSelfDestructed(addr Address) bool {
+func (m *MockWorldState) HasSelfDestructed(addr Address) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HasSelfDestructed", addr)
 	ret0, _ := ret[0].(bool)
@@ -320,13 +320,13 @@ func (m *MockState) HasSelfDestructed(addr Address) bool {
 }
 
 // HasSelfDestructed indicates an expected call of HasSelfDestructed.
-func (mr *MockStateMockRecorder) HasSelfDestructed(addr any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) HasSelfDestructed(addr any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasSelfDestructed", reflect.TypeOf((*MockState)(nil).HasSelfDestructed), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasSelfDestructed", reflect.TypeOf((*MockWorldState)(nil).HasSelfDestructed), addr)
 }
 
 // IsAddressInAccessList mocks base method.
-func (m *MockState) IsAddressInAccessList(addr Address) bool {
+func (m *MockWorldState) IsAddressInAccessList(addr Address) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsAddressInAccessList", addr)
 	ret0, _ := ret[0].(bool)
@@ -334,13 +334,13 @@ func (m *MockState) IsAddressInAccessList(addr Address) bool {
 }
 
 // IsAddressInAccessList indicates an expected call of IsAddressInAccessList.
-func (mr *MockStateMockRecorder) IsAddressInAccessList(addr any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) IsAddressInAccessList(addr any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAddressInAccessList", reflect.TypeOf((*MockState)(nil).IsAddressInAccessList), addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAddressInAccessList", reflect.TypeOf((*MockWorldState)(nil).IsAddressInAccessList), addr)
 }
 
 // IsSlotInAccessList mocks base method.
-func (m *MockState) IsSlotInAccessList(addr Address, key Key) (bool, bool) {
+func (m *MockWorldState) IsSlotInAccessList(addr Address, key Key) (bool, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsSlotInAccessList", addr, key)
 	ret0, _ := ret[0].(bool)
@@ -349,25 +349,25 @@ func (m *MockState) IsSlotInAccessList(addr Address, key Key) (bool, bool) {
 }
 
 // IsSlotInAccessList indicates an expected call of IsSlotInAccessList.
-func (mr *MockStateMockRecorder) IsSlotInAccessList(addr, key any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) IsSlotInAccessList(addr, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSlotInAccessList", reflect.TypeOf((*MockState)(nil).IsSlotInAccessList), addr, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSlotInAccessList", reflect.TypeOf((*MockWorldState)(nil).IsSlotInAccessList), addr, key)
 }
 
 // RestoreSnapshot mocks base method.
-func (m *MockState) RestoreSnapshot(arg0 int) {
+func (m *MockWorldState) RestoreSnapshot(arg0 int) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "RestoreSnapshot", arg0)
 }
 
 // RestoreSnapshot indicates an expected call of RestoreSnapshot.
-func (mr *MockStateMockRecorder) RestoreSnapshot(arg0 any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) RestoreSnapshot(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RestoreSnapshot", reflect.TypeOf((*MockState)(nil).RestoreSnapshot), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RestoreSnapshot", reflect.TypeOf((*MockWorldState)(nil).RestoreSnapshot), arg0)
 }
 
 // SelfDestruct mocks base method.
-func (m *MockState) SelfDestruct(addr, beneficiary Address) bool {
+func (m *MockWorldState) SelfDestruct(addr, beneficiary Address) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SelfDestruct", addr, beneficiary)
 	ret0, _ := ret[0].(bool)
@@ -375,49 +375,49 @@ func (m *MockState) SelfDestruct(addr, beneficiary Address) bool {
 }
 
 // SelfDestruct indicates an expected call of SelfDestruct.
-func (mr *MockStateMockRecorder) SelfDestruct(addr, beneficiary any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) SelfDestruct(addr, beneficiary any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfDestruct", reflect.TypeOf((*MockState)(nil).SelfDestruct), addr, beneficiary)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfDestruct", reflect.TypeOf((*MockWorldState)(nil).SelfDestruct), addr, beneficiary)
 }
 
 // SetBalance mocks base method.
-func (m *MockState) SetBalance(arg0 Address, arg1 Value) {
+func (m *MockWorldState) SetBalance(arg0 Address, arg1 Value) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetBalance", arg0, arg1)
 }
 
 // SetBalance indicates an expected call of SetBalance.
-func (mr *MockStateMockRecorder) SetBalance(arg0, arg1 any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) SetBalance(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBalance", reflect.TypeOf((*MockState)(nil).SetBalance), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBalance", reflect.TypeOf((*MockWorldState)(nil).SetBalance), arg0, arg1)
 }
 
 // SetCode mocks base method.
-func (m *MockState) SetCode(arg0 Address, arg1 []byte) {
+func (m *MockWorldState) SetCode(arg0 Address, arg1 []byte) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetCode", arg0, arg1)
 }
 
 // SetCode indicates an expected call of SetCode.
-func (mr *MockStateMockRecorder) SetCode(arg0, arg1 any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) SetCode(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCode", reflect.TypeOf((*MockState)(nil).SetCode), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCode", reflect.TypeOf((*MockWorldState)(nil).SetCode), arg0, arg1)
 }
 
 // SetNonce mocks base method.
-func (m *MockState) SetNonce(arg0 Address, arg1 uint64) {
+func (m *MockWorldState) SetNonce(arg0 Address, arg1 uint64) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetNonce", arg0, arg1)
 }
 
 // SetNonce indicates an expected call of SetNonce.
-func (mr *MockStateMockRecorder) SetNonce(arg0, arg1 any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) SetNonce(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetNonce", reflect.TypeOf((*MockState)(nil).SetNonce), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetNonce", reflect.TypeOf((*MockWorldState)(nil).SetNonce), arg0, arg1)
 }
 
 // SetStorage mocks base method.
-func (m *MockState) SetStorage(addr Address, key Key, value Word) StorageStatus {
+func (m *MockWorldState) SetStorage(addr Address, key Key, value Word) StorageStatus {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetStorage", addr, key, value)
 	ret0, _ := ret[0].(StorageStatus)
@@ -425,19 +425,19 @@ func (m *MockState) SetStorage(addr Address, key Key, value Word) StorageStatus 
 }
 
 // SetStorage indicates an expected call of SetStorage.
-func (mr *MockStateMockRecorder) SetStorage(addr, key, value any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) SetStorage(addr, key, value any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetStorage", reflect.TypeOf((*MockState)(nil).SetStorage), addr, key, value)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetStorage", reflect.TypeOf((*MockWorldState)(nil).SetStorage), addr, key, value)
 }
 
 // SetTransientStorage mocks base method.
-func (m *MockState) SetTransientStorage(addr Address, key Key, value Word) {
+func (m *MockWorldState) SetTransientStorage(addr Address, key Key, value Word) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetTransientStorage", addr, key, value)
 }
 
 // SetTransientStorage indicates an expected call of SetTransientStorage.
-func (mr *MockStateMockRecorder) SetTransientStorage(addr, key, value any) *gomock.Call {
+func (mr *MockWorldStateMockRecorder) SetTransientStorage(addr, key, value any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTransientStorage", reflect.TypeOf((*MockState)(nil).SetTransientStorage), addr, key, value)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTransientStorage", reflect.TypeOf((*MockWorldState)(nil).SetTransientStorage), addr, key, value)
 }
