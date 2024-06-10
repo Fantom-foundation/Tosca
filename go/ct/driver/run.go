@@ -19,7 +19,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime/pprof"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,7 +37,7 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-var RunCmd = cli.Command{
+var RunCmd = cliUtils.AddCommonFlags(cli.Command{
 	Action:    doRun,
 	Name:      "run",
 	Usage:     "Run Conformance Tests on an EVM implementation",
@@ -47,7 +46,6 @@ var RunCmd = cli.Command{
 		cliUtils.FilterFlag,
 		cliUtils.JobsFlag,
 		cliUtils.SeedFlag,
-		cliUtils.CpuProfileFlag,
 		cliUtils.FullModeFlag, // < TODO: make every run a full mode once tests pass
 		&cli.IntFlag{
 			Name:  "max-errors",
@@ -55,7 +53,7 @@ var RunCmd = cli.Command{
 			Value: 100,
 		},
 	},
-}
+})
 
 var evms = map[string]ct.Evm{
 	"lfvm":    lfvm.NewConformanceTestingTarget(),
@@ -64,16 +62,6 @@ var evms = map[string]ct.Evm{
 }
 
 func doRun(context *cli.Context) error {
-	if cpuprofileFilename := cliUtils.CpuProfileFlag.Fetch(context); cpuprofileFilename != "" {
-		f, err := os.Create(cpuprofileFilename)
-		if err != nil {
-			return fmt.Errorf("could not create CPU profile: %w", err)
-		}
-		if err := pprof.StartCPUProfile(f); err != nil {
-			return fmt.Errorf("could not start CPU profile: %w", err)
-		}
-		defer pprof.StopCPUProfile()
-	}
 
 	jobCount := cliUtils.JobsFlag.Fetch(context)
 	seed := cliUtils.SeedFlag.Fetch(context)

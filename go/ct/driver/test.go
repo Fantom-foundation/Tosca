@@ -14,8 +14,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"runtime/pprof"
 	"sync/atomic"
 	"time"
 
@@ -27,7 +25,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var TestCmd = cli.Command{
+var TestCmd = cliUtils.AddCommonFlags(cli.Command{
 	Action: doTest,
 	Name:   "test",
 	Usage:  "Check test case rule coverage",
@@ -35,22 +33,11 @@ var TestCmd = cli.Command{
 		cliUtils.FilterFlag,
 		cliUtils.JobsFlag,
 		cliUtils.SeedFlag,
-		cliUtils.CpuProfileFlag,
 		cliUtils.FullModeFlag,
 	},
-}
+})
 
 func doTest(context *cli.Context) error {
-	if cpuprofileFilename := cliUtils.CpuProfileFlag.Fetch(context); cpuprofileFilename != "" {
-		f, err := os.Create(cpuprofileFilename)
-		if err != nil {
-			return fmt.Errorf("could not create CPU profile: %w", err)
-		}
-		if err := pprof.StartCPUProfile(f); err != nil {
-			return fmt.Errorf("could not start CPU profile: %w", err)
-		}
-		defer pprof.StopCPUProfile()
-	}
 
 	filter, err := cliUtils.FilterFlag.Fetch(context)
 	if err != nil {

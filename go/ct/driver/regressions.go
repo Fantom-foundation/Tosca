@@ -18,13 +18,14 @@ import (
 	"path/filepath"
 	"time"
 
+	cliUtils "github.com/Fantom-foundation/Tosca/go/ct/driver/cli"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/exp/maps"
 )
 
-var RegressionsCmd = cli.Command{
+var RegressionsCmd = cliUtils.AddCommonFlags(cli.Command{
 	Action:    doRegressionTests,
 	Name:      "regressions",
 	Usage:     "Run Conformance Tests on regression test inputs on an EVM implementation",
@@ -36,7 +37,7 @@ var RegressionsCmd = cli.Command{
 			Value: cli.NewStringSlice("./regression_inputs"),
 		},
 	},
-}
+})
 
 func enumerateInputs(inputs []string) ([]string, error) {
 	var inputFiles []string

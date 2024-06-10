@@ -14,8 +14,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"runtime/pprof"
 	"sort"
 	"strings"
 	"sync"
@@ -30,7 +28,7 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-var StatsCmd = cli.Command{
+var StatsCmd = cliUtils.AddCommonFlags(cli.Command{
 	Action: doStats,
 	Name:   "stats",
 	Usage:  "Computes statistics on rule coverage",
@@ -38,22 +36,12 @@ var StatsCmd = cli.Command{
 		cliUtils.FilterFlag,
 		cliUtils.JobsFlag,
 		cliUtils.SeedFlag,
-		cliUtils.CpuProfileFlag,
 		cliUtils.FullModeFlag,
 	},
-}
+})
 
 func doStats(context *cli.Context) error {
-	if cpuprofileFilename := cliUtils.CpuProfileFlag.Fetch(context); cpuprofileFilename != "" {
-		f, err := os.Create(cpuprofileFilename)
-		if err != nil {
-			return fmt.Errorf("could not create CPU profile: %w", err)
-		}
-		if err := pprof.StartCPUProfile(f); err != nil {
-			return fmt.Errorf("could not start CPU profile: %w", err)
-		}
-		defer pprof.StopCPUProfile()
-	}
+
 	filter, err := cliUtils.FilterFlag.Fetch(context)
 	if err != nil {
 		return err
