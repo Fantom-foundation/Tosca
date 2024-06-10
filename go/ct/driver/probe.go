@@ -1,3 +1,15 @@
+//
+// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use
+// of this software will be governed by the GNU Lesser General Public Licence v3
+//
+
 package main
 
 import (
@@ -61,7 +73,8 @@ func doProbe(context *cli.Context) error {
 	// The constraints to be placed on generated states.
 	condition := rlz.And(
 		rlz.IsCode(rlz.Pc()),
-		rlz.RevisionBounds(common.R07_Istanbul, common.R11_Paris),
+		// update to cancun when all necessary changed have been implemented
+		rlz.RevisionBounds(common.MinRevision, common.R12_Shanghai),
 	)
 
 	fmt.Printf("Start random tests on %s using %d jobs, seed %d, timeout %v and constraints %s ...\n", evmIdentifier, jobCount, seed, timeout, condition)

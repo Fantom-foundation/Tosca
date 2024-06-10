@@ -16,8 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sync/atomic"
 	"time"
@@ -145,26 +143,9 @@ func doRun(context *cli.Context) error {
 		return nil
 	}
 
-	if len(issues) > 0 {
-		jsonDir, err := os.MkdirTemp("", "ct_issues_*")
-		if err != nil {
-			return fmt.Errorf("failed to create output directory for %d issues", len(issues))
-		}
-		for i, issue := range issuesCollector.GetIssues() {
-			fmt.Printf("----------------------------\n")
-			fmt.Printf("%s\n", issue.Error())
-
-			// If there is an input state for this issue, it is exported into a file
-			// to aid its debugging using the regression test infrastructure.
-			if issue.Input() != nil {
-				path := filepath.Join(jsonDir, fmt.Sprintf("issue_%06d.json", i))
-				if err := st.ExportStateJSON(issue.Input(), path); err == nil {
-					fmt.Printf("Input state dumped to %s\n", path)
-				} else {
-					fmt.Printf("failed to dump state: %v\n", err)
-				}
-			}
-		}
+	err = issuesCollector.ExportIssues()
+	if err != nil {
+		return err
 	}
 
 	return fmt.Errorf("failed to pass %d test cases", len(issues))
