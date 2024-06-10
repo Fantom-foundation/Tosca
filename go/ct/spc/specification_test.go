@@ -27,8 +27,8 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
-func TestSpecification_RulesCoverRandomStates(t *testing.T) {
-	const N = 10000
+func TestSpecification_SpecificationIsSound(t *testing.T) {
+	const N = 100000
 
 	rnd := rand.New(0)
 	generator := gen.NewStateGenerator()
@@ -50,6 +50,22 @@ func TestSpecification_RulesCoverRandomStates(t *testing.T) {
 					t.Fatalf("multiple conflicting rules for state %v: %v", state, rules)
 				}
 			}
+		}
+	}
+}
+
+func TestSpecification_SpecificationIsComplete(t *testing.T) {
+	const N = 100000
+	rnd := rand.New(0)
+	generator := gen.NewStateGenerator()
+	for i := 0; i < N; i++ {
+		state, err := generator.Generate(rnd)
+		if err != nil {
+			t.Errorf("failed to generate a random state: %v", err)
+		}
+		rules := Spec.GetRulesFor(state)
+		if len(rules) == 0 {
+			t.Fatalf("no rule found for \n%v", state)
 		}
 	}
 }
@@ -119,12 +135,12 @@ func TestSpecificationMap_SameRulesPerOperation(t *testing.T) {
 			t.Fatalf("failed building state: %v", err)
 		}
 
+		op, _ := state.Code.GetOperation(int(state.Pc))
 		allRulesForState := listGetRulesFor(state)
 		rulesFromMap := Spec.GetRulesFor(state)
 
 		if len(allRulesForState) != len(rulesFromMap) {
-			op, _ := state.Code.GetOperation(int(state.Pc))
-			t.Errorf("different number of rules for %s: %d vs %d", op.String(), len(allRulesForState), len(rulesFromMap))
+			t.Errorf("different number of rules for %s: %d vs %d", op, len(allRulesForState), len(rulesFromMap))
 		}
 
 		for _, rule := range allRulesForState {
@@ -145,7 +161,7 @@ func TestSpecificationMap_SameRulesPerOperation(t *testing.T) {
 func TestSpecification_OperationNotExecutedIfNotRunning(t *testing.T) {
 	// list of known no operations
 	knownNoOps := []string{"stopped_is_end", "reverted_is_end", "failed_is_end", "unknown_revision_is_end"}
-	statusFreeRules := []string{"unknown_revision_is_end"}
+	statusFreeRules := []string{"unknown_revision_is_end", "pc_on_data_is_ignored"}
 
 	rules := getAllRules()
 	for _, rule := range rules {
