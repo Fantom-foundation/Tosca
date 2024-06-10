@@ -45,32 +45,33 @@ func TestProcessor_SimpleValueTransfer(t *testing.T) {
 	for name, processor := range getProcessors() {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
+			blockInfo := vm.BlockInfo{}
 			txContext := vm.TransactionContext{}
 
 			// TODO: clean up expectations
 			// TODO: provide a better way to define expectations
 			// - use a before/after pattern
-			runContext := vm.NewMockTxContext(ctrl)
+			state := vm.NewMockState(ctrl)
 
-			runContext.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
-			runContext.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
+			state.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
+			state.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
 
-			runContext.EXPECT().AccountExists(vm.Address{2}).Return(true)
-			runContext.EXPECT().GetCode(vm.Address{2}).Return([]byte{})
-			runContext.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(2)
-			runContext.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
-			runContext.EXPECT().GetCodeHash(vm.Address{1}).Return(vm.Hash{})
+			state.EXPECT().AccountExists(vm.Address{2}).Return(true)
+			state.EXPECT().GetCode(vm.Address{2}).Return([]byte{})
+			state.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(2)
+			state.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
+			state.EXPECT().GetCodeHash(vm.Address{1}).Return(vm.Hash{})
 
 			gomock.InOrder(
-				runContext.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}), // < charging gas, but price is zero
-				runContext.EXPECT().SetBalance(vm.Address{1}, vm.Value{7}),  // < withdraw 3 tokens
-				runContext.EXPECT().SetBalance(vm.Address{2}, vm.Value{8}),  // < deposit 3 tokens
+				state.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}), // < charging gas, but price is zero
+				state.EXPECT().SetBalance(vm.Address{1}, vm.Value{7}),  // < withdraw 3 tokens
+				state.EXPECT().SetBalance(vm.Address{2}, vm.Value{8}),  // < deposit 3 tokens
 			)
 
-			runContext.EXPECT().GetTransactionContext().Return(txContext)
+			state.EXPECT().GetTransactionContext().Return(txContext)
 
 			// Execute the transaction.
-			receipt, err := processor.Run(vm.R07_Istanbul, transaction, txContext, runContext)
+			receipt, err := processor.Run(vm.R07_Istanbul, transaction, blockInfo, state)
 			if err != nil {
 				t.Errorf("error: %v", err)
 			}
@@ -100,33 +101,34 @@ func TestProcessor_ContractCallThatSucceeds(t *testing.T) {
 	for name, processor := range getProcessors() {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
+			blockInfo := vm.BlockInfo{}
 			txContext := vm.TransactionContext{}
 
-			runContext := vm.NewMockTxContext(ctrl)
+			state := vm.NewMockState(ctrl)
 
-			runContext.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
-			runContext.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
+			state.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
+			state.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
 
-			runContext.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(2)
-			runContext.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
-			runContext.EXPECT().GetCodeHash(vm.Address{1}).Return(vm.Hash{})
+			state.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(2)
+			state.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
+			state.EXPECT().GetCodeHash(vm.Address{1}).Return(vm.Hash{})
 
-			runContext.EXPECT().AccountExists(vm.Address{2}).Return(true)
+			state.EXPECT().AccountExists(vm.Address{2}).Return(true)
 
 			code := []byte{
 				byte(op.PUSH1), byte(0), // < push 0
 				byte(op.PUSH1), byte(0), // < push 0
 				byte(op.RETURN),
 			}
-			runContext.EXPECT().GetCode(vm.Address{2}).Return(code)
-			runContext.EXPECT().GetCodeHash(vm.Address{2}).Return(keccak256Hash(code))
+			state.EXPECT().GetCode(vm.Address{2}).Return(code)
+			state.EXPECT().GetCodeHash(vm.Address{2}).Return(keccak256Hash(code))
 
-			runContext.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}) // < charging gas, but price is zero
+			state.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}) // < charging gas, but price is zero
 
-			runContext.EXPECT().GetTransactionContext().Return(txContext)
+			state.EXPECT().GetTransactionContext().Return(txContext)
 
 			// Execute the transaction.
-			receipt, err := processor.Run(vm.R07_Istanbul, transaction, txContext, runContext)
+			receipt, err := processor.Run(vm.R07_Istanbul, transaction, blockInfo, state)
 			if err != nil {
 				t.Errorf("error: %v", err)
 			}
@@ -156,34 +158,35 @@ func TestProcessor_ContractCallThatReverts(t *testing.T) {
 	for name, processor := range getProcessors() {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
+			blockInfo := vm.BlockInfo{}
 			txContext := vm.TransactionContext{}
 
-			runContext := vm.NewMockTxContext(ctrl)
+			state := vm.NewMockState(ctrl)
 
-			runContext.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
-			runContext.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
+			state.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
+			state.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
 
-			runContext.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(2)
-			runContext.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
+			state.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(2)
+			state.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
 
-			runContext.EXPECT().GetCodeHash(vm.Address{1}).Return(vm.Hash{})
+			state.EXPECT().GetCodeHash(vm.Address{1}).Return(vm.Hash{})
 
-			runContext.EXPECT().AccountExists(vm.Address{2}).Return(true)
+			state.EXPECT().AccountExists(vm.Address{2}).Return(true)
 
 			code := []byte{
 				byte(op.PUSH1), byte(0), // < push 0
 				byte(op.PUSH1), byte(0), // < push 0
 				byte(op.REVERT),
 			}
-			runContext.EXPECT().GetCode(vm.Address{2}).Return(code)
-			runContext.EXPECT().GetCodeHash(vm.Address{2}).Return(keccak256Hash(code))
+			state.EXPECT().GetCode(vm.Address{2}).Return(code)
+			state.EXPECT().GetCodeHash(vm.Address{2}).Return(keccak256Hash(code))
 
-			runContext.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}) // < charging gas, but price is zero
+			state.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}) // < charging gas, but price is zero
 
-			runContext.EXPECT().GetTransactionContext().Return(txContext)
+			state.EXPECT().GetTransactionContext().Return(txContext)
 
 			// Execute the transaction.
-			receipt, err := processor.Run(vm.R07_Istanbul, transaction, txContext, runContext)
+			receipt, err := processor.Run(vm.R07_Istanbul, transaction, blockInfo, state)
 			if err != nil {
 				t.Errorf("error: %v", err)
 			}
@@ -216,33 +219,34 @@ func TestProcessor_ContractCreation(t *testing.T) {
 	for name, processor := range getProcessors() {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
+			blockInfo := vm.BlockInfo{}
 			txContext := vm.TransactionContext{}
 
-			runContext := vm.NewMockTxContext(ctrl)
+			state := vm.NewMockState(ctrl)
 
-			runContext.EXPECT().GetTransactionContext().Return(txContext)
+			state.EXPECT().GetTransactionContext().Return(txContext)
 
-			runContext.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
-			runContext.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}) // < charging gas, but price is zero
+			state.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
+			state.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}) // < charging gas, but price is zero
 
-			runContext.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(3)
-			runContext.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
+			state.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(3)
+			state.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
 
-			runContext.EXPECT().AccountExists(newContractAddress).Return(false)
-			runContext.EXPECT().GetNonce(newContractAddress).Return(uint64(0))
-			runContext.EXPECT().SetNonce(newContractAddress, uint64(1)).Return()
+			state.EXPECT().AccountExists(newContractAddress).Return(false)
+			state.EXPECT().GetNonce(newContractAddress).Return(uint64(0))
+			state.EXPECT().SetNonce(newContractAddress, uint64(1)).Return()
 
-			runContext.EXPECT().GetCodeHash(vm.Address{1}).Return(vm.Hash{})
-			runContext.EXPECT().GetCodeHash(newContractAddress).Return(vm.Hash{})
+			state.EXPECT().GetCodeHash(vm.Address{1}).Return(vm.Hash{})
+			state.EXPECT().GetCodeHash(newContractAddress).Return(vm.Hash{})
 
-			runContext.EXPECT().SetCode(newContractAddress, gomock.Any()).Do(func(address vm.Address, code []byte) {
+			state.EXPECT().SetCode(newContractAddress, gomock.Any()).Do(func(address vm.Address, code []byte) {
 				if len(code) != 0 {
 					t.Fatalf("unexpected code: %x", code)
 				}
 			})
 
 			// Execute the transaction.
-			receipt, err := processor.Run(vm.R07_Istanbul, transaction, txContext, runContext)
+			receipt, err := processor.Run(vm.R07_Istanbul, transaction, blockInfo, state)
 			if err != nil {
 				t.Errorf("error: %v", err)
 			}
