@@ -129,7 +129,7 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 	minSize = max(minSize, len(opCount))
 
 	// If there are any variables that need to be bound to code, there must be at
-	// least on instruction in the resulting code.
+	// least one instruction in the resulting code.
 	if minSize == 0 && len(g.varIsCodeConstraints) > 0 {
 		minSize = 1
 	}
