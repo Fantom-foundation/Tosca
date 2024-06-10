@@ -300,7 +300,10 @@ func TestBlobBaseFee(t *testing.T) {
 	}{
 		"regular": {
 			setup: func(runContext *vm.MockRunContext) {
-				runContext.EXPECT().GetTransactionContext().Return(vm.TransactionContext{BlobBaseFee: blobBaseFeeValue})
+				context := vm.TransactionContext{
+					BlockInfo: vm.BlockInfo{BlobBaseFee: blobBaseFeeValue},
+				}
+				runContext.EXPECT().GetTransactionContext().Return(context)
 			},
 			gas:      2,
 			revision: vm.R13_Cancun,
