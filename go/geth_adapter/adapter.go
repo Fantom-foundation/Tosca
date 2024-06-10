@@ -272,15 +272,17 @@ func (a *runContextAdapter) GetTransactionContext() vm.TransactionContext {
 	}
 
 	return vm.TransactionContext{
-		GasPrice:    gasPrice,
-		Origin:      vm.Address(a.evm.Origin),
-		Coinbase:    vm.Address(a.evm.Context.Coinbase),
-		BlockNumber: a.evm.Context.BlockNumber.Int64(),
-		Timestamp:   a.evm.Context.Time.Int64(),
-		GasLimit:    vm.Gas(a.evm.Context.GasLimit),
-		PrevRandao:  difficulty,
-		ChainID:     chainId,
-		BaseFee:     baseFee,
+		BlockInfo: vm.BlockInfo{
+			GasPrice:    gasPrice,
+			Coinbase:    vm.Address(a.evm.Context.Coinbase),
+			BlockNumber: a.evm.Context.BlockNumber.Int64(),
+			Timestamp:   a.evm.Context.Time.Int64(),
+			GasLimit:    vm.Gas(a.evm.Context.GasLimit),
+			PrevRandao:  difficulty,
+			ChainID:     chainId,
+			BaseFee:     baseFee,
+		},
+		Origin: vm.Address(a.evm.Origin),
 	}
 }
 

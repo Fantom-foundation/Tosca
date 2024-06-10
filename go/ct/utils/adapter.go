@@ -106,15 +106,17 @@ func (c *ctRunContext) GetCode(addr vm.Address) []byte {
 
 func (c *ctRunContext) GetTransactionContext() vm.TransactionContext {
 	return vm.TransactionContext{
-		GasPrice:    c.state.BlockContext.GasPrice.Bytes32be(),
-		Origin:      vm.Address(c.state.CallContext.OriginAddress),
-		Coinbase:    vm.Address(c.state.BlockContext.CoinBase),
-		BlockNumber: int64(c.state.BlockContext.BlockNumber),
-		Timestamp:   int64(c.state.BlockContext.TimeStamp),
-		GasLimit:    vm.Gas(c.state.BlockContext.GasLimit),
-		PrevRandao:  vm.Hash(c.state.BlockContext.Difficulty.Bytes32be()),
-		ChainID:     c.state.BlockContext.ChainID.Bytes32be(),
-		BaseFee:     c.state.BlockContext.BaseFee.Bytes32be(),
+		BlockInfo: vm.BlockInfo{
+			GasPrice:    c.state.BlockContext.GasPrice.Bytes32be(),
+			Coinbase:    vm.Address(c.state.BlockContext.CoinBase),
+			BlockNumber: int64(c.state.BlockContext.BlockNumber),
+			Timestamp:   int64(c.state.BlockContext.TimeStamp),
+			GasLimit:    vm.Gas(c.state.BlockContext.GasLimit),
+			PrevRandao:  vm.Hash(c.state.BlockContext.Difficulty.Bytes32be()),
+			ChainID:     c.state.BlockContext.ChainID.Bytes32be(),
+			BaseFee:     c.state.BlockContext.BaseFee.Bytes32be(),
+		},
+		Origin: vm.Address(c.state.CallContext.OriginAddress),
 	}
 }
 

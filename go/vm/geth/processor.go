@@ -53,15 +53,15 @@ func NewProcessor() vm.Processor {
 func (*processor) Run(
 	revision vm.Revision,
 	transaction vm.Transaction,
-	blockContext vm.TransactionContext,
-	transactionContext vm.TxContext,
+	blockInfo vm.BlockInfo,
+	state vm.State,
 ) (vm.Receipt, error) {
 
 	// --- setup ---
 
 	// Hashing function used in the context for BLOCKHASH instruction
 	getHash := func(num uint64) common.Hash {
-		return common.Hash(transactionContext.GetBlockHash(int64(num)))
+		return common.Hash(state.GetBlockHash(int64(num)))
 	}
 
 	// Intercept the transfer function to conduct the transfer on the actual state.
@@ -75,28 +75,28 @@ func (*processor) Run(
 		var tmp vm.Value
 		copy(tmp[:], amount.Bytes())
 		d := tmp
-		curA := transactionContext.GetBalance(a)
-		curB := transactionContext.GetBalance(b)
-		transactionContext.SetBalance(a, curA.Sub(d))
-		transactionContext.SetBalance(b, curB.Add(d))
+		curA := state.GetBalance(a)
+		curB := state.GetBalance(b)
+		state.SetBalance(a, curA.Sub(d))
+		state.SetBalance(b, curB.Add(d))
 	}
 
 	// Create empty block context based on block number
 	// TODO: this is a copy of geth.go; try to refactor this
 	blockCtx := geth.BlockContext{
-		BlockNumber: big.NewInt(int64(blockContext.BlockNumber)),
-		Time:        big.NewInt(int64(blockContext.Timestamp)),
+		BlockNumber: big.NewInt(int64(blockInfo.BlockNumber)),
+		Time:        big.NewInt(int64(blockInfo.Timestamp)),
 		Difficulty:  big.NewInt(1), // < TODO: check this
-		GasLimit:    uint64(blockContext.GasLimit),
+		GasLimit:    uint64(blockInfo.GasLimit),
 		GetHash:     getHash,
-		BaseFee:     new(big.Int).SetBytes(blockContext.BaseFee[:]),
+		BaseFee:     new(big.Int).SetBytes(blockInfo.BaseFee[:]),
 		Transfer:    transferFunc,
 		CanTransfer: canTransferFunc,
 	}
 
 	// Create empty tx context
 	txCtx := geth.TxContext{
-		GasPrice: new(big.Int).SetBytes(blockContext.GasPrice[:]),
+		GasPrice: new(big.Int).SetBytes(blockInfo.GasPrice[:]),
 	}
 	// Set interpreter variant for this VM
 	config := geth.Config{}
@@ -104,10 +104,10 @@ func (*processor) Run(
 	// Set hard forks for chainconfig
 	chainConfig :=
 		makeChainConfig(*params.AllEthashProtocolChanges,
-			new(big.Int).SetBytes(blockContext.ChainID[:]),
+			new(big.Int).SetBytes(blockInfo.ChainID[:]),
 			vmRevisionToCt(revision))
 
-	stateDb := &stateDbAdapter{context: transactionContext}
+	stateDb := &stateDbAdapter{context: state}
 	evm := geth.NewEVM(blockCtx, txCtx, stateDb, &chainConfig, config)
 
 	// -- start of execution --
@@ -133,7 +133,7 @@ func (*processor) Run(
 	gas := transaction.GasLimit
 
 	// Check clauses 1-3, buy gas if everything is correct
-	if err := preCheck(transaction, transactionContext); err != nil {
+	if err := preCheck(transaction, state); err != nil {
 		return vm.Receipt{}, err
 	}
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
@@ -258,12 +258,12 @@ func keccak(data []byte) vm.Hash {
 	return res
 }
 
-func preCheck(transaction vm.Transaction, context vm.TxContext) error {
+func preCheck(transaction vm.Transaction, state vm.State) error {
 	// Only check transactions that are not fake
 	// TODO: add support for non-checked transactions
 
 	// Make sure this transaction's nonce is correct.
-	stNonce := context.GetNonce(transaction.Sender)
+	stNonce := state.GetNonce(transaction.Sender)
 	if msgNonce := transaction.Nonce; stNonce < msgNonce {
 		//skippedTxsNonceTooHighMeter.Mark(1)
 		return fmt.Errorf("%w: address %v, tx: %d state: %d", ErrNonceTooHigh,
@@ -274,22 +274,22 @@ func preCheck(transaction vm.Transaction, context vm.TxContext) error {
 			transaction.Sender, msgNonce, stNonce)
 	}
 	// Make sure the sender is an EOA (Externally Owned Account)
-	if codeHash := context.GetCodeHash(transaction.Sender); codeHash != emptyCodeHash && codeHash != (vm.Hash{}) {
+	if codeHash := state.GetCodeHash(transaction.Sender); codeHash != emptyCodeHash && codeHash != (vm.Hash{}) {
 		return fmt.Errorf("%w: address %v, codehash: %s", ErrSenderNoEOA,
 			transaction.Sender, codeHash)
 	}
 
 	// Note: Opera doesn't need to check gasFeeCap >= BaseFee, because it's already checked by epochcheck
-	return buyGas(transaction, context)
+	return buyGas(transaction, state)
 }
 
-func buyGas(tx vm.Transaction, context vm.TxContext) error {
+func buyGas(tx vm.Transaction, state vm.State) error {
 	// TODO: support arithmetic operations with Value type
-	gasPrice := context.GetTransactionContext().GasPrice.ToU256()
+	gasPrice := state.GetTransactionContext().GasPrice.ToU256()
 	mgval := uint256.NewInt(uint64(tx.GasLimit))
 	mgval = mgval.Mul(mgval, gasPrice)
 	// Note: Opera doesn't need to check against gasFeeCap instead of gasPrice, as it's too aggressive in the asynchronous environment
-	balance := context.GetBalance(tx.Sender)
+	balance := state.GetBalance(tx.Sender)
 	if have, want := balance.ToU256(), mgval; have.Cmp(want) < 0 {
 		//skippedTxsNoBalanceMeter.Mark(1)
 		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, tx.Sender, have, want)
@@ -306,7 +306,7 @@ func buyGas(tx vm.Transaction, context vm.TxContext) error {
 		st.initialGas = st.msg.Gas()
 	*/
 	balance = balance.Sub(vm.Uint256ToValue(mgval))
-	context.SetBalance(tx.Sender, balance)
+	state.SetBalance(tx.Sender, balance)
 	return nil
 }
 

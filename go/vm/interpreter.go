@@ -108,17 +108,9 @@ type Value [32]byte
 type Hash [32]byte
 
 // TransactionContext contains information about current transaction and block.
-// TODO: rename to BlockContext
 type TransactionContext struct {
-	GasPrice    Value
-	Origin      Address
-	Coinbase    Address
-	BlockNumber int64
-	Timestamp   int64
-	GasLimit    Gas
-	PrevRandao  Hash
-	ChainID     Word
-	BaseFee     Value
+	BlockInfo
+	Origin Address
 }
 
 // AccessStatus is an enum utilized to indicate cold and warm account or

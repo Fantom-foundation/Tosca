@@ -3,7 +3,7 @@ package vm
 //go:generate mockgen -source processor.go -destination processor_mock.go -package vm
 
 type Processor interface {
-	Run(Revision, Transaction, TransactionContext, TxContext) (Receipt, error)
+	Run(Revision, Transaction, BlockInfo, State) (Receipt, error)
 }
 
 type Transaction struct {
@@ -16,8 +16,19 @@ type Transaction struct {
 	AccessList []AccessTuple
 }
 
-// TODO: rename to TransactionContext
-type TxContext interface {
+type BlockInfo struct {
+	GasPrice    Value
+	Coinbase    Address
+	BlockNumber int64
+	Timestamp   int64
+	GasLimit    Gas
+	PrevRandao  Hash
+	ChainID     Word
+	BaseFee     Value
+	BlobBaseFee Value
+}
+
+type State interface {
 	RunContext
 
 	GetNonce(Address) uint64

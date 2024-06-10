@@ -283,5 +283,4 @@ func TestCreateChecksBalance(t *testing.T) {
 	if want, got := *uint256.NewInt(0), ctxt.stack.data[0]; want != got {
 		t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
 	}
-
 }
