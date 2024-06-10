@@ -88,9 +88,16 @@ func (m *Memory) Grow(offset, size uint64) {
 // ExpansionCosts calculates the expansion costs for the given offset and size.
 // It does not grow memory. It also returns offset and size converted to uint64.
 func (m *Memory) ExpansionCosts(offset_u256, size_u256 U256) (memCost vm.Gas, offset, size uint64) {
-	if !size_u256.IsUint64() || (!offset_u256.IsUint64() && !size_u256.IsZero()) {
+	if !size_u256.IsUint64() {
 		return math.MaxInt64, 0, 0
 	}
+	if !offset_u256.IsUint64() {
+		if size_u256.IsZero() {
+			return 0, 0, 0
+		}
+		return math.MaxInt64, 0, 0
+	}
+
 	offset = offset_u256.Uint64()
 	size = size_u256.Uint64()
 	if size == 0 {

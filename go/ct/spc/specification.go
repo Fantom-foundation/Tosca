@@ -722,6 +722,58 @@ func getAllRules() []Rule {
 		},
 	}...)
 
+	// --- MCOPY ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        MCOPY,
+		staticGas: 3,
+		pops:      3,
+		pushes:    0,
+		parameters: []Parameter{
+			MemoryOffsetParameter{},
+			MemoryOffsetParameter{},
+			MemorySizeParameter{},
+		},
+		conditions: []Condition{
+			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+		},
+		effect: func(s *st.State) {
+			destOffsetU256 := s.Stack.Pop()
+			offsetU256 := s.Stack.Pop()
+			sizeU256 := s.Stack.Pop()
+
+			srcCost, srcOffset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
+			destCost, destOffset, _ := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
+			wordCountCost := vm.Gas(3 * ((size + 31) / 32))
+			expansionCost := max(srcCost, destCost)
+
+			dynamicGas, overflow := sumWithOverflow(expansionCost, wordCountCost)
+			if s.Gas < dynamicGas || overflow {
+				s.Status = st.Failed
+				s.Gas = 0
+				return
+			}
+			s.Gas -= dynamicGas
+
+			value := s.Memory.Read(srcOffset, size)
+			s.Memory.Write(value, destOffset)
+		},
+	})...)
+
+	rules = append(rules, []Rule{
+		{
+			Name: "mcopy_invalid_revision",
+			Condition: And(
+				RevisionBounds(R07_Istanbul, R12_Shanghai),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), MCOPY),
+				Ge(Gas(), 3),
+				Lt(StackSize(), st.MaxStackSize-1),
+			),
+			Effect: FailEffect(),
+		},
+	}...)
+
 	// --- Stack PUSH ---
 
 	for i := 1; i <= 32; i++ {

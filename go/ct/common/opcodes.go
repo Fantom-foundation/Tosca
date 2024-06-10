@@ -85,6 +85,7 @@ const (
 	GAS            OpCode = 0x5A
 	JUMPDEST       OpCode = 0x5B
 	PUSH0          OpCode = 0x5F
+	MCOPY          OpCode = 0x5E
 	PUSH1          OpCode = 0x60
 	PUSH2          OpCode = 0x61
 	PUSH3          OpCode = 0x62
@@ -332,6 +333,8 @@ func (op OpCode) String() string {
 		return "JUMPDEST"
 	case PUSH0:
 		return "PUSH0"
+	case MCOPY:
+		return "MCOPY"
 	case PUSH1:
 		return "PUSH1"
 	case PUSH2:

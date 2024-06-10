@@ -106,7 +106,7 @@ type evmzeroInstance struct {
 	e *evmc.EvmcInterpreter
 }
 
-const newestSupportedRevision = vm.R12_Shanghai
+const newestSupportedRevision = vm.R13_Cancun
 
 func (e *evmzeroInstance) Run(params vm.Parameters) (vm.Result, error) {
 	if params.Revision > newestSupportedRevision {
