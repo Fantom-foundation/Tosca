@@ -9,6 +9,7 @@
 TOSCA_CPP_BUILD = Release
 TOSCA_CPP_ASSERT = ON
 TOSCA_CPP_ASAN = OFF
+TOSCA_CPP_COVERAGE = ON
 
 .PHONY: all tosca tosca-go tosca-cpp test test-go test-cpp test-cpp-asan \
         bench bench-go clean clean-go clean-cpp evmone evmone-clean
@@ -22,8 +23,13 @@ tosca-go: tosca-cpp evmone
 
 tosca-cpp:
 	cd cpp ; \
-	cmake -Bbuild -DCMAKE_BUILD_TYPE="$(TOSCA_CPP_BUILD)" -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so \
-		-DTOSCA_ASSERT="$(TOSCA_CPP_ASSERT)" -DTOSCA_ASAN="$(TOSCA_CPP_ASAN)"; \
+	cmake \
+		-Bbuild \
+		-DCMAKE_BUILD_TYPE="$(TOSCA_CPP_BUILD)" \
+		-DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so \
+		-DTOSCA_ASSERT="$(TOSCA_CPP_ASSERT)" \
+		-DTOSCA_COVERAGE="$(TOSCA_CPP_COVERAGE)" \
+		-DTOSCA_ASAN="$(TOSCA_CPP_ASAN)"; \
 	cmake --build build --parallel
 
 evmone:

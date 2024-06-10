@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 3.19)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # option respects set variables
 project(tosca)
 
-option(TOSCA_ASAN "Enable AddressSanitizer for Tosca targets.")
-option(TOSCA_ASSERT "Enable Tosca specific assertions.")
+option(TOSCA_ASAN "Enable AddressSanitizer for Tosca targets." OFF)
+option(TOSCA_ASSERT "Enable Tosca specific assertions." ON)
+option(TOSCA_COVERAGE "Enable coverage report for evmzero." OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
@@ -12,10 +13,37 @@ enable_testing()
 if(TOSCA_ASAN)
   add_compile_options(
     $<$<CXX_COMPILER_ID:Clang>:-fno-omit-frame-pointer>
-    $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
+    $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>
+    )
   add_link_options(
     $<$<CXX_COMPILER_ID:Clang>:-fno-omit-frame-pointer>
-    $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
+    $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>
+    )
+endif()
+
+if(TOSCA_COVERAGE)
+  add_compile_options($<$<CXX_COMPILER_ID:GNU,Clang>:--coverage>)
+  add_link_options($<$<CXX_COMPILER_ID:GNU,Clang>:--coverage>)
+
+  find_program(LCOV lcov REQUIRED)
+  find_program(GENHTML genhtml REQUIRED)
+
+  add_custom_target(coverage
+    COMMAND ${LCOV} 
+      --capture 
+      --directory .  
+      --ignore-errors mismatch 
+      --output-file coverage.info
+    COMMAND ${LCOV} 
+      --remove coverage.info 
+      '/usr/include/*' 
+      '/usr/lib/*' 
+      '*/third_party/*'
+      --output-file filtered.info
+    COMMAND ${GENHTML} filtered.info --output-directory out
+
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  )
 endif()
 
 set(TOSCA_THIRD_PARTY_DIR ${PROJECT_SOURCE_DIR}/../third_party)
@@ -49,7 +77,7 @@ function(tosca_add_compile_flags target)
     CXX_EXTENSIONS OFF)
   target_compile_options(${target} PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/MP /W4 /external:W0>
-    $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-march=native -mtune=native -Wall -Wextra -Wpedantic -Wtype-limits -Wconversion -Wsign-conversion -Wdouble-promotion -g>
+    $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-march=native -mtune=native -Wall -Wextra -Wpedantic -Wtype-limits -Wconversion -Wsign-conversion -Wdouble-promotion>
     $<$<CXX_COMPILER_ID:GNU>:-Wno-missing-field-initializers -fdiagnostics-color>
     $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wno-gnu-label-as-value -fcolor-diagnostics>)
   target_compile_definitions(${target} PRIVATE $<$<BOOL:${TOSCA_ASSERT}>:TOSCA_ASSERT_ENABLED>)
