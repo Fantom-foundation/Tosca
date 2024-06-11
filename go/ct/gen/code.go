@@ -136,7 +136,10 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 
 	var size int
 	if g.codeSize != nil {
-		size = *g.codeSize + minSize
+		if *g.codeSize < minSize {
+			return nil, fmt.Errorf("%w, fixed code size %d is too small for constraints", ErrUnsatisfiable, *g.codeSize)
+		}
+		size = *g.codeSize
 	} else {
 		// We use an exponential distribution for the code size here since long codes
 		// extend the runtime but are expected to reveal limited extra code coverage.
