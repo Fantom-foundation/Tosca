@@ -522,27 +522,34 @@ func getAllRules() []Rule {
 		{revision: R09_Berlin, warm: true, config: gen.StorageModified, gasCost: 2900},
 		{revision: R09_Berlin, warm: true, config: gen.StorageModifiedDeleted, gasCost: 100, gasRefund: 15000},
 		{revision: R09_Berlin, warm: true, config: gen.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
-
-		// {revision: R10_London, warm: false, config: gen.StorageAssigned, gasCost: 2200}, // invalid
-		{revision: R10_London, warm: false, config: gen.StorageAdded, gasCost: 22100},
-		// {revision: R10_London, warm: false, config: gen.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},  // invalid
-		// {revision: R10_London, warm: false, config: gen.StorageDeletedRestored, gasCost: 2200, gasRefund: 100}, // invalid
-		// {revision: R10_London, warm: false, config: gen.StorageDeletedAdded, gasCost: 2200, gasRefund: -4800},  // invalid
-		{revision: R10_London, warm: false, config: gen.StorageDeleted, gasCost: 5000, gasRefund: 4800},
-		{revision: R10_London, warm: false, config: gen.StorageModified, gasCost: 5000},
-		// {revision: R10_London, warm: false, config: gen.StorageModifiedDeleted, gasCost: 2200, gasRefund: 4800},  // invalid
-		// {revision: R10_London, warm: false, config: gen.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
-
-		{revision: R10_London, warm: true, config: gen.StorageAssigned, gasCost: 100},
-		{revision: R10_London, warm: true, config: gen.StorageAdded, gasCost: 20000},
-		{revision: R10_London, warm: true, config: gen.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
-		{revision: R10_London, warm: true, config: gen.StorageDeletedRestored, gasCost: 100, gasRefund: -2000},
-		{revision: R10_London, warm: true, config: gen.StorageDeletedAdded, gasCost: 100, gasRefund: -4800},
-		{revision: R10_London, warm: true, config: gen.StorageDeleted, gasCost: 2900, gasRefund: 4800},
-		{revision: R10_London, warm: true, config: gen.StorageModified, gasCost: 2900},
-		{revision: R10_London, warm: true, config: gen.StorageModifiedDeleted, gasCost: 100, gasRefund: 4800},
-		{revision: R10_London, warm: true, config: gen.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
 	}
+
+	for rev := R10_London; rev <= NewestSupportedRevision; rev++ {
+		// Certain storage configurations imply warm access. Not all
+		// combinations are possible; invalid ones are marked below.
+		sstoreRules = append(sstoreRules, []sstoreOpParams{
+			// {revision: rev, warm: false, config: gen.StorageAssigned, gasCost: 2200}, // invalid
+			{revision: rev, warm: false, config: gen.StorageAdded, gasCost: 22100},
+			// {revision: rev, warm: false, config: gen.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},  // invalid
+			// {revision: rev, warm: false, config: gen.StorageDeletedRestored, gasCost: 2200, gasRefund: 100}, // invalid
+			// {revision: rev, warm: false, config: gen.StorageDeletedAdded, gasCost: 2200, gasRefund: -4800},  // invalid
+			{revision: rev, warm: false, config: gen.StorageDeleted, gasCost: 5000, gasRefund: 4800},
+			{revision: rev, warm: false, config: gen.StorageModified, gasCost: 5000},
+			// {revision: rev, warm: false, config: gen.StorageModifiedDeleted, gasCost: 2200, gasRefund: 4800},  // invalid
+			// {revision: rev, warm: false, config: gen.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
+
+			{revision: rev, warm: true, config: gen.StorageAssigned, gasCost: 100},
+			{revision: rev, warm: true, config: gen.StorageAdded, gasCost: 20000},
+			{revision: rev, warm: true, config: gen.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
+			{revision: rev, warm: true, config: gen.StorageDeletedRestored, gasCost: 100, gasRefund: -2000},
+			{revision: rev, warm: true, config: gen.StorageDeletedAdded, gasCost: 100, gasRefund: -4800},
+			{revision: rev, warm: true, config: gen.StorageDeleted, gasCost: 2900, gasRefund: 4800},
+			{revision: rev, warm: true, config: gen.StorageModified, gasCost: 2900},
+			{revision: rev, warm: true, config: gen.StorageModifiedDeleted, gasCost: 100, gasRefund: 4800},
+			{revision: rev, warm: true, config: gen.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
+		}...)
+	}
+
 	for _, params := range sstoreRules {
 		rules = append(rules, sstoreOpRegular(params))
 		rules = append(rules, sstoreOpTooLittleGas(params))
@@ -786,8 +793,6 @@ func getAllRules() []Rule {
 				RevisionBounds(R07_Istanbul, R12_Shanghai),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MCOPY),
-				Ge(Gas(), 3),
-				Lt(StackSize(), st.MaxStackSize-1),
 			),
 			Effect: FailEffect(),
 		},
@@ -1119,7 +1124,7 @@ func getAllRules() []Rule {
 		staticGas:  2,
 		pops:       0,
 		pushes:     1,
-		conditions: []Condition{IsRevision(R10_London)},
+		conditions: []Condition{RevisionBounds(R10_London, NewestSupportedRevision)},
 		effect: func(s *st.State) {
 			s.Stack.Push(s.BlockContext.BaseFee)
 		},
@@ -1131,8 +1136,6 @@ func getAllRules() []Rule {
 				RevisionBounds(R07_Istanbul, R09_Berlin),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), BASEFEE),
-				Ge(Gas(), 2),
-				Lt(StackSize(), st.MaxStackSize),
 			),
 			Effect: FailEffect(),
 		},
@@ -1480,8 +1483,7 @@ func getAllRules() []Rule {
 
 	// --- SELFDESTRUCT ---
 
-	selfDestructRevisions := []Revision{R07_Istanbul, R09_Berlin, R10_London}
-	for _, revision := range selfDestructRevisions {
+	for revision := R07_Istanbul; revision <= NewestSupportedRevision; revision++ {
 		for _, warm := range []bool{true, false} {
 			for _, hasSelfDestructed := range []bool{true, false} {
 				coldTargetCost := vm.Gas(0)
@@ -2039,7 +2041,7 @@ func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCos
 	}
 
 	refundGas := vm.Gas(0)
-	if revision != R10_London && !hasSelfDestructed {
+	if revision < R10_London && !hasSelfDestructed {
 		refundGas = 24000
 	}
 
@@ -2186,7 +2188,7 @@ func getRulesForAllCallTypes() []Rule {
 
 	res := []Rule{}
 	for _, op := range []OpCode{CALL, CALLCODE, STATICCALL, DELEGATECALL} {
-		for _, rev := range []Revision{R07_Istanbul, R09_Berlin, R10_London} {
+		for rev := R07_Istanbul; rev <= NewestSupportedRevision; rev++ {
 			for _, warm := range []bool{true, false} {
 				for _, static := range []bool{true, false} {
 					for _, zeroValue := range []bool{true, false} {
