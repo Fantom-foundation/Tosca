@@ -8,8 +8,8 @@ pipeline {
 
     environment {
         GOROOT = '/usr/lib/go-1.21/'
-        CC = 'clang-14'
-        CXX = 'clang++-14'
+        CC = 'gcc'
+        CXX = 'g++'
     }
 
     stages {
