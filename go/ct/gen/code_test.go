@@ -386,20 +386,20 @@ func TestCodeGenerator_TooSmallCodeSizeLeadsToUnsatisfiableResult(t *testing.T) 
 
 func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 
-	type constOp struct {
-		p  int
-		op OpCode
+	type constantOp struct {
+		location int
+		op       OpCode
 	}
 
-	type varOp struct {
-		v  string
-		op OpCode
+	type variableOp struct {
+		variable string
+		op       OpCode
 	}
 
 	tests := map[string]struct {
 		size         int
-		constOps     []constOp
-		varOps       []varOp
+		constantOps  []constantOp
+		variableOps  []variableOp
 		containsCode bool
 	}{
 		"Empty code": {
@@ -414,75 +414,75 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 		},
 		"Single constOp": {
 			size: 1,
-			constOps: []constOp{
-				{p: 0, op: STOP},
+			constantOps: []constantOp{
+				{location: 0, op: STOP},
 			},
 		},
 		"Multiple constOps": {
 			size: 3,
-			constOps: []constOp{
-				{p: 0, op: STOP},
-				{p: 1, op: ADDMOD},
-				{p: 2, op: BALANCE},
+			constantOps: []constantOp{
+				{location: 0, op: STOP},
+				{location: 1, op: ADDMOD},
+				{location: 2, op: BALANCE},
 			},
 		},
 		"Multiple constOps with gaps": {
 			size: 9,
-			constOps: []constOp{
-				{p: 0, op: STOP},
-				{p: 4, op: ADDMOD},
-				{p: 8, op: BALANCE},
+			constantOps: []constantOp{
+				{location: 0, op: STOP},
+				{location: 4, op: ADDMOD},
+				{location: 8, op: BALANCE},
 			},
 		},
 		"Multiple constOps with containsCode": {
 			size: 3,
-			constOps: []constOp{
-				{p: 0, op: STOP},
-				{p: 1, op: ADDMOD},
-				{p: 2, op: BALANCE},
+			constantOps: []constantOp{
+				{location: 0, op: STOP},
+				{location: 1, op: ADDMOD},
+				{location: 2, op: BALANCE},
 			},
 			containsCode: true,
 		},
 		"Multiple varOps": {
 			size: 3,
-			varOps: []varOp{
-				{v: "a", op: STOP},
-				{v: "b", op: ADDMOD},
-				{v: "c", op: BALANCE},
+			variableOps: []variableOp{
+				{variable: "a", op: STOP},
+				{variable: "b", op: ADDMOD},
+				{variable: "c", op: BALANCE},
 			},
 		},
 		"Multiple varOps with identical operations": {
 			size: 3, // < this could be 2, but the solver fails on that (which it should not)
-			varOps: []varOp{
-				{v: "a", op: STOP},
-				{v: "b", op: ADDMOD},
-				{v: "c", op: STOP},
+			variableOps: []variableOp{
+				{variable: "a", op: STOP},
+				{variable: "b", op: ADDMOD},
+				{variable: "c", op: STOP},
 			},
 		},
 		"Multiple constOps and varOps": {
 			size: 6,
-			constOps: []constOp{
-				{p: 0, op: STOP},
-				{p: 1, op: ADDMOD},
-				{p: 2, op: BALANCE},
+			constantOps: []constantOp{
+				{location: 0, op: STOP},
+				{location: 1, op: ADDMOD},
+				{location: 2, op: BALANCE},
 			},
-			varOps: []varOp{
-				{v: "a", op: ADD},
-				{v: "b", op: BASEFEE},
-				{v: "c", op: BYTE},
+			variableOps: []variableOp{
+				{variable: "a", op: ADD},
+				{variable: "b", op: BASEFEE},
+				{variable: "c", op: BYTE},
 			},
 		},
 		"Multiple constOps and varOps with containsCode": {
 			size: 6,
-			constOps: []constOp{
-				{p: 0, op: STOP},
-				{p: 1, op: ADDMOD},
-				{p: 2, op: BALANCE},
+			constantOps: []constantOp{
+				{location: 0, op: STOP},
+				{location: 1, op: ADDMOD},
+				{location: 2, op: BALANCE},
 			},
-			varOps: []varOp{
-				{v: "a", op: ADD},
-				{v: "b", op: BASEFEE},
-				{v: "c", op: BYTE},
+			variableOps: []variableOp{
+				{variable: "a", op: ADD},
+				{variable: "b", op: BASEFEE},
+				{variable: "c", op: BYTE},
 			},
 			containsCode: true,
 		},
@@ -511,11 +511,11 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 			if test.containsCode {
 				generator.AddIsCode(Variable("X"))
 			}
-			for _, op := range test.constOps {
-				generator.SetOperation(op.p, op.op)
+			for _, op := range test.constantOps {
+				generator.SetOperation(op.location, op.op)
 			}
-			for _, op := range test.varOps {
-				generator.AddOperation(Variable(op.v), op.op)
+			for _, op := range test.variableOps {
+				generator.AddOperation(Variable(op.variable), op.op)
 			}
 
 			code, err := generator.Generate(Assignment{}, rand.New(0))
