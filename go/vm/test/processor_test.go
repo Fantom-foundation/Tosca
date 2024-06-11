@@ -232,7 +232,7 @@ func TestProcessor_ContractCreation(t *testing.T) {
 			state.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(3)
 			state.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
 
-			state.EXPECT().AccountExists(newContractAddress).Return(false)
+			//state.EXPECT().AccountExists(newContractAddress).Return(false)
 			state.EXPECT().GetNonce(newContractAddress).Return(uint64(0))
 			state.EXPECT().SetNonce(newContractAddress, uint64(1)).Return()
 
