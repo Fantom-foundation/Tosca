@@ -78,7 +78,7 @@ func (p *processor) Run(
 		b := vm.Address(to)
 		//d := vm.Uint256ToValue(amount)
 		var tmp vm.Value
-		copy(tmp[:], amount.Bytes())
+		amount.FillBytes(tmp[:])
 		d := tmp
 		curA := state.GetBalance(a)
 		curB := state.GetBalance(b)
@@ -223,8 +223,26 @@ func (p *processor) Run(
 		gasLeft = gasLeft - gasLeft/10
 	}
 
-	// Add refund to the gas left.
-	gasLeft += stateDb.GetRefund()
+	// Add refund to the remaining gas.
+	if vmError == nil || vmError == geth.ErrExecutionReverted {
+		refund := stateDb.GetRefund()
+
+		maxRefund := uint64(0)
+		gasUsed := uint64(transaction.GasLimit) - gasLeft
+		if blockInfo.Revision < vm.R10_London {
+			// Before EIP-3529: refunds were capped to gasUsed / 2
+			maxRefund = gasUsed / 2
+		} else {
+			// After EIP-3529: refunds are capped to gasUsed / 5
+			maxRefund = gasUsed / 5
+		}
+
+		if refund > maxRefund {
+			refund = maxRefund
+		}
+
+		gasLeft += refund
+	}
 
 	// Extract log messages.
 	logs := make([]vm.Log, 0)
