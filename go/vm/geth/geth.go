@@ -173,7 +173,6 @@ type stateDbAdapter struct {
 	context         vm.RunContext
 	refund          uint64
 	lastBeneficiary vm.Address
-	logs            []vm.Log
 }
 
 func (s *stateDbAdapter) CreateAccount(common.Address) {
@@ -291,11 +290,18 @@ func (s *stateDbAdapter) AddSlotToAccessList(addr common.Address, slot common.Ha
 	s.context.AccessStorage(vm.Address(addr), vm.Key(slot))
 }
 
-func (s *stateDbAdapter) RevertToSnapshot(int) {
+func (s *stateDbAdapter) RevertToSnapshot(snapshot int) {
+	if ws, ok := s.context.(vm.WorldState); ok {
+		ws.RestoreSnapshot(snapshot)
+		return
+	}
 	// ignored: effect not needed in test environments
 }
 
 func (s *stateDbAdapter) Snapshot() int {
+	if ws, ok := s.context.(vm.WorldState); ok {
+		return ws.CreateSnapshot()
+	}
 	return 0 // not relevant in test setups
 }
 
@@ -305,15 +311,13 @@ func (s *stateDbAdapter) AddLog(log *types.Log) {
 		topics = append(topics, vm.Hash(cur))
 	}
 	s.context.EmitLog(vm.Address(log.Address), topics, log.Data)
-	s.logs = append(s.logs, vm.Log{
-		Address: vm.Address(log.Address),
-		Topics:  topics,
-		Data:    log.Data,
-	})
 }
 
 func (s *stateDbAdapter) GetLogs() []vm.Log {
-	return s.logs
+	if ws, ok := s.context.(vm.WorldState); ok {
+		return ws.GetLogs()
+	}
+	return nil // not relevant in test setups
 }
 
 func (s *stateDbAdapter) AddPreimage(common.Hash, []byte) {

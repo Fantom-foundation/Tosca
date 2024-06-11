@@ -37,6 +37,8 @@ type WorldState interface {
 	SetBalance(Address, Value)
 	SetCode(Address, []byte)
 
+	GetLogs() []Log
+
 	CreateSnapshot() int
 	RestoreSnapshot(int)
 }
