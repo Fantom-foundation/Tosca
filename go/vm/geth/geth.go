@@ -195,6 +195,7 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 		GasLimit:    uint64(transactionContext.GasLimit),
 		GetHash:     getHash,
 		BaseFee:     new(big.Int).SetBytes(transactionContext.BaseFee[:]),
+		BlobBaseFee: new(big.Int).SetBytes(transactionContext.BlobBaseFee[:]),
 		Transfer:    transferFunc,
 		CanTransfer: canTransferFunc,
 	}
@@ -207,7 +208,8 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 
 	// Create empty tx context
 	txCtx := geth.TxContext{
-		GasPrice: new(big.Int).SetBytes(transactionContext.GasPrice[:]),
+		GasPrice:   new(big.Int).SetBytes(transactionContext.GasPrice[:]),
+		BlobFeeCap: new(big.Int).SetBytes(transactionContext.BlobBaseFee[:]),
 	}
 	// Set interpreter variant for this VM
 	config := geth.Config{}

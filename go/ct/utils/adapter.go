@@ -129,6 +129,7 @@ func (c *ctRunContext) GetTransactionContext() vm.TransactionContext {
 		PrevRandao:  vm.Hash(c.state.BlockContext.PrevRandao.Bytes32be()),
 		ChainID:     c.state.BlockContext.ChainID.Bytes32be(),
 		BaseFee:     c.state.BlockContext.BaseFee.Bytes32be(),
+		BlobBaseFee: c.state.BlockContext.BlobBaseFee.Bytes32be(),
 	}
 }
 

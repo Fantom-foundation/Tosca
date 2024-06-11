@@ -1141,6 +1141,31 @@ func getAllRules() []Rule {
 		},
 	}...)
 
+	// --- BLOBBASEFEE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:         BLOBBASEFEE,
+		staticGas:  2,
+		pops:       0,
+		pushes:     1,
+		conditions: []Condition{RevisionBounds(R13_Cancun, NewestSupportedRevision)},
+		effect: func(s *st.State) {
+			s.Stack.Push(s.BlockContext.BlobBaseFee)
+		},
+	})...)
+
+	rules = append(rules, []Rule{
+		{
+			Name: "blobbasefee_invalid_revision",
+			Condition: And(
+				RevisionBounds(R07_Istanbul, R12_Shanghai),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), BLOBBASEFEE),
+			),
+			Effect: FailEffect(),
+		},
+	}...)
+
 	// --- EXTCODEHASH ---
 
 	// cold
