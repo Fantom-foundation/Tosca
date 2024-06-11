@@ -354,6 +354,197 @@ func TestCodeGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	}
 }
 
+func TestCodeGenerator_TooSmallCodeSizeLeadsToUnsatisfiableResult(t *testing.T) {
+	fixSize := func(g *CodeGenerator, size int) {
+		g.codeSize = new(int)
+		*g.codeSize = size
+	}
+
+	tests := map[string]func(*CodeGenerator){
+		"empty code with variable constraint": func(g *CodeGenerator) {
+			fixSize(g, 0)
+			g.AddOperation(Variable("X"), STOP)
+		},
+		"must contain code with size 0": func(g *CodeGenerator) {
+			fixSize(g, 0)
+			g.AddIsCode(Variable("X"))
+		},
+		"two variable ops with size of 1": func(g *CodeGenerator) {
+			fixSize(g, 1)
+			g.AddOperation(Variable("X"), STOP)
+			g.AddOperation(Variable("Y"), ADD)
+		},
+		"two constant ops with size 1 ": func(g *CodeGenerator) {
+			fixSize(g, 1)
+			g.SetOperation(1, STOP)
+			g.SetOperation(2, ADD)
+		},
+		"two mix ops with size 1 ": func(g *CodeGenerator) {
+			fixSize(g, 1)
+			g.SetOperation(1, STOP)
+			g.AddOperation(Variable("Y"), ADD)
+		},
+	}
+
+	for name, setup := range tests {
+		t.Run(name, func(t *testing.T) {
+			generator := NewCodeGenerator()
+			setup(generator)
+			if _, err := generator.Generate(nil, rand.New(0)); !errors.Is(err, ErrUnsatisfiable) {
+				t.Errorf("expected unsatisfiable result, but got %v", err)
+			}
+		})
+	}
+}
+
+func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
+
+	// constantOp is an location which has a pre-assigned Op
+	type constantOp struct {
+		location int
+		op       OpCode
+	}
+
+	// variableOp is a solver variable bound to an Op
+	type variableOp struct {
+		variable string
+		op       OpCode
+	}
+
+	tests := map[string]struct {
+		size         int
+		constantOps  []constantOp
+		variableOps  []variableOp
+		containsCode bool
+	}{
+		"Empty code": {
+			size: 0,
+		},
+		"Code size 1": {
+			size: 1,
+		},
+		"Code must contain one instruction": {
+			size:         1,
+			containsCode: true,
+		},
+		"Single constantOp": {
+			size: 1,
+			constantOps: []constantOp{
+				{location: 0, op: STOP},
+			},
+		},
+		"Multiple constantOps": {
+			size: 3,
+			constantOps: []constantOp{
+				{location: 0, op: STOP},
+				{location: 1, op: ADDMOD},
+				{location: 2, op: BALANCE},
+			},
+		},
+		"Multiple constantOps with gaps": {
+			size: 9,
+			constantOps: []constantOp{
+				{location: 0, op: STOP},
+				{location: 4, op: ADDMOD},
+				{location: 8, op: BALANCE},
+			},
+		},
+		"Multiple constantOps with containsCode": {
+			size: 3,
+			constantOps: []constantOp{
+				{location: 0, op: STOP},
+				{location: 1, op: ADDMOD},
+				{location: 2, op: BALANCE},
+			},
+			containsCode: true,
+		},
+		"Multiple variableOps": {
+			size: 3,
+			variableOps: []variableOp{
+				{variable: "a", op: STOP},
+				{variable: "b", op: ADDMOD},
+				{variable: "c", op: BALANCE},
+			},
+		},
+		"Multiple variableOps with identical operations": {
+			size: 3, // < this could be 2, but the solver fails on that (which it should not)
+			variableOps: []variableOp{
+				{variable: "a", op: STOP},
+				{variable: "b", op: ADDMOD},
+				{variable: "c", op: STOP},
+			},
+		},
+		"Multiple constantOps and variableOps": {
+			size: 6,
+			constantOps: []constantOp{
+				{location: 0, op: STOP},
+				{location: 1, op: ADDMOD},
+				{location: 2, op: BALANCE},
+			},
+			variableOps: []variableOp{
+				{variable: "a", op: ADD},
+				{variable: "b", op: BASEFEE},
+				{variable: "c", op: BYTE},
+			},
+		},
+		"Multiple constantOps and variableOps with containsCode": {
+			size: 6,
+			constantOps: []constantOp{
+				{location: 0, op: STOP},
+				{location: 1, op: ADDMOD},
+				{location: 2, op: BALANCE},
+			},
+			variableOps: []variableOp{
+				{variable: "a", op: ADD},
+				{variable: "b", op: BASEFEE},
+				{variable: "c", op: BYTE},
+			},
+			containsCode: true,
+		},
+		// This is a challenging one, right now not supported.
+		/*
+			"Multiple constantOps and variableOps with overlaps": {
+				size: 4,
+				constantOps: []constantOp{
+					{p: 0, op: STOP},
+					{p: 1, op: ADDMOD},
+					{p: 2, op: BALANCE},
+				},
+				variableOps: []varOp{
+					{v: "a", op: STOP},
+					{v: "b", op: ADDMOD},
+					{v: "c", op: BYTE},
+				},
+			},
+		*/
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			generator := NewCodeGenerator()
+			generator.codeSize = &test.size
+			if test.containsCode {
+				generator.AddIsCode(Variable("X"))
+			}
+			for _, op := range test.constantOps {
+				generator.SetOperation(op.location, op.op)
+			}
+			for _, op := range test.variableOps {
+				generator.AddOperation(Variable(op.variable), op.op)
+			}
+
+			code, err := generator.Generate(Assignment{}, rand.New(0))
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if code.Length() != test.size {
+				t.Errorf("unexpected code length: wanted %d, got %d", test.size, code.Length())
+			}
+		})
+	}
+}
+
 func TestVarCodeConstraintSolver_fitsOnEmpty(t *testing.T) {
 	tests := []struct {
 		pos  int
