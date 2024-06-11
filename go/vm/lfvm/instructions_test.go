@@ -14,6 +14,7 @@ package lfvm
 
 import (
 	"bytes"
+	"math"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
@@ -463,5 +464,127 @@ func TestMCopy(t *testing.T) {
 				t.Errorf("expected gas %d, got %d", test.gasAfter, ctxt.gas)
 			}
 		})
+	}
+}
+
+func TestCreateShanghaiInitCodeSize(t *testing.T) {
+	maxInitCodeSize := uint64(49152)
+	tests := []struct {
+		revision       vm.Revision
+		init_code_size uint64
+		expected       Status
+	}{
+		{vm.R11_Paris, 0, RUNNING},
+		{vm.R11_Paris, 1, RUNNING},
+		{vm.R11_Paris, 2000, RUNNING},
+		{vm.R11_Paris, maxInitCodeSize - 1, RUNNING},
+		{vm.R11_Paris, maxInitCodeSize, RUNNING},
+		{vm.R11_Paris, maxInitCodeSize + 1, RUNNING},
+		{vm.R11_Paris, 100000, RUNNING},
+		{vm.R11_Paris, math.MaxUint64, RUNNING}, // TODO: this case should fail due to insufficient gas or bad allocation, issue #524
+
+		{vm.R12_Shanghai, 0, RUNNING},
+		{vm.R12_Shanghai, 1, RUNNING},
+		{vm.R12_Shanghai, 2000, RUNNING},
+		{vm.R12_Shanghai, maxInitCodeSize - 1, RUNNING},
+		{vm.R12_Shanghai, maxInitCodeSize, RUNNING},
+		{vm.R12_Shanghai, maxInitCodeSize + 1, MAX_INIT_CODE_SIZE_EXCEEDED},
+		{vm.R12_Shanghai, 100000, MAX_INIT_CODE_SIZE_EXCEEDED},
+		{vm.R12_Shanghai, math.MaxUint64, MAX_INIT_CODE_SIZE_EXCEEDED},
+	}
+
+	for _, test := range tests {
+		ctrl := gomock.NewController(t)
+		runContext := vm.NewMockRunContext(ctrl)
+
+		source := vm.Address{1}
+		ctxt := context{
+			status: RUNNING,
+			params: vm.Parameters{
+				Recipient: source,
+			},
+			context:  runContext,
+			stack:    NewStack(),
+			memory:   NewMemory(),
+			gas:      50000,
+			revision: test.revision,
+		}
+
+		// Prepare stack arguments.
+		ctxt.stack.stack_ptr = 3
+		ctxt.stack.data[0].Set(uint256.NewInt(test.init_code_size))
+
+		if test.expected == RUNNING {
+			runContext.EXPECT().Call(vm.Create, gomock.Any()).Return(vm.CallResult{}, nil)
+		}
+
+		opCreate(&ctxt)
+
+		if want, got := test.expected, ctxt.status; want != got {
+			t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+		}
+	}
+}
+
+func TestCreateShanghaiDeploymentCost(t *testing.T) {
+	tests := []struct {
+		revision     vm.Revision
+		initCodeSize uint64
+	}{
+		// gas cost from evm.codes
+		{vm.R11_Paris, 0},
+		{vm.R11_Paris, 1},
+		{vm.R11_Paris, 2000},
+		{vm.R11_Paris, 49152},
+
+		{vm.R12_Shanghai, 0},
+		{vm.R12_Shanghai, 1},
+		{vm.R12_Shanghai, 2000},
+		{vm.R12_Shanghai, 49152},
+	}
+
+	dynamicCost := func(revision vm.Revision, size uint64) uint64 {
+		sizeWord := ((size + 31) / 32)
+		memoryExpansionCost := (sizeWord*sizeWord)/512 + 3*sizeWord
+		if revision >= vm.R12_Shanghai {
+			return 2*sizeWord + memoryExpansionCost
+		}
+		return memoryExpansionCost
+	}
+
+	for _, test := range tests {
+		ctrl := gomock.NewController(t)
+		runContext := vm.NewMockRunContext(ctrl)
+
+		cost := dynamicCost(test.revision, test.initCodeSize)
+
+		source := vm.Address{1}
+		ctxt := context{
+			status: RUNNING,
+			params: vm.Parameters{
+				Recipient: source,
+			},
+			context:  runContext,
+			stack:    NewStack(),
+			memory:   NewMemory(),
+			gas:      vm.Gas(cost),
+			revision: test.revision,
+		}
+
+		// Prepare stack arguments.
+		ctxt.stack.stack_ptr = 3
+		ctxt.stack.data[0].Set(uint256.NewInt(test.initCodeSize))
+
+		runContext.EXPECT().Call(vm.Create, gomock.Any()).Return(vm.CallResult{}, nil)
+
+		opCreate(&ctxt)
+
+		if ctxt.status != RUNNING {
+			t.Errorf("unexpected status after call, wanted RUNNING, got %v", ctxt.status)
+		}
+
+		if ctxt.gas != 0 {
+			t.Errorf("unexpected gas cost, wanted %d, got %d", cost, cost-uint64(ctxt.gas))
+		}
 	}
 }

@@ -34,6 +34,7 @@ const (
 	INVALID_INSTRUCTION
 	OUT_OF_GAS
 	SEGMENTATION_FAULT
+	MAX_INIT_CODE_SIZE_EXCEEDED
 	ERROR
 )
 
@@ -174,7 +175,7 @@ func Run(
 			Output:  res,
 			GasLeft: ctxt.gas,
 		}, nil
-	case INVALID_INSTRUCTION, OUT_OF_GAS, SEGMENTATION_FAULT, ERROR:
+	case INVALID_INSTRUCTION, OUT_OF_GAS, SEGMENTATION_FAULT, MAX_INIT_CODE_SIZE_EXCEEDED, ERROR:
 		return vm.Result{
 			Success: false,
 		}, nil

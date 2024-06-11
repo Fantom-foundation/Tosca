@@ -161,7 +161,7 @@ func convertLfvmStatusToCtStatus(status Status) (st.StatusCode, error) {
 	case SUICIDED:
 		// Suicide is not yet modeled by the CT, and for now it just maps to the STOPPED status.
 		return st.Stopped, nil
-	case INVALID_INSTRUCTION, OUT_OF_GAS, SEGMENTATION_FAULT, ERROR:
+	case INVALID_INSTRUCTION, OUT_OF_GAS, SEGMENTATION_FAULT, MAX_INIT_CODE_SIZE_EXCEEDED, ERROR:
 		return st.Failed, nil
 	default:
 		return st.Failed, fmt.Errorf("unable to convert lfvm status %v to ct status", status)
