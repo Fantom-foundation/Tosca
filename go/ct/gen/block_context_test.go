@@ -33,6 +33,9 @@ func TestBlockContextGen_Generate(t *testing.T) {
 	if blockCtx.BaseFee == (common.NewU256()) {
 		t.Errorf("Generated base fee has default value.")
 	}
+	if blockCtx.BlobBaseFee == (common.NewU256()) {
+		t.Errorf("Generated blob base fee has default value.")
+	}
 	if blockCtx.BlockNumber == (uint64(0)) {
 		t.Errorf("Generated block number has default value.")
 	}

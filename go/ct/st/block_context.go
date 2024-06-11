@@ -22,6 +22,7 @@ import (
 // BlockContext holds the block environment information
 type BlockContext struct {
 	BaseFee     U256       // Base fee in wei
+	BlobBaseFee U256       // Blob Base fee in wei
 	BlockNumber uint64     // Block's number
 	ChainID     U256       // Chain id of the network
 	CoinBase    vm.Address // Address of the block's beneficiary
@@ -38,6 +39,10 @@ func (b *BlockContext) Diff(other *BlockContext) []string {
 
 	if !b.BaseFee.Eq(other.BaseFee) {
 		ret = append(ret, blockDifference+fmt.Sprintf("base fee: %v vs %v\n", b.BaseFee, other.BaseFee))
+	}
+
+	if !b.BlobBaseFee.Eq(other.BlobBaseFee) {
+		ret = append(ret, blockDifference+fmt.Sprintf("blob base fee: %v vs %v\n", b.BlobBaseFee, other.BlobBaseFee))
 	}
 
 	if b.BlockNumber != other.BlockNumber {
@@ -75,6 +80,7 @@ func (b *BlockContext) String() string {
 	return fmt.Sprintf(
 		"Block Context:"+
 			"\n\t    Base Fee: %v,"+
+			"\n\t    Blob Base Fee: %v,"+
 			"\n\t    Block Number: %v,"+
 			"\n\t    ChainID: %v,"+
 			"\n\t    CoinBase: %v,"+
@@ -82,6 +88,6 @@ func (b *BlockContext) String() string {
 			"\n\t    Gas Price: %v,"+
 			"\n\t    PrevRandao: %v,"+
 			"\n\t    Timestamp: %v\n",
-		b.BaseFee, b.BlockNumber, b.ChainID, b.CoinBase, b.GasLimit, b.GasPrice,
+		b.BaseFee, b.BlobBaseFee, b.BlockNumber, b.ChainID, b.CoinBase, b.GasLimit, b.GasPrice,
 		b.PrevRandao, b.TimeStamp)
 }

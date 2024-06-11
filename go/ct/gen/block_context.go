@@ -204,6 +204,7 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) 
 	}
 
 	baseFee := RandU256(rnd)
+	blobBaseFee := RandU256(rnd)
 	gasLimit := rnd.Uint64()
 	gasPrice := RandU256(rnd)
 
@@ -216,6 +217,7 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) 
 
 	return st.BlockContext{
 		BaseFee:     baseFee,
+		BlobBaseFee: blobBaseFee,
 		BlockNumber: blockNumber,
 		ChainID:     chainId,
 		CoinBase:    coinbase,
