@@ -1253,6 +1253,57 @@ func getAllRules() []Rule {
 		},
 	}...)
 
+	// --- BLOBHASH ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        BLOBHASH,
+		staticGas: 3,
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			HasBlobHash(Param(0)),
+		},
+		parameters: []Parameter{NumericParameter{}},
+		effect: func(s *st.State) {
+			indexU256 := s.Stack.Pop()
+			if indexU256.Gt(NewU256(uint64(len(s.TransactionContext.BlobHashes)))) {
+				s.Stack.Push(NewU256(0))
+			} else {
+				s.Stack.Push(NewU256FromBytes(s.TransactionContext.BlobHashes[indexU256.Uint64()][:]...))
+			}
+		},
+	})...)
+
+	rules = append(rules, rulesFor(instruction{
+		op:        BLOBHASH,
+		name:      "_out_of_range",
+		staticGas: 3,
+		pops:      1,
+		pushes:    1,
+		conditions: []Condition{
+			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			HasNoBlobHash(Param(0)),
+		},
+		parameters: []Parameter{NumericParameter{}},
+		effect: func(s *st.State) {
+			s.Stack.Pop()
+			s.Stack.Push(NewU256(0))
+		},
+	})...)
+
+	rules = append(rules, []Rule{
+		{
+			Name: "blobhash_invalid_revision",
+			Condition: And(
+				RevisionBounds(R07_Istanbul, R12_Shanghai),
+				Eq(Status(), st.Running),
+				Eq(Op(Pc()), BLOBHASH),
+			),
+			Effect: FailEffect(),
+		},
+	}...)
+
 	// --- BLOBBASEFEE ---
 
 	rules = append(rules, rulesFor(instruction{
