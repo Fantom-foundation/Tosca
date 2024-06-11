@@ -677,6 +677,20 @@ func opBaseFee(c *context) {
 	}
 }
 
+func opBlobHash(c *context) {
+	if c.isCancun() {
+		index := c.stack.peek()
+		if !index.IsUint64() || index.Uint64() >= uint64(len(c.context.GetTransactionContext().BlobHashes)) {
+			index.Clear()
+			return
+		}
+		index.SetBytes32(c.context.GetTransactionContext().BlobHashes[index.Uint64()][:])
+	} else {
+		c.status = INVALID_INSTRUCTION
+	}
+
+}
+
 func opBlobBaseFee(c *context) {
 	if c.isCancun() {
 		fee := c.context.GetTransactionContext().BlobBaseFee

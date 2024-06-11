@@ -675,6 +675,8 @@ func steps(c *context, one_step_only bool) {
 			opSelfbalance(c)
 		case BASEFEE:
 			opBaseFee(c)
+		case BLOBHASH:
+			opBlobHash(c)
 		case BLOBBASEFEE:
 			opBlobBaseFee(c)
 		case SELFDESTRUCT:

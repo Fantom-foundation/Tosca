@@ -121,6 +121,7 @@ type TransactionContext struct {
 	ChainID     Word
 	BaseFee     Value
 	BlobBaseFee Value
+	BlobHashes  []Hash
 }
 
 // AccessStatus is an enum utilized to indicate cold and warm account or
