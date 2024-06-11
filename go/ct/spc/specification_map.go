@@ -49,24 +49,26 @@ func NewSpecificationMap(rules ...Rule) Specification {
 
 func (s *specificationMap) GetRulesFor(state *st.State) []Rule {
 	result := []Rule{}
-	var opString string
+	getRules := func(opString string) {
+		for _, rule := range s.rules[opString] {
+			if valid, err := rule.Condition.Check(state); valid && err == nil {
+				result = append(result, rule)
+			}
+		}
+	}
 
-	if state.Revision == common.R99_UnknownNextRevision || state.Status != st.Running {
+	op, err := state.Code.GetOperation(int(state.Pc))
+	var opString string
+	if err != nil {
 		opString = "noOp"
 	} else {
-		op, err := state.Code.GetOperation(int(state.Pc))
-		if err != nil {
-			opString = "noOp"
-		} else {
-			opString = op.String()
+		opString = op.String()
+		if state.Revision == common.R99_UnknownNextRevision || state.Status != st.Running {
+			getRules("noOp")
 		}
 	}
 
-	for _, rule := range s.rules[opString] {
-		if valid, err := rule.Condition.Check(state); valid && err == nil {
-			result = append(result, rule)
-		}
-	}
+	getRules(opString)
 
 	return result
 }
