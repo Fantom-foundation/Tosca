@@ -678,17 +678,19 @@ func opBaseFee(c *context) {
 }
 
 func opBlobHash(c *context) {
-	if c.isCancun() {
-		index := c.stack.peek()
-		if !index.IsUint64() || index.Uint64() >= uint64(len(c.context.GetTransactionContext().BlobHashes)) {
-			index.Clear()
-			return
-		}
-		index.SetBytes32(c.context.GetTransactionContext().BlobHashes[index.Uint64()][:])
-	} else {
+	if !c.isCancun() {
 		c.status = INVALID_INSTRUCTION
+		return
 	}
 
+	index := c.stack.pop()
+	txCtx := c.context.GetTransactionContext()
+	blobHashesLength := uint64(len(txCtx.BlobHashes))
+	if index.IsUint64() && index.Uint64() < blobHashesLength {
+		c.stack.pushEmpty().SetBytes32(txCtx.BlobHashes[index.Uint64()][:])
+	} else {
+		c.stack.push(uint256.NewInt(0))
+	}
 }
 
 func opBlobBaseFee(c *context) {
