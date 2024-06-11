@@ -365,12 +365,25 @@ func TestCodeGenerator_TooSmallCodeSizeLeadsToUnsatisfiableResult(t *testing.T) 
 			fixSize(g, 0)
 			g.AddOperation(Variable("X"), STOP)
 		},
-		"two different instructions with code size of 1": func(g *CodeGenerator) {
+		"must contain code with size 0": func(g *CodeGenerator) {
+			fixSize(g, 0)
+			g.AddIsCode(Variable("X"))
+		},
+		"two variable ops with size of 1": func(g *CodeGenerator) {
 			fixSize(g, 1)
 			g.AddOperation(Variable("X"), STOP)
 			g.AddOperation(Variable("Y"), ADD)
 		},
-		// TODO: add more ...
+		"two constant ops with size 1 ": func(g *CodeGenerator) {
+			fixSize(g, 1)
+			g.SetOperation(1, STOP)
+			g.SetOperation(2, ADD)
+		},
+		"two mix ops with size 1 ": func(g *CodeGenerator) {
+			fixSize(g, 1)
+			g.SetOperation(1, STOP)
+			g.AddOperation(Variable("Y"), ADD)
+		},
 	}
 
 	for name, setup := range tests {
@@ -386,11 +399,13 @@ func TestCodeGenerator_TooSmallCodeSizeLeadsToUnsatisfiableResult(t *testing.T) 
 
 func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 
+	// constantOp is an location which has a pre-assigned Op
 	type constantOp struct {
 		location int
 		op       OpCode
 	}
 
+	// variableOp is a solver variable bound to an Op
 	type variableOp struct {
 		variable string
 		op       OpCode
@@ -405,20 +420,20 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 		"Empty code": {
 			size: 0,
 		},
-		"Empty code size 1": {
+		"Code size 1": {
 			size: 1,
 		},
-		"Empty code with containsCode": {
+		"Code must contain one instruction": {
 			size:         1,
 			containsCode: true,
 		},
-		"Single constOp": {
+		"Single constantOp": {
 			size: 1,
 			constantOps: []constantOp{
 				{location: 0, op: STOP},
 			},
 		},
-		"Multiple constOps": {
+		"Multiple constantOps": {
 			size: 3,
 			constantOps: []constantOp{
 				{location: 0, op: STOP},
@@ -426,7 +441,7 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 				{location: 2, op: BALANCE},
 			},
 		},
-		"Multiple constOps with gaps": {
+		"Multiple constantOps with gaps": {
 			size: 9,
 			constantOps: []constantOp{
 				{location: 0, op: STOP},
@@ -434,7 +449,7 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 				{location: 8, op: BALANCE},
 			},
 		},
-		"Multiple constOps with containsCode": {
+		"Multiple constantOps with containsCode": {
 			size: 3,
 			constantOps: []constantOp{
 				{location: 0, op: STOP},
@@ -443,7 +458,7 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 			},
 			containsCode: true,
 		},
-		"Multiple varOps": {
+		"Multiple variableOps": {
 			size: 3,
 			variableOps: []variableOp{
 				{variable: "a", op: STOP},
@@ -451,7 +466,7 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 				{variable: "c", op: BALANCE},
 			},
 		},
-		"Multiple varOps with identical operations": {
+		"Multiple variableOps with identical operations": {
 			size: 3, // < this could be 2, but the solver fails on that (which it should not)
 			variableOps: []variableOp{
 				{variable: "a", op: STOP},
@@ -459,7 +474,7 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 				{variable: "c", op: STOP},
 			},
 		},
-		"Multiple constOps and varOps": {
+		"Multiple constantOps and variableOps": {
 			size: 6,
 			constantOps: []constantOp{
 				{location: 0, op: STOP},
@@ -472,7 +487,7 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 				{variable: "c", op: BYTE},
 			},
 		},
-		"Multiple constOps and varOps with containsCode": {
+		"Multiple constantOps and variableOps with containsCode": {
 			size: 6,
 			constantOps: []constantOp{
 				{location: 0, op: STOP},
@@ -488,14 +503,14 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 		},
 		// This is a challenging one, right now not supported.
 		/*
-			"Multiple constOps and varOps with overlaps": {
+			"Multiple constantOps and variableOps with overlaps": {
 				size: 4,
-				constOps: []constOp{
+				constantOps: []constantOp{
 					{p: 0, op: STOP},
 					{p: 1, op: ADDMOD},
 					{p: 2, op: BALANCE},
 				},
-				varOps: []varOp{
+				variableOps: []varOp{
 					{v: "a", op: STOP},
 					{v: "b", op: ADDMOD},
 					{v: "c", op: BYTE},
