@@ -248,6 +248,7 @@ type stateDbAdapter struct {
 	context         vm.RunContext
 	refund          uint64
 	lastBeneficiary vm.Address
+	logs            []vm.Log
 }
 
 func (s *stateDbAdapter) CreateAccount(common.Address) {
@@ -407,11 +408,17 @@ func (s *stateDbAdapter) AddLog(log *types.Log) {
 	for _, cur := range log.Topics {
 		topics = append(topics, vm.Hash(cur))
 	}
-	s.context.EmitLog(vm.Log{
+	entry := vm.Log{
 		Address: vm.Address(log.Address),
 		Topics:  topics,
 		Data:    log.Data,
-	})
+	}
+	s.context.EmitLog(entry)
+	s.logs = append(s.logs, entry)
+}
+
+func (s *stateDbAdapter) GetLogs() []vm.Log {
+	return s.logs
 }
 
 func (s *stateDbAdapter) AddPreimage(common.Hash, []byte) {

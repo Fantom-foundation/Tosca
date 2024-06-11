@@ -51,16 +51,22 @@ var (
 	ErrSenderNoEOA = errors.New("sender not an eoa")
 )
 
-type processor struct{}
+type processor struct {
+	interpreterImplementation string
+}
 
 var _ vm.Processor = (*processor)(nil)
 
 // TODO: remove and use a registry instead
 func NewProcessor() vm.Processor {
-	return &processor{}
+	return NewProcessorWithVm("geth")
 }
 
-func (*processor) Run(
+func NewProcessorWithVm(impl string) vm.Processor {
+	return &processor{impl}
+}
+
+func (p *processor) Run(
 	blockInfo vm.BlockInfo,
 	transaction vm.Transaction,
 	state vm.WorldState,
@@ -108,13 +114,30 @@ func (*processor) Run(
 		GasPrice: new(big.Int).SetBytes(blockInfo.GasPrice[:]),
 	}
 	// Set interpreter variant for this VM
-	config := geth.Config{}
+	config := geth.Config{
+		InterpreterImpl: p.interpreterImplementation,
+	}
 
 	// Set hard forks for chainconfig
 	chainConfig :=
 		makeChainConfig(*params.AllEthashProtocolChanges,
 			new(big.Int).SetBytes(blockInfo.ChainID[:]),
 			vmRevisionToCt(blockInfo.Revision))
+
+	// Fix block boundaries to match required revisions
+	chainConfig.IstanbulBlock = big.NewInt(0)
+	chainConfig.BerlinBlock = big.NewInt(0)
+	chainConfig.LondonBlock = big.NewInt(0)
+
+	if blockInfo.Revision < vm.R10_London {
+		chainConfig.LondonBlock = big.NewInt(blockInfo.BlockNumber + 1)
+	}
+	if blockInfo.Revision < vm.R09_Berlin {
+		chainConfig.BerlinBlock = big.NewInt(blockInfo.BlockNumber + 1)
+	}
+	if blockInfo.Revision < vm.R07_Istanbul {
+		chainConfig.IstanbulBlock = big.NewInt(blockInfo.BlockNumber + 1)
+	}
 
 	stateDb := &stateDbAdapter{context: state}
 	evm := geth.NewEVM(blockCtx, txCtx, stateDb, &chainConfig, config)
@@ -210,13 +233,29 @@ func (*processor) Run(
 		gasLeft = gasLeft - gasLeft/10
 	}
 
-	// TODO: handle refund gas
+	// Add refund to the gas left.
+	gasLeft += stateDb.GetRefund()
+
+	// Extract log messages.
+	logs := make([]vm.Log, 0)
+	for _, log := range stateDb.GetLogs() {
+		topics := make([]vm.Hash, len(log.Topics))
+		for i, topic := range log.Topics {
+			topics[i] = vm.Hash(topic)
+		}
+		logs = append(logs, vm.Log{
+			Address: vm.Address(log.Address),
+			Topics:  topics,
+			Data:    log.Data,
+		})
+	}
 
 	return vm.Receipt{
 		Success:         vmError == nil,
 		GasUsed:         transaction.GasLimit - vm.Gas(gasLeft),
 		ContractAddress: createdContract,
 		Output:          output,
+		Logs:            logs,
 	}, nil
 
 	//evm.Call()
