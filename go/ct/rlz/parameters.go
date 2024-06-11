@@ -59,6 +59,11 @@ func (MemorySizeParameter) Samples() []U256 {
 		NewU256(31),
 		NewU256(32),
 		NewU256(1, 0),
+
+		// Samples stressing the max init code size introduced with Shanghai
+		NewU256(2*24576 - 1),
+		NewU256(2 * 24576),
+		NewU256(2*24576 + 1),
 	}
 }
 
