@@ -354,6 +354,36 @@ func TestCodeGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	}
 }
 
+func TestCodeGenerator_TooSmallCodeSizeLeadsToUnsatisfiableResult(t *testing.T) {
+	fixSize := func(g *CodeGenerator, size int) {
+		g.codeSize = new(int)
+		*g.codeSize = size
+	}
+
+	tests := map[string]func(*CodeGenerator){
+		"empty code with variable constraint": func(g *CodeGenerator) {
+			fixSize(g, 0)
+			g.AddOperation(Variable("X"), STOP)
+		},
+		"two different instructions with code size of 1": func(g *CodeGenerator) {
+			fixSize(g, 1)
+			g.AddOperation(Variable("X"), STOP)
+			g.AddOperation(Variable("Y"), ADD)
+		},
+		// TODO: add more ...
+	}
+
+	for name, setup := range tests {
+		t.Run(name, func(t *testing.T) {
+			generator := NewCodeGenerator()
+			setup(generator)
+			if _, err := generator.Generate(nil, rand.New(0)); !errors.Is(err, ErrUnsatisfiable) {
+				t.Errorf("expected unsatisfiable result, but got %v", err)
+			}
+		})
+	}
+}
+
 func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 
 	type constOp struct {
@@ -367,74 +397,70 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		offset       int
+		size         int
 		constOps     []constOp
 		varOps       []varOp
 		containsCode bool
-		wantedLength int
 	}{
 		"Empty code": {
-			offset:       0,
-			wantedLength: 0,
+			size: 0,
 		},
 		"Empty code size 1": {
-			offset:       1,
-			wantedLength: 1,
+			size: 1,
 		},
 		"Empty code with containsCode": {
-			offset:       0,
+			size:         1,
 			containsCode: true,
-			wantedLength: 1,
-		},
-		"Empty code with containsCode size 1": {
-			offset:       1,
-			containsCode: true,
-			wantedLength: 2,
 		},
 		"Single constOp": {
-			offset: 0,
+			size: 1,
 			constOps: []constOp{
 				{p: 0, op: STOP},
 			},
-			wantedLength: 1,
-		},
-		"Single constOp size 1": {
-			offset: 0,
-			constOps: []constOp{
-				{p: 0, op: STOP},
-			},
-			wantedLength: 1,
 		},
 		"Multiple constOps": {
-			offset: 0,
+			size: 3,
 			constOps: []constOp{
 				{p: 0, op: STOP},
 				{p: 1, op: ADDMOD},
 				{p: 2, op: BALANCE},
 			},
-			wantedLength: 3,
 		},
-		"Multiple constOps size 1": {
-			offset: 1,
+		"Multiple constOps with gaps": {
+			size: 9,
 			constOps: []constOp{
 				{p: 0, op: STOP},
-				{p: 1, op: ADDMOD},
-				{p: 2, op: BALANCE},
+				{p: 4, op: ADDMOD},
+				{p: 8, op: BALANCE},
 			},
-			wantedLength: 4,
 		},
 		"Multiple constOps with containsCode": {
-			offset: 0,
+			size: 3,
 			constOps: []constOp{
 				{p: 0, op: STOP},
 				{p: 1, op: ADDMOD},
 				{p: 2, op: BALANCE},
 			},
 			containsCode: true,
-			wantedLength: 3,
+		},
+		"Multiple varOps": {
+			size: 3,
+			varOps: []varOp{
+				{v: "a", op: STOP},
+				{v: "b", op: ADDMOD},
+				{v: "c", op: BALANCE},
+			},
+		},
+		"Multiple varOps with identical operations": {
+			size: 3, // < this could be 2, but the solver fails on that (which it should not)
+			varOps: []varOp{
+				{v: "a", op: STOP},
+				{v: "b", op: ADDMOD},
+				{v: "c", op: STOP},
+			},
 		},
 		"Multiple constOps and varOps": {
-			offset: 0,
+			size: 6,
 			constOps: []constOp{
 				{p: 0, op: STOP},
 				{p: 1, op: ADDMOD},
@@ -445,10 +471,9 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 				{v: "b", op: BASEFEE},
 				{v: "c", op: BYTE},
 			},
-			wantedLength: 6,
 		},
 		"Multiple constOps and varOps with containsCode": {
-			offset: 0,
+			size: 6,
 			constOps: []constOp{
 				{p: 0, op: STOP},
 				{p: 1, op: ADDMOD},
@@ -460,14 +485,29 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 				{v: "c", op: BYTE},
 			},
 			containsCode: true,
-			wantedLength: 6,
 		},
+		// This is a challenging one, right now not supported.
+		/*
+			"Multiple constOps and varOps with overlaps": {
+				size: 4,
+				constOps: []constOp{
+					{p: 0, op: STOP},
+					{p: 1, op: ADDMOD},
+					{p: 2, op: BALANCE},
+				},
+				varOps: []varOp{
+					{v: "a", op: STOP},
+					{v: "b", op: ADDMOD},
+					{v: "c", op: BYTE},
+				},
+			},
+		*/
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			generator := NewCodeGenerator()
-			generator.codeSize = &test.offset
+			generator.codeSize = &test.size
 			if test.containsCode {
 				generator.AddIsCode(Variable("X"))
 			}
@@ -481,10 +521,10 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 			code, err := generator.Generate(Assignment{}, rand.New(0))
 
 			if err != nil {
-				t.Errorf("unexpected error: %v", err)
+				t.Fatalf("unexpected error: %v", err)
 			}
-			if code.Length() != test.wantedLength {
-				t.Errorf("unexpected code length: wanted %d, got %d", test.wantedLength, code.Length())
+			if code.Length() != test.size {
+				t.Errorf("unexpected code length: wanted %d, got %d", test.size, code.Length())
 			}
 		})
 	}
