@@ -65,3 +65,50 @@ func TestOpCode_CanBePrinted(t *testing.T) {
 		}
 	}
 }
+
+func TestOpCode_NumberOfOpCodes(t *testing.T) {
+	istanbulOpCodes := []OpCode{
+		STOP, ADD, MUL, SUB, DIV, SDIV, MOD, SMOD, ADDMOD, MULMOD, EXP, SIGNEXTEND,
+		LT, GT, SLT, SGT, EQ, ISZERO, AND, OR, XOR, NOT, BYTE, SHL, SHR, SAR,
+		SHA3,
+		ADDRESS, BALANCE, ORIGIN, CALLER, CALLVALUE, CALLDATALOAD, CALLDATASIZE, CALLDATACOPY, CODESIZE, CODECOPY, GASPRICE, EXTCODESIZE, EXTCODECOPY, RETURNDATASIZE, RETURNDATACOPY, EXTCODEHASH,
+		BLOCKHASH, COINBASE, TIMESTAMP, NUMBER, PREVRANDAO, GASLIMIT, CHAINID, SELFBALANCE,
+		POP, MLOAD, MSTORE, MSTORE8, SLOAD, SSTORE, JUMP, JUMPI, PC, MSIZE, GAS, JUMPDEST,
+		PUSH1, PUSH2, PUSH3, PUSH4, PUSH5, PUSH6, PUSH7, PUSH8, PUSH9, PUSH10, PUSH11, PUSH12, PUSH13, PUSH14, PUSH15, PUSH16, PUSH17, PUSH18, PUSH19, PUSH20, PUSH21, PUSH22, PUSH23, PUSH24, PUSH25, PUSH26, PUSH27, PUSH28, PUSH29, PUSH30, PUSH31, PUSH32,
+		DUP1, DUP2, DUP3, DUP4, DUP5, DUP6, DUP7, DUP8, DUP9, DUP10, DUP11, DUP12, DUP13, DUP14, DUP15, DUP16,
+		SWAP1, SWAP2, SWAP3, SWAP4, SWAP5, SWAP6, SWAP7, SWAP8, SWAP9, SWAP10, SWAP11, SWAP12, SWAP13, SWAP14, SWAP15, SWAP16,
+		LOG0, LOG1, LOG2, LOG3, LOG4,
+		CREATE, CALL, CALLCODE, RETURN, DELEGATECALL, CREATE2, STATICCALL, REVERT, INVALID, SELFDESTRUCT,
+	}
+
+	if NewestSupportedRevision > R13_Cancun {
+		t.Errorf("Missing update for revision %v", NewestSupportedRevision)
+	}
+
+	currentOpCodes := istanbulOpCodes
+	switch NewestSupportedRevision {
+	case R13_Cancun:
+		// TODO: enable once supported
+		// currentOpCodes = append(currentOpCodes, []OpCode{BLOBHASH, BLOBBASEFEE, TLOAD, TSTORE, MCOPY}...) // Cancun
+		fallthrough
+	case R12_Shanghai:
+		currentOpCodes = append(currentOpCodes, []OpCode{PUSH0}...) // Shanghai
+		fallthrough
+	case R11_Paris:
+		currentOpCodes = append(currentOpCodes, []OpCode{}...) // Paris
+		fallthrough
+	case R10_London:
+		currentOpCodes = append(currentOpCodes, []OpCode{BASEFEE}...) // London
+		fallthrough
+	case R09_Berlin:
+		currentOpCodes = append(currentOpCodes, []OpCode{}...) // Berlin
+	}
+
+	for i := 0; i < 256; i++ {
+		op := OpCode(i)
+		if slices.Contains(currentOpCodes, op) && (!IsValid(op) && op != INVALID) {
+			t.Errorf("Missing OpCode %v", op)
+		}
+	}
+
+}
