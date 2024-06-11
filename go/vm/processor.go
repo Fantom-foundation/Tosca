@@ -52,4 +52,11 @@ type Receipt struct {
 	ContractAddress *Address // filled if a contract was created by this transaction
 	GasUsed         Gas      // gas used by contract calls
 	BlobGasUsed     Gas      // gas used for blob transactions
+	Logs            []Log    // logs produced by the transaction
+}
+
+type Log struct {
+	Address Address
+	Topics  []Hash
+	Data    []byte
 }
