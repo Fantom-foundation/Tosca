@@ -248,7 +248,6 @@ type stateDbAdapter struct {
 	context         vm.RunContext
 	refund          uint64
 	lastBeneficiary vm.Address
-	logs            []vm.Log
 }
 
 func (s *stateDbAdapter) CreateAccount(common.Address) {
@@ -390,16 +389,18 @@ func (s *stateDbAdapter) AddSlotToAccessList(addr common.Address, slot common.Ha
 	s.context.AccessStorage(vm.Address(addr), vm.Key(slot))
 }
 
-func (s *stateDbAdapter) Prepare(rules params.Rules, sender, coinbase common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
-	// ignored: effect not needed in test environments
-	panic("not implemented")
-}
-
-func (s *stateDbAdapter) RevertToSnapshot(int) {
+func (s *stateDbAdapter) RevertToSnapshot(snapshot int) {
+	if ws, ok := s.context.(vm.WorldState); ok {
+		ws.RestoreSnapshot(snapshot)
+		return
+	}
 	// ignored: effect not needed in test environments
 }
 
 func (s *stateDbAdapter) Snapshot() int {
+	if ws, ok := s.context.(vm.WorldState); ok {
+		return ws.CreateSnapshot()
+	}
 	return 0 // not relevant in test setups
 }
 
@@ -418,7 +419,10 @@ func (s *stateDbAdapter) AddLog(log *types.Log) {
 }
 
 func (s *stateDbAdapter) GetLogs() []vm.Log {
-	return s.logs
+	if ws, ok := s.context.(vm.WorldState); ok {
+		return ws.GetLogs()
+	}
+	return nil // not relevant in test setups
 }
 
 func (s *stateDbAdapter) AddPreimage(common.Hash, []byte) {
