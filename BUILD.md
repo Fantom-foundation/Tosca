@@ -8,9 +8,10 @@ git submodule update --init --recursive
 
 ## Build Requirements
 
-- Go toolchain, minimum version 1.19
+- Go toolchain, minimum version 1.21
     - Ubuntu/Debian package: `golang-go`
-- C/C++ toolchain (+ standard library) supporting C++20, Clang >= 14 recommended
+    - Snap package: `go`
+- C/C++ toolchain, Clang >= 16 or Gcc >= 11.4
     - Ubuntu/Debian package: `clang`
     - Recommended: install `clang-format`, `clangd`, and `gdb` for development
 - [mockgen](https://github.com/golang/mock)
@@ -20,7 +21,7 @@ git submodule update --init --recursive
       ```
 - [CMake](https://cmake.org/)
     - Ubuntu/Debian package: `cmake`
-
+    - Snap package: `cmake`
 
 ### Go Setup Remarks
 
@@ -217,3 +218,34 @@ Fib/20/lfvm-no-code-cache-12  21.2ms ± 3%  20.7ms ± 3%  -2.17%  (p=0.006 n=9+1
 For details on how to use it, please refer to the [Example](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat#hdr-Example) section of the tool's documentation page.
 
 Ideally, pull requests targeting performance improvements should include such a report in their description to document its impact.
+
+## Code Coverage
+
+Code coverage of the Tosca project is a work in progress. As the different systems get integrated, more features will be added and documented here.
+
+### C++ Code coverage
+
+Current code coverage infrastructure uses GNU gcov system. This is supported in both Gcc and Clang, although Clang target gcov version may not be the installed one. For this reason the current infrastructure is currently enabled for Gcc only. 
+
+Code coverage depends on the following packages:
+- lcov
+- genhtml
+Both commands can be installed in Ubuntu with the command: `apt install lcov`
+
+Code coverage can be triggered by using the following command:
+```
+CC=gcc CXX=g++ make test-cpp-coverage
+```
+The project will compile an instrumented debug version, to run the C++ unit tests, and to finally print a coverage report of the C++ code. Such report looks something like:
+```
+...
+Processing file vm/evmzero/stack_test.cc
+  lines=57 hit=57 functions=28 hit=28
+Overall coverage rate:
+  lines......: 85.8% (3380 of 3938 lines)
+  functions......: 82.8% (2057 of 2483 functions)
+```
+
+The report will be generated in HTML form to alow visualization of each line of code coverage for each C++ file in the project. The entry HTML page to the report is located at the C++ build folder: `cpp/build/coverage/index.html`
+
+In VSCode, line by line coverage can be visualized using the extension [gcov-viewer](https://marketplace.visualstudio.com/items?itemName=JacquesLucke.gcov-viewer)

@@ -9,7 +9,7 @@
 TOSCA_CPP_BUILD = Release
 TOSCA_CPP_ASSERT = ON
 TOSCA_CPP_ASAN = OFF
-TOSCA_CPP_COVERAGE = ON
+TOSCA_CPP_COVERAGE = OFF
 
 .PHONY: all tosca tosca-go tosca-cpp test test-go test-cpp test-cpp-asan \
         bench bench-go clean clean-go clean-cpp evmone evmone-clean
@@ -49,6 +49,13 @@ test-cpp: tosca-cpp
 test-cpp-asan: TOSCA_CPP_BUILD = Debug
 test-cpp-asan: TOSCA_CPP_ASAN = ON
 test-cpp-asan: test-cpp
+
+test-cpp-coverage: TOSCA_CPP_BUILD = Debug
+test-cpp-coverage: TOSCA_CPP_COVERAGE = ON
+test-cpp-coverage: test-cpp
+	@cd cpp/build ; \
+	ctest --parallel; \
+	cmake --build .  --target coverage 
 
 bench: TOSCA_CPP_ASSERT = OFF
 bench: tosca-cpp bench-go

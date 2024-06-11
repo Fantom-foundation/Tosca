@@ -22,13 +22,20 @@ if(TOSCA_ASAN)
 endif()
 
 if(TOSCA_COVERAGE)
-  add_compile_options($<$<CXX_COMPILER_ID:GNU,Clang>:--coverage>)
-  add_link_options($<$<CXX_COMPILER_ID:GNU,Clang>:--coverage>)
+  if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # gcc uses gcov, clang should use it as well, but it has version compatibility issues
+    # between compiler generate code and the gcov tool.
+    message(FATAL_ERROR "Coverage is only supported with GCC.")
+  endif()
+
+  add_compile_options($<$<CXX_COMPILER_ID:GNU>:--coverage>)
+  add_link_options($<$<CXX_COMPILER_ID:GNU>:--coverage>)
 
   find_program(LCOV lcov REQUIRED)
   find_program(GENHTML genhtml REQUIRED)
 
   add_custom_target(coverage
+    COMMENT "Generating coverage report."
     COMMAND ${LCOV} 
       --capture 
       --directory .  
@@ -40,8 +47,7 @@ if(TOSCA_COVERAGE)
       '/usr/lib/*' 
       '*/third_party/*'
       --output-file filtered.info
-    COMMAND ${GENHTML} filtered.info --output-directory out
-
+    COMMAND ${GENHTML} filtered.info --output-directory coverage
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
 endif()
@@ -77,7 +83,7 @@ function(tosca_add_compile_flags target)
     CXX_EXTENSIONS OFF)
   target_compile_options(${target} PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/MP /W4 /external:W0>
-    $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-march=native -mtune=native -Wall -Wextra -Wpedantic -Wtype-limits -Wconversion -Wsign-conversion -Wdouble-promotion>
+    $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-march=native -mtune=native -Wall -Wextra -Wpedantic -Wtype-limits -Wconversion -Wsign-conversion -Wdouble-promotion -g>
     $<$<CXX_COMPILER_ID:GNU>:-Wno-missing-field-initializers -fdiagnostics-color>
     $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wno-gnu-label-as-value -fcolor-diagnostics>)
   target_compile_definitions(${target} PRIVATE $<$<BOOL:${TOSCA_ASSERT}>:TOSCA_ASSERT_ENABLED>)
