@@ -268,7 +268,7 @@ func getAllRules() []Rule {
 			}
 			s.Gas -= memExpCost
 
-			wordCost := vm.Gas(6 * ((size + 31) / 32))
+			wordCost := vm.Gas(6 * SizeInWords(size))
 			if s.Gas < wordCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1259,8 +1259,8 @@ func getAllRules() []Rule {
 			sizeU256 := s.Stack.Pop()
 
 			cost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			minimumWordSize := (size + 31) / 32
-			cost += vm.Gas(3 * minimumWordSize)
+
+			cost += vm.Gas(3 * SizeInWords(size))
 			if s.Gas < cost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1337,8 +1337,7 @@ func getAllRules() []Rule {
 			sizeU256 := s.Stack.Pop()
 
 			expansionCost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			words := (size + 31) / 32
-			expansionCost += vm.Gas(3 * words)
+			expansionCost += vm.Gas(3 * SizeInWords(size))
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1410,8 +1409,7 @@ func getAllRules() []Rule {
 			}
 
 			expansionCost, destOffsetUint64, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			words := (size + 31) / 32
-			expansionCost += vm.Gas(3 * words)
+			expansionCost += vm.Gas(3 * SizeInWords(size))
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1618,7 +1616,7 @@ func createEffect(s *st.State, callKind vm.CallKind) {
 
 	if callKind == vm.Create2 {
 		saltU256 = s.Stack.Pop()
-		dynamicGas += vm.Gas(6 * ((size + 31) / 32))
+		dynamicGas += vm.Gas(6 * SizeInWords(size))
 	}
 
 	if s.Gas < dynamicGas {
@@ -1805,8 +1803,7 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 	sizeU256 := s.Stack.Pop()
 
 	cost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-	minimumWordSize := (size + 31) / 32
-	cost += vm.Gas(3 * minimumWordSize)
+	cost += vm.Gas(3 * SizeInWords(size))
 	if s.Gas < cost {
 		s.Status = st.Failed
 		s.Gas = 0

@@ -80,7 +80,7 @@ func (m *Memory) Grow(offset, size uint64) {
 	}
 	newSize := offset + size
 	if newSize > uint64(m.Size()) {
-		newSize = ((newSize + 31) / 32) * 32
+		newSize = SizeInWords(newSize) * 32
 		m.mem = append(m.mem, make([]byte, newSize-uint64(m.Size()))...)
 	}
 }
