@@ -248,6 +248,7 @@ type stateDbAdapter struct {
 	context         vm.RunContext
 	refund          uint64
 	lastBeneficiary vm.Address
+	refundBackups   map[int]uint64
 }
 
 func (s *stateDbAdapter) CreateAccount(common.Address) {
@@ -392,6 +393,7 @@ func (s *stateDbAdapter) AddSlotToAccessList(addr common.Address, slot common.Ha
 func (s *stateDbAdapter) RevertToSnapshot(snapshot int) {
 	if ws, ok := s.context.(vm.WorldState); ok {
 		ws.RestoreSnapshot(snapshot)
+		s.refund = s.refundBackups[snapshot]
 		return
 	}
 	// ignored: effect not needed in test environments
@@ -399,7 +401,12 @@ func (s *stateDbAdapter) RevertToSnapshot(snapshot int) {
 
 func (s *stateDbAdapter) Snapshot() int {
 	if ws, ok := s.context.(vm.WorldState); ok {
-		return ws.CreateSnapshot()
+		id := ws.CreateSnapshot()
+		if s.refundBackups == nil {
+			s.refundBackups = make(map[int]uint64)
+		}
+		s.refundBackups[id] = s.refund
+		return id
 	}
 	return 0 // not relevant in test setups
 }
