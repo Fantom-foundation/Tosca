@@ -465,10 +465,11 @@ func TestStateGenerator_ReturnDataShouldBeEmpty(t *testing.T) {
 func TestStateGenerator_BlockNumberHashes(t *testing.T) {
 	newHashes := []vm.Hash{}
 	state := genRandomState(t)
-	for i := 0; i < 256; i++ {
-		if slices.Contains(newHashes, state.RecentBlockHashes[i]) {
-			t.Errorf("unexpected hash value, should be unique %v", state.RecentBlockHashes[i])
+	for i := uint64(0); i < 256; i++ {
+		hashi := state.RecentBlockHashes.Get(i)
+		if slices.Contains(newHashes, hashi) {
+			t.Errorf("unexpected hash value, should be unique %v", hashi)
 		}
-		newHashes = append(newHashes, state.RecentBlockHashes[i])
+		newHashes = append(newHashes, hashi)
 	}
 }

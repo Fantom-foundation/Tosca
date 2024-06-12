@@ -906,7 +906,8 @@ func getAllRules() []Rule {
 		effect: func(s *st.State) {
 			targetBlockNumber := s.Stack.Pop()
 			index := s.BlockContext.BlockNumber - targetBlockNumber.Uint64()
-			s.Stack.Push(NewU256FromBytes(s.RecentBlockHashes[index-1][:]...))
+			hash := s.RecentBlockHashes.Get(index - 1)
+			s.Stack.Push(NewU256FromBytes(hash[:]...))
 		},
 	})...)
 

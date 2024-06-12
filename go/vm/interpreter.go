@@ -10,7 +10,9 @@
 
 package vm
 
-import "fmt"
+import (
+	"fmt"
+)
 
 //go:generate mockgen -source interpreter.go -destination interpreter_mock.go -package vm
 

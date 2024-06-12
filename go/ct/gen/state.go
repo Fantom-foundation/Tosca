@@ -270,12 +270,6 @@ func getRandomData(rnd *rand.Rand) ([]byte, error) {
 	return dataBuffer, nil
 }
 
-func getRandomHash(rnd *rand.Rand) vm.Hash {
-	var res vm.Hash
-	rnd.Read(res[:])
-	return res
-}
-
 // Generate produces a State instance satisfying the constraints set on this
 // generator or returns ErrUnsatisfiable on conflicting constraints. Subsequent
 // generators are invoked automatically.
@@ -396,10 +390,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// generate recent block hashes
-	resultRecentBlockHashes := [256]vm.Hash{}
-	for i := 0; i < 256; i++ {
-		resultRecentBlockHashes[i] = getRandomHash(rnd)
-	}
+	resultRecentBlockHashes := RandomImmutableHashArray(rnd)
 
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences

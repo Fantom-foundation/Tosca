@@ -134,7 +134,7 @@ type State struct {
 	ReturnData            Bytes
 	HasSelfDestructed     bool
 	SelfDestructedJournal []SelfDestructEntry
-	RecentBlockHashes     [256]vm.Hash
+	RecentBlockHashes     ImmutableHashArray
 	TransactionContext    TransactionContext
 }
 
@@ -153,6 +153,7 @@ func NewState(code *Code) *State {
 		CallData:              Bytes{},
 		LastCallReturnData:    Bytes{},
 		SelfDestructedJournal: []SelfDestructEntry{},
+		RecentBlockHashes:     ImmutableHashArray{},
 	}
 }
 
@@ -219,7 +220,7 @@ func (s *State) Eq(other *State) bool {
 		s.Logs.Eq(other.Logs) &&
 		s.HasSelfDestructed == other.HasSelfDestructed &&
 		slices.Equal(s.SelfDestructedJournal, other.SelfDestructedJournal) &&
-		s.RecentBlockHashes == other.RecentBlockHashes &&
+		s.RecentBlockHashes.Equal(other.RecentBlockHashes) &&
 		s.TransactionContext == other.TransactionContext
 
 	// For terminal states, internal state can be ignored, but the result is important.
@@ -351,7 +352,7 @@ func (s *State) String() string {
 		offset := s.Stack.stack[s.Stack.Size()-1]
 		if s.Code.IsCode(int(s.Pc)) && OpCode(s.Code.code[s.Pc]) == BLOCKHASH &&
 			offset.IsUint64() && offset.Uint64() < 256 {
-			write("\tHash of block %d: %#x\n", s.BlockContext.BlockNumber-offset.Uint64(), s.RecentBlockHashes[offset.Uint64()])
+			write("\tHash of block %d: %#x\n", s.BlockContext.BlockNumber-offset.Uint64(), s.RecentBlockHashes.Get(offset.Uint64()))
 		}
 	}
 
@@ -457,9 +458,13 @@ func (s *State) Diff(o *State) []string {
 		}
 	}
 
-	for i, want := range s.RecentBlockHashes {
-		if want != o.RecentBlockHashes[i] {
-			res = append(res, fmt.Sprintf("Different block number hash at index %d: %x vs %x", i, want, o.RecentBlockHashes[i]))
+	if !s.RecentBlockHashes.Equal(o.RecentBlockHashes) {
+		for i := 0; i < 256; i++ {
+			want := s.RecentBlockHashes.Get(uint64(i))
+			got := o.RecentBlockHashes.Get(uint64(i))
+			if want != got {
+				res = append(res, fmt.Sprintf("Different block number hash at index %d: %x vs %x", i, want, got))
+			}
 		}
 	}
 
