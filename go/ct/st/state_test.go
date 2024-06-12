@@ -836,3 +836,11 @@ func BenchmarkState_CloneState(b *testing.B) {
 		_ = clone
 	}
 }
+
+func BenchmarkState_EqState(b *testing.B) {
+	state := getNewFilledState()
+	clone := state.Clone()
+	for i := 0; i < b.N; i++ {
+		_ = state.Eq(clone)
+	}
+}
