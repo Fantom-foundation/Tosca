@@ -225,7 +225,6 @@ func (p *processor) Run(
 		vmError         error
 		createdContract *vm.Address
 	)
-	snapshot := stateDb.Snapshot()
 	if contractCreation {
 		var created common.Address
 		output, created, gasLeft, vmError = evm.Create(sender, transaction.Input, uint64(gas), transaction.Value.ToBig())
@@ -235,10 +234,6 @@ func (p *processor) Run(
 		// Increment the nonce to avoid double execution
 		stateDb.SetNonce(common.Address(transaction.Sender), stateDb.GetNonce(common.Address(transaction.Sender))+1)
 		output, gasLeft, vmError = evm.Call(sender, common.Address(*transaction.Recipient), transaction.Input, uint64(gas), transaction.Value.ToBig())
-	}
-
-	if vmError != nil {
-		stateDb.RevertToSnapshot(snapshot)
 	}
 
 	// For whatever reason, 10% of remaining gas is charged for non-internal transactions.
