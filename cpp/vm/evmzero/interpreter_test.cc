@@ -3199,6 +3199,60 @@ TEST(InterpreterTest, BASEFEE_PreRevision) {
 }
 
 ///////////////////////////////////////////////////////////
+// BLOBHASH
+TEST(InterpreterTest, BLOBHASH) {
+  const auto hash = evmc::bytes32(42);
+  evmc_tx_context tx_context{
+      .blob_hashes = &hash,
+      .blob_hashes_count = 1,
+  };
+
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
+
+  RunInterpreterTest({
+      .code = {op::BLOBHASH},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {0},
+      .stack_after = {42},
+      .host = &host,
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, BLOBHASH_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::BLOBHASH},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+      .stack_before = {0},
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, BLOBHASH_StackUnderflow) {
+  RunInterpreterTest({
+      .code = {op::BLOBHASH},
+      .state_after = RunState::kErrorStackUnderflow,
+      .gas_before = 3,
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_BLOBHASH_StackOverflow) {}
+
+TEST(InterpreterTest, BLOBHASH_PreRevision) {
+  RunInterpreterTest({
+      .code = {op::BLOBHASH},
+      .state_after = RunState::kErrorOpcode,
+      .gas_before = 10,
+      .revision = EVMC_SHANGHAI,
+  });
+}
+
+///////////////////////////////////////////////////////////
 // BLOBBASEFEE
 TEST(InterpreterTest, BLOBBASEFEE) {
   evmc_tx_context tx_context{

@@ -13,6 +13,7 @@
 #include "vm/evmzero/interpreter.h"
 
 #include <bit>
+#include <cstdint>
 #include <cstdio>
 #include <intx/intx.hpp>
 #include <iostream>
@@ -972,6 +973,26 @@ struct Impl<OpCode::BASEFEE> {
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     top[-1] = ToUint256(ctx.host->get_tx_context().block_base_fee);
+    return {};
+  }
+};
+
+template <>
+struct Impl<OpCode::BLOBHASH> {
+  constexpr static OpInfo kInfo{
+      .pops = 1,
+      .pushes = 1,
+      .static_gas = 3,
+      .introduced_in = EVMC_CANCUN,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    const auto tx_context = ctx.host->get_tx_context();
+    if (top[0] < tx_context.blob_hashes_count) {
+      top[0] = ToUint256(tx_context.blob_hashes[static_cast<int64_t>(top[0])]);
+    } else {
+      top[0] = 0;
+    }
     return {};
   }
 };
