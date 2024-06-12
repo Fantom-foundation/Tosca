@@ -437,6 +437,8 @@ func createOpToOpMap() []OpCode {
 	// Storage operations
 	res[evm.SLOAD] = SLOAD
 	res[evm.SSTORE] = SSTORE
+	res[evm.TLOAD] = TLOAD
+	res[evm.TSTORE] = TSTORE
 
 	// Control flow
 	res[evm.JUMP] = JUMP

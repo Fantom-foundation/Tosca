@@ -144,6 +144,8 @@ const (
 	// Storage
 	SLOAD
 	SSTORE
+	TLOAD
+	TSTORE
 
 	// LOG
 	LOG0
@@ -344,6 +346,8 @@ var op_to_string = map[OpCode]string{
 
 	SLOAD:  "SLOAD",
 	SSTORE: "SSTORE",
+	TLOAD:  "TLOAD",
+	TSTORE: "TSTORE",
 
 	LOG0: "LOG0",
 	LOG1: "LOG1",
