@@ -272,6 +272,21 @@ func (s *stateDbAdapter) Empty(addr common.Address) bool {
 }
 
 func (s *stateDbAdapter) PrepareAccessList(sender common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
+	if ws, ok := s.context.(vm.WorldState); ok {
+		ws.AccessAccount(vm.Address(sender))
+		if dest != nil {
+			ws.AccessAccount(vm.Address(*dest))
+		}
+		for _, addr := range precompiles {
+			ws.AccessAccount(vm.Address(addr))
+		}
+		for _, el := range txAccesses {
+			ws.AccessAccount(vm.Address(el.Address))
+			for _, key := range el.StorageKeys {
+				ws.AccessStorage(vm.Address(el.Address), vm.Key(key))
+			}
+		}
+	}
 	// ignored: effect not needed in test environments
 }
 

@@ -187,7 +187,8 @@ func (p *processor) Run(
 			*dest = common.Address(*transaction.Recipient)
 		}
 
-		precompiledContracts := []common.Address{} // TODO: list precompiled contracts
+		// London uses the same list as Berlin, Cancun extends it.
+		precompiledContracts := geth.PrecompiledAddressesBerlin
 
 		var accessList types.AccessList
 		for _, tuple := range transaction.AccessList {
