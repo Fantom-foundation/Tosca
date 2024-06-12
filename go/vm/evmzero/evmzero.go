@@ -109,6 +109,8 @@ type evmzeroInstance struct {
 const newestSupportedRevision = vm.R10_London
 
 func (e *evmzeroInstance) Run(params vm.Parameters) (vm.Result, error) {
+	//fmt.Printf("Call to %v running code %x ...\n", params.Recipient, *params.CodeHash)
+	//defer fmt.Printf("Call to %v running %x complete.\n", params.Recipient, *params.CodeHash)
 	if params.Revision > newestSupportedRevision {
 		return vm.Result{}, &vm.ErrUnsupportedRevision{Revision: params.Revision}
 	}
