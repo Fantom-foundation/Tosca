@@ -1,0 +1,14 @@
+FROM ubuntu:24.04
+
+# Install dependencies and keep image small as described in best practices
+# https://docs.docker.com/build/building/best-practices/
+RUN apt-get update && apt-get install -y \
+  clang-16 \
+  g++-11 \
+  git \
+  cmake \
+  golang-go \
+  lcov \
+  clang-format \
+  && rm -rf /var/lib/apt/lists/*
+    

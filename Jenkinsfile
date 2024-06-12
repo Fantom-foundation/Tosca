@@ -9,7 +9,13 @@
 // this software will be governed by the GNU Lesser General Public License v3.
 
 pipeline {
-    agent { label 'quick' }
+
+    agent {
+        dockerfile {
+            filename 'CI/Dockerfile.build'
+            label 'quick'
+        }
+    }
 
     options {
         timestamps()
@@ -17,7 +23,7 @@ pipeline {
     }
 
     environment {
-        GOROOT = '/usr/lib/go-1.21/'
+        GOROOT = '/usr/lib/go-1.22/'
         CC = 'gcc'
         CXX = 'g++'
     }
