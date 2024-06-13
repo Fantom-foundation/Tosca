@@ -50,31 +50,33 @@ type StateGenerator struct {
 	variableBindings      []variableBinding
 
 	// Generators
-	codeGen              *CodeGenerator
-	stackGen             *StackGenerator
-	memoryGen            *MemoryGenerator
-	storageGen           *StorageGenerator
-	accountsGen          *AccountsGenerator
-	callContextGen       *CallContextGenerator
-	callJournalGen       *CallJournalGenerator
-	blockContextGen      *BlockContextGenerator
-	hasSelfDestructedGen *SelfDestructedGenerator
+	codeGen               *CodeGenerator
+	stackGen              *StackGenerator
+	memoryGen             *MemoryGenerator
+	storageGen            *StorageGenerator
+	accountsGen           *AccountsGenerator
+	callContextGen        *CallContextGenerator
+	callJournalGen        *CallJournalGenerator
+	blockContextGen       *BlockContextGenerator
+	hasSelfDestructedGen  *SelfDestructedGenerator
+	transactionContextGen *TransactionContextGenerator
 }
 
 // NewStateGenerator creates a generator without any initial constraints.
 func NewStateGenerator() *StateGenerator {
 	return &StateGenerator{
-		codeGen:              NewCodeGenerator(),
-		stackGen:             NewStackGenerator(),
-		memoryGen:            NewMemoryGenerator(),
-		storageGen:           NewStorageGenerator(),
-		accountsGen:          NewAccountGenerator(),
-		callContextGen:       NewCallContextGenerator(),
-		callJournalGen:       NewCallJournalGenerator(),
-		blockContextGen:      NewBlockContextGenerator(),
-		gasConstraints:       NewRangeSolver[vm.Gas](0, st.MaxGas),
-		gasRefundConstraints: NewRangeSolver[vm.Gas](-st.MaxGas, st.MaxGas),
-		hasSelfDestructedGen: NewSelfDestructedGenerator(),
+		codeGen:               NewCodeGenerator(),
+		stackGen:              NewStackGenerator(),
+		memoryGen:             NewMemoryGenerator(),
+		storageGen:            NewStorageGenerator(),
+		accountsGen:           NewAccountGenerator(),
+		callContextGen:        NewCallContextGenerator(),
+		callJournalGen:        NewCallJournalGenerator(),
+		blockContextGen:       NewBlockContextGenerator(),
+		gasConstraints:        NewRangeSolver[vm.Gas](0, st.MaxGas),
+		gasRefundConstraints:  NewRangeSolver[vm.Gas](-st.MaxGas, st.MaxGas),
+		hasSelfDestructedGen:  NewSelfDestructedGenerator(),
+		transactionContextGen: NewTransactionContextGenerator(),
 	}
 }
 
@@ -364,6 +366,12 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
+	// Invoke TransactionContextGenerator
+	resultTransactionContext, err := g.transactionContextGen.Generate(rnd)
+	if err != nil {
+		return nil, err
+	}
+
 	resultCallJournal, err := g.callJournalGen.Generate(rnd)
 	if err != nil {
 		return nil, err
@@ -443,6 +451,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.CallContext = resultCallContext
 	result.CallJournal = resultCallJournal
 	result.BlockContext = resultBlockContext
+	result.TransactionContext = resultTransactionContext
 	result.CallData = resultCallData
 	result.LastCallReturnData = resultLastCallReturnData
 	result.ReturnData = resultReturnData
@@ -472,6 +481,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		callJournalGen:        g.callJournalGen.Clone(),
 		blockContextGen:       g.blockContextGen.Clone(),
 		hasSelfDestructedGen:  g.hasSelfDestructedGen.Clone(),
+		transactionContextGen: g.transactionContextGen.Clone(),
 	}
 }
 
@@ -493,6 +503,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.callContextGen.Restore(other.callContextGen)
 		g.callJournalGen.Restore(other.callJournalGen)
 		g.blockContextGen.Restore(other.blockContextGen)
+		g.hasSelfDestructedGen.Restore(other.hasSelfDestructedGen)
 	}
 }
 
@@ -535,6 +546,7 @@ func (g *StateGenerator) String() string {
 	parts = append(parts, fmt.Sprintf("callJournal=%v", g.callJournalGen))
 	parts = append(parts, fmt.Sprintf("blockContext=%v", g.blockContextGen))
 	parts = append(parts, fmt.Sprintf("selfdestruct=%v", g.hasSelfDestructedGen))
+	parts = append(parts, fmt.Sprintf("transactionContext=%v", g.transactionContextGen))
 
 	return "{" + strings.Join(parts, ",") + "}"
 }

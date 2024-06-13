@@ -77,6 +77,7 @@ type stateSerializable struct {
 	HasSelfDestructed     bool
 	SelfDestructedJournal []serializableSelfDestructEntry
 	RecentBlockHashes     [256]vm.Hash
+	TransactionContext    TransactionContext
 }
 
 // storageSerializable is a serializable representation of the Storage struct.
@@ -156,6 +157,7 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		HasSelfDestructed:     state.HasSelfDestructed,
 		SelfDestructedJournal: newSerializableJournal(state.SelfDestructedJournal),
 		RecentBlockHashes:     state.RecentBlockHashes,
+		TransactionContext:    state.TransactionContext,
 	}
 }
 
@@ -228,6 +230,7 @@ func (s *stateSerializable) deserialize() *State {
 	}
 	state.CallContext = s.CallContext
 	state.BlockContext = s.BlockContext
+	state.TransactionContext = s.TransactionContext
 	state.CallData = s.CallData
 	state.LastCallReturnData = s.LastCallReturnData
 	state.ReturnData = s.ReturnData

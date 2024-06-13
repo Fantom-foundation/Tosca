@@ -61,7 +61,7 @@ func ToVmParameters(state *st.State) vm.Parameters {
 			Revision:    revision,
 		},
 		TransactionParameters: vm.TransactionParameters{
-			Origin:     state.CallContext.OriginAddress,
+			Origin:     state.TransactionContext.OriginAddress,
 			GasPrice:   vm.Value(state.BlockContext.GasPrice.Bytes32be()),
 			BlobHashes: nil, // TODO: add support for blob hashes
 		},

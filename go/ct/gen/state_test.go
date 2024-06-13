@@ -345,6 +345,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"callJournal={}",
 		"blockContext=2000≤BlockNumber≤2999",
 		"selfdestruct={mustBeSelfDestructed}",
+		"transactionContext={}",
 	})
 
 	checkPrint(clone2, []string{
@@ -362,6 +363,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"callJournal={}",
 		"blockContext=1000≤BlockNumber≤1999",
 		"selfdestruct={mustNotBeSelfDestructed}",
+		"transactionContext={}",
 	})
 }
 
