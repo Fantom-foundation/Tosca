@@ -2,7 +2,7 @@
 
 Be sure to initialize all submodules
 
-```
+```sh
 git submodule update --init --recursive
 ```
 
@@ -16,7 +16,7 @@ git submodule update --init --recursive
     - Recommended: install `clang-format`, `clangd`, and `gdb` for development
 - [mockgen](https://github.com/golang/mock)
     - Install via Go:
-      ```
+      ```sh
       go install github.com/golang/mock/mockgen@v1.6.0
       ```
 - [CMake](https://cmake.org/)
@@ -35,7 +35,7 @@ Go installs programs into `$GOPATH/bin`, where `GOPATH` defaults to `$HOME/go`, 
 
 Use the provided Makefile to build and test the project.
 
-```
+```sh
 make
 make test
 ```
@@ -59,7 +59,7 @@ The same can be achieved by pressing `Ctrl + F5`.
 
 To build different configurations, invoke CMake in the `cpp` subdirectory:
 
-```bash
+```sh
 # Debug Configuration (with AddressSanitizer)
 cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DTOSCA_ASAN=ON
 cmake --build build --parallel
@@ -79,7 +79,7 @@ ctest --test-dir build --output-on-failure -R <test-name>
 Alternatively, you can just run the corresponding unit test binary.
 For instance:
 
-```bash
+```sh
 # Run specific test binary directly
 ./build/vm/evmzero/uint256_test
 
@@ -90,7 +90,7 @@ cmake --build build --parallel --target uint256_test && ./build/vm/evmzero/uint2
 > Note: Invoking ctest does **not** trigger compilation.
 > You have to invoke the build process beforehand.
 > 
-> ```bash
+> ```sh
 > cmake --build build --parallel && ctest --test-dir build --output-on-failure
 > ```
 
@@ -109,7 +109,7 @@ The benchmarks are implemented using Go's benchmark infrastructure. For a compre
 
 To run all benchmarks, use the following command:
 
-```
+```sh
 go test ./go/vm/test -run=NONE -bench=.
 ```
 
@@ -117,7 +117,7 @@ The path `./go/vm/test` points to the Go package containing the benchmarks. The 
 
 Optionally, to include memory usage metrics, the `-benchmem` flag can be added:
 
-```
+```sh
 go test ./go/vm/test -run=NONE -bench=. -benchmem
 ```
 
@@ -152,7 +152,7 @@ The `-bench` flag can be used to filter benchmarks by their name using regex exp
 
 Thus, the command
 
-```
+```sh
 go test ./go/vm/test -run=NONE -bench=Inc/1/zero
 ```
 
@@ -169,19 +169,19 @@ since the individual parts of the benchmark name are matched one-by-one.
 
 Go has an integrated CPU profiler that can be enabled using the `-cpuprofile` flag:
 
-```
+```sh
 go test ./go/vm/test -run=NONE -bench Fib/20/evmzero -cpuprofile cpu.log
 ```
 
 This command runs the benchmark and collects CPU performance data which can be shown in tabular form using
 
-```
+```sh
 go tool pprof -text -nodecount=10 cpu.log
 ```
 
 or can be visualized by the following command (requires the graphviz libary)
 
-```
+```sh
 go tool pprof -http "localhost:8000" ./cpu.log
 ```
 
@@ -199,7 +199,7 @@ This package makes C/C++ symbols accessible to the Go profiler. On some systems,
 
 To compare the benchmark results of two different code versions, the [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) tool can be utilized. To install the tool run
 
-```
+```bash
 go install golang.org/x/perf/cmd/benchstat@latest
 ```
 
@@ -227,13 +227,14 @@ Code coverage of the Tosca project is a work in progress. As the different syste
 
 Current code coverage infrastructure uses GNU gcov system. This is supported in both Gcc and Clang, although Clang target gcov version may not be the installed one. For this reason the current infrastructure is currently enabled for Gcc only. 
 
-Code coverage depends on the following packages:
+Code coverage depends on the following tools:
 - lcov
 - genhtml
 Both commands can be installed in Ubuntu with the command: `apt install lcov`
 
 Code coverage can be triggered by using the following command:
-```
+```sh
+make clean # required if already configured using another compiler Toolchain
 CC=gcc CXX=g++ make test-cpp-coverage
 ```
 The project will compile an instrumented debug version, to run the C++ unit tests, and to finally print a coverage report of the C++ code. Such report looks something like:

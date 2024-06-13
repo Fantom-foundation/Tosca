@@ -54,7 +54,6 @@ test-cpp-coverage: TOSCA_CPP_BUILD = Debug
 test-cpp-coverage: TOSCA_CPP_COVERAGE = ON
 test-cpp-coverage: test-cpp
 	@cd cpp/build ; \
-	ctest --parallel; \
 	cmake --build .  --target coverage 
 
 bench: TOSCA_CPP_ASSERT = OFF
