@@ -64,11 +64,14 @@ type StateDB interface {
 	GetTransientStorage(vm.Address, vm.Key) vm.Word
 	SetTransientStorage(vm.Address, vm.Key, vm.Word)
 	GetBalance(vm.Address) vm.Value
+	SetBalance(vm.Address, vm.Value)
+	GetNonce(vm.Address) uint64
+	SetNonce(vm.Address, uint64)
 	GetCodeSize(vm.Address) int
 	GetCodeHash(vm.Address) vm.Hash
-	GetCode(vm.Address) []byte
+	GetCode(vm.Address) vm.Code
 	GetBlockHash(int64) vm.Hash
-	EmitLog(vm.Address, []vm.Hash, []byte)
+	EmitLog(vm.Log)
 	AccessAccount(vm.Address) vm.AccessStatus
 	AccessStorage(vm.Address, vm.Key) vm.AccessStatus
 	GetCommittedStorage(vm.Address, vm.Key) vm.Word
@@ -102,16 +105,18 @@ func (e *TestEVM) RunWithGas(code []byte, input []byte, initialGas vm.Gas) (RunR
 func (e *TestEVM) runInternal(code []byte, input []byte, gas vm.Gas, readOnly bool) (vm.Result, error) {
 
 	params := vm.Parameters{
+		BlockParameters: vm.BlockParameters{
+			Revision: e.revision,
+		},
 		Context: &runContextAdapter{
 			StateDB: e.state,
 			evm:     e,
 		},
-		Revision: e.revision,
-		Code:     code,
-		Input:    input,
-		Gas:      gas,
-		Depth:    0,
-		Static:   readOnly,
+		Code:   code,
+		Input:  input,
+		Gas:    gas,
+		Depth:  0,
+		Static: readOnly,
 	}
 
 	return e.interpreter.Run(params)
@@ -138,11 +143,11 @@ func (a *runContextAdapter) SetStorage(addr vm.Address, key vm.Key, newValue vm.
 	return vm.GetStorageStatus(originalValue, currentValue, newValue)
 }
 
-func (a *runContextAdapter) GetTransactionContext() vm.TransactionContext {
-	return vm.TransactionContext{}
+func (a *runContextAdapter) GetTransactionContext() vm.TransactionParameters {
+	return vm.TransactionParameters{}
 }
 
-func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameter) (vm.CallResult, error) {
+func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameters) (vm.CallResult, error) {
 	// This is a simple implementation of an EVM handling recursive calls for tests.
 	// A full implementation would need to consider additional side-effects of calls
 	// like the transfer of values, StateDB snapshots, and precompiled contracts.
@@ -209,4 +214,20 @@ func (a *runContextAdapter) SelfDestruct(address vm.Address, beneficiary vm.Addr
 	}
 	balance := a.GetBalance(address)
 	return balance != (vm.Value{})
+}
+
+func (a *runContextAdapter) CreateAccount(vm.Address, vm.Code) bool {
+	panic("should not be needed for interpreter tests")
+}
+
+func (a *runContextAdapter) CreateSnapshot() vm.Snapshot {
+	panic("should not be needed for interpreter tests")
+}
+
+func (a *runContextAdapter) RestoreSnapshot(vm.Snapshot) {
+	panic("should not be needed for interpreter tests")
+}
+
+func (a *runContextAdapter) GetLogs() []vm.Log {
+	panic("should not be needed for interpreter tests")
 }

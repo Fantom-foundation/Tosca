@@ -31,7 +31,7 @@ func TestCallJournal_CallMovesFutureToPastCall(t *testing.T) {
 		GasRefund: 2,
 	}}
 
-	res := journal.Call(vm.StaticCall, vm.CallParameter{
+	res := journal.Call(vm.StaticCall, vm.CallParameters{
 		Sender:      vm.Address{1},
 		Recipient:   vm.Address{2},
 		Value:       vm.Value{3},

@@ -1086,7 +1086,7 @@ func setDefaultCallStateDBMock(mockStateDB *MockStateDB, account vm.Address, cod
 	mockStateDB.EXPECT().GetCodeHash(gomock.Any()).AnyTimes().Return(vm.Hash{})
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(code)
 	mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(true)
-	mockStateDB.EXPECT().EmitLog(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().EmitLog(gomock.Any()).AnyTimes()
 	mockStateDB.EXPECT().GetStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(vm.Word{})
 	mockStateDB.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockStateDB.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(true)

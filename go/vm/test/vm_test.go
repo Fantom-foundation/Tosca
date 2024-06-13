@@ -91,7 +91,6 @@ func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 func BenchmarkEmpty(b *testing.B) {
 	ctxt := gomock.NewController(b)
 	runContext := vm.NewMockRunContext(ctxt)
-	runContext.EXPECT().GetTransactionContext().Return(vm.TransactionContext{}).AnyTimes()
 	emptyRunParameters := vm.Parameters{
 		Context: runContext,
 	}

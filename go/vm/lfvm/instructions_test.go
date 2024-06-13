@@ -292,16 +292,16 @@ func TestBlobHash(t *testing.T) {
 	hash := vm.Hash{1}
 
 	tests := map[string]struct {
-		setup    func(*vm.MockRunContext, *Stack)
+		setup    func(*vm.Parameters, *Stack)
 		gas      vm.Gas
 		revision vm.Revision
 		status   Status
 		want     vm.Hash
 	}{
 		"regular": {
-			setup: func(runContext *vm.MockRunContext, stack *Stack) {
+			setup: func(params *vm.Parameters, stack *Stack) {
 				stack.push(uint256.NewInt(0))
-				runContext.EXPECT().GetTransactionContext().Return(vm.TransactionContext{BlobHashes: []vm.Hash{hash}})
+				params.BlobHashes = []vm.Hash{hash}
 			},
 			gas:      2,
 			revision: vm.R13_Cancun,
@@ -309,16 +309,15 @@ func TestBlobHash(t *testing.T) {
 			want:     hash,
 		},
 		"old-revision": {
-			setup:    func(runContext *vm.MockRunContext, stack *Stack) {},
+			setup:    func(params *vm.Parameters, stack *Stack) {},
 			gas:      2,
 			revision: vm.R12_Shanghai,
 			status:   INVALID_INSTRUCTION,
 			want:     vm.Hash{},
 		},
 		"no-hashes": {
-			setup: func(runContext *vm.MockRunContext, stack *Stack) {
+			setup: func(params *vm.Parameters, stack *Stack) {
 				stack.push(uint256.NewInt(0))
-				runContext.EXPECT().GetTransactionContext().Return(vm.TransactionContext{})
 			},
 			gas:      2,
 			revision: vm.R13_Cancun,
@@ -326,9 +325,8 @@ func TestBlobHash(t *testing.T) {
 			want:     vm.Hash{},
 		},
 		"target-non-existent": {
-			setup: func(runContext *vm.MockRunContext, stack *Stack) {
+			setup: func(params *vm.Parameters, stack *Stack) {
 				stack.push(uint256.NewInt(1))
-				runContext.EXPECT().GetTransactionContext().Return(vm.TransactionContext{BlobHashes: []vm.Hash{}})
 			},
 			gas:      2,
 			revision: vm.R13_Cancun,
@@ -340,7 +338,6 @@ func TestBlobHash(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			ctrl := gomock.NewController(t)
 			ctxt := context{
 				status: RUNNING,
 				params: vm.Parameters{
@@ -352,9 +349,7 @@ func TestBlobHash(t *testing.T) {
 			ctxt.gas = test.gas
 			ctxt.revision = test.revision
 
-			runContext := vm.NewMockRunContext(ctrl)
-			test.setup(runContext, ctxt.stack)
-			ctxt.context = runContext
+			test.setup(&ctxt.params, ctxt.stack)
 
 			opBlobHash(&ctxt)
 
@@ -373,15 +368,15 @@ func TestBlobBaseFee(t *testing.T) {
 	blobBaseFeeValue := vm.Value{1}
 
 	tests := map[string]struct {
-		setup    func(*vm.MockRunContext)
+		setup    func(*vm.Parameters)
 		gas      vm.Gas
 		revision vm.Revision
 		status   Status
 		want     vm.Value
 	}{
 		"regular": {
-			setup: func(runContext *vm.MockRunContext) {
-				runContext.EXPECT().GetTransactionContext().Return(vm.TransactionContext{BlobBaseFee: blobBaseFeeValue})
+			setup: func(params *vm.Parameters) {
+				params.BlobBaseFee = blobBaseFeeValue
 			},
 			gas:      2,
 			revision: vm.R13_Cancun,
@@ -389,7 +384,7 @@ func TestBlobBaseFee(t *testing.T) {
 			want:     blobBaseFeeValue,
 		},
 		"old-revision": {
-			setup:    func(runContext *vm.MockRunContext) {},
+			setup:    func(*vm.Parameters) {},
 			gas:      2,
 			revision: vm.R12_Shanghai,
 			status:   INVALID_INSTRUCTION,
@@ -400,7 +395,6 @@ func TestBlobBaseFee(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			ctrl := gomock.NewController(t)
 			ctxt := context{
 				status: RUNNING,
 				params: vm.Parameters{
@@ -412,9 +406,7 @@ func TestBlobBaseFee(t *testing.T) {
 			ctxt.gas = test.gas
 			ctxt.revision = test.revision
 
-			runContext := vm.NewMockRunContext(ctrl)
-			test.setup(runContext)
-			ctxt.context = runContext
+			test.setup(&ctxt.params)
 
 			opBlobBaseFee(&ctxt)
 

@@ -1663,7 +1663,7 @@ func createEffect(s *st.State, callKind vm.CallKind) {
 
 	limit := s.Gas - s.Gas/64
 
-	res := s.CallJournal.Call(callKind, vm.CallParameter{
+	res := s.CallJournal.Call(callKind, vm.CallParameters{
 		Sender: s.CallContext.AccountAddress,
 		Value:  valueU256.Bytes32be(),
 		Gas:    limit,
@@ -2429,7 +2429,7 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 	}
 
 	// Execute the call.
-	res := s.CallJournal.Call(kind, vm.CallParameter{
+	res := s.CallJournal.Call(kind, vm.CallParameters{
 		Sender:      sender,
 		Recipient:   recipient,
 		Value:       value.Bytes32be(),
