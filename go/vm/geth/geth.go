@@ -327,13 +327,11 @@ func (s *stateDbAdapter) GetStorageRoot(addr common.Address) common.Hash {
 }
 
 func (s *stateDbAdapter) GetTransientState(addr common.Address, key common.Hash) common.Hash {
-	// ignored: effect not needed in test environments (todo: implement if needed)
-	panic("not implemented")
+	return common.Hash(s.context.GetTransientStorage(vm.Address(addr), vm.Key(key)))
 }
 
 func (s *stateDbAdapter) SetTransientState(addr common.Address, key, value common.Hash) {
-	// ignored: effect not needed in test environments (todo: implement if needed)
-	panic("not implemented")
+	s.context.SetTransientStorage(vm.Address(addr), vm.Key(key), vm.Word(value))
 }
 
 func (s *stateDbAdapter) SelfDestruct(addr common.Address) {
