@@ -15,21 +15,74 @@ package gen
 import (
 	"testing"
 
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"pgregory.net/rand"
 )
 
-func TestTransient_GenerateNonEmptyStorage(t *testing.T) {
+func TestTransient_UnconstrainedGeneratorCanProduceTransientStorage(t *testing.T) {
 	rnd := rand.New(0)
 	generator := NewTransientGenerator()
-	transient, err := generator.Generate(rnd)
+	assignment := Assignment{}
+	transient, err := generator.Generate(assignment, rnd)
 	if err != nil {
-		t.Fatalf("failed to generate transient storage, err: %v", err)
+		t.Errorf("Unexpected error during generation: %v", err)
 	}
-	if transient.GetStorageKeys() == nil {
-		t.Error("generated transient storage is empty")
+	if transient == nil {
+		t.Errorf("Expected transient storage to be generated, but got nil")
 	}
 	if len(transient.GetStorageKeys()) == 0 {
-		t.Error("generated transient storage is empty")
+		t.Errorf("Expected transient storage to be non-empty, but got empty")
 	}
+}
 
+func TestTransient_SetConstraintIsEnforced(t *testing.T) {
+	v1 := Variable("v1")
+	assignment := Assignment{}
+	assignment[v1] = common.NewU256(42)
+
+	rnd := rand.New(0)
+	generator := NewTransientGenerator()
+	generator.BindSet(v1)
+
+	transient, err := generator.Generate(assignment, rnd)
+	if err != nil {
+		t.Errorf("Expected error during generation, %v", err)
+	}
+	if !transient.IsSet(common.NewU256(42)) {
+		t.Errorf("Expected constraint to be set, but generated state marked as unset")
+	}
+}
+
+func TestTransient_UnSetConstraintIsEnforced(t *testing.T) {
+	v1 := Variable("v1")
+	assignment := Assignment{}
+	assignment[v1] = common.NewU256(42)
+
+	rnd := rand.New(0)
+	generator := NewTransientGenerator()
+	generator.BindNotSet(v1)
+
+	transient, err := generator.Generate(assignment, rnd)
+	if err != nil {
+		t.Errorf("Expected error during generation, %v", err)
+	}
+	if !transient.IsNotSet(common.NewU256(42)) {
+		t.Errorf("Expected constraint to be not set, but generated state marked as set")
+	}
+}
+
+func TestTransient_ConflictingSetUnsetConstraintsAreDetected(t *testing.T) {
+	v1 := Variable("v1")
+	assignment := Assignment{}
+	assignment[v1] = common.NewU256(42)
+
+	rnd := rand.New(0)
+	generator := NewTransientGenerator()
+	generator.BindSet(v1)
+	generator.BindNotSet(v1)
+
+	_, err := generator.Generate(assignment, rnd)
+	if err == nil {
+		t.Errorf("Expected error during generation, but got nil")
+	}
 }

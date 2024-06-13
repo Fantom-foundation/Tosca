@@ -30,6 +30,15 @@ func (t *Transient) SetStorage(key U256, value U256) {
 	}
 }
 
+func (t *Transient) IsSet(key U256) bool {
+	_, ok := t.storage[key]
+	return ok
+}
+
+func (t *Transient) IsNotSet(key U256) bool {
+	return !t.IsSet(key)
+}
+
 func (t *Transient) GetStorage(key U256) U256 {
 	return t.storage[key]
 }

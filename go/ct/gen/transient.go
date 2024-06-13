@@ -13,6 +13,11 @@
 package gen
 
 import (
+	"fmt"
+	"slices"
+	"strings"
+
+	"golang.org/x/exp/maps"
 	"pgregory.net/rand"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -20,25 +25,79 @@ import (
 )
 
 type TransientGenerator struct {
+	set           map[Variable]bool
+	unsatisfiable bool
 }
 
 func NewTransientGenerator() *TransientGenerator {
-	return &TransientGenerator{}
+	return &TransientGenerator{set: map[Variable]bool{}}
 }
 
-func (t *TransientGenerator) Generate(rnd *rand.Rand) (*st.Transient, error) {
+func (t *TransientGenerator) BindSet(key Variable) {
+	if slices.Contains(maps.Keys(t.set), key) {
+		if !t.set[key] {
+			t.unsatisfiable = true
+		}
+	} else {
+		t.set[key] = true
+	}
+}
+
+func (t *TransientGenerator) BindNotSet(key Variable) {
+	if slices.Contains(maps.Keys(t.set), key) {
+		if t.set[key] {
+			t.unsatisfiable = true
+		}
+	} else {
+		t.set[key] = false
+	}
+}
+
+func (t *TransientGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Transient, error) {
+	if t.unsatisfiable {
+		return nil, fmt.Errorf("%w, conflicting set/unset constraints", ErrUnsatisfiable)
+	}
+
+	keysInUse := map[common.U256]bool{}
+	for variable := range t.set {
+		if pos, isBound := assignment[variable]; isBound {
+			keysInUse[pos] = true
+		}
+	}
+
+	getUnusedKey := func() common.U256 {
+		for {
+			key := common.RandU256(rnd)
+			if _, isPresent := keysInUse[key]; !isPresent {
+				keysInUse[key] = true
+				return key
+			}
+		}
+	}
+
 	transient := &st.Transient{}
 
-	// Some entries with keys returned by the parameter samples function
-	transient.SetStorage(common.NewU256(0), common.NewU256(1))
-	transient.SetStorage(common.NewU256(1), common.NewU256(1))
-	transient.SetStorage(common.NewU256(1<<8), common.NewU256(1<<8))
-	transient.SetStorage(common.NewU256(1<<16), common.NewU256(1<<16))
-	transient.SetStorage(common.NewU256(1<<32), common.NewU256(1<<32))
+	// Process set/unset constraints.
+	for variable, set := range t.set {
+		var key common.U256
+		if pos, isBound := assignment[variable]; isBound {
+			key = pos
+		} else {
+			key = getUnusedKey()
+		}
+
+		if set {
+			transient.SetStorage(key, common.RandU256(rnd))
+			assignment[variable] = key
+		} else {
+			transient.DeleteStorage(key)
+			assignment[variable] = key
+		}
+	}
 
 	// Random entries
 	for i := 0; i < rnd.Intn(42); i++ {
-		key := common.RandU256(rnd)
+		key := getUnusedKey()
 		value := common.RandU256(rnd)
 
 		transient.SetStorage(key, value)
@@ -48,12 +107,29 @@ func (t *TransientGenerator) Generate(rnd *rand.Rand) (*st.Transient, error) {
 }
 
 func (t *TransientGenerator) Clone() *TransientGenerator {
-	return &TransientGenerator{}
+	return &TransientGenerator{
+		set:           maps.Clone(t.set),
+		unsatisfiable: t.unsatisfiable,
+	}
 }
 
-func (*TransientGenerator) Restore(*TransientGenerator) {
+func (t *TransientGenerator) Restore(other *TransientGenerator) {
+	if t == other {
+		return
+	}
+	t.set = maps.Clone(other.set)
+	t.unsatisfiable = other.unsatisfiable
 }
 
 func (t *TransientGenerator) String() string {
-	return "{}"
+	var parts []string
+
+	for key, set := range t.set {
+		if set {
+			parts = append(parts, fmt.Sprintf("set(%v)", key))
+		} else {
+			parts = append(parts, fmt.Sprintf("notSet(%v)", key))
+		}
+	}
+	return "{" + strings.Join(parts, ",") + "}"
 }

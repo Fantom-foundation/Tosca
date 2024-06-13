@@ -577,6 +577,100 @@ func (c *storageConfiguration) String() string {
 }
 
 ////////////////////////////////////////////////////////////
+// Is Transient Storage Set
+
+type isTransientSet struct {
+	key BindableExpression[U256]
+}
+
+func IsTransientSet(key BindableExpression[U256]) Condition {
+	return &isTransientSet{key}
+}
+
+func (c *isTransientSet) Check(s *st.State) (bool, error) {
+	key, err := c.key.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return s.Transient.IsSet(key), nil
+}
+
+func (c *isTransientSet) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+	generator.BindIsTransientSet(key)
+}
+
+func (c *isTransientSet) GetTestValues() []TestValue {
+	property := Property(c.String())
+	domain := boolDomain{}
+	restrict := func(generator *gen.StateGenerator, isSet bool) {
+		key := c.key.GetVariable()
+		c.key.BindTo(generator)
+		if isSet {
+			generator.BindIsTransientSet(key)
+		} else {
+			generator.BindIsTransientNotSet(key)
+		}
+	}
+	return []TestValue{
+		NewTestValue(property, domain, true, restrict),
+		NewTestValue(property, domain, false, restrict),
+	}
+}
+
+func (c *isTransientSet) String() string {
+	return fmt.Sprintf("set(%v)", c.key)
+}
+
+////////////////////////////////////////////////////////////
+// Is Transient Storage Not Set
+
+type isTransientNotSet struct {
+	key BindableExpression[U256]
+}
+
+func IsTransientNotSet(key BindableExpression[U256]) Condition {
+	return &isTransientNotSet{key}
+}
+
+func (c *isTransientNotSet) Check(s *st.State) (bool, error) {
+	key, err := c.key.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return s.Transient.IsNotSet(key), nil
+}
+
+func (c *isTransientNotSet) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+	generator.BindIsTransientNotSet(key)
+}
+
+func (c *isTransientNotSet) GetTestValues() []TestValue {
+	property := Property(c.String())
+	domain := boolDomain{}
+	restrict := func(generator *gen.StateGenerator, isNotSet bool) {
+		key := c.key.GetVariable()
+		c.key.BindTo(generator)
+		if isNotSet {
+			generator.BindIsTransientNotSet(key)
+		} else {
+			generator.BindIsTransientSet(key)
+		}
+	}
+	return []TestValue{
+		NewTestValue(property, domain, true, restrict),
+		NewTestValue(property, domain, false, restrict),
+	}
+}
+
+func (c *isTransientNotSet) String() string {
+	return fmt.Sprintf("not set(%v)", c.key)
+}
+
+////////////////////////////////////////////////////////////
 // Is Address Warm
 
 type isAddressWarm struct {

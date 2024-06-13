@@ -729,6 +729,26 @@ func getAllRules() []Rule {
 		},
 		conditions: []Condition{
 			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			IsTransientSet(Param(0)),
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			value := s.Transient.GetStorage(key)
+			s.Stack.Push(value)
+		},
+	})...)
+
+	rules = append(rules, rulesFor(instruction{
+		op:        TLOAD,
+		staticGas: 100,
+		pops:      1,
+		pushes:    1,
+		parameters: []Parameter{
+			StorageAccessKeyParameter{},
+		},
+		conditions: []Condition{
+			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			IsTransientNotSet(Param(0)),
 		},
 		effect: func(s *st.State) {
 			key := s.Stack.Pop()
@@ -742,7 +762,7 @@ func getAllRules() []Rule {
 		Condition: And(
 			RevisionBounds(R07_Istanbul, R11_Paris),
 			Eq(Status(), st.Running),
-			Eq(Op(Pc()), TSTORE),
+			Eq(Op(Pc()), TLOAD),
 			Ge(Gas(), 100),
 			Lt(StackSize(), st.MaxStackSize-1),
 			Ge(StackSize(), 1),
@@ -764,6 +784,28 @@ func getAllRules() []Rule {
 		conditions: []Condition{
 			RevisionBounds(R13_Cancun, NewestSupportedRevision),
 			Eq(ReadOnly(), false),
+			IsTransientSet(Param(0)),
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			value := s.Stack.Pop()
+			s.Transient.SetStorage(key, value)
+		},
+	})...)
+
+	rules = append(rules, rulesFor(instruction{
+		op:        TSTORE,
+		staticGas: 100,
+		pops:      2,
+		pushes:    0,
+		parameters: []Parameter{
+			StorageAccessKeyParameter{},
+			NumericParameter{},
+		},
+		conditions: []Condition{
+			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			Eq(ReadOnly(), false),
+			IsTransientNotSet(Param(0)),
 		},
 		effect: func(s *st.State) {
 			key := s.Stack.Pop()

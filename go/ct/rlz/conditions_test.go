@@ -426,3 +426,17 @@ func TestCondition_InOutOfRangeGetTestValues(t *testing.T) {
 		})
 	}
 }
+
+func TestCondition_CheckTransientUnsatisfiable(t *testing.T) {
+	conditionSet := IsTransientSet(Param(0))
+	conditionUnset := IsTransientNotSet(Param(0))
+
+	gen := gen.NewStateGenerator()
+	rnd := rand.New(0)
+	conditionSet.Restrict(gen)
+	conditionUnset.Restrict(gen)
+	_, err := gen.Generate(rnd)
+	if err == nil {
+		t.Errorf("Expected unsatisfiable condition, but got nil")
+	}
+}

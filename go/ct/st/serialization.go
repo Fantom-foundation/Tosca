@@ -66,6 +66,7 @@ type stateSerializable struct {
 	Stack                 []U256
 	Memory                Bytes
 	Storage               *storageSerializable
+	Transient             *transientSerializable
 	Accounts              *accountsSerializable
 	Logs                  *logsSerializable
 	CallContext           CallContext
@@ -85,6 +86,11 @@ type storageSerializable struct {
 	Current  map[U256]U256
 	Original map[U256]U256
 	Warm     map[U256]bool
+}
+
+// transientSerializable is a serializable representation of the Transient struct.
+type transientSerializable struct {
+	Storage map[U256]U256
 }
 
 // accountsSerializable is a serializable representation of the Accounts struct.
@@ -146,6 +152,7 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		Stack:                 slices.Clone(state.Stack.stack),
 		Memory:                NewBytes(state.Memory.mem),
 		Storage:               newStorageSerializable(state.Storage),
+		Transient:             newTransientSerializable(state.Transient),
 		Accounts:              newAccountsSerializable(state.Accounts),
 		Logs:                  newLogsSerializable(state.Logs),
 		CallContext:           state.CallContext,
@@ -204,6 +211,14 @@ func (s *stateSerializable) deserialize() *State {
 		state.Storage = storageBuilder.Build()
 	}
 
+	if s.Transient != nil {
+		transient := &Transient{}
+		for key, val := range s.Transient.Storage {
+			transient.SetStorage(key, val)
+		}
+		state.Transient = transient
+	}
+
 	if s.Accounts != nil {
 		accountsBuilder := NewAccountsBuilder()
 
@@ -253,6 +268,13 @@ func newStorageSerializable(storage *Storage) *storageSerializable {
 		Current:  maps.Clone(storage.current),
 		Original: maps.Clone(storage.original),
 		Warm:     maps.Clone(storage.warm),
+	}
+}
+
+// newTransientSerializable creates a new transientSerializable instance from the given Transient instance.
+func newTransientSerializable(transient *Transient) *transientSerializable {
+	return &transientSerializable{
+		Storage: maps.Clone(transient.storage),
 	}
 }
 
