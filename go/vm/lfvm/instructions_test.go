@@ -287,6 +287,87 @@ func TestCreateChecksBalance(t *testing.T) {
 	}
 }
 
+func TestBlobHash(t *testing.T) {
+
+	hash := vm.Hash{1}
+
+	tests := map[string]struct {
+		setup    func(*vm.MockRunContext, *Stack)
+		gas      vm.Gas
+		revision vm.Revision
+		status   Status
+		want     vm.Hash
+	}{
+		"regular": {
+			setup: func(runContext *vm.MockRunContext, stack *Stack) {
+				stack.push(uint256.NewInt(0))
+				runContext.EXPECT().GetTransactionContext().Return(vm.TransactionContext{BlobHashes: []vm.Hash{hash}})
+			},
+			gas:      2,
+			revision: vm.R13_Cancun,
+			status:   RUNNING,
+			want:     hash,
+		},
+		"old-revision": {
+			setup:    func(runContext *vm.MockRunContext, stack *Stack) {},
+			gas:      2,
+			revision: vm.R12_Shanghai,
+			status:   INVALID_INSTRUCTION,
+			want:     vm.Hash{},
+		},
+		"no-hashes": {
+			setup: func(runContext *vm.MockRunContext, stack *Stack) {
+				stack.push(uint256.NewInt(0))
+				runContext.EXPECT().GetTransactionContext().Return(vm.TransactionContext{})
+			},
+			gas:      2,
+			revision: vm.R13_Cancun,
+			status:   RUNNING,
+			want:     vm.Hash{},
+		},
+		"target-non-existent": {
+			setup: func(runContext *vm.MockRunContext, stack *Stack) {
+				stack.push(uint256.NewInt(1))
+				runContext.EXPECT().GetTransactionContext().Return(vm.TransactionContext{BlobHashes: []vm.Hash{}})
+			},
+			gas:      2,
+			revision: vm.R13_Cancun,
+			status:   RUNNING,
+			want:     vm.Hash{},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			ctrl := gomock.NewController(t)
+			ctxt := context{
+				status: RUNNING,
+				params: vm.Parameters{
+					Recipient: vm.Address{1},
+				},
+				stack:  NewStack(),
+				memory: NewMemory(),
+			}
+			ctxt.gas = test.gas
+			ctxt.revision = test.revision
+
+			runContext := vm.NewMockRunContext(ctrl)
+			test.setup(runContext, ctxt.stack)
+			ctxt.context = runContext
+
+			opBlobHash(&ctxt)
+
+			if ctxt.status != test.status {
+				t.Fatalf("unexpected status, wanted %v, got %v", test.status, ctxt.status)
+			}
+			if want, got := test.want, ctxt.stack.data[0]; vm.Hash(got.Bytes32()) != want && ctxt.status == RUNNING {
+				t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
+			}
+		})
+	}
+}
+
 func TestBlobBaseFee(t *testing.T) {
 
 	blobBaseFeeValue := vm.Value{1}

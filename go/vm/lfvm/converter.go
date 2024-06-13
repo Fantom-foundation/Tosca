@@ -518,6 +518,7 @@ func createOpToOpMap() []OpCode {
 	res[evm.CHAINID] = CHAINID
 	res[evm.SELFBALANCE] = SELFBALANCE
 	res[evm.BASEFEE] = BASEFEE
+	res[evm.BLOBHASH] = BLOBHASH
 	res[evm.BLOBBASEFEE] = BLOBBASEFEE
 
 	// Log instructions
