@@ -4449,6 +4449,84 @@ TEST(InterpreterTest, JUMPDEST_OutOfGas) {
 }
 
 ///////////////////////////////////////////////////////////
+// TLOAD
+TEST(InterpreterTest, TLOAD) {
+  MockHost host;
+  EXPECT_CALL(host, get_transient_storage(evmc::address(0x42), evmc::bytes32(16)))  //
+      .Times(1)
+      .WillOnce(Return(evmc::bytes32(32)));
+
+  RunInterpreterTest({
+      .code = {op::TLOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 0,
+      .stack_before = {16},
+      .stack_after = {32},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, TLOAD_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::TLOAD},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 99,
+      .stack_before = {0},
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, TLOAD_PreCancun) {
+  RunInterpreterTest({
+      .code = {op::TLOAD},
+      .state_after = RunState::kErrorOpcode,
+      .gas_before = 100,
+      .revision = EVMC_PARIS,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// TSTORE
+TEST(InterpreterTest, TSTORE) {
+  MockHost host;
+  EXPECT_CALL(host, set_transient_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
+      .Times(1);
+
+  RunInterpreterTest({
+      .code = {op::TSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 0,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, TSTORE_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::TSTORE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 99,
+      .stack_before = {0, 0},
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, TSTORE_PreCancun) {
+  RunInterpreterTest({
+      .code = {op::TSTORE},
+      .state_after = RunState::kErrorOpcode,
+      .gas_before = 100,
+      .revision = EVMC_PARIS,
+  });
+}
+
+///////////////////////////////////////////////////////////
 // PUSH0
 TEST(InterpreterTest, PUSH0) {
   RunInterpreterTest({
