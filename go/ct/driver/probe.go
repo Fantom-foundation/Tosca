@@ -33,7 +33,7 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-var ProbeCmd = cli.Command{
+var ProbeCmd = cliUtils.AddCommonFlags(cli.Command{
 	Action:    doProbe,
 	Name:      "probe",
 	Usage:     "Run random tests on an EVM implementation",
@@ -47,7 +47,7 @@ var ProbeCmd = cli.Command{
 			Value: 30,
 		},
 	},
-}
+})
 
 func doProbe(context *cli.Context) error {
 	var evmIdentifier string
@@ -68,13 +68,13 @@ func doProbe(context *cli.Context) error {
 	seed := cliUtils.SeedFlag.Fetch(context)
 
 	timeout := time.Duration(context.Int("timeout")) * time.Minute
-	hasTimeouted := false
+	hasTimeouted := atomic.Bool{}
+	hasTimeouted.Store(false)
 
 	// The constraints to be placed on generated states.
 	condition := rlz.And(
 		rlz.IsCode(rlz.Pc()),
-		// update to cancun when all necessary changed have been implemented
-		rlz.RevisionBounds(common.MinRevision, common.R12_Shanghai),
+		rlz.RevisionBounds(common.MinRevision, common.NewestFullySupportedRevision),
 	)
 
 	fmt.Printf("Start random tests on %s using %d jobs, seed %d, timeout %v and constraints %s ...\n", evmIdentifier, jobCount, seed, timeout, condition)
@@ -86,14 +86,16 @@ func doProbe(context *cli.Context) error {
 	progressGroup.Add(1)
 	go func() {
 		defer progressGroup.Done()
-		start := time.Now()
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		startTime := time.Now()
 		last := uint64(0)
 		for {
 			select {
 			case <-stopProgressPrinter:
 				return
-			case <-time.After(5 * time.Second):
-				relativeTime := time.Since(start)
+			case curTime := <-ticker.C:
+				relativeTime := curTime.Sub(startTime)
 				current := counter.Load()
 				diff := current - last
 				last = current
@@ -105,7 +107,7 @@ func doProbe(context *cli.Context) error {
 				)
 				if relativeTime > timeout {
 					fmt.Printf("Timeout reached, stopping the probing\n")
-					hasTimeouted = true
+					hasTimeouted.Store(true)
 					return
 				}
 			}
@@ -123,7 +125,7 @@ func doProbe(context *cli.Context) error {
 			generator := gen.NewStateGenerator()
 			condition.Restrict(generator)
 
-			for issuesCollector.NumIssues() == 0 && !hasTimeouted {
+			for issuesCollector.NumIssues() == 0 && !hasTimeouted.Load() {
 				state, err := generator.Generate(rnd)
 				if err != nil {
 					issuesCollector.AddIssue(nil, err)
