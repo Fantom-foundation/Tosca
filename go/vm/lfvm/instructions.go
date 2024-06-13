@@ -310,6 +310,29 @@ func opSload(c *context) {
 	top.SetBytes32(value[:])
 }
 
+func opTstore(c *context) {
+	if !c.isCancun() {
+		c.status = INVALID_INSTRUCTION
+		return
+	}
+
+	key := vm.Key(c.stack.pop().Bytes32())
+	value := vm.Word(c.stack.pop().Bytes32())
+	c.context.SetTransientStorage(c.params.Recipient, key, value)
+}
+
+func opTload(c *context) {
+	if !c.isCancun() {
+		c.status = INVALID_INSTRUCTION
+		return
+	}
+
+	top := c.stack.peek()
+	key := vm.Key(top.Bytes32())
+	value := c.context.GetTransientStorage(c.params.Recipient, key)
+	top.SetBytes32(value[:])
+}
+
 func opCaller(c *context) {
 	c.stack.pushEmpty().SetBytes20(c.params.Sender[:])
 }

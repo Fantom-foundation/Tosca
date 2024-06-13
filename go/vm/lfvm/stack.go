@@ -149,7 +149,7 @@ func getStaticStackInternal(op OpCode) InstructionStack {
 	case ADDMOD, MULMOD, SWAP2_SWAP1_POP_JUMP:
 		return newInstructionStack(3, 0, 1)
 	case ISZERO, NOT, BALANCE, CALLDATALOAD, EXTCODESIZE,
-		BLOCKHASH, MLOAD, SLOAD, EXTCODEHASH, BLOBHASH,
+		BLOCKHASH, MLOAD, SLOAD, TLOAD, EXTCODEHASH, BLOBHASH,
 		PUSH1_SHL:
 		return newInstructionStack(1, 0, 1)
 	case PUSH0, MSIZE, ADDRESS, ORIGIN, CALLER, CALLVALUE, CALLDATASIZE,
@@ -162,7 +162,7 @@ func getStaticStackInternal(op OpCode) InstructionStack {
 		SWAP2_POP, PUSH1_ADD, PUSH2_JUMPI,
 		ISZERO_PUSH2_JUMPI:
 		return newInstructionStack(1, 0, 0)
-	case MSTORE, MSTORE8, SSTORE, JUMPI, RETURN, REVERT,
+	case MSTORE, MSTORE8, SSTORE, TSTORE, JUMPI, RETURN, REVERT,
 		POP_POP, POP_JUMP:
 		return newInstructionStack(2, 0, 0)
 	case CALLDATACOPY, CODECOPY, RETURNDATACOPY, MCOPY:

@@ -669,3 +669,70 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 		}
 	}
 }
+
+func TestTransientStorageOperations(t *testing.T) {
+	tests := map[string]struct {
+		op       func(*context)
+		setup    func(*vm.MockRunContext)
+		stackPtr int
+		revision vm.Revision
+		status   Status
+	}{
+		"tload-regular": {
+			op: opTload,
+			setup: func(runContext *vm.MockRunContext) {
+				runContext.EXPECT().GetTransientStorage(gomock.Any(), gomock.Any()).Return(vm.Word{})
+			},
+			stackPtr: 1,
+			revision: vm.R13_Cancun,
+			status:   RUNNING,
+		},
+		"tload-old-revision": {
+			op:       opTload,
+			setup:    func(runContext *vm.MockRunContext) {},
+			stackPtr: 1,
+			revision: vm.R11_Paris,
+			status:   INVALID_INSTRUCTION,
+		},
+		"tstore-regular": {
+			op: opTstore,
+			setup: func(runContext *vm.MockRunContext) {
+				runContext.EXPECT().SetTransientStorage(gomock.Any(), gomock.Any(), gomock.Any())
+			},
+			stackPtr: 2,
+			revision: vm.R13_Cancun,
+			status:   RUNNING,
+		},
+		"tstore-old-revision": {
+			op:       opTstore,
+			setup:    func(runContext *vm.MockRunContext) {},
+			stackPtr: 2,
+			revision: vm.R11_Paris,
+			status:   INVALID_INSTRUCTION,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			ctxt := context{
+				status: RUNNING,
+				params: vm.Parameters{
+					Recipient: vm.Address{1},
+				},
+				stack:    NewStack(),
+				revision: test.revision,
+			}
+			runContext := vm.NewMockRunContext(ctrl)
+			test.setup(runContext)
+			ctxt.context = runContext
+			ctxt.stack.stack_ptr = test.stackPtr
+
+			test.op(&ctxt)
+
+			if ctxt.status != test.status {
+				t.Errorf("unexpected status, wanted %v, got %v", test.status, ctxt.status)
+			}
+		})
+	}
+}

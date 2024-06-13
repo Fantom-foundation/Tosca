@@ -173,6 +173,10 @@ func getStaticGasPriceInternal(op OpCode) vm.Gas {
 		return 1
 	case JUMP_TO:
 		return 0
+	case TLOAD:
+		return 100
+	case TSTORE:
+		return 100
 	case PC:
 		return 2
 	case MSIZE:

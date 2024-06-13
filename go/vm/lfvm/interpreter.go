@@ -659,6 +659,10 @@ func steps(c *context, one_step_only bool) {
 			opSload(c)
 		case SSTORE:
 			opSstore(c)
+		case TLOAD:
+			opTload(c)
+		case TSTORE:
+			opTstore(c)
 		case CODESIZE:
 			opCodeSize(c)
 		case CODECOPY:
@@ -793,7 +797,8 @@ func isWriteInstruction(opCode OpCode) bool {
 		1<<(LOG4-SSTORE) |
 		1<<(CREATE-SSTORE) |
 		1<<(CREATE2-SSTORE) |
-		1<<(SELFDESTRUCT-SSTORE)
+		1<<(SELFDESTRUCT-SSTORE) |
+		1<<(TSTORE-SSTORE)
 
 	return SSTORE <= opCode && mask&(1<<(opCode-SSTORE)) != 0
 }
