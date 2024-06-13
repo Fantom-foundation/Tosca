@@ -31,7 +31,6 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/vm"
 	"github.com/Fantom-foundation/Tosca/go/vm/evmzero"
-	"github.com/Fantom-foundation/Tosca/go/vm/geth"
 	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 	"github.com/dsnet/golib/unitconv"
 	"github.com/urfave/cli/v2"
@@ -75,8 +74,8 @@ var RunCmd = cli.Command{
 }
 
 var evms = map[string]ct.Evm{
-	"lfvm":    lfvm.NewConformanceTestingTarget(),
-	"geth":    geth.NewConformanceTestingTarget(),
+	"lfvm": lfvm.NewConformanceTestingTarget(),
+	// "geth":    geth.NewConformanceTestingTarget(),
 	"evmzero": evmzero.NewConformanceTestingTarget(),
 }
 
