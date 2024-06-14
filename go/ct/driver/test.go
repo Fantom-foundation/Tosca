@@ -47,7 +47,7 @@ func doTest(context *cli.Context) error {
 	seed := cliUtils.SeedFlag.Fetch(context)
 	fullMode := cliUtils.FullModeFlag.Fetch(context)
 
-	issuesCollector := issuesCollector{}
+	issuesCollector := cliUtils.IssuesCollector{}
 	var skippedCount atomic.Int32
 
 	printIssueCounts := func(relativeTime time.Duration, rate float64, current int64) {
@@ -90,14 +90,14 @@ func doTest(context *cli.Context) error {
 		fmt.Printf("Number of skipped tests: %d", skippedCount.Load())
 	}
 
-	if len(issuesCollector.issues) == 0 {
+	if issuesCollector.NumIssues() == 0 {
 		fmt.Printf("All tests passed successfully!\n")
 		return nil
 	}
 
-	for _, issue := range issuesCollector.issues {
+	for _, issue := range issuesCollector.GetIssues() {
 		fmt.Printf("----------------------------\n")
-		fmt.Printf("%s\n", issue.err)
+		fmt.Printf("%s\n", issue.Error())
 	}
-	return fmt.Errorf("failed to pass %d test cases", len(issuesCollector.issues))
+	return fmt.Errorf("failed to pass %d test cases", issuesCollector.NumIssues())
 }

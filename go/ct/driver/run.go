@@ -16,10 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 	"regexp"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -85,7 +82,7 @@ func doRun(context *cli.Context) error {
 		return fmt.Errorf("invalid EVM identifier, use one of: %v", maps.Keys(evms))
 	}
 
-	issuesCollector := issuesCollector{}
+	issuesCollector := cliUtils.IssuesCollector{}
 	var skippedCount atomic.Int32
 	var numUnsupportedTests atomic.Int32
 
@@ -130,7 +127,7 @@ func doRun(context *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("error generating States: %w", err)
 	}
-	issues := issuesCollector.issues
+	issues := issuesCollector.GetIssues()
 
 	// Summarize the result.
 	if skippedCount.Load() > 0 {
@@ -146,26 +143,9 @@ func doRun(context *cli.Context) error {
 		return nil
 	}
 
-	if len(issues) > 0 {
-		jsonDir, err := os.MkdirTemp("", "ct_issues_*")
-		if err != nil {
-			return fmt.Errorf("failed to create output directory for %d issues", len(issues))
-		}
-		for i, issue := range issuesCollector.issues {
-			fmt.Printf("----------------------------\n")
-			fmt.Printf("%s\n", issue.err)
-
-			// If there is an input state for this issue, it is exported into a file
-			// to aid its debugging using the regression test infrastructure.
-			if issue.input != nil {
-				path := filepath.Join(jsonDir, fmt.Sprintf("issue_%06d.json", i))
-				if err := st.ExportStateJSON(issue.input, path); err == nil {
-					fmt.Printf("Input state dumped to %s\n", path)
-				} else {
-					fmt.Printf("failed to dump state: %v\n", err)
-				}
-			}
-		}
+	err = issuesCollector.ExportIssues()
+	if err != nil {
+		return err
 	}
 
 	return fmt.Errorf("failed to pass %d test cases", len(issues))
@@ -215,30 +195,4 @@ func formatDiffForUser(input, result, expected *st.State, ruleName string) strin
 		res += fmt.Sprintf("\t%s\n", diff)
 	}
 	return res
-}
-
-type issue struct {
-	input *st.State
-	err   error
-}
-
-type issuesCollector struct {
-	issues []issue
-	mu     sync.Mutex
-}
-
-func (c *issuesCollector) AddIssue(state *st.State, err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	var clone *st.State
-	if state != nil {
-		clone = state.Clone()
-	}
-	c.issues = append(c.issues, issue{clone, err})
-}
-
-func (c *issuesCollector) NumIssues() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return len(c.issues)
 }
