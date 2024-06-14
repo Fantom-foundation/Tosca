@@ -25,6 +25,10 @@ func TestTransactionContext_Generate(t *testing.T) {
 		t.Errorf("Error generating transaction context: %v", err)
 	}
 
+	if txCtx.BlobHashes == nil {
+		t.Errorf("Generated blob hashes has default value.")
+	}
+
 	if txCtx.OriginAddress == (vm.Address{}) {
 		t.Errorf("Generated origin address has default value.")
 	}

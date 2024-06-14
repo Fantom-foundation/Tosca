@@ -15,6 +15,7 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 type TransactionContextGenerator struct {
@@ -24,11 +25,18 @@ func NewTransactionContextGenerator() *TransactionContextGenerator {
 	return &TransactionContextGenerator{}
 }
 
-func (*TransactionContextGenerator) Generate(rnd *rand.Rand) (st.TransactionContext, error) {
+func (*TransactionContextGenerator) Generate(rnd *rand.Rand) (*st.TransactionContext, error) {
 	originAddress := common.RandomAddress(rnd)
 
-	return st.TransactionContext{
+	blobHashes := []vm.Hash{}
+	blobHashesCount := rnd.Intn(9)
+	for i := 0; i < blobHashesCount; i++ {
+		blobHashes = append(blobHashes, common.GetRandomHash(rnd))
+	}
+
+	return &st.TransactionContext{
 		OriginAddress: originAddress,
+		BlobHashes:    blobHashes,
 	}, nil
 }
 
