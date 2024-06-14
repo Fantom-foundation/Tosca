@@ -246,6 +246,8 @@ func (b *BlockContextGenerator) Restore(o *BlockContextGenerator) {
 	b.unsatisfiable = o.unsatisfiable
 	if o.blockNumberSolver != nil {
 		b.blockNumberSolver = o.blockNumberSolver.Clone()
+	} else {
+		b.blockNumberSolver = nil
 	}
 	b.rangeConstraints = maps.Clone(o.rangeConstraints)
 	b.valueConstraint = maps.Clone(o.valueConstraint)

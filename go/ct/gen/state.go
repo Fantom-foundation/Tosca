@@ -494,7 +494,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.pcVariableConstraints = slices.Clone(other.pcVariableConstraints)
 		g.gasConstraints.Restore(other.gasConstraints)
 		g.gasRefundConstraints.Restore(other.gasRefundConstraints)
-		g.variableBindings = slices.Clone(g.variableBindings)
+		g.variableBindings = slices.Clone(other.variableBindings)
 		g.codeGen.Restore(other.codeGen)
 		g.stackGen.Restore(other.stackGen)
 		g.memoryGen.Restore(other.memoryGen)
@@ -504,6 +504,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.callJournalGen.Restore(other.callJournalGen)
 		g.blockContextGen.Restore(other.blockContextGen)
 		g.hasSelfDestructedGen.Restore(other.hasSelfDestructedGen)
+		g.transactionContextGen.Restore(other.transactionContextGen)
 	}
 }
 

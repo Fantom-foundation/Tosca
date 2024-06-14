@@ -368,21 +368,48 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 }
 
 func TestStateGenerator_CloneCanBeUsedToResetBuilder(t *testing.T) {
-	gen := NewStateGenerator()
-	gen.SetPc(4)
 
-	backup := gen.Clone()
-
-	gen.SetGas(42)
-	gen.SetGasRefund(17)
-	if base, modified := backup.String(), gen.String(); base == modified {
-		t.Errorf("clones are not independent")
+	tests := map[string]struct {
+		modify func(*StateGenerator)
+	}{
+		"status":       {modify: func(gen *StateGenerator) { gen.SetStatus(st.Reverted) }},
+		"read-only":    {modify: func(gen *StateGenerator) { gen.SetReadOnly(false) }},
+		"pc":           {modify: func(gen *StateGenerator) { gen.SetPc(4) }},
+		"pc-bind":      {modify: func(gen *StateGenerator) { gen.BindPc("PC") }},
+		"gas":          {modify: func(gen *StateGenerator) { gen.SetGas(5) }},
+		"gasRefund":    {modify: func(gen *StateGenerator) { gen.SetGasRefund(6) }},
+		"bind-value":   {modify: func(gen *StateGenerator) { gen.BindValue(Variable("x"), NewU256(12)) }},
+		"code":         {modify: func(gen *StateGenerator) { gen.SetCodeOperation(20, ADD) }},
+		"stack":        {modify: func(gen *StateGenerator) { gen.AddStackSizeLowerBound(2); gen.AddStackSizeUpperBound(200) }},
+		"storage":      {modify: func(gen *StateGenerator) { gen.BindIsStorageWarm("warmStorage") }},
+		"accounts":     {modify: func(gen *StateGenerator) { gen.BindToWarmAddress("warmAccount") }},
+		"revision":     {modify: func(gen *StateGenerator) { gen.SetRevision(R10_London) }},
+		"selfdestruct": {modify: func(gen *StateGenerator) { gen.MustBeSelfDestructed() }},
+		// the following fields can not be tested as they do not have any internal state to be compared
+		// "memory": {setup: func(gen *StateGenerator) { gen.memoryGen = nil }},
+		// "call": {setup: func(gen *StateGenerator) { gen.callContextGen = &CallContextGenerator{} }},
+		// "call-journal": {setup: func(gen *StateGenerator) { gen.callJournalGen = &CallJournalGenerator{} }},
+		// "transaction": {setup: func(gen *StateGenerator) { gen.transactionContextGen = &TransactionContextGenerator{} }},
 	}
 
-	gen.Restore(backup)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
 
-	if want, got := backup.String(), gen.String(); want != got {
-		t.Errorf("restore did not work, wanted %s, got %s", want, got)
+			gen := NewStateGenerator()
+			backup := gen.Clone()
+
+			test.modify(gen)
+			if base, modified := backup.String(), gen.String(); base == modified {
+				t.Errorf("clones are not independent")
+			}
+
+			gen.Restore(backup)
+
+			if want, got := backup.String(), gen.String(); want != got {
+				t.Errorf("restore did not work, wanted %s, got %s", want, got)
+			}
+
+		})
 	}
 }
 
