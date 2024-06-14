@@ -477,7 +477,6 @@ func TestCondition_BlobHashes_Restrict(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			for i := 0; i < 1000; i++ {
 				gen := gen.NewStateGenerator()
 				test.condition.Restrict(gen)
