@@ -318,6 +318,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone2.BindTransientStorageToZero("x")
 	clone2.BindValue(Variable("y"), NewU256(14))
 	clone2.MustNotBeSelfDestructed()
+	clone2.PresentBlobHashIndex(Variable("z"))
 
 	checkPrint := func(clone *StateGenerator, want []string) {
 		t.Helper()
@@ -347,7 +348,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"callJournal={}",
 		"blockContext=2000≤BlockNumber≤2999",
 		"selfdestruct={mustBeSelfDestructed}",
-		"transactionContext={}",
+		"transactionContext={true}",
 	})
 
 	checkPrint(clone2, []string{
@@ -366,7 +367,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"callJournal={}",
 		"blockContext=1000≤BlockNumber≤1999",
 		"selfdestruct={mustNotBeSelfDestructed}",
-		"transactionContext={}",
+		"transactionContext={$z < len(blobHashes)}",
 	})
 }
 
