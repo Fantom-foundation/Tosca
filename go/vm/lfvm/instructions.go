@@ -1495,17 +1495,18 @@ func opLog(c *context, size int) {
 		topics[i] = addr.Bytes32()
 	}
 
-	// charge for log size
-	if !c.UseGas(vm.Gas(8 * mSize.Uint64())) {
-		return
-	}
-
 	// Expand memory if needed
 	start := mStart.Uint64()
 	log_size := mSize.Uint64()
 	if c.memory.EnsureCapacity(start, log_size, c) != nil {
 		return
 	}
+
+	// charge for log size
+	if !c.UseGas(vm.Gas(8 * log_size)) {
+		return
+	}
+
 	d := c.memory.GetSlice(start, log_size)
 
 	// make a copy of the data to disconnect from memory

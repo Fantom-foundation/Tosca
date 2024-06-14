@@ -285,6 +285,69 @@ func TestCreateChecksBalance(t *testing.T) {
 	}
 }
 
+func TestLogOpSizeOverflow(t *testing.T) {
+
+	originalBugValue := uint256.MustFromHex("0x3030303030303030")
+	maxUint64 := uint256.NewInt(math.MaxUint64)
+	zero := uint256.NewInt(0)
+
+	tests := map[string]struct {
+		logn     int
+		size     *uint256.Int
+		logCalls int
+		want     Status
+	}{
+		"log0_zero":     {logn: 0, size: zero, logCalls: 1, want: RUNNING},
+		"log0_max":      {logn: 0, size: maxUint64, logCalls: 1, want: RUNNING},
+		"log0_overflow": {logn: 0, size: originalBugValue, logCalls: 0, want: ERROR},
+		"log1_zero":     {logn: 1, size: zero, logCalls: 1, want: RUNNING},
+		"log1_max":      {logn: 1, size: maxUint64, logCalls: 1, want: RUNNING},
+		"log1_overflow": {logn: 1, size: originalBugValue, logCalls: 0, want: ERROR},
+		"log2_zero":     {logn: 2, size: zero, logCalls: 1, want: RUNNING},
+		"log2_overflow": {logn: 2, size: originalBugValue, logCalls: 0, want: ERROR},
+		"log2_max":      {logn: 2, size: maxUint64, logCalls: 1, want: RUNNING},
+		"log3_zero":     {logn: 3, size: zero, logCalls: 1, want: RUNNING},
+		"log3_overflow": {logn: 3, size: originalBugValue, logCalls: 0, want: ERROR},
+		"log3_max":      {logn: 3, size: maxUint64, logCalls: 1, want: RUNNING},
+		"log4_zero":     {logn: 4, size: zero, logCalls: 1, want: RUNNING},
+		"log4_overflow": {logn: 4, size: originalBugValue, logCalls: 0, want: ERROR},
+		"log4_max":      {logn: 4, size: maxUint64, logCalls: 1, want: RUNNING},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			ctrl := gomock.NewController(t)
+			runContext := vm.NewMockRunContext(ctrl)
+			runContext.EXPECT().EmitLog(
+				gomock.Any(),
+				gomock.Any(),
+				gomock.Any()).Times(test.logCalls)
+
+			stack := NewStack()
+			for i := 0; i < test.logn; i++ {
+				stack.push(uint256.NewInt(0))
+			}
+			stack.push(test.size)
+			stack.push(uint256.NewInt(0))
+
+			ctxt := context{
+				status:  RUNNING,
+				gas:     392,
+				context: runContext,
+				stack:   stack,
+				memory:  NewMemory(),
+			}
+
+			opLog(&ctxt, test.logn)
+
+			if ctxt.status != test.want {
+				t.Fatalf("unexpected status, wanted %v, got %v", test.want, ctxt.status)
+			}
+		})
+	}
+}
+
 func TestBlobHash(t *testing.T) {
 
 	hash := vm.Hash{1}
