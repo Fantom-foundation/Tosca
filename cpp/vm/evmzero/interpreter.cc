@@ -1328,6 +1328,41 @@ struct Impl<OpCode::JUMPDEST> {
   static OpResult Run() noexcept { return {}; }
 };
 
+template <>
+struct Impl<OpCode::TLOAD> {
+  constexpr static OpInfo kInfo{
+      .pops = 1,
+      .pushes = 1,
+      .static_gas = 100,
+      .introduced_in = EVMC_CANCUN,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    const uint256_t key = top[0];
+    evmc::bytes32 value = ctx.host->get_transient_storage(ctx.message->recipient, ToEvmcBytes(key));
+    top[0] = ToUint256(value);
+    return {};
+  }
+};
+
+template <>
+struct Impl<OpCode::TSTORE> {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 0,
+      .static_gas = 100,
+      .disallowed_in_static_call = true,
+      .introduced_in = EVMC_CANCUN,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    const uint256_t key = top[0];
+    const uint256_t value = top[1];
+    ctx.host->set_transient_storage(ctx.message->recipient, ToEvmcBytes(key), ToEvmcBytes(value));
+    return {};
+  }
+};
+
 template <uint64_t N>
 struct PushImpl {
   constexpr static OpInfo kInfo{
