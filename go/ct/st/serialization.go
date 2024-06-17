@@ -66,7 +66,7 @@ type stateSerializable struct {
 	Stack                 []U256
 	Memory                Bytes
 	Storage               *storageSerializable
-	Transient             *transientSerializable
+	TransientStorage      *transientSerializable
 	Accounts              *accountsSerializable
 	Logs                  *logsSerializable
 	CallContext           CallContext
@@ -152,7 +152,7 @@ func newStateSerializableFromState(state *State) *stateSerializable {
 		Stack:                 slices.Clone(state.Stack.stack),
 		Memory:                NewBytes(state.Memory.mem),
 		Storage:               newStorageSerializable(state.Storage),
-		Transient:             newTransientSerializable(state.Transient),
+		TransientStorage:      newTransientSerializable(state.TransientStorage),
 		Accounts:              newAccountsSerializable(state.Accounts),
 		Logs:                  newLogsSerializable(state.Logs),
 		CallContext:           state.CallContext,
@@ -211,12 +211,8 @@ func (s *stateSerializable) deserialize() *State {
 		state.Storage = storageBuilder.Build()
 	}
 
-	if s.Transient != nil {
-		transient := &Transient{}
-		for key, val := range s.Transient.Storage {
-			transient.SetStorage(key, val)
-		}
-		state.Transient = transient
+	if s.TransientStorage != nil {
+		state.TransientStorage = &TransientStorage{maps.Clone(s.TransientStorage.Storage)}
 	}
 
 	if s.Accounts != nil {
@@ -272,7 +268,7 @@ func newStorageSerializable(storage *Storage) *storageSerializable {
 }
 
 // newTransientSerializable creates a new transientSerializable instance from the given Transient instance.
-func newTransientSerializable(transient *Transient) *transientSerializable {
+func newTransientSerializable(transient *TransientStorage) *transientSerializable {
 	return &transientSerializable{
 		Storage: maps.Clone(transient.storage),
 	}

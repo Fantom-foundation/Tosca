@@ -427,16 +427,39 @@ func TestCondition_InOutOfRangeGetTestValues(t *testing.T) {
 	}
 }
 
-func TestCondition_CheckTransientUnsatisfiable(t *testing.T) {
-	conditionSet := IsTransientSet(Param(0))
-	conditionUnset := IsTransientNotSet(Param(0))
+func TestCondition_CheckUnsatisfiableTransientStorageBindings(t *testing.T) {
+	conditionNonZero := BindTransientStorageToNonZero(Param(0))
+	conditionZero := BindTransientStorageToZero(Param(0))
 
 	gen := gen.NewStateGenerator()
 	rnd := rand.New(0)
-	conditionSet.Restrict(gen)
-	conditionUnset.Restrict(gen)
+	conditionNonZero.Restrict(gen)
+	conditionZero.Restrict(gen)
 	_, err := gen.Generate(rnd)
 	if err == nil {
 		t.Errorf("Expected unsatisfiable condition, but got nil")
+	}
+}
+
+func TestCondition_RestrictTransientStorageAndCheck(t *testing.T) {
+	rnd := rand.New()
+
+	tests := map[string]Condition{
+		"zero":    BindTransientStorageToZero(Param(0)),
+		"nonZero": BindTransientStorageToNonZero(Param(0)),
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			gen := gen.NewStateGenerator()
+			test.Restrict(gen)
+			state, err := gen.Generate(rnd)
+			if err != nil {
+				t.Fatalf("failed to build state: %v", err)
+			}
+			if checked, err := test.Check(state); err != nil || !checked {
+				t.Errorf("failed to check condition: %v", err)
+			}
+		})
 	}
 }

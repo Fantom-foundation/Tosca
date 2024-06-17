@@ -141,14 +141,14 @@ func (s *Storage) Clone() *Storage {
 func mapEqualIgnoringZeroValues[K comparable](a map[K]U256, b map[K]U256) bool {
 	for key, valueA := range a {
 		valueB, contained := b[key]
-		if !contained && valueA != NewU256(0) {
+		if !contained && !valueA.IsZero() {
 			return false
 		} else if valueA != valueB {
 			return false
 		}
 	}
 	for key, valueB := range b {
-		if _, contained := a[key]; !contained && valueB != NewU256(0) {
+		if _, contained := a[key]; !contained && !valueB.IsZero() {
 			return false
 		}
 	}
@@ -164,14 +164,14 @@ func (a *Storage) Eq(b *Storage) bool {
 func mapDiffIgnoringZeroValues[K comparable](a map[K]U256, b map[K]U256, name string) (res []string) {
 	for key, valueA := range a {
 		valueB, contained := b[key]
-		if !contained && valueA != NewU256(0) {
+		if !contained && !valueA.IsZero() {
 			res = append(res, fmt.Sprintf("Different %s entry:\n\t[%v]=%v\n\tvs\n\tmissing", name, key, valueA))
 		} else if valueA != valueB {
 			res = append(res, fmt.Sprintf("Different %s entry:\n\t[%v]=%v\n\tvs\n\t[%v]=%v", name, key, valueA, key, valueB))
 		}
 	}
 	for key, valueB := range b {
-		if _, contained := a[key]; !contained && valueB != NewU256(0) {
+		if _, contained := a[key]; !contained && !valueB.IsZero() {
 			res = append(res, fmt.Sprintf("Different %s entry:\n\tmissing\n\tvs\n\t[%v]=%v", name, key, valueB))
 		}
 	}

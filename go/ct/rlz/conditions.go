@@ -577,40 +577,40 @@ func (c *storageConfiguration) String() string {
 }
 
 ////////////////////////////////////////////////////////////
-// Is Transient Storage Set
+// Bind Transient Storage to non zero value
 
-type isTransientSet struct {
+type bindTransientStorageToNonZero struct {
 	key BindableExpression[U256]
 }
 
-func IsTransientSet(key BindableExpression[U256]) Condition {
-	return &isTransientSet{key}
+func BindTransientStorageToNonZero(key BindableExpression[U256]) Condition {
+	return &bindTransientStorageToNonZero{key}
 }
 
-func (c *isTransientSet) Check(s *st.State) (bool, error) {
+func (c *bindTransientStorageToNonZero) Check(s *st.State) (bool, error) {
 	key, err := c.key.Eval(s)
 	if err != nil {
 		return false, err
 	}
-	return s.Transient.IsSet(key), nil
+	return !s.TransientStorage.IsZero(key), nil
 }
 
-func (c *isTransientSet) Restrict(generator *gen.StateGenerator) {
+func (c *bindTransientStorageToNonZero) Restrict(generator *gen.StateGenerator) {
 	key := c.key.GetVariable()
 	c.key.BindTo(generator)
-	generator.BindIsTransientSet(key)
+	generator.BindTransientStorageToNonZero(key)
 }
 
-func (c *isTransientSet) GetTestValues() []TestValue {
+func (c *bindTransientStorageToNonZero) GetTestValues() []TestValue {
 	property := Property(c.String())
 	domain := boolDomain{}
-	restrict := func(generator *gen.StateGenerator, isSet bool) {
+	restrict := func(generator *gen.StateGenerator, isNonZero bool) {
 		key := c.key.GetVariable()
 		c.key.BindTo(generator)
-		if isSet {
-			generator.BindIsTransientSet(key)
+		if isNonZero {
+			generator.BindTransientStorageToNonZero(key)
 		} else {
-			generator.BindIsTransientNotSet(key)
+			generator.BindTransientStorageToZero(key)
 		}
 	}
 	return []TestValue{
@@ -619,55 +619,38 @@ func (c *isTransientSet) GetTestValues() []TestValue {
 	}
 }
 
-func (c *isTransientSet) String() string {
-	return fmt.Sprintf("set(%v)", c.key)
+func (c *bindTransientStorageToNonZero) String() string {
+	return fmt.Sprintf("Transient storage at [%v] is bound to non zero", c.key)
 }
 
 ////////////////////////////////////////////////////////////
-// Is Transient Storage Not Set
+// Bind Transient Storage to zero value
 
-type isTransientNotSet struct {
+type bindTransientStorageToZero struct {
 	key BindableExpression[U256]
 }
 
-func IsTransientNotSet(key BindableExpression[U256]) Condition {
-	return &isTransientNotSet{key}
+func BindTransientStorageToZero(key BindableExpression[U256]) Condition {
+	return &bindTransientStorageToZero{key}
 }
 
-func (c *isTransientNotSet) Check(s *st.State) (bool, error) {
-	key, err := c.key.Eval(s)
-	if err != nil {
-		return false, err
-	}
-	return s.Transient.IsNotSet(key), nil
+func (c *bindTransientStorageToZero) Check(s *st.State) (bool, error) {
+	checked, err := (&bindTransientStorageToNonZero{c.key}).Check(s)
+	return !checked, err
 }
 
-func (c *isTransientNotSet) Restrict(generator *gen.StateGenerator) {
+func (c *bindTransientStorageToZero) Restrict(generator *gen.StateGenerator) {
 	key := c.key.GetVariable()
 	c.key.BindTo(generator)
-	generator.BindIsTransientNotSet(key)
+	generator.BindTransientStorageToZero(key)
 }
 
-func (c *isTransientNotSet) GetTestValues() []TestValue {
-	property := Property(c.String())
-	domain := boolDomain{}
-	restrict := func(generator *gen.StateGenerator, isNotSet bool) {
-		key := c.key.GetVariable()
-		c.key.BindTo(generator)
-		if isNotSet {
-			generator.BindIsTransientNotSet(key)
-		} else {
-			generator.BindIsTransientSet(key)
-		}
-	}
-	return []TestValue{
-		NewTestValue(property, domain, true, restrict),
-		NewTestValue(property, domain, false, restrict),
-	}
+func (c *bindTransientStorageToZero) GetTestValues() []TestValue {
+	return BindTransientStorageToNonZero(c.key).GetTestValues()
 }
 
-func (c *isTransientNotSet) String() string {
-	return fmt.Sprintf("not set(%v)", c.key)
+func (c *bindTransientStorageToZero) String() string {
+	return fmt.Sprintf("Transient storage at [%v] is bound to zero", c.key)
 }
 
 ////////////////////////////////////////////////////////////

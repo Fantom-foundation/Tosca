@@ -69,13 +69,13 @@ func TestSpecification_SpecificationIsComplete(t *testing.T) {
 }
 
 func TestSpecification_EachRuleProducesAMatchingTestCase(t *testing.T) {
+	rnd := rand.New(0)
 	for _, rule := range Spec.GetRules() {
 		rule := rule
 		t.Run(rule.Name, func(t *testing.T) {
 			t.Parallel()
 			hits := 0
 			misses := 0
-			rnd := rand.New(0)
 			rule.EnumerateTestCases(rnd, func(state *st.State) rlz.ConsumerResult {
 				match, err := rule.Condition.Check(state)
 				if err != nil {

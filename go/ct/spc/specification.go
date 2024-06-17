@@ -729,11 +729,11 @@ func getAllRules() []Rule {
 		},
 		conditions: []Condition{
 			RevisionBounds(R13_Cancun, NewestSupportedRevision),
-			IsTransientSet(Param(0)),
+			BindTransientStorageToNonZero(Param(0)),
 		},
 		effect: func(s *st.State) {
 			key := s.Stack.Pop()
-			value := s.Transient.GetStorage(key)
+			value := s.TransientStorage.Get(key)
 			s.Stack.Push(value)
 		},
 	})...)
@@ -748,24 +748,20 @@ func getAllRules() []Rule {
 		},
 		conditions: []Condition{
 			RevisionBounds(R13_Cancun, NewestSupportedRevision),
-			IsTransientNotSet(Param(0)),
+			BindTransientStorageToZero(Param(0)),
 		},
 		effect: func(s *st.State) {
-			key := s.Stack.Pop()
-			value := s.Transient.GetStorage(key)
-			s.Stack.Push(value)
+			s.Stack.Pop()
+			s.Stack.Push(NewU256(0))
 		},
 	})...)
 
 	rules = append(rules, Rule{
 		Name: "tload_pre_cancun",
 		Condition: And(
-			RevisionBounds(R07_Istanbul, R11_Paris),
+			RevisionBounds(R07_Istanbul, R12_Shanghai),
 			Eq(Status(), st.Running),
 			Eq(Op(Pc()), TLOAD),
-			Ge(Gas(), 100),
-			Lt(StackSize(), st.MaxStackSize-1),
-			Ge(StackSize(), 1),
 		),
 		Effect: FailEffect(),
 	})
@@ -784,12 +780,12 @@ func getAllRules() []Rule {
 		conditions: []Condition{
 			RevisionBounds(R13_Cancun, NewestSupportedRevision),
 			Eq(ReadOnly(), false),
-			IsTransientSet(Param(0)),
+			BindTransientStorageToNonZero(Param(0)),
 		},
 		effect: func(s *st.State) {
 			key := s.Stack.Pop()
 			value := s.Stack.Pop()
-			s.Transient.SetStorage(key, value)
+			s.TransientStorage.Set(key, value)
 		},
 	})...)
 
@@ -805,24 +801,21 @@ func getAllRules() []Rule {
 		conditions: []Condition{
 			RevisionBounds(R13_Cancun, NewestSupportedRevision),
 			Eq(ReadOnly(), false),
-			IsTransientNotSet(Param(0)),
+			BindTransientStorageToZero(Param(0)),
 		},
 		effect: func(s *st.State) {
 			key := s.Stack.Pop()
 			value := s.Stack.Pop()
-			s.Transient.SetStorage(key, value)
+			s.TransientStorage.Set(key, value)
 		},
 	})...)
 
 	rules = append(rules, Rule{
 		Name: "tstore_pre_cancun",
 		Condition: And(
-			RevisionBounds(R07_Istanbul, R11_Paris),
+			RevisionBounds(R07_Istanbul, R12_Shanghai),
 			Eq(Status(), st.Running),
 			Eq(Op(Pc()), TSTORE),
-			Ge(Gas(), 100),
-			Ge(StackSize(), 2),
-			Eq(ReadOnly(), false),
 		),
 		Effect: FailEffect(),
 	})
@@ -833,8 +826,6 @@ func getAllRules() []Rule {
 			AnyKnownRevision(),
 			Eq(Status(), st.Running),
 			Eq(Op(Pc()), TSTORE),
-			Ge(Gas(), 100),
-			Ge(StackSize(), 2),
 			Eq(ReadOnly(), true),
 		),
 		Effect: FailEffect(),

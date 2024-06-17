@@ -1,4 +1,3 @@
-//
 // Copyright (c) 2024 Fantom Foundation
 //
 // Use of this software is governed by the Business Source License included
@@ -6,9 +5,8 @@
 //
 // Change Date: 2028-4-16
 //
-// On the date above, in accordance with the Business Source License, use
-// of this software will be governed by the GNU Lesser General Public Licence v3
-//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
 
 package st
 
@@ -19,21 +17,21 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
-func getTransientChanges() map[string]func(*Transient) {
-	return map[string]func(*Transient){
-		"set": func(t *Transient) {
-			t.SetStorage(NewU256(1), NewU256(17))
+func getTransientChanges() map[string]func(*TransientStorage) {
+	return map[string]func(*TransientStorage){
+		"set": func(t *TransientStorage) {
+			t.Set(NewU256(1), NewU256(17))
 		},
-		"remove-current": func(t *Transient) {
-			t.DeleteStorage(NewU256(42))
+		"remove-current": func(t *TransientStorage) {
+			t.Set(NewU256(42), NewU256(0))
 		},
 	}
 }
 func TestTransient_Clone(t *testing.T) {
 	tests := getTransientChanges()
 
-	t1 := &Transient{}
-	t1.SetStorage(NewU256(42), NewU256(1))
+	t1 := &TransientStorage{}
+	t1.Set(NewU256(42), NewU256(1))
 
 	for name, change := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -52,8 +50,8 @@ func TestTransient_Clone(t *testing.T) {
 func TestTransient_Eq(t *testing.T) {
 	tests := getTransientChanges()
 
-	t1 := &Transient{}
-	t1.SetStorage(NewU256(42), NewU256(1))
+	t1 := &TransientStorage{}
+	t1.Set(NewU256(42), NewU256(1))
 
 	for name, change := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -72,8 +70,8 @@ func TestTransient_Eq(t *testing.T) {
 func TestTransient_Diff(t *testing.T) {
 	tests := getTransientChanges()
 
-	t1 := &Transient{}
-	t1.SetStorage(NewU256(42), NewU256(1))
+	t1 := &TransientStorage{}
+	t1.Set(NewU256(42), NewU256(1))
 
 	for name, change := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -92,8 +90,8 @@ func TestTransient_Diff(t *testing.T) {
 func TestTransient_EqAndDiffAreCompatible(t *testing.T) {
 	tests := getTransientChanges()
 
-	t1 := &Transient{}
-	t1.SetStorage(NewU256(42), NewU256(1))
+	t1 := &TransientStorage{}
+	t1.Set(NewU256(42), NewU256(1))
 
 	for name, change := range tests {
 		t.Run(name, func(t *testing.T) {
