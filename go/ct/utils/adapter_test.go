@@ -37,12 +37,12 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			func(p vm.Parameters) (any, any) { return vm.Gas(12), p.Gas },
 		},
 		"code": {
-			func(s *st.State) { s.Code = st.NewCode([]byte{1, 2, 3}) },
-			func(p vm.Parameters) (any, any) { return []byte{1, 2, 3}, p.Code },
+			func(s *st.State) { s.Code = st.NewCode(vm.Code{1, 2, 3}) },
+			func(p vm.Parameters) (any, any) { return vm.Code{1, 2, 3}, p.Code },
 		},
 		"input": {
-			func(s *st.State) { s.CallData = cc.NewBytes([]byte{1, 2, 3}) },
-			func(p vm.Parameters) (any, any) { return []byte{1, 2, 3}, p.Input },
+			func(s *st.State) { s.CallData = cc.NewBytes(vm.Data{1, 2, 3}) },
+			func(p vm.Parameters) (any, any) { return vm.Data{1, 2, 3}, p.Input },
 		},
 		"read-only-true": {
 			func(s *st.State) { s.ReadOnly = true },

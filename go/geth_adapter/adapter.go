@@ -144,20 +144,14 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	}
 
 	// BaseFee can be assumed zero unless set.
-	var baseFee vm.Value
-	if a.evm.Context.BaseFee != nil {
-		baseFee, err = bigIntToValue(a.evm.Context.BaseFee)
-		if err != nil {
-			return nil, fmt.Errorf("could not convert base fee: %v", err)
-		}
+	baseFee, err := bigIntToValue(a.evm.Context.BaseFee)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert base fee: %v", err)
 	}
 
-	var difficulty vm.Hash
-	if a.evm.Context.Difficulty != nil {
-		difficulty, err = bigIntToHash(a.evm.Context.Difficulty)
-		if err != nil {
-			return nil, fmt.Errorf("could not convert difficulty: %v", err)
-		}
+	difficulty, err := bigIntToHash(a.evm.Context.Difficulty)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert difficulty: %v", err)
 	}
 
 	blobBaseFee, err := bigIntToValue(a.evm.Context.BlobBaseFee)
@@ -531,7 +525,7 @@ func (a *runContextAdapter) HasSelfDestructed(addr vm.Address) bool {
 
 func bigIntToValue(value *big.Int) (result vm.Value, err error) {
 	if value == nil {
-		return result, fmt.Errorf("unable to convert nil to Hash")
+		return vm.Value{}, nil
 	}
 	if value.Sign() < 0 {
 		return result, fmt.Errorf("cannot convert a negative number to a Hash, got %v", value)
