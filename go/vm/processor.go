@@ -17,7 +17,7 @@ type Transaction struct {
 	Sender     Address       // the sender of the transaction, paying for its execution
 	Recipient  *Address      // the receiver of a transaction, nil if a new contract is to be created
 	Nonce      uint64        // the nonce of the sender account, used to prevent replay attacks
-	Input      []byte        // the input data for the transaction
+	Input      Data          // the input data for the transaction
 	Value      Value         // the amount of network currency to transfer to the recipient
 	GasLimit   Gas           // the maximum amount of gas that can be used by the transaction
 	GasPrice   Value         // the effective price of a unit of gas for this transaction
@@ -36,7 +36,7 @@ type AccessTuple struct {
 // Receipt summarizes the result of the execution of a transaction.
 type Receipt struct {
 	Success         bool     // false if the execution ended in a revert, true otherwise
-	Output          []byte   // the output produced by the transaction
+	Output          Data     // the output produced by the transaction
 	ContractAddress *Address // filled if a contract was created by this transaction
 	GasUsed         Gas      // gas used by contract calls
 	BlobGasUsed     Gas      // gas used for blob transactions

@@ -45,10 +45,10 @@ type Parameters struct {
 	Gas       Gas
 	Recipient Address
 	Sender    Address
-	Input     []byte
+	Input     Data
 	Value     Value
 	CodeHash  *Hash
-	Code      []byte
+	Code      Code
 }
 
 // BlockParameters contains information about the current block.
@@ -127,10 +127,13 @@ const (
 // Result summarizes the result of a EVM code computation.
 type Result struct {
 	Success   bool // false if the execution ended in a revert, true otherwise
-	Output    []byte
+	Output    Data
 	GasLeft   Gas
 	GasRefund Gas
 }
+
+// Data represents the input or output of contract invocations.
+type Data []byte
 
 // Gas represents the type used to represent the Gas values.
 type Gas int64
@@ -144,7 +147,7 @@ type Snapshot int
 type Log struct {
 	Address Address
 	Topics  []Hash
-	Data    []byte
+	Data    Data
 }
 
 // CallKind is an enum enabling the differentiation of the different types
@@ -164,14 +167,14 @@ type CallParameters struct {
 	Sender      Address // TODO: remove and handle implicit
 	Recipient   Address // < not relevant for CREATE and CREATE2 // TODO: remove and handle implicit
 	Value       Value   // < ignored by static calls, considered to be 0
-	Input       []byte
+	Input       Data
 	Gas         Gas
 	Salt        Hash    // < only relevant for CREATE2 calls
 	CodeAddress Address // < only relevant for DELEGATECALL and CALLCODE calls
 }
 
 type CallResult struct {
-	Output         []byte
+	Output         Data
 	GasLeft        Gas
 	GasRefund      Gas
 	CreatedAddress Address // < only meaningful for CREATE and CREATE2
