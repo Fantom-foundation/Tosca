@@ -2,9 +2,10 @@ cmake_minimum_required(VERSION 3.19)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # option respects set variables
 project(tosca)
 
-option(TOSCA_ASAN "Enable AddressSanitizer for Tosca targets." OFF)
-option(TOSCA_ASSERT "Enable Tosca specific assertions." ON)
-option(TOSCA_COVERAGE "Enable coverage report for evmzero." OFF)
+option(TOSCA_ASAN "Enable AddressSanitizer for Tosca targets.")
+option(TOSCA_ASSERT "Enable Tosca specific assertions.")
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
@@ -21,36 +22,7 @@ if(TOSCA_ASAN)
     )
 endif()
 
-if(TOSCA_COVERAGE)
-  if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # gcc uses gcov, clang should use it as well, but it has version compatibility issues
-    # between compiler generate code and the gcov tool.
-    message(FATAL_ERROR "Coverage is only supported with GCC.")
-  endif()
-
-  add_compile_options($<$<CXX_COMPILER_ID:GNU>:--coverage>)
-  add_link_options($<$<CXX_COMPILER_ID:GNU>:--coverage>)
-
-  find_program(LCOV lcov REQUIRED)
-  find_program(GENHTML genhtml REQUIRED)
-
-  add_custom_target(coverage
-    COMMENT "Generating coverage report."
-    COMMAND ${LCOV} 
-      --capture 
-      --directory .  
-      --ignore-errors mismatch 
-      --output-file coverage.info
-    COMMAND ${LCOV} 
-      --remove coverage.info 
-      '/usr/include/*' 
-      '/usr/lib/*' 
-      '*/third_party/*'
-      --output-file filtered.info
-    COMMAND ${GENHTML} filtered.info --output-directory coverage
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-  )
-endif()
+include(tosca_coverage)
 
 set(TOSCA_THIRD_PARTY_DIR ${PROJECT_SOURCE_DIR}/../third_party)
 add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/evmc third_party/evmc EXCLUDE_FROM_ALL)
