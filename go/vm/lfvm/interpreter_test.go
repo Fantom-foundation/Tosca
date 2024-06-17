@@ -69,24 +69,39 @@ func getContext(code Code, data []byte, runContext vm.RunContext, stackPtr int, 
 
 // Test UseGas function and correct status after running out of gas
 func TestGasFunc(t *testing.T) {
-	ctx := getEmptyContext()
-	ctx.gas = 100
-	ok := ctx.UseGas(10)
-	if !ok {
-		t.Errorf("expected not failed useGas function, got failed")
+
+	tests := []struct {
+		name      string
+		gas       vm.Gas
+		amount    vm.Gas
+		wantedGas vm.Gas
+		expected  bool
+		status    Status
+	}{
+		{"Zero amount", 100, 0, 100, true, RUNNING},
+		{"Sufficient gas", 100, 10, 90, true, RUNNING},
+		{"Insufficient gas", 10, 100, 10, false, OUT_OF_GAS},
+		{"All gas", 100, 100, 0, true, RUNNING},
+		{"Negative amount", 100, -100, 200, true, RUNNING},
+		{"Negative gas", -100, 100, -100, false, OUT_OF_GAS},
+		{"Negative Negative", -100, -100, -100, false, OUT_OF_GAS},
 	}
-	if ctx.gas != 90 {
-		t.Errorf("expected gas in context is 90, got %d", ctx.gas)
-	}
-	ok = ctx.UseGas(100)
-	if ok {
-		t.Errorf("expected failed useGas function, got ok")
-	}
-	if ctx.gas != 90 {
-		t.Errorf("expected gas in context is 90 also after failing, got %d", ctx.gas)
-	}
-	if ctx.status != OUT_OF_GAS {
-		t.Errorf("expected OUT_OF_GAS status 6, got %d", ctx.status)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := getEmptyContext()
+			ctx.gas = test.gas
+			ok := ctx.UseGas(test.amount)
+			if ok != test.expected {
+				t.Errorf("expected UseGas to return %v, got %v", test.expected, ok)
+			}
+			if ctx.status != test.status {
+				t.Errorf("expected status to be %v, got %v", test.status, ctx.status)
+			}
+			if ctx.gas != test.wantedGas {
+				t.Errorf("expected gas to be %v, got %v", test.wantedGas, ctx.gas)
+			}
+		})
 	}
 }
 

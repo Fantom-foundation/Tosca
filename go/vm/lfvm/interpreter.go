@@ -73,7 +73,7 @@ type context struct {
 }
 
 func (c *context) UseGas(amount vm.Gas) bool {
-	if c.gas >= amount {
+	if c.gas >= 0 && c.gas >= amount {
 		c.gas -= amount
 		return true
 	}
