@@ -319,10 +319,7 @@ func TestLogOpSizeOverflow(t *testing.T) {
 
 			ctrl := gomock.NewController(t)
 			runContext := vm.NewMockRunContext(ctrl)
-			runContext.EXPECT().EmitLog(
-				gomock.Any(),
-				gomock.Any(),
-				gomock.Any()).Times(test.logCalls)
+			runContext.EXPECT().EmitLog(gomock.Any()).Times(test.logCalls)
 
 			stack := NewStack()
 			for i := 0; i < test.logn; i++ {
