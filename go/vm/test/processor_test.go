@@ -45,13 +45,15 @@ func TestProcessor_SimpleValueTransfer(t *testing.T) {
 	for name, processor := range getProcessors() {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			blockInfo := vm.BlockInfo{}
-			txContext := vm.TransactionContext{}
+			blockParams := vm.BlockParameters{}
 
 			// TODO: clean up expectations
 			// TODO: provide a better way to define expectations
 			// - use a before/after pattern
-			state := vm.NewMockWorldState(ctrl)
+			state := vm.NewMockTransactionContext(ctrl)
+
+			state.EXPECT().CreateSnapshot().Return(vm.Snapshot(1))
+			state.EXPECT().GetLogs().Return([]vm.Log{})
 
 			state.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
 			state.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
@@ -68,10 +70,8 @@ func TestProcessor_SimpleValueTransfer(t *testing.T) {
 				state.EXPECT().SetBalance(vm.Address{2}, vm.Value{8}),  // < deposit 3 tokens
 			)
 
-			state.EXPECT().GetTransactionContext().Return(txContext)
-
 			// Execute the transaction.
-			receipt, err := processor.Run(blockInfo, transaction, state)
+			receipt, err := processor.Run(blockParams, transaction, state)
 			if err != nil {
 				t.Errorf("error: %v", err)
 			}
@@ -101,10 +101,12 @@ func TestProcessor_ContractCallThatSucceeds(t *testing.T) {
 	for name, processor := range getProcessors() {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			blockInfo := vm.BlockInfo{}
-			txContext := vm.TransactionContext{}
+			blockParams := vm.BlockParameters{}
 
-			state := vm.NewMockWorldState(ctrl)
+			state := vm.NewMockTransactionContext(ctrl)
+
+			state.EXPECT().CreateSnapshot().Return(vm.Snapshot(1))
+			state.EXPECT().GetLogs().Return([]vm.Log{})
 
 			state.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
 			state.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
@@ -125,10 +127,8 @@ func TestProcessor_ContractCallThatSucceeds(t *testing.T) {
 
 			state.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}) // < charging gas, but price is zero
 
-			state.EXPECT().GetTransactionContext().Return(txContext)
-
 			// Execute the transaction.
-			receipt, err := processor.Run(blockInfo, transaction, state)
+			receipt, err := processor.Run(blockParams, transaction, state)
 			if err != nil {
 				t.Errorf("error: %v", err)
 			}
@@ -158,10 +158,13 @@ func TestProcessor_ContractCallThatReverts(t *testing.T) {
 	for name, processor := range getProcessors() {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			blockInfo := vm.BlockInfo{}
-			txContext := vm.TransactionContext{}
+			blockParams := vm.BlockParameters{}
 
-			state := vm.NewMockWorldState(ctrl)
+			state := vm.NewMockTransactionContext(ctrl)
+
+			state.EXPECT().CreateSnapshot().Return(vm.Snapshot(1))
+			state.EXPECT().RestoreSnapshot(vm.Snapshot(1))
+			state.EXPECT().GetLogs().Return([]vm.Log{})
 
 			state.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
 			state.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
@@ -183,10 +186,8 @@ func TestProcessor_ContractCallThatReverts(t *testing.T) {
 
 			state.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}) // < charging gas, but price is zero
 
-			state.EXPECT().GetTransactionContext().Return(txContext)
-
 			// Execute the transaction.
-			receipt, err := processor.Run(blockInfo, transaction, state)
+			receipt, err := processor.Run(blockParams, transaction, state)
 			if err != nil {
 				t.Errorf("error: %v", err)
 			}
@@ -219,12 +220,12 @@ func TestProcessor_ContractCreation(t *testing.T) {
 	for name, processor := range getProcessors() {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			blockInfo := vm.BlockInfo{}
-			txContext := vm.TransactionContext{}
+			blockParams := vm.BlockParameters{}
 
-			state := vm.NewMockWorldState(ctrl)
+			state := vm.NewMockTransactionContext(ctrl)
 
-			state.EXPECT().GetTransactionContext().Return(txContext)
+			state.EXPECT().CreateSnapshot().Return(vm.Snapshot(1))
+			state.EXPECT().GetLogs().Return([]vm.Log{})
 
 			state.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
 			state.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}) // < charging gas, but price is zero
@@ -232,21 +233,21 @@ func TestProcessor_ContractCreation(t *testing.T) {
 			state.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(3)
 			state.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
 
-			//state.EXPECT().AccountExists(newContractAddress).Return(false)
+			state.EXPECT().AccountExists(newContractAddress).Return(false)
 			state.EXPECT().GetNonce(newContractAddress).Return(uint64(0))
 			state.EXPECT().SetNonce(newContractAddress, uint64(1)).Return()
 
 			state.EXPECT().GetCodeHash(vm.Address{1}).Return(vm.Hash{})
 			state.EXPECT().GetCodeHash(newContractAddress).Return(vm.Hash{})
 
-			state.EXPECT().SetCode(newContractAddress, gomock.Any()).Do(func(address vm.Address, code []byte) {
+			state.EXPECT().CreateAccount(newContractAddress, gomock.Any()).Do(func(address vm.Address, code []byte) {
 				if len(code) != 0 {
 					t.Fatalf("unexpected code: %x", code)
 				}
 			})
 
 			// Execute the transaction.
-			receipt, err := processor.Run(blockInfo, transaction, state)
+			receipt, err := processor.Run(blockParams, transaction, state)
 			if err != nil {
 				t.Errorf("error: %v", err)
 			}

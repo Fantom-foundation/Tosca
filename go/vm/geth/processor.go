@@ -22,6 +22,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/vm"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
 	geth "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
@@ -70,9 +71,9 @@ func NewProcessorWithVm(impl string) vm.Processor {
 }
 
 func (p *processor) Run(
-	blockInfo vm.BlockInfo,
+	blockParams vm.BlockParameters,
 	transaction vm.Transaction,
-	state vm.WorldState,
+	state vm.TransactionContext,
 ) (vm.Receipt, error) {
 
 	// --- setup ---
@@ -83,16 +84,13 @@ func (p *processor) Run(
 	}
 
 	// Intercept the transfer function to conduct the transfer on the actual state.
-	transferFunc := func(_ geth.StateDB, from common.Address, to common.Address, amount *big.Int) {
+	transferFunc := func(_ geth.StateDB, from common.Address, to common.Address, amount *uint256.Int) {
 		if amount.Sign() != 1 || from == to {
 			return
 		}
 		a := vm.Address(from)
 		b := vm.Address(to)
-		//d := vm.Uint256ToValue(amount)
-		var tmp vm.Value
-		amount.FillBytes(tmp[:])
-		d := tmp
+		d := vm.Uint256ToValue(amount)
 		curA := state.GetBalance(a)
 		curB := state.GetBalance(b)
 		state.SetBalance(a, curA.Sub(d))
@@ -102,12 +100,12 @@ func (p *processor) Run(
 	// Create empty block context based on block number
 	// TODO: this is a copy of geth.go; try to refactor this
 	blockCtx := geth.BlockContext{
-		BlockNumber: big.NewInt(int64(blockInfo.BlockNumber)),
-		Time:        big.NewInt(int64(blockInfo.Timestamp)),
+		BlockNumber: big.NewInt(int64(blockParams.BlockNumber)),
+		Time:        uint64(blockParams.Timestamp),
 		Difficulty:  big.NewInt(1), // < TODO: check this
-		GasLimit:    uint64(blockInfo.GasLimit),
+		GasLimit:    uint64(blockParams.GasLimit),
 		GetHash:     getHash,
-		BaseFee:     new(big.Int).SetBytes(blockInfo.BaseFee[:]),
+		BaseFee:     blockParams.BaseFee.ToBig(),
 		Transfer:    transferFunc,
 		CanTransfer: canTransferFunc,
 	}
@@ -115,7 +113,7 @@ func (p *processor) Run(
 	// Create empty tx context
 	txCtx := geth.TxContext{
 		Origin:   common.Address(transaction.Sender),
-		GasPrice: new(big.Int).SetBytes(blockInfo.GasPrice[:]),
+		GasPrice: transaction.GasPrice.ToBig(),
 	}
 
 	// Create a configuration for the geth EVM.
@@ -129,22 +127,22 @@ func (p *processor) Run(
 	// Set hard forks for chainconfig
 	chainConfig :=
 		makeChainConfig(*params.AllEthashProtocolChanges,
-			new(big.Int).SetBytes(blockInfo.ChainID[:]),
-			vmRevisionToCt(blockInfo.Revision))
+			new(big.Int).SetBytes(blockParams.ChainID[:]),
+			vmRevisionToCt(blockParams.Revision))
 
 	// Fix block boundaries to match required revisions
 	chainConfig.IstanbulBlock = big.NewInt(0)
 	chainConfig.BerlinBlock = big.NewInt(0)
 	chainConfig.LondonBlock = big.NewInt(0)
 
-	if blockInfo.Revision < vm.R10_London {
-		chainConfig.LondonBlock = big.NewInt(blockInfo.BlockNumber + 1)
+	if blockParams.Revision < vm.R10_London {
+		chainConfig.LondonBlock = big.NewInt(blockParams.BlockNumber + 1)
 	}
-	if blockInfo.Revision < vm.R09_Berlin {
-		chainConfig.BerlinBlock = big.NewInt(blockInfo.BlockNumber + 1)
+	if blockParams.Revision < vm.R09_Berlin {
+		chainConfig.BerlinBlock = big.NewInt(blockParams.BlockNumber + 1)
 	}
-	if blockInfo.Revision < vm.R07_Istanbul {
-		chainConfig.IstanbulBlock = big.NewInt(blockInfo.BlockNumber + 1)
+	if blockParams.Revision < vm.R07_Istanbul {
+		chainConfig.IstanbulBlock = big.NewInt(blockParams.BlockNumber + 1)
 	}
 
 	stateDb := &stateDbAdapter{context: state}
@@ -190,7 +188,7 @@ func (p *processor) Run(
 	contractCreation := transaction.Recipient == nil
 
 	// Set up the initial access list.
-	if blockInfo.Revision >= vm.R09_Berlin {
+	if blockParams.Revision >= vm.R09_Berlin {
 		var dest *common.Address
 		if transaction.Recipient != nil {
 			dest = &common.Address{}
@@ -212,8 +210,10 @@ func (p *processor) Run(
 			})
 		}
 
-		stateDb.PrepareAccessList(
+		stateDb.Prepare(
+			params.Rules{},
 			common.Address(transaction.Sender),
+			common.Address(blockParams.Coinbase),
 			dest,
 			precompiledContracts,
 			accessList,
@@ -228,13 +228,13 @@ func (p *processor) Run(
 	)
 	if contractCreation {
 		var created common.Address
-		output, created, gasLeft, vmError = evm.Create(sender, transaction.Input, uint64(gas), transaction.Value.ToBig())
+		output, created, gasLeft, vmError = evm.Create(sender, transaction.Input, uint64(gas), transaction.Value.ToU256())
 		createdContract = &vm.Address{}
 		*createdContract = vm.Address(created)
 	} else {
 		// Increment the nonce to avoid double execution
 		stateDb.SetNonce(common.Address(transaction.Sender), stateDb.GetNonce(common.Address(transaction.Sender))+1)
-		output, gasLeft, vmError = evm.Call(sender, common.Address(*transaction.Recipient), transaction.Input, uint64(gas), transaction.Value.ToBig())
+		output, gasLeft, vmError = evm.Call(sender, common.Address(*transaction.Recipient), transaction.Input, uint64(gas), transaction.Value.ToU256())
 	}
 
 	// For whatever reason, 10% of remaining gas is charged for non-internal transactions.
@@ -248,7 +248,7 @@ func (p *processor) Run(
 
 		maxRefund := uint64(0)
 		gasUsed := uint64(transaction.GasLimit) - gasLeft
-		if blockInfo.Revision < vm.R10_London {
+		if blockParams.Revision < vm.R10_London {
 			// Before EIP-3529: refunds were capped to gasUsed / 2
 			maxRefund = gasUsed / 2
 		} else {
@@ -360,7 +360,7 @@ func preCheck(transaction vm.Transaction, state vm.WorldState) error {
 
 func buyGas(tx vm.Transaction, state vm.WorldState) error {
 	// TODO: support arithmetic operations with Value type
-	gasPrice := state.GetTransactionContext().GasPrice.ToU256()
+	gasPrice := tx.GasPrice.ToU256()
 	mgval := uint256.NewInt(uint64(tx.GasLimit))
 	mgval = mgval.Mul(mgval, gasPrice)
 	// Note: Opera doesn't need to check against gasFeeCap instead of gasPrice, as it's too aggressive in the asynchronous environment
@@ -562,7 +562,7 @@ func (_ PreCompiledContract) Run(stateDB geth.StateDB, _ geth.BlockContext, txCt
 
 		acc := common.BytesToAddress(input[12:32])
 		input = input[32:]
-		value := new(big.Int).SetBytes(input[:32])
+		value := new(uint256.Int).SetBytes(input[:32])
 
 		if acc == txCtx.Origin {
 			// Origin balance shouldn't decrease during his transaction
@@ -571,11 +571,11 @@ func (_ PreCompiledContract) Run(stateDB geth.StateDB, _ geth.BlockContext, txCt
 
 		balance := stateDB.GetBalance(acc)
 		if balance.Cmp(value) >= 0 {
-			diff := new(big.Int).Sub(balance, value)
-			stateDB.SubBalance(acc, diff /*, tracing.BalanceChangeUnspecified*/)
+			diff := new(uint256.Int).Sub(balance, value)
+			stateDB.SubBalance(acc, diff, tracing.BalanceChangeUnspecified)
 		} else {
-			diff := new(big.Int).Sub(value, balance)
-			stateDB.AddBalance(acc, diff /*, tracing.BalanceChangeUnspecified*/)
+			diff := new(uint256.Int).Sub(value, balance)
+			stateDB.AddBalance(acc, diff, tracing.BalanceChangeUnspecified)
 		}
 	} else if bytes.Equal(input[:4], copyCodeMethodID) {
 		input = input[4:]

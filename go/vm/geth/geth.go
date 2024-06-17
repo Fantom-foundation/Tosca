@@ -94,70 +94,6 @@ func (m *gethVm) Run(parameters vm.Parameters) (vm.Result, error) {
 	return vm.Result{}, fmt.Errorf("internal EVM error in geth: %v", err)
 }
 
-// TODO: remove once there is only one Revision definition
-func vmRevisionToCt(revision vm.Revision) ct.Revision {
-	switch revision {
-	case vm.R07_Istanbul:
-		return ct.R07_Istanbul
-	case vm.R09_Berlin:
-		return ct.R09_Berlin
-	case vm.R10_London:
-		return ct.R10_London
-	case vm.R11_Paris:
-		return ct.R11_Paris
-	case vm.R12_Shanghai:
-		return ct.R12_Shanghai
-	case vm.R13_Cancun:
-		return ct.R13_Cancun
-
-	}
-	panic(fmt.Sprintf("Unknown revision: %v", revision))
-}
-
-// makeChainConfig returns a chain config for the given chain ID and target revision.
-// The baseline config is used as a starting point, so that any prefilled configuration from go-ethereum:params/config.go can be used.
-// chainId needs to be prefilled as it may be accessed with the opcode CHAINID.
-// the fork-blocks and the fork-times are set to the respective values for the given revision.
-func makeChainConfig(baseline params.ChainConfig, chainId *big.Int, targetRevision ct.Revision) params.ChainConfig {
-	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get Istanbul fork block: %v", err))
-	}
-	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get Berlin fork block: %v", err))
-	}
-	londonBlock, err := ct.GetForkBlock(ct.R10_London)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get London fork block: %v", err))
-	}
-	parisBlock, err := ct.GetForkBlock(ct.R11_Paris)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get Paris fork block: %v", err))
-	}
-	shanghaiTime := ct.GetForkTime(ct.R12_Shanghai)
-	cancunTime := ct.GetForkTime(ct.R13_Cancun)
-
-	chainConfig := baseline
-	chainConfig.ChainID = chainId
-	chainConfig.ByzantiumBlock = big.NewInt(0)
-	chainConfig.IstanbulBlock = big.NewInt(0).SetUint64(istanbulBlock)
-	chainConfig.BerlinBlock = big.NewInt(0).SetUint64(berlinBlock)
-	chainConfig.LondonBlock = big.NewInt(0).SetUint64(londonBlock)
-
-	if targetRevision >= ct.R11_Paris {
-		chainConfig.MergeNetsplitBlock = big.NewInt(0).SetUint64(parisBlock)
-	}
-	if targetRevision >= ct.R12_Shanghai {
-		chainConfig.ShanghaiTime = &shanghaiTime
-	}
-	if targetRevision >= ct.R13_Cancun {
-		chainConfig.CancunTime = &cancunTime
-	}
-
-	return chainConfig
-}
-
 func currentBlock(revision ct.Revision) *big.Int {
 	block, err := ct.GetForkBlock(revision)
 	if err != nil {
@@ -245,10 +181,11 @@ func canTransferFunc(stateDB geth.StateDB, callerAddress common.Address, value *
 // environment setups. The main purpose is to facilitate unit, integration, and conformance
 // testing for the geth interpreter.
 type stateDbAdapter struct {
-	context         vm.RunContext
+	context         vm.TransactionContext
 	refund          uint64
 	lastBeneficiary vm.Address
 	refundBackups   map[int]uint64
+	logs            []vm.Log
 }
 
 func (s *stateDbAdapter) CreateAccount(common.Address) {
@@ -299,7 +236,7 @@ func (s *stateDbAdapter) GetCode(addr common.Address) []byte {
 
 func (s *stateDbAdapter) SetCode(addr common.Address, code []byte) {
 	if ctxt, ok := s.context.(vm.WorldState); ok {
-		ctxt.SetCode(vm.Address(addr), code)
+		ctxt.CreateAccount(vm.Address(addr), code)
 		return
 	}
 	// ignored: effect not needed in test environments
@@ -369,8 +306,8 @@ func (s *stateDbAdapter) Empty(addr common.Address) bool {
 	return !s.context.AccountExists(vm.Address(addr))
 }
 
-func (s *stateDbAdapter) PrepareAccessList(sender common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
-	if ws, ok := s.context.(vm.WorldState); ok {
+func (s *stateDbAdapter) Prepare(_ params.Rules, sender, coinbase common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
+	if ws, ok := s.context.(vm.TransactionContext); ok {
 		ws.AccessAccount(vm.Address(sender))
 		if dest != nil {
 			ws.AccessAccount(vm.Address(*dest))
@@ -406,8 +343,8 @@ func (s *stateDbAdapter) AddSlotToAccessList(addr common.Address, slot common.Ha
 }
 
 func (s *stateDbAdapter) RevertToSnapshot(snapshot int) {
-	if ws, ok := s.context.(vm.WorldState); ok {
-		ws.RestoreSnapshot(snapshot)
+	if ws, ok := s.context.(vm.TransactionContext); ok {
+		ws.RestoreSnapshot(vm.Snapshot(snapshot))
 		s.refund = s.refundBackups[snapshot]
 		return
 	}
@@ -415,8 +352,8 @@ func (s *stateDbAdapter) RevertToSnapshot(snapshot int) {
 }
 
 func (s *stateDbAdapter) Snapshot() int {
-	if ws, ok := s.context.(vm.WorldState); ok {
-		id := ws.CreateSnapshot()
+	if ws, ok := s.context.(vm.TransactionContext); ok {
+		id := int(ws.CreateSnapshot())
 		if s.refundBackups == nil {
 			s.refundBackups = make(map[int]uint64)
 		}
@@ -441,7 +378,7 @@ func (s *stateDbAdapter) AddLog(log *types.Log) {
 }
 
 func (s *stateDbAdapter) GetLogs() []vm.Log {
-	if ws, ok := s.context.(vm.WorldState); ok {
+	if ws, ok := s.context.(vm.TransactionContext); ok {
 		return ws.GetLogs()
 	}
 	return nil // not relevant in test setups
