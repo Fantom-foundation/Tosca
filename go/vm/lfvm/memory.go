@@ -12,6 +12,7 @@ package lfvm
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
 	"github.com/holiman/uint256"
@@ -26,10 +27,21 @@ func NewMemory() *Memory {
 	return &Memory{}
 }
 
-// TODO: add overflow check, issue #524
+func sizeInWords(size uint64) uint64 {
+	if size > math.MaxUint64-31 {
+		return (math.MaxUint64 / 32) + 1
+	}
+	return (size + 31) / 32
+}
+
 func toValidMemorySize(size uint64) uint64 {
-	// Target size seems to need to be a multiple of 32
-	return ((size + 31) / 32) * 32
+	fullWordsSize := sizeInWords(size) * 32
+	if size != 0 && fullWordsSize < size {
+		// TODO: this is a compromised solution, reconsider this with issue #524
+		// Geth handles this by adding an overflow boolean to every mem operation: core/vm/common.go (calcMemSize64WithUint)
+		return math.MaxUint64
+	}
+	return fullWordsSize
 }
 
 func (m *Memory) ExpansionCosts(size uint64) vm.Gas {
@@ -37,7 +49,7 @@ func (m *Memory) ExpansionCosts(size uint64) vm.Gas {
 		return 0
 	}
 	size = toValidMemorySize(size)
-	memory_size_word := uint64((size + 31) / 32)
+	memory_size_word := sizeInWords(size)
 	new_costs := vm.Gas((memory_size_word*memory_size_word)/512 + (3 * memory_size_word))
 	fee := new_costs - m.total_memory_cost
 	return fee
