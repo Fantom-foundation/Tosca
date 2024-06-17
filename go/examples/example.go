@@ -55,7 +55,6 @@ func (e *Example) RunOn(interpreter vm.Interpreter, argument int) (Result, error
 
 	const initialGas = math.MaxInt64
 	params := vm.Parameters{
-		Context:  &noOpRunContext{},
 		Code:     e.code,
 		CodeHash: (*vm.Hash)(&e.codeHash),
 		Input:    encodeArgument(e.function, argument),
@@ -106,88 +105,4 @@ func decodeOutput(output []byte) (int, error) {
 		return 0, fmt.Errorf("unexpected length of output; wanted 32, got %d", len(output))
 	}
 	return (int(output[28]) << 24) | (int(output[29]) << 16) | (int(output[30]) << 8) | (int(output[31]) << 0), nil
-}
-
-// noOpRunContext is a simple vm.RunContext implementation for example codes
-// not depending on any chain state. No operation has any effect.
-type noOpRunContext struct{}
-
-func (c *noOpRunContext) AccountExists(vm.Address) bool {
-	return false
-}
-
-func (c *noOpRunContext) GetStorage(vm.Address, vm.Key) vm.Word {
-	return vm.Word{}
-}
-
-func (c *noOpRunContext) SetStorage(vm.Address, vm.Key, vm.Word) vm.StorageStatus {
-	return vm.StorageAdded
-}
-
-func (c *noOpRunContext) GetTransientStorage(vm.Address, vm.Key) vm.Word {
-	return vm.Word{}
-}
-
-func (c *noOpRunContext) SetTransientStorage(vm.Address, vm.Key, vm.Word) {
-}
-
-func (c *noOpRunContext) GetBalance(vm.Address) vm.Value {
-	return vm.Value{}
-}
-
-func (c *noOpRunContext) GetCodeSize(vm.Address) int {
-	return 0
-}
-
-func (c *noOpRunContext) GetCodeHash(vm.Address) vm.Hash {
-	return vm.Hash{}
-}
-
-func (c *noOpRunContext) GetCode(vm.Address) []byte {
-	return nil
-}
-
-func (c *noOpRunContext) GetTransactionContext() vm.TransactionContext {
-	return vm.TransactionContext{}
-}
-
-func (c *noOpRunContext) GetBlockHash(int64) vm.Hash {
-	return vm.Hash{}
-}
-
-func (c *noOpRunContext) EmitLog(vm.Address, []vm.Hash, []byte) {
-}
-
-func (c *noOpRunContext) Call(vm.CallKind, vm.CallParameter) (vm.CallResult, error) {
-	return vm.CallResult{}, nil
-}
-
-func (c *noOpRunContext) SelfDestruct(vm.Address, vm.Address) bool {
-	return false
-}
-
-func (c *noOpRunContext) AccessAccount(vm.Address) vm.AccessStatus {
-	return vm.ColdAccess
-}
-
-func (c *noOpRunContext) AccessStorage(vm.Address, vm.Key) vm.AccessStatus {
-	return vm.ColdAccess
-}
-
-// -- legacy API needed by LFVM and Geth, to be removed in the future ---
-
-func (c *noOpRunContext) GetCommittedStorage(vm.Address, vm.Key) vm.Word {
-	return vm.Word{}
-}
-
-func (c *noOpRunContext) IsAddressInAccessList(vm.Address) bool {
-	return false
-}
-
-func (c *noOpRunContext) IsSlotInAccessList(vm.Address, vm.Key) (bool, bool) {
-	return false, false
-}
-
-func (c *noOpRunContext) HasSelfDestructed(vm.Address) bool {
-	return false
 }

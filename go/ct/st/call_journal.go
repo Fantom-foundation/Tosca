@@ -33,7 +33,7 @@ func NewCallJournal() *CallJournal {
 	return &CallJournal{}
 }
 
-func (j *CallJournal) Call(kind vm.CallKind, parameter vm.CallParameter) vm.CallResult {
+func (j *CallJournal) Call(kind vm.CallKind, parameter vm.CallParameters) vm.CallResult {
 	// log the call as a past call.
 	j.Past = append(j.Past, PastCall{
 		Kind:      kind,

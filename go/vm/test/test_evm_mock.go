@@ -94,15 +94,15 @@ func (mr *MockStateDBMockRecorder) AccountExists(arg0 any) *gomock.Call {
 }
 
 // EmitLog mocks base method.
-func (m *MockStateDB) EmitLog(arg0 vm.Address, arg1 []vm.Hash, arg2 []byte) {
+func (m *MockStateDB) EmitLog(arg0 vm.Log) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "EmitLog", arg0, arg1, arg2)
+	m.ctrl.Call(m, "EmitLog", arg0)
 }
 
 // EmitLog indicates an expected call of EmitLog.
-func (mr *MockStateDBMockRecorder) EmitLog(arg0, arg1, arg2 any) *gomock.Call {
+func (mr *MockStateDBMockRecorder) EmitLog(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EmitLog", reflect.TypeOf((*MockStateDB)(nil).EmitLog), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EmitLog", reflect.TypeOf((*MockStateDB)(nil).EmitLog), arg0)
 }
 
 // GetBalance mocks base method.
@@ -134,10 +134,10 @@ func (mr *MockStateDBMockRecorder) GetBlockHash(arg0 any) *gomock.Call {
 }
 
 // GetCode mocks base method.
-func (m *MockStateDB) GetCode(arg0 vm.Address) []byte {
+func (m *MockStateDB) GetCode(arg0 vm.Address) vm.Code {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCode", arg0)
-	ret0, _ := ret[0].([]byte)
+	ret0, _ := ret[0].(vm.Code)
 	return ret0
 }
 
@@ -187,6 +187,20 @@ func (m *MockStateDB) GetCommittedStorage(arg0 vm.Address, arg1 vm.Key) vm.Word 
 func (mr *MockStateDBMockRecorder) GetCommittedStorage(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommittedStorage", reflect.TypeOf((*MockStateDB)(nil).GetCommittedStorage), arg0, arg1)
+}
+
+// GetNonce mocks base method.
+func (m *MockStateDB) GetNonce(arg0 vm.Address) uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNonce", arg0)
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// GetNonce indicates an expected call of GetNonce.
+func (mr *MockStateDBMockRecorder) GetNonce(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNonce", reflect.TypeOf((*MockStateDB)(nil).GetNonce), arg0)
 }
 
 // GetStorage mocks base method.
@@ -258,6 +272,30 @@ func (m *MockStateDB) IsSlotInAccessList(arg0 vm.Address, arg1 vm.Key) (bool, bo
 func (mr *MockStateDBMockRecorder) IsSlotInAccessList(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSlotInAccessList", reflect.TypeOf((*MockStateDB)(nil).IsSlotInAccessList), arg0, arg1)
+}
+
+// SetBalance mocks base method.
+func (m *MockStateDB) SetBalance(arg0 vm.Address, arg1 vm.Value) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetBalance", arg0, arg1)
+}
+
+// SetBalance indicates an expected call of SetBalance.
+func (mr *MockStateDBMockRecorder) SetBalance(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBalance", reflect.TypeOf((*MockStateDB)(nil).SetBalance), arg0, arg1)
+}
+
+// SetNonce mocks base method.
+func (m *MockStateDB) SetNonce(arg0 vm.Address, arg1 uint64) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetNonce", arg0, arg1)
+}
+
+// SetNonce indicates an expected call of SetNonce.
+func (mr *MockStateDBMockRecorder) SetNonce(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetNonce", reflect.TypeOf((*MockStateDB)(nil).SetNonce), arg0, arg1)
 }
 
 // SetStorage mocks base method.
