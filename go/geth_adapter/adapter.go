@@ -23,8 +23,8 @@ import (
 	"math/big"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
-	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
-	_ "github.com/Fantom-foundation/Tosca/go/vm/evmzero"
+	//	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
+	//	_ "github.com/Fantom-foundation/Tosca/go/vm/evmzero"
 	_ "github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 	gc "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/tracing"
