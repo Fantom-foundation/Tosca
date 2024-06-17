@@ -224,17 +224,17 @@ func (ctx *hostContext) Selfdestruct(addr evmc.Address, beneficiary evmc.Address
 }
 
 func (ctx *hostContext) GetTxContext() evmc.TxContext {
-	ctxt := ctx.context.GetTransactionContext()
+	params := ctx.params
 	return evmc.TxContext{
-		GasPrice:   evmc.Hash(ctxt.GasPrice),
-		Origin:     evmc.Address(ctxt.Origin),
-		Coinbase:   evmc.Address(ctxt.Coinbase),
-		Number:     ctxt.BlockNumber,
-		Timestamp:  ctxt.Timestamp,
-		GasLimit:   int64(ctxt.GasLimit),
-		PrevRandao: evmc.Hash(ctxt.PrevRandao),
-		ChainID:    evmc.Hash(ctxt.ChainID),
-		BaseFee:    evmc.Hash(ctxt.BaseFee),
+		GasPrice:   evmc.Hash(params.GasPrice),
+		Origin:     evmc.Address(params.Origin),
+		Coinbase:   evmc.Address(params.Coinbase),
+		Number:     params.BlockNumber,
+		Timestamp:  params.Timestamp,
+		GasLimit:   int64(params.GasLimit),
+		PrevRandao: evmc.Hash(params.PrevRandao),
+		ChainID:    evmc.Hash(params.ChainID),
+		BaseFee:    evmc.Hash(params.BaseFee),
 	}
 }
 
@@ -247,7 +247,11 @@ func (ctx *hostContext) EmitLog(addr evmc.Address, topics_in []evmc.Hash, data [
 	for i := range topics {
 		topics[i] = vm.Hash(topics_in[i])
 	}
-	ctx.context.EmitLog(vm.Address(addr), topics, data)
+	ctx.context.EmitLog(vm.Log{
+		Address: vm.Address(addr),
+		Topics:  topics,
+		Data:    data,
+	})
 }
 
 func (ctx *hostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender evmc.Address, value evmc.Hash, input []byte, gas int64, depth int, static bool, salt evmc.Hash, codeAddress evmc.Address) (output []byte, gasLeft int64, gasRefund int64, createAddr evmc.Address, err error) {
@@ -271,7 +275,7 @@ func (ctx *hostContext) Call(kind evmc.CallKind, recipient evmc.Address, sender 
 		panic(fmt.Sprintf("unsupported call kind: %v", kind))
 	}
 
-	params := vm.CallParameter{
+	params := vm.CallParameters{
 		Sender:      vm.Address(sender),
 		Recipient:   vm.Address(recipient),
 		Value:       vm.Value(value),

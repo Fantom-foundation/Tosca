@@ -645,32 +645,32 @@ func opGas(c *context) {
 
 // opPrevRandao / opDifficulty
 func opPrevRandao(c *context) {
-	prevRandao := c.context.GetTransactionContext().PrevRandao
+	prevRandao := c.params.PrevRandao
 	c.stack.pushEmpty().SetBytes32(prevRandao[:])
 }
 
 func opTimestamp(c *context) {
-	time := c.context.GetTransactionContext().Timestamp
+	time := c.params.Timestamp
 	c.stack.pushEmpty().SetUint64(uint64(time))
 }
 
 func opNumber(c *context) {
-	number := c.context.GetTransactionContext().BlockNumber
+	number := c.params.BlockNumber
 	c.stack.pushEmpty().SetUint64(uint64(number))
 }
 
 func opCoinbase(c *context) {
-	coinbase := c.context.GetTransactionContext().Coinbase
+	coinbase := c.params.Coinbase
 	c.stack.pushEmpty().SetBytes20(coinbase[:])
 }
 
 func opGasLimit(c *context) {
-	limit := c.context.GetTransactionContext().GasLimit
+	limit := c.params.GasLimit
 	c.stack.pushEmpty().SetUint64(uint64(limit))
 }
 
 func opGasPrice(c *context) {
-	price := c.context.GetTransactionContext().GasPrice
+	price := c.params.GasPrice
 	c.stack.pushEmpty().SetBytes32(price[:])
 }
 
@@ -692,7 +692,7 @@ func opSelfbalance(c *context) {
 
 func opBaseFee(c *context) {
 	if c.isLondon() {
-		fee := c.context.GetTransactionContext().BaseFee
+		fee := c.params.BaseFee
 		c.stack.pushEmpty().SetBytes32(fee[:])
 	} else {
 		c.status = INVALID_INSTRUCTION
@@ -707,10 +707,9 @@ func opBlobHash(c *context) {
 	}
 
 	index := c.stack.pop()
-	txCtx := c.context.GetTransactionContext()
-	blobHashesLength := uint64(len(txCtx.BlobHashes))
+	blobHashesLength := uint64(len(c.params.BlobHashes))
 	if index.IsUint64() && index.Uint64() < blobHashesLength {
-		c.stack.pushEmpty().SetBytes32(txCtx.BlobHashes[index.Uint64()][:])
+		c.stack.pushEmpty().SetBytes32(c.params.BlobHashes[index.Uint64()][:])
 	} else {
 		c.stack.push(uint256.NewInt(0))
 	}
@@ -718,7 +717,7 @@ func opBlobHash(c *context) {
 
 func opBlobBaseFee(c *context) {
 	if c.isCancun() {
-		fee := c.context.GetTransactionContext().BlobBaseFee
+		fee := c.params.BlobBaseFee
 		c.stack.pushEmpty().SetBytes32(fee[:])
 	} else {
 		c.status = INVALID_INSTRUCTION
@@ -741,7 +740,7 @@ func opSelfdestruct(c *context) {
 }
 
 func opChainId(c *context) {
-	id := c.context.GetTransactionContext().ChainID
+	id := c.params.ChainID
 	c.stack.pushEmpty().SetBytes32(id[:])
 }
 
@@ -754,7 +753,7 @@ func opBlockhash(c *context) {
 		return
 	}
 	var upper, lower uint64
-	upper = uint64(c.context.GetTransactionContext().BlockNumber)
+	upper = uint64(c.params.BlockNumber)
 	if upper < 257 {
 		lower = 0
 	} else {
@@ -773,7 +772,7 @@ func opAddress(c *context) {
 }
 
 func opOrigin(c *context) {
-	origin := c.params.Context.GetTransactionContext().Origin
+	origin := c.params.Origin
 	c.stack.pushEmpty().SetBytes20(origin[:])
 }
 
@@ -901,7 +900,7 @@ func opCreate(c *context) {
 
 	c.UseGas(gas)
 
-	res, err := c.context.Call(vm.Create, vm.CallParameter{
+	res, err := c.context.Call(vm.Create, vm.CallParameters{
 		Sender: c.params.Recipient,
 		Value:  vm.Value(value.Bytes32()),
 		Input:  input,
@@ -971,7 +970,7 @@ func opCreate2(c *context) {
 		return
 	}
 
-	res, err := c.context.Call(vm.Create2, vm.CallParameter{
+	res, err := c.context.Call(vm.Create2, vm.CallParameters{
 		Sender: c.params.Recipient,
 		Value:  vm.Value(value.Bytes32()),
 		Input:  input,
@@ -1168,7 +1167,7 @@ func opCall(c *context) {
 	}
 
 	// Perform the call.
-	ret, err := c.context.Call(kind, vm.CallParameter{
+	ret, err := c.context.Call(kind, vm.CallParameters{
 		Sender:    c.params.Recipient,
 		Recipient: toAddr,
 		Input:     args,
@@ -1266,7 +1265,7 @@ func opCallCode(c *context) {
 
 	// Get the arguments from the memory.
 	args := c.memory.GetSlice(inOffset.Uint64(), inSize.Uint64())
-	ret, err := c.context.Call(vm.CallCode, vm.CallParameter{
+	ret, err := c.context.Call(vm.CallCode, vm.CallParameters{
 		Sender:      c.params.Recipient,
 		Recipient:   c.params.Recipient,
 		CodeAddress: toAddr,
@@ -1341,7 +1340,7 @@ func opStaticCall(c *context) {
 	toAddr := vm.Address(addr.Bytes20())
 	// Get arguments from the memory.
 	args := c.memory.GetSlice(inOffset.Uint64(), inSize.Uint64())
-	ret, err := c.context.Call(vm.StaticCall, vm.CallParameter{
+	ret, err := c.context.Call(vm.StaticCall, vm.CallParameters{
 		Sender:    c.params.Recipient,
 		Recipient: toAddr,
 		Input:     args,
@@ -1413,7 +1412,7 @@ func opDelegateCall(c *context) {
 	// Get arguments from the memory.
 	args := c.memory.GetSlice(inOffset.Uint64(), inSize.Uint64())
 
-	ret, err := c.context.Call(vm.DelegateCall, vm.CallParameter{
+	ret, err := c.context.Call(vm.DelegateCall, vm.CallParameters{
 		Sender:      c.params.Sender,
 		Recipient:   c.params.Recipient,
 		CodeAddress: toAddr,
@@ -1513,8 +1512,11 @@ func opLog(c *context, size int) {
 
 	// make a copy of the data to disconnect from memory
 	log_data := bytes.Clone(d)
-	c.context.EmitLog(c.params.Recipient, topics, log_data)
-
+	c.context.EmitLog(vm.Log{
+		Address: c.params.Recipient,
+		Topics:  topics,
+		Data:    log_data,
+	})
 }
 
 // ----------------------------- Super Instructions -----------------------------

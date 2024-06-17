@@ -45,9 +45,11 @@ func getContext(code Code, data []byte, runContext vm.RunContext, stackPtr int, 
 	// Create execution context.
 	ctxt := context{
 		params: vm.Parameters{
-			Revision: revision,
-			Gas:      gas,
-			Input:    data,
+			BlockParameters: vm.BlockParameters{
+				Revision: revision,
+			},
+			Gas:   gas,
+			Input: data,
 		},
 		context:  runContext,
 		gas:      gas,

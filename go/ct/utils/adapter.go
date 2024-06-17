@@ -51,8 +51,23 @@ func ToVmParameters(state *st.State) vm.Parameters {
 	}
 
 	return vm.Parameters{
+		BlockParameters: vm.BlockParameters{
+			ChainID:     state.BlockContext.ChainID.Bytes32be(),
+			BlockNumber: int64(state.BlockContext.BlockNumber),
+			Timestamp:   int64(state.BlockContext.TimeStamp),
+			Coinbase:    state.BlockContext.CoinBase,
+			GasLimit:    vm.Gas(state.BlockContext.GasLimit),
+			PrevRandao:  state.BlockContext.PrevRandao.Bytes32be(),
+			BaseFee:     state.BlockContext.BaseFee.Bytes32be(),
+			BlobBaseFee: state.BlockContext.BlobBaseFee.Bytes32be(),
+			Revision:    revision,
+		},
+		TransactionParameters: vm.TransactionParameters{
+			Origin:     state.CallContext.OriginAddress,
+			GasPrice:   vm.Value(state.BlockContext.GasPrice.Bytes32be()),
+			BlobHashes: nil, // TODO: add support for blob hashes
+		},
 		Context:   &ctRunContext{state},
-		Revision:  revision,
 		Kind:      vm.Call,
 		Static:    state.ReadOnly,
 		Depth:     0,
@@ -114,23 +129,8 @@ func (c *ctRunContext) GetCodeHash(addr vm.Address) vm.Hash {
 	return c.state.Accounts.GetCodeHash(addr)
 }
 
-func (c *ctRunContext) GetCode(addr vm.Address) []byte {
+func (c *ctRunContext) GetCode(addr vm.Address) vm.Code {
 	return c.state.Accounts.GetCode(addr).ToBytes()
-}
-
-func (c *ctRunContext) GetTransactionContext() vm.TransactionContext {
-	return vm.TransactionContext{
-		GasPrice:    c.state.BlockContext.GasPrice.Bytes32be(),
-		Origin:      vm.Address(c.state.CallContext.OriginAddress),
-		Coinbase:    vm.Address(c.state.BlockContext.CoinBase),
-		BlockNumber: int64(c.state.BlockContext.BlockNumber),
-		Timestamp:   int64(c.state.BlockContext.TimeStamp),
-		GasLimit:    vm.Gas(c.state.BlockContext.GasLimit),
-		PrevRandao:  vm.Hash(c.state.BlockContext.PrevRandao.Bytes32be()),
-		ChainID:     c.state.BlockContext.ChainID.Bytes32be(),
-		BaseFee:     c.state.BlockContext.BaseFee.Bytes32be(),
-		BlobBaseFee: c.state.BlockContext.BlobBaseFee.Bytes32be(),
-	}
 }
 
 func (c *ctRunContext) GetBlockHash(number int64) vm.Hash {
@@ -147,17 +147,17 @@ func (c *ctRunContext) GetBlockHash(number int64) vm.Hash {
 }
 
 // TODO: add unit test
-func (c *ctRunContext) EmitLog(addr vm.Address, topics []vm.Hash, data []byte) {
+func (c *ctRunContext) EmitLog(log vm.Log) {
 	var ctTopics []cc.U256
-	for _, topic := range topics {
+	for _, topic := range log.Topics {
 		ctTopics = append(ctTopics, cc.NewU256FromBytes(topic[:]...))
 	}
 	// TODO: also log the address the log was emitted for!
-	c.state.Logs.AddLog(data, ctTopics...)
+	c.state.Logs.AddLog(log.Data, ctTopics...)
 }
 
 // TODO: add unit test
-func (c *ctRunContext) Call(kind vm.CallKind, parameter vm.CallParameter) (vm.CallResult, error) {
+func (c *ctRunContext) Call(kind vm.CallKind, parameter vm.CallParameters) (vm.CallResult, error) {
 	return c.state.CallJournal.Call(kind, parameter), nil
 }
 
@@ -207,4 +207,34 @@ func (c *ctRunContext) IsSlotInAccessList(addr vm.Address, key vm.Key) (addressP
 
 func (c *ctRunContext) HasSelfDestructed(addr vm.Address) bool {
 	return c.state.HasSelfDestructed
+}
+
+// --- API only needed in the context of a full transaction, which is not covered by CT ---
+
+func (c *ctRunContext) CreateAccount(vm.Address, vm.Code) bool {
+	panic("should not be needed")
+}
+
+func (c *ctRunContext) SetBalance(vm.Address, vm.Value) {
+	panic("should not be needed")
+}
+
+func (c *ctRunContext) GetNonce(vm.Address) uint64 {
+	panic("should not be needed")
+}
+
+func (c *ctRunContext) SetNonce(vm.Address, uint64) {
+	panic("should not be needed")
+}
+
+func (c *ctRunContext) CreateSnapshot() vm.Snapshot {
+	panic("should not be needed")
+}
+
+func (c *ctRunContext) RestoreSnapshot(vm.Snapshot) {
+	panic("should not be needed")
+}
+
+func (c *ctRunContext) GetLogs() []vm.Log {
+	panic("should not be needed")
 }

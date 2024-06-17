@@ -535,7 +535,7 @@ func gasDynamicLog(revision Revision, size int) []*DynGasTest {
 		expectedGas := vm.Gas(375+375*size+8*dataSize) + memoryExpansionGasCost(uint64(dataSize))
 
 		mockCalls := func(mock *MockStateDB) {
-			mock.EXPECT().EmitLog(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+			mock.EXPECT().EmitLog(gomock.Any()).AnyTimes()
 		}
 		// Append test
 		testCases = append(testCases, &DynGasTest{testName, stackValues, expectedGas, 0, mockCalls, nil})

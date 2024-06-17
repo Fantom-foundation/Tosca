@@ -36,47 +36,72 @@ type Interpreter interface {
 
 // Parameters summarizes the list of input parameters required for executing code.
 type Parameters struct {
+	BlockParameters
+	TransactionParameters
 	Context   RunContext
-	Revision  Revision
 	Kind      CallKind
 	Static    bool
 	Depth     int
 	Gas       Gas
 	Recipient Address
 	Sender    Address
-	Input     []byte
+	Input     Data
 	Value     Value
 	CodeHash  *Hash
-	Code      []byte
+	Code      Code
 }
 
-// Result summarizes the result of a EVM code computation.
-type Result struct {
-	Success   bool // false if the execution ended in a revert, true otherwise
-	Output    []byte
-	GasLeft   Gas
-	GasRefund Gas
+// BlockParameters contains information about the current block.
+type BlockParameters struct {
+	ChainID     Word
+	BlockNumber int64
+	Timestamp   int64
+	Coinbase    Address
+	GasLimit    Gas
+	PrevRandao  Hash
+	BaseFee     Value
+	BlobBaseFee Value
+	Revision    Revision
+}
+
+// TransactionParameters contains information about current transaction.
+type TransactionParameters struct {
+	Origin     Address
+	GasPrice   Value
+	BlobHashes []Hash
 }
 
 // RunContext provides an interface to access and manipulate state and transaction
 // properties as needed by individual EVM instructions.
 type RunContext interface {
-	AccountExists(addr Address) bool
-	GetStorage(addr Address, key Key) Word
-	SetStorage(addr Address, key Key, value Word) StorageStatus
-	GetTransientStorage(addr Address, key Key) Word
-	SetTransientStorage(addr Address, key Key, value Word)
-	GetBalance(addr Address) Value
-	GetCodeSize(addr Address) int
-	GetCodeHash(addr Address) Hash
-	GetCode(addr Address) []byte
-	GetTransactionContext() TransactionContext
+	TransactionContext
+
+	Call(kind CallKind, parameter CallParameters) (CallResult, error)
+}
+
+// TransactionContext is an interface to access and manipulate the state of the
+// the world state in a transaction. All modifications on the world state are
+// buffered in a transaction context, which can be snapshot and restored.
+// Additionally, a transaction context provides infrastructure for tracking
+// transaction state information beyond the world state. In particular,
+// transient storage, access lists, and logs are managed.
+type TransactionContext interface {
+	WorldState
+
+	CreateSnapshot() Snapshot
+	RestoreSnapshot(Snapshot)
+
+	GetTransientStorage(Address, Key) Word
+	SetTransientStorage(Address, Key, Word)
+
+	AccessAccount(Address) AccessStatus
+	AccessStorage(Address, Key) AccessStatus
+
+	EmitLog(Log)
+	GetLogs() []Log
+
+	// GetBlockHash returns the hash of the block with the given number.
 	GetBlockHash(number int64) Hash
-	EmitLog(addr Address, topics []Hash, data []byte)
-	Call(kind CallKind, parameter CallParameter) (CallResult, error)
-	SelfDestruct(addr Address, beneficiary Address) bool
-	AccessAccount(addr Address) AccessStatus
-	AccessStorage(addr Address, key Key) AccessStatus
 
 	// -- legacy API needed by LFVM and Geth, to be removed in the future ---
 
@@ -90,40 +115,6 @@ type RunContext interface {
 	HasSelfDestructed(addr Address) bool
 }
 
-// Gas represents the type used to represent the Gas values.
-type Gas int64
-
-// Address represents the 160-bit (20 bytes) address of an account.
-type Address [20]byte
-
-// Key represents the 256-bit (32 bytes) key of a storage slot.
-type Key [32]byte
-
-// Word represents an arbitrary 256-bit (32 byte) word in the EVM.
-type Word [32]byte
-
-// Value represents the 256-bit (32 bytes) value of a storage slot.
-type Value [32]byte
-
-// Hash represents the 256-bit (32 bytes) hash of a code, a block, a topic
-// or similar sequence of cryptographic summary information.
-type Hash [32]byte
-
-// TransactionContext contains information about current transaction and block.
-type TransactionContext struct {
-	GasPrice    Value
-	Origin      Address
-	Coinbase    Address
-	BlockNumber int64
-	Timestamp   int64
-	GasLimit    Gas
-	PrevRandao  Hash
-	ChainID     Word
-	BaseFee     Value
-	BlobBaseFee Value
-	BlobHashes  []Hash
-}
-
 // AccessStatus is an enum utilized to indicate cold and warm account or
 // storage slot accesses.
 type AccessStatus bool
@@ -133,24 +124,31 @@ const (
 	WarmAccess AccessStatus = true
 )
 
-// StorageStatus is an enum utilized to indicate the effect of a storage
-// slot update on the respective slot in the context of the current
-// transaction. It is needed to perform proper gas price calculations of
-// SSTORE operations.
-type StorageStatus int
+// Result summarizes the result of a EVM code computation.
+type Result struct {
+	Success   bool // false if the execution ended in a revert, true otherwise
+	Output    Data
+	GasLeft   Gas
+	GasRefund Gas
+}
 
-// See t.ly/b5HPf for the definition of these values.
-const (
-	StorageAssigned StorageStatus = iota
-	StorageAdded
-	StorageDeleted
-	StorageModified
-	StorageDeletedAdded
-	StorageModifiedDeleted
-	StorageDeletedRestored
-	StorageAddedDeleted
-	StorageModifiedRestored
-)
+// Data represents the input or output of contract invocations.
+type Data []byte
+
+// Gas represents the type used to represent the Gas values.
+type Gas int64
+
+// Snapshot is a type used to represent a snapshot of the world state in a
+// transaction context.
+type Snapshot int
+
+// Log is the type summarizing a log message emitted as a side effect of a
+// contract execution.
+type Log struct {
+	Address Address
+	Topics  []Hash
+	Data    Data
+}
 
 // CallKind is an enum enabling the differentiation of the different types
 // of recursive contract calls supported in the EVM.
@@ -165,18 +163,18 @@ const (
 	Create2
 )
 
-type CallParameter struct {
+type CallParameters struct {
 	Sender      Address // TODO: remove and handle implicit
 	Recipient   Address // < not relevant for CREATE and CREATE2 // TODO: remove and handle implicit
 	Value       Value   // < ignored by static calls, considered to be 0
-	Input       []byte
+	Input       Data
 	Gas         Gas
 	Salt        Hash    // < only relevant for CREATE2 calls
 	CodeAddress Address // < only relevant for DELEGATECALL and CALLCODE calls
 }
 
 type CallResult struct {
-	Output         []byte
+	Output         Data
 	GasLeft        Gas
 	GasRefund      Gas
 	CreatedAddress Address // < only meaningful for CREATE and CREATE2
