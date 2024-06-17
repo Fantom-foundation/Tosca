@@ -140,7 +140,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 
 	chainId, err := bigIntToWord(a.evm.ChainConfig().ChainID)
 	if err != nil {
-		return nil, fmt.Errorf("Could not convert chain Id: %v", err)
+		return nil, fmt.Errorf("could not convert chain Id: %v", err)
 	}
 
 	// BaseFee can be assumed zero unless set.
@@ -148,7 +148,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	if a.evm.Context.BaseFee != nil {
 		baseFee, err = bigIntToValue(a.evm.Context.BaseFee)
 		if err != nil {
-			return nil, fmt.Errorf("Could not convert base fee: %v", err)
+			return nil, fmt.Errorf("could not convert base fee: %v", err)
 		}
 	}
 
@@ -156,8 +156,13 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	if a.evm.Context.Difficulty != nil {
 		difficulty, err = bigIntToHash(a.evm.Context.Difficulty)
 		if err != nil {
-			return nil, fmt.Errorf("Could not convert difficulty: %v", err)
+			return nil, fmt.Errorf("could not convert difficulty: %v", err)
 		}
+	}
+
+	blobBaseFee, err := bigIntToValue(a.evm.Context.BlobBaseFee)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert blob-base fee: %v", err)
 	}
 
 	blockParameters := vm.BlockParameters{
@@ -168,13 +173,13 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		GasLimit:    vm.Gas(a.evm.Context.GasLimit),
 		PrevRandao:  difficulty,
 		BaseFee:     baseFee,
-		BlobBaseFee: vm.Value{},
+		BlobBaseFee: blobBaseFee,
 		Revision:    revision,
 	}
 
 	gasPrice, err := bigIntToValue(a.evm.TxContext.GasPrice)
 	if err != nil {
-		return nil, fmt.Errorf("Could not convert gas price: %v", err)
+		return nil, fmt.Errorf("could not convert gas price: %v", err)
 	}
 
 	transactionParameters := vm.TransactionParameters{
