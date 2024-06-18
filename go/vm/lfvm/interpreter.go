@@ -73,12 +73,12 @@ type context struct {
 }
 
 func (c *context) UseGas(amount vm.Gas) bool {
-	if c.gas >= 0 && c.gas >= amount {
-		c.gas -= amount
-		return true
+	if c.gas < 0 || amount < 0 || c.gas < amount {
+		c.status = OUT_OF_GAS
+		return false
 	}
-	c.status = OUT_OF_GAS
-	return false
+	c.gas -= amount
+	return true
 }
 
 func (c *context) SignalError(err error) {
