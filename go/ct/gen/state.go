@@ -390,7 +390,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	}
 
 	// generate recent block hashes
-	resultRecentBlockHashes := RandomImmutableHashArray(rnd)
+	resultRecentBlockHashes := NewRandomImmutableHashArray(rnd)
 
 	// Sub-generators can modify the assignment when unassigned variables are
 	// encountered. The order in which sub-generators are invoked influences

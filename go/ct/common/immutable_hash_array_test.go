@@ -27,6 +27,12 @@ func TestImmutableHashArray_Equal(t *testing.T) {
 		"empty": {
 			NewImmutableHashArray(), NewImmutableHashArray(), true,
 		},
+		"nil-first": {
+			ImmutableHashArray{}, NewImmutableHashArray(), true,
+		},
+		"nil-second": {
+			NewImmutableHashArray(), ImmutableHashArray{}, true,
+		},
 		"single": {
 			NewImmutableHashArray(vm.Hash{1}), NewImmutableHashArray(vm.Hash{1}), true,
 		},
@@ -83,6 +89,9 @@ func TestImmutableHashArray_CanBeJsonEncoded(t *testing.T) {
 		"single": {
 			NewImmutableHashArray(vm.Hash{1}), oneHash,
 		},
+		"nil": {
+			ImmutableHashArray{}, "null",
+		},
 	}
 
 	for name, test := range tests {
@@ -109,17 +118,27 @@ func TestImmutableHashArray_CanBeJsonEncoded(t *testing.T) {
 
 func TestImmutableHashArray_Get(t *testing.T) {
 
-	oneHash := vm.Hash{1}
-	hashes := NewImmutableHashArray(oneHash)
-	hash := hashes.Get(0)
-	if hash != oneHash {
-		t.Errorf("unexpected hash: %v", hash)
+	tests := map[string]struct {
+		hashes ImmutableHashArray
+	}{
+		"default-initialized": {ImmutableHashArray{}},
+		"constructed":         {NewImmutableHashArray()},
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("expected panic")
-		}
-	}()
-	_ = hashes.Get(256)
 
+	zeroHash := vm.Hash{}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			hash := test.hashes.Get(0)
+			if hash != zeroHash {
+				t.Errorf("unexpected hash: %v", hash)
+			}
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic")
+				}
+			}()
+			_ = test.hashes.Get(256)
+		})
+	}
 }

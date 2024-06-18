@@ -19,6 +19,7 @@ import (
 )
 
 // ImmutableHashArray is an immutable array of 256 vm.Hash that can be trivially cloned.
+// if default initialized, it is considered as if all hashes are zero.
 type ImmutableHashArray struct {
 	data *[256]vm.Hash
 }
@@ -30,10 +31,19 @@ func NewImmutableHashArray(hashes ...vm.Hash) ImmutableHashArray {
 }
 
 func (b ImmutableHashArray) Equal(other ImmutableHashArray) bool {
+	if b.data == nil && other.data == nil {
+		return true
+	}
+	if b.data == nil {
+		return *other.data == [256]vm.Hash{}
+	}
+	if other.data == nil {
+		return *b.data == [256]vm.Hash{}
+	}
 	return b.data == other.data || (b.data != nil && other.data != nil && *b.data == *other.data)
 }
 
-func RandomImmutableHashArray(rnd *rand.Rand) ImmutableHashArray {
+func NewRandomImmutableHashArray(rnd *rand.Rand) ImmutableHashArray {
 	hashes := ImmutableHashArray{}
 	hashes.data = new([256]vm.Hash)
 	for i := 0; i < 256; i++ {
@@ -64,20 +74,22 @@ func (h *ImmutableHashArray) UnmarshalJSON(data []byte) error {
 	}
 
 	// Copy the slice into the ImmutableHashArray array
-	h.data = &hashes
+	if string(data) == "null" {
+		h.data = nil
+	} else {
+		h.data = &hashes
+	}
 	return nil
 }
 
 // Get returns the hash at the given index or panics if out of range
 func (b ImmutableHashArray) Get(index uint64) vm.Hash {
-	if b.data == nil {
+	if b.data == nil && index < 256 {
 		return vm.Hash{}
 	}
-	return vm.Hash(b.data[index])
-}
-
-func GetRandomHash(rnd *rand.Rand) vm.Hash {
-	var res vm.Hash
-	rnd.Read(res[:])
-	return res
+	// if data is nil, we still want to return ouf of range error
+	if index >= 256 {
+		panic(fmt.Sprintf("index out of range: %d", index))
+	}
+	return b.data[index]
 }

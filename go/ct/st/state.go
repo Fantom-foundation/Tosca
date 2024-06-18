@@ -463,7 +463,7 @@ func (s *State) Diff(o *State) []string {
 			want := s.RecentBlockHashes.Get(uint64(i))
 			got := o.RecentBlockHashes.Get(uint64(i))
 			if want != got {
-				res = append(res, fmt.Sprintf("Different block number hash at index %d: %x vs %x", i, want, got))
+				res = append(res, fmt.Sprintf("Different block hash at index %d: %x vs %x", i, want, got))
 			}
 		}
 	}
