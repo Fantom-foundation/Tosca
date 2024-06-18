@@ -135,6 +135,7 @@ type State struct {
 	HasSelfDestructed     bool
 	SelfDestructedJournal []SelfDestructEntry
 	RecentBlockHashes     [256]vm.Hash
+	TransactionContext    TransactionContext
 }
 
 // NewState creates a new State instance with the given code.
@@ -184,6 +185,7 @@ func (s *State) Clone() *State {
 	clone.HasSelfDestructed = s.HasSelfDestructed
 	clone.SelfDestructedJournal = slices.Clone(s.SelfDestructedJournal)
 	clone.RecentBlockHashes = s.RecentBlockHashes
+	clone.TransactionContext = s.TransactionContext
 	return clone
 }
 
@@ -217,7 +219,8 @@ func (s *State) Eq(other *State) bool {
 		s.Logs.Eq(other.Logs) &&
 		s.HasSelfDestructed == other.HasSelfDestructed &&
 		slices.Equal(s.SelfDestructedJournal, other.SelfDestructedJournal) &&
-		s.RecentBlockHashes == other.RecentBlockHashes
+		s.RecentBlockHashes == other.RecentBlockHashes &&
+		s.TransactionContext == other.TransactionContext
 
 	// For terminal states, internal state can be ignored, but the result is important.
 	if s.Status != Running {
@@ -293,6 +296,7 @@ func (s *State) String() string {
 	}
 	write("\t%v", s.CallContext.String())
 	write("\t%v", s.BlockContext.String())
+	write("\t%v", s.TransactionContext.String())
 
 	write("\tPast Calls:\n")
 	for i, cur := range s.CallJournal.Past {
@@ -416,6 +420,10 @@ func (s *State) Diff(o *State) []string {
 
 	if s.BlockContext != o.BlockContext {
 		res = append(res, s.BlockContext.Diff(&o.BlockContext)...)
+	}
+
+	if s.TransactionContext != o.TransactionContext {
+		res = append(res, s.TransactionContext.Diff(&o.TransactionContext)...)
 	}
 
 	if s.CallData != o.CallData {

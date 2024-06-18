@@ -36,7 +36,6 @@
   },
   "CallContext": {
     "AccountAddress": "0x1b99041aea4732e6060ce2804adfd8af65496b74",
-    "OriginAddress": "0xb18772e216345fdbf4b42aabe7fdc4bc5a28cc20",
     "CallerAddress": "0x24b081b7c8229713f91512001e5985340f9ce19a",
     "Value": "8de0b99677e44c2f 76bff9f0952794d9 f28ed2fd8c3f1f1c 3978d5544e896db4"
   },
@@ -49,6 +48,9 @@
     "GasPrice": "1e7b28957a2e063f 8d104757adc11203 3f455d226f722be1 6147bc4e82e15050",
     "Prevrandao": "3f6cbc4669f4ad6f 7fac6dccde9e4109 b95400b9e726bae0 615343c14be3f5f7",
     "TimeStamp": 8608122755700819875
+  },
+  "TransactionContext": {
+    "OriginAddress": "0xb18772e216345fdbf4b42aabe7fdc4bc5a28cc20"
   },
   "CallData": "572aedb109fe86432034c5fc438e6b72840dc82523101e6c69c544af05",
   "LastCallReturnData": "d7009c71440e1c3f3dd70b70a7aa33be7c80ed4f1994d9dd7cea165f80277123f537",

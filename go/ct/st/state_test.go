@@ -47,6 +47,7 @@ func getNewFilledState() *State {
 	s.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
 	s.BlockContext = BlockContext{BlockNumber: 1}
+	s.TransactionContext = TransactionContext{OriginAddress: vm.Address{0x01}}
 	s.CallData = NewBytes([]byte{1})
 	s.LastCallReturnData = NewBytes([]byte{1})
 	s.HasSelfDestructed = true
@@ -130,6 +131,11 @@ func getTestChanges() map[string]testStruct {
 			state.BlockContext.BlockNumber = 251
 		},
 			"Different block context",
+		},
+		"transaction_context": {func(state *State) {
+			state.TransactionContext.OriginAddress = vm.Address{0xff}
+		},
+			"Different transaction context",
 		},
 		"call_data": {func(state *State) {
 			state.CallData = NewBytes([]byte{245})
@@ -473,6 +479,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
 	s1.BlockContext = BlockContext{BlockNumber: 1}
+	s1.TransactionContext = TransactionContext{OriginAddress: vm.Address{0x01}}
 	s1.CallData = NewBytes([]byte{1})
 	s1.LastCallReturnData = NewBytes([]byte{1})
 	s1.HasSelfDestructed = true
@@ -491,6 +498,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s2.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
 	s2.BlockContext = BlockContext{BlockNumber: 1}
+	s2.TransactionContext = TransactionContext{OriginAddress: vm.Address{0x01}}
 	s2.CallData = NewBytes([]byte{1})
 	s2.LastCallReturnData = NewBytes([]byte{1})
 	s2.HasSelfDestructed = true
@@ -522,6 +530,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.CallContext = CallContext{AccountAddress: vm.Address{0xff}}
 	s1.BlockContext = BlockContext{BlockNumber: 1}
+	s1.TransactionContext = TransactionContext{OriginAddress: vm.Address{0xff}}
 	s1.CallData = NewBytes([]byte{1})
 	s1.LastCallReturnData = NewBytes([]byte{1})
 	s1.HasSelfDestructed = true
@@ -540,6 +549,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.Logs.AddLog([]byte{4, 7, 6}, NewU256(24), NewU256(22))
 	s2.CallContext = CallContext{AccountAddress: vm.Address{0xef}}
 	s2.BlockContext = BlockContext{BlockNumber: 251}
+	s2.TransactionContext = TransactionContext{OriginAddress: vm.Address{0xef}}
 	s2.CallData = NewBytes([]byte{250})
 	s2.LastCallReturnData = NewBytes([]byte{249})
 	s2.HasSelfDestructed = false
@@ -563,6 +573,7 @@ func TestState_DiffMismatch(t *testing.T) {
 		"Different data for log entry",
 		"Different call context",
 		"Different block context",
+		"Different transaction context",
 		"Different call data",
 		"Different last call return data",
 		"Different has-self-destructed",
@@ -744,6 +755,10 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 		},
 		"block_context": {
 			modify:      func(s *State) { s.BlockContext.BlockNumber++ },
+			relevantFor: allButFailed,
+		},
+		"transaction_context": {
+			modify:      func(s *State) { s.TransactionContext.OriginAddress[0]++ },
 			relevantFor: allButFailed,
 		},
 		"call_data": {
