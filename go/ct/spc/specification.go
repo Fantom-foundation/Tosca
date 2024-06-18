@@ -852,7 +852,7 @@ func getAllRules() []Rule {
 		pops:      0,
 		pushes:    1,
 		effect: func(s *st.State) {
-			s.Stack.Push(NewU256FromBytes(s.CallContext.OriginAddress[:]...))
+			s.Stack.Push(NewU256FromBytes(s.TransactionContext.OriginAddress[:]...))
 		},
 	})...)
 

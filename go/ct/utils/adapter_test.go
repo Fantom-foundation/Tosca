@@ -59,7 +59,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			func(p vm.Parameters) (any, any) { return vm.Address{1, 2, 3}, p.Sender },
 		},
 		"origin": {
-			func(s *st.State) { s.CallContext.OriginAddress = vm.Address{1, 2, 3} },
+			func(s *st.State) { s.TransactionContext.OriginAddress = vm.Address{1, 2, 3} },
 			func(p vm.Parameters) (any, any) { return vm.Address{1, 2, 3}, p.Origin },
 		},
 		"value": {
