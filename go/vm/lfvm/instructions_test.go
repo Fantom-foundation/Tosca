@@ -675,10 +675,11 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 	}
 
 	dynamicCost := func(revision vm.Revision, size uint64) uint64 {
-		sizeWord := ((size + 31) / 32)
-		memoryExpansionCost := (sizeWord*sizeWord)/512 + 3*sizeWord
+		words := sizeInWords(size)
+		// TODO: check for overflow, fix in #524
+		memoryExpansionCost := (words*words)/512 + 3*words
 		if revision >= vm.R12_Shanghai {
-			return 2*sizeWord + memoryExpansionCost
+			return 2*words + memoryExpansionCost
 		}
 		return memoryExpansionCost
 	}

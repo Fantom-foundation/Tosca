@@ -50,6 +50,7 @@ func (m *Memory) ExpansionCosts(size uint64) vm.Gas {
 	}
 	size = toValidMemorySize(size)
 	memory_size_word := sizeInWords(size)
+	// TODO: check for overflow, fix in #524
 	new_costs := vm.Gas((memory_size_word*memory_size_word)/512 + (3 * memory_size_word))
 	fee := new_costs - m.total_memory_cost
 	return fee
