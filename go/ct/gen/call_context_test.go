@@ -33,9 +33,6 @@ func TestCallContextGen_Generate(t *testing.T) {
 	if callCtx.AccountAddress == (vm.Address{}) {
 		t.Errorf("Generated account address has default value.")
 	}
-	if callCtx.OriginAddress == (vm.Address{}) {
-		t.Errorf("Generated origin address has default value.")
-	}
 	if callCtx.CallerAddress == (vm.Address{}) {
 		t.Errorf("Generated caller address has default value.")
 	}

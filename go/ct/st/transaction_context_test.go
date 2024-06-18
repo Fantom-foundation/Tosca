@@ -14,41 +14,38 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-
-	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
-func TestCallContext_Diff(t *testing.T) {
+func TestTransactionContext_Diff(t *testing.T) {
 	tests := map[string]struct {
-		change func(*CallContext)
+		change func(*TransactionContext)
 	}{
-		"Account Address": {func(c *CallContext) { c.AccountAddress[0]++ }},
-		"Caller Address":  {func(c *CallContext) { c.CallerAddress[0]++ }},
-		"Value":           {func(c *CallContext) { c.Value = NewU256(1) }},
+		"Origin Address": {func(t *TransactionContext) { t.OriginAddress[0]++ }},
 	}
 
-	callContext := CallContext{}
+	transactionContext := TransactionContext{}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			c2 := CallContext{}
-			test.change(&c2)
-			if diffs := callContext.Diff(&c2); len(diffs) == 0 {
+			t2 := TransactionContext{}
+			test.change(&t2)
+			if diffs := transactionContext.Diff(&t2); len(diffs) == 0 {
 				t.Errorf("No difference found in modified %v", name)
 			}
 		})
 	}
 }
 
-func TestCallContext_String(t *testing.T) {
+func TestTransactionContext_String(t *testing.T) {
 	tests := map[string]struct {
-		change func(*CallContext) any
+		change func(*TransactionContext) any
 	}{
-		"Account Address": {func(c *CallContext) any { c.AccountAddress[19] = 0xff; return c.AccountAddress }},
-		"Caller Address":  {func(c *CallContext) any { c.CallerAddress[19] = 0xfd; return c.CallerAddress }},
-		"Value":           {func(c *CallContext) any { c.Value = NewU256(1); return c.Value }},
+		"Origin Address": {func(t *TransactionContext) any {
+			t.OriginAddress[19] = 0xfe
+			return t.OriginAddress
+		}},
 	}
 
-	c := CallContext{}
+	c := TransactionContext{}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			v := test.change(&c)

@@ -31,9 +31,11 @@
   },
   "CallContext": {
     "AccountAddress": "0x94b6a774894eb6752b504ac931a86dab2eeebdab",
-    "OriginAddress": "0x6bed1a00c01ab35e5814eab708652e4f5290c42e",
     "CallerAddress": "0x78a03fec3d63af7adfad6be13e52bd46dd5998ea",
     "Value": "496bc00deccbe487 6167084a991efebd 6ce0e7348cc5d247 5e942e824f67da05"
+  },
+  "TransactionContext": {
+    "OriginAddress": "0x6bed1a00c01ab35e5814eab708652e4f5290c42e"
   },
   "CallData": "5b96088d9d889e81dfddb61f8ba34bddb8cc2c63a0250582eaec5d33dd20dfa0d230bb4b0c6633d7336d9918e3260255146238ccf7ca59ad8ad9a07fd8277bb98773411ef1a7d63585e3300be206bf935678ea65565a91fd7e1b8c7f652ddd79b0ab4f12d7e36980c6b10e",
   "LastCallReturnData": "2985858129397bc6d3c763a594d19f5beb95fc939f9adb3767ad3a856d153c315c5e9810b159c590fba7b26e2b9f07a1fed1f5704c0778cfd2c286cda13b16",
