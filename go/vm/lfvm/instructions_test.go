@@ -1,4 +1,3 @@
-//
 // Copyright (c) 2024 Fantom Foundation
 //
 // Use of this software is governed by the Business Source License included
@@ -6,9 +5,8 @@
 //
 // Change Date: 2028-4-16
 //
-// On the date above, in accordance with the Business Source License, use
-// of this software will be governed by the GNU Lesser General Public Licence v3
-//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
 
 package lfvm
 
@@ -287,39 +285,57 @@ func TestCreateChecksBalance(t *testing.T) {
 	}
 }
 
-func TestBlobBaseFee(t *testing.T) {
+func TestBlobHash(t *testing.T) {
 
-	blobBaseFeeValue := vm.Value{1}
+	hash := vm.Hash{1}
 
 	tests := map[string]struct {
-		setup    func(*vm.MockRunContext)
+		setup    func(*vm.Parameters, *Stack)
 		gas      vm.Gas
 		revision vm.Revision
 		status   Status
-		want     vm.Value
+		want     vm.Hash
 	}{
 		"regular": {
-			setup: func(runContext *vm.MockRunContext) {
-				runContext.EXPECT().GetTransactionContext().Return(vm.TransactionContext{BlobBaseFee: blobBaseFeeValue})
+			setup: func(params *vm.Parameters, stack *Stack) {
+				stack.push(uint256.NewInt(0))
+				params.BlobHashes = []vm.Hash{hash}
 			},
 			gas:      2,
 			revision: vm.R13_Cancun,
 			status:   RUNNING,
-			want:     blobBaseFeeValue,
+			want:     hash,
 		},
 		"old-revision": {
-			setup:    func(runContext *vm.MockRunContext) {},
+			setup:    func(params *vm.Parameters, stack *Stack) {},
 			gas:      2,
 			revision: vm.R12_Shanghai,
 			status:   INVALID_INSTRUCTION,
-			want:     vm.Value{},
+			want:     vm.Hash{},
+		},
+		"no-hashes": {
+			setup: func(params *vm.Parameters, stack *Stack) {
+				stack.push(uint256.NewInt(0))
+			},
+			gas:      2,
+			revision: vm.R13_Cancun,
+			status:   RUNNING,
+			want:     vm.Hash{},
+		},
+		"target-non-existent": {
+			setup: func(params *vm.Parameters, stack *Stack) {
+				stack.push(uint256.NewInt(1))
+			},
+			gas:      2,
+			revision: vm.R13_Cancun,
+			status:   RUNNING,
+			want:     vm.Hash{},
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			ctrl := gomock.NewController(t)
 			ctxt := context{
 				status: RUNNING,
 				params: vm.Parameters{
@@ -331,9 +347,64 @@ func TestBlobBaseFee(t *testing.T) {
 			ctxt.gas = test.gas
 			ctxt.revision = test.revision
 
-			runContext := vm.NewMockRunContext(ctrl)
-			test.setup(runContext)
-			ctxt.context = runContext
+			test.setup(&ctxt.params, ctxt.stack)
+
+			opBlobHash(&ctxt)
+
+			if ctxt.status != test.status {
+				t.Fatalf("unexpected status, wanted %v, got %v", test.status, ctxt.status)
+			}
+			if want, got := test.want, ctxt.stack.data[0]; vm.Hash(got.Bytes32()) != want && ctxt.status == RUNNING {
+				t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
+			}
+		})
+	}
+}
+
+func TestBlobBaseFee(t *testing.T) {
+
+	blobBaseFeeValue := vm.Value{1}
+
+	tests := map[string]struct {
+		setup    func(*vm.Parameters)
+		gas      vm.Gas
+		revision vm.Revision
+		status   Status
+		want     vm.Value
+	}{
+		"regular": {
+			setup: func(params *vm.Parameters) {
+				params.BlobBaseFee = blobBaseFeeValue
+			},
+			gas:      2,
+			revision: vm.R13_Cancun,
+			status:   RUNNING,
+			want:     blobBaseFeeValue,
+		},
+		"old-revision": {
+			setup:    func(*vm.Parameters) {},
+			gas:      2,
+			revision: vm.R12_Shanghai,
+			status:   INVALID_INSTRUCTION,
+			want:     vm.Value{},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			ctxt := context{
+				status: RUNNING,
+				params: vm.Parameters{
+					Recipient: vm.Address{1},
+				},
+				stack:  NewStack(),
+				memory: NewMemory(),
+			}
+			ctxt.gas = test.gas
+			ctxt.revision = test.revision
+
+			test.setup(&ctxt.params)
 
 			opBlobBaseFee(&ctxt)
 
@@ -586,5 +657,72 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 		if ctxt.gas != 0 {
 			t.Errorf("unexpected gas cost, wanted %d, got %d", cost, cost-uint64(ctxt.gas))
 		}
+	}
+}
+
+func TestTransientStorageOperations(t *testing.T) {
+	tests := map[string]struct {
+		op       func(*context)
+		setup    func(*vm.MockRunContext)
+		stackPtr int
+		revision vm.Revision
+		status   Status
+	}{
+		"tload-regular": {
+			op: opTload,
+			setup: func(runContext *vm.MockRunContext) {
+				runContext.EXPECT().GetTransientStorage(gomock.Any(), gomock.Any()).Return(vm.Word{})
+			},
+			stackPtr: 1,
+			revision: vm.R13_Cancun,
+			status:   RUNNING,
+		},
+		"tload-old-revision": {
+			op:       opTload,
+			setup:    func(runContext *vm.MockRunContext) {},
+			stackPtr: 1,
+			revision: vm.R11_Paris,
+			status:   INVALID_INSTRUCTION,
+		},
+		"tstore-regular": {
+			op: opTstore,
+			setup: func(runContext *vm.MockRunContext) {
+				runContext.EXPECT().SetTransientStorage(gomock.Any(), gomock.Any(), gomock.Any())
+			},
+			stackPtr: 2,
+			revision: vm.R13_Cancun,
+			status:   RUNNING,
+		},
+		"tstore-old-revision": {
+			op:       opTstore,
+			setup:    func(runContext *vm.MockRunContext) {},
+			stackPtr: 2,
+			revision: vm.R11_Paris,
+			status:   INVALID_INSTRUCTION,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			ctxt := context{
+				status: RUNNING,
+				params: vm.Parameters{
+					Recipient: vm.Address{1},
+				},
+				stack:    NewStack(),
+				revision: test.revision,
+			}
+			runContext := vm.NewMockRunContext(ctrl)
+			test.setup(runContext)
+			ctxt.context = runContext
+			ctxt.stack.stack_ptr = test.stackPtr
+
+			test.op(&ctxt)
+
+			if ctxt.status != test.status {
+				t.Errorf("unexpected status, wanted %v, got %v", test.status, ctxt.status)
+			}
+		})
 	}
 }

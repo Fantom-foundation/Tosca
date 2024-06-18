@@ -1,4 +1,3 @@
-//
 // Copyright (c) 2024 Fantom Foundation
 //
 // Use of this software is governed by the Business Source License included
@@ -7,12 +6,12 @@
 // Change Date: 2028-4-16
 //
 // On the date above, in accordance with the Business Source License, use of
-// this software will be governed by the GNU Lesser General Public Licence v3.
-//
+// this software will be governed by the GNU Lesser General Public License v3.
 
 #include "vm/evmzero/interpreter.h"
 
 #include <bit>
+#include <cstdint>
 #include <cstdio>
 #include <intx/intx.hpp>
 #include <iostream>
@@ -977,6 +976,26 @@ struct Impl<OpCode::BASEFEE> {
 };
 
 template <>
+struct Impl<OpCode::BLOBHASH> {
+  constexpr static OpInfo kInfo{
+      .pops = 1,
+      .pushes = 1,
+      .static_gas = 3,
+      .introduced_in = EVMC_CANCUN,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    const auto tx_context = ctx.host->get_tx_context();
+    if (top[0] < tx_context.blob_hashes_count) {
+      top[0] = ToUint256(tx_context.blob_hashes[static_cast<int64_t>(top[0])]);
+    } else {
+      top[0] = 0;
+    }
+    return {};
+  }
+};
+
+template <>
 struct Impl<OpCode::BLOBBASEFEE> {
   constexpr static OpInfo kInfo{
       .pops = 0,
@@ -1305,6 +1324,41 @@ struct Impl<OpCode::JUMPDEST> {
   };
 
   static OpResult Run() noexcept { return {}; }
+};
+
+template <>
+struct Impl<OpCode::TLOAD> {
+  constexpr static OpInfo kInfo{
+      .pops = 1,
+      .pushes = 1,
+      .static_gas = 100,
+      .introduced_in = EVMC_CANCUN,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    const uint256_t key = top[0];
+    evmc::bytes32 value = ctx.host->get_transient_storage(ctx.message->recipient, ToEvmcBytes(key));
+    top[0] = ToUint256(value);
+    return {};
+  }
+};
+
+template <>
+struct Impl<OpCode::TSTORE> {
+  constexpr static OpInfo kInfo{
+      .pops = 2,
+      .pushes = 0,
+      .static_gas = 100,
+      .disallowed_in_static_call = true,
+      .introduced_in = EVMC_CANCUN,
+  };
+
+  static OpResult Run(uint256_t* top, Context& ctx) noexcept {
+    const uint256_t key = top[0];
+    const uint256_t value = top[1];
+    ctx.host->set_transient_storage(ctx.message->recipient, ToEvmcBytes(key), ToEvmcBytes(value));
+    return {};
+  }
 };
 
 template <uint64_t N>

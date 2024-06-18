@@ -1,4 +1,3 @@
-//
 // Copyright (c) 2024 Fantom Foundation
 //
 // Use of this software is governed by the Business Source License included
@@ -6,9 +5,8 @@
 //
 // Change Date: 2028-4-16
 //
-// On the date above, in accordance with the Business Source License, use
-// of this software will be governed by the GNU Lesser General Public Licence v3
-//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
 
 package lfvm
 
@@ -45,9 +43,11 @@ func getContext(code Code, data []byte, runContext vm.RunContext, stackPtr int, 
 	// Create execution context.
 	ctxt := context{
 		params: vm.Parameters{
-			Revision: revision,
-			Gas:      gas,
-			Input:    data,
+			BlockParameters: vm.BlockParameters{
+				Revision: revision,
+			},
+			Gas:   gas,
+			Input: data,
 		},
 		context:  runContext,
 		gas:      gas,
@@ -132,8 +132,8 @@ var emptyStackFailOpCodes = []OpCode{
 	POP, ADD, SUB, MUL, DIV, SDIV, MOD, SMOD, EXP, SIGNEXTEND,
 	SHA3, LT, GT, SLT, SGT, EQ, AND, XOR, OR, BYTE,
 	SHL, SHR, SAR, ADDMOD, MULMOD, ISZERO, NOT, BALANCE, CALLDATALOAD, EXTCODESIZE,
-	BLOCKHASH, MCOPY, MLOAD, SLOAD, EXTCODEHASH, JUMP, SELFDESTRUCT,
-	MSTORE, MSTORE8, SSTORE, JUMPI, RETURN, REVERT,
+	BLOCKHASH, MCOPY, MLOAD, SLOAD, EXTCODEHASH, JUMP, SELFDESTRUCT, BLOBHASH,
+	MSTORE, MSTORE8, SSTORE, TLOAD, TSTORE, JUMPI, RETURN, REVERT,
 	CALLDATACOPY, CODECOPY, RETURNDATACOPY,
 	EXTCODECOPY, CREATE, CREATE2, CALL, CALLCODE,
 	STATICCALL, DELEGATECALL, POP_POP, POP_JUMP,

@@ -1,4 +1,3 @@
-//
 // Copyright (c) 2024 Fantom Foundation
 //
 // Use of this software is governed by the Business Source License included
@@ -6,9 +5,8 @@
 //
 // Change Date: 2028-4-16
 //
-// On the date above, in accordance with the Business Source License, use
-// of this software will be governed by the GNU Lesser General Public Licence v3
-//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
 
 package geth
 
@@ -169,12 +167,10 @@ func currentBlock(revision ct.Revision) *big.Int {
 }
 
 func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Contract, *stateDbAdapter) {
-	context := parameters.Context.GetTransactionContext()
-
 	// Set hard forks for chainconfig
 	chainConfig :=
 		makeChainConfig(*params.AllEthashProtocolChanges,
-			new(big.Int).SetBytes(context.ChainID[:]),
+			new(big.Int).SetBytes(parameters.ChainID[:]),
 			vmRevisionToCt(parameters.Revision))
 
 	// Hashing function used in the context for BLOCKHASH instruction
@@ -182,34 +178,29 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 		return common.Hash(parameters.Context.GetBlockHash(int64(num)))
 	}
 
-	var transactionContext vm.TransactionContext
-	if parameters.Context != nil {
-		transactionContext = parameters.Context.GetTransactionContext()
-	}
-
 	// Create empty block context based on block number
 	blockCtx := geth.BlockContext{
 		BlockNumber: currentBlock(vmRevisionToCt(parameters.Revision)),
-		Time:        uint64(transactionContext.Timestamp),
+		Time:        uint64(parameters.Timestamp),
 		Difficulty:  big.NewInt(1),
-		GasLimit:    uint64(transactionContext.GasLimit),
+		GasLimit:    uint64(parameters.GasLimit),
 		GetHash:     getHash,
-		BaseFee:     new(big.Int).SetBytes(transactionContext.BaseFee[:]),
-		BlobBaseFee: new(big.Int).SetBytes(transactionContext.BlobBaseFee[:]),
+		BaseFee:     new(big.Int).SetBytes(parameters.BaseFee[:]),
+		BlobBaseFee: new(big.Int).SetBytes(parameters.BlobBaseFee[:]),
 		Transfer:    transferFunc,
 		CanTransfer: canTransferFunc,
 	}
 
 	if parameters.Revision >= vm.R11_Paris {
 		// Setting the random signals to geth that a post-merge (Paris) revision should be utilized.
-		hash := common.BytesToHash(context.PrevRandao[:])
+		hash := common.BytesToHash(parameters.PrevRandao[:])
 		blockCtx.Random = &hash
 	}
 
 	// Create empty tx context
 	txCtx := geth.TxContext{
-		GasPrice:   new(big.Int).SetBytes(transactionContext.GasPrice[:]),
-		BlobFeeCap: new(big.Int).SetBytes(transactionContext.BlobBaseFee[:]),
+		GasPrice:   new(big.Int).SetBytes(parameters.GasPrice[:]),
+		BlobFeeCap: new(big.Int).SetBytes(parameters.BlobBaseFee[:]),
 	}
 	// Set interpreter variant for this VM
 	config := geth.Config{}
@@ -217,11 +208,11 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 	stateDb := &stateDbAdapter{context: parameters.Context}
 	evm := geth.NewEVM(blockCtx, txCtx, stateDb, &chainConfig, config)
 
-	evm.Origin = common.Address(context.Origin)
-	evm.Context.BlockNumber = big.NewInt(context.BlockNumber)
-	evm.Context.Coinbase = common.Address(context.Coinbase)
-	evm.Context.Difficulty = new(big.Int).SetBytes(context.PrevRandao[:])
-	evm.Context.Time = uint64(context.Timestamp)
+	evm.Origin = common.Address(parameters.Origin)
+	evm.Context.BlockNumber = big.NewInt(parameters.BlockNumber)
+	evm.Context.Coinbase = common.Address(parameters.Coinbase)
+	evm.Context.Difficulty = new(big.Int).SetBytes(parameters.PrevRandao[:])
+	evm.Context.Time = uint64(parameters.Timestamp)
 
 	value := vm.ValueToUint256(parameters.Value)
 	addr := geth.AccountRef(parameters.Recipient)
@@ -405,7 +396,11 @@ func (s *stateDbAdapter) AddLog(log *types.Log) {
 	for _, cur := range log.Topics {
 		topics = append(topics, vm.Hash(cur))
 	}
-	s.context.EmitLog(vm.Address(log.Address), topics, log.Data)
+	s.context.EmitLog(vm.Log{
+		Address: vm.Address(log.Address),
+		Topics:  topics,
+		Data:    log.Data,
+	})
 }
 
 func (s *stateDbAdapter) AddPreimage(common.Hash, []byte) {

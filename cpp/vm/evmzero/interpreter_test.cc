@@ -1,4 +1,3 @@
-//
 // Copyright (c) 2024 Fantom Foundation
 //
 // Use of this software is governed by the Business Source License included
@@ -7,8 +6,7 @@
 // Change Date: 2028-4-16
 //
 // On the date above, in accordance with the Business Source License, use of
-// this software will be governed by the GNU Lesser General Public Licence v3.
-//
+// this software will be governed by the GNU Lesser General Public License v3.
 
 #include "vm/evmzero/interpreter.h"
 
@@ -3199,6 +3197,60 @@ TEST(InterpreterTest, BASEFEE_PreRevision) {
 }
 
 ///////////////////////////////////////////////////////////
+// BLOBHASH
+TEST(InterpreterTest, BLOBHASH) {
+  const auto hash = evmc::bytes32(42);
+  evmc_tx_context tx_context{
+      .blob_hashes = &hash,
+      .blob_hashes_count = 1,
+  };
+
+  MockHost host;
+  EXPECT_CALL(host, get_tx_context()).Times(1).WillOnce(Return(tx_context));
+
+  RunInterpreterTest({
+      .code = {op::BLOBHASH},
+      .state_after = RunState::kDone,
+      .gas_before = 10,
+      .gas_after = 7,
+      .stack_before = {0},
+      .stack_after = {42},
+      .host = &host,
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, BLOBHASH_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::BLOBHASH},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 1,
+      .stack_before = {0},
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, BLOBHASH_StackUnderflow) {
+  RunInterpreterTest({
+      .code = {op::BLOBHASH},
+      .state_after = RunState::kErrorStackUnderflow,
+      .gas_before = 3,
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, DISABLED_BLOBHASH_StackOverflow) {}
+
+TEST(InterpreterTest, BLOBHASH_PreRevision) {
+  RunInterpreterTest({
+      .code = {op::BLOBHASH},
+      .state_after = RunState::kErrorOpcode,
+      .gas_before = 10,
+      .revision = EVMC_SHANGHAI,
+  });
+}
+
+///////////////////////////////////////////////////////////
 // BLOBBASEFEE
 TEST(InterpreterTest, BLOBBASEFEE) {
   evmc_tx_context tx_context{
@@ -4391,6 +4443,84 @@ TEST(InterpreterTest, JUMPDEST_OutOfGas) {
       .code = {op::JUMPDEST},
       .state_after = RunState::kErrorGas,
       .gas_before = 0,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// TLOAD
+TEST(InterpreterTest, TLOAD) {
+  MockHost host;
+  EXPECT_CALL(host, get_transient_storage(evmc::address(0x42), evmc::bytes32(16)))  //
+      .Times(1)
+      .WillOnce(Return(evmc::bytes32(32)));
+
+  RunInterpreterTest({
+      .code = {op::TLOAD},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 0,
+      .stack_before = {16},
+      .stack_after = {32},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, TLOAD_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::TLOAD},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 99,
+      .stack_before = {0},
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, TLOAD_PreCancun) {
+  RunInterpreterTest({
+      .code = {op::TLOAD},
+      .state_after = RunState::kErrorOpcode,
+      .gas_before = 100,
+      .revision = EVMC_PARIS,
+  });
+}
+
+///////////////////////////////////////////////////////////
+// TSTORE
+TEST(InterpreterTest, TSTORE) {
+  MockHost host;
+  EXPECT_CALL(host, set_transient_storage(evmc::address(0x42), evmc::bytes32(16), evmc::bytes32(32)))  //
+      .Times(1);
+
+  RunInterpreterTest({
+      .code = {op::TSTORE},
+      .state_after = RunState::kDone,
+      .gas_before = 100,
+      .gas_after = 0,
+      .stack_before = {32, 16},
+      .message = {.recipient = evmc::address(0x42)},
+      .host = &host,
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, TSTORE_OutOfGas) {
+  RunInterpreterTest({
+      .code = {op::TSTORE},
+      .state_after = RunState::kErrorGas,
+      .gas_before = 99,
+      .stack_before = {0, 0},
+      .revision = EVMC_CANCUN,
+  });
+}
+
+TEST(InterpreterTest, TSTORE_PreCancun) {
+  RunInterpreterTest({
+      .code = {op::TSTORE},
+      .state_after = RunState::kErrorOpcode,
+      .gas_before = 100,
+      .revision = EVMC_PARIS,
   });
 }
 

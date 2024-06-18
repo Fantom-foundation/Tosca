@@ -1,4 +1,3 @@
-//
 // Copyright (c) 2024 Fantom Foundation
 //
 // Use of this software is governed by the Business Source License included
@@ -6,9 +5,8 @@
 //
 // Change Date: 2028-4-16
 //
-// On the date above, in accordance with the Business Source License, use
-// of this software will be governed by the GNU Lesser General Public Licence v3
-//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
 
 package geth
 
@@ -140,7 +138,7 @@ type callInterceptor struct {
 	static     bool
 }
 
-func (i *callInterceptor) makeCall(kind vm.CallKind, callParam vm.CallParameter) (vm.CallResult, error) {
+func (i *callInterceptor) makeCall(kind vm.CallKind, callParam vm.CallParameters) (vm.CallResult, error) {
 	res, _ := i.parameters.Context.Call(kind, callParam)
 
 	i.handleGasRefund(res.GasRefund)
@@ -162,7 +160,7 @@ func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr ge
 		kind = vm.StaticCall
 	}
 
-	res, err := i.makeCall(kind, vm.CallParameter{
+	res, err := i.makeCall(kind, vm.CallParameters{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
 		Value:     vm.Uint256ToValue(value),
@@ -180,7 +178,7 @@ func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, add
 		return nil, gas, geth_vm.ErrInsufficientBalance
 	}
 
-	res, err := i.makeCall(kind, vm.CallParameter{
+	res, err := i.makeCall(kind, vm.CallParameters{
 		Sender:      vm.Address(me.Address()),
 		Recipient:   vm.Address(me.Address()),
 		Value:       vm.Uint256ToValue(value),
@@ -193,7 +191,7 @@ func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, add
 }
 
 func (i *callInterceptor) DelegateCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64) ([]byte, uint64, error) {
-	res, err := i.makeCall(vm.DelegateCall, vm.CallParameter{
+	res, err := i.makeCall(vm.DelegateCall, vm.CallParameters{
 		Sender:    i.parameters.Sender,
 		Recipient: i.parameters.Recipient,
 		Value:     i.parameters.Value,
@@ -204,7 +202,7 @@ func (i *callInterceptor) DelegateCall(env *geth_vm.EVM, me geth_vm.ContractRef,
 }
 
 func (i *callInterceptor) StaticCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, input []byte, gas uint64) ([]byte, uint64, error) {
-	res, err := i.makeCall(vm.StaticCall, vm.CallParameter{
+	res, err := i.makeCall(vm.StaticCall, vm.CallParameters{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
 		Input:     input,
@@ -219,7 +217,7 @@ func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code 
 		return nil, geth_common.Address{}, gas, geth_vm.ErrInsufficientBalance
 	}
 
-	res, err := i.makeCall(vm.Create, vm.CallParameter{
+	res, err := i.makeCall(vm.Create, vm.CallParameters{
 		Sender: vm.Address(me.Address()),
 		Value:  vm.Uint256ToValue(value),
 		Gas:    vm.Gas(gas),
@@ -236,7 +234,7 @@ func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code
 		return nil, geth_common.Address{}, gas, geth_vm.ErrInsufficientBalance
 	}
 
-	res, err := i.makeCall(vm.Create2, vm.CallParameter{
+	res, err := i.makeCall(vm.Create2, vm.CallParameters{
 		Sender: vm.Address(me.Address()),
 		Value:  vm.Uint256ToValue(value),
 		Gas:    vm.Gas(gas),

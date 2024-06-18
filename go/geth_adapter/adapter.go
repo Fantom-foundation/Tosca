@@ -1,4 +1,3 @@
-//
 // Copyright (c) 2024 Fantom Foundation
 //
 // Use of this software is governed by the Business Source License included
@@ -6,9 +5,8 @@
 //
 // Change Date: 2028-4-16
 //
-// On the date above, in accordance with the Business Source License, use
-// of this software will be governed by the GNU Lesser General Public Licence v3
-//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
 
 // This package registers Tosca Interpreters in the go-ethereum-substate
 // VM registry such that they can be used in tools like Aida until the
@@ -138,19 +136,64 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		codeHash = &hash
 	}
 
+	chainId, err := bigIntToWord(a.evm.ChainConfig().ChainID)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert chain Id: %v", err)
+	}
+
+	// BaseFee can be assumed zero unless set.
+	baseFee, err := bigIntToValue(a.evm.Context.BaseFee)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert base fee: %v", err)
+	}
+
+	difficulty, err := bigIntToHash(a.evm.Context.Difficulty)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert difficulty: %v", err)
+	}
+
+	blobBaseFee, err := bigIntToValue(a.evm.Context.BlobBaseFee)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert blob-base fee: %v", err)
+	}
+
+	blockParameters := vm.BlockParameters{
+		ChainID:     chainId,
+		BlockNumber: a.evm.Context.BlockNumber.Int64(),
+		Timestamp:   int64(a.evm.Context.Time),
+		Coinbase:    vm.Address(a.evm.Context.Coinbase),
+		GasLimit:    vm.Gas(a.evm.Context.GasLimit),
+		PrevRandao:  difficulty,
+		BaseFee:     baseFee,
+		BlobBaseFee: blobBaseFee,
+		Revision:    revision,
+	}
+
+	gasPrice, err := bigIntToValue(a.evm.TxContext.GasPrice)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert gas price: %v", err)
+	}
+
+	transactionParameters := vm.TransactionParameters{
+		Origin:     vm.Address(a.evm.Origin),
+		GasPrice:   gasPrice,
+		BlobHashes: nil, // TODO: add
+	}
+
 	params := vm.Parameters{
-		Context:   &runContextAdapter{a.evm, &a.cfg, contract, readOnly},
-		Revision:  revision,
-		Kind:      vm.Call, // < this might be wrong, but seems to be unused
-		Static:    readOnly,
-		Depth:     a.evm.GetDepth() - 1,
-		Gas:       vm.Gas(contract.Gas),
-		Recipient: vm.Address(contract.Address()),
-		Sender:    vm.Address(contract.Caller()),
-		Input:     input,
-		Value:     value,
-		CodeHash:  codeHash,
-		Code:      contract.Code,
+		BlockParameters:       blockParameters,
+		TransactionParameters: transactionParameters,
+		Context:               &runContextAdapter{a.evm, &a.cfg, contract, readOnly},
+		Kind:                  vm.Call, // < this might be wrong, but seems to be unused
+		Static:                readOnly,
+		Depth:                 a.evm.GetDepth() - 1,
+		Gas:                   vm.Gas(contract.Gas),
+		Recipient:             vm.Address(contract.Address()),
+		Sender:                vm.Address(contract.Caller()),
+		Input:                 input,
+		Value:                 value,
+		CodeHash:              codeHash,
+		Code:                  contract.Code,
 	}
 
 	res, err := a.interpreter.Run(params)
@@ -207,6 +250,23 @@ func (a *runContextAdapter) AccountExists(addr vm.Address) bool {
 	return a.evm.StateDB.Exist(gc.Address(addr))
 }
 
+func (a *runContextAdapter) CreateAccount(addr vm.Address, code vm.Code) bool {
+	if a.AccountExists(addr) {
+		return false
+	}
+	a.evm.StateDB.CreateAccount(gc.Address(addr))
+	a.evm.StateDB.SetCode(gc.Address(addr), code)
+	return true
+}
+
+func (a *runContextAdapter) GetNonce(addr vm.Address) uint64 {
+	return a.evm.StateDB.GetNonce(gc.Address(addr))
+}
+
+func (a *runContextAdapter) SetNonce(addr vm.Address, nonce uint64) {
+	a.evm.StateDB.SetNonce(gc.Address(addr), nonce)
+}
+
 func (a *runContextAdapter) GetStorage(addr vm.Address, key vm.Key) vm.Word {
 	return vm.Word(a.evm.StateDB.GetState(gc.Address(addr), gc.Hash(key)))
 }
@@ -233,6 +293,10 @@ func (a *runContextAdapter) GetBalance(addr vm.Address) vm.Value {
 	return vm.Uint256ToValue(a.evm.StateDB.GetBalance(gc.Address(addr)))
 }
 
+func (a *runContextAdapter) SetBalance(addr vm.Address, value vm.Value) {
+	panic("not implemented - should not be needed")
+}
+
 func (a *runContextAdapter) GetCodeSize(addr vm.Address) int {
 	return a.evm.StateDB.GetCodeSize(gc.Address(addr))
 }
@@ -241,70 +305,34 @@ func (a *runContextAdapter) GetCodeHash(addr vm.Address) vm.Hash {
 	return vm.Hash(a.evm.StateDB.GetCodeHash(gc.Address(addr)))
 }
 
-func (a *runContextAdapter) GetCode(addr vm.Address) []byte {
+func (a *runContextAdapter) GetCode(addr vm.Address) vm.Code {
 	return a.evm.StateDB.GetCode(gc.Address(addr))
-}
-
-func (a *runContextAdapter) GetTransactionContext() vm.TransactionContext {
-	gasPrice, err := bigIntToValue(a.evm.TxContext.GasPrice)
-	if err != nil {
-		panic(fmt.Sprintf("Could not convert gas price: %v", err))
-	}
-
-	chainId, err := bigIntToWord(a.evm.ChainConfig().ChainID)
-	if err != nil {
-		panic(fmt.Sprintf("Could not convert chain Id: %v", err))
-	}
-
-	// BaseFee can be assumed zero unless set.
-	var baseFee vm.Value
-	if a.evm.Context.BaseFee != nil {
-		baseFee, err = bigIntToValue(a.evm.Context.BaseFee)
-		if err != nil {
-			panic(fmt.Sprintf("Could not convert base fee: %v", err))
-		}
-	}
-
-	var difficulty vm.Hash
-	if a.evm.Context.Difficulty != nil {
-		difficulty, err = bigIntToHash(a.evm.Context.Difficulty)
-		if err != nil {
-			panic(fmt.Sprintf("Could not convert difficulty: %v", err))
-		}
-	}
-
-	return vm.TransactionContext{
-		GasPrice:    gasPrice,
-		Origin:      vm.Address(a.evm.Origin),
-		Coinbase:    vm.Address(a.evm.Context.Coinbase),
-		BlockNumber: a.evm.Context.BlockNumber.Int64(),
-		Timestamp:   int64(a.evm.Context.Time),
-		GasLimit:    vm.Gas(a.evm.Context.GasLimit),
-		PrevRandao:  difficulty,
-		ChainID:     chainId,
-		BaseFee:     baseFee,
-	}
 }
 
 func (a *runContextAdapter) GetBlockHash(number int64) vm.Hash {
 	return vm.Hash(a.evm.Context.GetHash(uint64(number)))
 }
 
-func (a *runContextAdapter) EmitLog(addr vm.Address, topics_in []vm.Hash, data []byte) {
+func (a *runContextAdapter) EmitLog(log vm.Log) {
+	topics_in := log.Topics
 	topics := make([]gc.Hash, len(topics_in))
 	for i := range topics {
 		topics[i] = gc.Hash(topics_in[i])
 	}
 
 	a.evm.StateDB.AddLog(&types.Log{
-		Address:     gc.Address(addr),
+		Address:     gc.Address(log.Address),
 		Topics:      ([]gc.Hash)(topics),
-		Data:        data,
+		Data:        log.Data,
 		BlockNumber: a.evm.Context.BlockNumber.Uint64(),
 	})
 }
 
-func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameter) (result vm.CallResult, reserr error) {
+func (a *runContextAdapter) GetLogs() []vm.Log {
+	panic("not implemented")
+}
+
+func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameters) (result vm.CallResult, reserr error) {
 	if adapterDebug {
 		fmt.Printf("Start of call:\n")
 		fmt.Printf("\tType:         %v\n", kind)
@@ -449,6 +477,14 @@ func (a *runContextAdapter) SelfDestruct(addr vm.Address, beneficiary vm.Address
 	return true
 }
 
+func (a *runContextAdapter) CreateSnapshot() vm.Snapshot {
+	return vm.Snapshot(a.evm.StateDB.Snapshot())
+}
+
+func (a *runContextAdapter) RestoreSnapshot(snapshot vm.Snapshot) {
+	a.evm.StateDB.RevertToSnapshot(int(snapshot))
+}
+
 func (a *runContextAdapter) AccessAccount(addr vm.Address) vm.AccessStatus {
 	warm := a.IsAddressInAccessList(addr)
 	a.evm.StateDB.AddAddressToAccessList(gc.Address(addr))
@@ -487,7 +523,7 @@ func (a *runContextAdapter) HasSelfDestructed(addr vm.Address) bool {
 
 func bigIntToValue(value *big.Int) (result vm.Value, err error) {
 	if value == nil {
-		return result, fmt.Errorf("unable to convert nil to Hash")
+		return vm.Value{}, nil
 	}
 	if value.Sign() < 0 {
 		return result, fmt.Errorf("cannot convert a negative number to a Hash, got %v", value)

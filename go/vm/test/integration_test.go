@@ -1,4 +1,3 @@
-//
 // Copyright (c) 2024 Fantom Foundation
 //
 // Use of this software is governed by the Business Source License included
@@ -6,9 +5,8 @@
 //
 // Change Date: 2028-4-16
 //
-// On the date above, in accordance with the Business Source License, use
-// of this software will be governed by the GNU Lesser General Public Licence v3
-//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
 
 package vm_test
 
@@ -1086,7 +1084,7 @@ func setDefaultCallStateDBMock(mockStateDB *MockStateDB, account vm.Address, cod
 	mockStateDB.EXPECT().GetCodeHash(gomock.Any()).AnyTimes().Return(vm.Hash{})
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(code)
 	mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(true)
-	mockStateDB.EXPECT().EmitLog(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().EmitLog(gomock.Any()).AnyTimes()
 	mockStateDB.EXPECT().GetStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(vm.Word{})
 	mockStateDB.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockStateDB.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(true)

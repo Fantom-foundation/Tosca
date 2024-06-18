@@ -12,7 +12,7 @@ TOSCA_CPP_ASAN = OFF
 TOSCA_CPP_COVERAGE = OFF
 
 .PHONY: all tosca tosca-go tosca-cpp test test-go test-cpp test-cpp-asan \
-        bench bench-go clean clean-go clean-cpp evmone evmone-clean
+        bench bench-go clean clean-go clean-cpp evmone evmone-clean license-headers
 
 all: tosca
 
@@ -73,3 +73,6 @@ clean-go:
 
 clean-cpp:
 	$(RM) -r ./cpp/build
+
+license-headers:
+	cd ./scripts/license; ./add_license_header.sh

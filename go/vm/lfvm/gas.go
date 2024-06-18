@@ -1,4 +1,3 @@
-//
 // Copyright (c) 2024 Fantom Foundation
 //
 // Use of this software is governed by the Business Source License included
@@ -6,9 +5,8 @@
 //
 // Change Date: 2028-4-16
 //
-// On the date above, in accordance with the Business Source License, use
-// of this software will be governed by the GNU Lesser General Public Licence v3
-//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
 
 package lfvm
 
@@ -151,6 +149,8 @@ func getStaticGasPriceInternal(op OpCode) vm.Gas {
 		return 5
 	case BASEFEE:
 		return 2
+	case BLOBHASH:
+		return 3
 	case BLOBBASEFEE:
 		return 2
 	case MLOAD:
@@ -171,6 +171,10 @@ func getStaticGasPriceInternal(op OpCode) vm.Gas {
 		return 1
 	case JUMP_TO:
 		return 0
+	case TLOAD:
+		return 100
+	case TSTORE:
+		return 100
 	case PC:
 		return 2
 	case MSIZE:
