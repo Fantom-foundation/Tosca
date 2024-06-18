@@ -49,7 +49,7 @@ func TestNewTransactionContextGenerator_String(t *testing.T) {
 			},
 			expected: "{$v1 < len(blobHashes) && $v2 >= len(blobHashes)}",
 		},
-		"unsatifiable": {
+		"unsatisfiable": {
 			setup: func(txCtxGen *TransactionContextGenerator) {
 				txCtxGen.unsatisfiable = true
 			},
@@ -101,7 +101,7 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 		setup func(*TransactionContextGenerator, *Assignment)
 		check func(st.TransactionContext, Assignment, *testing.T)
 	}{
-		"hash-blob-hash": {
+		"present": {
 			setup: func(txCtxGen *TransactionContextGenerator, _ *Assignment) {
 				txCtxGen.PresentBlobHashIndex(Variable("v1"))
 			},
@@ -118,7 +118,7 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				}
 			},
 		},
-		"hash-blob-hash-and-assigned": {
+		"present-and-assigned": {
 			setup: func(txCtxGen *TransactionContextGenerator, assignment *Assignment) {
 				txCtxGen.PresentBlobHashIndex(Variable("v1"))
 				(*assignment)[Variable("v1")] = common.NewU256(5)
@@ -136,7 +136,7 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				}
 			},
 		},
-		"hash-not-blob-hash": {
+		"absent": {
 			setup: func(txCtxGen *TransactionContextGenerator, _ *Assignment) {
 				txCtxGen.AbsentBlobHashIndex(Variable("v1"))
 			},
@@ -150,7 +150,7 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				}
 			},
 		},
-		"hash-not-blob-hash-and-assigned": {
+		"absent-and-assigned": {
 			setup: func(txCtxGen *TransactionContextGenerator, assignment *Assignment) {
 				txCtxGen.AbsentBlobHashIndex(Variable("v1"))
 				(*assignment)[Variable("v1")] = common.NewU256(5)
@@ -165,6 +165,111 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				}
 				if value.Uint64() < uint64(len(txCtx.BlobHashes)) {
 					t.Errorf("Assigned value for v1 should be out of range.")
+				}
+			},
+		},
+		"absent-and-present": {
+			setup: func(txCtxGen *TransactionContextGenerator, _ *Assignment) {
+				txCtxGen.AbsentBlobHashIndex(Variable("v2"))
+				txCtxGen.PresentBlobHashIndex(Variable("v1"))
+			},
+			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
+				value1, ok := assignment[Variable("v1")]
+				if !ok {
+					t.Errorf("Variable v1 should have been assigned.")
+				}
+				if value1.Uint64() >= uint64(len(txCtx.BlobHashes)) || !value1.IsUint64() {
+					t.Errorf("Assigned value for v1 %v should not be bigger than blobhashes len %v.", value1.Uint64(), len(txCtx.BlobHashes))
+				}
+				value2, ok := assignment[Variable("v2")]
+				if !ok {
+					t.Errorf("Variable v2 should have been assigned.")
+				}
+				if value2.Uint64() < uint64(len(txCtx.BlobHashes)) {
+					t.Errorf("Assigned value for v2 %v should be bigger than blobhashes len %v.", value2.Uint64(), len(txCtx.BlobHashes))
+				}
+			},
+		},
+		"present-and-absent": {
+			setup: func(txCtxGen *TransactionContextGenerator, _ *Assignment) {
+				txCtxGen.PresentBlobHashIndex(Variable("v1"))
+				txCtxGen.AbsentBlobHashIndex(Variable("v2"))
+			},
+			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
+				value1, ok := assignment[Variable("v1")]
+				if !ok {
+					t.Errorf("Variable v1 should have been assigned.")
+				}
+				if value1.Uint64() >= uint64(len(txCtx.BlobHashes)) || !value1.IsUint64() {
+					t.Errorf("Assigned value for v1 %v should not be bigger than blobhashes len %v.", value1.Uint64(), len(txCtx.BlobHashes))
+				}
+				value2, ok := assignment[Variable("v2")]
+				if !ok {
+					t.Errorf("Variable v2 should have been assigned.")
+				}
+				if value2.Uint64() < uint64(len(txCtx.BlobHashes)) {
+					t.Errorf("Assigned value for v2 %v should be bigger than blobhashes len %v.", value2.Uint64(), len(txCtx.BlobHashes))
+				}
+			},
+		},
+		"present-assigned-and-absent": {
+			setup: func(txCtxGen *TransactionContextGenerator, assignment *Assignment) {
+				txCtxGen.PresentBlobHashIndex(Variable("v1"))
+				(*assignment)[Variable("v1")] = common.NewU256(5)
+				txCtxGen.AbsentBlobHashIndex(Variable("v2"))
+			},
+			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
+				value1, ok := assignment[Variable("v1")]
+				if !ok {
+					t.Errorf("Variable v1 should have been assigned.")
+				}
+				if value1.Uint64() >= uint64(len(txCtx.BlobHashes)) || !value1.IsUint64() {
+					t.Errorf("Assigned value for v1 %v should not be bigger than blobhashes len %v.", value1.Uint64(), len(txCtx.BlobHashes))
+				}
+				value2, ok := assignment[Variable("v2")]
+				if !ok {
+					t.Errorf("Variable v2 should have been assigned.")
+				}
+				if value2.Uint64() < uint64(len(txCtx.BlobHashes)) {
+					t.Errorf("Assigned value for v2 %v should be bigger than blobhashes len %v.", value2.Uint64(), len(txCtx.BlobHashes))
+				}
+			},
+		},
+		"absent-assigned-and-present": {
+			setup: func(txCtxGen *TransactionContextGenerator, assignment *Assignment) {
+				txCtxGen.AbsentBlobHashIndex(Variable("v2"))
+				txCtxGen.PresentBlobHashIndex(Variable("v1"))
+				(*assignment)[Variable("v2")] = common.NewU256(5)
+			},
+			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
+				value1, ok := assignment[Variable("v1")]
+				if !ok {
+					t.Errorf("Variable v1 should have been assigned.")
+				}
+				if value1.Uint64() >= uint64(len(txCtx.BlobHashes)) || !value1.IsUint64() {
+					t.Errorf("Assigned value for v1 %v should not be bigger than blobhashes len %v.", value1.Uint64(), len(txCtx.BlobHashes))
+				}
+				value2, ok := assignment[Variable("v2")]
+				if !ok {
+					t.Errorf("Variable v2 should have been assigned.")
+				}
+				if value2.Uint64() < uint64(len(txCtx.BlobHashes)) {
+					t.Errorf("Assigned value for v2 %v should be bigger than blobhashes len %v.", value2.Uint64(), len(txCtx.BlobHashes))
+				}
+			},
+		},
+		"assigned-too-big-absent": {
+			setup: func(txCtxGen *TransactionContextGenerator, assignment *Assignment) {
+				(*assignment)[Variable("v1")] = common.NewU256(1, 1)
+				txCtxGen.AbsentBlobHashIndex(Variable("v1"))
+			},
+			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
+				value, ok := assignment[Variable("v1")]
+				if !ok {
+					t.Errorf("Variable v1 should have been assigned.")
+				}
+				if value.Uint64() < uint64(len(txCtx.BlobHashes)) {
+					t.Errorf("Assigned value for v1 %v should be bigger than blobhashes len %v.", value.Uint64(), len(txCtx.BlobHashes))
 				}
 			},
 		},
@@ -190,28 +295,42 @@ func TestTransactionContextGenerator_GenerateUnsatisfiable(t *testing.T) {
 	tests := map[string]struct {
 		setup func(*TransactionContextGenerator, *Assignment)
 	}{
-		"hash-and-has-not-blob-hash": {
+		"present-and-absent": {
 			setup: func(txCtxGen *TransactionContextGenerator, _ *Assignment) {
 				txCtxGen.PresentBlobHashIndex(Variable("v1"))
 				txCtxGen.AbsentBlobHashIndex(Variable("v1"))
 			},
 		},
-		"hash-not-and-has-blob-hash": {
+		"absent-and-present": {
 			setup: func(txCtxGen *TransactionContextGenerator, _ *Assignment) {
 				txCtxGen.AbsentBlobHashIndex(Variable("v1"))
 				txCtxGen.PresentBlobHashIndex(Variable("v1"))
 			},
 		},
-		"assigned-and-has-blob-hash": {
+		"assigned-and-present": {
 			setup: func(txCtxGen *TransactionContextGenerator, assignment *Assignment) {
 				(*assignment)[Variable("v1")] = common.NewU256(math.MaxUint64)
 				txCtxGen.PresentBlobHashIndex(Variable("v1"))
 			},
 		},
-		"assigned-and-has-not-blob-hash": {
+		"assigned-and-absent": {
 			setup: func(txCtxGen *TransactionContextGenerator, assignment *Assignment) {
 				(*assignment)[Variable("v1")] = common.NewU256(0)
 				txCtxGen.AbsentBlobHashIndex(Variable("v1"))
+			},
+		},
+		"assigned-present-and-assigned-absent": {
+			setup: func(txCtxGen *TransactionContextGenerator, assignment *Assignment) {
+				(*assignment)[Variable("v1")] = common.NewU256(3)
+				txCtxGen.PresentBlobHashIndex(Variable("v1"))
+				(*assignment)[Variable("v2")] = common.NewU256(2)
+				txCtxGen.AbsentBlobHashIndex(Variable("v2"))
+			},
+		},
+		"assigned-too-big-present": {
+			setup: func(txCtxGen *TransactionContextGenerator, assignment *Assignment) {
+				(*assignment)[Variable("v1")] = common.NewU256(1, 1)
+				txCtxGen.PresentBlobHashIndex(Variable("v1"))
 			},
 		},
 	}

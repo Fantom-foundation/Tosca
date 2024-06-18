@@ -13,6 +13,7 @@ package gen
 import (
 	"maps"
 	"math"
+	"sort"
 
 	"pgregory.net/rand"
 
@@ -37,38 +38,49 @@ func (t *TransactionContextGenerator) Generate(assignment Assignment, rnd *rand.
 		return nil, ErrUnsatisfiable
 	}
 
-	originAddress := common.RandomAddress(rnd)
+	maxPresent := uint64(0)
+	minAbsent := uint64(math.MaxUint64)
 
-	blobHashes := []vm.Hash{}
-	blobHashesCount := rnd.Uint64n(8) + 1
-
-	for variable, hasBlobHash := range t.blobHashVariables {
+	// pick up all bounded variables to find the maximum present and minimum absent values
+	for variable, present := range t.blobHashVariables {
 		if assignedValue, isBound := assignment[variable]; isBound {
-			if hasBlobHash {
-				if assignedValue.IsUint64() && assignedValue.Uint64() < math.MaxUint64 {
-					blobHashesCount = assignedValue.Uint64() + 1
-				} else {
+			if present {
+				if !assignedValue.IsUint64() {
 					return nil, ErrUnsatisfiable
 				}
-			} else {
-				if assignedValue.IsUint64() && assignedValue.Uint64() > 0 {
-					blobHashesCount = assignedValue.Uint64()
-				} else {
-					return nil, ErrUnsatisfiable
+				if assignedValue.Uint64() > maxPresent {
+					maxPresent = assignedValue.Uint64()
 				}
-			}
-		} else {
-			if hasBlobHash {
-				assignment[variable] = common.NewU256(blobHashesCount - 1)
-			} else {
-				assignment[variable] = common.NewU256(blobHashesCount)
+			} else if !present {
+				if assignedValue.IsUint64() && assignedValue.Uint64() < minAbsent {
+					minAbsent = assignedValue.Uint64()
+				}
 			}
 		}
 	}
 
+	if maxPresent > minAbsent || maxPresent == math.MaxUint64 || minAbsent == 0 {
+		return nil, ErrUnsatisfiable
+	}
+
+	blobHashesCount := maxPresent + 1
+	for variable, hasBlobHash := range t.blobHashVariables {
+		// the bounded variables are dealt with above
+		if _, isBound := assignment[variable]; !isBound {
+			newValue := blobHashesCount
+			if hasBlobHash {
+				newValue -= 1
+			}
+			assignment[variable] = common.NewU256(newValue)
+		}
+	}
+
+	blobHashes := []vm.Hash{}
 	for i := uint64(0); i < blobHashesCount; i++ {
 		blobHashes = append(blobHashes, common.GetRandomHash(rnd))
 	}
+
+	originAddress := common.RandomAddress(rnd)
 
 	return &st.TransactionContext{
 		OriginAddress: originAddress,
@@ -98,7 +110,15 @@ func (t *TransactionContextGenerator) String() string {
 	}
 	ret := ""
 	if t.blobHashVariables != nil {
-		for variable, hasBlobHash := range t.blobHashVariables {
+
+		keys := make([]Variable, 0, len(t.blobHashVariables))
+		for k := range t.blobHashVariables {
+			keys = append(keys, k)
+		}
+		sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+		for _, variable := range keys {
+			hasBlobHash := t.blobHashVariables[variable]
 			if ret != "" {
 				ret += " && "
 			}
