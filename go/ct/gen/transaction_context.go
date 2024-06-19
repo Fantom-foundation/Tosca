@@ -38,38 +38,44 @@ func (t *TransactionContextGenerator) Generate(assignment Assignment, rnd *rand.
 		return nil, ErrUnsatisfiable
 	}
 
-	maxPresent := uint64(0)
-	minAbsent := uint64(math.MaxUint64)
+	maxMustHaveBlobHash := uint64(0)
+	minMustNotHaveBlobHash := uint64(math.MaxUint64)
 
-	// pick up all bounded variables to find the maximum present and minimum absent values
-	for variable, present := range t.blobHashVariables {
+	// process all the bounded variables to find the maximum present and minimum absent values
+	for variable, hasBlobHash := range t.blobHashVariables {
 		if assignedValue, isBound := assignment[variable]; isBound {
-			if present {
+			if hasBlobHash {
 				if !assignedValue.IsUint64() {
 					return nil, ErrUnsatisfiable
 				}
-				if assignedValue.Uint64() > maxPresent {
-					maxPresent = assignedValue.Uint64()
+				if assignedValue.Uint64() > maxMustHaveBlobHash {
+					maxMustHaveBlobHash = assignedValue.Uint64()
 				}
-			} else if !present {
-				if assignedValue.IsUint64() && assignedValue.Uint64() < minAbsent {
-					minAbsent = assignedValue.Uint64()
+			} else {
+				if assignedValue.IsUint64() && assignedValue.Uint64() < minMustNotHaveBlobHash {
+					minMustNotHaveBlobHash = assignedValue.Uint64()
 				}
 			}
 		}
 	}
 
-	if maxPresent > minAbsent || maxPresent == math.MaxUint64 || minAbsent == 0 {
+	if maxMustHaveBlobHash > minMustNotHaveBlobHash ||
+		maxMustHaveBlobHash == math.MaxUint64 ||
+		minMustNotHaveBlobHash == 0 {
 		return nil, ErrUnsatisfiable
 	}
 
-	blobHashesCount := maxPresent + 1
+	blobHashesCount := maxMustHaveBlobHash + 1
 	for variable, hasBlobHash := range t.blobHashVariables {
 		// the bounded variables are dealt with above
 		if _, isBound := assignment[variable]; !isBound {
-			newValue := blobHashesCount
-			if hasBlobHash {
-				newValue -= 1
+			newValueRangeSolver := NewRangeSolver(0, blobHashesCount-1)
+			if !hasBlobHash {
+				newValueRangeSolver = NewRangeSolver(blobHashesCount, math.MaxUint64)
+			}
+			newValue, err := newValueRangeSolver.Generate(rnd)
+			if err != nil {
+				return nil, err
 			}
 			assignment[variable] = common.NewU256(newValue)
 		}
