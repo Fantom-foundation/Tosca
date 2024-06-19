@@ -12,6 +12,7 @@ package common
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
@@ -65,19 +66,11 @@ func TestImmutableHashArray_CanBeJsonEncoded(t *testing.T) {
 		hash1 = "[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]"
 	)
 
-	zeroHash := "["
-	for i := 0; i < 256; i++ {
-		zeroHash += hash0
-		zeroHash += ","
-	}
-	zeroHash = zeroHash[:len(zeroHash)-1] + "]"
-
+	zeroHash := "[" + strings.Repeat(hash0+",", 255)
+	zeroHash += hash0 + "]"
 	oneHash := "[" + hash1 + ","
-	for i := 0; i < 255; i++ {
-		oneHash += hash0
-		oneHash += ","
-	}
-	oneHash = oneHash[:len(oneHash)-1] + "]"
+	oneHash += strings.Repeat(hash0+",", 254)
+	oneHash += hash0 + "]"
 
 	tests := map[string]struct {
 		hashes  ImmutableHashArray

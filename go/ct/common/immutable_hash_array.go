@@ -30,6 +30,15 @@ func NewImmutableHashArray(hashes ...vm.Hash) ImmutableHashArray {
 	return ImmutableHashArray{data: &data}
 }
 
+func NewRandomImmutableHashArray(rnd *rand.Rand) ImmutableHashArray {
+	hashes := ImmutableHashArray{}
+	hashes.data = new([256]vm.Hash)
+	for i := 0; i < 256; i++ {
+		hashes.data[i] = GetRandomHash(rnd)
+	}
+	return hashes
+}
+
 func (b ImmutableHashArray) Equal(other ImmutableHashArray) bool {
 	if b.data == nil && other.data == nil {
 		return true
@@ -41,15 +50,6 @@ func (b ImmutableHashArray) Equal(other ImmutableHashArray) bool {
 		return *b.data == [256]vm.Hash{}
 	}
 	return b.data == other.data || (b.data != nil && other.data != nil && *b.data == *other.data)
-}
-
-func NewRandomImmutableHashArray(rnd *rand.Rand) ImmutableHashArray {
-	hashes := ImmutableHashArray{}
-	hashes.data = new([256]vm.Hash)
-	for i := 0; i < 256; i++ {
-		hashes.data[i] = GetRandomHash(rnd)
-	}
-	return hashes
 }
 
 func (b ImmutableHashArray) String() string {
@@ -73,7 +73,7 @@ func (h *ImmutableHashArray) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("invalid ImmutableHashArray length")
 	}
 
-	// Copy the slice into the ImmutableHashArray array
+	// Copy the slice into the ImmutableHashArray data
 	if string(data) == "null" {
 		h.data = nil
 	} else {
