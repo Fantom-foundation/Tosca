@@ -256,6 +256,18 @@ func TestTransactionContextGenerator_GenerateUnsatisfiable(t *testing.T) {
 				txCtxGen.IsPresentBlobHashIndex(Variable("v1"))
 			},
 		},
+		"assigned-max-present": {
+			setup: func(txCtxGen *TransactionContextGenerator, assignment *Assignment) {
+				(*assignment)[Variable("v1")] = common.NewU256(math.MaxUint64)
+				txCtxGen.PresentBlobHashIndex(Variable("v1"))
+			},
+		},
+		"assigned-min-absent": {
+			setup: func(txCtxGen *TransactionContextGenerator, assignment *Assignment) {
+				(*assignment)[Variable("v1")] = common.NewU256(0)
+				txCtxGen.AbsentBlobHashIndex(Variable("v1"))
+			},
+		},
 	}
 
 	for name, test := range tests {
