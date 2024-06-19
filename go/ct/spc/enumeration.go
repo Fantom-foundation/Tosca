@@ -60,6 +60,18 @@ func ForEachState(
 		for {
 			select {
 			case <-done:
+				cur := testCounter.Load()
+				curTime := time.Now()
+
+				diffCounter := cur - lastTestCounter
+				diffTime := curTime.Sub(lastTime)
+
+				lastTime = curTime
+				lastTestCounter = cur
+
+				relativeTime := curTime.Sub(startTime)
+				rate := float64(diffCounter) / diffTime.Seconds()
+				printIssueCounts(relativeTime, rate, cur)
 				return
 			case curTime := <-ticker.C:
 				cur := testCounter.Load()
