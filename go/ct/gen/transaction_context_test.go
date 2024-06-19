@@ -97,6 +97,32 @@ func TestTransactionContext_GenerateUnconstrained(t *testing.T) {
 
 func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 
+	variableCheck := func(txCtx st.TransactionContext, assignment Assignment, t *testing.T,
+		variable Variable, shouldBePresent, shouldBeAssigned bool, value common.U256) {
+		t.Helper()
+		assignedValue, ok := assignment[variable]
+		if !ok {
+			t.Errorf("Variable %v should be in assignment.", variable.String())
+		}
+		if shouldBePresent {
+			if !assignedValue.IsUint64() {
+				t.Errorf("Variable %v should be assigned a uint64 value.", variable.String())
+			}
+			if assignedValue.Uint64() >= uint64(len(txCtx.BlobHashes)) {
+				t.Errorf("Assigned value for %v is out of range.", variable.String())
+			}
+		} else {
+			if assignedValue.Uint64() < uint64(len(txCtx.BlobHashes)) {
+				t.Errorf("Assigned value for %v is not out of range.", variable.String())
+			}
+		}
+		if shouldBeAssigned {
+			if !assignedValue.Eq(value) {
+				t.Errorf("Assigned value for %v is not the expected value.", variable.String())
+			}
+		}
+	}
+
 	tests := map[string]struct {
 		setup func(*TransactionContextGenerator, *Assignment)
 		check func(st.TransactionContext, Assignment, *testing.T)
@@ -106,16 +132,7 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				txCtxGen.PresentBlobHashIndex(Variable("v1"))
 			},
 			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
-				value, ok := assignment[Variable("v1")]
-				if !ok {
-					t.Errorf("Variable v1 should have been assigned.")
-				}
-				if !value.IsUint64() {
-					t.Errorf("Variable v1 should have been assigned a uint64 value.")
-				}
-				if value.Uint64() >= uint64(len(txCtx.BlobHashes)) {
-					t.Errorf("Assigned value for v1 is out of range.")
-				}
+				variableCheck(txCtx, assignment, t, Variable("v1"), true, false, common.NewU256(0))
 			},
 		},
 		"present-and-assigned": {
@@ -124,16 +141,7 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				(*assignment)[Variable("v1")] = common.NewU256(5)
 			},
 			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
-				value, ok := assignment[Variable("v1")]
-				if !ok {
-					t.Errorf("Variable v1 should have been assigned.")
-				}
-				if value.Uint64() != 5 {
-					t.Errorf("Assigned value for v1 is not the expected value.")
-				}
-				if value.Uint64() >= uint64(len(txCtx.BlobHashes)) {
-					t.Errorf("Assigned value for v1 is out of range.")
-				}
+				variableCheck(txCtx, assignment, t, Variable("v1"), true, true, common.NewU256(5))
 			},
 		},
 		"absent": {
@@ -141,13 +149,7 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				txCtxGen.AbsentBlobHashIndex(Variable("v1"))
 			},
 			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
-				value, ok := assignment[Variable("v1")]
-				if !ok {
-					t.Errorf("Variable v1 should have been assigned.")
-				}
-				if value.Uint64() < uint64(len(txCtx.BlobHashes)) {
-					t.Errorf("Assigned value for v1 is out of range.")
-				}
+				variableCheck(txCtx, assignment, t, Variable("v1"), false, false, common.NewU256(0))
 			},
 		},
 		"absent-and-assigned": {
@@ -156,16 +158,7 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				(*assignment)[Variable("v1")] = common.NewU256(5)
 			},
 			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
-				value, ok := assignment[Variable("v1")]
-				if !ok {
-					t.Errorf("Variable v1 should have been assigned.")
-				}
-				if value.Uint64() != 5 {
-					t.Errorf("Assigned value for v1 is not the expected value.")
-				}
-				if value.Uint64() < uint64(len(txCtx.BlobHashes)) {
-					t.Errorf("Assigned value for v1 should be out of range.")
-				}
+				variableCheck(txCtx, assignment, t, Variable("v1"), false, true, common.NewU256(5))
 			},
 		},
 		"absent-and-present": {
@@ -174,20 +167,8 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				txCtxGen.PresentBlobHashIndex(Variable("v1"))
 			},
 			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
-				value1, ok := assignment[Variable("v1")]
-				if !ok {
-					t.Errorf("Variable v1 should have been assigned.")
-				}
-				if value1.Uint64() >= uint64(len(txCtx.BlobHashes)) || !value1.IsUint64() {
-					t.Errorf("Assigned value for v1 %v should not be bigger than blobhashes len %v.", value1.Uint64(), len(txCtx.BlobHashes))
-				}
-				value2, ok := assignment[Variable("v2")]
-				if !ok {
-					t.Errorf("Variable v2 should have been assigned.")
-				}
-				if value2.Uint64() < uint64(len(txCtx.BlobHashes)) {
-					t.Errorf("Assigned value for v2 %v should be bigger than blobhashes len %v.", value2.Uint64(), len(txCtx.BlobHashes))
-				}
+				variableCheck(txCtx, assignment, t, Variable("v1"), true, false, common.NewU256(0))
+				variableCheck(txCtx, assignment, t, Variable("v2"), false, false, common.NewU256(0))
 			},
 		},
 		"present-and-absent": {
@@ -196,20 +177,8 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				txCtxGen.AbsentBlobHashIndex(Variable("v2"))
 			},
 			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
-				value1, ok := assignment[Variable("v1")]
-				if !ok {
-					t.Errorf("Variable v1 should have been assigned.")
-				}
-				if value1.Uint64() >= uint64(len(txCtx.BlobHashes)) || !value1.IsUint64() {
-					t.Errorf("Assigned value for v1 %v should not be bigger than blobhashes len %v.", value1.Uint64(), len(txCtx.BlobHashes))
-				}
-				value2, ok := assignment[Variable("v2")]
-				if !ok {
-					t.Errorf("Variable v2 should have been assigned.")
-				}
-				if value2.Uint64() < uint64(len(txCtx.BlobHashes)) {
-					t.Errorf("Assigned value for v2 %v should be bigger than blobhashes len %v.", value2.Uint64(), len(txCtx.BlobHashes))
-				}
+				variableCheck(txCtx, assignment, t, Variable("v1"), true, false, common.NewU256(0))
+				variableCheck(txCtx, assignment, t, Variable("v2"), false, false, common.NewU256(0))
 			},
 		},
 		"present-assigned-and-absent": {
@@ -219,20 +188,8 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				txCtxGen.AbsentBlobHashIndex(Variable("v2"))
 			},
 			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
-				value1, ok := assignment[Variable("v1")]
-				if !ok {
-					t.Errorf("Variable v1 should have been assigned.")
-				}
-				if value1.Uint64() >= uint64(len(txCtx.BlobHashes)) || !value1.IsUint64() {
-					t.Errorf("Assigned value for v1 %v should not be bigger than blobhashes len %v.", value1.Uint64(), len(txCtx.BlobHashes))
-				}
-				value2, ok := assignment[Variable("v2")]
-				if !ok {
-					t.Errorf("Variable v2 should have been assigned.")
-				}
-				if value2.Uint64() < uint64(len(txCtx.BlobHashes)) {
-					t.Errorf("Assigned value for v2 %v should be bigger than blobhashes len %v.", value2.Uint64(), len(txCtx.BlobHashes))
-				}
+				variableCheck(txCtx, assignment, t, Variable("v1"), true, true, common.NewU256(5))
+				variableCheck(txCtx, assignment, t, Variable("v2"), false, false, common.NewU256(0))
 			},
 		},
 		"absent-assigned-and-present": {
@@ -242,20 +199,8 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				(*assignment)[Variable("v2")] = common.NewU256(5)
 			},
 			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
-				value1, ok := assignment[Variable("v1")]
-				if !ok {
-					t.Errorf("Variable v1 should have been assigned.")
-				}
-				if value1.Uint64() >= uint64(len(txCtx.BlobHashes)) || !value1.IsUint64() {
-					t.Errorf("Assigned value for v1 %v should not be bigger than blobhashes len %v.", value1.Uint64(), len(txCtx.BlobHashes))
-				}
-				value2, ok := assignment[Variable("v2")]
-				if !ok {
-					t.Errorf("Variable v2 should have been assigned.")
-				}
-				if value2.Uint64() < uint64(len(txCtx.BlobHashes)) {
-					t.Errorf("Assigned value for v2 %v should be bigger than blobhashes len %v.", value2.Uint64(), len(txCtx.BlobHashes))
-				}
+				variableCheck(txCtx, assignment, t, Variable("v1"), true, false, common.NewU256(0))
+				variableCheck(txCtx, assignment, t, Variable("v2"), false, true, common.NewU256(5))
 			},
 		},
 		"assigned-too-big-absent": {
@@ -264,13 +209,7 @@ func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
 				txCtxGen.AbsentBlobHashIndex(Variable("v1"))
 			},
 			check: func(txCtx st.TransactionContext, assignment Assignment, t *testing.T) {
-				value, ok := assignment[Variable("v1")]
-				if !ok {
-					t.Errorf("Variable v1 should have been assigned.")
-				}
-				if value.Uint64() < uint64(len(txCtx.BlobHashes)) {
-					t.Errorf("Assigned value for v1 %v should be bigger than blobhashes len %v.", value.Uint64(), len(txCtx.BlobHashes))
-				}
+				variableCheck(txCtx, assignment, t, Variable("v1"), false, true, common.NewU256(1, 1))
 			},
 		},
 	}

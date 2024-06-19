@@ -327,7 +327,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 
 	for name, property := range properties {
 		t.Run(name, func(t *testing.T) {
-			state := st.State{TransactionContext: st.NewTransactionContext()}
+			state := st.State{}
 			property.set(&state)
 			params := ToVmParameters(&state)
 			want, got := property.get(params)
