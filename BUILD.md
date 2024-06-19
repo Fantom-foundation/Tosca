@@ -199,7 +199,7 @@ This package makes C/C++ symbols accessible to the Go profiler. On some systems,
 
 To compare the benchmark results of two different code versions, the [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) tool can be utilized. To install the tool run
 
-```bash
+```sh
 go install golang.org/x/perf/cmd/benchstat@latest
 ```
 
