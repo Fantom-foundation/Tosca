@@ -229,7 +229,7 @@ func opMcopy(c *context) {
 	}
 
 	size := sizeU256.Uint64()
-	price := vm.Gas(3 * ((size + 31) / 32))
+	price := vm.Gas(3 * sizeInWords(size))
 	if !c.UseGas(price) {
 		return
 	}
@@ -392,7 +392,7 @@ func opCallDataCopy(c *context) {
 	}
 
 	// Charge for the copy costs
-	words := (length64 + 31) / 32
+	words := sizeInWords(length64)
 	price := vm.Gas(3 * words)
 	if !c.UseGas(price) {
 		return
@@ -616,8 +616,8 @@ func opSha3(c *context) {
 	data := c.memory.GetSlice(offset.Uint64(), size.Uint64())
 
 	// charge dynamic gas price
-	minimum_word_size := vm.Gas((size.Uint64() + 31) / 32)
-	price := 6 * minimum_word_size
+	words := sizeInWords(size.Uint64())
+	price := vm.Gas(6 * words)
 	if !c.UseGas(price) {
 		return
 	}
@@ -797,7 +797,7 @@ func opCodeCopy(c *context) {
 	}
 
 	// Charge for length of copied code
-	words := (length.Uint64() + 31) / 32
+	words := sizeInWords(length.Uint64())
 	if !c.UseGas(vm.Gas(3 * words)) {
 		return
 	}
@@ -851,7 +851,7 @@ func checkInitCodeSize(c *context, size *uint256.Int) bool {
 		c.status = MAX_INIT_CODE_SIZE_EXCEEDED
 		return false
 	}
-	if !c.UseGas(vm.Gas(InitCodeWordGas * ((size.Uint64() + 31) / 32))) {
+	if !c.UseGas(vm.Gas(InitCodeWordGas * sizeInWords(size.Uint64()))) {
 		c.status = OUT_OF_GAS
 		return false
 	}
@@ -943,7 +943,7 @@ func opCreate2(c *context) {
 	}
 
 	// Charge for the code size
-	words := (size.Uint64() + 31) / 32
+	words := sizeInWords(size.Uint64())
 	if !c.UseGas(vm.Gas(6 * words)) {
 		return
 	}
@@ -1022,7 +1022,7 @@ func opExtCodeCopy(c *context) {
 	}
 
 	// Charge for length of copied code
-	words := (length.Uint64() + 31) / 32
+	words := sizeInWords(length.Uint64())
 	if !c.UseGas(vm.Gas(3 * words)) {
 		return
 	}
@@ -1470,7 +1470,7 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
-	words := (length.Uint64() + 31) / 32
+	words := sizeInWords(length.Uint64())
 	if !c.UseGas(vm.Gas(3 * words)) {
 		return
 	}
@@ -1495,17 +1495,18 @@ func opLog(c *context, size int) {
 		topics[i] = addr.Bytes32()
 	}
 
-	// charge for log size
-	if !c.UseGas(vm.Gas(8 * mSize.Uint64())) {
-		return
-	}
-
 	// Expand memory if needed
 	start := mStart.Uint64()
 	log_size := mSize.Uint64()
 	if c.memory.EnsureCapacity(start, log_size, c) != nil {
 		return
 	}
+
+	// charge for log size
+	if !c.UseGas(vm.Gas(8 * log_size)) {
+		return
+	}
+
 	d := c.memory.GetSlice(start, log_size)
 
 	// make a copy of the data to disconnect from memory

@@ -285,6 +285,66 @@ func TestCreateChecksBalance(t *testing.T) {
 	}
 }
 
+func TestLogOpSizeOverflow(t *testing.T) {
+
+	originalBugValue := uint256.MustFromHex("0x3030303030303030")
+	maxUint64 := uint256.NewInt(math.MaxUint64)
+	zero := uint256.NewInt(0)
+
+	tests := map[string]struct {
+		logn     int
+		size     *uint256.Int
+		logCalls int
+		want     Status
+	}{
+		"log0_zero":        {logn: 0, size: zero, logCalls: 1, want: RUNNING},
+		"log1_zero":        {logn: 1, size: zero, logCalls: 1, want: RUNNING},
+		"log2_zero":        {logn: 2, size: zero, logCalls: 1, want: RUNNING},
+		"log3_zero":        {logn: 3, size: zero, logCalls: 1, want: RUNNING},
+		"log4_zero":        {logn: 4, size: zero, logCalls: 1, want: RUNNING},
+		"log0_max":         {logn: 0, size: maxUint64, logCalls: 0, want: ERROR},
+		"log1_max":         {logn: 1, size: maxUint64, logCalls: 0, want: ERROR},
+		"log2_max":         {logn: 2, size: maxUint64, logCalls: 0, want: ERROR},
+		"log3_max":         {logn: 3, size: maxUint64, logCalls: 0, want: ERROR},
+		"log4_max":         {logn: 4, size: maxUint64, logCalls: 0, want: ERROR},
+		"log0_much_larger": {logn: 0, size: originalBugValue, logCalls: 0, want: ERROR},
+		"log1_much_larger": {logn: 1, size: originalBugValue, logCalls: 0, want: ERROR},
+		"log2_much_larger": {logn: 2, size: originalBugValue, logCalls: 0, want: ERROR},
+		"log3_much_larger": {logn: 3, size: originalBugValue, logCalls: 0, want: ERROR},
+		"log4_much_larger": {logn: 4, size: originalBugValue, logCalls: 0, want: ERROR},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			ctrl := gomock.NewController(t)
+			runContext := vm.NewMockRunContext(ctrl)
+			runContext.EXPECT().EmitLog(gomock.Any()).Times(test.logCalls)
+
+			stack := NewStack()
+			for i := 0; i < test.logn; i++ {
+				stack.push(uint256.NewInt(0))
+			}
+			stack.push(test.size)
+			stack.push(uint256.NewInt(0))
+
+			ctxt := context{
+				status:  RUNNING,
+				gas:     392,
+				context: runContext,
+				stack:   stack,
+				memory:  NewMemory(),
+			}
+
+			opLog(&ctxt, test.logn)
+
+			if ctxt.status != test.want {
+				t.Fatalf("unexpected status, wanted %v, got %v", test.want, ctxt.status)
+			}
+		})
+	}
+}
+
 func TestBlobHash(t *testing.T) {
 
 	hash := vm.Hash{1}
@@ -552,7 +612,7 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 		{vm.R11_Paris, maxInitCodeSize, RUNNING},
 		{vm.R11_Paris, maxInitCodeSize + 1, RUNNING},
 		{vm.R11_Paris, 100000, RUNNING},
-		{vm.R11_Paris, math.MaxUint64, RUNNING}, // TODO: this case should fail due to insufficient gas or bad allocation, issue #524
+		{vm.R11_Paris, math.MaxUint64, ERROR},
 
 		{vm.R12_Shanghai, 0, RUNNING},
 		{vm.R12_Shanghai, 1, RUNNING},
@@ -561,7 +621,7 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 		{vm.R12_Shanghai, maxInitCodeSize, RUNNING},
 		{vm.R12_Shanghai, maxInitCodeSize + 1, MAX_INIT_CODE_SIZE_EXCEEDED},
 		{vm.R12_Shanghai, 100000, MAX_INIT_CODE_SIZE_EXCEEDED},
-		{vm.R12_Shanghai, math.MaxUint64, MAX_INIT_CODE_SIZE_EXCEEDED},
+		{vm.R12_Shanghai, math.MaxUint64, ERROR},
 	}
 
 	for _, test := range tests {
@@ -615,10 +675,11 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 	}
 
 	dynamicCost := func(revision vm.Revision, size uint64) uint64 {
-		sizeWord := ((size + 31) / 32)
-		memoryExpansionCost := (sizeWord*sizeWord)/512 + 3*sizeWord
+		words := sizeInWords(size)
+		// TODO: check for overflow, fix in #524
+		memoryExpansionCost := (words*words)/512 + 3*words
 		if revision >= vm.R12_Shanghai {
-			return 2*sizeWord + memoryExpansionCost
+			return 2*words + memoryExpansionCost
 		}
 		return memoryExpansionCost
 	}
