@@ -44,14 +44,33 @@ func toValidMemorySize(size uint64) uint64 {
 	return fullWordsSize
 }
 
+const (
+	// Maximum memory size allowed
+	// This magic number comes from 'core/vm/gas_table.go' 'memoryGasCost' in geth
+	maxMemoryExpansionSize = 0x1FFFFFFFE0
+)
+
 func (m *Memory) ExpansionCosts(size uint64) vm.Gas {
+
+	// static assert
+	const (
+		// Memory expansion cost is done using unsigned arithmetic,
+		// check for the maximum memory expansion size, not overflowing int64 after computing costs
+		maxInWords uint64 = (uint64(maxMemoryExpansionSize) + 31) / 32
+		_                 = int64(maxInWords*maxInWords/512 + 3*maxInWords)
+	)
+
 	if m.Len() >= size {
 		return 0
 	}
 	size = toValidMemorySize(size)
-	memory_size_word := sizeInWords(size)
-	// TODO: check for overflow, fix in #524
-	new_costs := vm.Gas((memory_size_word*memory_size_word)/512 + (3 * memory_size_word))
+
+	if size > maxMemoryExpansionSize {
+		return vm.Gas(math.MaxInt64)
+	}
+
+	words := sizeInWords(size)
+	new_costs := vm.Gas((words*words)/512 + (3 * words))
 	fee := new_costs - m.total_memory_cost
 	return fee
 }
