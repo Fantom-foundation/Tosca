@@ -142,3 +142,19 @@ func (c *Code) Copy() []byte {
 func (c *Code) String() string {
 	return fmt.Sprintf("%x", c.code)
 }
+
+// HumanReadableString returns a string with the length of the code and the
+// Human readable form for the opcodes in range [start, start+length).
+// - If the slice to be printed overflows the existing code, the overlapping code is printed.
+// - If start exceeds the code length, the length of the code is printed.
+func (c *Code) HumanReadableString(start int, length int) string {
+	result := fmt.Sprintf("len(%d)", len(c.code))
+	if start >= len(c.code) {
+		return result
+	}
+	end := min(length, len(c.code)-start) + start
+	for _, op := range c.code[start:end] {
+		result = fmt.Sprintf("%s; %s", result, OpCode(op).String())
+	}
+	return result
+}

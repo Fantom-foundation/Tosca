@@ -140,6 +140,57 @@ func TestCode_Printer(t *testing.T) {
 	}
 }
 
+func TestCode_OpCodesToString(t *testing.T) {
+	tests := map[string]struct {
+		code   *Code
+		start  int
+		length int
+		want   string
+	}{
+
+		"empty": {
+			code:   NewCode([]byte{}),
+			start:  0,
+			length: 4,
+			want:   "len(0)",
+		},
+		"complete": {
+			code:   NewCode([]byte{byte(ADD), byte(PUSH1), 0x0C, byte(PUSH2)}),
+			start:  0,
+			length: 4,
+			want:   "len(4); ADD; PUSH1; op(0C); PUSH2",
+		},
+		"off-bounds": {
+			code:   NewCode([]byte{byte(ADD), byte(PUSH1), 0x0C, byte(PUSH2)}),
+			start:  5,
+			length: 4,
+			want:   "len(4)",
+		},
+		"partial": {
+			code:   NewCode([]byte{byte(ADD), byte(PUSH1), 0x0C, byte(PUSH2)}),
+			start:  1,
+			length: 3,
+			want:   "len(4); PUSH1; op(0C); PUSH2",
+		},
+		"too large": {
+			code:   NewCode([]byte{byte(ADD), byte(PUSH1), 0x0C, byte(PUSH2), byte(ADD), byte(PUSH1), byte(SDIV), byte(PUSH2)}),
+			start:  0,
+			length: 34,
+			want:   "len(8); ADD; PUSH1; op(0C); PUSH2; ADD; PUSH1; SDIV; PUSH2",
+		},
+	}
+
+	for name, test := range tests {
+
+		t.Run(name, func(t *testing.T) {
+			got := test.code.HumanReadableString(test.start, test.length)
+			if got != test.want {
+				t.Errorf("invalid print, wanted %s, got %s", test.want, got)
+			}
+		})
+	}
+}
+
 func TestCode_CopyCodeSlice(t *testing.T) {
 	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
 	tests := map[string]struct {
