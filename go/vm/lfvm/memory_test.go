@@ -17,27 +17,6 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
-func TestMagicNumber(t *testing.T) {
-
-	// Call me paranoid, but I am repeating the test for the magic number:
-	// The difference between geth and lfvm is that they use uint64 as gas
-	// type, while lfvm uses vm.Gas which is int64. This is why this test
-	// checks that after the calculation, the result can still fit in a signed
-	// 64-bit integer.
-
-	v := maxMemoryExpansionSize
-	w := sizeInWords(uint64(v))
-	square := w * w
-
-	if square/512 < 3*w {
-		t.Errorf("square/512 < 3*w")
-	}
-
-	if square/512+3*w > math.MaxInt64 {
-		t.Errorf("square/512 + 3*w  > math.MaxInt64")
-	}
-}
-
 func TestExpansionCosts(t *testing.T) {
 
 	tests := []struct {

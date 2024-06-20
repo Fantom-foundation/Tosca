@@ -51,6 +51,15 @@ const (
 )
 
 func (m *Memory) ExpansionCosts(size uint64) vm.Gas {
+
+	// static assert
+	const (
+		// Memory expansion cost is done using unsigned arithmetic,
+		// check for the maximum memory expansion size, not overflowing int64 after computing costs
+		maxInWords uint64 = (uint64(maxMemoryExpansionSize) + 31) / 32
+		_                 = int64(maxInWords*maxInWords/512 + 3*maxInWords)
+	)
+
 	if m.Len() >= size {
 		return 0
 	}
