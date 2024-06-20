@@ -836,7 +836,13 @@ func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
 
 		mockCalls := func(mock *MockStateDB) {
 			mock.EXPECT().HasSelfDestructed(contractAddress).AnyTimes().Return(suicided)
-			mock.EXPECT().GetBalance(contractAddress).AnyTimes().Return(vm.Value{byte(balance)})
+			mock.EXPECT().GetBalance(gomock.Any()).AnyTimes().DoAndReturn(func(addr vm.Address) vm.Value {
+				if addr == contractAddress {
+					return vm.Value{byte(balance)}
+				}
+				return vm.Value{}
+			})
+
 			mock.EXPECT().AccountExists(targetAddress).AnyTimes().Return(!empty)
 			mock.EXPECT().IsAddressInAccessList(targetAddress).AnyTimes().Return(inAcl)
 			mock.EXPECT().AccessAccount(targetAddress).AnyTimes().Return(vm.AccessStatus(inAcl))
