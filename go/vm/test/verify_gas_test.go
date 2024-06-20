@@ -88,7 +88,6 @@ func TestStaticGas(t *testing.T) {
 }
 
 func TestDynamicGas(t *testing.T) {
-	account := vm.Address{0}
 	accountBalance := vm.Value{100}
 
 	// For every variant of interpreter
@@ -104,12 +103,19 @@ func TestDynamicGas(t *testing.T) {
 
 				for _, testCase := range info.gas.dynamic(revision) {
 					t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, op, testCase.testName), func(t *testing.T) {
+
 						mockCtrl := gomock.NewController(t)
 						mockStateDB := NewMockStateDB(mockCtrl)
 
-						// SELFDESTRUCT gas computation is dependent on an account balance
+						// World state interactions triggered by the EVM.
+						mockStateDB.EXPECT().SetBalance(gomock.Any(), gomock.Any()).AnyTimes()
+						mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes()
+						mockStateDB.EXPECT().SetNonce(gomock.Any(), gomock.Any()).AnyTimes()
+						mockStateDB.EXPECT().SetCode(gomock.Any(), gomock.Any()).AnyTimes()
+
+						// SELFDESTRUCT gas computation is dependent on an account balance and sets its own expectations
 						if op != geth.SELFDESTRUCT {
-							mockStateDB.EXPECT().GetBalance(account).AnyTimes().Return(accountBalance)
+							mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(accountBalance)
 						}
 
 						if op == geth.CREATE || op == geth.CREATE2 {
@@ -315,6 +321,8 @@ func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) vm.
 	mockCtrl := gomock.NewController(t)
 	mockStateDB := NewMockStateDB(mockCtrl)
 	mockStateDB.EXPECT().AccountExists(account).AnyTimes().Return(true)
+	mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(vm.Value{})
+	mockStateDB.EXPECT().SetBalance(gomock.Any(), gomock.Any()).AnyTimes().Return()
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(callCode)
 	mockStateDB.EXPECT().GetCodeHash(account).AnyTimes()
 	mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(true)
@@ -366,6 +374,7 @@ func putCallReturnValue(t *testing.T, revision Revision, code []byte, mockStateD
 		byte(0),
 		byte(geth.RETURN)}
 	mockStateDB.EXPECT().AccountExists(account).AnyTimes().Return(true)
+	mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(vm.Value{})
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(codeWithReturnValue)
 	mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(vm.Hash{byte(accountNumber)})
 	mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(true)
