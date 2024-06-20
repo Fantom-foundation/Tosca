@@ -11,10 +11,10 @@
 package vm_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/vm"
-	"github.com/Fantom-foundation/Tosca/go/vm/geth"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/mock/gomock"
@@ -24,10 +24,20 @@ import (
 	op "github.com/ethereum/go-ethereum/core/vm"
 )
 
+// getProcessors returns a map containing all registered processors instantiated
+// with all registered interpreters.
 func getProcessors() map[string]vm.Processor {
-	return map[string]vm.Processor{
-		"geth": geth.NewProcessor(),
+	interpreter := vm.GetAllRegisteredInterpreters()
+	factories := vm.GetAllRegisteredProcessorFactories()
+
+	res := map[string]vm.Processor{}
+	for processorName, factory := range factories {
+		for interpreterName, interpreter := range interpreter {
+			processor := factory(interpreter)
+			res[fmt.Sprintf("%s/%s", processorName, interpreterName)] = processor
+		}
 	}
+	return res
 }
 
 func TestProcessor_SimpleValueTransfer(t *testing.T) {

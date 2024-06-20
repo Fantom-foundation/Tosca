@@ -38,15 +38,18 @@ const adapterDebug = false
 
 func init() {
 	for name, interpreter := range vm.GetAllRegisteredInterpreters() {
-		interpreter := interpreter
-		geth.RegisterInterpreterFactory(name, func(evm *geth.EVM, cfg geth.Config) geth.Interpreter {
-			return &gethInterpreterAdapter{
-				interpreter: interpreter,
-				evm:         evm,
-				cfg:         cfg,
-			}
-		})
+		RegisterGethInterpreter(name, interpreter)
 	}
+}
+
+func RegisterGethInterpreter(name string, interpreter vm.Interpreter) {
+	geth.RegisterInterpreterFactory(name, func(evm *geth.EVM, cfg geth.Config) geth.Interpreter {
+		return &gethInterpreterAdapter{
+			interpreter: interpreter,
+			evm:         evm,
+			cfg:         cfg,
+		}
+	})
 }
 
 type gethInterpreterAdapter struct {

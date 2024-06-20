@@ -17,7 +17,9 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"sync"
 
+	"github.com/Fantom-foundation/Tosca/go/geth_adapter"
 	"github.com/Fantom-foundation/Tosca/go/vm"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -28,6 +30,42 @@ import (
 	"github.com/holiman/uint256"
 	"golang.org/x/crypto/sha3"
 )
+
+func init() {
+	vm.RegisterProcessorFactory("geth", newProcessor)
+}
+
+var interpreterRegistryLock sync.RWMutex
+var interpreterRegistry map[vm.Interpreter]string
+
+// newProcessor is a factory function for the geth/opera processor implemented in this file.
+// By including this package, it gets registered in the global processor registry.
+func newProcessor(interpreter vm.Interpreter) vm.Processor {
+
+	// To be able to access the provided interpreter within geth, it
+	// needs to be wrapped and registered inside geth's interpreter registry.
+	// However, this registry should not be spammed with multiple entries for
+	// the same interpreter. Thus, a small local index is maintained for them.
+	interpreterRegistryLock.Lock()
+	defer interpreterRegistryLock.Unlock()
+
+	if interpreterRegistry == nil {
+		interpreterRegistry = make(map[vm.Interpreter]string)
+	}
+
+	if name, ok := interpreterRegistry[interpreter]; ok {
+		return &processor{
+			interpreterImplementation: name,
+		}
+	}
+
+	name := fmt.Sprintf("geth-processor-redirect-%d", len(interpreterRegistry))
+	interpreterRegistry[interpreter] = name
+	geth_adapter.RegisterGethInterpreter(name, interpreter)
+	return &processor{
+		interpreterImplementation: name,
+	}
+}
 
 var (
 	// ErrNonceTooLow is returned if the nonce of a transaction is lower than the
@@ -59,15 +97,6 @@ type processor struct {
 }
 
 var _ vm.Processor = (*processor)(nil)
-
-// TODO: remove and use a registry instead
-func NewProcessor() vm.Processor {
-	return NewProcessorWithVm("geth")
-}
-
-func NewProcessorWithVm(impl string) vm.Processor {
-	return &processor{impl}
-}
 
 func (p *processor) Run(
 	blockParams vm.BlockParameters,
