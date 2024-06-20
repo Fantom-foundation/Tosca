@@ -986,8 +986,8 @@ struct Impl<OpCode::BLOBHASH> {
 
   static OpResult Run(uint256_t* top, Context& ctx) noexcept {
     const auto tx_context = ctx.host->get_tx_context();
-    if (top[0] < tx_context.blob_hashes_count) {
-      top[0] = ToUint256(tx_context.blob_hashes[static_cast<int64_t>(top[0])]);
+    if (static_cast<size_t>(top[0]) < tx_context.blob_hashes_count) {
+      top[0] = ToUint256(tx_context.blob_hashes[static_cast<size_t>(top[0])]);
     } else {
       top[0] = 0;
     }
