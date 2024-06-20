@@ -5,6 +5,8 @@ project(tosca)
 option(TOSCA_ASAN "Enable AddressSanitizer for Tosca targets.")
 option(TOSCA_ASSERT "Enable Tosca specific assertions.")
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 enable_testing()
@@ -12,11 +14,15 @@ enable_testing()
 if(TOSCA_ASAN)
   add_compile_options(
     $<$<CXX_COMPILER_ID:Clang>:-fno-omit-frame-pointer>
-    $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
+    $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>
+    )
   add_link_options(
     $<$<CXX_COMPILER_ID:Clang>:-fno-omit-frame-pointer>
-    $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>)
+    $<$<CXX_COMPILER_ID:Clang>:-fsanitize=address>
+    )
 endif()
+
+include(tosca_coverage)
 
 set(TOSCA_THIRD_PARTY_DIR ${PROJECT_SOURCE_DIR}/../third_party)
 add_subdirectory(${TOSCA_THIRD_PARTY_DIR}/evmc third_party/evmc EXCLUDE_FROM_ALL)
