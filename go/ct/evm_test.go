@@ -191,10 +191,10 @@ func errorReportString(original *st.State, resultState *st.State, referenceState
 	)
 }
 
-func FuzzCompareEvm(f *testing.F) {
+func FuzzDifferentialLfvmVsGeth(f *testing.F) {
 
-	referenceVm := geth.NewConformanceTestingTarget()
-	testeeVm := lfvm.NewConformanceTestingTarget()
+	gethVm := geth.NewConformanceTestingTarget()
+	lfvmVm := lfvm.NewConformanceTestingTarget()
 
 	rnd := rand.New(0)
 
@@ -242,41 +242,41 @@ func FuzzCompareEvm(f *testing.F) {
 		state.Stack = stack
 		state.BlockContext.TimeStamp = GetForkTime(state.Revision)
 
-		resultState, err := testeeVm.StepN(state.Clone(), 1)
-		defer resultState.Release()
+		lfvmResultState, err := lfvmVm.StepN(state.Clone(), 1)
+		defer lfvmResultState.Release()
 
 		if err != nil {
 			t.Fatalf("failed to run test case: %v", err)
 		}
 
-		referenceState, err := referenceVm.StepN(state.Clone(), 1)
-		defer referenceState.Release()
+		gethResultState, err := gethVm.StepN(state.Clone(), 1)
+		defer gethResultState.Release()
 
 		if err != nil {
-			t.Fatalf("failed to run test case in reference VM: %v", err)
+			t.Fatalf("failed to run test case in  VM: %v", err)
 		}
 
-		if resultState.Status != referenceState.Status {
-			t.Fatal("invalid result, status does not match reference status:", errorReportString(state, resultState, referenceState))
+		if lfvmResultState.Status != gethResultState.Status {
+			t.Fatal("invalid result, status does not match reference status:", errorReportString(state, lfvmResultState, gethResultState))
 		}
-		if resultState.Status != st.Running {
+		if lfvmResultState.Status != st.Running {
 			return
 		}
 
-		if resultState.Gas != referenceState.Gas {
-			t.Fatal("invalid result,  gas does not match reference gas:", errorReportString(state, resultState, referenceState))
+		if lfvmResultState.Gas != gethResultState.Gas {
+			t.Fatal("invalid result,  gas does not match reference gas:", errorReportString(state, lfvmResultState, gethResultState))
 		}
 
 		// Hack: lfvm does a pc transformation, but for code smaller than the required jump the pc will point to a different location
 		// - Geth will point to pc+offset, whenever it is an overflow
 		// - Lfvm will point min(pc+offset, len(code))
-		if resultState.Pc == uint16(len(opCodes)) &&
-			resultState.Pc != referenceState.Pc {
-			resultState.Pc = referenceState.Pc
+		if lfvmResultState.Pc == uint16(len(opCodes)) &&
+			lfvmResultState.Pc != gethResultState.Pc {
+			lfvmResultState.Pc = gethResultState.Pc
 		}
 
-		if !resultState.Eq(referenceState) {
-			t.Fatal("invalid result,  result state does not match reference state:", resultState.Diff(referenceState), errorReportString(state, resultState, referenceState))
+		if !lfvmResultState.Eq(gethResultState) {
+			t.Fatal("invalid result,  result state does not match reference state:", lfvmResultState.Diff(gethResultState), errorReportString(state, lfvmResultState, gethResultState))
 		}
 	})
 }

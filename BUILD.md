@@ -256,3 +256,17 @@ Overall coverage rate:
 The report will be generated in HTML form to alow visualization of each line of code coverage for each C++ file in the project. The entry HTML page to the report is located at the C++ build folder: `cpp/build/coverage/index.html`
 
 In VSCode, line by line coverage can be visualized using the extension [gcov-viewer](https://marketplace.visualstudio.com/items?itemName=JacquesLucke.gcov-viewer)
+
+
+## Fuzzing
+
+Go code can be easily fuzzed: fuzzing attempts to find bugs by mutating a test input data set and measuring test coverage. This complementary technique aims stability issues.
+
+### Fuzzing Evm.StepN interface
+
+The ct Evm.StepN interface is used to evaluate one N instructions in different EVM implementations. There are 2 Fuzzer tests against this interface:
+
+- Crash test: FuzzLfvm will execute instructions one at the time looking for a panic. ```make fuzz-lfvm```
+- Differential test: FuzzDifferentialLfvmVsGeth ```make fuzz-lfvm-diff```
+
+Notice lack of evmzero target: go utilizes native code coverage to inform the algorithm, which would use this information to drive the mutation process. There is currently no method to retrieve this information from the C++ library, this renders the C++/go fuzzer as a brute-force algorithm. 
