@@ -57,34 +57,28 @@ func ForEachState(
 		startTime := time.Now()
 		lastTime := startTime
 		lastTestCounter := int64(0)
+
+		checkTimingAndPrint := func(now time.Time) {
+			cur := testCounter.Load()
+
+			diffCounter := cur - lastTestCounter
+			diffTime := now.Sub(lastTime)
+
+			lastTime = now
+			lastTestCounter = cur
+
+			relativeTime := now.Sub(startTime)
+			rate := float64(diffCounter) / diffTime.Seconds()
+			printIssueCounts(relativeTime, rate, cur)
+		}
+
 		for {
 			select {
 			case <-done:
-				cur := testCounter.Load()
-				curTime := time.Now()
-
-				diffCounter := cur - lastTestCounter
-				diffTime := curTime.Sub(lastTime)
-
-				lastTime = curTime
-				lastTestCounter = cur
-
-				relativeTime := curTime.Sub(startTime)
-				rate := float64(diffCounter) / diffTime.Seconds()
-				printIssueCounts(relativeTime, rate, cur)
+				checkTimingAndPrint(time.Now())
 				return
-			case curTime := <-ticker.C:
-				cur := testCounter.Load()
-
-				diffCounter := cur - lastTestCounter
-				diffTime := curTime.Sub(lastTime)
-
-				lastTime = curTime
-				lastTestCounter = cur
-
-				relativeTime := curTime.Sub(startTime)
-				rate := float64(diffCounter) / diffTime.Seconds()
-				printIssueCounts(relativeTime, rate, cur)
+			case now := <-ticker.C:
+				checkTimingAndPrint(now)
 			}
 		}
 	}()
