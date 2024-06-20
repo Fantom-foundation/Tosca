@@ -293,19 +293,11 @@ func (s *stateDbAdapter) GetBalance(addr common.Address) *uint256.Int {
 }
 
 func (s *stateDbAdapter) GetNonce(addr common.Address) uint64 {
-	if ctxt, ok := s.context.(vm.WorldState); ok {
-		return ctxt.GetNonce(vm.Address(addr))
-	}
-	// ignored: effect not needed in test environments
-	return 0
+	return s.context.GetNonce(vm.Address(addr))
 }
 
 func (s *stateDbAdapter) SetNonce(addr common.Address, nonce uint64) {
-	if ctxt, ok := s.context.(vm.WorldState); ok {
-		ctxt.SetNonce(vm.Address(addr), nonce)
-		return
-	}
-	// ignored: effect not needed in test environments
+	s.context.SetNonce(vm.Address(addr), nonce)
 }
 
 func (s *stateDbAdapter) GetCodeHash(addr common.Address) common.Hash {
