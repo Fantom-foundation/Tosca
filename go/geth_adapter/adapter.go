@@ -89,11 +89,6 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		}()
 	}
 
-	/*
-		fmt.Printf("Start - Depth: %v\n", a.evm.Depth)
-		defer fmt.Printf("End - Depth: %v\n", a.evm.Depth)
-	*/
-
 	// The geth EVM infrastructure does not offer means for forwarding read-only
 	// state information through recursive interpreter calls. Internally, geth
 	// is tracking this in a non-accessible member field of the geth interpreter.
