@@ -348,8 +348,8 @@ func (s *stateDbAdapter) HasSelfDestructed(addr common.Address) bool {
 }
 
 func (s *stateDbAdapter) Selfdestruct6780(common.Address) {
+	// FIXME: not implemented, but non panicking call is required to enable fuzzing
 	// ignored: effect not needed in test environments
-	panic("not implemented")
 }
 
 func (s *stateDbAdapter) Exist(addr common.Address) bool {
