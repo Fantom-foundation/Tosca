@@ -165,7 +165,7 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 	serializableState.LastCallReturnData = NewBytes([]byte{6})
 	serializableState.HasSelfDestructed = false
 	serializableState.SelfDestructedJournal = newSerializableJournal([]SelfDestructEntry{})
-	serializableState.RecentBlockHashes[0] = vm.Hash{0x02}
+	serializableState.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x01})
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -197,7 +197,7 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.HasSelfDestructed &&
 		len(s.SelfDestructedJournal) == 1 &&
 		s.SelfDestructedJournal[0] == SelfDestructEntry{vm.Address{1}, vm.Address{2}} &&
-		s.RecentBlockHashes[0] == vm.Hash{0x01}
+		s.RecentBlockHashes.Equal(NewImmutableHashArray(vm.Hash{0x01}))
 
 	if !ok {
 		t.Errorf("new serializable state is not independent")
@@ -231,7 +231,7 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.LastCallReturnData = NewBytes([]byte{6})
 	deserializedState.HasSelfDestructed = false
 	deserializedState.SelfDestructedJournal = []SelfDestructEntry{}
-	deserializedState.RecentBlockHashes[0] = vm.Hash{0x02}
+	deserializedState.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x02})
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -263,7 +263,7 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 		s.HasSelfDestructed &&
 		len(s.SelfDestructedJournal) == 1 &&
 		s.SelfDestructedJournal[0] == serializableSelfDestructEntry{vm.Address{1}, vm.Address{2}} &&
-		s.RecentBlockHashes[0] == vm.Hash{0x01}
+		s.RecentBlockHashes.Equal(NewImmutableHashArray(vm.Hash{0x01}))
 
 	if !ok {
 		t.Errorf("deserialized state is not independent")

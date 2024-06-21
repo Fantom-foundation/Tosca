@@ -140,8 +140,7 @@ func (c *ctRunContext) GetBlockHash(number int64) vm.Hash {
 	if min > number || number >= max {
 		return vm.Hash{0x0}
 	}
-
-	return c.state.RecentBlockHashes[max-number-1]
+	return c.state.RecentBlockHashes.Get(uint64(max - number - 1))
 }
 
 // TODO: add unit test

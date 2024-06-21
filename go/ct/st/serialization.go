@@ -76,7 +76,7 @@ type stateSerializable struct {
 	CallJournal           *CallJournal
 	HasSelfDestructed     bool
 	SelfDestructedJournal []serializableSelfDestructEntry
-	RecentBlockHashes     [256]vm.Hash
+	RecentBlockHashes     ImmutableHashArray
 	TransactionContext    TransactionContext
 }
 
