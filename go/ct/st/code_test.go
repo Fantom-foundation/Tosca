@@ -142,50 +142,67 @@ func TestCode_Printer(t *testing.T) {
 
 func TestCode_OpCodesToString(t *testing.T) {
 	tests := map[string]struct {
-		code   *Code
+		code   []OpCode
 		start  int
 		length int
 		want   string
 	}{
 
 		"empty": {
-			code:   NewCode([]byte{}),
+			code:   []OpCode{},
 			start:  0,
 			length: 4,
 			want:   "len(0)",
 		},
+		"unused": {
+			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
+			start:  0,
+			length: 1,
+			want:   "len(4) op(0C)",
+		},
 		"complete": {
-			code:   NewCode([]byte{byte(ADD), byte(PUSH1), 0x0C, byte(PUSH2)}),
+			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
 			start:  0,
 			length: 4,
-			want:   "len(4); ADD; PUSH1; op(0C); PUSH2",
+			want:   "len(4) op(0C) PUSH2 255 160",
 		},
 		"off-bounds": {
-			code:   NewCode([]byte{byte(ADD), byte(PUSH1), 0x0C, byte(PUSH2)}),
+			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
 			start:  5,
 			length: 4,
 			want:   "len(4)",
 		},
 		"partial": {
-			code:   NewCode([]byte{byte(ADD), byte(PUSH1), 0x0C, byte(PUSH2)}),
+			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
 			start:  1,
 			length: 3,
-			want:   "len(4); PUSH1; op(0C); PUSH2",
+			want:   "len(4) PUSH2 255 160",
+		},
+		"just data": {
+			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
+			start:  2,
+			length: 3,
+			want:   "len(4) 255 160",
 		},
 		"too large": {
-			code:   NewCode([]byte{byte(ADD), byte(PUSH1), 0x0C, byte(PUSH2), byte(ADD), byte(PUSH1), byte(SDIV), byte(PUSH2)}),
+			code:   []OpCode{ADD, SDIV, PUSH0, PUSH1, 0x00, BALANCE},
 			start:  0,
 			length: 34,
-			want:   "len(8); ADD; PUSH1; op(0C); PUSH2; ADD; PUSH1; SDIV; PUSH2",
+			want:   "len(6) ADD SDIV PUSH0 PUSH1 0 BALANCE",
 		},
 	}
 
 	for name, test := range tests {
 
 		t.Run(name, func(t *testing.T) {
-			got := test.code.HumanReadableString(test.start, test.length)
+			bytes := make([]byte, len(test.code))
+			for i, op := range test.code {
+				bytes[i] = byte(op)
+			}
+			code := NewCode(bytes)
+			got := code.HumanReadableString(test.start, test.length)
 			if got != test.want {
-				t.Errorf("invalid print, wanted %s, got %s", test.want, got)
+				t.Errorf(`invalid print, wanted "%s", got "%s"`, test.want, got)
 			}
 		})
 	}

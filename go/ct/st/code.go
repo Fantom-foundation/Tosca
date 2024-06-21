@@ -147,14 +147,21 @@ func (c *Code) String() string {
 // human readable form for the opcodes in range [start, start+length).
 // - If the slice to be printed overflows the existing code, the overlapping code is printed.
 // - If start exceeds the code length, the length of the code is printed.
+// - Data found in the code is printed as decimal numbers (to differentiate from unused opcodes).
 func (c *Code) HumanReadableString(start int, length int) string {
 	result := fmt.Sprintf("len(%d)", len(c.code))
 	if start >= len(c.code) {
 		return result
 	}
 	end := min(length, len(c.code)-start) + start
-	for _, op := range c.code[start:end] {
-		result = fmt.Sprintf("%s; %s", result, OpCode(op).String())
+	for i, op := range c.code[start:end] {
+		var entry string
+		if c.IsCode(start + i) {
+			entry = OpCode(op).String()
+		} else {
+			entry = fmt.Sprintf("%d", op)
+		}
+		result = fmt.Sprintf("%s %s", result, entry)
 	}
 	return result
 }
