@@ -21,14 +21,52 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/vm/evmzero"
 	"github.com/Fantom-foundation/Tosca/go/vm/geth"
 	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 )
 
-func FuzzDifferentialLfvmVsGeth(f *testing.F) {
+// FuzzGeth is a fuzzing test for the geth EVM implementation
+// TODO: it would be interesting to have a method to extend the corpus of the fuzzer
+// with the failures found in other tests.
+// So far failures will be stored in the folder: testdata/fuzz/FuzzerFunctionName/
+func FuzzGeth(f *testing.F) {
+	fuzzVm(geth.NewConformanceTestingTarget(), f)
+}
 
-	gethVm := geth.NewConformanceTestingTarget()
-	lfvmVm := lfvm.NewConformanceTestingTarget()
+// FuzzLfvm is a fuzzing test for lfvm
+func FuzzLfvm(f *testing.F) {
+	fuzzVm(lfvm.NewConformanceTestingTarget(), f)
+}
+
+// FuzzLfvm is a fuzzing test for evmzero
+func FuzzEvmzero(f *testing.F) {
+	fuzzVm(evmzero.NewConformanceTestingTarget(), f)
+}
+
+// FuzzDifferentialLfvmVsGeth compares state output between lfvm and geth
+func FuzzDifferentialLfvmVsGeth(f *testing.F) {
+	differentialFuzz(f,
+		lfvm.NewConformanceTestingTarget(),
+		geth.NewConformanceTestingTarget(),
+	)
+}
+
+// TODO: this test makes sense but cannot be enabled yet:
+// - The evmzero fails the differential test with geth.
+// - Any other invocation of fuzzing tests in this file seem to
+// invoke the all other tests in the file, and they will fail.
+// func FuzzDifferentialEvmzeroVsGeth(f *testing.F) {
+// 	differentialFuzz(f,
+// 		evmzero.NewConformanceTestingTarget(),
+// 		geth.NewConformanceTestingTarget(),
+// 	)
+// }
+
+//////////////////////////////////////////////////////////////////////////////
+// Fuzzing helpers
+
+func differentialFuzz(f *testing.F, testeeVm ct.Evm, referenceVm ct.Evm) {
 
 	rnd := rand.New(0)
 
@@ -76,41 +114,41 @@ func FuzzDifferentialLfvmVsGeth(f *testing.F) {
 		state.Stack = stack
 		state.BlockContext.TimeStamp = GetForkTime(state.Revision)
 
-		lfvmResultState, err := lfvmVm.StepN(state.Clone(), 1)
-		defer lfvmResultState.Release()
-
+		testeeResultState, err := testeeVm.StepN(state.Clone(), 1)
+		defer testeeResultState.Release()
 		if err != nil {
 			t.Fatalf("failed to run test case: %v", err)
 		}
 
-		gethResultState, err := gethVm.StepN(state.Clone(), 1)
-		defer gethResultState.Release()
-
+		referenceResultState, err := referenceVm.StepN(state.Clone(), 1)
+		defer referenceResultState.Release()
 		if err != nil {
-			t.Fatalf("failed to run test case in  VM: %v", err)
+			t.Fatalf("failed to run test case in reference VM: %v", err)
 		}
 
-		if lfvmResultState.Status != gethResultState.Status {
-			t.Fatal("invalid result, status does not match reference status:", errorReportString(state, lfvmResultState, gethResultState))
+		if testeeResultState.Status != referenceResultState.Status {
+			t.Fatal("invalid result, status does not match reference status:", errorReportString(state, testeeResultState, referenceResultState))
 		}
-		if lfvmResultState.Status != st.Running {
+
+		// if result is other than running, further checks may be misleading
+		if testeeResultState.Status != st.Running {
 			return
 		}
 
-		if lfvmResultState.Gas != gethResultState.Gas {
-			t.Fatal("invalid result,  gas does not match reference gas:", errorReportString(state, lfvmResultState, gethResultState))
+		if testeeResultState.Gas != referenceResultState.Gas {
+			t.Fatal("invalid result, gas does not match reference gas:", errorReportString(state, testeeResultState, referenceResultState))
 		}
 
 		// Hack: lfvm does a pc transformation, but for code smaller than the required jump the pc will point to a different location
 		// - Geth will point to pc+offset, whenever it is an overflow
 		// - Lfvm will point min(pc+offset, len(code))
-		if lfvmResultState.Pc == uint16(len(opCodes)) &&
-			lfvmResultState.Pc != gethResultState.Pc {
-			lfvmResultState.Pc = gethResultState.Pc
+		if testeeResultState.Pc == uint16(len(opCodes)) &&
+			testeeResultState.Pc != referenceResultState.Pc {
+			testeeResultState.Pc = referenceResultState.Pc
 		}
 
-		if !lfvmResultState.Eq(gethResultState) {
-			t.Fatal("invalid result,  result state does not match reference state:", lfvmResultState.Diff(gethResultState), errorReportString(state, lfvmResultState, gethResultState))
+		if !testeeResultState.Eq(referenceResultState) {
+			t.Fatal("invalid result, result state does not match reference state:", testeeResultState.Diff(referenceResultState), errorReportString(state, testeeResultState, referenceResultState))
 		}
 	})
 }
@@ -168,19 +206,6 @@ func fuzzVm(testee ct.Evm, f *testing.F) {
 		result.Release()
 
 	})
-}
-
-// FuzzGeth is a fuzzing test for the geth EVM implementation
-// TODO: it would be interesting to have a method to extend the corpus of the fuzzer
-// with the failures found in other tests.
-// So far failures will be stored in the folder: testdata/fuzz/FuzzerFunctionName/
-func FuzzGeth(f *testing.F) {
-	fuzzVm(geth.NewConformanceTestingTarget(), f)
-}
-
-// FuzzLfvm is a fuzzing test for the lfvm EVM implementation
-func FuzzLfvm(f *testing.F) {
-	fuzzVm(lfvm.NewConformanceTestingTarget(), f)
 }
 
 const (
