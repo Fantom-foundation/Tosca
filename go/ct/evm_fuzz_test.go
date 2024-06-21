@@ -72,46 +72,11 @@ func differentialFuzz(f *testing.F, testeeVm ct.Evm, referenceVm ct.Evm) {
 	prepareFuzzingSeeds(f, rnd)
 
 	f.Fuzz(func(t *testing.T, opCodes []byte, gas int64, revision byte, stackBytes []byte) {
-		if gas < 0 {
-			t.Skip("negative gas", gas)
+
+		state, err := corpusInputDataToCtState(opCodes, gas, revision, stackBytes)
+		if err != nil {
+			t.Skip(err)
 		}
-
-		if Revision(revision) < R07_Istanbul || Revision(revision) > NewestSupportedRevision {
-			t.Skip("unsupported revision", revision)
-		}
-
-		if len(opCodes) == 0 {
-			t.Skip("empty opCodes")
-		}
-
-		if len(opCodes) > fuzzMaximumCodeSegment {
-			t.Skip("too many opCodes,  not interesting")
-		}
-
-		// Ignore stack sizes larger than 7 words, as they are not interesting
-		// Do not ignore stack sizes close to the overflow, as they are interesting
-		if len(stackBytes) > fuzzIdealStackSize*32 && len(stackBytes) < (1024-fuzzIdealStackSize) {
-			t.Skip("Uninteresting stack size", len(stackBytes))
-		}
-
-		stack := st.NewStack()
-
-		for i := 0; i < len(stackBytes); i += 32 {
-			var stackValue [32]byte
-			if i+32 <= len(stackBytes) {
-				copy(stackValue[:], stackBytes[i:i+32])
-			} else {
-				copy(stackValue[:], stackBytes[i:])
-			}
-			stack.Push(NewU256FromBytes(stackValue[:]...))
-		}
-
-		code := st.NewCode(opCodes)
-		state := st.NewState(code)
-		state.Gas = vm.Gas(gas)
-		state.Revision = Revision(revision)
-		state.Stack = stack
-		state.BlockContext.TimeStamp = GetForkTime(state.Revision)
 
 		testeeResultState, err := testeeVm.StepN(state.Clone(), 1)
 		defer testeeResultState.Release()
@@ -159,51 +124,13 @@ func fuzzVm(testee ct.Evm, f *testing.F) {
 	prepareFuzzingSeeds(f, rnd)
 
 	f.Fuzz(func(t *testing.T, opCodes []byte, gas int64, revision byte, stackBytes []byte) {
-
-		if gas < 0 {
-			t.Skip("negative gas", gas)
+		state, err := corpusInputDataToCtState(opCodes, gas, revision, stackBytes)
+		if err != nil {
+			t.Skip(err)
 		}
 
-		if Revision(revision) < R07_Istanbul || Revision(revision) > NewestSupportedRevision {
-			t.Skip("unsupported revision", revision)
-		}
-
-		if len(opCodes) == 0 {
-			t.Skip("empty opCodes")
-		}
-
-		if len(opCodes) > fuzzMaximumCodeSegment {
-			t.Skip("too many opCodes,  not interesting")
-		}
-
-		// Ignore stack sizes larger than 7 words, as they are not interesting
-		// Do not ignore stack sizes close to the overflow, as they are interesting
-		if len(stackBytes) > fuzzMaximumCodeSegment*32 && len(stackBytes) < (1024-fuzzMaximumCodeSegment) {
-			t.Skip("Uninteresting stack size", len(stackBytes))
-		}
-
-		stack := st.NewStack()
-
-		for i := 0; i < len(stackBytes); i += 32 {
-			var stackValue [32]byte
-			if i+32 <= len(stackBytes) {
-				copy(stackValue[:], stackBytes[i:i+32])
-			} else {
-				copy(stackValue[:], stackBytes[i:])
-			}
-			stack.Push(NewU256FromBytes(stackValue[:]...))
-		}
-
-		code := st.NewCode(opCodes)
-		state := st.NewState(code)
-		state.Gas = vm.Gas(gas)
-		state.Revision = Revision(revision)
-		state.Stack = stack
-		state.BlockContext.TimeStamp = GetForkTime(state.Revision)
-
-		result, _ := testee.StepN(state.Clone(), 1)
+		result, _ := testee.StepN(state, 1)
 		result.Release()
-
 	})
 }
 
@@ -275,6 +202,49 @@ func prepareFuzzingSeeds(f *testing.F, rnd *rand.Rand) {
 		byte(R07_Istanbul), // revision
 		fullStack[:],       // stack
 	)
+}
+
+func corpusInputDataToCtState(opCodes []byte, gas int64, revision byte, stackBytes []byte) (*st.State, error) {
+	if gas < 0 {
+		return nil, fmt.Errorf("negative gas %v", gas)
+	}
+
+	if Revision(revision) < MinRevision || Revision(revision) > NewestSupportedRevision {
+		return nil, fmt.Errorf("unsupported revision %v", revision)
+	}
+
+	if len(opCodes) == 0 {
+		return nil, fmt.Errorf("empty opCodes")
+	}
+
+	if len(opCodes) > fuzzMaximumCodeSegment {
+		return nil, fmt.Errorf("too many opCodes, not interesting")
+	}
+
+	// Ignore stack sizes larger than 7 words, as they are not interesting
+	// Do not ignore stack sizes close to the overflow, as they are interesting
+	if len(stackBytes) > fuzzIdealStackSize*32 && len(stackBytes) < (1024-fuzzIdealStackSize) {
+		return nil, fmt.Errorf("Uninteresting stack size %d", len(stackBytes))
+	}
+
+	stack := st.NewStack()
+	for i := 0; i < len(stackBytes); i += 32 {
+		var stackValue [32]byte
+		if i+32 <= len(stackBytes) {
+			copy(stackValue[:], stackBytes[i:i+32])
+		} else {
+			copy(stackValue[:], stackBytes[i:])
+		}
+		stack.Push(NewU256FromBytes(stackValue[:]...))
+	}
+
+	code := st.NewCode(opCodes)
+	state := st.NewState(code)
+	state.Gas = vm.Gas(gas)
+	state.Revision = Revision(revision)
+	state.Stack = stack
+	state.BlockContext.TimeStamp = GetForkTime(state.Revision)
+	return state, nil
 }
 
 // errorReportString is a helper function to print a summary of the test states.
