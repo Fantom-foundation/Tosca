@@ -97,6 +97,6 @@ fuzz-lfvm:
 fuzz-lfvm-diff:
 	go test -fuzz=FuzzDifferentialLfvmVsGeth ./go/ct/
 
-# TODO: disabbled until test is fixed
+# TODO: disabbled until test is fixed #549
 # fuzz-evmzero-diff:
 # 	go test -fuzz=FuzzDifferentialEvmZeroVsGeth ./go/ct/
