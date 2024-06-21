@@ -260,7 +260,7 @@ In VSCode, line by line coverage can be visualized using the extension [gcov-vie
 
 ## Fuzzing
 
-Go code can be easily fuzzed: fuzzing attempts to find bugs by mutating a test input data set and measuring test coverage. This complementary technique targets stability issues.
+Go provides fuzzing support through its standard library. Fuzzing attempts to find bugs by mutating a test input data set and measuring test coverage. This complementary technique aims to identify stability issues.			 
 
 ### Fuzzing Evm.StepN interface
 
@@ -269,4 +269,4 @@ The ct Evm.StepN interface is used to evaluate N instructions in different EVM i
 - Crash test: FuzzLfvm will execute instructions one at the time looking for a panic. ```make fuzz-lfvm```
 - Differential test: FuzzDifferentialLfvmVsGeth ```make fuzz-lfvm-diff```
 
-Notice lack of evmzero target: go utilizes native code coverage to inform the algorithm, which would use this information to drive the mutation process. There is currently no method to retrieve this information from the C++ library, this renders the C++/go fuzzer as a brute-force algorithm. 
+Notice lack of evmzero target: go utilizes native code coverage reports to inform the algorithm, which would use this information to drive the mutation process. There is currently no method to retrieve this information from the C++ library, this renders the C++/go fuzzer as a brute-force algorithm. 
