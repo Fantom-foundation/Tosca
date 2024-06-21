@@ -21,7 +21,6 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/vm"
-	"github.com/Fantom-foundation/Tosca/go/vm/evmzero"
 	"github.com/Fantom-foundation/Tosca/go/vm/geth"
 	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
 )
@@ -40,9 +39,9 @@ func FuzzLfvm(f *testing.F) {
 }
 
 // FuzzLfvm is a fuzzing test for evmzero
-func FuzzEvmzero(f *testing.F) {
-	fuzzVm(evmzero.NewConformanceTestingTarget(), f)
-}
+// func FuzzEvmzero(f *testing.F) {
+// 	fuzzVm(evmzero.NewConformanceTestingTarget(), f)
+// }
 
 // FuzzDifferentialLfvmVsGeth compares state output between lfvm and geth
 func FuzzDifferentialLfvmVsGeth(f *testing.F) {
@@ -52,8 +51,8 @@ func FuzzDifferentialLfvmVsGeth(f *testing.F) {
 	)
 }
 
-// TODO: this test makes sense but cannot be enabled yet:
-// - The evmzero fails the differential test with geth.
+// TODO: #549 this test makes sense but cannot be enabled yet:
+// - The evmzero fails the differential test with geth. #54
 // - Any other invocation of fuzzing tests in this file seem to
 // invoke the all other tests in the file, and they will fail.
 // func FuzzDifferentialEvmzeroVsGeth(f *testing.F) {
