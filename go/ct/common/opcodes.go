@@ -504,6 +504,6 @@ func (op OpCode) String() string {
 	case SELFDESTRUCT:
 		return "SELFDESTRUCT"
 	default:
-		return fmt.Sprintf("op(%02X)", byte(op))
+		return fmt.Sprintf("op(0x%02X)", byte(op))
 	}
 }

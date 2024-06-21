@@ -158,13 +158,13 @@ func TestCode_OpCodesToString(t *testing.T) {
 			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
 			start:  0,
 			length: 1,
-			want:   "len(4) op(0C)",
+			want:   "len(4) op(0x0C)",
 		},
 		"complete": {
 			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
 			start:  0,
 			length: 4,
-			want:   "len(4) op(0C) PUSH2 255 160",
+			want:   "len(4) op(0x0C) PUSH2 255 160",
 		},
 		"off-bounds": {
 			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
