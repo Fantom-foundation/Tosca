@@ -16,7 +16,6 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/vm"
 	"pgregory.net/rand"
 )
@@ -97,32 +96,6 @@ func TestTransactionContext_GenerateUnconstrained(t *testing.T) {
 }
 
 func TestTransactionContextGenerator_GenerateConstrained(t *testing.T) {
-
-	variableCheck := func(txCtx st.TransactionContext, assignment Assignment, t *testing.T,
-		variable Variable, shouldBePresent, shouldBeAssigned bool, value common.U256) {
-		t.Helper()
-		assignedValue, ok := assignment[variable]
-		if !ok {
-			t.Errorf("Variable %v should be in assignment.", variable.String())
-		}
-		if shouldBePresent {
-			if !assignedValue.IsUint64() {
-				t.Errorf("Variable %v should be assigned a uint64 value.", variable.String())
-			}
-			if assignedValue.Uint64() >= uint64(len(txCtx.BlobHashes)) {
-				t.Errorf("Assigned value for %v is out of range.", variable.String())
-			}
-		} else {
-			if assignedValue.Uint64() < uint64(len(txCtx.BlobHashes)) {
-				t.Errorf("Assigned value for %v is not out of range.", variable.String())
-			}
-		}
-		if shouldBeAssigned {
-			if !assignedValue.Eq(value) {
-				t.Errorf("Assigned value for %v is not the expected value.", variable.String())
-			}
-		}
-	}
 
 	tests := map[string]struct {
 		setup           func(*TransactionContextGenerator, Assignment)
