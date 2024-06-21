@@ -144,7 +144,7 @@ func (c *Code) String() string {
 }
 
 // HumanReadableString returns a string with the length of the code and the
-// Human readable form for the opcodes in range [start, start+length).
+// human readable form for the opcodes in range [start, start+length).
 // - If the slice to be printed overflows the existing code, the overlapping code is printed.
 // - If start exceeds the code length, the length of the code is printed.
 func (c *Code) HumanReadableString(start int, length int) string {

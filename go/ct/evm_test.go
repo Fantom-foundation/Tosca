@@ -116,7 +116,7 @@ const (
 // passed to the f.Fuzz function in type, position and number
 func prepareInitialTestData(f *testing.F, rnd *rand.Rand) {
 
-	for revision := R07_Istanbul; revision <= R13_Cancun; revision++ {
+	for revision := R07_Istanbul; revision <= NewestSupportedRevision; revision++ {
 		for op := 0x00; op < 0xFF; op++ {
 			for _, gas := range []int64{0, 1, 6, 10, 1000, math.MaxInt64} {
 

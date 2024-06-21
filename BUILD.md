@@ -264,7 +264,7 @@ Go code can be easily fuzzed: fuzzing attempts to find bugs by mutating a test i
 
 ### Fuzzing Evm.StepN interface
 
-The ct Evm.StepN interface is used to evaluate one N instructions in different EVM implementations. There are 2 Fuzzer tests against this interface:
+The ct Evm.StepN interface is used to evaluate N instructions in different EVM implementations. There are 2 Fuzzer tests against this interface:
 
 - Crash test: FuzzLfvm will execute instructions one at the time looking for a panic. ```make fuzz-lfvm```
 - Differential test: FuzzDifferentialLfvmVsGeth ```make fuzz-lfvm-diff```
