@@ -60,12 +60,14 @@ func (t *TransactionContextGenerator) Generate(assignment Assignment, rnd *rand.
 	}
 
 	if maxMustHaveBlobHash > minMustNotHaveBlobHash ||
-		maxMustHaveBlobHash == math.MaxUint64 ||
-		minMustNotHaveBlobHash == 0 {
+		maxMustHaveBlobHash == math.MaxUint64 {
 		return nil, ErrUnsatisfiable
 	}
 
-	blobHashesCount := maxMustHaveBlobHash + 1
+	blobHashesCount := maxMustHaveBlobHash
+	if minMustNotHaveBlobHash != 0 {
+		blobHashesCount += 1
+	}
 	for variable, hasBlobHash := range t.blobHashVariables {
 		// the bounded variables are dealt with above
 		if _, isBound := assignment[variable]; !isBound {
