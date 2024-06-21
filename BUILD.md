@@ -260,7 +260,7 @@ In VSCode, line by line coverage can be visualized using the extension [gcov-vie
 
 ## Fuzzing
 
-Go code can be easily fuzzed: fuzzing attempts to find bugs by mutating a test input data set and measuring test coverage. This complementary technique aims stability issues.
+Go code can be easily fuzzed: fuzzing attempts to find bugs by mutating a test input data set and measuring test coverage. This complementary technique targets stability issues.
 
 ### Fuzzing Evm.StepN interface
 
