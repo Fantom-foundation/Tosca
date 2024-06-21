@@ -194,9 +194,9 @@ const (
 func prepareFuzzingSeeds(f *testing.F, rnd *rand.Rand) {
 
 	// every possible revision
-	for revision := R07_Istanbul; revision <= NewestSupportedRevision; revision++ {
+	for revision := MinRevision; revision <= NewestSupportedRevision; revision++ {
 		// every possible opCode, even if invalid
-		for op := 0x00; op < 0xFF; op++ {
+		for op := 0x00; op <= 0xFF; op++ {
 			// Some gas values: this is a hand made sampling of interesting values,
 			// the fuzzer will generate more interesting values around these, the initial
 			// list just sketches a region of interest around which the fuzzer will generate
@@ -208,7 +208,8 @@ func prepareFuzzingSeeds(f *testing.F, rnd *rand.Rand) {
 				rand.Read(ops[:])
 				ops[0] = byte(op)
 
-				// generate a stack
+				// generate a stack: the stack contains a mixture of values
+				// as seed for mutations
 				stack := [fuzzIdealStackSize * 32]byte{}
 				// fill a quarter with random values
 				var i int
