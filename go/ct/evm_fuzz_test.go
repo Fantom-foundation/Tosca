@@ -155,13 +155,13 @@ func prepareFuzzingSeeds(f *testing.F, rnd *rand.Rand) {
 			for _, gas := range []int64{0, 1, 6, 10, 1000, math.MaxInt64} {
 
 				// generate a code segment with the operation followed by 6 random values
-				ops := [fuzzMaximumCodeSegment]byte{}
+				ops := make([]byte, fuzzMaximumCodeSegment)
 				rand.Read(ops[:])
 				ops[0] = byte(op)
 
 				// generate a stack: the stack contains a mixture of values
 				// as seed for mutations
-				stack := [fuzzIdealStackSize * 32]byte{}
+				stack := make([]byte, fuzzIdealStackSize*32)
 				// fill a quarter with random values
 				var i int
 				for i = 0; i < 7*8; i++ {
@@ -181,26 +181,26 @@ func prepareFuzzingSeeds(f *testing.F, rnd *rand.Rand) {
 				}
 
 				f.Add(
-					ops[:],         // opCodes
+					ops,            // opCodes
 					int64(gas),     // gas
 					byte(revision), // revision
-					stack[:],       // stack
+					stack,          // stack
 				)
 			}
 		}
 	}
 
 	// add one more with a full stack
-	ops := [fuzzMaximumCodeSegment]byte{}
+	ops := make([]byte, fuzzMaximumCodeSegment)
 	rnd.Read(ops[:])
 	ops[0] = byte(0x00)
-	fullStack := [1024]byte{}
+	fullStack := make([]byte, 1024*32)
 	rnd.Read(fullStack[:])
 	f.Add(
-		ops[:],             // opCodes
+		ops,                // opCodes
 		int64(0),           // gas
 		byte(R07_Istanbul), // revision
-		fullStack[:],       // stack
+		fullStack,          // stack
 	)
 }
 
@@ -223,8 +223,12 @@ func corpusInputDataToCtState(opCodes []byte, gas int64, revision byte, stackByt
 
 	// Ignore stack sizes larger than 7 words, as they are not interesting
 	// Do not ignore stack sizes close to the overflow, as they are interesting
-	if len(stackBytes) > fuzzIdealStackSize*32 && len(stackBytes) < (1024-fuzzIdealStackSize) {
+	if len(stackBytes) > fuzzIdealStackSize*32 && len(stackBytes) < (1024-fuzzIdealStackSize)*32 {
 		return nil, fmt.Errorf("Uninteresting stack size %d", len(stackBytes))
+	}
+
+	if len(stackBytes) > 1024*32 {
+		return nil, fmt.Errorf("Stack too large %d", len(stackBytes))
 	}
 
 	stack := st.NewStack()
