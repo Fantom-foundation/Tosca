@@ -907,7 +907,7 @@ func (c *hasBlobHash) Check(s *st.State) (bool, error) {
 func (c *hasBlobHash) Restrict(generator *gen.StateGenerator) {
 	paramVariable := c.index.GetVariable()
 	c.index.BindTo(generator)
-	generator.PresentBlobHashIndex(paramVariable)
+	generator.IsPresentBlobHashIndex(paramVariable)
 }
 
 func (c *hasBlobHash) GetTestValues() []TestValue {
@@ -917,9 +917,9 @@ func (c *hasBlobHash) GetTestValues() []TestValue {
 		paramVariable := c.index.GetVariable()
 		c.index.BindTo(generator)
 		if hasBlobHash {
-			generator.PresentBlobHashIndex(paramVariable)
+			generator.IsPresentBlobHashIndex(paramVariable)
 		} else {
-			generator.AbsentBlobHashIndex(paramVariable)
+			generator.IsAbsentBlobHashIndex(paramVariable)
 		}
 	}
 	testValues := []TestValue{
@@ -952,7 +952,7 @@ func (c *hasNoBlobHash) Check(s *st.State) (bool, error) {
 func (c *hasNoBlobHash) Restrict(generator *gen.StateGenerator) {
 	paramVariable := c.index.GetVariable()
 	c.index.BindTo(generator)
-	generator.AbsentBlobHashIndex(paramVariable)
+	generator.IsAbsentBlobHashIndex(paramVariable)
 }
 
 func (c *hasNoBlobHash) GetTestValues() []TestValue {

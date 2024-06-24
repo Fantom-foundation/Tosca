@@ -11,10 +11,10 @@
 package gen
 
 import (
-	"maps"
 	"math"
 	"sort"
 
+	"golang.org/x/exp/maps"
 	"pgregory.net/rand"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -119,16 +119,13 @@ func (t *TransactionContextGenerator) String() string {
 	ret := ""
 	if t.blobHashVariables != nil {
 
-		keys := make([]Variable, 0, len(t.blobHashVariables))
-		for k := range t.blobHashVariables {
-			keys = append(keys, k)
-		}
+		keys := maps.Keys(t.blobHashVariables)
 		sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 
 		for _, variable := range keys {
 			hasBlobHash := t.blobHashVariables[variable]
 			if ret != "" {
-				ret += " && "
+				ret += " ∧ "
 			}
 			if hasBlobHash {
 				ret += variable.String() + " < len(blobHashes)"
@@ -143,7 +140,10 @@ func (t *TransactionContextGenerator) String() string {
 	return "{" + ret + "}"
 }
 
-func (t *TransactionContextGenerator) PresentBlobHashIndex(variable Variable) {
+func (t *TransactionContextGenerator) IsPresentBlobHashIndex(variable Variable) {
+	if t.unsatisfiable {
+		return
+	}
 	if t.blobHashVariables == nil {
 		t.blobHashVariables = make(map[Variable]bool)
 	}
@@ -154,7 +154,10 @@ func (t *TransactionContextGenerator) PresentBlobHashIndex(variable Variable) {
 	}
 }
 
-func (t *TransactionContextGenerator) AbsentBlobHashIndex(variable Variable) {
+func (t *TransactionContextGenerator) IsAbsentBlobHashIndex(variable Variable) {
+	if t.unsatisfiable {
+		return
+	}
 	if t.blobHashVariables == nil {
 		t.blobHashVariables = make(map[Variable]bool)
 	}

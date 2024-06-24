@@ -318,7 +318,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone2.BindTransientStorageToZero("x")
 	clone2.BindValue(Variable("y"), NewU256(14))
 	clone2.MustNotBeSelfDestructed()
-	clone2.PresentBlobHashIndex(Variable("z"))
+	clone2.IsPresentBlobHashIndex(Variable("z"))
 
 	checkPrint := func(clone *StateGenerator, want []string) {
 		t.Helper()

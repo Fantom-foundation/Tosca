@@ -269,12 +269,12 @@ func (g *StateGenerator) SetBlockNumberOffsetValue(variable Variable, value int6
 	g.blockContextGen.SetBlockNumberOffsetValue(variable, value)
 }
 
-func (g *StateGenerator) PresentBlobHashIndex(variable Variable) {
-	g.transactionContextGen.PresentBlobHashIndex(variable)
+func (g *StateGenerator) IsPresentBlobHashIndex(variable Variable) {
+	g.transactionContextGen.IsPresentBlobHashIndex(variable)
 }
 
-func (g *StateGenerator) AbsentBlobHashIndex(variable Variable) {
-	g.transactionContextGen.AbsentBlobHashIndex(variable)
+func (g *StateGenerator) IsAbsentBlobHashIndex(variable Variable) {
+	g.transactionContextGen.IsAbsentBlobHashIndex(variable)
 }
 
 func getRandomData(rnd *rand.Rand) ([]byte, error) {

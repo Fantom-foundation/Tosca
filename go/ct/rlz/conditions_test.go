@@ -528,7 +528,7 @@ func TestCondition_BlobHashes_check(t *testing.T) {
 	}
 }
 
-func TestCondition_BlobHashesProducesUnsatisfiable(t *testing.T) {
+func TestCondition_ConflictingBlobHashesConditionsProduceUnsatisfiableGenerator(t *testing.T) {
 	tests := map[string]struct {
 		condition Condition
 		setup     func(*st.State)
@@ -539,7 +539,7 @@ func TestCondition_BlobHashesProducesUnsatisfiable(t *testing.T) {
 				state.Stack.Push(NewU256(0))
 			},
 		},
-		"hasNotBlobHash-first": {
+		"hasNoBlobHash-first": {
 			condition: And(HasNoBlobHash(Param(0)), HasBlobHash(Param(0))),
 			setup: func(state *st.State) {
 				state.Stack.Push(NewU256(0))
@@ -562,7 +562,7 @@ func TestCondition_BlobHashesProducesUnsatisfiable(t *testing.T) {
 	}
 }
 
-func TestCondition_BlobHashesPRoducesGetTestValues(t *testing.T) {
+func TestCondition_BlobHashesProducesGetTestValues(t *testing.T) {
 	tests := map[string]Condition{
 		"hasBlobHash":   HasBlobHash(Param(0)),
 		"hasNoBlobHash": HasNoBlobHash(Param(0)),
@@ -570,19 +570,28 @@ func TestCondition_BlobHashesPRoducesGetTestValues(t *testing.T) {
 
 	for name, condition := range tests {
 		t.Run(name, func(t *testing.T) {
-			testValues := condition.GetTestValues()
-			if len(testValues) != 2 {
-				t.Fatalf("unexpected amount test values, got %v, wanted 2", len(testValues))
+			var matchCovered, failCovered bool
+			for _, value := range condition.GetTestValues() {
+				gen := gen.NewStateGenerator()
+				value.Restrict(gen)
+				state, err := gen.Generate(rand.New(0))
+				if err != nil {
+					t.Fatalf("failed to build state: %v", err)
+				}
+				if matches, err := condition.Check(state); err != nil {
+					t.Errorf("failed to check condition: %v", err)
+				} else if matches {
+					matchCovered = true
+				} else {
+					failCovered = true
+				}
 			}
-
-			if testValues[0].(*testValue[bool]).value != true {
-				t.Errorf("unexpected test value, got %v, wanted true ", testValues[0].(*testValue[bool]).value)
+			if !matchCovered {
+				t.Errorf("no test value matched the condition")
 			}
-
-			if testValues[1].(*testValue[bool]).value != false {
-				t.Errorf("unexpected test value, got %v, wanted false ", testValues[1].(*testValue[bool]).value)
+			if !failCovered {
+				t.Errorf("no test value failed the condition")
 			}
-
 		})
 	}
 }
