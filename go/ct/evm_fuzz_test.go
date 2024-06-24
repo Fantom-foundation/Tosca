@@ -104,6 +104,8 @@ func differentialFuzz(f *testing.F, testeeVm ct.Evm, referenceVm ct.Evm) {
 		}
 
 		// if result is other than running, further checks may be misleading
+		// TODO: let Stopped, Returned, and Reverted be diffed as well as their results are more stable than Failed results
+		// This can be done once issue #547 is solved
 		if testeeResultState.Status != st.Running {
 			return
 		}
