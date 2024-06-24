@@ -222,6 +222,13 @@ Ideally, pull requests targeting performance improvements should include such a 
 ## Code Coverage
 
 Code coverage of the Tosca project is a work in progress. As the different systems get integrated, more features will be added and documented here.
+Go has native support for coverage, which makes getting this metric for `lfvm` or `geth` driver runs quite simple.
+Code coverage for C++ this is not the case, hence a little more setup is needed for this task. 
+
+### CT Driver Code coverage
+
+To run the the CT driver code coverage simply run `make coverage-lfvm` or `make coverage-geth`, these commands will create the folder `Tosca/go/build/coverage_report/` and a sub folder with the corresponding interpreter's name. In this directory an instrumented version of the driver will be built and then run. The reports of the coverage of this run will also be in this directory, where lastly an HTML version of the report will be added as well. As more interpreter implementations are added to the TOSCA project, they should also be added to the makefile.
+
 
 ### C++ Code coverage
 
