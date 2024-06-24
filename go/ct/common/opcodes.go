@@ -70,6 +70,7 @@ const (
 	CHAINID        OpCode = 0x46
 	SELFBALANCE    OpCode = 0x47
 	BASEFEE        OpCode = 0x48
+	BLOBHASH       OpCode = 0x49
 	BLOBBASEFEE    OpCode = 0x4A
 	POP            OpCode = 0x50
 	MLOAD          OpCode = 0x51
@@ -308,6 +309,8 @@ func (op OpCode) String() string {
 		return "SELFBALANCE"
 	case BASEFEE:
 		return "BASEFEE"
+	case BLOBHASH:
+		return "BLOBHASH"
 	case BLOBBASEFEE:
 		return "BLOBBASEFEE"
 	case POP:

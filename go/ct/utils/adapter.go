@@ -48,6 +48,11 @@ func ToVmParameters(state *st.State) vm.Parameters {
 		revision = vm.Revision(state.Revision)
 	}
 
+	transactionContext := state.TransactionContext
+	if transactionContext == nil {
+		transactionContext = &st.TransactionContext{}
+	}
+
 	return vm.Parameters{
 		BlockParameters: vm.BlockParameters{
 			ChainID:     state.BlockContext.ChainID.Bytes32be(),
@@ -61,9 +66,9 @@ func ToVmParameters(state *st.State) vm.Parameters {
 			Revision:    revision,
 		},
 		TransactionParameters: vm.TransactionParameters{
-			Origin:     state.TransactionContext.OriginAddress,
+			Origin:     transactionContext.OriginAddress,
 			GasPrice:   vm.Value(state.BlockContext.GasPrice.Bytes32be()),
-			BlobHashes: nil, // TODO: add support for blob hashes
+			BlobHashes: transactionContext.BlobHashes,
 		},
 		Context:   &ctRunContext{state},
 		Kind:      vm.Call,

@@ -202,6 +202,11 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 		GasPrice:   new(big.Int).SetBytes(parameters.GasPrice[:]),
 		BlobFeeCap: new(big.Int).SetBytes(parameters.BlobBaseFee[:]),
 	}
+
+	for _, hash := range parameters.BlobHashes {
+		txCtx.BlobHashes = append(txCtx.BlobHashes, common.Hash(hash))
+	}
+
 	// Set interpreter variant for this VM
 	config := geth.Config{}
 

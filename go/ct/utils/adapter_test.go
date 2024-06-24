@@ -59,8 +59,18 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			func(p vm.Parameters) (any, any) { return vm.Address{1, 2, 3}, p.Sender },
 		},
 		"origin": {
-			func(s *st.State) { s.TransactionContext.OriginAddress = vm.Address{1, 2, 3} },
+			func(s *st.State) {
+				s.TransactionContext = st.NewTransactionContext()
+				s.TransactionContext.OriginAddress = vm.Address{1, 2, 3}
+			},
 			func(p vm.Parameters) (any, any) { return vm.Address{1, 2, 3}, p.Origin },
+		},
+		"blob-hashes": {
+			func(s *st.State) {
+				s.TransactionContext = st.NewTransactionContext()
+				s.TransactionContext.BlobHashes = []vm.Hash{{1, 2, 3}}
+			},
+			func(p vm.Parameters) (any, any) { return []vm.Hash{{1, 2, 3}}, p.BlobHashes },
 		},
 		"value": {
 			func(s *st.State) { s.CallContext.Value = cc.NewU256(123) },
@@ -112,6 +122,12 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			func(s *st.State) { s.BlockContext.BaseFee = cc.NewU256(123) },
 			func(p vm.Parameters) (any, any) {
 				return vm.Value(cc.NewU256(123).Bytes32be()), p.BaseFee
+			},
+		},
+		"blob-base-fee": {
+			func(s *st.State) { s.BlockContext.BlobBaseFee = cc.NewU256(123) },
+			func(p vm.Parameters) (any, any) {
+				return vm.Value(cc.NewU256(123).Bytes32be()), p.BlobBaseFee
 			},
 		},
 		"storage-current-unspecified": {
