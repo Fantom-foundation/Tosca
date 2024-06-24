@@ -577,6 +577,83 @@ func (c *storageConfiguration) String() string {
 }
 
 ////////////////////////////////////////////////////////////
+// Bind Transient Storage to non zero value
+
+type bindTransientStorageToNonZero struct {
+	key BindableExpression[U256]
+}
+
+func BindTransientStorageToNonZero(key BindableExpression[U256]) Condition {
+	return &bindTransientStorageToNonZero{key}
+}
+
+func (c *bindTransientStorageToNonZero) Check(s *st.State) (bool, error) {
+	key, err := c.key.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return !s.TransientStorage.IsZero(key), nil
+}
+
+func (c *bindTransientStorageToNonZero) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+	generator.BindTransientStorageToNonZero(key)
+}
+
+func (c *bindTransientStorageToNonZero) GetTestValues() []TestValue {
+	property := Property(c.String())
+	domain := boolDomain{}
+	restrict := func(generator *gen.StateGenerator, isNonZero bool) {
+		key := c.key.GetVariable()
+		c.key.BindTo(generator)
+		if isNonZero {
+			generator.BindTransientStorageToNonZero(key)
+		} else {
+			generator.BindTransientStorageToZero(key)
+		}
+	}
+	return []TestValue{
+		NewTestValue(property, domain, true, restrict),
+		NewTestValue(property, domain, false, restrict),
+	}
+}
+
+func (c *bindTransientStorageToNonZero) String() string {
+	return fmt.Sprintf("Transient storage at [%v] is bound to non zero", c.key)
+}
+
+////////////////////////////////////////////////////////////
+// Bind Transient Storage to zero value
+
+type bindTransientStorageToZero struct {
+	key BindableExpression[U256]
+}
+
+func BindTransientStorageToZero(key BindableExpression[U256]) Condition {
+	return &bindTransientStorageToZero{key}
+}
+
+func (c *bindTransientStorageToZero) Check(s *st.State) (bool, error) {
+	checked, err := (&bindTransientStorageToNonZero{c.key}).Check(s)
+	return !checked, err
+}
+
+func (c *bindTransientStorageToZero) Restrict(generator *gen.StateGenerator) {
+	key := c.key.GetVariable()
+	c.key.BindTo(generator)
+	generator.BindTransientStorageToZero(key)
+}
+
+func (c *bindTransientStorageToZero) GetTestValues() []TestValue {
+	return BindTransientStorageToNonZero(c.key).GetTestValues()
+}
+
+func (c *bindTransientStorageToZero) String() string {
+	return fmt.Sprintf("Transient storage at [%v] is bound to zero", c.key)
+}
+
+////////////////////////////////////////////////////////////
 // Is Address Warm
 
 type isAddressWarm struct {

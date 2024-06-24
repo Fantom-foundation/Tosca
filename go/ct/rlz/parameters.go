@@ -36,6 +36,8 @@ func (NumericParameter) Samples() []U256 {
 	}
 }
 
+type StorageAccessKeyParameter = NumericParameter
+
 type MemoryOffsetParameter struct{}
 
 func (MemoryOffsetParameter) Samples() []U256 {

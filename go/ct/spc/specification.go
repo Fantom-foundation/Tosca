@@ -717,6 +717,120 @@ func getAllRules() []Rule {
 		effect:    NoEffect().Apply,
 	})...)
 
+	// --- TLOAD ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        TLOAD,
+		staticGas: 100,
+		pops:      1,
+		pushes:    1,
+		parameters: []Parameter{
+			StorageAccessKeyParameter{},
+		},
+		conditions: []Condition{
+			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			BindTransientStorageToNonZero(Param(0)),
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			value := s.TransientStorage.Get(key)
+			s.Stack.Push(value)
+		},
+	})...)
+
+	rules = append(rules, rulesFor(instruction{
+		op:        TLOAD,
+		staticGas: 100,
+		pops:      1,
+		pushes:    1,
+		parameters: []Parameter{
+			StorageAccessKeyParameter{},
+		},
+		conditions: []Condition{
+			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			BindTransientStorageToZero(Param(0)),
+		},
+		effect: func(s *st.State) {
+			s.Stack.Pop()
+			s.Stack.Push(NewU256(0))
+		},
+	})...)
+
+	rules = append(rules, Rule{
+		Name: "tload_pre_cancun",
+		Condition: And(
+			RevisionBounds(R07_Istanbul, R12_Shanghai),
+			Eq(Status(), st.Running),
+			Eq(Op(Pc()), TLOAD),
+		),
+		Effect: FailEffect(),
+	})
+
+	// --- TSTORE ---
+
+	rules = append(rules, rulesFor(instruction{
+		op:        TSTORE,
+		staticGas: 100,
+		pops:      2,
+		pushes:    0,
+		parameters: []Parameter{
+			StorageAccessKeyParameter{},
+			NumericParameter{},
+		},
+		conditions: []Condition{
+			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			Eq(ReadOnly(), false),
+			BindTransientStorageToNonZero(Param(0)),
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			value := s.Stack.Pop()
+			s.TransientStorage.Set(key, value)
+		},
+	})...)
+
+	rules = append(rules, rulesFor(instruction{
+		op:        TSTORE,
+		staticGas: 100,
+		pops:      2,
+		pushes:    0,
+		parameters: []Parameter{
+			StorageAccessKeyParameter{},
+			NumericParameter{},
+		},
+		conditions: []Condition{
+			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			Eq(ReadOnly(), false),
+			BindTransientStorageToZero(Param(0)),
+		},
+		effect: func(s *st.State) {
+			key := s.Stack.Pop()
+			value := s.Stack.Pop()
+			s.TransientStorage.Set(key, value)
+		},
+	})...)
+
+	rules = append(rules, Rule{
+		Name: "tstore_pre_cancun",
+		Condition: And(
+			RevisionBounds(R07_Istanbul, R12_Shanghai),
+			Eq(Status(), st.Running),
+			Eq(Op(Pc()), TSTORE),
+		),
+		Effect: FailEffect(),
+	})
+
+	rules = append(rules, Rule{
+		Name: "tstore_read_only",
+		Condition: And(
+			AnyKnownRevision(),
+			Eq(Status(), st.Running),
+			Eq(Op(Pc()), TSTORE),
+			Eq(ReadOnly(), true),
+		),
+		Effect: FailEffect(),
+	})
+
 	// --- Stack PUSH0 ---
 
 	rules = append(rules, rulesFor(instruction{

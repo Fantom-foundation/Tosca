@@ -54,6 +54,7 @@ type StateGenerator struct {
 	stackGen              *StackGenerator
 	memoryGen             *MemoryGenerator
 	storageGen            *StorageGenerator
+	transientStorageGen   *TransientStorageGenerator
 	accountsGen           *AccountsGenerator
 	callContextGen        *CallContextGenerator
 	callJournalGen        *CallJournalGenerator
@@ -69,6 +70,7 @@ func NewStateGenerator() *StateGenerator {
 		stackGen:              NewStackGenerator(),
 		memoryGen:             NewMemoryGenerator(),
 		storageGen:            NewStorageGenerator(),
+		transientStorageGen:   NewTransientStorageGenerator(),
 		accountsGen:           NewAccountGenerator(),
 		callContextGen:        NewCallContextGenerator(),
 		callJournalGen:        NewCallJournalGenerator(),
@@ -225,6 +227,16 @@ func (g *StateGenerator) BindIsStorageWarm(key Variable) {
 // BindIsStorageCold wraps StorageGenerator.BindCold.
 func (g *StateGenerator) BindIsStorageCold(key Variable) {
 	g.storageGen.BindCold(key)
+}
+
+// BindTransientStorageToNonZero wraps TransientGenerator.BindToNonZero.
+func (g *StateGenerator) BindTransientStorageToNonZero(key Variable) {
+	g.transientStorageGen.BindToNonZero(key)
+}
+
+// BindTransientStorageToZero wraps TransientGenerator.BindToZero.
+func (g *StateGenerator) BindTransientStorageToZero(key Variable) {
+	g.transientStorageGen.BindToZero(key)
 }
 
 // BindToWarmAddress wraps AccountsGenerator.BindWarm.
@@ -402,6 +414,12 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
+	// Invoke TransientStorageGenerator
+	resultTransient, err := g.transientStorageGen.Generate(assignment, rnd)
+	if err != nil {
+		return nil, err
+	}
+
 	// Invoke AccountGenerator
 	resultAccounts, err := g.accountsGen.Generate(assignment, rnd, accountAddress)
 	if err != nil {
@@ -438,6 +456,7 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	result.Stack = resultStack
 	result.Memory = resultMemory
 	result.Storage = resultStorage
+	result.TransientStorage = resultTransient
 	result.Accounts = resultAccounts
 	result.CallContext = resultCallContext
 	result.CallJournal = resultCallJournal
@@ -467,6 +486,7 @@ func (g *StateGenerator) Clone() *StateGenerator {
 		stackGen:              g.stackGen.Clone(),
 		memoryGen:             g.memoryGen.Clone(),
 		storageGen:            g.storageGen.Clone(),
+		transientStorageGen:   g.transientStorageGen.Clone(),
 		accountsGen:           g.accountsGen.Clone(),
 		callContextGen:        g.callContextGen.Clone(),
 		callJournalGen:        g.callJournalGen.Clone(),
@@ -490,6 +510,7 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.stackGen.Restore(other.stackGen)
 		g.memoryGen.Restore(other.memoryGen)
 		g.storageGen.Restore(other.storageGen)
+		g.transientStorageGen.Restore(other.transientStorageGen)
 		g.accountsGen.Restore(other.accountsGen)
 		g.callContextGen.Restore(other.callContextGen)
 		g.callJournalGen.Restore(other.callJournalGen)
@@ -533,6 +554,7 @@ func (g *StateGenerator) String() string {
 	parts = append(parts, fmt.Sprintf("stack=%v", g.stackGen))
 	parts = append(parts, fmt.Sprintf("memory=%v", g.memoryGen))
 	parts = append(parts, fmt.Sprintf("storage=%v", g.storageGen))
+	parts = append(parts, fmt.Sprintf("transient=%v", g.transientStorageGen))
 	parts = append(parts, fmt.Sprintf("accounts=%v", g.accountsGen))
 	parts = append(parts, fmt.Sprintf("callContext=%v", g.callContextGen))
 	parts = append(parts, fmt.Sprintf("callJournal=%v", g.callJournalGen))

@@ -107,11 +107,11 @@ func (c *ctRunContext) SetStorage(addr vm.Address, key vm.Key, value vm.Word) vm
 }
 
 func (c *ctRunContext) GetTransientStorage(addr vm.Address, key vm.Key) vm.Word {
-	panic("not implemented")
+	return c.state.TransientStorage.Get(cc.NewU256FromBytes(key[:]...)).Bytes32be()
 }
 
 func (c *ctRunContext) SetTransientStorage(addr vm.Address, key vm.Key, value vm.Word) {
-	panic("not implemented")
+	c.state.TransientStorage.Set(cc.NewU256FromBytes(key[:]...), cc.NewU256FromBytes(value[:]...))
 }
 
 func (c *ctRunContext) GetBalance(addr vm.Address) vm.Value {

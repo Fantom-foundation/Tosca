@@ -40,6 +40,7 @@ func getNewFilledState() *State {
 		SetOriginal(NewU256(77), NewU256(4)).
 		SetWarm(NewU256(9), true).
 		Build()
+	s.TransientStorage = &TransientStorage{}
 	s.Accounts = NewAccounts()
 	s.Accounts.SetBalance(vm.Address{0x01}, NewU256(42))
 	s.Accounts.SetCode(vm.Address{0x01}, NewBytes([]byte{byte(PUSH1), byte(6)}))

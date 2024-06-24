@@ -315,6 +315,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone2.SetCodeOperation(30, ADD)
 	clone2.AddStackSizeLowerBound(3)
 	clone2.AddStackSizeUpperBound(300)
+	clone2.BindTransientStorageToZero("x")
 	clone2.BindValue(Variable("y"), NewU256(14))
 	clone2.MustNotBeSelfDestructed()
 
@@ -340,6 +341,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"stack={2≤size≤200}",
 		"memory={}",
 		"storage={}",
+		"transient={}",
 		"accounts={}",
 		"callContext={}",
 		"callJournal={}",
@@ -358,6 +360,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"stack={3≤size≤300}",
 		"memory={}",
 		"storage={}",
+		"transient={transient[$x]=0}",
 		"accounts={}",
 		"callContext={}",
 		"callJournal={}",

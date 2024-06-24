@@ -124,6 +124,7 @@ type State struct {
 	Stack                 *Stack
 	Memory                *Memory
 	Storage               *Storage
+	TransientStorage      *TransientStorage
 	Accounts              *Accounts
 	Logs                  *Logs
 	CallContext           CallContext
@@ -147,6 +148,7 @@ func NewState(code *Code) *State {
 		Stack:                 &Stack{},
 		Memory:                NewMemory(),
 		Storage:               &Storage{},
+		TransientStorage:      &TransientStorage{},
 		Accounts:              NewAccounts(),
 		Logs:                  NewLogs(),
 		CallJournal:           NewCallJournal(),
@@ -175,6 +177,7 @@ func (s *State) Clone() *State {
 	clone.Stack = s.Stack.Clone()
 	clone.Memory = s.Memory.Clone()
 	clone.Storage = s.Storage.Clone()
+	clone.TransientStorage = s.TransientStorage.Clone()
 	clone.Accounts = s.Accounts.Clone()
 	clone.Logs = s.Logs.Clone()
 	clone.CallContext = s.CallContext
@@ -216,6 +219,7 @@ func (s *State) Eq(other *State) bool {
 		s.BlockContext == other.BlockContext &&
 		s.CallData == other.CallData &&
 		s.Storage.Eq(other.Storage) &&
+		s.TransientStorage.Eq(other.TransientStorage) &&
 		s.Accounts.Eq(other.Accounts) &&
 		s.Logs.Eq(other.Logs) &&
 		s.HasSelfDestructed == other.HasSelfDestructed &&
@@ -285,6 +289,10 @@ func (s *State) String() string {
 	write("\tStorage.Warm:\n")
 	for k := range s.Storage.warm {
 		write("\t    [%v]\n", k)
+	}
+	write("\tTransient Storage:\n")
+	for k, v := range s.TransientStorage.storage {
+		write("\t    [%v]=%v\n", k, v)
 	}
 	write(s.Accounts.String())
 	write("\tLogs:\n")
@@ -401,6 +409,10 @@ func (s *State) Diff(o *State) []string {
 
 	if !s.Storage.Eq(o.Storage) {
 		res = append(res, s.Storage.Diff(o.Storage)...)
+	}
+
+	if !s.TransientStorage.Eq(o.TransientStorage) {
+		res = append(res, s.TransientStorage.Diff(o.TransientStorage)...)
 	}
 
 	if !s.Accounts.Eq(o.Accounts) {
