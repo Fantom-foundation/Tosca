@@ -38,7 +38,7 @@ func FuzzLfvm(f *testing.F) {
 	fuzzVm(lfvm.NewConformanceTestingTarget(), f)
 }
 
-// FuzzLfvm is a fuzzing test for evmzero
+// FuzzLfvm is a fuzzing test for evmzero, (issue #549 )
 // func FuzzEvmzero(f *testing.F) {
 // 	fuzzVm(evmzero.NewConformanceTestingTarget(), f)
 // }
@@ -65,7 +65,7 @@ func FuzzDifferentialLfvmVsGeth(f *testing.F) {
 //////////////////////////////////////////////////////////////////////////////
 // Fuzzing helpers
 
-func differentialFuzz(f *testing.F, testeeVm ct.Evm, referenceVm ct.Evm) {
+func differentialFuzz(f *testing.F, testeeVm, referenceVm ct.Evm) {
 
 	rnd := rand.New(0)
 
@@ -123,7 +123,7 @@ func differentialFuzz(f *testing.F, testeeVm ct.Evm, referenceVm ct.Evm) {
 		}
 
 		if !testeeResultState.Eq(referenceResultState) {
-			t.Fatal("invalid result, result state does not match reference state:", testeeResultState.Diff(referenceResultState), errorReportString(state, testeeResultState, referenceResultState))
+			t.Fatal("invalid result, resulting state does not match reference state:", testeeResultState.Diff(referenceResultState), errorReportString(state, testeeResultState, referenceResultState))
 		}
 	})
 }
