@@ -51,8 +51,8 @@ func FuzzDifferentialLfvmVsGeth(f *testing.F) {
 	)
 }
 
-// TODO: #549 this test makes sense but cannot be enabled yet:
-// - The evmzero fails the differential test with geth. #54
+// TODO: This test makes sense but cannot be enabled yet:
+// - The evmzero fails the differential test against geth. (issue #549)
 // - Any other invocation of fuzzing tests in this file seem to
 // invoke the all other tests in the file, and they will fail.
 // func FuzzDifferentialEvmzeroVsGeth(f *testing.F) {
@@ -74,18 +74,27 @@ func differentialFuzz(f *testing.F, testeeVm ct.Evm, referenceVm ct.Evm) {
 	f.Fuzz(func(t *testing.T, opCodes []byte, gas int64, revision byte, stackBytes []byte) {
 
 		state, err := corpusInputDataToCtState(opCodes, gas, revision, stackBytes)
+		defer state.Release()
 		if err != nil {
 			t.Skip(err)
 		}
 
 		testeeResultState, err := testeeVm.StepN(state.Clone(), 1)
-		defer testeeResultState.Release()
+		defer func() {
+			if testeeResultState != nil {
+				testeeResultState.Release()
+			}
+		}()
 		if err != nil {
 			t.Fatalf("failed to run test case: %v", err)
 		}
 
 		referenceResultState, err := referenceVm.StepN(state.Clone(), 1)
-		defer referenceResultState.Release()
+		defer func() {
+			if referenceResultState != nil {
+				referenceResultState.Release()
+			}
+		}()
 		if err != nil {
 			t.Fatalf("failed to run test case in reference VM: %v", err)
 		}
