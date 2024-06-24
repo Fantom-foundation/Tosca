@@ -265,7 +265,7 @@ func errorReportString(original *st.State, resultState *st.State, referenceState
 	--- stack size: start %v, testee %v, reference %v
 	--- mem size: start %v, testee %v, reference %v`,
 		original.Revision,
-		original.Pc, original.Code.HumanReadableString(0, 7),
+		original.Pc, original.Code.ToHumanReadableString(0, 7),
 		resultState.Status, referenceState.Status,
 		original.Gas, resultState.Gas, referenceState.Gas,
 		original.Stack.Size(), resultState.Stack.Size(), referenceState.Stack.Size(),

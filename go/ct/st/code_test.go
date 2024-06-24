@@ -200,7 +200,7 @@ func TestCode_OpCodesToString(t *testing.T) {
 				bytes[i] = byte(op)
 			}
 			code := NewCode(bytes)
-			got := code.HumanReadableString(test.start, test.length)
+			got := code.ToHumanReadableString(test.start, test.length)
 			if got != test.want {
 				t.Errorf(`invalid print, wanted "%s", got "%s"`, test.want, got)
 			}
