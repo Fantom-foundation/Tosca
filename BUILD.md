@@ -267,6 +267,6 @@ Go provides fuzzing support through its standard library. Fuzzing attempts to fi
 The ct Evm.StepN interface is used to evaluate N instructions in different EVM implementations. There are 2 Fuzzer tests against this interface:
 
 - Crash test: FuzzLfvm will execute instructions one at the time looking for a panic. ```make fuzz-lfvm```
-- Differential test: FuzzDifferentialLfvmVsGeth ```make fuzz-lfvm-diff```
-
-Notice lack of evmzero target: go utilizes native code coverage reports to inform the algorithm, which would use this information to drive the mutation process. There is currently no method to retrieve this information from the C++ library, this renders the C++/go fuzzer as a brute-force algorithm. 
+- Differential tests; execute instruction in two VM implementations and compare state results in addition to panic.
+   - FuzzDifferentialLfvmVsGeth: ```make fuzz-lfvm-diff```
+   - FuzzDifferentialEvmzeroVsGeth: ```make fuzz-evmzero-diff``` (disabled, issue #549)
