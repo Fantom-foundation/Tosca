@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 
 	"golang.org/x/crypto/sha3"
@@ -143,16 +144,18 @@ func (c *Code) String() string {
 	return fmt.Sprintf("%x", c.code)
 }
 
-// HumanReadableString returns a string with the length of the code and the
+// ToHumanReadableString returns a string with the length of the code and the
 // human readable form for the opcodes in range [start, start+length).
 // - If the slice to be printed overflows the existing code, the overlapping code is printed.
 // - If start exceeds the code length, the length of the code is printed.
 // - Data found in the code is printed as decimal numbers (to differentiate from unused opcodes).
-func (c *Code) HumanReadableString(start int, length int) string {
-	result := fmt.Sprintf("len(%d)", len(c.code))
+func (c *Code) ToHumanReadableString(start int, length int) string {
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("len(%d)", len(c.code)))
 	if start >= len(c.code) {
-		return result
+		return builder.String()
 	}
+
 	end := min(length, len(c.code)-start) + start
 	for i, op := range c.code[start:end] {
 		var entry string
@@ -161,7 +164,8 @@ func (c *Code) HumanReadableString(start int, length int) string {
 		} else {
 			entry = fmt.Sprintf("%d", op)
 		}
-		result = fmt.Sprintf("%s %s", result, entry)
+		builder.WriteString(" ")
+		builder.WriteString(entry)
 	}
-	return result
+	return builder.String()
 }
