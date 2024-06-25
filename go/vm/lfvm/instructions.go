@@ -733,7 +733,11 @@ func opSelfdestruct(c *context) {
 		return
 	}
 	beneficiary := vm.Address(c.stack.pop().Bytes20())
-	c.context.SelfDestruct(c.params.Recipient, beneficiary)
+	if c.isCancun() {
+		c.context.SelfDestruct6780(c.params.Recipient, beneficiary)
+	} else {
+		c.context.SelfDestruct(c.params.Recipient, beneficiary)
+	}
 	c.status = SUICIDED
 }
 
