@@ -71,6 +71,7 @@ func differentialFuzz(f *testing.F, testeeVm, referenceVm ct.Evm) {
 
 	prepareFuzzingSeeds(f, rnd)
 
+	// Note: changing signature requires changing the prepareFuzzingSeeds function
 	f.Fuzz(func(t *testing.T, opCodes []byte, gas int64, revision byte, stackBytes []byte) {
 
 		state, err := corpusInputDataToCtState(opCodes, gas, revision, stackBytes)
@@ -134,13 +135,17 @@ func fuzzVm(testee ct.Evm, f *testing.F) {
 
 	prepareFuzzingSeeds(f, rnd)
 
+	// Note: changing signature requires changing the prepareFuzzingSeeds function
 	f.Fuzz(func(t *testing.T, opCodes []byte, gas int64, revision byte, stackBytes []byte) {
 		state, err := corpusInputDataToCtState(opCodes, gas, revision, stackBytes)
 		if err != nil {
 			t.Skip(err)
 		}
 
-		result, _ := testee.StepN(state, 1)
+		result, err := testee.StepN(state, 1)
+		if err != nil {
+			t.Fatalf("failed to run test case: %v", err)
+		}
 		result.Release()
 	})
 }
