@@ -74,7 +74,7 @@ func differentialFuzz(f *testing.F, testeeVm, referenceVm ct.Evm) {
 	// Note: changing signature requires changing the prepareFuzzingSeeds function
 	f.Fuzz(func(t *testing.T, opCodes []byte, gas int64, revision byte, stackBytes []byte) {
 
-		state, err := corpusInputDataToCtState(opCodes, gas, revision, stackBytes)
+		state, err := corpusEntryToCtState(opCodes, gas, revision, stackBytes)
 		defer state.Release()
 		if err != nil {
 			t.Skip(err)
@@ -137,7 +137,7 @@ func fuzzVm(testee ct.Evm, f *testing.F) {
 
 	// Note: changing signature requires changing the prepareFuzzingSeeds function
 	f.Fuzz(func(t *testing.T, opCodes []byte, gas int64, revision byte, stackBytes []byte) {
-		state, err := corpusInputDataToCtState(opCodes, gas, revision, stackBytes)
+		state, err := corpusEntryToCtState(opCodes, gas, revision, stackBytes)
 		if err != nil {
 			t.Skip(err)
 		}
@@ -221,7 +221,7 @@ func prepareFuzzingSeeds(f *testing.F, rnd *rand.Rand) {
 	)
 }
 
-func corpusInputDataToCtState(opCodes []byte, gas int64, revision byte, stackBytes []byte) (*st.State, error) {
+func corpusEntryToCtState(opCodes []byte, gas int64, revision byte, stackBytes []byte) (*st.State, error) {
 	if gas < 0 {
 		return nil, fmt.Errorf("negative gas %v", gas)
 	}
@@ -288,4 +288,117 @@ func errorReportString(original *st.State, resultState *st.State, referenceState
 		original.Stack.Size(), resultState.Stack.Size(), referenceState.Stack.Size(),
 		original.Memory.Size(), resultState.Memory.Size(), referenceState.Memory.Size(),
 	)
+}
+
+func TestCorpusEntryToCtState(t *testing.T) {
+
+	tests := map[string]struct {
+		opCodes     []byte
+		gas         int64
+		revision    byte
+		stackBytes  []byte
+		expectedErr error
+	}{
+		"Valid input": {
+			opCodes:     []byte{0x60, 0x80},
+			gas:         1000,
+			revision:    byte(R12_Shanghai),
+			stackBytes:  []byte{0x01, 0x02, 0x03},
+			expectedErr: nil,
+		},
+		"empty stack": {
+			opCodes:     []byte{0x60, 0x80},
+			gas:         1000,
+			revision:    byte(R12_Shanghai),
+			stackBytes:  []byte{},
+			expectedErr: nil,
+		},
+		"zero gas": {
+			opCodes:     []byte{0x60, 0x80},
+			gas:         0,
+			revision:    byte(R12_Shanghai),
+			stackBytes:  []byte{0x01, 0x02, 0x03},
+			expectedErr: nil,
+		},
+		"Negative gas": {
+			opCodes:     []byte{0x60, 0x80},
+			gas:         -1000,
+			revision:    byte(R12_Shanghai),
+			stackBytes:  []byte{0x01, 0x02, 0x03},
+			expectedErr: fmt.Errorf("negative gas -1000"),
+		},
+		"Unsupported revision": {
+			opCodes:     []byte{0x60, 0x80},
+			gas:         1000,
+			revision:    0x10,
+			stackBytes:  []byte{0x01, 0x02, 0x03},
+			expectedErr: fmt.Errorf("unsupported revision 16"),
+		},
+		"Empty opCodes": {
+			opCodes:     []byte{},
+			gas:         1000,
+			revision:    byte(R12_Shanghai),
+			stackBytes:  []byte{0x01, 0x02, 0x03},
+			expectedErr: fmt.Errorf("empty opCodes"),
+		},
+		"Too many opCodes": {
+			opCodes:     make([]byte, 34),
+			gas:         1000,
+			revision:    byte(R12_Shanghai),
+			stackBytes:  []byte{0x01, 0x02, 0x03},
+			expectedErr: fmt.Errorf("too many opCodes, not interesting"),
+		},
+		"Uninteresting stack size": {
+			opCodes:     []byte{0x60, 0x80},
+			gas:         1000,
+			revision:    byte(R12_Shanghai),
+			stackBytes:  make([]byte, 8*32),
+			expectedErr: fmt.Errorf("Uninteresting stack size 256"),
+		},
+		"Stack too large": {
+			opCodes:     []byte{0x60, 0x80},
+			gas:         1000,
+			revision:    byte(R12_Shanghai),
+			stackBytes:  make([]byte, 1025*32),
+			expectedErr: fmt.Errorf("Stack too large 32800"),
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			state, err := corpusEntryToCtState(tt.opCodes, tt.gas, tt.revision, tt.stackBytes)
+			if err != nil {
+				if err.Error() != tt.expectedErr.Error() {
+					t.Errorf("Unexpected error. Got: %v, Want: %v", err, tt.expectedErr)
+				}
+				return
+			}
+
+			if state.Code == nil {
+				t.Errorf("Unexpected nil code")
+			}
+
+			if state.Code.Length() != len(tt.opCodes) {
+				t.Errorf("Unexpected code size. Got: %v, Want: %v", state.Code.Length(), len(tt.opCodes))
+			}
+
+			if state.Revision != Revision(tt.revision) {
+				t.Errorf("Unexpected revision. Got: %v, Want: %v", state.Revision, Revision(tt.revision))
+			}
+
+			if state.Gas != vm.Gas(tt.gas) {
+				t.Errorf("Unexpected gas. Got: %v, Want: %v", state.Gas, vm.Gas(tt.gas))
+			}
+
+			if state.Stack == nil {
+				t.Errorf("Unexpected nil stack")
+			}
+
+			stateStackSize := (len(tt.stackBytes) + 31) / 32
+			if state.Stack.Size() != stateStackSize {
+				t.Errorf("Unexpected stack size. Got: %v, Want: %v", state.Stack.Size(), stateStackSize)
+			}
+
+		})
+	}
 }
