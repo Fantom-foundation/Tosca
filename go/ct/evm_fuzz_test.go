@@ -79,21 +79,13 @@ func differentialFuzz(f *testing.F, testeeVm, referenceVm ct.Evm) {
 		}
 
 		testeeResultState, err := testeeVm.StepN(state.Clone(), 1)
-		defer func() {
-			if testeeResultState != nil {
-				testeeResultState.Release()
-			}
-		}()
 		if err != nil {
 			t.Fatalf("failed to run test case: %v", err)
 		}
+		defer testeeResultState.Release()
 
 		referenceResultState, err := referenceVm.StepN(state.Clone(), 1)
-		defer func() {
-			if referenceResultState != nil {
-				referenceResultState.Release()
-			}
-		}()
+		defer referenceResultState.Release()
 		if err != nil {
 			t.Fatalf("failed to run test case in reference VM: %v", err)
 		}
