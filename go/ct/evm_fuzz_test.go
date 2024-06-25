@@ -158,6 +158,7 @@ const (
 // prepareFuzzingSeeds is a helper function to be used by similar fuzzing tests
 // the arguments passed to the f.Add function needs to match the arguments
 // passed to the f.Fuzz function in type, position and number
+// Such types can only be of the allowed by the fuzzing engine
 func prepareFuzzingSeeds(f *testing.F, rnd *rand.Rand) {
 
 	// every possible revision
