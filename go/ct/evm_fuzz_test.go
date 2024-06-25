@@ -67,9 +67,7 @@ func FuzzDifferentialLfvmVsGeth(f *testing.F) {
 
 func differentialFuzz(f *testing.F, testeeVm, referenceVm ct.Evm) {
 
-	rnd := rand.New(0)
-
-	prepareFuzzingSeeds(f, rnd)
+	prepareFuzzingSeeds(f)
 
 	// Note: changing signature requires changing the prepareFuzzingSeeds function
 	f.Fuzz(func(t *testing.T, opCodes []byte, gas int64, revision byte, stackBytes []byte) {
@@ -131,9 +129,7 @@ func differentialFuzz(f *testing.F, testeeVm, referenceVm ct.Evm) {
 
 func fuzzVm(testee ct.Evm, f *testing.F) {
 
-	rnd := rand.New(0)
-
-	prepareFuzzingSeeds(f, rnd)
+	prepareFuzzingSeeds(f)
 
 	// Note: changing signature requires changing the prepareFuzzingSeeds function
 	f.Fuzz(func(t *testing.T, opCodes []byte, gas int64, revision byte, stackBytes []byte) {
@@ -159,7 +155,9 @@ const (
 // the arguments passed to the f.Add function needs to match the arguments
 // passed to the f.Fuzz function in type, position and number
 // Such types can only be of the allowed by the fuzzing engine
-func prepareFuzzingSeeds(f *testing.F, rnd *rand.Rand) {
+func prepareFuzzingSeeds(f *testing.F) {
+
+	rnd := rand.New(0)
 
 	// every possible revision
 	for revision := MinRevision; revision <= NewestSupportedRevision; revision++ {
