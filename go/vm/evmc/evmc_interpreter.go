@@ -157,7 +157,7 @@ func toEvmcRevision(revision vm.Revision) (evmc.Revision, error) {
 type hostContext struct {
 	params         vm.Parameters
 	context        vm.RunContext
-	EvmcBlobHashes []evmc.Hash
+	evmcBlobHashes []evmc.Hash
 }
 
 func (ctx *hostContext) AccountExists(addr evmc.Address) bool {
@@ -235,7 +235,7 @@ func (ctx *hostContext) GetTxContext() evmc.TxContext {
 		ChainID:     evmc.Hash(params.ChainID),
 		BaseFee:     evmc.Hash(params.BaseFee),
 		BlobBaseFee: evmc.Hash(params.BlobBaseFee),
-		BlobHashes:  ctx.EvmcBlobHashes,
+		BlobHashes:  ctx.evmcBlobHashes,
 	}
 }
 
