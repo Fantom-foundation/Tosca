@@ -214,6 +214,10 @@ func (a *runContextAdapter) SelfDestruct(address vm.Address, beneficiary vm.Addr
 	return balance != (vm.Value{})
 }
 
+func (a *runContextAdapter) SelfDestruct6780(address vm.Address, beneficiary vm.Address) bool {
+	return a.SelfDestruct(address, beneficiary)
+}
+
 func (a *runContextAdapter) CreateAccount(vm.Address, vm.Code) bool {
 	panic("should not be needed for interpreter tests")
 }

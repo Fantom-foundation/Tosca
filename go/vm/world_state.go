@@ -33,6 +33,7 @@ type WorldState interface {
 	SetStorage(Address, Key, Word) StorageStatus
 
 	SelfDestruct(addr Address, beneficiary Address) bool
+	SelfDestruct6780(addr Address, beneficiary Address) bool
 }
 
 // Address represents the 160-bit (20 bytes) address of an account.

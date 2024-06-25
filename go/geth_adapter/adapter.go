@@ -477,6 +477,22 @@ func (a *runContextAdapter) SelfDestruct(addr vm.Address, beneficiary vm.Address
 	return true
 }
 
+func (a *runContextAdapter) SelfDestruct6780(addr vm.Address, beneficiary vm.Address) bool {
+	if adapterDebug {
+		fmt.Printf("SelfDestruct called with %v, %v\n", addr, beneficiary)
+	}
+
+	stateDb := a.evm.StateDB
+	if stateDb.HasSelfDestructed(gc.Address(addr)) {
+		return false
+	}
+	balance := stateDb.GetBalance(a.contract.Address())
+	stateDb.AddBalance(gc.Address(beneficiary), balance, tracing.BalanceDecreaseSelfdestruct)
+	stateDb.SubBalance(a.contract.Address(), balance, tracing.BalanceDecreaseSelfdestruct)
+	stateDb.SelfDestruct(gc.Address(addr))
+	return true
+}
+
 func (a *runContextAdapter) CreateSnapshot() vm.Snapshot {
 	return vm.Snapshot(a.evm.StateDB.Snapshot())
 }

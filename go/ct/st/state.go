@@ -48,10 +48,11 @@ const (
 type SelfDestructEntry struct {
 	account     vm.Address
 	beneficiary vm.Address
+	is6780      bool
 }
 
-func NewSelfDestructEntry(account vm.Address, beneficiary vm.Address) SelfDestructEntry {
-	return SelfDestructEntry{account, beneficiary}
+func NewSelfDestructEntry(account vm.Address, beneficiary vm.Address, is6780 bool) SelfDestructEntry {
+	return SelfDestructEntry{account, beneficiary, is6780}
 }
 
 func (s StatusCode) String() string {
