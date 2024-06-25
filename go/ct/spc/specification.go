@@ -1267,11 +1267,7 @@ func getAllRules() []Rule {
 		parameters: []Parameter{NumericParameter{}},
 		effect: func(s *st.State) {
 			indexU256 := s.Stack.Pop()
-			if indexU256.Gt(NewU256(uint64(len(s.TransactionContext.BlobHashes)))) {
-				s.Stack.Push(NewU256(0))
-			} else {
-				s.Stack.Push(NewU256FromBytes(s.TransactionContext.BlobHashes[indexU256.Uint64()][:]...))
-			}
+			s.Stack.Push(NewU256FromBytes(s.TransactionContext.BlobHashes[indexU256.Uint64()][:]...))
 		},
 	})...)
 
