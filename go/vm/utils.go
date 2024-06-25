@@ -10,8 +10,6 @@
 
 package vm
 
-import "github.com/holiman/uint256"
-
 // GetStorageStatus obtains the status code to be returned by
 // RunContext implementation when mutating a storage slot with
 // the given original (=committed), current, and new value.
@@ -65,19 +63,4 @@ func GetStorageStatus(original, current, new Word) StorageStatus {
 
 	// Default
 	return StorageAssigned
-}
-
-// Uint256ToValue converts a *uint256.Int to a Value.
-// If the input is nil, it returns 0.
-func Uint256ToValue(value *uint256.Int) (result Value) {
-	if value == nil {
-		return result
-	}
-	result = value.Bytes32()
-	return result
-}
-
-// ValueToUint256 converts a Value to a *uint256.Int.
-func ValueToUint256(value Value) *uint256.Int {
-	return uint256.NewInt(0).SetBytes(value[:])
 }

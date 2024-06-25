@@ -14,7 +14,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
+
+	"github.com/holiman/uint256"
 )
 
 func (a Address) String() string {
@@ -29,8 +32,42 @@ func (a *Address) UnmarshalText(data []byte) error {
 	return textToBytes(a[:], data)
 }
 
+func (v Value) ToBig() *big.Int {
+	return new(big.Int).SetBytes(v[:])
+}
+
+func (v Value) ToUint256() *uint256.Int {
+	return new(uint256.Int).SetBytes(v[:])
+}
+
 func (v Value) String() string {
-	return fmt.Sprintf("0x%x", v[:])
+	return v.ToUint256().String()
+}
+
+func (v Value) Cmp(o Value) int {
+	return v.ToUint256().Cmp(o.ToUint256())
+}
+
+func ValueFromUint64(value uint64) Value {
+	return ValueFromUint256(new(uint256.Int).SetUint64(value))
+}
+
+// ValueFromUint256 converts a *uint256.Int to a Value.
+// If the input is nil, it returns 0.
+func ValueFromUint256(value *uint256.Int) (result Value) {
+	if value == nil {
+		return result
+	}
+	result = value.Bytes32()
+	return result
+}
+
+func Add(a, b Value) Value {
+	return ValueFromUint256(new(uint256.Int).Add(a.ToUint256(), b.ToUint256()))
+}
+
+func Sub(a, b Value) Value {
+	return ValueFromUint256(new(uint256.Int).Sub(a.ToUint256(), b.ToUint256()))
 }
 
 func (v Value) MarshalText() ([]byte, error) {

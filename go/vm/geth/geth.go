@@ -219,7 +219,7 @@ func createGethInterpreterContext(parameters vm.Parameters) (*geth.EVM, *geth.Co
 	evm.Context.Difficulty = new(big.Int).SetBytes(parameters.PrevRandao[:])
 	evm.Context.Time = uint64(parameters.Timestamp)
 
-	value := vm.ValueToUint256(parameters.Value)
+	value := parameters.Value.ToUint256()
 	addr := geth.AccountRef(parameters.Recipient)
 	contract := geth.NewContract(addr, addr, value, uint64(parameters.Gas))
 	contract.CallerAddress = common.Address(parameters.Sender)
@@ -274,7 +274,7 @@ func (s *stateDbAdapter) AddBalance(addr common.Address, balance *uint256.Int, c
 
 func (s *stateDbAdapter) GetBalance(addr common.Address) *uint256.Int {
 	value := s.context.GetBalance(vm.Address(addr))
-	return vm.ValueToUint256(value)
+	return value.ToUint256()
 }
 
 func (s *stateDbAdapter) GetNonce(common.Address) uint64 {

@@ -128,7 +128,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	}
 
 	// Convert the value from big-int to vm.Value.
-	value := vm.Uint256ToValue(contract.Value())
+	value := vm.ValueFromUint256(contract.Value())
 
 	var codeHash *vm.Hash
 	if contract.CodeHash != (gc.Hash{}) {
@@ -290,7 +290,7 @@ func (a *runContextAdapter) SetTransientStorage(addr vm.Address, key vm.Key, fut
 }
 
 func (a *runContextAdapter) GetBalance(addr vm.Address) vm.Value {
-	return vm.Uint256ToValue(a.evm.StateDB.GetBalance(gc.Address(addr)))
+	return vm.ValueFromUint256(a.evm.StateDB.GetBalance(gc.Address(addr)))
 }
 
 func (a *runContextAdapter) SetBalance(addr vm.Address, value vm.Value) {
@@ -381,7 +381,7 @@ func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameters) 
 	var createdAddress vm.Address
 	switch kind {
 	case vm.Call:
-		output, returnGas, err = a.evm.Call(a.contract, toAddr, parameter.Input, gas, vm.ValueToUint256(parameter.Value))
+		output, returnGas, err = a.evm.Call(a.contract, toAddr, parameter.Input, gas, parameter.Value.ToUint256())
 	case vm.StaticCall:
 		output, returnGas, err = a.evm.StaticCall(a.contract, toAddr, parameter.Input, gas)
 	case vm.DelegateCall:
@@ -389,16 +389,16 @@ func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameters) 
 		output, returnGas, err = a.evm.DelegateCall(a.contract, toAddr, parameter.Input, gas)
 	case vm.CallCode:
 		toAddr = gc.Address(parameter.CodeAddress)
-		output, returnGas, err = a.evm.CallCode(a.contract, toAddr, parameter.Input, gas, vm.ValueToUint256(parameter.Value))
+		output, returnGas, err = a.evm.CallCode(a.contract, toAddr, parameter.Input, gas, parameter.Value.ToUint256())
 	case vm.Create:
 		var newAddr gc.Address
-		output, newAddr, returnGas, err = a.evm.Create(a.contract, parameter.Input, gas, vm.ValueToUint256(parameter.Value))
+		output, newAddr, returnGas, err = a.evm.Create(a.contract, parameter.Input, gas, parameter.Value.ToUint256())
 		createdAddress = vm.Address(newAddr)
 	case vm.Create2:
 		var newAddr gc.Address
 		vmSalt := &uint256.Int{}
 		vmSalt.SetBytes(parameter.Salt[:])
-		output, newAddr, returnGas, err = a.evm.Create2(a.contract, parameter.Input, gas, vm.ValueToUint256(parameter.Value), vmSalt)
+		output, newAddr, returnGas, err = a.evm.Create2(a.contract, parameter.Input, gas, parameter.Value.ToUint256(), vmSalt)
 		createdAddress = vm.Address(newAddr)
 	default:
 		panic(fmt.Sprintf("unsupported call kind: %v", kind))

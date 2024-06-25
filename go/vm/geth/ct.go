@@ -163,7 +163,7 @@ func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr ge
 	res, err := i.makeCall(kind, vm.CallParameters{
 		Sender:    vm.Address(me.Address()),
 		Recipient: vm.Address(addr),
-		Value:     vm.Uint256ToValue(value),
+		Value:     vm.ValueFromUint256(value),
 		Input:     data,
 		Gas:       vm.Gas(gas),
 	})
@@ -181,7 +181,7 @@ func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, add
 	res, err := i.makeCall(kind, vm.CallParameters{
 		Sender:      vm.Address(me.Address()),
 		Recipient:   vm.Address(me.Address()),
-		Value:       vm.Uint256ToValue(value),
+		Value:       vm.ValueFromUint256(value),
 		Input:       data,
 		CodeAddress: vm.Address(addr),
 		Gas:         vm.Gas(gas),
@@ -219,7 +219,7 @@ func (i *callInterceptor) Create(env *geth_vm.EVM, me geth_vm.ContractRef, code 
 
 	res, err := i.makeCall(vm.Create, vm.CallParameters{
 		Sender: vm.Address(me.Address()),
-		Value:  vm.Uint256ToValue(value),
+		Value:  vm.ValueFromUint256(value),
 		Gas:    vm.Gas(gas),
 		Input:  code,
 	})
@@ -236,7 +236,7 @@ func (i *callInterceptor) Create2(env *geth_vm.EVM, me geth_vm.ContractRef, code
 
 	res, err := i.makeCall(vm.Create2, vm.CallParameters{
 		Sender: vm.Address(me.Address()),
-		Value:  vm.Uint256ToValue(value),
+		Value:  vm.ValueFromUint256(value),
 		Gas:    vm.Gas(gas),
 		Input:  code,
 		Salt:   salt.Bytes32(),
