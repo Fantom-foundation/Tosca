@@ -196,7 +196,7 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.LastCallReturnData.Get(0, 1)[0] == 1 &&
 		s.HasSelfDestructed &&
 		len(s.SelfDestructedJournal) == 1 &&
-		s.SelfDestructedJournal[0] == SelfDestructEntry{vm.Address{1}, vm.Address{2}} &&
+		s.SelfDestructedJournal[0] == SelfDestructEntry{vm.Address{1}, vm.Address{2}, false} &&
 		s.RecentBlockHashes.Equal(NewImmutableHashArray(vm.Hash{0x01}))
 
 	if !ok {

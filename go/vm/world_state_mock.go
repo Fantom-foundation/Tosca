@@ -174,6 +174,20 @@ func (mr *MockWorldStateMockRecorder) SelfDestruct(addr, beneficiary any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfDestruct", reflect.TypeOf((*MockWorldState)(nil).SelfDestruct), addr, beneficiary)
 }
 
+// SelfDestruct6780 mocks base method.
+func (m *MockWorldState) SelfDestruct6780(addr, beneficiary Address) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SelfDestruct6780", addr, beneficiary)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// SelfDestruct6780 indicates an expected call of SelfDestruct6780.
+func (mr *MockWorldStateMockRecorder) SelfDestruct6780(addr, beneficiary any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfDestruct6780", reflect.TypeOf((*MockWorldState)(nil).SelfDestruct6780), addr, beneficiary)
+}
+
 // SetBalance mocks base method.
 func (m *MockWorldState) SetBalance(arg0 Address, arg1 Value) {
 	m.ctrl.T.Helper()

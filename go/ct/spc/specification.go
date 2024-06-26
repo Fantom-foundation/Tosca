@@ -2230,7 +2230,7 @@ func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, re
 	}
 	// add beneficiary to list in state
 	s.HasSelfDestructed = true
-	s.SelfDestructedJournal = append(s.SelfDestructedJournal, st.NewSelfDestructEntry(s.CallContext.AccountAddress, destinationAccount))
+	s.SelfDestructedJournal = append(s.SelfDestructedJournal, st.NewSelfDestructEntry(s.CallContext.AccountAddress, destinationAccount, false))
 	s.Status = st.Stopped
 	s.GasRefund += refundGas
 }

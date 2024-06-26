@@ -48,10 +48,11 @@ const (
 type SelfDestructEntry struct {
 	account     vm.Address
 	beneficiary vm.Address
+	is6780      bool
 }
 
-func NewSelfDestructEntry(account vm.Address, beneficiary vm.Address) SelfDestructEntry {
-	return SelfDestructEntry{account, beneficiary}
+func NewSelfDestructEntry(account vm.Address, beneficiary vm.Address, is6780 bool) SelfDestructEntry {
+	return SelfDestructEntry{account, beneficiary, is6780}
 }
 
 func (s StatusCode) String() string {
@@ -464,8 +465,8 @@ func (s *State) Diff(o *State) []string {
 			for index, entry1 := range s.SelfDestructedJournal {
 				entry2 := o.SelfDestructedJournal[index]
 				if entry1 != entry2 {
-					res = append(res, fmt.Sprintf("Different has-self-destructed journal entry:\n\t(%v, %v)\n\tvs\n\t(%v, %v)",
-						entry1.account, entry1.beneficiary, entry2.account, entry2.beneficiary))
+					res = append(res, fmt.Sprintf("Different has-self-destructed journal entry:\n\t(%v, %v, %t)\n\tvs\n\t(%v, %v, %t)",
+						entry1.account, entry1.beneficiary, entry1.is6780, entry2.account, entry2.beneficiary, entry2.is6780))
 				}
 			}
 		}

@@ -392,6 +392,20 @@ func (mr *MockRunContextMockRecorder) SelfDestruct(addr, beneficiary any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfDestruct", reflect.TypeOf((*MockRunContext)(nil).SelfDestruct), addr, beneficiary)
 }
 
+// SelfDestruct6780 mocks base method.
+func (m *MockRunContext) SelfDestruct6780(addr, beneficiary Address) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SelfDestruct6780", addr, beneficiary)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// SelfDestruct6780 indicates an expected call of SelfDestruct6780.
+func (mr *MockRunContextMockRecorder) SelfDestruct6780(addr, beneficiary any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfDestruct6780", reflect.TypeOf((*MockRunContext)(nil).SelfDestruct6780), addr, beneficiary)
+}
+
 // SetBalance mocks base method.
 func (m *MockRunContext) SetBalance(arg0 Address, arg1 Value) {
 	m.ctrl.T.Helper()
@@ -754,6 +768,20 @@ func (m *MockTransactionContext) SelfDestruct(addr, beneficiary Address) bool {
 func (mr *MockTransactionContextMockRecorder) SelfDestruct(addr, beneficiary any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfDestruct", reflect.TypeOf((*MockTransactionContext)(nil).SelfDestruct), addr, beneficiary)
+}
+
+// SelfDestruct6780 mocks base method.
+func (m *MockTransactionContext) SelfDestruct6780(addr, beneficiary Address) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SelfDestruct6780", addr, beneficiary)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// SelfDestruct6780 indicates an expected call of SelfDestruct6780.
+func (mr *MockTransactionContextMockRecorder) SelfDestruct6780(addr, beneficiary any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfDestruct6780", reflect.TypeOf((*MockTransactionContext)(nil).SelfDestruct6780), addr, beneficiary)
 }
 
 // SetBalance mocks base method.

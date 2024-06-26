@@ -52,7 +52,7 @@ func getNewFilledState() *State {
 	s.CallData = NewBytes([]byte{1})
 	s.LastCallReturnData = NewBytes([]byte{1})
 	s.HasSelfDestructed = true
-	s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{1}, vm.Address{2}}}
+	s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{1}, vm.Address{2}, false}}
 	s.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x01})
 	return s
 }
@@ -160,7 +160,7 @@ func getTestChanges() map[string]testStruct {
 			"Different has-self-destructed",
 		},
 		"self_destructed_journal": {func(state *State) {
-			state.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x04}}}
+			state.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x04}, false}}
 		},
 			"Different has-self-destructed journal entry",
 		},
@@ -484,7 +484,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.CallData = NewBytes([]byte{1})
 	s1.LastCallReturnData = NewBytes([]byte{1})
 	s1.HasSelfDestructed = true
-	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
+	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}, false}}
 	s1.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x01})
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
@@ -503,7 +503,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.CallData = NewBytes([]byte{1})
 	s2.LastCallReturnData = NewBytes([]byte{1})
 	s2.HasSelfDestructed = true
-	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
+	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}, false}}
 	s2.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x01})
 
 	diffs := s1.Diff(s2)
@@ -535,7 +535,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.CallData = NewBytes([]byte{1})
 	s1.LastCallReturnData = NewBytes([]byte{1})
 	s1.HasSelfDestructed = true
-	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
+	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}, false}}
 	s1.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x01})
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
@@ -554,7 +554,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.CallData = NewBytes([]byte{250})
 	s2.LastCallReturnData = NewBytes([]byte{249})
 	s2.HasSelfDestructed = false
-	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}}}
+	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}, false}}
 	s2.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0xf2})
 
 	diffs := s1.Diff(s2)
@@ -783,7 +783,9 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 			relevantFor: allButFailed,
 		},
 		"has_self_destructed_journal": {
-			modify:      func(s *State) { s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}}} },
+			modify: func(s *State) {
+				s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}, false}}
+			},
 			relevantFor: allButFailed,
 		},
 		"block_number_hashes": {

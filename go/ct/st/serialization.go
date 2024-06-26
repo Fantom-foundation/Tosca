@@ -255,7 +255,8 @@ func (s *stateSerializable) deserialize() *State {
 	state.HasSelfDestructed = s.HasSelfDestructed
 	if s.SelfDestructedJournal != nil {
 		for _, entry := range s.SelfDestructedJournal {
-			state.SelfDestructedJournal = append(state.SelfDestructedJournal, SelfDestructEntry{entry.Account, entry.Beneficiary})
+			state.SelfDestructedJournal = append(state.SelfDestructedJournal,
+				SelfDestructEntry{entry.Account, entry.Beneficiary, s.Revision >= R13_Cancun})
 		}
 	}
 	state.RecentBlockHashes = s.RecentBlockHashes
