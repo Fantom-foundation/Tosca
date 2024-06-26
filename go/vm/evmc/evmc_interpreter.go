@@ -217,8 +217,12 @@ func (ctx *hostContext) GetCode(addr evmc.Address) []byte {
 	return ctx.context.GetCode(vm.Address(addr))
 }
 
+// in order to avoid evmc interface changes, the different selfdestruct calls are handled here
 func (ctx *hostContext) Selfdestruct(addr evmc.Address, beneficiary evmc.Address) bool {
-	return ctx.context.SelfDestruct(vm.Address(addr), vm.Address(beneficiary))
+	if ctx.params.Revision < vm.R13_Cancun {
+		return ctx.context.SelfDestruct(vm.Address(addr), vm.Address(beneficiary))
+	}
+	return ctx.context.SelfDestruct6780(vm.Address(addr), vm.Address(beneficiary))
 }
 
 func (ctx *hostContext) GetTxContext() evmc.TxContext {
