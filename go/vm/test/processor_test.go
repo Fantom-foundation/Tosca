@@ -10,6 +10,19 @@
 
 package vm_test
 
+// This file contains a few initial shake-down tests or a Processor implementation.
+// Right now, the tested features are minimal. Follow-up work is needed to systematically
+// establish a set of test cases for Processor features.
+//
+// TODO:
+// - test gas price charging
+// - test gas refunding
+// - test left-over gas refunding
+// - test recursive calls
+// - test roll-back on revert
+// - improve test setup
+// - find better place for those tests
+
 import (
 	"fmt"
 	"testing"
@@ -24,30 +37,14 @@ import (
 	op "github.com/ethereum/go-ethereum/core/vm"
 )
 
-// getProcessors returns a map containing all registered processors instantiated
-// with all registered interpreters.
-func getProcessors() map[string]vm.Processor {
-	interpreter := vm.GetAllRegisteredInterpreters()
-	factories := vm.GetAllRegisteredProcessorFactories()
-
-	res := map[string]vm.Processor{}
-	for processorName, factory := range factories {
-		for interpreterName, interpreter := range interpreter {
-			processor := factory(interpreter)
-			res[fmt.Sprintf("%s/%s", processorName, interpreterName)] = processor
-		}
-	}
-	return res
-}
-
 func TestProcessor_SimpleValueTransfer(t *testing.T) {
 	const transferCosts = vm.Gas(21_000)
 
-	// Transfer 3*2^(31*8) tokens from account 1 to account 2.
+	// Transfer 3 tokens from account 1 to account 2.
 	transaction := vm.Transaction{
 		Sender:    vm.Address{1},
 		Recipient: &vm.Address{2},
-		Value:     vm.Value{3}, // < TODO: need a better value type!
+		Value:     vm.ValueFromUint64(3),
 		Nonce:     4,
 		GasLimit:  transferCosts,
 	}
@@ -58,13 +55,14 @@ func TestProcessor_SimpleValueTransfer(t *testing.T) {
 			blockParams := vm.BlockParameters{}
 
 			// TODO: clean up expectations
-			// TODO: provide a better way to define expectations
+			// TODO: provide a better way to define expectations that is less
+			// sensitive to implementation details; focus on effects
 			// - use a before/after pattern
 			context := vm.NewMockTransactionContext(ctrl)
 
 			context.EXPECT().CreateSnapshot()
-			context.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
-			context.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
+			context.EXPECT().GetBalance(vm.Address{1}).Return(vm.ValueFromUint64(10)).AnyTimes()
+			context.EXPECT().GetBalance(vm.Address{2}).Return(vm.ValueFromUint64(5)).AnyTimes()
 
 			context.EXPECT().AccountExists(vm.Address{2}).Return(true)
 			context.EXPECT().GetCode(vm.Address{2}).Return([]byte{})
@@ -72,9 +70,9 @@ func TestProcessor_SimpleValueTransfer(t *testing.T) {
 			context.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
 			context.EXPECT().GetCodeHash(vm.Address{1}).Return(vm.Hash{})
 
-			context.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}).MinTimes(1) // < charging gas, but price is zero
-			context.EXPECT().SetBalance(vm.Address{1}, vm.Value{7})              // < withdraw 3 tokens
-			context.EXPECT().SetBalance(vm.Address{2}, vm.Value{8})              // < deposit 3 tokens
+			context.EXPECT().SetBalance(vm.Address{1}, vm.ValueFromUint64(10)).MinTimes(1) // < charging gas, but price is zero
+			context.EXPECT().SetBalance(vm.Address{1}, vm.ValueFromUint64(7))              // < withdraw 3 tokens
+			context.EXPECT().SetBalance(vm.Address{2}, vm.ValueFromUint64(8))              // < deposit 3 tokens
 
 			context.EXPECT().GetLogs()
 
@@ -98,7 +96,7 @@ func TestProcessor_SimpleValueTransfer(t *testing.T) {
 func TestProcessor_ContractCallThatSucceeds(t *testing.T) {
 	const gasCosts = vm.Gas(21_000 + 2*3)
 
-	// Transfer 3*2^(31*8) tokens from account 1 to account 2.
+	// A call to the contract at address 2 paid by account 1.
 	transaction := vm.Transaction{
 		Sender:    vm.Address{1},
 		Recipient: &vm.Address{2},
@@ -114,8 +112,8 @@ func TestProcessor_ContractCallThatSucceeds(t *testing.T) {
 			context := vm.NewMockTransactionContext(ctrl)
 
 			context.EXPECT().CreateSnapshot()
-			context.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
-			context.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
+			context.EXPECT().GetBalance(vm.Address{1}).Return(vm.ValueFromUint64(10)).AnyTimes()
+			context.EXPECT().GetBalance(vm.Address{2}).Return(vm.ValueFromUint64(5)).AnyTimes()
 
 			context.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(2)
 			context.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
@@ -131,7 +129,7 @@ func TestProcessor_ContractCallThatSucceeds(t *testing.T) {
 			context.EXPECT().GetCode(vm.Address{2}).Return(code)
 			context.EXPECT().GetCodeHash(vm.Address{2}).Return(keccak256Hash(code))
 
-			context.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}).MinTimes(1) // < charging gas, but price is zero
+			context.EXPECT().SetBalance(vm.Address{1}, vm.ValueFromUint64(10)).MinTimes(1) // < charging gas, but price is zero
 
 			context.EXPECT().GetLogs()
 
@@ -155,7 +153,7 @@ func TestProcessor_ContractCallThatSucceeds(t *testing.T) {
 func TestProcessor_ContractCallThatReverts(t *testing.T) {
 	const gasCosts = vm.Gas(21_000 + 2*3)
 
-	// Transfer 3*2^(31*8) tokens from account 1 to account 2.
+	// A call to the contract at address 2 paid by account 1.
 	transaction := vm.Transaction{
 		Sender:    vm.Address{1},
 		Recipient: &vm.Address{2},
@@ -173,8 +171,8 @@ func TestProcessor_ContractCallThatReverts(t *testing.T) {
 			context.EXPECT().CreateSnapshot().Return(vm.Snapshot(12))
 			context.EXPECT().RestoreSnapshot(vm.Snapshot(12))
 
-			context.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
-			context.EXPECT().GetBalance(vm.Address{2}).Return(vm.Value{5}).AnyTimes()
+			context.EXPECT().GetBalance(vm.Address{1}).Return(vm.ValueFromUint64(10)).AnyTimes()
+			context.EXPECT().GetBalance(vm.Address{2}).Return(vm.ValueFromUint64(5)).AnyTimes()
 
 			context.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(2)
 			context.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
@@ -191,7 +189,7 @@ func TestProcessor_ContractCallThatReverts(t *testing.T) {
 			context.EXPECT().GetCode(vm.Address{2}).Return(code)
 			context.EXPECT().GetCodeHash(vm.Address{2}).Return(keccak256Hash(code))
 
-			context.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}).MinTimes(1) // < charging gas, but price is zero
+			context.EXPECT().SetBalance(vm.Address{1}, vm.ValueFromUint64(10)).MinTimes(1) // < charging gas, but price is zero
 
 			context.EXPECT().GetLogs()
 
@@ -234,8 +232,8 @@ func TestProcessor_ContractCreation(t *testing.T) {
 			context := vm.NewMockTransactionContext(ctrl)
 
 			context.EXPECT().CreateSnapshot()
-			context.EXPECT().GetBalance(vm.Address{1}).Return(vm.Value{10}).AnyTimes()
-			context.EXPECT().SetBalance(vm.Address{1}, vm.Value{10}).MinTimes(1) // < charging gas, but price is zero
+			context.EXPECT().GetBalance(vm.Address{1}).Return(vm.ValueFromUint64(10)).AnyTimes()
+			context.EXPECT().SetBalance(vm.Address{1}, vm.ValueFromUint64(10)).MinTimes(1) // < charging gas, but price is zero
 
 			context.EXPECT().GetNonce(vm.Address{1}).Return(uint64(4)).Times(3)
 			context.EXPECT().SetNonce(vm.Address{1}, uint64(5)).Return()
@@ -279,11 +277,18 @@ func TestProcessor_ContractCreation(t *testing.T) {
 	}
 }
 
-// TODO:
-// - test gas price charging
-// - test gas refunding
-// - test left-over gas refunding
-// - test recursive calls
-// - test roll-back on revert
-// - improve test setup
-// - find better place for those tests
+// getProcessors returns a map containing all registered processors instantiated
+// with all registered interpreters.
+func getProcessors() map[string]vm.Processor {
+	interpreter := vm.GetAllRegisteredInterpreters()
+	factories := vm.GetAllRegisteredProcessorFactories()
+
+	res := map[string]vm.Processor{}
+	for processorName, factory := range factories {
+		for interpreterName, interpreter := range interpreter {
+			processor := factory(interpreter)
+			res[fmt.Sprintf("%s/%s", processorName, interpreterName)] = processor
+		}
+	}
+	return res
+}
