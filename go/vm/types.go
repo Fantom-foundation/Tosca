@@ -11,6 +11,7 @@
 package vm
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -45,7 +46,7 @@ func (v Value) String() string {
 }
 
 func (v Value) Cmp(o Value) int {
-	return v.ToUint256().Cmp(o.ToUint256())
+	return bytes.Compare(v[:], o[:])
 }
 
 func ValueFromUint64(value uint64) Value {
