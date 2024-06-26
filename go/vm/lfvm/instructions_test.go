@@ -790,3 +790,95 @@ func TestTransientStorageOperations(t *testing.T) {
 		})
 	}
 }
+
+func TestOpSelfdestruct(t *testing.T) {
+	tests := map[string]struct {
+		setup    func(*vm.MockRunContext)
+		revision vm.Revision
+		gas      vm.Gas
+		status   Status
+	}{
+		"Istanbul": {
+			setup: func(runContext *vm.MockRunContext) {
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(true)
+				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false)
+				runContext.EXPECT().SelfDestruct(gomock.Any(), gomock.Any())
+			},
+			revision: vm.R07_Istanbul,
+			gas:      5000,
+			status:   SUICIDED,
+		},
+		"Berlin-inAccessList": {
+			setup: func(runContext *vm.MockRunContext) {
+				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(true)
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(true)
+				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(true)
+				runContext.EXPECT().SelfDestruct(gomock.Any(), gomock.Any())
+			},
+			revision: vm.R09_Berlin,
+			gas:      0,
+			status:   SUICIDED,
+		},
+		"Berlin-NotInAccessList": {
+			setup: func(runContext *vm.MockRunContext) {
+				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(false)
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(true)
+				runContext.EXPECT().AccessAccount(gomock.Any())
+				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(true)
+				runContext.EXPECT().SelfDestruct(gomock.Any(), gomock.Any())
+			},
+			revision: vm.R09_Berlin,
+			gas:      2600,
+			status:   SUICIDED,
+		},
+		"Cancun": {
+			setup: func(runContext *vm.MockRunContext) {
+				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(false)
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(true)
+				runContext.EXPECT().AccessAccount(gomock.Any())
+				runContext.EXPECT().SelfDestruct6780(gomock.Any(), gomock.Any())
+			},
+			revision: vm.R13_Cancun,
+			gas:      2600,
+			status:   SUICIDED,
+		},
+		"insufficientGas": {
+			setup: func(runContext *vm.MockRunContext) {
+				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(false)
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(true)
+				runContext.EXPECT().AccessAccount(gomock.Any())
+			},
+			revision: vm.R13_Cancun,
+			gas:      0,
+			status:   OUT_OF_GAS,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			ctxt := context{
+				status: RUNNING,
+				params: vm.Parameters{
+					Recipient: vm.Address{1},
+				},
+				stack:    NewStack(),
+				revision: test.revision,
+				gas:      test.gas,
+			}
+			runContext := vm.NewMockRunContext(ctrl)
+			test.setup(runContext)
+			ctxt.context = runContext
+			ctxt.stack.stack_ptr = 1
+
+			opSelfdestruct(&ctxt)
+
+			if ctxt.gas != 0 {
+				t.Errorf("expected gas to be 0, got %d", ctxt.gas)
+			}
+			if ctxt.status != test.status {
+				t.Errorf("unexpected status, wanted %v, got %v", test.status, ctxt.status)
+			}
+		})
+	}
+}
