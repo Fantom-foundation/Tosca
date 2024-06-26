@@ -110,11 +110,7 @@ func (a *Accounts) IsWarm(key vm.Address) bool {
 }
 
 func (a *Accounts) IsCold(key vm.Address) bool {
-	if a.warm == nil {
-		return true
-	}
-	_, contains := a.warm[key]
-	return !contains
+	return !a.IsWarm(key)
 }
 
 func (a *Accounts) MarkWarm(key vm.Address) {
