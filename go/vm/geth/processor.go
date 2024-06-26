@@ -10,6 +10,11 @@
 
 package geth
 
+// The processor implementation in this file is a rough copy of the processor
+// code that is used by Aida to run transactions using the Opera/Sonic
+// implementation of the Ethereum Virtual Machine (EVM). The code is copied
+// here to provide a reference implementation for the Tosca EVM implementation.
+
 import (
 	"bytes"
 	"errors"
@@ -33,6 +38,7 @@ import (
 
 func init() {
 	vm.RegisterProcessorFactory("geth", newProcessor)
+	vm.RegisterProcessorFactory("opera", newProcessor)
 }
 
 var interpreterRegistryLock sync.RWMutex
@@ -68,35 +74,33 @@ func newProcessor(interpreter vm.Interpreter) vm.Processor {
 }
 
 var (
-	// ErrNonceTooLow is returned if the nonce of a transaction is lower than the
+	// errNonceTooLow is returned if the nonce of a transaction is lower than the
 	// one present in the local chain.
-	ErrNonceTooLow = errors.New("nonce too low")
+	errNonceTooLow = errors.New("nonce too low")
 
-	// ErrNonceTooHigh is returned if the nonce of a transaction is higher than the
+	// errNonceTooHigh is returned if the nonce of a transaction is higher than the
 	// next one expected based on the local chain.
-	ErrNonceTooHigh = errors.New("nonce too high")
+	errNonceTooHigh = errors.New("nonce too high")
 
-	// ErrInsufficientFunds is returned if the total cost of executing a transaction
+	// errInsufficientFunds is returned if the total cost of executing a transaction
 	// is higher than the balance of the user's account.
-	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
+	errInsufficientFunds = errors.New("insufficient funds for gas * price + value")
 
 	// ErrGasLimitReached
-	// ErrGasUintOverflow is returned when calculating gas usage.
-	ErrGasUintOverflow = errors.New("gas uint64 overflow")
+	// errGasUintOverflow is returned when calculating gas usage.
+	errGasUintOverflow = errors.New("gas uint64 overflow")
 
-	// ErrIntrinsicGas is returned if the transaction is specified to use less gas
+	// errIntrinsicGas is returned if the transaction is specified to use less gas
 	// than required to start the invocation.
-	ErrIntrinsicGas = errors.New("intrinsic gas too low")
+	errIntrinsicGas = errors.New("intrinsic gas too low")
 
-	// ErrSenderNoEOA is returned if the sender of a transaction is a contract.
-	ErrSenderNoEOA = errors.New("sender not an eoa")
+	// errSenderNoEOA is returned if the sender of a transaction is a contract.
+	errSenderNoEOA = errors.New("sender not an eoa")
 )
 
 type processor struct {
 	interpreterImplementation string
 }
-
-var _ vm.Processor = (*processor)(nil)
 
 func (p *processor) Run(
 	blockParams vm.BlockParameters,
@@ -148,7 +152,7 @@ func (p *processor) Run(
 	config := geth.Config{
 		InterpreterImpl: p.interpreterImplementation,
 		StatePrecompiles: map[common.Address]geth.PrecompiledStateContract{
-			stateContractAddress: PreCompiledContract{},
+			stateContractAddress: preCompiledStateContract{},
 		},
 	}
 
@@ -178,9 +182,7 @@ func (p *processor) Run(
 
 	// -- start of execution --
 
-	//snapshot := stateDb.Snapshot()
-
-	// This function is required to mimic the behavior of Sonic's
+	// This code is required to mimic the behavior of Sonic's
 	// evmcore transaction handling function. For reference, see:
 	// https://github.com/Fantom-foundation/Sonic/blob/1819a05c9dc1081d24a71f93ec140eb674618967/evmcore/state_transition.go#L255
 
@@ -208,7 +210,7 @@ func (p *processor) Run(
 		return vm.Receipt{}, err
 	}
 	if gas < intrinsicGasCosts {
-		return vm.Receipt{}, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, transaction.GasLimit, intrinsicGasCosts)
+		return vm.Receipt{}, fmt.Errorf("%w: have %d, want %d", errIntrinsicGas, transaction.GasLimit, intrinsicGasCosts)
 	}
 	gas -= intrinsicGasCosts
 
@@ -313,43 +315,6 @@ func (p *processor) Run(
 		Output:          output,
 		Logs:            logs,
 	}, nil
-
-	//evm.Call()
-	/*
-		// prepare tx
-		gasPool.AddGas(inputEnv.GetGasLimit())
-
-		db.Prepare(txHash, tx)
-		blockCtx := prepareBlockCtx(inputEnv, &hashError)
-		txCtx := evmcore.NewEVMTxContext(msg)
-		evm := vm.NewEVM(*blockCtx, txCtx, db, s.chainCfg, s.vmCfg)
-		snapshot := db.Snapshot()
-
-		// apply
-		msgResult, err := evmcore.ApplyMessage(evm, msg, gasPool)
-		if err != nil {
-			// if transaction fails, revert to the first snapshot.
-			db.RevertToSnapshot(snapshot)
-			finalError = errors.Join(fmt.Errorf("block: %v transaction: %v", block, tx), err)
-		}
-
-		// inform about failing transaction
-		if msgResult != nil && msgResult.Failed() {
-			s.log.Debugf("Block: %v\nTransaction %v\n Status: Failed", block, tx)
-		}
-
-		// check whether getHash func produced an error
-		if hashError != nil {
-			finalError = errors.Join(finalError, hashError)
-		}
-
-		// if no prior error, create result and pass it to the data.
-		blockHash := common.HexToHash(fmt.Sprintf("0x%016d", block))
-		res = newTransactionResult(db.GetLogs(txHash, blockHash), msg, msgResult, err, evm.TxContext.Origin)
-		return
-	*/
-
-	panic("not implemented")
 }
 
 var emptyCodeHash = keccak(nil)
@@ -370,16 +335,16 @@ func preCheck(transaction vm.Transaction, state vm.WorldState) error {
 	stNonce := state.GetNonce(transaction.Sender)
 	if msgNonce := transaction.Nonce; stNonce < msgNonce {
 		//skippedTxsNonceTooHighMeter.Mark(1)
-		return fmt.Errorf("%w: address %v, tx: %d state: %d", ErrNonceTooHigh,
+		return fmt.Errorf("%w: address %v, tx: %d state: %d", errNonceTooHigh,
 			transaction.Sender, msgNonce, stNonce)
 	} else if stNonce > msgNonce {
 		//skippedTxsNonceTooLowMeter.Mark(1)
-		return fmt.Errorf("%w: address %v, tx: %d state: %d", ErrNonceTooLow,
+		return fmt.Errorf("%w: address %v, tx: %d state: %d", errNonceTooLow,
 			transaction.Sender, msgNonce, stNonce)
 	}
 	// Make sure the sender is an EOA (Externally Owned Account)
 	if codeHash := state.GetCodeHash(transaction.Sender); codeHash != emptyCodeHash && codeHash != (vm.Hash{}) {
-		return fmt.Errorf("%w: address %v, codehash: %s", ErrSenderNoEOA,
+		return fmt.Errorf("%w: address %v, codehash: %s", errSenderNoEOA,
 			transaction.Sender, codeHash)
 	}
 
@@ -396,7 +361,7 @@ func buyGas(tx vm.Transaction, state vm.WorldState) error {
 	balance := state.GetBalance(tx.Sender)
 	if have, want := balance.ToU256(), mgval; have.Cmp(want) < 0 {
 		//skippedTxsNoBalanceMeter.Mark(1)
-		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, tx.Sender, have, want)
+		return fmt.Errorf("%w: address %v have %v want %v", errInsufficientFunds, tx.Sender, have, want)
 	}
 	// TODO: track block-wide gas usage
 	/*
@@ -457,7 +422,7 @@ func IntrinsicGas(transaction vm.Transaction) (vm.Gas, error) {
 
 		z := uint64(len(transaction.Input)) - nz
 		if (math.MaxUint64-gas)/params.TxDataZeroGas < z {
-			return 0, ErrGasUintOverflow
+			return 0, errGasUintOverflow
 		}
 		gas += z * params.TxDataZeroGas
 	}
@@ -517,9 +482,21 @@ func init() {
 	}
 }
 
-type PreCompiledContract struct{}
+// preCompiledStateContract is a Fantom specific pre-compiled contract that enables
+// arbitrary state manipulation for book-keeping and testing purposes.
+// It is copied here to avoid a dependency to the Sonic project, which would risk
+// substantial dependency issues in down-stream projects.
+// Source: https://github.com/Fantom-foundation/Sonic/blob/34b607b882eca12fe25cfc28cbcfa869def6d3f3/opera/contracts/evmwriter/evm_writer.go#L54
+type preCompiledStateContract struct{}
 
-func (_ PreCompiledContract) Run(stateDB geth.StateDB, _ geth.BlockContext, txCtx geth.TxContext, caller common.Address, input []byte, suppliedGas uint64) ([]byte, uint64, error) {
+func (preCompiledStateContract) Run(
+	stateDB geth.StateDB,
+	_ geth.BlockContext,
+	txCtx geth.TxContext,
+	caller common.Address,
+	input []byte,
+	suppliedGas uint64,
+) ([]byte, uint64, error) {
 	if caller != driverAddress {
 		return nil, 0, geth.ErrExecutionReverted
 	}
