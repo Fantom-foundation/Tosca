@@ -10,6 +10,8 @@
 
 package vm
 
+import "fmt"
+
 //go:generate mockgen -source world_state.go -destination world_state_mock.go -package vm
 
 // WorldState is an interface to access and manipulate the state of the block chain.
@@ -62,13 +64,42 @@ type StorageStatus int
 
 // See t.ly/b5HPf for the definition of these values.
 const (
-	StorageAssigned StorageStatus = iota
-	StorageAdded
-	StorageDeleted
-	StorageModified
-	StorageDeletedAdded
-	StorageModifiedDeleted
-	StorageDeletedRestored
-	StorageAddedDeleted
-	StorageModifiedRestored
+	// The comment indicates the storage values for the corresponding
+	// configuration. X, Y, Z are non-zero numbers, distinct from each other,
+	// while 0 is zero.
+	//
+	// <original> -> <current> -> <new>
+	StorageAssigned         StorageStatus = iota
+	StorageAdded                          // 0 -> 0 -> Z
+	StorageDeleted                        // X -> X -> 0
+	StorageModified                       // X -> X -> Z
+	StorageDeletedAdded                   // X -> 0 -> Z
+	StorageModifiedDeleted                // X -> Y -> 0
+	StorageDeletedRestored                // X -> 0 -> X
+	StorageAddedDeleted                   // 0 -> Y -> 0
+	StorageModifiedRestored               // X -> Y -> X
 )
+
+func (config StorageStatus) String() string {
+	switch config {
+	case StorageAssigned:
+		return "StorageAssigned"
+	case StorageAdded:
+		return "StorageAdded"
+	case StorageAddedDeleted:
+		return "StorageAddedDeleted"
+	case StorageDeletedRestored:
+		return "StorageDeletedRestored"
+	case StorageDeletedAdded:
+		return "StorageDeletedAdded"
+	case StorageDeleted:
+		return "StorageDeleted"
+	case StorageModified:
+		return "StorageModified"
+	case StorageModifiedDeleted:
+		return "StorageModifiedDeleted"
+	case StorageModifiedRestored:
+		return "StorageModifiedRestored"
+	}
+	return fmt.Sprintf("StorageStatus(%d)", config)
+}
