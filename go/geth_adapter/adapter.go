@@ -118,7 +118,11 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	if chainConfig := a.evm.ChainConfig(); chainConfig != nil {
 		// Note: configurations need to be checked in reverse order since
 		// later revisions implicitly include earlier revisions.
-		if chainConfig.IsLondon(a.evm.Context.BlockNumber) {
+		if chainConfig.IsCancun(a.evm.Context.BlockNumber, a.evm.Context.Time) {
+			revision = vm.R13_Cancun
+		} else if chainConfig.IsShanghai(a.evm.Context.BlockNumber, a.evm.Context.Time) {
+			revision = vm.R12_Shanghai
+		} else if chainConfig.IsLondon(a.evm.Context.BlockNumber) {
 			revision = vm.R10_London
 		} else if chainConfig.IsBerlin(a.evm.Context.BlockNumber) {
 			revision = vm.R09_Berlin
