@@ -223,7 +223,6 @@ Ideally, pull requests targeting performance improvements should include such a 
 
 Code coverage of the Tosca project is a work in progress. As the different systems get integrated, more features will be added and documented here.
 Go has native support for coverage, which makes getting this metric for `lfvm` or `geth` driver runs quite simple.
-For code coverage of C++ this is not the case, hence installing a couple of external tools might be needed for this task.
 
 ### CT Driver Code coverage
 
