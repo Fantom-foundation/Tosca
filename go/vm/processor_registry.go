@@ -47,14 +47,14 @@ func GetProcessorFactory(name string) ProcessorFactory {
 	return processorRegistry[strings.ToLower(name)]
 }
 
-// GetAllRegisteredProcessors obtains all registered implementations.
+// GetAllRegisteredProcessorFactories obtains all registered implementations.
 func GetAllRegisteredProcessorFactories() map[string]ProcessorFactory {
 	processorRegistryLock.Lock()
 	defer processorRegistryLock.Unlock()
 	return maps.Clone(processorRegistry)
 }
 
-// RegisterProcessor can be used to register a new Processor implementation
+// RegisterProcessorFactory can be used to register a new Processor implementation
 // to be exported for general use in the binary. The name is not case-sensitive,
 // and a panic is triggered if an implementation was bound to the same name
 // before, or the implementation is nil. This function is mainly intended to be
