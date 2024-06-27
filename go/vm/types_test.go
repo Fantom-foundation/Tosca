@@ -12,7 +12,12 @@ package vm
 
 import (
 	"encoding/json"
+	"fmt"
+	"math"
+	"math/big"
 	"testing"
+
+	"github.com/holiman/uint256"
 )
 
 func TestAddress_NewAddress(t *testing.T) {
@@ -79,6 +84,161 @@ func TestAddress_JSON_InvalidValueDecodingFails(t *testing.T) {
 				t.Errorf("expected decoding to fail, but instead it produced %v", address)
 			}
 		})
+	}
+}
+
+func TestValue_StringProducesDecimalPrint(t *testing.T) {
+	tests := []struct {
+		value Value
+		want  string
+	}{
+		{Value{}, "0"},
+		{ValueFromUint64(1), "1"},
+		{ValueFromUint64(2), "2"},
+		{ValueFromUint64(256), "256"},
+		{ValueFromUint256(uint256.MustFromDecimal("1234567890123456789")), "1234567890123456789"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.want, func(t *testing.T) {
+			if want, got := test.want, test.value.String(); want != got {
+				t.Errorf("unexpected string conversion, wanted %v, got %v", want, got)
+			}
+		})
+	}
+}
+
+func TestValue_ToBigConversion(t *testing.T) {
+	tests := []struct {
+		value Value
+		big   *big.Int
+	}{
+		{Value{}, big.NewInt(0)},
+		{Value{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, big.NewInt(1)},
+		{Value{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}, big.NewInt(2)},
+		{Value{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 255, 255, 255, 255, 255, 255, 255}, big.NewInt(math.MaxInt64)},
+		{Value{128}, new(big.Int).Lsh(big.NewInt(1), 255)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.big.String(), func(t *testing.T) {
+			if want, got := test.big, test.value.ToBig(); want.Cmp(got) != 0 {
+				t.Errorf("unexpected big.Int conversion, wanted %v, got %v", want, got)
+			}
+		})
+	}
+}
+
+func TestValue_ToUint256Conversion(t *testing.T) {
+	tests := []struct {
+		value   Value
+		uint256 *uint256.Int
+	}{
+		{Value{}, uint256.NewInt(0)},
+		{Value{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, uint256.NewInt(1)},
+		{Value{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}, uint256.NewInt(2)},
+		{Value{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 255, 255, 255, 255, 255, 255, 255}, uint256.NewInt(math.MaxInt64)},
+		{Value{128}, new(uint256.Int).Lsh(uint256.NewInt(1), 255)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.uint256.String(), func(t *testing.T) {
+			if want, got := test.uint256, test.value.ToUint256(); want.Cmp(got) != 0 {
+				t.Errorf("unexpected uint256.Int conversion, wanted %v, got %v", want, got)
+			}
+		})
+	}
+}
+
+func TestValue_FromUint256Conversion(t *testing.T) {
+	tests := []struct {
+		uint256 *uint256.Int
+		value   Value
+	}{
+		{nil, ValueFromUint64(0)},
+		{uint256.NewInt(0), ValueFromUint64(0)},
+		{uint256.NewInt(1), ValueFromUint64(1)},
+		{uint256.NewInt(2), ValueFromUint64(2)},
+		{uint256.NewInt(math.MaxInt64), ValueFromUint64(math.MaxInt64)},
+		{new(uint256.Int).Lsh(uint256.NewInt(1), 255), Value{128}},
+	}
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%v", test.uint256), func(t *testing.T) {
+			if want, got := test.value, ValueFromUint256(test.uint256); want != got {
+				t.Errorf("unexpected Value conversion, wanted %v, got %v", want, got)
+			}
+		})
+	}
+}
+
+func TestValue_Comparison(t *testing.T) {
+	values := []Value{
+		{}, {1}, {2},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+	}
+
+	for _, a := range values {
+		for _, b := range values {
+			want := a.ToBig().Cmp(b.ToBig())
+			got := a.Cmp(b)
+			if want != got {
+				t.Errorf("unexpected comparison result for %v and %v, wanted %v, got %v", a, b, want, got)
+			}
+		}
+	}
+}
+
+func TestValue_FromUint64(t *testing.T) {
+	tests := []struct {
+		in  uint64
+		out Value
+	}{
+		{0, Value{}},
+		{1, Value{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
+		{2, Value{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}},
+		{256, Value{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0}},
+		{65536, Value{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0}},
+		{math.MaxUint64, Value{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255}},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%d", test.in), func(t *testing.T) {
+			if want, got := test.out, ValueFromUint64(test.in); want != got {
+				t.Errorf("unexpected conversion result, wanted %v, got %v", want, got)
+			}
+		})
+	}
+}
+
+func TestValue_Arithmetic(t *testing.T) {
+	values := []Value{
+		{}, {1}, {2},
+		ValueFromUint64(1), ValueFromUint64(2), ValueFromUint64(3),
+		ValueFromUint64(math.MaxInt64),
+		ValueFromUint64(math.MaxUint64),
+		{
+			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+		},
+	}
+
+	for _, a := range values {
+		for _, b := range values {
+			want := new(uint256.Int).Add(a.ToUint256(), b.ToUint256())
+			got := Add(a, b).ToUint256()
+			if want.Cmp(got) != 0 {
+				t.Errorf("unexpected addition result for %v and %v, wanted %v, got %v", a, b, want, got)
+			}
+
+			want = new(uint256.Int).Sub(a.ToUint256(), b.ToUint256())
+			got = Sub(a, b).ToUint256()
+			if want.Cmp(got) != 0 {
+				t.Errorf("unexpected subtraction result for %v and %v, wanted %v, got %v", a, b, want, got)
+			}
+		}
 	}
 }
 
