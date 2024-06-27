@@ -16,7 +16,7 @@ import (
 )
 
 func NewAddress(in U256) vm.Address {
-	return in.internal.Bytes20()
+	return in.Bytes20be()
 }
 
 func NewAddressFromInt(in uint64) vm.Address {

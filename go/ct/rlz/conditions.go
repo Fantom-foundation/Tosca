@@ -713,11 +713,8 @@ func IsAddressCold(key BindableExpression[U256]) Condition {
 }
 
 func (c *isAddressCold) Check(s *st.State) (bool, error) {
-	key, err := c.key.Eval(s)
-	if err != nil {
-		return false, err
-	}
-	return s.Accounts.IsCold(NewAddress(key)), nil
+	res, err := IsAddressWarm(c.key).Check(s)
+	return !res, err
 }
 
 func (c *isAddressCold) Restrict(generator *gen.StateGenerator) {

@@ -595,3 +595,27 @@ func TestCondition_BlobHashesProducesGetTestValues(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkCondition_IsAddressWarmCheckWarm(b *testing.B) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.Accounts.MarkWarm(NewAddress(NewU256(42)))
+	state.Stack.Push(NewU256(42))
+	condition := IsAddressWarm(Param(0))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		condition.Check(state)
+	}
+}
+
+func BenchmarkCondition_IsAddressWarmCheckCold(b *testing.B) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.Accounts.MarkWarm(NewAddress(NewU256(42)))
+	state.Stack.Push(NewU256(1))
+	condition := IsAddressWarm(Param(0))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		condition.Check(state)
+	}
+}
