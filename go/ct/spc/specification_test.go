@@ -101,6 +101,33 @@ func TestSpecification_EachRuleProducesAMatchingTestCase(t *testing.T) {
 	}
 }
 
+func TestSpecification_SstoreWithTooLittleGasProducesMatchingTestCases(t *testing.T) {
+	rnd := rand.New(0)
+	rules := Spec.GetRules()
+	filter := regexp.MustCompile("sstore_with_too_little_gas_")
+	rules = FilterRules(rules, filter)
+	if len(rules) == 0 {
+		t.Fatalf("no rule found for filter %v", filter)
+	}
+
+	rule := rules[0]
+	gen := gen.NewStateGenerator()
+	rule.Condition.Restrict(gen)
+	for i := 0; i < 1000; i++ {
+		state, err := gen.Generate(rnd)
+		if err != nil {
+			t.Fatalf("failed to generate a random state: %v", err)
+		}
+		pass, err := rule.Condition.Check(state)
+		if err != nil {
+			t.Fatalf("failed to check rule condition for %v: %v", rule.Name, err)
+		}
+		if !pass {
+			t.Fatalf("State %v \nFailed for conditions: %v\n", state, rule.Condition)
+		}
+	}
+}
+
 func TestSpecificationMap_NumberOfTests(t *testing.T) {
 	rulesMap := Spec.GetRules()
 	rules := getAllRules()

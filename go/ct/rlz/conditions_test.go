@@ -143,31 +143,31 @@ func TestCondition_UnknownNextRevisionIsNotAnyKnownIsRevision(t *testing.T) {
 }
 
 func TestCondition_CheckStorageConfiguration(t *testing.T) {
-	allConfigs := []gen.StorageCfg{
-		gen.StorageAssigned,
-		gen.StorageAdded,
-		gen.StorageAddedDeleted,
-		gen.StorageDeletedRestored,
-		gen.StorageDeletedAdded,
-		gen.StorageDeleted,
-		gen.StorageModified,
-		gen.StorageModifiedDeleted,
-		gen.StorageModifiedRestored,
+	allConfigs := []vm.StorageStatus{
+		vm.StorageAssigned,
+		vm.StorageAdded,
+		vm.StorageAddedDeleted,
+		vm.StorageDeletedRestored,
+		vm.StorageDeletedAdded,
+		vm.StorageDeleted,
+		vm.StorageModified,
+		vm.StorageModifiedDeleted,
+		vm.StorageModifiedRestored,
 	}
 
 	tests := []struct {
-		config        gen.StorageCfg
+		config        vm.StorageStatus
 		org, cur, new U256
 	}{
-		{gen.StorageAssigned, NewU256(1), NewU256(2), NewU256(3)},
-		{gen.StorageAdded, NewU256(0), NewU256(0), NewU256(1)},
-		{gen.StorageAddedDeleted, NewU256(0), NewU256(1), NewU256(0)},
-		{gen.StorageDeletedRestored, NewU256(1), NewU256(0), NewU256(1)},
-		{gen.StorageDeletedAdded, NewU256(1), NewU256(0), NewU256(2)},
-		{gen.StorageDeleted, NewU256(1), NewU256(1), NewU256(0)},
-		{gen.StorageModified, NewU256(1), NewU256(1), NewU256(2)},
-		{gen.StorageModifiedDeleted, NewU256(1), NewU256(2), NewU256(0)},
-		{gen.StorageModifiedRestored, NewU256(1), NewU256(2), NewU256(1)},
+		{vm.StorageAssigned, NewU256(1), NewU256(2), NewU256(3)},
+		{vm.StorageAdded, NewU256(0), NewU256(0), NewU256(1)},
+		{vm.StorageAddedDeleted, NewU256(0), NewU256(1), NewU256(0)},
+		{vm.StorageDeletedRestored, NewU256(1), NewU256(0), NewU256(1)},
+		{vm.StorageDeletedAdded, NewU256(1), NewU256(0), NewU256(2)},
+		{vm.StorageDeleted, NewU256(1), NewU256(1), NewU256(0)},
+		{vm.StorageModified, NewU256(1), NewU256(1), NewU256(2)},
+		{vm.StorageModifiedDeleted, NewU256(1), NewU256(2), NewU256(0)},
+		{vm.StorageModifiedRestored, NewU256(1), NewU256(2), NewU256(1)},
 	}
 
 	for _, test := range tests {

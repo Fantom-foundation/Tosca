@@ -215,7 +215,7 @@ func (g *StateGenerator) BindStackValue(pos int, v Variable) {
 }
 
 // BindStorageConfiguration wraps StorageGenerator.BindConfiguration.
-func (g *StateGenerator) BindStorageConfiguration(config StorageCfg, key, newValue Variable) {
+func (g *StateGenerator) BindStorageConfiguration(config vm.StorageStatus, key, newValue Variable) {
 	g.storageGen.BindConfiguration(config, key, newValue)
 }
 

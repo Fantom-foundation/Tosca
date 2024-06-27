@@ -12,11 +12,13 @@ package gen
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"pgregory.net/rand"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 func TestStorageGenerator_UnconstraintGeneratorCanProduceStorage(t *testing.T) {
@@ -27,7 +29,17 @@ func TestStorageGenerator_UnconstraintGeneratorCanProduceStorage(t *testing.T) {
 }
 
 func TestStorageGenerator_StorageConfigurationsAreEnforced(t *testing.T) {
-	for _, cfg := range []StorageCfg{StorageAdded, StorageAddedDeleted, StorageDeletedRestored, StorageDeletedAdded, StorageDeleted, StorageModified, StorageModifiedDeleted, StorageModifiedRestored} {
+	for _, cfg := range []vm.StorageStatus{
+		vm.StorageAssigned,
+		vm.StorageAdded,
+		vm.StorageAddedDeleted,
+		vm.StorageDeletedRestored,
+		vm.StorageDeletedAdded,
+		vm.StorageDeleted,
+		vm.StorageModified,
+		vm.StorageModifiedDeleted,
+		vm.StorageModifiedRestored,
+	} {
 		vKey := Variable("key")
 		vNewValue := Variable("newValue")
 
@@ -46,21 +58,21 @@ func TestStorageGenerator_StorageConfigurationsAreEnforced(t *testing.T) {
 
 		fail := false
 		switch cfg {
-		case StorageAdded:
+		case vm.StorageAdded:
 			fail = !org.IsZero() || !cur.IsZero() || new.IsZero()
-		case StorageAddedDeleted:
+		case vm.StorageAddedDeleted:
 			fail = !org.IsZero() || cur.IsZero() || !new.IsZero()
-		case StorageDeletedRestored:
+		case vm.StorageDeletedRestored:
 			fail = org.IsZero() || !cur.IsZero() || !org.Eq(new)
-		case StorageDeletedAdded:
+		case vm.StorageDeletedAdded:
 			fail = org.IsZero() || !cur.IsZero() || new.IsZero() || org.Eq(new)
-		case StorageDeleted:
+		case vm.StorageDeleted:
 			fail = org.IsZero() || !cur.Eq(org) || !new.IsZero()
-		case StorageModified:
+		case vm.StorageModified:
 			fail = org.IsZero() || !cur.Eq(org) || new.IsZero() || new.Eq(cur)
-		case StorageModifiedDeleted:
+		case vm.StorageModifiedDeleted:
 			fail = org.IsZero() || cur.IsZero() || org.Eq(cur) || !new.IsZero()
-		case StorageModifiedRestored:
+		case vm.StorageModifiedRestored:
 			fail = org.IsZero() || cur.IsZero() || org.Eq(cur) || !org.Eq(new)
 		}
 
@@ -75,8 +87,8 @@ func TestStorageGenerator_ConflictingStorageConfigurationsAreDetected(t *testing
 	v2 := Variable("v2")
 
 	generator := NewStorageGenerator()
-	generator.BindConfiguration(StorageDeleted, v1, v2)
-	generator.BindConfiguration(StorageAdded, v1, v2)
+	generator.BindConfiguration(vm.StorageDeleted, v1, v2)
+	generator.BindConfiguration(vm.StorageAdded, v1, v2)
 
 	_, err := generator.Generate(nil, rand.New(0))
 	if !errors.Is(err, ErrUnsatisfiable) {
@@ -122,7 +134,7 @@ func TestStorageGenerator_AssignmentIsUpdated(t *testing.T) {
 	assignment := Assignment{}
 
 	generator := NewStorageGenerator()
-	generator.BindConfiguration(StorageModified, v1, v2)
+	generator.BindConfiguration(vm.StorageModified, v1, v2)
 	_, err := generator.Generate(assignment, rand.New(0))
 	if err != nil {
 		t.Fatal(err)
@@ -141,7 +153,7 @@ func TestStorageGenerator_ClonesAreEqual(t *testing.T) {
 	v2 := Variable("v2")
 
 	original := NewStorageGenerator()
-	original.BindConfiguration(StorageModified, v1, v2)
+	original.BindConfiguration(vm.StorageModified, v1, v2)
 	original.BindWarm(v2)
 
 	clone := original.Clone()
@@ -158,15 +170,15 @@ func TestStorageGenerator_ClonesAreIndependent(t *testing.T) {
 	v4 := Variable("v4")
 
 	base := NewStorageGenerator()
-	base.BindConfiguration(StorageAdded, v1, v2)
+	base.BindConfiguration(vm.StorageAdded, v1, v2)
 	base.BindWarm(v2)
 
 	clone1 := base.Clone()
-	clone1.BindConfiguration(StorageDeleted, v3, v4)
+	clone1.BindConfiguration(vm.StorageDeleted, v3, v4)
 	clone1.BindWarm(v4)
 
 	clone2 := base.Clone()
-	clone2.BindConfiguration(StorageModifiedRestored, v3, v4)
+	clone2.BindConfiguration(vm.StorageModifiedRestored, v3, v4)
 	clone2.BindCold(v4)
 
 	want := "{cfg[$v1]=(StorageAdded,$v2),cfg[$v3]=(StorageDeleted,$v4),warm($v2),warm($v4)}"
@@ -186,12 +198,12 @@ func TestStorageGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	v3 := Variable("v3")
 
 	generator := NewStorageGenerator()
-	generator.BindConfiguration(StorageDeleted, v1, v2)
+	generator.BindConfiguration(vm.StorageDeleted, v1, v2)
 	generator.BindWarm(v1)
 
 	backup := generator.Clone()
 
-	generator.BindConfiguration(StorageModified, v2, v3)
+	generator.BindConfiguration(vm.StorageModified, v2, v3)
 	generator.BindWarm(v2)
 
 	want := "{cfg[$v1]=(StorageDeleted,$v2),cfg[$v2]=(StorageModified,$v3),warm($v1),warm($v2)}"
@@ -203,5 +215,133 @@ func TestStorageGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 
 	if want, got := "{cfg[$v1]=(StorageDeleted,$v2),warm($v1)}", generator.String(); got != want {
 		t.Errorf("invalid clone, wanted \n%s\n\tgot\n%s", want, got)
+	}
+}
+
+func TestStorageGenerator_StorageAssignedCanBeSatisfied(t *testing.T) {
+	key := Variable("key")
+	newValue := Variable("newValue")
+	generator := NewStorageGenerator()
+	generator.BindConfiguration(vm.StorageAssigned, key, newValue)
+
+	assignment := Assignment{}
+
+	for i := 0; i < 100; i++ {
+
+		storage, err := generator.Generate(assignment, rand.New(0))
+		if err != nil {
+			t.Fatal(err)
+		}
+		storageOriginal := storage.GetOriginal(assignment[key])
+		storageCurrent := storage.GetCurrent(assignment[key])
+		storageNew := assignment[newValue]
+
+		got := vm.GetStorageStatus(vm.Word(storageOriginal.Bytes32be()), vm.Word(storageCurrent.Bytes32be()), vm.Word(storageNew.Bytes32be()))
+		want := vm.StorageAssigned
+
+		if got != want {
+			t.Fatalf("unexpected storage status, got original: %v, current: %v, new: %v", storageOriginal, storageCurrent, storageNew)
+		}
+	}
+}
+
+func TestStorageGenerator_CheckStorageStatusConfig(t *testing.T) {
+
+	tests := map[string]struct {
+		original U256
+		current  U256
+		new      U256
+		want     vm.StorageStatus
+	}{
+		"StorageAssigned": {
+			original: NewU256(0),
+			current:  NewU256(0),
+			new:      NewU256(0),
+			want:     vm.StorageAssigned,
+		},
+		"StorageAdded": {
+			original: NewU256(0),
+			current:  NewU256(0),
+			new:      NewU256(1),
+			want:     vm.StorageAdded,
+		},
+		"StorageDeleted": {
+			original: NewU256(1),
+			current:  NewU256(1),
+			new:      NewU256(0),
+			want:     vm.StorageDeleted,
+		},
+		"StorageModified": {
+			original: NewU256(1),
+			current:  NewU256(1),
+			new:      NewU256(2),
+			want:     vm.StorageModified,
+		},
+		"StorageDeletedAdded": {
+			original: NewU256(1),
+			current:  NewU256(0),
+			new:      NewU256(2),
+			want:     vm.StorageDeletedAdded,
+		},
+		"StorageModifiedDeleted": {
+			original: NewU256(1),
+			current:  NewU256(2),
+			new:      NewU256(0),
+			want:     vm.StorageModifiedDeleted,
+		},
+		"StorageDeletedRestored": {
+			original: NewU256(1),
+			current:  NewU256(0),
+			new:      NewU256(1),
+			want:     vm.StorageDeletedRestored,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if !CheckStorageStatusConfig(test.want, test.original, test.current, test.new) {
+				t.Fatalf("unexpected storage status, got original: %v, current: %v, new: %v. but wanted: %v",
+					test.original, test.current, test.new, test.want)
+			}
+		})
+	}
+}
+
+func TestStorageGenerator_NewValueMustBeZeroMustNotBeZero(t *testing.T) {
+
+	allConfigs := []vm.StorageStatus{
+		vm.StorageAssigned,
+		vm.StorageAdded,
+		vm.StorageDeleted,
+		vm.StorageModified,
+		vm.StorageDeletedAdded,
+		vm.StorageModifiedDeleted,
+		vm.StorageDeletedRestored,
+		vm.StorageAddedDeleted,
+		vm.StorageModifiedRestored,
+	}
+	mustBeZeroConfigs := []vm.StorageStatus{
+		vm.StorageAddedDeleted,
+		vm.StorageDeleted,
+		vm.StorageModifiedDeleted,
+	}
+	mustNotBeZeroConfigs := []vm.StorageStatus{
+		vm.StorageAssigned,
+		vm.StorageAdded,
+		vm.StorageDeletedRestored,
+		vm.StorageDeletedAdded,
+		vm.StorageModified,
+		vm.StorageModifiedRestored,
+	}
+
+	for _, cfg := range allConfigs {
+		t.Run(cfg.String(), func(t *testing.T) {
+			if NewValueMustBeZero(cfg) != slices.Contains(mustBeZeroConfigs, cfg) {
+				t.Fatalf("unexpected result for NewValueMustBeZero(%v)", cfg)
+			}
+			if NewValueMustNotBeZero(cfg) != slices.Contains(mustNotBeZeroConfigs, cfg) {
+				t.Fatalf("unexpected result for NewValueMustNotBeZero(%v)", cfg)
+			}
+		})
 	}
 }

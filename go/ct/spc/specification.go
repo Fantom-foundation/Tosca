@@ -17,7 +17,6 @@ import (
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/vm"
@@ -488,63 +487,63 @@ func getAllRules() []Rule {
 	// --- SSTORE ---
 
 	sstoreRules := []sstoreOpParams{
-		{revision: R07_Istanbul, config: gen.StorageAssigned, gasCost: 800},
-		{revision: R07_Istanbul, config: gen.StorageAdded, gasCost: 20000},
-		{revision: R07_Istanbul, config: gen.StorageAddedDeleted, gasCost: 800, gasRefund: 19200},
-		{revision: R07_Istanbul, config: gen.StorageDeletedRestored, gasCost: 800, gasRefund: -10800},
-		{revision: R07_Istanbul, config: gen.StorageDeletedAdded, gasCost: 800, gasRefund: -15000},
-		{revision: R07_Istanbul, config: gen.StorageDeleted, gasCost: 5000, gasRefund: 15000},
-		{revision: R07_Istanbul, config: gen.StorageModified, gasCost: 5000},
-		{revision: R07_Istanbul, config: gen.StorageModifiedDeleted, gasCost: 800, gasRefund: 15000},
-		{revision: R07_Istanbul, config: gen.StorageModifiedRestored, gasCost: 800, gasRefund: 4200},
+		{revision: R07_Istanbul, config: vm.StorageAssigned, gasCost: 800},
+		{revision: R07_Istanbul, config: vm.StorageAdded, gasCost: 20000},
+		{revision: R07_Istanbul, config: vm.StorageAddedDeleted, gasCost: 800, gasRefund: 19200},
+		{revision: R07_Istanbul, config: vm.StorageDeletedRestored, gasCost: 800, gasRefund: -10800},
+		{revision: R07_Istanbul, config: vm.StorageDeletedAdded, gasCost: 800, gasRefund: -15000},
+		{revision: R07_Istanbul, config: vm.StorageDeleted, gasCost: 5000, gasRefund: 15000},
+		{revision: R07_Istanbul, config: vm.StorageModified, gasCost: 5000},
+		{revision: R07_Istanbul, config: vm.StorageModifiedDeleted, gasCost: 800, gasRefund: 15000},
+		{revision: R07_Istanbul, config: vm.StorageModifiedRestored, gasCost: 800, gasRefund: 4200},
 
 		// Certain storage configurations imply warm access. Not all
 		// combinations are possible; invalid ones are marked below.
 
-		// {revision: R09_Berlin, warm: false, config: gen.StorageAssigned, gasCost: 2200}, // invalid
-		{revision: R09_Berlin, warm: false, config: gen.StorageAdded, gasCost: 22100},
-		// {revision: R09_Berlin, warm: false, config: gen.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},     // invalid
-		// {revision: R09_Berlin, warm: false, config: gen.StorageDeletedRestored, gasCost: 2200, gasRefund: -10800}, // invalid
-		// {revision: R09_Berlin, warm: false, config: gen.StorageDeletedAdded, gasCost: 2200, gasRefund: -15000},    // invalid
-		{revision: R09_Berlin, warm: false, config: gen.StorageDeleted, gasCost: 5000, gasRefund: 15000},
-		{revision: R09_Berlin, warm: false, config: gen.StorageModified, gasCost: 5000},
-		// {revision: R09_Berlin, warm: false, config: gen.StorageModifiedDeleted, gasCost: 2200, gasRefund: 15000}, // invalid
-		// {revision: R09_Berlin, warm: false, config: gen.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
+		// {revision: R09_Berlin, warm: false, config: vm.StorageAssigned, gasCost: 2200}, // invalid
+		{revision: R09_Berlin, warm: false, config: vm.StorageAdded, gasCost: 22100},
+		// {revision: R09_Berlin, warm: false, config: vm.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},     // invalid
+		// {revision: R09_Berlin, warm: false, config: vm.StorageDeletedRestored, gasCost: 2200, gasRefund: -10800}, // invalid
+		// {revision: R09_Berlin, warm: false, config: vm.StorageDeletedAdded, gasCost: 2200, gasRefund: -15000},    // invalid
+		{revision: R09_Berlin, warm: false, config: vm.StorageDeleted, gasCost: 5000, gasRefund: 15000},
+		{revision: R09_Berlin, warm: false, config: vm.StorageModified, gasCost: 5000},
+		// {revision: R09_Berlin, warm: false, config: vm.StorageModifiedDeleted, gasCost: 2200, gasRefund: 15000}, // invalid
+		// {revision: R09_Berlin, warm: false, config: vm.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
 
-		{revision: R09_Berlin, warm: true, config: gen.StorageAssigned, gasCost: 100},
-		{revision: R09_Berlin, warm: true, config: gen.StorageAdded, gasCost: 20000},
-		{revision: R09_Berlin, warm: true, config: gen.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
-		{revision: R09_Berlin, warm: true, config: gen.StorageDeletedRestored, gasCost: 100, gasRefund: -12200},
-		{revision: R09_Berlin, warm: true, config: gen.StorageDeletedAdded, gasCost: 100, gasRefund: -15000},
-		{revision: R09_Berlin, warm: true, config: gen.StorageDeleted, gasCost: 2900, gasRefund: 15000},
-		{revision: R09_Berlin, warm: true, config: gen.StorageModified, gasCost: 2900},
-		{revision: R09_Berlin, warm: true, config: gen.StorageModifiedDeleted, gasCost: 100, gasRefund: 15000},
-		{revision: R09_Berlin, warm: true, config: gen.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
+		{revision: R09_Berlin, warm: true, config: vm.StorageAssigned, gasCost: 100},
+		{revision: R09_Berlin, warm: true, config: vm.StorageAdded, gasCost: 20000},
+		{revision: R09_Berlin, warm: true, config: vm.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
+		{revision: R09_Berlin, warm: true, config: vm.StorageDeletedRestored, gasCost: 100, gasRefund: -12200},
+		{revision: R09_Berlin, warm: true, config: vm.StorageDeletedAdded, gasCost: 100, gasRefund: -15000},
+		{revision: R09_Berlin, warm: true, config: vm.StorageDeleted, gasCost: 2900, gasRefund: 15000},
+		{revision: R09_Berlin, warm: true, config: vm.StorageModified, gasCost: 2900},
+		{revision: R09_Berlin, warm: true, config: vm.StorageModifiedDeleted, gasCost: 100, gasRefund: 15000},
+		{revision: R09_Berlin, warm: true, config: vm.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
 	}
 
 	for rev := R10_London; rev <= NewestSupportedRevision; rev++ {
 		// Certain storage configurations imply warm access. Not all
 		// combinations are possible; invalid ones are marked below.
 		sstoreRules = append(sstoreRules, []sstoreOpParams{
-			// {revision: rev, warm: false, config: gen.StorageAssigned, gasCost: 2200}, // invalid
-			{revision: rev, warm: false, config: gen.StorageAdded, gasCost: 22100},
-			// {revision: rev, warm: false, config: gen.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},  // invalid
-			// {revision: rev, warm: false, config: gen.StorageDeletedRestored, gasCost: 2200, gasRefund: 100}, // invalid
-			// {revision: rev, warm: false, config: gen.StorageDeletedAdded, gasCost: 2200, gasRefund: -4800},  // invalid
-			{revision: rev, warm: false, config: gen.StorageDeleted, gasCost: 5000, gasRefund: 4800},
-			{revision: rev, warm: false, config: gen.StorageModified, gasCost: 5000},
-			// {revision: rev, warm: false, config: gen.StorageModifiedDeleted, gasCost: 2200, gasRefund: 4800},  // invalid
-			// {revision: rev, warm: false, config: gen.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
+			// {revision: rev, warm: false, config: vm.StorageAssigned, gasCost: 2200}, // invalid
+			{revision: rev, warm: false, config: vm.StorageAdded, gasCost: 22100},
+			// {revision: rev, warm: false, config: vm.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},  // invalid
+			// {revision: rev, warm: false, config: vm.StorageDeletedRestored, gasCost: 2200, gasRefund: 100}, // invalid
+			// {revision: rev, warm: false, config: vm.StorageDeletedAdded, gasCost: 2200, gasRefund: -4800},  // invalid
+			{revision: rev, warm: false, config: vm.StorageDeleted, gasCost: 5000, gasRefund: 4800},
+			{revision: rev, warm: false, config: vm.StorageModified, gasCost: 5000},
+			// {revision: rev, warm: false, config: vm.StorageModifiedDeleted, gasCost: 2200, gasRefund: 4800},  // invalid
+			// {revision: rev, warm: false, config: vm.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
 
-			{revision: rev, warm: true, config: gen.StorageAssigned, gasCost: 100},
-			{revision: rev, warm: true, config: gen.StorageAdded, gasCost: 20000},
-			{revision: rev, warm: true, config: gen.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
-			{revision: rev, warm: true, config: gen.StorageDeletedRestored, gasCost: 100, gasRefund: -2000},
-			{revision: rev, warm: true, config: gen.StorageDeletedAdded, gasCost: 100, gasRefund: -4800},
-			{revision: rev, warm: true, config: gen.StorageDeleted, gasCost: 2900, gasRefund: 4800},
-			{revision: rev, warm: true, config: gen.StorageModified, gasCost: 2900},
-			{revision: rev, warm: true, config: gen.StorageModifiedDeleted, gasCost: 100, gasRefund: 4800},
-			{revision: rev, warm: true, config: gen.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
+			{revision: rev, warm: true, config: vm.StorageAssigned, gasCost: 100},
+			{revision: rev, warm: true, config: vm.StorageAdded, gasCost: 20000},
+			{revision: rev, warm: true, config: vm.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
+			{revision: rev, warm: true, config: vm.StorageDeletedRestored, gasCost: 100, gasRefund: -2000},
+			{revision: rev, warm: true, config: vm.StorageDeletedAdded, gasCost: 100, gasRefund: -4800},
+			{revision: rev, warm: true, config: vm.StorageDeleted, gasCost: 2900, gasRefund: 4800},
+			{revision: rev, warm: true, config: vm.StorageModified, gasCost: 2900},
+			{revision: rev, warm: true, config: vm.StorageModifiedDeleted, gasCost: 100, gasRefund: 4800},
+			{revision: rev, warm: true, config: vm.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
 		}...)
 	}
 
@@ -1967,7 +1966,7 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 type sstoreOpParams struct {
 	revision  Revision
 	warm      bool
-	config    gen.StorageCfg
+	config    vm.StorageStatus
 	gasCost   vm.Gas
 	gasRefund vm.Gas
 }

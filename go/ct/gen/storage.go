@@ -20,6 +20,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 )
 
 type StorageGenerator struct {
@@ -28,7 +29,7 @@ type StorageGenerator struct {
 }
 
 type storageConfigConstraint struct {
-	config   StorageCfg
+	config   vm.StorageStatus
 	key      Variable
 	newValue Variable
 }
@@ -43,92 +44,29 @@ func (a *storageConfigConstraint) Less(b *storageConfigConstraint) bool {
 	return a.newValue < b.newValue
 }
 
-type StorageCfg int
-
-const (
-	StorageAssigned StorageCfg = iota
-
-	// The comment indicates the storage values for the corresponding
-	// configuration. X, Y, Z are non-zero numbers, distinct from each other,
-	// while 0 is zero.
-	//
-	// <original> -> <current> -> <new>
-	StorageAdded            // 0 -> 0 -> Z
-	StorageAddedDeleted     // 0 -> Y -> 0
-	StorageDeletedRestored  // X -> 0 -> X
-	StorageDeletedAdded     // X -> 0 -> Z
-	StorageDeleted          // X -> X -> 0
-	StorageModified         // X -> X -> Z
-	StorageModifiedDeleted  // X -> Y -> 0
-	StorageModifiedRestored // X -> Y -> X
-)
-
-func (config StorageCfg) String() string {
-	switch config {
-	case StorageAssigned:
-		return "StorageAssigned"
-	case StorageAdded:
-		return "StorageAdded"
-	case StorageAddedDeleted:
-		return "StorageAddedDeleted"
-	case StorageDeletedRestored:
-		return "StorageDeletedRestored"
-	case StorageDeletedAdded:
-		return "StorageDeletedAdded"
-	case StorageDeleted:
-		return "StorageDeleted"
-	case StorageModified:
-		return "StorageModified"
-	case StorageModifiedDeleted:
-		return "StorageModifiedDeleted"
-	case StorageModifiedRestored:
-		return "StorageModifiedRestored"
-	}
-	return fmt.Sprintf("StorageCfg(%d)", config)
-}
-
 // Check checks if the given storage configuration (org,cur,new) corresponds to
 // the wanted config.
-func (config StorageCfg) Check(org, cur, new U256) bool {
-	if org.IsZero() && cur.IsZero() && !new.IsZero() {
-		return config == StorageAdded
-	}
-	if !org.IsZero() && cur.Eq(org) && new.IsZero() {
-		return config == StorageDeleted
-	}
-	if !org.IsZero() && cur.Eq(org) && !new.IsZero() {
-		return config == StorageModified
-	}
-	if !org.IsZero() && cur.IsZero() && !new.IsZero() && !new.Eq(org) {
-		return config == StorageDeletedAdded
-	}
-	if !org.IsZero() && !cur.IsZero() && !cur.Eq(org) && new.IsZero() {
-		return config == StorageModifiedDeleted
-	}
-	if !org.IsZero() && cur.IsZero() && new.Eq(org) {
-		return config == StorageDeletedRestored
-	}
-	if org.IsZero() && !cur.IsZero() && new.IsZero() {
-		return config == StorageAddedDeleted
-	}
-	if !org.IsZero() && !cur.IsZero() && !cur.Eq(org) && new.Eq(org) {
-		return config == StorageModifiedRestored
-	}
-	return config == StorageAssigned
+func CheckStorageStatusConfig(config vm.StorageStatus, org, cur, new U256) bool {
+	return config == vm.GetStorageStatus(
+		vm.Word(org.Bytes32be()),
+		vm.Word(cur.Bytes32be()),
+		vm.Word(new.Bytes32be()),
+	)
 }
 
-func (config StorageCfg) NewValueMustBeZero() bool {
-	return config == StorageAddedDeleted ||
-		config == StorageDeleted ||
-		config == StorageModifiedDeleted
+func NewValueMustBeZero(config vm.StorageStatus) bool {
+	return config == vm.StorageAddedDeleted ||
+		config == vm.StorageDeleted ||
+		config == vm.StorageModifiedDeleted
 }
 
-func (config StorageCfg) NewValueMustNotBeZero() bool {
-	return config == StorageAdded ||
-		config == StorageDeletedRestored ||
-		config == StorageDeletedAdded ||
-		config == StorageModified ||
-		config == StorageModifiedRestored
+func NewValueMustNotBeZero(config vm.StorageStatus) bool {
+	return config == vm.StorageAssigned ||
+		config == vm.StorageAdded ||
+		config == vm.StorageDeletedRestored ||
+		config == vm.StorageDeletedAdded ||
+		config == vm.StorageModified ||
+		config == vm.StorageModifiedRestored
 }
 
 type warmColdConstraint struct {
@@ -147,7 +85,7 @@ func NewStorageGenerator() *StorageGenerator {
 	return &StorageGenerator{}
 }
 
-func (g *StorageGenerator) BindConfiguration(config StorageCfg, key, newValue Variable) {
+func (g *StorageGenerator) BindConfiguration(config vm.StorageStatus, key, newValue Variable) {
 	v := storageConfigConstraint{config, key, newValue}
 	if !slices.Contains(g.cfg, v) {
 		g.cfg = append(g.cfg, v)
@@ -236,15 +174,15 @@ func (g *StorageGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.
 		newValue, isBound := assignment[con.newValue]
 		if isBound {
 			// Check for conflict!
-			if (newValue.IsZero() && con.config.NewValueMustNotBeZero()) ||
-				(!newValue.IsZero() && con.config.NewValueMustBeZero()) {
+			if (newValue.IsZero() && NewValueMustNotBeZero(con.config)) ||
+				(!newValue.IsZero() && NewValueMustBeZero(con.config)) {
 				return nil, fmt.Errorf("%w, assignment for %v is incompatible with storage config %v", ErrUnsatisfiable, con.newValue, con.config)
 			}
 		} else {
 			// Pick a suitable newValue.
-			if con.config.NewValueMustBeZero() {
+			if NewValueMustBeZero(con.config) {
 				newValue = NewU256(0)
-			} else if con.config.NewValueMustNotBeZero() {
+			} else if NewValueMustNotBeZero(con.config) {
 				newValue = randValueButNot(NewU256(0))
 			} else {
 				if rnd.Intn(5) == 0 {
@@ -258,27 +196,27 @@ func (g *StorageGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.
 
 		orgValue, curValue := NewU256(0), NewU256(0)
 		switch con.config {
-		case StorageAdded:
+		case vm.StorageAdded:
 			orgValue, curValue = NewU256(0), NewU256(0)
-		case StorageAddedDeleted:
+		case vm.StorageAddedDeleted:
 			curValue = randValueButNot(NewU256(0))
-		case StorageDeletedRestored:
+		case vm.StorageDeletedRestored:
 			orgValue = newValue
-		case StorageDeletedAdded:
+		case vm.StorageDeletedAdded:
 			orgValue = randValueButNot(NewU256(0), newValue)
-		case StorageDeleted:
+		case vm.StorageDeleted:
 			orgValue = randValueButNot(NewU256(0))
 			curValue = orgValue
-		case StorageModified:
+		case vm.StorageModified:
 			orgValue = randValueButNot(NewU256(0), newValue)
 			curValue = orgValue
-		case StorageModifiedDeleted:
+		case vm.StorageModifiedDeleted:
 			orgValue = randValueButNot(NewU256(0))
 			curValue = randValueButNot(NewU256(0), orgValue)
-		case StorageModifiedRestored:
+		case vm.StorageModifiedRestored:
 			orgValue = newValue
 			curValue = randValueButNot(NewU256(0), orgValue)
-		case StorageAssigned:
+		case vm.StorageAssigned:
 			// Technically, there are more configurations than this one which
 			// satisfy StorageAssigned; but this should do for now.
 			orgValue = randValueButNot(NewU256(0), newValue)
