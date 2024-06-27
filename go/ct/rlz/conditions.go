@@ -881,3 +881,86 @@ func (c *outOfRange256FromCurrentBlock) String() string {
 }
 
 ////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+// index Has a blob hash
+
+type hasBlobHash struct {
+	index BindableExpression[U256]
+}
+
+func HasBlobHash(blockNumber BindableExpression[U256]) Condition {
+	return &hasBlobHash{blockNumber}
+}
+
+func (c *hasBlobHash) Check(s *st.State) (bool, error) {
+	paramBlockNumber, err := c.index.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	if !paramBlockNumber.IsUint64() {
+		return false, nil
+	}
+	uintParam := paramBlockNumber.Uint64()
+	return uintParam < uint64(len(s.TransactionContext.BlobHashes)), nil
+}
+
+func (c *hasBlobHash) Restrict(generator *gen.StateGenerator) {
+	paramVariable := c.index.GetVariable()
+	c.index.BindTo(generator)
+	generator.IsPresentBlobHashIndex(paramVariable)
+}
+
+func (c *hasBlobHash) GetTestValues() []TestValue {
+	property := Property(c.String())
+	domain := boolDomain{}
+	restrict := func(generator *gen.StateGenerator, hasBlobHash bool) {
+		paramVariable := c.index.GetVariable()
+		c.index.BindTo(generator)
+		if hasBlobHash {
+			generator.IsPresentBlobHashIndex(paramVariable)
+		} else {
+			generator.IsAbsentBlobHashIndex(paramVariable)
+		}
+	}
+	testValues := []TestValue{
+		NewTestValue(property, domain, true, restrict),
+		NewTestValue(property, domain, false, restrict),
+	}
+	return testValues
+}
+
+func (c *hasBlobHash) String() string {
+	return fmt.Sprintf("%v has BlobHash", c.index.String())
+}
+
+////////////////////////////////////////////////////////////
+// index does not have a blob hash
+
+type hasNoBlobHash struct {
+	index BindableExpression[U256]
+}
+
+func HasNoBlobHash(index BindableExpression[U256]) Condition {
+	return &hasNoBlobHash{index}
+}
+
+func (c *hasNoBlobHash) Check(s *st.State) (bool, error) {
+	res, err := HasBlobHash(c.index).Check(s)
+	return !res, err
+}
+
+func (c *hasNoBlobHash) Restrict(generator *gen.StateGenerator) {
+	paramVariable := c.index.GetVariable()
+	c.index.BindTo(generator)
+	generator.IsAbsentBlobHashIndex(paramVariable)
+}
+
+func (c *hasNoBlobHash) GetTestValues() []TestValue {
+	return HasBlobHash(c.index).GetTestValues()
+}
+
+func (c *hasNoBlobHash) String() string {
+	return fmt.Sprintf("%v does not have BlobHash", c.index.String())
+}
+
+////////////////////////////////////////////////////////////

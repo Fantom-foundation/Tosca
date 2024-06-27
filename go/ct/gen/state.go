@@ -269,6 +269,14 @@ func (g *StateGenerator) SetBlockNumberOffsetValue(variable Variable, value int6
 	g.blockContextGen.SetBlockNumberOffsetValue(variable, value)
 }
 
+func (g *StateGenerator) IsPresentBlobHashIndex(variable Variable) {
+	g.transactionContextGen.IsPresentBlobHashIndex(variable)
+}
+
+func (g *StateGenerator) IsAbsentBlobHashIndex(variable Variable) {
+	g.transactionContextGen.IsAbsentBlobHashIndex(variable)
+}
+
 func getRandomData(rnd *rand.Rand) ([]byte, error) {
 	size := uint(rnd.ExpFloat64() * float64(200))
 	if size > st.MaxDataSize {
@@ -372,12 +380,6 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, err
 	}
 
-	// Invoke TransactionContextGenerator
-	resultTransactionContext, err := g.transactionContextGen.Generate(rnd)
-	if err != nil {
-		return nil, err
-	}
-
 	resultCallJournal, err := g.callJournalGen.Generate(rnd)
 	if err != nil {
 		return nil, err
@@ -428,6 +430,12 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 
 	// Invoke MemoryGenerator
 	resultMemory, err := g.memoryGen.Generate(rnd)
+	if err != nil {
+		return nil, err
+	}
+
+	// Invoke TransactionContextGenerator
+	resultTransactionContext, err := g.transactionContextGen.Generate(assignment, rnd)
 	if err != nil {
 		return nil, err
 	}

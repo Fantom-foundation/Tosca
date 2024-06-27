@@ -68,12 +68,9 @@ func TestTransactionContext_String(t *testing.T) {
 
 func TestTransactionContext_Clone(t *testing.T) {
 
-	baseAddress := vm.Address{1, 2, 3, 4}
-	baseHash := vm.Hash{1, 2, 3, 4}
-
 	t1 := TransactionContext{
-		OriginAddress: baseAddress,
-		BlobHashes:    []vm.Hash{baseHash},
+		OriginAddress: vm.Address{1, 2, 3, 4},
+		BlobHashes:    []vm.Hash{{1, 2, 3, 4}},
 	}
 
 	t2 := t1.Clone()

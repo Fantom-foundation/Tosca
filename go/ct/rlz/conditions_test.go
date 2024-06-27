@@ -17,6 +17,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/vm"
 	"pgregory.net/rand"
 )
 
@@ -459,6 +460,137 @@ func TestCondition_RestrictTransientStorageAndCheck(t *testing.T) {
 			}
 			if checked, err := test.Check(state); err != nil || !checked {
 				t.Errorf("failed to check condition: %v", err)
+			}
+		})
+	}
+}
+
+func TestCondition_BlobHashes_Restrict(t *testing.T) {
+	rnd := rand.New()
+
+	tests := map[string]struct {
+		condition Condition
+	}{
+		"hasBlobHash":    {condition: HasBlobHash(Param(0))},
+		"hasNotBlobHash": {condition: HasNoBlobHash(Param(0))},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			for i := 0; i < 1000; i++ {
+				gen := gen.NewStateGenerator()
+				test.condition.Restrict(gen)
+				state, err := gen.Generate(rnd)
+				if err != nil {
+					t.Fatalf("failed to build state: %v", err)
+				}
+				if checked, err := test.condition.Check(state); err != nil || !checked {
+					t.Errorf("failed to check condition: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestCondition_BlobHashes_check(t *testing.T) {
+	tests := map[string]struct {
+		condition Condition
+		setup     func(*st.State)
+	}{
+		"hasBlobHash": {
+			condition: HasBlobHash(Param(0)),
+			setup: func(state *st.State) {
+				state.TransactionContext.BlobHashes = []vm.Hash{{0}}
+				state.Stack.Push(NewU256(0))
+			},
+		},
+		"hasNotBlobHash": {
+			condition: HasNoBlobHash(Param(0)),
+			setup: func(state *st.State) {
+				state.TransactionContext.BlobHashes = []vm.Hash{{0}}
+				state.Stack.Push(NewU256(1))
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			for i := 0; i < 1000; i++ {
+				state := st.NewState(st.NewCode([]byte{}))
+				test.setup(state)
+
+				if checked, err := test.condition.Check(state); err != nil || !checked {
+					t.Errorf("failed to check condition: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestCondition_ConflictingBlobHashesConditionsProduceUnsatisfiableGenerator(t *testing.T) {
+	tests := map[string]struct {
+		condition Condition
+		setup     func(*st.State)
+	}{
+		"hasBlobHash-first": {
+			condition: And(HasBlobHash(Param(0)), HasNoBlobHash(Param(0))),
+			setup: func(state *st.State) {
+				state.Stack.Push(NewU256(0))
+			},
+		},
+		"hasNoBlobHash-first": {
+			condition: And(HasNoBlobHash(Param(0)), HasBlobHash(Param(0))),
+			setup: func(state *st.State) {
+				state.Stack.Push(NewU256(0))
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			state := st.NewState(st.NewCode([]byte{}))
+			test.setup(state)
+
+			gen := gen.NewStateGenerator()
+			test.condition.Restrict(gen)
+			_, err := gen.Generate(rand.New(0))
+			if err == nil {
+				t.Errorf("expected unsatisfiable condition")
+			}
+		})
+	}
+}
+
+func TestCondition_BlobHashesProducesGetTestValues(t *testing.T) {
+	tests := map[string]Condition{
+		"hasBlobHash":   HasBlobHash(Param(0)),
+		"hasNoBlobHash": HasNoBlobHash(Param(0)),
+	}
+
+	for name, condition := range tests {
+		t.Run(name, func(t *testing.T) {
+			var matchCovered, failCovered bool
+			for _, value := range condition.GetTestValues() {
+				gen := gen.NewStateGenerator()
+				value.Restrict(gen)
+				state, err := gen.Generate(rand.New(0))
+				if err != nil {
+					t.Fatalf("failed to build state: %v", err)
+				}
+				if matches, err := condition.Check(state); err != nil {
+					t.Errorf("failed to check condition: %v", err)
+				} else if matches {
+					matchCovered = true
+				} else {
+					failCovered = true
+				}
+			}
+			if !matchCovered {
+				t.Errorf("no test value matched the condition")
+			}
+			if !failCovered {
+				t.Errorf("no test value failed the condition")
 			}
 		})
 	}
