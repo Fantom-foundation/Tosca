@@ -37,7 +37,7 @@ evmone:
 	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so ; \
 	cmake --build build --parallel -t evmone
 
-coverage-go: TOSCA_GO_COVERAGE_DIR=./go/build/coverage_report/${TOSCA_GO_COVERAGE_EVM}
+coverage-go: TOSCA_GO_COVERAGE_DIR=./go/build/coverage/${TOSCA_GO_COVERAGE_EVM}
 coverage-go:
 	go build -cover -o ${TOSCA_GO_COVERAGE_DIR}/driver ./go/ct/driver/ ; \
 	GOCOVERDIR=${TOSCA_GO_COVERAGE_DIR} ${TOSCA_GO_COVERAGE_DIR}/driver run --max-errors 1 ${TOSCA_GO_COVERAGE_EVM} ; \
