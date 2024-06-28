@@ -404,6 +404,18 @@ func (mr *MockRunContextMockRecorder) SetBalance(arg0, arg1 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBalance", reflect.TypeOf((*MockRunContext)(nil).SetBalance), arg0, arg1)
 }
 
+// SetCode mocks base method.
+func (m *MockRunContext) SetCode(arg0 Address, arg1 Code) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetCode", arg0, arg1)
+}
+
+// SetCode indicates an expected call of SetCode.
+func (mr *MockRunContextMockRecorder) SetCode(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCode", reflect.TypeOf((*MockRunContext)(nil).SetCode), arg0, arg1)
+}
+
 // SetNonce mocks base method.
 func (m *MockRunContext) SetNonce(arg0 Address, arg1 uint64) {
 	m.ctrl.T.Helper()
@@ -766,6 +778,18 @@ func (m *MockTransactionContext) SetBalance(arg0 Address, arg1 Value) {
 func (mr *MockTransactionContextMockRecorder) SetBalance(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBalance", reflect.TypeOf((*MockTransactionContext)(nil).SetBalance), arg0, arg1)
+}
+
+// SetCode mocks base method.
+func (m *MockTransactionContext) SetCode(arg0 Address, arg1 Code) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetCode", arg0, arg1)
+}
+
+// SetCode indicates an expected call of SetCode.
+func (mr *MockTransactionContextMockRecorder) SetCode(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCode", reflect.TypeOf((*MockTransactionContext)(nil).SetCode), arg0, arg1)
 }
 
 // SetNonce mocks base method.

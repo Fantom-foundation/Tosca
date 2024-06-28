@@ -37,7 +37,7 @@ func TestMaxCallDepth(t *testing.T) {
 		for _, revision := range revisions {
 			t.Run(fmt.Sprintf("%s/%s", variant, revision), func(t *testing.T) {
 				ctrl := gomock.NewController(t)
-				mockStateDB := NewMockStateDB(ctrl)
+				mockStateDB := newMockStateDBForIntegrationTests(ctrl)
 
 				zeroVal := big.NewInt(0)
 				account := vm.Address{}
@@ -276,7 +276,7 @@ func TestReturnDataCopy(t *testing.T) {
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, tst.name), func(t *testing.T) {
 
 					mockCtrl := gomock.NewController(t)
-					mockStateDB := NewMockStateDB(mockCtrl)
+					mockStateDB := newMockStateDBForIntegrationTests(mockCtrl)
 
 					zeroVal := big.NewInt(0)
 					account := vm.Address{}
@@ -355,7 +355,7 @@ func TestReadOnlyStaticCall(t *testing.T) {
 					t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, call.instruction, instruction), func(t *testing.T) {
 
 						mockCtrl := gomock.NewController(t)
-						mockStateDB := NewMockStateDB(mockCtrl)
+						mockStateDB := newMockStateDBForIntegrationTests(mockCtrl)
 
 						zeroVal := big.NewInt(0)
 						account := vm.Address{byte(0)}
@@ -594,7 +594,7 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, call.instruction, call.callOutputMemSize), func(t *testing.T) {
 
 					mockCtrl := gomock.NewController(t)
-					mockStateDB := NewMockStateDB(mockCtrl)
+					mockStateDB := newMockStateDBForIntegrationTests(mockCtrl)
 
 					account := vm.Address{}
 
@@ -694,7 +694,7 @@ func TestNoReturnDataForCreate(t *testing.T) {
 				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, test.name, test.createInstruction), func(t *testing.T) {
 
 					mockCtrl := gomock.NewController(t)
-					mockStateDB := NewMockStateDB(mockCtrl)
+					mockStateDB := newMockStateDBForIntegrationTests(mockCtrl)
 
 					createStackValues := []*big.Int{big.NewInt(32), big.NewInt(0), big.NewInt(0)}
 					if test.createInstruction == geth.CREATE2 {
@@ -1081,6 +1081,8 @@ func getRadomByte32() []byte {
 func setDefaultCallStateDBMock(mockStateDB *MockStateDB, account vm.Address, code []byte) {
 	// mock state calls for call instruction
 	mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(vm.Value{1})
+	mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes().Return(uint64(123))
+	mockStateDB.EXPECT().SetNonce(gomock.Any(), gomock.Any()).AnyTimes()
 	mockStateDB.EXPECT().GetCodeHash(gomock.Any()).AnyTimes().Return(vm.Hash{})
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(code)
 	mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(true)
@@ -1092,4 +1094,17 @@ func setDefaultCallStateDBMock(mockStateDB *MockStateDB, account vm.Address, cod
 	mockStateDB.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).AnyTimes().Return(true, true)
 	mockStateDB.EXPECT().AccessAccount(gomock.Any()).AnyTimes().Return(vm.WarmAccess)
 	mockStateDB.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(vm.WarmAccess)
+}
+
+func newMockStateDBForIntegrationTests(ctrl *gomock.Controller) *MockStateDB {
+	mockStateDB := NewMockStateDB(ctrl)
+
+	// World state interactions always triggered by the EVM but not relevant for individual tests.
+	mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(vm.Value{1})
+	mockStateDB.EXPECT().SetBalance(gomock.Any(), gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().SetNonce(gomock.Any(), gomock.Any()).AnyTimes()
+	mockStateDB.EXPECT().SetCode(gomock.Any(), gomock.Any()).AnyTimes()
+
+	return mockStateDB
 }

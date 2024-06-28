@@ -284,6 +284,18 @@ func (mr *MockStateDBMockRecorder) SetBalance(arg0, arg1 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBalance", reflect.TypeOf((*MockStateDB)(nil).SetBalance), arg0, arg1)
 }
 
+// SetCode mocks base method.
+func (m *MockStateDB) SetCode(arg0 vm.Address, arg1 vm.Code) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetCode", arg0, arg1)
+}
+
+// SetCode indicates an expected call of SetCode.
+func (mr *MockStateDBMockRecorder) SetCode(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCode", reflect.TypeOf((*MockStateDB)(nil).SetCode), arg0, arg1)
+}
+
 // SetNonce mocks base method.
 func (m *MockStateDB) SetNonce(arg0 vm.Address, arg1 uint64) {
 	m.ctrl.T.Helper()

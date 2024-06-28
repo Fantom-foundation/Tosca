@@ -68,6 +68,7 @@ type StateDB interface {
 	GetCodeSize(vm.Address) int
 	GetCodeHash(vm.Address) vm.Hash
 	GetCode(vm.Address) vm.Code
+	SetCode(vm.Address, vm.Code)
 	GetBlockHash(int64) vm.Hash
 	EmitLog(vm.Log)
 	AccessAccount(vm.Address) vm.AccessStatus
@@ -219,11 +220,12 @@ func (a *runContextAdapter) CreateAccount(vm.Address, vm.Code) bool {
 }
 
 func (a *runContextAdapter) CreateSnapshot() vm.Snapshot {
-	panic("should not be needed for interpreter tests")
+	// ignored in interpreter tests
+	return 0
 }
 
 func (a *runContextAdapter) RestoreSnapshot(vm.Snapshot) {
-	panic("should not be needed for interpreter tests")
+	// ignored in interpreter tests
 }
 
 func (a *runContextAdapter) GetLogs() []vm.Log {
