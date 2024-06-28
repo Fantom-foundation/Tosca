@@ -122,11 +122,11 @@ func (p *processor) Run(
 		}
 		a := vm.Address(from)
 		b := vm.Address(to)
-		d := vm.Uint256ToValue(amount)
+		d := vm.ValueFromUint256(amount)
 		curA := context.GetBalance(a)
 		curB := context.GetBalance(b)
-		context.SetBalance(a, curA.Sub(d))
-		context.SetBalance(b, curB.Add(d))
+		context.SetBalance(a, vm.Sub(curA, d))
+		context.SetBalance(b, vm.Add(curB, d))
 	}
 
 	// Create empty block context based on block number
@@ -256,13 +256,13 @@ func (p *processor) Run(
 	)
 	if contractCreation {
 		var created common.Address
-		output, created, gasLeft, vmError = evm.Create(sender, transaction.Input, uint64(gas), transaction.Value.ToU256())
+		output, created, gasLeft, vmError = evm.Create(sender, transaction.Input, uint64(gas), transaction.Value.ToUint256())
 		createdContract = &vm.Address{}
 		*createdContract = vm.Address(created)
 	} else {
 		// Increment the nonce to avoid double execution
 		stateDb.SetNonce(common.Address(transaction.Sender), stateDb.GetNonce(common.Address(transaction.Sender))+1)
-		output, gasLeft, vmError = evm.Call(sender, common.Address(*transaction.Recipient), transaction.Input, uint64(gas), transaction.Value.ToU256())
+		output, gasLeft, vmError = evm.Call(sender, common.Address(*transaction.Recipient), transaction.Input, uint64(gas), transaction.Value.ToUint256())
 	}
 
 	// For whatever reason, 10% of remaining gas is charged for non-internal transactions.
@@ -354,12 +354,12 @@ func preCheck(transaction vm.Transaction, state vm.WorldState) error {
 
 func buyGas(tx vm.Transaction, state vm.WorldState) error {
 	// TODO: support arithmetic operations with Value type
-	gasPrice := tx.GasPrice.ToU256()
+	gasPrice := tx.GasPrice.ToUint256()
 	mgval := uint256.NewInt(uint64(tx.GasLimit))
 	mgval = mgval.Mul(mgval, gasPrice)
 	// Note: Opera doesn't need to check against gasFeeCap instead of gasPrice, as it's too aggressive in the asynchronous environment
 	balance := state.GetBalance(tx.Sender)
-	if have, want := balance.ToU256(), mgval; have.Cmp(want) < 0 {
+	if have, want := balance.ToUint256(), mgval; have.Cmp(want) < 0 {
 		//skippedTxsNoBalanceMeter.Mark(1)
 		return fmt.Errorf("%w: address %v have %v want %v", errInsufficientFunds, tx.Sender, have, want)
 	}
@@ -374,7 +374,7 @@ func buyGas(tx vm.Transaction, state vm.WorldState) error {
 
 		st.initialGas = st.msg.Gas()
 	*/
-	balance = balance.Sub(vm.Uint256ToValue(mgval))
+	balance = vm.Sub(balance, vm.ValueFromUint256(mgval))
 	state.SetBalance(tx.Sender, balance)
 	return nil
 }
@@ -382,11 +382,11 @@ func buyGas(tx vm.Transaction, state vm.WorldState) error {
 func refundGas(tx vm.Transaction, gasLeft vm.Gas, state vm.WorldState) {
 
 	// Return wei for remaining gas, exchanged at the original rate.
-	refund := new(uint256.Int).Mul(new(uint256.Int).SetUint64(uint64(gasLeft)), tx.GasPrice.ToU256())
+	refund := new(uint256.Int).Mul(new(uint256.Int).SetUint64(uint64(gasLeft)), tx.GasPrice.ToUint256())
 
 	cur := state.GetBalance(tx.Sender)
-	updated := new(uint256.Int).Add(cur.ToU256(), refund)
-	state.SetBalance(tx.Sender, vm.Uint256ToValue(updated))
+	updated := new(uint256.Int).Add(cur.ToUint256(), refund)
+	state.SetBalance(tx.Sender, vm.ValueFromUint256(updated))
 
 	/*
 		// TODO: track block-wide gas usage
