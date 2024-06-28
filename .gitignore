@@ -17,3 +17,5 @@ build/
 
 # IDE files
 .vscode/
+.devcontainer/
+.github/

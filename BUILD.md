@@ -250,3 +250,31 @@ Overall coverage rate:
 The report will be generated in HTML form to alow visualization of each line of code coverage for each C++ file in the project. The entry HTML page to the report is located at the C++ build folder: `cpp/build/coverage/index.html`
 
 In VSCode, line by line coverage can be visualized using the extension [gcov-viewer](https://marketplace.visualstudio.com/items?itemName=JacquesLucke.gcov-viewer)
+
+## Containerized Build
+
+This feature allows to use different platforms and toolchains to compile the project, at this stage, an initial Dockerfile is provided in the CI folder to describe an environment capable of building and running tests for this project codebase. 
+The workflow is purely optional.
+Using this feature enables: 
+- Containerized Jenkins Builds. Where the development environment is described in the git repository and does not depend from any particular server setup.
+- Multiple simultaneous platform definitions.
+- Different branches with different toolchains, all of them building correctly the CI. This is important to prevent loosing CI support during toolchain migrations. 
+- Containerized development, using a number of IDEs that support them: https://containers.dev/
+
+Build the image:
+```bash
+docker build CI -t tosca_build:latest
+```
+To start an interactive container from the image, run this command in the Tosca root folder.
+```bash
+docker run -it --rm -v$(pwd):$(pwd) -u$(id -u):$(id -g) tosca_build:latest
+```
+- `-it` interactive terminal
+- `--rm` transient container, changes to the image will be deleted when existing the interactive session
+- `-v` mount Tosca source code in the same path inside the image (build will be persistent)
+- `-u` use same user id as in the host, to prevent build folder permissions mismatch 
+
+Once inside the container, build can be triggered as usual:
+```bash
+CC=clang-16 CXX=clang++-16 make test
+```
