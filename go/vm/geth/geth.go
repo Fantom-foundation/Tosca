@@ -271,7 +271,7 @@ func (s *stateDbAdapter) SubBalance(addr common.Address, diff *uint256.Int, _ tr
 	// is required when running tests targeting the processor.
 	account := vm.Address(addr)
 	cur := s.context.GetBalance(account)
-	s.context.SetBalance(account, cur.Sub(vm.Uint256ToValue(diff)))
+	s.context.SetBalance(account, vm.Sub(cur, vm.ValueFromUint256(diff)))
 }
 
 func (s *stateDbAdapter) AddBalance(addr common.Address, diff *uint256.Int, _ tracing.BalanceChangeReason) {
@@ -281,7 +281,7 @@ func (s *stateDbAdapter) AddBalance(addr common.Address, diff *uint256.Int, _ tr
 	// is required when running tests targeting the processor.
 	account := vm.Address(addr)
 	cur := s.context.GetBalance(account)
-	s.context.SetBalance(account, cur.Add(vm.Uint256ToValue(diff)))
+	s.context.SetBalance(account, vm.Add(cur, vm.ValueFromUint256(diff)))
 
 	// we save this address to be used as the beneficiary in a selfdestruct case.
 	s.lastBeneficiary = vm.Address(addr)
