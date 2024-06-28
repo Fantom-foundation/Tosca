@@ -53,6 +53,11 @@ func (e *EvmcInterpreter) Run(params vm.Parameters) (vm.Result, error) {
 		context: params.Context,
 	}
 
+	host_ctx.evmcBlobHashes = make([]evmc.Hash, 0, len(params.BlobHashes))
+	for _, hash := range params.BlobHashes {
+		host_ctx.evmcBlobHashes = append(host_ctx.evmcBlobHashes, evmc.Hash(hash))
+	}
+
 	revision, err := toEvmcRevision(params.Revision)
 	if err != nil {
 		return vm.Result{}, err
@@ -155,8 +160,9 @@ func toEvmcRevision(revision vm.Revision) (evmc.Revision, error) {
 // context and chain state information external to the the interpreter.
 // It implements the host interface of evmc's Go bindings.
 type hostContext struct {
-	params  vm.Parameters
-	context vm.RunContext
+	params         vm.Parameters
+	context        vm.RunContext
+	evmcBlobHashes []evmc.Hash
 }
 
 func (ctx *hostContext) AccountExists(addr evmc.Address) bool {
@@ -224,15 +230,17 @@ func (ctx *hostContext) Selfdestruct(addr evmc.Address, beneficiary evmc.Address
 func (ctx *hostContext) GetTxContext() evmc.TxContext {
 	params := ctx.params
 	return evmc.TxContext{
-		GasPrice:   evmc.Hash(params.GasPrice),
-		Origin:     evmc.Address(params.Origin),
-		Coinbase:   evmc.Address(params.Coinbase),
-		Number:     params.BlockNumber,
-		Timestamp:  params.Timestamp,
-		GasLimit:   int64(params.GasLimit),
-		PrevRandao: evmc.Hash(params.PrevRandao),
-		ChainID:    evmc.Hash(params.ChainID),
-		BaseFee:    evmc.Hash(params.BaseFee),
+		GasPrice:    evmc.Hash(params.GasPrice),
+		Origin:      evmc.Address(params.Origin),
+		Coinbase:    evmc.Address(params.Coinbase),
+		Number:      params.BlockNumber,
+		Timestamp:   params.Timestamp,
+		GasLimit:    int64(params.GasLimit),
+		PrevRandao:  evmc.Hash(params.PrevRandao),
+		ChainID:     evmc.Hash(params.ChainID),
+		BaseFee:     evmc.Hash(params.BaseFee),
+		BlobBaseFee: evmc.Hash(params.BlobBaseFee),
+		BlobHashes:  ctx.evmcBlobHashes,
 	}
 }
 

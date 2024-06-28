@@ -46,6 +46,11 @@ func (e *SteppableEvmcInterpreter) StepN(
 		context: params.Context,
 	}
 
+	host_ctx.evmcBlobHashes = make([]evmc.Hash, 0, len(params.BlobHashes))
+	for _, hash := range params.BlobHashes {
+		host_ctx.evmcBlobHashes = append(host_ctx.evmcBlobHashes, evmc.Hash(hash))
+	}
+
 	revision, err := toEvmcRevision(params.Revision)
 	if err != nil {
 		return nil, err
