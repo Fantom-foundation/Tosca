@@ -140,6 +140,74 @@ func TestCode_Printer(t *testing.T) {
 	}
 }
 
+func TestCode_OpCodesToString(t *testing.T) {
+	tests := map[string]struct {
+		code   []OpCode
+		start  int
+		length int
+		want   string
+	}{
+
+		"empty": {
+			code:   []OpCode{},
+			start:  0,
+			length: 4,
+			want:   "len(0)",
+		},
+		"unused": {
+			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
+			start:  0,
+			length: 1,
+			want:   "len(4) op(0x0C)",
+		},
+		"complete": {
+			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
+			start:  0,
+			length: 4,
+			want:   "len(4) op(0x0C) PUSH2 255 160",
+		},
+		"off-bounds": {
+			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
+			start:  5,
+			length: 4,
+			want:   "len(4)",
+		},
+		"partial": {
+			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
+			start:  1,
+			length: 3,
+			want:   "len(4) PUSH2 255 160",
+		},
+		"just data": {
+			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
+			start:  2,
+			length: 3,
+			want:   "len(4) 255 160",
+		},
+		"too large": {
+			code:   []OpCode{ADD, SDIV, PUSH0, PUSH1, 0x00, BALANCE},
+			start:  0,
+			length: 34,
+			want:   "len(6) ADD SDIV PUSH0 PUSH1 0 BALANCE",
+		},
+	}
+
+	for name, test := range tests {
+
+		t.Run(name, func(t *testing.T) {
+			bytes := make([]byte, len(test.code))
+			for i, op := range test.code {
+				bytes[i] = byte(op)
+			}
+			code := NewCode(bytes)
+			got := code.ToHumanReadableString(test.start, test.length)
+			if got != test.want {
+				t.Errorf(`invalid print, wanted "%s", got "%s"`, test.want, got)
+			}
+		})
+	}
+}
+
 func TestCode_CopyCodeSlice(t *testing.T) {
 	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
 	tests := map[string]struct {
