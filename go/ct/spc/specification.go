@@ -563,6 +563,9 @@ func getAllRules() []Rule {
 		staticGas: 8,
 		pops:      1,
 		pushes:    0,
+		parameters: []Parameter{
+			NumericParameter{},
+		},
 		conditions: []Condition{
 			IsCode(Param(0)),
 			Eq(Op(Param(0)), JUMPDEST),
@@ -609,6 +612,10 @@ func getAllRules() []Rule {
 		staticGas: 10,
 		pops:      2,
 		pushes:    0,
+		parameters: []Parameter{
+			NumericParameter{},
+			NumericParameter{},
+		},
 		conditions: []Condition{
 			IsCode(Param(0)),
 			Eq(Op(Param(0)), JUMPDEST),

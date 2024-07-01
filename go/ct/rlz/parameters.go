@@ -36,6 +36,7 @@ var numericParameterSamples = []U256{
 	NewU256(1).Shl(NewU256(192)),
 	NewU256(1).Shl(NewU256(255)),
 	NewU256(0).Not(),
+	NewU256(1, 1),
 }
 
 func (NumericParameter) Samples() []U256 {
@@ -52,6 +53,11 @@ var memoryOffsetParameterSamples = []U256{
 	NewU256(31),
 	NewU256(32),
 	NewU256(1, 0),
+	// Samples stressing the max init code size introduced with Shanghai
+	NewU256(2*24576 - 1),
+	NewU256(2 * 24576),
+	NewU256(2*24576 + 1),
+	NewU256(1 << 16),
 }
 
 func (MemoryOffsetParameter) Samples() []U256 {
@@ -114,6 +120,7 @@ type GasParameter struct{}
 var gasParameterSamples = []U256{
 	NewU256(0),
 	NewU256(1),
+	NewU256(100),
 	NewU256(1 << 10),
 	NewU256(1 << 20),
 	NewU256(1 << 62),
