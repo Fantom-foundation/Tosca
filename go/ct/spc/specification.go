@@ -348,7 +348,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		parameters: []Parameter{
-			MemoryOffsetParameter{},
+			MemoryOffsetForCopyParameter{},
 		},
 		effect: func(s *st.State) {
 			offsetU256 := s.Stack.Pop()
@@ -374,7 +374,7 @@ func getAllRules() []Rule {
 		pops:      2,
 		pushes:    0,
 		parameters: []Parameter{
-			MemoryOffsetParameter{},
+			MemoryOffsetForCopyParameter{},
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
@@ -402,7 +402,7 @@ func getAllRules() []Rule {
 		pops:      2,
 		pushes:    0,
 		parameters: []Parameter{
-			MemoryOffsetParameter{},
+			MemoryOffsetForCopyParameter{},
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
@@ -563,6 +563,9 @@ func getAllRules() []Rule {
 		staticGas: 8,
 		pops:      1,
 		pushes:    0,
+		parameters: []Parameter{
+			JumpTargetParameter{},
+		},
 		conditions: []Condition{
 			IsCode(Param(0)),
 			Eq(Op(Param(0)), JUMPDEST),
@@ -609,6 +612,10 @@ func getAllRules() []Rule {
 		staticGas: 10,
 		pops:      2,
 		pushes:    0,
+		parameters: []Parameter{
+			JumpTargetParameter{},
+			JumpTargetParameter{},
+		},
 		conditions: []Condition{
 			IsCode(Param(0)),
 			Eq(Op(Param(0)), JUMPDEST),
@@ -867,8 +874,8 @@ func getAllRules() []Rule {
 		pops:      3,
 		pushes:    0,
 		parameters: []Parameter{
-			MemoryOffsetParameter{},
-			MemoryOffsetParameter{},
+			MemoryOffsetForCopyParameter{},
+			MemoryOffsetForCopyParameter{},
 			MemorySizeParameter{},
 		},
 		conditions: []Condition{
