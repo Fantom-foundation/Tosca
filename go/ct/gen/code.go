@@ -143,6 +143,11 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 		// extend the runtime but are expected to reveal limited extra code coverage.
 		const expectedSize float64 = 200
 		size = int(rnd.ExpFloat64()/(1/expectedSize)) + minSize
+		// if there are data constraints, we need at least 2 bytes,
+		// one for an op, and the other for data.
+		if len(g.varIsDataConstraints) > 0 && size < 2 {
+			size = 2
+		}
 		if size > st.MaxCodeSize {
 			size = st.MaxCodeSize
 		}
@@ -375,7 +380,7 @@ func (s *varCodeConstraintSolver) fits(pos int, op OpCode) bool {
 // maximum is 33 since this is the largest instruction we have.
 func (s *varCodeConstraintSolver) largestFit(pos int) int {
 	n := 0
-	for ; n <= 33 && pos+n < s.codeSize; n++ {
+	for ; n < 33 && pos+n < s.codeSize; n++ {
 		if s.usedPositions[pos+n] != isUnused {
 			break
 		}
