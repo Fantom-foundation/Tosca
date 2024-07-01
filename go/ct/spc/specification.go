@@ -1330,6 +1330,7 @@ func getAllRules() []Rule {
 	// cold
 	rules = append(rules, rulesFor(instruction{
 		op:        EXTCODEHASH,
+		name:      "_cold",
 		staticGas: 0 + 2600, // 2600 dynamic cost for cold address
 		pops:      1,
 		pushes:    1,
@@ -1350,12 +1351,12 @@ func getAllRules() []Rule {
 			}
 			s.Accounts.MarkWarm(address)
 		},
-		name: "_cold",
 	})...)
 
 	// warm
 	rules = append(rules, rulesFor(instruction{
 		op:        EXTCODEHASH,
+		name:      "_warm",
 		staticGas: 0 + 100, // 100 dynamic cost for warm address
 		pops:      1,
 		pushes:    1,
@@ -1368,19 +1369,15 @@ func getAllRules() []Rule {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			if !s.Accounts.Exist(address) {
-				s.Stack.Push(NewU256(0))
-			} else {
-				hash := s.Accounts.GetCodeHash(address)
-				s.Stack.Push(NewU256FromBytes(hash[:]...))
-			}
+			hash := s.Accounts.GetCodeHash(address)
+			s.Stack.Push(NewU256FromBytes(hash[:]...))
 		},
-		name: "_warm",
 	})...)
 
 	// pre Berlin
 	rules = append(rules, rulesFor(instruction{
 		op:        EXTCODEHASH,
+		name:      "_preBerlin",
 		staticGas: 700,
 		pops:      1,
 		pushes:    1,
@@ -1399,7 +1396,6 @@ func getAllRules() []Rule {
 				s.Stack.Push(NewU256FromBytes(hash[:]...))
 			}
 		},
-		name: "_preBerlin",
 	})...)
 
 	// --- CHAINID ---
