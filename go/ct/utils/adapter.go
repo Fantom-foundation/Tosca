@@ -215,13 +215,13 @@ func (c *ctRunContext) HasSelfDestructed(addr vm.Address) bool {
 	return c.state.HasSelfDestructed
 }
 
+func (c *ctRunContext) SetBalance(vm.Address, vm.Value) {
+	// -- ignored, since balances are not tracked in the context of a CT run --
+}
+
 // --- API only needed in the context of a full transaction, which is not covered by CT ---
 
 func (c *ctRunContext) CreateAccount(vm.Address, vm.Code) bool {
-	panic("should not be needed")
-}
-
-func (c *ctRunContext) SetBalance(vm.Address, vm.Value) {
 	panic("should not be needed")
 }
 
