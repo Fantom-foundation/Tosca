@@ -374,7 +374,7 @@ func (d gasDomain) Samples(a vm.Gas) []vm.Gas {
 }
 
 func (gasDomain) SamplesForAll(as []vm.Gas) []vm.Gas {
-	res := []vm.Gas{0, st.MaxGas}
+	res := []vm.Gas{0, 200, st.MaxGas}
 
 	// Test every element off by one.
 	for _, a := range as {

@@ -36,10 +36,24 @@ var numericParameterSamples = []U256{
 	NewU256(1).Shl(NewU256(192)),
 	NewU256(1).Shl(NewU256(255)),
 	NewU256(0).Not(),
+	NewU256(1, 1),
 }
 
 func (NumericParameter) Samples() []U256 {
 	return numericParameterSamples
+}
+
+type JumpTargetParameter struct{}
+
+var jumpTargetParameterSamples = []U256{
+	NewU256(0),
+	NewU256(1),
+	NewU256(1 << 8),
+	NewU256(1, 1),
+}
+
+func (JumpTargetParameter) Samples() []U256 {
+	return jumpTargetParameterSamples
 }
 
 type StorageAccessKeyParameter = NumericParameter
@@ -58,6 +72,20 @@ func (MemoryOffsetParameter) Samples() []U256 {
 	return memoryOffsetParameterSamples
 }
 
+type MemoryOffsetForCopyParameter struct{}
+
+var memoryOffsetForCopyParameter = []U256{
+	NewU256(0),
+	NewU256(1),
+	NewU256(32),
+	NewU256(24576),
+	NewU256(1, 0),
+}
+
+func (MemoryOffsetForCopyParameter) Samples() []U256 {
+	return memoryOffsetForCopyParameter
+}
+
 type MemorySizeParameter struct{}
 
 var memorySizeParameterSamples = []U256{
@@ -66,7 +94,6 @@ var memorySizeParameterSamples = []U256{
 	NewU256(31),
 	NewU256(32),
 	NewU256(1, 0),
-
 	// Samples stressing the max init code size introduced with Shanghai
 	NewU256(2*24576 - 1),
 	NewU256(2 * 24576),
