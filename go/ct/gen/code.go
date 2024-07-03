@@ -132,6 +132,12 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 		minSize = 1
 	}
 
+	// if there are data constraints, we need at least 2 bytes,
+	// one for an op, and the other for data.
+	if len(g.varIsDataConstraints) > 0 && minSize < 2 {
+		minSize = 2
+	}
+
 	var size int
 	if g.codeSize != nil {
 		if *g.codeSize < minSize {
@@ -143,11 +149,6 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 		// extend the runtime but are expected to reveal limited extra code coverage.
 		const expectedSize float64 = 200
 		size = int(rnd.ExpFloat64()/(1/expectedSize)) + minSize
-		// if there are data constraints, we need at least 2 bytes,
-		// one for an op, and the other for data.
-		if len(g.varIsDataConstraints) > 0 && size < 2 {
-			size = 2
-		}
 		if size > st.MaxCodeSize {
 			size = st.MaxCodeSize
 		}

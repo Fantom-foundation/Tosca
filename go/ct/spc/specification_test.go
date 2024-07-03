@@ -101,34 +101,43 @@ func TestSpecification_EachRuleProducesAMatchingTestCase(t *testing.T) {
 	}
 }
 
-// the following test has been used to verify stability of a specific rule.
-// so far it has been used for:
-// - sstore_with_too_little_gas_
-// - pc_on_data_is_ignored
+// TestSpecification_SpecifiedRuleProducesMatchingTestCases is used to verify stability of specific rules.
 func TestSpecification_SpecifiedRuleProducesMatchingTestCases(t *testing.T) {
-	rnd := rand.New(0)
-	rules := Spec.GetRules()
-	filter := regexp.MustCompile("sstore_with_too_little_gas_Berlin_StorageDeleted_cold")
-	rules = FilterRules(rules, filter)
-	if len(rules) == 0 {
-		t.Fatalf("no rule found for filter %v", filter)
+
+	allRules := Spec.GetRules()
+
+	tests := []string{
+		"sstore_with_too_little_gas_",
+		"pc_on_data_is_ignored",
 	}
 
-	rule := rules[0]
-	gen := gen.NewStateGenerator()
-	rule.Condition.Restrict(gen)
-	for i := 0; i < 10000; i++ {
-		state, err := gen.Generate(rnd)
-		if err != nil {
-			t.Fatalf("failed to generate a random state at iteration %v: %v", i, err)
-		}
-		pass, err := rule.Condition.Check(state)
-		if err != nil {
-			t.Fatalf("at iteration %v failed to check rule condition for %v: %v", i, rule.Name, err)
-		}
-		if !pass {
-			t.Fatalf("at iteration %v State %v \nFailed for conditions: %v\n", i, state, rule.Condition)
-		}
+	for _, ruleName := range tests {
+		t.Run(ruleName, func(t *testing.T) {
+
+			rnd := rand.New(0)
+			filter := regexp.MustCompile(ruleName)
+			rules := FilterRules(allRules, filter)
+			if len(rules) == 0 {
+				t.Fatalf("no rule found for filter %v", filter)
+			}
+
+			rule := rules[0]
+			gen := gen.NewStateGenerator()
+			rule.Condition.Restrict(gen)
+			for i := 0; i < 10000; i++ {
+				state, err := gen.Generate(rnd)
+				if err != nil {
+					t.Fatalf("failed to generate a random state at iteration %v: %v", i, err)
+				}
+				pass, err := rule.Condition.Check(state)
+				if err != nil {
+					t.Fatalf("at iteration %v failed to check rule condition for %v: %v", i, rule.Name, err)
+				}
+				if !pass {
+					t.Fatalf("at iteration %v State %v \nFailed for conditions: %v\n", i, state, rule.Condition)
+				}
+			}
+		})
 	}
 }
 

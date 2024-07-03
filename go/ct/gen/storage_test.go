@@ -345,3 +345,27 @@ func TestStorageGenerator_NewValueMustBeZeroMustNotBeZero(t *testing.T) {
 		})
 	}
 }
+
+func TestStorageGenerator_UnspecifiedVariableIsNotWarm(t *testing.T) {
+
+	vKey := Variable("key")
+	vNewValue := Variable("newValue")
+
+	generator := NewStorageGenerator()
+	generator.BindConfiguration(vm.StorageModified, vKey, vNewValue)
+
+	assignment := Assignment{}
+	rnd := rand.New(0)
+
+	for i := 0; i < 1000; i++ {
+		storage, err := generator.Generate(assignment, rnd)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if storage.IsWarm(assignment[vKey]) {
+			t.Fatalf("unexpected variable %v is warm at iteration %v", vKey, i)
+		}
+	}
+
+}

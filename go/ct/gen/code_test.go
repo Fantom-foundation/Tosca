@@ -12,6 +12,7 @@ package gen
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"pgregory.net/rand"
@@ -597,5 +598,56 @@ func TestVarCodeConstraintSolver_fitsOnUsed(t *testing.T) {
 		if want, got := test.fits, solver.fits(test.pos, test.op); want != got {
 			t.Fatalf("incorrect fit want %v, got %v", want, got)
 		}
+	}
+}
+
+func TestCodeGenerator_IsDataConstraintSmallSize(t *testing.T) {
+	variable := Variable("X")
+
+	tests := []int{0, 1, 2}
+
+	for size := range tests {
+		t.Run(fmt.Sprintf("size: %v", size), func(t *testing.T) {
+
+			generator := NewCodeGenerator()
+			generator.AddIsData(variable)
+			generator.codeSize = new(int)
+			*generator.codeSize = size
+
+			assignment := Assignment{}
+
+			state, err := generator.Generate(assignment, rand.New(0))
+			if size < 2 {
+				if !errors.Is(err, ErrUnsatisfiable) {
+					t.Errorf("expected %v, but got %v", ErrUnsatisfiable, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Error(err)
+			}
+
+			pos, found := assignment[variable]
+			if !found {
+				t.Errorf("free variable %v not bound by generator", variable)
+			}
+
+			if !state.IsData(int(pos.Uint64())) {
+				t.Error("IsCode constraint not satisfied")
+			}
+
+		})
+	}
+}
+
+func TestSolver_largestFit(t *testing.T) {
+	s := varCodeConstraintSolver{}
+	s.codeSize = 34
+	s.usedPositions = make(map[int]Used, s.codeSize)
+	for i := 0; i < s.codeSize; i++ {
+		s.usedPositions[i] = isUnused
+	}
+	if s.largestFit(0) > 33 {
+		t.Error("largestFit should not return more than 33.")
 	}
 }
