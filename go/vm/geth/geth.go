@@ -347,9 +347,8 @@ func (s *stateDbAdapter) HasSelfDestructed(addr common.Address) bool {
 	return s.context.HasSelfDestructed(vm.Address(addr))
 }
 
-func (s *stateDbAdapter) Selfdestruct6780(common.Address) {
-	// FIXME: not implemented, but non panicking call is required to enable fuzzing
-	// ignored: effect not needed in test environments
+func (s *stateDbAdapter) Selfdestruct6780(addr common.Address) {
+	s.context.SelfDestruct(vm.Address(addr), s.lastBeneficiary)
 }
 
 func (s *stateDbAdapter) Exist(addr common.Address) bool {

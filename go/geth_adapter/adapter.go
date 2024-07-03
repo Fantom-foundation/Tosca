@@ -473,7 +473,14 @@ func (a *runContextAdapter) SelfDestruct(addr vm.Address, beneficiary vm.Address
 	}
 	balance := stateDb.GetBalance(a.contract.Address())
 	stateDb.AddBalance(gc.Address(beneficiary), balance, tracing.BalanceDecreaseSelfdestruct)
-	stateDb.SelfDestruct(gc.Address(addr))
+
+	if a.evm.ChainConfig().IsCancun(a.evm.Context.BlockNumber, a.evm.Context.Time) {
+		stateDb.SubBalance(a.contract.Address(), balance, tracing.BalanceDecreaseSelfdestruct)
+		stateDb.Selfdestruct6780(gc.Address(addr))
+	} else {
+		stateDb.SelfDestruct(gc.Address(addr))
+	}
+
 	return true
 }
 
