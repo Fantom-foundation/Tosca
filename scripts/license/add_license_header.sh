@@ -27,7 +27,7 @@ root_dir=$(readlink -f "$script_dir/../..")
 
 # list of files/directories to ignore
 # paths must be in single quotes to prevent shell expansion (will be expanded later)
-ignore_files=('third_party/*')
+ignore_files=('third_party/*' '*/build/*')
 
 ## extract the flag if the script should only check the license headers
 check_only=false
