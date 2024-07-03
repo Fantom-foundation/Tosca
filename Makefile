@@ -90,3 +90,13 @@ clean-cpp:
 
 license-headers:
 	cd ./scripts/license; ./add_license_header.sh
+
+fuzz-lfvm:
+	go test -fuzz=FuzzLfvm ./go/ct/
+
+fuzz-lfvm-diff:
+	go test -fuzz=FuzzDifferentialLfvmVsGeth ./go/ct/
+
+# TODO: disabbled until test is fixed #549
+# fuzz-evmzero-diff:
+# 	go test -fuzz=FuzzDifferentialEvmZeroVsGeth ./go/ct/
