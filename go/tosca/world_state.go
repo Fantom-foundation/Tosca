@@ -19,7 +19,6 @@ import "fmt"
 // optional code and storage.
 type WorldState interface {
 	AccountExists(Address) bool
-	CreateAccount(Address, Code) bool
 
 	GetBalance(Address) Value
 	SetBalance(Address, Value)
