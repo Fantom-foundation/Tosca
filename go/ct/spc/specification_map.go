@@ -14,9 +14,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 type specificationMap struct {
@@ -61,7 +61,7 @@ func (s *specificationMap) GetRulesFor(state *st.State) []Rule {
 		opString = "noOp"
 	} else {
 		opString = op.String()
-		if state.Revision == tosca.R99_UnknownNextRevision || state.Status != st.Running {
+		if state.Revision == common.R99_UnknownNextRevision || state.Status != st.Running {
 			getRules("noOp")
 		}
 	}

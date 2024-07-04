@@ -146,7 +146,7 @@ func TestStateGenerator_AddRevisionBoundsIsEnforced(t *testing.T) {
 func TestStateGenerator_ConflictingRevisionBoundsAreDetected(t *testing.T) {
 	generator := NewStateGenerator()
 	generator.AddRevisionBounds(tosca.R07_Istanbul, tosca.R09_Berlin)
-	generator.AddRevisionBounds(tosca.R10_London, tosca.R99_UnknownNextRevision)
+	generator.AddRevisionBounds(tosca.R10_London, R99_UnknownNextRevision)
 
 	if _, err := generator.Generate(rand.New(0)); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)

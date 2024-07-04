@@ -115,7 +115,7 @@ func TestCondition_CheckRevisions(t *testing.T) {
 
 	invalidConditions := []Condition{
 		IsRevision(tosca.R09_Berlin),
-		IsRevision(tosca.R99_UnknownNextRevision),
+		IsRevision(R99_UnknownNextRevision),
 		RevisionBounds(tosca.R07_Istanbul, tosca.R09_Berlin),
 	}
 	for _, cond := range invalidConditions {
@@ -131,7 +131,7 @@ func TestCondition_CheckRevisions(t *testing.T) {
 
 func TestCondition_UnknownNextRevisionIsNotAnyKnownIsRevision(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
-	state.Revision = tosca.R99_UnknownNextRevision
+	state.Revision = R99_UnknownNextRevision
 
 	isValid, err := AnyKnownRevision().Check(state)
 	if err != nil {

@@ -187,12 +187,12 @@ type revisionDomain struct{}
 func (revisionDomain) Equal(a tosca.Revision, b tosca.Revision) bool { return a == b }
 func (revisionDomain) Less(a tosca.Revision, b tosca.Revision) bool  { return a < b }
 func (revisionDomain) Predecessor(a tosca.Revision) tosca.Revision {
-	numRevisions := tosca.R99_UnknownNextRevision + 1
+	numRevisions := R99_UnknownNextRevision + 1
 	return (a + numRevisions - 1) % numRevisions
 }
 
 func (revisionDomain) Successor(a tosca.Revision) tosca.Revision {
-	numRevisions := tosca.R99_UnknownNextRevision + 1
+	numRevisions := R99_UnknownNextRevision + 1
 	return (a + 1) % numRevisions
 }
 
@@ -206,7 +206,7 @@ func (d revisionDomain) Samples(a tosca.Revision) []tosca.Revision {
 
 func (revisionDomain) SamplesForAll(a []tosca.Revision) []tosca.Revision {
 	res := []tosca.Revision{}
-	for r := tosca.R07_Istanbul; r <= tosca.R99_UnknownNextRevision; r++ {
+	for r := tosca.R07_Istanbul; r <= R99_UnknownNextRevision; r++ {
 		res = append(res, r)
 	}
 	return res

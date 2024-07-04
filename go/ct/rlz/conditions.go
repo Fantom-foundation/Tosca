@@ -348,7 +348,7 @@ func (e *revisionBounds) GetTestValues() []TestValue {
 		generator.SetRevision(revision)
 	}
 	res := []TestValue{}
-	for r := tosca.Revision(0); r <= tosca.R99_UnknownNextRevision; r++ {
+	for r := tosca.Revision(0); r <= R99_UnknownNextRevision; r++ {
 		res = append(res, NewTestValue(property, domain, r, restrict))
 	}
 	return res

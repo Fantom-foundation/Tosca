@@ -28,7 +28,7 @@ func TestRevisions_RangeLength(t *testing.T) {
 		"Paris":       {tosca.R11_Paris, 1000},
 		"Shanghai":    {tosca.R12_Shanghai, 1000},
 		"Cancun":      {tosca.R13_Cancun, 1000},
-		"UnknownNext": {tosca.R99_UnknownNextRevision, math.MaxUint64},
+		"UnknownNext": {R99_UnknownNextRevision, math.MaxUint64},
 	}
 
 	for name, test := range tests {
@@ -46,7 +46,7 @@ func TestRevisions_RangeLength(t *testing.T) {
 
 func TestRevisions_InvalidRevision(t *testing.T) {
 	name := "unknown revision"
-	invalidRevision := tosca.R99_UnknownNextRevision + 1
+	invalidRevision := R99_UnknownNextRevision + 1
 	_, err := GetBlockRangeLengthFor(invalidRevision)
 	if err == nil {
 		t.Errorf("Error handling %v. %v", name, err)
@@ -65,7 +65,7 @@ func TestRevisions_GetForkBlock(t *testing.T) {
 		"Paris":       {tosca.R11_Paris, 3000},
 		"Shanghai":    {tosca.R12_Shanghai, 4000},
 		"Cancun":      {tosca.R13_Cancun, 5000},
-		"UnknownNext": {tosca.R99_UnknownNextRevision, 6000},
+		"UnknownNext": {R99_UnknownNextRevision, 6000},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -81,7 +81,7 @@ func TestRevisions_GetForkBlock(t *testing.T) {
 }
 
 func TestRevisions_GetForkBlockInvalid(t *testing.T) {
-	_, err := GetForkBlock(tosca.R99_UnknownNextRevision + 1)
+	_, err := GetForkBlock(R99_UnknownNextRevision + 1)
 	if err == nil {
 		t.Errorf("Unexpected error: %v", err)
 	}

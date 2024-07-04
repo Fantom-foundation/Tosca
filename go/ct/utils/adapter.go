@@ -30,24 +30,6 @@ func ToVmParameters(state *st.State) tosca.Parameters {
 		code = state.Code.Copy()
 	}
 
-	var revision tosca.Revision
-	switch state.Revision {
-	case tosca.R07_Istanbul:
-		revision = tosca.R07_Istanbul
-	case tosca.R09_Berlin:
-		revision = tosca.R09_Berlin
-	case tosca.R10_London:
-		revision = tosca.R10_London
-	case tosca.R11_Paris:
-		revision = tosca.R11_Paris
-	case tosca.R12_Shanghai:
-		revision = tosca.R12_Shanghai
-	case tosca.R13_Cancun:
-		revision = tosca.R13_Cancun
-	default:
-		revision = tosca.Revision(state.Revision)
-	}
-
 	transactionContext := state.TransactionContext
 	if transactionContext == nil {
 		transactionContext = &st.TransactionContext{}
@@ -63,7 +45,7 @@ func ToVmParameters(state *st.State) tosca.Parameters {
 			PrevRandao:  state.BlockContext.PrevRandao.Bytes32be(),
 			BaseFee:     state.BlockContext.BaseFee.Bytes32be(),
 			BlobBaseFee: state.BlockContext.BlobBaseFee.Bytes32be(),
-			Revision:    revision,
+			Revision:    state.Revision,
 		},
 		TransactionParameters: tosca.TransactionParameters{
 			Origin:     transactionContext.OriginAddress,

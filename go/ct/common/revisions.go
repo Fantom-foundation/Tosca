@@ -21,8 +21,9 @@ import (
 const NewestSupportedRevision = tosca.R13_Cancun
 const NewestFullySupportedRevision = tosca.R12_Shanghai
 
+const R99_UnknownNextRevision = NewestSupportedRevision + 1
 const MinRevision = tosca.R07_Istanbul
-const MaxRevision = tosca.R99_UnknownNextRevision
+const MaxRevision = R99_UnknownNextRevision
 
 // GetForkBlock returns the first block a given revision is considered to be
 // enabled for when running CT state evaluations. It is intended to provide input
@@ -43,7 +44,7 @@ func GetForkBlock(revision tosca.Revision) (uint64, error) {
 		return 4000, nil
 	case tosca.R13_Cancun:
 		return 5000, nil
-	case tosca.R99_UnknownNextRevision:
+	case R99_UnknownNextRevision:
 		return 6000, nil
 	}
 	// TODO: remove this error
@@ -82,7 +83,7 @@ func GetRevisionForBlock(block uint64) tosca.Revision {
 			return rev - 1
 		}
 	}
-	return tosca.R99_UnknownNextRevision
+	return R99_UnknownNextRevision
 }
 
 // GetBlockRangeLengthFor returns the number of block numbers between the given revision and the following
@@ -96,7 +97,7 @@ func GetBlockRangeLengthFor(revision tosca.Revision) (uint64, error) {
 
 	// if it's the last supported revision, the blockNumber range has no limit.
 	// if it's not, we want to limit this range to the first block number of next revision.
-	if revision < tosca.R99_UnknownNextRevision {
+	if revision < R99_UnknownNextRevision {
 		nextRevisionNumber, err := GetForkBlock(revision + 1)
 		if err != nil {
 			return 0, err

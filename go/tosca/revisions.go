@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 )
 
 func (r Revision) String() string {
@@ -30,8 +31,6 @@ func (r Revision) String() string {
 		return "Shanghai"
 	case R13_Cancun:
 		return "Cancun"
-	case R99_UnknownNextRevision:
-		return "UnknownNextRevision"
 	default:
 		return fmt.Sprintf("Revision(%d)", r)
 	}
@@ -39,10 +38,6 @@ func (r Revision) String() string {
 
 func (r Revision) MarshalJSON() ([]byte, error) {
 	revString := r.String()
-	reg := regexp.MustCompile(`Revision\([0-9]+\)`)
-	if reg.MatchString(revString) {
-		return nil, &json.UnsupportedValueError{}
-	}
 	return json.Marshal(revString)
 }
 
@@ -67,10 +62,19 @@ func (r *Revision) UnmarshalJSON(data []byte) error {
 		revision = R12_Shanghai
 	case "Cancun":
 		revision = R13_Cancun
-	case "UnknownNextRevision":
-		revision = R99_UnknownNextRevision
 	default:
-		return &json.InvalidUnmarshalError{}
+		// read Revision(X) format and extract the number.
+		reg := regexp.MustCompile(`Revision\(([0-9]+)\)`)
+		substring := reg.FindAllStringSubmatch(s, 1)
+		if substring == nil {
+			return &json.UnmarshalTypeError{}
+		}
+		revNumber := substring[0][1]
+		revInt, err := strconv.Atoi(revNumber)
+		if err != nil {
+			return err
+		}
+		revision = Revision(revInt)
 	}
 
 	*r = revision
