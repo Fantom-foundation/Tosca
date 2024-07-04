@@ -33,6 +33,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/mock/gomock"
 
+	_ "github.com/Fantom-foundation/Tosca/go/processor/opera"
+
 	// This is only imported to get the EVM opcode definitions.
 	// TODO: write up our own op-code definition and remove this dependency.
 	op "github.com/ethereum/go-ethereum/core/vm"
