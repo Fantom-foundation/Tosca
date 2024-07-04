@@ -1341,6 +1341,11 @@ func getAllRules() []Rule {
 
 	// --- EXTCODEHASH ---
 
+	extCodeHashEffect := func(s *st.State, address tosca.Address) {
+		hash := s.Accounts.GetCodeHash(address)
+		s.Stack.Push(NewU256FromBytes(hash[:]...))
+	}
+
 	// cold
 	rules = append(rules, rulesFor(instruction{
 		op:        EXTCODEHASH,
@@ -1357,12 +1362,7 @@ func getAllRules() []Rule {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			if !s.Accounts.Exist(address) {
-				s.Stack.Push(NewU256(0))
-			} else {
-				hash := s.Accounts.GetCodeHash(address)
-				s.Stack.Push(NewU256FromBytes(hash[:]...))
-			}
+			extCodeHashEffect(s, address)
 			s.Accounts.MarkWarm(address)
 		},
 	})...)
@@ -1383,8 +1383,7 @@ func getAllRules() []Rule {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			hash := s.Accounts.GetCodeHash(address)
-			s.Stack.Push(NewU256FromBytes(hash[:]...))
+			extCodeHashEffect(s, address)
 		},
 	})...)
 
@@ -1403,12 +1402,7 @@ func getAllRules() []Rule {
 		},
 		effect: func(s *st.State) {
 			address := NewAddress(s.Stack.Pop())
-			if !s.Accounts.Exist(address) {
-				s.Stack.Push(NewU256(0))
-			} else {
-				hash := s.Accounts.GetCodeHash(address)
-				s.Stack.Push(NewU256FromBytes(hash[:]...))
-			}
+			extCodeHashEffect(s, address)
 		},
 	})...)
 
@@ -1946,6 +1940,8 @@ func pushOp(n int) []Rule {
 			data := make([]byte, n)
 			for i := 0; i < n; i++ {
 				b, err := s.Code.GetData(int(s.Pc) + i)
+				// This panic will never be triggered because the code generator always ensures that
+				// after a PUSHX op there are X data bytes. This should be fixed by #592
 				if err != nil {
 					panic(err)
 				}
