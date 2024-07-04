@@ -16,7 +16,7 @@
 //	mockgen -source world_state.go -destination world_state_mock.go -package tosca
 //
 
-// Package vm is a generated GoMock package.
+// Package tosca is a generated GoMock package.
 package tosca
 
 import (
@@ -60,20 +60,6 @@ func (m *MockWorldState) AccountExists(arg0 Address) bool {
 func (mr *MockWorldStateMockRecorder) AccountExists(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccountExists", reflect.TypeOf((*MockWorldState)(nil).AccountExists), arg0)
-}
-
-// CreateAccount mocks base method.
-func (m *MockWorldState) CreateAccount(arg0 Address, arg1 Code) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAccount", arg0, arg1)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// CreateAccount indicates an expected call of CreateAccount.
-func (mr *MockWorldStateMockRecorder) CreateAccount(arg0, arg1 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccount", reflect.TypeOf((*MockWorldState)(nil).CreateAccount), arg0, arg1)
 }
 
 // GetBalance mocks base method.
