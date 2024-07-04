@@ -16,7 +16,7 @@ import (
 	"slices"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -85,7 +85,7 @@ func (m *Memory) Grow(offset, size uint64) {
 
 // ExpansionCosts calculates the expansion costs for the given offset and size.
 // It does not grow memory. It also returns offset and size converted to uint64.
-func (m *Memory) ExpansionCosts(offset_u256, size_u256 U256) (memCost vm.Gas, offset, size uint64) {
+func (m *Memory) ExpansionCosts(offset_u256, size_u256 U256) (memCost tosca.Gas, offset, size uint64) {
 	if !size_u256.IsUint64() {
 		return math.MaxInt64, 0, 0
 	}
@@ -111,12 +111,12 @@ func (m *Memory) ExpansionCosts(offset_u256, size_u256 U256) (memCost vm.Gas, of
 		memCost = 0
 		return
 	}
-	calcMemoryCost := func(size uint64) vm.Gas {
+	calcMemoryCost := func(size uint64) tosca.Gas {
 		memorySizeWord := size / 32
 		if size%32 != 0 {
 			memorySizeWord++
 		}
-		return vm.Gas((memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord))
+		return tosca.Gas((memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord))
 	}
 	memCost = calcMemoryCost(newSize) - calcMemoryCost(uint64(m.Size()))
 	return

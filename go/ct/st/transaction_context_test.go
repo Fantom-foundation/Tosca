@@ -16,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestTransactionContext_Diff(t *testing.T) {
@@ -24,7 +24,7 @@ func TestTransactionContext_Diff(t *testing.T) {
 		change func(*TransactionContext)
 	}{
 		"Origin Address": {func(t *TransactionContext) { t.OriginAddress[0]++ }},
-		"blobHashes":     {func(t *TransactionContext) { t.BlobHashes = []vm.Hash{{1}} }},
+		"blobHashes":     {func(t *TransactionContext) { t.BlobHashes = []tosca.Hash{{1}} }},
 	}
 
 	for name, test := range tests {
@@ -48,7 +48,7 @@ func TestTransactionContext_String(t *testing.T) {
 			return t.OriginAddress
 		}},
 		"Blob Hashes": {func(t *TransactionContext) any {
-			t.BlobHashes = []vm.Hash{{1, 2, 3, 4}}
+			t.BlobHashes = []tosca.Hash{{1, 2, 3, 4}}
 			return t.BlobHashes
 		}},
 	}
@@ -69,8 +69,8 @@ func TestTransactionContext_String(t *testing.T) {
 func TestTransactionContext_Clone(t *testing.T) {
 
 	t1 := TransactionContext{
-		OriginAddress: vm.Address{1, 2, 3, 4},
-		BlobHashes:    []vm.Hash{{1, 2, 3, 4}},
+		OriginAddress: tosca.Address{1, 2, 3, 4},
+		BlobHashes:    []tosca.Hash{{1, 2, 3, 4}},
 	}
 
 	t2 := t1.Clone()
@@ -80,7 +80,7 @@ func TestTransactionContext_Clone(t *testing.T) {
 	}
 
 	t2.OriginAddress[0] = 0xff
-	t2.BlobHashes[0] = vm.Hash{0x00}
+	t2.BlobHashes[0] = tosca.Hash{0x00}
 
 	if reflect.DeepEqual(t1.BlobHashes, t2.BlobHashes) || reflect.DeepEqual(t1.OriginAddress, t2.OriginAddress) {
 		t.Errorf("Cloned transaction context is not independent to original")
@@ -99,17 +99,17 @@ func TestTransactionContext_Equal(t *testing.T) {
 			wanted: true,
 		},
 		"mismatch": {
-			a:      &TransactionContext{BlobHashes: []vm.Hash{{1}}},
-			b:      &TransactionContext{BlobHashes: []vm.Hash{{4}}},
+			a:      &TransactionContext{BlobHashes: []tosca.Hash{{1}}},
+			b:      &TransactionContext{BlobHashes: []tosca.Hash{{4}}},
 			wanted: false,
 		},
 		"mismatch-different-blobhash-length": {
-			a:      &TransactionContext{BlobHashes: []vm.Hash{{1}, {2}}},
-			b:      &TransactionContext{BlobHashes: []vm.Hash{{4}}},
+			a:      &TransactionContext{BlobHashes: []tosca.Hash{{1}, {2}}},
+			b:      &TransactionContext{BlobHashes: []tosca.Hash{{4}}},
 			wanted: false},
 		"mismatch-different-origin-address": {
-			a:      &TransactionContext{OriginAddress: vm.Address{1, 2, 3, 4}},
-			b:      &TransactionContext{OriginAddress: vm.Address{4, 3, 2, 1}},
+			a:      &TransactionContext{OriginAddress: tosca.Address{1, 2, 3, 4}},
+			b:      &TransactionContext{OriginAddress: tosca.Address{4, 3, 2, 1}},
 			wanted: false,
 		},
 	}

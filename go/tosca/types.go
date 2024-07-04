@@ -1,0 +1,154 @@
+// Copyright (c) 2024 Fantom Foundation
+//
+// Use of this software is governed by the Business Source License included
+// in the LICENSE file and at fantom.foundation/bsl11.
+//
+// Change Date: 2028-4-16
+//
+// On the date above, in accordance with the Business Source License, use of
+// this software will be governed by the GNU Lesser General Public License v3.
+
+package tosca
+
+import (
+	"bytes"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"math/big"
+	"strings"
+
+	"github.com/holiman/uint256"
+)
+
+func (a Address) String() string {
+	return fmt.Sprintf("0x%x", a[:])
+}
+
+func (a Address) MarshalText() ([]byte, error) {
+	return bytesToText(a[:])
+}
+
+func (a *Address) UnmarshalText(data []byte) error {
+	return textToBytes(a[:], data)
+}
+
+func (v Value) ToBig() *big.Int {
+	return new(big.Int).SetBytes(v[:])
+}
+
+func (v Value) ToUint256() *uint256.Int {
+	return new(uint256.Int).SetBytes(v[:])
+}
+
+func (v Value) String() string {
+	return v.ToUint256().String()
+}
+
+func (v Value) Cmp(o Value) int {
+	return bytes.Compare(v[:], o[:])
+}
+
+func ValueFromUint64(value uint64) Value {
+	return ValueFromUint256(new(uint256.Int).SetUint64(value))
+}
+
+// ValueFromUint256 converts a *uint256.Int to a Value.
+// If the input is nil, it returns 0.
+func ValueFromUint256(value *uint256.Int) (result Value) {
+	if value == nil {
+		return result
+	}
+	result = value.Bytes32()
+	return result
+}
+
+func Add(a, b Value) Value {
+	return ValueFromUint256(new(uint256.Int).Add(a.ToUint256(), b.ToUint256()))
+}
+
+func Sub(a, b Value) Value {
+	return ValueFromUint256(new(uint256.Int).Sub(a.ToUint256(), b.ToUint256()))
+}
+
+func (v Value) MarshalText() ([]byte, error) {
+	return bytesToText(v[:])
+}
+
+func (v *Value) UnmarshalText(data []byte) error {
+	return textToBytes(v[:], data)
+}
+
+func bytesToText(data []byte) ([]byte, error) {
+	return []byte(fmt.Sprintf("0x%x", data)), nil
+}
+
+func textToBytes(trg []byte, data []byte) error {
+	s := string(data)
+	if !strings.HasPrefix(s, "0x") {
+		return fmt.Errorf("invalid format, does not start with 0x: %v", s)
+	}
+	data, err := hex.DecodeString(s[2:])
+	if err != nil {
+		return err
+	}
+	if want, got := len(trg), len(data); want != got {
+		return fmt.Errorf("invalid format, wanted %d bytes, got %d", want, got)
+	}
+	copy(trg[:], data)
+	return nil
+}
+
+func (k CallKind) String() string {
+	switch k {
+	case Call:
+		return "call"
+	case StaticCall:
+		return "static_call"
+	case DelegateCall:
+		return "delegate_call"
+	case CallCode:
+		return "call_code"
+	case Create:
+		return "create"
+	case Create2:
+		return "create2"
+	default:
+		return "unknown"
+	}
+}
+
+func (k CallKind) MarshalJSON() ([]byte, error) {
+	var res string
+	switch k {
+	case Call, StaticCall, DelegateCall, CallCode, Create, Create2:
+		res = k.String()
+	default:
+		return nil, fmt.Errorf("invalid call kind: %v", k)
+	}
+	return json.Marshal(res)
+}
+
+func (k *CallKind) UnmarshalJSON(data []byte) error {
+	var kind string
+	if err := json.Unmarshal(data, &kind); err != nil {
+		return err
+	}
+	switch strings.ToLower(kind) {
+	case "call":
+		*k = Call
+	case "static_call":
+		*k = StaticCall
+	case "delegate_call":
+		*k = DelegateCall
+	case "call_code":
+		*k = CallCode
+	case "create":
+		*k = Create
+	case "create2":
+		*k = Create2
+	default:
+		return fmt.Errorf("unknown call kind: %s", kind)
+	}
+	return nil
+}

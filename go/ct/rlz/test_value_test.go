@@ -14,14 +14,14 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestGetPropertyTestValues_ExtractsTestValuesFromConstraints(t *testing.T) {
 	values := getPropertyTestValues(And(
 		Eq(StackSize(), 12),
-		Gt(Gas(), vm.Gas(5)),
-		Le(Gas(), vm.Gas(50)),
+		Gt(Gas(), tosca.Gas(5)),
+		Le(Gas(), tosca.Gas(50)),
 	))
 
 	if want, got := 2, len(values); want != got {

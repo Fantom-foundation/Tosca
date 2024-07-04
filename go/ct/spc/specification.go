@@ -19,7 +19,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 // Specification defines the interface for handling specifications.
@@ -40,7 +40,7 @@ var Spec = func() Specification {
 // these are not enough gas, stack overflow, stack underflow, and a regular behavior case
 type instruction struct {
 	op         OpCode
-	staticGas  vm.Gas
+	staticGas  tosca.Gas
 	pops       int
 	pushes     int
 	conditions []Condition       // conditions for the regular case
@@ -168,12 +168,12 @@ func getAllRules() []Rule {
 
 	rules = append(rules, binaryOpWithDynamicCost(EXP, 10, func(a, e U256) U256 {
 		return a.Exp(e)
-	}, func(a, e U256) vm.Gas {
-		const gasFactor = vm.Gas(50)
+	}, func(a, e U256) tosca.Gas {
+		const gasFactor = tosca.Gas(50)
 		expBytes := e.Bytes32be()
 		for i := 0; i < 32; i++ {
 			if expBytes[i] != 0 {
-				return gasFactor * vm.Gas(32-i)
+				return gasFactor * tosca.Gas(32-i)
 			}
 		}
 		return 0
@@ -265,7 +265,7 @@ func getAllRules() []Rule {
 			}
 			s.Gas -= memExpCost
 
-			wordCost := vm.Gas(6 * SizeInWords(size))
+			wordCost := tosca.Gas(6 * SizeInWords(size))
 			if s.Gas < wordCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -487,63 +487,63 @@ func getAllRules() []Rule {
 	// --- SSTORE ---
 
 	sstoreRules := []sstoreOpParams{
-		{revision: R07_Istanbul, config: vm.StorageAssigned, gasCost: 800},
-		{revision: R07_Istanbul, config: vm.StorageAdded, gasCost: 20000},
-		{revision: R07_Istanbul, config: vm.StorageAddedDeleted, gasCost: 800, gasRefund: 19200},
-		{revision: R07_Istanbul, config: vm.StorageDeletedRestored, gasCost: 800, gasRefund: -10800},
-		{revision: R07_Istanbul, config: vm.StorageDeletedAdded, gasCost: 800, gasRefund: -15000},
-		{revision: R07_Istanbul, config: vm.StorageDeleted, gasCost: 5000, gasRefund: 15000},
-		{revision: R07_Istanbul, config: vm.StorageModified, gasCost: 5000},
-		{revision: R07_Istanbul, config: vm.StorageModifiedDeleted, gasCost: 800, gasRefund: 15000},
-		{revision: R07_Istanbul, config: vm.StorageModifiedRestored, gasCost: 800, gasRefund: 4200},
+		{revision: R07_Istanbul, config: tosca.StorageAssigned, gasCost: 800},
+		{revision: R07_Istanbul, config: tosca.StorageAdded, gasCost: 20000},
+		{revision: R07_Istanbul, config: tosca.StorageAddedDeleted, gasCost: 800, gasRefund: 19200},
+		{revision: R07_Istanbul, config: tosca.StorageDeletedRestored, gasCost: 800, gasRefund: -10800},
+		{revision: R07_Istanbul, config: tosca.StorageDeletedAdded, gasCost: 800, gasRefund: -15000},
+		{revision: R07_Istanbul, config: tosca.StorageDeleted, gasCost: 5000, gasRefund: 15000},
+		{revision: R07_Istanbul, config: tosca.StorageModified, gasCost: 5000},
+		{revision: R07_Istanbul, config: tosca.StorageModifiedDeleted, gasCost: 800, gasRefund: 15000},
+		{revision: R07_Istanbul, config: tosca.StorageModifiedRestored, gasCost: 800, gasRefund: 4200},
 
 		// Certain storage configurations imply warm access. Not all
 		// combinations are possible; invalid ones are marked below.
 
-		// {revision: R09_Berlin, warm: false, config: vm.StorageAssigned, gasCost: 2200}, // invalid
-		{revision: R09_Berlin, warm: false, config: vm.StorageAdded, gasCost: 22100},
-		// {revision: R09_Berlin, warm: false, config: vm.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},     // invalid
-		// {revision: R09_Berlin, warm: false, config: vm.StorageDeletedRestored, gasCost: 2200, gasRefund: -10800}, // invalid
-		// {revision: R09_Berlin, warm: false, config: vm.StorageDeletedAdded, gasCost: 2200, gasRefund: -15000},    // invalid
-		{revision: R09_Berlin, warm: false, config: vm.StorageDeleted, gasCost: 5000, gasRefund: 15000},
-		{revision: R09_Berlin, warm: false, config: vm.StorageModified, gasCost: 5000},
-		// {revision: R09_Berlin, warm: false, config: vm.StorageModifiedDeleted, gasCost: 2200, gasRefund: 15000}, // invalid
-		// {revision: R09_Berlin, warm: false, config: vm.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
+		// {revision: R09_Berlin, warm: false, config: tosca.StorageAssigned, gasCost: 2200}, // invalid
+		{revision: R09_Berlin, warm: false, config: tosca.StorageAdded, gasCost: 22100},
+		// {revision: R09_Berlin, warm: false, config: tosca.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},     // invalid
+		// {revision: R09_Berlin, warm: false, config: tosca.StorageDeletedRestored, gasCost: 2200, gasRefund: -10800}, // invalid
+		// {revision: R09_Berlin, warm: false, config: tosca.StorageDeletedAdded, gasCost: 2200, gasRefund: -15000},    // invalid
+		{revision: R09_Berlin, warm: false, config: tosca.StorageDeleted, gasCost: 5000, gasRefund: 15000},
+		{revision: R09_Berlin, warm: false, config: tosca.StorageModified, gasCost: 5000},
+		// {revision: R09_Berlin, warm: false, config: tosca.StorageModifiedDeleted, gasCost: 2200, gasRefund: 15000}, // invalid
+		// {revision: R09_Berlin, warm: false, config: tosca.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
 
-		{revision: R09_Berlin, warm: true, config: vm.StorageAssigned, gasCost: 100},
-		{revision: R09_Berlin, warm: true, config: vm.StorageAdded, gasCost: 20000},
-		{revision: R09_Berlin, warm: true, config: vm.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
-		{revision: R09_Berlin, warm: true, config: vm.StorageDeletedRestored, gasCost: 100, gasRefund: -12200},
-		{revision: R09_Berlin, warm: true, config: vm.StorageDeletedAdded, gasCost: 100, gasRefund: -15000},
-		{revision: R09_Berlin, warm: true, config: vm.StorageDeleted, gasCost: 2900, gasRefund: 15000},
-		{revision: R09_Berlin, warm: true, config: vm.StorageModified, gasCost: 2900},
-		{revision: R09_Berlin, warm: true, config: vm.StorageModifiedDeleted, gasCost: 100, gasRefund: 15000},
-		{revision: R09_Berlin, warm: true, config: vm.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
+		{revision: R09_Berlin, warm: true, config: tosca.StorageAssigned, gasCost: 100},
+		{revision: R09_Berlin, warm: true, config: tosca.StorageAdded, gasCost: 20000},
+		{revision: R09_Berlin, warm: true, config: tosca.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
+		{revision: R09_Berlin, warm: true, config: tosca.StorageDeletedRestored, gasCost: 100, gasRefund: -12200},
+		{revision: R09_Berlin, warm: true, config: tosca.StorageDeletedAdded, gasCost: 100, gasRefund: -15000},
+		{revision: R09_Berlin, warm: true, config: tosca.StorageDeleted, gasCost: 2900, gasRefund: 15000},
+		{revision: R09_Berlin, warm: true, config: tosca.StorageModified, gasCost: 2900},
+		{revision: R09_Berlin, warm: true, config: tosca.StorageModifiedDeleted, gasCost: 100, gasRefund: 15000},
+		{revision: R09_Berlin, warm: true, config: tosca.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
 	}
 
 	for rev := R10_London; rev <= NewestSupportedRevision; rev++ {
 		// Certain storage configurations imply warm access. Not all
 		// combinations are possible; invalid ones are marked below.
 		sstoreRules = append(sstoreRules, []sstoreOpParams{
-			// {revision: rev, warm: false, config: vm.StorageAssigned, gasCost: 2200}, // invalid
-			{revision: rev, warm: false, config: vm.StorageAdded, gasCost: 22100},
-			// {revision: rev, warm: false, config: vm.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},  // invalid
-			// {revision: rev, warm: false, config: vm.StorageDeletedRestored, gasCost: 2200, gasRefund: 100}, // invalid
-			// {revision: rev, warm: false, config: vm.StorageDeletedAdded, gasCost: 2200, gasRefund: -4800},  // invalid
-			{revision: rev, warm: false, config: vm.StorageDeleted, gasCost: 5000, gasRefund: 4800},
-			{revision: rev, warm: false, config: vm.StorageModified, gasCost: 5000},
-			// {revision: rev, warm: false, config: vm.StorageModifiedDeleted, gasCost: 2200, gasRefund: 4800},  // invalid
-			// {revision: rev, warm: false, config: vm.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
+			// {revision: rev, warm: false, config: tosca.StorageAssigned, gasCost: 2200}, // invalid
+			{revision: rev, warm: false, config: tosca.StorageAdded, gasCost: 22100},
+			// {revision: rev, warm: false, config: tosca.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},  // invalid
+			// {revision: rev, warm: false, config: tosca.StorageDeletedRestored, gasCost: 2200, gasRefund: 100}, // invalid
+			// {revision: rev, warm: false, config: tosca.StorageDeletedAdded, gasCost: 2200, gasRefund: -4800},  // invalid
+			{revision: rev, warm: false, config: tosca.StorageDeleted, gasCost: 5000, gasRefund: 4800},
+			{revision: rev, warm: false, config: tosca.StorageModified, gasCost: 5000},
+			// {revision: rev, warm: false, config: tosca.StorageModifiedDeleted, gasCost: 2200, gasRefund: 4800},  // invalid
+			// {revision: rev, warm: false, config: tosca.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
 
-			{revision: rev, warm: true, config: vm.StorageAssigned, gasCost: 100},
-			{revision: rev, warm: true, config: vm.StorageAdded, gasCost: 20000},
-			{revision: rev, warm: true, config: vm.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
-			{revision: rev, warm: true, config: vm.StorageDeletedRestored, gasCost: 100, gasRefund: -2000},
-			{revision: rev, warm: true, config: vm.StorageDeletedAdded, gasCost: 100, gasRefund: -4800},
-			{revision: rev, warm: true, config: vm.StorageDeleted, gasCost: 2900, gasRefund: 4800},
-			{revision: rev, warm: true, config: vm.StorageModified, gasCost: 2900},
-			{revision: rev, warm: true, config: vm.StorageModifiedDeleted, gasCost: 100, gasRefund: 4800},
-			{revision: rev, warm: true, config: vm.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
+			{revision: rev, warm: true, config: tosca.StorageAssigned, gasCost: 100},
+			{revision: rev, warm: true, config: tosca.StorageAdded, gasCost: 20000},
+			{revision: rev, warm: true, config: tosca.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
+			{revision: rev, warm: true, config: tosca.StorageDeletedRestored, gasCost: 100, gasRefund: -2000},
+			{revision: rev, warm: true, config: tosca.StorageDeletedAdded, gasCost: 100, gasRefund: -4800},
+			{revision: rev, warm: true, config: tosca.StorageDeleted, gasCost: 2900, gasRefund: 4800},
+			{revision: rev, warm: true, config: tosca.StorageModified, gasCost: 2900},
+			{revision: rev, warm: true, config: tosca.StorageModifiedDeleted, gasCost: 100, gasRefund: 4800},
+			{revision: rev, warm: true, config: tosca.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
 		}...)
 	}
 
@@ -888,7 +888,7 @@ func getAllRules() []Rule {
 
 			srcCost, srcOffset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			destCost, destOffset, _ := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			wordCountCost := vm.Gas(3 * ((size + 31) / 32))
+			wordCountCost := tosca.Gas(3 * ((size + 31) / 32))
 			expansionCost := max(srcCost, destCost)
 
 			dynamicGas, overflow := sumWithOverflow(expansionCost, wordCountCost)
@@ -1447,7 +1447,7 @@ func getAllRules() []Rule {
 
 			cost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
 
-			cost += vm.Gas(3 * SizeInWords(size))
+			cost += tosca.Gas(3 * SizeInWords(size))
 			if s.Gas < cost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1524,7 +1524,7 @@ func getAllRules() []Rule {
 			sizeU256 := s.Stack.Pop()
 
 			expansionCost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			expansionCost += vm.Gas(3 * SizeInWords(size))
+			expansionCost += tosca.Gas(3 * SizeInWords(size))
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1596,7 +1596,7 @@ func getAllRules() []Rule {
 			}
 
 			expansionCost, destOffsetUint64, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			expansionCost += vm.Gas(3 * SizeInWords(size))
+			expansionCost += tosca.Gas(3 * SizeInWords(size))
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1671,8 +1671,8 @@ func getAllRules() []Rule {
 	for revision := R07_Istanbul; revision <= NewestSupportedRevision; revision++ {
 		for _, warm := range []bool{true, false} {
 			for _, hasSelfDestructed := range []bool{true, false} {
-				coldTargetCost := vm.Gas(0)
-				createAccountFee := vm.Gas(0)
+				coldTargetCost := tosca.Gas(0)
+				createAccountFee := tosca.Gas(0)
 				if !warm {
 					createAccountFee = 25000
 					if revision > R07_Istanbul {
@@ -1729,7 +1729,7 @@ func getAllRules() []Rule {
 			MemorySizeParameter{},
 		},
 		effect: func(s *st.State) {
-			createEffect(s, vm.Create)
+			createEffect(s, tosca.Create)
 		},
 	})...)
 
@@ -1768,7 +1768,7 @@ func getAllRules() []Rule {
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
-			createEffect(s, vm.Create2)
+			createEffect(s, tosca.Create2)
 		},
 	})...)
 
@@ -1777,7 +1777,7 @@ func getAllRules() []Rule {
 	return rules
 }
 
-func createEffect(s *st.State, callKind vm.CallKind) {
+func createEffect(s *st.State, callKind tosca.CallKind) {
 	valueU256 := s.Stack.Pop()
 	offsetU256 := s.Stack.Pop()
 	sizeU256 := s.Stack.Pop()
@@ -1798,12 +1798,12 @@ func createEffect(s *st.State, callKind vm.CallKind) {
 			s.Status = st.Failed
 			return
 		}
-		dynamicGas += vm.Gas(InitCodeWordGas * ((size + 31) / 32))
+		dynamicGas += tosca.Gas(InitCodeWordGas * ((size + 31) / 32))
 	}
 
-	if callKind == vm.Create2 {
+	if callKind == tosca.Create2 {
 		saltU256 = s.Stack.Pop()
-		dynamicGas += vm.Gas(6 * SizeInWords(size))
+		dynamicGas += tosca.Gas(6 * SizeInWords(size))
 	}
 
 	if s.Gas < dynamicGas {
@@ -1817,7 +1817,7 @@ func createEffect(s *st.State, callKind vm.CallKind) {
 	if !valueU256.IsZero() {
 		balance := s.Accounts.GetBalance(s.CallContext.AccountAddress)
 		if balance.Lt(valueU256) {
-			s.Stack.Push(AddressToU256(vm.Address{}))
+			s.Stack.Push(AddressToU256(tosca.Address{}))
 			s.LastCallReturnData = Bytes{}
 			return
 		}
@@ -1825,7 +1825,7 @@ func createEffect(s *st.State, callKind vm.CallKind) {
 
 	limit := s.Gas - s.Gas/64
 
-	res := s.CallJournal.Call(callKind, vm.CallParameters{
+	res := s.CallJournal.Call(callKind, tosca.CallParameters{
 		Sender: s.CallContext.AccountAddress,
 		Value:  valueU256.Bytes32be(),
 		Gas:    limit,
@@ -1837,7 +1837,7 @@ func createEffect(s *st.State, callKind vm.CallKind) {
 	s.GasRefund += res.GasRefund
 
 	if !res.Success {
-		s.Stack.Push(AddressToU256(vm.Address{}))
+		s.Stack.Push(AddressToU256(tosca.Address{}))
 		s.LastCallReturnData = NewBytes(res.Output)
 		return
 	}
@@ -1847,9 +1847,9 @@ func createEffect(s *st.State, callKind vm.CallKind) {
 
 func binaryOpWithDynamicCost(
 	op OpCode,
-	costs vm.Gas,
+	costs tosca.Gas,
 	effect func(a, b U256) U256,
-	dynamicCost func(a, b U256) vm.Gas,
+	dynamicCost func(a, b U256) tosca.Gas,
 ) []Rule {
 	return rulesFor(instruction{
 		op:        op,
@@ -1878,15 +1878,15 @@ func binaryOpWithDynamicCost(
 
 func binaryOp(
 	op OpCode,
-	costs vm.Gas,
+	costs tosca.Gas,
 	effect func(a, b U256) U256,
 ) []Rule {
-	return binaryOpWithDynamicCost(op, costs, effect, func(_, _ U256) vm.Gas { return 0 })
+	return binaryOpWithDynamicCost(op, costs, effect, func(_, _ U256) tosca.Gas { return 0 })
 }
 
 func trinaryOp(
 	op OpCode,
-	costs vm.Gas,
+	costs tosca.Gas,
 	effect func(a, b, c U256) U256,
 ) []Rule {
 	return rulesFor(instruction{
@@ -1910,7 +1910,7 @@ func trinaryOp(
 
 func unaryOp(
 	op OpCode,
-	costs vm.Gas,
+	costs tosca.Gas,
 	effect func(a U256) U256,
 ) []Rule {
 	return rulesFor(instruction{
@@ -1990,7 +1990,7 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 	sizeU256 := s.Stack.Pop()
 
 	cost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-	cost += vm.Gas(3 * SizeInWords(size))
+	cost += tosca.Gas(3 * SizeInWords(size))
 	if s.Gas < cost {
 		s.Status = st.Failed
 		s.Gas = 0
@@ -2016,15 +2016,15 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 type sstoreOpParams struct {
 	revision  Revision
 	warm      bool
-	config    vm.StorageStatus
-	gasCost   vm.Gas
-	gasRefund vm.Gas
+	config    tosca.StorageStatus
+	gasCost   tosca.Gas
+	gasRefund tosca.Gas
 }
 
 func sstoreOpRegular(params sstoreOpParams) Rule {
 	name := fmt.Sprintf("sstore_regular_%v_%v", params.revision, params.config)
 
-	gasLimit := vm.Gas(2301) // EIP2200
+	gasLimit := tosca.Gas(2301) // EIP2200
 	if params.gasCost > gasLimit {
 		gasLimit = params.gasCost
 	}
@@ -2107,7 +2107,7 @@ func sstoreOpTooLittleGas(params sstoreOpParams) Rule {
 func sstoreOpReadOnlyMode(params sstoreOpParams) Rule {
 	name := fmt.Sprintf("sstore_in_read_only_mode_%v_%v", params.revision, params.config)
 
-	gasLimit := vm.Gas(2301) // EIP2200
+	gasLimit := tosca.Gas(2301) // EIP2200
 	if params.gasCost > gasLimit {
 		gasLimit = params.gasCost
 	}
@@ -2135,7 +2135,7 @@ func sstoreOpReadOnlyMode(params sstoreOpParams) Rule {
 
 func logOp(n int) []Rule {
 	op := OpCode(int(LOG0) + n)
-	minGas := vm.Gas(375 + 375*n)
+	minGas := tosca.Gas(375 + 375*n)
 	conditions := []Condition{
 		Eq(ReadOnly(), false),
 	}
@@ -2172,12 +2172,12 @@ func logOp(n int) []Rule {
 			}
 			s.Gas -= memExpCost
 
-			if s.Gas < vm.Gas(8*size) {
+			if s.Gas < tosca.Gas(8*size) {
 				s.Status = st.Failed
 				s.Gas = 0
 				return
 			}
-			s.Gas -= vm.Gas(8 * size)
+			s.Gas -= tosca.Gas(8 * size)
 
 			s.Logs.AddLog(s.Memory.Read(offset, size), topics...)
 		},
@@ -2202,7 +2202,7 @@ func logOp(n int) []Rule {
 	return rules
 }
 
-func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCost, accountCreationFee vm.Gas, hasSelfDestructed bool) []Rule {
+func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCost, accountCreationFee tosca.Gas, hasSelfDestructed bool) []Rule {
 
 	var targetWarm Condition
 	var warmColdString string
@@ -2224,7 +2224,7 @@ func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCos
 		hasSelfDestructedCondition = HasNotSelfDestructed()
 	}
 
-	refundGas := vm.Gas(0)
+	refundGas := tosca.Gas(0)
 	if revision < R10_London && !hasSelfDestructed {
 		refundGas = 24000
 	}
@@ -2251,7 +2251,7 @@ func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCos
 	return rulesFor(instruction)
 }
 
-func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, refundGas vm.Gas) {
+func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, refundGas tosca.Gas) {
 	// Behavior pre cancun: the current account is registered to be destroyed, and will be at the end of the current
 	// transaction. The transfer of the current balance to the given account cannot fail. In particular,
 	// the destination account code (if any) is not executed, or, if the account does not exist, the
@@ -2262,7 +2262,7 @@ func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, re
 	currentAccount := s.CallContext.AccountAddress
 	CurrentBalance := s.Accounts.GetBalance(currentAccount)
 
-	dynamicCost := vm.Gas(0)
+	dynamicCost := tosca.Gas(0)
 	if !CurrentBalance.IsZero() && !s.Accounts.Exist(destinationAccount) {
 		dynamicCost += accountCreationFee
 	}
@@ -2366,7 +2366,7 @@ func getRulesForAllCallTypes() []Rule {
 	// NOTE: this rule only covers Istanbul, Berlin and London cases in a coarse-grained way.
 	// Follow-work is required to cover other revisions and situations,
 	// as well as special cases currently covered in the effect function.
-	callFailEffect := func(s *st.State, addrAccessCost vm.Gas, op OpCode) {
+	callFailEffect := func(s *st.State, addrAccessCost tosca.Gas, op OpCode) {
 		FailEffect().Apply(s)
 	}
 
@@ -2390,16 +2390,16 @@ func getRulesForAllCallTypes() []Rule {
 	return res
 }
 
-func getRulesForCall(op OpCode, revision Revision, warm, zeroValue bool, opEffect func(s *st.State, addrAccessCost vm.Gas, op OpCode), static bool) []Rule {
+func getRulesForCall(op OpCode, revision Revision, warm, zeroValue bool, opEffect func(s *st.State, addrAccessCost tosca.Gas, op OpCode), static bool) []Rule {
 
-	var staticGas vm.Gas
+	var staticGas tosca.Gas
 	if revision == R07_Istanbul {
 		staticGas = 700
 	} else if revision == R09_Berlin {
 		staticGas = 0
 	}
 
-	var addressAccessCost vm.Gas
+	var addressAccessCost tosca.Gas
 	if revision == R07_Istanbul {
 		addressAccessCost = 0
 	} else if revision >= R09_Berlin && warm {
@@ -2485,7 +2485,7 @@ func getRulesForCall(op OpCode, revision Revision, warm, zeroValue bool, opEffec
 	})
 }
 
-func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
+func callEffect(s *st.State, addrAccessCost tosca.Gas, op OpCode) {
 
 	gas := s.Stack.Pop()
 	target := s.Stack.Pop()
@@ -2512,13 +2512,13 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 	isValueZero := value.IsZero()
 
 	// Compute the value transfer costs.
-	positiveValueCost := vm.Gas(0)
+	positiveValueCost := tosca.Gas(0)
 	if !isValueZero {
 		positiveValueCost = 9000
 	}
 
 	// If an account is implicitly created, this costs extra.
-	valueToEmptyAccountCost := vm.Gas(0)
+	valueToEmptyAccountCost := tosca.Gas(0)
 	if !isValueZero && s.Accounts.IsEmpty(target.Bytes20be()) && op != CALLCODE {
 		valueToEmptyAccountCost = 25000
 	}
@@ -2543,11 +2543,11 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 	limit := s.Gas - s.Gas/64
 	endowment := limit
 	if gas.IsUint64() && gas.Uint64() < uint64(endowment) {
-		endowment = vm.Gas(gas.Uint64())
+		endowment = tosca.Gas(gas.Uint64())
 	}
 
 	// If value is transferred, a stipend is granted.
-	stipend := vm.Gas(0)
+	stipend := tosca.Gas(0)
 	if !isValueZero {
 		stipend = 2300
 	}
@@ -2570,28 +2570,28 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 
 	sender := s.CallContext.AccountAddress
 	recipient := target.Bytes20be()
-	codeAddress := vm.Address{}
+	codeAddress := tosca.Address{}
 	// In a static context all calls are static calls.
-	kind := vm.Call
+	kind := tosca.Call
 	if op == DELEGATECALL {
-		kind = vm.DelegateCall
+		kind = tosca.DelegateCall
 		sender = s.CallContext.CallerAddress
 		recipient = s.CallContext.AccountAddress
 		codeAddress = target.Bytes20be()
 		value = s.CallContext.Value
 	} else if op == CALLCODE {
-		kind = vm.CallCode
+		kind = tosca.CallCode
 		sender = s.CallContext.AccountAddress
 		recipient = s.CallContext.AccountAddress
 		codeAddress = target.Bytes20be()
 	}
 
 	if (s.ReadOnly && op == CALL) || op == STATICCALL {
-		kind = vm.StaticCall
+		kind = tosca.StaticCall
 	}
 
 	// Execute the call.
-	res := s.CallJournal.Call(kind, vm.CallParameters{
+	res := s.CallJournal.Call(kind, tosca.CallParameters{
 		Sender:      sender,
 		Recipient:   recipient,
 		Value:       value.Bytes32be(),
@@ -2619,8 +2619,8 @@ func callEffect(s *st.State, addrAccessCost vm.Gas, op OpCode) {
 	}
 }
 
-func sumWithOverflow(values ...vm.Gas) (vm.Gas, bool) {
-	res := vm.Gas(0)
+func sumWithOverflow(values ...tosca.Gas) (tosca.Gas, bool) {
+	res := tosca.Gas(0)
 	for _, cur := range values {
 		next := res + cur
 		if next < res {

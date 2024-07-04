@@ -20,7 +20,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestStateGenerator_UnconstrainedGeneratorCanProduceState(t *testing.T) {
@@ -197,7 +197,7 @@ func TestStateGenerator_NonConflictingPcesAreAccepted(t *testing.T) {
 // Gas Counter
 
 func TestStateGenerator_SetGasIsEnforced(t *testing.T) {
-	gasCounts := []vm.Gas{0, 42, st.MaxGas}
+	gasCounts := []tosca.Gas{0, 42, st.MaxGas}
 
 	rnd := rand.New(0)
 	for _, gas := range gasCounts {
@@ -237,7 +237,7 @@ func TestStateGenerator_NonConflictingGasAreAccepted(t *testing.T) {
 // Gas Refund Counter
 
 func TestStateGenerator_SetGasRefundIsEnforced(t *testing.T) {
-	gasRefundCounts := []vm.Gas{0, 42, st.MaxGas}
+	gasRefundCounts := []tosca.Gas{0, 42, st.MaxGas}
 
 	rnd := rand.New(0)
 	for _, gasRefund := range gasRefundCounts {
@@ -467,7 +467,7 @@ func TestStateGenerator_ReturnDataShouldBeEmpty(t *testing.T) {
 // //////////////////////////////////////////////////////////
 // Block number hashes
 func TestStateGenerator_BlockNumberHashes(t *testing.T) {
-	newHashes := []vm.Hash{}
+	newHashes := []tosca.Hash{}
 	state := genRandomState(t)
 	for i := uint64(0); i < 256; i++ {
 		hashi := state.RecentBlockHashes.Get(i)

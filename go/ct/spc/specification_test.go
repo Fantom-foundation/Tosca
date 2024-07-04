@@ -22,7 +22,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestSpecification_SpecificationIsSound(t *testing.T) {
@@ -305,10 +305,10 @@ func BenchmarkSpecification_RulesConditionCheck(b *testing.B) {
 }
 
 func TestSumWithOverflow(t *testing.T) {
-	max := vm.Gas(math.MaxInt64)
+	max := tosca.Gas(math.MaxInt64)
 	tests := map[string]struct {
-		inputs   []vm.Gas
-		result   vm.Gas
+		inputs   []tosca.Gas
+		result   tosca.Gas
 		overflow bool
 	}{
 		"nil": {
@@ -316,35 +316,35 @@ func TestSumWithOverflow(t *testing.T) {
 			result: 0,
 		},
 		"empty": {
-			inputs: []vm.Gas{},
+			inputs: []tosca.Gas{},
 			result: 0,
 		},
 		"single": {
-			inputs: []vm.Gas{12},
+			inputs: []tosca.Gas{12},
 			result: 12,
 		},
 		"single_max": {
-			inputs: []vm.Gas{max},
+			inputs: []tosca.Gas{max},
 			result: max,
 		},
 		"pair_without_overflow": {
-			inputs: []vm.Gas{1, 2},
+			inputs: []tosca.Gas{1, 2},
 			result: 3,
 		},
 		"pair_with_overflow": {
-			inputs:   []vm.Gas{max - 1, 2},
+			inputs:   []tosca.Gas{max - 1, 2},
 			overflow: true,
 		},
 		"triple_without_overflow": {
-			inputs: []vm.Gas{1, 2, 3},
+			inputs: []tosca.Gas{1, 2, 3},
 			result: 6,
 		},
 		"triple_with_overflow_in_first_pair": {
-			inputs:   []vm.Gas{max - 1, 2, 4},
+			inputs:   []tosca.Gas{max - 1, 2, 4},
 			overflow: true,
 		},
 		"triple_with_overflow_with_last_element": {
-			inputs:   []vm.Gas{max - 3, 2, 4},
+			inputs:   []tosca.Gas{max - 3, 2, 4},
 			overflow: true,
 		},
 	}

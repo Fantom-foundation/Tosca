@@ -22,10 +22,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/Fantom-foundation/Tosca/go/vm"
-	_ "github.com/Fantom-foundation/Tosca/go/vm/evmone"
-	_ "github.com/Fantom-foundation/Tosca/go/vm/evmzero"
-	_ "github.com/Fantom-foundation/Tosca/go/vm/lfvm"
+	_ "github.com/Fantom-foundation/Tosca/go/interpreter/evmone"
+	_ "github.com/Fantom-foundation/Tosca/go/interpreter/evmzero"
+	_ "github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	gc "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -37,12 +37,12 @@ import (
 const adapterDebug = false
 
 func init() {
-	for name, interpreter := range vm.GetAllRegisteredInterpreters() {
+	for name, interpreter := range tosca.GetAllRegisteredInterpreters() {
 		RegisterGethInterpreter(name, interpreter)
 	}
 }
 
-func RegisterGethInterpreter(name string, interpreter vm.Interpreter) {
+func RegisterGethInterpreter(name string, interpreter tosca.Interpreter) {
 	geth.RegisterInterpreterFactory(name, func(evm *geth.EVM, cfg geth.Config) geth.Interpreter {
 		return &gethInterpreterAdapter{
 			interpreter: interpreter,
@@ -53,7 +53,7 @@ func RegisterGethInterpreter(name string, interpreter vm.Interpreter) {
 }
 
 type gethInterpreterAdapter struct {
-	interpreter vm.Interpreter
+	interpreter tosca.Interpreter
 	evm         *geth.EVM
 	cfg         geth.Config
 }
@@ -115,14 +115,14 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	defer func() { a.evm.SetDepth(a.evm.GetDepth() - 1) }()
 
 	// Pick proper Tosca revision based on block height.
-	revision := vm.R07_Istanbul
+	revision := tosca.R07_Istanbul
 	if chainConfig := a.evm.ChainConfig(); chainConfig != nil {
 		// Note: configurations need to be checked in reverse order since
 		// later revisions implicitly include earlier revisions.
 		if chainConfig.IsLondon(a.evm.Context.BlockNumber) {
-			revision = vm.R10_London
+			revision = tosca.R10_London
 		} else if chainConfig.IsBerlin(a.evm.Context.BlockNumber) {
-			revision = vm.R09_Berlin
+			revision = tosca.R09_Berlin
 		}
 	}
 
@@ -130,12 +130,12 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		fmt.Printf("Running revision %v\n", revision)
 	}
 
-	// Convert the value from big-int to vm.Value.
-	value := vm.ValueFromUint256(contract.Value())
+	// Convert the value from big-int to tosca.Value.
+	value := tosca.ValueFromUint256(contract.Value())
 
-	var codeHash *vm.Hash
+	var codeHash *tosca.Hash
 	if contract.CodeHash != (gc.Hash{}) {
-		hash := vm.Hash(contract.CodeHash)
+		hash := tosca.Hash(contract.CodeHash)
 		codeHash = &hash
 	}
 
@@ -160,12 +160,12 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		return nil, fmt.Errorf("could not convert blob-base fee: %v", err)
 	}
 
-	blockParameters := vm.BlockParameters{
+	blockParameters := tosca.BlockParameters{
 		ChainID:     chainId,
 		BlockNumber: a.evm.Context.BlockNumber.Int64(),
 		Timestamp:   int64(a.evm.Context.Time),
-		Coinbase:    vm.Address(a.evm.Context.Coinbase),
-		GasLimit:    vm.Gas(a.evm.Context.GasLimit),
+		Coinbase:    tosca.Address(a.evm.Context.Coinbase),
+		GasLimit:    tosca.Gas(a.evm.Context.GasLimit),
 		PrevRandao:  difficulty,
 		BaseFee:     baseFee,
 		BlobBaseFee: blobBaseFee,
@@ -177,22 +177,22 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		return nil, fmt.Errorf("could not convert gas price: %v", err)
 	}
 
-	transactionParameters := vm.TransactionParameters{
-		Origin:     vm.Address(a.evm.Origin),
+	transactionParameters := tosca.TransactionParameters{
+		Origin:     tosca.Address(a.evm.Origin),
 		GasPrice:   gasPrice,
 		BlobHashes: nil, // TODO: add
 	}
 
-	params := vm.Parameters{
+	params := tosca.Parameters{
 		BlockParameters:       blockParameters,
 		TransactionParameters: transactionParameters,
 		Context:               &runContextAdapter{a.evm, &a.cfg, contract, readOnly},
-		Kind:                  vm.Call, // < this might be wrong, but seems to be unused
+		Kind:                  tosca.Call, // < this might be wrong, but seems to be unused
 		Static:                readOnly,
 		Depth:                 a.evm.GetDepth() - 1,
-		Gas:                   vm.Gas(contract.Gas),
-		Recipient:             vm.Address(contract.Address()),
-		Sender:                vm.Address(contract.Caller()),
+		Gas:                   tosca.Gas(contract.Gas),
+		Recipient:             tosca.Address(contract.Address()),
+		Sender:                tosca.Address(contract.Caller()),
 		Input:                 input,
 		Value:                 value,
 		CodeHash:              codeHash,
@@ -241,7 +241,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	return res.Output, nil
 }
 
-// runContextAdapter implements the vm.RunContext interface using geth infrastructure.
+// runContextAdapter implements the tosca.RunContext interface using geth infrastructure.
 type runContextAdapter struct {
 	evm      *geth.EVM
 	cfg      *geth.Config
@@ -249,11 +249,11 @@ type runContextAdapter struct {
 	readOnly bool
 }
 
-func (a *runContextAdapter) AccountExists(addr vm.Address) bool {
+func (a *runContextAdapter) AccountExists(addr tosca.Address) bool {
 	return a.evm.StateDB.Exist(gc.Address(addr))
 }
 
-func (a *runContextAdapter) CreateAccount(addr vm.Address, code vm.Code) bool {
+func (a *runContextAdapter) CreateAccount(addr tosca.Address, code tosca.Code) bool {
 	if a.AccountExists(addr) {
 		return false
 	}
@@ -262,65 +262,65 @@ func (a *runContextAdapter) CreateAccount(addr vm.Address, code vm.Code) bool {
 	return true
 }
 
-func (a *runContextAdapter) GetNonce(addr vm.Address) uint64 {
+func (a *runContextAdapter) GetNonce(addr tosca.Address) uint64 {
 	return a.evm.StateDB.GetNonce(gc.Address(addr))
 }
 
-func (a *runContextAdapter) SetNonce(addr vm.Address, nonce uint64) {
+func (a *runContextAdapter) SetNonce(addr tosca.Address, nonce uint64) {
 	a.evm.StateDB.SetNonce(gc.Address(addr), nonce)
 }
 
-func (a *runContextAdapter) GetStorage(addr vm.Address, key vm.Key) vm.Word {
-	return vm.Word(a.evm.StateDB.GetState(gc.Address(addr), gc.Hash(key)))
+func (a *runContextAdapter) GetStorage(addr tosca.Address, key tosca.Key) tosca.Word {
+	return tosca.Word(a.evm.StateDB.GetState(gc.Address(addr), gc.Hash(key)))
 }
 
-func (a *runContextAdapter) SetStorage(addr vm.Address, key vm.Key, future vm.Word) vm.StorageStatus {
+func (a *runContextAdapter) SetStorage(addr tosca.Address, key tosca.Key, future tosca.Word) tosca.StorageStatus {
 	current := a.GetStorage(addr, key)
 	if current == future {
-		return vm.StorageAssigned
+		return tosca.StorageAssigned
 	}
-	original := vm.Word(a.evm.StateDB.GetCommittedState(gc.Address(addr), gc.Hash(key)))
+	original := tosca.Word(a.evm.StateDB.GetCommittedState(gc.Address(addr), gc.Hash(key)))
 	a.evm.StateDB.SetState(gc.Address(addr), gc.Hash(key), gc.Hash(future))
-	return vm.GetStorageStatus(original, current, future)
+	return tosca.GetStorageStatus(original, current, future)
 }
 
-func (a *runContextAdapter) GetTransientStorage(addr vm.Address, key vm.Key) vm.Word {
-	return vm.Word(a.evm.StateDB.GetTransientState(gc.Address(addr), gc.Hash(key)))
+func (a *runContextAdapter) GetTransientStorage(addr tosca.Address, key tosca.Key) tosca.Word {
+	return tosca.Word(a.evm.StateDB.GetTransientState(gc.Address(addr), gc.Hash(key)))
 }
 
-func (a *runContextAdapter) SetTransientStorage(addr vm.Address, key vm.Key, future vm.Word) {
+func (a *runContextAdapter) SetTransientStorage(addr tosca.Address, key tosca.Key, future tosca.Word) {
 	a.evm.StateDB.SetTransientState(gc.Address(addr), gc.Hash(key), gc.Hash(future))
 }
 
-func (a *runContextAdapter) GetBalance(addr vm.Address) vm.Value {
-	return vm.ValueFromUint256(a.evm.StateDB.GetBalance(gc.Address(addr)))
+func (a *runContextAdapter) GetBalance(addr tosca.Address) tosca.Value {
+	return tosca.ValueFromUint256(a.evm.StateDB.GetBalance(gc.Address(addr)))
 }
 
-func (a *runContextAdapter) SetBalance(addr vm.Address, value vm.Value) {
+func (a *runContextAdapter) SetBalance(addr tosca.Address, value tosca.Value) {
 	panic("not implemented - should not be needed")
 }
 
-func (a *runContextAdapter) GetCodeSize(addr vm.Address) int {
+func (a *runContextAdapter) GetCodeSize(addr tosca.Address) int {
 	return a.evm.StateDB.GetCodeSize(gc.Address(addr))
 }
 
-func (a *runContextAdapter) GetCodeHash(addr vm.Address) vm.Hash {
-	return vm.Hash(a.evm.StateDB.GetCodeHash(gc.Address(addr)))
+func (a *runContextAdapter) GetCodeHash(addr tosca.Address) tosca.Hash {
+	return tosca.Hash(a.evm.StateDB.GetCodeHash(gc.Address(addr)))
 }
 
-func (a *runContextAdapter) GetCode(addr vm.Address) vm.Code {
+func (a *runContextAdapter) GetCode(addr tosca.Address) tosca.Code {
 	return a.evm.StateDB.GetCode(gc.Address(addr))
 }
 
-func (a *runContextAdapter) SetCode(addr vm.Address, code vm.Code) {
+func (a *runContextAdapter) SetCode(addr tosca.Address, code tosca.Code) {
 	a.evm.StateDB.SetCode(gc.Address(addr), code)
 }
 
-func (a *runContextAdapter) GetBlockHash(number int64) vm.Hash {
-	return vm.Hash(a.evm.Context.GetHash(uint64(number)))
+func (a *runContextAdapter) GetBlockHash(number int64) tosca.Hash {
+	return tosca.Hash(a.evm.Context.GetHash(uint64(number)))
 }
 
-func (a *runContextAdapter) EmitLog(log vm.Log) {
+func (a *runContextAdapter) EmitLog(log tosca.Log) {
 	topics_in := log.Topics
 	topics := make([]gc.Hash, len(topics_in))
 	for i := range topics {
@@ -335,11 +335,11 @@ func (a *runContextAdapter) EmitLog(log vm.Log) {
 	})
 }
 
-func (a *runContextAdapter) GetLogs() []vm.Log {
+func (a *runContextAdapter) GetLogs() []tosca.Log {
 	panic("not implemented")
 }
 
-func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameters) (result vm.CallResult, reserr error) {
+func (a *runContextAdapter) Call(kind tosca.CallKind, parameter tosca.CallParameters) (result tosca.CallResult, reserr error) {
 	if adapterDebug {
 		fmt.Printf("Start of call:\n")
 		fmt.Printf("\tType:         %v\n", kind)
@@ -385,28 +385,28 @@ func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameters) 
 	var err error
 	var output []byte
 	var returnGas uint64
-	var createdAddress vm.Address
+	var createdAddress tosca.Address
 	switch kind {
-	case vm.Call:
+	case tosca.Call:
 		output, returnGas, err = a.evm.Call(a.contract, toAddr, parameter.Input, gas, parameter.Value.ToUint256())
-	case vm.StaticCall:
+	case tosca.StaticCall:
 		output, returnGas, err = a.evm.StaticCall(a.contract, toAddr, parameter.Input, gas)
-	case vm.DelegateCall:
+	case tosca.DelegateCall:
 		toAddr = gc.Address(parameter.CodeAddress)
 		output, returnGas, err = a.evm.DelegateCall(a.contract, toAddr, parameter.Input, gas)
-	case vm.CallCode:
+	case tosca.CallCode:
 		toAddr = gc.Address(parameter.CodeAddress)
 		output, returnGas, err = a.evm.CallCode(a.contract, toAddr, parameter.Input, gas, parameter.Value.ToUint256())
-	case vm.Create:
+	case tosca.Create:
 		var newAddr gc.Address
 		output, newAddr, returnGas, err = a.evm.Create(a.contract, parameter.Input, gas, parameter.Value.ToUint256())
-		createdAddress = vm.Address(newAddr)
-	case vm.Create2:
+		createdAddress = tosca.Address(newAddr)
+	case tosca.Create2:
 		var newAddr gc.Address
 		vmSalt := &uint256.Int{}
 		vmSalt.SetBytes(parameter.Salt[:])
 		output, newAddr, returnGas, err = a.evm.Create2(a.contract, parameter.Input, gas, parameter.Value.ToUint256(), vmSalt)
-		createdAddress = vm.Address(newAddr)
+		createdAddress = tosca.Address(newAddr)
 	default:
 		panic(fmt.Sprintf("unsupported call kind: %v", kind))
 	}
@@ -436,39 +436,39 @@ func (a *runContextAdapter) Call(kind vm.CallKind, parameter vm.CallParameters) 
 			// EVM byte code that got correctly handled by aborting the
 			// execution. In Tosca, these are not considered errors, but
 			// unsuccessful executions, and thus, they are reported as such.
-			return vm.CallResult{Success: false}, nil
+			return tosca.CallResult{Success: false}, nil
 		case geth.ErrInsufficientBalance:
 			// In this case, the caller get its gas back.
 			// TODO: this seems to be a geth implementation quirk that got
 			// transferred into the LFVM implementation; this should be fixed.
-			return vm.CallResult{
+			return tosca.CallResult{
 				GasLeft: parameter.Gas,
 				Success: false,
 			}, nil
 		default:
 			if _, ok := err.(*geth.ErrStackUnderflow); ok {
-				return vm.CallResult{Success: false}, nil
+				return tosca.CallResult{Success: false}, nil
 			}
 			if _, ok := err.(*geth.ErrStackOverflow); ok {
-				return vm.CallResult{Success: false}, nil
+				return tosca.CallResult{Success: false}, nil
 			}
 			if _, ok := err.(*geth.ErrInvalidOpCode); ok {
-				return vm.CallResult{Success: false}, nil
+				return tosca.CallResult{Success: false}, nil
 			}
-			return vm.CallResult{Success: false}, err
+			return tosca.CallResult{Success: false}, err
 		}
 	}
 
-	return vm.CallResult{
+	return tosca.CallResult{
 		Output:         output,
-		GasLeft:        vm.Gas(returnGas),
+		GasLeft:        tosca.Gas(returnGas),
 		GasRefund:      0, // refunds of nested calls are managed by the geth EVM and this adapter
 		CreatedAddress: createdAddress,
 		Success:        err == nil,
 	}, nil
 }
 
-func (a *runContextAdapter) SelfDestruct(addr vm.Address, beneficiary vm.Address) bool {
+func (a *runContextAdapter) SelfDestruct(addr tosca.Address, beneficiary tosca.Address) bool {
 
 	if adapterDebug {
 		fmt.Printf("SelfDestruct called with %v, %v\n", addr, beneficiary)
@@ -491,53 +491,53 @@ func (a *runContextAdapter) SelfDestruct(addr vm.Address, beneficiary vm.Address
 	return true
 }
 
-func (a *runContextAdapter) CreateSnapshot() vm.Snapshot {
-	return vm.Snapshot(a.evm.StateDB.Snapshot())
+func (a *runContextAdapter) CreateSnapshot() tosca.Snapshot {
+	return tosca.Snapshot(a.evm.StateDB.Snapshot())
 }
 
-func (a *runContextAdapter) RestoreSnapshot(snapshot vm.Snapshot) {
+func (a *runContextAdapter) RestoreSnapshot(snapshot tosca.Snapshot) {
 	a.evm.StateDB.RevertToSnapshot(int(snapshot))
 }
 
-func (a *runContextAdapter) AccessAccount(addr vm.Address) vm.AccessStatus {
+func (a *runContextAdapter) AccessAccount(addr tosca.Address) tosca.AccessStatus {
 	warm := a.IsAddressInAccessList(addr)
 	a.evm.StateDB.AddAddressToAccessList(gc.Address(addr))
 	if warm {
-		return vm.WarmAccess
+		return tosca.WarmAccess
 	}
-	return vm.ColdAccess
+	return tosca.ColdAccess
 }
 
-func (a *runContextAdapter) AccessStorage(addr vm.Address, key vm.Key) vm.AccessStatus {
+func (a *runContextAdapter) AccessStorage(addr tosca.Address, key tosca.Key) tosca.AccessStatus {
 	_, warm := a.IsSlotInAccessList(addr, key)
 	a.evm.StateDB.AddSlotToAccessList(gc.Address(addr), gc.Hash(key))
 	if warm {
-		return vm.WarmAccess
+		return tosca.WarmAccess
 	}
-	return vm.ColdAccess
+	return tosca.ColdAccess
 }
 
 // -- legacy API needed by LFVM and Geth, to be removed in the future ---
 
-func (a *runContextAdapter) GetCommittedStorage(addr vm.Address, key vm.Key) vm.Word {
-	return vm.Word(a.evm.StateDB.GetCommittedState(gc.Address(addr), gc.Hash(key)))
+func (a *runContextAdapter) GetCommittedStorage(addr tosca.Address, key tosca.Key) tosca.Word {
+	return tosca.Word(a.evm.StateDB.GetCommittedState(gc.Address(addr), gc.Hash(key)))
 }
 
-func (a *runContextAdapter) IsAddressInAccessList(addr vm.Address) bool {
+func (a *runContextAdapter) IsAddressInAccessList(addr tosca.Address) bool {
 	return a.evm.StateDB.AddressInAccessList(gc.Address(addr))
 }
 
-func (a *runContextAdapter) IsSlotInAccessList(addr vm.Address, key vm.Key) (addressPresent, slotPresent bool) {
+func (a *runContextAdapter) IsSlotInAccessList(addr tosca.Address, key tosca.Key) (addressPresent, slotPresent bool) {
 	return a.evm.StateDB.SlotInAccessList(gc.Address(addr), gc.Hash(key))
 }
 
-func (a *runContextAdapter) HasSelfDestructed(addr vm.Address) bool {
+func (a *runContextAdapter) HasSelfDestructed(addr tosca.Address) bool {
 	return a.evm.StateDB.HasSelfDestructed(gc.Address(addr))
 }
 
-func bigIntToValue(value *big.Int) (result vm.Value, err error) {
+func bigIntToValue(value *big.Int) (result tosca.Value, err error) {
 	if value == nil {
-		return vm.Value{}, nil
+		return tosca.Value{}, nil
 	}
 	if value.Sign() < 0 {
 		return result, fmt.Errorf("cannot convert a negative number to a Hash, got %v", value)
@@ -549,21 +549,21 @@ func bigIntToValue(value *big.Int) (result vm.Value, err error) {
 	return result, nil
 }
 
-func bigIntToHash(value *big.Int) (vm.Hash, error) {
+func bigIntToHash(value *big.Int) (tosca.Hash, error) {
 	res, err := bigIntToValue(value)
-	return vm.Hash(res), err
+	return tosca.Hash(res), err
 }
 
-func bigIntToWord(value *big.Int) (vm.Word, error) {
+func bigIntToWord(value *big.Int) (tosca.Word, error) {
 	res, err := bigIntToValue(value)
-	return vm.Word(res), err
+	return tosca.Word(res), err
 }
 
-func valueToBigInt(value vm.Value) *big.Int {
+func valueToBigInt(value tosca.Value) *big.Int {
 	return new(big.Int).SetBytes(value[:])
 }
 
-func isPrecompiledContract(recipient vm.Address) bool {
+func isPrecompiledContract(recipient tosca.Address) bool {
 	// the addresses 1-9 are precompiled contracts
 	for i := 0; i < 18; i++ {
 		if recipient[i] != 0 {

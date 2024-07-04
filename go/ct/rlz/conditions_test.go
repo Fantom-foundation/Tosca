@@ -17,7 +17,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"pgregory.net/rand"
 )
 
@@ -143,31 +143,31 @@ func TestCondition_UnknownNextRevisionIsNotAnyKnownIsRevision(t *testing.T) {
 }
 
 func TestCondition_CheckStorageConfiguration(t *testing.T) {
-	allConfigs := []vm.StorageStatus{
-		vm.StorageAssigned,
-		vm.StorageAdded,
-		vm.StorageAddedDeleted,
-		vm.StorageDeletedRestored,
-		vm.StorageDeletedAdded,
-		vm.StorageDeleted,
-		vm.StorageModified,
-		vm.StorageModifiedDeleted,
-		vm.StorageModifiedRestored,
+	allConfigs := []tosca.StorageStatus{
+		tosca.StorageAssigned,
+		tosca.StorageAdded,
+		tosca.StorageAddedDeleted,
+		tosca.StorageDeletedRestored,
+		tosca.StorageDeletedAdded,
+		tosca.StorageDeleted,
+		tosca.StorageModified,
+		tosca.StorageModifiedDeleted,
+		tosca.StorageModifiedRestored,
 	}
 
 	tests := []struct {
-		config        vm.StorageStatus
+		config        tosca.StorageStatus
 		org, cur, new U256
 	}{
-		{vm.StorageAssigned, NewU256(1), NewU256(2), NewU256(3)},
-		{vm.StorageAdded, NewU256(0), NewU256(0), NewU256(1)},
-		{vm.StorageAddedDeleted, NewU256(0), NewU256(1), NewU256(0)},
-		{vm.StorageDeletedRestored, NewU256(1), NewU256(0), NewU256(1)},
-		{vm.StorageDeletedAdded, NewU256(1), NewU256(0), NewU256(2)},
-		{vm.StorageDeleted, NewU256(1), NewU256(1), NewU256(0)},
-		{vm.StorageModified, NewU256(1), NewU256(1), NewU256(2)},
-		{vm.StorageModifiedDeleted, NewU256(1), NewU256(2), NewU256(0)},
-		{vm.StorageModifiedRestored, NewU256(1), NewU256(2), NewU256(1)},
+		{tosca.StorageAssigned, NewU256(1), NewU256(2), NewU256(3)},
+		{tosca.StorageAdded, NewU256(0), NewU256(0), NewU256(1)},
+		{tosca.StorageAddedDeleted, NewU256(0), NewU256(1), NewU256(0)},
+		{tosca.StorageDeletedRestored, NewU256(1), NewU256(0), NewU256(1)},
+		{tosca.StorageDeletedAdded, NewU256(1), NewU256(0), NewU256(2)},
+		{tosca.StorageDeleted, NewU256(1), NewU256(1), NewU256(0)},
+		{tosca.StorageModified, NewU256(1), NewU256(1), NewU256(2)},
+		{tosca.StorageModifiedDeleted, NewU256(1), NewU256(2), NewU256(0)},
+		{tosca.StorageModifiedRestored, NewU256(1), NewU256(2), NewU256(1)},
 	}
 
 	for _, test := range tests {
@@ -501,14 +501,14 @@ func TestCondition_BlobHashes_check(t *testing.T) {
 		"hasBlobHash": {
 			condition: HasBlobHash(Param(0)),
 			setup: func(state *st.State) {
-				state.TransactionContext.BlobHashes = []vm.Hash{{0}}
+				state.TransactionContext.BlobHashes = []tosca.Hash{{0}}
 				state.Stack.Push(NewU256(0))
 			},
 		},
 		"hasNotBlobHash": {
 			condition: HasNoBlobHash(Param(0)),
 			setup: func(state *st.State) {
-				state.TransactionContext.BlobHashes = []vm.Hash{{0}}
+				state.TransactionContext.BlobHashes = []tosca.Hash{{0}}
 				state.Stack.Push(NewU256(1))
 			},
 		},

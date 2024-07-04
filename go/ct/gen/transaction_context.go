@@ -19,7 +19,7 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 type TransactionContextGenerator struct {
@@ -83,7 +83,7 @@ func (t *TransactionContextGenerator) Generate(assignment Assignment, rnd *rand.
 		}
 	}
 
-	blobHashes := []vm.Hash{}
+	blobHashes := []tosca.Hash{}
 	for i := uint64(0); i < blobHashesCount; i++ {
 		blobHashes = append(blobHashes, common.GetRandomHash(rnd))
 	}

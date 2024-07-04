@@ -18,7 +18,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 // Condition represents a state property.
@@ -531,12 +531,12 @@ func (c *isStorageCold) String() string {
 // Storage Configuration
 
 type storageConfiguration struct {
-	config   vm.StorageStatus
+	config   tosca.StorageStatus
 	key      BindableExpression[U256]
 	newValue BindableExpression[U256]
 }
 
-func StorageConfiguration(config vm.StorageStatus, key, newValue BindableExpression[U256]) Condition {
+func StorageConfiguration(config tosca.StorageStatus, key, newValue BindableExpression[U256]) Condition {
 	return &storageConfiguration{config, key, newValue}
 }
 
