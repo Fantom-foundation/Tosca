@@ -1341,9 +1341,11 @@ func getAllRules() []Rule {
 
 	// --- EXTCODEHASH ---
 
-	extCodeHashEffect := func(s *st.State, address tosca.Address) {
+	extCodeHashEffect := func(s *st.State) tosca.Address {
+		address := NewAddress(s.Stack.Pop())
 		hash := s.Accounts.GetCodeHash(address)
 		s.Stack.Push(NewU256FromBytes(hash[:]...))
+		return address
 	}
 
 	// cold
@@ -1361,8 +1363,7 @@ func getAllRules() []Rule {
 			AddressParameter{},
 		},
 		effect: func(s *st.State) {
-			address := NewAddress(s.Stack.Pop())
-			extCodeHashEffect(s, address)
+			address := extCodeHashEffect(s)
 			s.Accounts.MarkWarm(address)
 		},
 	})...)
@@ -1382,8 +1383,7 @@ func getAllRules() []Rule {
 			AddressParameter{},
 		},
 		effect: func(s *st.State) {
-			address := NewAddress(s.Stack.Pop())
-			extCodeHashEffect(s, address)
+			extCodeHashEffect(s)
 		},
 	})...)
 
@@ -1401,8 +1401,7 @@ func getAllRules() []Rule {
 			AddressParameter{},
 		},
 		effect: func(s *st.State) {
-			address := NewAddress(s.Stack.Pop())
-			extCodeHashEffect(s, address)
+			extCodeHashEffect(s)
 		},
 	})...)
 
