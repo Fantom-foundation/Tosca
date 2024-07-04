@@ -93,10 +93,6 @@ func (c *context) isLondon() bool {
 	return c.revision >= tosca.R10_London
 }
 
-func (c *context) isParis() bool {
-	return c.revision >= tosca.R11_Paris
-}
-
 func (c *context) isShanghai() bool {
 	return c.revision >= tosca.R12_Shanghai
 }
@@ -646,13 +642,6 @@ func steps(c *context, one_step_only bool) {
 			opRevert(c)
 		case JUMP_TO:
 			opJumpTo(c)
-		case NOOP:
-			opNoop(c)
-		case DATA:
-			c.status = SEGMENTATION_FAULT
-			return
-		case INVALID:
-			opInvalid(c)
 		case SLOAD:
 			opSload(c)
 		case SSTORE:
