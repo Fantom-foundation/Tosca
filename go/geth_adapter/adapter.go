@@ -38,15 +38,18 @@ const adapterDebug = false
 
 func init() {
 	for name, interpreter := range vm.GetAllRegisteredInterpreters() {
-		interpreter := interpreter
-		geth.RegisterInterpreterFactory(name, func(evm *geth.EVM, cfg geth.Config) geth.Interpreter {
-			return &gethInterpreterAdapter{
-				interpreter: interpreter,
-				evm:         evm,
-				cfg:         cfg,
-			}
-		})
+		RegisterGethInterpreter(name, interpreter)
 	}
+}
+
+func RegisterGethInterpreter(name string, interpreter vm.Interpreter) {
+	geth.RegisterInterpreterFactory(name, func(evm *geth.EVM, cfg geth.Config) geth.Interpreter {
+		return &gethInterpreterAdapter{
+			interpreter: interpreter,
+			evm:         evm,
+			cfg:         cfg,
+		}
+	})
 }
 
 type gethInterpreterAdapter struct {
@@ -307,6 +310,10 @@ func (a *runContextAdapter) GetCodeHash(addr vm.Address) vm.Hash {
 
 func (a *runContextAdapter) GetCode(addr vm.Address) vm.Code {
 	return a.evm.StateDB.GetCode(gc.Address(addr))
+}
+
+func (a *runContextAdapter) SetCode(addr vm.Address, code vm.Code) {
+	a.evm.StateDB.SetCode(gc.Address(addr), code)
 }
 
 func (a *runContextAdapter) GetBlockHash(number int64) vm.Hash {

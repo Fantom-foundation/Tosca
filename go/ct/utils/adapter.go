@@ -136,6 +136,10 @@ func (c *ctRunContext) GetCode(addr vm.Address) vm.Code {
 	return c.state.Accounts.GetCode(addr).ToBytes()
 }
 
+func (c *ctRunContext) SetCode(addr vm.Address, code vm.Code) {
+	panic("not implemented")
+}
+
 func (c *ctRunContext) GetBlockHash(number int64) vm.Hash {
 	min := int64(0)
 	max := int64(c.state.BlockContext.BlockNumber)
@@ -211,13 +215,13 @@ func (c *ctRunContext) HasSelfDestructed(addr vm.Address) bool {
 	return c.state.HasSelfDestructed
 }
 
+func (c *ctRunContext) SetBalance(vm.Address, vm.Value) {
+	// -- ignored, since balances are not tracked in the context of a CT run --
+}
+
 // --- API only needed in the context of a full transaction, which is not covered by CT ---
 
 func (c *ctRunContext) CreateAccount(vm.Address, vm.Code) bool {
-	panic("should not be needed")
-}
-
-func (c *ctRunContext) SetBalance(vm.Address, vm.Value) {
 	panic("should not be needed")
 }
 

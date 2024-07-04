@@ -246,13 +246,14 @@ func canTransferFunc(stateDB geth.StateDB, callerAddress common.Address, value *
 	return stateDB.GetBalance(callerAddress).Cmp(value) >= 0
 }
 
-// stateDbAdapter adapts the vm.RunContext interface for its usage as a geth.StateDB in test
-// environment setups. The main purpose is to facilitate unit, integration, and conformance
-// testing for the geth interpreter.
+// stateDbAdapter adapts the vm.TransactionContext interface for its usage as a geth.StateDB
+// in test environment setups. The main purpose is to facilitate unit, integration, and
+// conformance testing for the geth interpreter.
 type stateDbAdapter struct {
-	context         vm.RunContext
+	context         vm.TransactionContext
 	refund          uint64
 	lastBeneficiary vm.Address
+	refundBackups   map[vm.Snapshot]uint64
 }
 
 func (s *stateDbAdapter) CreateAccount(common.Address) {
@@ -263,11 +264,25 @@ func (s *stateDbAdapter) CreateContract(common.Address) {
 	// ignored: effect not needed in test environments
 }
 
-func (s *stateDbAdapter) SubBalance(common.Address, *uint256.Int, tracing.BalanceChangeReason) {
-	// ignored: effect not needed in test environments
+func (s *stateDbAdapter) SubBalance(addr common.Address, diff *uint256.Int, _ tracing.BalanceChangeReason) {
+	// Tests only running the interpreter would never call this function since balances are
+	// handled by the EVM implementation. However, Fantom's state precompile contract may
+	// conduct direct calls tho this function as part of a contract execution. Thus, it
+	// is required when running tests targeting the processor.
+	account := vm.Address(addr)
+	cur := s.context.GetBalance(account)
+	s.context.SetBalance(account, vm.Sub(cur, vm.ValueFromUint256(diff)))
 }
 
-func (s *stateDbAdapter) AddBalance(addr common.Address, balance *uint256.Int, change tracing.BalanceChangeReason) {
+func (s *stateDbAdapter) AddBalance(addr common.Address, diff *uint256.Int, _ tracing.BalanceChangeReason) {
+	// Tests only running the interpreter would never call this function since balances are
+	// handled by the EVM implementation. However, Fantom's state precompile contract may
+	// conduct direct calls tho this function as part of a contract execution. Thus, it
+	// is required when running tests targeting the processor.
+	account := vm.Address(addr)
+	cur := s.context.GetBalance(account)
+	s.context.SetBalance(account, vm.Add(cur, vm.ValueFromUint256(diff)))
+
 	// we save this address to be used as the beneficiary in a selfdestruct case.
 	s.lastBeneficiary = vm.Address(addr)
 }
@@ -277,13 +292,12 @@ func (s *stateDbAdapter) GetBalance(addr common.Address) *uint256.Int {
 	return value.ToUint256()
 }
 
-func (s *stateDbAdapter) GetNonce(common.Address) uint64 {
-	// ignored: effect not needed in test environments
-	return 0
+func (s *stateDbAdapter) GetNonce(addr common.Address) uint64 {
+	return s.context.GetNonce(vm.Address(addr))
 }
 
-func (s *stateDbAdapter) SetNonce(common.Address, uint64) {
-	// ignored: effect not needed in test environments
+func (s *stateDbAdapter) SetNonce(addr common.Address, nonce uint64) {
+	s.context.SetNonce(vm.Address(addr), nonce)
 }
 
 func (s *stateDbAdapter) GetCodeHash(addr common.Address) common.Hash {
@@ -294,8 +308,8 @@ func (s *stateDbAdapter) GetCode(addr common.Address) []byte {
 	return s.context.GetCode(vm.Address(addr))
 }
 
-func (s *stateDbAdapter) SetCode(common.Address, []byte) {
-	// ignored: effect not needed in test environments
+func (s *stateDbAdapter) SetCode(addr common.Address, code []byte) {
+	s.context.SetCode(vm.Address(addr), code)
 }
 
 func (s *stateDbAdapter) GetCodeSize(addr common.Address) int {
@@ -360,8 +374,19 @@ func (s *stateDbAdapter) Empty(addr common.Address) bool {
 }
 
 func (s *stateDbAdapter) PrepareAccessList(sender common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
-	// ignored: effect not needed in test environments
-	panic("not implemented")
+	s.context.AccessAccount(vm.Address(sender))
+	if dest != nil {
+		s.context.AccessAccount(vm.Address(*dest))
+	}
+	for _, addr := range precompiles {
+		s.context.AccessAccount(vm.Address(addr))
+	}
+	for _, el := range txAccesses {
+		s.context.AccessAccount(vm.Address(el.Address))
+		for _, key := range el.StorageKeys {
+			s.context.AccessStorage(vm.Address(el.Address), vm.Key(key))
+		}
+	}
 }
 
 func (s *stateDbAdapter) AddressInAccessList(addr common.Address) bool {
@@ -385,12 +410,18 @@ func (s *stateDbAdapter) Prepare(rules params.Rules, sender, coinbase common.Add
 	panic("not implemented")
 }
 
-func (s *stateDbAdapter) RevertToSnapshot(int) {
-	// ignored: effect not needed in test environments
+func (s *stateDbAdapter) RevertToSnapshot(snapshot int) {
+	s.context.RestoreSnapshot(vm.Snapshot(snapshot))
+	s.refund = s.refundBackups[vm.Snapshot(snapshot)]
 }
 
 func (s *stateDbAdapter) Snapshot() int {
-	return 0 // not relevant in test setups
+	id := s.context.CreateSnapshot()
+	if s.refundBackups == nil {
+		s.refundBackups = make(map[vm.Snapshot]uint64)
+	}
+	s.refundBackups[id] = s.refund
+	return int(id)
 }
 
 func (s *stateDbAdapter) AddLog(log *types.Log) {
@@ -403,6 +434,10 @@ func (s *stateDbAdapter) AddLog(log *types.Log) {
 		Topics:  topics,
 		Data:    log.Data,
 	})
+}
+
+func (s *stateDbAdapter) GetLogs() []vm.Log {
+	return s.context.GetLogs()
 }
 
 func (s *stateDbAdapter) AddPreimage(common.Hash, []byte) {
