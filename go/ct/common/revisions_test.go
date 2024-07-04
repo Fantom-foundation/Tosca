@@ -44,16 +44,6 @@ func TestRevisions_RangeLength(t *testing.T) {
 	}
 }
 
-func TestRevisions_InvalidRevision(t *testing.T) {
-	name := "unknown revision"
-	invalidRevision := R99_UnknownNextRevision + 1
-	_, err := GetBlockRangeLengthFor(invalidRevision)
-	if err == nil {
-		t.Errorf("Error handling %v. %v", name, err)
-	}
-
-}
-
 func TestRevisions_GetForkBlock(t *testing.T) {
 	tests := map[string]struct {
 		revision  tosca.Revision
@@ -69,21 +59,11 @@ func TestRevisions_GetForkBlock(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, err := GetForkBlock(test.revision)
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-			}
+			got := GetForkBlock(test.revision)
 			if test.forkBlock != got {
 				t.Errorf("Unexpected revision fork: %v", got)
 			}
 		})
-	}
-}
-
-func TestRevisions_GetForkBlockInvalid(t *testing.T) {
-	_, err := GetForkBlock(R99_UnknownNextRevision + 1)
-	if err == nil {
-		t.Errorf("Unexpected error: %v", err)
 	}
 }
 
@@ -92,8 +72,7 @@ func TestRevision_GetRevisionForBlock(t *testing.T) {
 	revisions := map[tosca.Revision]uint64{}
 
 	for i := tosca.R07_Istanbul; i <= NewestSupportedRevision; i++ {
-		revisionBlockNumber, _ := GetForkBlock(i)
-		revisions[i] = revisionBlockNumber
+		revisions[i] = GetForkBlock(i)
 	}
 
 	for revision, revisionBlockNumber := range revisions {

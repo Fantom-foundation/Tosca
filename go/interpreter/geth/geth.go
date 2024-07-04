@@ -99,22 +99,10 @@ func (m *gethVm) Run(parameters tosca.Parameters) (tosca.Result, error) {
 // chainId needs to be prefilled as it may be accessed with the opcode CHAINID.
 // the fork-blocks and the fork-times are set to the respective values for the given revision.
 func MakeChainConfig(baseline params.ChainConfig, chainId *big.Int, targetRevision tosca.Revision) params.ChainConfig {
-	istanbulBlock, err := ct.GetForkBlock(tosca.R07_Istanbul)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get Istanbul fork block: %v", err))
-	}
-	berlinBlock, err := ct.GetForkBlock(tosca.R09_Berlin)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get Berlin fork block: %v", err))
-	}
-	londonBlock, err := ct.GetForkBlock(tosca.R10_London)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get London fork block: %v", err))
-	}
-	parisBlock, err := ct.GetForkBlock(tosca.R11_Paris)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get Paris fork block: %v", err))
-	}
+	istanbulBlock := ct.GetForkBlock(tosca.R07_Istanbul)
+	berlinBlock := ct.GetForkBlock(tosca.R09_Berlin)
+	londonBlock := ct.GetForkBlock(tosca.R10_London)
+	parisBlock := ct.GetForkBlock(tosca.R11_Paris)
 	shanghaiTime := ct.GetForkTime(tosca.R12_Shanghai)
 	cancunTime := ct.GetForkTime(tosca.R13_Cancun)
 
@@ -139,10 +127,7 @@ func MakeChainConfig(baseline params.ChainConfig, chainId *big.Int, targetRevisi
 }
 
 func currentBlock(revision tosca.Revision) *big.Int {
-	block, err := ct.GetForkBlock(revision)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get fork block for %v: %v", revision, err))
-	}
+	block := ct.GetForkBlock(revision)
 	return big.NewInt(int64(block + 2))
 }
 

@@ -377,16 +377,9 @@ func (b *BlockContextGenerator) AddRevisionBounds(lower, upper tosca.Revision) {
 		b.markUnsatisfiable()
 		return
 	}
-	min, err := GetForkBlock(lower)
-	if err != nil {
-		b.markUnsatisfiable()
-		return
-	}
-	max, err := GetForkBlock(upper)
-	if err != nil {
-		b.markUnsatisfiable()
-		return
-	}
+
+	min := GetForkBlock(lower)
+	max := GetForkBlock(upper)
 	len, err := GetBlockRangeLengthFor(upper)
 	if err != nil {
 		b.markUnsatisfiable()

@@ -330,7 +330,7 @@ func IsRevision(revision tosca.Revision) Condition {
 
 // AnyKnownRevision restricts the revision to any revision covered by the CT specification.
 func AnyKnownRevision() Condition {
-	return RevisionBounds(tosca.Revision(0), NewestSupportedRevision)
+	return RevisionBounds(MinRevision, NewestSupportedRevision)
 }
 
 func (c *revisionBounds) Check(s *st.State) (bool, error) {
@@ -347,8 +347,8 @@ func (e *revisionBounds) GetTestValues() []TestValue {
 	restrict := func(generator *gen.StateGenerator, revision tosca.Revision) {
 		generator.SetRevision(revision)
 	}
-	res := []TestValue{}
-	for r := tosca.Revision(0); r <= R99_UnknownNextRevision; r++ {
+	res := []TestValue{NewTestValue(property, domain, R99_UnknownNextRevision, restrict)}
+	for r := tosca.Revision(0); r <= NewestSupportedRevision; r++ {
 		res = append(res, NewTestValue(property, domain, r, restrict))
 	}
 	return res
