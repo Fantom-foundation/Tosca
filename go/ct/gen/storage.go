@@ -225,7 +225,6 @@ func (g *StorageGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.
 
 		builder.SetOriginal(key, orgValue)
 		builder.SetCurrent(key, curValue)
-		builder.SetWarm(key, rnd.Intn(2) == 1)
 	}
 
 	// Process warm/cold constraints.
