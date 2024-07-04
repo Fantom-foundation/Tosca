@@ -32,17 +32,17 @@ func ToVmParameters(state *st.State) tosca.Parameters {
 
 	var revision tosca.Revision
 	switch state.Revision {
-	case cc.R07_Istanbul:
+	case tosca.R07_Istanbul:
 		revision = tosca.R07_Istanbul
-	case cc.R09_Berlin:
+	case tosca.R09_Berlin:
 		revision = tosca.R09_Berlin
-	case cc.R10_London:
+	case tosca.R10_London:
 		revision = tosca.R10_London
-	case cc.R11_Paris:
+	case tosca.R11_Paris:
 		revision = tosca.R11_Paris
-	case cc.R12_Shanghai:
+	case tosca.R12_Shanghai:
 		revision = tosca.R12_Shanghai
-	case cc.R13_Cancun:
+	case tosca.R13_Cancun:
 		revision = tosca.R13_Cancun
 	default:
 		revision = tosca.Revision(state.Revision)

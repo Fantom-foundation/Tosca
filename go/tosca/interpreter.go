@@ -190,6 +190,7 @@ const (
 	R11_Paris
 	R12_Shanghai
 	R13_Cancun
+	R99_UnknownNextRevision
 )
 
 // Error for runs with unsupported Revision

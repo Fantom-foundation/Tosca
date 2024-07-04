@@ -94,49 +94,29 @@ func (m *gethVm) Run(parameters tosca.Parameters) (tosca.Result, error) {
 	return tosca.Result{}, fmt.Errorf("internal EVM error in geth: %v", err)
 }
 
-// TODO: remove once there is only one Revision definition
-func VmRevisionToCt(revision tosca.Revision) ct.Revision {
-	switch revision {
-	case tosca.R07_Istanbul:
-		return ct.R07_Istanbul
-	case tosca.R09_Berlin:
-		return ct.R09_Berlin
-	case tosca.R10_London:
-		return ct.R10_London
-	case tosca.R11_Paris:
-		return ct.R11_Paris
-	case tosca.R12_Shanghai:
-		return ct.R12_Shanghai
-	case tosca.R13_Cancun:
-		return ct.R13_Cancun
-
-	}
-	panic(fmt.Sprintf("Unknown revision: %v", revision))
-}
-
 // MakeChainConfig returns a chain config for the given chain ID and target revision.
 // The baseline config is used as a starting point, so that any prefilled configuration from go-ethereum:params/config.go can be used.
 // chainId needs to be prefilled as it may be accessed with the opcode CHAINID.
 // the fork-blocks and the fork-times are set to the respective values for the given revision.
-func MakeChainConfig(baseline params.ChainConfig, chainId *big.Int, targetRevision ct.Revision) params.ChainConfig {
-	istanbulBlock, err := ct.GetForkBlock(ct.R07_Istanbul)
+func MakeChainConfig(baseline params.ChainConfig, chainId *big.Int, targetRevision tosca.Revision) params.ChainConfig {
+	istanbulBlock, err := ct.GetForkBlock(tosca.R07_Istanbul)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get Istanbul fork block: %v", err))
 	}
-	berlinBlock, err := ct.GetForkBlock(ct.R09_Berlin)
+	berlinBlock, err := ct.GetForkBlock(tosca.R09_Berlin)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get Berlin fork block: %v", err))
 	}
-	londonBlock, err := ct.GetForkBlock(ct.R10_London)
+	londonBlock, err := ct.GetForkBlock(tosca.R10_London)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get London fork block: %v", err))
 	}
-	parisBlock, err := ct.GetForkBlock(ct.R11_Paris)
+	parisBlock, err := ct.GetForkBlock(tosca.R11_Paris)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get Paris fork block: %v", err))
 	}
-	shanghaiTime := ct.GetForkTime(ct.R12_Shanghai)
-	cancunTime := ct.GetForkTime(ct.R13_Cancun)
+	shanghaiTime := ct.GetForkTime(tosca.R12_Shanghai)
+	cancunTime := ct.GetForkTime(tosca.R13_Cancun)
 
 	chainConfig := baseline
 	chainConfig.ChainID = chainId
@@ -145,20 +125,20 @@ func MakeChainConfig(baseline params.ChainConfig, chainId *big.Int, targetRevisi
 	chainConfig.BerlinBlock = big.NewInt(0).SetUint64(berlinBlock)
 	chainConfig.LondonBlock = big.NewInt(0).SetUint64(londonBlock)
 
-	if targetRevision >= ct.R11_Paris {
+	if targetRevision >= tosca.R11_Paris {
 		chainConfig.MergeNetsplitBlock = big.NewInt(0).SetUint64(parisBlock)
 	}
-	if targetRevision >= ct.R12_Shanghai {
+	if targetRevision >= tosca.R12_Shanghai {
 		chainConfig.ShanghaiTime = &shanghaiTime
 	}
-	if targetRevision >= ct.R13_Cancun {
+	if targetRevision >= tosca.R13_Cancun {
 		chainConfig.CancunTime = &cancunTime
 	}
 
 	return chainConfig
 }
 
-func currentBlock(revision ct.Revision) *big.Int {
+func currentBlock(revision tosca.Revision) *big.Int {
 	block, err := ct.GetForkBlock(revision)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get fork block for %v: %v", revision, err))
@@ -171,7 +151,7 @@ func createGethInterpreterContext(parameters tosca.Parameters) (*geth.EVM, *geth
 	chainConfig :=
 		MakeChainConfig(*params.AllEthashProtocolChanges,
 			new(big.Int).SetBytes(parameters.ChainID[:]),
-			VmRevisionToCt(parameters.Revision))
+			parameters.Revision)
 
 	// Hashing function used in the context for BLOCKHASH instruction
 	getHash := func(num uint64) common.Hash {
@@ -180,7 +160,7 @@ func createGethInterpreterContext(parameters tosca.Parameters) (*geth.EVM, *geth
 
 	// Create empty block context based on block number
 	blockCtx := geth.BlockContext{
-		BlockNumber: currentBlock(VmRevisionToCt(parameters.Revision)),
+		BlockNumber: currentBlock(parameters.Revision),
 		Time:        uint64(parameters.Timestamp),
 		Difficulty:  big.NewInt(1),
 		GasLimit:    uint64(parameters.GasLimit),

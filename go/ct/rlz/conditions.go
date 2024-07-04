@@ -314,9 +314,9 @@ func (c *ge[T]) String() string {
 ////////////////////////////////////////////////////////////
 // Revision Bounds
 
-type revisionBounds struct{ min, max Revision }
+type revisionBounds struct{ min, max tosca.Revision }
 
-func RevisionBounds(min, max Revision) Condition {
+func RevisionBounds(min, max tosca.Revision) Condition {
 	if min > max {
 		// This is an specification error, and should not be silently ignored
 		panic(fmt.Sprintf("Invalid revision bounds: %v > %v", min, max))
@@ -324,13 +324,13 @@ func RevisionBounds(min, max Revision) Condition {
 	return &revisionBounds{min, max}
 }
 
-func IsRevision(revision Revision) Condition {
+func IsRevision(revision tosca.Revision) Condition {
 	return RevisionBounds(revision, revision)
 }
 
 // AnyKnownRevision restricts the revision to any revision covered by the CT specification.
 func AnyKnownRevision() Condition {
-	return RevisionBounds(Revision(0), NewestSupportedRevision)
+	return RevisionBounds(tosca.Revision(0), NewestSupportedRevision)
 }
 
 func (c *revisionBounds) Check(s *st.State) (bool, error) {
@@ -344,11 +344,11 @@ func (c *revisionBounds) Restrict(generator *gen.StateGenerator) {
 func (e *revisionBounds) GetTestValues() []TestValue {
 	property := Property("revision")
 	domain := revisionDomain{}
-	restrict := func(generator *gen.StateGenerator, revision Revision) {
+	restrict := func(generator *gen.StateGenerator, revision tosca.Revision) {
 		generator.SetRevision(revision)
 	}
 	res := []TestValue{}
-	for r := Revision(0); r <= R99_UnknownNextRevision; r++ {
+	for r := tosca.Revision(0); r <= tosca.R99_UnknownNextRevision; r++ {
 		res = append(res, NewTestValue(property, domain, r, restrict))
 	}
 	return res

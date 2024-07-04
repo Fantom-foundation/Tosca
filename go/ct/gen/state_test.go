@@ -84,7 +84,7 @@ func TestStateGenerator_NonConflictingStatusesAreAccepted(t *testing.T) {
 // Revision
 
 func TestStateGenerator_SetRevisionIsEnforced(t *testing.T) {
-	revisions := []Revision{R07_Istanbul, R09_Berlin, R10_London}
+	revisions := []tosca.Revision{tosca.R07_Istanbul, tosca.R09_Berlin, tosca.R10_London}
 
 	rnd := rand.New(0)
 	for _, revision := range revisions {
@@ -102,8 +102,8 @@ func TestStateGenerator_SetRevisionIsEnforced(t *testing.T) {
 
 func TestStateGenerator_ConflictingRevisionsAreDetected(t *testing.T) {
 	generator := NewStateGenerator()
-	generator.SetRevision(R07_Istanbul)
-	generator.SetRevision(R10_London)
+	generator.SetRevision(tosca.R07_Istanbul)
+	generator.SetRevision(tosca.R10_London)
 	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
@@ -112,7 +112,7 @@ func TestStateGenerator_ConflictingRevisionsAreDetected(t *testing.T) {
 
 func TestStateGenerator_NegativeRevisionsAreDetected(t *testing.T) {
 	generator := NewStateGenerator()
-	generator.SetRevision(Revision(-12))
+	generator.SetRevision(tosca.Revision(-12))
 	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
@@ -121,8 +121,8 @@ func TestStateGenerator_NegativeRevisionsAreDetected(t *testing.T) {
 
 func TestStateGenerator_NonConflictingRevisionsAreAccepted(t *testing.T) {
 	generator := NewStateGenerator()
-	generator.SetRevision(R10_London)
-	generator.SetRevision(R10_London)
+	generator.SetRevision(tosca.R10_London)
+	generator.SetRevision(tosca.R10_London)
 	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); err != nil {
 		t.Errorf("generation failed: %v", err)
@@ -131,22 +131,22 @@ func TestStateGenerator_NonConflictingRevisionsAreAccepted(t *testing.T) {
 
 func TestStateGenerator_AddRevisionBoundsIsEnforced(t *testing.T) {
 	generator := NewStateGenerator()
-	generator.AddRevisionBounds(R07_Istanbul, R09_Berlin)
-	generator.AddRevisionBounds(R09_Berlin, R10_London)
+	generator.AddRevisionBounds(tosca.R07_Istanbul, tosca.R09_Berlin)
+	generator.AddRevisionBounds(tosca.R09_Berlin, tosca.R10_London)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {
 		t.Fatalf("unexpected error during build: %v", err)
 	}
-	if want, got := R09_Berlin, state.Revision; want != got {
+	if want, got := tosca.R09_Berlin, state.Revision; want != got {
 		t.Fatalf("Revision bounds not working, want %v, got %v", want, got)
 	}
 }
 
 func TestStateGenerator_ConflictingRevisionBoundsAreDetected(t *testing.T) {
 	generator := NewStateGenerator()
-	generator.AddRevisionBounds(R07_Istanbul, R09_Berlin)
-	generator.AddRevisionBounds(R10_London, R99_UnknownNextRevision)
+	generator.AddRevisionBounds(tosca.R07_Istanbul, tosca.R09_Berlin)
+	generator.AddRevisionBounds(tosca.R10_London, tosca.R99_UnknownNextRevision)
 
 	if _, err := generator.Generate(rand.New(0)); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
@@ -279,7 +279,7 @@ func TestStateGenerator_NonConflictingGasRefundAreAccepted(t *testing.T) {
 func TestStateGenerator_CloneCopiesBuilderState(t *testing.T) {
 	original := NewStateGenerator()
 	original.SetStatus(st.Reverted)
-	original.SetRevision(R10_London)
+	original.SetRevision(tosca.R10_London)
 	original.SetPc(4)
 	original.SetGas(5)
 	original.SetGasRefund(6)
@@ -298,7 +298,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 
 	clone1 := base.Clone()
 	clone1.SetStatus(st.Reverted)
-	clone1.SetRevision(R10_London)
+	clone1.SetRevision(tosca.R10_London)
 	clone1.SetGas(5)
 	clone1.SetGasRefund(6)
 	clone1.SetCodeOperation(20, ADD)
@@ -309,7 +309,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 
 	clone2 := base.Clone()
 	clone2.SetStatus(st.Running)
-	clone2.SetRevision(R09_Berlin)
+	clone2.SetRevision(tosca.R09_Berlin)
 	clone2.SetGas(7)
 	clone2.SetGasRefund(8)
 	clone2.SetCodeOperation(30, ADD)
@@ -387,7 +387,7 @@ func TestStateGenerator_CloneCanBeUsedToResetBuilder(t *testing.T) {
 		"stack":        {modify: func(gen *StateGenerator) { gen.AddStackSizeLowerBound(2); gen.AddStackSizeUpperBound(200) }},
 		"storage":      {modify: func(gen *StateGenerator) { gen.BindIsStorageWarm("warmStorage") }},
 		"accounts":     {modify: func(gen *StateGenerator) { gen.BindToWarmAddress("warmAccount") }},
-		"revision":     {modify: func(gen *StateGenerator) { gen.SetRevision(R10_London) }},
+		"revision":     {modify: func(gen *StateGenerator) { gen.SetRevision(tosca.R10_London) }},
 		"selfdestruct": {modify: func(gen *StateGenerator) { gen.MustBeSelfDestructed() }},
 		// the following fields can not be tested as they do not have any internal state to be compared
 		// "memory": {setup: func(gen *StateGenerator) { gen.memoryGen = nil }},

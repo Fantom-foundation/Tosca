@@ -34,9 +34,9 @@ var evms = map[string]ct.Evm{
 
 func TestCt_ExplicitCases(t *testing.T) {
 
-	revisions := []Revision{}
+	revisions := []tosca.Revision{}
 
-	for i := R07_Istanbul; i <= NewestSupportedRevision; i++ {
+	for i := tosca.R07_Istanbul; i <= NewestSupportedRevision; i++ {
 		revisions = append(revisions, i)
 	}
 

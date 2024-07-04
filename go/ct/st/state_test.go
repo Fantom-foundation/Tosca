@@ -28,7 +28,7 @@ import (
 func getNewFilledState() *State {
 	s := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s.Status = Running
-	s.Revision = R10_London
+	s.Revision = tosca.R10_London
 	s.ReadOnly = true
 	s.Pc = 3
 	s.Gas = 42
@@ -70,7 +70,7 @@ func getTestChanges() map[string]testStruct {
 			"Different status",
 		},
 		"revision": {func(state *State) {
-			state.Revision = R07_Istanbul
+			state.Revision = tosca.R07_Istanbul
 		},
 			"Different revision",
 		},
@@ -269,7 +269,7 @@ func TestState_PrinterStatus(t *testing.T) {
 
 func TestState_PrinterRevision(t *testing.T) {
 	s := NewState(NewCode([]byte{}))
-	s.Revision = R10_London
+	s.Revision = tosca.R10_London
 
 	r := regexp.MustCompile("Revision: ([[:alpha:]]+)")
 	match := r.FindStringSubmatch(s.String())
@@ -470,7 +470,7 @@ func TestState_PrinterRecentBlockHashes(t *testing.T) {
 func TestState_DiffMatch(t *testing.T) {
 	s1 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s1.Status = Running
-	s1.Revision = R10_London
+	s1.Revision = tosca.R10_London
 	s1.Pc = 3
 	s1.Gas = 42
 	s1.GasRefund = 63
@@ -489,7 +489,7 @@ func TestState_DiffMatch(t *testing.T) {
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
-	s2.Revision = R10_London
+	s2.Revision = tosca.R10_London
 	s2.Pc = 3
 	s2.Gas = 42
 	s2.GasRefund = 63
@@ -520,7 +520,7 @@ func TestState_DiffMatch(t *testing.T) {
 func TestState_DiffMismatch(t *testing.T) {
 	s1 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD)}))
 	s1.Status = Stopped
-	s1.Revision = R09_Berlin
+	s1.Revision = tosca.R09_Berlin
 	s1.Pc = 0
 	s1.Gas = 7
 	s1.GasRefund = 8
@@ -540,7 +540,7 @@ func TestState_DiffMismatch(t *testing.T) {
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
-	s2.Revision = R10_London
+	s2.Revision = tosca.R10_London
 	s2.Pc = 3
 	s2.Gas = 42
 	s2.GasRefund = 9

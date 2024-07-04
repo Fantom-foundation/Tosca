@@ -16,6 +16,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct"
 	cc "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestCtAdapter_Add(t *testing.T) {
@@ -25,7 +26,7 @@ func TestCtAdapter_Add(t *testing.T) {
 		byte(cc.ADD),
 	}))
 	s.Status = st.Running
-	s.Revision = cc.R07_Istanbul
+	s.Revision = tosca.R07_Istanbul
 	s.Pc = 0
 	s.Gas = 100
 	s.Stack = st.NewStack(cc.NewU256(1), cc.NewU256(2))

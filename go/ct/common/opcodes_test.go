@@ -14,6 +14,8 @@ import (
 	"regexp"
 	"slices"
 	"testing"
+
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestOpCode_ValidOpCodes(t *testing.T) {
@@ -79,26 +81,26 @@ func TestOpCode_NumberOfOpCodes(t *testing.T) {
 		CREATE, CALL, CALLCODE, RETURN, DELEGATECALL, CREATE2, STATICCALL, REVERT, INVALID, SELFDESTRUCT,
 	}
 
-	if NewestSupportedRevision > R13_Cancun {
+	if NewestSupportedRevision > tosca.R13_Cancun {
 		t.Errorf("Missing update for revision %v", NewestSupportedRevision)
 	}
 
 	currentOpCodes := istanbulOpCodes
 	switch NewestSupportedRevision {
-	case R13_Cancun:
+	case tosca.R13_Cancun:
 		// TODO: enable once supported
 		// currentOpCodes = append(currentOpCodes, []OpCode{BLOBHASH, BLOBBASEFEE, TLOAD, TSTORE, MCOPY}...) // Cancun
 		fallthrough
-	case R12_Shanghai:
+	case tosca.R12_Shanghai:
 		currentOpCodes = append(currentOpCodes, []OpCode{PUSH0}...) // Shanghai
 		fallthrough
-	case R11_Paris:
+	case tosca.R11_Paris:
 		currentOpCodes = append(currentOpCodes, []OpCode{}...) // Paris
 		fallthrough
-	case R10_London:
+	case tosca.R10_London:
 		currentOpCodes = append(currentOpCodes, []OpCode{BASEFEE}...) // London
 		fallthrough
-	case R09_Berlin:
+	case tosca.R09_Berlin:
 		currentOpCodes = append(currentOpCodes, []OpCode{}...) // Berlin
 	}
 

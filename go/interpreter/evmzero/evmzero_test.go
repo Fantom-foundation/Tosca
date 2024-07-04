@@ -144,7 +144,7 @@ func TestEvmcSteppableInterpreter_BlobHashCanBeRead(t *testing.T) {
 
 	inputState := st.NewState(st.NewCode(code))
 	inputState.Gas = 20000
-	inputState.Revision = common.R13_Cancun
+	inputState.Revision = tosca.R13_Cancun
 	inputState.TransactionContext = st.NewTransactionContext()
 	inputState.TransactionContext.BlobHashes = blobhashes
 

@@ -143,7 +143,7 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 
 	serializableState := newStateSerializableFromState(s)
 	serializableState.Status = Stopped
-	serializableState.Revision = R09_Berlin
+	serializableState.Revision = tosca.R09_Berlin
 	serializableState.ReadOnly = false
 	serializableState.Pc = 42
 	serializableState.Gas = 77
@@ -168,7 +168,7 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 	serializableState.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x01})
 
 	ok := s.Status == Running &&
-		s.Revision == R10_London &&
+		s.Revision == tosca.R10_London &&
 		s.ReadOnly &&
 		s.Pc == 3 &&
 		s.Gas == 42 &&
@@ -209,7 +209,7 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 
 	deserializedState := s.deserialize()
 	deserializedState.Status = Stopped
-	deserializedState.Revision = R09_Berlin
+	deserializedState.Revision = tosca.R09_Berlin
 	deserializedState.ReadOnly = false
 	deserializedState.Pc = 42
 	deserializedState.Gas = 77
@@ -234,7 +234,7 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x02})
 
 	ok := s.Status == Running &&
-		s.Revision == R10_London &&
+		s.Revision == tosca.R10_London &&
 		s.ReadOnly &&
 		s.Pc == 3 &&
 		s.Gas == 42 &&
@@ -298,7 +298,7 @@ func TestSerialization_IncompleteSerializedData(t *testing.T) {
 	if want, got := Running, state.Status; want != got {
 		t.Errorf("invalid deserialization of Status, want: %v, got: %v", want, got)
 	}
-	if want, got := R10_London, state.Revision; want != got {
+	if want, got := tosca.R10_London, state.Revision; want != got {
 		t.Errorf("invalid deserialization of Revision, want: %v, got: %v", want, got)
 	}
 	if want, got := uint16(3), state.Pc; want != got {
