@@ -15,7 +15,7 @@ import (
 	"slices"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 // CallJournal is a part of the state modeling the effect of recursive
@@ -31,7 +31,7 @@ func NewCallJournal() *CallJournal {
 	return &CallJournal{}
 }
 
-func (j *CallJournal) Call(kind vm.CallKind, parameter vm.CallParameters) vm.CallResult {
+func (j *CallJournal) Call(kind tosca.CallKind, parameter tosca.CallParameters) tosca.CallResult {
 	// log the call as a past call.
 	j.Past = append(j.Past, PastCall{
 		Kind:      kind,
@@ -56,7 +56,7 @@ func (j *CallJournal) Call(kind vm.CallKind, parameter vm.CallParameters) vm.Cal
 		gasLeft -= result.GasCosts
 	}
 
-	return vm.CallResult{
+	return tosca.CallResult{
 		Success:        result.Success,
 		Output:         result.Output.ToBytes(),
 		GasLeft:        gasLeft,
@@ -118,12 +118,12 @@ func (j *CallJournal) Clone() *CallJournal {
 // PastCall represents an already processed call. It is part of the state
 // model for two reasons to enable the verification of call parameters.
 type PastCall struct {
-	Kind      vm.CallKind
-	Recipient vm.Address
-	Sender    vm.Address
+	Kind      tosca.CallKind
+	Recipient tosca.Address
+	Sender    tosca.Address
 	Input     Bytes
-	Value     vm.Value
-	Gas       vm.Gas
+	Value     tosca.Value
+	Gas       tosca.Gas
 }
 
 func (c *PastCall) Equal(other *PastCall) bool {
@@ -156,9 +156,9 @@ func (c *PastCall) Diff(other *PastCall) []string {
 type FutureCall struct {
 	Success        bool
 	Output         Bytes
-	GasCosts       vm.Gas
-	GasRefund      vm.Gas
-	CreatedAccount vm.Address
+	GasCosts       tosca.Gas
+	GasRefund      tosca.Gas
+	CreatedAccount tosca.Address
 }
 
 func (c *FutureCall) Equal(other *FutureCall) bool {

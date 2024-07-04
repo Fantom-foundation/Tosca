@@ -17,7 +17,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestMemory_NewMemory(t *testing.T) {
@@ -135,19 +135,19 @@ func TestMemory_MemoryExpansionCosts(t *testing.T) {
 		offset U256
 		size   U256
 
-		wantCost   vm.Gas
+		wantCost   tosca.Gas
 		wantOffset uint64
 		wantSize   uint64
 	}{
-		"large size no overflow":            {NewU256(0), NewU256(math.MaxUint64), vm.Gas(0x1800000000000000), 0, math.MaxUint64},
-		"large offset no overflow":          {NewU256(math.MaxUint64 - 1), NewU256(1), vm.Gas(0x1800000000000000), math.MaxUint64 - 1, 1},
-		"large offset and size no overflow": {NewU256(math.MaxUint64 / 2), NewU256(math.MaxUint64 / 2), vm.Gas(0x1800000000000000), math.MaxUint64 / 2, math.MaxUint64 / 2},
-		"size overflow":                     {NewU256(0), NewU256(1, 0), vm.Gas(math.MaxInt64), 0, 0},
-		"offset overflow":                   {NewU256(1, 0), NewU256(1), vm.Gas(math.MaxInt64), 0, 0},
-		"large offset and size overflow":    {NewU256(math.MaxUint64/2 + 1), NewU256(math.MaxUint64/2 + 1), vm.Gas(math.MaxInt64), math.MaxUint64/2 + 1, math.MaxUint64/2 + 1},
-		"zero size":                         {NewU256(0), NewU256(0), vm.Gas(0), 0, 0},
-		"zero size offset":                  {NewU256(1024), NewU256(0), vm.Gas(0), 1024, 0},
-		"zero size offset overflow":         {NewU256(1, 0), NewU256(0), vm.Gas(0), 0, 0},
+		"large size no overflow":            {NewU256(0), NewU256(math.MaxUint64), tosca.Gas(0x1800000000000000), 0, math.MaxUint64},
+		"large offset no overflow":          {NewU256(math.MaxUint64 - 1), NewU256(1), tosca.Gas(0x1800000000000000), math.MaxUint64 - 1, 1},
+		"large offset and size no overflow": {NewU256(math.MaxUint64 / 2), NewU256(math.MaxUint64 / 2), tosca.Gas(0x1800000000000000), math.MaxUint64 / 2, math.MaxUint64 / 2},
+		"size overflow":                     {NewU256(0), NewU256(1, 0), tosca.Gas(math.MaxInt64), 0, 0},
+		"offset overflow":                   {NewU256(1, 0), NewU256(1), tosca.Gas(math.MaxInt64), 0, 0},
+		"large offset and size overflow":    {NewU256(math.MaxUint64/2 + 1), NewU256(math.MaxUint64/2 + 1), tosca.Gas(math.MaxInt64), math.MaxUint64/2 + 1, math.MaxUint64/2 + 1},
+		"zero size":                         {NewU256(0), NewU256(0), tosca.Gas(0), 0, 0},
+		"zero size offset":                  {NewU256(1024), NewU256(0), tosca.Gas(0), 1024, 0},
+		"zero size offset overflow":         {NewU256(1, 0), NewU256(0), tosca.Gas(0), 0, 0},
 	}
 
 	for name, test := range tests {

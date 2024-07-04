@@ -20,7 +20,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 type StorageGenerator struct {
@@ -29,7 +29,7 @@ type StorageGenerator struct {
 }
 
 type storageConfigConstraint struct {
-	config   vm.StorageStatus
+	config   tosca.StorageStatus
 	key      Variable
 	newValue Variable
 }
@@ -46,27 +46,27 @@ func (a *storageConfigConstraint) Less(b *storageConfigConstraint) bool {
 
 // Check checks if the given storage configuration (org,cur,new) corresponds to
 // the wanted config.
-func CheckStorageStatusConfig(config vm.StorageStatus, org, cur, new U256) bool {
-	return config == vm.GetStorageStatus(
-		vm.Word(org.Bytes32be()),
-		vm.Word(cur.Bytes32be()),
-		vm.Word(new.Bytes32be()),
+func CheckStorageStatusConfig(config tosca.StorageStatus, org, cur, new U256) bool {
+	return config == tosca.GetStorageStatus(
+		tosca.Word(org.Bytes32be()),
+		tosca.Word(cur.Bytes32be()),
+		tosca.Word(new.Bytes32be()),
 	)
 }
 
-func NewValueMustBeZero(config vm.StorageStatus) bool {
-	return config == vm.StorageAddedDeleted ||
-		config == vm.StorageDeleted ||
-		config == vm.StorageModifiedDeleted
+func NewValueMustBeZero(config tosca.StorageStatus) bool {
+	return config == tosca.StorageAddedDeleted ||
+		config == tosca.StorageDeleted ||
+		config == tosca.StorageModifiedDeleted
 }
 
-func NewValueMustNotBeZero(config vm.StorageStatus) bool {
-	return config == vm.StorageAssigned ||
-		config == vm.StorageAdded ||
-		config == vm.StorageDeletedRestored ||
-		config == vm.StorageDeletedAdded ||
-		config == vm.StorageModified ||
-		config == vm.StorageModifiedRestored
+func NewValueMustNotBeZero(config tosca.StorageStatus) bool {
+	return config == tosca.StorageAssigned ||
+		config == tosca.StorageAdded ||
+		config == tosca.StorageDeletedRestored ||
+		config == tosca.StorageDeletedAdded ||
+		config == tosca.StorageModified ||
+		config == tosca.StorageModifiedRestored
 }
 
 type warmColdConstraint struct {
@@ -85,7 +85,7 @@ func NewStorageGenerator() *StorageGenerator {
 	return &StorageGenerator{}
 }
 
-func (g *StorageGenerator) BindConfiguration(config vm.StorageStatus, key, newValue Variable) {
+func (g *StorageGenerator) BindConfiguration(config tosca.StorageStatus, key, newValue Variable) {
 	v := storageConfigConstraint{config, key, newValue}
 	if !slices.Contains(g.cfg, v) {
 		g.cfg = append(g.cfg, v)
@@ -196,27 +196,27 @@ func (g *StorageGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.
 
 		orgValue, curValue := NewU256(0), NewU256(0)
 		switch con.config {
-		case vm.StorageAdded:
+		case tosca.StorageAdded:
 			orgValue, curValue = NewU256(0), NewU256(0)
-		case vm.StorageAddedDeleted:
+		case tosca.StorageAddedDeleted:
 			curValue = randValueButNot(NewU256(0))
-		case vm.StorageDeletedRestored:
+		case tosca.StorageDeletedRestored:
 			orgValue = newValue
-		case vm.StorageDeletedAdded:
+		case tosca.StorageDeletedAdded:
 			orgValue = randValueButNot(NewU256(0), newValue)
-		case vm.StorageDeleted:
+		case tosca.StorageDeleted:
 			orgValue = randValueButNot(NewU256(0))
 			curValue = orgValue
-		case vm.StorageModified:
+		case tosca.StorageModified:
 			orgValue = randValueButNot(NewU256(0), newValue)
 			curValue = orgValue
-		case vm.StorageModifiedDeleted:
+		case tosca.StorageModifiedDeleted:
 			orgValue = randValueButNot(NewU256(0))
 			curValue = randValueButNot(NewU256(0), orgValue)
-		case vm.StorageModifiedRestored:
+		case tosca.StorageModifiedRestored:
 			orgValue = newValue
 			curValue = randValueButNot(NewU256(0), orgValue)
-		case vm.StorageAssigned:
+		case tosca.StorageAssigned:
 			// Technically, there are more configurations than this one which
 			// satisfy StorageAssigned; but this should do for now.
 			orgValue = randValueButNot(NewU256(0), newValue)

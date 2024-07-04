@@ -14,14 +14,14 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"golang.org/x/crypto/sha3"
 )
 
 // Example is an executable description of a contract and an entry point with a (int)->int signature.
 type Example struct {
 	exampleSpec
-	codeHash vm.Hash // the hash of the code
+	codeHash tosca.Hash // the hash of the code
 }
 
 // exampleSpec specifies a contract and an entry point with a (int)->int signature.
@@ -35,7 +35,7 @@ type exampleSpec struct {
 func (s exampleSpec) build() Example {
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(s.code)
-	var hash vm.Hash
+	var hash tosca.Hash
 	hasher.Sum(hash[0:0])
 	return Example{
 		exampleSpec: s,
@@ -49,12 +49,12 @@ type Result struct {
 }
 
 // RunOn runs this example on the given interpreter, using the given argument.
-func (e *Example) RunOn(interpreter vm.Interpreter, argument int) (Result, error) {
+func (e *Example) RunOn(interpreter tosca.Interpreter, argument int) (Result, error) {
 
 	const initialGas = math.MaxInt64
-	params := vm.Parameters{
+	params := tosca.Parameters{
 		Code:     e.code,
-		CodeHash: (*vm.Hash)(&e.codeHash),
+		CodeHash: (*tosca.Hash)(&e.codeHash),
 		Input:    encodeArgument(e.function, argument),
 		Gas:      initialGas,
 	}

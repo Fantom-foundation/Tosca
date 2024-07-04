@@ -15,7 +15,7 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"pgregory.net/rand"
 )
 
@@ -40,7 +40,7 @@ func TestBlockContextGen_Generate(t *testing.T) {
 	if blockCtx.ChainID == (common.NewU256()) {
 		t.Errorf("Generated chainid has default value.")
 	}
-	if blockCtx.CoinBase == (vm.Address{}) {
+	if blockCtx.CoinBase == (tosca.Address{}) {
 		t.Errorf("Generated coinbase has default value.")
 	}
 	if blockCtx.GasLimit == (uint64(0)) {

@@ -20,9 +20,9 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct"
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
-	"github.com/Fantom-foundation/Tosca/go/vm/geth"
-	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
+	"github.com/Fantom-foundation/Tosca/go/interpreter/geth"
+	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 // FuzzGeth is a fuzzing test for the geth EVM implementation
@@ -251,7 +251,7 @@ func corpusEntryToCtState(opCodes []byte, gas int64, revision byte, stackBytes [
 
 	code := st.NewCode(opCodes)
 	state := st.NewState(code)
-	state.Gas = vm.Gas(gas)
+	state.Gas = tosca.Gas(gas)
 	state.Revision = Revision(revision)
 	state.Stack = stack
 	state.BlockContext.TimeStamp = GetForkTime(state.Revision)
@@ -376,8 +376,8 @@ func TestCorpusEntryToCtState(t *testing.T) {
 				t.Errorf("Unexpected revision. Got: %v, Want: %v", state.Revision, Revision(tt.revision))
 			}
 
-			if state.Gas != vm.Gas(tt.gas) {
-				t.Errorf("Unexpected gas. Got: %v, Want: %v", state.Gas, vm.Gas(tt.gas))
+			if state.Gas != tosca.Gas(tt.gas) {
+				t.Errorf("Unexpected gas. Got: %v, Want: %v", state.Gas, tosca.Gas(tt.gas))
 			}
 
 			if state.Stack == nil {

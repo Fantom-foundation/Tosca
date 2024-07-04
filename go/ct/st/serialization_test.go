@@ -17,7 +17,7 @@ import (
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 ////////////////////////////////////////////////////////////
@@ -154,18 +154,18 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 	serializableState.Storage.Current[NewU256(42)] = NewU256(4)
 	serializableState.Storage.Original[NewU256(77)] = NewU256(7)
 	serializableState.Storage.Warm[NewU256(9)] = false
-	serializableState.Accounts.Balance[vm.Address{0x01}] = NewU256(77)
-	serializableState.Accounts.Code[vm.Address{0x01}] = NewBytes([]byte{byte(INVALID)})
-	delete(serializableState.Accounts.Warm, vm.Address{0x02})
+	serializableState.Accounts.Balance[tosca.Address{0x01}] = NewU256(77)
+	serializableState.Accounts.Code[tosca.Address{0x01}] = NewBytes([]byte{byte(INVALID)})
+	delete(serializableState.Accounts.Warm, tosca.Address{0x02})
 	serializableState.Logs.Entries[0].Data = NewBytes([]byte{99})
 	serializableState.Logs.Entries[0].Topics[0] = NewU256(42)
-	serializableState.CallContext.AccountAddress = vm.Address{0x02}
+	serializableState.CallContext.AccountAddress = tosca.Address{0x02}
 	serializableState.BlockContext.BlockNumber = 42
 	serializableState.CallData = NewBytes([]byte{4})
 	serializableState.LastCallReturnData = NewBytes([]byte{6})
 	serializableState.HasSelfDestructed = false
 	serializableState.SelfDestructedJournal = newSerializableJournal([]SelfDestructEntry{})
-	serializableState.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x01})
+	serializableState.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x01})
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -183,12 +183,12 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.Storage.GetCurrent(NewU256(7)).IsZero() &&
 		s.Storage.GetOriginal(NewU256(77)).Eq(NewU256(4)) &&
 		s.Storage.IsWarm(NewU256(9)) &&
-		s.Accounts.GetBalance(vm.Address{0x01}).Eq(NewU256(42)) &&
-		s.Accounts.GetCode(vm.Address{0x01}) == NewBytes([]byte{byte(PUSH1), byte(6)}) &&
-		s.Accounts.IsWarm(vm.Address{0x02}) &&
+		s.Accounts.GetBalance(tosca.Address{0x01}).Eq(NewU256(42)) &&
+		s.Accounts.GetCode(tosca.Address{0x01}) == NewBytes([]byte{byte(PUSH1), byte(6)}) &&
+		s.Accounts.IsWarm(tosca.Address{0x02}) &&
 		s.Logs.Entries[0].Data[0] == 4 &&
 		s.Logs.Entries[0].Topics[0] == NewU256(21) &&
-		s.CallContext.AccountAddress == vm.Address{0x01} &&
+		s.CallContext.AccountAddress == tosca.Address{0x01} &&
 		s.BlockContext.BlockNumber == 1 &&
 		s.CallData.Length() == 1 &&
 		s.CallData.Get(0, 1)[0] == 1 &&
@@ -196,8 +196,8 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.LastCallReturnData.Get(0, 1)[0] == 1 &&
 		s.HasSelfDestructed &&
 		len(s.SelfDestructedJournal) == 1 &&
-		s.SelfDestructedJournal[0] == SelfDestructEntry{vm.Address{1}, vm.Address{2}} &&
-		s.RecentBlockHashes.Equal(NewImmutableHashArray(vm.Hash{0x01}))
+		s.SelfDestructedJournal[0] == SelfDestructEntry{tosca.Address{1}, tosca.Address{2}} &&
+		s.RecentBlockHashes.Equal(NewImmutableHashArray(tosca.Hash{0x01}))
 
 	if !ok {
 		t.Errorf("new serializable state is not independent")
@@ -220,18 +220,18 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.Storage.current[NewU256(42)] = NewU256(4)
 	deserializedState.Storage.original[NewU256(77)] = NewU256(7)
 	deserializedState.Storage.warm[NewU256(9)] = false
-	deserializedState.Accounts.SetBalance(vm.Address{0x01}, NewU256(77))
-	deserializedState.Accounts.SetCode(vm.Address{0x01}, NewBytes([]byte{byte(INVALID)}))
-	delete(deserializedState.Accounts.warm, vm.Address{0x02})
+	deserializedState.Accounts.SetBalance(tosca.Address{0x01}, NewU256(77))
+	deserializedState.Accounts.SetCode(tosca.Address{0x01}, NewBytes([]byte{byte(INVALID)}))
+	delete(deserializedState.Accounts.warm, tosca.Address{0x02})
 	deserializedState.Logs.Entries[0].Data[0] = 99
 	deserializedState.Logs.Entries[0].Topics[0] = NewU256(42)
-	deserializedState.CallContext.AccountAddress = vm.Address{0x02}
+	deserializedState.CallContext.AccountAddress = tosca.Address{0x02}
 	deserializedState.BlockContext.BlockNumber = 42
 	deserializedState.CallData = NewBytes([]byte{4})
 	deserializedState.LastCallReturnData = NewBytes([]byte{6})
 	deserializedState.HasSelfDestructed = false
 	deserializedState.SelfDestructedJournal = []SelfDestructEntry{}
-	deserializedState.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x02})
+	deserializedState.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x02})
 
 	ok := s.Status == Running &&
 		s.Revision == R10_London &&
@@ -249,12 +249,12 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 		s.Storage.Current[NewU256(7)].IsZero() &&
 		s.Storage.Original[NewU256(77)].Eq(NewU256(4)) &&
 		s.Storage.Warm[NewU256(9)] == true &&
-		s.Accounts.Balance[vm.Address{0x01}].Eq(NewU256(42)) &&
-		s.Accounts.Code[vm.Address{0x01}] == NewBytes([]byte{byte(PUSH1), byte(6)}) &&
-		s.Accounts.Warm[vm.Address{0x02}] == true &&
+		s.Accounts.Balance[tosca.Address{0x01}].Eq(NewU256(42)) &&
+		s.Accounts.Code[tosca.Address{0x01}] == NewBytes([]byte{byte(PUSH1), byte(6)}) &&
+		s.Accounts.Warm[tosca.Address{0x02}] == true &&
 		s.Logs.Entries[0].Data.ToBytes()[0] == 4 &&
 		s.Logs.Entries[0].Topics[0] == NewU256(21) &&
-		s.CallContext.AccountAddress == vm.Address{0x01} &&
+		s.CallContext.AccountAddress == tosca.Address{0x01} &&
 		s.BlockContext.BlockNumber == 1 &&
 		s.CallData.Length() == 1 &&
 		s.CallData.ToBytes()[0] == 1 &&
@@ -262,8 +262,8 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 		s.LastCallReturnData.ToBytes()[0] == 1 &&
 		s.HasSelfDestructed &&
 		len(s.SelfDestructedJournal) == 1 &&
-		s.SelfDestructedJournal[0] == serializableSelfDestructEntry{vm.Address{1}, vm.Address{2}} &&
-		s.RecentBlockHashes.Equal(NewImmutableHashArray(vm.Hash{0x01}))
+		s.SelfDestructedJournal[0] == serializableSelfDestructEntry{tosca.Address{1}, tosca.Address{2}} &&
+		s.RecentBlockHashes.Equal(NewImmutableHashArray(tosca.Hash{0x01}))
 
 	if !ok {
 		t.Errorf("deserialized state is not independent")

@@ -23,10 +23,10 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
-	"github.com/Fantom-foundation/Tosca/go/vm/evmzero"
-	"github.com/Fantom-foundation/Tosca/go/vm/geth"
-	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
+	"github.com/Fantom-foundation/Tosca/go/interpreter/evmzero"
+	"github.com/Fantom-foundation/Tosca/go/interpreter/geth"
+	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/dsnet/golib/unitconv"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/exp/maps"
@@ -105,7 +105,7 @@ func doRun(context *cli.Context) error {
 		}
 
 		if err := runTest(state, evm, filter); err != nil {
-			targetError := &vm.ErrUnsupportedRevision{}
+			targetError := &tosca.ErrUnsupportedRevision{}
 			if errors.As(err, &targetError) {
 				numUnsupportedTests.Add(1)
 				return rlz.ConsumeContinue

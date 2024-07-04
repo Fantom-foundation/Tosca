@@ -18,7 +18,7 @@ import (
 	"pgregory.net/rand"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestStorageGenerator_UnconstraintGeneratorCanProduceStorage(t *testing.T) {
@@ -29,16 +29,16 @@ func TestStorageGenerator_UnconstraintGeneratorCanProduceStorage(t *testing.T) {
 }
 
 func TestStorageGenerator_StorageConfigurationsAreEnforced(t *testing.T) {
-	for _, cfg := range []vm.StorageStatus{
-		vm.StorageAssigned,
-		vm.StorageAdded,
-		vm.StorageAddedDeleted,
-		vm.StorageDeletedRestored,
-		vm.StorageDeletedAdded,
-		vm.StorageDeleted,
-		vm.StorageModified,
-		vm.StorageModifiedDeleted,
-		vm.StorageModifiedRestored,
+	for _, cfg := range []tosca.StorageStatus{
+		tosca.StorageAssigned,
+		tosca.StorageAdded,
+		tosca.StorageAddedDeleted,
+		tosca.StorageDeletedRestored,
+		tosca.StorageDeletedAdded,
+		tosca.StorageDeleted,
+		tosca.StorageModified,
+		tosca.StorageModifiedDeleted,
+		tosca.StorageModifiedRestored,
 	} {
 		vKey := Variable("key")
 		vNewValue := Variable("newValue")
@@ -58,21 +58,21 @@ func TestStorageGenerator_StorageConfigurationsAreEnforced(t *testing.T) {
 
 		fail := false
 		switch cfg {
-		case vm.StorageAdded:
+		case tosca.StorageAdded:
 			fail = !org.IsZero() || !cur.IsZero() || new.IsZero()
-		case vm.StorageAddedDeleted:
+		case tosca.StorageAddedDeleted:
 			fail = !org.IsZero() || cur.IsZero() || !new.IsZero()
-		case vm.StorageDeletedRestored:
+		case tosca.StorageDeletedRestored:
 			fail = org.IsZero() || !cur.IsZero() || !org.Eq(new)
-		case vm.StorageDeletedAdded:
+		case tosca.StorageDeletedAdded:
 			fail = org.IsZero() || !cur.IsZero() || new.IsZero() || org.Eq(new)
-		case vm.StorageDeleted:
+		case tosca.StorageDeleted:
 			fail = org.IsZero() || !cur.Eq(org) || !new.IsZero()
-		case vm.StorageModified:
+		case tosca.StorageModified:
 			fail = org.IsZero() || !cur.Eq(org) || new.IsZero() || new.Eq(cur)
-		case vm.StorageModifiedDeleted:
+		case tosca.StorageModifiedDeleted:
 			fail = org.IsZero() || cur.IsZero() || org.Eq(cur) || !new.IsZero()
-		case vm.StorageModifiedRestored:
+		case tosca.StorageModifiedRestored:
 			fail = org.IsZero() || cur.IsZero() || org.Eq(cur) || !org.Eq(new)
 		}
 
@@ -87,8 +87,8 @@ func TestStorageGenerator_ConflictingStorageConfigurationsAreDetected(t *testing
 	v2 := Variable("v2")
 
 	generator := NewStorageGenerator()
-	generator.BindConfiguration(vm.StorageDeleted, v1, v2)
-	generator.BindConfiguration(vm.StorageAdded, v1, v2)
+	generator.BindConfiguration(tosca.StorageDeleted, v1, v2)
+	generator.BindConfiguration(tosca.StorageAdded, v1, v2)
 
 	_, err := generator.Generate(nil, rand.New(0))
 	if !errors.Is(err, ErrUnsatisfiable) {
@@ -134,7 +134,7 @@ func TestStorageGenerator_AssignmentIsUpdated(t *testing.T) {
 	assignment := Assignment{}
 
 	generator := NewStorageGenerator()
-	generator.BindConfiguration(vm.StorageModified, v1, v2)
+	generator.BindConfiguration(tosca.StorageModified, v1, v2)
 	_, err := generator.Generate(assignment, rand.New(0))
 	if err != nil {
 		t.Fatal(err)
@@ -153,7 +153,7 @@ func TestStorageGenerator_ClonesAreEqual(t *testing.T) {
 	v2 := Variable("v2")
 
 	original := NewStorageGenerator()
-	original.BindConfiguration(vm.StorageModified, v1, v2)
+	original.BindConfiguration(tosca.StorageModified, v1, v2)
 	original.BindWarm(v2)
 
 	clone := original.Clone()
@@ -170,15 +170,15 @@ func TestStorageGenerator_ClonesAreIndependent(t *testing.T) {
 	v4 := Variable("v4")
 
 	base := NewStorageGenerator()
-	base.BindConfiguration(vm.StorageAdded, v1, v2)
+	base.BindConfiguration(tosca.StorageAdded, v1, v2)
 	base.BindWarm(v2)
 
 	clone1 := base.Clone()
-	clone1.BindConfiguration(vm.StorageDeleted, v3, v4)
+	clone1.BindConfiguration(tosca.StorageDeleted, v3, v4)
 	clone1.BindWarm(v4)
 
 	clone2 := base.Clone()
-	clone2.BindConfiguration(vm.StorageModifiedRestored, v3, v4)
+	clone2.BindConfiguration(tosca.StorageModifiedRestored, v3, v4)
 	clone2.BindCold(v4)
 
 	want := "{cfg[$v1]=(StorageAdded,$v2),cfg[$v3]=(StorageDeleted,$v4),warm($v2),warm($v4)}"
@@ -198,12 +198,12 @@ func TestStorageGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	v3 := Variable("v3")
 
 	generator := NewStorageGenerator()
-	generator.BindConfiguration(vm.StorageDeleted, v1, v2)
+	generator.BindConfiguration(tosca.StorageDeleted, v1, v2)
 	generator.BindWarm(v1)
 
 	backup := generator.Clone()
 
-	generator.BindConfiguration(vm.StorageModified, v2, v3)
+	generator.BindConfiguration(tosca.StorageModified, v2, v3)
 	generator.BindWarm(v2)
 
 	want := "{cfg[$v1]=(StorageDeleted,$v2),cfg[$v2]=(StorageModified,$v3),warm($v1),warm($v2)}"
@@ -222,7 +222,7 @@ func TestStorageGenerator_StorageAssignedCanBeSatisfied(t *testing.T) {
 	key := Variable("key")
 	newValue := Variable("newValue")
 	generator := NewStorageGenerator()
-	generator.BindConfiguration(vm.StorageAssigned, key, newValue)
+	generator.BindConfiguration(tosca.StorageAssigned, key, newValue)
 
 	assignment := Assignment{}
 
@@ -236,8 +236,8 @@ func TestStorageGenerator_StorageAssignedCanBeSatisfied(t *testing.T) {
 		storageCurrent := storage.GetCurrent(assignment[key])
 		storageNew := assignment[newValue]
 
-		got := vm.GetStorageStatus(vm.Word(storageOriginal.Bytes32be()), vm.Word(storageCurrent.Bytes32be()), vm.Word(storageNew.Bytes32be()))
-		want := vm.StorageAssigned
+		got := tosca.GetStorageStatus(tosca.Word(storageOriginal.Bytes32be()), tosca.Word(storageCurrent.Bytes32be()), tosca.Word(storageNew.Bytes32be()))
+		want := tosca.StorageAssigned
 
 		if got != want {
 			t.Fatalf("unexpected storage status, got original: %v, current: %v, new: %v", storageOriginal, storageCurrent, storageNew)
@@ -251,49 +251,49 @@ func TestStorageGenerator_CheckStorageStatusConfig(t *testing.T) {
 		original U256
 		current  U256
 		new      U256
-		want     vm.StorageStatus
+		want     tosca.StorageStatus
 	}{
 		"StorageAssigned": {
 			original: NewU256(0),
 			current:  NewU256(0),
 			new:      NewU256(0),
-			want:     vm.StorageAssigned,
+			want:     tosca.StorageAssigned,
 		},
 		"StorageAdded": {
 			original: NewU256(0),
 			current:  NewU256(0),
 			new:      NewU256(1),
-			want:     vm.StorageAdded,
+			want:     tosca.StorageAdded,
 		},
 		"StorageDeleted": {
 			original: NewU256(1),
 			current:  NewU256(1),
 			new:      NewU256(0),
-			want:     vm.StorageDeleted,
+			want:     tosca.StorageDeleted,
 		},
 		"StorageModified": {
 			original: NewU256(1),
 			current:  NewU256(1),
 			new:      NewU256(2),
-			want:     vm.StorageModified,
+			want:     tosca.StorageModified,
 		},
 		"StorageDeletedAdded": {
 			original: NewU256(1),
 			current:  NewU256(0),
 			new:      NewU256(2),
-			want:     vm.StorageDeletedAdded,
+			want:     tosca.StorageDeletedAdded,
 		},
 		"StorageModifiedDeleted": {
 			original: NewU256(1),
 			current:  NewU256(2),
 			new:      NewU256(0),
-			want:     vm.StorageModifiedDeleted,
+			want:     tosca.StorageModifiedDeleted,
 		},
 		"StorageDeletedRestored": {
 			original: NewU256(1),
 			current:  NewU256(0),
 			new:      NewU256(1),
-			want:     vm.StorageDeletedRestored,
+			want:     tosca.StorageDeletedRestored,
 		},
 	}
 
@@ -309,29 +309,29 @@ func TestStorageGenerator_CheckStorageStatusConfig(t *testing.T) {
 
 func TestStorageGenerator_NewValueMustBeZeroMustNotBeZero(t *testing.T) {
 
-	allConfigs := []vm.StorageStatus{
-		vm.StorageAssigned,
-		vm.StorageAdded,
-		vm.StorageDeleted,
-		vm.StorageModified,
-		vm.StorageDeletedAdded,
-		vm.StorageModifiedDeleted,
-		vm.StorageDeletedRestored,
-		vm.StorageAddedDeleted,
-		vm.StorageModifiedRestored,
+	allConfigs := []tosca.StorageStatus{
+		tosca.StorageAssigned,
+		tosca.StorageAdded,
+		tosca.StorageDeleted,
+		tosca.StorageModified,
+		tosca.StorageDeletedAdded,
+		tosca.StorageModifiedDeleted,
+		tosca.StorageDeletedRestored,
+		tosca.StorageAddedDeleted,
+		tosca.StorageModifiedRestored,
 	}
-	mustBeZeroConfigs := []vm.StorageStatus{
-		vm.StorageAddedDeleted,
-		vm.StorageDeleted,
-		vm.StorageModifiedDeleted,
+	mustBeZeroConfigs := []tosca.StorageStatus{
+		tosca.StorageAddedDeleted,
+		tosca.StorageDeleted,
+		tosca.StorageModifiedDeleted,
 	}
-	mustNotBeZeroConfigs := []vm.StorageStatus{
-		vm.StorageAssigned,
-		vm.StorageAdded,
-		vm.StorageDeletedRestored,
-		vm.StorageDeletedAdded,
-		vm.StorageModified,
-		vm.StorageModifiedRestored,
+	mustNotBeZeroConfigs := []tosca.StorageStatus{
+		tosca.StorageAssigned,
+		tosca.StorageAdded,
+		tosca.StorageDeletedRestored,
+		tosca.StorageDeletedAdded,
+		tosca.StorageModified,
+		tosca.StorageModifiedRestored,
 	}
 
 	for _, cfg := range allConfigs {
@@ -352,7 +352,7 @@ func TestStorageGenerator_UnspecifiedVariableIsNotWarm(t *testing.T) {
 	vNewValue := Variable("newValue")
 
 	generator := NewStorageGenerator()
-	generator.BindConfiguration(vm.StorageModified, vKey, vNewValue)
+	generator.BindConfiguration(tosca.StorageModified, vKey, vNewValue)
 
 	assignment := Assignment{}
 	rnd := rand.New(0)

@@ -15,29 +15,29 @@ import (
 	"reflect"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/exp/maps"
 )
 
 type Accounts struct {
-	balance map[vm.Address]U256
-	code    map[vm.Address]Bytes
-	warm    map[vm.Address]struct{}
+	balance map[tosca.Address]U256
+	code    map[tosca.Address]Bytes
+	warm    map[tosca.Address]struct{}
 }
 
 func NewAccounts() *Accounts {
 	return &Accounts{}
 }
 
-func (a *Accounts) GetCodeHash(address vm.Address) (hash [32]byte) {
+func (a *Accounts) GetCodeHash(address tosca.Address) (hash [32]byte) {
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(a.code[address].ToBytes())
 	hasher.Sum(hash[:])
 	return
 }
 
-func (a *Accounts) IsEmpty(address vm.Address) bool {
+func (a *Accounts) IsEmpty(address tosca.Address) bool {
 	// By definition, an account is empty if it has an empty balance,
 	// a nonce that is 0, and an empty code. However, we do not model
 	// nonces in this state, so we only check the balance and code.
@@ -101,7 +101,7 @@ func (a *Accounts) Diff(b *Accounts) (res []string) {
 	return
 }
 
-func (a *Accounts) IsWarm(key vm.Address) bool {
+func (a *Accounts) IsWarm(key tosca.Address) bool {
 	if a.warm == nil {
 		return false
 	}
@@ -109,20 +109,20 @@ func (a *Accounts) IsWarm(key vm.Address) bool {
 	return contains
 }
 
-func (a *Accounts) IsCold(key vm.Address) bool {
+func (a *Accounts) IsCold(key tosca.Address) bool {
 	return !a.IsWarm(key)
 }
 
-func (a *Accounts) MarkWarm(key vm.Address) {
+func (a *Accounts) MarkWarm(key tosca.Address) {
 	if a.warm == nil {
-		a.warm = make(map[vm.Address]struct{})
+		a.warm = make(map[tosca.Address]struct{})
 	} else {
 		a.warm = maps.Clone(a.warm)
 	}
 	a.warm[key] = struct{}{}
 }
 
-func (a *Accounts) MarkCold(key vm.Address) {
+func (a *Accounts) MarkCold(key tosca.Address) {
 	if a.IsCold(key) {
 		return
 	}
@@ -130,7 +130,7 @@ func (a *Accounts) MarkCold(key vm.Address) {
 	delete(a.warm, key)
 }
 
-func (a *Accounts) SetWarm(key vm.Address, warm bool) {
+func (a *Accounts) SetWarm(key tosca.Address, warm bool) {
 	if warm {
 		a.MarkWarm(key)
 	} else {
@@ -138,20 +138,20 @@ func (a *Accounts) SetWarm(key vm.Address, warm bool) {
 	}
 }
 
-func (a *Accounts) SetBalance(address vm.Address, val U256) {
+func (a *Accounts) SetBalance(address tosca.Address, val U256) {
 	if a.balance == nil {
-		a.balance = make(map[vm.Address]U256)
+		a.balance = make(map[tosca.Address]U256)
 	} else {
 		a.balance = maps.Clone(a.balance)
 	}
 	a.balance[address] = val
 }
 
-func (a *Accounts) GetBalance(address vm.Address) U256 {
+func (a *Accounts) GetBalance(address tosca.Address) U256 {
 	return a.balance[address]
 }
 
-func (a *Accounts) RemoveBalance(address vm.Address) {
+func (a *Accounts) RemoveBalance(address tosca.Address) {
 	if _, exists := a.balance[address]; !exists {
 		return
 	}
@@ -159,23 +159,23 @@ func (a *Accounts) RemoveBalance(address vm.Address) {
 	delete(a.balance, address)
 }
 
-func (a *Accounts) SetCode(address vm.Address, code Bytes) {
+func (a *Accounts) SetCode(address tosca.Address, code Bytes) {
 	if a.code == nil {
-		a.code = make(map[vm.Address]Bytes)
+		a.code = make(map[tosca.Address]Bytes)
 	} else {
 		a.code = maps.Clone(a.code)
 	}
 	a.code[address] = code
 }
 
-func (a *Accounts) GetCode(address vm.Address) Bytes {
+func (a *Accounts) GetCode(address tosca.Address) Bytes {
 	if a.code == nil {
 		return NewBytes([]byte{})
 	}
 	return a.code[address]
 }
 
-func (a *Accounts) RemoveCode(address vm.Address) {
+func (a *Accounts) RemoveCode(address tosca.Address) {
 	if _, exists := a.code[address]; !exists {
 		return
 	}
@@ -183,7 +183,7 @@ func (a *Accounts) RemoveCode(address vm.Address) {
 	delete(a.code, address)
 }
 
-func (a *Accounts) Exist(address vm.Address) bool {
+func (a *Accounts) Exist(address tosca.Address) bool {
 	existsBalance := false
 	existsCode := false
 	bal := NewU256()
@@ -238,27 +238,27 @@ func (ab *AccountsBuilder) Build() *Accounts {
 	return &acc
 }
 
-func (ab *AccountsBuilder) SetBalance(addr vm.Address, value U256) {
+func (ab *AccountsBuilder) SetBalance(addr tosca.Address, value U256) {
 	if ab.accounts.balance == nil {
-		ab.accounts.balance = make(map[vm.Address]U256)
+		ab.accounts.balance = make(map[tosca.Address]U256)
 	}
 	ab.accounts.balance[addr] = value
 }
 
-func (ab *AccountsBuilder) SetCode(addr vm.Address, code Bytes) {
+func (ab *AccountsBuilder) SetCode(addr tosca.Address, code Bytes) {
 	if ab.accounts.code == nil {
-		ab.accounts.code = make(map[vm.Address]Bytes)
+		ab.accounts.code = make(map[tosca.Address]Bytes)
 	}
 	ab.accounts.code[addr] = code
 }
 
-func (ab *AccountsBuilder) SetWarm(addr vm.Address) {
+func (ab *AccountsBuilder) SetWarm(addr tosca.Address) {
 	if ab.accounts.warm == nil {
-		ab.accounts.warm = make(map[vm.Address]struct{})
+		ab.accounts.warm = make(map[tosca.Address]struct{})
 	}
 	ab.accounts.warm[addr] = struct{}{}
 }
 
-func (ab *AccountsBuilder) Exists(addr vm.Address) bool {
+func (ab *AccountsBuilder) Exists(addr tosca.Address) bool {
 	return ab.accounts.Exist(addr)
 }

@@ -20,7 +20,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 // StateGenerator is a utility class for generating States. It provides two
@@ -45,8 +45,8 @@ type StateGenerator struct {
 	readOnlyConstraints   []bool
 	pcConstantConstraints []uint16
 	pcVariableConstraints []Variable
-	gasConstraints        *RangeSolver[vm.Gas]
-	gasRefundConstraints  *RangeSolver[vm.Gas]
+	gasConstraints        *RangeSolver[tosca.Gas]
+	gasRefundConstraints  *RangeSolver[tosca.Gas]
 	variableBindings      []variableBinding
 
 	// Generators
@@ -75,8 +75,8 @@ func NewStateGenerator() *StateGenerator {
 		callContextGen:        NewCallContextGenerator(),
 		callJournalGen:        NewCallJournalGenerator(),
 		blockContextGen:       NewBlockContextGenerator(),
-		gasConstraints:        NewRangeSolver[vm.Gas](0, st.MaxGas),
-		gasRefundConstraints:  NewRangeSolver[vm.Gas](-st.MaxGas, st.MaxGas),
+		gasConstraints:        NewRangeSolver[tosca.Gas](0, st.MaxGas),
+		gasRefundConstraints:  NewRangeSolver[tosca.Gas](-st.MaxGas, st.MaxGas),
 		hasSelfDestructedGen:  NewSelfDestructedGenerator(),
 		transactionContextGen: NewTransactionContextGenerator(),
 	}
@@ -139,32 +139,32 @@ func (g *StateGenerator) BindPc(pc Variable) {
 }
 
 // SetGas adds a constraint on the State's gas counter.
-func (g *StateGenerator) SetGas(gas vm.Gas) {
+func (g *StateGenerator) SetGas(gas tosca.Gas) {
 	g.gasConstraints.AddEqualityConstraint(gas)
 }
 
 // AddGasLowerBound adds a constraint on the lower bound of the gas value.
-func (g *StateGenerator) AddGasLowerBound(gas vm.Gas) {
+func (g *StateGenerator) AddGasLowerBound(gas tosca.Gas) {
 	g.gasConstraints.AddLowerBoundary(gas)
 }
 
 // AddGasUpperBound adds a constraint on the upper bound of the gas value.
-func (g *StateGenerator) AddGasUpperBound(gas vm.Gas) {
+func (g *StateGenerator) AddGasUpperBound(gas tosca.Gas) {
 	g.gasConstraints.AddUpperBoundary(gas)
 }
 
 // SetGasRefund adds a constraint on the State's gas refund counter.
-func (g *StateGenerator) SetGasRefund(gasRefund vm.Gas) {
+func (g *StateGenerator) SetGasRefund(gasRefund tosca.Gas) {
 	g.gasRefundConstraints.AddEqualityConstraint(gasRefund)
 }
 
 // AddGasRefundLowerBound adds a constraint on the lower bound of the gas refund value.
-func (g *StateGenerator) AddGasRefundLowerBound(gas vm.Gas) {
+func (g *StateGenerator) AddGasRefundLowerBound(gas tosca.Gas) {
 	g.gasRefundConstraints.AddLowerBoundary(gas)
 }
 
 // AddGasRefundUpperBound adds a constraint on the upper bound of the gas refund value.
-func (g *StateGenerator) AddGasRefundUpperBound(gas vm.Gas) {
+func (g *StateGenerator) AddGasRefundUpperBound(gas tosca.Gas) {
 	g.gasRefundConstraints.AddUpperBoundary(gas)
 }
 
@@ -215,7 +215,7 @@ func (g *StateGenerator) BindStackValue(pos int, v Variable) {
 }
 
 // BindStorageConfiguration wraps StorageGenerator.BindConfiguration.
-func (g *StateGenerator) BindStorageConfiguration(config vm.StorageStatus, key, newValue Variable) {
+func (g *StateGenerator) BindStorageConfiguration(config tosca.StorageStatus, key, newValue Variable) {
 	g.storageGen.BindConfiguration(config, key, newValue)
 }
 

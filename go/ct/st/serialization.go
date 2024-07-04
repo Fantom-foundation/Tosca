@@ -18,7 +18,7 @@ import (
 	"slices"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 ////////////////////////////////////////////////////////////
@@ -60,8 +60,8 @@ type stateSerializable struct {
 	Revision              Revision
 	ReadOnly              bool
 	Pc                    uint16
-	Gas                   vm.Gas
-	GasRefund             vm.Gas
+	Gas                   tosca.Gas
+	GasRefund             tosca.Gas
 	Code                  Bytes
 	Stack                 []U256
 	Memory                Bytes
@@ -95,9 +95,9 @@ type transientSerializable struct {
 
 // accountsSerializable is a serializable representation of the Accounts struct.
 type accountsSerializable struct {
-	Balance map[vm.Address]U256
-	Code    map[vm.Address]Bytes
-	Warm    map[vm.Address]bool
+	Balance map[tosca.Address]U256
+	Code    map[tosca.Address]Bytes
+	Warm    map[tosca.Address]bool
 }
 
 // logsSerializable is a serializable representation of the Log.
@@ -126,8 +126,8 @@ func (l *logsSerializable) addLog(data Bytes, topics ...U256) {
 }
 
 type serializableSelfDestructEntry struct {
-	Account     vm.Address
-	Beneficiary vm.Address
+	Account     tosca.Address
+	Beneficiary tosca.Address
 }
 
 func newSerializableJournal(journal []SelfDestructEntry) []serializableSelfDestructEntry {
@@ -280,12 +280,12 @@ func newTransientSerializable(transient *TransientStorage) *transientSerializabl
 
 // newAccountsSerializable creates a new balanceSerializable instance from the given Balance instance.
 func newAccountsSerializable(accounts *Accounts) *accountsSerializable {
-	warm := make(map[vm.Address]bool)
+	warm := make(map[tosca.Address]bool)
 	for key := range accounts.warm {
 		warm[key] = true
 	}
 
-	codes := make(map[vm.Address]Bytes)
+	codes := make(map[tosca.Address]Bytes)
 	for address, code := range accounts.code {
 		codes[address] = code
 	}

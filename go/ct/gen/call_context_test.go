@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"pgregory.net/rand"
 )
 
@@ -30,10 +30,10 @@ func TestCallContextGen_Generate(t *testing.T) {
 		t.Errorf("Error generating call context: %v", err)
 	}
 
-	if callCtx.AccountAddress == (vm.Address{}) {
+	if callCtx.AccountAddress == (tosca.Address{}) {
 		t.Errorf("Generated account address has default value.")
 	}
-	if callCtx.CallerAddress == (vm.Address{}) {
+	if callCtx.CallerAddress == (tosca.Address{}) {
 		t.Errorf("Generated caller address has default value.")
 	}
 	if callCtx.Value.Eq(common.NewU256(0)) {

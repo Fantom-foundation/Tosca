@@ -13,7 +13,7 @@ package common
 import (
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"pgregory.net/rand"
 )
 
@@ -44,7 +44,7 @@ func TestAddress_ToU256(t *testing.T) {
 }
 
 func TestAddress_RandAddress(t *testing.T) {
-	address1 := vm.Address{}
+	address1 := tosca.Address{}
 	rnd := rand.New(0)
 	address2, err := RandAddress(rnd)
 

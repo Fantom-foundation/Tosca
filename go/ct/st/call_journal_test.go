@@ -16,7 +16,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestCallJournal_CallMovesFutureToPastCall(t *testing.T) {
@@ -29,14 +29,14 @@ func TestCallJournal_CallMovesFutureToPastCall(t *testing.T) {
 		GasRefund: 2,
 	}}
 
-	res := journal.Call(vm.StaticCall, vm.CallParameters{
-		Sender:      vm.Address{1},
-		Recipient:   vm.Address{2},
-		Value:       vm.Value{3},
+	res := journal.Call(tosca.StaticCall, tosca.CallParameters{
+		Sender:      tosca.Address{1},
+		Recipient:   tosca.Address{2},
+		Value:       tosca.Value{3},
 		Input:       []byte{4, 5},
 		Gas:         6,
-		Salt:        vm.Hash{7},
-		CodeAddress: vm.Address{8},
+		Salt:        tosca.Hash{7},
+		CodeAddress: tosca.Address{8},
 	})
 
 	if want, got := true, res.Success; want != got {
@@ -47,11 +47,11 @@ func TestCallJournal_CallMovesFutureToPastCall(t *testing.T) {
 		t.Errorf("unexpected output, wanted %v, got %v", want, got)
 	}
 
-	if want, got := vm.Gas(1), res.GasLeft; want != got {
+	if want, got := tosca.Gas(1), res.GasLeft; want != got {
 		t.Errorf("unexpected remaining gas, wanted %d, got %d", want, got)
 	}
 
-	if want, got := vm.Gas(2), res.GasRefund; want != got {
+	if want, got := tosca.Gas(2), res.GasRefund; want != got {
 		t.Errorf("unexpected refund gas, wanted %d, got %d", want, got)
 	}
 
@@ -59,12 +59,12 @@ func TestCallJournal_CallMovesFutureToPastCall(t *testing.T) {
 		t.Fatalf("no past call was recorded")
 	}
 	want := PastCall{
-		Kind:      vm.StaticCall,
-		Recipient: vm.Address{2},
-		Sender:    vm.Address{1},
+		Kind:      tosca.StaticCall,
+		Recipient: tosca.Address{2},
+		Sender:    tosca.Address{1},
 		Input:     common.NewBytes([]byte{4, 5}),
-		Value:     vm.Value{3},
-		Gas:       vm.Gas(6),
+		Value:     tosca.Value{3},
+		Gas:       tosca.Gas(6),
 	}
 
 	if got := journal.Past[0]; !want.Equal(&got) {
@@ -157,7 +157,7 @@ func TestPastCall_EqualDetectsDifferences(t *testing.T) {
 	tests := map[string]struct {
 		modify func(c *PastCall)
 	}{
-		"kind":      {func(c *PastCall) { c.Kind = vm.DelegateCall }},
+		"kind":      {func(c *PastCall) { c.Kind = tosca.DelegateCall }},
 		"recipient": {func(c *PastCall) { c.Recipient[0]++ }},
 		"sender":    {func(c *PastCall) { c.Sender[0]++ }},
 		"input":     {func(c *PastCall) { c.Input = common.NewBytes([]byte{1, 2, 3}) }},
@@ -181,7 +181,7 @@ func TestPastCall_DiffDetectsDifferences(t *testing.T) {
 	tests := map[string]struct {
 		modify func(c *PastCall)
 	}{
-		"kind":      {func(c *PastCall) { c.Kind = vm.DelegateCall }},
+		"kind":      {func(c *PastCall) { c.Kind = tosca.DelegateCall }},
 		"recipient": {func(c *PastCall) { c.Recipient[0]++ }},
 		"sender":    {func(c *PastCall) { c.Sender[0]++ }},
 		"input":     {func(c *PastCall) { c.Input = common.NewBytes([]byte{1, 2, 3}) }},

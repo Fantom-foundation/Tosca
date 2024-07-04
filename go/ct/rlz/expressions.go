@@ -17,7 +17,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 type RestrictionKind int
@@ -128,19 +128,19 @@ func (e pc) BindTo(generator *gen.StateGenerator) {
 
 type gas struct{}
 
-func Gas() Expression[vm.Gas] {
+func Gas() Expression[tosca.Gas] {
 	return gas{}
 }
 
 func (gas) Property() Property { return Property("gas") }
 
-func (gas) Domain() Domain[vm.Gas] { return gasDomain{} }
+func (gas) Domain() Domain[tosca.Gas] { return gasDomain{} }
 
-func (gas) Eval(s *st.State) (vm.Gas, error) {
+func (gas) Eval(s *st.State) (tosca.Gas, error) {
 	return s.Gas, nil
 }
 
-func (gas) Restrict(kind RestrictionKind, amount vm.Gas, generator *gen.StateGenerator) {
+func (gas) Restrict(kind RestrictionKind, amount tosca.Gas, generator *gen.StateGenerator) {
 	switch kind {
 	case RestrictLess:
 		generator.AddGasUpperBound(amount - 1)
@@ -164,19 +164,19 @@ func (gas) String() string {
 
 type gasRefund struct{}
 
-func GasRefund() Expression[vm.Gas] {
+func GasRefund() Expression[tosca.Gas] {
 	return gasRefund{}
 }
 
 func (gasRefund) Property() Property { return Property("gasRefund") }
 
-func (gasRefund) Domain() Domain[vm.Gas] { return gasDomain{} }
+func (gasRefund) Domain() Domain[tosca.Gas] { return gasDomain{} }
 
-func (gasRefund) Eval(s *st.State) (vm.Gas, error) {
+func (gasRefund) Eval(s *st.State) (tosca.Gas, error) {
 	return s.GasRefund, nil
 }
 
-func (gasRefund) Restrict(kind RestrictionKind, amount vm.Gas, generator *gen.StateGenerator) {
+func (gasRefund) Restrict(kind RestrictionKind, amount tosca.Gas, generator *gen.StateGenerator) {
 	switch kind {
 	case RestrictLess:
 		generator.AddGasRefundUpperBound(amount - 1)

@@ -14,14 +14,14 @@ import (
 	"fmt"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 // CallContext holds all data needed for the call-group of instructions
 type CallContext struct {
-	AccountAddress vm.Address // Address of currently executing account
-	CallerAddress  vm.Address // Address of the caller
-	Value          U256       // Deposited value by the instruction/transaction responsible for this execution
+	AccountAddress tosca.Address // Address of currently executing account
+	CallerAddress  tosca.Address // Address of the caller
+	Value          U256          // Deposited value by the instruction/transaction responsible for this execution
 }
 
 // Diff returns a list of differences between the two call contexts.

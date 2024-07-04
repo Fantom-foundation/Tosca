@@ -18,13 +18,13 @@ import (
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 // Upper bound for gas, this limit is required since evmc defines a signed type for gas.
 // Limiting gas also solves issue 293 regarding out of memory failures,
 // discussed here: https://github.com/Fantom-foundation/Tosca/issues/293
-const MaxGas = vm.Gas(1 << 60)
+const MaxGas = tosca.Gas(1 << 60)
 
 // MaxDataSize is the maximum length of the call data vector generated for a test state. While
 // the maximum size is not limited in a real-world setup, larger inputs are not expected to trigger
@@ -46,11 +46,11 @@ const (
 )
 
 type SelfDestructEntry struct {
-	account     vm.Address
-	beneficiary vm.Address
+	account     tosca.Address
+	beneficiary tosca.Address
 }
 
-func NewSelfDestructEntry(account vm.Address, beneficiary vm.Address) SelfDestructEntry {
+func NewSelfDestructEntry(account tosca.Address, beneficiary tosca.Address) SelfDestructEntry {
 	return SelfDestructEntry{account, beneficiary}
 }
 
@@ -118,8 +118,8 @@ type State struct {
 	Revision              Revision
 	ReadOnly              bool
 	Pc                    uint16
-	Gas                   vm.Gas
-	GasRefund             vm.Gas
+	Gas                   tosca.Gas
+	GasRefund             tosca.Gas
 	Code                  *Code
 	Stack                 *Stack
 	Memory                *Memory

@@ -11,12 +11,12 @@
 package common
 
 import (
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"pgregory.net/rand"
 )
 
-func GetRandomHash(rnd *rand.Rand) vm.Hash {
-	var res vm.Hash
+func GetRandomHash(rnd *rand.Rand) tosca.Hash {
+	var res tosca.Hash
 	rnd.Read(res[:])
 	return res
 }

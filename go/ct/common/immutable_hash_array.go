@@ -14,25 +14,25 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"pgregory.net/rand"
 )
 
-// ImmutableHashArray is an immutable array of 256 vm.Hash that can be trivially cloned.
+// ImmutableHashArray is an immutable array of 256 tosca.Hash that can be trivially cloned.
 // if default initialized, it is considered as if all hashes are zero.
 type ImmutableHashArray struct {
-	data *[256]vm.Hash
+	data *[256]tosca.Hash
 }
 
-func NewImmutableHashArray(hashes ...vm.Hash) ImmutableHashArray {
-	var data [256]vm.Hash
+func NewImmutableHashArray(hashes ...tosca.Hash) ImmutableHashArray {
+	var data [256]tosca.Hash
 	copy(data[:], hashes)
 	return ImmutableHashArray{data: &data}
 }
 
 func NewRandomImmutableHashArray(rnd *rand.Rand) ImmutableHashArray {
 	hashes := ImmutableHashArray{}
-	hashes.data = new([256]vm.Hash)
+	hashes.data = new([256]tosca.Hash)
 	for i := 0; i < 256; i++ {
 		hashes.data[i] = GetRandomHash(rnd)
 	}
@@ -44,10 +44,10 @@ func (b ImmutableHashArray) Equal(other ImmutableHashArray) bool {
 		return true
 	}
 	if b.data == nil {
-		return *other.data == [256]vm.Hash{}
+		return *other.data == [256]tosca.Hash{}
 	}
 	if other.data == nil {
-		return *b.data == [256]vm.Hash{}
+		return *b.data == [256]tosca.Hash{}
 	}
 	return b.data == other.data || (b.data != nil && other.data != nil && *b.data == *other.data)
 }
@@ -61,8 +61,8 @@ func (b ImmutableHashArray) MarshalJSON() ([]byte, error) {
 }
 
 func (h *ImmutableHashArray) UnmarshalJSON(data []byte) error {
-	// Unmarshal the JSON array into a slice of vm.Hash
-	var hashes [256]vm.Hash
+	// Unmarshal the JSON array into a slice of tosca.Hash
+	var hashes [256]tosca.Hash
 	err := json.Unmarshal(data, &hashes)
 	if err != nil {
 		return err
@@ -83,9 +83,9 @@ func (h *ImmutableHashArray) UnmarshalJSON(data []byte) error {
 }
 
 // Get returns the hash at the given index or panics if out of range
-func (b ImmutableHashArray) Get(index uint64) vm.Hash {
+func (b ImmutableHashArray) Get(index uint64) tosca.Hash {
 	if b.data == nil && index < 256 {
-		return vm.Hash{}
+		return tosca.Hash{}
 	}
 	// if data is nil, we still want to return ouf of range error
 	if index >= 256 {

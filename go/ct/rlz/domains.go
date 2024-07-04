@@ -15,7 +15,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 // Domain represents the domain of values for a given type.
@@ -329,28 +329,28 @@ func (stackSizeDomain) SamplesForAll(as []int) []int {
 
 type addressDomain struct{}
 
-func (addressDomain) Equal(a, b vm.Address) bool {
+func (addressDomain) Equal(a, b tosca.Address) bool {
 	return a == b
 }
 
-func (addressDomain) Less(vm.Address, vm.Address) bool  { panic("not implemented") }
-func (addressDomain) Predecessor(vm.Address) vm.Address { panic("not implemented") }
-func (addressDomain) Successor(vm.Address) vm.Address   { panic("not implemented") }
+func (addressDomain) Less(tosca.Address, tosca.Address) bool  { panic("not implemented") }
+func (addressDomain) Predecessor(tosca.Address) tosca.Address { panic("not implemented") }
+func (addressDomain) Successor(tosca.Address) tosca.Address   { panic("not implemented") }
 
-func (addressDomain) SomethingNotEqual(a vm.Address) vm.Address {
-	return vm.Address{a[0] + 1}
+func (addressDomain) SomethingNotEqual(a tosca.Address) tosca.Address {
+	return tosca.Address{a[0] + 1}
 }
 
-func (ad addressDomain) Samples(a vm.Address) []vm.Address {
-	return ad.SamplesForAll([]vm.Address{a})
+func (ad addressDomain) Samples(a tosca.Address) []tosca.Address {
+	return ad.SamplesForAll([]tosca.Address{a})
 }
 
-func (addressDomain) SamplesForAll(as []vm.Address) []vm.Address {
-	ret := []vm.Address{}
+func (addressDomain) SamplesForAll(as []tosca.Address) []tosca.Address {
+	ret := []tosca.Address{}
 	ret = append(ret, as...)
 
-	zero := vm.Address{}
-	ffs := vm.Address{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+	zero := tosca.Address{}
+	ffs := tosca.Address{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 
 	ret = append(ret, zero)
 	ret = append(ret, ffs)
@@ -363,18 +363,18 @@ func (addressDomain) SamplesForAll(as []vm.Address) []vm.Address {
 
 type gasDomain struct{}
 
-func (gasDomain) Equal(a vm.Gas, b vm.Gas) bool     { return a == b }
-func (gasDomain) Less(a vm.Gas, b vm.Gas) bool      { return a < b }
-func (gasDomain) Predecessor(a vm.Gas) vm.Gas       { return a - 1 }
-func (gasDomain) Successor(a vm.Gas) vm.Gas         { return a + 1 }
-func (gasDomain) SomethingNotEqual(a vm.Gas) vm.Gas { return a + 1 }
+func (gasDomain) Equal(a tosca.Gas, b tosca.Gas) bool     { return a == b }
+func (gasDomain) Less(a tosca.Gas, b tosca.Gas) bool      { return a < b }
+func (gasDomain) Predecessor(a tosca.Gas) tosca.Gas       { return a - 1 }
+func (gasDomain) Successor(a tosca.Gas) tosca.Gas         { return a + 1 }
+func (gasDomain) SomethingNotEqual(a tosca.Gas) tosca.Gas { return a + 1 }
 
-func (d gasDomain) Samples(a vm.Gas) []vm.Gas {
-	return d.SamplesForAll([]vm.Gas{a})
+func (d gasDomain) Samples(a tosca.Gas) []tosca.Gas {
+	return d.SamplesForAll([]tosca.Gas{a})
 }
 
-func (gasDomain) SamplesForAll(as []vm.Gas) []vm.Gas {
-	res := []vm.Gas{0, 200, st.MaxGas}
+func (gasDomain) SamplesForAll(as []tosca.Gas) []tosca.Gas {
+	res := []tosca.Gas{0, 200, st.MaxGas}
 
 	// Test every element off by one.
 	for _, a := range as {
@@ -383,7 +383,7 @@ func (gasDomain) SamplesForAll(as []vm.Gas) []vm.Gas {
 		res = append(res, a+1)
 	}
 
-	res = removeDuplicatesGeneric[vm.Gas](res)
+	res = removeDuplicatesGeneric[tosca.Gas](res)
 
 	return res
 }

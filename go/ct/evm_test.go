@@ -21,13 +21,13 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
-	"github.com/Fantom-foundation/Tosca/go/vm/evmzero"
-	"github.com/Fantom-foundation/Tosca/go/vm/lfvm"
+	"github.com/Fantom-foundation/Tosca/go/interpreter/evmzero"
+	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 var evms = map[string]ct.Evm{
-	// "geth":    vm.NewConformanceTestingTarget(), // < TODO: fix and reenable
+	// "geth":    tosca.NewConformanceTestingTarget(), // < TODO: fix and reenable
 	"lfvm":    lfvm.NewConformanceTestingTarget(),
 	"evmzero": evmzero.NewConformanceTestingTarget(),
 }
@@ -49,7 +49,7 @@ func TestCt_ExplicitCases(t *testing.T) {
 				Eq(Op(Pc()), JUMP),
 				Eq(Op(Constant(NewU256(0))), JUMPDEST),
 				Eq(Param(0), NewU256(1<<32)),
-				Ge(Gas(), vm.Gas(8)),
+				Ge(Gas(), tosca.Gas(8)),
 			)
 		tests["jumpi_to_2^32"+revision.String()] =
 			And(
@@ -59,7 +59,7 @@ func TestCt_ExplicitCases(t *testing.T) {
 				Eq(Op(Constant(NewU256(0))), JUMPDEST),
 				Eq(Param(0), NewU256(1<<32)),
 				Ne(Param(1), NewU256(0)),
-				Ge(Gas(), vm.Gas(10)),
+				Ge(Gas(), tosca.Gas(10)),
 			)
 	}
 

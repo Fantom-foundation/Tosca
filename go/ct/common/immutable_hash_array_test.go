@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestImmutableHashArray_Equal(t *testing.T) {
@@ -35,10 +35,10 @@ func TestImmutableHashArray_Equal(t *testing.T) {
 			NewImmutableHashArray(), ImmutableHashArray{}, true,
 		},
 		"single": {
-			NewImmutableHashArray(vm.Hash{1}), NewImmutableHashArray(vm.Hash{1}), true,
+			NewImmutableHashArray(tosca.Hash{1}), NewImmutableHashArray(tosca.Hash{1}), true,
 		},
 		"diff": {
-			NewImmutableHashArray(vm.Hash{1}), NewImmutableHashArray(vm.Hash{2}), false,
+			NewImmutableHashArray(tosca.Hash{1}), NewImmutableHashArray(tosca.Hash{2}), false,
 		},
 	}
 
@@ -52,7 +52,7 @@ func TestImmutableHashArray_Equal(t *testing.T) {
 }
 
 func TestImmutableHashArray_AssignmentProducesEqualValue(t *testing.T) {
-	b1 := NewImmutableHashArray(vm.Hash{1})
+	b1 := NewImmutableHashArray(tosca.Hash{1})
 	b2 := b1
 
 	if !b1.Equal(b2) {
@@ -77,10 +77,10 @@ func TestImmutableHashArray_CanBeJsonEncoded(t *testing.T) {
 		encoded string
 	}{
 		"empty": {
-			NewImmutableHashArray(vm.Hash{}), zeroHash,
+			NewImmutableHashArray(tosca.Hash{}), zeroHash,
 		},
 		"single": {
-			NewImmutableHashArray(vm.Hash{1}), oneHash,
+			NewImmutableHashArray(tosca.Hash{1}), oneHash,
 		},
 		"nil": {
 			ImmutableHashArray{}, "null",
@@ -118,7 +118,7 @@ func TestImmutableHashArray_Get(t *testing.T) {
 		"constructed":         {NewImmutableHashArray()},
 	}
 
-	zeroHash := vm.Hash{}
+	zeroHash := tosca.Hash{}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 

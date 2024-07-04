@@ -16,7 +16,7 @@ import (
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestAccounts_MarkWarmMarksAddressesAsWarm(t *testing.T) {
@@ -100,7 +100,7 @@ func TestAccounts_Clone(t *testing.T) {
 
 func TestAccounts_AccountsWithZeroBalanceAreTreatedTheSameByEqAndDiff(t *testing.T) {
 	a1 := NewAccounts()
-	a1.SetBalance(vm.Address{1}, NewU256(0))
+	a1.SetBalance(tosca.Address{1}, NewU256(0))
 	a2 := NewAccounts()
 
 	equal := a1.Eq(a2)
@@ -181,7 +181,7 @@ func TestAccounts_IsEmptyDependsOnBalanceAndCode(t *testing.T) {
 		"nonzero_balance_with_nonempty_code": {balance: &nonzero, code: []byte{1, 2, 3}, empty: false},
 	}
 
-	addr := vm.Address{}
+	addr := tosca.Address{}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			accounts := NewAccounts()
@@ -255,7 +255,7 @@ func TestAccounts_String(t *testing.T) {
 
 // -- Benchmarks
 
-func accountInit(a vm.Address) *Accounts {
+func accountInit(a tosca.Address) *Accounts {
 	ab := NewAccountsBuilder()
 	ab.SetBalance(a, NewU256(1))
 	ab.SetCode(a, NewBytes([]byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}))

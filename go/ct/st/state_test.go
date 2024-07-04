@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 ////////////////////////////////////////////////////////////
@@ -42,18 +42,18 @@ func getNewFilledState() *State {
 		Build()
 	s.TransientStorage = &TransientStorage{}
 	s.Accounts = NewAccounts()
-	s.Accounts.SetBalance(vm.Address{0x01}, NewU256(42))
-	s.Accounts.SetCode(vm.Address{0x01}, NewBytes([]byte{byte(PUSH1), byte(6)}))
-	s.Accounts.MarkWarm(vm.Address{0x02})
+	s.Accounts.SetBalance(tosca.Address{0x01}, NewU256(42))
+	s.Accounts.SetCode(tosca.Address{0x01}, NewBytes([]byte{byte(PUSH1), byte(6)}))
+	s.Accounts.MarkWarm(tosca.Address{0x02})
 	s.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
+	s.CallContext = CallContext{AccountAddress: tosca.Address{0x01}}
 	s.BlockContext = BlockContext{BlockNumber: 1}
-	s.TransactionContext = &TransactionContext{BlobHashes: []vm.Hash{{4, 3, 2, 1}}}
+	s.TransactionContext = &TransactionContext{BlobHashes: []tosca.Hash{{4, 3, 2, 1}}}
 	s.CallData = NewBytes([]byte{1})
 	s.LastCallReturnData = NewBytes([]byte{1})
 	s.HasSelfDestructed = true
-	s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{1}, vm.Address{2}}}
-	s.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x01})
+	s.SelfDestructedJournal = []SelfDestructEntry{{tosca.Address{1}, tosca.Address{2}}}
+	s.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x01})
 	return s
 }
 
@@ -115,7 +115,7 @@ func getTestChanges() map[string]testStruct {
 			"Different current entry",
 		},
 		"accounts": {func(state *State) {
-			state.Accounts.SetBalance(vm.Address{0x01}, NewU256(6))
+			state.Accounts.SetBalance(tosca.Address{0x01}, NewU256(6))
 		}, "Different balance entry",
 		},
 		"logs": {func(state *State) {
@@ -124,7 +124,7 @@ func getTestChanges() map[string]testStruct {
 			"Different log count",
 		},
 		"call_context": {func(state *State) {
-			state.CallContext.AccountAddress = vm.Address{0xff}
+			state.CallContext.AccountAddress = tosca.Address{0xff}
 		},
 			"Different call context",
 		},
@@ -134,7 +134,7 @@ func getTestChanges() map[string]testStruct {
 			"Different block context",
 		},
 		"transaction_context": {func(state *State) {
-			state.TransactionContext.OriginAddress = vm.Address{0xff}
+			state.TransactionContext.OriginAddress = tosca.Address{0xff}
 		},
 			"Different transaction context",
 		},
@@ -160,12 +160,12 @@ func getTestChanges() map[string]testStruct {
 			"Different has-self-destructed",
 		},
 		"self_destructed_journal": {func(state *State) {
-			state.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x04}}}
+			state.SelfDestructedJournal = []SelfDestructEntry{{tosca.Address{0x01}, tosca.Address{0x04}}}
 		},
 			"Different has-self-destructed journal entry",
 		},
 		"block_number_hashes": {func(state *State) {
-			state.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x02})
+			state.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x02})
 		},
 			"Different block hash at index 0: 0200000000000000000000000000000000000000000000000000000000000000 vs 0100000000000000000000000000000000000000000000000000000000000000",
 		},
@@ -452,7 +452,7 @@ func TestState_PrinterMemorySize(t *testing.T) {
 func TestState_PrinterRecentBlockHashes(t *testing.T) {
 	s := NewState(NewCode([]byte{byte(BLOCKHASH)}))
 	s.Stack.Push(NewU256(0))
-	s.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x01})
+	s.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x01})
 
 	r := regexp.MustCompile(`Hash of block 0: 0x([0-9a-fA-F]+)`) // \[([0-9a-f]+)\]
 	str := s.String()
@@ -478,14 +478,14 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.Memory.Write([]byte{1, 2, 3}, 31)
 	s1.Storage.MarkWarm(NewU256(42))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s1.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
+	s1.CallContext = CallContext{AccountAddress: tosca.Address{0x01}}
 	s1.BlockContext = BlockContext{BlockNumber: 1}
-	s1.TransactionContext = &TransactionContext{BlobHashes: []vm.Hash{{4, 3, 2, 1}}}
+	s1.TransactionContext = &TransactionContext{BlobHashes: []tosca.Hash{{4, 3, 2, 1}}}
 	s1.CallData = NewBytes([]byte{1})
 	s1.LastCallReturnData = NewBytes([]byte{1})
 	s1.HasSelfDestructed = true
-	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
-	s1.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x01})
+	s1.SelfDestructedJournal = []SelfDestructEntry{{tosca.Address{0x01}, tosca.Address{0x01}}}
+	s1.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x01})
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
 	s2.Status = Running
@@ -497,14 +497,14 @@ func TestState_DiffMatch(t *testing.T) {
 	s2.Memory.Write([]byte{1, 2, 3}, 31)
 	s2.Storage.MarkWarm(NewU256(42))
 	s2.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s2.CallContext = CallContext{AccountAddress: vm.Address{0x01}}
+	s2.CallContext = CallContext{AccountAddress: tosca.Address{0x01}}
 	s2.BlockContext = BlockContext{BlockNumber: 1}
-	s2.TransactionContext = &TransactionContext{BlobHashes: []vm.Hash{{4, 3, 2, 1}}}
+	s2.TransactionContext = &TransactionContext{BlobHashes: []tosca.Hash{{4, 3, 2, 1}}}
 	s2.CallData = NewBytes([]byte{1})
 	s2.LastCallReturnData = NewBytes([]byte{1})
 	s2.HasSelfDestructed = true
-	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
-	s2.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x01})
+	s2.SelfDestructedJournal = []SelfDestructEntry{{tosca.Address{0x01}, tosca.Address{0x01}}}
+	s2.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x01})
 
 	diffs := s1.Diff(s2)
 
@@ -529,14 +529,14 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.Storage.MarkWarm(NewU256(42))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s1.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
-	s1.CallContext = CallContext{AccountAddress: vm.Address{0xff}}
+	s1.CallContext = CallContext{AccountAddress: tosca.Address{0xff}}
 	s1.BlockContext = BlockContext{BlockNumber: 1}
-	s1.TransactionContext = &TransactionContext{BlobHashes: []vm.Hash{{4, 3, 2, 1}}}
+	s1.TransactionContext = &TransactionContext{BlobHashes: []tosca.Hash{{4, 3, 2, 1}}}
 	s1.CallData = NewBytes([]byte{1})
 	s1.LastCallReturnData = NewBytes([]byte{1})
 	s1.HasSelfDestructed = true
-	s1.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0x01}, vm.Address{0x01}}}
-	s1.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0x01})
+	s1.SelfDestructedJournal = []SelfDestructEntry{{tosca.Address{0x01}, tosca.Address{0x01}}}
+	s1.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x01})
 
 	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
 	s2.Status = Running
@@ -548,14 +548,14 @@ func TestState_DiffMismatch(t *testing.T) {
 	s2.Memory.Write([]byte{1, 2, 4}, 31)
 	s2.Storage.MarkCold(NewU256(42))
 	s2.Logs.AddLog([]byte{4, 7, 6}, NewU256(24), NewU256(22))
-	s2.CallContext = CallContext{AccountAddress: vm.Address{0xef}}
+	s2.CallContext = CallContext{AccountAddress: tosca.Address{0xef}}
 	s2.BlockContext = BlockContext{BlockNumber: 251}
-	s2.TransactionContext = &TransactionContext{BlobHashes: []vm.Hash{{1}}}
+	s2.TransactionContext = &TransactionContext{BlobHashes: []tosca.Hash{{1}}}
 	s2.CallData = NewBytes([]byte{250})
 	s2.LastCallReturnData = NewBytes([]byte{249})
 	s2.HasSelfDestructed = false
-	s2.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}}}
-	s2.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0xf2})
+	s2.SelfDestructedJournal = []SelfDestructEntry{{tosca.Address{0xf3}, tosca.Address{0xf3}}}
+	s2.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0xf2})
 
 	diffs := s1.Diff(s2)
 
@@ -743,7 +743,7 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 			relevantFor: allButFailed,
 		},
 		"accounts": {
-			modify:      func(s *State) { s.Accounts.SetBalance(vm.Address{}, NewU256(1)) },
+			modify:      func(s *State) { s.Accounts.SetBalance(tosca.Address{}, NewU256(1)) },
 			relevantFor: allButFailed,
 		},
 		"logs": {
@@ -783,11 +783,13 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 			relevantFor: allButFailed,
 		},
 		"has_self_destructed_journal": {
-			modify:      func(s *State) { s.SelfDestructedJournal = []SelfDestructEntry{{vm.Address{0xf3}, vm.Address{0xf3}}} },
+			modify: func(s *State) {
+				s.SelfDestructedJournal = []SelfDestructEntry{{tosca.Address{0xf3}, tosca.Address{0xf3}}}
+			},
 			relevantFor: allButFailed,
 		},
 		"block_number_hashes": {
-			modify:      func(s *State) { s.RecentBlockHashes = NewImmutableHashArray(vm.Hash{0xf2}) },
+			modify:      func(s *State) { s.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0xf2}) },
 			relevantFor: allButFailed,
 		},
 	}

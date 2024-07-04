@@ -16,7 +16,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"pgregory.net/rand"
 )
 
@@ -90,7 +90,7 @@ func TestTransactionContext_GenerateUnconstrained(t *testing.T) {
 		t.Errorf("Generated blob hashes has default value.")
 	}
 
-	if txCtx.OriginAddress == (vm.Address{}) {
+	if txCtx.OriginAddress == (tosca.Address{}) {
 		t.Errorf("Generated origin address has default value.")
 	}
 }

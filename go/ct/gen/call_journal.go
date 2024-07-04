@@ -13,7 +13,7 @@ package gen
 import (
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"pgregory.net/rand"
 )
 
@@ -31,8 +31,8 @@ func (*CallJournalGenerator) Generate(rnd *rand.Rand) (*st.CallJournal, error) {
 	journal.Future = append(journal.Future, st.FutureCall{
 		Success:        rnd.Int31n(2) == 1,
 		Output:         common.RandomBytes(rnd, 2000),
-		GasCosts:       vm.Gas(rnd.Int63()),
-		GasRefund:      vm.Gas(rnd.Int63()),
+		GasCosts:       tosca.Gas(rnd.Int63()),
+		GasRefund:      tosca.Gas(rnd.Int63()),
 		CreatedAccount: common.RandomAddress(rnd),
 	})
 

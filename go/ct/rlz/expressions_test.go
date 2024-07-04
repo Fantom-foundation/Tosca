@@ -20,7 +20,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestExpression_StatusEval(t *testing.T) {
@@ -118,49 +118,49 @@ func TestExpression_GasConstraints(t *testing.T) {
 		unsatisfiable bool // < if there is no gas value satisfying the condition
 	}{
 		// Equality
-		{condition: Eq(Gas(), vm.Gas(0))},
-		{condition: Eq(Gas(), vm.Gas(1))},
-		{condition: Eq(Gas(), vm.Gas(5))},
+		{condition: Eq(Gas(), tosca.Gas(0))},
+		{condition: Eq(Gas(), tosca.Gas(1))},
+		{condition: Eq(Gas(), tosca.Gas(5))},
 		{condition: Eq(Gas(), st.MaxGas)},
 
 		// Not Equal
-		{condition: Ne(Gas(), vm.Gas(0))},
-		{condition: Ne(Gas(), vm.Gas(1))},
-		{condition: Ne(Gas(), vm.Gas(5))},
+		{condition: Ne(Gas(), tosca.Gas(0))},
+		{condition: Ne(Gas(), tosca.Gas(1))},
+		{condition: Ne(Gas(), tosca.Gas(5))},
 		{condition: Ne(Gas(), st.MaxGas)},
 
 		// Less
-		{condition: Lt(Gas(), vm.Gas(0)), unsatisfiable: true},
-		{condition: Lt(Gas(), vm.Gas(1))},
-		{condition: Lt(Gas(), vm.Gas(5))},
+		{condition: Lt(Gas(), tosca.Gas(0)), unsatisfiable: true},
+		{condition: Lt(Gas(), tosca.Gas(1))},
+		{condition: Lt(Gas(), tosca.Gas(5))},
 		{condition: Lt(Gas(), st.MaxGas)},
 
 		// Less or equal
-		{condition: Le(Gas(), vm.Gas(0))},
-		{condition: Le(Gas(), vm.Gas(1))},
-		{condition: Le(Gas(), vm.Gas(5))},
+		{condition: Le(Gas(), tosca.Gas(0))},
+		{condition: Le(Gas(), tosca.Gas(1))},
+		{condition: Le(Gas(), tosca.Gas(5))},
 		{condition: Le(Gas(), st.MaxGas), valid: true},
 
 		// Greater or equal
-		{condition: Ge(Gas(), vm.Gas(0)), valid: true},
-		{condition: Ge(Gas(), vm.Gas(1))},
-		{condition: Ge(Gas(), vm.Gas(5))},
+		{condition: Ge(Gas(), tosca.Gas(0)), valid: true},
+		{condition: Ge(Gas(), tosca.Gas(1))},
+		{condition: Ge(Gas(), tosca.Gas(5))},
 		{condition: Ge(Gas(), st.MaxGas)},
 
 		// Greater
-		{condition: Gt(Gas(), vm.Gas(0))},
-		{condition: Gt(Gas(), vm.Gas(1))},
-		{condition: Gt(Gas(), vm.Gas(5))},
+		{condition: Gt(Gas(), tosca.Gas(0))},
+		{condition: Gt(Gas(), tosca.Gas(1))},
+		{condition: Gt(Gas(), tosca.Gas(5))},
 		{condition: Gt(Gas(), st.MaxGas), unsatisfiable: true},
 
 		// Ranges
-		{condition: And(Ge(Gas(), vm.Gas(4)), Le(Gas(), vm.Gas(10)))},
-		{condition: And(Ge(Gas(), vm.Gas(4)), Le(Gas(), vm.Gas(4)))},
-		{condition: And(Gt(Gas(), vm.Gas(4)), Le(Gas(), vm.Gas(5)))},
-		{condition: And(Ge(Gas(), vm.Gas(4)), Lt(Gas(), vm.Gas(5)))},
+		{condition: And(Ge(Gas(), tosca.Gas(4)), Le(Gas(), tosca.Gas(10)))},
+		{condition: And(Ge(Gas(), tosca.Gas(4)), Le(Gas(), tosca.Gas(4)))},
+		{condition: And(Gt(Gas(), tosca.Gas(4)), Le(Gas(), tosca.Gas(5)))},
+		{condition: And(Ge(Gas(), tosca.Gas(4)), Lt(Gas(), tosca.Gas(5)))},
 
-		{condition: And(Ge(Gas(), vm.Gas(0)), Le(Gas(), st.MaxGas)), valid: true},
-		{condition: And(Ge(Gas(), vm.Gas(10)), Le(Gas(), vm.Gas(4))), unsatisfiable: true},
+		{condition: And(Ge(Gas(), tosca.Gas(0)), Le(Gas(), st.MaxGas)), valid: true},
+		{condition: And(Ge(Gas(), tosca.Gas(10)), Le(Gas(), tosca.Gas(4))), unsatisfiable: true},
 	}
 
 	for _, test := range tests {

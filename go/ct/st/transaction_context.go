@@ -14,13 +14,13 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/Fantom-foundation/Tosca/go/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 // TransactionContext holds all transaction data
 type TransactionContext struct {
-	OriginAddress vm.Address // Address of execution origination
-	BlobHashes    []vm.Hash  // List of blob hashes
+	OriginAddress tosca.Address // Address of execution origination
+	BlobHashes    []tosca.Hash  // List of blob hashes
 }
 
 func NewTransactionContext() *TransactionContext {
