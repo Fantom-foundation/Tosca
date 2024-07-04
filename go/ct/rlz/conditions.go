@@ -328,6 +328,11 @@ func IsRevision(revision tosca.Revision) Condition {
 	return RevisionBounds(revision, revision)
 }
 
+func IsRevisionCondition(condition Condition) bool {
+	_, ok := condition.(*revisionBounds)
+	return ok
+}
+
 // AnyKnownRevision restricts the revision to any revision covered by the CT specification.
 func AnyKnownRevision() Condition {
 	return RevisionBounds(MinRevision, NewestSupportedRevision)
@@ -347,10 +352,19 @@ func (e *revisionBounds) GetTestValues() []TestValue {
 	restrict := func(generator *gen.StateGenerator, revision tosca.Revision) {
 		generator.SetRevision(revision)
 	}
-	res := []TestValue{NewTestValue(property, domain, R99_UnknownNextRevision, restrict)}
+	res := []TestValue{}
+	// If the revision is set to a specific value, only test this value,
+	// except if it is the unknown next revision.
+	if e.min == e.max && e.min != R99_UnknownNextRevision {
+		res = append(res, NewTestValue(property, domain, e.min, restrict))
+		return res
+	}
+
+	res = append(res, NewTestValue(property, domain, R99_UnknownNextRevision, restrict))
 	for r := tosca.Revision(0); r <= NewestSupportedRevision; r++ {
 		res = append(res, NewTestValue(property, domain, r, restrict))
 	}
+
 	return res
 }
 
@@ -680,25 +694,14 @@ func (c *isAddressWarm) Restrict(generator *gen.StateGenerator) {
 }
 
 func (c *isAddressWarm) GetTestValues() []TestValue {
-	property := Property(c.String())
-	domain := boolDomain{}
-	restrict := func(generator *gen.StateGenerator, isWarm bool) {
-		key := c.key.GetVariable()
-		c.key.BindTo(generator)
-		if isWarm {
-			generator.BindToWarmAddress(key)
-		} else {
-			generator.BindToColdAddress(key)
-		}
-	}
+	property := Property(fmt.Sprintf("warm(%v)", c.key))
 	return []TestValue{
-		NewTestValue(property, domain, true, restrict),
-		NewTestValue(property, domain, false, restrict),
+		NewTestValue(property, boolDomain{}, true, restrictAccountWarmCold(c.key)),
 	}
 }
 
 func (c *isAddressWarm) String() string {
-	return fmt.Sprintf("warm(%v)", c.key)
+	return fmt.Sprintf("account warm(%v)", c.key)
 }
 
 ////////////////////////////////////////////////////////////
@@ -724,11 +727,26 @@ func (c *isAddressCold) Restrict(generator *gen.StateGenerator) {
 }
 
 func (c *isAddressCold) GetTestValues() []TestValue {
-	return IsAddressWarm(c.key).GetTestValues()
+	property := Property(fmt.Sprintf("warm(%v)", c.key))
+	return []TestValue{
+		NewTestValue(property, boolDomain{}, false, restrictAccountWarmCold(c.key)),
+	}
 }
 
 func (c *isAddressCold) String() string {
-	return fmt.Sprintf("cold(%v)", c.key)
+	return fmt.Sprintf("account cold(%v)", c.key)
+}
+
+func restrictAccountWarmCold(bindKey BindableExpression[U256]) func(generator *gen.StateGenerator, isWarm bool) {
+	return func(generator *gen.StateGenerator, isWarm bool) {
+		key := bindKey.GetVariable()
+		bindKey.BindTo(generator)
+		if isWarm {
+			generator.BindToWarmAddress(key)
+		} else {
+			generator.BindToColdAddress(key)
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////

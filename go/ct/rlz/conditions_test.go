@@ -11,6 +11,7 @@
 package rlz
 
 import (
+	"errors"
 	"math"
 	"testing"
 
@@ -593,6 +594,40 @@ func TestCondition_BlobHashesProducesGetTestValues(t *testing.T) {
 				t.Errorf("no test value failed the condition")
 			}
 		})
+	}
+}
+
+func TestCondition_IsAccountWarmRestrictAndCheck(t *testing.T) {
+	tests := map[string]Condition{
+		"warm": IsAddressWarm(Param(0)),
+		"cold": IsAddressCold(Param(0)),
+	}
+
+	for name, condition := range tests {
+		t.Run(name, func(t *testing.T) {
+			gen := gen.NewStateGenerator()
+			condition.Restrict(gen)
+			state, err := gen.Generate(rand.New(0))
+			if err != nil {
+				t.Fatalf("failed to build state: %v", err)
+			}
+			if checked, err := condition.Check(state); err != nil || !checked {
+				t.Errorf("failed to restrict and check condition: %v", err)
+			}
+		})
+	}
+}
+
+func TestCondition_ConflictingAccountWarmConditionsAreUnsatisfiable(t *testing.T) {
+	isWarm := IsAddressWarm(Param(0))
+	isCold := IsAddressCold(Param(0))
+
+	generator := gen.NewStateGenerator()
+	isWarm.Restrict(generator)
+	isCold.Restrict(generator)
+	_, err := generator.Generate(rand.New(0))
+	if !errors.Is(err, gen.ErrUnsatisfiable) {
+		t.Errorf("expected unsatisfiable condition")
 	}
 }
 
