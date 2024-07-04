@@ -297,7 +297,18 @@ func (a *runContextAdapter) GetBalance(addr tosca.Address) tosca.Value {
 }
 
 func (a *runContextAdapter) SetBalance(addr tosca.Address, value tosca.Value) {
-	panic("not implemented - should not be needed")
+	trg := gc.Address(addr)
+	balance := a.evm.StateDB.GetBalance(trg)
+	have := tosca.ValueFromUint256(balance)
+
+	order := have.Cmp(value)
+	if order < 0 {
+		diff := tosca.Sub(value, have)
+		a.evm.StateDB.AddBalance(trg, diff.ToUint256(), tracing.BalanceChangeUnspecified)
+	} else if order > 0 {
+		diff := tosca.Sub(have, value)
+		a.evm.StateDB.SubBalance(trg, diff.ToUint256(), tracing.BalanceChangeUnspecified)
+	}
 }
 
 func (a *runContextAdapter) GetCodeSize(addr tosca.Address) int {
