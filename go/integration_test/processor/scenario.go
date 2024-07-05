@@ -26,7 +26,7 @@ import (
 type Scenario struct {
 	Before      WorldState
 	After       WorldState
-	Parameter   tosca.BlockParameters
+	Parameters  tosca.BlockParameters
 	Transaction tosca.Transaction
 	Receipt     tosca.Receipt
 }
@@ -34,7 +34,7 @@ type Scenario struct {
 func (s *Scenario) Run(t *testing.T, processor tosca.Processor) {
 
 	context := newScenarioContext(s.Before)
-	receipt, err := processor.Run(s.Parameter, s.Transaction, context)
+	receipt, err := processor.Run(s.Parameters, s.Transaction, context)
 	if err != nil {
 		t.Fatalf("failed to run transaction: %v", err)
 	}
