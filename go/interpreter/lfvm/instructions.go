@@ -169,10 +169,7 @@ func opMstore(c *context) {
 		c.status = ERROR
 		return
 	}
-	if c.memory.EnsureCapacity(offset, 32, c) != nil {
-		return
-	}
-	if err := c.memory.SetWord(offset, value); err != nil {
+	if err := c.memory.SetWord(offset, value, 32, c); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -186,10 +183,7 @@ func opMstore8(c *context) {
 		c.status = ERROR
 		return
 	}
-	if c.memory.EnsureCapacity(offset, 1, c) != nil {
-		return
-	}
-	if err := c.memory.SetByte(offset, byte(value.Uint64())); err != nil {
+	if err := c.memory.SetByte(offset, byte(value.Uint64()), 1, c); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -232,7 +226,7 @@ func opMcopy(c *context) {
 	}
 
 	data := c.memory.GetSlice(srcOffset, size)
-	c.memory.Set(destOffset, size, data)
+	c.memory.Set(destOffset, size, data, c, false)
 }
 
 func opMload(c *context) {
@@ -244,10 +238,7 @@ func opMload(c *context) {
 		return
 	}
 	offset := addr.Uint64()
-	if c.memory.EnsureCapacity(offset, 32, c) != nil {
-		return
-	}
-	if err := c.memory.CopyWord(offset, trg); err != nil {
+	if err := c.memory.CopyWord(offset, trg, 32, c); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -388,10 +379,7 @@ func opCallDataCopy(c *context) {
 		return
 	}
 
-	if c.memory.EnsureCapacity(memOffset64, length64, c) != nil {
-		return
-	}
-	if err := c.memory.Set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64)); err != nil {
+	if err := c.memory.Set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64), c, true); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -793,10 +781,7 @@ func opCodeCopy(c *context) {
 	}
 
 	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
-	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
-		return
-	}
-	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
+	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy, c, true); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -1029,10 +1014,7 @@ func opExtCodeCopy(c *context) {
 		uint64CodeOffset = math.MaxUint64
 	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
-	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
-		return
-	}
-	if err = c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
+	if err = c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy, c, true); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -1164,7 +1146,7 @@ func opCall(c *context) {
 	})
 
 	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
+		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output, c, false); memSetErr != nil {
 			c.SignalError(memSetErr)
 		}
 	}
@@ -1263,7 +1245,7 @@ func opCallCode(c *context) {
 	})
 
 	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
+		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output, c, false); memSetErr != nil {
 			c.SignalError(memSetErr)
 		}
 	}
@@ -1336,7 +1318,7 @@ func opStaticCall(c *context) {
 	})
 
 	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
+		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output, c, false); memSetErr != nil {
 			c.SignalError(memSetErr)
 		}
 	}
@@ -1410,7 +1392,7 @@ func opDelegateCall(c *context) {
 	})
 
 	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
+		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output, c, false); memSetErr != nil {
 			c.SignalError(memSetErr)
 		}
 	}
@@ -1456,16 +1438,12 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
-	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
-		return
-	}
-
 	words := sizeInWords(length.Uint64())
 	if !c.UseGas(tosca.Gas(3 * words)) {
 		return
 	}
 
-	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), c.return_data[offset64:end64]); err != nil {
+	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), c.return_data[offset64:end64], c, true); err != nil {
 		c.SignalError(err)
 	}
 }

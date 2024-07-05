@@ -1182,7 +1182,7 @@ func getAllRules() []Rule {
 		},
 		parameters: []Parameter{
 			AddressParameter{},
-			MemoryOffsetParameter{},
+			MemoryOffsetForCopyParameter{},
 			DataOffsetParameter{},
 			DataSizeParameter{}},
 		effect: func(s *st.State) {
@@ -1203,7 +1203,7 @@ func getAllRules() []Rule {
 		},
 		parameters: []Parameter{
 			AddressParameter{},
-			MemoryOffsetParameter{},
+			MemoryOffsetForCopyParameter{},
 			DataOffsetParameter{},
 			DataSizeParameter{}},
 		effect: func(s *st.State) {
@@ -1223,7 +1223,7 @@ func getAllRules() []Rule {
 		},
 		parameters: []Parameter{
 			AddressParameter{},
-			MemoryOffsetParameter{},
+			MemoryOffsetForCopyParameter{},
 			DataOffsetParameter{},
 			DataSizeParameter{}},
 		effect: func(s *st.State) {
@@ -1438,7 +1438,7 @@ func getAllRules() []Rule {
 		pops:      3,
 		pushes:    0,
 		parameters: []Parameter{
-			MemoryOffsetParameter{},
+			MemoryOffsetForCopyParameter{},
 			DataOffsetParameter{},
 			DataSizeParameter{}},
 		effect: func(s *st.State) {

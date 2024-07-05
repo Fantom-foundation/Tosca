@@ -189,7 +189,7 @@ func convertCtMemoryToLfvmMemory(memory *st.Memory) (*Memory, error) {
 
 	result := NewMemory()
 	result.EnsureCapacityWithoutGas(uint64(len(data)), nil)
-	err := result.Set(0, uint64(len(data)), data)
+	err := result.Set(0, uint64(len(data)), data, nil, false)
 	return result, err
 }
 
