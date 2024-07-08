@@ -1488,7 +1488,7 @@ func getAllRules() []Rule {
 		staticGas:  3,
 		pops:       1,
 		pushes:     1,
-		parameters: []Parameter{NumericParameter{}},
+		parameters: []Parameter{MemoryOffsetForCopyParameter{}},
 		effect: func(s *st.State) {
 			offsetU256 := s.Stack.Pop()
 			pushData := NewU256(0)
