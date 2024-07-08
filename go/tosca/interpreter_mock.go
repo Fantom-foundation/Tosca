@@ -16,7 +16,7 @@
 //	mockgen -source interpreter.go -destination interpreter_mock.go -package tosca
 //
 
-// Package vm is a generated GoMock package.
+// Package tosca is a generated GoMock package.
 package tosca
 
 import (
@@ -141,20 +141,6 @@ func (m *MockRunContext) Call(kind CallKind, parameter CallParameters) (CallResu
 func (mr *MockRunContextMockRecorder) Call(kind, parameter any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Call", reflect.TypeOf((*MockRunContext)(nil).Call), kind, parameter)
-}
-
-// CreateAccount mocks base method.
-func (m *MockRunContext) CreateAccount(arg0 Address, arg1 Code) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAccount", arg0, arg1)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// CreateAccount indicates an expected call of CreateAccount.
-func (mr *MockRunContextMockRecorder) CreateAccount(arg0, arg1 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccount", reflect.TypeOf((*MockRunContext)(nil).CreateAccount), arg0, arg1)
 }
 
 // CreateSnapshot mocks base method.
@@ -517,20 +503,6 @@ func (m *MockTransactionContext) AccountExists(arg0 Address) bool {
 func (mr *MockTransactionContextMockRecorder) AccountExists(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccountExists", reflect.TypeOf((*MockTransactionContext)(nil).AccountExists), arg0)
-}
-
-// CreateAccount mocks base method.
-func (m *MockTransactionContext) CreateAccount(arg0 Address, arg1 Code) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAccount", arg0, arg1)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// CreateAccount indicates an expected call of CreateAccount.
-func (mr *MockTransactionContextMockRecorder) CreateAccount(arg0, arg1 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccount", reflect.TypeOf((*MockTransactionContext)(nil).CreateAccount), arg0, arg1)
 }
 
 // CreateSnapshot mocks base method.

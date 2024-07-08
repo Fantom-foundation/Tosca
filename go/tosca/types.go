@@ -33,6 +33,14 @@ func (a *Address) UnmarshalText(data []byte) error {
 	return textToBytes(a[:], data)
 }
 
+func (k Key) String() string {
+	return fmt.Sprintf("0x%x", k[:])
+}
+
+func (w Word) String() string {
+	return fmt.Sprintf("0x%x", w[:])
+}
+
 func (v Value) ToBig() *big.Int {
 	return new(big.Int).SetBytes(v[:])
 }

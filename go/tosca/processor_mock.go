@@ -16,7 +16,7 @@
 //	mockgen -source processor.go -destination processor_mock.go -package tosca
 //
 
-// Package vm is a generated GoMock package.
+// Package tosca is a generated GoMock package.
 package tosca
 
 import (
