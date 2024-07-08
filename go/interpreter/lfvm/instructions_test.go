@@ -302,16 +302,16 @@ func TestLogOpSizeOverflow(t *testing.T) {
 		"log2_zero":        {logn: 2, size: zero, logCalls: 1, want: RUNNING},
 		"log3_zero":        {logn: 3, size: zero, logCalls: 1, want: RUNNING},
 		"log4_zero":        {logn: 4, size: zero, logCalls: 1, want: RUNNING},
-		"log0_max":         {logn: 0, size: maxUint64, logCalls: 0, want: ERROR},
-		"log1_max":         {logn: 1, size: maxUint64, logCalls: 0, want: ERROR},
-		"log2_max":         {logn: 2, size: maxUint64, logCalls: 0, want: ERROR},
-		"log3_max":         {logn: 3, size: maxUint64, logCalls: 0, want: ERROR},
-		"log4_max":         {logn: 4, size: maxUint64, logCalls: 0, want: ERROR},
-		"log0_much_larger": {logn: 0, size: originalBugValue, logCalls: 0, want: ERROR},
-		"log1_much_larger": {logn: 1, size: originalBugValue, logCalls: 0, want: ERROR},
-		"log2_much_larger": {logn: 2, size: originalBugValue, logCalls: 0, want: ERROR},
-		"log3_much_larger": {logn: 3, size: originalBugValue, logCalls: 0, want: ERROR},
-		"log4_much_larger": {logn: 4, size: originalBugValue, logCalls: 0, want: ERROR},
+		"log0_max":         {logn: 0, size: maxUint64, logCalls: 0, want: OUT_OF_GAS},
+		"log1_max":         {logn: 1, size: maxUint64, logCalls: 0, want: OUT_OF_GAS},
+		"log2_max":         {logn: 2, size: maxUint64, logCalls: 0, want: OUT_OF_GAS},
+		"log3_max":         {logn: 3, size: maxUint64, logCalls: 0, want: OUT_OF_GAS},
+		"log4_max":         {logn: 4, size: maxUint64, logCalls: 0, want: OUT_OF_GAS},
+		"log0_much_larger": {logn: 0, size: originalBugValue, logCalls: 0, want: OUT_OF_GAS},
+		"log1_much_larger": {logn: 1, size: originalBugValue, logCalls: 0, want: OUT_OF_GAS},
+		"log2_much_larger": {logn: 2, size: originalBugValue, logCalls: 0, want: OUT_OF_GAS},
+		"log3_much_larger": {logn: 3, size: originalBugValue, logCalls: 0, want: OUT_OF_GAS},
+		"log4_much_larger": {logn: 4, size: originalBugValue, logCalls: 0, want: OUT_OF_GAS},
 	}
 
 	for name, test := range tests {
@@ -600,60 +600,62 @@ func TestMCopy(t *testing.T) {
 
 func TestCreateShanghaiInitCodeSize(t *testing.T) {
 	maxInitCodeSize := uint64(49152)
-	tests := []struct {
+	tests := map[string]struct {
 		revision       tosca.Revision
 		init_code_size uint64
 		expected       Status
 	}{
-		{tosca.R11_Paris, 0, RUNNING},
-		{tosca.R11_Paris, 1, RUNNING},
-		{tosca.R11_Paris, 2000, RUNNING},
-		{tosca.R11_Paris, maxInitCodeSize - 1, RUNNING},
-		{tosca.R11_Paris, maxInitCodeSize, RUNNING},
-		{tosca.R11_Paris, maxInitCodeSize + 1, RUNNING},
-		{tosca.R11_Paris, 100000, RUNNING},
-		{tosca.R11_Paris, math.MaxUint64, ERROR},
+		"paris-0-running":         {tosca.R11_Paris, 0, RUNNING},
+		"paris-1-running":         {tosca.R11_Paris, 1, RUNNING},
+		"paris-2k-running":        {tosca.R11_Paris, 2000, RUNNING},
+		"paris-max-1-running":     {tosca.R11_Paris, maxInitCodeSize - 1, RUNNING},
+		"paris-max-running":       {tosca.R11_Paris, maxInitCodeSize, RUNNING},
+		"paris-max+1-running":     {tosca.R11_Paris, maxInitCodeSize + 1, RUNNING},
+		"paris-100k-running":      {tosca.R11_Paris, 100000, RUNNING},
+		"paris-maxuint64-running": {tosca.R11_Paris, math.MaxUint64, ERROR},
 
-		{tosca.R12_Shanghai, 0, RUNNING},
-		{tosca.R12_Shanghai, 1, RUNNING},
-		{tosca.R12_Shanghai, 2000, RUNNING},
-		{tosca.R12_Shanghai, maxInitCodeSize - 1, RUNNING},
-		{tosca.R12_Shanghai, maxInitCodeSize, RUNNING},
-		{tosca.R12_Shanghai, maxInitCodeSize + 1, MAX_INIT_CODE_SIZE_EXCEEDED},
-		{tosca.R12_Shanghai, 100000, MAX_INIT_CODE_SIZE_EXCEEDED},
-		{tosca.R12_Shanghai, math.MaxUint64, ERROR},
+		"shanghai-0-running":         {tosca.R12_Shanghai, 0, RUNNING},
+		"shanghai-1-running":         {tosca.R12_Shanghai, 1, RUNNING},
+		"shanghai-2k-running":        {tosca.R12_Shanghai, 2000, RUNNING},
+		"shanghai-max-1-running":     {tosca.R12_Shanghai, maxInitCodeSize - 1, RUNNING},
+		"shanghai-max-running":       {tosca.R12_Shanghai, maxInitCodeSize, RUNNING},
+		"shanghai-max+1-running":     {tosca.R12_Shanghai, maxInitCodeSize + 1, MAX_INIT_CODE_SIZE_EXCEEDED},
+		"shanghai-100k-running":      {tosca.R12_Shanghai, 100000, MAX_INIT_CODE_SIZE_EXCEEDED},
+		"shanghai-maxuint64-running": {tosca.R12_Shanghai, math.MaxUint64, ERROR},
 	}
 
-	for _, test := range tests {
-		ctrl := gomock.NewController(t)
-		runContext := tosca.NewMockRunContext(ctrl)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			runContext := tosca.NewMockRunContext(ctrl)
 
-		source := tosca.Address{1}
-		ctxt := context{
-			status: RUNNING,
-			params: tosca.Parameters{
-				Recipient: source,
-			},
-			context:  runContext,
-			stack:    NewStack(),
-			memory:   NewMemory(),
-			gas:      50000,
-			revision: test.revision,
-		}
+			source := tosca.Address{1}
+			ctxt := context{
+				status: RUNNING,
+				params: tosca.Parameters{
+					Recipient: source,
+				},
+				context:  runContext,
+				stack:    NewStack(),
+				memory:   NewMemory(),
+				gas:      50000,
+				revision: test.revision,
+			}
 
-		// Prepare stack arguments.
-		ctxt.stack.stack_ptr = 3
-		ctxt.stack.data[0].Set(uint256.NewInt(test.init_code_size))
+			// Prepare stack arguments.
+			ctxt.stack.stack_ptr = 3
+			ctxt.stack.data[0].Set(uint256.NewInt(test.init_code_size))
 
-		if test.expected == RUNNING {
-			runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil)
-		}
+			if test.expected == RUNNING {
+				runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil)
+			}
 
-		opCreate(&ctxt)
+			opCreate(&ctxt)
 
-		if want, got := test.expected, ctxt.status; want != got {
-			t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
-		}
+			if want, got := test.expected, ctxt.status; want != got {
+				t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+			}
+		})
 	}
 }
 

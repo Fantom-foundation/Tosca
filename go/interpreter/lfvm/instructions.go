@@ -169,7 +169,7 @@ func opMstore(c *context) {
 		c.status = ERROR
 		return
 	}
-	if err := c.memory.SetWord(offset, value, 32, c); err != nil {
+	if err := c.memory.SetWord(offset, value, c); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -183,7 +183,7 @@ func opMstore8(c *context) {
 		c.status = ERROR
 		return
 	}
-	if err := c.memory.SetByte(offset, byte(value.Uint64()), 1, c); err != nil {
+	if err := c.memory.SetByte(offset, byte(value.Uint64()), c); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -218,15 +218,13 @@ func opMcopy(c *context) {
 		return
 	}
 
-	if c.memory.EnsureCapacity(destOffset, size, c) != nil {
+	data, err := c.memory.GetSliceWithCapacityAndGas(srcOffset, size, c)
+	if err != nil {
 		return
 	}
-	if c.memory.EnsureCapacity(srcOffset, size, c) != nil {
+	if err := c.memory.SetWithCapacityAndGasCheck(destOffset, size, data, c); err != nil {
 		return
 	}
-
-	data := c.memory.GetSlice(srcOffset, size)
-	c.memory.Set(destOffset, size, data, c, false)
 }
 
 func opMload(c *context) {
@@ -238,7 +236,7 @@ func opMload(c *context) {
 		return
 	}
 	offset := addr.Uint64()
-	if err := c.memory.CopyWord(offset, trg, 32, c); err != nil {
+	if err := c.memory.CopyWord(offset, trg, c); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -379,7 +377,7 @@ func opCallDataCopy(c *context) {
 		return
 	}
 
-	if err := c.memory.Set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64), c, true); err != nil {
+	if err := c.memory.SetWithCapacityAndGasCheck(memOffset64, length64, getData(c.params.Input, dataOffset64, length64), c); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -588,10 +586,10 @@ func opSha3(c *context) {
 		return
 	}
 
-	if c.memory.EnsureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
+	data, err := c.memory.GetSliceWithCapacityAndGas(offset.Uint64(), size.Uint64(), c)
+	if err != nil {
 		return
 	}
-	data := c.memory.GetSlice(offset.Uint64(), size.Uint64())
 
 	// charge dynamic gas price
 	words := sizeInWords(size.Uint64())
@@ -781,7 +779,7 @@ func opCodeCopy(c *context) {
 	}
 
 	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
-	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy, c, true); err != nil {
+	if err := c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), codeCopy, c); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -1014,7 +1012,7 @@ func opExtCodeCopy(c *context) {
 		uint64CodeOffset = math.MaxUint64
 	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
-	if err = c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy, c, true); err != nil {
+	if err = c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), codeCopy, c); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -1100,8 +1098,7 @@ func opCall(c *context) {
 
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
-	c.memory.EnsureCapacityWithoutGas(needed_memory_size, c)
-
+	c.memory.EnsureCapacityWithoutGas(needed_memory_size)
 	if !value.IsZero() {
 		cost += tosca.Gas(params.CallStipend)
 	}
@@ -1146,7 +1143,7 @@ func opCall(c *context) {
 	})
 
 	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output, c, false); memSetErr != nil {
+		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
 			c.SignalError(memSetErr)
 		}
 	}
@@ -1216,7 +1213,7 @@ func opCallCode(c *context) {
 
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
-	c.memory.EnsureCapacityWithoutGas(needed_memory_size, c)
+	c.memory.EnsureCapacityWithoutGas(needed_memory_size)
 	if !value.IsZero() {
 		cost += tosca.Gas(params.CallStipend)
 	}
@@ -1245,7 +1242,7 @@ func opCallCode(c *context) {
 	})
 
 	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output, c, false); memSetErr != nil {
+		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
 			c.SignalError(memSetErr)
 		}
 	}
@@ -1305,7 +1302,7 @@ func opStaticCall(c *context) {
 
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
-	c.memory.EnsureCapacityWithoutGas(needed_memory_size, c)
+	c.memory.EnsureCapacityWithoutGas(needed_memory_size)
 
 	toAddr := tosca.Address(addr.Bytes20())
 	// Get arguments from the memory.
@@ -1318,7 +1315,7 @@ func opStaticCall(c *context) {
 	})
 
 	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output, c, false); memSetErr != nil {
+		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
 			c.SignalError(memSetErr)
 		}
 	}
@@ -1376,7 +1373,7 @@ func opDelegateCall(c *context) {
 
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
-	c.memory.EnsureCapacityWithoutGas(needed_memory_size, c)
+	c.memory.EnsureCapacityWithoutGas(needed_memory_size)
 
 	toAddr := tosca.Address(addr.Bytes20())
 	// Get arguments from the memory.
@@ -1392,7 +1389,7 @@ func opDelegateCall(c *context) {
 	})
 
 	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output, c, false); memSetErr != nil {
+		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
 			c.SignalError(memSetErr)
 		}
 	}
@@ -1443,7 +1440,7 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
-	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), c.return_data[offset64:end64], c, true); err != nil {
+	if err := c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.return_data[offset64:end64], c); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -1466,16 +1463,16 @@ func opLog(c *context, size int) {
 	// Expand memory if needed
 	start := mStart.Uint64()
 	log_size := mSize.Uint64()
-	if c.memory.EnsureCapacity(start, log_size, c) != nil {
-		return
-	}
 
 	// charge for log size
 	if !c.UseGas(tosca.Gas(8 * log_size)) {
 		return
 	}
 
-	d := c.memory.GetSlice(start, log_size)
+	d, err := c.memory.GetSliceWithCapacityAndGas(start, log_size, c)
+	if err != nil {
+		return
+	}
 
 	// make a copy of the data to disconnect from memory
 	log_data := bytes.Clone(d)
