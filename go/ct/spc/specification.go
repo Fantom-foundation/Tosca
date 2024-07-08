@@ -592,6 +592,9 @@ func getAllRules() []Rule {
 
 		{
 			Name: "jump_to_invalid_destination",
+			Parameter: []Parameter{
+				JumpTargetParameter{},
+			},
 			Condition: And(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
@@ -614,7 +617,7 @@ func getAllRules() []Rule {
 		pushes:    0,
 		parameters: []Parameter{
 			JumpTargetParameter{},
-			JumpTargetParameter{},
+			NumericParameter{},
 		},
 		conditions: []Condition{
 			IsCode(Param(0)),
@@ -663,6 +666,10 @@ func getAllRules() []Rule {
 
 		{
 			Name: "jumpi_to_invalid_destination",
+			Parameter: []Parameter{
+				JumpTargetParameter{},
+				NumericParameter{},
+			},
 			Condition: And(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),

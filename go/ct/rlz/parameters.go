@@ -11,6 +11,8 @@
 package rlz
 
 import (
+	"math"
+
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 )
 
@@ -49,6 +51,7 @@ var jumpTargetParameterSamples = []U256{
 	NewU256(0),
 	NewU256(1),
 	NewU256(1 << 8),
+	NewU256(math.MaxInt32 + 1),
 	NewU256(1, 1),
 }
 
