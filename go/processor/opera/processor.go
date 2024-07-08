@@ -161,7 +161,7 @@ func (p *processor) Run(
 	chainConfig :=
 		geth_interpreter.MakeChainConfig(*params.AllEthashProtocolChanges,
 			new(big.Int).SetBytes(blockParams.ChainID[:]),
-			geth_interpreter.VmRevisionToCt(blockParams.Revision))
+			blockParams.Revision)
 
 	// Fix block boundaries to match required revisions
 	chainConfig.IstanbulBlock = big.NewInt(0)

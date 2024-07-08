@@ -27,7 +27,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		get func(tosca.Parameters) (want, got any)
 	}{
 		"revision": {
-			func(s *st.State) { s.Revision = cc.R07_Istanbul },
+			func(s *st.State) { s.Revision = tosca.R07_Istanbul },
 			func(p tosca.Parameters) (any, any) { return tosca.R07_Istanbul, p.Revision },
 		},
 		"gas": {

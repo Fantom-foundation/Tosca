@@ -204,10 +204,10 @@ func prepareFuzzingSeeds(f *testing.F) {
 	fullStack := make([]byte, 1024*32)
 	rnd.Read(fullStack[:])
 	f.Add(
-		ops,                // opCodes
-		int64(0),           // gas
-		byte(R07_Istanbul), // revision
-		fullStack,          // stack
+		ops,                      // opCodes
+		int64(0),                 // gas
+		byte(tosca.R07_Istanbul), // revision
+		fullStack,                // stack
 	)
 }
 
@@ -216,7 +216,7 @@ func corpusEntryToCtState(opCodes []byte, gas int64, revision byte, stackBytes [
 		return nil, fmt.Errorf("negative gas %v", gas)
 	}
 
-	if Revision(revision) < MinRevision || Revision(revision) > NewestSupportedRevision {
+	if tosca.Revision(revision) < MinRevision || tosca.Revision(revision) > NewestSupportedRevision {
 		return nil, fmt.Errorf("unsupported revision %v", revision)
 	}
 
@@ -252,7 +252,7 @@ func corpusEntryToCtState(opCodes []byte, gas int64, revision byte, stackBytes [
 	code := st.NewCode(opCodes)
 	state := st.NewState(code)
 	state.Gas = tosca.Gas(gas)
-	state.Revision = Revision(revision)
+	state.Revision = tosca.Revision(revision)
 	state.Stack = stack
 	state.BlockContext.TimeStamp = GetForkTime(state.Revision)
 	return state, nil
@@ -292,28 +292,28 @@ func TestCorpusEntryToCtState(t *testing.T) {
 		"Valid input": {
 			opCodes:     []byte{0x60, 0x80},
 			gas:         1000,
-			revision:    byte(R12_Shanghai),
+			revision:    byte(tosca.R12_Shanghai),
 			stackBytes:  []byte{0x01, 0x02, 0x03},
 			expectedErr: nil,
 		},
 		"empty stack": {
 			opCodes:     []byte{0x60, 0x80},
 			gas:         1000,
-			revision:    byte(R12_Shanghai),
+			revision:    byte(tosca.R12_Shanghai),
 			stackBytes:  []byte{},
 			expectedErr: nil,
 		},
 		"zero gas": {
 			opCodes:     []byte{0x60, 0x80},
 			gas:         0,
-			revision:    byte(R12_Shanghai),
+			revision:    byte(tosca.R12_Shanghai),
 			stackBytes:  []byte{0x01, 0x02, 0x03},
 			expectedErr: nil,
 		},
 		"Negative gas": {
 			opCodes:     []byte{0x60, 0x80},
 			gas:         -1000,
-			revision:    byte(R12_Shanghai),
+			revision:    byte(tosca.R12_Shanghai),
 			stackBytes:  []byte{0x01, 0x02, 0x03},
 			expectedErr: fmt.Errorf("negative gas -1000"),
 		},
@@ -327,28 +327,28 @@ func TestCorpusEntryToCtState(t *testing.T) {
 		"Empty opCodes": {
 			opCodes:     []byte{},
 			gas:         1000,
-			revision:    byte(R12_Shanghai),
+			revision:    byte(tosca.R12_Shanghai),
 			stackBytes:  []byte{0x01, 0x02, 0x03},
 			expectedErr: fmt.Errorf("empty opCodes"),
 		},
 		"Too many opCodes": {
 			opCodes:     make([]byte, 34),
 			gas:         1000,
-			revision:    byte(R12_Shanghai),
+			revision:    byte(tosca.R12_Shanghai),
 			stackBytes:  []byte{0x01, 0x02, 0x03},
 			expectedErr: fmt.Errorf("too many opCodes, not interesting"),
 		},
 		"Uninteresting stack size": {
 			opCodes:     []byte{0x60, 0x80},
 			gas:         1000,
-			revision:    byte(R12_Shanghai),
+			revision:    byte(tosca.R12_Shanghai),
 			stackBytes:  make([]byte, 8*32),
 			expectedErr: fmt.Errorf("Uninteresting stack size 256"),
 		},
 		"Stack too large": {
 			opCodes:     []byte{0x60, 0x80},
 			gas:         1000,
-			revision:    byte(R12_Shanghai),
+			revision:    byte(tosca.R12_Shanghai),
 			stackBytes:  make([]byte, 1025*32),
 			expectedErr: fmt.Errorf("Stack too large 32800"),
 		},
@@ -372,8 +372,8 @@ func TestCorpusEntryToCtState(t *testing.T) {
 				t.Errorf("Unexpected code size. Got: %v, Want: %v", state.Code.Length(), len(tt.opCodes))
 			}
 
-			if state.Revision != Revision(tt.revision) {
-				t.Errorf("Unexpected revision. Got: %v, Want: %v", state.Revision, Revision(tt.revision))
+			if state.Revision != tosca.Revision(tt.revision) {
+				t.Errorf("Unexpected revision. Got: %v, Want: %v", state.Revision, tosca.Revision(tt.revision))
 			}
 
 			if state.Gas != tosca.Gas(tt.gas) {

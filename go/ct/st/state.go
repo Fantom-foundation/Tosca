@@ -115,7 +115,7 @@ type Releaser interface {
 // State represents an EVM's execution state.
 type State struct {
 	Status                StatusCode
-	Revision              Revision
+	Revision              tosca.Revision
 	ReadOnly              bool
 	Pc                    uint16
 	Gas                   tosca.Gas
@@ -143,7 +143,7 @@ type State struct {
 func NewState(code *Code) *State {
 	return &State{
 		Status:                Running,
-		Revision:              R07_Istanbul,
+		Revision:              tosca.R07_Istanbul,
 		Code:                  code,
 		Stack:                 &Stack{},
 		Memory:                NewMemory(),

@@ -108,11 +108,11 @@ func (g *StateGenerator) SetStatus(status st.StatusCode) {
 }
 
 // SetRevision adds a constraint on the State's revision.
-func (g *StateGenerator) SetRevision(revision Revision) {
+func (g *StateGenerator) SetRevision(revision tosca.Revision) {
 	g.blockContextGen.SetRevision(revision)
 }
 
-func (g *StateGenerator) AddRevisionBounds(min, max Revision) {
+func (g *StateGenerator) AddRevisionBounds(min, max tosca.Revision) {
 	g.blockContextGen.AddRevisionBounds(min, max)
 }
 

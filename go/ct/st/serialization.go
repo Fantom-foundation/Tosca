@@ -57,7 +57,7 @@ func ImportStateJSON(filePath string) (*State, error) {
 // It can be used to serialize and deserialize a State struct.
 type stateSerializable struct {
 	Status                StatusCode
-	Revision              Revision
+	Revision              tosca.Revision
 	ReadOnly              bool
 	Pc                    uint16
 	Gas                   tosca.Gas

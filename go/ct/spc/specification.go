@@ -287,7 +287,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, NewestSupportedRevision),
+			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
 			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
@@ -308,7 +308,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, NewestSupportedRevision),
+			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
 			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -328,7 +328,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			IsRevision(R07_Istanbul),
+			IsRevision(tosca.R07_Istanbul),
 		},
 		parameters: []Parameter{
 			AddressParameter{},
@@ -431,7 +431,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, NewestSupportedRevision),
+			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
 			IsStorageCold(Param(0)),
 		},
 		parameters: []Parameter{
@@ -452,7 +452,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, NewestSupportedRevision),
+			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
 			IsStorageWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -472,7 +472,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			IsRevision(R07_Istanbul),
+			IsRevision(tosca.R07_Istanbul),
 		},
 		parameters: []Parameter{
 			NumericParameter{},
@@ -487,41 +487,41 @@ func getAllRules() []Rule {
 	// --- SSTORE ---
 
 	sstoreRules := []sstoreOpParams{
-		{revision: R07_Istanbul, config: tosca.StorageAssigned, gasCost: 800},
-		{revision: R07_Istanbul, config: tosca.StorageAdded, gasCost: 20000},
-		{revision: R07_Istanbul, config: tosca.StorageAddedDeleted, gasCost: 800, gasRefund: 19200},
-		{revision: R07_Istanbul, config: tosca.StorageDeletedRestored, gasCost: 800, gasRefund: -10800},
-		{revision: R07_Istanbul, config: tosca.StorageDeletedAdded, gasCost: 800, gasRefund: -15000},
-		{revision: R07_Istanbul, config: tosca.StorageDeleted, gasCost: 5000, gasRefund: 15000},
-		{revision: R07_Istanbul, config: tosca.StorageModified, gasCost: 5000},
-		{revision: R07_Istanbul, config: tosca.StorageModifiedDeleted, gasCost: 800, gasRefund: 15000},
-		{revision: R07_Istanbul, config: tosca.StorageModifiedRestored, gasCost: 800, gasRefund: 4200},
+		{revision: tosca.R07_Istanbul, config: tosca.StorageAssigned, gasCost: 800},
+		{revision: tosca.R07_Istanbul, config: tosca.StorageAdded, gasCost: 20000},
+		{revision: tosca.R07_Istanbul, config: tosca.StorageAddedDeleted, gasCost: 800, gasRefund: 19200},
+		{revision: tosca.R07_Istanbul, config: tosca.StorageDeletedRestored, gasCost: 800, gasRefund: -10800},
+		{revision: tosca.R07_Istanbul, config: tosca.StorageDeletedAdded, gasCost: 800, gasRefund: -15000},
+		{revision: tosca.R07_Istanbul, config: tosca.StorageDeleted, gasCost: 5000, gasRefund: 15000},
+		{revision: tosca.R07_Istanbul, config: tosca.StorageModified, gasCost: 5000},
+		{revision: tosca.R07_Istanbul, config: tosca.StorageModifiedDeleted, gasCost: 800, gasRefund: 15000},
+		{revision: tosca.R07_Istanbul, config: tosca.StorageModifiedRestored, gasCost: 800, gasRefund: 4200},
 
 		// Certain storage configurations imply warm access. Not all
 		// combinations are possible; invalid ones are marked below.
 
-		// {revision: R09_Berlin, warm: false, config: tosca.StorageAssigned, gasCost: 2200}, // invalid
-		{revision: R09_Berlin, warm: false, config: tosca.StorageAdded, gasCost: 22100},
-		// {revision: R09_Berlin, warm: false, config: tosca.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},     // invalid
-		// {revision: R09_Berlin, warm: false, config: tosca.StorageDeletedRestored, gasCost: 2200, gasRefund: -10800}, // invalid
-		// {revision: R09_Berlin, warm: false, config: tosca.StorageDeletedAdded, gasCost: 2200, gasRefund: -15000},    // invalid
-		{revision: R09_Berlin, warm: false, config: tosca.StorageDeleted, gasCost: 5000, gasRefund: 15000},
-		{revision: R09_Berlin, warm: false, config: tosca.StorageModified, gasCost: 5000},
-		// {revision: R09_Berlin, warm: false, config: tosca.StorageModifiedDeleted, gasCost: 2200, gasRefund: 15000}, // invalid
-		// {revision: R09_Berlin, warm: false, config: tosca.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
+		// {revision: tosca.R09_Berlin, warm: false, config: tosca.StorageAssigned, gasCost: 2200}, // invalid
+		{revision: tosca.R09_Berlin, warm: false, config: tosca.StorageAdded, gasCost: 22100},
+		// {revision: tosca.R09_Berlin, warm: false, config: tosca.StorageAddedDeleted, gasCost: 2200, gasRefund: 19900},     // invalid
+		// {revision: tosca.R09_Berlin, warm: false, config: tosca.StorageDeletedRestored, gasCost: 2200, gasRefund: -10800}, // invalid
+		// {revision: tosca.R09_Berlin, warm: false, config: tosca.StorageDeletedAdded, gasCost: 2200, gasRefund: -15000},    // invalid
+		{revision: tosca.R09_Berlin, warm: false, config: tosca.StorageDeleted, gasCost: 5000, gasRefund: 15000},
+		{revision: tosca.R09_Berlin, warm: false, config: tosca.StorageModified, gasCost: 5000},
+		// {revision: tosca.R09_Berlin, warm: false, config: tosca.StorageModifiedDeleted, gasCost: 2200, gasRefund: 15000}, // invalid
+		// {revision: tosca.R09_Berlin, warm: false, config: tosca.StorageModifiedRestored, gasCost: 2200, gasRefund: 4900}, // invalid
 
-		{revision: R09_Berlin, warm: true, config: tosca.StorageAssigned, gasCost: 100},
-		{revision: R09_Berlin, warm: true, config: tosca.StorageAdded, gasCost: 20000},
-		{revision: R09_Berlin, warm: true, config: tosca.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
-		{revision: R09_Berlin, warm: true, config: tosca.StorageDeletedRestored, gasCost: 100, gasRefund: -12200},
-		{revision: R09_Berlin, warm: true, config: tosca.StorageDeletedAdded, gasCost: 100, gasRefund: -15000},
-		{revision: R09_Berlin, warm: true, config: tosca.StorageDeleted, gasCost: 2900, gasRefund: 15000},
-		{revision: R09_Berlin, warm: true, config: tosca.StorageModified, gasCost: 2900},
-		{revision: R09_Berlin, warm: true, config: tosca.StorageModifiedDeleted, gasCost: 100, gasRefund: 15000},
-		{revision: R09_Berlin, warm: true, config: tosca.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
+		{revision: tosca.R09_Berlin, warm: true, config: tosca.StorageAssigned, gasCost: 100},
+		{revision: tosca.R09_Berlin, warm: true, config: tosca.StorageAdded, gasCost: 20000},
+		{revision: tosca.R09_Berlin, warm: true, config: tosca.StorageAddedDeleted, gasCost: 100, gasRefund: 19900},
+		{revision: tosca.R09_Berlin, warm: true, config: tosca.StorageDeletedRestored, gasCost: 100, gasRefund: -12200},
+		{revision: tosca.R09_Berlin, warm: true, config: tosca.StorageDeletedAdded, gasCost: 100, gasRefund: -15000},
+		{revision: tosca.R09_Berlin, warm: true, config: tosca.StorageDeleted, gasCost: 2900, gasRefund: 15000},
+		{revision: tosca.R09_Berlin, warm: true, config: tosca.StorageModified, gasCost: 2900},
+		{revision: tosca.R09_Berlin, warm: true, config: tosca.StorageModifiedDeleted, gasCost: 100, gasRefund: 15000},
+		{revision: tosca.R09_Berlin, warm: true, config: tosca.StorageModifiedRestored, gasCost: 100, gasRefund: 2800},
 	}
 
-	for rev := R10_London; rev <= NewestSupportedRevision; rev++ {
+	for rev := tosca.R10_London; rev <= NewestSupportedRevision; rev++ {
 		// Certain storage configurations imply warm access. Not all
 		// combinations are possible; invalid ones are marked below.
 		sstoreRules = append(sstoreRules, []sstoreOpParams{
@@ -741,7 +741,7 @@ func getAllRules() []Rule {
 			StorageAccessKeyParameter{},
 		},
 		conditions: []Condition{
-			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			RevisionBounds(tosca.R13_Cancun, NewestSupportedRevision),
 			BindTransientStorageToNonZero(Param(0)),
 		},
 		effect: func(s *st.State) {
@@ -760,7 +760,7 @@ func getAllRules() []Rule {
 			StorageAccessKeyParameter{},
 		},
 		conditions: []Condition{
-			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			RevisionBounds(tosca.R13_Cancun, NewestSupportedRevision),
 			BindTransientStorageToZero(Param(0)),
 		},
 		effect: func(s *st.State) {
@@ -772,7 +772,7 @@ func getAllRules() []Rule {
 	rules = append(rules, Rule{
 		Name: "tload_pre_cancun",
 		Condition: And(
-			RevisionBounds(R07_Istanbul, R12_Shanghai),
+			RevisionBounds(tosca.R07_Istanbul, tosca.R12_Shanghai),
 			Eq(Status(), st.Running),
 			Eq(Op(Pc()), TLOAD),
 		),
@@ -791,7 +791,7 @@ func getAllRules() []Rule {
 			NumericParameter{},
 		},
 		conditions: []Condition{
-			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			RevisionBounds(tosca.R13_Cancun, NewestSupportedRevision),
 			Eq(ReadOnly(), false),
 			BindTransientStorageToNonZero(Param(0)),
 		},
@@ -812,7 +812,7 @@ func getAllRules() []Rule {
 			NumericParameter{},
 		},
 		conditions: []Condition{
-			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			RevisionBounds(tosca.R13_Cancun, NewestSupportedRevision),
 			Eq(ReadOnly(), false),
 			BindTransientStorageToZero(Param(0)),
 		},
@@ -826,7 +826,7 @@ func getAllRules() []Rule {
 	rules = append(rules, Rule{
 		Name: "tstore_pre_cancun",
 		Condition: And(
-			RevisionBounds(R07_Istanbul, R12_Shanghai),
+			RevisionBounds(tosca.R07_Istanbul, tosca.R12_Shanghai),
 			Eq(Status(), st.Running),
 			Eq(Op(Pc()), TSTORE),
 		),
@@ -852,7 +852,7 @@ func getAllRules() []Rule {
 		pops:      0,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R12_Shanghai, NewestSupportedRevision),
+			RevisionBounds(tosca.R12_Shanghai, NewestSupportedRevision),
 		},
 		effect: func(s *st.State) {
 			s.Stack.Push(NewU256(0))
@@ -863,7 +863,7 @@ func getAllRules() []Rule {
 		{
 			Name: "push0_invalid_revision",
 			Condition: And(
-				RevisionBounds(R07_Istanbul, R11_Paris),
+				RevisionBounds(tosca.R07_Istanbul, tosca.R11_Paris),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), PUSH0),
 				Ge(Gas(), 2),
@@ -886,7 +886,7 @@ func getAllRules() []Rule {
 			MemorySizeParameter{},
 		},
 		conditions: []Condition{
-			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			RevisionBounds(tosca.R13_Cancun, NewestSupportedRevision),
 		},
 		effect: func(s *st.State) {
 			destOffsetU256 := s.Stack.Pop()
@@ -915,7 +915,7 @@ func getAllRules() []Rule {
 		{
 			Name: "mcopy_invalid_revision",
 			Condition: And(
-				RevisionBounds(R07_Istanbul, R12_Shanghai),
+				RevisionBounds(tosca.R07_Istanbul, tosca.R12_Shanghai),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), MCOPY),
 			),
@@ -1111,7 +1111,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, NewestSupportedRevision),
+			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
 			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1133,7 +1133,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, NewestSupportedRevision),
+			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
 			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1154,7 +1154,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			IsRevision(R07_Istanbul),
+			IsRevision(tosca.R07_Istanbul),
 		},
 		parameters: []Parameter{
 			AddressParameter{},
@@ -1176,7 +1176,7 @@ func getAllRules() []Rule {
 		pops:      4,
 		pushes:    0,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, NewestSupportedRevision),
+			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
 			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1197,7 +1197,7 @@ func getAllRules() []Rule {
 		pops:      4,
 		pushes:    0,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, NewestSupportedRevision),
+			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
 			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1218,7 +1218,7 @@ func getAllRules() []Rule {
 		pops:      4,
 		pushes:    0,
 		conditions: []Condition{
-			IsRevision(R07_Istanbul),
+			IsRevision(tosca.R07_Istanbul),
 		},
 		parameters: []Parameter{
 			AddressParameter{},
@@ -1250,7 +1250,7 @@ func getAllRules() []Rule {
 		staticGas:  2,
 		pops:       0,
 		pushes:     1,
-		conditions: []Condition{RevisionBounds(R10_London, NewestSupportedRevision)},
+		conditions: []Condition{RevisionBounds(tosca.R10_London, NewestSupportedRevision)},
 		effect: func(s *st.State) {
 			s.Stack.Push(s.BlockContext.BaseFee)
 		},
@@ -1259,7 +1259,7 @@ func getAllRules() []Rule {
 		{
 			Name: "basefee_invalid_revision",
 			Condition: And(
-				RevisionBounds(R07_Istanbul, R09_Berlin),
+				RevisionBounds(tosca.R07_Istanbul, tosca.R09_Berlin),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), BASEFEE),
 			),
@@ -1275,7 +1275,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			RevisionBounds(tosca.R13_Cancun, NewestSupportedRevision),
 			HasBlobHash(Param(0)),
 		},
 		parameters: []Parameter{NumericParameter{}},
@@ -1292,7 +1292,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R13_Cancun, NewestSupportedRevision),
+			RevisionBounds(tosca.R13_Cancun, NewestSupportedRevision),
 			HasNoBlobHash(Param(0)),
 		},
 		parameters: []Parameter{NumericParameter{}},
@@ -1306,7 +1306,7 @@ func getAllRules() []Rule {
 		{
 			Name: "blobhash_invalid_revision",
 			Condition: And(
-				RevisionBounds(R07_Istanbul, R12_Shanghai),
+				RevisionBounds(tosca.R07_Istanbul, tosca.R12_Shanghai),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), BLOBHASH),
 			),
@@ -1321,7 +1321,7 @@ func getAllRules() []Rule {
 		staticGas:  2,
 		pops:       0,
 		pushes:     1,
-		conditions: []Condition{RevisionBounds(R13_Cancun, NewestSupportedRevision)},
+		conditions: []Condition{RevisionBounds(tosca.R13_Cancun, NewestSupportedRevision)},
 		effect: func(s *st.State) {
 			s.Stack.Push(s.BlockContext.BlobBaseFee)
 		},
@@ -1331,7 +1331,7 @@ func getAllRules() []Rule {
 		{
 			Name: "blobbasefee_invalid_revision",
 			Condition: And(
-				RevisionBounds(R07_Istanbul, R12_Shanghai),
+				RevisionBounds(tosca.R07_Istanbul, tosca.R12_Shanghai),
 				Eq(Status(), st.Running),
 				Eq(Op(Pc()), BLOBBASEFEE),
 			),
@@ -1356,7 +1356,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, NewestSupportedRevision),
+			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
 			IsAddressCold(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1376,7 +1376,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			RevisionBounds(R09_Berlin, NewestSupportedRevision),
+			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
 			IsAddressWarm(Param(0)),
 		},
 		parameters: []Parameter{
@@ -1395,7 +1395,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		conditions: []Condition{
-			IsRevision(R07_Istanbul),
+			IsRevision(tosca.R07_Istanbul),
 		},
 		parameters: []Parameter{
 			AddressParameter{},
@@ -1668,14 +1668,14 @@ func getAllRules() []Rule {
 
 	// --- SELFDESTRUCT ---
 
-	for revision := R07_Istanbul; revision <= NewestSupportedRevision; revision++ {
+	for revision := tosca.R07_Istanbul; revision <= NewestSupportedRevision; revision++ {
 		for _, warm := range []bool{true, false} {
 			for _, hasSelfDestructed := range []bool{true, false} {
 				coldTargetCost := tosca.Gas(0)
 				createAccountFee := tosca.Gas(0)
 				if !warm {
 					createAccountFee = 25000
-					if revision > R07_Istanbul {
+					if revision > tosca.R07_Istanbul {
 						coldTargetCost = 2600
 					}
 				}
@@ -1786,7 +1786,7 @@ func createEffect(s *st.State, callKind tosca.CallKind) {
 	memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 	dynamicGas := memExpCost
 
-	if s.Revision >= R12_Shanghai {
+	if s.Revision >= tosca.R12_Shanghai {
 		const (
 			MaxCodeSize     = 24576           // Maximum bytecode to permit for a contract
 			MaxInitCodeSize = 2 * MaxCodeSize // Maximum initcode to permit in a creation transaction and create instructions
@@ -2016,7 +2016,7 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 }
 
 type sstoreOpParams struct {
-	revision  Revision
+	revision  tosca.Revision
 	warm      bool
 	config    tosca.StorageStatus
 	gasCost   tosca.Gas
@@ -2041,7 +2041,7 @@ func sstoreOpRegular(params sstoreOpParams) Rule {
 		StorageConfiguration(params.config, Param(0), Param(1)),
 	}
 
-	if params.revision >= R09_Berlin {
+	if params.revision >= tosca.R09_Berlin {
 		if params.warm {
 			name += "_warm"
 			conditions = append(conditions, IsStorageWarm(Param(0)))
@@ -2065,7 +2065,7 @@ func sstoreOpRegular(params sstoreOpParams) Rule {
 			key := s.Stack.Pop()
 			value := s.Stack.Pop()
 			s.Storage.SetCurrent(key, value)
-			if s.Revision >= R09_Berlin {
+			if s.Revision >= tosca.R09_Berlin {
 				s.Storage.MarkWarm(key)
 			}
 		}),
@@ -2085,7 +2085,7 @@ func sstoreOpTooLittleGas(params sstoreOpParams) Rule {
 		StorageConfiguration(params.config, Param(0), Param(1)),
 	}
 
-	if params.revision >= R09_Berlin {
+	if params.revision >= tosca.R09_Berlin {
 		if params.warm {
 			name += "_warm"
 			conditions = append(conditions, IsStorageWarm(Param(0)))
@@ -2204,7 +2204,7 @@ func logOp(n int) []Rule {
 	return rules
 }
 
-func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCost, accountCreationFee tosca.Gas, hasSelfDestructed bool) []Rule {
+func nonStaticSelfDestructRules(revision tosca.Revision, warm bool, destinationColdCost, accountCreationFee tosca.Gas, hasSelfDestructed bool) []Rule {
 
 	var targetWarm Condition
 	var warmColdString string
@@ -2227,7 +2227,7 @@ func nonStaticSelfDestructRules(revision Revision, warm bool, destinationColdCos
 	}
 
 	refundGas := tosca.Gas(0)
-	if revision < R10_London && !hasSelfDestructed {
+	if revision < tosca.R10_London && !hasSelfDestructed {
 		refundGas = 24000
 	}
 
@@ -2276,7 +2276,7 @@ func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, re
 		return
 	}
 	s.Gas -= dynamicCost
-	if s.Revision > R07_Istanbul {
+	if s.Revision > tosca.R07_Istanbul {
 		s.Accounts.MarkWarm(destinationAccount)
 	}
 	// add beneficiary to list in state
@@ -2374,7 +2374,7 @@ func getRulesForAllCallTypes() []Rule {
 
 	res := []Rule{}
 	for _, op := range []OpCode{CALL, CALLCODE, STATICCALL, DELEGATECALL} {
-		for rev := R07_Istanbul; rev <= NewestSupportedRevision; rev++ {
+		for rev := tosca.R07_Istanbul; rev <= NewestSupportedRevision; rev++ {
 			for _, warm := range []bool{true, false} {
 				for _, static := range []bool{true, false} {
 					for _, zeroValue := range []bool{true, false} {
@@ -2392,21 +2392,21 @@ func getRulesForAllCallTypes() []Rule {
 	return res
 }
 
-func getRulesForCall(op OpCode, revision Revision, warm, zeroValue bool, opEffect func(s *st.State, addrAccessCost tosca.Gas, op OpCode), static bool) []Rule {
+func getRulesForCall(op OpCode, revision tosca.Revision, warm, zeroValue bool, opEffect func(s *st.State, addrAccessCost tosca.Gas, op OpCode), static bool) []Rule {
 
 	var staticGas tosca.Gas
-	if revision == R07_Istanbul {
+	if revision == tosca.R07_Istanbul {
 		staticGas = 700
-	} else if revision == R09_Berlin {
+	} else if revision == tosca.R09_Berlin {
 		staticGas = 0
 	}
 
 	var addressAccessCost tosca.Gas
-	if revision == R07_Istanbul {
+	if revision == tosca.R07_Istanbul {
 		addressAccessCost = 0
-	} else if revision >= R09_Berlin && warm {
+	} else if revision >= tosca.R09_Berlin && warm {
 		addressAccessCost = 100
-	} else if revision >= R09_Berlin && !warm {
+	} else if revision >= tosca.R09_Berlin && !warm {
 		addressAccessCost = 2600
 	}
 
@@ -2533,7 +2533,7 @@ func callEffect(s *st.State, addrAccessCost tosca.Gas, op OpCode) {
 	}
 	s.Gas -= dynamicGas
 
-	if s.Revision >= R09_Berlin {
+	if s.Revision >= tosca.R09_Berlin {
 		s.Accounts.MarkWarm(target.Bytes20be())
 	}
 

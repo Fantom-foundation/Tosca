@@ -21,6 +21,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 // BlockContextGenerator is a generator for block contexts.
@@ -363,12 +364,12 @@ func (b *BlockContextGenerator) SetBlockNumberOffsetValue(variable Variable, off
 }
 
 // SetRevision adds a constraint on the State's revision.
-func (b *BlockContextGenerator) SetRevision(revision Revision) {
+func (b *BlockContextGenerator) SetRevision(revision tosca.Revision) {
 	b.AddRevisionBounds(revision, revision)
 }
 
 // AddRevisionBounds adds a constraint on the State's revision.
-func (b *BlockContextGenerator) AddRevisionBounds(lower, upper Revision) {
+func (b *BlockContextGenerator) AddRevisionBounds(lower, upper tosca.Revision) {
 	if b.unsatisfiable {
 		return
 	}
@@ -376,16 +377,9 @@ func (b *BlockContextGenerator) AddRevisionBounds(lower, upper Revision) {
 		b.markUnsatisfiable()
 		return
 	}
-	min, err := GetForkBlock(lower)
-	if err != nil {
-		b.markUnsatisfiable()
-		return
-	}
-	max, err := GetForkBlock(upper)
-	if err != nil {
-		b.markUnsatisfiable()
-		return
-	}
+
+	min := GetForkBlock(lower)
+	max := GetForkBlock(upper)
 	len, err := GetBlockRangeLengthFor(upper)
 	if err != nil {
 		b.markUnsatisfiable()

@@ -109,6 +109,7 @@ func TestSpecification_SpecifiedRuleProducesMatchingTestCases(t *testing.T) {
 	tests := []string{
 		"sstore_with_too_little_gas_",
 		"pc_on_data_is_ignored",
+		"unknown_revision_is_end",
 	}
 
 	for _, ruleName := range tests {

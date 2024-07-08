@@ -68,28 +68,28 @@ func TestBlockContextGen_PrintProducesConstraintFormula(t *testing.T) {
 		},
 		"restrict-to-single-revision": {
 			setup: func(b *BlockContextGenerator) {
-				b.SetRevision(common.R07_Istanbul)
+				b.SetRevision(tosca.R07_Istanbul)
 			},
 			want: "0≤BlockNumber≤999",
 		},
 		"restrict-to-revision-range": {
 			setup: func(b *BlockContextGenerator) {
-				b.AddRevisionBounds(common.R09_Berlin, common.R11_Paris)
+				b.AddRevisionBounds(tosca.R09_Berlin, tosca.R11_Paris)
 			},
 			// TODO: clean up this expectation by using GetForkBlock function
 			want: "1000≤BlockNumber≤3999",
 		},
 		"restrict-to-multiple-revisions": {
 			setup: func(b *BlockContextGenerator) {
-				b.SetRevision(common.R07_Istanbul)
-				b.SetRevision(common.R09_Berlin)
+				b.SetRevision(tosca.R07_Istanbul)
+				b.SetRevision(tosca.R09_Berlin)
 			},
 			want: "false",
 		},
 		"restrict-to-multiple-revisions-that-are-not-conflicting": {
 			setup: func(b *BlockContextGenerator) {
-				b.AddRevisionBounds(common.R07_Istanbul, common.R09_Berlin)
-				b.SetRevision(common.R07_Istanbul)
+				b.AddRevisionBounds(tosca.R07_Istanbul, tosca.R09_Berlin)
+				b.SetRevision(tosca.R07_Istanbul)
 			},
 			want: "0≤BlockNumber≤999",
 		},
@@ -126,7 +126,7 @@ func TestBlockContextGen_PrintProducesConstraintFormula(t *testing.T) {
 		},
 		"mix-of-multiple-constraints": {
 			setup: func(b *BlockContextGenerator) {
-				b.SetRevision(common.R07_Istanbul)
+				b.SetRevision(tosca.R07_Istanbul)
 				b.SetBlockNumberOffsetValue("a", 44)
 				b.RestrictVariableToOneOfTheLast256Blocks("b")
 				b.RestrictVariableToNoneOfTheLast256Blocks("c")
@@ -168,21 +168,21 @@ func TestBlockContextGenerator_CanProduceSatisfyingBlockNumbersForConstraints(t 
 		},
 		"fix-revision": {
 			setup: func(b *BlockContextGenerator, a Assignment) {
-				b.SetRevision(common.R10_London)
+				b.SetRevision(tosca.R10_London)
 			},
 			check: func(t *testing.T, res st.BlockContext, a Assignment) {
-				if want, got := common.R10_London, common.GetRevisionForBlock(res.BlockNumber); want != got {
+				if want, got := tosca.R10_London, common.GetRevisionForBlock(res.BlockNumber); want != got {
 					t.Errorf("unexpected revision, wanted %v, got %v", want, got)
 				}
 			},
 		},
 		"revision-range": {
 			setup: func(b *BlockContextGenerator, a Assignment) {
-				b.AddRevisionBounds(common.R10_London, common.R11_Paris)
+				b.AddRevisionBounds(tosca.R10_London, tosca.R11_Paris)
 			},
 			check: func(t *testing.T, res st.BlockContext, a Assignment) {
 				got := common.GetRevisionForBlock(res.BlockNumber)
-				if got < common.R10_London || got > common.R11_Paris {
+				if got < tosca.R10_London || got > tosca.R11_Paris {
 					t.Errorf("unexpected revision, got %v, wanted something between London and Paris", got)
 				}
 			},
@@ -278,7 +278,7 @@ func TestBlockContextGenerator_CanProduceSatisfyingBlockNumbersForConstraints(t 
 		},
 		"variable-in-range-with-pre-assigned-offset": {
 			setup: func(b *BlockContextGenerator, a Assignment) {
-				b.SetRevision(common.R07_Istanbul)
+				b.SetRevision(tosca.R07_Istanbul)
 				b.RestrictVariableToOneOfTheLast256Blocks("a")
 				a["a"] = common.NewU256(800)
 			},
@@ -308,7 +308,7 @@ func TestBlockContextGenerator_CanProduceSatisfyingBlockNumbersForConstraints(t 
 		},
 		"variable-out-of-range-with-pre-assigned-offset": {
 			setup: func(b *BlockContextGenerator, a Assignment) {
-				b.SetRevision(common.R07_Istanbul)
+				b.SetRevision(tosca.R07_Istanbul)
 				b.RestrictVariableToNoneOfTheLast256Blocks("a")
 				a["a"] = common.NewU256(8000)
 			},
@@ -353,8 +353,8 @@ func TestBlockContextGenerator_SignalsUnsatisfiableForUnsatisfiableConstraints(t
 	// TODO: add support for pre-assigned values
 	tests := map[string]func(*BlockContextGenerator, Assignment){
 		"conflicting-revisions": func(b *BlockContextGenerator, _ Assignment) {
-			b.SetRevision(common.R07_Istanbul)
-			b.SetRevision(common.R09_Berlin)
+			b.SetRevision(tosca.R07_Istanbul)
+			b.SetRevision(tosca.R09_Berlin)
 		},
 		"conflicting-ranges-in-first": func(b *BlockContextGenerator, _ Assignment) {
 			b.RestrictVariableToOneOfTheLast256Blocks("a")
@@ -381,21 +381,21 @@ func TestBlockContextGenerator_SignalsUnsatisfiableForUnsatisfiableConstraints(t
 			a["a"] = common.NewU256(1, 500) // 2^64+500
 		},
 		"block-number-underflow": func(b *BlockContextGenerator, a Assignment) {
-			b.SetRevision(common.R07_Istanbul)
+			b.SetRevision(tosca.R07_Istanbul)
 			b.SetBlockNumberOffsetValue("a", 1100)
 		},
 		"conflicting-revisions-with-in-range-and-predefined-assignment": func(b *BlockContextGenerator, a Assignment) {
-			b.SetRevision(common.R07_Istanbul)
+			b.SetRevision(tosca.R07_Istanbul)
 			b.RestrictVariableToOneOfTheLast256Blocks("a")
 			a["a"] = common.NewU256(8000)
 		},
 		"conflicting-revisions-with-in-range-and-predefined-assignment-bigger-than-uint64": func(b *BlockContextGenerator, a Assignment) {
-			b.SetRevision(common.R07_Istanbul)
+			b.SetRevision(tosca.R07_Istanbul)
 			b.RestrictVariableToOneOfTheLast256Blocks("a")
 			a["a"] = common.NewU256(1, 1)
 		},
 		"conflicting-revisions-with-in-range-and-predefined-assignment-max-uint64": func(b *BlockContextGenerator, a Assignment) {
-			b.SetRevision(common.R07_Istanbul)
+			b.SetRevision(tosca.R07_Istanbul)
 			b.RestrictVariableToOneOfTheLast256Blocks("a")
 			a["a"] = common.NewU256(0xffffffffffffffff)
 		},
@@ -529,7 +529,7 @@ func TestBlockContextGen_UnsatisfiableStateDoesNotChange(t *testing.T) {
 		"fix-offset":   func(b *BlockContextGenerator) { b.SetBlockNumberOffsetValue("a", 44) },
 		"in-range":     func(b *BlockContextGenerator) { b.RestrictVariableToOneOfTheLast256Blocks("a") },
 		"out-of-range": func(b *BlockContextGenerator) { b.RestrictVariableToNoneOfTheLast256Blocks("a") },
-		"revision":     func(b *BlockContextGenerator) { b.SetRevision(common.R07_Istanbul) },
+		"revision":     func(b *BlockContextGenerator) { b.SetRevision(tosca.R07_Istanbul) },
 	}
 
 	b := NewBlockContextGenerator()
