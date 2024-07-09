@@ -46,8 +46,8 @@ func TestCt_ExplicitCases(t *testing.T) {
 			And(
 				IsRevision(revision),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMP),
-				Eq(Op(Constant(NewU256(0))), JUMPDEST),
+				Eq(Op(Pc()), tosca.JUMP),
+				Eq(Op(Constant(NewU256(0))), tosca.JUMPDEST),
 				Eq(Param(0), NewU256(1<<32)),
 				Ge(Gas(), tosca.Gas(8)),
 			)
@@ -55,8 +55,8 @@ func TestCt_ExplicitCases(t *testing.T) {
 			And(
 				IsRevision(revision),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMPI),
-				Eq(Op(Constant(NewU256(0))), JUMPDEST),
+				Eq(Op(Pc()), tosca.JUMPI),
+				Eq(Op(Constant(NewU256(0))), tosca.JUMPDEST),
 				Eq(Param(0), NewU256(1<<32)),
 				Ne(Param(1), NewU256(0)),
 				Ge(Gas(), tosca.Gas(10)),

@@ -17,7 +17,7 @@ import (
 	"slices"
 	"testing"
 
-	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestCode_NewCode(t *testing.T) {
@@ -26,21 +26,21 @@ func TestCode_NewCode(t *testing.T) {
 		t.Errorf("unexpected code length, want %v, got %v", want, got)
 	}
 
-	code = NewCode([]byte{byte(ADD), byte(PUSH1), 0, byte(PUSH2)})
+	code = NewCode([]byte{byte(tosca.ADD), byte(tosca.PUSH1), 0, byte(tosca.PUSH2)})
 	if want, got := 4, code.Length(); want != got {
 		t.Errorf("unexpected code length, want %v, got %v", want, got)
 	}
 }
 
 func TestCode_NewCodeIsIndependent(t *testing.T) {
-	src := []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
+	src := []byte{byte(tosca.ADD), byte(tosca.PUSH1), 5, byte(tosca.PUSH2)}
 	code := NewCode(src)
 	if want, got := 4, code.Length(); want != got {
 		t.Fatalf("unexpected code length, want %v, got %v", want, got)
 	}
 
-	src[0] = byte(PUSH1)
-	if want, got := byte(ADD), code.code[0]; want != got {
+	src[0] = byte(tosca.PUSH1)
+	if want, got := byte(tosca.ADD), code.code[0]; want != got {
 		t.Errorf("unexpected code, want %v, got %v", want, got)
 	}
 }
@@ -51,14 +51,14 @@ func TestCode_Hash(t *testing.T) {
 		t.Fatal("invalid code hash for empty")
 	}
 
-	add := NewCode([]byte{byte(ADD)})
+	add := NewCode([]byte{byte(tosca.ADD)})
 	if fmt.Sprintf("%x", add.Hash()) != "5fe7f977e71dba2ea1a68e21057beebb9be2ac30c6410aa38d4f3fbe41dcffd2" {
-		t.Fatal("invalid code hash for single ADD")
+		t.Fatal("invalid code hash for single tosca.ADD")
 	}
 }
 
 func TestCode_IsCode(t *testing.T) {
-	code := NewCode([]byte{byte(ADD), byte(PUSH1), 0, byte(PUSH2), 1})
+	code := NewCode([]byte{byte(tosca.ADD), byte(tosca.PUSH1), 0, byte(tosca.PUSH2), 1})
 	for i, want := range []bool{true, true, false, true, false, false, true, true} {
 		if got := code.IsCode(i); want != got {
 			t.Errorf("unexpected result for position %d, want %t, got %t", i, want, got)
@@ -67,7 +67,7 @@ func TestCode_IsCode(t *testing.T) {
 }
 
 func TestCode_IsData(t *testing.T) {
-	code := NewCode([]byte{byte(ADD), byte(PUSH1), 0, byte(PUSH2)})
+	code := NewCode([]byte{byte(tosca.ADD), byte(tosca.PUSH1), 0, byte(tosca.PUSH2)})
 	for i, want := range []bool{false, false, true, false, true, true, false, false} {
 		if got := code.IsData(i); want != got {
 			t.Errorf("unexpected result for position %d, want %t, got %t", i, want, got)
@@ -76,8 +76,8 @@ func TestCode_IsData(t *testing.T) {
 }
 
 func TestCode_GetOperation(t *testing.T) {
-	code := NewCode([]byte{byte(ADD), byte(PUSH1), 0, byte(PUSH2)})
-	for i, want := range map[int]OpCode{-1: STOP, 0: ADD, 1: PUSH1, 3: PUSH2, 6: STOP} {
+	code := NewCode([]byte{byte(tosca.ADD), byte(tosca.PUSH1), 0, byte(tosca.PUSH2)})
+	for i, want := range map[int]tosca.OpCode{-1: tosca.STOP, 0: tosca.ADD, 1: tosca.PUSH1, 3: tosca.PUSH2, 6: tosca.STOP} {
 		if got, err := code.GetOperation(i); err != nil || want != got {
 			t.Errorf("unexpected result for position %d, want %v, got %v, err %v", i, want, got, err)
 		}
@@ -90,7 +90,7 @@ func TestCode_GetOperation(t *testing.T) {
 }
 
 func TestCode_GetData(t *testing.T) {
-	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
+	code := NewCode([]byte{byte(tosca.ADD), byte(tosca.PUSH1), 5, byte(tosca.PUSH2)})
 	for i, want := range map[int]byte{2: 5, 4: 0, 5: 0} {
 		if got, err := code.GetData(i); err != nil || want != got {
 			t.Errorf("unexpected result for position %d, want %v, got %v, err %v", i, want, got, err)
@@ -104,7 +104,7 @@ func TestCode_GetData(t *testing.T) {
 }
 
 func TestCode_Copy(t *testing.T) {
-	src := []byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}
+	src := []byte{byte(tosca.ADD), byte(tosca.PUSH1), 5, byte(tosca.PUSH2)}
 	code := NewCode(src)
 
 	if got, want := code.Length(), len(src); got != want {
@@ -133,7 +133,7 @@ func TestCode_Equal(t *testing.T) {
 }
 
 func TestCode_Printer(t *testing.T) {
-	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
+	code := NewCode([]byte{byte(tosca.ADD), byte(tosca.PUSH1), 5, byte(tosca.PUSH2)})
 	want := "01600561"
 	if got := code.String(); want != got {
 		t.Errorf("invalid print, wanted %s, got %s", want, got)
@@ -142,50 +142,50 @@ func TestCode_Printer(t *testing.T) {
 
 func TestCode_OpCodesToString(t *testing.T) {
 	tests := map[string]struct {
-		code   []OpCode
+		code   []tosca.OpCode
 		start  int
 		length int
 		want   string
 	}{
 
 		"empty": {
-			code:   []OpCode{},
+			code:   []tosca.OpCode{},
 			start:  0,
 			length: 4,
 			want:   "len(0)",
 		},
 		"unused": {
-			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
+			code:   []tosca.OpCode{0x0C, tosca.PUSH2, 0xFF, 0xA0},
 			start:  0,
 			length: 1,
 			want:   "len(4) op(0x0C)",
 		},
 		"complete": {
-			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
+			code:   []tosca.OpCode{0x0C, tosca.PUSH2, 0xFF, 0xA0},
 			start:  0,
 			length: 4,
 			want:   "len(4) op(0x0C) PUSH2 255 160",
 		},
 		"off-bounds": {
-			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
+			code:   []tosca.OpCode{0x0C, tosca.PUSH2, 0xFF, 0xA0},
 			start:  5,
 			length: 4,
 			want:   "len(4)",
 		},
 		"partial": {
-			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
+			code:   []tosca.OpCode{0x0C, tosca.PUSH2, 0xFF, 0xA0},
 			start:  1,
 			length: 3,
 			want:   "len(4) PUSH2 255 160",
 		},
 		"just data": {
-			code:   []OpCode{0x0C, PUSH2, 0xFF, 0xA0},
+			code:   []tosca.OpCode{0x0C, tosca.PUSH2, 0xFF, 0xA0},
 			start:  2,
 			length: 3,
 			want:   "len(4) 255 160",
 		},
 		"too large": {
-			code:   []OpCode{ADD, SDIV, PUSH0, PUSH1, 0x00, BALANCE},
+			code:   []tosca.OpCode{tosca.ADD, tosca.SDIV, tosca.PUSH0, tosca.PUSH1, 0x00, tosca.BALANCE},
 			start:  0,
 			length: 34,
 			want:   "len(6) ADD SDIV PUSH0 PUSH1 0 BALANCE",
@@ -209,13 +209,13 @@ func TestCode_OpCodesToString(t *testing.T) {
 }
 
 func TestCode_CopyCodeSlice(t *testing.T) {
-	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
+	code := NewCode([]byte{byte(tosca.ADD), byte(tosca.PUSH1), 5, byte(tosca.PUSH2)})
 	tests := map[string]struct {
 		start int
 		end   int
 		want  []byte
 	}{
-		"regular":  {1, 4, []byte{byte(PUSH1), 5, byte(PUSH2)}},
+		"regular":  {1, 4, []byte{byte(tosca.PUSH1), 5, byte(tosca.PUSH2)}},
 		"sizeZero": {1, 1, []byte{}},
 	}
 	for name, test := range tests {
@@ -230,7 +230,7 @@ func TestCode_CopyCodeSlice(t *testing.T) {
 }
 
 func TestCode_CopyCodeSliceInvalid(t *testing.T) {
-	code := NewCode([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)})
+	code := NewCode([]byte{byte(tosca.ADD), byte(tosca.PUSH1), 5, byte(tosca.PUSH2)})
 	tests := map[string]struct {
 		start int
 		end   int

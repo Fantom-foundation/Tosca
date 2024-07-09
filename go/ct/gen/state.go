@@ -169,13 +169,13 @@ func (g *StateGenerator) AddGasRefundUpperBound(gas tosca.Gas) {
 }
 
 // SetCodeOperation wraps CodeGenerator.SetOperation.
-func (g *StateGenerator) SetCodeOperation(pos int, op OpCode) {
+func (g *StateGenerator) SetCodeOperation(pos int, op tosca.OpCode) {
 	g.codeGen.SetOperation(pos, op)
 }
 
 // AddCodeOperation add a constraint to ensure the existence of an operation in
 // the generated code at a variable position.
-func (g *StateGenerator) AddCodeOperation(v Variable, op OpCode) {
+func (g *StateGenerator) AddCodeOperation(v Variable, op tosca.OpCode) {
 	g.codeGen.AddOperation(v, op)
 }
 

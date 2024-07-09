@@ -21,9 +21,9 @@ import (
 
 func TestCtAdapter_Add(t *testing.T) {
 	s := st.NewState(st.NewCode([]byte{
-		byte(cc.PUSH1), 3,
-		byte(cc.PUSH1), 4,
-		byte(cc.ADD),
+		byte(tosca.PUSH1), 3,
+		byte(tosca.PUSH1), 4,
+		byte(tosca.ADD),
 	}))
 	s.Status = st.Running
 	s.Revision = tosca.R07_Istanbul

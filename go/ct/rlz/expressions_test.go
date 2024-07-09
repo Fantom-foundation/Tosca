@@ -222,22 +222,22 @@ func TestExpression_GasRefundRestrict(t *testing.T) {
 }
 
 func TestExpression_OpEval(t *testing.T) {
-	state := st.NewState(st.NewCode([]byte{byte(STOP), byte(STOP), byte(ADD)}))
+	state := st.NewState(st.NewCode([]byte{byte(tosca.STOP), byte(tosca.STOP), byte(tosca.ADD)}))
 	state.Pc = 2
-	if op, err := Op(Pc()).Eval(state); err != nil || op != ADD {
+	if op, err := Op(Pc()).Eval(state); err != nil || op != tosca.ADD {
 		t.Fail()
 	}
 }
 
 func TestExpression_OpRestrict(t *testing.T) {
 	generator := gen.NewStateGenerator()
-	Op(Pc()).Restrict(RestrictEqual, ADD, generator)
+	Op(Pc()).Restrict(RestrictEqual, tosca.ADD, generator)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {
 		t.Errorf("State generation failed %v", err)
 	}
-	if op, err := state.Code.GetOperation(int(state.Pc)); err != nil || op != ADD {
+	if op, err := state.Code.GetOperation(int(state.Pc)); err != nil || op != tosca.ADD {
 		t.Errorf("Generator was not restricted by expression")
 	}
 }

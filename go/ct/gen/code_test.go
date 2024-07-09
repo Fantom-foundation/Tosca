@@ -18,6 +18,7 @@ import (
 	"pgregory.net/rand"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestCodeGenerator_UnconstrainedGeneratorCanProduceCode(t *testing.T) {
@@ -30,8 +31,8 @@ func TestCodeGenerator_UnconstrainedGeneratorCanProduceCode(t *testing.T) {
 
 func TestCodeGenerator_ConflictingOperationsAreDetected(t *testing.T) {
 	generator := NewCodeGenerator()
-	generator.SetOperation(12, ADD)
-	generator.SetOperation(12, JUMP)
+	generator.SetOperation(12, tosca.ADD)
+	generator.SetOperation(12, tosca.JUMP)
 	rnd := rand.New(0)
 	if _, err := generator.Generate(nil, rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
@@ -41,11 +42,11 @@ func TestCodeGenerator_ConflictingOperationsAreDetected(t *testing.T) {
 func TestCodeGenerator_VariablesAreSupported(t *testing.T) {
 	constraints := []struct {
 		variable  Variable
-		operation OpCode
+		operation tosca.OpCode
 	}{
-		{Variable("A"), ADD},
-		{Variable("B"), JUMP},
-		{Variable("C"), PUSH2},
+		{Variable("A"), tosca.ADD},
+		{Variable("B"), tosca.JUMP},
+		{Variable("C"), tosca.PUSH2},
 	}
 
 	generator := NewCodeGenerator()
@@ -77,11 +78,11 @@ func TestCodeGenerator_VariablesAreSupported(t *testing.T) {
 func TestCodeGenerator_PreDefinedVariablesAreAccepted(t *testing.T) {
 	constraints := []struct {
 		variable  Variable
-		operation OpCode
+		operation tosca.OpCode
 	}{
-		{Variable("A"), ADD},
-		{Variable("B"), JUMP},
-		{Variable("C"), PUSH2},
+		{Variable("A"), tosca.ADD},
+		{Variable("B"), tosca.JUMP},
+		{Variable("C"), tosca.PUSH2},
 	}
 
 	generator := NewCodeGenerator()
@@ -115,7 +116,7 @@ func TestCodeGenerator_PreDefinedVariablesAreAccepted(t *testing.T) {
 }
 
 func TestCodeGenerator_ConflictInPredefinedVariablesIsDetected(t *testing.T) {
-	opCode := PUSH4 // < the op-code to be used for all variables
+	opCode := tosca.PUSH4 // < the op-code to be used for all variables
 	tests := map[string]map[Variable]uint64{
 		"position_collision": {
 			Variable("A"): 12,
@@ -155,8 +156,8 @@ func TestCodeGenerator_ConflictInPredefinedVariablesIsDetected(t *testing.T) {
 
 func TestCodeGenerator_ConflictingVariablesAreDetected(t *testing.T) {
 	generator := NewCodeGenerator()
-	generator.AddOperation(Variable("X"), ADD)
-	generator.AddOperation(Variable("X"), JUMP)
+	generator.AddOperation(Variable("X"), tosca.ADD)
+	generator.AddOperation(Variable("X"), tosca.JUMP)
 	rnd := rand.New(0)
 	if _, err := generator.Generate(nil, rnd); !errors.Is(err, ErrUnsatisfiable) {
 		t.Errorf("unsatisfiable constraint not detected, got %v", err)
@@ -213,16 +214,16 @@ func TestCodeGenerator_OperationConstraintsAreEnforced(t *testing.T) {
 	tests := map[string][]struct {
 		p  int
 		v  string
-		op OpCode
+		op tosca.OpCode
 	}{
-		"single":           {{p: 4, op: STOP}},
-		"multiple-no-data": {{p: 4, op: STOP}, {p: 6, op: ADD}, {p: 2, op: INVALID}},
-		"pair":             {{p: 4, op: PUSH1}, {p: 7, op: PUSH32}},
-		"tight":            {{p: 0, op: PUSH1}, {p: 2, op: PUSH1}, {p: 4, op: PUSH1}},
-		"wide":             {{p: 2, op: PUSH1}, {p: 20000, op: PUSH1}},
-		"single-var":       {{v: "A", op: STOP}},
-		"multi-var":        {{v: "A", op: STOP}, {v: "B", op: ADD}},
-		"const-var-mix":    {{p: 5, op: STOP}, {v: "A", op: ADD}},
+		"single":           {{p: 4, op: tosca.STOP}},
+		"multiple-no-data": {{p: 4, op: tosca.STOP}, {p: 6, op: tosca.ADD}, {p: 2, op: tosca.INVALID}},
+		"pair":             {{p: 4, op: tosca.PUSH1}, {p: 7, op: tosca.PUSH32}},
+		"tight":            {{p: 0, op: tosca.PUSH1}, {p: 2, op: tosca.PUSH1}, {p: 4, op: tosca.PUSH1}},
+		"wide":             {{p: 2, op: tosca.PUSH1}, {p: 20000, op: tosca.PUSH1}},
+		"single-var":       {{v: "A", op: tosca.STOP}},
+		"multi-var":        {{v: "A", op: tosca.STOP}, {v: "B", op: tosca.ADD}},
+		"const-var-mix":    {{p: 5, op: tosca.STOP}, {v: "A", op: tosca.ADD}},
 	}
 
 	rnd := rand.New(0)
@@ -267,18 +268,18 @@ func TestCodeGenerator_OperationConstraintsAreEnforced(t *testing.T) {
 func TestCodeGenerator_ImpossibleConstraintsAreDetected(t *testing.T) {
 	type op struct {
 		p  int
-		op OpCode
+		op tosca.OpCode
 	}
 	tests := map[string]struct {
 		ops []op
 	}{
-		"conflicting_ops":                           {ops: []op{{p: 2, op: STOP}, {p: 2, op: INVALID}}},
-		"operation_in_short_data_begin":             {ops: []op{{p: 0, op: PUSH2}, {p: 1, op: STOP}}},
-		"operation_in_short_data_end":               {ops: []op{{p: 0, op: PUSH2}, {p: 2, op: STOP}}},
-		"operation_in_long_data_begin":              {ops: []op{{p: 0, op: PUSH32}, {p: 1, op: STOP}}},
-		"operation_in_long_data_mid":                {ops: []op{{p: 0, op: PUSH32}, {p: 16, op: PUSH1}}},
-		"operation_in_long_data_end":                {ops: []op{{p: 0, op: PUSH32}, {p: 32, op: PUSH32}}},
-		"add_operation_making_other_operation_data": {ops: []op{{p: 16, op: PUSH32}, {p: 0, op: PUSH32}}},
+		"conflicting_ops":                           {ops: []op{{p: 2, op: tosca.STOP}, {p: 2, op: tosca.INVALID}}},
+		"operation_in_short_data_begin":             {ops: []op{{p: 0, op: tosca.PUSH2}, {p: 1, op: tosca.STOP}}},
+		"operation_in_short_data_end":               {ops: []op{{p: 0, op: tosca.PUSH2}, {p: 2, op: tosca.STOP}}},
+		"operation_in_long_data_begin":              {ops: []op{{p: 0, op: tosca.PUSH32}, {p: 1, op: tosca.STOP}}},
+		"operation_in_long_data_mid":                {ops: []op{{p: 0, op: tosca.PUSH32}, {p: 16, op: tosca.PUSH1}}},
+		"operation_in_long_data_end":                {ops: []op{{p: 0, op: tosca.PUSH32}, {p: 32, op: tosca.PUSH32}}},
+		"add_operation_making_other_operation_data": {ops: []op{{p: 16, op: tosca.PUSH32}, {p: 0, op: tosca.PUSH32}}},
 	}
 
 	for name, test := range tests {
@@ -298,8 +299,8 @@ func TestCodeGenerator_ImpossibleConstraintsAreDetected(t *testing.T) {
 
 func TestCodeGenerator_CloneCopiesGeneratorState(t *testing.T) {
 	original := NewCodeGenerator()
-	original.SetOperation(4, PUSH2)
-	original.SetOperation(7, STOP)
+	original.SetOperation(4, tosca.PUSH2)
+	original.SetOperation(7, tosca.STOP)
 	original.AddIsCode(Variable("X"))
 	original.AddIsData(Variable("Y"))
 
@@ -312,14 +313,14 @@ func TestCodeGenerator_CloneCopiesGeneratorState(t *testing.T) {
 
 func TestCodeGenerator_ClonesAreIndependent(t *testing.T) {
 	base := NewCodeGenerator()
-	base.SetOperation(4, STOP)
+	base.SetOperation(4, tosca.STOP)
 
 	clone1 := base.Clone()
-	clone1.SetOperation(7, INVALID)
+	clone1.SetOperation(7, tosca.INVALID)
 	clone1.AddIsCode(Variable("X"))
 
 	clone2 := base.Clone()
-	clone2.SetOperation(7, PUSH2)
+	clone2.SetOperation(7, tosca.PUSH2)
 	clone2.AddIsData(Variable("Y"))
 
 	want := "{op[4]=STOP,op[7]=INVALID,isCode[$X]}"
@@ -335,11 +336,11 @@ func TestCodeGenerator_ClonesAreIndependent(t *testing.T) {
 
 func TestCodeGenerator_ClonesCanBeUsedToResetGenerator(t *testing.T) {
 	generator := NewCodeGenerator()
-	generator.SetOperation(4, STOP)
+	generator.SetOperation(4, tosca.STOP)
 
 	backup := generator.Clone()
 
-	generator.SetOperation(7, INVALID)
+	generator.SetOperation(7, tosca.INVALID)
 	generator.AddIsCode(Variable("X"))
 	want := "{op[4]=STOP,op[7]=INVALID,isCode[$X]}"
 	if got := generator.String(); got != want {
@@ -362,7 +363,7 @@ func TestCodeGenerator_TooSmallCodeSizeLeadsToUnsatisfiableResult(t *testing.T) 
 	tests := map[string]func(*CodeGenerator){
 		"empty code with variable constraint": func(g *CodeGenerator) {
 			fixSize(g, 0)
-			g.AddOperation(Variable("X"), STOP)
+			g.AddOperation(Variable("X"), tosca.STOP)
 		},
 		"must contain code with size 0": func(g *CodeGenerator) {
 			fixSize(g, 0)
@@ -370,18 +371,18 @@ func TestCodeGenerator_TooSmallCodeSizeLeadsToUnsatisfiableResult(t *testing.T) 
 		},
 		"two variable ops with size of 1": func(g *CodeGenerator) {
 			fixSize(g, 1)
-			g.AddOperation(Variable("X"), STOP)
-			g.AddOperation(Variable("Y"), ADD)
+			g.AddOperation(Variable("X"), tosca.STOP)
+			g.AddOperation(Variable("Y"), tosca.ADD)
 		},
 		"two constant ops with size 1 ": func(g *CodeGenerator) {
 			fixSize(g, 1)
-			g.SetOperation(1, STOP)
-			g.SetOperation(2, ADD)
+			g.SetOperation(1, tosca.STOP)
+			g.SetOperation(2, tosca.ADD)
 		},
 		"two mix ops with size 1 ": func(g *CodeGenerator) {
 			fixSize(g, 1)
-			g.SetOperation(1, STOP)
-			g.AddOperation(Variable("Y"), ADD)
+			g.SetOperation(1, tosca.STOP)
+			g.AddOperation(Variable("Y"), tosca.ADD)
 		},
 	}
 
@@ -401,13 +402,13 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 	// constantOp is an location which has a pre-assigned Op
 	type constantOp struct {
 		location int
-		op       OpCode
+		op       tosca.OpCode
 	}
 
 	// variableOp is a solver variable bound to an Op
 	type variableOp struct {
 		variable string
-		op       OpCode
+		op       tosca.OpCode
 	}
 
 	tests := map[string]struct {
@@ -429,74 +430,74 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 		"Single constantOp": {
 			size: 1,
 			constantOps: []constantOp{
-				{location: 0, op: STOP},
+				{location: 0, op: tosca.STOP},
 			},
 		},
 		"Multiple constantOps": {
 			size: 3,
 			constantOps: []constantOp{
-				{location: 0, op: STOP},
-				{location: 1, op: ADDMOD},
-				{location: 2, op: BALANCE},
+				{location: 0, op: tosca.STOP},
+				{location: 1, op: tosca.ADDMOD},
+				{location: 2, op: tosca.BALANCE},
 			},
 		},
 		"Multiple constantOps with gaps": {
 			size: 9,
 			constantOps: []constantOp{
-				{location: 0, op: STOP},
-				{location: 4, op: ADDMOD},
-				{location: 8, op: BALANCE},
+				{location: 0, op: tosca.STOP},
+				{location: 4, op: tosca.ADDMOD},
+				{location: 8, op: tosca.BALANCE},
 			},
 		},
 		"Multiple constantOps with containsCode": {
 			size: 3,
 			constantOps: []constantOp{
-				{location: 0, op: STOP},
-				{location: 1, op: ADDMOD},
-				{location: 2, op: BALANCE},
+				{location: 0, op: tosca.STOP},
+				{location: 1, op: tosca.ADDMOD},
+				{location: 2, op: tosca.BALANCE},
 			},
 			containsCode: true,
 		},
 		"Multiple variableOps": {
 			size: 3,
 			variableOps: []variableOp{
-				{variable: "a", op: STOP},
-				{variable: "b", op: ADDMOD},
-				{variable: "c", op: BALANCE},
+				{variable: "a", op: tosca.STOP},
+				{variable: "b", op: tosca.ADDMOD},
+				{variable: "c", op: tosca.BALANCE},
 			},
 		},
 		"Multiple variableOps with identical operations": {
 			size: 3, // < this could be 2, but the solver fails on that (which it should not)
 			variableOps: []variableOp{
-				{variable: "a", op: STOP},
-				{variable: "b", op: ADDMOD},
-				{variable: "c", op: STOP},
+				{variable: "a", op: tosca.STOP},
+				{variable: "b", op: tosca.ADDMOD},
+				{variable: "c", op: tosca.STOP},
 			},
 		},
 		"Multiple constantOps and variableOps": {
 			size: 6,
 			constantOps: []constantOp{
-				{location: 0, op: STOP},
-				{location: 1, op: ADDMOD},
-				{location: 2, op: BALANCE},
+				{location: 0, op: tosca.STOP},
+				{location: 1, op: tosca.ADDMOD},
+				{location: 2, op: tosca.BALANCE},
 			},
 			variableOps: []variableOp{
-				{variable: "a", op: ADD},
-				{variable: "b", op: BASEFEE},
-				{variable: "c", op: BYTE},
+				{variable: "a", op: tosca.ADD},
+				{variable: "b", op: tosca.BASEFEE},
+				{variable: "c", op: tosca.BYTE},
 			},
 		},
 		"Multiple constantOps and variableOps with containsCode": {
 			size: 6,
 			constantOps: []constantOp{
-				{location: 0, op: STOP},
-				{location: 1, op: ADDMOD},
-				{location: 2, op: BALANCE},
+				{location: 0, op: tosca.STOP},
+				{location: 1, op: tosca.ADDMOD},
+				{location: 2, op: tosca.BALANCE},
 			},
 			variableOps: []variableOp{
-				{variable: "a", op: ADD},
-				{variable: "b", op: BASEFEE},
-				{variable: "c", op: BYTE},
+				{variable: "a", op: tosca.ADD},
+				{variable: "b", op: tosca.BASEFEE},
+				{variable: "c", op: tosca.BYTE},
 			},
 			containsCode: true,
 		},
@@ -505,14 +506,14 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 			"Multiple constantOps and variableOps with overlaps": {
 				size: 4,
 				constantOps: []constantOp{
-					{p: 0, op: STOP},
-					{p: 1, op: ADDMOD},
-					{p: 2, op: BALANCE},
+					{p: 0, op: tosca.STOP},
+					{p: 1, op: tosca.ADDMOD},
+					{p: 2, op: tosca.BALANCE},
 				},
 				variableOps: []varOp{
-					{v: "a", op: STOP},
-					{v: "b", op: ADDMOD},
-					{v: "c", op: BYTE},
+					{v: "a", op: tosca.STOP},
+					{v: "b", op: tosca.ADDMOD},
+					{v: "c", op: tosca.BYTE},
 				},
 			},
 		*/
@@ -547,22 +548,22 @@ func TestCodeGenerator_CodeIsLargeEnoughForAllConditionOps(t *testing.T) {
 func TestVarCodeConstraintSolver_fitsOnEmpty(t *testing.T) {
 	tests := []struct {
 		pos  int
-		op   OpCode
+		op   tosca.OpCode
 		fits bool
 	}{
-		{0, JUMP, true},
-		{1, JUMP, true},
-		{2, JUMP, true},
-		{3, JUMP, false},
-		{4, JUMP, false},
-		{0, PUSH1, true},
-		{1, PUSH1, true},
-		{2, PUSH1, false},
-		{0, PUSH2, true},
-		{1, PUSH2, false},
-		{2, PUSH2, false},
-		{0, PUSH3, false},
-		{1, PUSH3, false},
+		{0, tosca.JUMP, true},
+		{1, tosca.JUMP, true},
+		{2, tosca.JUMP, true},
+		{3, tosca.JUMP, false},
+		{4, tosca.JUMP, false},
+		{0, tosca.PUSH1, true},
+		{1, tosca.PUSH1, true},
+		{2, tosca.PUSH1, false},
+		{0, tosca.PUSH2, true},
+		{1, tosca.PUSH2, false},
+		{2, tosca.PUSH2, false},
+		{0, tosca.PUSH3, false},
+		{1, tosca.PUSH3, false},
 	}
 	for _, test := range tests {
 		solver := newVarCodeConstraintSolver(3, nil, nil, nil)
@@ -575,26 +576,26 @@ func TestVarCodeConstraintSolver_fitsOnEmpty(t *testing.T) {
 func TestVarCodeConstraintSolver_fitsOnUsed(t *testing.T) {
 	tests := []struct {
 		pos  int
-		op   OpCode
+		op   tosca.OpCode
 		fits bool
 	}{
-		{0, JUMP, true},
-		{1, JUMP, true},
-		{2, JUMP, true},
-		{3, JUMP, false},
-		{4, JUMP, false},
-		{0, PUSH1, true},
-		{1, PUSH1, true},
-		{2, PUSH1, false},
-		{0, PUSH2, true},
-		{1, PUSH2, false},
-		{2, PUSH2, false},
-		{0, PUSH3, false},
-		{1, PUSH3, false},
+		{0, tosca.JUMP, true},
+		{1, tosca.JUMP, true},
+		{2, tosca.JUMP, true},
+		{3, tosca.JUMP, false},
+		{4, tosca.JUMP, false},
+		{0, tosca.PUSH1, true},
+		{1, tosca.PUSH1, true},
+		{2, tosca.PUSH1, false},
+		{0, tosca.PUSH2, true},
+		{1, tosca.PUSH2, false},
+		{2, tosca.PUSH2, false},
+		{0, tosca.PUSH3, false},
+		{1, tosca.PUSH3, false},
 	}
 	for _, test := range tests {
 		solver := newVarCodeConstraintSolver(4, nil, nil, nil)
-		solver.markUsed(3, JUMPDEST)
+		solver.markUsed(3, tosca.JUMPDEST)
 		if want, got := test.fits, solver.fits(test.pos, test.op); want != got {
 			t.Fatalf("incorrect fit want %v, got %v", want, got)
 		}

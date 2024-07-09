@@ -26,7 +26,7 @@ import (
 // Helper functions
 
 func getNewFilledState() *State {
-	s := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
+	s := NewState(NewCode([]byte{byte(tosca.PUSH2), 7, 4, byte(tosca.ADD), byte(tosca.STOP)}))
 	s.Status = Running
 	s.Revision = tosca.R10_London
 	s.ReadOnly = true
@@ -43,7 +43,7 @@ func getNewFilledState() *State {
 	s.TransientStorage = &TransientStorage{}
 	s.Accounts = NewAccounts()
 	s.Accounts.SetBalance(tosca.Address{0x01}, NewU256(42))
-	s.Accounts.SetCode(tosca.Address{0x01}, NewBytes([]byte{byte(PUSH1), byte(6)}))
+	s.Accounts.SetCode(tosca.Address{0x01}, NewBytes([]byte{byte(tosca.PUSH1), byte(6)}))
 	s.Accounts.MarkWarm(tosca.Address{0x02})
 	s.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s.CallContext = CallContext{AccountAddress: tosca.Address{0x01}}
@@ -95,7 +95,7 @@ func getTestChanges() map[string]testStruct {
 			"Different gas refund",
 		},
 		"code": {func(state *State) {
-			state.Code = NewCode([]byte{byte(ADD)})
+			state.Code = NewCode([]byte{byte(tosca.ADD)})
 		},
 			"Different code",
 		},
@@ -287,7 +287,7 @@ func TestState_PrinterRevision(t *testing.T) {
 }
 
 func TestState_PrinterPc(t *testing.T) {
-	s := NewState(NewCode([]byte{byte(STOP)}))
+	s := NewState(NewCode([]byte{byte(tosca.STOP)}))
 	s.Pc = 1
 
 	r := regexp.MustCompile(`Pc: ([[:digit:]]+) \(0x([0-9a-f]{4})\)`)
@@ -311,7 +311,7 @@ func TestState_PrinterPc(t *testing.T) {
 }
 
 func TestState_PrinterPcData(t *testing.T) {
-	s := NewState(NewCode([]byte{byte(PUSH1), 7}))
+	s := NewState(NewCode([]byte{byte(tosca.PUSH1), 7}))
 	s.Pc = 1
 
 	r := regexp.MustCompile(`\(points to data\)`)
@@ -323,7 +323,7 @@ func TestState_PrinterPcData(t *testing.T) {
 }
 
 func TestState_PrinterPcOperation(t *testing.T) {
-	s := NewState(NewCode([]byte{byte(ADD)}))
+	s := NewState(NewCode([]byte{byte(tosca.ADD)}))
 	s.Pc = 0
 
 	r := regexp.MustCompile(`\(operation: ([[:alpha:]]+)\)`)
@@ -333,7 +333,7 @@ func TestState_PrinterPcOperation(t *testing.T) {
 		t.Fatal("invalid print, did not find 'operation' text")
 	}
 
-	want := OpCode(s.Code.code[s.Pc]).String()
+	want := tosca.OpCode(s.Code.code[s.Pc]).String()
 	got := match[1]
 	if want != got {
 		t.Errorf("invalid print, wanted %s, got %s", want, got)
@@ -341,7 +341,7 @@ func TestState_PrinterPcOperation(t *testing.T) {
 }
 
 func TestState_PrinterPcOutOfBounds(t *testing.T) {
-	s := NewState(NewCode([]byte{byte(STOP)}))
+	s := NewState(NewCode([]byte{byte(tosca.STOP)}))
 	s.Pc = 2
 
 	r := regexp.MustCompile(`\(out of bounds\)`)
@@ -353,7 +353,7 @@ func TestState_PrinterPcOutOfBounds(t *testing.T) {
 }
 
 func TestState_PrinterGas(t *testing.T) {
-	s := NewState(NewCode([]byte{byte(STOP)}))
+	s := NewState(NewCode([]byte{byte(tosca.STOP)}))
 	s.Gas = 42
 
 	r := regexp.MustCompile("Gas: ([[:digit:]]+)")
@@ -371,7 +371,7 @@ func TestState_PrinterGas(t *testing.T) {
 }
 
 func TestState_PrinterCode(t *testing.T) {
-	s := NewState(NewCode([]byte{byte(PUSH2), 42, 42, byte(ADD), byte(STOP)}))
+	s := NewState(NewCode([]byte{byte(tosca.PUSH2), 42, 42, byte(tosca.ADD), byte(tosca.STOP)}))
 
 	r := regexp.MustCompile("Code: ([0-9a-f]+)")
 	match := r.FindStringSubmatch(s.String())
@@ -390,7 +390,7 @@ func TestState_PrinterCode(t *testing.T) {
 func TestState_PrinterAbbreviatedCode(t *testing.T) {
 	var longCode []byte
 	for i := 0; i < dataCutoffLength+1; i++ {
-		longCode = append(longCode, byte(INVALID))
+		longCode = append(longCode, byte(tosca.INVALID))
 	}
 
 	s := NewState(NewCode(longCode))
@@ -450,7 +450,7 @@ func TestState_PrinterMemorySize(t *testing.T) {
 }
 
 func TestState_PrinterRecentBlockHashes(t *testing.T) {
-	s := NewState(NewCode([]byte{byte(BLOCKHASH)}))
+	s := NewState(NewCode([]byte{byte(tosca.BLOCKHASH)}))
 	s.Stack.Push(NewU256(0))
 	s.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x01})
 
@@ -468,7 +468,7 @@ func TestState_PrinterRecentBlockHashes(t *testing.T) {
 }
 
 func TestState_DiffMatch(t *testing.T) {
-	s1 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
+	s1 := NewState(NewCode([]byte{byte(tosca.PUSH2), 7, 4, byte(tosca.ADD), byte(tosca.STOP)}))
 	s1.Status = Running
 	s1.Revision = tosca.R10_London
 	s1.Pc = 3
@@ -487,7 +487,7 @@ func TestState_DiffMatch(t *testing.T) {
 	s1.SelfDestructedJournal = []SelfDestructEntry{{tosca.Address{0x01}, tosca.Address{0x01}}}
 	s1.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x01})
 
-	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD), byte(STOP)}))
+	s2 := NewState(NewCode([]byte{byte(tosca.PUSH2), 7, 4, byte(tosca.ADD), byte(tosca.STOP)}))
 	s2.Status = Running
 	s2.Revision = tosca.R10_London
 	s2.Pc = 3
@@ -518,7 +518,7 @@ func TestState_DiffMatch(t *testing.T) {
 }
 
 func TestState_DiffMismatch(t *testing.T) {
-	s1 := NewState(NewCode([]byte{byte(PUSH2), 7, 4, byte(ADD)}))
+	s1 := NewState(NewCode([]byte{byte(tosca.PUSH2), 7, 4, byte(tosca.ADD)}))
 	s1.Status = Stopped
 	s1.Revision = tosca.R09_Berlin
 	s1.Pc = 0
@@ -538,7 +538,7 @@ func TestState_DiffMismatch(t *testing.T) {
 	s1.SelfDestructedJournal = []SelfDestructEntry{{tosca.Address{0x01}, tosca.Address{0x01}}}
 	s1.RecentBlockHashes = NewImmutableHashArray(tosca.Hash{0x01})
 
-	s2 := NewState(NewCode([]byte{byte(PUSH2), 7, 5, byte(ADD)}))
+	s2 := NewState(NewCode([]byte{byte(tosca.PUSH2), 7, 5, byte(tosca.ADD)}))
 	s2.Status = Running
 	s2.Revision = tosca.R10_London
 	s2.Pc = 3
@@ -819,7 +819,7 @@ func TestState_EqualityConsidersRelevantFieldsDependingOnStatus(t *testing.T) {
 }
 
 func TestState_RecycledMembers(t *testing.T) {
-	state := NewState(NewCode([]byte{byte(INVALID)}))
+	state := NewState(NewCode([]byte{byte(tosca.INVALID)}))
 	state.Stack = NewStack()
 
 	if state.Stack == nil {

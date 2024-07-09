@@ -8,14 +8,12 @@
 // On the date above, in accordance with the Business Source License, use of
 // this software will be governed by the GNU Lesser General Public License v3.
 
-package common
+package tosca
 
 import (
 	"regexp"
 	"slices"
 	"testing"
-
-	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestOpCode_ValidOpCodes(t *testing.T) {
@@ -81,28 +79,12 @@ func TestOpCode_NumberOfOpCodes(t *testing.T) {
 		CREATE, CALL, CALLCODE, RETURN, DELEGATECALL, CREATE2, STATICCALL, REVERT, INVALID, SELFDESTRUCT,
 	}
 
-	if NewestSupportedRevision > tosca.R13_Cancun {
-		t.Errorf("Missing update for revision %v", NewestSupportedRevision)
-	}
-
 	currentOpCodes := istanbulOpCodes
-	switch NewestSupportedRevision {
-	case tosca.R13_Cancun:
-		// TODO: enable once supported
-		// currentOpCodes = append(currentOpCodes, []OpCode{BLOBHASH, BLOBBASEFEE, TLOAD, TSTORE, MCOPY}...) // Cancun
-		fallthrough
-	case tosca.R12_Shanghai:
-		currentOpCodes = append(currentOpCodes, []OpCode{PUSH0}...) // Shanghai
-		fallthrough
-	case tosca.R11_Paris:
-		currentOpCodes = append(currentOpCodes, []OpCode{}...) // Paris
-		fallthrough
-	case tosca.R10_London:
-		currentOpCodes = append(currentOpCodes, []OpCode{BASEFEE}...) // London
-		fallthrough
-	case tosca.R09_Berlin:
-		currentOpCodes = append(currentOpCodes, []OpCode{}...) // Berlin
-	}
+	currentOpCodes = append(currentOpCodes, []OpCode{}...)                                            // Berlin
+	currentOpCodes = append(currentOpCodes, []OpCode{BASEFEE}...)                                     // London
+	currentOpCodes = append(currentOpCodes, []OpCode{}...)                                            // Paris
+	currentOpCodes = append(currentOpCodes, []OpCode{PUSH0}...)                                       // Shanghai
+	currentOpCodes = append(currentOpCodes, []OpCode{BLOBHASH, BLOBBASEFEE, TLOAD, TSTORE, MCOPY}...) // Cancun
 
 	for i := 0; i < 256; i++ {
 		op := OpCode(i)

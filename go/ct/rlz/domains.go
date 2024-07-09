@@ -300,17 +300,17 @@ func (pcDomain) SamplesForAll(as []U256) []U256 {
 
 type opCodeDomain struct{}
 
-func (opCodeDomain) Equal(a OpCode, b OpCode) bool     { return a == b }
-func (opCodeDomain) Less(a OpCode, b OpCode) bool      { return a < b }
-func (opCodeDomain) Predecessor(a OpCode) OpCode       { panic("not useful") }
-func (opCodeDomain) Successor(a OpCode) OpCode         { panic("not useful") }
-func (opCodeDomain) SomethingNotEqual(a OpCode) OpCode { return a + 1 }
-func (opCodeDomain) Samples(a OpCode) []OpCode         { return []OpCode{a, a + 1} }
+func (opCodeDomain) Equal(a tosca.OpCode, b tosca.OpCode) bool     { return a == b }
+func (opCodeDomain) Less(a tosca.OpCode, b tosca.OpCode) bool      { return a < b }
+func (opCodeDomain) Predecessor(a tosca.OpCode) tosca.OpCode       { panic("not useful") }
+func (opCodeDomain) Successor(a tosca.OpCode) tosca.OpCode         { panic("not useful") }
+func (opCodeDomain) SomethingNotEqual(a tosca.OpCode) tosca.OpCode { return a + 1 }
+func (opCodeDomain) Samples(a tosca.OpCode) []tosca.OpCode         { return []tosca.OpCode{a, a + 1} }
 
-func (opCodeDomain) SamplesForAll([]OpCode) []OpCode {
-	res := make([]OpCode, 0, 256)
+func (opCodeDomain) SamplesForAll([]tosca.OpCode) []tosca.OpCode {
+	res := make([]tosca.OpCode, 0, 256)
 	for i := 0; i < 256; i++ {
-		res = append(res, OpCode(i))
+		res = append(res, tosca.OpCode(i))
 	}
 	return res
 }

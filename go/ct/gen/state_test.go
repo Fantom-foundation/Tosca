@@ -301,7 +301,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone1.SetRevision(tosca.R10_London)
 	clone1.SetGas(5)
 	clone1.SetGasRefund(6)
-	clone1.SetCodeOperation(20, ADD)
+	clone1.SetCodeOperation(20, tosca.ADD)
 	clone1.AddStackSizeLowerBound(2)
 	clone1.AddStackSizeUpperBound(200)
 	clone1.BindValue(Variable("x"), NewU256(12))
@@ -312,7 +312,7 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone2.SetRevision(tosca.R09_Berlin)
 	clone2.SetGas(7)
 	clone2.SetGasRefund(8)
-	clone2.SetCodeOperation(30, ADD)
+	clone2.SetCodeOperation(30, tosca.ADD)
 	clone2.AddStackSizeLowerBound(3)
 	clone2.AddStackSizeUpperBound(300)
 	clone2.BindTransientStorageToZero("x")
@@ -383,7 +383,7 @@ func TestStateGenerator_CloneCanBeUsedToResetBuilder(t *testing.T) {
 		"gas":          {modify: func(gen *StateGenerator) { gen.SetGas(5) }},
 		"gasRefund":    {modify: func(gen *StateGenerator) { gen.SetGasRefund(6) }},
 		"bind-value":   {modify: func(gen *StateGenerator) { gen.BindValue(Variable("x"), NewU256(12)) }},
-		"code":         {modify: func(gen *StateGenerator) { gen.SetCodeOperation(20, ADD) }},
+		"code":         {modify: func(gen *StateGenerator) { gen.SetCodeOperation(20, tosca.ADD) }},
 		"stack":        {modify: func(gen *StateGenerator) { gen.AddStackSizeLowerBound(2); gen.AddStackSizeUpperBound(200) }},
 		"storage":      {modify: func(gen *StateGenerator) { gen.BindIsStorageWarm("warmStorage") }},
 		"accounts":     {modify: func(gen *StateGenerator) { gen.BindToWarmAddress("warmAccount") }},
