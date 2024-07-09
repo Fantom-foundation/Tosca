@@ -12,10 +12,12 @@ package tosca
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"math/bits"
 	"strings"
 
 	"github.com/holiman/uint256"
@@ -57,8 +59,20 @@ func (v Value) Cmp(o Value) int {
 	return bytes.Compare(v[:], o[:])
 }
 
-func ValueFromUint64(value uint64) Value {
-	return ValueFromUint256(new(uint256.Int).SetUint64(value))
+// NewValue creates a new Value instance from up to 4 uint64 arguments. The
+// arguments are given in the order from most significant to least significant
+// by padding leading zeros as needed. No argument results in a value of zero.
+func NewValue(args ...uint64) (result Value) {
+	if len(args) > 4 {
+		panic("Too many arguments")
+	}
+	offset := 4 - len(args)
+	for i := 0; i < len(args) && i < 4; i++ {
+		start := (offset * 8) + i*8
+		end := start + 8
+		binary.BigEndian.PutUint64(result[start:end], args[i])
+	}
+	return
 }
 
 // ValueFromUint256 converts a *uint256.Int to a Value.
@@ -67,16 +81,39 @@ func ValueFromUint256(value *uint256.Int) (result Value) {
 	if value == nil {
 		return result
 	}
-	result = value.Bytes32()
-	return result
+	return value.Bytes32()
 }
 
-func Add(a, b Value) Value {
-	return ValueFromUint256(new(uint256.Int).Add(a.ToUint256(), b.ToUint256()))
+func Add(a, b Value) (z Value) {
+	res, carry := bits.Add64(a.getInternalUint64(0), b.getInternalUint64(0), 0)
+	binary.BigEndian.PutUint64(z[24:32], res)
+
+	res, carry = bits.Add64(a.getInternalUint64(1), b.getInternalUint64(1), carry)
+	binary.BigEndian.PutUint64(z[16:24], res)
+
+	res, carry = bits.Add64(a.getInternalUint64(2), b.getInternalUint64(2), carry)
+	binary.BigEndian.PutUint64(z[8:16], res)
+
+	res, _ = bits.Add64(a.getInternalUint64(3), b.getInternalUint64(3), carry)
+	binary.BigEndian.PutUint64(z[0:8], res)
+
+	return z
 }
 
-func Sub(a, b Value) Value {
-	return ValueFromUint256(new(uint256.Int).Sub(a.ToUint256(), b.ToUint256()))
+func Sub(a, b Value) (z Value) {
+	res, carry := bits.Sub64(a.getInternalUint64(0), b.getInternalUint64(0), 0)
+	binary.BigEndian.PutUint64(z[24:32], res)
+
+	res, carry = bits.Sub64(a.getInternalUint64(1), b.getInternalUint64(1), carry)
+	binary.BigEndian.PutUint64(z[16:24], res)
+
+	res, carry = bits.Sub64(a.getInternalUint64(2), b.getInternalUint64(2), carry)
+	binary.BigEndian.PutUint64(z[8:16], res)
+
+	res, _ = bits.Sub64(a.getInternalUint64(3), b.getInternalUint64(3), carry)
+	binary.BigEndian.PutUint64(z[0:8], res)
+
+	return z
 }
 
 func (v Value) MarshalText() ([]byte, error) {
@@ -159,4 +196,10 @@ func (k *CallKind) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("unknown call kind: %s", kind)
 	}
 	return nil
+}
+
+func (v Value) getInternalUint64(index int) uint64 {
+	start := 24 - index*8
+	end := start + 8
+	return binary.BigEndian.Uint64(v[start:end])
 }

@@ -23,7 +23,7 @@ func TestScenarioContext_AccountsAreImplictilyCreated(t *testing.T) {
 	addr := tosca.Address{1}
 	tests := map[string]func(tosca.WorldState){
 		"balance": func(s tosca.WorldState) {
-			s.SetBalance(addr, tosca.ValueFromUint64(100))
+			s.SetBalance(addr, tosca.NewValue(100))
 		},
 		"nonce": func(s tosca.WorldState) {
 			s.SetNonce(addr, 12)
@@ -58,8 +58,8 @@ func TestScenarioContext_BalanceManipulation(t *testing.T) {
 
 	snapshot := context.CreateSnapshot()
 
-	context.SetBalance(addr, tosca.ValueFromUint64(100))
-	if want, got := tosca.ValueFromUint64(100), context.GetBalance(addr); got != want {
+	context.SetBalance(addr, tosca.NewValue(100))
+	if want, got := tosca.NewValue(100), context.GetBalance(addr); got != want {
 		t.Errorf("unexpected balance, want %v, got %v", want, got)
 	}
 

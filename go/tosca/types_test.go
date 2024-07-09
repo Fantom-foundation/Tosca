@@ -87,15 +87,61 @@ func TestAddress_JSON_InvalidValueDecodingFails(t *testing.T) {
 	}
 }
 
+func TestValue_NewValue(t *testing.T) {
+
+	tests := []struct {
+		value Value
+		index int
+	}{
+		{NewValue(1), 31},
+		{NewValue(1, 0), 23},
+		{NewValue(1, 0, 0), 15},
+		{NewValue(1, 0, 0, 0), 7},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%v[%d]", test.value, test.index), func(t *testing.T) {
+
+			if test.value[test.index] != 1 {
+				t.Errorf("NewValue failed to set the correct value.")
+			}
+
+		})
+	}
+}
+
+func TestValue_getInternalUint64ProducesExpectedUint64Value(t *testing.T) {
+
+	tests := []struct {
+		value Value
+		index int
+		want  uint64
+	}{
+		{NewValue(1), 0, 1},
+		{NewValue(1, 0), 1, 1},
+		{NewValue(1, 0, 0), 2, 1},
+		{NewValue(1, 0, 0, 0), 3, 1},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%v[%d]", test.value, test.index), func(t *testing.T) {
+			if got := test.value.getInternalUint64(test.index); test.want != got {
+				t.Errorf("wanted %v but got %v.", test.want, got)
+			}
+		})
+	}
+}
+
 func TestValue_StringProducesDecimalPrint(t *testing.T) {
 	tests := []struct {
 		value Value
 		want  string
 	}{
-		{Value{}, "0"},
-		{ValueFromUint64(1), "1"},
-		{ValueFromUint64(2), "2"},
-		{ValueFromUint64(256), "256"},
+		{NewValue(), "0"},
+		{NewValue(1), "1"},
+		{NewValue(2), "2"},
+		{NewValue(256), "256"},
+		{ValueFromUint256(uint256.MustFromDecimal("1")), "1"},
 		{ValueFromUint256(uint256.MustFromDecimal("1234567890123456789")), "1234567890123456789"},
 	}
 
@@ -155,11 +201,11 @@ func TestValue_FromUint256Conversion(t *testing.T) {
 		uint256 *uint256.Int
 		value   Value
 	}{
-		{nil, ValueFromUint64(0)},
-		{uint256.NewInt(0), ValueFromUint64(0)},
-		{uint256.NewInt(1), ValueFromUint64(1)},
-		{uint256.NewInt(2), ValueFromUint64(2)},
-		{uint256.NewInt(math.MaxInt64), ValueFromUint64(math.MaxInt64)},
+		{nil, NewValue(0)},
+		{uint256.NewInt(0), NewValue(0)},
+		{uint256.NewInt(1), NewValue(1)},
+		{uint256.NewInt(2), NewValue(2)},
+		{uint256.NewInt(math.MaxInt64), NewValue(math.MaxInt64)},
 		{new(uint256.Int).Lsh(uint256.NewInt(1), 255), Value{128}},
 	}
 	for _, test := range tests {
@@ -204,7 +250,7 @@ func TestValue_FromUint64(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%d", test.in), func(t *testing.T) {
-			if want, got := test.out, ValueFromUint64(test.in); want != got {
+			if want, got := test.out, NewValue(test.in); want != got {
 				t.Errorf("unexpected conversion result, wanted %v, got %v", want, got)
 			}
 		})
@@ -214,9 +260,9 @@ func TestValue_FromUint64(t *testing.T) {
 func TestValue_Arithmetic(t *testing.T) {
 	values := []Value{
 		{}, {1}, {2},
-		ValueFromUint64(1), ValueFromUint64(2), ValueFromUint64(3),
-		ValueFromUint64(math.MaxInt64),
-		ValueFromUint64(math.MaxUint64),
+		NewValue(1), NewValue(2), NewValue(3),
+		NewValue(math.MaxInt64),
+		NewValue(math.MaxUint64),
 		{
 			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 			0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -239,6 +285,45 @@ func TestValue_Arithmetic(t *testing.T) {
 				t.Errorf("unexpected subtraction result for %v and %v, wanted %v, got %v", a, b, want, got)
 			}
 		}
+	}
+}
+
+func TestValue_ArithmeticAddCarry(t *testing.T) {
+
+	const max64 = math.MaxUint64
+	tests := map[string]struct {
+		x, t, want Value
+	}{
+		"carry to second": {NewValue(max64), NewValue(1), NewValue(1, 0)},
+		"carry to third":  {NewValue(max64, max64), NewValue(0, 1), NewValue(1, 0, 0)},
+		"carry to fourth": {NewValue(max64, max64, max64), NewValue(0, 0, 1), NewValue(1, 0, 0, 0)},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if want, got := test.want, Add(test.x, test.t); want != got {
+				t.Errorf("unexpected addition result, wanted %v, got %v", want, got)
+			}
+		})
+	}
+}
+
+func TestValue_ArithmeticSubCarry(t *testing.T) {
+	const max64 = math.MaxUint64
+	tests := map[string]struct {
+		x, t, want Value
+	}{
+		"carry to first":  {NewValue(1, 0), NewValue(1), NewValue(max64)},
+		"carry to second": {NewValue(1, 0, 0), NewValue(1), NewValue(max64, max64)},
+		"carry to third":  {NewValue(1, 0, 0, 0), NewValue(1), NewValue(max64, max64, max64)},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if want, got := test.want, Sub(test.x, test.t); want != got {
+				t.Errorf("unexpected subtraction result, wanted %v, got %v", want, got)
+			}
+		})
 	}
 }
 
@@ -319,5 +404,15 @@ func TestCallKind_JSON_Encoding(t *testing.T) {
 func TestCallKind_JSON_InvalidValueEncodingFails(t *testing.T) {
 	if _, err := json.Marshal(CallKind(99)); err == nil {
 		t.Errorf("expected encoding to fail")
+	}
+}
+
+func BenchmarkValue_Add(b *testing.B) {
+
+	x := Value{1}
+	y := Value{2}
+
+	for i := 0; i < b.N; i++ {
+		Add(x, y)
 	}
 }
