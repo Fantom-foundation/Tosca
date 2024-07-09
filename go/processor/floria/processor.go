@@ -76,7 +76,7 @@ func handleNonce(transaction tosca.Transaction, context tosca.TransactionContext
 }
 
 func buyGas(transaction tosca.Transaction, context tosca.TransactionContext) error {
-	gas := transaction.GasPrice.Scale(uint64(transaction.GasLimit))
+	gas := tosca.Mul(transaction.GasPrice, tosca.ValueFromUint64(uint64(transaction.GasLimit)))
 
 	// Buy gas
 	senderBalance := context.GetBalance(transaction.Sender)
