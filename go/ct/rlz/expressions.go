@@ -18,6 +18,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 type RestrictionKind int
@@ -229,32 +230,32 @@ type op struct {
 	position BindableExpression[U256]
 }
 
-func Op(position BindableExpression[U256]) Expression[tosca.OpCode] {
+func Op(position BindableExpression[U256]) Expression[vm.OpCode] {
 	return op{position}
 }
 
 func (e op) Property() Property { return Property(e.String()) }
 
-func (op) Domain() Domain[tosca.OpCode] { return opCodeDomain{} }
+func (op) Domain() Domain[vm.OpCode] { return opCodeDomain{} }
 
-func (e op) Eval(s *st.State) (tosca.OpCode, error) {
+func (e op) Eval(s *st.State) (vm.OpCode, error) {
 	pos, err := e.position.Eval(s)
 	if err != nil {
-		return tosca.INVALID, err
+		return vm.INVALID, err
 	}
 
 	if !pos.IsUint64() || pos.Uint64() > math.MaxInt {
-		return tosca.STOP, nil
+		return vm.STOP, nil
 	}
 
 	op, err := s.Code.GetOperation(int(pos.Uint64()))
 	if err != nil {
-		return tosca.INVALID, err
+		return vm.INVALID, err
 	}
 	return op, nil
 }
 
-func (e op) Restrict(kind RestrictionKind, op tosca.OpCode, generator *gen.StateGenerator) {
+func (e op) Restrict(kind RestrictionKind, op vm.OpCode, generator *gen.StateGenerator) {
 	if kind != RestrictEqual {
 		panic("Operation codes only support equality constraints")
 	}

@@ -19,7 +19,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestRule_GenerateSatisfyingState(t *testing.T) {
@@ -28,9 +28,9 @@ func TestRule_GenerateSatisfyingState(t *testing.T) {
 		Eq(Status(), st.Failed),
 		Eq(Pc(), NewU256(42)),
 		And(Eq(Status(), st.Failed), Eq(Pc(), NewU256(42))),
-		And(Eq(Op(Pc()), tosca.ADD)),
-		And(Eq(Op(Pc()), tosca.JUMP), Eq(Op(Param(0)), tosca.JUMPDEST)),
-		And(Eq(Op(Constant(NewU256(12))), tosca.ADD), Eq(Op(Constant(NewU256(3))), tosca.JUMP)),
+		And(Eq(Op(Pc()), vm.ADD)),
+		And(Eq(Op(Pc()), vm.JUMP), Eq(Op(Param(0)), vm.JUMPDEST)),
+		And(Eq(Op(Constant(NewU256(12))), vm.ADD), Eq(Op(Constant(NewU256(3))), vm.JUMP)),
 	}
 
 	rnd := rand.New(0)
@@ -58,8 +58,8 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 		Eq(Status(), st.Failed),
 		Eq(Pc(), NewU256(42)),
 		And(Eq(Status(), st.Failed), Eq(Pc(), NewU256(42))),
-		And(Eq(Op(Pc()), tosca.ADD)),
-		And(Eq(Op(Pc()), tosca.JUMP), Eq(Op(Param(0)), tosca.JUMPDEST)),
+		And(Eq(Op(Pc()), vm.ADD)),
+		And(Eq(Op(Pc()), vm.JUMP), Eq(Op(Param(0)), vm.JUMPDEST)),
 	}
 
 	rnd := rand.New(0)

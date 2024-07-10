@@ -19,6 +19,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 // Upper bound for gas, this limit is required since evmc defines a signed type for gas.
@@ -260,7 +261,7 @@ func (s *State) String() string {
 	if !s.Code.IsCode(int(s.Pc)) {
 		write("\t    (points to data)\n")
 	} else if s.Pc < uint16(len(s.Code.code)) {
-		write("\t    (operation: %v)\n", tosca.OpCode(s.Code.code[s.Pc]))
+		write("\t    (operation: %v)\n", vm.OpCode(s.Code.code[s.Pc]))
 	} else {
 		write("\t    (out of bounds)\n")
 	}
@@ -359,7 +360,7 @@ func (s *State) String() string {
 	// only print if next instruction is blockhash and the top of the stack is a valid uint64
 	if s.Code != nil && s.Code.Length() > int(s.Pc) && s.Stack != nil && s.Stack.Size() > 0 {
 		offset := s.Stack.stack[s.Stack.Size()-1]
-		if s.Code.IsCode(int(s.Pc)) && tosca.OpCode(s.Code.code[s.Pc]) == tosca.BLOCKHASH &&
+		if s.Code.IsCode(int(s.Pc)) && vm.OpCode(s.Code.code[s.Pc]) == vm.BLOCKHASH &&
 			offset.IsUint64() && offset.Uint64() < 256 {
 			write("\tHash of block %d: %#x\n", s.BlockContext.BlockNumber-offset.Uint64(), s.RecentBlockHashes.Get(offset.Uint64()))
 		}

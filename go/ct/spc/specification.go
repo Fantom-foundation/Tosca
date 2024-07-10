@@ -21,6 +21,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 // Specification defines the interface for handling specifications.
@@ -40,7 +41,7 @@ var Spec = func() Specification {
 // instruction holds the basic information for the 4 basic rules
 // these are not enough gas, stack overflow, stack underflow, and a regular behavior case
 type instruction struct {
-	op         tosca.OpCode
+	op         vm.OpCode
 	staticGas  tosca.Gas
 	pops       int
 	pushes     int
@@ -93,8 +94,8 @@ func getAllRules() []Rule {
 	// --- Invalid Instructions ---
 
 	for i := 0; i < 256; i++ {
-		op := tosca.OpCode(i)
-		if !tosca.IsValid(op) {
+		op := vm.OpCode(i)
+		if !vm.IsValid(op) {
 			rules = append(rules, Rule{
 				Name:      fmt.Sprintf("%v_invalid", op),
 				Condition: And(Eq(Status(), st.Running), Eq(Op(Pc()), op)),
@@ -120,7 +121,7 @@ func getAllRules() []Rule {
 		Condition: And(
 			AnyKnownRevision(),
 			Eq(Status(), st.Running),
-			Eq(Op(Pc()), tosca.STOP),
+			Eq(Op(Pc()), vm.STOP),
 		),
 		Effect: Change(func(s *st.State) {
 			s.Status = st.Stopped
@@ -131,43 +132,43 @@ func getAllRules() []Rule {
 
 	// --- Arithmetic ---
 
-	rules = append(rules, binaryOp(tosca.ADD, 3, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.ADD, 3, func(a, b U256) U256 {
 		return a.Add(b)
 	})...)
 
-	rules = append(rules, binaryOp(tosca.MUL, 5, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.MUL, 5, func(a, b U256) U256 {
 		return a.Mul(b)
 	})...)
 
-	rules = append(rules, binaryOp(tosca.SUB, 3, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.SUB, 3, func(a, b U256) U256 {
 		return a.Sub(b)
 	})...)
 
-	rules = append(rules, binaryOp(tosca.DIV, 5, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.DIV, 5, func(a, b U256) U256 {
 		return a.Div(b)
 	})...)
 
-	rules = append(rules, binaryOp(tosca.SDIV, 5, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.SDIV, 5, func(a, b U256) U256 {
 		return a.SDiv(b)
 	})...)
 
-	rules = append(rules, binaryOp(tosca.MOD, 5, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.MOD, 5, func(a, b U256) U256 {
 		return a.Mod(b)
 	})...)
 
-	rules = append(rules, binaryOp(tosca.SMOD, 5, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.SMOD, 5, func(a, b U256) U256 {
 		return a.SMod(b)
 	})...)
 
-	rules = append(rules, trinaryOp(tosca.ADDMOD, 8, func(a, b, n U256) U256 {
+	rules = append(rules, trinaryOp(vm.ADDMOD, 8, func(a, b, n U256) U256 {
 		return a.AddMod(b, n)
 	})...)
 
-	rules = append(rules, trinaryOp(tosca.MULMOD, 8, func(a, b, n U256) U256 {
+	rules = append(rules, trinaryOp(vm.MULMOD, 8, func(a, b, n U256) U256 {
 		return a.MulMod(b, n)
 	})...)
 
-	rules = append(rules, binaryOpWithDynamicCost(tosca.EXP, 10, func(a, e U256) U256 {
+	rules = append(rules, binaryOpWithDynamicCost(vm.EXP, 10, func(a, e U256) U256 {
 		return a.Exp(e)
 	}, func(a, e U256) tosca.Gas {
 		const gasFactor = tosca.Gas(50)
@@ -180,73 +181,73 @@ func getAllRules() []Rule {
 		return 0
 	})...)
 
-	rules = append(rules, binaryOp(tosca.SIGNEXTEND, 5, func(b, x U256) U256 {
+	rules = append(rules, binaryOp(vm.SIGNEXTEND, 5, func(b, x U256) U256 {
 		return x.SignExtend(b)
 	})...)
 
-	rules = append(rules, binaryOp(tosca.LT, 3, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.LT, 3, func(a, b U256) U256 {
 		return boolToU256(a.Lt(b))
 	})...)
 
-	rules = append(rules, binaryOp(tosca.GT, 3, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.GT, 3, func(a, b U256) U256 {
 		return boolToU256(a.Gt(b))
 	})...)
 
-	rules = append(rules, binaryOp(tosca.SLT, 3, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.SLT, 3, func(a, b U256) U256 {
 		return boolToU256(a.Slt(b))
 	})...)
 
-	rules = append(rules, binaryOp(tosca.SGT, 3, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.SGT, 3, func(a, b U256) U256 {
 		return boolToU256(a.Sgt(b))
 	})...)
 
-	rules = append(rules, binaryOp(tosca.EQ, 3, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.EQ, 3, func(a, b U256) U256 {
 		return boolToU256(a.Eq(b))
 	})...)
 
-	rules = append(rules, unaryOp(tosca.ISZERO, 3, func(a U256) U256 {
+	rules = append(rules, unaryOp(vm.ISZERO, 3, func(a U256) U256 {
 		return boolToU256(a.IsZero())
 	})...)
 
-	rules = append(rules, binaryOp(tosca.AND, 3, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.AND, 3, func(a, b U256) U256 {
 		return a.And(b)
 	})...)
 
-	rules = append(rules, binaryOp(tosca.OR, 3, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.OR, 3, func(a, b U256) U256 {
 		return a.Or(b)
 	})...)
 
-	rules = append(rules, binaryOp(tosca.XOR, 3, func(a, b U256) U256 {
+	rules = append(rules, binaryOp(vm.XOR, 3, func(a, b U256) U256 {
 		return a.Xor(b)
 	})...)
 
-	rules = append(rules, unaryOp(tosca.NOT, 3, func(a U256) U256 {
+	rules = append(rules, unaryOp(vm.NOT, 3, func(a U256) U256 {
 		return a.Not()
 	})...)
 
-	rules = append(rules, binaryOp(tosca.BYTE, 3, func(i, x U256) U256 {
+	rules = append(rules, binaryOp(vm.BYTE, 3, func(i, x U256) U256 {
 		if i.Gt(NewU256(31)) {
 			return NewU256(0)
 		}
 		return NewU256(uint64(x.Bytes32be()[i.Uint64()]))
 	})...)
 
-	rules = append(rules, binaryOp(tosca.SHL, 3, func(shift, value U256) U256 {
+	rules = append(rules, binaryOp(vm.SHL, 3, func(shift, value U256) U256 {
 		return value.Shl(shift)
 	})...)
 
-	rules = append(rules, binaryOp(tosca.SHR, 3, func(shift, value U256) U256 {
+	rules = append(rules, binaryOp(vm.SHR, 3, func(shift, value U256) U256 {
 		return value.Shr(shift)
 	})...)
 
-	rules = append(rules, binaryOp(tosca.SAR, 3, func(shift, value U256) U256 {
+	rules = append(rules, binaryOp(vm.SAR, 3, func(shift, value U256) U256 {
 		return value.Srsh(shift)
 	})...)
 
 	// --- SHA3 ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.SHA3,
+		op:        vm.SHA3,
 		staticGas: 30,
 		pops:      2,
 		pushes:    1,
@@ -283,7 +284,7 @@ func getAllRules() []Rule {
 
 	// cold
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.BALANCE,
+		op:        vm.BALANCE,
 		staticGas: 0 + 2600, // 2600 dynamic cost for cold address
 		pops:      1,
 		pushes:    1,
@@ -304,7 +305,7 @@ func getAllRules() []Rule {
 
 	// warm
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.BALANCE,
+		op:        vm.BALANCE,
 		staticGas: 0 + 100, // 100 dynamic cost for warm address
 		pops:      1,
 		pushes:    1,
@@ -324,7 +325,7 @@ func getAllRules() []Rule {
 
 	// pre Berlin
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.BALANCE,
+		op:        vm.BALANCE,
 		staticGas: 700,
 		pops:      1,
 		pushes:    1,
@@ -344,7 +345,7 @@ func getAllRules() []Rule {
 	// --- MLOAD ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.MLOAD,
+		op:        vm.MLOAD,
 		staticGas: 3,
 		pops:      1,
 		pushes:    1,
@@ -370,7 +371,7 @@ func getAllRules() []Rule {
 	// --- MSTORE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.MSTORE,
+		op:        vm.MSTORE,
 		staticGas: 3,
 		pops:      2,
 		pushes:    0,
@@ -398,7 +399,7 @@ func getAllRules() []Rule {
 	// --- MSTORE8 ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.MSTORE8,
+		op:        vm.MSTORE8,
 		staticGas: 3,
 		pops:      2,
 		pushes:    0,
@@ -427,7 +428,7 @@ func getAllRules() []Rule {
 
 	// cold
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.SLOAD,
+		op:        vm.SLOAD,
 		staticGas: 100 + 2000, // 2000 are from the dynamic cost of cold mem
 		pops:      1,
 		pushes:    1,
@@ -448,7 +449,7 @@ func getAllRules() []Rule {
 
 	// warm
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.SLOAD,
+		op:        vm.SLOAD,
 		staticGas: 100,
 		pops:      1,
 		pushes:    1,
@@ -468,7 +469,7 @@ func getAllRules() []Rule {
 
 	// pre_berlin
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.SLOAD,
+		op:        vm.SLOAD,
 		staticGas: 800,
 		pops:      1,
 		pushes:    1,
@@ -554,13 +555,13 @@ func getAllRules() []Rule {
 		rules = append(rules, sstoreOpReadOnlyMode(params))
 	}
 
-	rules = append(rules, tooLittleGas(instruction{op: tosca.SSTORE, staticGas: 2300, name: "_EIP2200"})...)
-	rules = append(rules, tooFewElements(instruction{op: tosca.SSTORE, staticGas: 2, pops: 2})...)
+	rules = append(rules, tooLittleGas(instruction{op: vm.SSTORE, staticGas: 2300, name: "_EIP2200"})...)
+	rules = append(rules, tooFewElements(instruction{op: vm.SSTORE, staticGas: 2, pops: 2})...)
 
 	// --- JUMP ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.JUMP,
+		op:        vm.JUMP,
 		staticGas: 8,
 		pops:      1,
 		pushes:    0,
@@ -569,7 +570,7 @@ func getAllRules() []Rule {
 		},
 		conditions: []Condition{
 			IsCode(Param(0)),
-			Eq(Op(Param(0)), tosca.JUMPDEST),
+			Eq(Op(Param(0)), vm.JUMPDEST),
 		},
 		effect: func(s *st.State) {
 			target := s.Stack.Pop()
@@ -583,7 +584,7 @@ func getAllRules() []Rule {
 			Condition: And(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), tosca.JUMP),
+				Eq(Op(Pc()), vm.JUMP),
 				Ge(Gas(), 8),
 				Ge(StackSize(), 1),
 				IsData(Param(0)),
@@ -599,11 +600,11 @@ func getAllRules() []Rule {
 			Condition: And(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), tosca.JUMP),
+				Eq(Op(Pc()), vm.JUMP),
 				Ge(Gas(), 8),
 				Ge(StackSize(), 1),
 				IsCode(Param(0)),
-				Ne(Op(Param(0)), tosca.JUMPDEST),
+				Ne(Op(Param(0)), vm.JUMPDEST),
 			),
 			Effect: FailEffect(),
 		},
@@ -612,7 +613,7 @@ func getAllRules() []Rule {
 	// --- JUMPI ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.JUMPI,
+		op:        vm.JUMPI,
 		staticGas: 10,
 		pops:      2,
 		pushes:    0,
@@ -622,7 +623,7 @@ func getAllRules() []Rule {
 		},
 		conditions: []Condition{
 			IsCode(Param(0)),
-			Eq(Op(Param(0)), tosca.JUMPDEST),
+			Eq(Op(Param(0)), vm.JUMPDEST),
 			Ne(Param(1), NewU256(0)),
 		},
 		effect: func(s *st.State) {
@@ -638,7 +639,7 @@ func getAllRules() []Rule {
 			Condition: And(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), tosca.JUMPI),
+				Eq(Op(Pc()), vm.JUMPI),
 				Ge(Gas(), 10),
 				Ge(StackSize(), 2),
 				Eq(Param(1), NewU256(0)),
@@ -656,7 +657,7 @@ func getAllRules() []Rule {
 			Condition: And(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), tosca.JUMPI),
+				Eq(Op(Pc()), vm.JUMPI),
 				Ge(Gas(), 10),
 				Ge(StackSize(), 2),
 				IsData(Param(0)),
@@ -674,11 +675,11 @@ func getAllRules() []Rule {
 			Condition: And(
 				AnyKnownRevision(),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), tosca.JUMPI),
+				Eq(Op(Pc()), vm.JUMPI),
 				Ge(Gas(), 10),
 				Ge(StackSize(), 2),
 				IsCode(Param(0)),
-				Ne(Op(Param(0)), tosca.JUMPDEST),
+				Ne(Op(Param(0)), vm.JUMPDEST),
 				Ne(Param(1), NewU256(0)),
 			),
 			Effect: FailEffect(),
@@ -688,7 +689,7 @@ func getAllRules() []Rule {
 	// --- PC ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.PC,
+		op:        vm.PC,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -700,7 +701,7 @@ func getAllRules() []Rule {
 	// --- MSIZE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.MSIZE,
+		op:        vm.MSIZE,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -712,7 +713,7 @@ func getAllRules() []Rule {
 	// --- GAS ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.GAS,
+		op:        vm.GAS,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -724,7 +725,7 @@ func getAllRules() []Rule {
 	// --- JUMPDEST ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.JUMPDEST,
+		op:        vm.JUMPDEST,
 		staticGas: 1,
 		pops:      0,
 		pushes:    0,
@@ -734,7 +735,7 @@ func getAllRules() []Rule {
 	// --- TLOAD ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.TLOAD,
+		op:        vm.TLOAD,
 		staticGas: 100,
 		pops:      1,
 		pushes:    1,
@@ -753,7 +754,7 @@ func getAllRules() []Rule {
 	})...)
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.TLOAD,
+		op:        vm.TLOAD,
 		staticGas: 100,
 		pops:      1,
 		pushes:    1,
@@ -775,7 +776,7 @@ func getAllRules() []Rule {
 		Condition: And(
 			RevisionBounds(tosca.R07_Istanbul, tosca.R12_Shanghai),
 			Eq(Status(), st.Running),
-			Eq(Op(Pc()), tosca.TLOAD),
+			Eq(Op(Pc()), vm.TLOAD),
 		),
 		Effect: FailEffect(),
 	})
@@ -783,7 +784,7 @@ func getAllRules() []Rule {
 	// --- TSTORE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.TSTORE,
+		op:        vm.TSTORE,
 		staticGas: 100,
 		pops:      2,
 		pushes:    0,
@@ -804,7 +805,7 @@ func getAllRules() []Rule {
 	})...)
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.TSTORE,
+		op:        vm.TSTORE,
 		staticGas: 100,
 		pops:      2,
 		pushes:    0,
@@ -829,7 +830,7 @@ func getAllRules() []Rule {
 		Condition: And(
 			RevisionBounds(tosca.R07_Istanbul, tosca.R12_Shanghai),
 			Eq(Status(), st.Running),
-			Eq(Op(Pc()), tosca.TSTORE),
+			Eq(Op(Pc()), vm.TSTORE),
 		),
 		Effect: FailEffect(),
 	})
@@ -839,7 +840,7 @@ func getAllRules() []Rule {
 		Condition: And(
 			AnyKnownRevision(),
 			Eq(Status(), st.Running),
-			Eq(Op(Pc()), tosca.TSTORE),
+			Eq(Op(Pc()), vm.TSTORE),
 			Eq(ReadOnly(), true),
 		),
 		Effect: FailEffect(),
@@ -848,7 +849,7 @@ func getAllRules() []Rule {
 	// --- Stack PUSH0 ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.PUSH0,
+		op:        vm.PUSH0,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -866,7 +867,7 @@ func getAllRules() []Rule {
 			Condition: And(
 				RevisionBounds(tosca.R07_Istanbul, tosca.R11_Paris),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), tosca.PUSH0),
+				Eq(Op(Pc()), vm.PUSH0),
 				Ge(Gas(), 2),
 				Lt(StackSize(), st.MaxStackSize-1),
 			),
@@ -877,7 +878,7 @@ func getAllRules() []Rule {
 	// --- MCOPY ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.MCOPY,
+		op:        vm.MCOPY,
 		staticGas: 3,
 		pops:      3,
 		pushes:    0,
@@ -918,7 +919,7 @@ func getAllRules() []Rule {
 			Condition: And(
 				RevisionBounds(tosca.R07_Istanbul, tosca.R12_Shanghai),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), tosca.MCOPY),
+				Eq(Op(Pc()), vm.MCOPY),
 			),
 			Effect: FailEffect(),
 		},
@@ -933,7 +934,7 @@ func getAllRules() []Rule {
 	// --- Stack POP ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.POP,
+		op:        vm.POP,
 		staticGas: 2,
 		pops:      1,
 		pushes:    0,
@@ -963,7 +964,7 @@ func getAllRules() []Rule {
 	// --- ADDRESS ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.ADDRESS,
+		op:        vm.ADDRESS,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -975,7 +976,7 @@ func getAllRules() []Rule {
 	// --- ORIGIN ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.ORIGIN,
+		op:        vm.ORIGIN,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -987,7 +988,7 @@ func getAllRules() []Rule {
 	// --- CALLER ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.CALLER,
+		op:        vm.CALLER,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -999,7 +1000,7 @@ func getAllRules() []Rule {
 	// --- CALLVALUE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.CALLVALUE,
+		op:        vm.CALLVALUE,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -1011,7 +1012,7 @@ func getAllRules() []Rule {
 	// --- NUMBER ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.NUMBER,
+		op:        vm.NUMBER,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -1023,7 +1024,7 @@ func getAllRules() []Rule {
 	// --- BLOCKHASH ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.BLOCKHASH,
+		op:        vm.BLOCKHASH,
 		staticGas: 20,
 		pops:      1,
 		pushes:    1,
@@ -1040,7 +1041,7 @@ func getAllRules() []Rule {
 	})...)
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.BLOCKHASH,
+		op:        vm.BLOCKHASH,
 		name:      "_out_of_range",
 		staticGas: 20,
 		pops:      1,
@@ -1058,7 +1059,7 @@ func getAllRules() []Rule {
 	// --- COINBASE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.COINBASE,
+		op:        vm.COINBASE,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -1070,7 +1071,7 @@ func getAllRules() []Rule {
 	// --- GASLIMIT ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.GASLIMIT,
+		op:        vm.GASLIMIT,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -1082,7 +1083,7 @@ func getAllRules() []Rule {
 	// --- DIFFICULTY / PREVRANDAO ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.PREVRANDAO,
+		op:        vm.PREVRANDAO,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -1094,7 +1095,7 @@ func getAllRules() []Rule {
 	// --- GASPRICE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.GASPRICE,
+		op:        vm.GASPRICE,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -1107,7 +1108,7 @@ func getAllRules() []Rule {
 
 	// cold
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.EXTCODESIZE,
+		op:        vm.EXTCODESIZE,
 		staticGas: 0 + 2600, // 2600 dynamic cost for cold address
 		pops:      1,
 		pushes:    1,
@@ -1129,7 +1130,7 @@ func getAllRules() []Rule {
 
 	// warm
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.EXTCODESIZE,
+		op:        vm.EXTCODESIZE,
 		staticGas: 0 + 100, // 100 dynamic cost for warm address
 		pops:      1,
 		pushes:    1,
@@ -1150,7 +1151,7 @@ func getAllRules() []Rule {
 
 	// pre Berlin
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.EXTCODESIZE,
+		op:        vm.EXTCODESIZE,
 		staticGas: 700,
 		pops:      1,
 		pushes:    1,
@@ -1172,7 +1173,7 @@ func getAllRules() []Rule {
 
 	// cold
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.EXTCODECOPY,
+		op:        vm.EXTCODECOPY,
 		staticGas: 2600,
 		pops:      4,
 		pushes:    0,
@@ -1193,7 +1194,7 @@ func getAllRules() []Rule {
 
 	// warm
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.EXTCODECOPY,
+		op:        vm.EXTCODECOPY,
 		staticGas: 100,
 		pops:      4,
 		pushes:    0,
@@ -1214,7 +1215,7 @@ func getAllRules() []Rule {
 
 	// pre Berlin
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.EXTCODECOPY,
+		op:        vm.EXTCODECOPY,
 		staticGas: 700,
 		pops:      4,
 		pushes:    0,
@@ -1235,7 +1236,7 @@ func getAllRules() []Rule {
 	// --- TIMESTAMP ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.TIMESTAMP,
+		op:        vm.TIMESTAMP,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -1247,7 +1248,7 @@ func getAllRules() []Rule {
 	// --- BASEFEE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         tosca.BASEFEE,
+		op:         vm.BASEFEE,
 		staticGas:  2,
 		pops:       0,
 		pushes:     1,
@@ -1262,7 +1263,7 @@ func getAllRules() []Rule {
 			Condition: And(
 				RevisionBounds(tosca.R07_Istanbul, tosca.R09_Berlin),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), tosca.BASEFEE),
+				Eq(Op(Pc()), vm.BASEFEE),
 			),
 			Effect: FailEffect(),
 		},
@@ -1271,7 +1272,7 @@ func getAllRules() []Rule {
 	// --- BLOBHASH ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.BLOBHASH,
+		op:        vm.BLOBHASH,
 		staticGas: 3,
 		pops:      1,
 		pushes:    1,
@@ -1287,7 +1288,7 @@ func getAllRules() []Rule {
 	})...)
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.BLOBHASH,
+		op:        vm.BLOBHASH,
 		name:      "_out_of_range",
 		staticGas: 3,
 		pops:      1,
@@ -1309,7 +1310,7 @@ func getAllRules() []Rule {
 			Condition: And(
 				RevisionBounds(tosca.R07_Istanbul, tosca.R12_Shanghai),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), tosca.BLOBHASH),
+				Eq(Op(Pc()), vm.BLOBHASH),
 			),
 			Effect: FailEffect(),
 		},
@@ -1318,7 +1319,7 @@ func getAllRules() []Rule {
 	// --- BLOBBASEFEE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         tosca.BLOBBASEFEE,
+		op:         vm.BLOBBASEFEE,
 		staticGas:  2,
 		pops:       0,
 		pushes:     1,
@@ -1334,7 +1335,7 @@ func getAllRules() []Rule {
 			Condition: And(
 				RevisionBounds(tosca.R07_Istanbul, tosca.R12_Shanghai),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), tosca.BLOBBASEFEE),
+				Eq(Op(Pc()), vm.BLOBBASEFEE),
 			),
 			Effect: FailEffect(),
 		},
@@ -1351,7 +1352,7 @@ func getAllRules() []Rule {
 
 	// cold
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.EXTCODEHASH,
+		op:        vm.EXTCODEHASH,
 		name:      "_cold",
 		staticGas: 0 + 2600, // 2600 dynamic cost for cold address
 		pops:      1,
@@ -1371,7 +1372,7 @@ func getAllRules() []Rule {
 
 	// warm
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.EXTCODEHASH,
+		op:        vm.EXTCODEHASH,
 		name:      "_warm",
 		staticGas: 0 + 100, // 100 dynamic cost for warm address
 		pops:      1,
@@ -1390,7 +1391,7 @@ func getAllRules() []Rule {
 
 	// pre Berlin
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.EXTCODEHASH,
+		op:        vm.EXTCODEHASH,
 		name:      "_preBerlin",
 		staticGas: 700,
 		pops:      1,
@@ -1409,7 +1410,7 @@ func getAllRules() []Rule {
 	// --- CHAINID ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.CHAINID,
+		op:        vm.CHAINID,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -1421,7 +1422,7 @@ func getAllRules() []Rule {
 	// --- CODESIZE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.CODESIZE,
+		op:        vm.CODESIZE,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -1433,7 +1434,7 @@ func getAllRules() []Rule {
 	// --- CODECOPY ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.CODECOPY,
+		op:        vm.CODECOPY,
 		staticGas: 3,
 		pops:      3,
 		pushes:    0,
@@ -1472,7 +1473,7 @@ func getAllRules() []Rule {
 	// --- CALLDATASIZE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.CALLDATASIZE,
+		op:        vm.CALLDATASIZE,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -1484,7 +1485,7 @@ func getAllRules() []Rule {
 	// --- CALLDATALOAD ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:         tosca.CALLDATALOAD,
+		op:         vm.CALLDATALOAD,
 		staticGas:  3,
 		pops:       1,
 		pushes:     1,
@@ -1511,7 +1512,7 @@ func getAllRules() []Rule {
 	// --- CALLDATACOPY ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.CALLDATACOPY,
+		op:        vm.CALLDATACOPY,
 		staticGas: 3,
 		pops:      3,
 		pushes:    0,
@@ -1547,7 +1548,7 @@ func getAllRules() []Rule {
 	// --- SELFBALANCE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.SELFBALANCE,
+		op:        vm.SELFBALANCE,
 		staticGas: 5,
 		pops:      0,
 		pushes:    1,
@@ -1561,7 +1562,7 @@ func getAllRules() []Rule {
 	// --- RETURNDATASIZE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.RETURNDATASIZE,
+		op:        vm.RETURNDATASIZE,
 		staticGas: 2,
 		pops:      0,
 		pushes:    1,
@@ -1573,7 +1574,7 @@ func getAllRules() []Rule {
 	// --- RETURNDATACOPY ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.RETURNDATACOPY,
+		op:        vm.RETURNDATACOPY,
 		staticGas: 3,
 		pops:      3,
 		pushes:    0,
@@ -1612,7 +1613,7 @@ func getAllRules() []Rule {
 	// --- RETURN ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.RETURN,
+		op:        vm.RETURN,
 		staticGas: 0,
 		pops:      2,
 		pushes:    0,
@@ -1639,7 +1640,7 @@ func getAllRules() []Rule {
 	// --- REVERT ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.REVERT,
+		op:        vm.REVERT,
 		staticGas: 0,
 		pops:      2,
 		pushes:    0,
@@ -1686,7 +1687,7 @@ func getAllRules() []Rule {
 	}
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.SELFDESTRUCT,
+		op:        vm.SELFDESTRUCT,
 		name:      "_staticcall",
 		staticGas: 5000,
 		pops:      1,
@@ -1700,7 +1701,7 @@ func getAllRules() []Rule {
 	// --- CREATE ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.CREATE,
+		op:        vm.CREATE,
 		name:      "_static",
 		staticGas: 32000,
 		pops:      3,
@@ -1717,7 +1718,7 @@ func getAllRules() []Rule {
 	})...)
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.CREATE,
+		op:        vm.CREATE,
 		staticGas: 32000,
 		pops:      3,
 		pushes:    1,
@@ -1737,7 +1738,7 @@ func getAllRules() []Rule {
 	// --- CREATE2 ---
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.CREATE2,
+		op:        vm.CREATE2,
 		name:      "_static",
 		staticGas: 32000,
 		pops:      3,
@@ -1755,7 +1756,7 @@ func getAllRules() []Rule {
 	})...)
 
 	rules = append(rules, rulesFor(instruction{
-		op:        tosca.CREATE2,
+		op:        vm.CREATE2,
 		staticGas: 32000,
 		pops:      4,
 		pushes:    1,
@@ -1847,7 +1848,7 @@ func createEffect(s *st.State, callKind tosca.CallKind) {
 }
 
 func binaryOpWithDynamicCost(
-	op tosca.OpCode,
+	op vm.OpCode,
 	costs tosca.Gas,
 	effect func(a, b U256) U256,
 	dynamicCost func(a, b U256) tosca.Gas,
@@ -1878,7 +1879,7 @@ func binaryOpWithDynamicCost(
 }
 
 func binaryOp(
-	op tosca.OpCode,
+	op vm.OpCode,
 	costs tosca.Gas,
 	effect func(a, b U256) U256,
 ) []Rule {
@@ -1886,7 +1887,7 @@ func binaryOp(
 }
 
 func trinaryOp(
-	op tosca.OpCode,
+	op vm.OpCode,
 	costs tosca.Gas,
 	effect func(a, b, c U256) U256,
 ) []Rule {
@@ -1910,7 +1911,7 @@ func trinaryOp(
 }
 
 func unaryOp(
-	op tosca.OpCode,
+	op vm.OpCode,
 	costs tosca.Gas,
 	effect func(a U256) U256,
 ) []Rule {
@@ -1930,7 +1931,7 @@ func unaryOp(
 }
 
 func pushOp(n int) []Rule {
-	op := tosca.OpCode(int(tosca.PUSH1) + n - 1)
+	op := vm.OpCode(int(vm.PUSH1) + n - 1)
 	return rulesFor(instruction{
 		op:        op,
 		staticGas: 3,
@@ -1956,7 +1957,7 @@ func pushOp(n int) []Rule {
 // An implementation does not necessarily do `n` pops and `n+1` pushes, since arbitrary stack positions could be accessed directly.
 // However, the result is as if `n` pops and `n+1` pushes were performed.
 func dupOp(n int) []Rule {
-	op := tosca.OpCode(int(tosca.DUP1) + n - 1)
+	op := vm.OpCode(int(vm.DUP1) + n - 1)
 	return rulesFor(instruction{
 		op:        op,
 		staticGas: 3,
@@ -1971,7 +1972,7 @@ func dupOp(n int) []Rule {
 // An implementation does not necessarily do `n` pops and `n+1` pushes, since arbitrary stack positions could be accessed directly.
 // However, the result is as if `n` pops and `n+1` pushes were performed.
 func swapOp(n int) []Rule {
-	op := tosca.OpCode(int(tosca.SWAP1) + n - 1)
+	op := vm.OpCode(int(vm.SWAP1) + n - 1)
 	return rulesFor(instruction{
 		op:        op,
 		staticGas: 3,
@@ -2035,7 +2036,7 @@ func sstoreOpRegular(params sstoreOpParams) Rule {
 	conditions := []Condition{
 		IsRevision(params.revision),
 		Eq(Status(), st.Running),
-		Eq(Op(Pc()), tosca.SSTORE),
+		Eq(Op(Pc()), vm.SSTORE),
 		Ge(Gas(), gasLimit),
 		Eq(ReadOnly(), false),
 		Ge(StackSize(), 2),
@@ -2079,7 +2080,7 @@ func sstoreOpTooLittleGas(params sstoreOpParams) Rule {
 	conditions := []Condition{
 		IsRevision(params.revision),
 		Eq(Status(), st.Running),
-		Eq(Op(Pc()), tosca.SSTORE),
+		Eq(Op(Pc()), vm.SSTORE),
 		Lt(Gas(), params.gasCost),
 		Eq(ReadOnly(), false),
 		Ge(StackSize(), 2),
@@ -2118,7 +2119,7 @@ func sstoreOpReadOnlyMode(params sstoreOpParams) Rule {
 	conditions := []Condition{
 		IsRevision(params.revision),
 		Eq(Status(), st.Running),
-		Eq(Op(Pc()), tosca.SSTORE),
+		Eq(Op(Pc()), vm.SSTORE),
 		Ge(Gas(), gasLimit),
 		Eq(ReadOnly(), true),
 		Ge(StackSize(), 2),
@@ -2137,7 +2138,7 @@ func sstoreOpReadOnlyMode(params sstoreOpParams) Rule {
 }
 
 func logOp(n int) []Rule {
-	op := tosca.OpCode(int(tosca.LOG0) + n)
+	op := vm.OpCode(int(vm.LOG0) + n)
 	minGas := tosca.Gas(375 + 375*n)
 	conditions := []Condition{
 		Eq(ReadOnly(), false),
@@ -2235,7 +2236,7 @@ func nonStaticSelfDestructRules(revision tosca.Revision, warm bool, destinationC
 	name := fmt.Sprintf("_%v_%v_%v", strings.ToLower(revision.String()), warmColdString, hasSelfDestructedString)
 
 	instruction := instruction{
-		op:        tosca.SELFDESTRUCT,
+		op:        vm.SELFDESTRUCT,
 		name:      name,
 		staticGas: 5000,
 		pops:      1,
@@ -2372,18 +2373,18 @@ func getRulesForAllCallTypes() []Rule {
 	// NOTE: this rule only covers Istanbul, Berlin and London cases in a coarse-grained way.
 	// Follow-work is required to cover other revisions and situations,
 	// as well as special cases currently covered in the effect function.
-	callFailEffect := func(s *st.State, addrAccessCost tosca.Gas, op tosca.OpCode) {
+	callFailEffect := func(s *st.State, addrAccessCost tosca.Gas, op vm.OpCode) {
 		FailEffect().Apply(s)
 	}
 
 	res := []Rule{}
-	for _, op := range []tosca.OpCode{tosca.CALL, tosca.CALLCODE, tosca.STATICCALL, tosca.DELEGATECALL} {
+	for _, op := range []vm.OpCode{vm.CALL, vm.CALLCODE, vm.STATICCALL, vm.DELEGATECALL} {
 		for rev := tosca.R07_Istanbul; rev <= NewestSupportedRevision; rev++ {
 			for _, warm := range []bool{true, false} {
 				for _, static := range []bool{true, false} {
 					for _, zeroValue := range []bool{true, false} {
 						effect := callEffect
-						if op == tosca.CALL && static && !zeroValue {
+						if op == vm.CALL && static && !zeroValue {
 							effect = callFailEffect
 						}
 						res = append(res, getRulesForCall(op, rev, warm, zeroValue, effect, static)...)
@@ -2396,7 +2397,7 @@ func getRulesForAllCallTypes() []Rule {
 	return res
 }
 
-func getRulesForCall(op tosca.OpCode, revision tosca.Revision, warm, zeroValue bool, opEffect func(s *st.State, addrAccessCost tosca.Gas, op tosca.OpCode), static bool) []Rule {
+func getRulesForCall(op vm.OpCode, revision tosca.Revision, warm, zeroValue bool, opEffect func(s *st.State, addrAccessCost tosca.Gas, op vm.OpCode), static bool) []Rule {
 
 	var staticGas tosca.Gas
 	if revision == tosca.R07_Istanbul {
@@ -2451,7 +2452,7 @@ func getRulesForCall(op tosca.OpCode, revision tosca.Revision, warm, zeroValue b
 	var name string
 	pops := 6
 
-	if op == tosca.CALL || op == tosca.CALLCODE {
+	if op == vm.CALL || op == vm.CALLCODE {
 		parameters = append(parameters, ValueParameter{})
 
 		if zeroValue {
@@ -2491,12 +2492,12 @@ func getRulesForCall(op tosca.OpCode, revision tosca.Revision, warm, zeroValue b
 	})
 }
 
-func callEffect(s *st.State, addrAccessCost tosca.Gas, op tosca.OpCode) {
+func callEffect(s *st.State, addrAccessCost tosca.Gas, op vm.OpCode) {
 
 	gas := s.Stack.Pop()
 	target := s.Stack.Pop()
 	var value U256
-	if op == tosca.CALL || op == tosca.CALLCODE {
+	if op == vm.CALL || op == vm.CALLCODE {
 		value = s.Stack.Pop()
 	}
 
@@ -2525,7 +2526,7 @@ func callEffect(s *st.State, addrAccessCost tosca.Gas, op tosca.OpCode) {
 
 	// If an account is implicitly created, this costs extra.
 	valueToEmptyAccountCost := tosca.Gas(0)
-	if !isValueZero && s.Accounts.IsEmpty(target.Bytes20be()) && op != tosca.CALLCODE {
+	if !isValueZero && s.Accounts.IsEmpty(target.Bytes20be()) && op != vm.CALLCODE {
 		valueToEmptyAccountCost = 25000
 	}
 
@@ -2579,20 +2580,20 @@ func callEffect(s *st.State, addrAccessCost tosca.Gas, op tosca.OpCode) {
 	codeAddress := tosca.Address{}
 	// In a static context all calls are static calls.
 	kind := tosca.Call
-	if op == tosca.DELEGATECALL {
+	if op == vm.DELEGATECALL {
 		kind = tosca.DelegateCall
 		sender = s.CallContext.CallerAddress
 		recipient = s.CallContext.AccountAddress
 		codeAddress = target.Bytes20be()
 		value = s.CallContext.Value
-	} else if op == tosca.CALLCODE {
+	} else if op == vm.CALLCODE {
 		kind = tosca.CallCode
 		sender = s.CallContext.AccountAddress
 		recipient = s.CallContext.AccountAddress
 		codeAddress = target.Bytes20be()
 	}
 
-	if (s.ReadOnly && op == tosca.CALL) || op == tosca.STATICCALL {
+	if (s.ReadOnly && op == vm.CALL) || op == vm.STATICCALL {
 		kind = tosca.StaticCall
 	}
 

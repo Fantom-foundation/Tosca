@@ -17,13 +17,14 @@ import (
 	cc "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestCtAdapter_Add(t *testing.T) {
 	s := st.NewState(st.NewCode([]byte{
-		byte(tosca.PUSH1), 3,
-		byte(tosca.PUSH1), 4,
-		byte(tosca.ADD),
+		byte(vm.PUSH1), 3,
+		byte(vm.PUSH1), 4,
+		byte(vm.ADD),
 	}))
 	s.Status = st.Running
 	s.Revision = tosca.R07_Istanbul
@@ -93,18 +94,18 @@ func TestConvertToLfvm_Pc(t *testing.T) {
 		lfvmPc  uint16
 	}{
 		"empty":        {{}},
-		"pos-0":        {{[]byte{byte(tosca.STOP)}, 0, 0}},
-		"pos-1":        {{[]byte{byte(tosca.STOP), byte(tosca.STOP), byte(tosca.STOP)}, 1, 1}},
-		"one-past-end": {{[]byte{byte(tosca.STOP)}, 1, 1}},
+		"pos-0":        {{[]byte{byte(vm.STOP)}, 0, 0}},
+		"pos-1":        {{[]byte{byte(vm.STOP), byte(vm.STOP), byte(vm.STOP)}, 1, 1}},
+		"one-past-end": {{[]byte{byte(vm.STOP)}, 1, 1}},
 		"shifted": {{[]byte{
-			byte(tosca.PUSH1), 0x01,
-			byte(tosca.PUSH1), 0x02,
-			byte(tosca.ADD)}, 2, 1}},
+			byte(vm.PUSH1), 0x01,
+			byte(vm.PUSH1), 0x02,
+			byte(vm.ADD)}, 2, 1}},
 		"jumpdest": {{[]byte{
-			byte(tosca.PUSH3), 0x00, 0x00, 0x06,
-			byte(tosca.JUMP),
-			byte(tosca.INVALID),
-			byte(tosca.JUMPDEST)},
+			byte(vm.PUSH3), 0x00, 0x00, 0x06,
+			byte(vm.JUMP),
+			byte(vm.INVALID),
+			byte(vm.JUMPDEST)},
 			6, 6}},
 	}
 
@@ -132,29 +133,29 @@ func TestConvertToLfvm_Code(t *testing.T) {
 		lfvmCode Code
 	}{
 		"empty": {{}},
-		"stop":  {{[]byte{byte(tosca.STOP)}, Code{Instruction{STOP, 0x0000}}}},
+		"stop":  {{[]byte{byte(vm.STOP)}, Code{Instruction{STOP, 0x0000}}}},
 		"add": {{[]byte{
-			byte(tosca.PUSH1), 0x01,
-			byte(tosca.PUSH1), 0x02,
-			byte(tosca.ADD)},
+			byte(vm.PUSH1), 0x01,
+			byte(vm.PUSH1), 0x02,
+			byte(vm.ADD)},
 			Code{Instruction{PUSH1, 0x0100},
 				Instruction{PUSH1, 0x0200},
 				Instruction{ADD, 0x0000}}}},
 		"jump": {{[]byte{
-			byte(tosca.PUSH1), 0x04,
-			byte(tosca.JUMP),
-			byte(tosca.INVALID),
-			byte(tosca.JUMPDEST)},
+			byte(vm.PUSH1), 0x04,
+			byte(vm.JUMP),
+			byte(vm.INVALID),
+			byte(vm.JUMPDEST)},
 			Code{Instruction{PUSH1, 0x0400},
 				Instruction{JUMP, 0x0000},
 				Instruction{INVALID, 0x0000},
 				Instruction{JUMP_TO, 0x0004},
 				Instruction{JUMPDEST, 0x0000}}}},
 		"jumpdest": {{[]byte{
-			byte(tosca.PUSH3), 0x00, 0x00, 0x06,
-			byte(tosca.JUMP),
-			byte(tosca.INVALID),
-			byte(tosca.JUMPDEST)},
+			byte(vm.PUSH3), 0x00, 0x00, 0x06,
+			byte(vm.JUMP),
+			byte(vm.INVALID),
+			byte(vm.JUMPDEST)},
 			Code{Instruction{PUSH3, 0x0000},
 				Instruction{DATA, 0x0600},
 				Instruction{JUMP, 0x0000},
@@ -162,10 +163,10 @@ func TestConvertToLfvm_Code(t *testing.T) {
 				Instruction{JUMP_TO, 0x0006},
 				Instruction{NOOP, 0x0000},
 				Instruction{JUMPDEST, 0x0000}}}},
-		"push2": {{[]byte{byte(tosca.PUSH2), 0xBA, 0xAD}, Code{Instruction{PUSH2, 0xBAAD}}}},
-		"push3": {{[]byte{byte(tosca.PUSH3), 0xBA, 0xAD, 0xC0}, Code{Instruction{PUSH3, 0xBAAD}, Instruction{DATA, 0xC000}}}},
+		"push2": {{[]byte{byte(vm.PUSH2), 0xBA, 0xAD}, Code{Instruction{PUSH2, 0xBAAD}}}},
+		"push3": {{[]byte{byte(vm.PUSH3), 0xBA, 0xAD, 0xC0}, Code{Instruction{PUSH3, 0xBAAD}, Instruction{DATA, 0xC000}}}},
 		"push31": {{[]byte{
-			byte(tosca.PUSH31),
+			byte(vm.PUSH31),
 			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
 			0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F},
 			Code{Instruction{PUSH31, 0x0102},
@@ -185,7 +186,7 @@ func TestConvertToLfvm_Code(t *testing.T) {
 				Instruction{DATA, 0x1D1E},
 				Instruction{DATA, 0x1F00}}}},
 		"push32": {{[]byte{
-			byte(tosca.PUSH32),
+			byte(vm.PUSH32),
 			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
 			0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0xFF},
 			Code{Instruction{PUSH32, 0x0102},
@@ -204,7 +205,7 @@ func TestConvertToLfvm_Code(t *testing.T) {
 				Instruction{DATA, 0x1B1C},
 				Instruction{DATA, 0x1D1E},
 				Instruction{DATA, 0x1FFF}}}},
-		"invalid": {{[]byte{byte(tosca.INVALID)}, Code{Instruction{INVALID, 0x0000}}}},
+		"invalid": {{[]byte{byte(vm.INVALID)}, Code{Instruction{INVALID, 0x0000}}}},
 	}
 
 	for name, test := range tests {
@@ -290,18 +291,18 @@ func TestConvertToCt_Pc(t *testing.T) {
 		evmPc   uint16
 	}{
 		"empty":        {{}},
-		"pos-0":        {{[]byte{byte(tosca.STOP)}, 0, 0}},
-		"pos-1":        {{[]byte{byte(tosca.STOP), byte(tosca.STOP), byte(tosca.STOP)}, 1, 1}},
-		"one-past-end": {{[]byte{byte(tosca.STOP)}, 1, 1}},
+		"pos-0":        {{[]byte{byte(vm.STOP)}, 0, 0}},
+		"pos-1":        {{[]byte{byte(vm.STOP), byte(vm.STOP), byte(vm.STOP)}, 1, 1}},
+		"one-past-end": {{[]byte{byte(vm.STOP)}, 1, 1}},
 		"shifted": {{[]byte{
-			byte(tosca.PUSH1), 0x01,
-			byte(tosca.PUSH1), 0x02,
-			byte(tosca.ADD)}, 1, 2}},
+			byte(vm.PUSH1), 0x01,
+			byte(vm.PUSH1), 0x02,
+			byte(vm.ADD)}, 1, 2}},
 		"jumpdest": {{[]byte{
-			byte(tosca.PUSH3), 0x00, 0x00, 0x06,
-			byte(tosca.JUMP),
-			byte(tosca.INVALID),
-			byte(tosca.JUMPDEST)},
+			byte(vm.PUSH3), 0x00, 0x00, 0x06,
+			byte(vm.JUMP),
+			byte(vm.INVALID),
+			byte(vm.JUMPDEST)},
 			6, 6}},
 	}
 

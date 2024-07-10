@@ -20,7 +20,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 // CodeGenerator is a utility class for generating Codes. See StateGenerator for
@@ -37,12 +37,12 @@ type CodeGenerator struct {
 
 type constOpConstraint struct {
 	pos int
-	op  tosca.OpCode
+	op  vm.OpCode
 }
 
 type varOpConstraint struct {
 	variable Variable
-	op       tosca.OpCode
+	op       vm.OpCode
 }
 
 type varIsCodeConstraint struct {
@@ -58,12 +58,12 @@ func NewCodeGenerator() *CodeGenerator {
 }
 
 // SetOperation fixes an operation to be placed at a given offset.
-func (g *CodeGenerator) SetOperation(pos int, op tosca.OpCode) {
+func (g *CodeGenerator) SetOperation(pos int, op vm.OpCode) {
 	g.constOps = append(g.constOps, constOpConstraint{pos: pos, op: op})
 }
 
 // AddOperation adds a constraint placing an operation at a variable position.
-func (g *CodeGenerator) AddOperation(v Variable, op tosca.OpCode) {
+func (g *CodeGenerator) AddOperation(v Variable, op vm.OpCode) {
 	g.varOps = append(g.varOps, varOpConstraint{variable: v, op: op})
 }
 
@@ -111,14 +111,14 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 	// constraints.
 	for _, constraint := range varOps {
 		size := 1
-		if tosca.PUSH1 <= constraint.op && constraint.op <= tosca.PUSH32 {
-			size += int(constraint.op - tosca.PUSH1 + 1)
+		if vm.PUSH1 <= constraint.op && constraint.op <= vm.PUSH32 {
+			size += int(constraint.op - vm.PUSH1 + 1)
 		}
 		minSize += size
 	}
 
 	// Make enough space to host all the different opCodes used in condition.
-	opCount := make(map[tosca.OpCode]bool)
+	opCount := make(map[vm.OpCode]bool)
 	for _, constraint := range varOps {
 		opCount[constraint.op] = true
 	}
@@ -187,7 +187,7 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 	// Build random code incrementally.
 	for i := 0; i < size; i++ {
 		// Pick the next operation.
-		op := tosca.INVALID
+		op := vm.INVALID
 		nextFixedPosition := ops[0].pos
 		if nextFixedPosition < i {
 			return nil, fmt.Errorf(
@@ -200,13 +200,13 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 			ops = ops[1:]
 		} else {
 			// Pick a random operation, but make sure to not overshoot to next position.
-			limit := tosca.PUSH32
+			limit := vm.PUSH32
 			if maxDataSize := nextFixedPosition - i - 1; maxDataSize < 32 {
-				limit = tosca.OpCode(int(tosca.PUSH1) + maxDataSize - 1)
+				limit = vm.OpCode(int(vm.PUSH1) + maxDataSize - 1)
 			}
 
-			op = tosca.OpCode(rnd.Int())
-			if limit < op && op <= tosca.PUSH32 {
+			op = vm.OpCode(rnd.Int())
+			if limit < op && op <= vm.PUSH32 {
 				op = limit
 			}
 		}
@@ -220,8 +220,8 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 		}
 
 		// Fill data if needed and continue with the rest.
-		if tosca.PUSH1 <= op && op <= tosca.PUSH32 {
-			width := int(op - tosca.PUSH1 + 1)
+		if vm.PUSH1 <= op && op <= vm.PUSH32 {
+			width := int(op - vm.PUSH1 + 1)
 			end := i + 1 + width
 			if end > len(code) {
 				end = len(code)
@@ -358,7 +358,7 @@ func (s *varCodeConstraintSolver) solve(
 	return s.ops, nil
 }
 
-func (s *varCodeConstraintSolver) markUsed(pos int, op tosca.OpCode) {
+func (s *varCodeConstraintSolver) markUsed(pos int, op vm.OpCode) {
 	s.usedPositions[pos] = isCode
 	for i := 1; i <= op.Width()-1; i++ {
 		s.usedPositions[pos+i] = isData
@@ -366,7 +366,7 @@ func (s *varCodeConstraintSolver) markUsed(pos int, op tosca.OpCode) {
 }
 
 // fits returns true iff the op can be placed at pos.
-func (s *varCodeConstraintSolver) fits(pos int, op tosca.OpCode) bool {
+func (s *varCodeConstraintSolver) fits(pos int, op vm.OpCode) bool {
 	if op.Width() > s.codeSize-pos {
 		return false
 	}
@@ -397,7 +397,7 @@ func (s *varCodeConstraintSolver) assign(v Variable, pos int) {
 }
 
 func (solver *varCodeConstraintSolver) solveVarOps(varOps []varOpConstraint) error {
-	boundVariables := make(map[Variable]tosca.OpCode)
+	boundVariables := make(map[Variable]vm.OpCode)
 	for _, cur := range varOps {
 		if op, found := boundVariables[cur.variable]; found {
 			if op != cur.op {
@@ -459,7 +459,7 @@ func (solver *varCodeConstraintSolver) solveIsCode(varIsCodeConstraints []varIsC
 
 		if solver.usedPositions[pos] == isUnused {
 			// Pick a random op and lock it in.
-			randomOps := tosca.ValidOpCodesNoPush()
+			randomOps := vm.ValidOpCodesNoPush()
 			op := randomOps[solver.rnd.Intn(len(randomOps))]
 			solver.markUsed(pos, op)
 			solver.ops = append(solver.ops, constOpConstraint{pos, op})
@@ -484,7 +484,7 @@ func (solver *varCodeConstraintSolver) solveIsData(varIsDataConstraints []varIsD
 		// unused slot, or use a slot with data in it.
 		pos := int(solver.rnd.Int31n(int32(solver.codeSize)))
 		startPos := pos
-		pushOp := tosca.PUSH1
+		pushOp := vm.PUSH1
 
 		for {
 			if solver.usedPositions[pos] == isData {
@@ -494,7 +494,7 @@ func (solver *varCodeConstraintSolver) solveIsData(varIsDataConstraints []varIsD
 			if solver.usedPositions[pos] == isUnused {
 				// Pick a random PUSH op that fits here, if one fits at all.
 				if largestFit := solver.largestFit(pos); largestFit >= 2 {
-					pushOp = tosca.OpCode(int(tosca.PUSH1) + solver.rnd.Intn(largestFit-1))
+					pushOp = vm.OpCode(int(vm.PUSH1) + solver.rnd.Intn(largestFit-1))
 					break // picked one
 				}
 			}
@@ -514,7 +514,7 @@ func (solver *varCodeConstraintSolver) solveIsData(varIsDataConstraints []varIsD
 			solver.ops = append(solver.ops, constOpConstraint{pos, pushOp})
 
 			// pick some data byte for the variable's value
-			pos = pos + 1 + solver.rnd.Intn(int(pushOp-tosca.PUSH1)+1)
+			pos = pos + 1 + solver.rnd.Intn(int(pushOp-vm.PUSH1)+1)
 
 		}
 

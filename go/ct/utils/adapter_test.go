@@ -17,6 +17,7 @@ import (
 	cc "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -225,12 +226,12 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"getCode": {
 			func(s *st.State) {
 				ab := st.NewAccountsBuilder()
-				ab.SetCode(tosca.Address{1}, cc.NewBytes([]byte{byte(tosca.ADD), byte(tosca.SUB)}))
+				ab.SetCode(tosca.Address{1}, cc.NewBytes([]byte{byte(vm.ADD), byte(vm.SUB)}))
 				s.Accounts = ab.Build()
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
-				return tosca.Code{byte(tosca.ADD), byte(tosca.SUB)}, ctxt.GetCode(tosca.Address{1})
+				return tosca.Code{byte(vm.ADD), byte(vm.SUB)}, ctxt.GetCode(tosca.Address{1})
 			},
 		},
 		"getCodeHash-emptyHash": {
@@ -251,7 +252,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"getCodeHash": {
 			func(s *st.State) {
 				ab := st.NewAccountsBuilder()
-				ab.SetCode(tosca.Address{1}, cc.NewBytes([]byte{byte(tosca.ADD), byte(tosca.SUB)}))
+				ab.SetCode(tosca.Address{1}, cc.NewBytes([]byte{byte(vm.ADD), byte(vm.SUB)}))
 				s.Accounts = ab.Build()
 			},
 			func(p tosca.Parameters) (any, any) {
@@ -259,7 +260,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 
 				var hash [32]byte
 				hasher := sha3.NewLegacyKeccak256()
-				hasher.Write([]byte{byte(tosca.ADD), byte(tosca.SUB)})
+				hasher.Write([]byte{byte(vm.ADD), byte(vm.SUB)})
 				hasher.Sum(hash[:])
 
 				return tosca.Hash(hash), ctxt.GetCodeHash(tosca.Address{1})
@@ -277,7 +278,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 		"getCodeSize": {
 			func(s *st.State) {
 				ab := st.NewAccountsBuilder()
-				ab.SetCode(tosca.Address{1}, cc.NewBytes([]byte{byte(tosca.ADD), byte(tosca.SUB)}))
+				ab.SetCode(tosca.Address{1}, cc.NewBytes([]byte{byte(vm.ADD), byte(vm.SUB)}))
 				s.Accounts = ab.Build()
 			},
 			func(p tosca.Parameters) (any, any) {

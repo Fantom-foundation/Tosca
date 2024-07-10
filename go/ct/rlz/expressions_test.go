@@ -21,6 +21,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestExpression_StatusEval(t *testing.T) {
@@ -222,22 +223,22 @@ func TestExpression_GasRefundRestrict(t *testing.T) {
 }
 
 func TestExpression_OpEval(t *testing.T) {
-	state := st.NewState(st.NewCode([]byte{byte(tosca.STOP), byte(tosca.STOP), byte(tosca.ADD)}))
+	state := st.NewState(st.NewCode([]byte{byte(vm.STOP), byte(vm.STOP), byte(vm.ADD)}))
 	state.Pc = 2
-	if op, err := Op(Pc()).Eval(state); err != nil || op != tosca.ADD {
+	if op, err := Op(Pc()).Eval(state); err != nil || op != vm.ADD {
 		t.Fail()
 	}
 }
 
 func TestExpression_OpRestrict(t *testing.T) {
 	generator := gen.NewStateGenerator()
-	Op(Pc()).Restrict(RestrictEqual, tosca.ADD, generator)
+	Op(Pc()).Restrict(RestrictEqual, vm.ADD, generator)
 
 	state, err := generator.Generate(rand.New(0))
 	if err != nil {
 		t.Errorf("State generation failed %v", err)
 	}
-	if op, err := state.Code.GetOperation(int(state.Pc)); err != nil || op != tosca.ADD {
+	if op, err := state.Code.GetOperation(int(state.Pc)); err != nil || op != vm.ADD {
 		t.Errorf("Generator was not restricted by expression")
 	}
 }
