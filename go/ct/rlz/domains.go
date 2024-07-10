@@ -52,6 +52,21 @@ func (boolDomain) SamplesForAll(_ []bool) []bool {
 }
 
 ////////////////////////////////////////////////////////////
+// readOnlyDomain
+
+type readOnlyDomain struct {
+	boolDomain
+}
+
+func (readOnlyDomain) Samples(value bool) []bool {
+	return []bool{value}
+}
+
+func (readOnlyDomain) SamplesForAll(values []bool) []bool {
+	return values
+}
+
+////////////////////////////////////////////////////////////
 // uint16
 
 type uint16Domain struct{}

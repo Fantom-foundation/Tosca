@@ -14,6 +14,7 @@ package spc
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -2342,13 +2343,16 @@ func rulesFor(i instruction) []Rule {
 		res = append(res, notEnoughSpace(i)...)
 	}
 	localConditions := append(i.conditions,
-		AnyKnownRevision(),
 		Eq(Status(), st.Running),
 		Eq(Op(Pc()), i.op),
 		Ge(Gas(), i.staticGas),
 		Ge(StackSize(), i.pops),
 		Le(StackSize(), st.MaxStackSize-(max(i.pushes-i.pops, 0))),
 	)
+
+	if !slices.ContainsFunc(i.conditions, IsRevisionCondition) {
+		localConditions = append(localConditions, AnyKnownRevision())
+	}
 
 	res = append(res, Rule{
 		Name:      fmt.Sprintf("%s_regular%v", strings.ToLower(i.op.String()), i.name),
@@ -2436,11 +2440,11 @@ func getRulesForCall(op OpCode, revision tosca.Revision, warm, zeroValue bool, o
 		AddressParameter{},
 	}
 
-	callConditions := And(
+	callConditions := []Condition{
 		IsRevision(revision),
 		targetWarm,
 		staticCondition,
-	)
+	}
 
 	var valueZeroCondition Condition
 	var valueZeroConditionName string
@@ -2458,7 +2462,7 @@ func getRulesForCall(op OpCode, revision tosca.Revision, warm, zeroValue bool, o
 			valueZeroCondition = Ne(ValueParam(2), NewU256(0))
 		}
 
-		callConditions = And(callConditions, valueZeroCondition)
+		callConditions = append(callConditions, valueZeroCondition)
 
 		pops = 7
 	}
@@ -2479,7 +2483,7 @@ func getRulesForCall(op OpCode, revision tosca.Revision, warm, zeroValue bool, o
 		staticGas:  staticGas,
 		pops:       pops,
 		pushes:     1,
-		conditions: []Condition{callConditions},
+		conditions: callConditions,
 		parameters: parameters,
 		effect: func(s *st.State) {
 			opEffect(s, addressAccessCost, op)

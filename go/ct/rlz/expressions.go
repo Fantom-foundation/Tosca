@@ -205,7 +205,7 @@ func ReadOnly() Expression[bool] {
 
 func (readOnly) Property() Property { return Property("readOnly") }
 
-func (readOnly) Domain() Domain[bool] { return boolDomain{} }
+func (readOnly) Domain() Domain[bool] { return readOnlyDomain{} }
 
 func (readOnly) Eval(s *st.State) (bool, error) {
 	return s.ReadOnly, nil
