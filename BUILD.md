@@ -261,6 +261,8 @@ In VSCode, line by line coverage can be visualized using the extension [gcov-vie
 ## Fuzzing
 
 Go provides fuzzing support through its standard library. Fuzzing attempts to find bugs by mutating a test input data set and measuring test coverage. This complementary technique aims to identify stability issues.			 
+More about writing and maintaining fuzzing tests [in the docs](docs/fuzzing.md)
+
 
 ### Fuzzing Evm.StepN interface
 
