@@ -86,10 +86,7 @@ func opDup2_Mstore(c *context) {
 	var addr = c.stack.peek()
 
 	offset := addr.Uint64()
-	if c.memory.EnsureCapacity(offset, 32, c) != nil {
-		return
-	}
-	if err := c.memory.SetWord(offset, value); err != nil {
+	if err := c.memory.SetWord(offset, value, c); err != nil {
 		c.SignalError(err)
 	}
 }

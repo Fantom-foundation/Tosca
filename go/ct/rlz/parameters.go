@@ -81,8 +81,7 @@ var memoryOffsetForCopyParameter = []U256{
 	NewU256(0),
 	NewU256(1),
 	NewU256(32),
-	NewU256(24576),
-	NewU256(math.MaxInt64),
+	NewU256(2 * 24576),
 	NewU256(1, 0),
 }
 

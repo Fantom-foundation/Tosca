@@ -98,7 +98,7 @@ func (m *Memory) EnsureCapacity(offset, size uint64, c *context) error {
 	return nil
 }
 
-func (m *Memory) EnsureCapacityWithoutGas(size uint64, c *context) {
+func (m *Memory) EnsureCapacityWithoutGas(size uint64) {
 	if size <= 0 {
 		return
 	}
@@ -114,7 +114,12 @@ func (m *Memory) Len() uint64 {
 	return uint64(len(m.store))
 }
 
-func (m *Memory) SetByte(offset uint64, value byte) error {
+func (m *Memory) SetByte(offset uint64, value byte, c *context) error {
+	err := m.EnsureCapacity(offset, 1, c)
+	if err != nil {
+		return err
+	}
+
 	if m.Len() < offset+1 {
 		return fmt.Errorf("memory too small, size %d, attempted to write at position %d", m.Len(), offset)
 	}
@@ -122,7 +127,12 @@ func (m *Memory) SetByte(offset uint64, value byte) error {
 	return nil
 }
 
-func (m *Memory) SetWord(offset uint64, value *uint256.Int) error {
+func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
+	err := m.EnsureCapacity(offset, 32, c)
+	if err != nil {
+		return err
+	}
+
 	if m.Len() < offset+32 {
 		return fmt.Errorf("memory too small, size %d, attempted to write 32 byte at position %d", m.Len(), offset)
 	}
@@ -180,7 +190,37 @@ func (m *Memory) Set(offset, size uint64, value []byte) error {
 	return nil
 }
 
-func (m *Memory) CopyWord(offset uint64, trg *uint256.Int) error {
+func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c *context) error {
+	err := m.EnsureCapacity(offset, size, c)
+	if err != nil {
+		return err
+	}
+	err = m.Set(offset, size, value)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Memory) SetWithCapacityCheck(offset, size uint64, value []byte) error {
+	m.EnsureCapacityWithoutGas(size)
+	if size > 0 {
+		if offset+size < offset {
+			return errGasUintOverflow
+		}
+		if offset+size > m.Len() {
+			return fmt.Errorf("memory too small, size %d, attempted to write %d bytes at %d", m.Len(), size, offset)
+		}
+		copy(m.store[offset:offset+size], value)
+	}
+	return nil
+}
+
+func (m *Memory) CopyWord(offset uint64, trg *uint256.Int, c *context) error {
+	err := m.EnsureCapacity(offset, 32, c)
+	if err != nil {
+		return err
+	}
 	if m.Len() < offset+32 {
 		return fmt.Errorf("memory too small, size %d, attempted to read 32 byte at position %d", m.Len(), offset)
 	}
@@ -214,6 +254,19 @@ func (m *Memory) GetSlice(offset, size uint64) []byte {
 	}
 
 	return nil
+}
+
+func (m *Memory) GetSliceWithCapacityAndGas(offset, size uint64, c *context) ([]byte, error) {
+	err := m.EnsureCapacity(offset, size, c)
+	if err != nil {
+		return nil, err
+	}
+	return m.GetSlice(offset, size), nil
+}
+
+func (m *Memory) GetSliceWithCapacity(offset, size uint64) []byte {
+	m.EnsureCapacityWithoutGas(size)
+	return m.GetSlice(offset, size)
 }
 
 func (m *Memory) Data() []byte {
