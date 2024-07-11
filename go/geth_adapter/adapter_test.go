@@ -34,23 +34,23 @@ func TestRunContextAdapter_SetBalanceHasCorrectEffect(t *testing.T) {
 	}{
 		{},
 		{
-			before: tosca.ValueFromUint64(10),
-			after:  tosca.ValueFromUint64(10),
+			before: tosca.NewValue(10),
+			after:  tosca.NewValue(10),
 		},
 		{
-			before: tosca.ValueFromUint64(0),
-			after:  tosca.ValueFromUint64(1),
-			add:    tosca.ValueFromUint64(1),
+			before: tosca.NewValue(0),
+			after:  tosca.NewValue(1),
+			add:    tosca.NewValue(1),
 		},
 		{
-			before: tosca.ValueFromUint64(1),
-			after:  tosca.ValueFromUint64(0),
-			sub:    tosca.ValueFromUint64(1),
+			before: tosca.NewValue(1),
+			after:  tosca.NewValue(0),
+			sub:    tosca.NewValue(1),
 		},
 		{
-			before: tosca.ValueFromUint64(123),
-			after:  tosca.ValueFromUint64(321),
-			add:    tosca.ValueFromUint64(321 - 123),
+			before: tosca.NewValue(123),
+			after:  tosca.NewValue(321),
+			add:    tosca.NewValue(321 - 123),
 		},
 	}
 

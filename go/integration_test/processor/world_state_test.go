@@ -63,8 +63,8 @@ func TestWorldState_Clone(t *testing.T) {
 		},
 		"multiple": {
 			a: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(100)},
-				{2}: Account{Balance: tosca.ValueFromUint64(200)},
+				{1}: Account{Balance: tosca.NewValue(100)},
+				{2}: Account{Balance: tosca.NewValue(200)},
 			},
 		},
 	}
@@ -107,17 +107,17 @@ func TestWorldState_Diff(t *testing.T) {
 			b: WorldState{},
 		},
 		"different_accounts": {
-			a:        WorldState{{1}: Account{Balance: tosca.ValueFromUint64(100)}},
-			b:        WorldState{{1}: Account{Balance: tosca.ValueFromUint64(200)}},
+			a:        WorldState{{1}: Account{Balance: tosca.NewValue(100)}},
+			b:        WorldState{{1}: Account{Balance: tosca.NewValue(200)}},
 			expected: []string{"0x0100000000000000000000000000000000000000/different balance: 100 != 200"},
 		},
 		"extra_accounts": {
 			a: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(100)},
+				{1}: Account{Balance: tosca.NewValue(100)},
 			},
 			b: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(100)},
-				{2}: Account{Balance: tosca.ValueFromUint64(200)},
+				{1}: Account{Balance: tosca.NewValue(100)},
+				{2}: Account{Balance: tosca.NewValue(200)},
 			},
 			expected: []string{"0x0200000000000000000000000000000000000000/different balance: 0 != 200"},
 		},
@@ -144,7 +144,7 @@ func TestAccount_Equal(t *testing.T) {
 		"both_zero": {},
 		"identical_non_zero": {
 			a: Account{
-				Balance: tosca.ValueFromUint64(100),
+				Balance: tosca.NewValue(100),
 				Nonce:   4,
 				Code:    tosca.Code{byte(op.STOP)},
 				Storage: map[tosca.Key]tosca.Word{
@@ -153,7 +153,7 @@ func TestAccount_Equal(t *testing.T) {
 				},
 			},
 			b: Account{
-				Balance: tosca.ValueFromUint64(100),
+				Balance: tosca.NewValue(100),
 				Nonce:   4,
 				Code:    tosca.Code{byte(op.STOP)},
 				Storage: map[tosca.Key]tosca.Word{
@@ -186,8 +186,8 @@ func TestAccount_NotEqual(t *testing.T) {
 		a, b Account
 	}{
 		"different_balance": {
-			a: Account{Balance: tosca.ValueFromUint64(100)},
-			b: Account{Balance: tosca.ValueFromUint64(200)},
+			a: Account{Balance: tosca.NewValue(100)},
+			b: Account{Balance: tosca.NewValue(200)},
 		},
 		"different_nonce": {
 			a: Account{Nonce: 4},
@@ -219,7 +219,7 @@ func TestAccount_Clone(t *testing.T) {
 		"empty": {},
 		"non_empty": {
 			a: Account{
-				Balance: tosca.ValueFromUint64(100),
+				Balance: tosca.NewValue(100),
 				Nonce:   4,
 				Code:    tosca.Code{byte(op.STOP)},
 				Storage: map[tosca.Key]tosca.Word{
@@ -252,8 +252,8 @@ func TestAccount_Diff(t *testing.T) {
 			b: Account{},
 		},
 		"different_balance": {
-			a:        Account{Balance: tosca.ValueFromUint64(100)},
-			b:        Account{Balance: tosca.ValueFromUint64(200)},
+			a:        Account{Balance: tosca.NewValue(100)},
+			b:        Account{Balance: tosca.NewValue(200)},
 			expected: []string{"different balance: 100 != 200"},
 		},
 		"different_nonce": {
@@ -273,8 +273,8 @@ func TestAccount_Diff(t *testing.T) {
 		},
 		"different_balance_with_prefix": {
 			prefix:   "myContext/",
-			a:        Account{Balance: tosca.ValueFromUint64(100)},
-			b:        Account{Balance: tosca.ValueFromUint64(200)},
+			a:        Account{Balance: tosca.NewValue(100)},
+			b:        Account{Balance: tosca.NewValue(200)},
 			expected: []string{"myContext/different balance: 100 != 200"},
 		},
 	}

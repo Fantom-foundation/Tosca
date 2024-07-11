@@ -41,18 +41,18 @@ func getScenarios() map[string]Scenario {
 	return map[string]Scenario{
 		"SuccessfulValueTransfer": {
 			Before: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(100), Nonce: 4},
+				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
 			},
 			Transaction: tosca.Transaction{
 				Sender:    tosca.Address{1},
 				Recipient: &tosca.Address{2},
 				GasLimit:  21_000,
-				Value:     tosca.ValueFromUint64(3),
+				Value:     tosca.NewValue(3),
 				Nonce:     4,
 			},
 			After: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(97), Nonce: 5},
-				{2}: Account{Balance: tosca.ValueFromUint64(3)},
+				{1}: Account{Balance: tosca.NewValue(97), Nonce: 5},
+				{2}: Account{Balance: tosca.NewValue(3)},
 			},
 			Receipt: tosca.Receipt{
 				Success: true,
@@ -61,17 +61,17 @@ func getScenarios() map[string]Scenario {
 		},
 		"FailedValueTransfer": {
 			Before: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(10), Nonce: 4},
+				{1}: Account{Balance: tosca.NewValue(10), Nonce: 4},
 			},
 			Transaction: tosca.Transaction{
 				Sender:    tosca.Address{1},
 				Recipient: &tosca.Address{2},
 				GasLimit:  21_000,
-				Value:     tosca.ValueFromUint64(20),
+				Value:     tosca.NewValue(20),
 				Nonce:     4,
 			},
 			After: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(10), Nonce: 5},
+				{1}: Account{Balance: tosca.NewValue(10), Nonce: 5},
 			},
 			Receipt: tosca.Receipt{
 				Success: false,
@@ -80,8 +80,8 @@ func getScenarios() map[string]Scenario {
 		},
 		"SuccessfulContractCall": {
 			Before: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(100), Nonce: 4},
-				{2}: Account{Balance: tosca.ValueFromUint64(0),
+				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
+				{2}: Account{Balance: tosca.NewValue(0),
 					Code: tosca.Code{
 						byte(op.PUSH1), byte(0), // < push 0
 						byte(op.PUSH1), byte(0), // < push 0
@@ -93,12 +93,12 @@ func getScenarios() map[string]Scenario {
 				Sender:    tosca.Address{1},
 				Recipient: &tosca.Address{2},
 				GasLimit:  21_000 + 2*3, // < value transfer + 2 push instructions (return is free)
-				Value:     tosca.ValueFromUint64(3),
+				Value:     tosca.NewValue(3),
 				Nonce:     4,
 			},
 			After: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(97), Nonce: 5},
-				{2}: Account{Balance: tosca.ValueFromUint64(3),
+				{1}: Account{Balance: tosca.NewValue(97), Nonce: 5},
+				{2}: Account{Balance: tosca.NewValue(3),
 					Code: tosca.Code{
 						byte(op.PUSH1), byte(0), // < push 0
 						byte(op.PUSH1), byte(0), // < push 0
@@ -113,8 +113,8 @@ func getScenarios() map[string]Scenario {
 		},
 		"RevertingContractCall": {
 			Before: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(100), Nonce: 4},
-				{2}: Account{Balance: tosca.ValueFromUint64(0),
+				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
+				{2}: Account{Balance: tosca.NewValue(0),
 					Code: tosca.Code{
 						byte(op.PUSH1), byte(0), // < push 0
 						byte(op.PUSH1), byte(0), // < push 0
@@ -126,12 +126,12 @@ func getScenarios() map[string]Scenario {
 				Sender:    tosca.Address{1},
 				Recipient: &tosca.Address{2},
 				GasLimit:  21_000 + 2*3, // < value transfer + 2 push instructions (return is free)
-				Value:     tosca.ValueFromUint64(3),
+				Value:     tosca.NewValue(3),
 				Nonce:     4,
 			},
 			After: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(100), Nonce: 5},
-				{2}: Account{Balance: tosca.ValueFromUint64(0),
+				{1}: Account{Balance: tosca.NewValue(100), Nonce: 5},
+				{2}: Account{Balance: tosca.NewValue(0),
 					Code: tosca.Code{
 						byte(op.PUSH1), byte(0), // < push 0
 						byte(op.PUSH1), byte(0), // < push 0
@@ -147,18 +147,18 @@ func getScenarios() map[string]Scenario {
 
 		"SuccessfulContractCreation": {
 			Before: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(100), Nonce: 4},
+				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
 			},
 			Transaction: tosca.Transaction{
 				Sender:   tosca.Address{1},
 				GasLimit: 53_000,
-				Value:    tosca.ValueFromUint64(3),
+				Value:    tosca.NewValue(3),
 				Nonce:    4,
 			},
 			After: WorldState{
-				{1}: Account{Balance: tosca.ValueFromUint64(97), Nonce: 5},
+				{1}: Account{Balance: tosca.NewValue(97), Nonce: 5},
 				createdAddress: Account{
-					Balance: tosca.ValueFromUint64(3),
+					Balance: tosca.NewValue(3),
 					Nonce:   1,
 					Code:    tosca.Code{},
 				},
