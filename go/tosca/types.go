@@ -121,10 +121,6 @@ func (v Value) Scale(s uint64) Value {
 	return ValueFromUint256(new(uint256.Int).Mul(v.ToUint256(), sU256))
 }
 
-func Mul(a, b Value) Value {
-	return ValueFromUint256(new(uint256.Int).Mul(a.ToUint256(), b.ToUint256()))
-}
-
 func (v Value) MarshalText() ([]byte, error) {
 	return bytesToText(v[:])
 }
