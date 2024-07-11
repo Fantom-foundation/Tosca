@@ -83,9 +83,24 @@ func (m *Memory) Grow(offset, size uint64) {
 	}
 }
 
+const (
+	// Maximum memory size allowed
+	// This is the maximum value that, when squared, does not produce an overflow.
+	// This number comes from 'core/vm/gas_table.go' 'memoryGasCost' in geth
+	maxMemoryExpansionSize = 0x1FFFFFFFE0
+)
+
 // ExpansionCosts calculates the expansion costs for the given offset and size.
 // It does not grow memory. It also returns offset and size converted to uint64.
 func (m *Memory) ExpansionCosts(offset_u256, size_u256 U256) (memCost tosca.Gas, offset, size uint64) {
+	// static assert
+	const (
+		// Memory expansion cost is done using unsigned arithmetic,
+		// check for the maximum memory expansion size, not overflowing int64 after computing costs
+		maxInWords uint64 = (uint64(maxMemoryExpansionSize) + 31) / 32
+		_                 = int64(maxInWords*maxInWords/512 + 3*maxInWords)
+	)
+
 	if !size_u256.IsUint64() {
 		return math.MaxInt64, 0, 0
 	}
@@ -111,6 +126,12 @@ func (m *Memory) ExpansionCosts(offset_u256, size_u256 U256) (memCost tosca.Gas,
 		memCost = 0
 		return
 	}
+
+	if newSize > maxMemoryExpansionSize {
+		memCost = MaxGas
+		return
+	}
+
 	calcMemoryCost := func(size uint64) tosca.Gas {
 		memorySizeWord := size / 32
 		if size%32 != 0 {
@@ -118,6 +139,7 @@ func (m *Memory) ExpansionCosts(offset_u256, size_u256 U256) (memCost tosca.Gas,
 		}
 		return tosca.Gas((memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord))
 	}
+
 	memCost = calcMemoryCost(newSize) - calcMemoryCost(uint64(m.Size()))
 	return
 }
