@@ -640,7 +640,10 @@ func BenchmarkCondition_IsAddressWarmCheckWarm(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		condition.Check(state)
+		_, err := condition.Check(state)
+		if err != nil {
+			b.Fatalf("invalid benchmark, check returned error %v", err)
+		}
 	}
 }
 
@@ -652,6 +655,9 @@ func BenchmarkCondition_IsAddressWarmCheckCold(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		condition.Check(state)
+		_, err := condition.Check(state)
+		if err != nil {
+			b.Fatalf("invalid benchmark, check returned error %v", err)
+		}
 	}
 }
