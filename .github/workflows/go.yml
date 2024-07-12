@@ -28,7 +28,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
 
@@ -46,6 +46,9 @@ jobs:
     - name: Check Go sources formatting
       working-directory: ./
       run: diff=`gofmt -s -d ./go`; echo "$diff"; test -z "$diff"
+
+    - name: Go Vet static analysis
+      run: go vet ./go/...
 
     - name: Build
       run: make tosca-go
