@@ -570,10 +570,6 @@ func bigIntToWord(value *big.Int) (tosca.Word, error) {
 	return tosca.Word(res), err
 }
 
-func valueToBigInt(value tosca.Value) *big.Int {
-	return new(big.Int).SetBytes(value[:])
-}
-
 func isPrecompiledContract(recipient tosca.Address) bool {
 	// the addresses 1-9 are precompiled contracts
 	for i := 0; i < 18; i++ {
