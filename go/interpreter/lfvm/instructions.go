@@ -378,7 +378,11 @@ func opCallDataCopy(c *context) {
 		return
 	}
 
-	if err := c.memory.SetWithCapacityAndGasCheck(memOffset64, length64, getData(c.params.Input, dataOffset64, length64), c); err != nil {
+	if c.memory.EnsureCapacity(memOffset64, length64, c) != nil {
+		return
+	}
+
+	if err := c.memory.Set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64)); err != nil {
 		c.SignalError(err)
 	}
 }
