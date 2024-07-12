@@ -102,6 +102,13 @@ type scenarioContext struct {
 	undo     []func()
 }
 
+func NewScenarioContext() *scenarioContext {
+	return &scenarioContext{
+		original: WorldState{},
+		current:  WorldState{},
+	}
+}
+
 func newScenarioContext(initial WorldState) *scenarioContext {
 	return &scenarioContext{
 		original: initial,

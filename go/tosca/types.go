@@ -116,6 +116,11 @@ func Sub(a, b Value) (z Value) {
 	return z
 }
 
+func (v Value) Scale(s uint64) Value {
+	sU256 := new(uint256.Int).SetUint64(s)
+	return ValueFromUint256(new(uint256.Int).Mul(v.ToUint256(), sU256))
+}
+
 func (v Value) MarshalText() ([]byte, error) {
 	return bytesToText(v[:])
 }

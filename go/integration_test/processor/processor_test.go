@@ -19,7 +19,8 @@ import (
 	op "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	_ "github.com/Fantom-foundation/Tosca/go/processor/opera" // < registers opera processor for testing
+	_ "github.com/Fantom-foundation/Tosca/go/processor/floria" // < registers floria processor for testing
+	_ "github.com/Fantom-foundation/Tosca/go/processor/opera"  // < registers opera processor for testing
 )
 
 // This file contains a few initial shake-down tests or a Processor implementation.
@@ -38,7 +39,7 @@ func getScenarios() map[string]Scenario {
 	// TODO: improve organization of test scenarios
 
 	createdAddress := tosca.Address(crypto.CreateAddress(common.Address{1}, 4))
-	return map[string]Scenario{
+	allTestCases := map[string]Scenario{
 		"SuccessfulValueTransfer": {
 			Before: WorldState{
 				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
@@ -144,7 +145,6 @@ func getScenarios() map[string]Scenario {
 				GasUsed: 21_000 + 2*3,
 			},
 		},
-
 		"SuccessfulContractCreation": {
 			Before: WorldState{
 				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
@@ -170,6 +170,15 @@ func getScenarios() map[string]Scenario {
 			},
 		},
 	}
+
+	// todo remove once all cases are supported
+	floriaTestCases := []string{"SuccessfulValueTransfer", "FailedValueTransfer"}
+	supportedTestCases := map[string]Scenario{}
+	for _, testCase := range floriaTestCases {
+		supportedTestCases[testCase] = allTestCases[testCase]
+	}
+
+	return supportedTestCases
 }
 
 func RunProcessorTests(t *testing.T, processor tosca.Processor) {
