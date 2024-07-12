@@ -308,7 +308,7 @@ func getBerlinInstructions() map[vm.OpCode]*InstructionInfo {
 	// Selfdestruct dynamic gas calculation has changed in Berlin
 	// Test is universal for all revisions, keeping here to know, there is change in calculation
 	// const gasSelfDestruct tosca.Gas = 5000
-	// res[evm.SELFDESTRUCT].gas = GasUsage{gasSelfDestruct, gasDynamicSelfDestruct}
+	// res[vm.SELFDESTRUCT].gas = GasUsage{gasSelfDestruct, gasDynamicSelfDestruct}
 
 	return res
 }
