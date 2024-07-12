@@ -117,9 +117,10 @@ func doProbe(context *cli.Context) error {
 	var wg sync.WaitGroup
 	wg.Add(jobCount)
 	for i := 0; i < jobCount; i++ {
+		ii := i
 		go func() {
 			defer wg.Done()
-			rnd := rand.New(seed + uint64(i))
+			rnd := rand.New(seed + uint64(ii))
 			generator := gen.NewStateGenerator()
 			condition.Restrict(generator)
 
