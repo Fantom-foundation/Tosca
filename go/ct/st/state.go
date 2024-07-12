@@ -25,9 +25,8 @@ import (
 // Upper bound for gas, this limit is required since evmc defines a signed type for gas.
 // Limiting gas also solves issue 293 regarding out of memory failures,
 // discussed here: https://github.com/Fantom-foundation/Tosca/issues/293
-// const MaxGasUsedByCt = 0x125298A // 19,212,682
-const MaxGasUsedByCt = 12500000 //  (100MB) ÷ 8 bytes (size of int64) = 12,500,000 = 0xBEBC20
-//tosca.Gas(1 << 60)
+// This should be enough gas to allow for ~450MB.
+const MaxGasUsedByCt = 500_000_000_000
 
 // MaxDataSize is the maximum length of the call data vector generated for a test state. While
 // the maximum size is not limited in a real-world setup, larger inputs are not expected to trigger

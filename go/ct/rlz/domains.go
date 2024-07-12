@@ -341,6 +341,11 @@ func (gasDomain) SamplesForAll(as []tosca.Gas) []tosca.Gas {
 		res = append(res, a+1)
 	}
 
+	for i, a := range res {
+		if a > st.MaxGasUsedByCt {
+			res[i] = st.MaxGasUsedByCt
+		}
+	}
 	res = removeDuplicatesGeneric[tosca.Gas](res)
 
 	return res

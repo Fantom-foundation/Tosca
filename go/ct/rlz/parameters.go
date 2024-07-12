@@ -14,6 +14,7 @@ import (
 	"math"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/ct/st"
 )
 
 type Parameter interface {
@@ -68,6 +69,9 @@ var memoryOffsetParameterSamples = []U256{
 	NewU256(1),
 	NewU256(31),
 	NewU256(32),
+	NewU256(2 * 24576),
+	NewU256(st.MaxMemoryExpansionSize),
+	NewU256(st.MaxMemoryExpansionSize + 1),
 	NewU256(1, 0),
 }
 
@@ -82,7 +86,8 @@ var memoryOffsetForCopyParameter = []U256{
 	NewU256(1),
 	NewU256(32),
 	NewU256(2 * 24576),
-	NewU256(0x1FFFFFFFE1), // st.maxMemoryExpansionSize
+	NewU256(st.MaxMemoryExpansionSize),
+	NewU256(st.MaxMemoryExpansionSize + 1),
 	NewU256(1, 0),
 }
 
@@ -102,7 +107,8 @@ var memorySizeParameterSamples = []U256{
 	NewU256(2*24576 - 1),
 	NewU256(2 * 24576),
 	NewU256(2*24576 + 1),
-	NewU256(0x1FFFFFFFE1), // st.maxMemoryExpansionSize
+	NewU256(st.MaxMemoryExpansionSize),
+	NewU256(st.MaxMemoryExpansionSize + 1),
 }
 
 func (MemorySizeParameter) Samples() []U256 {
@@ -147,6 +153,7 @@ var gasParameterSamples = []U256{
 	NewU256(0),
 	NewU256(1),
 	NewU256(1 << 10),
+	NewU256(st.MaxGasUsedByCt),
 	// NewU256(1 << 20),
 	// NewU256(1 << 62),
 	// MaxU256(),

@@ -148,9 +148,9 @@ func TestMemory_MemoryExpansionCosts(t *testing.T) {
 		"zero size":                         {NewU256(0), NewU256(0), tosca.Gas(0), 0, 0},
 		"zero size offset":                  {NewU256(1024), NewU256(0), tosca.Gas(0), 1024, 0},
 		"zero size offset overflow":         {NewU256(1, 0), NewU256(0), tosca.Gas(0), 0, 0},
-		"max memory size allowed":           {NewU256(0), NewU256(maxMemoryExpansionSize + 1), MaxGasUsedByCt, 0, maxMemoryExpansionSize + 1},
-		"acceptable size":                   {NewU256(0), NewU256(maxMemoryExpansionSize), tosca.Gas(36028809887088637), 0, maxMemoryExpansionSize},
-		"acceptable offset":                 {NewU256(maxMemoryExpansionSize - 1), NewU256(1), tosca.Gas(36028809887088637), maxMemoryExpansionSize - 1, 1},
+		"max memory size allowed":           {NewU256(0), NewU256(MaxMemoryExpansionSize + 1), MaxGasUsedByCt, 0, MaxMemoryExpansionSize + 1},
+		"acceptable size":                   {NewU256(0), NewU256(MaxMemoryExpansionSize), tosca.Gas(36028809887088637), 0, MaxMemoryExpansionSize},
+		"acceptable offset":                 {NewU256(MaxMemoryExpansionSize - 1), NewU256(1), tosca.Gas(36028809887088637), MaxMemoryExpansionSize - 1, 1},
 		"size not multiple of 32":           {NewU256(0), NewU256(31), tosca.Gas(3), 0, 31},
 	}
 
