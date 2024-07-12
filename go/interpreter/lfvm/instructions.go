@@ -606,8 +606,8 @@ func opSha3(c *context) {
 		} else {
 			c.hasher.Reset()
 		}
-		c.hasher.Write(data)
-		c.hasher.Read(c.hasherBuf[:])
+		_, _ = c.hasher.Write(data)          // hash.Hash.Write() never returns an error
+		_, _ = c.hasher.Read(c.hasherBuf[:]) // sha3.state.Read() never returns an error
 	}
 
 	size.SetBytes32(c.hasherBuf[:])
