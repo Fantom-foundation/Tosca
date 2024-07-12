@@ -14,9 +14,7 @@ import (
 	"fmt"
 	"testing"
 
-	// This is only imported to get the EVM opcode definitions.
-	// TODO: write up our own op-code definition and remove this dependency.
-	vm "github.com/ethereum/go-ethereum/core/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestEmptyCodeShouldBeIgnored(t *testing.T) {

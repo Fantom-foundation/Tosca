@@ -14,11 +14,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 	"github.com/ethereum/go-ethereum/params"
-
-	// This is only imported to get the EVM opcode definitions.
-	// TODO: write up our own op-code definition and remove this dependency.
-	evm "github.com/ethereum/go-ethereum/core/vm"
 )
 
 func TestStackMaxBoundary(t *testing.T) {
@@ -87,12 +84,12 @@ func TestStackMinBoundary(t *testing.T) {
 	}
 }
 
-func getCode(stackLength int, op evm.OpCode) []byte {
+func getCode(stackLength int, op vm.OpCode) []byte {
 	code := make([]byte, 0, stackLength*2+1)
 
 	// Add to stack PUSH1 instructions
 	for i := 0; i < stackLength; i++ {
-		code = append(code, []byte{byte(evm.PUSH1), byte(0)}...)
+		code = append(code, []byte{byte(vm.PUSH1), byte(0)}...)
 	}
 
 	// Set a tested instruction as the last one.

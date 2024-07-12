@@ -18,10 +18,6 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
-
-	// This is only imported to get the EVM opcode definitions.
-	// TODO: write up our own op-code definition and remove this dependency.
-	op "github.com/ethereum/go-ethereum/core/vm"
 )
 
 func TestWorldState_Equal(t *testing.T) {
@@ -264,7 +260,7 @@ func TestAccount_Diff(t *testing.T) {
 		},
 		"different_code": {
 			a:        Account{Code: tosca.Code{byte(vm.STOP)}},
-			b:        Account{Code: tosca.Code{byte(vm.ADD), byte(op.MUL)}},
+			b:        Account{Code: tosca.Code{byte(vm.ADD), byte(vm.MUL)}},
 			expected: []string{"different code: 0x00 != 0x0102"},
 		},
 		"different_storage": {

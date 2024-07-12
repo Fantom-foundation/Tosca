@@ -21,11 +21,12 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 	"github.com/holiman/uint256"
 	"go.uber.org/mock/gomock"
 
-	// This is only imported to get the EVM opcode definitions.
-	// TODO: write up our own op-code definition and remove this dependency.
+	// This is only imported to get the EVM error definitions.
+	// TODO: write up our own error definition and remove this dependency.
 	geth "github.com/ethereum/go-ethereum/core/vm"
 )
 
@@ -48,22 +49,22 @@ func TestMaxCallDepth(t *testing.T) {
 
 				// put 32byte input value with 0 offset from memory to stack, add 1 to it and put it back to memory with 0 offset
 				code := []byte{
-					byte(geth.PUSH1), byte(0),
-					byte(geth.CALLDATALOAD),
-					byte(geth.PUSH1), byte(1),
-					byte(geth.ADD),
-					byte(geth.PUSH1), byte(0),
-					byte(geth.MSTORE)}
+					byte(vm.PUSH1), byte(0),
+					byte(vm.CALLDATALOAD),
+					byte(vm.PUSH1), byte(1),
+					byte(vm.ADD),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.MSTORE)}
 
 				// add stack values for call instruction
 				code = append(code, pushCode...)
 
 				// make inner call and return 32byte value with 0 offset from memory
 				codeReturn := []byte{
-					byte(geth.CALL),
-					byte(geth.PUSH1), byte(32),
-					byte(geth.PUSH1), byte(0),
-					byte(geth.RETURN)}
+					byte(vm.CALL),
+					byte(vm.PUSH1), byte(32),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.RETURN)}
 				code = append(code, codeReturn...)
 
 				setDefaultCallStateDBMock(mockStateDB, account, code)
@@ -95,7 +96,7 @@ func TestInvalidJumpOverflow(t *testing.T) {
 
 		for _, revision := range revisions {
 
-			testInstructions := []geth.OpCode{geth.JUMP, geth.JUMPI}
+			testInstructions := []vm.OpCode{vm.JUMP, vm.JUMPI}
 
 			for _, instruction := range testInstructions {
 
@@ -110,9 +111,9 @@ func TestInvalidJumpOverflow(t *testing.T) {
 					code, _ := addValuesToStack([]*big.Int{condition, dst}, 0)
 					codeJump := []byte{
 						byte(instruction),
-						byte(geth.JUMPDEST),
-						byte(geth.PUSH1), byte(0),
-						byte(geth.STOP)}
+						byte(vm.JUMPDEST),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.STOP)}
 					code = append(code, codeJump...)
 
 					// Run an interpreter
@@ -198,7 +199,7 @@ func TestCodeCopy(t *testing.T) {
 						zero,
 					}
 					code, _ := addValuesToStack(codeCopyParameters, 0)
-					code = append(code, byte(geth.CODECOPY))
+					code = append(code, byte(vm.CODECOPY))
 
 					returnParameter := []*big.Int{
 						test.size,
@@ -206,7 +207,7 @@ func TestCodeCopy(t *testing.T) {
 					}
 					returnParameterSetupCode, _ := addValuesToStack(returnParameter, 0)
 					code = append(code, returnParameterSetupCode...)
-					code = append(code, byte(geth.RETURN))
+					code = append(code, byte(vm.RETURN))
 
 					if got, limit := len(code), codeSize; got > limit {
 						t.Fatalf("unexpected code size, limit %d, got %d", limit, got)
@@ -285,20 +286,20 @@ func TestReturnDataCopy(t *testing.T) {
 					// stack values for inner contract call
 					callStackValues := []*big.Int{returnDataSize, zeroVal, zeroVal, zeroVal, zeroVal, addressToBigInt(account), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
 					code, _ := addValuesToStack(callStackValues, 0)
-					code = append(code, byte(geth.CALL))
+					code = append(code, byte(vm.CALL))
 
 					callStackValues = []*big.Int{big.NewInt(int64(tst.dataSize)), tst.dataOffset, zeroVal}
 					codeValues, _ := addValuesToStack(callStackValues, 0)
 					code = append(code, codeValues...)
 					code = append(code,
-						byte(geth.RETURNDATACOPY),
-						byte(geth.STOP))
+						byte(vm.RETURNDATACOPY),
+						byte(vm.STOP))
 
 					// code for inner contract call
 					codeReturn := []byte{
-						byte(geth.PUSH1), byte(tst.returnDataSize),
-						byte(geth.PUSH1), byte(0),
-						byte(geth.RETURN)}
+						byte(vm.PUSH1), byte(tst.returnDataSize),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.RETURN)}
 
 					// set mock for inner call
 					setDefaultCallStateDBMock(mockStateDB, account, codeReturn)
@@ -324,23 +325,23 @@ func TestReturnDataCopy(t *testing.T) {
 
 func TestReadOnlyStaticCall(t *testing.T) {
 	type callsType struct {
-		instruction geth.OpCode
+		instruction vm.OpCode
 		shouldFail  bool
 	}
 
 	// all types of inner call to be tested
 	calls := []callsType{
-		{geth.CALL, false},
-		{geth.STATICCALL, true},
-		{geth.DELEGATECALL, false},
-		{geth.CALLCODE, false},
-		{geth.CREATE, false},
-		{geth.CREATE2, false},
+		{vm.CALL, false},
+		{vm.STATICCALL, true},
+		{vm.DELEGATECALL, false},
+		{vm.CALLCODE, false},
+		{vm.CREATE, false},
+		{vm.CREATE2, false},
 	}
 
-	readOnlyInstructions := []geth.OpCode{
-		geth.LOG0, geth.LOG1, geth.LOG2, geth.LOG3, geth.LOG4,
-		geth.SSTORE, geth.CREATE, geth.CREATE2, geth.SELFDESTRUCT,
+	readOnlyInstructions := []vm.OpCode{
+		vm.LOG0, vm.LOG1, vm.LOG2, vm.LOG3, vm.LOG4,
+		vm.SSTORE, vm.CREATE, vm.CREATE2, vm.SELFDESTRUCT,
 	}
 
 	// For every variant of interpreter
@@ -365,22 +366,22 @@ func TestReadOnlyStaticCall(t *testing.T) {
 						code, _ := addValuesToStack(callStackValues, 0)
 						code = append(code,
 							byte(call.instruction),
-							byte(geth.PUSH1), byte(0),
-							byte(geth.MSTORE),
-							byte(geth.PUSH1), byte(32),
-							byte(geth.PUSH1), byte(0),
-							byte(geth.RETURN))
+							byte(vm.PUSH1), byte(0),
+							byte(vm.MSTORE),
+							byte(vm.PUSH1), byte(32),
+							byte(vm.PUSH1), byte(0),
+							byte(vm.RETURN))
 
 						// code for inner contract call
 						innerCallCode := []byte{
 							// push zero values to stack to have data for write instructions
-							byte(geth.PUSH1), byte(0),
-							byte(geth.DUP1), byte(geth.DUP1), byte(geth.DUP1), byte(geth.DUP1),
-							byte(geth.DUP1), byte(geth.DUP1), byte(geth.DUP1), byte(geth.DUP1),
+							byte(vm.PUSH1), byte(0),
+							byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1),
+							byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1), byte(vm.DUP1),
 							byte(instruction),
-							byte(geth.PUSH1), byte(0),
-							byte(geth.DUP1),
-							byte(geth.RETURN)}
+							byte(vm.PUSH1), byte(0),
+							byte(vm.DUP1),
+							byte(vm.RETURN)}
 
 						// set mock for inner call
 						setDefaultCallStateDBMock(mockStateDB, account, innerCallCode)
@@ -412,24 +413,24 @@ func TestInstructionDataInitialization(t *testing.T) {
 
 	type test struct {
 		name        string
-		instruction geth.OpCode
+		instruction vm.OpCode
 		size        *big.Int
 		offset      *big.Int
 		err         []error
 	}
 
 	type instructionTest struct {
-		instruction geth.OpCode
+		instruction vm.OpCode
 		okError     []error
 	}
 
 	instructions := []instructionTest{
-		{geth.RETURN, nil},
-		{geth.REVERT, []error{geth.ErrExecutionReverted}},
-		{geth.KECCAK256, nil},
-		{geth.LOG0, nil},
-		{geth.CODECOPY, nil},
-		{geth.EXTCODECOPY, nil},
+		{vm.RETURN, nil},
+		{vm.REVERT, []error{geth.ErrExecutionReverted}},
+		{vm.SHA3, nil},
+		{vm.LOG0, nil},
+		{vm.CODECOPY, nil},
+		{vm.EXTCODECOPY, nil},
 	}
 
 	sizeNormal, _ := big.NewInt(0).SetString("0x10000", 0)
@@ -464,10 +465,10 @@ func TestInstructionDataInitialization(t *testing.T) {
 					setDefaultCallStateDBMock(mockStateDB, tosca.Address{byte(0)}, make([]byte, 0))
 
 					callStackValues := []*big.Int{test.size, test.offset}
-					if test.instruction == geth.CODECOPY || test.instruction == geth.EXTCODECOPY {
+					if test.instruction == vm.CODECOPY || test.instruction == vm.EXTCODECOPY {
 						callStackValues = append(callStackValues, test.offset)
 					}
-					if test.instruction == geth.EXTCODECOPY {
+					if test.instruction == vm.EXTCODECOPY {
 						callStackValues = append(callStackValues, big.NewInt(0))
 					}
 					code, _ := addValuesToStack(callStackValues, 0)
@@ -507,7 +508,7 @@ func TestCreateDataInitialization(t *testing.T) {
 	numHuge, _ := big.NewInt(0).SetString("0x8000000000000000", 0)
 	numOverUint64, _ := big.NewInt(0).SetString("0x100000000000000000", 0)
 
-	instructions := []geth.OpCode{geth.CREATE, geth.CREATE2}
+	instructions := []vm.OpCode{vm.CREATE, vm.CREATE2}
 	tests := []test{
 		{"zero size over offset", big.NewInt(0), numOverUint64, nil},
 		{"over size zero offset", numOverUint64, big.NewInt(0), []error{geth.ErrGasUintOverflow, geth.ErrOutOfGas}},
@@ -530,7 +531,7 @@ func TestCreateDataInitialization(t *testing.T) {
 						mockStateDB := NewMockStateDB(mockCtrl)
 
 						callStackValues := []*big.Int{test.size, test.offset, big.NewInt(0)}
-						if instruction == geth.CREATE2 {
+						if instruction == vm.CREATE2 {
 							callStackValues = append([]*big.Int{big.NewInt(0)}, callStackValues...)
 						}
 
@@ -566,7 +567,7 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 	size64 := big.NewInt(64)
 
 	type callsType struct {
-		instruction       geth.OpCode
+		instruction       vm.OpCode
 		callOutputMemSize *big.Int
 		afterCallMemSize  *big.Int
 		memShouldChange   bool
@@ -574,14 +575,14 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 
 	// all types of inner call to be tested
 	calls := []callsType{
-		{geth.CALL, zeroVal, size32, false},
-		{geth.STATICCALL, zeroVal, size32, false},
-		{geth.DELEGATECALL, zeroVal, size32, false},
-		{geth.CALLCODE, zeroVal, size32, false},
-		{geth.CALL, size64, size64, true},
-		{geth.STATICCALL, size64, size64, true},
-		{geth.DELEGATECALL, size64, size64, true},
-		{geth.CALLCODE, size64, size64, true},
+		{vm.CALL, zeroVal, size32, false},
+		{vm.STATICCALL, zeroVal, size32, false},
+		{vm.DELEGATECALL, zeroVal, size32, false},
+		{vm.CALLCODE, zeroVal, size32, false},
+		{vm.CALL, size64, size64, true},
+		{vm.STATICCALL, size64, size64, true},
+		{vm.DELEGATECALL, size64, size64, true},
+		{vm.CALLCODE, size64, size64, true},
 	}
 
 	// For every variant of interpreter
@@ -603,11 +604,11 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 					wantMemWord = append(wantMemWord, zeroVal)
 					code, _ := addValuesToStack(wantMemWord, 0)
 					code = append(code,
-						byte(geth.MSTORE))
+						byte(vm.MSTORE))
 
 					// stack values for inner contract call
 					var callStackValues []*big.Int
-					if call.instruction == geth.CALL || call.instruction == geth.CALLCODE {
+					if call.instruction == vm.CALL || call.instruction == vm.CALLCODE {
 						callStackValues = []*big.Int{call.callOutputMemSize, zeroVal, zeroVal, zeroVal, zeroVal, addressToBigInt(account), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
 					} else {
 						callStackValues = []*big.Int{call.callOutputMemSize, zeroVal, zeroVal, zeroVal, addressToBigInt(account), big.NewInt(HUGE_GAS_SENT_WITH_CALL)}
@@ -616,19 +617,19 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 					code = append(code, pushCode...)
 					code = append(code,
 						byte(call.instruction),
-						byte(geth.MSIZE),
-						byte(geth.PUSH1), byte(32),
-						byte(geth.MSTORE),
-						byte(geth.PUSH1), byte(64),
-						byte(geth.PUSH1), byte(0),
-						byte(geth.RETURN))
+						byte(vm.MSIZE),
+						byte(vm.PUSH1), byte(32),
+						byte(vm.MSTORE),
+						byte(vm.PUSH1), byte(64),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.RETURN))
 
 					// code for inner call
 					// return 32 bytes of memory
 					innerCallCode := []byte{
-						byte(geth.PUSH1), byte(32),
-						byte(geth.DUP1),
-						byte(geth.RETURN)}
+						byte(vm.PUSH1), byte(32),
+						byte(vm.DUP1),
+						byte(vm.RETURN)}
 
 					// set mock for inner call
 					setDefaultCallStateDBMock(mockStateDB, account, innerCallCode)
@@ -668,16 +669,16 @@ func TestNoReturnDataForCreate(t *testing.T) {
 	account := tosca.Address{byte(0)}
 	type test struct {
 		name              string
-		createInstruction geth.OpCode
-		returnInstruction geth.OpCode
+		createInstruction vm.OpCode
+		returnInstruction vm.OpCode
 		returnDataSize    uint64
 	}
 
 	tests := []test{
-		{"no return data", geth.CREATE, geth.RETURN, 0},
-		{"no return data", geth.CREATE2, geth.RETURN, 0},
-		{"has revert data", geth.CREATE, geth.REVERT, 32},
-		{"has revert data", geth.CREATE2, geth.REVERT, 32},
+		{"no return data", vm.CREATE, vm.RETURN, 0},
+		{"no return data", vm.CREATE2, vm.RETURN, 0},
+		{"has revert data", vm.CREATE, vm.REVERT, 32},
+		{"has revert data", vm.CREATE2, vm.REVERT, 32},
 	}
 
 	// For every variant of interpreter
@@ -697,12 +698,12 @@ func TestNoReturnDataForCreate(t *testing.T) {
 					mockStateDB := newMockStateDBForIntegrationTests(mockCtrl)
 
 					createStackValues := []*big.Int{big.NewInt(32), big.NewInt(0), big.NewInt(0)}
-					if test.createInstruction == geth.CREATE2 {
+					if test.createInstruction == vm.CREATE2 {
 						createStackValues = append([]*big.Int{big.NewInt(0)}, createStackValues...)
 					}
 					createInputCode := []byte{
-						byte(geth.PUSH1), byte(32),
-						byte(geth.PUSH1), byte(0),
+						byte(vm.PUSH1), byte(32),
+						byte(vm.PUSH1), byte(0),
 						byte(test.returnInstruction)}
 
 					createInputBytes := common.RightPadSlice(createInputCode, 32)
@@ -710,19 +711,19 @@ func TestNoReturnDataForCreate(t *testing.T) {
 
 					code, _ := addValuesToStack(createInputValue, 0)
 					code = append(code,
-						byte(geth.PUSH1), byte(0),
-						byte(geth.MSTORE))
+						byte(vm.PUSH1), byte(0),
+						byte(vm.MSTORE))
 
 					pushCode, _ := addValuesToStack(createStackValues, 0)
 					code = append(code, pushCode...)
 					code = append(code, byte(test.createInstruction))
 					code = append(code,
-						byte(geth.RETURNDATASIZE),
-						byte(geth.PUSH1), byte(0),
-						byte(geth.MSTORE),
-						byte(geth.PUSH1), byte(32),
-						byte(geth.PUSH1), byte(0),
-						byte(geth.RETURN))
+						byte(vm.RETURNDATASIZE),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.MSTORE),
+						byte(vm.PUSH1), byte(32),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.RETURN))
 
 					contractAddr := TestEvmCreatedAccountAddress
 
@@ -790,12 +791,12 @@ func TestExtCodeHashOnEmptyAccount(t *testing.T) {
 
 					// code for inner contract call
 					code = append(code, []byte{
-						byte(geth.EXTCODEHASH),
-						byte(geth.PUSH1), byte(0),
-						byte(geth.MSTORE),
-						byte(geth.PUSH1), byte(32),
-						byte(geth.PUSH1), byte(0),
-						byte(geth.RETURN)}...)
+						byte(vm.EXTCODEHASH),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.MSTORE),
+						byte(vm.PUSH1), byte(32),
+						byte(vm.PUSH1), byte(0),
+						byte(vm.RETURN)}...)
 
 					// set mock for inner call
 					mockStateDB.EXPECT().AccountExists(account).AnyTimes().Return(test.exist)
@@ -865,7 +866,7 @@ func TestSARInstruction(t *testing.T) {
 		{"maxNegativeInt256>>254", []*big.Int{sizeMaxIntNegative, big.NewInt(254)}, zeroInput, getNegativeBigIntSignInBits(big.NewInt(-2)), nil},
 		{"maxNegativeInt256>>over64", []*big.Int{sizeMaxIntNegative, sizeOverUint64}, zeroInput, mostNegativeShiftRight, nil},
 	}
-	runOverflowTests(t, geth.SAR, tests)
+	runOverflowTests(t, vm.SAR, tests)
 }
 
 func TestSHRInstruction(t *testing.T) {
@@ -881,7 +882,7 @@ func TestSHRInstruction(t *testing.T) {
 		{"over64>>over64", []*big.Int{sizeOverUint64, sizeOverUint64}, zeroInput, big.NewInt(0), nil},
 		{"sizeMaxUint256>>255", []*big.Int{sizeMaxUint256, big.NewInt(255)}, zeroInput, big.NewInt(1), nil},
 	}
-	runOverflowTests(t, geth.SHR, tests)
+	runOverflowTests(t, vm.SHR, tests)
 }
 
 func TestSHLInstruction(t *testing.T) {
@@ -900,7 +901,7 @@ func TestSHLInstruction(t *testing.T) {
 		{"sizeUint256<<1", []*big.Int{sizeUint256, big.NewInt(1)}, zeroInput, sizeUint256result, nil},
 		{"sizeMaxUint256<<255", []*big.Int{sizeMaxUint256, big.NewInt(255)}, zeroInput, sizeUint256result, nil},
 	}
-	runOverflowTests(t, geth.SHL, tests)
+	runOverflowTests(t, vm.SHL, tests)
 }
 
 var zeroInput = []byte{}
@@ -913,7 +914,7 @@ type overflowTestCase struct {
 	err       []error
 }
 
-func runOverflowTests(t *testing.T, instruction geth.OpCode, tests []overflowTestCase) {
+func runOverflowTests(t *testing.T, instruction vm.OpCode, tests []overflowTestCase) {
 	// For every variant of interpreter
 	for _, variant := range Variants {
 
@@ -979,7 +980,7 @@ func TestCallDataLoadInstructionInputOverflow(t *testing.T) {
 		{"data input one, offset over64", []*big.Int{big.NewInt(0), sizeOverUint64}, input, big.NewInt(0), nil},
 		{"data input one, offset uint256", []*big.Int{big.NewInt(0), sizeUint256}, input, big.NewInt(0), nil},
 	}
-	runOverflowTests(t, geth.CALLDATALOAD, tests)
+	runOverflowTests(t, vm.CALLDATALOAD, tests)
 }
 
 func TestCallDataCopyInstructionInputOverflow(t *testing.T) {
@@ -1002,7 +1003,7 @@ func TestCallDataCopyInstructionInputOverflow(t *testing.T) {
 		{"data offset over64", []*big.Int{big.NewInt(1), big.NewInt(1), sizeOverUint64, big.NewInt(0)}, input, big.NewInt(1), nil},
 		{"data offset uint256", []*big.Int{big.NewInt(1), big.NewInt(1), sizeUint256, big.NewInt(0)}, input, big.NewInt(1), nil},
 	}
-	runOverflowTests(t, geth.CALLDATACOPY, tests)
+	runOverflowTests(t, vm.CALLDATACOPY, tests)
 }
 
 // Returns predefined memory offset or size corner values
@@ -1022,7 +1023,7 @@ func getReturnStackCode(valuesCount uint32, initialOffset uint64, pushGas tosca.
 	for i := 0; i < int(valuesCount); i++ {
 		bytes := getBytes(uint64(i*32) + initialOffset)
 		retCode, usedGas = addBytesToStack(bytes, retCode, usedGas, pushGas)
-		retCode = append(retCode, byte(geth.MSTORE))
+		retCode = append(retCode, byte(vm.MSTORE))
 		// Add 3 gas for MSTORE instruction static gas
 		usedGas += 3
 	}
@@ -1048,7 +1049,7 @@ func getReturnMemoryCode(size uint64, offset uint64, pushGas tosca.Gas) ([]byte,
 	bytes = getBytes(offset)
 	retCode, gasUsed = addBytesToStack(bytes, retCode, gasUsed, pushGas)
 
-	retCode = append(retCode, byte(geth.RETURN))
+	retCode = append(retCode, byte(vm.RETURN))
 	return retCode, gasUsed
 }
 

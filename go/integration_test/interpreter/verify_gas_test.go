@@ -15,11 +15,8 @@ import (
 	"math/big"
 	"testing"
 
-	// This is only imported to get the EVM opcode definitions.
-	// TODO: write up our own op-code definition and remove this dependency.
-	geth "github.com/ethereum/go-ethereum/core/vm"
-
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 	"go.uber.org/mock/gomock"
 )
 
@@ -28,8 +25,8 @@ func TestStaticGas(t *testing.T) {
 	for _, variant := range Variants {
 		for _, revision := range revisions {
 			// Get static gas for frequently used instructions
-			pushGas := getInstructions(revision)[geth.PUSH1].gas.static
-			jumpdestGas := getInstructions(revision)[geth.JUMPDEST].gas.static
+			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
+			jumpdestGas := getInstructions(revision)[vm.JUMPDEST].gas.static
 
 			for op, info := range getInstructions(revision) {
 				if info.gas.dynamic == nil {
@@ -46,12 +43,12 @@ func TestStaticGas(t *testing.T) {
 						evm := GetCleanEVM(revision, variant, mockStateDB)
 						var wantGas tosca.Gas = 0
 						var code []byte
-						if op == geth.JUMP {
+						if op == vm.JUMP {
 							code = []byte{
-								byte(geth.PUSH1),
+								byte(vm.PUSH1),
 								byte(3),
 								byte(op),
-								byte(geth.JUMPDEST),
+								byte(vm.JUMPDEST),
 							}
 							wantGas = pushGas + info.gas.static + jumpdestGas
 						} else {
@@ -59,7 +56,7 @@ func TestStaticGas(t *testing.T) {
 							codeLen := info.stack.popped*2 + 1
 							code = make([]byte, 0, codeLen)
 							for i := 0; i < info.stack.popped; i++ {
-								code = append(code, []byte{byte(geth.PUSH1), 0}...)
+								code = append(code, []byte{byte(vm.PUSH1), 0}...)
 								wantGas += pushGas
 							}
 
@@ -94,7 +91,7 @@ func TestDynamicGas(t *testing.T) {
 	for _, variant := range Variants {
 		for _, revision := range revisions {
 			// Get static gas for frequently used instructions
-			pushGas := getInstructions(revision)[geth.PUSH1].gas.static
+			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
 			for op, info := range getInstructions(revision) {
 
 				if info.gas.dynamic == nil {
@@ -114,11 +111,11 @@ func TestDynamicGas(t *testing.T) {
 						mockStateDB.EXPECT().SetCode(gomock.Any(), gomock.Any()).AnyTimes()
 
 						// SELFDESTRUCT gas computation is dependent on an account balance and sets its own expectations
-						if op != geth.SELFDESTRUCT {
+						if op != vm.SELFDESTRUCT {
 							mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(accountBalance)
 						}
 
-						if op == geth.CREATE || op == geth.CREATE2 {
+						if op == vm.CREATE || op == vm.CREATE2 {
 							mockStateDB.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(false)
 						}
 
@@ -133,7 +130,7 @@ func TestDynamicGas(t *testing.T) {
 						code := make([]byte, 0)
 
 						// When test need return value from inner call operation
-						if op == geth.RETURNDATACOPY {
+						if op == vm.RETURNDATACOPY {
 							gas, returnCode := putCallReturnValue(t, revision, code, mockStateDB)
 							wantGas += gas
 							code = append(code, returnCode...)
@@ -178,7 +175,7 @@ func TestOutOfDynamicGas(t *testing.T) {
 	for _, variant := range Variants {
 		for _, revision := range revisions {
 			// Get static gas for frequently used instructions
-			pushGas := getInstructions(revision)[geth.PUSH1].gas.static
+			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
 
 			for _, testCase := range getOutOfDynamicGasTests(revision) {
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, testCase.testName), func(t *testing.T) {
@@ -224,7 +221,7 @@ func TestOutOfStaticGasOnly(t *testing.T) {
 	for _, variant := range Variants {
 		for _, revision := range revisions {
 			// Get static gas for frequently used instructions
-			pushGas := getInstructions(revision)[geth.PUSH1].gas.static
+			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
 			for op, info := range getInstructions(revision) {
 
 				if info.gas.static == 0 || info.gas.dynamic != nil {
@@ -289,7 +286,7 @@ func addMemToStack(stackValues []*big.Int, pushGas tosca.Gas) ([]byte, tosca.Gas
 	for i := 0; i < stackValuesCount; i += 2 {
 		code, wantGas = addBytesToStack(stackValues[i].Bytes(), code, wantGas, pushGas)
 		code, wantGas = addBytesToStack(stackValues[i+1].Bytes(), code, wantGas, pushGas)
-		code = append(code, byte(geth.MSTORE))
+		code = append(code, byte(vm.MSTORE))
 		wantGas += memoryExpansionGasCost(32)
 	}
 	return code, wantGas
@@ -299,7 +296,7 @@ func addBytesToStack(valueBytes []byte, code []byte, wantGas tosca.Gas, pushGas 
 	if len(valueBytes) == 0 {
 		valueBytes = []byte{0}
 	}
-	push := geth.PUSH1 + geth.OpCode(len(valueBytes)-1)
+	push := vm.PUSH1 + vm.OpCode(len(valueBytes)-1)
 	code = append(code, byte(push))
 	for j := 0; j < len(valueBytes); j++ {
 		code = append(code, valueBytes[j])
@@ -316,7 +313,7 @@ func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) tos
 	zeroVal := big.NewInt(0)
 	gasSentWithCall := big.NewInt(100000)
 	if len(callCode) == 0 {
-		callCode = []byte{byte(geth.STOP)}
+		callCode = []byte{byte(vm.STOP)}
 	}
 	mockCtrl := gomock.NewController(t)
 	mockStateDB := NewMockStateDB(mockCtrl)
@@ -337,7 +334,7 @@ func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) tos
 		if len(valueBytes) == 0 {
 			valueBytes = []byte{0}
 		}
-		push := geth.PUSH1 + geth.OpCode(len(valueBytes)-1)
+		push := vm.PUSH1 + vm.OpCode(len(valueBytes)-1)
 		code = append(code, byte(push))
 		for j := 0; j < len(valueBytes); j++ {
 			code = append(code, valueBytes[j])
@@ -345,7 +342,7 @@ func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) tos
 	}
 
 	// Set a CALL instruction as the last one.
-	code = append(code, byte(geth.CALL))
+	code = append(code, byte(vm.CALL))
 
 	result, err := evm.Run(code, []byte{})
 	if err != nil {
@@ -362,17 +359,17 @@ func putCallReturnValue(t *testing.T, revision Revision, code []byte, mockStateD
 
 	// Code processed inside inner call
 	codeWithReturnValue := []byte{
-		byte(geth.PUSH1),
+		byte(vm.PUSH1),
 		byte(0),
-		byte(geth.PUSH1),
+		byte(vm.PUSH1),
 		byte(1),
-		byte(geth.MSTORE),
-		byte(geth.PUSH2),
+		byte(vm.MSTORE),
+		byte(vm.PUSH2),
 		byte(255),
 		byte(255),
-		byte(geth.PUSH1),
+		byte(vm.PUSH1),
 		byte(0),
-		byte(geth.RETURN)}
+		byte(vm.RETURN)}
 	mockStateDB.EXPECT().AccountExists(account).AnyTimes().Return(true)
 	mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(tosca.Value{})
 	mockStateDB.EXPECT().GetCode(account).AnyTimes().Return(codeWithReturnValue)
@@ -390,12 +387,12 @@ func putCallReturnValue(t *testing.T, revision Revision, code []byte, mockStateD
 		if len(valueBytes) == 0 {
 			valueBytes = []byte{0}
 		}
-		push := geth.PUSH1 + geth.OpCode(len(valueBytes)-1)
+		push := vm.PUSH1 + vm.OpCode(len(valueBytes)-1)
 		code = append(code, byte(push))
 		for j := 0; j < len(valueBytes); j++ {
 			code = append(code, valueBytes[j])
 		}
 	}
-	returnCode = append(code, byte(geth.CALL))
+	returnCode = append(code, byte(vm.CALL))
 	return gas, returnCode
 }
