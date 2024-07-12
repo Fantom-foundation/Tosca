@@ -27,13 +27,6 @@ func NewMemory() *Memory {
 	return &Memory{}
 }
 
-// func sizeInWords(size uint64) uint64 {
-// 	if size > math.MaxUint64-31 {
-// 		return (math.MaxUint64 / 32) + 1
-// 	}
-// 	return (size + 31) / 32
-// }
-
 func toValidMemorySize(size uint64) uint64 {
 	fullWordsSize := tosca.SizeInWords(size) * 32
 	if size != 0 && fullWordsSize < size {

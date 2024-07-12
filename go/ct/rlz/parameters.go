@@ -154,9 +154,6 @@ var gasParameterSamples = []U256{
 	NewU256(1),
 	NewU256(1 << 10),
 	NewU256(st.MaxGasUsedByCt),
-	// NewU256(1 << 20),
-	// NewU256(1 << 62),
-	// MaxU256(),
 }
 
 func (GasParameter) Samples() []U256 {

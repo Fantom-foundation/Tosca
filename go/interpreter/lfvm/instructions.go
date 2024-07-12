@@ -779,8 +779,11 @@ func opCodeCopy(c *context) {
 		return
 	}
 
+	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
+		return
+	}
 	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
-	if err := c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), codeCopy, c); err != nil {
+	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -1012,8 +1015,12 @@ func opExtCodeCopy(c *context) {
 	} else {
 		uint64CodeOffset = math.MaxUint64
 	}
+
+	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
+		return
+	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
-	if err = c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), codeCopy, c); err != nil {
+	if err = c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
 		c.SignalError(err)
 	}
 }
