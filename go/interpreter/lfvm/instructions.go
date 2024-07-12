@@ -213,7 +213,7 @@ func opMcopy(c *context) {
 	}
 
 	size := sizeU256.Uint64()
-	price := tosca.Gas(3 * sizeInWords(size))
+	price := tosca.Gas(3 * tosca.SizeInWords(size))
 	if !c.UseGas(price) {
 		return
 	}
@@ -372,7 +372,7 @@ func opCallDataCopy(c *context) {
 	}
 
 	// Charge for the copy costs
-	words := sizeInWords(length64)
+	words := tosca.SizeInWords(length64)
 	price := tosca.Gas(3 * words)
 	if !c.UseGas(price) {
 		return
@@ -593,7 +593,7 @@ func opSha3(c *context) {
 	}
 
 	// charge dynamic gas price
-	words := sizeInWords(size.Uint64())
+	words := tosca.SizeInWords(size.Uint64())
 	price := tosca.Gas(6 * words)
 	if !c.UseGas(price) {
 		return
@@ -774,7 +774,7 @@ func opCodeCopy(c *context) {
 	}
 
 	// Charge for length of copied code
-	words := sizeInWords(length.Uint64())
+	words := tosca.SizeInWords(length.Uint64())
 	if !c.UseGas(tosca.Gas(3 * words)) {
 		return
 	}
@@ -825,7 +825,7 @@ func checkInitCodeSize(c *context, size *uint256.Int) bool {
 		c.status = MAX_INIT_CODE_SIZE_EXCEEDED
 		return false
 	}
-	if !c.UseGas(tosca.Gas(InitCodeWordGas * sizeInWords(size.Uint64()))) {
+	if !c.UseGas(tosca.Gas(InitCodeWordGas * tosca.SizeInWords(size.Uint64()))) {
 		c.status = OUT_OF_GAS
 		return false
 	}
@@ -917,7 +917,7 @@ func opCreate2(c *context) {
 	}
 
 	// Charge for the code size
-	words := sizeInWords(size.Uint64())
+	words := tosca.SizeInWords(size.Uint64())
 	if !c.UseGas(tosca.Gas(6 * words)) {
 		return
 	}
@@ -996,7 +996,7 @@ func opExtCodeCopy(c *context) {
 	}
 
 	// Charge for length of copied code
-	words := sizeInWords(length.Uint64())
+	words := tosca.SizeInWords(length.Uint64())
 	if !c.UseGas(tosca.Gas(3 * words)) {
 		return
 	}
@@ -1436,7 +1436,7 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
-	words := sizeInWords(length.Uint64())
+	words := tosca.SizeInWords(length.Uint64())
 	if !c.UseGas(tosca.Gas(3 * words)) {
 		return
 	}

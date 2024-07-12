@@ -198,7 +198,7 @@ func TestStateGenerator_NonConflictingPcesAreAccepted(t *testing.T) {
 // Gas Counter
 
 func TestStateGenerator_SetGasIsEnforced(t *testing.T) {
-	gasCounts := []tosca.Gas{0, 42, st.MaxGas}
+	gasCounts := []tosca.Gas{0, 42, st.MaxGasUsedByCt}
 
 	rnd := rand.New(0)
 	for _, gas := range gasCounts {
@@ -238,7 +238,7 @@ func TestStateGenerator_NonConflictingGasAreAccepted(t *testing.T) {
 // Gas Refund Counter
 
 func TestStateGenerator_SetGasRefundIsEnforced(t *testing.T) {
-	gasRefundCounts := []tosca.Gas{0, 42, st.MaxGas}
+	gasRefundCounts := []tosca.Gas{0, 42, st.MaxGasUsedByCt}
 
 	rnd := rand.New(0)
 	for _, gasRefund := range gasRefundCounts {

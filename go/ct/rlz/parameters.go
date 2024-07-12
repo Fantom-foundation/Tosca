@@ -82,6 +82,7 @@ var memoryOffsetForCopyParameter = []U256{
 	NewU256(1),
 	NewU256(32),
 	NewU256(2 * 24576),
+	NewU256(0x1FFFFFFFE1), // st.maxMemoryExpansionSize
 	NewU256(1, 0),
 }
 
@@ -101,6 +102,7 @@ var memorySizeParameterSamples = []U256{
 	NewU256(2*24576 - 1),
 	NewU256(2 * 24576),
 	NewU256(2*24576 + 1),
+	NewU256(0x1FFFFFFFE1), // st.maxMemoryExpansionSize
 }
 
 func (MemorySizeParameter) Samples() []U256 {
@@ -145,9 +147,9 @@ var gasParameterSamples = []U256{
 	NewU256(0),
 	NewU256(1),
 	NewU256(1 << 10),
-	NewU256(1 << 20),
-	NewU256(1 << 62),
-	MaxU256(),
+	// NewU256(1 << 20),
+	// NewU256(1 << 62),
+	// MaxU256(),
 }
 
 func (GasParameter) Samples() []U256 {

@@ -122,37 +122,37 @@ func TestExpression_GasConstraints(t *testing.T) {
 		{condition: Eq(Gas(), tosca.Gas(0))},
 		{condition: Eq(Gas(), tosca.Gas(1))},
 		{condition: Eq(Gas(), tosca.Gas(5))},
-		{condition: Eq(Gas(), st.MaxGas)},
+		{condition: Eq(Gas(), st.MaxGasUsedByCt)},
 
 		// Not Equal
 		{condition: Ne(Gas(), tosca.Gas(0))},
 		{condition: Ne(Gas(), tosca.Gas(1))},
 		{condition: Ne(Gas(), tosca.Gas(5))},
-		{condition: Ne(Gas(), st.MaxGas)},
+		{condition: Ne(Gas(), st.MaxGasUsedByCt)},
 
 		// Less
 		{condition: Lt(Gas(), tosca.Gas(0)), unsatisfiable: true},
 		{condition: Lt(Gas(), tosca.Gas(1))},
 		{condition: Lt(Gas(), tosca.Gas(5))},
-		{condition: Lt(Gas(), st.MaxGas)},
+		{condition: Lt(Gas(), st.MaxGasUsedByCt)},
 
 		// Less or equal
 		{condition: Le(Gas(), tosca.Gas(0))},
 		{condition: Le(Gas(), tosca.Gas(1))},
 		{condition: Le(Gas(), tosca.Gas(5))},
-		{condition: Le(Gas(), st.MaxGas), valid: true},
+		{condition: Le(Gas(), st.MaxGasUsedByCt), valid: true},
 
 		// Greater or equal
 		{condition: Ge(Gas(), tosca.Gas(0)), valid: true},
 		{condition: Ge(Gas(), tosca.Gas(1))},
 		{condition: Ge(Gas(), tosca.Gas(5))},
-		{condition: Ge(Gas(), st.MaxGas)},
+		{condition: Ge(Gas(), st.MaxGasUsedByCt)},
 
 		// Greater
 		{condition: Gt(Gas(), tosca.Gas(0))},
 		{condition: Gt(Gas(), tosca.Gas(1))},
 		{condition: Gt(Gas(), tosca.Gas(5))},
-		{condition: Gt(Gas(), st.MaxGas), unsatisfiable: true},
+		{condition: Gt(Gas(), st.MaxGasUsedByCt), unsatisfiable: true},
 
 		// Ranges
 		{condition: And(Ge(Gas(), tosca.Gas(4)), Le(Gas(), tosca.Gas(10)))},
@@ -160,7 +160,7 @@ func TestExpression_GasConstraints(t *testing.T) {
 		{condition: And(Gt(Gas(), tosca.Gas(4)), Le(Gas(), tosca.Gas(5)))},
 		{condition: And(Ge(Gas(), tosca.Gas(4)), Lt(Gas(), tosca.Gas(5)))},
 
-		{condition: And(Ge(Gas(), tosca.Gas(0)), Le(Gas(), st.MaxGas)), valid: true},
+		{condition: And(Ge(Gas(), tosca.Gas(0)), Le(Gas(), st.MaxGasUsedByCt)), valid: true},
 		{condition: And(Ge(Gas(), tosca.Gas(10)), Le(Gas(), tosca.Gas(4))), unsatisfiable: true},
 	}
 

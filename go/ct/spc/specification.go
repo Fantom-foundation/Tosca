@@ -267,7 +267,7 @@ func getAllRules() []Rule {
 			}
 			s.Gas -= memExpCost
 
-			wordCost := tosca.Gas(6 * SizeInWords(size))
+			wordCost := tosca.Gas(6 * tosca.SizeInWords(size))
 			if s.Gas < wordCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1449,7 +1449,7 @@ func getAllRules() []Rule {
 
 			cost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
 
-			cost += tosca.Gas(3 * SizeInWords(size))
+			cost += tosca.Gas(3 * tosca.SizeInWords(size))
 			if s.Gas < cost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1526,7 +1526,7 @@ func getAllRules() []Rule {
 			sizeU256 := s.Stack.Pop()
 
 			expansionCost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			expansionCost += tosca.Gas(3 * SizeInWords(size))
+			expansionCost += tosca.Gas(3 * tosca.SizeInWords(size))
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1598,7 +1598,7 @@ func getAllRules() []Rule {
 			}
 
 			expansionCost, destOffsetUint64, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			expansionCost += tosca.Gas(3 * SizeInWords(size))
+			expansionCost += tosca.Gas(3 * tosca.SizeInWords(size))
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1805,7 +1805,7 @@ func createEffect(s *st.State, callKind tosca.CallKind) {
 
 	if callKind == tosca.Create2 {
 		saltU256 = s.Stack.Pop()
-		dynamicGas += tosca.Gas(6 * SizeInWords(size))
+		dynamicGas += tosca.Gas(6 * tosca.SizeInWords(size))
 	}
 
 	if s.Gas < dynamicGas {
@@ -1994,7 +1994,7 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 	sizeU256 := s.Stack.Pop()
 
 	cost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-	cost += tosca.Gas(3 * SizeInWords(size))
+	cost += tosca.Gas(3 * tosca.SizeInWords(size))
 	if s.Gas < cost {
 		s.Status = st.Failed
 		s.Gas = 0

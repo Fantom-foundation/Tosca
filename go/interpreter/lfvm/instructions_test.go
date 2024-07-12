@@ -677,7 +677,7 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 	}
 
 	dynamicCost := func(revision tosca.Revision, size uint64) uint64 {
-		words := sizeInWords(size)
+		words := tosca.SizeInWords(size)
 		// prevent overflow just like geth does
 		if size > maxMemoryExpansionSize {
 			return math.MaxInt64

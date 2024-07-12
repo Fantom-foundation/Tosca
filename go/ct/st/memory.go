@@ -78,7 +78,7 @@ func (m *Memory) Grow(offset, size uint64) {
 	}
 	newSize := offset + size
 	if newSize > uint64(m.Size()) {
-		newSize = SizeInWords(newSize) * 32
+		newSize = tosca.SizeInWords(newSize) * 32
 		m.mem = append(m.mem, make([]byte, newSize-uint64(m.Size()))...)
 	}
 }
@@ -127,10 +127,10 @@ func (m *Memory) ExpansionCosts(offset_u256, size_u256 U256) (memCost tosca.Gas,
 		return
 	}
 
-	if newSize > maxMemoryExpansionSize {
-		memCost = MaxGas
-		return
-	}
+	// if newSize > maxMemoryExpansionSize {
+	// 	memCost = MaxGas
+	// 	return
+	// }
 
 	calcMemoryCost := func(size uint64) tosca.Gas {
 		memorySizeWord := size / 32

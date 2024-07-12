@@ -10,6 +10,8 @@
 
 package tosca
 
+import "math"
+
 // GetStorageStatus obtains the status code to be returned by
 // RunContext implementation when mutating a storage slot with
 // the given original (=committed), current, and new value.
@@ -63,4 +65,11 @@ func GetStorageStatus(original, current, new Word) StorageStatus {
 
 	// Default
 	return StorageAssigned
+}
+
+func SizeInWords(size uint64) uint64 {
+	if size > math.MaxUint64-31 {
+		return math.MaxUint64/32 + 1
+	}
+	return (size + 31) / 32
 }
