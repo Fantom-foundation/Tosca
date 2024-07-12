@@ -163,7 +163,7 @@ func prepareFuzzingSeeds(f *testing.F) {
 
 				// generate a code segment with the operation followed by 6 random values
 				ops := make([]byte, fuzzMaximumCodeSegment)
-				rand.Read(ops[:])
+				_, _ = rand.Read(ops[:]) // rnd.Read never returns an error
 				ops[0] = byte(op)
 
 				// generate a stack: the stack contains a mixture of values
@@ -199,10 +199,10 @@ func prepareFuzzingSeeds(f *testing.F) {
 
 	// add one more with a full stack
 	ops := make([]byte, fuzzMaximumCodeSegment)
-	rnd.Read(ops[:])
+	_, _ = rnd.Read(ops[:]) // rnd.Read never returns an error
 	ops[0] = byte(0x00)
 	fullStack := make([]byte, 1024*32)
-	rnd.Read(fullStack[:])
+	_, _ = rnd.Read(fullStack[:]) // rnd.Read never returns an error
 	f.Add(
 		ops,                      // opCodes
 		int64(0),                 // gas

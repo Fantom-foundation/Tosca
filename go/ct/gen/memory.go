@@ -29,10 +29,7 @@ func (g *MemoryGenerator) Generate(rnd *rand.Rand) (*st.Memory, error) {
 	size := 32 * rnd.Intn(10)
 
 	data := make([]byte, size)
-	_, err := rnd.Read(data)
-	if err != nil {
-		return nil, err
-	}
+	_, _ = rnd.Read(data) // rnd.Read never returns an error
 
 	return st.NewMemory(data...), nil
 }
