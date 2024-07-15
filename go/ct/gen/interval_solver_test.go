@@ -279,7 +279,7 @@ func TestInterval_isEmpty(t *testing.T) {
 	}
 }
 
-func TestIntervalSolver_uint64fullrangeAndEdges(t *testing.T) {
+func TestIntervalSolver_uint64FullRangeAndEdges(t *testing.T) {
 
 	tests := map[string]struct {
 		setup func(*IntervalSolver[uint64])
@@ -287,13 +287,13 @@ func TestIntervalSolver_uint64fullrangeAndEdges(t *testing.T) {
 	}{
 		"full-range": {
 			setup: func(s *IntervalSolver[uint64]) {},
-			check: func(v uint64) bool { return v >= 0 && v <= math.MaxUint64 }},
+			check: func(v uint64) bool { return true }}, // this tests that does not return err
 		"remove-zero": {
 			setup: func(s *IntervalSolver[uint64]) { s.Exclude(0, 0) },
 			check: func(v uint64) bool { return v > 0 && v < math.MaxUint64 }},
 		"remove-max": {
 			setup: func(s *IntervalSolver[uint64]) { s.Exclude(math.MaxUint64, math.MaxUint64) },
-			check: func(v uint64) bool { return v >= 0 && v < math.MaxUint64-1 }},
+			check: func(v uint64) bool { return v != math.MaxUint64 }},
 		"fix-max": {
 			setup: func(s *IntervalSolver[uint64]) { s.AddEqualityConstraint(math.MaxUint64) },
 			check: func(v uint64) bool { return v == math.MaxUint64 }},
@@ -321,7 +321,7 @@ func TestIntervalSolver_uint64fullrangeAndEdges(t *testing.T) {
 	}
 }
 
-func TestIntervalSolver_int64fullrangeAndEdges(t *testing.T) {
+func TestIntervalSolver_int64FullRangeAndEdges(t *testing.T) {
 
 	tests := map[string]struct {
 		setup func(*IntervalSolver[int64])
@@ -329,10 +329,13 @@ func TestIntervalSolver_int64fullrangeAndEdges(t *testing.T) {
 	}{
 		"full-range": {
 			setup: func(s *IntervalSolver[int64]) {},
-			check: func(v int64) bool { return v >= math.MinInt64 && v <= math.MaxInt64 }},
+			check: func(v int64) bool { return true }}, // this tests that does not return err
 		"remove-min": {
 			setup: func(s *IntervalSolver[int64]) { s.Exclude(math.MinInt64, math.MinInt64) },
 			check: func(v int64) bool { return v != math.MaxInt64 }},
+		"remove-zero": {
+			setup: func(s *IntervalSolver[int64]) { s.Exclude(0, 0) },
+			check: func(v int64) bool { return v != 0 }},
 		"remove-max": {
 			setup: func(s *IntervalSolver[int64]) { s.Exclude(math.MaxInt64, math.MaxInt64) },
 			check: func(v int64) bool { return v != math.MaxInt64 }},
@@ -342,9 +345,6 @@ func TestIntervalSolver_int64fullrangeAndEdges(t *testing.T) {
 		"remove-all-negative": {
 			setup: func(s *IntervalSolver[int64]) { s.Exclude(math.MinInt64, 0) },
 			check: func(v int64) bool { return v > 0 }},
-		"remove-zero": {
-			setup: func(s *IntervalSolver[int64]) { s.Exclude(0, 0) },
-			check: func(v int64) bool { return v != 0 }},
 		"fix-max": {
 			setup: func(s *IntervalSolver[int64]) { s.AddEqualityConstraint(math.MaxInt64) },
 			check: func(v int64) bool { return v == math.MaxInt64 }},
