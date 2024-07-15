@@ -163,7 +163,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
-				return tosca.Word{}, ctxt.GetCommittedStorage(tosca.Address{}, tosca.Key{})
+				return tosca.Word{}, ctxt.GetCommittedStorage(tosca.Address{}, tosca.Key{}) //nolint:staticcheck
 			},
 		},
 		"storage-original-specified": {
@@ -176,7 +176,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 				ctxt := p.Context
 				key1 := tosca.Key(cc.NewU256(1).Bytes32be())
 				val2 := tosca.Word(cc.NewU256(2).Bytes32be())
-				return val2, ctxt.GetCommittedStorage(tosca.Address{}, key1)
+				return val2, ctxt.GetCommittedStorage(tosca.Address{}, key1) //nolint:staticcheck
 			},
 		},
 		"cold-slot": {
@@ -185,7 +185,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
-				_, res := ctxt.IsSlotInAccessList(tosca.Address{}, tosca.Key{})
+				_, res := ctxt.IsSlotInAccessList(tosca.Address{}, tosca.Key{}) //nolint:staticcheck
 				return false, res
 			},
 		},
@@ -197,7 +197,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
-				_, res := ctxt.IsSlotInAccessList(tosca.Address{}, tosca.Key{})
+				_, res := ctxt.IsSlotInAccessList(tosca.Address{}, tosca.Key{}) //nolint:staticcheck
 				return true, res
 			},
 		},
@@ -311,7 +311,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
-				return false, ctxt.IsAddressInAccessList(tosca.Address{})
+				return false, ctxt.IsAddressInAccessList(tosca.Address{}) //nolint:staticcheck
 			},
 		},
 		"warm-account-legacy": {
@@ -321,7 +321,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
-				return true, ctxt.IsAddressInAccessList(tosca.Address{})
+				return true, ctxt.IsAddressInAccessList(tosca.Address{}) //nolint:staticcheck
 			},
 		},
 	}

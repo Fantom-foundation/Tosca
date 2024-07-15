@@ -300,7 +300,7 @@ func (s *stateDbAdapter) GetRefund() uint64 {
 }
 
 func (s *stateDbAdapter) GetCommittedState(addr common.Address, key common.Hash) common.Hash {
-	return common.Hash(s.context.GetCommittedStorage(tosca.Address(addr), tosca.Key(key)))
+	return common.Hash(s.context.GetCommittedStorage(tosca.Address(addr), tosca.Key(key))) //nolint:staticcheck
 }
 
 func (s *stateDbAdapter) GetState(addr common.Address, key common.Hash) common.Hash {
@@ -329,7 +329,7 @@ func (s *stateDbAdapter) SelfDestruct(addr common.Address) {
 }
 
 func (s *stateDbAdapter) HasSelfDestructed(addr common.Address) bool {
-	return s.context.HasSelfDestructed(tosca.Address(addr))
+	return s.context.HasSelfDestructed(tosca.Address(addr)) //nolint:staticcheck
 }
 
 func (s *stateDbAdapter) Selfdestruct6780(addr common.Address) {
@@ -361,11 +361,11 @@ func (s *stateDbAdapter) PrepareAccessList(sender common.Address, dest *common.A
 }
 
 func (s *stateDbAdapter) AddressInAccessList(addr common.Address) bool {
-	return s.context.IsAddressInAccessList(tosca.Address(addr))
+	return s.context.IsAddressInAccessList(tosca.Address(addr)) //nolint:staticcheck
 }
 
 func (s *stateDbAdapter) SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool) {
-	return s.context.IsSlotInAccessList(tosca.Address(addr), tosca.Key(slot))
+	return s.context.IsSlotInAccessList(tosca.Address(addr), tosca.Key(slot)) //nolint:staticcheck
 }
 
 func (s *stateDbAdapter) AddAddressToAccessList(addr common.Address) {
