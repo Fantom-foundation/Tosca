@@ -16,6 +16,7 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 // Domain represents the domain of values for a given type.
@@ -265,17 +266,17 @@ func (pcDomain) SamplesForAll(as []U256) []U256 {
 
 type opCodeDomain struct{}
 
-func (opCodeDomain) Equal(a OpCode, b OpCode) bool     { return a == b }
-func (opCodeDomain) Less(a OpCode, b OpCode) bool      { return a < b }
-func (opCodeDomain) Predecessor(a OpCode) OpCode       { panic("not useful") }
-func (opCodeDomain) Successor(a OpCode) OpCode         { panic("not useful") }
-func (opCodeDomain) SomethingNotEqual(a OpCode) OpCode { return a + 1 }
-func (opCodeDomain) Samples(a OpCode) []OpCode         { return []OpCode{a, a + 1} }
+func (opCodeDomain) Equal(a vm.OpCode, b vm.OpCode) bool     { return a == b }
+func (opCodeDomain) Less(a vm.OpCode, b vm.OpCode) bool      { return a < b }
+func (opCodeDomain) Predecessor(a vm.OpCode) vm.OpCode       { panic("not useful") }
+func (opCodeDomain) Successor(a vm.OpCode) vm.OpCode         { panic("not useful") }
+func (opCodeDomain) SomethingNotEqual(a vm.OpCode) vm.OpCode { return a + 1 }
+func (opCodeDomain) Samples(a vm.OpCode) []vm.OpCode         { return []vm.OpCode{a, a + 1} }
 
-func (opCodeDomain) SamplesForAll([]OpCode) []OpCode {
-	res := make([]OpCode, 0, 256)
+func (opCodeDomain) SamplesForAll([]vm.OpCode) []vm.OpCode {
+	res := make([]vm.OpCode, 0, 256)
 	for i := 0; i < 256; i++ {
-		res = append(res, OpCode(i))
+		res = append(res, vm.OpCode(i))
 	}
 	return res
 }

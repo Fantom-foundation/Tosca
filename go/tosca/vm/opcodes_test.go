@@ -8,14 +8,12 @@
 // On the date above, in accordance with the Business Source License, use of
 // this software will be governed by the GNU Lesser General Public License v3.
 
-package common
+package vm
 
 import (
 	"regexp"
 	"slices"
 	"testing"
-
-	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestOpCode_ValidOpCodes(t *testing.T) {
@@ -67,7 +65,7 @@ func TestOpCode_CanBePrinted(t *testing.T) {
 }
 
 func TestOpCode_NumberOfOpCodes(t *testing.T) {
-	istanbulOpCodes := []OpCode{
+	currentOpCodes := []OpCode{
 		STOP, ADD, MUL, SUB, DIV, SDIV, MOD, SMOD, ADDMOD, MULMOD, EXP, SIGNEXTEND,
 		LT, GT, SLT, SGT, EQ, ISZERO, AND, OR, XOR, NOT, BYTE, SHL, SHR, SAR,
 		SHA3,
@@ -79,29 +77,9 @@ func TestOpCode_NumberOfOpCodes(t *testing.T) {
 		SWAP1, SWAP2, SWAP3, SWAP4, SWAP5, SWAP6, SWAP7, SWAP8, SWAP9, SWAP10, SWAP11, SWAP12, SWAP13, SWAP14, SWAP15, SWAP16,
 		LOG0, LOG1, LOG2, LOG3, LOG4,
 		CREATE, CALL, CALLCODE, RETURN, DELEGATECALL, CREATE2, STATICCALL, REVERT, INVALID, SELFDESTRUCT,
-	}
-
-	if NewestSupportedRevision > tosca.R13_Cancun {
-		t.Errorf("Missing update for revision %v", NewestSupportedRevision)
-	}
-
-	currentOpCodes := istanbulOpCodes
-	switch NewestSupportedRevision {
-	case tosca.R13_Cancun:
-		// TODO: enable once supported
-		// currentOpCodes = append(currentOpCodes, []OpCode{BLOBHASH, BLOBBASEFEE, TLOAD, TSTORE, MCOPY}...) // Cancun
-		fallthrough
-	case tosca.R12_Shanghai:
-		currentOpCodes = append(currentOpCodes, []OpCode{PUSH0}...) // Shanghai
-		fallthrough
-	case tosca.R11_Paris:
-		currentOpCodes = append(currentOpCodes, []OpCode{}...) // Paris
-		fallthrough
-	case tosca.R10_London:
-		currentOpCodes = append(currentOpCodes, []OpCode{BASEFEE}...) // London
-		fallthrough
-	case tosca.R09_Berlin:
-		currentOpCodes = append(currentOpCodes, []OpCode{}...) // Berlin
+		BASEFEE,                                     // London
+		PUSH0,                                       // Shanghai
+		BLOBHASH, BLOBBASEFEE, TLOAD, TSTORE, MCOPY, // Cancun
 	}
 
 	for i := 0; i < 256; i++ {

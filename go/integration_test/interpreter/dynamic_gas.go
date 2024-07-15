@@ -15,11 +15,8 @@ import (
 	"math/big"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 	"go.uber.org/mock/gomock"
-
-	// This is only imported to get the EVM opcode definitions.
-	// TODO: write up our own op-code definition and remove this dependency.
-	evm "github.com/ethereum/go-ethereum/core/vm"
 )
 
 // Structure for dynamic gas instruction test
@@ -35,7 +32,7 @@ type DynGasTest struct {
 // Structure for dynamic gas instruction test
 type FailGasTest struct {
 	testName    string                  // test name
-	instruction evm.OpCode              // tested instruction opcode
+	instruction vm.OpCode               // tested instruction opcode
 	stackValues []*big.Int              // values to be put on stack
 	initialGas  tosca.Gas               // gas amount for the test
 	mockCalls   func(mock *MockStateDB) // defines expected stateDB calls during test execution
@@ -331,11 +328,11 @@ func gasDynamicSStore(revision Revision) []*DynGasTest {
 }
 
 type instructionGasTest struct {
-	instruction evm.OpCode
+	instruction vm.OpCode
 	initialGas  tosca.Gas
 }
 
-func testsContainOpCode(op evm.OpCode, tests []instructionGasTest) bool {
+func testsContainOpCode(op vm.OpCode, tests []instructionGasTest) bool {
 	for _, test := range tests {
 		if test.instruction == op {
 			return true
@@ -371,38 +368,38 @@ func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 	testCases := []*FailGasTest{}
 
 	tests := []instructionGasTest{
-		{evm.SSTORE, sstoreLowGas},
-		{evm.SLOAD, accessLowGas},
-		{evm.BALANCE, accessLowGas},
-		{evm.EXTCODESIZE, accessLowGas},
-		{evm.EXTCODEHASH, accessLowGas},
-		{evm.EXTCODECOPY, accessLowGas},
-		{evm.CALL, accessLowGas},
-		{evm.STATICCALL, accessLowGas},
-		{evm.DELEGATECALL, accessLowGas},
-		{evm.CALLCODE, accessLowGas},
-		{evm.SELFDESTRUCT, accessLowGas},
-		{evm.CREATE, accessLowGas},
-		{evm.CREATE2, accessLowGas},
-		{evm.EXP, expLowGas},
-		{evm.CODECOPY, copyLowGas},
-		{evm.CALLDATACOPY, copyLowGas},
-		{evm.MLOAD, memoryLowGasTwoWordsWithStatic},
-		{evm.MSTORE, memoryLowGasTwoWordsWithStatic},
-		{evm.MSTORE8, memoryLowGasOneWord},
-		{evm.LOG0, 1*logStaticGas + logLowGas},
-		{evm.LOG1, 2*logStaticGas + logLowGas},
-		{evm.LOG2, 3*logStaticGas + logLowGas},
-		{evm.LOG3, 4*logStaticGas + logLowGas},
-		{evm.LOG4, 5*logStaticGas + logLowGas},
-		{evm.KECCAK256, sha3LowGas},
-		{evm.RETURN, memoryLowGasOneWord},
-		{evm.REVERT, memoryLowGasOneWord},
+		{vm.SSTORE, sstoreLowGas},
+		{vm.SLOAD, accessLowGas},
+		{vm.BALANCE, accessLowGas},
+		{vm.EXTCODESIZE, accessLowGas},
+		{vm.EXTCODEHASH, accessLowGas},
+		{vm.EXTCODECOPY, accessLowGas},
+		{vm.CALL, accessLowGas},
+		{vm.STATICCALL, accessLowGas},
+		{vm.DELEGATECALL, accessLowGas},
+		{vm.CALLCODE, accessLowGas},
+		{vm.SELFDESTRUCT, accessLowGas},
+		{vm.CREATE, accessLowGas},
+		{vm.CREATE2, accessLowGas},
+		{vm.EXP, expLowGas},
+		{vm.CODECOPY, copyLowGas},
+		{vm.CALLDATACOPY, copyLowGas},
+		{vm.MLOAD, memoryLowGasTwoWordsWithStatic},
+		{vm.MSTORE, memoryLowGasTwoWordsWithStatic},
+		{vm.MSTORE8, memoryLowGasOneWord},
+		{vm.LOG0, 1*logStaticGas + logLowGas},
+		{vm.LOG1, 2*logStaticGas + logLowGas},
+		{vm.LOG2, 3*logStaticGas + logLowGas},
+		{vm.LOG3, 4*logStaticGas + logLowGas},
+		{vm.LOG4, 5*logStaticGas + logLowGas},
+		{vm.SHA3, sha3LowGas},
+		{vm.RETURN, memoryLowGasOneWord},
+		{vm.REVERT, memoryLowGasOneWord},
 	}
 
 	// Check if all opcodes with dynamic gas calculation are present in the tests
 	for op, info := range getInstructions(revision) {
-		if op == evm.RETURNDATACOPY || // can't be tested in this way because of inner call needed
+		if op == vm.RETURNDATACOPY || // can't be tested in this way because of inner call needed
 			info.gas.dynamic == nil {
 			continue
 		} else {
@@ -576,7 +573,7 @@ func gasDynamicCallCodeCall(revision Revision) []*DynGasTest {
 
 func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationGas bool) []*DynGasTest {
 
-	calledCode := []byte{byte(evm.STOP)}
+	calledCode := []byte{byte(vm.STOP)}
 
 	type callTest struct {
 		testName         string
@@ -713,7 +710,7 @@ func gasDynCreate(revision Revision, isCreate2 bool) []*DynGasTest {
 		code, returnGas, codeLength := getCreateContractCode(returnSize)
 		codeVal := big.NewInt(0).SetBytes(code)
 
-		// Values to put into evm memory
+		// Values to put into vm memory
 		memValues := []*big.Int{codeVal, offset}
 		dataSize := len(code)
 
@@ -748,16 +745,16 @@ func gasDynCreate(revision Revision, isCreate2 bool) []*DynGasTest {
 // Returns contract code with its gas cost for CREATE instruction
 func getCreateContractCode(returnSize int) ([]byte, tosca.Gas, uint64) {
 	code := [32]byte{}
-	code[0] = byte(evm.PUSH1)
+	code[0] = byte(vm.PUSH1)
 	code[1] = byte(0)
-	code[2] = byte(evm.PUSH1)
+	code[2] = byte(vm.PUSH1)
 	code[3] = byte(returnSize)
-	code[4] = byte(evm.MSTORE)
-	code[5] = byte(evm.PUSH1)
+	code[4] = byte(vm.MSTORE)
+	code[5] = byte(vm.PUSH1)
 	code[6] = byte(returnSize)
-	code[7] = byte(evm.PUSH1)
+	code[7] = byte(vm.PUSH1)
 	code[8] = byte(0)
-	code[9] = byte(evm.RETURN)
+	code[9] = byte(vm.RETURN)
 
 	codeLength := uint64(10)
 

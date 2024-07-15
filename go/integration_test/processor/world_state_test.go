@@ -17,10 +17,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
-
-	// This is only imported to get the EVM opcode definitions.
-	// TODO: write up our own op-code definition and remove this dependency.
-	op "github.com/ethereum/go-ethereum/core/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestWorldState_Equal(t *testing.T) {
@@ -146,7 +143,7 @@ func TestAccount_Equal(t *testing.T) {
 			a: Account{
 				Balance: tosca.NewValue(100),
 				Nonce:   4,
-				Code:    tosca.Code{byte(op.STOP)},
+				Code:    tosca.Code{byte(vm.STOP)},
 				Storage: map[tosca.Key]tosca.Word{
 					{1}: {0x01},
 					{4}: {0x0F},
@@ -155,7 +152,7 @@ func TestAccount_Equal(t *testing.T) {
 			b: Account{
 				Balance: tosca.NewValue(100),
 				Nonce:   4,
-				Code:    tosca.Code{byte(op.STOP)},
+				Code:    tosca.Code{byte(vm.STOP)},
 				Storage: map[tosca.Key]tosca.Word{
 					{1}: {0x01},
 					{4}: {0x0F},
@@ -194,8 +191,8 @@ func TestAccount_NotEqual(t *testing.T) {
 			b: Account{Nonce: 5},
 		},
 		"different_code": {
-			a: Account{Code: tosca.Code{byte(op.STOP)}},
-			b: Account{Code: tosca.Code{byte(op.ADD)}},
+			a: Account{Code: tosca.Code{byte(vm.STOP)}},
+			b: Account{Code: tosca.Code{byte(vm.ADD)}},
 		},
 		"different_storage": {
 			a: Account{Storage: map[tosca.Key]tosca.Word{{1}: {0x01}}},
@@ -221,7 +218,7 @@ func TestAccount_Clone(t *testing.T) {
 			a: Account{
 				Balance: tosca.NewValue(100),
 				Nonce:   4,
-				Code:    tosca.Code{byte(op.STOP)},
+				Code:    tosca.Code{byte(vm.STOP)},
 				Storage: map[tosca.Key]tosca.Word{
 					{1}: {0x01},
 					{4}: {0x0F},
@@ -262,8 +259,8 @@ func TestAccount_Diff(t *testing.T) {
 			expected: []string{"different nonce: 4 != 5"},
 		},
 		"different_code": {
-			a:        Account{Code: tosca.Code{byte(op.STOP)}},
-			b:        Account{Code: tosca.Code{byte(op.ADD), byte(op.MUL)}},
+			a:        Account{Code: tosca.Code{byte(vm.STOP)}},
+			b:        Account{Code: tosca.Code{byte(vm.ADD), byte(vm.MUL)}},
 			expected: []string{"different code: 0x00 != 0x0102"},
 		},
 		"different_storage": {

@@ -24,6 +24,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/interpreter/evmzero"
 	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 var evms = map[string]ct.Evm{
@@ -46,8 +47,8 @@ func TestCt_ExplicitCases(t *testing.T) {
 			And(
 				IsRevision(revision),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMP),
-				Eq(Op(Constant(NewU256(0))), JUMPDEST),
+				Eq(Op(Pc()), vm.JUMP),
+				Eq(Op(Constant(NewU256(0))), vm.JUMPDEST),
 				Eq(Param(0), NewU256(1<<32)),
 				Ge(Gas(), tosca.Gas(8)),
 			)
@@ -55,8 +56,8 @@ func TestCt_ExplicitCases(t *testing.T) {
 			And(
 				IsRevision(revision),
 				Eq(Status(), st.Running),
-				Eq(Op(Pc()), JUMPI),
-				Eq(Op(Constant(NewU256(0))), JUMPDEST),
+				Eq(Op(Pc()), vm.JUMPI),
+				Eq(Op(Constant(NewU256(0))), vm.JUMPDEST),
 				Eq(Param(0), NewU256(1<<32)),
 				Ne(Param(1), NewU256(0)),
 				Ge(Gas(), tosca.Gas(10)),

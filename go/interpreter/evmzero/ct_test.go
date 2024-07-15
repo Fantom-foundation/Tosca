@@ -17,13 +17,14 @@ import (
 	cc "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestCtAdapter_Add(t *testing.T) {
 	s := st.NewState(st.NewCode([]byte{
-		byte(cc.PUSH1), 3,
-		byte(cc.PUSH1), 4,
-		byte(cc.ADD),
+		byte(vm.PUSH1), 3,
+		byte(vm.PUSH1), 4,
+		byte(vm.ADD),
 	}))
 	s.Status = st.Running
 	s.Revision = tosca.R07_Istanbul

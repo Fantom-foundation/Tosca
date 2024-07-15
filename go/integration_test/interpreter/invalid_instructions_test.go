@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestInterpreterDetectsInvalidInstruction(t *testing.T) {

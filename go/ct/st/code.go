@@ -20,6 +20,7 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 // MaxCodeSize is the maximum size of a contract stored on a Ethereum
@@ -47,9 +48,9 @@ func NewCode(code []byte) *Code {
 	isCode := make([]bool, 0, len(code)+32)
 	for i := 0; i < len(code); i++ {
 		isCode = append(isCode, true)
-		op := OpCode(code[i])
-		if PUSH1 <= op && op <= PUSH32 {
-			width := int(op - PUSH1 + 1)
+		op := vm.OpCode(code[i])
+		if vm.PUSH1 <= op && op <= vm.PUSH32 {
+			width := int(op - vm.PUSH1 + 1)
 			isCode = append(isCode, make([]bool, width)...)
 			i += width
 		}
@@ -93,14 +94,14 @@ func (c *Code) IsData(pos int) bool {
 	return !c.IsCode(pos)
 }
 
-func (c *Code) GetOperation(pos int) (OpCode, error) {
+func (c *Code) GetOperation(pos int) (vm.OpCode, error) {
 	if pos < 0 || pos >= len(c.isCode) {
-		return STOP, nil
+		return vm.STOP, nil
 	}
 	if !c.isCode[pos] {
-		return INVALID, ErrInvalidPosition
+		return vm.INVALID, ErrInvalidPosition
 	}
-	return OpCode(c.code[pos]), nil
+	return vm.OpCode(c.code[pos]), nil
 }
 
 func (c *Code) GetData(pos int) (byte, error) {
@@ -160,7 +161,7 @@ func (c *Code) ToHumanReadableString(start int, length int) string {
 	for i, op := range c.code[start:end] {
 		var entry string
 		if c.IsCode(start + i) {
-			entry = OpCode(op).String()
+			entry = vm.OpCode(op).String()
 		} else {
 			entry = fmt.Sprintf("%d", op)
 		}

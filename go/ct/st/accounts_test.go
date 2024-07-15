@@ -17,6 +17,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestAccounts_MarkWarmMarksAddressesAsWarm(t *testing.T) {
@@ -64,10 +65,10 @@ func TestAccounts_Clone(t *testing.T) {
 			accounts.RemoveBalance(a)
 		}},
 		"add-code": {func(accounts *Accounts) {
-			accounts.SetCode(b, NewBytes([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}))
+			accounts.SetCode(b, NewBytes([]byte{byte(vm.ADD), byte(vm.PUSH1), 5, byte(vm.PUSH2)}))
 		}},
 		"modify-code": {func(accounts *Accounts) {
-			accounts.SetCode(a, NewBytes([]byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)}))
+			accounts.SetCode(a, NewBytes([]byte{byte(vm.SUB), byte(vm.BALANCE), 5, byte(vm.SHA3)}))
 		}},
 		"remove-code": {func(accounts *Accounts) {
 			accounts.RemoveCode(a)
@@ -84,7 +85,7 @@ func TestAccounts_Clone(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			b1 := NewAccounts()
 			b1.SetBalance(a, NewU256(1))
-			b1.SetCode(a, NewBytes([]byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}))
+			b1.SetCode(a, NewBytes([]byte{byte(vm.SUB), byte(vm.SWAP1), 5, byte(vm.PUSH2)}))
 			b1.MarkWarm(a)
 			b2 := b1.Clone()
 			if !b1.Eq(b2) {
@@ -128,10 +129,10 @@ func TestAccounts_Diff(t *testing.T) {
 			accounts.RemoveBalance(a)
 		}, "Different balance entry"},
 		"add-code": {func(accounts *Accounts) {
-			accounts.SetCode(b, NewBytes([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}))
+			accounts.SetCode(b, NewBytes([]byte{byte(vm.ADD), byte(vm.PUSH1), 5, byte(vm.PUSH2)}))
 		}, "Different code entry"},
 		"modify-code": {func(accounts *Accounts) {
-			accounts.SetCode(a, NewBytes([]byte{byte(SUB), byte(BALANCE), 5, byte(SHA3)}))
+			accounts.SetCode(a, NewBytes([]byte{byte(vm.SUB), byte(vm.BALANCE), 5, byte(vm.SHA3)}))
 		}, "Different code entry"},
 		"remove-code": {func(accounts *Accounts) {
 			accounts.RemoveCode(a)
@@ -148,7 +149,7 @@ func TestAccounts_Diff(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			a1 := NewAccounts()
 			a1.SetBalance(a, NewU256(1))
-			a1.SetCode(a, NewBytes([]byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}))
+			a1.SetCode(a, NewBytes([]byte{byte(vm.SUB), byte(vm.SWAP1), 5, byte(vm.PUSH2)}))
 			a1.MarkWarm(a)
 			a2 := a1.Clone()
 			diff := a1.Diff(a2)
@@ -258,7 +259,7 @@ func TestAccounts_String(t *testing.T) {
 func accountInit(a tosca.Address) *Accounts {
 	ab := NewAccountsBuilder()
 	ab.SetBalance(a, NewU256(1))
-	ab.SetCode(a, NewBytes([]byte{byte(SUB), byte(SWAP1), 5, byte(PUSH2)}))
+	ab.SetCode(a, NewBytes([]byte{byte(vm.SUB), byte(vm.SWAP1), 5, byte(vm.PUSH2)}))
 	ab.SetWarm(a)
 	acc := ab.Build()
 	return acc
@@ -286,7 +287,7 @@ func BenchmarkAccountCloneModifyCode(b *testing.B) {
 	b1 := accountInit(a)
 	for i := 0; i < b.N; i++ {
 		b2 := b1.Clone()
-		b2.SetCode(a, NewBytes([]byte{byte(ADD), byte(PUSH1), 5, byte(PUSH2)}))
+		b2.SetCode(a, NewBytes([]byte{byte(vm.ADD), byte(vm.PUSH1), 5, byte(vm.PUSH2)}))
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 	"github.com/ethereum/go-ethereum/common"
 	op "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -84,8 +85,8 @@ func getScenarios() map[string]Scenario {
 				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
 				{2}: Account{Balance: tosca.NewValue(0),
 					Code: tosca.Code{
-						byte(op.PUSH1), byte(0), // < push 0
-						byte(op.PUSH1), byte(0), // < push 0
+						byte(vm.PUSH1), byte(0), // < push 0
+						byte(vm.PUSH1), byte(0), // < push 0
 						byte(op.RETURN),
 					},
 				},
@@ -101,8 +102,8 @@ func getScenarios() map[string]Scenario {
 				{1}: Account{Balance: tosca.NewValue(97), Nonce: 5},
 				{2}: Account{Balance: tosca.NewValue(3),
 					Code: tosca.Code{
-						byte(op.PUSH1), byte(0), // < push 0
-						byte(op.PUSH1), byte(0), // < push 0
+						byte(vm.PUSH1), byte(0), // < push 0
+						byte(vm.PUSH1), byte(0), // < push 0
 						byte(op.RETURN),
 					},
 				},
@@ -117,8 +118,8 @@ func getScenarios() map[string]Scenario {
 				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
 				{2}: Account{Balance: tosca.NewValue(0),
 					Code: tosca.Code{
-						byte(op.PUSH1), byte(0), // < push 0
-						byte(op.PUSH1), byte(0), // < push 0
+						byte(vm.PUSH1), byte(0), // < push 0
+						byte(vm.PUSH1), byte(0), // < push 0
 						byte(op.REVERT),
 					},
 				},
@@ -134,8 +135,8 @@ func getScenarios() map[string]Scenario {
 				{1}: Account{Balance: tosca.NewValue(100), Nonce: 5},
 				{2}: Account{Balance: tosca.NewValue(0),
 					Code: tosca.Code{
-						byte(op.PUSH1), byte(0), // < push 0
-						byte(op.PUSH1), byte(0), // < push 0
+						byte(vm.PUSH1), byte(0), // < push 0
+						byte(vm.PUSH1), byte(0), // < push 0
 						byte(op.REVERT),
 					},
 				},

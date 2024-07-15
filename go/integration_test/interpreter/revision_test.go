@@ -15,11 +15,8 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 	"go.uber.org/mock/gomock"
-
-	// This is only imported to get the EVM opcode definitions.
-	// TODO: write up our own op-code definition and remove this dependency.
-	geth "github.com/ethereum/go-ethereum/core/vm"
 )
 
 func TestUnsupportedRevision_KnownRevisions(t *testing.T) {
@@ -35,7 +32,7 @@ func TestUnsupportedRevision_KnownRevisions(t *testing.T) {
 	mockStateDB.EXPECT().GetCodeHash(gomock.Any()).AnyTimes().Return(tosca.Hash{})
 	mockStateDB.EXPECT().GetBlockHash(gomock.Any()).AnyTimes().Return(tosca.Hash{})
 
-	code := []byte{byte(geth.PUSH2), byte(5), byte(2), byte(geth.SUB)}
+	code := []byte{byte(vm.PUSH2), byte(5), byte(2), byte(vm.SUB)}
 
 	for _, variant := range Variants {
 		for _, revision := range knownRevisions {

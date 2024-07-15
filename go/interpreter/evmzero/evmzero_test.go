@@ -14,10 +14,10 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/examples"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestFib10(t *testing.T) {
@@ -91,13 +91,13 @@ func TestEvmcInterpreter_BlobHashCanBeRead(t *testing.T) {
 
 	// create a test state with a code push at index 0
 	code := []byte{
-		byte(common.PUSH1), 0, // add to stack index to read from blobhash
-		byte(common.BLOBHASH), // read from blobhash index 0 and push it into stack
-		byte(common.PUSH1), 0, // push to stack offset to write in memory
-		byte(common.MSTORE),    // write in memory offset 0 value returned from blobhash
-		byte(common.PUSH1), 32, // push size of hash to read
-		byte(common.PUSH1), 0, // push to stack offset to read from memory
-		byte(common.RETURN),
+		byte(vm.PUSH1), 0, // add to stack index to read from blobhash
+		byte(vm.BLOBHASH), // read from blobhash index 0 and push it into stack
+		byte(vm.PUSH1), 0, // push to stack offset to write in memory
+		byte(vm.MSTORE),    // write in memory offset 0 value returned from blobhash
+		byte(vm.PUSH1), 32, // push size of hash to read
+		byte(vm.PUSH1), 0, // push to stack offset to read from memory
+		byte(vm.RETURN),
 	}
 
 	params := tosca.Parameters{
@@ -131,13 +131,13 @@ func TestEvmcInterpreter_BlobHashCanBeRead(t *testing.T) {
 func TestEvmcSteppableInterpreter_BlobHashCanBeRead(t *testing.T) {
 
 	code := []byte{
-		byte(common.PUSH1), 0, // add to stack index to read from blobhash
-		byte(common.BLOBHASH), // read from blobhash index 0 and push it into stack
-		byte(common.PUSH1), 0, // push to stack offset to write in memory
-		byte(common.MSTORE),    // write in memory offset 0 value returned from blobhash
-		byte(common.PUSH1), 32, // push size of hash to read
-		byte(common.PUSH1), 0, // push to stack offset to read from memory
-		byte(common.RETURN),
+		byte(vm.PUSH1), 0, // add to stack index to read from blobhash
+		byte(vm.BLOBHASH), // read from blobhash index 0 and push it into stack
+		byte(vm.PUSH1), 0, // push to stack offset to write in memory
+		byte(vm.MSTORE),    // write in memory offset 0 value returned from blobhash
+		byte(vm.PUSH1), 32, // push size of hash to read
+		byte(vm.PUSH1), 0, // push to stack offset to read from memory
+		byte(vm.RETURN),
 	}
 
 	blobhashes := []tosca.Hash{{2}}

@@ -18,6 +18,7 @@ import (
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 ////////////////////////////////////////////////////////////
@@ -148,14 +149,14 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 	serializableState.Pc = 42
 	serializableState.Gas = 77
 	serializableState.GasRefund = 88
-	serializableState.Code.ToBytes()[0] = byte(INVALID)
+	serializableState.Code.ToBytes()[0] = byte(vm.INVALID)
 	serializableState.Stack[0] = NewU256(77)
 	serializableState.Memory = NewBytes([]byte{42})
 	serializableState.Storage.Current[NewU256(42)] = NewU256(4)
 	serializableState.Storage.Original[NewU256(77)] = NewU256(7)
 	serializableState.Storage.Warm[NewU256(9)] = false
 	serializableState.Accounts.Balance[tosca.Address{0x01}] = NewU256(77)
-	serializableState.Accounts.Code[tosca.Address{0x01}] = NewBytes([]byte{byte(INVALID)})
+	serializableState.Accounts.Code[tosca.Address{0x01}] = NewBytes([]byte{byte(vm.INVALID)})
 	delete(serializableState.Accounts.Warm, tosca.Address{0x02})
 	serializableState.Logs.Entries[0].Data = NewBytes([]byte{99})
 	serializableState.Logs.Entries[0].Topics[0] = NewU256(42)
@@ -174,7 +175,7 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.Gas == 42 &&
 		s.GasRefund == 63 &&
 		s.Code.Length() == 5 &&
-		s.Code.code[0] == byte(PUSH2) &&
+		s.Code.code[0] == byte(vm.PUSH2) &&
 		s.Stack.Size() == 1 &&
 		s.Stack.Get(0).Uint64() == 42 &&
 		s.Memory.Size() == 64 &&
@@ -184,7 +185,7 @@ func TestSerialization_NewStateSerializableIsIndependent(t *testing.T) {
 		s.Storage.GetOriginal(NewU256(77)).Eq(NewU256(4)) &&
 		s.Storage.IsWarm(NewU256(9)) &&
 		s.Accounts.GetBalance(tosca.Address{0x01}).Eq(NewU256(42)) &&
-		s.Accounts.GetCode(tosca.Address{0x01}) == NewBytes([]byte{byte(PUSH1), byte(6)}) &&
+		s.Accounts.GetCode(tosca.Address{0x01}) == NewBytes([]byte{byte(vm.PUSH1), byte(6)}) &&
 		s.Accounts.IsWarm(tosca.Address{0x02}) &&
 		s.Logs.Entries[0].Data[0] == 4 &&
 		s.Logs.Entries[0].Topics[0] == NewU256(21) &&
@@ -214,14 +215,14 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.Pc = 42
 	deserializedState.Gas = 77
 	deserializedState.GasRefund = 88
-	deserializedState.Code.code[0] = byte(INVALID)
+	deserializedState.Code.code[0] = byte(vm.INVALID)
 	deserializedState.Stack.stack[0] = NewU256(77)
 	deserializedState.Memory.mem[0] = 42
 	deserializedState.Storage.current[NewU256(42)] = NewU256(4)
 	deserializedState.Storage.original[NewU256(77)] = NewU256(7)
 	deserializedState.Storage.warm[NewU256(9)] = false
 	deserializedState.Accounts.SetBalance(tosca.Address{0x01}, NewU256(77))
-	deserializedState.Accounts.SetCode(tosca.Address{0x01}, NewBytes([]byte{byte(INVALID)}))
+	deserializedState.Accounts.SetCode(tosca.Address{0x01}, NewBytes([]byte{byte(vm.INVALID)}))
 	delete(deserializedState.Accounts.warm, tosca.Address{0x02})
 	deserializedState.Logs.Entries[0].Data[0] = 99
 	deserializedState.Logs.Entries[0].Topics[0] = NewU256(42)
@@ -240,7 +241,7 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 		s.Gas == 42 &&
 		s.GasRefund == 63 &&
 		s.Code.Length() == 5 &&
-		s.Code.ToBytes()[0] == byte(PUSH2) &&
+		s.Code.ToBytes()[0] == byte(vm.PUSH2) &&
 		len(s.Stack) == 1 &&
 		s.Stack[0].Uint64() == 42 &&
 		s.Memory.Length() == 64 &&
@@ -250,7 +251,7 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 		s.Storage.Original[NewU256(77)].Eq(NewU256(4)) &&
 		s.Storage.Warm[NewU256(9)] == true &&
 		s.Accounts.Balance[tosca.Address{0x01}].Eq(NewU256(42)) &&
-		s.Accounts.Code[tosca.Address{0x01}] == NewBytes([]byte{byte(PUSH1), byte(6)}) &&
+		s.Accounts.Code[tosca.Address{0x01}] == NewBytes([]byte{byte(vm.PUSH1), byte(6)}) &&
 		s.Accounts.Warm[tosca.Address{0x02}] == true &&
 		s.Logs.Entries[0].Data.ToBytes()[0] == 4 &&
 		s.Logs.Entries[0].Topics[0] == NewU256(21) &&
