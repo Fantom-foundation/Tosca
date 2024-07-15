@@ -19,6 +19,7 @@ import (
 
 	"pgregory.net/rand"
 
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -197,10 +198,7 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) 
 	}
 
 	chainId := RandU256(rnd)
-	coinbase, err := RandAddress(rnd)
-	if err != nil {
-		return st.BlockContext{}, err
-	}
+	coinbase := common.RandomAddress(rnd)
 
 	baseFee := RandU256(rnd)
 	blobBaseFee := RandU256(rnd)

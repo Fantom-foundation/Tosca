@@ -21,10 +21,7 @@ import (
 func TestCallContextGen_Generate(t *testing.T) {
 	rnd := rand.New(0)
 	callCtxGen := NewCallContextGenerator()
-	accountAddress, err := common.RandAddress(rnd)
-	if err != nil {
-		t.Errorf("Unexpected random address generation error: %v", err)
-	}
+	accountAddress := common.RandomAddress(rnd)
 	callCtx, err := callCtxGen.Generate(rnd, accountAddress)
 	if err != nil {
 		t.Errorf("Error generating call context: %v", err)

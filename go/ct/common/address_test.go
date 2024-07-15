@@ -43,14 +43,10 @@ func TestAddress_ToU256(t *testing.T) {
 	}
 }
 
-func TestAddress_RandAddress(t *testing.T) {
+func TestAddress_RandomAddress(t *testing.T) {
 	address1 := tosca.Address{}
 	rnd := rand.New(0)
-	address2, err := RandAddress(rnd)
-
-	if err != nil {
-		t.Errorf("Error generating random %v", err)
-	}
+	address2 := RandomAddress(rnd)
 
 	if address1 == address2 {
 		t.Errorf("Random Address is same as default value")

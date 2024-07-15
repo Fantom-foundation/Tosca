@@ -27,11 +27,6 @@ func AddressToU256(a tosca.Address) U256 {
 	return NewU256FromBytes(a[:]...)
 }
 
-// Deprecated: use RandomAddress instead
-func RandAddress(rnd *rand.Rand) (tosca.Address, error) {
-	return RandomAddress(rnd), nil
-}
-
 func RandomAddress(rnd *rand.Rand) tosca.Address {
 	address := tosca.Address{}
 	_, _ = rnd.Read(address[:]) // rnd.Read never returns an error

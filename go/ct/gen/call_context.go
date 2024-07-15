@@ -26,10 +26,7 @@ func NewCallContextGenerator() *CallContextGenerator {
 }
 
 func (*CallContextGenerator) Generate(rnd *rand.Rand, accountAddress tosca.Address) (st.CallContext, error) {
-	callerAddress, err := common.RandAddress(rnd)
-	if err != nil {
-		return st.CallContext{}, err
-	}
+	callerAddress := common.RandomAddress(rnd)
 
 	return st.CallContext{
 		AccountAddress: accountAddress,
