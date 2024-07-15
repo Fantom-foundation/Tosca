@@ -49,15 +49,29 @@ func (p *processor) Run(
 		return errorReceipt, nil
 	}
 
-	if err := transferValue(transaction, context); err != nil {
-		return errorReceipt, nil
+	isCreate := false
+	if transaction.Recipient == nil {
+		isCreate = true
+	}
+
+	var result tosca.Result
+	var err error
+
+	if isCreate {
+		// Create new contract
+	} else {
+		// Call existing contract
+		result, err = call(p.interpreter, transaction, context)
+		if err != nil {
+			return errorReceipt, nil
+		}
 	}
 
 	return tosca.Receipt{
-		Success:         true,
+		Success:         result.Success,
 		GasUsed:         transaction.GasLimit,
 		ContractAddress: nil,
-		Output:          []byte{},
+		Output:          result.Output,
 		Logs:            nil,
 	}, nil
 }
@@ -86,23 +100,6 @@ func buyGas(transaction tosca.Transaction, context tosca.TransactionContext) err
 
 	senderBalance = tosca.Sub(senderBalance, gas)
 	context.SetBalance(transaction.Sender, senderBalance)
-
-	return nil
-}
-
-func transferValue(transaction tosca.Transaction, context tosca.TransactionContext) error {
-	senderBalance := context.GetBalance(transaction.Sender)
-	transferValue := transaction.Value
-	if senderBalance.Cmp(transferValue) < 0 {
-		return fmt.Errorf("insufficient balance: %v < %v", senderBalance, transferValue)
-	}
-
-	senderBalance = tosca.Sub(senderBalance, transferValue)
-	context.SetBalance(transaction.Sender, senderBalance)
-
-	receiverBalance := context.GetBalance(*transaction.Recipient)
-	receiverBalance = tosca.Add(receiverBalance, transferValue)
-	context.SetBalance(*transaction.Recipient, receiverBalance)
 
 	return nil
 }
