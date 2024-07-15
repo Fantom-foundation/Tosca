@@ -32,7 +32,7 @@ func NewAccounts() *Accounts {
 
 func (a *Accounts) GetCodeHash(address tosca.Address) (hash [32]byte) {
 	hasher := sha3.NewLegacyKeccak256()
-	hasher.Write(a.code[address].ToBytes())
+	_, _ = hasher.Write(a.code[address].ToBytes()) // Hash.Write never returns an error
 	hasher.Sum(hash[:])
 	return
 }

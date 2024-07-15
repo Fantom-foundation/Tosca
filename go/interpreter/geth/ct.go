@@ -45,6 +45,11 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	evm.CallInterceptor = &callInterceptor{parameters, stateDb, state.ReadOnly}
 
+	memory, err := convertCtMemoryToGethMemory(state)
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert memory: %v", err)
+	}
+
 	interpreterState := geth_vm.InterpreterState{
 		Contract:           contract,
 		ReadOnly:           state.ReadOnly,
@@ -52,7 +57,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		Status:             geth_vm.Running,
 		Pc:                 uint64(state.Pc),
 		Stack:              convertCtStackToGethStack(state),
-		Memory:             convertCtMemoryToGethMemory(state),
+		Memory:             memory,
 		LastCallReturnData: state.LastCallReturnData.ToBytes(),
 	}
 
@@ -62,7 +67,6 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	}
 
 	// Update the resulting state.
-	var err error
 	state.Status, err = convertGethStatusToCtStatus(&interpreterState)
 	if err != nil {
 		return nil, err
@@ -98,14 +102,17 @@ func convertGethStatusToCtStatus(state *geth_vm.InterpreterState) (st.StatusCode
 	return 0, fmt.Errorf("unable to convert geth status to ct status")
 }
 
-func convertCtMemoryToGethMemory(state *st.State) *geth_vm.Memory {
+func convertCtMemoryToGethMemory(state *st.State) (*geth_vm.Memory, error) {
 	data := state.Memory.Read(0, uint64(state.Memory.Size()))
 	memory := geth_vm.NewMemory()
 	// Set internal memory gas cost state so future grow operations compute the correct cost.
-	geth_vm.MemoryGasCost(memory, uint64(len(data)))
+	_, err := geth_vm.MemoryGasCost(memory, uint64(len(data)))
+	if err != nil {
+		return nil, err
+	}
 	memory.Resize(uint64(len(data)))
 	memory.Set(0, uint64(len(data)), data)
-	return memory
+	return memory, nil
 }
 
 func convertGethMemoryToCtMemory(state *geth_vm.InterpreterState) *st.Memory {

@@ -76,7 +76,7 @@ func TestSpecification_EachRuleProducesAMatchingTestCase(t *testing.T) {
 			rnd := rand.New(0)
 			hits := 0
 			misses := 0
-			rule.EnumerateTestCases(rnd, func(state *st.State) rlz.ConsumerResult {
+			err := rule.EnumerateTestCases(rnd, func(state *st.State) rlz.ConsumerResult {
 				match, err := rule.Condition.Check(state)
 				if err != nil {
 					t.Errorf("failed to check rule condition for %v: %v", rule.Name, err)
@@ -90,6 +90,10 @@ func TestSpecification_EachRuleProducesAMatchingTestCase(t *testing.T) {
 				}
 				return rlz.ConsumeContinue
 			})
+
+			if err != nil {
+				t.Fatalf("failed to enumerate test cases: %v", err)
+			}
 
 			if hits == 0 {
 				t.Errorf("no matching test case produced for rule %v", rule.Name)
@@ -240,7 +244,7 @@ func TestSpecification_AtMostOneCodeAtPC(t *testing.T) {
 }
 
 // TODO: re-enable this test when runtime is not an issue anymore.
-// note: before commiting run it locally where timeout is not an issue.
+// note: before committing run it locally where timeout is not an issue.
 func Specification_NumberOfTestCasesMatchesRuleInfo(t *testing.T) {
 	rules := getAllRules()
 
@@ -253,10 +257,13 @@ func Specification_NumberOfTestCasesMatchesRuleInfo(t *testing.T) {
 
 			counter := 0
 			rand := rand.New(0)
-			rule.EnumerateTestCases(rand, func(*st.State) rlz.ConsumerResult {
+			err := rule.EnumerateTestCases(rand, func(*st.State) rlz.ConsumerResult {
 				counter++
 				return rlz.ConsumeContinue
 			})
+			if err != nil {
+				t.Fatalf("failed to enumerate test cases: %v", err)
+			}
 
 			if got, limit := counter, info.TotalNumberOfCases(); got > limit {
 				t.Errorf("inconsistent number of test cases, got %d, limit %d", got, limit)
@@ -300,7 +307,10 @@ func BenchmarkSpecification_RulesConditionCheck(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		rules := Spec.GetRules()
 		for _, rule := range rules {
-			rule.Condition.Check(state)
+			_, err := rule.Condition.Check(state)
+			if err != nil {
+				b.Fatalf("invalid benchmark, check returned error %v", err)
+			}
 		}
 	}
 }

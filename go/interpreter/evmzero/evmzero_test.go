@@ -46,7 +46,10 @@ func TestEvmzero_DumpProfile(t *testing.T) {
 		t.Fatalf("profiling evmzero configuration does not support profiling")
 	}
 	for i := 0; i < 10; i++ {
-		example.RunOn(interpreter, 10)
+		_, err := example.RunOn(interpreter, 10)
+		if err != nil {
+			t.Fatalf("running the fib example failed: %v", err)
+		}
 		interpreter.DumpProfile()
 		if i == 5 {
 			interpreter.ResetProfile()

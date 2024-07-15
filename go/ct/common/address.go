@@ -34,6 +34,6 @@ func RandAddress(rnd *rand.Rand) (tosca.Address, error) {
 
 func RandomAddress(rnd *rand.Rand) tosca.Address {
 	address := tosca.Address{}
-	rnd.Read(address[:]) // never returns an error
+	_, _ = rnd.Read(address[:]) // rnd.Read never returns an error
 	return address
 }

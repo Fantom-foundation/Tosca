@@ -39,7 +39,7 @@ func RandomBytes(rnd *rand.Rand, maxSize int) Bytes {
 
 func RandomBytesOfSize(rnd *rand.Rand, size int) Bytes {
 	data := make([]byte, size)
-	rnd.Read(data)
+	_, _ = rnd.Read(data) // rnd.Read never returns an error
 	return NewBytes(data)
 }
 

@@ -170,7 +170,7 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 
 	// If there are no operation constraints producing random code is sufficient.
 	if len(ops) == 0 {
-		rnd.Read(code)
+		_, _ = rnd.Read(code) // rnd.Read never returns an error
 		return st.NewCode(code), nil
 	}
 
@@ -215,7 +215,7 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 
 		// If this was the last, fill the rest randomly.
 		if len(ops) == 0 {
-			rnd.Read(code[i+1:])
+			_, _ = rnd.Read(code[i+1:]) // rnd.Read never returns an error
 			break
 		}
 
@@ -226,7 +226,7 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 			if end > len(code) {
 				end = len(code)
 			}
-			rnd.Read(code[i+1 : end])
+			_, _ = rnd.Read(code[i+1 : end]) // rnd.Read never returns an error
 			i += width
 		}
 	}

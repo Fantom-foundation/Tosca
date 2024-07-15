@@ -17,6 +17,6 @@ import (
 
 func GetRandomHash(rnd *rand.Rand) tosca.Hash {
 	var res tosca.Hash
-	rnd.Read(res[:])
+	_, _ = rnd.Read(res[:]) // rnd.Read never returns an error
 	return res
 }

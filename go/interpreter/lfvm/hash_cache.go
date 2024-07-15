@@ -78,9 +78,9 @@ func newHashCache(capacity32 int, capacity64 int) *HashCache {
 
 	hasher.Reset()
 	var data32 [32]byte
-	hasher.Write(data32[:])
+	_, _ = hasher.Write(data32[:]) // hash.Hash.Write() never returns an error
 	var hash32 tosca.Hash
-	hasher.Read(hash32[:])
+	_, _ = hasher.Read(hash32[:]) // sha3.state.Read() never returns an error
 	res.head32.hash = hash32
 
 	res.index32[data32] = res.head32
@@ -91,9 +91,9 @@ func newHashCache(capacity32 int, capacity64 int) *HashCache {
 
 	hasher.Reset()
 	var data64 [64]byte
-	hasher.Write(data64[:])
+	_, _ = hasher.Write(data64[:]) // hash.Hash.Write() never returns an error
 	var hash64 tosca.Hash
-	hasher.Read(hash64[:])
+	_, _ = hasher.Read(hash64[:]) // sha3.state.Read() never returns an error
 	res.head64.hash = hash64
 
 	res.index64[data64] = res.head64
@@ -251,6 +251,6 @@ func getHash(c *context, data []byte) tosca.Hash {
 	}
 
 	c.hasher.Write(data)
-	c.hasher.Read(res[:])
+	_, _ = c.hasher.Read(res[:]) // sha3.state.Read() never returns an error
 	return res
 }

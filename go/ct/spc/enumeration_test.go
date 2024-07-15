@@ -237,7 +237,10 @@ func TestEnumeration_RightNumberOfGoroutinesIsStarted(t *testing.T) {
 	}
 
 	printFunction := func(time time.Duration, rate float64, current int64) {}
-	ForEachState(Spec.GetRules(), opFunction, printFunction, numJobs, uint64(seed), fullMode)
+	err := ForEachState(Spec.GetRules(), opFunction, printFunction, numJobs, uint64(seed), fullMode)
+	if err != nil {
+		t.Errorf("Unexpected error in ForEachState %v", err)
+	}
 
 	if activeJobs != numJobs {
 		t.Errorf("unexpected number of active jobs, wanted %d, got %d", numJobs, activeJobs)

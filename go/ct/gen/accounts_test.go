@@ -109,7 +109,10 @@ func BenchmarkAccountGenWithConstraint(b *testing.B) {
 	generator.BindWarm(v1)
 	generator.BindCold(v2)
 	for i := 0; i < b.N; i++ {
-		generator.Generate(assignment, rnd, NewAddressFromInt(8))
+		_, err := generator.Generate(assignment, rnd, NewAddressFromInt(8))
+		if err != nil {
+			b.Fatalf("Invalid benchmark, Unexpected error during balance generation %v", err)
+		}
 	}
 }
 
@@ -119,6 +122,9 @@ func BenchmarkAccountGenWithOutConstraint(b *testing.B) {
 	generator := NewAccountGenerator()
 
 	for i := 0; i < b.N; i++ {
-		generator.Generate(assignment, rnd, NewAddressFromInt(8))
+		_, err := generator.Generate(assignment, rnd, NewAddressFromInt(8))
+		if err != nil {
+			b.Fatalf("Invalid benchmark, Unexpected error during balance generation %v", err)
+		}
 	}
 }
