@@ -293,7 +293,6 @@ func getBerlinInstructions() map[evm.OpCode]*InstructionInfo {
 	// Berlin only modifies gas computations.
 	// https://eips.ethereum.org/EIPS/eip-2929
 	const gasWarmStorageReadCostEIP2929 tosca.Gas = 100
-	const gasSelfDestruct tosca.Gas = 5000
 
 	res := getIstanbulInstructions()
 
@@ -310,6 +309,7 @@ func getBerlinInstructions() map[evm.OpCode]*InstructionInfo {
 	res[evm.DELEGATECALL].gas = GasUsage{gasWarmStorageReadCostEIP2929, gasDynamicStaticDelegateCall}
 	// Selfdestruct dynamic gas calculation has changed in Berlin
 	// Test is universal for all revisions, keeping here to know, there is change in calculation
+	// const gasSelfDestruct tosca.Gas = 5000
 	// res[evm.SELFDESTRUCT].gas = GasUsage{gasSelfDestruct, gasDynamicSelfDestruct}
 
 	return res

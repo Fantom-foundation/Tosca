@@ -102,41 +102,6 @@ func (uint16Domain) SamplesForAll(as []uint16) []uint16 {
 }
 
 ////////////////////////////////////////////////////////////
-// uint64
-
-type uint64Domain struct{}
-
-func (uint64Domain) Equal(a uint64, b uint64) bool     { return a == b }
-func (uint64Domain) Less(a uint64, b uint64) bool      { return a < b }
-func (uint64Domain) Predecessor(a uint64) uint64       { return a - 1 }
-func (uint64Domain) Successor(a uint64) uint64         { return a + 1 }
-func (uint64Domain) SomethingNotEqual(a uint64) uint64 { return a + 1 }
-
-func (d uint64Domain) Samples(a uint64) []uint64 {
-	return d.SamplesForAll([]uint64{a})
-}
-
-func (uint64Domain) SamplesForAll(as []uint64) []uint64 {
-	res := []uint64{0, ^uint64(0)}
-
-	// Test every element off by one.
-	for _, a := range as {
-		res = append(res, a-1)
-		res = append(res, a)
-		res = append(res, a+1)
-	}
-
-	// Add all powers of 2.
-	for i := 0; i < 64; i++ {
-		res = append(res, uint64(1<<i))
-	}
-
-	res = removeDuplicatesGeneric[uint64](res)
-
-	return res
-}
-
-////////////////////////////////////////////////////////////
 // U256
 
 type u256Domain struct{}
@@ -348,40 +313,6 @@ func (stackSizeDomain) SamplesForAll(as []int) []int {
 	res = removeDuplicatesGeneric[int](res)
 
 	return res
-}
-
-////////////////////////////////////////////////////////////
-// Address
-
-type addressDomain struct{}
-
-func (addressDomain) Equal(a, b tosca.Address) bool {
-	return a == b
-}
-
-func (addressDomain) Less(tosca.Address, tosca.Address) bool  { panic("not implemented") }
-func (addressDomain) Predecessor(tosca.Address) tosca.Address { panic("not implemented") }
-func (addressDomain) Successor(tosca.Address) tosca.Address   { panic("not implemented") }
-
-func (addressDomain) SomethingNotEqual(a tosca.Address) tosca.Address {
-	return tosca.Address{a[0] + 1}
-}
-
-func (ad addressDomain) Samples(a tosca.Address) []tosca.Address {
-	return ad.SamplesForAll([]tosca.Address{a})
-}
-
-func (addressDomain) SamplesForAll(as []tosca.Address) []tosca.Address {
-	ret := []tosca.Address{}
-	ret = append(ret, as...)
-
-	zero := tosca.Address{}
-	ffs := tosca.Address{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
-
-	ret = append(ret, zero)
-	ret = append(ret, ffs)
-
-	return ret
 }
 
 ////////////////////////////////////////////////////////////
