@@ -173,7 +173,7 @@ func getScenarios() map[string]Scenario {
 	}
 
 	// todo remove once all cases are supported
-	floriaTestCases := []string{"SuccessfulValueTransfer", "FailedValueTransfer"}
+	floriaTestCases := []string{"SuccessfulValueTransfer", "FailedValueTransfer", "SuccessfulContractCall", "RevertingContractCall"}
 	supportedTestCases := map[string]Scenario{}
 	for _, testCase := range floriaTestCases {
 		supportedTestCases[testCase] = allTestCases[testCase]

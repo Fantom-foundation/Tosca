@@ -278,19 +278,6 @@ func (g *StateGenerator) IsAbsentBlobHashIndex(variable Variable) {
 	g.transactionContextGen.IsAbsentBlobHashIndex(variable)
 }
 
-func getRandomData(rnd *rand.Rand) ([]byte, error) {
-	size := uint(rnd.ExpFloat64() * float64(200))
-	if size > st.MaxDataSize {
-		size = st.MaxDataSize
-	}
-	dataBuffer := make([]byte, size)
-	_, err := rnd.Read(dataBuffer)
-	if err != nil {
-		return nil, err
-	}
-	return dataBuffer, nil
-}
-
 // Generate produces a State instance satisfying the constraints set on this
 // generator or returns ErrUnsatisfiable on conflicting constraints. Subsequent
 // generators are invoked automatically.
