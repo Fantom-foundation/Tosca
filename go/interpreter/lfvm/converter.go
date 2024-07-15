@@ -13,17 +13,12 @@ package lfvm
 import (
 	"errors"
 	"fmt"
-	"slices"
-	"strings"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 	lru "github.com/hashicorp/golang-lru/v2"
-
-	// This is only imported to get the EVM opcode definitions.
-	// TODO: write up our own op-code definition and remove this dependency.
-
-	evm "github.com/ethereum/go-ethereum/core/vm"
 )
 
 const codeCacheCapacity = 50_000 // up to ~ 1 GB for 22 KiB max code size
@@ -111,7 +106,7 @@ func convert(code []byte, with_super_instructions bool) (Code, error) {
 	// Convert each individual instruction.
 	for i := 0; i < len(code); {
 		// Handle jump destinations
-		if code[i] == byte(evm.JUMPDEST) {
+		if code[i] == byte(vm.JUMPDEST) {
 			if res.length() > i {
 				return nil, errors.New("unable to convert code, encountered targe block larger than input")
 			}
@@ -154,7 +149,7 @@ func GenPcMap(code []byte, with_super_instructions bool) (*PcMap, error) {
 	// Convert each individual instruction.
 	for i := 0; i < len(code); {
 		// Handle jump destinations.
-		if code[i] == byte(evm.JUMPDEST) {
+		if code[i] == byte(vm.JUMPDEST) {
 			if res.length() > i {
 				return nil, errors.New("unable to convert code, encountered target block larger than input")
 			}
@@ -207,116 +202,116 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, with_super_instr
 	// Convert super instructions.
 	if with_super_instructions {
 		if len(code) > pos+7 {
-			op0 := evm.OpCode(code[pos])
-			op1 := evm.OpCode(code[pos+1])
-			op2 := evm.OpCode(code[pos+2])
-			op3 := evm.OpCode(code[pos+3])
-			op4 := evm.OpCode(code[pos+4])
-			op5 := evm.OpCode(code[pos+5])
-			op6 := evm.OpCode(code[pos+6])
-			op7 := evm.OpCode(code[pos+7])
-			if op0 == evm.PUSH1 && op2 == evm.PUSH4 && op7 == evm.DUP3 {
+			op0 := vm.OpCode(code[pos])
+			op1 := vm.OpCode(code[pos+1])
+			op2 := vm.OpCode(code[pos+2])
+			op3 := vm.OpCode(code[pos+3])
+			op4 := vm.OpCode(code[pos+4])
+			op5 := vm.OpCode(code[pos+5])
+			op6 := vm.OpCode(code[pos+6])
+			op7 := vm.OpCode(code[pos+7])
+			if op0 == vm.PUSH1 && op2 == vm.PUSH4 && op7 == vm.DUP3 {
 				res.appendOp(PUSH1_PUSH4_DUP3, uint16(op1)<<8)
 				res.appendData(uint16(op3)<<8 | uint16(op4))
 				res.appendData(uint16(op5)<<8 | uint16(op6))
 				return 7
 			}
-			if op0 == evm.PUSH1 && op2 == evm.PUSH1 && op4 == evm.PUSH1 && op6 == evm.SHL && op7 == evm.SUB {
+			if op0 == vm.PUSH1 && op2 == vm.PUSH1 && op4 == vm.PUSH1 && op6 == vm.SHL && op7 == vm.SUB {
 				res.appendOp(PUSH1_PUSH1_PUSH1_SHL_SUB, uint16(op1)<<8|uint16(op3))
 				res.appendData(uint16(op5))
 				return 7
 			}
 		}
 		if len(code) > pos+4 {
-			op0 := evm.OpCode(code[pos])
-			op1 := evm.OpCode(code[pos+1])
-			op2 := evm.OpCode(code[pos+2])
-			op3 := evm.OpCode(code[pos+3])
-			op4 := evm.OpCode(code[pos+4])
-			if op0 == evm.AND && op1 == evm.SWAP1 && op2 == evm.POP && op3 == evm.SWAP2 && op4 == evm.SWAP1 {
+			op0 := vm.OpCode(code[pos])
+			op1 := vm.OpCode(code[pos+1])
+			op2 := vm.OpCode(code[pos+2])
+			op3 := vm.OpCode(code[pos+3])
+			op4 := vm.OpCode(code[pos+4])
+			if op0 == vm.AND && op1 == vm.SWAP1 && op2 == vm.POP && op3 == vm.SWAP2 && op4 == vm.SWAP1 {
 				res.appendCode(AND_SWAP1_POP_SWAP2_SWAP1)
 				return 4
 			}
-			if op0 == evm.ISZERO && op1 == evm.PUSH2 && op4 == evm.JUMPI {
+			if op0 == vm.ISZERO && op1 == vm.PUSH2 && op4 == vm.JUMPI {
 				res.appendOp(ISZERO_PUSH2_JUMPI, uint16(op2)<<8|uint16(op3))
 				return 4
 			}
 		}
 		if len(code) > pos+3 {
-			op0 := evm.OpCode(code[pos])
-			op1 := evm.OpCode(code[pos+1])
-			op2 := evm.OpCode(code[pos+2])
-			op3 := evm.OpCode(code[pos+3])
-			if op0 == evm.SWAP2 && op1 == evm.SWAP1 && op2 == evm.POP && op3 == evm.JUMP {
+			op0 := vm.OpCode(code[pos])
+			op1 := vm.OpCode(code[pos+1])
+			op2 := vm.OpCode(code[pos+2])
+			op3 := vm.OpCode(code[pos+3])
+			if op0 == vm.SWAP2 && op1 == vm.SWAP1 && op2 == vm.POP && op3 == vm.JUMP {
 				res.appendCode(SWAP2_SWAP1_POP_JUMP)
 				return 3
 			}
-			if op0 == evm.SWAP1 && op1 == evm.POP && op2 == evm.SWAP2 && op3 == evm.SWAP1 {
+			if op0 == vm.SWAP1 && op1 == vm.POP && op2 == vm.SWAP2 && op3 == vm.SWAP1 {
 				res.appendCode(SWAP1_POP_SWAP2_SWAP1)
 				return 3
 			}
-			if op0 == evm.POP && op1 == evm.SWAP2 && op2 == evm.SWAP1 && op3 == evm.POP {
+			if op0 == vm.POP && op1 == vm.SWAP2 && op2 == vm.SWAP1 && op3 == vm.POP {
 				res.appendCode(POP_SWAP2_SWAP1_POP)
 				return 3
 			}
-			if op0 == evm.PUSH2 && op3 == evm.JUMP {
+			if op0 == vm.PUSH2 && op3 == vm.JUMP {
 				res.appendOp(PUSH2_JUMP, uint16(op1)<<8|uint16(op2))
 				return 3
 			}
-			if op0 == evm.PUSH2 && op3 == evm.JUMPI {
+			if op0 == vm.PUSH2 && op3 == vm.JUMPI {
 				res.appendOp(PUSH2_JUMPI, uint16(op1)<<8|uint16(op2))
 				return 3
 			}
-			if op0 == evm.PUSH1 && op2 == evm.PUSH1 {
+			if op0 == vm.PUSH1 && op2 == vm.PUSH1 {
 				res.appendOp(PUSH1_PUSH1, uint16(op1)<<8|uint16(op3))
 				return 3
 			}
 		}
 		if len(code) > pos+2 {
-			op0 := evm.OpCode(code[pos])
-			op1 := evm.OpCode(code[pos+1])
-			op2 := evm.OpCode(code[pos+2])
-			if op0 == evm.PUSH1 && op2 == evm.ADD {
+			op0 := vm.OpCode(code[pos])
+			op1 := vm.OpCode(code[pos+1])
+			op2 := vm.OpCode(code[pos+2])
+			if op0 == vm.PUSH1 && op2 == vm.ADD {
 				res.appendOp(PUSH1_ADD, uint16(op1))
 				return 2
 			}
-			if op0 == evm.PUSH1 && op2 == evm.SHL {
+			if op0 == vm.PUSH1 && op2 == vm.SHL {
 				res.appendOp(PUSH1_SHL, uint16(op1))
 				return 2
 			}
-			if op0 == evm.PUSH1 && op2 == evm.DUP1 {
+			if op0 == vm.PUSH1 && op2 == vm.DUP1 {
 				res.appendOp(PUSH1_DUP1, uint16(op1))
 				return 2
 			}
 		}
 		if len(code) > pos+1 {
-			op0 := evm.OpCode(code[pos])
-			op1 := evm.OpCode(code[pos+1])
-			if op0 == evm.SWAP1 && op1 == evm.POP {
+			op0 := vm.OpCode(code[pos])
+			op1 := vm.OpCode(code[pos+1])
+			if op0 == vm.SWAP1 && op1 == vm.POP {
 				res.appendCode(SWAP1_POP)
 				return 1
 			}
-			if op0 == evm.POP && op1 == evm.JUMP {
+			if op0 == vm.POP && op1 == vm.JUMP {
 				res.appendCode(POP_JUMP)
 				return 1
 			}
-			if op0 == evm.POP && op1 == evm.POP {
+			if op0 == vm.POP && op1 == vm.POP {
 				res.appendCode(POP_POP)
 				return 1
 			}
-			if op0 == evm.SWAP2 && op1 == evm.SWAP1 {
+			if op0 == vm.SWAP2 && op1 == vm.SWAP1 {
 				res.appendCode(SWAP2_SWAP1)
 				return 1
 			}
-			if op0 == evm.SWAP2 && op1 == evm.POP {
+			if op0 == vm.SWAP2 && op1 == vm.POP {
 				res.appendCode(SWAP2_POP)
 				return 1
 			}
-			if op0 == evm.DUP2 && op1 == evm.MSTORE {
+			if op0 == vm.DUP2 && op1 == vm.MSTORE {
 				res.appendCode(DUP2_MSTORE)
 				return 1
 			}
-			if op0 == evm.DUP2 && op1 == evm.LT {
+			if op0 == vm.DUP2 && op1 == vm.LT {
 				res.appendCode(DUP2_LT)
 				return 1
 			}
@@ -324,9 +319,9 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, with_super_instr
 	}
 
 	// Convert individual instructions.
-	opcode := evm.OpCode(code[pos])
+	opcode := vm.OpCode(code[pos])
 
-	if opcode == evm.PC {
+	if opcode == vm.PC {
 		if pos > 1<<16 {
 			res.appendCode(INVALID)
 			return 1
@@ -335,9 +330,9 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, with_super_instr
 		return 0
 	}
 
-	if evm.PUSH1 <= opcode && opcode <= evm.PUSH32 {
+	if vm.PUSH1 <= opcode && opcode <= vm.PUSH32 {
 		// Determine the number of bytes to be pushed.
-		n := int(opcode) - int(evm.PUSH1) + 1
+		n := int(opcode) - int(vm.PUSH1) + 1
 
 		var data []byte
 		// If there are not enough bytes left in the code, rest is filled with 0
@@ -388,163 +383,161 @@ func createOpToOpMap() []OpCode {
 	}
 
 	// Stack operations
-	res[evm.POP] = POP
-	res[evm.PUSH0] = PUSH0
+	res[vm.POP] = POP
+	res[vm.PUSH0] = PUSH0
 
-	res[evm.DUP1] = DUP1
-	res[evm.DUP2] = DUP2
-	res[evm.DUP3] = DUP3
-	res[evm.DUP4] = DUP4
-	res[evm.DUP5] = DUP5
-	res[evm.DUP6] = DUP6
-	res[evm.DUP7] = DUP7
-	res[evm.DUP8] = DUP8
-	res[evm.DUP9] = DUP9
-	res[evm.DUP10] = DUP10
-	res[evm.DUP11] = DUP11
-	res[evm.DUP12] = DUP12
-	res[evm.DUP13] = DUP13
-	res[evm.DUP14] = DUP14
-	res[evm.DUP15] = DUP15
-	res[evm.DUP16] = DUP16
+	res[vm.DUP1] = DUP1
+	res[vm.DUP2] = DUP2
+	res[vm.DUP3] = DUP3
+	res[vm.DUP4] = DUP4
+	res[vm.DUP5] = DUP5
+	res[vm.DUP6] = DUP6
+	res[vm.DUP7] = DUP7
+	res[vm.DUP8] = DUP8
+	res[vm.DUP9] = DUP9
+	res[vm.DUP10] = DUP10
+	res[vm.DUP11] = DUP11
+	res[vm.DUP12] = DUP12
+	res[vm.DUP13] = DUP13
+	res[vm.DUP14] = DUP14
+	res[vm.DUP15] = DUP15
+	res[vm.DUP16] = DUP16
 
-	res[evm.SWAP1] = SWAP1
-	res[evm.SWAP2] = SWAP2
-	res[evm.SWAP3] = SWAP3
-	res[evm.SWAP4] = SWAP4
-	res[evm.SWAP5] = SWAP5
-	res[evm.SWAP6] = SWAP6
-	res[evm.SWAP7] = SWAP7
-	res[evm.SWAP8] = SWAP8
-	res[evm.SWAP9] = SWAP9
-	res[evm.SWAP10] = SWAP10
-	res[evm.SWAP11] = SWAP11
-	res[evm.SWAP12] = SWAP12
-	res[evm.SWAP13] = SWAP13
-	res[evm.SWAP14] = SWAP14
-	res[evm.SWAP15] = SWAP15
-	res[evm.SWAP16] = SWAP16
+	res[vm.SWAP1] = SWAP1
+	res[vm.SWAP2] = SWAP2
+	res[vm.SWAP3] = SWAP3
+	res[vm.SWAP4] = SWAP4
+	res[vm.SWAP5] = SWAP5
+	res[vm.SWAP6] = SWAP6
+	res[vm.SWAP7] = SWAP7
+	res[vm.SWAP8] = SWAP8
+	res[vm.SWAP9] = SWAP9
+	res[vm.SWAP10] = SWAP10
+	res[vm.SWAP11] = SWAP11
+	res[vm.SWAP12] = SWAP12
+	res[vm.SWAP13] = SWAP13
+	res[vm.SWAP14] = SWAP14
+	res[vm.SWAP15] = SWAP15
+	res[vm.SWAP16] = SWAP16
 
 	// Memory operations
-	res[evm.MLOAD] = MLOAD
-	res[evm.MSTORE] = MSTORE
-	res[evm.MSTORE8] = MSTORE8
-	res[evm.MSIZE] = MSIZE
-	res[evm.MCOPY] = MCOPY
+	res[vm.MLOAD] = MLOAD
+	res[vm.MSTORE] = MSTORE
+	res[vm.MSTORE8] = MSTORE8
+	res[vm.MSIZE] = MSIZE
+	res[vm.MCOPY] = MCOPY
 
 	// Storage operations
-	res[evm.SLOAD] = SLOAD
-	res[evm.SSTORE] = SSTORE
-	res[evm.TLOAD] = TLOAD
-	res[evm.TSTORE] = TSTORE
+	res[vm.SLOAD] = SLOAD
+	res[vm.SSTORE] = SSTORE
+	res[vm.TLOAD] = TLOAD
+	res[vm.TSTORE] = TSTORE
 
 	// Control flow
-	res[evm.JUMP] = JUMP
-	res[evm.JUMPI] = JUMPI
-	res[evm.JUMPDEST] = JUMPDEST
-	res[evm.STOP] = STOP
-	res[evm.RETURN] = RETURN
-	res[evm.REVERT] = REVERT
-	res[evm.INVALID] = INVALID
-	res[evm.PC] = PC
+	res[vm.JUMP] = JUMP
+	res[vm.JUMPI] = JUMPI
+	res[vm.JUMPDEST] = JUMPDEST
+	res[vm.STOP] = STOP
+	res[vm.RETURN] = RETURN
+	res[vm.REVERT] = REVERT
+	res[vm.INVALID] = INVALID
+	res[vm.PC] = PC
 
 	// Arithmethic operations
-	res[evm.ADD] = ADD
-	res[evm.MUL] = MUL
-	res[evm.SUB] = SUB
-	res[evm.DIV] = DIV
-	res[evm.SDIV] = SDIV
-	res[evm.MOD] = MOD
-	res[evm.SMOD] = SMOD
-	res[evm.ADDMOD] = ADDMOD
-	res[evm.MULMOD] = MULMOD
-	res[evm.EXP] = EXP
-	res[evm.SIGNEXTEND] = SIGNEXTEND
+	res[vm.ADD] = ADD
+	res[vm.MUL] = MUL
+	res[vm.SUB] = SUB
+	res[vm.DIV] = DIV
+	res[vm.SDIV] = SDIV
+	res[vm.MOD] = MOD
+	res[vm.SMOD] = SMOD
+	res[vm.ADDMOD] = ADDMOD
+	res[vm.MULMOD] = MULMOD
+	res[vm.EXP] = EXP
+	res[vm.SIGNEXTEND] = SIGNEXTEND
 
 	// Complex function
-	res[evm.KECCAK256] = SHA3
+	res[vm.SHA3] = SHA3
 
 	// Comparison operations
-	res[evm.LT] = LT
-	res[evm.GT] = GT
-	res[evm.SLT] = SLT
-	res[evm.SGT] = SGT
-	res[evm.EQ] = EQ
-	res[evm.ISZERO] = ISZERO
+	res[vm.LT] = LT
+	res[vm.GT] = GT
+	res[vm.SLT] = SLT
+	res[vm.SGT] = SGT
+	res[vm.EQ] = EQ
+	res[vm.ISZERO] = ISZERO
 
 	// Bit-pattern operations
-	res[evm.AND] = AND
-	res[evm.OR] = OR
-	res[evm.XOR] = XOR
-	res[evm.NOT] = NOT
-	res[evm.BYTE] = BYTE
-	res[evm.SHL] = SHL
-	res[evm.SHR] = SHR
-	res[evm.SAR] = SAR
+	res[vm.AND] = AND
+	res[vm.OR] = OR
+	res[vm.XOR] = XOR
+	res[vm.NOT] = NOT
+	res[vm.BYTE] = BYTE
+	res[vm.SHL] = SHL
+	res[vm.SHR] = SHR
+	res[vm.SAR] = SAR
 
 	// System instructions
-	res[evm.ADDRESS] = ADDRESS
-	res[evm.BALANCE] = BALANCE
-	res[evm.ORIGIN] = ORIGIN
-	res[evm.CALLER] = CALLER
-	res[evm.CALLVALUE] = CALLVALUE
-	res[evm.CALLDATALOAD] = CALLDATALOAD
-	res[evm.CALLDATASIZE] = CALLDATASIZE
-	res[evm.CALLDATACOPY] = CALLDATACOPY
-	res[evm.CODESIZE] = CODESIZE
-	res[evm.CODECOPY] = CODECOPY
-	res[evm.GAS] = GAS
-	res[evm.GASPRICE] = GASPRICE
-	res[evm.EXTCODESIZE] = EXTCODESIZE
-	res[evm.EXTCODECOPY] = EXTCODECOPY
-	res[evm.RETURNDATASIZE] = RETURNDATASIZE
-	res[evm.RETURNDATACOPY] = RETURNDATACOPY
-	res[evm.EXTCODEHASH] = EXTCODEHASH
-	res[evm.CREATE] = CREATE
-	res[evm.CALL] = CALL
-	res[evm.CALLCODE] = CALLCODE
-	res[evm.DELEGATECALL] = DELEGATECALL
-	res[evm.CREATE2] = CREATE2
-	res[evm.STATICCALL] = STATICCALL
-	res[evm.SELFDESTRUCT] = SELFDESTRUCT
+	res[vm.ADDRESS] = ADDRESS
+	res[vm.BALANCE] = BALANCE
+	res[vm.ORIGIN] = ORIGIN
+	res[vm.CALLER] = CALLER
+	res[vm.CALLVALUE] = CALLVALUE
+	res[vm.CALLDATALOAD] = CALLDATALOAD
+	res[vm.CALLDATASIZE] = CALLDATASIZE
+	res[vm.CALLDATACOPY] = CALLDATACOPY
+	res[vm.CODESIZE] = CODESIZE
+	res[vm.CODECOPY] = CODECOPY
+	res[vm.GAS] = GAS
+	res[vm.GASPRICE] = GASPRICE
+	res[vm.EXTCODESIZE] = EXTCODESIZE
+	res[vm.EXTCODECOPY] = EXTCODECOPY
+	res[vm.RETURNDATASIZE] = RETURNDATASIZE
+	res[vm.RETURNDATACOPY] = RETURNDATACOPY
+	res[vm.EXTCODEHASH] = EXTCODEHASH
+	res[vm.CREATE] = CREATE
+	res[vm.CALL] = CALL
+	res[vm.CALLCODE] = CALLCODE
+	res[vm.DELEGATECALL] = DELEGATECALL
+	res[vm.CREATE2] = CREATE2
+	res[vm.STATICCALL] = STATICCALL
+	res[vm.SELFDESTRUCT] = SELFDESTRUCT
 
 	// Block chain instructions
-	res[evm.BLOCKHASH] = BLOCKHASH
-	res[evm.COINBASE] = COINBASE
-	res[evm.TIMESTAMP] = TIMESTAMP
-	res[evm.NUMBER] = NUMBER
-	res[evm.DIFFICULTY] = PREVRANDAO //TODO: update with new geth version
-	res[evm.GASLIMIT] = GASLIMIT
-	res[evm.CHAINID] = CHAINID
-	res[evm.SELFBALANCE] = SELFBALANCE
-	res[evm.BASEFEE] = BASEFEE
-	res[evm.BLOBHASH] = BLOBHASH
-	res[evm.BLOBBASEFEE] = BLOBBASEFEE
+	res[vm.BLOCKHASH] = BLOCKHASH
+	res[vm.COINBASE] = COINBASE
+	res[vm.TIMESTAMP] = TIMESTAMP
+	res[vm.NUMBER] = NUMBER
+	res[vm.PREVRANDAO] = PREVRANDAO
+	res[vm.GASLIMIT] = GASLIMIT
+	res[vm.CHAINID] = CHAINID
+	res[vm.SELFBALANCE] = SELFBALANCE
+	res[vm.BASEFEE] = BASEFEE
+	res[vm.BLOBHASH] = BLOBHASH
+	res[vm.BLOBBASEFEE] = BLOBBASEFEE
 
 	// Log instructions
-	res[evm.LOG0] = LOG0
-	res[evm.LOG1] = LOG1
-	res[evm.LOG2] = LOG2
-	res[evm.LOG3] = LOG3
-	res[evm.LOG4] = LOG4
+	res[vm.LOG0] = LOG0
+	res[vm.LOG1] = LOG1
+	res[vm.LOG2] = LOG2
+	res[vm.LOG3] = LOG3
+	res[vm.LOG4] = LOG4
 
 	// Test that all EVM instructions are covered.
 	for i := 0; i < 256; i++ {
-		code := evm.OpCode(i)
+		code := vm.OpCode(i)
 
 		// Known OpCodes that are indeed invalid.
-		if code == evm.INVALID {
+		if code == vm.INVALID {
 			continue
 		}
 
 		// Push operations are not required to be mapped, they are handled explicitly.
-		if evm.PUSH1 <= code && code <= evm.PUSH32 {
+		if vm.PUSH1 <= code && code <= vm.PUSH32 {
 			continue
 		}
 
-		toImplement := []evm.OpCode{evm.PUSH0, evm.TLOAD, evm.TSTORE, evm.MCOPY, evm.BLOBHASH, evm.BLOBBASEFEE} // TODO implement for new revision support
-		opIsValid := !strings.Contains(fmt.Sprintf("%v", code), "not defined")
-		if res[code] == INVALID && opIsValid && !slices.Contains(toImplement, code) {
+		if res[code] == INVALID && vm.IsValid(code) {
 			panic(fmt.Sprintf("Missing instruction coverage for: %v", code))
 		}
 	}
