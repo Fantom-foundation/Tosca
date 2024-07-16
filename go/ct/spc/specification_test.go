@@ -243,9 +243,7 @@ func TestSpecification_AtMostOneCodeAtPC(t *testing.T) {
 	}
 }
 
-// TODO: re-enable this test when runtime is not an issue anymore.
-// note: before committing run it locally where timeout is not an issue.
-func Specification_NumberOfTestCasesMatchesRuleInfo(t *testing.T) {
+func TestSpecification_NumberOfTestCasesMatchesRuleInfo(t *testing.T) {
 	rules := getAllRules()
 
 	for _, rule := range rules {
