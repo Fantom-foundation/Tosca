@@ -67,6 +67,8 @@ func GetStorageStatus(original, current, new Word) StorageStatus {
 	return StorageAssigned
 }
 
+// SizeInWords returns the number of words required to store the given size,
+// checking that size+32 does not overflow uint64.
 func SizeInWords(size uint64) uint64 {
 	if size > math.MaxUint64-31 {
 		return math.MaxUint64/32 + 1

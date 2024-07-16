@@ -22,6 +22,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
+	"golang.org/x/exp/constraints"
 )
 
 // Specification defines the interface for handling specifications.
@@ -1588,8 +1589,8 @@ func getAllRules() []Rule {
 
 			// offset + size overflows OR offset + size is larger than RETURNDATASIZE.
 			offset := offsetU256.Uint64()
-			readUntil := offset + sizeU256.Uint64()
-			if !offsetU256.IsUint64() || !sizeU256.IsUint64() ||
+			readUntil, overflow := sumWithOverflow(offset, sizeU256.Uint64())
+			if !offsetU256.IsUint64() || !sizeU256.IsUint64() || overflow ||
 				readUntil > uint64(s.LastCallReturnData.Length()) {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1597,7 +1598,7 @@ func getAllRules() []Rule {
 			}
 
 			expansionCost, destOffsetUint64, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			expansionCost, overflow := sumWithOverflow(expansionCost, tosca.Gas(3*tosca.SizeInWords(size)))
+			expansionCost, overflow = sumWithOverflow(expansionCost, tosca.Gas(3*tosca.SizeInWords(size)))
 			if s.Gas < expansionCost || overflow {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1806,6 +1807,7 @@ func createEffect(s *st.State, callKind tosca.CallKind) {
 			s.Status = st.Failed
 			return
 		}
+
 	}
 
 	if callKind == tosca.Create2 {
@@ -2636,8 +2638,8 @@ func callEffect(s *st.State, addrAccessCost tosca.Gas, op vm.OpCode) {
 	}
 }
 
-func sumWithOverflow(values ...tosca.Gas) (tosca.Gas, bool) {
-	res := tosca.Gas(0)
+func sumWithOverflow[T constraints.Integer](values ...T) (T, bool) {
+	res := T(0)
 	for _, cur := range values {
 		next := res + cur
 		if next < res {

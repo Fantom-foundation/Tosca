@@ -26,6 +26,7 @@ import (
 // Limiting gas also solves issue 293 regarding out of memory failures,
 // discussed here: https://github.com/Fantom-foundation/Tosca/issues/293
 // This should be enough gas to allow for ~450MB.
+// This value comes from inverting the closure calcMemoryCost.
 const MaxGasUsedByCt = 500_000_000_000
 
 // MaxDataSize is the maximum length of the call data vector generated for a test state. While

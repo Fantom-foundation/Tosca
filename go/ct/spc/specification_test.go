@@ -11,18 +11,22 @@
 package spc
 
 import (
+	"fmt"
 	"math"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
 
+	"golang.org/x/exp/maps"
 	"pgregory.net/rand"
 
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestSpecification_SpecificationIsSound(t *testing.T) {
@@ -369,5 +373,84 @@ func TestSumWithOverflow(t *testing.T) {
 				t.Errorf("unexpected result, wanted %d, got %d", want, got)
 			}
 		})
+	}
+}
+
+func TestSpecification_OpsWithDynamicCostHandleOverflowSizes(t *testing.T) {
+
+	indexOfMemParam := map[vm.OpCode][]int{
+		vm.MCOPY:          {0, 1, 2},
+		vm.CODECOPY:       {0, 2},
+		vm.CALLDATACOPY:   {0, 2},
+		vm.RETURNDATACOPY: {0, 1, 2},
+		vm.REVERT:         {0, 1},
+		vm.CREATE:         {1, 2},
+		vm.CREATE2:        {1, 2},
+		vm.EXTCODECOPY:    {1, 3},
+		vm.CALLCODE:       {3, 4, 5, 6},
+		vm.STATICCALL:     {2, 3, 4, 5},
+	}
+	testValues := []uint64{st.MaxMemoryExpansionSize, st.MaxMemoryExpansionSize + 1, math.MaxUint64}
+	allRules := getAllRules()
+	opToRules := map[vm.OpCode][]rlz.Rule{}
+	for _, instruction := range maps.Keys(indexOfMemParam) {
+		opName := strings.ToLower(instruction.String())
+		filter := regexp.MustCompile(opName)
+		rules := FilterRules(allRules, filter)
+		if len(rules) == 0 {
+			t.Fatalf("no rule found for filter %v", filter)
+		}
+		regular_filter := regexp.MustCompile(`regular`)
+		rules = FilterRules(rules, regular_filter)
+		if len(rules) == 0 {
+			t.Fatalf("no regular rule found for filter %v", filter)
+		}
+
+		opToRules[instruction] = []rlz.Rule{}
+		for _, rule := range rules {
+			if strings.HasPrefix(rule.Name, opName) {
+				opToRules[instruction] = append(opToRules[instruction], rule)
+			}
+		}
+	}
+
+	rnd := rand.New(0)
+
+	for op, opRules := range opToRules {
+		for _, rule := range opRules {
+			for _, index := range indexOfMemParam[op] {
+				for _, value := range testValues {
+					t.Run(fmt.Sprintf("%v - i:%v - v:%v", rule.Name, index, value), func(t *testing.T) {
+						generator := gen.NewStateGenerator()
+						generator.SetGas(st.MaxGasUsedByCt)
+						if !strings.HasPrefix(rule.Name, "callcode") && !strings.HasPrefix(rule.Name, "staticcall") {
+							if !strings.Contains(rule.Name, "preBerlin") {
+								generator.SetRevision(tosca.R13_Cancun)
+							} else {
+								generator.SetRevision(tosca.R07_Istanbul)
+							}
+						}
+						rule.Condition.Restrict(generator)
+						rlz.Eq(rlz.Param(index), common.NewU256(value)).Restrict(generator)
+						for _, i := range indexOfMemParam[op] {
+							if i != index {
+								rlz.Eq(rlz.Param(i), common.NewU256(1)).Restrict(generator)
+							}
+						}
+
+						state, err := generator.Generate(rnd)
+						if err != nil {
+							t.Fatalf("failed to generate a random state: %v", err)
+						}
+
+						rule.Effect.Apply(state)
+
+						if state.Status != st.Failed && state.Gas != 0 {
+							t.Fatalf("Rule %s does not fail with overflow parameters", rule.Name)
+						}
+					})
+				}
+			}
+		}
 	}
 }
