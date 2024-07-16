@@ -163,7 +163,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
-				return tosca.Word{}, ctxt.GetCommittedStorage(tosca.Address{}, tosca.Key{}) //nolint:staticcheck
+				//lint:ignore SA1019 deprecated functions to be migrated in #616
+				return tosca.Word{}, ctxt.GetCommittedStorage(tosca.Address{}, tosca.Key{})
 			},
 		},
 		"storage-original-specified": {
@@ -176,7 +177,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 				ctxt := p.Context
 				key1 := tosca.Key(cc.NewU256(1).Bytes32be())
 				val2 := tosca.Word(cc.NewU256(2).Bytes32be())
-				return val2, ctxt.GetCommittedStorage(tosca.Address{}, key1) //nolint:staticcheck
+				//lint:ignore SA1019 deprecated functions to be migrated in #616
+				return val2, ctxt.GetCommittedStorage(tosca.Address{}, key1)
 			},
 		},
 		"cold-slot": {
@@ -185,7 +187,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
-				_, res := ctxt.IsSlotInAccessList(tosca.Address{}, tosca.Key{}) //nolint:staticcheck
+				//lint:ignore SA1019 deprecated functions to be migrated in #616
+				_, res := ctxt.IsSlotInAccessList(tosca.Address{}, tosca.Key{})
 				return false, res
 			},
 		},
@@ -197,7 +200,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
-				_, res := ctxt.IsSlotInAccessList(tosca.Address{}, tosca.Key{}) //nolint:staticcheck
+				//lint:ignore SA1019 deprecated functions to be migrated in #616
+				_, res := ctxt.IsSlotInAccessList(tosca.Address{}, tosca.Key{})
 				return true, res
 			},
 		},
@@ -311,7 +315,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
-				return false, ctxt.IsAddressInAccessList(tosca.Address{}) //nolint:staticcheck
+				//lint:ignore SA1019 deprecated functions to be migrated in #616
+				return false, ctxt.IsAddressInAccessList(tosca.Address{})
 			},
 		},
 		"warm-account-legacy": {
@@ -321,7 +326,8 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
-				return true, ctxt.IsAddressInAccessList(tosca.Address{}) //nolint:staticcheck
+				//lint:ignore SA1019 deprecated functions to be migrated in #616
+				return true, ctxt.IsAddressInAccessList(tosca.Address{})
 			},
 		},
 	}

@@ -270,7 +270,8 @@ func opSload(c *context) {
 	slot := tosca.Key(top.Bytes32())
 	if c.isBerlin() {
 		// Check slot presence in the access list
-		if _, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent { //nolint:staticcheck
+		//lint:ignore SA1019 deprecated functions to be migrated in #616
+		if _, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
 			// If the caller cannot afford the cost, this change will be rolled back
 			// If he does afford it, we can skip checking the same thing later on, during execution
 			c.context.AccessStorage(c.params.Recipient, slot)
