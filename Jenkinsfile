@@ -12,7 +12,7 @@ pipeline {
     agent { label 'quick' }
 
     options {
-        timestamps ()
+        timestamps()
         timeout(time: 2, unit: 'HOURS')
     }
 
@@ -32,6 +32,14 @@ pipeline {
         stage('Check Go sources formatting') {
             steps {
                 sh 'diff=`${GOROOT}/bin/gofmt -s -d .` && echo "$diff" && test -z "$diff"'
+            }
+        }
+
+        stage('Lint Go sources') {
+            steps {
+                sh 'go vet ./go/...'
+                sh 'go install honnef.co/go/tools/cmd/staticcheck@latest'
+                sh 'staticcheck ./go/...'
             }
         }
 
