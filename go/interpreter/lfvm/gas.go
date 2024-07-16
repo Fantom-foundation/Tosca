@@ -312,6 +312,7 @@ func gasSStoreEIP2200(c *context) (tosca.Gas, error) {
 	if current == value { // noop (1)
 		return tosca.Gas(params.SloadGasEIP2200), nil
 	}
+	//lint:ignore SA1019 deprecated functions to be migrated in #616
 	original := c.context.GetCommittedStorage(c.params.Recipient, key)
 	if original == current {
 		if original == zero { // create slot (2.1.1)
@@ -360,6 +361,7 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 		cost    = tosca.Gas(0)
 	)
 	// Check slot presence in the access list
+	//lint:ignore SA1019 deprecated functions to be migrated in #616
 	if addrPresent, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
 		if !addrPresent {
 			c.status = ERROR
@@ -374,6 +376,7 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 	if current == value { // noop (1)
 		return cost + tosca.Gas(params.WarmStorageReadCostEIP2929), nil // SLOAD_GAS
 	}
+	//lint:ignore SA1019 deprecated functions to be migrated in #616
 	original := c.context.GetCommittedStorage(c.params.Recipient, slot)
 	if original == current {
 		if original == zero { // create slot (2.1.1)
@@ -404,6 +407,7 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 func gasEip2929AccountCheck(c *context, address tosca.Address) error {
 	if c.isBerlin() {
 		// Charge extra for cold locations.
+		//lint:ignore SA1019 deprecated functions to be migrated in #616
 		if !c.context.IsAddressInAccessList(address) {
 			if !c.UseGas(tosca.Gas(params.ColdAccountAccessCostEIP2929 - params.WarmStorageReadCostEIP2929)) {
 				return errOutOfGas
@@ -419,6 +423,7 @@ func addressInAccessList(c *context) (warmAccess bool, coldCost tosca.Gas, err e
 	if c.isBerlin() {
 		addr := tosca.Address(c.stack.Back(1).Bytes20())
 		// Check slot presence in the access list
+		//lint:ignore SA1019 deprecated functions to be migrated in #616
 		warmAccess = c.context.IsAddressInAccessList(addr)
 		// The WarmStorageReadCostEIP2929 (100) is already deducted in the form of a constant cost, so
 		// the cost to charge for cold access, if any, is Cold - Warm
@@ -443,6 +448,7 @@ func gasSelfdestruct(c *context) tosca.Gas {
 	if !c.context.AccountExists(address) && c.context.GetBalance(c.params.Recipient) != (tosca.Value{}) {
 		gas += tosca.Gas(params.CreateBySelfdestructGas)
 	}
+	//lint:ignore SA1019 deprecated functions to be migrated in #616
 	if !c.context.HasSelfDestructed(c.params.Recipient) {
 		c.refund += tosca.Gas(params.SelfdestructRefundGas)
 	}
@@ -454,6 +460,7 @@ func gasSelfdestructEIP2929(c *context) tosca.Gas {
 		gas     tosca.Gas
 		address = tosca.Address(c.stack.Back(0).Bytes20())
 	)
+	//lint:ignore SA1019 deprecated functions to be migrated in #616
 	if !c.context.IsAddressInAccessList(address) {
 		// If the caller cannot afford the cost, this change will be rolled back
 		c.context.AccessAccount(address)
@@ -465,6 +472,7 @@ func gasSelfdestructEIP2929(c *context) tosca.Gas {
 	}
 	// do this only for Berlin and not after London fork
 	if c.isBerlin() && !c.isLondon() {
+		//lint:ignore SA1019 deprecated functions to be migrated in #616
 		if !c.context.HasSelfDestructed(c.params.Recipient) {
 			c.refund += tosca.Gas(params.SelfdestructRefundGas)
 		}

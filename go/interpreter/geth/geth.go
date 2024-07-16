@@ -300,6 +300,7 @@ func (s *stateDbAdapter) GetRefund() uint64 {
 }
 
 func (s *stateDbAdapter) GetCommittedState(addr common.Address, key common.Hash) common.Hash {
+	//lint:ignore SA1019 deprecated functions to be migrated in #616
 	return common.Hash(s.context.GetCommittedStorage(tosca.Address(addr), tosca.Key(key)))
 }
 
@@ -329,6 +330,7 @@ func (s *stateDbAdapter) SelfDestruct(addr common.Address) {
 }
 
 func (s *stateDbAdapter) HasSelfDestructed(addr common.Address) bool {
+	//lint:ignore SA1019 deprecated functions to be migrated in #616
 	return s.context.HasSelfDestructed(tosca.Address(addr))
 }
 
@@ -361,10 +363,12 @@ func (s *stateDbAdapter) PrepareAccessList(sender common.Address, dest *common.A
 }
 
 func (s *stateDbAdapter) AddressInAccessList(addr common.Address) bool {
+	//lint:ignore SA1019 deprecated functions to be migrated in #616
 	return s.context.IsAddressInAccessList(tosca.Address(addr))
 }
 
 func (s *stateDbAdapter) SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool) {
+	//lint:ignore SA1019 deprecated functions to be migrated in #616
 	return s.context.IsSlotInAccessList(tosca.Address(addr), tosca.Key(slot))
 }
 

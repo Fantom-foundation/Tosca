@@ -163,6 +163,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
+				//lint:ignore SA1019 deprecated functions to be migrated in #616
 				return tosca.Word{}, ctxt.GetCommittedStorage(tosca.Address{}, tosca.Key{})
 			},
 		},
@@ -176,6 +177,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 				ctxt := p.Context
 				key1 := tosca.Key(cc.NewU256(1).Bytes32be())
 				val2 := tosca.Word(cc.NewU256(2).Bytes32be())
+				//lint:ignore SA1019 deprecated functions to be migrated in #616
 				return val2, ctxt.GetCommittedStorage(tosca.Address{}, key1)
 			},
 		},
@@ -185,6 +187,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
+				//lint:ignore SA1019 deprecated functions to be migrated in #616
 				_, res := ctxt.IsSlotInAccessList(tosca.Address{}, tosca.Key{})
 				return false, res
 			},
@@ -197,6 +200,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
+				//lint:ignore SA1019 deprecated functions to be migrated in #616
 				_, res := ctxt.IsSlotInAccessList(tosca.Address{}, tosca.Key{})
 				return true, res
 			},
@@ -311,6 +315,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
+				//lint:ignore SA1019 deprecated functions to be migrated in #616
 				return false, ctxt.IsAddressInAccessList(tosca.Address{})
 			},
 		},
@@ -321,6 +326,7 @@ func TestAdapter_ParameterConversion(t *testing.T) {
 			},
 			func(p tosca.Parameters) (any, any) {
 				ctxt := p.Context
+				//lint:ignore SA1019 deprecated functions to be migrated in #616
 				return true, ctxt.IsAddressInAccessList(tosca.Address{})
 			},
 		},

@@ -93,7 +93,7 @@ func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, acco
 	}
 	getUnusedAddress := func() tosca.Address {
 		for {
-			address, _ := RandAddress(rnd)
+			address := RandomAddress(rnd)
 
 			if _, isPresent := addressesInUse[address]; !isPresent {
 				addressesInUse[address] = true

@@ -21,10 +21,7 @@ import (
 func TestAccountsGenerator_UnconstrainedGeneratorCanProduceBalance(t *testing.T) {
 	rnd := rand.New(0)
 	generator := NewAccountGenerator()
-	accountAddress, err := RandAddress(rnd)
-	if err != nil {
-		t.Errorf("Unexpected random address generation error: %v", err)
-	}
+	accountAddress := RandomAddress(rnd)
 	if _, err := generator.Generate(nil, rnd, accountAddress); err != nil {
 		t.Errorf("Unexpected error during generation: %v", err)
 	}
@@ -37,10 +34,7 @@ func TestAccountsGenerator_WarmConstraintIsEnforced(t *testing.T) {
 
 	rnd := rand.New(0)
 	generator := NewAccountGenerator()
-	accountAddress, err := RandAddress(rnd)
-	if err != nil {
-		t.Errorf("Unexpected random address generation error: %v", err)
-	}
+	accountAddress := RandomAddress(rnd)
 	generator.BindWarm(v1)
 	accounts, err := generator.Generate(assignment, rnd, accountAddress)
 	if err != nil {

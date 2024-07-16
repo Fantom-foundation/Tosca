@@ -197,10 +197,7 @@ func (b *BlockContextGenerator) Generate(assignment Assignment, rnd *rand.Rand) 
 	}
 
 	chainId := RandU256(rnd)
-	coinbase, err := RandAddress(rnd)
-	if err != nil {
-		return st.BlockContext{}, err
-	}
+	coinbase := RandomAddress(rnd)
 
 	baseFee := RandU256(rnd)
 	blobBaseFee := RandU256(rnd)
