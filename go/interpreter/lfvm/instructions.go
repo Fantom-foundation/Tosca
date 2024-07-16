@@ -1073,6 +1073,10 @@ func opCall(c *context) {
 		needed_memory_size = ret_memory_size
 	}
 	base_gas := c.memory.ExpansionCosts(needed_memory_size)
+	if base_gas < 0 || c.gas < base_gas {
+		c.status = OUT_OF_GAS
+		return
+	}
 
 	// We need to check the existence of the target account before removing
 	// the gas price for the other cost factors to make sure that the read
@@ -1194,6 +1198,10 @@ func opCallCode(c *context) {
 		needed_memory_size = ret_memory_size
 	}
 	base_gas := c.memory.ExpansionCosts(needed_memory_size)
+	if base_gas < 0 || c.gas < base_gas {
+		c.status = OUT_OF_GAS
+		return
+	}
 
 	// We need to check the existence of the target account before removing
 	// the gas price for the other cost factors to make sure that the read
@@ -1295,6 +1303,11 @@ func opStaticCall(c *context) {
 		needed_memory_size = ret_memory_size
 	}
 	base_gas := c.memory.ExpansionCosts(needed_memory_size)
+	if base_gas < 0 || c.gas < base_gas {
+		c.status = OUT_OF_GAS
+		return
+	}
+
 	gas := callGas(c.gas, base_gas, provided_gas)
 
 	if warmAccess {
@@ -1366,6 +1379,11 @@ func opDelegateCall(c *context) {
 		needed_memory_size = ret_memory_size
 	}
 	base_gas := c.memory.ExpansionCosts(needed_memory_size)
+	if base_gas < 0 || c.gas < base_gas {
+		c.status = OUT_OF_GAS
+		return
+	}
+
 	gas := callGas(c.gas, base_gas, provided_gas)
 
 	if warmAccess {

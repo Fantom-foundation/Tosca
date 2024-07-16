@@ -388,6 +388,7 @@ func TestSpecification_OpsWithDynamicCostHandleOverflowSizes(t *testing.T) {
 		vm.CREATE2:        {1, 2},
 		vm.EXTCODECOPY:    {1, 3},
 		vm.CALLCODE:       {3, 4, 5, 6},
+		vm.SHA3:           {0, 1},
 		vm.STATICCALL:     {2, 3, 4, 5},
 	}
 	testValues := []uint64{st.MaxMemoryExpansionSize, st.MaxMemoryExpansionSize + 1, math.MaxUint64}

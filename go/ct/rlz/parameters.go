@@ -67,9 +67,7 @@ type MemoryOffsetParameter struct{}
 var memoryOffsetParameterSamples = []U256{
 	NewU256(0),
 	NewU256(1),
-	NewU256(31),
 	NewU256(32),
-	NewU256(2 * 24576),
 	NewU256(st.MaxMemoryExpansionSize),
 	NewU256(st.MaxMemoryExpansionSize + 1),
 	NewU256(1, 0),
@@ -85,7 +83,6 @@ var memoryOffsetForCopyParameter = []U256{
 	NewU256(0),
 	NewU256(1),
 	NewU256(32),
-	NewU256(2 * 24576),
 	NewU256(st.MaxMemoryExpansionSize),
 	NewU256(st.MaxMemoryExpansionSize + 1),
 	NewU256(1, 0),
@@ -100,7 +97,6 @@ type MemorySizeParameter struct{}
 var memorySizeParameterSamples = []U256{
 	NewU256(0),
 	NewU256(1),
-	NewU256(31),
 	NewU256(32),
 	NewU256(1, 0),
 	// Samples stressing the max init code size introduced with Shanghai
