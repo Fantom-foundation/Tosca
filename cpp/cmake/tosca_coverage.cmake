@@ -44,7 +44,7 @@ if(TOSCA_COVERAGE)
       COMMAND tar czvf coverage.tar.gz coverage/ 
 
       # Text report
-      COMMAND ${GCOVR} -r .. | tee coverage.txt
+      COMMAND ${GCOVR} -r .. --gcov-ignore-parse-errors | tee coverage.txt
 
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )

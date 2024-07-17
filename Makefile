@@ -32,6 +32,10 @@ tosca-cpp:
 		-DTOSCA_ASAN="$(TOSCA_CPP_ASAN)"; \
 	cmake --build build --parallel
 
+test-cpp-coverage: TOSCA_CPP_BUILD = Debug
+tosca-cpp-coverage: TOSCA_CPP_COVERAGE = ON
+tosca-cpp-coverage: tosca-cpp
+
 evmone:
 	@cd third_party/evmone ; \
 	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so ; \
@@ -64,6 +68,10 @@ test-cpp: tosca-cpp
 test-cpp-asan: TOSCA_CPP_BUILD = Debug
 test-cpp-asan: TOSCA_CPP_ASAN = ON
 test-cpp-asan: test-cpp
+
+cpp-coverage-report: 
+	@cd cpp/build ; \
+	cmake --build .  --target coverage 
 
 test-cpp-coverage: TOSCA_CPP_BUILD = Debug
 test-cpp-coverage: TOSCA_CPP_COVERAGE = ON
