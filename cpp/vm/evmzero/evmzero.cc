@@ -134,7 +134,8 @@ class VM : public evmc_vm {
             .set_option = [](evmc_vm* vm, char const* name, char const* value) -> evmc_set_option_result {
               return static_cast<VM*>(vm)->SetOption(name, value);
             },
-        } {}
+        } {
+  }
 
   evmc_result Execute(std::span<const uint8_t> code,              //
                       const evmc_message* message,                //
