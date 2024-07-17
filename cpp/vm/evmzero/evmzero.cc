@@ -9,7 +9,6 @@
 // this software will be governed by the GNU Lesser General Public License v3.
 
 #include <cstdint>
-#include <iostream>
 #include <span>
 #include <string_view>
 
@@ -22,6 +21,11 @@
 #include "vm/evmzero/opcodes.h"
 #include "vm/evmzero/profiler.h"
 #include "vm/evmzero/sha3_cache.h"
+
+#if defined(TOSCA_COVERAGE)
+// Since Gcc 11, before __gcov_flush
+extern "C" void __gcov_dump();
+#endif
 
 namespace tosca::evmzero {
 
@@ -106,7 +110,18 @@ class VM : public evmc_vm {
             .name = "evmzero",
             .version = "0.1.0",
 
-            .destroy = [](evmc_vm* vm) { delete static_cast<VM*>(vm); },
+            .destroy =
+                [](evmc_vm* vm) {
+                  delete static_cast<VM*>(vm);
+// This seems a little hacky, but this is property that requires special compilation:
+// When running coverage, records are keep in memory and dumped at the end of the execution,
+// because the host code is go, we can't use the gcov functions directly, so we need to
+// manually flush the coverage data.
+// Using runtime options could enable the feature when is not correctly compiled.
+#if defined(TOSCA_COVERAGE)
+                  __gcov_dump();
+#endif
+                },
 
             .execute = [](evmc_vm* vm, const evmc_host_interface* host_interface, evmc_host_context* host_context,
                           evmc_revision revision, const evmc_message* message, const uint8_t* code,
