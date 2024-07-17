@@ -69,7 +69,7 @@ func TestCalls_InterpreterResultIsHandledCorrectly(t *testing.T) {
 
 			test.setup(interpreter)
 
-			result, err := call(interpreter, transaction, context)
+			result, err := call(interpreter, transaction, context, transaction.GasLimit)
 			if err != nil {
 				t.Errorf("Call returned an unexpected error: %v", err)
 			}
@@ -126,7 +126,7 @@ func TestCall_TransferValueInCall(t *testing.T) {
 
 	interpreter.EXPECT().Run(gomock.Any()).Return(tosca.Result{Success: true}, nil)
 
-	_, err := call(interpreter, transaction, context)
+	_, err := call(interpreter, transaction, context, transaction.GasLimit)
 	if err != nil {
 		t.Errorf("transferValue returned an error: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestProcessor_TransferValueInCallRestoreFailed(t *testing.T) {
 	context.EXPECT().GetBalance(transaction.Sender).Return(tosca.NewValue(0))
 	context.EXPECT().RestoreSnapshot(gomock.Any())
 
-	result, err := call(interpreter, transaction, context)
+	result, err := call(interpreter, transaction, context, transaction.GasLimit)
 	if err != nil {
 		t.Errorf("Correct execution of the transaction should not return an error")
 	}
