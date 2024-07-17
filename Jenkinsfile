@@ -37,7 +37,7 @@ pipeline {
 
         stage('Check Go sources formatting') {
             steps {
-                sh "${GOROOT}/bin/gofmt -s -d go"
+                sh "$GOROOT/bin/gofmt -s -d go"
             }
         }
 
@@ -45,7 +45,7 @@ pipeline {
             steps {
                 sh 'go vet ./go/...'
                 sh 'go install honnef.co/go/tools/cmd/staticcheck@latest'
-                sh 'staticcheck ./go/...'
+                sh "$HOME/go/bin/staticcheck ./go/..."
             }
         }
 
