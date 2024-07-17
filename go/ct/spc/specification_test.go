@@ -18,7 +18,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/exp/maps"
 	"pgregory.net/rand"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -391,63 +390,51 @@ func TestSpecification_OpsWithDynamicCostHandleOverflowSizes(t *testing.T) {
 		vm.SHA3:           {0, 1},
 		vm.STATICCALL:     {2, 3, 4, 5},
 	}
+
 	testValues := []uint64{st.MaxMemoryExpansionSize, st.MaxMemoryExpansionSize + 1, math.MaxUint64}
 	allRules := getAllRules()
-	opToRules := map[vm.OpCode][]rlz.Rule{}
-	for _, instruction := range maps.Keys(indexOfMemParam) {
-		opName := strings.ToLower(instruction.String())
-		filter := regexp.MustCompile(opName)
-		rules := FilterRules(allRules, filter)
-		if len(rules) == 0 {
-			t.Fatalf("no rule found for filter %v", filter)
-		}
-		regular_filter := regexp.MustCompile(`regular`)
-		rules = FilterRules(rules, regular_filter)
-		if len(rules) == 0 {
-			t.Fatalf("no regular rule found for filter %v", filter)
-		}
-
-		opToRules[instruction] = []rlz.Rule{}
-		for _, rule := range rules {
-			if strings.HasPrefix(rule.Name, opName) {
-				opToRules[instruction] = append(opToRules[instruction], rule)
-			}
-		}
-	}
-
 	rnd := rand.New(0)
 
-	for op, opRules := range opToRules {
-		for _, rule := range opRules {
-			for _, index := range indexOfMemParam[op] {
+	for op := range indexOfMemParam {
+		for revision := common.MinRevision; revision <= common.NewestSupportedRevision; revision++ {
+			for _, overflowParameterPosition := range indexOfMemParam[op] {
 				for _, value := range testValues {
-					t.Run(fmt.Sprintf("%v - i:%v - v:%v", rule.Name, index, value), func(t *testing.T) {
+					t.Run(fmt.Sprintf("%v_%v_%v_%v", op, revision, overflowParameterPosition, value), func(t *testing.T) {
+
+						condition := rlz.And(
+							rlz.IsRevision(revision),
+							rlz.Eq(rlz.Status(), st.Running),
+							rlz.Eq(rlz.Op(rlz.Pc()), vm.OpCode(op)),
+							rlz.Eq(rlz.Param(overflowParameterPosition), common.NewU256(value)),
+						)
+
+						for i := 0; i < 7; i++ {
+							if i != overflowParameterPosition {
+								condition = rlz.And(condition, rlz.Eq(rlz.Param(i), common.NewU256(1)))
+							}
+						}
+
 						generator := gen.NewStateGenerator()
-						generator.SetGas(st.MaxGasUsedByCt)
-						if !strings.HasPrefix(rule.Name, "callcode") && !strings.HasPrefix(rule.Name, "staticcall") {
-							if !strings.Contains(rule.Name, "preBerlin") {
-								generator.SetRevision(tosca.R13_Cancun)
-							} else {
-								generator.SetRevision(tosca.R07_Istanbul)
-							}
-						}
-						rule.Condition.Restrict(generator)
-						rlz.Eq(rlz.Param(index), common.NewU256(value)).Restrict(generator)
-						for _, i := range indexOfMemParam[op] {
-							if i != index {
-								rlz.Eq(rlz.Param(i), common.NewU256(1)).Restrict(generator)
-							}
-						}
+						condition.Restrict(generator)
 
 						state, err := generator.Generate(rnd)
 						if err != nil {
-							t.Fatalf("failed to generate a random state: %v", err)
+							t.Fatalf("failed to generate a constrained state: %v", err)
 						}
 
-						rule.Effect.Apply(state)
-
-						if state.Status != st.Failed && state.Gas != 0 {
-							t.Fatalf("Rule %s does not fail with overflow parameters", rule.Name)
+						for _, rule := range allRules {
+							match, err := rule.Condition.Check(state)
+							if err != nil {
+								t.Fatalf("failed to check rule condition for %v: %v", rule.Name, err)
+							}
+							if match {
+								result := state.Clone()
+								rule.Effect.Apply(result)
+								if result.Status != st.Failed {
+									t.Fatalf("Rule %s did not fail with overflow parameter", rule.Name)
+								}
+								result.Release()
+							}
 						}
 					})
 				}

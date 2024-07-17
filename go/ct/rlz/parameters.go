@@ -103,6 +103,7 @@ var memorySizeParameterSamples = []U256{
 	NewU256(2*24576 - 1),
 	NewU256(2 * 24576),
 	NewU256(2*24576 + 1),
+
 	NewU256(st.MaxMemoryExpansionSize),
 	NewU256(st.MaxMemoryExpansionSize + 1),
 }

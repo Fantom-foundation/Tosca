@@ -25,8 +25,27 @@ import (
 // Upper bound for gas, this limit is required since evmc defines a signed type for gas.
 // Limiting gas also solves issue 293 regarding out of memory failures,
 // discussed here: https://github.com/Fantom-foundation/Tosca/issues/293
-// This should be enough gas to allow for ~450MB.
-// This value comes from inverting the closure calcMemoryCost.
+// The costs for buying memory in an EVM instance is defined by
+//
+//	C(W) = W^2/512 + 3*W
+//
+// where W is the number of 32-byte words to be allocated. A common
+// issue encountered in implementations is that the W^2 term is not
+// guarded against overflows, causing resulting costs to be far too low.
+// This, in turn, would allow operations with overflowing memory requirements
+// to trigger memory expansions for low gas costs that would exceed real
+// world memory capacities.
+// Such overflows happen whenever more than MaxMemoryExapnsionSize
+// words of memory are to be allocated. To be able to detect those in the CT,
+// there must be sufficient Gas provided to cover the 3*W term in the gas cost
+// equation, assuming that the W^2/512 will overflow to a near zero value.
+// Thus,
+//
+//	3 * 0x1FFFFFFFE0 =  3 * 137_438_953_440 =  412_316_860_320
+//
+// which we rounded up to 500*10^9 as defined below. This amount of gas allows
+// for the allocation of up to ~450MB of memory in a correct implementation, which
+// is far beyond any real-world budget but acceptable for a test environment.
 const MaxGasUsedByCt = 500_000_000_000
 
 // MaxDataSize is the maximum length of the call data vector generated for a test state. While

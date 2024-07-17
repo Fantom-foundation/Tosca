@@ -805,35 +805,30 @@ func TestExpansionCostOverflow(t *testing.T) {
 		op         func(*context)
 		stackSize  int
 		memIndexes []int
-		revision   tosca.Revision
 		setup      func(*tosca.MockRunContext)
 	}{
 		"mcopy": {
 			op:         opMcopy,
 			stackSize:  3,
 			memIndexes: []int{0, 1, 2},
-			revision:   tosca.R13_Cancun,
 			setup:      func(runContext *tosca.MockRunContext) {},
 		},
 		"calldatacopy": {
 			op:         opCallDataCopy,
 			stackSize:  3,
 			memIndexes: []int{0, 2},
-			revision:   tosca.R13_Cancun,
 			setup:      func(runContext *tosca.MockRunContext) {},
 		},
 		"codecopy": {
 			op:         opCodeCopy,
 			stackSize:  3,
 			memIndexes: []int{0, 2},
-			revision:   tosca.R13_Cancun,
 			setup:      func(runContext *tosca.MockRunContext) {},
 		},
 		"extcodecopy": {
 			op:         opExtCodeCopy,
 			stackSize:  4,
 			memIndexes: []int{0, 2},
-			revision:   tosca.R13_Cancun,
 			setup: func(runContext *tosca.MockRunContext) {
 				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).AnyTimes().Return(true)
 				runContext.EXPECT().GetCode(gomock.Any()).AnyTimes().Return([]byte{0x01, 0x02, 0x03, 0x04})
@@ -855,7 +850,7 @@ func TestExpansionCostOverflow(t *testing.T) {
 						memory:   NewMemory(),
 						context:  runContext,
 						gas:      12884901899,
-						revision: test.revision,
+						revision: tosca.R13_Cancun,
 					}
 					ctxt.stack.stack_ptr = test.stackSize
 					ctxt.stack.data[memIndex].Set(uint256.NewInt(memValue))
