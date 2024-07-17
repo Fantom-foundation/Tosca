@@ -35,6 +35,10 @@ type SteppableEvmcInterpreter struct {
 	vm *evmc.VMSteppable
 }
 
+func (e *SteppableEvmcInterpreter) Destroy() {
+	e.vm.Destroy()
+}
+
 func (e *SteppableEvmcInterpreter) StepN(
 	params tosca.Parameters,
 	state *st.State,

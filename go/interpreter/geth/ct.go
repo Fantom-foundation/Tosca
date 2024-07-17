@@ -88,6 +88,10 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	return state, nil
 }
 
+func (a ctAdapter) Destroy() {
+	// Go code does not need to destroy the interpreter.
+}
+
 func convertGethStatusToCtStatus(state *geth_vm.InterpreterState) (st.StatusCode, error) {
 	switch state.Status {
 	case geth_vm.Running:

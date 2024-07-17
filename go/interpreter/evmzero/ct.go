@@ -49,3 +49,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	return evmzeroSteppable.StepN(vmParams, state, numSteps)
 }
+
+func (a ctAdapter) Destroy() {
+	evmzeroSteppable.Destroy()
+}
