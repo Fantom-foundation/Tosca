@@ -213,7 +213,7 @@ func opMcopy(c *context) {
 	}
 
 	size := sizeU256.Uint64()
-	price := tosca.Gas(3 * sizeInWords(size))
+	price := tosca.Gas(3 * tosca.SizeInWords(size))
 	if !c.UseGas(price) {
 		return
 	}
@@ -372,13 +372,17 @@ func opCallDataCopy(c *context) {
 	}
 
 	// Charge for the copy costs
-	words := sizeInWords(length64)
+	words := tosca.SizeInWords(length64)
 	price := tosca.Gas(3 * words)
 	if !c.UseGas(price) {
 		return
 	}
 
-	if err := c.memory.SetWithCapacityAndGasCheck(memOffset64, length64, getData(c.params.Input, dataOffset64, length64), c); err != nil {
+	if c.memory.EnsureCapacity(memOffset64, length64, c) != nil {
+		return
+	}
+
+	if err := c.memory.Set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64)); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -593,7 +597,7 @@ func opSha3(c *context) {
 	}
 
 	// charge dynamic gas price
-	words := sizeInWords(size.Uint64())
+	words := tosca.SizeInWords(size.Uint64())
 	price := tosca.Gas(6 * words)
 	if !c.UseGas(price) {
 		return
@@ -774,13 +778,16 @@ func opCodeCopy(c *context) {
 	}
 
 	// Charge for length of copied code
-	words := sizeInWords(length.Uint64())
+	words := tosca.SizeInWords(length.Uint64())
 	if !c.UseGas(tosca.Gas(3 * words)) {
 		return
 	}
 
+	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
+		return
+	}
 	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
-	if err := c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), codeCopy, c); err != nil {
+	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -825,7 +832,7 @@ func checkInitCodeSize(c *context, size *uint256.Int) bool {
 		c.status = MAX_INIT_CODE_SIZE_EXCEEDED
 		return false
 	}
-	if !c.UseGas(tosca.Gas(InitCodeWordGas * sizeInWords(size.Uint64()))) {
+	if !c.UseGas(tosca.Gas(InitCodeWordGas * tosca.SizeInWords(size.Uint64()))) {
 		c.status = OUT_OF_GAS
 		return false
 	}
@@ -917,7 +924,7 @@ func opCreate2(c *context) {
 	}
 
 	// Charge for the code size
-	words := sizeInWords(size.Uint64())
+	words := tosca.SizeInWords(size.Uint64())
 	if !c.UseGas(tosca.Gas(6 * words)) {
 		return
 	}
@@ -996,7 +1003,7 @@ func opExtCodeCopy(c *context) {
 	}
 
 	// Charge for length of copied code
-	words := sizeInWords(length.Uint64())
+	words := tosca.SizeInWords(length.Uint64())
 	if !c.UseGas(tosca.Gas(3 * words)) {
 		return
 	}
@@ -1012,8 +1019,12 @@ func opExtCodeCopy(c *context) {
 	} else {
 		uint64CodeOffset = math.MaxUint64
 	}
+
+	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
+		return
+	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
-	if err = c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), codeCopy, c); err != nil {
+	if err = c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
 		c.SignalError(err)
 	}
 }
@@ -1062,6 +1073,10 @@ func opCall(c *context) {
 		needed_memory_size = ret_memory_size
 	}
 	base_gas := c.memory.ExpansionCosts(needed_memory_size)
+	if base_gas < 0 || c.gas < base_gas {
+		c.status = OUT_OF_GAS
+		return
+	}
 
 	// We need to check the existence of the target account before removing
 	// the gas price for the other cost factors to make sure that the read
@@ -1183,6 +1198,10 @@ func opCallCode(c *context) {
 		needed_memory_size = ret_memory_size
 	}
 	base_gas := c.memory.ExpansionCosts(needed_memory_size)
+	if base_gas < 0 || c.gas < base_gas {
+		c.status = OUT_OF_GAS
+		return
+	}
 
 	// We need to check the existence of the target account before removing
 	// the gas price for the other cost factors to make sure that the read
@@ -1284,6 +1303,11 @@ func opStaticCall(c *context) {
 		needed_memory_size = ret_memory_size
 	}
 	base_gas := c.memory.ExpansionCosts(needed_memory_size)
+	if base_gas < 0 || c.gas < base_gas {
+		c.status = OUT_OF_GAS
+		return
+	}
+
 	gas := callGas(c.gas, base_gas, provided_gas)
 
 	if warmAccess {
@@ -1355,6 +1379,11 @@ func opDelegateCall(c *context) {
 		needed_memory_size = ret_memory_size
 	}
 	base_gas := c.memory.ExpansionCosts(needed_memory_size)
+	if base_gas < 0 || c.gas < base_gas {
+		c.status = OUT_OF_GAS
+		return
+	}
+
 	gas := callGas(c.gas, base_gas, provided_gas)
 
 	if warmAccess {
@@ -1436,7 +1465,7 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
-	words := sizeInWords(length.Uint64())
+	words := tosca.SizeInWords(length.Uint64())
 	if !c.UseGas(tosca.Gas(3 * words)) {
 		return
 	}

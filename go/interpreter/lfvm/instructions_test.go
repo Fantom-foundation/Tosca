@@ -12,6 +12,7 @@ package lfvm
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"testing"
 
@@ -612,7 +613,7 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 		"paris-max-running":       {tosca.R11_Paris, maxInitCodeSize, RUNNING},
 		"paris-max+1-running":     {tosca.R11_Paris, maxInitCodeSize + 1, RUNNING},
 		"paris-100k-running":      {tosca.R11_Paris, 100000, RUNNING},
-		"paris-maxuint64-running": {tosca.R11_Paris, math.MaxUint64, ERROR},
+		"paris-maxuint64-running": {tosca.R11_Paris, math.MaxUint64, OUT_OF_GAS},
 
 		"shanghai-0-running":         {tosca.R12_Shanghai, 0, RUNNING},
 		"shanghai-1-running":         {tosca.R12_Shanghai, 1, RUNNING},
@@ -621,7 +622,7 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 		"shanghai-max-running":       {tosca.R12_Shanghai, maxInitCodeSize, RUNNING},
 		"shanghai-max+1-running":     {tosca.R12_Shanghai, maxInitCodeSize + 1, MAX_INIT_CODE_SIZE_EXCEEDED},
 		"shanghai-100k-running":      {tosca.R12_Shanghai, 100000, MAX_INIT_CODE_SIZE_EXCEEDED},
-		"shanghai-maxuint64-running": {tosca.R12_Shanghai, math.MaxUint64, ERROR},
+		"shanghai-maxuint64-running": {tosca.R12_Shanghai, math.MaxUint64, OUT_OF_GAS},
 	}
 
 	for name, test := range tests {
@@ -677,7 +678,7 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 	}
 
 	dynamicCost := func(revision tosca.Revision, size uint64) uint64 {
-		words := sizeInWords(size)
+		words := tosca.SizeInWords(size)
 		// prevent overflow just like geth does
 		if size > maxMemoryExpansionSize {
 			return math.MaxInt64
@@ -790,5 +791,82 @@ func TestTransientStorageOperations(t *testing.T) {
 				t.Errorf("unexpected status, wanted %v, got %v", test.status, ctxt.status)
 			}
 		})
+	}
+}
+
+func TestExpansionCostOverflow(t *testing.T) {
+	memTestValues := []uint64{
+		maxMemoryExpansionSize,
+		maxMemoryExpansionSize + 1,
+		math.MaxUint64,
+	}
+
+	tests := map[string]struct {
+		op         func(*context)
+		stackSize  int
+		memIndexes []int
+		setup      func(*tosca.MockRunContext)
+	}{
+		"mcopy": {
+			op:         opMcopy,
+			stackSize:  3,
+			memIndexes: []int{0, 1, 2},
+			setup:      func(runContext *tosca.MockRunContext) {},
+		},
+		"calldatacopy": {
+			op:         opCallDataCopy,
+			stackSize:  3,
+			memIndexes: []int{0, 2},
+			setup:      func(runContext *tosca.MockRunContext) {},
+		},
+		"codecopy": {
+			op:         opCodeCopy,
+			stackSize:  3,
+			memIndexes: []int{0, 2},
+			setup:      func(runContext *tosca.MockRunContext) {},
+		},
+		"extcodecopy": {
+			op:         opExtCodeCopy,
+			stackSize:  4,
+			memIndexes: []int{0, 2},
+			setup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).AnyTimes().Return(true)
+				runContext.EXPECT().GetCode(gomock.Any()).AnyTimes().Return([]byte{0x01, 0x02, 0x03, 0x04})
+			},
+		},
+	}
+
+	for name, test := range tests {
+		for _, memIndex := range test.memIndexes {
+			for _, memValue := range memTestValues {
+				t.Run(fmt.Sprintf("%v_i:%v_v:%v", name, memIndex, memValue), func(t *testing.T) {
+					ctrl := gomock.NewController(t)
+					runContext := tosca.NewMockRunContext(ctrl)
+					test.setup(runContext)
+
+					ctxt := context{
+						status:   RUNNING,
+						stack:    NewStack(),
+						memory:   NewMemory(),
+						context:  runContext,
+						gas:      12884901899,
+						revision: tosca.R13_Cancun,
+					}
+					ctxt.stack.stack_ptr = test.stackSize
+					ctxt.stack.data[memIndex].Set(uint256.NewInt(memValue))
+					for i := range test.memIndexes {
+						if i != memIndex {
+							ctxt.stack.data[i].Set(uint256.NewInt(1))
+						}
+					}
+
+					test.op(&ctxt)
+
+					if ctxt.status != OUT_OF_GAS && ctxt.status != ERROR {
+						t.Errorf("unexpected status, wanted not running, got %v, and gas of %v", ctxt.status, ctxt.gas)
+					}
+				})
+			}
+		}
 	}
 }

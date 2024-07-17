@@ -12,7 +12,6 @@ package ct_test
 
 import (
 	"fmt"
-	"math"
 	"testing"
 
 	"pgregory.net/rand"
@@ -159,7 +158,7 @@ func prepareFuzzingSeeds(f *testing.F) {
 			// the fuzzer will generate more interesting values around these, the initial
 			// list just sketches a region of interest around which the fuzzer will generate
 			// more values. I found no measurable difference about being more accurate.
-			for _, gas := range []int64{0, 1, 6, 10, 1000, math.MaxInt64} {
+			for _, gas := range []int64{0, 1, 6, 10, 1000, st.MaxGasUsedByCt} {
 
 				// generate a code segment with the operation followed by 6 random values
 				ops := make([]byte, fuzzMaximumCodeSegment)
@@ -214,6 +213,10 @@ func prepareFuzzingSeeds(f *testing.F) {
 func corpusEntryToCtState(opCodes []byte, gas int64, revision byte, stackBytes []byte) (*st.State, error) {
 	if gas < 0 {
 		return nil, fmt.Errorf("negative gas %v", gas)
+	}
+
+	if gas > st.MaxGasUsedByCt {
+		return nil, fmt.Errorf("gas too large %v", gas)
 	}
 
 	if tosca.Revision(revision) < MinRevision || tosca.Revision(revision) > NewestSupportedRevision {

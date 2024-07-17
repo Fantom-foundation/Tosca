@@ -76,8 +76,8 @@ func NewStateGenerator() *StateGenerator {
 		callContextGen:        NewCallContextGenerator(),
 		callJournalGen:        NewCallJournalGenerator(),
 		blockContextGen:       NewBlockContextGenerator(),
-		gasConstraints:        NewRangeSolver[tosca.Gas](0, st.MaxGas),
-		gasRefundConstraints:  NewRangeSolver[tosca.Gas](-st.MaxGas, st.MaxGas),
+		gasConstraints:        NewRangeSolver[tosca.Gas](0, st.MaxGasUsedByCt),
+		gasRefundConstraints:  NewRangeSolver[tosca.Gas](-st.MaxGasUsedByCt, st.MaxGasUsedByCt),
 		hasSelfDestructedGen:  NewSelfDestructedGenerator(),
 		transactionContextGen: NewTransactionContextGenerator(),
 	}

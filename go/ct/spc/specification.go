@@ -22,6 +22,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
+	"golang.org/x/exp/constraints"
 )
 
 // Specification defines the interface for handling specifications.
@@ -267,7 +268,7 @@ func getAllRules() []Rule {
 			}
 			s.Gas -= memExpCost
 
-			wordCost := tosca.Gas(6 * SizeInWords(size))
+			wordCost := tosca.Gas(6 * tosca.SizeInWords(size))
 			if s.Gas < wordCost {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -897,7 +898,7 @@ func getAllRules() []Rule {
 
 			srcCost, srcOffset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			destCost, destOffset, _ := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			wordCountCost := tosca.Gas(3 * ((size + 31) / 32))
+			wordCountCost := tosca.Gas(3 * tosca.SizeInWords(size))
 			expansionCost := max(srcCost, destCost)
 
 			dynamicGas, overflow := sumWithOverflow(expansionCost, wordCountCost)
@@ -1448,9 +1449,8 @@ func getAllRules() []Rule {
 			sizeU256 := s.Stack.Pop()
 
 			cost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-
-			cost += tosca.Gas(3 * SizeInWords(size))
-			if s.Gas < cost {
+			cost, overflow := sumWithOverflow(cost, tosca.Gas(3*tosca.SizeInWords(size)))
+			if s.Gas < cost || overflow {
 				s.Status = st.Failed
 				s.Gas = 0
 				return
@@ -1526,8 +1526,8 @@ func getAllRules() []Rule {
 			sizeU256 := s.Stack.Pop()
 
 			expansionCost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			expansionCost += tosca.Gas(3 * SizeInWords(size))
-			if s.Gas < expansionCost {
+			expansionCost, overflow := sumWithOverflow(expansionCost, tosca.Gas(3*tosca.SizeInWords(size)))
+			if s.Gas < expansionCost || overflow {
 				s.Status = st.Failed
 				s.Gas = 0
 				return
@@ -1589,8 +1589,8 @@ func getAllRules() []Rule {
 
 			// offset + size overflows OR offset + size is larger than RETURNDATASIZE.
 			offset := offsetU256.Uint64()
-			readUntil := offset + sizeU256.Uint64()
-			if !offsetU256.IsUint64() || !sizeU256.IsUint64() ||
+			readUntil, overflow := sumWithOverflow(offset, sizeU256.Uint64())
+			if !offsetU256.IsUint64() || !sizeU256.IsUint64() || overflow ||
 				readUntil > uint64(s.LastCallReturnData.Length()) {
 				s.Status = st.Failed
 				s.Gas = 0
@@ -1598,8 +1598,8 @@ func getAllRules() []Rule {
 			}
 
 			expansionCost, destOffsetUint64, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-			expansionCost += tosca.Gas(3 * SizeInWords(size))
-			if s.Gas < expansionCost {
+			expansionCost, overflow = sumWithOverflow(expansionCost, tosca.Gas(3*tosca.SizeInWords(size)))
+			if s.Gas < expansionCost || overflow {
 				s.Status = st.Failed
 				s.Gas = 0
 				return
@@ -1787,6 +1787,7 @@ func createEffect(s *st.State, callKind tosca.CallKind) {
 
 	memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 	dynamicGas := memExpCost
+	overflow := false
 
 	if s.Revision >= tosca.R12_Shanghai {
 		const (
@@ -1800,12 +1801,23 @@ func createEffect(s *st.State, callKind tosca.CallKind) {
 			s.Status = st.Failed
 			return
 		}
-		dynamicGas += tosca.Gas(InitCodeWordGas * ((size + 31) / 32))
+		dynamicGas, overflow = sumWithOverflow(dynamicGas, tosca.Gas(InitCodeWordGas*tosca.SizeInWords(size)))
+		if overflow {
+			s.Gas = 0
+			s.Status = st.Failed
+			return
+		}
+
 	}
 
 	if callKind == tosca.Create2 {
 		saltU256 = s.Stack.Pop()
-		dynamicGas += tosca.Gas(6 * SizeInWords(size))
+		dynamicGas, overflow = sumWithOverflow(dynamicGas, tosca.Gas(6*tosca.SizeInWords(size)))
+		if overflow {
+			s.Gas = 0
+			s.Status = st.Failed
+			return
+		}
 	}
 
 	if s.Gas < dynamicGas {
@@ -1994,8 +2006,8 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 	sizeU256 := s.Stack.Pop()
 
 	cost, destOffset, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
-	cost += tosca.Gas(3 * SizeInWords(size))
-	if s.Gas < cost {
+	cost, overflow := sumWithOverflow(cost, tosca.Gas(3*tosca.SizeInWords(size)))
+	if s.Gas < cost || overflow {
 		s.Status = st.Failed
 		s.Gas = 0
 		return
@@ -2626,8 +2638,8 @@ func callEffect(s *st.State, addrAccessCost tosca.Gas, op vm.OpCode) {
 	}
 }
 
-func sumWithOverflow(values ...tosca.Gas) (tosca.Gas, bool) {
-	res := tosca.Gas(0)
+func sumWithOverflow[T constraints.Integer](values ...T) (T, bool) {
+	res := T(0)
 	for _, cur := range values {
 		next := res + cur
 		if next < res {

@@ -27,15 +27,8 @@ func NewMemory() *Memory {
 	return &Memory{}
 }
 
-func sizeInWords(size uint64) uint64 {
-	if size > math.MaxUint64-31 {
-		return (math.MaxUint64 / 32) + 1
-	}
-	return (size + 31) / 32
-}
-
 func toValidMemorySize(size uint64) uint64 {
-	fullWordsSize := sizeInWords(size) * 32
+	fullWordsSize := tosca.SizeInWords(size) * 32
 	if size != 0 && fullWordsSize < size {
 		// TODO: this is a compromised solution, reconsider this with issue #524
 		// Geth handles this by adding an overflow boolean to every mem operation: core/vm/common.go (calcMemSize64WithUint)
@@ -69,7 +62,7 @@ func (m *Memory) ExpansionCosts(size uint64) tosca.Gas {
 		return tosca.Gas(math.MaxInt64)
 	}
 
-	words := sizeInWords(size)
+	words := tosca.SizeInWords(size)
 	new_costs := tosca.Gas((words*words)/512 + (3 * words))
 	fee := new_costs - m.total_memory_cost
 	return fee
@@ -89,7 +82,7 @@ func (m *Memory) EnsureCapacity(offset, size uint64, c *context) error {
 		needed = toValidMemorySize(needed)
 		fee := m.ExpansionCosts(needed)
 		if !c.UseGas(fee) {
-			c.SignalError(errOutOfGas)
+			c.status = OUT_OF_GAS
 			return errOutOfGas
 		}
 		m.total_memory_cost += fee

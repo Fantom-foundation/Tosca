@@ -11,6 +11,7 @@
 package spc
 
 import (
+	"fmt"
 	"math"
 	"regexp"
 	"slices"
@@ -19,10 +20,12 @@ import (
 
 	"pgregory.net/rand"
 
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestSpecification_SpecificationIsSound(t *testing.T) {
@@ -369,5 +372,73 @@ func TestSumWithOverflow(t *testing.T) {
 				t.Errorf("unexpected result, wanted %d, got %d", want, got)
 			}
 		})
+	}
+}
+
+func TestSpecification_OpsWithDynamicCostHandleOverflowSizes(t *testing.T) {
+
+	indexOfMemParam := map[vm.OpCode][]int{
+		vm.MCOPY:          {0, 1, 2},
+		vm.CODECOPY:       {0, 2},
+		vm.CALLDATACOPY:   {0, 2},
+		vm.RETURNDATACOPY: {0, 1, 2},
+		vm.REVERT:         {0, 1},
+		vm.CREATE:         {1, 2},
+		vm.CREATE2:        {1, 2},
+		vm.EXTCODECOPY:    {1, 3},
+		vm.CALLCODE:       {3, 4, 5, 6},
+		vm.SHA3:           {0, 1},
+		vm.STATICCALL:     {2, 3, 4, 5},
+	}
+
+	testValues := []uint64{st.MaxMemoryExpansionSize, st.MaxMemoryExpansionSize + 1, math.MaxUint64}
+	allRules := getAllRules()
+	rnd := rand.New(0)
+
+	for op := range indexOfMemParam {
+		for revision := common.MinRevision; revision <= common.NewestSupportedRevision; revision++ {
+			for _, overflowParameterPosition := range indexOfMemParam[op] {
+				for _, value := range testValues {
+					t.Run(fmt.Sprintf("%v_%v_%v_%v", op, revision, overflowParameterPosition, value), func(t *testing.T) {
+
+						condition := rlz.And(
+							rlz.IsRevision(revision),
+							rlz.Eq(rlz.Status(), st.Running),
+							rlz.Eq(rlz.Op(rlz.Pc()), vm.OpCode(op)),
+							rlz.Eq(rlz.Param(overflowParameterPosition), common.NewU256(value)),
+						)
+
+						for i := 0; i < 7; i++ {
+							if i != overflowParameterPosition {
+								condition = rlz.And(condition, rlz.Eq(rlz.Param(i), common.NewU256(1)))
+							}
+						}
+
+						generator := gen.NewStateGenerator()
+						condition.Restrict(generator)
+
+						state, err := generator.Generate(rnd)
+						if err != nil {
+							t.Fatalf("failed to generate a constrained state: %v", err)
+						}
+
+						for _, rule := range allRules {
+							match, err := rule.Condition.Check(state)
+							if err != nil {
+								t.Fatalf("failed to check rule condition for %v: %v", rule.Name, err)
+							}
+							if match {
+								result := state.Clone()
+								rule.Effect.Apply(result)
+								if result.Status != st.Failed {
+									t.Fatalf("Rule %s did not fail with overflow parameter", rule.Name)
+								}
+								result.Release()
+							}
+						}
+					})
+				}
+			}
+		}
 	}
 }
