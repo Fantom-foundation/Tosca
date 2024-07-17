@@ -28,7 +28,6 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/dsnet/golib/unitconv"
 	"github.com/urfave/cli/v2"
-	"golang.org/x/exp/maps"
 )
 
 var ProbeCmd = cliUtils.AddCommonFlags(cli.Command{
@@ -53,10 +52,11 @@ func doProbe(context *cli.Context) error {
 		evmIdentifier = context.Args().Get(0)
 	}
 
-	evm, ok := evms[evmIdentifier]
-	if !ok {
-		return fmt.Errorf("invalid EVM identifier, use one of: %v", maps.Keys(evms))
+	evm, err := getVm(evmIdentifier)
+	if err != nil {
+		return err
 	}
+	defer evm.Destroy()
 
 	jobCount := cliUtils.JobsFlag.Fetch(context)
 	if jobCount <= 0 {
