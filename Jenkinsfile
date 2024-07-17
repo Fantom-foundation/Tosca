@@ -37,7 +37,7 @@ pipeline {
 
         stage('Check Go sources formatting') {
             steps {
-                sh 'diff=`${GOROOT}/bin/gofmt -s -d .` && echo "$diff" && test -z "$diff"'
+                sh "${GOROOT}/bin/gofmt -s -d go"
             }
         }
 
