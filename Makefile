@@ -56,6 +56,13 @@ ct-coverage-geth: TOSCA_GO_COVERAGE_EVM=geth
 ct-coverage-geth: TOSCA_GO_COVERAGE_DEPENDENCY_PACKAGES=github.com/ethereum/go-ethereum/core/vm/...
 ct-coverage-geth: coverage-go
 
+ct-coverage-evmzero: tosca-cpp-coverage
+ct-coverage-evmzero: 
+	go run ./go/ct/driver run -f push evmzero ; \
+	echo "Coverage report generated in cpp/build/coverage/index.html"
+	@cd cpp/build ; \
+	cmake --build .  --target coverage 
+
 test: test-go test-cpp
 
 test-go: tosca-go
