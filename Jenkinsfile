@@ -23,6 +23,12 @@ pipeline {
     }
 
     stages {
+        stage('Checkout code') {
+            steps {
+                sh 'git submodule update --init --recursive'
+            }
+        }
+
         stage('Check License headers') {
             steps {
                 sh 'cd scripts/license && ./add_license_header.sh --check'
@@ -51,7 +57,6 @@ pipeline {
 
         stage('Build Go') {
             steps {
-                sh 'git submodule update --init --recursive'
                 sh 'make tosca-go'
             }
         }
