@@ -16,6 +16,15 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
+const (
+	TxGas                     = 21_000
+	TxGasContractCreation     = 53_000
+	TxDataNonZeroGasEIP2028   = 16
+	TxDataZeroGasEIP2028      = 4
+	TxAccessListAddressGas    = 2400
+	TxAccessListStorageKeyGas = 1900
+)
+
 func init() {
 	tosca.RegisterProcessorFactory("floria", newProcessor)
 }
@@ -36,14 +45,19 @@ func (p *processor) Run(
 	context tosca.TransactionContext,
 ) (tosca.Receipt, error) {
 
-	errorReceipt := tosca.Receipt{
-		Success: false,
-		GasUsed: transaction.GasLimit,
-	}
+	errorReceipt := tosca.Receipt{}
+
+	gas := transaction.GasLimit
 
 	if err := buyGas(transaction, context); err != nil {
 		return errorReceipt, nil
 	}
+
+	intrinsicGas := setupGasBilling(transaction)
+	if gas < intrinsicGas {
+		return errorReceipt, nil
+	}
+	gas -= intrinsicGas
 
 	if err := handleNonce(transaction, context); err != nil {
 		return errorReceipt, nil
@@ -56,24 +70,69 @@ func (p *processor) Run(
 
 	var result tosca.Result
 	var err error
-
 	if isCreate {
 		// Create new contract
 	} else {
 		// Call existing contract
-		result, err = call(p.interpreter, transaction, context)
+		result, err = call(p.interpreter, transaction, context, gas)
 		if err != nil {
-			return errorReceipt, nil
+			return tosca.Receipt{GasUsed: transaction.GasLimit}, nil
 		}
 	}
 
+	gasUsed := gasUsed(transaction, result.GasLeft)
+
 	return tosca.Receipt{
 		Success:         result.Success,
-		GasUsed:         transaction.GasLimit,
+		GasUsed:         gasUsed,
 		ContractAddress: nil,
 		Output:          result.Output,
 		Logs:            nil,
 	}, nil
+}
+
+func gasUsed(transaction tosca.Transaction, gasLeft tosca.Gas) tosca.Gas {
+	if transaction.Sender != (tosca.Address{}) {
+		gasLeft -= gasLeft / 10
+	}
+
+	return transaction.GasLimit - tosca.Gas(gasLeft)
+}
+
+// No overflow check for the gas computation is required although it is performed in the
+// opera version. The overflow check would be triggered in a worst case with an input
+// greater than 2^64 / 16 - 53000 = ~10^18, which is not possible with real world hardware
+func setupGasBilling(transaction tosca.Transaction) tosca.Gas {
+	var gas uint64
+	if transaction.Recipient == nil {
+		gas = TxGasContractCreation
+	} else {
+		gas = TxGas
+	}
+
+	if len(transaction.Input) > 0 {
+		zeroBytes := uint64(0)
+		nonZeroBytes := uint64(0)
+		for _, inputByte := range transaction.Input {
+			if inputByte != 0 {
+				nonZeroBytes++
+			}
+		}
+		zeroBytes = uint64(len(transaction.Input)) - nonZeroBytes
+		gas += zeroBytes * TxDataZeroGasEIP2028
+		gas += nonZeroBytes * TxDataNonZeroGasEIP2028
+	}
+
+	if transaction.AccessList != nil {
+		gas += uint64(len(transaction.AccessList)) * TxAccessListAddressGas
+
+		// charge for each storage key
+		for _, accessTuple := range transaction.AccessList {
+			gas += uint64(len(accessTuple.Keys)) * TxAccessListStorageKeyGas
+		}
+	}
+
+	return tosca.Gas(gas)
 }
 
 func handleNonce(transaction tosca.Transaction, context tosca.TransactionContext) error {
@@ -84,7 +143,7 @@ func handleNonce(transaction tosca.Transaction, context tosca.TransactionContext
 	}
 
 	// Increment nonce
-	context.SetNonce(tosca.Address(transaction.Sender), stateNonce+1)
+	context.SetNonce(transaction.Sender, stateNonce+1)
 
 	return nil
 }
