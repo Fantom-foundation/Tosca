@@ -28,5 +28,17 @@ lcov --remove coverage.info /usr/include/* /usr/lib/*' */third_party/* --output-
 
 ## Collect C++ coverage when running CT evmzero 
 
-Gcov collects coverage data during runtime and only  at the end of the process 
+Gcov collects coverage data during runtime and only at the end of the process is saved into a file. This instrumentation is added to the main function of the C++ process, and since CT is Go, it wont execute. 
+For this reason, Go needs to manually de-initialize the shared library, to manually call the coverage dump routine. This will happen automatically whenever the `libevmzero.so` is compiled with coverage support.
+
+To retrieve the coverage report execute in the following order:
+```bash
+make tosca-cpp-coverage
+go run ./go/ct/driver run evmzero
+make cpp-coverage-report
+```
+
+When replacing `make tosca-cpp-coverage` with `make cpp-test-coverage`, unit test coverage will be combined into the report.
+
+Results can be found as in the same folder as described before.
 
