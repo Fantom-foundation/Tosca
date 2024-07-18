@@ -1,3 +1,5 @@
+add_subdirectory(coverage)
+
 ###########################################################
 # Library
 add_library(tosca_common INTERFACE)
