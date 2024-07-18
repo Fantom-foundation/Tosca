@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/Tosca/go/ct"
+	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	cliUtils "github.com/Fantom-foundation/Tosca/go/ct/driver/cli"
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
@@ -57,6 +58,7 @@ var evms = map[string]ct.Evm{
 }
 
 func doRun(context *cli.Context) error {
+	defer common.DumpCppCoverageData()
 
 	jobCount := cliUtils.JobsFlag.Fetch(context)
 	seed := cliUtils.SeedFlag.Fetch(context)
