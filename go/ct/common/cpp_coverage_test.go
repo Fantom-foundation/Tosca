@@ -4,7 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings" // Add this line to import the "strings" package
+	"strings"
 	"testing"
 )
 
@@ -27,6 +27,8 @@ func TestDumpCppCoverageData(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		// .gcno are generated at compile time, with source code locations and other meta
+		// .gcda are generated at runtime with the actual coverage
 		found = strings.HasSuffix(s, ".gcda")
 		return nil
 	})
@@ -35,6 +37,6 @@ func TestDumpCppCoverageData(t *testing.T) {
 	}
 
 	if !found {
-		t.Fatalf("Failed to find gcda files")
+		t.Fatalf("Failed, test generated no coverage data files")
 	}
 }
