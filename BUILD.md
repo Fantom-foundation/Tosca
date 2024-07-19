@@ -270,3 +270,21 @@ The ct Evm.StepN interface is used to evaluate N instructions in different EVM i
 - Differential tests; execute instruction in two VM implementations and compare state results in addition to panic.
    - FuzzDifferentialLfvmVsGeth: ```make fuzz-lfvm-diff```
    - FuzzDifferentialEvmzeroVsGeth: ```make fuzz-evmzero-diff``` (disabled, issue #549)
+
+
+## Static analysis
+
+Tosca project uses static analysis to improve code quality.
+
+### Go
+
+Currently, two different static analysis tools are used:
+- [Vet](https://pkg.go.dev/cmd/vet) Is the default go linter, bundled with the toolchain. Vet uses heuristics that do not guarantee all reports are genuine problems, but it can find errors not caught by the compilers. To execute it run `go vet ./go/...`. This tool is currently enabled in the CI, and pull request will be prevented from merging when checks are not satisfied.
+- [StaticCheck](https://staticcheck.dev/) Finds other [errors](https://staticcheck.dev/docs/checks/) related to styling and good practices. 
+
+Lints can be disabled as described [here](https://golangci-lint.run/usage/false-positives/). Please use `//nolint:pass` where pass is the linter pass that discovers the error. Do not ignore all passes as one line may hide more than one error.
+
+### C++
+
+There is currently no infrastructure to run static analysis for C++ code in this project.
+

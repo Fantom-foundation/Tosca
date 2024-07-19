@@ -17,3 +17,6 @@ build/
 
 # IDE files
 .vscode/
+
+# Jenkinsfile linter config
+.groovylintrc.json
