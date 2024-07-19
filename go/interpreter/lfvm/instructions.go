@@ -1050,14 +1050,26 @@ func neededMemorySize(c *context, offset, size *uint256.Int) (uint64, error) {
 	return offset.Uint64() + size.Uint64(), nil
 }
 
-func opCall(c *context) {
+func genericCall(c *context, kind tosca.CallKind) {
 	warmAccess, coldCost, err := addressInAccessList(c)
 	if err != nil {
 		return
 	}
 	stack := c.stack
+	value := uint256.NewInt(0)
+
 	// Pop call parameters.
-	provided_gas, addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
+	provided_gas, addr := stack.pop(), stack.pop()
+	if kind == tosca.Call || kind == tosca.CallCode {
+		value = stack.pop()
+	}
+	inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop()
+
+	// We need to check the existence of the target account before removing
+	// the gas price for the other cost factors to make sure that the read
+	// in the state DB is always happening. This is the current EVM behavior,
+	// and not doing it would be identified by the replay tool as an error.
+	toAddr := tosca.Address(addr.Bytes20())
 
 	// Compute and charge gas price for call
 	arg_memory_size, err := neededMemorySize(c, inOffset, inSize)
@@ -1068,48 +1080,52 @@ func opCall(c *context) {
 	if err != nil {
 		return
 	}
+
 	needed_memory_size := arg_memory_size
 	if ret_memory_size > arg_memory_size {
 		needed_memory_size = ret_memory_size
 	}
-	base_gas := c.memory.ExpansionCosts(needed_memory_size)
-	if base_gas < 0 || c.gas < base_gas {
+
+	baseGas := c.memory.ExpansionCosts(needed_memory_size)
+	checkGas := func(cost tosca.Gas) bool {
+		return 0 <= cost && cost <= c.gas
+	}
+	if !checkGas(baseGas) {
 		c.status = OUT_OF_GAS
 		return
 	}
 
-	// We need to check the existence of the target account before removing
-	// the gas price for the other cost factors to make sure that the read
-	// in the state DB is always happening. This is the current EVM behavior,
-	// and not doing it would be identified by the replay tool as an error.
-	toAddr := tosca.Address(addr.Bytes20())
-
+	// for static and delegate calls, the following value checks will always be zero.
 	// Charge for transferring value to a new address
 	if !value.IsZero() {
-		base_gas += tosca.Gas(params.CallValueTransferGas)
+		baseGas += tosca.Gas(params.CallValueTransferGas)
+	}
+	if !checkGas(baseGas) {
+		c.status = OUT_OF_GAS
+		return
 	}
 
-	// if evm.chainRules.IsEIP158 according to GETH it is EIP158 since 2016
-	// !!!! but need to touch stateDB for the address to have it in the substate record key/value
-	if !value.IsZero() && !c.context.AccountExists(toAddr) {
-		base_gas += tosca.Gas(params.CallNewAccountGas)
+	// EIP158 states that non-zero value calls that create a new account should
+	// be charged an additional gas fee.
+	if kind == tosca.Call && !value.IsZero() && !c.context.AccountExists(toAddr) {
+		baseGas += tosca.Gas(params.CallNewAccountGas)
+	}
+	if !checkGas(baseGas) {
+		c.status = OUT_OF_GAS
+		return
 	}
 
-	cost := callGas(c.gas, base_gas, provided_gas)
-
-	if warmAccess {
-		if !c.UseGas(base_gas + cost) {
-			return
-		}
-	} else {
+	cost := callGas(c.gas, baseGas, provided_gas)
+	if !warmAccess {
 		// In case of a cold access, we temporarily add the cold charge back, and also
 		// add it to the returned gas. By adding it to the return, it will be charged
 		// outside of this function, as part of the dynamic gas, and that will make it
 		// also become correctly reported to tracers.
 		c.gas += coldCost
-		if !c.UseGas(base_gas + cost + coldCost) {
-			return
-		}
+		baseGas += coldCost
+	}
+	if !c.UseGas(baseGas + cost) {
+		return
 	}
 
 	// first use static and dynamic gas cost and then resize the memory
@@ -1117,46 +1133,57 @@ func opCall(c *context) {
 	c.memory.EnsureCapacityWithoutGas(needed_memory_size)
 	if !value.IsZero() {
 		cost += tosca.Gas(params.CallStipend)
+	}
+
+	// Check that the caller has enough balance to transfer the requested value.
+	if (kind == tosca.Call || kind == tosca.CallCode) && !value.IsZero() {
+		balance := c.context.GetBalance(c.params.Recipient)
+		balanceU256 := new(uint256.Int).SetBytes32(balance[:])
+		if balanceU256.Lt(value) {
+			c.stack.pushEmpty().Clear()
+			c.return_data = nil
+			c.gas += cost // the gas send to the nested contract is returned
+			return
+		}
 	}
 
 	// If we are in static mode, recursive calls are to be treated like
 	// static calls. This is a consequence of the unification of the
 	// interpreter interfaces of EVMC and Geth.
 	// This problem was encountered in block 58413779, transaction 7.
-	kind := tosca.Call
-	if c.params.Static {
+	if c.params.Static && kind == tosca.Call {
 		kind = tosca.StaticCall
-
-		// In a static call, no value must be transferred.
-		if !value.IsZero() {
-			c.SignalError(errWriteProtection)
-			return
-		}
 	}
 
-	// Get the arguments from the memory.
+	// Get arguments from the memory.
 	args := c.memory.GetSlice(inOffset.Uint64(), inSize.Uint64())
 
-	// Check that the caller has enough balance to transfer the requested value.
-	if !value.IsZero() {
-		balance := c.context.GetBalance(c.params.Recipient)
-		balanceU256 := new(uint256.Int).SetBytes32(balance[:])
-		if balanceU256.Lt(value) {
-			c.stack.pushEmpty().Clear()
-			c.return_data = nil
-			c.gas += cost // the gas send to the nested contract is returned
-			return
-		}
+	// Prepare arguments, depending on call kind
+	callParams := tosca.CallParameters{
+		Input: args,
+		Gas:   cost,
+		Value: tosca.Value(value.Bytes32()),
+	}
+
+	switch kind {
+	case tosca.Call, tosca.StaticCall:
+		callParams.Sender = c.params.Recipient
+		callParams.Recipient = toAddr
+
+	case tosca.CallCode:
+		callParams.Sender = c.params.Recipient
+		callParams.Recipient = c.params.Recipient
+		callParams.CodeAddress = toAddr
+
+	case tosca.DelegateCall:
+		callParams.Sender = c.params.Sender
+		callParams.Recipient = c.params.Recipient
+		callParams.CodeAddress = toAddr
+		callParams.Value = c.params.Value
 	}
 
 	// Perform the call.
-	ret, err := c.context.Call(kind, tosca.CallParameters{
-		Sender:    c.params.Recipient,
-		Recipient: toAddr,
-		Input:     args,
-		Gas:       cost,
-		Value:     tosca.Value(value.Bytes32()),
-	})
+	ret, err := c.context.Call(kind, callParams)
 
 	if err == nil {
 		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
@@ -1173,266 +1200,28 @@ func opCall(c *context) {
 	c.gas += ret.GasLeft
 	c.refund += ret.GasRefund
 	c.return_data = ret.Output
+}
+
+func opCall(c *context) {
+	value := c.stack.data[c.stack.stack_ptr-3]
+	// In a static call, no value must be transferred.
+	if c.params.Static && !value.IsZero() {
+		c.SignalError(errWriteProtection)
+		return
+	}
+	genericCall(c, tosca.Call)
 }
 
 func opCallCode(c *context) {
-	warmAccess, coldCost, err := addressInAccessList(c)
-	if err != nil {
-		return
-	}
-	stack := c.stack
-	// Pop call parameters.
-	provided_gas, addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
-
-	// Compute and charge gas price for call
-	arg_memory_size, err := neededMemorySize(c, inOffset, inSize)
-	if err != nil {
-		return
-	}
-	ret_memory_size, err := neededMemorySize(c, retOffset, retSize)
-	if err != nil {
-		return
-	}
-	needed_memory_size := arg_memory_size
-	if ret_memory_size > arg_memory_size {
-		needed_memory_size = ret_memory_size
-	}
-	base_gas := c.memory.ExpansionCosts(needed_memory_size)
-	if base_gas < 0 || c.gas < base_gas {
-		c.status = OUT_OF_GAS
-		return
-	}
-
-	// We need to check the existence of the target account before removing
-	// the gas price for the other cost factors to make sure that the read
-	// in the state DB is always happening. This is the current EVM behavior,
-	// and not doing it would be identified by the replay tool as an error.
-	toAddr := tosca.Address(addr.Bytes20())
-
-	// Charge for transferring value to a new address
-	if !value.IsZero() {
-		base_gas += tosca.Gas(params.CallValueTransferGas)
-	}
-
-	cost := callGas(c.gas, base_gas, provided_gas)
-
-	if warmAccess {
-		if !c.UseGas(base_gas + cost) {
-			return
-		}
-	} else {
-		// In case of a cold access, we temporarily add the cold charge back, and also
-		// add it to the returned gas. By adding it to the return, it will be charged
-		// outside of this function, as part of the dynamic gas, and that will make it
-		// also become correctly reported to tracers.
-		c.gas += coldCost
-		if !c.UseGas(base_gas + cost + coldCost) {
-			return
-		}
-	}
-
-	// first use static and dynamic gas cost and then resize the memory
-	// when out of gas is happening, then mem should not be resized
-	c.memory.EnsureCapacityWithoutGas(needed_memory_size)
-	if !value.IsZero() {
-		cost += tosca.Gas(params.CallStipend)
-	}
-
-	// Check that the caller has enough balance to transfer the requested value.
-	if !value.IsZero() {
-		balance := c.context.GetBalance(c.params.Recipient)
-		balanceU256 := new(uint256.Int).SetBytes32(balance[:])
-		if balanceU256.Lt(value) {
-			c.stack.pushEmpty().Clear()
-			c.return_data = nil
-			c.gas += cost // the gas send to the nested contract is returned
-			return
-		}
-	}
-
-	// Get the arguments from the memory.
-	args := c.memory.GetSlice(inOffset.Uint64(), inSize.Uint64())
-	ret, err := c.context.Call(tosca.CallCode, tosca.CallParameters{
-		Sender:      c.params.Recipient,
-		Recipient:   c.params.Recipient,
-		CodeAddress: toAddr,
-		Input:       args,
-		Value:       tosca.Value(value.Bytes32()),
-		Gas:         cost,
-	})
-
-	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
-			c.SignalError(memSetErr)
-		}
-	}
-
-	success := stack.pushEmpty()
-	if err != nil || !ret.Success {
-		success.Clear()
-	} else {
-		success.SetOne()
-	}
-	c.gas += ret.GasLeft
-	c.refund += ret.GasRefund
-	c.return_data = ret.Output
+	genericCall(c, tosca.CallCode)
 }
 
 func opStaticCall(c *context) {
-	stack := c.stack
-
-	warmAccess, coldCost, err := addressInAccessList(c)
-	if err != nil {
-		return
-	}
-
-	// Pop call parameters.
-	provided_gas, addr, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
-
-	// Compute and charge gas price for call
-	arg_memory_size, err := neededMemorySize(c, inOffset, inSize)
-	if err != nil {
-		return
-	}
-	ret_memory_size, err := neededMemorySize(c, retOffset, retSize)
-	if err != nil {
-		return
-	}
-	needed_memory_size := arg_memory_size
-	if ret_memory_size > arg_memory_size {
-		needed_memory_size = ret_memory_size
-	}
-	base_gas := c.memory.ExpansionCosts(needed_memory_size)
-	if base_gas < 0 || c.gas < base_gas {
-		c.status = OUT_OF_GAS
-		return
-	}
-
-	gas := callGas(c.gas, base_gas, provided_gas)
-
-	if warmAccess {
-		if !c.UseGas(base_gas + gas) {
-			return
-		}
-	} else {
-		// In case of a cold access, we temporarily add the cold charge back, and also
-		// add it to the returned gas. By adding it to the return, it will be charged
-		// outside of this function, as part of the dynamic gas, and that will make it
-		// also become correctly reported to tracers.
-		c.gas += coldCost
-		if !c.UseGas(base_gas + gas + coldCost) {
-			return
-		}
-	}
-
-	// first use static and dynamic gas cost and then resize the memory
-	// when out of gas is happening, then mem should not be resized
-	c.memory.EnsureCapacityWithoutGas(needed_memory_size)
-
-	toAddr := tosca.Address(addr.Bytes20())
-	// Get arguments from the memory.
-	args := c.memory.GetSlice(inOffset.Uint64(), inSize.Uint64())
-	ret, err := c.context.Call(tosca.StaticCall, tosca.CallParameters{
-		Sender:    c.params.Recipient,
-		Recipient: toAddr,
-		Input:     args,
-		Gas:       gas,
-	})
-
-	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
-			c.SignalError(memSetErr)
-		}
-	}
-
-	success := stack.pushEmpty()
-	if err != nil || !ret.Success {
-		success.Clear()
-	} else {
-		success.SetOne()
-	}
-	c.gas += ret.GasLeft
-	c.refund += ret.GasRefund
-	c.return_data = ret.Output
+	genericCall(c, tosca.StaticCall)
 }
 
 func opDelegateCall(c *context) {
-	warmAccess, coldCost, err := addressInAccessList(c)
-	if err != nil {
-		return
-	}
-	stack := c.stack
-	// Pop call parameters.
-	provided_gas, addr, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
-
-	// Compute and charge gas price for call
-	arg_memory_size, err := neededMemorySize(c, inOffset, inSize)
-	if err != nil {
-		return
-	}
-	ret_memory_size, err := neededMemorySize(c, retOffset, retSize)
-	if err != nil {
-		return
-	}
-	needed_memory_size := arg_memory_size
-	if ret_memory_size > arg_memory_size {
-		needed_memory_size = ret_memory_size
-	}
-	base_gas := c.memory.ExpansionCosts(needed_memory_size)
-	if base_gas < 0 || c.gas < base_gas {
-		c.status = OUT_OF_GAS
-		return
-	}
-
-	gas := callGas(c.gas, base_gas, provided_gas)
-
-	if warmAccess {
-		if !c.UseGas(base_gas + gas) {
-			return
-		}
-	} else {
-		// In case of a cold access, we temporarily add the cold charge back, and also
-		// add it to the returned gas. By adding it to the return, it will be charged
-		// outside of this function, as part of the dynamic gas, and that will make it
-		// also become correctly reported to tracers.
-		c.gas += coldCost
-		if !c.UseGas(base_gas + gas + coldCost) {
-			return
-		}
-	}
-
-	// first use static and dynamic gas cost and then resize the memory
-	// when out of gas is happening, then mem should not be resized
-	c.memory.EnsureCapacityWithoutGas(needed_memory_size)
-
-	toAddr := tosca.Address(addr.Bytes20())
-	// Get arguments from the memory.
-	args := c.memory.GetSlice(inOffset.Uint64(), inSize.Uint64())
-
-	ret, err := c.context.Call(tosca.DelegateCall, tosca.CallParameters{
-		Sender:      c.params.Sender,
-		Recipient:   c.params.Recipient,
-		CodeAddress: toAddr,
-		Input:       args,
-		Value:       c.params.Value,
-		Gas:         gas,
-	})
-
-	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
-			c.SignalError(memSetErr)
-		}
-	}
-
-	success := stack.pushEmpty()
-	if err != nil || !ret.Success {
-		success.Clear()
-	} else {
-		success.SetOne()
-	}
-	c.gas += ret.GasLeft
-	c.refund += ret.GasRefund
-	c.return_data = ret.Output
+	genericCall(c, tosca.DelegateCall)
 }
 
 func opReturnDataSize(c *context) {
