@@ -5,9 +5,12 @@ option(TOSCA_COVERAGE "Enable coverage report for evmzero." OFF)
 if(TOSCA_COVERAGE)
  
   if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # gcc uses gcov, clang should use it as well, but it has version compatibility issues
-    # between compiler generate code and the gcov tool.
-    message(FATAL_ERROR "Coverage build currently is only supported with GCC.")
+    # Gcc uses Gcov, clang should use it as well, but it has version compatibility issues
+    # between compiler generate code and the gcov tool. 
+    # Feel free to experiment Clang Gcov # support, unfortunatelly, it requires too much 
+    # manual tinkering to enable it in an automated way. 
+    # Gcc and Gcov are released together, so they should be compatible.
+    message(FATAL_ERROR "Coverage build only enabled for GCC.")
   endif()
 
   add_compile_options(--coverage)
