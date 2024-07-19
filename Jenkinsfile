@@ -84,5 +84,12 @@ pipeline {
                 sh 'make test-cpp'
             }
         }
+
+        stage('Test C++ coverage support') {
+            steps {
+                sh 'make tosca-cpp-coverage'
+                sh 'go test -v  -run ^TestDumpCppCoverageData$ ./go/ct/common/ -- --expect-coverage'
+            }
+        }
     }
 }
