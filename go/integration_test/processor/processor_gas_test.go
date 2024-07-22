@@ -12,6 +12,7 @@ package processor
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 	"testing"
 
@@ -21,13 +22,11 @@ import (
 )
 
 func getGasTestScenarios() map[string]Scenario {
-	const (
-		codePrice = 3 + 3
-		excessGas = 100
-	)
+	// cost for 2 PUSH1 operations
+	const executionGasCost = 3 + 3
 
-	allTestCases := map[string]Scenario{
-		"ValueTransferExact": {
+	exactTestCases := map[string]Scenario{
+		"ValueTransfer": {
 			Before: WorldState{
 				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
 			},
@@ -47,144 +46,7 @@ func getGasTestScenarios() map[string]Scenario {
 				GasUsed: floria.TxGas,
 			},
 		},
-		"ValueTransferSufficient": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas + excessGas,
-				Value:     tosca.NewValue(3),
-				Nonce:     4,
-			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(97), Nonce: 5},
-				{2}: Account{Balance: tosca.NewValue(3)},
-			},
-			Receipt: tosca.Receipt{
-				Success: true,
-				GasUsed: floria.TxGas + excessGas/10, // 1/10th of the gas is always consumed
-			},
-		},
-		"ValueTransferInsufficient": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas - 1,
-				Value:     tosca.NewValue(3),
-				Nonce:     4,
-			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-			},
-			Receipt: tosca.Receipt{
-				Success: false,
-				GasUsed: 0,
-			},
-			OperaError: fmt.Errorf("gas too low"),
-		},
-		"SimpleCodeExact": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0),
-					Code: tosca.Code{
-						byte(op.PUSH1), byte(0), // < PUSH 0
-						byte(op.PUSH1), byte(0), // < PUSH 0
-						byte(op.RETURN),
-					},
-				},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas + codePrice,
-				Nonce:     4,
-			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 5},
-				{2}: Account{Balance: tosca.NewValue(0),
-					Code: tosca.Code{
-						byte(op.PUSH1), byte(0), // < PUSH 0
-						byte(op.PUSH1), byte(0), // < PUSH 0
-						byte(op.RETURN),
-					},
-				},
-			},
-			Receipt: tosca.Receipt{
-				Success: true,
-				GasUsed: floria.TxGas + codePrice,
-			},
-		},
-		"SimpleCodeSufficient": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0),
-					Code: tosca.Code{
-						byte(op.PUSH1), byte(0), // < PUSH 0
-						byte(op.PUSH1), byte(0), // < PUSH 0
-						byte(op.RETURN),
-					},
-				},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas + codePrice + excessGas,
-				Nonce:     4,
-			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 5},
-				{2}: Account{Balance: tosca.NewValue(0),
-					Code: tosca.Code{
-						byte(op.PUSH1), byte(0), // < PUSH 0
-						byte(op.PUSH1), byte(0), // < PUSH 0
-						byte(op.RETURN),
-					},
-				},
-			},
-			Receipt: tosca.Receipt{
-				Success: true,
-				GasUsed: floria.TxGas + codePrice + excessGas/10,
-			},
-		},
-		"SimpleCodeInsufficient": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0),
-					Code: tosca.Code{
-						byte(op.PUSH1), byte(0), // < PUSH 0
-						byte(op.PUSH1), byte(0), // < PUSH 0
-						byte(op.RETURN),
-					},
-				},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas + codePrice - 1,
-				Nonce:     4,
-			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 5},
-				{2}: Account{Balance: tosca.NewValue(0),
-					Code: tosca.Code{
-						byte(op.PUSH1), byte(0), // < PUSH 0
-						byte(op.PUSH1), byte(0), // < PUSH 0
-						byte(op.RETURN),
-					},
-				},
-			},
-			Receipt: tosca.Receipt{
-				Success: false,
-				GasUsed: floria.TxGas + codePrice - 1,
-			},
-			OperaError: fmt.Errorf("gas too low"),
-		},
-		"InputZerosExact": {
+		"InputZeros": {
 			Before: WorldState{
 				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
 				{2}: Account{Balance: tosca.NewValue(0)},
@@ -205,50 +67,7 @@ func getGasTestScenarios() map[string]Scenario {
 				GasUsed: floria.TxGas + floria.TxDataZeroGasEIP2028*10,
 			},
 		},
-		"InputZerosSufficient": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas + floria.TxDataZeroGasEIP2028*10 + excessGas,
-				Nonce:     4,
-				Input:     []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 5},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Receipt: tosca.Receipt{
-				Success: true,
-				GasUsed: floria.TxGas + floria.TxDataZeroGasEIP2028*10 + excessGas/10,
-			},
-		},
-		"InputZerosInsufficient": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas + floria.TxDataZeroGasEIP2028*10 - 1,
-				Nonce:     4,
-				Input:     []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Receipt: tosca.Receipt{
-				Success: false,
-				GasUsed: 0,
-			},
-			OperaError: fmt.Errorf("gas too low"),
-		},
-		"InputNonZerosExact": {
+		"InputNonZeros": {
 			Before: WorldState{
 				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
 				{2}: Account{Balance: tosca.NewValue(0)},
@@ -269,50 +88,7 @@ func getGasTestScenarios() map[string]Scenario {
 				GasUsed: floria.TxGas + floria.TxDataNonZeroGasEIP2028*10,
 			},
 		},
-		"InputNonZerosSufficient": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas + floria.TxDataNonZeroGasEIP2028*10 + excessGas,
-				Nonce:     4,
-				Input:     []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 5},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Receipt: tosca.Receipt{
-				Success: true,
-				GasUsed: floria.TxGas + floria.TxDataNonZeroGasEIP2028*10 + excessGas/10,
-			},
-		},
-		"InputNonZerosInsufficient": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas + floria.TxDataNonZeroGasEIP2028*10 - 1,
-				Nonce:     4,
-				Input:     []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Receipt: tosca.Receipt{
-				Success: false,
-				GasUsed: 0,
-			},
-			OperaError: fmt.Errorf("gas too low"),
-		},
-		"AccessListOnlyAddressesExact": {
+		"AccessListOnlyAddresses": {
 			Before: WorldState{
 				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
 				{2}: Account{Balance: tosca.NewValue(0)},
@@ -340,92 +116,7 @@ func getGasTestScenarios() map[string]Scenario {
 				GasUsed: floria.TxGas + floria.TxAccessListAddressGas*2,
 			},
 		},
-		"AccessListOnlyAddressesSufficient": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas + floria.TxAccessListAddressGas*2 + excessGas,
-				Nonce:     4,
-				AccessList: []tosca.AccessTuple{
-					{Address: tosca.Address{1},
-						Keys: []tosca.Key{},
-					},
-					{Address: tosca.Address{2},
-						Keys: []tosca.Key{},
-					},
-				},
-			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 5},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Receipt: tosca.Receipt{
-				Success: true,
-				GasUsed: floria.TxGas + floria.TxAccessListAddressGas*2 + excessGas/10,
-			},
-		},
-		"AccessListOnlyAddressesInSufficient": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas + floria.TxAccessListAddressGas*2 - 1,
-				Nonce:     4,
-				AccessList: []tosca.AccessTuple{
-					{Address: tosca.Address{1},
-						Keys: []tosca.Key{},
-					},
-					{Address: tosca.Address{2},
-						Keys: []tosca.Key{},
-					},
-				},
-			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Receipt: tosca.Receipt{
-				Success: false,
-				GasUsed: 0,
-			},
-			OperaError: fmt.Errorf("gas too low"),
-		},
-		"AccessListExact": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas + floria.TxAccessListAddressGas*2 + floria.TxAccessListStorageKeyGas*5 + excessGas,
-				Nonce:     4,
-				AccessList: []tosca.AccessTuple{
-					{Address: tosca.Address{1},
-						Keys: []tosca.Key{{1}, {2}},
-					},
-					{Address: tosca.Address{2},
-						Keys: []tosca.Key{{1}, {2}, {3}},
-					},
-				},
-			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 5},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Receipt: tosca.Receipt{
-				Success: true,
-				GasUsed: floria.TxGas + floria.TxAccessListAddressGas*2 + floria.TxAccessListStorageKeyGas*5 + excessGas/10,
-			},
-		},
-		"AccessListSufficient": {
+		"AccessList": {
 			Before: WorldState{
 				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
 				{2}: Account{Balance: tosca.NewValue(0)},
@@ -453,38 +144,138 @@ func getGasTestScenarios() map[string]Scenario {
 				GasUsed: floria.TxGas + floria.TxAccessListAddressGas*2 + floria.TxAccessListStorageKeyGas*5,
 			},
 		},
-		"AccessListInsufficient": {
-			Before: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Transaction: tosca.Transaction{
-				Sender:    tosca.Address{1},
-				Recipient: &tosca.Address{2},
-				GasLimit:  floria.TxGas + floria.TxAccessListAddressGas*2 + floria.TxAccessListStorageKeyGas*5 - 1,
-				Nonce:     4,
-				AccessList: []tosca.AccessTuple{
-					{Address: tosca.Address{1},
-						Keys: []tosca.Key{{1}, {2}},
-					},
-					{Address: tosca.Address{2},
-						Keys: []tosca.Key{{1}, {2}, {3}},
-					},
+	}
+
+	allTestCases := make(map[string]Scenario)
+	for name, exactScenario := range exactTestCases {
+		gasTests := exactSufficientAndInsufficientScenarios(exactScenario, name)
+		maps.Copy(allTestCases, gasTests)
+	}
+
+	allTestCases["SimpleCodeExact"] = Scenario{
+		Before: WorldState{
+			{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
+			{2}: Account{Balance: tosca.NewValue(0),
+				Code: tosca.Code{
+					byte(op.PUSH1), byte(0), // < PUSH 0
+					byte(op.PUSH1), byte(0), // < PUSH 0
+					byte(op.RETURN),
 				},
 			},
-			After: WorldState{
-				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
-				{2}: Account{Balance: tosca.NewValue(0)},
-			},
-			Receipt: tosca.Receipt{
-				Success: false,
-				GasUsed: 0,
-			},
-			OperaError: fmt.Errorf("gas too low"),
 		},
+		Transaction: tosca.Transaction{
+			Sender:    tosca.Address{1},
+			Recipient: &tosca.Address{2},
+			GasLimit:  floria.TxGas + executionGasCost,
+			Nonce:     4,
+		},
+		After: WorldState{
+			{1}: Account{Balance: tosca.NewValue(100), Nonce: 5},
+			{2}: Account{Balance: tosca.NewValue(0),
+				Code: tosca.Code{
+					byte(op.PUSH1), byte(0), // < PUSH 0
+					byte(op.PUSH1), byte(0), // < PUSH 0
+					byte(op.RETURN),
+				},
+			},
+		},
+		Receipt: tosca.Receipt{
+			Success: true,
+			GasUsed: floria.TxGas + executionGasCost,
+		},
+	}
+	allTestCases["SimpleCodeSufficient"] = Scenario{
+		Before: WorldState{
+			{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
+			{2}: Account{Balance: tosca.NewValue(0),
+				Code: tosca.Code{
+					byte(op.PUSH1), byte(0), // < PUSH 0
+					byte(op.PUSH1), byte(0), // < PUSH 0
+					byte(op.RETURN),
+				},
+			},
+		},
+		Transaction: tosca.Transaction{
+			Sender:    tosca.Address{1},
+			Recipient: &tosca.Address{2},
+			GasLimit:  floria.TxGas + executionGasCost + 100,
+			Nonce:     4,
+		},
+		After: WorldState{
+			{1}: Account{Balance: tosca.NewValue(100), Nonce: 5},
+			{2}: Account{Balance: tosca.NewValue(0),
+				Code: tosca.Code{
+					byte(op.PUSH1), byte(0), // < PUSH 0
+					byte(op.PUSH1), byte(0), // < PUSH 0
+					byte(op.RETURN),
+				},
+			},
+		},
+		Receipt: tosca.Receipt{
+			Success: true,
+			GasUsed: floria.TxGas + executionGasCost + 100/10,
+		},
+	}
+	allTestCases["SimpleCodeInsufficient"] = Scenario{
+		Before: WorldState{
+			{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
+			{2}: Account{Balance: tosca.NewValue(0),
+				Code: tosca.Code{
+					byte(op.PUSH1), byte(0), // < PUSH 0
+					byte(op.PUSH1), byte(0), // < PUSH 0
+					byte(op.RETURN),
+				},
+			},
+		},
+		Transaction: tosca.Transaction{
+			Sender:    tosca.Address{1},
+			Recipient: &tosca.Address{2},
+			GasLimit:  floria.TxGas + executionGasCost - 1,
+			Nonce:     4,
+		},
+		After: WorldState{
+			{1}: Account{Balance: tosca.NewValue(100), Nonce: 5},
+			{2}: Account{Balance: tosca.NewValue(0),
+				Code: tosca.Code{
+					byte(op.PUSH1), byte(0), // < PUSH 0
+					byte(op.PUSH1), byte(0), // < PUSH 0
+					byte(op.RETURN),
+				},
+			},
+		},
+		Receipt: tosca.Receipt{
+			Success: false,
+			GasUsed: floria.TxGas + executionGasCost - 1,
+		},
+		OperaError: fmt.Errorf("gas too low"),
 	}
 
 	return allTestCases
+}
+
+func exactSufficientAndInsufficientScenarios(exactScenario Scenario, name string) map[string]Scenario {
+	const excessGas = 100
+
+	sufficient := exactScenario.Clone()
+	sufficient.Transaction.GasLimit += excessGas
+	sufficient.Receipt.GasUsed += excessGas / 10 // 1/10th of any excess gas is always consumed
+
+	insufficient := exactScenario.Clone()
+	insufficient.Transaction.GasLimit -= 1
+	insufficient.Receipt.Success = false
+	insufficient.Receipt.GasUsed = insufficient.Transaction.GasLimit
+	insufficient.OperaError = fmt.Errorf("gas too low")
+	// Reset world state in case of failure
+	beforeSender := insufficient.Before[insufficient.Transaction.Sender]
+	insufficient.After[insufficient.Transaction.Sender] = beforeSender
+	beforeReceiver := insufficient.Before[*insufficient.Transaction.Recipient]
+	insufficient.After[*insufficient.Transaction.Recipient] = beforeReceiver
+
+	return map[string]Scenario{
+		name + "Exact":        exactScenario,
+		name + "Sufficient":   sufficient,
+		name + "Insufficient": insufficient,
+	}
 }
 
 func TestProcessor_GasSpecificScenarios(t *testing.T) {

@@ -48,7 +48,7 @@ func call(interpreter tosca.Interpreter, transaction tosca.Transaction, context 
 	snapshot := context.CreateSnapshot()
 	if err := transferValue(transaction, context); err != nil {
 		context.RestoreSnapshot(snapshot)
-		return tosca.Result{}, err
+		return tosca.Result{}, nil
 	}
 
 	result, err := interpreter.Run(params)

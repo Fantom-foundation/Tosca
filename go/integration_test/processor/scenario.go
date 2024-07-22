@@ -95,6 +95,17 @@ func (s *Scenario) Run(t *testing.T, processor tosca.Processor) {
 	}
 }
 
+func (s *Scenario) Clone() Scenario {
+	return Scenario{
+		Before:      s.Before.Clone(),
+		After:       s.After.Clone(),
+		Parameters:  s.Parameters,
+		Transaction: s.Transaction,
+		Receipt:     s.Receipt,
+		OperaError:  s.OperaError,
+	}
+}
+
 // ----------------------------------------------------------------------------
 
 // scenarioContext implements the tosca.WorldState interface facilitating the

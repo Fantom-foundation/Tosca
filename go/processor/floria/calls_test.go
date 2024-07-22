@@ -149,8 +149,12 @@ func TestProcessor_TransferValueInCallRestoreFailed(t *testing.T) {
 	context.EXPECT().GetBalance(transaction.Sender).Return(tosca.NewValue(0))
 	context.EXPECT().RestoreSnapshot(gomock.Any())
 
-	_, err := call(interpreter, transaction, context)
-	if err == nil {
-		t.Errorf("Failed transferValue returned no error")
+	result, err := call(interpreter, transaction, context)
+	if err != nil {
+		t.Errorf("Correct execution of the transaction should not return an error")
+	}
+
+	if result.Success {
+		t.Errorf("The transaction should have failed")
 	}
 }
