@@ -16,6 +16,15 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
+const (
+	TxGas                     = 21_000
+	TxGasContractCreation     = 53_000
+	TxDataNonZeroGasEIP2028   = 16
+	TxDataZeroGasEIP2028      = 4
+	TxAccessListAddressGas    = 2400
+	TxAccessListStorageKeyGas = 1900
+)
+
 func init() {
 	tosca.RegisterProcessorFactory("floria", newProcessor)
 }

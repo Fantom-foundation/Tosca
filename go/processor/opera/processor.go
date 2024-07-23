@@ -211,7 +211,7 @@ func (p *processor) Run(
 		return tosca.Receipt{}, err
 	}
 	if gas < intrinsicGasCosts {
-		return tosca.Receipt{}, fmt.Errorf("%w: have %d, want %d", errIntrinsicGas, transaction.GasLimit, intrinsicGasCosts)
+		return tosca.Receipt{GasUsed: transaction.GasLimit}, fmt.Errorf("%w: have %d, want %d", errIntrinsicGas, transaction.GasLimit, intrinsicGasCosts)
 	}
 	gas -= intrinsicGasCosts
 
@@ -417,13 +417,13 @@ func IntrinsicGas(transaction tosca.Transaction) (tosca.Gas, error) {
 		}
 		// Make sure we don't exceed uint64 for all data combinations
 		if (math.MaxUint64-gas)/params.TxDataNonZeroGasEIP2028 < nz {
-			return 0, geth.ErrOutOfGas
+			return transaction.GasLimit, geth.ErrOutOfGas
 		}
 		gas += nz * params.TxDataNonZeroGasEIP2028
 
 		z := uint64(len(transaction.Input)) - nz
 		if (math.MaxUint64-gas)/params.TxDataZeroGas < z {
-			return 0, errGasUintOverflow
+			return transaction.GasLimit, errGasUintOverflow
 		}
 		gas += z * params.TxDataZeroGas
 	}

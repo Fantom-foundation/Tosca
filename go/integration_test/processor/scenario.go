@@ -29,14 +29,18 @@ type Scenario struct {
 	Parameters  tosca.BlockParameters
 	Transaction tosca.Transaction
 	Receipt     tosca.Receipt
+	OperaError  error
 }
 
 func (s *Scenario) Run(t *testing.T, processor tosca.Processor) {
 
 	context := newScenarioContext(s.Before)
 	receipt, err := processor.Run(s.Parameters, s.Transaction, context)
-	if err != nil {
+	if err != nil && s.OperaError == nil {
 		t.Fatalf("failed to run transaction: %v", err)
+	}
+	if s.OperaError != nil && receipt.Success {
+		t.Fatalf("expected error, got success")
 	}
 
 	// check the world state after the operation
@@ -88,6 +92,17 @@ func (s *Scenario) Run(t *testing.T, processor tosca.Processor) {
 				t.Errorf("unexpected receipt data, want %x, got %x", want, got)
 			}
 		}
+	}
+}
+
+func (s *Scenario) Clone() Scenario {
+	return Scenario{
+		Before:      s.Before.Clone(),
+		After:       s.After.Clone(),
+		Parameters:  s.Parameters,
+		Transaction: s.Transaction,
+		Receipt:     s.Receipt,
+		OperaError:  s.OperaError,
 	}
 }
 

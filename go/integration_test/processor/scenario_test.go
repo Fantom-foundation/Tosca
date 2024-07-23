@@ -12,6 +12,7 @@ package processor
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -201,5 +202,61 @@ func TestScenarioContext_LogManipulation(t *testing.T) {
 
 	if want, got := 0, len(context.GetLogs()); want != got {
 		t.Errorf("unexpected length of logs, want %v, got %v", want, got)
+	}
+}
+func TestScenario_Clone(t *testing.T) {
+	tests := map[string]func(*Scenario){
+		"before": func(s *Scenario) {
+			s.Before = WorldState{{1}: Account{Balance: tosca.NewValue(100), Nonce: 4}}
+		},
+		"after": func(s *Scenario) {
+			s.After = WorldState{{1}: Account{Balance: tosca.NewValue(100), Nonce: 4}}
+		},
+		"parameters": func(s *Scenario) {
+			s.Parameters = tosca.BlockParameters{Timestamp: 42}
+		},
+		"transaction": func(s *Scenario) {
+			s.Transaction = tosca.Transaction{Sender: tosca.Address{1}, Recipient: &tosca.Address{2}}
+		},
+		"receipt": func(s *Scenario) {
+			s.Receipt = tosca.Receipt{Success: true}
+		},
+		"opera_error": func(s *Scenario) {
+			s.OperaError = fmt.Errorf("test")
+		},
+	}
+
+	equals := func(a, b Scenario) bool {
+		return a.Before.Equal(b.Before) &&
+			a.After.Equal(b.After) &&
+			reflect.DeepEqual(a.Parameters, b.Parameters) &&
+			reflect.DeepEqual(a.Transaction, b.Transaction) &&
+			reflect.DeepEqual(a.Receipt, b.Receipt) &&
+			a.OperaError == b.OperaError
+	}
+
+	scenario := Scenario{
+		Before:      WorldState{},
+		After:       WorldState{},
+		Parameters:  tosca.BlockParameters{},
+		Transaction: tosca.Transaction{},
+		Receipt:     tosca.Receipt{},
+		OperaError:  nil,
+	}
+
+	for name, change := range tests {
+		t.Run(name, func(t *testing.T) {
+			clone := scenario.Clone()
+
+			if !equals(scenario, clone) {
+				t.Errorf("clones are not equal")
+			}
+
+			change(&clone)
+
+			if equals(scenario, clone) {
+				t.Errorf("clones are not independent")
+			}
+		})
 	}
 }
