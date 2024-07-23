@@ -24,7 +24,7 @@ func GetIncrementExample() Example {
 
 	return exampleSpec{
 		Name:      "inc",
-		code:      code,
+		Code:      code,
 		function:  0xDD5D5211,
 		reference: inc,
 	}.build()

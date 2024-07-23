@@ -48,7 +48,7 @@ func GetArithmeticExample() Example {
 
 	return exampleSpec{
 		Name:      "arithmetic",
-		code:      code,
+		Code:      code,
 		function:  0xCC821C09,
 		reference: arithmetic,
 	}.build()

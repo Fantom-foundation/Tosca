@@ -44,7 +44,7 @@ func GetMemoryExample() Example {
 
 	return exampleSpec{
 		Name:      "memory",
-		code:      code,
+		Code:      code,
 		function:  0xE88AE781,
 		reference: memory,
 	}.build()

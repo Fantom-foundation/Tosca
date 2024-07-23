@@ -65,7 +65,7 @@ func GetJumpdestAnalysisExample() Example {
 
 	return exampleSpec{
 		Name:      "jumpdest",
-		code:      code,
+		Code:      code,
 		reference: analysis,
 	}.build()
 }
@@ -76,7 +76,7 @@ func GetStopAnalysisExample() Example {
 
 	return exampleSpec{
 		Name:      "stop",
-		code:      code,
+		Code:      code,
 		reference: analysis,
 	}.build()
 }
@@ -87,7 +87,7 @@ func GetPush1AnalysisExample() Example {
 
 	return exampleSpec{
 		Name:      "push1",
-		code:      code,
+		Code:      code,
 		reference: analysis,
 	}.build()
 }
@@ -99,7 +99,7 @@ func GetPush32AnalysisExample() Example {
 
 	return exampleSpec{
 		Name:      "push32",
-		code:      code,
+		Code:      code,
 		reference: analysis,
 	}.build()
 }

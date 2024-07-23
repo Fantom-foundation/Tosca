@@ -64,7 +64,7 @@ func GetSha3Example() Example {
 
 	return exampleSpec{
 		Name:      "sha3",
-		code:      code,
+		Code:      code,
 		reference: sha3Ref,
 	}.build()
 }
