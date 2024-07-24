@@ -27,14 +27,14 @@ type Example struct {
 // exampleSpec specifies a contract and an entry point with a (int)->int signature.
 type exampleSpec struct {
 	Name      string
-	code      []byte        // some contract code
+	Code      []byte        // some contract code
 	function  uint32        // identifier of the function in the contract to be called
 	reference func(int) int // a reference function computing the same function
 }
 
 func (s exampleSpec) build() Example {
 	hasher := sha3.NewLegacyKeccak256()
-	hasher.Write(s.code)
+	hasher.Write(s.Code)
 	var hash tosca.Hash
 	hasher.Sum(hash[0:0])
 	return Example{
@@ -53,7 +53,7 @@ func (e *Example) RunOn(interpreter tosca.Interpreter, argument int) (Result, er
 
 	const initialGas = math.MaxInt64
 	params := tosca.Parameters{
-		Code:     e.code,
+		Code:     e.Code,
 		CodeHash: (*tosca.Hash)(&e.codeHash),
 		Input:    encodeArgument(e.function, argument),
 		Gas:      initialGas,
@@ -71,6 +71,32 @@ func (e *Example) RunOn(interpreter tosca.Interpreter, argument int) (Result, er
 	return Result{
 		Result:  result,
 		UsedGas: initialGas - int64(res.GasLeft),
+	}, nil
+}
+
+// RunOnProcessor runs this example on the given processor, using the given argument.
+func (e *Example) RunOnProcessor(processor tosca.Processor, argument int,
+	transaction tosca.Transaction, transactionContext tosca.TransactionContext) (Result, error) {
+
+	blockParameters := tosca.BlockParameters{}
+	transaction.Input = encodeArgument(e.function, argument)
+
+	receipt, err := processor.Run(blockParameters, transaction, transactionContext)
+	if err != nil {
+		return Result{}, err
+	}
+
+	if !receipt.Success {
+		return Result{}, fmt.Errorf("contract execution failed")
+	}
+
+	result, err := decodeOutput(receipt.Output)
+	if err != nil {
+		return Result{}, err
+	}
+	return Result{
+		Result:  result,
+		UsedGas: int64(receipt.GasUsed),
 	}, nil
 }
 
