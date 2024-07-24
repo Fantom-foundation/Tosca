@@ -99,7 +99,7 @@ func gasUsed(transaction tosca.Transaction, gasLeft tosca.Gas) tosca.Gas {
 		gasLeft -= gasLeft / 10
 	}
 
-	return transaction.GasLimit - tosca.Gas(gasLeft)
+	return transaction.GasLimit - gasLeft
 }
 
 func setupGasBilling(transaction tosca.Transaction) tosca.Gas {
