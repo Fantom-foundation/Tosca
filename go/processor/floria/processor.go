@@ -44,15 +44,21 @@ func (p *processor) Run(
 	transaction tosca.Transaction,
 	context tosca.TransactionContext,
 ) (tosca.Receipt, error) {
-
 	errorReceipt := tosca.Receipt{
 		Success: false,
 		GasUsed: transaction.GasLimit,
 	}
+	gas := transaction.GasLimit
 
 	if err := buyGas(transaction, context); err != nil {
 		return errorReceipt, nil
 	}
+
+	intrinsicGas := setupGasBilling(transaction)
+	if gas < intrinsicGas {
+		return errorReceipt, nil
+	}
+	gas -= intrinsicGas
 
 	if err := handleNonce(transaction, context); err != nil {
 		return errorReceipt, nil
@@ -70,19 +76,65 @@ func (p *processor) Run(
 		// Create new contract
 	} else {
 		// Call existing contract
-		result, err = call(p.interpreter, transaction, context)
+		result, err = call(p.interpreter, transaction, context, gas)
 		if err != nil {
-			return errorReceipt, nil
+			return errorReceipt, err
 		}
 	}
 
+	gasUsed := gasUsed(transaction, result.GasLeft)
+
 	return tosca.Receipt{
 		Success:         result.Success,
-		GasUsed:         transaction.GasLimit,
+		GasUsed:         gasUsed,
 		ContractAddress: nil,
 		Output:          result.Output,
 		Logs:            nil,
 	}, nil
+}
+
+func gasUsed(transaction tosca.Transaction, gasLeft tosca.Gas) tosca.Gas {
+	// 10% of remaining gas is charged for non-internal transactions
+	if transaction.Sender != (tosca.Address{}) {
+		gasLeft -= gasLeft / 10
+	}
+
+	return transaction.GasLimit - gasLeft
+}
+
+func setupGasBilling(transaction tosca.Transaction) tosca.Gas {
+	var gas tosca.Gas
+	if transaction.Recipient == nil {
+		gas = TxGasContractCreation
+	} else {
+		gas = TxGas
+	}
+
+	if len(transaction.Input) > 0 {
+		nonZeroBytes := tosca.Gas(0)
+		for _, inputByte := range transaction.Input {
+			if inputByte != 0 {
+				nonZeroBytes++
+			}
+		}
+		zeroBytes := tosca.Gas(len(transaction.Input)) - nonZeroBytes
+		gas += zeroBytes * TxDataZeroGasEIP2028
+		gas += nonZeroBytes * TxDataNonZeroGasEIP2028
+	}
+
+	// No overflow check for the gas computation is required although it is performed in the
+	// opera version. The overflow check would be triggered in a worst case with an input
+	// greater than 2^64 / 16 - 53000 = ~10^18, which is not possible with real world hardware
+	if transaction.AccessList != nil {
+		gas += tosca.Gas(len(transaction.AccessList)) * TxAccessListAddressGas
+
+		// charge for each storage key
+		for _, accessTuple := range transaction.AccessList {
+			gas += tosca.Gas(len(accessTuple.Keys)) * TxAccessListStorageKeyGas
+		}
+	}
+
+	return tosca.Gas(gas)
 }
 
 func handleNonce(transaction tosca.Transaction, context tosca.TransactionContext) error {
@@ -91,10 +143,7 @@ func handleNonce(transaction tosca.Transaction, context tosca.TransactionContext
 	if messageNonce != stateNonce {
 		return fmt.Errorf("nonce mismatch: %v != %v", messageNonce, stateNonce)
 	}
-
-	// Increment nonce
-	context.SetNonce(tosca.Address(transaction.Sender), stateNonce+1)
-
+	context.SetNonce(transaction.Sender, stateNonce+1)
 	return nil
 }
 

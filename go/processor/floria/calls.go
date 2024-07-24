@@ -16,7 +16,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
-func call(interpreter tosca.Interpreter, transaction tosca.Transaction, context tosca.TransactionContext) (tosca.Result, error) {
+func call(interpreter tosca.Interpreter, transaction tosca.Transaction, context tosca.TransactionContext, gas tosca.Gas) (tosca.Result, error) {
 
 	blockParameters := tosca.BlockParameters{}
 
@@ -36,7 +36,7 @@ func call(interpreter tosca.Interpreter, transaction tosca.Transaction, context 
 		Kind:      tosca.Call,
 		Static:    false,
 		Depth:     0, // todo add depth check
-		Gas:       transaction.GasLimit,
+		Gas:       gas,
 		Recipient: *transaction.Recipient,
 		Sender:    transaction.Sender,
 		Input:     transaction.Input,

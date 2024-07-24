@@ -13,7 +13,6 @@ package processor
 import (
 	"fmt"
 	"maps"
-	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/processor/floria"
@@ -250,6 +249,27 @@ func getGasTestScenarios() map[string]Scenario {
 		OperaError: fmt.Errorf("gas too low"),
 	}
 
+	allTestCases["InternalCallDoesNotConsume10RemainingPercentGas"] = Scenario{
+		Before: WorldState{
+			{}:  Account{Balance: tosca.NewValue(100), Nonce: 4},
+			{2}: Account{Balance: tosca.NewValue(0)},
+		},
+		Transaction: tosca.Transaction{
+			Sender:    tosca.Address{},
+			Recipient: &tosca.Address{2},
+			GasLimit:  floria.TxGas + 100,
+			Nonce:     4,
+		},
+		After: WorldState{
+			{}:  Account{Balance: tosca.NewValue(100), Nonce: 5},
+			{2}: Account{Balance: tosca.NewValue(0)},
+		},
+		Receipt: tosca.Receipt{
+			Success: true,
+			GasUsed: floria.TxGas,
+		},
+	}
+
 	return allTestCases
 }
 
@@ -280,9 +300,6 @@ func exactSufficientAndInsufficientScenarios(exactScenario Scenario, name string
 
 func TestProcessor_GasSpecificScenarios(t *testing.T) {
 	for name, processor := range getProcessors() {
-		if strings.Contains(name, "floria") {
-			continue // todo implement gas billing in floria
-		}
 		t.Run(name, func(t *testing.T) {
 			for name, s := range getGasTestScenarios() {
 				t.Run(name, func(t *testing.T) {

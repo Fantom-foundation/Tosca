@@ -11,6 +11,7 @@
 package floria
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -111,5 +112,101 @@ func TestProcessor_BuyGasInsufficientBalance(t *testing.T) {
 	err := buyGas(transaction, context)
 	if err == nil {
 		t.Errorf("buyGas did not fail with insufficient balance")
+	}
+}
+
+func TestGasUsed(t *testing.T) {
+	tests := []struct {
+		sender          tosca.Address
+		expectedGasUsed tosca.Gas
+	}{
+		{
+			sender:          tosca.Address{},
+			expectedGasUsed: 500,
+		},
+		{
+			sender:          tosca.Address{1},
+			expectedGasUsed: 550,
+		},
+		{
+			sender:          tosca.Address{42},
+			expectedGasUsed: 550,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("sender%v", test.sender), func(t *testing.T) {
+			transaction := tosca.Transaction{
+				Sender:   test.sender,
+				GasLimit: 1000,
+			}
+
+			gasLeft := tosca.Gas(500)
+			actualGasUsed := gasUsed(transaction, gasLeft)
+
+			if actualGasUsed != test.expectedGasUsed {
+				t.Errorf("gasUsed returned incorrect result, got: %d, want: %d", actualGasUsed, test.expectedGasUsed)
+			}
+		})
+	}
+}
+
+func TestProcessor_SetupGasBilling(t *testing.T) {
+	tests := map[string]struct {
+		recipient       *tosca.Address
+		input           []byte
+		accessList      []tosca.AccessTuple
+		expectedGasUsed tosca.Gas
+	}{
+		"creation": {
+			recipient:       nil,
+			input:           []byte{},
+			accessList:      nil,
+			expectedGasUsed: TxGasContractCreation,
+		},
+		"call": {
+			recipient:       &tosca.Address{1},
+			input:           []byte{},
+			accessList:      nil,
+			expectedGasUsed: TxGas,
+		},
+		"inputZeros": {
+			recipient:       &tosca.Address{1},
+			input:           []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			accessList:      nil,
+			expectedGasUsed: TxGas + 10*TxDataZeroGasEIP2028,
+		},
+		"inputNonZeros": {
+			recipient:       &tosca.Address{1},
+			input:           []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			accessList:      nil,
+			expectedGasUsed: TxGas + 10*TxDataNonZeroGasEIP2028,
+		},
+		"accessList": {
+			recipient: &tosca.Address{1},
+			input:     []byte{},
+			accessList: []tosca.AccessTuple{
+				{
+					Address: tosca.Address{1},
+					Keys:    []tosca.Key{{1}, {2}, {3}},
+				},
+			},
+			expectedGasUsed: TxGas + TxAccessListAddressGas + 3*TxAccessListStorageKeyGas,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			transaction := tosca.Transaction{
+				Recipient:  test.recipient,
+				Input:      test.input,
+				AccessList: test.accessList,
+			}
+
+			actualGasUsed := setupGasBilling(transaction)
+			if actualGasUsed != test.expectedGasUsed {
+				t.Errorf("setupGasBilling returned incorrect gas used, got: %d, want: %d", actualGasUsed, test.expectedGasUsed)
+			}
+		})
 	}
 }
