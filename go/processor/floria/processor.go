@@ -23,6 +23,8 @@ const (
 	TxDataZeroGasEIP2028      = 4
 	TxAccessListAddressGas    = 2400
 	TxAccessListStorageKeyGas = 1900
+
+	MaxRecursiveDepth = 1024 // Maximum depth of call/create stack.
 )
 
 func init() {
@@ -40,7 +42,7 @@ type processor struct {
 }
 
 func (p *processor) Run(
-	blockParams tosca.BlockParameters,
+	blockParameters tosca.BlockParameters,
 	transaction tosca.Transaction,
 	context tosca.TransactionContext,
 ) (tosca.Receipt, error) {
@@ -64,19 +66,36 @@ func (p *processor) Run(
 		return errorReceipt, nil
 	}
 
-	isCreate := false
-	if transaction.Recipient == nil {
-		isCreate = true
+	transactionParameters := tosca.TransactionParameters{
+		Origin:     transaction.Sender,
+		GasPrice:   transaction.GasPrice,
+		BlobHashes: []tosca.Hash{}, // ?
 	}
 
-	var result tosca.Result
+	runContext := runContext{
+		context,
+		p.interpreter,
+		blockParameters,
+		transactionParameters,
+		0,
+	}
+
+	callParameters := tosca.CallParameters{
+		Sender:    transaction.Sender,
+		Recipient: *transaction.Recipient,
+		Input:     transaction.Input,
+		Value:     transaction.Value,
+		Gas:       gas,
+	}
+
+	var result tosca.CallResult
 	var err error
 
-	if isCreate {
+	if transaction.Recipient == nil {
 		// Create new contract
 	} else {
 		// Call existing contract
-		result, err = call(p.interpreter, transaction, context, gas)
+		result, err = runContext.Call(tosca.Call, callParameters)
 		if err != nil {
 			return errorReceipt, err
 		}
