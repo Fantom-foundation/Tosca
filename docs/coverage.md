@@ -29,7 +29,7 @@ lcov --remove coverage.info /usr/include/* /usr/lib/*' */third_party/* --output-
 
 ## Collect C++ coverage when running CT evmzero 
 
-Gcov collects coverage data during runtime and only at the end of the process is saved into a file. This instrumentation is added to the main function of the C++ process, and since CT is Go, be added. 
+Gcov collects coverage data during runtime and only at the end of the process it is saved into a file. This mechanism would be called automatically on the C++ main process, but has to be called manually when using evmzero from a Go process.
 It is possible to call the Gcov dump routine in runtime, by calling __gcov_dump. A mechanism to invoke such routine from Go has been implemented, so that the CT can generate the required data files. 
 
 To retrieve the coverage report execute in the following order:
