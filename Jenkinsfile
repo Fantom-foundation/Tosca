@@ -12,7 +12,7 @@ pipeline {
     agent { label 'quick' }
 
     options {
-        timestamps ()
+        timestamps()
         timeout(time: 2, unit: 'HOURS')
     }
 
@@ -23,6 +23,12 @@ pipeline {
     }
 
     stages {
+        stage('Checkout code') {
+            steps {
+                sh 'git submodule update --init --recursive'
+            }
+        }
+
         stage('Check License headers') {
             steps {
                 sh 'cd scripts/license && ./add_license_header.sh --check'
@@ -31,7 +37,15 @@ pipeline {
 
         stage('Check Go sources formatting') {
             steps {
-                sh 'diff=`${GOROOT}/bin/gofmt -s -d .` && echo "$diff" && test -z "$diff"'
+                sh "$GOROOT/bin/gofmt -s -d go"
+            }
+        }
+
+        stage('Lint Go sources') {
+            steps {
+                sh 'go vet ./go/...'
+                sh 'go install honnef.co/go/tools/cmd/staticcheck@latest'
+                sh "$HOME/go/bin/staticcheck ./go/..."
             }
         }
 
@@ -43,7 +57,6 @@ pipeline {
 
         stage('Build Go') {
             steps {
-                sh 'git submodule update --init --recursive'
                 sh 'make tosca-go'
             }
         }
