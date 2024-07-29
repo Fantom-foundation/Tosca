@@ -58,7 +58,7 @@ ct-coverage-geth: coverage-go
 
 ct-coverage-evmzero: tosca-cpp-coverage
 ct-coverage-evmzero: 
-	go run ./go/ct/driver run -f push evmzero ; \
+	go run ./go/ct/driver run evmzero ; \
 	echo "Coverage report generated in cpp/build/coverage/index.html"
 	@cd cpp/build ; \
 	cmake --build .  --target coverage 
