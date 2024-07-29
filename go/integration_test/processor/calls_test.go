@@ -13,7 +13,6 @@ package processor
 import (
 	"fmt"
 	"math/big"
-	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -23,11 +22,6 @@ import (
 func TestProcessor_MaximalCallDepthIsEnforced(t *testing.T) {
 	gasLimit := tosca.Gas(1000000000000)
 	for processorName, processor := range getProcessors() {
-		// todo implement recurisve calls and depth checks in floria
-		if strings.Contains(processorName, "floria") {
-			continue
-		}
-
 		t.Run(fmt.Sprintf("%s-MaxCallDepth", processorName), func(t *testing.T) {
 			sender := tosca.Address{1}
 			receiver := &tosca.Address{2}
