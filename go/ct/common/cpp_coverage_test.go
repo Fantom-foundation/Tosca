@@ -51,7 +51,7 @@ func TestDumpCppCoverageData(t *testing.T) {
 		}
 		// .gcno are generated at compile time, with source code locations and other meta
 		// .gcda are generated at runtime with the actual coverage
-		found = strings.HasSuffix(s, ".gcda")
+		found = found || strings.HasSuffix(s, ".gcda")
 		return nil
 	})
 	if err != nil {

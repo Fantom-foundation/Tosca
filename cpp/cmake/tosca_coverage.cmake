@@ -7,7 +7,7 @@ if(TOSCA_COVERAGE)
   if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # Gcc uses Gcov, clang should use it as well, but it has version compatibility issues
     # between compiler generate code and the gcov tool. 
-    # Feel free to experiment Clang Gcov # support, unfortunatelly, it requires too much 
+    # Feel free to experiment with Clang Gcov # support, unfortunately, it requires too much 
     # manual tinkering to enable it in an automated way. 
     # Gcc and Gcov are released together, so they should be compatible.
     message(FATAL_ERROR "Coverage build only enabled for GCC.")

@@ -13,7 +13,7 @@ int IsCoverageEnabled() {
 #endif
 }
 
-/// When using Gcov, Shared libraries do collect coverage data,
+/// When using Gcov, shared libraries do collect coverage data,
 /// but it is not automatically written into a file. Usually, GCC would
 /// add a corresponding call to the end of a `main` function, but it
 /// can not do this for a Go application. Thus, the dumping of
