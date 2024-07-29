@@ -11,19 +11,19 @@
 package common
 
 import (
+	"flag"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
-	"slices"
 	"strings"
 	"testing"
 )
 
+var stateImpl = flag.Bool("expect-coverage", false, "enable if the unit test is expecting a coverage build")
+
 func TestDumpCppCoverageData(t *testing.T) {
 
-	testArguments := parseCustomArguments(os.Args)
-	expectEnabled := slices.Contains(testArguments, "--expect-coverage")
+	expectEnabled := *stateImpl
 	enabled := isCppCoverageEnabled()
 
 	if !enabled {
@@ -61,51 +61,4 @@ func TestDumpCppCoverageData(t *testing.T) {
 	if !found {
 		t.Fatalf("Failed, test generated no coverage data files")
 	}
-}
-
-func TestParseCustomArguments(t *testing.T) {
-
-	tests := map[string]struct {
-		name     string
-		args     []string
-		expected []string
-	}{
-		"empty": {
-			args:     []string{},
-			expected: nil,
-		},
-		"No custom arguments": {
-			args:     []string{"program", "arg1", "arg2"},
-			expected: nil,
-		},
-		"Custom arguments present": {
-			args:     []string{"program", "--", "custom1", "custom2"},
-			expected: []string{"custom1", "custom2"},
-		},
-	}
-
-	for testName, test := range tests {
-		t.Run(testName, func(t *testing.T) {
-			result := parseCustomArguments(test.args)
-			if !reflect.DeepEqual(result, test.expected) {
-				t.Errorf("Unexpected result. Got: %v, Expected: %v", result, test.expected)
-			}
-		})
-	}
-}
-
-// parseCustomArguments is a helper function to parse custom arguments found
-// after the "--" separator in the command line arguments.
-func parseCustomArguments(args []string) []string {
-	var afterDash []string
-	foundDash := false
-
-	for _, arg := range args {
-		if foundDash {
-			afterDash = append(afterDash, arg)
-		} else if arg == "--" {
-			foundDash = true
-		}
-	}
-	return afterDash
 }
