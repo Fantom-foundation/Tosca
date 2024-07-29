@@ -1,15 +1,11 @@
 [package]
-name = "evm-rs"
+name = "evmrs"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 evmc-declare = { path = "../../evmc/bindings/rust/evmc-declare" }
 evmc-vm = { path = "../../evmc/bindings/rust/evmc-vm" }
-evmc-sys = { path = "../../evmc/bindings/rust/evmc-sys" }
-
-[build-dependencies]
-bindgen = "0.69.4"
 
 [lib]
 crate-type = ["cdylib"]

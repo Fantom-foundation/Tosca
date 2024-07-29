@@ -83,16 +83,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "evm-rs"
-version = "0.1.0"
-dependencies = [
- "bindgen",
- "evmc-declare",
- "evmc-sys",
- "evmc-vm",
-]
-
-[[package]]
 name = "evmc-declare"
 version = "12.0.0-alpha.0"
 dependencies = [
@@ -115,6 +105,14 @@ name = "evmc-vm"
 version = "12.0.0-alpha.0"
 dependencies = [
  "evmc-sys",
+]
+
+[[package]]
+name = "evmrs"
+version = "0.1.0"
+dependencies = [
+ "evmc-declare",
+ "evmc-vm",
 ]
 
 [[package]]
