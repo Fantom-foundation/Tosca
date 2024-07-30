@@ -32,6 +32,10 @@ tosca-cpp:
 		-DTOSCA_ASAN="$(TOSCA_CPP_ASAN)"; \
 	cmake --build build --parallel
 
+tosca-cpp-coverage: TOSCA_CPP_BUILD = Debug
+tosca-cpp-coverage: TOSCA_CPP_COVERAGE = ON
+tosca-cpp-coverage: tosca-cpp
+
 evmone:
 	@cd third_party/evmone ; \
 	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so ; \
@@ -52,6 +56,13 @@ ct-coverage-geth: TOSCA_GO_COVERAGE_EVM=geth
 ct-coverage-geth: TOSCA_GO_COVERAGE_DEPENDENCY_PACKAGES=github.com/ethereum/go-ethereum/core/vm/...
 ct-coverage-geth: coverage-go
 
+ct-coverage-evmzero: tosca-cpp-coverage
+ct-coverage-evmzero: 
+	go run ./go/ct/driver run evmzero ; \
+	echo "Coverage report generated in cpp/build/coverage/index.html"
+	@cd cpp/build ; \
+	cmake --build .  --target coverage 
+
 test: test-go test-cpp
 
 test-go: tosca-go
@@ -64,6 +75,10 @@ test-cpp: tosca-cpp
 test-cpp-asan: TOSCA_CPP_BUILD = Debug
 test-cpp-asan: TOSCA_CPP_ASAN = ON
 test-cpp-asan: test-cpp
+
+cpp-coverage-report: 
+	@cd cpp/build ; \
+	cmake --build .  --target coverage 
 
 test-cpp-coverage: TOSCA_CPP_BUILD = Debug
 test-cpp-coverage: TOSCA_CPP_COVERAGE = ON
