@@ -244,7 +244,7 @@ func (c *scenarioContext) GetBlockHash(number int64) tosca.Hash {
 }
 
 func (c *scenarioContext) GetCommittedStorage(addr tosca.Address, key tosca.Key) tosca.Word {
-	panic("implement me")
+	return c.original[addr].Storage[key]
 }
 
 func (c *scenarioContext) IsAddressInAccessList(addr tosca.Address) bool {
