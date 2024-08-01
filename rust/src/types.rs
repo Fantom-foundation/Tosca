@@ -1,5 +1,9 @@
-use std::ops::{Add, AddAssign, Index, IndexMut};
+use std::{
+    mem,
+    ops::{Add, AddAssign, Index, IndexMut},
+};
 
+use bnum::types::{I256, U256};
 use evmc_vm::Uint256;
 
 #[allow(non_camel_case_types)]
@@ -16,6 +20,42 @@ impl From<Uint256> for u256 {
 impl From<u256> for Uint256 {
     fn from(value: u256) -> Self {
         value.0
+    }
+}
+
+impl From<U256> for u256 {
+    fn from(value: U256) -> Self {
+        let be_value = value.to_be();
+        let bytes: [u8; 32] = unsafe { mem::transmute(be_value) };
+        bytes.into()
+    }
+}
+
+impl From<u256> for U256 {
+    fn from(value: u256) -> Self {
+        let mut bytes = value.0.bytes;
+        //let lhs = bnum::BUint::from_be_bytes(lhs); // TODO required nightly
+        //let lhs: U256 = bnum::BUint::from_be_slice(&lhs).unwrap(); // works but has overhead
+        bytes.reverse();
+        unsafe { mem::transmute(bytes) }
+    }
+}
+
+impl From<I256> for u256 {
+    fn from(value: I256) -> Self {
+        let be_value = value.to_be();
+        let bytes: [u8; 32] = unsafe { mem::transmute(be_value) };
+        bytes.into()
+    }
+}
+
+impl From<u256> for I256 {
+    fn from(value: u256) -> Self {
+        let mut bytes = value.0.bytes;
+        //let lhs = bnum::BUint::from_be_bytes(lhs); // TODO required nightly
+        //let lhs: U256 = bnum::BUint::from_be_slice(&lhs).unwrap(); // works but has overhead
+        bytes.reverse();
+        unsafe { mem::transmute(bytes) }
     }
 }
 
@@ -74,21 +114,12 @@ impl TryFrom<&[u8]> for u256 {
 
 impl Add for u256 {
     type Output = Self;
+
     fn add(self, rhs: Self) -> Self::Output {
-        let lhs = self.0.bytes;
-        let rhs = rhs.0.bytes;
+        let lhs: U256 = self.into();
+        let rhs: U256 = rhs.into();
 
-        let mut bytes = [0; 32];
-        let mut carry = false;
-        for i in (0..32).rev() {
-            let (sum1, carry1) = lhs[i].overflowing_add(rhs[i]);
-            let (sum2, carry2) = sum1.overflowing_add(carry as u8);
-
-            bytes[i] = sum2;
-            carry = carry1 || carry2;
-        }
-
-        bytes.into()
+        lhs.wrapping_add(rhs).into()
     }
 }
 
