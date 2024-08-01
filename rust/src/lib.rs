@@ -170,6 +170,44 @@ fn run(
                 *top2 = top.sdiv(*top2);
                 pc += 1;
             }
+            opcode::MOD => {
+                check_out_of_gas::<5>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 5;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                *top2 = top % *top2;
+                pc += 1;
+            }
+            opcode::SMOD => {
+                check_out_of_gas::<5>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 5;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                *top2 = top.srem(*top2);
+                pc += 1;
+            }
+            opcode::ADDMOD => {
+                check_out_of_gas::<8>(&mut gas_left)?;
+                check_stack_underflow::<3>(&stack)?;
+                gas_left -= 8;
+                let top = stack.pop().unwrap();
+                let top2 = stack.pop().unwrap();
+                let top3 = stack.last_mut().unwrap();
+                *top3 = u256::addmod(top, top2, *top3);
+                pc += 1;
+            }
+            opcode::MULMOD => {
+                check_out_of_gas::<8>(&mut gas_left)?;
+                check_stack_underflow::<3>(&stack)?;
+                gas_left -= 8;
+                let top = stack.pop().unwrap();
+                let top2 = stack.pop().unwrap();
+                let top3 = stack.last_mut().unwrap();
+                *top3 = u256::mulmod(top, top2, *top3);
+                pc += 1;
+            }
             opcode::LT => {
                 check_out_of_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;

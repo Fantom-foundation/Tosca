@@ -1,9 +1,12 @@
 use std::{
     mem,
-    ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign},
+    ops::{
+        Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Rem, RemAssign, Sub,
+        SubAssign,
+    },
 };
 
-use bnum::types::{I256, U256};
+use bnum::types::{I256, U256, U512};
 use evmc_vm::Uint256;
 
 #[allow(non_camel_case_types)]
@@ -56,6 +59,20 @@ impl From<u256> for I256 {
         //let lhs: U256 = bnum::BUint::from_be_slice(&lhs).unwrap(); // works but has overhead
         bytes.reverse();
         unsafe { mem::transmute(bytes) }
+    }
+}
+
+impl From<U512> for u256 {
+    fn from(value: U512) -> Self {
+        let be_value = value.to_be();
+        let bytes: [u8; 64] = unsafe { mem::transmute(be_value) };
+        (&bytes[32..]).try_into().unwrap()
+    }
+}
+
+impl From<u256> for U512 {
+    fn from(value: u256) -> Self {
+        U512::from_be_slice(&value.0.bytes).unwrap()
     }
 }
 
@@ -192,6 +209,60 @@ impl u256 {
         }
 
         lhs.wrapping_div(rhs).into()
+    }
+}
+
+impl Rem for u256 {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        let lhs: U256 = self.into();
+        let rhs: U256 = rhs.into();
+        if rhs == U256::ZERO {
+            return U256::ZERO.into();
+        }
+
+        lhs.wrapping_rem(rhs).into()
+    }
+}
+
+impl RemAssign for u256 {
+    fn rem_assign(&mut self, rhs: Self) {
+        *self = *self / rhs;
+    }
+}
+
+impl u256 {
+    pub fn srem(self, rhs: Self) -> Self {
+        let lhs: I256 = self.into();
+        let rhs: I256 = rhs.into();
+        if rhs == I256::ZERO {
+            return I256::ZERO.into();
+        }
+
+        lhs.wrapping_rem(rhs).into()
+    }
+
+    pub fn addmod(s1: Self, s2: Self, m: Self) -> Self {
+        let s1: U512 = s1.into();
+        let s2: U512 = s2.into();
+        let m: U512 = m.into();
+        if m == U512::ZERO {
+            return U512::ZERO.into();
+        }
+
+        (s1 + s2).rem(m).into()
+    }
+
+    pub fn mulmod(s1: Self, s2: Self, m: Self) -> Self {
+        let s1: U512 = s1.into();
+        let s2: U512 = s2.into();
+        let m: U512 = m.into();
+        if m == U512::ZERO {
+            return U512::ZERO.into();
+        }
+
+        (s1 * s2).rem(m).into()
     }
 }
 
