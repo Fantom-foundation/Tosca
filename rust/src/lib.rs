@@ -135,6 +135,41 @@ fn run(
                 *stack.last_mut().unwrap() += top;
                 pc += 1;
             }
+            opcode::MUL => {
+                check_out_of_gas::<5>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 5;
+                let top = stack.pop().unwrap();
+                *stack.last_mut().unwrap() *= top;
+                pc += 1;
+            }
+            opcode::SUB => {
+                check_out_of_gas::<3>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 3;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                *top2 = top - *top2;
+                pc += 1;
+            }
+            opcode::DIV => {
+                check_out_of_gas::<5>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 5;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                *top2 = top / *top2;
+                pc += 1;
+            }
+            opcode::SDIV => {
+                check_out_of_gas::<5>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 5;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                *top2 = top.sdiv(*top2);
+                pc += 1;
+            }
             opcode::LT => {
                 check_out_of_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;

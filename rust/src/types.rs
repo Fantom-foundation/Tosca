@@ -1,6 +1,6 @@
 use std::{
     mem,
-    ops::{Add, AddAssign, Index, IndexMut},
+    ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign},
 };
 
 use bnum::types::{I256, U256};
@@ -126,6 +126,72 @@ impl Add for u256 {
 impl AddAssign for u256 {
     fn add_assign(&mut self, rhs: Self) {
         *self = *self + rhs;
+    }
+}
+
+impl Sub for u256 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let lhs: U256 = self.into();
+        let rhs: U256 = rhs.into();
+
+        lhs.wrapping_sub(rhs).into()
+    }
+}
+
+impl SubAssign for u256 {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
+    }
+}
+
+impl Mul for u256 {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        let lhs: U256 = self.into();
+        let rhs: U256 = rhs.into();
+
+        lhs.wrapping_mul(rhs).into()
+    }
+}
+
+impl MulAssign for u256 {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
+    }
+}
+
+impl Div for u256 {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        let lhs: U256 = self.into();
+        let rhs: U256 = rhs.into();
+        if rhs == U256::ZERO {
+            return U256::ZERO.into();
+        }
+
+        lhs.wrapping_div(rhs).into()
+    }
+}
+
+impl DivAssign for u256 {
+    fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs;
+    }
+}
+
+impl u256 {
+    pub fn sdiv(self, rhs: Self) -> Self {
+        let lhs: I256 = self.into();
+        let rhs: I256 = rhs.into();
+        if rhs == I256::ZERO {
+            return I256::ZERO.into();
+        }
+
+        lhs.wrapping_div(rhs).into()
     }
 }
 
