@@ -6,7 +6,7 @@ use evmc_vm::{
     StepStatusCode, SteppableEvmcVm, Uint256,
 };
 
-use crate::types::u256;
+use crate::types::{opcode, u256};
 
 mod ffi;
 mod types;
@@ -111,16 +111,126 @@ fn run(
     mut last_call_return_data: Option<Vec<u8>>,
     steps: Option<i32>,
 ) -> Result<StepResult, (StepStatusCode, StatusCode)> {
+    let mut gas_left = message.gas();
+    let mut status_code = StatusCode::EVMC_SUCCESS;
+    let mut output = None;
+
+    println!("running test");
+    for _ in 0..steps.unwrap_or(i32::MAX) {
+        if pc >= code.len() {
+            return Err((StepStatusCode::EVMC_STEP_FAILED, StatusCode::EVMC_FAILURE));
+        }
+        match code[pc] {
+            //} unsafe { mem::transmute::<u8, Opcode>(code[pc]) } {
+            opcode::STOP => {
+                step_status_code = StepStatusCode::EVMC_STEP_STOPPED;
+                status_code = StatusCode::EVMC_SUCCESS;
+                break;
+            }
+            opcode::ADD => {
+                if gas_left < 3 {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_OUT_OF_GAS,
+                    ));
+                }
+                if stack.len() < 2 {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_STACK_UNDERFLOW,
+                    ));
+                }
+                gas_left -= 3;
+                let top = stack.pop().unwrap();
+                *stack.last_mut().unwrap() += top;
+                pc += 1;
+            }
+            opcode::LT => {
+                if gas_left < 3 {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_OUT_OF_GAS,
+                    ));
+                }
+                if stack.len() < 2 {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_STACK_UNDERFLOW,
+                    ));
+                }
+                gas_left -= 3;
+                let top = stack.pop().unwrap();
+                let len = stack.len();
+                stack[len - 1] = (top.lt(stack[len - 1]) as u8).into();
+                pc += 1;
+            }
+            opcode::SLT => {
+                if gas_left < 3 {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_OUT_OF_GAS,
+                    ));
+                }
+                if stack.len() < 2 {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_STACK_UNDERFLOW,
+                    ));
+                }
+                gas_left -= 3;
+                let top = stack.pop().unwrap();
+                let len = stack.len();
+                stack[len - 1] = (top.slt(stack[len - 1]) as u8).into();
+                pc += 1;
+            }
+            opcode::PUSH1 => {
+                if gas_left < 3 {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_OUT_OF_GAS,
+                    ));
+                }
+                if stack.len() + 1 > 1024 {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_STACK_OVERFLOW,
+                    ));
+                }
+                //if pc + 1 >= code.len() {
+                //return Err((
+                //StepStatusCode::EVMC_STEP_FAILED,
+                //StatusCode::EVMC_INTERNAL_ERROR,
+                //));
+                //}
+
+                gas_left -= 3;
+                pc += 1;
+                stack.push(code[pc].into());
+                pc += 1;
+            }
+            op => {
+                println!("invalid opcode 0x{op:x?}");
+                step_status_code = StepStatusCode::EVMC_STEP_FAILED;
+                status_code = StatusCode::EVMC_BAD_JUMP_DESTINATION;
+                break;
+            }
+        }
+    }
+
+    stack.reverse();
     Ok(StepResult::new(
-        StepStatusCode::EVMC_STEP_FAILED,
-        StatusCode::EVMC_FAILURE,
+        step_status_code,
+        status_code,
         revision,
-        0,
-        0,
-        0,
-        None,
-        Vec::new(),
-        Vec::new(),
-        None,
+        pc as u64,
+        gas_left,
+        gas_refund,
+        output,
+        // SAFETY
+        // u256 is a newtype of Uint256 with repr(transparent) which guarantees the same memory
+        // layout.
+        unsafe { mem::transmute(stack) },
+        memory,
+        last_call_return_data,
     ))
 }

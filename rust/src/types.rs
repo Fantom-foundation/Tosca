@@ -1,3 +1,5 @@
+use std::ops::{Add, AddAssign, Index, IndexMut};
+
 use evmc_vm::Uint256;
 
 #[allow(non_camel_case_types)]
@@ -26,6 +28,113 @@ impl From<u256> for [u8; 32] {
 impl From<[u8; 32]> for u256 {
     fn from(value: [u8; 32]) -> Self {
         Self(Uint256 { bytes: value })
+    }
+}
+
+impl Index<usize> for u256 {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0.bytes[index]
+    }
+}
+
+impl IndexMut<usize> for u256 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0.bytes[index]
+    }
+}
+
+impl From<u8> for u256 {
+    fn from(value: u8) -> Self {
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, value,
+        ]
+        .into()
+    }
+}
+
+impl From<[u8; 2]> for u256 {
+    fn from(value: [u8; 2]) -> Self {
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, value[0], value[1],
+        ]
+        .into()
+    }
+}
+
+impl Add for u256 {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        let lhs = self.0.bytes;
+        let rhs = rhs.0.bytes;
+
+        let mut bytes = [0; 32];
+        let mut carry = false;
+        for i in (0..32).rev() {
+            let (sum1, carry1) = lhs[i].overflowing_add(rhs[i]);
+            let (sum2, carry2) = sum1.overflowing_add(carry as u8);
+
+            bytes[i] = sum2;
+            carry = carry1 || carry2;
+        }
+
+        bytes.into()
+    }
+}
+
+impl AddAssign for u256 {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}
+
+impl u256 {
+    pub fn lt(self, rhs: Self) -> bool {
+        for i in 0..32 {
+            match self[i].cmp(&rhs[i]) {
+                std::cmp::Ordering::Less => {
+                    return true;
+                }
+                std::cmp::Ordering::Equal => {
+                    continue;
+                }
+                std::cmp::Ordering::Greater => {
+                    return false;
+                }
+            }
+        }
+        false
+    }
+
+    pub fn slt(self, rhs: Self) -> bool {
+        let lhs = self;
+        let lhs_negative = lhs[0] & 0x80 != 0;
+        let rhs_negative = rhs[0] & 0x80 != 0;
+
+        if lhs_negative != rhs_negative {
+            return lhs_negative;
+        }
+
+        for i in 0..32 {
+            let lhs_byte = if lhs_negative { !lhs[i] } else { lhs[i] };
+            let rhs_byte = if rhs_negative { !rhs[i] } else { rhs[i] };
+
+            match lhs_byte.cmp(&rhs_byte) {
+                std::cmp::Ordering::Less => {
+                    return !lhs_negative;
+                }
+                std::cmp::Ordering::Equal => {
+                    continue;
+                }
+                std::cmp::Ordering::Greater => {
+                    return lhs_negative;
+                }
+            }
+        }
+        false
     }
 }
 
