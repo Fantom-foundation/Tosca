@@ -53,7 +53,7 @@ func (p *processor) Run(
 	gas := transaction.GasLimit
 
 	if err := buyGas(transaction, context); err != nil {
-		return errorReceipt, nil
+		return tosca.Receipt{}, nil
 	}
 
 	intrinsicGas := setupGasBilling(transaction)
@@ -101,24 +101,54 @@ func (p *processor) Run(
 		}
 	}
 
-	gasUsed := gasUsed(transaction, result.GasLeft)
+	gasLeft := calculateGasLeft(transaction, result, blockParameters.Revision)
+	refundGas(transaction, context, gasLeft)
+
+	logs := context.GetLogs()
 
 	return tosca.Receipt{
 		Success:         result.Success,
-		GasUsed:         gasUsed,
+		GasUsed:         transaction.GasLimit - gasLeft,
 		ContractAddress: nil,
 		Output:          result.Output,
-		Logs:            nil,
+		Logs:            logs,
 	}, nil
 }
 
-func gasUsed(transaction tosca.Transaction, gasLeft tosca.Gas) tosca.Gas {
+func calculateGasLeft(transaction tosca.Transaction, result tosca.CallResult, revision tosca.Revision) tosca.Gas {
+	gasLeft := result.GasLeft
 	// 10% of remaining gas is charged for non-internal transactions
 	if transaction.Sender != (tosca.Address{}) {
 		gasLeft -= gasLeft / 10
 	}
 
-	return transaction.GasLimit - gasLeft
+	if result.Success {
+		gasUsed := transaction.GasLimit - gasLeft
+		refund := result.GasRefund
+
+		maxRefund := tosca.Gas(0)
+		if revision < tosca.R10_London {
+			// Before EIP-3529: refunds were capped to gasUsed / 2
+			maxRefund = gasUsed / 2
+		} else {
+			// After EIP-3529: refunds are capped to gasUsed / 5
+			maxRefund = gasUsed / 5
+		}
+
+		if refund > maxRefund {
+			refund = maxRefund
+		}
+		gasLeft += refund
+	}
+
+	return gasLeft
+}
+
+func refundGas(transaction tosca.Transaction, context tosca.TransactionContext, gasLeft tosca.Gas) {
+	refundValue := transaction.GasPrice.Scale(uint64(gasLeft))
+	senderBalance := context.GetBalance(transaction.Sender)
+	senderBalance = tosca.Add(senderBalance, refundValue)
+	context.SetBalance(transaction.Sender, senderBalance)
 }
 
 func setupGasBilling(transaction tosca.Transaction) tosca.Gas {
