@@ -128,36 +128,16 @@ fn run(
                 break;
             }
             opcode::ADD => {
-                if gas_left < 3 {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_OUT_OF_GAS,
-                    ));
-                }
-                if stack.len() < 2 {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_STACK_UNDERFLOW,
-                    ));
-                }
+                check_out_of_gas::<3>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
                 gas_left -= 3;
                 let top = stack.pop().unwrap();
                 *stack.last_mut().unwrap() += top;
                 pc += 1;
             }
             opcode::LT => {
-                if gas_left < 3 {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_OUT_OF_GAS,
-                    ));
-                }
-                if stack.len() < 2 {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_STACK_UNDERFLOW,
-                    ));
-                }
+                check_out_of_gas::<3>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
                 gas_left -= 3;
                 let top = stack.pop().unwrap();
                 let len = stack.len();
@@ -165,18 +145,8 @@ fn run(
                 pc += 1;
             }
             opcode::SLT => {
-                if gas_left < 3 {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_OUT_OF_GAS,
-                    ));
-                }
-                if stack.len() < 2 {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_STACK_UNDERFLOW,
-                    ));
-                }
+                check_out_of_gas::<3>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
                 gas_left -= 3;
                 let top = stack.pop().unwrap();
                 let len = stack.len();
@@ -184,30 +154,9 @@ fn run(
                 pc += 1;
             }
             opcode::PUSH0 => {
-                if revision < Revision::EVMC_SHANGHAI {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_INTERNAL_ERROR,
-                    ));
-                }
-                if gas_left < 2 {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_OUT_OF_GAS,
-                    ));
-                }
-                if stack.len() + 1 > 1024 {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_STACK_OVERFLOW,
-                    ));
-                }
-                //if pc + 1 >= code.len() {
-                //return Err((
-                //StepStatusCode::EVMC_STEP_FAILED,
-                //StatusCode::EVMC_INTERNAL_ERROR,
-                //));
-                //}
+                check_min_revision(Revision::EVMC_SHANGHAI, revision)?;
+                check_out_of_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
 
                 gas_left -= 2;
                 pc += 1;
@@ -294,24 +243,15 @@ fn push<const N: usize>(
     stack: &mut Vec<u256>,
     gas_left: &mut i64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    if *gas_left < 3 {
+    check_out_of_gas::<3>(gas_left)?;
+    check_stack_overflow::<1>(stack)?;
+    // Note: not tested by ct
+    if code.len() < *pc + N {
         return Err((
             StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_OUT_OF_GAS,
+            StatusCode::EVMC_INTERNAL_ERROR,
         ));
     }
-    if stack.len() + 1 > 1024 {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_STACK_OVERFLOW,
-        ));
-    }
-    //if pc + 1 >= code.len() {
-    //return Err((
-    //StepStatusCode::EVMC_STEP_FAILED,
-    //StatusCode::EVMC_INTERNAL_ERROR,
-    //));
-    //}
 
     *gas_left -= 3;
     *pc += 1;
@@ -326,28 +266,65 @@ fn dup<const N: usize>(
     stack: &mut Vec<u256>,
     gas_left: &mut i64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    if *gas_left < 3 {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_OUT_OF_GAS,
-        ));
-    }
-    if stack.len() + 1 > 1024 {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_STACK_OVERFLOW,
-        ));
-    }
-    if stack.len() < N {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_STACK_UNDERFLOW,
-        ));
-    }
+    check_out_of_gas::<3>(gas_left)?;
+    check_stack_overflow::<1>(stack)?;
+    check_stack_underflow::<N>(stack)?;
 
     *gas_left -= 3;
     *pc += 1;
     stack.push(stack[stack.len() - N]);
 
+    Ok(())
+}
+
+#[inline(always)]
+fn check_min_revision(
+    min_revision: Revision,
+    revision: Revision,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    if revision < min_revision {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_INTERNAL_ERROR,
+        ));
+    }
+    Ok(())
+}
+
+#[inline(always)]
+fn check_out_of_gas<const NEEDED: u64>(
+    gas_left: &mut i64,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    if *gas_left < (NEEDED as i64) {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_OUT_OF_GAS,
+        ));
+    }
+    Ok(())
+}
+
+#[inline(always)]
+fn check_stack_overflow<const NEEDED: usize>(
+    stack: &[u256],
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    if stack.len() + NEEDED > 1024 {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_STACK_OVERFLOW,
+        ));
+    }
+    Ok(())
+}
+#[inline(always)]
+fn check_stack_underflow<const NEEDED: usize>(
+    stack: &[u256],
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    if stack.len() < NEEDED {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_STACK_UNDERFLOW,
+        ));
+    }
     Ok(())
 }
