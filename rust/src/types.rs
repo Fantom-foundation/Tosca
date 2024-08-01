@@ -1,3 +1,34 @@
+use evmc_vm::Uint256;
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Copy)]
+#[repr(transparent)]
+pub struct u256(Uint256);
+
+impl From<Uint256> for u256 {
+    fn from(value: Uint256) -> Self {
+        Self(value)
+    }
+}
+
+impl From<u256> for Uint256 {
+    fn from(value: u256) -> Self {
+        value.0
+    }
+}
+
+impl From<u256> for [u8; 32] {
+    fn from(value: u256) -> Self {
+        value.0.bytes
+    }
+}
+
+impl From<[u8; 32]> for u256 {
+    fn from(value: [u8; 32]) -> Self {
+        Self(Uint256 { bytes: value })
+    }
+}
+
 pub mod opcode {
     pub const STOP: u8 = 0x00;
     pub const ADD: u8 = 0x01;
