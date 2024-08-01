@@ -38,7 +38,15 @@ const adapterDebug = false
 
 func init() {
 	for name, interpreter := range tosca.GetAllRegisteredInterpreters() {
-		RegisterGethInterpreter(name, interpreter)
+		// We register all tosca interpreters except the geth reference interpreter.
+		// Tosca's geth reference implementation in combination with the adapter
+		// implemented would lead to unexpected behavior since geth would no longer
+		// use its own interpreter when requesting the `geth` interpreter. Instead
+		// Tosca's geth reference wrapped in the adapter would be used -- a combination
+		// that is not well tested.
+		if name == "" || name != "geth" {
+			RegisterGethInterpreter(name, interpreter)
+		}
 	}
 }
 
