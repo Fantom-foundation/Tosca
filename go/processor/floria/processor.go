@@ -88,17 +88,19 @@ func (p *processor) Run(
 		Gas:       gas,
 	}
 
-	var result tosca.CallResult
-	var err error
-
+	var createdAddress *tosca.Address
+	kind := tosca.Call
 	if transaction.Recipient == nil {
-		// Create new contract
-	} else {
-		// Call existing contract
-		result, err = runContext.Call(tosca.Call, callParameters)
-		if err != nil {
-			return errorReceipt, err
-		}
+		kind = tosca.Create
+	}
+
+	result, err := runContext.Call(kind, callParameters)
+	if err != nil {
+		return errorReceipt, err
+	}
+
+	if kind == tosca.Create {
+		createdAddress = &result.CreatedAddress
 	}
 
 	gasLeft := calculateGasLeft(transaction, result, blockParameters.Revision)
@@ -109,7 +111,7 @@ func (p *processor) Run(
 	return tosca.Receipt{
 		Success:         result.Success,
 		GasUsed:         transaction.GasLimit - gasLeft,
-		ContractAddress: nil,
+		ContractAddress: createdAddress,
 		Output:          result.Output,
 		Logs:            logs,
 	}, nil

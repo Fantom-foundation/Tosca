@@ -32,6 +32,12 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 	r.depth++
 	defer func() { r.depth-- }()
 
+	snapshot := r.CreateSnapshot()
+	if err := transferValue(r, parameters.Value, parameters.Sender, parameters.Recipient); err != nil {
+		r.RestoreSnapshot(snapshot)
+		return tosca.CallResult{}, nil
+	}
+
 	codeHash := r.GetCodeHash(parameters.Recipient)
 	code := r.GetCode(parameters.Recipient)
 
@@ -40,7 +46,7 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 		TransactionParameters: r.transactionParameters,
 		Context:               r,
 		Kind:                  kind,
-		Static:                false,
+		Static:                kind == tosca.StaticCall,
 		Depth:                 r.depth - 1, // depth is already incremented
 		Gas:                   parameters.Gas,
 		Recipient:             parameters.Recipient,
@@ -49,12 +55,6 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 		Value:                 parameters.Value,
 		CodeHash:              &codeHash,
 		Code:                  code,
-	}
-
-	snapshot := r.CreateSnapshot()
-	if err := transferValue(r, parameters.Value, parameters.Sender, parameters.Recipient); err != nil {
-		r.RestoreSnapshot(snapshot)
-		return tosca.CallResult{}, nil
 	}
 
 	result, err := r.interpreter.Run(interpreterParameters)

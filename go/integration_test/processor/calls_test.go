@@ -11,8 +11,11 @@
 package processor
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -80,6 +83,127 @@ func TestProcessor_MaximalCallDepthIsEnforced(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestProcessor_DifferentCallTypesAccessStorage(t *testing.T) {
+	tests := map[string]struct {
+		call        vm.OpCode
+		sameStorage bool
+		hasValue    bool
+	}{
+		"call": {
+			call:        vm.CALL,
+			sameStorage: false,
+			hasValue:    true,
+		},
+		"callCode": {
+			call:        vm.CALLCODE,
+			sameStorage: true,
+			hasValue:    true,
+		},
+		"staticCall": {
+			call:        vm.STATICCALL,
+			sameStorage: false,
+			hasValue:    false,
+		},
+		"delegateCall": {
+			call:        vm.DELEGATECALL,
+			sameStorage: true,
+			hasValue:    false,
+		},
+	}
+
+	gasLimit := tosca.Gas(1000000)
+	for processorName, processor := range getProcessors() {
+		if strings.Contains(processorName, "floria") {
+			continue // todo implement different call types
+		}
+		for testName, test := range tests {
+			t.Run(fmt.Sprintf("%s-%s", processorName, testName), func(t *testing.T) {
+				sender0 := tosca.Address{1}
+				receiver0 := tosca.Address{2}
+				receiver1 := tosca.Address{3}
+
+				// store 42 at storage slot 24
+				code0 := []byte{
+					byte(vm.PUSH1), byte(42),
+					byte(vm.PUSH1), byte(24),
+					byte(vm.SSTORE),
+				}
+				// set call arguments
+				if test.hasValue {
+					code0 = append(code0, pushToStack([]*big.Int{
+						big.NewInt(int64(gasLimit)),         // gas send to nested call
+						new(big.Int).SetBytes(receiver1[:]), // call target
+						big.NewInt(0),                       // value to transfer
+						big.NewInt(0),                       // argument offset
+						big.NewInt(32),                      // argument size
+						big.NewInt(0),                       // result offset
+						big.NewInt(32),                      // result size
+					})...)
+				} else {
+					code0 = append(code0, pushToStack([]*big.Int{
+						big.NewInt(int64(gasLimit)),         // gas send to nested call
+						new(big.Int).SetBytes(receiver1[:]), // call target
+						big.NewInt(0),                       // argument offset
+						big.NewInt(32),                      // argument size
+						big.NewInt(0),                       // result offset
+						big.NewInt(32),                      // result size
+					})...)
+				}
+				// perform call and forward the result
+				code0 = append(code0, []byte{
+					byte(test.call),
+					byte(vm.PUSH1), byte(32),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.RETURN),
+				}...)
+
+				// inner call, read from storage slot 24 and return its value
+				code1 := []byte{
+					byte(vm.PUSH1), byte(24),
+					byte(vm.SLOAD),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.MSTORE),
+					byte(vm.PUSH1), byte(32),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.RETURN),
+				}
+
+				state := WorldState{
+					sender0:   Account{},
+					receiver0: Account{Code: code0},
+					receiver1: Account{Code: code1},
+				}
+				scenario := Scenario{
+					Before: state,
+					Transaction: tosca.Transaction{
+						Sender:    sender0,
+						Recipient: &receiver0,
+						GasLimit:  gasLimit,
+					},
+					After: state,
+				}
+
+				transactionContext := newScenarioContext(state)
+
+				// Run the processor
+				result, err := processor.Run(tosca.BlockParameters{}, scenario.Transaction, transactionContext)
+				if err != nil || !result.Success {
+					t.Errorf("execution was not successful or failed with error %v", err)
+				}
+				if test.sameStorage {
+					if !slices.Equal(result.Output, append(bytes.Repeat([]byte{0}, 31), byte(42))) {
+						t.Errorf("%s did not access the same storage, got unexpected output: %v", test.call.String(), result.Output)
+					}
+				} else {
+					if !slices.Equal(result.Output, bytes.Repeat([]byte{0}, 32)) {
+						t.Errorf("%s did access the same storage, got unexpected output: %v", test.call.String(), result.Output)
+					}
+				}
+			})
+		}
 	}
 }
 
