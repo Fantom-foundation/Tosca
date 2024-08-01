@@ -55,13 +55,20 @@ impl From<u8> for u256 {
     }
 }
 
-impl From<[u8; 2]> for u256 {
-    fn from(value: [u8; 2]) -> Self {
-        [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, value[0], value[1],
-        ]
-        .into()
+#[derive(Debug)]
+pub struct SliceTooLarge;
+
+impl TryFrom<&[u8]> for u256 {
+    type Error = SliceTooLarge;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let len = value.len();
+        if len > 32 {
+            return Err(SliceTooLarge);
+        }
+        let mut bytes = [0; 32];
+        bytes[32 - len..].copy_from_slice(value);
+        Ok(bytes.into())
     }
 }
 

@@ -183,8 +183,14 @@ fn run(
                 stack[len - 1] = (top.slt(stack[len - 1]) as u8).into();
                 pc += 1;
             }
-            opcode::PUSH1 => {
-                if gas_left < 3 {
+            opcode::PUSH0 => {
+                if revision < Revision::EVMC_SHANGHAI {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_INTERNAL_ERROR,
+                    ));
+                }
+                if gas_left < 2 {
                     return Err((
                         StepStatusCode::EVMC_STEP_FAILED,
                         StatusCode::EVMC_OUT_OF_GAS,
@@ -203,11 +209,42 @@ fn run(
                 //));
                 //}
 
-                gas_left -= 3;
+                gas_left -= 2;
                 pc += 1;
-                stack.push(code[pc].into());
-                pc += 1;
+                stack.push(0.into());
             }
+            opcode::PUSH1 => push::<1>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH2 => push::<2>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH3 => push::<3>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH4 => push::<4>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH5 => push::<5>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH6 => push::<6>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH7 => push::<7>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH8 => push::<8>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH9 => push::<9>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH10 => push::<10>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH11 => push::<11>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH12 => push::<12>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH13 => push::<13>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH14 => push::<14>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH15 => push::<15>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH16 => push::<16>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH17 => push::<17>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH18 => push::<18>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH19 => push::<19>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH20 => push::<20>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH21 => push::<21>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH22 => push::<22>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH23 => push::<23>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH24 => push::<24>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH25 => push::<25>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH26 => push::<26>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH27 => push::<27>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH28 => push::<28>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH29 => push::<29>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH30 => push::<30>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH31 => push::<31>(code, &mut pc, &mut stack, &mut gas_left)?,
+            opcode::PUSH32 => push::<32>(code, &mut pc, &mut stack, &mut gas_left)?,
             op => {
                 println!("invalid opcode 0x{op:x?}");
                 step_status_code = StepStatusCode::EVMC_STEP_FAILED;
@@ -233,4 +270,37 @@ fn run(
         memory,
         last_call_return_data,
     ))
+}
+
+fn push<const N: usize>(
+    code: &[u8],
+    pc: &mut usize,
+    stack: &mut Vec<u256>,
+    gas_left: &mut i64,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    if *gas_left < 3 {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_OUT_OF_GAS,
+        ));
+    }
+    if stack.len() + 1 > 1024 {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_STACK_OVERFLOW,
+        ));
+    }
+    //if pc + 1 >= code.len() {
+    //return Err((
+    //StepStatusCode::EVMC_STEP_FAILED,
+    //StatusCode::EVMC_INTERNAL_ERROR,
+    //));
+    //}
+
+    *gas_left -= 3;
+    *pc += 1;
+    stack.push(code[*pc..*pc + N].try_into().unwrap());
+    *pc += N;
+
+    Ok(())
 }
