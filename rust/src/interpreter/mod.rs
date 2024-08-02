@@ -36,70 +36,62 @@ pub fn run(
                 break;
             }
             opcode::ADD => {
-                check_out_of_gas::<3>(&mut gas_left)?;
+                consume_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 3;
                 let top = stack.pop().unwrap();
                 *stack.last_mut().unwrap() += top;
                 pc += 1;
             }
             opcode::MUL => {
-                check_out_of_gas::<5>(&mut gas_left)?;
+                consume_gas::<5>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 5;
                 let top = stack.pop().unwrap();
                 *stack.last_mut().unwrap() *= top;
                 pc += 1;
             }
             opcode::SUB => {
-                check_out_of_gas::<3>(&mut gas_left)?;
+                consume_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 3;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 = top - *top2;
                 pc += 1;
             }
             opcode::DIV => {
-                check_out_of_gas::<5>(&mut gas_left)?;
+                consume_gas::<5>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 5;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 = top / *top2;
                 pc += 1;
             }
             opcode::SDIV => {
-                check_out_of_gas::<5>(&mut gas_left)?;
+                consume_gas::<5>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 5;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 = top.sdiv(*top2);
                 pc += 1;
             }
             opcode::MOD => {
-                check_out_of_gas::<5>(&mut gas_left)?;
+                consume_gas::<5>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 5;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 = top % *top2;
                 pc += 1;
             }
             opcode::SMOD => {
-                check_out_of_gas::<5>(&mut gas_left)?;
+                consume_gas::<5>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 5;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 = top.srem(*top2);
                 pc += 1;
             }
             opcode::ADDMOD => {
-                check_out_of_gas::<8>(&mut gas_left)?;
+                consume_gas::<8>(&mut gas_left)?;
                 check_stack_underflow::<3>(&stack)?;
-                gas_left -= 8;
                 let top = stack.pop().unwrap();
                 let top2 = stack.pop().unwrap();
                 let top3 = stack.last_mut().unwrap();
@@ -107,9 +99,8 @@ pub fn run(
                 pc += 1;
             }
             opcode::MULMOD => {
-                check_out_of_gas::<8>(&mut gas_left)?;
+                consume_gas::<8>(&mut gas_left)?;
                 check_stack_underflow::<3>(&stack)?;
-                gas_left -= 8;
                 let top = stack.pop().unwrap();
                 let top2 = stack.pop().unwrap();
                 let top3 = stack.last_mut().unwrap();
@@ -117,9 +108,8 @@ pub fn run(
                 pc += 1;
             }
             opcode::EXP => {
-                check_out_of_gas::<10>(&mut gas_left)?;
+                consume_gas::<10>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 10;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 let top2_bytes: [u8; 32] = (*top2).into();
@@ -132,114 +122,101 @@ pub fn run(
                     }
                 }
                 let dyn_gas = 50 * cost_multiplier;
-                check_dyn_out_of_gas(&mut gas_left, dyn_gas)?;
-                gas_left -= dyn_gas as i64;
+                consume_dyn_gas(&mut gas_left, dyn_gas)?;
                 *top2 = top.pow(*top2);
                 pc += 1;
             }
             opcode::SIGNEXTEND => {
-                check_out_of_gas::<5>(&mut gas_left)?;
+                consume_gas::<5>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 5;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 = u256::signextend(top, *top2);
                 pc += 1;
             }
             opcode::LT => {
-                check_out_of_gas::<3>(&mut gas_left)?;
+                consume_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 3;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 = ((top < *top2) as u8).into();
                 pc += 1;
             }
             opcode::GT => {
-                check_out_of_gas::<3>(&mut gas_left)?;
+                consume_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 3;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 = ((top > *top2) as u8).into();
                 pc += 1;
             }
             opcode::SLT => {
-                check_out_of_gas::<3>(&mut gas_left)?;
+                consume_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 3;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 = ((top.slt(top2)) as u8).into();
                 pc += 1;
             }
             opcode::SGT => {
-                check_out_of_gas::<3>(&mut gas_left)?;
+                consume_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 3;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 = ((top.sgt(top2)) as u8).into();
                 pc += 1;
             }
             opcode::EQ => {
-                check_out_of_gas::<3>(&mut gas_left)?;
+                consume_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 3;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 = ((top == *top2) as u8).into();
                 pc += 1;
             }
             opcode::ISZERO => {
-                check_out_of_gas::<3>(&mut gas_left)?;
+                consume_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<1>(&stack)?;
-                gas_left -= 3;
                 let top = stack.last_mut().unwrap();
                 *top = ((*top == [0; 32].into()) as u8).into();
                 pc += 1;
             }
             opcode::AND => {
-                check_out_of_gas::<3>(&mut gas_left)?;
+                consume_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 3;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 &= top;
                 pc += 1;
             }
             opcode::OR => {
-                check_out_of_gas::<3>(&mut gas_left)?;
+                consume_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 3;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 |= top;
                 pc += 1;
             }
             opcode::XOR => {
-                check_out_of_gas::<3>(&mut gas_left)?;
+                consume_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
-                gas_left -= 3;
                 let top = stack.pop().unwrap();
                 let top2 = stack.last_mut().unwrap();
                 *top2 ^= top;
                 pc += 1;
             }
             opcode::NOT => {
-                check_out_of_gas::<3>(&mut gas_left)?;
+                consume_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<1>(&stack)?;
-                gas_left -= 3;
                 let top = stack.last_mut().unwrap();
                 *top = !*top;
                 pc += 1;
             }
             opcode::PUSH0 => {
                 check_min_revision(Revision::EVMC_SHANGHAI, revision)?;
-                check_out_of_gas::<2>(&mut gas_left)?;
+                consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
 
-                gas_left -= 2;
                 pc += 1;
                 stack.push(0.into());
             }
@@ -324,7 +301,7 @@ fn push<const N: usize>(
     stack: &mut Vec<u256>,
     gas_left: &mut i64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    check_out_of_gas::<3>(gas_left)?;
+    consume_gas::<3>(gas_left)?;
     check_stack_overflow::<1>(stack)?;
     // Note: not tested by ct
     if code.len() < *pc + N {
@@ -334,7 +311,6 @@ fn push<const N: usize>(
         ));
     }
 
-    *gas_left -= 3;
     *pc += 1;
     stack.push(code[*pc..*pc + N].try_into().unwrap());
     *pc += N;
@@ -347,11 +323,10 @@ fn dup<const N: usize>(
     stack: &mut Vec<u256>,
     gas_left: &mut i64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    check_out_of_gas::<3>(gas_left)?;
+    consume_gas::<3>(gas_left)?;
     check_stack_overflow::<1>(stack)?;
     check_stack_underflow::<N>(stack)?;
 
-    *gas_left -= 3;
     *pc += 1;
     stack.push(stack[stack.len() - N]);
 
@@ -373,29 +348,26 @@ fn check_min_revision(
 }
 
 #[inline(always)]
-fn check_out_of_gas<const NEEDED: u64>(
-    gas_left: &mut i64,
-) -> Result<(), (StepStatusCode, StatusCode)> {
+fn consume_gas<const NEEDED: u64>(gas_left: &mut i64) -> Result<(), (StepStatusCode, StatusCode)> {
     if *gas_left < (NEEDED as i64) {
         return Err((
             StepStatusCode::EVMC_STEP_FAILED,
             StatusCode::EVMC_OUT_OF_GAS,
         ));
     }
+    *gas_left -= NEEDED as i64;
     Ok(())
 }
 
 #[inline(always)]
-fn check_dyn_out_of_gas(
-    gas_left: &mut i64,
-    needed: u64,
-) -> Result<(), (StepStatusCode, StatusCode)> {
+fn consume_dyn_gas(gas_left: &mut i64, needed: u64) -> Result<(), (StepStatusCode, StatusCode)> {
     if *gas_left < (needed as i64) {
         return Err((
             StepStatusCode::EVMC_STEP_FAILED,
             StatusCode::EVMC_OUT_OF_GAS,
         ));
     }
+    *gas_left -= needed as i64;
     Ok(())
 }
 
