@@ -243,8 +243,17 @@ fn run(
                 check_stack_underflow::<2>(&stack)?;
                 gas_left -= 3;
                 let top = stack.pop().unwrap();
-                let len = stack.len();
-                stack[len - 1] = (top.lt(stack[len - 1]) as u8).into();
+                let top2 = stack.last_mut().unwrap();
+                *top2 = ((top < *top2) as u8).into();
+                pc += 1;
+            }
+            opcode::GT => {
+                check_out_of_gas::<3>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 3;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                *top2 = ((top > *top2) as u8).into();
                 pc += 1;
             }
             opcode::SLT => {
@@ -252,8 +261,34 @@ fn run(
                 check_stack_underflow::<2>(&stack)?;
                 gas_left -= 3;
                 let top = stack.pop().unwrap();
-                let len = stack.len();
-                stack[len - 1] = (top.slt(stack[len - 1]) as u8).into();
+                let top2 = stack.last_mut().unwrap();
+                *top2 = ((top.slt(top2)) as u8).into();
+                pc += 1;
+            }
+            opcode::SGT => {
+                check_out_of_gas::<3>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 3;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                *top2 = ((top.sgt(top2)) as u8).into();
+                pc += 1;
+            }
+            opcode::EQ => {
+                check_out_of_gas::<3>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 3;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                *top2 = ((top == *top2) as u8).into();
+                pc += 1;
+            }
+            opcode::ISZERO => {
+                check_out_of_gas::<3>(&mut gas_left)?;
+                check_stack_underflow::<1>(&stack)?;
+                gas_left -= 3;
+                let top = stack.last_mut().unwrap();
+                *top = ((*top == [0; 32].into()) as u8).into();
                 pc += 1;
             }
             opcode::PUSH0 => {

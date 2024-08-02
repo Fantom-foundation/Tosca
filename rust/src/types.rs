@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     mem,
     ops::{
         Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Rem, RemAssign, Sub,
@@ -300,50 +301,39 @@ impl u256 {
     }
 }
 
+impl PartialEq for u256 {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.bytes == other.0.bytes
+    }
+}
+
+impl Eq for u256 {}
+
+impl PartialOrd for u256 {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for u256 {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let lhs: U256 = (*self).into();
+        let rhs: U256 = (*other).into();
+        lhs.cmp(&rhs)
+    }
+}
+
 impl u256 {
-    pub fn lt(self, rhs: Self) -> bool {
-        for i in 0..32 {
-            match self[i].cmp(&rhs[i]) {
-                std::cmp::Ordering::Less => {
-                    return true;
-                }
-                std::cmp::Ordering::Equal => {
-                    continue;
-                }
-                std::cmp::Ordering::Greater => {
-                    return false;
-                }
-            }
-        }
-        false
+    pub fn slt(&self, rhs: &Self) -> bool {
+        let lhs: I256 = (*self).into();
+        let rhs: I256 = (*rhs).into();
+        lhs.cmp(&rhs) == Ordering::Less
     }
 
-    pub fn slt(self, rhs: Self) -> bool {
-        let lhs = self;
-        let lhs_negative = lhs[0] & 0x80 != 0;
-        let rhs_negative = rhs[0] & 0x80 != 0;
-
-        if lhs_negative != rhs_negative {
-            return lhs_negative;
-        }
-
-        for i in 0..32 {
-            let lhs_byte = if lhs_negative { !lhs[i] } else { lhs[i] };
-            let rhs_byte = if rhs_negative { !rhs[i] } else { rhs[i] };
-
-            match lhs_byte.cmp(&rhs_byte) {
-                std::cmp::Ordering::Less => {
-                    return !lhs_negative;
-                }
-                std::cmp::Ordering::Equal => {
-                    continue;
-                }
-                std::cmp::Ordering::Greater => {
-                    return lhs_negative;
-                }
-            }
-        }
-        false
+    pub fn sgt(&self, rhs: &Self) -> bool {
+        let lhs: I256 = (*self).into();
+        let rhs: I256 = (*rhs).into();
+        lhs.cmp(&rhs) == Ordering::Greater
     }
 }
 
