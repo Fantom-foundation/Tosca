@@ -291,6 +291,41 @@ fn run(
                 *top = ((*top == [0; 32].into()) as u8).into();
                 pc += 1;
             }
+            opcode::AND => {
+                check_out_of_gas::<3>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 3;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                *top2 &= top;
+                pc += 1;
+            }
+            opcode::OR => {
+                check_out_of_gas::<3>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 3;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                *top2 |= top;
+                pc += 1;
+            }
+            opcode::XOR => {
+                check_out_of_gas::<3>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 3;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                *top2 ^= top;
+                pc += 1;
+            }
+            opcode::NOT => {
+                check_out_of_gas::<3>(&mut gas_left)?;
+                check_stack_underflow::<1>(&stack)?;
+                gas_left -= 3;
+                let top = stack.last_mut().unwrap();
+                *top = !*top;
+                pc += 1;
+            }
             opcode::PUSH0 => {
                 check_min_revision(Revision::EVMC_SHANGHAI, revision)?;
                 check_out_of_gas::<2>(&mut gas_left)?;

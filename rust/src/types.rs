@@ -2,8 +2,8 @@ use std::{
     cmp::Ordering,
     mem,
     ops::{
-        Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Rem, RemAssign, Sub,
-        SubAssign,
+        Add, AddAssign, BitAndAssign, BitOrAssign, BitXorAssign, Deref, DerefMut, Div, DivAssign,
+        Mul, MulAssign, Not, Rem, RemAssign, Sub, SubAssign,
     },
 };
 
@@ -14,6 +14,20 @@ use evmc_vm::Uint256;
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
 pub struct u256(Uint256);
+
+impl Deref for u256 {
+    type Target = [u8; 32];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.bytes
+    }
+}
+
+impl DerefMut for u256 {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0.bytes
+    }
+}
 
 impl From<Uint256> for u256 {
     fn from(value: Uint256) -> Self {
@@ -86,20 +100,6 @@ impl From<u256> for [u8; 32] {
 impl From<[u8; 32]> for u256 {
     fn from(value: [u8; 32]) -> Self {
         Self(Uint256 { bytes: value })
-    }
-}
-
-impl Index<usize> for u256 {
-    type Output = u8;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0.bytes[index]
-    }
-}
-
-impl IndexMut<usize> for u256 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0.bytes[index]
     }
 }
 
@@ -303,7 +303,7 @@ impl u256 {
 
 impl PartialEq for u256 {
     fn eq(&self, other: &Self) -> bool {
-        self.0.bytes == other.0.bytes
+        **self == **other
     }
 }
 
@@ -334,6 +334,42 @@ impl u256 {
         let lhs: I256 = (*self).into();
         let rhs: I256 = (*rhs).into();
         lhs.cmp(&rhs) == Ordering::Greater
+    }
+}
+
+impl BitAndAssign for u256 {
+    fn bitand_assign(&mut self, rhs: Self) {
+        for bit in 0..32 {
+            self[bit] &= rhs[bit];
+        }
+    }
+}
+
+impl BitOrAssign for u256 {
+    fn bitor_assign(&mut self, rhs: Self) {
+        for bit in 0..32 {
+            self[bit] |= rhs[bit];
+        }
+    }
+}
+
+impl BitXorAssign for u256 {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        for bit in 0..32 {
+            self[bit] ^= rhs[bit];
+        }
+    }
+}
+
+impl Not for u256 {
+    type Output = Self;
+
+    fn not(mut self) -> Self::Output {
+        for bit in 0..32 {
+            self[bit] = !self[bit];
+        }
+
+        self
     }
 }
 
