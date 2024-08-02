@@ -3,7 +3,7 @@ use std::{
     mem,
     ops::{
         Add, AddAssign, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, DivAssign, Mul, MulAssign,
-        Not, Rem, RemAssign, Sub, SubAssign,
+        Not, Rem, RemAssign, Shl, Shr, Sub, SubAssign,
     },
 };
 
@@ -31,6 +31,7 @@ impl DerefMut for u256 {
 
 impl u256 {
     pub const ZERO: Self = Self(Uint256 { bytes: [0; 32] });
+    pub const MAX: Self = Self(Uint256 { bytes: [0xff; 32] });
 }
 
 impl From<Uint256> for u256 {
@@ -383,5 +384,51 @@ impl Not for u256 {
         }
 
         self
+    }
+}
+
+impl Shl for u256 {
+    type Output = Self;
+
+    fn shl(self, rhs: Self) -> Self::Output {
+        let lhs: U256 = self.into();
+        if u256::from(rhs) > u256::from(255) {
+            return u256::ZERO;
+        }
+        let shift = rhs[31] as u32;
+        (lhs.wrapping_shl(shift)).into()
+    }
+}
+
+impl Shr for u256 {
+    type Output = Self;
+
+    fn shr(self, rhs: Self) -> Self::Output {
+        let lhs: U256 = self.into();
+        if u256::from(rhs) > u256::from(255) {
+            return u256::ZERO;
+        }
+        let shift = rhs[31] as u32;
+        (lhs.wrapping_shr(shift)).into()
+    }
+}
+
+impl u256 {
+    pub fn sar(self, rhs: Self) -> Self {
+        let lhs: U256 = self.into();
+        let negative = self[0] & 0x80 > 0;
+        if u256::from(rhs) > u256::from(255) {
+            if negative {
+                return u256::MAX;
+            } else {
+                return u256::ZERO;
+            }
+        }
+        let shift = rhs[31] as u32;
+        let mut shr = lhs.wrapping_shr(shift);
+        if negative {
+            shr |= U256::MAX.wrapping_shl(255 - shift);
+        }
+        shr.into()
     }
 }

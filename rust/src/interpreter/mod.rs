@@ -172,6 +172,36 @@ pub fn run(
                 stack.push(!top);
                 pc += 1;
             }
+            opcode::BYTE => {
+                consume_gas::<3>(&mut gas_left)?;
+                let [top, top2] = pop_from_stack(&mut stack)?;
+                let res = if top >= 32.into() {
+                    u256::ZERO
+                } else {
+                    let idx = top[31];
+                    top2[idx as usize].into()
+                };
+                stack.push(res);
+                pc += 1;
+            }
+            opcode::SHL => {
+                consume_gas::<3>(&mut gas_left)?;
+                let [top, top2] = pop_from_stack(&mut stack)?;
+                stack.push(top2 << top);
+                pc += 1;
+            }
+            opcode::SHR => {
+                consume_gas::<3>(&mut gas_left)?;
+                let [top, top2] = pop_from_stack(&mut stack)?;
+                stack.push(top2 >> top);
+                pc += 1;
+            }
+            opcode::SAR => {
+                consume_gas::<3>(&mut gas_left)?;
+                let [top, top2] = pop_from_stack(&mut stack)?;
+                stack.push(top2.sar(top));
+                pc += 1;
+            }
             opcode::PUSH0 => {
                 check_min_revision(Revision::EVMC_SHANGHAI, revision)?;
                 consume_gas::<2>(&mut gas_left)?;
