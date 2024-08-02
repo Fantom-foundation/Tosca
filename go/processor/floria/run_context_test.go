@@ -55,6 +55,7 @@ func TestCalls_InterpreterResultIsHandledCorrectly(t *testing.T) {
 		tosca.BlockParameters{},
 		tosca.TransactionParameters{},
 		0,
+		false,
 	}
 
 	params := tosca.CallParameters{
@@ -98,6 +99,7 @@ func TestCall_TransferValueInCall(t *testing.T) {
 		tosca.BlockParameters{},
 		tosca.TransactionParameters{},
 		0,
+		false,
 	}
 
 	params := tosca.CallParameters{
@@ -135,6 +137,7 @@ func TestTransferValue_InCallRestoreFailed(t *testing.T) {
 		tosca.BlockParameters{},
 		tosca.TransactionParameters{},
 		0,
+		false,
 	}
 
 	params := tosca.CallParameters{

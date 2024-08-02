@@ -78,6 +78,7 @@ func (p *processor) Run(
 		blockParameters,
 		transactionParameters,
 		0,
+		false,
 	}
 
 	callParameters := tosca.CallParameters{
