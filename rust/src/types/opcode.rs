@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 
 pub const STOP: u8 = 0x00;
 pub const ADD: u8 = 0x01;

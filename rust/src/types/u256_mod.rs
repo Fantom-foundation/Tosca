@@ -2,8 +2,8 @@ use std::{
     cmp::Ordering,
     mem,
     ops::{
-        Add, AddAssign, BitAndAssign, BitOrAssign, BitXorAssign, Deref, DerefMut, Div, DivAssign,
-        Mul, MulAssign, Not, Rem, RemAssign, Sub, SubAssign,
+        Add, AddAssign, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, DivAssign, Mul, MulAssign,
+        Not, Rem, RemAssign, Sub, SubAssign,
     },
 };
 
@@ -27,6 +27,10 @@ impl DerefMut for u256 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0.bytes
     }
+}
+
+impl u256 {
+    pub const ZERO: Self = Self(Uint256 { bytes: [0; 32] });
 }
 
 impl From<Uint256> for u256 {
@@ -229,7 +233,7 @@ impl Rem for u256 {
 
 impl RemAssign for u256 {
     fn rem_assign(&mut self, rhs: Self) {
-        *self = *self / rhs;
+        *self = *self % rhs;
     }
 }
 
@@ -283,7 +287,7 @@ impl u256 {
 
     pub fn signextend(self, rhs: Self) -> Self {
         if U256::from(self) > U256::from_digit(31) {
-            return rhs.into();
+            return rhs;
         }
 
         let byte = 31 - self[31]; // self <= 31 so it fits into the lower significant bit
@@ -292,9 +296,9 @@ impl u256 {
         let rhs: U256 = rhs.into();
 
         let res = if negative {
-            rhs | (U256::MAX << (32 - byte) * 8)
+            rhs | (U256::MAX << ((32 - byte) * 8))
         } else {
-            rhs & (U256::MAX >> byte * 8)
+            rhs & (U256::MAX >> (byte * 8))
         };
 
         res.into()
@@ -337,27 +341,36 @@ impl u256 {
     }
 }
 
-impl BitAndAssign for u256 {
-    fn bitand_assign(&mut self, rhs: Self) {
+impl BitAnd for u256 {
+    type Output = Self;
+
+    fn bitand(mut self, rhs: Self) -> Self::Output {
         for bit in 0..32 {
             self[bit] &= rhs[bit];
         }
+        self
     }
 }
 
-impl BitOrAssign for u256 {
-    fn bitor_assign(&mut self, rhs: Self) {
+impl BitOr for u256 {
+    type Output = Self;
+
+    fn bitor(mut self, rhs: Self) -> Self::Output {
         for bit in 0..32 {
             self[bit] |= rhs[bit];
         }
+        self
     }
 }
 
-impl BitXorAssign for u256 {
-    fn bitxor_assign(&mut self, rhs: Self) {
+impl BitXor for u256 {
+    type Output = Self;
+
+    fn bitxor(mut self, rhs: Self) -> Self::Output {
         for bit in 0..32 {
             self[bit] ^= rhs[bit];
         }
+        self
     }
 }
 

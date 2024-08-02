@@ -1,10 +1,11 @@
-#![allow(dead_code)]
-use std::{i32, mem};
+use std::mem;
 
 use evmc_vm::{
     EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult, Revision, StepResult,
     StepStatusCode, SteppableEvmcVm, Uint256,
 };
+
+use crate::types::u256;
 
 mod ffi;
 mod interpreter;
@@ -75,7 +76,7 @@ impl SteppableEvmcVm for EvmRs {
             // SAFETY
             // u256 is a newtype of Uint256 with repr(transparent) which guarantees the same memory
             // layout.
-            unsafe { mem::transmute(stack.to_owned()) },
+            unsafe { mem::transmute::<Vec<Uint256>, Vec<u256>>(stack.to_owned()) },
             memory.to_owned(),
             Some(last_call_result_data.to_owned()),
             Some(steps),
