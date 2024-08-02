@@ -208,6 +208,36 @@ fn run(
                 *top3 = u256::mulmod(top, top2, *top3);
                 pc += 1;
             }
+            opcode::EXP => {
+                check_out_of_gas::<10>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 10;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                let top2_bytes: [u8; 32] = (*top2).into();
+                let mut cost_multiplier = 32;
+                for byte in top2_bytes.into_iter() {
+                    if byte == 0 {
+                        cost_multiplier -= 1;
+                    } else {
+                        break;
+                    }
+                }
+                let dyn_gas = 50 * cost_multiplier;
+                check_dyn_out_of_gas(&mut gas_left, dyn_gas)?;
+                gas_left -= dyn_gas as i64;
+                *top2 = top.pow(*top2);
+                pc += 1;
+            }
+            opcode::SIGNEXTEND => {
+                check_out_of_gas::<5>(&mut gas_left)?;
+                check_stack_underflow::<2>(&stack)?;
+                gas_left -= 5;
+                let top = stack.pop().unwrap();
+                let top2 = stack.last_mut().unwrap();
+                *top2 = u256::signextend(top, *top2);
+                pc += 1;
+            }
             opcode::LT => {
                 check_out_of_gas::<3>(&mut gas_left)?;
                 check_stack_underflow::<2>(&stack)?;
@@ -369,6 +399,20 @@ fn check_out_of_gas<const NEEDED: u64>(
     gas_left: &mut i64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     if *gas_left < (NEEDED as i64) {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_OUT_OF_GAS,
+        ));
+    }
+    Ok(())
+}
+
+#[inline(always)]
+fn check_dyn_out_of_gas(
+    gas_left: &mut i64,
+    needed: u64,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    if *gas_left < (needed as i64) {
         return Err((
             StepStatusCode::EVMC_STEP_FAILED,
             StatusCode::EVMC_OUT_OF_GAS,

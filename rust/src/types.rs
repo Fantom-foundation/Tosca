@@ -264,6 +264,40 @@ impl u256 {
 
         (s1 * s2).rem(m).into()
     }
+
+    pub fn pow(self, rhs: Self) -> Self {
+        let lhs: U256 = self.into();
+        let rhs: U256 = rhs.into();
+        let mut res = U256::ONE;
+
+        for bit in (0..U256::BITS).rev().map(|bit| rhs.bit(bit)) {
+            res = res.wrapping_mul(res);
+            if bit {
+                res = res.wrapping_mul(lhs);
+            }
+        }
+
+        res.into()
+    }
+
+    pub fn signextend(self, rhs: Self) -> Self {
+        if U256::from(self) > U256::from_digit(31) {
+            return rhs.into();
+        }
+
+        let byte = 31 - self[31]; // self <= 31 so it fits into the lower significant bit
+        let negative = (rhs[byte as usize] & 0x80) > 0;
+
+        let rhs: U256 = rhs.into();
+
+        let res = if negative {
+            rhs | (U256::MAX << (32 - byte) * 8)
+        } else {
+            rhs & (U256::MAX >> byte * 8)
+        };
+
+        res.into()
+    }
 }
 
 impl u256 {
