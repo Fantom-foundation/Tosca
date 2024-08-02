@@ -227,6 +227,22 @@ pub fn run(
             opcode::DUP14 => dup::<14>(&mut pc, &mut stack, &mut gas_left)?,
             opcode::DUP15 => dup::<15>(&mut pc, &mut stack, &mut gas_left)?,
             opcode::DUP16 => dup::<16>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP1 => swap::<1>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP2 => swap::<2>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP3 => swap::<3>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP4 => swap::<4>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP5 => swap::<5>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP6 => swap::<6>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP7 => swap::<7>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP8 => swap::<8>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP9 => swap::<9>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP10 => swap::<10>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP11 => swap::<11>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP12 => swap::<12>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP13 => swap::<13>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP14 => swap::<14>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP15 => swap::<15>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::SWAP16 => swap::<16>(&mut pc, &mut stack, &mut gas_left)?,
             op => {
                 println!("invalid opcode 0x{op:x?}");
                 step_status_code = StepStatusCode::EVMC_STEP_FAILED;
@@ -288,6 +304,26 @@ fn dup<const N: usize>(
     let nth = *nth;
 
     stack.push(nth);
+    *pc += 1;
+
+    Ok(())
+}
+
+fn swap<const N: usize>(
+    pc: &mut usize,
+    stack: &mut Vec<u256>,
+    gas_left: &mut i64,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    consume_gas::<3>(gas_left)?;
+    let len = stack.len();
+    if len < N + 1 {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_STACK_UNDERFLOW,
+        ));
+    }
+
+    stack.swap(len - 1, len - 1 - N);
     *pc += 1;
 
     Ok(())
