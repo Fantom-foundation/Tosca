@@ -118,6 +118,25 @@ impl From<u8> for u256 {
     }
 }
 
+impl From<u64> for u256 {
+    fn from(value: u64) -> Self {
+        let bytes = value.to_be_bytes();
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, bytes[0],
+            bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+        ]
+        .into()
+    }
+}
+
+impl From<Address> for u256 {
+    fn from(value: Address) -> Self {
+        let mut bytes = [0; 32];
+        bytes[32 - 20..].copy_from_slice(&value.bytes);
+        bytes.into()
+    }
+}
+
 impl From<&Address> for u256 {
     fn from(value: &Address) -> Self {
         let mut bytes = [0; 32];
@@ -405,7 +424,7 @@ impl Not for u256 {
 
 impl u256 {
     pub fn byte(&self, index: Self) -> Self {
-        if index >= 32.into() {
+        if index >= 32u8.into() {
             return u256::ZERO;
         }
         let idx = index[31];
@@ -418,7 +437,7 @@ impl Shl for u256 {
 
     fn shl(self, rhs: Self) -> Self::Output {
         let value: U256 = self.into();
-        if u256::from(rhs) > u256::from(255) {
+        if rhs > u256::from(255u8) {
             return u256::ZERO;
         }
         let shift = rhs[31] as u32;
@@ -431,7 +450,7 @@ impl Shr for u256 {
 
     fn shr(self, rhs: Self) -> Self::Output {
         let value: U256 = self.into();
-        if u256::from(rhs) > u256::from(255) {
+        if rhs > u256::from(255u8) {
             return u256::ZERO;
         }
         let shift = rhs[31] as u32;
@@ -443,7 +462,7 @@ impl u256 {
     pub fn sar(self, rhs: Self) -> Self {
         let value: U256 = self.into();
         let negative = self[0] & 0x80 > 0;
-        if u256::from(rhs) > u256::from(255) {
+        if rhs > u256::from(255u8) {
             if negative {
                 return u256::MAX;
             } else {

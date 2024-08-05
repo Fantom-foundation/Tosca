@@ -1,5 +1,6 @@
-use std::mem;
+use std::{cmp::min, mem};
 
+use bnum::types::U256;
 use evmc_vm::{
     ExecutionContext, ExecutionMessage, Revision, StatusCode, StepResult, StepStatusCode, Uint256,
 };
@@ -196,19 +197,97 @@ pub fn run(
                 stack.push(top2.sar(top));
                 pc += 1;
             }
+            opcode::SHA3 => unimplemented!(),
             opcode::ADDRESS => {
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
                 stack.push(message.recipient().into());
                 pc += 1;
             }
+            opcode::BALANCE => unimplemented!(),
+            opcode::ORIGIN => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push(context.get_tx_context().tx_origin.into());
+                pc += 1;
+            }
+            opcode::CALLER => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push(message.sender().into());
+                pc += 1;
+            }
+            opcode::CALLVALUE => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push((*message.value()).into());
+                pc += 1;
+            }
+            opcode::CALLDATALOAD => {
+                consume_gas::<3>(&mut gas_left)?;
+                let [offset] = pop_from_stack(&mut stack)?;
+                let offset: U256 = offset.into();
+                let call_data = message.input().unwrap();
+                if offset >= U256::from(call_data.len()) {
+                    stack.push(u256::ZERO);
+                } else {
+                    let start = offset.digits()[0] as usize;
+                    let end = min(call_data.len(), start + 32);
+                    let mut bytes = [0; 32];
+                    bytes[..end - start].copy_from_slice(&call_data[start..end]);
+                    stack.push(bytes.into());
+                }
+                pc += 1;
+            }
+            opcode::CALLDATASIZE => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                let call_data = message.input().unwrap();
+                stack.push((call_data.len() as u64).into());
+                pc += 1;
+            }
             opcode::PUSH0 => {
                 check_min_revision(Revision::EVMC_SHANGHAI, revision)?;
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
-                stack.push(0.into());
+                stack.push(u256::ZERO);
                 pc += 1;
             }
+            opcode::CALLDATACOPY => unimplemented!(),
+            opcode::CODESIZE => unimplemented!(),
+            opcode::CODECOPY => unimplemented!(),
+            opcode::GASPRICE => unimplemented!(),
+            opcode::EXTCODESIZE => unimplemented!(),
+            opcode::EXTCODECOPY => unimplemented!(),
+            opcode::RETURNDATASIZE => unimplemented!(),
+            opcode::RETURNDATACOPY => unimplemented!(),
+            opcode::EXTCODEHASH => unimplemented!(),
+            opcode::BLOCKHASH => unimplemented!(),
+            opcode::COINBASE => unimplemented!(),
+            opcode::TIMESTAMP => unimplemented!(),
+            opcode::NUMBER => unimplemented!(),
+            opcode::PREVRANDAO => unimplemented!(),
+            opcode::GASLIMIT => unimplemented!(),
+            opcode::CHAINID => unimplemented!(),
+            opcode::SELFBALANCE => unimplemented!(),
+            opcode::BASEFEE => unimplemented!(),
+            opcode::BLOBHASH => unimplemented!(),
+            opcode::BLOBBASEFEE => unimplemented!(),
+            opcode::POP => unimplemented!(),
+            opcode::MLOAD => unimplemented!(),
+            opcode::MSTORE => unimplemented!(),
+            opcode::MSTORE8 => unimplemented!(),
+            opcode::SLOAD => unimplemented!(),
+            opcode::SSTORE => unimplemented!(),
+            opcode::JUMP => unimplemented!(),
+            opcode::JUMPI => unimplemented!(),
+            opcode::PC => unimplemented!(),
+            opcode::MSIZE => unimplemented!(),
+            opcode::GAS => unimplemented!(),
+            opcode::JUMPDEST => unimplemented!(),
+            opcode::TLOAD => unimplemented!(),
+            opcode::TSTORE => unimplemented!(),
+            opcode::MCOPY => unimplemented!(),
             opcode::PUSH1 => push::<1>(code, &mut pc, &mut stack, &mut gas_left)?,
             opcode::PUSH2 => push::<2>(code, &mut pc, &mut stack, &mut gas_left)?,
             opcode::PUSH3 => push::<3>(code, &mut pc, &mut stack, &mut gas_left)?,
@@ -273,6 +352,21 @@ pub fn run(
             opcode::SWAP14 => swap::<14>(&mut pc, &mut stack, &mut gas_left)?,
             opcode::SWAP15 => swap::<15>(&mut pc, &mut stack, &mut gas_left)?,
             opcode::SWAP16 => swap::<16>(&mut pc, &mut stack, &mut gas_left)?,
+            opcode::LOG0 => unimplemented!(),
+            opcode::LOG1 => unimplemented!(),
+            opcode::LOG2 => unimplemented!(),
+            opcode::LOG3 => unimplemented!(),
+            opcode::LOG4 => unimplemented!(),
+            opcode::CREATE => unimplemented!(),
+            opcode::CALL => unimplemented!(),
+            opcode::CALLCODE => unimplemented!(),
+            opcode::RETURN => unimplemented!(),
+            opcode::DELEGATECALL => unimplemented!(),
+            opcode::CREATE2 => unimplemented!(),
+            opcode::STATICCALL => unimplemented!(),
+            opcode::REVERT => unimplemented!(),
+            opcode::INVALID => unimplemented!(),
+            opcode::SELFDESTRUCT => unimplemented!(),
             op => {
                 println!("invalid opcode 0x{op:x?}");
                 step_status_code = StepStatusCode::EVMC_STEP_FAILED;
