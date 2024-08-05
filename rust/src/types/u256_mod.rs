@@ -8,7 +8,7 @@ use std::{
 };
 
 use bnum::types::{I256, U256, U512};
-use evmc_vm::Uint256;
+use evmc_vm::{Address, Uint256};
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy)]
@@ -115,6 +115,22 @@ impl From<u8> for u256 {
             0, 0, value,
         ]
         .into()
+    }
+}
+
+impl From<&Address> for u256 {
+    fn from(value: &Address) -> Self {
+        let mut bytes = [0; 32];
+        bytes[32 - 20..].copy_from_slice(&value.bytes);
+        bytes.into()
+    }
+}
+
+impl From<u256> for Address {
+    fn from(value: u256) -> Self {
+        let mut bytes = [0; 20];
+        bytes.copy_from_slice(&value[32 - 20..]);
+        Address { bytes }
     }
 }
 

@@ -196,6 +196,12 @@ pub fn run(
                 stack.push(top2.sar(top));
                 pc += 1;
             }
+            opcode::ADDRESS => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push(message.recipient().into());
+                pc += 1;
+            }
             opcode::PUSH0 => {
                 check_min_revision(Revision::EVMC_SHANGHAI, revision)?;
                 consume_gas::<2>(&mut gas_left)?;
