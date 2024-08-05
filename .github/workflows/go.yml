@@ -62,6 +62,21 @@ jobs:
     - name: CT regression tests evmzero
       run: go run ./go/ct/driver regressions evmzero
 
+    - name: Coverage
+      uses: actions/github-script@v6
+      with:
+       script: |
+          const execSync = require('child_process').execSync;
+          const coverageResult = execSync('make coverage-check', { encoding: 'utf-8' });
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `Test results:\n\n${coverageResult}`
+          });
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     # see issue #316
     #- name: CT rule coverage test
     #  run: go run ./go/ct/driver test

@@ -15,7 +15,7 @@ import (
 	"pgregory.net/rand"
 )
 
-func GetRandomHash(rnd *rand.Rand) tosca.Hash {
+func GetRandomHash(rnd *rand.Rand) tosca.Hash { // coverage-ignore nothing to test
 	var res tosca.Hash
 	_, _ = rnd.Read(res[:]) // rnd.Read never returns an error
 	return res
