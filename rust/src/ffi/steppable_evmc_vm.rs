@@ -11,8 +11,8 @@ use ::evmc_vm::{
         evmc_bytes32, evmc_capabilities, evmc_host_interface, evmc_message, evmc_revision,
         evmc_step_result, evmc_step_status_code, evmc_vm_steppable,
     },
-    ExecutionMessage, StatusCode, StepResult, StepStatusCode, SteppableEvmcContainer,
-    SteppableEvmcVm,
+    ExecutionContext, ExecutionMessage, StatusCode, StepResult, StepStatusCode,
+    SteppableEvmcContainer, SteppableEvmcVm,
 };
 
 use crate::{
@@ -96,11 +96,14 @@ extern "C" fn __evmc_step_n(
     };
 
     let result = panic::catch_unwind(|| {
-        let mut execution_context = if host.is_null() {
-            None
-        } else {
-            let execution_context = unsafe { ::evmc_vm::ExecutionContext::new(&*host, context) };
-            Some(execution_context)
+        assert_ne!(
+            EVMC_CAPABILITY,
+            evmc_capabilities::EVMC_CAPABILITY_PRECOMPILES
+        );
+        let mut execution_context = unsafe {
+            // SAFETY:
+            // Because EVMC_CAPABILITY_PRECOMPILES is not supported host is not null.
+            ExecutionContext::new(&*host, context)
         };
 
         let stack = if stack.is_null() {
@@ -137,7 +140,7 @@ extern "C" fn __evmc_step_n(
             revision,
             code_ref,
             &execution_message,
-            execution_context.as_mut(),
+            &mut execution_context,
             status,
             pc,
             gas_refunds,

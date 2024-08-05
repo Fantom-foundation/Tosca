@@ -3,13 +3,14 @@ use std::{
     mem, panic, process, slice,
 };
 
+use ::evmc_vm::SetOptionError;
 use evmc_vm::{
     ffi::{
         evmc_capabilities, evmc_capabilities_flagset, evmc_host_context, evmc_host_interface,
         evmc_message, evmc_result, evmc_revision, evmc_set_option_result, evmc_status_code,
         EVMC_ABI_VERSION,
     },
-    EvmcContainer, EvmcVm, ExecutionMessage, ExecutionResult, SetOptionError,
+    EvmcContainer, EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult,
 };
 
 use crate::EvmRs;
@@ -142,18 +143,17 @@ extern "C" fn __evmc_execute(
     };
 
     let result = panic::catch_unwind(|| {
-        let mut execution_context = if host.is_null() {
-            None
-        } else {
-            let execution_context = unsafe { ::evmc_vm::ExecutionContext::new(&*host, context) };
-            Some(execution_context)
+        let mut execution_context = unsafe {
+            // SAFETY:
+            // Because EVMC_CAPABILITY_PRECOMPILES is not supported host is not null.
+            ExecutionContext::new(&*host, context)
         };
 
         container.execute(
             revision,
             code_ref,
             &execution_message,
-            execution_context.as_mut(),
+            &mut execution_context,
         )
     });
 

@@ -24,7 +24,7 @@ impl EvmcVm for EvmRs {
         revision: Revision,
         code: &[u8],
         message: &ExecutionMessage,
-        context: Option<&mut ExecutionContext>,
+        context: &mut ExecutionContext,
     ) -> ExecutionResult {
         let step_result = interpreter::run(
             revision,
@@ -56,7 +56,7 @@ impl SteppableEvmcVm for EvmRs {
         revision: Revision,
         code: &'a [u8],
         message: &'a ExecutionMessage,
-        context: Option<&'a mut ExecutionContext<'a>>,
+        context: &mut ExecutionContext<'a>,
         step_status: StepStatusCode,
         pc: u64,
         gas_refund: i64,

@@ -10,7 +10,7 @@ pub fn run(
     revision: Revision,
     code: &[u8],
     message: &ExecutionMessage,
-    context: Option<&mut ExecutionContext>,
+    context: &mut ExecutionContext,
     mut step_status_code: StepStatusCode,
     mut pc: usize,
     mut gas_refund: i64,
