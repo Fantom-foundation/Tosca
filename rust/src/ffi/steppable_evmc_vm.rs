@@ -13,7 +13,7 @@ use crate::EvmRs;
 #[no_mangle]
 extern "C" fn evmc_create_steppable_evmrs() -> *const ::evmc_vm::ffi::evmc_vm_steppable {
     let new_instance = ::evmc_vm::ffi::evmc_vm_steppable {
-        vm: crate::evmc_create_evmrs() as *mut ::evmc_vm::ffi::evmc_vm,
+        vm: crate::ffi::evmc_vm::evmc_create_evmrs() as *mut ::evmc_vm::ffi::evmc_vm,
         step_n: Some(__evmc_step_n),
         destroy: Some(__evmc_steppable_destroy),
     };

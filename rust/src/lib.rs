@@ -11,7 +11,7 @@ mod ffi;
 mod interpreter;
 mod types;
 
-#[evmc_declare::evmc_declare_vm("evmrs", "ewasm, evm", "0.1.0")]
+//#[evmc_declare::evmc_declare_vm("evmrs", "ewasm, evm", "0.1.0")]
 pub struct EvmRs;
 
 impl EvmcVm for EvmRs {
