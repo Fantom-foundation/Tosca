@@ -254,17 +254,49 @@ pub fn run(
                 pc += 1;
             }
             opcode::CALLDATACOPY => unimplemented!(),
-            opcode::CODESIZE => unimplemented!(),
+            opcode::CODESIZE => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push((code.len() as u64).into());
+                pc += 1;
+            }
             opcode::CODECOPY => unimplemented!(),
-            opcode::GASPRICE => unimplemented!(),
+            opcode::GASPRICE => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push(context.get_tx_context().tx_gas_price.into());
+                pc += 1;
+            }
             opcode::EXTCODESIZE => unimplemented!(),
             opcode::EXTCODECOPY => unimplemented!(),
             opcode::RETURNDATASIZE => unimplemented!(),
             opcode::RETURNDATACOPY => unimplemented!(),
             opcode::EXTCODEHASH => unimplemented!(),
-            opcode::BLOCKHASH => unimplemented!(),
-            opcode::COINBASE => unimplemented!(),
-            opcode::TIMESTAMP => unimplemented!(),
+            opcode::BLOCKHASH => {
+                consume_gas::<20>(&mut gas_left)?;
+                let [block_number] = pop_from_stack(&mut stack)?;
+                let current_block_number = context.get_tx_context().block_number;
+                let idx = U256::from(block_number);
+                if idx > U256::from_digit((current_block_number + 255) as u64) {
+                    stack.push(u256::ZERO);
+                } else {
+                    let idx = idx.digits()[0] as i64;
+                    stack.push(context.get_block_hash(idx).into());
+                }
+                pc += 1;
+            }
+            opcode::COINBASE => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push(context.get_tx_context().block_coinbase.into());
+                pc += 1;
+            }
+            opcode::TIMESTAMP => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push((context.get_tx_context().block_timestamp as u64).into());
+                pc += 1;
+            }
             opcode::NUMBER => unimplemented!(),
             opcode::PREVRANDAO => unimplemented!(),
             opcode::GASLIMIT => unimplemented!(),
