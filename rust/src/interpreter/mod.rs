@@ -175,13 +175,7 @@ pub fn run(
             opcode::BYTE => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [top, top2] = pop_from_stack(&mut stack)?;
-                let res = if top >= 32.into() {
-                    u256::ZERO
-                } else {
-                    let idx = top[31];
-                    top2[idx as usize].into()
-                };
-                stack.push(res);
+                stack.push(top2.byte(top));
                 pc += 1;
             }
             opcode::SHL => {

@@ -211,7 +211,7 @@ impl u256 {
         let lhs: I256 = self.into();
         let rhs: I256 = rhs.into();
         if rhs == I256::ZERO {
-            return I256::ZERO.into();
+            return u256::ZERO;
         }
 
         lhs.wrapping_div(rhs).into()
@@ -225,7 +225,7 @@ impl Rem for u256 {
         let lhs: U256 = self.into();
         let rhs: U256 = rhs.into();
         if rhs == U256::ZERO {
-            return U256::ZERO.into();
+            return u256::ZERO;
         }
 
         lhs.wrapping_rem(rhs).into()
@@ -243,7 +243,7 @@ impl u256 {
         let lhs: I256 = self.into();
         let rhs: I256 = rhs.into();
         if rhs == I256::ZERO {
-            return I256::ZERO.into();
+            return u256::ZERO;
         }
 
         lhs.wrapping_rem(rhs).into()
@@ -254,32 +254,32 @@ impl u256 {
         let s2: U512 = s2.into();
         let m: U512 = m.into();
         if m == U512::ZERO {
-            return U512::ZERO.into();
+            return u256::ZERO;
         }
 
         (s1 + s2).rem(m).into()
     }
 
     pub fn mulmod(s1: Self, s2: Self, m: Self) -> Self {
-        let s1: U512 = s1.into();
-        let s2: U512 = s2.into();
+        let f1: U512 = s1.into();
+        let f2: U512 = s2.into();
         let m: U512 = m.into();
         if m == U512::ZERO {
-            return U512::ZERO.into();
+            return u256::ZERO;
         }
 
-        (s1 * s2).rem(m).into()
+        (f1 * f2).rem(m).into()
     }
 
-    pub fn pow(self, rhs: Self) -> Self {
-        let lhs: U256 = self.into();
-        let rhs: U256 = rhs.into();
+    pub fn pow(self, exp: Self) -> Self {
+        let base: U256 = self.into();
+        let exp: U256 = exp.into();
         let mut res = U256::ONE;
 
-        for bit in (0..U256::BITS).rev().map(|bit| rhs.bit(bit)) {
+        for bit in (0..U256::BITS).rev().map(|bit| exp.bit(bit)) {
             res = res.wrapping_mul(res);
             if bit {
-                res = res.wrapping_mul(lhs);
+                res = res.wrapping_mul(base);
             }
         }
 
@@ -387,16 +387,26 @@ impl Not for u256 {
     }
 }
 
+impl u256 {
+    pub fn byte(&self, index: Self) -> Self {
+        if index >= 32.into() {
+            return u256::ZERO;
+        }
+        let idx = index[31];
+        self[idx as usize].into()
+    }
+}
+
 impl Shl for u256 {
     type Output = Self;
 
     fn shl(self, rhs: Self) -> Self::Output {
-        let lhs: U256 = self.into();
+        let value: U256 = self.into();
         if u256::from(rhs) > u256::from(255) {
             return u256::ZERO;
         }
         let shift = rhs[31] as u32;
-        (lhs.wrapping_shl(shift)).into()
+        (value.wrapping_shl(shift)).into()
     }
 }
 
@@ -404,18 +414,18 @@ impl Shr for u256 {
     type Output = Self;
 
     fn shr(self, rhs: Self) -> Self::Output {
-        let lhs: U256 = self.into();
+        let value: U256 = self.into();
         if u256::from(rhs) > u256::from(255) {
             return u256::ZERO;
         }
         let shift = rhs[31] as u32;
-        (lhs.wrapping_shr(shift)).into()
+        (value.wrapping_shr(shift)).into()
     }
 }
 
 impl u256 {
     pub fn sar(self, rhs: Self) -> Self {
-        let lhs: U256 = self.into();
+        let value: U256 = self.into();
         let negative = self[0] & 0x80 > 0;
         if u256::from(rhs) > u256::from(255) {
             if negative {
@@ -425,7 +435,7 @@ impl u256 {
             }
         }
         let shift = rhs[31] as u32;
-        let mut shr = lhs.wrapping_shr(shift);
+        let mut shr = value.wrapping_shr(shift);
         if negative {
             shr |= U256::MAX.wrapping_shl(255 - shift);
         }
