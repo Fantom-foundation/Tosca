@@ -297,14 +297,78 @@ pub fn run(
                 stack.push((context.get_tx_context().block_timestamp as u64).into());
                 pc += 1;
             }
-            opcode::NUMBER => unimplemented!(),
-            opcode::PREVRANDAO => unimplemented!(),
-            opcode::GASLIMIT => unimplemented!(),
-            opcode::CHAINID => unimplemented!(),
-            opcode::SELFBALANCE => unimplemented!(),
-            opcode::BASEFEE => unimplemented!(),
-            opcode::BLOBHASH => unimplemented!(),
-            opcode::BLOBBASEFEE => unimplemented!(),
+            opcode::NUMBER => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push((context.get_tx_context().block_number as u64).into());
+                pc += 1;
+            }
+            opcode::PREVRANDAO => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push(context.get_tx_context().block_prev_randao.into());
+                pc += 1;
+            }
+            opcode::GASLIMIT => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push((context.get_tx_context().block_gas_limit as u64).into());
+                pc += 1;
+            }
+            opcode::CHAINID => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push(context.get_tx_context().chain_id.into());
+                pc += 1;
+            }
+            opcode::SELFBALANCE => {
+                consume_gas::<5>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push(context.get_balance(message.recipient()).into());
+                pc += 1;
+            }
+            opcode::BASEFEE => {
+                check_min_revision(Revision::EVMC_LONDON, revision)?;
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push(context.get_tx_context().block_base_fee.into());
+                pc += 1;
+            }
+            opcode::BLOBHASH => {
+                check_min_revision(Revision::EVMC_CANCUN, revision)?;
+                consume_gas::<3>(&mut gas_left)?;
+                let [idx] = pop_from_stack(&mut stack)?;
+                let idx = U256::from(idx);
+                let count = context.get_tx_context().blob_hashes_count;
+                if idx < U256::from(count) {
+                    let idx = idx.digits()[0] as usize;
+
+                    // TODO create new ExecutionTxContext type and do this conversion in mod ffi
+                    let hashes = context.get_tx_context().blob_hashes;
+                    let hashes: &[Uint256] = if hashes.is_null() {
+                        assert_eq!(count, 0);
+                        &[]
+                    } else {
+                        // SAFETY:
+                        // hashes is not null and count > 0
+                        unsafe { slice::from_raw_parts(hashes, count) }
+                    };
+
+                    let hash = hashes[idx];
+
+                    stack.push(hash.into());
+                } else {
+                    stack.push(u256::ZERO);
+                }
+                pc += 1;
+            }
+            opcode::BLOBBASEFEE => {
+                check_min_revision(Revision::EVMC_CANCUN, revision)?;
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push(context.get_tx_context().blob_base_fee.into());
+                pc += 1;
+            }
             opcode::POP => unimplemented!(),
             opcode::MLOAD => unimplemented!(),
             opcode::MSTORE => unimplemented!(),
