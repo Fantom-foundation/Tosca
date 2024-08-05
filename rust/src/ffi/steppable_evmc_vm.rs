@@ -4,101 +4,135 @@
 //! This is in essence what evmc_declare::evmc_declare_vm generates, but for [`SteppableEvmcVm`]
 //! instead of [`EvmcVm`](evmc_vm::EvmcVm).
 
-use std::slice;
+use std::{ffi::c_void, panic, slice};
 
-use evmc_vm::{ExecutionContext, StatusCode, StepResult, StepStatusCode, SteppableEvmcVm};
+use ::evmc_vm::{
+    ffi::{
+        evmc_bytes32, evmc_capabilities, evmc_host_interface, evmc_message, evmc_revision,
+        evmc_step_result, evmc_step_status_code, evmc_vm_steppable,
+    },
+    ExecutionMessage, StatusCode, StepResult, StepStatusCode, SteppableEvmcContainer,
+    SteppableEvmcVm,
+};
 
-use crate::EvmRs;
+use crate::{
+    ffi::evmc_vm::{self, EVMC_CAPABILITY},
+    EvmRs,
+};
 
 #[no_mangle]
-extern "C" fn evmc_create_steppable_evmrs() -> *const ::evmc_vm::ffi::evmc_vm_steppable {
-    let new_instance = ::evmc_vm::ffi::evmc_vm_steppable {
-        vm: crate::ffi::evmc_vm::evmc_create_evmrs() as *mut ::evmc_vm::ffi::evmc_vm,
+extern "C" fn evmc_create_steppable_evmrs() -> *const evmc_vm_steppable {
+    let new_instance = evmc_vm_steppable {
+        vm: evmc_vm::evmc_create_evmrs() as *mut ::evmc_vm::ffi::evmc_vm,
         step_n: Some(__evmc_step_n),
         destroy: Some(__evmc_steppable_destroy),
     };
-    let container = ::evmc_vm::SteppableEvmcContainer::<EvmRs>::new(new_instance);
-    ::evmc_vm::SteppableEvmcContainer::into_ffi_pointer(container)
+    let container = SteppableEvmcContainer::<EvmRs>::new(new_instance);
+
+    // Release ownership to EVMC.
+    SteppableEvmcContainer::into_ffi_pointer(container)
 }
 
-extern "C" fn __evmc_steppable_destroy(instance: *mut ::evmc_vm::ffi::evmc_vm_steppable) {
+extern "C" fn __evmc_steppable_destroy(instance: *mut evmc_vm_steppable) {
     if instance.is_null() {
+        // This is an irrecoverable error that violates the EVMC spec.
         std::process::abort();
     }
     unsafe {
-        ::evmc_vm::SteppableEvmcContainer::<EvmRs>::from_ffi_pointer(instance);
+        // Acquire ownership from EVMC. This will deallocate it also at the end of the scope.
+        SteppableEvmcContainer::<EvmRs>::from_ffi_pointer(instance);
     }
 }
 
-// must be defined in evmc_declare_vm
-const EVMC_CAPABILITY_PRECOMPILES: bool = false;
-
 #[no_mangle]
 extern "C" fn __evmc_step_n(
-    instance: *mut evmc_vm::ffi::evmc_vm_steppable,
-    host: *const evmc_vm::ffi::evmc_host_interface,
-    context: *mut std::ffi::c_void,
-    revision: evmc_vm::ffi::evmc_revision,
-    message: *const evmc_vm::ffi::evmc_message,
+    instance: *mut evmc_vm_steppable,
+    host: *const evmc_host_interface,
+    context: *mut c_void,
+    revision: evmc_revision,
+    message: *const evmc_message,
     code: *const u8,
     code_size: usize,
-    status: evmc_vm::ffi::evmc_step_status_code,
+    status: evmc_step_status_code,
     pc: u64,
     gas_refunds: i64,
-    stack: *mut evmc_vm::ffi::evmc_bytes32,
+    stack: *mut evmc_bytes32,
     stack_size: usize,
     memory: *mut u8,
     memory_size: usize,
     last_call_result_data: *mut u8,
     last_call_result_data_size: usize,
     steps: i32,
-) -> evmc_vm::ffi::evmc_step_result {
+) -> evmc_step_result {
     if instance.is_null()
-        || (host.is_null() && !EVMC_CAPABILITY_PRECOMPILES)
+        || (host.is_null() && EVMC_CAPABILITY != evmc_capabilities::EVMC_CAPABILITY_PRECOMPILES)
         || message.is_null()
         || (code.is_null() && code_size > 0)
         || (stack.is_null() && stack_size > 0)
         || (memory.is_null() && memory_size > 0)
         || (last_call_result_data.is_null() && last_call_result_data_size > 0)
     {
+        // These are irrecoverable errors that violate the EVMC spec.
         std::process::abort();
     }
-    let execution_message: ::evmc_vm::ExecutionMessage =
-        //unsafe { message.as_ref().expect("EVMC message is null").into() };
-        unsafe { (&*message).into() };
-    let code_ref: &[u8] = if code.is_null() {
+
+    let execution_message: ExecutionMessage = unsafe {
+        // SAFETY:
+        // message is not null
+        (&*message).into()
+    };
+
+    let code_ref = if code.is_null() {
         &[]
     } else {
         // SAFETY:
         // code is not null and code size > 0
-        unsafe { ::std::slice::from_raw_parts(code, code_size) }
+        unsafe { slice::from_raw_parts(code, code_size) }
     };
-    let container =
-        unsafe { ::evmc_vm::SteppableEvmcContainer::<EvmRs>::from_ffi_pointer(instance) };
 
-    let result = ::std::panic::catch_unwind(|| {
+    let container = unsafe {
+        // Acquire ownership from EVMC.
+        SteppableEvmcContainer::<EvmRs>::from_ffi_pointer(instance)
+    };
+
+    let result = panic::catch_unwind(|| {
         let mut execution_context = if host.is_null() {
             None
         } else {
-            Some(unsafe {
-                ExecutionContext::new(host.as_ref().expect("EVMC host is null"), context)
-            })
+            let execution_context = unsafe { ::evmc_vm::ExecutionContext::new(&*host, context) };
+            Some(execution_context)
         };
+
         let stack = if stack.is_null() {
             &mut []
         } else {
-            unsafe { slice::from_raw_parts_mut(stack, stack_size) }
+            unsafe {
+                // SAFETY:
+                // stack is not null and stack size > 0
+                slice::from_raw_parts_mut(stack, stack_size)
+            }
         };
+
         let memory = if memory.is_null() {
             &mut []
         } else {
-            unsafe { slice::from_raw_parts_mut(memory, memory_size) }
+            unsafe {
+                // SAFETY:
+                // memory is not null and memory size > 0
+                slice::from_raw_parts_mut(memory, memory_size)
+            }
         };
+
         let last_call_result_data = if last_call_result_data.is_null() {
             &mut []
         } else {
-            unsafe { slice::from_raw_parts_mut(last_call_result_data, last_call_result_data_size) }
+            unsafe {
+                // SAFETY:
+                // last call return data is not null and size > 0
+                slice::from_raw_parts_mut(last_call_result_data, last_call_result_data_size)
+            }
         };
+
         container.step_n(
             revision,
             code_ref,
@@ -113,22 +147,22 @@ extern "C" fn __evmc_step_n(
             steps,
         )
     });
-    ::evmc_vm::SteppableEvmcContainer::into_ffi_pointer(container);
+
+    // Release ownership to EVMC.
+    SteppableEvmcContainer::into_ffi_pointer(container);
 
     result
-        .unwrap_or_else(|_| {
-            StepResult::new(
-                StepStatusCode::EVMC_STEP_FAILED,
-                StatusCode::EVMC_INTERNAL_ERROR,
-                revision,
-                0,
-                0,
-                0,
-                None,
-                Vec::new(),
-                Vec::new(),
-                None,
-            )
-        })
+        .unwrap_or(StepResult::new(
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_INTERNAL_ERROR,
+            revision,
+            0,
+            0,
+            0,
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+        ))
         .into()
 }
