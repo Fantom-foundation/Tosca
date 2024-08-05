@@ -369,7 +369,11 @@ pub fn run(
                 stack.push(context.get_tx_context().blob_base_fee.into());
                 pc += 1;
             }
-            opcode::POP => unimplemented!(),
+            opcode::POP => {
+                consume_gas::<2>(&mut gas_left)?;
+                let [_] = pop_from_stack(&mut stack)?;
+                pc += 1;
+            }
             opcode::MLOAD => unimplemented!(),
             opcode::MSTORE => unimplemented!(),
             opcode::MSTORE8 => unimplemented!(),
@@ -377,10 +381,28 @@ pub fn run(
             opcode::SSTORE => unimplemented!(),
             opcode::JUMP => unimplemented!(),
             opcode::JUMPI => unimplemented!(),
-            opcode::PC => unimplemented!(),
-            opcode::MSIZE => unimplemented!(),
-            opcode::GAS => unimplemented!(),
-            opcode::JUMPDEST => unimplemented!(),
+            opcode::PC => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push((pc as u64).into());
+                pc += 1;
+            }
+            opcode::MSIZE => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push((memory.len() as u64).into());
+                pc += 1;
+            }
+            opcode::GAS => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push((gas_left as u64).into());
+                pc += 1;
+            }
+            opcode::JUMPDEST => {
+                consume_gas::<1>(&mut gas_left)?;
+                pc += 1;
+            }
             opcode::TLOAD => unimplemented!(),
             opcode::TSTORE => unimplemented!(),
             opcode::MCOPY => unimplemented!(),
