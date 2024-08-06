@@ -2,9 +2,10 @@ use std::{cmp::min, iter, mem, slice};
 
 use bnum::types::U256;
 use evmc_vm::{
-    ExecutionContext, ExecutionMessage, MessageFlags, Revision, StatusCode, StepResult,
+    AccessStatus, ExecutionContext, ExecutionMessage, Revision, StatusCode, StepResult,
     StepStatusCode, Uint256,
 };
+use sha3::{Digest, Keccak256};
 
 use crate::types::{opcode, u256};
 
@@ -200,7 +201,22 @@ pub fn run(
                 stack.push(top2.sar(top));
                 code_state.next();
             }
-            opcode::SHA3 => unimplemented!(),
+            opcode::SHA3 => {
+                consume_gas::<30>(&mut gas_left)?;
+                let [offset, len] = pop_from_stack(&mut stack)?;
+
+                let memory_access = access_memory_slice(&mut memory, offset, len, &mut gas_left)?;
+
+                let len = U256::from(len).digits()[0] as usize;
+                let min_word_size = (len as u64 + 31) / 32;
+                consume_dyn_gas(&mut gas_left, 6 * min_word_size)?;
+
+                let mut hasher = Keccak256::new();
+                hasher.update(memory_access);
+                let result = hasher.finalize();
+                stack.push(result.as_slice().try_into().unwrap());
+                code_state.next();
+            }
             opcode::ADDRESS => {
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
@@ -825,11 +841,15 @@ fn expand_memory(
     Ok(())
 }
 
-fn access_memory_word<'m>(
+fn access_memory_slice<'m>(
     memory: &'m mut Vec<u8>,
     offset: u256,
+    len: u256,
     gas_left: &mut i64,
 ) -> Result<&'m mut [u8], (StepStatusCode, StatusCode)> {
+    if len == u256::ZERO {
+        return Ok(&mut []);
+    }
     let offset = U256::from(offset);
     // If the destination does not fit into u64 there is definitely not enough gas
     if offset > u64::MAX.into() {
@@ -838,11 +858,29 @@ fn access_memory_word<'m>(
             StatusCode::EVMC_INVALID_MEMORY_ACCESS,
         ));
     }
+    let len = U256::from(len);
+    // If len does not fit into u64 there is definitely not enough gas
+    if len > u64::MAX.into() {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_INVALID_MEMORY_ACCESS,
+        ));
+    }
     let offset = offset.digits()[0] as usize;
-    let new_len = (offset + 32 + 31) / 32 * 32;
+    let len = len.digits()[0] as usize;
+    let end = offset + len;
+    let new_len = (end + 31) / 32 * 32;
     expand_memory(memory, new_len, gas_left)?;
 
-    Ok(&mut memory[offset..offset + 32])
+    Ok(&mut memory[offset..end])
+}
+
+fn access_memory_word<'m>(
+    memory: &'m mut Vec<u8>,
+    offset: u256,
+    gas_left: &mut i64,
+) -> Result<&'m mut [u8], (StepStatusCode, StatusCode)> {
+    access_memory_slice(memory, offset, 32u8.into(), gas_left)
 }
 
 fn access_memory_byte<'m>(
@@ -850,17 +888,5 @@ fn access_memory_byte<'m>(
     offset: u256,
     gas_left: &mut i64,
 ) -> Result<&'m mut u8, (StepStatusCode, StatusCode)> {
-    let offset = U256::from(offset);
-    // If the destination does not fit into u64 there is definitely not enough gas
-    if offset > u64::MAX.into() {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_INVALID_MEMORY_ACCESS,
-        ));
-    }
-    let offset = offset.digits()[0] as usize;
-    let new_len = (offset + 1 + 31) / 32 * 32;
-    expand_memory(memory, new_len, gas_left)?;
-
-    Ok(&mut memory[offset])
+    access_memory_slice(memory, offset, 1u8.into(), gas_left).map(|slice| &mut slice[0])
 }
