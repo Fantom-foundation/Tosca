@@ -380,7 +380,24 @@ pub fn run(
             opcode::MLOAD => unimplemented!(),
             opcode::MSTORE => unimplemented!(),
             opcode::MSTORE8 => unimplemented!(),
-            opcode::SLOAD => unimplemented!(),
+            opcode::SLOAD => {
+                if revision < Revision::EVMC_BERLIN {
+                    consume_gas::<800>(&mut gas_left)?;
+                } else {
+                    consume_gas::<100>(&mut gas_left)?;
+                }
+                let [key] = pop_from_stack(&mut stack)?;
+                let key = key.into();
+                let addr = message.recipient();
+                if revision >= Revision::EVMC_BERLIN
+                    && context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD
+                {
+                    consume_gas::<2000>(&mut gas_left)?;
+                }
+                let value = context.get_storage(addr, &key);
+                stack.push(value.into());
+                code_state.next();
+            }
             opcode::SSTORE => unimplemented!(),
             opcode::JUMP => {
                 consume_gas::<8>(&mut gas_left)?;
@@ -607,7 +624,7 @@ fn check_min_revision(
     if revision < min_revision {
         return Err((
             StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_INTERNAL_ERROR,
+            StatusCode::EVMC_UNDEFINED_INSTRUCTION,
         ));
     }
     Ok(())
