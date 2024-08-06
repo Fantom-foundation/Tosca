@@ -1,4 +1,4 @@
-use std::{cmp::min, mem, slice};
+use std::{cmp::min, iter, mem, slice};
 
 use bnum::types::U256;
 use evmc_vm::{
@@ -455,9 +455,31 @@ pub fn run(
                 let [_] = pop_from_stack(&mut stack)?;
                 code_state.next();
             }
-            opcode::MLOAD => unimplemented!(),
-            opcode::MSTORE => unimplemented!(),
-            opcode::MSTORE8 => unimplemented!(),
+            opcode::MLOAD => {
+                consume_gas::<3>(&mut gas_left)?;
+                let [offset] = pop_from_stack(&mut stack)?;
+
+                let memory_access: &[u8] = access_memory_word(&mut memory, offset, &mut gas_left)?;
+                stack.push(memory_access.try_into().unwrap());
+                code_state.next();
+            }
+            opcode::MSTORE => {
+                consume_gas::<3>(&mut gas_left)?;
+                let [offset, value] = pop_from_stack(&mut stack)?;
+
+                let bytes: [u8; 32] = value.into();
+                let memory_access = access_memory_word(&mut memory, offset, &mut gas_left)?;
+                memory_access.copy_from_slice(&bytes);
+                code_state.next();
+            }
+            opcode::MSTORE8 => {
+                consume_gas::<3>(&mut gas_left)?;
+                let [offset, value] = pop_from_stack(&mut stack)?;
+
+                let memory_access = access_memory_byte(&mut memory, offset, &mut gas_left)?;
+                *memory_access = value[31];
+                code_state.next();
+            }
             opcode::SLOAD => {
                 if revision < Revision::EVMC_BERLIN {
                     consume_gas::<800>(&mut gas_left)?;
@@ -775,4 +797,70 @@ fn nth_ref_from_stack<const N: usize>(
     }
 
     Ok(&stack[stack.len() - N])
+}
+
+fn memory_cost(size: usize) -> Result<usize, (StepStatusCode, StatusCode)> {
+    let memory_size_word = (size + 31) / 32;
+    let Some(pow2) = memory_size_word.checked_pow(2) else {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_OUT_OF_GAS,
+        ));
+    };
+    Ok(pow2 / 512 + (3 * memory_size_word))
+}
+
+fn expand_memory(
+    memory: &mut Vec<u8>,
+    new_len: usize,
+    gas_left: &mut i64,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    let current_len = memory.len();
+    if new_len > current_len {
+        let memory_expansion_cost = memory_cost(new_len)? - memory_cost(current_len)?;
+        consume_dyn_gas(gas_left, memory_expansion_cost as u64)?;
+
+        memory.extend(iter::repeat(0).take(new_len - current_len))
+    }
+    Ok(())
+}
+
+fn access_memory_word<'m>(
+    memory: &'m mut Vec<u8>,
+    offset: u256,
+    gas_left: &mut i64,
+) -> Result<&'m mut [u8], (StepStatusCode, StatusCode)> {
+    let offset = U256::from(offset);
+    // If the destination does not fit into u64 there is definitely not enough gas
+    if offset > u64::MAX.into() {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_INVALID_MEMORY_ACCESS,
+        ));
+    }
+    let offset = offset.digits()[0] as usize;
+    let new_len = (offset + 32 + 31) / 32 * 32;
+    expand_memory(memory, new_len, gas_left)?;
+
+    Ok(&mut memory[offset..offset + 32])
+}
+
+fn access_memory_byte<'m>(
+    memory: &'m mut Vec<u8>,
+    offset: u256,
+    gas_left: &mut i64,
+) -> Result<&'m mut u8, (StepStatusCode, StatusCode)> {
+    let offset = U256::from(offset);
+    // If the destination does not fit into u64 there is definitely not enough gas
+    if offset > u64::MAX.into() {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_INVALID_MEMORY_ACCESS,
+        ));
+    }
+    let offset = offset.digits()[0] as usize;
+    let new_len = (offset + 1 + 31) / 32 * 32;
+    expand_memory(memory, new_len, gas_left)?;
+
+    Ok(&mut memory[offset])
 }
