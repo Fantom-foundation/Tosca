@@ -13,6 +13,8 @@ package common
 import (
 	"encoding/json"
 	"testing"
+
+	"pgregory.net/rand"
 )
 
 func TestBytes_EqualWhenContainingSameContent(t *testing.T) {
@@ -97,5 +99,46 @@ func TestBytes_InvalidJsonFails(t *testing.T) {
 				t.Errorf("decoding should have failed, but got %v", restored)
 			}
 		})
+	}
+}
+
+func TestBytes_RandomBytesProducesRandom(t *testing.T) {
+
+	rnd := rand.New()
+
+	for i := 0; i < 10000; i++ {
+		b1 := RandomBytes(rnd, 100)
+		allZeros := true
+		for _, b := range b1.data {
+			if b != 0 {
+				allZeros = false
+				break
+			}
+		}
+
+		if len(b1.data) > 0 && allZeros {
+			t.Errorf("RandomBytes produced all zeros: %v, len:v %v", b1.data, len(b1.data))
+		}
+	}
+}
+
+func TestBytes_String(t *testing.T) {
+	b := NewBytes([]byte{1, 2, 3})
+	if b.String() != "0x010203" {
+		t.Errorf("unexpected string representation, got %v", b.String())
+	}
+}
+
+func TestBytes_Length(t *testing.T) {
+	b := NewBytes([]byte{1, 2, 3})
+	if b.Length() != 3 {
+		t.Errorf("unexpected length, got %v", b.Length())
+	}
+}
+
+func TestBytes_Get(t *testing.T) {
+	b := NewBytes([]byte{1, 2, 3})
+	if got := b.Get(1, 2); string(got) != "\x02" {
+		t.Errorf("unexpected slice, got %v", got)
 	}
 }
