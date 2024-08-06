@@ -15,14 +15,13 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
-const sufficientGas = tosca.Gas(1000000000000)
+const sufficientGas = tosca.Gas(500_000_000_000)
 
 type callProperties struct {
 	callType    vm.OpCode
@@ -130,9 +129,6 @@ func TestProcessor_MaximalCallDepthIsEnforced(t *testing.T) {
 
 func TestProcessor_DifferentCallTypesAccessStorage(t *testing.T) {
 	for processorName, processor := range getProcessors() {
-		if strings.Contains(processorName, "floria") {
-			continue // todo implement different call types
-		}
 		for callName, call := range callTypesAndProperties() {
 			t.Run(fmt.Sprintf("%s-%s", processorName, callName), func(t *testing.T) {
 				sender0 := tosca.Address{1}
@@ -200,9 +196,6 @@ func TestProcessor_DifferentCallTypesAccessStorage(t *testing.T) {
 
 func TestProcessor_DifferentCallTypesHandleValueCorrectly(t *testing.T) {
 	for processorName, processor := range getProcessors() {
-		if strings.Contains(processorName, "floria") {
-			continue // todo implement different call types
-		}
 		for callName, call := range callTypesAndProperties() {
 			t.Run(fmt.Sprintf("%s-%s", processorName, callName), func(t *testing.T) {
 				sender0 := tosca.Address{1}
@@ -270,9 +263,6 @@ func TestProcessor_DifferentCallTypesHandleValueCorrectly(t *testing.T) {
 
 func TestProcessor_DifferentCallTypesSetTheCorrectSender(t *testing.T) {
 	for processorName, processor := range getProcessors() {
-		if strings.Contains(processorName, "floria") {
-			continue // todo implement different call types
-		}
 		for callName, call := range callTypesAndProperties() {
 			t.Run(fmt.Sprintf("%s-%s", processorName, callName), func(t *testing.T) {
 				sender0 := tosca.Address{1}
@@ -333,9 +323,6 @@ func TestProcessor_DifferentCallTypesSetTheCorrectSender(t *testing.T) {
 
 func TestProcessor_RecursiveCallsAfterAStaticCallAreStatic(t *testing.T) {
 	for processorName, processor := range getProcessors() {
-		if strings.Contains(processorName, "floria") {
-			continue // todo implement different call types
-		}
 		calls := callTypesAndProperties()
 		for callName, call := range calls {
 			t.Run(fmt.Sprintf("%s-%s", processorName, callName), func(t *testing.T) {
@@ -344,7 +331,7 @@ func TestProcessor_RecursiveCallsAfterAStaticCallAreStatic(t *testing.T) {
 				// sender0 --CALL--> receiver0 --STATICCALL--> receiver1
 				// --test.CALL--> receiver2 -> SSTORE
 				// after the first static calls all following calls have to be static,
-				// therefore the SSTORE should revert. The success boolean of the test.CALL
+				// therefore the SSTORE shall revert. The success boolean of the test.CALL
 				// is returned as output.
 
 				sender0 := tosca.Address{1}

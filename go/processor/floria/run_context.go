@@ -22,6 +22,7 @@ type runContext struct {
 	blockParameters       tosca.BlockParameters
 	transactionParameters tosca.TransactionParameters
 	depth                 int
+	static                bool
 }
 
 func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (tosca.CallResult, error) {
@@ -41,16 +42,26 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 	codeHash := r.GetCodeHash(parameters.Recipient)
 	code := r.GetCode(parameters.Recipient)
 
+	sender := parameters.Sender
+	if kind == tosca.DelegateCall || kind == tosca.CallCode {
+		code = r.GetCode(parameters.CodeAddress)
+		codeHash = r.GetCodeHash(parameters.CodeAddress)
+	}
+
+	if kind == tosca.StaticCall {
+		r.static = true
+	}
+
 	interpreterParameters := tosca.Parameters{
 		BlockParameters:       r.blockParameters,
 		TransactionParameters: r.transactionParameters,
 		Context:               r,
 		Kind:                  kind,
-		Static:                kind == tosca.StaticCall,
+		Static:                r.static,
 		Depth:                 r.depth - 1, // depth is already incremented
 		Gas:                   parameters.Gas,
 		Recipient:             parameters.Recipient,
-		Sender:                parameters.Sender,
+		Sender:                sender,
 		Input:                 parameters.Input,
 		Value:                 parameters.Value,
 		CodeHash:              &codeHash,
