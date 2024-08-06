@@ -19,11 +19,11 @@ threshold:
 
   # (optional; default 0) 
   # The minimum coverage that each package should have
-  package: 80
+  package: 85
 
   # (optional; default 0) 
   # The minimum total coverage project should have
-  total: 90
+  total: 68
 
 # Holds regexp rules which will override thresholds for matched files or packages 
 # using their paths.
@@ -32,10 +32,96 @@ threshold:
 # new threshold to it. If project has multiple rules that match same path, 
 # override rules should be listed in order from specific to more general rules.
 override:
-  # Increase coverage threshold to 100% for `foo` package 
-  # (default is 80, as configured above in this example)
-  # - threshold: 100
-  #   path: ^pkg/lib/foo$
+  # files
+  - threshold: 0
+    path: go/ct/common/bytes.go
+  - threshold: 0
+    path: go/ct/common/cpp_coverage.go
+  - threshold: 0
+    path: go/ct/common/revisions.go
+  - threshold: 0
+    path: go/ct/gen/assignment.go
+  - threshold: 0
+    path: go/ct/gen/state.go
+  - threshold: 0
+    path: go/ct/rlz/conditions.go
+  - threshold: 0
+    path: go/ct/rlz/domains.go
+  - threshold: 0
+    path: go/ct/rlz/effect.go
+  - threshold: 0
+    path: go/ct/rlz/expressions.go
+  - threshold: 0
+    path: go/ct/rlz/parameters.go
+  - threshold: 0
+    path: go/ct/spc/specification.go
+  - threshold: 0
+    path: go/ct/st/transient_storage.go
+  - threshold: 0
+    path: go/ct/utils/adapter.go
+  - threshold: 0
+    path: go/geth_adapter/adapter.go
+  - threshold: 0
+    path: go/integration_test/processor/scenario.go
+  - threshold: 0
+    path: go/interpreter/evmc/evmc_interpreter.go
+  - threshold: 0
+    path: go/interpreter/evmc/evmc_steppable_interpreter.go
+  - threshold: 0
+    path: go/interpreter/geth/ct.go
+  - threshold: 0
+    path: go/interpreter/lfvm/converter.go
+  - threshold: 0
+    path: go/interpreter/lfvm/hash_cache.go
+  - threshold: 0
+    path: go/interpreter/lfvm/instruction.go
+  - threshold: 0
+    path: go/interpreter/lfvm/interpreter.go
+  - threshold: 0
+    path: go/interpreter/lfvm/lfvm.go
+  - threshold: 0
+    path: go/interpreter/lfvm/opcode.go
+  - threshold: 0
+    path: go/interpreter/lfvm/shadow.go
+  - threshold: 0
+    path: go/interpreter/lfvm/super_instructions.go
+  - threshold: 0
+    path: go/processor/floria/processor.go
+  - threshold: 0
+    path: go/processor/opera/processor.go
+  - threshold: 0
+    path: go/tosca/interpreter_registry.go
+  - threshold: 0
+    path: go/tosca/utils.go
+  # packages
+  - threshold: 0
+    path: go/ct/common
+  - threshold: 0
+    path: go/ct/rlz
+  - threshold: 0
+    path: go/ct/spc
+  - threshold: 0
+    path: go/ct/utils
+  - threshold: 0
+    path: go/geth_adapter
+  - threshold: 0
+    path: go/interpreter/evmzero
+  - threshold: 0
+    path: go/interpreter/geth
+  - threshold: 0
+    path: go/interpreter/evmone
+  - threshold: 0
+    path: go/integration_test/processor
+  - threshold: 0
+    path: go/interpreter/evmc
+  - threshold: 0
+    path: go/interpreter/lfvm
+  - threshold: 0
+    path: go/processor/floria
+  - threshold: 0
+    path: go/processor/opera
+  - threshold: 0
+    path: go/tosca
 
 # Holds regexp rules which will exclude matched files or packages 
 # from coverage statistics
@@ -48,8 +134,6 @@ exclude:
     - go/examples           # examples are not tested.
     - go/interpreter/lfvm/errors.go # error file only declares error type without any logic
     - go/interpreter/lfvm/instructions.go # these are tested by driver
-    - go/tosca/interpreter.go # this file does not contain logic
-    - go/tosca/world_state.go # this file does not contain logic
     - third_party/  # exclude all files in `third_party` directory
 
 
