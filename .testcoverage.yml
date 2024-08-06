@@ -1,9 +1,19 @@
-# (mandatory) 
+# Copyright (c) 2024 Fantom Foundation
+#
+# Use of this software is governed by the Business Source License included
+# in the LICENSE file and at fantom.foundation/bsl11.
+#
+# Change Date: 2028-4-16
+#
+# On the date above, in accordance with the Business Source License, use of
+# this software will be governed by the GNU Lesser General Public License v3.
+
+# (mandatory)
 # Path to coverprofile file (output of `go test -coverprofile` command).
 #
-# For cases where there are many coverage profiles, such as when running 
+# For cases where there are many coverage profiles, such as when running
 # unit tests and integration tests separately, you can combine all those
-# profiles into one. In this case, the profile should have a comma-separated list 
+# profiles into one. In this case, the profile should have a comma-separated list
 # of profile files, e.g., 'cover_unit.out,cover_integration.out'.
 profile: cover.out
 
