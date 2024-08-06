@@ -49,12 +49,7 @@ threshold:
 # override rules should be listed in order from specific to more general rules.
 override:
   # files
-  - threshold: 0
-    path: go/ct/common/bytes.go
-  - threshold: 0
-    path: go/ct/common/cpp_coverage.go
-  - threshold: 0
-    path: go/ct/common/revisions.go
+  # - threshold: 0
   - threshold: 0
     path: go/ct/gen/assignment.go
   - threshold: 0

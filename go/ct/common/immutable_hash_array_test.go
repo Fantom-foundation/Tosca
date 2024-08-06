@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"pgregory.net/rand"
 )
 
 func TestImmutableHashArray_Equal(t *testing.T) {
@@ -133,5 +134,38 @@ func TestImmutableHashArray_Get(t *testing.T) {
 			}()
 			_ = test.hashes.Get(256)
 		})
+	}
+}
+
+func TestINmmutableHashArray_NewRandomImmutableHashArray(t *testing.T) {
+	rnd := rand.New()
+
+	for i := 0; i < 100; i++ {
+		hashes := NewRandomImmutableHashArray(rnd)
+		for _, hash := range hashes.data {
+			allZeros := true
+			for _, b := range hash {
+				if b != 0 {
+					allZeros = false
+					break
+				}
+			}
+			if allZeros {
+				t.Error("RandomImmutableHashArray produced all zeros")
+			}
+		}
+	}
+}
+
+func TestImmutableHashArray_String(t *testing.T) {
+	hashes := NewImmutableHashArray(tosca.Hash{1})
+
+	hash0 := strings.Repeat("0", 64) + " "
+	hash1 := "&[01" + strings.Repeat("0", 62) + " "
+
+	want := hash1 + strings.Repeat(hash0, 255)[:255*65-1] + "]"
+
+	if got := hashes.String(); strings.Compare(want, got) != 0 {
+		t.Errorf("unexpected string, wanted %v, got %v", want, got)
 	}
 }

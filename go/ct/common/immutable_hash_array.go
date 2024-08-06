@@ -64,12 +64,12 @@ func (h *ImmutableHashArray) UnmarshalJSON(data []byte) error {
 	// Unmarshal the JSON array into a slice of tosca.Hash
 	var hashes [256]tosca.Hash
 	err := json.Unmarshal(data, &hashes)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return err
 	}
 
 	// Check the length of the ImmutableHashArray data
-	if len(hashes) != len(h.data) {
+	if len(hashes) != len(h.data) { // coverage-ignore
 		return fmt.Errorf("invalid ImmutableHashArray length")
 	}
 

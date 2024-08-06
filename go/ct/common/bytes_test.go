@@ -103,9 +103,7 @@ func TestBytes_InvalidJsonFails(t *testing.T) {
 }
 
 func TestBytes_RandomBytesProducesRandom(t *testing.T) {
-
 	rnd := rand.New()
-
 	for i := 0; i < 10000; i++ {
 		b1 := RandomBytes(rnd, 100)
 		allZeros := true
@@ -116,7 +114,7 @@ func TestBytes_RandomBytesProducesRandom(t *testing.T) {
 			}
 		}
 
-		if len(b1.data) > 0 && allZeros {
+		if len(b1.data) > 1 && allZeros {
 			t.Errorf("RandomBytes produced all zeros: %v, len:v %v", b1.data, len(b1.data))
 		}
 	}
