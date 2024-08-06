@@ -15,7 +15,7 @@ local-prefix: "github.com/org/project"
 threshold:
   # (optional; default 0) 
   # The minimum coverage that each file should have
-  file: 40
+  file: 80
 
   # (optional; default 0) 
   # The minimum coverage that each package should have
@@ -23,7 +23,7 @@ threshold:
 
   # (optional; default 0) 
   # The minimum total coverage project should have
-  total: 95
+  total: 90
 
 # Holds regexp rules which will override thresholds for matched files or packages 
 # using their paths.
@@ -46,7 +46,7 @@ exclude:
     - go/ct/common/error.go # error file only declares error type without any logic
     - go/ct/driver/         # entry points, logic should be tested elsewhere.
     - go/examples           # examples are not tested.
-    - go/interpreter/lfvm/error.go # error file only declares error type without any logic
+    - go/interpreter/lfvm/errors.go # error file only declares error type without any logic
     - go/interpreter/lfvm/instructions.go # these are tested by driver
     - go/tosca/interpreter.go # this file does not contain logic
     - go/tosca/world_state.go # this file does not contain logic

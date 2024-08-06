@@ -117,7 +117,7 @@ fuzz-lfvm-diff:
 # fuzz-evmzero-diff:
 # 	go test -fuzz=FuzzDifferentialEvmZeroVsGeth ./go/ct/
 
-coverage-check:
+test-coverage:
 	@go install github.com/vladopajic/go-test-coverage/v2@latest
 	@go test --count=1 --coverprofile=cover.out ./... > /dev/null 2>&1
 	@go-test-coverage --config .testcoverage.yml
