@@ -5,7 +5,7 @@ use evmc_vm::{
     StepStatusCode, SteppableEvmcVm, Uint256,
 };
 
-use crate::types::u256;
+use crate::{interpreter::CodeState, types::u256};
 
 mod ffi;
 mod interpreter;
@@ -26,13 +26,13 @@ impl EvmcVm for EvmRs {
         message: &ExecutionMessage,
         context: &mut ExecutionContext,
     ) -> ExecutionResult {
+        let code_state = CodeState::new(code, 0);
         let step_result = interpreter::run(
             revision,
-            code,
             message,
             context,
             StepStatusCode::EVMC_STEP_RUNNING,
-            0,
+            code_state,
             0,
             Vec::with_capacity(1024),
             Vec::new(),
@@ -65,13 +65,13 @@ impl SteppableEvmcVm for EvmRs {
         last_call_result_data: &'a mut [u8],
         steps: i32,
     ) -> StepResult {
+        let code_state = CodeState::new(code, pc as usize);
         interpreter::run(
             revision,
-            code,
             message,
             context,
             step_status,
-            pc as usize,
+            code_state,
             gas_refund,
             // SAFETY
             // u256 is a newtype of Uint256 with repr(transparent) which guarantees the same memory
