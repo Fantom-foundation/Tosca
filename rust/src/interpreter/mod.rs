@@ -207,7 +207,29 @@ pub fn run(
                 stack.push(message.recipient().into());
                 code_state.next();
             }
-            opcode::BALANCE => unimplemented!(),
+            opcode::BALANCE => {
+                let [addr] = pop_from_stack(&mut stack)?;
+                let addr = addr.into();
+
+                let tx_context = context.get_tx_context();
+                if revision >= Revision::EVMC_BERLIN {
+                    if addr != tx_context.tx_origin
+                        && addr != tx_context.tx_origin
+                        && !(revision >= Revision::EVMC_SHANGHAI
+                            && addr == tx_context.block_coinbase)
+                        && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
+                    {
+                        consume_gas::<2600>(&mut gas_left)?;
+                    } else {
+                        consume_gas::<100>(&mut gas_left)?;
+                    }
+                } else {
+                    consume_gas::<700>(&mut gas_left)?;
+                }
+
+                stack.push(context.get_balance(&addr).into());
+                code_state.next();
+            }
             opcode::ORIGIN => {
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
@@ -270,11 +292,67 @@ pub fn run(
                 stack.push(context.get_tx_context().tx_gas_price.into());
                 code_state.next();
             }
-            opcode::EXTCODESIZE => unimplemented!(),
+            opcode::EXTCODESIZE => {
+                let [addr] = pop_from_stack(&mut stack)?;
+                let addr = addr.into();
+
+                let tx_context = context.get_tx_context();
+                if revision >= Revision::EVMC_BERLIN {
+                    if addr != tx_context.tx_origin
+                        && addr != tx_context.tx_origin
+                        && !(revision >= Revision::EVMC_SHANGHAI
+                            && addr == tx_context.block_coinbase)
+                        && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
+                    {
+                        consume_gas::<2600>(&mut gas_left)?;
+                    } else {
+                        consume_gas::<100>(&mut gas_left)?;
+                    }
+                } else {
+                    consume_gas::<700>(&mut gas_left)?;
+                }
+
+                let size = context.get_code_size(&addr);
+                stack.push((size as u64).into());
+                code_state.next();
+            }
             opcode::EXTCODECOPY => unimplemented!(),
-            opcode::RETURNDATASIZE => unimplemented!(),
+            opcode::RETURNDATASIZE => {
+                consume_gas::<2>(&mut gas_left)?;
+                check_stack_overflow::<1>(&stack)?;
+                stack.push(
+                    (last_call_return_data
+                        .as_ref()
+                        .map(|data| data.len())
+                        .unwrap_or_default() as u64)
+                        .into(),
+                );
+                code_state.next();
+            }
             opcode::RETURNDATACOPY => unimplemented!(),
-            opcode::EXTCODEHASH => unimplemented!(),
+            opcode::EXTCODEHASH => {
+                let [addr] = pop_from_stack(&mut stack)?;
+                let addr = addr.into();
+
+                let tx_context = context.get_tx_context();
+                if revision >= Revision::EVMC_BERLIN {
+                    if addr != tx_context.tx_origin
+                        && addr != tx_context.tx_origin
+                        && !(revision >= Revision::EVMC_SHANGHAI
+                            && addr == tx_context.block_coinbase)
+                        && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
+                    {
+                        consume_gas::<2600>(&mut gas_left)?;
+                    } else {
+                        consume_gas::<100>(&mut gas_left)?;
+                    }
+                } else {
+                    consume_gas::<700>(&mut gas_left)?;
+                }
+
+                stack.push(context.get_code_hash(&addr).into());
+                code_state.next();
+            }
             opcode::BLOCKHASH => {
                 consume_gas::<20>(&mut gas_left)?;
                 let [block_number] = pop_from_stack(&mut stack)?;
