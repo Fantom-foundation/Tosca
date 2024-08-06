@@ -1,11 +1,16 @@
-use std::{cmp::min, mem};
+use std::{cmp::min, mem, slice};
 
 use bnum::types::U256;
 use evmc_vm::{
     ExecutionContext, ExecutionMessage, Revision, StatusCode, StepResult, StepStatusCode, Uint256,
 };
 
-use crate::types::{opcode, u256};
+use crate::{
+    interpreter::jumpdest::get_jump_destinations,
+    types::{opcode, u256},
+};
+
+mod jumpdest;
 
 pub fn run(
     revision: Revision,
@@ -23,6 +28,7 @@ pub fn run(
     let mut gas_left = message.gas();
     let mut status_code = StatusCode::EVMC_SUCCESS;
     let mut output = None;
+    let jump_destinations = get_jump_destinations(code);
 
     println!("running test");
     for _ in 0..steps.unwrap_or(i32::MAX) {
@@ -379,8 +385,20 @@ pub fn run(
             opcode::MSTORE8 => unimplemented!(),
             opcode::SLOAD => unimplemented!(),
             opcode::SSTORE => unimplemented!(),
-            opcode::JUMP => unimplemented!(),
-            opcode::JUMPI => unimplemented!(),
+            opcode::JUMP => {
+                consume_gas::<8>(&mut gas_left)?;
+                let [dest] = pop_from_stack(&mut stack)?;
+                jump(dest, &mut pc, &jump_destinations)?;
+            }
+            opcode::JUMPI => {
+                consume_gas::<10>(&mut gas_left)?;
+                let [dest, cond] = pop_from_stack(&mut stack)?;
+                if cond == u256::ZERO {
+                    pc += 1;
+                } else {
+                    jump(dest, &mut pc, &jump_destinations)?;
+                }
+            }
             opcode::PC => {
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
@@ -567,6 +585,26 @@ fn swap<const N: usize>(
 
     stack.swap(len - 1, len - 1 - N);
     *pc += 1;
+
+    Ok(())
+}
+
+fn jump(
+    dest: u256,
+    pc: &mut usize,
+    jump_destinations: &[usize],
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    let dest_full = U256::from(dest);
+    let dest = dest_full.digits()[0] as usize;
+    // If the destination does not fit into u64 it is definitely to large, otherwise check if lowest
+    // 64 bit are in jump_destinations.
+    if dest_full > u64::MAX.into() || !jump_destinations.contains(&dest) {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_BAD_JUMP_DESTINATION,
+        ));
+    }
+    *pc = dest;
 
     Ok(())
 }
