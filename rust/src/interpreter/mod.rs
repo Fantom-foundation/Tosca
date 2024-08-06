@@ -2,7 +2,8 @@ use std::{cmp::min, mem, slice};
 
 use bnum::types::U256;
 use evmc_vm::{
-    ExecutionContext, ExecutionMessage, Revision, StatusCode, StepResult, StepStatusCode, Uint256,
+    ExecutionContext, ExecutionMessage, MessageFlags, Revision, StatusCode, StepResult,
+    StepStatusCode, Uint256,
 };
 
 use crate::types::{opcode, u256};
@@ -417,8 +418,30 @@ pub fn run(
                 consume_gas::<1>(&mut gas_left)?;
                 code_state.next();
             }
-            opcode::TLOAD => unimplemented!(),
-            opcode::TSTORE => unimplemented!(),
+            opcode::TLOAD => {
+                check_min_revision(Revision::EVMC_CANCUN, revision)?;
+                consume_gas::<100>(&mut gas_left)?;
+                let [key] = pop_from_stack(&mut stack)?;
+                let addr = message.recipient();
+                let value = context.get_transient_storage(addr, &key.into());
+                stack.push(value.into());
+                code_state.next();
+            }
+            opcode::TSTORE => {
+                check_min_revision(Revision::EVMC_CANCUN, revision)?;
+                consume_gas::<100>(&mut gas_left)?;
+                let read_only = message.flags() == 1; // = MessageFlags::EVMC_STATIC;
+                if read_only {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_STATIC_MODE_VIOLATION,
+                    ));
+                }
+                let [key, value] = pop_from_stack(&mut stack)?;
+                let addr = message.recipient();
+                context.set_transient_storage(addr, &key.into(), &value.into());
+                code_state.next();
+            }
             opcode::MCOPY => unimplemented!(),
             opcode::PUSH1 => push::<1>(&mut code_state, &mut stack, &mut gas_left)?,
             opcode::PUSH2 => push::<2>(&mut code_state, &mut stack, &mut gas_left)?,
