@@ -1,6 +1,5 @@
 use std::{cmp::min, iter, mem, slice};
 
-use bnum::types::U256;
 use evmc_vm::{
     AccessStatus, ExecutionContext, ExecutionMessage, Revision, StatusCode, StepResult,
     StepStatusCode, Uint256,
@@ -12,6 +11,7 @@ use crate::types::{opcode, u256};
 mod code_state;
 pub use code_state::CodeState;
 
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     revision: Revision,
     message: &ExecutionMessage,
@@ -24,7 +24,7 @@ pub fn run(
     mut last_call_return_data: Option<Vec<u8>>,
     steps: Option<i32>,
 ) -> Result<StepResult, (StepStatusCode, StatusCode)> {
-    let mut gas_left = message.gas();
+    let mut gas_left = message.gas() as u64;
     let mut status_code = StatusCode::EVMC_SUCCESS;
     let mut output = None;
 
@@ -34,7 +34,6 @@ pub fn run(
             return Err((StepStatusCode::EVMC_STEP_FAILED, StatusCode::EVMC_FAILURE));
         };
         match op {
-            //} unsafe { mem::transmute::<u8, Opcode>(code[pc]) } {
             opcode::STOP => {
                 step_status_code = StepStatusCode::EVMC_STEP_STOPPED;
                 status_code = StatusCode::EVMC_SUCCESS;
@@ -207,8 +206,8 @@ pub fn run(
 
                 let memory_access = access_memory_slice(&mut memory, offset, len, &mut gas_left)?;
 
-                let len = U256::from(len).digits()[0] as usize;
-                consume_dyn_gas(&mut gas_left, 6 * word_size(len) as u64)?;
+                let (len, len_overflow) = len.into_u64_with_overflow();
+                consume_dyn_gas(&mut gas_left, 6 * word_size(len))?;
 
                 let mut hasher = Keccak256::new();
                 hasher.update(memory_access);
@@ -226,10 +225,11 @@ pub fn run(
                 let [addr] = pop_from_stack(&mut stack)?;
                 let addr = addr.into();
 
+                // TODO consume_access_cost
                 let tx_context = context.get_tx_context();
                 if revision >= Revision::EVMC_BERLIN {
                     if addr != tx_context.tx_origin
-                        && addr != tx_context.tx_origin
+                        //&& addr != tx_context.tx_to // TODO
                         && !(revision >= Revision::EVMC_SHANGHAI
                             && addr == tx_context.block_coinbase)
                         && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
@@ -266,15 +266,15 @@ pub fn run(
             opcode::CALLDATALOAD => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [offset] = pop_from_stack(&mut stack)?;
-                let offset: U256 = offset.into();
+                let (offset, overflow) = offset.into_u64_with_overflow();
+                let offset = offset as usize;
                 let call_data = message.input().unwrap();
-                if offset >= U256::from(call_data.len()) {
+                if overflow || offset >= call_data.len() {
                     stack.push(u256::ZERO);
                 } else {
-                    let start = offset.digits()[0] as usize;
-                    let end = min(call_data.len(), start + 32);
+                    let end = min(call_data.len(), offset + 32);
                     let mut bytes = [0; 32];
-                    bytes[..end - start].copy_from_slice(&call_data[start..end]);
+                    bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
                     stack.push(bytes.into());
                 }
                 code_state.next();
@@ -283,7 +283,7 @@ pub fn run(
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
                 let call_data = message.input().unwrap();
-                stack.push((call_data.len() as u64).into());
+                stack.push(call_data.len().into());
                 code_state.next();
             }
             opcode::PUSH0 => {
@@ -297,7 +297,7 @@ pub fn run(
             opcode::CODESIZE => {
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
-                stack.push((code_state.code_len() as u64).into());
+                stack.push(code_state.code_len().into());
                 code_state.next();
             }
             opcode::CODECOPY => {
@@ -310,10 +310,10 @@ pub fn run(
 
                     let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
 
-                    let len = U256::from(len).digits()[0] as usize; // len is checked to fit into usize in access_memory_slice
-                    consume_dyn_gas(&mut gas_left, 3 * word_size(len) as u64)?;
+                    let (len, len_overflow) = len.into_u64_with_overflow();
+                    consume_dyn_gas(&mut gas_left, 3 * word_size(len))?;
 
-                    dest[..src.len()].copy_from_slice(&src);
+                    dest[..src.len()].copy_from_slice(src);
                     for byte in &mut dest[src.len()..] {
                         *byte = 0;
                     }
@@ -334,7 +334,7 @@ pub fn run(
                 let tx_context = context.get_tx_context();
                 if revision >= Revision::EVMC_BERLIN {
                     if addr != tx_context.tx_origin
-                        && addr != tx_context.tx_origin
+                        //&& addr != tx_context.tx_to // TODO
                         && !(revision >= Revision::EVMC_SHANGHAI
                             && addr == tx_context.block_coinbase)
                         && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
@@ -348,7 +348,7 @@ pub fn run(
                 }
 
                 let size = context.get_code_size(&addr);
-                stack.push((size as u64).into());
+                stack.push(size.into());
                 code_state.next();
             }
             opcode::EXTCODECOPY => unimplemented!(),
@@ -356,10 +356,10 @@ pub fn run(
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
                 stack.push(
-                    (last_call_return_data
+                    last_call_return_data
                         .as_ref()
                         .map(|data| data.len())
-                        .unwrap_or_default() as u64)
+                        .unwrap_or_default()
                         .into(),
                 );
                 code_state.next();
@@ -372,7 +372,7 @@ pub fn run(
                 let tx_context = context.get_tx_context();
                 if revision >= Revision::EVMC_BERLIN {
                     if addr != tx_context.tx_origin
-                        && addr != tx_context.tx_origin
+                        //&& addr != tx_context.tx_to // TODO
                         && !(revision >= Revision::EVMC_SHANGHAI
                             && addr == tx_context.block_coinbase)
                         && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
@@ -392,12 +392,11 @@ pub fn run(
                 consume_gas::<20>(&mut gas_left)?;
                 let [block_number] = pop_from_stack(&mut stack)?;
                 let current_block_number = context.get_tx_context().block_number;
-                let idx = U256::from(block_number);
-                if idx > U256::from_digit((current_block_number + 255) as u64) {
+                let (idx, idx_overflow) = block_number.into_u64_with_overflow();
+                if idx_overflow || idx > current_block_number as u64 + 255 {
                     stack.push(u256::ZERO);
                 } else {
-                    let idx = idx.digits()[0] as i64;
-                    stack.push(context.get_block_hash(idx).into());
+                    stack.push(context.get_block_hash(idx as i64).into());
                 }
                 code_state.next();
             }
@@ -454,11 +453,10 @@ pub fn run(
                 check_min_revision(Revision::EVMC_CANCUN, revision)?;
                 consume_gas::<3>(&mut gas_left)?;
                 let [idx] = pop_from_stack(&mut stack)?;
-                let idx = U256::from(idx);
+                let (idx, idx_overflow) = idx.into_u64_with_overflow();
+                let idx = idx as usize;
                 let count = context.get_tx_context().blob_hashes_count;
-                if idx < U256::from(count) {
-                    let idx = idx.digits()[0] as usize;
-
+                if !idx_overflow && idx < count {
                     // TODO create new ExecutionTxContext type and do this conversion in mod ffi
                     let hashes = context.get_tx_context().blob_hashes;
                     let hashes: &[Uint256] = if hashes.is_null() {
@@ -551,19 +549,19 @@ pub fn run(
             opcode::PC => {
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
-                stack.push((code_state.pc() as u64).into());
+                stack.push(code_state.pc().into());
                 code_state.next();
             }
             opcode::MSIZE => {
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
-                stack.push((memory.len() as u64).into());
+                stack.push(memory.len().into());
                 code_state.next();
             }
             opcode::GAS => {
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
-                stack.push((gas_left as u64).into());
+                stack.push(gas_left.into());
                 code_state.next();
             }
             opcode::JUMPDEST => {
@@ -605,8 +603,8 @@ pub fn run(
 
                     let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
 
-                    let len = U256::from(len).digits()[0] as usize; // len is checked to fit into usize in access_memory_slice
-                    consume_dyn_gas(&mut gas_left, 3 * word_size(len) as u64)?;
+                    let (len, len_overflow) = len.into_u64_with_overflow();
+                    consume_dyn_gas(&mut gas_left, 3 * word_size(len))?;
 
                     dest.copy_from_slice(&src);
                 }
@@ -707,7 +705,7 @@ pub fn run(
         status_code,
         revision,
         code_state.pc() as u64,
-        gas_left,
+        gas_left as i64,
         gas_refund,
         output,
         // SAFETY
@@ -722,7 +720,7 @@ pub fn run(
 fn push<const N: usize>(
     code_state: &mut CodeState,
     stack: &mut Vec<u256>,
-    gas_left: &mut i64,
+    gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     consume_gas::<3>(gas_left)?;
     check_stack_overflow::<1>(stack)?;
@@ -736,7 +734,7 @@ fn push<const N: usize>(
 fn dup<const N: usize>(
     code_state: &mut CodeState,
     stack: &mut Vec<u256>,
-    gas_left: &mut i64,
+    gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     consume_gas::<3>(gas_left)?;
     check_stack_overflow::<1>(stack)?;
@@ -752,7 +750,7 @@ fn dup<const N: usize>(
 fn swap<const N: usize>(
     code_state: &mut CodeState,
     stack: &mut [u256],
-    gas_left: &mut i64,
+    gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     consume_gas::<3>(gas_left)?;
     let len = stack.len();
@@ -784,26 +782,26 @@ fn check_min_revision(
 }
 
 #[inline(always)]
-fn consume_gas<const GAS: u64>(gas_left: &mut i64) -> Result<(), (StepStatusCode, StatusCode)> {
-    if *gas_left < (GAS as i64) {
+fn consume_gas<const GAS: u64>(gas_left: &mut u64) -> Result<(), (StepStatusCode, StatusCode)> {
+    if *gas_left < GAS {
         return Err((
             StepStatusCode::EVMC_STEP_FAILED,
             StatusCode::EVMC_OUT_OF_GAS,
         ));
     }
-    *gas_left -= GAS as i64;
+    *gas_left -= GAS;
     Ok(())
 }
 
 #[inline(always)]
-fn consume_dyn_gas(gas_left: &mut i64, needed: u64) -> Result<(), (StepStatusCode, StatusCode)> {
-    if *gas_left < (needed as i64) {
+fn consume_dyn_gas(gas_left: &mut u64, gas: u64) -> Result<(), (StepStatusCode, StatusCode)> {
+    if *gas_left < gas {
         return Err((
             StepStatusCode::EVMC_STEP_FAILED,
             StatusCode::EVMC_OUT_OF_GAS,
         ));
     }
-    *gas_left -= needed as i64;
+    *gas_left -= gas;
     Ok(())
 }
 
@@ -852,7 +850,7 @@ fn nth_ref_from_stack<const N: usize>(
     Ok(&stack[stack.len() - N])
 }
 
-fn memory_cost(size: usize) -> Result<usize, (StepStatusCode, StatusCode)> {
+fn memory_cost(size: u64) -> Result<u64, (StepStatusCode, StatusCode)> {
     let memory_size_word = word_size(size);
     let Some(pow2) = memory_size_word.checked_pow(2) else {
         return Err((
@@ -865,15 +863,15 @@ fn memory_cost(size: usize) -> Result<usize, (StepStatusCode, StatusCode)> {
 
 fn expand_memory(
     memory: &mut Vec<u8>,
-    new_len: usize,
-    gas_left: &mut i64,
+    new_len: u64,
+    gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    let current_len = memory.len();
+    let current_len = memory.len() as u64;
     if new_len > current_len {
         let memory_expansion_cost = memory_cost(new_len)? - memory_cost(current_len)?;
-        consume_dyn_gas(gas_left, memory_expansion_cost as u64)?;
+        consume_dyn_gas(gas_left, memory_expansion_cost)?;
 
-        memory.extend(iter::repeat(0).take(new_len - current_len))
+        memory.extend(iter::repeat(0).take((new_len - current_len) as usize))
     }
     Ok(())
 }
@@ -882,33 +880,30 @@ fn access_memory_slice<'m>(
     memory: &'m mut Vec<u8>,
     offset: u256,
     len: u256,
-    gas_left: &mut i64,
+    gas_left: &mut u64,
 ) -> Result<&'m mut [u8], (StepStatusCode, StatusCode)> {
     if len == u256::ZERO {
         return Ok(&mut []);
     }
-    let offset = U256::from(offset);
-    let len = U256::from(len);
-    // If the destination or len does not fit into u64 there is definitely not enough gas
-    if offset > u64::MAX.into() || len > u64::MAX.into() {
+    let (offset, offset_overflow) = offset.into_u64_with_overflow();
+    let (len, len_overflow) = len.into_u64_with_overflow();
+    if offset_overflow || len_overflow {
         return Err((
             StepStatusCode::EVMC_STEP_FAILED,
             StatusCode::EVMC_INVALID_MEMORY_ACCESS,
         ));
     }
-    let offset = offset.digits()[0] as usize;
-    let len = len.digits()[0] as usize;
     let end = offset + len;
     let new_len = word_size(end) * 32;
     expand_memory(memory, new_len, gas_left)?;
 
-    Ok(&mut memory[offset..end])
+    Ok(&mut memory[offset as usize..end as usize])
 }
 
 fn access_memory_word<'m>(
     memory: &'m mut Vec<u8>,
     offset: u256,
-    gas_left: &mut i64,
+    gas_left: &mut u64,
 ) -> Result<&'m mut [u8], (StepStatusCode, StatusCode)> {
     access_memory_slice(memory, offset, 32u8.into(), gas_left)
 }
@@ -916,11 +911,11 @@ fn access_memory_word<'m>(
 fn access_memory_byte<'m>(
     memory: &'m mut Vec<u8>,
     offset: u256,
-    gas_left: &mut i64,
+    gas_left: &mut u64,
 ) -> Result<&'m mut u8, (StepStatusCode, StatusCode)> {
     access_memory_slice(memory, offset, 1u8.into(), gas_left).map(|slice| &mut slice[0])
 }
 
-fn word_size(bytes: usize) -> usize {
+fn word_size(bytes: u64) -> u64 {
     (bytes + 31) / 32
 }

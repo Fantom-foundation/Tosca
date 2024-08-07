@@ -129,6 +129,12 @@ impl From<u64> for u256 {
     }
 }
 
+impl From<usize> for u256 {
+    fn from(value: usize) -> Self {
+        (value as u64).into()
+    }
+}
+
 impl From<Address> for u256 {
     fn from(value: Address) -> Self {
         let mut bytes = [0; 32];
@@ -167,6 +173,14 @@ impl TryFrom<&[u8]> for u256 {
         let mut bytes = [0; 32];
         bytes[32 - len..].copy_from_slice(value);
         Ok(bytes.into())
+    }
+}
+
+impl u256 {
+    pub fn into_u64_with_overflow(self) -> (u64, bool) {
+        let bytes: [u8; 32] = self.into();
+        let [first, second, third, fourth] = unsafe { mem::transmute::<[u8; 32], [u64; 4]>(bytes) };
+        (u64::from_be(fourth), first > 0 || second > 0 || third > 0)
     }
 }
 
@@ -225,11 +239,11 @@ impl Div for u256 {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
+        if rhs == u256::ZERO {
+            return u256::ZERO;
+        }
         let lhs: U256 = self.into();
         let rhs: U256 = rhs.into();
-        if rhs == U256::ZERO {
-            return U256::ZERO.into();
-        }
 
         lhs.wrapping_div(rhs).into()
     }
@@ -243,11 +257,11 @@ impl DivAssign for u256 {
 
 impl u256 {
     pub fn sdiv(self, rhs: Self) -> Self {
-        let lhs: I256 = self.into();
-        let rhs: I256 = rhs.into();
-        if rhs == I256::ZERO {
+        if rhs == u256::ZERO {
             return u256::ZERO;
         }
+        let lhs: I256 = self.into();
+        let rhs: I256 = rhs.into();
 
         lhs.wrapping_div(rhs).into()
     }
@@ -257,11 +271,11 @@ impl Rem for u256 {
     type Output = Self;
 
     fn rem(self, rhs: Self) -> Self::Output {
-        let lhs: U256 = self.into();
-        let rhs: U256 = rhs.into();
-        if rhs == U256::ZERO {
+        if rhs == u256::ZERO {
             return u256::ZERO;
         }
+        let lhs: U256 = self.into();
+        let rhs: U256 = rhs.into();
 
         lhs.wrapping_rem(rhs).into()
     }
@@ -275,33 +289,33 @@ impl RemAssign for u256 {
 
 impl u256 {
     pub fn srem(self, rhs: Self) -> Self {
-        let lhs: I256 = self.into();
-        let rhs: I256 = rhs.into();
-        if rhs == I256::ZERO {
+        if rhs == u256::ZERO {
             return u256::ZERO;
         }
+        let lhs: I256 = self.into();
+        let rhs: I256 = rhs.into();
 
         lhs.wrapping_rem(rhs).into()
     }
 
     pub fn addmod(s1: Self, s2: Self, m: Self) -> Self {
+        if m == u256::ZERO {
+            return u256::ZERO;
+        }
         let s1: U512 = s1.into();
         let s2: U512 = s2.into();
         let m: U512 = m.into();
-        if m == U512::ZERO {
-            return u256::ZERO;
-        }
 
         (s1 + s2).rem(m).into()
     }
 
     pub fn mulmod(s1: Self, s2: Self, m: Self) -> Self {
+        if m == u256::ZERO {
+            return u256::ZERO;
+        }
         let f1: U512 = s1.into();
         let f2: U512 = s2.into();
         let m: U512 = m.into();
-        if m == U512::ZERO {
-            return u256::ZERO;
-        }
 
         (f1 * f2).rem(m).into()
     }
@@ -322,12 +336,14 @@ impl u256 {
     }
 
     pub fn signextend(self, rhs: Self) -> Self {
-        if U256::from(self) > U256::from_digit(31) {
+        let (lhs, lhs_overflow) = self.into_u64_with_overflow();
+        let lhs = lhs as usize;
+        if lhs_overflow || lhs > 31 {
             return rhs;
         }
 
-        let byte = 31 - self[31]; // self <= 31 so it fits into the lower significant bit
-        let negative = (rhs[byte as usize] & 0x80) > 0;
+        let byte = 31 - lhs; // lhs <= 31 so this does not underflow
+        let negative = (rhs[byte] & 0x80) > 0;
 
         let rhs: U256 = rhs.into();
 
@@ -436,10 +452,10 @@ impl Shl for u256 {
     type Output = Self;
 
     fn shl(self, rhs: Self) -> Self::Output {
-        let value: U256 = self.into();
         if rhs > u256::from(255u8) {
             return u256::ZERO;
         }
+        let value: U256 = self.into();
         let shift = rhs[31] as u32;
         (value.wrapping_shl(shift)).into()
     }
@@ -449,10 +465,10 @@ impl Shr for u256 {
     type Output = Self;
 
     fn shr(self, rhs: Self) -> Self::Output {
-        let value: U256 = self.into();
         if rhs > u256::from(255u8) {
             return u256::ZERO;
         }
+        let value: U256 = self.into();
         let shift = rhs[31] as u32;
         (value.wrapping_shr(shift)).into()
     }
@@ -460,7 +476,6 @@ impl Shr for u256 {
 
 impl u256 {
     pub fn sar(self, rhs: Self) -> Self {
-        let value: U256 = self.into();
         let negative = self[0] & 0x80 > 0;
         if rhs > u256::from(255u8) {
             if negative {
@@ -469,6 +484,7 @@ impl u256 {
                 return u256::ZERO;
             }
         }
+        let value: U256 = self.into();
         let shift = rhs[31] as u32;
         let mut shr = value.wrapping_shr(shift);
         if negative {
