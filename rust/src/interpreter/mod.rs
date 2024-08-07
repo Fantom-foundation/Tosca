@@ -204,11 +204,16 @@ pub fn run(
                 consume_gas::<30>(&mut gas_left)?;
                 let [offset, len] = pop_from_stack(&mut stack)?;
 
-                let memory_access = access_memory_slice(&mut memory, offset, len, &mut gas_left)?;
-
                 let (len, len_overflow) = len.into_u64_with_overflow();
+                if len_overflow {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_INVALID_MEMORY_ACCESS,
+                    ));
+                }
                 consume_dyn_gas(&mut gas_left, 6 * word_size(len))?;
 
+                let memory_access = access_memory_slice(&mut memory, offset, len, &mut gas_left)?;
                 let mut hasher = Keccak256::new();
                 hasher.update(memory_access);
                 let result = hasher.finalize();
@@ -288,18 +293,18 @@ pub fn run(
                 let [dest_offset, offset, len] = pop_from_stack(&mut stack)?;
 
                 if len != u256::ZERO {
-                    // slice may be shorter if out of range
-                    let src = code_state.get_slice(offset, len);
-
-                    let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
-
                     let (len, len_overflow) = len.into_u64_with_overflow();
-                    consume_dyn_gas(&mut gas_left, 3 * word_size(len))?;
-
-                    dest[..src.len()].copy_from_slice(src);
-                    for byte in &mut dest[src.len()..] {
-                        *byte = 0;
+                    if len_overflow {
+                        return Err((
+                            StepStatusCode::EVMC_STEP_FAILED,
+                            StatusCode::EVMC_INVALID_MEMORY_ACCESS,
+                        ));
                     }
+                    consume_copy_cost(&mut gas_left, len)?;
+
+                    let src = get_slice_within_bounds(&code_state, offset, len);
+                    let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
+                    copy_slice_padded(src, dest);
                 }
 
                 code_state.next();
@@ -548,14 +553,18 @@ pub fn run(
                 let [dest_offset, offset, len] = pop_from_stack(&mut stack)?;
 
                 if len != u256::ZERO {
-                    let src = access_memory_slice(&mut memory, offset, len, &mut gas_left)?;
-                    let src = src.to_owned();
-
-                    let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
-
                     let (len, len_overflow) = len.into_u64_with_overflow();
-                    consume_dyn_gas(&mut gas_left, 3 * word_size(len))?;
+                    if len_overflow {
+                        return Err((
+                            StepStatusCode::EVMC_STEP_FAILED,
+                            StatusCode::EVMC_INVALID_MEMORY_ACCESS,
+                        ));
+                    }
+                    consume_copy_cost(&mut gas_left, len)?;
 
+                    let src =
+                        access_memory_slice(&mut memory, offset, len, &mut gas_left)?.to_owned();
+                    let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
                     dest.copy_from_slice(&src);
                 }
 
@@ -767,7 +776,7 @@ fn consume_address_access_cost(
         if *addr != tx_context.tx_origin
             //&& addr != tx_context.tx_to // TODO
             && !(revision >= Revision::EVMC_SHANGHAI && *addr == tx_context.block_coinbase)
-            && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
+            && context.access_account(addr) == AccessStatus::EVMC_ACCESS_COLD
         {
             consume_gas::<2600>(gas_left)?;
         } else {
@@ -775,6 +784,37 @@ fn consume_address_access_cost(
         }
     } else {
         consume_gas::<700>(gas_left)?;
+    }
+    Ok(())
+}
+
+/// consume 3 * minimum_word_size
+#[inline(always)]
+fn consume_copy_cost(gas_left: &mut u64, len: u64) -> Result<(), (StepStatusCode, StatusCode)> {
+    consume_dyn_gas(gas_left, 3 * word_size(len))?;
+    Ok(())
+}
+
+#[inline(always)]
+fn consume_memory_expansion_cost(
+    gas_left: &mut u64,
+    current_len: u64,
+    new_len: u64,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    fn memory_cost(size: u64) -> Result<u64, (StepStatusCode, StatusCode)> {
+        let memory_size_word = word_size(size);
+        let Some(pow2) = memory_size_word.checked_pow(2) else {
+            return Err((
+                StepStatusCode::EVMC_STEP_FAILED,
+                StatusCode::EVMC_OUT_OF_GAS,
+            ));
+        };
+        Ok(pow2 / 512 + (3 * memory_size_word))
+    }
+
+    if new_len > current_len {
+        let memory_expansion_cost = memory_cost(new_len)? - memory_cost(current_len)?;
+        consume_dyn_gas(gas_left, memory_expansion_cost)?;
     }
     Ok(())
 }
@@ -824,17 +864,6 @@ fn nth_ref_from_stack<const N: usize>(
     Ok(&stack[stack.len() - N])
 }
 
-fn memory_cost(size: u64) -> Result<u64, (StepStatusCode, StatusCode)> {
-    let memory_size_word = word_size(size);
-    let Some(pow2) = memory_size_word.checked_pow(2) else {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_OUT_OF_GAS,
-        ));
-    };
-    Ok(pow2 / 512 + (3 * memory_size_word))
-}
-
 fn expand_memory(
     memory: &mut Vec<u8>,
     new_len: u64,
@@ -842,9 +871,7 @@ fn expand_memory(
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     let current_len = memory.len() as u64;
     if new_len > current_len {
-        let memory_expansion_cost = memory_cost(new_len)? - memory_cost(current_len)?;
-        consume_dyn_gas(gas_left, memory_expansion_cost)?;
-
+        consume_memory_expansion_cost(gas_left, current_len, new_len)?;
         memory.extend(iter::repeat(0).take((new_len - current_len) as usize))
     }
     Ok(())
@@ -853,15 +880,14 @@ fn expand_memory(
 fn access_memory_slice<'m>(
     memory: &'m mut Vec<u8>,
     offset: u256,
-    len: u256,
+    len: u64,
     gas_left: &mut u64,
 ) -> Result<&'m mut [u8], (StepStatusCode, StatusCode)> {
-    if len == u256::ZERO {
+    if len == 0 {
         return Ok(&mut []);
     }
     let (offset, offset_overflow) = offset.into_u64_with_overflow();
-    let (len, len_overflow) = len.into_u64_with_overflow();
-    if offset_overflow || len_overflow {
+    if offset_overflow {
         return Err((
             StepStatusCode::EVMC_STEP_FAILED,
             StatusCode::EVMC_INVALID_MEMORY_ACCESS,
@@ -892,4 +918,30 @@ fn access_memory_byte<'m>(
 
 fn word_size(bytes: u64) -> u64 {
     (bytes + 31) / 32
+}
+
+fn get_slice_within_bounds<T>(data: &[T], offset: u256, len: u64) -> &[T] {
+    if len == 0 {
+        return &[];
+    }
+    let (offset, offset_overflow) = offset.into_u64_with_overflow();
+    if offset_overflow {
+        return &[];
+    }
+    let offset = offset as usize;
+    let len = len as usize;
+    if offset + len < data.len() {
+        &data[offset..offset + len]
+    } else if offset < data.len() {
+        &data[offset..]
+    } else {
+        &[]
+    }
+}
+
+fn copy_slice_padded(src: &[u8], dest: &mut [u8]) {
+    dest[..src.len()].copy_from_slice(src);
+    for byte in &mut dest[src.len()..] {
+        *byte = 0;
+    }
 }
