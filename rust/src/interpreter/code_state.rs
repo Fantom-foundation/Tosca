@@ -69,6 +69,26 @@ impl<'a> CodeState<'a> {
     pub fn code_len(&self) -> usize {
         self.code.len()
     }
+
+    pub fn get_slice(&self, offset: u256, len: u256) -> &[u8] {
+        if len == u256::ZERO {
+            return &[];
+        }
+        let offset = U256::from(offset);
+        let len = U256::from(len);
+        if offset > u64::MAX.into() || len > u64::MAX.into() {
+            return &[];
+        }
+        let offset = offset.digits()[0] as usize;
+        let len = len.digits()[0] as usize;
+        if offset + len < self.code.len() {
+            &self.code[offset..offset + len]
+        } else if offset < self.code.len() {
+            &self.code[offset..]
+        } else {
+            &[]
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
