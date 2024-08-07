@@ -108,6 +108,17 @@ func TestImmutableHashArray_CanBeJsonEncoded(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("short-encoded", func(t *testing.T) {
+		encoded, err := json.Marshal(zeroHash[:len(zeroHash)-1])
+		if err != nil {
+			t.Fatalf("failed to encode into JSON: %v", err)
+		}
+		var restored ImmutableHashArray
+		if err := json.Unmarshal(encoded, &restored); err == nil {
+			t.Fatalf("expected error, got %v", err)
+		}
+	})
 }
 
 func TestImmutableHashArray_Get(t *testing.T) {
