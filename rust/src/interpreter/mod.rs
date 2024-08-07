@@ -790,13 +790,52 @@ pub fn run(
             opcode::CREATE2 => unimplemented!(),
             opcode::STATICCALL => unimplemented!(),
             opcode::REVERT => unimplemented!(),
-            opcode::INVALID => unimplemented!(),
-            opcode::SELFDESTRUCT => unimplemented!(),
+            opcode::INVALID => {
+                check_min_revision(Revision::EVMC_HOMESTEAD, revision)?;
+                return Err((
+                    StepStatusCode::EVMC_STEP_FAILED,
+                    StatusCode::EVMC_INVALID_INSTRUCTION,
+                ));
+            }
+            opcode::SELFDESTRUCT => {
+                if revision >= Revision::EVMC_BYZANTIUM {
+                    check_not_read_only(message)?;
+                }
+                consume_gas::<5000>(&mut gas_left)?;
+                let [addr] = pop_from_stack(&mut stack)?;
+                let addr = addr.into();
+
+                //consume_address_access_cost(&mut gas_left, &addr, context, revision)?;
+                let tx_context = context.get_tx_context();
+                if revision >= Revision::EVMC_BERLIN {
+                    if addr != tx_context.tx_origin
+                        //&& addr != tx_context.tx_to // TODO
+                        && !(revision >= Revision::EVMC_SHANGHAI && addr == tx_context.block_coinbase)
+                        && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
+                    {
+                        consume_gas::<2600>(&mut gas_left)?;
+                    }
+                }
+
+                if !context.account_exists(&addr) {
+                    consume_gas::<25000>(&mut gas_left)?;
+                }
+
+                let destructed = context.selfdestruct(message.recipient(), &addr);
+                if revision <= Revision::EVMC_BERLIN && destructed {
+                    gas_refund += 24000;
+                }
+
+                step_status_code = StepStatusCode::EVMC_STEP_STOPPED;
+                code_state.next();
+                break;
+            }
             op => {
                 println!("invalid opcode 0x{op:x?}");
-                step_status_code = StepStatusCode::EVMC_STEP_FAILED;
-                status_code = StatusCode::EVMC_BAD_JUMP_DESTINATION;
-                break;
+                return Err((
+                    StepStatusCode::EVMC_STEP_FAILED,
+                    StatusCode::EVMC_INVALID_INSTRUCTION,
+                ));
             }
         }
     }
