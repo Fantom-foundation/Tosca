@@ -1,8 +1,8 @@
 use std::{cmp::min, iter, mem, slice};
 
 use evmc_vm::{
-    AccessStatus, Address, ExecutionContext, ExecutionMessage, Revision, StatusCode, StepResult,
-    StepStatusCode, Uint256,
+    AccessStatus, Address, ExecutionContext, ExecutionMessage, MessageFlags, Revision, StatusCode,
+    StepResult, StepStatusCode, StorageStatus, Uint256,
 };
 use sha3::{Digest, Keccak256};
 
@@ -544,22 +544,98 @@ pub fn run(
             opcode::SLOAD => {
                 if revision < Revision::EVMC_BERLIN {
                     consume_gas::<800>(&mut gas_left)?;
-                } else {
-                    consume_gas::<100>(&mut gas_left)?;
                 }
                 let [key] = pop_from_stack(&mut stack)?;
                 let key = key.into();
                 let addr = message.recipient();
-                if revision >= Revision::EVMC_BERLIN
-                    && context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD
-                {
-                    consume_gas::<2000>(&mut gas_left)?;
+                if revision >= Revision::EVMC_BERLIN {
+                    if context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD {
+                        consume_gas::<2100>(&mut gas_left)?;
+                    } else {
+                        consume_gas::<100>(&mut gas_left)?;
+                    }
                 }
                 let value = context.get_storage(addr, &key);
                 stack.push(value.into());
                 code_state.next();
             }
-            opcode::SSTORE => unimplemented!(),
+            opcode::SSTORE => {
+                if revision >= Revision::EVMC_BYZANTIUM {
+                    check_not_read_only(message)?;
+                }
+                let [key, value] = pop_from_stack(&mut stack)?;
+                let key = key.into();
+                let addr = message.recipient();
+
+                let (dyn_gas_1, dyn_gas_2, dyn_gas_3, refund_1, refund_2, refund_3) =
+                    if revision >= Revision::EVMC_LONDON {
+                        (100, 2900, 20000, 5000 - 2100 - 100, 4800, 20000 - 100)
+                    } else if revision >= Revision::EVMC_BERLIN {
+                        (100, 2900, 20000, 5000 - 2100 - 100, 15000, 20000 - 100)
+                    } else if revision >= Revision::EVMC_ISTANBUL {
+                        (800, 5000, 20000, 4200, 15000, 19200)
+                    } else {
+                        (5000, 5000, 20000, 0, 0, 0)
+                    };
+
+                // dyn gas
+                // if Z == Y
+                //     dyn_gas_1 =  100                                 800
+                // else if Y == X
+                //     if X == 0
+                //         dyn_gas_3 = 20000
+                //     else
+                //         dyn_gas_2 = 2900                             5000
+                // else
+                //     dyn_gas_1 = 100                                  800
+
+                // gas refunds
+                //if z != y
+                //    if y == x
+                //        if x != 0 and z == 0
+                //            gas_refunds_2 += 4800                     15000
+                //    else
+                //        if x != 0
+                //            if y == 0
+                //                gas_refunds_2 -= 4800                 15000
+                //            else if z == 0
+                //                gas_refunds_2 += 4800                 15000
+                //        if z == x
+                //            if x == 0
+                //                gas_refunds_3 += 20000 - 100          19200
+                //            else
+                //                gas_refunds_1 += 5000 - 2100 - 100    4200
+
+                let status = context.set_storage(addr, &key, &value.into());
+                let (mut dyn_gas, gas_refund_change) = match status {
+                    StorageStatus::EVMC_STORAGE_ASSIGNED => (dyn_gas_1, 0),
+                    StorageStatus::EVMC_STORAGE_ADDED => (dyn_gas_3, 0),
+                    StorageStatus::EVMC_STORAGE_DELETED => (dyn_gas_2, refund_2),
+                    StorageStatus::EVMC_STORAGE_MODIFIED => (dyn_gas_2, 0),
+                    StorageStatus::EVMC_STORAGE_DELETED_ADDED => (dyn_gas_1, -refund_2),
+                    StorageStatus::EVMC_STORAGE_MODIFIED_DELETED => (dyn_gas_1, refund_2),
+                    StorageStatus::EVMC_STORAGE_DELETED_RESTORED => {
+                        (dyn_gas_1, -refund_2 + refund_1)
+                    }
+                    StorageStatus::EVMC_STORAGE_ADDED_DELETED => (dyn_gas_1, refund_3),
+                    StorageStatus::EVMC_STORAGE_MODIFIED_RESTORED => (dyn_gas_1, refund_1),
+                };
+                if revision >= Revision::EVMC_BERLIN
+                    && context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD
+                {
+                    dyn_gas += 2100;
+                }
+                consume_dyn_gas(&mut gas_left, dyn_gas)?;
+                // TODO ct does not like this check
+                //if revision >= Revision::EVMC_ISTANBUL && gas_left <= 2300 {
+                //return Err((
+                //StepStatusCode::EVMC_STEP_FAILED,
+                //StatusCode::EVMC_OUT_OF_GAS,
+                //));
+                //}
+                gas_refund += gas_refund_change;
+                code_state.next();
+            }
             opcode::JUMP => {
                 consume_gas::<8>(&mut gas_left)?;
                 let [dest] = pop_from_stack(&mut stack)?;
@@ -607,14 +683,8 @@ pub fn run(
             }
             opcode::TSTORE => {
                 check_min_revision(Revision::EVMC_CANCUN, revision)?;
+                check_not_read_only(message)?;
                 consume_gas::<100>(&mut gas_left)?;
-                let read_only = message.flags() == 1; // = MessageFlags::EVMC_STATIC;
-                if read_only {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_STATIC_MODE_VIOLATION,
-                    ));
-                }
                 let [key, value] = pop_from_stack(&mut stack)?;
                 let addr = message.recipient();
                 context.set_transient_storage(addr, &key.into(), &value.into());
@@ -900,6 +970,18 @@ fn check_stack_overflow<const N: usize>(
         return Err((
             StepStatusCode::EVMC_STEP_FAILED,
             StatusCode::EVMC_STACK_OVERFLOW,
+        ));
+    }
+    Ok(())
+}
+
+#[inline(always)]
+fn check_not_read_only(message: &ExecutionMessage) -> Result<(), (StepStatusCode, StatusCode)> {
+    let read_only = message.flags() == MessageFlags::EVMC_STATIC as u32;
+    if read_only {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_STATIC_MODE_VIOLATION,
         ));
     }
     Ok(())
