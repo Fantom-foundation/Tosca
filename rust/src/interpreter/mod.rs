@@ -281,7 +281,27 @@ pub fn run(
                 stack.push(u256::ZERO);
                 code_state.next();
             }
-            opcode::CALLDATACOPY => unimplemented!(),
+            opcode::CALLDATACOPY => {
+                consume_gas::<3>(&mut gas_left)?;
+                let [dest_offset, offset, len] = pop_from_stack(&mut stack)?;
+
+                if len != u256::ZERO {
+                    let (len, len_overflow) = len.into_u64_with_overflow();
+                    if len_overflow {
+                        return Err((
+                            StepStatusCode::EVMC_STEP_FAILED,
+                            StatusCode::EVMC_INVALID_MEMORY_ACCESS,
+                        ));
+                    }
+
+                    let src = message.input().map(|v| v.as_slice()).unwrap_or(&[]);
+                    let src = get_slice_within_bounds(src, offset, len);
+                    let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
+                    copy_slice_padded(src, dest, &mut gas_left)?;
+                }
+
+                code_state.next();
+            }
             opcode::CODESIZE => {
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
@@ -300,11 +320,10 @@ pub fn run(
                             StatusCode::EVMC_INVALID_MEMORY_ACCESS,
                         ));
                     }
-                    consume_copy_cost(&mut gas_left, len)?;
 
                     let src = get_slice_within_bounds(&code_state, offset, len);
                     let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
-                    copy_slice_padded(src, dest);
+                    copy_slice_padded(src, dest, &mut gas_left)?;
                 }
 
                 code_state.next();
@@ -322,7 +341,40 @@ pub fn run(
                 stack.push(context.get_code_size(&addr).into());
                 code_state.next();
             }
-            opcode::EXTCODECOPY => unimplemented!(),
+            opcode::EXTCODECOPY => {
+                let [addr, dest_offset, offset, len] = pop_from_stack(&mut stack)?;
+                let addr = addr.into();
+
+                consume_address_access_cost(&mut gas_left, &addr, context, revision)?;
+                if len != u256::ZERO {
+                    let (len, len_overflow) = len.into_u64_with_overflow();
+                    if len_overflow {
+                        return Err((
+                            StepStatusCode::EVMC_STEP_FAILED,
+                            StatusCode::EVMC_INVALID_MEMORY_ACCESS,
+                        ));
+                    }
+
+                    let src_len = context.get_code_size(&addr) as u64;
+                    let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
+                    let (offset, offset_overflow) = offset.into_u64_with_overflow();
+                    if offset_overflow || offset >= src_len {
+                        copy_slice_padded(&[], dest, &mut gas_left)?;
+                    } else if offset + len >= src_len {
+                        let copy_end = (src_len - offset) as usize;
+                        consume_copy_cost(&mut gas_left, len)?;
+                        context.copy_code(&addr, offset as usize, &mut dest[..copy_end]);
+                        for byte in &mut dest[copy_end..] {
+                            *byte = 0;
+                        }
+                    } else {
+                        consume_copy_cost(&mut gas_left, len)?;
+                        context.copy_code(&addr, offset as usize, dest);
+                    }
+                }
+
+                code_state.next();
+            }
             opcode::RETURNDATASIZE => {
                 consume_gas::<2>(&mut gas_left)?;
                 check_stack_overflow::<1>(&stack)?;
@@ -335,7 +387,28 @@ pub fn run(
                 );
                 code_state.next();
             }
-            opcode::RETURNDATACOPY => unimplemented!(),
+            opcode::RETURNDATACOPY => {
+                consume_gas::<3>(&mut gas_left)?;
+                let [dest_offset, offset, len] = pop_from_stack(&mut stack)?;
+
+                let src = last_call_return_data.as_deref().unwrap_or(&[]);
+                let (offset, offset_overflow) = offset.into_u64_with_overflow();
+                let (len, len_overflow) = len.into_u64_with_overflow();
+                if offset_overflow || len_overflow || offset + len >= src.len() as u64 {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_INVALID_MEMORY_ACCESS,
+                    ));
+                }
+
+                if len != 0 {
+                    let src = get_slice_within_bounds(src, offset.into(), len);
+                    let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
+                    copy_slice_padded(src, dest, &mut gas_left)?;
+                }
+
+                code_state.next();
+            }
             opcode::EXTCODEHASH => {
                 let [addr] = pop_from_stack(&mut stack)?;
                 let addr = addr.into();
@@ -939,9 +1012,15 @@ fn get_slice_within_bounds<T>(data: &[T], offset: u256, len: u64) -> &[T] {
     }
 }
 
-fn copy_slice_padded(src: &[u8], dest: &mut [u8]) {
+fn copy_slice_padded(
+    src: &[u8],
+    dest: &mut [u8],
+    gas_left: &mut u64,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    consume_copy_cost(gas_left, dest.len() as u64)?;
     dest[..src.len()].copy_from_slice(src);
     for byte in &mut dest[src.len()..] {
         *byte = 0;
     }
+    Ok(())
 }
