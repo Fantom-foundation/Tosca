@@ -777,11 +777,51 @@ pub fn run(
             opcode::SWAP14 => swap::<14>(&mut code_state, &mut stack, &mut gas_left)?,
             opcode::SWAP15 => swap::<15>(&mut code_state, &mut stack, &mut gas_left)?,
             opcode::SWAP16 => swap::<16>(&mut code_state, &mut stack, &mut gas_left)?,
-            opcode::LOG0 => unimplemented!(),
-            opcode::LOG1 => unimplemented!(),
-            opcode::LOG2 => unimplemented!(),
-            opcode::LOG3 => unimplemented!(),
-            opcode::LOG4 => unimplemented!(),
+            opcode::LOG0 => log::<0>(
+                &mut code_state,
+                &mut stack,
+                &mut memory,
+                context,
+                message,
+                revision,
+                &mut gas_left,
+            )?,
+            opcode::LOG1 => log::<1>(
+                &mut code_state,
+                &mut stack,
+                &mut memory,
+                context,
+                message,
+                revision,
+                &mut gas_left,
+            )?,
+            opcode::LOG2 => log::<2>(
+                &mut code_state,
+                &mut stack,
+                &mut memory,
+                context,
+                message,
+                revision,
+                &mut gas_left,
+            )?,
+            opcode::LOG3 => log::<3>(
+                &mut code_state,
+                &mut stack,
+                &mut memory,
+                context,
+                message,
+                revision,
+                &mut gas_left,
+            )?,
+            opcode::LOG4 => log::<4>(
+                &mut code_state,
+                &mut stack,
+                &mut memory,
+                context,
+                message,
+                revision,
+                &mut gas_left,
+            )?,
             opcode::CREATE => unimplemented!(),
             opcode::CALL => unimplemented!(),
             opcode::CALLCODE => unimplemented!(),
@@ -905,6 +945,37 @@ fn swap<const N: usize>(
     stack.swap(len - 1, len - 1 - N);
     code_state.next();
 
+    Ok(())
+}
+
+fn log<const N: usize>(
+    code_state: &mut CodeState,
+    stack: &mut Vec<u256>,
+    memory: &mut Vec<u8>,
+    context: &mut ExecutionContext,
+    message: &ExecutionMessage,
+    revision: Revision,
+    gas_left: &mut u64,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    if revision >= Revision::EVMC_BYZANTIUM {
+        check_not_read_only(message)?;
+    }
+    consume_gas::<375>(gas_left)?;
+    let [offset, len] = pop_from_stack(stack)?;
+    let topics: [u256; N] = pop_from_stack(stack)?;
+    let (len, len_overflow) = len.into_u64_with_overflow();
+    if len_overflow {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_OUT_OF_GAS,
+        ));
+    }
+    consume_dyn_gas(gas_left, 375 * N as u64 + 8 * len)?;
+
+    let memory_access = access_memory_slice(memory, offset, len, gas_left)?;
+    let topics: &[_; N] = unsafe { mem::transmute(&topics) };
+    context.emit_log(message.recipient(), memory_access, topics.as_slice());
+    code_state.next();
     Ok(())
 }
 
