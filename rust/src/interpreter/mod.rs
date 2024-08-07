@@ -1,7 +1,7 @@
 use std::{cmp::min, iter, mem, slice};
 
 use evmc_vm::{
-    AccessStatus, ExecutionContext, ExecutionMessage, Revision, StatusCode, StepResult,
+    AccessStatus, Address, ExecutionContext, ExecutionMessage, Revision, StatusCode, StepResult,
     StepStatusCode, Uint256,
 };
 use sha3::{Digest, Keccak256};
@@ -224,24 +224,7 @@ pub fn run(
             opcode::BALANCE => {
                 let [addr] = pop_from_stack(&mut stack)?;
                 let addr = addr.into();
-
-                // TODO consume_access_cost
-                let tx_context = context.get_tx_context();
-                if revision >= Revision::EVMC_BERLIN {
-                    if addr != tx_context.tx_origin
-                        //&& addr != tx_context.tx_to // TODO
-                        && !(revision >= Revision::EVMC_SHANGHAI
-                            && addr == tx_context.block_coinbase)
-                        && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
-                    {
-                        consume_gas::<2600>(&mut gas_left)?;
-                    } else {
-                        consume_gas::<100>(&mut gas_left)?;
-                    }
-                } else {
-                    consume_gas::<700>(&mut gas_left)?;
-                }
-
+                consume_address_access_cost(&mut gas_left, &addr, context, revision)?;
                 stack.push(context.get_balance(&addr).into());
                 code_state.next();
             }
@@ -330,25 +313,8 @@ pub fn run(
             opcode::EXTCODESIZE => {
                 let [addr] = pop_from_stack(&mut stack)?;
                 let addr = addr.into();
-
-                let tx_context = context.get_tx_context();
-                if revision >= Revision::EVMC_BERLIN {
-                    if addr != tx_context.tx_origin
-                        //&& addr != tx_context.tx_to // TODO
-                        && !(revision >= Revision::EVMC_SHANGHAI
-                            && addr == tx_context.block_coinbase)
-                        && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
-                    {
-                        consume_gas::<2600>(&mut gas_left)?;
-                    } else {
-                        consume_gas::<100>(&mut gas_left)?;
-                    }
-                } else {
-                    consume_gas::<700>(&mut gas_left)?;
-                }
-
-                let size = context.get_code_size(&addr);
-                stack.push(size.into());
+                consume_address_access_cost(&mut gas_left, &addr, context, revision)?;
+                stack.push(context.get_code_size(&addr).into());
                 code_state.next();
             }
             opcode::EXTCODECOPY => unimplemented!(),
@@ -368,23 +334,7 @@ pub fn run(
             opcode::EXTCODEHASH => {
                 let [addr] = pop_from_stack(&mut stack)?;
                 let addr = addr.into();
-
-                let tx_context = context.get_tx_context();
-                if revision >= Revision::EVMC_BERLIN {
-                    if addr != tx_context.tx_origin
-                        //&& addr != tx_context.tx_to // TODO
-                        && !(revision >= Revision::EVMC_SHANGHAI
-                            && addr == tx_context.block_coinbase)
-                        && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
-                    {
-                        consume_gas::<2600>(&mut gas_left)?;
-                    } else {
-                        consume_gas::<100>(&mut gas_left)?;
-                    }
-                } else {
-                    consume_gas::<700>(&mut gas_left)?;
-                }
-
+                consume_address_access_cost(&mut gas_left, &addr, context, revision)?;
                 stack.push(context.get_code_hash(&addr).into());
                 code_state.next();
             }
@@ -802,6 +752,30 @@ fn consume_dyn_gas(gas_left: &mut u64, gas: u64) -> Result<(), (StepStatusCode, 
         ));
     }
     *gas_left -= gas;
+    Ok(())
+}
+
+#[inline(always)]
+fn consume_address_access_cost(
+    gas_left: &mut u64,
+    addr: &Address,
+    context: &mut ExecutionContext,
+    revision: Revision,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    let tx_context = context.get_tx_context();
+    if revision >= Revision::EVMC_BERLIN {
+        if *addr != tx_context.tx_origin
+            //&& addr != tx_context.tx_to // TODO
+            && !(revision >= Revision::EVMC_SHANGHAI && *addr == tx_context.block_coinbase)
+            && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
+        {
+            consume_gas::<2600>(gas_left)?;
+        } else {
+            consume_gas::<100>(gas_left)?;
+        }
+    } else {
+        consume_gas::<700>(gas_left)?;
+    }
     Ok(())
 }
 
