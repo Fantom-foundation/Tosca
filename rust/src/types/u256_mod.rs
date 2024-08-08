@@ -1,5 +1,6 @@
 use std::{
     cmp::Ordering,
+    fmt::Debug,
     mem,
     ops::{
         Add, AddAssign, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, DivAssign, Mul, MulAssign,
@@ -11,7 +12,7 @@ use bnum::types::{I256, U256, U512};
 use evmc_vm::{Address, Uint256};
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct u256(Uint256);
 
@@ -26,6 +27,19 @@ impl Deref for u256 {
 impl DerefMut for u256 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0.bytes
+    }
+}
+impl Debug for u256 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("0x")?;
+        for (i, byte) in (*self).into_iter().enumerate() {
+            f.write_fmt(format_args!("{:x}", byte))?;
+            if i % 8 == 7 && i < 31 {
+                f.write_str("_")?;
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -181,6 +195,16 @@ impl u256 {
         let bytes: [u8; 32] = self.into();
         let [first, second, third, fourth] = unsafe { mem::transmute::<[u8; 32], [u64; 4]>(bytes) };
         (u64::from_be(fourth), first > 0 || second > 0 || third > 0)
+    }
+
+    pub fn into_u64_saturating(self) -> u64 {
+        let bytes: [u8; 32] = self.into();
+        let [first, second, third, fourth] = unsafe { mem::transmute::<[u8; 32], [u64; 4]>(bytes) };
+        if first > 0 || second > 0 || third > 0 {
+            return u64::MAX;
+        } else {
+            u64::from_be(fourth)
+        }
     }
 }
 
