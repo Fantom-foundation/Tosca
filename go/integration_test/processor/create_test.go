@@ -20,6 +20,8 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func TestProcessor_CreateAndCallContract(t *testing.T) {
@@ -292,6 +294,7 @@ func TestProcessor_CreateInitCodeIsExecutedInRightContext(t *testing.T) {
 }
 
 func TestProcessor_EmptyReceiverCreatesAccount(t *testing.T) {
+	addressToBeCreated := tosca.Address(crypto.CreateAddress(common.Address{1}, 0))
 	for processorName, processor := range getProcessors() {
 		if strings.Contains(processorName, "floria") {
 			continue // todo implement different create types
@@ -328,6 +331,9 @@ func TestProcessor_EmptyReceiverCreatesAccount(t *testing.T) {
 		}
 		if !slices.Equal(result.Output, append(bytes.Repeat([]byte{0}, 31), checkValue)) {
 			t.Errorf("creation of account was not successful, returned %v", result.Output)
+		}
+		if *result.ContractAddress != addressToBeCreated {
+			t.Errorf("account was created with the wrong address, returned %v", result.ContractAddress)
 		}
 	}
 
