@@ -11,12 +11,21 @@
 package common
 
 import (
+	"testing"
+
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"pgregory.net/rand"
 )
 
-func GetRandomHash(rnd *rand.Rand) tosca.Hash {
-	var res tosca.Hash
-	_, _ = rnd.Read(res[:]) // rnd.Read never returns an error
-	return res
+func TestHash_GetRandomHash(t *testing.T) {
+	rnd := rand.New()
+	hashes := []tosca.Hash{}
+	for i := 0; i < 10; i++ {
+		hashes = append(hashes, GetRandomHash(rnd))
+		for j := 0; j < i; j++ {
+			if hashes[i] == hashes[j] {
+				t.Errorf("random hashes are not random, got %v and %v", hashes[i], hashes[j])
+			}
+		}
+	}
 }

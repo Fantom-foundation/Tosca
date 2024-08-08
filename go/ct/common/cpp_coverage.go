@@ -30,6 +30,6 @@ func isCppCoverageEnabled() bool {
 // Not calling this function will result in no coverage data being reported
 // for runtime loaded C and C++ libraries.
 // If coverage data collection is not enabled, this function is a no-op.
-func DumpCppCoverageData() { // coverage-ignore nothing to test
+func DumpCppCoverageData() {
 	C.DumpCoverageData()
 }
