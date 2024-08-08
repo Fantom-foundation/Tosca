@@ -234,6 +234,20 @@ func TestStateGenerator_NonConflictingGasAreAccepted(t *testing.T) {
 	}
 }
 
+func TestStateGenerator_AddGasLowerUpperBoundIsEnforced(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.AddGasLowerBound(42)
+	generator.AddGasUpperBound(44)
+
+	state, err := generator.Generate(rand.New(0))
+	if err != nil {
+		t.Fatalf("unexpected error during build: %v", err)
+	}
+	if want, got := tosca.Gas(43), state.Gas; want != got {
+		t.Fatalf("Gas bounds not working, want %v, got %v", want, got)
+	}
+}
+
 ////////////////////////////////////////////////////////////
 // Gas Refund Counter
 
@@ -271,6 +285,20 @@ func TestStateGenerator_NonConflictingGasRefundAreAccepted(t *testing.T) {
 	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); err != nil {
 		t.Errorf("generation failed: %v", err)
+	}
+}
+
+func TestStateGenerator_AddGasRefundLowerUpperBoundIsEnforced(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.AddGasRefundLowerBound(42)
+	generator.AddGasRefundUpperBound(44)
+
+	state, err := generator.Generate(rand.New(0))
+	if err != nil {
+		t.Fatalf("unexpected error during build: %v", err)
+	}
+	if want, got := tosca.Gas(43), state.GasRefund; want != got {
+		t.Fatalf("Gas refund bounds not working, want %v, got %v", want, got)
 	}
 }
 
@@ -476,5 +504,151 @@ func TestStateGenerator_BlockNumberHashes(t *testing.T) {
 			t.Errorf("unexpected hash value, should be unique %v", hashi)
 		}
 		newHashes = append(newHashes, hashi)
+	}
+}
+
+// //////////////////////////////////////////////////////////
+// code constraints
+func TestStateGenerator_AddCodeOperation(t *testing.T) {
+	generator := NewStateGenerator()
+	var1 := Variable("a")
+	generator.AddCodeOperation(var1, vm.ADD)
+	varOpConstraint := varOpConstraint{var1, vm.ADD}
+	if len(generator.codeGen.varOps) != 1 || generator.codeGen.varOps[0] != varOpConstraint {
+		t.Errorf("unexpected code operation")
+	}
+}
+
+func TestStateGenerator_AddIsCode(t *testing.T) {
+	generator := NewStateGenerator()
+	var1 := Variable("a")
+	generator.AddIsCode(var1)
+	constraint := varIsCodeConstraint{var1}
+	if len(generator.codeGen.varIsCodeConstraints) != 1 ||
+		generator.codeGen.varIsCodeConstraints[0] != constraint {
+		t.Errorf("unexpected code operation")
+	}
+}
+
+func TestStateGenerator_AddIsData(t *testing.T) {
+	generator := NewStateGenerator()
+	var1 := Variable("a")
+	generator.AddIsData(var1)
+	constraint := varIsDataConstraint{var1}
+	if len(generator.codeGen.varIsDataConstraints) != 1 ||
+		generator.codeGen.varIsDataConstraints[0] != constraint {
+		t.Errorf("unexpected code operation")
+	}
+}
+
+// //////////////////////////////////////////////////////////
+// stack size
+func TestStateGenerator_SetStackSize(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.SetStackSize(10)
+	if generator.stackGen.size.max != 10 || generator.stackGen.size.min != 10 {
+		t.Errorf("unexpected stack size")
+	}
+}
+
+// //////////////////////////////////////////////////////////
+// stack value
+func TestStateGenerator_SetStackValue(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.SetStackValue(0, NewU256(1))
+	constraint := constValueConstraint{0, NewU256(1)}
+	if generator.stackGen.constValues[0] != constraint {
+		t.Errorf("unexpected stack value")
+	}
+}
+
+func TestStateGenerator_BindStackValue(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.BindStackValue(0, Variable("a"))
+	constraint := varValueConstraint{0, Variable("a")}
+	if generator.stackGen.varValues[0] != constraint {
+		t.Errorf("unexpected stack value")
+	}
+}
+
+////////////////////////////////////////////////////////////
+// Storage
+
+func TestStateGenerator_BindStorageConfiguration(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.BindStorageConfiguration(tosca.StorageAdded, Variable("a"), Variable("b"))
+	constraint := storageConfigConstraint{tosca.StorageAdded, Variable("a"), Variable("b")}
+	if !slices.Contains(generator.storageGen.cfg, constraint) {
+		t.Errorf("unexpected storage configuration")
+	}
+}
+
+func TestStateGenerator_BindIsStorageCold(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.BindIsStorageCold(Variable("a"))
+	constraint := warmColdConstraint{Variable("a"), false}
+	if !slices.Contains(generator.storageGen.warmCold, constraint) {
+		t.Errorf("unexpected storage configuration")
+	}
+}
+
+// //////////////////////////////////////////////////////////
+// Transient storage
+func TestStateGenerator_BindTransientStorageToNonZero(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.BindTransientStorageToNonZero(Variable("a"))
+	if !generator.transientStorageGen.nonZeroConstraints[Variable("a")] {
+		t.Errorf("unexpected transient storage configuration")
+	}
+}
+
+// //////////////////////////////////////////////////////////
+// Accounts
+func TestStateGenerator_BindToColdAddress(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.BindToColdAddress(Variable("a"))
+	constraint := warmColdConstraint{Variable("a"), false}
+	if !slices.Contains(generator.accountsGen.warmCold, constraint) {
+		t.Errorf("unexpected account configuration")
+	}
+}
+
+////////////////////////////////////////////////////////////
+// block hash list
+
+func TestStateGenerator_RestrictVariableToOneOfTheLast256Blocks(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.RestrictVariableToOneOfTheLast256Blocks(Variable("a"))
+	if !generator.blockContextGen.rangeConstraints[Variable("a")] {
+		t.Errorf("unexpected block context configuration")
+	}
+}
+
+func TestStateGenerator_RestrictVariableToNoneOfTheLast256Blocks(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.RestrictVariableToNoneOfTheLast256Blocks(Variable("a"))
+	if generator.blockContextGen.rangeConstraints[Variable("a")] {
+		t.Errorf("unexpected block context configuration")
+	}
+}
+
+////////////////////////////////////////////////////////////
+// block number offset
+
+func TestStateGenerator_SetBlockNumberOffsetValue(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.SetBlockNumberOffsetValue(Variable("a"), 10)
+	if generator.blockContextGen.valueConstraint[Variable("a")] != 10 {
+		t.Errorf("unexpected block context configuration")
+	}
+}
+
+// //////////////////////////////////////////////////////////
+// blob hash index
+func TestStateGenerator_IsAbsentBlobHashIndex(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.IsAbsentBlobHashIndex(Variable("a"))
+	if generator.transactionContextGen.blobHashVariables[Variable("a")] {
+		t.Errorf("unexpected transaction context configuration")
 	}
 }
