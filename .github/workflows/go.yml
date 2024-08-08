@@ -62,9 +62,18 @@ jobs:
     - name: CT regression tests evmzero
       run: go run ./go/ct/driver regressions evmzero
 
-    # see issue #316
-    #- name: CT rule coverage test
-    #  run: go run ./go/ct/driver test
-
-    #- name: CT on LFVM
-    #  run: go run ./go/ct/driver run lfvm
+    - name: Test coverage
+      if: github.ref != 'refs/heads/main'
+      uses: actions/github-script@v6
+      with:
+       script: |
+          const execSync = require('child_process').execSync;
+          const coverageResult = execSync('make test-coverage', { encoding: 'utf-8' });
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `Test results:\n\n${coverageResult}`
+          });
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

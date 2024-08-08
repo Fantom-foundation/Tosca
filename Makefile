@@ -116,3 +116,8 @@ fuzz-lfvm-diff:
 # TODO: disabbled until test is fixed #549
 # fuzz-evmzero-diff:
 # 	go test -fuzz=FuzzDifferentialEvmZeroVsGeth ./go/ct/
+
+test-coverage:
+	@go install github.com/vladopajic/go-test-coverage/v2@v2.10.1
+	@go test --count=1 --coverprofile=cover.out ./... > /dev/null 2>&1
+	@go-test-coverage --config .testcoverage.yml
