@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/holiman/uint256"
+	"pgregory.net/rand"
 )
 
 func TestNewU256FromBytes_WithLessThan32Bytes(t *testing.T) {
@@ -458,6 +459,181 @@ func TestU256_MarshallingRoundTrip(t *testing.T) {
 		}
 		if !u.Eq(test.value) {
 			t.Errorf("Unexpected unmarshalled value: want %v, got %v", test.value, u)
+		}
+	}
+}
+
+func TestU256_RandU256(t *testing.T) {
+	rands := []U256{}
+	rnd := rand.New()
+	for i := 0; i < 10; i++ {
+		rands = append(rands, RandU256(rnd))
+		for j := 0; j < i; j++ {
+			if rands[i] == rands[j] {
+				t.Errorf("random U256 are not random, got %v and %v", rands[i], rands[j])
+			}
+		}
+	}
+}
+
+func TestU256_IsUint64(t *testing.T) {
+	tests := []struct {
+		value U256
+		want  bool
+	}{
+		{U256{}, true},
+		{NewU256(1), true},
+		{NewU256(1, 2), false},
+		{NewU256(1, 2, 3), false},
+		{NewU256(42, 13, 47, 1), false},
+		{NewU256(0xa000000000000000, 0xb000000000000000, 0xc000000000000000, 0xd000000000000000), false},
+		{NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), false},
+	}
+
+	for _, test := range tests {
+		if want, got := test.want, test.value.IsUint64(); want != got {
+			t.Errorf("Unexpected result from IsUint64, want %v, got %v", want, got)
+		}
+	}
+}
+
+func TestU256_Uint64(t *testing.T) {
+	tests := []struct {
+		value U256
+		want  uint64
+	}{
+		{U256{}, 0},
+		{NewU256(1), 1},
+		{NewU256(0xffffffffffffffff), 0xffffffffffffffff},
+	}
+
+	for _, test := range tests {
+		if want, got := test.want, test.value.Uint64(); want != got {
+			t.Errorf("Unexpected result from Uint64, want %v, got %v", want, got)
+		}
+	}
+}
+
+func TestU256_Uint256Conversion(t *testing.T) {
+	tests := []struct {
+		original  *uint256.Int
+		converted U256
+	}{
+		{uint256.NewInt(0), U256{}},
+		{uint256.NewInt(1), NewU256(1)},
+		{uint256.NewInt(256), NewU256(256)},
+		{new(uint256.Int).Lsh(uint256.NewInt(1), 64), NewU256(1, 0)},
+	}
+
+	for _, test := range tests {
+		if want, got := test.original, test.converted.Uint256(); !want.Eq(&got) {
+			t.Errorf("Unexpected result from Uint256, want %v, got %v", want, got)
+		}
+		if want, got := test.converted, NewU256FromUint256(test.original); !want.Eq(got) {
+			t.Errorf("Unexpected result from NewU256FromUint256, want %v, got %v", want, got)
+		}
+	}
+}
+
+func TestU256_SignExtend(t *testing.T) {
+	tests := []struct {
+		value U256
+		want  U256
+	}{
+		{U256{}, U256{}},
+		{NewU256(1), NewU256(1)},
+		{NewU256(0xff), NewU256(0xff)},
+		{NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff)},
+		{NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff)},
+	}
+
+	for _, test := range tests {
+		if want, got := test.want, test.value.SignExtend(NewU256(0xfff)); !want.Eq(got) {
+			t.Errorf("Unexpected result from SignExtend, want %v, got %v", want, got)
+		}
+	}
+}
+
+func TestU256_And(t *testing.T) {
+	tests := []struct {
+		a    U256
+		b    U256
+		want U256
+	}{
+		{U256{}, U256{}, U256{}},
+		{NewU256(1), NewU256(1), NewU256(1)},
+		{NewU256(0xff), NewU256(0xff), NewU256(0xff)},
+		{NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff)},
+		{NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff)},
+	}
+
+	for _, test := range tests {
+		if want, got := test.want, test.a.And(test.b); !want.Eq(got) {
+			t.Errorf("Unexpected result from And, want %v, got %v", want, got)
+		}
+	}
+}
+
+func TestU256_Or(t *testing.T) {
+	tests := []struct {
+		a    U256
+		b    U256
+		want U256
+	}{
+		{U256{}, U256{}, U256{}},
+		{NewU256(1), NewU256(1), NewU256(1)},
+		{NewU256(0xff), NewU256(0xff), NewU256(0xff)},
+		{NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff)},
+		{NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff)},
+	}
+
+	for _, test := range tests {
+		if want, got := test.want, test.a.Or(test.b); !want.Eq(got) {
+			t.Errorf("Unexpected result from Or, want %v, got %v", want, got)
+		}
+	}
+}
+
+func TestU256_Xor(t *testing.T) {
+	tests := []struct {
+		a    U256
+		b    U256
+		want U256
+	}{
+		{U256{}, U256{}, U256{}},
+		{NewU256(1), NewU256(1), U256{}},
+		{NewU256(0xff), NewU256(0xff), U256{}},
+		{NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff), U256{}},
+		{NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), U256{}},
+	}
+
+	for _, test := range tests {
+		if want, got := test.want, test.a.Xor(test.b); !want.Eq(got) {
+			t.Errorf("Unexpected result from Xor, want %v, got %v", want, got)
+		}
+	}
+}
+
+func TestU256_Srsh(t *testing.T) {
+	tests := []struct {
+		a    U256
+		b    U256
+		want U256
+	}{
+		{U256{}, U256{}, U256{}},
+		{NewU256(1), NewU256(1), U256{}},
+		{NewU256(0xff), NewU256(0xff), U256{}},
+		{NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff), U256{}},
+		{
+			NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff),
+			NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff),
+			NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff),
+		},
+	}
+
+	for _, test := range tests {
+		if want, got := test.want, test.a.Srsh(test.b); !want.Eq(got) {
+			t.Errorf("Unexpected result from Srsh, want %v, got %v", want, got)
 		}
 	}
 }

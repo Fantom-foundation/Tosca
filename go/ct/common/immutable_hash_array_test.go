@@ -116,7 +116,7 @@ func TestImmutableHashArray_CanBeJsonEncoded(t *testing.T) {
 		}
 		var restored ImmutableHashArray
 		if err := json.Unmarshal(encoded, &restored); err == nil {
-			t.Fatalf("expected error, got %v", err)
+			t.Fatalf("an error should have been produced but instead got nil")
 		}
 	})
 }
