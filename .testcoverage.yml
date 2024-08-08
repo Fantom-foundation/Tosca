@@ -14,12 +14,6 @@
 # For cases where there are many coverage profiles, such as when running
 # unit tests and integration tests separately, you can combine all those
 # profiles into one. In this case, the profile should have a comma-separated list
-# (mandatory) 
-# Path to coverprofile file (output of `go test -coverprofile` command).
-#
-# For cases where there are many coverage profiles, such as when running
-# unit tests and integration tests separately, you can combine all those
-# profiles into one. In this case, the profile should have a comma-separated list
 # of profile files, e.g., 'cover_unit.out,cover_integration.out'.
 profile: cover.out
 
@@ -103,9 +97,8 @@ override:
     path: go/tosca/interpreter_registry.go
   - threshold: 0
     path: go/tosca/utils.go
+
   # packages
-  - threshold: 0
-    path: go/ct/common
   - threshold: 0
     path: go/ct/rlz
   - threshold: 0
