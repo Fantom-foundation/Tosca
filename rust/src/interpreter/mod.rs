@@ -843,7 +843,23 @@ pub fn run(
             opcode::DELEGATECALL => unimplemented!(),
             opcode::CREATE2 => unimplemented!(),
             opcode::STATICCALL => unimplemented!(),
-            opcode::REVERT => unimplemented!(),
+            opcode::REVERT => {
+                let [offset, len] = pop_from_stack(&mut stack)?;
+                let (len, len_overflow) = len.into_u64_with_overflow();
+                if len_overflow {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_OUT_OF_GAS,
+                    ));
+                }
+                let memory_access = access_memory_slice(&mut memory, offset, len, &mut gas_left)?;
+                // TODO revert state changes
+                // gas_refund = original_gas_refund;
+                output = Some(memory_access.to_owned());
+                step_status_code = StepStatusCode::EVMC_STEP_REVERTED;
+                code_state.next();
+                break;
+            }
             opcode::INVALID => {
                 check_min_revision(Revision::EVMC_HOMESTEAD, revision)?;
                 return Err((
