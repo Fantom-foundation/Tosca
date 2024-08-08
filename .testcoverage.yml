@@ -44,8 +44,6 @@ threshold:
 override:
   # files
   - threshold: 0
-    path: go/ct/rlz/conditions.go
-  - threshold: 0
     path: go/ct/rlz/domains.go
   - threshold: 0
     path: go/ct/rlz/effect.go
@@ -97,6 +95,8 @@ override:
   # packages
   - threshold: 0
     path: go/ct/rlz
+  - threshold: 0
+    path: go/ct/common
   - threshold: 0
     path: go/ct/spc
   - threshold: 0

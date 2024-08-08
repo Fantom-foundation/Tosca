@@ -632,6 +632,74 @@ func TestCondition_ConflictingAccountWarmConditionsAreUnsatisfiable(t *testing.T
 	}
 }
 
+func TestCondition_NotEqualRestrictAndCheck(t *testing.T) {
+	gen := gen.NewStateGenerator()
+	condition := Ne(Gas(), 1)
+	condition.Restrict(gen)
+	state, err := gen.Generate(rand.New(0))
+	if err != nil {
+		t.Fatalf("failed to build state: %v", err)
+	}
+	if checked, err := condition.Check(state); err != nil || !checked {
+		t.Errorf("failed to restrict and check condition: %v", err)
+	}
+}
+
+func TestCondition_LessThanRestrictAndCheck(t *testing.T) {
+	gen := gen.NewStateGenerator()
+	condition := Lt(Gas(), 2)
+	condition.Restrict(gen)
+	state, err := gen.Generate(rand.New(0))
+	if err != nil {
+		t.Fatalf("failed to build state: %v", err)
+	}
+	if checked, err := condition.Check(state); err != nil || !checked {
+		t.Errorf("failed to restrict and check condition: %v", err)
+	}
+}
+
+func TestCondition_LessEqualRestrictAndCheck(t *testing.T) {
+	gen := gen.NewStateGenerator()
+	condition := Le(Gas(), 2)
+	condition.Restrict(gen)
+	state, err := gen.Generate(rand.New(0))
+	if err != nil {
+		t.Fatalf("failed to build state: %v", err)
+	}
+	if checked, err := condition.Check(state); err != nil || !checked {
+		t.Errorf("failed to restrict and check condition: %v", err)
+	}
+}
+
+func TestCondition_GreaterThanRestrictAndCheck(t *testing.T) {
+	gen := gen.NewStateGenerator()
+	condition := Gt(Gas(), 0)
+	condition.Restrict(gen)
+	state, err := gen.Generate(rand.New(0))
+	if err != nil {
+		t.Fatalf("failed to build state: %v", err)
+	}
+	if checked, err := condition.Check(state); err != nil || !checked {
+		t.Errorf("failed to restrict and check condition: %v", err)
+	}
+}
+
+func TestCondition_GreaterEqualRestrictAndCheck(t *testing.T) {
+	gen := gen.NewStateGenerator()
+	condition := Ge(Gas(), 0)
+	condition.Restrict(gen)
+	state, err := gen.Generate(rand.New(0))
+	if err != nil {
+		t.Fatalf("failed to build state: %v", err)
+	}
+	if checked, err := condition.Check(state); err != nil || !checked {
+		t.Errorf("failed to restrict and check condition: %v", err)
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////
+// Benchmarks
+
 func BenchmarkCondition_IsAddressWarmCheckWarm(b *testing.B) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Accounts.MarkWarm(NewAddress(NewU256(42)))
