@@ -49,7 +49,6 @@ threshold:
 # override rules should be listed in order from specific to more general rules.
 override:
   # files
-  # - threshold: 0
   - threshold: 0
     path: go/ct/gen/assignment.go
   - threshold: 0

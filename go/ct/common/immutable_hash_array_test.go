@@ -151,18 +151,14 @@ func TestImmutableHashArray_Get(t *testing.T) {
 func TestINmmutableHashArray_NewRandomImmutableHashArray(t *testing.T) {
 	rnd := rand.New()
 
-	for i := 0; i < 100; i++ {
-		hashes := NewRandomImmutableHashArray(rnd)
-		for _, hash := range hashes.data {
-			allZeros := true
-			for _, b := range hash {
-				if b != 0 {
-					allZeros = false
-					break
-				}
-			}
-			if allZeros {
-				t.Error("RandomImmutableHashArray produced all zeros")
+	hashes := []ImmutableHashArray{}
+	for i := 0; i < 10; i++ {
+		hashes = append(hashes, NewRandomImmutableHashArray(rnd))
+	}
+	for i := 0; i < 10; i++ {
+		for j := 0; j < i; j++ {
+			if hashes[i].Equal(hashes[j]) {
+				t.Errorf("random hashes are not random, got %v and %v", hashes[i], hashes[j])
 			}
 		}
 	}

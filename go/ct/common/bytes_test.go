@@ -11,6 +11,7 @@
 package common
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
@@ -104,26 +105,25 @@ func TestBytes_InvalidJsonFails(t *testing.T) {
 
 func TestBytes_RandomBytesProducesRandom(t *testing.T) {
 	rnd := rand.New()
-	for i := 0; i < 10000; i++ {
-		b1 := RandomBytes(rnd, 100)
-		allZeros := true
-		for _, b := range b1.data {
-			if b != 0 {
-				allZeros = false
-				break
+	bytes := []Bytes{}
+	for i := 0; i < 5; i++ {
+		bytes = append(bytes, RandomBytes(rnd, 100))
+		for j := 0; j < i; j++ {
+			if bytes[i] == bytes[j] {
+				t.Errorf("random bytes are not random, got %v and %v", bytes[i], bytes[j])
 			}
 		}
-
-		if len(b1.data) > 1 && allZeros {
-			t.Errorf("RandomBytes produced all zeros: %v, len:v %v", b1.data, len(b1.data))
-		}
 	}
+
 }
 
 func TestBytes_String(t *testing.T) {
 	b := NewBytes([]byte{1, 2, 3})
 	if b.String() != "0x010203" {
 		t.Errorf("unexpected string representation, got %v", b.String())
+	}
+	if NewBytes([]byte{}).String() != "0x" {
+		t.Errorf("unexpected string representation, got %v", Bytes{}.String())
 	}
 }
 
@@ -132,11 +132,20 @@ func TestBytes_Length(t *testing.T) {
 	if b.Length() != 3 {
 		t.Errorf("unexpected length, got %v", b.Length())
 	}
+	if NewBytes([]byte{}).Length() != 0 {
+		t.Errorf("unexpected length, got %v", Bytes{}.Length())
+	}
 }
 
 func TestBytes_Get(t *testing.T) {
 	b := NewBytes([]byte{1, 2, 3})
-	if got := b.Get(1, 2); string(got) != "\x02" {
+	if got := b.Get(1, 2); !bytes.Equal(got, []byte{2}) {
+		t.Errorf("unexpected slice, got %v", got)
+	}
+	if got := b.Get(0, 3); !bytes.Equal(got, []byte{1, 2, 3}) {
+		t.Errorf("unexpected slice, got %v", got)
+	}
+	if got := b.Get(0, 0); !bytes.Equal(got, []byte{}) {
 		t.Errorf("unexpected slice, got %v", got)
 	}
 }

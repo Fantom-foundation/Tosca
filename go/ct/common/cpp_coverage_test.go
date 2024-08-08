@@ -62,3 +62,8 @@ func TestDumpCppCoverageData(t *testing.T) {
 		t.Fatalf("Failed, test generated no coverage data files")
 	}
 }
+
+func TestDumpCppCoverageData_enabled(t *testing.T) {
+	// run dump routine
+	DumpCppCoverageData()
+}
