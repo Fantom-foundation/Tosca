@@ -50,10 +50,6 @@ override:
   - threshold: 0
     path: go/ct/common/revisions.go
   - threshold: 0
-    path: go/ct/gen/assignment.go
-  - threshold: 0
-    path: go/ct/gen/state.go
-  - threshold: 0
     path: go/ct/rlz/conditions.go
   - threshold: 0
     path: go/ct/rlz/domains.go
