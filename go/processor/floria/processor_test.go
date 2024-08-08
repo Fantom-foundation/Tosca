@@ -38,8 +38,9 @@ func TestProcessor_HandleNonce(t *testing.T) {
 	context.EXPECT().GetNonce(tosca.Address{1}).Return(uint64(10))
 
 	transaction := tosca.Transaction{
-		Sender: tosca.Address{1},
-		Nonce:  9,
+		Sender:    tosca.Address{1},
+		Recipient: &tosca.Address{2},
+		Nonce:     9,
 	}
 
 	err := handleNonce(transaction, context)
@@ -58,8 +59,9 @@ func TestProcessor_NonceMissmatch(t *testing.T) {
 	context.EXPECT().GetNonce(tosca.Address{1}).Return(uint64(5))
 
 	transaction := tosca.Transaction{
-		Sender: tosca.Address{1},
-		Nonce:  10,
+		Sender:    tosca.Address{1},
+		Recipient: &tosca.Address{2},
+		Nonce:     10,
 	}
 	err := handleNonce(transaction, context)
 	if err == nil {

@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -29,9 +28,6 @@ func TestProcessor_CreateAndCallContract(t *testing.T) {
 	gasPush := vm.PUSH1 + vm.OpCode(len(gasLimit.Bytes())-1)
 
 	for processorName, processor := range getProcessors() {
-		if strings.Contains(processorName, "floria") {
-			continue // todo implement different create types
-		}
 		for _, create := range []vm.OpCode{vm.CREATE, vm.CREATE2} {
 			t.Run(fmt.Sprintf("%s-%s", processorName, create.String()), func(t *testing.T) {
 				sender0 := tosca.Address{1}
@@ -153,9 +149,6 @@ func TestProcessor_CreateInitCodeIsExecutedInRightContext(t *testing.T) {
 	gasPush := vm.PUSH1 + vm.OpCode(len(gasLimit.Bytes())-1)
 
 	for processorName, processor := range getProcessors() {
-		if strings.Contains(processorName, "floria") {
-			continue // todo implement different create types
-		}
 		for _, create := range []vm.OpCode{vm.CREATE, vm.CREATE2} {
 			t.Run(fmt.Sprintf("%s-%s", processorName, create.String()), func(t *testing.T) {
 				sender0 := tosca.Address{1}
@@ -294,14 +287,10 @@ func TestProcessor_CreateInitCodeIsExecutedInRightContext(t *testing.T) {
 }
 
 func TestProcessor_EmptyReceiverCreatesAccount(t *testing.T) {
-	addressToBeCreated := tosca.Address(crypto.CreateAddress(common.Address{1}, 0))
-	for processorName, processor := range getProcessors() {
-		if strings.Contains(processorName, "floria") {
-			continue // todo implement different create types
-		}
-
-		sender0 := tosca.Address{1}
+	for _, processor := range getProcessors() {
 		checkValue := byte(42)
+		sender := tosca.Address{1}
+		addressToBeCreated := tosca.Address(crypto.CreateAddress(common.Address(sender), 0))
 
 		initCode := []byte{
 			byte(vm.PUSH1), checkValue,
@@ -311,12 +300,11 @@ func TestProcessor_EmptyReceiverCreatesAccount(t *testing.T) {
 			byte(vm.PUSH1), byte(0),
 			byte(vm.RETURN),
 		}
-
 		state := WorldState{
-			sender0: Account{},
+			sender: Account{},
 		}
 		transaction := tosca.Transaction{
-			Sender:    sender0,
+			Sender:    sender,
 			Recipient: nil,
 			GasLimit:  sufficientGas,
 			Input:     initCode,
@@ -336,7 +324,131 @@ func TestProcessor_EmptyReceiverCreatesAccount(t *testing.T) {
 			t.Errorf("account was created with the wrong address, returned %v", result.ContractAddress)
 		}
 	}
+}
 
+func TestProcessor_CorrectAddressIsCreated(t *testing.T) {
+	gasLimit := big.NewInt(int64(sufficientGas))
+	gasPush := vm.PUSH1 + vm.OpCode(len(gasLimit.Bytes())-1)
+
+	for processorName, processor := range getProcessors() {
+		for _, create := range []vm.OpCode{vm.CREATE, vm.CREATE2} {
+			t.Run(fmt.Sprintf("%s-%s", processorName, create.String()), func(t *testing.T) {
+				sender := tosca.Address{1}
+				receiver := tosca.Address{2}
+				toBeCreatedCodeHolder := tosca.Address{3}
+				initCodeHolder := tosca.Address{4}
+
+				initCodeOffset := 64
+				saltByte := byte(55)
+
+				// code to be created
+				codeToBeCreated := []byte{
+					byte(vm.ADDRESS),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.MSTORE),
+					byte(vm.PUSH1), byte(32),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.RETURN),
+				}
+
+				// save code to be created to memory
+				initCode := saveCodeFromAccountToMemory(
+					toBeCreatedCodeHolder,
+					byte(len(codeToBeCreated)),
+					byte(0),
+				)
+
+				// get code to be created from memory and return it
+				initCode = append(initCode, []byte{
+					byte(vm.PUSH1), byte(len(codeToBeCreated)),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.RETURN),
+				}...)
+
+				// save init code to memory
+				baseCode := saveCodeFromAccountToMemory(
+					initCodeHolder,
+					byte(len(initCode)),
+					byte(initCodeOffset),
+				)
+
+				// Add salt for CREATE2
+				if create == vm.CREATE2 {
+					baseCode = append(baseCode, byte(vm.PUSH1), saltByte)
+				}
+
+				// Create the contract
+				baseCode = append(baseCode, []byte{
+					byte(vm.PUSH1), byte(len(initCode)), // input size
+					byte(vm.PUSH1), byte(initCodeOffset), // input offset
+					byte(vm.PUSH1), byte(0), // value
+					byte(create),
+				}...)
+
+				// Safe created address to memory
+				baseCode = append(baseCode, []byte{
+					byte(vm.PUSH1), byte(32),
+					byte(vm.MSTORE),
+				}...)
+
+				// input for the call
+				baseCode = append(baseCode, []byte{
+					byte(vm.PUSH1), byte(32), // result size
+					byte(vm.PUSH1), byte(0), // result offset
+					byte(vm.PUSH1), byte(0), // input size
+					byte(vm.PUSH1), byte(0), // input offset
+					byte(vm.PUSH1), byte(0), // value
+					byte(vm.PUSH1), byte(32), // memory offset for address
+					byte(vm.MLOAD), // load address
+				}...)
+
+				// gas for the call
+				baseCode = append(baseCode, byte(gasPush))
+				baseCode = append(baseCode, gasLimit.Bytes()...)
+
+				// Call contract and return result
+				baseCode = append(baseCode, []byte{
+					byte(vm.CALL),
+					byte(vm.PUSH1), byte(64),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.RETURN),
+				}...)
+
+				state := WorldState{
+					sender:                Account{},
+					receiver:              Account{Code: baseCode, Nonce: 44},
+					toBeCreatedCodeHolder: Account{Code: codeToBeCreated},
+					initCodeHolder:        Account{Code: initCode},
+				}
+				transaction := tosca.Transaction{
+					Sender:    sender,
+					Recipient: &receiver,
+					GasLimit:  sufficientGas,
+				}
+
+				transactionContext := newScenarioContext(state)
+
+				codeHash := [32]byte(crypto.Keccak256Hash(initCode))
+				salt := append(bytes.Repeat([]byte{0}, 31), saltByte)
+				wantAddress := tosca.Address(crypto.CreateAddress(common.Address(receiver), state[receiver].Nonce))
+				if create == vm.CREATE2 {
+					wantAddress = tosca.Address(crypto.CreateAddress2(common.Address(receiver), [32]byte(salt), codeHash[:]))
+				}
+
+				// Run the processor
+				result, err := processor.Run(tosca.BlockParameters{}, transaction, transactionContext)
+				if err != nil || !result.Success {
+					t.Errorf("execution was not successful or failed with error %v", err)
+				}
+				if !slices.Equal(wantAddress[:], result.Output[12:32]) {
+					t.Errorf("contract address was not created correctly, returned %v vs %v", result.Output[12:32], wantAddress[:])
+				}
+				if !slices.Equal(wantAddress[:], result.Output[44:64]) {
+					t.Errorf("contract address was not created correctly, returned %v vs %v", result.Output[44:64], wantAddress[:])
+				}
+			})
+		}
+	}
 }
 
 func saveCodeFromAccountToMemory(account tosca.Address, length byte, offset byte) []byte {
