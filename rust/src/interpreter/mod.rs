@@ -825,7 +825,21 @@ pub fn run(
             opcode::CREATE => unimplemented!(),
             opcode::CALL => unimplemented!(),
             opcode::CALLCODE => unimplemented!(),
-            opcode::RETURN => unimplemented!(),
+            opcode::RETURN => {
+                let [offset, len] = pop_from_stack(&mut stack)?;
+                let (len, len_overflow) = len.into_u64_with_overflow();
+                if len_overflow {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_OUT_OF_GAS,
+                    ));
+                }
+                let memory_access = access_memory_slice(&mut memory, offset, len, &mut gas_left)?;
+                output = Some(memory_access.to_owned());
+                step_status_code = StepStatusCode::EVMC_STEP_RETURNED;
+                code_state.next();
+                break;
+            }
             opcode::DELEGATECALL => unimplemented!(),
             opcode::CREATE2 => unimplemented!(),
             opcode::STATICCALL => unimplemented!(),
