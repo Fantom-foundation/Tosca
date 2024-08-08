@@ -160,42 +160,6 @@ func (gas) String() string {
 	return "Gas"
 }
 
-////////////////////////////////////////////////////////////
-// Gas Refund Counter
-
-type gasRefund struct{}
-
-func GasRefund() Expression[tosca.Gas] {
-	return gasRefund{}
-}
-
-func (gasRefund) Property() Property { return Property("gasRefund") }
-
-func (gasRefund) Domain() Domain[tosca.Gas] { return gasDomain{} }
-
-func (gasRefund) Eval(s *st.State) (tosca.Gas, error) {
-	return s.GasRefund, nil
-}
-
-func (gasRefund) Restrict(kind RestrictionKind, amount tosca.Gas, generator *gen.StateGenerator) {
-	switch kind {
-	case RestrictLess:
-		generator.AddGasRefundUpperBound(amount - 1)
-	case RestrictLessEqual:
-		generator.AddGasRefundUpperBound(amount)
-	case RestrictEqual:
-		generator.SetGasRefund(amount)
-	case RestrictGreaterEqual:
-		generator.AddGasRefundLowerBound(amount)
-	case RestrictGreater:
-		generator.AddGasRefundLowerBound(amount + 1)
-	}
-}
-
-func (gasRefund) String() string {
-	return "GasRefund"
-}
-
 // //////////////////////////////////////////////////////////
 // Read Only Mode
 type readOnly struct{}
