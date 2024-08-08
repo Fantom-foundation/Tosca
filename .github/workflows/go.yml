@@ -63,6 +63,7 @@ jobs:
       run: go run ./go/ct/driver regressions evmzero
 
     - name: Test coverage
+      if: github.ref != 'refs/heads/main'
       uses: actions/github-script@v6
       with:
        script: |
@@ -76,10 +77,3 @@ jobs:
           });
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    # see issue #316
-    #- name: CT rule coverage test
-    #  run: go run ./go/ct/driver test
-
-    #- name: CT on LFVM
-    #  run: go run ./go/ct/driver run lfvm
