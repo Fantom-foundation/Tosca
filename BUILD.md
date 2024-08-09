@@ -272,19 +272,30 @@ The ct Evm.StepN interface is used to evaluate N instructions in different EVM i
    - FuzzDifferentialEvmzeroVsGeth: ```make fuzz-evmzero-diff``` (disabled, issue #549)
 
 
-## Static analysis
+## Containerized Build
 
-Tosca project uses static analysis to improve code quality.
+This feature allows to use different platforms and toolchains to compile the project, at this stage, an initial Dockerfile is provided in the CI folder to describe an environment capable of building and running tests for this project codebase. 
+The workflow is purely optional.
+Using this feature enables: 
+- Containerized Jenkins Builds. Where the development environment is described in the git repository and does not depend from any particular server setup.
+- Multiple simultaneous platform definitions.
+- Different branches with different toolchains, all of them building correctly the CI. This is important to prevent loosing CI support during toolchain migrations. 
+- Containerized development, using a number of IDEs that support them: https://containers.dev/
 
-### Go
+Build the image:
+```bash
+docker build CI -t tosca_build:latest
+```
+To start an interactive container from the image, run this command in the Tosca root folder.
+```bash
+docker run -it --rm -v$(pwd):$(pwd) -u$(id -u):$(id -g) tosca_build:latest
+```
+- `-it` interactive terminal
+- `--rm` transient container, changes to the image will be deleted when existing the interactive session
+- `-v` mount Tosca source code in the same path inside the image (build will be persistent)
+- `-u` use same user id as in the host, to prevent build folder permissions mismatch 
 
-Currently, two different static analysis tools are used:
-- [Vet](https://pkg.go.dev/cmd/vet) Is the default go linter, bundled with the toolchain. Vet uses heuristics that do not guarantee all reports are genuine problems, but it can find errors not caught by the compilers. To execute it run `go vet ./go/...`. This tool is currently enabled in the CI, and pull request will be prevented from merging when checks are not satisfied.
-- [StaticCheck](https://staticcheck.dev/) Finds other [errors](https://staticcheck.dev/docs/checks/) related to styling and good practices. 
-
-Lints can be disabled as described [here](https://golangci-lint.run/usage/false-positives/). Please use `//nolint:pass` where pass is the linter pass that discovers the error. Do not ignore all passes as one line may hide more than one error.
-
-### C++
-
-There is currently no infrastructure to run static analysis for C++ code in this project.
-
+Once inside the container, build can be triggered as usual:
+```bash
+CC=clang-16 CXX=clang++-16 make test
+```

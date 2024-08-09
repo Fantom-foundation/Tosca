@@ -9,7 +9,12 @@
 // this software will be governed by the GNU Lesser General Public License v3.
 
 pipeline {
-    agent { label 'quick' }
+    agent {
+        dockerfile {
+            filename 'CI/Dockerfile.build'
+            label 'norma'
+        }
+    }
 
     options {
         timestamps()
@@ -17,7 +22,7 @@ pipeline {
     }
 
     environment {
-        GOROOT = '/usr/lib/go-1.21/'
+        GOROOT = '/usr/lib/go-1.22/'
         CC = 'gcc'
         CXX = 'g++'
     }
@@ -26,7 +31,7 @@ pipeline {
         stage('Validate commit') {
             steps {
                 script {
-                    def CHANGE_REPO = sh (script: "basename -s .git `git config --get remote.origin.url`", returnStdout: true).trim()
+                    def CHANGE_REPO = sh(script: 'basename -s .git `git config --get remote.origin.url`', returnStdout: true).trim()
                     build job: '/Utils/Validate-Git-Commit', parameters: [
                         string(name: 'Repo', value: "${CHANGE_REPO}"),
                         string(name: 'Branch', value: "${env.CHANGE_BRANCH}"),
