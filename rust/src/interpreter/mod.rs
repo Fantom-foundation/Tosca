@@ -880,7 +880,17 @@ pub fn run(
                 code_state.next();
                 break;
             }
-            opcode::DELEGATECALL => unimplemented!(),
+            opcode::DELEGATECALL => delegate_call(
+                &mut code_state,
+                &mut stack,
+                &mut memory,
+                context,
+                message,
+                revision,
+                &mut gas_left,
+                &mut gas_refund,
+                &mut last_call_return_data,
+            )?,
             opcode::CREATE2 => create::<true>(
                 &mut code_state,
                 &mut stack,
@@ -1375,6 +1385,72 @@ fn call_code(
     *gas_left += result.gas_left() as u64;
     consume_dyn_gas(gas_left, endowment)?;
     consume_dyn_gas(gas_left, stipend)?;
+    *gas_refund += result.gas_refund();
+
+    stack.push(((result.status_code() == StatusCode::EVMC_SUCCESS) as u8).into());
+    code_state.next();
+    Ok(())
+}
+
+fn delegate_call(
+    code_state: &mut CodeState,
+    stack: &mut Vec<u256>,
+    memory: &mut Vec<u8>,
+    context: &mut ExecutionContext,
+    message: &ExecutionMessage,
+    revision: Revision,
+    gas_left: &mut u64,
+    gas_refund: &mut i64,
+    last_call_return_data: &mut Option<Vec<u8>>,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    if revision < Revision::EVMC_BERLIN {
+        consume_gas::<700>(gas_left)?;
+    }
+    let [gas, addr, args_offset, args_len, ret_offset, ret_len] = pop_from_stack(stack)?;
+
+    let addr = addr.into();
+    let (args_len, args_len_overflow) = args_len.into_u64_with_overflow();
+    let (ret_len, ret_len_overflow) = ret_len.into_u64_with_overflow();
+    if args_len_overflow || ret_len_overflow {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_OUT_OF_GAS,
+        ));
+    }
+
+    consume_address_access_cost(gas_left, &addr, context, revision)?;
+    let input = access_memory_slice(memory, args_offset, args_len, gas_left)?.to_owned(); // TODO move this further down to avoid allocation
+    let dest = access_memory_slice(memory, ret_offset, ret_len, gas_left)?;
+
+    let limit = *gas_left - *gas_left / 64;
+    let mut endowment = gas.into_u64_saturating();
+    if revision >= Revision::EVMC_TANGERINE_WHISTLE {
+        endowment = min(endowment, limit); // cap gas at all but one 64th of gas left
+    }
+
+    let call_message = ExecutionMessage::new(
+        MessageKind::EVMC_DELEGATECALL,
+        message.flags(),
+        message.depth() + 1,
+        endowment as i64,
+        *message.recipient(),
+        *message.sender(),
+        Some(&input),
+        *message.value(),
+        u256::ZERO.into(), // ignored
+        addr,
+        None,
+    );
+
+    let result = context.call(&call_message);
+    *last_call_return_data = result.output().map(ToOwned::to_owned);
+    if let Some(output) = last_call_return_data {
+        let min_len = min(output.len(), ret_len as usize); // ret_len == dest.len()
+        dest[..min_len].copy_from_slice(&output[..min_len]);
+    }
+
+    *gas_left += result.gas_left() as u64;
+    consume_dyn_gas(gas_left, endowment)?;
     *gas_refund += result.gas_refund();
 
     stack.push(((result.status_code() == StatusCode::EVMC_SUCCESS) as u8).into());
