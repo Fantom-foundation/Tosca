@@ -820,7 +820,7 @@ pub fn run(
                 revision,
                 &mut gas_left,
             )?,
-            opcode::CREATE => create(
+            opcode::CREATE => create::<false>(
                 &mut code_state,
                 &mut stack,
                 &mut memory,
@@ -849,7 +849,17 @@ pub fn run(
                 break;
             }
             opcode::DELEGATECALL => unimplemented!(),
-            opcode::CREATE2 => unimplemented!(),
+            opcode::CREATE2 => create::<true>(
+                &mut code_state,
+                &mut stack,
+                &mut memory,
+                context,
+                message,
+                &mut last_call_return_data,
+                revision,
+                &mut gas_left,
+                &mut gas_refund,
+            )?,
             opcode::STATICCALL => unimplemented!(),
             opcode::REVERT => {
                 let [offset, len] = pop_from_stack(&mut stack)?;
@@ -1013,7 +1023,7 @@ fn log<const N: usize>(
     Ok(())
 }
 
-fn create(
+fn create<const CREATE2: bool>(
     code_state: &mut CodeState,
     stack: &mut Vec<u256>,
     memory: &mut Vec<u8>,
@@ -1027,6 +1037,11 @@ fn create(
     consume_gas::<32000>(gas_left)?;
     check_not_read_only(message, revision)?;
     let [value, offset, len] = pop_from_stack(stack)?;
+    let salt = if CREATE2 {
+        pop_from_stack::<1>(stack)?[0]
+    } else {
+        u256::ZERO.into() // ignored
+    };
     let (len, len_overflow) = len.into_u64_with_overflow();
     if len_overflow {
         return Err((
@@ -1035,6 +1050,7 @@ fn create(
         ));
     }
 
+    let init_code_word_size = word_size(len);
     if revision >= Revision::EVMC_SHANGHAI {
         const MAX_INIT_CODE_LEN: u64 = 2 * 24576;
         if len > MAX_INIT_CODE_LEN {
@@ -1043,9 +1059,14 @@ fn create(
                 StatusCode::EVMC_OUT_OF_GAS,
             ));
         }
-        let init_code_cost = 2 * word_size(len);
+        let init_code_cost = 2 * init_code_word_size;
         consume_dyn_gas(gas_left, init_code_cost)?;
     }
+    if CREATE2 {
+        let hash_cost = 6 * init_code_word_size;
+        consume_dyn_gas(gas_left, hash_cost)?;
+    }
+
     let init_code = access_memory_slice(memory, offset, len, gas_left)?;
 
     if value > context.get_balance(message.recipient()).into() {
@@ -1059,7 +1080,11 @@ fn create(
     consume_dyn_gas(gas_left, gas_limit)?;
 
     let message = ExecutionMessage::new(
-        MessageKind::EVMC_CREATE,
+        if CREATE2 {
+            MessageKind::EVMC_CREATE2
+        } else {
+            MessageKind::EVMC_CREATE
+        },
         message.flags(),
         message.depth() + 1,
         gas_limit as i64,
@@ -1067,7 +1092,7 @@ fn create(
         *message.recipient(),
         Some(init_code),
         value.into(),
-        u256::ZERO.into(), // ignored
+        salt.into(),
         u256::ZERO.into(), // ignored
         None,
     );
