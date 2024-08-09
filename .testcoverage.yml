@@ -44,14 +44,6 @@ threshold:
 override:
   # files
   - threshold: 0
-    path: go/ct/rlz/domains.go
-  - threshold: 0
-    path: go/ct/rlz/effect.go
-  - threshold: 0
-    path: go/ct/rlz/expressions.go
-  - threshold: 0
-    path: go/ct/rlz/parameters.go
-  - threshold: 0
     path: go/ct/spc/specification.go
   - threshold: 0
     path: go/ct/st/transient_storage.go

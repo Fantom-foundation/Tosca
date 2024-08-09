@@ -237,6 +237,9 @@ func TestCondition_String(t *testing.T) {
 		{IsCode(Pc()), "isCode[PC]"},
 		{IsData(Pc()), "isData[PC]"},
 		{And(Eq(Status(), st.Running), Eq(Status(), st.Failed)), "status = running ∧ status = failed"},
+		{IsRevision(tosca.R10_London), "revision(London)"},
+		{RevisionBounds(tosca.R09_Berlin, tosca.R11_Paris), "revision(Berlin-Paris)"},
+		{HasNotSelfDestructed(), "hasNotSelfDestructed()"},
 	}
 
 	for _, test := range tests {
@@ -267,27 +270,6 @@ func TestHasSelfDestructedCondition_CheckSelfDestructed(t *testing.T) {
 	}
 	if !hasNotSelfDestructed {
 		t.Fatal("hasNotSelfDestructed check failed")
-	}
-}
-
-func TestHasSelfDestructedCondition_HasSelfDestructRestrictsGeneratedStateToBeSelfDestructed(t *testing.T) {
-	condition := HasSelfDestructed()
-
-	gen := gen.NewStateGenerator()
-	condition.Restrict(gen)
-	rnd := rand.New(0)
-	state, err := gen.Generate(rnd)
-	if err != nil {
-		t.Errorf("%v", err)
-	}
-
-	got, err := condition.Check(state)
-	if err != nil {
-		t.Errorf("%v", err)
-	}
-
-	if !got {
-		t.Error("generated state does not satisfy condition")
 	}
 }
 
@@ -381,55 +363,6 @@ func TestCondition_InOutRange256FromCurrentBlock_Check(t *testing.T) {
 
 }
 
-func TestCondition_InOut_Restrict(t *testing.T) {
-	rnd := rand.New()
-
-	tests := map[string]struct {
-		condition Condition
-	}{
-		"inRange":    {condition: InRange256FromCurrentBlock(Param(0))},
-		"outOfRange": {condition: OutOfRange256FromCurrentBlock(Param(0))},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			for i := 0; i < 1000; i++ {
-				gen := gen.NewStateGenerator()
-				test.condition.Restrict(gen)
-				state, err := gen.Generate(rnd)
-				if err != nil {
-					t.Fatalf("failed to build state: %v", err)
-				}
-				if checked, err := test.condition.Check(state); err != nil || !checked {
-					t.Errorf("failed to check condition: %v", err)
-				}
-			}
-		})
-	}
-}
-
-func TestCondition_InOutOfRangeGetTestValues(t *testing.T) {
-	want := []int64{math.MinInt64, -1, 0, 1, 255, 256, 257, math.MaxInt64}
-	tests := map[string]Condition{
-		"inRange":    InRange256FromCurrentBlock(Param(0)),
-		"outOfRange": OutOfRange256FromCurrentBlock(Param(0)),
-	}
-
-	for name, condition := range tests {
-		t.Run(name, func(t *testing.T) {
-			testValues := condition.GetTestValues()
-			if len(testValues) != len(want) {
-				t.Fatalf("unexpected amount test values, got %v, want %v", len(testValues), want)
-			}
-			for i, test := range testValues {
-				if test.(*testValue[int64]).value != want[i] {
-					t.Errorf("unexpected test value, got %v, want %v", test.(*testValue[int64]).value, want[i])
-				}
-			}
-		})
-	}
-}
-
 func TestCondition_CheckUnsatisfiableTransientStorageBindings(t *testing.T) {
 	conditionNonZero := BindTransientStorageToNonZero(Param(0))
 	conditionZero := BindTransientStorageToZero(Param(0))
@@ -441,57 +374,6 @@ func TestCondition_CheckUnsatisfiableTransientStorageBindings(t *testing.T) {
 	_, err := gen.Generate(rnd)
 	if err == nil {
 		t.Errorf("Expected unsatisfiable condition, but got nil")
-	}
-}
-
-func TestCondition_RestrictTransientStorageAndCheck(t *testing.T) {
-	rnd := rand.New()
-
-	tests := map[string]Condition{
-		"zero":    BindTransientStorageToZero(Param(0)),
-		"nonZero": BindTransientStorageToNonZero(Param(0)),
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			gen := gen.NewStateGenerator()
-			test.Restrict(gen)
-			state, err := gen.Generate(rnd)
-			if err != nil {
-				t.Fatalf("failed to build state: %v", err)
-			}
-			if checked, err := test.Check(state); err != nil || !checked {
-				t.Errorf("failed to check condition: %v", err)
-			}
-		})
-	}
-}
-
-func TestCondition_BlobHashes_Restrict(t *testing.T) {
-	rnd := rand.New()
-
-	tests := map[string]struct {
-		condition Condition
-	}{
-		"hasBlobHash":    {condition: HasBlobHash(Param(0))},
-		"hasNotBlobHash": {condition: HasNoBlobHash(Param(0))},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-
-			for i := 0; i < 1000; i++ {
-				gen := gen.NewStateGenerator()
-				test.condition.Restrict(gen)
-				state, err := gen.Generate(rnd)
-				if err != nil {
-					t.Fatalf("failed to build state: %v", err)
-				}
-				if checked, err := test.condition.Check(state); err != nil || !checked {
-					t.Errorf("failed to check condition: %v", err)
-				}
-			}
-		})
 	}
 }
 
@@ -598,27 +480,6 @@ func TestCondition_BlobHashesProducesGetTestValues(t *testing.T) {
 	}
 }
 
-func TestCondition_IsAccountWarmRestrictAndCheck(t *testing.T) {
-	tests := map[string]Condition{
-		"warm": IsAddressWarm(Param(0)),
-		"cold": IsAddressCold(Param(0)),
-	}
-
-	for name, condition := range tests {
-		t.Run(name, func(t *testing.T) {
-			gen := gen.NewStateGenerator()
-			condition.Restrict(gen)
-			state, err := gen.Generate(rand.New(0))
-			if err != nil {
-				t.Fatalf("failed to build state: %v", err)
-			}
-			if checked, err := condition.Check(state); err != nil || !checked {
-				t.Errorf("failed to restrict and check condition: %v", err)
-			}
-		})
-	}
-}
-
 func TestCondition_ConflictingAccountWarmConditionsAreUnsatisfiable(t *testing.T) {
 	isWarm := IsAddressWarm(Param(0))
 	isCold := IsAddressCold(Param(0))
@@ -632,68 +493,155 @@ func TestCondition_ConflictingAccountWarmConditionsAreUnsatisfiable(t *testing.T
 	}
 }
 
-func TestCondition_NotEqualRestrictAndCheck(t *testing.T) {
-	gen := gen.NewStateGenerator()
-	condition := Ne(Gas(), 1)
-	condition.Restrict(gen)
-	state, err := gen.Generate(rand.New(0))
-	if err != nil {
-		t.Fatalf("failed to build state: %v", err)
+func TestCondition_RevisionBoundInvalidBounds(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic")
+		}
+	}()
+	RevisionBounds(tosca.R10_London, tosca.R09_Berlin)
+}
+
+func TestCondition_IsRevisionCondition(t *testing.T) {
+
+	tests := map[string]struct {
+		condition  Condition
+		isRevision bool
+	}{
+		"IsRevision":       {IsRevision(tosca.R10_London), true},
+		"RevisionBounds":   {RevisionBounds(tosca.R10_London, tosca.R10_London), true},
+		"AnyKnownRevision": {AnyKnownRevision(), true},
+		"IsAddressWarm":    {IsAddressWarm(Param(0)), false},
+		"IsCode":           {IsCode(Param(0)), false},
 	}
-	if checked, err := condition.Check(state); err != nil || !checked {
-		t.Errorf("failed to restrict and check condition: %v", err)
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got, want := IsRevisionCondition(test.condition), test.isRevision; got != want {
+				t.Errorf("condition %v failed to be recognize. got %v, want %v", test.condition, got, want)
+			}
+		})
 	}
 }
 
-func TestCondition_LessThanRestrictAndCheck(t *testing.T) {
-	gen := gen.NewStateGenerator()
-	condition := Lt(Gas(), 2)
-	condition.Restrict(gen)
-	state, err := gen.Generate(rand.New(0))
-	if err != nil {
-		t.Fatalf("failed to build state: %v", err)
+func TestCondition_GetTestValues(t *testing.T) {
+
+	inOutofRangeTestValues := []any{math.MinInt64, -1, 0, 1, 255, 256, 257, math.MaxInt64}
+
+	tests := []struct {
+		condition Condition
+		want      []any
+	}{
+		{IsRevision(tosca.R10_London), []any{tosca.R10_London}},
+		{AnyKnownRevision(), []any{tosca.R07_Istanbul, tosca.R09_Berlin, tosca.R10_London, tosca.R11_Paris, tosca.R12_Shanghai, tosca.R13_Cancun, R99_UnknownNextRevision}},
+		{InRange256FromCurrentBlock(Param(0)), inOutofRangeTestValues},
+		{OutOfRange256FromCurrentBlock(Param(0)), inOutofRangeTestValues},
+		{IsCode(Param(0)), []any{true, false}},
+		{IsData(Param(0)), []any{true, false}},
+		{IsStorageWarm(Param(0)), []any{true, false}},
+		{IsStorageCold(Param(0)), []any{true, false}},
+		{StorageConfiguration(tosca.StorageAssigned, Param(0), Param(1)), []any{true}},
+		{BindTransientStorageToNonZero(Param(0)), []any{true, false}},
+		{BindTransientStorageToZero(Param(0)), []any{true, false}},
+		{IsAddressWarm(Param(0)), []any{true}},
+		{IsAddressCold(Param(0)), []any{false}},
+		{HasSelfDestructed(), []any{true, false}},
+		{HasNotSelfDestructed(), []any{true, false}},
 	}
-	if checked, err := condition.Check(state); err != nil || !checked {
-		t.Errorf("failed to restrict and check condition: %v", err)
+
+	for _, test := range tests {
+		t.Run(test.condition.String(), func(t *testing.T) {
+			if got, want := test.condition.GetTestValues(), test.want; len(got) != len(want) {
+				t.Errorf("unexpected test values. wanted %v, got %v", want, got)
+			}
+		})
 	}
 }
 
-func TestCondition_LessEqualRestrictAndCheck(t *testing.T) {
-	gen := gen.NewStateGenerator()
-	condition := Le(Gas(), 2)
-	condition.Restrict(gen)
-	state, err := gen.Generate(rand.New(0))
-	if err != nil {
-		t.Fatalf("failed to build state: %v", err)
+func TestCondition_RestricAndCheck(t *testing.T) {
+
+	tests := []Condition{
+		IsRevision(tosca.R10_London),
+		HasSelfDestructed(),
+		HasNotSelfDestructed(),
+		InRange256FromCurrentBlock(Param(0)),
+		OutOfRange256FromCurrentBlock(Param(0)),
+		BindTransientStorageToNonZero(Param(0)),
+		BindTransientStorageToZero(Param(0)),
+		HasBlobHash(Param(0)),
+		HasNoBlobHash(Param(0)),
+		IsAddressWarm(Param(0)),
+		IsAddressCold(Param(0)),
+		Ne(Gas(), 1),
+		Lt(Gas(), 2),
+		Le(Gas(), 2),
+		Gt(Gas(), 0),
+		Ge(Gas(), 0),
+		IsCode(Param(0)),
+		IsData(Param(0)),
+		IsStorageWarm(Param(0)),
+		IsStorageCold(Param(0)),
+		StorageConfiguration(tosca.StorageAssigned, Param(0), Param(1)),
 	}
-	if checked, err := condition.Check(state); err != nil || !checked {
-		t.Errorf("failed to restrict and check condition: %v", err)
+
+	for _, condition := range tests {
+		t.Run(condition.String(), func(t *testing.T) {
+			gen := gen.NewStateGenerator()
+			condition.Restrict(gen)
+			state, err := gen.Generate(rand.New(0))
+			if err != nil {
+				t.Errorf("failed to build state: %v", err)
+			}
+			if checked, err := condition.Check(state); err != nil || !checked {
+				t.Errorf("failed to check condition: %v", err)
+			}
+		})
 	}
 }
 
-func TestCondition_GreaterThanRestrictAndCheck(t *testing.T) {
-	gen := gen.NewStateGenerator()
-	condition := Gt(Gas(), 0)
-	condition.Restrict(gen)
-	state, err := gen.Generate(rand.New(0))
-	if err != nil {
-		t.Fatalf("failed to build state: %v", err)
-	}
-	if checked, err := condition.Check(state); err != nil || !checked {
-		t.Errorf("failed to restrict and check condition: %v", err)
-	}
-}
+func TestCondition_CheckFail(t *testing.T) {
 
-func TestCondition_GreaterEqualRestrictAndCheck(t *testing.T) {
-	gen := gen.NewStateGenerator()
-	condition := Ge(Gas(), 0)
-	condition.Restrict(gen)
-	state, err := gen.Generate(rand.New(0))
-	if err != nil {
-		t.Fatalf("failed to build state: %v", err)
+	tests := []struct {
+		condition  Condition
+		breakState func(st.State)
+	}{
+		// only Param and Op can return errors on eval, which is where the errors from check come from.
+		{Eq(Param(1), NewU256(1)), func(s st.State) { s.Stack.Resize(0) }},
+		{Ne(Param(1), NewU256(1)), func(s st.State) { s.Stack.Resize(0) }},
+		// Op and Param expressions only support equaility constraints,
+		// hence the non equality constraints cannot produce error on check with the current expressions.
+		// {Lt(Param(1), NewU256(1)), func(s st.State) { s.Stack.Resize(0) }},
+		// {Le(Param(1), NewU256(1)), func(s st.State) { s.Stack.Resize(0) }},
+		// {Gt(Param(1), NewU256(1)), func(s st.State) { s.Stack.Resize(0) }},
+		// {Ge(Param(1), NewU256(1)), func(s st.State) { s.Stack.Resize(0) }},
+		{IsCode(Param(1)), func(s st.State) { s.Stack.Resize(0) }},
+		{IsData(Param(1)), func(s st.State) { s.Stack.Resize(0) }},
+		{IsStorageWarm(Param(1)), func(s st.State) { s.Stack.Resize(0) }},
+		{IsStorageCold(Param(1)), func(s st.State) { s.Stack.Resize(0) }},
+		{StorageConfiguration(tosca.StorageAssigned, Param(1), Param(2)), func(s st.State) { s.Stack.Resize(1) }},
+		{StorageConfiguration(tosca.StorageAssigned, Param(1), Param(2)), func(s st.State) { s.Stack.Resize(0) }},
+		{BindTransientStorageToNonZero(Param(1)), func(s st.State) { s.Stack.Resize(0) }},
+		{BindTransientStorageToZero(Param(1)), func(s st.State) { s.Stack.Resize(0) }},
+		{IsAddressWarm(Param(1)), func(s st.State) { s.Stack.Resize(0) }},
+		{InRange256FromCurrentBlock(Param(1)), func(s st.State) { s.Stack.Resize(0) }},
+		{OutOfRange256FromCurrentBlock(Param(1)), func(s st.State) { s.Stack.Resize(0) }},
+		{IsAddressCold(Param(1)), func(s st.State) { s.Stack.Resize(0) }},
+		{HasNoBlobHash(Param(1)), func(s st.State) { s.Stack.Resize(0) }},
 	}
-	if checked, err := condition.Check(state); err != nil || !checked {
-		t.Errorf("failed to restrict and check condition: %v", err)
+
+	for _, test := range tests {
+		t.Run(test.condition.String(), func(t *testing.T) {
+			gen := gen.NewStateGenerator()
+			test.condition.Restrict(gen)
+			state, err := gen.Generate(rand.New(0))
+			if err != nil {
+				t.Errorf("unexpected error generating state. %v", err)
+			}
+			test.breakState(*state)
+			if checked, err := test.condition.Check(state); err == nil {
+				t.Errorf("expected error checking condition. err %v. checked: %v", err, checked)
+			}
+		})
 	}
 }
 
