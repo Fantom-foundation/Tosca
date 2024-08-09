@@ -536,25 +536,37 @@ func TestU256_Uint256Conversion(t *testing.T) {
 }
 
 func TestU256_SignExtend(t *testing.T) {
+
+	maxu64 := uint64(0xffffffffffffffff)
+
 	tests := []struct {
-		value U256
-		want  U256
+		value    U256
+		argument U256
+		want     U256
 	}{
-		{U256{}, U256{}},
-		{NewU256(1), NewU256(1)},
-		{NewU256(0xff), NewU256(0xff)},
-		{NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff)},
-		{NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff)},
+		{U256{}, NewU256(1), U256{}},
+		{U256{}, NewU256(0xfff), U256{}},
+		{NewU256(1), NewU256(1), NewU256(1)},
+		{NewU256(1), NewU256(0xfff), NewU256(1)},
+		{NewU256(0xff), NewU256(1), NewU256(0xff)},
+		{NewU256(0xff), NewU256(0xfff), NewU256(0xff)},
+		{NewU256(maxu64), NewU256(1), NewU256(maxu64, maxu64, maxu64, maxu64)},
+		{NewU256(maxu64), NewU256(0xfff), NewU256(maxu64)},
+		{NewU256(maxu64, maxu64, maxu64, maxu64), NewU256(1), NewU256(maxu64, maxu64, maxu64, maxu64)},
+		{NewU256(maxu64, maxu64, maxu64, maxu64), NewU256(0xfff), NewU256(maxu64, maxu64, maxu64, maxu64)},
 	}
 
 	for _, test := range tests {
-		if want, got := test.want, test.value.SignExtend(NewU256(0xfff)); !want.Eq(got) {
-			t.Errorf("Unexpected result from SignExtend, want %v, got %v", want, got)
-		}
+		t.Run(test.value.String(), func(t *testing.T) {
+			if want, got := test.want, test.value.SignExtend(test.argument); !want.Eq(got) {
+				t.Errorf("Unexpected result from SignExtend, want %v, got %v", want, got)
+			}
+		})
 	}
 }
 
 func TestU256_And(t *testing.T) {
+	maxu64 := uint64(0xffffffffffffffff)
 	tests := []struct {
 		a    U256
 		b    U256
@@ -563,8 +575,23 @@ func TestU256_And(t *testing.T) {
 		{U256{}, U256{}, U256{}},
 		{NewU256(1), NewU256(1), NewU256(1)},
 		{NewU256(0xff), NewU256(0xff), NewU256(0xff)},
-		{NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff)},
-		{NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff)},
+		{NewU256(maxu64), NewU256(maxu64), NewU256(maxu64)},
+		{NewU256(0x12345678), NewU256(0x87654321), NewU256(0x12345678 & 0x87654321)},
+		{
+			NewU256(0xffff00, 0xffff00, 0xffff00, 0xffff00),
+			NewU256(0x00ffff, 0x00ffff, 0x00ffff, 0x00ffff),
+			NewU256(0x00ff00, 0x00ff00, 0x00ff00, 0x00ff00),
+		},
+		{
+			NewU256(maxu64, maxu64, maxu64, maxu64),
+			NewU256(maxu64, maxu64, maxu64, maxu64),
+			NewU256(maxu64, maxu64, maxu64, maxu64),
+		},
+		{
+			NewU256(0, maxu64, 0, maxu64),
+			NewU256(0, 0, maxu64, maxu64),
+			NewU256(0, 0, 0, maxu64),
+		},
 	}
 
 	for _, test := range tests {
@@ -575,16 +602,22 @@ func TestU256_And(t *testing.T) {
 }
 
 func TestU256_Or(t *testing.T) {
+	maxu64 := uint64(0xffffffffffffffff)
 	tests := []struct {
 		a    U256
 		b    U256
 		want U256
 	}{
 		{U256{}, U256{}, U256{}},
-		{NewU256(1), NewU256(1), NewU256(1)},
+		{NewU256(1), NewU256(), NewU256(1)},
 		{NewU256(0xff), NewU256(0xff), NewU256(0xff)},
-		{NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff)},
-		{NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff)},
+		{NewU256(maxu64), NewU256(0), NewU256(maxu64)},
+		{NewU256(0x12345678), NewU256(0x87654321), NewU256(0x12345678 | 0x87654321)},
+		{
+			NewU256(0, maxu64, 0, maxu64),
+			NewU256(0, 0, maxu64, maxu64),
+			NewU256(0, maxu64, maxu64, maxu64),
+		},
 	}
 
 	for _, test := range tests {
@@ -595,16 +628,22 @@ func TestU256_Or(t *testing.T) {
 }
 
 func TestU256_Xor(t *testing.T) {
+	maxu64 := uint64(0xffffffffffffffff)
 	tests := []struct {
 		a    U256
 		b    U256
 		want U256
 	}{
 		{U256{}, U256{}, U256{}},
-		{NewU256(1), NewU256(1), U256{}},
-		{NewU256(0xff), NewU256(0xff), U256{}},
-		{NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff), U256{}},
-		{NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff), U256{}},
+		{NewU256(1), NewU256(0), NewU256(1)},
+		{NewU256(0), NewU256(0xff), NewU256(0xff)},
+		{NewU256(maxu64), NewU256(maxu64), U256{}},
+		{NewU256(0x12345678), NewU256(0x87654321), NewU256(0x12345678 ^ 0x87654321)},
+		{
+			NewU256(0, maxu64, 0, maxu64),
+			NewU256(0, 0, maxu64, maxu64),
+			NewU256(0, maxu64, maxu64, 0),
+		},
 	}
 
 	for _, test := range tests {
@@ -620,15 +659,12 @@ func TestU256_Srsh(t *testing.T) {
 		b    U256
 		want U256
 	}{
-		{U256{}, U256{}, U256{}},
-		{NewU256(1), NewU256(1), U256{}},
-		{NewU256(0xff), NewU256(0xff), U256{}},
-		{NewU256(0xffffffffffffffff), NewU256(0xffffffffffffffff), U256{}},
-		{
-			NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff),
-			NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff),
-			NewU256(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff),
-		},
+		{NewU256(0x12345678, 0x9abcdef0, 0x12345678, 0x9abcdef0), NewU256(0), NewU256(0x12345678, 0x9abcdef0, 0x12345678, 0x9abcdef0)},
+		{NewU256(0x12345678, 0x9abcdef0, 0x12345678, 0x9abcdef0), NewU256(47), NewU256(0, 0x2468acf00000, 0x13579bde00000, 0x2468acf00000)},
+		{NewU256(0x12345678, 0x9abcdef0, 0x12345678, 0x9abcdef0), NewU256(64), NewU256(0, 0x12345678, 0x9abcdef0, 0x12345678)},
+		{NewU256(0x12345678, 0x9abcdef0, 0x12345678, 0x9abcdef0), NewU256(128), NewU256(0, 0, 0x12345678, 0x9abcdef0)},
+		{NewU256(0x12345678, 0x9abcdef0, 0x12345678, 0x9abcdef0), NewU256(256), NewU256(0, 0, 0, 0)},
+		{NewU256(0xAAAAAAAA, 0x55555555, 0xAAAAAAAA, 0x55555555), NewU256(1), NewU256(0x55555555, 0x2AAAAAAA, 0x8000000055555555, 0x2AAAAAAA)},
 	}
 
 	for _, test := range tests {
