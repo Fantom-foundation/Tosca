@@ -291,3 +291,30 @@ func TestConstant_EvalReturnsValue(t *testing.T) {
 		})
 	}
 }
+
+func TestExpression_RestrictPanics(t *testing.T) {
+
+	tests := map[string]struct {
+		expression any
+		kind       RestrictionKind
+		value      any
+	}{
+		"Status":       {Status(), RestrictGreater, st.Reverted},
+		"Pc":           {Pc(), RestrictGreater, NewU256(42)},
+		"Pc-notUint64": {Pc(), RestrictEqual, NewU256(42, 42)},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			switch v := test.expression.(type) {
+			case status:
+				defer func() {
+					if r := recover(); r == nil {
+						t.Errorf("expected panic, but none occurred")
+					}
+				}()
+				v.Restrict(test.kind, test.value.(st.StatusCode), gen.NewStateGenerator())
+			}
+		})
+	}
+}
