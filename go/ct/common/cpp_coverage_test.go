@@ -23,6 +23,13 @@ var stateImpl = flag.Bool("expect-coverage", false, "enable if the unit test is 
 
 func TestDumpCppCoverageData(t *testing.T) {
 
+	// write coverage data into tempDir directory
+	tempDir := t.TempDir()
+	os.Setenv("GCOV_PREFIX", tempDir)
+
+	// run dump routine
+	DumpCppCoverageData()
+
 	expectEnabled := *stateImpl
 	enabled := isCppCoverageEnabled()
 
@@ -35,13 +42,6 @@ func TestDumpCppCoverageData(t *testing.T) {
 	} else if !expectEnabled {
 		t.Fatalf("Failed, cpp coverage is enabled, but it was expected disabled")
 	}
-
-	// write coverage data into tempDir directory
-	tempDir := t.TempDir()
-	os.Setenv("GCOV_PREFIX", tempDir)
-
-	// run dump routine
-	DumpCppCoverageData()
 
 	// check that at least one file is generated
 	found := false

@@ -74,6 +74,7 @@ func TestRevision_GetRevisionForBlock(t *testing.T) {
 	for i := tosca.R07_Istanbul; i <= NewestSupportedRevision; i++ {
 		revisions[i] = GetForkBlock(i)
 	}
+	revisions[R99_UnknownNextRevision] = 6000
 
 	for revision, revisionBlockNumber := range revisions {
 		t.Run(revision.String(), func(t *testing.T) {
@@ -84,4 +85,25 @@ func TestRevision_GetRevisionForBlock(t *testing.T) {
 		})
 	}
 
+}
+
+func TestRevisions_GetForkTime(t *testing.T) {
+	tests := map[tosca.Revision]uint64{
+		tosca.R07_Istanbul:      0,
+		tosca.R09_Berlin:        1000,
+		tosca.R10_London:        2000,
+		tosca.R11_Paris:         3000,
+		tosca.R12_Shanghai:      4000,
+		tosca.R13_Cancun:        5000,
+		R99_UnknownNextRevision: 6000,
+	}
+
+	for revision, forkTime := range tests {
+		t.Run(revision.String(), func(t *testing.T) {
+			got := GetForkTime(revision)
+			if forkTime != got {
+				t.Errorf("Unexpected fork time: %v", got)
+			}
+		})
+	}
 }

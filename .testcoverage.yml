@@ -44,12 +44,6 @@ threshold:
 override:
   # files
   - threshold: 0
-    path: go/ct/common/bytes.go
-  - threshold: 0
-    path: go/ct/common/cpp_coverage.go
-  - threshold: 0
-    path: go/ct/common/revisions.go
-  - threshold: 0
     path: go/ct/gen/assignment.go
   - threshold: 0
     path: go/ct/gen/state.go
@@ -103,9 +97,8 @@ override:
     path: go/tosca/interpreter_registry.go
   - threshold: 0
     path: go/tosca/utils.go
+
   # packages
-  - threshold: 0
-    path: go/ct/common
   - threshold: 0
     path: go/ct/rlz
   - threshold: 0
