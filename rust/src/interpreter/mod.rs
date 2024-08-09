@@ -1,8 +1,8 @@
 use std::{cmp::min, iter, mem, slice};
 
 use evmc_vm::{
-    AccessStatus, Address, ExecutionContext, ExecutionMessage, MessageFlags, Revision, StatusCode,
-    StepResult, StepStatusCode, StorageStatus, Uint256,
+    AccessStatus, Address, ExecutionContext, ExecutionMessage, MessageFlags, MessageKind, Revision,
+    StatusCode, StepResult, StepStatusCode, StorageStatus, Uint256,
 };
 use sha3::{Digest, Keccak256};
 
@@ -560,9 +560,7 @@ pub fn run(
                 code_state.next();
             }
             opcode::SSTORE => {
-                if revision >= Revision::EVMC_BYZANTIUM {
-                    check_not_read_only(message)?;
-                }
+                check_not_read_only(message, revision)?;
                 let [key, value] = pop_from_stack(&mut stack)?;
                 let key = key.into();
                 let addr = message.recipient();
@@ -683,7 +681,7 @@ pub fn run(
             }
             opcode::TSTORE => {
                 check_min_revision(Revision::EVMC_CANCUN, revision)?;
-                check_not_read_only(message)?;
+                check_not_read_only(message, revision)?;
                 consume_gas::<100>(&mut gas_left)?;
                 let [key, value] = pop_from_stack(&mut stack)?;
                 let addr = message.recipient();
@@ -822,7 +820,17 @@ pub fn run(
                 revision,
                 &mut gas_left,
             )?,
-            opcode::CREATE => unimplemented!(),
+            opcode::CREATE => create(
+                &mut code_state,
+                &mut stack,
+                &mut memory,
+                context,
+                message,
+                &mut last_call_return_data,
+                revision,
+                &mut gas_left,
+                &mut gas_refund,
+            )?,
             opcode::CALL => unimplemented!(),
             opcode::CALLCODE => unimplemented!(),
             opcode::RETURN => {
@@ -868,9 +876,7 @@ pub fn run(
                 ));
             }
             opcode::SELFDESTRUCT => {
-                if revision >= Revision::EVMC_BYZANTIUM {
-                    check_not_read_only(message)?;
-                }
+                check_not_read_only(message, revision)?;
                 consume_gas::<5000>(&mut gas_left)?;
                 let [addr] = pop_from_stack(&mut stack)?;
                 let addr = addr.into();
@@ -987,9 +993,7 @@ fn log<const N: usize>(
     revision: Revision,
     gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    if revision >= Revision::EVMC_BYZANTIUM {
-        check_not_read_only(message)?;
-    }
+    check_not_read_only(message, revision)?;
     consume_gas::<375>(gas_left)?;
     let [offset, len] = pop_from_stack(stack)?;
     let topics: [u256; N] = pop_from_stack(stack)?;
@@ -1005,6 +1009,84 @@ fn log<const N: usize>(
     let memory_access = access_memory_slice(memory, offset, len, gas_left)?;
     let topics: &[_; N] = unsafe { mem::transmute(&topics) };
     context.emit_log(message.recipient(), memory_access, topics.as_slice());
+    code_state.next();
+    Ok(())
+}
+
+fn create(
+    code_state: &mut CodeState,
+    stack: &mut Vec<u256>,
+    memory: &mut Vec<u8>,
+    context: &mut ExecutionContext,
+    message: &ExecutionMessage,
+    last_call_return_data: &mut Option<Vec<u8>>,
+    revision: Revision,
+    gas_left: &mut u64,
+    gas_refund: &mut i64,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    consume_gas::<32000>(gas_left)?;
+    check_not_read_only(message, revision)?;
+    let [value, offset, len] = pop_from_stack(stack)?;
+    let (len, len_overflow) = len.into_u64_with_overflow();
+    if len_overflow {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_OUT_OF_GAS,
+        ));
+    }
+
+    if revision >= Revision::EVMC_SHANGHAI {
+        const MAX_INIT_CODE_LEN: u64 = 2 * 24576;
+        if len > MAX_INIT_CODE_LEN {
+            return Err((
+                StepStatusCode::EVMC_STEP_FAILED,
+                StatusCode::EVMC_OUT_OF_GAS,
+            ));
+        }
+        let init_code_cost = 2 * word_size(len);
+        consume_dyn_gas(gas_left, init_code_cost)?;
+    }
+    let init_code = access_memory_slice(memory, offset, len, gas_left)?;
+
+    if value > context.get_balance(message.recipient()).into() {
+        stack.push(u256::ZERO);
+        *last_call_return_data = None;
+        code_state.next();
+        return Ok(());
+    }
+
+    let gas_limit = *gas_left - *gas_left / 64;
+    consume_dyn_gas(gas_left, gas_limit)?;
+
+    let message = ExecutionMessage::new(
+        MessageKind::EVMC_CREATE,
+        message.flags(),
+        message.depth() + 1,
+        gas_limit as i64,
+        u256::ZERO.into(), // ignored
+        *message.recipient(),
+        Some(init_code),
+        value.into(),
+        u256::ZERO.into(), // ignored
+        u256::ZERO.into(), // ignored
+        None,
+    );
+    let result = context.call(&message);
+
+    *gas_left += result.gas_left() as u64;
+    *gas_refund += result.gas_refund();
+
+    if result.status_code() == StatusCode::EVMC_SUCCESS {
+        let addr = result.create_address().unwrap();
+        let code_size = context.get_code_size(&addr);
+        consume_dyn_gas(gas_left, 200 * code_size as u64)?;
+
+        *last_call_return_data = None;
+        stack.push(addr.into());
+    } else {
+        *last_call_return_data = result.output().map(ToOwned::to_owned);
+        stack.push(u256::ZERO);
+    }
     code_state.next();
     Ok(())
 }
@@ -1116,13 +1198,18 @@ fn check_stack_overflow<const N: usize>(
 }
 
 #[inline(always)]
-fn check_not_read_only(message: &ExecutionMessage) -> Result<(), (StepStatusCode, StatusCode)> {
-    let read_only = message.flags() == MessageFlags::EVMC_STATIC as u32;
-    if read_only {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_STATIC_MODE_VIOLATION,
-        ));
+fn check_not_read_only(
+    message: &ExecutionMessage,
+    revision: Revision,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    if revision >= Revision::EVMC_BYZANTIUM {
+        let read_only = message.flags() == MessageFlags::EVMC_STATIC as u32;
+        if read_only {
+            return Err((
+                StepStatusCode::EVMC_STEP_FAILED,
+                StatusCode::EVMC_STATIC_MODE_VIOLATION,
+            ));
+        }
     }
     Ok(())
 }
