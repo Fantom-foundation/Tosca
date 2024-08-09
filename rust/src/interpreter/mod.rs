@@ -854,7 +854,17 @@ pub fn run(
                 &mut gas_refund,
                 &mut last_call_return_data,
             )?,
-            opcode::CALLCODE => unimplemented!(),
+            opcode::CALLCODE => call_code(
+                &mut code_state,
+                &mut stack,
+                &mut memory,
+                context,
+                message,
+                revision,
+                &mut gas_left,
+                &mut gas_refund,
+                &mut last_call_return_data,
+            )?,
             opcode::RETURN => {
                 let [offset, len] = pop_from_stack(&mut stack)?;
                 let (len, len_overflow) = len.into_u64_with_overflow();
@@ -923,7 +933,6 @@ pub fn run(
                 let [addr] = pop_from_stack(&mut stack)?;
                 let addr = addr.into();
 
-                //consume_address_access_cost(&mut gas_left, &addr, context, revision)?;
                 let tx_context = context.get_tx_context();
                 if revision >= Revision::EVMC_BERLIN {
                     if addr != tx_context.tx_origin
@@ -1181,7 +1190,8 @@ fn call(
     consume_address_access_cost(gas_left, &addr, context, revision)?;
     let input = access_memory_slice(memory, args_offset, args_len, gas_left)?.to_owned(); // TODO move this further down to avoid allocation
     let dest = access_memory_slice(memory, ret_offset, ret_len, gas_left)?;
-    consume_value_cost(&value, &addr, context, gas_left)?;
+    consume_positive_value_cost(&value, gas_left)?;
+    consume_value_to_empty_account_cost(&value, &addr, context, gas_left)?;
 
     let limit = *gas_left - *gas_left / 64;
     let mut endowment = gas.into_u64_saturating();
@@ -1295,6 +1305,83 @@ fn static_call(
     Ok(())
 }
 
+fn call_code(
+    code_state: &mut CodeState,
+    stack: &mut Vec<u256>,
+    memory: &mut Vec<u8>,
+    context: &mut ExecutionContext,
+    message: &ExecutionMessage,
+    revision: Revision,
+    gas_left: &mut u64,
+    gas_refund: &mut i64,
+    last_call_return_data: &mut Option<Vec<u8>>,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    if revision < Revision::EVMC_BERLIN {
+        consume_gas::<700>(gas_left)?;
+    }
+    let [gas, addr, value, args_offset, args_len, ret_offset, ret_len] = pop_from_stack(stack)?;
+
+    let addr = addr.into();
+    let (args_len, args_len_overflow) = args_len.into_u64_with_overflow();
+    let (ret_len, ret_len_overflow) = ret_len.into_u64_with_overflow();
+    if args_len_overflow || ret_len_overflow {
+        return Err((
+            StepStatusCode::EVMC_STEP_FAILED,
+            StatusCode::EVMC_OUT_OF_GAS,
+        ));
+    }
+
+    consume_address_access_cost(gas_left, &addr, context, revision)?;
+    let input = access_memory_slice(memory, args_offset, args_len, gas_left)?.to_owned(); // TODO move this further down to avoid allocation
+    let dest = access_memory_slice(memory, ret_offset, ret_len, gas_left)?;
+    consume_positive_value_cost(&value, gas_left)?;
+
+    let limit = *gas_left - *gas_left / 64;
+    let mut endowment = gas.into_u64_saturating();
+    if revision >= Revision::EVMC_TANGERINE_WHISTLE {
+        endowment = min(endowment, limit); // cap gas at all but one 64th of gas left
+    }
+    let stipend = if value == u256::ZERO { 0 } else { 2300 };
+    *gas_left += stipend;
+
+    if value > u256::from(context.get_balance(message.recipient())) {
+        *last_call_return_data = None;
+        stack.push(u256::ZERO);
+        code_state.next();
+        return Ok(());
+    }
+
+    let call_message = ExecutionMessage::new(
+        MessageKind::EVMC_CALLCODE,
+        message.flags(),
+        message.depth() + 1,
+        (endowment + stipend) as i64,
+        *message.recipient(),
+        *message.recipient(),
+        Some(&input),
+        value.into(),
+        u256::ZERO.into(), // ignored
+        addr,
+        None,
+    );
+
+    let result = context.call(&call_message);
+    *last_call_return_data = result.output().map(ToOwned::to_owned);
+    if let Some(output) = last_call_return_data {
+        let min_len = min(output.len(), ret_len as usize); // ret_len == dest.len()
+        dest[..min_len].copy_from_slice(&output[..min_len]);
+    }
+
+    *gas_left += result.gas_left() as u64;
+    consume_dyn_gas(gas_left, endowment)?;
+    consume_dyn_gas(gas_left, stipend)?;
+    *gas_refund += result.gas_refund();
+
+    stack.push(((result.status_code() == StatusCode::EVMC_SUCCESS) as u8).into());
+    code_state.next();
+    Ok(())
+}
+
 #[inline(always)]
 fn check_min_revision(
     min_revision: Revision,
@@ -1334,17 +1421,25 @@ fn consume_dyn_gas(gas_left: &mut u64, gas: u64) -> Result<(), (StepStatusCode, 
 }
 
 #[inline(always)]
-fn consume_value_cost(
+fn consume_positive_value_cost(
+    value: &u256,
+    gas_left: &mut u64,
+) -> Result<(), (StepStatusCode, StatusCode)> {
+    if *value != u256::ZERO {
+        consume_gas::<9000>(gas_left)?;
+    }
+    Ok(())
+}
+
+#[inline(always)]
+fn consume_value_to_empty_account_cost(
     value: &u256,
     addr: &Address,
     context: &mut ExecutionContext,
     gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    if *value != u256::ZERO {
-        consume_gas::<9000>(gas_left)?;
-        if !context.account_exists(&addr) {
-            consume_gas::<25000>(gas_left)?;
-        }
+    if *value != u256::ZERO && !context.account_exists(&addr) {
+        consume_gas::<25000>(gas_left)?;
     }
     Ok(())
 }
