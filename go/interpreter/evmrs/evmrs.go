@@ -11,7 +11,7 @@
 package evmrs
 
 /*
-#cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/../../../target/debug
+#cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/../../../target/release
 */
 import "C"
 
