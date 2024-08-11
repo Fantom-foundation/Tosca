@@ -847,7 +847,7 @@ pub fn run(
                 &mut gas_left,
                 &mut gas_refund,
             )?,
-            opcode::CALL => call(
+            opcode::CALL => call::<false>(
                 &mut code_state,
                 &mut stack,
                 &mut memory,
@@ -858,7 +858,7 @@ pub fn run(
                 &mut gas_refund,
                 &mut last_call_return_data,
             )?,
-            opcode::CALLCODE => call_code(
+            opcode::CALLCODE => call::<true>(
                 &mut code_state,
                 &mut stack,
                 &mut memory,
@@ -884,7 +884,7 @@ pub fn run(
                 code_state.next();
                 break;
             }
-            opcode::DELEGATECALL => delegate_call(
+            opcode::DELEGATECALL => static_delegate_call::<true>(
                 &mut code_state,
                 &mut stack,
                 &mut memory,
@@ -906,7 +906,7 @@ pub fn run(
                 &mut gas_left,
                 &mut gas_refund,
             )?,
-            opcode::STATICCALL => static_call(
+            opcode::STATICCALL => static_delegate_call::<false>(
                 &mut code_state,
                 &mut stack,
                 &mut memory,
@@ -1171,7 +1171,7 @@ fn create<const CREATE2: bool>(
     Ok(())
 }
 
-fn call(
+fn call<const CODE: bool>(
     code_state: &mut CodeState,
     stack: &mut Vec<u256>,
     memory: &mut Memory,
@@ -1187,8 +1187,10 @@ fn call(
     }
     let [gas, addr, value, args_offset, args_len, ret_offset, ret_len] = pop_from_stack(stack)?;
 
-    if value != u256::ZERO {
-        check_not_read_only(message, revision)?;
+    if !CODE {
+        if value != u256::ZERO {
+            check_not_read_only(message, revision)?;
+        }
     }
 
     let addr = addr.into();
@@ -1207,7 +1209,9 @@ fn call(
         .to_owned(); // TODO move this further down to avoid allocation
     let dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
     consume_positive_value_cost(&value, gas_left)?;
-    consume_value_to_empty_account_cost(&value, &addr, context, gas_left)?;
+    if !CODE {
+        consume_value_to_empty_account_cost(&value, &addr, context, gas_left)?;
+    }
 
     let limit = *gas_left - *gas_left / 64;
     let mut endowment = gas.into_u64_saturating();
@@ -1224,19 +1228,35 @@ fn call(
         return Ok(());
     }
 
-    let call_message = ExecutionMessage::new(
-        MessageKind::EVMC_CALL,
-        message.flags(),
-        message.depth() + 1,
-        (endowment + stipend) as i64,
-        addr,
-        *message.recipient(),
-        Some(&input),
-        value.into(),
-        u256::ZERO.into(), // ignored
-        u256::ZERO.into(), // ignored
-        None,
-    );
+    let call_message = if CODE {
+        ExecutionMessage::new(
+            MessageKind::EVMC_CALLCODE,
+            message.flags(),
+            message.depth() + 1,
+            (endowment + stipend) as i64,
+            *message.recipient(),
+            *message.recipient(),
+            Some(&input),
+            value.into(),
+            u256::ZERO.into(), // ignored
+            addr,
+            None,
+        )
+    } else {
+        ExecutionMessage::new(
+            MessageKind::EVMC_CALL,
+            message.flags(),
+            message.depth() + 1,
+            (endowment + stipend) as i64,
+            addr,
+            *message.recipient(),
+            Some(&input),
+            value.into(),
+            u256::ZERO.into(), // ignored
+            u256::ZERO.into(), // ignored
+            None,
+        )
+    };
 
     let result = context.call(&call_message);
     *last_call_return_data = result.output().map(ToOwned::to_owned);
@@ -1255,7 +1275,7 @@ fn call(
     Ok(())
 }
 
-fn static_call(
+fn static_delegate_call<const DELEGATE: bool>(
     code_state: &mut CodeState,
     stack: &mut Vec<u256>,
     memory: &mut Memory,
@@ -1293,166 +1313,35 @@ fn static_call(
         endowment = min(endowment, limit); // cap gas at all but one 64th of gas left
     }
 
-    let call_message = ExecutionMessage::new(
-        MessageKind::EVMC_CALL,
-        MessageFlags::EVMC_STATIC as u32,
-        message.depth() + 1,
-        (endowment) as i64,
-        addr,
-        *message.recipient(),
-        Some(&input),
-        u256::ZERO.into(), // ignored
-        u256::ZERO.into(), // ignored
-        u256::ZERO.into(), // ignored
-        None,
-    );
-
-    let result = context.call(&call_message);
-    *last_call_return_data = result.output().map(ToOwned::to_owned);
-    if let Some(output) = last_call_return_data {
-        let min_len = min(output.len(), ret_len as usize); // ret_len == dest.len()
-        dest[..min_len].copy_from_slice(&output[..min_len]);
-    }
-
-    *gas_left += result.gas_left() as u64;
-    consume_dyn_gas(gas_left, endowment)?;
-    *gas_refund += result.gas_refund();
-
-    stack.push(((result.status_code() == StatusCode::EVMC_SUCCESS) as u8).into());
-    code_state.next();
-    Ok(())
-}
-
-fn call_code(
-    code_state: &mut CodeState,
-    stack: &mut Vec<u256>,
-    memory: &mut Memory,
-    context: &mut ExecutionContext,
-    message: &ExecutionMessage,
-    revision: Revision,
-    gas_left: &mut u64,
-    gas_refund: &mut i64,
-    last_call_return_data: &mut Option<Vec<u8>>,
-) -> Result<(), (StepStatusCode, StatusCode)> {
-    if revision < Revision::EVMC_BERLIN {
-        consume_gas::<700>(gas_left)?;
-    }
-    let [gas, addr, value, args_offset, args_len, ret_offset, ret_len] = pop_from_stack(stack)?;
-
-    let addr = addr.into();
-    let (args_len, args_len_overflow) = args_len.into_u64_with_overflow();
-    let (ret_len, ret_len_overflow) = ret_len.into_u64_with_overflow();
-    if args_len_overflow || ret_len_overflow {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_OUT_OF_GAS,
-        ));
-    }
-
-    consume_address_access_cost(gas_left, &addr, context, revision)?;
-    let input = memory
-        .get_slice(args_offset, args_len, gas_left)?
-        .to_owned(); // TODO move this further down to avoid allocation
-    let dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
-    consume_positive_value_cost(&value, gas_left)?;
-
-    let limit = *gas_left - *gas_left / 64;
-    let mut endowment = gas.into_u64_saturating();
-    if revision >= Revision::EVMC_TANGERINE_WHISTLE {
-        endowment = min(endowment, limit); // cap gas at all but one 64th of gas left
-    }
-    let stipend = if value == u256::ZERO { 0 } else { 2300 };
-    *gas_left += stipend;
-
-    if value > u256::from(context.get_balance(message.recipient())) {
-        *last_call_return_data = None;
-        stack.push(u256::ZERO);
-        code_state.next();
-        return Ok(());
-    }
-
-    let call_message = ExecutionMessage::new(
-        MessageKind::EVMC_CALLCODE,
-        message.flags(),
-        message.depth() + 1,
-        (endowment + stipend) as i64,
-        *message.recipient(),
-        *message.recipient(),
-        Some(&input),
-        value.into(),
-        u256::ZERO.into(), // ignored
-        addr,
-        None,
-    );
-
-    let result = context.call(&call_message);
-    *last_call_return_data = result.output().map(ToOwned::to_owned);
-    if let Some(output) = last_call_return_data {
-        let min_len = min(output.len(), ret_len as usize); // ret_len == dest.len()
-        dest[..min_len].copy_from_slice(&output[..min_len]);
-    }
-
-    *gas_left += result.gas_left() as u64;
-    consume_dyn_gas(gas_left, endowment)?;
-    consume_dyn_gas(gas_left, stipend)?;
-    *gas_refund += result.gas_refund();
-
-    stack.push(((result.status_code() == StatusCode::EVMC_SUCCESS) as u8).into());
-    code_state.next();
-    Ok(())
-}
-
-fn delegate_call(
-    code_state: &mut CodeState,
-    stack: &mut Vec<u256>,
-    memory: &mut Memory,
-    context: &mut ExecutionContext,
-    message: &ExecutionMessage,
-    revision: Revision,
-    gas_left: &mut u64,
-    gas_refund: &mut i64,
-    last_call_return_data: &mut Option<Vec<u8>>,
-) -> Result<(), (StepStatusCode, StatusCode)> {
-    if revision < Revision::EVMC_BERLIN {
-        consume_gas::<700>(gas_left)?;
-    }
-    let [gas, addr, args_offset, args_len, ret_offset, ret_len] = pop_from_stack(stack)?;
-
-    let addr = addr.into();
-    let (args_len, args_len_overflow) = args_len.into_u64_with_overflow();
-    let (ret_len, ret_len_overflow) = ret_len.into_u64_with_overflow();
-    if args_len_overflow || ret_len_overflow {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_OUT_OF_GAS,
-        ));
-    }
-
-    consume_address_access_cost(gas_left, &addr, context, revision)?;
-    let input = memory
-        .get_slice(args_offset, args_len, gas_left)?
-        .to_owned(); // TODO move this further down to avoid allocation
-    let dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
-
-    let limit = *gas_left - *gas_left / 64;
-    let mut endowment = gas.into_u64_saturating();
-    if revision >= Revision::EVMC_TANGERINE_WHISTLE {
-        endowment = min(endowment, limit); // cap gas at all but one 64th of gas left
-    }
-
-    let call_message = ExecutionMessage::new(
-        MessageKind::EVMC_DELEGATECALL,
-        message.flags(),
-        message.depth() + 1,
-        endowment as i64,
-        *message.recipient(),
-        *message.sender(),
-        Some(&input),
-        *message.value(),
-        u256::ZERO.into(), // ignored
-        addr,
-        None,
-    );
+    let call_message = if DELEGATE {
+        ExecutionMessage::new(
+            MessageKind::EVMC_DELEGATECALL,
+            message.flags(),
+            message.depth() + 1,
+            endowment as i64,
+            *message.recipient(),
+            *message.sender(),
+            Some(&input),
+            *message.value(),
+            u256::ZERO.into(), // ignored
+            addr,
+            None,
+        )
+    } else {
+        ExecutionMessage::new(
+            MessageKind::EVMC_CALL,
+            MessageFlags::EVMC_STATIC as u32,
+            message.depth() + 1,
+            (endowment) as i64,
+            addr,
+            *message.recipient(),
+            Some(&input),
+            u256::ZERO.into(), // ignored
+            u256::ZERO.into(), // ignored
+            u256::ZERO.into(), // ignored
+            None,
+        )
+    };
 
     let result = context.call(&call_message);
     *last_call_return_data = result.output().map(ToOwned::to_owned);
