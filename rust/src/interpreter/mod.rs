@@ -1,4 +1,4 @@
-use std::{cmp::min, iter, mem, slice};
+use std::{cmp::min, mem, slice};
 
 use evmc_vm::{
     AccessStatus, Address, ExecutionContext, ExecutionMessage, MessageFlags, MessageKind, Revision,
@@ -6,9 +6,14 @@ use evmc_vm::{
 };
 use sha3::{Digest, Keccak256};
 
-use crate::types::{opcode, u256};
+use crate::{
+    interpreter::memory::Memory,
+    types::{opcode, u256},
+};
 
 mod code_state;
+mod memory;
+
 pub use code_state::CodeState;
 
 #[allow(clippy::too_many_arguments)]
@@ -20,13 +25,15 @@ pub fn run(
     mut code_state: CodeState,
     mut gas_refund: i64,
     mut stack: Vec<u256>,
-    mut memory: Vec<u8>,
+    memory: Vec<u8>,
     mut last_call_return_data: Option<Vec<u8>>,
     steps: Option<i32>,
 ) -> Result<StepResult, (StepStatusCode, StatusCode)> {
     let mut gas_left = message.gas() as u64;
     let mut status_code = StatusCode::EVMC_SUCCESS;
     let mut output = None;
+
+    let mut memory = Memory::new(memory);
 
     //println!("##### running test #####");
     for _ in 0..steps.unwrap_or(i32::MAX) {
@@ -96,9 +103,8 @@ pub fn run(
             opcode::EXP => {
                 consume_gas::<10>(&mut gas_left)?;
                 let [top, top2] = pop_from_stack(&mut stack)?;
-                let top2_bytes: [u8; 32] = *top2;
                 let mut cost_multiplier = 32;
-                for byte in top2_bytes.into_iter() {
+                for byte in top2.into_iter() {
                     if byte == 0 {
                         cost_multiplier -= 1;
                     } else {
@@ -213,9 +219,9 @@ pub fn run(
                 }
                 consume_dyn_gas(&mut gas_left, 6 * word_size(len))?;
 
-                let memory_access = access_memory_slice(&mut memory, offset, len, &mut gas_left)?;
+                let data = memory.get_slice(offset, len, &mut gas_left)?;
                 let mut hasher = Keccak256::new();
-                hasher.update(memory_access);
+                hasher.update(data);
                 let result = hasher.finalize();
                 stack.push(result.as_slice().try_into().unwrap());
                 code_state.next();
@@ -299,7 +305,7 @@ pub fn run(
 
                     let src = message.input().map(|v| v.as_slice()).unwrap_or(&[]);
                     let src = get_slice_within_bounds(src, offset, len);
-                    let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
+                    let dest = memory.get_slice(dest_offset, len, &mut gas_left)?;
                     copy_slice_padded(src, dest, &mut gas_left)?;
                 }
 
@@ -325,7 +331,7 @@ pub fn run(
                     }
 
                     let src = get_slice_within_bounds(&code_state, offset, len);
-                    let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
+                    let dest = memory.get_slice(dest_offset, len, &mut gas_left)?;
                     copy_slice_padded(src, dest, &mut gas_left)?;
                 }
 
@@ -365,7 +371,7 @@ pub fn run(
                     }
 
                     let src_len = context.get_code_size(&addr) as u64;
-                    let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
+                    let dest = memory.get_slice(dest_offset, len, &mut gas_left)?;
                     let (offset, offset_overflow) = offset.into_u64_with_overflow();
                     if offset_overflow || offset >= src_len {
                         copy_slice_padded(&[], dest, &mut gas_left)?;
@@ -412,7 +418,7 @@ pub fn run(
 
                 if len != 0 {
                     let src = get_slice_within_bounds(src, offset.into(), len);
-                    let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
+                    let dest = memory.get_slice(dest_offset, len, &mut gas_left)?;
                     copy_slice_padded(src, dest, &mut gas_left)?;
                 }
 
@@ -532,25 +538,24 @@ pub fn run(
                 consume_gas::<3>(&mut gas_left)?;
                 let [offset] = pop_from_stack(&mut stack)?;
 
-                let memory_access: &[u8] = access_memory_word(&mut memory, offset, &mut gas_left)?;
-                stack.push(memory_access.try_into().unwrap());
+                let src: &[u8] = memory.get_word(offset, &mut gas_left)?;
+                stack.push(src.try_into().unwrap());
                 code_state.next();
             }
             opcode::MSTORE => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [offset, value] = pop_from_stack(&mut stack)?;
 
-                let bytes: [u8; 32] = value.into();
-                let memory_access = access_memory_word(&mut memory, offset, &mut gas_left)?;
-                memory_access.copy_from_slice(&bytes);
+                let dest = memory.get_word(offset, &mut gas_left)?;
+                dest.copy_from_slice(value.as_slice());
                 code_state.next();
             }
             opcode::MSTORE8 => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [offset, value] = pop_from_stack(&mut stack)?;
 
-                let memory_access = access_memory_byte(&mut memory, offset, &mut gas_left)?;
-                *memory_access = value[31];
+                let dest = memory.get_byte(offset, &mut gas_left)?;
+                *dest = value[31];
                 code_state.next();
             }
             opcode::SLOAD => {
@@ -715,9 +720,8 @@ pub fn run(
                     }
                     consume_copy_cost(&mut gas_left, len)?;
 
-                    let src =
-                        access_memory_slice(&mut memory, offset, len, &mut gas_left)?.to_owned();
-                    let dest = access_memory_slice(&mut memory, dest_offset, len, &mut gas_left)?;
+                    let src = memory.get_slice(offset, len, &mut gas_left)?.to_owned(); // TODO check if slices overlap and if not avoid allocation
+                    let dest = memory.get_slice(dest_offset, len, &mut gas_left)?;
                     dest.copy_from_slice(&src);
                 }
 
@@ -874,8 +878,8 @@ pub fn run(
                         StatusCode::EVMC_OUT_OF_GAS,
                     ));
                 }
-                let memory_access = access_memory_slice(&mut memory, offset, len, &mut gas_left)?;
-                output = Some(memory_access.to_owned());
+                let data = memory.get_slice(offset, len, &mut gas_left)?;
+                output = Some(data.to_owned());
                 step_status_code = StepStatusCode::EVMC_STEP_RETURNED;
                 code_state.next();
                 break;
@@ -922,10 +926,10 @@ pub fn run(
                         StatusCode::EVMC_OUT_OF_GAS,
                     ));
                 }
-                let memory_access = access_memory_slice(&mut memory, offset, len, &mut gas_left)?;
+                let data = memory.get_slice(offset, len, &mut gas_left)?;
                 // TODO revert state changes
                 // gas_refund = original_gas_refund;
-                output = Some(memory_access.to_owned());
+                output = Some(data.to_owned());
                 step_status_code = StepStatusCode::EVMC_STEP_REVERTED;
                 code_state.next();
                 break;
@@ -990,7 +994,7 @@ pub fn run(
         // u256 is a newtype of Uint256 with repr(transparent) which guarantees the same memory
         // layout.
         unsafe { mem::transmute::<Vec<u256>, Vec<Uint256>>(stack) },
-        memory,
+        memory.into_inner(),
         last_call_return_data,
     ))
 }
@@ -1048,7 +1052,7 @@ fn swap<const N: usize>(
 fn log<const N: usize>(
     code_state: &mut CodeState,
     stack: &mut Vec<u256>,
-    memory: &mut Vec<u8>,
+    memory: &mut Memory,
     context: &mut ExecutionContext,
     message: &ExecutionMessage,
     revision: Revision,
@@ -1067,9 +1071,9 @@ fn log<const N: usize>(
     }
     consume_dyn_gas(gas_left, 375 * N as u64 + 8 * len)?;
 
-    let memory_access = access_memory_slice(memory, offset, len, gas_left)?;
+    let data = memory.get_slice(offset, len, gas_left)?;
     let topics: &[_; N] = unsafe { mem::transmute(&topics) };
-    context.emit_log(message.recipient(), memory_access, topics.as_slice());
+    context.emit_log(message.recipient(), data, topics.as_slice());
     code_state.next();
     Ok(())
 }
@@ -1077,7 +1081,7 @@ fn log<const N: usize>(
 fn create<const CREATE2: bool>(
     code_state: &mut CodeState,
     stack: &mut Vec<u256>,
-    memory: &mut Vec<u8>,
+    memory: &mut Memory,
     context: &mut ExecutionContext,
     message: &ExecutionMessage,
     last_call_return_data: &mut Option<Vec<u8>>,
@@ -1118,7 +1122,7 @@ fn create<const CREATE2: bool>(
         consume_dyn_gas(gas_left, hash_cost)?;
     }
 
-    let init_code = access_memory_slice(memory, offset, len, gas_left)?;
+    let init_code = memory.get_slice(offset, len, gas_left)?;
 
     if value > context.get_balance(message.recipient()).into() {
         *last_call_return_data = None;
@@ -1170,7 +1174,7 @@ fn create<const CREATE2: bool>(
 fn call(
     code_state: &mut CodeState,
     stack: &mut Vec<u256>,
-    memory: &mut Vec<u8>,
+    memory: &mut Memory,
     context: &mut ExecutionContext,
     message: &ExecutionMessage,
     revision: Revision,
@@ -1198,8 +1202,10 @@ fn call(
     }
 
     consume_address_access_cost(gas_left, &addr, context, revision)?;
-    let input = access_memory_slice(memory, args_offset, args_len, gas_left)?.to_owned(); // TODO move this further down to avoid allocation
-    let dest = access_memory_slice(memory, ret_offset, ret_len, gas_left)?;
+    let input = memory
+        .get_slice(args_offset, args_len, gas_left)?
+        .to_owned(); // TODO move this further down to avoid allocation
+    let dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
     consume_positive_value_cost(&value, gas_left)?;
     consume_value_to_empty_account_cost(&value, &addr, context, gas_left)?;
 
@@ -1252,7 +1258,7 @@ fn call(
 fn static_call(
     code_state: &mut CodeState,
     stack: &mut Vec<u256>,
-    memory: &mut Vec<u8>,
+    memory: &mut Memory,
     context: &mut ExecutionContext,
     message: &ExecutionMessage,
     revision: Revision,
@@ -1276,8 +1282,10 @@ fn static_call(
     }
 
     consume_address_access_cost(gas_left, &addr, context, revision)?;
-    let input = access_memory_slice(memory, args_offset, args_len, gas_left)?.to_owned(); // TODO move this further down to avoid allocation
-    let dest = access_memory_slice(memory, ret_offset, ret_len, gas_left)?;
+    let input = memory
+        .get_slice(args_offset, args_len, gas_left)?
+        .to_owned(); // TODO move this further down to avoid allocation
+    let dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
 
     let limit = *gas_left - *gas_left / 64;
     let mut endowment = gas.into_u64_saturating();
@@ -1318,7 +1326,7 @@ fn static_call(
 fn call_code(
     code_state: &mut CodeState,
     stack: &mut Vec<u256>,
-    memory: &mut Vec<u8>,
+    memory: &mut Memory,
     context: &mut ExecutionContext,
     message: &ExecutionMessage,
     revision: Revision,
@@ -1342,8 +1350,10 @@ fn call_code(
     }
 
     consume_address_access_cost(gas_left, &addr, context, revision)?;
-    let input = access_memory_slice(memory, args_offset, args_len, gas_left)?.to_owned(); // TODO move this further down to avoid allocation
-    let dest = access_memory_slice(memory, ret_offset, ret_len, gas_left)?;
+    let input = memory
+        .get_slice(args_offset, args_len, gas_left)?
+        .to_owned(); // TODO move this further down to avoid allocation
+    let dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
     consume_positive_value_cost(&value, gas_left)?;
 
     let limit = *gas_left - *gas_left / 64;
@@ -1395,7 +1405,7 @@ fn call_code(
 fn delegate_call(
     code_state: &mut CodeState,
     stack: &mut Vec<u256>,
-    memory: &mut Vec<u8>,
+    memory: &mut Memory,
     context: &mut ExecutionContext,
     message: &ExecutionMessage,
     revision: Revision,
@@ -1419,8 +1429,10 @@ fn delegate_call(
     }
 
     consume_address_access_cost(gas_left, &addr, context, revision)?;
-    let input = access_memory_slice(memory, args_offset, args_len, gas_left)?.to_owned(); // TODO move this further down to avoid allocation
-    let dest = access_memory_slice(memory, ret_offset, ret_len, gas_left)?;
+    let input = memory
+        .get_slice(args_offset, args_len, gas_left)?
+        .to_owned(); // TODO move this further down to avoid allocation
+    let dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
 
     let limit = *gas_left - *gas_left / 64;
     let mut endowment = gas.into_u64_saturating();
@@ -1550,30 +1562,6 @@ fn consume_copy_cost(gas_left: &mut u64, len: u64) -> Result<(), (StepStatusCode
 }
 
 #[inline(always)]
-fn consume_memory_expansion_cost(
-    gas_left: &mut u64,
-    current_len: u64,
-    new_len: u64,
-) -> Result<(), (StepStatusCode, StatusCode)> {
-    fn memory_cost(size: u64) -> Result<u64, (StepStatusCode, StatusCode)> {
-        let memory_size_word = word_size(size);
-        let Some(pow2) = memory_size_word.checked_pow(2) else {
-            return Err((
-                StepStatusCode::EVMC_STEP_FAILED,
-                StatusCode::EVMC_OUT_OF_GAS,
-            ));
-        };
-        Ok(pow2 / 512 + (3 * memory_size_word))
-    }
-
-    if new_len > current_len {
-        let memory_expansion_cost = memory_cost(new_len)? - memory_cost(current_len)?;
-        consume_dyn_gas(gas_left, memory_expansion_cost)?;
-    }
-    Ok(())
-}
-
-#[inline(always)]
 fn check_stack_overflow<const N: usize>(
     stack: &[u256],
 ) -> Result<(), (StepStatusCode, StatusCode)> {
@@ -1635,62 +1623,6 @@ fn nth_ref_from_stack<const N: usize>(
     Ok(&stack[stack.len() - N])
 }
 
-fn expand_memory(
-    memory: &mut Vec<u8>,
-    new_len: u64,
-    gas_left: &mut u64,
-) -> Result<(), (StepStatusCode, StatusCode)> {
-    let current_len = memory.len() as u64;
-    if new_len > current_len {
-        consume_memory_expansion_cost(gas_left, current_len, new_len)?;
-        memory.extend(iter::repeat(0).take((new_len - current_len) as usize))
-    }
-    Ok(())
-}
-
-fn access_memory_slice<'m>(
-    memory: &'m mut Vec<u8>,
-    offset: u256,
-    len: u64,
-    gas_left: &mut u64,
-) -> Result<&'m mut [u8], (StepStatusCode, StatusCode)> {
-    if len == 0 {
-        return Ok(&mut []);
-    }
-    let (offset, offset_overflow) = offset.into_u64_with_overflow();
-    if offset_overflow {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_INVALID_MEMORY_ACCESS,
-        ));
-    }
-    let end = offset + len;
-    let new_len = word_size(end) * 32;
-    expand_memory(memory, new_len, gas_left)?;
-
-    Ok(&mut memory[offset as usize..end as usize])
-}
-
-fn access_memory_word<'m>(
-    memory: &'m mut Vec<u8>,
-    offset: u256,
-    gas_left: &mut u64,
-) -> Result<&'m mut [u8], (StepStatusCode, StatusCode)> {
-    access_memory_slice(memory, offset, 32u8.into(), gas_left)
-}
-
-fn access_memory_byte<'m>(
-    memory: &'m mut Vec<u8>,
-    offset: u256,
-    gas_left: &mut u64,
-) -> Result<&'m mut u8, (StepStatusCode, StatusCode)> {
-    access_memory_slice(memory, offset, 1u8.into(), gas_left).map(|slice| &mut slice[0])
-}
-
-fn word_size(bytes: u64) -> u64 {
-    (bytes + 31) / 32
-}
-
 fn get_slice_within_bounds<T>(data: &[T], offset: u256, len: u64) -> &[T] {
     if len == 0 {
         return &[];
@@ -1721,4 +1653,8 @@ fn copy_slice_padded(
         *byte = 0;
     }
     Ok(())
+}
+
+fn word_size(bytes: u64) -> u64 {
+    (bytes + 31) / 32
 }
