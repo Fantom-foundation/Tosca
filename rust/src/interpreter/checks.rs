@@ -1,7 +1,7 @@
 use evmc_vm::{ExecutionMessage, MessageFlags, Revision, StatusCode, StepStatusCode};
 
 #[inline(always)]
-pub fn check_min_revision(
+pub(super) fn check_min_revision(
     min_revision: Revision,
     revision: Revision,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
@@ -15,7 +15,7 @@ pub fn check_min_revision(
 }
 
 #[inline(always)]
-pub fn check_not_read_only(
+pub(super) fn check_not_read_only(
     message: &ExecutionMessage,
     revision: Revision,
 ) -> Result<(), (StepStatusCode, StatusCode)> {

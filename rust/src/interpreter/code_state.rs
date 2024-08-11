@@ -57,8 +57,8 @@ impl<'a> CodeState<'a> {
         Ok(())
     }
 
-    pub fn try_get_push_data(&mut self, len: usize) -> Result<&[u8], (StepStatusCode, StatusCode)> {
-        if self.pc + len >= self.code.len() {
+    pub fn get_push_data(&mut self, len: usize) -> Result<u256, (StepStatusCode, StatusCode)> {
+        if len > 32 || self.pc + len >= self.code.len() {
             return Err((
                 StepStatusCode::EVMC_STEP_FAILED,
                 StatusCode::EVMC_INTERNAL_ERROR,
@@ -66,10 +66,11 @@ impl<'a> CodeState<'a> {
         }
 
         self.pc += 1;
-        let data = &self.code[self.pc..self.pc + len];
+        let mut bytes = [0; 32];
+        bytes.copy_from_slice(&self.code[self.pc..self.pc + len]);
         self.pc += len;
 
-        Ok(data)
+        Ok(bytes.into())
     }
 
     pub fn pc(&self) -> usize {

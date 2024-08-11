@@ -7,7 +7,7 @@ use crate::{
     types::u256,
 };
 
-pub struct Memory(Vec<u8>);
+pub(super) struct Memory(Vec<u8>);
 
 impl Memory {
     pub fn new(memory: Vec<u8>) -> Self {
