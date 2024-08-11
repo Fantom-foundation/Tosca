@@ -13,9 +13,9 @@ impl Stack {
         self.0
     }
 
-    pub fn push(&mut self, value: u256) -> Result<(), (StepStatusCode, StatusCode)> {
+    pub fn push(&mut self, value: impl Into<u256>) -> Result<(), (StepStatusCode, StatusCode)> {
         self.check_overflow_on_push()?;
-        self.0.push(value);
+        self.0.push(value.into());
         Ok(())
     }
 

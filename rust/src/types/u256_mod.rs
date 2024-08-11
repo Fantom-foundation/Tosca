@@ -8,7 +8,10 @@ use std::{
     },
 };
 
-use bnum::types::{I256, U256, U512};
+use bnum::{
+    types::{I256, U256, U512},
+    BInt, BUint,
+};
 use evmc_vm::{Address, Uint256};
 
 #[allow(non_camel_case_types)]
@@ -29,6 +32,7 @@ impl DerefMut for u256 {
         &mut self.0.bytes
     }
 }
+
 impl Debug for u256 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("0x")?;
@@ -62,6 +66,7 @@ impl From<u256> for Uint256 {
 
 impl From<U256> for u256 {
     fn from(value: U256) -> Self {
+        // TODO bnum has to_be_bytes with feature nightly
         let be_value = value.to_be();
         let bytes: [u8; 32] = unsafe { mem::transmute(be_value) };
         bytes.into()
@@ -70,16 +75,13 @@ impl From<U256> for u256 {
 
 impl From<u256> for U256 {
     fn from(value: u256) -> Self {
-        let mut bytes = value.0.bytes;
-        //let lhs = bnum::BUint::from_be_bytes(lhs); // TODO required nightly
-        //let lhs: U256 = bnum::BUint::from_be_slice(&lhs).unwrap(); // works but has overhead
-        bytes.reverse();
-        unsafe { mem::transmute(bytes) }
+        BUint::from_be_slice(value.deref()).unwrap()
     }
 }
 
 impl From<I256> for u256 {
     fn from(value: I256) -> Self {
+        // TODO bnum has to_be_bytes with feature nightly
         let be_value = value.to_be();
         let bytes: [u8; 32] = unsafe { mem::transmute(be_value) };
         bytes.into()
@@ -88,31 +90,24 @@ impl From<I256> for u256 {
 
 impl From<u256> for I256 {
     fn from(value: u256) -> Self {
-        let mut bytes = value.0.bytes;
-        //let lhs = bnum::BUint::from_be_bytes(lhs); // TODO required nightly
-        //let lhs: U256 = bnum::BUint::from_be_slice(&lhs).unwrap(); // works but has overhead
-        bytes.reverse();
-        unsafe { mem::transmute(bytes) }
+        BInt::from_be_slice(value.deref()).unwrap()
     }
 }
 
 impl From<U512> for u256 {
     fn from(value: U512) -> Self {
+        // TODO bnum has to_be_bytes with feature nightly
         let be_value = value.to_be();
-        let bytes: [u8; 64] = unsafe { mem::transmute(be_value) };
-        (&bytes[32..]).try_into().unwrap()
+        let bytes64: [u8; 64] = unsafe { mem::transmute(be_value) };
+        let mut bytes32 = [0; 32];
+        bytes32.copy_from_slice(&bytes64[32..]);
+        bytes32.into()
     }
 }
 
 impl From<u256> for U512 {
     fn from(value: u256) -> Self {
         U512::from_be_slice(&value.0.bytes).unwrap()
-    }
-}
-
-impl From<u256> for [u8; 32] {
-    fn from(value: u256) -> Self {
-        value.0.bytes
     }
 }
 
@@ -173,37 +168,20 @@ impl From<u256> for Address {
     }
 }
 
-#[derive(Debug)]
-pub struct SliceTooLarge;
-
-impl TryFrom<&[u8]> for u256 {
-    type Error = SliceTooLarge;
-
-    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        let len = value.len();
-        if len > 32 {
-            return Err(SliceTooLarge);
-        }
-        let mut bytes = [0; 32];
-        bytes[32 - len..].copy_from_slice(value);
-        Ok(bytes.into())
-    }
-}
-
 impl u256 {
     pub fn into_u64_with_overflow(self) -> (u64, bool) {
-        let bytes: [u8; 32] = self.into();
-        let [first, second, third, fourth] = unsafe { mem::transmute::<[u8; 32], [u64; 4]>(bytes) };
-        (u64::from_be(fourth), first > 0 || second > 0 || third > 0)
+        let bytes: [u8; 32] = *self;
+        let overflow = bytes.iter().take(24).any(|b| *b > 0);
+        let num = u64::from_be_bytes(*bytes.split_last_chunk().unwrap().1);
+        (num, overflow)
     }
 
     pub fn into_u64_saturating(self) -> u64 {
-        let bytes: [u8; 32] = self.into();
-        let [first, second, third, fourth] = unsafe { mem::transmute::<[u8; 32], [u64; 4]>(bytes) };
-        if first > 0 || second > 0 || third > 0 {
-            return u64::MAX;
+        let bytes: [u8; 32] = *self;
+        if bytes.iter().take(24).any(|b| *b > 0) {
+            u64::MAX
         } else {
-            u64::from_be(fourth)
+            u64::from_be_bytes(*bytes.split_last_chunk().unwrap().1)
         }
     }
 }

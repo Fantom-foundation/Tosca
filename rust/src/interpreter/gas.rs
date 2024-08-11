@@ -49,7 +49,7 @@ pub(super) fn consume_value_to_empty_account_cost(
     context: &mut ExecutionContext,
     gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    if *value != u256::ZERO && !context.account_exists(&addr) {
+    if *value != u256::ZERO && !context.account_exists(addr) {
         consume_gas::<25000>(gas_left)?;
     }
     Ok(())

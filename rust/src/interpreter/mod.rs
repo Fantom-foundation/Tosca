@@ -129,37 +129,37 @@ pub fn run(
             opcode::LT => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [top, top2] = stack.pop()?;
-                stack.push(((top < top2) as u8).into())?;
+                stack.push((top < top2) as u8)?;
                 code_state.next();
             }
             opcode::GT => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [top, top2] = stack.pop()?;
-                stack.push(((top > top2) as u8).into())?;
+                stack.push((top > top2) as u8)?;
                 code_state.next();
             }
             opcode::SLT => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [top, top2] = stack.pop()?;
-                stack.push(((top.slt(&top2)) as u8).into())?;
+                stack.push((top.slt(&top2)) as u8)?;
                 code_state.next();
             }
             opcode::SGT => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [top, top2] = stack.pop()?;
-                stack.push(((top.sgt(&top2)) as u8).into())?;
+                stack.push((top.sgt(&top2)) as u8)?;
                 code_state.next();
             }
             opcode::EQ => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [top, top2] = stack.pop()?;
-                stack.push(((top == top2) as u8).into())?;
+                stack.push((top == top2) as u8)?;
                 code_state.next();
             }
             opcode::ISZERO => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [top] = stack.pop()?;
-                stack.push(((top == u256::ZERO) as u8).into())?;
+                stack.push((top == u256::ZERO) as u8)?;
                 code_state.next();
             }
             opcode::AND => {
@@ -226,13 +226,14 @@ pub fn run(
                 let data = memory.get_slice(offset, len, &mut gas_left)?;
                 let mut hasher = Keccak256::new();
                 hasher.update(data);
-                let result = hasher.finalize();
-                stack.push(result.as_slice().try_into().unwrap())?;
+                let mut bytes = [0; 32];
+                hasher.finalize_into((&mut bytes).into());
+                stack.push(bytes)?;
                 code_state.next();
             }
             opcode::ADDRESS => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(message.recipient().into())?;
+                stack.push(message.recipient())?;
                 code_state.next();
             }
             opcode::BALANCE => {
@@ -242,22 +243,22 @@ pub fn run(
                 let [addr] = stack.pop()?;
                 let addr = addr.into();
                 consume_address_access_cost(&mut gas_left, &addr, context, revision)?;
-                stack.push(context.get_balance(&addr).into())?;
+                stack.push(context.get_balance(&addr))?;
                 code_state.next();
             }
             opcode::ORIGIN => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(context.get_tx_context().tx_origin.into())?;
+                stack.push(context.get_tx_context().tx_origin)?;
                 code_state.next();
             }
             opcode::CALLER => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(message.sender().into())?;
+                stack.push(message.sender())?;
                 code_state.next();
             }
             opcode::CALLVALUE => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push((*message.value()).into())?;
+                stack.push(*message.value())?;
                 code_state.next();
             }
             opcode::CALLDATALOAD => {
@@ -272,14 +273,14 @@ pub fn run(
                     let end = min(call_data.len(), offset + 32);
                     let mut bytes = [0; 32];
                     bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
-                    stack.push(bytes.into())?;
+                    stack.push(bytes)?;
                 }
                 code_state.next();
             }
             opcode::CALLDATASIZE => {
                 consume_gas::<2>(&mut gas_left)?;
                 let call_data = message.input().unwrap();
-                stack.push(call_data.len().into())?;
+                stack.push(call_data.len())?;
                 code_state.next();
             }
             opcode::PUSH0 => {
@@ -311,7 +312,7 @@ pub fn run(
             }
             opcode::CODESIZE => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(code_state.code_len().into())?;
+                stack.push(code_state.code_len())?;
                 code_state.next();
             }
             opcode::CODECOPY => {
@@ -336,7 +337,7 @@ pub fn run(
             }
             opcode::GASPRICE => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(context.get_tx_context().tx_gas_price.into())?;
+                stack.push(context.get_tx_context().tx_gas_price)?;
                 code_state.next();
             }
             opcode::EXTCODESIZE => {
@@ -346,7 +347,7 @@ pub fn run(
                 let [addr] = stack.pop()?;
                 let addr = addr.into();
                 consume_address_access_cost(&mut gas_left, &addr, context, revision)?;
-                stack.push(context.get_code_size(&addr).into())?;
+                stack.push(context.get_code_size(&addr))?;
                 code_state.next();
             }
             opcode::EXTCODECOPY => {
@@ -392,8 +393,7 @@ pub fn run(
                     last_call_return_data
                         .as_ref()
                         .map(|data| data.len())
-                        .unwrap_or_default()
-                        .into(),
+                        .unwrap_or_default(),
                 )?;
                 code_state.next();
             }
@@ -426,7 +426,7 @@ pub fn run(
                 let [addr] = stack.pop()?;
                 let addr = addr.into();
                 consume_address_access_cost(&mut gas_left, &addr, context, revision)?;
-                stack.push(context.get_code_hash(&addr).into())?;
+                stack.push(context.get_code_hash(&addr))?;
                 code_state.next();
             }
             opcode::BLOCKHASH => {
@@ -437,49 +437,49 @@ pub fn run(
                 if idx_overflow || idx > current_block_number as u64 + 255 {
                     stack.push(u256::ZERO)?;
                 } else {
-                    stack.push(context.get_block_hash(idx as i64).into())?;
+                    stack.push(context.get_block_hash(idx as i64))?;
                 }
                 code_state.next();
             }
             opcode::COINBASE => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(context.get_tx_context().block_coinbase.into())?;
+                stack.push(context.get_tx_context().block_coinbase)?;
                 code_state.next();
             }
             opcode::TIMESTAMP => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push((context.get_tx_context().block_timestamp as u64).into())?;
+                stack.push(context.get_tx_context().block_timestamp as u64)?;
                 code_state.next();
             }
             opcode::NUMBER => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push((context.get_tx_context().block_number as u64).into())?;
+                stack.push(context.get_tx_context().block_number as u64)?;
                 code_state.next();
             }
             opcode::PREVRANDAO => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(context.get_tx_context().block_prev_randao.into())?;
+                stack.push(context.get_tx_context().block_prev_randao)?;
                 code_state.next();
             }
             opcode::GASLIMIT => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push((context.get_tx_context().block_gas_limit as u64).into())?;
+                stack.push(context.get_tx_context().block_gas_limit as u64)?;
                 code_state.next();
             }
             opcode::CHAINID => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(context.get_tx_context().chain_id.into())?;
+                stack.push(context.get_tx_context().chain_id)?;
                 code_state.next();
             }
             opcode::SELFBALANCE => {
                 consume_gas::<5>(&mut gas_left)?;
-                stack.push(context.get_balance(message.recipient()).into())?;
+                stack.push(context.get_balance(message.recipient()))?;
                 code_state.next();
             }
             opcode::BASEFEE => {
                 check_min_revision(Revision::EVMC_LONDON, revision)?;
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(context.get_tx_context().block_base_fee.into())?;
+                stack.push(context.get_tx_context().block_base_fee)?;
                 code_state.next();
             }
             opcode::BLOBHASH => {
@@ -503,7 +503,7 @@ pub fn run(
 
                     let hash = hashes[idx];
 
-                    stack.push(hash.into())?;
+                    stack.push(hash)?;
                 } else {
                     stack.push(u256::ZERO)?;
                 }
@@ -512,7 +512,7 @@ pub fn run(
             opcode::BLOBBASEFEE => {
                 check_min_revision(Revision::EVMC_CANCUN, revision)?;
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(context.get_tx_context().blob_base_fee.into())?;
+                stack.push(context.get_tx_context().blob_base_fee)?;
                 code_state.next();
             }
             opcode::POP => {
@@ -524,15 +524,14 @@ pub fn run(
                 consume_gas::<3>(&mut gas_left)?;
                 let [offset] = stack.pop()?;
 
-                let src: &[u8] = memory.get_word(offset, &mut gas_left)?;
-                stack.push(src.try_into().unwrap())?;
+                stack.push(memory.get_word(offset, &mut gas_left)?)?;
                 code_state.next();
             }
             opcode::MSTORE => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [offset, value] = stack.pop()?;
 
-                let dest = memory.get_word(offset, &mut gas_left)?;
+                let dest = memory.get_slice(offset, 32, &mut gas_left)?;
                 dest.copy_from_slice(value.as_slice());
                 code_state.next();
             }
@@ -559,7 +558,7 @@ pub fn run(
                     }
                 }
                 let value = context.get_storage(addr, &key);
-                stack.push(value.into())?;
+                stack.push(value)?;
                 code_state.next();
             }
             opcode::SSTORE => {
@@ -653,17 +652,17 @@ pub fn run(
             }
             opcode::PC => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(code_state.pc().into())?;
+                stack.push(code_state.pc())?;
                 code_state.next();
             }
             opcode::MSIZE => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(memory.len().into())?;
+                stack.push(memory.len())?;
                 code_state.next();
             }
             opcode::GAS => {
                 consume_gas::<2>(&mut gas_left)?;
-                stack.push(gas_left.into())?;
+                stack.push(gas_left)?;
                 code_state.next();
             }
             opcode::JUMPDEST => {
@@ -676,7 +675,7 @@ pub fn run(
                 let [key] = stack.pop()?;
                 let addr = message.recipient();
                 let value = context.get_transient_storage(addr, &key.into());
-                stack.push(value.into())?;
+                stack.push(value)?;
                 code_state.next();
             }
             opcode::TSTORE => {
@@ -931,14 +930,11 @@ pub fn run(
                 let addr = addr.into();
 
                 let tx_context = context.get_tx_context();
-                if revision >= Revision::EVMC_BERLIN {
-                    if addr != tx_context.tx_origin
+                if revision >= Revision::EVMC_BERLIN && addr != tx_context.tx_origin
                         //&& addr != tx_context.tx_to // TODO
-                        && !(revision >= Revision::EVMC_SHANGHAI && addr == tx_context.block_coinbase)
-                        && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
-                    {
-                        consume_gas::<2600>(&mut gas_left)?;
-                    }
+                        && !(revision >= Revision::EVMC_SHANGHAI && addr == tx_context.block_coinbase) && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
+                {
+                    consume_gas::<2600>(&mut gas_left)?;
                 }
 
                 if !context.account_exists(&addr) {
@@ -954,8 +950,8 @@ pub fn run(
                 code_state.next();
                 break;
             }
-            op => {
-                println!("invalid opcode 0x{op:x?}");
+            _op => {
+                //println!("invalid opcode 0x{op:x?}");
                 return Err((
                     StepStatusCode::EVMC_STEP_FAILED,
                     StatusCode::EVMC_INVALID_INSTRUCTION,
@@ -1064,7 +1060,7 @@ fn create<const CREATE2: bool>(
     let salt = if CREATE2 {
         stack.pop::<1>()?[0]
     } else {
-        u256::ZERO.into() // ignored
+        u256::ZERO // ignored
     };
     let (len, len_overflow) = len.into_u64_with_overflow();
     if len_overflow {
@@ -1127,11 +1123,11 @@ fn create<const CREATE2: bool>(
 
     if result.status_code() == StatusCode::EVMC_SUCCESS {
         let addr = result.create_address().unwrap();
-        let code_size = context.get_code_size(&addr);
+        let code_size = context.get_code_size(addr);
         consume_dyn_gas(gas_left, 200 * code_size as u64)?;
 
         *last_call_return_data = None;
-        stack.push(addr.into())?;
+        stack.push(addr)?;
     } else {
         *last_call_return_data = result.output().map(ToOwned::to_owned);
         stack.push(u256::ZERO)?;
@@ -1156,10 +1152,8 @@ fn call<const CODE: bool>(
     }
     let [gas, addr, value, args_offset, args_len, ret_offset, ret_len] = stack.pop()?;
 
-    if !CODE {
-        if value != u256::ZERO {
-            check_not_read_only(message, revision)?;
-        }
+    if !CODE && value != u256::ZERO {
+        check_not_read_only(message, revision)?;
     }
 
     let addr = addr.into();
@@ -1239,7 +1233,7 @@ fn call<const CODE: bool>(
     consume_dyn_gas(gas_left, stipend)?;
     *gas_refund += result.gas_refund();
 
-    stack.push(((result.status_code() == StatusCode::EVMC_SUCCESS) as u8).into())?;
+    stack.push((result.status_code() == StatusCode::EVMC_SUCCESS) as u8)?;
     code_state.next();
     Ok(())
 }
@@ -1323,7 +1317,7 @@ fn static_delegate_call<const DELEGATE: bool>(
     consume_dyn_gas(gas_left, endowment)?;
     *gas_refund += result.gas_refund();
 
-    stack.push(((result.status_code() == StatusCode::EVMC_SUCCESS) as u8).into())?;
+    stack.push((result.status_code() == StatusCode::EVMC_SUCCESS) as u8)?;
     code_state.next();
     Ok(())
 }

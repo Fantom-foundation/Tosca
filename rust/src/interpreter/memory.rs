@@ -88,8 +88,11 @@ impl Memory {
         &mut self,
         offset: u256,
         gas_left: &mut u64,
-    ) -> Result<&mut [u8], (StepStatusCode, StatusCode)> {
-        self.get_slice(offset, 32u8.into(), gas_left)
+    ) -> Result<u256, (StepStatusCode, StatusCode)> {
+        let slice = self.get_slice(offset, 32u8.into(), gas_left)?;
+        let mut bytes = [0; 32];
+        bytes.copy_from_slice(slice);
+        Ok(bytes.into())
     }
 
     pub fn get_byte(

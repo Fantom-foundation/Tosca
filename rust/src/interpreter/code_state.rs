@@ -67,7 +67,7 @@ impl<'a> CodeState<'a> {
 
         self.pc += 1;
         let mut bytes = [0; 32];
-        bytes.copy_from_slice(&self.code[self.pc..self.pc + len]);
+        bytes[32 - len..].copy_from_slice(&self.code[self.pc..self.pc + len]);
         self.pc += len;
 
         Ok(bytes.into())
