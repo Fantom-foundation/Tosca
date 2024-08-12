@@ -370,17 +370,14 @@ pub fn run(
                     let src_len = context.get_code_size(&addr) as u64;
                     let dest = memory.get_slice(dest_offset, len, &mut gas_left)?;
                     let (offset, offset_overflow) = offset.into_u64_with_overflow();
+                    consume_copy_cost(&mut gas_left, len)?;
                     if offset_overflow || offset >= src_len {
-                        copy_slice_padded(&[], dest, &mut gas_left)?;
+                        zero_slice(dest);
                     } else if offset + len >= src_len {
                         let copy_end = (src_len - offset) as usize;
-                        consume_copy_cost(&mut gas_left, len)?;
                         context.copy_code(&addr, offset as usize, &mut dest[..copy_end]);
-                        for byte in &mut dest[copy_end..] {
-                            *byte = 0;
-                        }
+                        zero_slice(&mut dest[copy_end..]);
                     } else {
-                        consume_copy_cost(&mut gas_left, len)?;
                         context.copy_code(&addr, offset as usize, dest);
                     }
                 }
@@ -691,22 +688,9 @@ pub fn run(
                 check_min_revision(Revision::EVMC_CANCUN, revision)?;
                 consume_gas::<3>(&mut gas_left)?;
                 let [dest_offset, offset, len] = stack.pop()?;
-
                 if len != u256::ZERO {
-                    let (len, len_overflow) = len.into_u64_with_overflow();
-                    if len_overflow {
-                        return Err((
-                            StepStatusCode::EVMC_STEP_FAILED,
-                            StatusCode::EVMC_INVALID_MEMORY_ACCESS,
-                        ));
-                    }
-                    consume_copy_cost(&mut gas_left, len)?;
-
-                    let src = memory.get_slice(offset, len, &mut gas_left)?.to_owned(); // TODO check if slices overlap and if not avoid allocation
-                    let dest = memory.get_slice(dest_offset, len, &mut gas_left)?;
-                    dest.copy_from_slice(&src);
+                    memory.copy_within(offset, dest_offset, len, &mut gas_left)?;
                 }
-
                 code_state.next();
             }
             opcode::PUSH1 => push(1, &mut code_state, &mut stack, &mut gas_left)?,
@@ -1322,6 +1306,7 @@ fn static_delegate_call<const DELEGATE: bool>(
     Ok(())
 }
 
+#[inline(always)]
 fn get_slice_within_bounds<T>(data: &[T], offset: u256, len: u64) -> &[T] {
     if len == 0 {
         return &[];
@@ -1341,6 +1326,14 @@ fn get_slice_within_bounds<T>(data: &[T], offset: u256, len: u64) -> &[T] {
     }
 }
 
+#[inline(always)]
+fn zero_slice(data: &mut [u8]) {
+    for byte in data {
+        *byte = 0;
+    }
+}
+
+#[inline(always)]
 fn copy_slice_padded(
     src: &[u8],
     dest: &mut [u8],
@@ -1348,12 +1341,11 @@ fn copy_slice_padded(
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     consume_copy_cost(gas_left, dest.len() as u64)?;
     dest[..src.len()].copy_from_slice(src);
-    for byte in &mut dest[src.len()..] {
-        *byte = 0;
-    }
+    zero_slice(&mut dest[src.len()..]);
     Ok(())
 }
 
+#[inline(always)]
 fn word_size(bytes: u64) -> u64 {
     (bytes + 31) / 32
 }

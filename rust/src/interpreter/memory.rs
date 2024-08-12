@@ -1,9 +1,9 @@
-use std::iter;
+use std::{cmp::max, iter};
 
 use evmc_vm::{StatusCode, StepStatusCode};
 
 use crate::{
-    interpreter::{consume_dyn_gas, word_size},
+    interpreter::{consume_copy_cost, consume_dyn_gas, word_size},
     types::u256,
 };
 
@@ -24,10 +24,11 @@ impl Memory {
 
     fn expand(
         &mut self,
-        new_len: u64,
+        new_len_bytes: u64,
         gas_left: &mut u64,
     ) -> Result<(), (StepStatusCode, StatusCode)> {
         let current_len = self.0.len() as u64;
+        let new_len = word_size(new_len_bytes) * 32;
         if new_len > current_len {
             self.consume_expansion_cost(gas_left, new_len)?;
             self.0
@@ -78,8 +79,7 @@ impl Memory {
             ));
         }
         let end = offset + len;
-        let new_len = word_size(end) * 32;
-        self.expand(new_len, gas_left)?;
+        self.expand(end, gas_left)?;
 
         Ok(&mut self.0[offset as usize..end as usize])
     }
@@ -102,5 +102,31 @@ impl Memory {
     ) -> Result<&mut u8, (StepStatusCode, StatusCode)> {
         self.get_slice(offset, 1u8.into(), gas_left)
             .map(|slice| &mut slice[0])
+    }
+
+    pub fn copy_within(
+        &mut self,
+        src_offset: u256,
+        dest_offset: u256,
+        len: u256,
+        gas_left: &mut u64,
+    ) -> Result<(), (StepStatusCode, StatusCode)> {
+        let (src_offset, src_overflow) = src_offset.into_u64_with_overflow();
+        let (dest_offset, dest_overflow) = dest_offset.into_u64_with_overflow();
+        let (len, len_overflow) = len.into_u64_with_overflow();
+        if src_overflow || dest_overflow || len_overflow {
+            return Err((
+                StepStatusCode::EVMC_STEP_FAILED,
+                StatusCode::EVMC_OUT_OF_GAS,
+            ));
+        }
+        consume_copy_cost(gas_left, len)?;
+        self.expand(max(src_offset, dest_offset) + len, gas_left)?;
+        let src_offset = src_offset as usize;
+        let dest_offset = dest_offset as usize;
+        let len = len as usize;
+        self.0
+            .copy_within(src_offset..src_offset + len, dest_offset);
+        Ok(())
     }
 }
