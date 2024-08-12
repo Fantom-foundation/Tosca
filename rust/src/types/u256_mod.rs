@@ -130,6 +130,12 @@ impl From<[u8; 32]> for u256 {
     }
 }
 
+impl From<bool> for u256 {
+    fn from(value: bool) -> Self {
+        (value as u8).into()
+    }
+}
+
 impl From<u8> for u256 {
     fn from(value: u8) -> Self {
         [

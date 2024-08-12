@@ -133,37 +133,37 @@ pub fn run<'a>(
             opcode::LT => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [lhs, rhs] = stack.pop()?;
-                stack.push((lhs < rhs) as u8)?;
+                stack.push(lhs < rhs)?;
                 code_state.next();
             }
             opcode::GT => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [lhs, rhs] = stack.pop()?;
-                stack.push((lhs > rhs) as u8)?;
+                stack.push(lhs > rhs)?;
                 code_state.next();
             }
             opcode::SLT => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [lhs, rhs] = stack.pop()?;
-                stack.push((lhs.slt(&rhs)) as u8)?;
+                stack.push(lhs.slt(&rhs))?;
                 code_state.next();
             }
             opcode::SGT => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [lhs, rhs] = stack.pop()?;
-                stack.push((lhs.sgt(&rhs)) as u8)?;
+                stack.push(lhs.sgt(&rhs))?;
                 code_state.next();
             }
             opcode::EQ => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [lhs, rhs] = stack.pop()?;
-                stack.push((lhs == rhs) as u8)?;
+                stack.push(lhs == rhs)?;
                 code_state.next();
             }
             opcode::ISZERO => {
                 consume_gas::<3>(&mut gas_left)?;
                 let [value] = stack.pop()?;
-                stack.push((value == u256::ZERO) as u8)?;
+                stack.push(value == u256::ZERO)?;
                 code_state.next();
             }
             opcode::AND => {
@@ -1213,7 +1213,7 @@ fn call<const CODE: bool>(
     consume_dyn_gas(gas_left, stipend)?;
     *gas_refund += result.gas_refund();
 
-    stack.push((result.status_code() == StatusCode::EVMC_SUCCESS) as u8)?;
+    stack.push(result.status_code() == StatusCode::EVMC_SUCCESS)?;
     code_state.next();
     Ok(())
 }
@@ -1299,7 +1299,7 @@ fn static_delegate_call<const DELEGATE: bool>(
     consume_dyn_gas(gas_left, endowment)?;
     *gas_refund += result.gas_refund();
 
-    stack.push((result.status_code() == StatusCode::EVMC_SUCCESS) as u8)?;
+    stack.push(result.status_code() == StatusCode::EVMC_SUCCESS)?;
     code_state.next();
     Ok(())
 }
