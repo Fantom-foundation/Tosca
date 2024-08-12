@@ -2,7 +2,7 @@
 //! from the host language via FFI. The functions in this module only check the provided
 //! arguments for validity, map them to Rust types and then call the business logic.
 //! This is in essence what evmc_declare::evmc_declare_vm generates, but for [`SteppableEvmcVm`]
-//! instead of [`EvmcVm`](evmc_vm::EvmcVm).
+//! instead of [`EvmcVm`](::evmc_vm::EvmcVm).
 
 use std::{ffi::c_void, panic, slice};
 

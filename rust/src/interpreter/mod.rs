@@ -32,14 +32,19 @@ pub fn run<'a>(
     mut stack: Stack,
     mut memory: Memory,
     mut last_call_return_data: Option<Vec<u8>>,
-    steps: Option<i32>,
+    mut steps: Option<i32>,
 ) -> Result<RunResult<'a>, (StepStatusCode, StatusCode)> {
     let mut gas_left = message.gas() as u64;
     let mut status_code = StatusCode::EVMC_SUCCESS;
     let mut output = None;
 
     //println!("##### running test #####");
-    for _ in 0..steps.unwrap_or(i32::MAX) {
+    loop {
+        match &mut steps {
+            None => (),
+            Some(0) => break,
+            Some(steps) => *steps -= 1,
+        }
         let Some(op) = code_state.get() else {
             return Err((StepStatusCode::EVMC_STEP_FAILED, StatusCode::EVMC_FAILURE));
         };
