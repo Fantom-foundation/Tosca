@@ -266,7 +266,7 @@ pub fn run(
                 let [offset] = stack.pop()?;
                 let (offset, overflow) = offset.into_u64_with_overflow();
                 let offset = offset as usize;
-                let call_data = message.input().unwrap();
+                let call_data = message.input().map(|v| v.as_slice()).unwrap_or(&[]);
                 if overflow || offset >= call_data.len() {
                     stack.push(u256::ZERO)?;
                 } else {
@@ -279,8 +279,11 @@ pub fn run(
             }
             opcode::CALLDATASIZE => {
                 consume_gas::<2>(&mut gas_left)?;
-                let call_data = message.input().unwrap();
-                stack.push(call_data.len())?;
+                let call_data_len = message
+                    .input()
+                    .map(|call_data| call_data.len())
+                    .unwrap_or(0);
+                stack.push(call_data_len)?;
                 code_state.next();
             }
             opcode::PUSH0 => {
@@ -560,6 +563,12 @@ pub fn run(
             }
             opcode::SSTORE => {
                 check_not_read_only(message, revision)?;
+                if revision >= Revision::EVMC_ISTANBUL && gas_left <= 2300 {
+                    return Err((
+                        StepStatusCode::EVMC_STEP_FAILED,
+                        StatusCode::EVMC_OUT_OF_GAS,
+                    ));
+                }
                 let [key, value] = stack.pop()?;
                 let key = key.into();
                 let addr = message.recipient();
@@ -623,13 +632,6 @@ pub fn run(
                     dyn_gas += 2100;
                 }
                 consume_dyn_gas(&mut gas_left, dyn_gas)?;
-                // TODO ct does not like this check
-                //if revision >= Revision::EVMC_ISTANBUL && gas_left <= 2300 {
-                //return Err((
-                //StepStatusCode::EVMC_STEP_FAILED,
-                //StatusCode::EVMC_OUT_OF_GAS,
-                //));
-                //}
                 gas_refund += gas_refund_change;
                 code_state.next();
             }
@@ -1106,7 +1108,12 @@ fn create<const CREATE2: bool>(
     *gas_refund += result.gas_refund();
 
     if result.status_code() == StatusCode::EVMC_SUCCESS {
-        let addr = result.create_address().unwrap();
+        let Some(addr) = result.create_address() else {
+            return Err((
+                StepStatusCode::EVMC_STEP_FAILED,
+                StatusCode::EVMC_INTERNAL_ERROR,
+            ));
+        };
         let code_size = context.get_code_size(addr);
         consume_dyn_gas(gas_left, 200 * code_size as u64)?;
 
@@ -1151,10 +1158,10 @@ fn call<const CODE: bool>(
     }
 
     consume_address_access_cost(gas_left, &addr, context, revision)?;
-    let input = memory
-        .get_slice(args_offset, args_len, gas_left)?
-        .to_owned(); // TODO move this further down to avoid allocation
-    let dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
+    // access slice to consume potential memory expansion cost but drop it so that we can get
+    // another mutable reference into memory for input
+    let _dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
+    let input = memory.get_slice(args_offset, args_len, gas_left)?;
     consume_positive_value_cost(&value, gas_left)?;
     if !CODE {
         consume_value_to_empty_account_cost(&value, &addr, context, gas_left)?;
@@ -1207,6 +1214,7 @@ fn call<const CODE: bool>(
 
     let result = context.call(&call_message);
     *last_call_return_data = result.output().map(ToOwned::to_owned);
+    let dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
     if let Some(output) = last_call_return_data {
         let min_len = min(output.len(), ret_len as usize); // ret_len == dest.len()
         dest[..min_len].copy_from_slice(&output[..min_len]);
@@ -1249,10 +1257,10 @@ fn static_delegate_call<const DELEGATE: bool>(
     }
 
     consume_address_access_cost(gas_left, &addr, context, revision)?;
-    let input = memory
-        .get_slice(args_offset, args_len, gas_left)?
-        .to_owned(); // TODO move this further down to avoid allocation
-    let dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
+    // access slice to consume potential memory expansion cost but drop it so that we can get
+    // another mutable reference into memory for input
+    let _dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
+    let input = memory.get_slice(args_offset, args_len, gas_left)?;
 
     let limit = *gas_left - *gas_left / 64;
     let mut endowment = gas.into_u64_saturating();
@@ -1292,6 +1300,7 @@ fn static_delegate_call<const DELEGATE: bool>(
 
     let result = context.call(&call_message);
     *last_call_return_data = result.output().map(ToOwned::to_owned);
+    let dest = memory.get_slice(ret_offset, ret_len, gas_left)?;
     if let Some(output) = last_call_return_data {
         let min_len = min(output.len(), ret_len as usize); // ret_len == dest.len()
         dest[..min_len].copy_from_slice(&output[..min_len]);
