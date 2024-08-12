@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"pgregory.net/rand"
 )
 
 func TestImmutableHashArray_Equal(t *testing.T) {
@@ -107,6 +108,17 @@ func TestImmutableHashArray_CanBeJsonEncoded(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("short-encoded", func(t *testing.T) {
+		encoded, err := json.Marshal(zeroHash[:len(zeroHash)-1])
+		if err != nil {
+			t.Fatalf("failed to encode into JSON: %v", err)
+		}
+		var restored ImmutableHashArray
+		if err := json.Unmarshal(encoded, &restored); err == nil {
+			t.Fatalf("an error should have been produced but instead got nil")
+		}
+	})
 }
 
 func TestImmutableHashArray_Get(t *testing.T) {
@@ -133,5 +145,34 @@ func TestImmutableHashArray_Get(t *testing.T) {
 			}()
 			_ = test.hashes.Get(256)
 		})
+	}
+}
+
+func TestINmmutableHashArray_NewRandomImmutableHashArray(t *testing.T) {
+	rnd := rand.New()
+
+	hashes := []ImmutableHashArray{}
+	for i := 0; i < 10; i++ {
+		hashes = append(hashes, NewRandomImmutableHashArray(rnd))
+	}
+	for i := 0; i < 10; i++ {
+		for j := 0; j < i; j++ {
+			if hashes[i].Equal(hashes[j]) {
+				t.Errorf("random hashes are not random, got %v and %v", hashes[i], hashes[j])
+			}
+		}
+	}
+}
+
+func TestImmutableHashArray_String(t *testing.T) {
+	hashes := NewImmutableHashArray(tosca.Hash{1})
+
+	hash0 := strings.Repeat("0", 64) + " "
+	hash1 := "&[01" + strings.Repeat("0", 62) + " "
+
+	want := hash1 + strings.Repeat(hash0, 255)[:255*65-1] + "]"
+
+	if got := hashes.String(); strings.Compare(want, got) != 0 {
+		t.Errorf("unexpected string, wanted %v, got %v", want, got)
 	}
 }
