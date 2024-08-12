@@ -68,7 +68,11 @@ impl From<U256> for u256 {
     fn from(value: U256) -> Self {
         // TODO bnum has to_be_bytes with feature nightly
         let be_value = value.to_be();
-        let bytes: [u8; 32] = unsafe { mem::transmute(be_value) };
+        let bytes: [u8; 32] = unsafe {
+            // U256 = BUint<4>
+            // BUint<4> is transparent wrapper around [u64; 4]
+            mem::transmute(be_value)
+        };
         bytes.into()
     }
 }
@@ -83,7 +87,12 @@ impl From<I256> for u256 {
     fn from(value: I256) -> Self {
         // TODO bnum has to_be_bytes with feature nightly
         let be_value = value.to_be();
-        let bytes: [u8; 32] = unsafe { mem::transmute(be_value) };
+        let bytes: [u8; 32] = unsafe {
+            // I256 = is transparent wrapper around U256
+            // U256 = BInt<4>
+            // BUint<4> is transparent wrapper around [u64; 4]
+            mem::transmute(be_value)
+        };
         bytes.into()
     }
 }
@@ -98,7 +107,11 @@ impl From<U512> for u256 {
     fn from(value: U512) -> Self {
         // TODO bnum has to_be_bytes with feature nightly
         let be_value = value.to_be();
-        let bytes64: [u8; 64] = unsafe { mem::transmute(be_value) };
+        let bytes64: [u8; 64] = unsafe {
+            // U512 = BUint<8>
+            // BUint<8> is transparent wrapper around [u64; 8]
+            mem::transmute(be_value)
+        };
         let mut bytes32 = [0; 32];
         bytes32.copy_from_slice(&bytes64[32..]);
         bytes32.into()
