@@ -56,63 +56,63 @@ pub fn run<'a>(
             }
             opcode::ADD => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top + top2)?;
+                let [value1, value2] = stack.pop()?;
+                stack.push(value1 + value2)?;
                 code_state.next();
             }
             opcode::MUL => {
                 consume_gas::<5>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top * top2)?;
+                let [fac1, fac2] = stack.pop()?;
+                stack.push(fac1 * fac2)?;
                 code_state.next();
             }
             opcode::SUB => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top - top2)?;
+                let [value1, value2] = stack.pop()?;
+                stack.push(value1 - value2)?;
                 code_state.next();
             }
             opcode::DIV => {
                 consume_gas::<5>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top / top2)?;
+                let [value, denominator] = stack.pop()?;
+                stack.push(value / denominator)?;
                 code_state.next();
             }
             opcode::SDIV => {
                 consume_gas::<5>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top.sdiv(top2))?;
+                let [value, denominator] = stack.pop()?;
+                stack.push(value.sdiv(denominator))?;
                 code_state.next();
             }
             opcode::MOD => {
                 consume_gas::<5>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top % top2)?;
+                let [value, denominator] = stack.pop()?;
+                stack.push(value % denominator)?;
                 code_state.next();
             }
             opcode::SMOD => {
                 consume_gas::<5>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top.srem(top2))?;
+                let [value, denominator] = stack.pop()?;
+                stack.push(value.srem(denominator))?;
                 code_state.next();
             }
             opcode::ADDMOD => {
                 consume_gas::<8>(&mut gas_left)?;
-                let [top, top2, top3] = stack.pop()?;
-                stack.push(u256::addmod(top, top2, top3))?;
+                let [value1, value2, denominator] = stack.pop()?;
+                stack.push(u256::addmod(value1, value2, denominator))?;
                 code_state.next();
             }
             opcode::MULMOD => {
                 consume_gas::<8>(&mut gas_left)?;
-                let [top, top2, top3] = stack.pop()?;
-                stack.push(u256::mulmod(top, top2, top3))?;
+                let [fac1, fac2, denominator] = stack.pop()?;
+                stack.push(u256::mulmod(fac1, fac2, denominator))?;
                 code_state.next();
             }
             opcode::EXP => {
                 consume_gas::<10>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
+                let [value, exp] = stack.pop()?;
                 let mut cost_multiplier = 32;
-                for byte in top2.into_iter() {
+                for byte in exp.into_iter() {
                     if byte == 0 {
                         cost_multiplier -= 1;
                     } else {
@@ -121,97 +121,97 @@ pub fn run<'a>(
                 }
                 let dyn_gas = 50 * cost_multiplier;
                 consume_dyn_gas(&mut gas_left, dyn_gas)?;
-                stack.push(top.pow(top2))?;
+                stack.push(value.pow(exp))?;
                 code_state.next();
             }
             opcode::SIGNEXTEND => {
                 consume_gas::<5>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(u256::signextend(top, top2))?;
+                let [size, value] = stack.pop()?;
+                stack.push(u256::signextend(size, value))?;
                 code_state.next();
             }
             opcode::LT => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push((top < top2) as u8)?;
+                let [lhs, rhs] = stack.pop()?;
+                stack.push((lhs < rhs) as u8)?;
                 code_state.next();
             }
             opcode::GT => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push((top > top2) as u8)?;
+                let [lhs, rhs] = stack.pop()?;
+                stack.push((lhs > rhs) as u8)?;
                 code_state.next();
             }
             opcode::SLT => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push((top.slt(&top2)) as u8)?;
+                let [lhs, rhs] = stack.pop()?;
+                stack.push((lhs.slt(&rhs)) as u8)?;
                 code_state.next();
             }
             opcode::SGT => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push((top.sgt(&top2)) as u8)?;
+                let [lhs, rhs] = stack.pop()?;
+                stack.push((lhs.sgt(&rhs)) as u8)?;
                 code_state.next();
             }
             opcode::EQ => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push((top == top2) as u8)?;
+                let [lhs, rhs] = stack.pop()?;
+                stack.push((lhs == rhs) as u8)?;
                 code_state.next();
             }
             opcode::ISZERO => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top] = stack.pop()?;
-                stack.push((top == u256::ZERO) as u8)?;
+                let [value] = stack.pop()?;
+                stack.push((value == u256::ZERO) as u8)?;
                 code_state.next();
             }
             opcode::AND => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top & top2)?;
+                let [lhs, rhs] = stack.pop()?;
+                stack.push(lhs & rhs)?;
                 code_state.next();
             }
             opcode::OR => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top | top2)?;
+                let [lhs, rhs] = stack.pop()?;
+                stack.push(lhs | rhs)?;
                 code_state.next();
             }
             opcode::XOR => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top ^ top2)?;
+                let [lhs, rhs] = stack.pop()?;
+                stack.push(lhs ^ rhs)?;
                 code_state.next();
             }
             opcode::NOT => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top] = stack.pop()?;
-                stack.push(!top)?;
+                let [value] = stack.pop()?;
+                stack.push(!value)?;
                 code_state.next();
             }
             opcode::BYTE => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top2.byte(top))?;
+                let [offset, value] = stack.pop()?;
+                stack.push(value.byte(offset))?;
                 code_state.next();
             }
             opcode::SHL => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top2 << top)?;
+                let [shift, value] = stack.pop()?;
+                stack.push(value << shift)?;
                 code_state.next();
             }
             opcode::SHR => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top2 >> top)?;
+                let [shift, value] = stack.pop()?;
+                stack.push(value >> shift)?;
                 code_state.next();
             }
             opcode::SAR => {
                 consume_gas::<3>(&mut gas_left)?;
-                let [top, top2] = stack.pop()?;
-                stack.push(top2.sar(top))?;
+                let [shift, value] = stack.pop()?;
+                stack.push(value.sar(shift))?;
                 code_state.next();
             }
             opcode::SHA3 => {
