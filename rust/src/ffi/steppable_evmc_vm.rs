@@ -9,7 +9,7 @@ use std::{ffi::c_void, panic, slice};
 use ::evmc_vm::{
     ffi::{
         evmc_bytes32, evmc_capabilities, evmc_host_interface, evmc_message, evmc_revision,
-        evmc_step_result, evmc_step_status_code, evmc_vm_steppable,
+        evmc_step_result, evmc_step_status_code, evmc_vm as evmc_vm_t, evmc_vm_steppable,
     },
     ExecutionContext, ExecutionMessage, StatusCode, StepResult, StepStatusCode,
     SteppableEvmcContainer, SteppableEvmcVm,
@@ -23,7 +23,7 @@ use crate::{
 #[no_mangle]
 extern "C" fn evmc_create_steppable_evmrs() -> *const evmc_vm_steppable {
     let new_instance = evmc_vm_steppable {
-        vm: evmc_vm::evmc_create_evmrs() as *mut ::evmc_vm::ffi::evmc_vm,
+        vm: evmc_vm::evmc_create_evmrs() as *mut evmc_vm_t,
         step_n: Some(__evmc_step_n),
         destroy: Some(__evmc_steppable_destroy),
     };
@@ -96,14 +96,15 @@ extern "C" fn __evmc_step_n(
     };
 
     let result = panic::catch_unwind(|| {
-        assert_ne!(
-            EVMC_CAPABILITY,
-            evmc_capabilities::EVMC_CAPABILITY_PRECOMPILES
-        );
-        let mut execution_context = unsafe {
-            // SAFETY:
-            // Because EVMC_CAPABILITY_PRECOMPILES is not supported host is not null.
-            ExecutionContext::new(&*host, context)
+        let mut execution_context = if host.is_null() {
+            None
+        } else {
+            let execution_context = unsafe {
+                // SAFETY:
+                // host is not null
+                ExecutionContext::new(&*host, context)
+            };
+            Some(execution_context)
         };
 
         let stack = if stack.is_null() {
@@ -140,7 +141,7 @@ extern "C" fn __evmc_step_n(
             revision,
             code_ref,
             &execution_message,
-            &mut execution_context,
+            execution_context.as_mut(),
             status,
             pc,
             gas_refunds,

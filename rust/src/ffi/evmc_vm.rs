@@ -1,16 +1,15 @@
 use std::{
     ffi::{c_char, CStr},
-    mem, panic, process, slice,
+    panic, process, slice,
 };
 
-use ::evmc_vm::SetOptionError;
 use evmc_vm::{
     ffi::{
         evmc_capabilities, evmc_capabilities_flagset, evmc_host_context, evmc_host_interface,
         evmc_message, evmc_result, evmc_revision, evmc_set_option_result, evmc_status_code,
-        EVMC_ABI_VERSION,
+        evmc_vm as evmc_vm_t, EVMC_ABI_VERSION,
     },
-    EvmcContainer, EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult,
+    EvmcContainer, EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult, SetOptionError,
 };
 
 use crate::EvmRs;
@@ -20,18 +19,12 @@ static EVM_RS_VERSION: &str = "0.1.0\0";
 
 pub const EVMC_CAPABILITY: evmc_capabilities = evmc_capabilities::EVMC_CAPABILITY_EVM1;
 
-extern "C" fn __evmc_get_capabilities(
-    _instance: *mut evmc_vm::ffi::evmc_vm,
-) -> evmc_capabilities_flagset {
-    unsafe {
-        // SAFETY:
-        // evmc_capabilities has repr(u32) and evmc_capabilities_flagset is a type alias for u32
-        mem::transmute(EVMC_CAPABILITY)
-    }
+extern "C" fn __evmc_get_capabilities(_instance: *mut evmc_vm_t) -> evmc_capabilities_flagset {
+    EVMC_CAPABILITY as evmc_capabilities_flagset
 }
 
 extern "C" fn __evmc_set_option(
-    instance: *mut evmc_vm::ffi::evmc_vm,
+    instance: *mut evmc_vm_t,
     key: *const c_char,
     value: *const c_char,
 ) -> evmc_set_option_result {
@@ -76,8 +69,8 @@ extern "C" fn __evmc_set_option(
 }
 
 #[no_mangle]
-pub extern "C" fn evmc_create_evmrs() -> *const evmc_vm::ffi::evmc_vm {
-    let new_instance = evmc_vm::ffi::evmc_vm {
+pub extern "C" fn evmc_create_evmrs() -> *const evmc_vm_t {
+    let new_instance = evmc_vm_t {
         abi_version: EVMC_ABI_VERSION as i32,
         destroy: Some(__evmc_destroy),
         execute: Some(__evmc_execute),
@@ -93,7 +86,7 @@ pub extern "C" fn evmc_create_evmrs() -> *const evmc_vm::ffi::evmc_vm {
     EvmcContainer::into_ffi_pointer(container)
 }
 
-extern "C" fn __evmc_destroy(instance: *mut evmc_vm::ffi::evmc_vm) {
+extern "C" fn __evmc_destroy(instance: *mut evmc_vm_t) {
     if instance.is_null() {
         // This is an irrecoverable error that violates the EVMC spec.
         process::abort();
@@ -105,7 +98,7 @@ extern "C" fn __evmc_destroy(instance: *mut evmc_vm::ffi::evmc_vm) {
 }
 
 extern "C" fn __evmc_execute(
-    instance: *mut evmc_vm::ffi::evmc_vm,
+    instance: *mut evmc_vm_t,
     host: *const evmc_host_interface,
     context: *mut evmc_host_context,
     revision: evmc_revision,
@@ -143,17 +136,22 @@ extern "C" fn __evmc_execute(
     };
 
     let result = panic::catch_unwind(|| {
-        let mut execution_context = unsafe {
-            // SAFETY:
-            // Because EVMC_CAPABILITY_PRECOMPILES is not supported host is not null.
-            ExecutionContext::new(&*host, context)
+        let mut execution_context = if host.is_null() {
+            None
+        } else {
+            let execution_context = unsafe {
+                // SAFETY:
+                // host is not null
+                ExecutionContext::new(&*host, context)
+            };
+            Some(execution_context)
         };
 
         container.execute(
             revision,
             code_ref,
             &execution_message,
-            &mut execution_context,
+            execution_context.as_mut(),
         )
     });
 

@@ -1,11 +1,12 @@
-use std::mem;
+use std::{mem, process};
 
 use evmc_vm::{
-    EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult, Revision, StepResult,
-    StepStatusCode, SteppableEvmcVm, Uint256,
+    ffi::evmc_capabilities, EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult, Revision,
+    StepResult, StepStatusCode, SteppableEvmcVm, Uint256,
 };
 
 use crate::{
+    ffi::EVMC_CAPABILITY,
     interpreter::{CodeState, Memory, Stack},
     types::u256,
 };
@@ -27,7 +28,7 @@ impl EvmcVm for EvmRs {
         revision: Revision,
         code: &'a [u8],
         message: &'a ExecutionMessage,
-        context: &'a mut ExecutionContext<'a>,
+        context: Option<&'a mut ExecutionContext<'a>>,
     ) -> ExecutionResult {
         run(
             revision,
@@ -56,7 +57,7 @@ impl SteppableEvmcVm for EvmRs {
         revision: Revision,
         code: &'a [u8],
         message: &'a ExecutionMessage,
-        context: &mut ExecutionContext<'a>,
+        context: Option<&'a mut ExecutionContext<'a>>,
         step_status: StepStatusCode,
         pc: u64,
         gas_refund: i64,
@@ -86,7 +87,7 @@ pub fn run<'a>(
     revision: Revision,
     code: &'a [u8],
     message: &'a ExecutionMessage,
-    context: &mut ExecutionContext<'a>,
+    context: Option<&'a mut ExecutionContext<'a>>,
     step_status_code: StepStatusCode,
     pc: u64,
     gas_refund: i64,
@@ -95,6 +96,15 @@ pub fn run<'a>(
     last_call_return_data: Option<Vec<u8>>,
     steps: Option<i32>,
 ) -> StepResult {
+    assert_ne!(
+        EVMC_CAPABILITY,
+        evmc_capabilities::EVMC_CAPABILITY_PRECOMPILES
+    );
+    let Some(context) = context else {
+        // Since EVMC_CAPABILITY_PRECOMPILES is not supported context must be set.
+        // If this is not the case it violates the EVMC spec and is an irrecoverable error.
+        process::abort();
+    };
     interpreter::run(
         revision,
         message,
