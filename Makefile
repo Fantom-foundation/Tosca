@@ -66,7 +66,7 @@ ct-coverage-evmzero:
 test: test-go test-cpp
 
 test-go: tosca-go
-	@go test ./... -count 1
+	@go test ./... -count 1 --coverprofile=cover.out
 
 test-cpp: tosca-cpp
 	@cd cpp/build ; \
@@ -117,7 +117,8 @@ fuzz-lfvm-diff:
 # fuzz-evmzero-diff:
 # 	go test -fuzz=FuzzDifferentialEvmZeroVsGeth ./go/ct/
 
-test-coverage:
+test-coverage: test-go coverage-report
+
+coverage-report:
 	@go install github.com/vladopajic/go-test-coverage/v2@v2.10.1
-	@go test --count=1 --coverprofile=cover.out ./... > /dev/null 2>&1
 	@go-test-coverage --config .testcoverage.yml
