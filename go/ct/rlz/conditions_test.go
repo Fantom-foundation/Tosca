@@ -608,8 +608,8 @@ func TestCondition_CheckFail(t *testing.T) {
 		// only Param and Op can return errors on eval, which is where the errors from check come from.
 		{Eq(Param(1), NewU256(1)), func(s st.State) { s.Stack.Resize(0) }},
 		{Ne(Param(1), NewU256(1)), func(s st.State) { s.Stack.Resize(0) }},
-		// Op and Param expressions only support equaility constraints,
-		// hence the non equality constraints cannot produce error on check with the current expressions.
+		// Op and Param expressions only support equality constraints,
+		// hence the inequality constraints cannot produce error on check with the current expressions.
 		// {Lt(Param(1), NewU256(1)), func(s st.State) { s.Stack.Resize(0) }},
 		// {Le(Param(1), NewU256(1)), func(s st.State) { s.Stack.Resize(0) }},
 		// {Gt(Param(1), NewU256(1)), func(s st.State) { s.Stack.Resize(0) }},

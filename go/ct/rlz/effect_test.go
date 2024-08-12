@@ -29,3 +29,40 @@ func TestEffect_Change(t *testing.T) {
 		t.Errorf("effect did not apply")
 	}
 }
+
+func TestEffect_String(t *testing.T) {
+	pcAdd1 := Change(func(s *st.State) {
+		s.Pc += 1
+	})
+
+	if pcAdd1.String() != "change" {
+		t.Errorf("effect string is wrong")
+	}
+}
+
+func TestEffect_NoEffect(t *testing.T) {
+	original := st.NewState(st.NewCode([]byte{}))
+	original.Pc = 1
+
+	clone := original.Clone()
+	NoEffect().Apply(clone)
+
+	if !original.Eq(clone) {
+		t.Errorf("effect should have changed anythiong")
+	}
+}
+
+func TestEffect_FailEffect(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.Status = st.Running
+	state.Gas = 10
+
+	FailEffect().Apply(state)
+
+	if state.Status != st.Failed {
+		t.Errorf("effect should have failed the state")
+	}
+	if state.Gas != 0 {
+		t.Errorf("effect should have set gas to 0")
+	}
+}

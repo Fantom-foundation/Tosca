@@ -295,26 +295,91 @@ func TestConstant_EvalReturnsValue(t *testing.T) {
 func TestExpression_RestrictPanics(t *testing.T) {
 
 	tests := map[string]struct {
-		expression any
+		expression interface{}
 		kind       RestrictionKind
-		value      any
+		value      interface{}
 	}{
 		"Status":       {Status(), RestrictGreater, st.Reverted},
 		"Pc":           {Pc(), RestrictGreater, NewU256(42)},
 		"Pc-notUint64": {Pc(), RestrictEqual, NewU256(42, 42)},
+		"readOnly":     {ReadOnly(), RestrictGreater, true},
+		"op":           {Op(Pc()), RestrictGreater, vm.ADD},
+		"param":        {Param(0), RestrictGreater, NewU256(42)},
+		"constant":     {Constant(NewU256(42)), RestrictGreater, NewU256(42)},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic, but none occurred")
+				}
+			}()
 			switch v := test.expression.(type) {
 			case status:
-				defer func() {
-					if r := recover(); r == nil {
-						t.Errorf("expected panic, but none occurred")
-					}
-				}()
 				v.Restrict(test.kind, test.value.(st.StatusCode), gen.NewStateGenerator())
+			case pc:
+				v.Restrict(test.kind, test.value.(U256), gen.NewStateGenerator())
+			case readOnly:
+				v.Restrict(test.kind, test.value.(bool), gen.NewStateGenerator())
+			case op:
+				v.Restrict(test.kind, test.value.(vm.OpCode), gen.NewStateGenerator())
+			case param:
+				v.Restrict(test.kind, test.value.(U256), gen.NewStateGenerator())
+			case constant:
+				v.Restrict(test.kind, test.value.(U256), gen.NewStateGenerator())
+			default:
+				t.Fatalf("unsupported expression type %T", test.expression)
 			}
 		})
 	}
+}
+
+func TestExpression_Property(t *testing.T) {
+
+	tests := []struct {
+		got  Property
+		want string
+	}{
+		{ReadOnly().Property(), "readOnly"},
+		{Param(0).Property(), "param[0]"},
+		{Constant(NewU256(42)).Property(), "constant"},
+	}
+
+	for _, test := range tests {
+		if string(test.got) != test.want {
+			t.Errorf("unexpected property, wanted %s, got %s", test.want, test.got)
+		}
+	}
+}
+
+func TestExpressions_StackSizeRestrict(t *testing.T) {
+
+	tests := map[string]struct {
+		kind  RestrictionKind
+		size  int
+		check func(int) bool
+	}{
+		"Less":         {RestrictLess, 5, func(size int) bool { return size < 5 }},
+		"LessEqual":    {RestrictLessEqual, 5, func(size int) bool { return size <= 5 }},
+		"Equal":        {RestrictEqual, 0, func(size int) bool { return size == 0 }},
+		"GreaterEqual": {RestrictGreaterEqual, 5, func(size int) bool { return size >= 5 }},
+		"Greater":      {RestrictGreater, 5, func(size int) bool { return size > 5 }},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			generator := gen.NewStateGenerator()
+			StackSize().Restrict(test.kind, test.size, generator)
+
+			state, err := generator.Generate(rand.New(0))
+			if err != nil {
+				t.Errorf("State generation failed %v", err)
+			}
+			if !test.check(state.Stack.Size()) {
+				t.Errorf("Generator was not restricted by expression. got: %d", state.Stack.Size())
+			}
+		})
+	}
+
 }
