@@ -129,7 +129,7 @@ dependencies = [
 [[package]]
 name = "evmc-sys"
 version = "12.0.0-alpha.0"
-source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions#334d03998f9fa67cdefcd9c07dcca558fd89cbb4"
+source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions#9eb6891df8e6b791cb62b8eacd38de567a741037"
 dependencies = [
  "bindgen",
 ]
@@ -137,7 +137,7 @@ dependencies = [
 [[package]]
 name = "evmc-vm"
 version = "12.0.0-alpha.0"
-source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions#334d03998f9fa67cdefcd9c07dcca558fd89cbb4"
+source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions#9eb6891df8e6b791cb62b8eacd38de567a741037"
 dependencies = [
  "evmc-sys",
 ]
@@ -292,9 +292,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.10.5"
+version = "1.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b91213439dad192326a0d7c6ee3955910425f441d7038e0d6933b0aec5c4517f"
+checksum = "4219d74c6b67a3654a9fbebc4b419e22126d13d2f3c4a07ee0cb61ff79a79619"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -356,9 +356,9 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "syn"
-version = "2.0.72"
+version = "2.0.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc4b9b9bf2add8093d3f2c0204471e951b2285580335de42f9d2534f3ae7a8af"
+checksum = "1fceb41e3d546d0bd83421d3409b1460cc7444cd389341a4c880fe7a042cb3d7"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -1,8 +1,8 @@
-use std::{cmp::min, mem, slice};
+use std::{cmp::min, mem};
 
 use evmc_vm::{
     AccessStatus, ExecutionContext, ExecutionMessage, MessageFlags, MessageKind, Revision,
-    StatusCode, StepStatusCode, StorageStatus, Uint256,
+    StatusCode, StepStatusCode, StorageStatus,
 };
 use sha3::{Digest, Keccak256};
 
@@ -492,22 +492,9 @@ pub fn run<'a>(
                 let [idx] = stack.pop()?;
                 let (idx, idx_overflow) = idx.into_u64_with_overflow();
                 let idx = idx as usize;
-                let count = context.get_tx_context().blob_hashes_count;
-                if !idx_overflow && idx < count {
-                    // TODO create new ExecutionTxContext type and do this conversion in mod ffi
-                    let hashes = context.get_tx_context().blob_hashes;
-                    let hashes: &[Uint256] = if hashes.is_null() {
-                        assert_eq!(count, 0);
-                        &[]
-                    } else {
-                        // SAFETY:
-                        // hashes is not null and count > 0
-                        unsafe { slice::from_raw_parts(hashes, count) }
-                    };
-
-                    let hash = hashes[idx];
-
-                    stack.push(hash)?;
+                let hashes = context.get_tx_context().blob_hashes;
+                if !idx_overflow && idx < hashes.len() {
+                    stack.push(hashes[idx])?;
                 } else {
                     stack.push(u256::ZERO)?;
                 }
