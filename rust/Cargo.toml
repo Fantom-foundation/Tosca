@@ -5,7 +5,8 @@ edition = "2021"
 
 [dependencies]
 bnum = "0.11.0"
-evmc-vm = { path = "../../evmc/bindings/rust/evmc-vm" }
+#evmc-vm = { path = "../../evmc/bindings/rust/evmc-vm" }
+evmc-vm = { git = "https://github.com/LorenzSchueler/evmc", branch = "tosca-extensions" }
 sha3 = "0.10.8"
 
 [lib]
