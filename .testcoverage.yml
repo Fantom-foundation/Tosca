@@ -86,10 +86,6 @@ override:
 
   # packages
   - threshold: 0
-    path: go/ct/rlz
-  - threshold: 0
-    path: go/ct/common
-  - threshold: 0
     path: go/ct/spc
   - threshold: 0
     path: go/ct/utils
