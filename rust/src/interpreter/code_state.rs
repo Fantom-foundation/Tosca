@@ -5,6 +5,7 @@ use evmc_vm::{StatusCode, StepStatusCode};
 
 use crate::types::{opcode, u256};
 
+#[derive(Debug)]
 pub struct CodeState<'a> {
     code: &'a [u8],
     jump_destinations: Box<[JumpFlag]>,

@@ -5,7 +5,10 @@ use evmc_vm::{
     StepStatusCode, SteppableEvmcVm, Uint256,
 };
 
-use crate::{interpreter::CodeState, types::u256};
+use crate::{
+    interpreter::{CodeState, Memory, Stack},
+    types::u256,
+};
 
 mod ffi;
 mod interpreter;
@@ -19,30 +22,27 @@ impl EvmcVm for EvmRs {
         EvmRs {}
     }
 
-    fn execute(
+    fn execute<'a>(
         &self,
         revision: Revision,
-        code: &[u8],
-        message: &ExecutionMessage,
-        context: &mut ExecutionContext,
+        code: &'a [u8],
+        message: &'a ExecutionMessage,
+        context: &'a mut ExecutionContext<'a>,
     ) -> ExecutionResult {
-        let code_state = CodeState::new(code, 0);
-        let step_result = interpreter::run(
+        run(
             revision,
+            code,
             message,
             context,
             StepStatusCode::EVMC_STEP_RUNNING,
-            code_state,
+            0,
             0,
             Vec::with_capacity(1024),
             Vec::new(),
             None,
             None,
-        );
-
-        step_result
-            .map(Into::into)
-            .unwrap_or_else(|(_, status_code)| ExecutionResult::new(status_code, 0, 0, None))
+        )
+        .into()
     }
 
     fn set_option(&mut self, _: &str, _: &str) -> Result<(), evmc_vm::SetOptionError> {
@@ -65,35 +65,64 @@ impl SteppableEvmcVm for EvmRs {
         last_call_result_data: &'a mut [u8],
         steps: i32,
     ) -> StepResult {
-        let code_state = CodeState::new(code, pc as usize);
-        interpreter::run(
+        run(
             revision,
+            code,
             message,
             context,
             step_status,
-            code_state,
+            pc,
             gas_refund,
-            // SAFETY
-            // u256 is a newtype of Uint256 with repr(transparent) which guarantees the same memory
-            // layout.
-            unsafe { mem::transmute::<Vec<Uint256>, Vec<u256>>(stack.to_owned()) },
+            stack.to_owned(),
             memory.to_owned(),
             Some(last_call_result_data.to_owned()),
             Some(steps),
         )
-        .unwrap_or_else(|(step_status_code, status_code)| {
-            StepResult::new(
-                step_status_code,
-                status_code,
-                revision,
-                0,
-                0,
-                0,
-                None,
-                Vec::new(),
-                Vec::new(),
-                None,
-            )
-        })
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn run<'a>(
+    revision: Revision,
+    code: &'a [u8],
+    message: &'a ExecutionMessage,
+    context: &mut ExecutionContext<'a>,
+    step_status_code: StepStatusCode,
+    pc: u64,
+    gas_refund: i64,
+    stack: Vec<Uint256>,
+    memory: Vec<u8>,
+    last_call_return_data: Option<Vec<u8>>,
+    steps: Option<i32>,
+) -> StepResult {
+    interpreter::run(
+        revision,
+        message,
+        context,
+        step_status_code,
+        CodeState::new(code, pc as usize),
+        gas_refund,
+        // SAFETY
+        // u256 is a newtype of Uint256 with repr(transparent) which guarantees the same memory
+        // layout.
+        Stack::new(unsafe { mem::transmute::<Vec<Uint256>, Vec<u256>>(stack.to_owned()) }),
+        Memory::new(memory),
+        last_call_return_data,
+        steps,
+    )
+    .map(Into::into)
+    .unwrap_or_else(|(step_status_code, status_code)| {
+        StepResult::new(
+            step_status_code,
+            status_code,
+            revision,
+            0,
+            0,
+            0,
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+        )
+    })
 }

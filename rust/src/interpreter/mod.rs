@@ -2,12 +2,13 @@ use std::{cmp::min, mem, slice};
 
 use evmc_vm::{
     AccessStatus, ExecutionContext, ExecutionMessage, MessageFlags, MessageKind, Revision,
-    StatusCode, StepResult, StepStatusCode, StorageStatus, Uint256,
+    StatusCode, StepStatusCode, StorageStatus, Uint256,
 };
 use sha3::{Digest, Keccak256};
 
+pub use crate::interpreter::{memory::Memory, run_result::RunResult, stack::Stack};
 use crate::{
-    interpreter::{checks::*, gas::*, memory::Memory, stack::Stack},
+    interpreter::{checks::*, gas::*},
     types::{opcode, u256},
 };
 
@@ -15,29 +16,27 @@ mod checks;
 mod code_state;
 mod gas;
 mod memory;
+mod run_result;
 mod stack;
 
 pub use code_state::CodeState;
 
 #[allow(clippy::too_many_arguments)]
-pub fn run(
+pub fn run<'a>(
     revision: Revision,
     message: &ExecutionMessage,
     context: &mut ExecutionContext,
     mut step_status_code: StepStatusCode,
-    mut code_state: CodeState,
+    mut code_state: CodeState<'a>,
     mut gas_refund: i64,
-    stack: Vec<u256>,
-    memory: Vec<u8>,
+    mut stack: Stack,
+    mut memory: Memory,
     mut last_call_return_data: Option<Vec<u8>>,
     steps: Option<i32>,
-) -> Result<StepResult, (StepStatusCode, StatusCode)> {
+) -> Result<RunResult<'a>, (StepStatusCode, StatusCode)> {
     let mut gas_left = message.gas() as u64;
     let mut status_code = StatusCode::EVMC_SUCCESS;
     let mut output = None;
-
-    let mut stack = Stack::new(stack);
-    let mut memory = Memory::new(memory);
 
     //println!("##### running test #####");
     for _ in 0..steps.unwrap_or(i32::MAX) {
@@ -946,21 +945,16 @@ pub fn run(
         }
     }
 
-    let mut stack = stack.into_inner();
-    stack.reverse();
-    Ok(StepResult::new(
+    Ok(RunResult::new(
         step_status_code,
         status_code,
         revision,
-        code_state.pc() as u64,
-        gas_left as i64,
+        code_state,
+        gas_left,
         gas_refund,
         output,
-        // SAFETY
-        // u256 is a newtype of Uint256 with repr(transparent) which guarantees the same memory
-        // layout.
-        unsafe { mem::transmute::<Vec<u256>, Vec<Uint256>>(stack) },
-        memory.into_inner(),
+        stack,
+        memory,
         last_call_return_data,
     ))
 }
@@ -1029,6 +1023,7 @@ fn log<const N: usize>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn create<const CREATE2: bool>(
     code_state: &mut CodeState,
     stack: &mut Stack,
@@ -1127,6 +1122,7 @@ fn create<const CREATE2: bool>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn call<const CODE: bool>(
     code_state: &mut CodeState,
     stack: &mut Stack,
@@ -1190,7 +1186,7 @@ fn call<const CODE: bool>(
             (endowment + stipend) as i64,
             *message.recipient(),
             *message.recipient(),
-            Some(&input),
+            Some(input),
             value.into(),
             u256::ZERO.into(), // ignored
             addr,
@@ -1204,7 +1200,7 @@ fn call<const CODE: bool>(
             (endowment + stipend) as i64,
             addr,
             *message.recipient(),
-            Some(&input),
+            Some(input),
             value.into(),
             u256::ZERO.into(), // ignored
             u256::ZERO.into(), // ignored
@@ -1230,6 +1226,7 @@ fn call<const CODE: bool>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn static_delegate_call<const DELEGATE: bool>(
     code_state: &mut CodeState,
     stack: &mut Stack,
@@ -1276,7 +1273,7 @@ fn static_delegate_call<const DELEGATE: bool>(
             endowment as i64,
             *message.recipient(),
             *message.sender(),
-            Some(&input),
+            Some(input),
             *message.value(),
             u256::ZERO.into(), // ignored
             addr,
@@ -1290,7 +1287,7 @@ fn static_delegate_call<const DELEGATE: bool>(
             (endowment) as i64,
             addr,
             *message.recipient(),
-            Some(&input),
+            Some(input),
             u256::ZERO.into(), // ignored
             u256::ZERO.into(), // ignored
             u256::ZERO.into(), // ignored

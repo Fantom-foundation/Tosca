@@ -2,7 +2,8 @@ use evmc_vm::{StatusCode, StepStatusCode};
 
 use crate::types::u256;
 
-pub(super) struct Stack(Vec<u256>);
+#[derive(Debug)]
+pub struct Stack(Vec<u256>);
 
 impl Stack {
     pub fn new(inner: Vec<u256>) -> Self {
