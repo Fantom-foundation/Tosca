@@ -11,6 +11,7 @@
 package floria
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -306,5 +307,63 @@ func TestProcessor_SetupGasBilling(t *testing.T) {
 				t.Errorf("setupGasBilling returned incorrect gas used, got: %d, want: %d", actualGasUsed, test.expectedGasUsed)
 			}
 		})
+	}
+}
+
+func TestProcessor_CallKind(t *testing.T) {
+	tests := map[string]struct {
+		recipient *tosca.Address
+		kind      tosca.CallKind
+	}{
+		"call": {
+			recipient: &tosca.Address{2},
+			kind:      tosca.Call,
+		},
+		"create": {
+			recipient: nil,
+			kind:      tosca.Create,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			transaction := tosca.Transaction{
+				Sender:    tosca.Address{1},
+				Recipient: test.recipient,
+			}
+			if callKind(transaction) != test.kind {
+				t.Errorf("callKind returned incorrect result: %v", callKind(transaction))
+			}
+		})
+	}
+}
+
+func TestProcessor_CallParameters(t *testing.T) {
+	transaction := tosca.Transaction{
+		Sender: tosca.Address{1},
+		Input:  []byte{1, 2, 3},
+		Value:  tosca.NewValue(100),
+	}
+	gas := tosca.Gas(1000)
+
+	want := tosca.CallParameters{
+		Sender: transaction.Sender,
+		Input:  transaction.Input,
+		Value:  transaction.Value,
+		Gas:    gas,
+	}
+
+	got := callParameters(transaction, gas)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("callParameters returned incorrect result: %v", got)
+
+	}
+
+	transaction.Recipient = &tosca.Address{2}
+	want.Recipient = *transaction.Recipient
+
+	got = callParameters(transaction, gas)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("callParameters returned incorrect result: %v", got)
+
 	}
 }

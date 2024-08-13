@@ -49,7 +49,7 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 	if kind == tosca.Create || kind == tosca.Create2 {
 		if parameters.Recipient == (tosca.Address{}) {
 			code = tosca.Code(parameters.Input)
-			codeHash = hashFromCode(code)
+			codeHash = hashCode(code)
 		}
 		createdAddress = createAddress(
 			kind,
@@ -93,9 +93,7 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 	result, err := r.interpreter.Run(interpreterParameters)
 	if err != nil || !result.Success {
 		r.RestoreSnapshot(snapshot)
-	}
-
-	if kind == tosca.Create || kind == tosca.Create2 {
+	} else if kind == tosca.Create || kind == tosca.Create2 {
 		r.SetCode(createdAddress, tosca.Code(result.Output))
 	}
 
@@ -108,7 +106,7 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 	}, err
 }
 
-func hashFromCode(code tosca.Code) tosca.Hash {
+func hashCode(code tosca.Code) tosca.Hash {
 	return tosca.Hash(crypto.Keccak256(code))
 }
 
