@@ -11,6 +11,7 @@
 package lfvm
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/ct"
@@ -227,6 +228,44 @@ func TestConvertToLfvm_Code(t *testing.T) {
 						t.Errorf("unexpected instruction, wanted %v, got %v", wantInst, gotInst)
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestConvertToLfvm_CodeWithSuperInstructions(t *testing.T) {
+	tests := map[string]struct {
+		evmCode []byte
+		want    Code
+	}{
+		"PUSH1PUSH4DUP3": {
+			[]byte{byte(vm.PUSH1), 0x01,
+				byte(vm.PUSH4), 0x01, 0x02, 0x03, 0x04,
+				byte(vm.DUP3)},
+			Code{Instruction{PUSH1_PUSH4_DUP3, 0x0100},
+				Instruction{DATA, 0x0102},
+				Instruction{DATA, 0x0304},
+			}},
+		"PUSH1_PUSH1_PUSH1_SHL_SUB": {
+			[]byte{byte(vm.PUSH1), 0x01,
+				byte(vm.PUSH1), 0x01,
+				byte(vm.PUSH1), 0x01,
+				byte(vm.SHL),
+				byte(vm.SUB)},
+			Code{Instruction{PUSH1_PUSH1_PUSH1_SHL_SUB, 0x0101},
+				Instruction{DATA, 0x0001},
+			}},
+			"AND_SWAP1_POP_SWAP2_SWAP1": {
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, err := convert(test.evmCode, true)
+			if err != nil {
+				t.Fatalf("conversion of super instruction failed because: %v", err)
+			}
+			if !reflect.DeepEqual(test.want, got) {
+				t.Fatalf("unexpected code, wanted %v, got %v", test.want, got)
 			}
 		})
 	}

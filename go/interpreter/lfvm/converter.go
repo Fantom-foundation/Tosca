@@ -49,9 +49,9 @@ func Convert(code []byte, withSuperInstructions bool, isInitCode bool, noCodeCac
 		return res, nil
 	}
 
-	res, error := convert(code, withSuperInstructions)
-	if error != nil {
-		return nil, error
+	res, err := convert(code, withSuperInstructions)
+	if err != nil {
+		return nil, err
 	}
 	if !isInitCode {
 		cache.Add(codeHash, res)
@@ -107,6 +107,7 @@ func convert(code []byte, with_super_instructions bool) (Code, error) {
 	for i := 0; i < len(code); {
 		// Handle jump destinations
 		if code[i] == byte(vm.JUMPDEST) {
+			// TODO: remove this if when we are sure it will not happen.
 			if res.length() > i {
 				return nil, errors.New("unable to convert code, encountered targe block larger than input")
 			}
@@ -150,6 +151,7 @@ func GenPcMap(code []byte, with_super_instructions bool) (*PcMap, error) {
 	for i := 0; i < len(code); {
 		// Handle jump destinations.
 		if code[i] == byte(vm.JUMPDEST) {
+			// TODO: remove this if when we are sure it will not happen.
 			if res.length() > i {
 				return nil, errors.New("unable to convert code, encountered target block larger than input")
 			}

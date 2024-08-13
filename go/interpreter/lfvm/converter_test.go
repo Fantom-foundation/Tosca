@@ -11,6 +11,7 @@
 package lfvm
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -39,7 +40,29 @@ func TestConversionCacheSizeLimit(t *testing.T) {
 	if got := len(cache.Keys()); got > limit {
 		t.Errorf("Conversion cache grew to %d entries", got)
 	}
+}
 
+func TestConversion_CacheDoesNotCotainsCode(t *testing.T) {
+	// This test checks that the conversion cache does not contain the code
+	// after the conversion is done.
+	clearConversionCache()
+	code := Code{Instruction{STOP, 0x0000}}
+	hash := tosca.Hash{byte(1), byte(1 >> 8), byte(1 >> 16), byte(1 >> 24)}
+	cache.Add(hash, code)
+	result, err := Convert([]byte{0}, false, false, false, hash)
+	if err != nil {
+		t.Errorf("Failed to convert example code with error %v", err)
+	}
+	if wanted, _ := cache.Get(hash); !slices.Equal(result, wanted) {
+		t.Errorf("Conversion cache contains the code")
+	}
+}
+
+func TestConversion_GenPcMapFailsWithSuperInstructions(t *testing.T) {
+	_, err := GenPcMapWithSuperInstructions([]byte{0x00})
+	if err == nil {
+		t.Errorf("prorgam counter mapping does not support super instructions yet")
+	}
 }
 
 func BenchmarkConvertLongExampleCode(b *testing.B) {
