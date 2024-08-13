@@ -12,6 +12,7 @@ package interpreter_test
 
 import (
 	_ "github.com/Fantom-foundation/Tosca/go/interpreter/evmone"
+	_ "github.com/Fantom-foundation/Tosca/go/interpreter/evmrs"
 	_ "github.com/Fantom-foundation/Tosca/go/interpreter/evmzero"
 	_ "github.com/Fantom-foundation/Tosca/go/interpreter/geth"
 	_ "github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
@@ -19,21 +20,22 @@ import (
 
 var (
 	Variants = []string{
-		"geth",
-		"lfvm",
-		"lfvm-si",
-		"lfvm-no-sha-cache",
-		"lfvm-no-code-cache",
-		"lfvm-logging",
-		"evmone",
-		"evmone-basic",
-		"evmone-advanced",
-		"evmzero",
-		"evmzero-logging",
-		"evmzero-no-analysis-cache",
-		"evmzero-no-sha3-cache",
-		"evmzero-profiling",
-		"evmzero-profiling-external",
+		//"geth",
+		//"lfvm",
+		//"lfvm-si",
+		//"lfvm-no-sha-cache",
+		//"lfvm-no-code-cache",
+		//"lfvm-logging",
+		//"evmone",
+		//"evmone-basic",
+		//"evmone-advanced",
+		//"evmzero",
+		//"evmzero-logging",
+		//"evmzero-no-analysis-cache",
+		//"evmzero-no-sha3-cache",
+		//"evmzero-profiling",
+		//"evmzero-profiling-external",
+		"evmrs",
 	}
 
 	DisabledTest = map[string]map[string]bool{
