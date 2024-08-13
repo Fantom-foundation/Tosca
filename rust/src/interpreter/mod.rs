@@ -958,6 +958,7 @@ fn push(
     gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     consume_gas::<3>(gas_left)?;
+    code_state.next();
     stack.push(code_state.get_push_data(len)?)?;
     Ok(())
 }

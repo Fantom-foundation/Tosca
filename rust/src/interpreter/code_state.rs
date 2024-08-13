@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{cmp::min, ops::Deref};
 
 use bnum::types::U256;
 use evmc_vm::{StatusCode, StepStatusCode};
@@ -59,14 +59,9 @@ impl<'a> CodeState<'a> {
     }
 
     pub fn get_push_data(&mut self, len: usize) -> Result<u256, (StepStatusCode, StatusCode)> {
-        if len > 32 || self.pc + len >= self.code.len() {
-            return Err((
-                StepStatusCode::EVMC_STEP_FAILED,
-                StatusCode::EVMC_INTERNAL_ERROR,
-            ));
-        }
+        assert!(len <= 32);
 
-        self.pc += 1;
+        let len = min(len, self.code.len() - self.pc);
         let mut bytes = [0; 32];
         bytes[32 - len..].copy_from_slice(&self.code[self.pc..self.pc + len]);
         self.pc += len;
