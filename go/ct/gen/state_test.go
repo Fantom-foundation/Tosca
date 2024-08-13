@@ -234,6 +234,20 @@ func TestStateGenerator_NonConflictingGasAreAccepted(t *testing.T) {
 	}
 }
 
+func TestStateGenerator_AddGasLowerUpperBoundIsEnforced(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.AddGasLowerBound(42)
+	generator.AddGasUpperBound(44)
+
+	state, err := generator.Generate(rand.New(0))
+	if err != nil {
+		t.Fatalf("unexpected error during build: %v", err)
+	}
+	if want, got := tosca.Gas(43), state.Gas; want != got {
+		t.Fatalf("Gas bounds not working, want %v, got %v", want, got)
+	}
+}
+
 ////////////////////////////////////////////////////////////
 // Gas Refund Counter
 
@@ -246,7 +260,7 @@ func TestStateGenerator_SetGasRefundIsEnforced(t *testing.T) {
 		generator.SetGasRefund(gasRefund)
 		state, err := generator.Generate(rnd)
 		if err != nil {
-			t.Fatalf("unexpected error during build: %v", err)
+			t.Fatalf("failed to generate state, unexpected error: %v", err)
 		}
 		if want, got := gasRefund, state.GasRefund; want != got {
 			t.Errorf("unexpected amount of gas refund, wanted %d, got %d", want, got)
@@ -271,6 +285,20 @@ func TestStateGenerator_NonConflictingGasRefundAreAccepted(t *testing.T) {
 	rnd := rand.New(0)
 	if _, err := generator.Generate(rnd); err != nil {
 		t.Errorf("generation failed: %v", err)
+	}
+}
+
+func TestStateGenerator_AddGasRefundLowerUpperBoundIsEnforced(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.AddGasRefundLowerBound(42)
+	generator.AddGasRefundUpperBound(44)
+
+	state, err := generator.Generate(rand.New(0))
+	if err != nil {
+		t.Fatalf("failed to generate state, unexpected error: %v", err)
+	}
+	if want, got := tosca.Gas(43), state.GasRefund; want != got {
+		t.Fatalf("Gas refund bounds not working, want %v, got %v", want, got)
 	}
 }
 
@@ -476,5 +504,112 @@ func TestStateGenerator_BlockNumberHashes(t *testing.T) {
 			t.Errorf("unexpected hash value, should be unique %v", hashi)
 		}
 		newHashes = append(newHashes, hashi)
+	}
+}
+
+func TestStateGenerator_VariousContraints(t *testing.T) {
+
+	tests := map[string]struct {
+		setup func(*StateGenerator)
+		check func(*StateGenerator, *testing.T) bool
+	}{
+		"add-code-op": {
+			setup: func(gen *StateGenerator) { gen.AddCodeOperation(Variable("a"), vm.ADD) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				got, want := gen.codeGen.varOps, []varOpConstraint{{Variable("a"), vm.ADD}}
+				return slices.Equal(want, got)
+			}},
+		"add-is-code": {
+			setup: func(gen *StateGenerator) { gen.AddIsCode(Variable("a")) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				got, want := gen.codeGen.varIsCodeConstraints, []varIsCodeConstraint{{Variable("a")}}
+				return slices.Equal(want, got)
+			},
+		},
+		"add-is-data": {
+			setup: func(gen *StateGenerator) { gen.AddIsData(Variable("a")) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				got, want := gen.codeGen.varIsDataConstraints, []varIsDataConstraint{{Variable("a")}}
+				return slices.Equal(want, got)
+			},
+		},
+		"set-stack-size": {
+			setup: func(gen *StateGenerator) { gen.SetStackSize(10) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				return gen.stackGen.size.max == 10 && gen.stackGen.size.min == 10
+			},
+		},
+		"set-stack-value": {
+			setup: func(gen *StateGenerator) { gen.SetStackValue(0, NewU256(1)) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				return gen.stackGen.constValues[0] == constValueConstraint{0, NewU256(1)}
+			},
+		},
+		"bind-stack-value": {
+			setup: func(gen *StateGenerator) { gen.BindStackValue(0, Variable("a")) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				return gen.stackGen.varValues[0] == varValueConstraint{0, Variable("a")}
+			},
+		},
+		"bind-storage-config": {
+			setup: func(gen *StateGenerator) {
+				gen.BindStorageConfiguration(tosca.StorageAdded, Variable("a"), Variable("b"))
+			},
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				return slices.Contains(gen.storageGen.cfg, storageConfigConstraint{tosca.StorageAdded, Variable("a"), Variable("b")})
+			},
+		},
+		"bind-is-storage-cold": {
+			setup: func(gen *StateGenerator) { gen.BindIsStorageCold(Variable("a")) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				return slices.Contains(gen.storageGen.warmCold, warmColdConstraint{Variable("a"), false})
+			},
+		},
+		"bind-transient-storage-non-zero": {
+			setup: func(gen *StateGenerator) { gen.BindTransientStorageToNonZero(Variable("a")) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				return gen.transientStorageGen.nonZeroConstraints[Variable("a")]
+			},
+		},
+		"bind-cold-address": {
+			setup: func(gen *StateGenerator) { gen.BindToColdAddress(Variable("a")) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				return slices.Contains(gen.accountsGen.warmCold, warmColdConstraint{Variable("a"), false})
+			},
+		},
+		"one-of-last-256-blocks": {
+			setup: func(gen *StateGenerator) { gen.RestrictVariableToOneOfTheLast256Blocks(Variable("a")) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				return gen.blockContextGen.rangeConstraints[Variable("a")]
+			},
+		},
+		"none-of-last-256-blocks": {
+			setup: func(gen *StateGenerator) { gen.RestrictVariableToNoneOfTheLast256Blocks(Variable("a")) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				return !gen.blockContextGen.rangeConstraints[Variable("a")]
+			},
+		},
+		"set-block-number-offfset": {
+			setup: func(gen *StateGenerator) { gen.SetBlockNumberOffsetValue(Variable("a"), 10) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				return gen.blockContextGen.valueConstraint[Variable("a")] == 10
+			},
+		},
+		"absent-blob-hash-index": {
+			setup: func(gen *StateGenerator) { gen.IsAbsentBlobHashIndex(Variable("a")) },
+			check: func(gen *StateGenerator, t *testing.T) bool {
+				return !gen.transactionContextGen.blobHashVariables[Variable("a")]
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			gen := NewStateGenerator()
+			test.setup(gen)
+			if !test.check(gen, t) {
+				t.Errorf("unexpected state generator")
+			}
+		})
 	}
 }
