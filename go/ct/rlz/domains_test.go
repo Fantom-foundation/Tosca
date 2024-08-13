@@ -25,8 +25,8 @@ func TestRemoveDuplicatesGeneric(t *testing.T) {
 
 	tests := map[string]struct {
 		generic_type reflect.Type
-		input        interface{}
-		expected     interface{}
+		input        any
+		expected     any
 	}{
 		"empty": {
 			generic_type: reflect.TypeOf(1),
@@ -68,7 +68,7 @@ func TestRemoveDuplicatesGeneric(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			var result interface{}
+			var result any
 			switch tc.generic_type {
 			case reflect.TypeOf(1):
 				result = removeDuplicatesGeneric[int](tc.input.([]int))
@@ -158,31 +158,28 @@ func TestDomain_Less(t *testing.T) {
 
 func TestDomain_PredecessorPanic(t *testing.T) {
 
-	tests := map[string]struct {
-		value        interface{}
-		generic_type reflect.Type
-	}{
-		"bool":       {value: true, generic_type: reflect.TypeOf(true)},
-		"statusCode": {value: st.Running, generic_type: reflect.TypeOf(st.Running)},
-		"opCode":     {value: vm.ADD, generic_type: reflect.TypeOf(vm.ADD)},
+	tests := map[string]any{
+		"bool":       true,
+		"statusCode": st.Running,
+		"opCode":     vm.ADD,
 	}
 
-	for name, tc := range tests {
+	for name, value := range tests {
 		t.Run(name, func(t *testing.T) {
 			defer func() {
 				if r := recover(); r == nil {
 					t.Errorf("The code did not panic")
 				}
 			}()
-			switch tc.generic_type {
-			case reflect.TypeOf(true):
-				boolDomain{}.Predecessor(tc.value.(bool))
-			case reflect.TypeOf(st.Running):
-				statusCodeDomain{}.Predecessor(tc.value.(st.StatusCode))
-			case reflect.TypeOf(vm.ADD):
-				opCodeDomain{}.Predecessor(tc.value.(vm.OpCode))
+			switch value := value.(type) {
+			case bool:
+				boolDomain{}.Predecessor(value)
+			case st.StatusCode:
+				statusCodeDomain{}.Predecessor(value)
+			case vm.OpCode:
+				opCodeDomain{}.Predecessor(value)
 			default:
-				t.Errorf("Add type to test cases: %v", tc.generic_type)
+				t.Errorf("Add type to test cases: %T", value)
 			}
 		})
 	}
@@ -192,8 +189,8 @@ func TestDomain_PredecessorPanic(t *testing.T) {
 func TestDomain_Predecessor(t *testing.T) {
 
 	tests := map[string]struct {
-		got  interface{}
-		want interface{}
+		got  any
+		want any
 	}{
 		"uint16": {got: uint16Domain{}.Predecessor(uint16(1)), want: uint16(0)},
 		"revision": {got: revisionDomain{}.Predecessor(tosca.R09_Berlin),
@@ -224,32 +221,28 @@ func TestDomain_Predecessor(t *testing.T) {
 }
 
 func TestDomain_SuccessorPanic(t *testing.T) {
-
-	tests := map[string]struct {
-		value        interface{}
-		generic_type reflect.Type
-	}{
-		"bool":       {value: true, generic_type: reflect.TypeOf(true)},
-		"statusCode": {value: st.Running, generic_type: reflect.TypeOf(st.Running)},
-		"opCode":     {value: vm.ADD, generic_type: reflect.TypeOf(vm.ADD)},
+	tests := map[string]any{
+		"bool":       true,
+		"statusCode": st.Running,
+		"opCode":     vm.ADD,
 	}
 
-	for name, tc := range tests {
+	for name, value := range tests {
 		t.Run(name, func(t *testing.T) {
 			defer func() {
 				if r := recover(); r == nil {
 					t.Errorf("The code did not panic")
 				}
 			}()
-			switch tc.generic_type {
-			case reflect.TypeOf(true):
-				boolDomain{}.Successor(tc.value.(bool))
-			case reflect.TypeOf(st.Running):
-				statusCodeDomain{}.Successor(tc.value.(st.StatusCode))
-			case reflect.TypeOf(vm.ADD):
-				opCodeDomain{}.Successor(tc.value.(vm.OpCode))
+			switch value := value.(type) {
+			case bool:
+				boolDomain{}.Successor(value)
+			case st.StatusCode:
+				statusCodeDomain{}.Successor(value)
+			case vm.OpCode:
+				opCodeDomain{}.Successor(value)
 			default:
-				t.Errorf("Add type to test cases: %v", tc.generic_type)
+				t.Errorf("Add type to test cases: %T", value)
 			}
 		})
 	}
@@ -259,8 +252,8 @@ func TestDomain_SuccessorPanic(t *testing.T) {
 func TestDomain_Successor(t *testing.T) {
 
 	tests := map[string]struct {
-		got  interface{}
-		want interface{}
+		got  any
+		want any
 	}{
 		"uint16": {got: uint16Domain{}.Successor(uint16(1)), want: uint16(2)},
 		"revision": {got: revisionDomain{}.Successor(tosca.R09_Berlin),
@@ -293,8 +286,8 @@ func TestDomain_Successor(t *testing.T) {
 func TestDomain_SomethingNotEqual(t *testing.T) {
 
 	tests := map[string]struct {
-		got  interface{}
-		want interface{}
+		got  any
+		want any
 	}{
 		"bool-true":  {got: boolDomain{}.SomethingNotEqual(true), want: false},
 		"bool-false": {got: boolDomain{}.SomethingNotEqual(false), want: true},
@@ -325,14 +318,14 @@ func TestDomain_SomethingNotEqual(t *testing.T) {
 
 func TestDomain_SamplesBool(t *testing.T) {
 
-	opcdoesAllSamples := make([]vm.OpCode, 0, 256)
+	opcodesAllSamples := make([]vm.OpCode, 0, 256)
 	for i := 0; i < 256; i++ {
-		opcdoesAllSamples = append(opcdoesAllSamples, vm.OpCode(i))
+		opcodesAllSamples = append(opcodesAllSamples, vm.OpCode(i))
 	}
 
 	tests := map[string]struct {
-		got  interface{}
-		want interface{}
+		got  any
+		want any
 	}{
 		"bool-samples": {got: boolDomain{}.Samples(true), want: []bool{false, true}},
 		"bool-samples-for-all": {got: boolDomain{}.SamplesForAll([]bool{}),
@@ -363,7 +356,7 @@ func TestDomain_SamplesBool(t *testing.T) {
 		"statusCode-samplesforall": {got: statusCodeDomain{}.SamplesForAll([]st.StatusCode{}),
 			want: []st.StatusCode{st.Running, st.Stopped, st.Reverted, st.Failed}},
 		"opcpode-samplesforall": {got: opCodeDomain{}.SamplesForAll([]vm.OpCode{}),
-			want: opcdoesAllSamples},
+			want: opcodesAllSamples},
 		// samples calls samples for all
 		"blocknumberoffset-samples": {got: BlockNumberOffsetDomain{}.Samples(int64(23)),
 			want: []int64{math.MinInt64, -1, 0, 1, 255, 256, 257, math.MaxInt64, 22, 23, 24},

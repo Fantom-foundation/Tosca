@@ -292,7 +292,7 @@ func TestConstant_EvalReturnsValue(t *testing.T) {
 	}
 }
 
-func TestExpression_RestrictPanics(t *testing.T) {
+func TestExpression_RestrictPanicsWhenCalledWithCertainKind(t *testing.T) {
 
 	tests := map[string]struct {
 		expression interface{}
@@ -343,7 +343,8 @@ func TestExpression_Property(t *testing.T) {
 	}{
 		{ReadOnly().Property(), "readOnly"},
 		{Param(0).Property(), "param[0]"},
-		{Constant(NewU256(42)).Property(), "constant"},
+		{Constant(NewU256(42)).Property(), "constant(42)"},
+		{Constant(NewU256(1, 42)).Property(), "constant(18446744073709551658)"},
 	}
 
 	for _, test := range tests {

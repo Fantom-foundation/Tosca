@@ -331,7 +331,9 @@ func Constant(value U256) BindableExpression[U256] {
 	return constant{value}
 }
 
-func (constant) Property() Property { return Property("constant") }
+func (c constant) Property() Property {
+	return Property(fmt.Sprintf("constant(%v)", c.value.ToBigInt()))
+}
 
 func (constant) Domain() Domain[U256] { return u256Domain{} }
 

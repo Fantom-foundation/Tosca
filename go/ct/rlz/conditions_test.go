@@ -518,7 +518,7 @@ func TestCondition_IsRevisionCondition(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			if got, want := IsRevisionCondition(test.condition), test.isRevision; got != want {
-				t.Errorf("condition %v failed to be recognize. got %v, want %v", test.condition, got, want)
+				t.Errorf("condition %v is not a revision condition. got %v, want %v", test.condition, got, want)
 			}
 		})
 	}
