@@ -921,7 +921,9 @@ pub fn run<'a>(
                     consume_gas::<2600>(&mut gas_left)?;
                 }
 
-                if !context.account_exists(&addr) {
+                if u256::from(context.get_balance(message.recipient())) > u256::ZERO
+                    && !context.account_exists(&addr)
+                {
                     consume_gas::<25000>(&mut gas_left)?;
                 }
 
