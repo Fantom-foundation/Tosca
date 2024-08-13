@@ -46,7 +46,8 @@ pub fn run<'a>(
             Some(steps) => *steps -= 1,
         }
         let Some(op) = code_state.get() else {
-            return Err((StepStatusCode::EVMC_STEP_FAILED, StatusCode::EVMC_FAILURE));
+            step_status_code = StepStatusCode::EVMC_STEP_STOPPED;
+            break;
         };
         match op {
             opcode::STOP => {
