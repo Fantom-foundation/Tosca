@@ -37,64 +37,64 @@ func init() {
 	}
 
 	// We create a second instance in which we enable logging.
-	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmrs library: %s", err))
-		}
-		if err = evm.SetOption("logging", "true"); err != nil {
-			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-		}
-		tosca.RegisterInterpreter("evmrs-logging", &evmrsInstance{evm})
-	}
+	//{
+	//evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
+	//if err != nil {
+	//panic(fmt.Errorf("failed to load evmrs library: %s", err))
+	//}
+	//if err = evm.SetOption("logging", "true"); err != nil {
+	//panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+	//}
+	//tosca.RegisterInterpreter("evmrs-logging", &evmrsInstance{evm})
+	//}
 
-	// A third instance without analysis cache.
-	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmrs library: %s", err))
-		}
-		if err = evm.SetOption("analysis_cache", "false"); err != nil {
-			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-		}
-		tosca.RegisterInterpreter("evmrs-no-analysis-cache", &evmrsInstance{evm})
-	}
+	//// A third instance without analysis cache.
+	//{
+	//evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
+	//if err != nil {
+	//panic(fmt.Errorf("failed to load evmrs library: %s", err))
+	//}
+	//if err = evm.SetOption("analysis_cache", "false"); err != nil {
+	//panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+	//}
+	//tosca.RegisterInterpreter("evmrs-no-analysis-cache", &evmrsInstance{evm})
+	//}
 
-	// Another instance without SHA3 cache.
-	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmrs library: %s", err))
-		}
-		if err = evm.SetOption("sha3_cache", "false"); err != nil {
-			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-		}
-		tosca.RegisterInterpreter("evmrs-no-sha3-cache", &evmrsInstance{evm})
-	}
+	//// Another instance without SHA3 cache.
+	//{
+	//evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
+	//if err != nil {
+	//panic(fmt.Errorf("failed to load evmrs library: %s", err))
+	//}
+	//if err = evm.SetOption("sha3_cache", "false"); err != nil {
+	//panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+	//}
+	//tosca.RegisterInterpreter("evmrs-no-sha3-cache", &evmrsInstance{evm})
+	//}
 
-	// Another instance in which we enable profiling.
-	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmrs library: %s", err))
-		}
-		if err = evm.SetOption("profiling", "true"); err != nil {
-			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-		}
-		tosca.RegisterInterpreter("evmrs-profiling", &evmrsInstanceWithProfiler{&evmrsInstance{evm}})
-	}
+	//// Another instance in which we enable profiling.
+	//{
+	//evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
+	//if err != nil {
+	//panic(fmt.Errorf("failed to load evmrs library: %s", err))
+	//}
+	//if err = evm.SetOption("profiling", "true"); err != nil {
+	//panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+	//}
+	//tosca.RegisterInterpreter("evmrs-profiling", &evmrsInstanceWithProfiler{&evmrsInstance{evm}})
+	//}
 
-	// Another instance in which we enable profiling external.
-	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmrs library: %s", err))
-		}
-		if err = evm.SetOption("profiling_external", "true"); err != nil {
-			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-		}
-		tosca.RegisterInterpreter("evmrs-profiling-external", &evmrsInstanceWithProfiler{&evmrsInstance{evm}})
-	}
+	//// Another instance in which we enable profiling external.
+	//{
+	//evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
+	//if err != nil {
+	//panic(fmt.Errorf("failed to load evmrs library: %s", err))
+	//}
+	//if err = evm.SetOption("profiling_external", "true"); err != nil {
+	//panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+	//}
+	//tosca.RegisterInterpreter("evmrs-profiling-external", &evmrsInstanceWithProfiler{&evmrsInstance{evm}})
+	//}
 }
 
 type evmrsInstance struct {
