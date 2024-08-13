@@ -45,7 +45,7 @@ impl Stack {
 
     #[inline(always)]
     fn check_overflow_on_push(&self) -> Result<(), (StepStatusCode, StatusCode)> {
-        if self.0.len() + 1 > 1024 {
+        if self.0.len() >= 1024 {
             return Err((
                 StepStatusCode::EVMC_STEP_FAILED,
                 StatusCode::EVMC_STACK_OVERFLOW,

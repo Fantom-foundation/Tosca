@@ -3,7 +3,7 @@ use std::{cmp::max, iter};
 use evmc_vm::{StatusCode, StepStatusCode};
 
 use crate::{
-    interpreter::{consume_copy_cost, consume_dyn_gas, word_size},
+    interpreter::{consume_copy_cost, consume_dyn_gas, word_size, OUT_OF_GAS_ERR},
     types::u256,
 };
 
@@ -29,7 +29,7 @@ impl Memory {
         gas_left: &mut u64,
     ) -> Result<(), (StepStatusCode, StatusCode)> {
         let current_len = self.0.len() as u64;
-        let new_len = word_size(new_len_bytes) * 32;
+        let new_len = word_size(new_len_bytes)? * 32; // word_size just did a division by 32 so * will not overflow
         if new_len > current_len {
             self.consume_expansion_cost(gas_left, new_len)?;
             self.0
@@ -44,14 +44,14 @@ impl Memory {
         new_len: u64,
     ) -> Result<(), (StepStatusCode, StatusCode)> {
         fn memory_cost(size: u64) -> Result<u64, (StepStatusCode, StatusCode)> {
-            let memory_size_word = word_size(size);
-            let Some(pow2) = memory_size_word.checked_pow(2) else {
-                return Err((
-                    StepStatusCode::EVMC_STEP_FAILED,
-                    StatusCode::EVMC_OUT_OF_GAS,
-                ));
+            let word_size = word_size(size)?;
+            let (pow2, pow2_overflow) = word_size.overflowing_pow(2);
+            let (word_size_3, word_size_3_overflow) = word_size.overflowing_mul(3);
+            let (cost, cost_overflow) = (pow2 / 512).overflowing_add(word_size_3);
+            if pow2_overflow || word_size_3_overflow || cost_overflow {
+                OUT_OF_GAS_ERR?;
             };
-            Ok(pow2 / 512 + (3 * memory_size_word))
+            Ok(cost)
         }
 
         let current_len = self.0.len() as u64;
@@ -73,13 +73,10 @@ impl Memory {
             return Ok(&mut []);
         }
         let (offset, offset_overflow) = offset.into_u64_with_overflow();
-        if offset_overflow {
-            return Err((
-                StepStatusCode::EVMC_STEP_FAILED,
-                StatusCode::EVMC_INVALID_MEMORY_ACCESS,
-            ));
+        let (end, end_overflow) = offset.overflowing_add(len);
+        if offset_overflow || end_overflow {
+            OUT_OF_GAS_ERR?;
         }
-        let end = offset + len;
         self.expand(end, gas_left)?;
 
         Ok(&mut self.0[offset as usize..end as usize])
@@ -115,19 +112,17 @@ impl Memory {
         let (src_offset, src_overflow) = src_offset.into_u64_with_overflow();
         let (dest_offset, dest_overflow) = dest_offset.into_u64_with_overflow();
         let (len, len_overflow) = len.into_u64_with_overflow();
-        if src_overflow || dest_overflow || len_overflow {
-            return Err((
-                StepStatusCode::EVMC_STEP_FAILED,
-                StatusCode::EVMC_OUT_OF_GAS,
-            ));
+        let (end, end_overflow) = max(src_offset, dest_offset).overflowing_add(len);
+        if src_overflow || dest_overflow || len_overflow || end_overflow {
+            return OUT_OF_GAS_ERR;
         }
         consume_copy_cost(gas_left, len)?;
-        self.expand(max(src_offset, dest_offset) + len, gas_left)?;
+        self.expand(end, gas_left)?;
         let src_offset = src_offset as usize;
         let dest_offset = dest_offset as usize;
         let len = len as usize;
         self.0
-            .copy_within(src_offset..src_offset + len, dest_offset);
+            .copy_within(src_offset..src_offset + len, dest_offset); // + does not overflow
         Ok(())
     }
 }

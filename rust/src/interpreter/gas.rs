@@ -2,15 +2,17 @@ use evmc_vm::{AccessStatus, Address, ExecutionContext, Revision, StatusCode, Ste
 
 use crate::{interpreter::word_size, types::u256};
 
+pub const OUT_OF_GAS_ERR: Result<(), (StepStatusCode, StatusCode)> = Err((
+    StepStatusCode::EVMC_STEP_FAILED,
+    StatusCode::EVMC_OUT_OF_GAS,
+));
+
 #[inline(always)]
 pub(super) fn consume_gas<const GAS: u64>(
     gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     if *gas_left < GAS {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_OUT_OF_GAS,
-        ));
+        return OUT_OF_GAS_ERR;
     }
     *gas_left -= GAS;
     Ok(())
@@ -22,10 +24,7 @@ pub(super) fn consume_dyn_gas(
     gas: u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     if *gas_left < gas {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_OUT_OF_GAS,
-        ));
+        return OUT_OF_GAS_ERR;
     }
     *gas_left -= gas;
     Ok(())
@@ -83,6 +82,10 @@ pub(super) fn consume_copy_cost(
     gas_left: &mut u64,
     len: u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    consume_dyn_gas(gas_left, 3 * word_size(len))?;
+    let (cost, cost_overflow) = word_size(len)?.overflowing_mul(3);
+    if cost_overflow {
+        return OUT_OF_GAS_ERR;
+    }
+    consume_dyn_gas(gas_left, cost)?;
     Ok(())
 }

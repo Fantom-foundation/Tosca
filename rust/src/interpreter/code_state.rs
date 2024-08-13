@@ -1,6 +1,5 @@
 use std::{cmp::min, ops::Deref};
 
-use bnum::types::U256;
 use evmc_vm::{StatusCode, StepStatusCode};
 
 use crate::types::{opcode, u256};
@@ -42,9 +41,9 @@ impl<'a> CodeState<'a> {
     }
 
     pub fn try_jump(&mut self, dest: u256) -> Result<(), (StepStatusCode, StatusCode)> {
-        let dest_full = U256::from(dest);
-        let dest = dest_full.digits()[0] as usize;
-        if dest_full > u64::MAX.into() // If the destination does not fit into u64 it is definitely too large
+        let (dest, dest_overflow) = dest.into_u64_with_overflow();
+        let dest = dest as usize;
+        if dest_overflow
             || dest >= self.jump_destinations.len()
             || self.jump_destinations[dest] != JumpFlag::JumpDest
         {

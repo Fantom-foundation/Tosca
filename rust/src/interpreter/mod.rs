@@ -112,16 +112,8 @@ pub fn run<'a>(
             opcode::EXP => {
                 consume_gas::<10>(&mut gas_left)?;
                 let [value, exp] = stack.pop()?;
-                let mut cost_multiplier = 32;
-                for byte in exp.into_iter() {
-                    if byte == 0 {
-                        cost_multiplier -= 1;
-                    } else {
-                        break;
-                    }
-                }
-                let dyn_gas = 50 * cost_multiplier;
-                consume_dyn_gas(&mut gas_left, dyn_gas)?;
+                let byte_size = 32 - exp.into_iter().take_while(|byte| *byte == 0).count() as u64;
+                consume_dyn_gas(&mut gas_left, byte_size * 50)?; // * does not overflow
                 stack.push(value.pow(exp))?;
                 code_state.next();
             }
@@ -221,12 +213,9 @@ pub fn run<'a>(
 
                 let (len, len_overflow) = len.into_u64_with_overflow();
                 if len_overflow {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_INVALID_MEMORY_ACCESS,
-                    ));
+                    OUT_OF_GAS_ERR?;
                 }
-                consume_dyn_gas(&mut gas_left, 6 * word_size(len))?;
+                consume_dyn_gas(&mut gas_left, 6 * word_size(len)?)?; // * does not overflow
 
                 let data = memory.get_slice(offset, len, &mut gas_left)?;
                 let mut hasher = Keccak256::new();
@@ -330,10 +319,7 @@ pub fn run<'a>(
                 if len != u256::ZERO {
                     let (len, len_overflow) = len.into_u64_with_overflow();
                     if len_overflow {
-                        return Err((
-                            StepStatusCode::EVMC_STEP_FAILED,
-                            StatusCode::EVMC_INVALID_MEMORY_ACCESS,
-                        ));
+                        OUT_OF_GAS_ERR?;
                     }
 
                     let src = get_slice_within_bounds(&code_state, offset, len);
@@ -369,10 +355,7 @@ pub fn run<'a>(
                 if len != u256::ZERO {
                     let (len, len_overflow) = len.into_u64_with_overflow();
                     if len_overflow {
-                        return Err((
-                            StepStatusCode::EVMC_STEP_FAILED,
-                            StatusCode::EVMC_INVALID_MEMORY_ACCESS,
-                        ));
+                        OUT_OF_GAS_ERR?;
                     }
 
                     let src_len = context.get_code_size(&addr) as u64;
@@ -409,7 +392,8 @@ pub fn run<'a>(
                 let src = last_call_return_data.as_deref().unwrap_or(&[]);
                 let (offset, offset_overflow) = offset.into_u64_with_overflow();
                 let (len, len_overflow) = len.into_u64_with_overflow();
-                if offset_overflow || len_overflow || offset + len >= src.len() as u64 {
+                let (end, end_overflow) = offset.overflowing_add(len);
+                if offset_overflow || len_overflow || end_overflow || end > src.len() as u64 {
                     return Err((
                         StepStatusCode::EVMC_STEP_FAILED,
                         StatusCode::EVMC_INVALID_MEMORY_ACCESS,
@@ -437,9 +421,8 @@ pub fn run<'a>(
             opcode::BLOCKHASH => {
                 consume_gas::<20>(&mut gas_left)?;
                 let [block_number] = stack.pop()?;
-                let current_block_number = context.get_tx_context().block_number;
                 let (idx, idx_overflow) = block_number.into_u64_with_overflow();
-                if idx_overflow || idx > current_block_number as u64 + 255 {
+                if idx_overflow {
                     stack.push(u256::ZERO)?;
                 } else {
                     stack.push(context.get_block_hash(idx as i64))?;
@@ -562,10 +545,7 @@ pub fn run<'a>(
             opcode::SSTORE => {
                 check_not_read_only(message, revision)?;
                 if revision >= Revision::EVMC_ISTANBUL && gas_left <= 2300 {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_OUT_OF_GAS,
-                    ));
+                    OUT_OF_GAS_ERR?;
                 }
                 let [key, value] = stack.pop()?;
                 let key = key.into();
@@ -839,10 +819,7 @@ pub fn run<'a>(
                 let [offset, len] = stack.pop()?;
                 let (len, len_overflow) = len.into_u64_with_overflow();
                 if len_overflow {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_OUT_OF_GAS,
-                    ));
+                    OUT_OF_GAS_ERR?;
                 }
                 let data = memory.get_slice(offset, len, &mut gas_left)?;
                 output = Some(data.to_owned());
@@ -887,16 +864,14 @@ pub fn run<'a>(
                 let [offset, len] = stack.pop()?;
                 let (len, len_overflow) = len.into_u64_with_overflow();
                 if len_overflow {
-                    return Err((
-                        StepStatusCode::EVMC_STEP_FAILED,
-                        StatusCode::EVMC_OUT_OF_GAS,
-                    ));
+                    OUT_OF_GAS_ERR?;
                 }
                 let data = memory.get_slice(offset, len, &mut gas_left)?;
                 // TODO revert state changes
                 // gas_refund = original_gas_refund;
                 output = Some(data.to_owned());
                 step_status_code = StepStatusCode::EVMC_STEP_REVERTED;
+                status_code = StatusCode::EVMC_REVERT;
                 code_state.next();
                 break;
             }
@@ -1010,13 +985,12 @@ fn log<const N: usize>(
     let [offset, len] = stack.pop()?;
     let topics: [u256; N] = stack.pop()?;
     let (len, len_overflow) = len.into_u64_with_overflow();
-    if len_overflow {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_OUT_OF_GAS,
-        ));
+    let (len8, len8_overflow) = len.overflowing_mul(8);
+    let (cost, cost_overflow) = (375 * N as u64).overflowing_add(len8);
+    if len_overflow || len8_overflow || cost_overflow {
+        return OUT_OF_GAS_ERR;
     }
-    consume_dyn_gas(gas_left, 375 * N as u64 + 8 * len)?;
+    consume_dyn_gas(gas_left, cost)?;
 
     let data = memory.get_slice(offset, len, gas_left)?;
     let topics: &[_; N] = unsafe { mem::transmute(&topics) };
@@ -1047,26 +1021,20 @@ fn create<const CREATE2: bool>(
     };
     let (len, len_overflow) = len.into_u64_with_overflow();
     if len_overflow {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_OUT_OF_GAS,
-        ));
+        return OUT_OF_GAS_ERR;
     }
 
-    let init_code_word_size = word_size(len);
+    let init_code_word_size = word_size(len)?;
     if revision >= Revision::EVMC_SHANGHAI {
         const MAX_INIT_CODE_LEN: u64 = 2 * 24576;
         if len > MAX_INIT_CODE_LEN {
-            return Err((
-                StepStatusCode::EVMC_STEP_FAILED,
-                StatusCode::EVMC_OUT_OF_GAS,
-            ));
+            return OUT_OF_GAS_ERR;
         }
-        let init_code_cost = 2 * init_code_word_size;
+        let init_code_cost = 2 * init_code_word_size; // does not overflow
         consume_dyn_gas(gas_left, init_code_cost)?;
     }
     if CREATE2 {
-        let hash_cost = 6 * init_code_word_size;
+        let hash_cost = 6 * init_code_word_size; // does not overflow
         consume_dyn_gas(gas_left, hash_cost)?;
     }
 
@@ -1147,10 +1115,7 @@ fn call<const CODE: bool>(
     let (args_len, args_len_overflow) = args_len.into_u64_with_overflow();
     let (ret_len, ret_len_overflow) = ret_len.into_u64_with_overflow();
     if args_len_overflow || ret_len_overflow {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_OUT_OF_GAS,
-        ));
+        return OUT_OF_GAS_ERR;
     }
 
     consume_address_access_cost(gas_left, &addr, context, revision)?;
@@ -1247,10 +1212,7 @@ fn static_delegate_call<const DELEGATE: bool>(
     let (args_len, args_len_overflow) = args_len.into_u64_with_overflow();
     let (ret_len, ret_len_overflow) = ret_len.into_u64_with_overflow();
     if args_len_overflow || ret_len_overflow {
-        return Err((
-            StepStatusCode::EVMC_STEP_FAILED,
-            StatusCode::EVMC_OUT_OF_GAS,
-        ));
+        return OUT_OF_GAS_ERR;
     }
 
     consume_address_access_cost(gas_left, &addr, context, revision)?;
@@ -1323,12 +1285,11 @@ fn get_slice_within_bounds<T>(data: &[T], offset: u256, len: u64) -> &[T] {
     }
     let offset = offset as usize;
     let len = len as usize;
-    if offset + len < data.len() {
-        &data[offset..offset + len]
-    } else if offset < data.len() {
-        &data[offset..]
-    } else {
+    let (end, end_overflow) = offset.overflowing_add(len);
+    if end_overflow || offset >= data.len() {
         &[]
+    } else {
+        &data[offset..min(end, data.len())]
     }
 }
 
@@ -1352,6 +1313,10 @@ fn copy_slice_padded(
 }
 
 #[inline(always)]
-fn word_size(bytes: u64) -> u64 {
-    (bytes + 31) / 32
+fn word_size(bytes: u64) -> Result<u64, (StepStatusCode, StatusCode)> {
+    let (end, overflow) = bytes.overflowing_add(31);
+    if overflow {
+        OUT_OF_GAS_ERR?;
+    }
+    Ok(end / 32)
 }
