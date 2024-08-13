@@ -15,6 +15,8 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/mock/gomock"
 )
 
@@ -148,6 +150,8 @@ func TestTransferValue_InCallRestoreFailed(t *testing.T) {
 		Input:     []byte{},
 	}
 
+	context.EXPECT().GetCodeHash(params.Recipient).Return(tosca.Hash{})
+	context.EXPECT().GetCode(params.Recipient).Return([]byte{})
 	context.EXPECT().CreateSnapshot()
 	context.EXPECT().GetBalance(params.Sender).Return(tosca.NewValue(0))
 	context.EXPECT().RestoreSnapshot(gomock.Any())
@@ -230,5 +234,44 @@ func TestTransferValue_FailedValueTransfer(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestCreateAddress(t *testing.T) {
+	tests := map[string]struct {
+		kind     tosca.CallKind
+		sender   tosca.Address
+		nonce    uint64
+		salt     tosca.Hash
+		initHash tosca.Hash
+	}{
+		"create": {
+			kind:     tosca.Create,
+			sender:   tosca.Address{1},
+			nonce:    42,
+			salt:     tosca.Hash{},
+			initHash: tosca.Hash{},
+		},
+		"create2": {
+			kind:     tosca.Create2,
+			sender:   tosca.Address{1},
+			nonce:    0,
+			salt:     tosca.Hash{16, 32, 64},
+			initHash: tosca.Hash{0x01, 0x02, 0x03, 0x04, 0x05},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var want tosca.Address
+			if test.kind == tosca.Create {
+				want = tosca.Address(crypto.CreateAddress(common.Address(test.sender), test.nonce))
+			} else {
+				want = tosca.Address(crypto.CreateAddress2(common.Address(test.sender), common.Hash(test.salt), test.initHash[:]))
+			}
+			result := createAddress(test.kind, test.sender, test.nonce, test.salt, test.initHash)
+			if result != want {
+				t.Errorf("Unexpected address, got: %v, want: %v", result, want)
+			}
+		})
+	}
 }

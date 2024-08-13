@@ -81,25 +81,15 @@ func (p *processor) Run(
 		false,
 	}
 
-	callParameters := tosca.CallParameters{
-		Sender:    transaction.Sender,
-		Recipient: *transaction.Recipient,
-		Input:     transaction.Input,
-		Value:     transaction.Value,
-		Gas:       gas,
-	}
-
-	var createdAddress *tosca.Address
-	kind := tosca.Call
-	if transaction.Recipient == nil {
-		kind = tosca.Create
-	}
+	callParameters := callParameters(transaction, gas)
+	kind := callKind(transaction)
 
 	result, err := runContext.Call(kind, callParameters)
 	if err != nil {
 		return errorReceipt, err
 	}
 
+	var createdAddress *tosca.Address
 	if kind == tosca.Create {
 		createdAddress = &result.CreatedAddress
 	}
@@ -116,6 +106,26 @@ func (p *processor) Run(
 		Output:          result.Output,
 		Logs:            logs,
 	}, nil
+}
+
+func callKind(transaction tosca.Transaction) tosca.CallKind {
+	if transaction.Recipient == nil {
+		return tosca.Create
+	}
+	return tosca.Call
+}
+
+func callParameters(transaction tosca.Transaction, gas tosca.Gas) tosca.CallParameters {
+	callParameters := tosca.CallParameters{
+		Sender: transaction.Sender,
+		Input:  transaction.Input,
+		Value:  transaction.Value,
+		Gas:    gas,
+	}
+	if transaction.Recipient != nil {
+		callParameters.Recipient = *transaction.Recipient
+	}
+	return callParameters
 }
 
 func calculateGasLeft(transaction tosca.Transaction, result tosca.CallResult, revision tosca.Revision) tosca.Gas {
@@ -195,7 +205,9 @@ func handleNonce(transaction tosca.Transaction, context tosca.TransactionContext
 	if messageNonce != stateNonce {
 		return fmt.Errorf("nonce mismatch: %v != %v", messageNonce, stateNonce)
 	}
-	context.SetNonce(transaction.Sender, stateNonce+1)
+	if transaction.Recipient != nil {
+		context.SetNonce(transaction.Sender, stateNonce+1)
+	}
 	return nil
 }
 

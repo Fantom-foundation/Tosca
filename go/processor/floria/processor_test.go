@@ -11,6 +11,7 @@
 package floria
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -38,8 +39,9 @@ func TestProcessor_HandleNonce(t *testing.T) {
 	context.EXPECT().GetNonce(tosca.Address{1}).Return(uint64(10))
 
 	transaction := tosca.Transaction{
-		Sender: tosca.Address{1},
-		Nonce:  9,
+		Sender:    tosca.Address{1},
+		Recipient: &tosca.Address{2},
+		Nonce:     9,
 	}
 
 	err := handleNonce(transaction, context)
@@ -58,8 +60,9 @@ func TestProcessor_NonceMissmatch(t *testing.T) {
 	context.EXPECT().GetNonce(tosca.Address{1}).Return(uint64(5))
 
 	transaction := tosca.Transaction{
-		Sender: tosca.Address{1},
-		Nonce:  10,
+		Sender:    tosca.Address{1},
+		Recipient: &tosca.Address{2},
+		Nonce:     10,
 	}
 	err := handleNonce(transaction, context)
 	if err == nil {
@@ -304,5 +307,63 @@ func TestProcessor_SetupGasBilling(t *testing.T) {
 				t.Errorf("setupGasBilling returned incorrect gas used, got: %d, want: %d", actualGasUsed, test.expectedGasUsed)
 			}
 		})
+	}
+}
+
+func TestProcessor_CallKind(t *testing.T) {
+	tests := map[string]struct {
+		recipient *tosca.Address
+		kind      tosca.CallKind
+	}{
+		"call": {
+			recipient: &tosca.Address{2},
+			kind:      tosca.Call,
+		},
+		"create": {
+			recipient: nil,
+			kind:      tosca.Create,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			transaction := tosca.Transaction{
+				Sender:    tosca.Address{1},
+				Recipient: test.recipient,
+			}
+			if callKind(transaction) != test.kind {
+				t.Errorf("callKind returned incorrect result: %v", callKind(transaction))
+			}
+		})
+	}
+}
+
+func TestProcessor_CallParameters(t *testing.T) {
+	transaction := tosca.Transaction{
+		Sender: tosca.Address{1},
+		Input:  []byte{1, 2, 3},
+		Value:  tosca.NewValue(100),
+	}
+	gas := tosca.Gas(1000)
+
+	want := tosca.CallParameters{
+		Sender: transaction.Sender,
+		Input:  transaction.Input,
+		Value:  transaction.Value,
+		Gas:    gas,
+	}
+
+	got := callParameters(transaction, gas)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("callParameters returned incorrect result: %v", got)
+
+	}
+
+	transaction.Recipient = &tosca.Address{2}
+	want.Recipient = *transaction.Recipient
+
+	got = callParameters(transaction, gas)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("callParameters returned incorrect result: %v", got)
+
 	}
 }

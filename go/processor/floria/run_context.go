@@ -14,6 +14,10 @@ import (
 	"fmt"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+
+	// geth dependencies
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type runContext struct {
@@ -26,30 +30,48 @@ type runContext struct {
 }
 
 func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (tosca.CallResult, error) {
-
 	if r.depth > MaxRecursiveDepth {
 		return tosca.CallResult{}, nil
 	}
 	r.depth++
 	defer func() { r.depth-- }()
 
-	snapshot := r.CreateSnapshot()
-	if err := transferValue(r, parameters.Value, parameters.Sender, parameters.Recipient); err != nil {
-		r.RestoreSnapshot(snapshot)
-		return tosca.CallResult{}, nil
-	}
-
 	codeHash := r.GetCodeHash(parameters.Recipient)
 	code := r.GetCode(parameters.Recipient)
 
-	sender := parameters.Sender
 	if kind == tosca.DelegateCall || kind == tosca.CallCode {
 		code = r.GetCode(parameters.CodeAddress)
 		codeHash = r.GetCodeHash(parameters.CodeAddress)
 	}
 
+	recipient := parameters.Recipient
+	var createdAddress tosca.Address
+	if kind == tosca.Create || kind == tosca.Create2 {
+		if parameters.Recipient == (tosca.Address{}) {
+			code = tosca.Code(parameters.Input)
+			codeHash = hashCode(code)
+		}
+		createdAddress = createAddress(
+			kind,
+			parameters.Sender,
+			r.GetNonce(parameters.Sender),
+			parameters.Salt,
+			codeHash,
+		)
+
+		r.SetNonce(parameters.Sender, r.GetNonce(parameters.Sender)+1)
+		r.SetNonce(createdAddress, 1)
+		recipient = createdAddress
+	}
+
 	if kind == tosca.StaticCall {
 		r.static = true
+	}
+
+	snapshot := r.CreateSnapshot()
+	if err := transferValue(r, parameters.Value, parameters.Sender, recipient); err != nil {
+		r.RestoreSnapshot(snapshot)
+		return tosca.CallResult{}, nil
 	}
 
 	interpreterParameters := tosca.Parameters{
@@ -58,10 +80,10 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 		Context:               r,
 		Kind:                  kind,
 		Static:                r.static,
-		Depth:                 r.depth - 1, // depth is already incremented
+		Depth:                 r.depth - 1, // depth has already been incremented
 		Gas:                   parameters.Gas,
-		Recipient:             parameters.Recipient,
-		Sender:                sender,
+		Recipient:             recipient,
+		Sender:                parameters.Sender,
 		Input:                 parameters.Input,
 		Value:                 parameters.Value,
 		CodeHash:              &codeHash,
@@ -71,14 +93,34 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 	result, err := r.interpreter.Run(interpreterParameters)
 	if err != nil || !result.Success {
 		r.RestoreSnapshot(snapshot)
+	} else if kind == tosca.Create || kind == tosca.Create2 {
+		r.SetCode(createdAddress, tosca.Code(result.Output))
 	}
 
 	return tosca.CallResult{
-		Output:    result.Output,
-		GasLeft:   result.GasLeft,
-		GasRefund: result.GasRefund,
-		Success:   result.Success,
+		Output:         result.Output,
+		GasLeft:        result.GasLeft,
+		GasRefund:      result.GasRefund,
+		Success:        result.Success,
+		CreatedAddress: createdAddress,
 	}, err
+}
+
+func hashCode(code tosca.Code) tosca.Hash {
+	return tosca.Hash(crypto.Keccak256(code))
+}
+
+func createAddress(
+	kind tosca.CallKind,
+	sender tosca.Address,
+	nonce uint64,
+	salt tosca.Hash,
+	initHash tosca.Hash,
+) tosca.Address {
+	if kind == tosca.Create {
+		return tosca.Address(crypto.CreateAddress(common.Address(sender), nonce))
+	}
+	return tosca.Address(crypto.CreateAddress2(common.Address(sender), common.Hash(salt), initHash[:]))
 }
 
 func transferValue(
