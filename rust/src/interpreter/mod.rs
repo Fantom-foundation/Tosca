@@ -477,8 +477,14 @@ pub fn run<'a>(
                 code_state.next();
             }
             opcode::SELFBALANCE => {
+                check_min_revision(Revision::EVMC_ISTANBUL, revision)?;
                 consume_gas::<5>(&mut gas_left)?;
-                stack.push(context.get_balance(message.recipient()))?;
+                let addr = message.recipient();
+                if u256::from(addr) == u256::ZERO {
+                    stack.push(u256::ZERO)?;
+                } else {
+                    stack.push(context.get_balance(addr))?;
+                }
                 code_state.next();
             }
             opcode::BASEFEE => {
