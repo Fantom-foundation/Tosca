@@ -358,18 +358,14 @@ pub fn run<'a>(
                         OUT_OF_GAS_ERR?;
                     }
 
-                    let src_len = context.get_code_size(&addr) as u64;
                     let dest = memory.get_slice(dest_offset, len, &mut gas_left)?;
                     let (offset, offset_overflow) = offset.into_u64_with_overflow();
                     consume_copy_cost(&mut gas_left, len)?;
-                    if offset_overflow || offset >= src_len {
+                    let bytes_written = context.copy_code(&addr, offset as usize, dest);
+                    if offset_overflow {
                         zero_slice(dest);
-                    } else if offset + len >= src_len {
-                        let copy_end = (src_len - offset) as usize;
-                        context.copy_code(&addr, offset as usize, &mut dest[..copy_end]);
-                        zero_slice(&mut dest[copy_end..]);
-                    } else {
-                        context.copy_code(&addr, offset as usize, dest);
+                    } else if (bytes_written as u64) < len {
+                        zero_slice(&mut dest[bytes_written..]);
                     }
                 }
 
