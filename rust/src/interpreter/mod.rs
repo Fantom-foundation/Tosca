@@ -1111,8 +1111,6 @@ fn create<const CREATE2: bool>(
                 StatusCode::EVMC_INTERNAL_ERROR,
             ));
         };
-        let code_size = context.get_code_size(addr);
-        consume_dyn_gas(gas_left, 200 * code_size as u64)?;
 
         *last_call_return_data = None;
         stack.push(addr)?;
