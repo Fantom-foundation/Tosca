@@ -37,7 +37,7 @@ impl Debug for u256 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("0x")?;
         for (i, byte) in (*self).into_iter().enumerate() {
-            f.write_fmt(format_args!("{:x}", byte))?;
+            f.write_fmt(format_args!("{:02x}", byte))?;
             if i % 8 == 7 && i < 31 {
                 f.write_str("_")?;
             }
