@@ -56,24 +56,32 @@ jobs:
     - name: Test
       run: make test-go
 
-    - name: Report coverage
-      if: github.ref != 'refs/heads/main'
+    - name: Run coverage and set status
+      id: coverage
+      run: |
+        COVERAGE_RESULT=$(make coverage-report)
+        echo "$COVERAGE_RESULT"
+        
+        # Check the exit code of the coverage command
+        if [ $? -ne 0 ]; then
+          echo "coverage_failed=true" >> $GITHUB_ENV
+          echo "COVERAGE_RESULT=${COVERAGE_RESULT}" >> $GITHUB_ENV
+        else
+          echo "coverage_failed=false" >> $GITHUB_ENV
+        fi
+
+    - name: Comment on PR if coverage fails
+      if: env.coverage_failed == 'true'
       uses: actions/github-script@v6
       with:
-       script: |
-          const execSync = require('child_process').execSync;
-          const coverageResult = execSync('make coverage-report', { encoding: 'utf-8' });
-          if (coverageResult.includes('FAIL')) {
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `Test results:\n\n${coverageResult}`
-            });
-            return   
-          }
-          return "Coverage Report is fine.";
-          
+        script: |
+          const coverageResult = process.env.COVERAGE_RESULT;
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `Coverage failed with the following output:\n\n${coverageResult}`
+          });
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
