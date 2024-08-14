@@ -40,7 +40,7 @@ func getScenarios() map[string]Scenario {
 	// TODO: improve organization of test scenarios
 
 	createdAddress := tosca.Address(crypto.CreateAddress(common.Address{1}, 4))
-	allTestCases := map[string]Scenario{
+	return map[string]Scenario{
 		"SuccessfulValueTransfer": {
 			Before: WorldState{
 				{1}: Account{Balance: tosca.NewValue(100), Nonce: 4},
@@ -171,15 +171,6 @@ func getScenarios() map[string]Scenario {
 			},
 		},
 	}
-
-	// todo remove once all cases are supported
-	floriaTestCases := []string{"SuccessfulValueTransfer", "FailedValueTransfer", "SuccessfulContractCall", "RevertingContractCall"}
-	supportedTestCases := map[string]Scenario{}
-	for _, testCase := range floriaTestCases {
-		supportedTestCases[testCase] = allTestCases[testCase]
-	}
-
-	return supportedTestCases
 }
 
 func RunProcessorTests(t *testing.T, processor tosca.Processor) {

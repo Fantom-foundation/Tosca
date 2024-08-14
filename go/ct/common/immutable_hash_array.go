@@ -68,11 +68,6 @@ func (h *ImmutableHashArray) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	// Check the length of the ImmutableHashArray data
-	if len(hashes) != len(h.data) {
-		return fmt.Errorf("invalid ImmutableHashArray length")
-	}
-
 	// Copy the slice into the ImmutableHashArray data
 	if string(data) == "null" {
 		h.data = nil

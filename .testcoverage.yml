@@ -1,0 +1,142 @@
+# Copyright (c) 2024 Fantom Foundation
+#
+# Use of this software is governed by the Business Source License included
+# in the LICENSE file and at fantom.foundation/bsl11.
+#
+# Change Date: 2028-4-16
+#
+# On the date above, in accordance with the Business Source License, use of
+# this software will be governed by the GNU Lesser General Public License v3.
+
+# (mandatory)
+# Path to coverprofile file (output of `go test -coverprofile` command).
+#
+# For cases where there are many coverage profiles, such as when running
+# unit tests and integration tests separately, you can combine all those
+# profiles into one. In this case, the profile should have a comma-separated list
+# of profile files, e.g., 'cover_unit.out,cover_integration.out'.
+profile: cover.out
+
+# (optional; but recommended to set) 
+# When specified reported file paths will not contain local prefix in the output
+local-prefix: "github.com/org/project"
+
+# Holds coverage thresholds percentages, values should be in range [0-100]
+threshold:
+  # (optional; default 0) 
+  # The minimum coverage that each file should have
+  file: 80
+
+  # (optional; default 0) 
+  # The minimum coverage that each package should have
+  package: 85
+
+  # (optional; default 0) 
+  # The minimum total coverage project should have
+  total: 68
+
+# Holds regexp rules which will override thresholds for matched files or packages 
+# using their paths.
+#
+# First rule from this list that matches file or package is going to apply 
+# new threshold to it. If project has multiple rules that match same path, 
+# override rules should be listed in order from specific to more general rules.
+override:
+  # files
+  - threshold: 0
+    path: go/ct/rlz/conditions.go
+  - threshold: 0
+    path: go/ct/rlz/domains.go
+  - threshold: 0
+    path: go/ct/rlz/effect.go
+  - threshold: 0
+    path: go/ct/rlz/expressions.go
+  - threshold: 0
+    path: go/ct/rlz/parameters.go
+  - threshold: 0
+    path: go/ct/spc/specification.go
+  - threshold: 0
+    path: go/ct/st/transient_storage.go
+  - threshold: 0
+    path: go/ct/utils/adapter.go
+  - threshold: 0
+    path: go/geth_adapter/adapter.go
+  - threshold: 0
+    path: go/integration_test/processor/scenario.go
+  - threshold: 0
+    path: go/interpreter/evmc/evmc_interpreter.go
+  - threshold: 0
+    path: go/interpreter/evmc/evmc_steppable_interpreter.go
+  - threshold: 0
+    path: go/interpreter/geth/ct.go
+  - threshold: 0
+    path: go/interpreter/lfvm/converter.go
+  - threshold: 0
+    path: go/interpreter/lfvm/hash_cache.go
+  - threshold: 0
+    path: go/interpreter/lfvm/instruction.go
+  - threshold: 0
+    path: go/interpreter/lfvm/interpreter.go
+  - threshold: 0
+    path: go/interpreter/lfvm/lfvm.go
+  - threshold: 0
+    path: go/interpreter/lfvm/opcode.go
+  - threshold: 0
+    path: go/interpreter/lfvm/shadow.go
+  - threshold: 0
+    path: go/interpreter/lfvm/super_instructions.go
+  - threshold: 0
+    path: go/processor/floria/processor.go
+  - threshold: 0
+    path: go/processor/opera/processor.go
+  - threshold: 0
+    path: go/tosca/interpreter_registry.go
+  - threshold: 0
+    path: go/tosca/utils.go
+
+  # packages
+  - threshold: 0
+    path: go/ct/rlz
+  - threshold: 0
+    path: go/ct/spc
+  - threshold: 0
+    path: go/ct/utils
+  - threshold: 0
+    path: go/geth_adapter
+  - threshold: 0
+    path: go/interpreter/evmzero
+  - threshold: 0
+    path: go/interpreter/geth
+  - threshold: 0
+    path: go/interpreter/evmone
+  - threshold: 0
+    path: go/integration_test/processor
+  - threshold: 0
+    path: go/interpreter/evmc
+  - threshold: 0
+    path: go/interpreter/lfvm
+  - threshold: 0
+    path: go/processor/floria
+  - threshold: 0
+    path: go/processor/opera
+  - threshold: 0
+    path: go/tosca
+
+# Holds regexp rules which will exclude matched files or packages 
+# from coverage statistics
+exclude:
+  # Exclude files or packages matching their paths
+  paths:
+    - ^(.+)mock(.+)         # mock files should not be tested
+    - go/ct/common/error.go # error file only declares error type without any logic
+    - go/ct/driver/         # entry points, logic should be tested elsewhere.
+    - go/examples           # examples are not tested.
+    - go/interpreter/lfvm/errors.go # error file only declares error type without any logic
+    - go/interpreter/lfvm/instructions.go # these are tested by driver
+    - third_party/  # exclude all files in `third_party` directory
+
+
+ 
+# NOTES:
+# - symbol `/` in all path regexps will be replaced by current OS file path separator
+#   to properly work on Windows

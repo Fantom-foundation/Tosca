@@ -11,7 +11,7 @@
 package floria
 
 import (
-	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -39,8 +39,9 @@ func TestProcessor_HandleNonce(t *testing.T) {
 	context.EXPECT().GetNonce(tosca.Address{1}).Return(uint64(10))
 
 	transaction := tosca.Transaction{
-		Sender: tosca.Address{1},
-		Nonce:  9,
+		Sender:    tosca.Address{1},
+		Recipient: &tosca.Address{2},
+		Nonce:     9,
 	}
 
 	err := handleNonce(transaction, context)
@@ -59,8 +60,9 @@ func TestProcessor_NonceMissmatch(t *testing.T) {
 	context.EXPECT().GetNonce(tosca.Address{1}).Return(uint64(5))
 
 	transaction := tosca.Transaction{
-		Sender: tosca.Address{1},
-		Nonce:  10,
+		Sender:    tosca.Address{1},
+		Recipient: &tosca.Address{2},
+		Nonce:     10,
 	}
 	err := handleNonce(transaction, context)
 	if err == nil {
@@ -116,39 +118,136 @@ func TestProcessor_BuyGasInsufficientBalance(t *testing.T) {
 }
 
 func TestGasUsed(t *testing.T) {
-	tests := []struct {
-		sender          tosca.Address
-		expectedGasUsed tosca.Gas
+	tests := map[string]struct {
+		transaction     tosca.Transaction
+		result          tosca.CallResult
+		revision        tosca.Revision
+		expectedGasLeft tosca.Gas
 	}{
-		{
-			sender:          tosca.Address{},
-			expectedGasUsed: 500,
+		"InternalTransaction": {
+			transaction: tosca.Transaction{
+				Sender:   tosca.Address{},
+				GasLimit: 1000,
+			},
+			result: tosca.CallResult{
+				GasLeft:   500,
+				Success:   true,
+				GasRefund: 0,
+			},
+			revision:        tosca.R10_London,
+			expectedGasLeft: 500,
 		},
-		{
-			sender:          tosca.Address{1},
-			expectedGasUsed: 550,
+		"NonInternalTransaction": {
+			transaction: tosca.Transaction{
+				Sender:   tosca.Address{1},
+				GasLimit: 1000,
+			},
+			result: tosca.CallResult{
+				GasLeft:   500,
+				Success:   true,
+				GasRefund: 0,
+			},
+			revision:        tosca.R10_London,
+			expectedGasLeft: 450,
 		},
-		{
-			sender:          tosca.Address{42},
-			expectedGasUsed: 550,
+		"RefundPreLondon": {
+			transaction: tosca.Transaction{
+				Sender:   tosca.Address{},
+				GasLimit: 1000,
+			},
+			result: tosca.CallResult{
+				GasLeft:   500,
+				Success:   true,
+				GasRefund: 300,
+			},
+			revision:        tosca.R09_Berlin,
+			expectedGasLeft: 750,
+		},
+		"RefundLondon": {
+			transaction: tosca.Transaction{
+				Sender:   tosca.Address{},
+				GasLimit: 1000,
+			},
+			result: tosca.CallResult{
+				GasLeft:   500,
+				Success:   true,
+				GasRefund: 300,
+			},
+			revision:        tosca.R10_London,
+			expectedGasLeft: 600,
+		},
+		"RefundPostLondon": {
+			transaction: tosca.Transaction{
+				Sender:   tosca.Address{},
+				GasLimit: 1000,
+			},
+			result: tosca.CallResult{
+				GasLeft:   500,
+				Success:   true,
+				GasRefund: 300,
+			},
+			revision:        tosca.R13_Cancun,
+			expectedGasLeft: 600,
+		},
+		"smallRefund": {
+			transaction: tosca.Transaction{
+				Sender:   tosca.Address{},
+				GasLimit: 1000,
+			},
+			result: tosca.CallResult{
+				GasLeft:   500,
+				Success:   true,
+				GasRefund: 5,
+			},
+			revision:        tosca.R10_London,
+			expectedGasLeft: 505,
+		},
+		"UnsuccessfulResult": {
+			transaction: tosca.Transaction{
+				Sender:   tosca.Address{},
+				GasLimit: 1000,
+			},
+			result: tosca.CallResult{
+				GasLeft:   0,
+				Success:   false,
+				GasRefund: 500,
+			},
+			revision:        tosca.R10_London,
+			expectedGasLeft: 0,
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("sender%v", test.sender), func(t *testing.T) {
-			transaction := tosca.Transaction{
-				Sender:   test.sender,
-				GasLimit: 1000,
-			}
+	for testName, test := range tests {
+		t.Run(testName, func(t *testing.T) {
+			actualGasLeft := calculateGasLeft(test.transaction, test.result, test.revision)
 
-			gasLeft := tosca.Gas(500)
-			actualGasUsed := gasUsed(transaction, gasLeft)
-
-			if actualGasUsed != test.expectedGasUsed {
-				t.Errorf("gasUsed returned incorrect result, got: %d, want: %d", actualGasUsed, test.expectedGasUsed)
+			if actualGasLeft != test.expectedGasLeft {
+				t.Errorf("gasUsed returned incorrect result, got: %d, want: %d", actualGasLeft, test.expectedGasLeft)
 			}
 		})
 	}
+}
+
+func TestProcessor_RefundGas(t *testing.T) {
+	gasPrice := 5
+	gasLeft := 50
+	senderBalance := 1000
+
+	sender := tosca.Address{1}
+
+	ctrl := gomock.NewController(t)
+	context := tosca.NewMockTransactionContext(ctrl)
+
+	context.EXPECT().GetBalance(sender).Return(tosca.NewValue(uint64(senderBalance)))
+	context.EXPECT().SetBalance(sender, tosca.NewValue(uint64(senderBalance+gasLeft*gasPrice)))
+
+	transaction := tosca.Transaction{
+		Sender:   sender,
+		GasPrice: tosca.NewValue(uint64(gasPrice)),
+	}
+
+	refundGas(transaction, context, tosca.Gas(gasLeft))
+
 }
 
 func TestProcessor_SetupGasBilling(t *testing.T) {
@@ -208,5 +307,63 @@ func TestProcessor_SetupGasBilling(t *testing.T) {
 				t.Errorf("setupGasBilling returned incorrect gas used, got: %d, want: %d", actualGasUsed, test.expectedGasUsed)
 			}
 		})
+	}
+}
+
+func TestProcessor_CallKind(t *testing.T) {
+	tests := map[string]struct {
+		recipient *tosca.Address
+		kind      tosca.CallKind
+	}{
+		"call": {
+			recipient: &tosca.Address{2},
+			kind:      tosca.Call,
+		},
+		"create": {
+			recipient: nil,
+			kind:      tosca.Create,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			transaction := tosca.Transaction{
+				Sender:    tosca.Address{1},
+				Recipient: test.recipient,
+			}
+			if callKind(transaction) != test.kind {
+				t.Errorf("callKind returned incorrect result: %v", callKind(transaction))
+			}
+		})
+	}
+}
+
+func TestProcessor_CallParameters(t *testing.T) {
+	transaction := tosca.Transaction{
+		Sender: tosca.Address{1},
+		Input:  []byte{1, 2, 3},
+		Value:  tosca.NewValue(100),
+	}
+	gas := tosca.Gas(1000)
+
+	want := tosca.CallParameters{
+		Sender: transaction.Sender,
+		Input:  transaction.Input,
+		Value:  transaction.Value,
+		Gas:    gas,
+	}
+
+	got := callParameters(transaction, gas)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("callParameters returned incorrect result: %v", got)
+
+	}
+
+	transaction.Recipient = &tosca.Address{2}
+	want.Recipient = *transaction.Recipient
+
+	got = callParameters(transaction, gas)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("callParameters returned incorrect result: %v", got)
+
 	}
 }

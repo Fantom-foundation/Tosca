@@ -23,6 +23,8 @@ const (
 	TxDataZeroGasEIP2028      = 4
 	TxAccessListAddressGas    = 2400
 	TxAccessListStorageKeyGas = 1900
+
+	MaxRecursiveDepth = 1024 // Maximum depth of call/create stack.
 )
 
 func init() {
@@ -40,7 +42,7 @@ type processor struct {
 }
 
 func (p *processor) Run(
-	blockParams tosca.BlockParameters,
+	blockParameters tosca.BlockParameters,
 	transaction tosca.Transaction,
 	context tosca.TransactionContext,
 ) (tosca.Receipt, error) {
@@ -51,7 +53,7 @@ func (p *processor) Run(
 	gas := transaction.GasLimit
 
 	if err := buyGas(transaction, context); err != nil {
-		return errorReceipt, nil
+		return tosca.Receipt{}, nil
 	}
 
 	intrinsicGas := setupGasBilling(transaction)
@@ -64,42 +66,102 @@ func (p *processor) Run(
 		return errorReceipt, nil
 	}
 
-	isCreate := false
-	if transaction.Recipient == nil {
-		isCreate = true
+	transactionParameters := tosca.TransactionParameters{
+		Origin:     transaction.Sender,
+		GasPrice:   transaction.GasPrice,
+		BlobHashes: []tosca.Hash{}, // ?
 	}
 
-	var result tosca.Result
-	var err error
-
-	if isCreate {
-		// Create new contract
-	} else {
-		// Call existing contract
-		result, err = call(p.interpreter, transaction, context, gas)
-		if err != nil {
-			return errorReceipt, err
-		}
+	runContext := runContext{
+		context,
+		p.interpreter,
+		blockParameters,
+		transactionParameters,
+		0,
+		false,
 	}
 
-	gasUsed := gasUsed(transaction, result.GasLeft)
+	callParameters := callParameters(transaction, gas)
+	kind := callKind(transaction)
+
+	result, err := runContext.Call(kind, callParameters)
+	if err != nil {
+		return errorReceipt, err
+	}
+
+	var createdAddress *tosca.Address
+	if kind == tosca.Create {
+		createdAddress = &result.CreatedAddress
+	}
+
+	gasLeft := calculateGasLeft(transaction, result, blockParameters.Revision)
+	refundGas(transaction, context, gasLeft)
+
+	logs := context.GetLogs()
 
 	return tosca.Receipt{
 		Success:         result.Success,
-		GasUsed:         gasUsed,
-		ContractAddress: nil,
+		GasUsed:         transaction.GasLimit - gasLeft,
+		ContractAddress: createdAddress,
 		Output:          result.Output,
-		Logs:            nil,
+		Logs:            logs,
 	}, nil
 }
 
-func gasUsed(transaction tosca.Transaction, gasLeft tosca.Gas) tosca.Gas {
+func callKind(transaction tosca.Transaction) tosca.CallKind {
+	if transaction.Recipient == nil {
+		return tosca.Create
+	}
+	return tosca.Call
+}
+
+func callParameters(transaction tosca.Transaction, gas tosca.Gas) tosca.CallParameters {
+	callParameters := tosca.CallParameters{
+		Sender: transaction.Sender,
+		Input:  transaction.Input,
+		Value:  transaction.Value,
+		Gas:    gas,
+	}
+	if transaction.Recipient != nil {
+		callParameters.Recipient = *transaction.Recipient
+	}
+	return callParameters
+}
+
+func calculateGasLeft(transaction tosca.Transaction, result tosca.CallResult, revision tosca.Revision) tosca.Gas {
+	gasLeft := result.GasLeft
 	// 10% of remaining gas is charged for non-internal transactions
 	if transaction.Sender != (tosca.Address{}) {
 		gasLeft -= gasLeft / 10
 	}
 
-	return transaction.GasLimit - gasLeft
+	if result.Success {
+		gasUsed := transaction.GasLimit - gasLeft
+		refund := result.GasRefund
+
+		maxRefund := tosca.Gas(0)
+		if revision < tosca.R10_London {
+			// Before EIP-3529: refunds were capped to gasUsed / 2
+			maxRefund = gasUsed / 2
+		} else {
+			// After EIP-3529: refunds are capped to gasUsed / 5
+			maxRefund = gasUsed / 5
+		}
+
+		if refund > maxRefund {
+			refund = maxRefund
+		}
+		gasLeft += refund
+	}
+
+	return gasLeft
+}
+
+func refundGas(transaction tosca.Transaction, context tosca.TransactionContext, gasLeft tosca.Gas) {
+	refundValue := transaction.GasPrice.Scale(uint64(gasLeft))
+	senderBalance := context.GetBalance(transaction.Sender)
+	senderBalance = tosca.Add(senderBalance, refundValue)
+	context.SetBalance(transaction.Sender, senderBalance)
 }
 
 func setupGasBilling(transaction tosca.Transaction) tosca.Gas {
@@ -143,7 +205,9 @@ func handleNonce(transaction tosca.Transaction, context tosca.TransactionContext
 	if messageNonce != stateNonce {
 		return fmt.Errorf("nonce mismatch: %v != %v", messageNonce, stateNonce)
 	}
-	context.SetNonce(transaction.Sender, stateNonce+1)
+	if transaction.Recipient != nil {
+		context.SetNonce(transaction.Sender, stateNonce+1)
+	}
 	return nil
 }
 

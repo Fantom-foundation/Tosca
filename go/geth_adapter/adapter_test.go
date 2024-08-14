@@ -17,6 +17,8 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	geth "github.com/ethereum/go-ethereum/core/vm"
 	"go.uber.org/mock/gomock"
+
+	_ "github.com/Fantom-foundation/Tosca/go/interpreter/geth"
 )
 
 //go:generate mockgen -source adapter_test.go -destination adapter_test_mocks.go -package geth_adapter
@@ -71,5 +73,19 @@ func TestRunContextAdapter_SetBalanceHasCorrectEffect(t *testing.T) {
 			adapter := &runContextAdapter{evm: &geth.EVM{StateDB: stateDb}}
 			adapter.SetBalance(tosca.Address{}, test.after)
 		})
+	}
+}
+
+func TestRunContextAdapter_ReferenceGethInterpreterIsNotExported(t *testing.T) {
+	if res := tosca.GetInterpreter("geth"); res == nil {
+		t.Fatal("geth reference interpreter not available in Tosca")
+	}
+	evm := &geth.EVM{}
+	interpreter := geth.NewInterpreter("geth", evm, geth.Config{})
+	if interpreter == nil {
+		t.Fatal("no interpreter registered for 'geth'")
+	}
+	if _, ok := interpreter.(*gethInterpreterAdapter); ok {
+		t.Fatal("geth reference interpreter is exported")
 	}
 }

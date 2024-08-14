@@ -38,7 +38,7 @@ func TestProcessor_Examples(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				t.Run(fmt.Sprintf("%s-%s-%d", example.Name, processorName, i), func(t *testing.T) {
 					want := example.RunReference(i)
-					scenario := getScenarioContext(example)
+					scenario := getScenarioContext(tosca.Address{1}, tosca.Address{2}, example.Code, tosca.Gas(1000000))
 					transactionContext := newScenarioContext(scenario.Before)
 
 					got, err := example.RunOnProcessor(processor, i, scenario.Transaction, transactionContext)
@@ -54,20 +54,20 @@ func TestProcessor_Examples(t *testing.T) {
 	}
 }
 
-func getScenarioContext(example examples.Example) Scenario {
+func getScenarioContext(sender, receiver tosca.Address, code []byte, gasLimit tosca.Gas) Scenario {
 	scenario := Scenario{
 		Before: WorldState{
-			{1}: Account{},
-			{2}: Account{Code: example.Code},
+			sender:   Account{},
+			receiver: Account{Code: code},
 		},
 		Transaction: tosca.Transaction{
-			Sender:    tosca.Address{1},
-			Recipient: &tosca.Address{2},
-			GasLimit:  1000000,
+			Sender:    sender,
+			Recipient: &receiver,
+			GasLimit:  gasLimit,
 		},
 		After: WorldState{
-			{1}: Account{},
-			{2}: Account{Code: example.Code},
+			sender:   Account{},
+			receiver: Account{Code: code},
 		},
 	}
 
