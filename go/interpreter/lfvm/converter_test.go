@@ -15,12 +15,27 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestConvertLongExampleCode(t *testing.T) {
 	clearConversionCache()
-	_, err := Convert(longExampleCode, false, false, false, tosca.Hash{})
+	_, err := Convert(longExampleCode, true, false, false, tosca.Hash{})
 	if err != nil {
+		t.Errorf("Failed to convert example code with error %v", err)
+	}
+}
+
+func TestConverterLongExamplelength(t *testing.T) {
+	newLongCode := make([]byte, (1<<16)+3)
+	index := 1 << 16
+	newLongCode[index+1] = byte(vm.PC)
+	res, err := Convert(newLongCode, false, false, false, tosca.Hash{})
+	if err != nil {
+		t.Errorf("Failed to convert example code with error %v", err)
+	}
+	lastInstructions := res[1<<16:]
+	if lastInstructions[1].opcode != INVALID {
 		t.Errorf("Failed to convert example code with error %v", err)
 	}
 }

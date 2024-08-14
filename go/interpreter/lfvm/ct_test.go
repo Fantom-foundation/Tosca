@@ -255,7 +255,72 @@ func TestConvertToLfvm_CodeWithSuperInstructions(t *testing.T) {
 			Code{Instruction{PUSH1_PUSH1_PUSH1_SHL_SUB, 0x0101},
 				Instruction{DATA, 0x0001},
 			}},
-			"AND_SWAP1_POP_SWAP2_SWAP1": {
+		"AND_SWAP1_POP_SWAP2_SWAP1": {
+			[]byte{byte(vm.AND), byte(vm.SWAP1), byte(vm.POP),
+				byte(vm.SWAP2), byte(vm.SWAP1)},
+			Code{Instruction{AND_SWAP1_POP_SWAP2_SWAP1, 0x0000}}},
+		"ISZERO_PUSH2_JUMPI": {
+			[]byte{byte(vm.ISZERO),
+				byte(vm.PUSH2), 0x01, 0x02,
+				byte(vm.JUMPI)},
+			Code{Instruction{ISZERO_PUSH2_JUMPI, 0x0102}}},
+		"SWAP2_SWAP1_POP_JUMP": {
+			[]byte{byte(vm.SWAP2), byte(vm.SWAP1), byte(vm.POP),
+				byte(vm.JUMP)},
+			Code{Instruction{SWAP2_SWAP1_POP_JUMP, 0x0000}}},
+		"SWAP1_POP_SWAP2_SWAP1": {
+			[]byte{byte(vm.SWAP1), byte(vm.POP), byte(vm.SWAP2),
+				byte(vm.SWAP1)},
+			Code{Instruction{SWAP1_POP_SWAP2_SWAP1, 0x0000}}},
+		"POP_SWAP2_SWAP1_POP": {
+			[]byte{byte(vm.POP), byte(vm.SWAP2), byte(vm.SWAP1),
+				byte(vm.POP)},
+			Code{Instruction{POP_SWAP2_SWAP1_POP, 0x0000}}},
+		"PUSH2_JUMP": {
+			[]byte{byte(vm.PUSH2), 0x01, 0x02,
+				byte(vm.JUMP)},
+			Code{Instruction{PUSH2_JUMP, 0x0102}}},
+		"PUSH2_JUMPI": {
+			[]byte{byte(vm.PUSH2), 0x01, 0x02,
+				byte(vm.JUMPI)},
+			Code{Instruction{PUSH2_JUMPI, 0x0102}}},
+		"PUSH1_PUSH1": {
+			[]byte{byte(vm.PUSH1), 0x01,
+				byte(vm.PUSH1), 0x01},
+			Code{Instruction{PUSH1_PUSH1, 0x0101}}},
+		"PUSH1_ADD": {
+			[]byte{byte(vm.PUSH1), 0x01,
+				byte(vm.ADD)},
+			Code{Instruction{PUSH1_ADD, 0x0001}}},
+		"PUSH1_SHL": {
+			[]byte{byte(vm.PUSH1), 0x01,
+				byte(vm.SHL)},
+			Code{Instruction{PUSH1_SHL, 0x0001}}},
+		"PUSH1_DUP1": {
+			[]byte{byte(vm.PUSH1), 0x01,
+				byte(vm.DUP1)},
+			Code{Instruction{PUSH1_DUP1, 0x0001}}},
+		"SWAP1_POP": {
+			[]byte{byte(vm.SWAP1), byte(vm.POP)},
+			Code{Instruction{SWAP1_POP, 0x0000}}},
+		"POP_JUMP": {
+			[]byte{byte(vm.POP), byte(vm.JUMP)},
+			Code{Instruction{POP_JUMP, 0x0000}}},
+		"POP_POP": {
+			[]byte{byte(vm.POP), byte(vm.POP)},
+			Code{Instruction{POP_POP, 0x0000}}},
+		"SWAP2_SWAP1": {
+			[]byte{byte(vm.SWAP2), byte(vm.SWAP1)},
+			Code{Instruction{SWAP2_SWAP1, 0x0000}}},
+		"SWAP2_POP": {
+			[]byte{byte(vm.SWAP2), byte(vm.POP)},
+			Code{Instruction{SWAP2_POP, 0x0000}}},
+		"DUP2_MSTORE": {
+			[]byte{byte(vm.DUP2), byte(vm.MSTORE)},
+			Code{Instruction{DUP2_MSTORE, 0x0000}}},
+		"DUP2_LT": {
+			[]byte{byte(vm.DUP2), byte(vm.LT)},
+			Code{Instruction{DUP2_LT, 0x0000}}},
 	}
 
 	for name, test := range tests {
