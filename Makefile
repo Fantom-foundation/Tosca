@@ -11,14 +11,14 @@ TOSCA_CPP_ASSERT = ON
 TOSCA_CPP_ASAN = OFF
 TOSCA_CPP_COVERAGE = OFF
 
-.PHONY: all tosca tosca-go tosca-cpp test test-go test-cpp test-cpp-asan \
-        bench bench-go clean clean-go clean-cpp evmone evmone-clean license-headers
+.PHONY: all tosca tosca-go tosca-cpp tosca-rust test test-go test-cpp test-rust test-cpp-asan \
+        bench bench-go clean clean-go clean-cpp clean-rust evmone evmone-clean license-headers
 
 all: tosca
 
 tosca: tosca-go
 
-tosca-go: tosca-cpp evmone
+tosca-go: tosca-cpp tosca-rust evmone
 	go build ./...
 
 tosca-cpp:
@@ -35,6 +35,9 @@ tosca-cpp:
 tosca-cpp-coverage: TOSCA_CPP_BUILD = Debug
 tosca-cpp-coverage: TOSCA_CPP_COVERAGE = ON
 tosca-cpp-coverage: tosca-cpp
+
+tosca-rust:
+	cargo build --release
 
 evmone:
 	@cd third_party/evmone ; \
@@ -63,7 +66,7 @@ ct-coverage-evmzero:
 	@cd cpp/build ; \
 	cmake --build .  --target coverage 
 
-test: test-go test-cpp
+test: test-go test-cpp test-rust
 
 test-go: tosca-go
 	@go test ./... -count 1 --coverprofile=cover.out
@@ -71,6 +74,9 @@ test-go: tosca-go
 test-cpp: tosca-cpp
 	@cd cpp/build ; \
 	ctest --output-on-failure
+
+test-rust:
+	cargo test
 
 test-cpp-asan: TOSCA_CPP_BUILD = Debug
 test-cpp-asan: TOSCA_CPP_ASAN = ON
@@ -93,7 +99,7 @@ bench-go: TOSCA_CPP_ASSERT = OFF
 bench-go:
 	@go test -bench=. ./...
 
-clean: clean-go clean-cpp clean-evmone
+clean: clean-go clean-cpp clean-rust clean-evmone
 
 clean-evmone:
 	$(RM) -r ./third_party/evmone/build
@@ -103,6 +109,9 @@ clean-go:
 
 clean-cpp:
 	$(RM) -r ./cpp/build
+
+clean-rust:
+	cargo clean
 
 license-headers:
 	cd ./scripts/license; ./add_license_header.sh
