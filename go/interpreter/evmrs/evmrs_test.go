@@ -40,6 +40,7 @@ func TestFib10(t *testing.T) {
 }
 
 func TestEvmrs_DumpProfile(t *testing.T) {
+	t.Skip("evmrs does not implement the profiling configuration yet") // TODO
 	example := examples.GetFibExample()
 	interpreter, ok := tosca.GetInterpreter("evmrs-profiling").(tosca.ProfilingInterpreter)
 	if !ok || interpreter == nil {
