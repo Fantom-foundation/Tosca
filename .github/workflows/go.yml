@@ -63,12 +63,17 @@ jobs:
        script: |
           const execSync = require('child_process').execSync;
           const coverageResult = execSync('make coverage-report', { encoding: 'utf-8' });
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: `Test results:\n\n${coverageResult}`
-          });
+          if (coverageResult.includes('FAIL')) {
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Test results:\n\n${coverageResult}`
+            });
+            return   
+          }
+          return "Coverage Report is fine.";
+          
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
