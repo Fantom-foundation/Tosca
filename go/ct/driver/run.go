@@ -182,7 +182,7 @@ func runTest(input *st.State, evm ct.Evm, filter *regexp.Regexp) error {
 	if result.Eq(expected) {
 		return nil
 	}
-	return fmt.Errorf(formatDiffForUser(input, result, expected, rule.Name))
+	return errors.New(formatDiffForUser(input, result, expected, rule.Name))
 }
 
 func formatDiffForUser(input, result, expected *st.State, ruleName string) string {

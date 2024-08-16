@@ -95,7 +95,7 @@ func TestCt_ExplicitCases(t *testing.T) {
 					if !res.Eq(output) {
 						t.Errorf("Invalid result, wanted %v, got %v", output, res)
 						for _, diff := range output.Diff(res) {
-							t.Errorf(diff)
+							t.Error(diff)
 						}
 					}
 				})
