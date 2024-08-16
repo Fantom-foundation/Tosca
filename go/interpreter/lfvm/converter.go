@@ -37,7 +37,7 @@ func clearConversionCache() {
 	cache.Purge()
 }
 
-func Convert(code []byte, withSuperInstructions bool, isInitCode bool, noCodeCache bool, codeHash tosca.Hash) (Code, error) {
+func Convert(code []byte, withSuperInstructions bool, isInitCode bool, noCodeCache bool, codeHash tosca.Hash) Code {
 	// Do not cache use-once code in create calls.
 	// In those cases the codeHash is also invalid.
 	if isInitCode || noCodeCache {
@@ -46,18 +46,15 @@ func Convert(code []byte, withSuperInstructions bool, isInitCode bool, noCodeCac
 
 	res, exists := cache.Get(codeHash)
 	if exists {
-		return res, nil
+		return res
 	}
 
-	res, err := convert(code, withSuperInstructions)
-	// TODO: remove this if when we are sure it will not happen.
-	if err != nil {
-		return nil, err
-	}
+	res = convert(code, withSuperInstructions)
+
 	if !isInitCode {
 		cache.Add(codeHash, res)
 	}
-	return res, nil
+	return res
 }
 
 type codeBuilder struct {
@@ -101,17 +98,13 @@ func (b *codeBuilder) toCode() Code {
 	return b.code[0:b.nextPos]
 }
 
-func convert(code []byte, with_super_instructions bool) (Code, error) {
+func convert(code []byte, with_super_instructions bool) Code {
 	res := newCodeBuilder(len(code))
 
 	// Convert each individual instruction.
 	for i := 0; i < len(code); {
 		// Handle jump destinations
 		if code[i] == byte(vm.JUMPDEST) {
-			// TODO: remove this if when we are sure it will not happen.
-			if res.length() > i {
-				return nil, errors.New("unable to convert code, encountered targe block larger than input")
-			}
 			// Jump to the next jump destination and fill space with noops
 			if res.length() < i {
 				res.appendOp(JUMP_TO, uint16(i))
@@ -126,7 +119,7 @@ func convert(code []byte, with_super_instructions bool) (Code, error) {
 		inc := appendInstructions(&res, i, code, with_super_instructions)
 		i += inc + 1
 	}
-	return res.toCode(), nil
+	return res.toCode()
 }
 
 // PcMap is a bidirectional map to map program counters between evm <-> lfvm.
@@ -152,10 +145,6 @@ func GenPcMap(code []byte, with_super_instructions bool) (*PcMap, error) {
 	for i := 0; i < len(code); {
 		// Handle jump destinations.
 		if code[i] == byte(vm.JUMPDEST) {
-			// TODO: remove this if when we are sure it will not happen.
-			if res.length() > i {
-				return nil, errors.New("unable to convert code, encountered target block larger than input")
-			}
 
 			// All lfvm opcodes from jmpto until jmpdest, including the potential nops in between map to evm jmpdest.
 			for j := res.nextPos; j <= i; j++ {

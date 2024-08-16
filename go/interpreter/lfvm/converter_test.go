@@ -11,7 +11,6 @@
 package lfvm
 
 import (
-	"fmt"
 	"slices"
 	"testing"
 
@@ -21,22 +20,15 @@ import (
 
 func TestConvertLongExampleCode(t *testing.T) {
 	clearConversionCache()
-	_, err := Convert(longExampleCode, true, false, false, tosca.Hash{})
-	if err != nil {
-		t.Errorf("Failed to convert example code with error %v", err)
-	}
+	_ = Convert(longExampleCode, true, false, false, tosca.Hash{})
 }
 
 func TestConverterLongExampleLength(t *testing.T) {
+	clearConversionCache()
 	index := 1 << 16
 	newLongCode := make([]byte, index+3)
 	newLongCode[index+1] = byte(vm.PC)
-	fmt.Printf("newLongCode: %v", len(newLongCode))
-	// no code cache true needed for running package tests
-	res, err := Convert(newLongCode, false, true, false, tosca.Hash{})
-	if err != nil {
-		t.Fatalf("Failed to convert example code with error %v", err)
-	}
+	res := Convert(newLongCode, false, false, false, tosca.Hash{})
 	if res[index+1].opcode != INVALID {
 		t.Errorf("last instruction should be invalid but got %v", res[index+1])
 	}
@@ -49,10 +41,7 @@ func TestConversionCacheSizeLimit(t *testing.T) {
 	const limit = codeCacheCapacity
 	for i := 0; i < limit*10; i++ {
 		hash := tosca.Hash{byte(i), byte(i >> 8), byte(i >> 16), byte(i >> 24)}
-		_, err := Convert([]byte{0}, false, false, false, hash)
-		if err != nil {
-			t.Errorf("Failed to convert example code with error %v", err)
-		}
+		_ = Convert([]byte{0}, false, false, false, hash)
 	}
 	if got := len(cache.Keys()); got > limit {
 		t.Errorf("Conversion cache grew to %d entries", got)
@@ -66,10 +55,7 @@ func TestConversion_CacheDoesNotCotainsCode(t *testing.T) {
 	code := Code{Instruction{STOP, 0x0000}}
 	hash := tosca.Hash{byte(1), byte(1 >> 8), byte(1 >> 16), byte(1 >> 24)}
 	cache.Add(hash, code)
-	result, err := Convert([]byte{0}, false, false, false, hash)
-	if err != nil {
-		t.Errorf("Failed to convert example code with error %v", err)
-	}
+	result := Convert([]byte{0}, false, false, false, hash)
 	if wanted, _ := cache.Get(hash); !slices.Equal(result, wanted) {
 		t.Errorf("Conversion cache contains the code")
 	}
@@ -85,10 +71,7 @@ func TestConversion_GenPcMapFailsWithSuperInstructions(t *testing.T) {
 func BenchmarkConvertLongExampleCode(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		clearConversionCache()
-		_, err := Convert(longExampleCode, false, false, false, tosca.Hash{byte(i)})
-		if err != nil {
-			b.Errorf("Failed to convert example code with error %v", err)
-		}
+		_ = Convert(longExampleCode, false, false, false, tosca.Hash{byte(i)})
 	}
 }
 
@@ -97,10 +80,7 @@ func BenchmarkConversionCacheLookupSpeed(b *testing.B) {
 	// by converting the same code snippet multiple times.
 	clearConversionCache()
 	for i := 0; i < b.N; i++ {
-		_, err := Convert([]byte{}, false, false, false, tosca.Hash{})
-		if err != nil {
-			b.Errorf("Failed to convert example code with error %v", err)
-		}
+		_ = Convert([]byte{}, false, false, false, tosca.Hash{})
 	}
 }
 
@@ -110,9 +90,6 @@ func BenchmarkConversionCacheUpdateSpeed(b *testing.B) {
 	clearConversionCache()
 	for i := 0; i < b.N; i++ {
 		hash := tosca.Hash{byte(i), byte(i >> 8), byte(i >> 16), byte(i >> 24)}
-		_, err := Convert([]byte{}, false, false, false, hash)
-		if err != nil {
-			b.Errorf("Failed to convert example code with error %v", err)
-		}
+		_ = Convert([]byte{}, false, false, false, hash)
 	}
 }

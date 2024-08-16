@@ -212,11 +212,7 @@ func TestConvertToLfvm_Code(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				got, err := convert(cur.evmCode, false)
-				if err != nil {
-					t.Fatalf("failed to convert VM code to lfvm context: %v", err)
-				}
-
+				got := convert(cur.evmCode, false)
 				want := cur.lfvmCode
 
 				if wantSize, gotSize := len(want), len(got); wantSize != gotSize {
@@ -325,10 +321,7 @@ func TestConvertToLfvm_CodeWithSuperInstructions(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, err := convert(test.evmCode, true)
-			if err != nil {
-				t.Fatalf("conversion of super instruction failed because: %v", err)
-			}
+			got := convert(test.evmCode, true)
 			if !reflect.DeepEqual(test.want, got) {
 				t.Fatalf("unexpected code, wanted %v, got %v", test.want, got)
 			}
