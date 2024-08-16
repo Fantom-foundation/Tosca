@@ -125,6 +125,7 @@ func (h *HashCache) getHash32(c *context, data []byte) tosca.Hash {
 			if entry.succ != nil {
 				entry.succ.pred = entry.pred
 			} else {
+				// is else case even possible?
 				h.tail32 = entry.pred
 			}
 			// Add to front
@@ -173,6 +174,7 @@ func (h *HashCache) getHash64(c *context, data []byte) tosca.Hash {
 			if entry.succ != nil {
 				entry.succ.pred = entry.pred
 			} else {
+				// is else case even possible?
 				h.tail64 = entry.pred
 			}
 			// Add to front

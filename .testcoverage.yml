@@ -72,20 +72,6 @@ override:
   - threshold: 0
     path: go/interpreter/geth/ct.go
   - threshold: 0
-    path: go/interpreter/lfvm/hash_cache.go
-  - threshold: 0
-    path: go/interpreter/lfvm/instruction.go
-  - threshold: 0
-    path: go/interpreter/lfvm/interpreter.go
-  - threshold: 0
-    path: go/interpreter/lfvm/lfvm.go
-  - threshold: 0
-    path: go/interpreter/lfvm/opcode.go
-  - threshold: 0
-    path: go/interpreter/lfvm/shadow.go
-  - threshold: 0
-    path: go/interpreter/lfvm/super_instructions.go
-  - threshold: 0
     path: go/processor/floria/processor.go
   - threshold: 0
     path: go/processor/opera/processor.go
@@ -111,8 +97,6 @@ override:
     path: go/integration_test/processor
   - threshold: 0
     path: go/interpreter/evmc
-  - threshold: 0
-    path: go/interpreter/lfvm
   - threshold: 0
     path: go/processor/floria
   - threshold: 0
