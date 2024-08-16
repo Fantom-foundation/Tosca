@@ -159,7 +159,7 @@ func convertEvmcStackToCtStack(stack []byte, result *st.Stack) (*st.Stack, error
 		return nil, fmt.Errorf("stack size is not a multiple of 32")
 	}
 	result.Resize(0)
-	for i := len(stack) - 32; i >= 0; i -= 32 {
+	for i := 0; i <= len(stack)-32; i += 32 {
 		val := common.NewU256FromBytes(stack[i : i+32]...)
 		result.Push(val)
 	}
