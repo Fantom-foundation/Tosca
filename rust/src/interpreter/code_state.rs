@@ -1,13 +1,13 @@
-use std::{cmp::min, ops::Deref};
+use std::{cmp::min, mem, ops::Deref};
 
 use evmc_vm::{StatusCode, StepStatusCode};
 
-use crate::types::{opcode, u256};
+use crate::types::{code_byte_type, u256, CodeByteType, Opcode};
 
 #[derive(Debug)]
 pub struct CodeState<'a> {
     code: &'a [u8],
-    jump_destinations: Box<[JumpFlag]>,
+    code_byte_type: Box<[CodeByteType]>,
     pc: usize,
 }
 
@@ -19,21 +19,38 @@ impl<'a> Deref for CodeState<'a> {
     }
 }
 
+#[derive(Debug)]
+pub enum GetOpcodeError {
+    OutOfRange,
+    Invalid,
+}
+
 impl<'a> CodeState<'a> {
     pub fn new(code: &'a [u8], pc: usize) -> Self {
-        let jump_destinations = get_jump_destinations(code);
+        let code_byte_type = code_byte_types(code);
         Self {
             code,
-            jump_destinations,
+            code_byte_type,
             pc,
         }
     }
 
-    pub fn get(&self) -> Option<u8> {
+    pub fn get(&self) -> Result<Opcode, GetOpcodeError> {
         if self.pc >= self.code.len() {
-            return None;
+            Err(GetOpcodeError::OutOfRange)
+        } else if self.code_byte_type[self.pc] == CodeByteType::DataOrInvalid {
+            Err(GetOpcodeError::Invalid)
+        } else {
+            let op = self.code[self.pc];
+            let op = unsafe {
+                // SAFETY:
+                // [Opcode] has repr(u8) and therefore the same memory layout as u8.
+                // In get_code_byte_types this byte of the code was determined to be a valid opcode.
+                // Therefore the value is a valid enum variant.
+                mem::transmute::<u8, Opcode>(op)
+            };
+            Ok(op)
         }
-        Some(self.code[self.pc])
     }
 
     pub fn next(&mut self) {
@@ -44,8 +61,8 @@ impl<'a> CodeState<'a> {
         let (dest, dest_overflow) = dest.into_u64_with_overflow();
         let dest = dest as usize;
         if dest_overflow
-            || dest >= self.jump_destinations.len()
-            || self.jump_destinations[dest] != JumpFlag::JumpDest
+            || dest >= self.code_byte_type.len()
+            || self.code_byte_type[dest] != CodeByteType::JumpDest
         {
             return Err((
                 StepStatusCode::EVMC_STEP_FAILED,
@@ -77,56 +94,14 @@ impl<'a> CodeState<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum JumpFlag {
-    JumpDest,
-    NonJumpDest,
-}
-
-fn get_jump_destinations(code: &[u8]) -> Box<[JumpFlag]> {
-    let mut jump_destinations = vec![JumpFlag::NonJumpDest; code.len()];
+fn code_byte_types(code: &[u8]) -> Box<[CodeByteType]> {
+    let mut jump_destinations = vec![CodeByteType::DataOrInvalid; code.len()];
 
     let mut pc = 0;
     while pc < code.len() {
-        match code[pc] {
-            opcode::PUSH1 => pc += 2,
-            opcode::PUSH2 => pc += 3,
-            opcode::PUSH3 => pc += 4,
-            opcode::PUSH4 => pc += 5,
-            opcode::PUSH5 => pc += 6,
-            opcode::PUSH6 => pc += 7,
-            opcode::PUSH7 => pc += 8,
-            opcode::PUSH8 => pc += 9,
-            opcode::PUSH9 => pc += 10,
-            opcode::PUSH10 => pc += 11,
-            opcode::PUSH11 => pc += 12,
-            opcode::PUSH12 => pc += 13,
-            opcode::PUSH13 => pc += 14,
-            opcode::PUSH14 => pc += 15,
-            opcode::PUSH15 => pc += 16,
-            opcode::PUSH16 => pc += 17,
-            opcode::PUSH17 => pc += 18,
-            opcode::PUSH18 => pc += 19,
-            opcode::PUSH19 => pc += 20,
-            opcode::PUSH20 => pc += 21,
-            opcode::PUSH21 => pc += 22,
-            opcode::PUSH22 => pc += 23,
-            opcode::PUSH23 => pc += 24,
-            opcode::PUSH24 => pc += 25,
-            opcode::PUSH25 => pc += 26,
-            opcode::PUSH26 => pc += 27,
-            opcode::PUSH27 => pc += 28,
-            opcode::PUSH28 => pc += 29,
-            opcode::PUSH29 => pc += 30,
-            opcode::PUSH30 => pc += 31,
-            opcode::PUSH31 => pc += 32,
-            opcode::PUSH32 => pc += 33,
-            opcode::JUMPDEST => {
-                jump_destinations[pc] = JumpFlag::JumpDest;
-                pc += 1;
-            }
-            _ => pc += 1,
-        }
+        let (code_byte_type, inc) = code_byte_type(code[pc]);
+        jump_destinations[pc] = code_byte_type;
+        pc += inc;
     }
 
     jump_destinations.into_boxed_slice()
