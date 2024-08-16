@@ -50,6 +50,7 @@ func Convert(code []byte, withSuperInstructions bool, isInitCode bool, noCodeCac
 	}
 
 	res, err := convert(code, withSuperInstructions)
+	// TODO: remove this if when we are sure it will not happen.
 	if err != nil {
 		return nil, err
 	}
@@ -540,6 +541,8 @@ func createOpToOpMap() []OpCode {
 		}
 
 		if res[code] == INVALID && vm.IsValid(code) {
+			// this panic is purely for development purposes and cannot produce
+			// a runtime error in production code.
 			panic(fmt.Sprintf("Missing instruction coverage for: %v", code))
 		}
 	}

@@ -11,6 +11,7 @@
 package lfvm
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 
@@ -26,17 +27,18 @@ func TestConvertLongExampleCode(t *testing.T) {
 	}
 }
 
-func TestConverterLongExamplelength(t *testing.T) {
-	newLongCode := make([]byte, (1<<16)+3)
+func TestConverterLongExampleLength(t *testing.T) {
 	index := 1 << 16
+	newLongCode := make([]byte, index+3)
 	newLongCode[index+1] = byte(vm.PC)
-	res, err := Convert(newLongCode, false, false, false, tosca.Hash{})
+	fmt.Printf("newLongCode: %v", len(newLongCode))
+	// no code cache true needed for running package tests
+	res, err := Convert(newLongCode, false, true, false, tosca.Hash{})
 	if err != nil {
-		t.Errorf("Failed to convert example code with error %v", err)
+		t.Fatalf("Failed to convert example code with error %v", err)
 	}
-	lastInstructions := res[1<<16:]
-	if lastInstructions[1].opcode != INVALID {
-		t.Errorf("Failed to convert example code with error %v", err)
+	if res[index+1].opcode != INVALID {
+		t.Errorf("last instruction should be invalid but got %v", res[index+1])
 	}
 }
 
