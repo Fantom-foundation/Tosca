@@ -3,7 +3,7 @@ use std::{cmp::max, iter};
 use evmc_vm::{StatusCode, StepStatusCode};
 
 use crate::{
-    interpreter::{consume_copy_cost, consume_dyn_gas, word_size, OUT_OF_GAS_ERR},
+    interpreter::{consume_copy_cost, consume_gas, word_size, OUT_OF_GAS_ERR},
     types::u256,
 };
 
@@ -58,7 +58,7 @@ impl Memory {
 
         if new_len > current_len {
             let memory_expansion_cost = memory_cost(new_len)? - memory_cost(current_len)?;
-            consume_dyn_gas(gas_left, memory_expansion_cost)?;
+            consume_gas(gas_left, memory_expansion_cost)?;
         }
         Ok(())
     }

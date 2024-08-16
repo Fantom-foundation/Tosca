@@ -66,166 +66,166 @@ pub fn run<'a>(
                 break;
             }
             Opcode::Add => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [value1, value2] = stack.pop()?;
                 stack.push(value1 + value2)?;
                 code_state.next();
             }
             Opcode::Mul => {
-                consume_gas::<5>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 5)?;
                 let [fac1, fac2] = stack.pop()?;
                 stack.push(fac1 * fac2)?;
                 code_state.next();
             }
             Opcode::Sub => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [value1, value2] = stack.pop()?;
                 stack.push(value1 - value2)?;
                 code_state.next();
             }
             Opcode::Div => {
-                consume_gas::<5>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 5)?;
                 let [value, denominator] = stack.pop()?;
                 stack.push(value / denominator)?;
                 code_state.next();
             }
             Opcode::SDiv => {
-                consume_gas::<5>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 5)?;
                 let [value, denominator] = stack.pop()?;
                 stack.push(value.sdiv(denominator))?;
                 code_state.next();
             }
             Opcode::Mod => {
-                consume_gas::<5>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 5)?;
                 let [value, denominator] = stack.pop()?;
                 stack.push(value % denominator)?;
                 code_state.next();
             }
             Opcode::SMod => {
-                consume_gas::<5>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 5)?;
                 let [value, denominator] = stack.pop()?;
                 stack.push(value.srem(denominator))?;
                 code_state.next();
             }
             Opcode::AddMod => {
-                consume_gas::<8>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 8)?;
                 let [value1, value2, denominator] = stack.pop()?;
                 stack.push(u256::addmod(value1, value2, denominator))?;
                 code_state.next();
             }
             Opcode::MulMod => {
-                consume_gas::<8>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 8)?;
                 let [fac1, fac2, denominator] = stack.pop()?;
                 stack.push(u256::mulmod(fac1, fac2, denominator))?;
                 code_state.next();
             }
             Opcode::Exp => {
-                consume_gas::<10>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 10)?;
                 let [value, exp] = stack.pop()?;
                 let byte_size = 32 - exp.into_iter().take_while(|byte| *byte == 0).count() as u64;
-                consume_dyn_gas(&mut gas_left, byte_size * 50)?; // * does not overflow
+                consume_gas(&mut gas_left, byte_size * 50)?; // * does not overflow
                 stack.push(value.pow(exp))?;
                 code_state.next();
             }
             Opcode::SignExtend => {
-                consume_gas::<5>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 5)?;
                 let [size, value] = stack.pop()?;
                 stack.push(u256::signextend(size, value))?;
                 code_state.next();
             }
             Opcode::Lt => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [lhs, rhs] = stack.pop()?;
                 stack.push(lhs < rhs)?;
                 code_state.next();
             }
             Opcode::Gt => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [lhs, rhs] = stack.pop()?;
                 stack.push(lhs > rhs)?;
                 code_state.next();
             }
             Opcode::SLt => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [lhs, rhs] = stack.pop()?;
                 stack.push(lhs.slt(&rhs))?;
                 code_state.next();
             }
             Opcode::SGt => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [lhs, rhs] = stack.pop()?;
                 stack.push(lhs.sgt(&rhs))?;
                 code_state.next();
             }
             Opcode::Eq => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [lhs, rhs] = stack.pop()?;
                 stack.push(lhs == rhs)?;
                 code_state.next();
             }
             Opcode::IsZero => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [value] = stack.pop()?;
                 stack.push(value == u256::ZERO)?;
                 code_state.next();
             }
             Opcode::And => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [lhs, rhs] = stack.pop()?;
                 stack.push(lhs & rhs)?;
                 code_state.next();
             }
             Opcode::Or => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [lhs, rhs] = stack.pop()?;
                 stack.push(lhs | rhs)?;
                 code_state.next();
             }
             Opcode::Xor => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [lhs, rhs] = stack.pop()?;
                 stack.push(lhs ^ rhs)?;
                 code_state.next();
             }
             Opcode::Not => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [value] = stack.pop()?;
                 stack.push(!value)?;
                 code_state.next();
             }
             Opcode::Byte => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [offset, value] = stack.pop()?;
                 stack.push(value.byte(offset))?;
                 code_state.next();
             }
             Opcode::Shl => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [shift, value] = stack.pop()?;
                 stack.push(value << shift)?;
                 code_state.next();
             }
             Opcode::Shr => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [shift, value] = stack.pop()?;
                 stack.push(value >> shift)?;
                 code_state.next();
             }
             Opcode::Sar => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [shift, value] = stack.pop()?;
                 stack.push(value.sar(shift))?;
                 code_state.next();
             }
             Opcode::Sha3 => {
-                consume_gas::<30>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 30)?;
                 let [offset, len] = stack.pop()?;
 
                 let (len, len_overflow) = len.into_u64_with_overflow();
                 if len_overflow {
                     OUT_OF_GAS_ERR?;
                 }
-                consume_dyn_gas(&mut gas_left, 6 * word_size(len)?)?; // * does not overflow
+                consume_gas(&mut gas_left, 6 * word_size(len)?)?; // * does not overflow
 
                 let data = memory.get_slice(offset, len, &mut gas_left)?;
                 let mut hasher = Keccak256::new();
@@ -236,13 +236,13 @@ pub fn run<'a>(
                 code_state.next();
             }
             Opcode::Address => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(message.recipient())?;
                 code_state.next();
             }
             Opcode::Balance => {
                 if revision < Revision::EVMC_BERLIN {
-                    consume_gas::<700>(&mut gas_left)?;
+                    consume_gas(&mut gas_left, 700)?;
                 }
                 let [addr] = stack.pop()?;
                 let addr = addr.into();
@@ -251,22 +251,22 @@ pub fn run<'a>(
                 code_state.next();
             }
             Opcode::Origin => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(context.get_tx_context().tx_origin)?;
                 code_state.next();
             }
             Opcode::Caller => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(message.sender())?;
                 code_state.next();
             }
             Opcode::CallValue => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(*message.value())?;
                 code_state.next();
             }
             Opcode::CallDataLoad => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [offset] = stack.pop()?;
                 let (offset, overflow) = offset.into_u64_with_overflow();
                 let offset = offset as usize;
@@ -282,7 +282,7 @@ pub fn run<'a>(
                 code_state.next();
             }
             Opcode::CallDataSize => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 let call_data_len = message
                     .input()
                     .map(|call_data| call_data.len())
@@ -292,12 +292,12 @@ pub fn run<'a>(
             }
             Opcode::Push0 => {
                 check_min_revision(Revision::EVMC_SHANGHAI, revision)?;
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(u256::ZERO)?;
                 code_state.next();
             }
             Opcode::CallDataCopy => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [dest_offset, offset, len] = stack.pop()?;
 
                 if len != u256::ZERO {
@@ -318,12 +318,12 @@ pub fn run<'a>(
                 code_state.next();
             }
             Opcode::CodeSize => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(code_state.code_len())?;
                 code_state.next();
             }
             Opcode::CodeCopy => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [dest_offset, offset, len] = stack.pop()?;
 
                 if len != u256::ZERO {
@@ -340,13 +340,13 @@ pub fn run<'a>(
                 code_state.next();
             }
             Opcode::GasPrice => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(context.get_tx_context().tx_gas_price)?;
                 code_state.next();
             }
             Opcode::ExtCodeSize => {
                 if revision < Revision::EVMC_BERLIN {
-                    consume_gas::<700>(&mut gas_left)?;
+                    consume_gas(&mut gas_left, 700)?;
                 }
                 let [addr] = stack.pop()?;
                 let addr = addr.into();
@@ -356,7 +356,7 @@ pub fn run<'a>(
             }
             Opcode::ExtCodeCopy => {
                 if revision < Revision::EVMC_BERLIN {
-                    consume_gas::<700>(&mut gas_left)?;
+                    consume_gas(&mut gas_left, 700)?;
                 }
                 let [addr, dest_offset, offset, len] = stack.pop()?;
                 let addr = addr.into();
@@ -382,7 +382,7 @@ pub fn run<'a>(
                 code_state.next();
             }
             Opcode::ReturnDataSize => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(
                     last_call_return_data
                         .as_ref()
@@ -392,7 +392,7 @@ pub fn run<'a>(
                 code_state.next();
             }
             Opcode::ReturnDataCopy => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [dest_offset, offset, len] = stack.pop()?;
 
                 let src = last_call_return_data.as_deref().unwrap_or(&[]);
@@ -416,7 +416,7 @@ pub fn run<'a>(
             }
             Opcode::ExtCodeHash => {
                 if revision < Revision::EVMC_BERLIN {
-                    consume_gas::<700>(&mut gas_left)?;
+                    consume_gas(&mut gas_left, 700)?;
                 }
                 let [addr] = stack.pop()?;
                 let addr = addr.into();
@@ -425,7 +425,7 @@ pub fn run<'a>(
                 code_state.next();
             }
             Opcode::BlockHash => {
-                consume_gas::<20>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 20)?;
                 let [block_number] = stack.pop()?;
                 let (idx, idx_overflow) = block_number.into_u64_with_overflow();
                 if idx_overflow {
@@ -436,38 +436,38 @@ pub fn run<'a>(
                 code_state.next();
             }
             Opcode::Coinbase => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(context.get_tx_context().block_coinbase)?;
                 code_state.next();
             }
             Opcode::Timestamp => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(context.get_tx_context().block_timestamp as u64)?;
                 code_state.next();
             }
             Opcode::Number => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(context.get_tx_context().block_number as u64)?;
                 code_state.next();
             }
             Opcode::PrevRandao => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(context.get_tx_context().block_prev_randao)?;
                 code_state.next();
             }
             Opcode::GasLimit => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(context.get_tx_context().block_gas_limit as u64)?;
                 code_state.next();
             }
             Opcode::ChainId => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(context.get_tx_context().chain_id)?;
                 code_state.next();
             }
             Opcode::SelfBalance => {
                 check_min_revision(Revision::EVMC_ISTANBUL, revision)?;
-                consume_gas::<5>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 5)?;
                 let addr = message.recipient();
                 if u256::from(addr) == u256::ZERO {
                     stack.push(u256::ZERO)?;
@@ -478,13 +478,13 @@ pub fn run<'a>(
             }
             Opcode::BaseFee => {
                 check_min_revision(Revision::EVMC_LONDON, revision)?;
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(context.get_tx_context().block_base_fee)?;
                 code_state.next();
             }
             Opcode::BlobHash => {
                 check_min_revision(Revision::EVMC_CANCUN, revision)?;
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [idx] = stack.pop()?;
                 let (idx, idx_overflow) = idx.into_u64_with_overflow();
                 let idx = idx as usize;
@@ -498,24 +498,24 @@ pub fn run<'a>(
             }
             Opcode::BlobBaseFee => {
                 check_min_revision(Revision::EVMC_CANCUN, revision)?;
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(context.get_tx_context().blob_base_fee)?;
                 code_state.next();
             }
             Opcode::Pop => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 let [_] = stack.pop()?;
                 code_state.next();
             }
             Opcode::MLoad => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [offset] = stack.pop()?;
 
                 stack.push(memory.get_word(offset, &mut gas_left)?)?;
                 code_state.next();
             }
             Opcode::MStore => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [offset, value] = stack.pop()?;
 
                 let dest = memory.get_slice(offset, 32, &mut gas_left)?;
@@ -523,7 +523,7 @@ pub fn run<'a>(
                 code_state.next();
             }
             Opcode::MStore8 => {
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [offset, value] = stack.pop()?;
 
                 let dest = memory.get_byte(offset, &mut gas_left)?;
@@ -532,16 +532,16 @@ pub fn run<'a>(
             }
             Opcode::SLoad => {
                 if revision < Revision::EVMC_BERLIN {
-                    consume_gas::<800>(&mut gas_left)?;
+                    consume_gas(&mut gas_left, 800)?;
                 }
                 let [key] = stack.pop()?;
                 let key = key.into();
                 let addr = message.recipient();
                 if revision >= Revision::EVMC_BERLIN {
                     if context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD {
-                        consume_gas::<2100>(&mut gas_left)?;
+                        consume_gas(&mut gas_left, 2100)?;
                     } else {
-                        consume_gas::<100>(&mut gas_left)?;
+                        consume_gas(&mut gas_left, 100)?;
                     }
                 }
                 let value = context.get_storage(addr, &key);
@@ -615,17 +615,17 @@ pub fn run<'a>(
                 {
                     dyn_gas += 2100;
                 }
-                consume_dyn_gas(&mut gas_left, dyn_gas)?;
+                consume_gas(&mut gas_left, dyn_gas)?;
                 gas_refund += gas_refund_change;
                 code_state.next();
             }
             Opcode::Jump => {
-                consume_gas::<8>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 8)?;
                 let [dest] = stack.pop()?;
                 code_state.try_jump(dest)?;
             }
             Opcode::JumpI => {
-                consume_gas::<10>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 10)?;
                 let [dest, cond] = stack.pop()?;
                 if cond == u256::ZERO {
                     code_state.next();
@@ -634,27 +634,27 @@ pub fn run<'a>(
                 }
             }
             Opcode::Pc => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(code_state.pc())?;
                 code_state.next();
             }
             Opcode::MSize => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(memory.len())?;
                 code_state.next();
             }
             Opcode::Gas => {
-                consume_gas::<2>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 2)?;
                 stack.push(gas_left)?;
                 code_state.next();
             }
             Opcode::JumpDest => {
-                consume_gas::<1>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 1)?;
                 code_state.next();
             }
             Opcode::TLoad => {
                 check_min_revision(Revision::EVMC_CANCUN, revision)?;
-                consume_gas::<100>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 100)?;
                 let [key] = stack.pop()?;
                 let addr = message.recipient();
                 let value = context.get_transient_storage(addr, &key.into());
@@ -664,7 +664,7 @@ pub fn run<'a>(
             Opcode::TStore => {
                 check_min_revision(Revision::EVMC_CANCUN, revision)?;
                 check_not_read_only(message, revision)?;
-                consume_gas::<100>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 100)?;
                 let [key, value] = stack.pop()?;
                 let addr = message.recipient();
                 context.set_transient_storage(addr, &key.into(), &value.into());
@@ -672,7 +672,7 @@ pub fn run<'a>(
             }
             Opcode::MCopy => {
                 check_min_revision(Revision::EVMC_CANCUN, revision)?;
-                consume_gas::<3>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 3)?;
                 let [dest_offset, offset, len] = stack.pop()?;
                 if len != u256::ZERO {
                     memory.copy_within(offset, dest_offset, len, &mut gas_left)?;
@@ -890,7 +890,7 @@ pub fn run<'a>(
             }
             Opcode::SelfDestruct => {
                 check_not_read_only(message, revision)?;
-                consume_gas::<5000>(&mut gas_left)?;
+                consume_gas(&mut gas_left, 5000)?;
                 let [addr] = stack.pop()?;
                 let addr = addr.into();
 
@@ -899,13 +899,13 @@ pub fn run<'a>(
                         //&& addr != tx_context.tx_to // TODO
                         && !(revision >= Revision::EVMC_SHANGHAI && addr == tx_context.block_coinbase) && context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
                 {
-                    consume_gas::<2600>(&mut gas_left)?;
+                    consume_gas(&mut gas_left, 2600)?;
                 }
 
                 if u256::from(context.get_balance(message.recipient())) > u256::ZERO
                     && !context.account_exists(&addr)
                 {
-                    consume_gas::<25000>(&mut gas_left)?;
+                    consume_gas(&mut gas_left, 25000)?;
                 }
 
                 let destructed = context.selfdestruct(message.recipient(), &addr);
@@ -940,7 +940,7 @@ fn push(
     stack: &mut Stack,
     gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    consume_gas::<3>(gas_left)?;
+    consume_gas(gas_left, 3)?;
     code_state.next();
     stack.push(code_state.get_push_data(len)?)?;
     Ok(())
@@ -952,7 +952,7 @@ fn dup(
     stack: &mut Stack,
     gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    consume_gas::<3>(gas_left)?;
+    consume_gas(gas_left, 3)?;
     stack.push(stack.nth(nth)?)?;
     code_state.next();
     Ok(())
@@ -964,7 +964,7 @@ fn swap(
     stack: &mut Stack,
     gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    consume_gas::<3>(gas_left)?;
+    consume_gas(gas_left, 3)?;
     stack.swap_with_top(nth)?;
     code_state.next();
     Ok(())
@@ -980,7 +980,7 @@ fn log<const N: usize>(
     gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     check_not_read_only(message, revision)?;
-    consume_gas::<375>(gas_left)?;
+    consume_gas(gas_left, 375)?;
     let [offset, len] = stack.pop()?;
     let topics: [u256; N] = stack.pop()?;
     let (len, len_overflow) = len.into_u64_with_overflow();
@@ -989,7 +989,7 @@ fn log<const N: usize>(
     if len_overflow || len8_overflow || cost_overflow {
         return OUT_OF_GAS_ERR;
     }
-    consume_dyn_gas(gas_left, cost)?;
+    consume_gas(gas_left, cost)?;
 
     let data = memory.get_slice(offset, len, gas_left)?;
     let topics: &[_; N] = unsafe { mem::transmute(&topics) };
@@ -1010,7 +1010,7 @@ fn create<const CREATE2: bool>(
     gas_left: &mut u64,
     gas_refund: &mut i64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
-    consume_gas::<32000>(gas_left)?;
+    consume_gas(gas_left, 32000)?;
     check_not_read_only(message, revision)?;
     let [value, offset, len] = stack.pop()?;
     let salt = if CREATE2 {
@@ -1030,11 +1030,11 @@ fn create<const CREATE2: bool>(
             return OUT_OF_GAS_ERR;
         }
         let init_code_cost = 2 * init_code_word_size; // does not overflow
-        consume_dyn_gas(gas_left, init_code_cost)?;
+        consume_gas(gas_left, init_code_cost)?;
     }
     if CREATE2 {
         let hash_cost = 6 * init_code_word_size; // does not overflow
-        consume_dyn_gas(gas_left, hash_cost)?;
+        consume_gas(gas_left, hash_cost)?;
     }
 
     let init_code = memory.get_slice(offset, len, gas_left)?;
@@ -1047,7 +1047,7 @@ fn create<const CREATE2: bool>(
     }
 
     let gas_limit = *gas_left - *gas_left / 64;
-    consume_dyn_gas(gas_left, gas_limit)?;
+    consume_gas(gas_left, gas_limit)?;
 
     let message = ExecutionMessage::new(
         if CREATE2 {
@@ -1102,7 +1102,7 @@ fn call<const CODE: bool>(
     last_call_return_data: &mut Option<Vec<u8>>,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     if revision < Revision::EVMC_BERLIN {
-        consume_gas::<700>(gas_left)?;
+        consume_gas(gas_left, 700)?;
     }
     let [gas, addr, value, args_offset, args_len, ret_offset, ret_len] = stack.pop()?;
 
@@ -1181,8 +1181,8 @@ fn call<const CODE: bool>(
     }
 
     *gas_left += result.gas_left() as u64;
-    consume_dyn_gas(gas_left, endowment)?;
-    consume_dyn_gas(gas_left, stipend)?;
+    consume_gas(gas_left, endowment)?;
+    consume_gas(gas_left, stipend)?;
     *gas_refund += result.gas_refund();
 
     stack.push(result.status_code() == StatusCode::EVMC_SUCCESS)?;
@@ -1203,7 +1203,7 @@ fn static_delegate_call<const DELEGATE: bool>(
     last_call_return_data: &mut Option<Vec<u8>>,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     if revision < Revision::EVMC_BERLIN {
-        consume_gas::<700>(gas_left)?;
+        consume_gas(gas_left, 700)?;
     }
     let [gas, addr, args_offset, args_len, ret_offset, ret_len] = stack.pop()?;
 
@@ -1265,7 +1265,7 @@ fn static_delegate_call<const DELEGATE: bool>(
     }
 
     *gas_left += result.gas_left() as u64;
-    consume_dyn_gas(gas_left, endowment)?;
+    consume_gas(gas_left, endowment)?;
     *gas_refund += result.gas_refund();
 
     stack.push(result.status_code() == StatusCode::EVMC_SUCCESS)?;

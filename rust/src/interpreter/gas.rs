@@ -8,18 +8,7 @@ pub const OUT_OF_GAS_ERR: Result<(), (StepStatusCode, StatusCode)> = Err((
 ));
 
 #[inline(always)]
-pub(super) fn consume_gas<const GAS: u64>(
-    gas_left: &mut u64,
-) -> Result<(), (StepStatusCode, StatusCode)> {
-    if *gas_left < GAS {
-        return OUT_OF_GAS_ERR;
-    }
-    *gas_left -= GAS;
-    Ok(())
-}
-
-#[inline(always)]
-pub(super) fn consume_dyn_gas(
+pub(super) fn consume_gas(
     gas_left: &mut u64,
     gas: u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
@@ -36,7 +25,7 @@ pub(super) fn consume_positive_value_cost(
     gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     if *value != u256::ZERO {
-        consume_gas::<9000>(gas_left)?;
+        consume_gas(gas_left, 9000)?;
     }
     Ok(())
 }
@@ -49,7 +38,7 @@ pub(super) fn consume_value_to_empty_account_cost(
     gas_left: &mut u64,
 ) -> Result<(), (StepStatusCode, StatusCode)> {
     if *value != u256::ZERO && !context.account_exists(addr) {
-        consume_gas::<25000>(gas_left)?;
+        consume_gas(gas_left, 25000)?;
     }
     Ok(())
 }
@@ -68,9 +57,9 @@ pub(super) fn consume_address_access_cost(
             && !(revision >= Revision::EVMC_SHANGHAI && *addr == tx_context.block_coinbase)
             && context.access_account(addr) == AccessStatus::EVMC_ACCESS_COLD
         {
-            consume_gas::<2600>(gas_left)?;
+            consume_gas(gas_left, 2600)?;
         } else {
-            consume_gas::<100>(gas_left)?;
+            consume_gas(gas_left, 100)?;
         }
     }
     Ok(())
@@ -86,6 +75,6 @@ pub(super) fn consume_copy_cost(
     if cost_overflow {
         return OUT_OF_GAS_ERR;
     }
-    consume_dyn_gas(gas_left, cost)?;
+    consume_gas(gas_left, cost)?;
     Ok(())
 }
