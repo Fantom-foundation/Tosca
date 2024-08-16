@@ -52,12 +52,13 @@ impl<'a> RunResult<'a> {
 
 impl<'a> From<RunResult<'a>> for StepResult {
     fn from(value: RunResult) -> Self {
-        let mut stack = value.stack.into_inner();
-        stack.reverse();
-        // SAFETY
-        // u256 is a newtype of Uint256 with repr(transparent) which guarantees the same memory
-        // layout.
-        let stack = unsafe { mem::transmute::<Vec<u256>, Vec<Uint256>>(stack) };
+        let stack = value.stack.into_inner();
+        let stack = unsafe {
+            // SAFETY
+            // u256 is a newtype of Uint256 with repr(transparent) which guarantees the same memory
+            // layout.
+            mem::transmute::<Vec<u256>, Vec<Uint256>>(stack)
+        };
         StepResult::new(
             value.step_status_code,
             value.status_code,
