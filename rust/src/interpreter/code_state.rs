@@ -106,3 +106,102 @@ fn code_byte_types(code: &[u8]) -> Box<[CodeByteType]> {
 
     jump_destinations.into_boxed_slice()
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        interpreter::code_state::code_byte_types,
+        types::{CodeByteType, Opcode},
+    };
+
+    #[test]
+    fn code_byte_types_single_byte() {
+        assert_eq!(
+            *code_byte_types(&[Opcode::Add as u8]),
+            [CodeByteType::Opcode]
+        );
+        assert_eq!(
+            *code_byte_types(&[Opcode::Push2 as u8]),
+            [CodeByteType::Opcode]
+        );
+        assert_eq!(
+            *code_byte_types(&[Opcode::JumpDest as u8]),
+            [CodeByteType::JumpDest]
+        );
+        assert_eq!(*code_byte_types(&[0xc0]), [CodeByteType::DataOrInvalid]);
+    }
+
+    #[test]
+    fn code_byte_types_jumpdest() {
+        assert_eq!(
+            *code_byte_types(&[Opcode::JumpDest as u8, Opcode::Add as u8]),
+            [CodeByteType::JumpDest, CodeByteType::Opcode,]
+        );
+        assert_eq!(
+            *code_byte_types(&[Opcode::JumpDest as u8, 0xc0]),
+            [CodeByteType::JumpDest, CodeByteType::DataOrInvalid,]
+        );
+    }
+
+    #[test]
+    fn code_byte_types_push_with_data() {
+        assert_eq!(
+            *code_byte_types(&[Opcode::Push1 as u8, Opcode::Add as u8, Opcode::Add as u8]),
+            [
+                CodeByteType::Opcode,
+                CodeByteType::DataOrInvalid,
+                CodeByteType::Opcode,
+            ]
+        );
+        assert_eq!(
+            *code_byte_types(&[Opcode::Push1 as u8, Opcode::Add as u8, 0xc0]),
+            [
+                CodeByteType::Opcode,
+                CodeByteType::DataOrInvalid,
+                CodeByteType::DataOrInvalid,
+            ]
+        );
+        assert_eq!(
+            *code_byte_types(&[
+                Opcode::Push1 as u8,
+                Opcode::Add as u8,
+                0xc0,
+                Opcode::Add as u8
+            ]),
+            [
+                CodeByteType::Opcode,
+                CodeByteType::DataOrInvalid,
+                CodeByteType::DataOrInvalid,
+                CodeByteType::Opcode,
+            ]
+        );
+        assert_eq!(
+            *code_byte_types(&[
+                Opcode::Push2 as u8,
+                Opcode::Add as u8,
+                Opcode::Add as u8,
+                Opcode::Add as u8,
+            ]),
+            [
+                CodeByteType::Opcode,
+                CodeByteType::DataOrInvalid,
+                CodeByteType::DataOrInvalid,
+                CodeByteType::Opcode,
+            ]
+        );
+        assert_eq!(
+            *code_byte_types(&[
+                Opcode::Push2 as u8,
+                Opcode::Add as u8,
+                Opcode::Add as u8,
+                0xc0
+            ]),
+            [
+                CodeByteType::Opcode,
+                CodeByteType::DataOrInvalid,
+                CodeByteType::DataOrInvalid,
+                CodeByteType::DataOrInvalid,
+            ]
+        );
+    }
+}
