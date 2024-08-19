@@ -51,7 +51,7 @@ type evmoneInstance struct {
 	e *evmc.EvmcInterpreter
 }
 
-const newestSupportedRevision = tosca.R10_London
+const newestSupportedRevision = tosca.R13_Cancun
 
 func (e *evmoneInstance) Run(params tosca.Parameters) (tosca.Result, error) {
 	if params.Revision > newestSupportedRevision {

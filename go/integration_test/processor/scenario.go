@@ -222,7 +222,7 @@ func (c *scenarioContext) SetTransientStorage(tosca.Address, tosca.Key, tosca.Wo
 }
 
 func (c *scenarioContext) AccessAccount(tosca.Address) tosca.AccessStatus {
-	panic("implement me")
+	return false // correct value only important inside of the interpreter
 }
 
 func (c *scenarioContext) AccessStorage(tosca.Address, tosca.Key) tosca.AccessStatus {
@@ -248,7 +248,7 @@ func (c *scenarioContext) GetCommittedStorage(addr tosca.Address, key tosca.Key)
 }
 
 func (c *scenarioContext) IsAddressInAccessList(addr tosca.Address) bool {
-	panic("implement me")
+	return false // correct value only important inside of the interpreter
 }
 
 func (c *scenarioContext) IsSlotInAccessList(addr tosca.Address, key tosca.Key) (addressPresent, slotPresent bool) {
