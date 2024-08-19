@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    fmt::Debug,
+    fmt::{Debug, Display},
     mem,
     ops::{
         Add, AddAssign, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, DivAssign, Mul, MulAssign,
@@ -33,7 +33,7 @@ impl DerefMut for u256 {
     }
 }
 
-impl Debug for u256 {
+impl Display for u256 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("0x")?;
         for (i, byte) in (*self).into_iter().enumerate() {
@@ -44,6 +44,12 @@ impl Debug for u256 {
         }
 
         Ok(())
+    }
+}
+
+impl Debug for u256 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
     }
 }
 
