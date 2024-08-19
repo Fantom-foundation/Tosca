@@ -61,17 +61,10 @@ jobs:
       run: |
         COVERAGE_RESULT=$(make coverage-report)
         echo "$COVERAGE_RESULT"
-        
-        # Check the exit code of the coverage command
-        if [ $? -ne 0 ]; then
-          echo "coverage_failed=true" >> $GITHUB_ENV
-          echo "COVERAGE_RESULT=${COVERAGE_RESULT}" >> $GITHUB_ENV
-        else
-          echo "coverage_failed=false" >> $GITHUB_ENV
-        fi
+        echo "COVERAGE_RESULT=${COVERAGE_RESULT}" >> $GITHUB_ENV
 
     - name: Comment on PR if coverage fails
-      if: env.coverage_failed == 'true'
+      if: failure()
       uses: actions/github-script@v6
       with:
         script: |
