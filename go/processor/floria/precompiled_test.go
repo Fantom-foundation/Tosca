@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	processor_test_utils "github.com/Fantom-foundation/Tosca/go/processor"
+	test_utils "github.com/Fantom-foundation/Tosca/go/processor"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
@@ -34,8 +34,8 @@ func TestPrecompiled_RightNumberOfContractsDependingOnRevision(t *testing.T) {
 	for _, test := range tests {
 		count := 0
 		for i := byte(0x01); i < byte(0x42); i++ {
-			address := processor_test_utils.NewAddress(i)
-			_, isPrecompiled := precompiledContract(address, test.revision)
+			address := test_utils.NewAddress(i)
+			_, isPrecompiled := getPrecompiledContract(address, test.revision)
 			if isPrecompiled {
 				count++
 			}
@@ -54,12 +54,12 @@ func TestPrecompiled_AddressesAreHandledCorrectly(t *testing.T) {
 		isPrecompiled bool
 		success       bool
 	}{
-		"nonPrecompiled":            {tosca.R09_Berlin, processor_test_utils.NewAddress(0x20), 3000, false, false},
-		"ecrecover-success":         {tosca.R10_London, processor_test_utils.NewAddress(0x01), 3000, true, true},
-		"ecrecover-outOfGas":        {tosca.R10_London, processor_test_utils.NewAddress(0x01), 1, true, false},
-		"pointEvaluation-success":   {tosca.R13_Cancun, processor_test_utils.NewAddress(0x0a), 55000, true, true},
-		"pointEvaluation-outOfGas":  {tosca.R13_Cancun, processor_test_utils.NewAddress(0x0a), 1, true, false},
-		"pointEvaluation-preCancun": {tosca.R10_London, processor_test_utils.NewAddress(0x0a), 3000, false, false},
+		"nonPrecompiled":            {tosca.R09_Berlin, test_utils.NewAddress(0x20), 3000, false, false},
+		"ecrecover-success":         {tosca.R10_London, test_utils.NewAddress(0x01), 3000, true, true},
+		"ecrecover-outOfGas":        {tosca.R10_London, test_utils.NewAddress(0x01), 1, true, false},
+		"pointEvaluation-success":   {tosca.R13_Cancun, test_utils.NewAddress(0x0a), 55000, true, true},
+		"pointEvaluation-outOfGas":  {tosca.R13_Cancun, test_utils.NewAddress(0x0a), 1, true, false},
+		"pointEvaluation-preCancun": {tosca.R10_London, test_utils.NewAddress(0x0a), 3000, false, false},
 	}
 
 	for name, test := range tests {
@@ -67,10 +67,10 @@ func TestPrecompiled_AddressesAreHandledCorrectly(t *testing.T) {
 
 			input := tosca.Data{}
 			if strings.Contains(name, "pointEvaluation") {
-				input = processor_test_utils.ValidPointEvaluationInput
+				input = test_utils.ValidPointEvaluationInput
 			}
 
-			result, isPrecompiled := handlePrecompiled(test.revision, input, test.address, test.gas)
+			result, isPrecompiled := handlePrecompiledContract(test.revision, input, test.address, test.gas)
 			if isPrecompiled != test.isPrecompiled {
 				t.Errorf("unexpected precompiled, want %v, got %v", test.isPrecompiled, isPrecompiled)
 			}

@@ -16,8 +16,8 @@ import (
 	geth "github.com/ethereum/go-ethereum/core/vm"
 )
 
-func handlePrecompiled(revision tosca.Revision, input tosca.Data, address tosca.Address, gas tosca.Gas) (tosca.CallResult, bool) {
-	contract, ok := precompiledContract(address, revision)
+func handlePrecompiledContract(revision tosca.Revision, input tosca.Data, address tosca.Address, gas tosca.Gas) (tosca.CallResult, bool) {
+	contract, ok := getPrecompiledContract(address, revision)
 	if !ok {
 		return tosca.CallResult{}, false
 	}
@@ -35,7 +35,7 @@ func handlePrecompiled(revision tosca.Revision, input tosca.Data, address tosca.
 	}, true
 }
 
-func precompiledContract(address tosca.Address, revision tosca.Revision) (geth.PrecompiledContract, bool) {
+func getPrecompiledContract(address tosca.Address, revision tosca.Revision) (geth.PrecompiledContract, bool) {
 	var precompiles map[common.Address]geth.PrecompiledContract
 	switch revision {
 	case tosca.R13_Cancun:

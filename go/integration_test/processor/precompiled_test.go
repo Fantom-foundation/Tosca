@@ -17,7 +17,7 @@ import (
 	"slices"
 	"testing"
 
-	processor_test_utils "github.com/Fantom-foundation/Tosca/go/processor"
+	test_utils "github.com/Fantom-foundation/Tosca/go/processor"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
@@ -27,16 +27,16 @@ func TestProcessor_AllPreCompiledContractsAreAvailable(t *testing.T) {
 		address tosca.Address
 		input   []byte
 	}{
-		"ecrecover":          {processor_test_utils.NewAddress(0x1), bytes.Repeat([]byte{0}, 256)},
-		"sha256hash":         {processor_test_utils.NewAddress(0x2), bytes.Repeat([]byte{0}, 256)},
-		"ripemd160hash":      {processor_test_utils.NewAddress(0x3), bytes.Repeat([]byte{0}, 256)},
-		"dataCopy":           {processor_test_utils.NewAddress(0x4), bytes.Repeat([]byte{0}, 256)},
-		"bigModExp":          {processor_test_utils.NewAddress(0x5), bytes.Repeat([]byte{0}, 256)},
-		"bn256Add":           {processor_test_utils.NewAddress(0x6), bytes.Repeat([]byte{0}, 256)},
-		"bn256ScalarMul":     {processor_test_utils.NewAddress(0x7), bytes.Repeat([]byte{0}, 256)},
-		"bn256Pairing":       {processor_test_utils.NewAddress(0x8), bytes.Repeat([]byte{0}, 192)},
-		"blake2F":            {processor_test_utils.NewAddress(0x9), bytes.Repeat([]byte{0}, 213)},
-		"kzgPointEvaluation": {processor_test_utils.NewAddress(0xa), processor_test_utils.ValidPointEvaluationInput},
+		"ecrecover":          {test_utils.NewAddress(0x1), make([]byte, 256)},
+		"sha256hash":         {test_utils.NewAddress(0x2), make([]byte, 256)},
+		"ripemd160hash":      {test_utils.NewAddress(0x3), make([]byte, 256)},
+		"dataCopy":           {test_utils.NewAddress(0x4), make([]byte, 256)},
+		"bigModExp":          {test_utils.NewAddress(0x5), make([]byte, 256)},
+		"bn256Add":           {test_utils.NewAddress(0x6), make([]byte, 256)},
+		"bn256ScalarMul":     {test_utils.NewAddress(0x7), make([]byte, 256)},
+		"bn256Pairing":       {test_utils.NewAddress(0x8), make([]byte, 192)},
+		"blake2F":            {test_utils.NewAddress(0x9), make([]byte, 213)},
+		"kzgPointEvaluation": {test_utils.NewAddress(0xa), test_utils.ValidPointEvaluationInput},
 	}
 
 	for processorName, processor := range getProcessors() {
