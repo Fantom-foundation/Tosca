@@ -38,7 +38,6 @@ pub fn run<'a>(
     let mut status_code = StatusCode::EVMC_SUCCESS;
     let mut output = None;
 
-    //println!("##### running test #####");
     loop {
         match &mut steps {
             None => (),
@@ -52,7 +51,6 @@ pub fn run<'a>(
                 break;
             }
             Err(GetOpcodeError::Invalid) => {
-                //println!("invalid Opcode 0x{op:x?}");
                 return Err((
                     StepStatusCode::EVMC_STEP_FAILED,
                     StatusCode::EVMC_INVALID_INSTRUCTION,
