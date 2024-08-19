@@ -56,27 +56,8 @@ jobs:
     - name: Test
       run: make test-go
 
-    - name: Run coverage and set status
-      id: coverage
-      run: |
-        COVERAGE_RESULT=$(make coverage-report)
-        echo "$COVERAGE_RESULT"
-        echo "COVERAGE_RESULT=${COVERAGE_RESULT}" >> $GITHUB_ENV
-
-    - name: Comment on PR if coverage fails
-      if: failure()
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const coverageResult = process.env.COVERAGE_RESULT;
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: `Coverage failed with the following output:\n\n${coverageResult}`
-          });
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Coverage report
+      run: make coverage-report
 
     - name: CT regression tests LFVM
       run: go run ./go/ct/driver regressions lfvm
