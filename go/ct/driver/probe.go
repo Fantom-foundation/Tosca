@@ -11,6 +11,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"sync"
@@ -193,7 +194,7 @@ func testState(specification spc.Specification, state *st.State, evm ct.Evm) err
 	defer result.Release()
 
 	if !expected.Eq(result) {
-		return fmt.Errorf(formatDiffForUser(state, result, expected, rules[0].Name))
+		return errors.New(formatDiffForUser(state, result, expected, rules[0].Name))
 	}
 	return nil
 }

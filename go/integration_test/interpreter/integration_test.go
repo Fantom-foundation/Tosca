@@ -941,7 +941,7 @@ func runOverflowTests(t *testing.T, instruction vm.OpCode, tests []overflowTestC
 					// Check the result.
 					if test.result != nil {
 
-						if res.Output != nil && len(res.Output) >= 32 {
+						if len(res.Output) >= 32 {
 							result := big.NewInt(0).SetBytes(res.Output[0:32])
 							if result.Cmp(test.result) != 0 {
 								t.Errorf("execution result is different want: %v, got: %v", test.result, result)
