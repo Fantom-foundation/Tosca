@@ -12,7 +12,11 @@ package lfvm
 
 import (
 	"encoding/hex"
+	"io"
 	"log"
+	"os"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -451,6 +455,222 @@ func TestOKInstructionPath(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRunReturnsEmptyResultOnEmptyCode(t *testing.T) {
+	// Create execution context.
+	ctxt := getEmptyContext()
+	// Get tosca.Parameters
+	ctxt.params = tosca.Parameters{
+		Input:  []byte{},
+		Static: true,
+		Gas:    10,
+	}
+	ctxt.code = make([]Instruction, 0)
+
+	// Run testing code
+	result, err := Run(ctxt.params, ctxt.code, false, true, false)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if result.Output != nil {
+		t.Errorf("unexpected output: want nil, got %v", result.Output)
+	}
+	if result.GasLeft != ctxt.params.Gas {
+		t.Errorf("unexpected gas left: want %v, got %v", 10, result.GasLeft)
+	}
+	if !result.Success {
+		t.Errorf("unexpected success: want true, got false")
+	}
+}
+
+func TestRunWithStatistics(t *testing.T) {
+	// Create execution context.
+	ctxt := getEmptyContext()
+	// Get tosca.Parameters
+	ctxt.params = tosca.Parameters{
+		Input:  []byte{},
+		Static: true,
+		Gas:    10,
+		Code:   []byte{byte(STOP), 0},
+	}
+	ctxt.code = []Instruction{{STOP, 0}}
+
+	// Run testing code
+	_, err := Run(ctxt.params, ctxt.code, true, true, false)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if got := global_statistics.single_count[uint64(STOP)]; got != 1 {
+		t.Errorf("unexpected statistics: want 1 stop, got %v", got)
+	}
+}
+
+func TestRunWithLogging(t *testing.T) {
+	// Create execution context.
+	ctxt := getEmptyContext()
+	instructions := []Instruction{
+		{PUSH1, 1},
+		{STOP, 0}}
+	code := []byte{
+		byte(PUSH1), 1,
+		byte(STOP), 0,
+	}
+	// Get tosca.Parameters
+	ctxt.params = tosca.Parameters{
+		Input:  []byte{},
+		Static: true,
+		Gas:    10,
+		Code:   code,
+	}
+	ctxt.code = instructions
+
+	// redirect stdout
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Run testing code
+	_, err := Run(ctxt.params, ctxt.code, false, true, true)
+	// read the output
+	w.Close()
+	out, _ := io.ReadAll(r)
+	os.Stdout = old
+
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// check the output
+	if !strings.Contains(string(out), "STOP") {
+		t.Errorf("unexpected output: want STOP, got %v", string(out))
+	}
+}
+
+func TestRunStoppedStatusRecognized(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	runContext := tosca.NewMockRunContext(ctrl)
+	instruction := []Instruction{{STOP, 0}}
+	code := []byte{byte(STOP), 0}
+	ctxt := getContext(instruction, make([]byte, 0), runContext, 0, GAS_START, tosca.R07_Istanbul)
+	ctxt.params.Code = code
+	// Run testing code
+	res, err := Run(ctxt.params, ctxt.code, false, true, false)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// Check the result.
+	if res.GasLeft != ctxt.params.Gas {
+		t.Errorf("unexpected gas left: want %v, got %v", ctxt.params.Gas, res.GasLeft)
+	}
+	if !res.Success {
+		t.Errorf("unexpected success: want true, got false")
+	}
+	if res.GasRefund != ctxt.refund {
+		t.Errorf("unexpected gas refund: want %v, got %v", ctxt.refund, res.GasRefund)
+	}
+}
+
+func TestRunRevertedStatusRecognized(t *testing.T) {
+
+	instruction := []Instruction{
+		{PUSH2, 0xFF01},
+		{PUSH1, 0},
+		{MSTORE, 0},
+		{PUSH1, 2},
+		{PUSH1, 0},
+		{REVERT, 0},
+	}
+	code := tosca.Code{
+		byte(PUSH2), 0xFF, 0x01,
+		byte(PUSH1), 0,
+		byte(MSTORE), 0,
+		byte(PUSH1), 2,
+		byte(PUSH1), 0,
+		byte(REVERT),
+	}
+	params := tosca.Parameters{
+		Input:  []byte{},
+		Static: true,
+		Gas:    18,
+		Code:   code,
+	}
+
+	// Run testing code
+	res, err := Run(params, instruction, false, true, false)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// Check the result.
+	if res.GasLeft != 0 {
+		t.Errorf("unexpected gas left: want %v, got %v", 0, res.GasLeft)
+	}
+	if res.Success {
+		t.Errorf("unexpected success: want false, got %v", res.Success)
+	}
+	if slices.Equal(res.Output, []byte{0xFF, 0x01}) {
+		t.Errorf("unexpected output: want %v, got %v", tosca.Data{0xFF, 0x01}, res.Output)
+	}
+}
+
+func TestRunreturnedStatusRecognized(t *testing.T) {
+	instruction := []Instruction{
+		{PUSH2, 0xFF01},
+		{PUSH1, 0},
+		{MSTORE, 0},
+		{PUSH1, 2},
+		{PUSH1, 0},
+		{RETURN, 0},
+	}
+	code := tosca.Code{
+		byte(PUSH2), 0xFF, 0x01,
+		byte(PUSH1), 0,
+		byte(MSTORE), 0,
+		byte(PUSH1), 2,
+		byte(PUSH1), 0,
+		byte(RETURN),
+	}
+	params := tosca.Parameters{
+		Input:  []byte{},
+		Static: true,
+		Gas:    18,
+		Code:   code,
+	}
+
+	// Run testing code
+	res, err := Run(params, instruction, false, true, false)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// Check the result.
+	if res.GasLeft != 0 {
+		t.Errorf("unexpected gas left: want %v, got %v", 0, res.GasLeft)
+	}
+	if !res.Success {
+		t.Errorf("unexpected success: want true, got %v", res.Success)
+	}
+	if slices.Equal(res.Output, []byte{0xFF, 0x01}) {
+		t.Errorf("unexpected output: want %v, got %v", tosca.Data{0xFF, 0x01}, res.Output)
+	}
+}
+
+func TestRunUnsuccessfulExecution(t *testing.T) {
+
+	tests := map[string]struct {
+		statusDesired Status
+		code          tosca.Code
+	}{
+		"invalid instruction": {INVALID_INSTRUCTION,
+		OUT_OF_GAS,
+		SEGMENTATION_FAULT,
+		MAX_INIT_CODE_SIZE_EXCEEDED,
+		ERROR,
+	}
+
 }
 
 func getFibExample() example {
