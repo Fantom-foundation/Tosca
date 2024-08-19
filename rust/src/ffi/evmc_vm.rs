@@ -12,7 +12,7 @@ use evmc_vm::{
     EvmcContainer, EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult, SetOptionError,
 };
 
-use crate::EvmRs;
+use crate::evmc::EvmRs;
 
 static EVM_RS_NAME: &str = "evmrs\0";
 static EVM_RS_VERSION: &str = "0.1.0\0";

@@ -16,8 +16,8 @@ use ::evmc_vm::{
 };
 
 use crate::{
+    evmc::EvmRs,
     ffi::evmc_vm::{self, EVMC_CAPABILITY},
-    EvmRs,
 };
 
 #[no_mangle]
