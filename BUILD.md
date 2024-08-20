@@ -14,6 +14,9 @@ git submodule update --init --recursive
 - C/C++ toolchain, Clang >= 16 or Gcc >= 11.4
     - Ubuntu/Debian package: `clang`
     - Recommended: install `clang-format`, `clangd`, and `gdb` for development
+- Rust toolchain >= 1.80.1
+    - [install Rust](https://rustup.rs/)
+    - Recommended: install `rust-analyzer` VSCode extension
 - [mockgen](https://github.com/golang/mock)
     - Install via Go:
       ```sh
@@ -39,6 +42,8 @@ Use the provided Makefile to build and test the project.
 make
 make test
 ```
+
+Currently, Rust is not yet integrated into `make`. Run `cd rust && cargo build --release` to build the shared library.
 
 ## Development Experience C++
 
@@ -287,4 +292,3 @@ Lints can be disabled as described [here](https://golangci-lint.run/usage/false-
 ### C++
 
 There is currently no infrastructure to run static analysis for C++ code in this project.
-

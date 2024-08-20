@@ -1,0 +1,113 @@
+name: Rust
+
+permissions:
+  contents: read
+  checks: write
+
+on:
+  push:
+    branches: [ main, evmrs ]
+    paths:
+      - '**.rs''
+      - 'Cargo.*'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.rs''
+      - 'Cargo.*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  format:
+    name: format
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+    - name: install rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt
+    - name: cargo fmt
+      working-directory: rust
+      run: cargo fmt --check
+
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+    - name: install rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
+    - name: cargo clippy
+      working-directory: rust
+      run: cargo clippy --all-features --examples --tests -- --deny warnings
+    
+  doc:
+    name: doc
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+    - name: install rust
+      uses: dtolnay/rust-toolchain@stable
+    - name: load cache
+      uses: Swatinem/rust-cache@v2
+    - name: cargo doc
+      env:
+        RUSTDOCFLAGS: "-D warnings" 
+      working-directory: rust
+      run: cargo doc --no-deps --all-features
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+    - name: install rust
+      uses: dtolnay/rust-toolchain@stable
+    - name: load cache
+      uses: Swatinem/rust-cache@v2
+    - name: cargo build
+      working-directory: rust
+      run: cargo build
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+    - name: install rust
+      uses: dtolnay/rust-toolchain@stable
+    - name: load cache
+      uses: Swatinem/rust-cache@v2
+    - name: cargo test
+      working-directory: rust
+      run: cargo test --all-features
+
+  deps:
+    name: unused deps
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+    - name: load cache
+      uses: Swatinem/rust-cache@v2
+    - name: install cargo-machete
+      run: cargo install cargo-machete
+    - name: cargo machete
+      working-directory: rust
+      run: cargo machete
