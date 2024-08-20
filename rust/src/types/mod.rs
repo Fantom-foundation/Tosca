@@ -1,3 +1,4 @@
 mod amount;
+mod opcode;
 
-pub use amount::u256;
+pub use self::{amount::u256, opcode::*};
