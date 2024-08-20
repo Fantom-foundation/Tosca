@@ -222,9 +222,10 @@ class VM : public evmc_vm {
     // Copy stack to raw buffer.
     evmc_uint256be* stack_data = nullptr;
     if (stepping_result.stack.GetSize()) {
-      stack_data = new evmc_uint256be[stepping_result.stack.GetSize()];
-      for (size_t i = 0; i < stepping_result.stack.GetSize(); ++i) {
-        stack_data[i] = ToEvmcBytes(stepping_result.stack[i]);
+      auto stack_size = stepping_result.stack.GetSize();
+      stack_data = new evmc_uint256be[stack_size];
+      for (size_t i = 0; i < stack_size; ++i) {
+        stack_data[stack_size - 1 - i] = ToEvmcBytes(stepping_result.stack[i]);
       }
     }
 
