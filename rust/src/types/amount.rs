@@ -12,24 +12,25 @@ use bnum::{
     types::{I256, U256, U512},
     BInt, BUint,
 };
+use evmc_vm::{Address, Uint256};
 
 /// This represents a 256-bit integer. Internally it is a 32 byte array of [`u8`] in big endian.
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy)]
 #[repr(transparent)]
-pub struct u256([u8; 32]);
+pub struct u256(Uint256);
 
 impl Deref for u256 {
     type Target = [u8; 32];
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.0.bytes
     }
 }
 
 impl DerefMut for u256 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.0.bytes
     }
 }
 
@@ -54,8 +55,20 @@ impl Debug for u256 {
 }
 
 impl u256 {
-    pub const ZERO: Self = Self([0; 32]);
-    pub const MAX: Self = Self([0xff; 32]);
+    pub const ZERO: Self = Self(Uint256 { bytes: [0; 32] });
+    pub const MAX: Self = Self(Uint256 { bytes: [0xff; 32] });
+}
+
+impl From<Uint256> for u256 {
+    fn from(value: Uint256) -> Self {
+        Self(value)
+    }
+}
+
+impl From<u256> for Uint256 {
+    fn from(value: u256) -> Self {
+        value.0
+    }
 }
 
 impl From<U256> for u256 {
@@ -114,13 +127,13 @@ impl From<U512> for u256 {
 
 impl From<u256> for U512 {
     fn from(value: u256) -> Self {
-        U512::from_be_slice(&value.0).unwrap()
+        U512::from_be_slice(value.deref()).unwrap()
     }
 }
 
 impl From<[u8; 32]> for u256 {
     fn from(value: [u8; 32]) -> Self {
-        Self(value)
+        Self(Uint256 { bytes: value })
     }
 }
 
@@ -154,6 +167,30 @@ impl From<u64> for u256 {
 impl From<usize> for u256 {
     fn from(value: usize) -> Self {
         (value as u64).into()
+    }
+}
+
+impl From<Address> for u256 {
+    fn from(value: Address) -> Self {
+        let mut bytes = [0; 32];
+        bytes[32 - 20..].copy_from_slice(&value.bytes);
+        bytes.into()
+    }
+}
+
+impl From<&Address> for u256 {
+    fn from(value: &Address) -> Self {
+        let mut bytes = [0; 32];
+        bytes[32 - 20..].copy_from_slice(&value.bytes);
+        bytes.into()
+    }
+}
+
+impl From<u256> for Address {
+    fn from(value: u256) -> Self {
+        let mut bytes = [0; 20];
+        bytes.copy_from_slice(&value[32 - 20..]);
+        Address { bytes }
     }
 }
 
