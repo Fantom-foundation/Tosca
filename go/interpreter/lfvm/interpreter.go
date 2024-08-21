@@ -264,7 +264,7 @@ func (s *statistics) Insert(src *statistics) {
 func (s *statistics) Print() {
 	log.Printf("\n----- Statistiscs ------\n")
 	log.Printf("\nSteps: %d\n", s.count)
-	log.Printf("\nSingels:\n")
+	log.Printf("\nSingles:\n")
 	for _, e := range getTopN(s.single_count, 5) {
 		log.Printf("\t%-30v: %d (%.2f%%)\n", OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
 	}
@@ -427,7 +427,7 @@ func steps(c *context, one_step_only bool) {
 		}
 
 		// Execute instruction
-		switch op {
+		switch op { // coverage-ignore opcodes are tested by CT
 		case POP:
 			opPop(c)
 		case PUSH0:

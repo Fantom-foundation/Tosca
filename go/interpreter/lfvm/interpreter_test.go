@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 	"go.uber.org/mock/gomock"
@@ -680,6 +681,76 @@ func TestGetOutputReturnsExpectedErrors(t *testing.T) {
 			_, err := getOutput(&ctxt)
 			if !errors.Is(err, test.expectedErr) {
 				t.Errorf("unexpected error: want error, got nil")
+			}
+		})
+	}
+}
+
+func TestDumpProfilePrintsExpectedOutput(t *testing.T) {
+
+	tests := map[string]struct {
+		code         tosca.Code
+		findInOutput []string
+	}{
+		"singles": {tosca.Code{byte(vm.STOP)},
+			[]string{
+				"Steps: 1",
+				"STOP                          : 1 (100.00%)",
+			}},
+		"pairs": {tosca.Code{byte(vm.PUSH1), 0x01, byte(vm.STOP)},
+			[]string{
+				"Steps: 2",
+				"PUSH1                         : 1 (50.00%)",
+				"STOP                          : 1 (50.00%)",
+				"PUSH1                         STOP                          : 1"}},
+		"triples": {tosca.Code{byte(vm.PUSH1), 0x01, byte(vm.PUSH1), 0x01, byte(vm.STOP)},
+			[]string{
+				"Steps: 3",
+				"PUSH1                         : 2 (66.67%)",
+				"STOP                          : 1 (33.33%)",
+				"PUSH1                         PUSH1                         STOP                          : 1"}},
+		"quads": {tosca.Code{byte(vm.PUSH1), 0x01, byte(vm.PUSH1), 0x01, byte(vm.PUSH1), 0x01, byte(vm.STOP)},
+			[]string{
+				"Steps: 4",
+				"PUSH1                         : 3 (75.00%)",
+				"STOP                          : 1 (25.00%)",
+				"PUSH1                         PUSH1                         PUSH1                         : 1 (25.00%)",
+				"PUSH1                         PUSH1                         STOP                          : 1 (25.00%)",
+				"PUSH1                         PUSH1                         PUSH1                         STOP                          : 1 (25.00%)",
+			}},
+	}
+
+	for name, test := range tests {
+		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
+			r, w, err := os.Pipe()
+			if err != nil {
+				t.Fatalf("Failed to create pipe: %v", err)
+			}
+
+			// redirect stdout
+			old := os.Stderr
+			os.Stderr = w
+			log.SetOutput(os.Stderr)
+
+			instance := VM{with_statistics: true}
+			instance.ResetProfile()
+			//run code
+			instance.Run(tosca.Parameters{Input: []byte{}, Static: true, Gas: 10,
+				Code: test.code})
+
+			// Run testing code
+			instance.DumpProfile()
+
+			// read the output
+			w.Close()
+			out, _ := io.ReadAll(r)
+			os.Stderr = old
+			log.SetOutput(os.Stderr)
+
+			for _, s := range test.findInOutput {
+				if !strings.Contains(string(out), s) {
+					t.Errorf("did not find ocurrences of %v in %v", s, string(out))
+				}
 			}
 		})
 	}
