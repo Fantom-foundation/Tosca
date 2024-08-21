@@ -6,11 +6,7 @@ use crate::types::u256;
 pub struct Stack(Vec<u256>);
 
 impl Stack {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn from_vec(inner: Vec<u256>) -> Self {
+    pub fn new(inner: Vec<u256>) -> Self {
         Self(inner)
     }
 
@@ -72,32 +68,32 @@ mod tests {
 
     #[test]
     fn push() {
-        let mut stack = Stack::new();
+        let mut stack = Stack::new(Vec::new());
         assert_eq!(stack.push(u256::MAX), Ok(()));
         assert_eq!(stack.into_inner().pop(), Some(u256::MAX));
 
-        let mut stack = Stack::from_vec(vec![u256::ZERO; 1024]);
+        let mut stack = Stack::new(vec![u256::ZERO; 1024]);
         assert_eq!(stack.push(u256::ZERO), Err(StatusCode::EVMC_STACK_OVERFLOW));
     }
 
     #[test]
     fn pop() {
-        let mut stack = Stack::from_vec(vec![u256::MAX]);
+        let mut stack = Stack::new(vec![u256::MAX]);
         assert_eq!(stack.pop::<1>(), Ok([u256::MAX]));
 
-        let mut stack = Stack::from_vec(vec![]);
+        let mut stack = Stack::new(vec![]);
         assert_eq!(stack.pop::<1>(), Err(StatusCode::EVMC_STACK_UNDERFLOW));
 
-        let mut stack = Stack::from_vec(vec![u256::MAX, u256::MAX]);
+        let mut stack = Stack::new(vec![u256::MAX, u256::MAX]);
         assert_eq!(stack.pop::<2>(), Ok([u256::MAX, u256::MAX]));
 
-        let mut stack = Stack::from_vec(vec![u256::MAX]);
+        let mut stack = Stack::new(vec![u256::MAX]);
         assert_eq!(stack.pop::<2>(), Err(StatusCode::EVMC_STACK_UNDERFLOW));
     }
 
     #[test]
     fn nth() {
-        let stack = Stack::from_vec(vec![u256::MAX, u256::ZERO]);
+        let stack = Stack::new(vec![u256::MAX, u256::ZERO]);
         assert_eq!(stack.nth(0), Ok(u256::ZERO));
         assert_eq!(stack.nth(1), Ok(u256::MAX));
         assert_eq!(stack.nth(2), Err(StatusCode::EVMC_STACK_UNDERFLOW));
@@ -105,7 +101,7 @@ mod tests {
 
     #[test]
     fn swap_with_top() {
-        let mut stack = Stack::from_vec(vec![u256::MAX, u256::ZERO]);
+        let mut stack = Stack::new(vec![u256::MAX, u256::ZERO]);
         assert_eq!(stack.swap_with_top(0), Ok(()));
         assert_eq!(stack.swap_with_top(1), Ok(()));
         assert_eq!(
