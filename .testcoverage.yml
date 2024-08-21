@@ -44,6 +44,15 @@ threshold:
 override:
   # files
   - threshold: 0
+    path: go/interpreter/lfvm/memory.go
+  - threshold: 0
+    path: go/interpreter/lfvm/opcode.go
+  - threshold: 0
+    path: go/interpreter/lfvm/shadow.go
+  - threshold: 0
+    path: go/interpreter/lfvm/super_instructions.go
+
+  - threshold: 0
     path: go/ct/gen/assignment.go
   - threshold: 0
     path: go/ct/gen/state.go
@@ -81,6 +90,8 @@ override:
     path: go/tosca/utils.go
 
   # packages
+  - threshold: 80
+    path: go/interpreter/lfvm
   - threshold: 0
     path: go/ct/rlz
   - threshold: 0
