@@ -3,5 +3,14 @@
 version = 3
 
 [[package]]
+name = "bnum"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e31ea183f6ee62ac8b8a8cf7feddd766317adfb13ff469de57ce033efd6a790"
+
+[[package]]
 name = "evmrs"
 version = "0.1.0"
+dependencies = [
+ "bnum",
+]
