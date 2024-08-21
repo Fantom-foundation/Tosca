@@ -56,21 +56,8 @@ jobs:
     - name: Test
       run: make test-go
 
-    - name: Report coverage
-      if: github.ref != 'refs/heads/main'
-      uses: actions/github-script@v6
-      with:
-       script: |
-          const execSync = require('child_process').execSync;
-          const coverageResult = execSync('make coverage-report', { encoding: 'utf-8' });
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: `Test results:\n\n${coverageResult}`
-          });
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Coverage report
+      run: make coverage-report
 
     - name: CT regression tests LFVM
       run: go run ./go/ct/driver regressions lfvm
