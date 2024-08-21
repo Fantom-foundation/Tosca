@@ -756,6 +756,133 @@ func TestDumpProfilePrintsExpectedOutput(t *testing.T) {
 	}
 }
 
+func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
+	// Create execution context.
+	ctxt := getEmptyContext()
+	instructions := []Instruction{
+		{JUMP_TO, 0x02},
+		{RETURN, 0},
+		{STOP, 0},
+	}
+
+	// Get tosca.Parameters
+	ctxt.params = tosca.Parameters{
+		Input:  []byte{},
+		Static: false,
+		Gas:    10,
+		Code:   []byte{0x0},
+	}
+	ctxt.code = instructions
+
+	// Run testing code
+	steps(&ctxt, false)
+
+	if ctxt.status != STOPPED {
+		t.Errorf("unexpected status: want STOPPED, got %v", ctxt.status)
+	}
+}
+
+func TestStepsDetectsNonExecutableCode(t *testing.T) {
+	// Create execution context.
+	instructions := []struct {
+		instruction []Instruction
+		status      Status
+	}{
+		{[]Instruction{{NUM_EXECUTABLE_OPCODES - 1, 0x0101}, {DATA, 0x0001}, {STOP, 0}}, STOPPED},
+		{[]Instruction{{NUM_EXECUTABLE_OPCODES, 0}}, ERROR},
+		{[]Instruction{{NUM_EXECUTABLE_OPCODES + 1, 0}}, ERROR},
+	}
+
+	for _, test := range instructions {
+		ctxt := getEmptyContext()
+		// Get tosca.Parameters
+		ctxt.params = tosca.Parameters{
+			Input:  []byte{},
+			Static: false,
+			Gas:    10,
+			Code:   []byte{0x0},
+		}
+		ctxt.code = test.instruction
+
+		// Run testing code
+		steps(&ctxt, false)
+
+		if ctxt.status != test.status {
+			t.Errorf("unexpected status: want STOPPED, got %v", ctxt.status)
+		}
+	}
+}
+
+func TestStepsDoesNotExecuteCodeIfStatic(t *testing.T) {
+
+	tests := map[string]struct {
+		instructions []Instruction
+		status       Status
+	}{
+		"mstore": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {MSTORE, 0}}, STOPPED},
+		"sstore": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, ERROR},
+		"LOG0":   {[]Instruction{{PUSH1, 0}, {LOG0, 0}}, ERROR},
+		"LOG1":   {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {LOG1, 0}}, ERROR},
+		"LOG2": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0}, {LOG2, 0}},
+			ERROR},
+		"LOG3": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0},
+			{LOG3, 0}}, ERROR},
+		"LOG4": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0},
+			{PUSH1, 0}, {LOG3, 0}}, ERROR},
+		"CREATE":       {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {CREATE, 0}}, ERROR},
+		"CREATE2":      {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {CREATE2, 0}}, ERROR},
+		"SELFDESTRUCT": {[]Instruction{{PUSH1, 0}, {SELFDESTRUCT, 0}}, ERROR},
+		"TSTORE":       {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {TSTORE, 0}}, ERROR},
+		"CALL":         {[]Instruction{{PUSH1, 1}, {PUSH1, 1}, {PUSH1, 1}, {CALL, 0}}, ERROR},
+	}
+
+	for name, test := range tests {
+		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
+			ctxt := getEmptyContext()
+			// Get tosca.Parameters
+			ctxt.params = tosca.Parameters{
+				Input:  []byte{},
+				Static: true,
+				Gas:    10,
+				Code:   []byte{0x0},
+			}
+			ctxt.code = test.instructions
+
+			// Run testing code
+			steps(&ctxt, false)
+
+			if ctxt.status != test.status {
+				t.Errorf("unexpected status: want %v, got %v", test.status, ctxt.status)
+			}
+		})
+	}
+}
+
+func TestStepsFailsOnTooLittleGas(t *testing.T) {
+	// Create execution context.
+	ctxt := getEmptyContext()
+	instructions := []Instruction{
+		{PUSH1, 0},
+	}
+
+	// Get tosca.Parameters
+	ctxt.params = tosca.Parameters{
+		Input:  []byte{},
+		Static: false,
+		Gas:    2,
+		Code:   []byte{0x0},
+	}
+	ctxt.gas = 2
+	ctxt.code = instructions
+
+	// Run testing code
+	steps(&ctxt, false)
+
+	if ctxt.status != OUT_OF_GAS {
+		t.Errorf("unexpected status: want OUT_OF_GAS, got %v", ctxt.status)
+	}
+}
+
 func getFibExample() example {
 	// An implementation of the fib function in EVM byte code.
 	code, err := hex.DecodeString("608060405234801561001057600080fd5b506004361061002b5760003560e01c8063f9b7c7e514610030575b600080fd5b61004a600480360381019061004591906100f6565b610060565b6040516100579190610132565b60405180910390f35b600060018263ffffffff161161007957600190506100b0565b61008e600283610089919061017c565b610060565b6100a360018461009e919061017c565b610060565b6100ad91906101b4565b90505b919050565b600080fd5b600063ffffffff82169050919050565b6100d3816100ba565b81146100de57600080fd5b50565b6000813590506100f0816100ca565b92915050565b60006020828403121561010c5761010b6100b5565b5b600061011a848285016100e1565b91505092915050565b61012c816100ba565b82525050565b60006020820190506101476000830184610123565b92915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b6000610187826100ba565b9150610192836100ba565b9250828203905063ffffffff8111156101ae576101ad61014d565b5b92915050565b60006101bf826100ba565b91506101ca836100ba565b9250828201905063ffffffff8111156101e6576101e561014d565b5b9291505056fea26469706673582212207fd33e47e97ce5871bb05401e6710238af535ae8aeaab013ca9a9c29152b8a1b64736f6c637827302e382e31372d646576656c6f702e323032322e382e392b636f6d6d69742e62623161386466390058")
