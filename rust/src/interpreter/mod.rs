@@ -15,7 +15,9 @@ use evmc_vm::{
 };
 use sha3::{Digest, Keccak256};
 
-pub use crate::interpreter::{code_state::CodeState, memory::Memory, stack::Stack, utils::*};
+pub use crate::interpreter::{
+    code_state::CodeState, memory::Memory, run_state::RunState, stack::Stack, utils::*,
+};
 use crate::{
     interpreter::{
         code_state::GetOpcodeError,
@@ -24,7 +26,6 @@ use crate::{
             consume_positive_value_cost, consume_value_to_empty_account_cost,
         },
         run_result::RunResult,
-        run_state::RunState,
         tx_context::ExecutionTxContext,
     },
     types::{u256, Opcode},
