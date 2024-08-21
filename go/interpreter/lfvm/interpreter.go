@@ -31,7 +31,6 @@ const (
 	SUICIDED
 	INVALID_INSTRUCTION
 	OUT_OF_GAS
-	SEGMENTATION_FAULT
 	MAX_INIT_CODE_SIZE_EXCEEDED
 	ERROR
 )
@@ -143,7 +142,12 @@ func Run(
 		run(&ctxt)
 	}
 
-	res, err := getResult(&ctxt)
+	return generateResult(&ctxt)
+}
+
+func generateResult(ctxt *context) (tosca.Result, error) {
+
+	res, err := getOutput(ctxt)
 	if err != nil {
 		return tosca.Result{Success: false}, nil
 	}
@@ -169,7 +173,7 @@ func Run(
 			Output:  res,
 			GasLeft: ctxt.gas,
 		}, nil
-	case INVALID_INSTRUCTION, OUT_OF_GAS, SEGMENTATION_FAULT, MAX_INIT_CODE_SIZE_EXCEEDED, ERROR:
+	case INVALID_INSTRUCTION, OUT_OF_GAS, MAX_INIT_CODE_SIZE_EXCEEDED, ERROR:
 		return tosca.Result{
 			Success: false,
 		}, nil
@@ -178,7 +182,7 @@ func Run(
 	}
 }
 
-func getResult(ctxt *context) ([]byte, error) {
+func getOutput(ctxt *context) ([]byte, error) {
 	var res []byte
 	if ctxt.status == RETURNED || ctxt.status == REVERTED {
 		size, overflow := ctxt.result_size.Uint64WithOverflow()
@@ -197,7 +201,7 @@ func getResult(ctxt *context) ([]byte, error) {
 				return nil, err
 			}
 			res = make([]byte, size)
-			ctxt.memory.CopyData(offset, res[:])
+			ctxt.memory.CopyData(offset, res)
 		}
 	}
 	return res, nil
