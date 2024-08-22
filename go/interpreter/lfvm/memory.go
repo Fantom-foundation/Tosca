@@ -112,10 +112,6 @@ func (m *Memory) SetByte(offset uint64, value byte, c *context) error {
 	if err != nil {
 		return err
 	}
-
-	if m.Len() < offset+1 {
-		return fmt.Errorf("memory too small, size %d, attempted to write at position %d", m.Len(), offset)
-	}
 	m.store[offset] = value
 	return nil
 }
@@ -124,10 +120,6 @@ func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
 	err := m.EnsureCapacity(offset, 32, c)
 	if err != nil {
 		return err
-	}
-
-	if m.Len() < offset+32 {
-		return fmt.Errorf("memory too small, size %d, attempted to write 32 byte at position %d", m.Len(), offset)
 	}
 
 	// Inlining and unrolling value.WriteToSlice(..) lead to a 7x speedup
@@ -201,9 +193,6 @@ func (m *Memory) SetWithCapacityCheck(offset, size uint64, value []byte) error {
 		if offset+size < offset {
 			return errGasUintOverflow
 		}
-		if offset+size > m.Len() {
-			return fmt.Errorf("memory too small, size %d, attempted to write %d bytes at %d", m.Len(), size, offset)
-		}
 		copy(m.store[offset:offset+size], value)
 	}
 	return nil
@@ -213,9 +202,6 @@ func (m *Memory) CopyWord(offset uint64, trg *uint256.Int, c *context) error {
 	err := m.EnsureCapacity(offset, 32, c)
 	if err != nil {
 		return err
-	}
-	if m.Len() < offset+32 {
-		return fmt.Errorf("memory too small, size %d, attempted to read 32 byte at position %d", m.Len(), offset)
 	}
 	trg.SetBytes32(m.store[offset : offset+32])
 	return nil
