@@ -581,7 +581,7 @@ func opExp(c *context) {
 }
 
 // Evaluations show a 96% hit rate of this configuration.
-var hashCache = newHashCache(1<<16, 1<<18)
+var hashVault = newHashCache(1<<16, 1<<18)
 
 func opSha3(c *context) {
 	offset, size := c.stack.pop(), c.stack.peek()
@@ -604,7 +604,7 @@ func opSha3(c *context) {
 	}
 	if c.shaCache {
 		// Cache hashes since identical values are frequently re-hashed.
-		c.hasherBuf = hashCache.hash(c, data)
+		c.hasherBuf = hashVault.hash(c, data)
 	} else {
 		if c.hasher == nil {
 			c.hasher = sha3.NewLegacyKeccak256().(keccakState)

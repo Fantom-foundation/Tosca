@@ -37,11 +37,11 @@ type hashCacheEntry64 struct {
 	pred, succ *hashCacheEntry64
 }
 
-// HashCache is an LRU governed fixed-capacity cache for SHA3 hashes.
+// hashCache is an LRU governed fixed-capacity cache for SHA3 hashes.
 // The cache maintains hashes for hashed input data of size 32 and 64,
 // which are the vast majority of values hashed when running EVM
 // instructions.
-type HashCache struct {
+type hashCache struct {
 	// Hash infrastructure for 32-byte long inputs.
 	entries32      []hashCacheEntry32
 	index32        map[[32]byte]*hashCacheEntry32
@@ -58,8 +58,8 @@ type HashCache struct {
 }
 
 // newHashCache creates a HashCache with the given capacity of entries.
-func newHashCache(capacity32 int, capacity64 int) *HashCache {
-	res := &HashCache{
+func newHashCache(capacity32 int, capacity64 int) *hashCache {
+	res := &hashCache{
 		entries32: make([]hashCacheEntry32, capacity32),
 		index32:   make(map[[32]byte]*hashCacheEntry32, capacity32),
 		entries64: make([]hashCacheEntry64, capacity64),
@@ -103,7 +103,7 @@ func newHashCache(capacity32 int, capacity64 int) *HashCache {
 
 // hash fetches a cached hash or computes the hash for the provided data
 // using the hasher in the given context.
-func (h *HashCache) hash(c *context, data []byte) tosca.Hash {
+func (h *hashCache) hash(c *context, data []byte) tosca.Hash {
 	if len(data) == 32 {
 		return h.getHash32(c, data)
 	}
@@ -113,7 +113,7 @@ func (h *HashCache) hash(c *context, data []byte) tosca.Hash {
 	return getHash(c, data)
 }
 
-func (h *HashCache) getHash32(c *context, data []byte) tosca.Hash {
+func (h *hashCache) getHash32(c *context, data []byte) tosca.Hash {
 	var key [32]byte
 	copy(key[:], data)
 	h.lock32.Lock()
@@ -159,7 +159,7 @@ func (h *HashCache) getHash32(c *context, data []byte) tosca.Hash {
 	return entry.hash
 }
 
-func (h *HashCache) getHash64(c *context, data []byte) tosca.Hash {
+func (h *hashCache) getHash64(c *context, data []byte) tosca.Hash {
 	var key [64]byte
 	copy(key[:], data)
 	h.lock64.Lock()
@@ -205,7 +205,7 @@ func (h *HashCache) getHash64(c *context, data []byte) tosca.Hash {
 	return entry.hash
 }
 
-func (h *HashCache) getFree32() *hashCacheEntry32 {
+func (h *hashCache) getFree32() *hashCacheEntry32 {
 	// If there are still free entries, use on of those.
 	if h.nextFree32 < len(h.entries32) {
 		res := &h.entries32[h.nextFree32]
@@ -220,7 +220,7 @@ func (h *HashCache) getFree32() *hashCacheEntry32 {
 	return res
 }
 
-func (h *HashCache) getFree64() *hashCacheEntry64 {
+func (h *hashCache) getFree64() *hashCacheEntry64 {
 	// If there are still free entries, use on of those.
 	if h.nextFree64 < len(h.entries64) {
 		res := &h.entries64[h.nextFree64]
