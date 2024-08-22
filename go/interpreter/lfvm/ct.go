@@ -43,16 +43,13 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		codeHash = *params.CodeHash
 	}
 
-	converted, err := Convert(
+	converted := Convert(
 		params.Code,
 		false, /* no super instructions */
 		params.CodeHash == nil,
 		false, /* with code cache */
 		codeHash,
 	)
-	if err != nil {
-		return nil, err
-	}
 
 	pcMap, err := getPcMap(state.Code)
 	if err != nil {

@@ -37,7 +37,7 @@ func clearConversionCache() {
 	cache.Purge()
 }
 
-func Convert(code []byte, withSuperInstructions bool, isInitCode bool, noCodeCache bool, codeHash tosca.Hash) (Code, error) {
+func Convert(code []byte, withSuperInstructions bool, isInitCode bool, noCodeCache bool, codeHash tosca.Hash) Code {
 	// Do not cache use-once code in create calls.
 	// In those cases the codeHash is also invalid.
 	if isInitCode || noCodeCache {
@@ -46,17 +46,14 @@ func Convert(code []byte, withSuperInstructions bool, isInitCode bool, noCodeCac
 
 	res, exists := cache.Get(codeHash)
 	if exists {
-		return res, nil
+		return res
 	}
 
-	res, error := convert(code, withSuperInstructions)
-	if error != nil {
-		return nil, error
-	}
+	res = convert(code, withSuperInstructions)
 	if !isInitCode {
 		cache.Add(codeHash, res)
 	}
-	return res, nil
+	return res
 }
 
 type codeBuilder struct {
@@ -100,16 +97,13 @@ func (b *codeBuilder) toCode() Code {
 	return b.code[0:b.nextPos]
 }
 
-func convert(code []byte, with_super_instructions bool) (Code, error) {
+func convert(code []byte, with_super_instructions bool) Code {
 	res := newCodeBuilder(len(code))
 
 	// Convert each individual instruction.
 	for i := 0; i < len(code); {
 		// Handle jump destinations
 		if code[i] == byte(vm.JUMPDEST) {
-			if res.length() > i {
-				return nil, errors.New("unable to convert code, encountered targe block larger than input")
-			}
 			// Jump to the next jump destination and fill space with noops
 			if res.length() < i {
 				res.appendOp(JUMP_TO, uint16(i))
@@ -124,7 +118,7 @@ func convert(code []byte, with_super_instructions bool) (Code, error) {
 		inc := appendInstructions(&res, i, code, with_super_instructions)
 		i += inc + 1
 	}
-	return res.toCode(), nil
+	return res.toCode()
 }
 
 // PcMap is a bidirectional map to map program counters between evm <-> lfvm.
@@ -150,9 +144,6 @@ func GenPcMap(code []byte, with_super_instructions bool) (*PcMap, error) {
 	for i := 0; i < len(code); {
 		// Handle jump destinations.
 		if code[i] == byte(vm.JUMPDEST) {
-			if res.length() > i {
-				return nil, errors.New("unable to convert code, encountered target block larger than input")
-			}
 
 			// All lfvm opcodes from jmpto until jmpdest, including the potential nops in between map to evm jmpdest.
 			for j := res.nextPos; j <= i; j++ {
@@ -522,25 +513,6 @@ func createOpToOpMap() []OpCode {
 	res[vm.LOG2] = LOG2
 	res[vm.LOG3] = LOG3
 	res[vm.LOG4] = LOG4
-
-	// Test that all EVM instructions are covered.
-	for i := 0; i < 256; i++ {
-		code := vm.OpCode(i)
-
-		// Known OpCodes that are indeed invalid.
-		if code == vm.INVALID {
-			continue
-		}
-
-		// Push operations are not required to be mapped, they are handled explicitly.
-		if vm.PUSH1 <= code && code <= vm.PUSH32 {
-			continue
-		}
-
-		if res[code] == INVALID && vm.IsValid(code) {
-			panic(fmt.Sprintf("Missing instruction coverage for: %v", code))
-		}
-	}
 
 	return res
 }

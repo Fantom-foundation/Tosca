@@ -60,8 +60,6 @@ override:
   - threshold: 0
     path: go/interpreter/geth/ct.go
   - threshold: 0
-    path: go/interpreter/lfvm/converter.go
-  - threshold: 0
     path: go/interpreter/lfvm/hash_cache.go
   - threshold: 0
     path: go/interpreter/lfvm/instruction.go
@@ -101,7 +99,7 @@ override:
     path: go/integration_test/processor
   - threshold: 0
     path: go/interpreter/evmc
-  - threshold: 0
+  - threshold: 64
     path: go/interpreter/lfvm
   - threshold: 0
     path: go/processor/floria
