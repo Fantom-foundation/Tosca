@@ -211,10 +211,7 @@ func TestConvertToLfvm_Code(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				got, err := convert(cur.evmCode, false)
-				if err != nil {
-					t.Fatalf("failed to convert VM code to lfvm context: %v", err)
-				}
+				got := convert(cur.evmCode, false)
 
 				want := cur.lfvmCode
 

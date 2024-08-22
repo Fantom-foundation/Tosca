@@ -45,16 +45,13 @@ func (v *VM) Run(params tosca.Parameters) (tosca.Result, error) {
 		return tosca.Result{}, &tosca.ErrUnsupportedRevision{Revision: params.Revision}
 	}
 
-	converted, err := Convert(
+	converted := Convert(
 		params.Code,
 		v.with_super_instructions,
 		params.CodeHash == nil,
 		v.no_code_cache,
 		codeHash,
 	)
-	if err != nil {
-		return tosca.Result{}, err
-	}
 
 	return Run(params, converted, v.with_statistics, v.no_shaCache, v.logging)
 }

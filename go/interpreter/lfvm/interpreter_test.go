@@ -477,10 +477,7 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 	example := getFibExample()
 
 	// Convert example to LFVM format.
-	converted, err := convert(example.code, with_super_instructions)
-	if err != nil {
-		b.Fatalf("error converting code: %v", err)
-	}
+	converted := convert(example.code, with_super_instructions)
 
 	// Create input data.
 
