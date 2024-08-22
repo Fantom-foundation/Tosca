@@ -24,17 +24,21 @@ extern "C" fn evmc_create_steppable_evmrs() -> *const evmc_vm_steppable {
     let container = SteppableEvmcContainer::<EvmRs>::new(new_instance);
 
     // Release ownership to EVMC.
+    // SAFETY:
+    // SteppableEvmcContainer::into_ffi_pointer is marked as unsafe in the evmc bindings although it
+    // only contains safe operations (it only calls Box::into_raw which is safe).
     unsafe { SteppableEvmcContainer::into_ffi_pointer(container) }
 }
 
 extern "C" fn __evmc_steppable_destroy(instance: *mut evmc_vm_steppable) {
-    if instance.is_null() {
-        // This is an irrecoverable error that violates the EVMC spec.
-        std::process::abort();
-    }
-    unsafe {
+    if !instance.is_null() {
         // Acquire ownership from EVMC. This will deallocate it also at the end of the scope.
-        SteppableEvmcContainer::<EvmRs>::from_ffi_pointer(instance);
+        // SAFETY:
+        // `instance` is not null. The caller must make sure that it points to a valid
+        // `SteppableEvmcContainer::<EvmRs>`.
+        unsafe {
+            SteppableEvmcContainer::<EvmRs>::from_ffi_pointer(instance);
+        }
     }
 }
 
@@ -70,65 +74,62 @@ extern "C" fn __evmc_step_n(
         std::process::abort();
     }
 
-    let execution_message: ExecutionMessage = unsafe {
-        // SAFETY:
-        // message is not null
-        (&*message).into()
-    };
+    // SAFETY:
+    // `message` is not null. The caller must make sure that is points to a valid
+    // `ExecutionMessage`.
+    let execution_message = ExecutionMessage::from(unsafe { &*message });
 
     let code_ref = if code.is_null() {
         &[]
     } else {
         // SAFETY:
-        // code is not null and code size > 0
+        // `code` is not null and `code_size > 0`. The caller must make sure that the size is
+        // valid.
         unsafe { slice::from_raw_parts(code, code_size) }
     };
 
-    let container = unsafe {
-        // Acquire ownership from EVMC.
-        SteppableEvmcContainer::<EvmRs>::from_ffi_pointer(instance)
-    };
+    // Acquire ownership from EVMC.
+    // SAFETY:
+    // `instance` is not null. The caller must make sure that it points to a valid
+    // `SteppableEvmcContainer::<EvmRs>`.
+    let container = unsafe { SteppableEvmcContainer::<EvmRs>::from_ffi_pointer(instance) };
 
     let result = panic::catch_unwind(|| {
         let mut execution_context = if host.is_null() {
             None
         } else {
-            let execution_context = unsafe {
-                // SAFETY:
-                // host is not null
-                ExecutionContext::new(&*host, context)
-            };
+            // SAFETY:
+            // `host` is not null. The caller must make sure that it points to a valid
+            // `evmc_host_interface`.
+            let execution_context = ExecutionContext::new(unsafe { &*host }, context);
             Some(execution_context)
         };
 
         let stack = if stack.is_null() {
             &mut []
         } else {
-            unsafe {
-                // SAFETY:
-                // stack is not null and stack size > 0
-                slice::from_raw_parts_mut(stack, stack_size)
-            }
+            // SAFETY:
+            // `stack` is not null and `stack_size > 0`. The caller must make sure that the size
+            // is valid.
+            unsafe { slice::from_raw_parts_mut(stack, stack_size) }
         };
 
         let memory = if memory.is_null() {
             &mut []
         } else {
-            unsafe {
-                // SAFETY:
-                // memory is not null and memory size > 0
-                slice::from_raw_parts_mut(memory, memory_size)
-            }
+            // SAFETY:
+            // `memory` is not null and `memory_size > 0`. The caller must make sure that the
+            // size is valid.
+            unsafe { slice::from_raw_parts_mut(memory, memory_size) }
         };
 
         let last_call_result_data = if last_call_result_data.is_null() {
             &mut []
         } else {
-            unsafe {
-                // SAFETY:
-                // last call return data is not null and size > 0
-                slice::from_raw_parts_mut(last_call_result_data, last_call_result_data_size)
-            }
+            // SAFETY:
+            // `last_call_return_data` is not null and `last_call_return_data_size > 0`. The
+            // caller must make sure that the size is valid.
+            unsafe { slice::from_raw_parts_mut(last_call_result_data, last_call_result_data_size) }
         };
 
         container.step_n(
@@ -147,6 +148,9 @@ extern "C" fn __evmc_step_n(
     });
 
     // Release ownership to EVMC.
+    // SAFETY:
+    // SteppableEvmcContainer::into_ffi_pointer is marked as unsafe in the evmc bindings although it
+    // only contains safe operations (it only calls Box::into_raw which is safe).
     unsafe {
         SteppableEvmcContainer::into_ffi_pointer(container);
     }

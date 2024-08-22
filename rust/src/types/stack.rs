@@ -64,7 +64,7 @@ impl Stack {
 mod tests {
     use evmc_vm::StatusCode;
 
-    use crate::{interpreter::stack::Stack, types::u256};
+    use crate::types::{stack::Stack, u256};
 
     #[test]
     fn push() {

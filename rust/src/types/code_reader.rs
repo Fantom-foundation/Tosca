@@ -5,13 +5,13 @@ use evmc_vm::StatusCode;
 use crate::types::{code_byte_type, u256, CodeByteType, Opcode};
 
 #[derive(Debug)]
-pub struct CodeState<'a> {
+pub struct CodeReader<'a> {
     code: &'a [u8],
     code_byte_type: Box<[CodeByteType]>,
     pc: usize,
 }
 
-impl<'a> Deref for CodeState<'a> {
+impl<'a> Deref for CodeReader<'a> {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
@@ -25,7 +25,7 @@ pub enum GetOpcodeError {
     Invalid,
 }
 
-impl<'a> CodeState<'a> {
+impl<'a> CodeReader<'a> {
     pub fn new(code: &'a [u8], pc: usize) -> Self {
         Self {
             code,
@@ -41,13 +41,11 @@ impl<'a> CodeState<'a> {
             Err(GetOpcodeError::Invalid)
         } else {
             let op = self.code[self.pc];
-            let op = unsafe {
-                // SAFETY:
-                // [Opcode] has repr(u8) and therefore the same memory layout as u8.
-                // In get_code_byte_types this byte of the code was determined to be a valid opcode.
-                // Therefore the value is a valid [Opcode].
-                mem::transmute::<u8, Opcode>(op)
-            };
+            // SAFETY:
+            // [Opcode] has repr(u8) and therefore the same memory layout as u8.
+            // In get_code_byte_types this byte of the code was determined to be a valid opcode.
+            // Therefore the value is a valid [Opcode].
+            let op = unsafe { mem::transmute::<u8, Opcode>(op) };
             Ok(op)
         }
     }
@@ -103,9 +101,9 @@ fn compute_code_byte_types(code: &[u8]) -> Box<[CodeByteType]> {
 mod tests {
     use evmc_vm::StatusCode;
 
-    use crate::{
-        interpreter::code_state::{compute_code_byte_types, CodeState, GetOpcodeError},
-        types::{u256, CodeByteType, Opcode},
+    use crate::types::{
+        code_reader::{compute_code_byte_types, CodeReader, GetOpcodeError},
+        u256, CodeByteType, Opcode,
     };
 
     #[test]
@@ -203,30 +201,30 @@ mod tests {
     }
 
     #[test]
-    fn code_state_internals() {
+    fn code_reader_internals() {
         let code = [Opcode::Add as u8, Opcode::Add as u8, 0xc0];
         let pc = 1;
-        let code_state = CodeState::new(&code, pc);
-        assert_eq!(*code_state, code);
-        assert_eq!(code_state.len(), code.len());
-        assert_eq!(code_state.pc(), pc);
+        let code_reader = CodeReader::new(&code, pc);
+        assert_eq!(*code_reader, code);
+        assert_eq!(code_reader.len(), code.len());
+        assert_eq!(code_reader.pc(), pc);
     }
 
     #[test]
-    fn code_state_get() {
-        let mut code_state = CodeState::new(&[Opcode::Add as u8, Opcode::Add as u8, 0xc0], 0);
-        assert_eq!(code_state.get(), Ok(Opcode::Add));
-        code_state.next();
-        assert_eq!(code_state.get(), Ok(Opcode::Add));
-        code_state.next();
-        assert_eq!(code_state.get(), Err(GetOpcodeError::Invalid));
-        code_state.next();
-        assert_eq!(code_state.get(), Err(GetOpcodeError::OutOfRange));
+    fn code_reader_get() {
+        let mut code_reader = CodeReader::new(&[Opcode::Add as u8, Opcode::Add as u8, 0xc0], 0);
+        assert_eq!(code_reader.get(), Ok(Opcode::Add));
+        code_reader.next();
+        assert_eq!(code_reader.get(), Ok(Opcode::Add));
+        code_reader.next();
+        assert_eq!(code_reader.get(), Err(GetOpcodeError::Invalid));
+        code_reader.next();
+        assert_eq!(code_reader.get(), Err(GetOpcodeError::OutOfRange));
     }
 
     #[test]
-    fn code_state_try_jump() {
-        let mut code_state = CodeState::new(
+    fn code_reader_try_jump() {
+        let mut code_reader = CodeReader::new(
             &[
                 Opcode::Push1 as u8,
                 Opcode::JumpDest as u8,
@@ -235,31 +233,31 @@ mod tests {
             0,
         );
         assert_eq!(
-            code_state.try_jump(1u8.into()),
+            code_reader.try_jump(1u8.into()),
             Err(StatusCode::EVMC_BAD_JUMP_DESTINATION)
         );
-        assert_eq!(code_state.try_jump(2u8.into()), Ok(()));
+        assert_eq!(code_reader.try_jump(2u8.into()), Ok(()));
         assert_eq!(
-            code_state.try_jump(3u8.into()),
+            code_reader.try_jump(3u8.into()),
             Err(StatusCode::EVMC_BAD_JUMP_DESTINATION)
         );
     }
 
     #[test]
-    fn code_state_get_push_data() {
-        let mut code_state = CodeState::new(&[0xff; 32], 0);
-        assert_eq!(code_state.get_push_data(0u8.into()), u256::ZERO);
+    fn code_reader_get_push_data() {
+        let mut code_reader = CodeReader::new(&[0xff; 32], 0);
+        assert_eq!(code_reader.get_push_data(0u8.into()), u256::ZERO);
 
-        let mut code_state = CodeState::new(&[0xff; 32], 0);
-        assert_eq!(code_state.get_push_data(1u8.into()), 0xffu8.into());
+        let mut code_reader = CodeReader::new(&[0xff; 32], 0);
+        assert_eq!(code_reader.get_push_data(1u8.into()), 0xffu8.into());
 
-        let mut code_state = CodeState::new(&[0xff; 32], 0);
-        assert_eq!(code_state.get_push_data(32u8.into()), u256::MAX);
+        let mut code_reader = CodeReader::new(&[0xff; 32], 0);
+        assert_eq!(code_reader.get_push_data(32u8.into()), u256::MAX);
 
-        let mut code_state = CodeState::new(&[0xff; 32], 31);
-        assert_eq!(code_state.get_push_data(32u8.into()), 0xffu8.into());
+        let mut code_reader = CodeReader::new(&[0xff; 32], 31);
+        assert_eq!(code_reader.get_push_data(32u8.into()), 0xffu8.into());
 
-        let mut code_state = CodeState::new(&[0xff; 32], 32);
-        assert_eq!(code_state.get_push_data(32u8.into()), u256::ZERO);
+        let mut code_reader = CodeReader::new(&[0xff; 32], 32);
+        assert_eq!(code_reader.get_push_data(32u8.into()), u256::ZERO);
     }
 }

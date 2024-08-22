@@ -129,7 +129,7 @@ dependencies = [
 [[package]]
 name = "evmc-sys"
 version = "12.0.0-alpha.0"
-source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions#b431e14ea11888ae87bbc20b1545ef713ae002a6"
+source = "git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions#2e71997a46b28ce8898346f4ba924c7397e8cb86"
 dependencies = [
  "bindgen",
 ]
@@ -137,7 +137,7 @@ dependencies = [
 [[package]]
 name = "evmc-vm"
 version = "12.0.0-alpha.0"
-source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions#b431e14ea11888ae87bbc20b1545ef713ae002a6"
+source = "git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions#2e71997a46b28ce8898346f4ba924c7397e8cb86"
 dependencies = [
  "evmc-sys",
 ]
