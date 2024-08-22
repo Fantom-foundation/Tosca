@@ -60,8 +60,6 @@ override:
   - threshold: 0
     path: go/interpreter/geth/ct.go
   - threshold: 0
-    path: go/interpreter/lfvm/hash_cache.go
-  - threshold: 0
     path: go/interpreter/lfvm/lfvm.go
   - threshold: 0
     path: go/interpreter/lfvm/opcode.go
