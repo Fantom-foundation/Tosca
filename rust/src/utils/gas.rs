@@ -1,6 +1,10 @@
 use evmc_vm::{AccessStatus, Address, Revision, StatusCode};
 
-use crate::{interpreter::Interpreter, types::u256, utils::word_size};
+use crate::{
+    interpreter::Interpreter,
+    types::{u256, ExecutionContextTrait},
+    utils::word_size,
+};
 
 #[inline(always)]
 pub fn consume_gas(gas_left: &mut u64, gas: u64) -> Result<(), StatusCode> {
@@ -20,10 +24,10 @@ pub fn consume_positive_value_cost(value: &u256, gas_left: &mut u64) -> Result<(
 }
 
 #[inline(always)]
-pub fn consume_value_to_empty_account_cost(
+pub fn consume_value_to_empty_account_cost<E: ExecutionContextTrait>(
     value: &u256,
     addr: &Address,
-    state: &mut Interpreter,
+    state: &mut Interpreter<E>,
 ) -> Result<(), StatusCode> {
     if *value != u256::ZERO && !state.context.account_exists(addr) {
         consume_gas(&mut state.gas_left, 25000)?;
@@ -32,9 +36,9 @@ pub fn consume_value_to_empty_account_cost(
 }
 
 #[inline(always)]
-pub fn consume_address_access_cost(
+pub fn consume_address_access_cost<E: ExecutionContextTrait>(
     addr: &Address,
-    state: &mut Interpreter,
+    state: &mut Interpreter<E>,
 ) -> Result<(), StatusCode> {
     if state.revision < Revision::EVMC_BERLIN {
         return Ok(());
