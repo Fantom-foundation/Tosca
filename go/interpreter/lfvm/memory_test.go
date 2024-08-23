@@ -11,14 +11,20 @@
 package lfvm
 
 import (
+	"bytes"
+	"fmt"
+	"io"
 	"math"
+	"os"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/holiman/uint256"
 )
 
-func TestExpansionCosts(t *testing.T) {
+func TestMemory_ExpansionCosts(t *testing.T) {
 
 	tests := []struct {
 		size uint64
@@ -49,7 +55,7 @@ func TestExpansionCosts(t *testing.T) {
 	}
 }
 
-func TestCopyWord(t *testing.T) {
+func TestMemory_CopyWord(t *testing.T) {
 
 	testValue := []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
 
@@ -97,7 +103,7 @@ func TestCopyWord(t *testing.T) {
 	}
 }
 
-func TestSetByte(t *testing.T) {
+func TestMemory_SetByte(t *testing.T) {
 
 	tests := map[string]struct {
 		value    byte
@@ -136,32 +142,142 @@ func TestSetWordProperlyReportsNotEnoughGas(t *testing.T) {
 	}
 }
 
-// func TestSet(t *testing.T) {
+func TestMemory_Set(t *testing.T) {
 
-// 	tests := map[string]struct {
-// 		size     uint64
-// 		offset   uint64
-// 		expected error
-// 	}{
-// 		"regular":         {size: 8, offset: 0, expected: nil},
-// 		"size overflow":   {size: math.MaxUint64, offset: 1, expected: errGasUintOverflow},
-// 		"offset overflow": {size: 32, offset: math.MaxUint64, expected: errGasUintOverflow},
-// 		"not enough memory": {size: 32, offset: 32,
-// 			expected: fmt.Errorf("memory too small, size %d, attempted to write %d bytes at %d", 8, 32, 32)},
-// 	}
+	tests := map[string]struct {
+		size     uint64
+		offset   uint64
+		expected error
+	}{
+		"regular":         {size: 8, offset: 0, expected: nil},
+		"size overflow":   {size: math.MaxUint64, offset: 1, expected: errGasUintOverflow},
+		"offset overflow": {size: 32, offset: math.MaxUint64, expected: errGasUintOverflow},
+		"not enough memory": {size: 32, offset: 32,
+			expected: fmt.Errorf("memory too small, size %d, attempted to write %d bytes at %d", 8, 32, 32)},
+	}
 
-// 	for name, test := range tests {
-// 		t.Run(name, func(t *testing.T) {
-// 			ctxt := getEmptyContext()
-// 			m := NewMemory()
-// 			m.store = make([]byte, 8)
-// 			ctxt.gas = 100
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctxt := getEmptyContext()
+			m := NewMemory()
+			m.store = make([]byte, 8)
+			ctxt.gas = 100
 
-// 			err := m.Set(test.offset, test.size, []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef})
-// 			if !strings.Contains(err.Error(), test.expected.Error()) {
-// 				t.Errorf("unexpected error, want: %v, got: %v", test.expected, err)
-// 			}
-// 		})
-// 	}
+			err := m.Set(test.offset, test.size, []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef})
 
-// }
+			if err == nil {
+				if test.expected != nil {
+					t.Errorf("expected error %v, got nil", test.expected)
+				}
+			} else if !strings.Contains(err.Error(), test.expected.Error()) {
+				t.Errorf("unexpected error, want: %v, got: %v", test.expected, err)
+			}
+		})
+	}
+}
+
+func TestMemory_CopyData(t *testing.T) {
+
+	baseStore := []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
+
+	tests := map[string]struct {
+		store    []byte
+		offset   uint64
+		target   []byte
+		expected []byte
+	}{
+		"regular": {store: baseStore, offset: 0, target: make([]byte, 8),
+			expected: baseStore},
+		"offset bigger than memory": {store: baseStore, offset: 9, target: make([]byte, 8),
+			expected: []byte{0, 0, 0, 0, 0, 0, 0, 0}},
+		"padding needed": {store: baseStore,
+			offset: 4, target: make([]byte, 8),
+			expected: []byte{0x90, 0xab, 0xcd, 0xef, 0, 0, 0, 0}},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := NewMemory()
+			m.store = test.store
+			target := make([]byte, 8)
+
+			m.CopyData(test.offset, target)
+			if !bytes.Equal(target, test.expected) {
+				t.Errorf("unexpected target value, want: %x, got: %x", test.expected, target)
+			}
+		})
+	}
+
+}
+
+func TestMemory_GetSliceWithCapacity(t *testing.T) {
+
+	baseStore := []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
+
+	tests := map[string]struct {
+		store    []byte
+		offset   uint64
+		size     uint64
+		expected []byte
+	}{
+		"regular":   {store: baseStore, offset: 0, size: 8, expected: baseStore},
+		"size zero": {store: baseStore, offset: 0, size: 0, expected: nil},
+		"size+offset bigger than memory": {store: baseStore, offset: 4, size: 8,
+			expected: nil},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := NewMemory()
+			m.store = test.store
+
+			result := m.GetSliceWithCapacity(test.offset, test.size)
+			if !slices.Equal(result, test.expected) {
+				t.Errorf("unexpected result, want: %x, got: %x", test.expected, result)
+			}
+		})
+	}
+}
+
+func TestMemory_Print(t *testing.T) {
+
+	tests := map[string]struct {
+		store    []byte
+		expected string
+	}{
+		"empty": {store: []byte{},
+			expected: "### mem 0 bytes ###\n-- empty --\n####################\n"},
+		"8 bytes": {store: []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef},
+			expected: "### mem 8 bytes ###\n000: 12 34 56 78 90 ab cd ef\n####################\n"},
+		"32 bytes": {store: []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef,
+			0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef,
+			0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef,
+			0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef},
+			expected: "### mem 32 bytes ###\n000: 12 34 56 78 90 ab cd ef 12 34 56 78 90 ab cd ef 12 34 56 78 90 ab cd ef 12 34 56 78 90 ab cd ef\n####################\n"},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := NewMemory()
+			m.store = test.store
+
+			// redirect stdout
+			old := os.Stdout
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+
+			// Run testing code
+			m.Print()
+			// read the output
+			w.Close()
+			out, _ := io.ReadAll(r)
+			os.Stdout = old
+
+			if string(out) != test.expected {
+				t.Errorf("unexpected output, want: %v, got: %v", test.expected, string(out))
+			}
+
+		})
+	}
+
+}

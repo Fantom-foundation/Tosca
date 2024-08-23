@@ -180,22 +180,12 @@ func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c
 	if err != nil {
 		return err
 	}
-	err = m.Set(offset, size, value)
-	if err != nil {
-		return err
-	}
-	return nil
+	return m.Set(offset, size, value)
 }
 
 func (m *Memory) SetWithCapacityCheck(offset, size uint64, value []byte) error {
 	m.EnsureCapacityWithoutGas(size)
-	if size > 0 {
-		if offset+size < offset {
-			return errGasUintOverflow
-		}
-		copy(m.store[offset:offset+size], value)
-	}
-	return nil
+	return m.Set(offset, size, value)
 }
 
 func (m *Memory) CopyWord(offset uint64, trg *uint256.Int, c *context) error {
