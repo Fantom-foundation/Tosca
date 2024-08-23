@@ -182,3 +182,29 @@ func TestHashCache_useCacheTail64(t *testing.T) {
 		t.Fatalf("cache tail should have been updated")
 	}
 }
+
+func TestHashCache_TouchLastElement32(t *testing.T) {
+	ctxt := &context{}
+	cache := newHashCache(3, 3)
+	cache.getHash32(ctxt, []byte{byte(1)})
+	cache.getHash32(ctxt, []byte{byte(2)})
+	cache.getHash32(ctxt, []byte{byte(3)})
+	cache.getHash32(ctxt, []byte{byte(1)})
+
+	if cache.tail32.key != [32]byte{byte(2)} {
+		t.Fatalf("cache tail should have been updated")
+	}
+}
+
+func TestHashCache_TouchLastElement64(t *testing.T) {
+	ctxt := &context{}
+	cache := newHashCache(3, 3)
+	cache.getHash64(ctxt, []byte{byte(1)})
+	cache.getHash64(ctxt, []byte{byte(2)})
+	cache.getHash64(ctxt, []byte{byte(3)})
+	cache.getHash64(ctxt, []byte{byte(1)})
+
+	if cache.tail64.key != [64]byte{byte(2)} {
+		t.Fatalf("cache tail should have been updated")
+	}
+}
