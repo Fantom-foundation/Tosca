@@ -62,10 +62,6 @@ override:
   - threshold: 0
     path: go/interpreter/lfvm/hash_cache.go
   - threshold: 0
-    path: go/interpreter/lfvm/lfvm.go
-  - threshold: 0
-    path: go/interpreter/lfvm/opcode.go
-  - threshold: 0
     path: go/interpreter/lfvm/super_instructions.go
   - threshold: 0
     path: go/processor/floria/processor.go
