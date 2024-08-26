@@ -483,7 +483,7 @@ func TestRunReturnsEmptyResultOnEmptyCode(t *testing.T) {
 		t.Errorf("unexpected output: want nil, got %v", result.Output)
 	}
 	if result.GasLeft != ctxt.params.Gas {
-		t.Errorf("unexpected gas left: want %v, got %v", 10, result.GasLeft)
+		t.Errorf("unexpected gas left: want %v, got %v", ctxt.params.Gas, result.GasLeft)
 	}
 	if !result.Success {
 		t.Errorf("unexpected success: want true, got false")

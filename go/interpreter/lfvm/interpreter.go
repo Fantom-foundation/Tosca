@@ -427,7 +427,7 @@ func steps(c *context, one_step_only bool) {
 		}
 
 		// Execute instruction
-		switch op { // coverage-ignore opcodes are tested by CT
+		switch op {
 		case POP:
 			opPop(c)
 		case PUSH0:
