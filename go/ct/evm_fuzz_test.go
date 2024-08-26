@@ -72,10 +72,10 @@ func differentialFuzz(f *testing.F, testeeVm, referenceVm ct.Evm) {
 	f.Fuzz(func(t *testing.T, opCodes []byte, gas int64, revision byte, stackBytes []byte) {
 
 		state, err := corpusEntryToCtState(opCodes, gas, revision, stackBytes)
-		defer state.Release()
 		if err != nil {
 			t.Skip(err)
 		}
+		defer state.Release()
 
 		testeeResultState, err := testeeVm.StepN(state.Clone(), 1)
 		if err != nil {
