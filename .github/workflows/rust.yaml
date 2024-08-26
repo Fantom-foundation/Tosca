@@ -8,12 +8,12 @@ on:
   push:
     branches: [ main, evmrs ]
     paths:
-      - '**.rs''
+      - '**.rs'
       - 'Cargo.*'
   pull_request:
     branches: [ main ]
     paths:
-      - '**.rs''
+      - '**.rs'
       - 'Cargo.*'
 
 env:
