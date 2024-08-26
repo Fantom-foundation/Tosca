@@ -111,10 +111,11 @@ func (s *Scenario) Clone() Scenario {
 // scenarioContext implements the tosca.WorldState interface facilitating the
 // interaction with a test-case specific context.
 type scenarioContext struct {
-	original WorldState
-	current  WorldState
-	logs     []tosca.Log
-	undo     []func()
+	original   WorldState
+	current    WorldState
+	logs       []tosca.Log
+	undo       []func()
+	accessList map[tosca.Address]tosca.AccessStatus
 }
 
 func NewScenarioContext() *scenarioContext {
@@ -221,8 +222,13 @@ func (c *scenarioContext) SetTransientStorage(tosca.Address, tosca.Key, tosca.Wo
 	panic("implement me")
 }
 
-func (c *scenarioContext) AccessAccount(tosca.Address) tosca.AccessStatus {
-	panic("implement me")
+func (c *scenarioContext) AccessAccount(address tosca.Address) tosca.AccessStatus {
+	_, ok := c.accessList[address]
+	if !ok {
+		return tosca.WarmAccess
+	}
+	c.accessList[address] = true
+	return tosca.ColdAccess
 }
 
 func (c *scenarioContext) AccessStorage(tosca.Address, tosca.Key) tosca.AccessStatus {
@@ -247,8 +253,9 @@ func (c *scenarioContext) GetCommittedStorage(addr tosca.Address, key tosca.Key)
 	return c.original[addr].Storage[key]
 }
 
-func (c *scenarioContext) IsAddressInAccessList(addr tosca.Address) bool {
-	panic("implement me")
+func (c *scenarioContext) IsAddressInAccessList(address tosca.Address) bool {
+	_, ok := c.accessList[address]
+	return ok
 }
 
 func (c *scenarioContext) IsSlotInAccessList(addr tosca.Address, key tosca.Key) (addressPresent, slotPresent bool) {
