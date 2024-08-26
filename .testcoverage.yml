@@ -66,8 +66,6 @@ override:
   - threshold: 0
     path: go/interpreter/lfvm/opcode.go
   - threshold: 0
-    path: go/interpreter/lfvm/shadow.go
-  - threshold: 0
     path: go/interpreter/lfvm/super_instructions.go
   - threshold: 0
     path: go/processor/floria/processor.go
