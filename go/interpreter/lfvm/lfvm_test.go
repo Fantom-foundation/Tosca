@@ -41,9 +41,7 @@ func TestVm_Run(t *testing.T) {
 				GasRefund: 0, Output: []byte{}},
 		},
 		"newer unsupported revision": {
-			revision: newestSupportedRevision + 1,
-			expectedResult: tosca.Result{Success: false, GasLeft: 0,
-				GasRefund: 0, Output: []byte{}},
+			revision:      newestSupportedRevision + 1,
 			expectedError: &tosca.ErrUnsupportedRevision{Revision: newestSupportedRevision + 1},
 		},
 	}
@@ -68,6 +66,9 @@ func TestVm_Run(t *testing.T) {
 			result, err := vm.Run(params)
 			if err != test.expectedError && strings.Compare(err.Error(), test.expectedError.Error()) != 0 {
 				t.Fatalf("unexpected error: want %v but got %v", test.expectedError, err)
+			}
+			if test.expectedError != nil {
+				return
 			}
 			if result.Success != test.expectedResult.Success {
 				t.Errorf("unexpected result, want %v but got %v",

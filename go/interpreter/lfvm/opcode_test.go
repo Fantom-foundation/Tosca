@@ -11,27 +11,22 @@
 package lfvm
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 )
 
 func TestOpcode_String(t *testing.T) {
-	tests := []struct {
-		name   string
-		opcode OpCode
-	}{
-		{"PUSH1", PUSH1},
-		{"PUSH32", PUSH32},
-		{"INVALID", INVALID},
-		{"0x00ad", OpCode(0xAD)},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if got := test.opcode.String(); got != test.name {
-				t.Errorf("expected %s, got %s", test.name, got)
-			}
-		})
+	for i := 0; i < 256; i++ {
+		op := OpCode(i)
+		want, found := op_to_string[op]
+		got := op.String()
+		if !found {
+			want = fmt.Sprintf("0x%04x", byte(op))
+		}
+		if got != want {
+			t.Errorf("expected %s, got %s", want, got)
+		}
 	}
 }
 
@@ -48,5 +43,4 @@ func TestOpcode_HasArgument(t *testing.T) {
 			t.Errorf("failed to recognized arguments for opcode %v", op)
 		}
 	}
-
 }
