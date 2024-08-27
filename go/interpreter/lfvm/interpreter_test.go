@@ -12,11 +12,20 @@ package lfvm
 
 import (
 	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
 	"log"
+	"math"
+	"os"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 	"go.uber.org/mock/gomock"
 )
 
@@ -450,6 +459,427 @@ func TestOKInstructionPath(t *testing.T) {
 				t.Errorf("execution failed: gas refund is %v, wanted %v", got, want)
 			}
 		})
+	}
+}
+
+func TestRunReturnsEmptyResultOnEmptyCode(t *testing.T) {
+	// Create execution context.
+	ctxt := getEmptyContext()
+	// Get tosca.Parameters
+	ctxt.params = tosca.Parameters{
+		Input:  []byte{},
+		Static: true,
+		Gas:    10,
+	}
+	ctxt.code = make([]Instruction, 0)
+
+	// Run testing code
+	result, err := Run(ctxt.params, ctxt.code, false, true, false)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if result.Output != nil {
+		t.Errorf("unexpected output: want nil, got %v", result.Output)
+	}
+	if result.GasLeft != ctxt.params.Gas {
+		t.Errorf("unexpected gas left: want %v, got %v", ctxt.params.Gas, result.GasLeft)
+	}
+	if !result.Success {
+		t.Errorf("unexpected success: want true, got false")
+	}
+}
+
+func TestRunWithStatistics(t *testing.T) {
+	// Create execution context.
+	ctxt := getEmptyContext()
+	// Get tosca.Parameters
+	ctxt.params = tosca.Parameters{
+		Input:  []byte{},
+		Static: true,
+		Gas:    10,
+		Code:   []byte{byte(STOP), 0},
+	}
+	ctxt.code = []Instruction{{STOP, 0}}
+
+	// Run testing code
+	_, err := Run(ctxt.params, ctxt.code, true, true, false)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if got := global_statistics.single_count[uint64(STOP)]; got != 1 {
+		t.Errorf("unexpected statistics: want 1 stop, got %v", got)
+	}
+}
+
+func TestRunWithLogging(t *testing.T) {
+	// Create execution context.
+	ctxt := getEmptyContext()
+	instructions := []Instruction{
+		{PUSH1, 1},
+		{STOP, 0}}
+
+	// Get tosca.Parameters
+	ctxt.params = tosca.Parameters{
+		Input:  []byte{},
+		Static: true,
+		Gas:    10,
+		Code:   []byte{0x0},
+	}
+	ctxt.code = instructions
+
+	// redirect stdout
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Run testing code
+	_, err := Run(ctxt.params, ctxt.code, false, true, true)
+	// read the output
+	w.Close()
+	out, _ := io.ReadAll(r)
+	os.Stdout = old
+
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// check the output
+	if !strings.Contains(string(out), "STOP") {
+		t.Errorf("unexpected output: want STOP, got %v", string(out))
+	}
+}
+
+func TestRunBasic(t *testing.T) {
+
+	// Create execution context.
+	ctxt := getEmptyContext()
+	instructions := []Instruction{
+		{PUSH1, 1},
+		{STOP, 0}}
+
+	// Get tosca.Parameters
+	ctxt.params = tosca.Parameters{
+		Input:  []byte{},
+		Static: true,
+		Gas:    10,
+		Code:   []byte{0x0},
+	}
+	ctxt.code = instructions
+
+	// redirect stdout
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Run testing code
+	_, err := Run(ctxt.params, ctxt.code, false, true, false)
+	// read the output
+	w.Close()
+	out, _ := io.ReadAll(r)
+	os.Stdout = old
+
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// check the output
+	if len(string(out)) != 0 {
+		t.Errorf("unexpected output: want \"\", got %v", string(out))
+	}
+
+	if global_statistics.count > 1 {
+		t.Errorf("unexpected statistics: want none, got %v", global_statistics.count)
+	}
+}
+
+func TestRunGenerateResult(t *testing.T) {
+
+	baseOutput := []byte{0x1, 0x2, 0x3}
+	baseGas := tosca.Gas(2)
+	baseRefund := tosca.Gas(3)
+
+	getCtxt := func() context {
+		ctxt := getEmptyContext()
+		ctxt.gas = baseGas
+		ctxt.refund = baseRefund
+		ctxt.memory = NewMemory()
+		ctxt.memory.store = baseOutput
+		ctxt.result_size = uint256.Int{uint64(len(baseOutput))}
+		return ctxt
+	}
+
+	tests := map[string]struct {
+		setup          func(*context)
+		expectedErr    error
+		expectedResult tosca.Result
+	}{
+		"invalid instruction": {func(ctx *context) { ctx.status = INVALID_INSTRUCTION }, nil, tosca.Result{Success: false}},
+		"out of gas":          {func(ctx *context) { ctx.status = OUT_OF_GAS }, nil, tosca.Result{Success: false}},
+		"max init code": {func(ctx *context) { ctx.status = MAX_INIT_CODE_SIZE_EXCEEDED }, nil,
+			tosca.Result{Success: false}},
+		"error": {func(ctx *context) { ctx.status = ERROR }, nil, tosca.Result{Success: false}},
+		"returned": {func(ctx *context) { ctx.status = RETURNED }, nil, tosca.Result{Success: true,
+			Output: baseOutput, GasLeft: baseGas, GasRefund: baseRefund}},
+		"reverted": {func(ctx *context) { ctx.status = REVERTED }, nil,
+			tosca.Result{Success: false, Output: baseOutput, GasLeft: baseGas, GasRefund: 0}},
+		"stopped": {func(ctx *context) { ctx.status = STOPPED }, nil,
+			tosca.Result{Success: true, Output: nil, GasLeft: baseGas, GasRefund: baseRefund}},
+		"suicide": {func(ctx *context) { ctx.status = SUICIDED }, nil,
+			tosca.Result{Success: true, Output: nil, GasLeft: baseGas, GasRefund: baseRefund}},
+		"unknown status": {func(ctx *context) { ctx.status = ERROR + 1 },
+			fmt.Errorf("unexpected error in interpreter, unknown status: %v", ERROR+1), tosca.Result{}},
+		"getOuput fail": {func(ctx *context) {
+			ctx.status = RETURNED
+			ctx.result_size = uint256.Int{1, 1}
+		}, nil, tosca.Result{Success: false}},
+	}
+
+	for name, test := range tests {
+		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
+
+			ctxt := getCtxt()
+			test.setup(&ctxt)
+
+			res, err := generateResult(&ctxt)
+
+			// Check the result.
+			if err != nil && test.expectedErr != nil && strings.Compare(err.Error(), test.expectedErr.Error()) != 0 {
+				t.Errorf("unexpected error: want \"%v\", got \"%v\"", test.expectedErr, err)
+			}
+			if !reflect.DeepEqual(res, test.expectedResult) {
+				t.Errorf("unexpected result: want %v, got %v", test.expectedResult, res)
+			}
+		})
+	}
+}
+
+func TestGetOutputReturnsExpectedErrors(t *testing.T) {
+
+	tests := map[string]struct {
+		setup       func(*context)
+		expectedErr error
+	}{
+		"size overflow": {func(ctx *context) { ctx.result_size = uint256.Int{1, 1} }, errGasUintOverflow},
+		"offset overflow": {func(ctx *context) {
+			ctx.result_size = uint256.Int{1}
+			ctx.result_offset = uint256.Int{1, 1}
+		}, errGasUintOverflow},
+		"memory overflow": {func(ctx *context) {
+			ctx.result_size = uint256.Int{math.MaxUint64 - 1}
+			ctx.result_offset = uint256.Int{2}
+		}, errGasUintOverflow},
+	}
+
+	for name, test := range tests {
+		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
+			ctxt := getEmptyContext()
+			test.setup(&ctxt)
+			ctxt.status = RETURNED
+
+			// Run testing code
+			_, err := getOutput(&ctxt)
+			if !errors.Is(err, test.expectedErr) {
+				t.Errorf("unexpected error: want error, got nil")
+			}
+		})
+	}
+}
+
+func TestDumpProfilePrintsExpectedOutput(t *testing.T) {
+
+	tests := map[string]struct {
+		code         tosca.Code
+		findInOutput []string
+	}{
+		"singles": {tosca.Code{byte(vm.STOP)},
+			[]string{
+				"Steps: 1",
+				"STOP                          : 1 (100.00%)",
+			}},
+		"pairs": {tosca.Code{byte(vm.PUSH1), 0x01, byte(vm.STOP)},
+			[]string{
+				"Steps: 2",
+				"PUSH1                         : 1 (50.00%)",
+				"STOP                          : 1 (50.00%)",
+				"PUSH1                         STOP                          : 1"}},
+		"triples": {tosca.Code{byte(vm.PUSH1), 0x01, byte(vm.PUSH1), 0x01, byte(vm.STOP)},
+			[]string{
+				"Steps: 3",
+				"PUSH1                         : 2 (66.67%)",
+				"STOP                          : 1 (33.33%)",
+				"PUSH1                         PUSH1                         STOP                          : 1"}},
+		"quads": {tosca.Code{byte(vm.PUSH1), 0x01, byte(vm.PUSH1), 0x01, byte(vm.PUSH1), 0x01, byte(vm.STOP)},
+			[]string{
+				"Steps: 4",
+				"PUSH1                         : 3 (75.00%)",
+				"STOP                          : 1 (25.00%)",
+				"PUSH1                         PUSH1                         PUSH1                         : 1 (25.00%)",
+				"PUSH1                         PUSH1                         STOP                          : 1 (25.00%)",
+				"PUSH1                         PUSH1                         PUSH1                         STOP                          : 1 (25.00%)",
+			}},
+	}
+
+	for name, test := range tests {
+		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
+			r, w, err := os.Pipe()
+			if err != nil {
+				t.Fatalf("Failed to create pipe: %v", err)
+			}
+
+			// redirect stdout
+			old := os.Stderr
+			os.Stderr = w
+			log.SetOutput(os.Stderr)
+
+			instance := VM{with_statistics: true}
+			instance.ResetProfile()
+			//run code
+			instance.Run(tosca.Parameters{Input: []byte{}, Static: true, Gas: 10,
+				Code: test.code})
+
+			// Run testing code
+			instance.DumpProfile()
+
+			// read the output
+			w.Close()
+			out, _ := io.ReadAll(r)
+			os.Stderr = old
+			log.SetOutput(os.Stderr)
+
+			for _, s := range test.findInOutput {
+				if !strings.Contains(string(out), s) {
+					t.Errorf("did not find ocurrences of %v in %v", s, string(out))
+				}
+			}
+		})
+	}
+}
+
+func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
+	// Create execution context.
+	ctxt := getEmptyContext()
+	instructions := []Instruction{
+		{JUMP_TO, 0x02},
+		{RETURN, 0},
+		{STOP, 0},
+	}
+
+	// Get tosca.Parameters
+	ctxt.params = tosca.Parameters{
+		Input:  []byte{},
+		Static: false,
+		Gas:    10,
+		Code:   []byte{0x0},
+	}
+	ctxt.code = instructions
+
+	// Run testing code
+	steps(&ctxt, false)
+
+	if ctxt.status != STOPPED {
+		t.Errorf("unexpected status: want STOPPED, got %v", ctxt.status)
+	}
+}
+
+func TestStepsDetectsNonExecutableCode(t *testing.T) {
+	// Create execution context.
+	instructions := []struct {
+		instruction []Instruction
+		status      Status
+	}{
+		{[]Instruction{{NUM_EXECUTABLE_OPCODES - 1, 0x0101}, {DATA, 0x0001}, {STOP, 0}}, STOPPED},
+		{[]Instruction{{NUM_EXECUTABLE_OPCODES, 0}}, ERROR},
+		{[]Instruction{{NUM_EXECUTABLE_OPCODES + 1, 0}}, ERROR},
+	}
+
+	for _, test := range instructions {
+		ctxt := getEmptyContext()
+		// Get tosca.Parameters
+		ctxt.params = tosca.Parameters{
+			Input:  []byte{},
+			Static: false,
+			Gas:    10,
+			Code:   []byte{0x0},
+		}
+		ctxt.code = test.instruction
+
+		// Run testing code
+		steps(&ctxt, false)
+
+		if ctxt.status != test.status {
+			t.Errorf("unexpected status: want STOPPED, got %v", ctxt.status)
+		}
+	}
+}
+
+func TestStepsDoesNotExecuteCodeIfStatic(t *testing.T) {
+
+	tests := map[string]struct {
+		instructions []Instruction
+		status       Status
+	}{
+		"mstore": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {MSTORE, 0}}, STOPPED},
+		"sstore": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, ERROR},
+		"LOG0":   {[]Instruction{{PUSH1, 0}, {LOG0, 0}}, ERROR},
+		"LOG1":   {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {LOG1, 0}}, ERROR},
+		"LOG2": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0}, {LOG2, 0}},
+			ERROR},
+		"LOG3": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0},
+			{LOG3, 0}}, ERROR},
+		"LOG4": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0},
+			{PUSH1, 0}, {LOG3, 0}}, ERROR},
+		"CREATE":       {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {CREATE, 0}}, ERROR},
+		"CREATE2":      {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {CREATE2, 0}}, ERROR},
+		"SELFDESTRUCT": {[]Instruction{{PUSH1, 0}, {SELFDESTRUCT, 0}}, ERROR},
+		"TSTORE":       {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {TSTORE, 0}}, ERROR},
+		"CALL":         {[]Instruction{{PUSH1, 1}, {PUSH1, 1}, {PUSH1, 1}, {CALL, 0}}, ERROR},
+	}
+
+	for name, test := range tests {
+		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
+			ctxt := getEmptyContext()
+			// Get tosca.Parameters
+			ctxt.params = tosca.Parameters{
+				Input:  []byte{},
+				Static: true,
+				Gas:    10,
+				Code:   []byte{0x0},
+			}
+			ctxt.code = test.instructions
+
+			// Run testing code
+			steps(&ctxt, false)
+
+			if ctxt.status != test.status {
+				t.Errorf("unexpected status: want %v, got %v", test.status, ctxt.status)
+			}
+		})
+	}
+}
+
+func TestStepsFailsOnTooLittleGas(t *testing.T) {
+	// Create execution context.
+	ctxt := getEmptyContext()
+	instructions := []Instruction{
+		{PUSH1, 0},
+	}
+
+	// Get tosca.Parameters
+	ctxt.params = tosca.Parameters{
+		Input:  []byte{},
+		Static: false,
+		Gas:    2,
+		Code:   []byte{0x0},
+	}
+	ctxt.gas = 2
+	ctxt.code = instructions
+
+	// Run testing code
+	steps(&ctxt, false)
+
+	if ctxt.status != OUT_OF_GAS {
+		t.Errorf("unexpected status: want OUT_OF_GAS, got %v", ctxt.status)
 	}
 }
 
