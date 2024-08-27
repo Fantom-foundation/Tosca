@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 	"go.uber.org/mock/gomock"
 )
@@ -218,10 +219,11 @@ func TestCallChecksBalances(t *testing.T) {
 		params: tosca.Parameters{
 			Recipient: source,
 		},
-		context: runContext,
-		stack:   NewStack(),
-		memory:  NewMemory(),
-		gas:     1 << 20,
+		context:  runContext,
+		stack:    NewStack(),
+		memory:   NewMemory(),
+		gas:      1 << 20,
+		revision: tosca.R09_Berlin,
 	}
 
 	// Prepare stack arguments.
@@ -232,6 +234,8 @@ func TestCallChecksBalances(t *testing.T) {
 	// The target account should exist and the source account without funds.
 	runContext.EXPECT().AccountExists(target).Return(true)
 	runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
+	runContext.EXPECT().IsAddressInAccessList(target).Return(false)
+	runContext.EXPECT().AccessAccount(target).Return(tosca.ColdAccess)
 
 	opCall(&ctxt)
 
@@ -868,5 +872,191 @@ func TestExpansionCostOverflow(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+func TestSStoreGasCost(t *testing.T) {
+
+	tests := map[string]struct {
+		runtimeSetup   func(*tosca.MockRunContext)
+		revision       tosca.Revision
+		gas            tosca.Gas
+		expectedStatus Status
+	}{
+		"berlin-enough-gas": {
+			runtimeSetup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
+			},
+			revision:       tosca.R09_Berlin,
+			gas:            tosca.Gas(params.SstoreSetGasEIP2200),
+			expectedStatus: RUNNING,
+		},
+		"berlin-not-enough-gas": {
+			runtimeSetup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
+			},
+			revision:       tosca.R09_Berlin,
+			gas:            tosca.Gas(params.SstoreSetGasEIP2200 - 1),
+			expectedStatus: OUT_OF_GAS,
+		},
+		"london-enough-gas": {
+			runtimeSetup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
+			},
+			revision:       tosca.R10_London,
+			gas:            tosca.Gas(params.SstoreSetGasEIP2200),
+			expectedStatus: RUNNING,
+		},
+		"london-not-enough-gas": {
+			runtimeSetup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
+			},
+			revision:       tosca.R10_London,
+			gas:            tosca.Gas(params.SstoreSetGasEIP2200 - 1),
+			expectedStatus: OUT_OF_GAS,
+		},
+		"minimum-gas-invariant": {
+			runtimeSetup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
+			},
+			revision:       tosca.R09_Berlin,
+			gas:            tosca.Gas(params.SstoreSentryGasEIP2200),
+			expectedStatus: OUT_OF_GAS,
+		},
+		"address-not-present": {
+			runtimeSetup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(false, false).AnyTimes()
+			},
+			revision:       tosca.R09_Berlin,
+			gas:            tosca.Gas(params.SstoreSetGasEIP2200),
+			expectedStatus: ERROR,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			runContext := tosca.NewMockRunContext(ctrl)
+			test.runtimeSetup(runContext)
+
+			ctxt := context{
+				status:  RUNNING,
+				stack:   NewStack(),
+				memory:  NewMemory(),
+				context: runContext,
+				gas:     test.gas,
+			}
+			ctxt.revision = test.revision
+
+			// Prepare stack arguments.
+			ctxt.stack.push(uint256.NewInt(1))
+			ctxt.stack.push(uint256.NewInt(1))
+
+			runContext.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).Return(tosca.StorageAssigned).AnyTimes()
+			runContext.EXPECT().GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{}).AnyTimes()
+			runContext.EXPECT().GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{}).AnyTimes()
+
+			opSstore(&ctxt)
+
+			if ctxt.status != test.expectedStatus {
+				t.Errorf("unexpected status after call, wanted %v, got %v", test.expectedStatus, ctxt.status)
+			}
+		})
+	}
+}
+
+func TestSelfDestruct(t *testing.T) {
+
+	tests := map[string]struct {
+		setup    func(*tosca.MockRunContext)
+		revision tosca.Revision
+		gas      tosca.Gas
+		refund   tosca.Gas
+		status   Status
+	}{
+		"istanbul-regular": {
+			setup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(true).AnyTimes()
+				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false).AnyTimes()
+			},
+			refund:   tosca.Gas(params.SelfdestructRefundGas),
+			gas:      tosca.Gas(params.SelfdestructGasEIP150),
+			revision: tosca.R07_Istanbul,
+			status:   SUICIDED,
+		},
+		"istanbul-address-not-present": {
+			setup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(false).AnyTimes()
+				runContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1}).AnyTimes()
+				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(true).AnyTimes()
+			},
+			revision: tosca.R07_Istanbul,
+			gas:      tosca.Gas(params.SelfdestructGasEIP150),
+			status:   OUT_OF_GAS,
+		},
+		"berlin-regular": {
+			setup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(true).AnyTimes()
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(true).AnyTimes()
+				runContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1}).AnyTimes()
+				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false).AnyTimes()
+			},
+			refund:   tosca.Gas(params.SelfdestructRefundGas),
+			revision: tosca.R09_Berlin,
+			status:   SUICIDED,
+		},
+		"london-address-not-in-list": {
+			setup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(false).AnyTimes()
+				runContext.EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess).AnyTimes()
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(true).AnyTimes()
+				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false).AnyTimes()
+			},
+			revision: tosca.R10_London,
+			gas:      tosca.Gas(params.ColdAccountAccessCostEIP2929),
+			status:   SUICIDED,
+		},
+		"london-create-new-account": {
+			setup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(true).AnyTimes()
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(false).AnyTimes()
+				runContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1}).AnyTimes()
+				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false).AnyTimes()
+			},
+			revision: tosca.R10_London,
+			gas:      tosca.Gas(params.CreateBySelfdestructGas) - 1,
+			status:   OUT_OF_GAS,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			runContext := tosca.NewMockRunContext(ctrl)
+			test.setup(runContext)
+
+			ctxt := context{
+				status:  RUNNING,
+				stack:   NewStack(),
+				memory:  NewMemory(),
+				context: runContext,
+			}
+			ctxt.revision = test.revision
+
+			// Prepare stack arguments.
+			ctxt.stack.push(uint256.NewInt(1))
+			ctxt.gas = test.gas
+
+			runContext.EXPECT().SelfDestruct(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
+
+			opSelfdestruct(&ctxt)
+
+			if ctxt.status != test.status {
+				t.Errorf("unexpected status after call, wanted %v, got %v", test.status, ctxt.status)
+			}
+			if ctxt.refund != test.refund {
+				t.Errorf("unexpected refund, wanted %d, got %d", test.refund, ctxt.refund)
+			}
+		})
 	}
 }

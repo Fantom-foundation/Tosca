@@ -11,9 +11,6 @@
 package lfvm
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/holiman/uint256"
 )
@@ -51,6 +48,12 @@ const (
 	UNKNOWN_GAS_PRICE = 999999
 )
 
+// Gas errors definitions
+const (
+	errNotEnoughGasReentrancy  = ConstError("not enough gas for reentrancy sentry")
+	errAddressNotFoundInSstore = ConstError("address was not present in access list during sstore op")
+)
+
 var static_gas_prices = [NUM_OPCODES]tosca.Gas{}
 var static_gas_prices_berlin = [NUM_OPCODES]tosca.Gas{}
 
@@ -62,15 +65,6 @@ func init() {
 		static_gas_prices_berlin[i] = gp
 	}
 	initBerlinGasPrice()
-
-	for i := 0; i < int(NUM_EXECUTABLE_OPCODES); i++ {
-		if static_gas_prices[i] == UNKNOWN_GAS_PRICE {
-			panic(fmt.Sprintf("Gas price for %v is unknown", OpCode(i)))
-		}
-		if static_gas_prices_berlin[i] == UNKNOWN_GAS_PRICE {
-			panic(fmt.Sprintf("Berlin gas price for %v is unknown", OpCode(i)))
-		}
-	}
 }
 
 func initBerlinGasPrice() {
@@ -210,8 +204,6 @@ func getStaticGasPriceInternal(op OpCode) tosca.Gas {
 		return 2
 	case MCOPY:
 		return 3
-	case GAS:
-		return 2
 	case LOG0:
 		return 375
 	case LOG1:
@@ -237,8 +229,6 @@ func getStaticGasPriceInternal(op OpCode) tosca.Gas {
 	case STOP:
 		return 0
 	case REVERT:
-		return 0
-	case INVALID:
 		return 0
 	case DELEGATECALL:
 		return 700 // Should be 100 according to evm.code
@@ -329,7 +319,7 @@ func gasSStoreEIP2200(c *context) (tosca.Gas, error) {
 	// If we fail the minimum gas availability invariant, fail (0)
 	if c.gas <= SstoreSentryGasEIP2200 {
 		c.status = statusOutOfGas
-		return 0, errors.New("not enough gas for reentrancy sentry")
+		return 0, errNotEnoughGasReentrancy
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
 	var (
@@ -380,7 +370,7 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 	// If we fail the minimum gas availability invariant, fail (0)
 	if c.gas <= SstoreSentryGasEIP2200 {
 		c.status = statusOutOfGas
-		return 0, errors.New("not enough gas for reentrancy sentry")
+		return 0, errNotEnoughGasReentrancy
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
 	var (
@@ -395,7 +385,7 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 	if addrPresent, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
 		if !addrPresent {
 			c.status = statusError
-			return 0, errors.New("address was not present in access list during sstore op")
+			return 0, errAddressNotFoundInSstore
 		}
 		cost = ColdSloadCostEIP2929
 		// If the caller cannot afford the cost, this change will be rolled back

@@ -59,3 +59,17 @@ func TestGas_CallGasCalculation(t *testing.T) {
 		})
 	}
 }
+
+func TestGas_CheckGasCostsForAllExecutableOpcodes(t *testing.T) {
+	for i := 0; i < int(NUM_OPCODES); i++ {
+
+		if static_gas_prices[i] == UNKNOWN_GAS_PRICE &&
+			op_2_op[i] != INVALID {
+			t.Errorf("gas price for %v is unknown", OpCode(i))
+		}
+		if static_gas_prices_berlin[i] == UNKNOWN_GAS_PRICE &&
+			op_2_op[i] != INVALID {
+			t.Errorf("berlin gas price for %v is unknown", OpCode(i))
+		}
+	}
+}
