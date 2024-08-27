@@ -20,7 +20,7 @@ import (
 
 var staticStackBoundry = [NUM_OPCODES]InstructionStack{}
 
-const StackLimit uint64 = 1024 // Maximum size of VM stack allowed.
+const stackLimit = 1024 // Maximum size of VM stack allowed.
 
 type Stack struct {
 	data      [1024]uint256.Int
@@ -117,7 +117,7 @@ func ReturnStack(s *Stack) {
 func newInstructionStack(min, max, _increase int) InstructionStack {
 	return InstructionStack{
 		stackMin: min,
-		stackMax: int(StackLimit) - max,
+		stackMax: stackLimit - max,
 		increase: _increase,
 	}
 }

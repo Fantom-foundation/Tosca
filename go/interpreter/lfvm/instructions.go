@@ -274,11 +274,11 @@ func opSload(c *context) {
 			// If the caller cannot afford the cost, this change will be rolled back
 			// If he does afford it, we can skip checking the same thing later on, during execution
 			c.context.AccessStorage(c.params.Recipient, slot)
-			if !c.UseGas(tosca.Gas(ColdSloadCostEIP2929)) {
+			if !c.UseGas(ColdSloadCostEIP2929) {
 				return
 			}
 		} else {
-			if !c.UseGas(tosca.Gas(WarmStorageReadCostEIP2929)) {
+			if !c.UseGas(WarmStorageReadCostEIP2929) {
 				return
 			}
 		}
@@ -1097,7 +1097,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 	// for static and delegate calls, the following value checks will always be zero.
 	// Charge for transferring value to a new address
 	if !value.IsZero() {
-		baseGas += tosca.Gas(CallValueTransferGas)
+		baseGas += CallValueTransferGas
 	}
 	if !checkGas(baseGas) {
 		c.status = OUT_OF_GAS
@@ -1107,7 +1107,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 	// EIP158 states that non-zero value calls that create a new account should
 	// be charged an additional gas fee.
 	if kind == tosca.Call && !value.IsZero() && !c.context.AccountExists(toAddr) {
-		baseGas += tosca.Gas(CallNewAccountGas)
+		baseGas += CallNewAccountGas
 	}
 	if !checkGas(baseGas) {
 		c.status = OUT_OF_GAS
@@ -1131,7 +1131,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 	// when out of gas is happening, then mem should not be resized
 	c.memory.EnsureCapacityWithoutGas(needed_memory_size)
 	if !value.IsZero() {
-		cost += tosca.Gas(CallStipend)
+		cost += CallStipend
 	}
 
 	// Check that the caller has enough balance to transfer the requested value.
