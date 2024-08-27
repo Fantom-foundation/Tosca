@@ -14,8 +14,6 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
-
-	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
 func TestKeccakC_ProducesSameHashAsGo(t *testing.T) {
@@ -36,43 +34,43 @@ func TestKeccakC_ProducesSameHashAsGo(t *testing.T) {
 	}
 }
 
-func TestKeccakC_KeySpecializationProducesSameHashAsGenericVersion(t *testing.T) {
-	tests := []tosca.Key{
+func TestKeccakC_32ByteSpecializationProducesSameHashAsGenericVersion(t *testing.T) {
+	tests := [][32]byte{
 		{},
 		{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2},
 	}
 
 	// Test each individual bit.
 	for i := 0; i < 32*8; i++ {
-		key := tosca.Key{}
-		key[i/8] = 1 << i % 8
-		tests = append(tests, key)
+		data := [32]byte{}
+		data[i/8] = 1 << i % 8
+		tests = append(tests, data)
 	}
 
 	// Add some random inputs as well.
 	r := rand.New(rand.NewSource(99))
 	for i := 0; i < 10; i++ {
-		key := tosca.Key{}
-		r.Read(key[:])
-		tests = append(tests, key)
+		data := [32]byte{}
+		r.Read(data[:])
+		tests = append(tests, data)
 	}
 
-	t.Run("keccak256_C_Key", func(t *testing.T) {
+	t.Run("keccak256_C_32byte", func(t *testing.T) {
 		t.Parallel()
 		for _, test := range tests {
 			want := keccak256_Go(test[:])
-			got := keccak256_C_Key(test)
+			got := keccak256_C_32byte(test)
 			if want != got {
 				t.Errorf("unexpected hash for %v, wanted %v, got %v", test, want, got)
 			}
 		}
 	})
 
-	t.Run("Keccak256ForKey", func(t *testing.T) {
+	t.Run("Keccak256For32byte", func(t *testing.T) {
 		t.Parallel()
 		for _, test := range tests {
 			want := keccak256_Go(test[:])
-			got := Keccak256ForKey(test)
+			got := Keccak256For32byte(test)
 			if want != got {
 				t.Errorf("unexpected hash for %v, wanted %v, got %v", test, want, got)
 			}
@@ -107,23 +105,23 @@ func BenchmarkKeccakC(b *testing.B) {
 	})
 }
 
-func BenchmarkKeccakGoKeyGeneric(b *testing.B) {
-	key := tosca.Key{}
+func BenchmarkKeccakGo32ByteGeneric(b *testing.B) {
+	data := [32]byte{}
 	for i := 0; i < b.N; i++ {
-		keccak256_Go(key[:])
+		keccak256_Go(data[:])
 	}
 }
 
-func BenchmarkKeccakCKeyGeneric(b *testing.B) {
-	key := tosca.Key{}
+func BenchmarkKeccakC32ByteGeneric(b *testing.B) {
+	data := [32]byte{}
 	for i := 0; i < b.N; i++ {
-		keccak256_C(key[:])
+		keccak256_C(data[:])
 	}
 }
 
-func BenchmarkKeccakCKeySpecialized(b *testing.B) {
-	key := tosca.Key{}
+func BenchmarkKeccakC32ByteSpecialized(b *testing.B) {
+	data := [32]byte{}
 	for i := 0; i < b.N; i++ {
-		keccak256_C_Key(key)
+		keccak256_C_32byte(data)
 	}
 }
