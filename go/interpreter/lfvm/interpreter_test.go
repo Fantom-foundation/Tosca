@@ -24,7 +24,6 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 	"go.uber.org/mock/gomock"
 )
@@ -304,31 +303,31 @@ var opcodeTests = []OpcodeTest{
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0))
-		}, GAS_START, 5006, tosca.Gas(params.SstoreClearsScheduleRefundEIP2200)},
+		}, GAS_START, 5006, tosca.Gas(SstoreClearsScheduleRefundEIP2200)},
 	{"SSTORE diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(2))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1))
-		}, GAS_START, 806, tosca.Gas(-int(params.SstoreClearsScheduleRefundEIP2200))},
+		}, GAS_START, 806, tosca.Gas(-int(SstoreClearsScheduleRefundEIP2200))},
 	{"SSTORE diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(2))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0))
-		}, GAS_START, 806, tosca.Gas(params.SstoreClearsScheduleRefundEIP2200)},
+		}, GAS_START, 806, tosca.Gas(SstoreClearsScheduleRefundEIP2200)},
 	{"SSTORE diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(1)).Return(toWord(1))
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(1)).Return(toWord(0))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(1), toWord(0))
-		}, GAS_START, 806, tosca.Gas(params.SstoreSetGasEIP2200 - params.SloadGasEIP2200)},
+		}, GAS_START, 806, tosca.Gas(SstoreSetGasEIP2200 - SloadGasEIP2200)},
 	{"SSTORE diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, false, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(2))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(2))
-		}, GAS_START, 806, tosca.Gas(params.SstoreResetGasEIP2200 - params.SloadGasEIP2200)},
+		}, GAS_START, 806, tosca.Gas(SstoreResetGasEIP2200 - SloadGasEIP2200)},
 	{"SSTORE Berlin same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
@@ -349,35 +348,35 @@ var opcodeTests = []OpcodeTest{
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(0)).Return(true, true)
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0))
-		}, GAS_START, 2906, tosca.Gas(params.SstoreClearsScheduleRefundEIP2200)},
+		}, GAS_START, 2906, tosca.Gas(SstoreClearsScheduleRefundEIP2200)},
 	{"SSTORE Berlin diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(0)).Return(true, true)
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(2))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1))
-		}, GAS_START, 106, tosca.Gas(-int(params.SstoreClearsScheduleRefundEIP2200))},
+		}, GAS_START, 106, tosca.Gas(-int(SstoreClearsScheduleRefundEIP2200))},
 	{"SSTORE Berlin diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(0)).Return(true, true)
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(2))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0))
-		}, GAS_START, 106, tosca.Gas(params.SstoreClearsScheduleRefundEIP2200)},
+		}, GAS_START, 106, tosca.Gas(SstoreClearsScheduleRefundEIP2200)},
 	{"SSTORE Berlin diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(1)).Return(toWord(1))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(1)).Return(true, true)
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(1)).Return(toWord(0))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(1), toWord(0))
-		}, GAS_START, 106, tosca.Gas(params.SstoreSetGasEIP2200 - params.WarmStorageReadCostEIP2929)},
+		}, GAS_START, 106, tosca.Gas(SstoreSetGasEIP2200 - WarmStorageReadCostEIP2929)},
 	{"SSTORE Berlin diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, STOPPED, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(0)).Return(true, true)
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(2))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(2))
-		}, GAS_START, 106, tosca.Gas((params.SstoreResetGasEIP2200 - params.ColdSloadCostEIP2929) - params.WarmStorageReadCostEIP2929)},
+		}, GAS_START, 106, tosca.Gas((SstoreResetGasEIP2200 - ColdSloadCostEIP2929) - WarmStorageReadCostEIP2929)},
 }
 
 type OpCodeWithGas struct {

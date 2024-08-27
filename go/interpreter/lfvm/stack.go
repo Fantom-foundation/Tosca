@@ -15,11 +15,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
 
 var staticStackBoundry = [NUM_OPCODES]InstructionStack{}
+
+const StackLimit uint64 = 1024 // Maximum size of VM stack allowed.
 
 type Stack struct {
 	data      [1024]uint256.Int
@@ -116,7 +117,7 @@ func ReturnStack(s *Stack) {
 func newInstructionStack(min, max, _increase int) InstructionStack {
 	return InstructionStack{
 		stackMin: min,
-		stackMax: int(params.StackLimit) - max,
+		stackMax: int(StackLimit) - max,
 		increase: _increase,
 	}
 }
