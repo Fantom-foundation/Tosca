@@ -18,11 +18,13 @@ import (
 	ct "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/stateless"
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
 	geth "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/trie/utils"
 	"github.com/holiman/uint256"
 )
 
@@ -421,4 +423,14 @@ func (s *stateDbAdapter) AddPreimage(common.Hash, []byte) {
 
 func (s *stateDbAdapter) ForEachStorage(common.Address, func(common.Hash, common.Hash) bool) error {
 	panic("should not be needed in test environments")
+}
+
+func (s *stateDbAdapter) PointCache() *utils.PointCache {
+	// see https://eips.ethereum.org/EIPS/eip-4762
+	panic("should not be needed by revisions up to Cancun")
+}
+
+func (s *stateDbAdapter) Witness() *stateless.Witness {
+	// this should not be relevant for revisions up to Cancun
+	return nil
 }
