@@ -182,7 +182,7 @@ func convertLfvmStatusToCtStatus(status Status) (st.StatusCode, error) {
 	case INVALID_INSTRUCTION, OUT_OF_GAS, MAX_INIT_CODE_SIZE_EXCEEDED, ERROR:
 		return st.Failed, nil
 	default:
-		return st.Failed, fmt.Errorf("unable to convert lfvm status %v to ct status", status)
+		return st.Failed, errFailedToConvertStatus{status}
 	}
 }
 
@@ -216,4 +216,20 @@ func convertLfvmMemoryToCtMemory(memory *Memory) *st.Memory {
 	result := st.NewMemory()
 	result.Set(memory.GetSlice(0, memory.Len()))
 	return result
+}
+
+type errFailedToConvertPC struct {
+	pc int32
+}
+
+func (e errFailedToConvertPC) Error() string {
+	return fmt.Sprintf("failed to convert program counter %d", e.pc)
+}
+
+type errFailedToConvertStatus struct {
+	status Status
+}
+
+func (e errFailedToConvertStatus) Error() string {
+	return fmt.Sprintf("unable to convert lfvm status %v to ct status", e.status)
 }

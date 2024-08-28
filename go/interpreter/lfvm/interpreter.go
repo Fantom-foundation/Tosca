@@ -167,8 +167,16 @@ func generateResult(ctxt *context) (tosca.Result, error) {
 			Success: false,
 		}, nil
 	default:
-		return tosca.Result{}, fmt.Errorf("unexpected error in interpreter, unknown status: %v", ctxt.status)
+		return tosca.Result{}, errUnknownStatus{ctxt.status}
 	}
+}
+
+type errUnknownStatus struct {
+	status Status
+}
+
+func (e errUnknownStatus) Error() string {
+	return fmt.Sprintf("unexpected error in interpreter, unknown status: %v", e.status)
 }
 
 func getOutput(ctxt *context) ([]byte, error) {

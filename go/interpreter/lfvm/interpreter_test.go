@@ -627,7 +627,7 @@ func TestRunGenerateResult(t *testing.T) {
 		"suicide": {func(ctx *context) { ctx.status = SUICIDED }, nil,
 			tosca.Result{Success: true, Output: nil, GasLeft: baseGas, GasRefund: baseRefund}},
 		"unknown status": {func(ctx *context) { ctx.status = ERROR + 1 },
-			fmt.Errorf("unexpected error in interpreter, unknown status: %v", ERROR+1), tosca.Result{}},
+			errUnknownStatus{ERROR + 1}, tosca.Result{}},
 		"getOuput fail": {func(ctx *context) {
 			ctx.status = RETURNED
 			ctx.result_size = uint256.Int{1, 1}
@@ -643,8 +643,8 @@ func TestRunGenerateResult(t *testing.T) {
 			res, err := generateResult(&ctxt)
 
 			// Check the result.
-			if err != nil && test.expectedErr != nil && strings.Compare(err.Error(), test.expectedErr.Error()) != 0 {
-				t.Errorf("unexpected error: want \"%v\", got \"%v\"", test.expectedErr, err)
+			if !errors.Is(err, test.expectedErr) {
+				t.Errorf("unexpected error: want %v, got %v", test.expectedErr, err)
 			}
 			if !reflect.DeepEqual(res, test.expectedResult) {
 				t.Errorf("unexpected result: want %v, got %v", test.expectedResult, res)
