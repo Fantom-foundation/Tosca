@@ -23,9 +23,11 @@ import (
 	reflect "reflect"
 
 	common "github.com/ethereum/go-ethereum/common"
+	stateless "github.com/ethereum/go-ethereum/core/stateless"
 	tracing "github.com/ethereum/go-ethereum/core/tracing"
 	types "github.com/ethereum/go-ethereum/core/types"
 	params "github.com/ethereum/go-ethereum/params"
+	utils "github.com/ethereum/go-ethereum/trie/utils"
 	uint256 "github.com/holiman/uint256"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -345,6 +347,20 @@ func (mr *MockStateDbMockRecorder) HasSelfDestructed(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasSelfDestructed", reflect.TypeOf((*MockStateDb)(nil).HasSelfDestructed), arg0)
 }
 
+// PointCache mocks base method.
+func (m *MockStateDb) PointCache() *utils.PointCache {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PointCache")
+	ret0, _ := ret[0].(*utils.PointCache)
+	return ret0
+}
+
+// PointCache indicates an expected call of PointCache.
+func (mr *MockStateDbMockRecorder) PointCache() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PointCache", reflect.TypeOf((*MockStateDb)(nil).PointCache))
+}
+
 // Prepare mocks base method.
 func (m *MockStateDb) Prepare(rules params.Rules, sender, coinbase common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
 	m.ctrl.T.Helper()
@@ -492,4 +508,18 @@ func (m *MockStateDb) SubRefund(arg0 uint64) {
 func (mr *MockStateDbMockRecorder) SubRefund(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubRefund", reflect.TypeOf((*MockStateDb)(nil).SubRefund), arg0)
+}
+
+// Witness mocks base method.
+func (m *MockStateDb) Witness() *stateless.Witness {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Witness")
+	ret0, _ := ret[0].(*stateless.Witness)
+	return ret0
+}
+
+// Witness indicates an expected call of Witness.
+func (mr *MockStateDbMockRecorder) Witness() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Witness", reflect.TypeOf((*MockStateDb)(nil).Witness))
 }
