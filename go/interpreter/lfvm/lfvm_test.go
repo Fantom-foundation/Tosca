@@ -12,7 +12,7 @@ package lfvm
 
 import (
 	"bytes"
-	"strings"
+	"errors"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -27,7 +27,7 @@ func TestVm_Run(t *testing.T) {
 		withSuperInstructions bool
 		withCodeCache         bool
 		expectedResult        tosca.Result
-		expectedError         error
+		expectedError         *tosca.ErrUnsupportedRevision
 	}{
 		"empty code": {
 			revision: tosca.R13_Cancun,
@@ -41,8 +41,9 @@ func TestVm_Run(t *testing.T) {
 				GasRefund: 0, Output: []byte{}},
 		},
 		"newer unsupported revision": {
-			revision:      newestSupportedRevision + 1,
-			expectedError: &tosca.ErrUnsupportedRevision{Revision: newestSupportedRevision + 1},
+			revision: newestSupportedRevision + 1,
+			expectedError: &tosca.ErrUnsupportedRevision{
+				Revision: newestSupportedRevision + 1},
 		},
 	}
 
@@ -64,12 +65,15 @@ func TestVm_Run(t *testing.T) {
 			}
 
 			result, err := vm.Run(params)
-			if err != test.expectedError && strings.Compare(err.Error(), test.expectedError.Error()) != 0 {
-				t.Fatalf("unexpected error: want %v but got %v", test.expectedError, err)
+			if err != nil || test.expectedError != nil {
+				if !errors.As(err, &test.expectedError) {
+					t.Errorf("unexpected error: got %v (type %T), want %v (type %T)", err, err, test.expectedError, test.expectedError)
+				} else {
+					// if err is not nil and is as expected, we can return
+					return
+				}
 			}
-			if test.expectedError != nil {
-				return
-			}
+
 			if result.Success != test.expectedResult.Success {
 				t.Errorf("unexpected result, want %v but got %v",
 					test.expectedResult.Success, result.Success)
