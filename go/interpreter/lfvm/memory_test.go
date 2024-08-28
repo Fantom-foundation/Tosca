@@ -12,12 +12,10 @@ package lfvm
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"io"
 	"math"
 	"os"
-	"slices"
-	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -60,26 +58,18 @@ func TestMemory_CopyWord(t *testing.T) {
 	testValue := []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
 
 	tests := map[string]struct {
-		setup          func(*Memory, *context)
+		gas            tosca.Gas
 		offset         uint64
 		expectedTarget uint256.Int
 		expectedError  error
 	}{
 		"regular": {
-			setup: func(m *Memory, ctxt *context) {
-				m.store = make([]byte, 32)
-				copy(m.store[24:], testValue)
-				ctxt.gas = 100
-			},
+			gas:            100,
 			offset:         0,
 			expectedTarget: *uint256.NewInt(0).SetBytes8(testValue),
 			expectedError:  nil},
 		"not enough gas": {
-			setup: func(m *Memory, ctxt *context) {
-				m.store = make([]byte, 32)
-				copy(m.store[24:], testValue)
-				ctxt.gas = 6
-			},
+			gas:            6,
 			offset:         64,
 			expectedTarget: *uint256.NewInt(0),
 			expectedError:  errOutOfGas},
@@ -90,10 +80,12 @@ func TestMemory_CopyWord(t *testing.T) {
 			ctxt := getEmptyContext()
 			m := NewMemory()
 			target := uint256.NewInt(0)
-			test.setup(m, &ctxt)
+			m.store = make([]byte, 32)
+			copy(m.store[24:], testValue)
+			ctxt.gas = test.gas
 
 			err := m.CopyWord(test.offset, target, &ctxt)
-			if err != test.expectedError {
+			if !errors.Is(err, test.expectedError) {
 				t.Errorf("unexpected error, want: %v, got: %v", test.expectedError, err)
 			}
 			if target.Cmp(&test.expectedTarget) != 0 {
@@ -122,7 +114,7 @@ func TestMemory_SetByte(t *testing.T) {
 			ctxt.gas = test.gas
 
 			err := m.SetByte(test.offset, test.value, &ctxt)
-			if err != test.expected {
+			if !errors.Is(err, test.expected) {
 				t.Errorf("unexpected error, want: %v, got: %v", test.expected, err)
 			}
 			if err == nil && m.store[test.offset] != test.value {
@@ -137,7 +129,7 @@ func TestSetWordProperlyReportsNotEnoughGas(t *testing.T) {
 	m := NewMemory()
 	ctxt.gas = 0
 	err := m.SetWord(0, uint256.NewInt(0), &ctxt)
-	if err != errOutOfGas {
+	if !errors.Is(err, errOutOfGas) {
 		t.Errorf("unexpected error, want: %v, got: %v", errOutOfGas, err)
 	}
 }
@@ -153,7 +145,7 @@ func TestMemory_Set(t *testing.T) {
 		"size overflow":   {size: math.MaxUint64, offset: 1, expected: errGasUintOverflow},
 		"offset overflow": {size: 32, offset: math.MaxUint64, expected: errGasUintOverflow},
 		"not enough memory": {size: 32, offset: 32,
-			expected: fmt.Errorf("memory too small, size %d, attempted to write %d bytes at %d", 8, 32, 32)},
+			expected: errSetMemTooSmall(8, 32, 32)},
 	}
 
 	for name, test := range tests {
@@ -163,15 +155,23 @@ func TestMemory_Set(t *testing.T) {
 			m.store = make([]byte, 8)
 			ctxt.gas = 100
 
-			err := m.Set(test.offset, test.size, []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef})
+			data := []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
+			err := m.Set(test.offset, test.size, data)
 
 			if err == nil {
 				if test.expected != nil {
 					t.Errorf("expected error %v, got nil", test.expected)
 				}
-			} else if !strings.Contains(err.Error(), test.expected.Error()) {
+				if m.Len() != test.size+test.offset {
+					t.Errorf("unexpected memory size, want: %d, got: %d", test.size+test.offset, m.Len())
+				}
+				if !bytes.Equal(m.store[test.offset:], data) {
+					t.Errorf("unexpected memory value, want: %x, got: %x", data, m.store[test.offset:])
+				}
+			} else if !errors.Is(err, test.expected) {
 				t.Errorf("unexpected error, want: %v, got: %v", test.expected, err)
 			}
+
 		})
 	}
 }
@@ -232,7 +232,7 @@ func TestMemory_GetSliceWithCapacity(t *testing.T) {
 			m.store = test.store
 
 			result := m.GetSliceWithCapacity(test.offset, test.size)
-			if !slices.Equal(result, test.expected) {
+			if !bytes.Equal(result, test.expected) {
 				t.Errorf("unexpected result, want: %x, got: %x", test.expected, result)
 			}
 		})

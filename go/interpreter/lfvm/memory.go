@@ -168,11 +168,15 @@ func (m *Memory) Set(offset, size uint64, value []byte) error {
 			return errGasUintOverflow
 		}
 		if offset+size > m.Len() {
-			return fmt.Errorf("memory too small, size %d, attempted to write %d bytes at %d", m.Len(), size, offset)
+			return errSetMemTooSmall(m.Len(), size, offset)
 		}
 		copy(m.store[offset:offset+size], value)
 	}
 	return nil
+}
+
+func errSetMemTooSmall(memSize, size, offset uint64) error {
+	return ConstError(fmt.Sprintf("memory too small, size %d, attempted to write %d bytes at %d", memSize, size, offset))
 }
 
 func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c *context) error {
