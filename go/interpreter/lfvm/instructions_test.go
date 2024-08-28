@@ -17,7 +17,6 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 	"go.uber.org/mock/gomock"
 )
@@ -888,7 +887,7 @@ func TestSStoreGasCost(t *testing.T) {
 				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
 			},
 			revision:       tosca.R09_Berlin,
-			gas:            tosca.Gas(params.SstoreSetGasEIP2200),
+			gas:            SstoreSetGasEIP2200,
 			expectedStatus: RUNNING,
 		},
 		"berlin-not-enough-gas": {
@@ -896,7 +895,7 @@ func TestSStoreGasCost(t *testing.T) {
 				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
 			},
 			revision:       tosca.R09_Berlin,
-			gas:            tosca.Gas(params.SstoreSetGasEIP2200 - 1),
+			gas:            SstoreSetGasEIP2200 - 1,
 			expectedStatus: OUT_OF_GAS,
 		},
 		"london-enough-gas": {
@@ -904,7 +903,7 @@ func TestSStoreGasCost(t *testing.T) {
 				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
 			},
 			revision:       tosca.R10_London,
-			gas:            tosca.Gas(params.SstoreSetGasEIP2200),
+			gas:            SstoreSetGasEIP2200,
 			expectedStatus: RUNNING,
 		},
 		"london-not-enough-gas": {
@@ -912,7 +911,7 @@ func TestSStoreGasCost(t *testing.T) {
 				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
 			},
 			revision:       tosca.R10_London,
-			gas:            tosca.Gas(params.SstoreSetGasEIP2200 - 1),
+			gas:            SstoreSetGasEIP2200 - 1,
 			expectedStatus: OUT_OF_GAS,
 		},
 		"minimum-gas-invariant": {
@@ -920,7 +919,7 @@ func TestSStoreGasCost(t *testing.T) {
 				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
 			},
 			revision:       tosca.R09_Berlin,
-			gas:            tosca.Gas(params.SstoreSentryGasEIP2200),
+			gas:            SstoreSentryGasEIP2200,
 			expectedStatus: OUT_OF_GAS,
 		},
 		"address-not-present": {
@@ -928,7 +927,7 @@ func TestSStoreGasCost(t *testing.T) {
 				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(false, false).AnyTimes()
 			},
 			revision:       tosca.R09_Berlin,
-			gas:            tosca.Gas(params.SstoreSetGasEIP2200),
+			gas:            SstoreSetGasEIP2200,
 			expectedStatus: ERROR,
 		},
 	}
@@ -979,8 +978,8 @@ func TestSelfDestruct(t *testing.T) {
 				runContext.EXPECT().AccountExists(gomock.Any()).Return(true).AnyTimes()
 				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false).AnyTimes()
 			},
-			refund:   tosca.Gas(params.SelfdestructRefundGas),
-			gas:      tosca.Gas(params.SelfdestructGasEIP150),
+			refund:   SelfdestructRefundGas,
+			gas:      SelfdestructGasEIP150,
 			revision: tosca.R07_Istanbul,
 			status:   SUICIDED,
 		},
@@ -991,7 +990,7 @@ func TestSelfDestruct(t *testing.T) {
 				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(true).AnyTimes()
 			},
 			revision: tosca.R07_Istanbul,
-			gas:      tosca.Gas(params.SelfdestructGasEIP150),
+			gas:      SelfdestructGasEIP150,
 			status:   OUT_OF_GAS,
 		},
 		"berlin-regular": {
@@ -1001,7 +1000,7 @@ func TestSelfDestruct(t *testing.T) {
 				runContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1}).AnyTimes()
 				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false).AnyTimes()
 			},
-			refund:   tosca.Gas(params.SelfdestructRefundGas),
+			refund:   SelfdestructRefundGas,
 			revision: tosca.R09_Berlin,
 			status:   SUICIDED,
 		},
@@ -1013,7 +1012,7 @@ func TestSelfDestruct(t *testing.T) {
 				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false).AnyTimes()
 			},
 			revision: tosca.R10_London,
-			gas:      tosca.Gas(params.ColdAccountAccessCostEIP2929),
+			gas:      ColdAccountAccessCostEIP2929,
 			status:   SUICIDED,
 		},
 		"london-create-new-account": {
@@ -1024,7 +1023,7 @@ func TestSelfDestruct(t *testing.T) {
 				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false).AnyTimes()
 			},
 			revision: tosca.R10_London,
-			gas:      tosca.Gas(params.CreateBySelfdestructGas) - 1,
+			gas:      CreateBySelfdestructGas - 1,
 			status:   OUT_OF_GAS,
 		},
 	}
