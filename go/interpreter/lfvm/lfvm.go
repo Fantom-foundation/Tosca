@@ -10,60 +10,93 @@
 
 package lfvm
 
-import "github.com/Fantom-foundation/Tosca/go/tosca"
+import (
+	"fmt"
+
+	"github.com/Fantom-foundation/Tosca/go/tosca"
+)
 
 // Registers the long-form EVM as a possible interpreter implementation.
 func init() {
-	tosca.RegisterInterpreter("lfvm", &VM{})
-	tosca.RegisterInterpreter("lfvm-no-sha-cache", &VM{no_shaCache: true})
-	tosca.RegisterInterpreter("lfvm-si", &VM{with_super_instructions: true})
-	tosca.RegisterInterpreter("lfvm-si-no-sha-cache", &VM{with_super_instructions: true, no_shaCache: true})
-	tosca.RegisterInterpreter("lfvm-stats", &VM{with_statistics: true})
-	tosca.RegisterInterpreter("lfvm-si-stats", &VM{with_super_instructions: true, with_statistics: true})
-	tosca.RegisterInterpreter("lfvm-no-code-cache", &VM{no_code_cache: true})
-	tosca.RegisterInterpreter("lfvm-logging", &VM{logging: true})
+	// TODO: split into release-version and experimental versions
+	for _, si := range []string{"", "-si"} {
+		for _, stats := range []string{"", "-stats"} {
+			for _, shaCache := range []string{"", "-no-sha-cache"} {
+				for _, logging := range []string{"", "-logging"} {
+
+					vm, err := NewVm(Config{
+						ConversionConfig: ConversionConfig{
+							WithSuperInstructions: si == "-si",
+						},
+						WithStatistics: stats == "-stats",
+						NoShaCache:     shaCache == "-no-sha-cache",
+						Logging:        logging == "-logging",
+					})
+					if err != nil {
+						panic(err)
+					}
+
+					name := "lfvm" + si + stats + shaCache + logging
+					tosca.RegisterInterpreter(name, vm)
+				}
+			}
+		}
+	}
+	vm, err := NewVm(Config{
+		ConversionConfig: ConversionConfig{
+			CacheSize: -1,
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	tosca.RegisterInterpreter("lfvm-no-code-cache", vm)
+}
+
+type Config struct {
+	ConversionConfig
+	WithStatistics bool
+	NoShaCache     bool
+	Logging        bool
 }
 
 type VM struct {
-	with_super_instructions bool
-	with_statistics         bool
-	no_shaCache             bool
-	no_code_cache           bool
-	logging                 bool
+	config    Config
+	converter *Converter
+}
+
+func NewVm(config Config) (*VM, error) {
+	converter, err := NewConverter(config.ConversionConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create converter: %v", err)
+	}
+	return &VM{config: config, converter: converter}, nil
 }
 
 // Defines the newest supported revision for this interpreter implementation
 const newestSupportedRevision = tosca.R13_Cancun
 
 func (v *VM) Run(params tosca.Parameters) (tosca.Result, error) {
-	var codeHash tosca.Hash
-	if params.CodeHash != nil {
-		codeHash = *params.CodeHash
-	}
-
 	if params.Revision > newestSupportedRevision {
 		return tosca.Result{}, &tosca.ErrUnsupportedRevision{Revision: params.Revision}
 	}
 
-	converted := Convert(
+	converted := v.converter.Convert(
 		params.Code,
-		v.with_super_instructions,
-		params.CodeHash == nil,
-		v.no_code_cache,
-		codeHash,
+		params.CodeHash,
 	)
 
-	return Run(params, converted, v.with_statistics, v.no_shaCache, v.logging)
+	return Run(params, converted, v.config.WithStatistics, v.config.NoShaCache, v.config.Logging)
 }
 
 func (e *VM) DumpProfile() {
-	if e.with_statistics {
+	if e.config.WithStatistics {
 		printCollectedInstructionStatistics()
 	}
 }
 
 func (e *VM) ResetProfile() {
-	if e.with_statistics {
+	if e.config.WithStatistics {
 		resetCollectedInstructionStatistics()
 	}
 }

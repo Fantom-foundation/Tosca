@@ -12,7 +12,6 @@ package lfvm
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -21,40 +20,77 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 )
 
-const codeCacheCapacity = 50_000 // up to ~ 1 GB for 22 KiB max code size
-
-var cache *lru.Cache[tosca.Hash, Code]
-
-func init() {
-	res, err := lru.New[tosca.Hash, Code](codeCacheCapacity)
-	if err != nil {
-		panic(fmt.Errorf("failed to create cache: %v", err))
-	}
-	cache = res
+// ConversionConfig contains a set of configuration options for the code conversion.
+type ConversionConfig struct {
+	// CacheSize is the maximum size of the maintained code cache in bytes.
+	// If set to 0, a default size is used. If negative, no cache is used.
+	// Cache sizes are grown in increments of maxCachedCodeLength.
+	// Positive values larger than 0 but less than maxCachedCodeLength are
+	// reported as invalid cache sizes during initialization.
+	CacheSize int
+	// WithSuperInstructions enables the use of super instructions.
+	WithSuperInstructions bool
 }
 
-func clearConversionCache() {
-	cache.Purge()
+// Converter converts EVM code to LFVM code.
+type Converter struct {
+	config ConversionConfig
+	cache  *lru.Cache[tosca.Hash, Code]
 }
 
-func Convert(code []byte, withSuperInstructions bool, isInitCode bool, noCodeCache bool, codeHash tosca.Hash) Code {
-	// Do not cache use-once code in create calls.
-	// In those cases the codeHash is also invalid.
-	if isInitCode || noCodeCache {
-		return convert(code, withSuperInstructions)
+// NewConverter creates a new code converter with the provided configuration.
+func NewConverter(config ConversionConfig) (*Converter, error) {
+	if config.CacheSize == 0 {
+		config.CacheSize = (1 << 30) // = 1GiB
 	}
 
-	res, exists := cache.Get(codeHash)
+	var cache *lru.Cache[tosca.Hash, Code]
+	if config.CacheSize > 0 {
+		var err error
+		capacity := config.CacheSize / maxCachedCodeLength
+		cache, err = lru.New[tosca.Hash, Code](capacity)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &Converter{
+		config: config,
+		cache:  cache,
+	}, nil
+}
+
+// Convert converts EVM code to LFVM code. If the provided code hash is not nil,
+// it is assumed to be a valid hash of the code and is used to cache the
+// conversion result. If the hash is nil, the conversion result is not cached.
+func (c *Converter) Convert(code []byte, codeHash *tosca.Hash) Code {
+	if c.cache == nil || codeHash == nil {
+		return convert(code, c.config)
+	}
+
+	res, exists := c.cache.Get(*codeHash)
 	if exists {
 		return res
 	}
 
-	res = convert(code, withSuperInstructions)
-	if !isInitCode {
-		cache.Add(codeHash, res)
+	res = convert(code, c.config)
+	if len(res) > maxCachedCodeLength {
+		return res
 	}
+
+	c.cache.Add(*codeHash, res)
 	return res
 }
+
+// maxCachedCodeLength is the maximum length of a code in bytes that are
+// retained in the cache. To avoid excessive memory usage, longer codes are not
+// cached. The defined limit is the current limit for codes stored on the chain.
+// Only initialization codes can be longer. Since the Shanghai hard fork, the
+// maximum size of initialization codes is 2 * 24_576 = 49_152 bytes (see
+// https://eips.ethereum.org/EIPS/eip-3860). Such init codes are deliberately
+// not cached to to the expected limited re-use and the missing code hash.
+const maxCachedCodeLength = 1<<14 + 1<<13 // = 24_576 bytes
+
+// --- code builder ---
 
 type codeBuilder struct {
 	code    []Instruction
@@ -97,7 +133,7 @@ func (b *codeBuilder) toCode() Code {
 	return b.code[0:b.nextPos]
 }
 
-func convert(code []byte, with_super_instructions bool) Code {
+func convert(code []byte, options ConversionConfig) Code {
 	res := newCodeBuilder(len(code))
 
 	// Convert each individual instruction.
@@ -115,7 +151,7 @@ func convert(code []byte, with_super_instructions bool) Code {
 		}
 
 		// Convert instructions
-		inc := appendInstructions(&res, i, code, with_super_instructions)
+		inc := appendInstructions(&res, i, code, options.WithSuperInstructions)
 		i += inc + 1
 	}
 	return res.toCode()

@@ -212,7 +212,7 @@ func TestConvertToLfvm_Code(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				got := convert(cur.evmCode, false)
+				got := convert(cur.evmCode, ConversionConfig{})
 
 				want := cur.lfvmCode
 
@@ -322,7 +322,8 @@ func TestConvertToLfvm_CodeWithSuperInstructions(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := convert(test.evmCode, true)
+			options := ConversionConfig{WithSuperInstructions: true}
+			got := convert(test.evmCode, options)
 			if !reflect.DeepEqual(test.want, got) {
 				t.Fatalf("unexpected code, wanted %v, got %v", test.want, got)
 			}
