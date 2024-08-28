@@ -603,7 +603,7 @@ func opSha3(c *context) {
 	}
 	if c.shaCache {
 		// Cache hashes since identical values are frequently re-hashed.
-		c.hasherBuf = hashCache.hash(c, data)
+		c.hasherBuf = hashCache.hash(data)
 	} else {
 		if c.hasher == nil {
 			c.hasher = sha3.NewLegacyKeccak256().(keccakState)
