@@ -11,9 +11,11 @@
 package lfvm
 
 import (
+	"math/rand"
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
@@ -190,10 +192,84 @@ func TestConvert_AllValidOperationsAreCoveredByConversionTable(t *testing.T) {
 	}
 }
 
-func TestConverterGenPcMapFailsWithSuperInstructions(t *testing.T) {
-	_, err := GenPcMapWithSuperInstructions([]byte{0x00})
-	if err == nil {
-		t.Errorf("program counter mapping does not support super instructions yet")
+func TestConvertWithObserver_MapsEvmToLfvmPositions(t *testing.T) {
+	code := []byte{
+		byte(vm.ADD),
+		byte(vm.PUSH1), 1,
+		byte(vm.PUSH3), 1, 2, 3,
+		byte(vm.SWAP1),
+		byte(vm.JUMPDEST),
+	}
+
+	type pair struct {
+		evm, lfvm int
+	}
+	var pairs []pair
+	res := convertWithObserver(code, ConversionConfig{}, func(evm, lfvm int) {
+		pairs = append(pairs, pair{evm, lfvm})
+	})
+
+	want := []pair{
+		{0, 0},
+		{1, 1},
+		{3, 2},
+		{7, 4},
+		{8, 8},
+	}
+
+	if !slices.Equal(pairs, want) {
+		t.Errorf("Expected %v, got %v", want, pairs)
+	}
+
+	for _, p := range pairs {
+		in := vm.OpCode(code[p.evm])
+		want := op_2_op[in]
+		if vm.PUSH1 <= in && in <= vm.PUSH32 {
+			want = PUSH1 + OpCode(in-vm.PUSH1)
+		}
+		got := res[p.lfvm].opcode
+		if want != got {
+			t.Errorf("Expected %v, got %v", want, got)
+		}
+	}
+}
+
+func TestConvertWithObserver_PreservesJumpDestLocations(t *testing.T) {
+	r := rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
+
+	for i := 0; i < 100; i++ {
+		code := make([]byte, 100)
+		r.Read(code)
+
+		type pair struct {
+			evm, lfvm int
+		}
+		var pairs []pair
+		res := convertWithObserver(code, ConversionConfig{}, func(evm, lfvm int) {
+			pairs = append(pairs, pair{evm, lfvm})
+		})
+
+		// Check that all operations are mapped to matching operations.
+		for _, p := range pairs {
+			in := vm.OpCode(code[p.evm])
+			want := op_2_op[in]
+			if vm.PUSH1 <= in && in <= vm.PUSH32 {
+				want = PUSH1 + OpCode(in-vm.PUSH1)
+			}
+			got := res[p.lfvm].opcode
+			if want != got {
+				t.Errorf("Expected %v, got %v", want, got)
+			}
+		}
+
+		// Check that the position of JUMPDESTs is preserved.
+		for _, p := range pairs {
+			if vm.OpCode(code[p.evm]) == vm.JUMPDEST {
+				if p.evm != p.lfvm {
+					t.Errorf("Expected JUMPDEST at %d, got %d", p.evm, p.lfvm)
+				}
+			}
+		}
 	}
 }
 

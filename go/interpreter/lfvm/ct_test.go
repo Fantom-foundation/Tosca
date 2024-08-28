@@ -53,7 +53,7 @@ func TestCtAdapter_Add(t *testing.T) {
 
 func TestCtAdapter_Interface(t *testing.T) {
 	// Compile time check that ctAdapter implements the st.Evm interface.
-	var _ ct.Evm = ctAdapter{}
+	var _ ct.Evm = &ctAdapter{}
 }
 
 ////////////////////////////////////////////////////////////
@@ -113,14 +113,9 @@ func TestConvertToLfvm_Pc(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				pcMap, err := GenPcMapWithoutSuperInstructions(cur.evmCode)
-				if err != nil {
-					t.Fatalf("failed to generate pc map: %v", err)
-				}
-				lfvmPc, found := pcMap.evmToLfvm[cur.evmPc]
-				if !found {
-					t.Errorf("failed to resolve evm PC of %d in converted code", cur.evmPc)
-				} else if want, got := cur.lfvmPc, lfvmPc; want != got {
+				pcMap := genPcMap(cur.evmCode)
+				lfvmPc := pcMap.evmToLfvm[cur.evmPc]
+				if want, got := cur.lfvmPc, lfvmPc; want != got {
 					t.Errorf("invalid conversion, wanted %d, got %d", want, got)
 				}
 			}
@@ -408,14 +403,9 @@ func TestConvertToCt_Pc(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				pcMap, err := GenPcMapWithoutSuperInstructions(cur.evmCode)
-				if err != nil {
-					t.Fatalf("failed to generate pc map: %v", err)
-				}
-				evmPc, found := pcMap.lfvmToEvm[cur.lfvmPc]
-				if !found {
-					t.Errorf("failed to resolve lfvm PC of %d in converted code", cur.evmPc)
-				} else if want, got := cur.evmPc, evmPc; want != got {
+				pcMap := genPcMap(cur.evmCode)
+				evmPc := pcMap.lfvmToEvm[cur.lfvmPc]
+				if want, got := cur.evmPc, evmPc; want != got {
 					t.Errorf("invalid conversion, wanted %d, got %d", want, got)
 				}
 			}

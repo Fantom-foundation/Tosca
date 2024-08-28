@@ -12,13 +12,13 @@ package lfvm
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/Fantom-foundation/Tosca/go/ct"
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/ct/utils"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	lru "github.com/hashicorp/golang-lru/v2"
 )
 
 func NewConformanceTestingTarget() ct.Evm {
@@ -28,16 +28,19 @@ func NewConformanceTestingTarget() ct.Evm {
 	if err != nil {
 		panic("failed to create converter: " + err.Error())
 	}
-	return ctAdapter{
-		converter: converter,
+	cache, _ := lru.New[[32]byte, *pcMap](4096) // can only fail for non-positive size
+	return &ctAdapter{
+		converter:  converter,
+		pcMapCache: cache,
 	}
 }
 
 type ctAdapter struct {
-	converter *Converter
+	converter  *Converter
+	pcMapCache *lru.Cache[[32]byte, *pcMap]
 }
 
-func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
+func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	params := utils.ToVmParameters(state)
 	if params.Revision > newestSupportedRevision {
 		return state, &tosca.ErrUnsupportedRevision{Revision: params.Revision}
@@ -53,10 +56,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		params.CodeHash,
 	)
 
-	pcMap, err := getPcMap(state.Code)
-	if err != nil {
-		return nil, err
-	}
+	pcMap := a.getPcMap(state.Code)
 
 	memory, err := convertCtMemoryToLfvmMemory(state.Memory)
 	if err != nil {
@@ -98,11 +98,7 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		return nil, err
 	}
 	if ctxt.status == RUNNING {
-		var ok bool
-		state.Pc, ok = pcMap.lfvmToEvm[uint16(ctxt.pc)]
-		if !ok {
-			return nil, fmt.Errorf("failed to convert program counter %d", ctxt.pc)
-		}
+		state.Pc = pcMap.lfvmToEvm[ctxt.pc]
 	}
 
 	state.Gas = ctxt.gas
@@ -115,36 +111,61 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	return state, nil
 }
 
-var pcMapCache = struct {
-	maxSize int
-	data    map[[32]byte]*PcMap
-	mutex   sync.Mutex
-}{
-	maxSize: 4096,
-	data:    make(map[[32]byte]*PcMap),
+func (a *ctAdapter) getPcMap(code *st.Code) *pcMap {
+	hash := code.Hash()
+	pcMap, found := a.pcMapCache.Get(hash)
+	if found {
+		return pcMap
+	}
+	byteCode := code.Copy()
+	pcMap = genPcMap(byteCode)
+	a.pcMapCache.Add(hash, pcMap)
+	return pcMap
 }
 
-func getPcMap(code *st.Code) (*PcMap, error) {
-	pcMapCache.mutex.Lock()
-	defer pcMapCache.mutex.Unlock()
+// pcMap is a bidirectional map to map program counters between evm <-> lfvm.
+type pcMap struct {
+	evmToLfvm []uint16
+	lfvmToEvm []uint16
+}
 
-	if len(pcMapCache.data) > pcMapCache.maxSize {
-		pcMapCache.data = make(map[[32]byte]*PcMap)
+// genPcMap creates a bidirectional program counter map for a given code,
+// allowing mapping from a program counter in evm code to lfvm and vice versa.
+func genPcMap(code []byte) *pcMap {
+	evmToLfvm := make([]uint16, len(code)+1)
+	lfvmToEvm := make([]uint16, len(code)+1)
+
+	config := ConversionConfig{
+		WithSuperInstructions: false,
 	}
+	res := convertWithObserver(code, config, func(evm, lfvm int) {
+		evmToLfvm[evm] = uint16(lfvm)
+		lfvmToEvm[lfvm] = uint16(evm)
+	})
 
-	pcMap, ok := pcMapCache.data[code.Hash()]
+	// A program counter may correctly point to the position after the last
+	// instruction, which would lead to an implicit STOP.
+	evmToLfvm[len(code)] = uint16(len(res))
 
-	if !ok {
-		byteCode := code.Copy()
-		pcMap, err := GenPcMapWithoutSuperInstructions(byteCode)
-		if err != nil {
-			return nil, err
+	// The LFVM code could also be longer than the input code if extra padding
+	// of truncated PUSH instructions has been added.
+	if len(res)+1 > len(lfvmToEvm) {
+		lfvmToEvm = append(lfvmToEvm, make([]uint16, len(res)+1-len(lfvmToEvm))...)
+	}
+	lfvmToEvm[len(res)] = uint16(len(code))
+
+	// Locations pointing to JUMP_TO instructions in LFVM need to be updated to
+	// the position of the jump target.
+	for i := 0; i < len(res); i++ {
+		if res[i].opcode == JUMP_TO {
+			lfvmToEvm[i] = res[i].arg
 		}
-		pcMapCache.data[code.Hash()] = pcMap
-		return pcMap, nil
 	}
 
-	return pcMap, nil
+	return &pcMap{
+		evmToLfvm: evmToLfvm,
+		lfvmToEvm: lfvmToEvm,
+	}
 }
 
 func convertLfvmStatusToCtStatus(status Status) (st.StatusCode, error) {
