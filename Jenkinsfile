@@ -92,6 +92,12 @@ pipeline {
             }
         }
 
+        stage('LFVM race condition tests') {
+            steps {
+                sh 'GORACE="halt_on_error=1" go test --race ./go/interpreter/lfvm/...'
+            }
+        }
+
         stage('Run C++ tests') {
             steps {
                 sh 'make test-cpp'
