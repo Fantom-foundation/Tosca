@@ -103,17 +103,17 @@ func newHashCache(capacity32 int, capacity64 int) *HashCache {
 
 // hash fetches a cached hash or computes the hash for the provided data
 // using the hasher in the given context.
-func (h *HashCache) hash(c *context, data []byte) tosca.Hash {
+func (h *HashCache) hash(data []byte) tosca.Hash {
 	if len(data) == 32 {
-		return h.getHash32(c, data)
+		return h.getHash32(data)
 	}
 	if len(data) == 64 {
-		return h.getHash64(c, data)
+		return h.getHash64(data)
 	}
-	return getHash(c, data)
+	return Keccak256(data)
 }
 
-func (h *HashCache) getHash32(c *context, data []byte) tosca.Hash {
+func (h *HashCache) getHash32(data []byte) tosca.Hash {
 	var key [32]byte
 	copy(key[:], data)
 	h.lock32.Lock()
@@ -139,7 +139,7 @@ func (h *HashCache) getHash32(c *context, data []byte) tosca.Hash {
 
 	// Compute the hash without holding the lock.
 	h.lock32.Unlock()
-	hash := getHash(c, data)
+	hash := Keccak256For32byte(key)
 	h.lock32.Lock()
 	defer h.lock32.Unlock()
 
@@ -161,7 +161,7 @@ func (h *HashCache) getHash32(c *context, data []byte) tosca.Hash {
 	return entry.hash
 }
 
-func (h *HashCache) getHash64(c *context, data []byte) tosca.Hash {
+func (h *HashCache) getHash64(data []byte) tosca.Hash {
 	var key [64]byte
 	copy(key[:], data)
 	h.lock64.Lock()
@@ -187,7 +187,7 @@ func (h *HashCache) getHash64(c *context, data []byte) tosca.Hash {
 
 	// Compute the hash without holding the lock.
 	h.lock64.Unlock()
-	hash := getHash(c, data)
+	hash := Keccak256(data) // TODO: replace for keccak256For64byte when implemented.
 	h.lock64.Lock()
 	defer h.lock64.Unlock()
 
@@ -236,21 +236,5 @@ func (h *HashCache) getFree64() *hashCacheEntry64 {
 	h.tail64 = h.tail64.pred
 	h.tail64.succ = nil
 	delete(h.index64, res.key)
-	return res
-}
-
-// getHash computes a Sha3 hash of the given data using the hasher
-// instance in the provided context.
-func getHash(c *context, data []byte) tosca.Hash {
-	res := tosca.Hash{}
-
-	if c.hasher == nil {
-		c.hasher = sha3.NewLegacyKeccak256().(keccakState)
-	} else {
-		c.hasher.Reset()
-	}
-
-	c.hasher.Write(data)
-	_, _ = c.hasher.Read(res[:]) // sha3.state.Read() never returns an error
 	return res
 }
