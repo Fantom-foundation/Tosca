@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/pprof"
+	"time"
 
 	"github.com/urfave/cli/v2"
 )
@@ -62,12 +63,16 @@ var SeedFlag = &seedFlagType{
 	cli.Uint64Flag{
 		Name:    "seed",
 		Aliases: []string{"s"},
-		Usage:   "seed for the random number generator",
+		Usage:   "seed for the random number generator. If not provided, the seed is the current time stamp",
 	},
 }
 
 func (f *seedFlagType) Fetch(context *cli.Context) uint64 {
-	return context.Uint64(f.Name)
+	if context.IsSet(f.Name) {
+		return context.Uint64(f.Name)
+	} else {
+		return uint64(time.Now().UnixNano())
+	}
 }
 
 type cpuProfileType struct {
