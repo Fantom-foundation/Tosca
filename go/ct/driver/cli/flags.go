@@ -63,16 +63,13 @@ var SeedFlag = &seedFlagType{
 	cli.Uint64Flag{
 		Name:    "seed",
 		Aliases: []string{"s"},
+		Value:   uint64(time.Now().UnixNano()),
 		Usage:   "seed for the random number generator. If not provided, the seed is the current time stamp",
 	},
 }
 
 func (f *seedFlagType) Fetch(context *cli.Context) uint64 {
-	if context.IsSet(f.Name) {
-		return context.Uint64(f.Name)
-	} else {
-		return uint64(time.Now().UnixNano())
-	}
+	return context.Uint64(f.Name)
 }
 
 type cpuProfileType struct {
