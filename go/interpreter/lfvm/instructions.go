@@ -16,7 +16,6 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/holiman/uint256"
-	"golang.org/x/crypto/sha3"
 )
 
 func opStop(c *context) {
@@ -601,20 +600,15 @@ func opSha3(c *context) {
 	if !c.UseGas(price) {
 		return
 	}
+	var hash tosca.Hash
 	if c.shaCache {
 		// Cache hashes since identical values are frequently re-hashed.
-		c.hasherBuf = hashCache.hash(data)
+		hash = hashCache.hash(data)
 	} else {
-		if c.hasher == nil {
-			c.hasher = sha3.NewLegacyKeccak256().(keccakState)
-		} else {
-			c.hasher.Reset()
-		}
-		_, _ = c.hasher.Write(data)          // hash.Hash.Write() never returns an error
-		_, _ = c.hasher.Read(c.hasherBuf[:]) // sha3.state.Read() never returns an error
+		hash = Keccak256(data)
 	}
 
-	size.SetBytes32(c.hasherBuf[:])
+	size.SetBytes32(hash[:])
 }
 
 func opGas(c *context) {

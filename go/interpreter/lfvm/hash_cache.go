@@ -14,7 +14,6 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
-	"golang.org/x/crypto/sha3"
 )
 
 // hashCacheEntry32 is an entry of a cache for hashes of 32-byte long inputs.
@@ -70,32 +69,19 @@ func newHashCache(capacity32 int, capacity64 int) *HashCache {
 	// in every lookup operation we initialize the cache with one value.
 	// Since values are never removed, just evicted to make space for another,
 	// the cache will never be empty.
-	hasher := sha3.NewLegacyKeccak256().(keccakState)
 
 	// Insert first 32-byte element (all zeros).
 	res.head32 = res.getFree32()
 	res.tail32 = res.head32
-
-	hasher.Reset()
 	var data32 [32]byte
-	_, _ = hasher.Write(data32[:]) // hash.Hash.Write() never returns an error
-	var hash32 tosca.Hash
-	_, _ = hasher.Read(hash32[:]) // sha3.state.Read() never returns an error
-	res.head32.hash = hash32
-
+	res.head32.hash = Keccak256For32byte(data32)
 	res.index32[data32] = res.head32
 
 	// Insert first 64-byte element (all zeros).
 	res.head64 = res.getFree64()
 	res.tail64 = res.head64
-
-	hasher.Reset()
 	var data64 [64]byte
-	_, _ = hasher.Write(data64[:]) // hash.Hash.Write() never returns an error
-	var hash64 tosca.Hash
-	_, _ = hasher.Read(hash64[:]) // sha3.state.Read() never returns an error
-	res.head64.hash = hash64
-
+	res.head64.hash = Keccak256(data64[:])
 	res.index64[data64] = res.head64
 
 	return res
