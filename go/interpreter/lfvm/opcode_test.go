@@ -55,11 +55,12 @@ func TestOpcode_String(t *testing.T) {
 		op := OpCode(i)
 		want := ""
 		found := false
-		toscaOp := findIndex(op_2_op, op)
+		toscaOp := slices.Index(op_2_op, op)
 		if PUSH1 <= op && op <= PUSH32 {
 			toscaOp = int(vm.PUSH1) + int(op) - 2
 		}
-		if toscaOp < 256 && vm.IsValid(vm.OpCode(toscaOp)) {
+		// check for >= 0 because slices.Index returns -1 if not found
+		if toscaOp >= 0 && vm.IsValid(vm.OpCode(toscaOp)) {
 			want = vm.OpCode(toscaOp).String()
 		} else {
 			want, found = special_op_str[op]
@@ -74,18 +75,9 @@ func TestOpcode_String(t *testing.T) {
 	}
 }
 
-func findIndex(slice []OpCode, element OpCode) int {
-	for i, v := range slice {
-		if v == element {
-			return i
-		}
-	}
-	return 256
-}
-
 func TestOpcode_HasArgument(t *testing.T) {
 
-	haveArgument := []OpCode{DATA, JUMP_TO, PUSH2_JUMP, PUSH2_JUMPI, PUSH1_PUSH4_DUP3}
+	haveArgument := []OpCode{PC, DATA, JUMP_TO, PUSH2_JUMP, PUSH2_JUMPI, PUSH1_PUSH4_DUP3}
 	for i := PUSH1; i <= PUSH32; i++ {
 		haveArgument = append(haveArgument, i)
 	}

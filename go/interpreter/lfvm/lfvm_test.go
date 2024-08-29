@@ -21,24 +21,27 @@ import (
 func TestVm_Run(t *testing.T) {
 
 	tests := map[string]struct {
-		code                  []byte
-		codeHash              tosca.Hash
-		revision              tosca.Revision
-		withSuperInstructions bool
-		withCodeCache         bool
-		expectedResult        tosca.Result
-		expectedError         *tosca.ErrUnsupportedRevision
+		code           []byte
+		revision       tosca.Revision
+		expectedResult tosca.Result
+		expectedError  *tosca.ErrUnsupportedRevision
 	}{
 		"empty code": {
 			revision: tosca.R13_Cancun,
-			expectedResult: tosca.Result{Success: true, GasLeft: 1000000,
-				GasRefund: 0, Output: []byte{}},
+			expectedResult: tosca.Result{
+				Success:   true,
+				GasLeft:   1000000,
+				GasRefund: 0,
+				Output:    []byte{}},
 		},
 		"invalid code": {
 			code:     []byte{0x0C},
 			revision: tosca.R13_Cancun,
-			expectedResult: tosca.Result{Success: false, GasLeft: 0,
-				GasRefund: 0, Output: []byte{}},
+			expectedResult: tosca.Result{
+				Success:   false,
+				GasLeft:   0,
+				GasRefund: 0,
+				Output:    []byte{}},
 		},
 		"newer unsupported revision": {
 			revision: newestSupportedRevision + 1,
@@ -53,7 +56,7 @@ func TestVm_Run(t *testing.T) {
 			params := tosca.Parameters{
 				Gas:      1000000,
 				Code:     test.code,
-				CodeHash: &test.codeHash,
+				CodeHash: &tosca.Hash{},
 				BlockParameters: tosca.BlockParameters{
 					Revision: test.revision,
 				},
@@ -61,15 +64,16 @@ func TestVm_Run(t *testing.T) {
 
 			vm, err := NewVm(Config{
 				ConversionConfig: ConversionConfig{
-					WithSuperInstructions: test.withSuperInstructions,
+					WithSuperInstructions: false,
 				},
-				NoShaCache: !test.withCodeCache,
+				NoShaCache: true,
 			})
 			if err != nil {
 				t.Fatalf("failed to create vm: %v", err)
 			}
 
 			result, err := vm.Run(params)
+			// TODO: simplify error checking when ErrUnsoportedRevision is a tosca.ConstErr
 			if err != nil || test.expectedError != nil {
 				if !errors.As(err, &test.expectedError) {
 					t.Errorf("unexpected error: got %v (type %T), want %v (type %T)", err, err, test.expectedError, test.expectedError)

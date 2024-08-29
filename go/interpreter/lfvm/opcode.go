@@ -444,6 +444,9 @@ func (o OpCode) HasArgument() bool {
 		return true
 	case PUSH1_PUSH4_DUP3:
 		return true
+	case PC:
+		return true
 	}
+
 	return false
 }
