@@ -197,8 +197,7 @@ func (m *Memory) CopyWord(offset uint64, trg *uint256.Int, c *context) error {
 	if err != nil {
 		return err
 	}
-	toWrite := m.store[offset : offset+32]
-	trg.SetBytes32(toWrite) //m.store[offset : offset+32])
+	trg.SetBytes32(m.store[offset : offset+32])
 	return nil
 }
 
