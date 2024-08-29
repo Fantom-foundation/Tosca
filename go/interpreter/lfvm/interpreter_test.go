@@ -731,7 +731,12 @@ func TestDumpProfilePrintsExpectedOutput(t *testing.T) {
 			os.Stderr = w
 			log.SetOutput(os.Stderr)
 
-			instance := VM{with_statistics: true}
+			instance, err := NewVm(Config{
+				WithStatistics: true,
+			})
+			if err != nil {
+				t.Fatalf("Failed to create VM: %v", err)
+			}
 			instance.ResetProfile()
 			//run code
 			instance.Run(tosca.Parameters{Input: []byte{}, Static: true, Gas: 10,
@@ -906,7 +911,7 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 	example := getFibExample()
 
 	// Convert example to LFVM format.
-	converted := convert(example.code, with_super_instructions)
+	converted := convert(example.code, ConversionConfig{})
 
 	// Create input data.
 

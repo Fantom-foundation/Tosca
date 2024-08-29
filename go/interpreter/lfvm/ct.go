@@ -22,10 +22,20 @@ import (
 )
 
 func NewConformanceTestingTarget() ct.Evm {
-	return ctAdapter{}
+	converter, err := NewConverter(ConversionConfig{
+		WithSuperInstructions: false,
+	})
+	if err != nil {
+		panic("failed to create converter: " + err.Error())
+	}
+	return ctAdapter{
+		converter: converter,
+	}
 }
 
-type ctAdapter struct{}
+type ctAdapter struct {
+	converter *Converter
+}
 
 func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	params := utils.ToVmParameters(state)
@@ -38,17 +48,9 @@ func (a ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		return state, nil
 	}
 
-	var codeHash tosca.Hash
-	if params.CodeHash != nil {
-		codeHash = *params.CodeHash
-	}
-
-	converted := Convert(
+	converted := a.converter.Convert(
 		params.Code,
-		false, /* no super instructions */
-		params.CodeHash == nil,
-		false, /* with code cache */
-		codeHash,
+		params.CodeHash,
 	)
 
 	pcMap, err := getPcMap(state.Code)
