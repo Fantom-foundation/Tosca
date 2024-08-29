@@ -87,7 +87,7 @@ func (c *Converter) Convert(code []byte, codeHash *tosca.Hash) Code {
 // Only initialization codes can be longer. Since the Shanghai hard fork, the
 // maximum size of initialization codes is 2 * 24_576 = 49_152 bytes (see
 // https://eips.ethereum.org/EIPS/eip-3860). Such init codes are deliberately
-// not cached to to the expected limited re-use and the missing code hash.
+// not cached due to the expected limited re-use and the missing code hash.
 const maxCachedCodeLength = 1<<14 + 1<<13 // = 24_576 bytes
 
 // --- code builder ---

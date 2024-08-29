@@ -32,11 +32,11 @@ func init() {
 						NoShaCache:     shaCache == "-no-sha-cache",
 						Logging:        logging == "-logging",
 					})
+					name := "lfvm" + si + stats + shaCache + logging
 					if err != nil {
-						panic(err)
+						panic(fmt.Sprintf("failed to create %s: %v", name, err))
 					}
 
-					name := "lfvm" + si + stats + shaCache + logging
 					tosca.RegisterInterpreter(name, vm)
 				}
 			}
@@ -48,7 +48,7 @@ func init() {
 		},
 	})
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("failed to create no-code-cache instance: %v", err))
 	}
 	tosca.RegisterInterpreter("lfvm-no-code-cache", vm)
 }
