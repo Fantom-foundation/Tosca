@@ -12,7 +12,6 @@ package lfvm
 
 import (
 	"fmt"
-	"hash"
 	"log"
 	"sort"
 	"sync"
@@ -35,14 +34,6 @@ const (
 	ERROR
 )
 
-// keccakState wraps sha3.state. In addition to the usual hash methods, it also supports
-// Read to get a variable amount of data from the hash state. Read is faster than Sum
-// because it doesn't copy the internal state, but also modifies the internal state.
-type keccakState interface {
-	hash.Hash
-	Read([]byte) (int, error)
-}
-
 type context struct {
 	// Context instances
 	params  tosca.Parameters
@@ -63,8 +54,6 @@ type context struct {
 
 	// Intermediate data
 	return_data []byte
-	hasher      keccakState // Keccak256 hasher instance shared across opcodes
-	hasherBuf   tosca.Hash
 
 	// Outputs
 	result_offset uint256.Int
