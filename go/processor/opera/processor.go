@@ -479,8 +479,7 @@ func init() {
 		}
 
 		*constID = make([]byte, len(method.ID))
-		id := method.ID
-		copy(*constID, id)
+		copy(*constID, method.ID)
 	}
 }
 

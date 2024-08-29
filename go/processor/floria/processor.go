@@ -24,12 +24,6 @@ const (
 	TxAccessListAddressGas    = 2400
 	TxAccessListStorageKeyGas = 1900
 
-	CallValueTransferGas = tosca.Gas(9000)
-	CreateGas            = tosca.Gas(32000)
-	CreateDataGas        = tosca.Gas(200)
-	MemoryGas            = tosca.Gas(3)
-	SstoreSetGasEIP2200  = tosca.Gas(20000)
-
 	MaxRecursiveDepth = 1024 // Maximum depth of call/create stack.
 )
 

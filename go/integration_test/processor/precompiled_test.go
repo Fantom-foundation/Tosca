@@ -110,7 +110,8 @@ func TestPrecompiled_StatePrecompiledContractSetBalance(t *testing.T) {
 	accountToChange := tosca.Address{0x55}
 	newBalance := byte(0x05)
 	sender := tosca.Address{0x42}
-	receiver := floria.DriverAddress
+	receiver := floria.DriverAddress()
+	stateContractAddress := floria.StateContractAddress()
 
 	setBalancePrefix := []byte{0xe3, 0x4, 0x43, 0xbc}
 	setBalanceValidInput := append(make([]byte, 12), accountToChange[:]...)
@@ -136,8 +137,8 @@ func TestPrecompiled_StatePrecompiledContractSetBalance(t *testing.T) {
 			}
 			// push call arguments to stack
 			code = append(code, pushToStack([]*big.Int{
-				big.NewInt(int64(sufficientGas)),                      // gas send to nested call
-				new(big.Int).SetBytes(floria.StateContractAddress[:]), // call target
+				big.NewInt(int64(sufficientGas)),               // gas send to nested call
+				new(big.Int).SetBytes(stateContractAddress[:]), // call target
 				big.NewInt(0),                 // value to transfer
 				big.NewInt(0),                 // argument offset
 				big.NewInt(int64(len(input))), // argument size

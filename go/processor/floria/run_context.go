@@ -74,7 +74,7 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 		return tosca.CallResult{}, nil
 	}
 
-	output, isStatePrecompiled := handleStatePrecompiledContract(
+	output, isStatePrecompiled := handleStateContract(
 		r, parameters.Sender, parameters.Recipient, parameters.Input, parameters.Gas)
 	if isStatePrecompiled {
 		return output, nil
