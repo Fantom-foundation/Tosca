@@ -59,9 +59,14 @@ func TestVm_Run(t *testing.T) {
 				},
 			}
 
-			vm := &VM{
-				with_super_instructions: test.withSuperInstructions,
-				no_code_cache:           !test.withCodeCache,
+			vm, err := NewVm(Config{
+				ConversionConfig: ConversionConfig{
+					WithSuperInstructions: test.withSuperInstructions,
+				},
+				NoShaCache: !test.withCodeCache,
+			})
+			if err != nil {
+				t.Fatalf("failed to create vm: %v", err)
 			}
 
 			result, err := vm.Run(params)
