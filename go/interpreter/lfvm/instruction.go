@@ -23,7 +23,7 @@ type Instruction struct {
 	arg uint16
 }
 
-// Instruction stack boundries for execution
+// Instruction stack boundaries for execution
 type InstructionStack struct {
 	// Minimum stack height because of pop or peek operations
 	stackMin int
