@@ -82,6 +82,8 @@ func doRun(context *cli.Context) error {
 		return fmt.Errorf("invalid EVM identifier, use one of: %v", maps.Keys(evms))
 	}
 
+	defer fmt.Printf("Seed Used: %d\n", seed)
+
 	issuesCollector := cliUtils.IssuesCollector{}
 	var skippedCount atomic.Int32
 	var numUnsupportedTests atomic.Int32
@@ -118,8 +120,6 @@ func doRun(context *cli.Context) error {
 
 		return rlz.ConsumeContinue
 	}
-
-	fmt.Printf("Starting Conformance Tests with seed %d ...\n", seed)
 
 	rules := spc.FilterRules(spc.Spec.GetRules(), filter)
 

@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/pprof"
+	"time"
 
 	"github.com/urfave/cli/v2"
 )
@@ -62,7 +63,8 @@ var SeedFlag = &seedFlagType{
 	cli.Uint64Flag{
 		Name:    "seed",
 		Aliases: []string{"s"},
-		Usage:   "seed for the random number generator",
+		Value:   uint64(time.Now().UnixNano()),
+		Usage:   "seed for the random number generator. If not provided, the seed is the current time stamp",
 	},
 }
 
