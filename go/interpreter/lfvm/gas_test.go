@@ -11,6 +11,7 @@
 package lfvm
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -61,14 +62,15 @@ func TestGas_CallGasCalculation(t *testing.T) {
 }
 
 func TestGas_CheckGasCostsForAllExecutableOpcodes(t *testing.T) {
+	validName := regexp.MustCompile(`^0x00[0-9A-Fa-f]{2}$`)
 	for i := 0; i < int(NUM_OPCODES); i++ {
-
+		op := OpCode(i)
 		if static_gas_prices[i] == UNKNOWN_GAS_PRICE &&
-			op_2_op[i] != INVALID {
+			!validName.MatchString(op.String()) {
 			t.Errorf("gas price for %v is unknown", OpCode(i))
 		}
 		if static_gas_prices_berlin[i] == UNKNOWN_GAS_PRICE &&
-			op_2_op[i] != INVALID {
+			!validName.MatchString(op.String()) {
 			t.Errorf("berlin gas price for %v is unknown", OpCode(i))
 		}
 	}

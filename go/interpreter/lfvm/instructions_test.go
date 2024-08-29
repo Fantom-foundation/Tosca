@@ -207,47 +207,86 @@ func TestPush4(t *testing.T) {
 	}
 }
 
-func TestCallChecksBalances(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	runContext := tosca.NewMockRunContext(ctrl)
+func TestCall_ProperlyChecksAndReportsAccountsAndBalances(t *testing.T) {
 
 	source := tosca.Address{1}
 	target := tosca.Address{2}
-	ctxt := context{
-		status: statusRunning,
-		params: tosca.Parameters{
-			Recipient: source,
+
+	tests := map[string]struct {
+		setup          func(*tosca.MockRunContext)
+		expectedStatus status
+	}{
+		"balance_is_less_than_value": {
+			setup: func(runContext *tosca.MockRunContext) {
+				// The target account should exist and the source account without funds.
+				runContext.EXPECT().AccountExists(target).Return(true)
+				runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
+				runContext.EXPECT().IsAddressInAccessList(target).Return(true)
+			},
+			expectedStatus: statusRunning,
 		},
-		context:  runContext,
-		stack:    NewStack(),
-		memory:   NewMemory(),
-		gas:      1 << 20,
-		revision: tosca.R09_Berlin,
+		"account_does_not_exist": {
+			setup: func(runContext *tosca.MockRunContext) {
+				// The target account should not exist.
+				runContext.EXPECT().AccountExists(target).Return(false)
+				runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
+				runContext.EXPECT().IsAddressInAccessList(target).Return(true)
+			},
+			expectedStatus: statusRunning,
+		},
+		"account_not_in_access_list": {
+			setup: func(runContext *tosca.MockRunContext) {
+				// The target account should exist and the source account without funds.
+				runContext.EXPECT().AccountExists(target).Return(true)
+				runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
+				runContext.EXPECT().AccessAccount(target).Return(tosca.ColdAccess)
+				runContext.EXPECT().IsAddressInAccessList(target).Return(false)
+			},
+			expectedStatus: statusRunning,
+		},
 	}
 
-	// Prepare stack arguments.
-	ctxt.stack.stack_ptr = 7
-	ctxt.stack.data[4].Set(uint256.NewInt(1)) // < the value to be transferred
-	ctxt.stack.data[5].SetBytes(target[:])    // < the target address for the call
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
 
-	// The target account should exist and the source account without funds.
-	runContext.EXPECT().AccountExists(target).Return(true)
-	runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
-	runContext.EXPECT().IsAddressInAccessList(target).Return(false)
-	runContext.EXPECT().AccessAccount(target).Return(tosca.ColdAccess)
+			ctrl := gomock.NewController(t)
+			runContext := tosca.NewMockRunContext(ctrl)
 
-	opCall(&ctxt)
+			ctxt := context{
+				status: statusRunning,
+				params: tosca.Parameters{
+					Recipient: source,
+				},
+				context:  runContext,
+				stack:    NewStack(),
+				memory:   NewMemory(),
+				gas:      1 << 20,
+				revision: tosca.R09_Berlin,
+			}
 
-	if want, got := statusRunning, ctxt.status; want != got {
-		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
-	}
+			// Prepare stack arguments.
+			ctxt.stack.stack_ptr = 7
+			ctxt.stack.data[4].Set(uint256.NewInt(1)) // < the value to be transferred
+			ctxt.stack.data[5].SetBytes(target[:])    // < the target address for the call
 
-	if want, got := 1, ctxt.stack.len(); want != got {
-		t.Fatalf("unexpected stack size, wanted %d, got %d", want, got)
-	}
+			test.setup(runContext)
 
-	if want, got := *uint256.NewInt(0), ctxt.stack.data[0]; want != got {
-		t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
+			opCall(&ctxt)
+
+			if want, got := test.expectedStatus, ctxt.status; want != got {
+				t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+			}
+			resultFailStack := NewStack()
+			resultFailStack.pushEmpty()
+			if want, got := resultFailStack.len(), ctxt.stack.len(); want != got {
+				t.Fatalf("unexpected stack size, wanted %d, got %d", want, got)
+			}
+
+			if want, got := resultFailStack.data[0], ctxt.stack.data[0]; want != got {
+				t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
+			}
+
+		})
 	}
 }
 
@@ -880,53 +919,64 @@ func TestSStoreGasCost(t *testing.T) {
 		runtimeSetup   func(*tosca.MockRunContext)
 		revision       tosca.Revision
 		gas            tosca.Gas
-		expectedStatus Status
+		expectedStatus status
 	}{
-		"berlin-enough-gas": {
+		"berlin_enough_gas": {
 			runtimeSetup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{})
+				runContext.EXPECT().GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{})
+				runContext.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).Return(tosca.StorageAssigned)
 				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
 			},
 			revision:       tosca.R09_Berlin,
 			gas:            SstoreSetGasEIP2200,
-			expectedStatus: RUNNING,
+			expectedStatus: statusRunning,
 		},
-		"berlin-not-enough-gas": {
+		"berlin_not_enough_gas": {
 			runtimeSetup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{})
+				runContext.EXPECT().GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{})
 				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
 			},
 			revision:       tosca.R09_Berlin,
 			gas:            SstoreSetGasEIP2200 - 1,
-			expectedStatus: OUT_OF_GAS,
+			expectedStatus: statusOutOfGas,
 		},
-		"london-enough-gas": {
+		"london_enough_gas": {
 			runtimeSetup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{})
+				runContext.EXPECT().GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{})
+				runContext.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).Return(tosca.StorageAssigned)
 				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
 			},
 			revision:       tosca.R10_London,
 			gas:            SstoreSetGasEIP2200,
-			expectedStatus: RUNNING,
+			expectedStatus: statusRunning,
 		},
-		"london-not-enough-gas": {
+		"london_not_enough_gas": {
 			runtimeSetup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{})
+				runContext.EXPECT().GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{})
 				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
 			},
 			revision:       tosca.R10_London,
 			gas:            SstoreSetGasEIP2200 - 1,
-			expectedStatus: OUT_OF_GAS,
+			expectedStatus: statusOutOfGas,
 		},
-		"minimum-gas-invariant": {
+		"minimum_gas_invariant": {
 			runtimeSetup:   func(runContext *tosca.MockRunContext) {},
 			revision:       tosca.R09_Berlin,
 			gas:            SstoreSentryGasEIP2200,
-			expectedStatus: OUT_OF_GAS,
+			expectedStatus: statusOutOfGas,
 		},
-		"address-not-present": {
+		"address_not_present": {
 			runtimeSetup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{})
 				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(false, false)
 			},
 			revision:       tosca.R09_Berlin,
 			gas:            SstoreSetGasEIP2200,
-			expectedStatus: ERROR,
+			expectedStatus: statusError,
 		},
 	}
 
@@ -937,7 +987,7 @@ func TestSStoreGasCost(t *testing.T) {
 			test.runtimeSetup(runContext)
 
 			ctxt := context{
-				status:  RUNNING,
+				status:  statusRunning,
 				stack:   NewStack(),
 				memory:  NewMemory(),
 				context: runContext,
@@ -948,10 +998,6 @@ func TestSStoreGasCost(t *testing.T) {
 			// Prepare stack arguments.
 			ctxt.stack.push(uint256.NewInt(1))
 			ctxt.stack.push(uint256.NewInt(1))
-
-			runContext.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).Return(tosca.StorageAssigned).AnyTimes()
-			runContext.EXPECT().GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{}).AnyTimes()
-			runContext.EXPECT().GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{}).AnyTimes()
 
 			opSstore(&ctxt)
 
@@ -969,17 +1015,18 @@ func TestSelfDestruct(t *testing.T) {
 		revision tosca.Revision
 		gas      tosca.Gas
 		refund   tosca.Gas
-		status   Status
+		status   status
 	}{
 		"istanbul-regular": {
 			setup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().SelfDestruct(gomock.Any(), gomock.Any()).Return(true)
 				runContext.EXPECT().AccountExists(gomock.Any()).Return(true)
 				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false)
 			},
 			refund:   SelfdestructRefundGas,
 			gas:      SelfdestructGasEIP150,
 			revision: tosca.R07_Istanbul,
-			status:   SUICIDED,
+			status:   statusSuicided,
 		},
 		"istanbul-address-not-present": {
 			setup: func(runContext *tosca.MockRunContext) {
@@ -989,27 +1036,29 @@ func TestSelfDestruct(t *testing.T) {
 			},
 			revision: tosca.R07_Istanbul,
 			gas:      SelfdestructGasEIP150,
-			status:   OUT_OF_GAS,
+			status:   statusOutOfGas,
 		},
 		"berlin-regular": {
 			setup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().SelfDestruct(gomock.Any(), gomock.Any()).Return(true)
 				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(true)
 				runContext.EXPECT().AccountExists(gomock.Any()).Return(true)
 				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false)
 			},
 			refund:   SelfdestructRefundGas,
 			revision: tosca.R09_Berlin,
-			status:   SUICIDED,
+			status:   statusSuicided,
 		},
 		"london-address-not-in-list": {
 			setup: func(runContext *tosca.MockRunContext) {
+				runContext.EXPECT().SelfDestruct(gomock.Any(), gomock.Any()).Return(true)
 				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(false)
 				runContext.EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess)
 				runContext.EXPECT().AccountExists(gomock.Any()).Return(true)
 			},
 			revision: tosca.R10_London,
 			gas:      ColdAccountAccessCostEIP2929,
-			status:   SUICIDED,
+			status:   statusSuicided,
 		},
 		"london-create-new-account": {
 			setup: func(runContext *tosca.MockRunContext) {
@@ -1019,7 +1068,7 @@ func TestSelfDestruct(t *testing.T) {
 			},
 			revision: tosca.R10_London,
 			gas:      CreateBySelfdestructGas - 1,
-			status:   OUT_OF_GAS,
+			status:   statusOutOfGas,
 		},
 	}
 
@@ -1030,7 +1079,7 @@ func TestSelfDestruct(t *testing.T) {
 			test.setup(runContext)
 
 			ctxt := context{
-				status:  RUNNING,
+				status:  statusRunning,
 				stack:   NewStack(),
 				memory:  NewMemory(),
 				context: runContext,
@@ -1040,8 +1089,6 @@ func TestSelfDestruct(t *testing.T) {
 			// Prepare stack arguments.
 			ctxt.stack.push(uint256.NewInt(1))
 			ctxt.gas = test.gas
-
-			runContext.EXPECT().SelfDestruct(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
 
 			opSelfdestruct(&ctxt)
 
