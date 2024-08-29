@@ -12,6 +12,7 @@ package lfvm
 
 import (
 	"slices"
+	"sync"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -138,6 +139,36 @@ func TestConverter_ResultsAreCached(t *testing.T) {
 	if got, found := converter.cache.Get(hash); !found || !slices.Equal(want, got) {
 		t.Errorf("converted code not added to cache")
 	}
+}
+
+func TestConverter_ConverterIsThreadSafe(t *testing.T) {
+	// This test is to be run with --race to detect concurrency issues.
+	const (
+		NumGoroutines = 100
+		NumSteps      = 1000
+	)
+
+	converter, err := NewConverter(ConversionConfig{})
+	if err != nil {
+		t.Fatalf("failed to create converter: %v", err)
+	}
+	code := []byte{byte(vm.STOP)}
+	hash := tosca.Hash{byte(1)}
+
+	var wg sync.WaitGroup
+	wg.Add(NumGoroutines)
+	for i := 0; i < NumGoroutines; i++ {
+		go func(i int) {
+			defer wg.Done()
+			for j := 0; j < NumSteps; j++ {
+				// read a value every go routine is requesting
+				converter.Convert(code, &hash)
+				// convert a value only this go routine is requesting
+				converter.Convert(code, &tosca.Hash{byte(i), byte(j)})
+			}
+		}(i)
+	}
+	wg.Wait()
 }
 
 func TestConvert_AllValidOperationsAreCoveredByConversionTable(t *testing.T) {
