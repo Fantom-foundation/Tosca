@@ -11,8 +11,6 @@
 package lfvm
 
 import (
-	"errors"
-
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 
@@ -134,6 +132,16 @@ func (b *codeBuilder) toCode() Code {
 }
 
 func convert(code []byte, options ConversionConfig) Code {
+	return convertWithObserver(code, options, func(int, int) {})
+}
+
+// convertWithObserver converts EVM code to LFVM code and calls the observer
+// with the code position of every pair of instructions converted.
+func convertWithObserver(
+	code []byte,
+	options ConversionConfig,
+	observer func(evmPc int, lfvmPc int),
+) Code {
 	res := newCodeBuilder(len(code))
 
 	// Convert each individual instruction.
@@ -146,88 +154,22 @@ func convert(code []byte, options ConversionConfig) Code {
 			}
 			res.padNoOpsUntil(i)
 			res.appendCode(JUMPDEST)
+			observer(i, i)
 			i++
 			continue
 		}
 
 		// Convert instructions
+		observer(i, res.nextPos)
 		inc := appendInstructions(&res, i, code, options.WithSuperInstructions)
 		i += inc + 1
 	}
 	return res.toCode()
 }
 
-// PcMap is a bidirectional map to map program counters between evm <-> lfvm.
-type PcMap struct {
-	evmToLfvm map[uint16]uint16
-	lfvmToEvm map[uint16]uint16
-}
-
-// GenPcMap creates a bidirectional program counter map for a given code,
-// allowing mapping from a program counter in evm code to lfvm and vice versa.
-func GenPcMap(code []byte, with_super_instructions bool) (*PcMap, error) {
-	if with_super_instructions {
-		return nil, errors.New("super instructions are not yet supported for program counter mapping")
-	}
-
-	pcMap := PcMap{make(map[uint16]uint16, len(code)), make(map[uint16]uint16, len(code))}
-	// Entry point always maps from 0 <-> 0, even when there is no code.
-	pcMap.evmToLfvm[0] = 0
-	pcMap.lfvmToEvm[0] = 0
-	res := newCodeBuilder(len(code))
-
-	// Convert each individual instruction.
-	for i := 0; i < len(code); {
-		// Handle jump destinations.
-		if code[i] == byte(vm.JUMPDEST) {
-
-			// All lfvm opcodes from jmpto until jmpdest, including the potential nops in between map to evm jmpdest.
-			for j := res.nextPos; j <= i; j++ {
-				pcMap.lfvmToEvm[uint16(j)] = uint16(i)
-			}
-
-			// Jump to the next jump destination and fill space with noops.
-			if res.length() < i {
-				res.appendOp(JUMP_TO, uint16(i))
-			}
-			res.padNoOpsUntil(i)
-			res.appendCode(JUMPDEST)
-
-			// Jumpdest in lfvm and evm share the same PC.
-			pcMap.evmToLfvm[uint16(i)] = uint16(i)
-			i++
-			continue
-		}
-
-		// Convert instructions.
-		pcMap.evmToLfvm[uint16(i)] = uint16(res.nextPos)
-		pcMap.lfvmToEvm[uint16(res.nextPos)] = uint16(i)
-		inc := appendInstructions(&res, i, code, with_super_instructions)
-		i += inc + 1
-	}
-
-	// One past the end is a valid state for the PC after the execution has stopped.
-	pcMap.evmToLfvm[uint16(len(code))] = uint16(res.length())
-	pcMap.lfvmToEvm[uint16(res.length())] = uint16(len(code))
-
-	return &pcMap, nil
-}
-
-// GenPcMapWithSuperInstructions creates a bidirectional program counter map for a given code,
-// allowing mapping from a program counter in evm code to lfvm code utilizing super instructions and vice versa.
-func GenPcMapWithSuperInstructions(code []byte) (*PcMap, error) {
-	return GenPcMap(code, true)
-}
-
-// GenPcMapWithoutSuperInstructions creates a bidirectional program counter map for a given code,
-// allowing mapping from a program counter in evm code to lfvm code not making use of super instructions and vice versa.
-func GenPcMapWithoutSuperInstructions(code []byte) (*PcMap, error) {
-	return GenPcMap(code, false)
-}
-
-func appendInstructions(res *codeBuilder, pos int, code []byte, with_super_instructions bool) int {
+func appendInstructions(res *codeBuilder, pos int, code []byte, withSuperInstructions bool) int {
 	// Convert super instructions.
-	if with_super_instructions {
+	if withSuperInstructions {
 		if len(code) > pos+7 {
 			op0 := vm.OpCode(code[pos])
 			op1 := vm.OpCode(code[pos+1])
