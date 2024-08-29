@@ -884,7 +884,7 @@ func TestSStoreGasCost(t *testing.T) {
 	}{
 		"berlin-enough-gas": {
 			runtimeSetup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
+				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
 			},
 			revision:       tosca.R09_Berlin,
 			gas:            SstoreSetGasEIP2200,
@@ -892,7 +892,7 @@ func TestSStoreGasCost(t *testing.T) {
 		},
 		"berlin-not-enough-gas": {
 			runtimeSetup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
+				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
 			},
 			revision:       tosca.R09_Berlin,
 			gas:            SstoreSetGasEIP2200 - 1,
@@ -900,7 +900,7 @@ func TestSStoreGasCost(t *testing.T) {
 		},
 		"london-enough-gas": {
 			runtimeSetup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
+				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
 			},
 			revision:       tosca.R10_London,
 			gas:            SstoreSetGasEIP2200,
@@ -908,23 +908,21 @@ func TestSStoreGasCost(t *testing.T) {
 		},
 		"london-not-enough-gas": {
 			runtimeSetup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
+				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
 			},
 			revision:       tosca.R10_London,
 			gas:            SstoreSetGasEIP2200 - 1,
 			expectedStatus: OUT_OF_GAS,
 		},
 		"minimum-gas-invariant": {
-			runtimeSetup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true).AnyTimes()
-			},
+			runtimeSetup:   func(runContext *tosca.MockRunContext) {},
 			revision:       tosca.R09_Berlin,
 			gas:            SstoreSentryGasEIP2200,
 			expectedStatus: OUT_OF_GAS,
 		},
 		"address-not-present": {
 			runtimeSetup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(false, false).AnyTimes()
+				runContext.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(false, false)
 			},
 			revision:       tosca.R09_Berlin,
 			gas:            SstoreSetGasEIP2200,
@@ -975,8 +973,8 @@ func TestSelfDestruct(t *testing.T) {
 	}{
 		"istanbul-regular": {
 			setup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().AccountExists(gomock.Any()).Return(true).AnyTimes()
-				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false).AnyTimes()
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(true)
+				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false)
 			},
 			refund:   SelfdestructRefundGas,
 			gas:      SelfdestructGasEIP150,
@@ -985,9 +983,9 @@ func TestSelfDestruct(t *testing.T) {
 		},
 		"istanbul-address-not-present": {
 			setup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().AccountExists(gomock.Any()).Return(false).AnyTimes()
-				runContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1}).AnyTimes()
-				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(true).AnyTimes()
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(false)
+				runContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1})
+				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(true)
 			},
 			revision: tosca.R07_Istanbul,
 			gas:      SelfdestructGasEIP150,
@@ -995,10 +993,9 @@ func TestSelfDestruct(t *testing.T) {
 		},
 		"berlin-regular": {
 			setup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(true).AnyTimes()
-				runContext.EXPECT().AccountExists(gomock.Any()).Return(true).AnyTimes()
-				runContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1}).AnyTimes()
-				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false).AnyTimes()
+				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(true)
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(true)
+				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false)
 			},
 			refund:   SelfdestructRefundGas,
 			revision: tosca.R09_Berlin,
@@ -1006,10 +1003,9 @@ func TestSelfDestruct(t *testing.T) {
 		},
 		"london-address-not-in-list": {
 			setup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(false).AnyTimes()
-				runContext.EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess).AnyTimes()
-				runContext.EXPECT().AccountExists(gomock.Any()).Return(true).AnyTimes()
-				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false).AnyTimes()
+				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(false)
+				runContext.EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess)
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(true)
 			},
 			revision: tosca.R10_London,
 			gas:      ColdAccountAccessCostEIP2929,
@@ -1017,10 +1013,9 @@ func TestSelfDestruct(t *testing.T) {
 		},
 		"london-create-new-account": {
 			setup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(true).AnyTimes()
-				runContext.EXPECT().AccountExists(gomock.Any()).Return(false).AnyTimes()
-				runContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1}).AnyTimes()
-				runContext.EXPECT().HasSelfDestructed(gomock.Any()).Return(false).AnyTimes()
+				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).Return(true)
+				runContext.EXPECT().AccountExists(gomock.Any()).Return(false)
+				runContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1})
 			},
 			revision: tosca.R10_London,
 			gas:      CreateBySelfdestructGas - 1,
