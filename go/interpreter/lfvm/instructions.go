@@ -19,19 +19,19 @@ import (
 )
 
 func opStop(c *context) {
-	c.status = STOPPED
+	c.status = statusStopped
 }
 
 func opRevert(c *context) {
-	c.result_offset = *c.stack.pop()
-	c.result_size = *c.stack.pop()
-	c.status = REVERTED
+	c.resultOffset = *c.stack.pop()
+	c.resultSize = *c.stack.pop()
+	c.status = statusReverted
 }
 
 func opReturn(c *context) {
-	c.result_offset = *c.stack.pop()
-	c.result_size = *c.stack.pop()
-	c.status = RETURNED
+	c.resultOffset = *c.stack.pop()
+	c.resultSize = *c.stack.pop()
+	c.status = statusReturned
 }
 
 func opPc(c *context) {
@@ -103,7 +103,7 @@ func opPush0(c *context) {
 		z := c.stack.pushEmpty()
 		z[3], z[2], z[1], z[0] = 0, 0, 0, 0
 	} else {
-		c.status = INVALID_INSTRUCTION
+		c.status = statusInvalidInstruction
 	}
 }
 
@@ -164,7 +164,7 @@ func opMstore(c *context) {
 
 	offset, overflow := addr.Uint64WithOverflow()
 	if overflow {
-		c.status = ERROR
+		c.status = statusError
 		return
 	}
 	if err := c.memory.SetWord(offset, value, c); err != nil {
@@ -178,7 +178,7 @@ func opMstore8(c *context) {
 
 	offset, overflow := addr.Uint64WithOverflow()
 	if overflow {
-		c.status = ERROR
+		c.status = statusError
 		return
 	}
 	if err := c.memory.SetByte(offset, byte(value.Uint64()), c); err != nil {
@@ -189,7 +189,7 @@ func opMstore8(c *context) {
 func opMcopy(c *context) {
 
 	if !c.isCancun() {
-		c.status = INVALID_INSTRUCTION
+		c.status = statusInvalidInstruction
 		c.gas = 0
 		return
 	}
@@ -206,7 +206,7 @@ func opMcopy(c *context) {
 	destOffset, destOverflow := destAddr.Uint64WithOverflow()
 	srcOffset, srcOverflow := srcAddr.Uint64WithOverflow()
 	if destOverflow || srcOverflow || !sizeU256.IsUint64() {
-		c.status = ERROR
+		c.status = statusError
 		return
 	}
 
@@ -288,7 +288,7 @@ func opSload(c *context) {
 
 func opTstore(c *context) {
 	if !c.isCancun() {
-		c.status = INVALID_INSTRUCTION
+		c.status = statusInvalidInstruction
 		return
 	}
 
@@ -299,7 +299,7 @@ func opTstore(c *context) {
 
 func opTload(c *context) {
 	if !c.isCancun() {
-		c.status = INVALID_INSTRUCTION
+		c.status = statusInvalidInstruction
 		return
 	}
 
@@ -365,7 +365,7 @@ func opCallDataCopy(c *context) {
 
 	length64, overflow := length.Uint64WithOverflow()
 	if overflow || length64+31 < length64 {
-		c.status = OUT_OF_GAS
+		c.status = statusOutOfGas
 		return
 	}
 
@@ -601,7 +601,7 @@ func opSha3(c *context) {
 		return
 	}
 	var hash tosca.Hash
-	if c.shaCache {
+	if c.withShaCache {
 		// Cache hashes since identical values are frequently re-hashed.
 		hash = hashCache.hash(data)
 	} else {
@@ -667,14 +667,14 @@ func opBaseFee(c *context) {
 		fee := c.params.BaseFee
 		c.stack.pushEmpty().SetBytes32(fee[:])
 	} else {
-		c.status = INVALID_INSTRUCTION
+		c.status = statusInvalidInstruction
 		return
 	}
 }
 
 func opBlobHash(c *context) {
 	if !c.isCancun() {
-		c.status = INVALID_INSTRUCTION
+		c.status = statusInvalidInstruction
 		return
 	}
 
@@ -692,7 +692,7 @@ func opBlobBaseFee(c *context) {
 		fee := c.params.BlobBaseFee
 		c.stack.pushEmpty().SetBytes32(fee[:])
 	} else {
-		c.status = INVALID_INSTRUCTION
+		c.status = statusInvalidInstruction
 		return
 	}
 }
@@ -708,7 +708,7 @@ func opSelfdestruct(c *context) {
 	}
 	beneficiary := tosca.Address(c.stack.pop().Bytes20())
 	c.context.SelfDestruct(c.params.Recipient, beneficiary)
-	c.status = SUICIDED
+	c.status = statusSuicided
 }
 
 func opChainId(c *context) {
@@ -822,11 +822,11 @@ func checkInitCodeSize(c *context, size *uint256.Int) bool {
 	}
 	if !size.IsUint64() || size.Uint64() > MaxInitCodeSize {
 		c.UseGas(c.gas)
-		c.status = MAX_INIT_CODE_SIZE_EXCEEDED
+		c.status = statusMaximumInitCodeSizeExceeded
 		return false
 	}
 	if !c.UseGas(tosca.Gas(InitCodeWordGas * tosca.SizeInWords(size.Uint64()))) {
-		c.status = OUT_OF_GAS
+		c.status = statusOutOfGas
 		return false
 	}
 
@@ -858,7 +858,7 @@ func opCreate(c *context) {
 
 		if value.Gt(balanceU256) {
 			c.stack.pushEmpty().Clear()
-			c.return_data = nil
+			c.returnData = nil
 			return
 		}
 	}
@@ -890,9 +890,9 @@ func opCreate(c *context) {
 	}
 
 	if !res.Success && err == nil {
-		c.return_data = res.Output
+		c.returnData = res.Output
 	} else {
-		c.return_data = nil
+		c.returnData = nil
 	}
 }
 
@@ -928,7 +928,7 @@ func opCreate2(c *context) {
 
 		if value.Gt(balanceU256) {
 			c.stack.pushEmpty().Clear()
-			c.return_data = nil
+			c.returnData = nil
 			return
 		}
 	}
@@ -959,9 +959,9 @@ func opCreate2(c *context) {
 	}
 
 	if !res.Success && err == nil {
-		c.return_data = res.Output
+		c.returnData = res.Output
 	} else {
-		c.return_data = nil
+		c.returnData = nil
 	}
 	c.gas += res.GasLeft
 	c.refund += res.GasRefund
@@ -1084,7 +1084,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		return 0 <= cost && cost <= c.gas
 	}
 	if !checkGas(baseGas) {
-		c.status = OUT_OF_GAS
+		c.status = statusOutOfGas
 		return
 	}
 
@@ -1094,7 +1094,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		baseGas += CallValueTransferGas
 	}
 	if !checkGas(baseGas) {
-		c.status = OUT_OF_GAS
+		c.status = statusOutOfGas
 		return
 	}
 
@@ -1104,7 +1104,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		baseGas += CallNewAccountGas
 	}
 	if !checkGas(baseGas) {
-		c.status = OUT_OF_GAS
+		c.status = statusOutOfGas
 		return
 	}
 
@@ -1134,7 +1134,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		balanceU256 := new(uint256.Int).SetBytes32(balance[:])
 		if balanceU256.Lt(value) {
 			c.stack.pushEmpty().Clear()
-			c.return_data = nil
+			c.returnData = nil
 			c.gas += cost // the gas send to the nested contract is returned
 			return
 		}
@@ -1192,7 +1192,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 	}
 	c.gas += ret.GasLeft
 	c.refund += ret.GasRefund
-	c.return_data = ret.Output
+	c.returnData = ret.Output
 }
 
 func opCall(c *context) {
@@ -1218,7 +1218,7 @@ func opDelegateCall(c *context) {
 }
 
 func opReturnDataSize(c *context) {
-	c.stack.pushEmpty().SetUint64(uint64(len(c.return_data)))
+	c.stack.pushEmpty().SetUint64(uint64(len(c.returnData)))
 }
 
 func opReturnDataCopy(c *context) {
@@ -1237,7 +1237,7 @@ func opReturnDataCopy(c *context) {
 	var end = dataOffset
 	end.Add(dataOffset, length)
 	end64, overflow := end.Uint64WithOverflow()
-	if overflow || uint64(len(c.return_data)) < end64 {
+	if overflow || uint64(len(c.returnData)) < end64 {
 		c.SignalError(errReturnDataOutOfBounds)
 		return
 	}
@@ -1252,7 +1252,7 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
-	if err := c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.return_data[offset64:end64], c); err != nil {
+	if err := c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c); err != nil {
 		c.SignalError(err)
 	}
 }

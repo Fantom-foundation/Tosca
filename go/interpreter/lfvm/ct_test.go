@@ -61,16 +61,16 @@ func TestCtAdapter_Interface(t *testing.T) {
 
 func TestConvertToLfvm_StatusCode(t *testing.T) {
 
-	expected := map[Status]st.StatusCode{
-		RUNNING:  st.Running,
-		REVERTED: st.Reverted,
-		RETURNED: st.Stopped,
-		STOPPED:  st.Stopped,
-		SUICIDED: st.Stopped,
+	expected := map[status]st.StatusCode{
+		statusRunning:  st.Running,
+		statusReverted: st.Reverted,
+		statusReturned: st.Stopped,
+		statusStopped:  st.Stopped,
+		statusSuicided: st.Stopped,
 	}
 
 	for i := 0; i < 100; i++ {
-		status := Status(i)
+		status := status(i)
 		want, found := expected[status]
 		if !found {
 			want = st.Failed
