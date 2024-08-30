@@ -1110,27 +1110,23 @@ func newMockStateDBForIntegrationTests(ctrl *gomock.Controller) *MockStateDB {
 	return mockStateDB
 }
 
-func TestEVMCanSuccessfullyProcessIncorrectCode(t *testing.T) {
+func TestEVM_CanSuccessfullyProcessPcBiggerThanCodeLength(t *testing.T) {
 	for _, variant := range Variants {
-		for _, revision := range revisions {
-			t.Run(fmt.Sprintf("%s/%s", variant, revision), func(t *testing.T) {
-				ctrl := gomock.NewController(t)
-				mockStateDB := newMockStateDBForIntegrationTests(ctrl)
-				// make inner call and return 32byte value with 0 offset from memory
-				codeReturn := []byte{
-					byte(vm.PUSH1), byte(32),
-				}
-				setDefaultCallStateDBMock(mockStateDB, tosca.Address{}, codeReturn)
-				evm := GetCleanEVM(revision, variant, mockStateDB)
+		revision := Istanbul
+		t.Run(variant, func(t *testing.T) {
+			// all implementations should be able to handle PC that goes beyond the code length.
+			// this is reproducible by not calling STOP, RETURN, REVERT or SELFDESTRUCT at the end of the code.
+			code := []byte{byte(vm.PUSH1), byte(32)}
+			evm := GetCleanEVM(revision, variant, nil)
 
-				// Run an interpreter
-				result, err := evm.Run(codeReturn, []byte{})
+			// Run an interpreter
+			result, err := evm.Run(code, []byte{})
 
-				// Check the result.
-				if err != nil || !result.Success {
-					t.Errorf("execution should fail, error is: %v, result %v", err, result)
-				}
-			})
-		}
+			// Check the result.
+			if err != nil || !result.Success {
+				t.Errorf("execution should not fail and err should be nil, error is: %v, success %v", err, result.Success)
+			}
+		})
+
 	}
 }
