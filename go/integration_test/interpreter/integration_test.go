@@ -1109,3 +1109,28 @@ func newMockStateDBForIntegrationTests(ctrl *gomock.Controller) *MockStateDB {
 
 	return mockStateDB
 }
+
+func TestEVMCanSuccessfullyProcessIncorrectCode(t *testing.T) {
+	for _, variant := range Variants {
+		for _, revision := range revisions {
+			t.Run(fmt.Sprintf("%s/%s", variant, revision), func(t *testing.T) {
+				ctrl := gomock.NewController(t)
+				mockStateDB := newMockStateDBForIntegrationTests(ctrl)
+				// make inner call and return 32byte value with 0 offset from memory
+				codeReturn := []byte{
+					byte(vm.PUSH1), byte(32),
+				}
+				setDefaultCallStateDBMock(mockStateDB, tosca.Address{}, codeReturn)
+				evm := GetCleanEVM(revision, variant, mockStateDB)
+
+				// Run an interpreter
+				result, err := evm.Run(codeReturn, []byte{})
+
+				// Check the result.
+				if err != nil || !result.Success {
+					t.Errorf("execution should fail, error is: %v, result %v", err, result)
+				}
+			})
+		}
+	}
+}
