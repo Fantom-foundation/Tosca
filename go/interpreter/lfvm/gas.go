@@ -343,8 +343,8 @@ func gasSStoreEIP2200(c *context) (tosca.Gas, error) {
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
 	var (
 		zero    = tosca.Word{}
-		key     = tosca.Key(c.stack.Back(0).Bytes32())
-		value   = tosca.Word(c.stack.Back(1).Bytes32())
+		key     = tosca.Key(c.stack.peekN(0).Bytes32())
+		value   = tosca.Word(c.stack.peekN(1).Bytes32())
 		current = c.context.GetStorage(c.params.Recipient, key)
 	)
 
@@ -394,7 +394,7 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
 	var (
 		zero    = tosca.Word{}
-		y, x    = c.stack.Back(1), c.stack.peek()
+		y, x    = c.stack.peekN(1), c.stack.peek()
 		slot    = tosca.Key(x.Bytes32())
 		current = c.context.GetStorage(c.params.Recipient, slot)
 		cost    = tosca.Gas(0)
@@ -460,7 +460,7 @@ func gasEip2929AccountCheck(c *context, address tosca.Address) error {
 func addressInAccessList(c *context) (warmAccess bool, coldCost tosca.Gas, err error) {
 	warmAccess = true
 	if c.isAtLeast(tosca.R09_Berlin) {
-		addr := tosca.Address(c.stack.Back(1).Bytes20())
+		addr := tosca.Address(c.stack.peekN(1).Bytes20())
 		// Check slot presence in the access list
 		//lint:ignore SA1019 deprecated functions to be migrated in #616
 		warmAccess = c.context.IsAddressInAccessList(addr)
@@ -481,7 +481,7 @@ func addressInAccessList(c *context) (warmAccess bool, coldCost tosca.Gas, err e
 
 func gasSelfdestruct(c *context) tosca.Gas {
 	gas := SelfdestructGasEIP150
-	var address = tosca.Address(c.stack.Back(0).Bytes20())
+	var address = tosca.Address(c.stack.peekN(0).Bytes20())
 
 	// if beneficiary needs to be created
 	if !c.context.AccountExists(address) && c.context.GetBalance(c.params.Recipient) != (tosca.Value{}) {
@@ -497,7 +497,7 @@ func gasSelfdestruct(c *context) tosca.Gas {
 func gasSelfdestructEIP2929(c *context) tosca.Gas {
 	var (
 		gas     tosca.Gas
-		address = tosca.Address(c.stack.Back(0).Bytes20())
+		address = tosca.Address(c.stack.peekN(0).Bytes20())
 	)
 	//lint:ignore SA1019 deprecated functions to be migrated in #616
 	if !c.context.IsAddressInAccessList(address) {

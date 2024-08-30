@@ -184,7 +184,7 @@ func convertLfvmStatusToCtStatus(status status) (st.StatusCode, error) {
 	}
 }
 
-func convertCtStackToLfvmStack(stack *st.Stack) *Stack {
+func convertCtStackToLfvmStack(stack *st.Stack) *stack {
 	result := NewStack()
 	for i := stack.Size() - 1; i >= 0; i-- {
 		val := stack.Get(i).Uint256()
@@ -193,11 +193,11 @@ func convertCtStackToLfvmStack(stack *st.Stack) *Stack {
 	return result
 }
 
-func convertLfvmStackToCtStack(stack *Stack, result *st.Stack) *st.Stack {
+func convertLfvmStackToCtStack(stack *stack, result *st.Stack) *st.Stack {
 	len := stack.len()
 	result.Resize(len)
 	for i := 0; i < len; i++ {
-		result.Set(len-i-1, common.NewU256FromUint256(&stack.Data()[i]))
+		result.Set(len-i-1, common.NewU256FromUint256(stack.get(i)))
 	}
 	return result
 }

@@ -148,7 +148,7 @@ func getContext(code Code, data []byte, runContext tosca.RunContext, stackPtr in
 	// For the tests using the resulting context the actual
 	// stack content is not relevant. It is merely used for
 	// checking stack over- or under-flows.
-	ctxt.stack.stack_ptr = stackPtr
+	ctxt.stack.stackPointer = stackPtr
 
 	return ctxt
 }
@@ -268,7 +268,7 @@ func TestStackMinBoundry(t *testing.T) {
 		// Create execution context.
 		ctxt := getEmptyContext()
 		ctxt.code = test.code
-		ctxt.stack.stack_ptr = test.stackPtrPos
+		ctxt.stack.stackPointer = test.stackPtrPos
 
 		// Run testing code
 		vanillaRunner{}.run(&ctxt)
@@ -290,7 +290,7 @@ func TestStackMaxBoundry(t *testing.T) {
 		// Create execution context.
 		ctxt := getEmptyContext()
 		ctxt.code = test.code
-		ctxt.stack.stack_ptr = test.stackPtrPos
+		ctxt.stack.stackPointer = test.stackPtrPos
 
 		// Run testing code
 		vanillaRunner{}.run(&ctxt)
@@ -886,7 +886,7 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 		ctxt.pc = 0
 		ctxt.status = statusRunning
 		ctxt.gas = 1 << 31
-		ctxt.stack.stack_ptr = 0
+		ctxt.stack.stackPointer = 0
 
 		// Run the code (actual benchmark).
 		vanillaRunner{}.run(&ctxt)
