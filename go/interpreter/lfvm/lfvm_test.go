@@ -66,7 +66,7 @@ func TestVm_Run(t *testing.T) {
 				ConversionConfig: ConversionConfig{
 					WithSuperInstructions: false,
 				},
-				NoShaCache: true,
+				WithShaCache: true,
 			})
 			if err != nil {
 				t.Fatalf("failed to create vm: %v", err)

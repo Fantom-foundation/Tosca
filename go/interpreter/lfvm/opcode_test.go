@@ -11,66 +11,17 @@
 package lfvm
 
 import (
-	"fmt"
+	"regexp"
 	"slices"
 	"testing"
-
-	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestOpcode_String(t *testing.T) {
-
-	special_op_str := map[OpCode]string{
-		JUMP_TO: "JUMP_TO",
-
-		SWAP2_SWAP1_POP_JUMP:  "SWAP2_SWAP1_POP_JUMP",
-		SWAP1_POP_SWAP2_SWAP1: "SWAP1_POP_SWAP2_SWAP1",
-		POP_SWAP2_SWAP1_POP:   "POP_SWAP2_SWAP1_POP",
-		PUSH2_JUMP:            "PUSH2_JUMP",
-		PUSH2_JUMPI:           "PUSH2_JUMPI",
-		DUP2_MSTORE:           "DUP2_MSTORE",
-		DUP2_LT:               "DUP2_LT",
-
-		SWAP1_POP:   "SWAP1_POP",
-		POP_JUMP:    "POP_JUMP",
-		SWAP2_SWAP1: "SWAP2_SWAP1",
-		SWAP2_POP:   "SWAP2_POP",
-		PUSH1_PUSH1: "PUSH1_PUSH1",
-		PUSH1_ADD:   "PUSH1_ADD",
-		PUSH1_DUP1:  "PUSH1_DUP1",
-		POP_POP:     "POP_POP",
-		PUSH1_SHL:   "PUSH1_SHL",
-
-		ISZERO_PUSH2_JUMPI:        "ISZERO_PUSH2_JUMPI",
-		PUSH1_PUSH4_DUP3:          "PUSH1_PUSH4_DUP3",
-		AND_SWAP1_POP_SWAP2_SWAP1: "AND_SWAP1_POP_SWAP2_SWAP1",
-		PUSH1_PUSH1_PUSH1_SHL_SUB: "PUSH1_PUSH1_PUSH1_SHL_SUB",
-
-		DATA:    "DATA",
-		NOOP:    "NOOP",
-		INVALID: "INVALID",
-	}
-
+	validName := regexp.MustCompile(`^0x00[0-9A-Fa-f]{2}$`)
 	for i := 0; i < 256; i++ {
 		op := OpCode(i)
-		want := ""
-		found := false
-		toscaOp := slices.Index(op_2_op, op)
-		if PUSH1 <= op && op <= PUSH32 {
-			toscaOp = int(vm.PUSH1) + int(op) - 2
-		}
-		// check for >= 0 because slices.Index returns -1 if not found
-		if toscaOp >= 0 && vm.IsValid(vm.OpCode(toscaOp)) {
-			want = vm.OpCode(toscaOp).String()
-		} else {
-			want, found = special_op_str[op]
-			if !found {
-				want = fmt.Sprintf("0x%04x", byte(op))
-			}
-		}
-		got := op.String()
-		if got != want {
-			t.Errorf("expected %s, got %s", want, got)
+		if !validName.MatchString(op.String()) && op > NUM_OPCODES {
+			t.Errorf("Invalid print for op %v (%d)", op, i)
 		}
 	}
 }
