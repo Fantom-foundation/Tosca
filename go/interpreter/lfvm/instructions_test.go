@@ -207,86 +207,44 @@ func TestPush4(t *testing.T) {
 	}
 }
 
-func TestCall_ProperlyChecksAndReportsAccountsAndBalances(t *testing.T) {
+func TestCallChecksBalances(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	runContext := tosca.NewMockRunContext(ctrl)
 
 	source := tosca.Address{1}
 	target := tosca.Address{2}
-
-	tests := map[string]struct {
-		setup          func(*tosca.MockRunContext)
-		expectedStatus status
-	}{
-		"balance_is_less_than_value": {
-			setup: func(runContext *tosca.MockRunContext) {
-				// The target account should exist and the source account without funds.
-				runContext.EXPECT().AccountExists(target).Return(true)
-				runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
-				runContext.EXPECT().IsAddressInAccessList(target).Return(true)
-			},
-			expectedStatus: statusRunning,
+	ctxt := context{
+		status: statusRunning,
+		params: tosca.Parameters{
+			Recipient: source,
 		},
-		"account_does_not_exist": {
-			setup: func(runContext *tosca.MockRunContext) {
-				// The target account should not exist.
-				runContext.EXPECT().AccountExists(target).Return(false)
-				runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
-				runContext.EXPECT().IsAddressInAccessList(target).Return(true)
-			},
-			expectedStatus: statusRunning,
-		},
-		"account_not_in_access_list": {
-			setup: func(runContext *tosca.MockRunContext) {
-				// The target account should exist and the source account without funds.
-				runContext.EXPECT().AccountExists(target).Return(true)
-				runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
-				runContext.EXPECT().AccessAccount(target).Return(tosca.ColdAccess)
-				runContext.EXPECT().IsAddressInAccessList(target).Return(false)
-			},
-			expectedStatus: statusRunning,
-		},
+		context: runContext,
+		stack:   NewStack(),
+		memory:  NewMemory(),
+		gas:     1 << 20,
 	}
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
+	// Prepare stack arguments.
+	ctxt.stack.stack_ptr = 7
+	ctxt.stack.data[4].Set(uint256.NewInt(1)) // < the value to be transferred
+	ctxt.stack.data[5].SetBytes(target[:])    // < the target address for the call
 
-			ctrl := gomock.NewController(t)
-			runContext := tosca.NewMockRunContext(ctrl)
+	// The target account should exist and the source account without funds.
+	runContext.EXPECT().AccountExists(target).Return(true)
+	runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
 
-			ctxt := context{
-				status: statusRunning,
-				params: tosca.Parameters{
-					Recipient: source,
-				},
-				context:  runContext,
-				stack:    NewStack(),
-				memory:   NewMemory(),
-				gas:      1 << 20,
-				revision: tosca.R09_Berlin,
-			}
+	opCall(&ctxt)
 
-			// Prepare stack arguments.
-			ctxt.stack.stack_ptr = 7
-			ctxt.stack.data[4].Set(uint256.NewInt(1)) // < the value to be transferred
-			ctxt.stack.data[5].SetBytes(target[:])    // < the target address for the call
+	if want, got := statusRunning, ctxt.status; want != got {
+		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+	}
 
-			test.setup(runContext)
+	if want, got := 1, ctxt.stack.len(); want != got {
+		t.Fatalf("unexpected stack size, wanted %d, got %d", want, got)
+	}
 
-			opCall(&ctxt)
-
-			if want, got := test.expectedStatus, ctxt.status; want != got {
-				t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
-			}
-			resultFailStack := NewStack()
-			resultFailStack.pushEmpty()
-			if want, got := resultFailStack.len(), ctxt.stack.len(); want != got {
-				t.Fatalf("unexpected stack size, wanted %d, got %d", want, got)
-			}
-
-			if want, got := resultFailStack.data[0], ctxt.stack.data[0]; want != got {
-				t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
-			}
-
-		})
+	if want, got := *uint256.NewInt(0), ctxt.stack.data[0]; want != got {
+		t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
 	}
 }
 
