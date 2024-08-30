@@ -65,17 +65,17 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	// Set up execution context.
 	var ctxt = &context{
-		pc:          int32(pcMap.evmToLfvm[state.Pc]),
-		params:      params,
-		context:     params.Context,
-		gas:         params.Gas,
-		refund:      tosca.Gas(state.GasRefund),
-		stack:       convertCtStackToLfvmStack(state.Stack),
-		memory:      memory,
-		status:      RUNNING,
-		code:        converted,
-		revision:    params.Revision,
-		return_data: state.LastCallReturnData.ToBytes(),
+		pc:         int32(pcMap.evmToLfvm[state.Pc]),
+		params:     params,
+		context:    params.Context,
+		gas:        params.Gas,
+		refund:     tosca.Gas(state.GasRefund),
+		stack:      convertCtStackToLfvmStack(state.Stack),
+		memory:     memory,
+		status:     statusRunning,
+		code:       converted,
+		revision:   params.Revision,
+		returnData: state.LastCallReturnData.ToBytes(),
 	}
 
 	defer func() {
@@ -83,13 +83,13 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	}()
 
 	// Run interpreter.
-	for i := 0; ctxt.status == RUNNING && i < numSteps; i++ {
+	for i := 0; ctxt.status == statusRunning && i < numSteps; i++ {
 		step(ctxt)
 	}
 
 	result, err := getOutput(ctxt)
 	if err != nil {
-		ctxt.status = OUT_OF_GAS
+		ctxt.status = statusOutOfGas
 	}
 
 	// Update the resulting state.
@@ -97,7 +97,7 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	if err != nil {
 		return nil, err
 	}
-	if ctxt.status == RUNNING {
+	if ctxt.status == statusRunning {
 		state.Pc = pcMap.lfvmToEvm[ctxt.pc]
 	}
 
@@ -105,7 +105,7 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.GasRefund = ctxt.refund
 	state.Stack = convertLfvmStackToCtStack(ctxt.stack, state.Stack)
 	state.Memory = convertLfvmMemoryToCtMemory(ctxt.memory)
-	state.LastCallReturnData = common.NewBytes(ctxt.return_data)
+	state.LastCallReturnData = common.NewBytes(ctxt.returnData)
 	state.ReturnData = common.NewBytes(result)
 
 	return state, nil
@@ -168,18 +168,18 @@ func genPcMap(code []byte) *pcMap {
 	}
 }
 
-func convertLfvmStatusToCtStatus(status Status) (st.StatusCode, error) {
+func convertLfvmStatusToCtStatus(status status) (st.StatusCode, error) {
 	switch status {
-	case RUNNING:
+	case statusRunning:
 		return st.Running, nil
-	case RETURNED, STOPPED:
+	case statusReturned, statusStopped:
 		return st.Stopped, nil
-	case REVERTED:
+	case statusReverted:
 		return st.Reverted, nil
-	case SUICIDED:
+	case statusSuicided:
 		// Suicide is not yet modeled by the CT, and for now it just maps to the STOPPED status.
 		return st.Stopped, nil
-	case INVALID_INSTRUCTION, OUT_OF_GAS, MAX_INIT_CODE_SIZE_EXCEEDED, ERROR:
+	case statusInvalidInstruction, statusOutOfGas, statusMaximumInitCodeSizeExceeded, statusError:
 		return st.Failed, nil
 	default:
 		return st.Failed, fmt.Errorf("unable to convert lfvm status %v to ct status", status)

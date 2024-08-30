@@ -328,7 +328,7 @@ func gasSStore(c *context) (tosca.Gas, error) {
 func gasSStoreEIP2200(c *context) (tosca.Gas, error) {
 	// If we fail the minimum gas availability invariant, fail (0)
 	if c.gas <= SstoreSentryGasEIP2200 {
-		c.status = OUT_OF_GAS
+		c.status = statusOutOfGas
 		return 0, errors.New("not enough gas for reentrancy sentry")
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
@@ -379,7 +379,7 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 
 	// If we fail the minimum gas availability invariant, fail (0)
 	if c.gas <= SstoreSentryGasEIP2200 {
-		c.status = OUT_OF_GAS
+		c.status = statusOutOfGas
 		return 0, errors.New("not enough gas for reentrancy sentry")
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
@@ -394,7 +394,7 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 	//lint:ignore SA1019 deprecated functions to be migrated in #616
 	if addrPresent, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
 		if !addrPresent {
-			c.status = ERROR
+			c.status = statusError
 			return 0, errors.New("address was not present in access list during sstore op")
 		}
 		cost = ColdSloadCostEIP2929

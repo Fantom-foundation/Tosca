@@ -29,7 +29,7 @@ func init() {
 							WithSuperInstructions: si == "-si",
 						},
 						WithStatistics: stats == "-stats",
-						NoShaCache:     shaCache == "-no-sha-cache",
+						WithShaCache:   shaCache != "-no-sha-cache",
 						Logging:        logging == "-logging",
 					})
 					name := "lfvm" + si + stats + shaCache + logging
@@ -56,7 +56,7 @@ func init() {
 type Config struct {
 	ConversionConfig
 	WithStatistics bool
-	NoShaCache     bool
+	WithShaCache   bool
 	Logging        bool
 }
 
@@ -86,7 +86,7 @@ func (v *VM) Run(params tosca.Parameters) (tosca.Result, error) {
 		params.CodeHash,
 	)
 
-	return Run(params, converted, v.config.WithStatistics, v.config.NoShaCache, v.config.Logging)
+	return Run(params, converted, v.config.WithStatistics, v.config.WithShaCache, v.config.Logging)
 }
 
 func (e *VM) DumpProfile() {

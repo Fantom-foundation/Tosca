@@ -18,7 +18,7 @@ import (
 	"github.com/holiman/uint256"
 )
 
-var staticStackBoundry = [NUM_OPCODES]InstructionStack{}
+var staticStackBoundary = [NUM_OPCODES]InstructionStack{}
 
 const stackLimit = 1024 // Maximum size of VM stack allowed.
 
@@ -29,7 +29,7 @@ type Stack struct {
 
 func init() {
 	for i := 0; i < int(NUM_OPCODES); i++ {
-		staticStackBoundry[OpCode(i)] = getStaticStackInternal(OpCode(i))
+		staticStackBoundary[OpCode(i)] = getStaticStackInternal(OpCode(i))
 	}
 }
 
