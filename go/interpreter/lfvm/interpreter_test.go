@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
-	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 	"github.com/holiman/uint256"
 	"go.uber.org/mock/gomock"
 )
@@ -272,7 +271,7 @@ func TestStackMinBoundry(t *testing.T) {
 		ctxt.stack.stack_ptr = test.stackPtrPos
 
 		// Run testing code
-		run(&ctxt)
+		vanillaRunner{}.run(&ctxt)
 
 		// Check the result.
 		if ctxt.status != test.endStatus {
@@ -294,7 +293,7 @@ func TestStackMaxBoundry(t *testing.T) {
 		ctxt.stack.stack_ptr = test.stackPtrPos
 
 		// Run testing code
-		run(&ctxt)
+		vanillaRunner{}.run(&ctxt)
 
 		// Check the result.
 		if ctxt.status != test.endStatus {
@@ -483,7 +482,7 @@ func TestOKInstructionPath(t *testing.T) {
 			ctxt := getContext(test.code, make([]byte, 0), runContext, test.stackPtrPos, test.gasStart, revision)
 
 			// Run testing code
-			run(&ctxt)
+			vanillaRunner{}.run(&ctxt)
 
 			// Check the result.
 			if ctxt.status != test.endStatus {
@@ -504,18 +503,16 @@ func TestOKInstructionPath(t *testing.T) {
 }
 
 func TestRunReturnsEmptyResultOnEmptyCode(t *testing.T) {
-	// Create execution context.
-	ctxt := getEmptyContext()
 	// Get tosca.Parameters
-	ctxt.params = tosca.Parameters{
+	params := tosca.Parameters{
 		Input:  []byte{},
 		Static: true,
 		Gas:    10,
 	}
-	ctxt.code = make([]Instruction, 0)
+	code := make([]Instruction, 0)
 
 	// Run testing code
-	result, err := Run(ctxt.params, ctxt.code, false, true, false)
+	result, err := run(interpreterConfig{}, params, code)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -523,51 +520,26 @@ func TestRunReturnsEmptyResultOnEmptyCode(t *testing.T) {
 	if result.Output != nil {
 		t.Errorf("unexpected output: want nil, got %v", result.Output)
 	}
-	if result.GasLeft != ctxt.params.Gas {
-		t.Errorf("unexpected gas left: want %v, got %v", ctxt.params.Gas, result.GasLeft)
+	if want, got := params.Gas, result.GasLeft; want != got {
+		t.Errorf("unexpected gas left: want %v, got %v", want, got)
 	}
 	if !result.Success {
 		t.Errorf("unexpected success: want true, got false")
 	}
 }
 
-func TestRunWithStatistics(t *testing.T) {
-	// Create execution context.
-	ctxt := getEmptyContext()
-	// Get tosca.Parameters
-	ctxt.params = tosca.Parameters{
-		Input:  []byte{},
-		Static: true,
-		Gas:    10,
-		Code:   []byte{byte(STOP), 0},
-	}
-	ctxt.code = []Instruction{{STOP, 0}}
-
-	// Run testing code
-	_, err := Run(ctxt.params, ctxt.code, true, true, false)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if got := globalStatistics.singleCount[uint64(STOP)]; got != 1 {
-		t.Errorf("unexpected statistics: want 1 stop, got %v", got)
-	}
-}
-
 func TestRunWithLogging(t *testing.T) {
-	// Create execution context.
-	ctxt := getEmptyContext()
-	instructions := []Instruction{
+	code := []Instruction{
 		{PUSH1, 1},
-		{STOP, 0}}
+		{STOP, 0},
+	}
 
-	// Get tosca.Parameters
-	ctxt.params = tosca.Parameters{
+	params := tosca.Parameters{
 		Input:  []byte{},
 		Static: true,
 		Gas:    10,
 		Code:   []byte{0x0},
 	}
-	ctxt.code = instructions
 
 	// redirect stdout
 	old := os.Stdout
@@ -575,7 +547,9 @@ func TestRunWithLogging(t *testing.T) {
 	os.Stdout = w
 
 	// Run testing code
-	_, err := Run(ctxt.params, ctxt.code, false, true, true)
+	_, err := run(interpreterConfig{
+		runner: loggingRunner{},
+	}, params, code)
 	// read the output
 	w.Close()
 	out, _ := io.ReadAll(r)
@@ -594,19 +568,18 @@ func TestRunWithLogging(t *testing.T) {
 func TestRunBasic(t *testing.T) {
 
 	// Create execution context.
-	ctxt := getEmptyContext()
-	instructions := []Instruction{
+	code := []Instruction{
 		{PUSH1, 1},
-		{STOP, 0}}
+		{STOP, 0},
+	}
 
 	// Get tosca.Parameters
-	ctxt.params = tosca.Parameters{
+	params := tosca.Parameters{
 		Input:  []byte{},
 		Static: true,
 		Gas:    10,
 		Code:   []byte{0x0},
 	}
-	ctxt.code = instructions
 
 	// redirect stdout
 	old := os.Stdout
@@ -614,7 +587,7 @@ func TestRunBasic(t *testing.T) {
 	os.Stdout = w
 
 	// Run testing code
-	_, err := Run(ctxt.params, ctxt.code, false, true, false)
+	_, err := run(interpreterConfig{}, params, code)
 	// read the output
 	w.Close()
 	out, _ := io.ReadAll(r)
@@ -627,10 +600,6 @@ func TestRunBasic(t *testing.T) {
 	// check the output
 	if len(string(out)) != 0 {
 		t.Errorf("unexpected output: want \"\", got %v", string(out))
-	}
-
-	if globalStatistics.count > 1 {
-		t.Errorf("unexpected statistics: want none, got %v", globalStatistics.count)
 	}
 }
 
@@ -670,7 +639,7 @@ func TestRunGenerateResult(t *testing.T) {
 			tosca.Result{Success: true, Output: nil, GasLeft: baseGas, GasRefund: baseRefund}},
 		"unknown status": {func(ctx *context) { ctx.status = statusError + 1 },
 			fmt.Errorf("unexpected error in interpreter, unknown status: %v", statusError+1), tosca.Result{}},
-		"getOuput fail": {func(ctx *context) {
+		"getOutput fail": {func(ctx *context) {
 			ctx.status = statusReturned
 			ctx.resultSize = uint256.Int{1, 1}
 		}, nil, tosca.Result{Success: false}},
@@ -722,81 +691,6 @@ func TestGetOutputReturnsExpectedErrors(t *testing.T) {
 			_, err := getOutput(&ctxt)
 			if !errors.Is(err, test.expectedErr) {
 				t.Errorf("unexpected error: want error, got nil")
-			}
-		})
-	}
-}
-
-func TestDumpProfilePrintsExpectedOutput(t *testing.T) {
-
-	tests := map[string]struct {
-		code         tosca.Code
-		findInOutput []string
-	}{
-		"singles": {tosca.Code{byte(vm.STOP)},
-			[]string{
-				"Steps: 1",
-				"STOP                          : 1 (100.00%)",
-			}},
-		"pairs": {tosca.Code{byte(vm.PUSH1), 0x01, byte(vm.STOP)},
-			[]string{
-				"Steps: 2",
-				"PUSH1                         : 1 (50.00%)",
-				"STOP                          : 1 (50.00%)",
-				"PUSH1                         STOP                          : 1"}},
-		"triples": {tosca.Code{byte(vm.PUSH1), 0x01, byte(vm.PUSH1), 0x01, byte(vm.STOP)},
-			[]string{
-				"Steps: 3",
-				"PUSH1                         : 2 (66.67%)",
-				"STOP                          : 1 (33.33%)",
-				"PUSH1                         PUSH1                         STOP                          : 1"}},
-		"quads": {tosca.Code{byte(vm.PUSH1), 0x01, byte(vm.PUSH1), 0x01, byte(vm.PUSH1), 0x01, byte(vm.STOP)},
-			[]string{
-				"Steps: 4",
-				"PUSH1                         : 3 (75.00%)",
-				"STOP                          : 1 (25.00%)",
-				"PUSH1                         PUSH1                         PUSH1                         : 1 (25.00%)",
-				"PUSH1                         PUSH1                         STOP                          : 1 (25.00%)",
-				"PUSH1                         PUSH1                         PUSH1                         STOP                          : 1 (25.00%)",
-			}},
-	}
-
-	for name, test := range tests {
-		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
-			r, w, err := os.Pipe()
-			if err != nil {
-				t.Fatalf("Failed to create pipe: %v", err)
-			}
-
-			// redirect stdout
-			old := os.Stderr
-			os.Stderr = w
-			log.SetOutput(os.Stderr)
-
-			instance, err := NewVm(Config{
-				WithStatistics: true,
-			})
-			if err != nil {
-				t.Fatalf("Failed to create VM: %v", err)
-			}
-			instance.ResetProfile()
-			//run code
-			instance.Run(tosca.Parameters{Input: []byte{}, Static: true, Gas: 10,
-				Code: test.code})
-
-			// Run testing code
-			instance.DumpProfile()
-
-			// read the output
-			w.Close()
-			out, _ := io.ReadAll(r)
-			os.Stderr = old
-			log.SetOutput(os.Stderr)
-
-			for _, s := range test.findInOutput {
-				if !strings.Contains(string(out), s) {
-					t.Errorf("did not find ocurrences of %v in %v", s, string(out))
-				}
 			}
 		})
 	}
@@ -995,7 +889,7 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 		ctxt.stack.stack_ptr = 0
 
 		// Run the code (actual benchmark).
-		run(&ctxt)
+		vanillaRunner{}.run(&ctxt)
 
 		// Check the result.
 		if ctxt.status != statusReturned {

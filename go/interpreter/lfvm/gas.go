@@ -87,8 +87,8 @@ func initBerlinGasPrice() {
 	static_gas_prices_berlin[SELFDESTRUCT] = 5000
 }
 
-func getStaticGasPrices(isBerlin bool) []tosca.Gas {
-	if isBerlin {
+func getStaticGasPrices(revision tosca.Revision) []tosca.Gas {
+	if revision >= tosca.R09_Berlin {
 		return static_gas_prices_berlin[:]
 	}
 	return static_gas_prices[:]
