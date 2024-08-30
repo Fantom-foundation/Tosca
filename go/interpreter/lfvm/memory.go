@@ -75,13 +75,13 @@ func (m *Memory) EnsureCapacity(offset, size uint64, c *context) error {
 	needed := offset + size
 	// check overflow
 	if needed < offset {
-		c.SignalError(errGasUintOverflow)
+		c.signalError()
 		return errGasUintOverflow
 	}
 	if m.Len() < needed {
 		needed = toValidMemorySize(needed)
 		fee := m.ExpansionCosts(needed)
-		if !c.UseGas(fee) {
+		if !c.useGas(fee) {
 			c.status = statusOutOfGas
 			return errOutOfGas
 		}

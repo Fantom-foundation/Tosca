@@ -87,7 +87,7 @@ func opDup2_Mstore(c *context) {
 
 	offset := addr.Uint64()
 	if err := c.memory.SetWord(offset, value, c); err != nil {
-		c.SignalError(err)
+		c.signalError()
 	}
 }
 

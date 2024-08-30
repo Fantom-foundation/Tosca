@@ -20,39 +20,40 @@ import (
 	"github.com/holiman/uint256"
 )
 
+// status is enumeration of the execution state of an interpreter run.
 type status byte
 
 const (
-	statusRunning status = iota
-	statusStopped
-	statusReverted
-	statusReturned
-	statusSuicided
-	statusInvalidInstruction
-	statusOutOfGas
-	statusMaximumInitCodeSizeExceeded
-	statusError
+	statusRunning            status = iota // < all fine, ops are processed
+	statusStopped                          // < execution stopped with a STOP
+	statusReverted                         // < execution stopped with a REVERT
+	statusReturned                         // < execution stopped with a RETURN
+	statusSelfDestructed                   // < execution stopped with a SELF-DESTRUCT
+	statusInvalidInstruction               // < execution reached an invalid instruction
+	statusOutOfGas                         // < execution ran out of gas
+	statusError                            // < execution stopped with an error (e.g. stack underflow)
 )
 
+// context is the execution environment of an interpreter run. It contains all
+// the necessary state to execute a contract, including input parameters, the
+// contract code, and internal execution state such as the program counter,
+// stack, and memory. For each contract execution, a new context is created.
 type context struct {
-	// Context instances
+	// Inputs
 	params  tosca.Parameters
 	context tosca.RunContext
+	code    Code // the contract code in LFVM format
 
 	// Execution state
+	status status
 	pc     int32
 	gas    tosca.Gas
 	refund tosca.Gas
 	stack  *Stack
 	memory *Memory
-	status status
-
-	// Inputs
-	code     Code
-	revision tosca.Revision
 
 	// Intermediate data
-	returnData []byte
+	returnData []byte // < the result of the last nested contract call
 
 	// Outputs
 	resultOffset uint256.Int
@@ -62,33 +63,30 @@ type context struct {
 	withShaCache bool
 }
 
-func (c *context) UseGas(amount tosca.Gas) bool {
+// useGas reduces the gas level by the given amount. If the gas level drops
+// below zero, the execution is stopped with an out-of-gas error. The function
+// returns true if sufficient gas was available and execution can continue,
+// false otherwise.
+func (c *context) useGas(amount tosca.Gas) bool {
 	if c.gas < 0 || amount < 0 || c.gas < amount {
 		c.status = statusOutOfGas
+		c.gas = 0
 		return false
 	}
 	c.gas -= amount
 	return true
 }
 
-func (c *context) SignalError(error) { // < TODO: remove error parameter
+// signalError informs the context that an error was encountered that should
+// result in the termination of the execution covered by this context.
+func (c *context) signalError() {
 	c.status = statusError
 }
 
-func (c *context) isBerlin() bool {
-	return c.revision >= tosca.R09_Berlin
-}
-
-func (c *context) isLondon() bool {
-	return c.revision >= tosca.R10_London
-}
-
-func (c *context) isShanghai() bool {
-	return c.revision >= tosca.R12_Shanghai
-}
-
-func (c *context) isCancun() bool {
-	return c.revision >= tosca.R13_Cancun
+// isAtLeast returns true if the interpreter is is running at least at the given
+// revision or newer, false otherwise.
+func (c *context) isAtLeast(revision tosca.Revision) bool {
+	return c.params.Revision >= revision
 }
 
 func Run(
@@ -116,7 +114,6 @@ func Run(
 		memory:       NewMemory(),
 		status:       statusRunning,
 		code:         code,
-		revision:     params.Revision,
 		withShaCache: withShaCache,
 	}
 
@@ -145,7 +142,7 @@ func generateResult(ctxt *context) (tosca.Result, error) {
 
 	// Handle return status
 	switch ctxt.status {
-	case statusStopped, statusSuicided:
+	case statusStopped, statusSelfDestructed:
 		return tosca.Result{
 			Success:   true,
 			GasLeft:   ctxt.gas,
@@ -164,7 +161,7 @@ func generateResult(ctxt *context) (tosca.Result, error) {
 			Output:  res,
 			GasLeft: ctxt.gas,
 		}, nil
-	case statusInvalidInstruction, statusOutOfGas, statusMaximumInitCodeSizeExceeded, statusError: // < TODO: if all these are handled the same, no need to have anything but statusError
+	case statusInvalidInstruction, statusOutOfGas, statusError: // < TODO: if all these are handled the same, no need to have anything but statusError
 		return tosca.Result{
 			Success: false,
 		}, nil
@@ -375,7 +372,7 @@ func checkStackBoundary(c *context, op OpCode) error {
 
 func steps(c *context, oneStepOnly bool) {
 	// Idea: handle static gas price in static dispatch below (saves an array lookup)
-	staticGasPrices := getStaticGasPrices(c.isBerlin())
+	staticGasPrices := getStaticGasPrices(c.isAtLeast(tosca.R09_Berlin))
 	for c.status == statusRunning {
 		if int(c.pc) >= len(c.code) {
 			opStop(c)
@@ -392,7 +389,7 @@ func steps(c *context, oneStepOnly bool) {
 
 		// Catch invalid op-codes here, to avoid the need to check them at other places multiple times.
 		if op >= NUM_EXECUTABLE_OPCODES {
-			c.SignalError(errInvalidCode)
+			c.signalError()
 			return
 		}
 
@@ -417,7 +414,7 @@ func steps(c *context, oneStepOnly bool) {
 		}
 
 		// Consume static gas price for instruction before execution
-		if !c.UseGas(staticGasPrices[op]) {
+		if !c.useGas(staticGasPrices[op]) {
 			return
 		}
 

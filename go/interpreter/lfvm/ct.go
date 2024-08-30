@@ -74,7 +74,6 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		memory:     memory,
 		status:     statusRunning,
 		code:       converted,
-		revision:   params.Revision,
 		returnData: state.LastCallReturnData.ToBytes(),
 	}
 
@@ -176,10 +175,9 @@ func convertLfvmStatusToCtStatus(status status) (st.StatusCode, error) {
 		return st.Stopped, nil
 	case statusReverted:
 		return st.Reverted, nil
-	case statusSuicided:
-		// Suicide is not yet modeled by the CT, and for now it just maps to the STOPPED status.
+	case statusSelfDestructed:
 		return st.Stopped, nil
-	case statusInvalidInstruction, statusOutOfGas, statusMaximumInitCodeSizeExceeded, statusError:
+	case statusInvalidInstruction, statusOutOfGas, statusError:
 		return st.Failed, nil
 	default:
 		return st.Failed, fmt.Errorf("unable to convert lfvm status %v to ct status", status)
