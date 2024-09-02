@@ -205,7 +205,7 @@ func TestConvertWithObserver_MapsEvmToLfvmPositions(t *testing.T) {
 		evm, lfvm int
 	}
 	var pairs []pair
-	res := convertWithObserver(code, ConversionConfig{}, func(evm, lfvm int) {
+	res := ConvertWithObserver(code, ConversionConfig{}, func(evm, lfvm int) {
 		pairs = append(pairs, pair{evm, lfvm})
 	})
 
@@ -245,7 +245,7 @@ func TestConvertWithObserver_PreservesJumpDestLocations(t *testing.T) {
 			evm, lfvm int
 		}
 		var pairs []pair
-		res := convertWithObserver(code, ConversionConfig{}, func(evm, lfvm int) {
+		res := ConvertWithObserver(code, ConversionConfig{}, func(evm, lfvm int) {
 			pairs = append(pairs, pair{evm, lfvm})
 		})
 

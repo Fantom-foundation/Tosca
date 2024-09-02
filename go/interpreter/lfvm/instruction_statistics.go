@@ -26,9 +26,9 @@ type statisticRunner struct {
 
 func (s *statisticRunner) run(c *context) {
 	stats := statsCollector{stats: newStatistics()}
-	for c.status == statusRunning {
+	for c.status == StatusRunning {
 		stats.nextOp(c.code[c.pc].opcode)
-		step(c)
+		Step(c)
 	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()

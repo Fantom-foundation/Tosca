@@ -17,18 +17,18 @@ import (
 	"github.com/holiman/uint256"
 )
 
-// status is enumeration of the execution state of an interpreter run.
-type status byte
+// Status is enumeration of the execution state of an interpreter run.
+type Status byte
 
 const (
-	statusRunning            status = iota // < all fine, ops are processed
-	statusStopped                          // < execution stopped with a STOP
-	statusReverted                         // < execution stopped with a REVERT
-	statusReturned                         // < execution stopped with a RETURN
-	statusSelfDestructed                   // < execution stopped with a SELF-DESTRUCT
-	statusInvalidInstruction               // < execution reached an invalid instruction
-	statusOutOfGas                         // < execution ran out of gas
-	statusError                            // < execution stopped with an error (e.g. stack underflow)
+	StatusRunning            Status = iota // < all fine, ops are processed
+	StatusStopped                          // < execution stopped with a STOP
+	StatusReverted                         // < execution stopped with a REVERT
+	StatusReturned                         // < execution stopped with a RETURN
+	StatusSelfDestructed                   // < execution stopped with a SELF-DESTRUCT
+	StatusInvalidInstruction               // < execution reached an invalid instruction
+	StatusOutOfGas                         // < execution ran out of gas
+	StatusError                            // < execution stopped with an error (e.g. stack underflow)
 )
 
 // context is the execution environment of an interpreter run. It contains all
@@ -42,7 +42,7 @@ type context struct {
 	code    Code // the contract code in LFVM format
 
 	// Execution state
-	status status
+	status Status
 	pc     int32
 	gas    tosca.Gas
 	refund tosca.Gas
@@ -60,13 +60,68 @@ type context struct {
 	withShaCache bool
 }
 
+// NewContext creates a new execution context for the given contract code and
+// input parameters.
+func NewContext(params tosca.Parameters, ctx tosca.RunContext, code Code,
+	status Status, pc int32, gas tosca.Gas, refund tosca.Gas, stack *Stack,
+	memory *Memory, returnData []byte, resultOffset, resultSize uint256.Int,
+	withShaCache bool) *context {
+	return &context{
+		params:       params,
+		context:      ctx,
+		code:         code,
+		status:       status,
+		pc:           pc,
+		gas:          gas,
+		refund:       refund,
+		stack:        stack,
+		memory:       memory,
+		returnData:   returnData,
+		resultOffset: resultOffset,
+		resultSize:   resultSize,
+		withShaCache: withShaCache,
+	}
+}
+
+func (c *context) GetStack() *Stack {
+	return c.stack
+}
+
+func (c *context) GetMemory() *Memory {
+	return c.memory
+}
+
+func (c *context) GetStatus() Status {
+	return c.status
+}
+
+func (c *context) GetPc() int32 {
+	return c.pc
+}
+
+func (c *context) GetGas() tosca.Gas {
+	return c.gas
+}
+
+func (c *context) GetRefund() tosca.Gas {
+	return c.refund
+}
+
+func (c *context) GetReturnData() []byte {
+	return c.returnData
+}
+
+func (c *context) IsRunning() bool {
+	return c.status == StatusRunning
+}
+
 // useGas reduces the gas level by the given amount. If the gas level drops
 // below zero, the execution is stopped with an out-of-gas error. The function
 // returns true if sufficient gas was available and execution can continue,
 // false otherwise.
 func (c *context) useGas(amount tosca.Gas) bool {
 	if c.gas < 0 || amount < 0 || c.gas < amount {
-		c.status = statusOutOfGas
+		c.status = StatusOutOfGas
 		c.gas = 0
 		return false
 	}
@@ -77,7 +132,11 @@ func (c *context) useGas(amount tosca.Gas) bool {
 // signalError informs the context that an error was encountered that should
 // result in the termination of the execution covered by this context.
 func (c *context) signalError() {
-	c.status = statusError
+	c.status = StatusError
+}
+
+func (c *context) SignalOutofGas() {
+	c.status = StatusOutOfGas
 }
 
 // isAtLeast returns true if the interpreter is is running at least at the given
@@ -118,13 +177,13 @@ func run(
 		gas:          params.Gas,
 		stack:        NewStack(),
 		memory:       NewMemory(),
-		status:       statusRunning,
+		status:       StatusRunning,
 		code:         code,
 		withShaCache: config.withShaCache,
 	}
 
 	defer func() {
-		ReturnStack(ctxt.stack)
+		ReturnStack(&ctxt)
 	}()
 
 	// Run interpreter.
@@ -138,33 +197,33 @@ func run(
 
 func generateResult(ctxt *context) (tosca.Result, error) {
 
-	res, err := getOutput(ctxt)
+	res, err := GetOutput(ctxt)
 	if err != nil {
 		return tosca.Result{Success: false}, nil
 	}
 
 	// Handle return status
 	switch ctxt.status {
-	case statusStopped, statusSelfDestructed:
+	case StatusStopped, StatusSelfDestructed:
 		return tosca.Result{
 			Success:   true,
 			GasLeft:   ctxt.gas,
 			GasRefund: ctxt.refund,
 		}, nil
-	case statusReturned:
+	case StatusReturned:
 		return tosca.Result{
 			Success:   true,
 			Output:    res,
 			GasLeft:   ctxt.gas,
 			GasRefund: ctxt.refund,
 		}, nil
-	case statusReverted:
+	case StatusReverted:
 		return tosca.Result{
 			Success: false,
 			Output:  res,
 			GasLeft: ctxt.gas,
 		}, nil
-	case statusInvalidInstruction, statusOutOfGas, statusError: // < TODO: if all these are handled the same, no need to have anything but statusError
+	case StatusInvalidInstruction, StatusOutOfGas, StatusError: // < TODO: if all these are handled the same, no need to have anything but statusError
 		return tosca.Result{
 			Success: false,
 		}, nil
@@ -173,9 +232,9 @@ func generateResult(ctxt *context) (tosca.Result, error) {
 	}
 }
 
-func getOutput(ctxt *context) ([]byte, error) {
+func GetOutput(ctxt *context) ([]byte, error) {
 	var res []byte
-	if ctxt.status == statusReturned || ctxt.status == statusReverted {
+	if ctxt.status == StatusReturned || ctxt.status == StatusReverted {
 		size, overflow := ctxt.resultSize.Uint64WithOverflow()
 		if overflow {
 			return nil, errGasUintOverflow
@@ -213,29 +272,29 @@ func (r vanillaRunner) run(c *context) {
 type loggingRunner struct{}
 
 func (r loggingRunner) run(c *context) {
-	for c.status == statusRunning {
+	for c.status == StatusRunning {
 		// log format: <op>, <gas>, <top-of-stack>\n
 		if int(c.pc) < len(c.code) {
 			top := "-empty-"
-			if c.stack.len() > 0 {
+			if c.stack.Len() > 0 {
 				top = c.stack.peek().ToBig().String()
 			}
 			fmt.Printf("%v, %d, %v\n", c.code[c.pc].opcode, c.gas, top)
 		}
-		step(c)
+		Step(c)
 	}
 }
 
 // --- Execution ---
 
-func step(c *context) {
+func Step(c *context) {
 	steps(c, true)
 }
 
 func steps(c *context, oneStepOnly bool) {
 	// Idea: handle static gas price in static dispatch below (saves an array lookup)
 	staticGasPrices := getStaticGasPrices(c.params.Revision)
-	for c.status == statusRunning {
+	for c.status == StatusRunning {
 		if int(c.pc) >= len(c.code) {
 			opStop(c)
 			return
@@ -623,7 +682,7 @@ func steps(c *context, oneStepOnly bool) {
 		case PUSH1_PUSH1_PUSH1_SHL_SUB:
 			opPush1_Push1_Push1_Shl_Sub(c)
 		default:
-			c.status = statusInvalidInstruction
+			c.status = StatusInvalidInstruction
 			return
 		}
 		c.pc++
@@ -635,7 +694,7 @@ func steps(c *context, oneStepOnly bool) {
 }
 
 func satisfiesStackRequirements(c *context, op OpCode) bool {
-	stackLen := c.stack.len()
+	stackLen := c.stack.Len()
 	if stackLen < staticStackBoundary[op].stackMin {
 		c.signalError()
 		return false

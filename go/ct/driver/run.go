@@ -26,7 +26,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/interpreter/evmzero"
 	"github.com/Fantom-foundation/Tosca/go/interpreter/geth"
-	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
+	lfvm "github.com/Fantom-foundation/Tosca/go/interpreter/lfvm/ct"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/dsnet/golib/unitconv"
 	"github.com/urfave/cli/v2"

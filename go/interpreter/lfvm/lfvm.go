@@ -79,10 +79,10 @@ func NewVm(config Config) (*VM, error) {
 }
 
 // Defines the newest supported revision for this interpreter implementation
-const newestSupportedRevision = tosca.R13_Cancun
+const NewestSupportedRevision = tosca.R13_Cancun
 
 func (v *VM) Run(params tosca.Parameters) (tosca.Result, error) {
-	if params.Revision > newestSupportedRevision {
+	if params.Revision > NewestSupportedRevision {
 		return tosca.Result{}, &tosca.ErrUnsupportedRevision{Revision: params.Revision}
 	}
 

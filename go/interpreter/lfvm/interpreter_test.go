@@ -50,7 +50,7 @@ func TestContext_useGas_HandlesTerminationIfOutOfGas(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctx := context{
-				status: statusRunning,
+				status: StatusRunning,
 				gas:    test.available,
 			}
 			success := ctx.useGas(test.required)
@@ -63,9 +63,9 @@ func TestContext_useGas_HandlesTerminationIfOutOfGas(t *testing.T) {
 			}
 
 			// Check that the status is updated correctly.
-			wantStatus := statusRunning
+			wantStatus := StatusRunning
 			if !success {
-				wantStatus = statusOutOfGas
+				wantStatus = StatusOutOfGas
 			}
 			if ctx.status != wantStatus {
 				t.Errorf("expected status to be %v, got %v", wantStatus, ctx.status)
@@ -116,7 +116,7 @@ type example struct {
 	function uint32 // The identifier of the function in the contract to be called
 }
 
-const MAX_STACK_SIZE int = 1024
+const MAX_STACK_SIZE int = 1024 // TODO: use StackLimit
 const GAS_START tosca.Gas = 1 << 32
 
 func getEmptyContext() context {
@@ -140,7 +140,7 @@ func getContext(code Code, data []byte, runContext tosca.RunContext, stackPtr in
 		gas:     gas,
 		stack:   NewStack(),
 		memory:  NewMemory(),
-		status:  statusRunning,
+		status:  StatusRunning,
 		code:    code,
 	}
 
@@ -158,7 +158,7 @@ type OpcodeTest struct {
 	code        []Instruction
 	stackPtrPos int
 	argData     uint16
-	endStatus   status
+	endStatus   Status
 	isBerlin    bool // < TODO: replace with revision
 	isLondon    bool
 	mockCalls   func(*tosca.MockRunContext)
@@ -214,7 +214,7 @@ func addFullStackFailOpCodes(tests []OpcodeTest) []OpcodeTest {
 	opCodes = append(opCodes, getInstructions(PUSH1, PUSH32)...)
 	opCodes = append(opCodes, getInstructions(DUP1, DUP16)...)
 	for _, opCode := range opCodes {
-		addedTests = append(addedTests, OpcodeTest{opCode.String(), []Instruction{{opCode, 1}}, MAX_STACK_SIZE, 0, statusError, false, false, nil, GAS_START, 0, 0})
+		addedTests = append(addedTests, OpcodeTest{opCode.String(), []Instruction{{opCode, 1}}, MAX_STACK_SIZE, 0, StatusError, false, false, nil, GAS_START, 0, 0})
 	}
 	return addedTests
 }
@@ -228,7 +228,7 @@ func addEmptyStackFailOpCodes(tests []OpcodeTest) []OpcodeTest {
 	opCodes = append(opCodes, getInstructions(SWAP1, SWAP16)...)
 	opCodes = append(opCodes, getInstructions(LOG0, LOG4)...)
 	for _, opCode := range opCodes {
-		addedTests = append(addedTests, OpcodeTest{opCode.String(), []Instruction{{opCode, 1}}, 0, 0, statusError, false, false, nil, GAS_START, 0, 0})
+		addedTests = append(addedTests, OpcodeTest{opCode.String(), []Instruction{{opCode, 1}}, 0, 0, StatusError, false, false, nil, GAS_START, 0, 0})
 	}
 	return addedTests
 }
@@ -305,113 +305,113 @@ func TestStackMaxBoundry(t *testing.T) {
 }
 
 var opcodeTests = []OpcodeTest{
-	{"POP", []Instruction{{PUSH1, 1 << 8}, {POP, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 5, 0},
-	{"JUMP", []Instruction{{PUSH1, 2 << 8}, {JUMP, 0}, {JUMPDEST, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 12, 0},
-	{"JUMPI", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 3 << 8}, {JUMPI, 0}, {JUMPDEST, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 17, 0},
-	{"JUMPDEST", []Instruction{{JUMPDEST, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 1, 0},
-	{"RETURN", []Instruction{{RETURN, 0}}, 20, 0, statusReturned, false, false, nil, GAS_START, 0, 0},
-	{"REVERT", []Instruction{{REVERT, 0}}, 20, 0, statusReverted, false, false, nil, GAS_START, 0, 0},
-	{"PC", []Instruction{{PC, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 2, 0},
-	{"STOP", []Instruction{{STOP, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 0, 0},
-	{"SLOAD", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, statusStopped, false, false,
+	{"POP", []Instruction{{PUSH1, 1 << 8}, {POP, 0}}, 0, 0, StatusStopped, false, false, nil, GAS_START, 5, 0},
+	{"JUMP", []Instruction{{PUSH1, 2 << 8}, {JUMP, 0}, {JUMPDEST, 0}}, 0, 0, StatusStopped, false, false, nil, GAS_START, 12, 0},
+	{"JUMPI", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 3 << 8}, {JUMPI, 0}, {JUMPDEST, 0}}, 0, 0, StatusStopped, false, false, nil, GAS_START, 17, 0},
+	{"JUMPDEST", []Instruction{{JUMPDEST, 0}}, 0, 0, StatusStopped, false, false, nil, GAS_START, 1, 0},
+	{"RETURN", []Instruction{{RETURN, 0}}, 20, 0, StatusReturned, false, false, nil, GAS_START, 0, 0},
+	{"REVERT", []Instruction{{REVERT, 0}}, 20, 0, StatusReverted, false, false, nil, GAS_START, 0, 0},
+	{"PC", []Instruction{{PC, 0}}, 0, 0, StatusStopped, false, false, nil, GAS_START, 2, 0},
+	{"STOP", []Instruction{{STOP, 0}}, 0, 0, StatusStopped, false, false, nil, GAS_START, 0, 0},
+	{"SLOAD", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, StatusStopped, false, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 		}, GAS_START, 803, 0},
-	{"SLOAD Berlin", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, statusStopped, true, false,
+	{"SLOAD Berlin", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, StatusStopped, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(0)).Return(true, true)
 		}, GAS_START, 103, 0},
-	{"SLOAD Berlin no slot", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, statusStopped, true, false,
+	{"SLOAD Berlin no slot", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, StatusStopped, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(0)).Return(false, false)
 			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0))
 		}, GAS_START, 2103, 0},
-	{"SSTORE same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
+	{"SSTORE same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, StatusStopped, false, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0))
 		}, GAS_START, 806, 0},
-	{"SSTORE diff value, same state as db, db is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
+	{"SSTORE diff value, same state as db, db is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, StatusStopped, false, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1))
 		}, GAS_START, 20006, 0},
-	{"SSTORE diff value, same state as db, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
+	{"SSTORE diff value, same state as db, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, StatusStopped, false, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0))
 		}, GAS_START, 5006, SstoreClearsScheduleRefundEIP2200},
-	{"SSTORE diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
+	{"SSTORE diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, StatusStopped, false, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(2))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1))
 		}, GAS_START, 806, tosca.Gas(-int(SstoreClearsScheduleRefundEIP2200))},
-	{"SSTORE diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
+	{"SSTORE diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, StatusStopped, false, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(2))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0))
 		}, GAS_START, 806, SstoreClearsScheduleRefundEIP2200},
-	{"SSTORE diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
+	{"SSTORE diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, StatusStopped, false, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(1)).Return(toWord(1))
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(1)).Return(toWord(0))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(1), toWord(0))
 		}, GAS_START, 806, SstoreSetGasEIP2200 - SloadGasEIP2200},
-	{"SSTORE diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
+	{"SSTORE diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, StatusStopped, false, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(2))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(2))
 		}, GAS_START, 806, SstoreResetGasEIP2200 - SloadGasEIP2200},
-	{"SSTORE Berlin same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
+	{"SSTORE Berlin same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, StatusStopped, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(0)).Return(true, false)
 			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0))
 		}, GAS_START, 2206, 0},
-	{"SSTORE Berlin diff value, same state as db, db is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
+	{"SSTORE Berlin diff value, same state as db, db is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, StatusStopped, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(0)).Return(true, true)
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1))
 		}, GAS_START, 20006, 0},
-	{"SSTORE Berlin diff value, same state as db, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
+	{"SSTORE Berlin diff value, same state as db, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, StatusStopped, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(0)).Return(true, true)
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0))
 		}, GAS_START, 2906, SstoreClearsScheduleRefundEIP2200},
-	{"SSTORE Berlin diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
+	{"SSTORE Berlin diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, StatusStopped, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(0)).Return(true, true)
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(2))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1))
 		}, GAS_START, 106, tosca.Gas(-int(SstoreClearsScheduleRefundEIP2200))},
-	{"SSTORE Berlin diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
+	{"SSTORE Berlin diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, StatusStopped, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(0)).Return(true, true)
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(0)).Return(toWord(2))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0))
 		}, GAS_START, 106, SstoreClearsScheduleRefundEIP2200},
-	{"SSTORE Berlin diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
+	{"SSTORE Berlin diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, StatusStopped, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(1)).Return(toWord(1))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(1)).Return(true, true)
 			mock.EXPECT().GetCommittedStorage(tosca.Address{0}, toKey(1)).Return(toWord(0))
 			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(1), toWord(0))
 		}, GAS_START, 106, SstoreSetGasEIP2200 - WarmStorageReadCostEIP2929},
-	{"SSTORE Berlin diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
+	{"SSTORE Berlin diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, StatusStopped, true, false,
 		func(mock *tosca.MockRunContext) {
 			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(1))
 			mock.EXPECT().IsSlotInAccessList(tosca.Address{0}, toKey(0)).Return(true, true)
@@ -434,7 +434,7 @@ func addOKOpCodes(tests []OpcodeTest) []OpcodeTest {
 		for j := 0; j < dataNum; j++ {
 			code = append(code, Instruction{DATA, 1})
 		}
-		addedTests = append(addedTests, OpcodeTest{i.String(), code, 20, 0, statusStopped, false, false, nil, GAS_START, 3, 0})
+		addedTests = append(addedTests, OpcodeTest{i.String(), code, 20, 0, StatusStopped, false, false, nil, GAS_START, 3, 0})
 	}
 	var opCodes []OpCodeWithGas
 	opCodes = append(opCodes, getInstructionsWithGas(DUP1, SWAP16, 3)...)
@@ -459,7 +459,7 @@ func addOKOpCodes(tests []OpcodeTest) []OpcodeTest {
 	opCodes = append(opCodes, OpCodeWithGas{DUP2_LT, 6})
 	for _, opCode := range opCodes {
 		code := []Instruction{{opCode.OpCode, 0}}
-		addedTests = append(addedTests, OpcodeTest{opCode.String(), code, 20, 0, statusStopped, false, false, nil, GAS_START, opCode.gas, 0})
+		addedTests = append(addedTests, OpcodeTest{opCode.String(), code, 20, 0, StatusStopped, false, false, nil, GAS_START, opCode.gas, 0})
 	}
 	return addedTests
 }
@@ -624,23 +624,23 @@ func TestRunGenerateResult(t *testing.T) {
 		expectedErr    error
 		expectedResult tosca.Result
 	}{
-		"invalid instruction": {func(ctx *context) { ctx.status = statusInvalidInstruction }, nil, tosca.Result{Success: false}},
-		"out of gas":          {func(ctx *context) { ctx.status = statusOutOfGas }, nil, tosca.Result{Success: false}},
-		"max init code": {func(ctx *context) { ctx.status = statusError }, nil,
+		"invalid instruction": {func(ctx *context) { ctx.status = StatusInvalidInstruction }, nil, tosca.Result{Success: false}},
+		"out of gas":          {func(ctx *context) { ctx.status = StatusOutOfGas }, nil, tosca.Result{Success: false}},
+		"max init code": {func(ctx *context) { ctx.status = StatusError }, nil,
 			tosca.Result{Success: false}},
-		"error": {func(ctx *context) { ctx.status = statusError }, nil, tosca.Result{Success: false}},
-		"returned": {func(ctx *context) { ctx.status = statusReturned }, nil, tosca.Result{Success: true,
+		"error": {func(ctx *context) { ctx.status = StatusError }, nil, tosca.Result{Success: false}},
+		"returned": {func(ctx *context) { ctx.status = StatusReturned }, nil, tosca.Result{Success: true,
 			Output: baseOutput, GasLeft: baseGas, GasRefund: baseRefund}},
-		"reverted": {func(ctx *context) { ctx.status = statusReverted }, nil,
+		"reverted": {func(ctx *context) { ctx.status = StatusReverted }, nil,
 			tosca.Result{Success: false, Output: baseOutput, GasLeft: baseGas, GasRefund: 0}},
-		"stopped": {func(ctx *context) { ctx.status = statusStopped }, nil,
+		"stopped": {func(ctx *context) { ctx.status = StatusStopped }, nil,
 			tosca.Result{Success: true, Output: nil, GasLeft: baseGas, GasRefund: baseRefund}},
-		"suicide": {func(ctx *context) { ctx.status = statusSelfDestructed }, nil,
+		"suicide": {func(ctx *context) { ctx.status = StatusSelfDestructed }, nil,
 			tosca.Result{Success: true, Output: nil, GasLeft: baseGas, GasRefund: baseRefund}},
-		"unknown status": {func(ctx *context) { ctx.status = statusError + 1 },
-			fmt.Errorf("unexpected error in interpreter, unknown status: %v", statusError+1), tosca.Result{}},
-		"getOutput fail": {func(ctx *context) {
-			ctx.status = statusReturned
+		"unknown status": {func(ctx *context) { ctx.status = StatusError + 1 },
+			fmt.Errorf("unexpected error in interpreter, unknown status: %v", StatusError+1), tosca.Result{}},
+		"getOuput fail": {func(ctx *context) {
+			ctx.status = StatusReturned
 			ctx.resultSize = uint256.Int{1, 1}
 		}, nil, tosca.Result{Success: false}},
 	}
@@ -685,10 +685,10 @@ func TestGetOutputReturnsExpectedErrors(t *testing.T) {
 		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
 			ctxt := getEmptyContext()
 			test.setup(&ctxt)
-			ctxt.status = statusReturned
+			ctxt.status = StatusReturned
 
 			// Run testing code
-			_, err := getOutput(&ctxt)
+			_, err := GetOutput(&ctxt)
 			if !errors.Is(err, test.expectedErr) {
 				t.Errorf("unexpected error: want error, got nil")
 			}
@@ -717,7 +717,7 @@ func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
 	// Run testing code
 	steps(&ctxt, false)
 
-	if ctxt.status != statusStopped {
+	if ctxt.status != StatusStopped {
 		t.Errorf("unexpected status: want STOPPED, got %v", ctxt.status)
 	}
 }
@@ -726,11 +726,11 @@ func TestStepsDetectsNonExecutableCode(t *testing.T) {
 	// Create execution context.
 	instructions := []struct {
 		instruction []Instruction
-		status      status
+		status      Status
 	}{
-		{[]Instruction{{NUM_EXECUTABLE_OPCODES - 1, 0x0101}, {DATA, 0x0001}, {STOP, 0}}, statusStopped},
-		{[]Instruction{{NUM_EXECUTABLE_OPCODES, 0}}, statusError},
-		{[]Instruction{{NUM_EXECUTABLE_OPCODES + 1, 0}}, statusError},
+		{[]Instruction{{NUM_EXECUTABLE_OPCODES - 1, 0x0101}, {DATA, 0x0001}, {STOP, 0}}, StatusStopped},
+		{[]Instruction{{NUM_EXECUTABLE_OPCODES, 0}}, StatusError},
+		{[]Instruction{{NUM_EXECUTABLE_OPCODES + 1, 0}}, StatusError},
 	}
 
 	for _, test := range instructions {
@@ -757,23 +757,23 @@ func TestStepsDoesNotExecuteCodeIfStatic(t *testing.T) {
 
 	tests := map[string]struct {
 		instructions []Instruction
-		status       status
+		status       Status
 	}{
-		"mstore": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {MSTORE, 0}}, statusStopped},
-		"sstore": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, statusError},
-		"LOG0":   {[]Instruction{{PUSH1, 0}, {LOG0, 0}}, statusError},
-		"LOG1":   {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {LOG1, 0}}, statusError},
+		"mstore": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {MSTORE, 0}}, StatusStopped},
+		"sstore": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, StatusError},
+		"LOG0":   {[]Instruction{{PUSH1, 0}, {LOG0, 0}}, StatusError},
+		"LOG1":   {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {LOG1, 0}}, StatusError},
 		"LOG2": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0}, {LOG2, 0}},
-			statusError},
+			StatusError},
 		"LOG3": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0},
-			{LOG3, 0}}, statusError},
+			{LOG3, 0}}, StatusError},
 		"LOG4": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0},
-			{PUSH1, 0}, {LOG3, 0}}, statusError},
-		"CREATE":       {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {CREATE, 0}}, statusError},
-		"CREATE2":      {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {CREATE2, 0}}, statusError},
-		"SELFDESTRUCT": {[]Instruction{{PUSH1, 0}, {SELFDESTRUCT, 0}}, statusError},
-		"TSTORE":       {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {TSTORE, 0}}, statusError},
-		"CALL":         {[]Instruction{{PUSH1, 1}, {PUSH1, 1}, {PUSH1, 1}, {CALL, 0}}, statusError},
+			{PUSH1, 0}, {LOG3, 0}}, StatusError},
+		"CREATE":       {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {CREATE, 0}}, StatusError},
+		"CREATE2":      {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {CREATE2, 0}}, StatusError},
+		"SELFDESTRUCT": {[]Instruction{{PUSH1, 0}, {SELFDESTRUCT, 0}}, StatusError},
+		"TSTORE":       {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {TSTORE, 0}}, StatusError},
+		"CALL":         {[]Instruction{{PUSH1, 1}, {PUSH1, 1}, {PUSH1, 1}, {CALL, 0}}, StatusError},
 	}
 
 	for name, test := range tests {
@@ -818,7 +818,7 @@ func TestStepsFailsOnTooLittleGas(t *testing.T) {
 	// Run testing code
 	steps(&ctxt, false)
 
-	if ctxt.status != statusOutOfGas {
+	if ctxt.status != StatusOutOfGas {
 		t.Errorf("unexpected status: want OUT_OF_GAS, got %v", ctxt.status)
 	}
 }
@@ -884,7 +884,7 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 	for i := 0; i < b.N; i++ {
 		// Reset the context.
 		ctxt.pc = 0
-		ctxt.status = statusRunning
+		ctxt.status = StatusRunning
 		ctxt.gas = 1 << 31
 		ctxt.stack.stack_ptr = 0
 
@@ -892,7 +892,7 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 		vanillaRunner{}.run(&ctxt)
 
 		// Check the result.
-		if ctxt.status != statusReturned {
+		if ctxt.status != StatusReturned {
 			b.Fatalf("execution failed: status is %v", ctxt.status)
 		}
 

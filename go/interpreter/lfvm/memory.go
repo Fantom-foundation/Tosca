@@ -82,7 +82,7 @@ func (m *Memory) EnsureCapacity(offset, size uint64, c *context) error {
 		needed = toValidMemorySize(needed)
 		fee := m.ExpansionCosts(needed)
 		if !c.useGas(fee) {
-			c.status = statusOutOfGas
+			c.status = StatusOutOfGas
 			return errOutOfGas
 		}
 		m.total_memory_cost += fee

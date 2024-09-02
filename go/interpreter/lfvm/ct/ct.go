@@ -8,7 +8,7 @@
 // On the date above, in accordance with the Business Source License, use of
 // this software will be governed by the GNU Lesser General Public License v3.
 
-package lfvm
+package ct
 
 import (
 	"fmt"
@@ -17,12 +17,17 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/ct/utils"
+	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/holiman/uint256"
 )
 
 func NewConformanceTestingTarget() ct.Evm {
-	converter, err := NewConverter(ConversionConfig{
+	// can only produce an error if ConversionConfig.CacheSize is set to
+	// less than maxCachedCodeLength = 24_576 bytes, but default is 1GiB,
+	// so this can't fail.
+	converter, err := lfvm.NewConverter(lfvm.ConversionConfig{
 		WithSuperInstructions: false,
 	})
 	if err != nil {
@@ -36,13 +41,13 @@ func NewConformanceTestingTarget() ct.Evm {
 }
 
 type ctAdapter struct {
-	converter  *Converter
+	converter  *lfvm.Converter
 	pcMapCache *lru.Cache[[32]byte, *pcMap]
 }
 
 func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	params := utils.ToVmParameters(state)
-	if params.Revision > newestSupportedRevision {
+	if params.Revision > lfvm.NewestSupportedRevision {
 		return state, &tosca.ErrUnsupportedRevision{Revision: params.Revision}
 	}
 
@@ -64,47 +69,48 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	}
 
 	// Set up execution context.
-	var ctxt = &context{
-		pc:         int32(pcMap.evmToLfvm[state.Pc]),
-		params:     params,
-		context:    params.Context,
-		gas:        params.Gas,
-		refund:     tosca.Gas(state.GasRefund),
-		stack:      convertCtStackToLfvmStack(state.Stack),
-		memory:     memory,
-		status:     statusRunning,
-		code:       converted,
-		returnData: state.LastCallReturnData.ToBytes(),
-	}
+	var ctxt = lfvm.NewContext(
+		params,         // params
+		params.Context, //context
+		converted,      // code
+		lfvm.StatusRunning,
+		int32(pcMap.evmToLfvm[state.Pc]),       // pc:
+		params.Gas,                             // gas
+		tosca.Gas(state.GasRefund),             // refund
+		convertCtStackToLfvmStack(state.Stack), // stack
+		memory,
+		state.LastCallReturnData.ToBytes(), // returnData
+		*uint256.NewInt(0), *uint256.NewInt(0), false,
+	)
 
 	defer func() {
-		ReturnStack(ctxt.stack)
+		lfvm.ReturnStack(ctxt)
 	}()
 
 	// Run interpreter.
-	for i := 0; ctxt.status == statusRunning && i < numSteps; i++ {
-		step(ctxt)
+	for i := 0; ctxt.IsRunning() && i < numSteps; i++ {
+		lfvm.Step(ctxt)
 	}
 
-	result, err := getOutput(ctxt)
+	result, err := lfvm.GetOutput(ctxt)
 	if err != nil {
-		ctxt.status = statusOutOfGas
+		ctxt.SignalOutofGas()
 	}
 
 	// Update the resulting state.
-	state.Status, err = convertLfvmStatusToCtStatus(ctxt.status)
+	state.Status, err = convertLfvmStatusToCtStatus(ctxt.GetStatus())
 	if err != nil {
 		return nil, err
 	}
-	if ctxt.status == statusRunning {
-		state.Pc = pcMap.lfvmToEvm[ctxt.pc]
+	if ctxt.IsRunning() {
+		state.Pc = pcMap.lfvmToEvm[ctxt.GetPc()]
 	}
 
-	state.Gas = ctxt.gas
-	state.GasRefund = ctxt.refund
-	state.Stack = convertLfvmStackToCtStack(ctxt.stack, state.Stack)
-	state.Memory = convertLfvmMemoryToCtMemory(ctxt.memory)
-	state.LastCallReturnData = common.NewBytes(ctxt.returnData)
+	state.Gas = ctxt.GetGas()
+	state.GasRefund = ctxt.GetRefund()
+	state.Stack = convertLfvmStackToCtStack(ctxt.GetStack(), state.Stack)
+	state.Memory = convertLfvmMemoryToCtMemory(ctxt.GetMemory())
+	state.LastCallReturnData = common.NewBytes(ctxt.GetReturnData())
 	state.ReturnData = common.NewBytes(result)
 
 	return state, nil
@@ -134,10 +140,10 @@ func genPcMap(code []byte) *pcMap {
 	evmToLfvm := make([]uint16, len(code)+1)
 	lfvmToEvm := make([]uint16, len(code)+1)
 
-	config := ConversionConfig{
+	config := lfvm.ConversionConfig{
 		WithSuperInstructions: false,
 	}
-	res := convertWithObserver(code, config, func(evm, lfvm int) {
+	res := lfvm.ConvertWithObserver(code, config, func(evm, lfvm int) {
 		evmToLfvm[evm] = uint16(lfvm)
 		lfvmToEvm[lfvm] = uint16(evm)
 	})
@@ -156,8 +162,10 @@ func genPcMap(code []byte) *pcMap {
 	// Locations pointing to JUMP_TO instructions in LFVM need to be updated to
 	// the position of the jump target.
 	for i := 0; i < len(res); i++ {
-		if res[i].opcode == JUMP_TO {
-			lfvmToEvm[i] = res[i].arg
+		// if res[i].opcode == lfvm.JUMP_TO {
+		if res.IsIndexOp(i, lfvm.JUMP_TO) {
+			// lfvmToEvm[i] = res[i].arg
+			lfvmToEvm[i] = res.GetArgOf(i)
 		}
 	}
 
@@ -167,34 +175,34 @@ func genPcMap(code []byte) *pcMap {
 	}
 }
 
-func convertLfvmStatusToCtStatus(status status) (st.StatusCode, error) {
+func convertLfvmStatusToCtStatus(status lfvm.Status) (st.StatusCode, error) {
 	switch status {
-	case statusRunning:
+	case lfvm.StatusRunning:
 		return st.Running, nil
-	case statusReturned, statusStopped:
+	case lfvm.StatusReturned, lfvm.StatusStopped:
 		return st.Stopped, nil
-	case statusReverted:
+	case lfvm.StatusReverted:
 		return st.Reverted, nil
-	case statusSelfDestructed:
+	case lfvm.StatusSelfDestructed:
 		return st.Stopped, nil
-	case statusInvalidInstruction, statusOutOfGas, statusError:
+	case lfvm.StatusInvalidInstruction, lfvm.StatusOutOfGas, lfvm.StatusError:
 		return st.Failed, nil
 	default:
 		return st.Failed, fmt.Errorf("unable to convert lfvm status %v to ct status", status)
 	}
 }
 
-func convertCtStackToLfvmStack(stack *st.Stack) *Stack {
-	result := NewStack()
+func convertCtStackToLfvmStack(stack *st.Stack) *lfvm.Stack {
+	result := lfvm.NewStack()
 	for i := stack.Size() - 1; i >= 0; i-- {
 		val := stack.Get(i).Uint256()
-		result.push(&val)
+		result.Push(&val)
 	}
 	return result
 }
 
-func convertLfvmStackToCtStack(stack *Stack, result *st.Stack) *st.Stack {
-	len := stack.len()
+func convertLfvmStackToCtStack(stack *lfvm.Stack, result *st.Stack) *st.Stack {
+	len := stack.Len()
 	result.Resize(len)
 	for i := 0; i < len; i++ {
 		result.Set(len-i-1, common.NewU256FromUint256(&stack.Data()[i]))
@@ -202,15 +210,15 @@ func convertLfvmStackToCtStack(stack *Stack, result *st.Stack) *st.Stack {
 	return result
 }
 
-func convertCtMemoryToLfvmMemory(memory *st.Memory) (*Memory, error) {
+func convertCtMemoryToLfvmMemory(memory *st.Memory) (*lfvm.Memory, error) {
 	data := memory.Read(0, uint64(memory.Size()))
 
-	result := NewMemory()
+	result := lfvm.NewMemory()
 	err := result.SetWithCapacityCheck(0, uint64(len(data)), data)
 	return result, err
 }
 
-func convertLfvmMemoryToCtMemory(memory *Memory) *st.Memory {
+func convertLfvmMemoryToCtMemory(memory *lfvm.Memory) *st.Memory {
 	result := st.NewMemory()
 	result.Set(memory.GetSlice(0, memory.Len()))
 	return result

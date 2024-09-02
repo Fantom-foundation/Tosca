@@ -132,12 +132,12 @@ func (b *codeBuilder) toCode() Code {
 }
 
 func convert(code []byte, options ConversionConfig) Code {
-	return convertWithObserver(code, options, func(int, int) {})
+	return ConvertWithObserver(code, options, func(int, int) {})
 }
 
-// convertWithObserver converts EVM code to LFVM code and calls the observer
+// ConvertWithObserver converts EVM code to LFVM code and calls the observer
 // with the code position of every pair of instructions converted.
-func convertWithObserver(
+func ConvertWithObserver(
 	code []byte,
 	options ConversionConfig,
 	observer func(evmPc int, lfvmPc int),

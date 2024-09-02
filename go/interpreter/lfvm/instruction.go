@@ -23,6 +23,11 @@ type Instruction struct {
 	arg uint16
 }
 
+// NewInstruction returns a new instruction with the given opcode and argument.
+func NewInstruction(op OpCode, arg uint16) Instruction {
+	return Instruction{opcode: op, arg: arg}
+}
+
 // Instruction stack boundaries for execution
 type InstructionStack struct {
 	// Minimum stack height because of pop or peek operations
@@ -36,6 +41,14 @@ type InstructionStack struct {
 
 // Code for the macro EVM is a slice of instructions
 type Code []Instruction
+
+func (c Code) IsIndexOp(index int, op OpCode) bool {
+	return c[index].opcode == JUMP_TO
+}
+
+func (c Code) GetArgOf(index int) uint16 {
+	return c[index].arg
+}
 
 func (i Instruction) String() string {
 	if i.opcode.HasArgument() {

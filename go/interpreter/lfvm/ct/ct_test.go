@@ -8,15 +8,17 @@
 // On the date above, in accordance with the Business Source License, use of
 // this software will be governed by the GNU Lesser General Public License v3.
 
-package lfvm
+package ct
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/ct"
 	cc "github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
+	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
@@ -61,16 +63,16 @@ func TestCtAdapter_Interface(t *testing.T) {
 
 func TestConvertToLfvm_StatusCode(t *testing.T) {
 
-	expected := map[status]st.StatusCode{
-		statusRunning:        st.Running,
-		statusReverted:       st.Reverted,
-		statusReturned:       st.Stopped,
-		statusStopped:        st.Stopped,
-		statusSelfDestructed: st.Stopped,
+	expected := map[lfvm.Status]st.StatusCode{
+		lfvm.StatusRunning:        st.Running,
+		lfvm.StatusReverted:       st.Reverted,
+		lfvm.StatusReturned:       st.Stopped,
+		lfvm.StatusStopped:        st.Stopped,
+		lfvm.StatusSelfDestructed: st.Stopped,
 	}
 
 	for i := 0; i < 100; i++ {
-		status := status(i)
+		status := lfvm.Status(i)
 		want, found := expected[status]
 		if !found {
 			want = st.Failed
@@ -126,88 +128,88 @@ func TestConvertToLfvm_Pc(t *testing.T) {
 func TestConvertToLfvm_Code(t *testing.T) {
 	tests := map[string][]struct {
 		evmCode  []byte
-		lfvmCode Code
+		lfvmCode lfvm.Code
 	}{
 		"empty": {{}},
-		"stop":  {{[]byte{byte(vm.STOP)}, Code{Instruction{STOP, 0x0000}}}},
+		"stop":  {{[]byte{byte(vm.STOP)}, lfvm.Code{lfvm.NewInstruction(lfvm.STOP, 0x0000)}}},
 		"add": {{[]byte{
 			byte(vm.PUSH1), 0x01,
 			byte(vm.PUSH1), 0x02,
 			byte(vm.ADD)},
-			Code{Instruction{PUSH1, 0x0100},
-				Instruction{PUSH1, 0x0200},
-				Instruction{ADD, 0x0000}}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1, 0x0100),
+				lfvm.NewInstruction(lfvm.PUSH1, 0x0200),
+				lfvm.NewInstruction(lfvm.ADD, 0x0000)}}},
 		"jump": {{[]byte{
 			byte(vm.PUSH1), 0x04,
 			byte(vm.JUMP),
 			byte(vm.INVALID),
 			byte(vm.JUMPDEST)},
-			Code{Instruction{PUSH1, 0x0400},
-				Instruction{JUMP, 0x0000},
-				Instruction{INVALID, 0x0000},
-				Instruction{JUMP_TO, 0x0004},
-				Instruction{JUMPDEST, 0x0000}}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1, 0x0400),
+				lfvm.NewInstruction(lfvm.JUMP, 0x0000),
+				lfvm.NewInstruction(lfvm.INVALID, 0x0000),
+				lfvm.NewInstruction(lfvm.JUMP_TO, 0x0004),
+				lfvm.NewInstruction(lfvm.JUMPDEST, 0x0000)}}},
 		"jumpdest": {{[]byte{
 			byte(vm.PUSH3), 0x00, 0x00, 0x06,
 			byte(vm.JUMP),
 			byte(vm.INVALID),
 			byte(vm.JUMPDEST)},
-			Code{Instruction{PUSH3, 0x0000},
-				Instruction{DATA, 0x0600},
-				Instruction{JUMP, 0x0000},
-				Instruction{INVALID, 0x0000},
-				Instruction{JUMP_TO, 0x0006},
-				Instruction{NOOP, 0x0000},
-				Instruction{JUMPDEST, 0x0000}}}},
-		"push2": {{[]byte{byte(vm.PUSH2), 0xBA, 0xAD}, Code{Instruction{PUSH2, 0xBAAD}}}},
-		"push3": {{[]byte{byte(vm.PUSH3), 0xBA, 0xAD, 0xC0}, Code{Instruction{PUSH3, 0xBAAD}, Instruction{DATA, 0xC000}}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH3, 0x0000),
+				lfvm.NewInstruction(lfvm.DATA, 0x0600),
+				lfvm.NewInstruction(lfvm.JUMP, 0x0000),
+				lfvm.NewInstruction(lfvm.INVALID, 0x0000),
+				lfvm.NewInstruction(lfvm.JUMP_TO, 0x0006),
+				lfvm.NewInstruction(lfvm.NOOP, 0x0000),
+				lfvm.NewInstruction(lfvm.JUMPDEST, 0x0000)}}},
+		"push2": {{[]byte{byte(vm.PUSH2), 0xBA, 0xAD}, lfvm.Code{lfvm.NewInstruction(lfvm.PUSH2, 0xBAAD)}}},
+		"push3": {{[]byte{byte(vm.PUSH3), 0xBA, 0xAD, 0xC0}, lfvm.Code{lfvm.NewInstruction(lfvm.PUSH3, 0xBAAD), lfvm.NewInstruction(lfvm.DATA, 0xC000)}}},
 		"push31": {{[]byte{
 			byte(vm.PUSH31),
 			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
 			0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F},
-			Code{Instruction{PUSH31, 0x0102},
-				Instruction{DATA, 0x0304},
-				Instruction{DATA, 0x0506},
-				Instruction{DATA, 0x0708},
-				Instruction{DATA, 0x090A},
-				Instruction{DATA, 0x0B0C},
-				Instruction{DATA, 0x0D0E},
-				Instruction{DATA, 0x0F10},
-				Instruction{DATA, 0x1112},
-				Instruction{DATA, 0x1314},
-				Instruction{DATA, 0x1516},
-				Instruction{DATA, 0x1718},
-				Instruction{DATA, 0x191A},
-				Instruction{DATA, 0x1B1C},
-				Instruction{DATA, 0x1D1E},
-				Instruction{DATA, 0x1F00}}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH31, 0x0102),
+				lfvm.NewInstruction(lfvm.DATA, 0x0304),
+				lfvm.NewInstruction(lfvm.DATA, 0x0506),
+				lfvm.NewInstruction(lfvm.DATA, 0x0708),
+				lfvm.NewInstruction(lfvm.DATA, 0x090A),
+				lfvm.NewInstruction(lfvm.DATA, 0x0B0C),
+				lfvm.NewInstruction(lfvm.DATA, 0x0D0E),
+				lfvm.NewInstruction(lfvm.DATA, 0x0F10),
+				lfvm.NewInstruction(lfvm.DATA, 0x1112),
+				lfvm.NewInstruction(lfvm.DATA, 0x1314),
+				lfvm.NewInstruction(lfvm.DATA, 0x1516),
+				lfvm.NewInstruction(lfvm.DATA, 0x1718),
+				lfvm.NewInstruction(lfvm.DATA, 0x191A),
+				lfvm.NewInstruction(lfvm.DATA, 0x1B1C),
+				lfvm.NewInstruction(lfvm.DATA, 0x1D1E),
+				lfvm.NewInstruction(lfvm.DATA, 0x1F00)}}},
 		"push32": {{[]byte{
 			byte(vm.PUSH32),
 			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
 			0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0xFF},
-			Code{Instruction{PUSH32, 0x0102},
-				Instruction{DATA, 0x0304},
-				Instruction{DATA, 0x0506},
-				Instruction{DATA, 0x0708},
-				Instruction{DATA, 0x090A},
-				Instruction{DATA, 0x0B0C},
-				Instruction{DATA, 0x0D0E},
-				Instruction{DATA, 0x0F10},
-				Instruction{DATA, 0x1112},
-				Instruction{DATA, 0x1314},
-				Instruction{DATA, 0x1516},
-				Instruction{DATA, 0x1718},
-				Instruction{DATA, 0x191A},
-				Instruction{DATA, 0x1B1C},
-				Instruction{DATA, 0x1D1E},
-				Instruction{DATA, 0x1FFF}}}},
-		"invalid": {{[]byte{byte(vm.INVALID)}, Code{Instruction{INVALID, 0x0000}}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH32, 0x0102),
+				lfvm.NewInstruction(lfvm.DATA, 0x0304),
+				lfvm.NewInstruction(lfvm.DATA, 0x0506),
+				lfvm.NewInstruction(lfvm.DATA, 0x0708),
+				lfvm.NewInstruction(lfvm.DATA, 0x090A),
+				lfvm.NewInstruction(lfvm.DATA, 0x0B0C),
+				lfvm.NewInstruction(lfvm.DATA, 0x0D0E),
+				lfvm.NewInstruction(lfvm.DATA, 0x0F10),
+				lfvm.NewInstruction(lfvm.DATA, 0x1112),
+				lfvm.NewInstruction(lfvm.DATA, 0x1314),
+				lfvm.NewInstruction(lfvm.DATA, 0x1516),
+				lfvm.NewInstruction(lfvm.DATA, 0x1718),
+				lfvm.NewInstruction(lfvm.DATA, 0x191A),
+				lfvm.NewInstruction(lfvm.DATA, 0x1B1C),
+				lfvm.NewInstruction(lfvm.DATA, 0x1D1E),
+				lfvm.NewInstruction(lfvm.DATA, 0x1FFF)}}},
+		"invalid": {{[]byte{byte(vm.INVALID)}, lfvm.Code{lfvm.NewInstruction(lfvm.INVALID, 0x0000)}}},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, cur := range test {
-				got := convert(cur.evmCode, ConversionConfig{})
+				got := lfvm.ConvertWithObserver(cur.evmCode, lfvm.ConversionConfig{}, func(int, int) {})
 
 				want := cur.lfvmCode
 
@@ -228,15 +230,15 @@ func TestConvertToLfvm_Code(t *testing.T) {
 func TestConvertToLfvm_CodeWithSuperInstructions(t *testing.T) {
 	tests := map[string]struct {
 		evmCode []byte
-		want    Code
+		want    lfvm.Code
 	}{
 		"PUSH1PUSH4DUP3": {
 			[]byte{byte(vm.PUSH1), 0x01,
 				byte(vm.PUSH4), 0x01, 0x02, 0x03, 0x04,
 				byte(vm.DUP3)},
-			Code{Instruction{PUSH1_PUSH4_DUP3, 0x0100},
-				Instruction{DATA, 0x0102},
-				Instruction{DATA, 0x0304},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1_PUSH4_DUP3, 0x0100),
+				lfvm.NewInstruction(lfvm.DATA, 0x0102),
+				lfvm.NewInstruction(lfvm.DATA, 0x0304),
 			}},
 		"PUSH1_PUSH1_PUSH1_SHL_SUB": {
 			[]byte{byte(vm.PUSH1), 0x01,
@@ -244,81 +246,81 @@ func TestConvertToLfvm_CodeWithSuperInstructions(t *testing.T) {
 				byte(vm.PUSH1), 0x01,
 				byte(vm.SHL),
 				byte(vm.SUB)},
-			Code{Instruction{PUSH1_PUSH1_PUSH1_SHL_SUB, 0x0101},
-				Instruction{DATA, 0x0001},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1_PUSH1_PUSH1_SHL_SUB, 0x0101),
+				lfvm.NewInstruction(lfvm.DATA, 0x0001),
 			}},
 		"AND_SWAP1_POP_SWAP2_SWAP1": {
 			[]byte{byte(vm.AND), byte(vm.SWAP1), byte(vm.POP),
 				byte(vm.SWAP2), byte(vm.SWAP1)},
-			Code{Instruction{AND_SWAP1_POP_SWAP2_SWAP1, 0x0000}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.AND_SWAP1_POP_SWAP2_SWAP1, 0x0000)}},
 		"ISZERO_PUSH2_JUMPI": {
 			[]byte{byte(vm.ISZERO),
 				byte(vm.PUSH2), 0x01, 0x02,
 				byte(vm.JUMPI)},
-			Code{Instruction{ISZERO_PUSH2_JUMPI, 0x0102}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.ISZERO_PUSH2_JUMPI, 0x0102)}},
 		"SWAP2_SWAP1_POP_JUMP": {
 			[]byte{byte(vm.SWAP2), byte(vm.SWAP1), byte(vm.POP),
 				byte(vm.JUMP)},
-			Code{Instruction{SWAP2_SWAP1_POP_JUMP, 0x0000}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.SWAP2_SWAP1_POP_JUMP, 0x0000)}},
 		"SWAP1_POP_SWAP2_SWAP1": {
 			[]byte{byte(vm.SWAP1), byte(vm.POP), byte(vm.SWAP2),
 				byte(vm.SWAP1)},
-			Code{Instruction{SWAP1_POP_SWAP2_SWAP1, 0x0000}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.SWAP1_POP_SWAP2_SWAP1, 0x0000)}},
 		"POP_SWAP2_SWAP1_POP": {
 			[]byte{byte(vm.POP), byte(vm.SWAP2), byte(vm.SWAP1),
 				byte(vm.POP)},
-			Code{Instruction{POP_SWAP2_SWAP1_POP, 0x0000}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.POP_SWAP2_SWAP1_POP, 0x0000)}},
 		"PUSH2_JUMP": {
 			[]byte{byte(vm.PUSH2), 0x01, 0x02,
 				byte(vm.JUMP)},
-			Code{Instruction{PUSH2_JUMP, 0x0102}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH2_JUMP, 0x0102)}},
 		"PUSH2_JUMPI": {
 			[]byte{byte(vm.PUSH2), 0x01, 0x02,
 				byte(vm.JUMPI)},
-			Code{Instruction{PUSH2_JUMPI, 0x0102}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH2_JUMPI, 0x0102)}},
 		"PUSH1_PUSH1": {
 			[]byte{byte(vm.PUSH1), 0x01,
 				byte(vm.PUSH1), 0x01},
-			Code{Instruction{PUSH1_PUSH1, 0x0101}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1_PUSH1, 0x0101)}},
 		"PUSH1_ADD": {
 			[]byte{byte(vm.PUSH1), 0x01,
 				byte(vm.ADD)},
-			Code{Instruction{PUSH1_ADD, 0x0001}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1_ADD, 0x0001)}},
 		"PUSH1_SHL": {
 			[]byte{byte(vm.PUSH1), 0x01,
 				byte(vm.SHL)},
-			Code{Instruction{PUSH1_SHL, 0x0001}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1_SHL, 0x0001)}},
 		"PUSH1_DUP1": {
 			[]byte{byte(vm.PUSH1), 0x01,
 				byte(vm.DUP1)},
-			Code{Instruction{PUSH1_DUP1, 0x0001}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1_DUP1, 0x0001)}},
 		"SWAP1_POP": {
 			[]byte{byte(vm.SWAP1), byte(vm.POP)},
-			Code{Instruction{SWAP1_POP, 0x0000}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.SWAP1_POP, 0x0000)}},
 		"POP_JUMP": {
 			[]byte{byte(vm.POP), byte(vm.JUMP)},
-			Code{Instruction{POP_JUMP, 0x0000}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.POP_JUMP, 0x0000)}},
 		"POP_POP": {
 			[]byte{byte(vm.POP), byte(vm.POP)},
-			Code{Instruction{POP_POP, 0x0000}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.POP_POP, 0x0000)}},
 		"SWAP2_SWAP1": {
 			[]byte{byte(vm.SWAP2), byte(vm.SWAP1)},
-			Code{Instruction{SWAP2_SWAP1, 0x0000}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.SWAP2_SWAP1, 0x0000)}},
 		"SWAP2_POP": {
 			[]byte{byte(vm.SWAP2), byte(vm.POP)},
-			Code{Instruction{SWAP2_POP, 0x0000}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.SWAP2_POP, 0x0000)}},
 		"DUP2_MSTORE": {
 			[]byte{byte(vm.DUP2), byte(vm.MSTORE)},
-			Code{Instruction{DUP2_MSTORE, 0x0000}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.DUP2_MSTORE, 0x0000)}},
 		"DUP2_LT": {
 			[]byte{byte(vm.DUP2), byte(vm.LT)},
-			Code{Instruction{DUP2_LT, 0x0000}}},
+			lfvm.Code{lfvm.NewInstruction(lfvm.DUP2_LT, 0x0000)}},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			options := ConversionConfig{WithSuperInstructions: true}
-			got := convert(test.evmCode, options)
+			options := lfvm.ConversionConfig{WithSuperInstructions: true}
+			got := lfvm.ConvertWithObserver(test.evmCode, options, func(int, int) {})
 			if !reflect.DeepEqual(test.want, got) {
 				t.Fatalf("unexpected code, wanted %v, got %v", test.want, got)
 			}
@@ -327,18 +329,18 @@ func TestConvertToLfvm_CodeWithSuperInstructions(t *testing.T) {
 }
 
 func TestConvertToLfvm_Stack(t *testing.T) {
-	newLfvmStack := func(values ...cc.U256) *Stack {
-		stack := NewStack()
+	newLfvmStack := func(values ...cc.U256) *lfvm.Stack {
+		stack := lfvm.NewStack()
 		for i := 0; i < len(values); i++ {
 			value := values[i].Uint256()
-			stack.push(&value)
+			stack.Push(&value)
 		}
 		return stack
 	}
 
 	tests := map[string][]struct {
 		ctStack   *st.Stack
-		lfvmStack *Stack
+		lfvmStack *lfvm.Stack
 	}{
 		"empty": {{
 			st.NewStack(),
@@ -359,11 +361,11 @@ func TestConvertToLfvm_Stack(t *testing.T) {
 			for _, cur := range test {
 				stack := convertCtStackToLfvmStack(cur.ctStack)
 
-				if want, got := cur.lfvmStack.len(), stack.len(); want != got {
+				if want, got := cur.lfvmStack.Len(), stack.Len(); want != got {
 					t.Fatalf("unexpected stack size, wanted %v, got %v", want, got)
 				}
 
-				for i := 0; i < stack.len(); i++ {
+				for i := 0; i < stack.Len(); i++ {
 					want := cur.lfvmStack.Data()[i]
 					got := stack.Data()[i]
 					if want != got {
@@ -414,17 +416,17 @@ func TestConvertToCt_Pc(t *testing.T) {
 }
 
 func TestConvertToCt_Stack(t *testing.T) {
-	newLfvmStack := func(values ...cc.U256) *Stack {
-		stack := NewStack()
+	newLfvmStack := func(values ...cc.U256) *lfvm.Stack {
+		stack := lfvm.NewStack()
 		for i := 0; i < len(values); i++ {
 			value := values[i].Uint256()
-			stack.push(&value)
+			stack.Push(&value)
 		}
 		return stack
 	}
 
 	tests := map[string][]struct {
-		lfvmStack *Stack
+		lfvmStack *lfvm.Stack
 		ctStack   *st.Stack
 	}{
 		"empty": {{
@@ -458,10 +460,36 @@ func TestConvertToCt_Stack(t *testing.T) {
 	}
 }
 
+func TestPcMapHashHashDoesNotIncrease(t *testing.T) {
+	ca := NewConformanceTestingTarget()
+	code := st.NewCode([]byte{
+		byte(vm.PUSH1), 3,
+		byte(vm.PUSH1), 4,
+		byte(vm.ADD),
+	})
+	if ca.(*ctAdapter).pcMapCache.Len() != 0 {
+		t.Fatalf("pcMapCache should be empty")
+	}
+	pcMap1 := ca.(*ctAdapter).getPcMap(code)
+	if ca.(*ctAdapter).pcMapCache.Len() != 1 {
+		t.Fatalf("pcMapCache should be empty")
+	}
+	pcMap2 := ca.(*ctAdapter).getPcMap(code)
+	if ca.(*ctAdapter).pcMapCache.Len() != 1 {
+		t.Fatalf("pcMapCache should be empty")
+	}
+	if !slices.Equal(pcMap1.evmToLfvm, pcMap2.evmToLfvm) {
+		t.Fatalf("pcMap should be the same")
+	}
+	if !slices.Equal(pcMap1.lfvmToEvm, pcMap2.lfvmToEvm) {
+		t.Fatalf("pcMap should be the same")
+	}
+}
+
 func BenchmarkLfvmStackToCtStack(b *testing.B) {
-	stack := NewStack()
-	for i := 0; i < MAX_STACK_SIZE/2; i++ {
-		stack.pushEmpty().SetUint64(uint64(i))
+	stack := lfvm.NewStack()
+	for i := 0; i < (lfvm.StackLimit)/2; i++ {
+		stack.PushEmpty().SetUint64(uint64(i))
 	}
 	ctStack := st.NewStack()
 	for i := 0; i < b.N; i++ {

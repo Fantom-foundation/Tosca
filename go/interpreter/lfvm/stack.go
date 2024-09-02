@@ -20,7 +20,7 @@ import (
 
 var staticStackBoundary = [NUM_OPCODES]InstructionStack{}
 
-const stackLimit = 1024 // Maximum size of VM stack allowed.
+const StackLimit = 1024 // Maximum size of VM stack allowed.
 
 type Stack struct {
 	data      [1024]uint256.Int
@@ -37,12 +37,12 @@ func (s *Stack) Data() []uint256.Int {
 	return s.data[:s.stack_ptr]
 }
 
-func (s *Stack) push(d *uint256.Int) {
+func (s *Stack) Push(d *uint256.Int) {
 	s.data[s.stack_ptr] = *d
 	s.stack_ptr++
 }
 
-func (s *Stack) pushEmpty() *uint256.Int {
+func (s *Stack) PushEmpty() *uint256.Int {
 	s.stack_ptr++
 	return &s.data[s.stack_ptr-1]
 }
@@ -52,12 +52,12 @@ func (s *Stack) pop() *uint256.Int {
 	return &s.data[s.stack_ptr]
 }
 
-func (s *Stack) len() int {
+func (s *Stack) Len() int {
 	return s.stack_ptr
 }
 
 func (s *Stack) swap(n int) {
-	s.data[s.len()-n], s.data[s.len()-1] = s.data[s.len()-1], s.data[s.len()-n]
+	s.data[s.Len()-n], s.data[s.Len()-1] = s.data[s.Len()-1], s.data[s.Len()-n]
 }
 
 func (s *Stack) dup(n int) {
@@ -66,11 +66,11 @@ func (s *Stack) dup(n int) {
 }
 
 func (s *Stack) peek() *uint256.Int {
-	return &s.data[s.len()-1]
+	return &s.data[s.Len()-1]
 }
 
 func (s *Stack) Back(n int) *uint256.Int {
-	return &s.data[s.len()-n-1]
+	return &s.data[s.Len()-n-1]
 }
 
 func ToHex(z *uint256.Int) string {
@@ -88,8 +88,8 @@ func ToHex(z *uint256.Int) string {
 
 func (s *Stack) String() string {
 	var b bytes.Buffer
-	for i := 0; i < s.len(); i++ {
-		b.WriteString(fmt.Sprintf("    [%2d] %v\n", s.len()-i-1, ToHex(s.Back(i))))
+	for i := 0; i < s.Len(); i++ {
+		b.WriteString(fmt.Sprintf("    [%2d] %v\n", s.Len()-i-1, ToHex(s.Back(i))))
 	}
 	return b.String()
 }
@@ -106,9 +106,9 @@ func NewStack() *Stack {
 	return stackPool.Get().(*Stack)
 }
 
-func ReturnStack(s *Stack) {
-	s.stack_ptr = 0
-	stackPool.Put(s)
+func ReturnStack(c *context) {
+	c.stack.stack_ptr = 0
+	stackPool.Put(c.stack)
 }
 
 // ------------------ Stack Boundry ------------------
@@ -117,7 +117,7 @@ func ReturnStack(s *Stack) {
 func newInstructionStack(min, max, _increase int) InstructionStack {
 	return InstructionStack{
 		stackMin: min,
-		stackMax: stackLimit - max,
+		stackMax: StackLimit - max,
 		increase: _increase,
 	}
 }

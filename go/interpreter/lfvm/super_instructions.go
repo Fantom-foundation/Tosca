@@ -160,7 +160,7 @@ func opPush1_Push1_Push1_Shl_Sub(c *context) {
 	shift := uint8(arg2)
 	value := uint8(arg1 & 0xFF)
 	delta := uint8(arg1 >> 8)
-	trg := c.stack.pushEmpty()
+	trg := c.stack.PushEmpty()
 	trg.SetUint64(uint64(value))
 	trg.Lsh(trg, uint(shift))
 	trg.Sub(trg, uint256.NewInt(uint64(delta)))

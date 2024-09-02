@@ -41,7 +41,7 @@ func FuzzLfvmConverter(f *testing.F) {
 			originalPos, lfvmPos int
 		}
 		var pairs []pair
-		lfvmCode := convertWithObserver(toscaCode, ConversionConfig{}, func(evm, lfvm int) {
+		lfvmCode := ConvertWithObserver(toscaCode, ConversionConfig{}, func(evm, lfvm int) {
 			pairs = append(pairs, pair{evm, lfvm})
 		})
 

@@ -19,23 +19,23 @@ import (
 )
 
 func opStop(c *context) {
-	c.status = statusStopped
+	c.status = StatusStopped
 }
 
 func opRevert(c *context) {
 	c.resultOffset = *c.stack.pop()
 	c.resultSize = *c.stack.pop()
-	c.status = statusReverted
+	c.status = StatusReverted
 }
 
 func opReturn(c *context) {
 	c.resultOffset = *c.stack.pop()
 	c.resultSize = *c.stack.pop()
-	c.status = statusReturned
+	c.status = StatusReturned
 }
 
 func opPc(c *context) {
-	c.stack.pushEmpty().SetUint64(uint64(c.code[c.pc].arg))
+	c.stack.PushEmpty().SetUint64(uint64(c.code[c.pc].arg))
 }
 
 func checkJumpDest(c *context) {
@@ -81,7 +81,7 @@ func opPop(c *context) {
 }
 
 func opPush(c *context, n int) {
-	z := c.stack.pushEmpty()
+	z := c.stack.PushEmpty()
 	num_instructions := int32(n/2 + n%2)
 	data := c.code[c.pc : c.pc+num_instructions]
 
@@ -100,27 +100,27 @@ func opPush(c *context, n int) {
 
 func opPush0(c *context) {
 	if c.isAtLeast(tosca.R12_Shanghai) {
-		z := c.stack.pushEmpty()
+		z := c.stack.PushEmpty()
 		z[3], z[2], z[1], z[0] = 0, 0, 0, 0
 	} else {
-		c.status = statusInvalidInstruction
+		c.status = StatusInvalidInstruction
 	}
 }
 
 func opPush1(c *context) {
-	z := c.stack.pushEmpty()
+	z := c.stack.PushEmpty()
 	z[3], z[2], z[1] = 0, 0, 0
 	z[0] = uint64(c.code[c.pc].arg >> 8)
 }
 
 func opPush2(c *context) {
-	z := c.stack.pushEmpty()
+	z := c.stack.PushEmpty()
 	z[3], z[2], z[1] = 0, 0, 0
 	z[0] = uint64(c.code[c.pc].arg)
 }
 
 func opPush3(c *context) {
-	z := c.stack.pushEmpty()
+	z := c.stack.PushEmpty()
 	z[3], z[2], z[1] = 0, 0, 0
 	data := c.code[c.pc : c.pc+2]
 	_ = data[1]
@@ -129,7 +129,7 @@ func opPush3(c *context) {
 }
 
 func opPush4(c *context) {
-	z := c.stack.pushEmpty()
+	z := c.stack.PushEmpty()
 	z[3], z[2], z[1] = 0, 0, 0
 
 	data := c.code[c.pc : c.pc+2]
@@ -139,7 +139,7 @@ func opPush4(c *context) {
 }
 
 func opPush32(c *context) {
-	z := c.stack.pushEmpty()
+	z := c.stack.PushEmpty()
 
 	data := c.code[c.pc : c.pc+16]
 	_ = data[15] // causes bound check to be performed only once (may become unneded in the future)
@@ -164,7 +164,7 @@ func opMstore(c *context) {
 
 	offset, overflow := addr.Uint64WithOverflow()
 	if overflow {
-		c.status = statusError
+		c.status = StatusError
 		return
 	}
 	if err := c.memory.SetWord(offset, value, c); err != nil {
@@ -178,7 +178,7 @@ func opMstore8(c *context) {
 
 	offset, overflow := addr.Uint64WithOverflow()
 	if overflow {
-		c.status = statusError
+		c.status = StatusError
 		return
 	}
 	if err := c.memory.SetByte(offset, byte(value.Uint64()), c); err != nil {
@@ -189,7 +189,7 @@ func opMstore8(c *context) {
 func opMcopy(c *context) {
 
 	if !c.isAtLeast(tosca.R13_Cancun) {
-		c.status = statusInvalidInstruction
+		c.status = StatusInvalidInstruction
 		c.gas = 0
 		return
 	}
@@ -206,7 +206,7 @@ func opMcopy(c *context) {
 	destOffset, destOverflow := destAddr.Uint64WithOverflow()
 	srcOffset, srcOverflow := srcAddr.Uint64WithOverflow()
 	if destOverflow || srcOverflow || !sizeU256.IsUint64() {
-		c.status = statusError
+		c.status = StatusError
 		return
 	}
 
@@ -240,7 +240,7 @@ func opMload(c *context) {
 }
 
 func opMsize(c *context) {
-	c.stack.pushEmpty().SetUint64(uint64(c.memory.Len()))
+	c.stack.PushEmpty().SetUint64(uint64(c.memory.Len()))
 }
 
 func opSstore(c *context) {
@@ -288,7 +288,7 @@ func opSload(c *context) {
 
 func opTstore(c *context) {
 	if !c.isAtLeast(tosca.R13_Cancun) {
-		c.status = statusInvalidInstruction
+		c.status = StatusInvalidInstruction
 		return
 	}
 
@@ -299,7 +299,7 @@ func opTstore(c *context) {
 
 func opTload(c *context) {
 	if !c.isAtLeast(tosca.R13_Cancun) {
-		c.status = statusInvalidInstruction
+		c.status = StatusInvalidInstruction
 		return
 	}
 
@@ -310,16 +310,16 @@ func opTload(c *context) {
 }
 
 func opCaller(c *context) {
-	c.stack.pushEmpty().SetBytes20(c.params.Sender[:])
+	c.stack.PushEmpty().SetBytes20(c.params.Sender[:])
 }
 
 func opCallvalue(c *context) {
-	c.stack.pushEmpty().SetBytes32(c.params.Value[:])
+	c.stack.PushEmpty().SetBytes32(c.params.Value[:])
 }
 
 func opCallDatasize(c *context) {
 	size := len(c.params.Input)
-	c.stack.pushEmpty().SetUint64(uint64(size))
+	c.stack.PushEmpty().SetUint64(uint64(size))
 }
 
 func opCallDataload(c *context) {
@@ -365,7 +365,7 @@ func opCallDataCopy(c *context) {
 
 	length64, overflow := length.Uint64WithOverflow()
 	if overflow || length64+31 < length64 {
-		c.status = statusOutOfGas
+		c.status = StatusOutOfGas
 		return
 	}
 
@@ -612,38 +612,38 @@ func opSha3(c *context) {
 }
 
 func opGas(c *context) {
-	c.stack.pushEmpty().SetUint64(uint64(c.gas))
+	c.stack.PushEmpty().SetUint64(uint64(c.gas))
 }
 
 // opPrevRandao / opDifficulty
 func opPrevRandao(c *context) {
 	prevRandao := c.params.PrevRandao
-	c.stack.pushEmpty().SetBytes32(prevRandao[:])
+	c.stack.PushEmpty().SetBytes32(prevRandao[:])
 }
 
 func opTimestamp(c *context) {
 	time := c.params.Timestamp
-	c.stack.pushEmpty().SetUint64(uint64(time))
+	c.stack.PushEmpty().SetUint64(uint64(time))
 }
 
 func opNumber(c *context) {
 	number := c.params.BlockNumber
-	c.stack.pushEmpty().SetUint64(uint64(number))
+	c.stack.PushEmpty().SetUint64(uint64(number))
 }
 
 func opCoinbase(c *context) {
 	coinbase := c.params.Coinbase
-	c.stack.pushEmpty().SetBytes20(coinbase[:])
+	c.stack.PushEmpty().SetBytes20(coinbase[:])
 }
 
 func opGasLimit(c *context) {
 	limit := c.params.GasLimit
-	c.stack.pushEmpty().SetUint64(uint64(limit))
+	c.stack.PushEmpty().SetUint64(uint64(limit))
 }
 
 func opGasPrice(c *context) {
 	price := c.params.GasPrice
-	c.stack.pushEmpty().SetBytes32(price[:])
+	c.stack.PushEmpty().SetBytes32(price[:])
 }
 
 func opBalance(c *context) {
@@ -659,40 +659,40 @@ func opBalance(c *context) {
 
 func opSelfbalance(c *context) {
 	balance := c.context.GetBalance(c.params.Recipient)
-	c.stack.pushEmpty().SetBytes32(balance[:])
+	c.stack.PushEmpty().SetBytes32(balance[:])
 }
 
 func opBaseFee(c *context) {
 	if c.isAtLeast(tosca.R10_London) {
 		fee := c.params.BaseFee
-		c.stack.pushEmpty().SetBytes32(fee[:])
+		c.stack.PushEmpty().SetBytes32(fee[:])
 	} else {
-		c.status = statusInvalidInstruction
+		c.status = StatusInvalidInstruction
 		return
 	}
 }
 
 func opBlobHash(c *context) {
 	if !c.isAtLeast(tosca.R13_Cancun) {
-		c.status = statusInvalidInstruction
+		c.status = StatusInvalidInstruction
 		return
 	}
 
 	index := c.stack.pop()
 	blobHashesLength := uint64(len(c.params.BlobHashes))
 	if index.IsUint64() && index.Uint64() < blobHashesLength {
-		c.stack.pushEmpty().SetBytes32(c.params.BlobHashes[index.Uint64()][:])
+		c.stack.PushEmpty().SetBytes32(c.params.BlobHashes[index.Uint64()][:])
 	} else {
-		c.stack.push(uint256.NewInt(0))
+		c.stack.Push(uint256.NewInt(0))
 	}
 }
 
 func opBlobBaseFee(c *context) {
 	if c.isAtLeast(tosca.R13_Cancun) {
 		fee := c.params.BlobBaseFee
-		c.stack.pushEmpty().SetBytes32(fee[:])
+		c.stack.PushEmpty().SetBytes32(fee[:])
 	} else {
-		c.status = statusInvalidInstruction
+		c.status = StatusInvalidInstruction
 		return
 	}
 }
@@ -708,12 +708,12 @@ func opSelfdestruct(c *context) {
 	}
 	beneficiary := tosca.Address(c.stack.pop().Bytes20())
 	c.context.SelfDestruct(c.params.Recipient, beneficiary)
-	c.status = statusSelfDestructed
+	c.status = StatusSelfDestructed
 }
 
 func opChainId(c *context) {
 	id := c.params.ChainID
-	c.stack.pushEmpty().SetBytes32(id[:])
+	c.stack.PushEmpty().SetBytes32(id[:])
 }
 
 func opBlockhash(c *context) {
@@ -740,17 +740,17 @@ func opBlockhash(c *context) {
 }
 
 func opAddress(c *context) {
-	c.stack.pushEmpty().SetBytes20(c.params.Recipient[:])
+	c.stack.PushEmpty().SetBytes20(c.params.Recipient[:])
 }
 
 func opOrigin(c *context) {
 	origin := c.params.Origin
-	c.stack.pushEmpty().SetBytes20(origin[:])
+	c.stack.PushEmpty().SetBytes20(origin[:])
 }
 
 func opCodeSize(c *context) {
 	size := len(c.params.Code)
-	c.stack.pushEmpty().SetUint64(uint64(size))
+	c.stack.PushEmpty().SetUint64(uint64(size))
 }
 
 func opCodeCopy(c *context) {
@@ -826,7 +826,7 @@ func checkInitCodeSize(c *context, size *uint256.Int) bool {
 		return false
 	}
 	if !c.useGas(tosca.Gas(InitCodeWordGas * tosca.SizeInWords(size.Uint64()))) {
-		c.status = statusOutOfGas
+		c.status = StatusOutOfGas
 		return false
 	}
 
@@ -857,7 +857,7 @@ func opCreate(c *context) {
 		balanceU256 := new(uint256.Int).SetBytes(balance[:])
 
 		if value.Gt(balanceU256) {
-			c.stack.pushEmpty().Clear()
+			c.stack.PushEmpty().Clear()
 			c.returnData = nil
 			return
 		}
@@ -882,7 +882,7 @@ func opCreate(c *context) {
 	c.gas += res.GasLeft
 	c.refund += res.GasRefund
 
-	success := c.stack.pushEmpty()
+	success := c.stack.PushEmpty()
 	if !res.Success || err != nil {
 		success.Clear()
 	} else {
@@ -927,7 +927,7 @@ func opCreate2(c *context) {
 		balanceU256 := new(uint256.Int).SetBytes(balance[:])
 
 		if value.Gt(balanceU256) {
-			c.stack.pushEmpty().Clear()
+			c.stack.PushEmpty().Clear()
 			c.returnData = nil
 			return
 		}
@@ -951,7 +951,7 @@ func opCreate2(c *context) {
 	})
 
 	// Push item on the stack based on the returned error.
-	success := c.stack.pushEmpty()
+	success := c.stack.PushEmpty()
 	if !res.Success || err != nil {
 		success.Clear()
 	} else {
@@ -1084,7 +1084,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		return 0 <= cost && cost <= c.gas
 	}
 	if !checkGas(baseGas) {
-		c.status = statusOutOfGas
+		c.status = StatusOutOfGas
 		return
 	}
 
@@ -1094,7 +1094,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		baseGas += CallValueTransferGas
 	}
 	if !checkGas(baseGas) {
-		c.status = statusOutOfGas
+		c.status = StatusOutOfGas
 		return
 	}
 
@@ -1104,7 +1104,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		baseGas += CallNewAccountGas
 	}
 	if !checkGas(baseGas) {
-		c.status = statusOutOfGas
+		c.status = StatusOutOfGas
 		return
 	}
 
@@ -1133,7 +1133,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		balance := c.context.GetBalance(c.params.Recipient)
 		balanceU256 := new(uint256.Int).SetBytes32(balance[:])
 		if balanceU256.Lt(value) {
-			c.stack.pushEmpty().Clear()
+			c.stack.PushEmpty().Clear()
 			c.returnData = nil
 			c.gas += cost // the gas send to the nested contract is returned
 			return
@@ -1184,7 +1184,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		}
 	}
 
-	success := stack.pushEmpty()
+	success := stack.PushEmpty()
 	if err != nil || !ret.Success {
 		success.Clear()
 	} else {
@@ -1218,7 +1218,7 @@ func opDelegateCall(c *context) {
 }
 
 func opReturnDataSize(c *context) {
-	c.stack.pushEmpty().SetUint64(uint64(len(c.returnData)))
+	c.stack.PushEmpty().SetUint64(uint64(len(c.returnData)))
 }
 
 func opReturnDataCopy(c *context) {
