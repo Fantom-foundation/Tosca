@@ -23,13 +23,16 @@ func FuzzLfvmConverter(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, toscaCode []byte) {
 
-		// EIP-170 stablish maximum code size to 24KB
+		// EIP-170 stablish maximum code size to 0x6000 bytes, ~22 KB
 		// (see https://eips.ethereum.org/EIPS/eip-170)
 		// EIP-3860 stablish maximum init code size to 49_152 bytes
-		// https://eips.ethereum.org/EIPS/eip-3860
-		// Both codes need to be converted, therefore the largest
-		// is used
-		maxCodeSize := 49_152
+		// (see https://eips.ethereum.org/EIPS/eip-3860)
+		// Before EIP-3860, any size was allowed, but in the Fantom
+		// network anything larger than 2^16 was observed, which is
+		// also the limit for the conversion code (due to a 16-bit PC
+		// counter representation in the PC instruction). Thus, we test
+		// the code up to this level.
+		maxCodeSize := 1<<16 - 1
 		if len(toscaCode) > maxCodeSize {
 			t.Skip()
 		}
