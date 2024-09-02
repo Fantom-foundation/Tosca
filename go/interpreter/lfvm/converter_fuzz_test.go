@@ -13,10 +13,7 @@ package lfvm
 import (
 	"testing"
 
-	"github.com/Fantom-foundation/Tosca/go/ct/gen"
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
-
-	"pgregory.net/rand"
 )
 
 func FuzzLfvmConverter(f *testing.F) {
@@ -24,30 +21,15 @@ func FuzzLfvmConverter(f *testing.F) {
 	// Add empty code
 	f.Add([]byte{})
 
-	// Use CT code generator to generate one contract starting with each
-	// opcode
-	rnd := rand.New(1) // deterministic to preserve initial corpus coherence
-	generator := gen.NewCodeGenerator()
-	empty := generator.Clone()
-	for i := 0; i <= 0xFF; i++ {
-		op := vm.OpCode(i)
-		if !vm.IsValid(op) {
-			continue
-		}
-		generator.Restore(empty)
-		generator.SetOperation(0, op)
-		code, err := generator.Generate(gen.Assignment{}, rnd)
-		if err != nil {
-			f.Errorf("Error generating code for opCode %v", op)
-		}
-		f.Add(code.Copy())
-	}
-
 	f.Fuzz(func(t *testing.T, toscaCode []byte) {
 
-		// EIP-170 stablish maximum code size
+		// EIP-170 stablish maximum code size to 24KB
 		// (see https://eips.ethereum.org/EIPS/eip-170)
-		maxCodeSize := 24_576
+		// EIP-3860 stablish maximum init code size to 49_152 bytes
+		// https://eips.ethereum.org/EIPS/eip-3860
+		// Both codes need to be converted, therefore the largest
+		// is used
+		maxCodeSize := 49_152
 		if len(toscaCode) > maxCodeSize {
 			t.Skip()
 		}
