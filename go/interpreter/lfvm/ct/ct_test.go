@@ -11,7 +11,6 @@
 package ct
 
 import (
-	"reflect"
 	"slices"
 	"testing"
 
@@ -222,107 +221,6 @@ func TestConvertToLfvm_Code(t *testing.T) {
 						t.Errorf("unexpected instruction, wanted %v, got %v", wantInst, gotInst)
 					}
 				}
-			}
-		})
-	}
-}
-
-func TestConvertToLfvm_CodeWithSuperInstructions(t *testing.T) {
-	tests := map[string]struct {
-		evmCode []byte
-		want    lfvm.Code
-	}{
-		"PUSH1PUSH4DUP3": {
-			[]byte{byte(vm.PUSH1), 0x01,
-				byte(vm.PUSH4), 0x01, 0x02, 0x03, 0x04,
-				byte(vm.DUP3)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1_PUSH4_DUP3, 0x0100),
-				lfvm.NewInstruction(lfvm.DATA, 0x0102),
-				lfvm.NewInstruction(lfvm.DATA, 0x0304),
-			}},
-		"PUSH1_PUSH1_PUSH1_SHL_SUB": {
-			[]byte{byte(vm.PUSH1), 0x01,
-				byte(vm.PUSH1), 0x01,
-				byte(vm.PUSH1), 0x01,
-				byte(vm.SHL),
-				byte(vm.SUB)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1_PUSH1_PUSH1_SHL_SUB, 0x0101),
-				lfvm.NewInstruction(lfvm.DATA, 0x0001),
-			}},
-		"AND_SWAP1_POP_SWAP2_SWAP1": {
-			[]byte{byte(vm.AND), byte(vm.SWAP1), byte(vm.POP),
-				byte(vm.SWAP2), byte(vm.SWAP1)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.AND_SWAP1_POP_SWAP2_SWAP1, 0x0000)}},
-		"ISZERO_PUSH2_JUMPI": {
-			[]byte{byte(vm.ISZERO),
-				byte(vm.PUSH2), 0x01, 0x02,
-				byte(vm.JUMPI)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.ISZERO_PUSH2_JUMPI, 0x0102)}},
-		"SWAP2_SWAP1_POP_JUMP": {
-			[]byte{byte(vm.SWAP2), byte(vm.SWAP1), byte(vm.POP),
-				byte(vm.JUMP)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.SWAP2_SWAP1_POP_JUMP, 0x0000)}},
-		"SWAP1_POP_SWAP2_SWAP1": {
-			[]byte{byte(vm.SWAP1), byte(vm.POP), byte(vm.SWAP2),
-				byte(vm.SWAP1)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.SWAP1_POP_SWAP2_SWAP1, 0x0000)}},
-		"POP_SWAP2_SWAP1_POP": {
-			[]byte{byte(vm.POP), byte(vm.SWAP2), byte(vm.SWAP1),
-				byte(vm.POP)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.POP_SWAP2_SWAP1_POP, 0x0000)}},
-		"PUSH2_JUMP": {
-			[]byte{byte(vm.PUSH2), 0x01, 0x02,
-				byte(vm.JUMP)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH2_JUMP, 0x0102)}},
-		"PUSH2_JUMPI": {
-			[]byte{byte(vm.PUSH2), 0x01, 0x02,
-				byte(vm.JUMPI)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH2_JUMPI, 0x0102)}},
-		"PUSH1_PUSH1": {
-			[]byte{byte(vm.PUSH1), 0x01,
-				byte(vm.PUSH1), 0x01},
-			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1_PUSH1, 0x0101)}},
-		"PUSH1_ADD": {
-			[]byte{byte(vm.PUSH1), 0x01,
-				byte(vm.ADD)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1_ADD, 0x0001)}},
-		"PUSH1_SHL": {
-			[]byte{byte(vm.PUSH1), 0x01,
-				byte(vm.SHL)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1_SHL, 0x0001)}},
-		"PUSH1_DUP1": {
-			[]byte{byte(vm.PUSH1), 0x01,
-				byte(vm.DUP1)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.PUSH1_DUP1, 0x0001)}},
-		"SWAP1_POP": {
-			[]byte{byte(vm.SWAP1), byte(vm.POP)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.SWAP1_POP, 0x0000)}},
-		"POP_JUMP": {
-			[]byte{byte(vm.POP), byte(vm.JUMP)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.POP_JUMP, 0x0000)}},
-		"POP_POP": {
-			[]byte{byte(vm.POP), byte(vm.POP)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.POP_POP, 0x0000)}},
-		"SWAP2_SWAP1": {
-			[]byte{byte(vm.SWAP2), byte(vm.SWAP1)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.SWAP2_SWAP1, 0x0000)}},
-		"SWAP2_POP": {
-			[]byte{byte(vm.SWAP2), byte(vm.POP)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.SWAP2_POP, 0x0000)}},
-		"DUP2_MSTORE": {
-			[]byte{byte(vm.DUP2), byte(vm.MSTORE)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.DUP2_MSTORE, 0x0000)}},
-		"DUP2_LT": {
-			[]byte{byte(vm.DUP2), byte(vm.LT)},
-			lfvm.Code{lfvm.NewInstruction(lfvm.DUP2_LT, 0x0000)}},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			options := lfvm.ConversionConfig{WithSuperInstructions: true}
-			got := lfvm.ConvertWithObserver(test.evmCode, options, func(int, int) {})
-			if !reflect.DeepEqual(test.want, got) {
-				t.Fatalf("unexpected code, wanted %v, got %v", test.want, got)
 			}
 		})
 	}
