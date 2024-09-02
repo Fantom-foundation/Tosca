@@ -373,7 +373,7 @@ func gasSStoreEIP2200(c *context) (tosca.Gas, error) {
 func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 
 	clearingRefund := SstoreClearsScheduleRefundEIP2200
-	if c.isLondon() {
+	if c.isAtLeast(tosca.R10_London) {
 		clearingRefund = SstoreClearsScheduleRefundEIP3529
 	}
 
@@ -435,11 +435,11 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 }
 
 func gasEip2929AccountCheck(c *context, address tosca.Address) error {
-	if c.isBerlin() {
+	if c.isAtLeast(tosca.R09_Berlin) {
 		// Charge extra for cold locations.
 		//lint:ignore SA1019 deprecated functions to be migrated in #616
 		if !c.context.IsAddressInAccessList(address) {
-			if !c.UseGas(ColdAccountAccessCostEIP2929 - WarmStorageReadCostEIP2929) {
+			if !c.useGas(ColdAccountAccessCostEIP2929 - WarmStorageReadCostEIP2929) {
 				return errOutOfGas
 			}
 			c.context.AccessAccount(address)
@@ -450,7 +450,7 @@ func gasEip2929AccountCheck(c *context, address tosca.Address) error {
 
 func addressInAccessList(c *context) (warmAccess bool, coldCost tosca.Gas, err error) {
 	warmAccess = true
-	if c.isBerlin() {
+	if c.isAtLeast(tosca.R09_Berlin) {
 		addr := tosca.Address(c.stack.Back(1).Bytes20())
 		// Check slot presence in the access list
 		//lint:ignore SA1019 deprecated functions to be migrated in #616
@@ -462,7 +462,7 @@ func addressInAccessList(c *context) (warmAccess bool, coldCost tosca.Gas, err e
 			c.context.AccessAccount(addr)
 			// Charge the remaining difference here already, to correctly calculate available
 			// gas for call
-			if !c.UseGas(coldCost) {
+			if !c.useGas(coldCost) {
 				return false, 0, errOutOfGas
 			}
 		}
@@ -501,7 +501,7 @@ func gasSelfdestructEIP2929(c *context) tosca.Gas {
 		gas += CreateBySelfdestructGas
 	}
 	// do this only for Berlin and not after London fork
-	if c.isBerlin() && !c.isLondon() {
+	if c.isAtLeast(tosca.R09_Berlin) && !c.isAtLeast(tosca.R10_London) {
 		//lint:ignore SA1019 deprecated functions to be migrated in #616
 		if !c.context.HasSelfDestructed(c.params.Recipient) {
 			c.refund += SelfdestructRefundGas

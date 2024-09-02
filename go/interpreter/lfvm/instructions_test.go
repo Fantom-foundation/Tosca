@@ -406,7 +406,7 @@ func TestBlobHash(t *testing.T) {
 				memory: NewMemory(),
 			}
 			ctxt.gas = test.gas
-			ctxt.revision = test.revision
+			ctxt.params.Revision = test.revision
 
 			test.setup(&ctxt.params, ctxt.stack)
 
@@ -463,7 +463,7 @@ func TestBlobBaseFee(t *testing.T) {
 				memory: NewMemory(),
 			}
 			ctxt.gas = test.gas
-			ctxt.revision = test.revision
+			ctxt.params.Revision = test.revision
 
 			test.setup(&ctxt.params)
 
@@ -573,7 +573,7 @@ func TestMCopy(t *testing.T) {
 				stack:  NewStack(),
 				memory: NewMemory(),
 			}
-			ctxt.revision = test.revision
+			ctxt.params.Revision = test.revision
 			ctxt.gas = test.gasBefore
 			ctxt.stack.push(uint256.NewInt(test.size))
 			ctxt.stack.push(uint256.NewInt(test.src))
@@ -620,8 +620,8 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 		"shanghai-2k-running":        {tosca.R12_Shanghai, 2000, statusRunning},
 		"shanghai-max-1-running":     {tosca.R12_Shanghai, maxInitCodeSize - 1, statusRunning},
 		"shanghai-max-running":       {tosca.R12_Shanghai, maxInitCodeSize, statusRunning},
-		"shanghai-max+1-running":     {tosca.R12_Shanghai, maxInitCodeSize + 1, statusMaximumInitCodeSizeExceeded},
-		"shanghai-100k-running":      {tosca.R12_Shanghai, 100000, statusMaximumInitCodeSizeExceeded},
+		"shanghai-max+1-running":     {tosca.R12_Shanghai, maxInitCodeSize + 1, statusError},
+		"shanghai-100k-running":      {tosca.R12_Shanghai, 100000, statusError},
 		"shanghai-maxuint64-running": {tosca.R12_Shanghai, math.MaxUint64, statusOutOfGas},
 	}
 
@@ -634,13 +634,15 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 			ctxt := context{
 				status: statusRunning,
 				params: tosca.Parameters{
+					BlockParameters: tosca.BlockParameters{
+						Revision: test.revision,
+					},
 					Recipient: source,
 				},
-				context:  runContext,
-				stack:    NewStack(),
-				memory:   NewMemory(),
-				gas:      50000,
-				revision: test.revision,
+				context: runContext,
+				stack:   NewStack(),
+				memory:  NewMemory(),
+				gas:     50000,
 			}
 
 			// Prepare stack arguments.
@@ -700,13 +702,15 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 		ctxt := context{
 			status: statusRunning,
 			params: tosca.Parameters{
+				BlockParameters: tosca.BlockParameters{
+					Revision: test.revision,
+				},
 				Recipient: source,
 			},
-			context:  runContext,
-			stack:    NewStack(),
-			memory:   NewMemory(),
-			gas:      tosca.Gas(cost),
-			revision: test.revision,
+			context: runContext,
+			stack:   NewStack(),
+			memory:  NewMemory(),
+			gas:     tosca.Gas(cost),
 		}
 
 		// Prepare stack arguments.
@@ -775,10 +779,12 @@ func TestTransientStorageOperations(t *testing.T) {
 			ctxt := context{
 				status: statusRunning,
 				params: tosca.Parameters{
+					BlockParameters: tosca.BlockParameters{
+						Revision: test.revision,
+					},
 					Recipient: tosca.Address{1},
 				},
-				stack:    NewStack(),
-				revision: test.revision,
+				stack: NewStack(),
 			}
 			runContext := tosca.NewMockRunContext(ctrl)
 			test.setup(runContext)
@@ -845,12 +851,16 @@ func TestExpansionCostOverflow(t *testing.T) {
 					test.setup(runContext)
 
 					ctxt := context{
-						status:   statusRunning,
-						stack:    NewStack(),
-						memory:   NewMemory(),
-						context:  runContext,
-						gas:      12884901899,
-						revision: tosca.R13_Cancun,
+						params: tosca.Parameters{
+							BlockParameters: tosca.BlockParameters{
+								Revision: tosca.R13_Cancun,
+							},
+						},
+						status:  statusRunning,
+						stack:   NewStack(),
+						memory:  NewMemory(),
+						context: runContext,
+						gas:     12884901899,
 					}
 					ctxt.stack.stack_ptr = test.stackSize
 					ctxt.stack.data[memIndex].Set(uint256.NewInt(memValue))

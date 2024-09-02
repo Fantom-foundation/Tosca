@@ -28,8 +28,89 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// To run the benchmark use
-//  go test ./core/vm/lfvm -bench=.*Fib.* --benchtime 10s
+// Test UseGas function and correct status after running out of gas.
+func TestContext_useGas_HandlesTerminationIfOutOfGas(t *testing.T) {
+	tests := map[string]struct {
+		available tosca.Gas
+		required  tosca.Gas
+	}{
+		"no available gas and no gas required":      {0, 0},
+		"no available gas":                          {0, 100},
+		"no available gas and infinite need":        {0, -1},
+		"gas available and infinite need":           {100, -100},
+		"gas available with no need":                {100, 0},
+		"sufficient gas":                            {100, 10},
+		"insufficient gas":                          {10, 100},
+		"all gas":                                   {100, 100},
+		"almost all gas":                            {100, 99},
+		"one unit too much":                         {100, 101},
+		"negative available gas":                    {-100, 100},
+		"negative available gas with infinite need": {-100, -100},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctx := context{
+				status: statusRunning,
+				gas:    test.available,
+			}
+			success := ctx.useGas(test.required)
+
+			// Check that the result of UseGas indicates whether there was
+			// enough gas.
+			want := test.required >= 0 && test.available >= test.required
+			if want != success {
+				t.Errorf("expected UseGas to return %v, got %v", want, success)
+			}
+
+			// Check that the status is updated correctly.
+			wantStatus := statusRunning
+			if !success {
+				wantStatus = statusOutOfGas
+			}
+			if ctx.status != wantStatus {
+				t.Errorf("expected status to be %v, got %v", wantStatus, ctx.status)
+			}
+
+			// Check that the remaining gas is correct.
+			wantGas := tosca.Gas(0)
+			if success {
+				wantGas = test.available - test.required
+			}
+			if ctx.gas != wantGas {
+				t.Errorf("expected gas to be %v, got %v", wantGas, ctx.gas)
+			}
+		})
+	}
+}
+
+func TestContext_isAtLeast_RespectsOrderOfRevisions(t *testing.T) {
+	revisions := []tosca.Revision{
+		tosca.R07_Istanbul,
+		tosca.R09_Berlin,
+		tosca.R10_London,
+		tosca.R11_Paris,
+		tosca.R12_Shanghai,
+		tosca.R13_Cancun,
+	}
+
+	for _, is := range revisions {
+		context := context{
+			params: tosca.Parameters{
+				BlockParameters: tosca.BlockParameters{
+					Revision: is,
+				},
+			},
+		}
+
+		for _, trg := range revisions {
+			if want, got := is >= trg, context.isAtLeast(trg); want != got {
+				t.Errorf("revision %v should be at least %v: %t, got %t", is, trg, want, got)
+			}
+		}
+	}
+
+}
 
 type example struct {
 	code     []byte // Some contract code
@@ -56,13 +137,12 @@ func getContext(code Code, data []byte, runContext tosca.RunContext, stackPtr in
 			Gas:   gas,
 			Input: data,
 		},
-		context:  runContext,
-		gas:      gas,
-		stack:    NewStack(),
-		memory:   NewMemory(),
-		status:   statusRunning,
-		code:     code,
-		revision: revision,
+		context: runContext,
+		gas:     gas,
+		stack:   NewStack(),
+		memory:  NewMemory(),
+		status:  statusRunning,
+		code:    code,
 	}
 
 	// Move the stack pointer to the required hight.
@@ -72,44 +152,6 @@ func getContext(code Code, data []byte, runContext tosca.RunContext, stackPtr in
 	ctxt.stack.stack_ptr = stackPtr
 
 	return ctxt
-}
-
-// Test UseGas function and correct status after running out of gas
-func TestGasFunc(t *testing.T) {
-
-	tests := map[string]struct {
-		initialGas   tosca.Gas
-		cost         tosca.Gas
-		resultingGas tosca.Gas
-		expected     bool
-		status       status
-	}{
-		"Zero amount":       {100, 0, 100, true, statusRunning},
-		"Sufficient gas":    {100, 10, 90, true, statusRunning},
-		"Insufficient gas":  {10, 100, 10, false, statusOutOfGas},
-		"All gas":           {100, 100, 0, true, statusRunning},
-		"Negative cost":     {100, -100, 100, false, statusOutOfGas},
-		"Negative gas":      {-100, 100, -100, false, statusOutOfGas},
-		"Negative Negative": {-100, -100, -100, false, statusOutOfGas},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			ctx := getEmptyContext()
-			ctx.gas = test.initialGas
-			ok := ctx.UseGas(test.cost)
-			if ok != test.expected {
-				t.Errorf("expected UseGas to return %v, got %v", test.initialGas >= test.cost, ok)
-			}
-			if ctx.status != test.status {
-				t.Errorf("expected status to be %v, got %v", test.status, ctx.status)
-				return
-			}
-			if ctx.gas != test.resultingGas {
-				t.Errorf("expected gas to be %v, got %v", test.resultingGas, ctx.gas)
-			}
-		})
-	}
 }
 
 type OpcodeTest struct {
@@ -615,7 +657,7 @@ func TestRunGenerateResult(t *testing.T) {
 	}{
 		"invalid instruction": {func(ctx *context) { ctx.status = statusInvalidInstruction }, nil, tosca.Result{Success: false}},
 		"out of gas":          {func(ctx *context) { ctx.status = statusOutOfGas }, nil, tosca.Result{Success: false}},
-		"max init code": {func(ctx *context) { ctx.status = statusMaximumInitCodeSizeExceeded }, nil,
+		"max init code": {func(ctx *context) { ctx.status = statusError }, nil,
 			tosca.Result{Success: false}},
 		"error": {func(ctx *context) { ctx.status = statusError }, nil, tosca.Result{Success: false}},
 		"returned": {func(ctx *context) { ctx.status = statusReturned }, nil, tosca.Result{Success: true,
@@ -624,7 +666,7 @@ func TestRunGenerateResult(t *testing.T) {
 			tosca.Result{Success: false, Output: baseOutput, GasLeft: baseGas, GasRefund: 0}},
 		"stopped": {func(ctx *context) { ctx.status = statusStopped }, nil,
 			tosca.Result{Success: true, Output: nil, GasLeft: baseGas, GasRefund: baseRefund}},
-		"suicide": {func(ctx *context) { ctx.status = statusSuicided }, nil,
+		"suicide": {func(ctx *context) { ctx.status = statusSelfDestructed }, nil,
 			tosca.Result{Success: true, Output: nil, GasLeft: baseGas, GasRefund: baseRefund}},
 		"unknown status": {func(ctx *context) { ctx.status = statusError + 1 },
 			fmt.Errorf("unexpected error in interpreter, unknown status: %v", statusError+1), tosca.Result{}},
@@ -974,6 +1016,9 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 		}
 	}
 }
+
+// To run the benchmark use
+//  go test ./core/vm/lfvm -bench=.*Fib.* --benchtime 10s
 
 func BenchmarkFib10(b *testing.B) {
 	benchmarkFib(b, 10, false)
