@@ -12,9 +12,6 @@ package lfvm
 
 import (
 	"fmt"
-	"log"
-	"sort"
-	"sync"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/holiman/uint256"
@@ -89,12 +86,21 @@ func (c *context) isAtLeast(revision tosca.Revision) bool {
 	return c.params.Revision >= revision
 }
 
-func Run(
+// --- Interpreter ---
+
+type runner interface {
+	run(*context)
+}
+
+type interpreterConfig struct {
+	withShaCache bool
+	runner       runner
+}
+
+func run(
+	config interpreterConfig,
 	params tosca.Parameters,
 	code Code,
-	withStatistics bool,
-	withShaCache bool,
-	withLogging bool,
 ) (tosca.Result, error) {
 	// Don't bother with the execution if there's no code.
 	if len(params.Code) == 0 {
@@ -114,7 +120,7 @@ func Run(
 		memory:       NewMemory(),
 		status:       statusRunning,
 		code:         code,
-		withShaCache: withShaCache,
+		withShaCache: config.withShaCache,
 	}
 
 	defer func() {
@@ -122,13 +128,10 @@ func Run(
 	}()
 
 	// Run interpreter.
-	if withStatistics {
-		runWithStatistics(&ctxt)
-	} else if withLogging {
-		runWithLogging(&ctxt)
-	} else {
-		run(&ctxt)
+	if config.runner == nil {
+		config.runner = vanillaRunner{}
 	}
+	config.runner.run(&ctxt)
 
 	return generateResult(&ctxt)
 }
@@ -195,147 +198,21 @@ func getOutput(ctxt *context) ([]byte, error) {
 	return res, nil
 }
 
-func run(c *context) {
-	stepToEnd(c)
+// --- Runners ---
+
+// vanillaRunner is the default runner that executes the contract code without
+// any additional features.
+type vanillaRunner struct{}
+
+func (r vanillaRunner) run(c *context) {
+	steps(c, false)
 }
 
-type statistics struct {
-	count       uint64
-	singleCount map[uint64]uint64
-	pairCount   map[uint64]uint64
-	tripleCount map[uint64]uint64
-	quadCount   map[uint64]uint64
-}
+// loggingRunner is a runner that logs the execution of the contract code to
+// stdout. It is used for debugging purposes.
+type loggingRunner struct{}
 
-func newStatistics() statistics {
-	return statistics{
-		singleCount: map[uint64]uint64{},
-		pairCount:   map[uint64]uint64{},
-		tripleCount: map[uint64]uint64{},
-		quadCount:   map[uint64]uint64{},
-	}
-}
-
-func (s *statistics) Insert(src *statistics) {
-	s.count += src.count
-	for k, v := range src.singleCount {
-		s.singleCount[k] += v
-	}
-	for k, v := range src.pairCount {
-		s.pairCount[k] += v
-	}
-	for k, v := range src.tripleCount {
-		s.tripleCount[k] += v
-	}
-	for k, v := range src.quadCount {
-		s.quadCount[k] += v
-	}
-}
-
-func (s *statistics) Print() {
-
-	type entry struct {
-		value uint64
-		count uint64
-	}
-
-	getTopN := func(data map[uint64]uint64, n int) []entry {
-		list := make([]entry, 0, len(data))
-		for k, c := range data {
-			list = append(list, entry{k, c})
-		}
-		sort.Slice(list, func(i, j int) bool {
-			return list[i].count > list[j].count
-		})
-		if len(list) < n {
-			return list
-		}
-		return list[0:n]
-	}
-
-	log.Printf("\n----- Statistics ------\n")
-	log.Printf("\nSteps: %d\n", s.count)
-	log.Printf("\nSingles:\n")
-	for _, e := range getTopN(s.singleCount, 5) {
-		log.Printf("\t%-30v: %d (%.2f%%)\n", OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
-	}
-	log.Printf("\nPairs:\n")
-	for _, e := range getTopN(s.pairCount, 5) {
-		log.Printf("\t%-30v%-30v: %d (%.2f%%)\n", OpCode(e.value>>16), OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
-	}
-	log.Printf("\nTriples:\n")
-	for _, e := range getTopN(s.tripleCount, 5) {
-		log.Printf("\t%-30v%-30v%-30v: %d (%.2f%%)\n", OpCode(e.value>>32), OpCode(e.value>>16), OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
-	}
-
-	log.Printf("\nQuads:\n")
-	for _, e := range getTopN(s.quadCount, 5) {
-		log.Printf("\t%-30v%-30v%-30v%-30v: %d (%.2f%%)\n", OpCode(e.value>>48), OpCode(e.value>>32), OpCode(e.value>>16), OpCode(e.value), e.count, float32(e.count*100)/float32(s.count))
-	}
-	log.Printf("\n")
-}
-
-type statsCollector struct {
-	stats statistics
-
-	last       uint64
-	secondLast uint64
-	thirdLast  uint64
-}
-
-func (s *statsCollector) NextOp(op OpCode) {
-	if op > 255 {
-		panic("Instruction sequence statistics does not support opcodes > 255")
-	}
-	cur := uint64(op)
-	s.stats.count++
-	s.stats.singleCount[cur]++
-	if s.stats.count == 1 {
-		s.last, s.secondLast, s.thirdLast = cur, s.last, s.secondLast
-		return
-	}
-	s.stats.pairCount[s.last<<16|cur]++
-	if s.stats.count == 2 {
-		s.last, s.secondLast, s.thirdLast = cur, s.last, s.secondLast
-		return
-	}
-	s.stats.tripleCount[s.secondLast<<32|s.last<<16|cur]++
-	if s.stats.count == 3 {
-		s.last, s.secondLast, s.thirdLast = cur, s.last, s.secondLast
-		return
-	}
-	s.stats.quadCount[s.thirdLast<<48|s.secondLast<<32|s.last<<16|cur]++
-	s.last, s.secondLast, s.thirdLast = cur, s.last, s.secondLast
-}
-
-// TODO: get rid fo this global values
-var globalStatisticsMutex = sync.Mutex{}
-var globalStatistics = newStatistics()
-
-func printCollectedInstructionStatistics() {
-	globalStatisticsMutex.Lock()
-	defer globalStatisticsMutex.Unlock()
-	globalStatistics.Print()
-}
-
-func resetCollectedInstructionStatistics() {
-	globalStatisticsMutex.Lock()
-	defer globalStatisticsMutex.Unlock()
-	globalStatistics = newStatistics()
-}
-
-func runWithStatistics(c *context) {
-	stats := statsCollector{stats: newStatistics()}
-	for c.status == statusRunning {
-		stats.NextOp(c.code[c.pc].opcode)
-		step(c)
-	}
-	globalStatisticsMutex.Lock()
-	defer globalStatisticsMutex.Unlock()
-	globalStatistics.Insert(&stats.stats)
-}
-
-func runWithLogging(c *context) {
+func (r loggingRunner) run(c *context) {
 	for c.status == statusRunning {
 		// log format: <op>, <gas>, <top-of-stack>\n
 		if int(c.pc) < len(c.code) {
@@ -349,30 +226,15 @@ func runWithLogging(c *context) {
 	}
 }
 
+// --- Execution ---
+
 func step(c *context) {
 	steps(c, true)
 }
 
-func stepToEnd(c *context) {
-	steps(c, false)
-}
-
-func checkStackBoundary(c *context, op OpCode) error {
-	stackLen := c.stack.len()
-	if stackLen < staticStackBoundary[op].stackMin {
-		c.status = statusError
-		return errStackUnderflow
-	}
-	if stackLen > staticStackBoundary[op].stackMax {
-		c.status = statusError
-		return errStackOverflow
-	}
-	return nil
-}
-
 func steps(c *context, oneStepOnly bool) {
 	// Idea: handle static gas price in static dispatch below (saves an array lookup)
-	staticGasPrices := getStaticGasPrices(c.isAtLeast(tosca.R09_Berlin))
+	staticGasPrices := getStaticGasPrices(c.params.Revision)
 	for c.status == statusRunning {
 		if int(c.pc) >= len(c.code) {
 			opStop(c)
@@ -394,7 +256,8 @@ func steps(c *context, oneStepOnly bool) {
 		}
 
 		// Need to check Call stack boundary before using static gas
-		if op == CALL && checkStackBoundary(c, op) != nil {
+		// TODO: check whether this can be removed
+		if op == CALL && !satisfiesStackRequirements(c, op) {
 			return
 		}
 
@@ -404,12 +267,12 @@ func steps(c *context, oneStepOnly bool) {
 		// account to the others means the state is modified and should also
 		// return with an error.
 		if c.params.Static && (isWriteInstruction(op) || (op == CALL && c.stack.Back(2).Sign() != 0)) {
-			c.status = statusError
+			c.signalError()
 			return
 		}
 
 		// Check stack boundary for every instruction
-		if checkStackBoundary(c, op) != nil {
+		if !satisfiesStackRequirements(c, op) {
 			return
 		}
 
@@ -769,6 +632,19 @@ func steps(c *context, oneStepOnly bool) {
 			return
 		}
 	}
+}
+
+func satisfiesStackRequirements(c *context, op OpCode) bool {
+	stackLen := c.stack.len()
+	if stackLen < staticStackBoundary[op].stackMin {
+		c.signalError()
+		return false
+	}
+	if stackLen > staticStackBoundary[op].stackMax {
+		c.signalError()
+		return false
+	}
+	return true
 }
 
 func isWriteInstruction(opCode OpCode) bool {

@@ -20,25 +20,31 @@ import (
 func init() {
 	// TODO: split into release-version and experimental versions
 	for _, si := range []string{"", "-si"} {
-		for _, stats := range []string{"", "-stats"} {
-			for _, shaCache := range []string{"", "-no-sha-cache"} {
-				for _, logging := range []string{"", "-logging"} {
+		for _, shaCache := range []string{"", "-no-sha-cache"} {
+			for _, mode := range []string{"", "-stats", "-logging"} {
 
-					vm, err := NewVm(Config{
-						ConversionConfig: ConversionConfig{
-							WithSuperInstructions: si == "-si",
-						},
-						WithStatistics: stats == "-stats",
-						WithShaCache:   shaCache != "-no-sha-cache",
-						Logging:        logging == "-logging",
-					})
-					name := "lfvm" + si + stats + shaCache + logging
-					if err != nil {
-						panic(fmt.Sprintf("failed to create %s: %v", name, err))
-					}
-
-					tosca.RegisterInterpreter(name, vm)
+				config := Config{
+					ConversionConfig: ConversionConfig{
+						WithSuperInstructions: si == "-si",
+					},
+					WithShaCache: shaCache != "-no-sha-cache",
 				}
+
+				if mode == "-stats" {
+					config.runner = &statisticRunner{
+						stats: newStatistics(),
+					}
+				} else if mode == "-logging" {
+					config.runner = loggingRunner{}
+				}
+
+				vm, err := NewVm(config)
+				name := "lfvm" + si + shaCache + mode
+				if err != nil {
+					panic(fmt.Sprintf("failed to create %s: %v", name, err))
+				}
+
+				tosca.RegisterInterpreter(name, vm)
 			}
 		}
 	}
@@ -55,9 +61,8 @@ func init() {
 
 type Config struct {
 	ConversionConfig
-	WithStatistics bool
-	WithShaCache   bool
-	Logging        bool
+	WithShaCache bool
+	runner       runner
 }
 
 type VM struct {
@@ -86,17 +91,22 @@ func (v *VM) Run(params tosca.Parameters) (tosca.Result, error) {
 		params.CodeHash,
 	)
 
-	return Run(params, converted, v.config.WithStatistics, v.config.WithShaCache, v.config.Logging)
+	config := interpreterConfig{
+		withShaCache: v.config.WithShaCache,
+		runner:       v.config.runner,
+	}
+
+	return run(config, params, converted)
 }
 
 func (e *VM) DumpProfile() {
-	if e.config.WithStatistics {
-		printCollectedInstructionStatistics()
+	if statsRunner, ok := e.config.runner.(*statisticRunner); ok {
+		fmt.Print(statsRunner.getSummary())
 	}
 }
 
 func (e *VM) ResetProfile() {
-	if e.config.WithStatistics {
-		resetCollectedInstructionStatistics()
+	if statsRunner, ok := e.config.runner.(*statisticRunner); ok {
+		statsRunner.reset()
 	}
 }
