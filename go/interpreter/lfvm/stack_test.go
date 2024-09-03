@@ -118,11 +118,11 @@ func TestStack_peekN_ObtainsNthElementFromTop(t *testing.T) {
 func TestStack_swap_ExchangesTopElementWithSelectedElement(t *testing.T) {
 	// n => expected order after swap(n)
 	tests := map[int][]uint64{
-		1: {0, 1, 2, 3, 4},
-		2: {1, 0, 2, 3, 4},
-		3: {2, 1, 0, 3, 4},
-		4: {3, 1, 2, 0, 4},
-		5: {4, 1, 2, 3, 0},
+		0: {0, 1, 2, 3, 4},
+		1: {1, 0, 2, 3, 4},
+		2: {2, 1, 0, 3, 4},
+		3: {3, 1, 2, 0, 4},
+		4: {4, 1, 2, 3, 0},
 	}
 
 	for n, result := range tests {
@@ -146,9 +146,9 @@ func TestStack_swap_ExchangesTopElementWithSelectedElement(t *testing.T) {
 	}
 }
 
-func TestStack_swap_WorksForAnyValueBiggerThanOne(t *testing.T) {
+func TestStack_swap_WorksForAnyIntegerValue(t *testing.T) {
 	for _, size := range []int{2, 128, maxStackSize - 1} {
-		for i := 1; i < size; i++ {
+		for i := 0; i < size; i++ {
 			t.Run(fmt.Sprintf("size=%d_swap%d", size, i), func(t *testing.T) {
 				stack := NewStack()
 				defer ReturnStack(stack)
@@ -157,7 +157,7 @@ func TestStack_swap_WorksForAnyValueBiggerThanOne(t *testing.T) {
 					stack.push(uint256.NewInt(uint64(i)))
 				}
 
-				want := stack.peekN(i - 1).Uint64()
+				want := stack.peekN(i).Uint64()
 				stack.swap(i)
 				got := stack.peek().Uint64()
 
@@ -172,11 +172,11 @@ func TestStack_swap_WorksForAnyValueBiggerThanOne(t *testing.T) {
 func TestStack_dup_DuplicatesSelectedElementFromStack(t *testing.T) {
 	// n => expected content after dup(n)
 	tests := map[int][]uint64{
-		1: {0, 0, 1, 2, 3, 4},
-		2: {1, 0, 1, 2, 3, 4},
-		3: {2, 0, 1, 2, 3, 4},
-		4: {3, 0, 1, 2, 3, 4},
-		5: {4, 0, 1, 2, 3, 4},
+		0: {0, 0, 1, 2, 3, 4},
+		1: {1, 0, 1, 2, 3, 4},
+		2: {2, 0, 1, 2, 3, 4},
+		3: {3, 0, 1, 2, 3, 4},
+		4: {4, 0, 1, 2, 3, 4},
 	}
 
 	for n, result := range tests {
@@ -200,9 +200,9 @@ func TestStack_dup_DuplicatesSelectedElementFromStack(t *testing.T) {
 	}
 }
 
-func TestStack_dup_WorksForAnyValueBiggerThanOne(t *testing.T) {
+func TestStack_dup_WorksForAnyIntegerValue(t *testing.T) {
 	for _, size := range []int{2, 128, maxStackSize - 1} {
-		for i := 1; i < size; i++ {
+		for i := 0; i < size; i++ {
 			t.Run(fmt.Sprintf("size=%d_dup%d", size, i), func(t *testing.T) {
 				stack := NewStack()
 				defer ReturnStack(stack)
@@ -211,7 +211,7 @@ func TestStack_dup_WorksForAnyValueBiggerThanOne(t *testing.T) {
 					stack.push(uint256.NewInt(uint64(i)))
 				}
 
-				want := stack.peekN(i - 1).Uint64()
+				want := stack.peekN(i).Uint64()
 				stack.dup(i)
 				got := stack.peek().Uint64()
 

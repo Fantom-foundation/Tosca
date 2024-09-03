@@ -151,11 +151,11 @@ func opPush32(c *context) {
 }
 
 func opDup(c *context, pos int) {
-	c.stack.dup(pos)
+	c.stack.dup(pos - 1)
 }
 
 func opSwap(c *context, pos int) {
-	c.stack.swap(pos + 1)
+	c.stack.swap(pos)
 }
 
 func opMstore(c *context) {
@@ -1196,7 +1196,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 }
 
 func opCall(c *context) {
-	value := c.stack.data[c.stack.stackPointer-3]
+	value := c.stack.peekN(3)
 	// In a static call, no value must be transferred.
 	if c.params.Static && !value.IsZero() {
 		c.signalError()

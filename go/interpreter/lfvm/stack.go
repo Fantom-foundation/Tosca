@@ -59,7 +59,7 @@ func (s *stack) pushUndefined() *uint256.Int {
 
 // pop removes the top element from the stack and returns a pointer to it. The
 // obtained pointer is only valid until the next push operation. The pointer
-// can be used to obtain the pushed element without the need to copy it.
+// can be used to obtain the popped element without the need to copy it.
 func (s *stack) pop() *uint256.Int {
 	s.stackPointer--
 	return &s.data[s.stackPointer]
@@ -84,15 +84,15 @@ func (s *stack) len() int {
 }
 
 // swap exchanges the top element with the n-th element from the top. The top
-// element is at index 1. Thus, swap(1) is a no-op.
+// element is at index 0. Thus, swap(0) is a no-op.
 func (s *stack) swap(n int) {
-	s.data[s.len()-n], s.data[s.len()-1] = s.data[s.len()-1], s.data[s.len()-n]
+	s.data[s.len()-n-1], s.data[s.len()-1] = s.data[s.len()-1], s.data[s.len()-n-1]
 }
 
 // dup duplicates the n-th element from the top and pushes it to the top of the
-// stack. The top element is at index 1. Thus, dup(1) duplicates the top element.
+// stack. The top element is at index 0. Thus, dup(0) duplicates the top element.
 func (s *stack) dup(n int) {
-	s.data[s.stackPointer] = s.data[s.stackPointer-n]
+	s.data[s.stackPointer] = s.data[s.stackPointer-n-1]
 	s.stackPointer++
 }
 
