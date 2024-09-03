@@ -20,29 +20,49 @@ import (
 // The cache maintains hashes for hashed input data of size 32 and 64,
 // which are the vast majority of values hashed when running EVM
 // instructions.
-type HashCache struct {
-	// Hash infrastructure for 32-byte long inputs.
-	entries32      []hashCacheEntry32
-	index32        map[[32]byte]*hashCacheEntry32
-	head32, tail32 *hashCacheEntry32
-	nextFree32     int
-	lock32         sync.Mutex
-
-	// Hash infrastructure for 64-byte long inputs.
-	entries64      []hashCacheEntry64
-	index64        map[[64]byte]*hashCacheEntry64
-	head64, tail64 *hashCacheEntry64
-	nextFree64     int
-	lock64         sync.Mutex
+type Sha3HashCache struct {
+	cache32 *hashCache[[32]byte]
+	cache64 *hashCache[[64]byte]
 }
 
 // newHashCache creates a HashCache with the given capacity of entries.
-func newHashCache(capacity32 int, capacity64 int) *HashCache {
-	res := &HashCache{
-		entries32: make([]hashCacheEntry32, capacity32),
-		index32:   make(map[[32]byte]*hashCacheEntry32, capacity32),
-		entries64: make([]hashCacheEntry64, capacity64),
-		index64:   make(map[[64]byte]*hashCacheEntry64, capacity64),
+func newSha3HashCache(capacity32 int, capacity64 int) *Sha3HashCache {
+	return &Sha3HashCache{
+		cache32: newHashCache(capacity32, func(key [32]byte) tosca.Hash { return Keccak256For32byte(key) }),
+		cache64: newHashCache(capacity64, func(key [64]byte) tosca.Hash { return Keccak256(key[:]) }),
+	}
+}
+
+// hash fetches a cached hash or computes the hash for the provided data
+// using the hasher in the given context.
+func (h *Sha3HashCache) hash(data []byte) tosca.Hash {
+	if len(data) == 32 {
+		var key [32]byte
+		copy(key[:], data)
+		return h.cache32.getHash(key)
+	}
+	if len(data) == 64 {
+		var key [64]byte
+		copy(key[:], data)
+		return h.cache64.getHash(key)
+	}
+	return Keccak256(data)
+}
+
+type hashCache[K comparable] struct {
+	entries    []hashCacheEntry[K]
+	index      map[K]*hashCacheEntry[K]
+	head, tail *hashCacheEntry[K]
+	nextFree   int
+	lock       sync.Mutex
+	hash       func(K) tosca.Hash
+}
+
+func newHashCache[K comparable](capacity int, hash func(K) tosca.Hash) *hashCache[K] {
+	res := &hashCache[K]{
+		entries: make([]hashCacheEntry[K], capacity),
+		index:   make(map[K]*hashCacheEntry[K], capacity),
+		hash:    hash,
 	}
 
 	// To avoid the need for handling the special case of an empty cache
@@ -50,177 +70,82 @@ func newHashCache(capacity32 int, capacity64 int) *HashCache {
 	// Since values are never removed, just evicted to make space for another,
 	// the cache will never be empty.
 
-	// Insert first 32-byte element (all zeros).
-	res.head32 = res.getFree32()
-	res.tail32 = res.head32
-	var data32 [32]byte
-	res.head32.hash = Keccak256For32byte(data32)
-	res.index32[data32] = res.head32
-
-	// Insert first 64-byte element (all zeros).
-	res.head64 = res.getFree64()
-	res.tail64 = res.head64
-	var data64 [64]byte
-	res.head64.hash = Keccak256(data64[:])
-	res.index64[data64] = res.head64
-
+	// Insert first element (zero value).
+	res.head = res.getFree()
+	res.tail = res.head
+	var key K
+	res.head.hash = hash(key)
+	res.index[key] = res.head
 	return res
 }
 
-// hash fetches a cached hash or computes the hash for the provided data
-// using the hasher in the given context.
-func (h *HashCache) hash(data []byte) tosca.Hash {
-	if len(data) == 32 {
-		return h.getHash32(data)
-	}
-	if len(data) == 64 {
-		return h.getHash64(data)
-	}
-	return Keccak256(data)
-}
-
-func (h *HashCache) getHash32(data []byte) tosca.Hash {
-	var key [32]byte
-	copy(key[:], data)
-	h.lock32.Lock()
-	if entry, found := h.index32[key]; found {
+func (h *hashCache[K]) getHash(key K) tosca.Hash {
+	h.lock.Lock()
+	if entry, found := h.index[key]; found {
 		// Move entry to the front.
-		if entry != h.head32 {
+		if entry != h.head {
 			// Remove from current place.
 			entry.pred.succ = entry.succ
 			if entry.succ != nil {
 				entry.succ.pred = entry.pred
 			} else {
-				h.tail32 = entry.pred
+				h.tail = entry.pred
 			}
 			// Add to front
 			entry.pred = nil
-			entry.succ = h.head32
-			h.head32.pred = entry
-			h.head32 = entry
+			entry.succ = h.head
+			h.head.pred = entry
+			h.head = entry
 		}
-		h.lock32.Unlock()
+		h.lock.Unlock()
 		return entry.hash
 	}
 
 	// Compute the hash without holding the lock.
-	h.lock32.Unlock()
-	hash := Keccak256For32byte(key)
-	h.lock32.Lock()
-	defer h.lock32.Unlock()
+	h.lock.Unlock()
+	hash := h.hash(key)
+	h.lock.Lock()
+	defer h.lock.Unlock()
 
 	// We need to check that the key has not be added concurrently.
-	if _, found := h.index32[key]; found {
+	if _, found := h.index[key]; found {
 		// If it was added concurrently, we are done.
 		return hash
 	}
 
 	// The key is still not present, so we add it.
-	entry := h.getFree32()
+	entry := h.getFree()
 	entry.key = key
 	entry.hash = hash
 	entry.pred = nil
-	entry.succ = h.head32
-	h.head32.pred = entry
-	h.head32 = entry
-	h.index32[key] = entry
+	entry.succ = h.head
+	h.head.pred = entry
+	h.head = entry
+	h.index[key] = entry
 	return entry.hash
 }
 
-func (h *HashCache) getHash64(data []byte) tosca.Hash {
-	var key [64]byte
-	copy(key[:], data)
-	h.lock64.Lock()
-	if entry, found := h.index64[key]; found {
-		// Move entry to the front.
-		if entry != h.head64 {
-			// Remove from current place.
-			entry.pred.succ = entry.succ
-			if entry.succ != nil {
-				entry.succ.pred = entry.pred
-			} else {
-				h.tail64 = entry.pred
-			}
-			// Add to front
-			entry.pred = nil
-			entry.succ = h.head64
-			h.head64.pred = entry
-			h.head64 = entry
-		}
-		h.lock64.Unlock()
-		return entry.hash
-	}
-
-	// Compute the hash without holding the lock.
-	h.lock64.Unlock()
-	hash := Keccak256(data) // TODO: replace for keccak256For64byte when implemented.
-	h.lock64.Lock()
-	defer h.lock64.Unlock()
-
-	// We need to check that the key has not be added concurrently.
-	if _, found := h.index64[key]; found {
-		// If it was added concurrently, we are done.
-		return hash
-	}
-
-	// The key is still not present, so we add it.
-	entry := h.getFree64()
-	entry.key = key
-	entry.hash = hash
-	entry.pred = nil
-	entry.succ = h.head64
-	h.head64.pred = entry
-	h.head64 = entry
-	h.index64[key] = entry
-	return entry.hash
-}
-
-func (h *HashCache) getFree32() *hashCacheEntry32 {
+func (h *hashCache[K]) getFree() *hashCacheEntry[K] {
 	// If there are still free entries, use on of those.
-	if h.nextFree32 < len(h.entries32) {
-		res := &h.entries32[h.nextFree32]
-		h.nextFree32++
+	if h.nextFree < len(h.entries) {
+		res := &h.entries[h.nextFree]
+		h.nextFree++
 		return res
 	}
 	// Use the tail.
-	res := h.tail32
-	h.tail32 = h.tail32.pred
-	h.tail32.succ = nil
-	delete(h.index32, res.key)
+	res := h.tail
+	h.tail = h.tail.pred
+	h.tail.succ = nil
+	delete(h.index, res.key)
 	return res
 }
 
-func (h *HashCache) getFree64() *hashCacheEntry64 {
-	// If there are still free entries, use on of those.
-	if h.nextFree64 < len(h.entries64) {
-		res := &h.entries64[h.nextFree64]
-		h.nextFree64++
-		return res
-	}
-	// Use the tail.
-	res := h.tail64
-	h.tail64 = h.tail64.pred
-	h.tail64.succ = nil
-	delete(h.index64, res.key)
-	return res
-}
-
-// hashCacheEntry32 is an entry of a cache for hashes of 32-byte long inputs.
-type hashCacheEntry32 struct {
+// hashCacheEntry is an entry of a cache for hashes of values of type K.
+type hashCacheEntry[K any] struct {
 	// key is the input value cache entries are indexed by.
-	key [32]byte
+	key K
 	// hash is the cached (Sha3) hash of the key.
 	hash tosca.Hash
 	// pred/succ pointers are used for a double linked list for the LRU order.
-	pred, succ *hashCacheEntry32
-}
-
-// hashCacheEntry64 is an entry of a cache for hashes of 64-byte long inputs.
-type hashCacheEntry64 struct {
-	// key is the input value cache entries are indexed by.
-	key [64]byte
-	// hash is the cached (Sha3) hash of the key.
-	hash tosca.Hash
-	// pred/succ pointers are used for a double linked list for the LRU order.
-	pred, succ *hashCacheEntry64
+	pred, succ *hashCacheEntry[K]
 }

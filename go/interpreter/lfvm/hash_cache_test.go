@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func TestHashCache_hash_ProducesCorrectHashesForInputs(t *testing.T) {
+func TestSha3HashCache_hash_ProducesCorrectHashesForInputs(t *testing.T) {
 	inputs := [][]byte{
 		{},
 		{0},
@@ -34,7 +34,7 @@ func TestHashCache_hash_ProducesCorrectHashesForInputs(t *testing.T) {
 		inputs = append(inputs, input)
 	}
 
-	cache := newHashCache(10, 10)
+	cache := newSha3HashCache(10, 10)
 	for _, input := range inputs {
 		want := Keccak256(input)
 		got := cache.hash(input)
@@ -44,9 +44,9 @@ func TestHashCache_hash_ProducesCorrectHashesForInputs(t *testing.T) {
 	}
 }
 
-func benchmarkHashCache(b *testing.B, inputSize int, mutateInput bool) {
+func benchmarkSha3HashCache(b *testing.B, inputSize int, mutateInput bool) {
 	input := make([]byte, inputSize)
-	cache := newHashCache(128, 128)
+	cache := newSha3HashCache(128, 128)
 	for i := 0; i < b.N; i++ {
 		if mutateInput {
 			input[0] = byte(i)
@@ -58,7 +58,7 @@ func benchmarkHashCache(b *testing.B, inputSize int, mutateInput bool) {
 func BenchmarkHashCache_Hits(b *testing.B) {
 	for _, size := range []int{16, 32, 64, 128} {
 		b.Run(fmt.Sprintf("size=%d", size), func(b *testing.B) {
-			benchmarkHashCache(b, size, false)
+			benchmarkSha3HashCache(b, size, false)
 		})
 	}
 }
@@ -66,7 +66,7 @@ func BenchmarkHashCache_Hits(b *testing.B) {
 func BenchmarkHashCache_Miss(b *testing.B) {
 	for _, size := range []int{16, 32, 64, 128} {
 		b.Run(fmt.Sprintf("size=%d", size), func(b *testing.B) {
-			benchmarkHashCache(b, size, true)
+			benchmarkSha3HashCache(b, size, true)
 		})
 	}
 }
