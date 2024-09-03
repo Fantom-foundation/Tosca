@@ -16,25 +16,28 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
-// HashCache is an LRU governed fixed-capacity cache for SHA3 hashes.
+// Sha3HashCache is an LRU governed fixed-capacity cache for SHA3 hashes.
 // The cache maintains hashes for hashed input data of size 32 and 64,
 // which are the vast majority of values hashed when running EVM
-// instructions.
+// instructions. Inputs of other sizes are hashed on demand without caching.
 type Sha3HashCache struct {
 	cache32 *hashCache[[32]byte]
 	cache64 *hashCache[[64]byte]
 }
 
-// newHashCache creates a HashCache with the given capacity of entries.
+// newSha3HashCache creates a Sha3HashCache with the given capacity of entries.
 func newSha3HashCache(capacity32 int, capacity64 int) *Sha3HashCache {
 	return &Sha3HashCache{
-		cache32: newHashCache(capacity32, func(key [32]byte) tosca.Hash { return Keccak256For32byte(key) }),
-		cache64: newHashCache(capacity64, func(key [64]byte) tosca.Hash { return Keccak256(key[:]) }),
+		cache32: newHashCache(capacity32, func(key [32]byte) tosca.Hash {
+			return Keccak256For32byte(key)
+		}),
+		cache64: newHashCache(capacity64, func(key [64]byte) tosca.Hash {
+			return Keccak256(key[:])
+		}),
 	}
 }
 
-// hash fetches a cached hash or computes the hash for the provided data
-// using the hasher in the given context.
+// hash fetches a cached hash or computes the hash for the provided data.
 func (h *Sha3HashCache) hash(data []byte) tosca.Hash {
 	if len(data) == 32 {
 		var key [32]byte
@@ -49,16 +52,24 @@ func (h *Sha3HashCache) hash(data []byte) tosca.Hash {
 	return Keccak256(data)
 }
 
+// hashCache is an LRU governed fixed-capacity cache for hashes of values of
+// type K. The cache is thread-safe.
 type hashCache[K comparable] struct {
-	entries    []hashCacheEntry[K]
-	index      map[K]*hashCacheEntry[K]
-	head, tail *hashCacheEntry[K]
-	nextFree   int
-	lock       sync.Mutex
-	hash       func(K) tosca.Hash
+	hash       func(K) tosca.Hash       // Hash function for the keys.
+	entries    []hashCacheEntry[K]      // Fixed capacity cache entries.
+	index      map[K]*hashCacheEntry[K] // Index of cache entries by key.
+	head, tail *hashCacheEntry[K]       // LRU order.
+	nextFree   int                      // Index of the next free entry.
+	lock       sync.Mutex               // Lock for the cache.
 }
 
+// newHashCache creates a hashCache with the given capacity of entries. For
+// efficiency reasons, the capacity must be at least 2. If it is less than 2,
+// the capacity is set to 2.
 func newHashCache[K comparable](capacity int, hash func(K) tosca.Hash) *hashCache[K] {
+	if capacity < 2 {
+		capacity = 2
+	}
 	res := &hashCache[K]{
 		entries: make([]hashCacheEntry[K], capacity),
 		index:   make(map[K]*hashCacheEntry[K], capacity),
@@ -105,11 +116,11 @@ func (h *hashCache[K]) getHash(key K) tosca.Hash {
 	h.lock.Unlock()
 	hash := h.hash(key)
 	h.lock.Lock()
-	defer h.lock.Unlock()
 
 	// We need to check that the key has not be added concurrently.
 	if _, found := h.index[key]; found {
 		// If it was added concurrently, we are done.
+		h.lock.Unlock()
 		return hash
 	}
 
@@ -122,7 +133,8 @@ func (h *hashCache[K]) getHash(key K) tosca.Hash {
 	h.head.pred = entry
 	h.head = entry
 	h.index[key] = entry
-	return entry.hash
+	h.lock.Unlock()
+	return hash
 }
 
 func (h *hashCache[K]) getFree() *hashCacheEntry[K] {
