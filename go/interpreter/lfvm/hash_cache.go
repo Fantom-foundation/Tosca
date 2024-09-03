@@ -16,26 +16,6 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
-// hashCacheEntry32 is an entry of a cache for hashes of 32-byte long inputs.
-type hashCacheEntry32 struct {
-	// key is the input value cache entries are indexed by.
-	key [32]byte
-	// hash is the cached (Sha3) hash of the key.
-	hash tosca.Hash
-	// pred/succ pointers are used for a double linked list for the LRU order.
-	pred, succ *hashCacheEntry32
-}
-
-// hashCacheEntry64 is an entry of a cache for hashes of 64-byte long inputs.
-type hashCacheEntry64 struct {
-	// key is the input value cache entries are indexed by.
-	key [64]byte
-	// hash is the cached (Sha3) hash of the key.
-	hash tosca.Hash
-	// pred/succ pointers are used for a double linked list for the LRU order.
-	pred, succ *hashCacheEntry64
-}
-
 // HashCache is an LRU governed fixed-capacity cache for SHA3 hashes.
 // The cache maintains hashes for hashed input data of size 32 and 64,
 // which are the vast majority of values hashed when running EVM
@@ -223,4 +203,24 @@ func (h *HashCache) getFree64() *hashCacheEntry64 {
 	h.tail64.succ = nil
 	delete(h.index64, res.key)
 	return res
+}
+
+// hashCacheEntry32 is an entry of a cache for hashes of 32-byte long inputs.
+type hashCacheEntry32 struct {
+	// key is the input value cache entries are indexed by.
+	key [32]byte
+	// hash is the cached (Sha3) hash of the key.
+	hash tosca.Hash
+	// pred/succ pointers are used for a double linked list for the LRU order.
+	pred, succ *hashCacheEntry32
+}
+
+// hashCacheEntry64 is an entry of a cache for hashes of 64-byte long inputs.
+type hashCacheEntry64 struct {
+	// key is the input value cache entries are indexed by.
+	key [64]byte
+	// hash is the cached (Sha3) hash of the key.
+	hash tosca.Hash
+	// pred/succ pointers are used for a double linked list for the LRU order.
+	pred, succ *hashCacheEntry64
 }
