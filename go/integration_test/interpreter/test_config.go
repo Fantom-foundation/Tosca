@@ -25,6 +25,7 @@ var (
 		"lfvm-no-sha-cache",
 		"lfvm-no-code-cache",
 		"lfvm-logging",
+		"lfvm-stats",
 		"evmone",
 		"evmone-basic",
 		"evmone-advanced",
