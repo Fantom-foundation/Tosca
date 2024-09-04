@@ -386,19 +386,10 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 		clearingRefund = SstoreClearsScheduleRefundEIP3529
 	}
 
-	// If we fail the minimum gas availability invariant, fail (0)
-	if c.gas <= SstoreSentryGasEIP2200 {
-		c.status = statusOutOfGas
-		return 0, errNotEnoughGasReentrancy
-	}
-	// Gas sentry honoured, do the actual gas calculation based on the stored value
-	var (
-		zero    = tosca.Word{}
-		y, x    = c.stack.peekN(1), c.stack.peek()
-		slot    = tosca.Key(x.Bytes32())
-		current = c.context.GetStorage(c.params.Recipient, slot)
-		cost    = tosca.Gas(0)
-	)
+	slot := tosca.Key(c.stack.peek().Bytes32())
+	current := c.context.GetStorage(c.params.Recipient, slot)
+	cost := tosca.Gas(0)
+
 	// Check slot presence in the access list
 	//lint:ignore SA1019 deprecated functions to be migrated in #616
 	if addrPresent, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
@@ -410,7 +401,17 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 		// If the caller cannot afford the cost, this change will be rolled back
 		c.context.AccessStorage(c.params.Recipient, slot)
 	}
-	value := tosca.Word(y.Bytes32())
+
+	////////////////////////////////////////////////////////////////////////
+	// If we fail the minimum gas availability invariant, fail (0)
+	if c.gas <= SstoreSentryGasEIP2200 {
+		c.status = statusOutOfGas
+		return 0, errNotEnoughGasReentrancy
+	}
+
+	// Gas sentry honoured, do the actual gas calculation based on the stored value
+	zero := tosca.Word{}
+	value := tosca.Word(c.stack.peekN(1).Bytes32())
 
 	if current == value { // noop (1)
 		return cost + WarmStorageReadCostEIP2929, nil // SLOAD_GAS
@@ -440,6 +441,8 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 			c.refund += (SstoreResetGasEIP2200 - ColdSloadCostEIP2929) - WarmStorageReadCostEIP2929
 		}
 	}
+	////////////////////////////////////////////////////////////////////////
+
 	return cost + WarmStorageReadCostEIP2929, nil // dirty update (2.2)
 }
 
