@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -445,6 +446,108 @@ func TestProcessor_CorrectAddressIsCreated(t *testing.T) {
 				}
 				if !slices.Equal(wantAddress[:], result.Output[44:64]) {
 					t.Errorf("contract address was not created correctly, returned %v vs %v", result.Output[44:64], wantAddress[:])
+				}
+			})
+		}
+	}
+}
+
+func TestProcessor_CreateExistingAccountFails(t *testing.T) {
+	storageWithEntry := Storage{}
+	storageWithEntry[tosca.Key{42}] = tosca.Word{42}
+
+	tests := map[string]struct {
+		account Account
+		success bool
+	}{
+		"empty": {
+			account: Account{},
+			success: true,
+		},
+		"withCode": {
+			account: Account{Code: []byte{byte(vm.PUSH1), byte(0), byte(vm.RETURN)}},
+			success: false,
+		},
+		"withNonce": {
+			account: Account{Nonce: 1},
+			success: false,
+		},
+
+		// It is possible to create an account if it already had balance
+		"withBalance": {
+			account: Account{Balance: tosca.NewValue(42)},
+			success: true,
+		},
+
+		// Different to ethereum, on Sonic accounts can only have set storage if their nonce != 0
+		"withStorage": {
+			account: Account{Nonce: 1, Storage: storageWithEntry},
+			success: false,
+		},
+	}
+
+	for processorName, processor := range getProcessors() {
+		// TODO: implement in Floria
+		if strings.Contains(processorName, "floria") {
+			continue
+		}
+		for testName, test := range tests {
+			t.Run(processorName+"/"+testName, func(t *testing.T) {
+				checkValue := byte(42)
+				sender := tosca.Address{1}
+				addressToBeCreated := tosca.Address(crypto.CreateAddress(common.Address(sender), 0))
+
+				initCode := []byte{
+					byte(vm.PUSH1), checkValue,
+					byte(vm.PUSH1), byte(0),
+					byte(vm.MSTORE),
+					byte(vm.PUSH1), byte(32),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.RETURN),
+				}
+				state := WorldState{
+					sender:             Account{},
+					addressToBeCreated: test.account,
+				}
+				originalState := state.Clone()
+
+				transaction := tosca.Transaction{
+					Sender:    sender,
+					Recipient: nil,
+					GasLimit:  sufficientGas,
+					Input:     initCode,
+				}
+
+				transactionContext := newScenarioContext(state)
+
+				// Run the processor
+				result, err := processor.Run(tosca.BlockParameters{}, transaction, transactionContext)
+				if err != nil {
+					t.Errorf("execution failed with error %v", err)
+				}
+				if result.Success != test.success {
+					t.Errorf("execution success was %v, expected %v", result.Success, test.success)
+				}
+				if test.success {
+					if !slices.Equal(result.Output, append(bytes.Repeat([]byte{0}, 31), checkValue)) {
+						t.Errorf("creation returned successful but with wrong output %v", result.Output)
+					}
+					if state[addressToBeCreated].Code != nil {
+						t.Errorf("account was created with code, expected nil")
+					}
+					if state[addressToBeCreated].Nonce != 0 {
+						t.Errorf("account was created with nonce %d, expected 0", state[addressToBeCreated].Nonce)
+					}
+					if state[addressToBeCreated].Balance.Cmp(test.account.Balance) != 0 {
+						t.Errorf("account was created with balance %d, expected %d", state[addressToBeCreated].Balance, test.account.Balance)
+					}
+				} else {
+					if result.GasUsed != sufficientGas {
+						t.Errorf("execution failed but gas was not fully used, used %d", result.GasUsed)
+					}
+					if !state.Equal(originalState) {
+						t.Errorf("state was changed although execution failed, state %v", state.Diff(originalState))
+					}
 				}
 			})
 		}

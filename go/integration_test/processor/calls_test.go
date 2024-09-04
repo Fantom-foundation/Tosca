@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -390,6 +391,67 @@ func TestProcessor_RecursiveCallsAfterAStaticCallAreStatic(t *testing.T) {
 				}
 				if !slices.Equal(result.Output, bytes.Repeat([]byte{0}, 32)) {
 					t.Errorf("%s did not enforce static mode and returned %v", callName, result.Output)
+				}
+			})
+		}
+	}
+}
+
+func TestProcessor_CallingNonExistentAccountIsHandledCorrectly(t *testing.T) {
+	tests := map[string]struct {
+		account            Account
+		callValue          tosca.Value
+		accountExistsAfter bool
+	}{
+		"empty": {
+			account:            Account{},
+			callValue:          tosca.Value{},
+			accountExistsAfter: false,
+		},
+		"callWithValue": {
+			account:            Account{},
+			callValue:          tosca.NewValue(42),
+			accountExistsAfter: true,
+		},
+		"existingAccount": {
+			account:            Account{Nonce: 1},
+			callValue:          tosca.Value{},
+			accountExistsAfter: true,
+		},
+	}
+	for processorName, processor := range getProcessors() {
+		// TODO: implement in Floria
+		if strings.Contains(processorName, "floria") {
+			continue
+		}
+		for testName, test := range tests {
+			t.Run(processorName+"/"+testName, func(t *testing.T) {
+				sender := tosca.Address{1}
+				receiver := tosca.Address{2}
+
+				state := WorldState{
+					sender:   Account{Balance: tosca.NewValue(100)},
+					receiver: test.account,
+				}
+				transaction := tosca.Transaction{
+					Sender:    sender,
+					Recipient: &receiver,
+					GasLimit:  sufficientGas,
+					Value:     test.callValue,
+				}
+
+				transactionContext := newScenarioContext(state)
+
+				// Run the processor
+				result, err := processor.Run(tosca.BlockParameters{}, transaction, transactionContext)
+				if err != nil {
+					t.Errorf("execution failed with error %v", err)
+				}
+				if !result.Success {
+					t.Errorf("execution was not successful")
+				}
+				if test.accountExistsAfter != transactionContext.AccountExists(receiver) {
+					t.Errorf("account has not been created")
 				}
 			})
 		}
