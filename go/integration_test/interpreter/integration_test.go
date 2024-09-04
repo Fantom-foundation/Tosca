@@ -1109,3 +1109,24 @@ func newMockStateDBForIntegrationTests(ctrl *gomock.Controller) *MockStateDB {
 
 	return mockStateDB
 }
+
+func TestEVM_CanSuccessfullyProcessPcBiggerThanCodeLength(t *testing.T) {
+	for _, variant := range Variants {
+		revision := Istanbul
+		t.Run(variant, func(t *testing.T) {
+			// all implementations should be able to handle PC that goes beyond the code length.
+			// this is reproducible by not calling STOP, RETURN, REVERT or SELFDESTRUCT at the end of the code.
+			code := []byte{byte(vm.PUSH1), byte(32)}
+			evm := GetCleanEVM(revision, variant, nil)
+
+			// Run an interpreter
+			result, err := evm.Run(code, []byte{})
+
+			// Check the result.
+			if err != nil || !result.Success {
+				t.Errorf("execution should not fail and err should be nil, error is: %v, success %v", err, result.Success)
+			}
+		})
+
+	}
+}
