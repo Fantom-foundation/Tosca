@@ -11,7 +11,6 @@
 package lfvm
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -49,6 +48,12 @@ const (
 	WarmStorageReadCostEIP2929 tosca.Gas = 100   // Cost of reading warm storage after EIP 2929
 
 	UNKNOWN_GAS_PRICE = 999999
+)
+
+// Gas errors definitions
+const (
+	errNotEnoughGasReentrancy  = ConstError("not enough gas for reentrancy sentry")
+	errAddressNotFoundInSstore = ConstError("address was not present in access list during sstore op")
 )
 
 var static_gas_prices = [NUM_OPCODES]tosca.Gas{}
@@ -105,9 +110,13 @@ func getStaticGasPriceInternal(op OpCode) tosca.Gas {
 	if SWAP1 <= op && op <= SWAP16 {
 		return 3
 	}
+	// this range covers: LT, GT, SLT, SGT, EQ, ISZERO, AND, OR,
+	// XOR, NOT, BYTE, SHL, SHR, SAR
 	if LT <= op && op <= SAR {
 		return 3
 	}
+	// this range covers: COINBASE, TIMESTAMP, NUMBER, DIFFICULTY/PREVRANDO,
+	// 					GAS, GASLIMIT, CHAINID
 	if COINBASE <= op && op <= CHAINID {
 		return 2
 	}
@@ -329,7 +338,7 @@ func gasSStoreEIP2200(c *context) (tosca.Gas, error) {
 	// If we fail the minimum gas availability invariant, fail (0)
 	if c.gas <= SstoreSentryGasEIP2200 {
 		c.status = statusOutOfGas
-		return 0, errors.New("not enough gas for reentrancy sentry")
+		return 0, errNotEnoughGasReentrancy
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
 	var (
@@ -380,7 +389,7 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 	// If we fail the minimum gas availability invariant, fail (0)
 	if c.gas <= SstoreSentryGasEIP2200 {
 		c.status = statusOutOfGas
-		return 0, errors.New("not enough gas for reentrancy sentry")
+		return 0, errNotEnoughGasReentrancy
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
 	var (
@@ -395,7 +404,7 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 	if addrPresent, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
 		if !addrPresent {
 			c.status = statusError
-			return 0, errors.New("address was not present in access list during sstore op")
+			return 0, errAddressNotFoundInSstore
 		}
 		cost = ColdSloadCostEIP2929
 		// If the caller cannot afford the cost, this change will be rolled back
