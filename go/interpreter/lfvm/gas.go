@@ -52,8 +52,8 @@ const (
 
 // Gas errors definitions
 const (
-	errNotEnoughGasReentrancy  = ConstError("not enough gas for reentrancy sentry")
-	errAddressNotFoundInSstore = ConstError("address was not present in access list during sstore op")
+	errNotEnoughGasReentrancy  = tosca.ConstError("not enough gas for reentrancy sentry")
+	errAddressNotFoundInSstore = tosca.ConstError("address was not present in access list during sstore op")
 )
 
 var static_gas_prices = [NUM_OPCODES]tosca.Gas{}
