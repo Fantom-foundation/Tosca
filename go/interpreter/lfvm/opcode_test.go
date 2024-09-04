@@ -11,16 +11,28 @@
 package lfvm
 
 import (
+	"math"
 	"regexp"
 	"slices"
 	"testing"
 )
 
-func TestOpcode_String(t *testing.T) {
+func TestOpcode_UnnamedOpcodes(t *testing.T) {
 	validName := regexp.MustCompile(`^0x00[0-9A-Fa-f]{2}$`)
-	for i := 0; i < 256; i++ {
+	for i := 0; i < math.MaxUint16; i++ {
 		op := OpCode(i)
 		if !validName.MatchString(op.String()) && op > NUM_OPCODES {
+			t.Errorf("Invalid print for op %v (%d)", op, i)
+		}
+	}
+}
+
+func TestOpcode_NamedOpcodes(t *testing.T) {
+	validName := regexp.MustCompile(`^0x00[0-9A-Fa-f]{2}$`)
+	for i := 0; i < math.MaxUint16; i++ {
+		op := OpCode(i)
+		// NUM_EXECUTABLE_OPCODES is a special case, it does not have a string name
+		if validName.MatchString(op.String()) && op < NUM_OPCODES && op != NUM_EXECUTABLE_OPCODES {
 			t.Errorf("Invalid print for op %v (%d)", op, i)
 		}
 	}

@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 func TestVm_Run(t *testing.T) {
@@ -34,8 +35,8 @@ func TestVm_Run(t *testing.T) {
 				GasRefund: 0,
 				Output:    []byte{}},
 		},
-		"invalid code": {
-			code:     []byte{0x0C},
+		"invalid opcode": {
+			code:     []byte{byte(vm.INVALID)},
 			revision: tosca.R13_Cancun,
 			expectedResult: tosca.Result{
 				Success:   false,
