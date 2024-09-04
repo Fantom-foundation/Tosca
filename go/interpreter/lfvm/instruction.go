@@ -43,7 +43,7 @@ type InstructionStack struct {
 type Code []Instruction
 
 func (c Code) IsIndexOp(index int, op OpCode) bool {
-	return c[index].opcode == JUMP_TO
+	return c[index].opcode == op
 }
 
 func (c Code) GetArgOf(index int) uint16 {
