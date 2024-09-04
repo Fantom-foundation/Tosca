@@ -327,7 +327,7 @@ func TestConvertToLfvm_CodeWithSuperInstructions(t *testing.T) {
 }
 
 func TestConvertToLfvm_Stack(t *testing.T) {
-	newLfvmStack := func(values ...cc.U256) *Stack {
+	newLfvmStack := func(values ...cc.U256) *stack {
 		stack := NewStack()
 		for i := 0; i < len(values); i++ {
 			value := values[i].Uint256()
@@ -338,7 +338,7 @@ func TestConvertToLfvm_Stack(t *testing.T) {
 
 	tests := map[string][]struct {
 		ctStack   *st.Stack
-		lfvmStack *Stack
+		lfvmStack *stack
 	}{
 		"empty": {{
 			st.NewStack(),
@@ -364,8 +364,8 @@ func TestConvertToLfvm_Stack(t *testing.T) {
 				}
 
 				for i := 0; i < stack.len(); i++ {
-					want := cur.lfvmStack.Data()[i]
-					got := stack.Data()[i]
+					want := *cur.lfvmStack.get(i)
+					got := *stack.get(i)
 					if want != got {
 						t.Errorf("unexpected stack value, wanted %v, got %v", want, got)
 					}
@@ -414,7 +414,7 @@ func TestConvertToCt_Pc(t *testing.T) {
 }
 
 func TestConvertToCt_Stack(t *testing.T) {
-	newLfvmStack := func(values ...cc.U256) *Stack {
+	newLfvmStack := func(values ...cc.U256) *stack {
 		stack := NewStack()
 		for i := 0; i < len(values); i++ {
 			value := values[i].Uint256()
@@ -424,7 +424,7 @@ func TestConvertToCt_Stack(t *testing.T) {
 	}
 
 	tests := map[string][]struct {
-		lfvmStack *Stack
+		lfvmStack *stack
 		ctStack   *st.Stack
 	}{
 		"empty": {{
@@ -461,7 +461,7 @@ func TestConvertToCt_Stack(t *testing.T) {
 func BenchmarkLfvmStackToCtStack(b *testing.B) {
 	stack := NewStack()
 	for i := 0; i < MAX_STACK_SIZE/2; i++ {
-		stack.pushEmpty().SetUint64(uint64(i))
+		stack.pushUndefined().SetUint64(uint64(i))
 	}
 	ctStack := st.NewStack()
 	for i := 0; i < b.N; i++ {

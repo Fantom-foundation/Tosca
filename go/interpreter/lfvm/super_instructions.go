@@ -26,14 +26,14 @@ func opSwap1_Pop(c *context) {
 
 func opSwap2_Pop(c *context) {
 	a1 := c.stack.pop()
-	*c.stack.Back(1) = *a1
+	*c.stack.peekN(1) = *a1
 }
 
 func opPush1_Push1(c *context) {
 	arg := c.code[c.pc].arg
-	c.stack.stack_ptr += 2
-	c.stack.Back(0).SetUint64(uint64(arg & 0xFF))
-	c.stack.Back(1).SetUint64(uint64(arg >> 8))
+	c.stack.stackPointer += 2
+	c.stack.peekN(0).SetUint64(uint64(arg & 0xFF))
+	c.stack.peekN(1).SetUint64(uint64(arg >> 8))
 }
 
 func opPush1_Add(c *context) {
@@ -54,9 +54,9 @@ func opPush1_Shl(c *context) {
 
 func opPush1_Dup1(c *context) {
 	arg := c.code[c.pc].arg
-	c.stack.stack_ptr += 2
-	c.stack.Back(0).SetUint64(uint64(arg))
-	c.stack.Back(1).SetUint64(uint64(arg))
+	c.stack.stackPointer += 2
+	c.stack.peekN(0).SetUint64(uint64(arg))
+	c.stack.peekN(1).SetUint64(uint64(arg))
 }
 
 func opPush2_Jump(c *context) {
@@ -75,9 +75,9 @@ func opPush2_Jumpi(c *context) {
 }
 
 func opSwap2_Swap1(c *context) {
-	a1 := c.stack.Back(0)
-	a2 := c.stack.Back(1)
-	a3 := c.stack.Back(2)
+	a1 := c.stack.peekN(0)
+	a2 := c.stack.peekN(1)
+	a3 := c.stack.peekN(2)
 	*a1, *a2, *a3 = *a2, *a3, *a1
 }
 
@@ -92,8 +92,8 @@ func opDup2_Mstore(c *context) {
 }
 
 func opDup2_Lt(c *context) {
-	b := c.stack.Back(0)
-	a := c.stack.Back(1)
+	b := c.stack.peekN(0)
+	a := c.stack.peekN(1)
 	if a.Lt(b) {
 		b.SetOne()
 	} else {
@@ -102,7 +102,7 @@ func opDup2_Lt(c *context) {
 }
 
 func opPopPop(c *context) {
-	c.stack.stack_ptr -= 2
+	c.stack.stackPointer -= 2
 }
 
 func opPop_Jump(c *context) {
@@ -128,17 +128,17 @@ func opSwap2_Swap1_Pop_Jump(c *context) {
 
 func opSwap1_Pop_Swap2_Swap1(c *context) {
 	a1 := c.stack.pop()
-	a2 := c.stack.Back(0)
-	a3 := c.stack.Back(1)
-	a4 := c.stack.Back(2)
+	a2 := c.stack.peekN(0)
+	a3 := c.stack.peekN(1)
+	a4 := c.stack.peekN(2)
 	*a2, *a3, *a4 = *a3, *a4, *a1
 }
 
 func opPop_Swap2_Swap1_Pop(c *context) {
 	c.stack.pop()
 	a2 := c.stack.pop()
-	a3 := c.stack.Back(0)
-	a4 := c.stack.Back(1)
+	a3 := c.stack.peekN(0)
+	a4 := c.stack.peekN(1)
 	*a3, *a4 = *a4, *a2
 }
 
@@ -160,7 +160,7 @@ func opPush1_Push1_Push1_Shl_Sub(c *context) {
 	shift := uint8(arg2)
 	value := uint8(arg1 & 0xFF)
 	delta := uint8(arg1 >> 8)
-	trg := c.stack.pushEmpty()
+	trg := c.stack.pushUndefined()
 	trg.SetUint64(uint64(value))
 	trg.Lsh(trg, uint(shift))
 	trg.Sub(trg, uint256.NewInt(uint64(delta)))

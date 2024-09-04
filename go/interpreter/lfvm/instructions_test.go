@@ -225,7 +225,7 @@ func TestCallChecksBalances(t *testing.T) {
 	}
 
 	// Prepare stack arguments.
-	ctxt.stack.stack_ptr = 7
+	ctxt.stack.stackPointer = 7
 	ctxt.stack.data[4].Set(uint256.NewInt(1)) // < the value to be transferred
 	ctxt.stack.data[5].SetBytes(target[:])    // < the target address for the call
 
@@ -265,7 +265,7 @@ func TestCreateChecksBalance(t *testing.T) {
 	}
 
 	// Prepare stack arguments.
-	ctxt.stack.stack_ptr = 3
+	ctxt.stack.stackPointer = 3
 	ctxt.stack.data[2].Set(uint256.NewInt(1)) // < the value to be transferred
 
 	// The source account should have enough funds.
@@ -351,14 +351,14 @@ func TestBlobHash(t *testing.T) {
 	hash := tosca.Hash{1}
 
 	tests := map[string]struct {
-		setup    func(*tosca.Parameters, *Stack)
+		setup    func(*tosca.Parameters, *stack)
 		gas      tosca.Gas
 		revision tosca.Revision
 		status   status
 		want     tosca.Hash
 	}{
 		"regular": {
-			setup: func(params *tosca.Parameters, stack *Stack) {
+			setup: func(params *tosca.Parameters, stack *stack) {
 				stack.push(uint256.NewInt(0))
 				params.BlobHashes = []tosca.Hash{hash}
 			},
@@ -368,14 +368,14 @@ func TestBlobHash(t *testing.T) {
 			want:     hash,
 		},
 		"old-revision": {
-			setup:    func(params *tosca.Parameters, stack *Stack) {},
+			setup:    func(params *tosca.Parameters, stack *stack) {},
 			gas:      2,
 			revision: tosca.R12_Shanghai,
 			status:   statusInvalidInstruction,
 			want:     tosca.Hash{},
 		},
 		"no-hashes": {
-			setup: func(params *tosca.Parameters, stack *Stack) {
+			setup: func(params *tosca.Parameters, stack *stack) {
 				stack.push(uint256.NewInt(0))
 			},
 			gas:      2,
@@ -384,7 +384,7 @@ func TestBlobHash(t *testing.T) {
 			want:     tosca.Hash{},
 		},
 		"target-non-existent": {
-			setup: func(params *tosca.Parameters, stack *Stack) {
+			setup: func(params *tosca.Parameters, stack *stack) {
 				stack.push(uint256.NewInt(1))
 			},
 			gas:      2,
@@ -646,7 +646,7 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 			}
 
 			// Prepare stack arguments.
-			ctxt.stack.stack_ptr = 3
+			ctxt.stack.stackPointer = 3
 			ctxt.stack.data[0].Set(uint256.NewInt(test.init_code_size))
 
 			if test.expected == statusRunning {
@@ -714,7 +714,7 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 		}
 
 		// Prepare stack arguments.
-		ctxt.stack.stack_ptr = 3
+		ctxt.stack.stackPointer = 3
 		ctxt.stack.data[0].Set(uint256.NewInt(test.initCodeSize))
 
 		runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil)
@@ -789,7 +789,7 @@ func TestTransientStorageOperations(t *testing.T) {
 			runContext := tosca.NewMockRunContext(ctrl)
 			test.setup(runContext)
 			ctxt.context = runContext
-			ctxt.stack.stack_ptr = test.stackPtr
+			ctxt.stack.stackPointer = test.stackPtr
 
 			test.op(&ctxt)
 
@@ -862,7 +862,7 @@ func TestExpansionCostOverflow(t *testing.T) {
 						context: runContext,
 						gas:     12884901899,
 					}
-					ctxt.stack.stack_ptr = test.stackSize
+					ctxt.stack.stackPointer = test.stackSize
 					ctxt.stack.data[memIndex].Set(uint256.NewInt(memValue))
 					for i := range test.memIndexes {
 						if i != memIndex {

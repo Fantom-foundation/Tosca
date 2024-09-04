@@ -46,7 +46,7 @@ type context struct {
 	pc     int32
 	gas    tosca.Gas
 	refund tosca.Gas
-	stack  *Stack
+	stack  *stack
 	memory *Memory
 
 	// Intermediate data
@@ -266,7 +266,7 @@ func steps(c *context, oneStepOnly bool) {
 		// for a call operation is the value. Transferring value from one
 		// account to the others means the state is modified and should also
 		// return with an error.
-		if c.params.Static && (isWriteInstruction(op) || (op == CALL && c.stack.Back(2).Sign() != 0)) {
+		if c.params.Static && (isWriteInstruction(op) || (op == CALL && c.stack.peekN(2).Sign() != 0)) {
 			c.signalError()
 			return
 		}
