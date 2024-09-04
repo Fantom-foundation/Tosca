@@ -26,7 +26,7 @@ type statisticRunner struct {
 
 func (s *statisticRunner) run(c *context) {
 	stats := statsCollector{stats: newStatistics()}
-	for c.status == StatusRunning {
+	for c.IsRunning() {
 		stats.nextOp(c.code[c.pc].opcode)
 		Step(c)
 	}

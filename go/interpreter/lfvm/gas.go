@@ -328,7 +328,7 @@ func gasSStore(c *context) (tosca.Gas, error) {
 func gasSStoreEIP2200(c *context) (tosca.Gas, error) {
 	// If we fail the minimum gas availability invariant, fail (0)
 	if c.gas <= SstoreSentryGasEIP2200 {
-		c.status = StatusOutOfGas
+		c.SignalOutOfGas()
 		return 0, errors.New("not enough gas for reentrancy sentry")
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
@@ -379,7 +379,7 @@ func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
 
 	// If we fail the minimum gas availability invariant, fail (0)
 	if c.gas <= SstoreSentryGasEIP2200 {
-		c.status = StatusOutOfGas
+		c.SignalOutOfGas()
 		return 0, errors.New("not enough gas for reentrancy sentry")
 	}
 	// Gas sentry honoured, do the actual gas calculation based on the stored value

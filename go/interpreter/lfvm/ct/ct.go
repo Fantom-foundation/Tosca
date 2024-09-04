@@ -20,7 +20,6 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	lru "github.com/hashicorp/golang-lru/v2"
-	"github.com/holiman/uint256"
 )
 
 func NewConformanceTestingTarget() ct.Evm {
@@ -68,20 +67,20 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		return nil, err
 	}
 
+	ctxtParams := lfvm.ContextParams{
+		Params:       params,
+		Code:         converted,
+		Status:       lfvm.StatusRunning,
+		Pc:           int32(pcMap.evmToLfvm[state.Pc]),
+		Refund:       state.GasRefund,
+		Stack:        convertCtStackToLfvmStack(state.Stack),
+		Memory:       memory,
+		ReturnData:   state.LastCallReturnData.ToBytes(),
+		WithShaCache: false,
+	}
+
 	// Set up execution context.
-	var ctxt = lfvm.NewContext(
-		params,         // params
-		params.Context, //context
-		converted,      // code
-		lfvm.StatusRunning,
-		int32(pcMap.evmToLfvm[state.Pc]),       // pc:
-		params.Gas,                             // gas
-		tosca.Gas(state.GasRefund),             // refund
-		convertCtStackToLfvmStack(state.Stack), // stack
-		memory,
-		state.LastCallReturnData.ToBytes(), // returnData
-		*uint256.NewInt(0), *uint256.NewInt(0), false,
-	)
+	var ctxt = lfvm.NewContext(ctxtParams)
 
 	defer func() {
 		lfvm.ReturnStack(ctxt)
@@ -94,7 +93,7 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	result, err := lfvm.GetOutput(ctxt)
 	if err != nil {
-		ctxt.SignalOutofGas()
+		ctxt.SignalOutOfGas()
 	}
 
 	// Update the resulting state.

@@ -64,6 +64,8 @@ override:
   - threshold: 0
     path: go/interpreter/lfvm/lfvm.go
   - threshold: 0
+    path: go/interpreter/lfvm/memory.go
+  - threshold: 0
     path: go/interpreter/lfvm/opcode.go
   - threshold: 0
     path: go/interpreter/lfvm/super_instructions.go
@@ -93,7 +95,7 @@ override:
     path: go/integration_test/processor
   - threshold: 0
     path: go/interpreter/evmc
-  - threshold: 73
+  - threshold: 77
     path: go/interpreter/lfvm
   - threshold: 0
     path: go/processor/floria

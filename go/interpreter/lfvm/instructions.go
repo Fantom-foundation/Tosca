@@ -365,7 +365,7 @@ func opCallDataCopy(c *context) {
 
 	length64, overflow := length.Uint64WithOverflow()
 	if overflow || length64+31 < length64 {
-		c.status = StatusOutOfGas
+		c.SignalOutOfGas()
 		return
 	}
 
@@ -826,7 +826,7 @@ func checkInitCodeSize(c *context, size *uint256.Int) bool {
 		return false
 	}
 	if !c.useGas(tosca.Gas(InitCodeWordGas * tosca.SizeInWords(size.Uint64()))) {
-		c.status = StatusOutOfGas
+		c.SignalOutOfGas()
 		return false
 	}
 
@@ -1084,7 +1084,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		return 0 <= cost && cost <= c.gas
 	}
 	if !checkGas(baseGas) {
-		c.status = StatusOutOfGas
+		c.SignalOutOfGas()
 		return
 	}
 
@@ -1094,7 +1094,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		baseGas += CallValueTransferGas
 	}
 	if !checkGas(baseGas) {
-		c.status = StatusOutOfGas
+		c.SignalOutOfGas()
 		return
 	}
 
@@ -1104,7 +1104,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		baseGas += CallNewAccountGas
 	}
 	if !checkGas(baseGas) {
-		c.status = StatusOutOfGas
+		c.SignalOutOfGas()
 		return
 	}
 

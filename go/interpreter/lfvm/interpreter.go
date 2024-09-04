@@ -60,26 +60,34 @@ type context struct {
 	withShaCache bool
 }
 
+// ContextParams contains the parameters required to create a new execution
+type ContextParams struct {
+	Params       tosca.Parameters
+	Code         Code
+	Status       Status
+	Pc           int32
+	Refund       tosca.Gas
+	Stack        *Stack
+	Memory       *Memory
+	ReturnData   []byte
+	WithShaCache bool
+}
+
 // NewContext creates a new execution context for the given contract code and
 // input parameters.
-func NewContext(params tosca.Parameters, ctx tosca.RunContext, code Code,
-	status Status, pc int32, gas tosca.Gas, refund tosca.Gas, stack *Stack,
-	memory *Memory, returnData []byte, resultOffset, resultSize uint256.Int,
-	withShaCache bool) *context {
+func NewContext(params ContextParams) *context {
 	return &context{
-		params:       params,
-		context:      ctx,
-		code:         code,
-		status:       status,
-		pc:           pc,
-		gas:          gas,
-		refund:       refund,
-		stack:        stack,
-		memory:       memory,
-		returnData:   returnData,
-		resultOffset: resultOffset,
-		resultSize:   resultSize,
-		withShaCache: withShaCache,
+		params:       params.Params,
+		context:      params.Params.Context,
+		code:         params.Code,
+		status:       params.Status,
+		pc:           params.Pc,
+		gas:          params.Params.Gas,
+		refund:       params.Refund,
+		stack:        params.Stack,
+		memory:       params.Memory,
+		returnData:   params.ReturnData,
+		withShaCache: params.WithShaCache,
 	}
 }
 
@@ -121,7 +129,7 @@ func (c *context) IsRunning() bool {
 // false otherwise.
 func (c *context) useGas(amount tosca.Gas) bool {
 	if c.gas < 0 || amount < 0 || c.gas < amount {
-		c.status = StatusOutOfGas
+		c.SignalOutOfGas()
 		c.gas = 0
 		return false
 	}
@@ -135,7 +143,7 @@ func (c *context) signalError() {
 	c.status = StatusError
 }
 
-func (c *context) SignalOutofGas() {
+func (c *context) SignalOutOfGas() {
 	c.status = StatusOutOfGas
 }
 
@@ -272,7 +280,7 @@ func (r vanillaRunner) run(c *context) {
 type loggingRunner struct{}
 
 func (r loggingRunner) run(c *context) {
-	for c.status == StatusRunning {
+	for c.IsRunning() {
 		// log format: <op>, <gas>, <top-of-stack>\n
 		if int(c.pc) < len(c.code) {
 			top := "-empty-"
@@ -294,7 +302,7 @@ func Step(c *context) {
 func steps(c *context, oneStepOnly bool) {
 	// Idea: handle static gas price in static dispatch below (saves an array lookup)
 	staticGasPrices := getStaticGasPrices(c.params.Revision)
-	for c.status == StatusRunning {
+	for c.IsRunning() {
 		if int(c.pc) >= len(c.code) {
 			opStop(c)
 			return
