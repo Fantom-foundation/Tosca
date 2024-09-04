@@ -13,6 +13,7 @@ package lfvm
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/holiman/uint256"
@@ -168,15 +169,15 @@ func (m *Memory) Set(offset, size uint64, value []byte) error {
 			return errGasUintOverflow
 		}
 		if offset+size > m.Len() {
-			return errSetMemTooSmall(m.Len(), size, offset)
+			return errInsufficientMemory(m.Len(), size, offset)
 		}
 		copy(m.store[offset:offset+size], value)
 	}
 	return nil
 }
 
-func errSetMemTooSmall(memSize, size, offset uint64) error {
-	return ConstError(fmt.Sprintf("memory too small, size %d, attempted to write %d bytes at %d", memSize, size, offset))
+func errInsufficientMemory(memSize, size, offset uint64) error {
+	return tosca.ConstError(fmt.Sprintf("memory too small, size %d, attempted to write %d bytes at %d", memSize, size, offset))
 }
 
 func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c *context) error {
@@ -246,19 +247,21 @@ func (m *Memory) Data() []byte {
 	return m.store
 }
 
-func (m *Memory) Print() {
-	fmt.Printf("### mem %d bytes ###\n", len(m.store))
+func (m *Memory) Print() string {
+	returnString := strings.Builder{}
+	returnString.WriteString(fmt.Sprintf("### mem %d bytes ###\n", len(m.store)))
 	if len(m.store) > 0 {
 		addr := 0
 		for i := 0; i+32 <= len(m.store); i += 32 {
-			fmt.Printf("%03d: % x\n", addr, m.store[i:i+32])
+			returnString.WriteString(fmt.Sprintf("%03d: % x\n", addr, m.store[i:i+32]))
 			addr++
 		}
 		if len(m.store)%32 != 0 {
-			fmt.Printf("%03d: % x\n", addr, m.store[len(m.store)/32*32:])
+			returnString.WriteString(fmt.Sprintf("%03d: % x\n", addr, m.store[len(m.store)/32*32:]))
 		}
 	} else {
-		fmt.Println("-- empty --")
+		returnString.WriteString("-- empty --\n")
 	}
-	fmt.Println("####################")
+	returnString.WriteString("####################\n")
+	return returnString.String()
 }
