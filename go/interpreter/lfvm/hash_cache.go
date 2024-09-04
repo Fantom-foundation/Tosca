@@ -16,18 +16,18 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
-// Sha3HashCache is an LRU governed fixed-capacity cache for SHA3 hashes.
+// sha3HashCache is an LRU governed fixed-capacity cache for SHA3 hashes.
 // The cache maintains hashes for hashed input data of size 32 and 64,
 // which are the vast majority of values hashed when running EVM
 // instructions. Inputs of other sizes are hashed on demand without caching.
-type Sha3HashCache struct {
+type sha3HashCache struct {
 	cache32 *hashCache[[32]byte]
 	cache64 *hashCache[[64]byte]
 }
 
 // newSha3HashCache creates a Sha3HashCache with the given capacity of entries.
-func newSha3HashCache(capacity32 int, capacity64 int) *Sha3HashCache {
-	return &Sha3HashCache{
+func newSha3HashCache(capacity32 int, capacity64 int) *sha3HashCache {
+	return &sha3HashCache{
 		cache32: newHashCache(capacity32, func(key [32]byte) tosca.Hash {
 			return Keccak256For32byte(key)
 		}),
@@ -38,7 +38,7 @@ func newSha3HashCache(capacity32 int, capacity64 int) *Sha3HashCache {
 }
 
 // hash fetches a cached hash or computes the hash for the provided data.
-func (h *Sha3HashCache) hash(data []byte) tosca.Hash {
+func (h *sha3HashCache) hash(data []byte) tosca.Hash {
 	if len(data) == 32 {
 		var key [32]byte
 		copy(key[:], data)

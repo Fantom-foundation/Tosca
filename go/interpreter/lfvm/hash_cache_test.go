@@ -77,6 +77,10 @@ func TestHashCache_HashesAreCached(t *testing.T) {
 	hash1 := cache.getHash(1)
 	hash2 := cache.getHash(2)
 
+	if hash1 == hash2 {
+		t.Fatalf("expected different hashes for different inputs")
+	}
+
 	if want, got := hash1, cache.getHash(1); want != got {
 		t.Errorf("expected hash to be %v, but got %v", want, got)
 	}
@@ -313,7 +317,7 @@ func benchmarkSha3HashCache(b *testing.B, inputSize int, mutateInput bool) {
 	}
 }
 
-func BenchmarkHashCache_Hits(b *testing.B) {
+func BenchmarkSha3HashCache_Hits(b *testing.B) {
 	for _, size := range []int{16, 32, 64, 128} {
 		b.Run(fmt.Sprintf("size=%d", size), func(b *testing.B) {
 			benchmarkSha3HashCache(b, size, false)
@@ -321,7 +325,7 @@ func BenchmarkHashCache_Hits(b *testing.B) {
 	}
 }
 
-func BenchmarkHashCache_Miss(b *testing.B) {
+func BenchmarkSha3HashCache_Miss(b *testing.B) {
 	for _, size := range []int{16, 32, 64, 128} {
 		b.Run(fmt.Sprintf("size=%d", size), func(b *testing.B) {
 			benchmarkSha3HashCache(b, size, true)
