@@ -549,6 +549,97 @@ func TestProcessor_CreateExistingAccountFails(t *testing.T) {
 	}
 }
 
+func TestProcessor_CodeStartingWith0xEFCanNotBeCreated(t *testing.T) {
+	tests := map[string]struct {
+		revision         tosca.Revision
+		firstInstruction byte
+		success          bool
+	}{
+		"preLondon0xEF": {
+			revision:         tosca.R09_Berlin,
+			firstInstruction: byte(0xEF),
+			success:          true,
+		},
+		"london0xEF": {
+			revision:         tosca.R10_London,
+			firstInstruction: byte(0xEF),
+			success:          false,
+		},
+		"postLondon0xEF": {
+			revision:         tosca.R13_Cancun,
+			firstInstruction: byte(0xEF),
+			success:          false,
+		},
+		"preLondonNo0xEF": {
+			revision:         tosca.R09_Berlin,
+			firstInstruction: byte(vm.STOP),
+			success:          true,
+		},
+		"londonNo0xEF": {
+			revision:         tosca.R10_London,
+			firstInstruction: byte(vm.STOP),
+			success:          true,
+		},
+		"postLondonNo0xEF": {
+			revision:         tosca.R13_Cancun,
+			firstInstruction: byte(vm.STOP),
+			success:          true,
+		},
+	}
+
+	for processorName, processor := range getProcessors() {
+		for testName, test := range tests {
+			t.Run(processorName+"/"+testName, func(t *testing.T) {
+				sender := tosca.Address{1}
+				addressToBeCreated := tosca.Address(crypto.CreateAddress(common.Address(sender), 0))
+
+				initCode := []byte{
+					byte(vm.PUSH1), test.firstInstruction,
+					byte(vm.PUSH1), byte(0),
+					byte(vm.MSTORE8),
+					byte(vm.PUSH1), byte(32),
+					byte(vm.PUSH1), byte(0),
+					byte(vm.RETURN),
+				}
+				state := WorldState{
+					sender: Account{},
+				}
+				transaction := tosca.Transaction{
+					Sender:    sender,
+					Recipient: nil,
+					GasLimit:  sufficientGas,
+					Input:     initCode,
+				}
+
+				blockParameters := tosca.BlockParameters{Revision: test.revision}
+				transactionContext := newScenarioContext(state)
+
+				// Run the processor
+				result, err := processor.Run(blockParameters, transaction, transactionContext)
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if result.Success != test.success {
+					t.Errorf("execution success was %v, expected %v", result.Success, test.success)
+				}
+				if test.success {
+					if len(transactionContext.GetCode(addressToBeCreated)) == 0 {
+						t.Errorf("Code has not been set correctly")
+					}
+				} else {
+					if code := transactionContext.GetCode(addressToBeCreated); len(code) != 0 {
+						t.Errorf("Code should have not been set but returned %v", code)
+					}
+					if result.GasUsed != sufficientGas {
+						t.Errorf("execution failed but gas was not fully used, used %d", result.GasUsed)
+					}
+
+				}
+			})
+		}
+	}
+}
+
 func saveCodeFromAccountToMemory(account tosca.Address, length byte, offset byte) []byte {
 	addressPush := vm.PUSH1 + vm.OpCode(len(tosca.Address{0})-1)
 	code := []byte{}
