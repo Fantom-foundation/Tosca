@@ -167,13 +167,6 @@ type OpcodeTest struct {
 	gasRefund   tosca.Gas
 }
 
-func getInstructions(start OpCode, end OpCode) (opCodes []OpCode) {
-	for i := start; i <= end; i++ {
-		opCodes = append(opCodes, OpCode(i))
-	}
-	return
-}
-
 func getInstructionsWithGas(start OpCode, end OpCode, gas tosca.Gas) (opCodes []OpCodeWithGas) {
 	for i := start; i <= end; i++ {
 		opCode := OpCodeWithGas{OpCode(i), gas}
@@ -182,124 +175,59 @@ func getInstructionsWithGas(start OpCode, end OpCode, gas tosca.Gas) (opCodes []
 	return
 }
 
-var fullStackFailOpCodes = []OpCode{
-	MSIZE, ADDRESS, ORIGIN, CALLER, CALLVALUE, CALLDATASIZE,
-	CODESIZE, GASPRICE, COINBASE, TIMESTAMP, NUMBER,
-	PREVRANDAO, GASLIMIT, PC, GAS, RETURNDATASIZE,
-	SELFBALANCE, CHAINID, BASEFEE, BLOBBASEFEE,
-	PUSH0, PUSH1_PUSH1_PUSH1_SHL_SUB,
-	PUSH1_DUP1, PUSH1_PUSH1, PUSH1_PUSH4_DUP3,
-}
-
-var emptyStackFailOpCodes = []OpCode{
-	POP, ADD, SUB, MUL, DIV, SDIV, MOD, SMOD, EXP, SIGNEXTEND,
-	SHA3, LT, GT, SLT, SGT, EQ, AND, XOR, OR, BYTE,
-	SHL, SHR, SAR, ADDMOD, MULMOD, ISZERO, NOT, BALANCE, CALLDATALOAD, EXTCODESIZE,
-	BLOCKHASH, MCOPY, MLOAD, SLOAD, EXTCODEHASH, JUMP, SELFDESTRUCT, BLOBHASH,
-	MSTORE, MSTORE8, SSTORE, TLOAD, TSTORE, JUMPI, RETURN, REVERT,
-	CALLDATACOPY, CODECOPY, RETURNDATACOPY,
-	EXTCODECOPY, CREATE, CREATE2, CALL, CALLCODE,
-	STATICCALL, DELEGATECALL, POP_POP, POP_JUMP,
-	SWAP2_POP, PUSH1_ADD, PUSH1_SHL, SWAP2_SWAP1_POP_JUMP,
-	PUSH2_JUMPI, ISZERO_PUSH2_JUMPI, SWAP2_SWAP1,
-	DUP2_LT, SWAP1_POP_SWAP2_SWAP1, POP_SWAP2_SWAP1_POP,
-	AND_SWAP1_POP_SWAP2_SWAP1, SWAP1_POP, DUP2_MSTORE,
-}
-
-func addFullStackFailOpCodes(tests []OpcodeTest) []OpcodeTest {
-	var addedTests []OpcodeTest
-	addedTests = append(addedTests, tests...)
-	var opCodes []OpCode
-	opCodes = append(opCodes, fullStackFailOpCodes...)
-	opCodes = append(opCodes, getInstructions(PUSH1, PUSH32)...)
-	opCodes = append(opCodes, getInstructions(DUP1, DUP16)...)
-	for _, opCode := range opCodes {
-		addedTests = append(addedTests, OpcodeTest{opCode.String(), []Instruction{{opCode, 1}}, MAX_STACK_SIZE, 0, statusError, false, false, nil, GAS_START, 0, 0})
-	}
-	return addedTests
-}
-
-func addEmptyStackFailOpCodes(tests []OpcodeTest) []OpcodeTest {
-	var addedTests []OpcodeTest
-	addedTests = append(addedTests, tests...)
-	var opCodes []OpCode
-	opCodes = append(opCodes, emptyStackFailOpCodes...)
-	opCodes = append(opCodes, getInstructions(DUP1, DUP16)...)
-	opCodes = append(opCodes, getInstructions(SWAP1, SWAP16)...)
-	opCodes = append(opCodes, getInstructions(LOG0, LOG4)...)
-	for _, opCode := range opCodes {
-		addedTests = append(addedTests, OpcodeTest{opCode.String(), []Instruction{{opCode, 1}}, 0, 0, statusError, false, false, nil, GAS_START, 0, 0})
-	}
-	return addedTests
-}
-func TestContainsAllMaxStackBoundryInstructions(t *testing.T) {
-	set := make(map[OpCode]bool)
-	fullStackFailOpcodes := addFullStackFailOpCodes(nil)
-	for _, op := range fullStackFailOpcodes {
-		set[op.code[0].opcode] = true
-	}
-	for op := OpCode(0); op < NUM_OPCODES; op++ {
-		insStack := getStaticStackInternal(op)
-		if _, exists := set[op]; exists != (MAX_STACK_SIZE-insStack.stackMax > 0) {
-			t.Errorf("OpCode %v adding %v to stack, is not contained in FullStackFailOpCodes", op.String(), MAX_STACK_SIZE-insStack.stackMax)
-		}
-	}
-}
-
-func TestContainsAllMinStackBoundryInstructions(t *testing.T) {
-	set := make(map[OpCode]bool)
-	emptyStackFailOpcodes := addEmptyStackFailOpCodes(nil)
-	for _, op := range emptyStackFailOpcodes {
-		set[op.code[0].opcode] = true
-	}
-	for op := OpCode(0); op < NUM_OPCODES; op++ {
-		insStack := getStaticStackInternal(op)
-		if _, exists := set[op]; exists != (insStack.stackMin > 0) {
-			t.Errorf("OpCode %v with minimum stack size of %v values, is not contained in EmptyStackFailOpcodes", op.String(), insStack.stackMin)
-		}
-	}
-}
-
-func TestStackMinBoundry(t *testing.T) {
-
+func TestInterpreter_step_DetectsLowerStackLimitViolation(t *testing.T) {
 	// Add tests for execution
-	for _, test := range addEmptyStackFailOpCodes(nil) {
+	for op := OpCode(0); op < NUM_EXECUTABLE_OPCODES; op++ {
+		// Ignore operations that do not need any data on the stack.
+		usage, err := computeStackUsage(op)
+		if err != nil {
+			t.Fatalf("failed to obtain stack limit: %v", err)
+		}
+		if usage.from >= 0 {
+			continue
+		}
 
 		// Create execution context.
 		ctxt := getEmptyContext()
-		ctxt.code = test.code
-		ctxt.stack.stackPointer = test.stackPtrPos
+		ctxt.code = []Instruction{{op, 0}}
 
 		// Run testing code
-		vanillaRunner{}.run(&ctxt)
+		step(&ctxt)
 
 		// Check the result.
-		if ctxt.status != test.endStatus {
-			t.Errorf("execution failed %v: status is %v, wanted %v", test.name, ctxt.status, test.endStatus)
-		} else {
-			t.Log("Success", test.name)
+		if ctxt.status != statusError {
+			t.Errorf("expected stack-underflow for %v to be detected, got %v", op, ctxt.status)
 		}
 	}
 }
 
-func TestStackMaxBoundry(t *testing.T) {
-
+func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 	// Add tests for execution
-	for _, test := range addFullStackFailOpCodes(nil) {
+	for op := OpCode(0); op < NUM_EXECUTABLE_OPCODES; op++ {
+		// Ignore operations that do not need any data on the stack.
+		usage, err := computeStackUsage(op)
+		if err != nil {
+			t.Fatalf("failed to obtain stack limit: %v", err)
+		}
+		if usage.to <= 0 {
+			continue
+		}
 
 		// Create execution context.
 		ctxt := getEmptyContext()
-		ctxt.code = test.code
-		ctxt.stack.stackPointer = test.stackPtrPos
+		ctxt.code = make([]Instruction, 16)
+		for i := range ctxt.code {
+			ctxt.code[i] = Instruction{DATA, 0}
+		}
+		ctxt.code[0] = Instruction{op, 0}
+		ctxt.stack.stackPointer = maxStackSize
 
 		// Run testing code
-		vanillaRunner{}.run(&ctxt)
+		step(&ctxt)
 
 		// Check the result.
-		if ctxt.status != test.endStatus {
-			t.Errorf("execution failed %v: status is %v, wanted %v", test.name, ctxt.status, test.endStatus)
-		} else {
-			t.Log("Success", test.name)
+		if ctxt.status != statusError {
+			t.Errorf("expected stack-overflow for %v to be detected, got %v", op, ctxt.status)
 		}
 	}
 }
@@ -940,4 +868,13 @@ func toWord(value byte) tosca.Word {
 	res := tosca.Word{}
 	res[len(res)-1] = value
 	return res
+}
+
+func BenchmarkSatisfiesStackRequirements(b *testing.B) {
+	context := &context{
+		stack: NewStack(),
+	}
+	for i := 0; i < b.N; i++ {
+		satisfiesStackRequirements(context, OpCode(i%int(NUM_EXECUTABLE_OPCODES)))
+	}
 }
