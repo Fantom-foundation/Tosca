@@ -12,7 +12,6 @@ package vm
 
 import (
 	"fmt"
-	"strings"
 )
 
 type OpCode byte
@@ -175,17 +174,6 @@ func (op OpCode) Width() int {
 	} else {
 		return 1
 	}
-}
-
-// IsValid determines whether the given OpCode is a valid operation
-// for any revision.
-func IsValid(op OpCode) bool {
-	if op == INVALID {
-		return false
-	}
-	// We use the fact that all valid instructions have a non-generic
-	// print output.
-	return !strings.HasPrefix(op.String(), "op(")
 }
 
 // OpCodesNoPush returns a slice of valid op codes, but no PUSH instruction.
@@ -506,4 +494,165 @@ func (op OpCode) String() string {
 	default:
 		return fmt.Sprintf("op(0x%02X)", byte(op))
 	}
+}
+
+// IsValid determines whether the given OpCode is a valid operation
+// for any revision.
+func IsValid(op OpCode) bool {
+	return validOpCodes[op]
+}
+
+var validOpCodes = initValidOpCodes()
+
+func initValidOpCodes() [256]bool {
+	res := [256]bool{}
+	res[STOP] = true
+	res[ADD] = true
+	res[MUL] = true
+	res[SUB] = true
+	res[DIV] = true
+	res[SDIV] = true
+	res[MOD] = true
+	res[SMOD] = true
+	res[ADDMOD] = true
+	res[MULMOD] = true
+	res[EXP] = true
+	res[SIGNEXTEND] = true
+	res[LT] = true
+	res[GT] = true
+	res[SLT] = true
+	res[SGT] = true
+	res[EQ] = true
+	res[ISZERO] = true
+	res[AND] = true
+	res[OR] = true
+	res[XOR] = true
+	res[NOT] = true
+	res[BYTE] = true
+	res[SHL] = true
+	res[SHR] = true
+	res[SAR] = true
+	res[SHA3] = true
+	res[ADDRESS] = true
+	res[BALANCE] = true
+	res[ORIGIN] = true
+	res[CALLER] = true
+	res[CALLVALUE] = true
+	res[CALLDATALOAD] = true
+	res[CALLDATASIZE] = true
+	res[CALLDATACOPY] = true
+	res[CODESIZE] = true
+	res[CODECOPY] = true
+	res[GASPRICE] = true
+	res[EXTCODESIZE] = true
+	res[EXTCODECOPY] = true
+	res[RETURNDATASIZE] = true
+	res[RETURNDATACOPY] = true
+	res[EXTCODEHASH] = true
+	res[BLOCKHASH] = true
+	res[COINBASE] = true
+	res[TIMESTAMP] = true
+	res[NUMBER] = true
+	res[PREVRANDAO] = true
+	res[GASLIMIT] = true
+	res[CHAINID] = true
+	res[SELFBALANCE] = true
+	res[BASEFEE] = true
+	res[BLOBHASH] = true
+	res[BLOBBASEFEE] = true
+	res[POP] = true
+	res[MLOAD] = true
+	res[MSTORE] = true
+	res[MSTORE8] = true
+	res[SLOAD] = true
+	res[SSTORE] = true
+	res[JUMP] = true
+	res[JUMPI] = true
+	res[PC] = true
+	res[MSIZE] = true
+	res[GAS] = true
+	res[JUMPDEST] = true
+	res[TLOAD] = true
+	res[TSTORE] = true
+	res[PUSH0] = true
+	res[MCOPY] = true
+	res[PUSH1] = true
+	res[PUSH2] = true
+	res[PUSH3] = true
+	res[PUSH4] = true
+	res[PUSH5] = true
+	res[PUSH6] = true
+	res[PUSH7] = true
+	res[PUSH8] = true
+	res[PUSH9] = true
+	res[PUSH10] = true
+	res[PUSH11] = true
+	res[PUSH12] = true
+	res[PUSH13] = true
+	res[PUSH14] = true
+	res[PUSH15] = true
+	res[PUSH16] = true
+	res[PUSH17] = true
+	res[PUSH18] = true
+	res[PUSH19] = true
+	res[PUSH20] = true
+	res[PUSH21] = true
+	res[PUSH22] = true
+	res[PUSH23] = true
+	res[PUSH24] = true
+	res[PUSH25] = true
+	res[PUSH26] = true
+	res[PUSH27] = true
+	res[PUSH28] = true
+	res[PUSH29] = true
+	res[PUSH30] = true
+	res[PUSH31] = true
+	res[PUSH32] = true
+	res[DUP1] = true
+	res[DUP2] = true
+	res[DUP3] = true
+	res[DUP4] = true
+	res[DUP5] = true
+	res[DUP6] = true
+	res[DUP7] = true
+	res[DUP8] = true
+	res[DUP9] = true
+	res[DUP10] = true
+	res[DUP11] = true
+	res[DUP12] = true
+	res[DUP13] = true
+	res[DUP14] = true
+	res[DUP15] = true
+	res[DUP16] = true
+	res[SWAP1] = true
+	res[SWAP2] = true
+	res[SWAP3] = true
+	res[SWAP4] = true
+	res[SWAP5] = true
+	res[SWAP6] = true
+	res[SWAP7] = true
+	res[SWAP8] = true
+	res[SWAP9] = true
+	res[SWAP10] = true
+	res[SWAP11] = true
+	res[SWAP12] = true
+	res[SWAP13] = true
+	res[SWAP14] = true
+	res[SWAP15] = true
+	res[SWAP16] = true
+	res[LOG0] = true
+	res[LOG1] = true
+	res[LOG2] = true
+	res[LOG3] = true
+	res[LOG4] = true
+	res[CREATE] = true
+	res[CALL] = true
+	res[CALLCODE] = true
+	res[RETURN] = true
+	res[DELEGATECALL] = true
+	res[CREATE2] = true
+	res[STATICCALL] = true
+	res[REVERT] = true
+	res[SELFDESTRUCT] = true
+	return res
 }
