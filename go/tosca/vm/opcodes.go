@@ -499,10 +499,10 @@ func (op OpCode) String() string {
 // IsValid determines whether the given OpCode is a valid operation
 // for any revision.
 func IsValid(op OpCode) bool {
-	return validOpCodes[op]
+	return _validOpCodes[op]
 }
 
-var validOpCodes = initValidOpCodes()
+var _validOpCodes = initValidOpCodes()
 
 func initValidOpCodes() [256]bool {
 	res := [256]bool{}
