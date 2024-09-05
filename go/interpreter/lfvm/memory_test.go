@@ -248,7 +248,7 @@ func TestMemory_SetWord_ReportsNotEnoughGas(t *testing.T) {
 			gas:    6,
 			offset: 24,
 			expectedData: append(
-				append([]byte{23: 0x1, 0x02, 4: 0x1}, testValue...),
+				append([]byte{23: 0x0}, testValue...),
 				[]byte{7: 0x0}...)},
 		"offset same as memory size": {
 			memory:       testValue,
@@ -327,7 +327,7 @@ func TestMemory_Set_ErrorCases(t *testing.T) {
 		"not enough memory": {
 			size:     32,
 			offset:   32,
-			expected: errInsufficientMemory(8, 32, 32),
+			expected: makeInsufficientMemoryError(8, 32, 32),
 		},
 	}
 

@@ -169,14 +169,14 @@ func (m *Memory) Set(offset, size uint64, value []byte) error {
 			return errGasUintOverflow
 		}
 		if offset+size > m.Len() {
-			return errInsufficientMemory(m.Len(), size, offset)
+			return makeInsufficientMemoryError(m.Len(), size, offset)
 		}
 		copy(m.store[offset:offset+size], value)
 	}
 	return nil
 }
 
-func errInsufficientMemory(memSize, size, offset uint64) error {
+func makeInsufficientMemoryError(memSize, size, offset uint64) error {
 	return tosca.ConstError(fmt.Sprintf("memory too small, size %d, attempted to write %d bytes at %d", memSize, size, offset))
 }
 
