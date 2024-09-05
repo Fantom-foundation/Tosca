@@ -579,7 +579,7 @@ func opExp(c *context) {
 }
 
 // Evaluations show a 96% hit rate of this configuration.
-var hashCache = newHashCache(1<<16, 1<<18)
+var sha3Cache = newSha3HashCache(1<<16, 1<<18)
 
 func opSha3(c *context) {
 	offset, size := c.stack.pop(), c.stack.peek()
@@ -603,7 +603,7 @@ func opSha3(c *context) {
 	var hash tosca.Hash
 	if c.withShaCache {
 		// Cache hashes since identical values are frequently re-hashed.
-		hash = hashCache.hash(data)
+		hash = sha3Cache.hash(data)
 	} else {
 		hash = Keccak256(data)
 	}
