@@ -79,8 +79,8 @@ func TestGas_AddressInAccessList(t *testing.T) {
 			setup: func(c *context) {
 				c.params.Revision = tosca.R09_Berlin
 				c.context.(*tosca.MockRunContext).EXPECT().IsAddressInAccessList(gomock.Any()).Return(true)
-				c.stack.push(uint256.NewInt(1))
-				c.stack.push(uint256.NewInt(2))
+				c.stack.push(uint256.NewInt(1)) // value
+				c.stack.push(uint256.NewInt(2)) // key
 			},
 			accessStatus: true,
 			coldCost:     ColdAccountAccessCostEIP2929 - WarmStorageReadCostEIP2929,
@@ -90,8 +90,8 @@ func TestGas_AddressInAccessList(t *testing.T) {
 				c.params.Revision = tosca.R09_Berlin
 				c.context.(*tosca.MockRunContext).EXPECT().IsAddressInAccessList(gomock.Any()).Return(false)
 				c.context.(*tosca.MockRunContext).EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess)
-				c.stack.push(uint256.NewInt(1))
-				c.stack.push(uint256.NewInt(2))
+				c.stack.push(uint256.NewInt(1)) // value
+				c.stack.push(uint256.NewInt(2)) // key
 				c.gas = ColdAccountAccessCostEIP2929 - WarmStorageReadCostEIP2929
 			},
 			accessStatus: false,
@@ -150,8 +150,8 @@ func TestGas_AddressInAccessListReportsOutOfGas(t *testing.T) {
 
 	ctxt.context.(*tosca.MockRunContext).EXPECT().IsAddressInAccessList(gomock.Any()).Return(false)
 	ctxt.context.(*tosca.MockRunContext).EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess)
-	ctxt.stack.push(uint256.NewInt(1))
-	ctxt.stack.push(uint256.NewInt(2))
+	ctxt.stack.push(uint256.NewInt(1)) // value
+	ctxt.stack.push(uint256.NewInt(2)) // key
 
 	_, _, errGot := addressInAccessList(&ctxt)
 	if !errors.Is(errGot, errOutOfGas) {
@@ -169,8 +169,8 @@ func TestGas_gasSStoreEIP2200_Successful(t *testing.T) {
 			setup: func(c *context) {
 				c.context.(*tosca.MockRunContext).EXPECT().
 					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{}) // current value
-				c.stack.push(uint256.NewInt(0))
-				c.stack.push(uint256.NewInt(0))
+				c.stack.push(uint256.NewInt(0)) // value
+				c.stack.push(uint256.NewInt(0)) // key
 			},
 			gas: SloadGasEIP2200,
 		},
@@ -180,8 +180,8 @@ func TestGas_gasSStoreEIP2200_Successful(t *testing.T) {
 					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{}) // original value
 				c.context.(*tosca.MockRunContext).EXPECT().
 					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{}) // current value
-				c.stack.push(uint256.NewInt(1))
-				c.stack.push(uint256.NewInt(1))
+				c.stack.push(uint256.NewInt(1)) // value
+				c.stack.push(uint256.NewInt(1)) // key
 
 			},
 			gas: SstoreSetGasEIP2200,
@@ -192,10 +192,11 @@ func TestGas_gasSStoreEIP2200_Successful(t *testing.T) {
 					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{1}) // original value
 				c.context.(*tosca.MockRunContext).EXPECT().
 					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{1}) // current value
-				c.stack.push(uint256.NewInt(1))
-				c.stack.push(uint256.NewInt(0))
+				c.stack.push(uint256.NewInt(0)) // value
+				c.stack.push(uint256.NewInt(0)) // key
 			},
-			gas: SstoreResetGasEIP2200,
+			gas:    SstoreResetGasEIP2200,
+			refund: SstoreClearsScheduleRefundEIP2200,
 		},
 		"write existing slot": {
 			setup: func(c *context) {
@@ -203,12 +204,11 @@ func TestGas_gasSStoreEIP2200_Successful(t *testing.T) {
 					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{1}) // original value
 				c.context.(*tosca.MockRunContext).EXPECT().
 					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{1}) // current value
-				c.stack.push(uint256.NewInt(0))
-				c.stack.push(uint256.NewInt(0))
+				c.stack.push(uint256.NewInt(1)) // value
+				c.stack.push(uint256.NewInt(0)) // key
 
 			},
-			gas:    SstoreResetGasEIP2200,
-			refund: SstoreClearsScheduleRefundEIP2200,
+			gas: SstoreResetGasEIP2200,
 		},
 		"recreate slot": {
 			setup: func(c *context) {
@@ -216,8 +216,8 @@ func TestGas_gasSStoreEIP2200_Successful(t *testing.T) {
 					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{1}) // original value
 				c.context.(*tosca.MockRunContext).EXPECT().
 					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{0}) // current value
-				c.stack.push(uint256.NewInt(1))
-				c.stack.push(uint256.NewInt(0))
+				c.stack.push(uint256.NewInt(1)) // value
+				c.stack.push(uint256.NewInt(0)) // key
 			},
 			gas:    SloadGasEIP2200,
 			refund: -SstoreClearsScheduleRefundEIP2200,
@@ -228,8 +228,8 @@ func TestGas_gasSStoreEIP2200_Successful(t *testing.T) {
 					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{1}) // original value
 				c.context.(*tosca.MockRunContext).EXPECT().
 					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{2}) // current value
-				c.stack.push(uint256.NewInt(0))
-				c.stack.push(uint256.NewInt(0))
+				c.stack.push(uint256.NewInt(0)) // value
+				c.stack.push(uint256.NewInt(0)) // key
 			},
 			gas:    SloadGasEIP2200,
 			refund: SstoreClearsScheduleRefundEIP2200,
@@ -240,8 +240,8 @@ func TestGas_gasSStoreEIP2200_Successful(t *testing.T) {
 					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{0}) // original value
 				c.context.(*tosca.MockRunContext).EXPECT().
 					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{2}) // current value
-				c.stack.push(uint256.NewInt(0))
-				c.stack.push(uint256.NewInt(0))
+				c.stack.push(uint256.NewInt(0)) // value
+				c.stack.push(uint256.NewInt(0)) // key
 			},
 			gas:    SloadGasEIP2200,
 			refund: SstoreSetGasEIP2200 - SloadGasEIP2200,
@@ -253,8 +253,8 @@ func TestGas_gasSStoreEIP2200_Successful(t *testing.T) {
 					tosca.Word(uint256.NewInt(1).Bytes32())) // original value
 				c.context.(*tosca.MockRunContext).EXPECT().
 					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{2}) // current value
-				c.stack.push(uint256.NewInt(1))
-				c.stack.push(uint256.NewInt(0))
+				c.stack.push(uint256.NewInt(1)) // value
+				c.stack.push(uint256.NewInt(0)) // key
 			},
 			gas:    SloadGasEIP2200,
 			refund: SstoreResetGasEIP2200 - SloadGasEIP2200,
@@ -275,8 +275,8 @@ func TestGas_gasSStoreEIP2200_Successful(t *testing.T) {
 			ctxt.gas = SstoreSentryGasEIP2200 + 1
 			test.setup(&ctxt)
 
-			// gas, err := gasSStoreEIP2200(&ctxt)
 			gas, err := gasSStore(&ctxt)
+
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
@@ -305,8 +305,8 @@ func TestGas_gasSStoreEIP2200_NotEnoughGas(t *testing.T) {
 	}
 
 	// Prepare stack arguments.
-	ctxt.stack.push(uint256.NewInt(1))
-	ctxt.stack.push(uint256.NewInt(1))
+	ctxt.stack.push(uint256.NewInt(1)) // value
+	ctxt.stack.push(uint256.NewInt(1)) // key
 
 	gas, err := gasSStore(&ctxt)
 
@@ -331,20 +331,16 @@ func TestGas_gasSStoreEIP2929_ReportsErrors(t *testing.T) {
 					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{})
 				c.context.(*tosca.MockRunContext).EXPECT().
 					IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(false, false)
-				c.stack.push(uint256.NewInt(0))
-				c.stack.push(uint256.NewInt(0))
+				c.stack.push(uint256.NewInt(0)) // value
+				c.stack.push(uint256.NewInt(0)) // key
 				c.params.Revision = tosca.R10_London
 			},
 			expectedError: errAddressNotFoundInSstore,
 		},
 		"berlin not enough gas": {
 			setup: func(c *context) {
-				c.context.(*tosca.MockRunContext).EXPECT().
-					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{})
-				c.context.(*tosca.MockRunContext).EXPECT().
-					IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
-				c.stack.push(uint256.NewInt(1))
-				c.stack.push(uint256.NewInt(1))
+				c.stack.push(uint256.NewInt(1)) // value
+				c.stack.push(uint256.NewInt(1)) // key
 				c.params.Revision = tosca.R09_Berlin
 				c.gas = SstoreSentryGasEIP2200
 			},
@@ -373,4 +369,155 @@ func TestGas_gasSStoreEIP2929_ReportsErrors(t *testing.T) {
 
 		})
 	}
+}
+
+func TestGas_gasSStoreEIP2929_Successful(t *testing.T) {
+
+	tests := map[string]struct {
+		setup  func(*context)
+		gas    tosca.Gas
+		refund tosca.Gas
+	}{
+		"noop with slot present": {
+			setup: func(c *context) {
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{}) // current value
+				c.context.(*tosca.MockRunContext).EXPECT().
+					IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, false)
+				c.context.(*tosca.MockRunContext).EXPECT().
+					AccessStorage(gomock.Any(), gomock.Any()).Return(tosca.WarmAccess)
+				c.stack.push(uint256.NewInt(0)) // value
+				c.stack.push(uint256.NewInt(0)) // key
+			},
+			gas: ColdSloadCostEIP2929 + WarmStorageReadCostEIP2929,
+		},
+		"create slot": {
+			setup: func(c *context) {
+
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{}) // current value
+				c.context.(*tosca.MockRunContext).EXPECT().
+					IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{0}) // original value
+				c.stack.push(uint256.NewInt(1)) // value
+				c.stack.push(uint256.NewInt(1)) // key
+			},
+			gas: SstoreSetGasEIP2200,
+		},
+		"delete slot current same as original": {
+			setup: func(c *context) {
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{1}) // original value
+				c.context.(*tosca.MockRunContext).EXPECT().
+					IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{1}) // current value
+				c.stack.push(uint256.NewInt(0)) // value
+				c.stack.push(uint256.NewInt(0)) // key
+			},
+			gas:    SstoreResetGasEIP2200 - ColdSloadCostEIP2929,
+			refund: SstoreClearsScheduleRefundEIP2200,
+		},
+		"write existing slot": {
+			setup: func(c *context) {
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{1}) // original value
+				c.context.(*tosca.MockRunContext).EXPECT().
+					IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{1}) // current value
+				c.stack.push(uint256.NewInt(1)) // value
+				c.stack.push(uint256.NewInt(0)) // key
+			},
+			gas: SstoreResetGasEIP2200 - ColdSloadCostEIP2929,
+		},
+		"recreate slot": {
+			setup: func(c *context) {
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{1}) // original value
+				c.context.(*tosca.MockRunContext).EXPECT().
+					IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{0}) // current value
+				c.stack.push(uint256.NewInt(1)) // value
+				c.stack.push(uint256.NewInt(0)) // key
+			},
+			gas:    WarmStorageReadCostEIP2929,
+			refund: -SstoreClearsScheduleRefundEIP2200,
+		},
+		"delete slot different current and original": {
+			setup: func(c *context) {
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{1}) // original value
+				c.context.(*tosca.MockRunContext).EXPECT().
+					IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{2}) // current value
+				c.stack.push(uint256.NewInt(0)) // value
+				c.stack.push(uint256.NewInt(0)) // key
+			},
+			gas:    WarmStorageReadCostEIP2929,
+			refund: SstoreClearsScheduleRefundEIP2200,
+		},
+		"reset to original inexistent slot": {
+			setup: func(c *context) {
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{0}) // original value
+				c.context.(*tosca.MockRunContext).EXPECT().
+					IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{2}) // current value
+				c.stack.push(uint256.NewInt(0)) // value
+				c.stack.push(uint256.NewInt(0)) // key
+			},
+			gas:    WarmStorageReadCostEIP2929,
+			refund: SstoreSetGasEIP2200 - WarmStorageReadCostEIP2929,
+		},
+		"reset to original existent slot": {
+			setup: func(c *context) {
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetCommittedStorage(gomock.Any(), gomock.Any()).Return(
+					tosca.Word(uint256.NewInt(1).Bytes32())) // original value
+				c.context.(*tosca.MockRunContext).EXPECT().
+					IsSlotInAccessList(gomock.Any(), gomock.Any()).Return(true, true)
+				c.context.(*tosca.MockRunContext).EXPECT().
+					GetStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{2}) // current value
+				c.stack.push(uint256.NewInt(1)) // value
+				c.stack.push(uint256.NewInt(0)) // key
+			},
+			gas:    WarmStorageReadCostEIP2929,
+			refund: (SstoreResetGasEIP2200 - ColdSloadCostEIP2929) - WarmStorageReadCostEIP2929,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			runContext := tosca.NewMockRunContext(ctrl)
+
+			ctxt := context{
+				status:  statusRunning,
+				stack:   NewStack(),
+				memory:  NewMemory(),
+				context: runContext,
+				gas:     1 << 20,
+			}
+			test.setup(&ctxt)
+
+			gas, err := gasSStoreEIP2929(&ctxt)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+
+			if gas != test.gas {
+				t.Errorf("unexpected gas cost, wanted %v, got %v", test.gas, gas)
+			}
+			if ctxt.refund != test.refund {
+				t.Errorf("unexpected refund, wanted %v, got %v", test.refund, ctxt.refund)
+			}
+
+		})
+	}
+
 }
