@@ -367,3 +367,27 @@ func TestProcessor_CallParameters(t *testing.T) {
 
 	}
 }
+
+func TestProcessor_SetUpAccessList(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	context := tosca.NewMockTransactionContext(ctrl)
+
+	transaction := tosca.Transaction{
+		Recipient: &tosca.Address{1},
+		AccessList: []tosca.AccessTuple{
+			{
+				Address: tosca.Address{2},
+				Keys:    []tosca.Key{{1}, {2}},
+			},
+		},
+	}
+
+	context.EXPECT().AccessAccount(*transaction.Recipient)
+	for _, contract := range getPrecompiledAddresses(tosca.R09_Berlin) {
+		context.EXPECT().AccessAccount(contract)
+	}
+	context.EXPECT().AccessStorage(tosca.Address{2}, tosca.Key{1})
+	context.EXPECT().AccessStorage(tosca.Address{2}, tosca.Key{2})
+
+	setUpAccessList(transaction, context, tosca.R09_Berlin)
+}
