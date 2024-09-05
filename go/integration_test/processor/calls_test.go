@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -420,10 +419,6 @@ func TestProcessor_CallingNonExistentAccountIsHandledCorrectly(t *testing.T) {
 		},
 	}
 	for processorName, processor := range getProcessors() {
-		// TODO: implement in Floria
-		if strings.Contains(processorName, "floria") {
-			continue
-		}
 		for testName, test := range tests {
 			t.Run(processorName+"/"+testName, func(t *testing.T) {
 				sender := tosca.Address{1}

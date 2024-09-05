@@ -20,6 +20,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+var emptyCodeHash = tosca.Hash(crypto.Keccak256(nil))
+
 type runContext struct {
 	tosca.TransactionContext
 	interpreter           tosca.Interpreter
@@ -58,6 +60,11 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 			parameters.Salt,
 			codeHash,
 		)
+		if r.GetNonce(createdAddress) != 0 ||
+			(r.GetCodeHash(createdAddress) != (tosca.Hash{}) &&
+				r.GetCodeHash(createdAddress) != emptyCodeHash) {
+			return tosca.CallResult{}, nil
+		}
 
 		r.SetNonce(parameters.Sender, r.GetNonce(parameters.Sender)+1)
 		r.SetNonce(createdAddress, 1)
@@ -83,6 +90,13 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 		r.blockParameters.Revision, parameters.Input, recipient, parameters.Gas)
 	if isPrecompiled {
 		return output, nil
+	}
+
+	if kind == tosca.Call && !r.AccountExists(recipient) {
+		return tosca.CallResult{
+			Success: true,
+			GasLeft: parameters.Gas,
+		}, nil
 	}
 
 	interpreterParameters := tosca.Parameters{
