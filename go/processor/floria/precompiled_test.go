@@ -43,6 +43,9 @@ func TestPrecompiled_RightNumberOfContractsDependingOnRevision(t *testing.T) {
 		if count != test.numberOfContracts {
 			t.Errorf("unexpected number of precompiled contracts for revision %v, want %v, got %v", test.revision, test.numberOfContracts, count)
 		}
+		if len(getPrecompiledAddresses(test.revision)) != test.numberOfContracts {
+			t.Errorf("unexpected number of precompiled contracts for revision %v, want %v, got %v", test.revision, test.numberOfContracts, count)
+		}
 	}
 }
 

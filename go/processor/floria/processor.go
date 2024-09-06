@@ -81,6 +81,10 @@ func (p *processor) Run(
 		false,
 	}
 
+	if blockParameters.Revision >= tosca.R09_Berlin {
+		setUpAccessList(transaction, &runContext, blockParameters.Revision)
+	}
+
 	callParameters := callParameters(transaction, gas)
 	kind := callKind(transaction)
 
@@ -106,6 +110,27 @@ func (p *processor) Run(
 		Output:          result.Output,
 		Logs:            logs,
 	}, nil
+}
+
+func setUpAccessList(transaction tosca.Transaction, context tosca.TransactionContext, revision tosca.Revision) {
+	if transaction.AccessList == nil {
+		return
+	}
+
+	if transaction.Recipient != nil {
+		context.AccessAccount(*transaction.Recipient)
+	}
+
+	precompiles := getPrecompiledAddresses(revision)
+	for _, address := range precompiles {
+		context.AccessAccount(address)
+	}
+
+	for _, accessTuple := range transaction.AccessList {
+		for _, key := range accessTuple.Keys {
+			context.AccessStorage(accessTuple.Address, key)
+		}
+	}
 }
 
 func callKind(transaction tosca.Transaction) tosca.CallKind {

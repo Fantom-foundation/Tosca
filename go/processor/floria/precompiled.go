@@ -36,6 +36,12 @@ func handlePrecompiledContract(revision tosca.Revision, input tosca.Data, addres
 }
 
 func getPrecompiledContract(address tosca.Address, revision tosca.Revision) (geth.PrecompiledContract, bool) {
+	precompiles := getPrecompiledContracts(revision)
+	contract, ok := precompiles[common.Address(address)]
+	return contract, ok
+}
+
+func getPrecompiledContracts(revision tosca.Revision) map[common.Address]geth.PrecompiledContract {
 	var precompiles map[common.Address]geth.PrecompiledContract
 	switch revision {
 	case tosca.R13_Cancun:
@@ -45,6 +51,14 @@ func getPrecompiledContract(address tosca.Address, revision tosca.Revision) (get
 	default: // Istanbul is the oldest supported revision supported by Sonic
 		precompiles = geth.PrecompiledContractsIstanbul
 	}
-	contract, ok := precompiles[common.Address(address)]
-	return contract, ok
+	return precompiles
+}
+
+func getPrecompiledAddresses(revision tosca.Revision) []tosca.Address {
+	precompiles := getPrecompiledContracts(revision)
+	addresses := make([]tosca.Address, 0, len(precompiles))
+	for addr := range precompiles {
+		addresses = append(addresses, tosca.Address(addr))
+	}
+	return addresses
 }

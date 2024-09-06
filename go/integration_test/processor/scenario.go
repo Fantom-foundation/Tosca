@@ -115,7 +115,7 @@ type scenarioContext struct {
 	current    WorldState
 	logs       []tosca.Log
 	undo       []func()
-	accessList map[tosca.Address]tosca.AccessStatus
+	accessList []tosca.AccessTuple
 }
 
 func NewScenarioContext() *scenarioContext {
@@ -223,16 +223,29 @@ func (c *scenarioContext) SetTransientStorage(tosca.Address, tosca.Key, tosca.Wo
 }
 
 func (c *scenarioContext) AccessAccount(address tosca.Address) tosca.AccessStatus {
-	_, ok := c.accessList[address]
-	if !ok {
-		return tosca.WarmAccess
+	for _, tuple := range c.accessList {
+		if tuple.Address == address {
+			return tosca.WarmAccess
+		}
 	}
-	c.accessList[address] = true
+	c.accessList = append(c.accessList, tosca.AccessTuple{Address: address})
 	return tosca.ColdAccess
 }
 
-func (c *scenarioContext) AccessStorage(tosca.Address, tosca.Key) tosca.AccessStatus {
-	panic("implement me")
+func (c *scenarioContext) AccessStorage(addr tosca.Address, key tosca.Key) tosca.AccessStatus {
+	for _, tuple := range c.accessList {
+		if tuple.Address == addr {
+			for _, k := range tuple.Keys {
+				if k == key {
+					return tosca.WarmAccess
+				}
+			}
+			tuple.Keys = append(tuple.Keys, key)
+			return tosca.ColdAccess
+		}
+	}
+	c.accessList = append(c.accessList, tosca.AccessTuple{Address: addr, Keys: []tosca.Key{key}})
+	return tosca.ColdAccess
 }
 
 func (c *scenarioContext) EmitLog(log tosca.Log) {
@@ -254,12 +267,26 @@ func (c *scenarioContext) GetCommittedStorage(addr tosca.Address, key tosca.Key)
 }
 
 func (c *scenarioContext) IsAddressInAccessList(address tosca.Address) bool {
-	_, ok := c.accessList[address]
-	return ok
+	for _, tuple := range c.accessList {
+		if tuple.Address == address {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *scenarioContext) IsSlotInAccessList(addr tosca.Address, key tosca.Key) (addressPresent, slotPresent bool) {
-	panic("implement me")
+	for _, tuple := range c.accessList {
+		if tuple.Address == addr {
+			for _, k := range tuple.Keys {
+				if k == key {
+					return true, true
+				}
+			}
+			return true, false
+		}
+	}
+	return false, false
 }
 
 func (c *scenarioContext) HasSelfDestructed(addr tosca.Address) bool {
