@@ -257,82 +257,24 @@ func opSstore(c *context) {
 		return
 	}
 
-	isBerlinOrNewer := c.isAtLeast(tosca.R09_Berlin)
-
 	var key = tosca.Key(c.stack.pop().Bytes32())
 	var value = tosca.Word(c.stack.pop().Bytes32())
 
-	wasCold := false
-	if isBerlinOrNewer {
-		wasCold = c.context.AccessStorage(c.params.Recipient, key) == tosca.ColdAccess
-	}
-
-	// Perform storage update
-	storageStatus := c.context.SetStorage(c.params.Recipient, key, value)
-
-	// Compute the cost of the update.
-	cost := tosca.Gas(800)
-	if isBerlinOrNewer {
-		cost = 100
-	}
-
-	switch storageStatus {
-	case tosca.StorageAdded:
-		cost = 20000
-	case tosca.StorageModified,
-		tosca.StorageDeleted:
-		if isBerlinOrNewer {
-			cost = 2900
-		} else {
-			cost = 5000
+	cost := tosca.Gas(0)
+	if c.isAtLeast(tosca.R09_Berlin) {
+		if c.context.AccessStorage(c.params.Recipient, key) == tosca.ColdAccess {
+			cost += 2100
 		}
 	}
 
-	if wasCold {
-		cost += 2100
-	}
+	storageStatus := c.context.SetStorage(c.params.Recipient, key, value)
 
+	cost += getDynamicCostsForSstore(c.params.Revision, storageStatus)
 	if !c.useGas(cost) {
 		return
 	}
 
-	// Compute potential refunds.
-	isLondonOrNewer := c.isAtLeast(tosca.R10_London)
-	refund := tosca.Gas(0)
-	switch storageStatus {
-	case tosca.StorageDeleted,
-		tosca.StorageModifiedDeleted:
-		refund = 15000
-		if isLondonOrNewer {
-			refund = 4800
-		}
-	case tosca.StorageDeletedAdded,
-		tosca.StorageDeletedRestored:
-		refund = -15000
-		if isLondonOrNewer {
-			refund = -4800
-		}
-	case tosca.StorageAddedDeleted:
-		refund = 19200
-		if isBerlinOrNewer {
-			refund = 19900
-		}
-	}
-
-	if storageStatus == tosca.StorageDeletedRestored ||
-		storageStatus == tosca.StorageModifiedRestored {
-		if isBerlinOrNewer {
-			if wasCold {
-				refund += 4900
-			} else {
-				refund += 5000 - 2100 - 100
-			}
-		} else {
-			refund += 4200
-		}
-	}
-
-	c.refund += refund
+	c.refund += getRefundForSstore(c.params.Revision, storageStatus)
 }
 
 func opSload(c *context) {

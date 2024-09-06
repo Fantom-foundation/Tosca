@@ -36,6 +36,17 @@ func (r Revision) String() string {
 	}
 }
 
+func GetAllKnownRevisions() []Revision {
+	return []Revision{
+		R07_Istanbul,
+		R09_Berlin,
+		R10_London,
+		R11_Paris,
+		R12_Shanghai,
+		R13_Cancun,
+	}
+}
+
 func (r Revision) MarshalJSON() ([]byte, error) {
 	revString := r.String()
 	return json.Marshal(revString)

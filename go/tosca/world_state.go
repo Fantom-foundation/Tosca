@@ -103,3 +103,17 @@ func (config StorageStatus) String() string {
 	}
 	return fmt.Sprintf("StorageStatus(%d)", config)
 }
+
+func GetAllStorageStatuses() []StorageStatus {
+	return []StorageStatus{
+		StorageAssigned,
+		StorageAdded,
+		StorageAddedDeleted,
+		StorageDeletedRestored,
+		StorageDeletedAdded,
+		StorageDeleted,
+		StorageModified,
+		StorageModifiedDeleted,
+		StorageModifiedRestored,
+	}
+}

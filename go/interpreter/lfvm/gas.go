@@ -50,12 +50,6 @@ const (
 	UNKNOWN_GAS_PRICE = 999999
 )
 
-// Gas errors definitions
-const (
-	errNotEnoughGasReentrancy  = tosca.ConstError("not enough gas for reentrancy sentry")
-	errAddressNotFoundInSstore = tosca.ConstError("address was not present in access list during sstore op")
-)
-
 var static_gas_prices = [NUM_OPCODES]tosca.Gas{}
 var static_gas_prices_berlin = [NUM_OPCODES]tosca.Gas{}
 
@@ -314,6 +308,73 @@ func callGas(availableGas, base tosca.Gas, callCost *uint256.Int) tosca.Gas {
 		return gas
 	}
 	return tosca.Gas(callCost.Uint64())
+}
+
+func getDynamicCostsForSstore(
+	revision tosca.Revision,
+	storageStatus tosca.StorageStatus,
+) tosca.Gas {
+	isBerlinOrNewer := revision >= tosca.R09_Berlin
+
+	cost := tosca.Gas(800)
+	if isBerlinOrNewer {
+		cost = 100
+	}
+
+	switch storageStatus {
+	case tosca.StorageAdded:
+		cost = 20000
+	case tosca.StorageModified,
+		tosca.StorageDeleted:
+		if isBerlinOrNewer {
+			cost = 2900
+		} else {
+			cost = 5000
+		}
+	}
+
+	return cost
+}
+
+func getRefundForSstore(
+	revision tosca.Revision,
+	storageStatus tosca.StorageStatus,
+) tosca.Gas {
+	isBerlinOrNewer := revision >= tosca.R09_Berlin
+	isLondonOrNewer := revision >= tosca.R10_London
+	refund := tosca.Gas(0)
+	switch storageStatus {
+	case tosca.StorageDeleted,
+		tosca.StorageModifiedDeleted:
+		refund = 15000
+		if isLondonOrNewer {
+			refund = 4800
+		}
+	case tosca.StorageDeletedAdded:
+		refund = -15000
+		if isLondonOrNewer {
+			refund = -4800
+		}
+	case tosca.StorageDeletedRestored:
+		refund = -15000 + 4200
+		if isLondonOrNewer {
+			refund = -4800 + 5000 - 2100 - 100
+		} else if isBerlinOrNewer {
+			refund = -15000 + 5000 - 2100 - 100
+		}
+	case tosca.StorageAddedDeleted:
+		refund = 19200
+		if isBerlinOrNewer {
+			refund = 19900
+		}
+	case tosca.StorageModifiedRestored:
+		refund = 4200
+		if isBerlinOrNewer {
+			return 5000 - 2100 - 100
+		}
+	}
+
+	return refund
 }
 
 func gasEip2929AccountCheck(c *context, address tosca.Address) error {

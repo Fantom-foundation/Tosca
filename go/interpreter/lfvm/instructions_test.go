@@ -207,6 +207,8 @@ func TestPush4(t *testing.T) {
 	}
 }
 
+// --- Call ---
+
 func TestCallChecksBalances(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	runContext := tosca.NewMockRunContext(ctrl)
