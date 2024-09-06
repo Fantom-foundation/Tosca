@@ -343,19 +343,6 @@ func gasEip2929AccountCheck(c *context, address tosca.Address) error {
 	return nil
 }
 
-func calculateAccessCost(address tosca.Address, revision tosca.Revision, runContext tosca.RunContext) (isWarm bool, accessCost tosca.Gas) {
-	isWarm = true
-	if revision >= tosca.R09_Berlin {
-		// Check slot presence in the access list
-		//lint:ignore SA1019 deprecated functions to be migrated in #616
-		isWarm = runContext.IsAddressInAccessList(address)
-		// The WarmStorageReadCostEIP2929 (100) is already deducted in the form of a constant cost, so
-		// the cost to charge for cold access, if any, is Cold - Warm
-		accessCost = ColdAccountAccessCostEIP2929 - WarmStorageReadCostEIP2929
-	}
-	return isWarm, accessCost
-}
-
 func gasSelfdestruct(c *context) tosca.Gas {
 	gas := SelfdestructGasEIP150
 	var address = tosca.Address(c.stack.peekN(0).Bytes20())

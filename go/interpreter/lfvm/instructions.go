@@ -1115,16 +1115,18 @@ func genericCall(c *context, kind tosca.CallKind) {
 		needed_memory_size = ret_memory_size
 	}
 
-	isWarm, accessCost := calculateAccessCost(toAddr, c.params.Revision, c.context)
-	if !isWarm {
-		c.context.AccessAccount(toAddr)
-		if !c.useGas(accessCost) {
-			c.status = statusOutOfGas
-			return
+	baseGas := c.memory.getExpansionCosts(needed_memory_size)
+
+	accessCost := tosca.Gas(0)
+	if c.isAtLeast(tosca.R09_Berlin) {
+		// The WarmStorageReadCostEIP2929 (100) is already deducted in the form of a constant cost, so
+		// the cost to charge for cold access, if any, is Cold - Warm
+		if c.context.AccessAccount(toAddr) == tosca.ColdAccess {
+			accessCost = ColdAccountAccessCostEIP2929 - WarmStorageReadCostEIP2929
 		}
 	}
 
-	baseGas := c.memory.getExpansionCosts(needed_memory_size)
+	baseGas += accessCost
 	checkGas := func(cost tosca.Gas) bool {
 		return 0 <= cost && cost <= c.gas
 	}
@@ -1154,14 +1156,6 @@ func genericCall(c *context, kind tosca.CallKind) {
 	}
 
 	cost := callGas(c.gas, baseGas, provided_gas)
-	if !isWarm {
-		// In case of a cold access, we temporarily add the cold charge back, and also
-		// add it to the returned gas. By adding it to the return, it will be charged
-		// outside of this function, as part of the dynamic gas, and that will make it
-		// also become correctly reported to tracers.
-		c.gas += accessCost
-		baseGas += accessCost
-	}
 	if !c.useGas(baseGas + cost) {
 		return
 	}
