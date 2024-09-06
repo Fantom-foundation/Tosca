@@ -846,14 +846,6 @@ func BenchmarkFib10_SI(b *testing.B) {
 	benchmarkFib(b, 10, true)
 }
 
-var sink bool
-
-func BenchmarkIsWriteInstruction(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		sink = isWriteInstruction(OpCode(i % int(NUM_EXECUTABLE_OPCODES)))
-	}
-}
-
 func toKey(value byte) tosca.Key {
 	res := tosca.Key{}
 	res[len(res)-1] = value

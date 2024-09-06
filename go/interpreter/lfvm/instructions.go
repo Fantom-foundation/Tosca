@@ -244,6 +244,13 @@ func opMsize(c *context) {
 }
 
 func opSstore(c *context) {
+
+	// SStore is a write instruction, it shall not be executed in static mode.
+	if c.params.Static {
+		c.signalError()
+		return
+	}
+
 	gasfunc := gasSStore
 	if c.isAtLeast(tosca.R09_Berlin) {
 		gasfunc = gasSStoreEIP2929
@@ -287,6 +294,15 @@ func opSload(c *context) {
 }
 
 func opTstore(c *context) {
+
+	// Although not mentioned in the yellow paper, nor in CALL description at
+	// website (https://www.evm.codes/#FA) Geth treats this Op as a write instruction.
+	// therefore it shall not be executed in static mode.
+	if c.params.Static {
+		c.signalError()
+		return
+	}
+
 	if !c.isAtLeast(tosca.R13_Cancun) {
 		c.status = statusInvalidInstruction
 		return
@@ -698,6 +714,13 @@ func opBlobBaseFee(c *context) {
 }
 
 func opSelfdestruct(c *context) {
+
+	// SelfDestruct is a write instruction, it shall not be executed in static mode.
+	if c.params.Static {
+		c.signalError()
+		return
+	}
+
 	gasfunc := gasSelfdestruct
 	if c.isAtLeast(tosca.R09_Berlin) {
 		gasfunc = gasSelfdestructEIP2929
@@ -834,6 +857,13 @@ func checkInitCodeSize(c *context, size *uint256.Int) bool {
 }
 
 func opCreate(c *context) {
+
+	// Create is a write instruction, it shall not be executed in static mode.
+	if c.params.Static {
+		c.signalError()
+		return
+	}
+
 	var (
 		value  = c.stack.pop()
 		offset = c.stack.pop()
@@ -897,6 +927,13 @@ func opCreate(c *context) {
 }
 
 func opCreate2(c *context) {
+
+	// Create2 is a write instruction, it shall not be executed in static mode.
+	if c.params.Static {
+		c.signalError()
+		return
+	}
+
 	var (
 		value  = c.stack.pop()
 		offset = c.stack.pop()
@@ -1258,6 +1295,13 @@ func opReturnDataCopy(c *context) {
 }
 
 func opLog(c *context, size int) {
+
+	// LogN op codes are write instructions, they shall not be executed in static mode.
+	if c.params.Static {
+		c.signalError()
+		return
+	}
+
 	topics := make([]tosca.Hash, size)
 	stack := c.stack
 	mStart, mSize := stack.pop(), stack.pop()
