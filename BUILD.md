@@ -17,6 +17,11 @@ git submodule update --init --recursive
 - Rust toolchain >= 1.80.1
     - [install Rust](https://rustup.rs/)
     - Recommended: install `rust-analyzer` VSCode extension
+- [stringer](https://pkg.go.dev/golang.org/x/tools/cmd/stringer)
+    - Install via Go:
+    ```sh
+    go install golang.org/x/tools/cmd/stringer@latest
+    ```
 - [mockgen](https://github.com/golang/mock)
     - Install via Go:
       ```sh

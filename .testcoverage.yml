@@ -108,6 +108,7 @@ exclude:
   # Exclude files or packages matching their paths
   paths:
     - ^(.+)mock(.+)         # mock files should not be tested
+    - ^(.+)_string.go       # generated stringer files should not be tested
     - go/ct/common/error.go # error file only declares error type without any logic
     - go/ct/driver/         # entry points, logic should be tested elsewhere.
     - go/examples           # examples are not tested.
