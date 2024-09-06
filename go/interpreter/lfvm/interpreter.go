@@ -243,30 +243,12 @@ func steps(c *context, oneStepOnly bool) {
 
 		op := c.code[c.pc].opcode
 
-		// JUMP_TO is an LFVM specific operation that has no gas costs nor stack usage.
-		if c.code[c.pc].opcode == JUMP_TO {
-			c.pc = int32(c.code[c.pc].arg)
-			op = c.code[c.pc].opcode
-		}
-
-		// Catch invalid op-codes here, to avoid the need to check them at other places multiple times.
-		if op >= NUM_EXECUTABLE_OPCODES {
-			c.signalError()
-			return
-		}
-
-		// Need to check Call stack boundary before using static gas
-		// TODO: check whether this can be removed
-		if op == CALL && !satisfiesStackRequirements(c, op) {
-			return
-		}
-
 		// If the interpreter is operating in readonly mode, make sure no
 		// state-modifying operation is performed. The 3rd stack item
 		// for a call operation is the value. Transferring value from one
 		// account to the others means the state is modified and should also
 		// return with an error.
-		if c.params.Static && (isWriteInstruction(op) || (op == CALL && c.stack.peekN(2).Sign() != 0)) {
+		if c.params.Static && (isWriteInstruction(op) || (op == CALL && c.stack.len() > 3 && c.stack.peekN(2).Sign() != 0)) {
 			c.signalError()
 			return
 		}
