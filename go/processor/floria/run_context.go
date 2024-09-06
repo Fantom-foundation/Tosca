@@ -119,7 +119,11 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 	if err != nil || !result.Success {
 		r.RestoreSnapshot(snapshot)
 	} else if kind == tosca.Create || kind == tosca.Create2 {
-		if r.blockParameters.Revision >= tosca.R10_London && result.Output[0] == 0xEF {
+		code := result.Output
+		if len(code) > maxCodeSize {
+			return tosca.CallResult{}, nil
+		}
+		if r.blockParameters.Revision >= tosca.R10_London && len(code) > 0 && code[0] == 0xEF {
 			return tosca.CallResult{}, nil
 		}
 		r.SetCode(createdAddress, tosca.Code(result.Output))

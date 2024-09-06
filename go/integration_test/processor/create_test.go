@@ -633,7 +633,72 @@ func TestProcessor_CodeStartingWith0xEFCanNotBeCreated(t *testing.T) {
 					if result.GasUsed != sufficientGas {
 						t.Errorf("execution failed but gas was not fully used, used %d", result.GasUsed)
 					}
+				}
+			})
+		}
+	}
+}
 
+func TestProcessor_CodeSizeIsLimited(t *testing.T) {
+	maxCodeSize := 24576
+	tests := map[string]struct {
+		length  int
+		success bool
+	}{
+		"threshold": {
+			length:  maxCodeSize,
+			success: true,
+		},
+		"exceedingThreshold": {
+			length:  maxCodeSize + 1,
+			success: false,
+		},
+	}
+
+	for processorName, processor := range getProcessors() {
+		for testName, test := range tests {
+			t.Run(processorName+"/"+testName, func(t *testing.T) {
+				sender := tosca.Address{1}
+				addressToBeCreated := tosca.Address(crypto.CreateAddress(common.Address(sender), 0))
+
+				initCode := []byte{byte(vm.PUSH2)}
+				initCode = append(initCode, big.NewInt(int64(test.length)).Bytes()...)
+				initCode = append(initCode, []byte{
+					byte(vm.PUSH1), byte(0),
+					byte(vm.RETURN),
+				}...)
+				state := WorldState{
+					sender: Account{},
+				}
+				transaction := tosca.Transaction{
+					Sender:    sender,
+					Recipient: nil,
+					GasLimit:  sufficientGas,
+					Input:     initCode,
+				}
+
+				blockParameters := tosca.BlockParameters{}
+				transactionContext := newScenarioContext(state)
+
+				// Run the processor
+				result, err := processor.Run(blockParameters, transaction, transactionContext)
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if result.Success != test.success {
+					t.Errorf("execution success was %v, expected %v", result.Success, test.success)
+				}
+				if test.success {
+					if len(transactionContext.GetCode(addressToBeCreated)) == 0 {
+						t.Errorf("Code has not been set correctly")
+					}
+				} else {
+					if code := transactionContext.GetCode(addressToBeCreated); len(code) != 0 {
+						t.Errorf("Code should have not been set but returned %v", code)
+					}
+					if result.GasUsed != sufficientGas {
+						t.Errorf("execution failed but gas was not fully used, used %d", result.GasUsed)
+					}
 				}
 			})
 		}

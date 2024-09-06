@@ -24,6 +24,8 @@ const (
 	TxAccessListAddressGas    = 2400
 	TxAccessListStorageKeyGas = 1900
 
+	maxCodeSize = 24576
+
 	MaxRecursiveDepth = 1024 // Maximum depth of call/create stack.
 )
 
