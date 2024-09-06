@@ -10,9 +10,7 @@
 
 package lfvm
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // stackUsage defines the combined effect of an instruction on the stack. Each
 // instruction is accessing a range of elements on the stack relative to the
