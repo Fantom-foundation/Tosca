@@ -90,3 +90,9 @@ func TestOpCode_NumberOfOpCodes(t *testing.T) {
 	}
 
 }
+
+func BenchmarkOpcodesIsValid(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		IsValid(OpCode(i % 256))
+	}
+}
