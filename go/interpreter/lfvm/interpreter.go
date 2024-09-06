@@ -636,15 +636,46 @@ func steps(c *context, oneStepOnly bool) {
 
 func satisfiesStackRequirements(c *context, op OpCode) bool {
 	stackLen := c.stack.len()
-	if stackLen < staticStackBoundary[op].stackMin {
+
+	// It would be necessary here to check that the operation index is not out
+	// of bounds for the precomputed stack limits. However, this adds 15%
+	// overhead to this function. To avoid this, the _precomputedStackLimits
+	// is padded with a stackLimits{0, 0} at the end up to 256 elements. This
+	// way, by only taking the last 8 bits of the OpCode, the index is always
+	// within bounds.
+	limits := _precomputedStackLimits[op&0xff]
+	if stackLen < limits.min {
 		c.signalError()
 		return false
 	}
-	if stackLen > staticStackBoundary[op].stackMax {
+	if stackLen > limits.max {
 		c.signalError()
 		return false
 	}
 	return true
+}
+
+// stackLimits defines the stack usage of a single OpCode.
+type stackLimits struct {
+	min int // The minimum stack size required by an OpCode.
+	max int // The maximum stack size allowed before running an OpCode.
+}
+
+var _precomputedStackLimits = _precomputeStackLimits()
+
+func _precomputeStackLimits() [256]stackLimits {
+	var res [256]stackLimits
+	for i := 0; i < int(NUM_EXECUTABLE_OPCODES); i++ {
+		usage, err := computeStackUsage(OpCode(i))
+		if err != nil {
+			panic(err)
+		}
+		res[OpCode(i)] = stackLimits{
+			min: -usage.from,
+			max: maxStackSize - usage.to,
+		}
+	}
+	return res
 }
 
 func isWriteInstruction(opCode OpCode) bool {
