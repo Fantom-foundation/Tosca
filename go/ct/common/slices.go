@@ -8,6 +8,7 @@
 // On the date above, in accordance with the Business Source License, use of
 // this software will be governed by the GNU Lesser General Public License v3.
 
+// TODO: move to whole project common folder (tools, utils, libs ?)  this is not CT code
 package common
 
 func RightPadSlice[T any](source []T, size int) []T {

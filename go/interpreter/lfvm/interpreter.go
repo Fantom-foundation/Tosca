@@ -18,6 +18,7 @@ import (
 )
 
 // status is enumeration of the execution state of an interpreter run.
+// TODO: string method
 type status byte
 
 const (

@@ -13,8 +13,8 @@ package lfvm
 import (
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
-
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
+
 	lru "github.com/hashicorp/golang-lru/v2"
 )
 
@@ -95,8 +95,8 @@ type codeBuilder struct {
 	nextPos int
 }
 
-func newCodeBuilder(codelength int) codeBuilder {
-	return codeBuilder{make([]Instruction, codelength), 0}
+func newCodeBuilder(codeLength int) codeBuilder {
+	return codeBuilder{make([]Instruction, codeLength), 0}
 }
 
 func (b *codeBuilder) length() int {
@@ -169,6 +169,7 @@ func convertWithObserver(
 
 func appendInstructions(res *codeBuilder, pos int, code []byte, withSuperInstructions bool) int {
 	// Convert super instructions.
+	// TODO: reduce spaghetti, move super instructions to appendSuperInstructions
 	if withSuperInstructions {
 		if len(code) > pos+7 {
 			op0 := vm.OpCode(code[pos])
