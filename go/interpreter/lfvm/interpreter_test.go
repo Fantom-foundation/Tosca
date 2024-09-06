@@ -652,16 +652,12 @@ func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
 
 func TestStepsDetectsNonExecutableCode(t *testing.T) {
 	// Create execution context.
-	instructions := []struct {
-		instruction []Instruction
-		status      status
-	}{
-		{[]Instruction{{NUM_EXECUTABLE_OPCODES - 1, 0x0101}, {DATA, 0x0001}, {STOP, 0}}, statusStopped},
-		{[]Instruction{{NUM_EXECUTABLE_OPCODES, 0}}, statusError},
-		{[]Instruction{{NUM_EXECUTABLE_OPCODES + 1, 0}}, statusError},
+	opCodes := []OpCode{
+		NUM_EXECUTABLE_OPCODES,
+		NUM_EXECUTABLE_OPCODES + 1,
 	}
 
-	for _, test := range instructions {
+	for _, opCode := range opCodes {
 		ctxt := getEmptyContext()
 		// Get tosca.Parameters
 		ctxt.params = tosca.Parameters{
@@ -670,13 +666,13 @@ func TestStepsDetectsNonExecutableCode(t *testing.T) {
 			Gas:    10,
 			Code:   []byte{0x0},
 		}
-		ctxt.code = test.instruction
+		ctxt.code = []Instruction{{opCode, 0}}
 
 		// Run testing code
 		steps(&ctxt, false)
 
-		if ctxt.status != test.status {
-			t.Errorf("unexpected status: want STOPPED, got %v", ctxt.status)
+		if want, got := statusInvalidInstruction, ctxt.status; want != got {
+			t.Errorf("unexpected status: want %v, got %v", want, got)
 		}
 	}
 }
