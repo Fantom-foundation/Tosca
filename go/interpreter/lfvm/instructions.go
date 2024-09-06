@@ -251,45 +251,106 @@ func opSstore(c *context) {
 		return
 	}
 
-	gasfunc := gasSStore
-	if c.isAtLeast(tosca.R09_Berlin) {
-		gasfunc = gasSStoreEIP2929
-	}
-
-	// Charge the gas price for this operation
-	price, err := gasfunc(c)
-	if err != nil || !c.useGas(price) {
+	// EIP-2200 demands that at least 2300 gas is available for SSTORE
+	if c.gas <= 2300 {
+		c.signalError()
 		return
 	}
+
+	isBerlinOrNewer := c.isAtLeast(tosca.R09_Berlin)
 
 	var key = tosca.Key(c.stack.pop().Bytes32())
 	var value = tosca.Word(c.stack.pop().Bytes32())
 
+	wasCold := false
+	if isBerlinOrNewer {
+		wasCold = c.context.AccessStorage(c.params.Recipient, key) == tosca.ColdAccess
+	}
+
 	// Perform storage update
-	c.context.SetStorage(c.params.Recipient, key, value)
+	storageStatus := c.context.SetStorage(c.params.Recipient, key, value)
+
+	// Compute the cost of the update.
+	cost := tosca.Gas(800)
+	if isBerlinOrNewer {
+		cost = 100
+	}
+
+	switch storageStatus {
+	case tosca.StorageAdded:
+		cost = 20000
+	case tosca.StorageModified,
+		tosca.StorageDeleted:
+		if isBerlinOrNewer {
+			cost = 2900
+		} else {
+			cost = 5000
+		}
+	}
+
+	if wasCold {
+		cost += 2100
+	}
+
+	if !c.useGas(cost) {
+		return
+	}
+
+	// Compute potential refunds.
+	isLondonOrNewer := c.isAtLeast(tosca.R10_London)
+	refund := tosca.Gas(0)
+	switch storageStatus {
+	case tosca.StorageDeleted,
+		tosca.StorageModifiedDeleted:
+		refund = 15000
+		if isLondonOrNewer {
+			refund = 4800
+		}
+	case tosca.StorageDeletedAdded,
+		tosca.StorageDeletedRestored:
+		refund = -15000
+		if isLondonOrNewer {
+			refund = -4800
+		}
+	case tosca.StorageAddedDeleted:
+		refund = 19200
+		if isBerlinOrNewer {
+			refund = 19900
+		}
+	}
+
+	if storageStatus == tosca.StorageDeletedRestored ||
+		storageStatus == tosca.StorageModifiedRestored {
+		if isBerlinOrNewer {
+			if wasCold {
+				refund += 4900
+			} else {
+				refund += 5000 - 2100 - 100
+			}
+		} else {
+			refund += 4200
+		}
+	}
+
+	c.refund += refund
 }
 
 func opSload(c *context) {
 	var top = c.stack.peek()
 
+	addr := c.params.Recipient
 	slot := tosca.Key(top.Bytes32())
 	if c.isAtLeast(tosca.R09_Berlin) {
-		// Check slot presence in the access list
-		//lint:ignore SA1019 deprecated functions to be migrated in #616
-		if _, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
-			// If the caller cannot afford the cost, this change will be rolled back
-			// If he does afford it, we can skip checking the same thing later on, during execution
-			c.context.AccessStorage(c.params.Recipient, slot)
-			if !c.useGas(ColdSloadCostEIP2929) {
-				return
-			}
-		} else {
-			if !c.useGas(WarmStorageReadCostEIP2929) {
-				return
-			}
+		// charge costs for warm/cold slot access
+		costs := WarmStorageReadCostEIP2929
+		if c.context.AccessStorage(addr, slot) == tosca.ColdAccess {
+			costs = ColdSloadCostEIP2929
+		}
+		if !c.useGas(costs) {
+			return
 		}
 	}
-	value := c.context.GetStorage(c.params.Recipient, slot)
+	value := c.context.GetStorage(addr, slot)
 	top.SetBytes32(value[:])
 }
 
