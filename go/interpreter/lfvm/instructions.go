@@ -723,16 +723,38 @@ func opSelfdestruct(c *context) {
 		return
 	}
 
-	gasfunc := gasSelfdestruct
+	beneficiary := tosca.Address(c.stack.pop().Bytes20())
+	// SelfdestructGasEIP150
+	cost := tosca.Gas(5_000)
+
 	if c.isAtLeast(tosca.R09_Berlin) {
-		gasfunc = gasSelfdestructEIP2929
+		cost = 0
+		if c.context.AccessAccount(beneficiary) == tosca.ColdAccess {
+			// ColdAccountAccessCostEIP2929
+			cost = 2_600
+		}
+	}
+
+	if !c.context.AccountExists(beneficiary) &&
+		c.context.GetBalance(c.params.Recipient) != (tosca.Value{}) {
+		// CreateBySelfdestructGas
+		cost += 25_000
+
 	}
 	// even death is not for free
-	if !c.useGas(gasfunc(c)) {
+	if !c.useGas(cost) {
 		return
 	}
-	beneficiary := tosca.Address(c.stack.pop().Bytes20())
-	c.context.SelfDestruct(c.params.Recipient, beneficiary)
+
+	shouldRefund := c.context.SelfDestruct(c.params.Recipient, beneficiary)
+
+	if (c.params.Revision == tosca.R07_Istanbul ||
+		c.params.Revision == tosca.R09_Berlin) &&
+		shouldRefund {
+		// SelfdestructRefundGas
+		c.refund += 24_000
+	}
+
 	c.status = statusSelfDestructed
 }
 

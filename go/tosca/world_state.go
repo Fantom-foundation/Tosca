@@ -34,6 +34,10 @@ type WorldState interface {
 	GetStorage(Address, Key) Word
 	SetStorage(Address, Key, Word) StorageStatus
 
+	// Destroys addr and transfers its balance to beneficiary.
+	// If beneficiary does not exists, the balance is transferred anyway.
+	// Returns true if it is the first time destroying this addr in the ongoing
+	// transaction, false otherwise
 	SelfDestruct(addr Address, beneficiary Address) bool
 }
 
