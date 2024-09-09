@@ -11,8 +11,6 @@
 package lfvm
 
 import (
-	"fmt"
-
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/holiman/uint256"
 )
@@ -50,29 +48,19 @@ const (
 	UNKNOWN_GAS_PRICE = 999999
 )
 
-var static_gas_prices = [NUM_OPCODES]tosca.Gas{}
-var static_gas_prices_berlin = [NUM_OPCODES]tosca.Gas{}
+var static_gas_prices = [numOpCodes]tosca.Gas{}
+var static_gas_prices_berlin = [numOpCodes]tosca.Gas{}
 
 func init() {
+
 	var gp tosca.Gas
-	for i := 0; i < int(NUM_EXECUTABLE_OPCODES); i++ {
-		gp = getStaticGasPriceInternal(OpCode(i))
+	for i := range static_gas_prices {
+		op := OpCode(i)
+		gp = getStaticGasPriceInternal(op)
 		static_gas_prices[i] = gp
 		static_gas_prices_berlin[i] = gp
 	}
-	initBerlinGasPrice()
 
-	for i := 0; i < int(NUM_EXECUTABLE_OPCODES); i++ {
-		if static_gas_prices[i] == UNKNOWN_GAS_PRICE {
-			panic(fmt.Sprintf("Gas price for %v is unknown", OpCode(i)))
-		}
-		if static_gas_prices_berlin[i] == UNKNOWN_GAS_PRICE {
-			panic(fmt.Sprintf("Berlin gas price for %v is unknown", OpCode(i)))
-		}
-	}
-}
-
-func initBerlinGasPrice() {
 	// Changed static gas prices with EIP2929
 	static_gas_prices_berlin[SLOAD] = 0
 	static_gas_prices_berlin[EXTCODECOPY] = 100
@@ -86,15 +74,14 @@ func initBerlinGasPrice() {
 	static_gas_prices_berlin[SELFDESTRUCT] = 5000
 }
 
-func getStaticGasPrices(revision tosca.Revision) []tosca.Gas {
+func getStaticGasPrices(revision tosca.Revision) *[numOpCodes]tosca.Gas {
 	if revision >= tosca.R09_Berlin {
-		return static_gas_prices_berlin[:]
+		return &static_gas_prices_berlin
 	}
-	return static_gas_prices[:]
+	return &static_gas_prices
 }
 
 func getStaticGasPriceInternal(op OpCode) tosca.Gas {
-	price := getStaticGasPriceInternal
 	if PUSH1 <= op && op <= PUSH32 {
 		return 3
 	}
@@ -247,48 +234,14 @@ func getStaticGasPriceInternal(op OpCode) tosca.Gas {
 		return 700 // Should be 100 according to evm.code
 	case SELFDESTRUCT:
 		return 0 // should be 5000 according to evm.code
+	}
 
-		// --- Super instructions ---
-	case PUSH1_ADD:
-		return price(PUSH1) + price(ADD)
-	case PUSH1_SHL:
-		return price(PUSH1) + price(SHL)
-	case PUSH1_DUP1:
-		return price(PUSH1) + price(DUP1)
-	case PUSH2_JUMP:
-		return price(PUSH2) + price(JUMP)
-	case PUSH2_JUMPI:
-		return price(PUSH2) + price(JUMPI)
-	case SWAP1_POP:
-		return price(SWAP1) + price(POP)
-	case SWAP2_POP:
-		return price(SWAP2) + price(POP)
-	case DUP2_MSTORE:
-		return price(DUP2) + price(MSTORE)
-	case DUP2_LT:
-		return price(DUP2) + price(LT)
-	case POP_JUMP:
-		return price(POP) + price(JUMP)
-	case POP_POP:
-		return price(POP) + price(POP)
-	case SWAP2_SWAP1:
-		return price(SWAP2) + price(SWAP1)
-	case PUSH1_PUSH1:
-		return price(PUSH1) + price(PUSH1)
-	case ISZERO_PUSH2_JUMPI:
-		return price(ISZERO) + price(PUSH2) + price(JUMPI)
-	case PUSH1_PUSH4_DUP3:
-		return price(PUSH1) + price(PUSH4) + price(DUP3)
-	case SWAP2_SWAP1_POP_JUMP:
-		return price(SWAP2) + price(SWAP1) + price(POP) + price(JUMP)
-	case SWAP1_POP_SWAP2_SWAP1:
-		return price(SWAP1) + price(POP) + price(SWAP2) + price(SWAP1)
-	case POP_SWAP2_SWAP1_POP:
-		return price(POP) + price(SWAP2) + price(SWAP1) + price(POP)
-	case AND_SWAP1_POP_SWAP2_SWAP1:
-		return price(AND) + price(SWAP1) + price(POP) + price(SWAP2) + price(SWAP1)
-	case PUSH1_PUSH1_PUSH1_SHL_SUB:
-		return 3*price(PUSH1) + price(SHL) + price(SUB)
+	if op.isSuperInstruction() {
+		var sum tosca.Gas
+		for _, subOp := range op.decompose() {
+			sum += getStaticGasPriceInternal(subOp)
+		}
+		return sum
 	}
 
 	return UNKNOWN_GAS_PRICE

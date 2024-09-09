@@ -13,11 +13,7 @@ package lfvm
 import "testing"
 
 func TestOpCode_SuperInstructionsAreDecomposedToBasicOpCodes(t *testing.T) {
-	for _, op := range allOpCodes() {
-		if !op.isSuperInstruction() {
-			continue
-		}
-
+	for _, op := range allOpCodesWhere(OpCode.isSuperInstruction) {
 		baseOps := op.decompose()
 		for _, baseOp := range baseOps {
 			if baseOp.isSuperInstruction() {
@@ -27,10 +23,29 @@ func TestOpCode_SuperInstructionsAreDecomposedToBasicOpCodes(t *testing.T) {
 	}
 }
 
-func allOpCodes() []OpCode {
+func TestOpCode_AllOpCodesAreSmallerThanTheOpCodeCapacity(t *testing.T) {
+	if want, get := numOpCodes, opCodeMask+1; want != get {
+		t.Errorf("opCodeMask+1 = %d, want %d", get, want)
+	}
+	if _highestOpCode >= numOpCodes {
+		t.Errorf(
+			"highest op code %d exceeds the current OpCode type capacity of %d",
+			_highestOpCode,
+			numOpCodes,
+		)
+	}
+}
+
+func allOpCodesWhere(predicate func(op OpCode) bool) []OpCode {
 	res := []OpCode{}
-	for op := OpCode(0); op < NUM_OPCODES; op++ {
-		res = append(res, op)
+	for op := OpCode(0); op < numOpCodes; op++ {
+		if predicate(op) {
+			res = append(res, op)
+		}
 	}
 	return res
+}
+
+func allOpCodes() []OpCode {
+	return allOpCodesWhere(func(op OpCode) bool { return true })
 }

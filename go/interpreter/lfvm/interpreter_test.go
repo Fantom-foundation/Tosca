@@ -167,22 +167,13 @@ type OpcodeTest struct {
 	gasRefund   tosca.Gas
 }
 
-func getInstructionsWithGas(start OpCode, end OpCode, gas tosca.Gas) (opCodes []OpCodeWithGas) {
-	for i := start; i <= end; i++ {
-		opCode := OpCodeWithGas{OpCode(i), gas}
-		opCodes = append(opCodes, opCode)
-	}
-	return
-}
-
 func TestInterpreter_step_DetectsLowerStackLimitViolation(t *testing.T) {
 	// Add tests for execution
-	for op := OpCode(0); op < NUM_EXECUTABLE_OPCODES; op++ {
+
+	for _, op := range allOpCodes() {
+
 		// Ignore operations that do not need any data on the stack.
-		usage, err := computeStackUsage(op)
-		if err != nil {
-			t.Fatalf("failed to obtain stack limit: %v", err)
-		}
+		usage := computeStackUsage(op)
 		if usage.from >= 0 {
 			continue
 		}
@@ -203,12 +194,9 @@ func TestInterpreter_step_DetectsLowerStackLimitViolation(t *testing.T) {
 
 func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 	// Add tests for execution
-	for op := OpCode(0); op < NUM_EXECUTABLE_OPCODES; op++ {
+	for _, op := range allOpCodes() {
 		// Ignore operations that do not need any data on the stack.
-		usage, err := computeStackUsage(op)
-		if err != nil {
-			t.Fatalf("failed to obtain stack limit: %v", err)
-		}
+		usage := computeStackUsage(op)
 		if usage.to <= 0 {
 			continue
 		}
@@ -232,141 +220,76 @@ func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 	}
 }
 
-// TODO: this needs to be eliminated
-var opcodeTests = []OpcodeTest{
-	{"POP", []Instruction{{PUSH1, 1 << 8}, {POP, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 5, 0},
-	{"JUMP", []Instruction{{PUSH1, 2 << 8}, {JUMP, 0}, {JUMPDEST, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 12, 0},
-	{"JUMPI", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 3 << 8}, {JUMPI, 0}, {JUMPDEST, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 17, 0},
-	{"JUMPDEST", []Instruction{{JUMPDEST, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 1, 0},
-	{"RETURN", []Instruction{{RETURN, 0}}, 20, 0, statusReturned, false, false, nil, GAS_START, 0, 0},
-	{"REVERT", []Instruction{{REVERT, 0}}, 20, 0, statusReverted, false, false, nil, GAS_START, 0, 0},
-	{"PC", []Instruction{{PC, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 2, 0},
-	{"STOP", []Instruction{{STOP, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 0, 0},
-	{"SLOAD", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
-		}, GAS_START, 803, 0},
-	{"SLOAD Berlin", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.WarmAccess)
-		}, GAS_START, 103, 0},
-	{"SLOAD Berlin no slot", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0))
-		}, GAS_START, 2103, 0},
-	{"SSTORE same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0)).Return(tosca.StorageAssigned)
-		}, GAS_START, 806, 0},
-	{"SSTORE diff value, same state as db, db is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1)).Return(tosca.StorageAdded)
-		}, GAS_START, 20006, 0},
-	{"SSTORE diff value, same state as db, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0)).Return(tosca.StorageDeleted)
-		}, GAS_START, 5006, SstoreClearsScheduleRefundEIP2200},
-	{"SSTORE diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1)).Return(tosca.StorageDeletedAdded)
-		}, GAS_START, 806, tosca.Gas(-int(SstoreClearsScheduleRefundEIP2200))},
-	{"SSTORE diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0)).Return(tosca.StorageModifiedDeleted)
-		}, GAS_START, 806, SstoreClearsScheduleRefundEIP2200},
-	{"SSTORE diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(1), toWord(0)).Return(tosca.StorageAddedDeleted)
-		}, GAS_START, 806, SstoreSetGasEIP2200 - SloadGasEIP2200},
-	{"SSTORE diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(2)).Return(tosca.StorageModifiedRestored)
-		}, GAS_START, 806, SstoreResetGasEIP2200 - SloadGasEIP2200},
-	{"SSTORE Berlin same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.ColdAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0)).Return(tosca.StorageAssigned)
-		}, GAS_START, 2206, 0},
-	{"SSTORE Berlin diff value, same state as db, db is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.WarmAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1)).Return(tosca.StorageAdded)
-		}, GAS_START, 20006, 0},
-	{"SSTORE Berlin diff value, same state as db, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.WarmAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0)).Return(tosca.StorageDeleted)
-		}, GAS_START, 2906, SstoreClearsScheduleRefundEIP2200},
-	{"SSTORE Berlin diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.WarmAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1)).Return(tosca.StorageDeletedAdded)
-		}, GAS_START, 106, tosca.Gas(-int(SstoreClearsScheduleRefundEIP2200))},
-	{"SSTORE Berlin diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.WarmAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0)).Return(tosca.StorageModifiedDeleted)
-		}, GAS_START, 106, SstoreClearsScheduleRefundEIP2200},
-	{"SSTORE Berlin diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(1)).Return(tosca.WarmAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(1), toWord(0)).Return(tosca.StorageAddedDeleted)
-		}, GAS_START, 106, SstoreSetGasEIP2200 - WarmStorageReadCostEIP2929},
-	{"SSTORE Berlin diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.WarmAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(2)).Return(tosca.StorageModifiedRestored)
-		}, GAS_START, 106, (SstoreResetGasEIP2200 - ColdSloadCostEIP2929) - WarmStorageReadCostEIP2929},
-}
-
 type OpCodeWithGas struct {
 	OpCode
 	gas tosca.Gas
 }
 
-func addOKOpCodes(tests []OpcodeTest) []OpcodeTest {
-	var addedTests []OpcodeTest
-	addedTests = append(addedTests, tests...)
-	for i := PUSH1; i <= PUSH32; i++ {
-		code := []Instruction{{i, 1}}
-		dataNum := int((i - PUSH1) / 2)
+func generateOpCodesInRange(start OpCode, end OpCode) []OpCode {
+	opCodes := make([]OpCode, end-start+1)
+	for i := start; i <= end; i++ {
+		opCodes[i-start] = i
+	}
+	return opCodes
+}
+
+func TestInstructionsGasConsumption(t *testing.T) {
+
+	var tests []OpcodeTest
+
+	for _, op := range generateOpCodesInRange(PUSH1, PUSH32) {
+		code := []Instruction{{op, 1}}
+		dataNum := int((op - PUSH1) / 2)
 		for j := 0; j < dataNum; j++ {
 			code = append(code, Instruction{DATA, 1})
 		}
-		addedTests = append(addedTests, OpcodeTest{i.String(), code, 20, 0, statusStopped, false, false, nil, GAS_START, 3, 0})
+		tests = append(tests, OpcodeTest{op.String(), code, 20, 0, statusStopped, false, false, nil, GAS_START, 3, 0})
 	}
+
+	attachGasTo := func(gas tosca.Gas, opCodes ...OpCode) []OpCodeWithGas {
+		opCodesWithGas := make([]OpCodeWithGas, len(opCodes))
+		for i, opCode := range opCodes {
+			opCodesWithGas[i] = OpCodeWithGas{opCode, gas}
+		}
+		return opCodesWithGas
+	}
+
 	var opCodes []OpCodeWithGas
-	opCodes = append(opCodes, getInstructionsWithGas(DUP1, SWAP16, 3)...)
-	opCodes = append(opCodes, getInstructionsWithGas(ADD, SUB, 3)...)
-	opCodes = append(opCodes, getInstructionsWithGas(MUL, SMOD, 5)...)
-	opCodes = append(opCodes, getInstructionsWithGas(ADDMOD, MULMOD, 8)...)
-	opCodes = append(opCodes, OpCodeWithGas{EXP, 10})
-	opCodes = append(opCodes, OpCodeWithGas{SIGNEXTEND, 5})
-	opCodes = append(opCodes, OpCodeWithGas{SHA3, 30})
-	opCodes = append(opCodes, getInstructionsWithGas(LT, SAR, 3)...)
-	opCodes = append(opCodes, OpCodeWithGas{SWAP1_POP_SWAP2_SWAP1, 11})
-	opCodes = append(opCodes, OpCodeWithGas{POP_SWAP2_SWAP1_POP, 10})
-	opCodes = append(opCodes, OpCodeWithGas{POP_POP, 4})
-	opCodes = append(opCodes, getInstructionsWithGas(PUSH1_SHL, PUSH1_DUP1, 6)...)
-	//opCodes = append(opCodes, OpCodeWithGas{PUSH2_JUMP, 11})
-	opCodes = append(opCodes, OpCodeWithGas{PUSH2_JUMPI, 13})
-	opCodes = append(opCodes, OpCodeWithGas{PUSH1_PUSH1, 6})
-	opCodes = append(opCodes, OpCodeWithGas{SWAP1_POP, 5})
-	opCodes = append(opCodes, OpCodeWithGas{SWAP2_SWAP1, 6})
-	opCodes = append(opCodes, OpCodeWithGas{SWAP2_POP, 5})
-	opCodes = append(opCodes, OpCodeWithGas{DUP2_MSTORE, 9})
-	opCodes = append(opCodes, OpCodeWithGas{DUP2_LT, 6})
+	opCodes = append(opCodes, attachGasTo(2, generateOpCodesInRange(COINBASE, CHAINID)...)...)
+	opCodes = append(opCodes, attachGasTo(3, ADD, SUB)...)
+	opCodes = append(opCodes, attachGasTo(5, MUL, DIV, SDIV, MOD, SMOD, SIGNEXTEND)...)
+	opCodes = append(opCodes, attachGasTo(3, generateOpCodesInRange(DUP1, DUP16)...)...)
+	opCodes = append(opCodes, attachGasTo(3, generateOpCodesInRange(SWAP1, SWAP16)...)...)
+	opCodes = append(opCodes, attachGasTo(3, generateOpCodesInRange(LT, SAR)...)...)
+	opCodes = append(opCodes, attachGasTo(8, ADDMOD, MULMOD)...)
+	opCodes = append(opCodes, attachGasTo(10, EXP)...)
+	opCodes = append(opCodes, attachGasTo(30, SHA3)...)
+	opCodes = append(opCodes, attachGasTo(11, SWAP1_POP_SWAP2_SWAP1)...)
+	opCodes = append(opCodes, attachGasTo(10, POP_SWAP2_SWAP1_POP)...)
+	opCodes = append(opCodes, attachGasTo(4, POP_POP)...)
+	opCodes = append(opCodes, attachGasTo(6, generateOpCodesInRange(PUSH1_SHL, PUSH1_DUP1)...)...)
+	// opCodes = append(opCodes, applyGasTo(11, PUSH2_JUMP)...) // FIXME: this seems to be broken
+	opCodes = append(opCodes, attachGasTo(13, PUSH2_JUMPI)...)
+	opCodes = append(opCodes, attachGasTo(6, PUSH1_PUSH1)...)
+	opCodes = append(opCodes, attachGasTo(5, SWAP1_POP)...)
+	opCodes = append(opCodes, attachGasTo(6, SWAP2_SWAP1)...)
+	opCodes = append(opCodes, attachGasTo(5, SWAP2_POP)...)
+	opCodes = append(opCodes, attachGasTo(9, DUP2_MSTORE)...)
+	opCodes = append(opCodes, attachGasTo(6, DUP2_LT)...)
+
 	for _, opCode := range opCodes {
 		code := []Instruction{{opCode.OpCode, 0}}
-		addedTests = append(addedTests, OpcodeTest{opCode.String(), code, 20, 0, statusStopped, false, false, nil, GAS_START, opCode.gas, 0})
+		tests = append(tests, OpcodeTest{
+			name:        opCode.String(),
+			code:        code,
+			stackPtrPos: 20,
+			endStatus:   statusStopped,
+			gasStart:    GAS_START,
+			gasConsumed: opCode.gas,
+		})
 	}
-	return addedTests
-}
 
-func TestOKInstructionPath(t *testing.T) {
-	for _, test := range addOKOpCodes(opcodeTests) {
+	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			runContext := tosca.NewMockRunContext(ctrl)
@@ -626,8 +549,10 @@ func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
 func TestStepsDetectsNonExecutableCode(t *testing.T) {
 	// Create execution context.
 	opCodes := []OpCode{
-		NUM_EXECUTABLE_OPCODES,
-		NUM_EXECUTABLE_OPCODES + 1,
+		INVALID,
+		NOOP,
+		DATA,
+		0x1234,
 	}
 
 	for _, opCode := range opCodes {
@@ -819,23 +744,13 @@ func BenchmarkFib10_SI(b *testing.B) {
 	benchmarkFib(b, 10, true)
 }
 
-func toKey(value byte) tosca.Key {
-	res := tosca.Key{}
-	res[len(res)-1] = value
-	return res
-}
-
-func toWord(value byte) tosca.Word {
-	res := tosca.Word{}
-	res[len(res)-1] = value
-	return res
-}
-
 func BenchmarkSatisfiesStackRequirements(b *testing.B) {
 	context := &context{
 		stack: NewStack(),
 	}
+
+	opCodes := allOpCodes()
 	for i := 0; i < b.N; i++ {
-		satisfiesStackRequirements(context, OpCode(i%int(NUM_EXECUTABLE_OPCODES)))
+		satisfiesStackRequirements(context, opCodes[i%len(opCodes)])
 	}
 }

@@ -247,7 +247,7 @@ func steps(c *context, oneStepOnly bool) {
 		}
 
 		// Consume static gas price for instruction before execution
-		if !c.useGas(staticGasPrices[op]) {
+		if !c.useGas(staticGasPrices[op&opCodeMask]) {
 			return
 		}
 
@@ -605,15 +605,10 @@ func steps(c *context, oneStepOnly bool) {
 }
 
 func satisfiesStackRequirements(c *context, op OpCode) bool {
+	// This array access can not lead to an overflow since a value for each
+	// OpCode is defined in the precomputed stack limits.
+	limits := _precomputedStackLimits[op&opCodeMask]
 	stackLen := c.stack.len()
-
-	// It would be necessary here to check that the operation index is not out
-	// of bounds for the precomputed stack limits. However, this adds 15%
-	// overhead to this function. To avoid this, the _precomputedStackLimits
-	// is padded with a stackLimits{0, 0} at the end up to 256 elements. This
-	// way, by only taking the last 8 bits of the OpCode, the index is always
-	// within bounds.
-	limits := _precomputedStackLimits[op&0xff]
 	if stackLen < limits.min {
 		c.signalError()
 		return false
@@ -633,14 +628,12 @@ type stackLimits struct {
 
 var _precomputedStackLimits = _precomputeStackLimits()
 
-func _precomputeStackLimits() [256]stackLimits {
-	var res [256]stackLimits
-	for i := 0; i < int(NUM_EXECUTABLE_OPCODES); i++ {
-		usage, err := computeStackUsage(OpCode(i))
-		if err != nil {
-			panic(err)
-		}
-		res[OpCode(i)] = stackLimits{
+func _precomputeStackLimits() [numOpCodes]stackLimits {
+	var res [numOpCodes]stackLimits
+	for i := 0; i < numOpCodes; i++ {
+		op := OpCode(i)
+		usage := computeStackUsage(op)
+		res[op] = stackLimits{
 			min: -usage.from,
 			max: maxStackSize - usage.to,
 		}

@@ -33,25 +33,11 @@ func TestComputeStackUsage_ProducesValidResultsForSingleOps(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.op.String(), func(t *testing.T) {
-			usage, err := computeStackUsage(test.op)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
+			usage := computeStackUsage(test.op)
 			if got, want := usage, test.usage; got != want {
 				t.Errorf("unexpected result: want %v, got %v", want, got)
 			}
 		})
-	}
-}
-
-func TestComputeStackUsage_ReportsAnErrorForInvalidOperations(t *testing.T) {
-	ops := []OpCode{INVALID, 256, 0xffff}
-
-	for _, op := range ops {
-		_, err := computeStackUsage(op)
-		if err == nil {
-			t.Errorf("expected error for opcode %v", op)
-		}
 	}
 }
 
@@ -110,11 +96,7 @@ func TestCombineStackUsage(t *testing.T) {
 		t.Run(fmt.Sprintf("%v", test.ops), func(t *testing.T) {
 			usages := []stackUsage{}
 			for _, op := range test.ops {
-				usage, err := computeStackUsage(op)
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-				usages = append(usages, usage)
+				usages = append(usages, computeStackUsage(op))
 			}
 
 			res := combineStackUsage(usages...)

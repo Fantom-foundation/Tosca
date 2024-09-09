@@ -157,9 +157,6 @@ type statsCollector struct {
 }
 
 func (s *statsCollector) nextOp(op OpCode) {
-	if op > 255 {
-		panic("Instruction sequence statistics does not support opcodes > 255")
-	}
 	cur := uint64(op)
 	s.stats.count++
 	s.stats.singleCount[cur]++
