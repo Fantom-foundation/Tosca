@@ -247,7 +247,7 @@ func steps(c *context, oneStepOnly bool) {
 		}
 
 		// Consume static gas price for instruction before execution
-		if !c.useGas(staticGasPrices[op]) {
+		if !c.useGas(staticGasPrices[op&opCodeMask]) {
 			return
 		}
 
@@ -605,16 +605,10 @@ func steps(c *context, oneStepOnly bool) {
 }
 
 func satisfiesStackRequirements(c *context, op OpCode) bool {
-
-	// It would be necessary here to check that the operation index is not out
-	// of bounds for the precomputed stack limits. However, doing that would
-	// add overhead to this function.
-	// To avoid this check, the precomputed stack limits are defined to be {0, 0}
-	// for all non-executable operations, and the defined OpCodes are tested to
-	// be smaller than 512.
-
+	// This array access can not lead to an overflow since a value for each
+	// OpCode is defined in the precomputed stack limits.
+	limits := _precomputedStackLimits[op&opCodeMask]
 	stackLen := c.stack.len()
-	limits := _precomputedStackLimits[op&0x1ff]
 	if stackLen < limits.min {
 		c.signalError()
 		return false
@@ -634,17 +628,11 @@ type stackLimits struct {
 
 var _precomputedStackLimits = _precomputeStackLimits()
 
-func _precomputeStackLimits() [512]stackLimits {
-	var res [512]stackLimits
-	for i := 0; i < 512; i++ {
+func _precomputeStackLimits() [numOpCodes]stackLimits {
+	var res [numOpCodes]stackLimits
+	for i := 0; i < numOpCodes; i++ {
 		op := OpCode(i)
-		if !op.isExecutable() {
-			continue
-		}
-		usage, err := computeStackUsage(op)
-		if err != nil {
-			panic(err)
-		}
+		usage := computeStackUsage(op)
 		res[op] = stackLimits{
 			min: -usage.from,
 			max: maxStackSize - usage.to,

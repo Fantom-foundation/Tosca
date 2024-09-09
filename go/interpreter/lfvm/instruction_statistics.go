@@ -157,18 +157,6 @@ type statsCollector struct {
 }
 
 func (s *statsCollector) nextOp(op OpCode) {
-	// Stats for extended opcodes are collected for each decomposed OpCode.
-	// Extended opcodes which are not super-instructions yield no stats.
-	if op >= FIRST_LFVM_EXTENDED_OPCODE {
-		for _, component := range op.decompose() {
-			s.accumulateStats(component)
-		}
-		return
-	}
-	s.accumulateStats(op)
-}
-
-func (s *statsCollector) accumulateStats(op OpCode) {
 	cur := uint64(op)
 	s.stats.count++
 	s.stats.singleCount[cur]++

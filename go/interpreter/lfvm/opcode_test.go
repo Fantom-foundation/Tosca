@@ -13,11 +13,7 @@ package lfvm
 import "testing"
 
 func TestOpCode_SuperInstructionsAreDecomposedToBasicOpCodes(t *testing.T) {
-	for _, op := range allOpCodes() {
-		if !op.isSuperInstruction() {
-			continue
-		}
-
+	for _, op := range allOpCodesWhere(OpCode.isSuperInstruction) {
 		baseOps := op.decompose()
 		for _, baseOp := range baseOps {
 			if baseOp.isSuperInstruction() {
@@ -27,21 +23,23 @@ func TestOpCode_SuperInstructionsAreDecomposedToBasicOpCodes(t *testing.T) {
 	}
 }
 
-func TestOpCode_AllOpCodesAreSmallerThan512(t *testing.T) {
-	// Some lookup tables are sized to 512 and use mask 0x1FF to index them.
-	// If any opcode that violates this property is introduced, undefined behavior
-	// may be difficult to detect.
-	for _, op := range allOpCodes() {
-		if op > 512 {
-			t.Errorf("op code %v is greater than 512", op)
-		}
+func TestOpCode_AllOpCodesAreSmallerThanTheOpCodeCapacity(t *testing.T) {
+	if want, get := numOpCodes, opCodeMask+1; want != get {
+		t.Errorf("opCodeMask+1 = %d, want %d", get, want)
+	}
+	if _highestOpCode >= numOpCodes {
+		t.Errorf(
+			"highest op code %d exceeds the current OpCode type capacity of %d",
+			_highestOpCode,
+			numOpCodes,
+		)
 	}
 }
 
 func allOpCodesWhere(predicate func(op OpCode) bool) []OpCode {
 	res := []OpCode{}
-	for op := OpCode(0); op < NUM_OPCODES; op++ {
-		if op.isValid() && predicate(op) {
+	for op := OpCode(0); op < numOpCodes; op++ {
+		if predicate(op) {
 			res = append(res, op)
 		}
 	}
@@ -50,8 +48,4 @@ func allOpCodesWhere(predicate func(op OpCode) bool) []OpCode {
 
 func allOpCodes() []OpCode {
 	return allOpCodesWhere(func(op OpCode) bool { return true })
-}
-
-func allExecutableOpCodes() []OpCode {
-	return allOpCodesWhere(func(op OpCode) bool { return op.isExecutable() })
 }

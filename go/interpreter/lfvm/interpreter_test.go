@@ -170,13 +170,10 @@ type OpcodeTest struct {
 func TestInterpreter_step_DetectsLowerStackLimitViolation(t *testing.T) {
 	// Add tests for execution
 
-	for _, op := range allExecutableOpCodes() {
+	for _, op := range allOpCodes() {
 
 		// Ignore operations that do not need any data on the stack.
-		usage, err := computeStackUsage(op)
-		if err != nil {
-			t.Fatalf("failed to obtain stack limit: %v", err)
-		}
+		usage := computeStackUsage(op)
 		if usage.from >= 0 {
 			continue
 		}
@@ -197,12 +194,9 @@ func TestInterpreter_step_DetectsLowerStackLimitViolation(t *testing.T) {
 
 func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 	// Add tests for execution
-	for _, op := range allExecutableOpCodes() {
+	for _, op := range allOpCodes() {
 		// Ignore operations that do not need any data on the stack.
-		usage, err := computeStackUsage(op)
-		if err != nil {
-			t.Fatalf("failed to obtain stack limit: %v", err)
-		}
+		usage := computeStackUsage(op)
 		if usage.to <= 0 {
 			continue
 		}
@@ -555,10 +549,10 @@ func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
 func TestStepsDetectsNonExecutableCode(t *testing.T) {
 	// Create execution context.
 	opCodes := []OpCode{
-		INVALID, // defined invalid
-		NOOP,    // extended set of instructions
-		DATA,    // extended set of instructions
-		0x0c,    //< some code that is not an opcode but within the range
+		INVALID,
+		NOOP,
+		DATA,
+		0x1234,
 	}
 
 	for _, opCode := range opCodes {
@@ -755,7 +749,7 @@ func BenchmarkSatisfiesStackRequirements(b *testing.B) {
 		stack: NewStack(),
 	}
 
-	opCodes := allExecutableOpCodes()
+	opCodes := allOpCodes()
 	for i := 0; i < b.N; i++ {
 		satisfiesStackRequirements(context, opCodes[i%len(opCodes)])
 	}

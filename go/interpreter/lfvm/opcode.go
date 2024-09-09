@@ -11,10 +11,28 @@
 package lfvm
 
 import (
+	"fmt"
+
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
 type OpCode uint16
+
+// opCodeMask defines the relevant trailing bits of an OpCode. Any two OpCodes
+// with the same value when masked with opCodeMask are considered equal.
+//
+// The motivation for this is that the long-form EVM has a number of OpCodes
+// that are not part of the original EVM. For those, values beyond the range
+// [0-255] of the EVM's single-byte OpCodes are used. To that end, the OpCode
+// data type in the LFVM is increased to 16 bits. However, in several places
+// maps from LFVM OpCodes to properties are required to provide efficient
+// lookup tables for properties. To avoid the need to maintain tables of
+// 2^16 entries, the number of relevant bits is reduced to 9. Any leading bits
+// are ignored when comparing OpCodes.
+const opCodeMask = 0x1ff
+
+// numOpCodes is the maximum number of OpCodes that can be defined.
+const numOpCodes = opCodeMask + 1
 
 // The following constants define the original EVM OpCodes, in the lfvm OpCode space.
 const (
@@ -199,43 +217,40 @@ const (
 // These opcodes are specific to the long-form EVM and are not part of the
 // original EVM.
 const (
-	FIRST_LFVM_EXTENDED_OPCODE = 0x100
-
 	// long-form EVM special instructions
-	JUMP_TO OpCode = FIRST_LFVM_EXTENDED_OPCODE
+	JUMP_TO OpCode = iota + 0x100
+	DATA
+	NOOP
 
 	// Super-instructions
-	SWAP2_SWAP1_POP_JUMP  OpCode = 0x101
-	SWAP1_POP_SWAP2_SWAP1 OpCode = 0x102
-	POP_SWAP2_SWAP1_POP   OpCode = 0x103
-	POP_POP               OpCode = 0x104
-	PUSH1_SHL             OpCode = 0x105
-	PUSH1_ADD             OpCode = 0x106
-	PUSH1_DUP1            OpCode = 0x107
-	PUSH2_JUMP            OpCode = 0x108
-	PUSH2_JUMPI           OpCode = 0x109
+	SWAP2_SWAP1_POP_JUMP
+	SWAP1_POP_SWAP2_SWAP1
+	POP_SWAP2_SWAP1_POP
+	POP_POP
+	PUSH1_SHL
+	PUSH1_ADD
+	PUSH1_DUP1
+	PUSH2_JUMP
+	PUSH2_JUMPI
 
-	PUSH1_PUSH1 OpCode = 0x10A
-	SWAP1_POP   OpCode = 0x10B
-	POP_JUMP    OpCode = 0x10C
-	SWAP2_SWAP1 OpCode = 0x10D
-	SWAP2_POP   OpCode = 0x10E
-	DUP2_MSTORE OpCode = 0x10F
-	DUP2_LT     OpCode = 0x110
+	PUSH1_PUSH1
+	SWAP1_POP
+	POP_JUMP
+	SWAP2_SWAP1
+	SWAP2_POP
+	DUP2_MSTORE
+	DUP2_LT
 
-	ISZERO_PUSH2_JUMPI        OpCode = 0x111
-	PUSH1_PUSH4_DUP3          OpCode = 0x112
-	AND_SWAP1_POP_SWAP2_SWAP1 OpCode = 0x113
-	PUSH1_PUSH1_PUSH1_SHL_SUB OpCode = 0x114
+	ISZERO_PUSH2_JUMPI
+	PUSH1_PUSH4_DUP3
+	AND_SWAP1_POP_SWAP2_SWAP1
+	PUSH1_PUSH1_PUSH1_SHL_SUB
 
-	END_LFVM_EXECUTABLE_OPCODES = 0x115
-
-	// Special no-instructions op codes
-	DATA OpCode = END_LFVM_EXECUTABLE_OPCODES
-	NOOP OpCode = 0x120
-
-	END_LFVM_EXTENDED_OPCODES = 0x121
-	NUM_OPCODES               = END_LFVM_EXTENDED_OPCODES
+	// _highestOpCode is an alias for the OpCode with the highest defined
+	// numeric value. It is only intended to be used in the unit tests
+	// associated to this OpCode definition file to verify that the OpCode
+	// bit mask limit has not been exceeded.
+	_highestOpCode OpCode = iota + 0x100 - 1
 )
 
 var to_string = map[OpCode]string{
@@ -272,14 +287,14 @@ var to_string = map[OpCode]string{
 // For undefined values the string "UNKNOWN" is returned,
 // instead of INVALID, which is a defined value.
 func (o OpCode) String() string {
-	if o < FIRST_LFVM_EXTENDED_OPCODE {
+	if o <= 0xFF {
 		return vm.OpCode(o).String()
 	}
 
 	if str, ok := to_string[o]; ok {
 		return str
 	}
-	return "UNKNOWN"
+	return fmt.Sprintf("OpCode(%d)", o&opCodeMask)
 }
 
 // HasArgument returns true if the second 16-bit word of the instruction is
@@ -293,12 +308,14 @@ func (o OpCode) HasArgument() bool {
 		return true
 	case JUMP_TO:
 		return true
-	case PUSH2_JUMP:
-		return true
-	case PUSH2_JUMPI:
-		return true
-	case PUSH1_PUSH4_DUP3:
-		return true
+	}
+	if o.isSuperInstruction() {
+		for _, subOp := range o.decompose() {
+			if subOp.HasArgument() {
+				return true
+			}
+		}
+		return false
 	}
 	return false
 }
@@ -351,26 +368,4 @@ func (o OpCode) decompose() []OpCode {
 		return []OpCode{PUSH1, PUSH1, PUSH1, SHL, SUB}
 	}
 	return nil
-}
-
-// IsValid returns true if the OpCode is a valid OpCode.
-// A valid opcode shall be defined in the OpCode space, with the exception of
-// INVALID, which is a defined value.
-func (op OpCode) isValid() bool {
-	if op < FIRST_LFVM_EXTENDED_OPCODE {
-		return vm.IsValid(vm.OpCode(op))
-	}
-	return op >= FIRST_LFVM_EXTENDED_OPCODE && op < END_LFVM_EXTENDED_OPCODES
-}
-
-// isExecutable returns true if the OpCode is an executable OpCode.
-// An executable OpCode is a valid OpCode that executes an operation; all valid
-// OpCodes with the exception of DATA, and NOOP are executable.
-// - JUMPDEST is an executable OpCode.
-// - INVALID is not an executable OpCode, since it is neither Valid
-func (op OpCode) isExecutable() bool {
-	if op < FIRST_LFVM_EXTENDED_OPCODE {
-		return op.isValid()
-	}
-	return op < END_LFVM_EXECUTABLE_OPCODES
 }
