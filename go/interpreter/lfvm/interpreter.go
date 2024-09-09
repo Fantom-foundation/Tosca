@@ -243,16 +243,6 @@ func steps(c *context, oneStepOnly bool) {
 
 		op := c.code[c.pc].opcode
 
-		// If the interpreter is operating in readonly mode, make sure no
-		// state-modifying operation is performed. The 3rd stack item
-		// for a call operation is the value. Transferring value from one
-		// account to the others means the state is modified and should also
-		// return with an error.
-		if c.params.Static && (isWriteInstruction(op) || (op == CALL && c.stack.len() > 3 && c.stack.peekN(2).Sign() != 0)) {
-			c.signalError()
-			return
-		}
-
 		// Check stack boundary for every instruction
 		if !satisfiesStackRequirements(c, op) {
 			return
@@ -658,19 +648,4 @@ func _precomputeStackLimits() [256]stackLimits {
 		}
 	}
 	return res
-}
-
-func isWriteInstruction(opCode OpCode) bool {
-	const mask uint32 = 1 | // = 1 << (SSTORE - SSTORE) |
-		1<<(LOG0-SSTORE) |
-		1<<(LOG1-SSTORE) |
-		1<<(LOG2-SSTORE) |
-		1<<(LOG3-SSTORE) |
-		1<<(LOG4-SSTORE) |
-		1<<(CREATE-SSTORE) |
-		1<<(CREATE2-SSTORE) |
-		1<<(SELFDESTRUCT-SSTORE) |
-		1<<(TSTORE-SSTORE)
-
-	return SSTORE <= opCode && mask&(1<<(opCode-SSTORE)) != 0
 }
