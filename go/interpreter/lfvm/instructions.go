@@ -724,20 +724,23 @@ func opSelfdestruct(c *context) {
 	}
 
 	beneficiary := tosca.Address(c.stack.pop().Bytes20())
-	// SelfdestructGasEIP150
+	// Selfdestruct gas cost defined in EIP-105 (see https://eips.ethereum.org/EIPS/eip-150)
 	cost := tosca.Gas(5_000)
 
 	if c.isAtLeast(tosca.R09_Berlin) {
 		cost = 0
 		if c.context.AccessAccount(beneficiary) == tosca.ColdAccess {
-			// ColdAccountAccessCostEIP2929
+			// Cost of cold account access after EIP 2929 (see https://eips.ethereum.org/EIPS/eip-2929)
 			cost = 2_600
 		}
 	}
 
 	if !c.context.AccountExists(beneficiary) &&
 		c.context.GetBalance(c.params.Recipient) != (tosca.Value{}) {
-		// CreateBySelfdestructGas
+		// cost of creating an account defined in eip-150 (see https://eips.ethereum.org/EIPS/eip-150)
+		// CreateBySelfdestructGas is used when the refunded account is one that does
+		// not exist. This logic is similar to call.
+		// Introduced in Tangerine Whistle (Eip 150)
 		cost += 25_000
 
 	}
@@ -746,12 +749,10 @@ func opSelfdestruct(c *context) {
 		return
 	}
 
-	shouldRefund := c.context.SelfDestruct(c.params.Recipient, beneficiary)
+	destructed := c.context.SelfDestruct(c.params.Recipient, beneficiary)
 
-	if (c.params.Revision == tosca.R07_Istanbul ||
-		c.params.Revision == tosca.R09_Berlin) &&
-		shouldRefund {
-		// SelfdestructRefundGas
+	if destructed && c.params.Revision <= tosca.R09_Berlin {
+		// Refunded following a selfdestruct operation (see https://eips.ethereum.org/EIPS/eip-6780)
 		c.refund += 24_000
 	}
 

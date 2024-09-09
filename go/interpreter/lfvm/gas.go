@@ -23,25 +23,10 @@ const (
 	ColdSloadCostEIP2929         tosca.Gas = 2100 // Cost of cold SLOAD after EIP 2929
 	ColdAccountAccessCostEIP2929 tosca.Gas = 2600 // Cost of cold account access after EIP 2929
 
-	// CreateBySelfdestructGas is used when the refunded account is one that does
-	// not exist. This logic is similar to call.
-	// Introduced in Tangerine Whistle (Eip 150)
-	CreateBySelfdestructGas tosca.Gas = 25000
-
-	SelfdestructGasEIP150             tosca.Gas = 5000  // Gas cost of SELFDESTRUCT post EIP-150
-	SelfdestructRefundGas             tosca.Gas = 24000 // Refunded following a selfdestruct operation.
 	SloadGasEIP2200                   tosca.Gas = 800   // Cost of SLOAD after EIP 2200 (part of Istanbul)
 	SstoreClearsScheduleRefundEIP2200 tosca.Gas = 15000 // Once per SSTORE operation for clearing an originally existing storage slot
 
-	// SstoreClearsScheduleRefundEIP3529 is the refund for clearing a storage slot after EIP-3529.
-	// In EIP-2200: SstoreResetGas was 5000.
-	// In EIP-2929: SstoreResetGas was changed to '5000 - COLD_SLOAD_COST'.
-	// In EIP-3529: SSTORE_CLEARS_SCHEDULE is defined as SSTORE_RESET_GAS + ACCESS_LIST_STORAGE_KEY_COST
-	// Which becomes: 5000 - 2100 + 1900 = 4800
-	SstoreClearsScheduleRefundEIP3529 tosca.Gas = 4800
-
 	SstoreResetGasEIP2200      tosca.Gas = 5000  // Once per SSTORE operation from clean non-zero to something else
-	SstoreSentryGasEIP2200     tosca.Gas = 2300  // Minimum gas required to be present for an SSTORE call, not consumed
 	SstoreSetGasEIP2200        tosca.Gas = 20000 // Once per SSTORE operation from clean zero to non-zero
 	WarmStorageReadCostEIP2929 tosca.Gas = 100   // Cost of reading warm storage after EIP 2929
 
