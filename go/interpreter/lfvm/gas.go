@@ -314,67 +314,60 @@ func getDynamicCostsForSstore(
 	revision tosca.Revision,
 	storageStatus tosca.StorageStatus,
 ) tosca.Gas {
-	isBerlinOrNewer := revision >= tosca.R09_Berlin
-
-	cost := tosca.Gas(800)
-	if isBerlinOrNewer {
-		cost = 100
-	}
-
 	switch storageStatus {
 	case tosca.StorageAdded:
-		cost = 20000
+		return 20000
 	case tosca.StorageModified,
 		tosca.StorageDeleted:
-		if isBerlinOrNewer {
-			cost = 2900
+		if revision >= tosca.R09_Berlin {
+			return 2900
 		} else {
-			cost = 5000
+			return 5000
 		}
+	default:
+		if revision >= tosca.R09_Berlin {
+			return 100
+		}
+		return 800
 	}
-
-	return cost
 }
 
 func getRefundForSstore(
 	revision tosca.Revision,
 	storageStatus tosca.StorageStatus,
 ) tosca.Gas {
-	isBerlinOrNewer := revision >= tosca.R09_Berlin
-	isLondonOrNewer := revision >= tosca.R10_London
-	refund := tosca.Gas(0)
 	switch storageStatus {
 	case tosca.StorageDeleted,
 		tosca.StorageModifiedDeleted:
-		refund = 15000
-		if isLondonOrNewer {
-			refund = 4800
+		if revision >= tosca.R10_London {
+			return 4800
 		}
+		return 15000
 	case tosca.StorageDeletedAdded:
-		refund = -15000
-		if isLondonOrNewer {
-			refund = -4800
+		if revision >= tosca.R10_London {
+			return -4800
 		}
+		return -15000
 	case tosca.StorageDeletedRestored:
-		refund = -15000 + 4200
-		if isLondonOrNewer {
-			refund = -4800 + 5000 - 2100 - 100
-		} else if isBerlinOrNewer {
-			refund = -15000 + 5000 - 2100 - 100
+		if revision >= tosca.R10_London {
+			return -4800 + 5000 - 2100 - 100
+		} else if revision >= tosca.R09_Berlin {
+			return -15000 + 5000 - 2100 - 100
 		}
+		return -15000 + 4200
 	case tosca.StorageAddedDeleted:
-		refund = 19200
-		if isBerlinOrNewer {
-			refund = 19900
+		if revision >= tosca.R09_Berlin {
+			return 19900
 		}
+		return 19200
 	case tosca.StorageModifiedRestored:
-		refund = 4200
-		if isBerlinOrNewer {
+		if revision >= tosca.R09_Berlin {
 			return 5000 - 2100 - 100
 		}
+		return 4200
+	default:
+		return 0
 	}
-
-	return refund
 }
 
 func gasEip2929AccountCheck(c *context, address tosca.Address) error {
