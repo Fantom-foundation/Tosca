@@ -207,13 +207,13 @@ func convertCtMemoryToLfvmMemory(memory *st.Memory) (*Memory, error) {
 
 	result := NewMemory()
 	size := uint64(len(data))
-	result.expandMemory(size)
+	result.expandMemoryWithoutCharging(size, result.getExpansionCosts(size))
 	err := result.set(0, size, data)
 	return result, err
 }
 
 func convertLfvmMemoryToCtMemory(memory *Memory) *st.Memory {
 	result := st.NewMemory()
-	result.Set(memory.getSlice(0, memory.len()))
+	result.Set(memory.getSlice(0, memory.length()))
 	return result
 }

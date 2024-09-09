@@ -44,7 +44,7 @@ func TestMemory_ExpansionCosts_ComputesCorrectCosts(t *testing.T) {
 	for _, test := range tests {
 
 		m := NewMemory()
-		cost := m.expansionCosts(test.size)
+		cost := m.getExpansionCosts(test.size)
 		if cost != test.cost {
 			t.Errorf("ExpansionCosts(%d) = %d, want %d", test.size, cost, test.cost)
 		}
@@ -89,7 +89,7 @@ func TestMemory_GetWord_CopiesData(t *testing.T) {
 			copy(m.store[24:], valueSmall.Bytes())
 			ctxt.gas = 100
 
-			err := m.getWord(test.offset, target, &ctxt)
+			err := m.readWord(test.offset, target, &ctxt)
 			if err != nil {
 				t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
 			}
@@ -133,7 +133,7 @@ func TestMemory_GetWord_ReturnsError(t *testing.T) {
 			copy(m.store[24:], valueSmall.Bytes())
 			ctxt.gas = test.gas
 
-			err := m.getWord(test.offset, target, &ctxt)
+			err := m.readWord(test.offset, target, &ctxt)
 			if !errors.Is(err, test.expectedError) {
 				t.Fatalf("unexpected error, want: %v, got: %v", test.expectedError, err)
 			}
@@ -176,8 +176,8 @@ func TestMemory_SetByte_SuccessfulCases(t *testing.T) {
 			if err != nil {
 				t.Errorf("unexpected error, want: %v, got: %v", nil, err)
 			}
-			if m.len() < test.offset {
-				t.Errorf("unexpected memory size, want: %d, got: %d", test.offset, m.len())
+			if m.length() < test.offset {
+				t.Errorf("unexpected memory size, want: %d, got: %d", test.offset, m.length())
 			}
 			if m.store[test.offset] != value {
 				t.Errorf("unexpected value, want: %v, got: %v", value, m.store[test.offset])
@@ -298,8 +298,8 @@ func TestMemory_Set_SuccessfulCases(t *testing.T) {
 		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
 	}
 
-	if m.len() != size+offset {
-		t.Errorf("unexpected memory size, want: %d, got: %d", size+offset, m.len())
+	if m.length() != size+offset {
+		t.Errorf("unexpected memory size, want: %d, got: %d", size+offset, m.length())
 	}
 	if !bytes.Equal(m.store[offset:], data) {
 		t.Errorf("unexpected memory value, want: %x, got: %x", data, m.store[offset:])
@@ -385,11 +385,134 @@ func TestMemory_GetData(t *testing.T) {
 			m.store = test.store
 			target := test.target
 
-			m.getData(test.offset, target)
+			m.readData(test.offset, target)
 			if !bytes.Equal(target, test.expected) {
 				t.Errorf("unexpected target value, want: %x, got: %x", test.expected, target)
 			}
 		})
 	}
 
+}
+
+func TestMemory_expandMemoryWithoutCharging(t *testing.T) {
+
+	test := map[string]struct {
+		size        uint64
+		initialMem  []byte
+		expectedMem []byte
+	}{
+		"empty-memory-increases": {
+			size:        32,
+			initialMem:  []byte{},
+			expectedMem: []byte{31: 0x0},
+		},
+		"memory-bigger-than-size": {
+			size:        32,
+			initialMem:  []byte{63: 0x0},
+			expectedMem: []byte{63: 0x0},
+		},
+	}
+
+	for name, test := range test {
+		t.Run(name, func(t *testing.T) {
+			m := NewMemory()
+			fee := m.getExpansionCosts(test.size)
+			m.store = test.initialMem
+			m.expandMemoryWithoutCharging(test.size, fee)
+			if !bytes.Equal(m.store, test.expectedMem) {
+				t.Errorf("unexpected memory value, want: %x, got: %x", test.expectedMem, m.store)
+			}
+			if m.total_memory_cost != fee {
+				t.Errorf("unexpected total memory cost, want: %d, got: %d", fee, m.total_memory_cost)
+			}
+		})
+	}
+
+}
+
+func TestMemory_expandMemory_ErrorCases(t *testing.T) {
+
+	tests := map[string]struct {
+		size     uint64
+		offset   uint64
+		gas      tosca.Gas
+		expected error
+	}{
+		"not enough gas": {
+			size:     32,
+			offset:   0,
+			gas:      0,
+			expected: errOutOfGas,
+		},
+		"offset overflow": {
+			size:     2,
+			offset:   math.MaxUint64,
+			gas:      100,
+			expected: errGasUintOverflow,
+		},
+		"size overflow": {
+			size:     math.MaxUint64,
+			offset:   1,
+			gas:      100,
+			expected: errGasUintOverflow,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctxt := getEmptyContext()
+			m := NewMemory()
+			ctxt.gas = test.gas
+
+			err := m.expandMemory(test.offset, test.size, &ctxt)
+			if !errors.Is(err, test.expected) {
+				t.Errorf("unexpected error, want: %v, got: %v", test.expected, err)
+			}
+			if m.length() != 0 {
+				t.Errorf("unexpected memory size, want: %d, got: %d", 0, m.length())
+			}
+		})
+	}
+}
+
+func TestMemory_expandMemory(t *testing.T) {
+
+	tests := map[string]struct {
+		size          uint64
+		offset        uint64
+		initialMemory []byte
+	}{
+		"empty-memory": {},
+		"memory-bigger-than-size": {
+			size:          32,
+			offset:        64,
+			initialMemory: []byte{127: 0x0},
+		},
+		"size-zero": {
+			size:   0,
+			offset: 32,
+		},
+		"expand-memory": {
+			size:   32,
+			offset: 0,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctxt := getEmptyContext()
+			m := NewMemory()
+			ctxt.gas = 100
+
+			err := m.expandMemory(test.offset, test.size, &ctxt)
+			if err != nil {
+				t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
+			}
+			if test.size != 0 && m.length() < test.size+test.offset {
+				t.Errorf("memory size should have increased, want: %d, got: %d", test.size+test.offset, m.length())
+			} else if test.size == 0 && m.length() != uint64(len(test.initialMemory)) {
+				t.Errorf("memory size should not have changed, want: %d, got: %d", len(test.initialMemory), m.length())
+			}
+		})
+	}
 }

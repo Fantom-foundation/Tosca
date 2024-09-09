@@ -234,13 +234,13 @@ func opMload(c *context) {
 		return
 	}
 	offset := addr.Uint64()
-	if err := c.memory.getWord(offset, trg, c); err != nil {
+	if err := c.memory.readWord(offset, trg, c); err != nil {
 		c.signalError()
 	}
 }
 
 func opMsize(c *context) {
-	c.stack.pushUndefined().SetUint64(uint64(c.memory.len()))
+	c.stack.pushUndefined().SetUint64(uint64(c.memory.length()))
 }
 
 func opSstore(c *context) {
@@ -394,7 +394,7 @@ func opCallDataCopy(c *context) {
 		return
 	}
 
-	if c.memory.expandMemoryAndCharge(memOffset64, length64, c) != nil {
+	if c.memory.expandMemory(memOffset64, length64, c) != nil {
 		return
 	}
 
@@ -801,7 +801,7 @@ func opCodeCopy(c *context) {
 		return
 	}
 
-	if c.memory.expandMemoryAndCharge(memOffset.Uint64(), length.Uint64(), c) != nil {
+	if c.memory.expandMemory(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
 	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
@@ -876,7 +876,7 @@ func opCreate(c *context) {
 		return
 	}
 
-	if c.memory.expandMemoryAndCharge(offset.Uint64(), size.Uint64(), c) != nil {
+	if c.memory.expandMemory(offset.Uint64(), size.Uint64(), c) != nil {
 		return
 	}
 
@@ -947,7 +947,7 @@ func opCreate2(c *context) {
 		return
 	}
 
-	if c.memory.expandMemoryAndCharge(offset.Uint64(), size.Uint64(), c) != nil {
+	if c.memory.expandMemory(offset.Uint64(), size.Uint64(), c) != nil {
 		return
 	}
 
@@ -1052,7 +1052,7 @@ func opExtCodeCopy(c *context) {
 		uint64CodeOffset = math.MaxUint64
 	}
 
-	if c.memory.expandMemoryAndCharge(memOffset.Uint64(), length.Uint64(), c) != nil {
+	if c.memory.expandMemory(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
@@ -1118,7 +1118,8 @@ func genericCall(c *context, kind tosca.CallKind) {
 		needed_memory_size = ret_memory_size
 	}
 
-	baseGas := c.memory.expansionCosts(needed_memory_size)
+	memoryCost := c.memory.getExpansionCosts(needed_memory_size)
+	baseGas := memoryCost
 	checkGas := func(cost tosca.Gas) bool {
 		return 0 <= cost && cost <= c.gas
 	}
@@ -1162,7 +1163,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
-	c.memory.expandMemory(needed_memory_size)
+	c.memory.expandMemoryWithoutCharging(needed_memory_size, memoryCost)
 	if !value.IsZero() {
 		cost += CallStipend
 	}
