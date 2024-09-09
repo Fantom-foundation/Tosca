@@ -37,14 +37,11 @@ func (r Revision) String() string {
 }
 
 func GetAllKnownRevisions() []Revision {
-	return []Revision{
-		R07_Istanbul,
-		R09_Berlin,
-		R10_London,
-		R11_Paris,
-		R12_Shanghai,
-		R13_Cancun,
+	res := []Revision{}
+	for i := 0; i < numRevisions; i++ {
+		res = append(res, Revision(i))
 	}
+	return res
 }
 
 func (r Revision) MarshalJSON() ([]byte, error) {

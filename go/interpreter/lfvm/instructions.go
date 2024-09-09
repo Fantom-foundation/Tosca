@@ -261,10 +261,9 @@ func opSstore(c *context) {
 	var value = tosca.Word(c.stack.pop().Bytes32())
 
 	cost := tosca.Gas(0)
-	if c.isAtLeast(tosca.R09_Berlin) {
-		if c.context.AccessStorage(c.params.Recipient, key) == tosca.ColdAccess {
-			cost += 2100
-		}
+	if c.isAtLeast(tosca.R09_Berlin) &&
+		c.context.AccessStorage(c.params.Recipient, key) == tosca.ColdAccess {
+		cost += 2100
 	}
 
 	storageStatus := c.context.SetStorage(c.params.Recipient, key, value)
@@ -284,9 +283,9 @@ func opSload(c *context) {
 	slot := tosca.Key(top.Bytes32())
 	if c.isAtLeast(tosca.R09_Berlin) {
 		// charge costs for warm/cold slot access
-		costs := WarmStorageReadCostEIP2929
+		costs := tosca.Gas(100)
 		if c.context.AccessStorage(addr, slot) == tosca.ColdAccess {
-			costs = ColdSloadCostEIP2929
+			costs = 2100
 		}
 		if !c.useGas(costs) {
 			return

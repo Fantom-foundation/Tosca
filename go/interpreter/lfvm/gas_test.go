@@ -98,7 +98,7 @@ func TestGas_getDynamicCostsForSstore_exhaustive(t *testing.T) {
 		tosca.R09_Berlin: makeSpec(20000, 2900, 100),
 	}
 
-	// All other revisions are based on Berlin.
+	// All other revisions inherit the definition from their predecessor.
 	specs[tosca.R10_London] = specs[tosca.R09_Berlin]
 	specs[tosca.R11_Paris] = specs[tosca.R10_London]
 	specs[tosca.R12_Shanghai] = specs[tosca.R11_Paris]
@@ -175,7 +175,7 @@ func TestGas_getRefundForSstore_exhaustive(t *testing.T) {
 		// source: https://www.evm.codes/?fork=london
 		tosca.R10_London: makeSpec(4800, 20000-100, 5000-2100-100),
 	}
-	// All other revisions are based on London.
+	// All other revisions inherit the definition from their predecessor.
 	specs[tosca.R11_Paris] = specs[tosca.R10_London]
 	specs[tosca.R12_Shanghai] = specs[tosca.R11_Paris]
 	specs[tosca.R13_Cancun] = specs[tosca.R12_Shanghai]
