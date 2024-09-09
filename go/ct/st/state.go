@@ -258,10 +258,8 @@ func (s *State) Eq(other *State) bool {
 
 	// All PC beyond the end of the code are equal, as all PCs in this range
 	// point to the STOP instruction.
-	equivalentPc := s.Pc == other.Pc
-	if size := uint16(s.Code.Length()); s.Pc >= size && other.Pc >= size {
-		equivalentPc = true
-	}
+	size := uint16(s.Code.Length())
+	equivalentPc := s.Pc == other.Pc || (s.Pc >= size && other.Pc >= size)
 
 	// If the state is running, internal state is relevant, but the result can be ignored.
 	return equivalent &&
