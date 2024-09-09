@@ -882,3 +882,68 @@ func TestExpansionCostOverflow(t *testing.T) {
 		}
 	}
 }
+
+func TestCallChargesAppropriatelyForColdWarmAccess(t *testing.T) {
+
+	tests := map[string]struct {
+		revision     tosca.Revision
+		accessStatus tosca.AccessStatus
+		gas          tosca.Gas
+	}{
+		"pre-berlin": {
+			revision: tosca.R07_Istanbul,
+		},
+		"berlin-warm": {
+			revision:     tosca.R09_Berlin,
+			accessStatus: tosca.WarmAccess,
+		},
+		"berlin-cold": {
+			revision:     tosca.R09_Berlin,
+			accessStatus: tosca.ColdAccess,
+			gas:          2500,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			ctrl := gomock.NewController(t)
+			runContext := tosca.NewMockRunContext(ctrl)
+
+			source := tosca.Address{1}
+			target := tosca.Address{2}
+			ctxt := context{
+				status: statusRunning,
+				params: tosca.Parameters{
+					Recipient: source,
+					BlockParameters: tosca.BlockParameters{
+						Revision: test.revision,
+					},
+				},
+				context: runContext,
+				stack:   NewStack(),
+				memory:  NewMemory(),
+				gas:     test.gas,
+			}
+
+			// Prepare stack arguments.
+			ctxt.stack.stackPointer = 7
+			// the target address for the call
+			ctxt.stack.data[5].SetBytes(target[:])
+
+			runContext.EXPECT().AccessAccount(target).Return(test.accessStatus).AnyTimes()
+			runContext.EXPECT().Call(tosca.Call, gomock.Any()).Return(tosca.CallResult{}, nil).AnyTimes()
+
+			opCall(&ctxt)
+
+			if want, got := statusRunning, ctxt.status; want != got {
+				t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+			}
+
+			if ctxt.gas != 0 {
+				t.Errorf("unexpected gas cost, wanted 0, got %v", ctxt.gas)
+			}
+
+		})
+	}
+}
