@@ -123,9 +123,7 @@ func run(
 		withShaCache: config.withShaCache,
 	}
 
-	defer func() {
-		ReturnStack(ctxt.stack)
-	}()
+	defer ReturnStack(ctxt.stack)
 
 	// Run interpreter.
 	if config.runner == nil {

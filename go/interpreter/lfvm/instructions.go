@@ -251,45 +251,47 @@ func opSstore(c *context) {
 		return
 	}
 
-	gasfunc := gasSStore
-	if c.isAtLeast(tosca.R09_Berlin) {
-		gasfunc = gasSStoreEIP2929
-	}
-
-	// Charge the gas price for this operation
-	price, err := gasfunc(c)
-	if err != nil || !c.useGas(price) {
+	// EIP-2200 demands that at least 2300 gas is available for SSTORE
+	if c.gas <= 2300 {
+		c.signalError()
 		return
 	}
 
 	var key = tosca.Key(c.stack.pop().Bytes32())
 	var value = tosca.Word(c.stack.pop().Bytes32())
 
-	// Perform storage update
-	c.context.SetStorage(c.params.Recipient, key, value)
+	cost := tosca.Gas(0)
+	if c.isAtLeast(tosca.R09_Berlin) &&
+		c.context.AccessStorage(c.params.Recipient, key) == tosca.ColdAccess {
+		cost += 2100
+	}
+
+	storageStatus := c.context.SetStorage(c.params.Recipient, key, value)
+
+	cost += getDynamicCostsForSstore(c.params.Revision, storageStatus)
+	if !c.useGas(cost) {
+		return
+	}
+
+	c.refund += getRefundForSstore(c.params.Revision, storageStatus)
 }
 
 func opSload(c *context) {
 	var top = c.stack.peek()
 
+	addr := c.params.Recipient
 	slot := tosca.Key(top.Bytes32())
 	if c.isAtLeast(tosca.R09_Berlin) {
-		// Check slot presence in the access list
-		//lint:ignore SA1019 deprecated functions to be migrated in #616
-		if _, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
-			// If the caller cannot afford the cost, this change will be rolled back
-			// If he does afford it, we can skip checking the same thing later on, during execution
-			c.context.AccessStorage(c.params.Recipient, slot)
-			if !c.useGas(ColdSloadCostEIP2929) {
-				return
-			}
-		} else {
-			if !c.useGas(WarmStorageReadCostEIP2929) {
-				return
-			}
+		// charge costs for warm/cold slot access
+		costs := tosca.Gas(100)
+		if c.context.AccessStorage(addr, slot) == tosca.ColdAccess {
+			costs = 2100
+		}
+		if !c.useGas(costs) {
+			return
 		}
 	}
-	value := c.context.GetStorage(c.params.Recipient, slot)
+	value := c.context.GetStorage(addr, slot)
 	top.SetBytes32(value[:])
 }
 

@@ -36,6 +36,14 @@ func (r Revision) String() string {
 	}
 }
 
+func GetAllKnownRevisions() []Revision {
+	res := []Revision{}
+	for i := 0; i < numRevisions; i++ {
+		res = append(res, Revision(i))
+	}
+	return res
+}
+
 func (r Revision) MarshalJSON() ([]byte, error) {
 	revString := r.String()
 	return json.Marshal(revString)

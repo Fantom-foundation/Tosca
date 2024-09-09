@@ -12,6 +12,8 @@ package tosca
 
 import (
 	"bytes"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -68,5 +70,21 @@ func TestRevisions_UnmarshalError(t *testing.T) {
 		if err == nil {
 			t.Errorf("Expected error but got: %v", rev)
 		}
+	}
+}
+
+func TestAllKnownRevisions(t *testing.T) {
+	existing := []Revision{}
+	for r := Revision(0); ; r++ {
+		if strings.HasPrefix(r.String(), "Revision") {
+			break
+		}
+		existing = append(existing, r)
+	}
+	all := GetAllKnownRevisions()
+	slices.Sort(existing)
+	slices.Sort(all)
+	if !slices.Equal(existing, all) {
+		t.Errorf("Unexpected revisions, wanted: %v vs got: %v", existing, all)
 	}
 }

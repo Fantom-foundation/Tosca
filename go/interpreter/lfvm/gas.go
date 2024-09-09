@@ -50,12 +50,6 @@ const (
 	UNKNOWN_GAS_PRICE = 999999
 )
 
-// Gas errors definitions
-const (
-	errNotEnoughGasReentrancy  = tosca.ConstError("not enough gas for reentrancy sentry")
-	errAddressNotFoundInSstore = tosca.ConstError("address was not present in access list during sstore op")
-)
-
 var static_gas_prices = [NUM_OPCODES]tosca.Gas{}
 var static_gas_prices_berlin = [NUM_OPCODES]tosca.Gas{}
 
@@ -316,131 +310,64 @@ func callGas(availableGas, base tosca.Gas, callCost *uint256.Int) tosca.Gas {
 	return tosca.Gas(callCost.Uint64())
 }
 
-// Computes the costs for an SSTORE operation
-func gasSStore(c *context) (tosca.Gas, error) {
-	return gasSStoreEIP2200(c)
+func getDynamicCostsForSstore(
+	revision tosca.Revision,
+	storageStatus tosca.StorageStatus,
+) tosca.Gas {
+	switch storageStatus {
+	case tosca.StorageAdded:
+		return 20000
+	case tosca.StorageModified,
+		tosca.StorageDeleted:
+		if revision >= tosca.R09_Berlin {
+			return 2900
+		} else {
+			return 5000
+		}
+	default:
+		if revision >= tosca.R09_Berlin {
+			return 100
+		}
+		return 800
+	}
 }
 
-//  0. If *gasleft* is less than or equal to 2300, fail the current call.
-//  1. If current value equals new value (this is a no-op), SLOAD_GAS is deducted.
-//  2. If current value does not equal new value:
-//     2.1. If original value equals current value (this storage slot has not been changed by the current execution context):
-//     2.1.1. If original value is 0, SSTORE_SET_GAS (20K) gas is deducted.
-//     2.1.2. Otherwise, SSTORE_RESET_GAS gas is deducted. If new value is 0, add SSTORE_CLEARS_SCHEDULE to refund counter.
-//     2.2. If original value does not equal current value (this storage slot is dirty), SLOAD_GAS gas is deducted. Apply both of the following clauses:
-//     2.2.1. If original value is not 0:
-//     2.2.1.1. If current value is 0 (also means that new value is not 0), subtract SSTORE_CLEARS_SCHEDULE gas from refund counter.
-//     2.2.1.2. If new value is 0 (also means that current value is not 0), add SSTORE_CLEARS_SCHEDULE gas to refund counter.
-//     2.2.2. If original value equals new value (this storage slot is reset):
-//     2.2.2.1. If original value is 0, add SSTORE_SET_GAS - SLOAD_GAS to refund counter.
-//     2.2.2.2. Otherwise, add SSTORE_RESET_GAS - SLOAD_GAS gas to refund counter.
-func gasSStoreEIP2200(c *context) (tosca.Gas, error) {
-	// If we fail the minimum gas availability invariant, fail (0)
-	if c.gas <= SstoreSentryGasEIP2200 {
-		c.status = statusOutOfGas
-		return 0, errNotEnoughGasReentrancy
-	}
-	// Gas sentry honoured, do the actual gas calculation based on the stored value
-	var (
-		zero    = tosca.Word{}
-		key     = tosca.Key(c.stack.peekN(0).Bytes32())
-		value   = tosca.Word(c.stack.peekN(1).Bytes32())
-		current = c.context.GetStorage(c.params.Recipient, key)
-	)
-
-	if current == value { // noop (1)
-		return SloadGasEIP2200, nil
-	}
-	//lint:ignore SA1019 deprecated functions to be migrated in #616
-	original := c.context.GetCommittedStorage(c.params.Recipient, key)
-	if original == current {
-		if original == zero { // create slot (2.1.1)
-			return SstoreSetGasEIP2200, nil
+func getRefundForSstore(
+	revision tosca.Revision,
+	storageStatus tosca.StorageStatus,
+) tosca.Gas {
+	switch storageStatus {
+	case tosca.StorageDeleted,
+		tosca.StorageModifiedDeleted:
+		if revision >= tosca.R10_London {
+			return 4800
 		}
-		if value == zero { // delete slot (2.1.2b)
-			c.refund += SstoreClearsScheduleRefundEIP2200
+		return 15000
+	case tosca.StorageDeletedAdded:
+		if revision >= tosca.R10_London {
+			return -4800
 		}
-		return SstoreResetGasEIP2200, nil // write existing slot (2.1.2)
-	}
-	if original != zero {
-		if current == zero { // recreate slot (2.2.1.1)
-			c.refund -= SstoreClearsScheduleRefundEIP2200
-		} else if value == zero { // delete slot (2.2.1.2)
-			c.refund += SstoreClearsScheduleRefundEIP2200
+		return -15000
+	case tosca.StorageDeletedRestored:
+		if revision >= tosca.R10_London {
+			return -4800 + 5000 - 2100 - 100
+		} else if revision >= tosca.R09_Berlin {
+			return -15000 + 5000 - 2100 - 100
 		}
-	}
-	if original == value {
-		if original == zero { // reset to original inexistent slot (2.2.2.1)
-			c.refund += SstoreSetGasEIP2200 - SloadGasEIP2200
-		} else { // reset to original existing slot (2.2.2.2)
-			c.refund += SstoreResetGasEIP2200 - SloadGasEIP2200
+		return -15000 + 4200
+	case tosca.StorageAddedDeleted:
+		if revision >= tosca.R09_Berlin {
+			return 19900
 		}
-	}
-	return SloadGasEIP2200, nil // dirty update (2.2)
-}
-
-func gasSStoreEIP2929(c *context) (tosca.Gas, error) {
-
-	clearingRefund := SstoreClearsScheduleRefundEIP2200
-	if c.isAtLeast(tosca.R10_London) {
-		clearingRefund = SstoreClearsScheduleRefundEIP3529
-	}
-
-	// If we fail the minimum gas availability invariant, fail (0)
-	if c.gas <= SstoreSentryGasEIP2200 {
-		c.status = statusOutOfGas
-		return 0, errNotEnoughGasReentrancy
-	}
-	// Gas sentry honoured, do the actual gas calculation based on the stored value
-	var (
-		zero    = tosca.Word{}
-		y, x    = c.stack.peekN(1), c.stack.peek()
-		slot    = tosca.Key(x.Bytes32())
-		current = c.context.GetStorage(c.params.Recipient, slot)
-		cost    = tosca.Gas(0)
-	)
-	// Check slot presence in the access list
-	//lint:ignore SA1019 deprecated functions to be migrated in #616
-	if addrPresent, slotPresent := c.context.IsSlotInAccessList(c.params.Recipient, slot); !slotPresent {
-		if !addrPresent {
-			c.status = statusError
-			return 0, errAddressNotFoundInSstore
+		return 19200
+	case tosca.StorageModifiedRestored:
+		if revision >= tosca.R09_Berlin {
+			return 5000 - 2100 - 100
 		}
-		cost = ColdSloadCostEIP2929
-		// If the caller cannot afford the cost, this change will be rolled back
-		c.context.AccessStorage(c.params.Recipient, slot)
+		return 4200
+	default:
+		return 0
 	}
-	value := tosca.Word(y.Bytes32())
-
-	if current == value { // noop (1)
-		return cost + WarmStorageReadCostEIP2929, nil // SLOAD_GAS
-	}
-	//lint:ignore SA1019 deprecated functions to be migrated in #616
-	original := c.context.GetCommittedStorage(c.params.Recipient, slot)
-	if original == current {
-		if original == zero { // create slot (2.1.1)
-			return cost + SstoreSetGasEIP2200, nil
-		}
-		if value == zero { // delete slot (2.1.2b)
-			c.refund += clearingRefund
-		}
-		return cost + SstoreResetGasEIP2200 - ColdSloadCostEIP2929, nil // write existing slot (2.1.2)
-	}
-	if original != zero {
-		if current == zero { // recreate slot (2.2.1.1)
-			c.refund -= clearingRefund
-		} else if value == zero { // delete slot (2.2.1.2)
-			c.refund += clearingRefund
-		}
-	}
-	if original == value {
-		if original == zero { // reset to original inexistent slot (2.2.2.1)
-			c.refund += SstoreSetGasEIP2200 - WarmStorageReadCostEIP2929
-		} else { // reset to original existing slot (2.2.2.2)
-			c.refund += (SstoreResetGasEIP2200 - ColdSloadCostEIP2929) - WarmStorageReadCostEIP2929
-		}
-	}
-	return cost + WarmStorageReadCostEIP2929, nil // dirty update (2.2)
 }
 
 func gasEip2929AccountCheck(c *context, address tosca.Address) error {
