@@ -256,9 +256,16 @@ func (s *State) Eq(other *State) bool {
 			s.ReturnData == other.ReturnData
 	}
 
+	// All PC beyond the end of the code are equal, as all PCs in this range
+	// point to the STOP instruction.
+	equivalentPc := s.Pc == other.Pc
+	if size := uint16(s.Code.Length()); s.Pc >= size && other.Pc >= size {
+		equivalentPc = true
+	}
+
 	// If the state is running, internal state is relevant, but the result can be ignored.
 	return equivalent &&
-		s.Pc == other.Pc &&
+		equivalentPc &&
 		s.Stack.Eq(other.Stack) &&
 		s.Memory.Eq(other.Memory) &&
 		s.LastCallReturnData == other.LastCallReturnData

@@ -234,6 +234,36 @@ func TestState_EqualAndDiffAreCompatible(t *testing.T) {
 	}
 }
 
+func TestState_Equal_PcBeyondCodeAreTreatedEqual(t *testing.T) {
+	const N = 10
+	code := NewCode(make([]byte, N))
+
+	s1 := NewState(code)
+	s2 := NewState(code)
+
+	s1.Pc = N - 1
+	s2.Pc = N - 1
+
+	if !s1.Eq(s2) {
+		t.Errorf("states should be considered equal")
+	}
+
+	s1.Pc = N
+	if s1.Eq(s2) {
+		t.Errorf("states should not be considered equal")
+	}
+
+	s2.Pc = N
+	if !s1.Eq(s2) {
+		t.Errorf("states should be considered equal")
+	}
+
+	s1.Pc = N + 1
+	if !s1.Eq(s2) {
+		t.Errorf("states should be considered equal")
+	}
+}
+
 func TestState_EqFailureStates(t *testing.T) {
 	s1 := NewState(NewCode([]byte{}))
 	s2 := NewState(NewCode([]byte{}))
