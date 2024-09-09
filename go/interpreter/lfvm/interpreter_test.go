@@ -226,95 +226,6 @@ func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 	}
 }
 
-// TODO: this needs to be eliminated
-var opcodeTests = []OpcodeTest{
-	{"POP", []Instruction{{PUSH1, 1 << 8}, {POP, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 5, 0},
-	{"JUMP", []Instruction{{PUSH1, 2 << 8}, {JUMP, 0}, {JUMPDEST, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 12, 0},
-	{"JUMPI", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 3 << 8}, {JUMPI, 0}, {JUMPDEST, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 17, 0},
-	{"JUMPDEST", []Instruction{{JUMPDEST, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 1, 0},
-	{"RETURN", []Instruction{{RETURN, 0}}, 20, 0, statusReturned, false, false, nil, GAS_START, 0, 0},
-	{"REVERT", []Instruction{{REVERT, 0}}, 20, 0, statusReverted, false, false, nil, GAS_START, 0, 0},
-	{"PC", []Instruction{{PC, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 2, 0},
-	{"STOP", []Instruction{{STOP, 0}}, 0, 0, statusStopped, false, false, nil, GAS_START, 0, 0},
-	{"SLOAD", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
-		}, GAS_START, 803, 0},
-	{"SLOAD Berlin", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.WarmAccess)
-		}, GAS_START, 103, 0},
-	{"SLOAD Berlin no slot", []Instruction{{PUSH1, 0}, {SLOAD, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().GetStorage(tosca.Address{0}, toKey(0)).Return(toWord(0))
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0))
-		}, GAS_START, 2103, 0},
-	{"SSTORE same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0)).Return(tosca.StorageAssigned)
-		}, GAS_START, 806, 0},
-	{"SSTORE diff value, same state as db, db is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1)).Return(tosca.StorageAdded)
-		}, GAS_START, 20006, 0},
-	{"SSTORE diff value, same state as db, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0)).Return(tosca.StorageDeleted)
-		}, GAS_START, 5006, SstoreClearsScheduleRefundEIP2200},
-	{"SSTORE diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1)).Return(tosca.StorageDeletedAdded)
-		}, GAS_START, 806, tosca.Gas(-int(SstoreClearsScheduleRefundEIP2200))},
-	{"SSTORE diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0)).Return(tosca.StorageModifiedDeleted)
-		}, GAS_START, 806, SstoreClearsScheduleRefundEIP2200},
-	{"SSTORE diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(1), toWord(0)).Return(tosca.StorageAddedDeleted)
-		}, GAS_START, 806, SstoreSetGasEIP2200 - SloadGasEIP2200},
-	{"SSTORE diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, false, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(2)).Return(tosca.StorageModifiedRestored)
-		}, GAS_START, 806, SstoreResetGasEIP2200 - SloadGasEIP2200},
-	{"SSTORE Berlin same value", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.ColdAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0)).Return(tosca.StorageAssigned)
-		}, GAS_START, 2206, 0},
-	{"SSTORE Berlin diff value, same state as db, db is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.WarmAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1)).Return(tosca.StorageAdded)
-		}, GAS_START, 20006, 0},
-	{"SSTORE Berlin diff value, same state as db, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.WarmAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0)).Return(tosca.StorageDeleted)
-		}, GAS_START, 2906, SstoreClearsScheduleRefundEIP2200},
-	{"SSTORE Berlin diff value, diff state as db, db it not 0, state is 0", []Instruction{{PUSH1, 1 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.WarmAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(1)).Return(tosca.StorageDeletedAdded)
-		}, GAS_START, 106, tosca.Gas(-int(SstoreClearsScheduleRefundEIP2200))},
-	{"SSTORE Berlin diff value, diff state as db, db it not 0, val is 0", []Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.WarmAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(0)).Return(tosca.StorageModifiedDeleted)
-		}, GAS_START, 106, SstoreClearsScheduleRefundEIP2200},
-	{"SSTORE Berlin diff value, diff state as db, db same as val, db is 0", []Instruction{{PUSH1, 0}, {PUSH1, 1 << 8}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(1)).Return(tosca.WarmAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(1), toWord(0)).Return(tosca.StorageAddedDeleted)
-		}, GAS_START, 106, SstoreSetGasEIP2200 - WarmStorageReadCostEIP2929},
-	{"SSTORE Berlin diff value, diff state as db, db same as val, db is not 0", []Instruction{{PUSH1, 2 << 8}, {PUSH1, 0}, {SSTORE, 0}}, 0, 0, statusStopped, true, false,
-		func(mock *tosca.MockRunContext) {
-			mock.EXPECT().AccessStorage(tosca.Address{0}, toKey(0)).Return(tosca.WarmAccess)
-			mock.EXPECT().SetStorage(tosca.Address{0}, toKey(0), toWord(2)).Return(tosca.StorageModifiedRestored)
-		}, GAS_START, 106, (SstoreResetGasEIP2200 - ColdSloadCostEIP2929) - WarmStorageReadCostEIP2929},
-}
-
 type OpCodeWithGas struct {
 	OpCode
 	gas tosca.Gas
@@ -837,18 +748,6 @@ func BenchmarkFib10(b *testing.B) {
 
 func BenchmarkFib10_SI(b *testing.B) {
 	benchmarkFib(b, 10, true)
-}
-
-func toKey(value byte) tosca.Key {
-	res := tosca.Key{}
-	res[len(res)-1] = value
-	return res
-}
-
-func toWord(value byte) tosca.Word {
-	res := tosca.Word{}
-	res[len(res)-1] = value
-	return res
 }
 
 func BenchmarkSatisfiesStackRequirements(b *testing.B) {
