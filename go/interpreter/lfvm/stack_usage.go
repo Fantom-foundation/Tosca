@@ -23,7 +23,8 @@ type stackUsage struct {
 
 // computeStackUsage computes the stack usage of the given opcode. The result
 // is a stackUsage struct that defines the combined effect of the instruction
-// on the stack. If the opcode is not supported, an error is returned.
+// on the stack. If the opcode is not executable (i.e NOOP, INVALID), an error
+// is returned.
 func computeStackUsage(op OpCode) (stackUsage, error) {
 
 	// For single instructions it is easiest to define the stack usage based on

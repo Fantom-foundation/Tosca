@@ -27,10 +27,31 @@ func TestOpCode_SuperInstructionsAreDecomposedToBasicOpCodes(t *testing.T) {
 	}
 }
 
-func allOpCodes() []OpCode {
+func TestOpCode_AllOpCodesAreSmallerThan512(t *testing.T) {
+	// Some lookup tables are sized to 512 and use mask 0x1FF to index them.
+	// If any opcode that violates this property is introduced, undefined behavior
+	// may be difficult to detect.
+	for _, op := range allOpCodes() {
+		if op > 512 {
+			t.Errorf("op code %v is greater than 512", op)
+		}
+	}
+}
+
+func allOpCodesWhere(predicate func(op OpCode) bool) []OpCode {
 	res := []OpCode{}
 	for op := OpCode(0); op < NUM_OPCODES; op++ {
-		res = append(res, op)
+		if op.isValid() && predicate(op) {
+			res = append(res, op)
+		}
 	}
 	return res
+}
+
+func allOpCodes() []OpCode {
+	return allOpCodesWhere(func(op OpCode) bool { return true })
+}
+
+func allExecutableOpCodes() []OpCode {
+	return allOpCodesWhere(func(op OpCode) bool { return op.isExecutable() })
 }

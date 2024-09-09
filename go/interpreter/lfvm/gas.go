@@ -50,24 +50,33 @@ const (
 	UNKNOWN_GAS_PRICE = 999999
 )
 
-var static_gas_prices = [NUM_OPCODES]tosca.Gas{}
-var static_gas_prices_berlin = [NUM_OPCODES]tosca.Gas{}
+var static_gas_prices = [512]tosca.Gas{}
+var static_gas_prices_berlin = [512]tosca.Gas{}
 
 func init() {
+
 	var gp tosca.Gas
-	for i := 0; i < int(NUM_EXECUTABLE_OPCODES); i++ {
-		gp = getStaticGasPriceInternal(OpCode(i))
+	for i := range static_gas_prices {
+		op := OpCode(i)
+		if !op.isExecutable() {
+			static_gas_prices[i] = UNKNOWN_GAS_PRICE
+			static_gas_prices_berlin[i] = UNKNOWN_GAS_PRICE
+			continue
+		}
+
+		gp = getStaticGasPriceInternal(op)
 		static_gas_prices[i] = gp
 		static_gas_prices_berlin[i] = gp
 	}
 	initBerlinGasPrice()
 
-	for i := 0; i < int(NUM_EXECUTABLE_OPCODES); i++ {
-		if static_gas_prices[i] == UNKNOWN_GAS_PRICE {
-			panic(fmt.Sprintf("Gas price for %v is unknown", OpCode(i)))
+	for i := range static_gas_prices {
+		op := OpCode(i)
+		if static_gas_prices[i] == UNKNOWN_GAS_PRICE && op.isExecutable() {
+			panic(fmt.Sprintf("Gas price for %v is unknown", op))
 		}
-		if static_gas_prices_berlin[i] == UNKNOWN_GAS_PRICE {
-			panic(fmt.Sprintf("Berlin gas price for %v is unknown", OpCode(i)))
+		if static_gas_prices_berlin[i] == UNKNOWN_GAS_PRICE && op.isExecutable() {
+			panic(fmt.Sprintf("Berlin gas price for %v is unknown", op))
 		}
 	}
 }

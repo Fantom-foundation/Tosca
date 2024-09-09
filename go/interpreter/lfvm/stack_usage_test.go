@@ -45,7 +45,13 @@ func TestComputeStackUsage_ProducesValidResultsForSingleOps(t *testing.T) {
 }
 
 func TestComputeStackUsage_ReportsAnErrorForInvalidOperations(t *testing.T) {
-	ops := []OpCode{INVALID, 256, 0xffff}
+	ops := []OpCode{
+		INVALID, // defined invalid
+		NOOP,    // extended set of instructions
+		DATA,    // extended set of instructions
+		0xffff,  // out of range
+		0x0c,    //< some code that is not an opcode but within the range
+	}
 
 	for _, op := range ops {
 		_, err := computeStackUsage(op)

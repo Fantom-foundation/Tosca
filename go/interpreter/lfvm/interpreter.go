@@ -605,15 +605,16 @@ func steps(c *context, oneStepOnly bool) {
 }
 
 func satisfiesStackRequirements(c *context, op OpCode) bool {
-	stackLen := c.stack.len()
 
 	// It would be necessary here to check that the operation index is not out
-	// of bounds for the precomputed stack limits. However, this adds 15%
-	// overhead to this function. To avoid this, the _precomputedStackLimits
-	// is padded with a stackLimits{0, 0} at the end up to 256 elements. This
-	// way, by only taking the last 8 bits of the OpCode, the index is always
-	// within bounds.
-	limits := _precomputedStackLimits[op&0xff]
+	// of bounds for the precomputed stack limits. However, doing that would
+	// add overhead to this function.
+	// To avoid this check, the precomputed stack limits are defined to be {0, 0}
+	// for all non-executable operations, and the defined OpCodes are tested to
+	// be smaller than 512.
+
+	stackLen := c.stack.len()
+	limits := _precomputedStackLimits[op&0x1ff]
 	if stackLen < limits.min {
 		c.signalError()
 		return false
@@ -633,14 +634,18 @@ type stackLimits struct {
 
 var _precomputedStackLimits = _precomputeStackLimits()
 
-func _precomputeStackLimits() [256]stackLimits {
-	var res [256]stackLimits
-	for i := 0; i < int(NUM_EXECUTABLE_OPCODES); i++ {
-		usage, err := computeStackUsage(OpCode(i))
+func _precomputeStackLimits() [512]stackLimits {
+	var res [512]stackLimits
+	for i := 0; i < 512; i++ {
+		op := OpCode(i)
+		if !op.isExecutable() {
+			continue
+		}
+		usage, err := computeStackUsage(op)
 		if err != nil {
 			panic(err)
 		}
-		res[OpCode(i)] = stackLimits{
+		res[op] = stackLimits{
 			min: -usage.from,
 			max: maxStackSize - usage.to,
 		}

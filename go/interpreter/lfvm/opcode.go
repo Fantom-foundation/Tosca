@@ -10,387 +10,235 @@
 
 package lfvm
 
-import "fmt"
+import (
+	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
+)
 
 type OpCode uint16
 
-// The following constants define OpCodes for the long-form EVM version.
-// It avoids reusing the opcodes of the EVM to allow rearranging the numeric
-// values of instructions if required.
-// The order is currently exploited for computing e.g. the gas cost of operations.
+// The following constants define the original EVM OpCodes, in the lfvm OpCode space.
 const (
 	// Stack operations
-	POP OpCode = iota
-	PUSH0
-	PUSH1
-	PUSH2
-	PUSH3
-	PUSH4
-	PUSH5
-	PUSH6
-	PUSH7
-	PUSH8
-	PUSH9
-	PUSH10
-	PUSH11
-	PUSH12
-	PUSH13
-	PUSH14
-	PUSH15
-	PUSH16
-	PUSH17
-	PUSH18
-	PUSH19
-	PUSH20
-	PUSH21
-	PUSH22
-	PUSH23
-	PUSH24
-	PUSH25
-	PUSH26
-	PUSH27
-	PUSH28
-	PUSH29
-	PUSH30
-	PUSH31
-	PUSH32
+	POP    = OpCode(vm.POP)
+	PUSH0  = OpCode(vm.PUSH0)
+	PUSH1  = OpCode(vm.PUSH1)
+	PUSH2  = OpCode(vm.PUSH2)
+	PUSH3  = OpCode(vm.PUSH3)
+	PUSH4  = OpCode(vm.PUSH4)
+	PUSH5  = OpCode(vm.PUSH5)
+	PUSH6  = OpCode(vm.PUSH6)
+	PUSH7  = OpCode(vm.PUSH7)
+	PUSH8  = OpCode(vm.PUSH8)
+	PUSH9  = OpCode(vm.PUSH9)
+	PUSH10 = OpCode(vm.PUSH10)
+	PUSH11 = OpCode(vm.PUSH11)
+	PUSH12 = OpCode(vm.PUSH12)
+	PUSH13 = OpCode(vm.PUSH13)
+	PUSH14 = OpCode(vm.PUSH14)
+	PUSH15 = OpCode(vm.PUSH15)
+	PUSH16 = OpCode(vm.PUSH16)
+	PUSH17 = OpCode(vm.PUSH17)
+	PUSH18 = OpCode(vm.PUSH18)
+	PUSH19 = OpCode(vm.PUSH19)
+	PUSH20 = OpCode(vm.PUSH20)
+	PUSH21 = OpCode(vm.PUSH21)
+	PUSH22 = OpCode(vm.PUSH22)
+	PUSH23 = OpCode(vm.PUSH23)
+	PUSH24 = OpCode(vm.PUSH24)
+	PUSH25 = OpCode(vm.PUSH25)
+	PUSH26 = OpCode(vm.PUSH26)
+	PUSH27 = OpCode(vm.PUSH27)
+	PUSH28 = OpCode(vm.PUSH28)
+	PUSH29 = OpCode(vm.PUSH29)
+	PUSH30 = OpCode(vm.PUSH30)
+	PUSH31 = OpCode(vm.PUSH31)
+	PUSH32 = OpCode(vm.PUSH32)
 
-	DUP1
-	DUP2
-	DUP3
-	DUP4
-	DUP5
-	DUP6
-	DUP7
-	DUP8
-	DUP9
-	DUP10
-	DUP11
-	DUP12
-	DUP13
-	DUP14
-	DUP15
-	DUP16
+	DUP1  = OpCode(vm.DUP1)
+	DUP2  = OpCode(vm.DUP2)
+	DUP3  = OpCode(vm.DUP3)
+	DUP4  = OpCode(vm.DUP4)
+	DUP5  = OpCode(vm.DUP5)
+	DUP6  = OpCode(vm.DUP6)
+	DUP7  = OpCode(vm.DUP7)
+	DUP8  = OpCode(vm.DUP8)
+	DUP9  = OpCode(vm.DUP9)
+	DUP10 = OpCode(vm.DUP10)
+	DUP11 = OpCode(vm.DUP11)
+	DUP12 = OpCode(vm.DUP12)
+	DUP13 = OpCode(vm.DUP13)
+	DUP14 = OpCode(vm.DUP14)
+	DUP15 = OpCode(vm.DUP15)
+	DUP16 = OpCode(vm.DUP16)
 
-	SWAP1
-	SWAP2
-	SWAP3
-	SWAP4
-	SWAP5
-	SWAP6
-	SWAP7
-	SWAP8
-	SWAP9
-	SWAP10
-	SWAP11
-	SWAP12
-	SWAP13
-	SWAP14
-	SWAP15
-	SWAP16
+	SWAP1  = OpCode(vm.SWAP1)
+	SWAP2  = OpCode(vm.SWAP2)
+	SWAP3  = OpCode(vm.SWAP3)
+	SWAP4  = OpCode(vm.SWAP4)
+	SWAP5  = OpCode(vm.SWAP5)
+	SWAP6  = OpCode(vm.SWAP6)
+	SWAP7  = OpCode(vm.SWAP7)
+	SWAP8  = OpCode(vm.SWAP8)
+	SWAP9  = OpCode(vm.SWAP9)
+	SWAP10 = OpCode(vm.SWAP10)
+	SWAP11 = OpCode(vm.SWAP11)
+	SWAP12 = OpCode(vm.SWAP12)
+	SWAP13 = OpCode(vm.SWAP13)
+	SWAP14 = OpCode(vm.SWAP14)
+	SWAP15 = OpCode(vm.SWAP15)
+	SWAP16 = OpCode(vm.SWAP16)
 
 	// Control flow
-	JUMP
-	JUMPI
-	JUMPDEST
-	RETURN
-	REVERT
-	PC
-	STOP
+	JUMP     = OpCode(vm.JUMP)
+	JUMPI    = OpCode(vm.JUMPI)
+	JUMPDEST = OpCode(vm.JUMPDEST)
+	RETURN   = OpCode(vm.RETURN)
+	REVERT   = OpCode(vm.REVERT)
+	PC       = OpCode(vm.PC)
+	STOP     = OpCode(vm.STOP)
 
 	// Arithmetic
-	ADD
-	SUB
-	MUL
-	DIV
-	SDIV
-	MOD
-	SMOD
-	ADDMOD
-	MULMOD
-	EXP
-	SIGNEXTEND
+	ADD        = OpCode(vm.ADD)
+	SUB        = OpCode(vm.SUB)
+	MUL        = OpCode(vm.MUL)
+	DIV        = OpCode(vm.DIV)
+	SDIV       = OpCode(vm.SDIV)
+	MOD        = OpCode(vm.MOD)
+	SMOD       = OpCode(vm.SMOD)
+	ADDMOD     = OpCode(vm.ADDMOD)
+	MULMOD     = OpCode(vm.MULMOD)
+	EXP        = OpCode(vm.EXP)
+	SIGNEXTEND = OpCode(vm.SIGNEXTEND)
 
 	// Complex function
-	SHA3
+	SHA3 = OpCode(vm.SHA3)
 
 	// Comparison operations
-	LT
-	GT
-	SLT
-	SGT
-	EQ
-	ISZERO
+	LT     = OpCode(vm.LT)
+	GT     = OpCode(vm.GT)
+	SLT    = OpCode(vm.SLT)
+	SGT    = OpCode(vm.SGT)
+	EQ     = OpCode(vm.EQ)
+	ISZERO = OpCode(vm.ISZERO)
 
 	// Bit-pattern operations
-	AND
-	OR
-	XOR
-	NOT
-	BYTE
-	SHL
-	SHR
-	SAR
+	AND  = OpCode(vm.AND)
+	OR   = OpCode(vm.OR)
+	XOR  = OpCode(vm.XOR)
+	NOT  = OpCode(vm.NOT)
+	BYTE = OpCode(vm.BYTE)
+	SHL  = OpCode(vm.SHL)
+	SHR  = OpCode(vm.SHR)
+	SAR  = OpCode(vm.SAR)
 
 	// Memory
-	MSTORE
-	MSTORE8
-	MLOAD
-	MSIZE
-	MCOPY
+	MSTORE  = OpCode(vm.MSTORE)
+	MSTORE8 = OpCode(vm.MSTORE8)
+	MLOAD   = OpCode(vm.MLOAD)
+	MSIZE   = OpCode(vm.MSIZE)
+	MCOPY   = OpCode(vm.MCOPY)
 
 	// Storage
-	SLOAD
-	SSTORE
-	TLOAD
-	TSTORE
+	SLOAD  = OpCode(vm.SLOAD)
+	SSTORE = OpCode(vm.SSTORE)
+	TLOAD  = OpCode(vm.TLOAD)
+	TSTORE = OpCode(vm.TSTORE)
 
 	// LOG
-	LOG0
-	LOG1
-	LOG2
-	LOG3
-	LOG4
+	LOG0 = OpCode(vm.LOG0)
+	LOG1 = OpCode(vm.LOG1)
+	LOG2 = OpCode(vm.LOG2)
+	LOG3 = OpCode(vm.LOG3)
+	LOG4 = OpCode(vm.LOG4)
 
 	// System level instructions.
-	ADDRESS
-	BALANCE
-	ORIGIN
-	CALLER
-	CALLVALUE
-	CALLDATALOAD
-	CALLDATASIZE
-	CALLDATACOPY
-	CODESIZE
-	CODECOPY
-	GASPRICE
-	EXTCODESIZE
-	EXTCODECOPY
-	RETURNDATASIZE
-	RETURNDATACOPY
-	EXTCODEHASH
-	CREATE
-	CALL
-	CALLCODE
-	DELEGATECALL
-	CREATE2
-	STATICCALL
-	SELFDESTRUCT
+	ADDRESS        = OpCode(vm.ADDRESS)
+	BALANCE        = OpCode(vm.BALANCE)
+	ORIGIN         = OpCode(vm.ORIGIN)
+	CALLER         = OpCode(vm.CALLER)
+	CALLVALUE      = OpCode(vm.CALLVALUE)
+	CALLDATALOAD   = OpCode(vm.CALLDATALOAD)
+	CALLDATASIZE   = OpCode(vm.CALLDATASIZE)
+	CALLDATACOPY   = OpCode(vm.CALLDATACOPY)
+	CODESIZE       = OpCode(vm.CODESIZE)
+	CODECOPY       = OpCode(vm.CODECOPY)
+	GASPRICE       = OpCode(vm.GASPRICE)
+	EXTCODESIZE    = OpCode(vm.EXTCODESIZE)
+	EXTCODECOPY    = OpCode(vm.EXTCODECOPY)
+	RETURNDATASIZE = OpCode(vm.RETURNDATASIZE)
+	RETURNDATACOPY = OpCode(vm.RETURNDATACOPY)
+	EXTCODEHASH    = OpCode(vm.EXTCODEHASH)
+	CREATE         = OpCode(vm.CREATE)
+	CALL           = OpCode(vm.CALL)
+	CALLCODE       = OpCode(vm.CALLCODE)
+	DELEGATECALL   = OpCode(vm.DELEGATECALL)
+	CREATE2        = OpCode(vm.CREATE2)
+	STATICCALL     = OpCode(vm.STATICCALL)
+	SELFDESTRUCT   = OpCode(vm.SELFDESTRUCT)
 
 	// Blockchain instructions
-	BLOCKHASH
-	COINBASE
-	TIMESTAMP
-	NUMBER
-	PREVRANDAO
-	GAS
-	GASLIMIT
-	CHAINID
-	SELFBALANCE
-	BASEFEE
-	BLOBHASH
-	BLOBBASEFEE
+	BLOCKHASH   = OpCode(vm.BLOCKHASH)
+	COINBASE    = OpCode(vm.COINBASE)
+	TIMESTAMP   = OpCode(vm.TIMESTAMP)
+	NUMBER      = OpCode(vm.NUMBER)
+	PREVRANDAO  = OpCode(vm.PREVRANDAO)
+	GAS         = OpCode(vm.GAS)
+	GASLIMIT    = OpCode(vm.GASLIMIT)
+	CHAINID     = OpCode(vm.CHAINID)
+	SELFBALANCE = OpCode(vm.SELFBALANCE)
+	BASEFEE     = OpCode(vm.BASEFEE)
+	BLOBHASH    = OpCode(vm.BLOBHASH)
+	BLOBBASEFEE = OpCode(vm.BLOBBASEFEE)
 
-	// long-form EVM special instructions
-	JUMP_TO
-
-	// Super-instructions
-	SWAP2_SWAP1_POP_JUMP
-	SWAP1_POP_SWAP2_SWAP1
-	POP_SWAP2_SWAP1_POP
-	POP_POP
-	PUSH1_SHL
-	PUSH1_ADD
-	PUSH1_DUP1
-	PUSH2_JUMP
-	PUSH2_JUMPI
-
-	PUSH1_PUSH1
-	SWAP1_POP
-	POP_JUMP
-	SWAP2_SWAP1
-	SWAP2_POP
-	DUP2_MSTORE
-	DUP2_LT
-
-	ISZERO_PUSH2_JUMPI
-	PUSH1_PUSH4_DUP3
-	AND_SWAP1_POP_SWAP2_SWAP1
-	PUSH1_PUSH1_PUSH1_SHL_SUB
-
-	// Not really an Op-code but used to get the number of executable opcodes.
-	NUM_EXECUTABLE_OPCODES
-
-	// Special non-instruction op codes
-	DATA
-	NOOP
-	INVALID
-
-	// Not really an Op-code but used to get the number of supported op codes.
-	NUM_OPCODES
+	// Invalid instruction
+	INVALID = OpCode(vm.INVALID)
 )
 
-var op_to_string = map[OpCode]string{
-	POP:      "POP",
-	PUSH2:    "PUSH2",
-	JUMP:     "JUMP",
-	SWAP1:    "SWAP1",
-	SWAP2:    "SWAP2",
-	DUP3:     "DUP3",
-	PUSH1:    "PUSH1",
-	PUSH4:    "PUSH4",
-	AND:      "AND",
-	SWAP3:    "SWAP3",
-	JUMPI:    "JUMPI",
-	JUMPDEST: "JUMPDEST",
-	GT:       "GT",
-	DUP4:     "DUP4",
-	DUP2:     "DUP2",
-	ISZERO:   "ISZERO",
-	SUB:      "SUB",
-	ADD:      "ADD",
-	DUP5:     "DUP5",
-	DUP1:     "DUP1",
-	EQ:       "EQ",
-	LT:       "LT",
-	SLT:      "SLT",
-	SHR:      "SHR",
-	DUP6:     "DUP6",
-	RETURN:   "RETURN",
-	REVERT:   "REVERT",
-	PUSH32:   "PUSH32",
+// The following constants define the extended set of OpCodes for the long-form
+// EVM.
+// These opcodes are specific to the long-form EVM and are not part of the
+// original EVM.
+const (
+	FIRST_LFVM_EXTENDED_OPCODE = 0x100
 
-	PUSH0:  "PUSH0",
-	PUSH3:  "PUSH3",
-	PUSH5:  "PUSH5",
-	PUSH6:  "PUSH6",
-	PUSH7:  "PUSH7",
-	PUSH8:  "PUSH8",
-	PUSH9:  "PUSH9",
-	PUSH10: "PUSH10",
-	PUSH11: "PUSH11",
-	PUSH12: "PUSH12",
-	PUSH13: "PUSH13",
-	PUSH14: "PUSH14",
-	PUSH15: "PUSH15",
-	PUSH16: "PUSH16",
-	PUSH17: "PUSH17",
-	PUSH18: "PUSH18",
-	PUSH19: "PUSH19",
-	PUSH20: "PUSH20",
-	PUSH21: "PUSH21",
-	PUSH22: "PUSH22",
-	PUSH23: "PUSH23",
-	PUSH24: "PUSH24",
-	PUSH25: "PUSH25",
-	PUSH26: "PUSH26",
-	PUSH27: "PUSH27",
-	PUSH28: "PUSH28",
-	PUSH29: "PUSH29",
-	PUSH30: "PUSH30",
-	PUSH31: "PUSH31",
-	DUP7:   "DUP7",
-	DUP8:   "DUP8",
-	DUP9:   "DUP9",
-	DUP10:  "DUP10",
-	DUP11:  "DUP11",
-	DUP12:  "DUP12",
-	DUP13:  "DUP13",
-	DUP14:  "DUP14",
-	DUP15:  "DUP15",
-	DUP16:  "DUP16",
-	SWAP4:  "SWAP4",
-	SWAP5:  "SWAP5",
-	SWAP6:  "SWAP6",
-	SWAP7:  "SWAP7",
-	SWAP8:  "SWAP8",
-	SWAP9:  "SWAP9",
-	SWAP10: "SWAP10",
-	SWAP11: "SWAP11",
-	SWAP12: "SWAP12",
-	SWAP13: "SWAP13",
-	SWAP14: "SWAP14",
-	SWAP15: "SWAP15",
-	SWAP16: "SWAP16",
+	// long-form EVM special instructions
+	JUMP_TO OpCode = FIRST_LFVM_EXTENDED_OPCODE
 
-	STOP: "STOP",
-	PC:   "PC",
+	// Super-instructions
+	SWAP2_SWAP1_POP_JUMP  OpCode = 0x101
+	SWAP1_POP_SWAP2_SWAP1 OpCode = 0x102
+	POP_SWAP2_SWAP1_POP   OpCode = 0x103
+	POP_POP               OpCode = 0x104
+	PUSH1_SHL             OpCode = 0x105
+	PUSH1_ADD             OpCode = 0x106
+	PUSH1_DUP1            OpCode = 0x107
+	PUSH2_JUMP            OpCode = 0x108
+	PUSH2_JUMPI           OpCode = 0x109
 
-	MUL:        "MUL",
-	DIV:        "DIV",
-	SDIV:       "SDIV",
-	MOD:        "MOD",
-	SMOD:       "SMOD",
-	ADDMOD:     "ADDMOD",
-	MULMOD:     "MULMOD",
-	EXP:        "EXP",
-	SIGNEXTEND: "SIGNEXTEND",
+	PUSH1_PUSH1 OpCode = 0x10A
+	SWAP1_POP   OpCode = 0x10B
+	POP_JUMP    OpCode = 0x10C
+	SWAP2_SWAP1 OpCode = 0x10D
+	SWAP2_POP   OpCode = 0x10E
+	DUP2_MSTORE OpCode = 0x10F
+	DUP2_LT     OpCode = 0x110
 
-	SHA3: "SHA3",
+	ISZERO_PUSH2_JUMPI        OpCode = 0x111
+	PUSH1_PUSH4_DUP3          OpCode = 0x112
+	AND_SWAP1_POP_SWAP2_SWAP1 OpCode = 0x113
+	PUSH1_PUSH1_PUSH1_SHL_SUB OpCode = 0x114
 
-	SGT: "SGT",
+	END_LFVM_EXECUTABLE_OPCODES = 0x115
 
-	OR:   "OR",
-	XOR:  "XOR",
-	NOT:  "NOT",
-	BYTE: "BYTE",
-	SHL:  "SHL",
-	SAR:  "SAR",
+	// Special no-instructions op codes
+	DATA OpCode = END_LFVM_EXECUTABLE_OPCODES
+	NOOP OpCode = 0x120
 
-	MSTORE:  "MSTORE",
-	MSTORE8: "MSTORE8",
-	MLOAD:   "MLOAD",
-	MSIZE:   "MSIZE",
-	MCOPY:   "MCOPY",
+	END_LFVM_EXTENDED_OPCODES = 0x121
+	NUM_OPCODES               = END_LFVM_EXTENDED_OPCODES
+)
 
-	SLOAD:  "SLOAD",
-	SSTORE: "SSTORE",
-	TLOAD:  "TLOAD",
-	TSTORE: "TSTORE",
-
-	LOG0: "LOG0",
-	LOG1: "LOG1",
-	LOG2: "LOG2",
-	LOG3: "LOG3",
-	LOG4: "LOG4",
-
-	ADDRESS:        "ADDRESS",
-	BALANCE:        "BALANCE",
-	ORIGIN:         "ORIGIN",
-	CALLER:         "CALLER",
-	CALLVALUE:      "CALLVALUE",
-	CALLDATALOAD:   "CALLDATALOAD",
-	CALLDATASIZE:   "CALLDATASIZE",
-	CALLDATACOPY:   "CALLDATACOPY",
-	CODESIZE:       "CODESIZE",
-	CODECOPY:       "CODECOPY",
-	GASPRICE:       "GASPRICE",
-	EXTCODESIZE:    "EXTCODESIZE",
-	EXTCODECOPY:    "EXTCODECOPY",
-	RETURNDATASIZE: "RETURNDATASIZE",
-	RETURNDATACOPY: "RETURNDATACOPY",
-	EXTCODEHASH:    "EXTCODEHASH",
-	CREATE:         "CREATE",
-	CALL:           "CALL",
-	CALLCODE:       "CALLCODE",
-	DELEGATECALL:   "DELEGATECALL",
-	CREATE2:        "CREATE2",
-	STATICCALL:     "STATICCALL",
-	SELFDESTRUCT:   "SELFDESTRUCT",
-
-	BLOCKHASH:   "BLOCKHASH",
-	COINBASE:    "COINBASE",
-	TIMESTAMP:   "TIMESTAMP",
-	NUMBER:      "NUMBER",
-	PREVRANDAO:  "PREVRANDAO",
-	GAS:         "GAS",
-	GASLIMIT:    "GASLIMIT",
-	CHAINID:     "CHAINID",
-	SELFBALANCE: "SELFBALANCE",
-	BASEFEE:     "BASEFEE",
-	BLOBHASH:    "BLOBHASH",
-	BLOBBASEFEE: "BLOBBASEFEE",
-
+var to_string = map[OpCode]string{
 	JUMP_TO: "JUMP_TO",
 
 	SWAP2_SWAP1_POP_JUMP:  "SWAP2_SWAP1_POP_JUMP",
@@ -416,19 +264,26 @@ var op_to_string = map[OpCode]string{
 	AND_SWAP1_POP_SWAP2_SWAP1: "AND_SWAP1_POP_SWAP2_SWAP1",
 	PUSH1_PUSH1_PUSH1_SHL_SUB: "PUSH1_PUSH1_PUSH1_SHL_SUB",
 
-	DATA:    "DATA",
-	NOOP:    "NOOP",
-	INVALID: "INVALID",
+	DATA: "DATA",
+	NOOP: "NOOP",
 }
 
+// String returns the string representation of the OpCode.
+// For undefined values the string "UNKNOWN" is returned,
+// instead of INVALID, which is a defined value.
 func (o OpCode) String() string {
-	str, found := op_to_string[o]
-	if !found {
-		return fmt.Sprintf("0x%04x", byte(o))
+	if o < FIRST_LFVM_EXTENDED_OPCODE {
+		return vm.OpCode(o).String()
 	}
-	return str
+
+	if str, ok := to_string[o]; ok {
+		return str
+	}
+	return "UNKNOWN"
 }
 
+// HasArgument returns true if the second 16-bit word of the instruction is
+// argument data.
 func (o OpCode) HasArgument() bool {
 	if PUSH1 <= o && o <= PUSH32 {
 		return true
@@ -496,4 +351,26 @@ func (o OpCode) decompose() []OpCode {
 		return []OpCode{PUSH1, PUSH1, PUSH1, SHL, SUB}
 	}
 	return nil
+}
+
+// IsValid returns true if the OpCode is a valid OpCode.
+// A valid opcode shall be defined in the OpCode space, with the exception of
+// INVALID, which is a defined value.
+func (op OpCode) isValid() bool {
+	if op < FIRST_LFVM_EXTENDED_OPCODE {
+		return vm.IsValid(vm.OpCode(op))
+	}
+	return op >= FIRST_LFVM_EXTENDED_OPCODE && op < END_LFVM_EXTENDED_OPCODES
+}
+
+// isExecutable returns true if the OpCode is an executable OpCode.
+// An executable OpCode is a valid OpCode that executes an operation; all valid
+// OpCodes with the exception of DATA, and NOOP are executable.
+// - JUMPDEST is an executable OpCode.
+// - INVALID is not an executable OpCode, since it is neither Valid
+func (op OpCode) isExecutable() bool {
+	if op < FIRST_LFVM_EXTENDED_OPCODE {
+		return op.isValid()
+	}
+	return op < END_LFVM_EXECUTABLE_OPCODES
 }

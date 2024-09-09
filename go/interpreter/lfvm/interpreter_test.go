@@ -167,17 +167,11 @@ type OpcodeTest struct {
 	gasRefund   tosca.Gas
 }
 
-func getInstructionsWithGas(start OpCode, end OpCode, gas tosca.Gas) (opCodes []OpCodeWithGas) {
-	for i := start; i <= end; i++ {
-		opCode := OpCodeWithGas{OpCode(i), gas}
-		opCodes = append(opCodes, opCode)
-	}
-	return
-}
-
 func TestInterpreter_step_DetectsLowerStackLimitViolation(t *testing.T) {
 	// Add tests for execution
-	for op := OpCode(0); op < NUM_EXECUTABLE_OPCODES; op++ {
+
+	for _, op := range allExecutableOpCodes() {
+
 		// Ignore operations that do not need any data on the stack.
 		usage, err := computeStackUsage(op)
 		if err != nil {
@@ -203,7 +197,7 @@ func TestInterpreter_step_DetectsLowerStackLimitViolation(t *testing.T) {
 
 func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 	// Add tests for execution
-	for op := OpCode(0); op < NUM_EXECUTABLE_OPCODES; op++ {
+	for _, op := range allExecutableOpCodes() {
 		// Ignore operations that do not need any data on the stack.
 		usage, err := computeStackUsage(op)
 		if err != nil {
@@ -326,47 +320,71 @@ type OpCodeWithGas struct {
 	gas tosca.Gas
 }
 
-func addOKOpCodes(tests []OpcodeTest) []OpcodeTest {
-	var addedTests []OpcodeTest
-	addedTests = append(addedTests, tests...)
-	for i := PUSH1; i <= PUSH32; i++ {
-		code := []Instruction{{i, 1}}
-		dataNum := int((i - PUSH1) / 2)
+func generateOpCodesInRange(start OpCode, end OpCode) []OpCode {
+	opCodes := make([]OpCode, end-start+1)
+	for i := start; i <= end; i++ {
+		opCodes[i-start] = i
+	}
+	return opCodes
+}
+
+func TestInstructionsGasConsumption(t *testing.T) {
+
+	var tests []OpcodeTest
+
+	for _, op := range generateOpCodesInRange(PUSH1, PUSH32) {
+		code := []Instruction{{op, 1}}
+		dataNum := int((op - PUSH1) / 2)
 		for j := 0; j < dataNum; j++ {
 			code = append(code, Instruction{DATA, 1})
 		}
-		addedTests = append(addedTests, OpcodeTest{i.String(), code, 20, 0, statusStopped, false, false, nil, GAS_START, 3, 0})
+		tests = append(tests, OpcodeTest{op.String(), code, 20, 0, statusStopped, false, false, nil, GAS_START, 3, 0})
 	}
+
+	attachGasTo := func(gas tosca.Gas, opCodes ...OpCode) []OpCodeWithGas {
+		opCodesWithGas := make([]OpCodeWithGas, len(opCodes))
+		for i, opCode := range opCodes {
+			opCodesWithGas[i] = OpCodeWithGas{opCode, gas}
+		}
+		return opCodesWithGas
+	}
+
 	var opCodes []OpCodeWithGas
-	opCodes = append(opCodes, getInstructionsWithGas(DUP1, SWAP16, 3)...)
-	opCodes = append(opCodes, getInstructionsWithGas(ADD, SUB, 3)...)
-	opCodes = append(opCodes, getInstructionsWithGas(MUL, SMOD, 5)...)
-	opCodes = append(opCodes, getInstructionsWithGas(ADDMOD, MULMOD, 8)...)
-	opCodes = append(opCodes, OpCodeWithGas{EXP, 10})
-	opCodes = append(opCodes, OpCodeWithGas{SIGNEXTEND, 5})
-	opCodes = append(opCodes, OpCodeWithGas{SHA3, 30})
-	opCodes = append(opCodes, getInstructionsWithGas(LT, SAR, 3)...)
-	opCodes = append(opCodes, OpCodeWithGas{SWAP1_POP_SWAP2_SWAP1, 11})
-	opCodes = append(opCodes, OpCodeWithGas{POP_SWAP2_SWAP1_POP, 10})
-	opCodes = append(opCodes, OpCodeWithGas{POP_POP, 4})
-	opCodes = append(opCodes, getInstructionsWithGas(PUSH1_SHL, PUSH1_DUP1, 6)...)
-	//opCodes = append(opCodes, OpCodeWithGas{PUSH2_JUMP, 11})
-	opCodes = append(opCodes, OpCodeWithGas{PUSH2_JUMPI, 13})
-	opCodes = append(opCodes, OpCodeWithGas{PUSH1_PUSH1, 6})
-	opCodes = append(opCodes, OpCodeWithGas{SWAP1_POP, 5})
-	opCodes = append(opCodes, OpCodeWithGas{SWAP2_SWAP1, 6})
-	opCodes = append(opCodes, OpCodeWithGas{SWAP2_POP, 5})
-	opCodes = append(opCodes, OpCodeWithGas{DUP2_MSTORE, 9})
-	opCodes = append(opCodes, OpCodeWithGas{DUP2_LT, 6})
+	opCodes = append(opCodes, attachGasTo(2, generateOpCodesInRange(COINBASE, CHAINID)...)...)
+	opCodes = append(opCodes, attachGasTo(3, ADD, SUB)...)
+	opCodes = append(opCodes, attachGasTo(5, MUL, DIV, SDIV, MOD, SMOD, SIGNEXTEND)...)
+	opCodes = append(opCodes, attachGasTo(3, generateOpCodesInRange(DUP1, DUP16)...)...)
+	opCodes = append(opCodes, attachGasTo(3, generateOpCodesInRange(SWAP1, SWAP16)...)...)
+	opCodes = append(opCodes, attachGasTo(3, generateOpCodesInRange(LT, SAR)...)...)
+	opCodes = append(opCodes, attachGasTo(8, ADDMOD, MULMOD)...)
+	opCodes = append(opCodes, attachGasTo(10, EXP)...)
+	opCodes = append(opCodes, attachGasTo(30, SHA3)...)
+	opCodes = append(opCodes, attachGasTo(11, SWAP1_POP_SWAP2_SWAP1)...)
+	opCodes = append(opCodes, attachGasTo(10, POP_SWAP2_SWAP1_POP)...)
+	opCodes = append(opCodes, attachGasTo(4, POP_POP)...)
+	opCodes = append(opCodes, attachGasTo(6, generateOpCodesInRange(PUSH1_SHL, PUSH1_DUP1)...)...)
+	// opCodes = append(opCodes, applyGasTo(11, PUSH2_JUMP)...) // FIXME: this seems to be broken
+	opCodes = append(opCodes, attachGasTo(13, PUSH2_JUMPI)...)
+	opCodes = append(opCodes, attachGasTo(6, PUSH1_PUSH1)...)
+	opCodes = append(opCodes, attachGasTo(5, SWAP1_POP)...)
+	opCodes = append(opCodes, attachGasTo(6, SWAP2_SWAP1)...)
+	opCodes = append(opCodes, attachGasTo(5, SWAP2_POP)...)
+	opCodes = append(opCodes, attachGasTo(9, DUP2_MSTORE)...)
+	opCodes = append(opCodes, attachGasTo(6, DUP2_LT)...)
+
 	for _, opCode := range opCodes {
 		code := []Instruction{{opCode.OpCode, 0}}
-		addedTests = append(addedTests, OpcodeTest{opCode.String(), code, 20, 0, statusStopped, false, false, nil, GAS_START, opCode.gas, 0})
+		tests = append(tests, OpcodeTest{
+			name:        opCode.String(),
+			code:        code,
+			stackPtrPos: 20,
+			endStatus:   statusStopped,
+			gasStart:    GAS_START,
+			gasConsumed: opCode.gas,
+		})
 	}
-	return addedTests
-}
 
-func TestOKInstructionPath(t *testing.T) {
-	for _, test := range addOKOpCodes(opcodeTests) {
+	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			runContext := tosca.NewMockRunContext(ctrl)
@@ -626,8 +644,10 @@ func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
 func TestStepsDetectsNonExecutableCode(t *testing.T) {
 	// Create execution context.
 	opCodes := []OpCode{
-		NUM_EXECUTABLE_OPCODES,
-		NUM_EXECUTABLE_OPCODES + 1,
+		INVALID, // defined invalid
+		NOOP,    // extended set of instructions
+		DATA,    // extended set of instructions
+		0x0c,    //< some code that is not an opcode but within the range
 	}
 
 	for _, opCode := range opCodes {
@@ -835,7 +855,9 @@ func BenchmarkSatisfiesStackRequirements(b *testing.B) {
 	context := &context{
 		stack: NewStack(),
 	}
+
+	opCodes := allExecutableOpCodes()
 	for i := 0; i < b.N; i++ {
-		satisfiesStackRequirements(context, OpCode(i%int(NUM_EXECUTABLE_OPCODES)))
+		satisfiesStackRequirements(context, opCodes[i%len(opCodes)])
 	}
 }
