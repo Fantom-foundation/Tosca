@@ -186,7 +186,7 @@ func getOutput(ctxt *context) ([]byte, error) {
 			}
 
 			// Extract the result from the memory
-			if err := ctxt.memory.ensureCapacity(offset, size, ctxt); err != nil {
+			if err := ctxt.memory.expandMemoryAndCharge(offset, size, ctxt); err != nil {
 				return nil, err
 			}
 			res = make([]byte, size)

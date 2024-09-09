@@ -69,43 +69,52 @@ func (m *Memory) expansionCosts(size uint64) tosca.Gas {
 	return fee
 }
 
-// ensureCapacity tries to expand memory to the given size.
+// expandMemoryAndCharge tries to expand memory to the given size.
 // If the memory is already large enough or size is 0, it does nothing.
 // if not enough gas in the context, it returns an error.
-func (m *Memory) ensureCapacity(offset, size uint64, c *context) error {
-	if size <= 0 {
-		return nil
-	}
+func (m *Memory) expandMemoryAndCharge(offset, size uint64, c *context) error {
+
 	needed := offset + size
 	// check overflow
 	if needed < offset {
 		c.signalError()
 		return errGasUintOverflow
 	}
-	if m.len() < needed {
-		needed = toValidMemorySize(needed)
-		fee := m.expansionCosts(needed)
+	err := m.expandMemoryWithGasFun(needed, func(fee tosca.Gas) error {
 		if !c.useGas(fee) {
 			c.status = statusOutOfGas
 			return errOutOfGas
 		}
-		m.total_memory_cost += fee
-		m.store = append(m.store, make([]byte, needed-m.len())...)
+		return nil
+	})
+	if err != nil {
+		return err
 	}
+
 	return nil
 }
 
-// ensureCapacityWithoutGas expands the memory to the given size without checking gas.
-func (m *Memory) ensureCapacityWithoutGas(size uint64) {
+// expandMemory expands the memory to the given size without checking gas.
+func (m *Memory) expandMemory(size uint64) {
+	m.expandMemoryWithGasFun(size, nil)
+}
+
+func (m *Memory) expandMemoryWithGasFun(size uint64, gasFun func(tosca.Gas) error) error {
 	if size <= 0 {
-		return
+		return nil
 	}
 	if m.len() < size {
 		size = toValidMemorySize(size)
 		fee := m.expansionCosts(size)
+		if gasFun != nil {
+			if err := gasFun(fee); err != nil {
+				return err
+			}
+		}
 		m.total_memory_cost += fee
 		m.store = append(m.store, make([]byte, size-m.len())...)
 	}
+	return nil
 }
 
 func (m *Memory) len() uint64 {
@@ -114,7 +123,7 @@ func (m *Memory) len() uint64 {
 
 // setByte sets a byte at the given offset, expanding memory as needed and charging for it.
 func (m *Memory) setByte(offset uint64, value byte, c *context) error {
-	err := m.ensureCapacity(offset, 1, c)
+	err := m.expandMemoryAndCharge(offset, 1, c)
 	if err != nil {
 		return err
 	}
@@ -124,7 +133,7 @@ func (m *Memory) setByte(offset uint64, value byte, c *context) error {
 
 // GetByte returns a byte at the given offset, expanding memory as needed and charging for it.
 func (m *Memory) setWord(offset uint64, value *uint256.Int, c *context) error {
-	err := m.ensureCapacity(offset, 32, c)
+	err := m.expandMemoryAndCharge(offset, 32, c)
 	if err != nil {
 		return err
 	}
@@ -187,7 +196,7 @@ func makeInsufficientMemoryError(memSize, size, offset uint64) error {
 }
 
 func (m *Memory) setWithCapacityAndGasCheck(offset, size uint64, value []byte, c *context) error {
-	err := m.ensureCapacity(offset, size, c)
+	err := m.expandMemoryAndCharge(offset, size, c)
 	if err != nil {
 		return err
 	}
@@ -195,7 +204,7 @@ func (m *Memory) setWithCapacityAndGasCheck(offset, size uint64, value []byte, c
 }
 
 func (m *Memory) getWord(offset uint64, trg *uint256.Int, c *context) error {
-	err := m.ensureCapacity(offset, 32, c)
+	err := m.expandMemoryAndCharge(offset, 32, c)
 	if err != nil {
 		return err
 	}
@@ -232,28 +241,9 @@ func (m *Memory) getSlice(offset, size uint64) []byte {
 }
 
 func (m *Memory) getSliceWithCapacityAndGas(offset, size uint64, c *context) ([]byte, error) {
-	err := m.ensureCapacity(offset, size, c)
+	err := m.expandMemoryAndCharge(offset, size, c)
 	if err != nil {
 		return nil, err
 	}
 	return m.getSlice(offset, size), nil
 }
-
-// func (m *Memory) Print() string {
-// 	returnString := strings.Builder{}
-// 	returnString.WriteString(fmt.Sprintf("### mem %d bytes ###\n", len(m.store)))
-// 	if len(m.store) > 0 {
-// 		addr := 0
-// 		for i := 0; i+32 <= len(m.store); i += 32 {
-// 			returnString.WriteString(fmt.Sprintf("%03d: % x\n", addr, m.store[i:i+32]))
-// 			addr++
-// 		}
-// 		if len(m.store)%32 != 0 {
-// 			returnString.WriteString(fmt.Sprintf("%03d: % x\n", addr, m.store[len(m.store)/32*32:]))
-// 		}
-// 	} else {
-// 		returnString.WriteString("-- empty --\n")
-// 	}
-// 	returnString.WriteString("####################\n")
-// 	return returnString.String()
-// }

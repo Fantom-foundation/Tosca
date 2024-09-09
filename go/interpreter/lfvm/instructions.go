@@ -394,7 +394,7 @@ func opCallDataCopy(c *context) {
 		return
 	}
 
-	if c.memory.ensureCapacity(memOffset64, length64, c) != nil {
+	if c.memory.expandMemoryAndCharge(memOffset64, length64, c) != nil {
 		return
 	}
 
@@ -801,7 +801,7 @@ func opCodeCopy(c *context) {
 		return
 	}
 
-	if c.memory.ensureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
+	if c.memory.expandMemoryAndCharge(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
 	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
@@ -876,7 +876,7 @@ func opCreate(c *context) {
 		return
 	}
 
-	if c.memory.ensureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
+	if c.memory.expandMemoryAndCharge(offset.Uint64(), size.Uint64(), c) != nil {
 		return
 	}
 
@@ -947,7 +947,7 @@ func opCreate2(c *context) {
 		return
 	}
 
-	if c.memory.ensureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
+	if c.memory.expandMemoryAndCharge(offset.Uint64(), size.Uint64(), c) != nil {
 		return
 	}
 
@@ -1052,7 +1052,7 @@ func opExtCodeCopy(c *context) {
 		uint64CodeOffset = math.MaxUint64
 	}
 
-	if c.memory.ensureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
+	if c.memory.expandMemoryAndCharge(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
@@ -1162,7 +1162,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
-	c.memory.ensureCapacityWithoutGas(needed_memory_size)
+	c.memory.expandMemory(needed_memory_size)
 	if !value.IsZero() {
 		cost += CallStipend
 	}

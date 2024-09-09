@@ -51,7 +51,7 @@ func TestMemory_ExpansionCosts_ComputesCorrectCosts(t *testing.T) {
 	}
 }
 
-func TestMemory_CopyWord_CopiesData(t *testing.T) {
+func TestMemory_GetWord_CopiesData(t *testing.T) {
 
 	valueSmall := uint256.NewInt(0x1223457890abcdef)
 	valueMiddle := uint256.NewInt(0).Lsh(valueSmall, 64)
@@ -100,7 +100,7 @@ func TestMemory_CopyWord_CopiesData(t *testing.T) {
 	}
 }
 
-func TestMemory_CopyWord_ReturnsError(t *testing.T) {
+func TestMemory_GetWord_ReturnsError(t *testing.T) {
 
 	valueSmall := uint256.NewInt(0x1223457890abcdef)
 	baseTargetValue := uint256.NewInt(1)
@@ -349,7 +349,7 @@ func TestMemory_Set_ErrorCases(t *testing.T) {
 	}
 }
 
-func TestMemory_CopyData(t *testing.T) {
+func TestMemory_GetData(t *testing.T) {
 
 	baseStore := []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
 	baseTarget := []byte{0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32}
