@@ -44,7 +44,7 @@ func TestMemory_ExpansionCosts_ComputesCorrectCosts(t *testing.T) {
 	for _, test := range tests {
 
 		m := NewMemory()
-		cost := m.ExpansionCosts(test.size)
+		cost := m.expansionCosts(test.size)
 		if cost != test.cost {
 			t.Errorf("ExpansionCosts(%d) = %d, want %d", test.size, cost, test.cost)
 		}
@@ -89,7 +89,7 @@ func TestMemory_CopyWord_CopiesData(t *testing.T) {
 			copy(m.store[24:], valueSmall.Bytes())
 			ctxt.gas = 100
 
-			err := m.CopyWord(test.offset, target, &ctxt)
+			err := m.getWord(test.offset, target, &ctxt)
 			if err != nil {
 				t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
 			}
@@ -133,7 +133,7 @@ func TestMemory_CopyWord_ReturnsError(t *testing.T) {
 			copy(m.store[24:], valueSmall.Bytes())
 			ctxt.gas = test.gas
 
-			err := m.CopyWord(test.offset, target, &ctxt)
+			err := m.getWord(test.offset, target, &ctxt)
 			if !errors.Is(err, test.expectedError) {
 				t.Fatalf("unexpected error, want: %v, got: %v", test.expectedError, err)
 			}
@@ -172,12 +172,12 @@ func TestMemory_SetByte_SuccessfulCases(t *testing.T) {
 			ctxt.gas = tosca.Gas(100)
 			value := byte(0x12)
 
-			err := m.SetByte(test.offset, value, &ctxt)
+			err := m.setByte(test.offset, value, &ctxt)
 			if err != nil {
 				t.Errorf("unexpected error, want: %v, got: %v", nil, err)
 			}
-			if m.Len() < test.offset {
-				t.Errorf("unexpected memory size, want: %d, got: %d", test.offset, m.Len())
+			if m.len() < test.offset {
+				t.Errorf("unexpected memory size, want: %d, got: %d", test.offset, m.len())
 			}
 			if m.store[test.offset] != value {
 				t.Errorf("unexpected value, want: %v, got: %v", value, m.store[test.offset])
@@ -212,7 +212,7 @@ func TestMemory_SetByte_ErrorCases(t *testing.T) {
 			m.store = []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
 			ctxt.gas = test.gas
 
-			err := m.SetByte(test.offset, 0x12, &ctxt)
+			err := m.setByte(test.offset, 0x12, &ctxt)
 			if !errors.Is(err, test.expected) {
 				t.Errorf("unexpected error, want: %v, got: %v", test.expected, err)
 			}
@@ -267,7 +267,7 @@ func TestMemory_SetWord_ReportsNotEnoughGas(t *testing.T) {
 				m.store = test.memory
 			}
 			ctxt.gas = test.gas
-			err := m.SetWord(test.offset, new(uint256.Int).SetBytes(testValue), &ctxt)
+			err := m.setWord(test.offset, new(uint256.Int).SetBytes(testValue), &ctxt)
 			if !errors.Is(err, test.expectedError) {
 				t.Errorf("unexpected error, want: %v, got: %v", test.expectedError, err)
 			}
@@ -292,14 +292,14 @@ func TestMemory_Set_SuccessfulCases(t *testing.T) {
 	ctxt.gas = 100
 
 	data := []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
-	err := m.Set(offset, size, data)
+	err := m.set(offset, size, data)
 
 	if err != nil {
 		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
 	}
 
-	if m.Len() != size+offset {
-		t.Errorf("unexpected memory size, want: %d, got: %d", size+offset, m.Len())
+	if m.len() != size+offset {
+		t.Errorf("unexpected memory size, want: %d, got: %d", size+offset, m.len())
 	}
 	if !bytes.Equal(m.store[offset:], data) {
 		t.Errorf("unexpected memory value, want: %x, got: %x", data, m.store[offset:])
@@ -339,7 +339,7 @@ func TestMemory_Set_ErrorCases(t *testing.T) {
 			ctxt.gas = 100
 
 			data := []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
-			err := m.Set(test.offset, test.size, data)
+			err := m.set(test.offset, test.size, data)
 
 			if !errors.Is(err, test.expected) {
 				t.Errorf("unexpected error, want: %v, got: %v", test.expected, err)
@@ -385,106 +385,10 @@ func TestMemory_CopyData(t *testing.T) {
 			m.store = test.store
 			target := test.target
 
-			m.CopyData(test.offset, target)
+			m.getData(test.offset, target)
 			if !bytes.Equal(target, test.expected) {
 				t.Errorf("unexpected target value, want: %x, got: %x", test.expected, target)
 			}
-		})
-	}
-
-}
-
-func TestMemory_GetSliceWithCapacity(t *testing.T) {
-
-	baseStore := []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
-	memorySize := uint64(8)
-	baseEmpty := bytes.Repeat([]byte{0}, int(memorySize))
-
-	tests := map[string]struct {
-		store    []byte
-		offset   uint64
-		size     uint64
-		expected []byte
-	}{
-		"regular": {
-			store:    bytes.Clone(baseStore),
-			offset:   0,
-			size:     memorySize,
-			expected: baseStore,
-		},
-		"regular in empty memory": {
-			store:    []byte{},
-			offset:   0,
-			size:     memorySize,
-			expected: baseEmpty,
-		},
-		"size zero": {
-			store:  bytes.Clone(baseStore),
-			offset: 0,
-			size:   0,
-		},
-		"expand memory": {
-			store:    bytes.Clone(baseStore),
-			offset:   0,
-			size:     memorySize + 4,
-			expected: append(baseStore, baseEmpty[:4]...),
-		},
-		"offset bigger than memory": {
-			store:  bytes.Clone(baseStore),
-			offset: uint64(len(baseStore) + 2),
-			size:   4,
-		},
-		"size+offset bigger than memory": {
-			store:  bytes.Clone(baseStore),
-			offset: 4,
-			size:   8,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			m := NewMemory()
-			m.store = test.store
-
-			result := m.GetSliceWithCapacity(test.offset, test.size)
-			if !bytes.Equal(result, test.expected) {
-				t.Errorf("unexpected result, want: %x, got: %x", test.expected, result)
-			}
-		})
-	}
-}
-
-func TestMemory_Print(t *testing.T) {
-
-	tests := map[string]struct {
-		store    []byte
-		expected string
-	}{
-		"empty": {store: []byte{},
-			expected: "### mem 0 bytes ###\n-- empty --\n####################\n",
-		},
-		"8 bytes": {store: []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef},
-			expected: "### mem 8 bytes ###\n000: 12 34 56 78 90 ab cd ef\n####################\n",
-		},
-		"32 bytes": {store: []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef,
-			0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef,
-			0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef,
-			0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef},
-			expected: "### mem 32 bytes ###\n000: 12 34 56 78 90 ab cd ef 12 34 56 78 90 ab cd ef 12 34 56 78 90 ab cd ef 12 34 56 78 90 ab cd ef\n####################\n",
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			m := NewMemory()
-			m.store = test.store
-
-			got := m.Print()
-
-			if got != test.expected {
-				t.Errorf("unexpected output, want: %v, got: %v", test.expected, got)
-			}
-
 		})
 	}
 

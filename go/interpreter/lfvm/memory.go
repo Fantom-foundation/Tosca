@@ -13,7 +13,6 @@ package lfvm
 import (
 	"fmt"
 	"math"
-	"strings"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/holiman/uint256"
@@ -44,7 +43,8 @@ const (
 	maxMemoryExpansionSize = 0x1FFFFFFFE0
 )
 
-func (m *Memory) ExpansionCosts(size uint64) tosca.Gas {
+// expansionCosts returns the gas cost of expanding the memory to the given size.
+func (m *Memory) expansionCosts(size uint64) tosca.Gas {
 
 	// static assert
 	const (
@@ -54,7 +54,7 @@ func (m *Memory) ExpansionCosts(size uint64) tosca.Gas {
 		_                 = int64(maxInWords*maxInWords/512 + 3*maxInWords)
 	)
 
-	if m.Len() >= size {
+	if m.len() >= size {
 		return 0
 	}
 	size = toValidMemorySize(size)
@@ -69,7 +69,10 @@ func (m *Memory) ExpansionCosts(size uint64) tosca.Gas {
 	return fee
 }
 
-func (m *Memory) EnsureCapacity(offset, size uint64, c *context) error {
+// ensureCapacity tries to expand memory to the given size.
+// If the memory is already large enough or size is 0, it does nothing.
+// if not enough gas in the context, it returns an error.
+func (m *Memory) ensureCapacity(offset, size uint64, c *context) error {
 	if size <= 0 {
 		return nil
 	}
@@ -79,37 +82,39 @@ func (m *Memory) EnsureCapacity(offset, size uint64, c *context) error {
 		c.signalError()
 		return errGasUintOverflow
 	}
-	if m.Len() < needed {
+	if m.len() < needed {
 		needed = toValidMemorySize(needed)
-		fee := m.ExpansionCosts(needed)
+		fee := m.expansionCosts(needed)
 		if !c.useGas(fee) {
 			c.status = statusOutOfGas
 			return errOutOfGas
 		}
 		m.total_memory_cost += fee
-		m.store = append(m.store, make([]byte, needed-m.Len())...)
+		m.store = append(m.store, make([]byte, needed-m.len())...)
 	}
 	return nil
 }
 
-func (m *Memory) EnsureCapacityWithoutGas(size uint64) {
+// ensureCapacityWithoutGas expands the memory to the given size without checking gas.
+func (m *Memory) ensureCapacityWithoutGas(size uint64) {
 	if size <= 0 {
 		return
 	}
-	if m.Len() < size {
+	if m.len() < size {
 		size = toValidMemorySize(size)
-		fee := m.ExpansionCosts(size)
+		fee := m.expansionCosts(size)
 		m.total_memory_cost += fee
-		m.store = append(m.store, make([]byte, size-m.Len())...)
+		m.store = append(m.store, make([]byte, size-m.len())...)
 	}
 }
 
-func (m *Memory) Len() uint64 {
+func (m *Memory) len() uint64 {
 	return uint64(len(m.store))
 }
 
-func (m *Memory) SetByte(offset uint64, value byte, c *context) error {
-	err := m.EnsureCapacity(offset, 1, c)
+// setByte sets a byte at the given offset, expanding memory as needed and charging for it.
+func (m *Memory) setByte(offset uint64, value byte, c *context) error {
+	err := m.ensureCapacity(offset, 1, c)
 	if err != nil {
 		return err
 	}
@@ -117,8 +122,9 @@ func (m *Memory) SetByte(offset uint64, value byte, c *context) error {
 	return nil
 }
 
-func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
-	err := m.EnsureCapacity(offset, 32, c)
+// GetByte returns a byte at the given offset, expanding memory as needed and charging for it.
+func (m *Memory) setWord(offset uint64, value *uint256.Int, c *context) error {
+	err := m.ensureCapacity(offset, 32, c)
 	if err != nil {
 		return err
 	}
@@ -163,13 +169,13 @@ func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
 	return nil
 }
 
-func (m *Memory) Set(offset, size uint64, value []byte) error {
+func (m *Memory) set(offset, size uint64, value []byte) error {
 	if size > 0 {
 		if offset+size < offset {
 			return errGasUintOverflow
 		}
-		if offset+size > m.Len() {
-			return makeInsufficientMemoryError(m.Len(), size, offset)
+		if offset+size > m.len() {
+			return makeInsufficientMemoryError(m.len(), size, offset)
 		}
 		copy(m.store[offset:offset+size], value)
 	}
@@ -180,21 +186,16 @@ func makeInsufficientMemoryError(memSize, size, offset uint64) error {
 	return tosca.ConstError(fmt.Sprintf("memory too small, size %d, attempted to write %d bytes at %d", memSize, size, offset))
 }
 
-func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c *context) error {
-	err := m.EnsureCapacity(offset, size, c)
+func (m *Memory) setWithCapacityAndGasCheck(offset, size uint64, value []byte, c *context) error {
+	err := m.ensureCapacity(offset, size, c)
 	if err != nil {
 		return err
 	}
-	return m.Set(offset, size, value)
+	return m.set(offset, size, value)
 }
 
-func (m *Memory) SetWithCapacityCheck(offset, size uint64, value []byte) error {
-	m.EnsureCapacityWithoutGas(size)
-	return m.Set(offset, size, value)
-}
-
-func (m *Memory) CopyWord(offset uint64, trg *uint256.Int, c *context) error {
-	err := m.EnsureCapacity(offset, 32, c)
+func (m *Memory) getWord(offset uint64, trg *uint256.Int, c *context) error {
+	err := m.ensureCapacity(offset, 32, c)
 	if err != nil {
 		return err
 	}
@@ -203,8 +204,8 @@ func (m *Memory) CopyWord(offset uint64, trg *uint256.Int, c *context) error {
 }
 
 // Copies data from the memory to the given slice.
-func (m *Memory) CopyData(offset uint64, trg []byte) {
-	if m.Len() < offset {
+func (m *Memory) getData(offset uint64, trg []byte) {
+	if m.len() < offset {
 		copy(trg, make([]byte, len(trg)))
 		return
 	}
@@ -218,50 +219,41 @@ func (m *Memory) CopyData(offset uint64, trg []byte) {
 	}
 }
 
-func (m *Memory) GetSlice(offset, size uint64) []byte {
+func (m *Memory) getSlice(offset, size uint64) []byte {
 	if size == 0 {
 		return nil
 	}
 
-	if m.Len() >= offset+size {
+	if m.len() >= offset+size {
 		return m.store[offset : offset+size]
 	}
 
 	return nil
 }
 
-func (m *Memory) GetSliceWithCapacityAndGas(offset, size uint64, c *context) ([]byte, error) {
-	err := m.EnsureCapacity(offset, size, c)
+func (m *Memory) getSliceWithCapacityAndGas(offset, size uint64, c *context) ([]byte, error) {
+	err := m.ensureCapacity(offset, size, c)
 	if err != nil {
 		return nil, err
 	}
-	return m.GetSlice(offset, size), nil
+	return m.getSlice(offset, size), nil
 }
 
-func (m *Memory) GetSliceWithCapacity(offset, size uint64) []byte {
-	m.EnsureCapacityWithoutGas(size)
-	return m.GetSlice(offset, size)
-}
-
-func (m *Memory) Data() []byte {
-	return m.store
-}
-
-func (m *Memory) Print() string {
-	returnString := strings.Builder{}
-	returnString.WriteString(fmt.Sprintf("### mem %d bytes ###\n", len(m.store)))
-	if len(m.store) > 0 {
-		addr := 0
-		for i := 0; i+32 <= len(m.store); i += 32 {
-			returnString.WriteString(fmt.Sprintf("%03d: % x\n", addr, m.store[i:i+32]))
-			addr++
-		}
-		if len(m.store)%32 != 0 {
-			returnString.WriteString(fmt.Sprintf("%03d: % x\n", addr, m.store[len(m.store)/32*32:]))
-		}
-	} else {
-		returnString.WriteString("-- empty --\n")
-	}
-	returnString.WriteString("####################\n")
-	return returnString.String()
-}
+// func (m *Memory) Print() string {
+// 	returnString := strings.Builder{}
+// 	returnString.WriteString(fmt.Sprintf("### mem %d bytes ###\n", len(m.store)))
+// 	if len(m.store) > 0 {
+// 		addr := 0
+// 		for i := 0; i+32 <= len(m.store); i += 32 {
+// 			returnString.WriteString(fmt.Sprintf("%03d: % x\n", addr, m.store[i:i+32]))
+// 			addr++
+// 		}
+// 		if len(m.store)%32 != 0 {
+// 			returnString.WriteString(fmt.Sprintf("%03d: % x\n", addr, m.store[len(m.store)/32*32:]))
+// 		}
+// 	} else {
+// 		returnString.WriteString("-- empty --\n")
+// 	}
+// 	returnString.WriteString("####################\n")
+// 	return returnString.String()
+// }

@@ -186,11 +186,11 @@ func getOutput(ctxt *context) ([]byte, error) {
 			}
 
 			// Extract the result from the memory
-			if err := ctxt.memory.EnsureCapacity(offset, size, ctxt); err != nil {
+			if err := ctxt.memory.ensureCapacity(offset, size, ctxt); err != nil {
 				return nil, err
 			}
 			res = make([]byte, size)
-			ctxt.memory.CopyData(offset, res)
+			ctxt.memory.getData(offset, res)
 		}
 	}
 	return res, nil

@@ -206,12 +206,14 @@ func convertCtMemoryToLfvmMemory(memory *st.Memory) (*Memory, error) {
 	data := memory.Read(0, uint64(memory.Size()))
 
 	result := NewMemory()
-	err := result.SetWithCapacityCheck(0, uint64(len(data)), data)
+	size := uint64(len(data))
+	result.ensureCapacityWithoutGas(size)
+	err := result.set(0, size, data)
 	return result, err
 }
 
 func convertLfvmMemoryToCtMemory(memory *Memory) *st.Memory {
 	result := st.NewMemory()
-	result.Set(memory.GetSlice(0, memory.Len()))
+	result.Set(memory.getSlice(0, memory.len()))
 	return result
 }

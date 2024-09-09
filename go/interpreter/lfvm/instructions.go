@@ -167,7 +167,7 @@ func opMstore(c *context) {
 		c.status = statusError
 		return
 	}
-	if err := c.memory.SetWord(offset, value, c); err != nil {
+	if err := c.memory.setWord(offset, value, c); err != nil {
 		c.signalError()
 	}
 }
@@ -181,7 +181,7 @@ func opMstore8(c *context) {
 		c.status = statusError
 		return
 	}
-	if err := c.memory.SetByte(offset, byte(value.Uint64()), c); err != nil {
+	if err := c.memory.setByte(offset, byte(value.Uint64()), c); err != nil {
 		c.signalError()
 	}
 }
@@ -216,11 +216,11 @@ func opMcopy(c *context) {
 		return
 	}
 
-	data, err := c.memory.GetSliceWithCapacityAndGas(srcOffset, size, c)
+	data, err := c.memory.getSliceWithCapacityAndGas(srcOffset, size, c)
 	if err != nil {
 		return
 	}
-	if err := c.memory.SetWithCapacityAndGasCheck(destOffset, size, data, c); err != nil {
+	if err := c.memory.setWithCapacityAndGasCheck(destOffset, size, data, c); err != nil {
 		return
 	}
 }
@@ -234,13 +234,13 @@ func opMload(c *context) {
 		return
 	}
 	offset := addr.Uint64()
-	if err := c.memory.CopyWord(offset, trg, c); err != nil {
+	if err := c.memory.getWord(offset, trg, c); err != nil {
 		c.signalError()
 	}
 }
 
 func opMsize(c *context) {
-	c.stack.pushUndefined().SetUint64(uint64(c.memory.Len()))
+	c.stack.pushUndefined().SetUint64(uint64(c.memory.len()))
 }
 
 func opSstore(c *context) {
@@ -394,11 +394,11 @@ func opCallDataCopy(c *context) {
 		return
 	}
 
-	if c.memory.EnsureCapacity(memOffset64, length64, c) != nil {
+	if c.memory.ensureCapacity(memOffset64, length64, c) != nil {
 		return
 	}
 
-	if err := c.memory.Set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64)); err != nil {
+	if err := c.memory.set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64)); err != nil {
 		c.signalError()
 	}
 }
@@ -607,7 +607,7 @@ func opSha3(c *context) {
 		return
 	}
 
-	data, err := c.memory.GetSliceWithCapacityAndGas(offset.Uint64(), size.Uint64(), c)
+	data, err := c.memory.getSliceWithCapacityAndGas(offset.Uint64(), size.Uint64(), c)
 	if err != nil {
 		return
 	}
@@ -801,11 +801,11 @@ func opCodeCopy(c *context) {
 		return
 	}
 
-	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
+	if c.memory.ensureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
 	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
-	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
+	if err := c.memory.set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
 		c.signalError()
 	}
 }
@@ -876,7 +876,7 @@ func opCreate(c *context) {
 		return
 	}
 
-	if c.memory.EnsureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
+	if c.memory.ensureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
 		return
 	}
 
@@ -895,7 +895,7 @@ func opCreate(c *context) {
 		}
 	}
 
-	input := c.memory.GetSlice(offset.Uint64(), size.Uint64())
+	input := c.memory.getSlice(offset.Uint64(), size.Uint64())
 
 	gas := c.gas
 	if true /*c.evm.chainRules.IsEIP150*/ {
@@ -947,7 +947,7 @@ func opCreate2(c *context) {
 		return
 	}
 
-	if c.memory.EnsureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
+	if c.memory.ensureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
 		return
 	}
 
@@ -972,7 +972,7 @@ func opCreate2(c *context) {
 		}
 	}
 
-	input := c.memory.GetSlice(offset.Uint64(), size.Uint64())
+	input := c.memory.getSlice(offset.Uint64(), size.Uint64())
 
 	// Apply EIP150
 	gas := c.gas
@@ -1052,11 +1052,11 @@ func opExtCodeCopy(c *context) {
 		uint64CodeOffset = math.MaxUint64
 	}
 
-	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
+	if c.memory.ensureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
-	if err = c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
+	if err = c.memory.set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
 		c.signalError()
 	}
 }
@@ -1118,7 +1118,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		needed_memory_size = ret_memory_size
 	}
 
-	baseGas := c.memory.ExpansionCosts(needed_memory_size)
+	baseGas := c.memory.expansionCosts(needed_memory_size)
 	checkGas := func(cost tosca.Gas) bool {
 		return 0 <= cost && cost <= c.gas
 	}
@@ -1162,7 +1162,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
-	c.memory.EnsureCapacityWithoutGas(needed_memory_size)
+	c.memory.ensureCapacityWithoutGas(needed_memory_size)
 	if !value.IsZero() {
 		cost += CallStipend
 	}
@@ -1188,7 +1188,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 	}
 
 	// Get arguments from the memory.
-	args := c.memory.GetSlice(inOffset.Uint64(), inSize.Uint64())
+	args := c.memory.getSlice(inOffset.Uint64(), inSize.Uint64())
 
 	// Prepare arguments, depending on call kind
 	callParams := tosca.CallParameters{
@@ -1218,7 +1218,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 	ret, err := c.context.Call(kind, callParams)
 
 	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
+		if memSetErr := c.memory.set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
 			c.signalError()
 		}
 	}
@@ -1291,7 +1291,7 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
-	if err := c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c); err != nil {
+	if err := c.memory.setWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c); err != nil {
 		c.signalError()
 	}
 }
@@ -1327,7 +1327,7 @@ func opLog(c *context, size int) {
 		return
 	}
 
-	d, err := c.memory.GetSliceWithCapacityAndGas(start, log_size, c)
+	d, err := c.memory.getSliceWithCapacityAndGas(start, log_size, c)
 	if err != nil {
 		return
 	}
