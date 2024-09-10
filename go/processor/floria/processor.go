@@ -95,6 +95,9 @@ func (p *processor) Run(
 	if err != nil {
 		return errorReceipt, err
 	}
+	if !result.Success && result.GasLeft == 0 {
+		return errorReceipt, nil
+	}
 
 	var createdAddress *tosca.Address
 	if kind == tosca.Create {
