@@ -161,7 +161,7 @@ func transferValue(
 	sender tosca.Address,
 	recipient tosca.Address,
 ) error {
-	if value == (tosca.Value{}) {
+	if value == (tosca.Value{}) || sender == recipient {
 		return nil
 	}
 
