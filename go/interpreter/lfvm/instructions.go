@@ -726,37 +726,45 @@ func opSelfdestruct(c *context) {
 	beneficiary := tosca.Address(c.stack.pop().Bytes20())
 	// Selfdestruct gas cost defined in EIP-105 (see https://eips.ethereum.org/EIPS/eip-150)
 	cost := tosca.Gas(5_000)
-
 	if c.isAtLeast(tosca.R09_Berlin) {
-		cost = 0
-		if c.context.AccessAccount(beneficiary) == tosca.ColdAccess {
-			// Cost of cold account access after EIP 2929 (see https://eips.ethereum.org/EIPS/eip-2929)
-			cost = 2_600
-		}
+		cost = selfDestructedBeneficiaryAccessCost(c.context.AccessAccount(beneficiary))
 	}
-
-	if !c.context.AccountExists(beneficiary) &&
-		c.context.GetBalance(c.params.Recipient) != (tosca.Value{}) {
-		// cost of creating an account defined in eip-150 (see https://eips.ethereum.org/EIPS/eip-150)
-		// CreateBySelfdestructGas is used when the refunded account is one that does
-		// not exist. This logic is similar to call.
-		// Introduced in Tangerine Whistle (Eip 150)
-		cost += 25_000
-
-	}
+	cost += selfDestructNewAccountCost(c.context.AccountExists(beneficiary), c.context.GetBalance(c.params.Recipient))
 	// even death is not for free
 	if !c.useGas(cost) {
 		return
 	}
 
 	destructed := c.context.SelfDestruct(c.params.Recipient, beneficiary)
-
-	if destructed && c.params.Revision <= tosca.R09_Berlin {
-		// Refunded following a selfdestruct operation (see https://eips.ethereum.org/EIPS/eip-6780)
-		c.refund += 24_000
-	}
-
+	c.refund += selfDestructRefund(destructed, c.params.Revision)
 	c.status = statusSelfDestructed
+}
+
+func selfDestructedBeneficiaryAccessCost(accessStatus tosca.AccessStatus) tosca.Gas {
+	if accessStatus == tosca.ColdAccess {
+		// Cost of cold account access after EIP 2929 (see https://eips.ethereum.org/EIPS/eip-2929)
+		return 2_600
+	}
+	return 0
+}
+
+func selfDestructNewAccountCost(accountExists bool, balance tosca.Value) tosca.Gas {
+	if !accountExists && balance != (tosca.Value{}) {
+		// cost of creating an account defined in eip-150 (see https://eips.ethereum.org/EIPS/eip-150)
+		// CreateBySelfdestructGas is used when the refunded account is one that does
+		// not exist. This logic is similar to call.
+		// Introduced in Tangerine Whistle (Eip 150)
+		return 25_000
+	}
+	return 0
+}
+
+func selfDestructRefund(destructed bool, revision tosca.Revision) tosca.Gas {
+	if destructed && revision <= tosca.R09_Berlin {
+		// Refunded following a selfdestruct operation (see https://eips.ethereum.org/EIPS/eip-6780)
+		return 24_000
+	}
+	return 0
 }
 
 func opChainId(c *context) {

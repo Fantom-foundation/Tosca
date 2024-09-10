@@ -958,3 +958,114 @@ func TestCall_ChargesForAccessAfterBerlin(t *testing.T) {
 		}
 	}
 }
+func TestSelfDestruct_StaticModeReportsError(t *testing.T) {
+	ctxt := context{
+		params: tosca.Parameters{
+			Static: true,
+		},
+	}
+
+	opSelfdestruct(&ctxt)
+
+	if ctxt.status != statusError {
+		t.Errorf("unexpected status after call, wanted ERROR, got %v", ctxt.status)
+	}
+}
+
+func TestSelfDestruct_Refund(t *testing.T) {
+	tests := map[string]struct {
+		destructed bool
+		revision   tosca.Revision
+		refund     tosca.Gas
+	}{
+		"istanbul": {
+			revision: tosca.R07_Istanbul,
+		},
+		"berlin-first-destructed": {
+			destructed: true,
+			revision:   tosca.R09_Berlin,
+			refund:     24_000,
+		},
+		"berlin-not-first-destructed": {
+			revision: tosca.R09_Berlin,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			refund := selfDestructRefund(test.destructed, test.revision)
+
+			if refund != test.refund {
+				t.Errorf("unexpected refund, wanted %d, got %d", test.refund, refund)
+			}
+		})
+	}
+}
+
+func TestSelfDestruct_BeneficiaryAccessCost(t *testing.T) {
+	tests := map[string]struct {
+		accessStatus tosca.AccessStatus
+		gas          tosca.Gas
+	}{
+		"cold account": {
+			accessStatus: tosca.ColdAccess,
+			gas:          2_600,
+		},
+		"warm account": {
+			accessStatus: tosca.WarmAccess,
+			gas:          0,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			gas := selfDestructedBeneficiaryAccessCost(test.accessStatus)
+
+			if gas != test.gas {
+				t.Errorf("unexpected gas, wanted %d, got %d", test.gas, gas)
+			}
+		})
+	}
+}
+
+func TestSelfDestruct_NewAccountCost(t *testing.T) {
+
+	tests := map[string]struct {
+		accountExists bool
+		balance       tosca.Value
+		gas           tosca.Gas
+	}{
+		"account exists no balance": {
+			accountExists: true,
+			balance:       tosca.Value{},
+			gas:           0,
+		},
+		"account exists with balance": {
+			accountExists: true,
+			balance:       tosca.Value{1},
+			gas:           0,
+		},
+		"new account without balance": {
+			accountExists: false,
+			balance:       tosca.Value{},
+			gas:           0,
+		},
+		"new account with balance": {
+			accountExists: false,
+			balance:       tosca.Value{1},
+			gas:           25_000,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			cost := selfDestructNewAccountCost(test.accountExists, test.balance)
+
+			if cost != test.gas {
+				t.Errorf("unexpected gas, wanted %d, got %d", test.gas, cost)
+			}
+		})
+	}
+
+}
