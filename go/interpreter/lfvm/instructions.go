@@ -1083,7 +1083,6 @@ func neededMemorySize(c *context, offset, size *uint256.Int) (uint64, error) {
 }
 
 func genericCall(c *context, kind tosca.CallKind) {
-
 	stack := c.stack
 	value := uint256.NewInt(0)
 
@@ -1116,17 +1115,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 	}
 
 	baseGas := c.memory.getExpansionCosts(needed_memory_size)
-
-	accessCost := tosca.Gas(0)
-	if c.isAtLeast(tosca.R09_Berlin) {
-		// The WarmStorageReadCostEIP2929 (100) is already deducted in the form of a constant cost, so
-		// the cost to charge for cold access, if any, is Cold - Warm
-		if c.context.AccessAccount(toAddr) == tosca.ColdAccess {
-			accessCost = ColdAccountAccessCostEIP2929 - WarmStorageReadCostEIP2929
-		}
-	}
-
-	baseGas += accessCost
+	baseGas += calculateAccessCost(c.params.Revision, c.context.AccessAccount(toAddr))
 	checkGas := func(cost tosca.Gas) bool {
 		return 0 <= cost && cost <= c.gas
 	}
@@ -1232,6 +1221,20 @@ func genericCall(c *context, kind tosca.CallKind) {
 	c.gas += ret.GasLeft
 	c.refund += ret.GasRefund
 	c.returnData = ret.Output
+}
+
+func calculateAccessCost(revision tosca.Revision, accessStatus tosca.AccessStatus) tosca.Gas {
+	// EIP-2929 says that cold access cost is 2600 and warm is 100.
+	// It also states that: For call-variants, the 100/2600 cost is applied immediately
+	// (exactly like how 700 was charged before this EIP), i.e: before calculating the
+	// 63/64ths available for entering the call. (https://eips.ethereum.org/EIPS/eip-2929)
+	accessCost := tosca.Gas(0)
+	if revision >= tosca.R09_Berlin {
+		if accessStatus == tosca.ColdAccess {
+			accessCost = 2500
+		}
+	}
+	return accessCost
 }
 
 func opCall(c *context) {

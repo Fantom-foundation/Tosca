@@ -907,41 +907,10 @@ func TestCallChargesAppropriatelyForColdWarmAccess(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			ctrl := gomock.NewController(t)
-			runContext := tosca.NewMockRunContext(ctrl)
+			gas := calculateAccessCost(test.revision, test.accessStatus)
 
-			source := tosca.Address{1}
-			target := tosca.Address{2}
-			ctxt := context{
-				status: statusRunning,
-				params: tosca.Parameters{
-					Recipient: source,
-					BlockParameters: tosca.BlockParameters{
-						Revision: test.revision,
-					},
-				},
-				context: runContext,
-				stack:   NewStack(),
-				memory:  NewMemory(),
-				gas:     test.gas,
-			}
-
-			// Prepare stack arguments.
-			ctxt.stack.stackPointer = 7
-			// the target address for the call
-			ctxt.stack.data[5].SetBytes(target[:])
-
-			runContext.EXPECT().AccessAccount(target).Return(test.accessStatus).AnyTimes()
-			runContext.EXPECT().Call(tosca.Call, gomock.Any()).Return(tosca.CallResult{}, nil).AnyTimes()
-
-			opCall(&ctxt)
-
-			if want, got := statusRunning, ctxt.status; want != got {
-				t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
-			}
-
-			if ctxt.gas != 0 {
-				t.Errorf("unexpected gas cost, wanted 0, got %v", ctxt.gas)
+			if gas != test.gas {
+				t.Errorf("unexpected gas cost, wanted %v, got %v", test.gas, gas)
 			}
 
 		})
