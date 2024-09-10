@@ -51,61 +51,39 @@ func TestMemory_ExpansionCosts_ComputesCorrectCosts(t *testing.T) {
 	}
 }
 
-func TestMemory_GetWord_CopiesData(t *testing.T) {
-
-	valueSmall := uint256.NewInt(0x1223457890abcdef)
-	valueMiddle := uint256.NewInt(0).Lsh(valueSmall, 64)
-	valueBig := uint256.NewInt(0).Lsh(valueSmall, 256-16)
-	memorySize := uint64(32)
-
-	tests := map[string]struct {
-		offset       uint64
-		expectedData *uint256.Int
-	}{
-		"regular": {
-			offset:       0,
-			expectedData: valueSmall,
-		},
-		"small offset": {
-			offset:       memorySize / 4,
-			expectedData: valueMiddle,
-		},
-		"big offset crops value": {
-			offset:       memorySize - 2,
-			expectedData: valueBig,
-		},
-		"big offset returns zero": {
-			offset:       memorySize,
-			expectedData: uint256.NewInt(0),
-		},
+func TestMemory_ReadWord_ReadsDataWithByteAddressingAndZeroPadding(t *testing.T) {
+	pattern := make([]byte, 32)
+	for i := 0; i < 32; i++ {
+		pattern[i] = byte(i + 1)
 	}
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			ctxt := getEmptyContext()
-			m := NewMemory()
-			target := uint256.NewInt(1)
-			m.store = make([]byte, memorySize)
-			copy(m.store[24:], valueSmall.Bytes())
-			ctxt.gas = 100
+	for i := 0; i <= 32; i++ {
+		ctxt := getEmptyContext()
+		ctxt.gas = 100
 
-			err := m.readWord(test.offset, target, &ctxt)
-			if err != nil {
-				t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
-			}
-			if target.Cmp(test.expectedData) != 0 {
-				t.Errorf("unexpected target value, want: %x, got: %x", *test.expectedData, *target)
-			}
-		})
+		m := NewMemory()
+		m.expandMemory(0, 32, &ctxt)
+		copy(m.store, pattern)
+
+		var target uint256.Int
+		err := m.readWord(uint64(i), &target, &ctxt)
+		if err != nil {
+			t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
+		}
+
+		// Check that the memory pattern is shifted by i bytes to the left.
+		want := [32]byte{}
+		copy(want[:], pattern[i:])
+		if got := target.Bytes32(); want != got {
+			t.Errorf("unexpected value, want: %x, got: %x", want, got)
+		}
 	}
 }
 
-func TestMemory_GetWord_ReturnsError(t *testing.T) {
+func TestMemory_ReadWord_ReturnsError(t *testing.T) {
 
-	valueSmall := uint256.NewInt(0x1223457890abcdef)
-	baseTargetValue := uint256.NewInt(1)
+	baseTarget := new(uint256.Int)
 	memorySize := uint64(32)
-	enoughGas := tosca.Gas(100)
 
 	tests := map[string]struct {
 		gas           tosca.Gas
@@ -118,7 +96,7 @@ func TestMemory_GetWord_ReturnsError(t *testing.T) {
 			expectedError: errOutOfGas,
 		},
 		"offset overflow": {
-			gas:           enoughGas,
+			gas:           100,
 			offset:        math.MaxUint64,
 			expectedError: errGasUintOverflow,
 		},
@@ -128,14 +106,16 @@ func TestMemory_GetWord_ReturnsError(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctxt := getEmptyContext()
 			m := NewMemory()
-			target := baseTargetValue
+			target := baseTarget
 			m.store = make([]byte, memorySize)
-			copy(m.store[24:], valueSmall.Bytes())
 			ctxt.gas = test.gas
 
 			err := m.readWord(test.offset, target, &ctxt)
 			if !errors.Is(err, test.expectedError) {
 				t.Fatalf("unexpected error, want: %v, got: %v", test.expectedError, err)
+			}
+			if baseTarget.Cmp(target) != 0 {
+				t.Errorf("target should remain unmodified, want: %v, got: %v", baseTarget, target)
 			}
 		})
 	}
@@ -149,12 +129,12 @@ func TestMemory_SetByte_SuccessfulCases(t *testing.T) {
 		memory []byte
 		offset uint64
 	}{
-		"regular empty memory": {},
-		"regular with memory": {
+		"offset 0 in empty memory": {},
+		"offset 0 in non-empty memory": {
 			memory: baseData,
 			offset: 0,
 		},
-		"regular with memory and offset": {
+		"non-zero offset in non-empty memory": {
 			memory: baseData,
 			offset: 4,
 		},
@@ -209,52 +189,49 @@ func TestMemory_SetByte_ErrorCases(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctxt := getEmptyContext()
 			m := NewMemory()
-			m.store = []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
 			ctxt.gas = test.gas
 
 			err := m.setByte(test.offset, 0x12, &ctxt)
 			if !errors.Is(err, test.expected) {
 				t.Errorf("unexpected error, want: %v, got: %v", test.expected, err)
 			}
+			if m.length() != 0 {
+				t.Errorf("memory should remain unmodified, want: %d, got: %d", []byte{}, m.store)
+			}
 		})
 	}
 }
 
-func TestMemory_SetWord_ReportsNotEnoughGas(t *testing.T) {
+func TestMemory_SetWord(t *testing.T) {
 
-	testValue := []byte{
+	mem32byte := []byte{
 		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 		0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
 		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
 		0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F}
 
 	tests := map[string]struct {
-		memory        []byte
-		gas           tosca.Gas
-		offset        uint64
-		expectedData  []byte
-		expectedError error
+		memory       []byte
+		offset       uint64
+		expectedData []byte
 	}{
-		"regular": {
-			gas:          3,
-			expectedData: testValue,
+		"write word at offset 0": {
+			expectedData: mem32byte,
 		},
-		"not enough gas": {
-			gas:           1,
-			offset:        32,
-			expectedError: errOutOfGas,
-		},
-		"offset fits in memory": {
-			gas:    6,
+		"expand memory and pad": {
+			memory: []byte{31: 0x0},
 			offset: 24,
 			expectedData: append(
-				append([]byte{23: 0x0}, testValue...),
-				[]byte{7: 0x0}...)},
-		"offset same as memory size": {
-			memory:       testValue,
-			gas:          6,
-			offset:       32,
-			expectedData: append(testValue, testValue...),
+				append([]byte{23: 0x0}, mem32byte...),
+				[]byte{7: 0x0}...)}, // 64 bytes mem.
+		"offset larger than memory": {
+			memory: mem32byte,
+			offset: 33,
+			expectedData: append(
+				append(
+					append(mem32byte, 0x00),
+					mem32byte...),
+				[]byte{30: 0x0}...),
 		},
 	}
 
@@ -266,18 +243,33 @@ func TestMemory_SetWord_ReportsNotEnoughGas(t *testing.T) {
 			if test.memory != nil {
 				m.store = test.memory
 			}
-			ctxt.gas = test.gas
-			err := m.setWord(test.offset, new(uint256.Int).SetBytes(testValue), &ctxt)
-			if !errors.Is(err, test.expectedError) {
-				t.Errorf("unexpected error, want: %v, got: %v", test.expectedError, err)
+			ctxt.gas = 9
+			err := m.setWord(test.offset, new(uint256.Int).SetBytes(mem32byte), &ctxt)
+			if err != nil {
+				t.Errorf("unexpected error, want: %v, got: %v", nil, err)
 			}
-			if err == nil {
-				if !bytes.Equal(m.store, test.expectedData) {
-					t.Errorf("unexpected value, want: %v, got: %v", test.expectedData, m.store)
-				}
+			if !bytes.Equal(m.store, test.expectedData) {
+				t.Errorf("unexpected memory, want: %v, got: %v", test.expectedData, m.store)
 			}
-
 		})
+	}
+}
+
+func TestMemory_SetWord_ReportsOutOfGas(t *testing.T) {
+
+	testValue := []byte{
+		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+		0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+		0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F}
+
+	ctxt := getEmptyContext()
+	m := NewMemory()
+	m.store = make([]byte, 8)
+	ctxt.gas = 1
+	err := m.setWord(32, new(uint256.Int).SetBytes(testValue), &ctxt)
+	if !errors.Is(err, errOutOfGas) {
+		t.Errorf("unexpected error, want: %v, got: %v", errOutOfGas, err)
 	}
 }
 
@@ -349,31 +341,23 @@ func TestMemory_Set_ErrorCases(t *testing.T) {
 	}
 }
 
-func TestMemory_GetData(t *testing.T) {
+func TestMemory_ReadData(t *testing.T) {
 
 	baseStore := []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
 	baseTarget := []byte{0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32}
 
 	tests := map[string]struct {
-		target   []byte
-		store    []byte
 		offset   uint64
 		expected []byte
 	}{
 		"regular": {
-			target:   bytes.Clone(baseTarget),
-			store:    baseStore,
 			expected: baseStore[:len(baseTarget)],
 		},
 		"offset bigger than memory": {
-			target:   bytes.Clone(baseTarget),
-			store:    baseStore,
 			offset:   9,
 			expected: bytes.Repeat([]byte{0}, len(baseTarget)),
 		},
 		"padding needed": {
-			target:   bytes.Clone(baseTarget),
-			store:    baseStore,
 			offset:   4,
 			expected: []byte{0x90, 0xab, 0xcd, 0xef, 0, 0, 0},
 		},
@@ -382,12 +366,15 @@ func TestMemory_GetData(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			m := NewMemory()
-			m.store = test.store
-			target := test.target
+			m.store = bytes.Clone(baseStore)
+			target := bytes.Clone(baseTarget)
 
 			m.readData(test.offset, target)
 			if !bytes.Equal(target, test.expected) {
 				t.Errorf("unexpected target value, want: %x, got: %x", test.expected, target)
+			}
+			if !bytes.Equal(m.store, baseStore) {
+				t.Errorf("read must not modify the memory, want: %x, got: %x", baseStore, m.store)
 			}
 		})
 	}
@@ -397,17 +384,14 @@ func TestMemory_GetData(t *testing.T) {
 func TestMemory_expandMemoryWithoutCharging(t *testing.T) {
 
 	test := map[string]struct {
-		size        uint64
 		initialMem  []byte
 		expectedMem []byte
 	}{
 		"empty-memory-increases": {
-			size:        32,
 			initialMem:  []byte{},
 			expectedMem: []byte{31: 0x0},
 		},
 		"memory-bigger-than-size": {
-			size:        32,
 			initialMem:  []byte{63: 0x0},
 			expectedMem: []byte{63: 0x0},
 		},
@@ -416,9 +400,10 @@ func TestMemory_expandMemoryWithoutCharging(t *testing.T) {
 	for name, test := range test {
 		t.Run(name, func(t *testing.T) {
 			m := NewMemory()
-			fee := m.getExpansionCosts(test.size)
+			size := uint64(32)
+			fee := m.getExpansionCosts(size)
 			m.store = test.initialMem
-			m.expandMemoryWithoutCharging(test.size, fee)
+			m.expandMemoryWithoutCharging(size, fee)
 			if !bytes.Equal(m.store, test.expectedMem) {
 				t.Errorf("unexpected memory value, want: %x, got: %x", test.expectedMem, m.store)
 			}
