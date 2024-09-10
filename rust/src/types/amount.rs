@@ -370,9 +370,21 @@ impl Shr for u256 {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub struct U64Overflow;
+
 impl u256 {
     pub const ZERO: Self = Self(Uint256 { bytes: [0; 32] });
     pub const MAX: Self = Self(Uint256 { bytes: [0xff; 32] });
+
+    pub fn try_into_u64(self) -> Result<u64, U64Overflow> {
+        let bytes: [u8; 32] = *self;
+        if bytes.iter().take(24).any(|b| *b > 0) {
+            Err(U64Overflow)
+        } else {
+            Ok(u64::from_be_bytes(*bytes.split_last_chunk().unwrap().1))
+        }
+    }
 
     pub fn into_u64_with_overflow(self) -> (u64, bool) {
         let bytes: [u8; 32] = *self;
@@ -514,7 +526,7 @@ mod tests {
         types::{I256, U256, U512},
     };
 
-    use crate::types::amount::u256;
+    use crate::types::amount::{u256, U64Overflow};
 
     #[test]
     fn display() {
@@ -572,11 +584,15 @@ mod tests {
         assert_eq!(u256::from(1u64), v1);
         assert_eq!(u256::from(255u64), v255);
         for num in [0, 1, u64::MAX - 1, u64::MAX] {
+            assert_eq!(u256::from(num).try_into_u64(), Ok(num));
+        }
+        for num in [0, 1, u64::MAX - 1, u64::MAX] {
             assert_eq!(u256::from(num).into_u64_with_overflow(), (num, false));
         }
         for num in [0, 1, u64::MAX - 1, u64::MAX] {
             assert_eq!(u256::from(num).into_u64_saturating(), num);
         }
+        assert_eq!(u256::MAX.try_into_u64(), Err(U64Overflow));
         assert_eq!(u256::MAX.into_u64_with_overflow(), (u64::MAX, true));
         assert_eq!(u256::MAX.into_u64_saturating(), u64::MAX);
 

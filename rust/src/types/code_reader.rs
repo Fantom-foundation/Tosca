@@ -55,11 +55,10 @@ impl<'a> CodeReader<'a> {
     }
 
     pub fn try_jump(&mut self, dest: u256) -> Result<(), StatusCode> {
-        let (dest, dest_overflow) = dest.into_u64_with_overflow();
-        let dest = dest as usize;
-        if dest_overflow
-            || dest >= self.code_byte_type.len()
-            || self.code_byte_type[dest] != CodeByteType::JumpDest
+        let dest = dest
+            .try_into_u64()
+            .map_err(|_| StatusCode::EVMC_BAD_JUMP_DESTINATION)? as usize;
+        if dest >= self.code_byte_type.len() || self.code_byte_type[dest] != CodeByteType::JumpDest
         {
             return Err(StatusCode::EVMC_BAD_JUMP_DESTINATION);
         }
