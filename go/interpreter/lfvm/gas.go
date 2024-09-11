@@ -48,33 +48,39 @@ const (
 	UNKNOWN_GAS_PRICE = 999999
 )
 
-var static_gas_prices = [numOpCodes]tosca.Gas{}
-var static_gas_prices_berlin = [numOpCodes]tosca.Gas{}
+var static_gas_prices = newOpCodeProperty(getStaticGasPriceInternal)
+var static_gas_prices_berlin = newOpCodeProperty(getBerlinGasPriceInternal)
 
-func init() {
-
-	var gp tosca.Gas
-	for i := range static_gas_prices {
-		op := OpCode(i)
-		gp = getStaticGasPriceInternal(op)
-		static_gas_prices[i] = gp
-		static_gas_prices_berlin[i] = gp
-	}
+func getBerlinGasPriceInternal(op OpCode) tosca.Gas {
+	gp := getStaticGasPriceInternal(op)
 
 	// Changed static gas prices with EIP2929
-	static_gas_prices_berlin[SLOAD] = 0
-	static_gas_prices_berlin[EXTCODECOPY] = 100
-	static_gas_prices_berlin[EXTCODESIZE] = 100
-	static_gas_prices_berlin[EXTCODEHASH] = 100
-	static_gas_prices_berlin[BALANCE] = 100
-	static_gas_prices_berlin[CALL] = 100
-	static_gas_prices_berlin[CALLCODE] = 100
-	static_gas_prices_berlin[STATICCALL] = 100
-	static_gas_prices_berlin[DELEGATECALL] = 100
-	static_gas_prices_berlin[SELFDESTRUCT] = 5000
+	switch op {
+	case SLOAD:
+		gp = 0
+	case EXTCODECOPY:
+		gp = 100
+	case EXTCODESIZE:
+		gp = 100
+	case EXTCODEHASH:
+		gp = 100
+	case BALANCE:
+		gp = 100
+	case CALL:
+		gp = 100
+	case CALLCODE:
+		gp = 100
+	case STATICCALL:
+		gp = 100
+	case DELEGATECALL:
+		gp = 100
+	case SELFDESTRUCT:
+		gp = 5000
+	}
+	return gp
 }
 
-func getStaticGasPrices(revision tosca.Revision) *[numOpCodes]tosca.Gas {
+func getStaticGasPrices(revision tosca.Revision) *opCodeProperty[tosca.Gas] {
 	if revision >= tosca.R09_Berlin {
 		return &static_gas_prices_berlin
 	}

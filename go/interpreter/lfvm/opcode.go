@@ -367,3 +367,27 @@ func (o OpCode) decompose() []OpCode {
 	}
 	return nil
 }
+
+// opCodeProperty is a generic property map for precomputed values.
+// its purpose is to provide a precomputed lookup table for OpCode properties
+// that can be generated from a function that takes an OpCode as input.
+// The property initialization function shall be resilient to undefined OpCode
+// values, and not panic. The zero values or a sentinel value shall be used in
+// such cases.
+// Using this type hides internal details of the opcode implementation.
+type opCodeProperty[T any] struct {
+	lookup [numOpCodes]T
+}
+
+// newOpCodeProperty creates a new OpCode property map.
+func newOpCodeProperty[T any](init func(op OpCode) T) opCodeProperty[T] {
+	lookup := [numOpCodes]T{}
+	for i := 0; i < numOpCodes; i++ {
+		lookup[i] = init(OpCode(i))
+	}
+	return opCodeProperty[T]{lookup}
+}
+
+func (p opCodeProperty[T]) get(op OpCode) T {
+	return p.lookup[op&opCodeMask]
+}

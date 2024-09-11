@@ -247,7 +247,7 @@ func steps(c *context, oneStepOnly bool) {
 		}
 
 		// Consume static gas price for instruction before execution
-		if !c.useGas(staticGasPrices[op&opCodeMask]) {
+		if !c.useGas(staticGasPrices.get(op)) {
 			return
 		}
 
@@ -607,7 +607,7 @@ func steps(c *context, oneStepOnly bool) {
 func satisfiesStackRequirements(c *context, op OpCode) bool {
 	// This array access can not lead to an overflow since a value for each
 	// OpCode is defined in the precomputed stack limits.
-	limits := _precomputedStackLimits[op&opCodeMask]
+	limits := _precomputedStackLimits.get(op)
 	stackLen := c.stack.len()
 	if stackLen < limits.min {
 		c.signalError()
@@ -626,17 +626,10 @@ type stackLimits struct {
 	max int // The maximum stack size allowed before running an OpCode.
 }
 
-var _precomputedStackLimits = _precomputeStackLimits()
-
-func _precomputeStackLimits() [numOpCodes]stackLimits {
-	var res [numOpCodes]stackLimits
-	for i := 0; i < numOpCodes; i++ {
-		op := OpCode(i)
-		usage := computeStackUsage(op)
-		res[op] = stackLimits{
-			min: -usage.from,
-			max: maxStackSize - usage.to,
-		}
+var _precomputedStackLimits = newOpCodeProperty(func(op OpCode) stackLimits {
+	usage := computeStackUsage(op)
+	return stackLimits{
+		min: -usage.from,
+		max: maxStackSize - usage.to,
 	}
-	return res
-}
+})

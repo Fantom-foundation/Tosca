@@ -10,7 +10,10 @@
 
 package lfvm
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestOpCode_String(t *testing.T) {
 	tests := []struct {
@@ -50,6 +53,15 @@ func TestOpCode_AllOpCodesAreSmallerThanTheOpCodeCapacity(t *testing.T) {
 			_highestOpCode,
 			numOpCodes,
 		)
+	}
+}
+
+func TestOpcodeProperty_DoesNotOverflow(t *testing.T) {
+	identity := newOpCodeProperty(func(op OpCode) OpCode { return op })
+	for i := OpCode(0); i < OpCode(math.MaxInt16); i++ {
+		if got, want := identity.get(i), i%numOpCodes; got != want {
+			t.Errorf("got %d, want %d", got, want)
+		}
 	}
 }
 
