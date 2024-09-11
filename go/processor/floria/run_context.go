@@ -126,7 +126,7 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 		if r.blockParameters.Revision >= tosca.R10_London && len(code) > 0 && code[0] == 0xEF {
 			return tosca.CallResult{}, nil
 		}
-		createGas := tosca.Gas(len(result.Output) * CreateDataGas)
+		createGas := tosca.Gas(len(result.Output) * CreateGasCostPerByte)
 		if result.GasLeft < createGas {
 			return tosca.CallResult{}, nil
 		}
@@ -167,7 +167,7 @@ func transferValue(
 	sender tosca.Address,
 	recipient tosca.Address,
 ) error {
-	if value == (tosca.Value{}) || sender == recipient {
+	if value == (tosca.Value{}) {
 		return nil
 	}
 

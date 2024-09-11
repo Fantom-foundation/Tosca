@@ -238,17 +238,6 @@ func TestTransferValue_FailedValueTransfer(t *testing.T) {
 	}
 }
 
-func TestTransferValue_SameSenderAndReceiver(t *testing.T) {
-	// Ensure that no calls to the transaction context are performed
-	ctrl := gomock.NewController(t)
-	context := tosca.NewMockTransactionContext(ctrl)
-
-	err := transferValue(context, tosca.NewValue(10), tosca.Address{1}, tosca.Address{1})
-	if err != nil {
-		t.Errorf("transferValue returned an error: %v", err)
-	}
-}
-
 func TestCreateAddress(t *testing.T) {
 	tests := map[string]struct {
 		kind     tosca.CallKind

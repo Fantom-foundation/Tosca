@@ -116,8 +116,11 @@ func TestProcessor_CreateAndCallContract(t *testing.T) {
 					byte(vm.RETURN),
 				}...)
 
+				gasPrice := uint64(2)
+				gasLimit := tosca.Gas(100000)
+				senderBalance := tosca.NewValue(uint64(gasLimit) * gasPrice)
 				state := WorldState{
-					sender0:               Account{},
+					sender0:               Account{Balance: senderBalance},
 					receiver0:             Account{Code: baseCode},
 					toBeCreatedCodeHolder: Account{Code: codeToBeCreated},
 					initCodeHolder:        Account{Code: initCode},
@@ -125,8 +128,9 @@ func TestProcessor_CreateAndCallContract(t *testing.T) {
 				transaction := tosca.Transaction{
 					Sender:    sender0,
 					Recipient: &receiver0,
-					GasLimit:  sufficientGas,
+					GasLimit:  gasLimit,
 					Input:     append(bytes.Repeat([]byte{0}, 31), input),
+					GasPrice:  tosca.NewValue(gasPrice),
 				}
 
 				transactionContext := newScenarioContext(state)
@@ -138,6 +142,16 @@ func TestProcessor_CreateAndCallContract(t *testing.T) {
 				}
 				if !slices.Equal(result.Output, append(bytes.Repeat([]byte{0}, 31), input+increment)) {
 					t.Errorf("creation of contract or its call was not successful, returned %v", result.Output)
+				}
+
+				// Values from geth/reference implementation
+				expectedBalance := tosca.NewValue(75308)
+				if create == vm.CREATE2 {
+					expectedBalance = tosca.NewValue(75280)
+				}
+				if balance := transactionContext.GetBalance(sender0); balance.Cmp(expectedBalance) != 0 {
+					t.Errorf("sender balance was not calculated correctly, wanted %v, got %v",
+						balance, expectedBalance)
 				}
 			})
 		}
