@@ -964,9 +964,7 @@ func TestSelfDestruct_StaticModeReportsError(t *testing.T) {
 			Static: true,
 		},
 	}
-
 	opSelfdestruct(&ctxt)
-
 	if ctxt.status != statusError {
 		t.Errorf("unexpected status after call, wanted ERROR, got %v", ctxt.status)
 	}
@@ -994,7 +992,6 @@ func TestSelfDestruct_Refund(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			refund := selfDestructRefund(test.destructed, test.revision)
-
 			if refund != test.refund {
 				t.Errorf("unexpected refund, wanted %d, got %d", test.refund, refund)
 			}
@@ -1020,7 +1017,6 @@ func TestSelfDestruct_BeneficiaryAccessCost(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			gas := selfDestructedBeneficiaryAccessCost(test.accessStatus)
-
 			if gas != test.gas {
 				t.Errorf("unexpected gas, wanted %d, got %d", test.gas, gas)
 			}
@@ -1031,41 +1027,77 @@ func TestSelfDestruct_BeneficiaryAccessCost(t *testing.T) {
 func TestSelfDestruct_NewAccountCost(t *testing.T) {
 
 	tests := map[string]struct {
-		accountExists bool
-		balance       tosca.Value
-		gas           tosca.Gas
+		beneficiaryExists bool
+		balance           tosca.Value
+		gas               tosca.Gas
 	}{
 		"account exists no balance": {
-			accountExists: true,
-			balance:       tosca.Value{},
-			gas:           0,
+			beneficiaryExists: true,
+			balance:           tosca.Value{},
+			gas:               0,
 		},
 		"account exists with balance": {
-			accountExists: true,
-			balance:       tosca.Value{1},
-			gas:           0,
+			beneficiaryExists: true,
+			balance:           tosca.Value{1},
+			gas:               0,
 		},
 		"new account without balance": {
-			accountExists: false,
-			balance:       tosca.Value{},
-			gas:           0,
+			beneficiaryExists: false,
+			balance:           tosca.Value{},
+			gas:               0,
 		},
 		"new account with balance": {
-			accountExists: false,
-			balance:       tosca.Value{1},
-			gas:           25_000,
+			beneficiaryExists: false,
+			balance:           tosca.Value{1},
+			gas:               25_000,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-
-			cost := selfDestructNewAccountCost(test.accountExists, test.balance)
-
+			cost := selfDestructNewAccountCost(test.beneficiaryExists, test.balance)
 			if cost != test.gas {
 				t.Errorf("unexpected gas, wanted %d, got %d", test.gas, cost)
 			}
 		})
 	}
+}
 
+func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
+	// This tests produces the combination of context calls/results for the maximum dynamic gas cost possible.
+
+	beneficiaryAddress := tosca.Address{1}
+	selfAddress := tosca.Address{2}
+
+	ctrl := gomock.NewController(t)
+	runContext := tosca.NewMockRunContext(ctrl)
+	runContext.EXPECT().AccessAccount(beneficiaryAddress).Return(tosca.ColdAccess)
+	runContext.EXPECT().AccountExists(beneficiaryAddress).Return(false)
+	runContext.EXPECT().GetBalance(selfAddress).Return(tosca.Value{1})
+	runContext.EXPECT().SelfDestruct(selfAddress, beneficiaryAddress).Return(true)
+
+	ctxt := context{
+		params: tosca.Parameters{
+			BlockParameters: tosca.BlockParameters{
+				Revision: tosca.R13_Cancun,
+			},
+			Recipient: selfAddress,
+		},
+		status:  statusRunning,
+		stack:   NewStack(),
+		memory:  NewMemory(),
+		context: runContext,
+		// 25_000 for new account, 2_600 for beneficiary access
+		gas: 27_600,
+	}
+	ctxt.stack.push(new(uint256.Int).SetBytes(beneficiaryAddress[:]))
+
+	opSelfdestruct(&ctxt)
+
+	if ctxt.status != statusSelfDestructed {
+		t.Errorf("unexpected status, wanted %v, got %v", statusRunning, ctxt.status)
+	}
+	if ctxt.gas != 0 {
+		t.Errorf("all gas should have been used, got %d spare", ctxt.gas)
+	}
 }

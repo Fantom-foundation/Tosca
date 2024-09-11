@@ -725,11 +725,12 @@ func opSelfdestruct(c *context) {
 
 	beneficiary := tosca.Address(c.stack.pop().Bytes20())
 	// Selfdestruct gas cost defined in EIP-105 (see https://eips.ethereum.org/EIPS/eip-150)
-	cost := tosca.Gas(5_000)
+	cost := tosca.Gas(0)
 	if c.isAtLeast(tosca.R09_Berlin) {
-		cost = selfDestructedBeneficiaryAccessCost(c.context.AccessAccount(beneficiary))
+		cost += selfDestructedBeneficiaryAccessCost(c.context.AccessAccount(beneficiary))
 	}
-	cost += selfDestructNewAccountCost(c.context.AccountExists(beneficiary), c.context.GetBalance(c.params.Recipient))
+	cost += selfDestructNewAccountCost(c.context.AccountExists(beneficiary),
+		c.context.GetBalance(c.params.Recipient))
 	// even death is not for free
 	if !c.useGas(cost) {
 		return
@@ -753,7 +754,6 @@ func selfDestructNewAccountCost(accountExists bool, balance tosca.Value) tosca.G
 		// cost of creating an account defined in eip-150 (see https://eips.ethereum.org/EIPS/eip-150)
 		// CreateBySelfdestructGas is used when the refunded account is one that does
 		// not exist. This logic is similar to call.
-		// Introduced in Tangerine Whistle (Eip 150)
 		return 25_000
 	}
 	return 0

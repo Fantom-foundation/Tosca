@@ -59,8 +59,6 @@ func getBerlinGasPriceInternal(op OpCode) tosca.Gas {
 		gp = 0
 	case DELEGATECALL:
 		gp = 0
-	case SELFDESTRUCT:
-		gp = 5000
 	}
 	return gp
 }
@@ -224,7 +222,7 @@ func getStaticGasPriceInternal(op OpCode) tosca.Gas {
 	case DELEGATECALL:
 		return 700
 	case SELFDESTRUCT:
-		return 0 // should be 5000 according to evm.code
+		return 5000
 	}
 
 	if op.isSuperInstruction() {
