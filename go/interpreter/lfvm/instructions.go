@@ -240,7 +240,7 @@ func opMload(c *context) {
 }
 
 func opMsize(c *context) {
-	c.stack.pushUndefined().SetUint64(uint64(c.memory.Len()))
+	c.stack.pushUndefined().SetUint64(uint64(c.memory.length()))
 }
 
 func opSstore(c *context) {
@@ -1118,7 +1118,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		needed_memory_size = ret_memory_size
 	}
 
-	baseGas := c.memory.ExpansionCosts(needed_memory_size)
+	baseGas := c.memory.getExpansionCosts(needed_memory_size)
 	checkGas := func(cost tosca.Gas) bool {
 		return 0 <= cost && cost <= c.gas
 	}

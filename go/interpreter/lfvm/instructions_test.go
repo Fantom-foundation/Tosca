@@ -586,8 +586,8 @@ func TestMCopy(t *testing.T) {
 				t.Errorf("expected status %v, got %v", test.expectedStatus, ctxt.status)
 				return
 			}
-			if ctxt.memory.Len() != uint64(len(test.memoryAfter)) {
-				t.Errorf("expected memory size %d, got %d", uint64(len(test.memoryAfter)), ctxt.memory.Len())
+			if ctxt.memory.length() != uint64(len(test.memoryAfter)) {
+				t.Errorf("expected memory size %d, got %d", uint64(len(test.memoryAfter)), ctxt.memory.length())
 			}
 			if !bytes.Equal(ctxt.memory.Data(), test.memoryAfter) {
 				t.Errorf("expected memory %v, got %v", test.memoryAfter, ctxt.memory.Data())

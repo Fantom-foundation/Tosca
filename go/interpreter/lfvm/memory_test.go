@@ -41,7 +41,7 @@ func TestExpansionCosts(t *testing.T) {
 	for _, test := range tests {
 
 		m := NewMemory()
-		cost := m.ExpansionCosts(test.size)
+		cost := m.getExpansionCosts(test.size)
 		if cost != test.cost {
 			t.Errorf("ExpansionCosts(%d) = %d, want %d", test.size, cost, test.cost)
 		}
