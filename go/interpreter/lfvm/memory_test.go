@@ -263,6 +263,59 @@ func TestMemory_SetByte_ErrorCases(t *testing.T) {
 	if !errors.Is(err, errOutOfGas) {
 		t.Errorf("unexpected error, want: %v, got: %v", errGasUintOverflow, err)
 	}
+
+}
+
+func TestMemory_Set_SuccessfulCases(t *testing.T) {
+
+	memoryOriginalSize := uint64(8)
+	offset := uint64(1)
+	// data of size (memoryOriginalSize - offset), to ensure it would fit in memory
+	data := make([]byte, memoryOriginalSize-offset)
+	for i := range data {
+		// add non zero values.
+		data[i] = byte(i + 1)
+	}
+	size := uint64(len(data))
+
+	m := NewMemory()
+	m.store = make([]byte, memoryOriginalSize)
+
+	err := m.set(offset, size, data)
+	if err != nil {
+		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
+	}
+
+	if m.length() != memoryOriginalSize {
+		t.Errorf("set should not change memory size, want: %d, got: %d", memoryOriginalSize, m.length())
+	}
+	if want := append([]byte{0x0}, data...); !bytes.Equal(m.store, want) {
+		t.Errorf("unexpected memory value, want: %x, got: %x", want, m.store)
+	}
+
+}
+
+func TestMemory_Set_ErrorCases(t *testing.T) {
+	m := NewMemory()
+	m.store = make([]byte, 8)
+	// since we are only testing for failed cases, data is not relevant because
+	// the internal checks are done with offset and size parameters.
+
+	// size overflow
+	err := m.set(1, math.MaxUint64, []byte{})
+	if !errors.Is(err, errGasUintOverflow) {
+		t.Errorf("unexpected error, want: %v, got: %v", errGasUintOverflow, err)
+	}
+	// offset overflow
+	err = m.set(math.MaxUint64, 1, []byte{})
+	if !errors.Is(err, errGasUintOverflow) {
+		t.Errorf("unexpected error, want: %v, got: %v", errGasUintOverflow, err)
+	}
+	// not enough memory
+	err = m.set(32, 32, []byte{})
+	if !errors.Is(err, makeInsufficientMemoryError(8, 32, 32)) {
+		t.Errorf("unexpected error, want: %v, got: %v", makeInsufficientMemoryError(8, 32, 32), err)
+	}
 }
 
 func TestMemory_Set_Successful(t *testing.T) {
