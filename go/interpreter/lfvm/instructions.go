@@ -176,7 +176,7 @@ func opMstore8(c *context) error {
 	if overflow {
 		return errOverflow
 	}
-	return c.memory.SetByte(offset, byte(value.Uint64()), c)
+	return c.memory.setByte(offset, byte(value.Uint64()), c)
 }
 
 func opMcopy(c *context) error {
@@ -210,7 +210,7 @@ func opMcopy(c *context) error {
 	if err != nil {
 		return err
 	}
-	if err := c.memory.SetWithCapacityAndGasCheck(destOffset, size, data, c); err != nil {
+	if err := c.memory.setWithCapacityAndGasCheck(destOffset, size, data, c); err != nil {
 		return err
 	}
 	return nil
@@ -1224,7 +1224,7 @@ func opReturnDataCopy(c *context) error {
 		return errOutOfGas
 	}
 
-	return c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c)
+	return c.memory.setWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c)
 }
 
 func opLog(c *context, size int) error {
