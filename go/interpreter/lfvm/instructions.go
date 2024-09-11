@@ -727,7 +727,11 @@ func opSelfdestruct(c *context) {
 	// Selfdestruct gas cost defined in EIP-105 (see https://eips.ethereum.org/EIPS/eip-150)
 	cost := tosca.Gas(0)
 	if c.isAtLeast(tosca.R09_Berlin) {
-		cost += selfDestructedBeneficiaryAccessCost(c.context.AccessAccount(beneficiary))
+		// as https://eips.ethereum.org/EIPS/eip-2929#selfdestruct-changes says,
+		// selfdestruct does not charge for warm access
+		if accessStatus := c.context.AccessAccount(beneficiary); accessStatus != tosca.WarmAccess {
+			cost += getAccessCost(accessStatus)
+		}
 	}
 	cost += selfDestructNewAccountCost(c.context.AccountExists(beneficiary),
 		c.context.GetBalance(c.params.Recipient))
@@ -741,14 +745,6 @@ func opSelfdestruct(c *context) {
 	c.status = statusSelfDestructed
 }
 
-func selfDestructedBeneficiaryAccessCost(accessStatus tosca.AccessStatus) tosca.Gas {
-	if accessStatus == tosca.ColdAccess {
-		// Cost of cold account access after EIP 2929 (see https://eips.ethereum.org/EIPS/eip-2929)
-		return 2_600
-	}
-	return 0
-}
-
 func selfDestructNewAccountCost(accountExists bool, balance tosca.Value) tosca.Gas {
 	if !accountExists && balance != (tosca.Value{}) {
 		// cost of creating an account defined in eip-150 (see https://eips.ethereum.org/EIPS/eip-150)
@@ -760,8 +756,8 @@ func selfDestructNewAccountCost(accountExists bool, balance tosca.Value) tosca.G
 }
 
 func selfDestructRefund(destructed bool, revision tosca.Revision) tosca.Gas {
+	// Since London and after there is no more refund (see https://eips.ethereum.org/EIPS/eip-3529)
 	if destructed && revision <= tosca.R09_Berlin {
-		// Refunded following a selfdestruct operation (see https://eips.ethereum.org/EIPS/eip-6780)
 		return 24_000
 	}
 	return 0

@@ -999,65 +999,40 @@ func TestSelfDestruct_Refund(t *testing.T) {
 	}
 }
 
-func TestSelfDestruct_BeneficiaryAccessCost(t *testing.T) {
-	tests := map[string]struct {
-		accessStatus tosca.AccessStatus
-		gas          tosca.Gas
-	}{
-		"cold account": {
-			accessStatus: tosca.ColdAccess,
-			gas:          2_600,
-		},
-		"warm account": {
-			accessStatus: tosca.WarmAccess,
-			gas:          0,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			gas := selfDestructedBeneficiaryAccessCost(test.accessStatus)
-			if gas != test.gas {
-				t.Errorf("unexpected gas, wanted %d, got %d", test.gas, gas)
-			}
-		})
-	}
-}
-
 func TestSelfDestruct_NewAccountCost(t *testing.T) {
 
 	tests := map[string]struct {
 		beneficiaryExists bool
 		balance           tosca.Value
-		gas               tosca.Gas
+		cost              tosca.Gas
 	}{
 		"account exists no balance": {
 			beneficiaryExists: true,
 			balance:           tosca.Value{},
-			gas:               0,
+			cost:              0,
 		},
 		"account exists with balance": {
 			beneficiaryExists: true,
 			balance:           tosca.Value{1},
-			gas:               0,
+			cost:              0,
 		},
 		"new account without balance": {
 			beneficiaryExists: false,
 			balance:           tosca.Value{},
-			gas:               0,
+			cost:              0,
 		},
 		"new account with balance": {
 			beneficiaryExists: false,
 			balance:           tosca.Value{1},
-			gas:               25_000,
+			cost:              25_000,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			cost := selfDestructNewAccountCost(test.beneficiaryExists, test.balance)
-			if cost != test.gas {
-				t.Errorf("unexpected gas, wanted %d, got %d", test.gas, cost)
+			if cost != test.cost {
+				t.Errorf("unexpected gas, wanted %d, got %d", test.cost, cost)
 			}
 		})
 	}
@@ -1068,6 +1043,8 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 
 	beneficiaryAddress := tosca.Address{1}
 	selfAddress := tosca.Address{2}
+	// added to gas to ensure operation is not simply setting gas to zero.
+	gasDelta := tosca.Gas(1)
 
 	ctrl := gomock.NewController(t)
 	runContext := tosca.NewMockRunContext(ctrl)
@@ -1088,7 +1065,7 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 		memory:  NewMemory(),
 		context: runContext,
 		// 25_000 for new account, 2_600 for beneficiary access
-		gas: 27_600,
+		gas: 27_600 + gasDelta,
 	}
 	ctxt.stack.push(new(uint256.Int).SetBytes(beneficiaryAddress[:]))
 
@@ -1097,7 +1074,7 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 	if ctxt.status != statusSelfDestructed {
 		t.Errorf("unexpected status, wanted %v, got %v", statusRunning, ctxt.status)
 	}
-	if ctxt.gas != 0 {
-		t.Errorf("all gas should have been used, got %d spare", ctxt.gas)
+	if ctxt.gas != gasDelta {
+		t.Errorf("unexpected remaining gas, wated %v, got %d", gasDelta, ctxt.gas)
 	}
 }
