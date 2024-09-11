@@ -181,7 +181,7 @@ func opMstore8(c *context) {
 		c.status = statusError
 		return
 	}
-	if err := c.memory.SetByte(offset, byte(value.Uint64()), c); err != nil {
+	if err := c.memory.setByte(offset, byte(value.Uint64()), c); err != nil {
 		c.signalError()
 	}
 }
@@ -220,7 +220,7 @@ func opMcopy(c *context) {
 	if err != nil {
 		return
 	}
-	if err := c.memory.SetWithCapacityAndGasCheck(destOffset, size, data, c); err != nil {
+	if err := c.memory.setWithCapacityAndGasCheck(destOffset, size, data, c); err != nil {
 		return
 	}
 }
@@ -1305,7 +1305,7 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
-	if err := c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c); err != nil {
+	if err := c.memory.setWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c); err != nil {
 		c.signalError()
 	}
 }
