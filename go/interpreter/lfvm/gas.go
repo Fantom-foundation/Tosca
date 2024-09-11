@@ -223,11 +223,11 @@ func getStaticGasPriceInternal(op OpCode) tosca.Gas {
 	case CREATE2:
 		return 32000
 	case CALL:
-		return 700 // Should be 100 according to evm.code
+		return 700
 	case CALLCODE:
 		return 700
 	case STATICCALL:
-		return 700 // Should be 100 according to evm.code
+		return 700
 	case RETURN:
 		return 0
 	case STOP:
@@ -237,7 +237,7 @@ func getStaticGasPriceInternal(op OpCode) tosca.Gas {
 	case INVALID:
 		return 0
 	case DELEGATECALL:
-		return 700 // Should be 100 according to evm.code
+		return 700
 	case SELFDESTRUCT:
 		return 0 // should be 5000 according to evm.code
 	}

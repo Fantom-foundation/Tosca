@@ -1087,9 +1087,9 @@ func getAccessCost(accessStatus tosca.AccessStatus) tosca.Gas {
 	// however, the warm access cost is charged as part of the base gas cost.
 	// (https://eips.ethereum.org/EIPS/eip-2929)
 	if accessStatus == tosca.ColdAccess {
-		return tosca.Gas(2500)
+		return tosca.Gas(2600)
 	}
-	return tosca.Gas(0)
+	return tosca.Gas(100)
 }
 
 func genericCall(c *context, kind tosca.CallKind) {

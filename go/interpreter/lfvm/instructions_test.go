@@ -883,31 +883,12 @@ func TestExpansionCostOverflow(t *testing.T) {
 	}
 }
 
-func TestCallChargesAppropriatelyForColdWarmAccess(t *testing.T) {
-
-	tests := map[string]struct {
-		accessStatus tosca.AccessStatus
-		cost         tosca.Gas
-	}{
-		"warm": {
-			accessStatus: tosca.WarmAccess,
-		},
-		"cold": {
-			accessStatus: tosca.ColdAccess,
-			cost:         2500,
-		},
+func TestGetAccessCost_RespondsWithProperGasPrice(t *testing.T) {
+	if want, got := tosca.Gas(100), getAccessCost(tosca.WarmAccess); want != got {
+		t.Errorf("unexpected gas cost, wanted %d, got %d", want, got)
 	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-
-			cost := getAccessCost(test.accessStatus)
-
-			if cost != test.cost {
-				t.Errorf("unexpected gas cost, wanted %v, got %v", test.cost, cost)
-			}
-
-		})
+	if want, got := tosca.Gas(2600), getAccessCost(tosca.ColdAccess); want != got {
+		t.Errorf("unexpected gas cost, wanted %d, got %d", want, got)
 	}
 }
 
