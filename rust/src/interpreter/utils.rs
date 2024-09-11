@@ -1,8 +1,11 @@
 use std::cmp::min;
 
-use evmc_vm::{ExecutionMessage, MessageFlags, Revision, StatusCode};
+use evmc_vm::{MessageFlags, Revision, StatusCode};
 
-use crate::{interpreter::gas::consume_copy_cost, types::u256};
+use crate::{
+    interpreter::{gas::consume_copy_cost, run_state::RunState},
+    types::u256,
+};
 
 pub trait SliceExt {
     fn get_within_bounds(&self, offset: u256, len: u64) -> &[u8];
@@ -69,11 +72,10 @@ pub(super) fn check_min_revision(
 }
 
 #[inline(always)]
-pub(super) fn check_not_read_only(
-    message: &ExecutionMessage,
-    revision: Revision,
-) -> Result<(), StatusCode> {
-    if revision >= Revision::EVMC_BYZANTIUM && message.flags() == MessageFlags::EVMC_STATIC as u32 {
+pub(super) fn check_not_read_only(state: &RunState) -> Result<(), StatusCode> {
+    if state.revision >= Revision::EVMC_BYZANTIUM
+        && state.message.flags() == MessageFlags::EVMC_STATIC as u32
+    {
         return Err(StatusCode::EVMC_STATIC_MODE_VIOLATION);
     }
     Ok(())
