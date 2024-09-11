@@ -108,17 +108,10 @@ func (m *Memory) length() uint64 {
 	return uint64(len(m.store))
 }
 
-func (m *Memory) SetByte(offset uint64, value byte, c *context) error {
-	err := m.expandMemory(offset, 1, c)
-	if err != nil {
-		return err
-	}
-
-	if m.length() < offset+1 {
-		return fmt.Errorf("memory too small, size %d, attempted to write at position %d", m.length(), offset)
-	}
-	m.store[offset] = value
-	return nil
+// setByte sets a byte at the given offset, expanding memory as needed and charging for it.
+// If any error occurs during EnsureCapacity, this is reflected in context status.
+func (m *Memory) setByte(offset uint64, value byte, c *context) error {
+	return m.setWithCapacityAndGasCheck(offset, 1, []byte{value}, c)
 }
 
 func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
@@ -184,7 +177,7 @@ func (m *Memory) Set(offset, size uint64, value []byte) error {
 	return nil
 }
 
-func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c *context) error {
+func (m *Memory) setWithCapacityAndGasCheck(offset, size uint64, value []byte, c *context) error {
 	err := m.expandMemory(offset, size, c)
 	if err != nil {
 		return err
