@@ -284,8 +284,6 @@ var to_string = map[OpCode]string{
 }
 
 // String returns the string representation of the OpCode.
-// For undefined values the string "UNKNOWN" is returned,
-// instead of INVALID, which is a defined value.
 func (o OpCode) String() string {
 	if o <= 0xFF {
 		return vm.OpCode(o).String()
@@ -294,7 +292,7 @@ func (o OpCode) String() string {
 	if str, ok := to_string[o]; ok {
 		return str
 	}
-	return fmt.Sprintf("OpCode(%d)", o&opCodeMask)
+	return fmt.Sprintf("op(0x%04X)", int16(o))
 }
 
 // HasArgument returns true if the second 16-bit word of the instruction is
