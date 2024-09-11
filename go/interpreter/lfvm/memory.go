@@ -261,24 +261,3 @@ func (m *Memory) GetSliceWithCapacity(offset, size uint64) []byte {
 	m.EnsureCapacityWithoutGas(size)
 	return m.GetSlice(offset, size)
 }
-
-func (m *Memory) Data() []byte {
-	return m.store
-}
-
-func (m *Memory) Print() {
-	fmt.Printf("### mem %d bytes ###\n", len(m.store))
-	if len(m.store) > 0 {
-		addr := 0
-		for i := 0; i+32 <= len(m.store); i += 32 {
-			fmt.Printf("%03d: % x\n", addr, m.store[i:i+32])
-			addr++
-		}
-		if len(m.store)%32 != 0 {
-			fmt.Printf("%03d: % x\n", addr, m.store[len(m.store)/32*32:])
-		}
-	} else {
-		fmt.Println("-- empty --")
-	}
-	fmt.Println("####################")
-}

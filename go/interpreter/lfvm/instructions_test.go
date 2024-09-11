@@ -589,8 +589,8 @@ func TestMCopy(t *testing.T) {
 			if ctxt.memory.length() != uint64(len(test.memoryAfter)) {
 				t.Errorf("expected memory size %d, got %d", uint64(len(test.memoryAfter)), ctxt.memory.length())
 			}
-			if !bytes.Equal(ctxt.memory.Data(), test.memoryAfter) {
-				t.Errorf("expected memory %v, got %v", test.memoryAfter, ctxt.memory.Data())
+			if data := ctxt.memory.GetSlice(0, ctxt.memory.length()); !bytes.Equal(data, test.memoryAfter) {
+				t.Errorf("expected memory %v, got %v", test.memoryAfter, data)
 			}
 			if ctxt.gas != test.gasAfter {
 				t.Errorf("expected gas %d, got %d", test.gasAfter, ctxt.gas)
