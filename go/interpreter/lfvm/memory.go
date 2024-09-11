@@ -68,39 +68,40 @@ func (m *Memory) getExpansionCosts(size uint64) tosca.Gas {
 	return fee
 }
 
-func (m *Memory) EnsureCapacity(offset, size uint64, c *context) error {
-	if size <= 0 {
+// expandMemory tries to expand memory to the given size.
+// If the memory is already large enough or size is 0, it does nothing.
+// If not enough gas in the context or an overflow occurs when adding offset and
+// size, it returns an error.
+func (m *Memory) expandMemory(offset, size uint64, c *context) error {
+	if size == 0 {
 		return nil
 	}
+
 	needed := offset + size
 	// check overflow
 	if needed < offset {
 		c.signalError()
 		return errGasUintOverflow
 	}
-	if m.length() < needed {
-		needed = toValidMemorySize(needed)
-		fee := m.getExpansionCosts(needed)
-		if !c.useGas(fee) {
-			c.status = statusOutOfGas
-			return errOutOfGas
-		}
-		m.total_memory_cost += fee
-		m.store = append(m.store, make([]byte, needed-m.length())...)
+
+	fee := m.getExpansionCosts(needed)
+	if !c.useGas(fee) {
+		c.status = statusOutOfGas
+		return errOutOfGas
 	}
+
+	m.expandMemoryWithoutCharging(needed, fee)
 	return nil
 }
 
-func (m *Memory) EnsureCapacityWithoutGas(size uint64) {
-	if size <= 0 {
-		return
+// expandMemoryWithoutCharging expands the memory to the given size without checking gas.
+func (m *Memory) expandMemoryWithoutCharging(needed uint64, fee tosca.Gas) {
+	needed = toValidMemorySize(needed)
+	size := m.length()
+	if size < needed {
+		m.store = append(m.store, make([]byte, needed-size)...)
 	}
-	if m.length() < size {
-		size = toValidMemorySize(size)
-		fee := m.getExpansionCosts(size)
-		m.total_memory_cost += fee
-		m.store = append(m.store, make([]byte, size-m.length())...)
-	}
+	m.total_memory_cost += fee
 }
 
 func (m *Memory) length() uint64 {
@@ -108,7 +109,7 @@ func (m *Memory) length() uint64 {
 }
 
 func (m *Memory) SetByte(offset uint64, value byte, c *context) error {
-	err := m.EnsureCapacity(offset, 1, c)
+	err := m.expandMemory(offset, 1, c)
 	if err != nil {
 		return err
 	}
@@ -121,7 +122,7 @@ func (m *Memory) SetByte(offset uint64, value byte, c *context) error {
 }
 
 func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
-	err := m.EnsureCapacity(offset, 32, c)
+	err := m.expandMemory(offset, 32, c)
 	if err != nil {
 		return err
 	}
@@ -184,7 +185,7 @@ func (m *Memory) Set(offset, size uint64, value []byte) error {
 }
 
 func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c *context) error {
-	err := m.EnsureCapacity(offset, size, c)
+	err := m.expandMemory(offset, size, c)
 	if err != nil {
 		return err
 	}
@@ -195,22 +196,8 @@ func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c
 	return nil
 }
 
-func (m *Memory) SetWithCapacityCheck(offset, size uint64, value []byte) error {
-	m.EnsureCapacityWithoutGas(size)
-	if size > 0 {
-		if offset+size < offset {
-			return errGasUintOverflow
-		}
-		if offset+size > m.length() {
-			return fmt.Errorf("memory too small, size %d, attempted to write %d bytes at %d", m.length(), size, offset)
-		}
-		copy(m.store[offset:offset+size], value)
-	}
-	return nil
-}
-
 func (m *Memory) CopyWord(offset uint64, trg *uint256.Int, c *context) error {
-	err := m.EnsureCapacity(offset, 32, c)
+	err := m.expandMemory(offset, 32, c)
 	if err != nil {
 		return err
 	}
@@ -250,14 +237,9 @@ func (m *Memory) GetSlice(offset, size uint64) []byte {
 }
 
 func (m *Memory) GetSliceWithCapacityAndGas(offset, size uint64, c *context) ([]byte, error) {
-	err := m.EnsureCapacity(offset, size, c)
+	err := m.expandMemory(offset, size, c)
 	if err != nil {
 		return nil, err
 	}
 	return m.GetSlice(offset, size), nil
-}
-
-func (m *Memory) GetSliceWithCapacity(offset, size uint64) []byte {
-	m.EnsureCapacityWithoutGas(size)
-	return m.GetSlice(offset, size)
 }

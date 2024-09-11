@@ -394,7 +394,7 @@ func opCallDataCopy(c *context) {
 		return
 	}
 
-	if c.memory.EnsureCapacity(memOffset64, length64, c) != nil {
+	if c.memory.expandMemory(memOffset64, length64, c) != nil {
 		return
 	}
 
@@ -828,7 +828,7 @@ func opCodeCopy(c *context) {
 		return
 	}
 
-	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
+	if c.memory.expandMemory(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
 	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
@@ -903,7 +903,7 @@ func opCreate(c *context) {
 		return
 	}
 
-	if c.memory.EnsureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
+	if c.memory.expandMemory(offset.Uint64(), size.Uint64(), c) != nil {
 		return
 	}
 
@@ -974,7 +974,7 @@ func opCreate2(c *context) {
 		return
 	}
 
-	if c.memory.EnsureCapacity(offset.Uint64(), size.Uint64(), c) != nil {
+	if c.memory.expandMemory(offset.Uint64(), size.Uint64(), c) != nil {
 		return
 	}
 
@@ -1079,7 +1079,7 @@ func opExtCodeCopy(c *context) {
 		uint64CodeOffset = math.MaxUint64
 	}
 
-	if c.memory.EnsureCapacity(memOffset.Uint64(), length.Uint64(), c) != nil {
+	if c.memory.expandMemory(memOffset.Uint64(), length.Uint64(), c) != nil {
 		return
 	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
@@ -1150,7 +1150,8 @@ func genericCall(c *context, kind tosca.CallKind) {
 		needed_memory_size = ret_memory_size
 	}
 
-	baseGas := c.memory.getExpansionCosts(needed_memory_size)
+	memoryExpansionCost := c.memory.getExpansionCosts(needed_memory_size)
+	baseGas := memoryExpansionCost
 	// from berlin onwards access cost changes depending on warm/cold access.
 	if c.isAtLeast(tosca.R09_Berlin) {
 		baseGas += getAccessCost(c.context.AccessAccount(toAddr))
@@ -1190,7 +1191,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
-	c.memory.EnsureCapacityWithoutGas(needed_memory_size)
+	c.memory.expandMemoryWithoutCharging(needed_memory_size, memoryExpansionCost)
 	if !value.IsZero() {
 		cost += CallStipend
 	}
