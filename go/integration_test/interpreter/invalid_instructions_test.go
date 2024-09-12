@@ -20,7 +20,7 @@ import (
 
 func TestInterpreterDetectsInvalidInstruction(t *testing.T) {
 	for _, rev := range revisions {
-		for _, variant := range Variants {
+		for _, variant := range getAllInterpreterVariantsForTests() {
 			evm := GetCleanEVM(rev, variant, nil)
 			// LFVM currently does not support detection of invalid codes!
 			// TODO: fix this

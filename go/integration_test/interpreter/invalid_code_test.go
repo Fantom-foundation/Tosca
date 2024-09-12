@@ -18,7 +18,7 @@ import (
 )
 
 func TestEmptyCodeShouldBeIgnored(t *testing.T) {
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		evm := GetCleanEVM(Istanbul, variant, nil)
 		t.Run(variant, func(t *testing.T) {
 			code := []byte{}
@@ -31,7 +31,7 @@ func TestEmptyCodeShouldBeIgnored(t *testing.T) {
 }
 
 func TestPushWithMissingDataIsIgnored(t *testing.T) {
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		evm := GetCleanEVM(Istanbul, variant, nil)
 		for i := 1; i <= 32; i++ {
 			op := vm.OpCode(int(vm.PUSH1) - 1 + i)
@@ -50,7 +50,7 @@ func TestPushWithMissingDataIsIgnored(t *testing.T) {
 }
 
 func TestDetectsJumpOutOfCode(t *testing.T) {
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		evm := GetCleanEVM(Istanbul, variant, nil)
 		t.Run(variant, func(t *testing.T) {
 			code := []byte{
@@ -71,7 +71,7 @@ func TestDetectsJumpOutOfCode(t *testing.T) {
 }
 
 func TestDetectsJumpToNonJumpDestTarget(t *testing.T) {
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		evm := GetCleanEVM(Istanbul, variant, nil)
 		t.Run(variant, func(t *testing.T) {
 			code := []byte{

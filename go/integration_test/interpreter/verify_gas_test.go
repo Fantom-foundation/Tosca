@@ -22,7 +22,7 @@ import (
 
 func TestStaticGas(t *testing.T) {
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		for _, revision := range revisions {
 			// Get static gas for frequently used instructions
 			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
@@ -88,7 +88,7 @@ func TestDynamicGas(t *testing.T) {
 	accountBalance := tosca.Value{100}
 
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		for _, revision := range revisions {
 			// Get static gas for frequently used instructions
 			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
@@ -172,7 +172,7 @@ func TestDynamicGas(t *testing.T) {
 
 func TestOutOfDynamicGas(t *testing.T) {
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		for _, revision := range revisions {
 			// Get static gas for frequently used instructions
 			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
@@ -218,7 +218,7 @@ func TestOutOfDynamicGas(t *testing.T) {
 
 func TestOutOfStaticGasOnly(t *testing.T) {
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		for _, revision := range revisions {
 			// Get static gas for frequently used instructions
 			pushGas := getInstructions(revision)[vm.PUSH1].gas.static
@@ -327,7 +327,7 @@ func getCallInstructionGas(t *testing.T, revision Revision, callCode []byte) tos
 	// Minimum stack values to execute CALL instruction
 	stackValues := []*big.Int{zeroVal, zeroVal, zeroVal, zeroVal, zeroVal, addressToBigInt(account), gasSentWithCall}
 
-	evm := GetCleanEVM(revision, Variants[0], mockStateDB)
+	evm := GetCleanEVM(revision, "geth", mockStateDB)
 
 	for i := 0; i < len(stackValues); i++ {
 		valueBytes := stackValues[i].Bytes()

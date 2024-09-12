@@ -40,7 +40,7 @@ var (
 
 func TestExamples_ComputesCorrectResult(t *testing.T) {
 	for _, example := range testExamples {
-		for _, variant := range Variants {
+		for _, variant := range getAllInterpreterVariantsForTests() {
 			vm := tosca.GetInterpreter(variant)
 			for i := 0; i < 10; i++ {
 				t.Run(fmt.Sprintf("%s-%s-%d", example.Name, variant, i), func(t *testing.T) {
@@ -62,7 +62,7 @@ func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 	for _, example := range testExamples {
 		for _, revision := range revisions {
 			reference := tosca.GetInterpreter("geth")
-			for _, variant := range Variants {
+			for _, variant := range getAllInterpreterVariantsForTests() {
 				vm := tosca.GetInterpreter(variant)
 				for i := 0; i < 10; i++ {
 					t.Run(fmt.Sprintf("%s-%s-%s-%d", example.Name, revision, variant, i), func(t *testing.T) {
@@ -92,7 +92,7 @@ func BenchmarkEmpty(b *testing.B) {
 	emptyRunParameters := tosca.Parameters{
 		Context: runContext,
 	}
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		interpreter := tosca.GetInterpreter(variant)
 		b.Run(variant, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -168,7 +168,7 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 	// compute expected value
 	wanted := example.RunReference(arg)
 
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		evm := tosca.GetInterpreter(variant)
 		if pvm, ok := evm.(tosca.ProfilingInterpreter); ok {
 			pvm.ResetProfile()
