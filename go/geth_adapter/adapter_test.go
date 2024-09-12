@@ -77,7 +77,7 @@ func TestRunContextAdapter_SetBalanceHasCorrectEffect(t *testing.T) {
 }
 
 func TestRunContextAdapter_ReferenceGethInterpreterIsNotExported(t *testing.T) {
-	if res := tosca.GetInterpreter("geth"); res == nil {
+	if res, err := tosca.NewInterpreter("geth", nil); res == nil || err != nil {
 		t.Fatal("geth reference interpreter not available in Tosca")
 	}
 	evm := &geth.EVM{}

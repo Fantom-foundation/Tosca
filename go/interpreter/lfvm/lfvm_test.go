@@ -17,9 +17,9 @@ import (
 )
 
 func TestLfvm_OfficialConfigurationHasSanctionedProperties(t *testing.T) {
-	vm := tosca.GetInterpreter("lfvm")
-	if vm == nil {
-		t.Fatal("lfvm is not registered")
+	vm, err := tosca.NewInterpreter("lfvm")
+	if err != nil {
+		t.Fatalf("lfvm is not registered: %v", err)
 	}
 	lfvm, ok := vm.(*lfvm)
 	if !ok {

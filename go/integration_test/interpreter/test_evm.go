@@ -46,8 +46,13 @@ func GetCleanEVM(revision Revision, interpreter string, stateDB StateDB) TestEVM
 		rev = tosca.R10_London
 	}
 
+	instance, err := tosca.NewInterpreter(interpreter)
+	if err != nil {
+		panic(err)
+	}
+
 	return TestEVM{
-		interpreter: tosca.GetInterpreter(interpreter),
+		interpreter: instance,
 		revision:    rev,
 		state:       stateDB,
 	}

@@ -47,11 +47,11 @@ func init() {
 	}
 
 	for name, config := range configs {
-		vm, err := NewVm(config)
-		if err != nil {
-			panic(fmt.Sprintf("failed to create %s: %v", name, err))
-		}
-		tosca.RegisterInterpreter(name, vm)
+		config := config
+		tosca.RegisterInterpreter(name, func(any) (tosca.Interpreter, error) {
+			// TODO: support configuration of cache sizes
+			return NewVm(config)
+		})
 	}
 }
 
@@ -79,27 +79,28 @@ func RegisterExperimentalInterpreterConfigurations() {
 					config.runner = loggingRunner{}
 				}
 
-				vm, err := NewVm(config)
 				name := "lfvm" + si + shaCache + mode
-				if err != nil {
-					panic(fmt.Sprintf("failed to create %s: %v", name, err))
-				}
-
 				if name != "lfvm" && name != "lfvm-si" {
-					tosca.RegisterInterpreter(name, vm)
+					tosca.RegisterInterpreter(
+						name,
+						func(any) (tosca.Interpreter, error) {
+							return NewVm(config)
+						},
+					)
 				}
 			}
 		}
 	}
-	vm, err := NewVm(Config{
-		ConversionConfig: ConversionConfig{
-			CacheSize: -1,
+	tosca.RegisterInterpreter(
+		"lfvm-no-code-cache",
+		func(any) (tosca.Interpreter, error) {
+			return NewVm(Config{
+				ConversionConfig: ConversionConfig{
+					CacheSize: -1,
+				},
+			})
 		},
-	})
-	if err != nil {
-		panic(fmt.Sprintf("failed to create no-code-cache instance: %v", err))
-	}
-	tosca.RegisterInterpreter("lfvm-no-code-cache", vm)
+	)
 }
 
 type Config struct {

@@ -28,7 +28,10 @@ func TestFib10(t *testing.T) {
 	// compute expected value
 	wanted := example.RunReference(arg)
 
-	interpreter := tosca.GetInterpreter("evmzero")
+	interpreter, err := tosca.NewInterpreter("evmzero")
+	if err != nil {
+		t.Fatalf("failed to load evmzero interpreter: %v", err)
+	}
 	got, err := example.RunOn(interpreter, arg)
 	if err != nil {
 		t.Fatalf("running the fib example failed: %v", err)
@@ -41,8 +44,12 @@ func TestFib10(t *testing.T) {
 
 func TestEvmzero_DumpProfile(t *testing.T) {
 	example := examples.GetFibExample()
-	interpreter, ok := tosca.GetInterpreter("evmzero-profiling").(tosca.ProfilingInterpreter)
-	if !ok || interpreter == nil {
+	instance, err := tosca.NewInterpreter("evmzero-profiling")
+	if err != nil {
+		t.Fatalf("failed to load evmzero interpreter: %v", err)
+	}
+	interpreter, ok := instance.(tosca.ProfilingInterpreter)
+	if !ok {
 		t.Fatalf("profiling evmzero configuration does not support profiling")
 	}
 	for i := 0; i < 10; i++ {
@@ -60,7 +67,7 @@ func TestEvmzero_DumpProfile(t *testing.T) {
 func BenchmarkNewEvmcInterpreter(b *testing.B) {
 	b.Run("evmzero", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tosca.GetInterpreter("evmzero")
+			tosca.NewInterpreter("evmzero")
 		}
 	})
 }
@@ -76,7 +83,10 @@ func benchmarkFib(b *testing.B, arg int) {
 	wanted := example.RunReference(arg)
 
 	b.Run("evmzero", func(b *testing.B) {
-		interpreter := tosca.GetInterpreter("evmzero")
+		interpreter, err := tosca.NewInterpreter("evmzero")
+		if err != nil {
+			b.Fatalf("failed to load evmzero interpreter: %v", err)
+		}
 		for i := 0; i < b.N; i++ {
 			got, err := example.RunOn(interpreter, arg)
 			if err != nil {
@@ -114,9 +124,9 @@ func TestEvmcInterpreter_BlobHashCanBeRead(t *testing.T) {
 		Code: code,
 	}
 
-	evm := tosca.GetInterpreter("evmzero")
-	if evm == nil {
-		t.Fatalf("failed to locate evmzero")
+	evm, err := tosca.NewInterpreter("evmzero")
+	if err != nil {
+		t.Fatalf("failed to load evmzero interpreter: %v", err)
 	}
 
 	result, err := evm.Run(params)

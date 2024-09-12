@@ -197,7 +197,11 @@ func getProcessors() map[string]tosca.Processor {
 
 	res := map[string]tosca.Processor{}
 	for processorName, factory := range factories {
-		for interpreterName, interpreter := range interpreter {
+		for interpreterName, interpreterFactory := range interpreter {
+			interpreter, err := interpreterFactory(nil)
+			if err != nil {
+				panic(fmt.Sprintf("failed to load interpreter %s: %v", interpreterName, err))
+			}
 			processor := factory(interpreter)
 			res[fmt.Sprintf("%s/%s", processorName, interpreterName)] = processor
 		}

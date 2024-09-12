@@ -33,8 +33,12 @@ func init() {
 	}
 	// This instance remains in its basic configuration and is registered
 	// as the default "evmone" VM and as the "evmone-basic" tosca.
-	tosca.RegisterInterpreter("evmone", &evmoneInstance{evmone})
-	tosca.RegisterInterpreter("evmone-basic", &evmoneInstance{evmone})
+	tosca.RegisterInterpreter("evmone", func(any) (tosca.Interpreter, error) {
+		return &evmoneInstance{evmone}, nil
+	})
+	tosca.RegisterInterpreter("evmone-basic", func(any) (tosca.Interpreter, error) {
+		return &evmoneInstance{evmone}, nil
+	})
 
 	// A second instance is configured to use the advanced execution mode.
 	evmone, err = evmc.LoadEvmcInterpreter("libevmone.so")
@@ -44,7 +48,9 @@ func init() {
 	if err := evmone.SetOption("advanced", "on"); err != nil {
 		panic(fmt.Errorf("failed to configure evmone advanced mode: %v", err))
 	}
-	tosca.RegisterInterpreter("evmone-advanced", &evmoneInstance{evmone})
+	tosca.RegisterInterpreter("evmone-advanced", func(any) (tosca.Interpreter, error) {
+		return &evmoneInstance{evmone}, nil
+	})
 }
 
 type evmoneInstance struct {

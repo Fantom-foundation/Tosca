@@ -36,7 +36,9 @@ func init() {
 			panic(fmt.Errorf("failed to load evmzero library: %s", err))
 		}
 		// This instance remains in its basic configuration.
-		tosca.RegisterInterpreter("evmzero", &evmzeroInstance{evm})
+		tosca.RegisterInterpreter("evmzero", func(any) (tosca.Interpreter, error) {
+			return &evmzeroInstance{evm}, nil
+		})
 	}
 
 	// We create a second instance in which we enable logging.
@@ -48,7 +50,9 @@ func init() {
 		if err = evm.SetOption("logging", "true"); err != nil {
 			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 		}
-		tosca.RegisterInterpreter("evmzero-logging", &evmzeroInstance{evm})
+		tosca.RegisterInterpreter("evmzero-logging", func(any) (tosca.Interpreter, error) {
+			return &evmzeroInstance{evm}, nil
+		})
 	}
 
 	// A third instance without analysis cache.
@@ -60,7 +64,9 @@ func init() {
 		if err = evm.SetOption("analysis_cache", "false"); err != nil {
 			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 		}
-		tosca.RegisterInterpreter("evmzero-no-analysis-cache", &evmzeroInstance{evm})
+		tosca.RegisterInterpreter("evmzero-no-analysis-cache", func(any) (tosca.Interpreter, error) {
+			return &evmzeroInstance{evm}, nil
+		})
 	}
 
 	// Another instance without SHA3 cache.
@@ -72,7 +78,9 @@ func init() {
 		if err = evm.SetOption("sha3_cache", "false"); err != nil {
 			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 		}
-		tosca.RegisterInterpreter("evmzero-no-sha3-cache", &evmzeroInstance{evm})
+		tosca.RegisterInterpreter("evmzero-no-sha3-cache", func(any) (tosca.Interpreter, error) {
+			return &evmzeroInstance{evm}, nil
+		})
 	}
 
 	// Another instance in which we enable profiling.
@@ -84,7 +92,9 @@ func init() {
 		if err = evm.SetOption("profiling", "true"); err != nil {
 			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 		}
-		tosca.RegisterInterpreter("evmzero-profiling", &evmzeroInstanceWithProfiler{&evmzeroInstance{evm}})
+		tosca.RegisterInterpreter("evmzero-profiling", func(any) (tosca.Interpreter, error) {
+			return &evmzeroInstanceWithProfiler{&evmzeroInstance{evm}}, nil
+		})
 	}
 
 	// Another instance in which we enable profiling external.
@@ -96,7 +106,9 @@ func init() {
 		if err = evm.SetOption("profiling_external", "true"); err != nil {
 			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
 		}
-		tosca.RegisterInterpreter("evmzero-profiling-external", &evmzeroInstanceWithProfiler{&evmzeroInstance{evm}})
+		tosca.RegisterInterpreter("evmzero-profiling-external", func(any) (tosca.Interpreter, error) {
+			return &evmzeroInstanceWithProfiler{&evmzeroInstance{evm}}, nil
+		})
 	}
 }
 

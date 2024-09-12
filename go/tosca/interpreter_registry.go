@@ -30,14 +30,47 @@ import (
 // GetInterpreter performs a lookup for the given name (case-insensitive) in
 // the registry. The result is nil if no interpreter was registered under the
 // given name.
+//
+// Deprecated: Use NewInterpreter instead.
 func GetInterpreter(name string) Interpreter {
+	res, err := NewInterpreter(name, nil)
+	if err != nil {
+		return nil
+	}
+	return res
+}
+
+// NewInterpreter performs a lookup for the given name (case-insensitive) in
+// the registry and creates a new Interpreter using the given optional
+// configuration. If no configuration is provided, the implementation uses
+// its default configuration. An error is returned if no factory was
+// registered under the given name.
+func NewInterpreter(name string, config ...any) (Interpreter, error) {
+	if len(config) > 1 {
+		return nil, fmt.Errorf("invalid configuration: too many arguments")
+	}
+	factory := GetInterpreterFactory(name)
+	if factory == nil {
+		return nil, fmt.Errorf("interpreter not found: %s", name)
+	}
+	c := any(nil)
+	if len(config) > 0 {
+		c = config[0]
+	}
+	return factory(c)
+}
+
+// GetInterpreterFactory performs a lookup for the given name (case-insensitive)
+// in the registry. The result is nil if no factory was registered under the
+// given name.
+func GetInterpreterFactory(name string) InterpreterFactory {
 	interpreterRegistryLock.Lock()
 	defer interpreterRegistryLock.Unlock()
 	return interpreterRegistry[strings.ToLower(name)]
 }
 
 // GetAllRegisteredInterpreters obtains all registered implementations.
-func GetAllRegisteredInterpreters() map[string]Interpreter {
+func GetAllRegisteredInterpreters() map[string]InterpreterFactory {
 	interpreterRegistryLock.Lock()
 	defer interpreterRegistryLock.Unlock()
 	return maps.Clone(interpreterRegistry)
@@ -45,25 +78,29 @@ func GetAllRegisteredInterpreters() map[string]Interpreter {
 
 // RegisterInterpreter can be used to register a new Interpreter implementation
 // to be exported for general use in the binary. The name is not case-sensitive,
-// and a panic is triggered if an implementation was bound to the same name
-// before, or the implementation is nil. This function is mainly intended to be
-// used by package initialization code.
-func RegisterInterpreter(name string, impl Interpreter) {
+// and a panic is triggered if a factory was bound to the same name before, or
+// the factory is nil. This function is mainly intended to be used by package
+// initialization code.
+func RegisterInterpreter(name string, factory InterpreterFactory) {
 	key := strings.ToLower(name)
-	if impl == nil {
-		panic(fmt.Sprintf("invalid initialization: cannot register nil-interpreter using `%s`", key))
+	if factory == nil {
+		panic(fmt.Sprintf("invalid initialization: cannot register nil-factory using `%s`", key))
 	}
 	interpreterRegistryLock.Lock()
 	defer interpreterRegistryLock.Unlock()
 	if _, found := interpreterRegistry[key]; found {
-		panic(fmt.Sprintf("invalid initialization: multiple Interpreters registered for `%s`", key))
+		panic(fmt.Sprintf("invalid initialization: multiple factories registered for `%s`", key))
 	}
-	interpreterRegistry[key] = impl
+	interpreterRegistry[key] = factory
 }
 
-// interpreterRegistry is a global registry for Interpreter instances of
+// InterpreterFactory is the type of a function that creates a new Interpreter
+// using a interpreter specific configuration.
+type InterpreterFactory func(config any) (Interpreter, error)
+
+// interpreterRegistry is a global registry for Interpreter factories of
 // different implementations and configurations.
-var interpreterRegistry = map[string]Interpreter{}
+var interpreterRegistry = map[string]InterpreterFactory{}
 
 // interpreterRegistryLock to protect access to the registry.
 var interpreterRegistryLock sync.Mutex
