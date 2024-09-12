@@ -1075,6 +1075,6 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 		t.Errorf("unexpected status, wanted %v, got %v", statusRunning, ctxt.status)
 	}
 	if ctxt.gas != gasDelta {
-		t.Errorf("unexpected remaining gas, wated %v, got %d", gasDelta, ctxt.gas)
+		t.Errorf("unexpected remaining gas, wanted %v, got %d", gasDelta, ctxt.gas)
 	}
 }

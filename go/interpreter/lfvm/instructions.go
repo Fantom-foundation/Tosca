@@ -757,7 +757,7 @@ func selfDestructNewAccountCost(accountExists bool, balance tosca.Value) tosca.G
 
 func selfDestructRefund(destructed bool, revision tosca.Revision) tosca.Gas {
 	// Since London and after there is no more refund (see https://eips.ethereum.org/EIPS/eip-3529)
-	if destructed && revision <= tosca.R09_Berlin {
+	if destructed && revision < tosca.R10_London {
 		return 24_000
 	}
 	return 0
