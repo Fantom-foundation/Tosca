@@ -194,15 +194,15 @@ func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c
 	return nil
 }
 
-func (m *Memory) CopyWord(offset uint64, trg *uint256.Int, c *context) error {
-	err := m.expandMemory(offset, 32, c)
+// readWord reads a Word (32 byte) from the memory at the given offset.
+// Expands memory as needed and charges for it.
+// Returns error in case of not enough gas or offset+32 overflow.
+func (m *Memory) readWord(offset uint64, trg *uint256.Int, c *context) error {
+	data, err := m.readSliceAndExpandMemory(offset, 32, c)
 	if err != nil {
 		return err
 	}
-	if m.length() < offset+32 {
-		return fmt.Errorf("memory too small, size %d, attempted to read 32 byte at position %d", m.length(), offset)
-	}
-	trg.SetBytes32(m.store[offset : offset+32])
+	trg.SetBytes32(data)
 	return nil
 }
 
@@ -222,7 +222,9 @@ func (m *Memory) CopyData(offset uint64, trg []byte) {
 	}
 }
 
-func (m *Memory) GetSlice(offset, size uint64) []byte {
+// readSlice reads size bytes from the memory at the given offset.
+// Returns nil if offset+size is out of bounds or size is 0.
+func (m *Memory) readSlice(offset, size uint64) []byte {
 	if size == 0 {
 		return nil
 	}
@@ -234,10 +236,13 @@ func (m *Memory) GetSlice(offset, size uint64) []byte {
 	return nil
 }
 
-func (m *Memory) GetSliceWithCapacityAndGas(offset, size uint64, c *context) ([]byte, error) {
+// readSliceAndExpandMemory reads size bytes from the memory at the given offset.
+// Expands memory as needed and charges for it.
+// Returns error in case of not enough gas or offset+32 overflow.
+func (m *Memory) readSliceAndExpandMemory(offset, size uint64, c *context) ([]byte, error) {
 	err := m.expandMemory(offset, size, c)
 	if err != nil {
 		return nil, err
 	}
-	return m.GetSlice(offset, size), nil
+	return m.readSlice(offset, size), nil
 }

@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/holiman/uint256"
 )
 
 func TestGetExpansionCosts(t *testing.T) {
@@ -183,5 +184,76 @@ func TestMemory_expandMemory_expandsMemoryOnlyWhenNeeded(t *testing.T) {
 				t.Errorf("unexpected memory size, want: %d, got: %d", test.expectedMemorySize, m.length())
 			}
 		})
+	}
+}
+
+func TestMemory_readWord(t *testing.T) {
+	c := getEmptyContext()
+	m := NewMemory()
+	// 32 byte base memory
+	baseMemory := []byte{0x0, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+		0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+		0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F}
+	m.store = bytes.Clone(baseMemory)
+	target := new(uint256.Int)
+	err := m.readWord(0, target, &c)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if m.length() != uint64(len(baseMemory)) {
+		t.Errorf("memory should have been expanded to 64 bytes, instead is: %d", m.length())
+	}
+	if !target.Eq(new(uint256.Int).SetBytes(baseMemory)) {
+		t.Errorf("unexpected value: %v", target)
+	}
+}
+
+func TestMemory_readWord_ReadAndPadWithZeros(t *testing.T) {
+	c := getEmptyContext()
+	m := NewMemory()
+	baseMemory := []byte{0x0, 0x01, 0x02, 0x03, 0x04}
+	m.store = bytes.Clone(baseMemory)
+	target := new(uint256.Int)
+	err := m.readWord(1, target, &c)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if m.length() != 64 {
+		t.Errorf("memory should have been expanded to 64 bytes, instead is: %d", m.length())
+	}
+	if !target.Eq(new(uint256.Int).SetBytes(append(baseMemory[1:], []byte{27: 0x0}...))) {
+		t.Errorf("unexpected value: %v", target)
+	}
+}
+
+func TestMemory_readWord_ErrorCases(t *testing.T) {
+	c := getEmptyContext()
+	c.gas = 0
+	m := NewMemory()
+	baseMemory := []byte{0x0, 0x01, 0x02, 0x03, 0x04}
+	m.store = bytes.Clone(baseMemory)
+	target := new(uint256.Int)
+	err := m.readWord(math.MaxUint64-31, target, &c)
+	if !errors.Is(err, errGasUintOverflow) {
+		t.Errorf("error should be errGasUintOverflow, instead is: %v", err)
+	}
+	err = m.readWord(0, target, &c)
+	if !errors.Is(err, errOutOfGas) {
+		t.Errorf("error should be errOutOfGas, instead is: %v", err)
+	}
+}
+
+func TestMemory_readSlice_ReturnsEmpty(t *testing.T) {
+	m := NewMemory()
+	m.store = []byte{0x0, 0x01, 0x02}
+	emptySlices := [][]byte{
+		m.readSlice(1, 0), // size zero
+		m.readSlice(6, 1), // offset out of bounds
+	}
+	for _, slice := range emptySlices {
+		if len(slice) != 0 {
+			t.Errorf("expected empty slice, instead got: %v", slice)
+		}
 	}
 }
