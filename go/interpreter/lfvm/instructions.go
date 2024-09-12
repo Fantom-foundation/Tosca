@@ -1084,7 +1084,6 @@ func neededMemorySize(c *context, offset, size *uint256.Int) (uint64, error) {
 
 func getAccessCost(accessStatus tosca.AccessStatus) tosca.Gas {
 	// EIP-2929 says that cold access cost is 2600 and warm is 100.
-	// however, the warm access cost is charged as part of the base gas cost.
 	// (https://eips.ethereum.org/EIPS/eip-2929)
 	if accessStatus == tosca.ColdAccess {
 		return tosca.Gas(2600)
