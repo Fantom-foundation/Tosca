@@ -114,54 +114,11 @@ func (m *Memory) setByte(offset uint64, value byte, c *context) error {
 	return m.set(offset, 1, []byte{value}, c)
 }
 
-func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
-	err := m.expandMemory(offset, 32, c)
-	if err != nil {
-		return err
-	}
-
-	if m.length() < offset+32 {
-		return fmt.Errorf("memory too small, size %d, attempted to write 32 byte at position %d", m.length(), offset)
-	}
-
-	// Inlining and unrolling value.WriteToSlice(..) lead to a 7x speedup
-	dest := m.store[offset : offset+32]
-	dest[31] = byte(value[0])
-	dest[30] = byte(value[0] >> 8)
-	dest[29] = byte(value[0] >> 16)
-	dest[28] = byte(value[0] >> 24)
-	dest[27] = byte(value[0] >> 32)
-	dest[26] = byte(value[0] >> 40)
-	dest[25] = byte(value[0] >> 48)
-	dest[24] = byte(value[0] >> 56)
-
-	dest[23] = byte(value[1])
-	dest[22] = byte(value[1] >> 8)
-	dest[21] = byte(value[1] >> 16)
-	dest[20] = byte(value[1] >> 24)
-	dest[19] = byte(value[1] >> 32)
-	dest[18] = byte(value[1] >> 40)
-	dest[17] = byte(value[1] >> 48)
-	dest[16] = byte(value[1] >> 56)
-
-	dest[15] = byte(value[2])
-	dest[14] = byte(value[2] >> 8)
-	dest[13] = byte(value[2] >> 16)
-	dest[12] = byte(value[2] >> 24)
-	dest[11] = byte(value[2] >> 32)
-	dest[10] = byte(value[2] >> 40)
-	dest[9] = byte(value[2] >> 48)
-	dest[8] = byte(value[2] >> 56)
-
-	dest[7] = byte(value[3])
-	dest[6] = byte(value[3] >> 8)
-	dest[5] = byte(value[3] >> 16)
-	dest[4] = byte(value[3] >> 24)
-	dest[3] = byte(value[3] >> 32)
-	dest[2] = byte(value[3] >> 40)
-	dest[1] = byte(value[3] >> 48)
-	dest[0] = byte(value[3] >> 56)
-	return nil
+// setWord sets a 32-byte word at the given offset, expanding memory as needed and charging for it.
+// Returns error if insufficient gas or offset+32 overflows.
+func (m *Memory) setWord(offset uint64, value *uint256.Int, c *context) error {
+	data := value.Bytes32()
+	return m.set(offset, 32, data[:], c)
 }
 
 // set sets the given value at the given offset, expands memory as needed and charges for it.

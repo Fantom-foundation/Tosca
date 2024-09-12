@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/holiman/uint256"
 )
 
 func TestGetExpansionCosts(t *testing.T) {
@@ -126,6 +127,7 @@ func TestMemory_expandMemory_ErrorCases(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+
 			ctxt := getEmptyContext()
 			m := NewMemory()
 			ctxt.gas = test.gas
@@ -277,11 +279,11 @@ func TestMemory_TrySet_SuccessfulCases(t *testing.T) {
 		data[i] = byte(i + 1)
 	}
 	size := uint64(len(data))
-
+	c := getEmptyContext()
 	m := NewMemory()
 	m.store = make([]byte, memoryOriginalSize)
 
-	err := m.trySet(offset, size, data)
+	err := m.set(offset, size, data, &c)
 	if err != nil {
 		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
 	}
@@ -293,29 +295,6 @@ func TestMemory_TrySet_SuccessfulCases(t *testing.T) {
 		t.Errorf("unexpected memory value, want: %x, got: %x", want, m.store)
 	}
 
-}
-
-func TestMemory_TrySet_ErrorCases(t *testing.T) {
-	m := NewMemory()
-	m.store = make([]byte, 8)
-	// since we are only testing for failed cases, data is not relevant because
-	// the internal checks are done with offset and size parameters.
-
-	// size overflow
-	err := m.trySet(1, math.MaxUint64, []byte{})
-	if !errors.Is(err, errGasUintOverflow) {
-		t.Errorf("unexpected error, want: %v, got: %v", errGasUintOverflow, err)
-	}
-	// offset overflow
-	err = m.trySet(math.MaxUint64, 1, []byte{})
-	if !errors.Is(err, errGasUintOverflow) {
-		t.Errorf("unexpected error, want: %v, got: %v", errGasUintOverflow, err)
-	}
-	// not enough memory
-	err = m.trySet(32, 32, []byte{})
-	if !errors.Is(err, makeInsufficientMemoryError(8, 32, 32)) {
-		t.Errorf("unexpected error, want: %v, got: %v", makeInsufficientMemoryError(8, 32, 32), err)
-	}
 }
 
 func TestMemory_Set_Successful(t *testing.T) {
@@ -387,4 +366,57 @@ func TestMemory_Set_SuccessfulCases(t *testing.T) {
 		t.Errorf("unexpected memory value, want: %x, got: %x", want, m.store)
 	}
 
+}
+func TestMemory_SetWord(t *testing.T) {
+
+	tests := map[string]struct {
+		offset uint64
+		memory []byte
+	}{
+		"expand memory": {},
+		"memory expansion not needed": {
+			offset: 32,
+			memory: make([]byte, 128),
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctxt := getEmptyContext()
+			m := NewMemory()
+			m.store = test.memory
+			// generate non zero bytes value
+			wordInBytes := []byte{31: 0x0}
+			for i := 0; i < 32; i++ {
+				wordInBytes[i] = byte(i + 1)
+			}
+			word := new(uint256.Int).SetBytes(wordInBytes)
+			err := m.setWord(test.offset, word, &ctxt)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if m.length() < test.offset+32 {
+				t.Fatalf("memory should have been expanded to %v, but has %v elements.",
+					test.offset+32, m.length())
+			}
+			if got := m.store[test.offset : test.offset+32]; !bytes.Equal(got, wordInBytes) {
+				t.Errorf("memory at offset %d  = %v, want %v", test.offset, got, wordInBytes)
+			}
+
+		})
+	}
+}
+
+func TestMemory_SetWord_ErrorCases(t *testing.T) {
+	ctxt := getEmptyContext()
+	// SetWord (and EnsureCapacity) check for offset overflow before checking gas
+	// hence it is fine to check both cases with gas = 0
+	ctxt.gas = 0
+	m := NewMemory()
+	if err := m.setWord(math.MaxUint64-31, new(uint256.Int), &ctxt); !errors.Is(err, errGasUintOverflow) {
+		t.Fatalf("expected error, wanted overflow error but got %v", err)
+	}
+	if err := m.setWord(0, new(uint256.Int), &ctxt); !errors.Is(err, errOutOfGas) {
+		t.Fatalf("expected error, wanted out of gas error but got %v", err)
+	}
 }
