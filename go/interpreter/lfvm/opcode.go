@@ -387,7 +387,7 @@ func newOpCodePropertyMap[T any](property func(op OpCode) T) opCodePropertyMap[T
 	return opCodePropertyMap[T]{lookup}
 }
 
-func (p opCodePropertyMap[T]) get(op OpCode) T {
+func (p *opCodePropertyMap[T]) get(op OpCode) T {
 	// Index may be out of bounds. Nevertheless, bounds check carry a performance
 	// penalty. If the property map is initialized correctly, the index will be
 	// within bounds.
