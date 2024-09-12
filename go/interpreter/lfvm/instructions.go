@@ -167,7 +167,7 @@ func opMstore(c *context) {
 		c.status = statusError
 		return
 	}
-	if c.memory.SetWord(offset, value, c) != nil {
+	if c.memory.setWord(offset, value, c) != nil {
 		c.signalError()
 	}
 }
