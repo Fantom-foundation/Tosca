@@ -57,7 +57,7 @@ func TestOpCode_AllOpCodesAreSmallerThanTheOpCodeCapacity(t *testing.T) {
 }
 
 func TestOpcodeProperty_DoesNotOverflow(t *testing.T) {
-	identity := newOpCodeProperty(func(op OpCode) OpCode { return op })
+	identity := newOpCodePropertyMap(func(op OpCode) OpCode { return op })
 	for i := OpCode(0); i < OpCode(math.MaxInt16); i++ {
 		if got, want := identity.get(i), i%numOpCodes; got != want {
 			t.Errorf("got %d, want %d", got, want)

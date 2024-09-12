@@ -605,8 +605,6 @@ func steps(c *context, oneStepOnly bool) {
 }
 
 func satisfiesStackRequirements(c *context, op OpCode) bool {
-	// This array access can not lead to an overflow since a value for each
-	// OpCode is defined in the precomputed stack limits.
 	limits := _precomputedStackLimits.get(op)
 	stackLen := c.stack.len()
 	if stackLen < limits.min {
@@ -626,7 +624,7 @@ type stackLimits struct {
 	max int // The maximum stack size allowed before running an OpCode.
 }
 
-var _precomputedStackLimits = newOpCodeProperty(func(op OpCode) stackLimits {
+var _precomputedStackLimits = newOpCodePropertyMap(func(op OpCode) stackLimits {
 	usage := computeStackUsage(op)
 	return stackLimits{
 		min: -usage.from,

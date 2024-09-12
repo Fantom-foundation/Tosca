@@ -48,8 +48,8 @@ const (
 	UNKNOWN_GAS_PRICE = 999999
 )
 
-var static_gas_prices = newOpCodeProperty(getStaticGasPriceInternal)
-var static_gas_prices_berlin = newOpCodeProperty(getBerlinGasPriceInternal)
+var static_gas_prices = newOpCodePropertyMap(getStaticGasPriceInternal)
+var static_gas_prices_berlin = newOpCodePropertyMap(getBerlinGasPriceInternal)
 
 func getBerlinGasPriceInternal(op OpCode) tosca.Gas {
 	gp := getStaticGasPriceInternal(op)
@@ -80,7 +80,7 @@ func getBerlinGasPriceInternal(op OpCode) tosca.Gas {
 	return gp
 }
 
-func getStaticGasPrices(revision tosca.Revision) *opCodeProperty[tosca.Gas] {
+func getStaticGasPrices(revision tosca.Revision) *opCodePropertyMap[tosca.Gas] {
 	if revision >= tosca.R09_Berlin {
 		return &static_gas_prices_berlin
 	}

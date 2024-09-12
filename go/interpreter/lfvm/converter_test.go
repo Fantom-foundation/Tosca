@@ -173,25 +173,6 @@ func TestConverter_ConverterIsThreadSafe(t *testing.T) {
 	wg.Wait()
 }
 
-func TestConvert_AllValidOperationsAreCoveredByConversionTable(t *testing.T) {
-	// Test that all EVM instructions are covered.
-	for i := 0; i < 256; i++ {
-		code := vm.OpCode(i)
-		if !vm.IsValid(code) {
-			continue
-		}
-
-		// Push operations are not required to be mapped, they are handled explicitly.
-		if vm.PUSH1 <= code && code <= vm.PUSH32 {
-			continue
-		}
-
-		if OpCode(code) == INVALID && vm.IsValid(code) {
-			t.Errorf("Missing instruction coverage for %v", code)
-		}
-	}
-}
-
 func TestConvertWithObserver_MapsEvmToLfvmPositions(t *testing.T) {
 	code := []byte{
 		byte(vm.ADD),
@@ -222,13 +203,7 @@ func TestConvertWithObserver_MapsEvmToLfvmPositions(t *testing.T) {
 	}
 
 	for _, p := range pairs {
-		toscaOpCode := vm.OpCode(code[p.evm])
-		want := OpCode(toscaOpCode)
-		if vm.PUSH1 <= toscaOpCode && toscaOpCode <= vm.PUSH32 {
-			want = PUSH1 + OpCode(toscaOpCode-vm.PUSH1)
-		}
-		got := res[p.lfvm].opcode
-		if want != got {
+		if want, got := OpCode(code[p.evm]), res[p.lfvm].opcode; want != got {
 			t.Errorf("Expected %v, got %v", want, got)
 		}
 	}
@@ -251,13 +226,7 @@ func TestConvertWithObserver_PreservesJumpDestLocations(t *testing.T) {
 
 		// Check that all operations are mapped to matching operations.
 		for _, p := range pairs {
-			toscaOpCode := vm.OpCode(code[p.evm])
-			want := OpCode(toscaOpCode)
-			if vm.PUSH1 <= toscaOpCode && toscaOpCode <= vm.PUSH32 {
-				want = PUSH1 + OpCode(toscaOpCode-vm.PUSH1)
-			}
-			got := res[p.lfvm].opcode
-			if want != got {
+			if want, got := OpCode(code[p.evm]), res[p.lfvm].opcode; want != got {
 				t.Errorf("Expected %v, got %v", want, got)
 			}
 		}

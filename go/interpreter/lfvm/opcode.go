@@ -253,7 +253,7 @@ const (
 	_highestOpCode = PUSH1_PUSH1_PUSH1_SHL_SUB
 )
 
-var to_string = map[OpCode]string{
+var toString = map[OpCode]string{
 	JUMP_TO: "JUMP_TO",
 
 	SWAP2_SWAP1_POP_JUMP:  "SWAP2_SWAP1_POP_JUMP",
@@ -289,7 +289,7 @@ func (o OpCode) String() string {
 		return vm.OpCode(o).String()
 	}
 
-	if str, ok := to_string[o]; ok {
+	if str, ok := toString[o]; ok {
 		return str
 	}
 	return fmt.Sprintf("op(0x%04X)", int16(o))
@@ -368,26 +368,28 @@ func (o OpCode) decompose() []OpCode {
 	return nil
 }
 
-// opCodeProperty is a generic property map for precomputed values.
-// its purpose is to provide a precomputed lookup table for OpCode properties
+// opCodePropertyMap is a generic property map for precomputed values.
+// Its purpose is to provide a precomputed lookup table for OpCode properties
 // that can be generated from a function that takes an OpCode as input.
-// The property initialization function shall be resilient to undefined OpCode
-// values, and not panic. The zero values or a sentinel value shall be used in
-// such cases.
 // Using this type hides internal details of the opcode implementation.
-type opCodeProperty[T any] struct {
+type opCodePropertyMap[T any] struct {
 	lookup [numOpCodes]T
 }
 
-// newOpCodeProperty creates a new OpCode property map.
-func newOpCodeProperty[T any](init func(op OpCode) T) opCodeProperty[T] {
+// newOpCodePropertyMap creates a new OpCode property map.
+// The property function shall be resilient to undefined OpCode values, and not
+// panic. The zero values or a sentinel value shall be used in such cases.
+func newOpCodePropertyMap[T any](property func(op OpCode) T) opCodePropertyMap[T] {
 	lookup := [numOpCodes]T{}
 	for i := 0; i < numOpCodes; i++ {
-		lookup[i] = init(OpCode(i))
+		lookup[i] = property(OpCode(i))
 	}
-	return opCodeProperty[T]{lookup}
+	return opCodePropertyMap[T]{lookup}
 }
 
-func (p opCodeProperty[T]) get(op OpCode) T {
+func (p opCodePropertyMap[T]) get(op OpCode) T {
+	// Index may be out of bounds. Nevertheless, bounds check carry a performance
+	// penalty. If the property map is initialized correctly, the index will be
+	// within bounds.
 	return p.lookup[op&opCodeMask]
 }
