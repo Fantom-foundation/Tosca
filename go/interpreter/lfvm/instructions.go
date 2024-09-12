@@ -1150,8 +1150,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		needed_memory_size = ret_memory_size
 	}
 
-	memoryExpansionCost := c.memory.getExpansionCosts(needed_memory_size)
-	baseGas := memoryExpansionCost
+	baseGas := c.memory.getExpansionCosts(needed_memory_size)
 	// from berlin onwards access cost changes depending on warm/cold access.
 	if c.isAtLeast(tosca.R09_Berlin) {
 		baseGas += getAccessCost(c.context.AccessAccount(toAddr))
@@ -1191,7 +1190,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
-	c.memory.expandMemoryWithoutCharging(needed_memory_size, memoryExpansionCost)
+	c.memory.expandMemoryWithoutCharging(needed_memory_size)
 	if !value.IsZero() {
 		cost += CallStipend
 	}

@@ -70,7 +70,7 @@ func (m *Memory) getExpansionCosts(size uint64) tosca.Gas {
 
 // expandMemory tries to expand memory to the given size.
 // If the memory is already large enough or size is 0, it does nothing.
-// If not enough gas in the context or an overflow occurs when adding offset and
+// If there is not enough gas in the context or an overflow occurs when adding offset and
 // size, it returns an error.
 func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 	if size == 0 {
@@ -89,19 +89,21 @@ func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 		c.status = statusOutOfGas
 		return errOutOfGas
 	}
+	if m.length() < needed {
+		m.total_memory_cost += fee
+	}
 
-	m.expandMemoryWithoutCharging(needed, fee)
+	m.expandMemoryWithoutCharging(needed)
 	return nil
 }
 
 // expandMemoryWithoutCharging expands the memory to the given size without checking gas.
-func (m *Memory) expandMemoryWithoutCharging(needed uint64, fee tosca.Gas) {
+func (m *Memory) expandMemoryWithoutCharging(needed uint64) {
 	needed = toValidMemorySize(needed)
 	size := m.length()
 	if size < needed {
 		m.store = append(m.store, make([]byte, needed-size)...)
 	}
-	m.total_memory_cost += fee
 }
 
 func (m *Memory) length() uint64 {
