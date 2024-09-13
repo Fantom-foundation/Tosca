@@ -38,17 +38,13 @@ func getAllInterpreterVariantsForTests() []string {
 	)
 }
 
-// skipTestForVariant returns true, if test should be skipped for variant
+// skipTestForVariant returns true, if the given test should be skipped for
+// the given variant.
 func skipTestForVariant(testName string, variant string) bool {
-	disabledTest := map[string]map[string]bool{
+	disabledTest := map[string][]string{
 		"TestNoReturnDataForCreate": {
-			"evmone":          true,
-			"evmone-basic":    true,
-			"evmone-advanced": true,
+			"evmone", "evmone-basic", "evmone-advanced",
 		},
 	}
-	if disabled, found := disabledTest[testName][variant]; found && disabled {
-		return true
-	}
-	return false
+	return slices.Contains(disabledTest[testName], variant)
 }
