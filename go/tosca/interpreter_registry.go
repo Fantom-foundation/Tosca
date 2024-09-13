@@ -78,20 +78,37 @@ func GetAllRegisteredInterpreters() map[string]InterpreterFactory {
 
 // RegisterInterpreter can be used to register a new Interpreter implementation
 // to be exported for general use in the binary. The name is not case-sensitive,
+// and a panic is triggered if an implementation was bound to the same name
+// before, or the implementation is nil. This function is mainly intended to be
+// used by package initialization code.
+//
+// Deprecated: Use RegisterInterpreterFactory instead.
+func RegisterInterpreter(name string, impl Interpreter) {
+	err := RegisterInterpreterFactory(name, func(any) (Interpreter, error) {
+		return impl, nil
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
+// RegisterInterpreterFactory registers a new Interpreter implementation
+// to be exported for general use in the binary. The name is not case-sensitive,
 // and a panic is triggered if a factory was bound to the same name before, or
 // the factory is nil. This function is mainly intended to be used by package
 // initialization code.
-func RegisterInterpreter(name string, factory InterpreterFactory) {
+func RegisterInterpreterFactory(name string, factory InterpreterFactory) error {
 	key := strings.ToLower(name)
 	if factory == nil {
-		panic(fmt.Sprintf("invalid initialization: cannot register nil-factory using `%s`", key))
+		return fmt.Errorf("invalid initialization: cannot register nil-factory using `%s`", key)
 	}
 	interpreterRegistryLock.Lock()
 	defer interpreterRegistryLock.Unlock()
 	if _, found := interpreterRegistry[key]; found {
-		panic(fmt.Sprintf("invalid initialization: multiple factories registered for `%s`", key))
+		return fmt.Errorf("invalid initialization: multiple factories registered for `%s`", key)
 	}
 	interpreterRegistry[key] = factory
+	return nil
 }
 
 // InterpreterFactory is the type of a function that creates a new Interpreter

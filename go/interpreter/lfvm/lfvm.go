@@ -48,7 +48,7 @@ func init() {
 
 	for name, config := range configs {
 		config := config
-		tosca.RegisterInterpreter(name, func(any) (tosca.Interpreter, error) {
+		tosca.RegisterInterpreterFactory(name, func(any) (tosca.Interpreter, error) {
 			// TODO: support configuration of cache sizes
 			return NewVm(config)
 		})
@@ -81,7 +81,7 @@ func RegisterExperimentalInterpreterConfigurations() {
 
 				name := "lfvm" + si + shaCache + mode
 				if name != "lfvm" && name != "lfvm-si" {
-					tosca.RegisterInterpreter(
+					tosca.RegisterInterpreterFactory(
 						name,
 						func(any) (tosca.Interpreter, error) {
 							return NewVm(config)
@@ -91,7 +91,7 @@ func RegisterExperimentalInterpreterConfigurations() {
 			}
 		}
 	}
-	tosca.RegisterInterpreter(
+	tosca.RegisterInterpreterFactory(
 		"lfvm-no-code-cache",
 		func(any) (tosca.Interpreter, error) {
 			return NewVm(Config{
