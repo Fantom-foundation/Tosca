@@ -58,11 +58,10 @@ func init() {
 }
 
 func RegisterGethInterpreter(name string, interpreter tosca.Interpreter) {
-	geth.RegisterInterpreterFactory(name, func(evm *geth.EVM, cfg geth.Config) geth.Interpreter {
+	geth.RegisterInterpreterFactory(name, func(evm *geth.EVM) geth.Interpreter {
 		return &gethInterpreterAdapter{
 			interpreter: interpreter,
 			evm:         evm,
-			cfg:         cfg,
 		}
 	})
 }
@@ -70,7 +69,6 @@ func RegisterGethInterpreter(name string, interpreter tosca.Interpreter) {
 type gethInterpreterAdapter struct {
 	interpreter tosca.Interpreter
 	evm         *geth.EVM
-	cfg         geth.Config
 }
 
 func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, readOnly bool) (ret []byte, err error) {
@@ -201,7 +199,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	params := tosca.Parameters{
 		BlockParameters:       blockParameters,
 		TransactionParameters: transactionParameters,
-		Context:               &runContextAdapter{a.evm, &a.cfg, contract, readOnly},
+		Context:               &runContextAdapter{a.evm, contract, readOnly},
 		Kind:                  tosca.Call, // < this might be wrong, but seems to be unused
 		Static:                readOnly,
 		Depth:                 a.evm.GetDepth() - 1,
@@ -259,7 +257,6 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 // runContextAdapter implements the tosca.RunContext interface using geth infrastructure.
 type runContextAdapter struct {
 	evm      *geth.EVM
-	cfg      *geth.Config
 	contract *geth.Contract
 	readOnly bool
 }

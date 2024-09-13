@@ -81,7 +81,7 @@ func TestRunContextAdapter_ReferenceGethInterpreterIsNotExported(t *testing.T) {
 		t.Fatal("geth reference interpreter not available in Tosca")
 	}
 	evm := &geth.EVM{}
-	interpreter := geth.NewInterpreter("geth", evm, geth.Config{})
+	interpreter := geth.NewInterpreter("geth", evm)
 	if interpreter == nil {
 		t.Fatal("no interpreter registered for 'geth'")
 	}

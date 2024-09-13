@@ -35,8 +35,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DataDog/zstd v1.4.5 h1:EndNeuB0l9syBZhut0wns3gV1hL8zX8LIu6ZiVHWLIQ=
 github.com/DataDog/zstd v1.4.5/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
-github.com/Fantom-foundation/go-ethereum-sonic v0.0.0-20240821150740-8b61095b9134 h1:X79UvuZoRxx7yaMF586c6NrsqYHKxSVH1W0JU/fR8bE=
-github.com/Fantom-foundation/go-ethereum-sonic v0.0.0-20240821150740-8b61095b9134/go.mod h1:p4knNH76zBuqbEfc6CbZTOnaQNU0WvhzW5f0qq6aMoU=
+github.com/Fantom-foundation/go-ethereum-sonic v0.0.0-20240913104605-d501a06c0154 h1:DlMOFW50v3pnf0KvECi5qvI67OS2Q3Vgj61qIw7eJ8c=
+github.com/Fantom-foundation/go-ethereum-sonic v0.0.0-20240913104605-d501a06c0154/go.mod h1:p4knNH76zBuqbEfc6CbZTOnaQNU0WvhzW5f0qq6aMoU=
 github.com/StackExchange/wmi v1.2.1 h1:VIkavFPXSjcnS+O8yTq7NI32k0R5Aj+v39y29VYDOSA=
 github.com/StackExchange/wmi v1.2.1/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9SBzvHz7e8=
 github.com/VictoriaMetrics/fastcache v1.12.2 h1:N0y9ASrJ0F6h0QaC3o6uJb3NIZ9VKLjCM7NQbSmF7WI=
