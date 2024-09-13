@@ -646,8 +646,9 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 			}
 
 			// Prepare stack arguments.
-			ctxt.stack.stackPointer = 3
-			ctxt.stack.data[0].Set(uint256.NewInt(test.init_code_size))
+			ctxt.stack.push(uint256.NewInt(test.init_code_size))
+			ctxt.stack.push(uint256.NewInt(0))
+			ctxt.stack.push(uint256.NewInt(0))
 
 			if test.expected == statusRunning {
 				runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil)
@@ -714,8 +715,9 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 		}
 
 		// Prepare stack arguments.
-		ctxt.stack.stackPointer = 3
-		ctxt.stack.data[0].Set(uint256.NewInt(test.initCodeSize))
+		ctxt.stack.push(uint256.NewInt(test.initCodeSize))
+		ctxt.stack.push(uint256.NewInt(0))
+		ctxt.stack.push(uint256.NewInt(0))
 
 		runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil)
 
