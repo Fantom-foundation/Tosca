@@ -119,11 +119,14 @@ func opIsZero_Push2_Jumpi(c *context) {
 }
 
 func opSwap2_Swap1_Pop_Jump(c *context) {
-	top := c.stack.pop()
-	c.stack.pop()
-	trg := c.stack.peek()
-	c.pc = int32(trg.Uint64()) - 1
-	*trg = *top
+	// A B C -> C A B
+	// C A B -> C B A
+	// C B
+
+	opSwap(c, 2)
+	opSwap(c, 1)
+	opPop(c)
+	opJump(c)
 }
 
 func opSwap1_Pop_Swap2_Swap1(c *context) {

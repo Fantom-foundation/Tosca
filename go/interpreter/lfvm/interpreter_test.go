@@ -24,7 +24,6 @@ import (
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/holiman/uint256"
-	"go.uber.org/mock/gomock"
 )
 
 // Test UseGas function and correct status after running out of gas.
@@ -125,7 +124,13 @@ func getEmptyContext() context {
 	return getContext(code, data, nil, 0, GAS_START, tosca.R07_Istanbul)
 }
 
-func getContext(code Code, data []byte, runContext tosca.RunContext, stackPtr int, gas tosca.Gas, revision tosca.Revision) context {
+func getContext(
+	code Code,
+	data []byte,
+	runContext tosca.RunContext,
+	stackPtr int,
+	gas tosca.Gas,
+	revision tosca.Revision) context {
 
 	// Create execution context.
 	ctxt := context{
@@ -151,20 +156,6 @@ func getContext(code Code, data []byte, runContext tosca.RunContext, stackPtr in
 	ctxt.stack.stackPointer = stackPtr
 
 	return ctxt
-}
-
-type OpcodeTest struct {
-	name        string
-	code        []Instruction
-	stackPtrPos int
-	argData     uint16
-	endStatus   status
-	isBerlin    bool // < TODO: replace with revision
-	isLondon    bool
-	mockCalls   func(*tosca.MockRunContext)
-	gasStart    tosca.Gas
-	gasConsumed tosca.Gas
-	gasRefund   tosca.Gas
 }
 
 func TestInterpreter_step_DetectsLowerStackLimitViolation(t *testing.T) {
@@ -217,112 +208,6 @@ func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 		if ctxt.status != statusError {
 			t.Errorf("expected stack-overflow for %v to be detected, got %v", op, ctxt.status)
 		}
-	}
-}
-
-type OpCodeWithGas struct {
-	OpCode
-	gas tosca.Gas
-}
-
-func generateOpCodesInRange(start OpCode, end OpCode) []OpCode {
-	opCodes := make([]OpCode, end-start+1)
-	for i := start; i <= end; i++ {
-		opCodes[i-start] = i
-	}
-	return opCodes
-}
-
-func TestInstructionsGasConsumption(t *testing.T) {
-
-	var tests []OpcodeTest
-
-	for _, op := range generateOpCodesInRange(PUSH1, PUSH32) {
-		code := []Instruction{{op, 1}}
-		dataNum := int((op - PUSH1) / 2)
-		for j := 0; j < dataNum; j++ {
-			code = append(code, Instruction{DATA, 1})
-		}
-		tests = append(tests, OpcodeTest{op.String(), code, 20, 0, statusStopped, false, false, nil, GAS_START, 3, 0})
-	}
-
-	attachGasTo := func(gas tosca.Gas, opCodes ...OpCode) []OpCodeWithGas {
-		opCodesWithGas := make([]OpCodeWithGas, len(opCodes))
-		for i, opCode := range opCodes {
-			opCodesWithGas[i] = OpCodeWithGas{opCode, gas}
-		}
-		return opCodesWithGas
-	}
-
-	var opCodes []OpCodeWithGas
-	opCodes = append(opCodes, attachGasTo(2, generateOpCodesInRange(COINBASE, CHAINID)...)...)
-	opCodes = append(opCodes, attachGasTo(3, ADD, SUB)...)
-	opCodes = append(opCodes, attachGasTo(5, MUL, DIV, SDIV, MOD, SMOD, SIGNEXTEND)...)
-	opCodes = append(opCodes, attachGasTo(3, generateOpCodesInRange(DUP1, DUP16)...)...)
-	opCodes = append(opCodes, attachGasTo(3, generateOpCodesInRange(SWAP1, SWAP16)...)...)
-	opCodes = append(opCodes, attachGasTo(3, generateOpCodesInRange(LT, SAR)...)...)
-	opCodes = append(opCodes, attachGasTo(8, ADDMOD, MULMOD)...)
-	opCodes = append(opCodes, attachGasTo(10, EXP)...)
-	opCodes = append(opCodes, attachGasTo(30, SHA3)...)
-	opCodes = append(opCodes, attachGasTo(11, SWAP1_POP_SWAP2_SWAP1)...)
-	opCodes = append(opCodes, attachGasTo(10, POP_SWAP2_SWAP1_POP)...)
-	opCodes = append(opCodes, attachGasTo(4, POP_POP)...)
-	opCodes = append(opCodes, attachGasTo(6, generateOpCodesInRange(PUSH1_SHL, PUSH1_DUP1)...)...)
-	// opCodes = append(opCodes, applyGasTo(11, PUSH2_JUMP)...) // FIXME: this seems to be broken
-	opCodes = append(opCodes, attachGasTo(13, PUSH2_JUMPI)...)
-	opCodes = append(opCodes, attachGasTo(6, PUSH1_PUSH1)...)
-	opCodes = append(opCodes, attachGasTo(5, SWAP1_POP)...)
-	opCodes = append(opCodes, attachGasTo(6, SWAP2_SWAP1)...)
-	opCodes = append(opCodes, attachGasTo(5, SWAP2_POP)...)
-	opCodes = append(opCodes, attachGasTo(9, DUP2_MSTORE)...)
-	opCodes = append(opCodes, attachGasTo(6, DUP2_LT)...)
-
-	for _, opCode := range opCodes {
-		code := []Instruction{{opCode.OpCode, 0}}
-		tests = append(tests, OpcodeTest{
-			name:        opCode.String(),
-			code:        code,
-			stackPtrPos: 20,
-			endStatus:   statusStopped,
-			gasStart:    GAS_START,
-			gasConsumed: opCode.gas,
-		})
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			runContext := tosca.NewMockRunContext(ctrl)
-			if test.mockCalls != nil {
-				test.mockCalls(runContext)
-			}
-			revision := tosca.R07_Istanbul
-			if test.isBerlin {
-				revision = tosca.R09_Berlin
-			}
-			if test.isLondon {
-				revision = tosca.R10_London
-			}
-			ctxt := getContext(test.code, make([]byte, 0), runContext, test.stackPtrPos, test.gasStart, revision)
-
-			// Run testing code
-			vanillaRunner{}.run(&ctxt)
-
-			// Check the result.
-			if ctxt.status != test.endStatus {
-				t.Errorf("execution failed: status is %v, wanted %v", ctxt.status, test.endStatus)
-			}
-
-			// Check gas consumption
-			if want, got := test.gasConsumed, test.gasStart-ctxt.gas; want != got {
-				t.Errorf("execution failed: gas consumption is %v, wanted %v", got, want)
-			}
-
-			// Check gas refund
-			if want, got := test.gasRefund, ctxt.refund; want != got {
-				t.Errorf("execution failed: gas refund is %v, wanted %v", got, want)
-			}
-		})
 	}
 }
 

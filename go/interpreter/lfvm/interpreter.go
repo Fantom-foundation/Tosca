@@ -31,6 +31,29 @@ const (
 	statusError                            // < execution stopped with an error (e.g. stack underflow)
 )
 
+func (s status) String() string {
+	switch s {
+	case statusRunning:
+		return "running"
+	case statusStopped:
+		return "stopped"
+	case statusReverted:
+		return "reverted"
+	case statusReturned:
+		return "returned"
+	case statusSelfDestructed:
+		return "self-destructed"
+	case statusInvalidInstruction:
+		return "invalid instruction"
+	case statusOutOfGas:
+		return "out of gas"
+	case statusError:
+		return "error"
+	default:
+		return "unknown"
+	}
+}
+
 // context is the execution environment of an interpreter run. It contains all
 // the necessary state to execute a contract, including input parameters, the
 // contract code, and internal execution state such as the program counter,
