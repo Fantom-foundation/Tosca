@@ -148,7 +148,7 @@ const REVERT: u8 = 0xFD;
 const INVALID: u8 = 0xFE;
 const SELFDESTRUCT: u8 = 0xFF;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Opcode {
     Stop = STOP,
