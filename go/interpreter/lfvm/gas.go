@@ -67,13 +67,13 @@ func getBerlinGasPriceInternal(op OpCode) tosca.Gas {
 	case BALANCE:
 		gp = 100
 	case CALL:
-		gp = 100
+		gp = 0
 	case CALLCODE:
-		gp = 100
+		gp = 0
 	case STATICCALL:
-		gp = 100
+		gp = 0
 	case DELEGATECALL:
-		gp = 100
+		gp = 0
 	case SELFDESTRUCT:
 		gp = 5000
 	}
