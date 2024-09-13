@@ -76,14 +76,12 @@ func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 	if size == 0 {
 		return nil
 	}
-
 	needed := offset + size
 	// check overflow
 	if needed < offset {
 		c.signalError()
 		return errGasUintOverflow
 	}
-
 	fee := m.getExpansionCosts(needed)
 	if !c.useGas(fee) {
 		c.status = statusOutOfGas
@@ -92,12 +90,12 @@ func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 	if m.length() < needed {
 		m.total_memory_cost += fee
 	}
-
 	m.expandMemoryWithoutCharging(needed)
+
 	return nil
 }
 
-// expandMemoryWithoutCharging expands the memory to the given size without checking gas.
+// expandMemoryWithoutCharging expands the memory to the given size without charging gas.
 func (m *Memory) expandMemoryWithoutCharging(needed uint64) {
 	needed = toValidMemorySize(needed)
 	size := m.length()

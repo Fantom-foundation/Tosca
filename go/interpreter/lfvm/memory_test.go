@@ -19,7 +19,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
-func TestExpansionCosts(t *testing.T) {
+func TestGetExpansionCosts(t *testing.T) {
 
 	tests := []struct {
 		size uint64
@@ -45,7 +45,7 @@ func TestExpansionCosts(t *testing.T) {
 		m := NewMemory()
 		cost := m.getExpansionCosts(test.size)
 		if cost != test.cost {
-			t.Errorf("ExpansionCosts(%d) = %d, want %d", test.size, cost, test.cost)
+			t.Errorf("getExpansionCosts(%d) = %d, want %d", test.size, cost, test.cost)
 		}
 	}
 }
