@@ -288,9 +288,9 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, withSuperInstruc
 	}
 
 	// Convert individual instructions.
-	opcode := vm.OpCode(code[pos])
+	toscaOpCode := vm.OpCode(code[pos])
 
-	if opcode == vm.PC {
+	if toscaOpCode == vm.PC {
 		if pos > 1<<16 {
 			res.appendCode(INVALID)
 			return 1
@@ -299,9 +299,9 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, withSuperInstruc
 		return 0
 	}
 
-	if vm.PUSH1 <= opcode && opcode <= vm.PUSH32 {
+	if vm.PUSH1 <= toscaOpCode && toscaOpCode <= vm.PUSH32 {
 		// Determine the number of bytes to be pushed.
-		n := int(opcode) - int(vm.PUSH1) + 1
+		n := int(toscaOpCode) - int(vm.PUSH1) + 1
 
 		var data []byte
 		// If there are not enough bytes left in the code, rest is filled with 0
@@ -339,158 +339,6 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, withSuperInstruc
 	}
 
 	// All the rest converts to a single instruction.
-	res.appendCode(op_2_op[opcode])
+	res.appendCode(OpCode(toscaOpCode))
 	return 0
-}
-
-var op_2_op = createOpToOpMap()
-
-func createOpToOpMap() []OpCode {
-	res := make([]OpCode, 256)
-	for i := range res {
-		res[i] = INVALID
-	}
-
-	// Stack operations
-	res[vm.POP] = POP
-	res[vm.PUSH0] = PUSH0
-
-	res[vm.DUP1] = DUP1
-	res[vm.DUP2] = DUP2
-	res[vm.DUP3] = DUP3
-	res[vm.DUP4] = DUP4
-	res[vm.DUP5] = DUP5
-	res[vm.DUP6] = DUP6
-	res[vm.DUP7] = DUP7
-	res[vm.DUP8] = DUP8
-	res[vm.DUP9] = DUP9
-	res[vm.DUP10] = DUP10
-	res[vm.DUP11] = DUP11
-	res[vm.DUP12] = DUP12
-	res[vm.DUP13] = DUP13
-	res[vm.DUP14] = DUP14
-	res[vm.DUP15] = DUP15
-	res[vm.DUP16] = DUP16
-
-	res[vm.SWAP1] = SWAP1
-	res[vm.SWAP2] = SWAP2
-	res[vm.SWAP3] = SWAP3
-	res[vm.SWAP4] = SWAP4
-	res[vm.SWAP5] = SWAP5
-	res[vm.SWAP6] = SWAP6
-	res[vm.SWAP7] = SWAP7
-	res[vm.SWAP8] = SWAP8
-	res[vm.SWAP9] = SWAP9
-	res[vm.SWAP10] = SWAP10
-	res[vm.SWAP11] = SWAP11
-	res[vm.SWAP12] = SWAP12
-	res[vm.SWAP13] = SWAP13
-	res[vm.SWAP14] = SWAP14
-	res[vm.SWAP15] = SWAP15
-	res[vm.SWAP16] = SWAP16
-
-	// Memory operations
-	res[vm.MLOAD] = MLOAD
-	res[vm.MSTORE] = MSTORE
-	res[vm.MSTORE8] = MSTORE8
-	res[vm.MSIZE] = MSIZE
-	res[vm.MCOPY] = MCOPY
-
-	// Storage operations
-	res[vm.SLOAD] = SLOAD
-	res[vm.SSTORE] = SSTORE
-	res[vm.TLOAD] = TLOAD
-	res[vm.TSTORE] = TSTORE
-
-	// Control flow
-	res[vm.JUMP] = JUMP
-	res[vm.JUMPI] = JUMPI
-	res[vm.JUMPDEST] = JUMPDEST
-	res[vm.STOP] = STOP
-	res[vm.RETURN] = RETURN
-	res[vm.REVERT] = REVERT
-	res[vm.INVALID] = INVALID
-	res[vm.PC] = PC
-
-	// Arithmethic operations
-	res[vm.ADD] = ADD
-	res[vm.MUL] = MUL
-	res[vm.SUB] = SUB
-	res[vm.DIV] = DIV
-	res[vm.SDIV] = SDIV
-	res[vm.MOD] = MOD
-	res[vm.SMOD] = SMOD
-	res[vm.ADDMOD] = ADDMOD
-	res[vm.MULMOD] = MULMOD
-	res[vm.EXP] = EXP
-	res[vm.SIGNEXTEND] = SIGNEXTEND
-
-	// Complex function
-	res[vm.SHA3] = SHA3
-
-	// Comparison operations
-	res[vm.LT] = LT
-	res[vm.GT] = GT
-	res[vm.SLT] = SLT
-	res[vm.SGT] = SGT
-	res[vm.EQ] = EQ
-	res[vm.ISZERO] = ISZERO
-
-	// Bit-pattern operations
-	res[vm.AND] = AND
-	res[vm.OR] = OR
-	res[vm.XOR] = XOR
-	res[vm.NOT] = NOT
-	res[vm.BYTE] = BYTE
-	res[vm.SHL] = SHL
-	res[vm.SHR] = SHR
-	res[vm.SAR] = SAR
-
-	// System instructions
-	res[vm.ADDRESS] = ADDRESS
-	res[vm.BALANCE] = BALANCE
-	res[vm.ORIGIN] = ORIGIN
-	res[vm.CALLER] = CALLER
-	res[vm.CALLVALUE] = CALLVALUE
-	res[vm.CALLDATALOAD] = CALLDATALOAD
-	res[vm.CALLDATASIZE] = CALLDATASIZE
-	res[vm.CALLDATACOPY] = CALLDATACOPY
-	res[vm.CODESIZE] = CODESIZE
-	res[vm.CODECOPY] = CODECOPY
-	res[vm.GAS] = GAS
-	res[vm.GASPRICE] = GASPRICE
-	res[vm.EXTCODESIZE] = EXTCODESIZE
-	res[vm.EXTCODECOPY] = EXTCODECOPY
-	res[vm.RETURNDATASIZE] = RETURNDATASIZE
-	res[vm.RETURNDATACOPY] = RETURNDATACOPY
-	res[vm.EXTCODEHASH] = EXTCODEHASH
-	res[vm.CREATE] = CREATE
-	res[vm.CALL] = CALL
-	res[vm.CALLCODE] = CALLCODE
-	res[vm.DELEGATECALL] = DELEGATECALL
-	res[vm.CREATE2] = CREATE2
-	res[vm.STATICCALL] = STATICCALL
-	res[vm.SELFDESTRUCT] = SELFDESTRUCT
-
-	// Block chain instructions
-	res[vm.BLOCKHASH] = BLOCKHASH
-	res[vm.COINBASE] = COINBASE
-	res[vm.TIMESTAMP] = TIMESTAMP
-	res[vm.NUMBER] = NUMBER
-	res[vm.PREVRANDAO] = PREVRANDAO
-	res[vm.GASLIMIT] = GASLIMIT
-	res[vm.CHAINID] = CHAINID
-	res[vm.SELFBALANCE] = SELFBALANCE
-	res[vm.BASEFEE] = BASEFEE
-	res[vm.BLOBHASH] = BLOBHASH
-	res[vm.BLOBBASEFEE] = BLOBBASEFEE
-
-	// Log instructions
-	res[vm.LOG0] = LOG0
-	res[vm.LOG1] = LOG1
-	res[vm.LOG2] = LOG2
-	res[vm.LOG3] = LOG3
-	res[vm.LOG4] = LOG4
-
-	return res
 }

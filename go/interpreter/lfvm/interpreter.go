@@ -247,7 +247,7 @@ func steps(c *context, oneStepOnly bool) {
 		}
 
 		// Consume static gas price for instruction before execution
-		if !c.useGas(staticGasPrices[op]) {
+		if !c.useGas(staticGasPrices.get(op)) {
 			return
 		}
 
@@ -605,15 +605,8 @@ func steps(c *context, oneStepOnly bool) {
 }
 
 func satisfiesStackRequirements(c *context, op OpCode) bool {
+	limits := _precomputedStackLimits.get(op)
 	stackLen := c.stack.len()
-
-	// It would be necessary here to check that the operation index is not out
-	// of bounds for the precomputed stack limits. However, this adds 15%
-	// overhead to this function. To avoid this, the _precomputedStackLimits
-	// is padded with a stackLimits{0, 0} at the end up to 256 elements. This
-	// way, by only taking the last 8 bits of the OpCode, the index is always
-	// within bounds.
-	limits := _precomputedStackLimits[op&0xff]
 	if stackLen < limits.min {
 		c.signalError()
 		return false
@@ -631,19 +624,10 @@ type stackLimits struct {
 	max int // The maximum stack size allowed before running an OpCode.
 }
 
-var _precomputedStackLimits = _precomputeStackLimits()
-
-func _precomputeStackLimits() [256]stackLimits {
-	var res [256]stackLimits
-	for i := 0; i < int(NUM_EXECUTABLE_OPCODES); i++ {
-		usage, err := computeStackUsage(OpCode(i))
-		if err != nil {
-			panic(err)
-		}
-		res[OpCode(i)] = stackLimits{
-			min: -usage.from,
-			max: maxStackSize - usage.to,
-		}
+var _precomputedStackLimits = newOpCodePropertyMap(func(op OpCode) stackLimits {
+	usage := computeStackUsage(op)
+	return stackLimits{
+		min: -usage.from,
+		max: maxStackSize - usage.to,
 	}
-	return res
-}
+})
