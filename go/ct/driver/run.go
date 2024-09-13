@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/Tosca/go/ct"
-	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	cliUtils "github.com/Fantom-foundation/Tosca/go/ct/driver/cli"
 	"github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
@@ -27,6 +26,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/interpreter/evmzero"
 	"github.com/Fantom-foundation/Tosca/go/interpreter/geth"
 	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
+	"github.com/Fantom-foundation/Tosca/go/lib/cpp"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/dsnet/golib/unitconv"
 	"github.com/urfave/cli/v2"
@@ -58,7 +58,7 @@ var evms = map[string]ct.Evm{
 }
 
 func doRun(context *cli.Context) error {
-	defer common.DumpCppCoverageData()
+	defer cpp.DumpCppCoverageData()
 
 	jobCount := cliUtils.JobsFlag.Fetch(context)
 	seed := cliUtils.SeedFlag.Fetch(context)
