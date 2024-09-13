@@ -68,7 +68,9 @@ func newProcessor(interpreter tosca.Interpreter) tosca.Processor {
 
 	name := fmt.Sprintf("geth-processor-redirect-%d", len(interpreterRegistry))
 	interpreterRegistry[interpreter] = name
-	geth_adapter.RegisterGethInterpreter(name, interpreter)
+	geth_adapter.RegisterGethInterpreter(name, func(any) (tosca.Interpreter, error) {
+		return interpreter, nil
+	})
 	return &processor{
 		interpreterImplementation: name,
 	}

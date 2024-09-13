@@ -32,3 +32,21 @@ func TestLfvm_OfficialConfigurationHasSanctionedProperties(t *testing.T) {
 		t.Fatalf("lfvm is configured with super instructions")
 	}
 }
+
+func TestGetFactory_UsesSanctionedConfiguration(t *testing.T) {
+	factory := GetFactory()
+	vm, err := factory(nil)
+	if err != nil {
+		t.Fatalf("failed to create interpreter: %v", err)
+	}
+	lfvm, ok := vm.(*lfvm)
+	if !ok {
+		t.Fatalf("unexpected interpreter implementation, got %T", vm)
+	}
+	if lfvm.config.WithShaCache != true {
+		t.Fatalf("lfvm is not configured with sha cache")
+	}
+	if lfvm.config.ConversionConfig.WithSuperInstructions != false {
+		t.Fatalf("lfvm is configured with super instructions")
+	}
+}

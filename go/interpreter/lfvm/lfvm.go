@@ -55,6 +55,12 @@ func init() {
 	}
 }
 
+// GetFactory returns the factory for the long-form VM interpreter in its
+// officially supported configuration.
+func GetFactory() tosca.InterpreterFactory {
+	return tosca.GetInterpreterFactory("lfvm")
+}
+
 // RegisterExperimentalInterpreterConfigurations registers all experimental
 // LFVM interpreter configurations to Tosca's interpreter registry. This
 // function should not be called in production code, as the resulting VMs are

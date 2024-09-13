@@ -21,6 +21,7 @@ package geth_adapter
 import (
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	gc "github.com/ethereum/go-ethereum/common"
@@ -31,37 +32,60 @@ import (
 	"github.com/holiman/uint256"
 )
 
-const adapterDebug = false
-
-func init() {
-	for name, interpreter := range tosca.GetAllRegisteredInterpreters() {
+/*
+// RegisterAllToscaInterpreters registers all currently registered Tosca
+// interpreters in Geth's EVM interpreter registry.
+func RegisterAllToscaInterpreters() error {
+	for name, factory := range tosca.GetAllRegisteredInterpreters() {
 		// We register all tosca interpreters except the geth reference interpreter.
 		// Tosca's geth reference implementation in combination with the adapter
 		// implemented would lead to unexpected behavior since geth would no longer
 		// use its own interpreter when requesting the `geth` interpreter. Instead
 		// Tosca's geth reference wrapped in the adapter would be used -- a combination
 		// that is not well tested.
-
-		// TODO: update geth integration to use factories instead of interpreter
-		// implementations
-		interpreter, err := interpreter(nil)
-		if err != nil {
-			panic(fmt.Sprintf("could not create interpreter: %v", err))
+		if name == "" || name == "geth" {
+			continue
 		}
-		if name == "" || name != "geth" {
-			RegisterGethInterpreter(name, interpreter)
+		err := RegisterGethInterpreter(name, factory)
+		if errors.Is(err, geth.ErrInterpreterNameCollision) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("could not register interpreter %q: %v", name, err)
 		}
 	}
+	return nil
 }
+*/
 
-func RegisterGethInterpreter(name string, interpreter tosca.Interpreter) {
-	geth.RegisterInterpreterFactory(name, func(evm *geth.EVM) geth.Interpreter {
+func RegisterGethInterpreter(name string, factory tosca.InterpreterFactory) error {
+	// All tosca interpreters are thread-safe and can be reused. Thus, we
+	// cache the first instance that gets created and share it among all users.
+	// Without sharing the instance, code and hash caches within interpreters
+	// would not be reused across EVM invocations.
+	instance := &struct {
+		lock        sync.Mutex
+		interpreter tosca.Interpreter
+	}{}
+
+	return geth.RegisterInterpreterFactory(name, func(evm *geth.EVM) geth.Interpreter {
+		instance.lock.Lock()
+		defer instance.lock.Unlock()
+		if instance.interpreter == nil {
+			res, err := factory(nil)
+			if err != nil {
+				return nil
+			}
+			instance.interpreter = res
+		}
 		return &gethInterpreterAdapter{
-			interpreter: interpreter,
+			interpreter: instance.interpreter,
 			evm:         evm,
 		}
 	})
 }
+
+const adapterDebug = false
 
 type gethInterpreterAdapter struct {
 	interpreter tosca.Interpreter
