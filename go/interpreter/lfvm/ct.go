@@ -212,6 +212,6 @@ func convertCtMemoryToLfvmMemory(memory *st.Memory) (*Memory, error) {
 
 func convertLfvmMemoryToCtMemory(memory *Memory) *st.Memory {
 	result := st.NewMemory()
-	result.Set(memory.GetSlice(0, memory.Len()))
+	result.Set(memory.GetSlice(0, memory.length()))
 	return result
 }
