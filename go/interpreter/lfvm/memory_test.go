@@ -83,12 +83,13 @@ func TestMemory_expandMemoryWithoutCharging(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			m := NewMemory()
 			m.store = test.initialMem
+			fee := m.getExpansionCosts(test.size)
 			m.expandMemoryWithoutCharging(test.size)
 			if !bytes.Equal(m.store, test.expectedMem) {
 				t.Errorf("unexpected memory value, want: %x, got: %x", test.expectedMem, m.store)
 			}
-			if fee := m.getExpansionCosts(test.size); m.total_memory_cost != fee {
-				t.Errorf("unexpected total memory cost, want: %d, got: %d", fee, m.total_memory_cost)
+			if m.currentMemoryCost != fee {
+				t.Errorf("unexpected total memory cost, want: %d, got: %d", fee, m.currentMemoryCost)
 			}
 		})
 	}
@@ -172,7 +173,7 @@ func TestMemory_expandMemory_expandsMemoryOnlyWhenNeeded(t *testing.T) {
 			ctxt := getEmptyContext()
 			m := NewMemory()
 			m.store = test.initialMemory
-			ctxt.gas = 9
+			ctxt.gas = 3
 
 			err := m.expandMemory(test.offset, test.size, &ctxt)
 			if err != nil {

@@ -20,7 +20,7 @@ import (
 
 type Memory struct {
 	store             []byte
-	total_memory_cost tosca.Gas
+	currentMemoryCost tosca.Gas
 }
 
 func NewMemory() *Memory {
@@ -64,7 +64,7 @@ func (m *Memory) getExpansionCosts(size uint64) tosca.Gas {
 
 	words := tosca.SizeInWords(size)
 	new_costs := tosca.Gas((words*words)/512 + (3 * words))
-	fee := new_costs - m.total_memory_cost
+	fee := new_costs - m.currentMemoryCost
 	return fee
 }
 
@@ -82,15 +82,14 @@ func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 		c.signalError()
 		return errGasUintOverflow
 	}
-	fee := m.getExpansionCosts(needed)
-	if !c.useGas(fee) {
-		c.status = statusOutOfGas
-		return errOutOfGas
-	}
 	if m.length() < needed {
-		m.total_memory_cost += fee
+		fee := m.getExpansionCosts(needed)
+		if !c.useGas(fee) {
+			c.status = statusOutOfGas
+			return errOutOfGas
+		}
+		m.expandMemoryWithoutCharging(needed)
 	}
-	m.expandMemoryWithoutCharging(needed)
 
 	return nil
 }
@@ -100,6 +99,7 @@ func (m *Memory) expandMemoryWithoutCharging(needed uint64) {
 	needed = toValidMemorySize(needed)
 	size := m.length()
 	if size < needed {
+		m.currentMemoryCost += m.getExpansionCosts(needed)
 		m.store = append(m.store, make([]byte, needed-size)...)
 	}
 }
