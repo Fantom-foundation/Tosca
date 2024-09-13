@@ -56,7 +56,7 @@ func FuzzLfvmConverter(f *testing.F) {
 			}
 
 			if vm.IsValid(toscaOpCode) {
-				if got, want := OpCode(toscaOpCode), lfvmOpCode; got != want {
+				if got, want := lfvmOpCode, OpCode(toscaOpCode); got != want {
 					t.Errorf("Expected %v, got %v", want, got)
 				}
 			}
