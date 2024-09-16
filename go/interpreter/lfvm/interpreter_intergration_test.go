@@ -43,6 +43,13 @@ type testDeclaration struct {
 	returnData []byte
 }
 
+func (td testDeclaration) name() string {
+	if len(td.nameOverride) == 0 {
+		return td.code[0].opcode.String()
+	}
+	return td.nameOverride
+}
+
 // generateSingleTestCase generates a test case for each opcode.
 // The instances in the slice test functionality provided by the interpreter.
 // For the sake of simplicity, they do not test specific behavior of each opcode,
@@ -332,7 +339,6 @@ func generateTestCases() []testDeclaration {
 	tests = append(tests, []testDeclaration{
 
 		// BALANCE
-
 		{
 			code:  instructions{instruction(BALANCE)},
 			stack: stackSize(1, 1),
@@ -375,7 +381,6 @@ func generateTestCases() []testDeclaration {
 		},
 
 		// EXTCODECOPY
-
 		{
 			code:               instructions{instruction(EXTCODECOPY)},
 			stack:              stackSize(4, 0),
@@ -573,6 +578,7 @@ func generateTestCases() []testDeclaration {
 	retSize := toWord(6)
 
 	tests = append(tests, []testDeclaration{
+		// CALL
 		{
 			code: instructions{instruction(CALL)},
 			stack: stackWithValues([]tosca.Word{
@@ -589,14 +595,13 @@ func generateTestCases() []testDeclaration {
 				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
 			},
 			gas: cost(
-				700 + // static
+				700 + // static cost
 					3 + // mem-expansion
 					9000 - 2300 + // value cost minus call-stipend
 					200 + // value-transfer
 					2300, // call-stipend
 			),
 		},
-
 		{
 			nameOverride: "CALL static context",
 			code:         instructions{instruction(CALL)},
@@ -612,7 +617,6 @@ func generateTestCases() []testDeclaration {
 			gas:                cost(700),
 			staticCtx:          true,
 		},
-
 		{
 			nameOverride: "CALL zero value",
 			code:         instructions{instruction(CALL)},
@@ -628,14 +632,13 @@ func generateTestCases() []testDeclaration {
 				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
 			},
 			gas: cost(
-				700 + // static
+				700 + // static cost
 					3 + // mem-expansion
 					0 - 2300 + // value cost minus call-stipend
 					200 + // value-transfer
 					2300, // call-stipend
 			),
 		},
-
 		{
 			nameOverride: "CALL zero gas",
 			code:         instructions{instruction(CALL)},
@@ -653,13 +656,12 @@ func generateTestCases() []testDeclaration {
 				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
 			},
 			gas: cost(
-				700 + // static
+				700 + // static cost
 					3 + // mem-expansion
 					9000 - 2300 + // value cost minus call-stipend
 					2300, // call-stipend
 			),
 		},
-
 		{
 			nameOverride: "CALL no balance",
 			code:         instructions{instruction(CALL)},
@@ -676,12 +678,11 @@ func generateTestCases() []testDeclaration {
 				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{}) // not enough balance to transfer value
 			},
 			gas: cost(
-				700 + // static
+				700 + // static cost
 					3 + // mem-expansion
 					9000 - 2300, // value cost minus call-stipend
 			),
 		},
-
 		{
 			nameOverride: "CALL return error",
 			code:         instructions{instruction(CALL)},
@@ -699,14 +700,13 @@ func generateTestCases() []testDeclaration {
 				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, fmt.Errorf("error"))
 			},
 			gas: cost(
-				700 + // static
+				700 + // static cost
 					3 + // mem-expansion
 					200 + // value-transfer
 					9000 - 2300 + // value cost minus call-stipend
 					2300, // call-stipend
 			),
 		},
-
 		{
 			nameOverride: "CALL EIP-2929 warm",
 			code:         instructions{instruction(CALL)},
@@ -733,7 +733,6 @@ func generateTestCases() []testDeclaration {
 					2300, // call-stipend
 			),
 		},
-
 		{
 			nameOverride: "CALL EIP-2929 cold",
 			code:         instructions{instruction(CALL)},
@@ -760,7 +759,6 @@ func generateTestCases() []testDeclaration {
 					2300, // call-stipend
 			),
 		},
-
 		{
 			nameOverride: "CALL EIP-2929 new account",
 			code:         instructions{instruction(CALL)},
@@ -786,6 +784,124 @@ func generateTestCases() []testDeclaration {
 					200 + // value-transfer
 					2300 + // call-stipend
 					25000, // new account
+			),
+		},
+		// STATICCALL
+		{
+			code: instructions{instruction(STATICCALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					200, // execution cost
+			),
+		},
+		{
+			nameOverride: "STATICCALL static context",
+			code:         instructions{instruction(STATICCALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				address,
+				callGas,
+			}, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					200, // execution cost
+			),
+			staticCtx: true,
+		},
+		{
+			nameOverride: "STATICCALL zero gas",
+			code:         instructions{instruction(STATICCALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				address,
+				zeroGas,
+			}, 1),
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				700 + // static cost
+					3, // mem-expansion
+			),
+		},
+		{
+			nameOverride: "STATICCALL return error",
+			code:         instructions{instruction(STATICCALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, fmt.Errorf("error"))
+			},
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					200, // execution cost
+			),
+		},
+		{
+			nameOverride: "STATICCALL EIP-2929 warm",
+			code:         instructions{instruction(STATICCALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess)
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				100 + // static cost
+					3 + // mem-expansion
+					100 + // warm access
+					100, // execution cost
+			),
+		},
+		{
+			nameOverride: "STATICCALL EIP-2929 cold",
+			code:         instructions{instruction(STATICCALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess)
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				100 + // static cost
+					3 + // mem-expansion
+					2600 + // cold access
+					100, // execution cost
 			),
 		},
 	}...)
@@ -835,17 +951,28 @@ func TestInterpreter_TestCasesAreComplete(t *testing.T) {
 	}
 }
 
-func TestInterpreter_EndToEndInstructionRun(t *testing.T) {
-
+func TestInterpreter_RevisionsEarlierThanIntroducedInFailToProcessOp(t *testing.T) {
 	for _, test := range generateTestCases() {
+		for revision := tosca.R07_Istanbul; revision < test.opIntroducedIn; revision++ {
+			t.Run(test.name(), func(t *testing.T) {
+				ctrl := gomock.NewController(t)
+				runContext := tosca.NewMockRunContext(ctrl)
+				ctxt := makeContext(runContext, revision, test)
 
-		name := test.nameOverride
-		if len(name) == 0 {
-			name = test.code[0].opcode.String()
+				// Run testing code
+				vanillaRunner{}.run(&ctxt)
+
+				if want, got := statusInvalidInstruction, ctxt.status; want != got {
+					t.Errorf("execution did not fail: status is %v, wanted %v", got, want)
+				}
+			})
 		}
+	}
+}
 
-		t.Run(name, func(t *testing.T) {
-
+func TestInterpreter_EndToEndInstructionRun(t *testing.T) {
+	for _, test := range generateTestCases() {
+		t.Run(test.name(), func(t *testing.T) {
 			forEachSupportedRevision(t, test, func(t *testing.T, revision tosca.Revision) {
 				ctrl := gomock.NewController(t)
 				runContext := tosca.NewMockRunContext(ctrl)
