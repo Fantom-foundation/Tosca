@@ -16,10 +16,26 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
+// Config provides a set of user-definable options for the LFVM interpreter.
+type Config struct {
+	// TODO: add options for code cache size and other configuration options
+}
+
+// NewInterpreter creates a new LFVM interpreter instance with the official
+// configuration for production purposes.
+func NewInterpreter(Config) (*lfvm, error) {
+	return newVm(config{
+		ConversionConfig: ConversionConfig{
+			WithSuperInstructions: false,
+		},
+		WithShaCache: true,
+	})
+}
+
 // Registers the long-form EVM as a possible interpreter implementation.
 func init() {
 
-	configs := map[string]Config{
+	configs := map[string]config{
 		// This is the officially supported LFVM interpreter configuration to be
 		// used for production purposes.
 		"lfvm": {
@@ -49,8 +65,7 @@ func init() {
 	for name, config := range configs {
 		config := config
 		tosca.RegisterInterpreterFactory(name, func(any) (tosca.Interpreter, error) {
-			// TODO: support configuration of cache sizes
-			return NewVm(config)
+			return newVm(config)
 		})
 	}
 }
@@ -64,7 +79,7 @@ func RegisterExperimentalInterpreterConfigurations() {
 		for _, shaCache := range []string{"", "-no-sha-cache"} {
 			for _, mode := range []string{"", "-stats", "-logging"} {
 
-				config := Config{
+				config := config{
 					ConversionConfig: ConversionConfig{
 						WithSuperInstructions: si == "-si",
 					},
@@ -84,7 +99,7 @@ func RegisterExperimentalInterpreterConfigurations() {
 					tosca.RegisterInterpreterFactory(
 						name,
 						func(any) (tosca.Interpreter, error) {
-							return NewVm(config)
+							return newVm(config)
 						},
 					)
 				}
@@ -94,7 +109,7 @@ func RegisterExperimentalInterpreterConfigurations() {
 	tosca.RegisterInterpreterFactory(
 		"lfvm-no-code-cache",
 		func(any) (tosca.Interpreter, error) {
-			return NewVm(Config{
+			return newVm(config{
 				ConversionConfig: ConversionConfig{
 					CacheSize: -1,
 				},
@@ -103,18 +118,18 @@ func RegisterExperimentalInterpreterConfigurations() {
 	)
 }
 
-type Config struct {
+type config struct {
 	ConversionConfig
 	WithShaCache bool
 	runner       runner
 }
 
 type lfvm struct {
-	config    Config
+	config    config
 	converter *Converter
 }
 
-func NewVm(config Config) (*lfvm, error) {
+func newVm(config config) (*lfvm, error) {
 	converter, err := NewConverter(config.ConversionConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create converter: %v", err)
