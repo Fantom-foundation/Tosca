@@ -92,6 +92,7 @@ type TransactionContext interface {
 	GetTransientStorage(Address, Key) Word
 	SetTransientStorage(Address, Key, Word)
 
+	// TODO: rename to TouchAccount
 	AccessAccount(Address) AccessStatus
 	AccessStorage(Address, Key) AccessStatus
 
@@ -115,6 +116,7 @@ type TransactionContext interface {
 
 // AccessStatus is an enum utilized to indicate cold and warm account or
 // storage slot accesses.
+// TODO: enum instead of bool
 type AccessStatus bool
 
 const (
