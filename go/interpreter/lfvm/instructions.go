@@ -723,17 +723,44 @@ func opSelfdestruct(c *context) {
 		return
 	}
 
-	gasfunc := gasSelfdestruct
+	beneficiary := tosca.Address(c.stack.pop().Bytes20())
+	// Selfdestruct gas cost defined in EIP-105 (see https://eips.ethereum.org/EIPS/eip-150)
+	cost := tosca.Gas(0)
 	if c.isAtLeast(tosca.R09_Berlin) {
-		gasfunc = gasSelfdestructEIP2929
+		// as https://eips.ethereum.org/EIPS/eip-2929#selfdestruct-changes says,
+		// selfdestruct does not charge for warm access
+		if accessStatus := c.context.AccessAccount(beneficiary); accessStatus != tosca.WarmAccess {
+			cost += getAccessCost(accessStatus)
+		}
 	}
+	cost += selfDestructNewAccountCost(c.context.AccountExists(beneficiary),
+		c.context.GetBalance(c.params.Recipient))
 	// even death is not for free
-	if !c.useGas(gasfunc(c)) {
+	if !c.useGas(cost) {
 		return
 	}
-	beneficiary := tosca.Address(c.stack.pop().Bytes20())
-	c.context.SelfDestruct(c.params.Recipient, beneficiary)
+
+	destructed := c.context.SelfDestruct(c.params.Recipient, beneficiary)
+	c.refund += selfDestructRefund(destructed, c.params.Revision)
 	c.status = statusSelfDestructed
+}
+
+func selfDestructNewAccountCost(accountExists bool, balance tosca.Value) tosca.Gas {
+	if !accountExists && balance != (tosca.Value{}) {
+		// cost of creating an account defined in eip-150 (see https://eips.ethereum.org/EIPS/eip-150)
+		// CreateBySelfdestructGas is used when the refunded account is one that does
+		// not exist. This logic is similar to call.
+		return 25_000
+	}
+	return 0
+}
+
+func selfDestructRefund(destructed bool, revision tosca.Revision) tosca.Gas {
+	// Since London and after there is no more refund (see https://eips.ethereum.org/EIPS/eip-3529)
+	if destructed && revision < tosca.R10_London {
+		return 24_000
+	}
+	return 0
 }
 
 func opChainId(c *context) {

@@ -23,25 +23,10 @@ const (
 	ColdSloadCostEIP2929         tosca.Gas = 2100 // Cost of cold SLOAD after EIP 2929
 	ColdAccountAccessCostEIP2929 tosca.Gas = 2600 // Cost of cold account access after EIP 2929
 
-	// CreateBySelfdestructGas is used when the refunded account is one that does
-	// not exist. This logic is similar to call.
-	// Introduced in Tangerine Whistle (Eip 150)
-	CreateBySelfdestructGas tosca.Gas = 25000
-
-	SelfdestructGasEIP150             tosca.Gas = 5000  // Gas cost of SELFDESTRUCT post EIP-150
-	SelfdestructRefundGas             tosca.Gas = 24000 // Refunded following a selfdestruct operation.
 	SloadGasEIP2200                   tosca.Gas = 800   // Cost of SLOAD after EIP 2200 (part of Istanbul)
 	SstoreClearsScheduleRefundEIP2200 tosca.Gas = 15000 // Once per SSTORE operation for clearing an originally existing storage slot
 
-	// SstoreClearsScheduleRefundEIP3529 is the refund for clearing a storage slot after EIP-3529.
-	// In EIP-2200: SstoreResetGas was 5000.
-	// In EIP-2929: SstoreResetGas was changed to '5000 - COLD_SLOAD_COST'.
-	// In EIP-3529: SSTORE_CLEARS_SCHEDULE is defined as SSTORE_RESET_GAS + ACCESS_LIST_STORAGE_KEY_COST
-	// Which becomes: 5000 - 2100 + 1900 = 4800
-	SstoreClearsScheduleRefundEIP3529 tosca.Gas = 4800
-
 	SstoreResetGasEIP2200      tosca.Gas = 5000  // Once per SSTORE operation from clean non-zero to something else
-	SstoreSentryGasEIP2200     tosca.Gas = 2300  // Minimum gas required to be present for an SSTORE call, not consumed
 	SstoreSetGasEIP2200        tosca.Gas = 20000 // Once per SSTORE operation from clean zero to non-zero
 	WarmStorageReadCostEIP2929 tosca.Gas = 100   // Cost of reading warm storage after EIP 2929
 
@@ -74,8 +59,6 @@ func getBerlinGasPriceInternal(op OpCode) tosca.Gas {
 		gp = 0
 	case DELEGATECALL:
 		gp = 0
-	case SELFDESTRUCT:
-		gp = 5000
 	}
 	return gp
 }
@@ -239,7 +222,7 @@ func getStaticGasPriceInternal(op OpCode) tosca.Gas {
 	case DELEGATECALL:
 		return 700
 	case SELFDESTRUCT:
-		return 0 // should be 5000 according to evm.code
+		return 5000
 	}
 
 	if op.isSuperInstruction() {
@@ -341,44 +324,4 @@ func gasEip2929AccountCheck(c *context, address tosca.Address) error {
 		}
 	}
 	return nil
-}
-
-func gasSelfdestruct(c *context) tosca.Gas {
-	gas := SelfdestructGasEIP150
-	var address = tosca.Address(c.stack.peekN(0).Bytes20())
-
-	// if beneficiary needs to be created
-	if !c.context.AccountExists(address) && c.context.GetBalance(c.params.Recipient) != (tosca.Value{}) {
-		gas += CreateBySelfdestructGas
-	}
-	//lint:ignore SA1019 deprecated functions to be migrated in #616
-	if !c.context.HasSelfDestructed(c.params.Recipient) {
-		c.refund += SelfdestructRefundGas
-	}
-	return gas
-}
-
-func gasSelfdestructEIP2929(c *context) tosca.Gas {
-	var (
-		gas     tosca.Gas
-		address = tosca.Address(c.stack.peekN(0).Bytes20())
-	)
-	//lint:ignore SA1019 deprecated functions to be migrated in #616
-	if !c.context.IsAddressInAccessList(address) {
-		// If the caller cannot afford the cost, this change will be rolled back
-		c.context.AccessAccount(address)
-		gas = ColdAccountAccessCostEIP2929
-	}
-	// if empty and transfers value
-	if !c.context.AccountExists(address) && c.context.GetBalance(c.params.Recipient) != (tosca.Value{}) {
-		gas += CreateBySelfdestructGas
-	}
-	// do this only for Berlin and not after London fork
-	if c.isAtLeast(tosca.R09_Berlin) && !c.isAtLeast(tosca.R10_London) {
-		//lint:ignore SA1019 deprecated functions to be migrated in #616
-		if !c.context.HasSelfDestructed(c.params.Recipient) {
-			c.refund += SelfdestructRefundGas
-		}
-	}
-	return gas
 }
