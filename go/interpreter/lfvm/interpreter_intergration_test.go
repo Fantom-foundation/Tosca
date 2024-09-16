@@ -786,6 +786,192 @@ func generateTestCases() []testDeclaration {
 					25000, // new account
 			),
 		},
+
+		// CALLCODE
+		{
+			code: instructions{instruction(CALLCODE)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				value,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(callGas)) // enough balance to transfer value
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					9000 - 2300 + // value cost minus call-stipend
+					200 + // value-transfer
+					2300, // call-stipend
+			),
+		},
+		{
+			nameOverride: "CALLCODE static context",
+			code:         instructions{instruction(CALLCODE)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				value,
+				address,
+				callGas,
+			}, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(callGas)) // enough balance to transfer value
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					9000 - 2300 + // value cost minus call-stipend
+					200 + // value-transfer
+					2300, // call-stipend
+			),
+			staticCtx: true,
+		},
+		{
+			nameOverride: "CALLCODE zero value",
+			code:         instructions{instruction(CALLCODE)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				zeroGas,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					0 - 2300 + // value cost minus call-stipend
+					200 + // value-transfer
+					2300, // call-stipend
+			),
+		},
+		{
+			nameOverride: "CALLCODE zero gas",
+			code:         instructions{instruction(CALLCODE)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				value,
+				address,
+				zeroGas,
+			}, 1),
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(callGas)) // enough balance to transfer value
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					9000 - 2300 + // value cost minus call-stipend
+					2300, // call-stipend
+			),
+		},
+		{
+			nameOverride: "CALLCODE no balance",
+			code:         instructions{instruction(CALLCODE)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				value,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{}) // not enough balance to transfer value
+			},
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					9000 - 2300, // value cost minus call-stipend
+			),
+		},
+		{
+			nameOverride: "CALLCODE return error",
+			code:         instructions{instruction(CALLCODE)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				value,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(callGas)) // enough balance to transfer value
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, fmt.Errorf("error"))
+			},
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					200 + // value-transfer
+					9000 - 2300 + // value cost minus call-stipend
+					2300, // call-stipend
+			),
+		},
+		{
+			nameOverride: "CALLCODE EIP-2929 warm",
+			code:         instructions{instruction(CALLCODE)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				value,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess)
+				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(callGas)) // enough balance to transfer value
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				0 + // static
+					3 + // mem-expansion
+					100 + // warm access
+					9000 - 2300 + // value cost minus call-stipend
+					200 + // value-transfer
+					2300, // call-stipend
+			),
+		},
+		{
+			nameOverride: "CALLCODE EIP-2929 cold",
+			code:         instructions{instruction(CALLCODE)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				value,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess)
+				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(callGas)) // enough balance to transfer value
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				0 + // static
+					3 + // mem-expansion
+					2600 + // cold access
+					9000 - 2300 + // value cost minus call-stipend
+					200 + // value-transfer
+					2300, // call-stipend
+			),
+		},
+
 		// STATICCALL
 		{
 			code: instructions{instruction(STATICCALL)},
@@ -901,6 +1087,126 @@ func generateTestCases() []testDeclaration {
 				100 + // static cost
 					3 + // mem-expansion
 					2600 + // cold access
+					100, // execution cost
+			),
+		},
+
+		// DELEGATECALL
+		{
+			code: instructions{instruction(DELEGATECALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					200, // execution cost
+			),
+		},
+		{
+			nameOverride: "DELEGATECALL static context",
+			code:         instructions{instruction(DELEGATECALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				address,
+				callGas,
+			}, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					200, // execution cost
+			),
+			staticCtx: true,
+		},
+		{
+			nameOverride: "DELEGATECALL zero gas",
+			code:         instructions{instruction(DELEGATECALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				address,
+				zeroGas,
+			}, 1),
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					0, // execution cost
+			),
+		},
+		{
+			nameOverride: "DELEGATECALL return error",
+			code:         instructions{instruction(DELEGATECALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, fmt.Errorf("error"))
+			},
+			gas: cost(
+				700 + // static cost
+					3 + // mem-expansion
+					200, // execution cost
+			),
+		},
+		{
+			nameOverride: "DELEGATECALL EIP-2929 warm",
+			code:         instructions{instruction(DELEGATECALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess)
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				100 + // static cost
+					3 + // mem-expansion
+					100 + // warm access
+					100, // execution cost
+			),
+		},
+		{
+			nameOverride: "DELEGATECALL EIP-2929 cold",
+			code:         instructions{instruction(DELEGATECALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
+				address,
+				callGas,
+			}, 1),
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess)
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
+			},
+			gas: cost(
+				100 + // static cost
+					3 + // mem-expansion
+					2600 + // warm access
 					100, // execution cost
 			),
 		},
