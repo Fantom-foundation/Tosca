@@ -882,3 +882,79 @@ func TestExpansionCostOverflow(t *testing.T) {
 		}
 	}
 }
+
+func TestGetAccessCost_RespondsWithProperGasPrice(t *testing.T) {
+	if want, got := tosca.Gas(100), getAccessCost(tosca.WarmAccess); want != got {
+		t.Errorf("unexpected gas cost, wanted %d, got %d", want, got)
+	}
+	if want, got := tosca.Gas(2600), getAccessCost(tosca.ColdAccess); want != got {
+		t.Errorf("unexpected gas cost, wanted %d, got %d", want, got)
+	}
+}
+
+func TestCall_ChargesNothingForColdAccessBeforeBerlin(t *testing.T) {
+
+	ctrl := gomock.NewController(t)
+	runContext := tosca.NewMockRunContext(ctrl)
+	runContext.EXPECT().Call(tosca.Call, gomock.Any()).Return(tosca.CallResult{}, nil)
+	ctxt := context{
+		params: tosca.Parameters{
+			BlockParameters: tosca.BlockParameters{
+				Revision: tosca.R07_Istanbul,
+			},
+		},
+		stack:   NewStack(),
+		memory:  NewMemory(),
+		context: runContext,
+		gas:     0,
+	}
+
+	ctxt.stack.stackPointer = 8
+
+	genericCall(&ctxt, tosca.Call)
+
+	if ctxt.gas != 0 {
+		t.Errorf("unexpected gas cost, wanted 0, got %v", ctxt.gas)
+	}
+	if ctxt.status != statusRunning {
+		t.Errorf("unexpected status, wanted RUNNING, got %v", ctxt.status)
+	}
+}
+
+func TestCall_ChargesForAccessAfterBerlin(t *testing.T) {
+
+	for _, accessStatus := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
+
+		ctrl := gomock.NewController(t)
+		runContext := tosca.NewMockRunContext(ctrl)
+		runContext.EXPECT().AccessAccount(gomock.Any()).Return(accessStatus)
+		runContext.EXPECT().Call(tosca.Call, gomock.Any()).Return(tosca.CallResult{}, nil)
+		delta := tosca.Gas(1)
+		ctxt := context{
+			params: tosca.Parameters{
+				BlockParameters: tosca.BlockParameters{
+					Revision: tosca.R09_Berlin,
+				},
+			},
+			stack:   NewStack(),
+			memory:  NewMemory(),
+			context: runContext,
+			gas:     2600 + delta,
+		}
+		ctxt.stack.stackPointer = 8
+
+		genericCall(&ctxt, tosca.Call)
+
+		want := tosca.Gas(delta)
+		if accessStatus == tosca.WarmAccess {
+			want = 2500 + delta
+		}
+		if ctxt.gas != want {
+			t.Errorf("unexpected gas cost, wanted %v, got %v", want, ctxt.gas)
+		}
+
+		if ctxt.status != statusRunning {
+			t.Errorf("unexpected status, wanted RUNNING, got %v", ctxt.status)
+		}
+	}
+}

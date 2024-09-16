@@ -67,13 +67,13 @@ func getBerlinGasPriceInternal(op OpCode) tosca.Gas {
 	case BALANCE:
 		gp = 100
 	case CALL:
-		gp = 100
+		gp = 0
 	case CALLCODE:
-		gp = 100
+		gp = 0
 	case STATICCALL:
-		gp = 100
+		gp = 0
 	case DELEGATECALL:
-		gp = 100
+		gp = 0
 	case SELFDESTRUCT:
 		gp = 5000
 	}
@@ -223,11 +223,11 @@ func getStaticGasPriceInternal(op OpCode) tosca.Gas {
 	case CREATE2:
 		return 32000
 	case CALL:
-		return 700 // Should be 100 according to evm.code
+		return 700
 	case CALLCODE:
 		return 700
 	case STATICCALL:
-		return 700 // Should be 100 according to evm.code
+		return 700
 	case RETURN:
 		return 0
 	case STOP:
@@ -237,7 +237,7 @@ func getStaticGasPriceInternal(op OpCode) tosca.Gas {
 	case INVALID:
 		return 0
 	case DELEGATECALL:
-		return 700 // Should be 100 according to evm.code
+		return 700
 	case SELFDESTRUCT:
 		return 0 // should be 5000 according to evm.code
 	}
@@ -341,28 +341,6 @@ func gasEip2929AccountCheck(c *context, address tosca.Address) error {
 		}
 	}
 	return nil
-}
-
-func addressInAccessList(c *context) (warmAccess bool, coldCost tosca.Gas, err error) {
-	warmAccess = true
-	if c.isAtLeast(tosca.R09_Berlin) {
-		addr := tosca.Address(c.stack.peekN(1).Bytes20())
-		// Check slot presence in the access list
-		//lint:ignore SA1019 deprecated functions to be migrated in #616
-		warmAccess = c.context.IsAddressInAccessList(addr)
-		// The WarmStorageReadCostEIP2929 (100) is already deducted in the form of a constant cost, so
-		// the cost to charge for cold access, if any, is Cold - Warm
-		coldCost = ColdAccountAccessCostEIP2929 - WarmStorageReadCostEIP2929
-		if !warmAccess {
-			c.context.AccessAccount(addr)
-			// Charge the remaining difference here already, to correctly calculate available
-			// gas for call
-			if !c.useGas(coldCost) {
-				return false, 0, errOutOfGas
-			}
-		}
-	}
-	return warmAccess, coldCost, nil
 }
 
 func gasSelfdestruct(c *context) tosca.Gas {
