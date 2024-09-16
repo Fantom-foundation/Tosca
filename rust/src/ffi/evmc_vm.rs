@@ -1,6 +1,6 @@
 use std::{
     ffi::{c_char, CStr},
-    panic, process, slice,
+    panic, slice,
 };
 
 use evmc_vm::{
@@ -17,6 +17,8 @@ use crate::evmc::EvmRs;
 static EVM_RS_NAME: &str = "evmrs\0";
 static EVM_RS_VERSION: &str = "0.1.0\0";
 
+/// Evmrs is currently only capable of executing EVM1 bytecode and not EWASM or precompiled
+/// contracts.
 pub const EVMC_CAPABILITY: evmc_capabilities = evmc_capabilities::EVMC_CAPABILITY_EVM1;
 
 extern "C" fn __evmc_get_capabilities(_instance: *mut evmc_vm_t) -> evmc_capabilities_flagset {
@@ -87,13 +89,11 @@ pub extern "C" fn evmc_create_evmrs() -> *const evmc_vm_t {
 }
 
 extern "C" fn __evmc_destroy(instance: *mut evmc_vm_t) {
-    if instance.is_null() {
-        // This is an irrecoverable error that violates the EVMC spec.
-        process::abort();
-    }
-    unsafe {
-        // Acquire ownership from EVMC. This will deallocate it also at the end of the scope.
-        EvmcContainer::<EvmRs>::from_ffi_pointer(instance);
+    if !instance.is_null() {
+        unsafe {
+            // Acquire ownership from EVMC. This will deallocate it at the end of the scope.
+            EvmcContainer::<EvmRs>::from_ffi_pointer(instance);
+        }
     }
 }
 
