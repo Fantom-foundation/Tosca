@@ -36,24 +36,32 @@ func TestUnsupportedRevision_KnownRevisions(t *testing.T) {
 
 	for _, variant := range getAllInterpreterVariantsForTests() {
 		for _, revision := range knownRevisions {
+			interpreter, err := tosca.NewInterpreter(variant)
+			if err != nil {
+				t.Fatalf("failed to load interpreter: %v", err)
+			}
 			evm := TestEVM{
-				interpreter: tosca.GetInterpreter(variant),
+				interpreter: interpreter,
 				revision:    revision,
 				state:       mockStateDB,
 			}
-			_, err := evm.Run(code, []byte{})
+			_, err = evm.Run(code, []byte{})
 			if err != nil {
 				t.Errorf("unexpected error during evm run")
 			}
 		}
 
 		for _, revision := range unknownRevisions {
+			interpreter, err := tosca.NewInterpreter(variant)
+			if err != nil {
+				t.Fatalf("failed to load interpreter: %v", err)
+			}
 			evm := TestEVM{
-				interpreter: tosca.GetInterpreter(variant),
+				interpreter: interpreter,
 				revision:    revision,
 				state:       mockStateDB,
 			}
-			_, err := evm.Run(code, []byte{})
+			_, err = evm.Run(code, []byte{})
 			targetError := &tosca.ErrUnsupportedRevision{}
 			if !errors.As(err, &targetError) {
 				t.Errorf("Running on %s: expected unsupported revision error but got %v", variant, err)

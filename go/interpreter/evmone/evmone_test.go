@@ -33,7 +33,10 @@ func TestFib10(t *testing.T) {
 
 	for _, variant := range variants {
 		t.Run(variant, func(t *testing.T) {
-			interpreter := tosca.GetInterpreter(variant)
+			interpreter, err := tosca.NewInterpreter(variant)
+			if err != nil {
+				t.Fatalf("failed to load evmone interpreter: %v", err)
+			}
 			got, err := example.RunOn(interpreter, arg)
 			if err != nil {
 				t.Fatalf("running the fib example failed: %v", err)
@@ -58,7 +61,10 @@ func benchmarkFib(b *testing.B, arg int) {
 
 	for _, variant := range variants {
 		b.Run(variant, func(b *testing.B) {
-			interpreter := tosca.GetInterpreter(variant)
+			interpreter, err := tosca.NewInterpreter(variant)
+			if err != nil {
+				b.Fatalf("failed to load evmone interpreter: %v", err)
+			}
 			for i := 0; i < b.N; i++ {
 				got, err := example.RunOn(interpreter, arg)
 				if err != nil {

@@ -41,7 +41,10 @@ var (
 func TestExamples_ComputesCorrectResult(t *testing.T) {
 	for _, example := range testExamples {
 		for _, variant := range getAllInterpreterVariantsForTests() {
-			vm := tosca.GetInterpreter(variant)
+			vm, err := tosca.NewInterpreter(variant)
+			if err != nil {
+				t.Fatalf("failed to load %s interpreter: %v", variant, err)
+			}
 			for i := 0; i < 10; i++ {
 				t.Run(fmt.Sprintf("%s-%s-%d", example.Name, variant, i), func(t *testing.T) {
 					want := example.RunReference(i)
@@ -61,9 +64,15 @@ func TestExamples_ComputesCorrectResult(t *testing.T) {
 func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 	for _, example := range testExamples {
 		for _, revision := range revisions {
-			reference := tosca.GetInterpreter("geth")
+			reference, err := tosca.NewInterpreter("geth")
+			if err != nil {
+				t.Fatalf("failed to load geth interpreter: %v", err)
+			}
 			for _, variant := range getAllInterpreterVariantsForTests() {
-				vm := tosca.GetInterpreter(variant)
+				vm, err := tosca.NewInterpreter(variant)
+				if err != nil {
+					t.Fatalf("failed to load %s interpreter: %v", variant, err)
+				}
 				for i := 0; i < 10; i++ {
 					t.Run(fmt.Sprintf("%s-%s-%s-%d", example.Name, revision, variant, i), func(t *testing.T) {
 						want, err := example.RunOn(reference, i)
@@ -93,7 +102,10 @@ func BenchmarkEmpty(b *testing.B) {
 		Context: runContext,
 	}
 	for _, variant := range getAllInterpreterVariantsForTests() {
-		interpreter := tosca.GetInterpreter(variant)
+		interpreter, err := tosca.NewInterpreter(variant)
+		if err != nil {
+			b.Fatalf("failed to load %s interpreter: %v", variant, err)
+		}
 		b.Run(variant, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_, err := interpreter.Run(emptyRunParameters)
@@ -169,7 +181,10 @@ func benchmark(b *testing.B, example examples.Example, arg int) {
 	wanted := example.RunReference(arg)
 
 	for _, variant := range getAllInterpreterVariantsForTests() {
-		evm := tosca.GetInterpreter(variant)
+		evm, err := tosca.NewInterpreter(variant)
+		if err != nil {
+			b.Fatalf("failed to load %s interpreter: %v", variant, err)
+		}
 		if pvm, ok := evm.(tosca.ProfilingInterpreter); ok {
 			pvm.ResetProfile()
 		}

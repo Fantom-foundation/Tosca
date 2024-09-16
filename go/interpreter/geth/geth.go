@@ -29,7 +29,9 @@ import (
 )
 
 func init() {
-	tosca.RegisterInterpreter("geth", &gethVm{})
+	tosca.RegisterInterpreterFactory("geth", func(any) (tosca.Interpreter, error) {
+		return &gethVm{}, nil
+	})
 }
 
 type gethVm struct{}
