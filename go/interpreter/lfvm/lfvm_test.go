@@ -16,6 +16,19 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
+func TestNewInterpreter_ProducesInstanceWithSanctionedProperties(t *testing.T) {
+	lfvm, err := NewInterpreter(Config{})
+	if err != nil {
+		t.Fatalf("failed to create LFVM instance: %v", err)
+	}
+	if lfvm.config.WithShaCache != true {
+		t.Fatalf("LFVM is not configured with sha cache")
+	}
+	if lfvm.config.ConversionConfig.WithSuperInstructions != false {
+		t.Fatalf("LFVM is configured with super instructions")
+	}
+}
+
 func TestLfvm_OfficialConfigurationHasSanctionedProperties(t *testing.T) {
 	vm, err := tosca.NewInterpreter("lfvm")
 	if err != nil {

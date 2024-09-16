@@ -84,7 +84,7 @@ func TestStatisticsRunner_DumpProfilePrintsExpectedOutput(t *testing.T) {
 				stats: newStatistics(),
 			}
 
-			instance, err := NewVm(Config{
+			instance, err := newVm(config{
 				runner: statsRunner,
 			})
 			if err != nil {
