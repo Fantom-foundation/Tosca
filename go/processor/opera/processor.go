@@ -22,7 +22,6 @@ import (
 	"math"
 	"math/big"
 	"strings"
-	"sync"
 
 	"github.com/Fantom-foundation/Tosca/go/geth_adapter"
 	geth_interpreter "github.com/Fantom-foundation/Tosca/go/interpreter/geth"
@@ -31,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	geth "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
@@ -42,35 +42,11 @@ func init() {
 	tosca.RegisterProcessorFactory("opera", newProcessor)
 }
 
-var interpreterRegistryLock sync.RWMutex
-var interpreterRegistry map[tosca.Interpreter]string
-
 // newProcessor is a factory function for the geth/opera processor implemented in this file.
 // By including this package, it gets registered in the global processor registry.
 func newProcessor(interpreter tosca.Interpreter) tosca.Processor {
-
-	// To be able to access the provided interpreter within geth, it
-	// needs to be wrapped and registered inside geth's interpreter registry.
-	// However, this registry should not be spammed with multiple entries for
-	// the same interpreter. Thus, a small local index is maintained for them.
-	interpreterRegistryLock.Lock()
-	defer interpreterRegistryLock.Unlock()
-
-	if interpreterRegistry == nil {
-		interpreterRegistry = make(map[tosca.Interpreter]string)
-	}
-
-	if name, ok := interpreterRegistry[interpreter]; ok {
-		return &processor{
-			interpreterImplementation: name,
-		}
-	}
-
-	name := fmt.Sprintf("geth-processor-redirect-%d", len(interpreterRegistry))
-	interpreterRegistry[interpreter] = name
-	geth_adapter.RegisterGethInterpreter(name, interpreter)
 	return &processor{
-		interpreterImplementation: name,
+		interpreter: geth_adapter.NewGethInterpreterFactory(interpreter),
 	}
 }
 
@@ -100,7 +76,7 @@ var (
 )
 
 type processor struct {
-	interpreterImplementation string
+	interpreter vm.InterpreterFactory
 }
 
 func (p *processor) Run(
@@ -151,7 +127,7 @@ func (p *processor) Run(
 
 	// Create a configuration for the geth EVM.
 	config := geth.Config{
-		InterpreterImpl: p.interpreterImplementation,
+		Interpreter: p.interpreter,
 		StatePrecompiles: map[common.Address]geth.PrecompiledStateContract{
 			stateContractAddress: preCompiledStateContract{},
 		},

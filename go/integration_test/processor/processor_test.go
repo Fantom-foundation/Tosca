@@ -12,6 +12,7 @@ package processor
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -19,9 +20,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	op "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"golang.org/x/exp/maps"
 
 	_ "github.com/Fantom-foundation/Tosca/go/processor/floria" // < registers floria processor for testing
 	_ "github.com/Fantom-foundation/Tosca/go/processor/opera"  // < registers opera processor for testing
+
+	_ "github.com/Fantom-foundation/Tosca/go/interpreter/evmzero" // < registers evmzero interpreter for testing
+	_ "github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"    // < registers lfvm interpreter for testing
 )
 
 // This file contains a few initial shake-down tests or a Processor implementation.
@@ -207,4 +212,19 @@ func getProcessors() map[string]tosca.Processor {
 		}
 	}
 	return res
+}
+
+func TestGetProcessors_ContainsMainConfigurations(t *testing.T) {
+	// The main task of this job is to make sure that the essential processors
+	// and interpreters are registered and available for testing.
+	all := maps.Keys(getProcessors())
+	wanted := []string{
+		"opera/geth", "opera/lfvm", "opera/evmzero",
+		"floria/geth", "floria/lfvm", "floria/evmzero",
+	}
+	for _, n := range wanted {
+		if !slices.Contains(all, n) {
+			t.Errorf("Configuration %q is not registered, got %v", n, all)
+		}
+	}
 }
