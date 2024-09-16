@@ -24,7 +24,8 @@ const (
 	TxAccessListAddressGas    = 2400
 	TxAccessListStorageKeyGas = 1900
 
-	maxCodeSize = 24576
+	createGasCostPerByte = 200
+	maxCodeSize          = 24576
 
 	MaxRecursiveDepth = 1024 // Maximum depth of call/create stack.
 )
@@ -94,6 +95,14 @@ func (p *processor) Run(
 	if err != nil {
 		return errorReceipt, err
 	}
+	// Depending on wether the call was unsuccessful due to a revert with gas
+	// left or due to other failures, the transaction needs to handle it differently.
+	// TODO: add extensive testing for output handling in reverted/failed cases
+	// Work in progress, still prone to changes
+	if !result.Success && result.GasLeft == 0 {
+		return errorReceipt, nil
+	}
+	// End of work in progress
 
 	var createdAddress *tosca.Address
 	if kind == tosca.Create {

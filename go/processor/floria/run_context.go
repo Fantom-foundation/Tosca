@@ -126,6 +126,12 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 		if r.blockParameters.Revision >= tosca.R10_London && len(code) > 0 && code[0] == 0xEF {
 			return tosca.CallResult{}, nil
 		}
+		createGas := tosca.Gas(len(result.Output) * createGasCostPerByte)
+		if result.GasLeft < createGas {
+			return tosca.CallResult{}, nil
+		}
+		result.GasLeft -= createGas
+
 		r.SetCode(createdAddress, tosca.Code(result.Output))
 	}
 
