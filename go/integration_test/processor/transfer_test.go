@@ -102,6 +102,7 @@ func TestProcessor_CallsWithInsufficientBalanceAreHandledCorrectly(t *testing.T)
 				sender0 := tosca.Address{1}
 				receiver0 := tosca.Address{2}
 				receiver1 := tosca.Address{3}
+				checkValue := byte(55)
 				value := tosca.NewValue(42)
 				receiverBalance := tosca.NewValue(24)
 
@@ -114,7 +115,7 @@ func TestProcessor_CallsWithInsufficientBalanceAreHandledCorrectly(t *testing.T)
 				}...)
 
 				code1 := []byte{
-					byte(vm.CALLVALUE),
+					byte(vm.PUSH1), checkValue,
 					byte(vm.PUSH1), byte(0),
 					byte(vm.MSTORE),
 					byte(vm.PUSH1), byte(32),
@@ -140,18 +141,28 @@ func TestProcessor_CallsWithInsufficientBalanceAreHandledCorrectly(t *testing.T)
 				if err != nil || !result.Success {
 					t.Fatalf("execution was not successful or failed with error %v", err)
 				}
-				if !slices.Equal(result.Output, bytes.Repeat([]byte{0}, 32)) {
-					t.Errorf("call value was not transferred correctly, got unexpected output: %v", result.Output)
+
+				// static call and delegate call do not transfer value,
+				// therefore the transaction does not fail with insufficient balance
+				if call.callType == vm.STATICCALL || call.callType == vm.DELEGATECALL {
+					if !slices.Equal(result.Output, append(bytes.Repeat([]byte{0}, 31), checkValue)) {
+						t.Errorf("transaction has not been handled correctly, code was not executed")
+					}
+				} else {
+					if !slices.Equal(result.Output, bytes.Repeat([]byte{0}, 32)) {
+						t.Errorf("transaction has not been handled correctly, code was executed")
+					}
 				}
+
 				zero := tosca.NewValue(0)
 				if balance := transactionContext.GetBalance(sender0); balance.Cmp(zero) != 0 {
 					t.Errorf("sender balance was not updated correctly, want %v, got %v", zero, balance)
 				}
 				if balance := transactionContext.GetBalance(receiver0); balance.Cmp(receiverBalance) != 0 {
-					t.Errorf("receiver balance was not updated correctly, want %v, got %v", receiverBalance, balance)
+					t.Errorf("receiver balance should have not been updated, want %v, got %v", receiverBalance, balance)
 				}
 				if balance := transactionContext.GetBalance(receiver1); balance.Cmp(zero) != 0 {
-					t.Errorf("receiver balance was not updated correctly, want %v, got %v", zero, balance)
+					t.Errorf("receiver balance should have not been updated, want %v, got %v", zero, balance)
 				}
 			})
 		}
@@ -196,10 +207,10 @@ func TestProcessor_TransferToSelf(t *testing.T) {
 					t.Fatalf("execution failed with error %v", err)
 				}
 				if result.Success != test.success {
-					t.Errorf("execution was not successful, want %v, got %v", test.success, result.Success)
+					t.Errorf("expected success flag to be %v, got %v", test.success, result.Success)
 				}
 				if balance := transactionContext.GetBalance(sender); balance.Cmp(senderBalance) != 0 {
-					t.Errorf("sender balance was not updated correctly, want %v, got %v", senderBalance, balance)
+					t.Errorf("sender balance should have not been updated, want %v, got %v", senderBalance, balance)
 				}
 			})
 		}

@@ -76,7 +76,9 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 	}
 
 	snapshot := r.CreateSnapshot()
-	if kind != tosca.DelegateCall && kind != tosca.CallCode {
+
+	// StaticCall and DelegateCall do not transfer value
+	if kind != tosca.StaticCall && kind != tosca.DelegateCall {
 		if err := transferValue(r, parameters.Value, parameters.Sender, recipient); err != nil {
 			r.RestoreSnapshot(snapshot)
 			return tosca.CallResult{}, nil
