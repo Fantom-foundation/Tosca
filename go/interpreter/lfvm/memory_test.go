@@ -127,7 +127,6 @@ func TestMemory_expandMemory_ErrorCases(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			ctxt := getEmptyContext()
 			m := NewMemory()
 			ctxt.gas = test.gas
