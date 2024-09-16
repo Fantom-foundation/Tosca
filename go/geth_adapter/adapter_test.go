@@ -75,17 +75,3 @@ func TestRunContextAdapter_SetBalanceHasCorrectEffect(t *testing.T) {
 		})
 	}
 }
-
-func TestRunContextAdapter_ReferenceGethInterpreterIsNotExported(t *testing.T) {
-	if res, err := tosca.NewInterpreter("geth", nil); res == nil || err != nil {
-		t.Fatal("geth reference interpreter not available in Tosca")
-	}
-	evm := &geth.EVM{}
-	interpreter := geth.NewInterpreter("geth", evm, geth.Config{})
-	if interpreter == nil {
-		t.Fatal("no interpreter registered for 'geth'")
-	}
-	if _, ok := interpreter.(*gethInterpreterAdapter); ok {
-		t.Fatal("geth reference interpreter is exported")
-	}
-}
