@@ -57,22 +57,22 @@ func TestMemory_expandMemoryWithoutCharging(t *testing.T) {
 		initialMem  []byte
 		expectedMem []byte
 	}{
-		"empty-memory-increases-to-desired-size": {
+		"empty memory increases to desired size": {
 			size:        32,
 			initialMem:  []byte{},
 			expectedMem: []byte{31: 0x0},
 		},
-		"memory-bigger-than-size-changes-nothing": {
+		"memory bigger than size changes nothing": {
 			size:        32,
 			initialMem:  []byte{63: 0x0},
 			expectedMem: []byte{63: 0x0},
 		},
-		"size-zero-changes-nothing": {
+		"size zero changes nothing": {
 			size:        0,
 			initialMem:  []byte{},
 			expectedMem: []byte{},
 		},
-		"check-memory-increases-by-32": {
+		"check memory increases by 32": {
 			size:        41,
 			initialMem:  []byte{},
 			expectedMem: []byte{63: 0x0},
@@ -146,24 +146,24 @@ func TestMemory_expandMemory_expandsMemoryOnlyWhenNeeded(t *testing.T) {
 	tests := map[string]struct {
 		size               uint64
 		offset             uint64
-		initialMemory      []byte
+		initialMemorySize  uint64
 		expectedMemorySize uint64
 	}{
-		"empty-memory-with-zero-offset-and-size-does-not-expand": {},
-		"size-zero-with-offset-does-not-expand": {
+		"empty memory with zero offset and size does not expand": {},
+		"size zero with offset does not expand": {
 			size:               0,
 			offset:             32,
 			expectedMemorySize: 0,
 		},
-		"expand-memory-in-words-length": {
+		"expand memory in words length": {
 			size:               13,
 			offset:             0,
 			expectedMemorySize: 32,
 		},
-		"memory-bigger-than-size+offset-does-not-expand": {
+		"memory bigger than size+offset does not expand": {
 			size:               41,
 			offset:             41,
-			initialMemory:      []byte{127: 0x0},
+			initialMemorySize:  128,
 			expectedMemorySize: 128,
 		},
 	}
@@ -172,7 +172,7 @@ func TestMemory_expandMemory_expandsMemoryOnlyWhenNeeded(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctxt := getEmptyContext()
 			m := NewMemory()
-			m.store = test.initialMemory
+			m.store = make([]byte, test.initialMemorySize)
 			ctxt.gas = 3
 
 			err := m.expandMemory(test.offset, test.size, &ctxt)
