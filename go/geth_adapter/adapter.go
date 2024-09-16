@@ -44,6 +44,13 @@ func init() {
 		// use its own interpreter when requesting the `geth` interpreter. Instead
 		// Tosca's geth reference wrapped in the adapter would be used -- a combination
 		// that is not well tested.
+
+		// TODO: update geth integration to use factories instead of interpreter
+		// implementations
+		interpreter, err := interpreter(nil)
+		if err != nil {
+			panic(fmt.Sprintf("could not create interpreter: %v", err))
+		}
 		if name == "" || name != "geth" {
 			RegisterGethInterpreter(name, interpreter)
 		}
