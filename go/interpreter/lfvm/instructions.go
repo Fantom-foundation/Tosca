@@ -99,12 +99,11 @@ func opPush(c *context, n int) {
 }
 
 func opPush0(c *context) {
-	if c.isAtLeast(tosca.R12_Shanghai) {
-		z := c.stack.pushUndefined()
-		z[3], z[2], z[1], z[0] = 0, 0, 0, 0
-	} else {
-		c.status = statusInvalidInstruction
+	if !c.isAtLeast(tosca.R12_Shanghai) {
+		c.signalError()
 	}
+	z := c.stack.pushUndefined()
+	z[3], z[2], z[1], z[0] = 0, 0, 0, 0
 }
 
 func opPush1(c *context) {
@@ -164,10 +163,10 @@ func opMstore(c *context) {
 
 	offset, overflow := addr.Uint64WithOverflow()
 	if overflow {
-		c.status = statusError
+		c.signalError()
 		return
 	}
-	if err := c.memory.SetWord(offset, value, c); err != nil {
+	if c.memory.SetWord(offset, value, c) != nil {
 		c.signalError()
 	}
 }
@@ -178,10 +177,10 @@ func opMstore8(c *context) {
 
 	offset, overflow := addr.Uint64WithOverflow()
 	if overflow {
-		c.status = statusError
+		c.signalError()
 		return
 	}
-	if err := c.memory.SetByte(offset, byte(value.Uint64()), c); err != nil {
+	if c.memory.SetByte(offset, byte(value.Uint64()), c) != nil {
 		c.signalError()
 	}
 }
@@ -189,7 +188,7 @@ func opMstore8(c *context) {
 func opMcopy(c *context) {
 
 	if !c.isAtLeast(tosca.R13_Cancun) {
-		c.status = statusInvalidInstruction
+		c.signalError()
 		c.gas = 0
 		return
 	}
@@ -206,21 +205,24 @@ func opMcopy(c *context) {
 	destOffset, destOverflow := destAddr.Uint64WithOverflow()
 	srcOffset, srcOverflow := srcAddr.Uint64WithOverflow()
 	if destOverflow || srcOverflow || !sizeU256.IsUint64() {
-		c.status = statusError
+		c.signalError()
 		return
 	}
 
 	size := sizeU256.Uint64()
 	price := tosca.Gas(3 * tosca.SizeInWords(size))
 	if !c.useGas(price) {
+		c.signalError()
 		return
 	}
 
 	data, err := c.memory.GetSliceWithCapacityAndGas(srcOffset, size, c)
 	if err != nil {
+		c.signalError()
 		return
 	}
-	if err := c.memory.SetWithCapacityAndGasCheck(destOffset, size, data, c); err != nil {
+	if c.memory.SetWithCapacityAndGasCheck(destOffset, size, data, c) != nil {
+		c.signalError()
 		return
 	}
 }
@@ -234,7 +236,7 @@ func opMload(c *context) {
 		return
 	}
 	offset := addr.Uint64()
-	if err := c.memory.CopyWord(offset, trg, c); err != nil {
+	if c.memory.CopyWord(offset, trg, c) != nil {
 		c.signalError()
 	}
 }
@@ -270,6 +272,7 @@ func opSstore(c *context) {
 
 	cost += getDynamicCostsForSstore(c.params.Revision, storageStatus)
 	if !c.useGas(cost) {
+		c.signalError()
 		return
 	}
 
@@ -288,6 +291,7 @@ func opSload(c *context) {
 			costs = 2100
 		}
 		if !c.useGas(costs) {
+			c.signalError()
 			return
 		}
 	}
@@ -306,7 +310,7 @@ func opTstore(c *context) {
 	}
 
 	if !c.isAtLeast(tosca.R13_Cancun) {
-		c.status = statusInvalidInstruction
+		c.signalError()
 		return
 	}
 
@@ -317,7 +321,7 @@ func opTstore(c *context) {
 
 func opTload(c *context) {
 	if !c.isAtLeast(tosca.R13_Cancun) {
-		c.status = statusInvalidInstruction
+		c.signalError()
 		return
 	}
 
@@ -383,7 +387,7 @@ func opCallDataCopy(c *context) {
 
 	length64, overflow := length.Uint64WithOverflow()
 	if overflow || length64+31 < length64 {
-		c.status = statusOutOfGas
+		c.signalError()
 		return
 	}
 
@@ -391,14 +395,16 @@ func opCallDataCopy(c *context) {
 	words := tosca.SizeInWords(length64)
 	price := tosca.Gas(3 * words)
 	if !c.useGas(price) {
+		c.signalError()
 		return
 	}
 
 	if c.memory.expandMemory(memOffset64, length64, c) != nil {
+		c.signalError()
 		return
 	}
 
-	if err := c.memory.Set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64)); err != nil {
+	if c.memory.Set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64)) != nil {
 		c.signalError()
 	}
 }
@@ -591,6 +597,7 @@ func opSMod(c *context) {
 func opExp(c *context) {
 	base, exponent := c.stack.pop(), c.stack.peek()
 	if !c.useGas(tosca.Gas(50 * exponent.ByteLen())) {
+		c.signalError()
 		return
 	}
 	exponent.Exp(base, exponent)
@@ -602,13 +609,14 @@ var sha3Cache = newSha3HashCache(1<<16, 1<<18)
 func opSha3(c *context) {
 	offset, size := c.stack.pop(), c.stack.peek()
 
-	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
+	if checkSizeOffsetUint64Overflow(offset, size) != nil {
 		c.signalError()
 		return
 	}
 
 	data, err := c.memory.GetSliceWithCapacityAndGas(offset.Uint64(), size.Uint64(), c)
 	if err != nil {
+		c.signalError()
 		return
 	}
 
@@ -616,6 +624,7 @@ func opSha3(c *context) {
 	words := tosca.SizeInWords(size.Uint64())
 	price := tosca.Gas(6 * words)
 	if !c.useGas(price) {
+		c.signalError()
 		return
 	}
 	var hash tosca.Hash
@@ -667,8 +676,8 @@ func opGasPrice(c *context) {
 func opBalance(c *context) {
 	slot := c.stack.peek()
 	address := tosca.Address(slot.Bytes20())
-	err := gasEip2929AccountCheck(c, address)
-	if err != nil {
+	if gasEip2929AccountCheck(c, address) != nil {
+		c.signalError()
 		return
 	}
 	balance := c.context.GetBalance(address)
@@ -681,18 +690,17 @@ func opSelfbalance(c *context) {
 }
 
 func opBaseFee(c *context) {
-	if c.isAtLeast(tosca.R10_London) {
-		fee := c.params.BaseFee
-		c.stack.pushUndefined().SetBytes32(fee[:])
-	} else {
-		c.status = statusInvalidInstruction
+	if !c.isAtLeast(tosca.R10_London) {
+		c.signalError()
 		return
 	}
+	fee := c.params.BaseFee
+	c.stack.pushUndefined().SetBytes32(fee[:])
 }
 
 func opBlobHash(c *context) {
 	if !c.isAtLeast(tosca.R13_Cancun) {
-		c.status = statusInvalidInstruction
+		c.signalError()
 		return
 	}
 
@@ -706,13 +714,12 @@ func opBlobHash(c *context) {
 }
 
 func opBlobBaseFee(c *context) {
-	if c.isAtLeast(tosca.R13_Cancun) {
-		fee := c.params.BlobBaseFee
-		c.stack.pushUndefined().SetBytes32(fee[:])
-	} else {
-		c.status = statusInvalidInstruction
+	if !c.isAtLeast(tosca.R13_Cancun) {
+		c.signalError()
 		return
 	}
+	fee := c.params.BlobBaseFee
+	c.stack.pushUndefined().SetBytes32(fee[:])
 }
 
 func opSelfdestruct(c *context) {
@@ -737,6 +744,7 @@ func opSelfdestruct(c *context) {
 		c.context.GetBalance(c.params.Recipient))
 	// even death is not for free
 	if !c.useGas(cost) {
+		c.signalError()
 		return
 	}
 
@@ -825,14 +833,16 @@ func opCodeCopy(c *context) {
 	// Charge for length of copied code
 	words := tosca.SizeInWords(length.Uint64())
 	if !c.useGas(tosca.Gas(3 * words)) {
+		c.signalError()
 		return
 	}
 
 	if c.memory.expandMemory(memOffset.Uint64(), length.Uint64(), c) != nil {
+		c.signalError()
 		return
 	}
 	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
-	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
+	if c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy) != nil {
 		c.signalError()
 	}
 }
@@ -840,8 +850,8 @@ func opCodeCopy(c *context) {
 func opExtcodesize(c *context) {
 	top := c.stack.peek()
 	addr := tosca.Address(top.Bytes20())
-	err := gasEip2929AccountCheck(c, addr)
-	if err != nil {
+	if gasEip2929AccountCheck(c, addr) != nil {
+		c.signalError()
 		return
 	}
 	top.SetUint64(uint64(c.context.GetCodeSize(addr)))
@@ -850,8 +860,8 @@ func opExtcodesize(c *context) {
 func opExtcodehash(c *context) {
 	slot := c.stack.peek()
 	address := tosca.Address(slot.Bytes20())
-	err := gasEip2929AccountCheck(c, address)
-	if err != nil {
+	if gasEip2929AccountCheck(c, address) != nil {
+		c.signalError()
 		return
 	}
 	if !c.context.AccountExists(address) {
@@ -862,6 +872,10 @@ func opExtcodehash(c *context) {
 	}
 }
 
+// checkInitCodeSize checks the size of the init code.
+// if size is greater than MaxInitCodeSize, gas is consumed and returns false.
+// if not enough gas is available, returns false.
+// caller should handle false return value by stopping the execution.
 func checkInitCodeSize(c *context, size *uint256.Int) bool {
 	const (
 		MaxCodeSize     = 24576           // Maximum bytecode to permit for a contract
@@ -874,15 +888,9 @@ func checkInitCodeSize(c *context, size *uint256.Int) bool {
 	}
 	if !size.IsUint64() || size.Uint64() > MaxInitCodeSize {
 		c.useGas(c.gas)
-		c.signalError()
 		return false
 	}
-	if !c.useGas(tosca.Gas(InitCodeWordGas * tosca.SizeInWords(size.Uint64()))) {
-		c.status = statusOutOfGas
-		return false
-	}
-
-	return true
+	return c.useGas(tosca.Gas(InitCodeWordGas * tosca.SizeInWords(size.Uint64())))
 }
 
 func opCreate(c *context) {
@@ -917,10 +925,12 @@ func genericCreate(c *context, kind tosca.CallKind) {
 	}
 
 	if c.memory.expandMemory(offset.Uint64(), size.Uint64(), c) != nil {
+		c.signalError()
 		return
 	}
 
 	if !checkInitCodeSize(c, size) {
+		c.signalError()
 		return
 	}
 
@@ -1010,12 +1020,13 @@ func opExtCodeCopy(c *context) {
 	// Charge for length of copied code
 	words := tosca.SizeInWords(length.Uint64())
 	if !c.useGas(tosca.Gas(3 * words)) {
+		c.signalError()
 		return
 	}
 
 	addr := tosca.Address(a.Bytes20())
-	err := gasEip2929AccountCheck(c, addr)
-	if err != nil {
+	if gasEip2929AccountCheck(c, addr) != nil {
+		c.signalError()
 		return
 	}
 	var uint64CodeOffset uint64
@@ -1026,10 +1037,11 @@ func opExtCodeCopy(c *context) {
 	}
 
 	if c.memory.expandMemory(memOffset.Uint64(), length.Uint64(), c) != nil {
+		c.signalError()
 		return
 	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
-	if err = c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
+	if c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy) != nil {
 		c.signalError()
 	}
 }
@@ -1097,7 +1109,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		return 0 <= cost && cost <= c.gas
 	}
 	if !checkGas(baseGas) {
-		c.status = statusOutOfGas
+		c.signalError()
 		return
 	}
 
@@ -1107,7 +1119,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 		baseGas += CallValueTransferGas
 	}
 	if !checkGas(baseGas) {
-		c.status = statusOutOfGas
+		c.signalError()
 		return
 	}
 
@@ -1117,12 +1129,13 @@ func genericCall(c *context, kind tosca.CallKind) {
 		baseGas += CallNewAccountGas
 	}
 	if !checkGas(baseGas) {
-		c.status = statusOutOfGas
+		c.signalError()
 		return
 	}
 
 	cost := callGas(c.gas, baseGas, provided_gas)
 	if !c.useGas(baseGas + cost) {
+		c.signalError()
 		return
 	}
 
@@ -1241,17 +1254,18 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
-	if err := checkSizeOffsetUint64Overflow(memOffset, length); err != nil {
+	if checkSizeOffsetUint64Overflow(memOffset, length) != nil {
 		c.signalError()
 		return
 	}
 
 	words := tosca.SizeInWords(length.Uint64())
 	if !c.useGas(tosca.Gas(3 * words)) {
+		c.signalError()
 		return
 	}
 
-	if err := c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c); err != nil {
+	if c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c) != nil {
 		c.signalError()
 	}
 }
@@ -1268,7 +1282,7 @@ func opLog(c *context, size int) {
 	stack := c.stack
 	mStart, mSize := stack.pop(), stack.pop()
 
-	if err := checkSizeOffsetUint64Overflow(mStart, mSize); err != nil {
+	if checkSizeOffsetUint64Overflow(mStart, mSize) != nil {
 		c.signalError()
 		return
 	}
@@ -1284,16 +1298,18 @@ func opLog(c *context, size int) {
 
 	// charge for log size
 	if !c.useGas(tosca.Gas(8 * log_size)) {
+		c.signalError()
 		return
 	}
 
-	d, err := c.memory.GetSliceWithCapacityAndGas(start, log_size, c)
+	data, err := c.memory.GetSliceWithCapacityAndGas(start, log_size, c)
 	if err != nil {
+		c.signalError()
 		return
 	}
 
 	// make a copy of the data to disconnect from memory
-	log_data := bytes.Clone(d)
+	log_data := bytes.Clone(data)
 	c.context.EmitLog(tosca.Log{
 		Address: c.params.Recipient,
 		Topics:  topics,

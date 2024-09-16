@@ -21,14 +21,12 @@ import (
 type status byte
 
 const (
-	statusRunning            status = iota // < all fine, ops are processed
-	statusStopped                          // < execution stopped with a STOP
-	statusReverted                         // < execution stopped with a REVERT
-	statusReturned                         // < execution stopped with a RETURN
-	statusSelfDestructed                   // < execution stopped with a SELF-DESTRUCT
-	statusInvalidInstruction               // < execution reached an invalid instruction
-	statusOutOfGas                         // < execution ran out of gas
-	statusError                            // < execution stopped with an error (e.g. stack underflow)
+	statusRunning        status = iota // < all fine, ops are processed
+	statusStopped                      // < execution stopped with a STOP
+	statusReverted                     // < execution stopped with a REVERT
+	statusReturned                     // < execution stopped with a RETURN
+	statusSelfDestructed               // < execution stopped with a SELF-DESTRUCT
+	statusError                        // < execution stopped with an error (e.g. stack underflow)
 )
 
 // context is the execution environment of an interpreter run. It contains all
@@ -61,12 +59,11 @@ type context struct {
 }
 
 // useGas reduces the gas level by the given amount. If the gas level drops
-// below zero, the execution is stopped with an out-of-gas error. The function
+// below zero, the caller should stop the execution with an error status. The function
 // returns true if sufficient gas was available and execution can continue,
 // false otherwise.
 func (c *context) useGas(amount tosca.Gas) bool {
 	if c.gas < 0 || amount < 0 || c.gas < amount {
-		c.status = statusOutOfGas
 		c.gas = 0
 		return false
 	}
@@ -162,7 +159,7 @@ func generateResult(ctxt *context) (tosca.Result, error) {
 			Output:  res,
 			GasLeft: ctxt.gas,
 		}, nil
-	case statusInvalidInstruction, statusOutOfGas, statusError: // < TODO: if all these are handled the same, no need to have anything but statusError
+	case statusError:
 		return tosca.Result{
 			Success: false,
 		}, nil
@@ -243,11 +240,13 @@ func steps(c *context, oneStepOnly bool) {
 
 		// Check stack boundary for every instruction
 		if !satisfiesStackRequirements(c, op) {
+			c.signalError()
 			return
 		}
 
 		// Consume static gas price for instruction before execution
 		if !c.useGas(staticGasPrices.get(op)) {
+			c.signalError()
 			return
 		}
 
@@ -593,7 +592,7 @@ func steps(c *context, oneStepOnly bool) {
 		case PUSH1_PUSH1_PUSH1_SHL_SUB:
 			opPush1_Push1_Push1_Shl_Sub(c)
 		default:
-			c.status = statusInvalidInstruction
+			c.signalError()
 			return
 		}
 		c.pc++
@@ -604,15 +603,13 @@ func steps(c *context, oneStepOnly bool) {
 	}
 }
 
+// satisfiesStackRequirements checks if the current stack size satisfies the
+// stack requirements of the given OpCode.
+// caller should handle false return as an error.
 func satisfiesStackRequirements(c *context, op OpCode) bool {
 	limits := _precomputedStackLimits.get(op)
 	stackLen := c.stack.len()
-	if stackLen < limits.min {
-		c.signalError()
-		return false
-	}
-	if stackLen > limits.max {
-		c.signalError()
+	if stackLen < limits.min || stackLen > limits.max {
 		return false
 	}
 	return true
