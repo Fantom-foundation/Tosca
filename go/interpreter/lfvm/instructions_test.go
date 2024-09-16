@@ -838,7 +838,7 @@ func TestExpansionCostOverflow(t *testing.T) {
 			stackSize:  4,
 			memIndexes: []int{0, 2},
 			setup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().IsAddressInAccessList(gomock.Any()).AnyTimes().Return(true)
+				runContext.EXPECT().AccessAccount(gomock.Any()).AnyTimes().Return(tosca.WarmAccess)
 				runContext.EXPECT().GetCode(gomock.Any()).AnyTimes().Return([]byte{0x01, 0x02, 0x03, 0x04})
 			},
 		},

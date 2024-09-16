@@ -53,18 +53,22 @@ func TestContext_useGas_HandlesTerminationIfOutOfGas(t *testing.T) {
 				status: statusRunning,
 				gas:    test.available,
 			}
-			success := ctx.useGas(test.required)
+			err := ctx.useGas(test.required)
 
 			// Check that the result of UseGas indicates whether there was
 			// enough gas.
-			want := test.required >= 0 && test.available >= test.required
-			if want != success {
-				t.Errorf("expected UseGas to return %v, got %v", want, success)
+			want := error(nil)
+			// TODO: remove status check once #772 is merged
+			if test.required < 0 || test.available < test.required {
+				want = errOutOfGas
+			}
+			if want != err {
+				t.Errorf("expected UseGas to return %v, got %v", want, err)
 			}
 
 			// Check that the remaining gas is correct.
 			wantGas := tosca.Gas(0)
-			if success {
+			if err == nil {
 				wantGas = test.available - test.required
 			}
 			if ctx.gas != wantGas {
