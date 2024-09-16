@@ -1,6 +1,7 @@
 package lfvm
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"testing"
@@ -25,9 +26,12 @@ type testDeclaration struct {
 	pcAfter *pcOverride
 	// stack defines the stack state before and the size after execution.
 	stack stackTest
-	// introduced in defines the revision when the op was introduced.
+	// opIntroducedIn in defines the revision when the op was introduced.
+	// The difference with revisionConstraint is that the opcode is not defined before this revision,
+	// and therefore no missing test should be accounted for.
 	opIntroducedIn tosca.Revision
 	// revisionConstraint allows to define the revision constraint for the test. Default is every revision.
+	// The difference with opIntroducedIn is that this field is used to scope the range of revisions
 	revisionConstraint revisionConstraint
 	// staticCtx allows to define if the context is static.
 	staticCtx bool
@@ -35,6 +39,8 @@ type testDeclaration struct {
 	gas testParameter[tosca.Gas]
 	// gasRefund defines the gas refund after execution.
 	gasRefund tosca.Gas
+	// returnData defines the return data after execution.
+	returnData []byte
 }
 
 // generateSingleTestCase generates a test case for each opcode.
@@ -56,7 +62,7 @@ func generateTestCases() []testDeclaration {
 	tests := []testDeclaration{}
 
 	///////////////////////////////////
-	// Special opcodes
+	// terminal  opcodes
 
 	tests = append(tests, []testDeclaration{
 		{
@@ -72,6 +78,21 @@ func generateTestCases() []testDeclaration {
 			gas:            cost(0),
 		},
 		{
+			code: instructions{instruction(STOP)},
+		},
+	}...)
+
+	///////////////////////////////////
+	// no executable opcodes
+
+	tests = append(tests, []testDeclaration{
+		{
+			nameOverride:   "undefined",
+			code:           instructions{instruction(0x0c)},
+			statusOverride: expectOutOfGas(),
+			pcAfter:        overridePc(0),
+		},
+		{
 			code:           instructions{instruction(INVALID)},
 			statusOverride: expectInvalidInstruction(),
 			pcAfter:        overridePc(0),
@@ -85,9 +106,6 @@ func generateTestCases() []testDeclaration {
 			code:           instructions{instruction(DATA)},
 			statusOverride: expectOutOfGas(),
 			pcAfter:        overridePc(0),
-		},
-		{
-			code: instructions{instruction(STOP)},
 		},
 	}...)
 
@@ -125,14 +143,16 @@ func generateTestCases() []testDeclaration {
 	tests = addTrivialTest(tests, gas(60), stackSize(2, 1), EXP)
 	tests = addTrivialTest(tests, gas(39), stackSize(2, 1), SHA3)
 
+	tests = addTrivialTest(tests, gas(2), stackSize(0, 1), ADDRESS, ORIGIN, CALLER, CALLVALUE, CODESIZE, CALLDATASIZE, RETURNDATASIZE)
 	tests = addTrivialTest(tests, gas(2), stackSize(0, 1), PC)
 	tests = addTrivialTest(tests, gas(2), stackSize(0, 1), getOpCodesInRange(COINBASE, CHAINID)...)
 	tests = addTrivialTest(tests, gas(2), stackSize(0, 1), GASPRICE, GAS)
-	tests = addTrivialTest(tests, gas(3), stackSize(1, 1), ISZERO, NOT)
+	tests = addTrivialTest(tests, gas(3), stackSize(1, 1), ISZERO, NOT, CALLDATALOAD)
 
 	tests = addTrivialTest(tests, gas(8), stackSize(3, 1), ADDMOD, MULMOD)
 	tests = addTrivialTest(tests, gas(3), stackSize(16, 17), getOpCodesInRange(DUP1, DUP16)...)
 	tests = addTrivialTest(tests, gas(3), stackSize(17, 17), getOpCodesInRange(SWAP1, SWAP16)...)
+	tests = addTrivialTest(tests, gas(20), stackSize(1, 1), BLOCKHASH)
 
 	///////////////////////////////////
 	// Stack manipulation
@@ -150,13 +170,6 @@ func generateTestCases() []testDeclaration {
 		},
 		getOpCodesInRange(PUSH1, PUSH32))...)
 
-	// PUSH0
-	tests = append(tests, testDeclaration{
-		code:               instructions{instruction(PUSH0)},
-		stack:              stackSize(0, 1),
-		revisionConstraint: validFrom(tosca.R12_Shanghai),
-		gas:                cost(2),
-	})
 	// POP
 	tests = addTrivialTest(tests, gas(2), stackSize(1, 0), POP)
 
@@ -286,20 +299,264 @@ func generateTestCases() []testDeclaration {
 	///////////////////////////////////
 	// Tests for ops introduced in different revisions
 
-	tests = append(tests, testDeclaration{
-		code:               instructions{instruction(BASEFEE), instruction(STOP)},
-		stack:              stackSize(0, 1),
-		revisionConstraint: validFrom(tosca.R10_London),
-		gas:                cost(gas(2)),
-	})
+	tests = append(tests, []testDeclaration{
+		{
+			code:           instructions{instruction(BASEFEE)},
+			stack:          stackSize(0, 1),
+			opIntroducedIn: tosca.R10_London,
+			gas:            cost(2),
+		},
+		{
+			code:           instructions{instruction(PUSH0)},
+			stack:          stackSize(0, 1),
+			opIntroducedIn: tosca.R12_Shanghai,
+			gas:            cost(2),
+		},
+		{
+			code:           instructions{instruction(BLOBHASH)},
+			stack:          stackSize(1, 1),
+			opIntroducedIn: tosca.R13_Cancun,
+			gas:            cost(3),
+		},
+		{
+			code:           instructions{instruction(BLOBBASEFEE)},
+			stack:          stackSize(0, 1),
+			opIntroducedIn: tosca.R13_Cancun,
+			gas:            cost(2),
+		},
+	}...)
 
 	///////////////////////////////////
-	// Ops that trigger callbacks
+	// operations that access context callbacks
 
 	tests = append(tests, []testDeclaration{
 
+		// BALANCE
+
 		{
-			code: instructions{instruction(ADDRESS)},
+			code:  instructions{instruction(BALANCE)},
+			stack: stackSize(1, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(toWord(0x01)))
+			},
+			revisionConstraint: validBefore(tosca.R09_Berlin),
+			gas:                cost(700),
+		},
+		{
+			nameOverride: "BALANCE EIP-2929 cold",
+			code:         instructions{instruction(BALANCE)},
+			stack:        stackSize(1, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().IsAddressInAccessList(gomock.Any()).Return(false)
+				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess)
+				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(toWord(0x01)))
+			},
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			gas:                cost(2600),
+		},
+		{
+			nameOverride: "BALANCE EIP-2929 warm",
+			code:         instructions{instruction(BALANCE)},
+			stack:        stackSize(1, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().IsAddressInAccessList(gomock.Any()).Return(true)
+				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(toWord(0x01)))
+			},
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			gas:                cost(100),
+		},
+		{
+			code:  instructions{instruction(SELFBALANCE)},
+			stack: stackSize(0, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(toWord(0x01)))
+			},
+			gas: cost(5),
+		},
+
+		// EXTCODECOPY
+
+		{
+			code:               instructions{instruction(EXTCODECOPY)},
+			stack:              stackSize(4, 0),
+			revisionConstraint: validBefore(tosca.R09_Berlin),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().GetCode(gomock.Any()).Return([]byte{0x01})
+			},
+			gas: cost(
+				700 + // static cost
+					3*1 + // word cost
+					3, // mem expansion cost
+			),
+		},
+		{
+			nameOverride:       "EXTCODECOPY EIP-2929 cold",
+			code:               instructions{instruction(EXTCODECOPY)},
+			stack:              stackSize(4, 0),
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().IsAddressInAccessList(gomock.Any()).Return(false) // non-empty account
+				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess)
+				mock.EXPECT().GetCode(gomock.Any()).Return([]byte{0x01})
+			},
+			gas: cost(
+				3*1 + // word cost
+					3 + // mem expansion cost
+					2600, // cold access
+			),
+		},
+		{
+			nameOverride:       "EXTCODECOPY EIP-2929 warm",
+			code:               instructions{instruction(EXTCODECOPY)},
+			stack:              stackSize(4, 0),
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().IsAddressInAccessList(gomock.Any()).Return(true) // non-empty account
+				//mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess)
+				mock.EXPECT().GetCode(gomock.Any()).Return([]byte{0x01})
+			},
+
+			gas: cost(
+				3*1 + // word cost
+					3 + // mem expansion cost
+					100, // warm access
+			),
+		},
+
+		// EXTCODESIZE
+
+		{
+			code:  instructions{instruction(EXTCODESIZE)},
+			stack: stackSize(1, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().GetCodeSize(gomock.Any()).Return(1)
+			},
+			revisionConstraint: validBefore(tosca.R09_Berlin),
+			gas:                cost(700),
+		},
+		{
+			nameOverride: "EXTCODESIZE EIP-2929 cold",
+			code:         instructions{instruction(EXTCODESIZE)},
+			stack:        stackSize(1, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().IsAddressInAccessList(gomock.Any()).Return(false)
+				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess)
+				mock.EXPECT().GetCodeSize(gomock.Any()).Return(1)
+			},
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			gas: cost(
+				2600, // cold access
+			),
+		},
+		{
+			nameOverride: "EXTCODESIZE EIP-2929 warm",
+			code:         instructions{instruction(EXTCODESIZE)},
+			stack:        stackSize(1, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().IsAddressInAccessList(gomock.Any()).Return(true)
+				// mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess)
+				mock.EXPECT().GetCodeSize(gomock.Any()).Return(1)
+			},
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			gas: cost(
+				100, // warm access
+			),
+		},
+
+		// EXTCODEHASH
+		{
+			code:  instructions{instruction(EXTCODEHASH)},
+			stack: stackSize(1, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().AccountExists(gomock.Any()).Return(true)
+				mock.EXPECT().GetCodeHash(gomock.Any()).Return(tosca.Hash{})
+			},
+			revisionConstraint: validBefore(tosca.R09_Berlin),
+			gas:                cost(700),
+		},
+		{
+			nameOverride: "EXTCODEHASH EIP-2929 cold",
+			code:         instructions{instruction(EXTCODEHASH)},
+			stack:        stackSize(1, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().IsAddressInAccessList(gomock.Any()).Return(false)
+				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.ColdAccess)
+				mock.EXPECT().AccountExists(gomock.Any()).Return(true)
+				mock.EXPECT().GetCodeHash(gomock.Any()).Return(tosca.Hash{})
+			},
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			gas:                cost(2600),
+		},
+		{
+			nameOverride: "EXTCODEHASH EIP-2929 warm",
+			code:         instructions{instruction(EXTCODEHASH)},
+			stack:        stackSize(1, 1),
+			mockCalls: func(mock *tosca.MockRunContext) {
+				mock.EXPECT().IsAddressInAccessList(gomock.Any()).Return(true)
+				// mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess)
+				mock.EXPECT().AccountExists(gomock.Any()).Return(true)
+				mock.EXPECT().GetCodeHash(gomock.Any()).Return(tosca.Hash{})
+			},
+			revisionConstraint: validFrom(tosca.R09_Berlin),
+			gas:                cost(100),
+		},
+	}...)
+
+	///////////////////////////////////
+	// Memory opcodes
+
+	tests = append(tests, []testDeclaration{
+		{
+			code:  instructions{instruction(MSIZE)},
+			stack: stackSize(0, 1),
+			gas:   cost(2),
+		},
+		{
+			code:  instructions{instruction(MLOAD)},
+			stack: stackSize(1, 1),
+			gas:   cost(3 /*static cost */ + 6 /*mem expansion cost */),
+		},
+		{
+			code:  instructions{instruction(MSTORE)},
+			stack: stackSize(2, 0),
+			gas:   cost(3 /*static cost */ + 6 /*mem expansion cost */),
+		},
+		{
+			code:  instructions{instruction(MSTORE8)},
+			stack: stackSize(2, 0),
+			gas:   cost(3 /*static cost */ + 3 /*mem expansion cost */),
+		},
+		{
+			code:           instructions{instruction(MCOPY)},
+			stack:          stackSize(3, 0),
+			opIntroducedIn: tosca.R13_Cancun,
+			gas: cost(
+				3 + //static cost
+					+3*1 + // 3x word size
+					3, // mem expansion cost
+			),
+		},
+
+		// TODO: find these a place
+		{
+			code:  instructions{instruction(CALLDATACOPY)},
+			stack: stackSize(3, 0),
+			gas:   cost(3 /*static cost */ + 6 /*mem expansion cost */),
+		},
+		{
+			code:  instructions{instruction(CODECOPY)},
+			stack: stackSize(3, 0),
+			gas:   cost(3 /*static cost */ + 6 /*mem expansion cost */),
+		},
+		{
+			code:       instructions{instruction(RETURNDATACOPY)},
+			stack:      stackWithValues([]tosca.Word{toWord(8), toWord(0), toWord(1)}, 0),
+			returnData: bytes.Repeat([]byte{0x01}, 8),
+			gas: cost(
+				3 + // static
+					3*1 + // 3x word size
+					3, // mem expansion
+			),
 		},
 	}...)
 
@@ -319,10 +576,8 @@ func generateTestCases() []testDeclaration {
 		{
 			code: instructions{instruction(CALL)},
 			stack: stackWithValues([]tosca.Word{
-				retSize,
-				retOffset,
-				argsSize,
-				argsOffset,
+				retSize, retOffset,
+				argsSize, argsOffset,
 				value,
 				address,
 				callGas,
@@ -333,22 +588,37 @@ func generateTestCases() []testDeclaration {
 				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(callGas)) // enough balance to transfer value
 				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
 			},
-			gas: cost(gas(
+			gas: cost(
 				700 + // static
 					3 + // mem-expansion
-					9000 - 2300 + // call cost minus call-stipend
+					9000 - 2300 + // value cost minus call-stipend
 					200 + // value-transfer
 					2300, // call-stipend
-			)),
+			),
 		},
 
 		{
-			code: instructions{instruction(CALL)},
+			nameOverride: "CALL static context",
+			code:         instructions{instruction(CALL)},
 			stack: stackWithValues([]tosca.Word{
-				retSize,
-				retOffset,
-				argsSize,
-				argsOffset,
+				retSize, retOffset,
+				argsSize, argsOffset,
+				value,
+				address,
+				callGas,
+			}, 7),
+			statusOverride:     expectedError(),
+			revisionConstraint: validOnlyIn(tosca.R07_Istanbul),
+			gas:                cost(700),
+			staticCtx:          true,
+		},
+
+		{
+			nameOverride: "CALL zero value",
+			code:         instructions{instruction(CALL)},
+			stack: stackWithValues([]tosca.Word{
+				retSize, retOffset,
+				argsSize, argsOffset,
 				zeroGas,
 				address,
 				callGas,
@@ -357,23 +627,21 @@ func generateTestCases() []testDeclaration {
 			mockCalls: func(mock *tosca.MockRunContext) {
 				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
 			},
-			gas: cost(gas(
+			gas: cost(
 				700 + // static
 					3 + // mem-expansion
-					-2300 + // minus call-stipend
+					0 - 2300 + // value cost minus call-stipend
 					200 + // value-transfer
 					2300, // call-stipend
-			)),
+			),
 		},
 
 		{
 			nameOverride: "CALL zero gas",
 			code:         instructions{instruction(CALL)},
 			stack: stackWithValues([]tosca.Word{
-				retSize,
-				retOffset,
-				argsSize,
-				argsOffset,
+				retSize, retOffset,
+				argsSize, argsOffset,
 				value,
 				address,
 				zeroGas,
@@ -384,22 +652,20 @@ func generateTestCases() []testDeclaration {
 				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(callGas)) // enough balance to transfer value
 				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
 			},
-			gas: cost(gas(
+			gas: cost(
 				700 + // static
 					3 + // mem-expansion
-					9000 - 2300 + // call cost minus call-stipend
+					9000 - 2300 + // value cost minus call-stipend
 					2300, // call-stipend
-			)),
+			),
 		},
 
 		{
 			nameOverride: "CALL no balance",
 			code:         instructions{instruction(CALL)},
 			stack: stackWithValues([]tosca.Word{
-				retSize,
-				retOffset,
-				argsSize,
-				argsOffset,
+				retSize, retOffset,
+				argsSize, argsOffset,
 				value,
 				address,
 				callGas,
@@ -409,21 +675,19 @@ func generateTestCases() []testDeclaration {
 				mock.EXPECT().AccountExists(gomock.Any()).Return(true)       // non-empty account
 				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{}) // not enough balance to transfer value
 			},
-			gas: cost(gas(
+			gas: cost(
 				700 + // static
 					3 + // mem-expansion
-					9000 - 2300, // call cost minus call-stipend
-			)),
+					9000 - 2300, // value cost minus call-stipend
+			),
 		},
 
 		{
 			nameOverride: "CALL return error",
 			code:         instructions{instruction(CALL)},
 			stack: stackWithValues([]tosca.Word{
-				retSize,
-				retOffset,
-				argsSize,
-				argsOffset,
+				retSize, retOffset,
+				argsSize, argsOffset,
 				value,
 				address,
 				callGas,
@@ -434,23 +698,21 @@ func generateTestCases() []testDeclaration {
 				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(callGas)) // enough balance to transfer value
 				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, fmt.Errorf("error"))
 			},
-			gas: cost(gas(
+			gas: cost(
 				700 + // static
 					3 + // mem-expansion
 					200 + // value-transfer
-					9000 - 2300 + // call cost minus call-stipend
+					9000 - 2300 + // value cost minus call-stipend
 					2300, // call-stipend
-			)),
+			),
 		},
 
 		{
 			nameOverride: "CALL EIP-2929 warm",
 			code:         instructions{instruction(CALL)},
 			stack: stackWithValues([]tosca.Word{
-				retSize,
-				retOffset,
-				argsSize,
-				argsOffset,
+				retSize, retOffset,
+				argsSize, argsOffset,
 				value,
 				address,
 				callGas,
@@ -462,24 +724,22 @@ func generateTestCases() []testDeclaration {
 				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(callGas)) // enough balance to transfer value
 				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
 			},
-			gas: cost(gas(
+			gas: cost(
 				0 + // static
 					3 + // mem-expansion
 					100 + // warm access
-					9000 - 2300 + // call cost minus call-stipend
+					9000 - 2300 + // value cost minus call-stipend
 					200 + // value-transfer
 					2300, // call-stipend
-			)),
+			),
 		},
 
 		{
 			nameOverride: "CALL EIP-2929 cold",
 			code:         instructions{instruction(CALL)},
 			stack: stackWithValues([]tosca.Word{
-				retSize,
-				retOffset,
-				argsSize,
-				argsOffset,
+				retSize, retOffset,
+				argsSize, argsOffset,
 				value,
 				address,
 				callGas,
@@ -491,24 +751,22 @@ func generateTestCases() []testDeclaration {
 				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(callGas)) // enough balance to transfer value
 				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
 			},
-			gas: cost(gas(
+			gas: cost(
 				0 + // static
 					3 + // mem-expansion
 					2600 + // cold access
-					9000 - 2300 + // call cost minus call-stipend
+					9000 - 2300 + // value cost minus call-stipend
 					200 + // value-transfer
 					2300, // call-stipend
-			)),
+			),
 		},
 
 		{
 			nameOverride: "CALL EIP-2929 new account",
 			code:         instructions{instruction(CALL)},
 			stack: stackWithValues([]tosca.Word{
-				retSize,
-				retOffset,
-				argsSize,
-				argsOffset,
+				retSize, retOffset,
+				argsSize, argsOffset,
 				value,
 				address,
 				callGas,
@@ -520,15 +778,15 @@ func generateTestCases() []testDeclaration {
 				mock.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value(callGas)) // enough balance to transfer value
 				mock.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil)
 			},
-			gas: cost(gas(
+			gas: cost(
 				0 + // static
 					3 + // mem-expansion
 					2600 + // cold access
-					9000 - 2300 + // call cost minus call-stipend
+					9000 - 2300 + // value cost minus call-stipend
 					200 + // value-transfer
 					2300 + // call-stipend
 					25000, // new account
-			)),
+			),
 		},
 	}...)
 
@@ -546,6 +804,7 @@ func TestInterpreter_TestCasesAreComplete(t *testing.T) {
 			if _, ok := testedOps[instr.opcode]; !ok {
 				testedOps[instr.opcode] = map[tosca.Revision]bool{}
 			}
+
 			forEachSupportedRevision(t, test, func(t *testing.T, revision tosca.Revision) {
 				testedOps[instr.opcode][revision] = true
 			})
@@ -787,7 +1046,10 @@ func expectReverted() *status {
 	v := statusReverted
 	return &v
 }
-
+func expectedError() *status {
+	v := statusError
+	return &v
+}
 func expectReturned() *status {
 	v := statusReturned
 	return &v
@@ -810,15 +1072,16 @@ func makeContext(
 				Revision: revision,
 			},
 			Gas:    test.gas.before,
-			Input:  []byte{},
+			Input:  bytes.Repeat([]byte{0x01}, 32),
 			Static: test.staticCtx,
 		},
-		context: runContext,
-		gas:     test.gas.before,
-		stack:   NewStack(),
-		memory:  NewMemory(),
-		status:  statusRunning,
-		code:    test.code,
+		context:    runContext,
+		gas:        test.gas.before,
+		stack:      NewStack(),
+		memory:     NewMemory(),
+		status:     statusRunning,
+		code:       test.code,
+		returnData: test.returnData,
 	}
 
 	for i, v := range test.stack.before {
