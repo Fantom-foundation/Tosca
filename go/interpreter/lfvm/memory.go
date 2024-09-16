@@ -239,3 +239,21 @@ func (m *Memory) readWord(offset uint64, target *uint256.Int, c *context) error 
 	target.SetBytes32(data)
 	return nil
 }
+
+// copyData data from the memory, starting from the given offset, to the target slice,
+// padding with zeros if offset+(target length) is greater than the memory size.
+// if offset is greater than the memory size, the target slice is filled with zeros.
+func (m *Memory) copyData(offset uint64, trg []byte) {
+	if m.length() < offset {
+		copy(trg, make([]byte, len(trg)))
+		return
+	}
+
+	// Copy what is available.
+	covered := copy(trg, m.store[offset:])
+
+	// Pad the rest
+	if covered < len(trg) {
+		copy(trg[covered:], make([]byte, len(trg)-covered))
+	}
+}

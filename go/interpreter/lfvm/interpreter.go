@@ -187,7 +187,7 @@ func getOutput(ctxt *context) ([]byte, error) {
 				return nil, err
 			}
 			res = make([]byte, size)
-			ctxt.memory.CopyData(offset, res)
+			ctxt.memory.copyData(offset, res)
 		}
 	}
 	return res, nil
