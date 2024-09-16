@@ -18,7 +18,48 @@ import (
 
 // Registers the long-form EVM as a possible interpreter implementation.
 func init() {
-	// TODO: split into release-version and experimental versions
+
+	configs := map[string]Config{
+		// This is the officially supported LFVM interpreter configuration to be
+		// used for production purposes.
+		"lfvm": {
+			ConversionConfig: ConversionConfig{
+				WithSuperInstructions: false,
+			},
+			WithShaCache: true,
+		},
+
+		// This is an unofficial LFVM interpreter configuration that uses super
+		// instructions. It is currently exported by default since Aida's nightly
+		// tests are depending on it and Aida is not yet importing experimental
+		// configurations explicitly. Once Aida has been updated to import
+		// experimental configurations explicitly, this configuration should be
+		// removed from the default exports.
+		//
+		// TODO(#763): remove once Aida has been updated to import experimental
+		// configurations explicitly.
+		"lfvm-si": {
+			ConversionConfig: ConversionConfig{
+				WithSuperInstructions: true,
+			},
+			WithShaCache: true,
+		},
+	}
+
+	for name, config := range configs {
+		vm, err := NewVm(config)
+		if err != nil {
+			panic(fmt.Sprintf("failed to create %s: %v", name, err))
+		}
+		tosca.RegisterInterpreter(name, vm)
+	}
+}
+
+// RegisterExperimentalInterpreterConfigurations registers all experimental
+// LFVM interpreter configurations to Tosca's interpreter registry. This
+// function should not be called in production code, as the resulting VMs are
+// not officially supported.
+func RegisterExperimentalInterpreterConfigurations() {
 	for _, si := range []string{"", "-si"} {
 		for _, shaCache := range []string{"", "-no-sha-cache"} {
 			for _, mode := range []string{"", "-stats", "-logging"} {
@@ -44,7 +85,9 @@ func init() {
 					panic(fmt.Sprintf("failed to create %s: %v", name, err))
 				}
 
-				tosca.RegisterInterpreter(name, vm)
+				if name != "lfvm" && name != "lfvm-si" {
+					tosca.RegisterInterpreter(name, vm)
+				}
 			}
 		}
 	}
@@ -65,23 +108,23 @@ type Config struct {
 	runner       runner
 }
 
-type VM struct {
+type lfvm struct {
 	config    Config
 	converter *Converter
 }
 
-func NewVm(config Config) (*VM, error) {
+func NewVm(config Config) (*lfvm, error) {
 	converter, err := NewConverter(config.ConversionConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create converter: %v", err)
 	}
-	return &VM{config: config, converter: converter}, nil
+	return &lfvm{config: config, converter: converter}, nil
 }
 
 // Defines the newest supported revision for this interpreter implementation
 const newestSupportedRevision = tosca.R13_Cancun
 
-func (v *VM) Run(params tosca.Parameters) (tosca.Result, error) {
+func (v *lfvm) Run(params tosca.Parameters) (tosca.Result, error) {
 	if params.Revision > newestSupportedRevision {
 		return tosca.Result{}, &tosca.ErrUnsupportedRevision{Revision: params.Revision}
 	}
@@ -99,13 +142,13 @@ func (v *VM) Run(params tosca.Parameters) (tosca.Result, error) {
 	return run(config, params, converted)
 }
 
-func (e *VM) DumpProfile() {
+func (e *lfvm) DumpProfile() {
 	if statsRunner, ok := e.config.runner.(*statisticRunner); ok {
 		fmt.Print(statsRunner.getSummary())
 	}
 }
 
-func (e *VM) ResetProfile() {
+func (e *lfvm) ResetProfile() {
 	if statsRunner, ok := e.config.runner.(*statisticRunner); ok {
 		statsRunner.reset()
 	}

@@ -34,7 +34,7 @@ func TestUnsupportedRevision_KnownRevisions(t *testing.T) {
 
 	code := []byte{byte(vm.PUSH2), byte(5), byte(2), byte(vm.SUB)}
 
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		for _, revision := range knownRevisions {
 			evm := TestEVM{
 				interpreter: tosca.GetInterpreter(variant),

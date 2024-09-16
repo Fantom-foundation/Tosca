@@ -34,7 +34,7 @@ const HUGE_GAS_SENT_WITH_CALL int64 = 1000000000000
 
 func TestMaxCallDepth(t *testing.T) {
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		for _, revision := range revisions {
 			t.Run(fmt.Sprintf("%s/%s", variant, revision), func(t *testing.T) {
 				ctrl := gomock.NewController(t)
@@ -92,7 +92,7 @@ func TestMaxCallDepth(t *testing.T) {
 func TestInvalidJumpOverflow(t *testing.T) {
 
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 
 		for _, revision := range revisions {
 
@@ -181,7 +181,7 @@ func TestCodeCopy(t *testing.T) {
 	}
 
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		for _, revision := range revisions {
 			for name, test := range tests {
 				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, name), func(t *testing.T) {
@@ -268,7 +268,7 @@ func TestReturnDataCopy(t *testing.T) {
 		{name: "offset overflow", dataSize: 0, dataOffset: overflowValue, returnDataSize: 0, expectFailure: true},
 	}
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 
 		for _, revision := range revisions {
 
@@ -345,7 +345,7 @@ func TestReadOnlyStaticCall(t *testing.T) {
 	}
 
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 
 		for _, revision := range revisions {
 
@@ -454,7 +454,7 @@ func TestInstructionDataInitialization(t *testing.T) {
 	}
 
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		for _, revision := range revisions {
 			for _, test := range tests {
 				t.Run(fmt.Sprintf("%s/%s/%s/%s", variant, revision, test.instruction, test.name), func(t *testing.T) {
@@ -517,7 +517,7 @@ func TestCreateDataInitialization(t *testing.T) {
 	}
 
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 
 		for _, revision := range revisions {
 
@@ -586,7 +586,7 @@ func TestMemoryNotWrittenWithZeroReturnData(t *testing.T) {
 	}
 
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 
 		for _, revision := range revisions {
 
@@ -682,7 +682,7 @@ func TestNoReturnDataForCreate(t *testing.T) {
 	}
 
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 
 		if skipTestForVariant(t.Name(), variant) {
 			continue
@@ -770,7 +770,7 @@ func TestExtCodeHashOnEmptyAccount(t *testing.T) {
 	}
 
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 
 		if skipTestForVariant(t.Name(), variant) {
 			continue
@@ -916,7 +916,7 @@ type overflowTestCase struct {
 
 func runOverflowTests(t *testing.T, instruction vm.OpCode, tests []overflowTestCase) {
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 
 		for _, revision := range revisions {
 
@@ -1111,7 +1111,7 @@ func newMockStateDBForIntegrationTests(ctrl *gomock.Controller) *MockStateDB {
 }
 
 func TestEVM_CanSuccessfullyProcessPcBiggerThanCodeLength(t *testing.T) {
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		revision := Istanbul
 		t.Run(variant, func(t *testing.T) {
 			// all implementations should be able to handle PC that goes beyond the code length.

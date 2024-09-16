@@ -20,7 +20,7 @@ import (
 
 func TestStackMaxBoundary(t *testing.T) {
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		for _, revision := range revisions {
 			for op, info := range getInstructions(revision) {
 				if info.stack.popped >= info.stack.pushed {
@@ -56,7 +56,7 @@ func TestStackMaxBoundary(t *testing.T) {
 
 func TestStackMinBoundary(t *testing.T) {
 	// For every variant of interpreter
-	for _, variant := range Variants {
+	for _, variant := range getAllInterpreterVariantsForTests() {
 		for _, revision := range revisions {
 			for op, info := range getInstructions(revision) {
 				if info.stack.popped <= 0 {

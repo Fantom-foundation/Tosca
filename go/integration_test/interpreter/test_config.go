@@ -11,45 +11,40 @@
 package interpreter_test
 
 import (
+	"slices"
+	"strings"
+
 	_ "github.com/Fantom-foundation/Tosca/go/interpreter/evmone"
 	_ "github.com/Fantom-foundation/Tosca/go/interpreter/evmzero"
 	_ "github.com/Fantom-foundation/Tosca/go/interpreter/geth"
-	_ "github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
+	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"golang.org/x/exp/maps"
 )
 
-var (
-	Variants = []string{
-		"geth",
-		"lfvm",
-		"lfvm-si",
-		"lfvm-no-sha-cache",
-		"lfvm-no-code-cache",
-		"lfvm-logging",
-		"lfvm-stats",
-		"evmone",
-		"evmone-basic",
-		"evmone-advanced",
-		"evmzero",
-		"evmzero-logging",
-		"evmzero-no-analysis-cache",
-		"evmzero-no-sha3-cache",
-		"evmzero-profiling",
-		"evmzero-profiling-external",
-	}
+func init() {
+	// Experimental LFVM configurations should be covered by integration tests
+	// as they might be used by down-stream tools and for debugging.
+	lfvm.RegisterExperimentalInterpreterConfigurations()
+}
 
-	DisabledTest = map[string]map[string]bool{
+// getAllInterpreterVariantsForTests returns all registered interpreter variants
+// that should be covered in integration tests.
+func getAllInterpreterVariantsForTests() []string {
+	// TODO: re-add logging variants once logging is no longer writing everything to stdout
+	return slices.DeleteFunc(
+		maps.Keys(tosca.GetAllRegisteredInterpreters()),
+		func(s string) bool { return strings.Contains(s, "logging") },
+	)
+}
+
+// skipTestForVariant returns true, if the given test should be skipped for
+// the given variant.
+func skipTestForVariant(testName string, variant string) bool {
+	disabledTest := map[string][]string{
 		"TestNoReturnDataForCreate": {
-			"evmone":          true,
-			"evmone-basic":    true,
-			"evmone-advanced": true,
+			"evmone", "evmone-basic", "evmone-advanced",
 		},
 	}
-)
-
-// skipTestForVariant returns true, if test should be skipped for variant
-func skipTestForVariant(testName string, variant string) bool {
-	if disabled, found := DisabledTest[testName][variant]; found && disabled {
-		return true
-	}
-	return false
+	return slices.Contains(disabledTest[testName], variant)
 }
