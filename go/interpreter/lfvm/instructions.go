@@ -236,7 +236,7 @@ func opMload(c *context) {
 		return
 	}
 	offset := addr.Uint64()
-	if err := c.memory.readWord(offset, trg, c); err != nil {
+	if c.memory.readWord(offset, trg, c) != nil {
 		c.signalError()
 	}
 }
