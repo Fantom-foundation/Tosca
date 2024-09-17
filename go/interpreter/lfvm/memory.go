@@ -111,7 +111,7 @@ func (m *Memory) length() uint64 {
 // setByte sets a byte at the given offset, expanding memory as needed and charging for it.
 // Returns error if insufficient gas or offset+1 overflows.
 func (m *Memory) setByte(offset uint64, value byte, c *context) error {
-	return m.setWithCapacityAndGasCheck(offset, 1, []byte{value}, c)
+	return m.set(offset, 1, []byte{value}, c)
 }
 
 func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
@@ -164,9 +164,9 @@ func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
 	return nil
 }
 
-// set sets the given value at the given offset.
+// trySet sets the given value at the given offset.
 // Returns error if insufficient memory or offset+size overflows.
-func (m *Memory) set(offset, size uint64, value []byte) error {
+func (m *Memory) trySet(offset, size uint64, value []byte) error {
 	if size > 0 {
 		if offset+size < offset {
 			return errGasUintOverflow
@@ -183,14 +183,14 @@ func makeInsufficientMemoryError(memSize, size, offset uint64) error {
 	return tosca.ConstError(fmt.Sprintf("memory too small, size %d, attempted to write %d bytes at %d", memSize, size, offset))
 }
 
-// setWithCapacityAndGasCheck sets the given value at the given offset, expands memory as needed and charges for it.
+// set sets the given value at the given offset, expands memory as needed and charges for it.
 // Returns error if insufficient gas or offset+size overflows.
-func (m *Memory) setWithCapacityAndGasCheck(offset, size uint64, value []byte, c *context) error {
+func (m *Memory) set(offset, size uint64, value []byte, c *context) error {
 	err := m.expandMemory(offset, size, c)
 	if err != nil {
 		return err
 	}
-	return m.set(offset, size, value)
+	return m.trySet(offset, size, value)
 }
 
 func (m *Memory) CopyWord(offset uint64, trg *uint256.Int, c *context) error {

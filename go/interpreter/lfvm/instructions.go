@@ -220,7 +220,7 @@ func opMcopy(c *context) {
 	if err != nil {
 		return
 	}
-	if err := c.memory.setWithCapacityAndGasCheck(destOffset, size, data, c); err != nil {
+	if err := c.memory.set(destOffset, size, data, c); err != nil {
 		return
 	}
 }
@@ -398,7 +398,7 @@ func opCallDataCopy(c *context) {
 		return
 	}
 
-	if err := c.memory.set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64)); err != nil {
+	if err := c.memory.trySet(memOffset64, length64, getData(c.params.Input, dataOffset64, length64)); err != nil {
 		c.signalError()
 	}
 }
@@ -832,7 +832,7 @@ func opCodeCopy(c *context) {
 		return
 	}
 	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
-	if err := c.memory.set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
+	if err := c.memory.trySet(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
 		c.signalError()
 	}
 }
@@ -1083,7 +1083,7 @@ func opExtCodeCopy(c *context) {
 		return
 	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
-	if err = c.memory.set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
+	if err = c.memory.trySet(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
 		c.signalError()
 	}
 }
@@ -1246,7 +1246,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 	ret, err := c.context.Call(kind, callParams)
 
 	if err == nil {
-		if memSetErr := c.memory.set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
+		if memSetErr := c.memory.trySet(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
 			c.signalError()
 		}
 	}
@@ -1319,7 +1319,7 @@ func opReturnDataCopy(c *context) {
 		return
 	}
 
-	if err := c.memory.setWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c); err != nil {
+	if err := c.memory.set(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c); err != nil {
 		c.signalError()
 	}
 }
