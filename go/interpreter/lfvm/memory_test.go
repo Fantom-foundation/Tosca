@@ -386,9 +386,9 @@ func TestMemory_SetByte_SuccessfulCases(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctxt := getEmptyContext()
 			m := NewMemory()
-			m.store = test.memory
+			m.store = bytes.Clone(test.memory)
 			ctxt.gas = tosca.Gas(3)
-			value := byte(0x12)
+			value := byte(0xff)
 
 			err := m.setByte(test.offset, value, &ctxt)
 			if err != nil {
@@ -399,8 +399,23 @@ func TestMemory_SetByte_SuccessfulCases(t *testing.T) {
 			if m.length() <= test.offset {
 				t.Errorf("unexpected memory size, want: %d, got: %d", test.offset, m.length())
 			}
-			if m.store[test.offset] != value {
-				t.Errorf("unexpected value, want: %v, got: %v", value, m.store[test.offset])
+			if test.memory != nil {
+				for i, b := range test.memory {
+					if i == int(test.offset) {
+						if m.store[i] != value {
+							t.Errorf("unexpected value, want: %v, got: %v", value, m.store[i])
+						}
+					} else {
+						if m.store[i] != b {
+							t.Errorf("unexpected value at position %v, want: %v, got: %v", i, b, m.store[i])
+						}
+					}
+				}
+			} else {
+				// for empty memories expansion we only want to check the offset byte.
+				if m.store[test.offset] != value {
+					t.Errorf("unexpected value, want: %v, got: %v", value, m.store[test.offset])
+				}
 			}
 		})
 	}
@@ -421,7 +436,7 @@ func TestMemory_SetByte_ErrorCases(t *testing.T) {
 
 }
 
-func TestMemory_Set_SuccessfulCases(t *testing.T) {
+func TestMemory_TrySet_SuccessfulCases(t *testing.T) {
 
 	memoryOriginalSize := uint64(8)
 	offset := uint64(1)
@@ -436,7 +451,7 @@ func TestMemory_Set_SuccessfulCases(t *testing.T) {
 	m := NewMemory()
 	m.store = make([]byte, memoryOriginalSize)
 
-	err := m.set(offset, size, data)
+	err := m.trySet(offset, size, data)
 	if err != nil {
 		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
 	}
@@ -450,24 +465,25 @@ func TestMemory_Set_SuccessfulCases(t *testing.T) {
 
 }
 
-func TestMemory_Set_ErrorCases(t *testing.T) {
+func TestMemory_TrySet_ErrorCases(t *testing.T) {
+	c := context{gas: 0}
 	m := NewMemory()
 	m.store = make([]byte, 8)
 	// since we are only testing for failed cases, data is not relevant because
 	// the internal checks are done with offset and size parameters.
 
 	// size overflow
-	err := m.set(1, math.MaxUint64, []byte{})
+	err := m.set(1, math.MaxUint64, []byte{}, &c)
 	if !errors.Is(err, errOverflow) {
 		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
 	}
 	// offset overflow
-	err = m.set(math.MaxUint64, 1, []byte{})
+	err = m.set(math.MaxUint64, 1, []byte{}, &c)
 	if !errors.Is(err, errOverflow) {
 		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
 	}
 	// not enough memory
-	err = m.set(32, 32, []byte{})
+	err = m.trySet(32, 32, []byte{})
 	if !errors.Is(err, makeInsufficientMemoryError(8, 32, 32)) {
 		t.Errorf("unexpected error, want: %v, got: %v", makeInsufficientMemoryError(8, 32, 32), err)
 	}
