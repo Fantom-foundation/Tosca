@@ -238,6 +238,33 @@ func TestTransferValue_FailedValueTransfer(t *testing.T) {
 	}
 }
 
+func TestTransferValue_SameSenderAndReceiver(t *testing.T) {
+	tests := map[string]struct {
+		value         tosca.Value
+		expectedError bool
+	}{
+		"sufficientBalance":   {tosca.NewValue(10), false},
+		"insufficientBalance": {tosca.NewValue(1000), true},
+	}
+
+	for _, test := range tests {
+		ctrl := gomock.NewController(t)
+		context := tosca.NewMockTransactionContext(ctrl)
+		context.EXPECT().GetBalance(gomock.Any()).Return(tosca.NewValue(100))
+
+		err := transferValue(context, test.value, tosca.Address{1}, tosca.Address{1})
+		if test.expectedError {
+			if err == nil {
+				t.Errorf("transfer value should have returned an error")
+			}
+		} else {
+			if err != nil {
+				t.Errorf("transfer value returned an unexpected error: %v", err)
+			}
+		}
+	}
+}
+
 func TestCreateAddress(t *testing.T) {
 	tests := map[string]struct {
 		kind     tosca.CallKind

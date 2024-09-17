@@ -76,9 +76,13 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 	}
 
 	snapshot := r.CreateSnapshot()
-	if err := transferValue(r, parameters.Value, parameters.Sender, recipient); err != nil {
-		r.RestoreSnapshot(snapshot)
-		return tosca.CallResult{}, nil
+
+	// StaticCall and DelegateCall do not transfer value
+	if kind != tosca.StaticCall && kind != tosca.DelegateCall {
+		if err := transferValue(r, parameters.Value, parameters.Sender, recipient); err != nil {
+			r.RestoreSnapshot(snapshot)
+			return tosca.CallResult{}, nil
+		}
 	}
 
 	output, isStatePrecompiled := handleStateContract(
@@ -174,6 +178,10 @@ func transferValue(
 	senderBalance := context.GetBalance(sender)
 	if senderBalance.Cmp(value) < 0 {
 		return fmt.Errorf("insufficient balance: %v < %v", senderBalance, value)
+	}
+
+	if sender == recipient {
+		return nil
 	}
 
 	receiverBalance := context.GetBalance(recipient)
