@@ -1,6 +1,6 @@
 use std::mem;
 
-use evmc_vm::{Revision, StatusCode, StepResult, StepStatusCode, Uint256};
+use evmc_vm::{ExecutionResult, Revision, StatusCode, StepResult, StepStatusCode, Uint256};
 
 use crate::{
     interpreter::{CodeState, Memory, Stack},
@@ -52,7 +52,7 @@ impl<'a> From<RunResult<'a>> for StepResult {
             // layout.
             mem::transmute::<Vec<u256>, Vec<Uint256>>(stack)
         };
-        StepResult::new(
+        Self::new(
             value.step_status_code,
             value.status_code,
             value.revision,
@@ -63,6 +63,17 @@ impl<'a> From<RunResult<'a>> for StepResult {
             stack,
             value.memory.into_inner(),
             value.last_call_return_data,
+        )
+    }
+}
+
+impl<'a> From<RunResult<'a>> for ExecutionResult {
+    fn from(value: RunResult) -> Self {
+        Self::new(
+            value.status_code,
+            value.gas_left as i64,
+            value.gas_refund,
+            value.output.as_deref(),
         )
     }
 }
