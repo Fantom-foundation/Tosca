@@ -468,12 +468,12 @@ func TestMemory_Set_ErrorCases(t *testing.T) {
 		t.Errorf("unexpected error, want: %v, got: %v", errOutOfGas, err)
 	}
 	err = m.set(math.MaxUint64, 1, []byte{}, &c)
-	if !errors.Is(err, errGasUintOverflow) {
-		t.Errorf("unexpected error, want: %v, got: %v", errGasUintOverflow, err)
+	if !errors.Is(err, errOverflow) {
+		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
 	}
 	err = m.set(1, math.MaxUint64, []byte{}, &c)
-	if !errors.Is(err, errGasUintOverflow) {
-		t.Errorf("unexpected error, want: %v, got: %v", errGasUintOverflow, err)
+	if !errors.Is(err, errOverflow) {
+		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
 	}
 }
 
