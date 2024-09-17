@@ -33,7 +33,9 @@ func init() {
 			panic(fmt.Errorf("failed to load evmrs library: %s", err))
 		}
 		// This instance remains in its basic configuration.
-		tosca.RegisterInterpreter("evmrs", &evmrsInstance{evm})
+		tosca.RegisterInterpreterFactory("evmrs", func(any) (tosca.Interpreter, error) {
+			return &evmrsInstance{evm}, nil
+		})
 	}
 }
 
