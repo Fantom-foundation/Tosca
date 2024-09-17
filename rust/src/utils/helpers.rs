@@ -45,7 +45,7 @@ impl SliceExt for [u8] {
 
     #[inline(always)]
     fn copy_padded(&mut self, src: &[u8], gas_left: &mut u64) -> Result<(), StatusCode> {
-        consume_copy_cost(gas_left, self.len() as u64)?;
+        consume_copy_cost(self.len() as u64, gas_left)?;
         self[..src.len()].copy_from_slice(src);
         self[src.len()..].set_to_zero();
         Ok(())
@@ -84,19 +84,39 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::SliceExt;
-    use crate::types::u256;
+    use evmc_vm::{MessageFlags, Revision, StatusCode};
+
+    use crate::{
+        interpreter::Interpreter,
+        types::{u256, MockExecutionContextTrait, MockExecutionMessage},
+        utils::{self, SliceExt},
+    };
 
     #[test]
-    fn get_slice_within_bounds() {
+    fn get_within_bounds() {
+        assert_eq!([].get_within_bounds(u256::ZERO, 1), &[]);
         assert_eq!([1].get_within_bounds(u256::ZERO, 0), &[]);
         assert_eq!([1].get_within_bounds(u256::ZERO, 1), &[1]);
         assert_eq!([1].get_within_bounds(u256::ZERO, 2), &[1]);
-        assert_eq!([1].get_within_bounds(1u8.into(), 1), &[]);
+        assert_eq!([1].get_within_bounds(u256::ONE, 1), &[]);
+        assert_eq!([1].get_within_bounds(u256::MAX, 1), &[]);
     }
 
     #[test]
-    fn copy_slice_padded() {
+    fn set_to_zero() {
+        let mut data = [];
+        data.set_to_zero();
+        assert_eq!(&data, &[]);
+        let mut data = [1];
+        data.set_to_zero();
+        assert_eq!(&data, &[0]);
+        let mut data = [1, 2];
+        data.set_to_zero();
+        assert_eq!(&data, &[0, 0]);
+    }
+
+    #[test]
+    fn copy_padded() {
         let src = [];
         let mut dest = [];
         assert_eq!(dest.copy_padded(&src, &mut 1_000_000), Ok(()));
@@ -111,9 +131,63 @@ mod tests {
         assert_eq!(dest.copy_padded(&src, &mut 1_000_000), Ok(()));
         assert_eq!(dest, [2]);
 
-        let src = [2];
-        let mut dest = [1, 3];
+        let src = [3];
+        let mut dest = [1, 2];
         assert_eq!(dest.copy_padded(&src, &mut 1_000_000), Ok(()));
-        assert_eq!(dest, [2, 0]);
+        assert_eq!(dest, [3, 0]);
+
+        let src = [2];
+        let mut dest = [1];
+        assert_eq!(
+            dest.copy_padded(&src, &mut 0),
+            Err(StatusCode::EVMC_OUT_OF_GAS)
+        );
+    }
+
+    #[test]
+    fn word_size() {
+        assert_eq!(utils::word_size(0), Ok(0));
+        assert_eq!(utils::word_size(1), Ok(1));
+        assert_eq!(utils::word_size(32), Ok(1));
+        assert_eq!(utils::word_size(33), Ok(2));
+        assert_eq!(utils::word_size(u64::MAX), Err(StatusCode::EVMC_OUT_OF_GAS));
+    }
+
+    #[test]
+    fn check_min_revision() {
+        assert_eq!(
+            utils::check_min_revision(Revision::EVMC_FRONTIER, Revision::EVMC_FRONTIER),
+            Ok(())
+        );
+        assert_eq!(
+            utils::check_min_revision(Revision::EVMC_FRONTIER, Revision::EVMC_CANCUN),
+            Ok(())
+        );
+        assert_eq!(
+            utils::check_min_revision(Revision::EVMC_CANCUN, Revision::EVMC_FRONTIER),
+            Err(StatusCode::EVMC_UNDEFINED_INSTRUCTION)
+        );
+    }
+
+    #[test]
+    fn check_not_read_only() {
+        let message = MockExecutionMessage::default().into();
+        let mut context = MockExecutionContextTrait::new();
+        let interpreter = Interpreter::new(Revision::EVMC_FRONTIER, &message, &mut context, &[]);
+        assert_eq!(utils::check_not_read_only(&interpreter), Ok(()));
+
+        let interpreter = Interpreter::new(Revision::EVMC_BYZANTIUM, &message, &mut context, &[]);
+        assert_eq!(utils::check_not_read_only(&interpreter), Ok(()));
+
+        let message = MockExecutionMessage {
+            flags: MessageFlags::EVMC_STATIC as u32,
+            ..Default::default()
+        };
+        let message = message.into();
+        let interpreter = Interpreter::new(Revision::EVMC_BYZANTIUM, &message, &mut context, &[]);
+        assert_eq!(
+            utils::check_not_read_only(&interpreter),
+            Err(StatusCode::EVMC_STATIC_MODE_VIOLATION)
+        );
     }
 }

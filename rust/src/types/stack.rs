@@ -103,9 +103,38 @@ mod tests {
     fn swap_with_top() {
         let mut stack = Stack::new(vec![u256::MAX, u256::ZERO]);
         assert_eq!(stack.swap_with_top(0), Ok(()));
+        assert_eq!(stack.into_inner(), [u256::MAX, u256::ZERO]);
+
+        let mut stack = Stack::new(vec![u256::MAX, u256::ZERO]);
         assert_eq!(stack.swap_with_top(1), Ok(()));
+        assert_eq!(stack.into_inner(), [u256::ZERO, u256::MAX]);
+
+        let mut stack = Stack::new(vec![u256::MAX, u256::ZERO]);
         assert_eq!(
             stack.swap_with_top(2),
+            Err(StatusCode::EVMC_STACK_UNDERFLOW)
+        );
+    }
+
+    #[test]
+    fn check_overflow_on_push() {
+        let stack = Stack::new(vec![u256::MAX; 1023]);
+        assert_eq!(stack.check_overflow_on_push(), Ok(()));
+        let stack = Stack::new(vec![u256::MAX; 1024]);
+        assert_eq!(
+            stack.check_overflow_on_push(),
+            Err(StatusCode::EVMC_STACK_OVERFLOW)
+        );
+    }
+
+    #[test]
+    fn check_underflow() {
+        let stack = Stack::new(vec![]);
+        assert_eq!(stack.check_underflow(0), Ok(()));
+        let stack = Stack::new(vec![u256::ZERO]);
+        assert_eq!(stack.check_underflow(1), Ok(()));
+        assert_eq!(
+            stack.check_underflow(2),
             Err(StatusCode::EVMC_STACK_UNDERFLOW)
         );
     }
