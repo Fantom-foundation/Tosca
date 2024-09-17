@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"errors"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -433,7 +434,47 @@ func TestMemory_SetByte_ErrorCases(t *testing.T) {
 	if !errors.Is(err, errOutOfGas) {
 		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
 	}
+}
 
+func TestMemory_Set_Successful(t *testing.T) {
+	c := getEmptyContext()
+	c.gas = 4
+	m := NewMemory()
+	offset := uint64(0)
+	value := []byte{0xff, 0xee}
+	size := uint64(len(value))
+	err := m.set(offset, size, value, &c)
+	if err != nil {
+		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
+	}
+	if m.length() != 32 {
+		t.Errorf("set should not change memory size, want: %d, got: %d", 32, m.length())
+	}
+	if !bytes.Equal(m.store[offset:offset+size], value) {
+		t.Errorf("unexpected memory value, want: %x, got: %x", value, m.store[offset:offset+size])
+	}
+	if c.gas != 1 {
+		t.Errorf("unexpected gas value, want: %d, got: %d", 1, c.gas)
+	}
+}
+
+func TestMemory_Set_ErrorCases(t *testing.T) {
+	c := getEmptyContext()
+	c.gas = 0
+	m := NewMemory()
+
+	err := m.set(0, 1, []byte{}, &c)
+	if !errors.Is(err, errOutOfGas) {
+		t.Errorf("unexpected error, want: %v, got: %v", errOutOfGas, err)
+	}
+	err = m.set(math.MaxUint64, 1, []byte{}, &c)
+	if !errors.Is(err, errGasUintOverflow) {
+		t.Errorf("unexpected error, want: %v, got: %v", errGasUintOverflow, err)
+	}
+	err = m.set(1, math.MaxUint64, []byte{}, &c)
+	if !errors.Is(err, errGasUintOverflow) {
+		t.Errorf("unexpected error, want: %v, got: %v", errGasUintOverflow, err)
+	}
 }
 
 func TestMemory_TrySet_SuccessfulCases(t *testing.T) {
@@ -484,8 +525,8 @@ func TestMemory_TrySet_ErrorCases(t *testing.T) {
 	}
 	// not enough memory
 	err = m.trySet(32, 32, []byte{})
-	if !errors.Is(err, makeInsufficientMemoryError(8, 32, 32)) {
-		t.Errorf("unexpected error, want: %v, got: %v", makeInsufficientMemoryError(8, 32, 32), err)
+	if !strings.Contains(err.Error(), "memory too small") {
+		t.Errorf("unexpected error, want: memory too small, got: %v", err)
 	}
 }
 

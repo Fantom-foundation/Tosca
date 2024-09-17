@@ -185,15 +185,11 @@ func (m *Memory) trySet(offset, size uint64, value []byte) error {
 			return errOverflow
 		}
 		if offset+size > m.length() {
-			return makeInsufficientMemoryError(m.length(), size, offset)
+			return fmt.Errorf("memory too small, size %d, attempted to write %d bytes at %d", m.length(), size, offset)
 		}
 		copy(m.store[offset:offset+size], value)
 	}
 	return nil
-}
-
-func makeInsufficientMemoryError(memSize, size, offset uint64) error {
-	return tosca.ConstError(fmt.Sprintf("memory too small, size %d, attempted to write %d bytes at %d", memSize, size, offset))
 }
 
 // set sets the given value at the given offset, expands memory as needed and charges for it.
