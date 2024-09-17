@@ -589,7 +589,7 @@ func TestMCopy(t *testing.T) {
 			if ctxt.memory.length() != uint64(len(test.memoryAfter)) {
 				t.Errorf("expected memory size %d, got %d", uint64(len(test.memoryAfter)), ctxt.memory.length())
 			}
-			data, err := ctxt.memory.readSliceAndExpandMemory(0, ctxt.memory.length(), &ctxt)
+			data, err := ctxt.memory.getSlice(0, ctxt.memory.length(), &ctxt)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}

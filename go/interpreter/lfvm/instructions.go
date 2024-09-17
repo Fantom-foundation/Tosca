@@ -216,7 +216,7 @@ func opMcopy(c *context) {
 		return
 	}
 
-	data, err := c.memory.readSliceAndExpandMemory(srcOffset, size, c)
+	data, err := c.memory.getSlice(srcOffset, size, c)
 	if err != nil {
 		c.signalError()
 		return
@@ -614,7 +614,7 @@ func opSha3(c *context) {
 		return
 	}
 
-	data, err := c.memory.readSliceAndExpandMemory(offset.Uint64(), size.Uint64(), c)
+	data, err := c.memory.getSlice(offset.Uint64(), size.Uint64(), c)
 	if err != nil {
 		c.signalError()
 		return
@@ -924,7 +924,7 @@ func genericCreate(c *context, kind tosca.CallKind) {
 		return
 	}
 
-	input, err := c.memory.readSliceAndExpandMemory(offset.Uint64(), size.Uint64(), c)
+	input, err := c.memory.getSlice(offset.Uint64(), size.Uint64(), c)
 	if err != nil {
 		c.signalError()
 		return
@@ -1088,12 +1088,12 @@ func genericCall(c *context, kind tosca.CallKind) {
 	}
 
 	// Get arguments from the memory.
-	args, err := c.memory.readSliceAndExpandMemory(inOffset.Uint64(), inSize.Uint64(), c)
+	args, err := c.memory.getSlice(inOffset.Uint64(), inSize.Uint64(), c)
 	if err != nil {
 		c.signalError()
 		return
 	}
-	output, err := c.memory.readSliceAndExpandMemory(retOffset.Uint64(), retSize.Uint64(), c)
+	output, err := c.memory.getSlice(retOffset.Uint64(), retSize.Uint64(), c)
 	if err != nil {
 		c.signalError()
 		return
@@ -1301,7 +1301,7 @@ func opLog(c *context, size int) {
 		return
 	}
 
-	data, err := c.memory.readSliceAndExpandMemory(start, log_size, c)
+	data, err := c.memory.getSlice(start, log_size, c)
 	if err != nil {
 		c.signalError()
 		return

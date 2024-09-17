@@ -187,25 +187,57 @@ func TestMemory_expandMemory_expandsMemoryOnlyWhenNeeded(t *testing.T) {
 	}
 }
 
-func TestMemory_readWord(t *testing.T) {
+func TestMemory_getSlice_ErrorCases(t *testing.T) {
 	c := getEmptyContext()
+	c.gas = 0
 	m := NewMemory()
-	// 32 byte base memory
-	baseMemory := []byte{0x0, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-		0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
-		0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F}
-	m.store = bytes.Clone(baseMemory)
-	target := new(uint256.Int)
-	err := m.readWord(0, target, &c)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+	_, err := m.getSlice(0, 1, &c)
+	if !errors.Is(err, errOutOfGas) {
+		t.Errorf("error should be errOutOfGas, instead is: %v", err)
 	}
-	if m.length() != uint64(len(baseMemory)) {
-		t.Errorf("memory size should not have changed from %v bytes, instead is: %d", len(baseMemory), m.length())
+	_, err = m.getSlice(math.MaxUint64-31, 32, &c)
+	if !errors.Is(err, errGasUintOverflow) {
+		t.Errorf("error should be errGasUintOverflow, instead is: %v", err)
 	}
-	if !target.Eq(new(uint256.Int).SetBytes(baseMemory)) {
-		t.Errorf("unexpected value: %v", target)
+}
+
+func TestMemory_getSlice(t *testing.T) {
+
+	tests := map[string]struct {
+		offset   uint64
+		size     uint64
+		expected []byte
+	}{
+		"size zero returns empty slice": {
+			offset:   64,
+			size:     0,
+			expected: []byte{},
+		},
+		"memory does not expand when not needed": {
+			offset:   0,
+			size:     4,
+			expected: []byte{0x0, 0x01, 0x02, 0x03},
+		},
+		"memory expands when needed": {
+			offset:   4,
+			size:     5,
+			expected: []byte{0x04, 4: 0x0},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			c := getEmptyContext()
+			m := NewMemory()
+			m.store = []byte{0x0, 0x01, 0x02, 0x03, 0x04}
+			slice, err := m.getSlice(test.offset, test.size, &c)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if !bytes.Equal(slice, test.expected) {
+				t.Errorf("unexpected slice: %x, want: %x", slice, test.expected)
+			}
+		})
 	}
 }
 
@@ -231,38 +263,20 @@ func TestMemory_readWord_ErrorCases(t *testing.T) {
 	c := getEmptyContext()
 	c.gas = 0
 	m := NewMemory()
-	target := new(uint256.Int)
+	originalTarget := new(uint256.Int)
+	target := originalTarget.Clone()
 	err := m.readWord(math.MaxUint64-31, target, &c)
 	if !errors.Is(err, errGasUintOverflow) {
 		t.Errorf("error should be errGasUintOverflow, instead is: %v", err)
+	}
+	if target.Cmp(originalTarget) != 0 {
+		t.Errorf("target should not have been modified, want %v but got %v", originalTarget, target)
 	}
 	err = m.readWord(0, target, &c)
 	if !errors.Is(err, errOutOfGas) {
 		t.Errorf("error should be errOutOfGas, instead is: %v", err)
 	}
-}
-
-func TestMemory_readSlice_ReturnsEmpty(t *testing.T) {
-	c := getEmptyContext()
-	m := NewMemory()
-	m.store = []byte{0x0, 0x01, 0x02}
-
-	slice, err := c.memory.readSliceAndExpandMemory(1, 0, &c)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+	if target.Cmp(originalTarget) != 0 {
+		t.Errorf("target should not have been modified, want %v but got %v", originalTarget, target)
 	}
-	if len(slice) != 0 {
-		t.Errorf("expected empty slice, instead got: %v", slice)
-	}
-	slice, err = c.memory.readSliceAndExpandMemory(m.length()+1, 0, &c)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if len(slice) != 0 {
-		t.Errorf("expected empty slice, instead got: %v", slice)
-	}
-	if m.length() != 3 {
-		t.Errorf("memory should not have changed, instead is: %d", m.length())
-	}
-
 }
