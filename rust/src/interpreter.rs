@@ -1105,11 +1105,12 @@ where
     E: ExecutionContextTrait,
 {
     fn from(value: Interpreter<E>) -> Self {
-        let stack = value.stack.into_inner();
-        // SAFETY:
-        // u256 is a newtype of Uint256 with repr(transparent) which guarantees the same memory
-        // layout.
-        let stack = unsafe { mem::transmute::<Vec<u256>, Vec<Uint256>>(stack) };
+        let stack = value
+            .stack
+            .into_inner()
+            .into_iter()
+            .map(Into::into)
+            .collect();
         Self::new(
             value.step_status_code,
             value.status_code,

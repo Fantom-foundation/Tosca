@@ -1,4 +1,4 @@
-use std::{mem, process};
+use std::process;
 
 use evmc_vm::{
     ffi::evmc_capabilities, EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult, Revision,
@@ -8,7 +8,7 @@ use evmc_vm::{
 use crate::{
     ffi::EVMC_CAPABILITY,
     interpreter::Interpreter,
-    types::{u256, Memory, Stack},
+    types::{Memory, Stack},
 };
 
 pub struct EvmRs;
@@ -69,12 +69,7 @@ impl SteppableEvmcVm for EvmRs {
             // If this is not the case it violates the EVMC spec and is an irrecoverable error.
             process::abort();
         };
-        let stack = Stack::new(
-            // SAFETY:
-            // u256 is a newtype of Uint256 with repr(transparent) which guarantees the same memory
-            // layout.
-            unsafe { mem::transmute::<Vec<Uint256>, Vec<u256>>(stack.to_owned()) },
-        );
+        let stack = Stack::new(stack.iter().copied().map(Into::into).collect());
         let memory = Memory::new(memory.to_owned());
         Interpreter::new_steppable(
             revision,
