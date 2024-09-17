@@ -924,7 +924,8 @@ func genericCreate(c *context, kind tosca.CallKind) {
 		return
 	}
 
-	if c.memory.expandMemory(offset.Uint64(), size.Uint64(), c) != nil {
+	input, err := c.memory.readSliceAndExpandMemory(offset.Uint64(), size.Uint64(), c)
+	if err != nil {
 		c.signalError()
 		return
 	}
@@ -954,7 +955,7 @@ func genericCreate(c *context, kind tosca.CallKind) {
 		}
 	}
 
-	input := c.memory.readSlice(offset.Uint64(), size.Uint64())
+	// input := c.memory.readSlice(offset.Uint64(), size.Uint64())
 
 	// Apply EIP150
 	gas := c.gas
@@ -1302,7 +1303,7 @@ func opLog(c *context, size int) {
 		return
 	}
 
-	d, err := c.memory.readSliceAndExpandMemory(start, log_size, c)
+	data, err := c.memory.readSliceAndExpandMemory(start, log_size, c)
 	if err != nil {
 		c.signalError()
 		return

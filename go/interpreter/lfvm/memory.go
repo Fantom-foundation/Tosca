@@ -194,18 +194,6 @@ func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c
 	return nil
 }
 
-// readWord reads a Word (32 byte) from the memory at the given offset.
-// Expands memory as needed and charges for it.
-// Returns error in case of not enough gas or offset+32 overflow.
-func (m *Memory) readWord(offset uint64, trg *uint256.Int, c *context) error {
-	data, err := m.readSliceAndExpandMemory(offset, 32, c)
-	if err != nil {
-		return err
-	}
-	trg.SetBytes32(data)
-	return nil
-}
-
 // Copies data from the memory to the given slice.
 func (m *Memory) CopyData(offset uint64, trg []byte) {
 	if m.length() < offset {
@@ -222,20 +210,6 @@ func (m *Memory) CopyData(offset uint64, trg []byte) {
 	}
 }
 
-// readSlice reads size bytes from the memory at the given offset.
-// Returns nil if offset+size is out of bounds or size is 0.
-func (m *Memory) readSlice(offset, size uint64) []byte {
-	if size == 0 {
-		return nil
-	}
-
-	if m.length() >= offset+size {
-		return m.store[offset : offset+size]
-	}
-
-	return nil
-}
-
 // readSliceAndExpandMemory reads size bytes from the memory at the given offset.
 // Expands memory as needed and charges for it.
 // Returns error in case of not enough gas or offset+32 overflow.
@@ -244,5 +218,22 @@ func (m *Memory) readSliceAndExpandMemory(offset, size uint64, c *context) ([]by
 	if err != nil {
 		return nil, err
 	}
-	return m.readSlice(offset, size), nil
+	// since memory does not expand on size 0 independently of the offset,
+	// we need to prevent out of bounds access
+	if size == 0 {
+		return nil, nil
+	}
+	return m.store[offset : offset+size], nil
+}
+
+// readWord reads a Word (32 byte) from the memory at the given offset.
+// Expands memory as needed and charges for it.
+// Returns error in case of not enough gas or offset+32 overflow.
+func (m *Memory) readWord(offset uint64, trg *uint256.Int, c *context) error {
+	data, err := m.readSliceAndExpandMemory(offset, 32, c)
+	if err != nil {
+		return err
+	}
+	trg.SetBytes32(data)
+	return nil
 }

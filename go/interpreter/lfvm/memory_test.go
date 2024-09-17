@@ -245,15 +245,17 @@ func TestMemory_readWord_ErrorCases(t *testing.T) {
 }
 
 func TestMemory_readSlice_ReturnsEmpty(t *testing.T) {
+	c := getEmptyContext()
 	m := NewMemory()
 	m.store = []byte{0x0, 0x01, 0x02}
-	emptySlices := [][]byte{
-		m.readSlice(1, 0), // size zero
-		m.readSlice(6, 1), // offset out of bounds
+
+	slice, err := c.memory.readSliceAndExpandMemory(1, 0, &c)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
-	for _, slice := range emptySlices {
-		if len(slice) != 0 {
-			t.Errorf("expected empty slice, instead got: %v", slice)
-		}
+
+	if len(slice) != 0 {
+		t.Errorf("expected empty slice, instead got: %v", slice)
 	}
+
 }
