@@ -955,8 +955,6 @@ func genericCreate(c *context, kind tosca.CallKind) {
 		}
 	}
 
-	// input := c.memory.readSlice(offset.Uint64(), size.Uint64())
-
 	// Apply EIP150
 	gas := c.gas
 	gas -= gas / 64
