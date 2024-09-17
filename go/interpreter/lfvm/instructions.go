@@ -211,7 +211,7 @@ func opMcopy(c *context) error {
 	if err != nil {
 		return err
 	}
-	if err := c.memory.setWithCapacityAndGasCheck(destOffset, size, data, c); err != nil {
+	if err := c.memory.set(destOffset, size, data, c); err != nil {
 		return err
 	}
 	return nil
@@ -385,7 +385,7 @@ func opCallDataCopy(c *context) error {
 		return err
 	}
 
-	return c.memory.set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64))
+	return c.memory.set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64), c)
 }
 
 func opAnd(c *context) {
@@ -813,7 +813,7 @@ func opCodeCopy(c *context) error {
 		return err
 	}
 	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
-	return c.memory.set(memOffset.Uint64(), length.Uint64(), codeCopy)
+	return c.memory.set(memOffset.Uint64(), length.Uint64(), codeCopy, c)
 }
 
 func opExtcodesize(c *context) error {
@@ -1002,7 +1002,7 @@ func opExtCodeCopy(c *context) error {
 		return err
 	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
-	return c.memory.set(memOffset.Uint64(), length.Uint64(), codeCopy)
+	return c.memory.set(memOffset.Uint64(), length.Uint64(), codeCopy, c)
 }
 
 func checkSizeOffsetUint64Overflow(offset, size *uint256.Int) error {
@@ -1217,7 +1217,7 @@ func opReturnDataCopy(c *context) error {
 		return errOutOfGas
 	}
 
-	return c.memory.setWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c)
+	return c.memory.set(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c)
 }
 
 func opLog(c *context, size int) error {
