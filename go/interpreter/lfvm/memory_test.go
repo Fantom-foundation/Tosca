@@ -277,7 +277,7 @@ func TestMemory_Set_Successful(t *testing.T) {
 		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
 	}
 	if m.length() != 32 {
-		t.Errorf("set should not change memory size, want: %d, got: %d", 32, m.length())
+		t.Errorf("memory size should be 32 bytes instead got: %d", m.length())
 	}
 	if !bytes.Equal(m.store[offset:offset+size], value) {
 		t.Errorf("unexpected memory value, want: %x, got: %x", value, m.store[offset:offset+size])
