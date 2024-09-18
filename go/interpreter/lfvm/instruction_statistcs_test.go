@@ -92,8 +92,11 @@ func TestStatisticsRunner_DumpProfilePrintsExpectedOutput(t *testing.T) {
 			}
 			instance.ResetProfile()
 			//run code
-			instance.Run(tosca.Parameters{Input: []byte{}, Static: true, Gas: 10,
+			_, err = instance.Run(tosca.Parameters{Input: []byte{}, Static: true, Gas: 10,
 				Code: test.code})
+			if err != nil {
+				t.Fatalf("Failed to run code: %v", err)
+			}
 
 			// Run testing code
 			instance.DumpProfile()

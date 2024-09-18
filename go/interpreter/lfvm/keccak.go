@@ -36,9 +36,9 @@ var keccakHasherPool = sync.Pool{New: func() any { return sha3.NewLegacyKeccak25
 func keccak256_Go(data []byte) tosca.Hash {
 	hasher := keccakHasherPool.Get().(keccakHasher)
 	hasher.Reset()
-	hasher.Write(data)
+	_, _ = hasher.Write(data) // keccak256 never returns an error
 	var res tosca.Hash
-	hasher.Read(res[:])
+	_, _ = hasher.Read(res[:]) // keccak256 never returns an error
 	keccakHasherPool.Put(hasher)
 	return res
 }

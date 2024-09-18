@@ -29,7 +29,7 @@ import (
 )
 
 func init() {
-	tosca.RegisterInterpreterFactory("geth", func(any) (tosca.Interpreter, error) {
+	tosca.MustRegisterInterpreterFactory("geth", func(any) (tosca.Interpreter, error) {
 		return &gethVm{}, nil
 	})
 }

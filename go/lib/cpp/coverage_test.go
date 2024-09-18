@@ -25,7 +25,10 @@ func TestDumpCppCoverageData(t *testing.T) {
 
 	// write coverage data into tempDir directory
 	tempDir := t.TempDir()
-	os.Setenv("GCOV_PREFIX", tempDir)
+	err := os.Setenv("GCOV_PREFIX", tempDir)
+	if err != nil {
+		t.Fatalf("Failed to set GCOV_PREFIX: %v", err)
+	}
 
 	// run dump routine
 	DumpCppCoverageData()
@@ -45,7 +48,7 @@ func TestDumpCppCoverageData(t *testing.T) {
 
 	// check that at least one file is generated
 	found := false
-	err := filepath.WalkDir(tempDir, func(s string, _ fs.DirEntry, err error) error {
+	err = filepath.WalkDir(tempDir, func(s string, _ fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

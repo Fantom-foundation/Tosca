@@ -11,6 +11,9 @@ TOSCA_CPP_ASSERT = ON
 TOSCA_CPP_ASAN = OFF
 TOSCA_CPP_COVERAGE = OFF
 
+STATICCHECK_VERSION = 2024.1.1
+ERRCHECK_VERSION = v1.7.0
+
 .PHONY: all tosca tosca-go tosca-cpp test test-go test-cpp test-cpp-asan \
         bench bench-go clean clean-go clean-cpp evmone evmone-clean license-headers
 
@@ -122,3 +125,18 @@ test-coverage: test-go coverage-report
 coverage-report:
 	@go install github.com/vladopajic/go-test-coverage/v2@v2.10.1
 	@go-test-coverage --config .testcoverage.yml
+
+# Linting
+
+vet:
+	go vet ./go/...
+
+staticcheck: 
+	@go install honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)
+	staticcheck ./go/...
+
+errorcheck:
+	@go install github.com/kisielk/errcheck@$(ERRCHECK_VERSION)
+	errcheck ./go/...
+
+lint-go: vet staticcheck errorcheck
