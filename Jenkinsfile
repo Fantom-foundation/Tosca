@@ -56,9 +56,7 @@ pipeline {
 
         stage('Lint Go sources') {
             steps {
-                sh 'go vet ./go/...'
-                sh 'go install honnef.co/go/tools/cmd/staticcheck@latest'
-                sh "$HOME/go/bin/staticcheck ./go/..."
+                sh 'make lint-go'
             }
         }
 
