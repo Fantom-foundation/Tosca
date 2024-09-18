@@ -394,6 +394,7 @@ func opCallDataCopy(c *context) {
 		return
 	}
 
+	// we get the memory to be written before calling getData to prevent not enough memory panics
 	data, err := c.memory.GetSliceWithCapacityAndGas(memOffset64, length64, c)
 	if err != nil {
 		c.signalError()
@@ -828,6 +829,7 @@ func opCodeCopy(c *context) {
 		return
 	}
 
+	// we get the memory to be written before calling getData to prevent not enough memory panics
 	data, err := c.memory.GetSliceWithCapacityAndGas(memOffset.Uint64(), length.Uint64(), c)
 	if err != nil {
 		c.signalError()
@@ -1079,6 +1081,7 @@ func opExtCodeCopy(c *context) {
 		uint64CodeOffset = math.MaxUint64
 	}
 
+	// we get the memory to be written before calling getData to prevent not enough memory panics
 	data, err := c.memory.GetSliceWithCapacityAndGas(memOffset.Uint64(), length.Uint64(), c)
 	if err != nil {
 		c.signalError()
