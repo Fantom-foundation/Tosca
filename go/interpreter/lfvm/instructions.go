@@ -1098,15 +1098,11 @@ func checkSizeOffsetUint64Overflow(offset, size *uint256.Int) error {
 	return nil
 }
 
-func neededMemorySize(c *context, offset, size *uint256.Int) (uint64, error) {
+func checkAndReturnUint64(offset, size *uint256.Int) (uint64, uint64, error) {
 	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
-		c.signalError()
-		return 0, err
+		return 0, 0, err
 	}
-	if size.IsZero() {
-		return 0, nil
-	}
-	return offset.Uint64() + size.Uint64(), nil
+	return offset.Uint64(), size.Uint64(), nil
 }
 
 func getAccessCost(accessStatus tosca.AccessStatus) tosca.Gas {
@@ -1135,22 +1131,30 @@ func genericCall(c *context, kind tosca.CallKind) {
 	// and not doing it would be identified by the replay tool as an error.
 	toAddr := tosca.Address(addr.Bytes20())
 
-	// Compute and charge gas price for call
-	arg_memory_size, err := neededMemorySize(c, inOffset, inSize)
+	inOffsetUint64, inSizeUint64, err := checkAndReturnUint64(inOffset, inSize)
 	if err != nil {
+		c.signalError()
 		return
 	}
-	ret_memory_size, err := neededMemorySize(c, retOffset, retSize)
+	retOffsetUint64, retSizeUint64, err := checkAndReturnUint64(retOffset, retSize)
 	if err != nil {
+		c.signalError()
 		return
 	}
 
-	needed_memory_size := arg_memory_size
-	if ret_memory_size > arg_memory_size {
-		needed_memory_size = ret_memory_size
+	// Get arguments from the memory.
+	args, err := c.memory.GetSliceWithCapacityAndGas(inOffsetUint64, inSizeUint64, c)
+	if err != nil {
+		c.signalError()
+		return
+	}
+	output, err := c.memory.GetSliceWithCapacityAndGas(retOffsetUint64, retSizeUint64, c)
+	if err != nil {
+		c.signalError()
+		return
 	}
 
-	baseGas := c.memory.getExpansionCosts(needed_memory_size)
+	baseGas := tosca.Gas(0)
 	// from berlin onwards access cost changes depending on warm/cold access.
 	if c.isAtLeast(tosca.R09_Berlin) {
 		baseGas += getAccessCost(c.context.AccessAccount(toAddr))
@@ -1190,7 +1194,6 @@ func genericCall(c *context, kind tosca.CallKind) {
 
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
-	c.memory.expandMemoryWithoutCharging(needed_memory_size)
 	if !value.IsZero() {
 		cost += CallStipend
 	}
@@ -1214,9 +1217,6 @@ func genericCall(c *context, kind tosca.CallKind) {
 	if c.params.Static && kind == tosca.Call {
 		kind = tosca.StaticCall
 	}
-
-	// Get arguments from the memory.
-	args := c.memory.GetSlice(inOffset.Uint64(), inSize.Uint64())
 
 	// Prepare arguments, depending on call kind
 	callParams := tosca.CallParameters{
@@ -1246,9 +1246,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 	ret, err := c.context.Call(kind, callParams)
 
 	if err == nil {
-		if memSetErr := c.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret.Output); memSetErr != nil {
-			c.signalError()
-		}
+		copy(output, ret.Output)
 	}
 
 	success := stack.pushUndefined()
