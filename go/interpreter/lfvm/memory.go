@@ -177,8 +177,8 @@ func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
 	return nil
 }
 
-// trySet sets the given value at the given offset.
-// Returns error if insufficient memory or offset+size overflows.
+// set sets the given value at the given offset, expands memory as needed and charges for it.
+// Returns error if insufficient gas or offset+size overflows.
 func (m *Memory) trySet(offset, size uint64, value []byte) error {
 	if size > 0 {
 		if offset+size < offset {
