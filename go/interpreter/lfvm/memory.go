@@ -243,17 +243,17 @@ func (m *Memory) readWord(offset uint64, target *uint256.Int, c *context) error 
 // copyData data from the memory, starting from the given offset, to the target slice,
 // padding with zeros if offset+(target length) is greater than the memory size.
 // if offset is greater than the memory size, the target slice is filled with zeros.
-func (m *Memory) copyData(offset uint64, trg []byte) {
+func (m *Memory) copyData(offset uint64, target []byte) {
 	if m.length() < offset {
-		copy(trg, make([]byte, len(trg)))
+		copy(target, make([]byte, len(target)))
 		return
 	}
 
 	// Copy what is available.
-	covered := copy(trg, m.store[offset:])
+	covered := copy(target, m.store[offset:])
 
 	// Pad the rest
-	if covered < len(trg) {
-		copy(trg[covered:], make([]byte, len(trg)-covered))
+	if covered < len(target) {
+		copy(target[covered:], make([]byte, len(target)-covered))
 	}
 }
