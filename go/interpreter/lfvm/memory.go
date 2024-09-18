@@ -229,11 +229,11 @@ func (m *Memory) getSlice(offset, size uint64, c *context) ([]byte, error) {
 // readWord reads a Word (32 byte) from the memory at the given offset.
 // Expands memory as needed and charges for it.
 // Returns error in case of not enough gas or offset+32 overflow.
-func (m *Memory) readWord(offset uint64, trg *uint256.Int, c *context) error {
+func (m *Memory) readWord(offset uint64, target *uint256.Int, c *context) error {
 	data, err := m.getSlice(offset, 32, c)
 	if err != nil {
 		return err
 	}
-	trg.SetBytes32(data)
+	target.SetBytes32(data)
 	return nil
 }
