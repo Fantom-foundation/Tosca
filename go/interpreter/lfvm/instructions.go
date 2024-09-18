@@ -905,10 +905,10 @@ func genericCreate(c *context, kind tosca.CallKind) {
 		value  = c.stack.pop()
 		offset = c.stack.pop()
 		size   = c.stack.pop()
-		salt   = uint256.NewInt(0) // salt us zero for Create
+		salt   = tosca.Hash{}
 	)
 	if kind == tosca.Create2 {
-		salt = c.stack.pop() // pop salt value for Create2
+		salt = c.stack.pop().Bytes32() // pop salt value for Create2
 	}
 
 	if checkSizeOffsetUint64Overflow(offset, size) != nil {
@@ -925,7 +925,7 @@ func genericCreate(c *context, kind tosca.CallKind) {
 	}
 
 	if kind == tosca.Create2 {
-		// Charge for the code size
+		// Charge for hashing the init code to compute the target address.
 		words := tosca.SizeInWords(size.Uint64())
 		if !c.useGas(tosca.Gas(6 * words)) {
 			c.signalError()
@@ -959,7 +959,7 @@ func genericCreate(c *context, kind tosca.CallKind) {
 		Value:  tosca.Value(value.Bytes32()),
 		Input:  input,
 		Gas:    gas,
-		Salt:   tosca.Hash(salt.Bytes32()),
+		Salt:   salt,
 	})
 
 	// Push item on the stack based on the returned error.
