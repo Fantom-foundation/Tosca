@@ -14,7 +14,7 @@ git submodule update --init --recursive
 - C/C++ toolchain, Clang >= 16 or Gcc >= 11.4
     - Ubuntu/Debian package: `clang`
     - Recommended: install `clang-format`, `clangd`, and `gdb` for development
-- Rust toolchain >= 1.80.1
+- Rust toolchain >= 1.81.0
     - [install Rust](https://rustup.rs/)
     - Recommended: install `rust-analyzer` VSCode extension
 - [mockgen](https://github.com/golang/mock)
@@ -42,8 +42,6 @@ Use the provided Makefile to build and test the project.
 make
 make test
 ```
-
-Currently, Rust is not yet integrated into `make`. Run `cd rust && cargo build --release` to build the shared library.
 
 ## Development Experience C++
 
