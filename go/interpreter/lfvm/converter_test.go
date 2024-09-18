@@ -11,12 +11,14 @@
 package lfvm
 
 import (
+	"bytes"
 	"math"
 	"math/rand"
 	"slices"
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
@@ -82,8 +84,9 @@ func TestConverter_InputsAreCachedUsingHashAsKey(t *testing.T) {
 
 func TestConverter_CacheSizeLimitIsEnforced(t *testing.T) {
 	for _, limit := range []int{10, 100, 1000} {
+		const instructionSize = int(unsafe.Sizeof(Instruction{}))
 		converter, err := NewConverter(ConversionConfig{
-			CacheSize: limit * maxCachedCodeLength,
+			CacheSize: limit * maxCachedCodeLength * instructionSize,
 		})
 		if err != nil {
 			t.Fatalf("failed to create converter: %v", err)
@@ -203,27 +206,40 @@ func TestConvertWithObserver_PreservesJumpDestLocations(t *testing.T) {
 		code := make([]byte, 100)
 		r.Read(code)
 
-		type pair struct {
-			evm, lfvm int
-		}
-		var pairs []pair
+		mapping := map[int]int{}
 		res := convertWithObserver(code, ConversionConfig{}, func(evm, lfvm int) {
-			pairs = append(pairs, pair{evm, lfvm})
+			if _, found := mapping[evm]; found {
+				t.Errorf("Duplicate mapping for EVM position %d", evm)
+			}
+			mapping[evm] = lfvm
 		})
 
 		// Check that all operations are mapped to matching operations.
-		for _, p := range pairs {
-			if want, got := OpCode(code[p.evm]), res[p.lfvm].opcode; want != got {
+		for evm, lfvm := range mapping {
+			if want, got := OpCode(code[evm]), res[lfvm].opcode; want != got {
 				t.Errorf("Expected %v, got %v", want, got)
 			}
 		}
 
 		// Check that the position of JUMPDESTs is preserved.
-		for _, p := range pairs {
-			if vm.OpCode(code[p.evm]) == vm.JUMPDEST {
-				if p.evm != p.lfvm {
-					t.Errorf("Expected JUMPDEST at %d, got %d", p.evm, p.lfvm)
+		for evm, lfvm := range mapping {
+			if vm.OpCode(code[evm]) == vm.JUMPDEST {
+				if evm != lfvm {
+					t.Errorf("Expected JUMPDEST at %d, got %d", evm, lfvm)
 				}
+			}
+		}
+
+		// Check that all JUMPDEST operations got mapped.
+		for i := 0; i < len(code); i++ {
+			cur := vm.OpCode(code[i])
+			if cur == vm.JUMPDEST {
+				if _, found := mapping[i]; !found {
+					t.Errorf("JUMPDEST at %d not mapped", i)
+				}
+			}
+			if vm.PUSH1 <= cur && cur <= vm.PUSH32 {
+				i += int(cur - vm.PUSH1 + 1)
 			}
 		}
 	}
@@ -246,6 +262,153 @@ func TestConvert_ProgramCounterBeyond16bitAreConvertedIntoInvalidInstructions(t 
 		if got := res[pos].opcode; want != got {
 			t.Errorf("Expected %v at position %d, got %v", want, pos, got)
 		}
+	}
+}
+
+func TestConvert_BaseInstructionsAreConvertedToEquivalents(t *testing.T) {
+	config := ConversionConfig{
+		WithSuperInstructions: false,
+	}
+	for _, op := range allOpCodesWhere(OpCode.isBaseInstruction) {
+		t.Run(op.String(), func(t *testing.T) {
+			code := []byte{byte(op)}
+			res := convert(code, config)
+			if want, got := op, res[0].opcode; want != got {
+				t.Errorf("Expected %v, got %v", want, got)
+			}
+		})
+	}
+}
+
+func TestConvert_PushOperationsUsePaddedImmediateData(t *testing.T) {
+	data := []byte{}
+	for i := 0; i < 32; i++ {
+		data = append(data, byte(i+1))
+	}
+	for op := PUSH1; op <= PUSH32; op++ {
+		t.Run(op.String(), func(t *testing.T) {
+			// Test all possible truncated push data lengths.
+			length := int(op) - int(PUSH1) + 1
+			for i := 0; i <= length; i++ {
+				code := append([]byte{byte(op)}, data[:i]...)
+				res := convert(code, ConversionConfig{})
+
+				// the push operation is correct
+				if want, got := op, res[0].opcode; want != got {
+					t.Errorf("Expected %v, got %v", want, got)
+				}
+
+				// all the rest is data
+				for i, op := range res[1:] {
+					if op.opcode != DATA {
+						t.Errorf("Expected DATA at position %d, got %v", i, op.opcode)
+					}
+				}
+
+				// there is enough data
+				if got, want := len(res), length/2+length%2; got != want {
+					t.Errorf("Expected %d instructions, got %d", want, got)
+				}
+
+				// re-construct data
+				gotData := make([]byte, length+1)
+				for i, op := range res {
+					gotData[i*2] = byte(op.arg >> 8)
+					gotData[i*2+1] = byte(op.arg)
+				}
+				gotData = gotData[:length]
+
+				// make sure prefix is correct
+				if want, got := data[:i], gotData[:i]; !bytes.Equal(want, got) {
+					t.Errorf("Expected %x, got %x", want, got)
+				}
+
+				// make sure zero padding is correct
+				if want, got := make([]byte, length-i), gotData[i:]; !bytes.Equal(want, got) {
+					t.Errorf("Expected %x, got %x", want, got)
+				}
+			}
+		})
+	}
+}
+
+func TestConvert_AllJumpToOperationsPointToSubsequentJumpdest(t *testing.T) {
+	r := rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
+
+	counter := 0
+	for i := 0; i < 1000; i++ {
+		code := make([]byte, 100)
+		r.Read(code)
+		res := convert(code, ConversionConfig{})
+
+		for i, instruction := range res {
+			if instruction.opcode == JUMP_TO {
+				counter++
+				trg := instruction.arg
+				if trg <= uint16(i) {
+					t.Errorf("JUMP_TO %d points to preceding position %d", trg, i)
+				}
+				if trg >= uint16(len(res)) {
+					t.Fatalf("JUMP_TO %d out of bounds", trg)
+				}
+				if res[trg].opcode != JUMPDEST {
+					t.Errorf("JUMP_TO %d does not point to JUMPDEST", trg)
+				}
+
+				// Everything from the JUMP_TO to to the jump destination is a
+				// NOOP instruction.
+				for pos := i + 1; pos < int(trg); pos++ {
+					if res[pos].opcode != NOOP {
+						t.Errorf("Expected NOOP at position %d, got %v", pos, res[pos].opcode)
+					}
+				}
+			}
+		}
+	}
+	if counter == 0 {
+		t.Errorf("No JUMP_TO operations found")
+	}
+}
+
+func TestConvert_SI_WhenEnabledSuperInstructionsAreUsed(t *testing.T) {
+	config := ConversionConfig{
+		WithSuperInstructions: true,
+	}
+	for _, op := range allOpCodesWhere(OpCode.isSuperInstruction) {
+		t.Run(op.String(), func(t *testing.T) {
+			code := []byte{}
+			for _, op := range op.decompose() {
+				code = append(code, byte(op))
+				if PUSH1 <= op && op <= PUSH32 {
+					code = append(code, make([]byte, int(op)-int(PUSH1)+1)...)
+				}
+			}
+			res := convert(code, config)
+			if want, got := op, res[0].opcode; want != got {
+				t.Errorf("Expected %v, got %v", want, got)
+			}
+		})
+	}
+}
+
+func TestConvert_SI_WhenDisabledNoSuperInstructionsAreUsed(t *testing.T) {
+	config := ConversionConfig{
+		WithSuperInstructions: false,
+	}
+	for _, op := range allOpCodesWhere(OpCode.isSuperInstruction) {
+		t.Run(op.String(), func(t *testing.T) {
+			code := []byte{}
+			for _, op := range op.decompose() {
+				code = append(code, byte(op))
+			}
+
+			res := convert(code, config)
+			for i, instr := range res {
+				if instr.opcode.isSuperInstruction() {
+					t.Errorf("Super instruction %v used at position %d", instr.opcode, i)
+				}
+			}
+		})
 	}
 }
 

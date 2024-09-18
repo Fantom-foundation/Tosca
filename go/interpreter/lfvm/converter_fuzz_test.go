@@ -45,6 +45,13 @@ func FuzzLfvmConverter(f *testing.F) {
 			pairs = append(pairs, pair{evm, lfvm})
 		})
 
+		// Check that no super-instructions have been used.
+		for _, op := range lfvmCode {
+			if op.opcode.isSuperInstruction() {
+				t.Errorf("Super-instruction %v used", op.opcode)
+			}
+		}
+
 		// Check that all operations are mapped to matching operations.
 		for _, p := range pairs {
 
@@ -67,6 +74,25 @@ func FuzzLfvmConverter(f *testing.F) {
 			if vm.OpCode(toscaCode[p.originalPos]) == vm.JUMPDEST {
 				if p.originalPos != p.lfvmPos {
 					t.Errorf("Expected JUMPDEST at %d, got %d", p.originalPos, p.lfvmPos)
+				}
+			}
+		}
+
+		// Check that JUMP_TO instructions point to their immediately succeeding JUMPDEST.
+		for i := 0; i < len(lfvmCode); i++ {
+			if lfvmCode[i].opcode == JUMP_TO {
+				trg := int(lfvmCode[i].arg)
+				if trg < i {
+					t.Errorf("invalid JUMP_TO target from %d to %d", i, trg)
+				}
+				if trg >= len(lfvmCode) || lfvmCode[trg].opcode != JUMPDEST {
+					t.Fatalf("JUMP_TO target %d is not a JUMPDEST", trg)
+				}
+				for j := i + 1; j < trg; j++ {
+					cur := lfvmCode[j].opcode
+					if cur != NOOP {
+						t.Errorf("found %v between JUMP_TO and JUMPDEST at %d", cur, j)
+					}
 				}
 			}
 		}

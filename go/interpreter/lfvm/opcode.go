@@ -318,6 +318,10 @@ func (o OpCode) HasArgument() bool {
 	return false
 }
 
+func (o OpCode) isBaseInstruction() bool {
+	return o < 0x100
+}
+
 func (o OpCode) isSuperInstruction() bool {
 	return o.decompose() != nil
 }
