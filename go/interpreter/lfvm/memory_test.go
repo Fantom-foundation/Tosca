@@ -477,7 +477,7 @@ func TestMemory_Set_ErrorCases(t *testing.T) {
 	}
 }
 
-func TestMemory_TrySet_SuccessfulCases(t *testing.T) {
+func TestMemory_Set_SuccessfulCases(t *testing.T) {
 
 	memoryOriginalSize := uint64(8)
 	offset := uint64(1)
@@ -489,10 +489,11 @@ func TestMemory_TrySet_SuccessfulCases(t *testing.T) {
 	}
 	size := uint64(len(data))
 
+	c := getEmptyContext()
 	m := NewMemory()
 	m.store = make([]byte, memoryOriginalSize)
 
-	err := m.trySet(offset, size, data)
+	err := m.set(offset, size, data, &c)
 	if err != nil {
 		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
 	}
