@@ -164,9 +164,13 @@ func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
 	return nil
 }
 
-// trySet sets the given value at the given offset.
-// Returns error if insufficient memory or offset+size overflows.
-func (m *Memory) trySet(offset, size uint64, value []byte) error {
+// set sets the given value at the given offset, expands memory as needed and charges for it.
+// Returns error if insufficient gas or offset+size overflows.
+func (m *Memory) set(offset, size uint64, value []byte, c *context) error {
+	err := m.expandMemory(offset, size, c)
+	if err != nil {
+		return err
+	}
 	if size > 0 {
 		if offset+size < offset {
 			return errGasUintOverflow
@@ -177,16 +181,6 @@ func (m *Memory) trySet(offset, size uint64, value []byte) error {
 		copy(m.store[offset:offset+size], value)
 	}
 	return nil
-}
-
-// set sets the given value at the given offset, expands memory as needed and charges for it.
-// Returns error if insufficient gas or offset+size overflows.
-func (m *Memory) set(offset, size uint64, value []byte, c *context) error {
-	err := m.expandMemory(offset, size, c)
-	if err != nil {
-		return err
-	}
-	return m.trySet(offset, size, value)
 }
 
 func (m *Memory) CopyWord(offset uint64, trg *uint256.Int, c *context) error {
