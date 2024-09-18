@@ -1098,13 +1098,6 @@ func checkSizeOffsetUint64Overflow(offset, size *uint256.Int) error {
 	return nil
 }
 
-func checkAndReturnUint64(offset, size *uint256.Int) (uint64, uint64, error) {
-	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
-		return 0, 0, err
-	}
-	return offset.Uint64(), size.Uint64(), nil
-}
-
 func getAccessCost(accessStatus tosca.AccessStatus) tosca.Gas {
 	// EIP-2929 says that cold access cost is 2600 and warm is 100.
 	// (https://eips.ethereum.org/EIPS/eip-2929)
@@ -1131,24 +1124,19 @@ func genericCall(c *context, kind tosca.CallKind) {
 	// and not doing it would be identified by the replay tool as an error.
 	toAddr := tosca.Address(addr.Bytes20())
 
-	inOffsetUint64, inSizeUint64, err := checkAndReturnUint64(inOffset, inSize)
-	if err != nil {
-		c.signalError()
-		return
-	}
-	retOffsetUint64, retSizeUint64, err := checkAndReturnUint64(retOffset, retSize)
-	if err != nil {
+	if checkSizeOffsetUint64Overflow(inOffset, inSize) != nil ||
+		checkSizeOffsetUint64Overflow(retOffset, retSize) != nil {
 		c.signalError()
 		return
 	}
 
 	// Get arguments from the memory.
-	args, err := c.memory.GetSliceWithCapacityAndGas(inOffsetUint64, inSizeUint64, c)
+	args, err := c.memory.GetSliceWithCapacityAndGas(inOffset.Uint64(), inSize.Uint64(), c)
 	if err != nil {
 		c.signalError()
 		return
 	}
-	output, err := c.memory.GetSliceWithCapacityAndGas(retOffsetUint64, retSizeUint64, c)
+	output, err := c.memory.GetSliceWithCapacityAndGas(retOffset.Uint64(), retSize.Uint64(), c)
 	if err != nil {
 		c.signalError()
 		return
