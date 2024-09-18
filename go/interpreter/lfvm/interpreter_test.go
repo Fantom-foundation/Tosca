@@ -740,6 +740,6 @@ func BenchmarkSatisfiesStackRequirements(b *testing.B) {
 
 	opCodes := allOpCodes()
 	for i := 0; i < b.N; i++ {
-		satisfiesStackRequirements(context, opCodes[i%len(opCodes)])
+		satisfiesStackRequirements(context.stack.len(), opCodes[i%len(opCodes)])
 	}
 }

@@ -26,7 +26,7 @@ const (
 	statusReverted                     // < execution stopped with a REVERT
 	statusReturned                     // < execution stopped with a RETURN
 	statusSelfDestructed               // < execution stopped with a SELF-DESTRUCT
-	statusError                        // < execution stopped with an error (e.g. stack underflow)
+	statusError                        // < execution stopped with an error (e.g. stack underflow, out-of-gas, invalid-opcode)
 )
 
 // context is the execution environment of an interpreter run. It contains all
@@ -239,7 +239,7 @@ func steps(c *context, oneStepOnly bool) {
 		op := c.code[c.pc].opcode
 
 		// Check stack boundary for every instruction
-		if !satisfiesStackRequirements(c, op) {
+		if !satisfiesStackRequirements(c.stack.len(), op) {
 			c.signalError()
 			return
 		}
@@ -603,12 +603,11 @@ func steps(c *context, oneStepOnly bool) {
 	}
 }
 
-// satisfiesStackRequirements checks if the current stack size satisfies the
-// stack requirements of the given OpCode.
-// caller should handle false return as an error.
-func satisfiesStackRequirements(c *context, op OpCode) bool {
+// satisfiesStackRequirements checks that the opCode will not make an out of
+// bounds access with the current stack size.
+// Caller should handle false return as an error.
+func satisfiesStackRequirements(stackLen int, op OpCode) bool {
 	limits := _precomputedStackLimits.get(op)
-	stackLen := c.stack.len()
 	if stackLen < limits.min || stackLen > limits.max {
 		return false
 	}
