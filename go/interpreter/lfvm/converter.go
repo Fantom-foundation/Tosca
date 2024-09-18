@@ -11,6 +11,8 @@
 package lfvm
 
 import (
+	"math"
+
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 
@@ -291,7 +293,7 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, withSuperInstruc
 	toscaOpCode := vm.OpCode(code[pos])
 
 	if toscaOpCode == vm.PC {
-		if pos > 1<<16 {
+		if pos > math.MaxUint16 {
 			res.appendCode(INVALID)
 			return 1
 		}

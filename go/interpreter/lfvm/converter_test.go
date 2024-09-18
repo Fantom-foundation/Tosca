@@ -11,6 +11,7 @@
 package lfvm
 
 import (
+	"math"
 	"math/rand"
 	"slices"
 	"sync"
@@ -63,20 +64,6 @@ func TestConverter_LongExampleCode(t *testing.T) {
 		t.Fatalf("failed to create converter: %v", err)
 	}
 	converter.Convert(longExampleCode, nil)
-}
-
-func TestConverter_LongExampleLength(t *testing.T) {
-	converter, err := NewConverter(ConversionConfig{})
-	if err != nil {
-		t.Fatalf("failed to create converter: %v", err)
-	}
-	index := 1 << 16
-	newLongCode := make([]byte, index+3)
-	newLongCode[index+1] = byte(vm.PC)
-	res := converter.Convert(newLongCode, nil)
-	if res[index+1].opcode != INVALID {
-		t.Errorf("last instruction should be invalid but got %v", res[index+1])
-	}
 }
 
 func TestConverter_InputsAreCachedUsingHashAsKey(t *testing.T) {
@@ -238,6 +225,26 @@ func TestConvertWithObserver_PreservesJumpDestLocations(t *testing.T) {
 					t.Errorf("Expected JUMPDEST at %d, got %d", p.evm, p.lfvm)
 				}
 			}
+		}
+	}
+}
+
+func TestConvert_ProgramCounterBeyond16bitAreConvertedIntoInvalidInstructions(t *testing.T) {
+	max := math.MaxUint16
+	positions := []int{0, 1, max / 2, max - 1, max, max + 1}
+	code := make([]byte, max+2)
+	for _, pos := range positions {
+		code[pos] = byte(vm.PC)
+	}
+	res := convert(code, ConversionConfig{})
+
+	for _, pos := range positions {
+		want := PC
+		if pos > max {
+			want = INVALID
+		}
+		if got := res[pos].opcode; want != got {
+			t.Errorf("Expected %v at position %d, got %v", want, pos, got)
 		}
 	}
 }
