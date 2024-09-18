@@ -14,7 +14,6 @@ import (
 	"bytes"
 	"errors"
 	"math"
-	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -307,7 +306,7 @@ func TestMemory_Set_ErrorCases(t *testing.T) {
 	}
 }
 
-func TestMemory_TrySet_SuccessfulCases(t *testing.T) {
+func TestMemory_Set_SuccessfulCases(t *testing.T) {
 
 	memoryOriginalSize := uint64(8)
 	offset := uint64(1)
@@ -319,10 +318,11 @@ func TestMemory_TrySet_SuccessfulCases(t *testing.T) {
 	}
 	size := uint64(len(data))
 
+	c := getEmptyContext()
 	m := NewMemory()
 	m.store = make([]byte, memoryOriginalSize)
 
-	err := m.trySet(offset, size, data)
+	err := m.set(offset, size, data, &c)
 	if err != nil {
 		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
 	}
@@ -334,27 +334,4 @@ func TestMemory_TrySet_SuccessfulCases(t *testing.T) {
 		t.Errorf("unexpected memory value, want: %x, got: %x", want, m.store)
 	}
 
-}
-
-func TestMemory_TrySet_ErrorCases(t *testing.T) {
-	m := NewMemory()
-	m.store = make([]byte, 8)
-	// since we are only testing for failed cases, data is not relevant because
-	// the internal checks are done with offset and size parameters.
-
-	// size overflow
-	err := m.trySet(1, math.MaxUint64, []byte{})
-	if !errors.Is(err, errGasUintOverflow) {
-		t.Errorf("unexpected error, want: %v, got: %v", errGasUintOverflow, err)
-	}
-	// offset overflow
-	err = m.trySet(math.MaxUint64, 1, []byte{})
-	if !errors.Is(err, errGasUintOverflow) {
-		t.Errorf("unexpected error, want: %v, got: %v", errGasUintOverflow, err)
-	}
-	// not enough memory
-	err = m.trySet(32, 32, []byte{})
-	if !strings.Contains(err.Error(), "memory too small") {
-		t.Errorf("unexpected error, want: memory too small, got: %v", err)
-	}
 }

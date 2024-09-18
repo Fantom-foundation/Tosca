@@ -58,10 +58,7 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	pcMap := a.getPcMap(state.Code)
 
-	memory, err := convertCtMemoryToLfvmMemory(state.Memory)
-	if err != nil {
-		return nil, err
-	}
+	memory := convertCtMemoryToLfvmMemory(state.Memory)
 
 	// Set up execution context.
 	var ctxt = &context{
@@ -202,14 +199,14 @@ func convertLfvmStackToCtStack(stack *stack, result *st.Stack) *st.Stack {
 	return result
 }
 
-func convertCtMemoryToLfvmMemory(memory *st.Memory) (*Memory, error) {
+func convertCtMemoryToLfvmMemory(memory *st.Memory) *Memory {
 	data := memory.Read(0, uint64(memory.Size()))
 
 	result := NewMemory()
 	size := uint64(len(data))
 	result.expandMemoryWithoutCharging(size)
-	err := result.trySet(0, size, data)
-	return result, err
+	copy(result.store, data)
+	return result
 }
 
 func convertLfvmMemoryToCtMemory(memory *Memory) *st.Memory {
