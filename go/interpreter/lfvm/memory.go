@@ -83,8 +83,8 @@ func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 	}
 	if m.length() < needed {
 		fee := m.getExpansionCosts(needed)
-		if !c.useGas(fee) {
-			return errOutOfGas
+		if err := c.useGas(fee); err != nil {
+			return err
 		}
 		m.expandMemoryWithoutCharging(needed)
 	}

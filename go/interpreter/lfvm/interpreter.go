@@ -62,13 +62,13 @@ type context struct {
 // below zero, the caller should stop the execution with an error status. The function
 // returns true if sufficient gas was available and execution can continue,
 // false otherwise.
-func (c *context) useGas(amount tosca.Gas) bool {
+func (c *context) useGas(amount tosca.Gas) error {
 	if c.gas < 0 || amount < 0 || c.gas < amount {
 		c.gas = 0
-		return false
+		return errOutOfGas
 	}
 	c.gas -= amount
-	return true
+	return nil
 }
 
 // signalError informs the context that an error was encountered that should
@@ -245,7 +245,7 @@ func steps(c *context, oneStepOnly bool) {
 		}
 
 		// Consume static gas price for instruction before execution
-		if !c.useGas(staticGasPrices.get(op)) {
+		if err := c.useGas(staticGasPrices.get(op)); err != nil {
 			c.signalError()
 			return
 		}

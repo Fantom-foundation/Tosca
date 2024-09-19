@@ -211,7 +211,7 @@ func opMcopy(c *context) {
 
 	size := sizeU256.Uint64()
 	price := tosca.Gas(3 * tosca.SizeInWords(size))
-	if !c.useGas(price) {
+	if err := c.useGas(price); err != nil {
 		c.signalError()
 		return
 	}
@@ -271,7 +271,7 @@ func opSstore(c *context) {
 	storageStatus := c.context.SetStorage(c.params.Recipient, key, value)
 
 	cost += getDynamicCostsForSstore(c.params.Revision, storageStatus)
-	if !c.useGas(cost) {
+	if err := c.useGas(cost); err != nil {
 		c.signalError()
 		return
 	}
@@ -290,7 +290,7 @@ func opSload(c *context) {
 		if c.context.AccessStorage(addr, slot) == tosca.ColdAccess {
 			costs = 2100
 		}
-		if !c.useGas(costs) {
+		if err := c.useGas(costs); err != nil {
 			c.signalError()
 			return
 		}
@@ -394,7 +394,7 @@ func opCallDataCopy(c *context) {
 	// Charge for the copy costs
 	words := tosca.SizeInWords(length64)
 	price := tosca.Gas(3 * words)
-	if !c.useGas(price) {
+	if err := c.useGas(price); err != nil {
 		c.signalError()
 		return
 	}
@@ -596,7 +596,7 @@ func opSMod(c *context) {
 
 func opExp(c *context) {
 	base, exponent := c.stack.pop(), c.stack.peek()
-	if !c.useGas(tosca.Gas(50 * exponent.ByteLen())) {
+	if err := c.useGas(tosca.Gas(50 * exponent.ByteLen())); err != nil {
 		c.signalError()
 		return
 	}
@@ -623,7 +623,7 @@ func opSha3(c *context) {
 	// charge dynamic gas price
 	words := tosca.SizeInWords(size.Uint64())
 	price := tosca.Gas(6 * words)
-	if !c.useGas(price) {
+	if err := c.useGas(price); err != nil {
 		c.signalError()
 		return
 	}
@@ -743,7 +743,7 @@ func opSelfdestruct(c *context) {
 	cost += selfDestructNewAccountCost(c.context.AccountExists(beneficiary),
 		c.context.GetBalance(c.params.Recipient))
 	// even death is not for free
-	if !c.useGas(cost) {
+	if err := c.useGas(cost); err != nil {
 		c.signalError()
 		return
 	}
@@ -832,7 +832,7 @@ func opCodeCopy(c *context) {
 
 	// Charge for length of copied code
 	words := tosca.SizeInWords(length.Uint64())
-	if !c.useGas(tosca.Gas(3 * words)) {
+	if err := c.useGas(tosca.Gas(3 * words)); err != nil {
 		c.signalError()
 		return
 	}
@@ -873,10 +873,10 @@ func opExtcodehash(c *context) {
 }
 
 // checkInitCodeSize checks the size of the init code.
-// if size is greater than MaxInitCodeSize, gas is consumed and returns false.
-// if not enough gas is available, returns false.
-// caller should handle false return value by stopping the execution.
-func checkInitCodeSize(c *context, size *uint256.Int) bool {
+// An error is returned if size is greater than MaxInitCodeSize, or
+// if not enough gas is available.
+// Caller should handle error return and stop the execution.
+func checkInitCodeSize(c *context, size *uint256.Int) error {
 	const (
 		MaxCodeSize     = 24576           // Maximum bytecode to permit for a contract
 		MaxInitCodeSize = 2 * MaxCodeSize // Maximum initcode to permit in a creation transaction and create instructions
@@ -884,11 +884,11 @@ func checkInitCodeSize(c *context, size *uint256.Int) bool {
 	)
 
 	if !c.isAtLeast(tosca.R12_Shanghai) {
-		return true
+		return nil
 	}
 	if !size.IsUint64() || size.Uint64() > MaxInitCodeSize {
 		c.useGas(c.gas)
-		return false
+		return errInitCodeTooLarge
 	}
 	return c.useGas(tosca.Gas(InitCodeWordGas * tosca.SizeInWords(size.Uint64())))
 }
@@ -929,7 +929,7 @@ func genericCreate(c *context, kind tosca.CallKind) {
 		return
 	}
 
-	if !checkInitCodeSize(c, size) {
+	if err := checkInitCodeSize(c, size); err != nil {
 		c.signalError()
 		return
 	}
@@ -937,7 +937,7 @@ func genericCreate(c *context, kind tosca.CallKind) {
 	if kind == tosca.Create2 {
 		// Charge for hashing the init code to compute the target address.
 		words := tosca.SizeInWords(size.Uint64())
-		if !c.useGas(tosca.Gas(6 * words)) {
+		if c.useGas(tosca.Gas(6*words)) != nil {
 			c.signalError()
 			return
 		}
@@ -959,7 +959,7 @@ func genericCreate(c *context, kind tosca.CallKind) {
 	// Apply EIP150
 	gas := c.gas
 	gas -= gas / 64
-	if !c.useGas(gas) {
+	if c.useGas(gas) != nil {
 		c.signalError()
 		return
 	}
@@ -1019,7 +1019,7 @@ func opExtCodeCopy(c *context) {
 
 	// Charge for length of copied code
 	words := tosca.SizeInWords(length.Uint64())
-	if !c.useGas(tosca.Gas(3 * words)) {
+	if err := c.useGas(tosca.Gas(3 * words)); err != nil {
 		c.signalError()
 		return
 	}
@@ -1134,7 +1134,7 @@ func genericCall(c *context, kind tosca.CallKind) {
 	}
 
 	cost := callGas(c.gas, baseGas, provided_gas)
-	if !c.useGas(baseGas + cost) {
+	if err := c.useGas(baseGas + cost); err != nil {
 		c.signalError()
 		return
 	}
@@ -1260,7 +1260,7 @@ func opReturnDataCopy(c *context) {
 	}
 
 	words := tosca.SizeInWords(length.Uint64())
-	if !c.useGas(tosca.Gas(3 * words)) {
+	if err := c.useGas(tosca.Gas(3 * words)); err != nil {
 		c.signalError()
 		return
 	}
@@ -1297,7 +1297,7 @@ func opLog(c *context, size int) {
 	log_size := mSize.Uint64()
 
 	// charge for log size
-	if !c.useGas(tosca.Gas(8 * log_size)) {
+	if err := c.useGas(tosca.Gas(8 * log_size)); err != nil {
 		c.signalError()
 		return
 	}

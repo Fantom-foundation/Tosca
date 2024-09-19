@@ -315,12 +315,8 @@ func getRefundForSstore(
 func gasEip2929AccountCheck(c *context, address tosca.Address) error {
 	if c.isAtLeast(tosca.R09_Berlin) {
 		// Charge extra for cold locations.
-		//lint:ignore SA1019 deprecated functions to be migrated in #616
-		if !c.context.IsAddressInAccessList(address) {
-			if !c.useGas(ColdAccountAccessCostEIP2929 - WarmStorageReadCostEIP2929) {
-				return errOutOfGas
-			}
-			c.context.AccessAccount(address)
+		if c.context.AccessAccount(address) == tosca.ColdAccess {
+			return c.useGas(ColdAccountAccessCostEIP2929 - WarmStorageReadCostEIP2929)
 		}
 	}
 	return nil
