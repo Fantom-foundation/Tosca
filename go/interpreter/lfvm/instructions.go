@@ -841,23 +841,6 @@ func opExtcodehash(c *context) error {
 	return nil
 }
 
-// checkInitCodeSize checks the size of the init code.
-func checkInitCodeSize(c *context, size *uint256.Int) error {
-	const (
-		MaxCodeSize     = 24576           // Maximum bytecode to permit for a contract
-		MaxInitCodeSize = 2 * MaxCodeSize // Maximum initcode to permit in a creation transaction and create instructions
-		InitCodeWordGas = 2               // Once per word of the init code when creating a contract.
-	)
-
-	if !c.isAtLeast(tosca.R12_Shanghai) {
-		return nil
-	}
-	if !size.IsUint64() || size.Uint64() > MaxInitCodeSize {
-		return errInitCodeTooLarge
-	}
-	return c.useGas(tosca.Gas(InitCodeWordGas * tosca.SizeInWords(size.Uint64())))
-}
-
 func opCreate(c *context) error {
 	return genericCreate(c, tosca.Create)
 }
@@ -887,18 +870,27 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 		return errOverflow
 	}
 
-	input, err := c.memory.getSlice(offset.Uint64(), size.Uint64(), c)
+	sizeU64 := size.Uint64()
+	input, err := c.memory.getSlice(offset.Uint64(), sizeU64, c)
 	if err != nil {
 		return err
 	}
 
-	if err := checkInitCodeSize(c, size); err != nil {
-		return err
+	if c.isAtLeast(tosca.R12_Shanghai) {
+		if err := checkMaxInitCodeSize(sizeU64); err != nil {
+			return err
+		}
+
+		// Once per word of the init code when creating a contract.
+		const initCodeWordGas = 2
+		if err := c.useGas(tosca.Gas(initCodeWordGas * tosca.SizeInWords(sizeU64))); err != nil {
+			return err
+		}
 	}
 
 	if kind == tosca.Create2 {
 		// Charge for hashing the init code to compute the target address.
-		words := tosca.SizeInWords(size.Uint64())
+		words := tosca.SizeInWords(sizeU64)
 		if err := c.useGas(tosca.Gas(6 * words)); err != nil {
 			return err
 		}
@@ -945,6 +937,17 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 	}
 	c.gas += res.GasLeft
 	c.refund += res.GasRefund
+	return nil
+}
+
+func checkMaxInitCodeSize(size uint64) error {
+	const (
+		maxCodeSize     = 24576           // Maximum bytecode to permit for a contract
+		maxInitCodeSize = 2 * maxCodeSize // Maximum initcode to permit in a creation transaction and create instructions
+	)
+	if size > maxInitCodeSize {
+		return errInitCodeTooLarge
+	}
 	return nil
 }
 
