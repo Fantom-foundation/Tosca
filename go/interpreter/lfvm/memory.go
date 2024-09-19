@@ -194,22 +194,6 @@ func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c
 	return nil
 }
 
-// Copies data from the memory to the given slice.
-func (m *Memory) CopyData(offset uint64, trg []byte) {
-	if m.length() < offset {
-		copy(trg, make([]byte, len(trg)))
-		return
-	}
-
-	// Copy what is available.
-	covered := copy(trg, m.store[offset:])
-
-	// Pad the rest
-	if covered < len(trg) {
-		copy(trg[covered:], make([]byte, len(trg)-covered))
-	}
-}
-
 // getSlice obtains a slice of size bytes from the memory at the given offset.
 // The returned slice is backed by the memory's internal data. Updates to the
 // slice will thus effect the memory states. This connection is invalidated by any
@@ -238,22 +222,4 @@ func (m *Memory) readWord(offset uint64, target *uint256.Int, c *context) error 
 	}
 	target.SetBytes32(data)
 	return nil
-}
-
-// copyData data from the memory, starting from the given offset, to the target slice,
-// padding with zeros if offset+(target length) is greater than the memory size.
-// if offset is greater than the memory size, the target slice is filled with zeros.
-func (m *Memory) copyData(offset uint64, target []byte) {
-	if m.length() < offset {
-		copy(target, make([]byte, len(target)))
-		return
-	}
-
-	// Copy what is available.
-	covered := copy(target, m.store[offset:])
-
-	// Pad the rest
-	if covered < len(target) {
-		copy(target[covered:], make([]byte, len(target)-covered))
-	}
 }

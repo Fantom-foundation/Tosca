@@ -246,43 +246,6 @@ func TestMemory_getSlice_properlyHandlesMemoryExpansionsAndReturnsExpectedMemory
 	}
 }
 
-func TestMemory_copyData_copiesAndPadsAsExpected(t *testing.T) {
-
-	baseStore := []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
-	baseTarget := []byte{0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32}
-	lenBaseTarget := len(baseTarget)
-
-	tests := map[string]struct {
-		offset   uint64
-		expected []byte
-	}{
-		"copy within memory": {
-			expected: baseStore[:lenBaseTarget],
-		},
-		"offset bigger than memory": {
-			offset:   9,
-			expected: bytes.Repeat([]byte{0}, lenBaseTarget),
-		},
-		"padding needed": {
-			offset:   4,
-			expected: []byte{0x90, 0xab, 0xcd, 0xef, 0, 0, 0},
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			m := NewMemory()
-			m.store = bytes.Clone(baseStore)
-			target := bytes.Clone(baseTarget)
-
-			m.copyData(test.offset, target)
-			if !bytes.Equal(target, test.expected) {
-				t.Errorf("unexpected target value, want: %x, got: %x", test.expected, target)
-			}
-		})
-	}
-}
-
 func TestMemory_getSlice_ExpandsMemoryIn32ByteChunks(t *testing.T) {
 	for memSize := uint64(0); memSize < 128; memSize += 32 {
 		for offset := 0; offset < 128; offset++ {
