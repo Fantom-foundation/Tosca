@@ -248,30 +248,43 @@ func TestMemory_getSlice_properlyHandlesMemoryExpansionsAndReturnsExpectedMemory
 }
 
 func TestMemory_getSlice_ExpandsMemoryIn32ByteChunks(t *testing.T) {
-	for increment := 0; increment < 10; increment++ {
-		for size := 0; size < 32; size++ {
-			for offset := 0; offset < 32; offset++ {
-				c := getEmptyContext()
-				originalGas := c.gas
+	for memSize := uint64(0); memSize < 128; memSize += 32 {
+		for offset := 0; offset < 128; offset++ {
+			for size := 1; size < 32; size++ {
+				c := &context{gas: 5000}
 				m := NewMemory()
-				offsetIncremented := uint64(offset + 32*increment)
-				_, err := m.getSlice(offsetIncremented, uint64(size), &c)
+				m.store = make([]byte, memSize)
+				_, err := m.getSlice(uint64(offset), uint64(size), c)
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
 				}
-				want := uint64(32 * (increment + 1))
-				if size == 0 {
-					want = 0
-					if c.gas != originalGas {
-						t.Error("no gas should have been consumed when size is zero.")
-					}
+				want := toValidMemorySize(uint64(offset + size))
+				if want < memSize {
+					want = memSize
 				}
-				if size+offset > 32 {
-					want = uint64(32 * (increment + 2))
+				if got, want := m.length(), want; got != want {
+					t.Errorf("unexpected memory length: %d, want: %d", got, want)
 				}
-				if m.length() != want {
-					t.Errorf("unexpected slice length: %d, want: %d", m.length(), 32*increment)
-				}
+			}
+		}
+	}
+}
+
+func TestMemory_getSlice_SizeOfZeroIsNotGrowingTheMemory(t *testing.T) {
+	for memSize := 0; memSize < 128; memSize += 32 {
+		for offset := 0; offset < 128; offset++ {
+			c := &context{gas: 5000}
+			m := NewMemory()
+			m.store = make([]byte, memSize)
+			_, err := m.getSlice(uint64(offset), 0, c)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if c.gas != 5000 {
+				t.Error("no gas should have been consumed when size is zero.")
+			}
+			if got, want := m.length(), uint64(memSize); got != want {
+				t.Errorf("unexpected memory length: %d, want: %d", got, want)
 			}
 		}
 	}
@@ -327,5 +340,20 @@ func TestMemory_readWord_ErrorCases(t *testing.T) {
 	}
 	if target.Cmp(originalTarget) != 0 {
 		t.Errorf("target should not have been modified, want %v but got %v", originalTarget, target)
+	}
+}
+
+func TestToValidMemorySize_RoundsUpToNextMultipleOf32(t *testing.T) {
+	for i := uint64(0); i < 128; i++ {
+		got := toValidMemorySize(i)
+		if got%32 != 0 {
+			t.Errorf("result should be a multiple of 32, got: %d", got)
+		}
+		if got < i {
+			t.Errorf("result should be greater or equal to input, got: %d", got)
+		}
+		if got-i >= 32 {
+			t.Errorf("result should be less than 32 bytes greater than input, got: %d", got)
+		}
 	}
 }
