@@ -88,7 +88,7 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	result, err := getOutput(ctxt)
 	if err != nil {
-		ctxt.status = statusOutOfGas
+		ctxt.signalError()
 	}
 
 	// Update the resulting state.
@@ -177,7 +177,7 @@ func convertLfvmStatusToCtStatus(status status) (st.StatusCode, error) {
 		return st.Reverted, nil
 	case statusSelfDestructed:
 		return st.Stopped, nil
-	case statusInvalidInstruction, statusOutOfGas, statusError:
+	case statusError:
 		return st.Failed, nil
 	default:
 		return st.Failed, fmt.Errorf("unable to convert lfvm status %v to ct status", status)

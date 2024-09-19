@@ -62,15 +62,6 @@ func TestContext_useGas_HandlesTerminationIfOutOfGas(t *testing.T) {
 				t.Errorf("expected UseGas to return %v, got %v", want, success)
 			}
 
-			// Check that the status is updated correctly.
-			wantStatus := statusRunning
-			if !success {
-				wantStatus = statusOutOfGas
-			}
-			if ctx.status != wantStatus {
-				t.Errorf("expected status to be %v, got %v", wantStatus, ctx.status)
-			}
-
 			// Check that the remaining gas is correct.
 			wantGas := tosca.Gas(0)
 			if success {
@@ -448,8 +439,6 @@ func TestRunGenerateResult(t *testing.T) {
 		expectedErr    error
 		expectedResult tosca.Result
 	}{
-		"invalid instruction": {func(ctx *context) { ctx.status = statusInvalidInstruction }, nil, tosca.Result{Success: false}},
-		"out of gas":          {func(ctx *context) { ctx.status = statusOutOfGas }, nil, tosca.Result{Success: false}},
 		"max init code": {func(ctx *context) { ctx.status = statusError }, nil,
 			tosca.Result{Success: false}},
 		"error": {func(ctx *context) { ctx.status = statusError }, nil, tosca.Result{Success: false}},
@@ -569,7 +558,7 @@ func TestStepsDetectsNonExecutableCode(t *testing.T) {
 		// Run testing code
 		steps(&ctxt, false)
 
-		if want, got := statusInvalidInstruction, ctxt.status; want != got {
+		if want, got := statusError, ctxt.status; want != got {
 			t.Errorf("unexpected status: want %v, got %v", want, got)
 		}
 	}
@@ -640,8 +629,8 @@ func TestStepsFailsOnTooLittleGas(t *testing.T) {
 	// Run testing code
 	steps(&ctxt, false)
 
-	if ctxt.status != statusOutOfGas {
-		t.Errorf("unexpected status: want OUT_OF_GAS, got %v", ctxt.status)
+	if ctxt.status != statusError {
+		t.Errorf("unexpected status: want statusError, got %v", ctxt.status)
 	}
 }
 
@@ -751,6 +740,6 @@ func BenchmarkSatisfiesStackRequirements(b *testing.B) {
 
 	opCodes := allOpCodes()
 	for i := 0; i < b.N; i++ {
-		satisfiesStackRequirements(context, opCodes[i%len(opCodes)])
+		satisfiesStackRequirements(context.stack.len(), opCodes[i%len(opCodes)])
 	}
 }
