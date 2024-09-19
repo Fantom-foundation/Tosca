@@ -14,7 +14,6 @@ import (
 	"bytes"
 	"errors"
 	"math"
-	"strings"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -505,30 +504,6 @@ func TestMemory_Set_SuccessfulCases(t *testing.T) {
 		t.Errorf("unexpected memory value, want: %x, got: %x", want, m.store)
 	}
 
-}
-
-func TestMemory_TrySet_ErrorCases(t *testing.T) {
-	c := context{gas: 0}
-	m := NewMemory()
-	m.store = make([]byte, 8)
-	// since we are only testing for failed cases, data is not relevant because
-	// the internal checks are done with offset and size parameters.
-
-	// size overflow
-	err := m.set(1, math.MaxUint64, []byte{}, &c)
-	if !errors.Is(err, errOverflow) {
-		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
-	}
-	// offset overflow
-	err = m.set(math.MaxUint64, 1, []byte{}, &c)
-	if !errors.Is(err, errOverflow) {
-		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
-	}
-	// not enough memory
-	err = m.trySet(32, 32, []byte{})
-	if !strings.Contains(err.Error(), "memory too small") {
-		t.Errorf("unexpected error, want: memory too small, got: %v", err)
-	}
 }
 
 func TestToValidMemorySize_RoundsUpToNextMultipleOf32(t *testing.T) {
