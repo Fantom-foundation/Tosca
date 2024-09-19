@@ -886,6 +886,14 @@ func checkInitCodeSize(c *context, size *uint256.Int) bool {
 }
 
 func opCreate(c *context) {
+	genericCreate(c, tosca.Create)
+}
+
+func opCreate2(c *context) {
+	genericCreate(c, tosca.Create2)
+}
+
+func genericCreate(c *context, kind tosca.CallKind) {
 
 	// Create is a write instruction, it shall not be executed in static mode.
 	if c.params.Static {
@@ -897,8 +905,13 @@ func opCreate(c *context) {
 		value  = c.stack.pop()
 		offset = c.stack.pop()
 		size   = c.stack.pop()
+		salt   = tosca.Hash{}
 	)
-	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
+	if kind == tosca.Create2 {
+		salt = c.stack.pop().Bytes32() // pop salt value for Create2
+	}
+
+	if checkSizeOffsetUint64Overflow(offset, size) != nil {
 		c.signalError()
 		return
 	}
@@ -911,81 +924,13 @@ func opCreate(c *context) {
 		return
 	}
 
-	if !value.IsZero() {
-		balance := c.context.GetBalance(c.params.Recipient)
-		balanceU256 := new(uint256.Int).SetBytes(balance[:])
-
-		if value.Gt(balanceU256) {
-			c.stack.pushUndefined().Clear()
-			c.returnData = nil
+	if kind == tosca.Create2 {
+		// Charge for hashing the init code to compute the target address.
+		words := tosca.SizeInWords(size.Uint64())
+		if !c.useGas(tosca.Gas(6 * words)) {
+			c.signalError()
 			return
 		}
-	}
-
-	input := c.memory.GetSlice(offset.Uint64(), size.Uint64())
-
-	gas := c.gas
-	if true /*c.evm.chainRules.IsEIP150*/ {
-		gas -= gas / 64
-	}
-
-	c.useGas(gas)
-
-	res, err := c.context.Call(tosca.Create, tosca.CallParameters{
-		Sender: c.params.Recipient,
-		Value:  tosca.Value(value.Bytes32()),
-		Input:  input,
-		Gas:    gas,
-	})
-
-	c.gas += res.GasLeft
-	c.refund += res.GasRefund
-
-	success := c.stack.pushUndefined()
-	if !res.Success || err != nil {
-		success.Clear()
-	} else {
-		success.SetBytes20(res.CreatedAddress[:])
-	}
-
-	if !res.Success && err == nil {
-		c.returnData = res.Output
-	} else {
-		c.returnData = nil
-	}
-}
-
-func opCreate2(c *context) {
-
-	// Create2 is a write instruction, it shall not be executed in static mode.
-	if c.params.Static {
-		c.signalError()
-		return
-	}
-
-	var (
-		value  = c.stack.pop()
-		offset = c.stack.pop()
-		size   = c.stack.pop()
-		salt   = c.stack.pop()
-	)
-	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
-		c.signalError()
-		return
-	}
-
-	if c.memory.expandMemory(offset.Uint64(), size.Uint64(), c) != nil {
-		return
-	}
-
-	if !checkInitCodeSize(c, size) {
-		return
-	}
-
-	// Charge for the code size
-	words := tosca.SizeInWords(size.Uint64())
-	if !c.useGas(tosca.Gas(6 * words)) {
-		return
 	}
 
 	if !value.IsZero() {
@@ -1005,15 +950,16 @@ func opCreate2(c *context) {
 	gas := c.gas
 	gas -= gas / 64
 	if !c.useGas(gas) {
+		c.signalError()
 		return
 	}
 
-	res, err := c.context.Call(tosca.Create2, tosca.CallParameters{
+	res, err := c.context.Call(kind, tosca.CallParameters{
 		Sender: c.params.Recipient,
 		Value:  tosca.Value(value.Bytes32()),
 		Input:  input,
 		Gas:    gas,
-		Salt:   tosca.Hash(salt.Bytes32()),
+		Salt:   salt,
 	})
 
 	// Push item on the stack based on the returned error.
