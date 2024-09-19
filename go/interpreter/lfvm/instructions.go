@@ -166,7 +166,7 @@ func opMstore(c *context) error {
 	if overflow {
 		return errOverflow
 	}
-	return c.memory.SetWord(offset, value, c)
+	return c.memory.setWord(offset, value, c)
 }
 
 func opMstore8(c *context) error {

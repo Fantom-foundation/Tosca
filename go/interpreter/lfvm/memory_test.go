@@ -356,128 +356,7 @@ func TestMemory_readWord_ErrorCases(t *testing.T) {
 	}
 }
 
-func TestMemory_SetByte_SuccessfulCases(t *testing.T) {
-
-	baseData := []byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef}
-
-	tests := map[string]struct {
-		memory []byte
-		offset uint64
-	}{
-		"write to empty memory": {},
-		"write to first element of memory": {
-			memory: baseData,
-			offset: 0,
-		},
-		"write with offset within memory": {
-			memory: baseData,
-			offset: 4,
-		},
-		"offset trigger expansion of empty memory": {
-			offset: 2,
-		},
-		"offset trigger memory expansion": {
-			memory: baseData[:4],
-			offset: 8,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			ctxt := getEmptyContext()
-			m := NewMemory()
-			m.store = bytes.Clone(test.memory)
-			ctxt.gas = tosca.Gas(3)
-			value := byte(0xff)
-
-			err := m.setByte(test.offset, value, &ctxt)
-			if err != nil {
-				t.Errorf("unexpected error, want: %v, got: %v", nil, err)
-			}
-			// if memory expansion is needed, it expands up to offset+1
-			// if no expansion is needed, is because memory is already large enough
-			if m.length() <= test.offset {
-				t.Errorf("unexpected memory size, want: %d, got: %d", test.offset, m.length())
-			}
-			if test.memory != nil {
-				for i, b := range test.memory {
-					if i == int(test.offset) {
-						if m.store[i] != value {
-							t.Errorf("unexpected value, want: %v, got: %v", value, m.store[i])
-						}
-					} else {
-						if m.store[i] != b {
-							t.Errorf("unexpected value at position %v, want: %v, got: %v", i, b, m.store[i])
-						}
-					}
-				}
-			} else {
-				// for empty memories expansion we only want to check the offset byte.
-				if m.store[test.offset] != value {
-					t.Errorf("unexpected value, want: %v, got: %v", value, m.store[test.offset])
-				}
-			}
-		})
-	}
-}
-
-func TestMemory_SetByte_ErrorCases(t *testing.T) {
-	ctxt := getEmptyContext()
-	m := NewMemory()
-	ctxt.gas = 0
-	err := m.setByte(math.MaxUint64, 0x12, &ctxt)
-	if !errors.Is(err, errOverflow) {
-		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
-	}
-	err = m.setByte(0, 0x12, &ctxt)
-	if !errors.Is(err, errOutOfGas) {
-		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
-	}
-}
-
-func TestMemory_Set_Successful(t *testing.T) {
-	c := getEmptyContext()
-	c.gas = 4
-	m := NewMemory()
-	offset := uint64(0)
-	value := []byte{0xff, 0xee}
-	size := uint64(len(value))
-	err := m.set(offset, size, value, &c)
-	if err != nil {
-		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
-	}
-	if m.length() != 32 {
-		t.Errorf("memory size should be 32 bytes instead got: %d", m.length())
-	}
-	if !bytes.Equal(m.store[offset:offset+size], value) {
-		t.Errorf("unexpected memory value, want: %x, got: %x", value, m.store[offset:offset+size])
-	}
-	if c.gas != 1 {
-		t.Errorf("unexpected gas value, want: %d, got: %d", 1, c.gas)
-	}
-}
-
-func TestMemory_Set_ErrorCases(t *testing.T) {
-	c := getEmptyContext()
-	c.gas = 0
-	m := NewMemory()
-
-	err := m.set(0, 1, []byte{}, &c)
-	if !errors.Is(err, errOutOfGas) {
-		t.Errorf("unexpected error, want: %v, got: %v", errOutOfGas, err)
-	}
-	err = m.set(math.MaxUint64, 1, []byte{}, &c)
-	if !errors.Is(err, errOverflow) {
-		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
-	}
-	err = m.set(1, math.MaxUint64, []byte{}, &c)
-	if !errors.Is(err, errOverflow) {
-		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
-	}
-}
-
 func TestMemory_Set_SuccessfulCases(t *testing.T) {
-
 	memoryOriginalSize := uint64(8)
 	offset := uint64(1)
 	// data of size (memoryOriginalSize - offset), to ensure it would fit in memory
@@ -528,5 +407,108 @@ func TestToValidateMemorySize_ReturnsOverflowError(t *testing.T) {
 	_, err := toValidMemorySize(math.MaxUint64 - 30)
 	if !errors.Is(err, errOverflow) {
 		t.Errorf("error should be errOverflow, instead is: %v", err)
+	}
+}
+
+func TestMemory_Set_ErrorCases(t *testing.T) {
+	c := getEmptyContext()
+	c.gas = 0
+	m := NewMemory()
+
+	err := m.set(0, 1, []byte{}, &c)
+	if !errors.Is(err, errOutOfGas) {
+		t.Errorf("unexpected error, want: %v, got: %v", errOutOfGas, err)
+	}
+	err = m.set(math.MaxUint64, 1, []byte{}, &c)
+	if !errors.Is(err, errOverflow) {
+		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
+	}
+	err = m.set(1, math.MaxUint64, []byte{}, &c)
+	if !errors.Is(err, errOverflow) {
+		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
+	}
+}
+
+func TestMemory_SetByte_SuccessfulCases(t *testing.T) {
+
+	memory := []byte{0x12, 0x34, 0x56, 0x78}
+	offset := uint64(8)
+
+	ctxt := getEmptyContext()
+	m := NewMemory()
+	m.store = bytes.Clone(memory)
+	ctxt.gas = tosca.Gas(3)
+	value := byte(0xff)
+
+	err := m.setByte(offset, value, &ctxt)
+	if err != nil {
+		t.Errorf("unexpected error, want: %v, got: %v", nil, err)
+	}
+
+	if m.length() <= offset {
+		t.Errorf("unexpected memory size, want: %d, got: %d", offset, m.length())
+	}
+
+	for i, b := range memory {
+		if i == int(offset) {
+			if m.store[i] != value {
+				t.Errorf("unexpected value, want: %v, got: %v", value, m.store[i])
+			}
+		} else {
+			if m.store[i] != b {
+				t.Errorf("unexpected value at position %v, want: %v, got: %v", i, b, m.store[i])
+			}
+		}
+	}
+
+}
+
+func TestMemory_SetByte_ErrorCases(t *testing.T) {
+	ctxt := getEmptyContext()
+	m := NewMemory()
+	ctxt.gas = 0
+	err := m.setByte(math.MaxUint64, 0x12, &ctxt)
+	if !errors.Is(err, errOverflow) {
+		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
+	}
+	err = m.setByte(0, 0x12, &ctxt)
+	if !errors.Is(err, errOutOfGas) {
+		t.Errorf("unexpected error, want: %v, got: %v", errOutOfGas, err)
+	}
+}
+
+func TestMemory_setWord_successfulCase(t *testing.T) {
+	c := getEmptyContext()
+	c.gas = 7
+	m := NewMemory()
+	offset := uint64(1)
+	value := new(uint256.Int).SetBytes([]byte{0xff, 0xee})
+	err := m.setWord(offset, value, &c)
+	if err != nil {
+		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
+	}
+	if m.length() != 64 {
+		t.Errorf("memory size should be 64 bytes instead got: %d", m.length())
+	}
+	val32 := value.Bytes32()
+	if !bytes.Equal(m.store[offset:offset+32], val32[:]) {
+		t.Errorf("unexpected memory value, want: %x, got: %x", value.Bytes32(), m.store[offset:offset+32])
+	}
+	if c.gas != 1 {
+		t.Errorf("unexpected gas value, want: %d, got: %d", 1, c.gas)
+	}
+}
+
+func TestMemory_SetWord_ErrorCases(t *testing.T) {
+	ctxt := getEmptyContext()
+	// SetWord (and EnsureCapacity) check for offset overflow before checking gas
+	// hence it is fine to check both cases with gas = 0
+	ctxt.gas = 0
+	m := NewMemory()
+	if err := m.setWord(math.MaxUint64-31, new(uint256.Int), &ctxt); !errors.Is(err, errOverflow) {
+		t.Fatalf("expected error, wanted overflow error but got %v", err)
+	}
+	if err := m.setWord(0, new(uint256.Int), &ctxt); !errors.Is(err, errOutOfGas) {
+		t.Fatalf("expected error, wanted out of gas error but got %v", err)
 	}
 }
