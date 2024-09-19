@@ -57,12 +57,9 @@ func TestContext_useGas_HandlesTerminationIfOutOfGas(t *testing.T) {
 
 			// Check that the result of UseGas indicates whether there was
 			// enough gas.
-			want := error(nil)
-			// TODO: remove status check once #772 is merged
-			if test.required < 0 || test.available < test.required {
-				want = errOutOfGas
-			}
-			if want != err {
+			want := test.required >= 0 && test.available >= test.required
+			success := err == nil
+			if want != success {
 				t.Errorf("expected UseGas to return %v, got %v", want, err)
 			}
 

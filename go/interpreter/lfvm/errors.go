@@ -21,4 +21,5 @@ const (
 	errStackOverflow         = tosca.ConstError("stack overflow")
 	errStackUnderflow        = tosca.ConstError("stack underflow")
 	errWriteProtection       = tosca.ConstError("write protection")
+	errInitCodeTooLarge      = tosca.ConstError("init code larger than allowed")
 )
