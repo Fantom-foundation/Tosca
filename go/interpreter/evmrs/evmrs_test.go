@@ -20,7 +20,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
-func TestFib10(t *testing.T) {
+func TestEvmrsFib10(t *testing.T) {
 	const arg = 10
 
 	example := examples.GetFibExample()
@@ -42,7 +42,7 @@ func TestFib10(t *testing.T) {
 	}
 }
 
-func BenchmarkNewEvmcInterpreter(b *testing.B) {
+func BenchmarkEvmrsNewEvmcInterpreter(b *testing.B) {
 	b.Run("evmrs", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tosca.NewInterpreter("evmrs")
@@ -50,7 +50,7 @@ func BenchmarkNewEvmcInterpreter(b *testing.B) {
 	})
 }
 
-func BenchmarkFib10(b *testing.B) {
+func BenchmarkEvmrsFib10(b *testing.B) {
 	benchmarkFib(b, 10)
 }
 
@@ -78,7 +78,7 @@ func benchmarkFib(b *testing.B, arg int) {
 	})
 }
 
-func TestEvmcInterpreter_BlobHashCanBeRead(t *testing.T) {
+func TestEvmrsEvmcInterpreter_BlobHashCanBeRead(t *testing.T) {
 
 	// create a test state with a code push at index 0
 	code := []byte{
@@ -122,7 +122,7 @@ func TestEvmcInterpreter_BlobHashCanBeRead(t *testing.T) {
 	}
 }
 
-func TestEvmcSteppableInterpreter_BlobHashCanBeRead(t *testing.T) {
+func TestEvmrsEvmcSteppableInterpreter_BlobHashCanBeRead(t *testing.T) {
 
 	code := []byte{
 		byte(vm.PUSH1), 0, // add to stack index to read from blobhash

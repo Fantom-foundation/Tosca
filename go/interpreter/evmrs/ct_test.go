@@ -20,7 +20,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca/vm"
 )
 
-func TestCtAdapter_Add(t *testing.T) {
+func TestEvmrsCtAdapter_Add(t *testing.T) {
 	s := st.NewState(st.NewCode([]byte{
 		byte(vm.PUSH1), 3,
 		byte(vm.PUSH1), 4,
@@ -50,7 +50,7 @@ func TestCtAdapter_Add(t *testing.T) {
 	}
 }
 
-func TestCtAdapter_Interface(t *testing.T) {
+func TestEvmrsCtAdapter_Interface(t *testing.T) {
 	// Compile time check that ctAdapter implements the ct.Evm interface.
 	var _ ct.Evm = ctAdapter{}
 }
