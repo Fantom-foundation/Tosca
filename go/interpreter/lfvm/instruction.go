@@ -15,7 +15,7 @@ import (
 	"fmt"
 )
 
-// The encoding of each instruction for the MACRO EVM
+// Instruction encodes an instruction for the long-form virtual machine (LFVM).
 type Instruction struct {
 	// The op-code of this instruction.
 	opcode OpCode
@@ -23,7 +23,7 @@ type Instruction struct {
 	arg uint16
 }
 
-// Code for the macro EVM is a slice of instructions
+// Code for the LFVM is a slice of instructions.
 type Code []Instruction
 
 func (i Instruction) String() string {

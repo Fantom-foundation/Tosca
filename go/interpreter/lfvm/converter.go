@@ -12,6 +12,7 @@ package lfvm
 
 import (
 	"math"
+	"unsafe"
 
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -47,7 +48,8 @@ func NewConverter(config ConversionConfig) (*Converter, error) {
 	var cache *lru.Cache[tosca.Hash, Code]
 	if config.CacheSize > 0 {
 		var err error
-		capacity := config.CacheSize / maxCachedCodeLength
+		const instructionSize = int(unsafe.Sizeof(Instruction{}))
+		capacity := config.CacheSize / maxCachedCodeLength / instructionSize
 		cache, err = lru.New[tosca.Hash, Code](capacity)
 		if err != nil {
 			return nil, err

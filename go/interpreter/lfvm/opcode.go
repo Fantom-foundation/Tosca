@@ -218,9 +218,40 @@ const (
 // original EVM.
 const (
 	// long-form EVM special instructions
+
+	// JUMP_TO is a special instruction that is used to jump to the end of the
+	// current basic block.
+	//
+	// Since due to the usage of immediate arguments in instructions like PUSH2
+	// the code size of basic blocks can shrink compared to the original EVM,
+	// gaps can appear between the end of a basic block and the beginning of the
+	// next one indicated by a JUMPDEST instruction. Since all JUMPDEST
+	// instructions have to remain at the same position in the code as in the
+	// original EVM code, since jump-destinations of JUMP and JUMPI  operations
+	// are computed dynamically, these gaps have to be filled with NOOP
+	// instructions. To avoid having to process long sequences of NOOPs,
+	// JUMP_TO instructions are used to skip them in a single step.
+	//
+	// The following restrictions are imposed on JUMP_TO instructions:
+	//  - they must target the immediate succeeding JUMPDEST instruction
+	//  - all instructions between the JUMP_TO and the JUMPDEST must be NOOPs
+	//
+	// These restrictions are enforced during the EVM to LFVM code conversion.
 	JUMP_TO OpCode = iota + 0x100
-	DATA
+
+	// NOOP is a special instruction that does nothing. It is used as a filler
+	// instruction to pad basic blocks to the correct size.
 	NOOP
+
+	// DATA is a special instruction that is used to extend the size of OpCodes
+	// that require more than the available 2-byte immediate arguments.
+	// For instance, [PUSH4, 1, 2, 3, 4] in the original EVM code gets converted
+	// to [(PUSH4, 1<<8 | 2),(DATA, 3<<8 | 4)].
+	// Since DATA is marked explicitly as such, jump-destination checks can be
+	// conducted in O(1) by checking the OpCode of an instruction. In the
+	// implicit data encoding of EVM byte code, this would require a linear
+	// search (which could be cached to amortize costs).
+	DATA
 
 	// Super-instructions
 	SWAP2_SWAP1_POP_JUMP
@@ -316,6 +347,10 @@ func (o OpCode) HasArgument() bool {
 		return false
 	}
 	return false
+}
+
+func (o OpCode) isBaseInstruction() bool {
+	return o < 0x100
 }
 
 func (o OpCode) isSuperInstruction() bool {
