@@ -50,6 +50,6 @@ func TestCtAdapter_Add(t *testing.T) {
 }
 
 func TestCtAdapter_Interface(t *testing.T) {
-	// Compile time check that ctAdapter implements the st.Evm interface.
+	// Compile time check that ctAdapter implements the ct.Evm interface.
 	var _ ct.Evm = ctAdapter{}
 }
