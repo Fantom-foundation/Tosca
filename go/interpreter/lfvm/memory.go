@@ -167,7 +167,7 @@ func (m *Memory) setByte(offset uint64, value byte, c *context) error {
 }
 
 // setWord sets a 32-byte word at the given offset, expanding memory as needed and charging for it.
-func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
+func (m *Memory) setWord(offset uint64, value *uint256.Int, c *context) error {
 	data := value.Bytes32()
 	return m.set(offset, 32, data[:], c)
 }
