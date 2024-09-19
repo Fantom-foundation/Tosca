@@ -42,29 +42,6 @@ func TestFib10(t *testing.T) {
 	}
 }
 
-func TestEvmrs_DumpProfile(t *testing.T) {
-	t.Skip("evmrs does not implement the profiling configuration yet") // TODO
-	example := examples.GetFibExample()
-	instance, err := tosca.NewInterpreter("evmrs-profiling")
-	if err != nil {
-		t.Fatalf("failed to load evmrs interpreter: %v", err)
-	}
-	interpreter, ok := instance.(tosca.ProfilingInterpreter)
-	if !ok {
-		t.Fatalf("profiling evmrs configuration does not support profiling")
-	}
-	for i := 0; i < 10; i++ {
-		_, err := example.RunOn(interpreter, 10)
-		if err != nil {
-			t.Fatalf("running the fib example failed: %v", err)
-		}
-		interpreter.DumpProfile()
-		if i == 5 {
-			interpreter.ResetProfile()
-		}
-	}
-}
-
 func BenchmarkNewEvmcInterpreter(b *testing.B) {
 	b.Run("evmrs", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

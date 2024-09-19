@@ -25,6 +25,7 @@ func TestCtAdapter_Add(t *testing.T) {
 		byte(vm.PUSH1), 3,
 		byte(vm.PUSH1), 4,
 		byte(vm.ADD),
+		byte(vm.STOP),
 	}))
 	s.Status = st.Running
 	s.Revision = tosca.R07_Istanbul
