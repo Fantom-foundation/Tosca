@@ -20,6 +20,13 @@ import (
 	"github.com/holiman/uint256"
 )
 
+func TestMemory_NewMemoryIsEmpty(t *testing.T) {
+	m := NewMemory()
+	if m.length() != 0 {
+		t.Errorf("memory should be empty, instead has length: %d", m.length())
+	}
+}
+
 func TestGetExpansionCosts(t *testing.T) {
 
 	tests := []struct {
@@ -94,7 +101,6 @@ func TestMemory_expandMemoryWithoutCharging(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestMemory_expandMemory_ErrorCases(t *testing.T) {
@@ -201,7 +207,7 @@ func TestMemory_getSlice_ErrorCases(t *testing.T) {
 	}
 }
 
-func TestMemory_getSlice(t *testing.T) {
+func TestMemory_getSlice_properlyHandlesMemoryExpansionsAndReturnsExpectedMemory(t *testing.T) {
 
 	tests := map[string]struct {
 		offset   uint64
@@ -238,6 +244,42 @@ func TestMemory_getSlice(t *testing.T) {
 				t.Errorf("unexpected slice: %x, want: %x", slice, test.expected)
 			}
 		})
+	}
+}
+
+func TestMemory_getSlice_ExpandsMemoryIn32ByteChunks(t *testing.T) {
+	for increment := 0; increment < 10; increment++ {
+		for size := 0; size < 32; size++ {
+			c := getEmptyContext()
+			m := NewMemory()
+			_, err := m.getSlice(uint64(size+32*increment), uint64(size), &c)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			want := uint64(32 * (increment + 1))
+			if size == 0 {
+				want = 0
+			}
+			if size > 16 {
+				want = uint64(32 * (increment + 2))
+			}
+			if m.length() != want {
+				t.Errorf("unexpected slice length: %d, want: %d", m.length(), 32*increment)
+			}
+		}
+	}
+}
+
+func TestMemory_getSlice_MemoryExpansionDoesNotOverwriteExistingMemory(t *testing.T) {
+	c := getEmptyContext()
+	m := NewMemory()
+	m.store = []byte{0x0, 0x01, 0x02, 0x03, 0x04}
+	_, err := m.getSlice(4, 29, &c)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if !bytes.Equal(m.store[:5], []byte{0x0, 0x01, 0x02, 0x03, 0x04}) {
+		t.Errorf("unexpected memory value: %x", m.store)
 	}
 }
 

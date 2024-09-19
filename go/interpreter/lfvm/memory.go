@@ -210,7 +210,7 @@ func (m *Memory) CopyData(offset uint64, trg []byte) {
 	}
 }
 
-// getSlice reads size bytes from the memory at the given offset.
+// getSlice obtains a slice of size bytes from the memory at the given offset.
 // Expands memory as needed and charges for it.
 // Returns error in case of not enough gas or offset+32 overflow.
 func (m *Memory) getSlice(offset, size uint64, c *context) ([]byte, error) {
