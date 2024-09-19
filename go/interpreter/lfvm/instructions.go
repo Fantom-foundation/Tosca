@@ -888,7 +888,6 @@ func checkInitCodeSize(c *context, size *uint256.Int) error {
 	}
 	if !size.IsUint64() || size.Uint64() > MaxInitCodeSize {
 		c.useGas(c.gas)
-		c.signalError()
 		return errInitCodeTooLarge
 	}
 	return c.useGas(tosca.Gas(InitCodeWordGas * tosca.SizeInWords(size.Uint64())))
