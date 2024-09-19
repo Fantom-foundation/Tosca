@@ -143,9 +143,8 @@ func TestMemory_expandMemory_ErrorCases(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctxt := getEmptyContext()
+			ctxt := context{gas: test.gas}
 			m := NewMemory()
-			ctxt.gas = test.gas
 
 			err := m.expandMemory(test.offset, test.size, &ctxt)
 			if !errors.Is(err, test.expected) {
@@ -187,10 +186,9 @@ func TestMemory_expandMemory_expandsMemoryOnlyWhenNeeded(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctxt := getEmptyContext()
+			ctxt := context{gas: 3}
 			m := NewMemory()
 			m.store = make([]byte, test.initialMemorySize)
-			ctxt.gas = 3
 
 			err := m.expandMemory(test.offset, test.size, &ctxt)
 			if err != nil {
@@ -367,7 +365,7 @@ func TestMemory_Set_SuccessfulCases(t *testing.T) {
 	}
 	size := uint64(len(data))
 
-	c := getEmptyContext()
+	c := context{gas: 3}
 	m := NewMemory()
 	m.store = make([]byte, memoryOriginalSize)
 
@@ -411,8 +409,7 @@ func TestToValidateMemorySize_ReturnsOverflowError(t *testing.T) {
 }
 
 func TestMemory_Set_ErrorCases(t *testing.T) {
-	c := getEmptyContext()
-	c.gas = 0
+	c := context{gas: 0}
 	m := NewMemory()
 
 	err := m.set(0, 1, []byte{}, &c)
@@ -434,10 +431,9 @@ func TestMemory_SetByte_SuccessfulCases(t *testing.T) {
 	memory := []byte{0x12, 0x34, 0x56, 0x78}
 	offset := uint64(8)
 
-	ctxt := getEmptyContext()
+	ctxt := context{gas: 3}
 	m := NewMemory()
 	m.store = bytes.Clone(memory)
-	ctxt.gas = tosca.Gas(3)
 	value := byte(0xff)
 
 	err := m.setByte(offset, value, &ctxt)
@@ -464,9 +460,8 @@ func TestMemory_SetByte_SuccessfulCases(t *testing.T) {
 }
 
 func TestMemory_SetByte_ErrorCases(t *testing.T) {
-	ctxt := getEmptyContext()
+	ctxt := context{gas: 0}
 	m := NewMemory()
-	ctxt.gas = 0
 	err := m.setByte(math.MaxUint64, 0x12, &ctxt)
 	if !errors.Is(err, errOverflow) {
 		t.Errorf("unexpected error, want: %v, got: %v", errOverflow, err)
@@ -478,8 +473,7 @@ func TestMemory_SetByte_ErrorCases(t *testing.T) {
 }
 
 func TestMemory_setWord_successfulCase(t *testing.T) {
-	c := getEmptyContext()
-	c.gas = 7
+	c := context{gas: 6 + 1}
 	m := NewMemory()
 	offset := uint64(1)
 	value := new(uint256.Int).SetBytes([]byte{0xff, 0xee})
@@ -500,10 +494,9 @@ func TestMemory_setWord_successfulCase(t *testing.T) {
 }
 
 func TestMemory_SetWord_ErrorCases(t *testing.T) {
-	ctxt := getEmptyContext()
+	ctxt := context{gas: 0}
 	// SetWord (and EnsureCapacity) check for offset overflow before checking gas
 	// hence it is fine to check both cases with gas = 0
-	ctxt.gas = 0
 	m := NewMemory()
 	if err := m.setWord(math.MaxUint64-31, new(uint256.Int), &ctxt); !errors.Is(err, errOverflow) {
 		t.Fatalf("expected error, wanted overflow error but got %v", err)
