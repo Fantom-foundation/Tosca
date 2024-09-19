@@ -94,9 +94,9 @@ func TestContext_isAtLeast_RespectsOrderOfRevisions(t *testing.T) {
 			},
 		}
 
-		for _, trg := range revisions {
-			if want, got := is >= trg, context.isAtLeast(trg); want != got {
-				t.Errorf("revision %v should be at least %v: %t, got %t", is, trg, want, got)
+		for _, target := range revisions {
+			if want, got := is >= target, context.isAtLeast(target); want != got {
+				t.Errorf("revision %v should be at least %v: %t, got %t", is, target, want, got)
 			}
 		}
 	}
@@ -151,8 +151,7 @@ type OpcodeTest struct {
 	stackPtrPos int
 	argData     uint16
 	endStatus   status
-	isBerlin    bool // < TODO: replace with revision
-	isLondon    bool
+	revision    tosca.Revision
 	mockCalls   func(*tosca.MockRunContext)
 	gasStart    tosca.Gas
 	gasConsumed tosca.Gas
@@ -235,7 +234,7 @@ func TestInstructionsGasConsumption(t *testing.T) {
 		for j := 0; j < dataNum; j++ {
 			code = append(code, Instruction{DATA, 1})
 		}
-		tests = append(tests, OpcodeTest{op.String(), code, 20, 0, statusStopped, false, false, nil, GAS_START, 3, 0})
+		tests = append(tests, OpcodeTest{op.String(), code, 20, 0, statusStopped, tosca.R07_Istanbul, nil, GAS_START, 3, 0})
 	}
 
 	attachGasTo := func(gas tosca.Gas, opCodes ...OpCode) []OpCodeWithGas {
@@ -260,8 +259,8 @@ func TestInstructionsGasConsumption(t *testing.T) {
 	opCodes = append(opCodes, attachGasTo(10, POP_SWAP2_SWAP1_POP)...)
 	opCodes = append(opCodes, attachGasTo(4, POP_POP)...)
 	opCodes = append(opCodes, attachGasTo(6, generateOpCodesInRange(PUSH1_SHL, PUSH1_DUP1)...)...)
-	// opCodes = append(opCodes, applyGasTo(11, PUSH2_JUMP)...) // FIXME: this seems to be broken
-	opCodes = append(opCodes, attachGasTo(13, PUSH2_JUMPI)...)
+	//opCodes = append(opCodes, attachGasTo(11, PUSH2_JUMP)...) // FIXME: This test fails due to jump dest analysis
+	opCodes = append(opCodes, attachGasTo(13, PUSH2_JUMPI)...) // Jump dest analysis is skipped because argument is zero
 	opCodes = append(opCodes, attachGasTo(6, PUSH1_PUSH1)...)
 	opCodes = append(opCodes, attachGasTo(5, SWAP1_POP)...)
 	opCodes = append(opCodes, attachGasTo(6, SWAP2_SWAP1)...)
@@ -288,14 +287,7 @@ func TestInstructionsGasConsumption(t *testing.T) {
 			if test.mockCalls != nil {
 				test.mockCalls(runContext)
 			}
-			revision := tosca.R07_Istanbul
-			if test.isBerlin {
-				revision = tosca.R09_Berlin
-			}
-			if test.isLondon {
-				revision = tosca.R10_London
-			}
-			ctxt := getContext(test.code, make([]byte, 0), runContext, test.stackPtrPos, test.gasStart, revision)
+			ctxt := getContext(test.code, make([]byte, 0), runContext, test.stackPtrPos, test.gasStart, test.revision)
 
 			// Run testing code
 			vanillaRunner{}.run(&ctxt)
