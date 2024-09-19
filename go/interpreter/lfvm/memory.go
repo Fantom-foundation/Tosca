@@ -211,8 +211,9 @@ func (m *Memory) CopyData(offset uint64, trg []byte) {
 }
 
 // getSlice obtains a slice of size bytes from the memory at the given offset.
-// Expands memory as needed and charges for it.
-// Returns error in case of not enough gas or offset+32 overflow.
+// The returned slice is backed by the memory's internal data. Updates to the
+// slice will thus effect the memory states. This connection is invalidated by any
+// subsequent memory operation that may change the size of the memory.
 func (m *Memory) getSlice(offset, size uint64, c *context) ([]byte, error) {
 	err := m.expandMemory(offset, size, c)
 	if err != nil {
