@@ -325,7 +325,7 @@ func TestMemory_readWord_ErrorCases(t *testing.T) {
 	c := getEmptyContext()
 	c.gas = 0
 	m := NewMemory()
-	originalTarget := new(uint256.Int)
+	originalTarget := uint256.NewInt(1)
 	target := originalTarget.Clone()
 	err := m.readWord(math.MaxUint64-31, target, &c)
 	if !errors.Is(err, errGasUintOverflow) {
