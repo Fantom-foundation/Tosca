@@ -60,7 +60,7 @@ func TestContext_useGas_HandlesTerminationIfOutOfGas(t *testing.T) {
 			want := test.required >= 0 && test.available >= test.required
 			success := err == nil
 			if want != success {
-				t.Errorf("expected UseGas to return %v, got %v", want, err)
+				t.Errorf("expected UseGas to return %v, got %v", want, success)
 			}
 
 			// Check that the remaining gas is correct.
