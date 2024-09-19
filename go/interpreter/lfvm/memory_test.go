@@ -250,21 +250,28 @@ func TestMemory_getSlice_properlyHandlesMemoryExpansionsAndReturnsExpectedMemory
 func TestMemory_getSlice_ExpandsMemoryIn32ByteChunks(t *testing.T) {
 	for increment := 0; increment < 10; increment++ {
 		for size := 0; size < 32; size++ {
-			c := getEmptyContext()
-			m := NewMemory()
-			_, err := m.getSlice(uint64(size+32*increment), uint64(size), &c)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
-			want := uint64(32 * (increment + 1))
-			if size == 0 {
-				want = 0
-			}
-			if size > 16 {
-				want = uint64(32 * (increment + 2))
-			}
-			if m.length() != want {
-				t.Errorf("unexpected slice length: %d, want: %d", m.length(), 32*increment)
+			for offset := 0; offset < 32; offset++ {
+				c := getEmptyContext()
+				originalGas := c.gas
+				m := NewMemory()
+				offsetIncremented := uint64(offset + 32*increment)
+				_, err := m.getSlice(offsetIncremented, uint64(size), &c)
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				want := uint64(32 * (increment + 1))
+				if size == 0 {
+					want = 0
+					if c.gas != originalGas {
+						t.Error("no gas should have been consumed when size is zero.")
+					}
+				}
+				if size+offset > 32 {
+					want = uint64(32 * (increment + 2))
+				}
+				if m.length() != want {
+					t.Errorf("unexpected slice length: %d, want: %d", m.length(), 32*increment)
+				}
 			}
 		}
 	}
