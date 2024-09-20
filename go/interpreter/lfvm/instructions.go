@@ -940,6 +940,8 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 	return nil
 }
 
+// checkInitCodeSize checks the size of the init code.
+// An error is returned if size is greater than MaxInitCodeSize.
 func checkMaxInitCodeSize(size uint64) error {
 	const (
 		maxCodeSize     = 24576           // Maximum bytecode to permit for a contract
