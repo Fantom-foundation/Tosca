@@ -79,7 +79,7 @@ extern "C" fn __evmc_set_option(
 }
 
 #[no_mangle]
-pub extern "C" fn evmc_create_evmrs() -> *const evmc_vm_t {
+pub(super) extern "C" fn evmc_create_evmrs() -> *const evmc_vm_t {
     let new_instance = evmc_vm_t {
         abi_version: EVMC_ABI_VERSION as i32,
         destroy: Some(__evmc_destroy),
