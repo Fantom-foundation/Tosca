@@ -354,35 +354,6 @@ func TestMemory_readWord_ErrorCases(t *testing.T) {
 	}
 }
 
-func TestMemory_Set_SuccessfulCases(t *testing.T) {
-	memoryOriginalSize := uint64(8)
-	offset := uint64(1)
-	// data of size (memoryOriginalSize - offset), to ensure it would fit in memory
-	data := make([]byte, memoryOriginalSize-offset)
-	for i := range data {
-		// add non zero values.
-		data[i] = byte(i + 1)
-	}
-	size := uint64(len(data))
-
-	c := context{gas: 3}
-	m := NewMemory()
-	m.store = make([]byte, memoryOriginalSize)
-
-	err := m.set(offset, size, data, &c)
-	if err != nil {
-		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
-	}
-
-	if m.length() != memoryOriginalSize {
-		t.Errorf("set should not change memory size, want: %d, got: %d", memoryOriginalSize, m.length())
-	}
-	if want := append([]byte{0x0}, data...); !bytes.Equal(m.store, want) {
-		t.Errorf("unexpected memory value, want: %x, got: %x", want, m.store)
-	}
-
-}
-
 func TestToValidMemorySize_RoundsUpToNextMultipleOf32(t *testing.T) {
 	for i := uint64(0); i < 128; i++ {
 		got, err := toValidMemorySize(i)
@@ -408,7 +379,42 @@ func TestToValidateMemorySize_ReturnsOverflowError(t *testing.T) {
 	}
 }
 
-func TestMemory_Set_ErrorCases(t *testing.T) {
+func TestMemory_set_SuccessfulCase(t *testing.T) {
+	const (
+		memoryOriginalSize = uint64(8)
+		offset             = uint64(1)
+		sizeToExpand       = 32 - memoryOriginalSize - offset
+	)
+	// data of size (memoryOriginalSize - offset), to ensure it would fit in memory
+	data := make([]byte, memoryOriginalSize-offset)
+	for i := range data {
+		// add non zero values.
+		data[i] = byte(i + 1)
+	}
+	size := uint64(len(data))
+	c := context{gas: 3}
+	m := NewMemory()
+	m.store = []byte{0xff}
+
+	err := m.set(offset, size, data, &c)
+	if err != nil {
+		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
+	}
+	got, err := toValidMemorySize(memoryOriginalSize)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if m.length() != got {
+		t.Errorf("set should not change memory size, want: %d, got: %d", got, m.length())
+	}
+	want := append([]byte{0xff}, data...)
+	want = append(want, []byte{sizeToExpand: 0x0}...)
+	if !bytes.Equal(m.store, want) {
+		t.Errorf("unexpected memory value, want: %x, got: %x", want, m.store)
+	}
+}
+
+func TestMemory_set_ErrorCases(t *testing.T) {
 	c := context{gas: 0}
 	m := NewMemory()
 
@@ -426,11 +432,24 @@ func TestMemory_Set_ErrorCases(t *testing.T) {
 	}
 }
 
-func TestMemory_SetByte_SuccessfulCases(t *testing.T) {
+func TestMemory_set_sizeZeroDoesNotProduceExpansion(t *testing.T) {
+	for offset := uint64(0); offset < 128; offset++ {
+		c := context{gas: 0}
+		m := NewMemory()
+		m.store = []byte{0x1}
+		err := m.set(offset, 0, []byte{}, &c)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if m.length() != 1 {
+			t.Errorf("memory should not have been expanded, instead is: %d", m.length())
+		}
+	}
+}
 
+func TestMemory_setByte_SuccessfulCase(t *testing.T) {
 	memory := []byte{0x12, 0x34, 0x56, 0x78}
 	offset := uint64(8)
-
 	ctxt := context{gas: 3}
 	m := NewMemory()
 	m.store = bytes.Clone(memory)
@@ -440,11 +459,9 @@ func TestMemory_SetByte_SuccessfulCases(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error, want: %v, got: %v", nil, err)
 	}
-
 	if m.length() <= offset {
 		t.Errorf("unexpected memory size, want: %d, got: %d", offset, m.length())
 	}
-
 	for i, b := range memory {
 		if i == int(offset) {
 			if m.store[i] != value {
