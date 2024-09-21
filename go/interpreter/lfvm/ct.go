@@ -88,7 +88,7 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	result, err := getOutput(ctxt)
 	if err != nil {
-		ctxt.signalError()
+		ctxt.status = statusError
 	}
 
 	// Update the resulting state.
