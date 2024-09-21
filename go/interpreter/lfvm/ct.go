@@ -72,7 +72,6 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		refund:     tosca.Gas(state.GasRefund),
 		stack:      convertCtStackToLfvmStack(state.Stack),
 		memory:     memory,
-		status:     statusRunning,
 		code:       converted,
 		returnData: state.LastCallReturnData.ToBytes(),
 	}
@@ -82,22 +81,35 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	}()
 
 	// Run interpreter.
-	for i := 0; ctxt.status == statusRunning && i < numSteps; i++ {
-		step(ctxt)
-	}
-
-	result, err := getOutput(ctxt)
-	if err != nil {
-		ctxt.status = statusError
+	status := statusRunning
+	var executionErr error
+	for i := 0; status == statusRunning && i < numSteps; i++ {
+		status, executionErr = step(ctxt)
+		if executionErr != nil {
+			break
+		}
 	}
 
 	// Update the resulting state.
-	state.Status, err = convertLfvmStatusToCtStatus(ctxt.status)
+	state.Status, err = convertLfvmStatusToCtStatus(status)
 	if err != nil {
 		return nil, err
 	}
-	if ctxt.status == statusRunning {
+
+	result, err := getOutput(status, ctxt)
+	if err != nil {
+		executionErr = err
+	}
+
+	if status == statusRunning {
+		if ctxt.pc >= int32(len(pcMap.lfvmToEvm)) {
+			executionErr = err
+		}
 		state.Pc = pcMap.lfvmToEvm[ctxt.pc]
+	}
+
+	if executionErr != nil {
+		state.Status = st.Failed
 	}
 
 	state.Gas = ctxt.gas
@@ -177,8 +189,6 @@ func convertLfvmStatusToCtStatus(status status) (st.StatusCode, error) {
 		return st.Reverted, nil
 	case statusSelfDestructed:
 		return st.Stopped, nil
-	case statusError:
-		return st.Failed, nil
 	default:
 		return st.Failed, fmt.Errorf("unable to convert lfvm status %v to ct status", status)
 	}

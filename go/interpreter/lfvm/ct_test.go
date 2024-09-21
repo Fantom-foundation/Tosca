@@ -75,7 +75,7 @@ func TestConvertToLfvm_StatusCode(t *testing.T) {
 		if !found {
 			want = st.Failed
 		}
-		got, err := convertLfvmStatusToCtStatus(status)
+		got, err := convertLfvmStatusToCtStatus(status, nil)
 		if err != nil {
 			if found {
 				t.Errorf("failed conversion of %v, wanted %v, got error %v", status, want, err)

@@ -26,8 +26,24 @@ const (
 	statusReverted                     // < execution stopped with a REVERT
 	statusReturned                     // < execution stopped with a RETURN
 	statusSelfDestructed               // < execution stopped with a SELF-DESTRUCT
-	statusError                        // < execution stopped with an error (e.g. stack underflow, out-of-gas, invalid-opcode)
 )
+
+func (s status) String() string {
+	switch s {
+	case statusRunning:
+		return "running"
+	case statusStopped:
+		return "stopped"
+	case statusReverted:
+		return "reverted"
+	case statusReturned:
+		return "returned"
+	case statusSelfDestructed:
+		return "selfdestructed"
+	default:
+		return fmt.Sprintf("unknown status: %d", s)
+	}
+}
 
 // context is the execution environment of an interpreter run. It contains all
 // the necessary state to execute a contract, including input parameters, the
@@ -40,9 +56,6 @@ type context struct {
 	code    Code // the contract code in LFVM format
 
 	// Execution state
-
-	// Deprecated: status is to be returned from the interpreter step, not stored in the context.
-	status status
 	pc     int32
 	gas    tosca.Gas
 	refund tosca.Gas
@@ -82,7 +95,7 @@ func (c *context) isAtLeast(revision tosca.Revision) bool {
 // --- Interpreter ---
 
 type runner interface {
-	run(*context)
+	run(*context) (status, error)
 }
 
 type interpreterConfig struct {
@@ -114,27 +127,30 @@ func run(
 		code:         code,
 		withShaCache: config.withShaCache,
 	}
-
 	defer ReturnStack(ctxt.stack)
 
-	// Run interpreter.
 	if config.runner == nil {
 		config.runner = vanillaRunner{}
 	}
-	config.runner.run(&ctxt)
+	status, err := config.runner.run(&ctxt)
+	if err != nil {
+		return tosca.Result{
+			Success: false,
+		}, nil
+	}
 
-	return generateResult(&ctxt)
+	return generateResult(status, &ctxt)
 }
 
-func generateResult(ctxt *context) (tosca.Result, error) {
+func generateResult(status status, ctxt *context) (tosca.Result, error) {
 
-	res, err := getOutput(ctxt)
+	res, err := getOutput(status, ctxt)
 	if err != nil {
 		return tosca.Result{Success: false}, nil
 	}
 
 	// Handle return status
-	switch ctxt.status {
+	switch status {
 	case statusStopped, statusSelfDestructed:
 		return tosca.Result{
 			Success:   true,
@@ -154,18 +170,14 @@ func generateResult(ctxt *context) (tosca.Result, error) {
 			Output:  res,
 			GasLeft: ctxt.gas,
 		}, nil
-	case statusError:
-		return tosca.Result{
-			Success: false,
-		}, nil
 	default:
-		return tosca.Result{}, fmt.Errorf("unexpected error in interpreter, unknown status: %v", ctxt.status)
+		return tosca.Result{}, fmt.Errorf("unexpected error in interpreter, unknown status: %v", status)
 	}
 }
 
-func getOutput(ctxt *context) ([]byte, error) {
+func getOutput(status status, ctxt *context) ([]byte, error) {
 	var res []byte
-	if ctxt.status == statusReturned || ctxt.status == statusReverted {
+	if status == statusReturned || status == statusReverted {
 		size, overflow := ctxt.resultSize.Uint64WithOverflow()
 		if overflow {
 			return nil, errOverflow
@@ -200,21 +212,18 @@ func getOutput(ctxt *context) ([]byte, error) {
 // any additional features.
 type vanillaRunner struct{}
 
-func (r vanillaRunner) run(c *context) {
-	status, err := steps(c, false)
-	if err != nil {
-		c.status = statusError
-	} else {
-		c.status = status
-	}
+func (r vanillaRunner) run(c *context) (status, error) {
+	return steps(c, false)
 }
 
 // loggingRunner is a runner that logs the execution of the contract code to
 // stdout. It is used for debugging purposes.
 type loggingRunner struct{}
 
-func (r loggingRunner) run(c *context) {
-	for c.status == statusRunning {
+func (r loggingRunner) run(c *context) (status, error) {
+	status := statusRunning
+	var err error
+	for status == statusRunning {
 		// log format: <op>, <gas>, <top-of-stack>\n
 		if int(c.pc) < len(c.code) {
 			top := "-empty-"
@@ -223,25 +232,21 @@ func (r loggingRunner) run(c *context) {
 			}
 			fmt.Printf("%v, %d, %v\n", c.code[c.pc].opcode, c.gas, top)
 		}
-		step(c)
+		status, err = step(c)
+		if err != nil {
+			return status, err
+		}
 	}
+	return status, nil
 }
 
 // --- Execution ---
 
-func step(c *context) {
-	status, err := steps(c, true)
-	// FIXME: c.status is marked for deletion, this is a temporary workaround
-	// to facilitate review of the transition.
-	if err != nil {
-		c.status = statusError
-	} else {
-		c.status = status
-	}
+func step(c *context) (status, error) {
+	return steps(c, true)
 }
 
 func steps(c *context, oneStepOnly bool) (status, error) {
-	// Idea: handle static gas price in static dispatch below (saves an array lookup)
 	staticGasPrices := getStaticGasPrices(c.params.Revision)
 
 	status := statusRunning
@@ -254,12 +259,12 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 
 		// Check stack boundary for every instruction
 		if !satisfiesStackRequirements(c.stack.len(), op) {
-			return statusError, errStackLimitsViolation
+			return status, errStackLimitsViolation
 		}
 
 		// Consume static gas price for instruction before execution
 		if err := c.useGas(staticGasPrices.get(op)); err != nil {
-			return statusError, err
+			return status, errNotEnoughStaticGas
 		}
 
 		var err error
@@ -611,7 +616,7 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 		c.pc++
 
 		if err != nil {
-			return statusError, err
+			return status, err
 		}
 
 		if oneStepOnly {
