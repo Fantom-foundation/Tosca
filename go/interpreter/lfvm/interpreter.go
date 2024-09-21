@@ -40,6 +40,8 @@ type context struct {
 	code    Code // the contract code in LFVM format
 
 	// Execution state
+
+	// Deprecated: status is to be returned from the interpreter step, not stored in the context.
 	status status
 	pc     int32
 	gas    tosca.Gas
@@ -69,12 +71,6 @@ func (c *context) useGas(amount tosca.Gas) error {
 	}
 	c.gas -= amount
 	return nil
-}
-
-// signalError informs the context that an error was encountered that should
-// result in the termination of the execution covered by this context.
-func (c *context) signalError() {
-	c.status = statusError
 }
 
 // isAtLeast returns true if the interpreter is is running at least at the given
@@ -115,7 +111,6 @@ func run(
 		gas:          params.Gas,
 		stack:        NewStack(),
 		memory:       NewMemory(),
-		status:       statusRunning,
 		code:         code,
 		withShaCache: config.withShaCache,
 	}
@@ -173,13 +168,13 @@ func getOutput(ctxt *context) ([]byte, error) {
 	if ctxt.status == statusReturned || ctxt.status == statusReverted {
 		size, overflow := ctxt.resultSize.Uint64WithOverflow()
 		if overflow {
-			return nil, errGasUintOverflow
+			return nil, errOverflow
 		}
 
 		if size != 0 {
 			offset, overflow := ctxt.resultOffset.Uint64WithOverflow()
 			if overflow {
-				return nil, errGasUintOverflow
+				return nil, errOverflow
 			}
 
 			// Extract the result from the memory
@@ -206,7 +201,12 @@ func getOutput(ctxt *context) ([]byte, error) {
 type vanillaRunner struct{}
 
 func (r vanillaRunner) run(c *context) {
-	steps(c, false)
+	status, err := steps(c, false)
+	if err != nil {
+		c.status = statusError
+	} else {
+		c.status = status
+	}
 }
 
 // loggingRunner is a runner that logs the execution of the contract code to
@@ -230,38 +230,46 @@ func (r loggingRunner) run(c *context) {
 // --- Execution ---
 
 func step(c *context) {
-	steps(c, true)
+	status, err := steps(c, true)
+	// FIXME: c.status is marked for deletion, this is a temporary workaround
+	// to facilitate review of the transition.
+	if err != nil {
+		c.status = statusError
+	} else {
+		c.status = status
+	}
 }
 
-func steps(c *context, oneStepOnly bool) {
+func steps(c *context, oneStepOnly bool) (status, error) {
 	// Idea: handle static gas price in static dispatch below (saves an array lookup)
 	staticGasPrices := getStaticGasPrices(c.params.Revision)
-	for c.status == statusRunning {
+
+	status := statusRunning
+	for status == statusRunning {
 		if int(c.pc) >= len(c.code) {
-			opStop(c)
-			return
+			return statusStopped, nil
 		}
 
 		op := c.code[c.pc].opcode
 
 		// Check stack boundary for every instruction
 		if !satisfiesStackRequirements(c.stack.len(), op) {
-			c.signalError()
-			return
+			return statusError, errStackLimitsViolation
 		}
 
 		// Consume static gas price for instruction before execution
 		if err := c.useGas(staticGasPrices.get(op)); err != nil {
-			c.signalError()
-			return
+			return statusError, err
 		}
+
+		var err error
 
 		// Execute instruction
 		switch op {
 		case POP:
 			opPop(c)
 		case PUSH0:
-			opPush0(c)
+			err = opPush0(c)
 		case PUSH1:
 			opPush1(c)
 		case PUSH2:
@@ -277,7 +285,7 @@ func steps(c *context, oneStepOnly bool) {
 		case PUSH32:
 			opPush32(c)
 		case JUMP:
-			opJump(c)
+			err = opJump(c)
 		case JUMPDEST:
 			// nothing
 		case SWAP1:
@@ -291,7 +299,7 @@ func steps(c *context, oneStepOnly bool) {
 		case SWAP3:
 			opSwap(c, 3)
 		case JUMPI:
-			opJumpi(c)
+			err = opJumpi(c)
 		case GT:
 			opGt(c)
 		case DUP4:
@@ -325,7 +333,7 @@ func steps(c *context, oneStepOnly bool) {
 		case ADDMOD:
 			opAddMod(c)
 		case EXP:
-			opExp(c)
+			err = opExp(c)
 		case DUP5:
 			opDup(c, 5)
 		case DUP1:
@@ -341,17 +349,17 @@ func steps(c *context, oneStepOnly bool) {
 		case CALLDATASIZE:
 			opCallDatasize(c)
 		case CALLDATACOPY:
-			opCallDataCopy(c)
+			err = opCallDataCopy(c)
 		case MLOAD:
-			opMload(c)
+			err = opMload(c)
 		case MSTORE:
-			opMstore(c)
+			err = opMstore(c)
 		case MSTORE8:
-			opMstore8(c)
+			err = opMstore8(c)
 		case MSIZE:
 			opMsize(c)
 		case MCOPY:
-			opMcopy(c)
+			err = opMcopy(c)
 		case LT:
 			opLt(c)
 		case SLT:
@@ -369,7 +377,7 @@ func steps(c *context, oneStepOnly bool) {
 		case BYTE:
 			opByte(c)
 		case SHA3:
-			opSha3(c)
+			err = opSha3(c)
 		case CALLVALUE:
 			opCallvalue(c)
 		case PUSH6:
@@ -471,41 +479,41 @@ func steps(c *context, oneStepOnly bool) {
 		case DUP16:
 			opDup(c, 16)
 		case RETURN:
-			opReturn(c)
+			status = opReturn(c)
 		case REVERT:
-			opRevert(c)
+			status = opRevert(c)
 		case JUMP_TO:
 			opJumpTo(c)
 		case SLOAD:
-			opSload(c)
+			err = opSload(c)
 		case SSTORE:
-			opSstore(c)
+			err = opSstore(c)
 		case TLOAD:
-			opTload(c)
+			err = opTload(c)
 		case TSTORE:
-			opTstore(c)
+			err = opTstore(c)
 		case CODESIZE:
 			opCodeSize(c)
 		case CODECOPY:
-			opCodeCopy(c)
+			err = opCodeCopy(c)
 		case EXTCODESIZE:
-			opExtcodesize(c)
+			err = opExtcodesize(c)
 		case EXTCODEHASH:
-			opExtcodehash(c)
+			err = opExtcodehash(c)
 		case EXTCODECOPY:
-			opExtCodeCopy(c)
+			err = opExtCodeCopy(c)
 		case BALANCE:
-			opBalance(c)
+			err = opBalance(c)
 		case SELFBALANCE:
 			opSelfbalance(c)
 		case BASEFEE:
-			opBaseFee(c)
+			err = opBaseFee(c)
 		case BLOBHASH:
-			opBlobHash(c)
+			err = opBlobHash(c)
 		case BLOBBASEFEE:
-			opBlobBaseFee(c)
+			err = opBlobBaseFee(c)
 		case SELFDESTRUCT:
-			opSelfdestruct(c)
+			status, err = opSelfdestruct(c)
 		case CHAINID:
 			opChainId(c)
 		case GAS:
@@ -521,17 +529,17 @@ func steps(c *context, oneStepOnly bool) {
 		case GASPRICE:
 			opGasPrice(c)
 		case CALL:
-			opCall(c)
+			err = opCall(c)
 		case CALLCODE:
-			opCallCode(c)
+			err = opCallCode(c)
 		case STATICCALL:
-			opStaticCall(c)
+			err = opStaticCall(c)
 		case DELEGATECALL:
-			opDelegateCall(c)
+			err = opDelegateCall(c)
 		case RETURNDATASIZE:
 			opReturnDataSize(c)
 		case RETURNDATACOPY:
-			opReturnDataCopy(c)
+			err = opReturnDataCopy(c)
 		case BLOCKHASH:
 			opBlockhash(c)
 		case COINBASE:
@@ -541,21 +549,21 @@ func steps(c *context, oneStepOnly bool) {
 		case ADDRESS:
 			opAddress(c)
 		case STOP:
-			opStop(c)
+			status = opStop()
 		case CREATE:
-			opCreate(c)
+			err = opCreate(c)
 		case CREATE2:
-			opCreate2(c)
+			err = opCreate2(c)
 		case LOG0:
-			opLog(c, 0)
+			err = opLog(c, 0)
 		case LOG1:
-			opLog(c, 1)
+			err = opLog(c, 1)
 		case LOG2:
-			opLog(c, 2)
+			err = opLog(c, 2)
 		case LOG3:
-			opLog(c, 3)
+			err = opLog(c, 3)
 		case LOG4:
-			opLog(c, 4)
+			err = opLog(c, 4)
 		// --- Super Instructions ---
 		case SWAP2_SWAP1_POP_JUMP:
 			opSwap2_Swap1_Pop_Jump(c)
@@ -572,25 +580,25 @@ func steps(c *context, oneStepOnly bool) {
 		case PUSH1_DUP1:
 			opPush1_Dup1(c)
 		case PUSH2_JUMP:
-			opPush2_Jump(c)
+			err = opPush2_Jump(c)
 		case PUSH2_JUMPI:
-			opPush2_Jumpi(c)
+			err = opPush2_Jumpi(c)
 		case PUSH1_PUSH1:
 			opPush1_Push1(c)
 		case SWAP1_POP:
 			opSwap1_Pop(c)
 		case POP_JUMP:
-			opPop_Jump(c)
+			err = opPop_Jump(c)
 		case SWAP2_SWAP1:
 			opSwap2_Swap1(c)
 		case SWAP2_POP:
 			opSwap2_Pop(c)
 		case DUP2_MSTORE:
-			opDup2_Mstore(c)
+			err = opDup2_Mstore(c)
 		case DUP2_LT:
 			opDup2_Lt(c)
 		case ISZERO_PUSH2_JUMPI:
-			opIsZero_Push2_Jumpi(c)
+			err = opIsZero_Push2_Jumpi(c)
 		case PUSH1_PUSH4_DUP3:
 			opPush1_Push4_Dup3(c)
 		case AND_SWAP1_POP_SWAP2_SWAP1:
@@ -598,15 +606,19 @@ func steps(c *context, oneStepOnly bool) {
 		case PUSH1_PUSH1_PUSH1_SHL_SUB:
 			opPush1_Push1_Push1_Shl_Sub(c)
 		default:
-			c.signalError()
-			return
+			err = errInvalidOpCode
 		}
 		c.pc++
 
+		if err != nil {
+			return statusError, err
+		}
+
 		if oneStepOnly {
-			return
+			return status, nil
 		}
 	}
+	return status, nil
 }
 
 // satisfiesStackRequirements checks that the opCode will not make an out of
@@ -614,7 +626,10 @@ func steps(c *context, oneStepOnly bool) {
 // Caller should handle false return as an error.
 func satisfiesStackRequirements(stackLen int, op OpCode) bool {
 	limits := _precomputedStackLimits.get(op)
-	if stackLen < limits.min || stackLen > limits.max {
+	if stackLen < limits.min {
+		return false
+	}
+	if stackLen > limits.max {
 		return false
 	}
 	return true

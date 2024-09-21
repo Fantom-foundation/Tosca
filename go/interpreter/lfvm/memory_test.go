@@ -121,13 +121,13 @@ func TestMemory_expandMemory_ErrorCases(t *testing.T) {
 			size:     1,
 			offset:   math.MaxUint64,
 			gas:      100,
-			expected: errGasUintOverflow,
+			expected: errOverflow,
 		},
 		"size overflow": {
 			size:     math.MaxUint64,
 			offset:   1,
 			gas:      100,
-			expected: errGasUintOverflow,
+			expected: errOverflow,
 		},
 	}
 
