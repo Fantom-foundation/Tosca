@@ -20,6 +20,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -554,28 +555,26 @@ func TestSteps_DetectsNonExecutableCode(t *testing.T) {
 		NOOP,
 		DATA,
 	}
-
-	re := regexp.MustCompile(`^op\(0x[0-9a-fA-F]{2}\)`)
-	for op := OpCode(0); op < numOpCodes; op++ {
-		if re.MatchString(op.String()) {
-			nonExecutableOpCodes = append(nonExecutableOpCodes, op)
-		}
-	}
+	nonExecutableOpCodes = append(nonExecutableOpCodes, allOpCodesWhere(isInvalidOpCode)...)
 
 	for _, opCode := range nonExecutableOpCodes {
-		ctxt := getEmptyContext()
-		ctxt.params = tosca.Parameters{
-			Input:  []byte{},
-			Static: false,
-			Gas:    10,
-			Code:   []byte{0x0},
-		}
-		ctxt.code = []Instruction{{opCode, 0}}
 
-		_, err := steps(&ctxt, false)
-		if want, got := errInvalidOpCode, err; want != got {
-			t.Errorf("unexpected error: want %v, got %v", want, got)
-		}
+		t.Run(opCode.String(), func(t *testing.T) {
+			ctxt := getEmptyContext()
+			ctxt.params = tosca.Parameters{
+				Input:  []byte{},
+				Static: false,
+				Code:   []byte{0x0},
+			}
+			ctxt.code = []Instruction{{opCode, 0}}
+			ctxt.stack.stackPointer = 50
+			ctxt.gas = 1 << 32
+
+			_, err := steps(&ctxt, false)
+			if want, got := errInvalidOpCode, err; want != got {
+				t.Errorf("unexpected error: want %v, got %v", want, got)
+			}
+		})
 	}
 }
 
@@ -638,26 +637,45 @@ func TestSteps_StaticContextViolation(t *testing.T) {
 	}
 }
 
-// FIXME: rewrite as static gas check (for all opcodes)
-func TestStepsFailsOnTooLittleGas(t *testing.T) {
-	ctxt := getEmptyContext()
-	instructions := []Instruction{
-		{PUSH1, 0},
+func TestSteps_FailsWithLessGasThanStaticCost(t *testing.T) {
+
+	ignore := []OpCode{
+		STOP, // Ignore because it has cost 0
 	}
 
-	ctxt.params = tosca.Parameters{
-		Input:  []byte{},
-		Static: false,
-		Gas:    2,
-		Code:   []byte{0x0},
-	}
-	ctxt.gas = 2
-	ctxt.code = instructions
+	for _, op := range allOpCodesWhere(isValidOpCode) {
+		if slices.Contains(ignore, op) {
+			continue
+		}
 
-	_, err := steps(&ctxt, false)
-	if want, got := errOutOfGas, err; want != got {
-		t.Errorf("unexpected error: want %v, got %v", want, got)
+		t.Run(op.String(), func(t *testing.T) {
+			ctxt := getEmptyContext()
+			staticGasPrices := getStaticGasPrices(tosca.R07_Istanbul)
+
+			ctxt.params = tosca.Parameters{
+				Input:  []byte{},
+				Static: false,
+				Code:   []byte{0x0},
+			}
+			ctxt.code = []Instruction{{op, 0}}
+			ctxt.stack.stackPointer = 50
+			ctxt.gas = staticGasPrices.get(op) - 1
+
+			_, err := steps(&ctxt, false)
+			if want, got := errNotEnoughStaticGas, err; want != got {
+				t.Errorf("unexpected error: want %v, got %v", want, got)
+			}
+		})
 	}
+}
+
+var invalidOpCodeString = regexp.MustCompile(`^op\(0x[0-9a-fA-F]{2}\)`)
+
+func isValidOpCode(op OpCode) bool {
+	return !invalidOpCodeString.MatchString(op.String())
+}
+func isInvalidOpCode(op OpCode) bool {
+	return invalidOpCodeString.MatchString(op.String())
 }
 
 func getFibExample() example {
