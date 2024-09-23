@@ -36,15 +36,10 @@ pub fn consume_address_access_cost(
     addr: &Address,
     state: &mut Interpreter,
 ) -> Result<(), StatusCode> {
-    let tx_context = state.context.get_tx_context();
     if state.revision < Revision::EVMC_BERLIN {
         return Ok(());
     }
-    if *addr != tx_context.tx_origin
-            //&& addr != tx_context.tx_to // TODO
-            && !(state.revision >= Revision::EVMC_SHANGHAI && *addr == tx_context.block_coinbase)
-            && state.context.access_account(addr) == AccessStatus::EVMC_ACCESS_COLD
-    {
+    if state.context.access_account(addr) == AccessStatus::EVMC_ACCESS_COLD {
         consume_gas(&mut state.gas_left, 2600)
     } else {
         consume_gas(&mut state.gas_left, 100)

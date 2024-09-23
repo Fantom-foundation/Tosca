@@ -186,6 +186,22 @@ impl From<u256> for Address {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub struct U64Overflow;
+
+impl TryFrom<u256> for u64 {
+    type Error = U64Overflow;
+
+    fn try_from(value: u256) -> Result<Self, Self::Error> {
+        let bytes: [u8; 32] = *value;
+        if bytes.iter().take(24).any(|b| *b > 0) {
+            Err(U64Overflow)
+        } else {
+            Ok(u64::from_be_bytes(*bytes.split_last_chunk().unwrap().1))
+        }
+    }
+}
+
 impl Add for u256 {
     type Output = Self;
 
@@ -514,7 +530,7 @@ mod tests {
         types::{I256, U256, U512},
     };
 
-    use crate::types::amount::u256;
+    use crate::types::amount::{u256, U64Overflow};
 
     #[test]
     fn display() {
@@ -572,11 +588,15 @@ mod tests {
         assert_eq!(u256::from(1u64), v1);
         assert_eq!(u256::from(255u64), v255);
         for num in [0, 1, u64::MAX - 1, u64::MAX] {
+            assert_eq!(u256::from(num).try_into(), Ok(num));
+        }
+        for num in [0, 1, u64::MAX - 1, u64::MAX] {
             assert_eq!(u256::from(num).into_u64_with_overflow(), (num, false));
         }
         for num in [0, 1, u64::MAX - 1, u64::MAX] {
             assert_eq!(u256::from(num).into_u64_saturating(), num);
         }
+        assert_eq!(u256::MAX.try_into(), Result::<u64, _>::Err(U64Overflow));
         assert_eq!(u256::MAX.into_u64_with_overflow(), (u64::MAX, true));
         assert_eq!(u256::MAX.into_u64_saturating(), u64::MAX);
 

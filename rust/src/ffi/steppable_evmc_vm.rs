@@ -42,7 +42,6 @@ extern "C" fn __evmc_steppable_destroy(instance: *mut evmc_vm_steppable) {
     }
 }
 
-#[no_mangle]
 extern "C" fn __evmc_step_n(
     instance: *mut evmc_vm_steppable,
     host: *const evmc_host_interface,
