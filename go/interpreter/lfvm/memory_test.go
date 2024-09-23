@@ -17,7 +17,15 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
+	"github.com/holiman/uint256"
 )
+
+func TestMemory_NewMemoryIsEmpty(t *testing.T) {
+	m := NewMemory()
+	if m.length() != 0 {
+		t.Errorf("memory should be empty, instead has length: %d", m.length())
+	}
+}
 
 func TestGetExpansionCosts(t *testing.T) {
 
@@ -93,7 +101,6 @@ func TestMemory_expandMemoryWithoutCharging(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestMemory_expandMemory_ErrorCases(t *testing.T) {
@@ -183,5 +190,170 @@ func TestMemory_expandMemory_expandsMemoryOnlyWhenNeeded(t *testing.T) {
 				t.Errorf("unexpected memory size, want: %d, got: %d", test.expectedMemorySize, m.length())
 			}
 		})
+	}
+}
+
+func TestMemory_getSlice_ErrorCases(t *testing.T) {
+	c := context{gas: 0}
+	m := NewMemory()
+	_, err := m.getSlice(0, 1, &c)
+	if !errors.Is(err, errOutOfGas) {
+		t.Errorf("error should be errOutOfGas, instead is: %v", err)
+	}
+	_, err = m.getSlice(math.MaxUint64-31, 32, &c)
+	if !errors.Is(err, errGasUintOverflow) {
+		t.Errorf("error should be errGasUintOverflow, instead is: %v", err)
+	}
+}
+
+func TestMemory_getSlice_properlyHandlesMemoryExpansionsAndReturnsExpectedMemory(t *testing.T) {
+
+	tests := map[string]struct {
+		offset   uint64
+		size     uint64
+		expected []byte
+	}{
+		"size zero returns empty slice": {
+			offset:   64,
+			size:     0,
+			expected: []byte{},
+		},
+		"memory does not expand when not needed": {
+			offset:   0,
+			size:     4,
+			expected: []byte{0x0, 0x01, 0x02, 0x03},
+		},
+		"memory expands when needed": {
+			offset:   4,
+			size:     5,
+			expected: []byte{0x04, 4: 0x0},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			c := context{gas: 3}
+			m := NewMemory()
+			m.store = []byte{0x0, 0x01, 0x02, 0x03, 0x04}
+			slice, err := m.getSlice(test.offset, test.size, &c)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if !bytes.Equal(slice, test.expected) {
+				t.Errorf("unexpected slice: %x, want: %x", slice, test.expected)
+			}
+		})
+	}
+}
+
+func TestMemory_getSlice_ExpandsMemoryIn32ByteChunks(t *testing.T) {
+	for memSize := uint64(0); memSize < 128; memSize += 32 {
+		for offset := 0; offset < 128; offset++ {
+			for size := 1; size < 32; size++ {
+				c := &context{gas: 15}
+				m := NewMemory()
+				m.store = make([]byte, memSize)
+				_, err := m.getSlice(uint64(offset), uint64(size), c)
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				want := toValidMemorySize(uint64(offset + size))
+				if want < memSize {
+					want = memSize
+				}
+				if got, want := m.length(), want; got != want {
+					t.Errorf("unexpected memory length: %d, want: %d", got, want)
+				}
+			}
+		}
+	}
+}
+
+func TestMemory_getSlice_SizeOfZeroIsNotGrowingTheMemory(t *testing.T) {
+	for memSize := 0; memSize < 128; memSize += 32 {
+		for offset := 0; offset < 128; offset++ {
+			c := &context{gas: 1}
+			m := NewMemory()
+			m.store = make([]byte, memSize)
+			_, err := m.getSlice(uint64(offset), 0, c)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if c.gas != 1 {
+				t.Error("no gas should have been consumed when size is zero.")
+			}
+			if got, want := m.length(), uint64(memSize); got != want {
+				t.Errorf("unexpected memory length: %d, want: %d", got, want)
+			}
+		}
+	}
+}
+
+func TestMemory_getSlice_MemoryExpansionDoesNotOverwriteExistingMemory(t *testing.T) {
+	c := context{gas: 6}
+	m := NewMemory()
+	m.store = []byte{0x0, 0x01, 0x02, 0x03, 0x04}
+	_, err := m.getSlice(4, 29, &c)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if m.length() != 64 {
+		t.Errorf("memory should have been expanded to 64 bytes, instead is: %d", m.length())
+	}
+	if !bytes.Equal(m.store[:5], []byte{0x0, 0x01, 0x02, 0x03, 0x04}) {
+		t.Errorf("unexpected memory value: %x", m.store)
+	}
+}
+
+func TestMemory_getSlice_ExpandsWithZeros(t *testing.T) {
+	c := context{gas: 6}
+	m := NewMemory()
+	baseMemory := []byte{0x0, 0x01, 0x02, 0x03, 0x04}
+	m.store = bytes.Clone(baseMemory)
+	_, err := m.getSlice(28, 8, &c)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if m.length() != 64 {
+		t.Errorf("memory should have been expanded to 64 bytes, instead is: %d", m.length())
+	}
+	if !bytes.Equal(m.store, append(baseMemory, []byte{58: 0x0}...)) {
+		t.Errorf("unexpected memory value: %x", m.store)
+	}
+}
+
+func TestMemory_readWord_ErrorCases(t *testing.T) {
+	c := context{gas: 0}
+	m := NewMemory()
+	originalTarget := uint256.NewInt(1)
+	target := originalTarget.Clone()
+	err := m.readWord(math.MaxUint64-31, target, &c)
+	if !errors.Is(err, errGasUintOverflow) {
+		t.Errorf("error should be errGasUintOverflow, instead is: %v", err)
+	}
+	if target.Cmp(originalTarget) != 0 {
+		t.Errorf("target should not have been modified, want %v but got %v", originalTarget, target)
+	}
+	err = m.readWord(0, target, &c)
+	if !errors.Is(err, errOutOfGas) {
+		t.Errorf("error should be errOutOfGas, instead is: %v", err)
+	}
+	if target.Cmp(originalTarget) != 0 {
+		t.Errorf("target should not have been modified, want %v but got %v", originalTarget, target)
+	}
+}
+
+func TestToValidMemorySize_RoundsUpToNextMultipleOf32(t *testing.T) {
+	for i := uint64(0); i < 128; i++ {
+		got := toValidMemorySize(i)
+		if got%32 != 0 {
+			t.Errorf("result should be a multiple of 32, got: %d", got)
+		}
+		if got < i {
+			t.Errorf("result should be greater or equal to input, got: %d", got)
+		}
+		if got-i >= 32 {
+			t.Errorf("result should be less than 32 bytes greater than input, got: %d", got)
+		}
 	}
 }

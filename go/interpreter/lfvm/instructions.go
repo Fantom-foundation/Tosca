@@ -216,7 +216,7 @@ func opMcopy(c *context) {
 		return
 	}
 
-	data, err := c.memory.GetSliceWithCapacityAndGas(srcOffset, size, c)
+	data, err := c.memory.getSlice(srcOffset, size, c)
 	if err != nil {
 		c.signalError()
 		return
@@ -236,7 +236,7 @@ func opMload(c *context) {
 		return
 	}
 	offset := addr.Uint64()
-	if c.memory.CopyWord(offset, trg, c) != nil {
+	if c.memory.readWord(offset, trg, c) != nil {
 		c.signalError()
 	}
 }
@@ -614,7 +614,7 @@ func opSha3(c *context) {
 		return
 	}
 
-	data, err := c.memory.GetSliceWithCapacityAndGas(offset.Uint64(), size.Uint64(), c)
+	data, err := c.memory.getSlice(offset.Uint64(), size.Uint64(), c)
 	if err != nil {
 		c.signalError()
 		return
@@ -924,7 +924,8 @@ func genericCreate(c *context, kind tosca.CallKind) {
 		return
 	}
 
-	if c.memory.expandMemory(offset.Uint64(), size.Uint64(), c) != nil {
+	input, err := c.memory.getSlice(offset.Uint64(), size.Uint64(), c)
+	if err != nil {
 		c.signalError()
 		return
 	}
@@ -953,8 +954,6 @@ func genericCreate(c *context, kind tosca.CallKind) {
 			return
 		}
 	}
-
-	input := c.memory.GetSlice(offset.Uint64(), size.Uint64())
 
 	// Apply EIP150
 	gas := c.gas
@@ -1089,12 +1088,12 @@ func genericCall(c *context, kind tosca.CallKind) {
 	}
 
 	// Get arguments from the memory.
-	args, err := c.memory.GetSliceWithCapacityAndGas(inOffset.Uint64(), inSize.Uint64(), c)
+	args, err := c.memory.getSlice(inOffset.Uint64(), inSize.Uint64(), c)
 	if err != nil {
 		c.signalError()
 		return
 	}
-	output, err := c.memory.GetSliceWithCapacityAndGas(retOffset.Uint64(), retSize.Uint64(), c)
+	output, err := c.memory.getSlice(retOffset.Uint64(), retSize.Uint64(), c)
 	if err != nil {
 		c.signalError()
 		return
@@ -1302,7 +1301,7 @@ func opLog(c *context, size int) {
 		return
 	}
 
-	data, err := c.memory.GetSliceWithCapacityAndGas(start, log_size, c)
+	data, err := c.memory.getSlice(start, log_size, c)
 	if err != nil {
 		c.signalError()
 		return

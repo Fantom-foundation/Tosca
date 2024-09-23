@@ -194,18 +194,6 @@ func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c
 	return nil
 }
 
-func (m *Memory) CopyWord(offset uint64, trg *uint256.Int, c *context) error {
-	err := m.expandMemory(offset, 32, c)
-	if err != nil {
-		return err
-	}
-	if m.length() < offset+32 {
-		return fmt.Errorf("memory too small, size %d, attempted to read 32 byte at position %d", m.length(), offset)
-	}
-	trg.SetBytes32(m.store[offset : offset+32])
-	return nil
-}
-
 // Copies data from the memory to the given slice.
 func (m *Memory) CopyData(offset uint64, trg []byte) {
 	if m.length() < offset {
@@ -222,22 +210,32 @@ func (m *Memory) CopyData(offset uint64, trg []byte) {
 	}
 }
 
-func (m *Memory) GetSlice(offset, size uint64) []byte {
-	if size == 0 {
-		return nil
-	}
-
-	if m.length() >= offset+size {
-		return m.store[offset : offset+size]
-	}
-
-	return nil
-}
-
-func (m *Memory) GetSliceWithCapacityAndGas(offset, size uint64, c *context) ([]byte, error) {
+// getSlice obtains a slice of size bytes from the memory at the given offset.
+// The returned slice is backed by the memory's internal data. Updates to the
+// slice will thus effect the memory states. This connection is invalidated by any
+// subsequent memory operation that may change the size of the memory.
+func (m *Memory) getSlice(offset, size uint64, c *context) ([]byte, error) {
 	err := m.expandMemory(offset, size, c)
 	if err != nil {
 		return nil, err
 	}
-	return m.GetSlice(offset, size), nil
+	// since memory does not expand on size 0 independently of the offset,
+	// we need to prevent out of bounds access
+	if size == 0 {
+		return nil, nil
+	}
+	return m.store[offset : offset+size], nil
+}
+
+// readWord reads a Word (32 byte) from the memory at the given offset and stores
+// that word in the provided target.
+// Expands memory as needed and charges for it.
+// Returns error in case of not enough gas or offset+32 overflow.
+func (m *Memory) readWord(offset uint64, target *uint256.Int, c *context) error {
+	data, err := m.getSlice(offset, 32, c)
+	if err != nil {
+		return err
+	}
+	target.SetBytes32(data)
+	return nil
 }
