@@ -47,9 +47,6 @@ jobs:
       working-directory: ./
       run: diff=`gofmt -s -d ./go`; echo "$diff"; test -z "$diff"
 
-    - name: Go Vet static analysis
-      run: go vet ./go/...
-
     - name: Build
       run: make tosca-go
 

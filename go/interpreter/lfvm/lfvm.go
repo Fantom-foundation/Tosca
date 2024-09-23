@@ -64,7 +64,7 @@ func init() {
 
 	for name, config := range configs {
 		config := config
-		tosca.RegisterInterpreterFactory(name, func(any) (tosca.Interpreter, error) {
+		tosca.MustRegisterInterpreterFactory(name, func(any) (tosca.Interpreter, error) {
 			return newVm(config)
 		})
 	}
@@ -74,7 +74,7 @@ func init() {
 // LFVM interpreter configurations to Tosca's interpreter registry. This
 // function should not be called in production code, as the resulting VMs are
 // not officially supported.
-func RegisterExperimentalInterpreterConfigurations() {
+func RegisterExperimentalInterpreterConfigurations() error {
 	for _, si := range []string{"", "-si"} {
 		for _, shaCache := range []string{"", "-no-sha-cache"} {
 			for _, mode := range []string{"", "-stats", "-logging"} {
@@ -96,18 +96,23 @@ func RegisterExperimentalInterpreterConfigurations() {
 
 				name := "lfvm" + si + shaCache + mode
 				if name != "lfvm" && name != "lfvm-si" {
-					tosca.RegisterInterpreterFactory(
+					err := tosca.RegisterInterpreterFactory(
 						name,
 						func(any) (tosca.Interpreter, error) {
 							return newVm(config)
 						},
 					)
+					if err != nil {
+						return fmt.Errorf("failed to register interpreter %q: %v", name, err)
+					}
 				}
 			}
 		}
 	}
-	tosca.RegisterInterpreterFactory(
-		"lfvm-no-code-cache",
+
+	lfvmNoCodeCache := "lfvm-no-code-cache"
+	err := tosca.RegisterInterpreterFactory(
+		lfvmNoCodeCache,
 		func(any) (tosca.Interpreter, error) {
 			return newVm(config{
 				ConversionConfig: ConversionConfig{
@@ -116,6 +121,10 @@ func RegisterExperimentalInterpreterConfigurations() {
 			})
 		},
 	)
+	if err != nil {
+		return fmt.Errorf("failed to register interpreter %q: %v", lfvmNoCodeCache, err)
+	}
+	return nil
 }
 
 type config struct {

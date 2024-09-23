@@ -67,7 +67,10 @@ func TestEvmzero_DumpProfile(t *testing.T) {
 func BenchmarkNewEvmcInterpreter(b *testing.B) {
 	b.Run("evmzero", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tosca.NewInterpreter("evmzero")
+			_, err := tosca.NewInterpreter("evmzero")
+			if err != nil {
+				b.Fatalf("failed to load evmzero interpreter: %v", err)
+			}
 		}
 	})
 }

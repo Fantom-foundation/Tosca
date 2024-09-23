@@ -8,28 +8,41 @@
 # On the date above, in accordance with the Business Source License, use of
 # this software will be governed by the GNU Lesser General Public License v3.
 
-name: golangci-lint
+name: lint-go
+
 on:
   push:
     branches: [ "main" ]
     paths:
+      - '.github/workflows/go.yml'
       - 'go/**'
-      - 'go.mod'
+      - Makefile
   pull_request:
     branches: [ "main" ]
     paths:
+      - '.github/workflows/go.yml'
       - 'go/**'
-      - 'go.mod'
+      - Makefile
 
 jobs:
-  ci:
-    name: "lint"
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 1
         submodules: recursive
-    - uses: dominikh/staticcheck-action@v1
+
+    - name: Setup cmake
+      uses: jwlawson/actions-setup-cmake@v1.13
       with:
-        version: "latest"
+        cmake-version: '3.27.x'
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.21
+        cache: false
+
+    - name: Lint code
+      run: make lint-go

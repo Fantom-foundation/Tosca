@@ -11,6 +11,7 @@
 package interpreter_test
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -25,7 +26,10 @@ import (
 func init() {
 	// Experimental LFVM configurations should be covered by integration tests
 	// as they might be used by down-stream tools and for debugging.
-	lfvm.RegisterExperimentalInterpreterConfigurations()
+	err := lfvm.RegisterExperimentalInterpreterConfigurations()
+	if err != nil {
+		panic(fmt.Errorf("failed to register experimental LFVM configurations: %v", err))
+	}
 }
 
 // getAllInterpreterVariantsForTests returns all registered interpreter variants

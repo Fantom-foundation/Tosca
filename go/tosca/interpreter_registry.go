@@ -111,6 +111,17 @@ func RegisterInterpreterFactory(name string, factory InterpreterFactory) error {
 	return nil
 }
 
+// MustRegisterInterpreterFactory registers a new Interpreter implementation
+// See RegisterInterpreterFactory for more information.
+// This function panics if the registration fails. This function is intended to
+// be used exclusively in package initialization code, where error handling is
+// limited.
+func MustRegisterInterpreterFactory(name string, factory InterpreterFactory) {
+	if err := RegisterInterpreterFactory(name, factory); err != nil {
+		panic(fmt.Errorf("failed to register interpreter factory: %s", err))
+	}
+}
+
 // InterpreterFactory is the type of a function that creates a new Interpreter
 // using a interpreter specific configuration.
 type InterpreterFactory func(config any) (Interpreter, error)

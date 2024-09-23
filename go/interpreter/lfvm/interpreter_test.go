@@ -371,7 +371,7 @@ func TestRunWithLogging(t *testing.T) {
 		runner: loggingRunner{},
 	}, params, code)
 	// read the output
-	w.Close()
+	_ = w.Close() // ignore error in test
 	out, _ := io.ReadAll(r)
 	os.Stdout = old
 
@@ -409,7 +409,7 @@ func TestRunBasic(t *testing.T) {
 	// Run testing code
 	_, err := run(interpreterConfig{}, params, code)
 	// read the output
-	w.Close()
+	_ = w.Close() // ignore error in test
 	out, _ := io.ReadAll(r)
 	os.Stdout = old
 

@@ -33,10 +33,10 @@ func init() {
 	}
 	// This instance remains in its basic configuration and is registered
 	// as the default "evmone" VM and as the "evmone-basic" tosca.
-	tosca.RegisterInterpreterFactory("evmone", func(any) (tosca.Interpreter, error) {
+	tosca.MustRegisterInterpreterFactory("evmone", func(any) (tosca.Interpreter, error) {
 		return &evmoneInstance{evmone}, nil
 	})
-	tosca.RegisterInterpreterFactory("evmone-basic", func(any) (tosca.Interpreter, error) {
+	tosca.MustRegisterInterpreterFactory("evmone-basic", func(any) (tosca.Interpreter, error) {
 		return &evmoneInstance{evmone}, nil
 	})
 
@@ -48,7 +48,7 @@ func init() {
 	if err := evmone.SetOption("advanced", "on"); err != nil {
 		panic(fmt.Errorf("failed to configure evmone advanced mode: %v", err))
 	}
-	tosca.RegisterInterpreterFactory("evmone-advanced", func(any) (tosca.Interpreter, error) {
+	tosca.MustRegisterInterpreterFactory("evmone-advanced", func(any) (tosca.Interpreter, error) {
 		return &evmoneInstance{evmone}, nil
 	})
 }
