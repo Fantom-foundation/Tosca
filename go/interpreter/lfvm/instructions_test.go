@@ -214,7 +214,6 @@ func TestCallChecksBalances(t *testing.T) {
 	source := tosca.Address{1}
 	target := tosca.Address{2}
 	ctxt := context{
-		status: statusRunning,
 		params: tosca.Parameters{
 			Recipient: source,
 		},
@@ -233,10 +232,9 @@ func TestCallChecksBalances(t *testing.T) {
 	runContext.EXPECT().AccountExists(target).Return(true)
 	runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
 
-	opCall(&ctxt)
-
-	if want, got := statusRunning, ctxt.status; want != got {
-		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+	err := opCall(&ctxt)
+	if err != nil {
+		t.Errorf("opCall failed: %v", err)
 	}
 
 	if want, got := 1, ctxt.stack.len(); want != got {
@@ -254,7 +252,6 @@ func TestCreateChecksBalance(t *testing.T) {
 
 	source := tosca.Address{1}
 	ctxt := context{
-		status: statusRunning,
 		params: tosca.Parameters{
 			Recipient: source,
 		},
@@ -271,16 +268,13 @@ func TestCreateChecksBalance(t *testing.T) {
 	// The source account should have enough funds.
 	runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
 
-	opCreate(&ctxt)
-
-	if want, got := statusRunning, ctxt.status; want != got {
-		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+	err := opCreate(&ctxt)
+	if err != nil {
+		t.Errorf("opCreate failed: %v", err)
 	}
-
 	if want, got := 1, ctxt.stack.len(); want != got {
 		t.Fatalf("unexpected stack size, wanted %d, got %d", want, got)
 	}
-
 	if want, got := *uint256.NewInt(0), ctxt.stack.data[0]; want != got {
 		t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
 	}
@@ -293,26 +287,26 @@ func TestLogOpSizeOverflow(t *testing.T) {
 	zero := uint256.NewInt(0)
 
 	tests := map[string]struct {
-		logn     int
-		size     *uint256.Int
-		logCalls int
-		want     status
+		logn          int
+		size          *uint256.Int
+		logCalls      int
+		expectedError error
 	}{
-		"log0_zero":        {logn: 0, size: zero, logCalls: 1, want: statusRunning},
-		"log1_zero":        {logn: 1, size: zero, logCalls: 1, want: statusRunning},
-		"log2_zero":        {logn: 2, size: zero, logCalls: 1, want: statusRunning},
-		"log3_zero":        {logn: 3, size: zero, logCalls: 1, want: statusRunning},
-		"log4_zero":        {logn: 4, size: zero, logCalls: 1, want: statusRunning},
-		"log0_max":         {logn: 0, size: maxUint64, logCalls: 0, want: statusError},
-		"log1_max":         {logn: 1, size: maxUint64, logCalls: 0, want: statusError},
-		"log2_max":         {logn: 2, size: maxUint64, logCalls: 0, want: statusError},
-		"log3_max":         {logn: 3, size: maxUint64, logCalls: 0, want: statusError},
-		"log4_max":         {logn: 4, size: maxUint64, logCalls: 0, want: statusError},
-		"log0_much_larger": {logn: 0, size: originalBugValue, logCalls: 0, want: statusError},
-		"log1_much_larger": {logn: 1, size: originalBugValue, logCalls: 0, want: statusError},
-		"log2_much_larger": {logn: 2, size: originalBugValue, logCalls: 0, want: statusError},
-		"log3_much_larger": {logn: 3, size: originalBugValue, logCalls: 0, want: statusError},
-		"log4_much_larger": {logn: 4, size: originalBugValue, logCalls: 0, want: statusError},
+		"log0_zero":        {logn: 0, size: zero, logCalls: 1, expectedError: nil},
+		"log1_zero":        {logn: 1, size: zero, logCalls: 1, expectedError: nil},
+		"log2_zero":        {logn: 2, size: zero, logCalls: 1, expectedError: nil},
+		"log3_zero":        {logn: 3, size: zero, logCalls: 1, expectedError: nil},
+		"log4_zero":        {logn: 4, size: zero, logCalls: 1, expectedError: nil},
+		"log0_max":         {logn: 0, size: maxUint64, logCalls: 0, expectedError: errOutOfGas},
+		"log1_max":         {logn: 1, size: maxUint64, logCalls: 0, expectedError: errOutOfGas},
+		"log2_max":         {logn: 2, size: maxUint64, logCalls: 0, expectedError: errOutOfGas},
+		"log3_max":         {logn: 3, size: maxUint64, logCalls: 0, expectedError: errOutOfGas},
+		"log4_max":         {logn: 4, size: maxUint64, logCalls: 0, expectedError: errOutOfGas},
+		"log0_much_larger": {logn: 0, size: originalBugValue, logCalls: 0, expectedError: errOutOfGas},
+		"log1_much_larger": {logn: 1, size: originalBugValue, logCalls: 0, expectedError: errOutOfGas},
+		"log2_much_larger": {logn: 2, size: originalBugValue, logCalls: 0, expectedError: errOutOfGas},
+		"log3_much_larger": {logn: 3, size: originalBugValue, logCalls: 0, expectedError: errOutOfGas},
+		"log4_much_larger": {logn: 4, size: originalBugValue, logCalls: 0, expectedError: errOutOfGas},
 	}
 
 	for name, test := range tests {
@@ -330,17 +324,15 @@ func TestLogOpSizeOverflow(t *testing.T) {
 			stack.push(uint256.NewInt(0))
 
 			ctxt := context{
-				status:  statusRunning,
 				gas:     392,
 				context: runContext,
 				stack:   stack,
 				memory:  NewMemory(),
 			}
 
-			opLog(&ctxt, test.logn)
-
-			if ctxt.status != test.want {
-				t.Fatalf("unexpected status, wanted %v, got %v", test.want, ctxt.status)
+			err := opLog(&ctxt, test.logn)
+			if got, want := err, test.expectedError; got != want {
+				t.Fatalf("unexpected result, wanted %v, got %v", want, got)
 			}
 		})
 	}
@@ -354,7 +346,7 @@ func TestBlobHash(t *testing.T) {
 		setup    func(*tosca.Parameters, *stack)
 		gas      tosca.Gas
 		revision tosca.Revision
-		status   status
+		err      error
 		want     tosca.Hash
 	}{
 		"regular": {
@@ -364,14 +356,13 @@ func TestBlobHash(t *testing.T) {
 			},
 			gas:      2,
 			revision: tosca.R13_Cancun,
-			status:   statusRunning,
 			want:     hash,
 		},
 		"old-revision": {
 			setup:    func(params *tosca.Parameters, stack *stack) {},
 			gas:      2,
 			revision: tosca.R12_Shanghai,
-			status:   statusError,
+			err:      errInvalidRevision,
 			want:     tosca.Hash{},
 		},
 		"no-hashes": {
@@ -380,7 +371,6 @@ func TestBlobHash(t *testing.T) {
 			},
 			gas:      2,
 			revision: tosca.R13_Cancun,
-			status:   statusRunning,
 			want:     tosca.Hash{},
 		},
 		"target-non-existent": {
@@ -389,7 +379,6 @@ func TestBlobHash(t *testing.T) {
 			},
 			gas:      2,
 			revision: tosca.R13_Cancun,
-			status:   statusRunning,
 			want:     tosca.Hash{},
 		},
 	}
@@ -398,7 +387,6 @@ func TestBlobHash(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 
 			ctxt := context{
-				status: statusRunning,
 				params: tosca.Parameters{
 					Recipient: tosca.Address{1},
 				},
@@ -410,12 +398,12 @@ func TestBlobHash(t *testing.T) {
 
 			test.setup(&ctxt.params, ctxt.stack)
 
-			opBlobHash(&ctxt)
-
-			if ctxt.status != test.status {
-				t.Fatalf("unexpected status, wanted %v, got %v", test.status, ctxt.status)
+			err := opBlobHash(&ctxt)
+			if want, got := test.err, err; want != got {
+				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
 			}
-			if want, got := test.want, ctxt.stack.data[0]; tosca.Hash(got.Bytes32()) != want && ctxt.status == statusRunning {
+
+			if want, got := test.want, ctxt.stack.data[0]; tosca.Hash(got.Bytes32()) != want {
 				t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
 			}
 		})
@@ -430,7 +418,7 @@ func TestBlobBaseFee(t *testing.T) {
 		setup    func(*tosca.Parameters)
 		gas      tosca.Gas
 		revision tosca.Revision
-		status   status
+		err      error
 		want     tosca.Value
 	}{
 		"regular": {
@@ -439,14 +427,13 @@ func TestBlobBaseFee(t *testing.T) {
 			},
 			gas:      2,
 			revision: tosca.R13_Cancun,
-			status:   statusRunning,
 			want:     blobBaseFeeValue,
 		},
 		"old-revision": {
 			setup:    func(*tosca.Parameters) {},
 			gas:      2,
 			revision: tosca.R12_Shanghai,
-			status:   statusError,
+			err:      errInvalidRevision,
 			want:     tosca.Value{},
 		},
 	}
@@ -455,7 +442,6 @@ func TestBlobBaseFee(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 
 			ctxt := context{
-				status: statusRunning,
 				params: tosca.Parameters{
 					Recipient: tosca.Address{1},
 				},
@@ -467,39 +453,39 @@ func TestBlobBaseFee(t *testing.T) {
 
 			test.setup(&ctxt.params)
 
-			opBlobBaseFee(&ctxt)
-
-			if ctxt.status != test.status {
-				t.Fatalf("unexpected status, wanted %v, got %v", test.status, ctxt.status)
+			err := opBlobBaseFee(&ctxt)
+			if want, got := test.err, err; want != got {
+				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
 			}
-			if want, got := test.want, ctxt.stack.data[0]; got.Cmp(new(uint256.Int).SetBytes(want[:])) != 0 && ctxt.status == statusRunning {
+
+			if want, got := test.want, ctxt.stack.data[0]; got.Cmp(new(uint256.Int).SetBytes(want[:])) != 0 {
 				t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
 			}
 		})
 	}
 }
+
 func TestMCopy(t *testing.T) {
 
 	tests := map[string]struct {
-		gasBefore      tosca.Gas
-		gasAfter       tosca.Gas
-		revision       tosca.Revision
-		dest           uint64
-		src            uint64
-		size           uint64
-		memSize        uint64
-		expectedStatus status
-		memoryBefore   []byte
-		memoryAfter    []byte
+		gasBefore    tosca.Gas
+		gasAfter     tosca.Gas
+		revision     tosca.Revision
+		dest         uint64
+		src          uint64
+		size         uint64
+		memSize      uint64
+		memoryBefore []byte
+		memoryAfter  []byte
+		err          error
 	}{
 		"empty": {
-			gasBefore:      0,
-			gasAfter:       0,
-			revision:       tosca.R13_Cancun,
-			dest:           0,
-			src:            0,
-			size:           0,
-			expectedStatus: statusRunning,
+			gasBefore: 0,
+			gasAfter:  0,
+			revision:  tosca.R13_Cancun,
+			dest:      0,
+			src:       0,
+			size:      0,
 			memoryBefore: []byte{
 				1, 2, 3, 4, 5, 6, 7, 8, // 0-7
 				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
@@ -514,17 +500,16 @@ func TestMCopy(t *testing.T) {
 			},
 		},
 		"old-revision": {
-			revision:       tosca.R12_Shanghai,
-			expectedStatus: statusError,
+			revision: tosca.R12_Shanghai,
+			err:      errInvalidRevision,
 		},
 		"copy": {
-			revision:       tosca.R13_Cancun,
-			gasBefore:      1000,
-			gasAfter:       1000 - 3,
-			dest:           1,
-			src:            0,
-			size:           8,
-			expectedStatus: statusRunning,
+			revision:  tosca.R13_Cancun,
+			gasBefore: 1000,
+			gasAfter:  1000 - 3,
+			dest:      1,
+			src:       0,
+			size:      8,
 			memoryBefore: []byte{
 				1, 2, 3, 4, 5, 6, 7, 8, // 0-7
 				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
@@ -539,13 +524,12 @@ func TestMCopy(t *testing.T) {
 			},
 		},
 		"memory-expansion": {
-			revision:       tosca.R13_Cancun,
-			gasBefore:      1000,
-			gasAfter:       1000 - 9,
-			dest:           32,
-			src:            0,
-			size:           4,
-			expectedStatus: statusRunning,
+			revision:  tosca.R13_Cancun,
+			gasBefore: 1000,
+			gasAfter:  1000 - 9,
+			dest:      32,
+			src:       0,
+			size:      4,
 			memoryBefore: []byte{
 				1, 2, 3, 4, 0, 0, 0, 0, // 0-7
 				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
@@ -569,7 +553,6 @@ func TestMCopy(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 
 			ctxt := context{
-				status: statusRunning,
 				stack:  NewStack(),
 				memory: NewMemory(),
 			}
@@ -580,12 +563,11 @@ func TestMCopy(t *testing.T) {
 			ctxt.stack.push(uint256.NewInt(test.dest))
 			ctxt.memory.store = append(ctxt.memory.store, test.memoryBefore...)
 
-			opMcopy(&ctxt)
-
-			if ctxt.status != test.expectedStatus {
-				t.Errorf("expected status %v, got %v", test.expectedStatus, ctxt.status)
-				return
+			err := opMcopy(&ctxt)
+			if want, got := test.err, err; want != got {
+				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
 			}
+
 			if ctxt.memory.length() != uint64(len(test.memoryAfter)) {
 				t.Errorf("expected memory size %d, got %d", uint64(len(test.memoryAfter)), ctxt.memory.length())
 			}
@@ -608,25 +590,77 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 	tests := map[string]struct {
 		revision       tosca.Revision
 		init_code_size uint64
-		expected       status
+		expecedErr     error
 	}{
-		"paris-0-running":         {tosca.R11_Paris, 0, statusRunning},
-		"paris-1-running":         {tosca.R11_Paris, 1, statusRunning},
-		"paris-2k-running":        {tosca.R11_Paris, 2000, statusRunning},
-		"paris-max-1-running":     {tosca.R11_Paris, maxInitCodeSize - 1, statusRunning},
-		"paris-max-running":       {tosca.R11_Paris, maxInitCodeSize, statusRunning},
-		"paris-max+1-running":     {tosca.R11_Paris, maxInitCodeSize + 1, statusRunning},
-		"paris-100k-running":      {tosca.R11_Paris, 100000, statusRunning},
-		"paris-maxuint64-running": {tosca.R11_Paris, math.MaxUint64, statusError},
+		"paris-0-running": {
+			revision:       tosca.R11_Paris,
+			init_code_size: 0,
+		},
+		"paris-1-running": {
+			revision:       tosca.R11_Paris,
+			init_code_size: 1,
+		},
+		"paris-2k-running": {
+			revision:       tosca.R11_Paris,
+			init_code_size: 2000,
+		},
+		"paris-max-1-running": {
+			revision:       tosca.R11_Paris,
+			init_code_size: maxInitCodeSize - 1,
+		},
+		"paris-max-running": {
+			revision:       tosca.R11_Paris,
+			init_code_size: maxInitCodeSize,
+		},
+		"paris-max+1-running": {
+			revision:       tosca.R11_Paris,
+			init_code_size: maxInitCodeSize + 1,
+		},
+		"paris-100k-running": {
+			revision:       tosca.R11_Paris,
+			init_code_size: 100000,
+		},
+		"paris-maxuint64-running": {
+			revision:       tosca.R11_Paris,
+			init_code_size: math.MaxUint64,
+			expecedErr:     errOutOfGas,
+		},
 
-		"shanghai-0-running":         {tosca.R12_Shanghai, 0, statusRunning},
-		"shanghai-1-running":         {tosca.R12_Shanghai, 1, statusRunning},
-		"shanghai-2k-running":        {tosca.R12_Shanghai, 2000, statusRunning},
-		"shanghai-max-1-running":     {tosca.R12_Shanghai, maxInitCodeSize - 1, statusRunning},
-		"shanghai-max-running":       {tosca.R12_Shanghai, maxInitCodeSize, statusRunning},
-		"shanghai-max+1-running":     {tosca.R12_Shanghai, maxInitCodeSize + 1, statusError},
-		"shanghai-100k-running":      {tosca.R12_Shanghai, 100000, statusError},
-		"shanghai-maxuint64-running": {tosca.R12_Shanghai, math.MaxUint64, statusError},
+		"shanghai-0-running": {
+			revision:       tosca.R12_Shanghai,
+			init_code_size: 0,
+		},
+		"shanghai-1-running": {
+			revision:       tosca.R12_Shanghai,
+			init_code_size: 1,
+		},
+		"shanghai-2k-running": {
+			revision:       tosca.R12_Shanghai,
+			init_code_size: 2000,
+		},
+		"shanghai-max-1-running": {
+			revision:       tosca.R12_Shanghai,
+			init_code_size: maxInitCodeSize - 1,
+		},
+		"shanghai-max-running": {
+			revision:       tosca.R12_Shanghai,
+			init_code_size: maxInitCodeSize,
+		},
+		"shanghai-max+1-running": {
+			revision:       tosca.R12_Shanghai,
+			init_code_size: maxInitCodeSize + 1,
+			expecedErr:     errInitCodeTooLarge,
+		},
+		"shanghai-100k-running": {
+			revision:       tosca.R12_Shanghai,
+			init_code_size: 100000,
+			expecedErr:     errInitCodeTooLarge,
+		},
+		"shanghai-maxuint64-running": {
+			revision:       tosca.R12_Shanghai,
+			init_code_size: math.MaxUint64,
+			expecedErr:     errOutOfGas,
+		},
 	}
 
 	for name, test := range tests {
@@ -636,7 +670,6 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 
 			source := tosca.Address{1}
 			ctxt := context{
-				status: statusRunning,
 				params: tosca.Parameters{
 					BlockParameters: tosca.BlockParameters{
 						Revision: test.revision,
@@ -654,14 +687,13 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 			ctxt.stack.push(uint256.NewInt(0))
 			ctxt.stack.push(uint256.NewInt(0))
 
-			if test.expected == statusRunning {
+			if test.expecedErr == nil {
 				runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil)
 			}
 
-			opCreate(&ctxt)
-
-			if want, got := test.expected, ctxt.status; want != got {
-				t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+			err := opCreate(&ctxt)
+			if want, got := test.expecedErr, err; want != got {
+				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
 			}
 		})
 	}
@@ -705,7 +737,6 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 
 		source := tosca.Address{1}
 		ctxt := context{
-			status: statusRunning,
 			params: tosca.Parameters{
 				BlockParameters: tosca.BlockParameters{
 					Revision: test.revision,
@@ -725,12 +756,10 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 
 		runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil)
 
-		opCreate(&ctxt)
-
-		if ctxt.status != statusRunning {
-			t.Errorf("unexpected status after call, wanted RUNNING, got %v", ctxt.status)
+		err := opCreate(&ctxt)
+		if err != nil {
+			t.Errorf("opCreate failed: %v", err)
 		}
-
 		if ctxt.gas != 0 {
 			t.Errorf("unexpected gas cost, wanted %d, got %d", cost, cost-uint64(ctxt.gas))
 		}
@@ -739,11 +768,11 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 
 func TestTransientStorageOperations(t *testing.T) {
 	tests := map[string]struct {
-		op       func(*context)
+		op       func(*context) error
 		setup    func(*tosca.MockRunContext)
 		stackPtr int
 		revision tosca.Revision
-		status   status
+		err      error
 	}{
 		"tload-regular": {
 			op: opTload,
@@ -752,14 +781,13 @@ func TestTransientStorageOperations(t *testing.T) {
 			},
 			stackPtr: 1,
 			revision: tosca.R13_Cancun,
-			status:   statusRunning,
 		},
 		"tload-old-revision": {
 			op:       opTload,
 			setup:    func(runContext *tosca.MockRunContext) {},
 			stackPtr: 1,
 			revision: tosca.R11_Paris,
-			status:   statusError,
+			err:      errInvalidRevision,
 		},
 		"tstore-regular": {
 			op: opTstore,
@@ -768,14 +796,13 @@ func TestTransientStorageOperations(t *testing.T) {
 			},
 			stackPtr: 2,
 			revision: tosca.R13_Cancun,
-			status:   statusRunning,
 		},
 		"tstore-old-revision": {
 			op:       opTstore,
 			setup:    func(runContext *tosca.MockRunContext) {},
 			stackPtr: 2,
 			revision: tosca.R11_Paris,
-			status:   statusError,
+			err:      errInvalidRevision,
 		},
 	}
 
@@ -783,7 +810,6 @@ func TestTransientStorageOperations(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			ctxt := context{
-				status: statusRunning,
 				params: tosca.Parameters{
 					BlockParameters: tosca.BlockParameters{
 						Revision: test.revision,
@@ -797,10 +823,9 @@ func TestTransientStorageOperations(t *testing.T) {
 			ctxt.context = runContext
 			ctxt.stack.stackPointer = test.stackPtr
 
-			test.op(&ctxt)
-
-			if ctxt.status != test.status {
-				t.Errorf("unexpected status, wanted %v, got %v", test.status, ctxt.status)
+			err := test.op(&ctxt)
+			if want, got := test.err, err; want != got {
+				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
 			}
 		})
 	}
@@ -814,7 +839,7 @@ func TestExpansionCostOverflow(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		op         func(*context)
+		op         func(*context) error
 		stackSize  int
 		memIndexes []int
 		setup      func(*tosca.MockRunContext)
@@ -862,7 +887,6 @@ func TestExpansionCostOverflow(t *testing.T) {
 								Revision: tosca.R13_Cancun,
 							},
 						},
-						status:  statusRunning,
 						stack:   NewStack(),
 						memory:  NewMemory(),
 						context: runContext,
@@ -876,10 +900,10 @@ func TestExpansionCostOverflow(t *testing.T) {
 						}
 					}
 
-					test.op(&ctxt)
-
-					if ctxt.status != statusError {
-						t.Errorf("unexpected status, wanted not running, got %v, and gas of %v", ctxt.status, ctxt.gas)
+					err := test.op(&ctxt)
+					// FIXME: can we narrow the error? test says overflow, it manifests an out of gas error
+					if err == nil {
+						t.Fatalf("expected error, got nil")
 					}
 				})
 			}
@@ -915,13 +939,12 @@ func TestCall_ChargesNothingForColdAccessBeforeBerlin(t *testing.T) {
 
 	ctxt.stack.stackPointer = 8
 
-	genericCall(&ctxt, tosca.Call)
-
+	err := genericCall(&ctxt, tosca.Call)
+	if err != nil {
+		t.Errorf("genericCall failed: %v", err)
+	}
 	if ctxt.gas != 0 {
 		t.Errorf("unexpected gas cost, wanted 0, got %v", ctxt.gas)
-	}
-	if ctxt.status != statusRunning {
-		t.Errorf("unexpected status, wanted RUNNING, got %v", ctxt.status)
 	}
 }
 
@@ -947,7 +970,10 @@ func TestCall_ChargesForAccessAfterBerlin(t *testing.T) {
 		}
 		ctxt.stack.stackPointer = 8
 
-		genericCall(&ctxt, tosca.Call)
+		err := genericCall(&ctxt, tosca.Call)
+		if err != nil {
+			t.Errorf("genericCall failed: %v", err)
+		}
 
 		want := tosca.Gas(delta)
 		if accessStatus == tosca.WarmAccess {
@@ -956,21 +982,6 @@ func TestCall_ChargesForAccessAfterBerlin(t *testing.T) {
 		if ctxt.gas != want {
 			t.Errorf("unexpected gas cost, wanted %v, got %v", want, ctxt.gas)
 		}
-
-		if ctxt.status != statusRunning {
-			t.Errorf("unexpected status, wanted RUNNING, got %v", ctxt.status)
-		}
-	}
-}
-func TestSelfDestruct_StaticModeReportsError(t *testing.T) {
-	ctxt := context{
-		params: tosca.Parameters{
-			Static: true,
-		},
-	}
-	opSelfdestruct(&ctxt)
-	if ctxt.status != statusError {
-		t.Errorf("unexpected status after call, wanted ERROR, got %v", ctxt.status)
 	}
 }
 
@@ -1064,7 +1075,6 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 			},
 			Recipient: selfAddress,
 		},
-		status:  statusRunning,
 		stack:   NewStack(),
 		memory:  NewMemory(),
 		context: runContext,
@@ -1073,10 +1083,12 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 	}
 	ctxt.stack.push(new(uint256.Int).SetBytes(beneficiaryAddress[:]))
 
-	opSelfdestruct(&ctxt)
-
-	if ctxt.status != statusSelfDestructed {
-		t.Errorf("unexpected status, wanted %v, got %v", statusRunning, ctxt.status)
+	status, err := opSelfdestruct(&ctxt)
+	if err != nil {
+		t.Fatalf("unexpected error, got %v", err)
+	}
+	if want, got := statusSelfDestructed, status; want != got {
+		t.Fatalf("unexpected status, wanted %v, got %v", want, got)
 	}
 	if ctxt.gas != gasDelta {
 		t.Errorf("unexpected remaining gas, wanted %v, got %d", gasDelta, ctxt.gas)

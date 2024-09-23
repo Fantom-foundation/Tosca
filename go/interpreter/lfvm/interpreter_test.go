@@ -19,6 +19,7 @@ import (
 	"math"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -145,20 +146,6 @@ func getContext(code Code, data []byte, runContext tosca.RunContext, stackPtr in
 	return ctxt
 }
 
-type OpcodeTest struct {
-	name        string
-	code        []Instruction
-	stackPtrPos int
-	argData     uint16
-	endStatus   status
-	isBerlin    bool // < TODO: replace with revision
-	isLondon    bool
-	mockCalls   func(*tosca.MockRunContext)
-	gasStart    tosca.Gas
-	gasConsumed tosca.Gas
-	gasRefund   tosca.Gas
-}
-
 func TestInterpreter_step_DetectsLowerStackLimitViolation(t *testing.T) {
 	// Add tests for execution
 
@@ -212,6 +199,20 @@ func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 	}
 }
 
+type OpcodeTest struct {
+	name        string
+	code        []Instruction
+	stackPtrPos int
+	argData     uint16
+	endStatus   status
+	isBerlin    bool // < TODO: replace with revision
+	isLondon    bool
+	mockCalls   func(*tosca.MockRunContext)
+	gasStart    tosca.Gas
+	gasConsumed tosca.Gas
+	gasRefund   tosca.Gas
+}
+
 type OpCodeWithGas struct {
 	OpCode
 	gas tosca.Gas
@@ -225,6 +226,9 @@ func generateOpCodesInRange(start OpCode, end OpCode) []OpCode {
 	return opCodes
 }
 
+// FIXME: migrate test case to instructions_test.go.
+// In order to keep interpreter coverage at 100%, one successful,
+// pass through the interpreter is required for each instruction.
 func TestInstructionsGasConsumption(t *testing.T) {
 
 	var tests []OpcodeTest
@@ -484,15 +488,24 @@ func TestGetOutputReturnsExpectedErrors(t *testing.T) {
 		setup       func(*context)
 		expectedErr error
 	}{
-		"size overflow": {func(ctx *context) { ctx.resultSize = uint256.Int{1, 1} }, errGasUintOverflow},
-		"offset overflow": {func(ctx *context) {
-			ctx.resultSize = uint256.Int{1}
-			ctx.resultOffset = uint256.Int{1, 1}
-		}, errGasUintOverflow},
-		"memory overflow": {func(ctx *context) {
-			ctx.resultSize = uint256.Int{math.MaxUint64 - 1}
-			ctx.resultOffset = uint256.Int{2}
-		}, errGasUintOverflow},
+		"size overflow": {
+			setup:       func(ctx *context) { ctx.resultSize = uint256.Int{1, 1} },
+			expectedErr: errOverflow,
+		},
+		"offset overflow": {
+			setup: func(ctx *context) {
+				ctx.resultSize = uint256.Int{1}
+				ctx.resultOffset = uint256.Int{1, 1}
+			},
+			expectedErr: errOverflow,
+		},
+		"memory overflow": {
+			setup: func(ctx *context) {
+				ctx.resultSize = uint256.Int{math.MaxUint64 - 1}
+				ctx.resultOffset = uint256.Int{2}
+			},
+			expectedErr: errOverflow,
+		},
 	}
 
 	for name, test := range tests {
@@ -511,7 +524,6 @@ func TestGetOutputReturnsExpectedErrors(t *testing.T) {
 }
 
 func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
-	// Create execution context.
 	ctxt := getEmptyContext()
 	instructions := []Instruction{
 		{JUMP_TO, 0x02},
@@ -519,7 +531,6 @@ func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
 		{STOP, 0},
 	}
 
-	// Get tosca.Parameters
 	ctxt.params = tosca.Parameters{
 		Input:  []byte{},
 		Static: false,
@@ -528,26 +539,31 @@ func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
 	}
 	ctxt.code = instructions
 
-	// Run testing code
-	steps(&ctxt, false)
-
-	if ctxt.status != statusStopped {
+	status, err := steps(&ctxt, false)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if status != statusStopped {
 		t.Errorf("unexpected status: want STOPPED, got %v", ctxt.status)
 	}
 }
 
-func TestStepsDetectsNonExecutableCode(t *testing.T) {
-	// Create execution context.
-	opCodes := []OpCode{
+func TestSteps_DetectsNonExecutableCode(t *testing.T) {
+	nonExecutableOpCodes := []OpCode{
 		INVALID,
 		NOOP,
 		DATA,
-		0x1234,
 	}
 
-	for _, opCode := range opCodes {
+	re := regexp.MustCompile(`^op\(0x[0-9a-fA-F]{2}\)`)
+	for op := OpCode(0); op < numOpCodes; op++ {
+		if re.MatchString(op.String()) {
+			nonExecutableOpCodes = append(nonExecutableOpCodes, op)
+		}
+	}
+
+	for _, opCode := range nonExecutableOpCodes {
 		ctxt := getEmptyContext()
-		// Get tosca.Parameters
 		ctxt.params = tosca.Parameters{
 			Input:  []byte{},
 			Static: false,
@@ -556,40 +572,44 @@ func TestStepsDetectsNonExecutableCode(t *testing.T) {
 		}
 		ctxt.code = []Instruction{{opCode, 0}}
 
-		// Run testing code
-		steps(&ctxt, false)
-
-		if want, got := statusError, ctxt.status; want != got {
-			t.Errorf("unexpected status: want %v, got %v", want, got)
+		_, err := steps(&ctxt, false)
+		if want, got := errInvalidOpCode, err; want != got {
+			t.Errorf("unexpected error: want %v, got %v", want, got)
 		}
 	}
 }
 
-func TestStepsDoesNotExecuteCodeIfStatic(t *testing.T) {
-
-	tests := map[string]struct {
-		instructions []Instruction
-		status       status
+func TestSteps_StaticContextViolation(t *testing.T) {
+	tests := []struct {
+		op          OpCode
+		stack       []uint256.Int
+		minRevision tosca.Revision
 	}{
-		"mstore": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {MSTORE, 0}}, statusStopped},
-		"sstore": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {SSTORE, 0}}, statusError},
-		"LOG0":   {[]Instruction{{PUSH1, 0}, {LOG0, 0}}, statusError},
-		"LOG1":   {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {LOG1, 0}}, statusError},
-		"LOG2": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0}, {LOG2, 0}},
-			statusError},
-		"LOG3": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0},
-			{LOG3, 0}}, statusError},
-		"LOG4": {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0}, {PUSH1, 0},
-			{PUSH1, 0}, {LOG3, 0}}, statusError},
-		"CREATE":       {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {CREATE, 0}}, statusError},
-		"CREATE2":      {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {CREATE2, 0}}, statusError},
-		"SELFDESTRUCT": {[]Instruction{{PUSH1, 0}, {SELFDESTRUCT, 0}}, statusError},
-		"TSTORE":       {[]Instruction{{PUSH1, 0}, {PUSH1, 0}, {TSTORE, 0}}, statusError},
-		"CALL":         {[]Instruction{{PUSH1, 1}, {PUSH1, 1}, {PUSH1, 1}, {CALL, 0}}, statusError},
+		{op: SSTORE},
+		{op: LOG0},
+		{op: LOG1},
+		{op: LOG2},
+		{op: LOG3},
+		{op: LOG4},
+		{op: CREATE},
+		{op: CREATE2},
+		{op: SELFDESTRUCT},
+		{
+			op:          TSTORE,
+			minRevision: tosca.R13_Cancun,
+		},
+		{
+			op: CALL,
+			stack: []uint256.Int{
+				{}, {}, {}, {},
+				*uint256.NewInt(1), // value != 0: static violation
+				{}, {},
+			},
+		},
 	}
 
-	for name, test := range tests {
-		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.op.String(), func(t *testing.T) {
 			ctxt := getEmptyContext()
 			// Get tosca.Parameters
 			ctxt.params = tosca.Parameters{
@@ -598,26 +618,33 @@ func TestStepsDoesNotExecuteCodeIfStatic(t *testing.T) {
 				Gas:    10,
 				Code:   []byte{0x0},
 			}
-			ctxt.code = test.instructions
+			ctxt.code = []Instruction{{test.op, 0}}
+			ctxt.params.BlockParameters.Revision = test.minRevision
 
-			// Run testing code
-			steps(&ctxt, false)
+			if len(test.stack) == 0 {
+				// add enough stack elements to pass stack bounds check
+				ctxt.stack.stackPointer = 50
+			} else {
+				// otherwise prefill the stack with provided data
+				copy(ctxt.stack.data[:len(test.stack)], test.stack)
+				ctxt.stack.stackPointer = len(test.stack)
+			}
 
-			if ctxt.status != test.status {
-				t.Errorf("unexpected status: want %v, got %v", test.status, ctxt.status)
+			_, err := steps(&ctxt, false)
+			if want, got := errStaticContextViolation, err; want != got {
+				t.Errorf("unexpected error: want %v, got %v", want, got)
 			}
 		})
 	}
 }
 
+// FIXME: rewrite as static gas check (for all opcodes)
 func TestStepsFailsOnTooLittleGas(t *testing.T) {
-	// Create execution context.
 	ctxt := getEmptyContext()
 	instructions := []Instruction{
 		{PUSH1, 0},
 	}
 
-	// Get tosca.Parameters
 	ctxt.params = tosca.Parameters{
 		Input:  []byte{},
 		Static: false,
@@ -627,11 +654,9 @@ func TestStepsFailsOnTooLittleGas(t *testing.T) {
 	ctxt.gas = 2
 	ctxt.code = instructions
 
-	// Run testing code
-	steps(&ctxt, false)
-
-	if ctxt.status != statusError {
-		t.Errorf("unexpected status: want statusError, got %v", ctxt.status)
+	_, err := steps(&ctxt, false)
+	if want, got := errOutOfGas, err; want != got {
+		t.Errorf("unexpected error: want %v, got %v", want, got)
 	}
 }
 

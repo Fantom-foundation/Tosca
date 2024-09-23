@@ -13,13 +13,14 @@ package lfvm
 import "github.com/Fantom-foundation/Tosca/go/tosca"
 
 const (
-	errGasUintOverflow       = tosca.ConstError("gas uint64 overflow")
-	errInvalidCode           = tosca.ConstError("invalid code")
-	errInvalidJump           = tosca.ConstError("invalid jump destination")
-	errOutOfGas              = tosca.ConstError("out of gas")
-	errReturnDataOutOfBounds = tosca.ConstError("return data out of bounds")
-	errStackOverflow         = tosca.ConstError("stack overflow")
-	errStackUnderflow        = tosca.ConstError("stack underflow")
-	errWriteProtection       = tosca.ConstError("write protection")
-	errInitCodeTooLarge      = tosca.ConstError("init code larger than allowed")
+	errOverflow               = tosca.ConstError("overflow")
+	errInvalidOpCode          = tosca.ConstError("invalid op-code")
+	errInvalidRevision        = tosca.ConstError("invalid revision")
+	errInvalidJump            = tosca.ConstError("invalid jump destination")
+	errOutOfGas               = tosca.ConstError("out of gas")
+	errStaticContextViolation = tosca.ConstError("static context violation")
+	errNotEnoughStaticGas     = tosca.ConstError("not enough static gas")
+	errStackLimitsViolation   = tosca.ConstError("stack limits violation")
+	errCodeLimitsViolation    = tosca.ConstError("code bounds violation")
+	errInitCodeTooLarge       = tosca.ConstError("init code larger than allowed")
 )

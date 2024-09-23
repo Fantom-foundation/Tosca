@@ -79,7 +79,7 @@ func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 	needed := offset + size
 	// check overflow
 	if needed < offset {
-		return errGasUintOverflow
+		return errOverflow
 	}
 	if m.length() < needed {
 		fee := m.getExpansionCosts(needed)
@@ -172,7 +172,7 @@ func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
 func (m *Memory) Set(offset, size uint64, value []byte) error {
 	if size > 0 {
 		if offset+size < offset {
-			return errGasUintOverflow
+			return errOverflow
 		}
 		if offset+size > m.length() {
 			return fmt.Errorf("memory too small, size %d, attempted to write %d bytes at %d", m.length(), size, offset)

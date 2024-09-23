@@ -59,19 +59,20 @@ func opPush1_Dup1(c *context) {
 	c.stack.peekN(1).SetUint64(uint64(arg))
 }
 
-func opPush2_Jump(c *context) {
+func opPush2_Jump(c *context) error {
 	// Directly take pushed value and jump to destination.
 	c.pc = int32(c.code[c.pc].arg) - 1
-	checkJumpDest(c)
+	return checkJumpDest(c)
 }
 
-func opPush2_Jumpi(c *context) {
+func opPush2_Jumpi(c *context) error {
 	// Directly take pushed value and jump to destination.
 	condition := c.stack.pop()
 	if !condition.IsZero() {
 		c.pc = int32(c.code[c.pc].arg) - 1
-		checkJumpDest(c)
+		return checkJumpDest(c)
 	}
+	return nil
 }
 
 func opSwap2_Swap1(c *context) {
@@ -81,14 +82,12 @@ func opSwap2_Swap1(c *context) {
 	*a1, *a2, *a3 = *a2, *a3, *a1
 }
 
-func opDup2_Mstore(c *context) {
+func opDup2_Mstore(c *context) error {
 	var value = c.stack.pop()
 	var addr = c.stack.peek()
 
 	offset := addr.Uint64()
-	if c.memory.SetWord(offset, value, c) != nil {
-		c.signalError()
-	}
+	return c.memory.SetWord(offset, value, c)
 }
 
 func opDup2_Lt(c *context) {
@@ -105,17 +104,18 @@ func opPopPop(c *context) {
 	c.stack.stackPointer -= 2
 }
 
-func opPop_Jump(c *context) {
+func opPop_Jump(c *context) error {
 	opPop(c)
-	opJump(c)
+	return opJump(c)
 }
 
-func opIsZero_Push2_Jumpi(c *context) {
+func opIsZero_Push2_Jumpi(c *context) error {
 	condition := c.stack.pop()
 	if condition.IsZero() {
 		c.pc = int32(c.code[c.pc].arg) - 1
-		checkJumpDest(c)
+		return checkJumpDest(c)
 	}
+	return nil
 }
 
 func opSwap2_Swap1_Pop_Jump(c *context) {
@@ -124,6 +124,7 @@ func opSwap2_Swap1_Pop_Jump(c *context) {
 	trg := c.stack.peek()
 	c.pc = int32(trg.Uint64()) - 1
 	*trg = *top
+	// FIXME: check jumpdest
 }
 
 func opSwap1_Pop_Swap2_Swap1(c *context) {
