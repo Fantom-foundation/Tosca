@@ -533,8 +533,14 @@ func TestSteps_StaticContextViolation(t *testing.T) {
 
 func TestSteps_FailsWithLessGasThanStaticCost(t *testing.T) {
 
+	// Ignored because they have static cost 0
 	ignore := []OpCode{
-		STOP, // Ignore because it has cost 0
+		STOP,
+		RETURN,
+		REVERT,
+		INVALID,
+		JUMP_TO,
+		SSTORE,
 	}
 
 	for _, op := range allOpCodesWhere(isValidOpCode) {
@@ -555,6 +561,10 @@ func TestSteps_FailsWithLessGasThanStaticCost(t *testing.T) {
 			ctxt.stack.stackPointer = 50
 			ctxt.gas = staticGasPrices.get(op) - 1
 
+			if ctxt.gas < 0 {
+				t.Fatalf("invalid test setup: gas is negative")
+			}
+
 			_, err := steps(&ctxt, false)
 			if want, got := errOutOfGas, err; want != got {
 				t.Errorf("unexpected error: want %v, got %v", want, got)
@@ -563,7 +573,7 @@ func TestSteps_FailsWithLessGasThanStaticCost(t *testing.T) {
 	}
 }
 
-var invalidOpCodeString = regexp.MustCompile(`^op\(0x[0-9a-fA-F]{2}\)`)
+var invalidOpCodeString = regexp.MustCompile(`^op\(0x[0-9a-fA-F]+\)`)
 
 func isValidOpCode(op OpCode) bool {
 	return !invalidOpCodeString.MatchString(op.String())
