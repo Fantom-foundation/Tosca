@@ -556,7 +556,7 @@ func TestSteps_FailsWithLessGasThanStaticCost(t *testing.T) {
 			ctxt.gas = staticGasPrices.get(op) - 1
 
 			_, err := steps(&ctxt, false)
-			if want, got := errNotEnoughStaticGas, err; want != got {
+			if want, got := errOutOfGas, err; want != got {
 				t.Errorf("unexpected error: want %v, got %v", want, got)
 			}
 		})

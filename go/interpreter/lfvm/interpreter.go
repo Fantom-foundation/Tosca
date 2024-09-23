@@ -205,7 +205,7 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 
 		// Consume static gas price for instruction before execution
 		if err := c.useGas(staticGasPrices.get(op)); err != nil {
-			return status, errNotEnoughStaticGas
+			return status, err
 		}
 
 		var err error
