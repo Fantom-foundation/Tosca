@@ -241,9 +241,7 @@ impl<'a> Interpreter<'a> {
                     consume_gas(&mut self.gas_left, 30)?;
                     let [offset, len] = self.stack.pop()?;
 
-                    let len = len
-                        .try_into_u64()
-                        .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+                    let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
                     consume_gas(&mut self.gas_left, 6 * word_size(len)?)?; // * does not overflow
 
                     let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
@@ -309,7 +307,7 @@ impl<'a> Interpreter<'a> {
 
                     if len != u256::ZERO {
                         let len = len
-                            .try_into_u64()
+                            .try_into()
                             .map_err(|_| StatusCode::EVMC_INVALID_MEMORY_ACCESS)?;
 
                         let src = self
@@ -333,9 +331,7 @@ impl<'a> Interpreter<'a> {
                     let [dest_offset, offset, len] = self.stack.pop()?;
 
                     if len != u256::ZERO {
-                        let len = len
-                            .try_into_u64()
-                            .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+                        let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
 
                         let src = self.code_reader.get_within_bounds(offset, len);
                         let dest =
@@ -367,9 +363,7 @@ impl<'a> Interpreter<'a> {
 
                     consume_address_access_cost(&addr, &mut self)?;
                     if len != u256::ZERO {
-                        let len = len
-                            .try_into_u64()
-                            .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+                        let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
 
                         let dest =
                             self.memory
@@ -427,8 +421,8 @@ impl<'a> Interpreter<'a> {
                     let [block_number] = self.stack.pop()?;
                     self.stack.push(
                         block_number
-                            .try_into_u64()
-                            .map(|idx| self.context.get_block_hash(idx as i64))
+                            .try_into()
+                            .map(|idx: u64| self.context.get_block_hash(idx as i64))
                             .unwrap_or(u256::ZERO.into()),
                     )?;
                 }
@@ -670,9 +664,7 @@ impl<'a> Interpreter<'a> {
                 Opcode::CallCode => self.call_code()?,
                 Opcode::Return => {
                     let [offset, len] = self.stack.pop()?;
-                    let len = len
-                        .try_into_u64()
-                        .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+                    let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
                     let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
                     self.output = Some(data.to_owned());
                     self.step_status_code = StepStatusCode::EVMC_STEP_RETURNED;
@@ -683,9 +675,7 @@ impl<'a> Interpreter<'a> {
                 Opcode::StaticCall => self.static_call()?,
                 Opcode::Revert => {
                     let [offset, len] = self.stack.pop()?;
-                    let len = len
-                        .try_into_u64()
-                        .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+                    let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
                     let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
                     // TODO revert self changes
                     // gas_refund = original_gas_refund;
@@ -867,9 +857,7 @@ impl<'a> Interpreter<'a> {
         } else {
             u256::ZERO // ignored
         };
-        let len = len
-            .try_into_u64()
-            .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+        let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
 
         let init_code_word_size = word_size(len)?;
         if self.revision >= Revision::EVMC_SHANGHAI {
@@ -952,10 +940,10 @@ impl<'a> Interpreter<'a> {
 
         let addr = addr.into();
         let args_len = args_len
-            .try_into_u64()
+            .try_into()
             .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
         let ret_len = ret_len
-            .try_into_u64()
+            .try_into()
             .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
 
         consume_address_access_cost(&addr, self)?;
@@ -1052,10 +1040,10 @@ impl<'a> Interpreter<'a> {
 
         let addr = addr.into();
         let args_len = args_len
-            .try_into_u64()
+            .try_into()
             .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
         let ret_len = ret_len
-            .try_into_u64()
+            .try_into()
             .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
 
         consume_address_access_cost(&addr, self)?;

@@ -55,9 +55,7 @@ impl<'a> CodeReader<'a> {
     }
 
     pub fn try_jump(&mut self, dest: u256) -> Result<(), StatusCode> {
-        let dest = dest
-            .try_into_u64()
-            .map_err(|_| StatusCode::EVMC_BAD_JUMP_DESTINATION)? as usize;
+        let dest = u64::try_from(dest).map_err(|_| StatusCode::EVMC_BAD_JUMP_DESTINATION)? as usize;
         if dest >= self.code_byte_type.len() || self.code_byte_type[dest] != CodeByteType::JumpDest
         {
             return Err(StatusCode::EVMC_BAD_JUMP_DESTINATION);
@@ -106,7 +104,7 @@ mod tests {
     };
 
     #[test]
-    fn code_byte_types_single_byte() {
+    fn compute_code_byte_types_single_byte() {
         assert_eq!(
             *compute_code_byte_types(&[Opcode::Add as u8]),
             [CodeByteType::Opcode]
@@ -126,19 +124,19 @@ mod tests {
     }
 
     #[test]
-    fn code_byte_types_jumpdest() {
+    fn compute_byte_types_jumpdest() {
         assert_eq!(
             *compute_code_byte_types(&[Opcode::JumpDest as u8, Opcode::Add as u8]),
-            [CodeByteType::JumpDest, CodeByteType::Opcode,]
+            [CodeByteType::JumpDest, CodeByteType::Opcode]
         );
         assert_eq!(
             *compute_code_byte_types(&[Opcode::JumpDest as u8, 0xc0]),
-            [CodeByteType::JumpDest, CodeByteType::DataOrInvalid,]
+            [CodeByteType::JumpDest, CodeByteType::DataOrInvalid]
         );
     }
 
     #[test]
-    fn code_byte_types_push_with_data() {
+    fn compute_code_byte_types_push_with_data() {
         assert_eq!(
             *compute_code_byte_types(&[Opcode::Push1 as u8, Opcode::Add as u8, Opcode::Add as u8]),
             [
@@ -238,6 +236,10 @@ mod tests {
         assert_eq!(code_reader.try_jump(2u8.into()), Ok(()));
         assert_eq!(
             code_reader.try_jump(3u8.into()),
+            Err(StatusCode::EVMC_BAD_JUMP_DESTINATION)
+        );
+        assert_eq!(
+            code_reader.try_jump(u256::MAX),
             Err(StatusCode::EVMC_BAD_JUMP_DESTINATION)
         );
     }
