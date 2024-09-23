@@ -151,22 +151,17 @@ func TestInterpreter_step_DetectsLowerStackLimitViolation(t *testing.T) {
 
 	for _, op := range allOpCodes() {
 
-		// Ignore operations that do not need any data on the stack.
 		usage := computeStackUsage(op)
 		if usage.from >= 0 {
 			continue
 		}
 
-		// Create execution context.
 		ctxt := getEmptyContext()
 		ctxt.code = []Instruction{{op, 0}}
 
-		// Run testing code
-		step(&ctxt)
-
-		// Check the result.
-		if ctxt.status != statusError {
-			t.Errorf("expected stack-underflow for %v to be detected, got %v", op, ctxt.status)
+		_, err := steps(&ctxt, false)
+		if want, got := errStackUnderflow, err; want != got {
+			t.Errorf("expected stack-underflow for %v to be detected, got %v", op, got)
 		}
 	}
 }
@@ -182,19 +177,12 @@ func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 
 		// Create execution context.
 		ctxt := getEmptyContext()
-		ctxt.code = make([]Instruction, 16)
-		for i := range ctxt.code {
-			ctxt.code[i] = Instruction{DATA, 0}
-		}
-		ctxt.code[0] = Instruction{op, 0}
+		ctxt.code = []Instruction{{op, 0}}
 		ctxt.stack.stackPointer = maxStackSize
 
-		// Run testing code
-		step(&ctxt)
-
-		// Check the result.
-		if ctxt.status != statusError {
-			t.Errorf("expected stack-overflow for %v to be detected, got %v", op, ctxt.status)
+		_, err := steps(&ctxt, false)
+		if want, got := errStackOverflow, err; want != got {
+			t.Errorf("expected stack-underflow for %v to be detected, got %v", op, got)
 		}
 	}
 }
@@ -762,15 +750,4 @@ func BenchmarkFib10(b *testing.B) {
 
 func BenchmarkFib10_SI(b *testing.B) {
 	benchmarkFib(b, 10, true)
-}
-
-func BenchmarkSatisfiesStackRequirements(b *testing.B) {
-	context := &context{
-		stack: NewStack(),
-	}
-
-	opCodes := allOpCodes()
-	for i := 0; i < b.N; i++ {
-		satisfiesStackRequirements(context.stack.len(), opCodes[i%len(opCodes)])
-	}
 }
