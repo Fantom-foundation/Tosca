@@ -3,11 +3,8 @@ use std::{cmp::max, iter};
 use evmc_vm::StatusCode;
 
 use crate::{
-    interpreter::{
-        gas::{consume_copy_cost, consume_gas},
-        utils::word_size,
-    },
     types::u256,
+    utils::{consume_copy_cost, consume_gas, word_size},
 };
 
 #[derive(Debug)]
@@ -32,7 +29,7 @@ impl Memory {
         if new_len > current_len {
             self.consume_expansion_cost(gas_left, new_len)?;
             self.0
-                .extend(iter::repeat(0).take((new_len - current_len) as usize))
+                .extend(iter::repeat(0).take((new_len - current_len) as usize));
         }
         Ok(())
     }
@@ -122,7 +119,7 @@ impl Memory {
 mod tests {
     use evmc_vm::StatusCode;
 
-    use crate::{interpreter::memory::Memory, types::u256};
+    use crate::types::{memory::Memory, u256};
 
     #[test]
     fn internals() {

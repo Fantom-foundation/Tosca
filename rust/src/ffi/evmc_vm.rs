@@ -14,8 +14,8 @@ use evmc_vm::{
 
 use crate::evmc::EvmRs;
 
-static EVM_RS_NAME: &str = "evmrs\0";
-static EVM_RS_VERSION: &str = "0.1.0\0";
+static EVM_RS_NAME: &CStr = c"evmrs";
+static EVM_RS_VERSION: &CStr = c"0.1.0";
 
 /// Evmrs is currently only capable of executing EVM1 bytecode and not EWASM or precompiled
 /// contracts.
@@ -36,25 +36,30 @@ extern "C" fn __evmc_set_option(
         return evmc_set_option_result::EVMC_SET_OPTION_INVALID_NAME;
     }
 
+    // SAFETY:
+    // `key` is not null. The caller must make sure that it points to a C string.
     let key = unsafe { CStr::from_ptr(key) };
     let Ok(key) = key.to_str() else {
         return evmc_set_option_result::EVMC_SET_OPTION_INVALID_NAME;
     };
 
     let value = if !value.is_null() {
+        // SAFETY:
+        // `value` is not null. The caller must make sure that it points to a C string.
         unsafe { CStr::from_ptr(value) }
     } else {
-        unsafe { CStr::from_bytes_with_nul_unchecked(&[0]) }
+        c""
     };
 
     let Ok(value) = value.to_str() else {
         return evmc_set_option_result::EVMC_SET_OPTION_INVALID_VALUE;
     };
 
-    let mut container = unsafe {
-        // Acquire ownership from EVMC.
-        EvmcContainer::<EvmRs>::from_ffi_pointer(instance)
-    };
+    // Acquire ownership from EVMC.
+    // SAFETY:
+    // `instance` is not null. The caller must make sure that `instance` points to a valid
+    // `EvmcContainer::<EvmRs>`.
+    let mut container = unsafe { EvmcContainer::<EvmRs>::from_ffi_pointer(instance) };
 
     let result = match container.set_option(key, value) {
         Ok(()) => evmc_set_option_result::EVMC_SET_OPTION_SUCCESS,
@@ -63,6 +68,9 @@ extern "C" fn __evmc_set_option(
     };
 
     // Release ownership to EVMC.
+    // SAFETY:
+    // `EvmcContainer::into_ffi_pointer`` is marked as unsafe in the evmc bindings although it
+    // only contains safe operations (it only calls `Box::into_raw`` which is safe).
     unsafe {
         EvmcContainer::into_ffi_pointer(container);
     }
@@ -78,20 +86,26 @@ pub extern "C" fn evmc_create_evmrs() -> *const evmc_vm_t {
         execute: Some(__evmc_execute),
         get_capabilities: Some(__evmc_get_capabilities),
         set_option: Some(__evmc_set_option),
-        name: unsafe { CStr::from_bytes_with_nul_unchecked(EVM_RS_NAME.as_bytes()).as_ptr() },
-        version: unsafe { CStr::from_bytes_with_nul_unchecked(EVM_RS_VERSION.as_bytes()).as_ptr() },
+        name: EVM_RS_NAME.as_ptr(),
+        version: EVM_RS_VERSION.as_ptr(),
     };
 
     let container = EvmcContainer::<EvmRs>::new(new_instance);
 
     // Release ownership to EVMC.
+    // SAFETY:
+    // EvmcContainer::into_ffi_pointer is marked as unsafe in the evmc bindings although it
+    // only contains safe operations (it only calls Box::into_raw which is safe).
     unsafe { EvmcContainer::into_ffi_pointer(container) }
 }
 
 extern "C" fn __evmc_destroy(instance: *mut evmc_vm_t) {
     if !instance.is_null() {
+        // Acquire ownership from EVMC. This will deallocate it at the end of the scope.
+        // SAFETY:
+        // `instance` is not null. The caller must make sure that it points to a valid
+        // `EvmcContainer::<EvmRs>`.
         unsafe {
-            // Acquire ownership from EVMC. This will deallocate it at the end of the scope.
             EvmcContainer::<EvmRs>::from_ffi_pointer(instance);
         }
     }
@@ -115,35 +129,33 @@ extern "C" fn __evmc_execute(
         std::process::abort();
     }
 
-    let execution_message: ExecutionMessage = unsafe {
-        // SAFETY:
-        // message is not null
-        (&*message).into()
-    };
+    // SAFETY:
+    // `message`` is not null. The caller must make sure it points to a valid `ExecutionMessage`.
+    let execution_message = ExecutionMessage::from(unsafe { &*message });
 
     let code_ref = if code.is_null() {
-        assert_eq!(code_size, 0);
-        &[0u8; 0]
+        &[]
     } else {
         // SAFETY:
-        // code is not null and code size > 0
+        // `code` is not null and `code_size > 0`. The caller must make sure that the size is
+        // valid.
         unsafe { slice::from_raw_parts(code, code_size) }
     };
 
-    let container = unsafe {
-        // Acquire ownership from EVMC.
-        EvmcContainer::<EvmRs>::from_ffi_pointer(instance)
-    };
+    // Acquire ownership from EVMC.
+    // SAFETY:
+    // `instance` is not null. The caller must make sure that it points to a valid
+    // `EvmcContainer::<EvmRs>`.
+    let container = unsafe { EvmcContainer::<EvmRs>::from_ffi_pointer(instance) };
 
     let result = panic::catch_unwind(|| {
         let mut execution_context = if host.is_null() {
             None
         } else {
-            let execution_context = unsafe {
-                // SAFETY:
-                // host is not null
-                ExecutionContext::new(&*host, context)
-            };
+            // SAFETY:
+            // `host` is not null. The caller must make sure that it points to a valid
+            // `evmc_host_interface`.
+            let execution_context = ExecutionContext::new(unsafe { &*host }, context);
             Some(execution_context)
         };
 
@@ -156,6 +168,9 @@ extern "C" fn __evmc_execute(
     });
 
     // Release ownership to EVMC.
+    // SAFETY:
+    // EvmcContainer::into_ffi_pointer is marked as unsafe in the evmc bindings although it
+    // only contains safe operations (it only calls Box::into_raw which is safe).
     unsafe {
         EvmcContainer::into_ffi_pointer(container);
     }

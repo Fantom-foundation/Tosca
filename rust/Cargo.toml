@@ -5,8 +5,45 @@ edition = "2021"
 
 [dependencies]
 bnum = "0.11.0"
-evmc-vm = { git = "https://github.com/LorenzSchueler/evmc", branch = "tosca-extensions" } # TODO use Fantom-foundation/evmc once merged
+evmc-vm = { git = "https://github.com/Fantom-foundation/evmc", branch = "tosca-extensions" }
 sha3 = "0.10.8"
 
 [lib]
 crate-type = ["cdylib"]
+
+[lints.rust]
+macro_use_extern_crate = "warn"
+unused_crate_dependencies = "warn"
+unused_unsafe = "warn"
+
+[lints.clippy]
+cloned_instead_of_copied = "warn"
+collection_is_never_read = "warn"
+copy_iterator = "warn"
+default_trait_access = "warn"
+filter_map_next = "warn"
+format_push_string = "warn"
+implicit_clone = "warn"
+inconsistent_struct_constructor = "warn"
+inefficient_to_string = "warn"
+items_after_statements = "warn"
+large_types_passed_by_value = "warn"
+macro_use_imports = "warn"
+manual_let_else = "warn"
+manual_ok_or = "warn"
+manual_string_new = "warn"
+match_same_arms = "warn"
+multiple_inherent_impl = "warn"
+multiple_unsafe_ops_per_block = "warn"
+needless_collect = "warn"
+needless_for_each = "warn"
+needless_pass_by_value = "warn"
+redundant_closure_for_method_calls = "warn"
+ref_patterns = "warn"
+semicolon_if_nothing_returned = "warn"
+single_match_else = "warn"
+trivially_copy_pass_by_ref = "warn"
+undocumented_unsafe_blocks = "warn"
+uninlined_format_args = "warn"
+unnested_or_patterns = "warn"
+unused_self = "warn"

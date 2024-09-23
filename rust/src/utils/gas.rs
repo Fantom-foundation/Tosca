@@ -1,12 +1,9 @@
 use evmc_vm::{AccessStatus, Address, Revision, StatusCode};
 
-use crate::{
-    interpreter::{run_state::RunState, utils::word_size},
-    types::u256,
-};
+use crate::{interpreter::Interpreter, types::u256, utils::word_size};
 
 #[inline(always)]
-pub(super) fn consume_gas(gas_left: &mut u64, gas: u64) -> Result<(), StatusCode> {
+pub fn consume_gas(gas_left: &mut u64, gas: u64) -> Result<(), StatusCode> {
     if *gas_left < gas {
         return Err(StatusCode::EVMC_OUT_OF_GAS);
     }
@@ -15,10 +12,7 @@ pub(super) fn consume_gas(gas_left: &mut u64, gas: u64) -> Result<(), StatusCode
 }
 
 #[inline(always)]
-pub(super) fn consume_positive_value_cost(
-    value: &u256,
-    gas_left: &mut u64,
-) -> Result<(), StatusCode> {
+pub fn consume_positive_value_cost(value: &u256, gas_left: &mut u64) -> Result<(), StatusCode> {
     if *value != u256::ZERO {
         consume_gas(gas_left, 9000)?;
     }
@@ -26,10 +20,10 @@ pub(super) fn consume_positive_value_cost(
 }
 
 #[inline(always)]
-pub(super) fn consume_value_to_empty_account_cost(
+pub fn consume_value_to_empty_account_cost(
     value: &u256,
     addr: &Address,
-    state: &mut RunState,
+    state: &mut Interpreter,
 ) -> Result<(), StatusCode> {
     if *value != u256::ZERO && !state.context.account_exists(addr) {
         consume_gas(&mut state.gas_left, 25000)?;
@@ -38,9 +32,9 @@ pub(super) fn consume_value_to_empty_account_cost(
 }
 
 #[inline(always)]
-pub(super) fn consume_address_access_cost(
+pub fn consume_address_access_cost(
     addr: &Address,
-    state: &mut RunState,
+    state: &mut Interpreter,
 ) -> Result<(), StatusCode> {
     let tx_context = state.context.get_tx_context();
     if state.revision < Revision::EVMC_BERLIN {
@@ -59,7 +53,7 @@ pub(super) fn consume_address_access_cost(
 
 /// consume 3 * minimum_word_size
 #[inline(always)]
-pub(super) fn consume_copy_cost(gas_left: &mut u64, len: u64) -> Result<(), StatusCode> {
+pub fn consume_copy_cost(gas_left: &mut u64, len: u64) -> Result<(), StatusCode> {
     let (cost, cost_overflow) = word_size(len)?.overflowing_mul(3);
     if cost_overflow {
         return Err(StatusCode::EVMC_OUT_OF_GAS);

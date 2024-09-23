@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 const STOP: u8 = 0x00;
 const ADD: u8 = 0x01;
 const MUL: u8 = 0x02;

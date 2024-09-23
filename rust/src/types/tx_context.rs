@@ -44,20 +44,16 @@ impl<'a> From<&'a evmc_vm::ExecutionTxContext> for ExecutionTxContext<'a> {
         let blob_hashes = if context.blob_hashes.is_null() || context.blob_hashes_count == 0 {
             &[]
         } else {
-            unsafe {
-                // SAFETY:
-                // `context.blob_hashes` is not null an `context.blob_hashes_count > 0`
-                slice::from_raw_parts(context.blob_hashes, context.blob_hashes_count)
-            }
+            // SAFETY:
+            // `context.blob_hashes` is not null an `context.blob_hashes_count > 0`
+            unsafe { slice::from_raw_parts(context.blob_hashes, context.blob_hashes_count) }
         };
         let initcodes = if context.initcodes.is_null() || context.initcodes_count == 0 {
             &[]
         } else {
-            unsafe {
-                // SAFETY:
-                // `context.initcodes` is not null an `context.initcodes_count > 0`
-                slice::from_raw_parts(context.initcodes, context.initcodes_count)
-            }
+            // SAFETY:
+            // `context.initcodes` is not null an `context.initcodes_count > 0`
+            unsafe { slice::from_raw_parts(context.initcodes, context.initcodes_count) }
         };
         ExecutionTxContext {
             tx_gas_price: context.tx_gas_price,
