@@ -62,10 +62,7 @@ func opPush1_Dup1(c *context) {
 func opPush2_Jump(c *context) error {
 	// Directly take pushed value and jump to destination.
 	c.pc = int32(c.code[c.pc].arg) - 1
-	if err := checkJumpDest(c); err != nil {
-		return err
-	}
-	return nil
+	return checkJumpDest(c)
 }
 
 func opPush2_Jumpi(c *context) error {
@@ -73,9 +70,7 @@ func opPush2_Jumpi(c *context) error {
 	condition := c.stack.pop()
 	if !condition.IsZero() {
 		c.pc = int32(c.code[c.pc].arg) - 1
-		if err := checkJumpDest(c); err != nil {
-			return err
-		}
+		return checkJumpDest(c)
 	}
 	return nil
 }
@@ -92,10 +87,7 @@ func opDup2_Mstore(c *context) error {
 	var addr = c.stack.peek()
 
 	offset := addr.Uint64()
-	if err := c.memory.SetWord(offset, value, c); err != nil {
-		return err
-	}
-	return nil
+	return c.memory.SetWord(offset, value, c)
 }
 
 func opDup2_Lt(c *context) {
@@ -121,9 +113,7 @@ func opIsZero_Push2_Jumpi(c *context) error {
 	condition := c.stack.pop()
 	if condition.IsZero() {
 		c.pc = int32(c.code[c.pc].arg) - 1
-		if err := checkJumpDest(c); err != nil {
-			return err
-		}
+		return checkJumpDest(c)
 	}
 	return nil
 }

@@ -53,10 +53,7 @@ func opJump(c *context) error {
 	}
 	// Update the PC to the jump destination -1 since interpreter will increase PC by 1 afterward.
 	c.pc = int32(destination.Uint64()) - 1
-	if err := checkJumpDest(c); err != nil {
-		return err
-	}
-	return nil
+	return checkJumpDest(c)
 }
 
 func opJumpi(c *context) error {
@@ -69,9 +66,7 @@ func opJumpi(c *context) error {
 		}
 		// Update the PC to the jump destination -1 since interpreter will increase PC by 1 afterward.
 		c.pc = int32(destination.Uint64()) - 1
-		if err := checkJumpDest(c); err != nil {
-			return err
-		}
+		return checkJumpDest(c)
 	}
 	return nil
 }
@@ -171,10 +166,7 @@ func opMstore(c *context) error {
 	if overflow {
 		return errOverflow
 	}
-	if err := c.memory.SetWord(offset, value, c); err != nil {
-		return err
-	}
-	return nil
+	return c.memory.SetWord(offset, value, c)
 }
 
 func opMstore8(c *context) error {
@@ -185,10 +177,7 @@ func opMstore8(c *context) error {
 	if overflow {
 		return errOverflow
 	}
-	if err := c.memory.SetByte(offset, byte(value.Uint64()), c); err != nil {
-		return err
-	}
-	return nil
+	return c.memory.SetByte(offset, byte(value.Uint64()), c)
 }
 
 func opMcopy(c *context) error {
@@ -236,10 +225,7 @@ func opMload(c *context) error {
 		return errOverflow
 	}
 	offset := addr.Uint64()
-	if err := c.memory.readWord(offset, trg, c); err != nil {
-		return err
-	}
-	return nil
+	return c.memory.readWord(offset, trg, c)
 }
 
 func opMsize(c *context) {
@@ -399,10 +385,7 @@ func opCallDataCopy(c *context) error {
 		return err
 	}
 
-	if err := c.memory.Set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64)); err != nil {
-		return err
-	}
-	return nil
+	return c.memory.Set(memOffset64, length64, getData(c.params.Input, dataOffset64, length64))
 }
 
 func opAnd(c *context) {
@@ -830,10 +813,7 @@ func opCodeCopy(c *context) error {
 		return err
 	}
 	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
-	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
-		return err
-	}
-	return nil
+	return c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
 }
 
 func opExtcodesize(c *context) error {
@@ -1016,10 +996,7 @@ func opExtCodeCopy(c *context) error {
 		return err
 	}
 	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
-	if err := c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy); err != nil {
-		return err
-	}
-	return nil
+	return c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
 }
 
 func checkSizeOffsetUint64Overflow(offset, size *uint256.Int) error {
@@ -1234,10 +1211,7 @@ func opReturnDataCopy(c *context) error {
 		return errOutOfGas
 	}
 
-	if err := c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c); err != nil {
-		return err
-	}
-	return nil
+	return c.memory.SetWithCapacityAndGasCheck(memOffset.Uint64(), length.Uint64(), c.returnData[offset64:end64], c)
 }
 
 func opLog(c *context, size int) error {
