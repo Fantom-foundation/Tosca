@@ -714,7 +714,12 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 		}
 		res := make([]byte, size.Uint64())
 		offset := ctxt.resultOffset
-		ctxt.memory.CopyData(offset.Uint64(), res)
+
+		data, err := ctxt.memory.getSlice(offset.Uint64(), size.Uint64(), &ctxt)
+		if err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
+		copy(res, data)
 
 		got := (int(res[28]) << 24) | (int(res[29]) << 16) | (int(res[30]) << 8) | (int(res[31]) << 0)
 		if wanted != got {

@@ -187,7 +187,13 @@ func getOutput(ctxt *context) ([]byte, error) {
 				return nil, err
 			}
 			res = make([]byte, size)
-			ctxt.memory.CopyData(offset, res)
+
+			// copy memory to result
+			data, err := ctxt.memory.getSlice(offset, size, ctxt)
+			if err != nil {
+				return nil, err
+			}
+			copy(res, data)
 		}
 	}
 	return res, nil
