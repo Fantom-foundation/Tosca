@@ -97,6 +97,14 @@ func doRun(context *cli.Context) error {
 	}
 
 	opRun := func(state *st.State) rlz.ConsumerResult {
+		result := rlz.ConsumeContinue
+		defer func() {
+			if r := recover(); r != nil {
+				result = rlz.ConsumeAbort
+				issuesCollector.AddIssue(state, fmt.Errorf("failed to process input state %v: %w", state, err))
+			}
+		}()
+
 		if issuesCollector.NumIssues() >= maxErrors {
 			return rlz.ConsumeAbort
 		}
@@ -118,7 +126,7 @@ func doRun(context *cli.Context) error {
 			issuesCollector.AddIssue(state, fmt.Errorf("failed to process input state %v: %w", state, err))
 		}
 
-		return rlz.ConsumeContinue
+		return result
 	}
 
 	rules := spc.FilterRules(spc.Spec.GetRules(), filter)
