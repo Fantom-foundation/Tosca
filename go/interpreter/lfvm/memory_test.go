@@ -201,8 +201,8 @@ func TestMemory_getSlice_ErrorCases(t *testing.T) {
 		t.Errorf("error should be errOutOfGas, instead is: %v", err)
 	}
 	_, err = m.getSlice(math.MaxUint64-31, 32, &c)
-	if !errors.Is(err, errGasUintOverflow) {
-		t.Errorf("error should be errGasUintOverflow, instead is: %v", err)
+	if !errors.Is(err, errOverflow) {
+		t.Errorf("error should be errOverflow, instead is: %v", err)
 	}
 }
 
@@ -328,8 +328,8 @@ func TestMemory_readWord_ErrorCases(t *testing.T) {
 	originalTarget := uint256.NewInt(1)
 	target := originalTarget.Clone()
 	err := m.readWord(math.MaxUint64-31, target, &c)
-	if !errors.Is(err, errGasUintOverflow) {
-		t.Errorf("error should be errGasUintOverflow, instead is: %v", err)
+	if !errors.Is(err, errOverflow) {
+		t.Errorf("error should be errOverflow, instead is: %v", err)
 	}
 	if target.Cmp(originalTarget) != 0 {
 		t.Errorf("target should not have been modified, want %v but got %v", originalTarget, target)
