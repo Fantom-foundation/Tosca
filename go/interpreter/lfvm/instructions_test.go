@@ -623,7 +623,7 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 		"paris-maxuint64-running": {
 			revision:       tosca.R11_Paris,
 			init_code_size: math.MaxUint64,
-			expecedErr:     errOutOfGas,
+			expecedErr:     errOverflow,
 		},
 
 		"shanghai-0-running": {
@@ -659,7 +659,7 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 		"shanghai-maxuint64-running": {
 			revision:       tosca.R12_Shanghai,
 			init_code_size: math.MaxUint64,
-			expecedErr:     errOutOfGas,
+			expecedErr:     errOverflow,
 		},
 	}
 

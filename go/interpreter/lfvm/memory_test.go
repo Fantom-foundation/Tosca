@@ -32,26 +32,30 @@ func TestGetExpansionCosts(t *testing.T) {
 	tests := []struct {
 		size uint64
 		cost tosca.Gas
+		err  error
 	}{
-		{0, 0},
-		{1, 3},
-		{32, 3},
-		{33, 6},
-		{64, 6},
-		{65, 9},
-		{22 * 32, 3 * 22},             // last word size without square cost
-		{23 * 32, (23*23)/512 + 3*23}, // fist word size with square cost
-		{maxMemoryExpansionSize - 33, 36028809870311418},
-		{maxMemoryExpansionSize - 1, 36028809887088637},
-		{maxMemoryExpansionSize, 36028809887088637}, // magic number, max cost
-		{maxMemoryExpansionSize + 1, math.MaxInt64},
-		{math.MaxInt64, math.MaxInt64},
+		{0, 0, nil},
+		{1, 3, nil},
+		{32, 3, nil},
+		{33, 6, nil},
+		{64, 6, nil},
+		{65, 9, nil},
+		{22 * 32, 3 * 22, nil},             // last word size without square cost
+		{23 * 32, (23*23)/512 + 3*23, nil}, // fist word size with square cost
+		{maxMemoryExpansionSize - 33, 36028809870311418, nil},
+		{maxMemoryExpansionSize - 1, 36028809887088637, nil},
+		{maxMemoryExpansionSize, 36028809887088637, nil}, // magic number, max cost
+		{maxMemoryExpansionSize + 1, 0, errMaxMemoryExpansionSize},
+		{math.MaxInt64, 0, errMaxMemoryExpansionSize},
 	}
 
 	for _, test := range tests {
 
 		m := NewMemory()
-		cost := m.getExpansionCosts(test.size)
+		cost, err := m.getExpansionCosts(test.size)
+		if !errors.Is(err, test.err) {
+			t.Errorf("unexpected error: want: %v but got: %v", test.err, err)
+		}
 		if cost != test.cost {
 			t.Errorf("getExpansionCosts(%d) = %d, want %d", test.size, cost, test.cost)
 		}
@@ -91,8 +95,14 @@ func TestMemory_expandMemoryWithoutCharging(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			m := NewMemory()
 			m.store = test.initialMem
-			fee := m.getExpansionCosts(test.size)
-			m.expandMemoryWithoutCharging(test.size)
+			fee, err := m.getExpansionCosts(test.size)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			err = m.expandMemoryWithoutCharging(test.size)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
 			if !bytes.Equal(m.store, test.expectedMem) {
 				t.Errorf("unexpected memory value, want: %x, got: %x", test.expectedMem, m.store)
 			}
@@ -257,7 +267,10 @@ func TestMemory_getSlice_ExpandsMemoryIn32ByteChunks(t *testing.T) {
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
 				}
-				want := toValidMemorySize(uint64(offset + size))
+				want, err := toValidMemorySize(uint64(offset + size))
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
 				if want < memSize {
 					want = memSize
 				}
@@ -345,7 +358,10 @@ func TestMemory_readWord_ErrorCases(t *testing.T) {
 
 func TestToValidMemorySize_RoundsUpToNextMultipleOf32(t *testing.T) {
 	for i := uint64(0); i < 128; i++ {
-		got := toValidMemorySize(i)
+		got, err := toValidMemorySize(i)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
 		if got%32 != 0 {
 			t.Errorf("result should be a multiple of 32, got: %d", got)
 		}
@@ -355,5 +371,12 @@ func TestToValidMemorySize_RoundsUpToNextMultipleOf32(t *testing.T) {
 		if got-i >= 32 {
 			t.Errorf("result should be less than 32 bytes greater than input, got: %d", got)
 		}
+	}
+}
+
+func TestToValidateMemorySize_ReturnsOverflowError(t *testing.T) {
+	_, err := toValidMemorySize(math.MaxUint64 - 30)
+	if !errors.Is(err, errOverflow) {
+		t.Errorf("error should be errOverflow, instead is: %v", err)
 	}
 }
