@@ -1095,23 +1095,23 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 	}
 }
 
-func TestCheckMaxInitCodeSize(t *testing.T) {
-	if err := checkMaxInitCodeSize(24576*2 + 1); err == nil {
-		t.Error("check should have failed with size 49153 but did not")
+func TestComputeCodeSizeCost(t *testing.T) {
+	if cost, err := computeCodeSizeCost(24576*2 + 1); err == nil || cost != 0 {
+		t.Errorf("check should have failed with size 49153 but did not. err %v, cost %v", err, cost)
 	}
-	if err := checkMaxInitCodeSize(24576 * 2); err != nil {
-		t.Errorf("should not have failed with size 49152, but got %v", err)
+	if cost, err := computeCodeSizeCost(24576 * 2); err != nil || cost != 3072 {
+		t.Errorf("should not have failed with size 49152, err %v, cost %v", err, cost)
 	}
 }
 
 func TestGenericCreate_MaxInitCodeSizeIsNotCheckedBeforeShanghai(t *testing.T) {
 
 	tests := []struct {
-		revision       tosca.Revision
-		expectedStatus status
+		revision      tosca.Revision
+		expectedError error
 	}{
-		{tosca.R11_Paris, statusRunning},
-		{tosca.R12_Shanghai, statusError},
+		{tosca.R11_Paris, nil},
+		{tosca.R12_Shanghai, errInitCodeTooLarge},
 	}
 
 	for _, test := range tests {
@@ -1138,10 +1138,10 @@ func TestGenericCreate_MaxInitCodeSizeIsNotCheckedBeforeShanghai(t *testing.T) {
 			ctxt.stack.push(uint256.NewInt(0))     // offset
 			ctxt.stack.push(uint256.NewInt(0))     // value
 
-			genericCreate(&ctxt, tosca.Create)
+			err := genericCreate(&ctxt, tosca.Create)
 
-			if ctxt.status != test.expectedStatus {
-				t.Errorf("unexpected status after call, wanted %v, got %v", test.expectedStatus, ctxt.status)
+			if err != test.expectedError {
+				t.Errorf("unexpected status after call, wanted %v, got %v", test.expectedError, err)
 			}
 
 		})

@@ -877,13 +877,11 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 	}
 
 	if c.isAtLeast(tosca.R12_Shanghai) {
-		if err := checkMaxInitCodeSize(sizeU64); err != nil {
+		initCodeCost, err := computeCodeSizeCost(sizeU64)
+		if err != nil {
 			return err
 		}
-
-		// Once per word of the init code when creating a contract.
-		const initCodeWordGas = 2
-		if err := c.useGas(tosca.Gas(initCodeWordGas * tosca.SizeInWords(sizeU64))); err != nil {
+		if err = c.useGas(tosca.Gas(initCodeCost)); err != nil {
 			return err
 		}
 	}
@@ -940,17 +938,20 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 	return nil
 }
 
-// checkInitCodeSize checks the size of the init code.
-// An error is returned if size is greater than MaxInitCodeSize.
-func checkMaxInitCodeSize(size uint64) error {
+// computeCodeSizeCost checks the size of the init code.
+// Returns the gas cost for the size of the init code and nil, or
+// zero and an error if size is greater than MaxInitCodeSize.
+func computeCodeSizeCost(size uint64) (tosca.Gas, error) {
 	const (
 		maxCodeSize     = 24576           // Maximum bytecode to permit for a contract
 		maxInitCodeSize = 2 * maxCodeSize // Maximum initcode to permit in a creation transaction and create instructions
 	)
 	if size > maxInitCodeSize {
-		return errInitCodeTooLarge
+		return 0, errInitCodeTooLarge
 	}
-	return nil
+	// Once per word of the init code when creating a contract.
+	const initCodeWordGas = 2
+	return tosca.Gas(initCodeWordGas * tosca.SizeInWords(size)), nil
 }
 
 func getData(data []byte, start uint64, size uint64) []byte {
