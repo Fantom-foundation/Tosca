@@ -381,34 +381,32 @@ func TestToValidateMemorySize_ReturnsOverflowError(t *testing.T) {
 
 func TestMemory_set_SuccessfulCase(t *testing.T) {
 	const (
-		memoryOriginalSize = uint64(8)
-		offset             = uint64(1)
-		sizeToExpand       = 32 - memoryOriginalSize - offset
+		writeSize   = uint64(8)
+		offset      = uint64(1)
+		paddingSize = 32 - (writeSize + offset)
 	)
-	// data of size (memoryOriginalSize - offset), to ensure it would fit in memory
-	data := make([]byte, memoryOriginalSize-offset)
+	data := make([]byte, writeSize)
 	for i := range data {
 		// add non zero values.
 		data[i] = byte(i + 1)
 	}
-	size := uint64(len(data))
 	c := context{gas: 3}
 	m := NewMemory()
 	m.store = []byte{0xff}
 
-	err := m.set(offset, size, data, &c)
+	err := m.set(offset, writeSize, data, &c)
 	if err != nil {
 		t.Fatalf("unexpected error, want: %v, got: %v", nil, err)
 	}
-	got, err := toValidMemorySize(memoryOriginalSize)
+	got, err := toValidMemorySize(writeSize)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 	if m.length() != got {
-		t.Errorf("set should not change memory size, want: %d, got: %d", got, m.length())
+		t.Errorf("set should have expanded the memory to %d, but instead got: %d", got, m.length())
 	}
 	want := append([]byte{0xff}, data...)
-	want = append(want, []byte{sizeToExpand: 0x0}...)
+	want = append(want, []byte{paddingSize - 1: 0x0}...)
 	if !bytes.Equal(m.store, want) {
 		t.Errorf("unexpected memory value, want: %x, got: %x", want, m.store)
 	}
@@ -459,10 +457,14 @@ func TestMemory_setByte_SuccessfulCase(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error, want: %v, got: %v", nil, err)
 	}
-	if m.length() <= offset {
-		t.Errorf("unexpected memory size, want: %d, got: %d", offset, m.length())
+	got, err := toValidMemorySize(offset + 1)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
-	for i, b := range memory {
+	if m.length() != got {
+		t.Errorf("unexpected memory size, want: %d, got: %d", got, m.length())
+	}
+	for i, b := range m.store {
 		if i == int(offset) {
 			if m.store[i] != value {
 				t.Errorf("unexpected value, want: %v, got: %v", value, m.store[i])
