@@ -61,6 +61,7 @@ var evms = map[string]ct.Evm{
 
 func doRun(context *cli.Context) error {
 	defer cpp.DumpCppCoverageData()
+	defer evmrs.DumpRustCoverageData()
 
 	jobCount := cliUtils.JobsFlag.Fetch(context)
 	seed := cliUtils.SeedFlag.Fetch(context)

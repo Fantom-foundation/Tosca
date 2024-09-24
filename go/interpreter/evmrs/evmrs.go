@@ -11,7 +11,8 @@
 package evmrs
 
 /*
-#cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/../../../rust/target/release
+#cgo LDFLAGS: -L${SRCDIR}/../../../rust/target/release -levmrs -Wl,-rpath,${SRCDIR}/../../../rust/target/release
+void evmrs_dump_coverage();
 */
 import "C"
 
@@ -50,4 +51,8 @@ func (e *evmrsInstance) Run(params tosca.Parameters) (tosca.Result, error) {
 		return tosca.Result{}, &tosca.ErrUnsupportedRevision{Revision: params.Revision}
 	}
 	return e.e.Run(params)
+}
+
+func DumpRustCoverageData() {
+	C.evmrs_dump_coverage()
 }
