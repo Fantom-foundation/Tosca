@@ -1,3 +1,4 @@
+#![allow(unused_crate_dependencies)]
 mod evmc;
 mod ffi;
 mod interpreter;
