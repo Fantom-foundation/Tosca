@@ -1121,7 +1121,6 @@ func TestGenericCreate_MaxInitCodeSizeIsNotCheckedBeforeShanghai(t *testing.T) {
 			runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil).AnyTimes()
 
 			ctxt := context{
-				status: statusRunning,
 				params: tosca.Parameters{
 					BlockParameters: tosca.BlockParameters{
 						Revision: test.revision,
