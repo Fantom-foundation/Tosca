@@ -1094,3 +1094,56 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 		t.Errorf("unexpected remaining gas, wanted %v, got %d", gasDelta, ctxt.gas)
 	}
 }
+
+func TestComputeCodeSizeCost(t *testing.T) {
+	if cost, err := computeCodeSizeCost(24576*2 + 1); err == nil || cost != 0 {
+		t.Errorf("check should have failed with size 49153 but did not. err %v, cost %v", err, cost)
+	}
+	if cost, err := computeCodeSizeCost(24576 * 2); err != nil || cost != 3072 {
+		t.Errorf("should not have failed with size 49152, err %v, cost %v", err, cost)
+	}
+}
+
+func TestGenericCreate_MaxInitCodeSizeIsNotCheckedBeforeShanghai(t *testing.T) {
+
+	tests := []struct {
+		revision      tosca.Revision
+		expectedError error
+	}{
+		{tosca.R11_Paris, nil},
+		{tosca.R12_Shanghai, errInitCodeTooLarge},
+	}
+
+	for _, test := range tests {
+		t.Run(test.revision.String(), func(t *testing.T) {
+
+			runContext := tosca.NewMockRunContext(gomock.NewController(t))
+			runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil).AnyTimes()
+
+			ctxt := context{
+				status: statusRunning,
+				params: tosca.Parameters{
+					BlockParameters: tosca.BlockParameters{
+						Revision: test.revision,
+					},
+					Recipient: tosca.Address{1},
+				},
+				context: runContext,
+				stack:   NewStack(),
+				memory:  NewMemory(),
+				gas:     50000,
+			}
+
+			ctxt.stack.push(uint256.NewInt(49153)) // size
+			ctxt.stack.push(uint256.NewInt(0))     // offset
+			ctxt.stack.push(uint256.NewInt(0))     // value
+
+			err := genericCreate(&ctxt, tosca.Create)
+
+			if err != test.expectedError {
+				t.Errorf("unexpected status after call, wanted %v, got %v", test.expectedError, err)
+			}
+
+		})
+	}
+}
