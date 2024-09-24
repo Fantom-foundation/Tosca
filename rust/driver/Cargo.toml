@@ -1,0 +1,11 @@
+[package]
+name = "driver"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+mock = ["evmrs/mock"]
+
+[dependencies]
+evmc-vm = { git = "https://github.com/Fantom-foundation/evmc", branch = "tosca-extensions" }
+evmrs = { path = "..", optional = true }

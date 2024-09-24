@@ -2,8 +2,6 @@ use evmc_vm::{Address, ExecutionMessage, MessageKind, Uint256};
 
 use crate::types::u256;
 
-pub const DEFAULT_INIT_GAS: u64 = 1_000_000;
-
 /// The same as ExecutionMessage but with `pub` fields for easier testing.
 #[derive(Debug)]
 pub struct MockExecutionMessage<'a> {
@@ -20,13 +18,17 @@ pub struct MockExecutionMessage<'a> {
     pub code: Option<&'a [u8]>,
 }
 
+impl<'a> MockExecutionMessage<'a> {
+    pub const DEFAULT_INIT_GAS: u64 = 1_000_000;
+}
+
 impl<'a> Default for MockExecutionMessage<'a> {
     fn default() -> Self {
         MockExecutionMessage {
             kind: MessageKind::EVMC_CALL,
             flags: 0,
             depth: 1,
-            gas: DEFAULT_INIT_GAS as i64,
+            gas: Self::DEFAULT_INIT_GAS as i64,
             recipient: u256::ZERO.into(),
             sender: u256::ZERO.into(),
             input: None,
