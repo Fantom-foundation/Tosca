@@ -514,7 +514,7 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 			err = opLog(c, 4)
 		// --- Super Instructions ---
 		case SWAP2_SWAP1_POP_JUMP:
-			opSwap2_Swap1_Pop_Jump(c)
+			err = opSwap2_Swap1_Pop_Jump(c)
 		case SWAP1_POP_SWAP2_SWAP1:
 			opSwap1_Pop_Swap2_Swap1(c)
 		case POP_SWAP2_SWAP1_POP:

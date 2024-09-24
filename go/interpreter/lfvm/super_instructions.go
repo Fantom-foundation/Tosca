@@ -118,13 +118,13 @@ func opIsZero_Push2_Jumpi(c *context) error {
 	return nil
 }
 
-func opSwap2_Swap1_Pop_Jump(c *context) {
+func opSwap2_Swap1_Pop_Jump(c *context) error {
 	top := c.stack.pop()
 	c.stack.pop()
 	trg := c.stack.peek()
 	c.pc = int32(trg.Uint64()) - 1
 	*trg = *top
-	// FIXME: check jumpdest
+	return checkJumpDest(c)
 }
 
 func opSwap1_Pop_Swap2_Swap1(c *context) {

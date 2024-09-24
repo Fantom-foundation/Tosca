@@ -1291,3 +1291,71 @@ func TestInstructions_EIP2929_SSTOREReportsOutOfGas(t *testing.T) {
 		}
 	}
 }
+
+func TestInstructions_JumpInstructionsCheckJUMPDEST(t *testing.T) {
+	tests := map[OpCode]struct {
+		implementation func(*context) error
+		stack          []uint64
+	}{
+		JUMP: {
+			implementation: opJump,
+			stack:          []uint64{1},
+		},
+		JUMPI: {
+			implementation: opJumpi,
+			stack:          []uint64{1, 1},
+		},
+		SWAP2_SWAP1_POP_JUMP: {
+			implementation: opSwap2_Swap1_Pop_Jump,
+			stack:          []uint64{1, 1, 1},
+		},
+		POP_JUMP: {
+			implementation: opPop_Jump,
+			stack:          []uint64{1, 1},
+		},
+		PUSH2_JUMP: {
+			implementation: opPush2_Jump,
+			stack:          []uint64{1},
+		},
+		PUSH2_JUMPI: {
+			implementation: opPush2_Jumpi,
+			stack:          []uint64{1},
+		},
+		ISZERO_PUSH2_JUMPI: {
+			implementation: opIsZero_Push2_Jumpi,
+			stack:          []uint64{1, 1, 0},
+		},
+	}
+
+	// test that all jump instructions are tested
+	for _, op := range allOpCodesWhere(isJump) {
+		if _, ok := tests[op]; !ok {
+			t.Fatalf("missing test for jump instruction %v", op)
+		}
+	}
+
+	for op, test := range tests {
+		t.Run(op.String(), func(t *testing.T) {
+
+			ctxt := context{
+				params: tosca.Parameters{
+					BlockParameters: tosca.BlockParameters{
+						Revision: tosca.R13_Cancun,
+					},
+				},
+				stack:  NewStack(),
+				memory: NewMemory(),
+				gas:    1 << 32,
+				code:   Code{{op, 0}},
+			}
+			for _, v := range test.stack {
+				ctxt.stack.push(uint256.NewInt(v))
+			}
+
+			err := test.implementation(&ctxt)
+			if want, got := errInvalidJump, err; want != got {
+				t.Fatalf("unexpected error, wanted %v, got %v", want, got)
+			}
+		})
+	}
+}
