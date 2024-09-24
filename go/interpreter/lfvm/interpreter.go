@@ -253,8 +253,8 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 		op := c.code[c.pc].opcode
 
 		// Check stack boundary for every instruction
-		if !satisfiesStackRequirements(c.stack.len(), op) {
-			return statusError, errStackLimitsViolation
+		if err := checkStackLimits(c.stack.len(), op); err != nil {
+			return status, err
 		}
 
 		// Consume static gas price for instruction before execution
@@ -621,18 +621,17 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 	return status, nil
 }
 
-// satisfiesStackRequirements checks that the opCode will not make an out of
-// bounds access with the current stack size.
-// Caller should handle false return as an error.
-func satisfiesStackRequirements(stackLen int, op OpCode) bool {
+// checkStackLimits checks that the opCode will not make an out of bounds access
+// with the current stack size.
+func checkStackLimits(stackLen int, op OpCode) error {
 	limits := _precomputedStackLimits.get(op)
 	if stackLen < limits.min {
-		return false
+		return errStackUnderflow
 	}
 	if stackLen > limits.max {
-		return false
+		return errStackOverflow
 	}
-	return true
+	return nil
 }
 
 // stackLimits defines the stack usage of a single OpCode.
