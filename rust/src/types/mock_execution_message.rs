@@ -1,4 +1,6 @@
-use evmc_vm::{Address, ExecutionMessage, MessageKind, Uint256};
+use std::ptr;
+
+use evmc_vm::{ffi::evmc_message, Address, ExecutionMessage, MessageKind, Uint256};
 
 use crate::types::u256;
 
@@ -20,6 +22,25 @@ pub struct MockExecutionMessage<'a> {
 
 impl<'a> MockExecutionMessage<'a> {
     pub const DEFAULT_INIT_GAS: u64 = 1_000_000;
+
+    pub fn to_evmc_message(&self) -> evmc_message {
+        evmc_message {
+            kind: self.kind,
+            flags: self.flags,
+            depth: self.depth,
+            gas: self.gas,
+            recipient: self.recipient,
+            sender: self.sender,
+            input_data: self.input.map(<[u8]>::as_ptr).unwrap_or(ptr::null()),
+            input_size: self.input.map(<[u8]>::len).unwrap_or_default(),
+            value: self.value,
+            create2_salt: self.create2_salt,
+            code_address: self.code_address,
+            code: self.code.map(<[u8]>::as_ptr).unwrap_or(ptr::null()),
+            code_size: self.code.map(<[u8]>::len).unwrap_or_default(),
+            code_hash: ptr::null(),
+        }
+    }
 }
 
 impl<'a> Default for MockExecutionMessage<'a> {

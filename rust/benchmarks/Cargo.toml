@@ -1,0 +1,16 @@
+[package]
+name = "benchmarks"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+evmc-vm = { git = "https://github.com/Fantom-foundation/evmc", branch = "tosca-extensions" }
+evmrs = { path = ".." }
+driver = { path = "../driver" }
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "interpreter"
+harness = false

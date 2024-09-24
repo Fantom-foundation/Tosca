@@ -6,6 +6,5 @@ mod types;
 mod utils;
 
 #[cfg(feature = "mock")]
-pub use types::{
-    u256, ExecutionContextTrait, MockExecutionContextTrait, MockExecutionMessage, Opcode,
-};
+pub use types::MockExecutionContextTrait;
+pub use types::{u256, ExecutionContextTrait, MockExecutionMessage, Opcode};

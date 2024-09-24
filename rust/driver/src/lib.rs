@@ -7,8 +7,6 @@ use evmc_vm::{
     },
     Address, Revision, Uint256,
 };
-#[cfg(feature = "mock")]
-use evmrs::MockExecutionMessage;
 
 pub mod host_interface;
 
@@ -42,26 +40,6 @@ pub const TX_CONTEXT_ZEROED: evmc_tx_context = evmc_tx_context {
 /// The value of the pointer is not used because a constant value is returned.
 pub unsafe extern "C" fn get_tx_context_zeroed(_context: *mut ffi::c_void) -> evmc_tx_context {
     TX_CONTEXT_ZEROED
-}
-
-#[cfg(feature = "mock")]
-pub fn to_evmc_message(message: &MockExecutionMessage) -> evmc_message {
-    evmc_message {
-        kind: message.kind,
-        flags: message.flags,
-        depth: message.depth,
-        gas: message.gas,
-        recipient: message.recipient,
-        sender: message.sender,
-        input_data: message.input.map(<[u8]>::as_ptr).unwrap_or(ptr::null()),
-        input_size: message.input.map(<[u8]>::len).unwrap_or_default(),
-        value: message.value,
-        create2_salt: message.create2_salt,
-        code_address: message.code_address,
-        code: message.code.map(<[u8]>::as_ptr).unwrap_or(ptr::null()),
-        code_size: message.code.map(<[u8]>::len).unwrap_or_default(),
-        code_hash: ptr::null(),
-    }
 }
 
 /// # Safety
