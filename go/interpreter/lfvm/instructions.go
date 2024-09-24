@@ -22,16 +22,23 @@ func opStop() status {
 	return statusStopped
 }
 
-func opRevert(c *context) status {
-	c.resultOffset = *c.stack.pop()
-	c.resultSize = *c.stack.pop()
-	return statusReverted
+func opRevert(c *context) (status, error) {
+	return genericReturnRevert(c, statusReverted)
 }
 
-func opReturn(c *context) status {
-	c.resultOffset = *c.stack.pop()
-	c.resultSize = *c.stack.pop()
-	return statusReturned
+func opReturn(c *context) (status, error) {
+	return genericReturnRevert(c, statusReturned)
+}
+
+func genericReturnRevert(c *context, status status) (status, error) {
+	offset := *c.stack.pop()
+	size := *c.stack.pop()
+	if err := checkSizeOffsetUint64Overflow(&offset, &size); err != nil {
+		return status, err
+	}
+	var err error
+	c.returnData, err = c.memory.getSlice(offset.Uint64(), size.Uint64(), c)
+	return status, err
 }
 
 func opPc(c *context) {

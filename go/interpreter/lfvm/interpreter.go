@@ -14,7 +14,6 @@ import (
 	"fmt"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
-	"github.com/holiman/uint256"
 )
 
 // status is enumeration of the execution state of an interpreter run.
@@ -47,10 +46,6 @@ type context struct {
 
 	// Intermediate data
 	returnData []byte // < the result of the last nested contract call
-
-	// Outputs
-	resultOffset uint256.Int
-	resultSize   uint256.Int
 
 	// Configuration flags
 	withShaCache bool
@@ -126,12 +121,6 @@ func run(
 }
 
 func generateResult(status status, ctxt *context) (tosca.Result, error) {
-
-	res, err := getOutput(status, ctxt)
-	if err != nil {
-		return tosca.Result{Success: false}, nil
-	}
-
 	// Handle return status
 	switch status {
 	case statusStopped, statusSelfDestructed:
@@ -143,50 +132,19 @@ func generateResult(status status, ctxt *context) (tosca.Result, error) {
 	case statusReturned:
 		return tosca.Result{
 			Success:   true,
-			Output:    res,
+			Output:    ctxt.returnData,
 			GasLeft:   ctxt.gas,
 			GasRefund: ctxt.refund,
 		}, nil
 	case statusReverted:
 		return tosca.Result{
 			Success: false,
-			Output:  res,
+			Output:  ctxt.returnData,
 			GasLeft: ctxt.gas,
 		}, nil
 	default:
 		return tosca.Result{}, fmt.Errorf("unexpected error in interpreter, unknown status: %v", status)
 	}
-}
-
-func getOutput(status status, ctxt *context) ([]byte, error) {
-	var res []byte
-	if status == statusReturned || status == statusReverted {
-		size, overflow := ctxt.resultSize.Uint64WithOverflow()
-		if overflow {
-			return nil, errOverflow
-		}
-
-		if size != 0 {
-			offset, overflow := ctxt.resultOffset.Uint64WithOverflow()
-			if overflow {
-				return nil, errOverflow
-			}
-
-			// Extract the result from the memory
-			if err := ctxt.memory.expandMemory(offset, size, ctxt); err != nil {
-				return nil, err
-			}
-			res = make([]byte, size)
-
-			// copy memory to result
-			data, err := ctxt.memory.getSlice(offset, size, ctxt)
-			if err != nil {
-				return nil, err
-			}
-			copy(res, data)
-		}
-	}
-	return res, nil
 }
 
 // --- Runners ---
@@ -467,9 +425,9 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 		case DUP16:
 			opDup(c, 16)
 		case RETURN:
-			status = opReturn(c)
+			status, err = opReturn(c)
 		case REVERT:
-			status = opRevert(c)
+			status, err = opRevert(c)
 		case JUMP_TO:
 			opJumpTo(c)
 		case SLOAD:

@@ -1146,3 +1146,47 @@ func TestGenericCreate_MaxInitCodeSizeIsNotCheckedBeforeShanghai(t *testing.T) {
 		})
 	}
 }
+
+func TestRevertReturn_ReturnsExpectedState(t *testing.T) {
+
+	test := []struct {
+		operation func(c *context) (status, error)
+		status    status
+	}{
+		{operation: opRevert, status: statusReverted},
+		{operation: opReturn, status: statusReturned},
+	}
+
+	for _, test := range test {
+		c := getEmptyContext()
+		c.stack.push(uint256.NewInt(1))
+		c.stack.push(uint256.NewInt(1))
+		c.memory.store = []byte{0x1, 0xff, 0x2}
+
+		status, err := test.operation(&c)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if status != test.status {
+			t.Errorf("unexpected status, wanted %v, got %v", test.status, status)
+		}
+		if !bytes.Equal(c.returnData, []byte{0xff}) {
+			t.Errorf("unexpected return data, wanted %v, got %v", []byte{0x1}, c.returnData)
+		}
+	}
+}
+
+func TestRevertReturn_ReportOverflow(t *testing.T) {
+	funcs := []func(*context) (status, error){opRevert, opReturn}
+	overflow64 := new(uint256.Int).Add(uint256.NewInt(math.MaxUint64), uint256.NewInt(math.MaxUint64))
+	for _, fun := range funcs {
+		c := getEmptyContext()
+		c.stack.push(overflow64)
+		c.stack.push(overflow64)
+		c.memory.store = []byte{0x1, 0xff, 0x2}
+		_, err := fun(&c)
+		if err != errOverflow {
+			t.Fatalf("should have produced overflow error, instead got: %v", err)
+		}
+	}
+}
