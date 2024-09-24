@@ -1,13 +1,16 @@
 use std::{cmp::min, mem};
 
 use evmc_vm::{
-    AccessStatus, ExecutionContext, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind,
-    Revision, StatusCode, StepResult, StepStatusCode, StorageStatus, Uint256,
+    AccessStatus, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
+    StatusCode, StepResult, StepStatusCode, StorageStatus, Uint256,
 };
 use sha3::{Digest, Keccak256};
 
 use crate::{
-    types::{u256, CodeReader, ExecutionTxContext, GetOpcodeError, Memory, Opcode, Stack},
+    types::{
+        u256, CodeReader, ExecutionContextTrait, ExecutionTxContext, GetOpcodeError, Memory,
+        Opcode, Stack,
+    },
     utils::{
         check_min_revision, check_not_read_only, consume_address_access_cost, consume_copy_cost,
         consume_gas, consume_positive_value_cost, consume_value_to_empty_account_cost, word_size,
@@ -15,11 +18,14 @@ use crate::{
     },
 };
 
-pub struct Interpreter<'a> {
+pub struct Interpreter<'a, E>
+where
+    E: ExecutionContextTrait,
+{
     pub step_status_code: StepStatusCode,
     pub status_code: StatusCode,
     pub message: &'a ExecutionMessage,
-    pub context: &'a mut ExecutionContext<'a>,
+    pub context: &'a mut E,
     pub revision: Revision,
     pub code_reader: CodeReader<'a>,
     pub gas_left: u64,
@@ -31,11 +37,14 @@ pub struct Interpreter<'a> {
     pub steps: Option<i32>,
 }
 
-impl<'a> Interpreter<'a> {
+impl<'a, E> Interpreter<'a, E>
+where
+    E: ExecutionContextTrait,
+{
     pub fn new(
         revision: Revision,
         message: &'a ExecutionMessage,
-        context: &'a mut ExecutionContext<'a>,
+        context: &'a mut E,
         code: &'a [u8],
     ) -> Self {
         Self {
@@ -59,7 +68,7 @@ impl<'a> Interpreter<'a> {
     pub fn new_steppable(
         revision: Revision,
         message: &'a ExecutionMessage,
-        context: &'a mut ExecutionContext<'a>,
+        context: &'a mut E,
         step_status_code: StepStatusCode,
         code: &'a [u8],
         pc: usize,
@@ -748,34 +757,6 @@ impl<'a> Interpreter<'a> {
                 (5000, 5000, 20000, 0, 0, 0)
             };
 
-        // dyn gas
-        // if Z == Y
-        //     dyn_gas_1 =  100                                 800
-        // else if Y == X
-        //     if X == 0
-        //         dyn_gas_3 = 20000
-        //     else
-        //         dyn_gas_2 = 2900                             5000
-        // else
-        //     dyn_gas_1 = 100                                  800
-
-        // gas refunds
-        //if z != y
-        //    if y == x
-        //        if x != 0 and z == 0
-        //            gas_refunds_2 += 4800                     15000
-        //    else
-        //        if x != 0
-        //            if y == 0
-        //                gas_refunds_2 -= 4800                 15000
-        //            else if z == 0
-        //                gas_refunds_2 += 4800                 15000
-        //        if z == x
-        //            if x == 0
-        //                gas_refunds_3 += 20000 - 100          19200
-        //            else
-        //                gas_refunds_1 += 5000 - 2100 - 100    4200
-
         let status = self.context.set_storage(addr, &key, &value.into());
         let (mut dyn_gas, gas_refund_change) = match status {
             StorageStatus::EVMC_STORAGE_ASSIGNED => (dyn_gas_1, 0),
@@ -1112,8 +1093,11 @@ impl<'a> Interpreter<'a> {
     }
 }
 
-impl<'a> From<Interpreter<'a>> for StepResult {
-    fn from(value: Interpreter) -> Self {
+impl<'a, E> From<Interpreter<'a, E>> for StepResult
+where
+    E: ExecutionContextTrait,
+{
+    fn from(value: Interpreter<E>) -> Self {
         let stack = value.stack.into_inner();
         // SAFETY:
         // u256 is a newtype of Uint256 with repr(transparent) which guarantees the same memory
@@ -1134,13 +1118,288 @@ impl<'a> From<Interpreter<'a>> for StepResult {
     }
 }
 
-impl<'a> From<Interpreter<'a>> for ExecutionResult {
-    fn from(value: Interpreter) -> Self {
+impl<'a, E> From<Interpreter<'a, E>> for ExecutionResult
+where
+    E: ExecutionContextTrait,
+{
+    fn from(value: Interpreter<E>) -> Self {
         Self::new(
             value.status_code,
             value.gas_left as i64,
             value.gas_refund,
             value.output.as_deref(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use evmc_vm::{
+        Address, ExecutionResult, MessageKind, Revision, StatusCode, StepStatusCode, Uint256,
+    };
+    use mockall::predicate;
+
+    use crate::{
+        interpreter::Interpreter,
+        types::{
+            u256, Memory, MockExecutionContextTrait, MockExecutionMessage, Opcode, Stack,
+            DEFAULT_INIT_GAS,
+        },
+    };
+
+    #[test]
+    fn empty_code() {
+        let mut context = MockExecutionContextTrait::new();
+        let message = MockExecutionMessage::default().into();
+        let result = Interpreter::new(Revision::EVMC_FRONTIER, &message, &mut context, &[]).run();
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
+        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.code_reader.pc(), 0);
+        assert_eq!(result.gas_left, DEFAULT_INIT_GAS);
+    }
+
+    #[test]
+    fn pc_after_end() {
+        let mut context = MockExecutionContextTrait::new();
+        let message = MockExecutionMessage::default().into();
+        let result = Interpreter::new_steppable(
+            Revision::EVMC_FRONTIER,
+            &message,
+            &mut context,
+            StepStatusCode::EVMC_STEP_RUNNING,
+            &[Opcode::Add as u8],
+            1,
+            0,
+            Stack::new(Vec::new()),
+            Memory::new(Vec::new()),
+            None,
+            None,
+        )
+        .run();
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
+        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.code_reader.pc(), 1);
+        assert_eq!(result.gas_left, DEFAULT_INIT_GAS);
+    }
+
+    #[test]
+    fn pc_on_data() {
+        let mut context = MockExecutionContextTrait::new();
+        let message = MockExecutionMessage::default().into();
+        let result = Interpreter::new_steppable(
+            Revision::EVMC_FRONTIER,
+            &message,
+            &mut context,
+            StepStatusCode::EVMC_STEP_RUNNING,
+            &[Opcode::Push1 as u8, 0x00],
+            1,
+            0,
+            Stack::new(Vec::new()),
+            Memory::new(Vec::new()),
+            None,
+            None,
+        )
+        .run();
+        assert!(result.is_err());
+        let status = result.map(|_| ()).unwrap_err();
+        assert_eq!(status, StatusCode::EVMC_INVALID_INSTRUCTION);
+    }
+
+    #[test]
+    fn zero_steps() {
+        let mut context = MockExecutionContextTrait::new();
+        let message = MockExecutionMessage::default().into();
+        let mut interpreter = Interpreter::new(
+            Revision::EVMC_FRONTIER,
+            &message,
+            &mut context,
+            &[Opcode::Add as u8],
+        );
+        interpreter.steps = Some(0);
+        let result = interpreter.run();
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_RUNNING);
+        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.code_reader.pc(), 0);
+        assert_eq!(result.gas_left, DEFAULT_INIT_GAS);
+    }
+
+    #[test]
+    fn add_one_step() {
+        let mut context = MockExecutionContextTrait::new();
+        let message = MockExecutionMessage::default().into();
+        let mut interpreter = Interpreter::new(
+            Revision::EVMC_FRONTIER,
+            &message,
+            &mut context,
+            &[Opcode::Add as u8, Opcode::Add as u8],
+        );
+        interpreter.steps = Some(1);
+        interpreter.stack = Stack::new(vec![1u8.into(), 2u8.into()]);
+        let result = interpreter.run();
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_RUNNING);
+        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.stack.into_inner(), [3u8.into()]);
+        assert_eq!(result.gas_left, DEFAULT_INIT_GAS - 3);
+    }
+
+    #[test]
+    fn add_single_op() {
+        let mut context = MockExecutionContextTrait::new();
+        let message = MockExecutionMessage::default().into();
+        let mut interpreter = Interpreter::new(
+            Revision::EVMC_FRONTIER,
+            &message,
+            &mut context,
+            &[Opcode::Add as u8],
+        );
+        interpreter.stack = Stack::new(vec![1u8.into(), 2u8.into()]);
+        let result = interpreter.run();
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
+        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.stack.into_inner(), [3u8.into()]);
+        assert_eq!(result.gas_left, DEFAULT_INIT_GAS - 3);
+    }
+
+    #[test]
+    fn add_twice() {
+        let mut context = MockExecutionContextTrait::new();
+        let message = MockExecutionMessage::default().into();
+        let mut interpreter = Interpreter::new(
+            Revision::EVMC_FRONTIER,
+            &message,
+            &mut context,
+            &[Opcode::Add as u8, Opcode::Add as u8],
+        );
+        interpreter.stack = Stack::new(vec![1u8.into(), 2u8.into(), 3u8.into()]);
+        let result = interpreter.run();
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
+        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.stack.into_inner(), [6u8.into()]);
+        assert_eq!(result.gas_left, DEFAULT_INIT_GAS - 2 * 3);
+    }
+
+    #[test]
+    fn add_not_enough_gas() {
+        let mut context = MockExecutionContextTrait::new();
+        let message = MockExecutionMessage {
+            gas: 2,
+            ..Default::default()
+        };
+        let message = message.into();
+        let mut interpreter = Interpreter::new(
+            Revision::EVMC_FRONTIER,
+            &message,
+            &mut context,
+            &[Opcode::Add as u8],
+        );
+        interpreter.stack = Stack::new(vec![1u8.into(), 2u8.into()]);
+        let result = interpreter.run();
+        assert!(result.is_err());
+        let status = result.map(|_| ()).unwrap_err();
+        assert_eq!(status, StatusCode::EVMC_OUT_OF_GAS);
+    }
+
+    #[test]
+    fn call() {
+        // helpers to generate unique values; random values are not needed
+        let mut unique_values = 1u8..;
+        let mut next_value = || unique_values.next().unwrap();
+
+        let memory = vec![next_value(), next_value(), next_value(), next_value()];
+        let ret_data = [next_value(), next_value()];
+
+        let gas = next_value() as u64;
+        let addr = next_value().into();
+        let value = u256::ZERO;
+        let args_offset = 1usize;
+        let args_len = memory.len() - args_offset - 1;
+        let ret_offset = 1usize;
+        let ret_len = ret_data.len();
+
+        let input = memory[args_offset..args_offset + args_len].to_vec();
+
+        let message = MockExecutionMessage {
+            recipient: u256::from(next_value()).into(),
+            ..Default::default()
+        };
+
+        let mut context = MockExecutionContextTrait::new();
+        context
+            .expect_get_balance()
+            .times(1)
+            .with(predicate::eq(Address::from(message.recipient)))
+            .return_const(Uint256::from(u256::ZERO));
+        context
+            .expect_call()
+            .times(1)
+            .withf(move |call_message| {
+                call_message.kind() == MessageKind::EVMC_CALL
+                    && call_message.flags() == 0
+                    && call_message.depth() == message.depth + 1
+                    && call_message.gas() == gas as i64
+                    && call_message.sender() == &message.recipient
+                    && call_message.recipient() == &Address::from(addr)
+                    && call_message.input() == Some(&input)
+                    && call_message.value() == &Uint256::from(value)
+                    && call_message.create2_salt() == &Uint256::from(u256::ZERO)
+                    && call_message.code_address() == &Address::from(u256::ZERO)
+                    && call_message.code().is_none()
+            })
+            .returning(move |_| {
+                ExecutionResult::new(StatusCode::EVMC_SUCCESS, 0, 0, Some(&ret_data))
+            });
+
+        let message = message.into();
+
+        let stack = vec![
+            ret_len.into(),
+            ret_offset.into(),
+            args_len.into(),
+            args_offset.into(),
+            value,
+            addr,
+            gas.into(),
+        ];
+
+        let result = Interpreter::new_steppable(
+            Revision::EVMC_FRONTIER,
+            &message,
+            &mut context,
+            StepStatusCode::EVMC_STEP_RUNNING,
+            &[Opcode::Call as u8],
+            0,
+            0,
+            Stack::new(stack),
+            Memory::new(memory),
+            None,
+            None,
+        )
+        .run();
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
+        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.code_reader.pc(), 1);
+        assert_eq!(result.gas_left, DEFAULT_INIT_GAS - 700 - gas);
+        assert_eq!(
+            result.last_call_return_data.as_deref(),
+            Some(ret_data.as_slice())
+        );
+        assert_eq!(
+            &result.memory.into_inner()[ret_offset..ret_offset + ret_len],
+            ret_data.as_slice()
+        );
     }
 }
