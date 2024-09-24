@@ -492,20 +492,8 @@ func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
 }
 
 func TestStepsDetectsNonExecutableCode(t *testing.T) {
-	nonExecutableOpCodes := []OpCode{
-		INVALID,
-		NOOP,
-		DATA,
-	}
 
-	re := regexp.MustCompile(`^op\(0x[0-9a-fA-F]{2}\)`)
-	for op := OpCode(0); op < numOpCodes; op++ {
-		if re.MatchString(op.String()) {
-			nonExecutableOpCodes = append(nonExecutableOpCodes, op)
-		}
-	}
-
-	for _, opCode := range nonExecutableOpCodes {
+	for _, opCode := range allOpCodesWhere(not(isExecutable)) {
 		ctxt := getEmptyContext()
 		ctxt.params = tosca.Parameters{
 			Input:  []byte{},
@@ -722,6 +710,12 @@ func fillStackFor(op OpCode, stack *stack, code Code) error {
 }
 
 var _isInvalidOpCodeRegex = regexp.MustCompile(`^op\(0x[0-9A-Fa-f]+\)$`)
+
+func not(f func(OpCode) bool) func(OpCode) bool {
+	return func(op OpCode) bool {
+		return !f(op)
+	}
+}
 
 func isExecutable(op OpCode) bool {
 	if slices.Contains([]OpCode{INVALID, NOOP, DATA}, op) {
