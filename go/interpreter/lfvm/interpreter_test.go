@@ -19,6 +19,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -182,126 +183,54 @@ func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 	}
 }
 
-type OpcodeTest struct {
-	name        string
-	code        []Instruction
-	stackPtrPos int
-	argData     uint16
-	isBerlin    bool // < TODO: replace with revision
-	isLondon    bool
-	mockCalls   func(*tosca.MockRunContext)
-	gasStart    tosca.Gas
-	gasConsumed tosca.Gas
-	gasRefund   tosca.Gas
-	endStatus   status
-	err         error
-}
+func TestInterpreter_CanDispatchInstructions(t *testing.T) {
 
-type OpCodeWithGas struct {
-	OpCode
-	gas tosca.Gas
-}
+	for _, op := range allOpCodesWhere(isExecutable) {
+		t.Run(op.String(), func(t *testing.T) {
 
-func generateOpCodesInRange(start OpCode, end OpCode) []OpCode {
-	opCodes := make([]OpCode, end-start+1)
-	for i := start; i <= end; i++ {
-		opCodes[i-start] = i
-	}
-	return opCodes
-}
+			forEachRevision(t, op, func(t *testing.T, revision tosca.Revision) {
 
-// TODO: redo, static gas
-func TestInstructionsGasConsumption(t *testing.T) {
+				ctrl := gomock.NewController(t)
+				mock := tosca.NewMockRunContext(ctrl)
+				// mock all to satisfy any instruction
+				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess).AnyTimes()
+				mock.EXPECT().GetBalance(gomock.Any()).AnyTimes()
+				mock.EXPECT().IsAddressInAccessList(gomock.Any()).AnyTimes()
+				mock.EXPECT().GetCodeSize(gomock.Any()).AnyTimes()
+				mock.EXPECT().GetCode(gomock.Any()).AnyTimes()
+				mock.EXPECT().AccountExists(gomock.Any()).AnyTimes()
+				mock.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).AnyTimes()
+				mock.EXPECT().GetStorage(gomock.Any(), gomock.Any()).AnyTimes()
+				mock.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+				mock.EXPECT().Call(gomock.Any(), gomock.Any()).AnyTimes()
+				mock.EXPECT().EmitLog(gomock.Any()).AnyTimes()
+				mock.EXPECT().SelfDestruct(gomock.Any(), gomock.Any()).AnyTimes()
+				mock.EXPECT().GetTransientStorage(gomock.Any(), gomock.Any()).AnyTimes()
+				mock.EXPECT().SetTransientStorage(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
-	var tests []OpcodeTest
+				ctx := context{
+					params: tosca.Parameters{
+						BlockParameters: tosca.BlockParameters{
+							Revision: revision,
+						},
+					},
+					context: mock,
+					// enough gas to satisfy any instruction
+					gas:    1 << 32,
+					stack:  NewStack(),
+					memory: NewMemory(),
+					code:   generateCodeFor(op),
+				}
+				err := fillStackFor(op, ctx.stack, ctx.code)
+				if err != nil {
+					t.Fatalf("unexpected creating stack: %v", err)
+				}
 
-	for _, op := range generateOpCodesInRange(PUSH1, PUSH32) {
-		code := []Instruction{{op, 1}}
-		dataNum := int((op - PUSH1) / 2)
-		for j := 0; j < dataNum; j++ {
-			code = append(code, Instruction{DATA, 1})
-		}
-		tests = append(tests, OpcodeTest{op.String(), code, 20, 0, false, false, nil, GAS_START, 3, 0, statusStopped, nil})
-	}
-
-	attachGasTo := func(gas tosca.Gas, opCodes ...OpCode) []OpCodeWithGas {
-		opCodesWithGas := make([]OpCodeWithGas, len(opCodes))
-		for i, opCode := range opCodes {
-			opCodesWithGas[i] = OpCodeWithGas{opCode, gas}
-		}
-		return opCodesWithGas
-	}
-
-	var opCodes []OpCodeWithGas
-	opCodes = append(opCodes, attachGasTo(2, generateOpCodesInRange(COINBASE, CHAINID)...)...)
-	opCodes = append(opCodes, attachGasTo(3, ADD, SUB)...)
-	opCodes = append(opCodes, attachGasTo(5, MUL, DIV, SDIV, MOD, SMOD, SIGNEXTEND)...)
-	opCodes = append(opCodes, attachGasTo(3, generateOpCodesInRange(DUP1, DUP16)...)...)
-	opCodes = append(opCodes, attachGasTo(3, generateOpCodesInRange(SWAP1, SWAP16)...)...)
-	opCodes = append(opCodes, attachGasTo(3, generateOpCodesInRange(LT, SAR)...)...)
-	opCodes = append(opCodes, attachGasTo(8, ADDMOD, MULMOD)...)
-	opCodes = append(opCodes, attachGasTo(10, EXP)...)
-	opCodes = append(opCodes, attachGasTo(30, SHA3)...)
-	opCodes = append(opCodes, attachGasTo(11, SWAP1_POP_SWAP2_SWAP1)...)
-	opCodes = append(opCodes, attachGasTo(10, POP_SWAP2_SWAP1_POP)...)
-	opCodes = append(opCodes, attachGasTo(4, POP_POP)...)
-	opCodes = append(opCodes, attachGasTo(6, generateOpCodesInRange(PUSH1_SHL, PUSH1_DUP1)...)...)
-	// opCodes = append(opCodes, applyGasTo(11, PUSH2_JUMP)...) // FIXME: this seems to be broken
-	opCodes = append(opCodes, attachGasTo(13, PUSH2_JUMPI)...)
-	opCodes = append(opCodes, attachGasTo(6, PUSH1_PUSH1)...)
-	opCodes = append(opCodes, attachGasTo(5, SWAP1_POP)...)
-	opCodes = append(opCodes, attachGasTo(6, SWAP2_SWAP1)...)
-	opCodes = append(opCodes, attachGasTo(5, SWAP2_POP)...)
-	opCodes = append(opCodes, attachGasTo(9, DUP2_MSTORE)...)
-	opCodes = append(opCodes, attachGasTo(6, DUP2_LT)...)
-
-	for _, opCode := range opCodes {
-		code := []Instruction{{opCode.OpCode, 0}}
-		tests = append(tests, OpcodeTest{
-			name:        opCode.String(),
-			code:        code,
-			stackPtrPos: 20,
-			endStatus:   statusStopped,
-			gasStart:    GAS_START,
-			gasConsumed: opCode.gas,
-		})
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			runContext := tosca.NewMockRunContext(ctrl)
-			if test.mockCalls != nil {
-				test.mockCalls(runContext)
-			}
-			revision := tosca.R07_Istanbul
-			if test.isBerlin {
-				revision = tosca.R09_Berlin
-			}
-			if test.isLondon {
-				revision = tosca.R10_London
-			}
-			ctxt := getContext(test.code, make([]byte, 0), runContext, test.stackPtrPos, test.gasStart, revision)
-
-			// Run testing code
-			status, err := vanillaRunner{}.run(&ctxt)
-			if want, got := test.err, err; want != got {
-				t.Errorf("unexpected return: error is %v, wanted %v", got, want)
-			}
-
-			if want, got := test.endStatus, status; want != got {
-				t.Errorf("execution failed: status is %v, wanted %v", got, want)
-			}
-
-			// Check gas consumption
-			if want, got := test.gasConsumed, test.gasStart-ctxt.gas; want != got {
-				t.Errorf("execution failed: gas consumption is %v, wanted %v", got, want)
-			}
-
-			// Check gas refund
-			if want, got := test.gasRefund, ctxt.refund; want != got {
-				t.Errorf("execution failed: gas refund is %v, wanted %v", got, want)
-			}
+				_, err = vanillaRunner{}.run(&ctx)
+				if err != nil {
+					t.Errorf("execution failed: %v", err)
+				}
+			})
 		})
 	}
 }
@@ -637,6 +566,150 @@ func BenchmarkSatisfiesStackRequirements(b *testing.B) {
 	opCodes := allOpCodes()
 	for i := 0; i < b.N; i++ {
 		_ = checkStackLimits(context.stack.len(), opCodes[i%len(opCodes)])
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// test utilities
+
+func Test_generateCodeForOps(t *testing.T) {
+	tests := map[OpCode]int{
+		PUSH1:                     1,
+		PUSH2:                     1,
+		PUSH3:                     2,
+		PUSH4:                     2,
+		PUSH5:                     3,
+		PUSH6:                     3,
+		PUSH31:                    16,
+		PUSH32:                    16,
+		PUSH1_PUSH1:               1,
+		PUSH1_PUSH4_DUP3:          3,
+		PUSH1_PUSH1_PUSH1_SHL_SUB: 2,
+	}
+	for op, test := range tests {
+		t.Run(op.String(), func(t *testing.T) {
+			code := generateCodeFor(op)
+			if want, got := test, len(code); want != got {
+				t.Errorf("expected %d instructions, got %d", want, got)
+			}
+		})
+	}
+}
+
+// generateCodeFor generates valid LFVM code for one instruction.
+// Appends necessary DATA instructions to the code to satisfy stack requirements.
+// Adds JUMPDEST instruction after JUMP instructions.
+func generateCodeFor(op OpCode) Code {
+
+	var code []Instruction
+
+	switch op {
+	case PUSH1_PUSH4_DUP3:
+		code = append(code, Instruction{op, 0}, Instruction{DATA, 0})
+	case PUSH1_PUSH1_PUSH1_SHL_SUB:
+		code = append(code, Instruction{op, 0}, Instruction{DATA, 0})
+	case PUSH2_JUMP:
+		code = append(code, Instruction{op, 1}) // hardcoded jump destination
+	case PUSH2_JUMPI:
+		code = append(code, Instruction{op, 1}) // hardcoded jump destination
+	default:
+		code = append(code, Instruction{op, 0})
+	}
+
+	for _, op := range append(op.decompose(), op) {
+		if PUSH3 <= op && op <= PUSH32 {
+			n := int(op) - int(PUSH3) + 3
+			numInstructions := n/2 + n%2
+			for i := 0; i < numInstructions-1; i++ {
+				code = append(code, Instruction{DATA, 0})
+			}
+		}
+	}
+
+	if isJump(op) {
+		code = append(code, Instruction{JUMPDEST, 0})
+	}
+
+	if op == JUMP_TO {
+		// prevent endless loop by having jump to itself
+		code[0].arg = uint16(len(code))
+		code = append(code, Instruction{JUMPDEST, 0})
+	}
+
+	return code
+}
+
+// fillStackFor fills the stack with the required number of elements for the given opcode.
+// For Jump instructions, it also encodes the PC for the the first jump destination found in code
+func fillStackFor(op OpCode, stack *stack, code Code) error {
+	limits := _precomputedStackLimits.get(op)
+	stack.stackPointer = limits.min
+
+	// jump instructions need a valid jump destination
+	if isJump(op) {
+		counter := slices.IndexFunc(code, func(v Instruction) bool {
+			return v.opcode == JUMPDEST
+		})
+		if counter == -1 {
+			return fmt.Errorf("missing JUMPDEST instruction")
+		}
+
+		for i := 0; i < limits.min; i++ {
+			stack.data[i] = *uint256.NewInt(uint64(counter))
+		}
+	}
+
+	return nil
+}
+
+var _isInvalidOpCodeRegex = regexp.MustCompile(`^op\(0x[0-9A-Fa-f]+\)$`)
+
+func isExecutable(op OpCode) bool {
+	if slices.Contains([]OpCode{INVALID, NOOP, DATA}, op) {
+		return false
+	}
+	return !_isInvalidOpCodeRegex.MatchString(op.String()) && op != INVALID
+}
+
+func isJump(op OpCode) bool {
+	ops := append(op.decompose(), op)
+	idx := slices.IndexFunc(ops, func(op OpCode) bool {
+		return op == JUMP || op == JUMPI
+	})
+	return idx != -1
+}
+
+var _introducedInRevision = newOpCodePropertyMap(func(op OpCode) tosca.Revision {
+	switch op {
+	case BASEFEE:
+		return tosca.R10_London
+	case PUSH0:
+		return tosca.R12_Shanghai
+	case BLOBHASH:
+		return tosca.R13_Cancun
+	case BLOBBASEFEE:
+		return tosca.R13_Cancun
+	case TLOAD:
+		return tosca.R13_Cancun
+	case TSTORE:
+		return tosca.R13_Cancun
+	case MCOPY:
+		return tosca.R13_Cancun
+	}
+	return tosca.R07_Istanbul
+})
+
+func forEachRevision(
+	t *testing.T, op OpCode,
+	f func(t *testing.T, revision tosca.Revision)) {
+
+	for revision := tosca.R07_Istanbul; revision <= newestSupportedRevision; revision++ {
+		if revision < _introducedInRevision.get(op) {
+			continue
+		}
+		t.Run(revision.String(), func(t *testing.T) {
+			f(t, revision)
+		})
 	}
 }
 
