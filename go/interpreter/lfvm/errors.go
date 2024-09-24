@@ -23,4 +23,5 @@ const (
 	errStackLimitsViolation   = tosca.ConstError("stack limits violation")
 	errCodeLimitsViolation    = tosca.ConstError("code bounds violation")
 	errInitCodeTooLarge       = tosca.ConstError("init code larger than allowed")
+	errMaxMemoryExpansionSize = tosca.ConstError("max memory expansion size exceeded")
 )

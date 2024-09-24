@@ -12,7 +12,6 @@ package lfvm
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/holiman/uint256"
@@ -27,14 +26,12 @@ func NewMemory() *Memory {
 	return &Memory{}
 }
 
-func toValidMemorySize(size uint64) uint64 {
+func toValidMemorySize(size uint64) (uint64, error) {
 	fullWordsSize := tosca.SizeInWords(size) * 32
 	if size != 0 && fullWordsSize < size {
-		// TODO: this is a compromised solution, reconsider this with issue #524
-		// Geth handles this by adding an overflow boolean to every mem operation: core/vm/common.go (calcMemSize64WithUint)
-		return math.MaxUint64
+		return 0, errOverflow
 	}
-	return fullWordsSize
+	return fullWordsSize, nil
 }
 
 const (
@@ -43,7 +40,8 @@ const (
 	maxMemoryExpansionSize = 0x1FFFFFFFE0
 )
 
-func (m *Memory) getExpansionCosts(size uint64) tosca.Gas {
+// getExpansionCosts returns the gas cost of expanding the memory to the given size.
+func (m *Memory) getExpansionCosts(size uint64) (tosca.Gas, error) {
 
 	// static assert
 	const (
@@ -54,18 +52,22 @@ func (m *Memory) getExpansionCosts(size uint64) tosca.Gas {
 	)
 
 	if m.length() >= size {
-		return 0
+		return 0, nil
 	}
-	size = toValidMemorySize(size)
+
+	size, err := toValidMemorySize(size)
+	if err != nil {
+		return 0, err
+	}
 
 	if size > maxMemoryExpansionSize {
-		return tosca.Gas(math.MaxInt64)
+		return 0, errMaxMemoryExpansionSize
 	}
 
 	words := tosca.SizeInWords(size)
 	new_costs := tosca.Gas((words*words)/512 + (3 * words))
 	fee := new_costs - m.currentMemoryCost
-	return fee
+	return fee, nil
 }
 
 // expandMemory tries to expand memory to the given size.
@@ -82,24 +84,37 @@ func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 		return errOverflow
 	}
 	if m.length() < needed {
-		fee := m.getExpansionCosts(needed)
+		fee, err := m.getExpansionCosts(needed)
+		if err != nil {
+			return err
+		}
 		if err := c.useGas(fee); err != nil {
 			return err
 		}
-		m.expandMemoryWithoutCharging(needed)
+		if err := m.expandMemoryWithoutCharging(needed); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 // expandMemoryWithoutCharging expands the memory to the given size without charging gas.
-func (m *Memory) expandMemoryWithoutCharging(needed uint64) {
-	needed = toValidMemorySize(needed)
+func (m *Memory) expandMemoryWithoutCharging(needed uint64) error {
+	needed, err := toValidMemorySize(needed)
+	if err != nil {
+		return err
+	}
 	size := m.length()
 	if size < needed {
-		m.currentMemoryCost += m.getExpansionCosts(needed)
+		fee, err := m.getExpansionCosts(needed)
+		if err != nil {
+			return err
+		}
+		m.currentMemoryCost += fee
 		m.store = append(m.store, make([]byte, needed-size)...)
 	}
+	return nil
 }
 
 func (m *Memory) length() uint64 {
