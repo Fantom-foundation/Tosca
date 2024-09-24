@@ -27,14 +27,14 @@ type statisticRunner struct {
 func (s *statisticRunner) run(c *context) (status, error) {
 	stats := statsCollector{stats: newStatistics()}
 	status := statusRunning
-	var err error
+	var executionError error
 	for status == statusRunning {
 		if c.pc < int32(len(c.code)) {
 			stats.nextOp(c.code[c.pc].opcode)
 		}
-		status, err = step(c)
-		if err != nil {
-			return status, err
+		status, executionError = step(c)
+		if executionError != nil {
+			break
 		}
 	}
 	s.mutex.Lock()
@@ -43,7 +43,7 @@ func (s *statisticRunner) run(c *context) (status, error) {
 		s.stats = newStatistics()
 	}
 	s.stats.insert(stats.stats)
-	return status, nil
+	return status, executionError
 }
 
 // getSummary returns a summary of the collected statistics in a human-readable
