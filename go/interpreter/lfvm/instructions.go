@@ -249,10 +249,7 @@ func opSstore(c *context) error {
 	cost := tosca.Gas(0)
 	if c.isAtLeast(tosca.R09_Berlin) &&
 		c.context.AccessStorage(c.params.Recipient, key) == tosca.ColdAccess {
-		if err := c.useGas(ColdSloadCostEIP2929); err != nil {
-			// TODO: this error can never be triggered, because if we get here, we already have 2300.
-			return err
-		}
+		cost += 2100
 	}
 
 	storageStatus := c.context.SetStorage(c.params.Recipient, key, value)

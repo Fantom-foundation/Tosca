@@ -1174,7 +1174,7 @@ func TestOpEndWithResult_ReportOverflow(t *testing.T) {
 	}
 }
 
-func TestInstructions_EIP2929_staticGasCostForBerlinAndAfterIsZero(t *testing.T) {
+func TestInstructions_EIP2929_staticGasCostIsZero(t *testing.T) {
 	ops := []OpCode{BALANCE, EXTCODECOPY, EXTCODEHASH, EXTCODESIZE, CALL, CALLCODE, DELEGATECALL, STATICCALL}
 	for _, op := range ops {
 		if getBerlinGasPriceInternal(op) != 0 {
@@ -1183,7 +1183,7 @@ func TestInstructions_EIP2929_staticGasCostForBerlinAndAfterIsZero(t *testing.T)
 	}
 }
 
-func TestInstructions_EIP2929_dynamicGasCostForBerlinAndAfterReportsOutOfGas(t *testing.T) {
+func TestInstructions_EIP2929_dynamicGasCostReportsOutOfGas(t *testing.T) {
 	type accessCost struct {
 		warm tosca.Gas
 		cold tosca.Gas
@@ -1283,7 +1283,7 @@ func TestInstructions_EIP2929_dynamicGasCostForBerlinAndAfterReportsOutOfGas(t *
 	}
 }
 
-func TestInstructions_EIP2929_SSTOREReportsOutOfGasAfterBerlin(t *testing.T) {
+func TestInstructions_EIP2929_SSTOREReportsOutOfGas(t *testing.T) {
 	// SSTORE needs to be tested on its own because it demands that at least 2300 gas are available.
 	// Hence we cannot take the same testing approach as for the other operations in EIP-2929.
 
