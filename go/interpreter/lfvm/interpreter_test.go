@@ -444,13 +444,19 @@ func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
 	}
 }
 
-func TestStepsDetectsNonExecutableCode(t *testing.T) {
+func TestSteps_DetectsNonExecutableCode(t *testing.T) {
+
 	nonExecutableOpCodes := []OpCode{
 		INVALID,
 		NOOP,
 		DATA,
 	}
-	nonExecutableOpCodes = append(nonExecutableOpCodes, allOpCodesWhere(isInvalidOpCode)...)
+	undefinedOpCodeRegex := regexp.MustCompile(`^op\(0x[0-9a-fA-F]+\)`)
+	isUndefined :=
+		func(op OpCode) bool {
+			return undefinedOpCodeRegex.MatchString(op.String())
+		}
+	nonExecutableOpCodes = append(nonExecutableOpCodes, allOpCodesWhere(isUndefined)...)
 
 	for _, opCode := range nonExecutableOpCodes {
 		t.Run(opCode.String(), func(t *testing.T) {
@@ -533,7 +539,7 @@ func TestSteps_StaticContextViolation(t *testing.T) {
 
 func TestSteps_FailsWithLessGasThanStaticCost(t *testing.T) {
 
-	for _, op := range allOpCodesWhere(isValidOpCode) {
+	for _, op := range allOpCodes() {
 		t.Run(op.String(), func(t *testing.T) {
 			forEachRevision(t, op, func(t *testing.T, revision tosca.Revision) {
 
@@ -561,18 +567,6 @@ func TestSteps_FailsWithLessGasThanStaticCost(t *testing.T) {
 		})
 	}
 }
-
-var invalidOpCodeString = regexp.MustCompile(`^op\(0x[0-9a-fA-F]+\)`)
-
-func isValidOpCode(op OpCode) bool {
-	return !invalidOpCodeString.MatchString(op.String())
-}
-func isInvalidOpCode(op OpCode) bool {
-	return invalidOpCodeString.MatchString(op.String())
-}
-
-// To run the benchmark use
-//  go test ./core/vm/lfvm -bench=.*Fib.* --benchtime 10s
 
 func BenchmarkFib10(b *testing.B) {
 	benchmarkFib(b, 10, false)
