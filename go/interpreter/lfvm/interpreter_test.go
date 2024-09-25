@@ -28,8 +28,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// Test UseGas function and correct status after running out of gas.
-func TestContext_useGas_HandlesTerminationIfOutOfGas(t *testing.T) {
+func TestContext_useGas_ReturnsErrorIfOutOfGasAndConsumesAllRemainingGas(t *testing.T) {
 	tests := map[string]struct {
 		available tosca.Gas
 		required  tosca.Gas
@@ -51,8 +50,7 @@ func TestContext_useGas_HandlesTerminationIfOutOfGas(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctx := context{
-				status: statusRunning,
-				gas:    test.available,
+				gas: test.available,
 			}
 			err := ctx.useGas(test.required)
 
@@ -133,7 +131,6 @@ func getContext(code Code, data []byte, runContext tosca.RunContext, stackPtr in
 		gas:     gas,
 		stack:   NewStack(),
 		memory:  NewMemory(),
-		status:  statusRunning,
 		code:    code,
 	}
 
@@ -175,7 +172,6 @@ func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 			continue
 		}
 
-		// Create execution context.
 		ctxt := getEmptyContext()
 		ctxt.code = []Instruction{{op, 0}}
 		ctxt.stack.stackPointer = maxStackSize
@@ -192,13 +188,14 @@ type OpcodeTest struct {
 	code        []Instruction
 	stackPtrPos int
 	argData     uint16
-	endStatus   status
 	isBerlin    bool // < TODO: replace with revision
 	isLondon    bool
 	mockCalls   func(*tosca.MockRunContext)
 	gasStart    tosca.Gas
 	gasConsumed tosca.Gas
 	gasRefund   tosca.Gas
+	endStatus   status
+	err         error
 }
 
 type OpCodeWithGas struct {
@@ -214,9 +211,7 @@ func generateOpCodesInRange(start OpCode, end OpCode) []OpCode {
 	return opCodes
 }
 
-// FIXME: migrate test case to instructions_test.go.
-// In order to keep interpreter coverage at 100%, one successful,
-// pass through the interpreter is required for each instruction.
+// TODO: redo, static gas
 func TestInstructionsGasConsumption(t *testing.T) {
 
 	var tests []OpcodeTest
@@ -227,7 +222,7 @@ func TestInstructionsGasConsumption(t *testing.T) {
 		for j := 0; j < dataNum; j++ {
 			code = append(code, Instruction{DATA, 1})
 		}
-		tests = append(tests, OpcodeTest{op.String(), code, 20, 0, statusStopped, false, false, nil, GAS_START, 3, 0})
+		tests = append(tests, OpcodeTest{op.String(), code, 20, 0, false, false, nil, GAS_START, 3, 0, statusStopped, nil})
 	}
 
 	attachGasTo := func(gas tosca.Gas, opCodes ...OpCode) []OpCodeWithGas {
@@ -290,11 +285,13 @@ func TestInstructionsGasConsumption(t *testing.T) {
 			ctxt := getContext(test.code, make([]byte, 0), runContext, test.stackPtrPos, test.gasStart, revision)
 
 			// Run testing code
-			vanillaRunner{}.run(&ctxt)
+			status, err := vanillaRunner{}.run(&ctxt)
+			if want, got := test.err, err; want != got {
+				t.Errorf("unexpected return: error is %v, wanted %v", got, want)
+			}
 
-			// Check the result.
-			if ctxt.status != test.endStatus {
-				t.Errorf("execution failed: status is %v, wanted %v", ctxt.status, test.endStatus)
+			if want, got := test.endStatus, status; want != got {
+				t.Errorf("execution failed: status is %v, wanted %v", got, want)
 			}
 
 			// Check gas consumption
@@ -310,7 +307,7 @@ func TestInstructionsGasConsumption(t *testing.T) {
 	}
 }
 
-func TestRunReturnsEmptyResultOnEmptyCode(t *testing.T) {
+func TestInterpreter_Run_ReturnsEmptyResultOnEmptyCode(t *testing.T) {
 	// Get tosca.Parameters
 	params := tosca.Parameters{
 		Input:  []byte{},
@@ -336,7 +333,7 @@ func TestRunReturnsEmptyResultOnEmptyCode(t *testing.T) {
 	}
 }
 
-func TestRunWithLogging(t *testing.T) {
+func TestInterpreter_Logging_PrintsToSTDOUT(t *testing.T) {
 	code := []Instruction{
 		{PUSH1, 1},
 		{STOP, 0},
@@ -373,15 +370,13 @@ func TestRunWithLogging(t *testing.T) {
 	}
 }
 
-func TestRunBasic(t *testing.T) {
+func TestInterpreter_Vanilla_RunsWithoutOutput(t *testing.T) {
 
-	// Create execution context.
 	code := []Instruction{
 		{PUSH1, 1},
 		{STOP, 0},
 	}
 
-	// Get tosca.Parameters
 	params := tosca.Parameters{
 		Input:  []byte{},
 		Static: true,
@@ -405,7 +400,6 @@ func TestRunBasic(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	// check the output
 	if len(string(out)) != 0 {
 		t.Errorf("unexpected output: want \"\", got %v", string(out))
 	}
@@ -428,38 +422,72 @@ func TestRunGenerateResult(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		setup          func(*context)
+		setup          func(ctx *context)
+		status         status
 		expectedErr    error
 		expectedResult tosca.Result
 	}{
-		"max init code": {func(ctx *context) { ctx.status = statusError }, nil,
-			tosca.Result{Success: false}},
-		"error": {func(ctx *context) { ctx.status = statusError }, nil, tosca.Result{Success: false}},
-		"returned": {func(ctx *context) { ctx.status = statusReturned }, nil, tosca.Result{Success: true,
-			Output: baseOutput, GasLeft: baseGas, GasRefund: baseRefund}},
-		"reverted": {func(ctx *context) { ctx.status = statusReverted }, nil,
-			tosca.Result{Success: false, Output: baseOutput, GasLeft: baseGas, GasRefund: 0}},
-		"stopped": {func(ctx *context) { ctx.status = statusStopped }, nil,
-			tosca.Result{Success: true, Output: nil, GasLeft: baseGas, GasRefund: baseRefund}},
-		"suicide": {func(ctx *context) { ctx.status = statusSelfDestructed }, nil,
-			tosca.Result{Success: true, Output: nil, GasLeft: baseGas, GasRefund: baseRefund}},
-		"unknown status": {func(ctx *context) { ctx.status = statusError + 1 },
-			fmt.Errorf("unexpected error in interpreter, unknown status: %v", statusError+1), tosca.Result{}},
-		"getOutput fail": {func(ctx *context) {
-			ctx.status = statusReturned
-			ctx.resultSize = uint256.Int{1, 1}
-		}, nil, tosca.Result{Success: false}},
+		"returned": {
+			status: statusReturned,
+			expectedResult: tosca.Result{
+				Success:   true,
+				Output:    baseOutput,
+				GasLeft:   baseGas,
+				GasRefund: baseRefund,
+			},
+		},
+		"reverted": {
+			status: statusReverted,
+			expectedResult: tosca.Result{
+				Success:   false,
+				Output:    baseOutput,
+				GasLeft:   baseGas,
+				GasRefund: 0,
+			},
+		},
+		"stopped": {
+			status: statusStopped,
+			expectedResult: tosca.Result{
+				Success:   true,
+				Output:    nil,
+				GasLeft:   baseGas,
+				GasRefund: baseRefund,
+			},
+		},
+		"suicide": {
+			status: statusSelfDestructed,
+			expectedResult: tosca.Result{
+				Success:   true,
+				Output:    nil,
+				GasLeft:   baseGas,
+				GasRefund: baseRefund,
+			},
+		},
+		"unknown status": {
+			status:         statusSelfDestructed + 1,
+			expectedErr:    fmt.Errorf("unexpected error in interpreter, unknown status: %v", statusSelfDestructed+1),
+			expectedResult: tosca.Result{},
+		},
+		"getOutput fail": {
+			setup: func(ctx *context) {
+				ctx.resultSize = uint256.Int{1, 1}
+			},
+			expectedResult: tosca.Result{
+				Success: false,
+			},
+		},
 	}
 
 	for name, test := range tests {
 		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
 
 			ctxt := getCtxt()
-			test.setup(&ctxt)
+			if test.setup != nil {
+				test.setup(&ctxt)
+			}
 
-			res, err := generateResult(&ctxt)
+			res, err := generateResult(test.status, &ctxt)
 
-			// Check the result.
 			if err != nil && test.expectedErr != nil && strings.Compare(err.Error(), test.expectedErr.Error()) != 0 {
 				t.Errorf("unexpected error: want \"%v\", got \"%v\"", test.expectedErr, err)
 			}
@@ -500,10 +528,8 @@ func TestGetOutputReturnsExpectedErrors(t *testing.T) {
 		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
 			ctxt := getEmptyContext()
 			test.setup(&ctxt)
-			ctxt.status = statusReturned
 
-			// Run testing code
-			_, err := getOutput(&ctxt)
+			_, err := getOutput(statusReturned, &ctxt)
 			if !errors.Is(err, test.expectedErr) {
 				t.Errorf("unexpected error: want error, got nil")
 			}
@@ -532,11 +558,11 @@ func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 	if status != statusStopped {
-		t.Errorf("unexpected status: want STOPPED, got %v", ctxt.status)
+		t.Errorf("unexpected status: want STOPPED, got %v", status)
 	}
 }
 
-func TestSteps_DetectsNonExecutableCode(t *testing.T) {
+func TestStepsDetectsNonExecutableCode(t *testing.T) {
 	nonExecutableOpCodes := []OpCode{
 		INVALID,
 		NOOP,
@@ -562,7 +588,7 @@ func TestSteps_DetectsNonExecutableCode(t *testing.T) {
 
 		_, err := steps(&ctxt, false)
 		if want, got := errInvalidOpCode, err; want != got {
-			t.Errorf("unexpected error: want %v, got %v", want, got)
+			t.Errorf("unexpected return: want %v, got %v", want, got)
 		}
 	}
 }
@@ -643,29 +669,34 @@ func TestStepsFailsOnTooLittleGas(t *testing.T) {
 	ctxt.code = instructions
 
 	_, err := steps(&ctxt, false)
-	if want, got := errOutOfGas, err; want != got {
+	if want, got := errNotEnoughStaticGas, err; want != got {
 		t.Errorf("unexpected error: want %v, got %v", want, got)
 	}
 }
 
-func getFibExample() example {
-	// An implementation of the fib function in EVM byte code.
-	code, err := hex.DecodeString("608060405234801561001057600080fd5b506004361061002b5760003560e01c8063f9b7c7e514610030575b600080fd5b61004a600480360381019061004591906100f6565b610060565b6040516100579190610132565b60405180910390f35b600060018263ffffffff161161007957600190506100b0565b61008e600283610089919061017c565b610060565b6100a360018461009e919061017c565b610060565b6100ad91906101b4565b90505b919050565b600080fd5b600063ffffffff82169050919050565b6100d3816100ba565b81146100de57600080fd5b50565b6000813590506100f0816100ca565b92915050565b60006020828403121561010c5761010b6100b5565b5b600061011a848285016100e1565b91505092915050565b61012c816100ba565b82525050565b60006020820190506101476000830184610123565b92915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b6000610187826100ba565b9150610192836100ba565b9250828203905063ffffffff8111156101ae576101ad61014d565b5b92915050565b60006101bf826100ba565b91506101ca836100ba565b9250828201905063ffffffff8111156101e6576101e561014d565b5b9291505056fea26469706673582212207fd33e47e97ce5871bb05401e6710238af535ae8aeaab013ca9a9c29152b8a1b64736f6c637827302e382e31372d646576656c6f702e323032322e382e392b636f6d6d69742e62623161386466390058")
-	if err != nil {
-		log.Fatalf("Unable to decode fib-code: %v", err)
-	}
+////////////////////////////////////////////////////////////////////////////////
+// Benchmarks
 
-	return example{
-		code:     code,
-		function: 0xF9B7C7E5, // The function selector for the fib function.
-	}
+// To run the benchmark use
+//  go test ./core/vm/lfvm -bench=.*Fib.* --benchtime 10s
+
+func BenchmarkFib10(b *testing.B) {
+	benchmarkFib(b, 10, false)
 }
 
-func fib(x int) int {
-	if x <= 1 {
-		return 1
+func BenchmarkFib10_SI(b *testing.B) {
+	benchmarkFib(b, 10, true)
+}
+
+func BenchmarkSatisfiesStackRequirements(b *testing.B) {
+	context := &context{
+		stack: NewStack(),
 	}
-	return fib(x-1) + fib(x-2)
+
+	opCodes := allOpCodes()
+	for i := 0; i < b.N; i++ {
+		_ = checkStackLimits(context.stack.len(), opCodes[i%len(opCodes)])
+	}
 }
 
 func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
@@ -709,16 +740,17 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 	for i := 0; i < b.N; i++ {
 		// Reset the context.
 		ctxt.pc = 0
-		ctxt.status = statusRunning
 		ctxt.gas = 1 << 31
 		ctxt.stack.stackPointer = 0
 
 		// Run the code (actual benchmark).
-		vanillaRunner{}.run(&ctxt)
+		status, err := vanillaRunner{}.run(&ctxt)
+		if err != nil {
+			b.Fatalf("execution failed: %v", err)
+		}
 
-		// Check the result.
-		if ctxt.status != statusReturned {
-			b.Fatalf("execution failed: status is %v", ctxt.status)
+		if status != statusReturned {
+			b.Fatalf("execution failed: status is %v", status)
 		}
 
 		size := ctxt.resultSize
@@ -741,13 +773,22 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 	}
 }
 
-// To run the benchmark use
-//  go test ./core/vm/lfvm -bench=.*Fib.* --benchtime 10s
+func getFibExample() example {
+	// An implementation of the fib function in EVM byte code.
+	code, err := hex.DecodeString("608060405234801561001057600080fd5b506004361061002b5760003560e01c8063f9b7c7e514610030575b600080fd5b61004a600480360381019061004591906100f6565b610060565b6040516100579190610132565b60405180910390f35b600060018263ffffffff161161007957600190506100b0565b61008e600283610089919061017c565b610060565b6100a360018461009e919061017c565b610060565b6100ad91906101b4565b90505b919050565b600080fd5b600063ffffffff82169050919050565b6100d3816100ba565b81146100de57600080fd5b50565b6000813590506100f0816100ca565b92915050565b60006020828403121561010c5761010b6100b5565b5b600061011a848285016100e1565b91505092915050565b61012c816100ba565b82525050565b60006020820190506101476000830184610123565b92915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b6000610187826100ba565b9150610192836100ba565b9250828203905063ffffffff8111156101ae576101ad61014d565b5b92915050565b60006101bf826100ba565b91506101ca836100ba565b9250828201905063ffffffff8111156101e6576101e561014d565b5b9291505056fea26469706673582212207fd33e47e97ce5871bb05401e6710238af535ae8aeaab013ca9a9c29152b8a1b64736f6c637827302e382e31372d646576656c6f702e323032322e382e392b636f6d6d69742e62623161386466390058")
+	if err != nil {
+		log.Fatalf("Unable to decode fib-code: %v", err)
+	}
 
-func BenchmarkFib10(b *testing.B) {
-	benchmarkFib(b, 10, false)
+	return example{
+		code:     code,
+		function: 0xF9B7C7E5, // The function selector for the fib function.
+	}
 }
 
-func BenchmarkFib10_SI(b *testing.B) {
-	benchmarkFib(b, 10, true)
+func fib(x int) int {
+	if x <= 1 {
+		return 1
+	}
+	return fib(x-1) + fib(x-2)
 }

@@ -61,7 +61,7 @@ func TestCtAdapter_Interface(t *testing.T) {
 
 func TestConvertToLfvm_StatusCode(t *testing.T) {
 
-	expected := map[status]st.StatusCode{
+	tests := map[status]st.StatusCode{
 		statusRunning:        st.Running,
 		statusReverted:       st.Reverted,
 		statusReturned:       st.Stopped,
@@ -69,22 +69,21 @@ func TestConvertToLfvm_StatusCode(t *testing.T) {
 		statusSelfDestructed: st.Stopped,
 	}
 
-	for i := 0; i < 100; i++ {
-		status := status(i)
-		want, found := expected[status]
-		if !found {
-			want = st.Failed
-		}
+	for status, test := range tests {
 		got, err := convertLfvmStatusToCtStatus(status)
 		if err != nil {
-			if found {
-				t.Errorf("failed conversion of %v, wanted %v, got error %v", status, want, err)
-			}
-		} else {
-			if want != got {
-				t.Errorf("invalid conversion of %v, expected %v, got %v", status, want, got)
-			}
+			t.Fatalf("unexpected error: %v", err)
 		}
+		if want, got := test, got; want != got {
+			t.Errorf("unexpected conversion, wanted %v, got %v", want, got)
+		}
+	}
+}
+
+func TestConvertToLfvm_StatusCodeFailsOnUnknownStatus(t *testing.T) {
+	_, err := convertLfvmStatusToCtStatus(statusSelfDestructed + 1)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
 	}
 }
 

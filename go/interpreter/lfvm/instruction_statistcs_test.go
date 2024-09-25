@@ -32,10 +32,10 @@ func TestStatisticsRunner_RunWithStatistics(t *testing.T) {
 	statsRunner := &statisticRunner{
 		stats: newStatistics(),
 	}
-	// Run testing code
-	_, err := run(interpreterConfig{
+	config := interpreterConfig{
 		runner: statsRunner,
-	}, params, code)
+	}
+	_, err := run(config, params, code)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
