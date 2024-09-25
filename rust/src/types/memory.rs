@@ -27,14 +27,14 @@ impl Memory {
         let current_len = self.0.len() as u64;
         let new_len = word_size(new_len_bytes)? * 32; // word_size just did a division by 32 so * will not overflow
         if new_len > current_len {
-            self.consume_expansion_cost(gas_left, new_len)?;
+            self.consume_expansion_cost(new_len, gas_left)?;
             self.0
                 .extend(iter::repeat(0).take((new_len - current_len) as usize));
         }
         Ok(())
     }
 
-    fn consume_expansion_cost(&self, gas_left: &mut u64, new_len: u64) -> Result<(), StatusCode> {
+    fn consume_expansion_cost(&self, new_len: u64, gas_left: &mut u64) -> Result<(), StatusCode> {
         fn memory_cost(size: u64) -> Result<u64, StatusCode> {
             let word_size = word_size(size)?;
             let (pow2, pow2_overflow) = word_size.overflowing_pow(2);
@@ -157,29 +157,29 @@ mod tests {
     fn consume_expansion_cost() {
         let memory = Memory::new(Vec::new());
         let mut gas_left = 0;
-        assert_eq!(memory.consume_expansion_cost(&mut gas_left, 0), Ok(()));
+        assert_eq!(memory.consume_expansion_cost(0, &mut gas_left), Ok(()));
         assert_eq!(gas_left, 0);
 
         let mut gas_left = 3;
-        assert_eq!(memory.consume_expansion_cost(&mut gas_left, 1), Ok(()));
+        assert_eq!(memory.consume_expansion_cost(1, &mut gas_left), Ok(()));
         assert_eq!(gas_left, 0);
 
         let mut gas_left = 3;
-        assert_eq!(memory.consume_expansion_cost(&mut gas_left, 32), Ok(()));
+        assert_eq!(memory.consume_expansion_cost(32, &mut gas_left), Ok(()));
         assert_eq!(gas_left, 0);
 
         let memory = Memory::new(vec![0; 32]);
         let mut gas_left = 3;
-        assert_eq!(memory.consume_expansion_cost(&mut gas_left, 64), Ok(()));
+        assert_eq!(memory.consume_expansion_cost(64, &mut gas_left), Ok(()));
         assert_eq!(gas_left, 0);
 
         assert_eq!(
-            memory.consume_expansion_cost(&mut 10_000, u64::MAX),
+            memory.consume_expansion_cost(u64::MAX, &mut 10_000),
             Err(StatusCode::EVMC_OUT_OF_GAS)
         );
 
         assert_eq!(
-            memory.consume_expansion_cost(&mut 10_000, u64::MAX / 100),
+            memory.consume_expansion_cost(u64::MAX / 100, &mut 10_000),
             Err(StatusCode::EVMC_OUT_OF_GAS)
         );
     }
