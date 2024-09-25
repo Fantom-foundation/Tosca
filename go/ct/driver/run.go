@@ -96,12 +96,11 @@ func doRun(context *cli.Context) error {
 		)
 	}
 
-	opRun := func(state *st.State) rlz.ConsumerResult {
-		result := rlz.ConsumeContinue
+	opRun := func(state *st.State) (result rlz.ConsumerResult) {
 		defer func() {
 			if r := recover(); r != nil {
 				result = rlz.ConsumeAbort
-				issuesCollector.AddIssue(state, fmt.Errorf("failed to process input state %v: %w", state, err))
+				issuesCollector.AddIssue(state, fmt.Errorf("VM panicked while processing state %v: %w", state, err))
 			}
 		}()
 
@@ -126,7 +125,7 @@ func doRun(context *cli.Context) error {
 			issuesCollector.AddIssue(state, fmt.Errorf("failed to process input state %v: %w", state, err))
 		}
 
-		return result
+		return rlz.ConsumeContinue
 	}
 
 	rules := spc.FilterRules(spc.Spec.GetRules(), filter)
