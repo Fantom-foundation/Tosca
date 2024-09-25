@@ -1173,3 +1173,151 @@ func TestOpEndWithResult_ReportOverflow(t *testing.T) {
 		t.Fatalf("should have produced overflow error, instead got: %v", err)
 	}
 }
+
+func TestInstructions_EIP2929_staticGasCostForBerlinAndAfterIsZero(t *testing.T) {
+	ops := []OpCode{BALANCE, EXTCODECOPY, EXTCODEHASH, EXTCODESIZE, CALL, CALLCODE, DELEGATECALL, STATICCALL}
+	for _, op := range ops {
+		if getBerlinGasPriceInternal(op) != 0 {
+			t.Errorf("expected zero gas cost for %v", op)
+		}
+	}
+}
+
+func TestInstructions_EIP2929_dynamicGasCostForBerlinAndAfterReportsOutOfGas(t *testing.T) {
+	type accessCost struct {
+		warm tosca.Gas
+		cold tosca.Gas
+	}
+
+	var eip2929AccessCost = newOpCodePropertyMap(func(op OpCode) accessCost {
+		switch op {
+		case SLOAD:
+			return accessCost{warm: 100, cold: 2100}
+		case SSTORE:
+			return accessCost{warm: 100, cold: 2100 + 100}
+		}
+		return accessCost{warm: 100, cold: 2600}
+	})
+
+	tests := map[OpCode]struct {
+		implementation func(*context) error
+		stack          []uint64
+	}{
+		BALANCE: {
+			implementation: opBalance,
+			stack:          []uint64{1},
+		},
+		EXTCODECOPY: {
+			implementation: opExtCodeCopy,
+			stack:          []uint64{0, 0, 0, 1},
+		},
+		EXTCODEHASH: {
+			implementation: opExtcodehash,
+			stack:          []uint64{1},
+		},
+		EXTCODESIZE: {
+			implementation: opExtcodesize,
+			stack:          []uint64{1},
+		},
+		CALL: {
+			implementation: opCall,
+			stack:          []uint64{0, 0, 0, 0, 0, 0, 1, 0},
+		},
+		CALLCODE: {
+			implementation: opCallCode,
+			stack:          []uint64{0, 0, 0, 0, 0, 0, 1, 0},
+		},
+		DELEGATECALL: {
+			implementation: opDelegateCall,
+			stack:          []uint64{0, 0, 0, 0, 0, 1, 0},
+		},
+		STATICCALL: {
+			implementation: opStaticCall,
+			stack:          []uint64{0, 0, 0, 0, 0, 1, 0},
+		},
+		SLOAD: {
+			implementation: opSload,
+			stack:          []uint64{0},
+		},
+	}
+
+	for op, test := range tests {
+		for revision := tosca.R09_Berlin; revision <= newestSupportedRevision; revision++ {
+			for _, access := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
+				t.Run(fmt.Sprintf("%v/%v/%v", op, revision, access), func(t *testing.T) {
+					ctxt := context{
+						params: tosca.Parameters{
+							BlockParameters: tosca.BlockParameters{
+								Revision: tosca.R13_Cancun,
+							},
+						},
+						stack:  NewStack(),
+						memory: NewMemory(),
+						code:   Code{{op, 0}},
+					}
+
+					accessCosts := eip2929AccessCost.get(op)
+
+					ctxt.gas = accessCosts.warm - 1
+					if access == tosca.ColdAccess {
+						ctxt.gas = accessCosts.cold - 1
+					}
+					mockRunContext := tosca.NewMockRunContext(gomock.NewController(t))
+					if op == SLOAD {
+						mockRunContext.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).Return(access).AnyTimes()
+					} else {
+						mockRunContext.EXPECT().AccessAccount(gomock.Any()).Return(access)
+					}
+					ctxt.context = mockRunContext
+					for _, v := range test.stack {
+						ctxt.stack.push(uint256.NewInt(v))
+					}
+
+					err := test.implementation(&ctxt)
+					if err != errOutOfGas {
+						t.Errorf("unexpected error: %v", err)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestInstructions_EIP2929_SSTOREReportsOutOfGasAfterBerlin(t *testing.T) {
+	// SSTORE needs to be tested on its own because it demands that at least 2300 gas are available.
+	// Hence we cannot take the same testing approach as for the other operations in EIP-2929.
+
+	// SSTORE demands at least 2300 gas to be available
+	// 2301 gas is not enough to afford tosca.StorageDeleted.
+	for _, availableGas := range []tosca.Gas{2300, 2301} {
+		for revision := tosca.R09_Berlin; revision <= newestSupportedRevision; revision++ {
+			for _, access := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
+				t.Run(fmt.Sprintf("%v/%v/%v", SSTORE, revision, access), func(t *testing.T) {
+
+					ctxt := context{
+						params: tosca.Parameters{
+							BlockParameters: tosca.BlockParameters{
+								Revision: tosca.R13_Cancun,
+							},
+						},
+						stack:  NewStack(),
+						memory: NewMemory(),
+						code:   Code{{SSTORE, 0}},
+					}
+					ctxt.gas = availableGas
+					mockRunContext := tosca.NewMockRunContext(gomock.NewController(t))
+					mockRunContext.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).Return(access).AnyTimes()
+					mockRunContext.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).Return(tosca.StorageDeleted).AnyTimes()
+					ctxt.context = mockRunContext
+					ctxt.stack.push(uint256.NewInt(1))
+					ctxt.stack.push(uint256.NewInt(1))
+
+					err := opSstore(&ctxt)
+					if err != errOutOfGas {
+						t.Errorf("unexpected error: %v", err)
+					}
+				})
+			}
+		}
+	}
+}
