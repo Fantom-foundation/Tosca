@@ -96,7 +96,14 @@ func doRun(context *cli.Context) error {
 		)
 	}
 
-	opRun := func(state *st.State) rlz.ConsumerResult {
+	opRun := func(state *st.State) (result rlz.ConsumerResult) {
+		defer func() {
+			if r := recover(); r != nil {
+				result = rlz.ConsumeAbort
+				issuesCollector.AddIssue(state, fmt.Errorf("VM panicked while processing state %v: %w", state, err))
+			}
+		}()
+
 		if issuesCollector.NumIssues() >= maxErrors {
 			return rlz.ConsumeAbort
 		}
