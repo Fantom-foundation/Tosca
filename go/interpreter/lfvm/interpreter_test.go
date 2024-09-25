@@ -781,32 +781,34 @@ func fib(x int) int {
 	return fib(x-1) + fib(x-2)
 }
 
-var _introducedInRevision = newOpCodePropertyMap(func(op OpCode) tosca.Revision {
-	switch op {
-	case BASEFEE:
-		return tosca.R10_London
-	case PUSH0:
-		return tosca.R12_Shanghai
-	case BLOBHASH:
-		return tosca.R13_Cancun
-	case BLOBBASEFEE:
-		return tosca.R13_Cancun
-	case TLOAD:
-		return tosca.R13_Cancun
-	case TSTORE:
-		return tosca.R13_Cancun
-	case MCOPY:
-		return tosca.R13_Cancun
-	}
-	return tosca.R07_Istanbul
-})
-
+// forEachRevision runs a test for each revision starting from the revision
+// where the operation was introduced.
 func forEachRevision(
 	t *testing.T, op OpCode,
 	f func(t *testing.T, revision tosca.Revision)) {
 
+	introducedIn := newOpCodePropertyMap(func(op OpCode) tosca.Revision {
+		switch op {
+		case BASEFEE:
+			return tosca.R10_London
+		case PUSH0:
+			return tosca.R12_Shanghai
+		case BLOBHASH:
+			return tosca.R13_Cancun
+		case BLOBBASEFEE:
+			return tosca.R13_Cancun
+		case TLOAD:
+			return tosca.R13_Cancun
+		case TSTORE:
+			return tosca.R13_Cancun
+		case MCOPY:
+			return tosca.R13_Cancun
+		}
+		return tosca.R07_Istanbul
+	})
+
 	for revision := tosca.R07_Istanbul; revision <= newestSupportedRevision; revision++ {
-		if revision < _introducedInRevision.get(op) {
+		if revision < introducedIn.get(op) {
 			continue
 		}
 		t.Run(revision.String(), func(t *testing.T) {
