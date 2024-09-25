@@ -425,9 +425,11 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 		case DUP16:
 			opDup(c, 16)
 		case RETURN:
-			status, err = opReturningOp(c, statusReturned)
+			err = opEndWithResult(c)
+			status = statusReturned
 		case REVERT:
-			status, err = opReturningOp(c, statusReverted)
+			status = statusReverted
+			err = opEndWithResult(c)
 		case JUMP_TO:
 			opJumpTo(c)
 		case SLOAD:

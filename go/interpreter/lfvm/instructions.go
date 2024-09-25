@@ -22,15 +22,15 @@ func opStop() status {
 	return statusStopped
 }
 
-func opReturningOp(c *context, status status) (status, error) {
+func opEndWithResult(c *context) error {
 	offset := *c.stack.pop()
 	size := *c.stack.pop()
 	if err := checkSizeOffsetUint64Overflow(&offset, &size); err != nil {
-		return status, err
+		return err
 	}
 	var err error
 	c.returnData, err = c.memory.getSlice(offset.Uint64(), size.Uint64(), c)
-	return status, err
+	return err
 }
 
 func opPc(c *context) {

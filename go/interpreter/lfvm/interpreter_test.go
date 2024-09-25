@@ -404,7 +404,7 @@ func TestInterpreter_Vanilla_RunsWithoutOutput(t *testing.T) {
 	}
 }
 
-func TestRunGenerateResult(t *testing.T) {
+func TestRun_GenerateResult(t *testing.T) {
 
 	baseOutput := []byte{0x1, 0x2, 0x3}
 	baseGas := tosca.Gas(2)
@@ -412,13 +412,11 @@ func TestRunGenerateResult(t *testing.T) {
 
 	tests := map[string]struct {
 		status         status
-		returnData     []byte
 		expectedErr    error
 		expectedResult tosca.Result
 	}{
 		"returned": {
-			status:     statusReturned,
-			returnData: baseOutput,
+			status: statusReturned,
 			expectedResult: tosca.Result{
 				Success:   true,
 				Output:    baseOutput,
@@ -427,8 +425,7 @@ func TestRunGenerateResult(t *testing.T) {
 			},
 		},
 		"reverted": {
-			status:     statusReverted,
-			returnData: baseOutput,
+			status: statusReverted,
 			expectedResult: tosca.Result{
 				Success:   false,
 				Output:    baseOutput,
@@ -440,6 +437,7 @@ func TestRunGenerateResult(t *testing.T) {
 			status: statusStopped,
 			expectedResult: tosca.Result{
 				Success:   true,
+				Output:    nil,
 				GasLeft:   baseGas,
 				GasRefund: baseRefund,
 			},
@@ -464,6 +462,8 @@ func TestRunGenerateResult(t *testing.T) {
 		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
 
 			ctxt := context{}
+			ctxt.refund = baseRefund
+			ctxt.gas = baseGas
 			ctxt.returnData = bytes.Clone(baseOutput)
 
 			res, err := generateResult(test.status, &ctxt)
@@ -694,7 +694,7 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 			b.Fatalf("execution failed: status is %v", status)
 		}
 
-		res := make([]byte, len(ctxt.returnData))
+		res := ctxt.returnData
 		copy(res, data)
 
 		got := (int(res[28]) << 24) | (int(res[29]) << 16) | (int(res[30]) << 8) | (int(res[31]) << 0)
