@@ -234,7 +234,8 @@ func TestInterpreter_CanDispatchExecutableInstructions(t *testing.T) {
 	}
 }
 
-func TestInterpreter_ExecutionTerminationCode(t *testing.T) {
+func TestInterpreter_ExecutionTerminates(t *testing.T) {
+
 	tests := map[string]struct {
 		code []Instruction
 	}{
@@ -266,7 +267,7 @@ func TestInterpreter_ExecutionTerminationCode(t *testing.T) {
 				t.Errorf("unexpected error: %v", err)
 			}
 			if status == statusRunning {
-				t.Errorf("execution failed: status is %v", status)
+				t.Errorf("exfailed to terminate execution, status is %v", status)
 			}
 		})
 	}
