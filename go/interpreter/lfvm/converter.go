@@ -174,120 +174,8 @@ func convertWithObserver(
 func appendInstructions(res *codeBuilder, pos int, code []byte, withSuperInstructions bool) int {
 	// Convert super instructions.
 	if withSuperInstructions {
-		if len(code) > pos+7 {
-			op0 := vm.OpCode(code[pos])
-			op1 := vm.OpCode(code[pos+1])
-			op2 := vm.OpCode(code[pos+2])
-			op3 := vm.OpCode(code[pos+3])
-			op4 := vm.OpCode(code[pos+4])
-			op5 := vm.OpCode(code[pos+5])
-			op6 := vm.OpCode(code[pos+6])
-			op7 := vm.OpCode(code[pos+7])
-			if op0 == vm.PUSH1 && op2 == vm.PUSH4 && op7 == vm.DUP3 {
-				res.appendOp(PUSH1_PUSH4_DUP3, uint16(op1)<<8)
-				res.appendData(uint16(op3)<<8 | uint16(op4))
-				res.appendData(uint16(op5)<<8 | uint16(op6))
-				return 7
-			}
-			if op0 == vm.PUSH1 && op2 == vm.PUSH1 && op4 == vm.PUSH1 && op6 == vm.SHL && op7 == vm.SUB {
-				res.appendOp(PUSH1_PUSH1_PUSH1_SHL_SUB, uint16(op1)<<8|uint16(op3))
-				res.appendData(uint16(op5))
-				return 7
-			}
-		}
-		if len(code) > pos+4 {
-			op0 := vm.OpCode(code[pos])
-			op1 := vm.OpCode(code[pos+1])
-			op2 := vm.OpCode(code[pos+2])
-			op3 := vm.OpCode(code[pos+3])
-			op4 := vm.OpCode(code[pos+4])
-			if op0 == vm.AND && op1 == vm.SWAP1 && op2 == vm.POP && op3 == vm.SWAP2 && op4 == vm.SWAP1 {
-				res.appendCode(AND_SWAP1_POP_SWAP2_SWAP1)
-				return 4
-			}
-			if op0 == vm.ISZERO && op1 == vm.PUSH2 && op4 == vm.JUMPI {
-				res.appendOp(ISZERO_PUSH2_JUMPI, uint16(op2)<<8|uint16(op3))
-				return 4
-			}
-		}
-		if len(code) > pos+3 {
-			op0 := vm.OpCode(code[pos])
-			op1 := vm.OpCode(code[pos+1])
-			op2 := vm.OpCode(code[pos+2])
-			op3 := vm.OpCode(code[pos+3])
-			if op0 == vm.SWAP2 && op1 == vm.SWAP1 && op2 == vm.POP && op3 == vm.JUMP {
-				res.appendCode(SWAP2_SWAP1_POP_JUMP)
-				return 3
-			}
-			if op0 == vm.SWAP1 && op1 == vm.POP && op2 == vm.SWAP2 && op3 == vm.SWAP1 {
-				res.appendCode(SWAP1_POP_SWAP2_SWAP1)
-				return 3
-			}
-			if op0 == vm.POP && op1 == vm.SWAP2 && op2 == vm.SWAP1 && op3 == vm.POP {
-				res.appendCode(POP_SWAP2_SWAP1_POP)
-				return 3
-			}
-			if op0 == vm.PUSH2 && op3 == vm.JUMP {
-				res.appendOp(PUSH2_JUMP, uint16(op1)<<8|uint16(op2))
-				return 3
-			}
-			if op0 == vm.PUSH2 && op3 == vm.JUMPI {
-				res.appendOp(PUSH2_JUMPI, uint16(op1)<<8|uint16(op2))
-				return 3
-			}
-			if op0 == vm.PUSH1 && op2 == vm.PUSH1 {
-				res.appendOp(PUSH1_PUSH1, uint16(op1)<<8|uint16(op3))
-				return 3
-			}
-		}
-		if len(code) > pos+2 {
-			op0 := vm.OpCode(code[pos])
-			op1 := vm.OpCode(code[pos+1])
-			op2 := vm.OpCode(code[pos+2])
-			if op0 == vm.PUSH1 && op2 == vm.ADD {
-				res.appendOp(PUSH1_ADD, uint16(op1))
-				return 2
-			}
-			if op0 == vm.PUSH1 && op2 == vm.SHL {
-				res.appendOp(PUSH1_SHL, uint16(op1))
-				return 2
-			}
-			if op0 == vm.PUSH1 && op2 == vm.DUP1 {
-				res.appendOp(PUSH1_DUP1, uint16(op1))
-				return 2
-			}
-		}
-		if len(code) > pos+1 {
-			op0 := vm.OpCode(code[pos])
-			op1 := vm.OpCode(code[pos+1])
-			if op0 == vm.SWAP1 && op1 == vm.POP {
-				res.appendCode(SWAP1_POP)
-				return 1
-			}
-			if op0 == vm.POP && op1 == vm.JUMP {
-				res.appendCode(POP_JUMP)
-				return 1
-			}
-			if op0 == vm.POP && op1 == vm.POP {
-				res.appendCode(POP_POP)
-				return 1
-			}
-			if op0 == vm.SWAP2 && op1 == vm.SWAP1 {
-				res.appendCode(SWAP2_SWAP1)
-				return 1
-			}
-			if op0 == vm.SWAP2 && op1 == vm.POP {
-				res.appendCode(SWAP2_POP)
-				return 1
-			}
-			if op0 == vm.DUP2 && op1 == vm.MSTORE {
-				res.appendCode(DUP2_MSTORE)
-				return 1
-			}
-			if op0 == vm.DUP2 && op1 == vm.LT {
-				res.appendCode(DUP2_LT)
-				return 1
-			}
+		if n := appendSuperInstructions(res, pos, code); n > 0 {
+			return n
 		}
 	}
 
@@ -305,44 +193,163 @@ func appendInstructions(res *codeBuilder, pos int, code []byte, withSuperInstruc
 
 	if vm.PUSH1 <= toscaOpCode && toscaOpCode <= vm.PUSH32 {
 		// Determine the number of bytes to be pushed.
-		n := int(toscaOpCode) - int(vm.PUSH1) + 1
+		numBytes := int(toscaOpCode) - int(vm.PUSH1) + 1
 
 		var data []byte
 		// If there are not enough bytes left in the code, rest is filled with 0
 		// zeros are padded right
-		if len(code) < pos+n+2 {
-			ext := (pos + n + 2 - len(code)) / 2
-			if (pos+n+2-len(code))%2 > 0 {
-				ext++
+		if len(code) < pos+numBytes+2 {
+			extension := (pos + numBytes + 2 - len(code)) / 2
+			if (pos+numBytes+2-len(code))%2 > 0 {
+				extension++
 			}
-			if ext > 0 {
-				ins := common.RightPadSlice(res.code[:], len(res.code)+ext)
-				res.code = ins
+			if extension > 0 {
+				instruction := common.RightPadSlice(res.code[:], len(res.code)+extension)
+				res.code = instruction
 			}
-			data = common.RightPadSlice(code[pos+1:], n+1)
+			data = common.RightPadSlice(code[pos+1:], numBytes+1)
 		} else {
-			data = code[pos+1 : pos+1+n]
+			data = code[pos+1 : pos+1+numBytes]
 		}
 
 		// Fix the op-codes of the resulting instructions
-		if n == 1 {
+		if numBytes == 1 {
 			res.appendOp(PUSH1, uint16(data[0])<<8)
 		} else {
-			res.appendOp(PUSH1+OpCode(n-1), uint16(data[0])<<8|uint16(data[1]))
+			res.appendOp(PUSH1+OpCode(numBytes-1), uint16(data[0])<<8|uint16(data[1]))
 		}
 
 		// Fix the arguments by packing them in pairs into the instructions.
-		for i := 2; i < n-1; i += 2 {
+		for i := 2; i < numBytes-1; i += 2 {
 			res.appendData(uint16(data[i])<<8 | uint16(data[i+1]))
 		}
-		if n > 1 && n%2 == 1 {
-			res.appendData(uint16(data[n-1]) << 8)
+		if numBytes > 1 && numBytes%2 == 1 {
+			res.appendData(uint16(data[numBytes-1]) << 8)
 		}
 
-		return n
+		return numBytes
 	}
 
 	// All the rest converts to a single instruction.
 	res.appendCode(OpCode(toscaOpCode))
+	return 0
+}
+
+func appendSuperInstructions(res *codeBuilder, pos int, code []byte) int {
+	if len(code) > pos+7 {
+		op0 := vm.OpCode(code[pos])
+		op1 := vm.OpCode(code[pos+1])
+		op2 := vm.OpCode(code[pos+2])
+		op3 := vm.OpCode(code[pos+3])
+		op4 := vm.OpCode(code[pos+4])
+		op5 := vm.OpCode(code[pos+5])
+		op6 := vm.OpCode(code[pos+6])
+		op7 := vm.OpCode(code[pos+7])
+		if op0 == vm.PUSH1 && op2 == vm.PUSH4 && op7 == vm.DUP3 {
+			res.appendOp(PUSH1_PUSH4_DUP3, uint16(op1)<<8)
+			res.appendData(uint16(op3)<<8 | uint16(op4))
+			res.appendData(uint16(op5)<<8 | uint16(op6))
+			return 7
+		}
+		if op0 == vm.PUSH1 && op2 == vm.PUSH1 && op4 == vm.PUSH1 && op6 == vm.SHL && op7 == vm.SUB {
+			res.appendOp(PUSH1_PUSH1_PUSH1_SHL_SUB, uint16(op1)<<8|uint16(op3))
+			res.appendData(uint16(op5))
+			return 7
+		}
+	}
+	if len(code) > pos+4 {
+		op0 := vm.OpCode(code[pos])
+		op1 := vm.OpCode(code[pos+1])
+		op2 := vm.OpCode(code[pos+2])
+		op3 := vm.OpCode(code[pos+3])
+		op4 := vm.OpCode(code[pos+4])
+		if op0 == vm.AND && op1 == vm.SWAP1 && op2 == vm.POP && op3 == vm.SWAP2 && op4 == vm.SWAP1 {
+			res.appendCode(AND_SWAP1_POP_SWAP2_SWAP1)
+			return 4
+		}
+		if op0 == vm.ISZERO && op1 == vm.PUSH2 && op4 == vm.JUMPI {
+			res.appendOp(ISZERO_PUSH2_JUMPI, uint16(op2)<<8|uint16(op3))
+			return 4
+		}
+	}
+	if len(code) > pos+3 {
+		op0 := vm.OpCode(code[pos])
+		op1 := vm.OpCode(code[pos+1])
+		op2 := vm.OpCode(code[pos+2])
+		op3 := vm.OpCode(code[pos+3])
+		if op0 == vm.SWAP2 && op1 == vm.SWAP1 && op2 == vm.POP && op3 == vm.JUMP {
+			res.appendCode(SWAP2_SWAP1_POP_JUMP)
+			return 3
+		}
+		if op0 == vm.SWAP1 && op1 == vm.POP && op2 == vm.SWAP2 && op3 == vm.SWAP1 {
+			res.appendCode(SWAP1_POP_SWAP2_SWAP1)
+			return 3
+		}
+		if op0 == vm.POP && op1 == vm.SWAP2 && op2 == vm.SWAP1 && op3 == vm.POP {
+			res.appendCode(POP_SWAP2_SWAP1_POP)
+			return 3
+		}
+		if op0 == vm.PUSH2 && op3 == vm.JUMP {
+			res.appendOp(PUSH2_JUMP, uint16(op1)<<8|uint16(op2))
+			return 3
+		}
+		if op0 == vm.PUSH2 && op3 == vm.JUMPI {
+			res.appendOp(PUSH2_JUMPI, uint16(op1)<<8|uint16(op2))
+			return 3
+		}
+		if op0 == vm.PUSH1 && op2 == vm.PUSH1 {
+			res.appendOp(PUSH1_PUSH1, uint16(op1)<<8|uint16(op3))
+			return 3
+		}
+	}
+	if len(code) > pos+2 {
+		op0 := vm.OpCode(code[pos])
+		op1 := vm.OpCode(code[pos+1])
+		op2 := vm.OpCode(code[pos+2])
+		if op0 == vm.PUSH1 && op2 == vm.ADD {
+			res.appendOp(PUSH1_ADD, uint16(op1))
+			return 2
+		}
+		if op0 == vm.PUSH1 && op2 == vm.SHL {
+			res.appendOp(PUSH1_SHL, uint16(op1))
+			return 2
+		}
+		if op0 == vm.PUSH1 && op2 == vm.DUP1 {
+			res.appendOp(PUSH1_DUP1, uint16(op1))
+			return 2
+		}
+	}
+	if len(code) > pos+1 {
+		op0 := vm.OpCode(code[pos])
+		op1 := vm.OpCode(code[pos+1])
+		if op0 == vm.SWAP1 && op1 == vm.POP {
+			res.appendCode(SWAP1_POP)
+			return 1
+		}
+		if op0 == vm.POP && op1 == vm.JUMP {
+			res.appendCode(POP_JUMP)
+			return 1
+		}
+		if op0 == vm.POP && op1 == vm.POP {
+			res.appendCode(POP_POP)
+			return 1
+		}
+		if op0 == vm.SWAP2 && op1 == vm.SWAP1 {
+			res.appendCode(SWAP2_SWAP1)
+			return 1
+		}
+		if op0 == vm.SWAP2 && op1 == vm.POP {
+			res.appendCode(SWAP2_POP)
+			return 1
+		}
+		if op0 == vm.DUP2 && op1 == vm.MSTORE {
+			res.appendCode(DUP2_MSTORE)
+			return 1
+		}
+		if op0 == vm.DUP2 && op1 == vm.LT {
+			res.appendCode(DUP2_LT)
+			return 1
+		}
+	}
 	return 0
 }

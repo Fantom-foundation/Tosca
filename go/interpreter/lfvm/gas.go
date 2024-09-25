@@ -80,13 +80,13 @@ func getStaticGasPriceInternal(op OpCode) tosca.Gas {
 	if SWAP1 <= op && op <= SWAP16 {
 		return 3
 	}
-	// this range covers: LT, GT, SLT, SGT, EQ, ISZERO, AND, OR,
-	// XOR, NOT, BYTE, SHL, SHR, SAR
+	// this range covers: LT, GT, SLT, SGT, EQ, ISZERO,
+	// AND, OR, XOR, NOT, BYTE, SHL, SHR, SAR
 	if LT <= op && op <= SAR {
 		return 3
 	}
-	// this range covers: COINBASE, TIMESTAMP, NUMBER, DIFFICULTY/PREVRANDO,
-	// 					GAS, GASLIMIT, CHAINID
+	// this range covers: COINBASE, TIMESTAMP, NUMBER,
+	// DIFFICULTY/PREVRANDO, GAS, GASLIMIT, CHAINID
 	if COINBASE <= op && op <= CHAINID {
 		return 2
 	}

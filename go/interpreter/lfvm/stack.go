@@ -44,8 +44,8 @@ type stack struct {
 }
 
 // push adds a copy of the given value to the top of the stack.
-func (s *stack) push(d *uint256.Int) {
-	s.data[s.stackPointer] = *d
+func (s *stack) push(data *uint256.Int) {
+	s.data[s.stackPointer] = *data
 	s.stackPointer++
 }
 

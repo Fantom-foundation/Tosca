@@ -138,7 +138,7 @@ func (h *hashCache[K]) getHash(key K) tosca.Hash {
 }
 
 func (h *hashCache[K]) getFree() *hashCacheEntry[K] {
-	// If there are still free entries, use on of those.
+	// If there are still free entries, use one of those.
 	if h.nextFree < len(h.entries) {
 		res := &h.entries[h.nextFree]
 		h.nextFree++
