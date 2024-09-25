@@ -5,7 +5,7 @@ use evmc_vm::{MessageFlags, Revision, StatusCode};
 use crate::{
     interpreter::Interpreter,
     types::{u256, ExecutionContextTrait},
-    utils::gas::consume_copy_cost,
+    utils::Gas,
 };
 
 pub trait SliceExt {
@@ -13,7 +13,7 @@ pub trait SliceExt {
 
     fn set_to_zero(&mut self);
 
-    fn copy_padded(&mut self, src: &[u8], gas_left: &mut u64) -> Result<(), StatusCode>;
+    fn copy_padded(&mut self, src: &[u8], gas_left: &mut Gas) -> Result<(), StatusCode>;
 }
 
 impl SliceExt for [u8] {
@@ -44,8 +44,8 @@ impl SliceExt for [u8] {
     }
 
     #[inline(always)]
-    fn copy_padded(&mut self, src: &[u8], gas_left: &mut u64) -> Result<(), StatusCode> {
-        consume_copy_cost(self.len() as u64, gas_left)?;
+    fn copy_padded(&mut self, src: &[u8], gas_left: &mut Gas) -> Result<(), StatusCode> {
+        gas_left.consume_copy_cost(self.len() as u64)?;
         self[..src.len()].copy_from_slice(src);
         self[src.len()..].set_to_zero();
         Ok(())
@@ -89,7 +89,7 @@ mod tests {
     use crate::{
         interpreter::Interpreter,
         types::{u256, MockExecutionContextTrait, MockExecutionMessage},
-        utils::{self, SliceExt},
+        utils::{self, Gas, SliceExt},
     };
 
     #[test]
@@ -119,27 +119,27 @@ mod tests {
     fn copy_padded() {
         let src = [];
         let mut dest = [];
-        assert_eq!(dest.copy_padded(&src, &mut 1_000_000), Ok(()));
+        assert_eq!(dest.copy_padded(&src, &mut Gas::new(1_000_000)), Ok(()));
 
         let src = [];
         let mut dest = [1];
-        assert_eq!(dest.copy_padded(&src, &mut 1_000_000), Ok(()));
+        assert_eq!(dest.copy_padded(&src, &mut Gas::new(1_000_000)), Ok(()));
         assert_eq!(dest, [0]);
 
         let src = [2];
         let mut dest = [1];
-        assert_eq!(dest.copy_padded(&src, &mut 1_000_000), Ok(()));
+        assert_eq!(dest.copy_padded(&src, &mut Gas::new(1_000_000)), Ok(()));
         assert_eq!(dest, [2]);
 
         let src = [3];
         let mut dest = [1, 2];
-        assert_eq!(dest.copy_padded(&src, &mut 1_000_000), Ok(()));
+        assert_eq!(dest.copy_padded(&src, &mut Gas::new(1_000_000)), Ok(()));
         assert_eq!(dest, [3, 0]);
 
         let src = [2];
         let mut dest = [1];
         assert_eq!(
-            dest.copy_padded(&src, &mut 0),
+            dest.copy_padded(&src, &mut Gas::new(0)),
             Err(StatusCode::EVMC_OUT_OF_GAS)
         );
     }

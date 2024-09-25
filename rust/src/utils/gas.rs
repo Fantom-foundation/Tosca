@@ -1,59 +1,91 @@
 use evmc_vm::{AccessStatus, Address, Revision, StatusCode};
 
 use crate::{
-    interpreter::Interpreter,
     types::{u256, ExecutionContextTrait},
     utils::word_size,
 };
 
-#[inline(always)]
-pub fn consume_gas(gas: u64, gas_left: &mut u64) -> Result<(), StatusCode> {
-    if *gas_left < gas {
-        return Err(StatusCode::EVMC_OUT_OF_GAS);
-    }
-    *gas_left -= gas;
-    Ok(())
-}
+#[derive(Debug)]
+pub struct Gas(u64);
 
-#[inline(always)]
-pub fn consume_positive_value_cost(value: &u256, gas_left: &mut u64) -> Result<(), StatusCode> {
-    if *value != u256::ZERO {
-        consume_gas(9_000, gas_left)?;
-    }
-    Ok(())
-}
-
-#[inline(always)]
-pub fn consume_value_to_empty_account_cost<E: ExecutionContextTrait>(
-    value: &u256,
-    addr: &Address,
-    interpreter: &mut Interpreter<E>,
-) -> Result<(), StatusCode> {
-    if *value != u256::ZERO && !interpreter.context.account_exists(addr) {
-        consume_gas(25_000, &mut interpreter.gas_left)?;
-    }
-    Ok(())
-}
-
-#[inline(always)]
-pub fn consume_address_access_cost<E: ExecutionContextTrait>(
-    addr: &Address,
-    interpreter: &mut Interpreter<E>,
-) -> Result<(), StatusCode> {
-    if interpreter.revision < Revision::EVMC_BERLIN {
-        return Ok(());
-    }
-    if interpreter.context.access_account(addr) == AccessStatus::EVMC_ACCESS_COLD {
-        consume_gas(2_600, &mut interpreter.gas_left)
-    } else {
-        consume_gas(100, &mut interpreter.gas_left)
+impl PartialEq<u64> for Gas {
+    fn eq(&self, other: &u64) -> bool {
+        self.0.eq(other)
     }
 }
 
-#[inline(always)]
-pub fn consume_copy_cost(len: u64, gas_left: &mut u64) -> Result<(), StatusCode> {
-    let cost = word_size(len)? * 3; // does not overflow because word_size divides by 32
-    consume_gas(cost, gas_left)
+impl PartialOrd<u64> for Gas {
+    fn partial_cmp(&self, other: &u64) -> Option<std::cmp::Ordering> {
+        Some(self.0.cmp(other))
+    }
+}
+
+impl Gas {
+    pub fn new(gas: u64) -> Self {
+        Self(gas)
+    }
+
+    pub fn as_u64(&self) -> u64 {
+        self.0
+    }
+
+    #[inline(always)]
+    pub fn add(&mut self, gas: u64) {
+        self.0 += gas;
+    }
+
+    #[inline(always)]
+    pub fn consume(&mut self, gas: u64) -> Result<(), StatusCode> {
+        if self.0 < gas {
+            return Err(StatusCode::EVMC_OUT_OF_GAS);
+        }
+        self.0 -= gas;
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub fn consume_positive_value_cost(&mut self, value: &u256) -> Result<(), StatusCode> {
+        if *value != u256::ZERO {
+            self.consume(9_000)?;
+        }
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub fn consume_value_to_empty_account_cost<E: ExecutionContextTrait>(
+        &mut self,
+        value: &u256,
+        addr: &Address,
+        context: &mut E,
+    ) -> Result<(), StatusCode> {
+        if *value != u256::ZERO && !context.account_exists(addr) {
+            self.consume(25_000)?;
+        }
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub fn consume_address_access_cost<E: ExecutionContextTrait>(
+        &mut self,
+        addr: &Address,
+        revision: Revision,
+        context: &mut E,
+    ) -> Result<(), StatusCode> {
+        if revision < Revision::EVMC_BERLIN {
+            return Ok(());
+        }
+        if context.access_account(addr) == AccessStatus::EVMC_ACCESS_COLD {
+            self.consume(2_600)
+        } else {
+            self.consume(100)
+        }
+    }
+
+    #[inline(always)]
+    pub fn consume_copy_cost(&mut self, len: u64) -> Result<(), StatusCode> {
+        let cost = word_size(len)? * 3; // does not overflow because word_size divides by 32
+        self.consume(cost)
+    }
 }
 
 #[cfg(test)]
@@ -64,45 +96,37 @@ mod tests {
     use crate::{
         interpreter::Interpreter,
         types::{u256, MockExecutionContextTrait, MockExecutionMessage, Opcode},
+        utils::Gas,
     };
 
     #[test]
     fn consume_gas() {
-        let mut gas_left = 1;
-        assert_eq!(super::consume_gas(0, &mut gas_left,), Ok(()));
+        let mut gas_left = Gas::new(1);
+        assert_eq!(gas_left.consume(0), Ok(()));
         assert_eq!(gas_left, 1);
 
-        let mut gas_left = 1;
-        assert_eq!(super::consume_gas(1, &mut gas_left,), Ok(()));
+        let mut gas_left = Gas::new(1);
+        assert_eq!(gas_left.consume(1), Ok(()));
         assert_eq!(gas_left, 0);
 
-        let mut gas_left = 1;
-        assert_eq!(
-            super::consume_gas(2, &mut gas_left,),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
-        );
+        let mut gas_left = Gas::new(1);
+        assert_eq!(gas_left.consume(2), Err(StatusCode::EVMC_OUT_OF_GAS));
         assert_eq!(gas_left, 1);
     }
 
     #[test]
     fn consume_positive_value_cost() {
-        let mut gas_left = 1;
-        assert_eq!(
-            super::consume_positive_value_cost(&u256::ZERO, &mut gas_left),
-            Ok(())
-        );
+        let mut gas_left = Gas::new(1);
+        assert_eq!(gas_left.consume_positive_value_cost(&u256::ZERO), Ok(()));
         assert_eq!(gas_left, 1);
 
-        let mut gas_left = 9_000;
-        assert_eq!(
-            super::consume_positive_value_cost(&u256::ONE, &mut gas_left),
-            Ok(())
-        );
+        let mut gas_left = Gas::new(9_000);
+        assert_eq!(gas_left.consume_positive_value_cost(&u256::ONE), Ok(()));
         assert_eq!(gas_left, 0);
 
-        let mut gas_left = 1;
+        let mut gas_left = Gas::new(1);
         assert_eq!(
-            super::consume_positive_value_cost(&u256::ONE, &mut gas_left),
+            gas_left.consume_positive_value_cost(&u256::ONE),
             Err(StatusCode::EVMC_OUT_OF_GAS)
         );
         assert_eq!(gas_left, 1);
@@ -140,19 +164,27 @@ mod tests {
                 &mut context,
                 &[Opcode::Call as u8],
             );
-            interpreter.gas_left = if consume { 25_000 } else { 0 };
+            interpreter.gas_left = Gas::new(if consume { 25_000 } else { 0 });
 
             assert_eq!(
-                super::consume_value_to_empty_account_cost(&value, &addr, &mut interpreter),
+                interpreter.gas_left.consume_value_to_empty_account_cost(
+                    &value,
+                    &addr,
+                    interpreter.context
+                ),
                 Ok(())
             );
             assert_eq!(interpreter.gas_left, 0);
 
             if consume {
-                interpreter.gas_left = 0;
+                interpreter.gas_left = Gas::new(0);
 
                 assert_eq!(
-                    super::consume_value_to_empty_account_cost(&value, &addr, &mut interpreter),
+                    interpreter.gas_left.consume_value_to_empty_account_cost(
+                        &value,
+                        &addr,
+                        interpreter.context
+                    ),
                     Err(StatusCode::EVMC_OUT_OF_GAS)
                 );
             }
@@ -162,9 +194,21 @@ mod tests {
     #[test]
     fn consume_address_access_cost() {
         let cases = [
-            (Revision::EVMC_FRONTIER, AccessStatus::EVMC_ACCESS_COLD, 0),
-            (Revision::EVMC_BERLIN, AccessStatus::EVMC_ACCESS_COLD, 2_600),
-            (Revision::EVMC_BERLIN, AccessStatus::EVMC_ACCESS_WARM, 100),
+            (
+                Revision::EVMC_FRONTIER,
+                AccessStatus::EVMC_ACCESS_COLD,
+                Gas::new(0),
+            ),
+            (
+                Revision::EVMC_BERLIN,
+                AccessStatus::EVMC_ACCESS_COLD,
+                Gas::new(2_600),
+            ),
+            (
+                Revision::EVMC_BERLIN,
+                AccessStatus::EVMC_ACCESS_WARM,
+                Gas::new(100),
+            ),
         ];
         for (revision, access_status, gas) in cases {
             let addr = Address::from(u256::ONE);
@@ -186,7 +230,11 @@ mod tests {
             interpreter.gas_left = gas;
 
             assert_eq!(
-                super::consume_address_access_cost(&addr, &mut interpreter),
+                interpreter.gas_left.consume_address_access_cost(
+                    &addr,
+                    interpreter.revision,
+                    interpreter.context
+                ),
                 Ok(())
             );
             assert_eq!(interpreter.gas_left, 0);
@@ -195,32 +243,32 @@ mod tests {
 
     #[test]
     fn consume_copy_cost() {
-        let mut gas_left = 1;
-        assert_eq!(super::consume_copy_cost(0, &mut gas_left), Ok(()));
+        let mut gas_left = Gas::new(1);
+        assert_eq!(gas_left.consume_copy_cost(0), Ok(()));
         assert_eq!(gas_left, 1);
 
-        let mut gas_left = 3;
-        assert_eq!(super::consume_copy_cost(1, &mut gas_left), Ok(()));
+        let mut gas_left = Gas::new(3);
+        assert_eq!(gas_left.consume_copy_cost(1), Ok(()));
         assert_eq!(gas_left, 0);
 
-        let mut gas_left = 3;
-        assert_eq!(super::consume_copy_cost(32, &mut gas_left), Ok(()));
+        let mut gas_left = Gas::new(3);
+        assert_eq!(gas_left.consume_copy_cost(32), Ok(()));
         assert_eq!(gas_left, 0);
 
-        let mut gas_left = 6;
-        assert_eq!(super::consume_copy_cost(33, &mut gas_left), Ok(()));
+        let mut gas_left = Gas::new(6);
+        assert_eq!(gas_left.consume_copy_cost(33), Ok(()));
         assert_eq!(gas_left, 0);
 
-        let mut gas_left = 2;
+        let mut gas_left = Gas::new(2);
         assert_eq!(
-            super::consume_copy_cost(1, &mut gas_left),
+            gas_left.consume_copy_cost(1),
             Err(StatusCode::EVMC_OUT_OF_GAS)
         );
         assert_eq!(gas_left, 2);
 
-        let mut gas_left = 2;
+        let mut gas_left = Gas::new(2);
         assert_eq!(
-            super::consume_copy_cost(u64::MAX, &mut gas_left),
+            gas_left.consume_copy_cost(u64::MAX),
             Err(StatusCode::EVMC_OUT_OF_GAS)
         );
         assert_eq!(gas_left, 2);
