@@ -28,3 +28,10 @@ pub unsafe extern "C" fn evmrs_dump_coverage() {
 pub extern "C" fn evmrs_is_coverage_enabled() -> u8 {
     cfg!(feature = "dump-cov") as u8
 }
+
+#[cfg(feature = "mimalloc")]
+use mimalloc::MiMalloc;
+
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
