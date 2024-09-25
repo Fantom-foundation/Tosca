@@ -662,13 +662,13 @@ func fillStackFor(op OpCode, stack *stack, code Code) error {
 	return nil
 }
 
-var _isInvalidOpCodeRegex = regexp.MustCompile(`^op\(0x[0-9A-Fa-f]+\)$`)
+var _isUndefinedOpCodeRegex = regexp.MustCompile(`^op\(0x[0-9A-Fa-f]+\)$`)
 
 func isExecutable(op OpCode) bool {
 	if slices.Contains([]OpCode{INVALID, NOOP, DATA}, op) {
 		return false
 	}
-	return !_isInvalidOpCodeRegex.MatchString(op.String()) && op != INVALID
+	return !_isUndefinedOpCodeRegex.MatchString(op.String())
 }
 
 func isJump(op OpCode) bool {
