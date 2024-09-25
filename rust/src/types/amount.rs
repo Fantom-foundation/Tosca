@@ -388,6 +388,12 @@ impl Shr for u256 {
 
 impl u256 {
     pub const ZERO: Self = Self(Uint256 { bytes: [0; 32] });
+    pub const ONE: Self = Self(Uint256 {
+        bytes: [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 1,
+        ],
+    });
     pub const MAX: Self = Self(Uint256 { bytes: [0xff; 32] });
 
     pub fn into_u64_with_overflow(self) -> (u64, bool) {

@@ -195,7 +195,7 @@ mod tests {
     };
 
     #[test]
-    fn create_destroy() {
+    fn create_set_option_destroy() {
         let vm = evmc_create_evmrs() as *mut evmc_vm_t;
         assert_eq!(
             __evmc_get_capabilities(vm),
