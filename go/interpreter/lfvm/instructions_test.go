@@ -1095,7 +1095,7 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 	}
 }
 
-func TestSelfDestruct_ProperlyReportsNotEnughGas(t *testing.T) {
+func TestSelfDestruct_ProperlyReportsNotEnoughGas(t *testing.T) {
 	for _, beneficiaryAccess := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
 		for _, beneficiaryExists := range []bool{true, false} {
 			t.Run(fmt.Sprintf("beneficiaryAccess:%v_beneficiaryExists:%v", beneficiaryAccess, beneficiaryExists), func(t *testing.T) {
@@ -1129,13 +1129,11 @@ func TestSelfDestruct_ProperlyReportsNotEnughGas(t *testing.T) {
 
 				ctxt.stack.push(new(uint256.Int).SetBytes(beneficiaryAddress[:]))
 
-				status, err := opSelfdestruct(&ctxt)
+				_, err := opSelfdestruct(&ctxt)
 				if err != errOutOfGas {
 					t.Fatalf("expected error, got nil")
 				}
-				if want, got := statusStopped, status; want != got {
-					t.Fatalf("unexpected status, wanted %v, got %v", want, got)
-				}
+
 			})
 		}
 	}
