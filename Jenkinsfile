@@ -12,7 +12,7 @@ pipeline {
     agent {
         dockerfile {
             filename 'CI/Dockerfile.build'
-            label 'quick'
+            label 'norma'
         }
     }
 
