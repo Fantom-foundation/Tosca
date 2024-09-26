@@ -1095,6 +1095,52 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 	}
 }
 
+func TestSelfDestruct_ProperlyReportsNotEnughGas(t *testing.T) {
+	for _, beneficiaryAccess := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
+		for _, beneficiaryExists := range []bool{true, false} {
+			t.Run(fmt.Sprintf("beneficiaryAccess:%v_beneficiaryExists:%v", beneficiaryAccess, beneficiaryExists), func(t *testing.T) {
+				beneficiaryAddress := tosca.Address{1}
+				selfAddress := tosca.Address{2}
+
+				ctrl := gomock.NewController(t)
+				runContext := tosca.NewMockRunContext(ctrl)
+				runContext.EXPECT().AccessAccount(beneficiaryAddress).Return(beneficiaryAccess)
+				runContext.EXPECT().AccountExists(beneficiaryAddress).Return(false)
+				runContext.EXPECT().GetBalance(selfAddress).Return(tosca.Value{1})
+
+				ctxt := context{
+					params: tosca.Parameters{
+						BlockParameters: tosca.BlockParameters{
+							Revision: tosca.R13_Cancun,
+						},
+						Recipient: selfAddress,
+					},
+					stack:   NewStack(),
+					memory:  NewMemory(),
+					context: runContext,
+				}
+				if beneficiaryAccess == tosca.ColdAccess {
+					ctxt.gas += 2600
+				}
+				if !beneficiaryExists {
+					ctxt.gas += 25000
+				}
+				ctxt.gas -= 1
+
+				ctxt.stack.push(new(uint256.Int).SetBytes(beneficiaryAddress[:]))
+
+				status, err := opSelfdestruct(&ctxt)
+				if err != errOutOfGas {
+					t.Fatalf("expected error, got nil")
+				}
+				if want, got := statusStopped, status; want != got {
+					t.Fatalf("unexpected status, wanted %v, got %v", want, got)
+				}
+			})
+		}
+	}
+}
+
 func TestComputeCodeSizeCost(t *testing.T) {
 	if cost, err := computeCodeSizeCost(24576*2 + 1); err == nil || cost != 0 {
 		t.Errorf("check should have failed with size 49153 but did not. err %v, cost %v", err, cost)
