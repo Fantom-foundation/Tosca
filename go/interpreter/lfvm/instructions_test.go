@@ -1443,6 +1443,10 @@ func TestCheckSizeOFfsetUintOverflow_ReturnsAsExpected(t *testing.T) {
 	if want, got := error(nil), checkSizeOffsetUint64Overflow(one, one); want != got {
 		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
 	}
+	// size+offset overflow is reported
+	if want, got := errOverflow, checkSizeOffsetUint64Overflow(uint256.NewInt(math.MaxUint64-1), uint256.NewInt(2)); want != got {
+		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+	}
 
 }
 
