@@ -267,7 +267,7 @@ func TestInterpreter_ExecutionTerminates(t *testing.T) {
 				t.Errorf("unexpected error: %v", err)
 			}
 			if status == statusRunning {
-				t.Errorf("exfailed to terminate execution, status is %v", status)
+				t.Errorf("failed to terminate execution, status is %v", status)
 			}
 		})
 	}
