@@ -12,7 +12,7 @@ pipeline {
     agent {
         dockerfile {
             filename 'CI/Dockerfile.build'
-            label 'norma'
+            label 'quick'
         }
     }
 
@@ -61,6 +61,11 @@ pipeline {
 
         stage('Lint Go sources') {
             steps {
+                sh 'echo $PATH'
+                sh 'echo $GOPATH'
+                sh 'echo $GOCACHE'
+                sh 'echo $GOTMPDIR'
+                sh 'ls /tmp'
                 withEnv(["PATH+GOPATH=${env.HOME}/go/bin"]) {
                     sh 'make lint-go'
                 }
