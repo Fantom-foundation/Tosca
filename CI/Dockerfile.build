@@ -1,0 +1,22 @@
+FROM ubuntu:24.04
+
+# Install dependencies and keep image small as described in best practices
+# https://docs.docker.com/build/building/best-practices/
+RUN apt-get update && apt-get install -y \
+  clang-16 \
+  g++-11 \
+  git \
+  cmake \
+  golang-go \
+  lcov \
+  clang-format \
+  && rm -rf /var/lib/apt/lists/*
+    
+# Because of user id forwarding, the home directory may not exist in the container
+# Go would fall back to / (root) in this case, which is not writable
+RUN mkdir -p /tmp/cache && chmod 777 /tmp/cache && \
+    mkdir -p /tmp/gopath && chmod 777 /tmp/gopath
+ENV GOCACHE=/tmp/cache
+ENV GOPATH=/tmp/gopath
+
+ENV PATH="$PATH:$GOPATH/bin"

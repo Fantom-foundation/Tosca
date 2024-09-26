@@ -274,11 +274,6 @@ The ct Evm.StepN interface is used to evaluate N instructions in different EVM i
    - FuzzDifferentialLfvmVsGeth: ```make fuzz-lfvm-diff```
    - FuzzDifferentialEvmzeroVsGeth: ```make fuzz-evmzero-diff``` (disabled, issue #549)
 
-
-## Static analysis
-
-Tosca project uses static analysis to improve code quality.
-
 ### Go
 
 Currently, two different static analysis tools are used:
@@ -290,3 +285,32 @@ Lints can be disabled as described [here](https://golangci-lint.run/usage/false-
 ### C++
 
 There is currently no infrastructure to run static analysis for C++ code in this project.
+
+## Containerized Build
+
+This feature allows to use different platforms and toolchains to compile the project, at this stage, an initial Dockerfile is provided in the CI folder to describe an environment capable of building and running tests for this project codebase. 
+The workflow is purely optional.
+Using this feature enables: 
+- Containerized Jenkins Builds. Where the development environment is described in the git repository and does not depend from any particular server setup.
+- Multiple simultaneous platform definitions.
+- Different branches with different toolchains, all of them building correctly the CI. This is important to prevent loosing CI support during toolchain migrations. 
+- Containerized development, using a number of IDEs that support them: https://containers.dev/
+
+Build the image:
+```bash
+docker build CI -t tosca_build:latest
+```
+To start an interactive container from the image, run this command in the Tosca root folder.
+```bash
+docker run -it --rm -v$(pwd):$(pwd) -u$(id -u):$(id -g) -w$(pwd) tosca_build:latest
+```
+- `-it` interactive terminal
+- `--rm` transient container, changes to the image will be deleted when existing the interactive session
+- `-v` mount Tosca source code in the same path inside the image (build will be persistent in the host filesystem after exiting the container)
+- `-u` use same user id as in the host, to prevent build folder permissions mismatch 
+- `-w` working directory is the mounted source code directory
+
+Once inside the container, build can be triggered as usual:
+```bash
+make test
+```

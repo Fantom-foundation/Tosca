@@ -9,7 +9,12 @@
 // this software will be governed by the GNU Lesser General Public License v3.
 
 pipeline {
-    agent { label 'quick' }
+    agent {
+        dockerfile {
+            filename 'CI/Dockerfile.build'
+            label 'quick'
+        }
+    }
 
     options {
         timestamps()
@@ -50,7 +55,7 @@ pipeline {
 
         stage('Check Go sources formatting') {
             steps {
-                sh "gofmt -s -d go"
+                sh 'gofmt -s -d go'
             }
         }
 

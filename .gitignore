@@ -20,3 +20,5 @@ build/
 
 # Jenkinsfile linter config
 .groovylintrc.json
+
+.devcontainer/
