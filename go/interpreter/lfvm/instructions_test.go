@@ -1287,11 +1287,16 @@ func TestInstructions_EIP2929_SSTOREReportsOutOfGas(t *testing.T) {
 	// SSTORE needs to be tested on its own because it demands that at least 2300 gas are available.
 	// Hence we cannot take the same testing approach as for the other operations in EIP-2929.
 
-	// SSTORE demands at least 2300 gas to be available
-	// 2301 gas is not enough to afford StorageAdded, StorageModified, StorageDeleted.
-	// all other storage status cannot fail in berlin and after because of out of gas.
-	for _, storageStatus := range []tosca.StorageStatus{tosca.StorageAdded, tosca.StorageModified, tosca.StorageDeleted} {
-		for _, availableGas := range []tosca.Gas{2300, 2301} {
+	testGasValues := []tosca.Gas{
+		2300, //< SSTORE demands at least 2300 gas to be available
+		2301, //< not enough to afford StorageAdded, StorageModified, or StorageDeleted.
+	}
+
+	// dynamic gas check can only fail for the following storage status values
+	failsForDynamicGas := []tosca.StorageStatus{tosca.StorageAdded, tosca.StorageModified, tosca.StorageDeleted}
+
+	for _, availableGas := range testGasValues {
+		for _, storageStatus := range failsForDynamicGas {
 			for revision := tosca.R09_Berlin; revision <= newestSupportedRevision; revision++ {
 				for _, access := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
 					t.Run(fmt.Sprintf("%v/%v/%v/%v", SSTORE, revision, access, storageStatus), func(t *testing.T) {
