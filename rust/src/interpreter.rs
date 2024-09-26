@@ -1167,10 +1167,7 @@ mod tests {
 
     use crate::{
         interpreter::Interpreter,
-        types::{
-            u256, Memory, MockExecutionContextTrait, MockExecutionMessage, Opcode, Stack,
-            DEFAULT_INIT_GAS,
-        },
+        types::{u256, Memory, MockExecutionContextTrait, MockExecutionMessage, Opcode, Stack},
     };
 
     #[test]
@@ -1183,7 +1180,7 @@ mod tests {
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
         assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
         assert_eq!(result.code_reader.pc(), 0);
-        assert_eq!(result.gas_left, DEFAULT_INIT_GAS);
+        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
 
     #[test]
@@ -1209,7 +1206,7 @@ mod tests {
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
         assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
         assert_eq!(result.code_reader.pc(), 1);
-        assert_eq!(result.gas_left, DEFAULT_INIT_GAS);
+        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
 
     #[test]
@@ -1252,7 +1249,7 @@ mod tests {
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_RUNNING);
         assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
         assert_eq!(result.code_reader.pc(), 0);
-        assert_eq!(result.gas_left, DEFAULT_INIT_GAS);
+        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
 
     #[test]
@@ -1273,7 +1270,7 @@ mod tests {
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_RUNNING);
         assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
         assert_eq!(result.stack.into_inner(), [3u8.into()]);
-        assert_eq!(result.gas_left, DEFAULT_INIT_GAS - 3);
+        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS - 3);
     }
 
     #[test]
@@ -1293,7 +1290,7 @@ mod tests {
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
         assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
         assert_eq!(result.stack.into_inner(), [3u8.into()]);
-        assert_eq!(result.gas_left, DEFAULT_INIT_GAS - 3);
+        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS - 3);
     }
 
     #[test]
@@ -1313,7 +1310,10 @@ mod tests {
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
         assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
         assert_eq!(result.stack.into_inner(), [6u8.into()]);
-        assert_eq!(result.gas_left, DEFAULT_INIT_GAS - 2 * 3);
+        assert_eq!(
+            result.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS - 2 * 3
+        );
     }
 
     #[test]
@@ -1418,7 +1418,10 @@ mod tests {
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
         assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
         assert_eq!(result.code_reader.pc(), 1);
-        assert_eq!(result.gas_left, DEFAULT_INIT_GAS - 700 - gas);
+        assert_eq!(
+            result.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS - 700 - gas
+        );
         assert_eq!(
             result.last_call_return_data.as_deref(),
             Some(ret_data.as_slice())

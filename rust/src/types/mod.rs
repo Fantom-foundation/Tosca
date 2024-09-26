@@ -2,7 +2,7 @@ mod amount;
 mod code_reader;
 mod execution_context;
 mod memory;
-#[cfg(test)]
+#[cfg(feature = "mock")]
 mod mock_execution_message;
 mod opcode;
 mod stack;
@@ -12,8 +12,8 @@ pub use amount::u256;
 pub use code_reader::{CodeReader, GetOpcodeError};
 pub use execution_context::*;
 pub use memory::Memory;
-#[cfg(test)]
-pub use mock_execution_message::{MockExecutionMessage, DEFAULT_INIT_GAS};
+#[cfg(feature = "mock")]
+pub use mock_execution_message::MockExecutionMessage;
 pub use opcode::*;
 pub use stack::Stack;
 pub use tx_context::ExecutionTxContext;

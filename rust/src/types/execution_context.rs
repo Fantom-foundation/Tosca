@@ -3,7 +3,7 @@ use evmc_vm::{
     StorageStatus, Uint256,
 };
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(feature = "mock", mockall::automock)]
 pub trait ExecutionContextTrait {
     /// Retrieve the transaction context.
     fn get_tx_context(&self) -> &ExecutionTxContext;

@@ -1,15 +1,24 @@
+[workspace]
+members = ["driver"]
+
 [package]
 name = "evmrs"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# Flag mock enables code generation for test mocking. This allows generating mocks for other build configuration but "test". 
+mock = ["dep:mockall"]
+
 [dependencies]
 bnum = "0.11.0"
 evmc-vm = { git = "https://github.com/Fantom-foundation/evmc", branch = "tosca-extensions" }
+mockall = { version = "0.13.0", optional = true }
 sha3 = "0.10.8"
 
 [dev-dependencies]
-mockall = "0.13.0"
+# workaround for enabling mock feature also in integration tests
+evmrs = { path = ".", features = ["mock"] }
 
 [lib]
 crate-type = ["cdylib"]
