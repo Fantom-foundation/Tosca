@@ -14,6 +14,7 @@ use crate::{
     utils::{check_min_revision, check_not_read_only, word_size, Gas, SliceExt},
 };
 
+#[derive(Debug)]
 pub struct Interpreter<'a, E>
 where
     E: ExecutionContextTrait,
@@ -51,7 +52,7 @@ where
             gas_left: Gas::new(message.gas() as u64),
             gas_refund: 0,
             output: None,
-            stack: Stack::new(Vec::new()),
+            stack: Stack::new(&[]),
             memory: Memory::new(Vec::new()),
             last_call_return_data: None,
             steps: None,
@@ -87,7 +88,7 @@ where
         }
     }
 
-    pub fn run(mut self) -> Result<Self, FailStatus> {
+    pub fn run(&mut self) -> Result<(), FailStatus> {
         loop {
             if self.exec_status != ExecStatus::Running {
                 break;
@@ -268,7 +269,7 @@ where
             }
         }
 
-        Ok(self)
+        Ok(())
     }
 
     fn stop(&mut self) -> Result<(), FailStatus> {
@@ -1332,8 +1333,9 @@ where
     fn from(value: Interpreter<E>) -> Self {
         let stack = value
             .stack
-            .into_inner()
-            .into_iter()
+            .as_slice()
+            .iter()
+            .copied()
             .map(Into::into)
             .collect();
         Self::new(
@@ -1351,11 +1353,11 @@ where
     }
 }
 
-impl<'a, E> From<Interpreter<'a, E>> for ExecutionResult
+impl<'a, E> From<&Interpreter<'a, E>> for ExecutionResult
 where
     E: ExecutionContextTrait,
 {
-    fn from(value: Interpreter<E>) -> Self {
+    fn from(value: &Interpreter<E>) -> Self {
         Self::new(
             value.exec_status.into(),
             value.gas_left.as_u64() as i64,
@@ -1384,36 +1386,36 @@ mod tests {
     fn empty_code() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let result = Interpreter::new(Revision::EVMC_FRONTIER, &message, &mut context, &[]).run();
+        let mut interpreter =
+            Interpreter::new(Revision::EVMC_FRONTIER, &message, &mut context, &[]);
+        let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.exec_status, ExecStatus::Stopped);
-        assert_eq!(result.code_reader.pc(), 0);
-        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
+        assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
+        assert_eq!(interpreter.code_reader.pc(), 0);
+        assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
 
     #[test]
     fn pc_after_end() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let result = Interpreter::new_steppable(
+        let mut interpreter = Interpreter::new_steppable(
             Revision::EVMC_FRONTIER,
             &message,
             &mut context,
             &[Opcode::Add as u8],
             1,
             0,
-            Stack::new(Vec::new()),
+            Stack::new(&[]),
             Memory::new(Vec::new()),
             None,
             None,
-        )
-        .run();
+        );
+        let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.exec_status, ExecStatus::Stopped);
-        assert_eq!(result.code_reader.pc(), 1);
-        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
+        assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
+        assert_eq!(interpreter.code_reader.pc(), 1);
+        assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
 
     #[test]
@@ -1427,7 +1429,7 @@ mod tests {
             &[Opcode::Push1 as u8, 0x00],
             1,
             0,
-            Stack::new(Vec::new()),
+            Stack::new(&[]),
             Memory::new(Vec::new()),
             None,
             None,
@@ -1451,10 +1453,9 @@ mod tests {
         interpreter.steps = Some(0);
         let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.exec_status, ExecStatus::Running);
-        assert_eq!(result.code_reader.pc(), 0);
-        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
+        assert_eq!(interpreter.exec_status, ExecStatus::Running);
+        assert_eq!(interpreter.code_reader.pc(), 0);
+        assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
 
     #[test]
@@ -1468,13 +1469,15 @@ mod tests {
             &[Opcode::Add as u8, Opcode::Add as u8],
         );
         interpreter.steps = Some(1);
-        interpreter.stack = Stack::new(vec![1u8.into(), 2u8.into()]);
+        interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
         let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.exec_status, ExecStatus::Running);
-        assert_eq!(result.stack.into_inner(), [3u8.into()]);
-        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS - 3);
+        assert_eq!(interpreter.exec_status, ExecStatus::Running);
+        assert_eq!(interpreter.stack.as_slice(), [3u8.into()]);
+        assert_eq!(
+            interpreter.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS - 3
+        );
     }
 
     #[test]
@@ -1487,13 +1490,15 @@ mod tests {
             &mut context,
             &[Opcode::Add as u8],
         );
-        interpreter.stack = Stack::new(vec![1u8.into(), 2u8.into()]);
+        interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
         let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.exec_status, ExecStatus::Stopped);
-        assert_eq!(result.stack.into_inner(), [3u8.into()]);
-        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS - 3);
+        assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
+        assert_eq!(interpreter.stack.as_slice(), [3u8.into()]);
+        assert_eq!(
+            interpreter.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS - 3
+        );
     }
 
     #[test]
@@ -1506,14 +1511,13 @@ mod tests {
             &mut context,
             &[Opcode::Add as u8, Opcode::Add as u8],
         );
-        interpreter.stack = Stack::new(vec![1u8.into(), 2u8.into(), 3u8.into()]);
+        interpreter.stack = Stack::new(&[1u8.into(), 2u8.into(), 3u8.into()]);
         let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.exec_status, ExecStatus::Stopped);
-        assert_eq!(result.stack.into_inner(), [6u8.into()]);
+        assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
+        assert_eq!(interpreter.stack.as_slice(), [6u8.into()]);
         assert_eq!(
-            result.gas_left,
+            interpreter.gas_left,
             MockExecutionMessage::DEFAULT_INIT_GAS - 2 * 3
         );
     }
@@ -1532,7 +1536,7 @@ mod tests {
             &mut context,
             &[Opcode::Add as u8],
         );
-        interpreter.stack = Stack::new(vec![1u8.into(), 2u8.into()]);
+        interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
         let result = interpreter.run();
         assert!(result.is_err());
         let status = result.map(|_| ()).unwrap_err();
@@ -1591,7 +1595,7 @@ mod tests {
 
         let message = message.into();
 
-        let stack = vec![
+        let stack = [
             ret_len.into(),
             ret_offset.into(),
             args_len.into(),
@@ -1601,33 +1605,32 @@ mod tests {
             gas.into(),
         ];
 
-        let result = Interpreter::new_steppable(
+        let mut interpreter = Interpreter::new_steppable(
             Revision::EVMC_FRONTIER,
             &message,
             &mut context,
             &[Opcode::Call as u8],
             0,
             0,
-            Stack::new(stack),
+            Stack::new(&stack),
             Memory::new(memory),
             None,
             None,
-        )
-        .run();
+        );
+        let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.exec_status, ExecStatus::Stopped);
-        assert_eq!(result.code_reader.pc(), 1);
+        assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
+        assert_eq!(interpreter.code_reader.pc(), 1);
         assert_eq!(
-            result.gas_left,
+            interpreter.gas_left,
             MockExecutionMessage::DEFAULT_INIT_GAS - 700 - gas
         );
         assert_eq!(
-            result.last_call_return_data.as_deref(),
+            interpreter.last_call_return_data.as_deref(),
             Some(ret_data.as_slice())
         );
         assert_eq!(
-            &result.memory.into_inner()[ret_offset..ret_offset + ret_len],
+            &interpreter.memory.into_inner()[ret_offset..ret_offset + ret_len],
             ret_data.as_slice()
         );
     }

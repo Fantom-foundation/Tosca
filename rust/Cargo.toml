@@ -15,8 +15,9 @@ debug = true
 mock = ["dep:mockall"]
 dump-cov = []
 # optimizations:
-performance = ["mimalloc"]
+performance = ["mimalloc", "stack-array"]
 mimalloc = ["dep:mimalloc"]
+stack-array = []
 
 [dependencies]
 bnum = "0.12.0"
