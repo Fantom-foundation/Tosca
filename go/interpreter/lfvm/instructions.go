@@ -1055,8 +1055,11 @@ func genericCall(c *context, kind tosca.CallKind) error {
 	// and not doing it would be identified by the replay tool as an error.
 	toAddr := tosca.Address(addr.Bytes20())
 
-	if checkSizeOffsetUint64Overflow(inOffset, inSize) != nil ||
-		checkSizeOffsetUint64Overflow(retOffset, retSize) != nil {
+	if checkSizeOffsetUint64Overflow(inOffset, inSize) != nil {
+		return errOverflow
+	}
+
+	if checkSizeOffsetUint64Overflow(retOffset, retSize) != nil {
 		return errOverflow
 	}
 
@@ -1070,38 +1073,39 @@ func genericCall(c *context, kind tosca.CallKind) error {
 		return err
 	}
 
-	baseGas := tosca.Gas(0)
 	// from berlin onwards access cost changes depending on warm/cold access.
 	if c.isAtLeast(tosca.R09_Berlin) {
-		baseGas += getAccessCost(c.context.AccessAccount(toAddr))
-	}
-	checkGas := func(cost tosca.Gas) bool {
-		return 0 <= cost && cost <= c.gas
-	}
-	if !checkGas(baseGas) {
-		return errOutOfGas
+		if err := c.useGas(getAccessCost(c.context.AccessAccount(toAddr))); err != nil {
+			return err
+		}
 	}
 
 	// for static and delegate calls, the following value checks will always be zero.
 	// Charge for transferring value to a new address
 	if !value.IsZero() {
-		baseGas += CallValueTransferGas
-	}
-	if !checkGas(baseGas) {
-		return errOutOfGas
+		if err := c.useGas(CallValueTransferGas); err != nil {
+			return err
+		}
 	}
 
 	// EIP158 states that non-zero value calls that create a new account should
 	// be charged an additional gas fee.
 	if kind == tosca.Call && !value.IsZero() && !c.context.AccountExists(toAddr) {
-		baseGas += CallNewAccountGas
-	}
-	if !checkGas(baseGas) {
-		return errOutOfGas
+		if err := c.useGas(CallNewAccountGas); err != nil {
+			return err
+		}
 	}
 
-	cost := callGas(c.gas, baseGas, provided_gas)
-	if err := c.useGas(baseGas + cost); err != nil {
+	// The cost of gas was changed during the homestead price change HF.
+	// As part of EIP 150 (TangerineWhistle), the returned gas is gas - base * 63 / 64.
+	cost := tosca.Gas(c.gas - c.gas/64)
+	if provided_gas.IsUint64() && (cost >= tosca.Gas(provided_gas.Uint64())) {
+		cost = tosca.Gas(provided_gas.Uint64())
+	}
+	if err := c.useGas(cost); err != nil {
+		// this usage can never fail because:
+		// - original cost is less than available gas.
+		// - if cost is greater than provided_gas, then provided_gas is also less than available gas
 		return err
 	}
 

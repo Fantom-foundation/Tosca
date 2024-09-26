@@ -1419,3 +1419,102 @@ func TestGetData(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckSizeOFfsetUintOverflow_ReturnsAsExpected(t *testing.T) {
+
+	zero := uint256.NewInt(0)
+	one := uint256.NewInt(1)
+	u64overflow := new(uint256.Int).Add(uint256.NewInt(2), uint256.NewInt(math.MaxUint64))
+	// checkSizeOffsetUint64Overflow(offset, size) - parameter order
+
+	// size zero ignores offset
+	if want, got := error(nil), checkSizeOffsetUint64Overflow(u64overflow, zero); want != got {
+		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+	}
+	// size overflow is reported
+	if want, got := errOverflow, checkSizeOffsetUint64Overflow(zero, u64overflow); want != got {
+		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+	}
+	// offset overflow is reported
+	if want, got := errOverflow, checkSizeOffsetUint64Overflow(u64overflow, one); want != got {
+		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+	}
+	// no overflow
+	if want, got := error(nil), checkSizeOffsetUint64Overflow(one, one); want != got {
+		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+	}
+
+}
+
+func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
+
+	zero := uint256.NewInt(0)
+	one := uint256.NewInt(1)
+	u64overflow := new(uint256.Int).Add(uint256.NewInt(2), uint256.NewInt(math.MaxUint64))
+
+	tests := map[string]struct {
+		// stack order
+		// retSize, retOffset, inSize, inOffset, value, address, provided_gas
+		stack         []*uint256.Int
+		gas           tosca.Gas
+		expectedError error
+	}{
+		"input offset overflow": {
+			// size needs to be one, otherwise offset is ignored.
+			stack:         []*uint256.Int{zero, zero, one, u64overflow, zero, zero, zero},
+			expectedError: errOverflow,
+		},
+		"return Size overflow": {
+			stack:         []*uint256.Int{u64overflow, zero, zero, zero, zero, zero, zero},
+			expectedError: errOverflow,
+		},
+		"input memory too big": {
+			stack:         []*uint256.Int{zero, zero, uint256.NewInt(maxMemoryExpansionSize + 1), zero, zero, zero, zero},
+			expectedError: errMaxMemoryExpansionSize,
+		},
+		"not enough gas for output memory expansion": {
+			stack:         []*uint256.Int{one, zero, zero, zero, zero, zero, zero},
+			gas:           1,
+			expectedError: errOutOfGas,
+		},
+		"not enough gas for access cost": {
+			stack:         []*uint256.Int{zero, zero, zero, zero, zero, zero, zero},
+			gas:           99,
+			expectedError: errOutOfGas,
+		},
+		"not enough gas for value transfer": {
+			stack:         []*uint256.Int{zero, zero, zero, zero, one, zero, zero},
+			gas:           9099, // 9000 for value transfer, 100 for warm access cost
+			expectedError: errOutOfGas,
+		},
+		"not enough gas for new account": {
+			stack:         []*uint256.Int{zero, zero, zero, zero, one, one, zero},
+			gas:           33099, // 25000 for new account, 9000 for value transfer, 100 for warm access cost
+			expectedError: errOutOfGas,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			runContext := tosca.NewMockRunContext(gomock.NewController(t))
+			runContext.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess).AnyTimes()
+			runContext.EXPECT().AccountExists(gomock.Any()).Return(false).AnyTimes()
+			runContext.EXPECT().Call(tosca.Call, gomock.Any()).Return(tosca.CallResult{}, nil).AnyTimes()
+
+			ctxt := getEmptyContext()
+			ctxt.context = runContext
+			ctxt.params.Revision = tosca.R13_Cancun
+			ctxt.gas = test.gas
+
+			for _, val := range test.stack {
+				ctxt.stack.push(val)
+			}
+
+			err := genericCall(&ctxt, tosca.Call)
+
+			if err != test.expectedError {
+				t.Errorf("unexpected status after call, wanted %v, got %v", test.expectedError, err)
+			}
+		})
+	}
+}
