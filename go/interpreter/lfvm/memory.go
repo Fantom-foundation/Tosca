@@ -150,28 +150,13 @@ func (m *Memory) readWord(offset uint64, target *uint256.Int, c *context) error 
 }
 
 // set copies the given value into memory at the given offset.
-// Expands memory as needed and charges for it.
-// Returns error if insufficient gas or offset+size overflows.
-func (m *Memory) set(offset, size uint64, value []byte, c *context) error {
-	data, err := m.getSlice(offset, size, c)
+// Expands the memory size as needed and charges for it.
+// Returns an error if there is not enough gas or offset+len(value) overflows.
+func (m *Memory) set(offset uint64, value []byte, c *context) error {
+	data, err := m.getSlice(offset, uint64(len(value)), c)
 	if err != nil {
 		return err
 	}
 	copy(data, value)
 	return nil
-}
-
-// setByte copies the given byte at the given offset in memory.
-// Expanding memory as needed and charging for it.
-// Returns error if insufficient gas or offset+1 overflows.
-func (m *Memory) setByte(offset uint64, value byte, c *context) error {
-	return m.set(offset, 1, []byte{value}, c)
-}
-
-// setWord copies the given 32-byte word at the given offset.
-// Expanding memory as needed and charging for it.
-// Returns error if insufficient gas or offset+32 overflows.
-func (m *Memory) setWord(offset uint64, value *uint256.Int, c *context) error {
-	data := value.Bytes32()
-	return m.set(offset, 32, data[:], c)
 }
