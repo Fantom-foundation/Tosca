@@ -7,7 +7,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-# workaround for enabling mock feature also in integration tests
+# Flag mock enables code generation for test mocking. This allows generating mocks for other build configuration but "test". 
 mock = ["dep:mockall"]
 
 [dependencies]
