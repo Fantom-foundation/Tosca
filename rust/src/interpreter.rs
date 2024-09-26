@@ -53,7 +53,7 @@ where
             gas_left: Gas::new(message.gas() as u64),
             gas_refund: 0,
             output: None,
-            stack: Stack::new(Vec::new()),
+            stack: Stack::new(&[]),
             memory: Memory::new(Vec::new()),
             last_call_return_data: None,
             steps: None,
@@ -91,7 +91,7 @@ where
         }
     }
 
-    pub fn run(mut self) -> Result<Self, StatusCode> {
+    pub fn run(&mut self) -> Result<(), StatusCode> {
         loop {
             match &mut self.steps {
                 None => (),
@@ -595,7 +595,7 @@ where
                 }
                 Opcode::TStore => {
                     check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-                    check_not_read_only(&self)?;
+                    check_not_read_only(self)?;
                     self.gas_left.consume(100)?;
                     let [value, key] = self.stack.pop()?;
                     let addr = self.message.recipient();
@@ -710,7 +710,7 @@ where
                     return Err(StatusCode::EVMC_INVALID_INSTRUCTION);
                 }
                 Opcode::SelfDestruct => {
-                    check_not_read_only(&self)?;
+                    check_not_read_only(self)?;
                     self.gas_left.consume(5_000)?;
                     let [addr] = self.stack.pop()?;
                     let addr = addr.into();
@@ -745,7 +745,7 @@ where
             }
         }
 
-        Ok(self)
+        Ok(())
     }
 
     fn sstore(&mut self) -> Result<(), StatusCode> {
@@ -1127,8 +1127,9 @@ where
     fn from(value: Interpreter<E>) -> Self {
         let stack = value
             .stack
-            .into_inner()
-            .into_iter()
+            .as_slice()
+            .iter()
+            .copied()
             .map(Into::into)
             .collect();
         Self::new(
@@ -1146,11 +1147,11 @@ where
     }
 }
 
-impl<'a, E> From<Interpreter<'a, E>> for ExecutionResult
+impl<'a, E> From<&Interpreter<'a, E>> for ExecutionResult
 where
     E: ExecutionContextTrait,
 {
-    fn from(value: Interpreter<E>) -> Self {
+    fn from(value: &Interpreter<E>) -> Self {
         Self::new(
             value.status_code,
             value.gas_left.as_u64() as i64,
@@ -1176,20 +1177,24 @@ mod tests {
     fn empty_code() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let result = Interpreter::new(Revision::EVMC_FRONTIER, &message, &mut context, &[]).run();
+        let mut interpreter =
+            Interpreter::new(Revision::EVMC_FRONTIER, &message, &mut context, &[]);
+        let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
-        assert_eq!(result.code_reader.pc(), 0);
-        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
+        assert_eq!(
+            interpreter.step_status_code,
+            StepStatusCode::EVMC_STEP_STOPPED
+        );
+        assert_eq!(interpreter.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(interpreter.code_reader.pc(), 0);
+        assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
 
     #[test]
     fn pc_after_end() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let result = Interpreter::new_steppable(
+        let mut interpreter = Interpreter::new_steppable(
             Revision::EVMC_FRONTIER,
             &message,
             &mut context,
@@ -1197,18 +1202,20 @@ mod tests {
             &[Opcode::Add as u8],
             1,
             0,
-            Stack::new(Vec::new()),
+            Stack::new(&[]),
             Memory::new(Vec::new()),
             None,
             None,
-        )
-        .run();
+        );
+        let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
-        assert_eq!(result.code_reader.pc(), 1);
-        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
+        assert_eq!(
+            interpreter.step_status_code,
+            StepStatusCode::EVMC_STEP_STOPPED
+        );
+        assert_eq!(interpreter.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(interpreter.code_reader.pc(), 1);
+        assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
 
     #[test]
@@ -1223,7 +1230,7 @@ mod tests {
             &[Opcode::Push1 as u8, 0x00],
             1,
             0,
-            Stack::new(Vec::new()),
+            Stack::new(&[]),
             Memory::new(Vec::new()),
             None,
             None,
@@ -1247,11 +1254,13 @@ mod tests {
         interpreter.steps = Some(0);
         let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_RUNNING);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
-        assert_eq!(result.code_reader.pc(), 0);
-        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
+        assert_eq!(
+            interpreter.step_status_code,
+            StepStatusCode::EVMC_STEP_RUNNING
+        );
+        assert_eq!(interpreter.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(interpreter.code_reader.pc(), 0);
+        assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
 
     #[test]
@@ -1265,14 +1274,19 @@ mod tests {
             &[Opcode::Add as u8, Opcode::Add as u8],
         );
         interpreter.steps = Some(1);
-        interpreter.stack = Stack::new(vec![1u8.into(), 2u8.into()]);
+        interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
         let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_RUNNING);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
-        assert_eq!(result.stack.into_inner(), [3u8.into()]);
-        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS - 3);
+        assert_eq!(
+            interpreter.step_status_code,
+            StepStatusCode::EVMC_STEP_RUNNING
+        );
+        assert_eq!(interpreter.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(interpreter.stack.as_slice(), [3u8.into()]);
+        assert_eq!(
+            interpreter.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS - 3
+        );
     }
 
     #[test]
@@ -1285,14 +1299,19 @@ mod tests {
             &mut context,
             &[Opcode::Add as u8],
         );
-        interpreter.stack = Stack::new(vec![1u8.into(), 2u8.into()]);
+        interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
         let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
-        assert_eq!(result.stack.into_inner(), [3u8.into()]);
-        assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS - 3);
+        assert_eq!(
+            interpreter.step_status_code,
+            StepStatusCode::EVMC_STEP_STOPPED
+        );
+        assert_eq!(interpreter.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(interpreter.stack.as_slice(), [3u8.into()]);
+        assert_eq!(
+            interpreter.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS - 3
+        );
     }
 
     #[test]
@@ -1305,15 +1324,17 @@ mod tests {
             &mut context,
             &[Opcode::Add as u8, Opcode::Add as u8],
         );
-        interpreter.stack = Stack::new(vec![1u8.into(), 2u8.into(), 3u8.into()]);
+        interpreter.stack = Stack::new(&[1u8.into(), 2u8.into(), 3u8.into()]);
         let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
-        assert_eq!(result.stack.into_inner(), [6u8.into()]);
         assert_eq!(
-            result.gas_left,
+            interpreter.step_status_code,
+            StepStatusCode::EVMC_STEP_STOPPED
+        );
+        assert_eq!(interpreter.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(interpreter.stack.as_slice(), [6u8.into()]);
+        assert_eq!(
+            interpreter.gas_left,
             MockExecutionMessage::DEFAULT_INIT_GAS - 2 * 3
         );
     }
@@ -1332,7 +1353,7 @@ mod tests {
             &mut context,
             &[Opcode::Add as u8],
         );
-        interpreter.stack = Stack::new(vec![1u8.into(), 2u8.into()]);
+        interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
         let result = interpreter.run();
         assert!(result.is_err());
         let status = result.map(|_| ()).unwrap_err();
@@ -1391,7 +1412,7 @@ mod tests {
 
         let message = message.into();
 
-        let stack = vec![
+        let stack = [
             ret_len.into(),
             ret_offset.into(),
             args_len.into(),
@@ -1401,7 +1422,7 @@ mod tests {
             gas.into(),
         ];
 
-        let result = Interpreter::new_steppable(
+        let mut interpreter = Interpreter::new_steppable(
             Revision::EVMC_FRONTIER,
             &message,
             &mut context,
@@ -1409,27 +1430,29 @@ mod tests {
             &[Opcode::Call as u8],
             0,
             0,
-            Stack::new(stack),
+            Stack::new(&stack),
             Memory::new(memory),
             None,
             None,
-        )
-        .run();
+        );
+        let result = interpreter.run();
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
-        assert_eq!(result.code_reader.pc(), 1);
         assert_eq!(
-            result.gas_left,
+            interpreter.step_status_code,
+            StepStatusCode::EVMC_STEP_STOPPED
+        );
+        assert_eq!(interpreter.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(interpreter.code_reader.pc(), 1);
+        assert_eq!(
+            interpreter.gas_left,
             MockExecutionMessage::DEFAULT_INIT_GAS - 700 - gas
         );
         assert_eq!(
-            result.last_call_return_data.as_deref(),
+            interpreter.last_call_return_data.as_deref(),
             Some(ret_data.as_slice())
         );
         assert_eq!(
-            &result.memory.into_inner()[ret_offset..ret_offset + ret_len],
+            &interpreter.memory.into_inner()[ret_offset..ret_offset + ret_len],
             ret_data.as_slice()
         );
     }

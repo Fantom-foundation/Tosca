@@ -9,6 +9,7 @@ use crate::{
     ffi::EVMC_CAPABILITY,
     interpreter::Interpreter,
     types::{Memory, Stack},
+    u256,
 };
 
 pub struct EvmRs;
@@ -34,10 +35,11 @@ impl EvmcVm for EvmRs {
             // If this is not the case it violates the EVMC spec and is an irrecoverable error.
             process::abort();
         };
-        Interpreter::new(revision, message, context, code)
-            .run()
-            .map(Into::into)
-            .unwrap_or_else(|status_code| ExecutionResult::new(status_code, 0, 0, None))
+        let mut interpreter = Interpreter::new(revision, message, context, code);
+        if let Err(status_code) = interpreter.run() {
+            return ExecutionResult::new(status_code, 0, 0, None);
+        }
+        (&interpreter).into()
     }
 
     fn set_option(&mut self, _: &str, _: &str) -> Result<(), evmc_vm::SetOptionError> {
@@ -69,9 +71,11 @@ impl SteppableEvmcVm for EvmRs {
             // If this is not the case it violates the EVMC spec and is an irrecoverable error.
             process::abort();
         };
-        let stack = Stack::new(stack.iter().copied().map(Into::into).collect());
+        // SAFETY:
+        // &[Uint256] and &[u256] have the same layout
+        let stack = Stack::new(unsafe { std::mem::transmute::<&[Uint256], &[u256]>(stack) });
         let memory = Memory::new(memory.to_owned());
-        Interpreter::new_steppable(
+        let mut interpreter = Interpreter::new_steppable(
             revision,
             message,
             context,
@@ -83,16 +87,14 @@ impl SteppableEvmcVm for EvmRs {
             memory,
             Some(last_call_return_data.to_owned()),
             Some(steps),
-        )
-        .run()
-        .map(Into::into)
-        .unwrap_or_else(|status_code| {
+        );
+        if let Err(status_code) = interpreter.run() {
             let step_status_code = match status_code {
                 StatusCode::EVMC_SUCCESS => StepStatusCode::EVMC_STEP_RUNNING,
                 StatusCode::EVMC_REVERT => StepStatusCode::EVMC_STEP_REVERTED,
                 _ => StepStatusCode::EVMC_STEP_FAILED,
             };
-            StepResult::new(
+            return StepResult::new(
                 step_status_code,
                 status_code,
                 Revision::EVMC_FRONTIER,
@@ -103,7 +105,8 @@ impl SteppableEvmcVm for EvmRs {
                 Vec::new(),
                 Vec::new(),
                 None,
-            )
-        })
+            );
+        }
+        interpreter.into()
     }
 }
