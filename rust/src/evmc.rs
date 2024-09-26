@@ -10,6 +10,7 @@ use crate::{
     ffi::EVMC_CAPABILITY,
     interpreter::Interpreter,
     types::{Memory, Stack},
+    u256,
 };
 
 pub struct EvmRs;
@@ -35,10 +36,11 @@ impl EvmcVm for EvmRs {
             // If this is not the case it violates the EVMC spec and is an irrecoverable error.
             process::abort();
         };
-        Interpreter::new(revision, message, context, code)
-            .run()
-            .map(ExecutionResult::from)
-            .unwrap_or_else(ExecutionResult::from)
+        let mut interpreter = Interpreter::new(revision, message, context, code);
+        if let Err(status_code) = interpreter.run() {
+            return ExecutionResult::from(status_code);
+        }
+        ExecutionResult::from(&interpreter)
     }
 
     fn set_option(&mut self, _: &str, _: &str) -> Result<(), evmc_vm::SetOptionError> {
@@ -94,9 +96,11 @@ impl SteppableEvmcVm for EvmRs {
             // If this is not the case it violates the EVMC spec and is an irrecoverable error.
             process::abort();
         };
-        let stack = Stack::new(stack.iter().copied().map(Into::into).collect());
+        // SAFETY:
+        // &[Uint256] and &[u256] have the same layout
+        let stack = Stack::new(unsafe { std::mem::transmute::<&[Uint256], &[u256]>(stack) });
         let memory = Memory::new(memory.to_owned());
-        Interpreter::new_steppable(
+        let mut interpreter = Interpreter::new_steppable(
             revision,
             message,
             context,
@@ -107,9 +111,10 @@ impl SteppableEvmcVm for EvmRs {
             memory,
             Some(last_call_return_data.to_owned()),
             Some(steps),
-        )
-        .run()
-        .map(StepResult::from)
-        .unwrap_or_else(StepResult::from)
+        );
+        if let Err(status_code) = interpreter.run() {
+            return StepResult::from(status_code);
+        }
+        interpreter.into()
     }
 }

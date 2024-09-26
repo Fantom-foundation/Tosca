@@ -6,6 +6,7 @@ edition = "2021"
 [features]
 performance = ["evmrs/performance"]
 mimalloc = ["evmrs/mimalloc"]
+stack-array = ["evmrs/stack-array"]
 
 [dependencies]
 evmc-vm = { git = "https://github.com/Fantom-foundation/evmc", branch = "tosca-extensions" }
