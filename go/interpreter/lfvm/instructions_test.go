@@ -1248,7 +1248,7 @@ func TestInstructions_EIP2929_dynamicGasCostReportsOutOfGas(t *testing.T) {
 					ctxt := context{
 						params: tosca.Parameters{
 							BlockParameters: tosca.BlockParameters{
-								Revision: tosca.R13_Cancun,
+								Revision: revision,
 							},
 						},
 						stack:  NewStack(),
@@ -1288,35 +1288,38 @@ func TestInstructions_EIP2929_SSTOREReportsOutOfGas(t *testing.T) {
 	// Hence we cannot take the same testing approach as for the other operations in EIP-2929.
 
 	// SSTORE demands at least 2300 gas to be available
-	// 2301 gas is not enough to afford tosca.StorageDeleted.
-	for _, availableGas := range []tosca.Gas{2300, 2301} {
-		for revision := tosca.R09_Berlin; revision <= newestSupportedRevision; revision++ {
-			for _, access := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
-				t.Run(fmt.Sprintf("%v/%v/%v", SSTORE, revision, access), func(t *testing.T) {
+	// 2301 gas is not enough to afford StorageAdded, StorageModified, StorageDeleted.
+	// all other storage status cannot fail in berlin and after because of out of gas.
+	for _, storageStatus := range []tosca.StorageStatus{tosca.StorageAdded, tosca.StorageModified, tosca.StorageDeleted} {
+		for _, availableGas := range []tosca.Gas{2300, 2301} {
+			for revision := tosca.R09_Berlin; revision <= newestSupportedRevision; revision++ {
+				for _, access := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
+					t.Run(fmt.Sprintf("%v/%v/%v/%v", SSTORE, revision, access, storageStatus), func(t *testing.T) {
 
-					ctxt := context{
-						params: tosca.Parameters{
-							BlockParameters: tosca.BlockParameters{
-								Revision: tosca.R13_Cancun,
+						ctxt := context{
+							params: tosca.Parameters{
+								BlockParameters: tosca.BlockParameters{
+									Revision: revision,
+								},
 							},
-						},
-						stack:  NewStack(),
-						memory: NewMemory(),
-						code:   Code{{SSTORE, 0}},
-					}
-					ctxt.gas = availableGas
-					mockRunContext := tosca.NewMockRunContext(gomock.NewController(t))
-					mockRunContext.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).Return(access).AnyTimes()
-					mockRunContext.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).Return(tosca.StorageDeleted).AnyTimes()
-					ctxt.context = mockRunContext
-					ctxt.stack.push(uint256.NewInt(1))
-					ctxt.stack.push(uint256.NewInt(1))
+							stack:  NewStack(),
+							memory: NewMemory(),
+							code:   Code{{SSTORE, 0}},
+						}
+						ctxt.gas = availableGas
+						mockRunContext := tosca.NewMockRunContext(gomock.NewController(t))
+						mockRunContext.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).Return(access).AnyTimes()
+						mockRunContext.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).Return(storageStatus).AnyTimes()
+						ctxt.context = mockRunContext
+						ctxt.stack.push(uint256.NewInt(1))
+						ctxt.stack.push(uint256.NewInt(1))
 
-					err := opSstore(&ctxt)
-					if err != errOutOfGas {
-						t.Errorf("unexpected error: %v", err)
-					}
-				})
+						err := opSstore(&ctxt)
+						if err != errOutOfGas {
+							t.Errorf("unexpected error: %v", err)
+						}
+					})
+				}
 			}
 		}
 	}
