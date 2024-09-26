@@ -249,6 +249,7 @@ func opSstore(c *context) error {
 	cost := tosca.Gas(0)
 	if c.isAtLeast(tosca.R09_Berlin) &&
 		c.context.AccessStorage(c.params.Recipient, key) == tosca.ColdAccess {
+		// we do not call useGas here because it is already checked that there is at least 2300 gas available
 		cost += 2100
 	}
 
