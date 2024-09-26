@@ -156,30 +156,6 @@ func (r vanillaRunner) run(c *context) (status, error) {
 	return steps(c, false)
 }
 
-// loggingRunner is a runner that logs the execution of the contract code to
-// stdout. It is used for debugging purposes.
-type loggingRunner struct{}
-
-func (r loggingRunner) run(c *context) (status, error) {
-	status := statusRunning
-	var err error
-	for status == statusRunning {
-		// log format: <op>, <gas>, <top-of-stack>\n
-		if int(c.pc) < len(c.code) {
-			top := "-empty-"
-			if c.stack.len() > 0 {
-				top = c.stack.peek().ToBig().String()
-			}
-			fmt.Printf("%v, %d, %v\n", c.code[c.pc].opcode, c.gas, top)
-		}
-		status, err = step(c)
-		if err != nil {
-			return status, err
-		}
-	}
-	return status, nil
-}
-
 // --- Execution ---
 
 func step(c *context) (status, error) {
