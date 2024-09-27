@@ -39,7 +39,7 @@ impl EvmcVm for EvmRs {
         if let Err(status_code) = interpreter.run() {
             return ExecutionResult::new(status_code, 0, 0, None);
         }
-        (&interpreter).into()
+        (&mut interpreter).into()
     }
 
     fn set_option(&mut self, _: &str, _: &str) -> Result<(), evmc_vm::SetOptionError> {

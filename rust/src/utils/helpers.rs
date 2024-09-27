@@ -70,7 +70,7 @@ pub fn check_min_revision(min_revision: Revision, revision: Revision) -> Result<
 }
 
 #[inline(always)]
-pub fn check_not_read_only<E>(state: &Interpreter<E>) -> Result<(), StatusCode>
+pub fn check_not_read_only<E>(state: &Interpreter<'_, E>) -> Result<(), StatusCode>
 where
     E: ExecutionContextTrait,
 {

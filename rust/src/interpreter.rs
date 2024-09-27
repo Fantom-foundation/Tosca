@@ -20,13 +20,19 @@ where
 {
     pub step_status_code: StepStatusCode,
     pub status_code: StatusCode,
+    #[cfg(not(feature = "message-slice-output-box"))]
     pub message: &'a ExecutionMessage,
+    #[cfg(feature = "message-slice-output-box")]
+    pub message: &'a ExecutionMessage<'a>,
     pub context: &'a mut E,
     pub revision: Revision,
     pub code_reader: CodeReader<'a>,
     pub gas_left: Gas,
     pub gas_refund: i64,
+    #[cfg(not(feature = "message-slice-output-box"))]
     pub output: Option<Vec<u8>>,
+    #[cfg(feature = "message-slice-output-box")]
+    pub output: Option<Box<[u8]>>,
     pub stack: Stack,
     pub memory: Memory,
     pub last_call_return_data: Option<Vec<u8>>,
@@ -290,7 +296,17 @@ where
                     let [offset] = self.stack.pop()?;
                     let (offset, overflow) = offset.into_u64_with_overflow();
                     let offset = offset as usize;
-                    let call_data = self.message.input().map(Vec::as_slice).unwrap_or_default();
+                    #[allow(clippy::map_identity)]
+                    let call_data = self
+                        .message
+                        .input()
+                        .map(
+                            #[cfg(not(feature = "message-slice-output-box"))]
+                            Vec::as_slice,
+                            #[cfg(feature = "message-slice-output-box")]
+                            std::convert::identity,
+                        )
+                        .unwrap_or_default();
                     if overflow || offset >= call_data.len() {
                         self.stack.push(u256::ZERO)?;
                     } else {
@@ -302,7 +318,14 @@ where
                 }
                 Opcode::CallDataSize => {
                     self.gas_left.consume(2)?;
-                    let call_data_len = self.message.input().map(Vec::len).unwrap_or_default();
+                    let call_data_len = self
+                        .message
+                        .input()
+                        .map(|m| {
+                            #[allow(clippy::redundant_closure)]
+                            m.len()
+                        })
+                        .unwrap_or_default();
                     self.stack.push(call_data_len)?;
                 }
                 Opcode::Push0 => {
@@ -319,10 +342,16 @@ where
                             .try_into()
                             .map_err(|_| StatusCode::EVMC_INVALID_MEMORY_ACCESS)?;
 
+                        #[allow(clippy::map_identity)]
                         let src = self
                             .message
                             .input()
-                            .map(Vec::as_slice)
+                            .map(
+                                #[cfg(not(feature = "message-slice-output-box"))]
+                                Vec::as_slice,
+                                #[cfg(feature = "message-slice-output-box")]
+                                std::convert::identity,
+                            )
                             .unwrap_or_default()
                             .get_within_bounds(offset, len);
                         let dest =
@@ -687,7 +716,14 @@ where
                     let [len, offset] = self.stack.pop()?;
                     let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
                     let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
-                    self.output = Some(data.to_owned());
+                    #[cfg(not(feature = "message-slice-output-box"))]
+                    {
+                        self.output = Some(data.to_owned());
+                    }
+                    #[cfg(feature = "message-slice-output-box")]
+                    {
+                        self.output = Some(Box::from(&*data));
+                    }
                     self.step_status_code = StepStatusCode::EVMC_STEP_RETURNED;
                     break;
                 }
@@ -700,7 +736,14 @@ where
                     let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
                     // TODO revert self changes
                     // gas_refund = original_gas_refund;
-                    self.output = Some(data.to_owned());
+                    #[cfg(not(feature = "message-slice-output-box"))]
+                    {
+                        self.output = Some(data.to_owned());
+                    }
+                    #[cfg(feature = "message-slice-output-box")]
+                    {
+                        self.output = Some(Box::from(&*data));
+                    }
                     self.step_status_code = StepStatusCode::EVMC_STEP_REVERTED;
                     self.status_code = StatusCode::EVMC_REVERT;
                     break;
@@ -903,6 +946,7 @@ where
             salt.into(),
             u256::ZERO.into(), // ignored
             None,
+            None,
         );
         let result = self.context.call(&message);
 
@@ -993,6 +1037,7 @@ where
                 u256::ZERO.into(), // ignored
                 addr,
                 None,
+                None,
             )
         } else {
             ExecutionMessage::new(
@@ -1006,6 +1051,7 @@ where
                 value.into(),
                 u256::ZERO.into(), // ignored
                 u256::ZERO.into(), // ignored
+                None,
                 None,
             )
         };
@@ -1083,6 +1129,7 @@ where
                 u256::ZERO.into(), // ignored
                 addr,
                 None,
+                None,
             )
         } else {
             ExecutionMessage::new(
@@ -1096,6 +1143,7 @@ where
                 u256::ZERO.into(), // ignored
                 u256::ZERO.into(), // ignored
                 u256::ZERO.into(), // ignored
+                None,
                 None,
             )
         };
@@ -1124,7 +1172,7 @@ impl<'a, E> From<Interpreter<'a, E>> for StepResult
 where
     E: ExecutionContextTrait,
 {
-    fn from(value: Interpreter<E>) -> Self {
+    fn from(value: Interpreter<'a, E>) -> Self {
         let stack = value
             .stack
             .as_slice()
@@ -1147,16 +1195,19 @@ where
     }
 }
 
-impl<'a, E> From<&Interpreter<'a, E>> for ExecutionResult
+impl<'a, E> From<&mut Interpreter<'a, E>> for ExecutionResult
 where
     E: ExecutionContextTrait,
 {
-    fn from(value: &Interpreter<E>) -> Self {
+    fn from(value: &mut Interpreter<'a, E>) -> Self {
         Self::new(
             value.status_code,
             value.gas_left.as_u64() as i64,
             value.gas_refund,
+            #[cfg(not(feature = "message-slice-output-box"))]
             value.output.as_deref(),
+            #[cfg(feature = "message-slice-output-box")]
+            value.output.take(),
         )
     }
 }
@@ -1407,7 +1458,15 @@ mod tests {
                     && call_message.code().is_none()
             })
             .returning(move |_| {
-                ExecutionResult::new(StatusCode::EVMC_SUCCESS, 0, 0, Some(&ret_data))
+                #[cfg(not(feature = "message-slice-output-box"))]
+                return ExecutionResult::new(StatusCode::EVMC_SUCCESS, 0, 0, Some(&ret_data));
+                #[cfg(feature = "message-slice-output-box")]
+                return ExecutionResult::new(
+                    StatusCode::EVMC_SUCCESS,
+                    0,
+                    0,
+                    Some(Box::from(ret_data.as_slice())),
+                );
             });
 
         let message = message.into();

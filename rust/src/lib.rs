@@ -5,6 +5,11 @@ mod interpreter;
 mod types;
 mod utils;
 
+#[cfg(not(feature = "message-slice-output-box"))]
+pub extern crate evmc_vm_tosca as evmc_vm;
+#[cfg(feature = "message-slice-output-box")]
+pub extern crate evmc_vm_tosca_message_slice_output_box as evmc_vm;
+
 #[cfg(feature = "mock")]
 pub use types::MockExecutionContextTrait;
 pub use types::{u256, ExecutionContextTrait, MockExecutionMessage, Opcode};

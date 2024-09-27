@@ -18,6 +18,7 @@ pub struct MockExecutionMessage<'a> {
     pub create2_salt: Uint256,
     pub code_address: Address,
     pub code: Option<&'a [u8]>,
+    pub code_hash: Option<u256>,
 }
 
 impl<'a> MockExecutionMessage<'a> {
@@ -57,12 +58,14 @@ impl<'a> Default for MockExecutionMessage<'a> {
             create2_salt: u256::ZERO.into(),
             code_address: u256::ZERO.into(),
             code: None,
+            code_hash: None,
         }
     }
 }
 
+#[cfg(not(feature = "message-slice-output-box"))]
 impl<'a> From<MockExecutionMessage<'a>> for ExecutionMessage {
-    fn from(value: MockExecutionMessage) -> Self {
+    fn from(value: MockExecutionMessage<'a>) -> Self {
         Self::new(
             value.kind,
             value.flags,
@@ -75,6 +78,27 @@ impl<'a> From<MockExecutionMessage<'a>> for ExecutionMessage {
             value.create2_salt,
             value.code_address,
             value.code,
+            value.code_hash.map(Into::into),
+        )
+    }
+}
+
+#[cfg(feature = "message-slice-output-box")]
+impl<'a> From<MockExecutionMessage<'a>> for ExecutionMessage<'a> {
+    fn from(value: MockExecutionMessage<'a>) -> Self {
+        Self::new(
+            value.kind,
+            value.flags,
+            value.depth,
+            value.gas,
+            value.recipient,
+            value.sender,
+            value.input,
+            value.value,
+            value.create2_salt,
+            value.code_address,
+            value.code,
+            value.code_hash.map(Into::into),
         )
     }
 }
