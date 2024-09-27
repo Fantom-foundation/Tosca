@@ -141,7 +141,7 @@ func opPush32(c *context) {
 	z := c.stack.pushUndefined()
 
 	data := c.code[c.pc : c.pc+16]
-	_ = data[15] // causes bound check to be performed only once (may become unneded in the future)
+	_ = data[15] // causes bound check to be performed only once (may become unneeded in the future)
 	z[3] = (uint64(data[0].arg) << 48) | (uint64(data[1].arg) << 32) | (uint64(data[2].arg) << 16) | uint64(data[3].arg)
 	z[2] = (uint64(data[4].arg) << 48) | (uint64(data[5].arg) << 32) | (uint64(data[6].arg) << 16) | uint64(data[7].arg)
 	z[1] = (uint64(data[8].arg) << 48) | (uint64(data[9].arg) << 32) | (uint64(data[10].arg) << 16) | uint64(data[11].arg)
