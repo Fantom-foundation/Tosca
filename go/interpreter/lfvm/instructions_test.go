@@ -1624,3 +1624,130 @@ func TestGeneralCall_ResultIsWrittenToStack(t *testing.T) {
 
 	}
 }
+
+func TestInstructions_InstructionsReturnErrorOnOverflow(t *testing.T) {
+	one := *uint256.NewInt(1)
+	zero := *uint256.NewInt(0)
+	maxUint256 := *uint256.NewInt(0).Sub(uint256.NewInt(0), uint256.NewInt(1))
+
+	type inputData []uint256.Int
+	stack := func(v ...uint256.Int) inputData {
+		return append([]uint256.Int{}, v...)
+	}
+
+	tests := map[OpCode]struct {
+		implementation func(*context) error
+		inputs         []inputData
+	}{
+		JUMP: {
+			implementation: opJump,
+			inputs: []inputData{
+				stack(maxUint256),
+			},
+		},
+		JUMPI: {
+			implementation: opJumpi,
+			inputs: []inputData{
+				stack(one, maxUint256),
+			},
+		},
+		MSTORE: {
+			implementation: opMstore,
+			inputs: []inputData{
+				stack(zero, maxUint256),
+			},
+		},
+		MSTORE8: {
+			implementation: opMstore8,
+			inputs: []inputData{
+				stack(zero, maxUint256),
+			},
+		},
+		MCOPY: {
+			implementation: opMcopy,
+			inputs: []inputData{
+				stack(maxUint256, zero, zero),
+			},
+		},
+		MLOAD: {
+			implementation: opMload,
+			inputs: []inputData{
+				stack(maxUint256),
+			},
+		},
+		CALLDATACOPY: {
+			implementation: opCallDataCopy,
+			inputs: []inputData{
+				stack(maxUint256, zero, zero),
+				stack(one, one, maxUint256),
+			},
+		},
+		RETURNDATACOPY: {
+			implementation: opReturnDataCopy,
+			inputs: []inputData{
+				stack(maxUint256, zero, zero),
+				stack(zero, maxUint256, zero),
+				stack(one, zero, maxUint256),
+			},
+		},
+		CODECOPY: {
+			implementation: opCodeCopy,
+			inputs: []inputData{
+				stack(maxUint256, zero, zero),
+			},
+		},
+		EXTCODECOPY: {
+			implementation: opExtCodeCopy,
+			inputs: []inputData{
+				stack(maxUint256, zero, zero, zero),
+			},
+		},
+		SHA3: {
+			implementation: opSha3,
+			inputs: []inputData{
+				stack(maxUint256, zero),
+			},
+		},
+		// Note: Log0 tests stack values overflowing for all LOG operations
+		LOG0: {
+			implementation: func(c *context) error {
+				return opLog(c, 0)
+			},
+			inputs: []inputData{
+				stack(maxUint256, one),
+			},
+		},
+		// Note: call operations are quite complicated and they are to be tested
+		// on its own means. This is just a simple test to validate the test itself.
+		CALL: {
+			implementation: opCall,
+			inputs: []inputData{
+				stack(maxUint256, one, zero, zero, zero, zero, zero),
+				stack(zero, zero, maxUint256, one, zero, zero, zero),
+			},
+		},
+	}
+
+	for op, test := range tests {
+		t.Run(op.String(), func(t *testing.T) {
+			forEachRevision(t, op, func(t *testing.T, revision tosca.Revision) {
+
+				for _, input := range test.inputs {
+					ctxt := getEmptyContext()
+					ctxt.code = Code{{op, 0}}
+					ctxt.params.Revision = revision
+					ctxt.gas = 1 << 32
+
+					for _, v := range input {
+						ctxt.stack.push(&v)
+					}
+
+					err := test.implementation(&ctxt)
+					if want, got := errOverflow, err; want != got {
+						t.Fatalf("unexpected error, wanted %v, got %v", want, got)
+					}
+				}
+			})
+		})
+	}
+}

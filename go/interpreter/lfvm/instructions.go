@@ -361,12 +361,12 @@ func opCallDataCopy(c *context) error {
 	)
 	dataOffset64, overflow := dataOffset.Uint64WithOverflow()
 	if overflow {
-		dataOffset64 = 0xffffffffffffffff
+		dataOffset64 = math.MaxUint64
 	}
 
 	memOffset64, overflow := memOffset.Uint64WithOverflow()
 	if overflow {
-		memOffset64 = 0xffffffffffffffff
+		memOffset64 = math.MaxUint64
 	}
 
 	length64, overflow := length.Uint64WithOverflow()
@@ -590,8 +590,8 @@ var sha3Cache = newSha3HashCache(1<<16, 1<<18)
 func opSha3(c *context) error {
 	offset, size := c.stack.pop(), c.stack.peek()
 
-	if checkSizeOffsetUint64Overflow(offset, size) != nil {
-		return errOverflow
+	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
+		return err
 	}
 
 	data, err := c.memory.getSlice(offset.Uint64(), size.Uint64(), c)
@@ -804,7 +804,7 @@ func opCodeCopy(c *context) error {
 
 	uint64CodeOffset, overflow := codeOffset.Uint64WithOverflow()
 	if overflow {
-		uint64CodeOffset = 0xffffffffffffffff
+		uint64CodeOffset = math.MaxUint64
 	}
 
 	// Charge for length of copied code
@@ -876,8 +876,8 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 		salt = c.stack.pop().Bytes32() // pop salt value for Create2
 	}
 
-	if checkSizeOffsetUint64Overflow(offset, size) != nil {
-		return errOverflow
+	if err := checkSizeOffsetUint64Overflow(offset, size); err != nil {
+		return err
 	}
 
 	sizeU64 := size.Uint64()
@@ -981,11 +981,10 @@ func getData(data []byte, start uint64, size uint64) []byte {
 
 func opExtCodeCopy(c *context) error {
 	var (
-		stack      = c.stack
-		a          = stack.pop()
-		memOffset  = stack.pop()
-		codeOffset = stack.pop()
-		length     = stack.pop()
+		a          = c.stack.pop()
+		memOffset  = c.stack.pop()
+		codeOffset = c.stack.pop()
+		length     = c.stack.pop()
 	)
 	if err := checkSizeOffsetUint64Overflow(memOffset, length); err != nil {
 		return err
@@ -1055,12 +1054,11 @@ func genericCall(c *context, kind tosca.CallKind) error {
 	// and not doing it would be identified by the replay tool as an error.
 	toAddr := tosca.Address(addr.Bytes20())
 
-	if checkSizeOffsetUint64Overflow(inOffset, inSize) != nil {
-		return errOverflow
+	if err := checkSizeOffsetUint64Overflow(inOffset, inSize); err != nil {
+		return err
 	}
-
-	if checkSizeOffsetUint64Overflow(retOffset, retSize) != nil {
-		return errOverflow
+	if err := checkSizeOffsetUint64Overflow(retOffset, retSize); err != nil {
+		return err
 	}
 
 	// Get arguments from the memory.
@@ -1223,12 +1221,12 @@ func opReturnDataCopy(c *context) error {
 		return errOverflow
 	}
 
-	if uint64(len(c.returnData)) < end64 {
-		return errOverflow
-	}
-
 	if err := checkSizeOffsetUint64Overflow(memOffset, length); err != nil {
 		return err
+	}
+
+	if uint64(len(c.returnData)) < end64 {
+		return errOverflow
 	}
 
 	words := tosca.SizeInWords(length.Uint64())
@@ -1247,15 +1245,14 @@ func opLog(c *context, size int) error {
 	}
 
 	topics := make([]tosca.Hash, size)
-	stack := c.stack
-	mStart, mSize := stack.pop(), stack.pop()
+	mStart, mSize := c.stack.pop(), c.stack.pop()
 
 	if err := checkSizeOffsetUint64Overflow(mStart, mSize); err != nil {
 		return err
 	}
 
 	for i := 0; i < size; i++ {
-		addr := stack.pop()
+		addr := c.stack.pop()
 		topics[i] = addr.Bytes32()
 	}
 
