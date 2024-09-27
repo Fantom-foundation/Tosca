@@ -12,6 +12,8 @@ package lfvm
 
 import (
 	"bytes"
+	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -47,7 +49,7 @@ func TestLogger_ExecutesCodeAndLogs(t *testing.T) {
 			}
 			code := test.code
 			buffer := bytes.NewBuffer([]byte{})
-			logger := NewLoggingRunner(buffer)
+			logger := newLogger(buffer)
 			config := interpreterConfig{
 				runner: logger,
 			}
@@ -60,5 +62,50 @@ func TestLogger_ExecutesCodeAndLogs(t *testing.T) {
 				t.Errorf("unexpected log: want %v, got %v", test.want, buffer.String())
 			}
 		})
+	}
+}
+
+func TestLogger_IfNoWritterIsProvidedStdErrAndStdOutAreNotUsed(t *testing.T) {
+
+	// Get tosca.Parameters
+	params := tosca.Parameters{
+		Input:  []byte{},
+		Static: true,
+		Gas:    10,
+		Code:   []byte{byte(STOP), 0},
+	}
+	code := []Instruction{{STOP, 0}}
+
+	// redirect stdout
+	oldOut := os.Stdout
+	rOut, wOut, _ := os.Pipe()
+	os.Stdout = wOut
+
+	oldErr := os.Stderr
+	rErr, wErr, _ := os.Pipe()
+	os.Stderr = wErr
+
+	logger := newLogger(nil)
+	config := interpreterConfig{
+		runner: logger,
+	}
+	_, err := run(config, params, code)
+
+	_ = wOut.Close() // ignore error in test
+	outOut, _ := io.ReadAll(rOut)
+	os.Stdout = oldOut
+	_ = wErr.Close() // ignore error in test
+	outErr, _ := io.ReadAll(rErr)
+	os.Stderr = oldErr
+
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if strings.Compare(string(outOut), "") != 0 {
+		t.Errorf("unexpected stdout: want \"\", got \"%v\"", outOut)
+	}
+	if strings.Compare(string(outErr), "") != 0 {
+		t.Errorf("unexpected stderr: want \"\", got \"%v\"", outErr)
 	}
 }

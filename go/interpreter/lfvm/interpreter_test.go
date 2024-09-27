@@ -273,43 +273,6 @@ func TestInterpreter_ExecutionTerminates(t *testing.T) {
 	}
 }
 
-func TestInterpreter_Logging_PrintsToSTDOUT(t *testing.T) {
-	code := []Instruction{
-		{PUSH1, 1},
-		{STOP, 0},
-	}
-
-	params := tosca.Parameters{
-		Input:  []byte{},
-		Static: true,
-		Gas:    10,
-		Code:   []byte{0x0},
-	}
-
-	// redirect stdout
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Run testing code
-	_, err := run(interpreterConfig{
-		runner: loggingRunner{},
-	}, params, code)
-	// read the output
-	_ = w.Close() // ignore error in test
-	out, _ := io.ReadAll(r)
-	os.Stdout = old
-
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-
-	// check the output
-	if !strings.Contains(string(out), "STOP") {
-		t.Errorf("unexpected output: want STOP, got %v", string(out))
-	}
-}
-
 func TestInterpreter_Vanilla_RunsWithoutOutput(t *testing.T) {
 
 	code := []Instruction{
