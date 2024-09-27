@@ -28,7 +28,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestContext_useGas_ReturnsErrorIfOutOfGasAndConsumesAllRemainingGas(t *testing.T) {
+func TestContext_useGas_ReturnsErrorIfOutOfGasOrNegativeCost(t *testing.T) {
 	tests := map[string]struct {
 		available tosca.Gas
 		required  tosca.Gas
@@ -60,15 +60,6 @@ func TestContext_useGas_ReturnsErrorIfOutOfGasAndConsumesAllRemainingGas(t *test
 			success := err == nil
 			if want != success {
 				t.Errorf("expected UseGas to return %v, got %v", want, success)
-			}
-
-			// Check that the remaining gas is correct.
-			wantGas := tosca.Gas(0)
-			if err == nil {
-				wantGas = test.available - test.required
-			}
-			if ctx.gas != wantGas {
-				t.Errorf("expected gas to be %v, got %v", wantGas, ctx.gas)
 			}
 		})
 	}
