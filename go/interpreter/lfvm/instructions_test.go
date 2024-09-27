@@ -1420,7 +1420,7 @@ func TestGetData(t *testing.T) {
 	}
 }
 
-func TestCheckSizeOFfsetUintOverflow_ReturnsAsExpected(t *testing.T) {
+func TestCheckSizeOffsetUintOverflow_ReturnsAsExpected(t *testing.T) {
 
 	zero := uint256.NewInt(0)
 	one := uint256.NewInt(1)
@@ -1452,47 +1452,46 @@ func TestCheckSizeOFfsetUintOverflow_ReturnsAsExpected(t *testing.T) {
 
 func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
 
-	zero := uint256.NewInt(0)
 	one := uint256.NewInt(1)
 	u64overflow := new(uint256.Int).Add(uint256.NewInt(2), uint256.NewInt(math.MaxUint64))
 
 	tests := map[string]struct {
 		// stack order
-		// retSize, retOffset, inSize, inOffset, value, address, provided_gas
-		stack         []*uint256.Int
-		gas           tosca.Gas
-		expectedError error
+		retSize, retOffset, inSize, inOffset, value, address, provided_gas *uint256.Int
+		gas                                                                tosca.Gas
+		expectedError                                                      error
 	}{
 		"input offset overflow": {
 			// size needs to be one, otherwise offset is ignored.
-			stack:         []*uint256.Int{zero, zero, one, u64overflow, zero, zero, zero},
+			inSize:        one,
+			inOffset:      u64overflow,
 			expectedError: errOverflow,
 		},
 		"return Size overflow": {
-			stack:         []*uint256.Int{u64overflow, zero, zero, zero, zero, zero, zero},
+			retSize:       u64overflow,
 			expectedError: errOverflow,
 		},
 		"input memory too big": {
-			stack:         []*uint256.Int{zero, zero, uint256.NewInt(maxMemoryExpansionSize + 1), zero, zero, zero, zero},
+			inSize:        uint256.NewInt(maxMemoryExpansionSize + 1),
 			expectedError: errMaxMemoryExpansionSize,
 		},
 		"not enough gas for output memory expansion": {
-			stack:         []*uint256.Int{one, zero, zero, zero, zero, zero, zero},
+			retSize:       one,
 			gas:           1,
 			expectedError: errOutOfGas,
 		},
 		"not enough gas for access cost": {
-			stack:         []*uint256.Int{zero, zero, zero, zero, zero, zero, zero},
 			gas:           99,
 			expectedError: errOutOfGas,
 		},
 		"not enough gas for value transfer": {
-			stack:         []*uint256.Int{zero, zero, zero, zero, one, zero, zero},
+			value:         one,
 			gas:           9099, // 9000 for value transfer, 100 for warm access cost
 			expectedError: errOutOfGas,
 		},
 		"not enough gas for new account": {
-			stack:         []*uint256.Int{zero, zero, zero, zero, one, one, zero},
+			value:         one,
+			address:       one,
 			gas:           33099, // 25000 for new account, 9000 for value transfer, 100 for warm access cost
 			expectedError: errOutOfGas,
 		},
@@ -1509,9 +1508,40 @@ func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
 			ctxt.context = runContext
 			ctxt.params.Revision = tosca.R13_Cancun
 			ctxt.gas = test.gas
-
-			for _, val := range test.stack {
-				ctxt.stack.push(val)
+			// retSize, retOffset, inSize, inOffset, value, address, provided_gas
+			for i := 0; i < 7; i++ {
+				push := uint256.NewInt(0)
+				switch i {
+				case 0:
+					if test.retSize != nil {
+						push = test.retSize
+					}
+				case 1:
+					if test.retOffset != nil {
+						push = test.retOffset
+					}
+				case 2:
+					if test.inSize != nil {
+						push = test.inSize
+					}
+				case 3:
+					if test.inOffset != nil {
+						push = test.inOffset
+					}
+				case 4:
+					if test.value != nil {
+						push = test.value
+					}
+				case 5:
+					if test.address != nil {
+						push = test.address
+					}
+				case 6:
+					if test.provided_gas != nil {
+						push = test.provided_gas
+					}
+				}
+				ctxt.stack.push(push)
 			}
 
 			err := genericCall(&ctxt, tosca.Call)
