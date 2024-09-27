@@ -234,29 +234,42 @@ func TestInterpreter_CanDispatchExecutableInstructions(t *testing.T) {
 	}
 }
 
-func TestInterpreter_Run_ReturnsEmptyResultOnEmptyCode(t *testing.T) {
-	// Get tosca.Parameters
-	params := tosca.Parameters{
-		Input:  []byte{},
-		Static: true,
-		Gas:    10,
-	}
-	code := make([]Instruction, 0)
+func TestInterpreter_ExecutionTerminates(t *testing.T) {
 
-	// Run testing code
-	result, err := run(interpreterConfig{}, params, code)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+	tests := map[string]struct {
+		code []Instruction
+	}{
+		"empty code":          {code: []Instruction{}},
+		"single stop":         {code: []Instruction{{STOP, 0}}},
+		"pc bigger than code": {code: []Instruction{{PUSH1, 0}}},
+		"revert":              {code: []Instruction{{REVERT, 0}}},
+		"return":              {code: []Instruction{{RETURN, 0}}},
+		"selfdestruct":        {code: []Instruction{{SELFDESTRUCT, 0}}},
 	}
 
-	if result.Output != nil {
-		t.Errorf("unexpected output: want nil, got %v", result.Output)
-	}
-	if want, got := params.Gas, result.GasLeft; want != got {
-		t.Errorf("unexpected gas left: want %v, got %v", want, got)
-	}
-	if !result.Success {
-		t.Errorf("unexpected success: want true, got false")
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			c := getEmptyContext()
+			c.code = test.code
+			c.stack.push(uint256.NewInt(1))
+			c.stack.push(uint256.NewInt(2))
+			c.stack.push(uint256.NewInt(3))
+			// runcontext is needed for selfdestruct
+			mockContext := tosca.NewMockRunContext(gomock.NewController(t))
+			mockContext.EXPECT().AccountExists(gomock.Any()).Return(true).AnyTimes()
+			mockContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1}).AnyTimes()
+			mockContext.EXPECT().SelfDestruct(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
+			c.context = mockContext
+
+			status, err := steps(&c, false)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if status == statusRunning {
+				t.Errorf("failed to terminate execution, status is %v", status)
+			}
+		})
 	}
 }
 
