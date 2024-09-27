@@ -1105,7 +1105,7 @@ func TestSelfDestruct_ProperlyReportsNotEnoughGas(t *testing.T) {
 				ctrl := gomock.NewController(t)
 				runContext := tosca.NewMockRunContext(ctrl)
 				runContext.EXPECT().AccessAccount(beneficiaryAddress).Return(beneficiaryAccess)
-				runContext.EXPECT().AccountExists(beneficiaryAddress).Return(false)
+				runContext.EXPECT().AccountExists(beneficiaryAddress).Return(beneficiaryExists)
 				runContext.EXPECT().GetBalance(selfAddress).Return(tosca.Value{1})
 
 				ctxt := context{
