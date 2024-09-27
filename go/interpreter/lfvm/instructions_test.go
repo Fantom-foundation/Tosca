@@ -1292,7 +1292,7 @@ func TestInstructions_EIP2929_SSTOREReportsOutOfGas(t *testing.T) {
 	}
 }
 
-func TestInstructions_JumpInstructionsCheckJUMPDEST(t *testing.T) {
+func TestInstructions_JumpOpsCheckJUMPDEST(t *testing.T) {
 	tests := map[OpCode]struct {
 		implementation func(*context) error
 		stack          []uint64
@@ -1323,7 +1323,7 @@ func TestInstructions_JumpInstructionsCheckJUMPDEST(t *testing.T) {
 		},
 		ISZERO_PUSH2_JUMPI: {
 			implementation: opIsZero_Push2_Jumpi,
-			stack:          []uint64{1, 1, 0},
+			stack:          []uint64{0},
 		},
 	}
 
@@ -1344,6 +1344,41 @@ func TestInstructions_JumpInstructionsCheckJUMPDEST(t *testing.T) {
 
 			err := test.implementation(&ctxt)
 			if want, got := errInvalidJump, err; want != got {
+				t.Fatalf("unexpected error, wanted %v, got %v", want, got)
+			}
+		})
+	}
+}
+
+func TestInstructions_ConditionalJumpOpsIgnoreDestinationWhenJumpNotTaken(t *testing.T) {
+	tests := map[OpCode]struct {
+		implementation func(*context) error
+		stack          []uint64
+	}{
+		JUMPI: {
+			implementation: opJumpi,
+			stack:          []uint64{0, 1},
+		},
+		PUSH2_JUMPI: {
+			implementation: opPush2_Jumpi,
+			stack:          []uint64{0},
+		},
+		ISZERO_PUSH2_JUMPI: {
+			implementation: opIsZero_Push2_Jumpi,
+			stack:          []uint64{1},
+		},
+	}
+
+	for op, test := range tests {
+		t.Run(op.String(), func(t *testing.T) {
+			ctxt := getEmptyContext()
+			ctxt.code = Code{{op, 0}}
+			for _, v := range test.stack {
+				ctxt.stack.push(uint256.NewInt(v))
+			}
+
+			err := test.implementation(&ctxt)
+			if want, got := error(nil), err; want != got {
 				t.Fatalf("unexpected error, wanted %v, got %v", want, got)
 			}
 		})
