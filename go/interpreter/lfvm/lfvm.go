@@ -35,12 +35,7 @@ func NewInterpreter(Config) (*lfvm, error) {
 // Registers the long-form EVM as a possible interpreter implementation.
 func init() {
 	tosca.MustRegisterInterpreterFactory("lfvm", func(any) (tosca.Interpreter, error) {
-		return newVm(config{
-			ConversionConfig: ConversionConfig{
-				WithSuperInstructions: false,
-			},
-			WithShaCache: true,
-		})
+		return NewInterpreter(Config{})
 	})
 }
 
