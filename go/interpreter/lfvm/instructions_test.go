@@ -1508,41 +1508,21 @@ func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
 			ctxt.context = runContext
 			ctxt.params.Revision = tosca.R13_Cancun
 			ctxt.gas = test.gas
-			// retSize, retOffset, inSize, inOffset, value, address, provided_gas
-			for i := 0; i < 7; i++ {
-				push := uint256.NewInt(0)
-				switch i {
-				case 0:
-					if test.retSize != nil {
-						push = test.retSize
-					}
-				case 1:
-					if test.retOffset != nil {
-						push = test.retOffset
-					}
-				case 2:
-					if test.inSize != nil {
-						push = test.inSize
-					}
-				case 3:
-					if test.inOffset != nil {
-						push = test.inOffset
-					}
-				case 4:
-					if test.value != nil {
-						push = test.value
-					}
-				case 5:
-					if test.address != nil {
-						push = test.address
-					}
-				case 6:
-					if test.provided_gas != nil {
-						push = test.provided_gas
-					}
+
+			getValueOrZeroOf := func(i *uint256.Int) *uint256.Int {
+				if i == nil {
+					return uint256.NewInt(0)
 				}
-				ctxt.stack.push(push)
+				return i
 			}
+
+			ctxt.stack.push(getValueOrZeroOf(test.retSize))
+			ctxt.stack.push(getValueOrZeroOf(test.retOffset))
+			ctxt.stack.push(getValueOrZeroOf(test.inSize))
+			ctxt.stack.push(getValueOrZeroOf(test.inOffset))
+			ctxt.stack.push(getValueOrZeroOf(test.value))
+			ctxt.stack.push(getValueOrZeroOf(test.address))
+			ctxt.stack.push(getValueOrZeroOf(test.provided_gas))
 
 			err := genericCall(&ctxt, tosca.Call)
 
