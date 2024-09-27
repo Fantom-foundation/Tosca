@@ -1098,19 +1098,18 @@ func genericCall(c *context, kind tosca.CallKind) error {
 
 	// The Homestead hard-fork introduced a limit on the amount of gas that can be
 	// forwarded to recursive calls. EIP-150 (https://eips.ethereum.org/EIPS/eip-150)
-	// defines that at but one 64th of the available gas in one scope may be passed
+	// defines that at all but one 64th of the available gas in one scope may be passed
 	// to a nested call.
-	endowment := tosca.Gas(c.gas - c.gas/64)
-	if provided_gas.IsUint64() && (endowment >= tosca.Gas(provided_gas.Uint64())) {
-		endowment = tosca.Gas(provided_gas.Uint64())
+	nestedCallGas := tosca.Gas(c.gas - c.gas/64)
+	if provided_gas.IsUint64() && (nestedCallGas >= tosca.Gas(provided_gas.Uint64())) {
+		nestedCallGas = tosca.Gas(provided_gas.Uint64())
 	}
-	if err := c.useGas(endowment); err != nil {
-		// this usage can never fail because, since the endowment is at most
+	if err := c.useGas(nestedCallGas); err != nil {
+		// this usage can never fail because the endowment is at most
 		// 63/64 of the current gas level.
 		return err
 	}
 
-	nestedCallGas := endowment
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
 	if !value.IsZero() {
