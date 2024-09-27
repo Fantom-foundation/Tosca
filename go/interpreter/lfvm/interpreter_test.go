@@ -461,14 +461,7 @@ func TestSteps_DetectsNonExecutableCode(t *testing.T) {
 	for _, opCode := range nonExecutableOpCodes {
 		t.Run(opCode.String(), func(t *testing.T) {
 			ctxt := getEmptyContext()
-			ctxt.params = tosca.Parameters{
-				Input:  []byte{},
-				Static: false,
-				Code:   []byte{0x0},
-			}
 			ctxt.code = []Instruction{{opCode, 0}}
-			ctxt.stack.stackPointer = 50
-			ctxt.gas = 1 << 32
 
 			_, err := steps(&ctxt, false)
 			if want, got := errInvalidOpCode, err; want != got {
@@ -544,20 +537,14 @@ func TestSteps_FailsWithLessGasThanStaticCost(t *testing.T) {
 			forEachRevision(t, op, func(t *testing.T, revision tosca.Revision) {
 
 				expectedGas := getStaticGasPrices(revision).get(op)
-
-				ctxt := getEmptyContext()
-				ctxt.params = tosca.Parameters{
-					Input:  []byte{},
-					Static: false,
-					Code:   []byte{0x0},
-				}
-				ctxt.code = []Instruction{{op, 0}}
-				ctxt.stack.stackPointer = 50
-				ctxt.gas = expectedGas - 1
-
 				if expectedGas == 0 {
 					t.Skip("operation has static cost zero")
 				}
+
+				ctxt := getEmptyContext()
+				ctxt.code = []Instruction{{op, 0}}
+				ctxt.stack.stackPointer = 20
+				ctxt.gas = expectedGas - 1
 
 				_, err := steps(&ctxt, false)
 				if want, got := errOutOfGas, err; want != got {
@@ -783,6 +770,7 @@ func fib(x int) int {
 
 // forEachRevision runs a test for each revision starting from the revision
 // where the operation was introduced.
+// It creates a new testing scope to name the test after the revision.
 func forEachRevision(
 	t *testing.T, op OpCode,
 	f func(t *testing.T, revision tosca.Revision)) {
