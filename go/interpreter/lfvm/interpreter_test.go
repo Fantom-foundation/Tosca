@@ -678,10 +678,9 @@ func isExecutable(op OpCode) bool {
 
 func isJump(op OpCode) bool {
 	ops := append(op.decompose(), op)
-	idx := slices.IndexFunc(ops, func(op OpCode) bool {
+	return slices.ContainsFunc(ops, func(op OpCode) bool {
 		return op == JUMP || op == JUMPI
 	})
-	return idx != -1
 }
 
 func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {

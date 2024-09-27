@@ -1336,18 +1336,8 @@ func TestInstructions_JumpInstructionsCheckJUMPDEST(t *testing.T) {
 
 	for op, test := range tests {
 		t.Run(op.String(), func(t *testing.T) {
-
-			ctxt := context{
-				params: tosca.Parameters{
-					BlockParameters: tosca.BlockParameters{
-						Revision: tosca.R13_Cancun,
-					},
-				},
-				stack:  NewStack(),
-				memory: NewMemory(),
-				gas:    1 << 32,
-				code:   Code{{op, 0}},
-			}
+			ctxt := getEmptyContext()
+			ctxt.code = Code{{op, 0}}
 			for _, v := range test.stack {
 				ctxt.stack.push(uint256.NewInt(v))
 			}
