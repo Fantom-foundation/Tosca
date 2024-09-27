@@ -1199,39 +1199,19 @@ func TestInstructions_EIP2929_dynamicGasCostReportsOutOfGas(t *testing.T) {
 		return accessCost{warm: 100, cold: 2600}
 	})
 
-	tests := map[OpCode]struct {
-		implementation func(*context) error
-	}{
-		BALANCE: {
-			implementation: opBalance,
-		},
-		EXTCODECOPY: {
-			implementation: opExtCodeCopy,
-		},
-		EXTCODEHASH: {
-			implementation: opExtcodehash,
-		},
-		EXTCODESIZE: {
-			implementation: opExtcodesize,
-		},
-		CALL: {
-			implementation: opCall,
-		},
-		CALLCODE: {
-			implementation: opCallCode,
-		},
-		DELEGATECALL: {
-			implementation: opDelegateCall,
-		},
-		STATICCALL: {
-			implementation: opStaticCall,
-		},
-		SLOAD: {
-			implementation: opSload,
-		},
+	tests := map[OpCode]func(*context) error{
+		BALANCE:      opBalance,
+		EXTCODECOPY:  opExtCodeCopy,
+		EXTCODEHASH:  opExtcodehash,
+		EXTCODESIZE:  opExtcodesize,
+		CALL:         opCall,
+		CALLCODE:     opCallCode,
+		DELEGATECALL: opDelegateCall,
+		STATICCALL:   opStaticCall,
+		SLOAD:        opSload,
 	}
 
-	for op, test := range tests {
+	for op, implementation := range tests {
 		for revision := tosca.R09_Berlin; revision <= newestSupportedRevision; revision++ {
 			for _, access := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
 				t.Run(fmt.Sprintf("%v/%v/%v", op, revision, access), func(t *testing.T) {
@@ -1255,12 +1235,9 @@ func TestInstructions_EIP2929_dynamicGasCostReportsOutOfGas(t *testing.T) {
 					mockRunContext.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).Return(access).AnyTimes()
 					mockRunContext.EXPECT().AccessAccount(gomock.Any()).Return(access).AnyTimes()
 					ctxt.context = mockRunContext
+					ctxt.stack.stackPointer = 7
 
-					for i := 0; i < 7; i++ {
-						ctxt.stack.push(uint256.NewInt(0))
-					}
-
-					err := test.implementation(&ctxt)
+					err := implementation(&ctxt)
 					if err != errOutOfGas {
 						t.Errorf("unexpected error: %v", err)
 					}
