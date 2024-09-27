@@ -183,11 +183,10 @@ func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 	}
 }
 
-func TestInterpreter_CanDispatchInstructions(t *testing.T) {
+func TestInterpreter_CanDispatchExecutableInstructions(t *testing.T) {
 
 	for _, op := range allOpCodesWhere(isExecutable) {
 		t.Run(op.String(), func(t *testing.T) {
-
 			forEachRevision(t, op, func(t *testing.T, revision tosca.Revision) {
 
 				ctrl := gomock.NewController(t)
