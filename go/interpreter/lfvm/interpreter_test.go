@@ -555,6 +555,25 @@ func TestSteps_FailsWithLessGasThanStaticCost(t *testing.T) {
 	}
 }
 
+func TestInterpreter_InstructionsFailWhenExecutedInRevisionsEarlierThanIntroducedIn(t *testing.T) {
+	for _, op := range allOpCodes() {
+		minRev := _introducedIn.get(op)
+		for rev := tosca.R07_Istanbul; rev < minRev; rev++ {
+			t.Run(fmt.Sprintf("%v/%v", op, rev), func(t *testing.T) {
+				ctxt := getEmptyContext()
+				ctxt.code = []Instruction{{op, 0}}
+				ctxt.params.BlockParameters.Revision = rev
+				ctxt.stack.stackPointer = 20
+
+				_, err := steps(&ctxt, false)
+				if want, got := errInvalidRevision, err; want != got {
+					t.Errorf("unexpected error: want %v, got %v", want, got)
+				}
+			})
+		}
+	}
+}
+
 func BenchmarkFib10(b *testing.B) {
 	benchmarkFib(b, 10, false)
 }
@@ -767,6 +786,26 @@ func fib(x int) int {
 	return fib(x-1) + fib(x-2)
 }
 
+var _introducedIn = newOpCodePropertyMap(func(op OpCode) tosca.Revision {
+	switch op {
+	case BASEFEE:
+		return tosca.R10_London
+	case PUSH0:
+		return tosca.R12_Shanghai
+	case BLOBHASH:
+		return tosca.R13_Cancun
+	case BLOBBASEFEE:
+		return tosca.R13_Cancun
+	case TLOAD:
+		return tosca.R13_Cancun
+	case TSTORE:
+		return tosca.R13_Cancun
+	case MCOPY:
+		return tosca.R13_Cancun
+	}
+	return tosca.R07_Istanbul
+})
+
 // forEachRevision runs a test for each revision starting from the revision
 // where the operation was introduced.
 // It creates a new testing scope to name the test after the revision.
@@ -774,28 +813,8 @@ func forEachRevision(
 	t *testing.T, op OpCode,
 	f func(t *testing.T, revision tosca.Revision)) {
 
-	introducedIn := newOpCodePropertyMap(func(op OpCode) tosca.Revision {
-		switch op {
-		case BASEFEE:
-			return tosca.R10_London
-		case PUSH0:
-			return tosca.R12_Shanghai
-		case BLOBHASH:
-			return tosca.R13_Cancun
-		case BLOBBASEFEE:
-			return tosca.R13_Cancun
-		case TLOAD:
-			return tosca.R13_Cancun
-		case TSTORE:
-			return tosca.R13_Cancun
-		case MCOPY:
-			return tosca.R13_Cancun
-		}
-		return tosca.R07_Istanbul
-	})
-
 	for revision := tosca.R07_Istanbul; revision <= newestSupportedRevision; revision++ {
-		if revision < introducedIn.get(op) {
+		if revision < _introducedIn.get(op) {
 			continue
 		}
 		t.Run(revision.String(), func(t *testing.T) {
