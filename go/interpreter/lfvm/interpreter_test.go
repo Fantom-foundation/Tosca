@@ -444,34 +444,30 @@ func TestStepsProperlyHandlesJUMP_TO(t *testing.T) {
 	}
 }
 
-func TestStepsDetectsNonExecutableCode(t *testing.T) {
+func TestSteps_DetectsNonExecutableCode(t *testing.T) {
+
 	nonExecutableOpCodes := []OpCode{
 		INVALID,
 		NOOP,
 		DATA,
 	}
-
-	re := regexp.MustCompile(`^op\(0x[0-9a-fA-F]{2}\)`)
-	for op := OpCode(0); op < numOpCodes; op++ {
-		if re.MatchString(op.String()) {
-			nonExecutableOpCodes = append(nonExecutableOpCodes, op)
+	undefinedOpCodeRegex := regexp.MustCompile(`^op\(0x[0-9a-fA-F]+\)`)
+	isUndefined :=
+		func(op OpCode) bool {
+			return undefinedOpCodeRegex.MatchString(op.String())
 		}
-	}
+	nonExecutableOpCodes = append(nonExecutableOpCodes, allOpCodesWhere(isUndefined)...)
 
 	for _, opCode := range nonExecutableOpCodes {
-		ctxt := getEmptyContext()
-		ctxt.params = tosca.Parameters{
-			Input:  []byte{},
-			Static: false,
-			Gas:    10,
-			Code:   []byte{0x0},
-		}
-		ctxt.code = []Instruction{{opCode, 0}}
+		t.Run(opCode.String(), func(t *testing.T) {
+			ctxt := getEmptyContext()
+			ctxt.code = []Instruction{{opCode, 0}}
 
-		_, err := steps(&ctxt, false)
-		if want, got := errInvalidOpCode, err; want != got {
-			t.Errorf("unexpected return: want %v, got %v", want, got)
-		}
+			_, err := steps(&ctxt, false)
+			if want, got := errInvalidOpCode, err; want != got {
+				t.Errorf("unexpected error: want %v, got %v", want, got)
+			}
+		})
 	}
 }
 
@@ -534,33 +530,30 @@ func TestSteps_StaticContextViolation(t *testing.T) {
 	}
 }
 
-// FIXME: rewrite as static gas check (for all opcodes)
-func TestStepsFailsOnTooLittleGas(t *testing.T) {
-	ctxt := getEmptyContext()
-	instructions := []Instruction{
-		{PUSH1, 0},
-	}
+func TestSteps_FailsWithLessGasThanStaticCost(t *testing.T) {
 
-	ctxt.params = tosca.Parameters{
-		Input:  []byte{},
-		Static: false,
-		Gas:    2,
-		Code:   []byte{0x0},
-	}
-	ctxt.gas = 2
-	ctxt.code = instructions
+	for _, op := range allOpCodes() {
+		t.Run(op.String(), func(t *testing.T) {
+			forEachRevision(t, op, func(t *testing.T, revision tosca.Revision) {
 
-	_, err := steps(&ctxt, false)
-	if want, got := errNotEnoughStaticGas, err; want != got {
-		t.Errorf("unexpected error: want %v, got %v", want, got)
+				expectedGas := getStaticGasPrices(revision).get(op)
+				if expectedGas == 0 {
+					t.Skip("operation has static cost zero")
+				}
+
+				ctxt := getEmptyContext()
+				ctxt.code = []Instruction{{op, 0}}
+				ctxt.stack.stackPointer = 20
+				ctxt.gas = expectedGas - 1
+
+				_, err := steps(&ctxt, false)
+				if want, got := errOutOfGas, err; want != got {
+					t.Errorf("unexpected error: want %v, got %v", want, got)
+				}
+			})
+		})
 	}
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Benchmarks
-
-// To run the benchmark use
-//  go test ./core/vm/lfvm -bench=.*Fib.* --benchtime 10s
 
 func BenchmarkFib10(b *testing.B) {
 	benchmarkFib(b, 10, false)
@@ -691,42 +684,6 @@ func isJump(op OpCode) bool {
 	return idx != -1
 }
 
-// forEachRevision runs a test for each revision starting from the revision
-// where the operation was introduced.
-func forEachRevision(
-	t *testing.T, op OpCode,
-	f func(t *testing.T, revision tosca.Revision)) {
-
-	introducedIn := newOpCodePropertyMap(func(op OpCode) tosca.Revision {
-		switch op {
-		case BASEFEE:
-			return tosca.R10_London
-		case PUSH0:
-			return tosca.R12_Shanghai
-		case BLOBHASH:
-			return tosca.R13_Cancun
-		case BLOBBASEFEE:
-			return tosca.R13_Cancun
-		case TLOAD:
-			return tosca.R13_Cancun
-		case TSTORE:
-			return tosca.R13_Cancun
-		case MCOPY:
-			return tosca.R13_Cancun
-		}
-		return tosca.R07_Istanbul
-	})
-
-	for revision := tosca.R07_Istanbul; revision <= newestSupportedRevision; revision++ {
-		if revision < introducedIn.get(op) {
-			continue
-		}
-		t.Run(revision.String(), func(t *testing.T) {
-			f(t, revision)
-		})
-	}
-}
-
 func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 	example := getFibExample()
 
@@ -809,4 +766,41 @@ func fib(x int) int {
 		return 1
 	}
 	return fib(x-1) + fib(x-2)
+}
+
+// forEachRevision runs a test for each revision starting from the revision
+// where the operation was introduced.
+// It creates a new testing scope to name the test after the revision.
+func forEachRevision(
+	t *testing.T, op OpCode,
+	f func(t *testing.T, revision tosca.Revision)) {
+
+	introducedIn := newOpCodePropertyMap(func(op OpCode) tosca.Revision {
+		switch op {
+		case BASEFEE:
+			return tosca.R10_London
+		case PUSH0:
+			return tosca.R12_Shanghai
+		case BLOBHASH:
+			return tosca.R13_Cancun
+		case BLOBBASEFEE:
+			return tosca.R13_Cancun
+		case TLOAD:
+			return tosca.R13_Cancun
+		case TSTORE:
+			return tosca.R13_Cancun
+		case MCOPY:
+			return tosca.R13_Cancun
+		}
+		return tosca.R07_Istanbul
+	})
+
+	for revision := tosca.R07_Istanbul; revision <= newestSupportedRevision; revision++ {
+		if revision < introducedIn.get(op) {
+			continue
+		}
+		t.Run(revision.String(), func(t *testing.T) {
+			f(t, revision)
+		})
+	}
 }
