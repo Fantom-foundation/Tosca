@@ -1,11 +1,13 @@
-#![allow(clippy::undocumented_unsafe_blocks, unused_crate_dependencies)]
+#![allow(unused_crate_dependencies)]
 use driver::{
     get_tx_context_zeroed,
     host_interface::{self, null_ptr_host_interface},
     Instance, SteppableInstance, TX_CONTEXT_ZEROED, ZERO,
 };
-use evmc_vm::{Revision, StatusCode, StepStatusCode};
-use evmrs::{MockExecutionContextTrait, MockExecutionMessage, Opcode};
+use evmrs::{
+    evmc_vm::{Revision, StatusCode, StepStatusCode},
+    MockExecutionContextTrait, MockExecutionMessage, Opcode,
+};
 
 #[test]
 fn execute_can_be_called_with_mocked_context() {

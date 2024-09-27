@@ -1,13 +1,13 @@
-#![allow(unused_crate_dependencies)]
-
 use core::slice;
 
 use driver::{self, get_tx_context_zeroed, host_interface::null_ptr_host_interface, Instance};
-use evmc_vm::{
-    ffi::{evmc_host_interface, evmc_message},
-    Revision, StatusCode,
+use evmrs::{
+    evmc_vm::{
+        ffi::{evmc_host_interface, evmc_message},
+        Revision, StatusCode,
+    },
+    MockExecutionMessage, Opcode,
 };
-use evmrs::{MockExecutionMessage, Opcode};
 
 pub struct RunArgs {
     instance: Instance,

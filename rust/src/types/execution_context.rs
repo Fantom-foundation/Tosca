@@ -33,7 +33,11 @@ pub trait ExecutionContextTrait {
     fn selfdestruct(&mut self, address: &Address, beneficiary: &Address) -> bool;
 
     /// Call to another account.
+    #[cfg(not(feature = "custom-evmc"))]
     fn call(&mut self, message: &ExecutionMessage) -> ExecutionResult;
+    #[cfg(feature = "custom-evmc")]
+    #[allow(clippy::needless_lifetimes)] // this is a bug in clippy
+    fn call<'a>(&mut self, message: &ExecutionMessage<'a>) -> ExecutionResult;
 
     /// Get block hash of an account.
     fn get_block_hash(&self, num: i64) -> Uint256;
