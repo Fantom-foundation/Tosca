@@ -29,11 +29,20 @@ func TestLogger_ExecutesCodeAndLogs(t *testing.T) {
 		"empty": {},
 		"stop": {
 			code: []Instruction{{STOP, 0}},
-			want: "STOP, 10, -empty-\n",
+			want: "STOP, 3, -empty-\n",
 		},
 		"multiple codes": {
 			code: []Instruction{{PUSH4, 0}, {DATA, 1}, {STOP, 0}},
-			want: "PUSH4, 10, -empty-\nSTOP, 7, 1\n",
+			want: "PUSH4, 3, -empty-\nSTOP, 0, 1\n",
+		},
+		"out of gas": {
+			code: []Instruction{
+				{PUSH1, 0},
+				{PUSH1, 64},
+				{MSTORE8, 0},
+				{STOP, 0},
+			},
+			want: "PUSH1, 3, -empty-\nPUSH1, 0, 0\n",
 		},
 	}
 
@@ -44,7 +53,7 @@ func TestLogger_ExecutesCodeAndLogs(t *testing.T) {
 			params := tosca.Parameters{
 				Input:  []byte{},
 				Static: true,
-				Gas:    10,
+				Gas:    3,
 				Code:   []byte{byte(STOP), 0},
 			}
 			code := test.code
