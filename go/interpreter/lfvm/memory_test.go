@@ -459,6 +459,6 @@ func TestMemory_set_FailsIfOffsetLeadsToOverflow(t *testing.T) {
 
 func generateRandomBytes(size int) []byte {
 	data := make([]byte, size)
-	rand.Read(data)
+	_, _ = rand.Read(data)
 	return data
 }
