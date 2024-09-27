@@ -88,6 +88,7 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	}
 
 	// Update the resulting state.
+	var err error
 	state.Status, err = convertLfvmStatusToCtStatus(status)
 	if err != nil {
 		return nil, err
