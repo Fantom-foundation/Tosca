@@ -1173,3 +1173,121 @@ func TestOpEndWithResult_ReportOverflow(t *testing.T) {
 		t.Fatalf("should have produced overflow error, instead got: %v", err)
 	}
 }
+
+func TestInstructions_EIP2929_staticGasCostIsZero(t *testing.T) {
+	ops := []OpCode{BALANCE, EXTCODECOPY, EXTCODEHASH, EXTCODESIZE, CALL, CALLCODE, DELEGATECALL, STATICCALL}
+	for _, op := range ops {
+		if getBerlinGasPriceInternal(op) != 0 {
+			t.Errorf("expected zero gas cost for %v", op)
+		}
+	}
+}
+
+func TestInstructions_EIP2929_dynamicGasCostReportsOutOfGas(t *testing.T) {
+	type accessCost struct {
+		warm tosca.Gas
+		cold tosca.Gas
+	}
+
+	var eip2929AccessCost = newOpCodePropertyMap(func(op OpCode) accessCost {
+		switch op {
+		case SLOAD:
+			return accessCost{warm: 100, cold: 2100}
+		case SSTORE:
+			return accessCost{warm: 100, cold: 2100 + 100}
+		}
+		return accessCost{warm: 100, cold: 2600}
+	})
+
+	tests := map[OpCode]func(*context) error{
+		BALANCE:      opBalance,
+		EXTCODECOPY:  opExtCodeCopy,
+		EXTCODEHASH:  opExtcodehash,
+		EXTCODESIZE:  opExtcodesize,
+		CALL:         opCall,
+		CALLCODE:     opCallCode,
+		DELEGATECALL: opDelegateCall,
+		STATICCALL:   opStaticCall,
+		SLOAD:        opSload,
+	}
+
+	for op, implementation := range tests {
+		for revision := tosca.R09_Berlin; revision <= newestSupportedRevision; revision++ {
+			for _, access := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
+				t.Run(fmt.Sprintf("%v/%v/%v", op, revision, access), func(t *testing.T) {
+					ctxt := context{
+						params: tosca.Parameters{
+							BlockParameters: tosca.BlockParameters{
+								Revision: revision,
+							},
+						},
+						stack:  NewStack(),
+						memory: NewMemory(),
+					}
+
+					accessCosts := eip2929AccessCost.get(op)
+
+					ctxt.gas = accessCosts.warm - 1
+					if access == tosca.ColdAccess {
+						ctxt.gas = accessCosts.cold - 1
+					}
+					mockRunContext := tosca.NewMockRunContext(gomock.NewController(t))
+					mockRunContext.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).Return(access).AnyTimes()
+					mockRunContext.EXPECT().AccessAccount(gomock.Any()).Return(access).AnyTimes()
+					ctxt.context = mockRunContext
+					ctxt.stack.stackPointer = 7
+
+					err := implementation(&ctxt)
+					if err != errOutOfGas {
+						t.Errorf("unexpected error: %v", err)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestInstructions_EIP2929_SSTOREReportsOutOfGas(t *testing.T) {
+	// SSTORE needs to be tested on its own because it demands that at least 2300 gas are available.
+	// Hence we cannot take the same testing approach as for the other operations in EIP-2929.
+
+	testGasValues := []tosca.Gas{
+		2300, //< SSTORE demands at least 2300 gas to be available
+		2301, //< not enough to afford StorageAdded, StorageModified, or StorageDeleted.
+	}
+
+	// dynamic gas check can only fail for the following storage status values
+	failsForDynamicGas := []tosca.StorageStatus{tosca.StorageAdded, tosca.StorageModified, tosca.StorageDeleted}
+
+	for _, availableGas := range testGasValues {
+		for _, storageStatus := range failsForDynamicGas {
+			for revision := tosca.R09_Berlin; revision <= newestSupportedRevision; revision++ {
+				for _, access := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
+					t.Run(fmt.Sprintf("%v/%v/%v/%v", SSTORE, revision, access, storageStatus), func(t *testing.T) {
+
+						ctxt := context{
+							params: tosca.Parameters{
+								BlockParameters: tosca.BlockParameters{
+									Revision: revision,
+								},
+							},
+							stack: NewStack(),
+						}
+						ctxt.gas = availableGas
+						mockRunContext := tosca.NewMockRunContext(gomock.NewController(t))
+						mockRunContext.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).Return(access).AnyTimes()
+						mockRunContext.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).Return(storageStatus).AnyTimes()
+						ctxt.context = mockRunContext
+						ctxt.stack.push(uint256.NewInt(1))
+						ctxt.stack.push(uint256.NewInt(1))
+
+						err := opSstore(&ctxt)
+						if err != errOutOfGas {
+							t.Errorf("unexpected error: %v", err)
+						}
+					})
+				}
+			}
+		}
+	}
+}

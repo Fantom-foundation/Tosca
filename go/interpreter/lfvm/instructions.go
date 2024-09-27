@@ -652,8 +652,10 @@ func opGasPrice(c *context) {
 func opBalance(c *context) error {
 	slot := c.stack.peek()
 	address := tosca.Address(slot.Bytes20())
-	if err := gasEip2929AccountCheck(c, address); err != nil {
-		return err
+	if c.isAtLeast(tosca.R09_Berlin) {
+		if err := c.useGas(getAccessCost(c.context.AccessAccount(address))); err != nil {
+			return err
+		}
 	}
 	balance := c.context.GetBalance(address)
 	slot.SetBytes32(balance[:])
@@ -817,19 +819,23 @@ func opCodeCopy(c *context) error {
 
 func opExtcodesize(c *context) error {
 	top := c.stack.peek()
-	addr := tosca.Address(top.Bytes20())
-	if err := gasEip2929AccountCheck(c, addr); err != nil {
-		return err
+	address := tosca.Address(top.Bytes20())
+	if c.isAtLeast(tosca.R09_Berlin) {
+		if err := c.useGas(getAccessCost(c.context.AccessAccount(address))); err != nil {
+			return err
+		}
 	}
-	top.SetUint64(uint64(c.context.GetCodeSize(addr)))
+	top.SetUint64(uint64(c.context.GetCodeSize(address)))
 	return nil
 }
 
 func opExtcodehash(c *context) error {
 	slot := c.stack.peek()
 	address := tosca.Address(slot.Bytes20())
-	if err := gasEip2929AccountCheck(c, address); err != nil {
-		return err
+	if c.isAtLeast(tosca.R09_Berlin) {
+		if err := c.useGas(getAccessCost(c.context.AccessAccount(address))); err != nil {
+			return err
+		}
 	}
 	if !c.context.AccountExists(address) {
 		slot.Clear()
@@ -986,9 +992,11 @@ func opExtCodeCopy(c *context) error {
 		return err
 	}
 
-	addr := tosca.Address(a.Bytes20())
-	if err := gasEip2929AccountCheck(c, addr); err != nil {
-		return err
+	address := tosca.Address(a.Bytes20())
+	if c.isAtLeast(tosca.R09_Berlin) {
+		if err := c.useGas(getAccessCost(c.context.AccessAccount(address))); err != nil {
+			return err
+		}
 	}
 	var uint64CodeOffset uint64
 	if codeOffset.IsUint64() {
@@ -1000,7 +1008,7 @@ func opExtCodeCopy(c *context) error {
 	if err := c.memory.expandMemory(memOffset.Uint64(), length.Uint64(), c); err != nil {
 		return err
 	}
-	codeCopy := getData(c.context.GetCode(addr), uint64CodeOffset, length.Uint64())
+	codeCopy := getData(c.context.GetCode(address), uint64CodeOffset, length.Uint64())
 	return c.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
 }
 

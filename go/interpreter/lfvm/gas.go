@@ -44,13 +44,13 @@ func getBerlinGasPriceInternal(op OpCode) tosca.Gas {
 	case SLOAD:
 		gp = 0
 	case EXTCODECOPY:
-		gp = 100
+		gp = 0
 	case EXTCODESIZE:
-		gp = 100
+		gp = 0
 	case EXTCODEHASH:
-		gp = 100
+		gp = 0
 	case BALANCE:
-		gp = 100
+		gp = 0
 	case CALL:
 		gp = 0
 	case CALLCODE:
@@ -310,14 +310,4 @@ func getRefundForSstore(
 	default:
 		return 0
 	}
-}
-
-func gasEip2929AccountCheck(c *context, address tosca.Address) error {
-	if c.isAtLeast(tosca.R09_Berlin) {
-		// Charge extra for cold locations.
-		if c.context.AccessAccount(address) == tosca.ColdAccess {
-			return c.useGas(ColdAccountAccessCostEIP2929 - WarmStorageReadCostEIP2929)
-		}
-	}
-	return nil
 }
