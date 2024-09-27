@@ -285,6 +285,8 @@ const (
 )
 
 var toString = map[OpCode]string{
+	DATA:    "DATA",
+	NOOP:    "NOOP",
 	JUMP_TO: "JUMP_TO",
 
 	SWAP2_SWAP1_POP_JUMP:  "SWAP2_SWAP1_POP_JUMP",
@@ -309,9 +311,6 @@ var toString = map[OpCode]string{
 	PUSH1_PUSH4_DUP3:          "PUSH1_PUSH4_DUP3",
 	AND_SWAP1_POP_SWAP2_SWAP1: "AND_SWAP1_POP_SWAP2_SWAP1",
 	PUSH1_PUSH1_PUSH1_SHL_SUB: "PUSH1_PUSH1_PUSH1_SHL_SUB",
-
-	DATA: "DATA",
-	NOOP: "NOOP",
 }
 
 // String returns the string representation of the OpCode.

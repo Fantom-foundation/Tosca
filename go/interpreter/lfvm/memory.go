@@ -73,7 +73,7 @@ func (m *Memory) getExpansionCosts(size uint64) (tosca.Gas, error) {
 // expandMemory tries to expand memory to the given size.
 // If the memory is already large enough or size is 0, it does nothing.
 // If there is not enough gas in the context or an overflow occurs when adding offset and
-// size, it returns an error. Caller should check the error and handle it.
+// size, it returns an error.
 func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 	if size == 0 {
 		return nil
@@ -229,7 +229,7 @@ func (m *Memory) getSlice(offset, size uint64, c *context) ([]byte, error) {
 // readWord reads a Word (32 byte) from the memory at the given offset and stores
 // that word in the provided target.
 // Expands memory as needed and charges for it.
-// Returns error in case of not enough gas or offset+32 overflow.
+// Returns an error in case of not enough gas or offset+32 overflow.
 func (m *Memory) readWord(offset uint64, target *uint256.Int, c *context) error {
 	data, err := m.getSlice(offset, 32, c)
 	if err != nil {
