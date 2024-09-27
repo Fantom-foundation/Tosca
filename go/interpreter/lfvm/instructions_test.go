@@ -1201,43 +1201,33 @@ func TestInstructions_EIP2929_dynamicGasCostReportsOutOfGas(t *testing.T) {
 
 	tests := map[OpCode]struct {
 		implementation func(*context) error
-		stack          []uint64
 	}{
 		BALANCE: {
 			implementation: opBalance,
-			stack:          []uint64{1},
 		},
 		EXTCODECOPY: {
 			implementation: opExtCodeCopy,
-			stack:          []uint64{0, 0, 0, 1},
 		},
 		EXTCODEHASH: {
 			implementation: opExtcodehash,
-			stack:          []uint64{1},
 		},
 		EXTCODESIZE: {
 			implementation: opExtcodesize,
-			stack:          []uint64{1},
 		},
 		CALL: {
 			implementation: opCall,
-			stack:          []uint64{0, 0, 0, 0, 0, 0, 1, 0},
 		},
 		CALLCODE: {
 			implementation: opCallCode,
-			stack:          []uint64{0, 0, 0, 0, 0, 0, 1, 0},
 		},
 		DELEGATECALL: {
 			implementation: opDelegateCall,
-			stack:          []uint64{0, 0, 0, 0, 0, 1, 0},
 		},
 		STATICCALL: {
 			implementation: opStaticCall,
-			stack:          []uint64{0, 0, 0, 0, 0, 1, 0},
 		},
 		SLOAD: {
 			implementation: opSload,
-			stack:          []uint64{0},
 		},
 	}
 
@@ -1253,7 +1243,6 @@ func TestInstructions_EIP2929_dynamicGasCostReportsOutOfGas(t *testing.T) {
 						},
 						stack:  NewStack(),
 						memory: NewMemory(),
-						code:   Code{{op, 0}},
 					}
 
 					accessCosts := eip2929AccessCost.get(op)
@@ -1263,14 +1252,12 @@ func TestInstructions_EIP2929_dynamicGasCostReportsOutOfGas(t *testing.T) {
 						ctxt.gas = accessCosts.cold - 1
 					}
 					mockRunContext := tosca.NewMockRunContext(gomock.NewController(t))
-					if op == SLOAD {
-						mockRunContext.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).Return(access).AnyTimes()
-					} else {
-						mockRunContext.EXPECT().AccessAccount(gomock.Any()).Return(access)
-					}
+					mockRunContext.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).Return(access).AnyTimes()
+					mockRunContext.EXPECT().AccessAccount(gomock.Any()).Return(access).AnyTimes()
 					ctxt.context = mockRunContext
-					for _, v := range test.stack {
-						ctxt.stack.push(uint256.NewInt(v))
+
+					for i := 0; i < 7; i++ {
+						ctxt.stack.push(uint256.NewInt(0))
 					}
 
 					err := test.implementation(&ctxt)
@@ -1307,9 +1294,7 @@ func TestInstructions_EIP2929_SSTOREReportsOutOfGas(t *testing.T) {
 									Revision: revision,
 								},
 							},
-							stack:  NewStack(),
-							memory: NewMemory(),
-							code:   Code{{SSTORE, 0}},
+							stack: NewStack(),
 						}
 						ctxt.gas = availableGas
 						mockRunContext := tosca.NewMockRunContext(gomock.NewController(t))
