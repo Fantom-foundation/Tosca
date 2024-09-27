@@ -96,11 +96,6 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		return nil, err
 	}
 
-	result, err := getOutput(status, ctxt)
-	if err != nil {
-		executionErr = err
-	}
-
 	if executionErr == nil {
 		state.Pc = pcMap.lfvmToEvm[ctxt.pc]
 	}
@@ -114,7 +109,9 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	state.Stack = convertLfvmStackToCtStack(ctxt.stack, state.Stack)
 	state.Memory = convertLfvmMemoryToCtMemory(ctxt.memory)
 	state.LastCallReturnData = common.NewBytes(ctxt.returnData)
-	state.ReturnData = common.NewBytes(result)
+	if status == statusReturned || status == statusReverted {
+		state.ReturnData = common.NewBytes(ctxt.returnData)
+	}
 
 	return state, nil
 }

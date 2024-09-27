@@ -1146,3 +1146,30 @@ func TestGenericCreate_MaxInitCodeSizeIsNotCheckedBeforeShanghai(t *testing.T) {
 		})
 	}
 }
+
+func TestOpEndWithResult_ReturnsExpectedState(t *testing.T) {
+	c := getEmptyContext()
+	c.stack.push(uint256.NewInt(1))
+	c.stack.push(uint256.NewInt(1))
+	c.memory.store = []byte{0x1, 0xff, 0x2}
+
+	err := opEndWithResult(&c)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !bytes.Equal(c.returnData, []byte{0xff}) {
+		t.Errorf("unexpected return data, wanted %v, got %v", []byte{0x1}, c.returnData)
+	}
+}
+
+func TestOpEndWithResult_ReportOverflow(t *testing.T) {
+	overflow64 := new(uint256.Int).Add(uint256.NewInt(math.MaxUint64), uint256.NewInt(math.MaxUint64))
+	c := getEmptyContext()
+	c.stack.push(overflow64)
+	c.stack.push(overflow64)
+	c.memory.store = []byte{0x1, 0xff, 0x2}
+	err := opEndWithResult(&c)
+	if err != errOverflow {
+		t.Fatalf("should have produced overflow error, instead got: %v", err)
+	}
+}

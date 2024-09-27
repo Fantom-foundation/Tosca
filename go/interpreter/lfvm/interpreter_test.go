@@ -11,12 +11,11 @@
 package lfvm
 
 import (
+	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"os"
 	"reflect"
 	"regexp"
@@ -405,24 +404,13 @@ func TestInterpreter_Vanilla_RunsWithoutOutput(t *testing.T) {
 	}
 }
 
-func TestRunGenerateResult(t *testing.T) {
+func TestRun_GenerateResult(t *testing.T) {
 
 	baseOutput := []byte{0x1, 0x2, 0x3}
 	baseGas := tosca.Gas(2)
 	baseRefund := tosca.Gas(3)
 
-	getCtxt := func() context {
-		ctxt := getEmptyContext()
-		ctxt.gas = baseGas
-		ctxt.refund = baseRefund
-		ctxt.memory = NewMemory()
-		ctxt.memory.store = baseOutput
-		ctxt.resultSize = uint256.Int{uint64(len(baseOutput))}
-		return ctxt
-	}
-
 	tests := map[string]struct {
-		setup          func(ctx *context)
 		status         status
 		expectedErr    error
 		expectedResult tosca.Result
@@ -468,23 +456,15 @@ func TestRunGenerateResult(t *testing.T) {
 			expectedErr:    fmt.Errorf("unexpected error in interpreter, unknown status: %v", statusSelfDestructed+1),
 			expectedResult: tosca.Result{},
 		},
-		"getOutput fail": {
-			setup: func(ctx *context) {
-				ctx.resultSize = uint256.Int{1, 1}
-			},
-			expectedResult: tosca.Result{
-				Success: false,
-			},
-		},
 	}
 
 	for name, test := range tests {
 		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
 
-			ctxt := getCtxt()
-			if test.setup != nil {
-				test.setup(&ctxt)
-			}
+			ctxt := context{}
+			ctxt.refund = baseRefund
+			ctxt.gas = baseGas
+			ctxt.returnData = bytes.Clone(baseOutput)
 
 			res, err := generateResult(test.status, &ctxt)
 
@@ -493,45 +473,6 @@ func TestRunGenerateResult(t *testing.T) {
 			}
 			if !reflect.DeepEqual(res, test.expectedResult) {
 				t.Errorf("unexpected result: want %v, got %v", test.expectedResult, res)
-			}
-		})
-	}
-}
-
-func TestGetOutputReturnsExpectedErrors(t *testing.T) {
-
-	tests := map[string]struct {
-		setup       func(*context)
-		expectedErr error
-	}{
-		"size overflow": {
-			setup:       func(ctx *context) { ctx.resultSize = uint256.Int{1, 1} },
-			expectedErr: errOverflow,
-		},
-		"offset overflow": {
-			setup: func(ctx *context) {
-				ctx.resultSize = uint256.Int{1}
-				ctx.resultOffset = uint256.Int{1, 1}
-			},
-			expectedErr: errOverflow,
-		},
-		"memory overflow": {
-			setup: func(ctx *context) {
-				ctx.resultSize = uint256.Int{math.MaxUint64 - 1}
-				ctx.resultOffset = uint256.Int{2}
-			},
-			expectedErr: errOverflow,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(fmt.Sprintf("%v", name), func(t *testing.T) {
-			ctxt := getEmptyContext()
-			test.setup(&ctxt)
-
-			_, err := getOutput(statusReturned, &ctxt)
-			if !errors.Is(err, test.expectedErr) {
-				t.Errorf("unexpected error: want error, got nil")
 			}
 		})
 	}
@@ -753,17 +694,7 @@ func benchmarkFib(b *testing.B, arg int, with_super_instructions bool) {
 			b.Fatalf("execution failed: status is %v", status)
 		}
 
-		size := ctxt.resultSize
-		if size.Uint64() != 32 {
-			b.Fatalf("unexpected length of end; wanted 32, got %d", size.Uint64())
-		}
-		res := make([]byte, size.Uint64())
-		offset := ctxt.resultOffset
-
-		data, err := ctxt.memory.getSlice(offset.Uint64(), size.Uint64(), &ctxt)
-		if err != nil {
-			b.Fatalf("unexpected error: %v", err)
-		}
+		res := ctxt.returnData
 		copy(res, data)
 
 		got := (int(res[28]) << 24) | (int(res[29]) << 16) | (int(res[30]) << 8) | (int(res[31]) << 0)
