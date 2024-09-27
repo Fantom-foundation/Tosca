@@ -2,7 +2,7 @@
 
 use core::slice;
 
-use driver::{self, get_tx_context_zeroed, host_interface::null_ptr_host_interface};
+use driver::{self, get_tx_context_zeroed, host_interface::null_ptr_host_interface, Instance};
 use evmc_vm::{
     ffi::{evmc_host_interface, evmc_message},
     Revision, StatusCode,
@@ -10,10 +10,11 @@ use evmc_vm::{
 use evmrs::{MockExecutionMessage, Opcode};
 
 pub struct RunArgs {
-    pub host: evmc_host_interface,
-    pub revision: Revision,
-    pub message: evmc_message,
-    pub code: &'static [u8],
+    instance: Instance,
+    host: evmc_host_interface,
+    revision: Revision,
+    message: evmc_message,
+    code: &'static [u8],
 }
 
 impl RunArgs {
@@ -27,6 +28,7 @@ impl RunArgs {
     /// - `code` contains `Opcode::MStore` so that `memory` is non-empty
     /// - `code` returns a single word so that `output` is non-empty
     pub fn ffi_overhead() -> Self {
+        let instance = Instance::default();
         let mut host = null_ptr_host_interface();
         host.get_tx_context = Some(get_tx_context_zeroed);
         let message = MockExecutionMessage {
@@ -35,6 +37,7 @@ impl RunArgs {
         };
 
         Self {
+            instance,
             host,
             revision: Revision::EVMC_CANCUN,
             message: message.to_evmc_message(),
@@ -54,12 +57,14 @@ impl RunArgs {
     }
 }
 
-pub fn run(args: &RunArgs) {
+pub fn run(args: &mut RunArgs) {
     // SAFETY:
     // `host` and `message` are valid pointers since they are created from references. `context`
     // is a null pointer but this is allowed by the evmc interface as long as the host
     // interface does not require a valid pointer, which is not the case here.
-    let result = driver::run_with_null_context(&args.host, args.revision, &args.message, args.code);
+    let result =
+        args.instance
+            .run_with_null_context(&args.host, args.revision, &args.message, args.code);
     assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
     let output = unsafe { slice::from_raw_parts(result.output_data, result.output_size) };
     assert_eq!(output[..31], [0; 31]);
