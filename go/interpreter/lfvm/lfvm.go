@@ -12,6 +12,7 @@ package lfvm
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
@@ -60,7 +61,9 @@ func RegisterExperimentalInterpreterConfigurations() error {
 						stats: newStatistics(),
 					}
 				} else if mode == "-logging" {
-					config.runner = loggingRunner{}
+					config.runner = loggingRunner{
+						log: os.Stdout,
+					}
 				}
 
 				name := "lfvm" + si + shaCache + mode

@@ -13,24 +13,22 @@ package lfvm
 import (
 	"fmt"
 	"io"
-	"os"
 )
 
 // loggingRunner is a runner that logs the execution of the contract code to
-// stdout. It is used for debugging purposes.
+// an io.Writer. If no writter is provided with NewLoggingRunner, the log will
+// be written to os.Stderr.
 type loggingRunner struct {
 	log io.Writer
 }
 
-// NewLoggingRunner creates a new logging runner.
-func NewLoggingRunner(writer io.Writer) loggingRunner {
+// newLogger creates a new logging runner that writes to the provided
+// io.Writer.
+func newLogger(writer io.Writer) loggingRunner {
 	return loggingRunner{log: writer}
 }
 
 func (l loggingRunner) run(c *context) (status, error) {
-	if l.log == nil {
-		l.log = os.Stderr
-	}
 	status := statusRunning
 	var err error
 	for status == statusRunning {
@@ -40,7 +38,12 @@ func (l loggingRunner) run(c *context) (status, error) {
 			if c.stack.len() > 0 {
 				top = c.stack.peek().ToBig().String()
 			}
-			l.log.Write([]byte(fmt.Sprintf("%v, %d, %v\n", c.code[c.pc].opcode, c.gas, top)))
+			if l.log != nil {
+				_, err = l.log.Write([]byte(fmt.Sprintf("%v, %d, %v\n", c.code[c.pc].opcode, c.gas, top)))
+				if err != nil {
+					return status, err
+				}
+			}
 		}
 		status, err = step(c)
 		if err != nil {
