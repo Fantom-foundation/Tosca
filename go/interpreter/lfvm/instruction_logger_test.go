@@ -20,7 +20,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
-func TestLogger_ExecutesCodeAndLogs(t *testing.T) {
+func TestInterpreter_Logger_ExecutesCodeAndLogs(t *testing.T) {
 
 	tests := map[string]struct {
 		code []Instruction
@@ -74,7 +74,7 @@ func TestLogger_ExecutesCodeAndLogs(t *testing.T) {
 	}
 }
 
-func TestLogger_IfNoWritterIsProvidedStdErrAndStdOutAreNotUsed(t *testing.T) {
+func TestInterpreter_Logger_RunsWithoutOutput(t *testing.T) {
 
 	// Get tosca.Parameters
 	params := tosca.Parameters{
@@ -89,32 +89,39 @@ func TestLogger_IfNoWritterIsProvidedStdErrAndStdOutAreNotUsed(t *testing.T) {
 	oldOut := os.Stdout
 	rOut, wOut, _ := os.Pipe()
 	os.Stdout = wOut
+	defer func() { os.Stdout = oldOut }()
 
 	oldErr := os.Stderr
 	rErr, wErr, _ := os.Pipe()
 	os.Stderr = wErr
+	defer func() { os.Stderr = oldErr }()
 
 	logger := newLogger(nil)
 	config := interpreterConfig{
 		runner: logger,
 	}
+
 	_, err := run(config, params, code)
-
-	_ = wOut.Close() // ignore error in test
-	outOut, _ := io.ReadAll(rOut)
-	os.Stdout = oldOut
-	_ = wErr.Close() // ignore error in test
-	outErr, _ := io.ReadAll(rErr)
-	os.Stderr = oldErr
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	if strings.Compare(string(outOut), "") != 0 {
+	err = wOut.Close()
+	outOut, _ := io.ReadAll(rOut)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	err = wErr.Close()
+	outErr, _ := io.ReadAll(rErr)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if len(outOut) != 0 {
 		t.Errorf("unexpected stdout: want \"\", got \"%v\"", outOut)
 	}
-	if strings.Compare(string(outErr), "") != 0 {
+	if len(outErr) != 0 {
 		t.Errorf("unexpected stderr: want \"\", got \"%v\"", outErr)
 	}
 }
