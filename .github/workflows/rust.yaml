@@ -46,9 +46,11 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
       with:
         components: clippy
+    - name: install cargo-hack
+      run: cargo install cargo-hack
     - name: cargo clippy
       working-directory: rust
-      run: cargo clippy --all-features --examples --tests -- --deny warnings
+      run: cargo hack --workspace --feature-powerset clippy --examples --tests -- --deny warnings
     
   doc:
     name: doc
@@ -61,11 +63,13 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     - name: load cache
       uses: Swatinem/rust-cache@v2
+    - name: install cargo-hack
+      run: cargo install cargo-hack
     - name: cargo doc
       env:
         RUSTDOCFLAGS: "-D warnings" 
       working-directory: rust
-      run: cargo doc --no-deps --all-features
+      run: cargo hack --workspace --feature-powerset doc --no-deps
 
   build:
     name: build
@@ -78,9 +82,11 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     - name: load cache
       uses: Swatinem/rust-cache@v2
+    - name: install cargo-hack
+      run: cargo install cargo-hack
     - name: cargo build
       working-directory: rust
-      run: cargo build
+      run: cargo hack --workspace --feature-powerset build
 
   test:
     name: test
@@ -93,9 +99,11 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     - name: load cache
       uses: Swatinem/rust-cache@v2
+    - name: install cargo-hack
+      run: cargo install cargo-hack
     - name: cargo test
       working-directory: rust
-      run: cargo test --all-features
+      run: cargo hack --workspace --feature-powerset test
 
   deps:
     name: unused deps
