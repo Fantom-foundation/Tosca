@@ -35,6 +35,16 @@ pipeline {
             }
         }
 
+        stage('check environment') {
+            steps {
+                sh 'echo $PATH'
+                sh 'echo $GOPATH'
+                sh 'echo $GOCACHE'
+                sh 'echo $GOTMPDIR'
+                sh 'go version'
+                sh 'whereis gofmt'
+            }
+        }
         stage('Checkout code') {
             steps {
                 sh 'git submodule update --init --recursive'

@@ -12,9 +12,9 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update ;\
-  wget https://go.dev/dl/go1.21.0.linux-amd64.tar.gz ;\
-  tar xf go1.21.0.linux-amd64.tar.gz ;\
-  mv go /usr/local ;\
+  wget https://go.dev/dl/go1.21.0.linux-amd64.tar.gz;\
+  tar xf go1.21.0.linux-amd64.tar.gz;\
+  mv go /usr/local;\
   rm -r go1.21.0.linux-amd64.tar.gz 
 
 # Because of user id forwarding, the home directory may not exist in the container
@@ -23,5 +23,5 @@ RUN mkdir -p /tmp/cache && chmod 777 /tmp/cache && \
   mkdir -p /tmp/gopath && chmod 777 /tmp/gopath
 ENV GOCACHE=/tmp/cache
 ENV GOPATH=/tmp/gopath
-ENV GOROOT=/usr/local/go 
-ENV PATH="$PATH:$GOPATH/bin"
+ENV GOROOT=/usr/local/go
+ENV PATH="$PATH:$GOROOT/bin"
