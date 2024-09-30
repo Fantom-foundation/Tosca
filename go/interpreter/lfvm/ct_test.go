@@ -81,7 +81,7 @@ func TestConvertToLfvm_StatusCode(t *testing.T) {
 }
 
 func TestConvertToLfvm_StatusCodeFailsOnUnknownStatus(t *testing.T) {
-	_, err := convertLfvmStatusToCtStatus(statusSelfDestructed + 1)
+	_, err := convertLfvmStatusToCtStatus(statusFailed + 1)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}

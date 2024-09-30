@@ -25,6 +25,7 @@ const (
 	statusReverted                     // < execution stopped with a REVERT
 	statusReturned                     // < execution stopped with a RETURN
 	statusSelfDestructed               // < execution stopped with a SELF-DESTRUCT
+	statusFailed                       // < execution stopped with a logic error
 )
 
 // context is the execution environment of an interpreter run. It contains all
@@ -154,7 +155,7 @@ func generateResult(status status, ctxt *context) (tosca.Result, error) {
 type vanillaRunner struct{}
 
 func (r vanillaRunner) run(c *context) (status, error) {
-	return steps(c, false)
+	return execute(c, false), nil
 }
 
 // loggingRunner is a runner that logs the execution of the contract code to
@@ -163,7 +164,6 @@ type loggingRunner struct{}
 
 func (r loggingRunner) run(c *context) (status, error) {
 	status := statusRunning
-	var err error
 	for status == statusRunning {
 		// log format: <op>, <gas>, <top-of-stack>\n
 		if int(c.pc) < len(c.code) {
@@ -173,24 +173,26 @@ func (r loggingRunner) run(c *context) (status, error) {
 			}
 			fmt.Printf("%v, %d, %v\n", c.code[c.pc].opcode, c.gas, top)
 		}
-		status, err = step(c)
-		if err != nil {
-			return status, err
-		}
+		status = execute(c, true)
 	}
 	return status, nil
 }
 
 // --- Execution ---
 
-func step(c *context) (status, error) {
-	return steps(c, true)
+func execute(c *context, oneStepOnly bool) status {
+	status, error := steps(c, oneStepOnly)
+	if error != nil {
+		return statusFailed
+	}
+	return status
 }
 
 func steps(c *context, oneStepOnly bool) (status, error) {
 	staticGasPrices := getStaticGasPrices(c.params.Revision)
 
 	status := statusRunning
+	var err error
 	for status == statusRunning {
 		if int(c.pc) >= len(c.code) {
 			return statusStopped, nil
@@ -199,16 +201,14 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 		op := c.code[c.pc].opcode
 
 		// Check stack boundary for every instruction
-		if err := checkStackLimits(c.stack.len(), op); err != nil {
+		if err = checkStackLimits(c.stack.len(), op); err != nil {
 			return status, err
 		}
 
 		// Consume static gas price for instruction before execution
-		if err := c.useGas(staticGasPrices.get(op)); err != nil {
+		if err = c.useGas(staticGasPrices.get(op)); err != nil {
 			return status, err
 		}
-
-		var err error
 
 		// Execute instruction
 		switch op {
