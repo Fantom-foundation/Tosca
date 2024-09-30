@@ -21,12 +21,6 @@ pipeline {
         timeout(time: 2, unit: 'HOURS')
     }
 
-    environment {
-        CC = 'gcc'
-        CXX = 'g++'
-        PATH = "${env.HOME}/.cargo/bin:${env.PATH}"
-    }
-
     stages {
         stage('Validate commit') {
             steps {
