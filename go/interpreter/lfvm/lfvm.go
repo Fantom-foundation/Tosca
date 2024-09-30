@@ -34,40 +34,9 @@ func NewInterpreter(Config) (*lfvm, error) {
 
 // Registers the long-form EVM as a possible interpreter implementation.
 func init() {
-
-	configs := map[string]config{
-		// This is the officially supported LFVM interpreter configuration to be
-		// used for production purposes.
-		"lfvm": {
-			ConversionConfig: ConversionConfig{
-				WithSuperInstructions: false,
-			},
-			WithShaCache: true,
-		},
-
-		// This is an unofficial LFVM interpreter configuration that uses super
-		// instructions. It is currently exported by default since Aida's nightly
-		// tests are depending on it and Aida is not yet importing experimental
-		// configurations explicitly. Once Aida has been updated to import
-		// experimental configurations explicitly, this configuration should be
-		// removed from the default exports.
-		//
-		// TODO(#763): remove once Aida has been updated to import experimental
-		// configurations explicitly.
-		"lfvm-si": {
-			ConversionConfig: ConversionConfig{
-				WithSuperInstructions: true,
-			},
-			WithShaCache: true,
-		},
-	}
-
-	for name, config := range configs {
-		config := config
-		tosca.MustRegisterInterpreterFactory(name, func(any) (tosca.Interpreter, error) {
-			return newVm(config)
-		})
-	}
+	tosca.MustRegisterInterpreterFactory("lfvm", func(any) (tosca.Interpreter, error) {
+		return NewInterpreter(Config{})
+	})
 }
 
 // RegisterExperimentalInterpreterConfigurations registers all experimental
@@ -95,7 +64,7 @@ func RegisterExperimentalInterpreterConfigurations() error {
 				}
 
 				name := "lfvm" + si + shaCache + mode
-				if name != "lfvm" && name != "lfvm-si" {
+				if name != "lfvm" {
 					err := tosca.RegisterInterpreterFactory(
 						name,
 						func(any) (tosca.Interpreter, error) {
