@@ -96,29 +96,54 @@ pub unsafe fn run_raw(
     result
 }
 
-/// # Safety
-///
-/// All pointers must be valid, except for `context` which can be null if the `evmc_host_interface`
-/// accepts null pointers as context.
-pub unsafe fn run(
-    host: *const evmc_host_interface,
-    context: *mut ffi::c_void,
+pub fn run<T>(
+    host: &evmc_host_interface,
+    context: &mut T,
     revision: Revision,
-    message: *const evmc_message,
+    message: &evmc_message,
     code: &[u8],
 ) -> evmc_result {
-    run_raw(
-        host,
-        context,
-        revision,
-        message,
-        if code.is_empty() {
-            ptr::null()
-        } else {
-            code.as_ptr()
-        },
-        code.len(),
-    )
+    // SAFETY:
+    // All pointer are valid since they are created from references.
+    unsafe {
+        run_raw(
+            host,
+            context as *mut T as *mut ffi::c_void,
+            revision,
+            message,
+            if code.is_empty() {
+                ptr::null()
+            } else {
+                code.as_ptr()
+            },
+            code.len(),
+        )
+    }
+}
+
+pub fn run_with_null_context(
+    host: &evmc_host_interface,
+    revision: Revision,
+    message: &evmc_message,
+    code: &[u8],
+) -> evmc_result {
+    // SAFETY:
+    // All pointer are valid since they are created from references except for `context` which is
+    // allowed to be null.
+    unsafe {
+        run_raw(
+            host,
+            ptr::null_mut(),
+            revision,
+            message,
+            if code.is_empty() {
+                ptr::null()
+            } else {
+                code.as_ptr()
+            },
+            code.len(),
+        )
+    }
 }
 
 /// # Safety
@@ -182,16 +207,12 @@ pub unsafe fn run_steppable_raw(
     result
 }
 
-/// # Safety
-///
-/// All pointers must be valid, except for `context` which can be null if the `evmc_host_interface`
-/// accepts null pointers as context.
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn run_steppable(
-    host: evmc_host_interface,
-    context: *mut ffi::c_void,
+pub fn run_steppable<T>(
+    host: &evmc_host_interface,
+    context: &mut T,
     revision: Revision,
-    message: *const evmc_message,
+    message: &evmc_message,
     code: &[u8],
     status: evmc_step_status_code,
     pc: u64,
@@ -201,38 +222,97 @@ pub unsafe fn run_steppable(
     last_call_result_data: &mut [u8],
     steps: i32,
 ) -> evmc_step_result {
-    run_steppable_raw(
-        &host,
-        context,
-        revision,
-        message,
-        if code.is_empty() {
-            ptr::null()
-        } else {
-            code.as_ptr()
-        },
-        code.len(),
-        status,
-        pc,
-        gas_refunds,
-        if stack.is_empty() {
-            ptr::null_mut()
-        } else {
-            stack.as_mut_ptr()
-        },
-        stack.len(),
-        if memory.is_empty() {
-            ptr::null_mut()
-        } else {
-            memory.as_mut_ptr()
-        },
-        memory.len(),
-        if last_call_result_data.is_empty() {
-            ptr::null_mut()
-        } else {
-            last_call_result_data.as_mut_ptr()
-        },
-        last_call_result_data.len(),
-        steps,
-    )
+    // SAFETY:
+    // All pointer are valid since they are created from references.
+    unsafe {
+        run_steppable_raw(
+            host,
+            context as *mut T as *mut ffi::c_void,
+            revision,
+            message,
+            if code.is_empty() {
+                ptr::null()
+            } else {
+                code.as_ptr()
+            },
+            code.len(),
+            status,
+            pc,
+            gas_refunds,
+            if stack.is_empty() {
+                ptr::null_mut()
+            } else {
+                stack.as_mut_ptr()
+            },
+            stack.len(),
+            if memory.is_empty() {
+                ptr::null_mut()
+            } else {
+                memory.as_mut_ptr()
+            },
+            memory.len(),
+            if last_call_result_data.is_empty() {
+                ptr::null_mut()
+            } else {
+                last_call_result_data.as_mut_ptr()
+            },
+            last_call_result_data.len(),
+            steps,
+        )
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn run_steppable_with_null_context(
+    host: &evmc_host_interface,
+    revision: Revision,
+    message: &evmc_message,
+    code: &[u8],
+    status: evmc_step_status_code,
+    pc: u64,
+    gas_refunds: i64,
+    stack: &mut [Uint256],
+    memory: &mut [u8],
+    last_call_result_data: &mut [u8],
+    steps: i32,
+) -> evmc_step_result {
+    // SAFETY:
+    // All pointer are valid since they are created from references except for `context` which is
+    // allowed to be null.
+    unsafe {
+        run_steppable_raw(
+            host,
+            ptr::null_mut(),
+            revision,
+            message,
+            if code.is_empty() {
+                ptr::null()
+            } else {
+                code.as_ptr()
+            },
+            code.len(),
+            status,
+            pc,
+            gas_refunds,
+            if stack.is_empty() {
+                ptr::null_mut()
+            } else {
+                stack.as_mut_ptr()
+            },
+            stack.len(),
+            if memory.is_empty() {
+                ptr::null_mut()
+            } else {
+                memory.as_mut_ptr()
+            },
+            memory.len(),
+            if last_call_result_data.is_empty() {
+                ptr::null_mut()
+            } else {
+                last_call_result_data.as_mut_ptr()
+            },
+            last_call_result_data.len(),
+            steps,
+        )
+    }
 }

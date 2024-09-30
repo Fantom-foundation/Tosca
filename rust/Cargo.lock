@@ -167,6 +167,7 @@ name = "evmrs"
 version = "0.1.0"
 dependencies = [
  "bnum",
+ "driver",
  "evmc-vm",
  "evmrs",
  "mockall",
