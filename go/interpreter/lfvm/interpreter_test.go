@@ -185,9 +185,9 @@ func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 
 func TestInterpreter_CanDispatchExecutableInstructions(t *testing.T) {
 
-	for _, runner := range []runner{vanillaRunner{}, loggingRunner{}} {
+	for _, runner := range []runner{vanillaRunner{}, loggingRunner{}, &statisticRunner{}} {
 		for _, op := range allOpCodesWhere(isExecutable) {
-			t.Run(op.String(), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%v/%v", runner, op.String()), func(t *testing.T) {
 				forEachRevision(t, op, func(t *testing.T, revision tosca.Revision) {
 
 					ctrl := gomock.NewController(t)
