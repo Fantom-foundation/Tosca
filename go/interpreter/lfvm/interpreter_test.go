@@ -176,52 +176,54 @@ func TestInterpreter_step_DetectsUpperStackLimitViolation(t *testing.T) {
 
 func TestInterpreter_CanDispatchExecutableInstructions(t *testing.T) {
 
-	for _, op := range allOpCodesWhere(isExecutable) {
-		t.Run(op.String(), func(t *testing.T) {
-			forEachRevision(t, op, func(t *testing.T, revision tosca.Revision) {
+	for _, runner := range []runner{vanillaRunner{}, loggingRunner{}} {
+		for _, op := range allOpCodesWhere(isExecutable) {
+			t.Run(op.String(), func(t *testing.T) {
+				forEachRevision(t, op, func(t *testing.T, revision tosca.Revision) {
 
-				ctrl := gomock.NewController(t)
-				mock := tosca.NewMockRunContext(ctrl)
-				// mock all to satisfy any instruction
-				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess).AnyTimes()
-				mock.EXPECT().GetBalance(gomock.Any()).AnyTimes()
-				mock.EXPECT().IsAddressInAccessList(gomock.Any()).AnyTimes()
-				mock.EXPECT().GetCodeSize(gomock.Any()).AnyTimes()
-				mock.EXPECT().GetCode(gomock.Any()).AnyTimes()
-				mock.EXPECT().AccountExists(gomock.Any()).AnyTimes()
-				mock.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).AnyTimes()
-				mock.EXPECT().GetStorage(gomock.Any(), gomock.Any()).AnyTimes()
-				mock.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
-				mock.EXPECT().Call(gomock.Any(), gomock.Any()).AnyTimes()
-				mock.EXPECT().EmitLog(gomock.Any()).AnyTimes()
-				mock.EXPECT().SelfDestruct(gomock.Any(), gomock.Any()).AnyTimes()
-				mock.EXPECT().GetTransientStorage(gomock.Any(), gomock.Any()).AnyTimes()
-				mock.EXPECT().SetTransientStorage(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+					ctrl := gomock.NewController(t)
+					mock := tosca.NewMockRunContext(ctrl)
+					// mock all to satisfy any instruction
+					mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess).AnyTimes()
+					mock.EXPECT().GetBalance(gomock.Any()).AnyTimes()
+					mock.EXPECT().IsAddressInAccessList(gomock.Any()).AnyTimes()
+					mock.EXPECT().GetCodeSize(gomock.Any()).AnyTimes()
+					mock.EXPECT().GetCode(gomock.Any()).AnyTimes()
+					mock.EXPECT().AccountExists(gomock.Any()).AnyTimes()
+					mock.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).AnyTimes()
+					mock.EXPECT().GetStorage(gomock.Any(), gomock.Any()).AnyTimes()
+					mock.EXPECT().SetStorage(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+					mock.EXPECT().Call(gomock.Any(), gomock.Any()).AnyTimes()
+					mock.EXPECT().EmitLog(gomock.Any()).AnyTimes()
+					mock.EXPECT().SelfDestruct(gomock.Any(), gomock.Any()).AnyTimes()
+					mock.EXPECT().GetTransientStorage(gomock.Any(), gomock.Any()).AnyTimes()
+					mock.EXPECT().SetTransientStorage(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
-				ctx := context{
-					params: tosca.Parameters{
-						BlockParameters: tosca.BlockParameters{
-							Revision: revision,
+					ctx := context{
+						params: tosca.Parameters{
+							BlockParameters: tosca.BlockParameters{
+								Revision: revision,
+							},
 						},
-					},
-					context: mock,
-					// enough gas to satisfy any instruction
-					gas:    1 << 32,
-					stack:  NewStack(),
-					memory: NewMemory(),
-					code:   generateCodeFor(op),
-				}
-				err := fillStackFor(op, ctx.stack, ctx.code)
-				if err != nil {
-					t.Fatalf("unexpected creating stack: %v", err)
-				}
+						context: mock,
+						// enough gas to satisfy any instruction
+						gas:    1 << 32,
+						stack:  NewStack(),
+						memory: NewMemory(),
+						code:   generateCodeFor(op),
+					}
+					err := fillStackFor(op, ctx.stack, ctx.code)
+					if err != nil {
+						t.Fatalf("unexpected creating stack: %v", err)
+					}
 
-				_, err = vanillaRunner{}.run(&ctx)
-				if err != nil {
-					t.Errorf("execution failed: %v", err)
-				}
+					_, err = runner.run(&ctx)
+					if err != nil {
+						t.Errorf("execution failed: %v", err)
+					}
+				})
 			})
-		})
+		}
 	}
 }
 
