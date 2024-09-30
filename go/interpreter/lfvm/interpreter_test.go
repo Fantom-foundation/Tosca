@@ -803,3 +803,23 @@ func forEachRevision(
 		})
 	}
 }
+
+func TestInterpreter_ExecuteReturnsFailureOnExecutionError(t *testing.T) {
+
+	// Create execution context.
+	ctxt := context{
+		params: tosca.Parameters{
+			Input:  []byte{},
+			Static: true,
+		},
+		gas:    1 << 62,
+		code:   generateCodeFor(INVALID),
+		stack:  NewStack(),
+		memory: NewMemory(),
+	}
+
+	status := execute(&ctxt, false)
+	if want, got := statusFailed, status; want != got {
+		t.Errorf("unexpected status: want %v, got %v", want, got)
+	}
+}

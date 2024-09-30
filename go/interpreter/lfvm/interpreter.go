@@ -180,6 +180,10 @@ func (r loggingRunner) run(c *context) (status, error) {
 
 // --- Execution ---
 
+// execute runs the contract code in the given context. If oneStepOnly is true,
+// only the instruction pointed to by the program counter will be executed.
+// If the contract execution yields any execution violation (i.e. out of gas,
+// stack underflow, etc), the function returns statusFailed
 func execute(c *context, oneStepOnly bool) status {
 	status, error := steps(c, oneStepOnly)
 	if error != nil {
@@ -188,6 +192,11 @@ func execute(c *context, oneStepOnly bool) status {
 	return status
 }
 
+// steps executes the contract code in the given context,
+// If oneStepOnly is true, only the instruction pointed to by the program
+// counter will be executed.
+// steps returns the status of the execution and an error if the contract
+// execution yields any execution violation (i.e. out of gas, stack underflow, etc).
 func steps(c *context, oneStepOnly bool) (status, error) {
 	staticGasPrices := getStaticGasPrices(c.params.Revision)
 
