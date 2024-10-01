@@ -67,7 +67,7 @@ func TestInterpreter_Logger_ExecutesCodeAndLogs(t *testing.T) {
 				t.Errorf("unexpected error: %v", err)
 			}
 
-			if strings.Compare(string(buffer.String()), test.want) != 0 {
+			if strings.Compare(buffer.String(), test.want) != 0 {
 				t.Errorf("unexpected log: want %v, got %v", test.want, buffer.String())
 			}
 		})
