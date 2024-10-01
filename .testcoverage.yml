@@ -86,6 +86,8 @@ override:
   - threshold: 0
     path: go/interpreter/evmzero
   - threshold: 0
+    path: go/interpreter/evmrs
+  - threshold: 0
     path: go/interpreter/geth
   - threshold: 0
     path: go/interpreter/evmone
