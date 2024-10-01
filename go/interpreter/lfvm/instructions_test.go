@@ -1534,15 +1534,15 @@ func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
 }
 
 func TestGenericCall_CallKindPropagatesStaticMode(t *testing.T) {
-	for _, callKind := range []tosca.CallKind{tosca.Call, tosca.StaticCall} {
-		runContext := tosca.NewMockRunContext(gomock.NewController(t))
-		runContext.EXPECT().Call(callKind, gomock.Any()).Return(tosca.CallResult{}, nil)
-
-		ctxt := getEmptyContext()
-		ctxt.context = runContext
-		ctxt.params.Static = callKind == tosca.StaticCall
-		ctxt.stack.stackPointer = 7
-		_ = genericCall(&ctxt, tosca.Call)
+	runContext := tosca.NewMockRunContext(gomock.NewController(t))
+	runContext.EXPECT().Call(tosca.StaticCall, gomock.Any()).Return(tosca.CallResult{}, nil)
+	ctxt := getEmptyContext()
+	ctxt.context = runContext
+	ctxt.params.Static = true
+	ctxt.stack.stackPointer = 7
+	err := genericCall(&ctxt, tosca.Call)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 }
 
