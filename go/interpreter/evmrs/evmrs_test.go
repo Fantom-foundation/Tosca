@@ -45,7 +45,10 @@ func TestEvmrsFib10(t *testing.T) {
 func BenchmarkEvmrsNewEvmcInterpreter(b *testing.B) {
 	b.Run("evmrs", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tosca.NewInterpreter("evmrs")
+			_, err := tosca.NewInterpreter("evmrs")
+			if err != nil {
+				b.Fatalf("failed to load evmrs interpreter: %v", err)
+			}
 		}
 	})
 }
