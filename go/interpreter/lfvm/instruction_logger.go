@@ -15,9 +15,8 @@ import (
 	"io"
 )
 
-// loggingRunner is a runner that logs the execution of the contract code to
-// an io.Writer. If no writter is provided with NewLoggingRunner, the log will
-// be written to os.Stderr.
+// loggingRunner is a runner that logs the execution of the contract code to an io.Writer.
+// If no writter is provided with NewLoggingRunner, nothing will be logged.
 type loggingRunner struct {
 	log io.Writer
 }
