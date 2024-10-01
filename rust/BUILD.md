@@ -51,12 +51,13 @@ Also see [test.sh](./scripts/test.sh) which runs the Go tests and CT in full mod
 
 ## Coverage
 
-Code coverage can be generated for the Rust test using [cargo-llvm-cov](https://crates.io/crates/cargo-llvm-cov/0.1.13).
-- Rust test coverage
-    ```sh
-    cargo install cargo-llvm-cov
-    cargo llvm-cov --open
-    ```
+To generate code coverage for the Rust tests using [cargo-llvm-cov](https://crates.io/crates/cargo-llvm-cov/0.1.13) run:
+```sh
+cargo install cargo-llvm-cov
+cargo llvm-cov --open
+```
+
+To generate code coverage for CT see [coverage.sh](./scripts/coverage.sh).
 
 ## Optimizations
 
