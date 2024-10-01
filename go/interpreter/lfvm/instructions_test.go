@@ -1532,3 +1532,35 @@ func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestGenericCall_CallKindPropagatesStaticMode(t *testing.T) {
+	for _, callKind := range []tosca.CallKind{tosca.Call, tosca.StaticCall} {
+		runContext := tosca.NewMockRunContext(gomock.NewController(t))
+		runContext.EXPECT().Call(callKind, gomock.Any()).Return(tosca.CallResult{}, nil)
+
+		ctxt := getEmptyContext()
+		ctxt.context = runContext
+		ctxt.params.Static = callKind == tosca.StaticCall
+		ctxt.stack.stackPointer = 7
+		_ = genericCall(&ctxt, tosca.Call)
+	}
+}
+
+func TestGeneralCall_SetsCorrectResultOnStack(t *testing.T) {
+	for _, success := range []bool{true, false} {
+		runContext := tosca.NewMockRunContext(gomock.NewController(t))
+		runContext.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{Success: success}, nil)
+		ctxt := getEmptyContext()
+		ctxt.context = runContext
+		ctxt.stack.stackPointer = 7
+		_ = genericCall(&ctxt, tosca.Call)
+		want := uint256.NewInt(0)
+		if success {
+			want = uint256.NewInt(1)
+		}
+		if got := ctxt.stack.data[0]; !want.Eq(&got) {
+			t.Errorf("unexpected return value, wanted %v, got %v", want, got)
+		}
+
+	}
+}
