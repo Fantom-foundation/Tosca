@@ -143,6 +143,10 @@ func generateResult(status status, ctxt *context) (tosca.Result, error) {
 			Output:  ctxt.returnData,
 			GasLeft: ctxt.gas,
 		}, nil
+	case statusFailed:
+		return tosca.Result{
+			Success: false,
+		}, nil
 	default:
 		return tosca.Result{}, fmt.Errorf("unexpected error in interpreter, unknown status: %v", status)
 	}

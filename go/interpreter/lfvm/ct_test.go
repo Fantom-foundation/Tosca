@@ -67,6 +67,7 @@ func TestConvertToLfvm_StatusCode(t *testing.T) {
 		statusReturned:       st.Stopped,
 		statusStopped:        st.Stopped,
 		statusSelfDestructed: st.Stopped,
+		statusFailed:         st.Failed,
 	}
 
 	for status, test := range tests {

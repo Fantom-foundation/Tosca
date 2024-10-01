@@ -392,6 +392,12 @@ func TestRun_GenerateResult(t *testing.T) {
 				GasRefund: baseRefund,
 			},
 		},
+		"failure": {
+			status: statusFailed,
+			expectedResult: tosca.Result{
+				Success: false,
+			},
+		},
 		"unknown status": {
 			status:         statusSelfDestructed + 1,
 			expectedErr:    fmt.Errorf("unexpected error in interpreter, unknown status: %v", statusSelfDestructed+1),
