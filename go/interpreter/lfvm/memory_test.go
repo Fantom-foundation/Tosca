@@ -12,6 +12,7 @@ package lfvm
 
 import (
 	"bytes"
+	"crypto/rand"
 	"errors"
 	"math"
 	"testing"
@@ -143,9 +144,8 @@ func TestMemory_expandMemory_ErrorCases(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctxt := getEmptyContext()
+			ctxt := context{gas: test.gas}
 			m := NewMemory()
-			ctxt.gas = test.gas
 
 			err := m.expandMemory(test.offset, test.size, &ctxt)
 			if !errors.Is(err, test.expected) {
@@ -187,10 +187,9 @@ func TestMemory_expandMemory_expandsMemoryOnlyWhenNeeded(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctxt := getEmptyContext()
+			ctxt := context{gas: 3}
 			m := NewMemory()
 			m.store = make([]byte, test.initialMemorySize)
-			ctxt.gas = 3
 
 			err := m.expandMemory(test.offset, test.size, &ctxt)
 			if err != nil {
@@ -379,4 +378,87 @@ func TestToValidateMemorySize_ReturnsOverflowError(t *testing.T) {
 	if !errors.Is(err, errOverflow) {
 		t.Errorf("error should be errOverflow, instead is: %v", err)
 	}
+}
+
+func TestMemory_set_UpdatesDataInMemoryAtGivenOffset(t *testing.T) {
+	before := generateRandomBytes(128)
+	for offset := uint64(0); offset < 128; offset++ {
+		for size := 0; size < int(128-offset); size++ {
+			data := generateRandomBytes(size)
+
+			// test the memory update
+			m := &Memory{store: bytes.Clone(before)}
+			if err := m.set(offset, data, nil); err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+
+			// check if only the data at the given offset has changed
+			want := bytes.Clone(before)
+			copy(want[offset:], data)
+			if !bytes.Equal(m.store, want) {
+				t.Errorf("unexpected memory value after set, want: %x, got: %x", want, m.store)
+			}
+		}
+	}
+}
+
+func TestMemory_set_PreservesMemoryWhenGrowingAndPadsWithZeros(t *testing.T) {
+	before := generateRandomBytes(32)
+	m := &Memory{store: bytes.Clone(before)}
+	if err := m.set(64, []byte{0x1, 0x2}, &context{gas: 100}); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	want := bytes.Clone(before)              // < preserved data
+	want = append(want, make([]byte, 32)...) // < zero-padding before the new data
+	want = append(want, []byte{0x1, 0x2}...) // < the new data
+	want = append(want, make([]byte, 30)...) // < zero-padding after the new data
+
+	if !bytes.Equal(m.store, want) {
+		t.Errorf("unexpected memory value after set, want: %x, got: %x", want, m.store)
+	}
+}
+
+func TestMemory_set_IgnoresEmptyData(t *testing.T) {
+	before := generateRandomBytes(32)
+	for _, offset := range []uint64{0, 32, 64} {
+		for _, data := range [][]byte{nil, {}} {
+			m := &Memory{store: bytes.Clone(before)}
+			if err := m.set(offset, data, nil); err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if !bytes.Equal(m.store, before) {
+				t.Errorf("unexpected no change in data, want: %x, got: %x", before, m.store)
+			}
+		}
+	}
+}
+
+func TestMemory_set_FailsIfThereIsNotEnoughGasToGrow(t *testing.T) {
+	c := &context{gas: 2}
+	m := &Memory{store: make([]byte, 32)}
+	if err := m.set(64, []byte{0x1}, c); !errors.Is(err, errOutOfGas) {
+		t.Errorf("unexpected error %v, got %v", errOutOfGas, err)
+	}
+	if len(m.store) != 32 {
+		t.Errorf("memory should not have been expanded, instead is: %d", len(m.store))
+	}
+}
+
+func TestMemory_set_FailsIfOffsetLeadsToOverflow(t *testing.T) {
+	m := &Memory{store: make([]byte, 32)}
+	data := []byte{0x1, 0x2, 0x3}
+	offset := math.MaxUint64 - uint64(len(data)) + 1
+	if err := m.set(offset, data, nil); !errors.Is(err, errOverflow) {
+		t.Errorf("unexpected error %v, got %v", errOutOfGas, err)
+	}
+	if len(m.store) != 32 {
+		t.Errorf("memory should not have been expanded, instead is: %d", len(m.store))
+	}
+}
+
+func generateRandomBytes(size int) []byte {
+	data := make([]byte, size)
+	_, _ = rand.Read(data)
+	return data
 }

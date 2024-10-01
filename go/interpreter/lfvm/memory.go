@@ -11,8 +11,6 @@
 package lfvm
 
 import (
-	"fmt"
-
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/holiman/uint256"
 )
@@ -121,94 +119,6 @@ func (m *Memory) length() uint64 {
 	return uint64(len(m.store))
 }
 
-func (m *Memory) SetByte(offset uint64, value byte, c *context) error {
-	err := m.expandMemory(offset, 1, c)
-	if err != nil {
-		return err
-	}
-
-	if m.length() < offset+1 {
-		return fmt.Errorf("memory too small, size %d, attempted to write at position %d", m.length(), offset)
-	}
-	m.store[offset] = value
-	return nil
-}
-
-func (m *Memory) SetWord(offset uint64, value *uint256.Int, c *context) error {
-	err := m.expandMemory(offset, 32, c)
-	if err != nil {
-		return err
-	}
-
-	if m.length() < offset+32 {
-		return fmt.Errorf("memory too small, size %d, attempted to write 32 byte at position %d", m.length(), offset)
-	}
-
-	// Inlining and unrolling value.WriteToSlice(..) lead to a 7x speedup
-	dest := m.store[offset : offset+32]
-	dest[31] = byte(value[0])
-	dest[30] = byte(value[0] >> 8)
-	dest[29] = byte(value[0] >> 16)
-	dest[28] = byte(value[0] >> 24)
-	dest[27] = byte(value[0] >> 32)
-	dest[26] = byte(value[0] >> 40)
-	dest[25] = byte(value[0] >> 48)
-	dest[24] = byte(value[0] >> 56)
-
-	dest[23] = byte(value[1])
-	dest[22] = byte(value[1] >> 8)
-	dest[21] = byte(value[1] >> 16)
-	dest[20] = byte(value[1] >> 24)
-	dest[19] = byte(value[1] >> 32)
-	dest[18] = byte(value[1] >> 40)
-	dest[17] = byte(value[1] >> 48)
-	dest[16] = byte(value[1] >> 56)
-
-	dest[15] = byte(value[2])
-	dest[14] = byte(value[2] >> 8)
-	dest[13] = byte(value[2] >> 16)
-	dest[12] = byte(value[2] >> 24)
-	dest[11] = byte(value[2] >> 32)
-	dest[10] = byte(value[2] >> 40)
-	dest[9] = byte(value[2] >> 48)
-	dest[8] = byte(value[2] >> 56)
-
-	dest[7] = byte(value[3])
-	dest[6] = byte(value[3] >> 8)
-	dest[5] = byte(value[3] >> 16)
-	dest[4] = byte(value[3] >> 24)
-	dest[3] = byte(value[3] >> 32)
-	dest[2] = byte(value[3] >> 40)
-	dest[1] = byte(value[3] >> 48)
-	dest[0] = byte(value[3] >> 56)
-	return nil
-}
-
-func (m *Memory) Set(offset, size uint64, value []byte) error {
-	if size > 0 {
-		if offset+size < offset {
-			return errOverflow
-		}
-		if offset+size > m.length() {
-			return fmt.Errorf("memory too small, size %d, attempted to write %d bytes at %d", m.length(), size, offset)
-		}
-		copy(m.store[offset:offset+size], value)
-	}
-	return nil
-}
-
-func (m *Memory) SetWithCapacityAndGasCheck(offset, size uint64, value []byte, c *context) error {
-	err := m.expandMemory(offset, size, c)
-	if err != nil {
-		return err
-	}
-	err = m.Set(offset, size, value)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // getSlice obtains a slice of size bytes from the memory at the given offset.
 // The returned slice is backed by the memory's internal data. Updates to the
 // slice will thus effect the memory states. This connection is invalidated by any
@@ -236,5 +146,17 @@ func (m *Memory) readWord(offset uint64, target *uint256.Int, c *context) error 
 		return err
 	}
 	target.SetBytes32(data)
+	return nil
+}
+
+// set copies the given value into memory at the given offset.
+// Expands the memory size as needed and charges for it.
+// Returns an error if there is not enough gas or offset+len(value) overflows.
+func (m *Memory) set(offset uint64, value []byte, c *context) error {
+	data, err := m.getSlice(offset, uint64(len(value)), c)
+	if err != nil {
+		return err
+	}
+	copy(data, value)
 	return nil
 }

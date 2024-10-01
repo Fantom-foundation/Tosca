@@ -87,7 +87,8 @@ func opDup2_Mstore(c *context) error {
 	var addr = c.stack.peek()
 
 	offset := addr.Uint64()
-	return c.memory.SetWord(offset, value, c)
+	data := value.Bytes32()
+	return c.memory.set(offset, data[:], c)
 }
 
 func opDup2_Lt(c *context) {
