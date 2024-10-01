@@ -1,10 +1,14 @@
 [workspace]
-members = ["driver"]
+members = ["driver", "benchmarks"]
 
 [package]
 name = "evmrs"
 version = "0.1.0"
 edition = "2021"
+
+[profile.profiling]
+inherits = "release"
+debug = true
 
 [features]
 # Flag mock enables code generation for test mocking. This allows generating mocks for other build configuration but "test". 
