@@ -990,6 +990,13 @@ func opExtCodeCopy(c *context) error {
 		return err
 	}
 
+	var uint64CodeOffset uint64
+	if codeOffset.IsUint64() {
+		uint64CodeOffset = codeOffset.Uint64()
+	} else {
+		uint64CodeOffset = math.MaxUint64
+	}
+
 	// Charge for length of copied code
 	words := tosca.SizeInWords(length.Uint64())
 	if err := c.useGas(tosca.Gas(3 * words)); err != nil {
@@ -1001,12 +1008,6 @@ func opExtCodeCopy(c *context) error {
 		if err := c.useGas(getAccessCost(c.context.AccessAccount(address))); err != nil {
 			return err
 		}
-	}
-	var uint64CodeOffset uint64
-	if codeOffset.IsUint64() {
-		uint64CodeOffset = codeOffset.Uint64()
-	} else {
-		uint64CodeOffset = math.MaxUint64
 	}
 
 	data, err := c.memory.getSlice(memOffset.Uint64(), length.Uint64(), c)

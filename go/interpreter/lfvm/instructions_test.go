@@ -1630,11 +1630,6 @@ func TestInstructions_InstructionsReturnErrorOnOverflow(t *testing.T) {
 	zero := *uint256.NewInt(0)
 	maxUint256 := *uint256.NewInt(0).Sub(uint256.NewInt(0), uint256.NewInt(1))
 
-	type inputData []uint256.Int
-	stack := func(v ...uint256.Int) inputData {
-		return append([]uint256.Int{}, v...)
-	}
-
 	tests := map[OpCode]struct {
 		implementation func(*context) error
 		inputs         []inputData
@@ -1642,70 +1637,70 @@ func TestInstructions_InstructionsReturnErrorOnOverflow(t *testing.T) {
 		JUMP: {
 			implementation: opJump,
 			inputs: []inputData{
-				stack(maxUint256),
+				inputStack(maxUint256),
 			},
 		},
 		JUMPI: {
 			implementation: opJumpi,
 			inputs: []inputData{
-				stack(one, maxUint256),
+				inputStack(one, maxUint256),
 			},
 		},
 		MSTORE: {
 			implementation: opMstore,
 			inputs: []inputData{
-				stack(zero, maxUint256),
+				inputStack(zero, maxUint256),
 			},
 		},
 		MSTORE8: {
 			implementation: opMstore8,
 			inputs: []inputData{
-				stack(zero, maxUint256),
+				inputStack(zero, maxUint256),
 			},
 		},
 		MCOPY: {
 			implementation: opMcopy,
 			inputs: []inputData{
-				stack(maxUint256, zero, zero),
+				inputStack(maxUint256, zero, zero),
 			},
 		},
 		MLOAD: {
 			implementation: opMload,
 			inputs: []inputData{
-				stack(maxUint256),
+				inputStack(maxUint256),
 			},
 		},
 		CALLDATACOPY: {
 			implementation: opCallDataCopy,
 			inputs: []inputData{
-				stack(maxUint256, zero, zero),
-				stack(one, one, maxUint256),
+				inputStack(maxUint256, zero, zero),
+				inputStack(one, one, maxUint256),
 			},
 		},
 		RETURNDATACOPY: {
 			implementation: opReturnDataCopy,
 			inputs: []inputData{
-				stack(maxUint256, zero, zero),
-				stack(zero, maxUint256, zero),
-				stack(one, zero, maxUint256),
+				inputStack(maxUint256, zero, zero),
+				inputStack(zero, maxUint256, zero),
+				inputStack(one, zero, maxUint256),
 			},
 		},
 		CODECOPY: {
 			implementation: opCodeCopy,
 			inputs: []inputData{
-				stack(maxUint256, zero, zero),
+				inputStack(maxUint256, zero, zero),
 			},
 		},
 		EXTCODECOPY: {
 			implementation: opExtCodeCopy,
 			inputs: []inputData{
-				stack(maxUint256, zero, zero, zero),
+				inputStack(maxUint256, zero, zero, zero),
 			},
 		},
 		SHA3: {
 			implementation: opSha3,
 			inputs: []inputData{
-				stack(maxUint256, zero),
+				inputStack(maxUint256, zero),
 			},
 		},
 		// Note: Log0 tests stack values overflowing for all LOG operations
@@ -1714,7 +1709,7 @@ func TestInstructions_InstructionsReturnErrorOnOverflow(t *testing.T) {
 				return opLog(c, 0)
 			},
 			inputs: []inputData{
-				stack(maxUint256, one),
+				inputStack(maxUint256, one),
 			},
 		},
 		// Note: call operations are quite complicated and they are to be tested
@@ -1722,8 +1717,8 @@ func TestInstructions_InstructionsReturnErrorOnOverflow(t *testing.T) {
 		CALL: {
 			implementation: opCall,
 			inputs: []inputData{
-				stack(maxUint256, one, zero, zero, zero, zero, zero),
-				stack(zero, zero, maxUint256, one, zero, zero, zero),
+				inputStack(maxUint256, one, zero, zero, zero, zero, zero),
+				inputStack(zero, zero, maxUint256, one, zero, zero, zero),
 			},
 		},
 	}
@@ -1750,4 +1745,68 @@ func TestInstructions_InstructionsReturnErrorOnOverflow(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestInstructions_CopyOpRoundStackValuesOnOverflow(t *testing.T) {
+	one := *uint256.NewInt(1)
+	zero := *uint256.NewInt(0)
+	maxUint256 := *uint256.NewInt(0).Sub(uint256.NewInt(0), uint256.NewInt(1))
+
+	tests := map[OpCode]struct {
+		implementation func(*context) error
+		inputs         []inputData
+	}{
+		CALLDATACOPY: {
+			implementation: opCallDataCopy,
+			inputs: []inputData{
+				inputStack(zero, maxUint256, zero),
+				inputStack(zero, one, maxUint256),
+			},
+		},
+		CODECOPY: {
+			implementation: opCodeCopy,
+			inputs: []inputData{
+				inputStack(zero, maxUint256, zero),
+			},
+		},
+		EXTCODECOPY: {
+			implementation: opExtCodeCopy,
+			inputs: []inputData{
+				inputStack(zero, maxUint256, zero, one),
+			},
+		},
+	}
+
+	ctrl := gomock.NewController(t)
+	runContext := tosca.NewMockRunContext(ctrl)
+	runContext.EXPECT().GetCode(gomock.Any()).AnyTimes()
+
+	for op, test := range tests {
+		t.Run(op.String(), func(t *testing.T) {
+			for _, input := range test.inputs {
+				ctxt := getEmptyContext()
+				ctxt.context = runContext
+				ctxt.code = Code{{op, 0}}
+				ctxt.gas = 1 << 32
+
+				for _, v := range input {
+					ctxt.stack.push(&v)
+				}
+
+				err := test.implementation(&ctxt)
+				if err == errOverflow {
+					t.Fatalf("unexpected overflow")
+				}
+			}
+		})
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Helper functions
+
+type inputData []uint256.Int
+
+func inputStack(v ...uint256.Int) inputData {
+	return append([]uint256.Int{}, v...)
 }
