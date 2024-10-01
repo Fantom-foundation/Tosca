@@ -1097,15 +1097,15 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 
 func TestSelfDestruct_ProperlyReportsNotEnoughGas(t *testing.T) {
 	for _, beneficiaryAccess := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
-		for _, beneficiaryExists := range []bool{true, false} {
-			t.Run(fmt.Sprintf("beneficiaryAccess:%v_beneficiaryExists:%v", beneficiaryAccess, beneficiaryExists), func(t *testing.T) {
+		for _, accountExists := range []bool{true, false} {
+			t.Run(fmt.Sprintf("beneficiaryAccess:%v_accountExists:%v", beneficiaryAccess, accountExists), func(t *testing.T) {
 				beneficiaryAddress := tosca.Address{1}
 				selfAddress := tosca.Address{2}
 
 				ctrl := gomock.NewController(t)
 				runContext := tosca.NewMockRunContext(ctrl)
 				runContext.EXPECT().AccessAccount(beneficiaryAddress).Return(beneficiaryAccess)
-				runContext.EXPECT().AccountExists(beneficiaryAddress).Return(beneficiaryExists)
+				runContext.EXPECT().AccountExists(beneficiaryAddress).Return(accountExists)
 				runContext.EXPECT().GetBalance(selfAddress).Return(tosca.Value{1})
 
 				ctxt := context{
@@ -1122,7 +1122,7 @@ func TestSelfDestruct_ProperlyReportsNotEnoughGas(t *testing.T) {
 				if beneficiaryAccess == tosca.ColdAccess {
 					ctxt.gas += 2600
 				}
-				if !beneficiaryExists {
+				if !accountExists {
 					ctxt.gas += 25000
 				}
 				ctxt.gas -= 1
@@ -1131,7 +1131,7 @@ func TestSelfDestruct_ProperlyReportsNotEnoughGas(t *testing.T) {
 
 				_, err := opSelfdestruct(&ctxt)
 				if err != errOutOfGas {
-					t.Fatalf("expected error, got nil")
+					t.Fatalf("expected out of gas but got %v", err)
 				}
 
 			})
