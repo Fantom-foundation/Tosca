@@ -1384,3 +1384,38 @@ func TestInstructions_ConditionalJumpOpsIgnoreDestinationWhenJumpNotTaken(t *tes
 		})
 	}
 }
+
+func TestGetData(t *testing.T) {
+
+	tests := map[string]struct {
+		data     []byte
+		start    uint64
+		size     uint64
+		expected []byte
+	}{
+		"AddsRightPadding": {
+			data:     []byte{0xFF},
+			start:    0,
+			size:     2,
+			expected: []byte{0xff, 0x0},
+		},
+		"ReadsBeyondLimitYieldZeroes": {
+			data:     []byte{0xFF, 0x1},
+			start:    12,
+			size:     2,
+			expected: []byte{0x0, 0x0},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			res := getData(test.data, test.start, test.size)
+			if want, got := test.size, uint64(len(res)); want != got {
+				t.Errorf("unexpected data length, wanted %d, got %d", want, got)
+			}
+			if want, got := test.expected, res; !bytes.Equal(want, got) {
+				t.Errorf("unexpected data, wanted %v, got %v", want, got)
+			}
+		})
+	}
+}
