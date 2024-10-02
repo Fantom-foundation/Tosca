@@ -57,7 +57,6 @@ type context struct {
 // false otherwise.
 func (c *context) useGas(amount tosca.Gas) error {
 	if c.gas < 0 || amount < 0 || c.gas < amount {
-		c.gas = 0
 		return errOutOfGas
 	}
 	c.gas -= amount
