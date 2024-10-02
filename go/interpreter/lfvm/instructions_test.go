@@ -1420,7 +1420,7 @@ func TestGetData(t *testing.T) {
 	}
 }
 
-func TestCheckSizeOffsetUintOverflow_ReturnsAsExpected(t *testing.T) {
+func TestCheckSizeOffsetUintOverflow(t *testing.T) {
 
 	zero := uint256.NewInt(0)
 	one := uint256.NewInt(1)
