@@ -16,6 +16,8 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
 
+//go:generate mockgen -source interpreter.go -destination interpreter_mock.go -package lfvm
+
 // status is enumeration of the execution state of an interpreter run.
 type status byte
 

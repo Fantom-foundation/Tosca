@@ -299,6 +299,23 @@ func TestInterpreter_Vanilla_RunsWithoutOutput(t *testing.T) {
 	}
 }
 
+func TestInterpreter_EmptyCodeBypassesInstanceAndSucceeds(t *testing.T) {
+	code := []Instruction{}
+	params := tosca.Parameters{}
+	config := interpreterConfig{
+		runner: NewMockrunner(gomock.NewController(t)),
+	}
+
+	result, err := run(config, params, code)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if !result.Success {
+		t.Errorf("unexpected result: want success, got %v", result.Success)
+	}
+}
+
 func TestRun_GenerateResult(t *testing.T) {
 
 	baseOutput := []byte{0x1, 0x2, 0x3}
