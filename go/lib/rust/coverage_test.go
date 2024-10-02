@@ -8,7 +8,7 @@
 // On the date above, in accordance with the Business Source License, use of
 // this software will be governed by the GNU Lesser General Public License v3.
 
-package cpp
+package rust
 
 import (
 	"flag"
@@ -21,29 +21,30 @@ import (
 
 var stateImpl = flag.Bool("expect-coverage", false, "enable if the unit test is expecting a coverage build")
 
-func TestDumpCppCoverageData(t *testing.T) {
+func TestDumpRustCoverageData(t *testing.T) {
 
 	// write coverage data into tempDir directory
 	tempDir := t.TempDir()
-	err := os.Setenv("GCOV_PREFIX", tempDir)
+	llvmProfileFile := tempDir + "/rust-%p-%m.profraw"
+	err := os.Setenv("LLVM_PROFILE_FILE", llvmProfileFile)
 	if err != nil {
-		t.Fatalf("Failed to set GCOV_PREFIX: %v", err)
+		t.Fatalf("Failed to set LLVM_PROFILE_FILE: %v", err)
 	}
 
 	// run dump routine
-	DumpCppCoverageData()
+	DumpRustCoverageData()
 
 	expectEnabled := *stateImpl
-	enabled := isCppCoverageEnabled()
+	enabled := isRustCoverageEnabled()
 
 	if !enabled {
 		if expectEnabled {
-			t.Fatalf("Failed, cpp coverage is not enabled")
+			t.Fatalf("Failed, rust coverage is not enabled")
 		} else {
-			t.Skip("Skipping test, cpp coverage disabled and not expected to be enabled")
+			t.Skip("Skipping test, rust coverage disabled and not expected to be enabled")
 		}
 	} else if !expectEnabled {
-		t.Fatalf("Failed, cpp coverage is enabled, but it was expected disabled")
+		t.Fatalf("Failed, rust coverage is enabled, but it was expected disabled")
 	}
 
 	// check that at least one file is generated
@@ -52,9 +53,7 @@ func TestDumpCppCoverageData(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		// .gcno are generated at compile time, with source code locations and other meta
-		// .gcda are generated at runtime with the actual coverage
-		found = found || strings.HasSuffix(s, ".gcda")
+		found = found || strings.HasSuffix(s, ".profraw")
 		return nil
 	})
 	if err != nil {

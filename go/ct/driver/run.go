@@ -28,6 +28,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/interpreter/geth"
 	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
 	"github.com/Fantom-foundation/Tosca/go/lib/cpp"
+	"github.com/Fantom-foundation/Tosca/go/lib/rust"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"github.com/dsnet/golib/unitconv"
 	"github.com/urfave/cli/v2"
@@ -61,7 +62,7 @@ var evms = map[string]ct.Evm{
 
 func doRun(context *cli.Context) error {
 	defer cpp.DumpCppCoverageData()
-	defer evmrs.DumpRustCoverageData()
+	defer rust.DumpRustCoverageData()
 
 	jobCount := cliUtils.JobsFlag.Fetch(context)
 	seed := cliUtils.SeedFlag.Fetch(context)

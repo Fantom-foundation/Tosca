@@ -23,3 +23,8 @@ pub unsafe extern "C" fn evmrs_dump_coverage() {
     #[cfg(feature = "dump-cov")]
     __llvm_profile_write_file();
 }
+
+#[no_mangle]
+pub extern "C" fn evmrs_is_coverage_enabled() -> u8 {
+    cfg!(feature = "dump-cov") as u8
+}
