@@ -311,7 +311,7 @@ where
                         self.stack.push(u256::ZERO)?;
                     } else {
                         let end = min(call_data.len(), offset + 32);
-                        let mut bytes = [0; 32];
+                        let mut bytes = u256::ZERO;
                         bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
                         self.stack.push(bytes)?;
                     }

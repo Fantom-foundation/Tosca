@@ -69,11 +69,11 @@ impl<'a> CodeReader<'a> {
         assert!(len <= 32);
 
         let len = min(len, self.code.len() - self.pc);
-        let mut bytes = [0; 32];
-        bytes[32 - len..].copy_from_slice(&self.code[self.pc..self.pc + len]);
+        let mut data = u256::ZERO;
+        data[32 - len..].copy_from_slice(&self.code[self.pc..self.pc + len]);
         self.pc += len;
 
-        bytes.into()
+        data
     }
 
     pub fn pc(&self) -> usize {
