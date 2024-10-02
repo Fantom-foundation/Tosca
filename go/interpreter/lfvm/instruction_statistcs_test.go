@@ -110,3 +110,66 @@ func TestStatisticsRunner_DumpProfilePrintsExpectedOutput(t *testing.T) {
 		})
 	}
 }
+
+func TestStatisticsRunner_getSummaryInitializesNewStatsWhenUninitialized(t *testing.T) {
+	statsRunner := &statisticRunner{
+		stats: nil,
+	}
+	_ = statsRunner.getSummary()
+	if statsRunner.stats == nil {
+		t.Errorf("summary should have been initialized")
+	}
+}
+
+func TestStatisticsRunner_runInitializesNewStatsWhenUninitialized(t *testing.T) {
+	statsRunner := &statisticRunner{
+		stats: nil,
+	}
+	_, _ = statsRunner.run(&context{
+		code:  []Instruction{{STOP, 0}},
+		stack: NewStack(),
+	})
+	if statsRunner.stats == nil {
+		t.Errorf("run should have initialized stats")
+	}
+}
+
+func TestStatisticsRunner_statisticsStopsWhenExecutiounErrorEnocuntered(t *testing.T) {
+	statsRunner := &statisticRunner{
+		stats: nil,
+	}
+	_, _ = statsRunner.run(&context{
+		code:  []Instruction{{MCOPY, 0}, {STOP, 0}},
+		stack: NewStack(),
+	})
+	if statsRunner.stats.singleCount[uint64(STOP)] == 1 {
+		t.Errorf("unexpected statistics: want 1 stop, got %v", statsRunner.stats.singleCount[uint64(STOP)])
+	}
+}
+
+func TestStatisticsRunner_print_getTopN_returnFirstNElementsOfManyMore(t *testing.T) {
+	want := "\n----- Statistics ------\n"
+	want += "\nSteps: 0\n"
+	want += "\nSingles:\n"
+	want += "\tPUSH5                         : 5 (+Inf%)\n"
+	want += "\tPUSH4                         : 4 (+Inf%)\n"
+	want += "\tPUSH3                         : 3 (+Inf%)\n"
+	want += "\tPUSH2                         : 2 (+Inf%)\n"
+	want += "\tSTOP                          : 1 (+Inf%)\n"
+	want += "\nPairs:\n\nTriples:\n\nQuads:\n\n"
+
+	stats := statistics{
+		singleCount: map[uint64]uint64{
+			uint64(STOP):  1,
+			uint64(PUSH1): 1,
+			uint64(PUSH2): 2,
+			uint64(PUSH3): 3,
+			uint64(PUSH4): 4,
+			uint64(PUSH5): 5,
+		},
+	}
+	got := stats.print()
+	if got != want {
+		t.Errorf("unexpected output: want %v, got %v", want, got)
+	}
+}
