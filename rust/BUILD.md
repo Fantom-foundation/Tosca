@@ -108,6 +108,16 @@ cargo build --features mimalloc,stack-array
         --run none --bench ^Benchmark[a-zA-Z]+/./evmrs \
         --timeout 1h --count 20
     ```
+    Note: 
+    As mentioned in [../BUILD.md](../BUILD.md#diffing-benchmarks) you can use `benchstat` to compare different benchmark runs.
+    However, the benchmarks names must match up.
+    Because the benchmark names contain the name of the interpreter, you have to remove the interpreter name beforehand.
+    ```sh
+    sed -i "s/<interpreter 1 name>-//g" ./my-bench-output-1
+    sed -i "s/<interpreter 2 name>-//g" ./my-bench-output-2
+    ...
+    benchstat ./my-bench-output-1 ./my-bench-output-2 ...
+    ```
 
 ## Profiling
 
