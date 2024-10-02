@@ -1425,29 +1425,45 @@ func TestCheckSizeOffsetUintOverflow_ReturnsAsExpected(t *testing.T) {
 	zero := uint256.NewInt(0)
 	one := uint256.NewInt(1)
 	u64overflow := new(uint256.Int).Add(uint256.NewInt(2), uint256.NewInt(math.MaxUint64))
-	// checkSizeOffsetUint64Overflow(offset, size) - parameter order
 
-	// size zero ignores offset
-	if want, got := error(nil), checkSizeOffsetUint64Overflow(u64overflow, zero); want != got {
-		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
-	}
-	// size overflow is reported
-	if want, got := errOverflow, checkSizeOffsetUint64Overflow(zero, u64overflow); want != got {
-		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
-	}
-	// offset overflow is reported
-	if want, got := errOverflow, checkSizeOffsetUint64Overflow(u64overflow, one); want != got {
-		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
-	}
-	// no overflow
-	if want, got := error(nil), checkSizeOffsetUint64Overflow(one, one); want != got {
-		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
-	}
-	// size+offset overflow is reported
-	if want, got := errOverflow, checkSizeOffsetUint64Overflow(uint256.NewInt(math.MaxUint64-1), uint256.NewInt(2)); want != got {
-		t.Errorf("unexpected status after call, wanted %v, got %v", want, got)
+	tests := map[string]struct {
+		offset, size *uint256.Int
+		expected     error
+	}{
+		"ignores offset with size zero": {
+			offset:   u64overflow,
+			size:     zero,
+			expected: nil,
+		},
+		"returns error on size overflow": {
+			offset:   zero,
+			size:     u64overflow,
+			expected: errOverflow,
+		},
+		"returns error on offset overflow": {
+			offset:   u64overflow,
+			size:     one,
+			expected: errOverflow,
+		},
+		"returns error after sum overflow": {
+			offset:   uint256.NewInt(math.MaxUint64 - 1),
+			size:     uint256.NewInt(2),
+			expected: errOverflow,
+		},
+		"returns ok when no overflow": {
+			offset:   one,
+			size:     one,
+			expected: nil,
+		},
 	}
 
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := checkSizeOffsetUint64Overflow(test.offset, test.size); got != test.expected {
+				t.Errorf("unexpected result, wanted %v, got %v", test.expected, got)
+			}
+		})
+	}
 }
 
 func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
@@ -1546,7 +1562,7 @@ func TestGenericCall_CallKindPropagatesStaticMode(t *testing.T) {
 	}
 }
 
-func TestGeneralCall_SetsCorrectResultOnStack(t *testing.T) {
+func TestGeneralCall_ResultIsWrittenToStack(t *testing.T) {
 	for _, success := range []bool{true, false} {
 		runContext := tosca.NewMockRunContext(gomock.NewController(t))
 		runContext.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{Success: success}, nil)
