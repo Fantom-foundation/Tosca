@@ -1624,7 +1624,7 @@ func TestGeneralCall_ResultIsWrittenToStack(t *testing.T) {
 	}
 }
 
-func TestInstructions_ComparingOperations(t *testing.T) {
+func TestInstructions_ComparisonAndShiftOperations(t *testing.T) {
 
 	zero := *uint256.NewInt(0)
 	one := *uint256.NewInt(1)
