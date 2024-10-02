@@ -51,10 +51,8 @@ func TestInterpreter_Logger_ExecutesCodeAndLogs(t *testing.T) {
 
 			// Get tosca.Parameters
 			params := tosca.Parameters{
-				Input:  []byte{},
-				Static: true,
-				Gas:    3,
-				Code:   []byte{byte(STOP), 0},
+				Gas:  3,
+				Code: []byte{byte(STOP), 0},
 			}
 			code := test.code
 			buffer := bytes.NewBuffer([]byte{})
@@ -78,10 +76,7 @@ func TestInterpreter_Logger_RunsWithoutOutput(t *testing.T) {
 
 	// Get tosca.Parameters
 	params := tosca.Parameters{
-		Input:  []byte{},
-		Static: true,
-		Gas:    10,
-		Code:   []byte{byte(STOP), 0},
+		Code: []byte{byte(STOP), 0},
 	}
 	code := []Instruction{{STOP, 0}}
 
@@ -107,13 +102,19 @@ func TestInterpreter_Logger_RunsWithoutOutput(t *testing.T) {
 	}
 
 	err = wOut.Close()
-	outOut, _ := io.ReadAll(rOut)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	outOut, err := io.ReadAll(rOut)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
 	err = wErr.Close()
-	outErr, _ := io.ReadAll(rErr)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	outErr, err := io.ReadAll(rErr)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
