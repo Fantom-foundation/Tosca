@@ -115,7 +115,7 @@ func run(
 	if err != nil {
 		return tosca.Result{
 			Success: false,
-		}, nil
+		}, err
 	}
 
 	return generateResult(status, &ctxt)

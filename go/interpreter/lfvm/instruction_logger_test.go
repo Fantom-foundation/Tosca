@@ -125,3 +125,28 @@ func TestInterpreter_Logger_RunsWithoutOutput(t *testing.T) {
 		t.Errorf("unexpected stderr: want \"\", got \"%v\"", outErr)
 	}
 }
+
+type errorWriter struct{}
+
+func (errorWriter) Write(p []byte) (n int, err error) {
+	return 0, io.ErrShortWrite
+}
+
+func TestInterpreter_Logger_FailsToWrite(t *testing.T) {
+
+	// Get tosca.Parameters
+	params := tosca.Parameters{
+		Code: []byte{byte(STOP), 0},
+	}
+	code := []Instruction{{STOP, 0}}
+
+	logger := newLogger(errorWriter{})
+	config := interpreterConfig{
+		runner: logger,
+	}
+
+	_, err := run(config, params, code)
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+}
