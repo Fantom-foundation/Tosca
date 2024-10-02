@@ -31,10 +31,10 @@ impl Stack {
     pub fn pop<const N: usize>(&mut self) -> Result<[u256; N], StatusCode> {
         self.check_underflow(N)?;
 
+        let new_len = self.0.len() - N;
         let mut array = [u256::ZERO; N];
-        for element in &mut array {
-            *element = self.0.pop().unwrap();
-        }
+        array.copy_from_slice(&self.0[new_len..]);
+        self.0.truncate(new_len);
         Ok(array)
     }
 
@@ -84,8 +84,8 @@ mod tests {
         let mut stack = Stack::new(vec![]);
         assert_eq!(stack.pop::<1>(), Err(StatusCode::EVMC_STACK_UNDERFLOW));
 
-        let mut stack = Stack::new(vec![u256::MAX, u256::MAX]);
-        assert_eq!(stack.pop::<2>(), Ok([u256::MAX, u256::MAX]));
+        let mut stack = Stack::new(vec![u256::ONE, u256::MAX]);
+        assert_eq!(stack.pop::<2>(), Ok([u256::ONE, u256::MAX]));
 
         let mut stack = Stack::new(vec![u256::MAX]);
         assert_eq!(stack.pop::<2>(), Err(StatusCode::EVMC_STACK_UNDERFLOW));
