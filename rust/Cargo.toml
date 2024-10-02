@@ -13,6 +13,7 @@ debug = true
 [features]
 # Flag mock enables code generation for test mocking. This allows generating mocks for other build configuration but "test". 
 mock = ["dep:mockall"]
+performance = []
 
 [dependencies]
 bnum = "0.11.0"
