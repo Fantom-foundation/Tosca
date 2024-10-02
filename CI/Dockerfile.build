@@ -8,15 +8,11 @@ RUN apt-get update && apt-get install -y \
   cmake \
   lcov \
   clang-format \
-  wget \
+  curl \
   && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update ;\
-  wget https://go.dev/dl/go1.21.0.linux-amd64.tar.gz;\
-  tar xf go1.21.0.linux-amd64.tar.gz;\
-  mv go /usr/local;\
-  rm -r go1.21.0.linux-amd64.tar.gz 
 
+# Install Go:
 # Because of user id forwarding, the home directory may not exist in the container
 # Go would fall back to / (root) in this case, which is not writable
 RUN mkdir -p /tmp/cache && chmod 777 /tmp/cache && \
@@ -24,4 +20,15 @@ RUN mkdir -p /tmp/cache && chmod 777 /tmp/cache && \
 ENV GOCACHE=/tmp/cache
 ENV GOPATH=/tmp/gopath
 ENV GOROOT=/usr/local/go
-ENV PATH="$PATH:$GOROOT/bin"
+RUN curl -OL https://go.dev/dl/go1.22.8.linux-amd64.tar.gz && \
+  tar -xf go1.22.8.linux-amd64.tar.gz && \
+  mv go /usr/local && \
+  rm -f go1.22.8.linux-amd64.tar.gz
+
+# Install Rust:
+ENV RUSTUP_HOME=/tmp/rust/rustup 
+ENV CARGO_HOME=/tmp/rust/cargo
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
+
+
+ENV PATH="$PATH:$GOROOT/bin:${GOPATH}/bin:${CARGO_HOME}/bin"
