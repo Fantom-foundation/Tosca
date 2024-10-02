@@ -1055,8 +1055,11 @@ func genericCall(c *context, kind tosca.CallKind) error {
 	// and not doing it would be identified by the replay tool as an error.
 	toAddr := tosca.Address(addr.Bytes20())
 
-	if checkSizeOffsetUint64Overflow(inOffset, inSize) != nil ||
-		checkSizeOffsetUint64Overflow(retOffset, retSize) != nil {
+	if checkSizeOffsetUint64Overflow(inOffset, inSize) != nil {
+		return errOverflow
+	}
+
+	if checkSizeOffsetUint64Overflow(retOffset, retSize) != nil {
 		return errOverflow
 	}
 
@@ -1070,45 +1073,47 @@ func genericCall(c *context, kind tosca.CallKind) error {
 		return err
 	}
 
-	baseGas := tosca.Gas(0)
 	// from berlin onwards access cost changes depending on warm/cold access.
 	if c.isAtLeast(tosca.R09_Berlin) {
-		baseGas += getAccessCost(c.context.AccessAccount(toAddr))
-	}
-	checkGas := func(cost tosca.Gas) bool {
-		return 0 <= cost && cost <= c.gas
-	}
-	if !checkGas(baseGas) {
-		return errOutOfGas
+		if err := c.useGas(getAccessCost(c.context.AccessAccount(toAddr))); err != nil {
+			return err
+		}
 	}
 
 	// for static and delegate calls, the following value checks will always be zero.
 	// Charge for transferring value to a new address
 	if !value.IsZero() {
-		baseGas += CallValueTransferGas
-	}
-	if !checkGas(baseGas) {
-		return errOutOfGas
+		if err := c.useGas(CallValueTransferGas); err != nil {
+			return err
+		}
 	}
 
 	// EIP158 states that non-zero value calls that create a new account should
 	// be charged an additional gas fee.
 	if kind == tosca.Call && !value.IsZero() && !c.context.AccountExists(toAddr) {
-		baseGas += CallNewAccountGas
-	}
-	if !checkGas(baseGas) {
-		return errOutOfGas
+		if err := c.useGas(CallNewAccountGas); err != nil {
+			return err
+		}
 	}
 
-	cost := callGas(c.gas, baseGas, provided_gas)
-	if err := c.useGas(baseGas + cost); err != nil {
+	// The Homestead hard-fork introduced a limit on the amount of gas that can be
+	// forwarded to recursive calls. EIP-150 (https://eips.ethereum.org/EIPS/eip-150)
+	// defines that at all but one 64th of the available gas in one scope may be passed
+	// to a nested call.
+	nestedCallGas := tosca.Gas(c.gas - c.gas/64)
+	if provided_gas.IsUint64() && (nestedCallGas >= tosca.Gas(provided_gas.Uint64())) {
+		nestedCallGas = tosca.Gas(provided_gas.Uint64())
+	}
+	if err := c.useGas(nestedCallGas); err != nil {
+		// this usage can never fail because the endowment is at most
+		// 63/64 of the current gas level.
 		return err
 	}
 
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
 	if !value.IsZero() {
-		cost += CallStipend
+		nestedCallGas += CallStipend
 	}
 
 	// Check that the caller has enough balance to transfer the requested value.
@@ -1118,7 +1123,7 @@ func genericCall(c *context, kind tosca.CallKind) error {
 		if balanceU256.Lt(value) {
 			c.stack.pushUndefined().Clear()
 			c.returnData = nil
-			c.gas += cost // the gas send to the nested contract is returned
+			c.gas += nestedCallGas // the gas send to the nested contract is returned
 			return nil
 		}
 	}
@@ -1134,7 +1139,7 @@ func genericCall(c *context, kind tosca.CallKind) error {
 	// Prepare arguments, depending on call kind
 	callParams := tosca.CallParameters{
 		Input: args,
-		Gas:   cost,
+		Gas:   nestedCallGas,
 		Value: tosca.Value(value.Bytes32()),
 	}
 

@@ -1419,3 +1419,164 @@ func TestGetData(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckSizeOffsetUintOverflow(t *testing.T) {
+
+	zero := uint256.NewInt(0)
+	one := uint256.NewInt(1)
+	u64overflow := new(uint256.Int).Add(uint256.NewInt(2), uint256.NewInt(math.MaxUint64))
+
+	tests := map[string]struct {
+		offset, size *uint256.Int
+		expected     error
+	}{
+		"ignores offset with size zero": {
+			offset:   u64overflow,
+			size:     zero,
+			expected: nil,
+		},
+		"returns error on size overflow": {
+			offset:   zero,
+			size:     u64overflow,
+			expected: errOverflow,
+		},
+		"returns error on offset overflow": {
+			offset:   u64overflow,
+			size:     one,
+			expected: errOverflow,
+		},
+		"returns error after sum overflow": {
+			offset:   uint256.NewInt(math.MaxUint64 - 1),
+			size:     uint256.NewInt(2),
+			expected: errOverflow,
+		},
+		"returns ok when no overflow": {
+			offset:   one,
+			size:     one,
+			expected: nil,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := checkSizeOffsetUint64Overflow(test.offset, test.size); got != test.expected {
+				t.Errorf("unexpected result, wanted %v, got %v", test.expected, got)
+			}
+		})
+	}
+}
+
+func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
+
+	one := uint256.NewInt(1)
+	u64overflow := new(uint256.Int).Add(uint256.NewInt(2), uint256.NewInt(math.MaxUint64))
+
+	tests := map[string]struct {
+		// stack order
+		retSize, retOffset, inSize, inOffset, value, address, provided_gas *uint256.Int
+		gas                                                                tosca.Gas
+		expectedError                                                      error
+	}{
+		"input offset overflow": {
+			// size needs to be one, otherwise offset is ignored.
+			inSize:        one,
+			inOffset:      u64overflow,
+			expectedError: errOverflow,
+		},
+		"return Size overflow": {
+			retSize:       u64overflow,
+			expectedError: errOverflow,
+		},
+		"input memory too big": {
+			inSize:        uint256.NewInt(maxMemoryExpansionSize + 1),
+			expectedError: errMaxMemoryExpansionSize,
+		},
+		"not enough gas for output memory expansion": {
+			retSize:       one,
+			gas:           1,
+			expectedError: errOutOfGas,
+		},
+		"not enough gas for access cost": {
+			gas:           99,
+			expectedError: errOutOfGas,
+		},
+		"not enough gas for value transfer": {
+			value:         one,
+			gas:           9099, // 9000 for value transfer, 100 for warm access cost
+			expectedError: errOutOfGas,
+		},
+		"not enough gas for new account": {
+			value:         one,
+			address:       one,
+			gas:           33099, // 25000 for new account, 9000 for value transfer, 100 for warm access cost
+			expectedError: errOutOfGas,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			runContext := tosca.NewMockRunContext(gomock.NewController(t))
+			runContext.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess).AnyTimes()
+			runContext.EXPECT().AccountExists(gomock.Any()).Return(false).AnyTimes()
+			runContext.EXPECT().Call(tosca.Call, gomock.Any()).Return(tosca.CallResult{}, nil).AnyTimes()
+
+			ctxt := getEmptyContext()
+			ctxt.context = runContext
+			ctxt.params.Revision = tosca.R13_Cancun
+			ctxt.gas = test.gas
+
+			getValueOrZeroOf := func(i *uint256.Int) *uint256.Int {
+				if i == nil {
+					return uint256.NewInt(0)
+				}
+				return i
+			}
+
+			ctxt.stack.push(getValueOrZeroOf(test.retSize))
+			ctxt.stack.push(getValueOrZeroOf(test.retOffset))
+			ctxt.stack.push(getValueOrZeroOf(test.inSize))
+			ctxt.stack.push(getValueOrZeroOf(test.inOffset))
+			ctxt.stack.push(getValueOrZeroOf(test.value))
+			ctxt.stack.push(getValueOrZeroOf(test.address))
+			ctxt.stack.push(getValueOrZeroOf(test.provided_gas))
+
+			err := genericCall(&ctxt, tosca.Call)
+
+			if err != test.expectedError {
+				t.Errorf("unexpected status after call, wanted %v, got %v", test.expectedError, err)
+			}
+		})
+	}
+}
+
+func TestGenericCall_CallKindPropagatesStaticMode(t *testing.T) {
+	runContext := tosca.NewMockRunContext(gomock.NewController(t))
+	runContext.EXPECT().Call(tosca.StaticCall, gomock.Any()).Return(tosca.CallResult{}, nil)
+	ctxt := getEmptyContext()
+	ctxt.context = runContext
+	ctxt.params.Static = true
+	ctxt.stack.stackPointer = 7
+	err := genericCall(&ctxt, tosca.Call)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestGeneralCall_ResultIsWrittenToStack(t *testing.T) {
+	for _, success := range []bool{true, false} {
+		runContext := tosca.NewMockRunContext(gomock.NewController(t))
+		runContext.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{Success: success}, nil)
+		ctxt := getEmptyContext()
+		ctxt.context = runContext
+		ctxt.stack.stackPointer = 7
+		_ = genericCall(&ctxt, tosca.Call)
+		want := uint256.NewInt(0)
+		if success {
+			want = uint256.NewInt(1)
+		}
+		if got := ctxt.stack.data[0]; !want.Eq(&got) {
+			t.Errorf("unexpected return value, wanted %v, got %v", want, got)
+		}
+
+	}
+}

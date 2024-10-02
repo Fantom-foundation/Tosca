@@ -12,7 +12,6 @@ package lfvm
 
 import (
 	"github.com/Fantom-foundation/Tosca/go/tosca"
-	"github.com/holiman/uint256"
 )
 
 const (
@@ -234,22 +233,6 @@ func getStaticGasPriceInternal(op OpCode) tosca.Gas {
 	}
 
 	return UNKNOWN_GAS_PRICE
-}
-
-// callGas returns the actual gas cost of the call.
-//
-// The cost of gas was changed during the homestead price change HF.
-// As part of EIP 150 (TangerineWhistle), the returned gas is gas - base * 63 / 64.
-func callGas(availableGas, base tosca.Gas, callCost *uint256.Int) tosca.Gas {
-	availableGas = availableGas - base
-	if availableGas < 0 {
-		return base
-	}
-	gas := availableGas - availableGas/64
-	if !callCost.IsUint64() || (gas < tosca.Gas(callCost.Uint64())) {
-		return gas
-	}
-	return tosca.Gas(callCost.Uint64())
 }
 
 func getDynamicCostsForSstore(
