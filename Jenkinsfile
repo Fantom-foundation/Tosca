@@ -115,7 +115,7 @@ pipeline {
         stage('Test Rust coverage support') {
             steps {
                 sh 'make tosca-rust-coverage'
-                sh 'go test -v  -run ^TestDumpRustCoverageData$ ./go/lib/rust/ --expect-coverage'
+                sh 'LLVM_PROFILE_FILE="/tmp/go/rust-%p-%m.profraw" go test -v  -run ^TestDumpRustCoverageData$ ./go/lib/rust/ --expect-coverage'
             }
         }
     }

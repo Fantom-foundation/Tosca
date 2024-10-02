@@ -24,7 +24,8 @@ var stateImpl = flag.Bool("expect-coverage", false, "enable if the unit test is 
 func TestDumpRustCoverageData(t *testing.T) {
 
 	// write coverage data into tempDir directory
-	tempDir := t.TempDir()
+	//tempDir := t.TempDir()
+	tempDir := "/tmp/go"
 	llvmProfileFile := tempDir + "/rust-%p-%m.profraw"
 	err := os.Setenv("LLVM_PROFILE_FILE", llvmProfileFile)
 	if err != nil {
