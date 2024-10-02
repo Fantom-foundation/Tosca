@@ -110,9 +110,9 @@ func doRun(context *cli.Context) error {
 			return rlz.ConsumeAbort
 		}
 
-		// TODO: program counter pointing to data not supported by LFVM
-		// converter. Fix this.
-		if evmIdentifier == "lfvm" && !state.Code.IsCode(int(state.Pc)) {
+		// TODO: do not only skip state but change 'pc_on_data_is_ignored' rule to anyEffect
+		// Pc on data is not supported
+		if !state.Code.IsCode(int(state.Pc)) {
 			skippedCount.Add(1)
 			return rlz.ConsumeContinue
 		}
