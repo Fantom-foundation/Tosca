@@ -1621,6 +1621,140 @@ func TestGeneralCall_ResultIsWrittenToStack(t *testing.T) {
 		if got := ctxt.stack.data[0]; !want.Eq(&got) {
 			t.Errorf("unexpected return value, wanted %v, got %v", want, got)
 		}
+	}
+}
 
+func TestInstructions_ComparisonAndShiftOperations(t *testing.T) {
+
+	zero := *uint256.NewInt(0)
+	one := *uint256.NewInt(1)
+	two := *uint256.NewInt(2)
+	signedMinusOne := *uint256.NewInt(0).Sub(&zero, &one)
+	signedMinusTwo := *uint256.NewInt(0).Sub(&zero, &two)
+	u256 := *uint256.NewInt(256)
+	u257 := *uint256.NewInt(257)
+
+	fillStack := func(values ...uint256.Int) *stack {
+		s := NewStack()
+		for i := len(values) - 1; i >= 0; i-- {
+			s.push(&values[i])
+		}
+		return s
+	}
+
+	tests := map[string]struct {
+		opImplementation func(*context)
+		stackInputs      *stack
+		expectedOutput   uint256.Int
+	}{
+		"isZero/true": {
+			opImplementation: opIszero,
+			stackInputs:      fillStack(zero),
+			expectedOutput:   one,
+		},
+		"isZero/false": {
+			opImplementation: opIszero,
+			stackInputs:      fillStack(one),
+			expectedOutput:   zero,
+		},
+		"eq/true": {
+			opImplementation: opEq,
+			stackInputs:      fillStack(one, one),
+			expectedOutput:   one,
+		},
+		"eq/false": {
+			opImplementation: opEq,
+			stackInputs:      fillStack(one, two),
+			expectedOutput:   zero,
+		},
+		"lt/true": {
+			opImplementation: opLt,
+			stackInputs:      fillStack(one, two),
+			expectedOutput:   one,
+		},
+		"lt/false": {
+			opImplementation: opLt,
+			stackInputs:      fillStack(one, one),
+			expectedOutput:   zero,
+		},
+		"gt/true": {
+			opImplementation: opGt,
+			stackInputs:      fillStack(two, one),
+			expectedOutput:   one,
+		},
+		"gt/false": {
+			opImplementation: opGt,
+			stackInputs:      fillStack(one, one),
+			expectedOutput:   zero,
+		},
+		"slt/true": {
+			opImplementation: opSlt,
+			stackInputs:      fillStack(signedMinusOne, one),
+			expectedOutput:   one,
+		},
+		"slt/false": {
+			opImplementation: opSlt,
+			stackInputs:      fillStack(one, one),
+			expectedOutput:   zero,
+		},
+		"sgt/true": {
+			opImplementation: opSgt,
+			stackInputs:      fillStack(one, signedMinusOne),
+			expectedOutput:   one,
+		},
+		"sgt/false": {
+			opImplementation: opSgt,
+			stackInputs:      fillStack(signedMinusOne, one),
+			expectedOutput:   zero,
+		},
+		"shr/under256": {
+			opImplementation: opShr,
+			stackInputs:      fillStack(one, two),
+			expectedOutput:   one,
+		},
+		"shr/over256": {
+			opImplementation: opShr,
+			stackInputs:      fillStack(u256, one),
+			expectedOutput:   zero,
+		},
+		"shl/under256": {
+			opImplementation: opShl,
+			stackInputs:      fillStack(one, one),
+			expectedOutput:   two,
+		},
+		"shl/over256": {
+			opImplementation: opShl,
+			stackInputs:      fillStack(u256, one),
+			expectedOutput:   zero,
+		},
+		"sar/under256": {
+			opImplementation: opSar,
+			stackInputs:      fillStack(one, signedMinusTwo),
+			expectedOutput:   signedMinusOne,
+		},
+		"sar/over256/signed": {
+			opImplementation: opSar,
+			stackInputs:      fillStack(u257, signedMinusOne),
+			expectedOutput:   signedMinusOne,
+		},
+		"sar/over256/unsigned": {
+			opImplementation: opSar,
+			stackInputs:      fillStack(u257, one),
+			expectedOutput:   zero,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctxt := context{
+				stack: test.stackInputs,
+			}
+
+			test.opImplementation(&ctxt)
+			result := ctxt.stack.pop()
+			if result.Cmp(&test.expectedOutput) != 0 {
+				t.Errorf("unexpected result, wanted %d, got %d", test.expectedOutput, result)
+			}
+		})
 	}
 }
