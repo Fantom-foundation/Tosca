@@ -79,7 +79,7 @@ extern "C" fn __evmc_set_option(
 }
 
 #[no_mangle]
-pub(super) extern "C" fn evmc_create_evmrs() -> *const evmc_vm_t {
+pub(super) extern "C" fn evmc_create_evmrs() -> *mut evmc_vm_t {
     let new_instance = evmc_vm_t {
         abi_version: EVMC_ABI_VERSION as i32,
         destroy: Some(__evmc_destroy),
@@ -187,7 +187,7 @@ extern "C" fn __evmc_execute(
 
 #[cfg(test)]
 mod tests {
-    use evmc_vm::ffi::{evmc_capabilities_flagset, evmc_set_option_result, evmc_vm as evmc_vm_t};
+    use evmc_vm::ffi::{evmc_capabilities_flagset, evmc_set_option_result};
 
     use crate::ffi::{
         evmc_vm::{__evmc_destroy, __evmc_get_capabilities, __evmc_set_option, evmc_create_evmrs},
@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn create_set_option_destroy() {
-        let vm = evmc_create_evmrs() as *mut evmc_vm_t;
+        let vm = evmc_create_evmrs();
         assert_eq!(
             __evmc_get_capabilities(vm),
             EVMC_CAPABILITY as evmc_capabilities_flagset

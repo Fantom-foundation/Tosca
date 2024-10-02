@@ -3,7 +3,7 @@ use std::{ffi::c_void, panic, slice};
 use ::evmc_vm::{
     ffi::{
         evmc_bytes32, evmc_capabilities, evmc_host_interface, evmc_message, evmc_revision,
-        evmc_step_result, evmc_step_status_code, evmc_vm as evmc_vm_t, evmc_vm_steppable,
+        evmc_step_result, evmc_step_status_code, evmc_vm_steppable,
     },
     ExecutionContext, ExecutionMessage, StatusCode, StepResult, StepStatusCode,
     SteppableEvmcContainer, SteppableEvmcVm,
@@ -15,9 +15,9 @@ use crate::{
 };
 
 #[no_mangle]
-extern "C" fn evmc_create_steppable_evmrs() -> *const evmc_vm_steppable {
+extern "C" fn evmc_create_steppable_evmrs() -> *mut evmc_vm_steppable {
     let new_instance = evmc_vm_steppable {
-        vm: evmc_vm::evmc_create_evmrs() as *mut evmc_vm_t,
+        vm: evmc_vm::evmc_create_evmrs(),
         step_n: Some(__evmc_step_n),
         destroy: Some(__evmc_steppable_destroy),
     };
@@ -172,13 +172,11 @@ extern "C" fn __evmc_step_n(
 
 #[cfg(test)]
 mod tests {
-    use evmc_vm::ffi::evmc_vm_steppable;
-
     use crate::ffi::steppable_evmc_vm::{__evmc_steppable_destroy, evmc_create_steppable_evmrs};
 
     #[test]
     fn create_destroy() {
-        let vm = evmc_create_steppable_evmrs() as *mut evmc_vm_steppable;
+        let vm = evmc_create_steppable_evmrs();
         __evmc_steppable_destroy(vm);
     }
 }

@@ -6,8 +6,8 @@ use benchmarks::RunArgs;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let args = RunArgs::ffi_overhead();
-    c.bench_function("ffi_overhead", |b| b.iter(|| benchmarks::run(&args)));
+    let mut args = RunArgs::ffi_overhead();
+    c.bench_function("ffi_overhead", |b| b.iter(|| benchmarks::run(&mut args)));
 }
 
 criterion_group!(
