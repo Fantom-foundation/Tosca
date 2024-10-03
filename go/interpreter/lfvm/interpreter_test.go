@@ -241,19 +241,19 @@ func TestInterpreter_ExecutionTerminates(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			c := getEmptyContext()
-			c.code = test.code
-			c.stack.push(uint256.NewInt(1))
-			c.stack.push(uint256.NewInt(2))
-			c.stack.push(uint256.NewInt(3))
+			ctxt := getEmptyContext()
+			ctxt.code = test.code
+			ctxt.stack.push(uint256.NewInt(1))
+			ctxt.stack.push(uint256.NewInt(2))
+			ctxt.stack.push(uint256.NewInt(3))
 			// runcontext is needed for selfdestruct
 			mockContext := tosca.NewMockRunContext(gomock.NewController(t))
 			mockContext.EXPECT().AccountExists(gomock.Any()).Return(true).AnyTimes()
 			mockContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1}).AnyTimes()
 			mockContext.EXPECT().SelfDestruct(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
-			c.context = mockContext
+			ctxt.context = mockContext
 
-			status, err := steps(&c, false)
+			status, err := steps(&ctxt, false)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
@@ -361,6 +361,12 @@ func TestRun_GenerateResult(t *testing.T) {
 				Output:    nil,
 				GasLeft:   baseGas,
 				GasRefund: baseRefund,
+			},
+		},
+		"failure": {
+			status: statusFailed,
+			expectedResult: tosca.Result{
+				Success: false,
 			},
 		},
 		"unknown status": {

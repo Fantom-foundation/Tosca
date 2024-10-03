@@ -45,10 +45,7 @@ func (l loggingRunner) run(c *context) (status, error) {
 				}
 			}
 		}
-		status, err = step(c)
-		if err != nil {
-			return status, err
-		}
+		status = execute(c, true)
 	}
 	return status, nil
 }
