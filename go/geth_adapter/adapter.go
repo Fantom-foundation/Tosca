@@ -234,12 +234,12 @@ func convertRevision(chainConfig *params.ChainConfig, blockNumber *big.Int, time
 			revision = tosca.R13_Cancun
 		} else if chainConfig.IsShanghai(blockNumber, time) {
 			revision = tosca.R12_Shanghai
-		} else if blockNumber.Cmp(chainConfig.MergeNetsplitBlock) >= 0 {
-			revision = tosca.R11_Paris
-		} else if chainConfig.IsLondon(blockNumber) {
-			revision = tosca.R10_London
 		} else if chainConfig.IsBerlin(blockNumber) {
 			revision = tosca.R09_Berlin
+		} else if chainConfig.IsLondon(blockNumber) {
+			revision = tosca.R10_London
+		} else if chainConfig.MergeNetsplitBlock != nil && blockNumber.Cmp(chainConfig.MergeNetsplitBlock) >= 0 {
+			revision = tosca.R11_Paris
 		}
 	}
 	return revision
