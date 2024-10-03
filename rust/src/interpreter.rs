@@ -116,52 +116,52 @@ where
                 }
                 Opcode::Add => {
                     self.gas_left.consume(3)?;
-                    let [value1, value2] = self.stack.pop()?;
+                    let [value2, value1] = self.stack.pop()?;
                     self.stack.push(value1 + value2)?;
                 }
                 Opcode::Mul => {
                     self.gas_left.consume(5)?;
-                    let [fac1, fac2] = self.stack.pop()?;
+                    let [fac2, fac1] = self.stack.pop()?;
                     self.stack.push(fac1 * fac2)?;
                 }
                 Opcode::Sub => {
                     self.gas_left.consume(3)?;
-                    let [value1, value2] = self.stack.pop()?;
+                    let [value2, value1] = self.stack.pop()?;
                     self.stack.push(value1 - value2)?;
                 }
                 Opcode::Div => {
                     self.gas_left.consume(5)?;
-                    let [value, denominator] = self.stack.pop()?;
+                    let [denominator, value] = self.stack.pop()?;
                     self.stack.push(value / denominator)?;
                 }
                 Opcode::SDiv => {
                     self.gas_left.consume(5)?;
-                    let [value, denominator] = self.stack.pop()?;
+                    let [denominator, value] = self.stack.pop()?;
                     self.stack.push(value.sdiv(denominator))?;
                 }
                 Opcode::Mod => {
                     self.gas_left.consume(5)?;
-                    let [value, denominator] = self.stack.pop()?;
+                    let [denominator, value] = self.stack.pop()?;
                     self.stack.push(value % denominator)?;
                 }
                 Opcode::SMod => {
                     self.gas_left.consume(5)?;
-                    let [value, denominator] = self.stack.pop()?;
+                    let [denominator, value] = self.stack.pop()?;
                     self.stack.push(value.srem(denominator))?;
                 }
                 Opcode::AddMod => {
                     self.gas_left.consume(8)?;
-                    let [value1, value2, denominator] = self.stack.pop()?;
+                    let [denominator, value2, value1] = self.stack.pop()?;
                     self.stack.push(u256::addmod(value1, value2, denominator))?;
                 }
                 Opcode::MulMod => {
                     self.gas_left.consume(8)?;
-                    let [fac1, fac2, denominator] = self.stack.pop()?;
+                    let [denominator, fac2, fac1] = self.stack.pop()?;
                     self.stack.push(u256::mulmod(fac1, fac2, denominator))?;
                 }
                 Opcode::Exp => {
                     self.gas_left.consume(10)?;
-                    let [value, exp] = self.stack.pop()?;
+                    let [exp, value] = self.stack.pop()?;
                     let byte_size =
                         32 - exp.into_iter().take_while(|byte| *byte == 0).count() as u64;
                     self.gas_left.consume(byte_size * 50)?; // * does not overflow
@@ -169,32 +169,32 @@ where
                 }
                 Opcode::SignExtend => {
                     self.gas_left.consume(5)?;
-                    let [size, value] = self.stack.pop()?;
+                    let [value, size] = self.stack.pop()?;
                     self.stack.push(u256::signextend(size, value))?;
                 }
                 Opcode::Lt => {
                     self.gas_left.consume(3)?;
-                    let [lhs, rhs] = self.stack.pop()?;
+                    let [rhs, lhs] = self.stack.pop()?;
                     self.stack.push(lhs < rhs)?;
                 }
                 Opcode::Gt => {
                     self.gas_left.consume(3)?;
-                    let [lhs, rhs] = self.stack.pop()?;
+                    let [rhs, lhs] = self.stack.pop()?;
                     self.stack.push(lhs > rhs)?;
                 }
                 Opcode::SLt => {
                     self.gas_left.consume(3)?;
-                    let [lhs, rhs] = self.stack.pop()?;
+                    let [rhs, lhs] = self.stack.pop()?;
                     self.stack.push(lhs.slt(&rhs))?;
                 }
                 Opcode::SGt => {
                     self.gas_left.consume(3)?;
-                    let [lhs, rhs] = self.stack.pop()?;
+                    let [rhs, lhs] = self.stack.pop()?;
                     self.stack.push(lhs.sgt(&rhs))?;
                 }
                 Opcode::Eq => {
                     self.gas_left.consume(3)?;
-                    let [lhs, rhs] = self.stack.pop()?;
+                    let [rhs, lhs] = self.stack.pop()?;
                     self.stack.push(lhs == rhs)?;
                 }
                 Opcode::IsZero => {
@@ -204,17 +204,17 @@ where
                 }
                 Opcode::And => {
                     self.gas_left.consume(3)?;
-                    let [lhs, rhs] = self.stack.pop()?;
+                    let [rhs, lhs] = self.stack.pop()?;
                     self.stack.push(lhs & rhs)?;
                 }
                 Opcode::Or => {
                     self.gas_left.consume(3)?;
-                    let [lhs, rhs] = self.stack.pop()?;
+                    let [rhs, lhs] = self.stack.pop()?;
                     self.stack.push(lhs | rhs)?;
                 }
                 Opcode::Xor => {
                     self.gas_left.consume(3)?;
-                    let [lhs, rhs] = self.stack.pop()?;
+                    let [rhs, lhs] = self.stack.pop()?;
                     self.stack.push(lhs ^ rhs)?;
                 }
                 Opcode::Not => {
@@ -224,27 +224,27 @@ where
                 }
                 Opcode::Byte => {
                     self.gas_left.consume(3)?;
-                    let [offset, value] = self.stack.pop()?;
+                    let [value, offset] = self.stack.pop()?;
                     self.stack.push(value.byte(offset))?;
                 }
                 Opcode::Shl => {
                     self.gas_left.consume(3)?;
-                    let [shift, value] = self.stack.pop()?;
+                    let [value, shift] = self.stack.pop()?;
                     self.stack.push(value << shift)?;
                 }
                 Opcode::Shr => {
                     self.gas_left.consume(3)?;
-                    let [shift, value] = self.stack.pop()?;
+                    let [value, shift] = self.stack.pop()?;
                     self.stack.push(value >> shift)?;
                 }
                 Opcode::Sar => {
                     self.gas_left.consume(3)?;
-                    let [shift, value] = self.stack.pop()?;
+                    let [value, shift] = self.stack.pop()?;
                     self.stack.push(value.sar(shift))?;
                 }
                 Opcode::Sha3 => {
                     self.gas_left.consume(30)?;
-                    let [offset, len] = self.stack.pop()?;
+                    let [len, offset] = self.stack.pop()?;
 
                     let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
                     self.gas_left.consume(6 * word_size(len)?)?; // * does not overflow
@@ -312,7 +312,7 @@ where
                 }
                 Opcode::CallDataCopy => {
                     self.gas_left.consume(3)?;
-                    let [dest_offset, offset, len] = self.stack.pop()?;
+                    let [len, offset, dest_offset] = self.stack.pop()?;
 
                     if len != u256::ZERO {
                         let len = len
@@ -337,7 +337,7 @@ where
                 }
                 Opcode::CodeCopy => {
                     self.gas_left.consume(3)?;
-                    let [dest_offset, offset, len] = self.stack.pop()?;
+                    let [len, offset, dest_offset] = self.stack.pop()?;
 
                     if len != u256::ZERO {
                         let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
@@ -371,7 +371,7 @@ where
                     if self.revision < Revision::EVMC_BERLIN {
                         self.gas_left.consume(700)?;
                     }
-                    let [addr, dest_offset, offset, len] = self.stack.pop()?;
+                    let [len, offset, dest_offset, addr] = self.stack.pop()?;
                     let addr = addr.into();
 
                     self.gas_left.consume_address_access_cost(
@@ -406,7 +406,7 @@ where
                 }
                 Opcode::ReturnDataCopy => {
                     self.gas_left.consume(3)?;
-                    let [dest_offset, offset, len] = self.stack.pop()?;
+                    let [len, offset, dest_offset] = self.stack.pop()?;
 
                     let src = self.last_call_return_data.as_deref().unwrap_or_default();
                     let (offset, offset_overflow) = offset.into_u64_with_overflow();
@@ -525,14 +525,14 @@ where
                 }
                 Opcode::MStore => {
                     self.gas_left.consume(3)?;
-                    let [offset, value] = self.stack.pop()?;
+                    let [value, offset] = self.stack.pop()?;
 
                     let dest = self.memory.get_mut_slice(offset, 32, &mut self.gas_left)?;
                     dest.copy_from_slice(value.as_slice());
                 }
                 Opcode::MStore8 => {
                     self.gas_left.consume(3)?;
-                    let [offset, value] = self.stack.pop()?;
+                    let [value, offset] = self.stack.pop()?;
 
                     let dest = self.memory.get_mut_byte(offset, &mut self.gas_left)?;
                     *dest = value[31];
@@ -563,7 +563,7 @@ where
                 }
                 Opcode::JumpI => {
                     self.gas_left.consume(10)?;
-                    let [dest, cond] = self.stack.pop()?;
+                    let [cond, dest] = self.stack.pop()?;
                     if cond == u256::ZERO {
                         self.code_reader.next();
                     } else {
@@ -597,7 +597,7 @@ where
                     check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
                     check_not_read_only(&self)?;
                     self.gas_left.consume(100)?;
-                    let [key, value] = self.stack.pop()?;
+                    let [value, key] = self.stack.pop()?;
                     let addr = self.message.recipient();
                     self.context
                         .set_transient_storage(addr, &key.into(), &value.into());
@@ -605,7 +605,7 @@ where
                 Opcode::MCopy => {
                     check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
                     self.gas_left.consume(3)?;
-                    let [dest_offset, offset, len] = self.stack.pop()?;
+                    let [len, offset, dest_offset] = self.stack.pop()?;
                     if len != u256::ZERO {
                         self.memory
                             .copy_within(offset, dest_offset, len, &mut self.gas_left)?;
@@ -684,7 +684,7 @@ where
                 Opcode::Call => self.call()?,
                 Opcode::CallCode => self.call_code()?,
                 Opcode::Return => {
-                    let [offset, len] = self.stack.pop()?;
+                    let [len, offset] = self.stack.pop()?;
                     let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
                     let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
                     self.output = Some(data.to_owned());
@@ -695,7 +695,7 @@ where
                 Opcode::Create2 => self.create2()?,
                 Opcode::StaticCall => self.static_call()?,
                 Opcode::Revert => {
-                    let [offset, len] = self.stack.pop()?;
+                    let [len, offset] = self.stack.pop()?;
                     let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
                     let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
                     // TODO revert self changes
@@ -754,7 +754,7 @@ where
         if self.revision >= Revision::EVMC_ISTANBUL && self.gas_left <= 2_300 {
             return Err(StatusCode::EVMC_OUT_OF_GAS);
         }
-        let [key, value] = self.stack.pop()?;
+        let [value, key] = self.stack.pop()?;
         let key = key.into();
         let addr = self.message.recipient();
 
@@ -820,8 +820,8 @@ where
     fn log<const N: usize>(&mut self) -> Result<(), StatusCode> {
         check_not_read_only(self)?;
         self.gas_left.consume(375)?;
-        let [offset, len] = self.stack.pop()?;
-        let topics: [u256; N] = self.stack.pop()?;
+        let [len, offset] = self.stack.pop()?;
+        let mut topics: [u256; N] = self.stack.pop()?;
         let (len, len_overflow) = len.into_u64_with_overflow();
         let (len8, len8_overflow) = len.overflowing_mul(8);
         let (cost, cost_overflow) = (375 * N as u64).overflowing_add(len8);
@@ -831,6 +831,7 @@ where
         self.gas_left.consume(cost)?;
 
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        topics.reverse();
         // SAFETY:
         // [u256] is a newtype of [Uint256] with repr(transparent) which guarantees the same memory
         // layout.
@@ -851,9 +852,10 @@ where
     fn create_or_create2<const CREATE2: bool>(&mut self) -> Result<(), StatusCode> {
         self.gas_left.consume(32_000)?;
         check_not_read_only(self)?;
-        let [value, offset, len] = self.stack.pop()?;
+        let [len, offset, value] = self.stack.pop()?;
         let salt = if CREATE2 {
-            self.stack.pop::<1>()?[0]
+            let [salt] = self.stack.pop()?;
+            salt
         } else {
             u256::ZERO // ignored
         };
@@ -933,7 +935,7 @@ where
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
-        let [gas, addr, value, args_offset, args_len, ret_offset, ret_len] = self.stack.pop()?;
+        let [ret_len, ret_offset, args_len, args_offset, value, addr, gas] = self.stack.pop()?;
 
         if !CODE && value != u256::ZERO {
             check_not_read_only(self)?;
@@ -1040,7 +1042,7 @@ where
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
-        let [gas, addr, args_offset, args_len, ret_offset, ret_len] = self.stack.pop()?;
+        let [ret_len, ret_offset, args_len, args_offset, addr, gas] = self.stack.pop()?;
 
         let addr = addr.into();
         let args_len = args_len
