@@ -299,7 +299,7 @@ func TestInterpreter_Vanilla_RunsWithoutOutput(t *testing.T) {
 	}
 }
 
-func TestInterpreter_EmptyCodeBypassesInstanceAndSucceeds(t *testing.T) {
+func TestInterpreter_EmptyCodeBypassesRunnerAndSucceeds(t *testing.T) {
 	code := []Instruction{}
 	params := tosca.Parameters{}
 	config := interpreterConfig{
