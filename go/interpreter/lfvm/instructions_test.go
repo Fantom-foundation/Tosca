@@ -1625,7 +1625,7 @@ func TestGeneralCall_ResultIsWrittenToStack(t *testing.T) {
 	}
 }
 
-func TestInstructions_InstructionsReturnErrorOnOverflow(t *testing.T) {
+func TestInstructions_InstructionsReturnErrorOnParameterOverflow(t *testing.T) {
 	one := *uint256.NewInt(1)
 	zero := *uint256.NewInt(0)
 	maxUint256 := *uint256.NewInt(0).Sub(uint256.NewInt(0), uint256.NewInt(1))
