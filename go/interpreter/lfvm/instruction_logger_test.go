@@ -50,10 +50,7 @@ func TestInterpreter_Logger_ExecutesCodeAndLogs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 
 			// Get tosca.Parameters
-			params := tosca.Parameters{
-				Gas:  3,
-				Code: []byte{byte(STOP), 0},
-			}
+			params := tosca.Parameters{Gas: 3}
 			code := test.code
 			buffer := bytes.NewBuffer([]byte{})
 			logger := newLogger(buffer)
@@ -75,9 +72,7 @@ func TestInterpreter_Logger_ExecutesCodeAndLogs(t *testing.T) {
 func TestInterpreter_Logger_RunsWithoutOutput(t *testing.T) {
 
 	// Get tosca.Parameters
-	params := tosca.Parameters{
-		Code: []byte{byte(STOP), 0},
-	}
+	params := tosca.Parameters{}
 	code := []Instruction{{STOP, 0}}
 
 	// redirect stdout

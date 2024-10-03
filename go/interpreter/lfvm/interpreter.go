@@ -86,7 +86,7 @@ func run(
 	code Code,
 ) (tosca.Result, error) {
 	// Don't bother with the execution if there's no code.
-	if len(params.Code) == 0 {
+	if len(code) == 0 {
 		return tosca.Result{
 			Output:  nil,
 			GasLeft: params.Gas,
