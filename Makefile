@@ -43,6 +43,10 @@ tosca-rust:
 	cd rust; \
 	cargo build --release
 
+tosca-rust-coverage:
+	cd rust; \
+	RUSTFLAGS="-C instrument-coverage" cargo build --release --features dump-cov
+
 evmone:
 	@cd third_party/evmone ; \
 	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_SHARED_LIBRARY_SUFFIX_CXX=.so ; \
