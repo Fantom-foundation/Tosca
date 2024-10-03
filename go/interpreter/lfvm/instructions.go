@@ -844,6 +844,8 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 	gas := c.gas
 	gas -= gas / 64
 	if err := c.useGas(gas); err != nil {
+		// this usage can never fail because the endowment is at most
+		// 63/64 of the current gas level.
 		return err
 	}
 

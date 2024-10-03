@@ -1196,6 +1196,87 @@ func TestGenericCreate_MaxInitCodeSizeIsNotCheckedBeforeShanghai(t *testing.T) {
 	}
 }
 
+func TestGenericCreate_ReportsErors(t *testing.T) {
+
+	u64Overflow := new(uint256.Int).Add(uint256.NewInt(math.MaxUint64), uint256.NewInt(math.MaxUint64))
+	one := uint256.NewInt(1)
+
+	tests := map[string]struct {
+		offset, size  uint256.Int
+		kind          tosca.CallKind
+		revision      tosca.Revision
+		expectedError error
+	}{
+		"offset overflow": {
+			offset:        *u64Overflow,
+			size:          *one,
+			expectedError: errOverflow,
+		},
+		"size overflow": {
+			offset:        *one,
+			size:          *u64Overflow,
+			expectedError: errOverflow,
+		},
+		"not enough gas for code size": {
+			offset:        *one,
+			size:          *uint256.NewInt(31),
+			revision:      tosca.R12_Shanghai,
+			expectedError: errOutOfGas,
+		},
+		"not enough gas for create 2 init code hashing": {
+			offset:        *one,
+			size:          *one,
+			kind:          tosca.Create2,
+			revision:      tosca.R11_Paris,
+			expectedError: errOutOfGas,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctxt := context{
+				params: tosca.Parameters{
+					BlockParameters: tosca.BlockParameters{
+						Revision: test.revision,
+					},
+				},
+				stack:  NewStack(),
+				memory: NewMemory(),
+				gas:    3,
+			}
+
+			ctxt.stack.push(uint256.NewInt(0)) // salt
+			ctxt.stack.push(&test.size)
+			ctxt.stack.push(&test.offset)
+			ctxt.stack.push(uint256.NewInt(0)) // value
+
+			err := genericCreate(&ctxt, test.kind)
+			if err != test.expectedError {
+				t.Errorf("unexpected err. wanted %v, got %v", test.expectedError, err)
+			}
+		})
+	}
+}
+
+func TestGenericCreate_ResultIsWrittenToStack(t *testing.T) {
+	CreatedAddress := tosca.Address([20]byte{19: 0x1})
+	for _, success := range []bool{true, false} {
+		runContext := tosca.NewMockRunContext(gomock.NewController(t))
+		runContext.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{Success: success, CreatedAddress: CreatedAddress}, nil)
+		ctxt := getEmptyContext()
+		ctxt.context = runContext
+		ctxt.stack.stackPointer = 3
+		_ = genericCreate(&ctxt, tosca.Create)
+		want := uint256.NewInt(0)
+		if success {
+			want = uint256.NewInt(1)
+		}
+		if got := ctxt.stack.data[0]; !want.Eq(&got) {
+			t.Errorf("unexpected return value, wanted %v, got %v", want, got)
+		}
+	}
+}
+
 func TestOpEndWithResult_ReturnsExpectedState(t *testing.T) {
 	c := getEmptyContext()
 	c.stack.push(uint256.NewInt(1))
