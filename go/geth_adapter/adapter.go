@@ -156,10 +156,15 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		return nil, fmt.Errorf("could not convert gas price: %v", err)
 	}
 
+	blobhashes := make([]tosca.Hash, len(a.evm.BlobHashes))
+	for i, hash := range a.evm.BlobHashes {
+		blobhashes[i] = tosca.Hash(hash)
+	}
+
 	transactionParameters := tosca.TransactionParameters{
 		Origin:     tosca.Address(a.evm.Origin),
 		GasPrice:   gasPrice,
-		BlobHashes: nil, // TODO: add
+		BlobHashes: blobhashes,
 	}
 
 	params := tosca.Parameters{
