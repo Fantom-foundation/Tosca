@@ -799,3 +799,16 @@ func forEachRevision(
 		})
 	}
 }
+
+func TestInterpreter_ExecuteReturnsFailureOnExecutionError(t *testing.T) {
+
+	ctxt := context{
+		code:  generateCodeFor(INVALID),
+		stack: NewStack(),
+	}
+
+	status := execute(&ctxt, false)
+	if want, got := statusFailed, status; want != got {
+		t.Errorf("unexpected status: want %v, got %v", want, got)
+	}
+}
