@@ -23,13 +23,10 @@ func opStop() status {
 }
 
 func opEndWithResult(c *context) error {
-	offset := *c.stack.pop()
-	size := *c.stack.pop()
-	if err := checkSizeOffsetUint64Overflow(&offset, &size); err != nil {
-		return err
-	}
+	offset := c.stack.pop()
+	size := c.stack.pop()
 	var err error
-	c.returnData, err = c.memory.getSlice(offset.Uint64(), size.Uint64(), c)
+	c.returnData, err = c.memory.getSlice(offset, size, c)
 	return err
 }
 
@@ -48,7 +45,7 @@ func opJump(c *context) error {
 	destination := c.stack.pop()
 	// overflow check
 	if !destination.IsUint64() || destination.Uint64() > math.MaxInt32 {
-		return errOverflow
+		return errInvalidJump
 	}
 	// Update the PC to the jump destination -1 since interpreter will increase PC by 1 afterward.
 	c.pc = int32(destination.Uint64()) - 1
@@ -61,7 +58,7 @@ func opJumpi(c *context) error {
 	if !condition.IsZero() {
 		// overflow check
 		if !destination.IsUint64() || destination.Uint64() > math.MaxInt32 {
-			return errOverflow
+			return errInvalidJump
 		}
 		// Update the PC to the jump destination -1 since interpreter will increase PC by 1 afterward.
 		c.pc = int32(destination.Uint64()) - 1
@@ -160,24 +157,14 @@ func opSwap(c *context, pos int) {
 func opMstore(c *context) error {
 	var addr = c.stack.pop()
 	var value = c.stack.pop()
-
-	offset, overflow := addr.Uint64WithOverflow()
-	if overflow {
-		return errOverflow
-	}
-	data := value.Bytes32()
-	return c.memory.set(offset, data[:], c)
+	v := value.Bytes32()
+	return c.memory.set(addr, v[:], c)
 }
 
 func opMstore8(c *context) error {
 	var addr = c.stack.pop()
 	var value = c.stack.pop()
-
-	offset, overflow := addr.Uint64WithOverflow()
-	if overflow {
-		return errOverflow
-	}
-	return c.memory.set(offset, []byte{byte(value.Uint64())}, c)
+	return c.memory.set(addr, []byte{byte(value.Uint64())}, c)
 }
 
 func opMcopy(c *context) error {
@@ -188,44 +175,26 @@ func opMcopy(c *context) error {
 
 	var destAddr = c.stack.pop()
 	var srcAddr = c.stack.pop()
-	var sizeU256 = c.stack.pop()
+	var size = c.stack.pop()
 
-	if sizeU256.IsZero() {
-		// zero size skips expansions although offset may be off-bounds
-		return nil
-	}
-
-	destOffset, destOverflow := destAddr.Uint64WithOverflow()
-	srcOffset, srcOverflow := srcAddr.Uint64WithOverflow()
-	if destOverflow || srcOverflow || !sizeU256.IsUint64() {
-		return errOverflow
-	}
-
-	size := sizeU256.Uint64()
-	price := tosca.Gas(3 * tosca.SizeInWords(size))
+	price := tosca.Gas(3 * tosca.SizeInWords(size.Uint64()))
 	if err := c.useGas(price); err != nil {
 		return err
 	}
 
-	data, err := c.memory.getSlice(srcOffset, size, c)
+	data, err := c.memory.getSlice(srcAddr, size, c)
 	if err != nil {
 		return err
 	}
-	if err := c.memory.set(destOffset, data, c); err != nil {
+	if err := c.memory.set(destAddr, data, c); err != nil {
 		return err
 	}
 	return nil
 }
 
 func opMload(c *context) error {
-	var trg = c.stack.peek()
-	var addr = *trg
-
-	if !addr.IsUint64() {
-		return errOverflow
-	}
-	offset := addr.Uint64()
-	return c.memory.readWord(offset, trg, c)
+	var addr = c.stack.peek()
+	return c.memory.readWord(addr, addr, c)
 }
 
 func opMsize(c *context) {
@@ -330,27 +299,8 @@ func opCallDatasize(c *context) {
 
 func opCallDataload(c *context) {
 	top := c.stack.peek()
-	if !top.IsUint64() {
-		top.Clear()
-		return
-	}
-
-	offset := top.Uint64()
-	input := c.params.Input
-	var value [32]byte
-	for i := 0; i < 32; i++ {
-		pos := i + int(offset)
-		if pos < 0 {
-			top.Clear()
-			return
-		}
-		if pos < len(input) {
-			value[i] = input[pos]
-		} else {
-			value[i] = 0
-		}
-	}
-	top.SetBytes(value[:])
+	value := getData(c.params.Input, top, 32)
+	top.SetBytes(value)
 }
 
 func opCallDataCopy(c *context) error {
@@ -359,33 +309,20 @@ func opCallDataCopy(c *context) error {
 		dataOffset = c.stack.pop()
 		length     = c.stack.pop()
 	)
-	dataOffset64, overflow := dataOffset.Uint64WithOverflow()
-	if overflow {
-		dataOffset64 = 0xffffffffffffffff
-	}
-
-	memOffset64, overflow := memOffset.Uint64WithOverflow()
-	if overflow {
-		memOffset64 = 0xffffffffffffffff
-	}
-
-	length64, overflow := length.Uint64WithOverflow()
-	if overflow || length64+31 < length64 {
-		return errOverflow
-	}
 
 	// Charge for the copy costs
-	words := tosca.SizeInWords(length64)
+	words := tosca.SizeInWords(length.Uint64())
 	price := tosca.Gas(3 * words)
 	if err := c.useGas(price); err != nil {
 		return err
 	}
 
-	data, err := c.memory.getSlice(memOffset64, length64, c)
+	data, err := c.memory.getSlice(memOffset, length, c)
 	if err != nil {
 		return err
 	}
-	codeCopy := getData(c.params.Input, dataOffset64, length64)
+	// length overflow has been checked by getSlice
+	codeCopy := getData(c.params.Input, dataOffset, length.Uint64())
 	copy(data, codeCopy)
 	return nil
 }
@@ -590,21 +527,18 @@ var sha3Cache = newSha3HashCache(1<<16, 1<<18)
 func opSha3(c *context) error {
 	offset, size := c.stack.pop(), c.stack.peek()
 
-	if checkSizeOffsetUint64Overflow(offset, size) != nil {
-		return errOverflow
-	}
-
-	data, err := c.memory.getSlice(offset.Uint64(), size.Uint64(), c)
-	if err != nil {
-		return err
-	}
-
 	// charge dynamic gas price
 	words := tosca.SizeInWords(size.Uint64())
 	price := tosca.Gas(6 * words)
 	if err := c.useGas(price); err != nil {
 		return err
 	}
+
+	data, err := c.memory.getSlice(offset, size, c)
+	if err != nil {
+		return err
+	}
+
 	var hash tosca.Hash
 	if c.withShaCache {
 		// Cache hashes since identical values are frequently re-hashed.
@@ -800,26 +734,18 @@ func opCodeCopy(c *context) error {
 		length     = c.stack.pop()
 	)
 
-	if err := checkSizeOffsetUint64Overflow(memOffset, length); err != nil {
-		return err
-	}
-
-	uint64CodeOffset, overflow := codeOffset.Uint64WithOverflow()
-	if overflow {
-		uint64CodeOffset = 0xffffffffffffffff
-	}
-
 	// Charge for length of copied code
 	words := tosca.SizeInWords(length.Uint64())
 	if err := c.useGas(tosca.Gas(3 * words)); err != nil {
 		return err
 	}
 
-	data, err := c.memory.getSlice(memOffset.Uint64(), length.Uint64(), c)
+	data, err := c.memory.getSlice(memOffset, length, c)
 	if err != nil {
 		return err
 	}
-	codeCopy := getData(c.params.Code, uint64CodeOffset, length.Uint64())
+	// length overflow has been checked by getSlice
+	codeCopy := getData(c.params.Code, codeOffset, length.Uint64())
 	copy(data, codeCopy)
 	return nil
 }
@@ -878,18 +804,13 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 		salt = c.stack.pop().Bytes32() // pop salt value for Create2
 	}
 
-	if checkSizeOffsetUint64Overflow(offset, size) != nil {
-		return errOverflow
-	}
-
-	sizeU64 := size.Uint64()
-	input, err := c.memory.getSlice(offset.Uint64(), sizeU64, c)
+	input, err := c.memory.getSlice(offset, size, c)
 	if err != nil {
 		return err
 	}
 
 	if c.isAtLeast(tosca.R12_Shanghai) {
-		initCodeCost, err := computeCodeSizeCost(sizeU64)
+		initCodeCost, err := computeCodeSizeCost(size.Uint64())
 		if err != nil {
 			return err
 		}
@@ -900,7 +821,7 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 
 	if kind == tosca.Create2 {
 		// Charge for hashing the init code to compute the target address.
-		words := tosca.SizeInWords(sizeU64)
+		words := tosca.SizeInWords(size.Uint64())
 		if err := c.useGas(tosca.Gas(6 * words)); err != nil {
 			return err
 		}
@@ -966,32 +887,48 @@ func computeCodeSizeCost(size uint64) (tosca.Gas, error) {
 	return tosca.Gas(initCodeWordGas * tosca.SizeInWords(size)), nil
 }
 
-func getData(data []byte, start uint64, size uint64) []byte {
-	length := uint64(len(data))
-	if start > length {
-		start = length
+// getData performs offsetting checks when accessing slices which are not
+// handled by the VM memory component:
+// - CallData (input)
+// - Code & ExtCode
+// Because such buffers cannot be resized, out of bounds access will be padded
+// with zeroes.
+// getData returns a new slice of size length, with the data copied from the
+// original slice starting at offset.
+// If size is zero, the function returns an empty slice (nil).
+func getData(data []byte, offset *uint256.Int, size uint64) []byte {
+	dataSize := uint64(len(data))
+
+	// zero length: empty slice
+	if size == 0 {
+		return nil
 	}
+	// Right-padding: when offset is greater than data length, it is entirely
+	// inside of padded area
+	if !offset.IsUint64() || offset.Uint64() >= dataSize {
+		return make([]byte, size)
+	}
+
+	start := offset.Uint64()
 	end := start + size
-	if end > length {
-		end = length
+
+	// Right-padding: fill with zeroes
+	res := make([]byte, size)
+	if end > dataSize {
+		end = dataSize
 	}
-	// Apply some right-padding to the result.
-	res := make([]byte, int(size))
+
 	copy(res, data[start:end])
 	return res
 }
 
 func opExtCodeCopy(c *context) error {
 	var (
-		stack      = c.stack
-		a          = stack.pop()
-		memOffset  = stack.pop()
-		codeOffset = stack.pop()
-		length     = stack.pop()
+		a          = c.stack.pop()
+		memOffset  = c.stack.pop()
+		codeOffset = c.stack.pop()
+		length     = c.stack.pop()
 	)
-	if err := checkSizeOffsetUint64Overflow(memOffset, length); err != nil {
-		return err
-	}
 
 	// Charge for length of copied code
 	words := tosca.SizeInWords(length.Uint64())
@@ -1005,29 +942,14 @@ func opExtCodeCopy(c *context) error {
 			return err
 		}
 	}
-	var uint64CodeOffset uint64
-	if codeOffset.IsUint64() {
-		uint64CodeOffset = codeOffset.Uint64()
-	} else {
-		uint64CodeOffset = math.MaxUint64
-	}
 
-	data, err := c.memory.getSlice(memOffset.Uint64(), length.Uint64(), c)
+	data, err := c.memory.getSlice(memOffset, length, c)
 	if err != nil {
 		return err
 	}
-	codeCopy := getData(c.context.GetCode(address), uint64CodeOffset, length.Uint64())
+	// length overflow has been checked by getSlice
+	codeCopy := getData(c.context.GetCode(address), codeOffset, length.Uint64())
 	copy(data, codeCopy)
-	return nil
-}
-
-func checkSizeOffsetUint64Overflow(offset, size *uint256.Int) error {
-	if size.IsZero() {
-		return nil
-	}
-	if !offset.IsUint64() || !size.IsUint64() || offset.Uint64()+size.Uint64() < offset.Uint64() {
-		return errOverflow
-	}
 	return nil
 }
 
@@ -1057,20 +979,12 @@ func genericCall(c *context, kind tosca.CallKind) error {
 	// and not doing it would be identified by the replay tool as an error.
 	toAddr := tosca.Address(addr.Bytes20())
 
-	if checkSizeOffsetUint64Overflow(inOffset, inSize) != nil {
-		return errOverflow
-	}
-
-	if checkSizeOffsetUint64Overflow(retOffset, retSize) != nil {
-		return errOverflow
-	}
-
 	// Get arguments from the memory.
-	args, err := c.memory.getSlice(inOffset.Uint64(), inSize.Uint64(), c)
+	args, err := c.memory.getSlice(inOffset, inSize, c)
 	if err != nil {
 		return err
 	}
-	output, err := c.memory.getSlice(retOffset.Uint64(), retSize.Uint64(), c)
+	output, err := c.memory.getSlice(retOffset, retSize, c)
 	if err != nil {
 		return err
 	}
@@ -1213,24 +1127,8 @@ func opReturnDataCopy(c *context) error {
 		length     = c.stack.pop()
 	)
 
-	offset64, overflow := dataOffset.Uint64WithOverflow()
-	if overflow {
+	if !dataOffset.IsUint64() || !length.IsUint64() {
 		return errOverflow
-	}
-	// we can reuse dataOffset now (aliasing it for clarity)
-	var end = dataOffset
-	end.Add(dataOffset, length)
-	end64, overflow := end.Uint64WithOverflow()
-	if overflow {
-		return errOverflow
-	}
-
-	if uint64(len(c.returnData)) < end64 {
-		return errOverflow
-	}
-
-	if err := checkSizeOffsetUint64Overflow(memOffset, length); err != nil {
-		return err
 	}
 
 	words := tosca.SizeInWords(length.Uint64())
@@ -1238,39 +1136,38 @@ func opReturnDataCopy(c *context) error {
 		return errOutOfGas
 	}
 
-	return c.memory.set(memOffset.Uint64(), c.returnData[offset64:end64], c)
+	start := dataOffset.Uint64()
+	end := start + length.Uint64()
+	if end < start {
+		return errOverflow
+	}
+	if end > uint64(len(c.returnData)) {
+		return errOverflow
+	}
+	return c.memory.set(memOffset, c.returnData[start:end], c)
 }
 
-func opLog(c *context, size int) error {
+func opLog(c *context, n int) error {
 
 	// LogN op codes are write instructions, they shall not be executed in static mode.
 	if c.params.Static {
 		return errStaticContextViolation
 	}
 
-	topics := make([]tosca.Hash, size)
-	stack := c.stack
-	mStart, mSize := stack.pop(), stack.pop()
+	topics := make([]tosca.Hash, n)
+	offset, size := c.stack.pop(), c.stack.pop()
 
-	if err := checkSizeOffsetUint64Overflow(mStart, mSize); err != nil {
-		return err
-	}
-
-	for i := 0; i < size; i++ {
-		addr := stack.pop()
+	for i := 0; i < n; i++ {
+		addr := c.stack.pop()
 		topics[i] = addr.Bytes32()
 	}
 
-	// Expand memory if needed
-	start := mStart.Uint64()
-	log_size := mSize.Uint64()
-
 	// charge for log size
-	if err := c.useGas(tosca.Gas(8 * log_size)); err != nil {
+	if err := c.useGas(tosca.Gas(8 * size.Uint64())); err != nil {
 		return err
 	}
 
-	data, err := c.memory.getSlice(start, log_size, c)
+	data, err := c.memory.getSlice(offset, size, c)
 	if err != nil {
 		return err
 	}

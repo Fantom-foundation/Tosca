@@ -85,10 +85,8 @@ func opSwap2_Swap1(c *context) {
 func opDup2_Mstore(c *context) error {
 	var value = c.stack.pop()
 	var addr = c.stack.peek()
-
-	offset := addr.Uint64()
-	data := value.Bytes32()
-	return c.memory.set(offset, data[:], c)
+	v := value.Bytes32()
+	return c.memory.set(addr, v[:], c)
 }
 
 func opDup2_Lt(c *context) {

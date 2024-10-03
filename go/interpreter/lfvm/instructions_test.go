@@ -572,7 +572,11 @@ func TestMCopy(t *testing.T) {
 			if ctxt.memory.length() != uint64(len(test.memoryAfter)) {
 				t.Errorf("expected memory size %d, got %d", uint64(len(test.memoryAfter)), ctxt.memory.length())
 			}
-			data, err := ctxt.memory.getSlice(0, ctxt.memory.length(), &ctxt)
+			data, err := ctxt.memory.getSlice(
+				uint256.NewInt(0),
+				uint256.NewInt(ctxt.memory.length()),
+				&ctxt,
+			)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
@@ -1396,21 +1400,26 @@ func TestInstructions_JumpOpsCheckJUMPDEST(t *testing.T) {
 }
 
 func TestInstructions_ConditionalJumpOpsIgnoreDestinationWhenJumpNotTaken(t *testing.T) {
+	zero := *uint256.NewInt(0)
+	one := *uint256.NewInt(1)
+	maxUint256 := *uint256.NewInt(0).Sub(uint256.NewInt(0), uint256.NewInt(1))
+
 	tests := map[OpCode]struct {
 		implementation func(*context) error
-		stack          []uint64
+		stack          []uint256.Int
 	}{
 		JUMPI: {
 			implementation: opJumpi,
-			stack:          []uint64{0, 1},
+			// ignores destination, even if it would overflow
+			stack: []uint256.Int{maxUint256, zero},
 		},
 		PUSH2_JUMPI: {
 			implementation: opPush2_Jumpi,
-			stack:          []uint64{0},
+			stack:          []uint256.Int{zero},
 		},
 		ISZERO_PUSH2_JUMPI: {
 			implementation: opIsZero_Push2_Jumpi,
-			stack:          []uint64{1},
+			stack:          []uint256.Int{one},
 		},
 	}
 
@@ -1418,9 +1427,7 @@ func TestInstructions_ConditionalJumpOpsIgnoreDestinationWhenJumpNotTaken(t *tes
 		t.Run(op.String(), func(t *testing.T) {
 			ctxt := getEmptyContext()
 			ctxt.code = Code{{op, 0}}
-			for _, v := range test.stack {
-				ctxt.stack.push(uint256.NewInt(v))
-			}
+			ctxt.stack = fillStack(test.stack...)
 
 			err := test.implementation(&ctxt)
 			if want, got := error(nil), err; want != got {
@@ -1430,82 +1437,81 @@ func TestInstructions_ConditionalJumpOpsIgnoreDestinationWhenJumpNotTaken(t *tes
 	}
 }
 
-func TestGetData(t *testing.T) {
-
-	tests := map[string]struct {
-		data     []byte
-		start    uint64
-		size     uint64
-		expected []byte
+func TestInstructions_JumpOpsReturnErrorWithJumpDestinationOutOfBounds(t *testing.T) {
+	tests := map[OpCode]struct {
+		implementation func(*context) error
+		stack          []uint256.Int
 	}{
-		"AddsRightPadding": {
-			data:     []byte{0xFF},
-			start:    0,
-			size:     2,
-			expected: []byte{0xff, 0x0},
+		JUMP: {
+			implementation: opJump,
+			stack: []uint256.Int{
+				*uint256.NewInt(math.MaxInt32 + 1),
+			},
 		},
-		"ReadsBeyondLimitYieldZeroes": {
-			data:     []byte{0xFF, 0x1},
-			start:    12,
-			size:     2,
-			expected: []byte{0x0, 0x0},
+		JUMPI: {
+			implementation: opJumpi,
+			stack: []uint256.Int{
+				*uint256.NewInt(math.MaxInt32 + 1),
+				*uint256.NewInt(1),
+			},
 		},
 	}
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			res := getData(test.data, test.start, test.size)
-			if want, got := test.size, uint64(len(res)); want != got {
-				t.Errorf("unexpected data length, wanted %d, got %d", want, got)
-			}
-			if want, got := test.expected, res; !bytes.Equal(want, got) {
-				t.Errorf("unexpected data, wanted %v, got %v", want, got)
+	for op, test := range tests {
+		t.Run(op.String(), func(t *testing.T) {
+			ctxt := getEmptyContext()
+			ctxt.code = Code{{op, 0}}
+			ctxt.stack = fillStack(test.stack...)
+
+			err := test.implementation(&ctxt)
+			if want, got := errInvalidJump, err; want != got {
+				t.Fatalf("unexpected error, wanted %v, got %v", want, got)
 			}
 		})
 	}
+
 }
 
-func TestCheckSizeOffsetUintOverflow(t *testing.T) {
-
-	zero := uint256.NewInt(0)
-	one := uint256.NewInt(1)
-	u64overflow := new(uint256.Int).Add(uint256.NewInt(2), uint256.NewInt(math.MaxUint64))
+func TestGetData(t *testing.T) {
 
 	tests := map[string]struct {
-		offset, size *uint256.Int
-		expected     error
+		data           []byte
+		offset         *uint256.Int
+		size           uint64
+		expectedResult []byte
 	}{
-		"ignores offset with size zero": {
-			offset:   u64overflow,
-			size:     zero,
-			expected: nil,
+		"returns slice in bounds": {
+			data:           []byte{0x00, 0x1, 0x2, 0x3, 0xFF},
+			offset:         uint256.NewInt(1),
+			size:           3,
+			expectedResult: []byte{0x1, 0x2, 0x3},
 		},
-		"returns error on size overflow": {
-			offset:   zero,
-			size:     u64overflow,
-			expected: errOverflow,
+		"returns empty slice when size is 0": {
+			data:           []byte{},
+			offset:         uint256.NewInt(0),
+			size:           0,
+			expectedResult: nil,
 		},
-		"returns error on offset overflow": {
-			offset:   u64overflow,
-			size:     one,
-			expected: errOverflow,
+		"adds zeroes right padding": {
+			data:           []byte{0xFF},
+			offset:         uint256.NewInt(0),
+			size:           2,
+			expectedResult: []byte{0xFF, 0x0},
 		},
-		"returns error after sum overflow": {
-			offset:   uint256.NewInt(math.MaxUint64 - 1),
-			size:     uint256.NewInt(2),
-			expected: errOverflow,
-		},
-		"returns ok when no overflow": {
-			offset:   one,
-			size:     one,
-			expected: nil,
+		"reads beyond limit yield zeroes": {
+			data:           []byte{0xFF, 0x1},
+			offset:         uint256.NewInt(12),
+			size:           2,
+			expectedResult: []byte{0x0, 0x0},
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if got := checkSizeOffsetUint64Overflow(test.offset, test.size); got != test.expected {
-				t.Errorf("unexpected result, wanted %v, got %v", test.expected, got)
+			_ = test
+			res := getData(test.data, test.offset, test.size)
+			if want, got := test.expectedResult, res; !bytes.Equal(want, got) {
+				t.Errorf("unexpected data, wanted %v, got %v", want, got)
 			}
 		})
 	}
@@ -1803,6 +1809,7 @@ func TestOpBlockhash(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+
 			for name, input := range test.inputs {
 				t.Run(name, func(t *testing.T) {
 
@@ -1826,10 +1833,58 @@ func TestOpBlockhash(t *testing.T) {
 		})
 	}
 }
+func TestInstructions_ReturnDataCopy_ReturnsErrorOnParameterOverflow(t *testing.T) {
+
+	zero := *uint256.NewInt(0)
+	one := *uint256.NewInt(1)
+	maxUint64 := *uint256.NewInt(math.MaxUint64)
+	uint64Overflow := *new(uint256.Int).Add(&maxUint64, uint256.NewInt(1))
+
+	tests := map[string]struct {
+		stack []uint256.Int
+	}{
+		"length overflow": {
+			stack: []uint256.Int{
+				zero, one, uint64Overflow,
+			},
+		},
+		"dataOffset overflow": {
+			stack: []uint256.Int{
+				zero, uint64Overflow, one,
+			},
+		},
+		"offset + length overflow": {
+			stack: []uint256.Int{
+				zero, maxUint64, one,
+			},
+		},
+		"offset + length greater than returnData": {
+			stack: []uint256.Int{
+				zero, zero, maxUint64,
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctxt := getEmptyContext()
+			ctxt.gas = math.MaxInt64
+			ctxt.stack = fillStack(test.stack...)
+			ctxt.returnData = make([]byte, 10)
+
+			err := opReturnDataCopy(&ctxt)
+			if err != errOverflow {
+				t.Fatalf("expected overflow error, got %v", err)
+			}
+		})
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Helper functions
 
+// fillStack creates a new stack and pushes the given values onto it.
+// function arguments interpret top of the stack as the rightmost argument.
 func fillStack(values ...uint256.Int) *stack {
 	s := NewStack()
 	for i := len(values) - 1; i >= 0; i-- {
