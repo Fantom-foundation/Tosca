@@ -103,17 +103,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	a.evm.SetDepth(a.evm.GetDepth() + 1)
 	defer func() { a.evm.SetDepth(a.evm.GetDepth() - 1) }()
 
-	// Pick proper Tosca revision based on block height.
-	revision := tosca.R07_Istanbul
-	if chainConfig := a.evm.ChainConfig(); chainConfig != nil {
-		// Note: configurations need to be checked in reverse order since
-		// later revisions implicitly include earlier revisions.
-		if chainConfig.IsLondon(a.evm.Context.BlockNumber) {
-			revision = tosca.R10_London
-		} else if chainConfig.IsBerlin(a.evm.Context.BlockNumber) {
-			revision = tosca.R09_Berlin
-		}
-	}
+	revision := convertRevision(a.evm.ChainConfig(), a.evm.Context.BlockNumber, a.evm.Context.Time)
 
 	if adapterDebug {
 		fmt.Printf("Running revision %v\n", revision)
@@ -228,6 +218,26 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		return nil, geth.ErrOutOfGas // < they are all handled equally
 	}
 	return res.Output, nil
+}
+
+func convertRevision(chainConfig *params.ChainConfig, blockNumber *big.Int, time uint64) tosca.Revision {
+	revision := tosca.R07_Istanbul
+	if chainConfig := chainConfig; chainConfig != nil {
+		// Note: configurations need to be checked in reverse order since
+		// later revisions implicitly include earlier revisions.
+		if chainConfig.IsCancun(blockNumber, time) {
+			revision = tosca.R13_Cancun
+		} else if chainConfig.IsShanghai(blockNumber, time) {
+			revision = tosca.R12_Shanghai
+		} else if blockNumber.Cmp(chainConfig.MergeNetsplitBlock) >= 0 {
+			revision = tosca.R11_Paris
+		} else if chainConfig.IsLondon(blockNumber) {
+			revision = tosca.R10_London
+		} else if chainConfig.IsBerlin(blockNumber) {
+			revision = tosca.R09_Berlin
+		}
+	}
+	return revision
 }
 
 // runContextAdapter implements the tosca.RunContext interface using geth infrastructure.

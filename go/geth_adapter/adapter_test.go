@@ -322,7 +322,7 @@ func TestRunContextAdapter_Run(t *testing.T) {
 			address := tosca.Address{0x42}
 
 			blockParameters := geth.BlockContext{BlockNumber: big.NewInt(blockNumber)}
-			chainConfig := &params.ChainConfig{ChainID: big.NewInt(chainId)}
+			chainConfig := &params.ChainConfig{ChainID: big.NewInt(chainId), MergeNetsplitBlock: big.NewInt(42)}
 			evm := geth.NewEVM(blockParameters, geth.TxContext{}, stateDb, chainConfig, geth.Config{})
 			adapter := &gethInterpreterAdapter{
 				evm:         evm,
@@ -464,5 +464,69 @@ func TestRunContextAdapter_bigIntToWord(t *testing.T) {
 	}
 	if got != want {
 		t.Errorf("Conversion returned wrong value, expected %v, got %v", want, got)
+	}
+}
+
+func TestRunContextAdapter_ConvertRevision(t *testing.T) {
+	cancunTime := uint64(1000)
+	shanghaiTime := uint64(900)
+	parisBlock := big.NewInt(100)
+	londonBlock := big.NewInt(90)
+	berlinBlock := big.NewInt(80)
+	istanbulBlock := big.NewInt(70)
+
+	tests := map[string]struct {
+		block *big.Int
+		time  uint64
+		want  tosca.Revision
+	}{
+		"Istanbul": {
+			block: istanbulBlock,
+			time:  uint64(0),
+			want:  tosca.R07_Istanbul,
+		},
+		"Berlin": {
+			block: berlinBlock,
+			time:  uint64(0),
+			want:  tosca.R09_Berlin,
+		},
+		"London": {
+			block: londonBlock,
+			time:  uint64(0),
+			want:  tosca.R10_London,
+		},
+		"Paris": {
+			block: parisBlock,
+			time:  uint64(0),
+			want:  tosca.R11_Paris,
+		},
+		"Shanghai": {
+			block: parisBlock,
+			time:  shanghaiTime,
+			want:  tosca.R12_Shanghai,
+		},
+		"Cancun": {
+			block: parisBlock,
+			time:  cancunTime,
+			want:  tosca.R13_Cancun,
+		},
+	}
+
+	chainConfig := &params.ChainConfig{
+		ChainID:            big.NewInt(42),
+		IstanbulBlock:      istanbulBlock,
+		LondonBlock:        londonBlock,
+		BerlinBlock:        berlinBlock,
+		MergeNetsplitBlock: parisBlock,
+		ShanghaiTime:       &shanghaiTime,
+		CancunTime:         &cancunTime,
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := convertRevision(chainConfig, test.block, test.time)
+			if got != test.want {
+				t.Errorf("Conversion returned wrong value, expected %v, got %v", test.want, got)
+			}
+		})
 	}
 }
