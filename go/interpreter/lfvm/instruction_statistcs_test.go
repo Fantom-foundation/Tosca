@@ -142,8 +142,8 @@ func TestStatisticsRunner_statisticsStopsWhenExecutiounErrorEnocuntered(t *testi
 		code:  []Instruction{{MCOPY, 0}, {STOP, 0}},
 		stack: NewStack(),
 	})
-	if statsRunner.stats.singleCount[uint64(STOP)] == 1 {
-		t.Errorf("unexpected statistics: want 1 stop, got %v", statsRunner.stats.singleCount[uint64(STOP)])
+	if statsRunner.stats.singleCount[uint64(STOP)] != 0 {
+		t.Errorf("unexpected statistics: stop should not be executed, got %v", statsRunner.stats.singleCount[uint64(STOP)])
 	}
 }
 
@@ -161,7 +161,6 @@ func TestStatisticsRunner_print_getTopN_returnFirstNElementsOfManyMore(t *testin
 	stats := statistics{
 		singleCount: map[uint64]uint64{
 			uint64(STOP):  1,
-			uint64(PUSH1): 1,
 			uint64(PUSH2): 2,
 			uint64(PUSH3): 3,
 			uint64(PUSH4): 4,
