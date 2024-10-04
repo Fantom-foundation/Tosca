@@ -17,7 +17,6 @@ pipeline {
     }
 
     environment {
-        GOROOT = '/usr/lib/go-1.21/'
         CC = 'gcc'
         CXX = 'g++'
         PATH = "${env.HOME}/.cargo/bin:${env.PATH}"
@@ -51,7 +50,7 @@ pipeline {
 
         stage('Check Go sources formatting') {
             steps {
-                sh "$GOROOT/bin/gofmt -s -d go"
+                sh "gofmt -s -d go"
             }
         }
 
