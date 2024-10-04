@@ -1944,6 +1944,64 @@ func TestOpExp_ReportsOutOfGas(t *testing.T) {
 	}
 }
 
+func TestInstructions_Sha3_ReportsOutOfGasa(t *testing.T) {
+	tests := map[string]struct {
+		size          uint64
+		expectedError error
+	}{
+		"memory expansion": {
+			size:          64,
+			expectedError: errOutOfGas,
+		},
+		"dynamic gas price": {
+			size:          1,
+			expectedError: errOutOfGas,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctxt := context{gas: 3}
+			ctxt.memory = NewMemory()
+			ctxt.stack = NewStack()
+			ctxt.stack.push(uint256.NewInt(test.size))
+			ctxt.stack.push(uint256.NewInt(0))
+			err := opSha3(&ctxt)
+			if err != test.expectedError {
+				t.Fatalf("unexpected error, wanted %v, got %v", test.expectedError, err)
+			}
+		})
+	}
+}
+
+func TestInstructions_Sha3(t *testing.T) {
+	ctxt := getEmptyContext()
+	ctxt.withShaCache = false
+	ctxt.stack.push(uint256.NewInt(1))
+	ctxt.stack.push(uint256.NewInt(0))
+
+	// without cache
+	err := opSha3(&ctxt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	firstHash := ctxt.stack.pop()
+
+	// with cache
+	ctxt.withShaCache = true
+	ctxt.stack.push(uint256.NewInt(1))
+	ctxt.stack.push(uint256.NewInt(0))
+	err = opSha3(&ctxt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	secondHash := ctxt.stack.pop()
+
+	if !firstHash.Eq(secondHash) {
+		t.Errorf("hashes do not match, %v != %v", firstHash, secondHash)
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Helper functions
 
