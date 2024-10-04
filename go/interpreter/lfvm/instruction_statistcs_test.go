@@ -161,6 +161,7 @@ func TestStatisticsRunner_print_getTopN_returnFirstNElementsOfManyMore(t *testin
 	stats := statistics{
 		singleCount: map[uint64]uint64{
 			uint64(STOP):  1,
+			uint64(PUSH1): 1,
 			uint64(PUSH2): 2,
 			uint64(PUSH3): 3,
 			uint64(PUSH4): 4,
