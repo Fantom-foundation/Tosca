@@ -1974,7 +1974,14 @@ func TestInstructions_Sha3_ReportsOutOfGasa(t *testing.T) {
 	}
 }
 
-func TestInstructions_Sha3(t *testing.T) {
+func TestInstructions_Sha3_WritesCorrectHashInStack(t *testing.T) {
+
+	want := tosca.Hash{
+		0xbc, 0x36, 0x78, 0x9e, 0x7a, 0x1e, 0x28, 0x14,
+		0x36, 0x46, 0x42, 0x29, 0x82, 0x8f, 0x81, 0x7d,
+		0x66, 0x12, 0xf7, 0xb4, 0x77, 0xd6, 0x65, 0x91,
+		0xff, 0x96, 0xa9, 0xe0, 0x64, 0xbc, 0xc9, 0x8a}
+
 	ctxt := getEmptyContext()
 	ctxt.withShaCache = false
 	ctxt.stack.push(uint256.NewInt(1))
@@ -1986,6 +1993,9 @@ func TestInstructions_Sha3(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	firstHash := ctxt.stack.pop()
+	if !bytes.Equal(firstHash.Bytes(), want[:]) {
+		t.Errorf("unexpected hash, wanted %x, got %x", want, firstHash.Bytes())
+	}
 
 	// with cache
 	ctxt.withShaCache = true
@@ -1996,9 +2006,8 @@ func TestInstructions_Sha3(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	secondHash := ctxt.stack.pop()
-
-	if !firstHash.Eq(secondHash) {
-		t.Errorf("hashes do not match, %v != %v", firstHash, secondHash)
+	if !bytes.Equal(secondHash.Bytes(), want[:]) {
+		t.Errorf("unexpected hash, wanted %v, got %v", want, secondHash)
 	}
 }
 
