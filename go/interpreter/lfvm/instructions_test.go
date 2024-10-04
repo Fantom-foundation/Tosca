@@ -1196,7 +1196,7 @@ func TestGenericCreate_MaxInitCodeSizeIsNotCheckedBeforeShanghai(t *testing.T) {
 	}
 }
 
-func TestGenericCreate_ReportsErors(t *testing.T) {
+func TestGenericCreate_ReportsErrors(t *testing.T) {
 
 	u64Overflow := new(uint256.Int).Add(uint256.NewInt(math.MaxUint64), uint256.NewInt(math.MaxUint64))
 	one := uint256.NewInt(1)
@@ -1223,18 +1223,32 @@ func TestGenericCreate_ReportsErors(t *testing.T) {
 			revision:      tosca.R12_Shanghai,
 			expectedError: errOutOfGas,
 		},
+		"gas not checked for max code isze before shanghai": {
+			offset:        *one,
+			size:          *uint256.NewInt(31),
+			revision:      tosca.R11_Paris,
+			expectedError: nil,
+		},
 		"not enough gas for create 2 init code hashing": {
 			offset:        *one,
 			size:          *one,
 			kind:          tosca.Create2,
-			revision:      tosca.R11_Paris,
 			expectedError: errOutOfGas,
+		},
+		"does not charge init code hashing in create": {
+			offset:        *one,
+			size:          *one,
+			kind:          tosca.Create,
+			expectedError: nil,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			mockRunContext := tosca.NewMockRunContext(gomock.NewController(t))
+			mockRunContext.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil).AnyTimes()
 			ctxt := context{
+				context: mockRunContext,
 				params: tosca.Parameters{
 					BlockParameters: tosca.BlockParameters{
 						Revision: test.revision,
@@ -1265,13 +1279,18 @@ func TestGenericCreate_ResultIsWrittenToStack(t *testing.T) {
 		runContext.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{Success: success, CreatedAddress: CreatedAddress}, nil)
 		ctxt := getEmptyContext()
 		ctxt.context = runContext
-		ctxt.stack.stackPointer = 3
-		_ = genericCreate(&ctxt, tosca.Create)
+		ctxt.stack.push(uint256.NewInt(0))
+		ctxt.stack.push(uint256.NewInt(0))
+		ctxt.stack.push(uint256.NewInt(0))
+		err := genericCreate(&ctxt, tosca.Create)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		want := uint256.NewInt(0)
 		if success {
 			want = uint256.NewInt(1)
 		}
-		if got := ctxt.stack.data[0]; !want.Eq(&got) {
+		if got := ctxt.stack.peek(); !want.Eq(got) {
 			t.Errorf("unexpected return value, wanted %v, got %v", want, got)
 		}
 	}
