@@ -10,7 +10,7 @@
 
 module github.com/Fantom-foundation/Tosca
 
-go 1.21
+go 1.22
 
 require (
 	github.com/dsnet/golib/unitconv v1.0.2
