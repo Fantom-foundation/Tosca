@@ -11,7 +11,7 @@ TOSCA_CPP_ASSERT = ON
 TOSCA_CPP_ASAN = OFF
 TOSCA_CPP_COVERAGE = OFF
 
-STATICCHECK_VERSION = 2023.1.6
+STATICCHECK_VERSION = 2024.1.1
 ERRCHECK_VERSION = v1.7.0
 
 .PHONY: all tosca tosca-go tosca-cpp tosca-rust test test-go test-cpp test-rust test-cpp-asan \
