@@ -17,7 +17,6 @@ pipeline {
     }
 
     environment {
-        GOROOT = '/usr/lib/go-1.21/'
         CC = 'gcc'
         CXX = 'g++'
         PATH = "${env.HOME}/.cargo/bin:${env.PATH}"
