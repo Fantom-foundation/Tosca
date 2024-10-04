@@ -756,27 +756,29 @@ func opChainId(c *context) {
 }
 
 func opBlockhash(c *context) {
-	num := c.stack.peek()
-	num64, overflow := num.Uint64WithOverflow()
+	top := c.stack.peek()
 
-	if overflow {
-		num.Clear()
+	requestedBlockNumber := top.Uint64()
+	currentBlockNumber := uint64(c.params.BlockNumber)
+	if !top.IsUint64() || requestedBlockNumber >= currentBlockNumber {
+		top.Clear()
 		return
 	}
-	var upper, lower uint64
-	upper = uint64(c.params.BlockNumber)
-	if upper < 257 {
-		lower = 0
-	} else {
-		lower = upper - 256
+
+	oldestInHistory := uint64(256)
+	if c.params.BlockNumber < 256 {
+		oldestInHistory = uint64(c.params.BlockNumber)
 	}
-	if num64 >= lower && num64 < upper {
-		hash := c.context.GetBlockHash(int64(num64))
-		num.SetBytes(hash[:])
-	} else {
-		num.Clear()
+	oldestInHistory = currentBlockNumber - oldestInHistory
+	if requestedBlockNumber < oldestInHistory {
+		top.Clear()
+		return
 	}
+
+	hash := c.context.GetBlockHash(int64(top.Uint64()))
+	top.SetBytes(hash[:])
 }
+
 func opAddress(c *context) {
 	c.stack.pushUndefined().SetBytes20(c.params.Recipient[:])
 }

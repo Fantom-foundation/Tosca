@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"slices"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -1634,14 +1635,6 @@ func TestInstructions_ComparisonAndShiftOperations(t *testing.T) {
 	u256 := *uint256.NewInt(256)
 	u257 := *uint256.NewInt(257)
 
-	fillStack := func(values ...uint256.Int) *stack {
-		s := NewStack()
-		for i := len(values) - 1; i >= 0; i-- {
-			s.push(&values[i])
-		}
-		return s
-	}
-
 	tests := map[string]struct {
 		opImplementation func(*context)
 		stackInputs      *stack
@@ -1757,4 +1750,85 @@ func TestInstructions_ComparisonAndShiftOperations(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOpBlockhash(t *testing.T) {
+
+	hash := tosca.Hash(uint256.MustFromHex("0xABCD").Bytes32())
+	zeroHash := tosca.Hash{}
+	u64overflow := new(uint256.Int).Add(uint256.NewInt(2), uint256.NewInt(math.MaxUint64))
+
+	type testInput struct {
+		currentBlockNumber   int64
+		requestedBlockNumber *uint256.Int
+	}
+
+	tests := map[string]struct {
+		expectedValue tosca.Hash
+		inputs        map[string]testInput
+	}{
+		"produces zero if requested block number older than available history": {
+			expectedValue: zeroHash,
+			inputs: map[string]testInput{
+				"default": {currentBlockNumber: 1024, requestedBlockNumber: uint256.NewInt(36)},
+			},
+		},
+		"produces zero if requested block number newer than current": {
+			expectedValue: zeroHash,
+			inputs: map[string]testInput{
+				"default": {currentBlockNumber: 500, requestedBlockNumber: uint256.NewInt(501)},
+				"and history has less than 256 elements": {
+					currentBlockNumber: 35, requestedBlockNumber: uint256.NewInt(36),
+				},
+				"and request overflows uint64": {
+					currentBlockNumber: 5000, requestedBlockNumber: u64overflow,
+				},
+			},
+		},
+		"produces existing hash if requested is in history range": {
+			expectedValue: hash,
+			inputs: map[string]testInput{
+				"default": {currentBlockNumber: 5000, requestedBlockNumber: uint256.NewInt(4990)},
+				"and history has lees than 256 elements": {
+					currentBlockNumber: 128, requestedBlockNumber: uint256.NewInt(16),
+				},
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			for name, input := range test.inputs {
+				t.Run(name, func(t *testing.T) {
+
+					ctxt := getEmptyContext()
+					ctxt.stack = fillStack(*input.requestedBlockNumber)
+					ctxt.params.BlockNumber = input.currentBlockNumber
+
+					runContext := tosca.NewMockRunContext(gomock.NewController(t))
+					if bytes.Equal(hash[:], test.expectedValue[:]) {
+						runContext.EXPECT().GetBlockHash(gomock.Any()).Return(hash).AnyTimes()
+					}
+					ctxt.context = runContext
+
+					opBlockhash(&ctxt)
+
+					if want, got := test.expectedValue, ctxt.stack.pop(); slices.Equal(want[:], got.Bytes()) {
+						t.Errorf("unexpected result, wanted %v, got %v", want, got)
+					}
+				})
+			}
+		})
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Helper functions
+
+func fillStack(values ...uint256.Int) *stack {
+	s := NewStack()
+	for i := len(values) - 1; i >= 0; i-- {
+		s.push(&values[i])
+	}
+	return s
 }
