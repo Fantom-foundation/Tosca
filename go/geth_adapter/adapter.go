@@ -48,37 +48,22 @@ type gethInterpreterAdapter struct {
 }
 
 func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, readOnly bool) (ret []byte, err error) {
-
 	if adapterDebug {
-		fmt.Printf("Begin of interpreter:\n")
-		fmt.Printf("\tInput:  %v\n", input)
-		fmt.Printf("\tStatic: %v\n", readOnly)
+		debugRunStart(input, readOnly)
 	}
 
+	// Tosca EVM implementations update the refund in the StateDB only at the
+	// end of a contract execution. As a result, it may happen that the refund
+	// becomes temporary negative, since a nested contract may trigger a
+	// refund reduction of some refund earned by an enclosing, yet not finished
+	// contract. However, geth can not handle negative refunds. Thus, we are
+	// shifting the refund base line for a Tosca execution artificially by 2^60
+	// to avoid temporary negative refunds, and eliminate this refund at the
+	// end of the contract execution again.
 	if a.evm.GetDepth() == 0 {
-		// Tosca EVM implementations update the refund in the StateDB only at the
-		// end of a contract execution. As a result, it may happen that the refund
-		// becomes temporary negative, since a nested contract may trigger a
-		// refund reduction of some refund earned by an enclosing, yet not finished
-		// contract. However, geth can not handle negative refunds. Thus, we are
-		// shifting the refund base line for a Tosca execution artificially by 2^60
-		// to avoid temporary negative refunds, and eliminate this refund at the
-		// end of the contract execution again.
-		const refundShift = uint64(1 << 60)
+		const refundShift = 1 << 60
 		a.evm.StateDB.AddRefund(refundShift)
-		defer func() {
-			if err == nil || err == geth.ErrExecutionReverted {
-				// In revert cases the accumulated refund to this point may be negative,
-				// which would cause the subtraction of the original refundShift to
-				// underflow the refund in the StateDB. Thus, the back-shift is capped
-				// by the available refund.
-				shift := refundShift
-				if cur := a.evm.StateDB.GetRefund(); cur < shift {
-					shift = cur
-				}
-				a.evm.StateDB.SubRefund(shift)
-			}
-		}()
+		defer func() { shiftRefundBack(a.evm.StateDB, err, refundShift) }()
 	}
 
 	// The geth EVM infrastructure does not offer means for forwarding read-only
@@ -88,12 +73,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	// interpreter). To circumvent this, this adapter encodes the read-only mode
 	// into the highest bit of the gas value (see Call function below). This section
 	// is eliminating this encoded information again.
-	if a.evm.GetDepth() > 0 {
-		readOnly = readOnly || contract.Gas >= (1<<63)
-		if contract.Gas >= (1 << 63) {
-			contract.Gas -= (1 << 63)
-		}
-	}
+	readOnly, contract.Gas = removeReadOnlyInGas(a.evm.GetDepth(), readOnly, contract.Gas)
 
 	// Track the recursive call depth of this Call within a transaction.
 	// A maximum limit of params.CallCreateDepth must be enforced.
@@ -103,50 +83,38 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	a.evm.SetDepth(a.evm.GetDepth() + 1)
 	defer func() { a.evm.SetDepth(a.evm.GetDepth() - 1) }()
 
-	// Pick proper Tosca revision based on block height.
-	revision := tosca.R07_Istanbul
-	if chainConfig := a.evm.ChainConfig(); chainConfig != nil {
-		// Note: configurations need to be checked in reverse order since
-		// later revisions implicitly include earlier revisions.
-		if chainConfig.IsLondon(a.evm.Context.BlockNumber) {
-			revision = tosca.R10_London
-		} else if chainConfig.IsBerlin(a.evm.Context.BlockNumber) {
-			revision = tosca.R09_Berlin
-		}
-	}
-
+	revision := convertRevision(a.evm.ChainConfig(), a.evm.Context.BlockNumber, a.evm.Context.Time)
 	if adapterDebug {
 		fmt.Printf("Running revision %v\n", revision)
 	}
 
 	// Convert the value from big-int to tosca.Value.
 	value := tosca.ValueFromUint256(contract.Value())
-
-	var codeHash *tosca.Hash
-	if contract.CodeHash != (gc.Hash{}) {
-		hash := tosca.Hash(contract.CodeHash)
-		codeHash = &hash
-	}
-
-	chainId, err := bigIntToWord(a.evm.ChainConfig().ChainID)
-	if err != nil {
-		return nil, fmt.Errorf("could not convert chain Id: %v", err)
-	}
-
 	// BaseFee can be assumed zero unless set.
 	baseFee, err := bigIntToValue(a.evm.Context.BaseFee)
 	if err != nil {
 		return nil, fmt.Errorf("could not convert base fee: %v", err)
 	}
-
+	chainId, err := bigIntToWord(a.evm.ChainConfig().ChainID)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert chain Id: %v", err)
+	}
 	difficulty, err := bigIntToHash(a.evm.Context.Difficulty)
 	if err != nil {
 		return nil, fmt.Errorf("could not convert difficulty: %v", err)
 	}
-
 	blobBaseFee, err := bigIntToValue(a.evm.Context.BlobBaseFee)
 	if err != nil {
 		return nil, fmt.Errorf("could not convert blob-base fee: %v", err)
+	}
+	gasPrice, err := bigIntToValue(a.evm.TxContext.GasPrice)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert gas price: %v", err)
+	}
+
+	var codeHash *tosca.Hash
+	if contract.CodeHash != (gc.Hash{}) {
+		codeHash = (*tosca.Hash)(&contract.CodeHash)
 	}
 
 	blockParameters := tosca.BlockParameters{
@@ -161,15 +129,15 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		Revision:    revision,
 	}
 
-	gasPrice, err := bigIntToValue(a.evm.TxContext.GasPrice)
-	if err != nil {
-		return nil, fmt.Errorf("could not convert gas price: %v", err)
+	blobHashes := make([]tosca.Hash, len(a.evm.BlobHashes))
+	for i, hash := range a.evm.BlobHashes {
+		blobHashes[i] = tosca.Hash(hash)
 	}
 
 	transactionParameters := tosca.TransactionParameters{
 		Origin:     tosca.Address(a.evm.Origin),
 		GasPrice:   gasPrice,
-		BlobHashes: nil, // TODO: add
+		BlobHashes: blobHashes,
 	}
 
 	params := tosca.Parameters{
@@ -194,11 +162,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	}
 
 	if adapterDebug {
-		fmt.Printf("End of interpreter:\n")
-		fmt.Printf("\tSuccess:  %v\n", res.Success)
-		fmt.Printf("\tOutput:   %v\n", res.Output)
-		fmt.Printf("\tGas Left: %v\n", res.GasLeft)
-		fmt.Printf("\tRefund:   %v\n", res.GasRefund)
+		debugRunEnd(res)
 	}
 
 	// Update gas levels.
@@ -230,11 +194,213 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	return res.Output, nil
 }
 
+func debugRunStart(input []byte, readOnly bool) {
+	fmt.Printf("Begin of interpreter:\n")
+	fmt.Printf("\tInput:  %v\n", input)
+	fmt.Printf("\tStatic: %v\n", readOnly)
+}
+
+func debugRunEnd(res tosca.Result) {
+	fmt.Printf("End of interpreter:\n")
+	fmt.Printf("\tSuccess:  %v\n", res.Success)
+	fmt.Printf("\tOutput:   %v\n", res.Output)
+	fmt.Printf("\tGas Left: %v\n", res.GasLeft)
+	fmt.Printf("\tRefund:   %v\n", res.GasRefund)
+}
+
+func shiftRefundBack(stateDB geth.StateDB, err error, refundShift uint64) {
+	if err == nil || err == geth.ErrExecutionReverted {
+		// In revert cases the accumulated refund to this point may be negative,
+		// which would cause the subtraction of the original refundShift to
+		// underflow the refund in the StateDB. Thus, the back-shift is capped
+		// by the available refund.
+		shift := refundShift
+		if cur := stateDB.GetRefund(); cur < shift {
+			shift = cur
+		}
+		stateDB.SubRefund(shift)
+	}
+}
+
+func removeReadOnlyInGas(depth int, readOnly bool, gas uint64) (bool, uint64) {
+	if depth > 0 {
+		readOnly = readOnly || gas >= (1<<63)
+		if gas >= (1 << 63) {
+			gas -= (1 << 63)
+		}
+	}
+	return readOnly, gas
+}
+
+func convertRevision(chainConfig *params.ChainConfig, blockNumber *big.Int, time uint64) tosca.Revision {
+	if chainConfig := chainConfig; chainConfig != nil {
+		// Note: configurations need to be checked in reverse order since
+		// later revisions implicitly include earlier revisions.
+		if chainConfig.IsCancun(blockNumber, time) {
+			return tosca.R13_Cancun
+		} else if chainConfig.IsShanghai(blockNumber, time) {
+			return tosca.R12_Shanghai
+		} else if chainConfig.MergeNetsplitBlock != nil && blockNumber.Cmp(chainConfig.MergeNetsplitBlock) >= 0 {
+			return tosca.R11_Paris
+		} else if chainConfig.IsLondon(blockNumber) {
+			return tosca.R10_London
+		} else if chainConfig.IsBerlin(blockNumber) {
+			return tosca.R09_Berlin
+		}
+	}
+	return tosca.R07_Istanbul
+}
+
 // runContextAdapter implements the tosca.RunContext interface using geth infrastructure.
 type runContextAdapter struct {
 	evm      *geth.EVM
 	contract *geth.Contract
 	readOnly bool
+}
+
+func (a *runContextAdapter) Call(kind tosca.CallKind, parameter tosca.CallParameters) (result tosca.CallResult, reserr error) {
+	if adapterDebug {
+		debugCallStart(kind, parameter)
+		defer func() { debugCallEnd(result, reserr) }()
+	}
+
+	// The geth EVM context does not provide the needed means
+	// to forward an existing read-only mode through arbitrary
+	// nested calls, as it would be needed. Thus, this information
+	// is encoded into the hightest bit of the gas value, which is
+	// interpreted as such by the Run() function above.
+	// The geth implementation itself tracks the read-only state in
+	// an implementation specific interpreter internal flag, which
+	// is not accessible from this context. Also, this method depends
+	// on a new interpreter per transaction call (for proper) scoping
+	// which is not a desired trait for Tosca interpreter implementations.
+	// With this trick, this requirement is circumvented.
+	gas := setReadOnlyInGas(uint64(parameter.Gas), parameter.Recipient, a.readOnly)
+
+	// Documentation of the parameters can be found here: t.ly/yhxC
+	toAddr := gc.Address(parameter.Recipient)
+
+	var err error
+	var output []byte
+	var returnGas uint64
+	var createdAddress tosca.Address
+	switch kind {
+	case tosca.Call:
+		output, returnGas, err = a.evm.Call(a.contract, toAddr, parameter.Input, gas, parameter.Value.ToUint256())
+	case tosca.StaticCall:
+		output, returnGas, err = a.evm.StaticCall(a.contract, toAddr, parameter.Input, gas)
+	case tosca.DelegateCall:
+		toAddr = gc.Address(parameter.CodeAddress)
+		output, returnGas, err = a.evm.DelegateCall(a.contract, toAddr, parameter.Input, gas)
+	case tosca.CallCode:
+		toAddr = gc.Address(parameter.CodeAddress)
+		output, returnGas, err = a.evm.CallCode(a.contract, toAddr, parameter.Input, gas, parameter.Value.ToUint256())
+	case tosca.Create:
+		var newAddr gc.Address
+		output, newAddr, returnGas, err = a.evm.Create(a.contract, parameter.Input, gas, parameter.Value.ToUint256())
+		createdAddress = tosca.Address(newAddr)
+	case tosca.Create2:
+		var newAddr gc.Address
+		vmSalt := &uint256.Int{}
+		vmSalt.SetBytes(parameter.Salt[:])
+		output, newAddr, returnGas, err = a.evm.Create2(a.contract, parameter.Input, gas, parameter.Value.ToUint256(), vmSalt)
+		createdAddress = tosca.Address(newAddr)
+	default:
+		panic(fmt.Sprintf("unsupported call kind: %v", kind))
+	}
+
+	if adapterDebug {
+		fmt.Printf("Result:\n\t%v\n\t%v\n\t%v\n\t%v\n", output, createdAddress, returnGas, err)
+	}
+
+	// revert errors are not an error in Tosca
+	if err != nil && err != geth.ErrExecutionReverted {
+		return gethToVMErrors(err, parameter.Gas)
+	}
+
+	return tosca.CallResult{
+		Output:         output,
+		GasLeft:        tosca.Gas(returnGas),
+		GasRefund:      0, // refunds of nested calls are managed by the geth EVM and this adapter
+		CreatedAddress: createdAddress,
+		Success:        err == nil,
+	}, nil
+}
+
+func setReadOnlyInGas(gas uint64, recipient tosca.Address, readOnly bool) uint64 {
+	if !isPrecompiledContract(recipient) {
+		if readOnly {
+			gas += (1 << 63)
+		}
+	}
+	return gas
+}
+
+func gethToVMErrors(err error, gas tosca.Gas) (tosca.CallResult, error) {
+	switch err {
+	case geth.ErrInsufficientBalance:
+		// In this case, the caller get its gas back.
+		// TODO: this seems to be a geth implementation quirk that got
+		// transferred into the LFVM implementation; this should be fixed.
+		return tosca.CallResult{
+			GasLeft: gas,
+			Success: false,
+		}, nil
+	case
+		geth.ErrOutOfGas,
+		geth.ErrCodeStoreOutOfGas,
+		geth.ErrDepth,
+		geth.ErrContractAddressCollision,
+		geth.ErrExecutionReverted,
+		geth.ErrMaxCodeSizeExceeded,
+		geth.ErrInvalidJump,
+		geth.ErrWriteProtection,
+		geth.ErrReturnDataOutOfBounds,
+		geth.ErrGasUintOverflow,
+		geth.ErrInvalidCode:
+		// These errors are issues encountered during the execution of
+		// EVM byte code that got correctly handled by aborting the
+		// execution. In Tosca, these are not considered errors, but
+		// unsuccessful executions, and thus, they are reported as such.
+		return tosca.CallResult{Success: false}, nil
+	}
+
+	if _, ok := err.(*geth.ErrStackUnderflow); ok {
+		return tosca.CallResult{Success: false}, nil
+	}
+	if _, ok := err.(*geth.ErrStackOverflow); ok {
+		return tosca.CallResult{Success: false}, nil
+	}
+	if _, ok := err.(*geth.ErrInvalidOpCode); ok {
+		return tosca.CallResult{Success: false}, nil
+	}
+
+	return tosca.CallResult{Success: false}, err
+}
+
+func debugCallStart(kind tosca.CallKind, parameter tosca.CallParameters) {
+	if adapterDebug {
+		fmt.Printf("Start of call:\n")
+		fmt.Printf("\tType:         %v\n", kind)
+		fmt.Printf("\tRecipient:    %v\n", parameter.Recipient)
+		fmt.Printf("\tSender:       %v\n", parameter.Sender)
+		fmt.Printf("\tGas:          %v\n", parameter.Gas)
+		fmt.Printf("\tInput:        %v\n", parameter.Input)
+		fmt.Printf("\tValue:        %v\n", parameter.Value)
+		fmt.Printf("\tSalt:         %v\n", parameter.Salt)
+		fmt.Printf("\tCode address: %v\n", parameter.CodeAddress)
+	}
+}
+
+func debugCallEnd(result tosca.CallResult, reserr error) {
+	if adapterDebug {
+		fmt.Printf("End of call:\n")
+		fmt.Printf("\tOutput:    %v\n", result.Output)
+		fmt.Printf("\tGasLeft:   %v\n", result.GasLeft)
+		fmt.Printf("\tGasRefund: %v\n", result.GasRefund)
+		fmt.Printf("\tSuccess:   %v\n", result.Success)
+		fmt.Printf("\tError:     %v\n", reserr)
+	}
 }
 
 func (a *runContextAdapter) AccountExists(addr tosca.Address) bool {
@@ -338,137 +504,7 @@ func (a *runContextAdapter) GetLogs() []tosca.Log {
 	panic("not implemented")
 }
 
-func (a *runContextAdapter) Call(kind tosca.CallKind, parameter tosca.CallParameters) (result tosca.CallResult, reserr error) {
-	if adapterDebug {
-		fmt.Printf("Start of call:\n")
-		fmt.Printf("\tType:         %v\n", kind)
-		fmt.Printf("\tRecipient:    %v\n", parameter.Recipient)
-		fmt.Printf("\tSender:       %v\n", parameter.Sender)
-		fmt.Printf("\tGas:          %v\n", parameter.Gas)
-		fmt.Printf("\tInput:        %v\n", parameter.Input)
-		fmt.Printf("\tValue:        %v\n", parameter.Value)
-		fmt.Printf("\tSalt:         %v\n", parameter.Salt)
-		fmt.Printf("\tCode address: %v\n", parameter.CodeAddress)
-
-		defer func() {
-			fmt.Printf("End of call:\n")
-			fmt.Printf("\tOutput:    %v\n", result.Output)
-			fmt.Printf("\tGasLeft:   %v\n", result.GasLeft)
-			fmt.Printf("\tGasRefund: %v\n", result.GasRefund)
-			fmt.Printf("\tSuccess:   %v\n", result.Success)
-			fmt.Printf("\tError:     %v\n", reserr)
-		}()
-	}
-
-	// The geth EVM context does not provide the needed means
-	// to forward an existing read-only mode through arbitrary
-	// nested calls, as it would be needed. Thus, this information
-	// is encoded into the hightest bit of the gas value, which is
-	// interpreted as such by the Run() function above.
-	// The geth implementation itself tracks the read-only state in
-	// an implementation specific interpreter internal flag, which
-	// is not accessible from this context. Also, this method depends
-	// on a new interpreter per transaction call (for proper) scoping
-	// which is not a desired trait for Tosca interpreter implementations.
-	// With this trick, this requirement is circumvented.
-	gas := uint64(parameter.Gas)
-	if !isPrecompiledContract(parameter.Recipient) {
-		if a.readOnly {
-			gas += (1 << 63)
-		}
-	}
-
-	// Documentation of the parameters can be found here: t.ly/yhxC
-	toAddr := gc.Address(parameter.Recipient)
-
-	var err error
-	var output []byte
-	var returnGas uint64
-	var createdAddress tosca.Address
-	switch kind {
-	case tosca.Call:
-		output, returnGas, err = a.evm.Call(a.contract, toAddr, parameter.Input, gas, parameter.Value.ToUint256())
-	case tosca.StaticCall:
-		output, returnGas, err = a.evm.StaticCall(a.contract, toAddr, parameter.Input, gas)
-	case tosca.DelegateCall:
-		toAddr = gc.Address(parameter.CodeAddress)
-		output, returnGas, err = a.evm.DelegateCall(a.contract, toAddr, parameter.Input, gas)
-	case tosca.CallCode:
-		toAddr = gc.Address(parameter.CodeAddress)
-		output, returnGas, err = a.evm.CallCode(a.contract, toAddr, parameter.Input, gas, parameter.Value.ToUint256())
-	case tosca.Create:
-		var newAddr gc.Address
-		output, newAddr, returnGas, err = a.evm.Create(a.contract, parameter.Input, gas, parameter.Value.ToUint256())
-		createdAddress = tosca.Address(newAddr)
-	case tosca.Create2:
-		var newAddr gc.Address
-		vmSalt := &uint256.Int{}
-		vmSalt.SetBytes(parameter.Salt[:])
-		output, newAddr, returnGas, err = a.evm.Create2(a.contract, parameter.Input, gas, parameter.Value.ToUint256(), vmSalt)
-		createdAddress = tosca.Address(newAddr)
-	default:
-		panic(fmt.Sprintf("unsupported call kind: %v", kind))
-	}
-
-	if adapterDebug {
-		fmt.Printf("Result:\n\t%v\n\t%v\n\t%v\n\t%v\n", output, createdAddress, returnGas, err)
-	}
-
-	if err != nil {
-		// translate geth errors to vm errors
-		switch err {
-		case geth.ErrExecutionReverted:
-			// revert errors are not an error in Tosca
-		case
-			geth.ErrOutOfGas,
-			geth.ErrCodeStoreOutOfGas,
-			geth.ErrDepth,
-			geth.ErrContractAddressCollision,
-			geth.ErrExecutionReverted,
-			geth.ErrMaxCodeSizeExceeded,
-			geth.ErrInvalidJump,
-			geth.ErrWriteProtection,
-			geth.ErrReturnDataOutOfBounds,
-			geth.ErrGasUintOverflow,
-			geth.ErrInvalidCode:
-			// These errors are issues encountered during the execution of
-			// EVM byte code that got correctly handled by aborting the
-			// execution. In Tosca, these are not considered errors, but
-			// unsuccessful executions, and thus, they are reported as such.
-			return tosca.CallResult{Success: false}, nil
-		case geth.ErrInsufficientBalance:
-			// In this case, the caller get its gas back.
-			// TODO: this seems to be a geth implementation quirk that got
-			// transferred into the LFVM implementation; this should be fixed.
-			return tosca.CallResult{
-				GasLeft: parameter.Gas,
-				Success: false,
-			}, nil
-		default:
-			if _, ok := err.(*geth.ErrStackUnderflow); ok {
-				return tosca.CallResult{Success: false}, nil
-			}
-			if _, ok := err.(*geth.ErrStackOverflow); ok {
-				return tosca.CallResult{Success: false}, nil
-			}
-			if _, ok := err.(*geth.ErrInvalidOpCode); ok {
-				return tosca.CallResult{Success: false}, nil
-			}
-			return tosca.CallResult{Success: false}, err
-		}
-	}
-
-	return tosca.CallResult{
-		Output:         output,
-		GasLeft:        tosca.Gas(returnGas),
-		GasRefund:      0, // refunds of nested calls are managed by the geth EVM and this adapter
-		CreatedAddress: createdAddress,
-		Success:        err == nil,
-	}, nil
-}
-
 func (a *runContextAdapter) SelfDestruct(addr tosca.Address, beneficiary tosca.Address) bool {
-
 	if adapterDebug {
 		fmt.Printf("SelfDestruct called with %v, %v\n", addr, beneficiary)
 	}
@@ -533,6 +569,8 @@ func (a *runContextAdapter) IsSlotInAccessList(addr tosca.Address, key tosca.Key
 func (a *runContextAdapter) HasSelfDestructed(addr tosca.Address) bool {
 	return a.evm.StateDB.HasSelfDestructed(gc.Address(addr))
 }
+
+// utility functions
 
 func bigIntToValue(value *big.Int) (result tosca.Value, err error) {
 	if value == nil {
