@@ -50,7 +50,7 @@ pipeline {
 
         stage('Check Go sources formatting') {
             steps {
-                sh "$GOROOT/bin/gofmt -s -d go"
+                sh "gofmt -s -d go"
             }
         }
 
