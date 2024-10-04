@@ -134,11 +134,13 @@ func TestStatisticsRunner_runInitializesNewStatsWhenUninitialized(t *testing.T) 
 	}
 }
 
-func TestStatisticsRunner_statisticsStopsWhenExecutiounErrorEnocuntered(t *testing.T) {
+func TestStatisticsRunner_statisticsStopsWhenExecutionEncountersAnError(t *testing.T) {
 	statsRunner := &statisticRunner{
 		stats: nil,
 	}
 	_, _ = statsRunner.run(&context{
+		// this code should not reach a STOP since MCOPY should fail because
+		// there are not enough items on the stack
 		code:  []Instruction{{MCOPY, 0}, {STOP, 0}},
 		stack: NewStack(),
 	})
