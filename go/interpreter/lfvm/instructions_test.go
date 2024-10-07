@@ -12,9 +12,9 @@ package lfvm
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"math"
-	"slices"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -1754,7 +1754,8 @@ func TestInstructions_ComparisonAndShiftOperations(t *testing.T) {
 
 func TestOpBlockhash(t *testing.T) {
 
-	hash := tosca.Hash(uint256.MustFromHex("0xABCD").Bytes32())
+	hash := tosca.Hash{}
+	_, _ = rand.Read(hash[:])
 	zeroHash := tosca.Hash{}
 	u64overflow := new(uint256.Int).Add(uint256.NewInt(2), uint256.NewInt(math.MaxUint64))
 
@@ -1813,7 +1814,7 @@ func TestOpBlockhash(t *testing.T) {
 
 					opBlockhash(&ctxt)
 
-					if want, got := test.expectedValue, ctxt.stack.pop(); slices.Equal(want[:], got.Bytes()) {
+					if want, got := new(uint256.Int).SetBytes(test.expectedValue[:]), ctxt.stack.pop(); want.Cmp(got) != 0 {
 						t.Errorf("unexpected result, wanted %v, got %v", want, got)
 					}
 				})
