@@ -13,6 +13,7 @@ package lfvm
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -313,6 +314,23 @@ func TestInterpreter_EmptyCodeBypassesRunnerAndSucceeds(t *testing.T) {
 
 	if !result.Success {
 		t.Errorf("unexpected result: want success, got %v", result.Success)
+	}
+}
+
+func TestInterpreter_run_ReturnsErrorOnRuntimeError(t *testing.T) {
+
+	runner := NewMockrunner(gomock.NewController(t))
+	code := []Instruction{{JUMPDEST, 0}}
+	params := tosca.Parameters{Gas: 20}
+	config := interpreterConfig{runner: runner}
+
+	expectedError := fmt.Errorf("runtime error")
+
+	runner.EXPECT().run(gomock.Any()).Return(statusFailed, expectedError)
+
+	_, err := run(config, params, code)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("unexpected error: %v", err)
 	}
 }
 
