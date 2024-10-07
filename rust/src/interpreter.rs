@@ -9,7 +9,7 @@ use sha3::{Digest, Keccak256};
 use crate::{
     types::{
         u256, CodeReader, ExecutionContextTrait, ExecutionTxContext, GetOpcodeError, Memory,
-        Opcode, Stack,
+        Opcode, PushLen, Stack,
     },
     utils::{check_min_revision, check_not_read_only, word_size, Gas, SliceExt},
 };
@@ -844,7 +844,8 @@ where
     fn push(&mut self, len: usize) -> Result<(), StatusCode> {
         self.gas_left.consume(3)?;
         self.code_reader.next();
-        self.stack.push(self.code_reader.get_push_data(len))?;
+        self.stack
+            .push(self.code_reader.get_push_data(PushLen::new(len)))?;
         Ok(())
     }
 

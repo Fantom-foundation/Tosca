@@ -8,7 +8,7 @@ mod stack;
 mod tx_context;
 
 pub use amount::u256;
-pub use code_reader::{CodeReader, GetOpcodeError};
+pub use code_reader::{CodeReader, GetOpcodeError, PushLen};
 pub use execution_context::*;
 pub use memory::Memory;
 pub use mock_execution_message::MockExecutionMessage;

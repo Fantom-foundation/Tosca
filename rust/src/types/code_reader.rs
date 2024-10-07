@@ -4,6 +4,20 @@ use evmc_vm::StatusCode;
 
 use crate::types::{code_byte_type, u256, CodeByteType, Opcode};
 
+#[derive(Debug, Clone, Copy)]
+pub struct PushLen(usize);
+
+impl PushLen {
+    pub const fn new(len: usize) -> Self {
+        assert!(len > 0 && len <= 32);
+        Self(len)
+    }
+
+    pub const fn value(self) -> usize {
+        self.0
+    }
+}
+
 #[derive(Debug)]
 pub struct CodeReader<'a> {
     code: &'a [u8],
@@ -65,12 +79,29 @@ impl<'a> CodeReader<'a> {
         Ok(())
     }
 
-    pub fn get_push_data(&mut self, len: usize) -> u256 {
-        assert!(len <= 32);
-
-        let len = min(len, self.code.len() - self.pc);
+    pub fn get_push_data(&mut self, push_len: PushLen) -> u256 {
+        let len = min(push_len.value(), self.code.len().saturating_sub(self.pc));
         let mut data = u256::ZERO;
-        data[32 - len..].copy_from_slice(&self.code[self.pc..self.pc + len]);
+        if len > 0 {
+            #[cfg(feature = "range-assertions")]
+            // SAFETY:
+            // len > 0
+            //
+            // push_len is guaranteed to be > 0 and <= 32.
+            // This means len is also <= 32.
+            //
+            // self.pc + len will not overflow because self.code can never be that large because we
+            // would run out of memory before. Therefore, self.pc < self.pc + len.
+            //
+            // len <= self.code.len().saturating_sub(self.pc) which also means self.pc + len <
+            // self.code.len()
+            unsafe {
+                std::hint::assert_unchecked(
+                    len <= 32 && self.pc < self.pc + len && self.pc + len < self.code.len(),
+                );
+            }
+            data[32 - len..].copy_from_slice(&self.code[self.pc..self.pc + len]);
+        }
         self.pc += len;
 
         data
@@ -100,7 +131,7 @@ mod tests {
 
     use crate::types::{
         code_reader::{compute_code_byte_types, CodeReader, GetOpcodeError},
-        u256, CodeByteType, Opcode,
+        u256, CodeByteType, Opcode, PushLen,
     };
 
     #[test]
@@ -245,20 +276,39 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn push_len_new_0() {
+        PushLen::new(0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn push_len_new_33() {
+        PushLen::new(33);
+    }
+
+    #[test]
+    fn push_len_new() {
+        for i in 1..=32 {
+            assert_eq!(PushLen::new(i).value(), i);
+        }
+    }
+
+    #[test]
     fn code_reader_get_push_data() {
         let mut code_reader = CodeReader::new(&[0xff; 32], 0);
-        assert_eq!(code_reader.get_push_data(0u8.into()), u256::ZERO);
+        assert_eq!(code_reader.get_push_data(PushLen::new(1)), 0xffu8.into());
 
         let mut code_reader = CodeReader::new(&[0xff; 32], 0);
-        assert_eq!(code_reader.get_push_data(1u8.into()), 0xffu8.into());
-
-        let mut code_reader = CodeReader::new(&[0xff; 32], 0);
-        assert_eq!(code_reader.get_push_data(32u8.into()), u256::MAX);
+        assert_eq!(code_reader.get_push_data(PushLen::new(32)), u256::MAX);
 
         let mut code_reader = CodeReader::new(&[0xff; 32], 31);
-        assert_eq!(code_reader.get_push_data(32u8.into()), 0xffu8.into());
+        assert_eq!(code_reader.get_push_data(PushLen::new(32)), 0xffu8.into());
 
         let mut code_reader = CodeReader::new(&[0xff; 32], 32);
-        assert_eq!(code_reader.get_push_data(32u8.into()), u256::ZERO);
+        assert_eq!(code_reader.get_push_data(PushLen::new(32)), u256::ZERO);
+
+        let mut code_reader = CodeReader::new(&[0xff; 32], 33);
+        assert_eq!(code_reader.get_push_data(PushLen::new(32)), u256::ZERO);
     }
 }

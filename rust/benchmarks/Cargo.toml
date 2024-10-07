@@ -8,6 +8,7 @@ performance = ["evmrs/performance"]
 mimalloc = ["evmrs/mimalloc"]
 stack-array = ["evmrs/stack-array"]
 message-slice-output-box = ["evmrs/message-slice-output-box"]
+range-assertions = ["evmrs/range-assertions"]
 
 [dependencies]
 evmrs = { path = ".." }
