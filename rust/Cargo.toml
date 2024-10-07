@@ -15,10 +15,16 @@ debug = true
 mock = ["dep:mockall"]
 dump-cov = []
 # optimizations:
-performance = ["mimalloc", "stack-array", "message-slice-output-box"]
+performance = [
+    "mimalloc",
+    "stack-array",
+    "message-slice-output-box",
+    "no-bounds-checks",
+]
 mimalloc = ["dep:mimalloc"]
 stack-array = []
 message-slice-output-box = ["dep:evmc-vm-tosca-message-slice-output-box"]
+no-bounds-checks = []
 
 [dependencies]
 bnum = "0.12.0"
