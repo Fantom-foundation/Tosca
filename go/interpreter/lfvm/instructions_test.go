@@ -1983,20 +1983,22 @@ func TestInstructions_Sha3_WritesCorrectHashInStack(t *testing.T) {
 		0xff, 0x96, 0xa9, 0xe0, 0x64, 0xbc, 0xc9, 0x8a}
 
 	for _, withShaCache := range []bool{true, false} {
-		ctxt := getEmptyContext()
-		ctxt.withShaCache = withShaCache
-		ctxt.stack.push(uint256.NewInt(1))
-		ctxt.stack.push(uint256.NewInt(0))
+		t.Run(fmt.Sprintf("withShaCache:%v", withShaCache), func(t *testing.T) {
+			ctxt := getEmptyContext()
+			ctxt.withShaCache = withShaCache
+			ctxt.stack.push(uint256.NewInt(1))
+			ctxt.stack.push(uint256.NewInt(0))
 
-		// without cache
-		err := opSha3(&ctxt)
-		if err != nil {
-			t.Fatalf("unexpected when withShaCache is %v, error: %v", withShaCache, err)
-		}
-		got := ctxt.stack.pop()
-		if !bytes.Equal(got.Bytes(), want[:]) {
-			t.Errorf("unexpected hash when withShaCache is %v, wanted %x, got %x", withShaCache, want, got.Bytes())
-		}
+			// without cache
+			err := opSha3(&ctxt)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			got := ctxt.stack.pop()
+			if !bytes.Equal(got.Bytes(), want[:]) {
+				t.Errorf("unexpected hash wanted %x, got %x", want, got.Bytes())
+			}
+		})
 	}
 }
 
