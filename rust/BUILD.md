@@ -76,9 +76,7 @@ cargo build --features mimalloc,stack-array
 1. Identify a possible optimization opportunity by
     - running the Go VM benchmarks and comparing them, in cases where `evmrs` is slower than the other interpreters
         ```sh
-        # assuming you are in Tosca
-        cd ..
-        ./Tosca/rust/scripts/bench.sh performance
+        ./scripts/bench.sh performance
         ```
     - running a profiler of you choice and identifying a bottleneck
 1. Add a feature in [Cargo.toml](Cargo.toml)
@@ -90,9 +88,7 @@ cargo build --features mimalloc,stack-array
    This will run the Rust benchmarks and generate flamegraphs for all currently implemented features and for all currently implemented features and the new feature
 1. Run Go VM Benchmarks 
     ```sh
-    # assuming you are in Tosca
-    cd ..
-    ./Tosca/rust/scripts/bench.sh performance performance,my-new-feature
+    ./scripts/bench.sh performance performance,my-new-feature
     ```
 1. If all benchmarks indicate that the performance with the optimization is better that before, add the feature name to the features enabled by the `performance` feature in [Cargo.toml](Cargo.toml).
 
@@ -111,9 +107,7 @@ cargo build --features mimalloc,stack-array
     ```
     To run benchmarks for evmzero, lfvm, geth and evmrs with different feature sets run:
     ```sh
-    # assuming you are in Tosca
-    cd ..
-    ./Tosca/rust/scripts/bench.sh <feature-set-1> <feature-set-2>
+    ./scripts/bench.sh <feature-set-1> <feature-set-2>
     ```
 
 ## Profiling

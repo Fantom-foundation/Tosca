@@ -15,8 +15,6 @@
 # vendor/
 build/
 
-/rust/target
-
 # IDE files
 .vscode/
 

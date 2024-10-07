@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# Run CT with evmrs and collect coverage data. This script must be called from Tosca/rust.
-# It requires that llvm-tools-preview is installed:
+# Run CT with evmrs and collect coverage data.
+# This script must be called from Tosca/rust.
+
+# Requirements:
 # rustup component add llvm-tools-preview
 
 INTERACTIVE=0
