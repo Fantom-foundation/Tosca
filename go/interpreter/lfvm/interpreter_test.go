@@ -551,6 +551,22 @@ func TestInterpreter_InstructionsFailWhenExecutedInRevisionsEarlierThanIntroduce
 	}
 }
 
+func TestInterpreter_ExecuteReturnsFailureOnExecutionError(t *testing.T) {
+
+	ctxt := context{
+		code:  generateCodeFor(INVALID),
+		stack: NewStack(),
+	}
+
+	status := execute(&ctxt, false)
+	if want, got := statusFailed, status; want != got {
+		t.Errorf("unexpected status: want %v, got %v", want, got)
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Benchmarks
+
 func BenchmarkFib10(b *testing.B) {
 	benchmarkFib(b, 10, false)
 }
@@ -797,18 +813,5 @@ func forEachRevision(
 		t.Run(revision.String(), func(t *testing.T) {
 			f(t, revision)
 		})
-	}
-}
-
-func TestInterpreter_ExecuteReturnsFailureOnExecutionError(t *testing.T) {
-
-	ctxt := context{
-		code:  generateCodeFor(INVALID),
-		stack: NewStack(),
-	}
-
-	status := execute(&ctxt, false)
-	if want, got := statusFailed, status; want != got {
-		t.Errorf("unexpected status: want %v, got %v", want, got)
 	}
 }
