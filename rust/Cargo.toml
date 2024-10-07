@@ -26,6 +26,7 @@ performance = [
     "jumptable",
     "hash-cache",
     "jump-cache",
+    "no-bounds-checks",
 ]
 mimalloc = ["dep:mimalloc"]
 stack-array = []
@@ -34,6 +35,7 @@ jumptable = []
 hash-cache = ["dep:lru"]
 jump-cache = ["dep:lru", "dep:nohash-hasher"]
 thread-local-cache = []
+no-bounds-checks = []
 
 [dependencies]
 bnum = "0.12.0"

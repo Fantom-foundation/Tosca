@@ -54,7 +54,14 @@ impl StackRaw {
     /// # Safety
     /// self.len must be < 1024
     pub unsafe fn push(&mut self, value: u256) {
-        self.data[self.len] = MaybeUninit::new(value);
+        #[cfg(not(feature = "no-bounds-checks"))]
+        {
+            *self.data.get_unchecked_mut(self.len) = MaybeUninit::new(value);
+        }
+        #[cfg(feature = "no-bounds-checks")]
+        {
+            self.data[self.len] = MaybeUninit::new(value);
+        }
         self.len += 1;
     }
 

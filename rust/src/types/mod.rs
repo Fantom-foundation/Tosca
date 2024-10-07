@@ -20,7 +20,7 @@ pub use cache::Cache;
     any(feature = "hash-cache", feature = "jump-cache")
 ))]
 pub use cache::LocalKeyExt;
-pub use code_reader::{CodeReader, GetOpcodeError};
+pub use code_reader::{CodeReader, GetOpcodeError, PushLen};
 pub use execution_context::*;
 pub use jump_analysis::JumpAnalysis;
 pub use memory::Memory;

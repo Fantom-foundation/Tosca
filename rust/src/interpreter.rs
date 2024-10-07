@@ -8,7 +8,7 @@ use evmc_vm::{
 use crate::{
     types::{
         hash_cache, u256, CodeReader, ExecStatus, ExecutionContextTrait, ExecutionTxContext,
-        FailStatus, GetOpcodeError, Memory, Opcode, Stack,
+        FailStatus, GetOpcodeError, Memory, Opcode, PushLen, Stack,
     },
     utils::{check_min_revision, check_not_read_only, word_size, Gas, SliceExt},
 };
@@ -1317,7 +1317,8 @@ where
     fn push(&mut self, len: usize) -> OpResult {
         self.gas_left.consume(3)?;
         self.code_reader.next();
-        self.stack.push(self.code_reader.get_push_data(len))?;
+        self.stack
+            .push(self.code_reader.get_push_data(PushLen::new(len)))?;
         Ok(())
     }
 
