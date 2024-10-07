@@ -370,8 +370,8 @@ func TestRun_GenerateResult(t *testing.T) {
 			},
 		},
 		"unknown status": {
-			status:         statusSelfDestructed + 1,
-			expectedErr:    fmt.Errorf("unexpected error in interpreter, unknown status: %v", statusSelfDestructed+1),
+			status:         statusFailed + 1,
+			expectedErr:    fmt.Errorf("unexpected error in interpreter, unknown status: %v", statusFailed+1),
 			expectedResult: tosca.Result{},
 		},
 	}
@@ -386,7 +386,7 @@ func TestRun_GenerateResult(t *testing.T) {
 
 			res, err := generateResult(test.status, &ctxt)
 
-			if err != nil && test.expectedErr != nil && strings.Compare(err.Error(), test.expectedErr.Error()) != 0 {
+			if test.expectedErr != nil && strings.Compare(err.Error(), test.expectedErr.Error()) != 0 {
 				t.Errorf("unexpected error: want \"%v\", got \"%v\"", test.expectedErr, err)
 			}
 			if !reflect.DeepEqual(res, test.expectedResult) {
