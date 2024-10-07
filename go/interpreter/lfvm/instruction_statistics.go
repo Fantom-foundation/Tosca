@@ -115,7 +115,10 @@ func (s *statistics) print() string {
 			list = append(list, entry{k, c})
 		}
 		sort.Slice(list, func(i, j int) bool {
-			return list[i].count > list[j].count
+			if list[i].count != list[j].count {
+				return list[i].count > list[j].count
+			}
+			return list[i].value < list[j].value
 		})
 		if len(list) < n {
 			return list
