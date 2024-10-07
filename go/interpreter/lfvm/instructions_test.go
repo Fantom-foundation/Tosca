@@ -1827,6 +1827,49 @@ func TestOpBlockhash(t *testing.T) {
 	}
 }
 
+func TestCallDataload_WritesZeroOnStackWhen(t *testing.T) {
+
+	tests := map[string]struct {
+		offset *uint256.Int
+	}{
+		"offset larger than uint64": {
+			offset: new(uint256.Int).Add(uint256.NewInt(2), uint256.NewInt(math.MaxUint64)),
+		},
+		"offset+31 overflows uint64": {
+			offset: uint256.NewInt(math.MaxUint64 - 31),
+		},
+		"offset bigger than input code size": {
+			offset: uint256.NewInt(16),
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctxt := getEmptyContext()
+			ctxt.params.Input = make([]byte, 16)
+			_, _ = rand.Read(ctxt.params.Input)
+			ctxt.stack.push(test.offset)
+			opCallDataload(&ctxt)
+			if got := ctxt.stack.pop(); got.Cmp(uint256.NewInt(0)) != 0 {
+				t.Errorf("unexpected result, wanted 0, got %d", got)
+			}
+		})
+	}
+}
+
+func TestCallDataload(t *testing.T) {
+	input := make([]byte, 32)
+	_, _ = rand.Read(input)
+	offset := uint256.NewInt(0)
+	ctxt := getEmptyContext()
+	ctxt.params.Input = input
+	ctxt.stack.push(offset)
+	opCallDataload(&ctxt)
+	if want, got := new(uint256.Int).SetBytes(input), ctxt.stack.pop(); want.Cmp(got) != 0 {
+		t.Errorf("unexpected result, wanted %v, got %v", want, got)
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Helper functions
 
