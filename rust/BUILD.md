@@ -74,7 +74,10 @@ cargo build --features mimalloc,stack-array
 ### Optimization Workflow
 
 1. Identify a possible optimization opportunity by
-    - running the Go VM benchmarks and comparing in which cases `evmrs` is slower than the other interpreters
+    - running the Go VM benchmarks and comparing them, in cases where `evmrs` is slower than the other interpreters
+        ```sh
+        ./scripts/bench.sh performance
+        ```
     - running a profiler of you choice and identifying a bottleneck
 1. Add a feature in [Cargo.toml](Cargo.toml)
 1. Implement the optimization and put it behind this new feature
@@ -85,14 +88,7 @@ cargo build --features mimalloc,stack-array
    This will run the Rust benchmarks and generate flamegraphs for all currently implemented features and for all currently implemented features and the new feature
 1. Run Go VM Benchmarks 
     ```sh
-    cargo build --release --features performance
-    go test ../go/integration_test/interpreter \
-        --run none --bench ^Benchmark[a-zA-Z]+/./evmrs \
-        --timeout 1h --count 20
-    cargo build --release --features performance,my-new-feature
-    go test ../go/integration_test/interpreter \
-        --run none --bench ^Benchmark[a-zA-Z]+/./evmrs \
-        --timeout 1h --count 20
+    ./scripts/bench.sh performance performance,my-new-feature
     ```
 1. If all benchmarks indicate that the performance with the optimization is better that before, add the feature name to the features enabled by the `performance` feature in [Cargo.toml](Cargo.toml).
 
@@ -109,15 +105,9 @@ cargo build --features mimalloc,stack-array
         --run none --bench ^Benchmark[a-zA-Z]+/./evmrs \
         --timeout 1h --count 20
     ```
-    Note: 
-    As mentioned in [../BUILD.md](../BUILD.md#diffing-benchmarks) you can use `benchstat` to compare different benchmark runs.
-    However, the benchmarks names must match up.
-    Because the benchmark names contain the name of the interpreter, you have to remove the interpreter name beforehand.
+    To run benchmarks for evmzero, lfvm, geth and evmrs with different feature sets run:
     ```sh
-    sed -i "s/<interpreter 1 name>-//g" ./my-bench-output-1
-    sed -i "s/<interpreter 2 name>-//g" ./my-bench-output-2
-    ...
-    benchstat ./my-bench-output-1 ./my-bench-output-2 ...
+    ./scripts/bench.sh <feature-set-1> <feature-set-2>
     ```
 
 ## Profiling

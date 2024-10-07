@@ -11,7 +11,10 @@ if [ $(cat /proc/sys/kernel/perf_event_paranoid) -ne 0 ]; then
     echo 0 | sudo tee /proc/sys/kernel/perf_event_paranoid
 fi
 
-OUTPUT_DIR=profiling-results
+DATE=$(date +'%Y-%m-%dT%H:%M')
+GIT_REF=$(git show-ref --hash=7 --head ^HEAD)
+
+OUTPUT_DIR=output/profiling/$DATE#$GIT_REF
 mkdir -p $OUTPUT_DIR
 
 INTERPRETER="evmrs"
