@@ -497,9 +497,9 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 		case STOP:
 			status = opStop()
 		case CREATE:
-			err = opCreate(c)
+			err = genericCreate(c, tosca.Create)
 		case CREATE2:
-			err = opCreate2(c)
+			err = genericCreate(c, tosca.Create2)
 		case LOG0:
 			err = opLog(c, 0)
 		case LOG1:

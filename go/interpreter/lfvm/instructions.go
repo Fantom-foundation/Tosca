@@ -781,14 +781,6 @@ func opExtcodehash(c *context) error {
 	return nil
 }
 
-func opCreate(c *context) error {
-	return genericCreate(c, tosca.Create)
-}
-
-func opCreate2(c *context) error {
-	return genericCreate(c, tosca.Create2)
-}
-
 func genericCreate(c *context, kind tosca.CallKind) error {
 
 	// Create is a write instruction, it shall not be executed in static mode.

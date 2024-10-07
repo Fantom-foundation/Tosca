@@ -269,7 +269,7 @@ func TestCreateChecksBalance(t *testing.T) {
 	// The source account should have enough funds.
 	runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
 
-	err := opCreate(&ctxt)
+	err := genericCreate(&ctxt, tosca.Create)
 	if err != nil {
 		t.Errorf("opCreate failed: %v", err)
 	}
@@ -664,7 +664,7 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 		"shanghai-maxuint64-running": {
 			revision:       tosca.R12_Shanghai,
 			init_code_size: math.MaxUint64,
-			expecedErr:     errOverflow,
+			expecedErr:     errInitCodeTooLarge,
 		},
 	}
 
@@ -696,7 +696,7 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 				runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil)
 			}
 
-			err := opCreate(&ctxt)
+			err := genericCreate(&ctxt, tosca.Create)
 			if want, got := test.expecedErr, err; want != got {
 				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
 			}
@@ -761,7 +761,7 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 
 		runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil)
 
-		err := opCreate(&ctxt)
+		err := genericCreate(&ctxt, tosca.Create)
 		if err != nil {
 			t.Errorf("opCreate failed: %v", err)
 		}
@@ -1213,23 +1213,28 @@ func TestGenericCreate_ReportsErrors(t *testing.T) {
 			expectedError: errOverflow,
 		},
 		"size overflow": {
-			offset:        *one,
+			offset:        *uint256.NewInt(0),
 			size:          *u64Overflow,
+			expectedError: errOverflow,
+		},
+		"size+offset overflow": {
+			offset:        *uint256.NewInt(math.MaxUint64 - 4),
+			size:          *uint256.NewInt(5),
 			expectedError: errOverflow,
 		},
 		"not enough gas for code size": {
 			offset:        *one,
-			size:          *uint256.NewInt(31),
+			size:          *uint256.NewInt(33),
 			revision:      tosca.R12_Shanghai,
 			expectedError: errOutOfGas,
 		},
-		"gas not checked for max code isze before shanghai": {
+		"gas not checked for max code size before shanghai": {
 			offset:        *one,
 			size:          *uint256.NewInt(31),
 			revision:      tosca.R11_Paris,
 			expectedError: nil,
 		},
-		"not enough gas for create 2 init code hashing": {
+		"not enough gas for create2 init code hashing": {
 			offset:        *one,
 			size:          *one,
 			kind:          tosca.Create2,
@@ -1247,17 +1252,10 @@ func TestGenericCreate_ReportsErrors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			mockRunContext := tosca.NewMockRunContext(gomock.NewController(t))
 			mockRunContext.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil).AnyTimes()
-			ctxt := context{
-				context: mockRunContext,
-				params: tosca.Parameters{
-					BlockParameters: tosca.BlockParameters{
-						Revision: test.revision,
-					},
-				},
-				stack:  NewStack(),
-				memory: NewMemory(),
-				gas:    3,
-			}
+			ctxt := getEmptyContext()
+			ctxt.context = mockRunContext
+			ctxt.params.Revision = test.revision
+			ctxt.gas = 3
 
 			ctxt.stack.push(uint256.NewInt(0)) // salt
 			ctxt.stack.push(&test.size)
