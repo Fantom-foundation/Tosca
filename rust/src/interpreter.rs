@@ -14,6 +14,11 @@ use crate::{
     utils::{check_min_revision, check_not_read_only, word_size, Gas, SliceExt},
 };
 
+type OpResult = Result<(), FailStatus>;
+
+#[cfg(feature = "jumptable")]
+type OpFn<'a, E> = fn(&mut Interpreter<'a, E>) -> OpResult;
+
 #[derive(Debug)]
 pub struct Interpreter<'a, E>
 where
@@ -115,157 +120,7 @@ where
                     return Err(FailStatus::InvalidInstruction);
                 }
             };
-            match op {
-                Opcode::Stop => self.stop()?,
-                Opcode::Add => self.add()?,
-                Opcode::Mul => self.mul()?,
-                Opcode::Sub => self.sub()?,
-                Opcode::Div => self.div()?,
-                Opcode::SDiv => self.s_div()?,
-                Opcode::Mod => self.mod_()?,
-                Opcode::SMod => self.s_mod()?,
-                Opcode::AddMod => self.add_mod()?,
-                Opcode::MulMod => self.mul_mod()?,
-                Opcode::Exp => self.exp()?,
-                Opcode::SignExtend => self.sign_extend()?,
-                Opcode::Lt => self.lt()?,
-                Opcode::Gt => self.gt()?,
-                Opcode::SLt => self.s_lt()?,
-                Opcode::SGt => self.s_gt()?,
-                Opcode::Eq => self.eq()?,
-                Opcode::IsZero => self.is_zero()?,
-                Opcode::And => self.and()?,
-                Opcode::Or => self.or()?,
-                Opcode::Xor => self.xor()?,
-                Opcode::Not => self.not()?,
-                Opcode::Byte => self.byte()?,
-                Opcode::Shl => self.shl()?,
-                Opcode::Shr => self.shr()?,
-                Opcode::Sar => self.sar()?,
-                Opcode::Sha3 => self.sha3()?,
-                Opcode::Address => self.address()?,
-                Opcode::Balance => self.balance()?,
-                Opcode::Origin => self.origin()?,
-                Opcode::Caller => self.caller()?,
-                Opcode::CallValue => self.call_value()?,
-                Opcode::CallDataLoad => self.call_data_load()?,
-                Opcode::CallDataSize => self.call_data_size()?,
-                Opcode::Push0 => self.push0()?,
-                Opcode::CallDataCopy => self.call_data_copy()?,
-                Opcode::CodeSize => self.code_size()?,
-                Opcode::CodeCopy => self.code_copy()?,
-                Opcode::GasPrice => self.gas_price()?,
-                Opcode::ExtCodeSize => self.ext_code_size()?,
-                Opcode::ExtCodeCopy => self.ext_code_copy()?,
-                Opcode::ReturnDataSize => self.return_data_size()?,
-                Opcode::ReturnDataCopy => self.return_data_copy()?,
-                Opcode::ExtCodeHash => self.ext_code_hash()?,
-                Opcode::BlockHash => self.block_hash()?,
-                Opcode::Coinbase => self.coinbase()?,
-                Opcode::Timestamp => self.timestamp()?,
-                Opcode::Number => self.number()?,
-                Opcode::PrevRandao => self.prev_randao()?,
-                Opcode::GasLimit => self.gas_limit()?,
-                Opcode::ChainId => self.chain_id()?,
-                Opcode::SelfBalance => self.self_balance()?,
-                Opcode::BaseFee => self.base_fee()?,
-                Opcode::BlobHash => self.blob_hash()?,
-                Opcode::BlobBaseFee => self.blob_base_fee()?,
-                Opcode::Pop => self.pop()?,
-                Opcode::MLoad => self.m_load()?,
-                Opcode::MStore => self.m_store()?,
-                Opcode::MStore8 => self.m_store8()?,
-                Opcode::SLoad => self.s_load()?,
-                Opcode::SStore => self.sstore()?,
-                Opcode::Jump => self.jump()?,
-                Opcode::JumpI => self.jump_i()?,
-                Opcode::Pc => self.pc()?,
-                Opcode::MSize => self.m_size()?,
-                Opcode::Gas => self.gas()?,
-                Opcode::JumpDest => self.jump_dest()?,
-                Opcode::TLoad => self.t_load()?,
-                Opcode::TStore => self.t_store()?,
-                Opcode::MCopy => self.m_copy()?,
-                Opcode::Push1 => self.push(1)?,
-                Opcode::Push2 => self.push(2)?,
-                Opcode::Push3 => self.push(3)?,
-                Opcode::Push4 => self.push(4)?,
-                Opcode::Push5 => self.push(5)?,
-                Opcode::Push6 => self.push(6)?,
-                Opcode::Push7 => self.push(7)?,
-                Opcode::Push8 => self.push(8)?,
-                Opcode::Push9 => self.push(9)?,
-                Opcode::Push10 => self.push(10)?,
-                Opcode::Push11 => self.push(11)?,
-                Opcode::Push12 => self.push(12)?,
-                Opcode::Push13 => self.push(13)?,
-                Opcode::Push14 => self.push(14)?,
-                Opcode::Push15 => self.push(15)?,
-                Opcode::Push16 => self.push(16)?,
-                Opcode::Push17 => self.push(17)?,
-                Opcode::Push18 => self.push(18)?,
-                Opcode::Push19 => self.push(19)?,
-                Opcode::Push20 => self.push(20)?,
-                Opcode::Push21 => self.push(21)?,
-                Opcode::Push22 => self.push(22)?,
-                Opcode::Push23 => self.push(23)?,
-                Opcode::Push24 => self.push(24)?,
-                Opcode::Push25 => self.push(25)?,
-                Opcode::Push26 => self.push(26)?,
-                Opcode::Push27 => self.push(27)?,
-                Opcode::Push28 => self.push(28)?,
-                Opcode::Push29 => self.push(29)?,
-                Opcode::Push30 => self.push(30)?,
-                Opcode::Push31 => self.push(31)?,
-                Opcode::Push32 => self.push(32)?,
-                Opcode::Dup1 => self.dup(1)?,
-                Opcode::Dup2 => self.dup(2)?,
-                Opcode::Dup3 => self.dup(3)?,
-                Opcode::Dup4 => self.dup(4)?,
-                Opcode::Dup5 => self.dup(5)?,
-                Opcode::Dup6 => self.dup(6)?,
-                Opcode::Dup7 => self.dup(7)?,
-                Opcode::Dup8 => self.dup(8)?,
-                Opcode::Dup9 => self.dup(9)?,
-                Opcode::Dup10 => self.dup(10)?,
-                Opcode::Dup11 => self.dup(11)?,
-                Opcode::Dup12 => self.dup(12)?,
-                Opcode::Dup13 => self.dup(13)?,
-                Opcode::Dup14 => self.dup(14)?,
-                Opcode::Dup15 => self.dup(15)?,
-                Opcode::Dup16 => self.dup(16)?,
-                Opcode::Swap1 => self.swap(1)?,
-                Opcode::Swap2 => self.swap(2)?,
-                Opcode::Swap3 => self.swap(3)?,
-                Opcode::Swap4 => self.swap(4)?,
-                Opcode::Swap5 => self.swap(5)?,
-                Opcode::Swap6 => self.swap(6)?,
-                Opcode::Swap7 => self.swap(7)?,
-                Opcode::Swap8 => self.swap(8)?,
-                Opcode::Swap9 => self.swap(9)?,
-                Opcode::Swap10 => self.swap(10)?,
-                Opcode::Swap11 => self.swap(11)?,
-                Opcode::Swap12 => self.swap(12)?,
-                Opcode::Swap13 => self.swap(13)?,
-                Opcode::Swap14 => self.swap(14)?,
-                Opcode::Swap15 => self.swap(15)?,
-                Opcode::Swap16 => self.swap(16)?,
-                Opcode::Log0 => self.log::<0>()?,
-                Opcode::Log1 => self.log::<1>()?,
-                Opcode::Log2 => self.log::<2>()?,
-                Opcode::Log3 => self.log::<3>()?,
-                Opcode::Log4 => self.log::<4>()?,
-                Opcode::Create => self.create()?,
-                Opcode::Call => self.call()?,
-                Opcode::CallCode => self.call_code()?,
-                Opcode::Return => self.return_()?,
-                Opcode::DelegateCall => self.delegate_call()?,
-                Opcode::Create2 => self.create2()?,
-                Opcode::StaticCall => self.static_call()?,
-                Opcode::Revert => self.revert()?,
-                Opcode::Invalid => self.invalid()?,
-                Opcode::SelfDestruct => self.self_destruct()?,
-            };
+            self.run_op(op)?;
 
             if !(Opcode::Push1 as u8..=Opcode::Push32 as u8).contains(&(op as u8))
                 && op != Opcode::Jump
@@ -278,75 +133,500 @@ where
         Ok(())
     }
 
-    fn stop(&mut self) -> Result<(), FailStatus> {
+    #[cfg(feature = "jumptable")]
+    const JUMPTABLE: [OpFn<'a, E>; 256] = [
+        Self::stop,
+        Self::add,
+        Self::mul,
+        Self::sub,
+        Self::div,
+        Self::s_div,
+        Self::mod_,
+        Self::s_mod,
+        Self::add_mod,
+        Self::mul_mod,
+        Self::exp,
+        Self::sign_extend,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::lt,
+        Self::gt,
+        Self::s_lt,
+        Self::s_gt,
+        Self::eq,
+        Self::is_zero,
+        Self::and,
+        Self::or,
+        Self::xor,
+        Self::not,
+        Self::byte,
+        Self::shl,
+        Self::shr,
+        Self::sar,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::sha3,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::address,
+        Self::balance,
+        Self::origin,
+        Self::caller,
+        Self::call_value,
+        Self::call_data_load,
+        Self::call_data_size,
+        Self::call_data_copy,
+        Self::code_size,
+        Self::code_copy,
+        Self::gas_price,
+        Self::ext_code_size,
+        Self::ext_code_copy,
+        Self::return_data_size,
+        Self::return_data_copy,
+        Self::ext_code_hash,
+        Self::block_hash,
+        Self::coinbase,
+        Self::timestamp,
+        Self::number,
+        Self::prev_randao,
+        Self::gas_limit,
+        Self::chain_id,
+        Self::self_balance,
+        Self::base_fee,
+        Self::blob_hash,
+        Self::blob_base_fee,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::pop,
+        Self::m_load,
+        Self::m_store,
+        Self::m_store8,
+        Self::s_load,
+        Self::sstore,
+        Self::jump,
+        Self::jump_i,
+        Self::pc,
+        Self::m_size,
+        Self::gas,
+        Self::jump_dest,
+        Self::t_load,
+        Self::t_store,
+        Self::m_copy,
+        Self::push0,
+        (|s| Self::push(s, 1)) as OpFn<_>,
+        (|s| Self::push(s, 2)) as OpFn<_>,
+        (|s| Self::push(s, 3)) as OpFn<_>,
+        (|s| Self::push(s, 4)) as OpFn<_>,
+        (|s| Self::push(s, 5)) as OpFn<_>,
+        (|s| Self::push(s, 6)) as OpFn<_>,
+        (|s| Self::push(s, 7)) as OpFn<_>,
+        (|s| Self::push(s, 8)) as OpFn<_>,
+        (|s| Self::push(s, 9)) as OpFn<_>,
+        (|s| Self::push(s, 10)) as OpFn<_>,
+        (|s| Self::push(s, 11)) as OpFn<_>,
+        (|s| Self::push(s, 12)) as OpFn<_>,
+        (|s| Self::push(s, 13)) as OpFn<_>,
+        (|s| Self::push(s, 14)) as OpFn<_>,
+        (|s| Self::push(s, 15)) as OpFn<_>,
+        (|s| Self::push(s, 16)) as OpFn<_>,
+        (|s| Self::push(s, 17)) as OpFn<_>,
+        (|s| Self::push(s, 18)) as OpFn<_>,
+        (|s| Self::push(s, 19)) as OpFn<_>,
+        (|s| Self::push(s, 20)) as OpFn<_>,
+        (|s| Self::push(s, 21)) as OpFn<_>,
+        (|s| Self::push(s, 22)) as OpFn<_>,
+        (|s| Self::push(s, 23)) as OpFn<_>,
+        (|s| Self::push(s, 24)) as OpFn<_>,
+        (|s| Self::push(s, 25)) as OpFn<_>,
+        (|s| Self::push(s, 26)) as OpFn<_>,
+        (|s| Self::push(s, 27)) as OpFn<_>,
+        (|s| Self::push(s, 28)) as OpFn<_>,
+        (|s| Self::push(s, 29)) as OpFn<_>,
+        (|s| Self::push(s, 30)) as OpFn<_>,
+        (|s| Self::push(s, 31)) as OpFn<_>,
+        (|s| Self::push(s, 32)) as OpFn<_>,
+        (|s| Self::dup(s, 1)) as OpFn<_>,
+        (|s| Self::dup(s, 2)) as OpFn<_>,
+        (|s| Self::dup(s, 3)) as OpFn<_>,
+        (|s| Self::dup(s, 4)) as OpFn<_>,
+        (|s| Self::dup(s, 5)) as OpFn<_>,
+        (|s| Self::dup(s, 6)) as OpFn<_>,
+        (|s| Self::dup(s, 7)) as OpFn<_>,
+        (|s| Self::dup(s, 8)) as OpFn<_>,
+        (|s| Self::dup(s, 9)) as OpFn<_>,
+        (|s| Self::dup(s, 10)) as OpFn<_>,
+        (|s| Self::dup(s, 11)) as OpFn<_>,
+        (|s| Self::dup(s, 12)) as OpFn<_>,
+        (|s| Self::dup(s, 13)) as OpFn<_>,
+        (|s| Self::dup(s, 14)) as OpFn<_>,
+        (|s| Self::dup(s, 15)) as OpFn<_>,
+        (|s| Self::dup(s, 16)) as OpFn<_>,
+        (|s| Self::swap(s, 1)) as OpFn<_>,
+        (|s| Self::swap(s, 2)) as OpFn<_>,
+        (|s| Self::swap(s, 3)) as OpFn<_>,
+        (|s| Self::swap(s, 4)) as OpFn<_>,
+        (|s| Self::swap(s, 5)) as OpFn<_>,
+        (|s| Self::swap(s, 6)) as OpFn<_>,
+        (|s| Self::swap(s, 7)) as OpFn<_>,
+        (|s| Self::swap(s, 8)) as OpFn<_>,
+        (|s| Self::swap(s, 9)) as OpFn<_>,
+        (|s| Self::swap(s, 10)) as OpFn<_>,
+        (|s| Self::swap(s, 11)) as OpFn<_>,
+        (|s| Self::swap(s, 12)) as OpFn<_>,
+        (|s| Self::swap(s, 13)) as OpFn<_>,
+        (|s| Self::swap(s, 14)) as OpFn<_>,
+        (|s| Self::swap(s, 15)) as OpFn<_>,
+        (|s| Self::swap(s, 16)) as OpFn<_>,
+        Self::log::<0>,
+        Self::log::<1>,
+        Self::log::<2>,
+        Self::log::<3>,
+        Self::log::<4>,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::create,
+        Self::call,
+        Self::call_code,
+        Self::return_,
+        Self::delegate_call,
+        Self::create2,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::static_call,
+        Self::jumptable_placeholder,
+        Self::jumptable_placeholder,
+        Self::revert,
+        Self::invalid,
+        Self::self_destruct,
+    ];
+
+    #[cfg(feature = "jumptable")]
+    fn run_op(&mut self, op: Opcode) -> OpResult {
+        Self::JUMPTABLE[op as u8 as usize](self)
+    }
+
+    #[cfg(not(feature = "jumptable"))]
+    fn run_op(&mut self, op: Opcode) -> OpResult {
+        match op {
+            Opcode::Stop => self.stop(),
+            Opcode::Add => self.add(),
+            Opcode::Mul => self.mul(),
+            Opcode::Sub => self.sub(),
+            Opcode::Div => self.div(),
+            Opcode::SDiv => self.s_div(),
+            Opcode::Mod => self.mod_(),
+            Opcode::SMod => self.s_mod(),
+            Opcode::AddMod => self.add_mod(),
+            Opcode::MulMod => self.mul_mod(),
+            Opcode::Exp => self.exp(),
+            Opcode::SignExtend => self.sign_extend(),
+            Opcode::Lt => self.lt(),
+            Opcode::Gt => self.gt(),
+            Opcode::SLt => self.s_lt(),
+            Opcode::SGt => self.s_gt(),
+            Opcode::Eq => self.eq(),
+            Opcode::IsZero => self.is_zero(),
+            Opcode::And => self.and(),
+            Opcode::Or => self.or(),
+            Opcode::Xor => self.xor(),
+            Opcode::Not => self.not(),
+            Opcode::Byte => self.byte(),
+            Opcode::Shl => self.shl(),
+            Opcode::Shr => self.shr(),
+            Opcode::Sar => self.sar(),
+            Opcode::Sha3 => self.sha3(),
+            Opcode::Address => self.address(),
+            Opcode::Balance => self.balance(),
+            Opcode::Origin => self.origin(),
+            Opcode::Caller => self.caller(),
+            Opcode::CallValue => self.call_value(),
+            Opcode::CallDataLoad => self.call_data_load(),
+            Opcode::CallDataSize => self.call_data_size(),
+            Opcode::CallDataCopy => self.call_data_copy(),
+            Opcode::CodeSize => self.code_size(),
+            Opcode::CodeCopy => self.code_copy(),
+            Opcode::GasPrice => self.gas_price(),
+            Opcode::ExtCodeSize => self.ext_code_size(),
+            Opcode::ExtCodeCopy => self.ext_code_copy(),
+            Opcode::ReturnDataSize => self.return_data_size(),
+            Opcode::ReturnDataCopy => self.return_data_copy(),
+            Opcode::ExtCodeHash => self.ext_code_hash(),
+            Opcode::BlockHash => self.block_hash(),
+            Opcode::Coinbase => self.coinbase(),
+            Opcode::Timestamp => self.timestamp(),
+            Opcode::Number => self.number(),
+            Opcode::PrevRandao => self.prev_randao(),
+            Opcode::GasLimit => self.gas_limit(),
+            Opcode::ChainId => self.chain_id(),
+            Opcode::SelfBalance => self.self_balance(),
+            Opcode::BaseFee => self.base_fee(),
+            Opcode::BlobHash => self.blob_hash(),
+            Opcode::BlobBaseFee => self.blob_base_fee(),
+            Opcode::Pop => self.pop(),
+            Opcode::MLoad => self.m_load(),
+            Opcode::MStore => self.m_store(),
+            Opcode::MStore8 => self.m_store8(),
+            Opcode::SLoad => self.s_load(),
+            Opcode::SStore => self.sstore(),
+            Opcode::Jump => self.jump(),
+            Opcode::JumpI => self.jump_i(),
+            Opcode::Pc => self.pc(),
+            Opcode::MSize => self.m_size(),
+            Opcode::Gas => self.gas(),
+            Opcode::JumpDest => self.jump_dest(),
+            Opcode::TLoad => self.t_load(),
+            Opcode::TStore => self.t_store(),
+            Opcode::MCopy => self.m_copy(),
+            Opcode::Push0 => self.push0(),
+            Opcode::Push1 => self.push(1),
+            Opcode::Push2 => self.push(2),
+            Opcode::Push3 => self.push(3),
+            Opcode::Push4 => self.push(4),
+            Opcode::Push5 => self.push(5),
+            Opcode::Push6 => self.push(6),
+            Opcode::Push7 => self.push(7),
+            Opcode::Push8 => self.push(8),
+            Opcode::Push9 => self.push(9),
+            Opcode::Push10 => self.push(10),
+            Opcode::Push11 => self.push(11),
+            Opcode::Push12 => self.push(12),
+            Opcode::Push13 => self.push(13),
+            Opcode::Push14 => self.push(14),
+            Opcode::Push15 => self.push(15),
+            Opcode::Push16 => self.push(16),
+            Opcode::Push17 => self.push(17),
+            Opcode::Push18 => self.push(18),
+            Opcode::Push19 => self.push(19),
+            Opcode::Push20 => self.push(20),
+            Opcode::Push21 => self.push(21),
+            Opcode::Push22 => self.push(22),
+            Opcode::Push23 => self.push(23),
+            Opcode::Push24 => self.push(24),
+            Opcode::Push25 => self.push(25),
+            Opcode::Push26 => self.push(26),
+            Opcode::Push27 => self.push(27),
+            Opcode::Push28 => self.push(28),
+            Opcode::Push29 => self.push(29),
+            Opcode::Push30 => self.push(30),
+            Opcode::Push31 => self.push(31),
+            Opcode::Push32 => self.push(32),
+            Opcode::Dup1 => self.dup(1),
+            Opcode::Dup2 => self.dup(2),
+            Opcode::Dup3 => self.dup(3),
+            Opcode::Dup4 => self.dup(4),
+            Opcode::Dup5 => self.dup(5),
+            Opcode::Dup6 => self.dup(6),
+            Opcode::Dup7 => self.dup(7),
+            Opcode::Dup8 => self.dup(8),
+            Opcode::Dup9 => self.dup(9),
+            Opcode::Dup10 => self.dup(10),
+            Opcode::Dup11 => self.dup(11),
+            Opcode::Dup12 => self.dup(12),
+            Opcode::Dup13 => self.dup(13),
+            Opcode::Dup14 => self.dup(14),
+            Opcode::Dup15 => self.dup(15),
+            Opcode::Dup16 => self.dup(16),
+            Opcode::Swap1 => self.swap(1),
+            Opcode::Swap2 => self.swap(2),
+            Opcode::Swap3 => self.swap(3),
+            Opcode::Swap4 => self.swap(4),
+            Opcode::Swap5 => self.swap(5),
+            Opcode::Swap6 => self.swap(6),
+            Opcode::Swap7 => self.swap(7),
+            Opcode::Swap8 => self.swap(8),
+            Opcode::Swap9 => self.swap(9),
+            Opcode::Swap10 => self.swap(10),
+            Opcode::Swap11 => self.swap(11),
+            Opcode::Swap12 => self.swap(12),
+            Opcode::Swap13 => self.swap(13),
+            Opcode::Swap14 => self.swap(14),
+            Opcode::Swap15 => self.swap(15),
+            Opcode::Swap16 => self.swap(16),
+            Opcode::Log0 => self.log::<0>(),
+            Opcode::Log1 => self.log::<1>(),
+            Opcode::Log2 => self.log::<2>(),
+            Opcode::Log3 => self.log::<3>(),
+            Opcode::Log4 => self.log::<4>(),
+            Opcode::Create => self.create(),
+            Opcode::Call => self.call(),
+            Opcode::CallCode => self.call_code(),
+            Opcode::Return => self.return_(),
+            Opcode::DelegateCall => self.delegate_call(),
+            Opcode::Create2 => self.create2(),
+            Opcode::StaticCall => self.static_call(),
+            Opcode::Revert => self.revert(),
+            Opcode::Invalid => self.invalid(),
+            Opcode::SelfDestruct => self.self_destruct(),
+        }
+    }
+
+    #[cfg(feature = "jumptable")]
+    fn jumptable_placeholder(_self: &mut Self) -> OpResult {
+        Err(FailStatus::Failure)
+    }
+
+    fn stop(&mut self) -> OpResult {
         self.exec_status = ExecStatus::Stopped;
         Ok(())
     }
 
-    fn add(&mut self) -> Result<(), FailStatus> {
+    fn add(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value2, value1] = self.stack.pop()?;
         self.stack.push(value1 + value2)?;
         Ok(())
     }
 
-    fn mul(&mut self) -> Result<(), FailStatus> {
+    fn mul(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
         let [fac2, fac1] = self.stack.pop()?;
         self.stack.push(fac1 * fac2)?;
         Ok(())
     }
 
-    fn sub(&mut self) -> Result<(), FailStatus> {
+    fn sub(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value2, value1] = self.stack.pop()?;
         self.stack.push(value1 - value2)?;
         Ok(())
     }
 
-    fn div(&mut self) -> Result<(), FailStatus> {
+    fn div(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
         let [denominator, value] = self.stack.pop()?;
         self.stack.push(value / denominator)?;
         Ok(())
     }
 
-    fn s_div(&mut self) -> Result<(), FailStatus> {
+    fn s_div(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
         let [denominator, value] = self.stack.pop()?;
         self.stack.push(value.sdiv(denominator))?;
         Ok(())
     }
 
-    fn mod_(&mut self) -> Result<(), FailStatus> {
+    fn mod_(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
         let [denominator, value] = self.stack.pop()?;
         self.stack.push(value % denominator)?;
         Ok(())
     }
 
-    fn s_mod(&mut self) -> Result<(), FailStatus> {
+    fn s_mod(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
         let [denominator, value] = self.stack.pop()?;
         self.stack.push(value.srem(denominator))?;
         Ok(())
     }
 
-    fn add_mod(&mut self) -> Result<(), FailStatus> {
+    fn add_mod(&mut self) -> OpResult {
         self.gas_left.consume(8)?;
         let [denominator, value2, value1] = self.stack.pop()?;
         self.stack.push(u256::addmod(value1, value2, denominator))?;
         Ok(())
     }
 
-    fn mul_mod(&mut self) -> Result<(), FailStatus> {
+    fn mul_mod(&mut self) -> OpResult {
         self.gas_left.consume(8)?;
         let [denominator, fac2, fac1] = self.stack.pop()?;
         self.stack.push(u256::mulmod(fac1, fac2, denominator))?;
         Ok(())
     }
 
-    fn exp(&mut self) -> Result<(), FailStatus> {
+    fn exp(&mut self) -> OpResult {
         self.gas_left.consume(10)?;
         let [exp, value] = self.stack.pop()?;
         let byte_size = 32 - exp.into_iter().take_while(|byte| *byte == 0).count() as u64;
@@ -355,112 +635,112 @@ where
         Ok(())
     }
 
-    fn sign_extend(&mut self) -> Result<(), FailStatus> {
+    fn sign_extend(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
         let [value, size] = self.stack.pop()?;
         self.stack.push(u256::signextend(size, value))?;
         Ok(())
     }
 
-    fn lt(&mut self) -> Result<(), FailStatus> {
+    fn lt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs < rhs)?;
         Ok(())
     }
 
-    fn gt(&mut self) -> Result<(), FailStatus> {
+    fn gt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs > rhs)?;
         Ok(())
     }
 
-    fn s_lt(&mut self) -> Result<(), FailStatus> {
+    fn s_lt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs.slt(&rhs))?;
         Ok(())
     }
 
-    fn s_gt(&mut self) -> Result<(), FailStatus> {
+    fn s_gt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs.sgt(&rhs))?;
         Ok(())
     }
 
-    fn eq(&mut self) -> Result<(), FailStatus> {
+    fn eq(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs == rhs)?;
         Ok(())
     }
 
-    fn is_zero(&mut self) -> Result<(), FailStatus> {
+    fn is_zero(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value] = self.stack.pop()?;
         self.stack.push(value == u256::ZERO)?;
         Ok(())
     }
 
-    fn and(&mut self) -> Result<(), FailStatus> {
+    fn and(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs & rhs)?;
         Ok(())
     }
 
-    fn or(&mut self) -> Result<(), FailStatus> {
+    fn or(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs | rhs)?;
         Ok(())
     }
 
-    fn xor(&mut self) -> Result<(), FailStatus> {
+    fn xor(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs ^ rhs)?;
         Ok(())
     }
 
-    fn not(&mut self) -> Result<(), FailStatus> {
+    fn not(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value] = self.stack.pop()?;
         self.stack.push(!value)?;
         Ok(())
     }
 
-    fn byte(&mut self) -> Result<(), FailStatus> {
+    fn byte(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value, offset] = self.stack.pop()?;
         self.stack.push(value.byte(offset))?;
         Ok(())
     }
 
-    fn shl(&mut self) -> Result<(), FailStatus> {
+    fn shl(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value, shift] = self.stack.pop()?;
         self.stack.push(value << shift)?;
         Ok(())
     }
 
-    fn shr(&mut self) -> Result<(), FailStatus> {
+    fn shr(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value, shift] = self.stack.pop()?;
         self.stack.push(value >> shift)?;
         Ok(())
     }
 
-    fn sar(&mut self) -> Result<(), FailStatus> {
+    fn sar(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value, shift] = self.stack.pop()?;
         self.stack.push(value.sar(shift))?;
         Ok(())
     }
 
-    fn sha3(&mut self) -> Result<(), FailStatus> {
+    fn sha3(&mut self) -> OpResult {
         self.gas_left.consume(30)?;
         let [len, offset] = self.stack.pop()?;
 
@@ -476,13 +756,13 @@ where
         Ok(())
     }
 
-    fn address(&mut self) -> Result<(), FailStatus> {
+    fn address(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.message.recipient())?;
         Ok(())
     }
 
-    fn balance(&mut self) -> Result<(), FailStatus> {
+    fn balance(&mut self) -> OpResult {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
@@ -494,25 +774,25 @@ where
         Ok(())
     }
 
-    fn origin(&mut self) -> Result<(), FailStatus> {
+    fn origin(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.context.get_tx_context().tx_origin)?;
         Ok(())
     }
 
-    fn caller(&mut self) -> Result<(), FailStatus> {
+    fn caller(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.message.sender())?;
         Ok(())
     }
 
-    fn call_value(&mut self) -> Result<(), FailStatus> {
+    fn call_value(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(*self.message.value())?;
         Ok(())
     }
 
-    fn call_data_load(&mut self) -> Result<(), FailStatus> {
+    fn call_data_load(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [offset] = self.stack.pop()?;
         let (offset, overflow) = offset.into_u64_with_overflow();
@@ -539,7 +819,7 @@ where
         Ok(())
     }
 
-    fn call_data_size(&mut self) -> Result<(), FailStatus> {
+    fn call_data_size(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         let call_data_len = self
             .message
@@ -553,14 +833,14 @@ where
         Ok(())
     }
 
-    fn push0(&mut self) -> Result<(), FailStatus> {
+    fn push0(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_SHANGHAI, self.revision)?;
         self.gas_left.consume(2)?;
         self.stack.push(u256::ZERO)?;
         Ok(())
     }
 
-    fn call_data_copy(&mut self) -> Result<(), FailStatus> {
+    fn call_data_copy(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [len, offset, dest_offset] = self.stack.pop()?;
 
@@ -589,13 +869,13 @@ where
         Ok(())
     }
 
-    fn code_size(&mut self) -> Result<(), FailStatus> {
+    fn code_size(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.code_reader.len())?;
         Ok(())
     }
 
-    fn code_copy(&mut self) -> Result<(), FailStatus> {
+    fn code_copy(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [len, offset, dest_offset] = self.stack.pop()?;
 
@@ -611,14 +891,14 @@ where
         Ok(())
     }
 
-    fn gas_price(&mut self) -> Result<(), FailStatus> {
+    fn gas_price(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().tx_gas_price)?;
         Ok(())
     }
 
-    fn ext_code_size(&mut self) -> Result<(), FailStatus> {
+    fn ext_code_size(&mut self) -> OpResult {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
@@ -630,7 +910,7 @@ where
         Ok(())
     }
 
-    fn ext_code_copy(&mut self) -> Result<(), FailStatus> {
+    fn ext_code_copy(&mut self) -> OpResult {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
@@ -657,7 +937,7 @@ where
         Ok(())
     }
 
-    fn return_data_size(&mut self) -> Result<(), FailStatus> {
+    fn return_data_size(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(
             self.last_call_return_data
@@ -668,7 +948,7 @@ where
         Ok(())
     }
 
-    fn return_data_copy(&mut self) -> Result<(), FailStatus> {
+    fn return_data_copy(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [len, offset, dest_offset] = self.stack.pop()?;
 
@@ -690,7 +970,7 @@ where
         Ok(())
     }
 
-    fn ext_code_hash(&mut self) -> Result<(), FailStatus> {
+    fn ext_code_hash(&mut self) -> OpResult {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
@@ -702,7 +982,7 @@ where
         Ok(())
     }
 
-    fn block_hash(&mut self) -> Result<(), FailStatus> {
+    fn block_hash(&mut self) -> OpResult {
         self.gas_left.consume(20)?;
         let [block_number] = self.stack.pop()?;
         self.stack.push(
@@ -714,48 +994,48 @@ where
         Ok(())
     }
 
-    fn coinbase(&mut self) -> Result<(), FailStatus> {
+    fn coinbase(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_coinbase)?;
         Ok(())
     }
 
-    fn timestamp(&mut self) -> Result<(), FailStatus> {
+    fn timestamp(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_timestamp as u64)?;
         Ok(())
     }
 
-    fn number(&mut self) -> Result<(), FailStatus> {
+    fn number(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_number as u64)?;
         Ok(())
     }
 
-    fn prev_randao(&mut self) -> Result<(), FailStatus> {
+    fn prev_randao(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_prev_randao)?;
         Ok(())
     }
 
-    fn gas_limit(&mut self) -> Result<(), FailStatus> {
+    fn gas_limit(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_gas_limit as u64)?;
         Ok(())
     }
 
-    fn chain_id(&mut self) -> Result<(), FailStatus> {
+    fn chain_id(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.context.get_tx_context().chain_id)?;
         Ok(())
     }
 
-    fn self_balance(&mut self) -> Result<(), FailStatus> {
+    fn self_balance(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_ISTANBUL, self.revision)?;
         self.gas_left.consume(5)?;
         let addr = self.message.recipient();
@@ -767,7 +1047,7 @@ where
         Ok(())
     }
 
-    fn base_fee(&mut self) -> Result<(), FailStatus> {
+    fn base_fee(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_LONDON, self.revision)?;
         self.gas_left.consume(2)?;
         self.stack
@@ -775,7 +1055,7 @@ where
         Ok(())
     }
 
-    fn blob_hash(&mut self) -> Result<(), FailStatus> {
+    fn blob_hash(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         self.gas_left.consume(3)?;
         let [idx] = self.stack.pop()?;
@@ -790,7 +1070,7 @@ where
         Ok(())
     }
 
-    fn blob_base_fee(&mut self) -> Result<(), FailStatus> {
+    fn blob_base_fee(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         self.gas_left.consume(2)?;
         self.stack
@@ -798,13 +1078,13 @@ where
         Ok(())
     }
 
-    fn pop(&mut self) -> Result<(), FailStatus> {
+    fn pop(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         let [_] = self.stack.pop()?;
         Ok(())
     }
 
-    fn m_load(&mut self) -> Result<(), FailStatus> {
+    fn m_load(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [offset] = self.stack.pop()?;
 
@@ -813,7 +1093,7 @@ where
         Ok(())
     }
 
-    fn m_store(&mut self) -> Result<(), FailStatus> {
+    fn m_store(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value, offset] = self.stack.pop()?;
 
@@ -822,7 +1102,7 @@ where
         Ok(())
     }
 
-    fn m_store8(&mut self) -> Result<(), FailStatus> {
+    fn m_store8(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value, offset] = self.stack.pop()?;
 
@@ -831,7 +1111,7 @@ where
         Ok(())
     }
 
-    fn s_load(&mut self) -> Result<(), FailStatus> {
+    fn s_load(&mut self) -> OpResult {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(800)?;
         }
@@ -850,14 +1130,14 @@ where
         Ok(())
     }
 
-    fn jump(&mut self) -> Result<(), FailStatus> {
+    fn jump(&mut self) -> OpResult {
         self.gas_left.consume(8)?;
         let [dest] = self.stack.pop()?;
         self.code_reader.try_jump(dest)?;
         Ok(())
     }
 
-    fn jump_i(&mut self) -> Result<(), FailStatus> {
+    fn jump_i(&mut self) -> OpResult {
         self.gas_left.consume(10)?;
         let [cond, dest] = self.stack.pop()?;
         if cond == u256::ZERO {
@@ -868,30 +1148,30 @@ where
         Ok(())
     }
 
-    fn pc(&mut self) -> Result<(), FailStatus> {
+    fn pc(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.code_reader.pc())?;
         Ok(())
     }
 
-    fn m_size(&mut self) -> Result<(), FailStatus> {
+    fn m_size(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.memory.len())?;
         Ok(())
     }
 
-    fn gas(&mut self) -> Result<(), FailStatus> {
+    fn gas(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.gas_left.as_u64())?;
         Ok(())
     }
 
-    fn jump_dest(&mut self) -> Result<(), FailStatus> {
+    fn jump_dest(&mut self) -> OpResult {
         self.gas_left.consume(1)?;
         Ok(())
     }
 
-    fn t_load(&mut self) -> Result<(), FailStatus> {
+    fn t_load(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         self.gas_left.consume(100)?;
         let [key] = self.stack.pop()?;
@@ -901,7 +1181,7 @@ where
         Ok(())
     }
 
-    fn t_store(&mut self) -> Result<(), FailStatus> {
+    fn t_store(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         check_not_read_only(self)?;
         self.gas_left.consume(100)?;
@@ -912,7 +1192,7 @@ where
         Ok(())
     }
 
-    fn m_copy(&mut self) -> Result<(), FailStatus> {
+    fn m_copy(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         self.gas_left.consume(3)?;
         let [len, offset, dest_offset] = self.stack.pop()?;
@@ -923,7 +1203,7 @@ where
         Ok(())
     }
 
-    fn return_(&mut self) -> Result<(), FailStatus> {
+    fn return_(&mut self) -> OpResult {
         let [len, offset] = self.stack.pop()?;
         let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
@@ -939,7 +1219,7 @@ where
         Ok(())
     }
 
-    fn revert(&mut self) -> Result<(), FailStatus> {
+    fn revert(&mut self) -> OpResult {
         let [len, offset] = self.stack.pop()?;
         let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
@@ -957,12 +1237,12 @@ where
         Ok(())
     }
 
-    fn invalid(&mut self) -> Result<(), FailStatus> {
+    fn invalid(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_HOMESTEAD, self.revision)?;
         Err(FailStatus::InvalidInstruction)
     }
 
-    fn self_destruct(&mut self) -> Result<(), FailStatus> {
+    fn self_destruct(&mut self) -> OpResult {
         check_not_read_only(self)?;
         self.gas_left.consume(5_000)?;
         let [addr] = self.stack.pop()?;
@@ -989,7 +1269,7 @@ where
         Ok(())
     }
 
-    fn sstore(&mut self) -> Result<(), FailStatus> {
+    fn sstore(&mut self) -> OpResult {
         check_not_read_only(self)?;
 
         if self.revision >= Revision::EVMC_ISTANBUL && self.gas_left <= 2_300 {
@@ -1039,26 +1319,26 @@ where
         Ok(())
     }
 
-    fn push(&mut self, len: usize) -> Result<(), FailStatus> {
+    fn push(&mut self, len: usize) -> OpResult {
         self.gas_left.consume(3)?;
         self.code_reader.next();
         self.stack.push(self.code_reader.get_push_data(len))?;
         Ok(())
     }
 
-    fn dup(&mut self, nth: usize) -> Result<(), FailStatus> {
+    fn dup(&mut self, nth: usize) -> OpResult {
         self.gas_left.consume(3)?;
         self.stack.push(self.stack.nth(nth - 1)?)?;
         Ok(())
     }
 
-    fn swap(&mut self, nth: usize) -> Result<(), FailStatus> {
+    fn swap(&mut self, nth: usize) -> OpResult {
         self.gas_left.consume(3)?;
         self.stack.swap_with_top(nth)?;
         Ok(())
     }
 
-    fn log<const N: usize>(&mut self) -> Result<(), FailStatus> {
+    fn log<const N: usize>(&mut self) -> OpResult {
         check_not_read_only(self)?;
         self.gas_left.consume(375)?;
         let [len, offset] = self.stack.pop()?;
@@ -1082,15 +1362,15 @@ where
         Ok(())
     }
 
-    fn create(&mut self) -> Result<(), FailStatus> {
+    fn create(&mut self) -> OpResult {
         self.create_or_create2::<false>()
     }
 
-    fn create2(&mut self) -> Result<(), FailStatus> {
+    fn create2(&mut self) -> OpResult {
         self.create_or_create2::<true>()
     }
 
-    fn create_or_create2<const CREATE2: bool>(&mut self) -> Result<(), FailStatus> {
+    fn create_or_create2<const CREATE2: bool>(&mut self) -> OpResult {
         self.gas_left.consume(32_000)?;
         check_not_read_only(self)?;
         let [len, offset, value] = self.stack.pop()?;
@@ -1166,15 +1446,15 @@ where
         Ok(())
     }
 
-    fn call(&mut self) -> Result<(), FailStatus> {
+    fn call(&mut self) -> OpResult {
         self.call_or_call_code::<false>()
     }
 
-    fn call_code(&mut self) -> Result<(), FailStatus> {
+    fn call_code(&mut self) -> OpResult {
         self.call_or_call_code::<true>()
     }
 
-    fn call_or_call_code<const CODE: bool>(&mut self) -> Result<(), FailStatus> {
+    fn call_or_call_code<const CODE: bool>(&mut self) -> OpResult {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
@@ -1272,15 +1552,15 @@ where
         Ok(())
     }
 
-    fn static_call(&mut self) -> Result<(), FailStatus> {
+    fn static_call(&mut self) -> OpResult {
         self.static_or_delegate_call::<false>()
     }
 
-    fn delegate_call(&mut self) -> Result<(), FailStatus> {
+    fn delegate_call(&mut self) -> OpResult {
         self.static_or_delegate_call::<true>()
     }
 
-    fn static_or_delegate_call<const DELEGATE: bool>(&mut self) -> Result<(), FailStatus> {
+    fn static_or_delegate_call<const DELEGATE: bool>(&mut self) -> OpResult {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
