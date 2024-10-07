@@ -20,6 +20,7 @@ cargo clean
 mkdir -p $CT_COV_TARGET
 mkdir -p $CT_COV
 
+make -C ..
 # build evmrs with coverage instrumentation
 RUSTFLAGS="-C instrument-coverage" cargo build --release --features dump-cov
 # run CT

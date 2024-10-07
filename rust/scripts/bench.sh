@@ -36,9 +36,9 @@ GIT_REF=$(git show-ref --hash=7 $BRANCH)
 OUTPUT_DIR=output/benches/$DATE#$GIT_REF#$RUNS
 mkdir -p $OUTPUT_DIR
 
-if [ ! $EVMRS_ONLY ]; then
-    make -C ..
+make -C ..
 
+if [ ! $EVMRS_ONLY ]; then
     INTERPRETERS=("evmzero" "lfvm" "geth")
     for INTERPRETER in "${INTERPRETERS[@]}"; do
         echo running $INTERPRETER

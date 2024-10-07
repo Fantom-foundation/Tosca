@@ -18,5 +18,5 @@ make -C .. clean-rust
 make -C .. tosca-rust
 
 export RUST_BACKTRACE=full
-go test ../go/... | tee $OUTPUT_DIR/ct-full
-go run ../go/ct/driver run --full-mode evmrs | tee $OUTPUT_DIR/go-test
+go test ../go/... | tee $OUTPUT_DIR/go-test
+go run ../go/ct/driver run --full-mode evmrs | tee $OUTPUT_DIR/ct-full
