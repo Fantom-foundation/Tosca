@@ -14,6 +14,12 @@ use crate::{
     utils::{check_min_revision, check_not_read_only, word_size, Gas, SliceExt},
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShouldStop {
+    True,
+    False,
+}
+
 pub struct Interpreter<'a, E>
 where
     E: ExecutionContextTrait,
@@ -108,509 +114,77 @@ where
                     return Err(StatusCode::EVMC_INVALID_INSTRUCTION);
                 }
             };
-            match op {
-                Opcode::Stop => {
-                    self.step_status_code = StepStatusCode::EVMC_STEP_STOPPED;
-                    self.status_code = StatusCode::EVMC_SUCCESS;
-                    break;
-                }
-                Opcode::Add => {
-                    self.gas_left.consume(3)?;
-                    let [value2, value1] = self.stack.pop()?;
-                    self.stack.push(value1 + value2)?;
-                }
-                Opcode::Mul => {
-                    self.gas_left.consume(5)?;
-                    let [fac2, fac1] = self.stack.pop()?;
-                    self.stack.push(fac1 * fac2)?;
-                }
-                Opcode::Sub => {
-                    self.gas_left.consume(3)?;
-                    let [value2, value1] = self.stack.pop()?;
-                    self.stack.push(value1 - value2)?;
-                }
-                Opcode::Div => {
-                    self.gas_left.consume(5)?;
-                    let [denominator, value] = self.stack.pop()?;
-                    self.stack.push(value / denominator)?;
-                }
-                Opcode::SDiv => {
-                    self.gas_left.consume(5)?;
-                    let [denominator, value] = self.stack.pop()?;
-                    self.stack.push(value.sdiv(denominator))?;
-                }
-                Opcode::Mod => {
-                    self.gas_left.consume(5)?;
-                    let [denominator, value] = self.stack.pop()?;
-                    self.stack.push(value % denominator)?;
-                }
-                Opcode::SMod => {
-                    self.gas_left.consume(5)?;
-                    let [denominator, value] = self.stack.pop()?;
-                    self.stack.push(value.srem(denominator))?;
-                }
-                Opcode::AddMod => {
-                    self.gas_left.consume(8)?;
-                    let [denominator, value2, value1] = self.stack.pop()?;
-                    self.stack.push(u256::addmod(value1, value2, denominator))?;
-                }
-                Opcode::MulMod => {
-                    self.gas_left.consume(8)?;
-                    let [denominator, fac2, fac1] = self.stack.pop()?;
-                    self.stack.push(u256::mulmod(fac1, fac2, denominator))?;
-                }
-                Opcode::Exp => {
-                    self.gas_left.consume(10)?;
-                    let [exp, value] = self.stack.pop()?;
-                    let byte_size =
-                        32 - exp.into_iter().take_while(|byte| *byte == 0).count() as u64;
-                    self.gas_left.consume(byte_size * 50)?; // * does not overflow
-                    self.stack.push(value.pow(exp))?;
-                }
-                Opcode::SignExtend => {
-                    self.gas_left.consume(5)?;
-                    let [value, size] = self.stack.pop()?;
-                    self.stack.push(u256::signextend(size, value))?;
-                }
-                Opcode::Lt => {
-                    self.gas_left.consume(3)?;
-                    let [rhs, lhs] = self.stack.pop()?;
-                    self.stack.push(lhs < rhs)?;
-                }
-                Opcode::Gt => {
-                    self.gas_left.consume(3)?;
-                    let [rhs, lhs] = self.stack.pop()?;
-                    self.stack.push(lhs > rhs)?;
-                }
-                Opcode::SLt => {
-                    self.gas_left.consume(3)?;
-                    let [rhs, lhs] = self.stack.pop()?;
-                    self.stack.push(lhs.slt(&rhs))?;
-                }
-                Opcode::SGt => {
-                    self.gas_left.consume(3)?;
-                    let [rhs, lhs] = self.stack.pop()?;
-                    self.stack.push(lhs.sgt(&rhs))?;
-                }
-                Opcode::Eq => {
-                    self.gas_left.consume(3)?;
-                    let [rhs, lhs] = self.stack.pop()?;
-                    self.stack.push(lhs == rhs)?;
-                }
-                Opcode::IsZero => {
-                    self.gas_left.consume(3)?;
-                    let [value] = self.stack.pop()?;
-                    self.stack.push(value == u256::ZERO)?;
-                }
-                Opcode::And => {
-                    self.gas_left.consume(3)?;
-                    let [rhs, lhs] = self.stack.pop()?;
-                    self.stack.push(lhs & rhs)?;
-                }
-                Opcode::Or => {
-                    self.gas_left.consume(3)?;
-                    let [rhs, lhs] = self.stack.pop()?;
-                    self.stack.push(lhs | rhs)?;
-                }
-                Opcode::Xor => {
-                    self.gas_left.consume(3)?;
-                    let [rhs, lhs] = self.stack.pop()?;
-                    self.stack.push(lhs ^ rhs)?;
-                }
-                Opcode::Not => {
-                    self.gas_left.consume(3)?;
-                    let [value] = self.stack.pop()?;
-                    self.stack.push(!value)?;
-                }
-                Opcode::Byte => {
-                    self.gas_left.consume(3)?;
-                    let [value, offset] = self.stack.pop()?;
-                    self.stack.push(value.byte(offset))?;
-                }
-                Opcode::Shl => {
-                    self.gas_left.consume(3)?;
-                    let [value, shift] = self.stack.pop()?;
-                    self.stack.push(value << shift)?;
-                }
-                Opcode::Shr => {
-                    self.gas_left.consume(3)?;
-                    let [value, shift] = self.stack.pop()?;
-                    self.stack.push(value >> shift)?;
-                }
-                Opcode::Sar => {
-                    self.gas_left.consume(3)?;
-                    let [value, shift] = self.stack.pop()?;
-                    self.stack.push(value.sar(shift))?;
-                }
-                Opcode::Sha3 => {
-                    self.gas_left.consume(30)?;
-                    let [len, offset] = self.stack.pop()?;
-
-                    let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
-                    self.gas_left.consume(6 * word_size(len)?)?; // * does not overflow
-
-                    let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
-                    let mut hasher = Keccak256::new();
-                    hasher.update(data);
-                    let mut bytes = [0; 32];
-                    hasher.finalize_into((&mut bytes).into());
-                    self.stack.push(bytes)?;
-                }
-                Opcode::Address => {
-                    self.gas_left.consume(2)?;
-                    self.stack.push(self.message.recipient())?;
-                }
-                Opcode::Balance => {
-                    if self.revision < Revision::EVMC_BERLIN {
-                        self.gas_left.consume(700)?;
-                    }
-                    let [addr] = self.stack.pop()?;
-                    let addr = addr.into();
-                    self.gas_left.consume_address_access_cost(
-                        &addr,
-                        self.revision,
-                        self.context,
-                    )?;
-                    self.stack.push(self.context.get_balance(&addr))?;
-                }
-                Opcode::Origin => {
-                    self.gas_left.consume(2)?;
-                    self.stack.push(self.context.get_tx_context().tx_origin)?;
-                }
-                Opcode::Caller => {
-                    self.gas_left.consume(2)?;
-                    self.stack.push(self.message.sender())?;
-                }
-                Opcode::CallValue => {
-                    self.gas_left.consume(2)?;
-                    self.stack.push(*self.message.value())?;
-                }
-                Opcode::CallDataLoad => {
-                    self.gas_left.consume(3)?;
-                    let [offset] = self.stack.pop()?;
-                    let (offset, overflow) = offset.into_u64_with_overflow();
-                    let offset = offset as usize;
-                    let call_data = self.message.input().map(Vec::as_slice).unwrap_or_default();
-                    if overflow || offset >= call_data.len() {
-                        self.stack.push(u256::ZERO)?;
-                    } else {
-                        let end = min(call_data.len(), offset + 32);
-                        let mut bytes = u256::ZERO;
-                        bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
-                        self.stack.push(bytes)?;
-                    }
-                }
-                Opcode::CallDataSize => {
-                    self.gas_left.consume(2)?;
-                    let call_data_len = self.message.input().map(Vec::len).unwrap_or_default();
-                    self.stack.push(call_data_len)?;
-                }
-                Opcode::Push0 => {
-                    check_min_revision(Revision::EVMC_SHANGHAI, self.revision)?;
-                    self.gas_left.consume(2)?;
-                    self.stack.push(u256::ZERO)?;
-                }
-                Opcode::CallDataCopy => {
-                    self.gas_left.consume(3)?;
-                    let [len, offset, dest_offset] = self.stack.pop()?;
-
-                    if len != u256::ZERO {
-                        let len = len
-                            .try_into()
-                            .map_err(|_| StatusCode::EVMC_INVALID_MEMORY_ACCESS)?;
-
-                        let src = self
-                            .message
-                            .input()
-                            .map(Vec::as_slice)
-                            .unwrap_or_default()
-                            .get_within_bounds(offset, len);
-                        let dest =
-                            self.memory
-                                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
-                        dest.copy_padded(src, &mut self.gas_left)?;
-                    }
-                }
-                Opcode::CodeSize => {
-                    self.gas_left.consume(2)?;
-                    self.stack.push(self.code_reader.len())?;
-                }
-                Opcode::CodeCopy => {
-                    self.gas_left.consume(3)?;
-                    let [len, offset, dest_offset] = self.stack.pop()?;
-
-                    if len != u256::ZERO {
-                        let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
-
-                        let src = self.code_reader.get_within_bounds(offset, len);
-                        let dest =
-                            self.memory
-                                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
-                        dest.copy_padded(src, &mut self.gas_left)?;
-                    }
-                }
-                Opcode::GasPrice => {
-                    self.gas_left.consume(2)?;
-                    self.stack
-                        .push(self.context.get_tx_context().tx_gas_price)?;
-                }
-                Opcode::ExtCodeSize => {
-                    if self.revision < Revision::EVMC_BERLIN {
-                        self.gas_left.consume(700)?;
-                    }
-                    let [addr] = self.stack.pop()?;
-                    let addr = addr.into();
-                    self.gas_left.consume_address_access_cost(
-                        &addr,
-                        self.revision,
-                        self.context,
-                    )?;
-                    self.stack.push(self.context.get_code_size(&addr))?;
-                }
-                Opcode::ExtCodeCopy => {
-                    if self.revision < Revision::EVMC_BERLIN {
-                        self.gas_left.consume(700)?;
-                    }
-                    let [len, offset, dest_offset, addr] = self.stack.pop()?;
-                    let addr = addr.into();
-
-                    self.gas_left.consume_address_access_cost(
-                        &addr,
-                        self.revision,
-                        self.context,
-                    )?;
-                    if len != u256::ZERO {
-                        let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
-
-                        let dest =
-                            self.memory
-                                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
-                        let (offset, offset_overflow) = offset.into_u64_with_overflow();
-                        self.gas_left.consume_copy_cost(len)?;
-                        let bytes_written = self.context.copy_code(&addr, offset as usize, dest);
-                        if offset_overflow {
-                            dest.set_to_zero();
-                        } else if (bytes_written as u64) < len {
-                            dest[bytes_written..].set_to_zero();
-                        }
-                    }
-                }
-                Opcode::ReturnDataSize => {
-                    self.gas_left.consume(2)?;
-                    self.stack.push(
-                        self.last_call_return_data
-                            .as_ref()
-                            .map(Vec::len)
-                            .unwrap_or_default(),
-                    )?;
-                }
-                Opcode::ReturnDataCopy => {
-                    self.gas_left.consume(3)?;
-                    let [len, offset, dest_offset] = self.stack.pop()?;
-
-                    let src = self.last_call_return_data.as_deref().unwrap_or_default();
-                    let (offset, offset_overflow) = offset.into_u64_with_overflow();
-                    let (len, len_overflow) = len.into_u64_with_overflow();
-                    let (end, end_overflow) = offset.overflowing_add(len);
-                    if offset_overflow || len_overflow || end_overflow || end > src.len() as u64 {
-                        return Err(StatusCode::EVMC_INVALID_MEMORY_ACCESS);
-                    }
-
-                    if len != 0 {
-                        let src = &src[offset as usize..end as usize];
-                        let dest =
-                            self.memory
-                                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
-                        dest.copy_padded(src, &mut self.gas_left)?;
-                    }
-                }
-                Opcode::ExtCodeHash => {
-                    if self.revision < Revision::EVMC_BERLIN {
-                        self.gas_left.consume(700)?;
-                    }
-                    let [addr] = self.stack.pop()?;
-                    let addr = addr.into();
-                    self.gas_left.consume_address_access_cost(
-                        &addr,
-                        self.revision,
-                        self.context,
-                    )?;
-                    self.stack.push(self.context.get_code_hash(&addr))?;
-                }
-                Opcode::BlockHash => {
-                    self.gas_left.consume(20)?;
-                    let [block_number] = self.stack.pop()?;
-                    self.stack.push(
-                        block_number
-                            .try_into()
-                            .map(|idx: u64| self.context.get_block_hash(idx as i64))
-                            .unwrap_or(u256::ZERO.into()),
-                    )?;
-                }
-                Opcode::Coinbase => {
-                    self.gas_left.consume(2)?;
-                    self.stack
-                        .push(self.context.get_tx_context().block_coinbase)?;
-                }
-                Opcode::Timestamp => {
-                    self.gas_left.consume(2)?;
-                    self.stack
-                        .push(self.context.get_tx_context().block_timestamp as u64)?;
-                }
-                Opcode::Number => {
-                    self.gas_left.consume(2)?;
-                    self.stack
-                        .push(self.context.get_tx_context().block_number as u64)?;
-                }
-                Opcode::PrevRandao => {
-                    self.gas_left.consume(2)?;
-                    self.stack
-                        .push(self.context.get_tx_context().block_prev_randao)?;
-                }
-                Opcode::GasLimit => {
-                    self.gas_left.consume(2)?;
-                    self.stack
-                        .push(self.context.get_tx_context().block_gas_limit as u64)?;
-                }
-                Opcode::ChainId => {
-                    self.gas_left.consume(2)?;
-                    self.stack.push(self.context.get_tx_context().chain_id)?;
-                }
-                Opcode::SelfBalance => {
-                    check_min_revision(Revision::EVMC_ISTANBUL, self.revision)?;
-                    self.gas_left.consume(5)?;
-                    let addr = self.message.recipient();
-                    if u256::from(addr) == u256::ZERO {
-                        self.stack.push(u256::ZERO)?;
-                    } else {
-                        self.stack.push(self.context.get_balance(addr))?;
-                    }
-                }
-                Opcode::BaseFee => {
-                    check_min_revision(Revision::EVMC_LONDON, self.revision)?;
-                    self.gas_left.consume(2)?;
-                    self.stack
-                        .push(self.context.get_tx_context().block_base_fee)?;
-                }
-                Opcode::BlobHash => {
-                    check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-                    self.gas_left.consume(3)?;
-                    let [idx] = self.stack.pop()?;
-                    let (idx, idx_overflow) = idx.into_u64_with_overflow();
-                    let idx = idx as usize;
-                    let hashes =
-                        ExecutionTxContext::from(self.context.get_tx_context()).blob_hashes;
-                    if !idx_overflow && idx < hashes.len() {
-                        self.stack.push(hashes[idx])?;
-                    } else {
-                        self.stack.push(u256::ZERO)?;
-                    }
-                }
-                Opcode::BlobBaseFee => {
-                    check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-                    self.gas_left.consume(2)?;
-                    self.stack
-                        .push(self.context.get_tx_context().blob_base_fee)?;
-                }
-                Opcode::Pop => {
-                    self.gas_left.consume(2)?;
-                    let [_] = self.stack.pop()?;
-                }
-                Opcode::MLoad => {
-                    self.gas_left.consume(3)?;
-                    let [offset] = self.stack.pop()?;
-
-                    self.stack
-                        .push(self.memory.get_word(offset, &mut self.gas_left)?)?;
-                }
-                Opcode::MStore => {
-                    self.gas_left.consume(3)?;
-                    let [value, offset] = self.stack.pop()?;
-
-                    let dest = self.memory.get_mut_slice(offset, 32, &mut self.gas_left)?;
-                    dest.copy_from_slice(value.as_slice());
-                }
-                Opcode::MStore8 => {
-                    self.gas_left.consume(3)?;
-                    let [value, offset] = self.stack.pop()?;
-
-                    let dest = self.memory.get_mut_byte(offset, &mut self.gas_left)?;
-                    *dest = value[31];
-                }
-                Opcode::SLoad => {
-                    if self.revision < Revision::EVMC_BERLIN {
-                        self.gas_left.consume(800)?;
-                    }
-                    let [key] = self.stack.pop()?;
-                    let key = key.into();
-                    let addr = self.message.recipient();
-                    if self.revision >= Revision::EVMC_BERLIN {
-                        if self.context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD
-                        {
-                            self.gas_left.consume(2_100)?;
-                        } else {
-                            self.gas_left.consume(100)?;
-                        }
-                    }
-                    let value = self.context.get_storage(addr, &key);
-                    self.stack.push(value)?;
-                }
+            let stop = match op {
+                Opcode::Stop => self.stop()?,
+                Opcode::Add => self.add()?,
+                Opcode::Mul => self.mul()?,
+                Opcode::Sub => self.sub()?,
+                Opcode::Div => self.div()?,
+                Opcode::SDiv => self.s_div()?,
+                Opcode::Mod => self.mod_()?,
+                Opcode::SMod => self.s_mod()?,
+                Opcode::AddMod => self.add_mod()?,
+                Opcode::MulMod => self.mul_mod()?,
+                Opcode::Exp => self.exp()?,
+                Opcode::SignExtend => self.sign_extend()?,
+                Opcode::Lt => self.lt()?,
+                Opcode::Gt => self.gt()?,
+                Opcode::SLt => self.s_lt()?,
+                Opcode::SGt => self.s_gt()?,
+                Opcode::Eq => self.eq()?,
+                Opcode::IsZero => self.is_zero()?,
+                Opcode::And => self.and()?,
+                Opcode::Or => self.or()?,
+                Opcode::Xor => self.xor()?,
+                Opcode::Not => self.not()?,
+                Opcode::Byte => self.byte()?,
+                Opcode::Shl => self.shl()?,
+                Opcode::Shr => self.shr()?,
+                Opcode::Sar => self.sar()?,
+                Opcode::Sha3 => self.sha3()?,
+                Opcode::Address => self.address()?,
+                Opcode::Balance => self.balance()?,
+                Opcode::Origin => self.origin()?,
+                Opcode::Caller => self.caller()?,
+                Opcode::CallValue => self.call_value()?,
+                Opcode::CallDataLoad => self.call_data_load()?,
+                Opcode::CallDataSize => self.call_data_size()?,
+                Opcode::Push0 => self.push0()?,
+                Opcode::CallDataCopy => self.call_data_copy()?,
+                Opcode::CodeSize => self.code_size()?,
+                Opcode::CodeCopy => self.code_copy()?,
+                Opcode::GasPrice => self.gas_price()?,
+                Opcode::ExtCodeSize => self.ext_code_size()?,
+                Opcode::ExtCodeCopy => self.ext_code_copy()?,
+                Opcode::ReturnDataSize => self.return_data_size()?,
+                Opcode::ReturnDataCopy => self.return_data_copy()?,
+                Opcode::ExtCodeHash => self.ext_code_hash()?,
+                Opcode::BlockHash => self.block_hash()?,
+                Opcode::Coinbase => self.coinbase()?,
+                Opcode::Timestamp => self.timestamp()?,
+                Opcode::Number => self.number()?,
+                Opcode::PrevRandao => self.prev_randao()?,
+                Opcode::GasLimit => self.gas_limit()?,
+                Opcode::ChainId => self.chain_id()?,
+                Opcode::SelfBalance => self.self_balance()?,
+                Opcode::BaseFee => self.base_fee()?,
+                Opcode::BlobHash => self.blob_hash()?,
+                Opcode::BlobBaseFee => self.blob_base_fee()?,
+                Opcode::Pop => self.pop()?,
+                Opcode::MLoad => self.m_load()?,
+                Opcode::MStore => self.m_store()?,
+                Opcode::MStore8 => self.m_store8()?,
+                Opcode::SLoad => self.s_load()?,
                 Opcode::SStore => self.sstore()?,
-                Opcode::Jump => {
-                    self.gas_left.consume(8)?;
-                    let [dest] = self.stack.pop()?;
-                    self.code_reader.try_jump(dest)?;
-                }
-                Opcode::JumpI => {
-                    self.gas_left.consume(10)?;
-                    let [cond, dest] = self.stack.pop()?;
-                    if cond == u256::ZERO {
-                        self.code_reader.next();
-                    } else {
-                        self.code_reader.try_jump(dest)?;
-                    }
-                }
-                Opcode::Pc => {
-                    self.gas_left.consume(2)?;
-                    self.stack.push(self.code_reader.pc())?;
-                }
-                Opcode::MSize => {
-                    self.gas_left.consume(2)?;
-                    self.stack.push(self.memory.len())?;
-                }
-                Opcode::Gas => {
-                    self.gas_left.consume(2)?;
-                    self.stack.push(self.gas_left.as_u64())?;
-                }
-                Opcode::JumpDest => {
-                    self.gas_left.consume(1)?;
-                }
-                Opcode::TLoad => {
-                    check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-                    self.gas_left.consume(100)?;
-                    let [key] = self.stack.pop()?;
-                    let addr = self.message.recipient();
-                    let value = self.context.get_transient_storage(addr, &key.into());
-                    self.stack.push(value)?;
-                }
-                Opcode::TStore => {
-                    check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-                    check_not_read_only(&self)?;
-                    self.gas_left.consume(100)?;
-                    let [value, key] = self.stack.pop()?;
-                    let addr = self.message.recipient();
-                    self.context
-                        .set_transient_storage(addr, &key.into(), &value.into());
-                }
-                Opcode::MCopy => {
-                    check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-                    self.gas_left.consume(3)?;
-                    let [len, offset, dest_offset] = self.stack.pop()?;
-                    if len != u256::ZERO {
-                        self.memory
-                            .copy_within(offset, dest_offset, len, &mut self.gas_left)?;
-                    }
-                }
+                Opcode::Jump => self.jump()?,
+                Opcode::JumpI => self.jump_i()?,
+                Opcode::Pc => self.pc()?,
+                Opcode::MSize => self.m_size()?,
+                Opcode::Gas => self.gas()?,
+                Opcode::JumpDest => self.jump_dest()?,
+                Opcode::TLoad => self.t_load()?,
+                Opcode::TStore => self.t_store()?,
+                Opcode::MCopy => self.m_copy()?,
                 Opcode::Push1 => self.push(1)?,
                 Opcode::Push2 => self.push(2)?,
                 Opcode::Push3 => self.push(3)?,
@@ -683,58 +257,16 @@ where
                 Opcode::Create => self.create()?,
                 Opcode::Call => self.call()?,
                 Opcode::CallCode => self.call_code()?,
-                Opcode::Return => {
-                    let [len, offset] = self.stack.pop()?;
-                    let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
-                    let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
-                    self.output = Some(data.to_owned());
-                    self.step_status_code = StepStatusCode::EVMC_STEP_RETURNED;
-                    break;
-                }
+                Opcode::Return => self.return_()?,
                 Opcode::DelegateCall => self.delegate_call()?,
                 Opcode::Create2 => self.create2()?,
                 Opcode::StaticCall => self.static_call()?,
-                Opcode::Revert => {
-                    let [len, offset] = self.stack.pop()?;
-                    let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
-                    let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
-                    // TODO revert self changes
-                    // gas_refund = original_gas_refund;
-                    self.output = Some(data.to_owned());
-                    self.step_status_code = StepStatusCode::EVMC_STEP_REVERTED;
-                    self.status_code = StatusCode::EVMC_REVERT;
-                    break;
-                }
-                Opcode::Invalid => {
-                    check_min_revision(Revision::EVMC_HOMESTEAD, self.revision)?;
-                    return Err(StatusCode::EVMC_INVALID_INSTRUCTION);
-                }
-                Opcode::SelfDestruct => {
-                    check_not_read_only(&self)?;
-                    self.gas_left.consume(5_000)?;
-                    let [addr] = self.stack.pop()?;
-                    let addr = addr.into();
-
-                    if self.revision >= Revision::EVMC_BERLIN
-                        && self.context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
-                    {
-                        self.gas_left.consume(2_600)?;
-                    }
-
-                    if u256::from(self.context.get_balance(self.message.recipient())) > u256::ZERO
-                        && !self.context.account_exists(&addr)
-                    {
-                        self.gas_left.consume(25_000)?;
-                    }
-
-                    let destructed = self.context.selfdestruct(self.message.recipient(), &addr);
-                    if self.revision <= Revision::EVMC_BERLIN && destructed {
-                        self.gas_refund += 24_000;
-                    }
-
-                    self.step_status_code = StepStatusCode::EVMC_STEP_STOPPED;
-                    break;
-                }
+                Opcode::Revert => self.revert()?,
+                Opcode::Invalid => self.invalid()?,
+                Opcode::SelfDestruct => self.self_destruct()?,
+            };
+            if stop == ShouldStop::True {
+                break;
             }
 
             if !(Opcode::Push1 as u8..=Opcode::Push32 as u8).contains(&(op as u8))
@@ -748,7 +280,692 @@ where
         Ok(self)
     }
 
-    fn sstore(&mut self) -> Result<(), StatusCode> {
+    fn stop(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.step_status_code = StepStatusCode::EVMC_STEP_STOPPED;
+        self.status_code = StatusCode::EVMC_SUCCESS;
+        Ok(ShouldStop::True)
+    }
+
+    fn add(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [value2, value1] = self.stack.pop()?;
+        self.stack.push(value1 + value2)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn mul(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(5)?;
+        let [fac2, fac1] = self.stack.pop()?;
+        self.stack.push(fac1 * fac2)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn sub(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [value2, value1] = self.stack.pop()?;
+        self.stack.push(value1 - value2)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn div(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(5)?;
+        let [denominator, value] = self.stack.pop()?;
+        self.stack.push(value / denominator)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn s_div(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(5)?;
+        let [denominator, value] = self.stack.pop()?;
+        self.stack.push(value.sdiv(denominator))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn mod_(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(5)?;
+        let [denominator, value] = self.stack.pop()?;
+        self.stack.push(value % denominator)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn s_mod(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(5)?;
+        let [denominator, value] = self.stack.pop()?;
+        self.stack.push(value.srem(denominator))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn add_mod(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(8)?;
+        let [denominator, value2, value1] = self.stack.pop()?;
+        self.stack.push(u256::addmod(value1, value2, denominator))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn mul_mod(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(8)?;
+        let [denominator, fac2, fac1] = self.stack.pop()?;
+        self.stack.push(u256::mulmod(fac1, fac2, denominator))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn exp(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(10)?;
+        let [exp, value] = self.stack.pop()?;
+        let byte_size = 32 - exp.into_iter().take_while(|byte| *byte == 0).count() as u64;
+        self.gas_left.consume(byte_size * 50)?; // * does not overflow
+        self.stack.push(value.pow(exp))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn sign_extend(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(5)?;
+        let [value, size] = self.stack.pop()?;
+        self.stack.push(u256::signextend(size, value))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn lt(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [rhs, lhs] = self.stack.pop()?;
+        self.stack.push(lhs < rhs)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn gt(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [rhs, lhs] = self.stack.pop()?;
+        self.stack.push(lhs > rhs)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn s_lt(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [rhs, lhs] = self.stack.pop()?;
+        self.stack.push(lhs.slt(&rhs))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn s_gt(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [rhs, lhs] = self.stack.pop()?;
+        self.stack.push(lhs.sgt(&rhs))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn eq(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [rhs, lhs] = self.stack.pop()?;
+        self.stack.push(lhs == rhs)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn is_zero(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [value] = self.stack.pop()?;
+        self.stack.push(value == u256::ZERO)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn and(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [rhs, lhs] = self.stack.pop()?;
+        self.stack.push(lhs & rhs)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn or(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [rhs, lhs] = self.stack.pop()?;
+        self.stack.push(lhs | rhs)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn xor(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [rhs, lhs] = self.stack.pop()?;
+        self.stack.push(lhs ^ rhs)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn not(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [value] = self.stack.pop()?;
+        self.stack.push(!value)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn byte(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [value, offset] = self.stack.pop()?;
+        self.stack.push(value.byte(offset))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn shl(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [value, shift] = self.stack.pop()?;
+        self.stack.push(value << shift)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn shr(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [value, shift] = self.stack.pop()?;
+        self.stack.push(value >> shift)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn sar(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [value, shift] = self.stack.pop()?;
+        self.stack.push(value.sar(shift))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn sha3(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(30)?;
+        let [len, offset] = self.stack.pop()?;
+
+        let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+        self.gas_left.consume(6 * word_size(len)?)?; // * does not overflow
+
+        let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        let mut hasher = Keccak256::new();
+        hasher.update(data);
+        let mut bytes = [0; 32];
+        hasher.finalize_into((&mut bytes).into());
+        self.stack.push(bytes)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn address(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack.push(self.message.recipient())?;
+        Ok(ShouldStop::False)
+    }
+
+    fn balance(&mut self) -> Result<ShouldStop, StatusCode> {
+        if self.revision < Revision::EVMC_BERLIN {
+            self.gas_left.consume(700)?;
+        }
+        let [addr] = self.stack.pop()?;
+        let addr = addr.into();
+        self.gas_left
+            .consume_address_access_cost(&addr, self.revision, self.context)?;
+        self.stack.push(self.context.get_balance(&addr))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn origin(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack.push(self.context.get_tx_context().tx_origin)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn caller(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack.push(self.message.sender())?;
+        Ok(ShouldStop::False)
+    }
+
+    fn call_value(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack.push(*self.message.value())?;
+        Ok(ShouldStop::False)
+    }
+
+    fn call_data_load(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [offset] = self.stack.pop()?;
+        let (offset, overflow) = offset.into_u64_with_overflow();
+        let offset = offset as usize;
+        #[allow(clippy::map_identity)]
+        let call_data = self.message.input().map(Vec::as_slice).unwrap_or_default();
+        if overflow || offset >= call_data.len() {
+            self.stack.push(u256::ZERO)?;
+        } else {
+            let end = min(call_data.len(), offset + 32);
+            let mut bytes = u256::ZERO;
+            bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
+            self.stack.push(bytes)?;
+        }
+        Ok(ShouldStop::False)
+    }
+
+    fn call_data_size(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        let call_data_len = self
+            .message
+            .input()
+            .map(|m| {
+                #[allow(clippy::redundant_closure)]
+                m.len()
+            })
+            .unwrap_or_default();
+        self.stack.push(call_data_len)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn push0(&mut self) -> Result<ShouldStop, StatusCode> {
+        check_min_revision(Revision::EVMC_SHANGHAI, self.revision)?;
+        self.gas_left.consume(2)?;
+        self.stack.push(u256::ZERO)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn call_data_copy(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [len, offset, dest_offset] = self.stack.pop()?;
+
+        if len != u256::ZERO {
+            let len = len
+                .try_into()
+                .map_err(|_| StatusCode::EVMC_INVALID_MEMORY_ACCESS)?;
+
+            #[allow(clippy::map_identity)]
+            let src = self
+                .message
+                .input()
+                .map(Vec::as_slice)
+                .unwrap_or_default()
+                .get_within_bounds(offset, len);
+            let dest = self
+                .memory
+                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
+            dest.copy_padded(src, &mut self.gas_left)?;
+        }
+        Ok(ShouldStop::False)
+    }
+
+    fn code_size(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack.push(self.code_reader.len())?;
+        Ok(ShouldStop::False)
+    }
+
+    fn code_copy(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [len, offset, dest_offset] = self.stack.pop()?;
+
+        if len != u256::ZERO {
+            let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+
+            let src = self.code_reader.get_within_bounds(offset, len);
+            let dest = self
+                .memory
+                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
+            dest.copy_padded(src, &mut self.gas_left)?;
+        }
+        Ok(ShouldStop::False)
+    }
+
+    fn gas_price(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack
+            .push(self.context.get_tx_context().tx_gas_price)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn ext_code_size(&mut self) -> Result<ShouldStop, StatusCode> {
+        if self.revision < Revision::EVMC_BERLIN {
+            self.gas_left.consume(700)?;
+        }
+        let [addr] = self.stack.pop()?;
+        let addr = addr.into();
+        self.gas_left
+            .consume_address_access_cost(&addr, self.revision, self.context)?;
+        self.stack.push(self.context.get_code_size(&addr))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn ext_code_copy(&mut self) -> Result<ShouldStop, StatusCode> {
+        if self.revision < Revision::EVMC_BERLIN {
+            self.gas_left.consume(700)?;
+        }
+        let [len, offset, dest_offset, addr] = self.stack.pop()?;
+        let addr = addr.into();
+
+        self.gas_left
+            .consume_address_access_cost(&addr, self.revision, self.context)?;
+        if len != u256::ZERO {
+            let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+
+            let dest = self
+                .memory
+                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
+            let (offset, offset_overflow) = offset.into_u64_with_overflow();
+            self.gas_left.consume_copy_cost(len)?;
+            let bytes_written = self.context.copy_code(&addr, offset as usize, dest);
+            if offset_overflow {
+                dest.set_to_zero();
+            } else if (bytes_written as u64) < len {
+                dest[bytes_written..].set_to_zero();
+            }
+        }
+        Ok(ShouldStop::False)
+    }
+
+    fn return_data_size(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack.push(
+            self.last_call_return_data
+                .as_ref()
+                .map(Vec::len)
+                .unwrap_or_default(),
+        )?;
+        Ok(ShouldStop::False)
+    }
+
+    fn return_data_copy(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [len, offset, dest_offset] = self.stack.pop()?;
+
+        let src = self.last_call_return_data.as_deref().unwrap_or_default();
+        let (offset, offset_overflow) = offset.into_u64_with_overflow();
+        let (len, len_overflow) = len.into_u64_with_overflow();
+        let (end, end_overflow) = offset.overflowing_add(len);
+        if offset_overflow || len_overflow || end_overflow || end > src.len() as u64 {
+            return Err(StatusCode::EVMC_INVALID_MEMORY_ACCESS);
+        }
+
+        if len != 0 {
+            let src = &src[offset as usize..end as usize];
+            let dest = self
+                .memory
+                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
+            dest.copy_padded(src, &mut self.gas_left)?;
+        }
+        Ok(ShouldStop::False)
+    }
+
+    fn ext_code_hash(&mut self) -> Result<ShouldStop, StatusCode> {
+        if self.revision < Revision::EVMC_BERLIN {
+            self.gas_left.consume(700)?;
+        }
+        let [addr] = self.stack.pop()?;
+        let addr = addr.into();
+        self.gas_left
+            .consume_address_access_cost(&addr, self.revision, self.context)?;
+        self.stack.push(self.context.get_code_hash(&addr))?;
+        Ok(ShouldStop::False)
+    }
+
+    fn block_hash(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(20)?;
+        let [block_number] = self.stack.pop()?;
+        self.stack.push(
+            block_number
+                .try_into()
+                .map(|idx: u64| self.context.get_block_hash(idx as i64))
+                .unwrap_or(u256::ZERO.into()),
+        )?;
+        Ok(ShouldStop::False)
+    }
+
+    fn coinbase(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack
+            .push(self.context.get_tx_context().block_coinbase)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn timestamp(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack
+            .push(self.context.get_tx_context().block_timestamp as u64)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn number(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack
+            .push(self.context.get_tx_context().block_number as u64)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn prev_randao(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack
+            .push(self.context.get_tx_context().block_prev_randao)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn gas_limit(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack
+            .push(self.context.get_tx_context().block_gas_limit as u64)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn chain_id(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack.push(self.context.get_tx_context().chain_id)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn self_balance(&mut self) -> Result<ShouldStop, StatusCode> {
+        check_min_revision(Revision::EVMC_ISTANBUL, self.revision)?;
+        self.gas_left.consume(5)?;
+        let addr = self.message.recipient();
+        if u256::from(addr) == u256::ZERO {
+            self.stack.push(u256::ZERO)?;
+        } else {
+            self.stack.push(self.context.get_balance(addr))?;
+        }
+        Ok(ShouldStop::False)
+    }
+
+    fn base_fee(&mut self) -> Result<ShouldStop, StatusCode> {
+        check_min_revision(Revision::EVMC_LONDON, self.revision)?;
+        self.gas_left.consume(2)?;
+        self.stack
+            .push(self.context.get_tx_context().block_base_fee)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn blob_hash(&mut self) -> Result<ShouldStop, StatusCode> {
+        check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
+        self.gas_left.consume(3)?;
+        let [idx] = self.stack.pop()?;
+        let (idx, idx_overflow) = idx.into_u64_with_overflow();
+        let idx = idx as usize;
+        let hashes = ExecutionTxContext::from(self.context.get_tx_context()).blob_hashes;
+        if !idx_overflow && idx < hashes.len() {
+            self.stack.push(hashes[idx])?;
+        } else {
+            self.stack.push(u256::ZERO)?;
+        }
+        Ok(ShouldStop::False)
+    }
+
+    fn blob_base_fee(&mut self) -> Result<ShouldStop, StatusCode> {
+        check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
+        self.gas_left.consume(2)?;
+        self.stack
+            .push(self.context.get_tx_context().blob_base_fee)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn pop(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        let [_] = self.stack.pop()?;
+        Ok(ShouldStop::False)
+    }
+
+    fn m_load(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [offset] = self.stack.pop()?;
+
+        self.stack
+            .push(self.memory.get_word(offset, &mut self.gas_left)?)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn m_store(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [value, offset] = self.stack.pop()?;
+
+        let dest = self.memory.get_mut_slice(offset, 32, &mut self.gas_left)?;
+        dest.copy_from_slice(value.as_slice());
+        Ok(ShouldStop::False)
+    }
+
+    fn m_store8(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(3)?;
+        let [value, offset] = self.stack.pop()?;
+
+        let dest = self.memory.get_mut_byte(offset, &mut self.gas_left)?;
+        *dest = value[31];
+        Ok(ShouldStop::False)
+    }
+
+    fn s_load(&mut self) -> Result<ShouldStop, StatusCode> {
+        if self.revision < Revision::EVMC_BERLIN {
+            self.gas_left.consume(800)?;
+        }
+        let [key] = self.stack.pop()?;
+        let key = key.into();
+        let addr = self.message.recipient();
+        if self.revision >= Revision::EVMC_BERLIN {
+            if self.context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD {
+                self.gas_left.consume(2_100)?;
+            } else {
+                self.gas_left.consume(100)?;
+            }
+        }
+        let value = self.context.get_storage(addr, &key);
+        self.stack.push(value)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn jump(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(8)?;
+        let [dest] = self.stack.pop()?;
+        self.code_reader.try_jump(dest)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn jump_i(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(10)?;
+        let [cond, dest] = self.stack.pop()?;
+        if cond == u256::ZERO {
+            self.code_reader.next();
+        } else {
+            self.code_reader.try_jump(dest)?;
+        }
+        Ok(ShouldStop::False)
+    }
+
+    fn pc(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack.push(self.code_reader.pc())?;
+        Ok(ShouldStop::False)
+    }
+
+    fn m_size(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack.push(self.memory.len())?;
+        Ok(ShouldStop::False)
+    }
+
+    fn gas(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(2)?;
+        self.stack.push(self.gas_left.as_u64())?;
+        Ok(ShouldStop::False)
+    }
+
+    fn jump_dest(&mut self) -> Result<ShouldStop, StatusCode> {
+        self.gas_left.consume(1)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn t_load(&mut self) -> Result<ShouldStop, StatusCode> {
+        check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
+        self.gas_left.consume(100)?;
+        let [key] = self.stack.pop()?;
+        let addr = self.message.recipient();
+        let value = self.context.get_transient_storage(addr, &key.into());
+        self.stack.push(value)?;
+        Ok(ShouldStop::False)
+    }
+
+    fn t_store(&mut self) -> Result<ShouldStop, StatusCode> {
+        check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
+        check_not_read_only(self)?;
+        self.gas_left.consume(100)?;
+        let [value, key] = self.stack.pop()?;
+        let addr = self.message.recipient();
+        self.context
+            .set_transient_storage(addr, &key.into(), &value.into());
+        Ok(ShouldStop::False)
+    }
+
+    fn m_copy(&mut self) -> Result<ShouldStop, StatusCode> {
+        check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
+        self.gas_left.consume(3)?;
+        let [len, offset, dest_offset] = self.stack.pop()?;
+        if len != u256::ZERO {
+            self.memory
+                .copy_within(offset, dest_offset, len, &mut self.gas_left)?;
+        }
+        Ok(ShouldStop::False)
+    }
+
+    fn return_(&mut self) -> Result<ShouldStop, StatusCode> {
+        let [len, offset] = self.stack.pop()?;
+        let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+        let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        self.output = Some(data.to_owned());
+        self.step_status_code = StepStatusCode::EVMC_STEP_RETURNED;
+        Ok(ShouldStop::True)
+    }
+
+    fn revert(&mut self) -> Result<ShouldStop, StatusCode> {
+        let [len, offset] = self.stack.pop()?;
+        let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+        let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        // TODO revert self changes
+        // gas_refund = original_gas_refund;
+        self.output = Some(data.to_owned());
+        self.step_status_code = StepStatusCode::EVMC_STEP_REVERTED;
+        self.status_code = StatusCode::EVMC_REVERT;
+        Ok(ShouldStop::True)
+    }
+
+    fn invalid(&mut self) -> Result<ShouldStop, StatusCode> {
+        check_min_revision(Revision::EVMC_HOMESTEAD, self.revision)?;
+        Err(StatusCode::EVMC_INVALID_INSTRUCTION)
+    }
+
+    fn self_destruct(&mut self) -> Result<ShouldStop, StatusCode> {
+        check_not_read_only(self)?;
+        self.gas_left.consume(5_000)?;
+        let [addr] = self.stack.pop()?;
+        let addr = addr.into();
+
+        if self.revision >= Revision::EVMC_BERLIN
+            && self.context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
+        {
+            self.gas_left.consume(2_600)?;
+        }
+
+        if u256::from(self.context.get_balance(self.message.recipient())) > u256::ZERO
+            && !self.context.account_exists(&addr)
+        {
+            self.gas_left.consume(25_000)?;
+        }
+
+        let destructed = self.context.selfdestruct(self.message.recipient(), &addr);
+        if self.revision <= Revision::EVMC_BERLIN && destructed {
+            self.gas_refund += 24_000;
+        }
+
+        self.step_status_code = StepStatusCode::EVMC_STEP_STOPPED;
+        Ok(ShouldStop::True)
+    }
+
+    fn sstore(&mut self) -> Result<ShouldStop, StatusCode> {
         check_not_read_only(self)?;
 
         if self.revision >= Revision::EVMC_ISTANBUL && self.gas_left <= 2_300 {
@@ -795,29 +1012,29 @@ where
         }
         self.gas_left.consume(dyn_gas)?;
         self.gas_refund += gas_refund_change;
-        Ok(())
+        Ok(ShouldStop::False)
     }
 
-    fn push(&mut self, len: usize) -> Result<(), StatusCode> {
+    fn push(&mut self, len: usize) -> Result<ShouldStop, StatusCode> {
         self.gas_left.consume(3)?;
         self.code_reader.next();
         self.stack.push(self.code_reader.get_push_data(len))?;
-        Ok(())
+        Ok(ShouldStop::False)
     }
 
-    fn dup(&mut self, nth: usize) -> Result<(), StatusCode> {
+    fn dup(&mut self, nth: usize) -> Result<ShouldStop, StatusCode> {
         self.gas_left.consume(3)?;
         self.stack.push(self.stack.nth(nth - 1)?)?;
-        Ok(())
+        Ok(ShouldStop::False)
     }
 
-    fn swap(&mut self, nth: usize) -> Result<(), StatusCode> {
+    fn swap(&mut self, nth: usize) -> Result<ShouldStop, StatusCode> {
         self.gas_left.consume(3)?;
         self.stack.swap_with_top(nth)?;
-        Ok(())
+        Ok(ShouldStop::False)
     }
 
-    fn log<const N: usize>(&mut self) -> Result<(), StatusCode> {
+    fn log<const N: usize>(&mut self) -> Result<ShouldStop, StatusCode> {
         check_not_read_only(self)?;
         self.gas_left.consume(375)?;
         let [len, offset] = self.stack.pop()?;
@@ -838,18 +1055,18 @@ where
         let topics = unsafe { mem::transmute::<&[u256], &[Uint256]>(topics.as_slice()) };
         self.context
             .emit_log(self.message.recipient(), data, topics);
-        Ok(())
+        Ok(ShouldStop::False)
     }
 
-    fn create(&mut self) -> Result<(), StatusCode> {
+    fn create(&mut self) -> Result<ShouldStop, StatusCode> {
         self.create_or_create2::<false>()
     }
 
-    fn create2(&mut self) -> Result<(), StatusCode> {
+    fn create2(&mut self) -> Result<ShouldStop, StatusCode> {
         self.create_or_create2::<true>()
     }
 
-    fn create_or_create2<const CREATE2: bool>(&mut self) -> Result<(), StatusCode> {
+    fn create_or_create2<const CREATE2: bool>(&mut self) -> Result<ShouldStop, StatusCode> {
         self.gas_left.consume(32_000)?;
         check_not_read_only(self)?;
         let [len, offset, value] = self.stack.pop()?;
@@ -880,7 +1097,7 @@ where
         if value > self.context.get_balance(self.message.recipient()).into() {
             self.last_call_return_data = None;
             self.stack.push(u256::ZERO)?;
-            return Ok(());
+            return Ok(ShouldStop::False);
         }
 
         let gas_left = self.gas_left.as_u64();
@@ -921,18 +1138,18 @@ where
             self.last_call_return_data = result.output().map(ToOwned::to_owned);
             self.stack.push(u256::ZERO)?;
         }
-        Ok(())
+        Ok(ShouldStop::False)
     }
 
-    fn call(&mut self) -> Result<(), StatusCode> {
+    fn call(&mut self) -> Result<ShouldStop, StatusCode> {
         self.call_or_call_code::<false>()
     }
 
-    fn call_code(&mut self) -> Result<(), StatusCode> {
+    fn call_code(&mut self) -> Result<ShouldStop, StatusCode> {
         self.call_or_call_code::<true>()
     }
 
-    fn call_or_call_code<const CODE: bool>(&mut self) -> Result<(), StatusCode> {
+    fn call_or_call_code<const CODE: bool>(&mut self) -> Result<ShouldStop, StatusCode> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
@@ -978,7 +1195,7 @@ where
         if value > u256::from(self.context.get_balance(self.message.recipient())) {
             self.last_call_return_data = None;
             self.stack.push(u256::ZERO)?;
-            return Ok(());
+            return Ok(ShouldStop::False);
         }
 
         let call_message = if CODE {
@@ -1030,18 +1247,18 @@ where
 
         self.stack
             .push(result.status_code() == StatusCode::EVMC_SUCCESS)?;
-        Ok(())
+        Ok(ShouldStop::False)
     }
 
-    fn static_call(&mut self) -> Result<(), StatusCode> {
+    fn static_call(&mut self) -> Result<ShouldStop, StatusCode> {
         self.static_or_delegate_call::<false>()
     }
 
-    fn delegate_call(&mut self) -> Result<(), StatusCode> {
+    fn delegate_call(&mut self) -> Result<ShouldStop, StatusCode> {
         self.static_or_delegate_call::<true>()
     }
 
-    fn static_or_delegate_call<const DELEGATE: bool>(&mut self) -> Result<(), StatusCode> {
+    fn static_or_delegate_call<const DELEGATE: bool>(&mut self) -> Result<ShouldStop, StatusCode> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
@@ -1121,7 +1338,7 @@ where
 
         self.stack
             .push(result.status_code() == StatusCode::EVMC_SUCCESS)?;
-        Ok(())
+        Ok(ShouldStop::False)
     }
 }
 
