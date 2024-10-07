@@ -1944,7 +1944,7 @@ func TestOpExp_ReportsOutOfGas(t *testing.T) {
 	}
 }
 
-func TestInstructions_Sha3_ReportsOutOfGasa(t *testing.T) {
+func TestInstructions_Sha3_ReportsOutOfGas(t *testing.T) {
 	tests := map[string]struct {
 		size          uint64
 		expectedError error
@@ -1982,32 +1982,21 @@ func TestInstructions_Sha3_WritesCorrectHashInStack(t *testing.T) {
 		0x66, 0x12, 0xf7, 0xb4, 0x77, 0xd6, 0x65, 0x91,
 		0xff, 0x96, 0xa9, 0xe0, 0x64, 0xbc, 0xc9, 0x8a}
 
-	ctxt := getEmptyContext()
-	ctxt.withShaCache = false
-	ctxt.stack.push(uint256.NewInt(1))
-	ctxt.stack.push(uint256.NewInt(0))
+	for _, withShaCache := range []bool{true, false} {
+		ctxt := getEmptyContext()
+		ctxt.withShaCache = withShaCache
+		ctxt.stack.push(uint256.NewInt(1))
+		ctxt.stack.push(uint256.NewInt(0))
 
-	// without cache
-	err := opSha3(&ctxt)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	firstHash := ctxt.stack.pop()
-	if !bytes.Equal(firstHash.Bytes(), want[:]) {
-		t.Errorf("unexpected hash, wanted %x, got %x", want, firstHash.Bytes())
-	}
-
-	// with cache
-	ctxt.withShaCache = true
-	ctxt.stack.push(uint256.NewInt(1))
-	ctxt.stack.push(uint256.NewInt(0))
-	err = opSha3(&ctxt)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	secondHash := ctxt.stack.pop()
-	if !bytes.Equal(secondHash.Bytes(), want[:]) {
-		t.Errorf("unexpected hash, wanted %v, got %v", want, secondHash)
+		// without cache
+		err := opSha3(&ctxt)
+		if err != nil {
+			t.Fatalf("unexpected when withShaCache is %v, error: %v", withShaCache, err)
+		}
+		got := ctxt.stack.pop()
+		if !bytes.Equal(got.Bytes(), want[:]) {
+			t.Errorf("unexpected hash when withShaCache is %v, wanted %x, got %x", withShaCache, want, got.Bytes())
+		}
 	}
 }
 
