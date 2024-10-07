@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -327,7 +328,7 @@ func TestRunContextAdapter_Run(t *testing.T) {
 			address := tosca.Address{0x42}
 
 			blockParameters := geth.BlockContext{BlockNumber: big.NewInt(blockNumber)}
-			chainConfig := &params.ChainConfig{ChainID: big.NewInt(chainId)}
+			chainConfig := &params.ChainConfig{ChainID: big.NewInt(chainId), IstanbulBlock: big.NewInt(23)}
 			evm := geth.NewEVM(blockParameters, geth.TxContext{}, stateDb, chainConfig, geth.Config{})
 			adapter := &gethInterpreterAdapter{
 				evm:         evm,
@@ -475,6 +476,7 @@ func TestRunContextAdapter_bigIntToWord(t *testing.T) {
 func TestRunContextAdapter_ConvertRevisionCanDealWithUnsetMergeBlock(t *testing.T) {
 	chainConfig := &params.ChainConfig{
 		ChainID:            big.NewInt(42),
+		IstanbulBlock:      big.NewInt(0),
 		MergeNetsplitBlock: nil,
 	}
 
@@ -550,6 +552,17 @@ func TestRunContextAdapter_ConvertRevision(t *testing.T) {
 	}
 }
 
+func TestRunContextAdapter_ConvertRevisionPanicsWithUnsupportedRevision(t *testing.T) {
+	var revision tosca.Revision
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Unsupported revision was not spotted, got %v", revision)
+		}
+	}()
+	chainConfig := &params.ChainConfig{}
+	revision = convertRevision(chainConfig, big.NewInt(0), 0)
+}
+
 func TestRunContextAdapter_gethToVMErrors(t *testing.T) {
 	gas := tosca.Gas(42)
 	otherError := fmt.Errorf("other error")
@@ -599,18 +612,7 @@ func TestRunContextAdapter_gethToVMErrors(t *testing.T) {
 			if !errors.Is(gotErr, test.wantError) {
 				t.Errorf("Unexpected error: expected %v, got %v", test.wantError, gotErr)
 			}
-			if gotResult.Success != test.wantResult.Success {
-				t.Errorf("Conversion returned wrong success, expected %v, got %v", test.wantResult.Success, gotResult.Success)
-			}
-			if gotResult.GasLeft != test.wantResult.GasLeft {
-				t.Errorf("Conversion returned wrong gas left, expected %v, got %v", test.wantResult.GasLeft, gotResult.GasLeft)
-			}
-			if gotResult.GasRefund != test.wantResult.GasRefund {
-				t.Errorf("Conversion returned wrong gas refund, expected %v, got %v", test.wantResult.GasRefund, gotResult.GasRefund)
-			}
-			if slices.Compare(gotResult.Output, test.wantResult.Output) != 0 {
-				t.Errorf("Conversion returned wrong output, expected %v, got %v", test.wantResult.Output, gotResult.Output)
-			}
+			reflect.DeepEqual(gotResult, test.wantResult)
 		})
 	}
 }
@@ -625,8 +627,8 @@ func TestAdapter_ReadOnlyIsSetAndResetCorrectly(t *testing.T) {
 	gas := uint64(42)
 	for name, readOnly := range tests {
 		t.Run(name, func(t *testing.T) {
-			setGas := setReadOnlyInGas(gas, recipient, readOnly)
-			gotReadOnly, unsetGas := removeReadOnlyInGas(depth, readOnly, setGas)
+			setGas := encodeReadOnlyInGas(gas, recipient, readOnly)
+			gotReadOnly, unsetGas := decodeReadOnlyFromGas(depth, readOnly, setGas)
 
 			if unsetGas != gas {
 				t.Errorf("Gas was not set or unset correctly, expected %v, got %v", gas, unsetGas)
@@ -638,7 +640,7 @@ func TestAdapter_ReadOnlyIsSetAndResetCorrectly(t *testing.T) {
 	}
 }
 
-func TestGethInterpreterAdapter_RefundShiftIsRevertedCorrectly(t *testing.T) {
+func TestGethInterpreterAdapter_RefundShiftIsReverted(t *testing.T) {
 	tests := map[string]struct {
 		err    error
 		refund uint64
@@ -676,7 +678,7 @@ func TestGethInterpreterAdapter_RefundShiftIsRevertedCorrectly(t *testing.T) {
 				stateDb.EXPECT().SubRefund(expectedSub)
 			}
 
-			shiftRefundBack(stateDb, test.err, shift)
+			undoRefundShift(stateDb, test.err, shift)
 		})
 	}
 }

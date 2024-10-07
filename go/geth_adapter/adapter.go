@@ -48,8 +48,10 @@ type gethInterpreterAdapter struct {
 }
 
 func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, readOnly bool) (ret []byte, err error) {
+	var result tosca.Result
 	if adapterDebug {
 		debugRunStart(input, readOnly)
+		defer func() { debugRunEnd(result) }()
 	}
 
 	// Tosca EVM implementations update the refund in the StateDB only at the
@@ -63,7 +65,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	if a.evm.GetDepth() == 0 {
 		const refundShift = 1 << 60
 		a.evm.StateDB.AddRefund(refundShift)
-		defer func() { shiftRefundBack(a.evm.StateDB, err, refundShift) }()
+		defer func() { undoRefundShift(a.evm.StateDB, err, refundShift) }()
 	}
 
 	// The geth EVM infrastructure does not offer means for forwarding read-only
@@ -73,7 +75,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	// interpreter). To circumvent this, this adapter encodes the read-only mode
 	// into the highest bit of the gas value (see Call function below). This section
 	// is eliminating this encoded information again.
-	readOnly, contract.Gas = removeReadOnlyInGas(a.evm.GetDepth(), readOnly, contract.Gas)
+	readOnly, contract.Gas = decodeReadOnlyFromGas(a.evm.GetDepth(), readOnly, contract.Gas)
 
 	// Track the recursive call depth of this Call within a transaction.
 	// A maximum limit of params.CallCreateDepth must be enforced.
@@ -156,28 +158,24 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		Code:                  contract.Code,
 	}
 
-	res, err := a.interpreter.Run(params)
+	result, err = a.interpreter.Run(params)
 	if err != nil {
 		return nil, fmt.Errorf("internal interpreter error: %v", err)
 	}
 
-	if adapterDebug {
-		debugRunEnd(res)
-	}
-
 	// Update gas levels.
-	if res.GasLeft > 0 {
-		contract.Gas = uint64(res.GasLeft)
+	if result.GasLeft > 0 {
+		contract.Gas = uint64(result.GasLeft)
 	} else {
 		contract.Gas = 0
 	}
 
 	// Update refunds.
-	if res.Success {
-		if res.GasRefund >= 0 {
-			a.evm.StateDB.AddRefund(uint64(res.GasRefund))
+	if result.Success {
+		if result.GasRefund >= 0 {
+			a.evm.StateDB.AddRefund(uint64(result.GasRefund))
 		} else {
-			a.evm.StateDB.SubRefund(uint64(-res.GasRefund))
+			a.evm.StateDB.SubRefund(uint64(-result.GasRefund))
 		}
 	}
 
@@ -185,13 +183,13 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	// The only two types that need to be differentiated are revert
 	// errors (in which gas is accounted for accurately) and any
 	// other error.
-	if (res.GasLeft > 0 || len(res.Output) > 0) && !res.Success {
-		return res.Output, geth.ErrExecutionReverted
+	if (result.GasLeft > 0 || len(result.Output) > 0) && !result.Success {
+		return result.Output, geth.ErrExecutionReverted
 	}
-	if !res.Success {
+	if !result.Success {
 		return nil, geth.ErrOutOfGas // < they are all handled equally
 	}
-	return res.Output, nil
+	return result.Output, nil
 }
 
 func debugRunStart(input []byte, readOnly bool) {
@@ -208,7 +206,7 @@ func debugRunEnd(res tosca.Result) {
 	fmt.Printf("\tRefund:   %v\n", res.GasRefund)
 }
 
-func shiftRefundBack(stateDB geth.StateDB, err error, refundShift uint64) {
+func undoRefundShift(stateDB geth.StateDB, err error, refundShift uint64) {
 	if err == nil || err == geth.ErrExecutionReverted {
 		// In revert cases the accumulated refund to this point may be negative,
 		// which would cause the subtraction of the original refundShift to
@@ -220,16 +218,6 @@ func shiftRefundBack(stateDB geth.StateDB, err error, refundShift uint64) {
 		}
 		stateDB.SubRefund(shift)
 	}
-}
-
-func removeReadOnlyInGas(depth int, readOnly bool, gas uint64) (bool, uint64) {
-	if depth > 0 {
-		readOnly = readOnly || gas >= (1<<63)
-		if gas >= (1 << 63) {
-			gas -= (1 << 63)
-		}
-	}
-	return readOnly, gas
 }
 
 func convertRevision(chainConfig *params.ChainConfig, blockNumber *big.Int, time uint64) tosca.Revision {
@@ -246,9 +234,11 @@ func convertRevision(chainConfig *params.ChainConfig, blockNumber *big.Int, time
 			return tosca.R10_London
 		} else if chainConfig.IsBerlin(blockNumber) {
 			return tosca.R09_Berlin
+		} else if chainConfig.IsIstanbul(blockNumber) {
+			return tosca.R07_Istanbul
 		}
 	}
-	return tosca.R07_Istanbul
+	panic("unsupported revision")
 }
 
 // runContextAdapter implements the tosca.RunContext interface using geth infrastructure.
@@ -264,26 +254,17 @@ func (a *runContextAdapter) Call(kind tosca.CallKind, parameter tosca.CallParame
 		defer func() { debugCallEnd(result, reserr) }()
 	}
 
-	// The geth EVM context does not provide the needed means
-	// to forward an existing read-only mode through arbitrary
-	// nested calls, as it would be needed. Thus, this information
-	// is encoded into the hightest bit of the gas value, which is
-	// interpreted as such by the Run() function above.
-	// The geth implementation itself tracks the read-only state in
-	// an implementation specific interpreter internal flag, which
-	// is not accessible from this context. Also, this method depends
-	// on a new interpreter per transaction call (for proper) scoping
-	// which is not a desired trait for Tosca interpreter implementations.
-	// With this trick, this requirement is circumvented.
-	gas := setReadOnlyInGas(uint64(parameter.Gas), parameter.Recipient, a.readOnly)
+	gas := encodeReadOnlyInGas(uint64(parameter.Gas), parameter.Recipient, a.readOnly)
 
 	// Documentation of the parameters can be found here: t.ly/yhxC
 	toAddr := gc.Address(parameter.Recipient)
 
-	var err error
-	var output []byte
-	var returnGas uint64
-	var createdAddress tosca.Address
+	var (
+		err            error
+		output         []byte
+		returnGas      uint64
+		createdAddress tosca.Address
+	)
 	switch kind {
 	case tosca.Call:
 		output, returnGas, err = a.evm.Call(a.contract, toAddr, parameter.Input, gas, parameter.Value.ToUint256())
@@ -309,10 +290,6 @@ func (a *runContextAdapter) Call(kind tosca.CallKind, parameter tosca.CallParame
 		panic(fmt.Sprintf("unsupported call kind: %v", kind))
 	}
 
-	if adapterDebug {
-		fmt.Printf("Result:\n\t%v\n\t%v\n\t%v\n\t%v\n", output, createdAddress, returnGas, err)
-	}
-
 	// revert errors are not an error in Tosca
 	if err != nil && err != geth.ErrExecutionReverted {
 		return gethToVMErrors(err, parameter.Gas)
@@ -327,13 +304,34 @@ func (a *runContextAdapter) Call(kind tosca.CallKind, parameter tosca.CallParame
 	}, nil
 }
 
-func setReadOnlyInGas(gas uint64, recipient tosca.Address, readOnly bool) uint64 {
+// The geth EVM context does not provide the needed means
+// to forward an existing read-only mode through arbitrary
+// nested calls, as it would be needed. Thus, this information
+// is encoded into the hightest bit of the gas value, which is
+// interpreted as such by the Run() function above.
+// The geth implementation itself tracks the read-only state in
+// an implementation specific interpreter internal flag, which
+// is not accessible from this context. Also, this method depends
+// on a new interpreter per transaction call (for proper) scoping
+// which is not a desired trait for Tosca interpreter implementations.
+// With this trick, this requirement is circumvented.
+func encodeReadOnlyInGas(gas uint64, recipient tosca.Address, readOnly bool) uint64 {
 	if !isPrecompiledContract(recipient) {
 		if readOnly {
 			gas += (1 << 63)
 		}
 	}
 	return gas
+}
+
+func decodeReadOnlyFromGas(depth int, readOnly bool, gas uint64) (bool, uint64) {
+	if depth > 0 {
+		readOnly = readOnly || gas >= (1<<63)
+		if gas >= (1 << 63) {
+			gas -= (1 << 63)
+		}
+	}
+	return readOnly, gas
 }
 
 func gethToVMErrors(err error, gas tosca.Gas) (tosca.CallResult, error) {
