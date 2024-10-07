@@ -35,6 +35,7 @@ var (
 		examples.GetStopAnalysisExample(),
 		examples.GetPush1AnalysisExample(),
 		examples.GetPush32AnalysisExample(),
+		examples.GetGasBurnerExample(),
 	}
 )
 
@@ -90,6 +91,32 @@ func TestExamples_ComputesCorrectGasPrice(t *testing.T) {
 						}
 					})
 				}
+			}
+		}
+	}
+}
+
+func TestExamples_GasBurnerBurnsGivenAmountOfGas(t *testing.T) {
+	const callOverhead = 623
+	example := examples.GetGasBurnerExample()
+	for _, revision := range revisions {
+		for _, variant := range getAllInterpreterVariantsForTests() {
+			vm, err := tosca.NewInterpreter(variant)
+			if err != nil {
+				t.Fatalf("failed to load %s interpreter: %v", variant, err)
+			}
+			for _, want := range []int64{1 << 10, 1 << 20} {
+				t.Run(fmt.Sprintf("%s-%s-%d", revision, variant, want), func(t *testing.T) {
+					got, err := example.RunOn(vm, int(want))
+					if err != nil {
+						t.Fatalf("error processing contract: %v", err)
+					}
+
+					want += callOverhead
+					if want != got.UsedGas {
+						t.Errorf("incorrect gas usage, wanted %d, got %d", want, got.UsedGas)
+					}
+				})
 			}
 		}
 	}
@@ -172,6 +199,15 @@ func BenchmarkAnalysis(b *testing.B) {
 	for _, example := range examples {
 		b.Run(example.Name, func(b *testing.B) {
 			benchmark(b, example, 0)
+		})
+	}
+}
+
+func BenchmarkGasBurner(b *testing.B) {
+	args := []int{1, 1 << 10, 1 << 20}
+	for _, i := range args {
+		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
+			benchmark(b, examples.GetGasBurnerExample(), i)
 		})
 	}
 }
