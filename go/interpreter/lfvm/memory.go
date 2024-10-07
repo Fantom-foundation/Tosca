@@ -24,22 +24,15 @@ func NewMemory() *Memory {
 	return &Memory{}
 }
 
-func toValidMemorySize(size uint64) (uint64, error) {
-	fullWordsSize := tosca.SizeInWords(size) * 32
-	if size != 0 && fullWordsSize < size {
-		return 0, errOverflow
-	}
-	return fullWordsSize, nil
-}
-
 const (
 	// Maximum memory size allowed
 	// This magic number comes from 'core/vm/gas_table.go' 'memoryGasCost' in geth
 	maxMemoryExpansionSize = 0x1FFFFFFFE0
 )
 
-// getExpansionCosts returns the gas cost of expanding the memory to the given size.
-func (m *Memory) getExpansionCosts(size uint64) (tosca.Gas, error) {
+// getExpansionCostsAndSize returns the gas cost and the size of the memory expansion
+// needed to expand the memory to the given size.
+func (m *Memory) getExpansionCostsAndSize(size uint64) (tosca.Gas, uint64, error) {
 
 	// static assert
 	const (
@@ -50,28 +43,27 @@ func (m *Memory) getExpansionCosts(size uint64) (tosca.Gas, error) {
 	)
 
 	if m.length() >= size {
-		return 0, nil
-	}
-
-	size, err := toValidMemorySize(size)
-	if err != nil {
-		return 0, err
-	}
-
-	if size > maxMemoryExpansionSize {
-		return 0, errMaxMemoryExpansionSize
+		return 0, size, nil
 	}
 
 	words := tosca.SizeInWords(size)
+	validSize := words * 32
+	if validSize < size {
+		return 0, 0, errOverflow
+	}
+	if validSize > maxMemoryExpansionSize {
+		return 0, 0, errMaxMemoryExpansionSize
+	}
+
 	new_costs := tosca.Gas((words*words)/512 + (3 * words))
 	fee := new_costs - m.currentMemoryCost
-	return fee, nil
+	return fee, validSize, nil
 }
 
 // expandMemory tries to expand memory to the given size.
 // If the memory is already large enough or size is 0, it does nothing.
-// If there is not enough gas in the context or an overflow occurs when adding offset and
-// size, it returns an error.
+// If there is not enough gas in the context or an overflow occurs when adding
+// offset and size, it returns an error.
 func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 	if size == 0 {
 		return nil
@@ -82,36 +74,19 @@ func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 		return errOverflow
 	}
 	if m.length() < needed {
-		fee, err := m.getExpansionCosts(needed)
+		fee, expansionSize, err := m.getExpansionCostsAndSize(needed)
 		if err != nil {
 			return err
 		}
 		if err := c.useGas(fee); err != nil {
 			return err
 		}
-		if err := m.expandMemoryWithoutCharging(needed); err != nil {
-			return err
-		}
-	}
 
-	return nil
-}
-
-// expandMemoryWithoutCharging expands the memory to the given size without charging gas.
-func (m *Memory) expandMemoryWithoutCharging(needed uint64) error {
-	needed, err := toValidMemorySize(needed)
-	if err != nil {
-		return err
-	}
-	size := m.length()
-	if size < needed {
-		fee, err := m.getExpansionCosts(needed)
-		if err != nil {
-			return err
-		}
+		size := m.length()
 		m.currentMemoryCost += fee
-		m.store = append(m.store, make([]byte, needed-size)...)
+		m.store = append(m.store, make([]byte, expansionSize-size)...)
 	}
+
 	return nil
 }
 

@@ -203,7 +203,9 @@ func convertCtMemoryToLfvmMemory(memory *st.Memory) *Memory {
 
 	result := NewMemory()
 	size := uint64(len(data))
-	_ = result.expandMemoryWithoutCharging(size)
+	value, validSize, _ := result.getExpansionCostsAndSize(size)
+	result.store = make([]byte, validSize)
+	result.currentMemoryCost = value
 	copy(result.store, data)
 	return result
 }
