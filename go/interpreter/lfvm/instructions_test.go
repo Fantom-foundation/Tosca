@@ -1768,16 +1768,20 @@ func TestOpBlockhash(t *testing.T) {
 		expectedValue tosca.Hash
 		inputs        map[string]testInput
 	}{
-		"produces zero if requested block number older than available history": {
+		"produces zero if requested block number is older than available history": {
 			expectedValue: zeroHash,
 			inputs: map[string]testInput{
-				"default": {currentBlockNumber: 1024, requestedBlockNumber: uint256.NewInt(36)},
+				"default": {
+					currentBlockNumber: 1024, requestedBlockNumber: uint256.NewInt(36),
+				},
 			},
 		},
-		"produces zero if requested block number newer than current": {
+		"produces zero if requested block number is newer than history": {
 			expectedValue: zeroHash,
 			inputs: map[string]testInput{
-				"default": {currentBlockNumber: 500, requestedBlockNumber: uint256.NewInt(501)},
+				"current is not included in history": {
+					currentBlockNumber: 500, requestedBlockNumber: uint256.NewInt(500),
+				},
 				"and history has less than 256 elements": {
 					currentBlockNumber: 35, requestedBlockNumber: uint256.NewInt(36),
 				},
