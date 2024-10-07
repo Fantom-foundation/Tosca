@@ -205,38 +205,40 @@ func TestMemory_expandMemory_expandsMemoryOnlyWhenNeeded(t *testing.T) {
 func TestMemory_getSlice_ErrorCases(t *testing.T) {
 	c := context{gas: 0}
 	m := NewMemory()
-	_, err := m.getSlice(0, 1, &c)
+	_, err := m.getSlice(uint256.NewInt(0), uint256.NewInt(1), &c)
 	if !errors.Is(err, errOutOfGas) {
 		t.Errorf("error should be errOutOfGas, instead is: %v", err)
 	}
-	_, err = m.getSlice(math.MaxUint64-31, 32, &c)
+
+	_, err = m.getSlice(uint256.NewInt(math.MaxUint64-31), uint256.NewInt(32), &c)
 	if !errors.Is(err, errOverflow) {
 		t.Errorf("error should be errOverflow, instead is: %v", err)
 	}
 }
 
-func TestMemory_getSlice_properlyHandlesMemoryExpansionsAndReturnsExpectedMemory(t *testing.T) {
+func TestMemory_getSlice_ReturnsSliceOfSize(t *testing.T) {
 
 	tests := map[string]struct {
-		offset   uint64
-		size     uint64
+		offset   *uint256.Int
+		size     *uint256.Int
 		expected []byte
 	}{
 		"size zero returns empty slice": {
-			offset:   64,
-			size:     0,
+			offset:   uint256.NewInt(64),
+			size:     uint256.NewInt(0),
 			expected: []byte{},
 		},
 		"memory does not expand when not needed": {
-			offset:   0,
-			size:     4,
+			offset:   uint256.NewInt(0),
+			size:     uint256.NewInt(4),
 			expected: []byte{0x0, 0x01, 0x02, 0x03},
 		},
 		"memory expands when needed": {
-			offset:   4,
-			size:     5,
+			offset:   uint256.NewInt(4),
+			size:     uint256.NewInt(5),
 			expected: []byte{0x04, 4: 0x0},
 		},
+		// TODO: padding here or somewhere else?
 	}
 
 	for name, test := range tests {
@@ -248,6 +250,9 @@ func TestMemory_getSlice_properlyHandlesMemoryExpansionsAndReturnsExpectedMemory
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
+			if len(m.store) == 0 {
+				t.Errorf("expected memory to be expanded, but it is empty")
+			}
 			if !bytes.Equal(slice, test.expected) {
 				t.Errorf("unexpected slice: %x, want: %x", slice, test.expected)
 			}
@@ -257,16 +262,18 @@ func TestMemory_getSlice_properlyHandlesMemoryExpansionsAndReturnsExpectedMemory
 
 func TestMemory_getSlice_ExpandsMemoryIn32ByteChunks(t *testing.T) {
 	for memSize := uint64(0); memSize < 128; memSize += 32 {
-		for offset := 0; offset < 128; offset++ {
-			for size := 1; size < 32; size++ {
+		for offset := uint64(0); offset < 128; offset++ {
+			for size := uint64(1); size < 32; size++ {
+				offset256 := uint256.NewInt(offset)
+				size256 := uint256.NewInt(size)
 				c := &context{gas: 15}
 				m := NewMemory()
 				m.store = make([]byte, memSize)
-				_, err := m.getSlice(uint64(offset), uint64(size), c)
+				_, err := m.getSlice(offset256, size256, c)
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
 				}
-				want, err := toValidMemorySize(uint64(offset + size))
+				want, err := toValidMemorySize(offset + size)
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
 				}
@@ -281,13 +288,13 @@ func TestMemory_getSlice_ExpandsMemoryIn32ByteChunks(t *testing.T) {
 	}
 }
 
-func TestMemory_getSlice_SizeOfZeroIsNotGrowingTheMemory(t *testing.T) {
+func TestMemory_getSlice_DoesNotExpandWithSizeZero(t *testing.T) {
 	for memSize := 0; memSize < 128; memSize += 32 {
-		for offset := 0; offset < 128; offset++ {
+		for offset := uint64(0); offset < 128; offset++ {
 			c := &context{gas: 1}
 			m := NewMemory()
 			m.store = make([]byte, memSize)
-			_, err := m.getSlice(uint64(offset), 0, c)
+			_, err := m.getSlice(uint256.NewInt(offset), uint256.NewInt(0), c)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
@@ -305,7 +312,7 @@ func TestMemory_getSlice_MemoryExpansionDoesNotOverwriteExistingMemory(t *testin
 	c := context{gas: 6}
 	m := NewMemory()
 	m.store = []byte{0x0, 0x01, 0x02, 0x03, 0x04}
-	_, err := m.getSlice(4, 29, &c)
+	_, err := m.getSlice(uint256.NewInt(4), uint256.NewInt(29), &c)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -322,7 +329,7 @@ func TestMemory_getSlice_ExpandsWithZeros(t *testing.T) {
 	m := NewMemory()
 	baseMemory := []byte{0x0, 0x01, 0x02, 0x03, 0x04}
 	m.store = bytes.Clone(baseMemory)
-	_, err := m.getSlice(28, 8, &c)
+	_, err := m.getSlice(uint256.NewInt(28), uint256.NewInt(8), &c)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -339,14 +346,14 @@ func TestMemory_readWord_ErrorCases(t *testing.T) {
 	m := NewMemory()
 	originalTarget := uint256.NewInt(1)
 	target := originalTarget.Clone()
-	err := m.readWord(math.MaxUint64-31, target, &c)
+	err := m.readWord(uint256.NewInt(math.MaxUint64-31), target, &c)
 	if !errors.Is(err, errOverflow) {
 		t.Errorf("error should be errOverflow, instead is: %v", err)
 	}
 	if target.Cmp(originalTarget) != 0 {
 		t.Errorf("target should not have been modified, want %v but got %v", originalTarget, target)
 	}
-	err = m.readWord(0, target, &c)
+	err = m.readWord(uint256.NewInt(0), target, &c)
 	if !errors.Is(err, errOutOfGas) {
 		t.Errorf("error should be errOutOfGas, instead is: %v", err)
 	}
@@ -388,7 +395,7 @@ func TestMemory_set_UpdatesDataInMemoryAtGivenOffset(t *testing.T) {
 
 			// test the memory update
 			m := &Memory{store: bytes.Clone(before)}
-			if err := m.set(offset, data, nil); err != nil {
+			if err := m.set(uint256.NewInt(offset), data, nil); err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
 
@@ -402,10 +409,10 @@ func TestMemory_set_UpdatesDataInMemoryAtGivenOffset(t *testing.T) {
 	}
 }
 
-func TestMemory_set_PreservesMemoryWhenGrowingAndPadsWithZeros(t *testing.T) {
+func TestMemory_set_ExpansionPreservesMemoryContentAndPadsWithZeroesToTheRight(t *testing.T) {
 	before := generateRandomBytes(32)
 	m := &Memory{store: bytes.Clone(before)}
-	if err := m.set(64, []byte{0x1, 0x2}, &context{gas: 100}); err != nil {
+	if err := m.set(uint256.NewInt(64), []byte{0x1, 0x2}, &context{gas: 100}); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
@@ -424,7 +431,7 @@ func TestMemory_set_IgnoresEmptyData(t *testing.T) {
 	for _, offset := range []uint64{0, 32, 64} {
 		for _, data := range [][]byte{nil, {}} {
 			m := &Memory{store: bytes.Clone(before)}
-			if err := m.set(offset, data, nil); err != nil {
+			if err := m.set(uint256.NewInt(offset), data, nil); err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
 			if !bytes.Equal(m.store, before) {
@@ -437,7 +444,7 @@ func TestMemory_set_IgnoresEmptyData(t *testing.T) {
 func TestMemory_set_FailsIfThereIsNotEnoughGasToGrow(t *testing.T) {
 	c := &context{gas: 2}
 	m := &Memory{store: make([]byte, 32)}
-	if err := m.set(64, []byte{0x1}, c); !errors.Is(err, errOutOfGas) {
+	if err := m.set(uint256.NewInt(64), []byte{0x1}, c); !errors.Is(err, errOutOfGas) {
 		t.Errorf("unexpected error %v, got %v", errOutOfGas, err)
 	}
 	if len(m.store) != 32 {
@@ -449,13 +456,16 @@ func TestMemory_set_FailsIfOffsetLeadsToOverflow(t *testing.T) {
 	m := &Memory{store: make([]byte, 32)}
 	data := []byte{0x1, 0x2, 0x3}
 	offset := math.MaxUint64 - uint64(len(data)) + 1
-	if err := m.set(offset, data, nil); !errors.Is(err, errOverflow) {
+	if err := m.set(uint256.NewInt(offset), data, nil); !errors.Is(err, errOverflow) {
 		t.Errorf("unexpected error %v, got %v", errOutOfGas, err)
 	}
 	if len(m.store) != 32 {
 		t.Errorf("memory should not have been expanded, instead is: %d", len(m.store))
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Helper functions
 
 func generateRandomBytes(size int) []byte {
 	data := make([]byte, size)

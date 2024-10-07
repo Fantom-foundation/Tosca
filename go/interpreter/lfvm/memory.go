@@ -123,25 +123,32 @@ func (m *Memory) length() uint64 {
 // The returned slice is backed by the memory's internal data. Updates to the
 // slice will thus effect the memory states. This connection is invalidated by any
 // subsequent memory operation that may change the size of the memory.
-func (m *Memory) getSlice(offset, size uint64, c *context) ([]byte, error) {
-	err := m.expandMemory(offset, size, c)
+func (m *Memory) getSlice(offset, size *uint256.Int, c *context) ([]byte, error) {
+	if size.IsZero() {
+		return nil, nil
+	}
+	if !offset.IsUint64() || !size.IsUint64() {
+		return nil, errOverflow
+	}
+
+	offset64 := offset.Uint64()
+	size64 := size.Uint64()
+
+	err := m.expandMemory(offset64, size64, c)
 	if err != nil {
 		return nil, err
 	}
-	// since memory does not expand on size 0 independently of the offset,
-	// we need to prevent out of bounds access
-	if size == 0 {
-		return nil, nil
-	}
-	return m.store[offset : offset+size], nil
+	return m.store[offset64 : offset64+size64], nil
 }
+
+var _wordSize = uint256.NewInt(32)
 
 // readWord reads a Word (32 byte) from the memory at the given offset and stores
 // that word in the provided target.
 // Expands memory as needed and charges for it.
 // Returns an error in case of not enough gas or offset+32 overflow.
-func (m *Memory) readWord(offset uint64, target *uint256.Int, c *context) error {
-	data, err := m.getSlice(offset, 32, c)
+func (m *Memory) readWord(offset *uint256.Int, target *uint256.Int, c *context) error {
+	data, err := m.getSlice(offset, _wordSize, c)
 	if err != nil {
 		return err
 	}
@@ -152,8 +159,8 @@ func (m *Memory) readWord(offset uint64, target *uint256.Int, c *context) error 
 // set copies the given value into memory at the given offset.
 // Expands the memory size as needed and charges for it.
 // Returns an error if there is not enough gas or offset+len(value) overflows.
-func (m *Memory) set(offset uint64, value []byte, c *context) error {
-	data, err := m.getSlice(offset, uint64(len(value)), c)
+func (m *Memory) set(offset *uint256.Int, value []byte, c *context) error {
+	data, err := m.getSlice(offset, uint256.NewInt(uint64(len(value))), c)
 	if err != nil {
 		return err
 	}
