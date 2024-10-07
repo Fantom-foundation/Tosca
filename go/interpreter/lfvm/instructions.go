@@ -766,8 +766,8 @@ func opBlockhash(c *context) {
 	}
 
 	oldestInHistory := uint64(256)
-	if c.params.BlockNumber < 256 {
-		oldestInHistory = uint64(c.params.BlockNumber)
+	if currentBlockNumber < 256 {
+		oldestInHistory = uint64(currentBlockNumber)
 	}
 	oldestInHistory = currentBlockNumber - oldestInHistory
 	if requestedBlockNumber < oldestInHistory {
@@ -775,7 +775,7 @@ func opBlockhash(c *context) {
 		return
 	}
 
-	hash := c.context.GetBlockHash(int64(top.Uint64()))
+	hash := c.context.GetBlockHash(int64(requestedBlockNumber))
 	top.SetBytes(hash[:])
 }
 

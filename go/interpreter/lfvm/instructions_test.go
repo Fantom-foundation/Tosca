@@ -1794,7 +1794,7 @@ func TestOpBlockhash(t *testing.T) {
 			expectedValue: hash,
 			inputs: map[string]testInput{
 				"default": {currentBlockNumber: 5000, requestedBlockNumber: uint256.NewInt(4990)},
-				"and history has lees than 256 elements": {
+				"and history has less than 256 elements": {
 					currentBlockNumber: 128, requestedBlockNumber: uint256.NewInt(16),
 				},
 			},
@@ -1811,7 +1811,7 @@ func TestOpBlockhash(t *testing.T) {
 					ctxt.params.BlockNumber = input.currentBlockNumber
 
 					runContext := tosca.NewMockRunContext(gomock.NewController(t))
-					if bytes.Equal(hash[:], test.expectedValue[:]) {
+					if hash == test.expectedValue {
 						runContext.EXPECT().GetBlockHash(gomock.Any()).Return(hash).AnyTimes()
 					}
 					ctxt.context = runContext
