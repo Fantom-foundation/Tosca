@@ -9,6 +9,7 @@ mimalloc = ["evmrs/mimalloc"]
 stack-array = ["evmrs/stack-array"]
 message-slice-output-box = ["evmrs/message-slice-output-box"]
 no-bounds-checks = ["evmrs/no-bounds-checks"]
+jumptable = ["evmrs/jumptable"]
 
 [dependencies]
 evmrs = { path = ".." }
