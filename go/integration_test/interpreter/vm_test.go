@@ -135,6 +135,15 @@ func BenchmarkFib(b *testing.B) {
 	}
 }
 
+func BenchmarkFfiOverhead(b *testing.B) {
+	args := []int{1}
+	for _, i := range args {
+		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
+			benchmark(b, examples.GetFfiOverheadExample(), i)
+		})
+	}
+}
+
 func BenchmarkSha3(b *testing.B) {
 	args := []int{1, 10, 100, 1000}
 	for _, i := range args {
