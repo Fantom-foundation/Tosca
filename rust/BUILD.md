@@ -74,7 +74,7 @@ cargo build --features mimalloc,stack-array
 ### Optimization Workflow
 
 1. Identify a possible optimization opportunity by
-    - running the Go VM benchmarks and comparing in which cases `evmrs` is slower than the other interpreters
+    - running the Go VM benchmarks and comparing them, in cases where `evmrs` is slower than the other interpreters
         ```sh
         # assuming you are in Tosca
         cd ..
