@@ -1508,7 +1508,6 @@ func TestGetData(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			_ = test
 			res := getData(test.data, test.offset, test.size)
 			if want, got := test.expectedResult, res; !bytes.Equal(want, got) {
 				t.Errorf("unexpected data, wanted %v, got %v", want, got)

@@ -173,19 +173,22 @@ func opMcopy(c *context) error {
 		return errInvalidRevision
 	}
 
-	var destAddr = c.stack.pop()
-	var srcAddr = c.stack.pop()
-	var size = c.stack.pop()
+	var (
+		destAddr = c.stack.pop()
+		srcAddr  = c.stack.pop()
+		size     = c.stack.pop()
+	)
+
+	data, err := c.memory.getSlice(srcAddr, size, c)
+	if err != nil {
+		return err
+	}
 
 	price := tosca.Gas(3 * tosca.SizeInWords(size.Uint64()))
 	if err := c.useGas(price); err != nil {
 		return err
 	}
 
-	data, err := c.memory.getSlice(srcAddr, size, c)
-	if err != nil {
-		return err
-	}
 	if err := c.memory.set(destAddr, data, c); err != nil {
 		return err
 	}
@@ -527,15 +530,14 @@ var sha3Cache = newSha3HashCache(1<<16, 1<<18)
 func opSha3(c *context) error {
 	offset, size := c.stack.pop(), c.stack.peek()
 
-	// charge dynamic gas price
-	words := tosca.SizeInWords(size.Uint64())
-	price := tosca.Gas(6 * words)
-	if err := c.useGas(price); err != nil {
+	data, err := c.memory.getSlice(offset, size, c)
+	if err != nil {
 		return err
 	}
 
-	data, err := c.memory.getSlice(offset, size, c)
-	if err != nil {
+	words := tosca.SizeInWords(size.Uint64())
+	price := tosca.Gas(6 * words)
+	if err := c.useGas(price); err != nil {
 		return err
 	}
 
@@ -1162,13 +1164,12 @@ func opLog(c *context, n int) error {
 		topics[i] = addr.Bytes32()
 	}
 
-	// charge for log size
-	if err := c.useGas(tosca.Gas(8 * size.Uint64())); err != nil {
+	data, err := c.memory.getSlice(offset, size, c)
+	if err != nil {
 		return err
 	}
 
-	data, err := c.memory.getSlice(offset, size, c)
-	if err != nil {
+	if err := c.useGas(tosca.Gas(8 * size.Uint64())); err != nil {
 		return err
 	}
 

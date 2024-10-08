@@ -141,14 +141,12 @@ func (m *Memory) getSlice(offset, size *uint256.Int, c *context) ([]byte, error)
 	return m.store[offset64 : offset64+size64], nil
 }
 
-var _wordSize = uint256.NewInt(32)
-
 // readWord reads a Word (32 byte) from the memory at the given offset and stores
 // that word in the provided target.
 // Expands memory as needed and charges for it.
 // Returns an error in case of not enough gas or offset+32 overflow.
 func (m *Memory) readWord(offset *uint256.Int, target *uint256.Int, c *context) error {
-	data, err := m.getSlice(offset, _wordSize, c)
+	data, err := m.getSlice(offset, uint256.NewInt(32), c)
 	if err != nil {
 		return err
 	}
