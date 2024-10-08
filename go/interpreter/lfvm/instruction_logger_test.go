@@ -12,6 +12,7 @@ package lfvm
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -119,5 +120,27 @@ func TestInterpreter_Logger_RunsWithoutOutput(t *testing.T) {
 	}
 	if len(outErr) != 0 {
 		t.Errorf("unexpected stderr: want \"\", got \"%v\"", outErr)
+	}
+}
+
+type loggerErrorMock struct{}
+
+func (l loggerErrorMock) Write(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("error")
+}
+
+func TestInterpreter_logger_PropagatesWriterError(t *testing.T) {
+
+	logger := newLogger(loggerErrorMock{})
+	config := interpreterConfig{
+		runner: logger,
+	}
+	// Get tosca.Parameters
+	params := tosca.Parameters{}
+	code := []Instruction{{STOP, 0}}
+
+	_, err := run(config, params, code)
+	if strings.Compare(err.Error(), "error") != 0 {
+		t.Errorf("unexpected error: want error, got %v", err)
 	}
 }

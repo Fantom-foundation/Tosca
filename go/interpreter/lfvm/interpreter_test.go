@@ -13,6 +13,7 @@ package lfvm
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -241,19 +242,19 @@ func TestInterpreter_ExecutionTerminates(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			c := getEmptyContext()
-			c.code = test.code
-			c.stack.push(uint256.NewInt(1))
-			c.stack.push(uint256.NewInt(2))
-			c.stack.push(uint256.NewInt(3))
+			ctxt := getEmptyContext()
+			ctxt.code = test.code
+			ctxt.stack.push(uint256.NewInt(1))
+			ctxt.stack.push(uint256.NewInt(2))
+			ctxt.stack.push(uint256.NewInt(3))
 			// runcontext is needed for selfdestruct
 			mockContext := tosca.NewMockRunContext(gomock.NewController(t))
 			mockContext.EXPECT().AccountExists(gomock.Any()).Return(true).AnyTimes()
 			mockContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1}).AnyTimes()
 			mockContext.EXPECT().SelfDestruct(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
-			c.context = mockContext
+			ctxt.context = mockContext
 
-			status, err := steps(&c, false)
+			status, err := steps(&ctxt, false)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
@@ -316,6 +317,23 @@ func TestInterpreter_EmptyCodeBypassesRunnerAndSucceeds(t *testing.T) {
 	}
 }
 
+func TestInterpreter_run_ReturnsErrorOnRuntimeError(t *testing.T) {
+
+	runner := NewMockrunner(gomock.NewController(t))
+	code := []Instruction{{JUMPDEST, 0}}
+	params := tosca.Parameters{Gas: 20}
+	config := interpreterConfig{runner: runner}
+
+	expectedError := fmt.Errorf("runtime error")
+
+	runner.EXPECT().run(gomock.Any()).Return(statusFailed, expectedError)
+
+	_, err := run(config, params, code)
+	if !errors.Is(err, expectedError) {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestRun_GenerateResult(t *testing.T) {
 
 	baseOutput := []byte{0x1, 0x2, 0x3}
@@ -363,9 +381,15 @@ func TestRun_GenerateResult(t *testing.T) {
 				GasRefund: baseRefund,
 			},
 		},
+		"failure": {
+			status: statusFailed,
+			expectedResult: tosca.Result{
+				Success: false,
+			},
+		},
 		"unknown status": {
-			status:         statusSelfDestructed + 1,
-			expectedErr:    fmt.Errorf("unexpected error in interpreter, unknown status: %v", statusSelfDestructed+1),
+			status:         statusFailed + 1,
+			expectedErr:    fmt.Errorf("unexpected error in interpreter, unknown status: %v", statusFailed+1),
 			expectedResult: tosca.Result{},
 		},
 	}
@@ -380,7 +404,7 @@ func TestRun_GenerateResult(t *testing.T) {
 
 			res, err := generateResult(test.status, &ctxt)
 
-			if err != nil && test.expectedErr != nil && strings.Compare(err.Error(), test.expectedErr.Error()) != 0 {
+			if test.expectedErr != nil && strings.Compare(err.Error(), test.expectedErr.Error()) != 0 {
 				t.Errorf("unexpected error: want \"%v\", got \"%v\"", test.expectedErr, err)
 			}
 			if !reflect.DeepEqual(res, test.expectedResult) {
@@ -544,6 +568,22 @@ func TestInterpreter_InstructionsFailWhenExecutedInRevisionsEarlierThanIntroduce
 		}
 	}
 }
+
+func TestInterpreter_ExecuteReturnsFailureOnExecutionError(t *testing.T) {
+
+	ctxt := context{
+		code:  generateCodeFor(INVALID),
+		stack: NewStack(),
+	}
+
+	status := execute(&ctxt, false)
+	if want, got := statusFailed, status; want != got {
+		t.Errorf("unexpected status: want %v, got %v", want, got)
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Benchmarks
 
 func BenchmarkFib10(b *testing.B) {
 	benchmarkFib(b, 10, false)

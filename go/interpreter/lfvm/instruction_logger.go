@@ -40,15 +40,11 @@ func (l loggingRunner) run(c *context) (status, error) {
 			if l.log != nil {
 				_, err = l.log.Write([]byte(fmt.Sprintf("%v, %d, %v\n", c.code[c.pc].opcode, c.gas, top)))
 				if err != nil {
-					// TODO: rework this error to be handled differently than step errors
 					return status, err
 				}
 			}
 		}
-		status, err = step(c)
-		if err != nil {
-			return status, err
-		}
+		status = execute(c, true)
 	}
 	return status, nil
 }

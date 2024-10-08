@@ -27,6 +27,7 @@ const (
 	statusReverted                     // < execution stopped with a REVERT
 	statusReturned                     // < execution stopped with a RETURN
 	statusSelfDestructed               // < execution stopped with a SELF-DESTRUCT
+	statusFailed                       // < execution stopped with a logic error
 )
 
 // context is the execution environment of an interpreter run. It contains all
@@ -74,6 +75,11 @@ func (c *context) isAtLeast(revision tosca.Revision) bool {
 // --- Interpreter ---
 
 type runner interface {
+	// run executes the contract code in the given context.
+	// It returns the status of the execution:
+	// - Any logical error in the contract execution shall return statusFailed.
+	// - error is reserved to return runtime errors, which are not valid states
+	// and may not be recoverable.
 	run(*context) (status, error)
 }
 
@@ -113,9 +119,7 @@ func run(
 	}
 	status, err := config.runner.run(&ctxt)
 	if err != nil {
-		return tosca.Result{
-			Success: false,
-		}, nil
+		return tosca.Result{}, err
 	}
 
 	return generateResult(status, &ctxt)
@@ -143,6 +147,10 @@ func generateResult(status status, ctxt *context) (tosca.Result, error) {
 			Output:  ctxt.returnData,
 			GasLeft: ctxt.gas,
 		}, nil
+	case statusFailed:
+		return tosca.Result{
+			Success: false,
+		}, nil
 	default:
 		return tosca.Result{}, fmt.Errorf("unexpected error in interpreter, unknown status: %v", status)
 	}
@@ -155,15 +163,28 @@ func generateResult(status status, ctxt *context) (tosca.Result, error) {
 type vanillaRunner struct{}
 
 func (r vanillaRunner) run(c *context) (status, error) {
-	return steps(c, false)
+	return execute(c, false), nil
 }
 
 // --- Execution ---
 
-func step(c *context) (status, error) {
-	return steps(c, true)
+// execute runs the contract code in the given context. If oneStepOnly is true,
+// only the instruction pointed to by the program counter will be executed.
+// If the contract execution yields any execution violation (i.e. out of gas,
+// stack underflow, etc), the function returns statusFailed
+func execute(c *context, oneStepOnly bool) status {
+	status, error := steps(c, oneStepOnly)
+	if error != nil {
+		return statusFailed
+	}
+	return status
 }
 
+// steps executes the contract code in the given context,
+// If oneStepOnly is true, only the instruction pointed to by the program
+// counter will be executed.
+// steps returns the status of the execution and an error if the contract
+// execution yields any execution violation (i.e. out of gas, stack underflow, etc).
 func steps(c *context, oneStepOnly bool) (status, error) {
 	staticGasPrices := getStaticGasPrices(c.params.Revision)
 

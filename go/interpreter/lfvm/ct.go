@@ -79,12 +79,8 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	// Run interpreter.
 	status := statusRunning
-	var executionErr error
 	for i := 0; status == statusRunning && i < numSteps; i++ {
-		status, executionErr = step(ctxt)
-		if executionErr != nil {
-			break
-		}
+		status = execute(ctxt, true)
 	}
 
 	// Update the resulting state.
@@ -94,12 +90,8 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		return nil, err
 	}
 
-	if executionErr == nil {
+	if status == statusRunning {
 		state.Pc = pcMap.lfvmToEvm[ctxt.pc]
-	}
-
-	if executionErr != nil {
-		state.Status = st.Failed
 	}
 
 	state.Gas = ctxt.gas
@@ -181,6 +173,8 @@ func convertLfvmStatusToCtStatus(status status) (st.StatusCode, error) {
 		return st.Reverted, nil
 	case statusSelfDestructed:
 		return st.Stopped, nil
+	case statusFailed:
+		return st.Failed, nil
 	default:
 		return st.Failed, fmt.Errorf("unable to convert lfvm status %v to ct status", status)
 	}
