@@ -1879,6 +1879,23 @@ func TestInstructions_ReturnDataCopy_ReturnsErrorOnParameterOverflow(t *testing.
 	}
 }
 
+func TestOpExtCodeCopy_ReplacesNonUin64OffsetForMaxUint64(t *testing.T) {
+	ctxt := getEmptyContext()
+	mockContext := tosca.NewMockRunContext(gomock.NewController(t))
+	mockContext.EXPECT().GetCode(gomock.Any()).Return([]byte{0x1, 0x2, 0x3}).AnyTimes()
+	ctxt.context = mockContext
+
+	one := uint256.NewInt(1)
+	overflow := new(uint256.Int).Add(uint256.NewInt(math.MaxUint64), uint256.NewInt(5))
+
+	// stack order:  address, memory offset, code offset,  length
+	ctxt.stack = fillStack(*one, *one, *overflow, *one)
+	err := opExtCodeCopy(&ctxt)
+	if err != nil {
+		t.Errorf("unexpected error, got %v", err)
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Helper functions
 
