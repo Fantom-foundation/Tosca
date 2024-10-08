@@ -343,7 +343,6 @@ func (o OpCode) HasArgument() bool {
 				return true
 			}
 		}
-		return false
 	}
 	return false
 }
