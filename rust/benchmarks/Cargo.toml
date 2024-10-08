@@ -10,6 +10,7 @@ stack-array = ["evmrs/stack-array"]
 custom-evmc = ["evmrs/custom-evmc"]
 jumptable = ["evmrs/jumptable"]
 hash-cache = ["evmrs/hash-cache"]
+jump-cache = ["evmrs/jump-cache"]
 
 [dependencies]
 evmrs = { path = ".." }
