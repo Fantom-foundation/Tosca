@@ -1976,11 +1976,7 @@ func TestInstructions_Sha3_ReportsOutOfGas(t *testing.T) {
 
 func TestInstructions_Sha3_WritesCorrectHashInStack(t *testing.T) {
 
-	want := tosca.Hash{
-		0xbc, 0x36, 0x78, 0x9e, 0x7a, 0x1e, 0x28, 0x14,
-		0x36, 0x46, 0x42, 0x29, 0x82, 0x8f, 0x81, 0x7d,
-		0x66, 0x12, 0xf7, 0xb4, 0x77, 0xd6, 0x65, 0x91,
-		0xff, 0x96, 0xa9, 0xe0, 0x64, 0xbc, 0xc9, 0x8a}
+	want := Keccak256([]byte{0})
 
 	for _, withShaCache := range []bool{true, false} {
 		t.Run(fmt.Sprintf("withShaCache:%v", withShaCache), func(t *testing.T) {
@@ -1989,7 +1985,6 @@ func TestInstructions_Sha3_WritesCorrectHashInStack(t *testing.T) {
 			ctxt.stack.push(uint256.NewInt(1))
 			ctxt.stack.push(uint256.NewInt(0))
 
-			// without cache
 			err := opSha3(&ctxt)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
