@@ -9,6 +9,7 @@ mimalloc = ["evmrs/mimalloc"]
 stack-array = ["evmrs/stack-array"]
 custom-evmc = ["evmrs/custom-evmc"]
 jumptable = ["evmrs/jumptable"]
+hash-cache = ["evmrs/hash-cache"]
 
 [dependencies]
 evmrs = { path = ".." }
