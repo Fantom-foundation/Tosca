@@ -1838,15 +1838,15 @@ func TestCallDataload(t *testing.T) {
 		offset *uint256.Int
 		want   *uint256.Int
 	}{
-		"offset larger than uint64": {
+		"writes zero on the stack when offset larger than uint64 ": {
 			offset: new(uint256.Int).Add(uint256.NewInt(2), uint256.NewInt(math.MaxUint64)),
 			want:   zero,
 		},
-		"offset+31 overflows uint64": {
+		"writes zero on the stack when offset+31 overflows uint64": {
 			offset: uint256.NewInt(math.MaxUint64 - 31),
 			want:   zero,
 		},
-		"offset bigger than input code size": {
+		"pads with zeros when offset bigger than input code size": {
 			offset: uint256.NewInt(31),
 			want:   uint256.NewInt(0).SetBytes32([]byte{firstByte, 31: 0x0}),
 		},
