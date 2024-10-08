@@ -59,14 +59,12 @@ override:
     path: go/interpreter/evmc/evmc_steppable_interpreter.go
   - threshold: 0
     path: go/interpreter/geth/ct.go
-  - threshold: 0
-    path: go/interpreter/lfvm/hash_cache.go
-  - threshold: 0
+  - threshold: 90
+    path: go/interpreter/lfvm/ct.go
+  - threshold: 38
     path: go/interpreter/lfvm/lfvm.go
-  - threshold: 0
-    path: go/interpreter/lfvm/opcode.go
-  - threshold: 0
-    path: go/interpreter/lfvm/super_instructions.go
+  - threshold: 95
+    path: go/interpreter/lfvm/memory.go
   - threshold: 0
     path: go/processor/floria/processor.go
   - threshold: 0
@@ -95,7 +93,7 @@ override:
     path: go/integration_test/processor
   - threshold: 0
     path: go/interpreter/evmc
-  - threshold: 73
+  - threshold: 96
     path: go/interpreter/lfvm
   - threshold: 0
     path: go/processor/floria
@@ -113,8 +111,6 @@ exclude:
     - go/ct/common/error.go # error file only declares error type without any logic
     - go/ct/driver/         # entry points, logic should be tested elsewhere.
     - go/examples           # examples are not tested.
-    - go/interpreter/lfvm/errors.go # error file only declares error type without any logic
-    - go/interpreter/lfvm/instructions.go # these are tested by driver
     - third_party/  # exclude all files in `third_party` directory
 
 
