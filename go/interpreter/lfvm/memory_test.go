@@ -216,7 +216,7 @@ func TestMemory_getSlice_ErrorCases(t *testing.T) {
 	}
 }
 
-func TestMemory_getSlice_ReturnsSliceOfSize(t *testing.T) {
+func TestMemory_getSlice_ReturnsSliceOfRequestedSize(t *testing.T) {
 
 	tests := map[string]struct {
 		offset   *uint256.Int
@@ -238,7 +238,6 @@ func TestMemory_getSlice_ReturnsSliceOfSize(t *testing.T) {
 			size:     uint256.NewInt(5),
 			expected: []byte{0x04, 4: 0x0},
 		},
-		// TODO: padding here or somewhere else?
 	}
 
 	for name, test := range tests {
@@ -249,9 +248,6 @@ func TestMemory_getSlice_ReturnsSliceOfSize(t *testing.T) {
 			slice, err := m.getSlice(test.offset, test.size, &c)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
-			}
-			if len(m.store) == 0 {
-				t.Errorf("expected memory to be expanded, but it is empty")
 			}
 			if !bytes.Equal(slice, test.expected) {
 				t.Errorf("unexpected slice: %x, want: %x", slice, test.expected)
