@@ -821,6 +821,11 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 		}
 	}
 
+	input, err := c.memory.getSlice(offset.Uint64(), sizeU64, c)
+	if err != nil {
+		return err
+	}
+
 	if !value.IsZero() {
 		balance := c.context.GetBalance(c.params.Recipient)
 		balanceU256 := new(uint256.Int).SetBytes(balance[:])
@@ -833,19 +838,14 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 	}
 
 	// Apply EIP150
-	gas := c.gas
-	gas -= gas / 64
-	if err := c.useGas(gas); err != nil {
-		// this usage can never fail because the endowment is at most
-		// 63/64 of the current gas level.
-		return err
-	}
+	nestedCallGas := c.gas
+	nestedCallGas -= nestedCallGas / 64
 
 	res, err := c.context.Call(kind, tosca.CallParameters{
 		Sender: c.params.Recipient,
 		Value:  tosca.Value(value.Bytes32()),
 		Input:  input,
-		Gas:    gas,
+		Gas:    nestedCallGas,
 		Salt:   salt,
 	})
 
@@ -862,6 +862,8 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 	} else {
 		c.returnData = nil
 	}
+
+	c.gas -= nestedCallGas
 	c.gas += res.GasLeft
 	c.refund += res.GasRefund
 	return nil

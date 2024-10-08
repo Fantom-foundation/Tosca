@@ -1212,6 +1212,11 @@ func TestGenericCreate_ReportsErrors(t *testing.T) {
 			size:          *one,
 			expectedError: errOverflow,
 		},
+		"size zero ignores offset overflow": {
+			offset:        *u64Overflow,
+			size:          *uint256.NewInt(0),
+			expectedError: nil,
+		},
 		"size overflow": {
 			offset:        *uint256.NewInt(0),
 			size:          *u64Overflow,
@@ -1286,7 +1291,7 @@ func TestGenericCreate_ResultIsWrittenToStack(t *testing.T) {
 		}
 		want := uint256.NewInt(0)
 		if success {
-			want = uint256.NewInt(1)
+			want = new(uint256.Int).SetBytes(CreatedAddress[:])
 		}
 		if got := ctxt.stack.peek(); !want.Eq(got) {
 			t.Errorf("unexpected return value, wanted %v, got %v", want, got)
