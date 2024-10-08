@@ -1832,7 +1832,6 @@ func TestCallDataload(t *testing.T) {
 	zero := uint256.NewInt(0)
 	someData := make([]byte, 32)
 	_, _ = rand.Read(someData)
-	firstByte := someData[31]
 
 	tests := map[string]struct {
 		offset *uint256.Int
@@ -1848,7 +1847,7 @@ func TestCallDataload(t *testing.T) {
 		},
 		"pads with zeros when offset bigger than input code size": {
 			offset: uint256.NewInt(31),
-			want:   uint256.NewInt(0).SetBytes32([]byte{firstByte, 31: 0x0}),
+			want:   uint256.NewInt(0).SetBytes32([]byte{someData[31], 31: 0x0}),
 		},
 		"writes data to stack": {
 			offset: zero,
