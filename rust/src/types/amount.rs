@@ -1,6 +1,7 @@
 use std::{
     cmp::Ordering,
     fmt::{Debug, Display},
+    hash::Hash,
     mem,
     ops::{
         Add, AddAssign, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, DivAssign, Mul, MulAssign,
@@ -199,6 +200,12 @@ impl TryFrom<u256> for u64 {
         } else {
             Ok(u64::from_be_bytes(*bytes.split_last_chunk().unwrap().1))
         }
+    }
+}
+
+impl Hash for u256 {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u64(self.into_u64_with_overflow().0); // is this enough??
     }
 }
 

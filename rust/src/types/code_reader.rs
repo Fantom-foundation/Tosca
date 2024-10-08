@@ -1,8 +1,34 @@
-use std::{cmp::min, mem, ops::Deref};
+use std::{
+    cmp::min,
+    mem::{self},
+    ops::Deref,
+};
+#[cfg(feature = "jump-cache")]
+use std::{
+    num::NonZeroUsize,
+    sync::{Arc, LazyLock, Mutex},
+};
 
 use evmc_vm::StatusCode;
+#[cfg(feature = "jump-cache")]
+use lru::LruCache;
+#[cfg(feature = "jump-cache")]
+use nohash_hasher::BuildNoHashHasher;
 
 use crate::types::{code_byte_type, u256, CodeByteType, Opcode};
+
+#[cfg(feature = "jump-cache")]
+const CACHE_SIZE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1 << 16) }; // taken from evmzero
+
+// Mutex<LruCache<...>> is faster that quick_cache::Cache<...>
+#[cfg(feature = "jump-cache")]
+static JUMP_CACHE: LazyLock<Mutex<LruCache<u256, Arc<[CodeByteType]>, BuildNoHashHasher<u64>>>> =
+    LazyLock::new(|| {
+        Mutex::new(LruCache::with_hasher(
+            CACHE_SIZE,
+            BuildNoHashHasher::default(),
+        ))
+    });
 
 #[derive(Debug, Clone, Copy)]
 pub struct PushLen(usize);
@@ -21,7 +47,10 @@ impl PushLen {
 #[derive(Debug)]
 pub struct CodeReader<'a> {
     code: &'a [u8],
-    code_byte_type: Box<[CodeByteType]>,
+    #[cfg(feature = "jump-cache")]
+    code_byte_types: Arc<[CodeByteType]>,
+    #[cfg(not(feature = "jump-cache"))]
+    code_byte_types: Box<[CodeByteType]>,
     pc: usize,
 }
 
@@ -40,10 +69,33 @@ pub enum GetOpcodeError {
 }
 
 impl<'a> CodeReader<'a> {
-    pub fn new(code: &'a [u8], pc: usize) -> Self {
+    #[allow(unused_variables)]
+    pub fn new(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
+        let code_byte_type;
+        #[cfg(feature = "jump-cache")]
+        {
+            if code_hash.is_some_and(|h| h != u256::ZERO) {
+                // NOTE: The HashMap only stores the hash of the code, not the code itself (because
+                // this would require an allocation). This means a hash conflict
+                // will result in a wrong jump analysis.
+                code_byte_type = JUMP_CACHE
+                    .lock()
+                    .unwrap()
+                    .get_or_insert(code_hash.unwrap(), || {
+                        Arc::from(compute_code_byte_types(code).as_slice())
+                    })
+                    .clone();
+            } else {
+                code_byte_type = Arc::from(compute_code_byte_types(code).as_slice());
+            }
+        }
+        #[cfg(not(feature = "jump-cache"))]
+        {
+            code_byte_type = compute_code_byte_types(code).into_boxed_slice();
+        }
         Self {
             code,
-            code_byte_type: compute_code_byte_types(code),
+            code_byte_types: code_byte_type,
             pc,
         }
     }
@@ -51,7 +103,7 @@ impl<'a> CodeReader<'a> {
     pub fn get(&self) -> Result<Opcode, GetOpcodeError> {
         if self.pc >= self.code.len() {
             Err(GetOpcodeError::OutOfRange)
-        } else if self.code_byte_type[self.pc] == CodeByteType::DataOrInvalid {
+        } else if self.code_byte_types[self.pc] == CodeByteType::DataOrInvalid {
             Err(GetOpcodeError::Invalid)
         } else {
             let op = self.code[self.pc];
@@ -70,7 +122,8 @@ impl<'a> CodeReader<'a> {
 
     pub fn try_jump(&mut self, dest: u256) -> Result<(), StatusCode> {
         let dest = u64::try_from(dest).map_err(|_| StatusCode::EVMC_BAD_JUMP_DESTINATION)? as usize;
-        if dest >= self.code_byte_type.len() || self.code_byte_type[dest] != CodeByteType::JumpDest
+        if dest >= self.code_byte_types.len()
+            || self.code_byte_types[dest] != CodeByteType::JumpDest
         {
             return Err(StatusCode::EVMC_BAD_JUMP_DESTINATION);
         }
@@ -112,7 +165,7 @@ impl<'a> CodeReader<'a> {
     }
 }
 
-fn compute_code_byte_types(code: &[u8]) -> Box<[CodeByteType]> {
+fn compute_code_byte_types(code: &[u8]) -> Vec<CodeByteType> {
     let mut code_byte_types = vec![CodeByteType::DataOrInvalid; code.len()];
 
     let mut pc = 0;
@@ -122,7 +175,7 @@ fn compute_code_byte_types(code: &[u8]) -> Box<[CodeByteType]> {
         pc += inc;
     }
 
-    code_byte_types.into_boxed_slice()
+    code_byte_types
 }
 
 #[cfg(test)]
@@ -232,7 +285,7 @@ mod tests {
     fn code_reader_internals() {
         let code = [Opcode::Add as u8, Opcode::Add as u8, 0xc0];
         let pc = 1;
-        let code_reader = CodeReader::new(&code, pc);
+        let code_reader = CodeReader::new(&code, None, pc);
         assert_eq!(*code_reader, code);
         assert_eq!(code_reader.len(), code.len());
         assert_eq!(code_reader.pc(), pc);
@@ -240,7 +293,8 @@ mod tests {
 
     #[test]
     fn code_reader_get() {
-        let mut code_reader = CodeReader::new(&[Opcode::Add as u8, Opcode::Add as u8, 0xc0], 0);
+        let mut code_reader =
+            CodeReader::new(&[Opcode::Add as u8, Opcode::Add as u8, 0xc0], None, 0);
         assert_eq!(code_reader.get(), Ok(Opcode::Add));
         code_reader.next();
         assert_eq!(code_reader.get(), Ok(Opcode::Add));
@@ -258,6 +312,7 @@ mod tests {
                 Opcode::JumpDest as u8,
                 Opcode::JumpDest as u8,
             ],
+            None,
             0,
         );
         assert_eq!(
@@ -296,19 +351,19 @@ mod tests {
 
     #[test]
     fn code_reader_get_push_data() {
-        let mut code_reader = CodeReader::new(&[0xff; 32], 0);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 0);
         assert_eq!(code_reader.get_push_data(PushLen::new(1)), 0xffu8.into());
 
-        let mut code_reader = CodeReader::new(&[0xff; 32], 0);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 0);
         assert_eq!(code_reader.get_push_data(PushLen::new(32)), u256::MAX);
 
-        let mut code_reader = CodeReader::new(&[0xff; 32], 31);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 31);
         assert_eq!(code_reader.get_push_data(PushLen::new(32)), 0xffu8.into());
 
-        let mut code_reader = CodeReader::new(&[0xff; 32], 32);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 32);
         assert_eq!(code_reader.get_push_data(PushLen::new(32)), u256::ZERO);
 
-        let mut code_reader = CodeReader::new(&[0xff; 32], 33);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 33);
         assert_eq!(code_reader.get_push_data(PushLen::new(32)), u256::ZERO);
     }
 }
