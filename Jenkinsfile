@@ -9,17 +9,16 @@
 // this software will be governed by the GNU Lesser General Public License v3.
 
 pipeline {
-    agent { label 'quick' }
+    agent {
+        dockerfile {
+            filename 'CI/Dockerfile.build'
+            label 'quick'
+        }
+    }
 
     options {
         timestamps()
         timeout(time: 2, unit: 'HOURS')
-    }
-
-    environment {
-        CC = 'gcc'
-        CXX = 'g++'
-        PATH = "${env.HOME}/.cargo/bin:${env.PATH}"
     }
 
     stages {
@@ -36,6 +35,16 @@ pipeline {
             }
         }
 
+        stage('check environment') {
+            steps {
+                sh 'echo $PATH'
+                sh 'echo $GOPATH'
+                sh 'echo $GOCACHE'
+                sh 'echo $GOTMPDIR'
+                sh 'go version'
+                sh 'whereis gofmt'
+            }
+        }
         stage('Checkout code') {
             steps {
                 sh 'git submodule update --init --recursive'
@@ -50,12 +59,17 @@ pipeline {
 
         stage('Check Go sources formatting') {
             steps {
-                sh "gofmt -s -d go"
+                sh 'gofmt -s -d go'
             }
         }
 
         stage('Lint Go sources') {
             steps {
+                sh 'echo $PATH'
+                sh 'echo $GOPATH'
+                sh 'echo $GOCACHE'
+                sh 'echo $GOTMPDIR'
+                sh 'ls /tmp'
                 withEnv(["PATH+GOPATH=${env.HOME}/go/bin"]) {
                     sh 'make lint-go'
                 }
