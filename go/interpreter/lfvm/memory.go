@@ -30,8 +30,10 @@ const (
 	maxMemoryExpansionSize = 0x1FFFFFFFE0
 )
 
-// getExpansionCostsAndSize returns the gas cost and the size of the memory expansion
-// needed to expand the memory to the given size.
+// getExpansionCostsAndSize returns the gas cost and the new memory size after
+// the expansion.
+// The function returns an error if the new size is greater than the maximum
+// memory size allowed, or an overflow happens when computing the costs.
 func (m *Memory) getExpansionCostsAndSize(size uint64) (tosca.Gas, uint64, error) {
 
 	// static assert
