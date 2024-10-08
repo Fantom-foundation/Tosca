@@ -1,6 +1,7 @@
 mod amount;
 mod code_reader;
 mod execution_context;
+pub mod hash_cache;
 mod memory;
 mod mock_execution_message;
 mod opcode;
