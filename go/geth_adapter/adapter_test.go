@@ -12,8 +12,10 @@ package geth_adapter
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -32,6 +34,10 @@ import (
 
 type StateDb interface {
 	geth.StateDB
+}
+
+func TestGethAdapter_RunContextAdapterImplementsRunContextInterface(t *testing.T) {
+	var _ tosca.RunContext = &runContextAdapter{}
 }
 
 func TestRunContextAdapter_SetBalanceHasCorrectEffect(t *testing.T) {
@@ -322,7 +328,7 @@ func TestRunContextAdapter_Run(t *testing.T) {
 			address := tosca.Address{0x42}
 
 			blockParameters := geth.BlockContext{BlockNumber: big.NewInt(blockNumber)}
-			chainConfig := &params.ChainConfig{ChainID: big.NewInt(chainId)}
+			chainConfig := &params.ChainConfig{ChainID: big.NewInt(chainId), IstanbulBlock: big.NewInt(23)}
 			evm := geth.NewEVM(blockParameters, geth.TxContext{}, stateDb, chainConfig, geth.Config{})
 			adapter := &gethInterpreterAdapter{
 				evm:         evm,
@@ -464,5 +470,215 @@ func TestRunContextAdapter_bigIntToWord(t *testing.T) {
 	}
 	if got != want {
 		t.Errorf("Conversion returned wrong value, expected %v, got %v", want, got)
+	}
+}
+
+func TestRunContextAdapter_ConvertRevisionCanDealWithUnsetMergeBlock(t *testing.T) {
+	chainConfig := &params.ChainConfig{
+		ChainID:            big.NewInt(42),
+		IstanbulBlock:      big.NewInt(0),
+		MergeNetsplitBlock: nil,
+	}
+
+	revision := convertRevision(chainConfig, big.NewInt(0), 0)
+	if revision != tosca.R07_Istanbul {
+		t.Errorf("Conversion returned wrong value, expected %v, got %v", tosca.R07_Istanbul, revision)
+	}
+}
+
+func TestRunContextAdapter_ConvertRevision(t *testing.T) {
+	cancunTime := uint64(1000)
+	shanghaiTime := uint64(900)
+	parisBlock := big.NewInt(100)
+	londonBlock := big.NewInt(90)
+	berlinBlock := big.NewInt(80)
+	istanbulBlock := big.NewInt(70)
+
+	tests := map[string]struct {
+		mergeBlock *big.Int
+		block      *big.Int
+		time       uint64
+		want       tosca.Revision
+	}{
+		"Istanbul": {
+			block: istanbulBlock,
+			time:  uint64(0),
+			want:  tosca.R07_Istanbul,
+		},
+		"Berlin": {
+			block: berlinBlock,
+			time:  uint64(0),
+			want:  tosca.R09_Berlin,
+		},
+		"London": {
+			block: londonBlock,
+			time:  uint64(0),
+			want:  tosca.R10_London,
+		},
+		"Paris": {
+			block: parisBlock,
+			time:  uint64(0),
+			want:  tosca.R11_Paris,
+		},
+		"Shanghai": {
+			block: parisBlock,
+			time:  shanghaiTime,
+			want:  tosca.R12_Shanghai,
+		},
+		"Cancun": {
+			block: parisBlock,
+			time:  cancunTime,
+			want:  tosca.R13_Cancun,
+		},
+	}
+
+	chainConfig := &params.ChainConfig{
+		ChainID:            big.NewInt(42),
+		IstanbulBlock:      istanbulBlock,
+		LondonBlock:        londonBlock,
+		BerlinBlock:        berlinBlock,
+		MergeNetsplitBlock: parisBlock,
+		ShanghaiTime:       &shanghaiTime,
+		CancunTime:         &cancunTime,
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := convertRevision(chainConfig, test.block, test.time)
+			if got != test.want {
+				t.Errorf("Conversion returned wrong value, expected %v, got %v", test.want, got)
+			}
+		})
+	}
+}
+
+func TestRunContextAdapter_ConvertRevisionPanicsWithUnsupportedRevision(t *testing.T) {
+	var revision tosca.Revision
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Unsupported revision was not spotted, got %v", revision)
+		}
+	}()
+	chainConfig := &params.ChainConfig{}
+	revision = convertRevision(chainConfig, big.NewInt(0), 0)
+}
+
+func TestRunContextAdapter_gethToVMErrors(t *testing.T) {
+	gas := tosca.Gas(42)
+	otherError := fmt.Errorf("other error")
+	tests := map[string]struct {
+		input      error
+		wantResult tosca.CallResult
+		wantError  error
+	}{
+		"nil": {
+			input: nil,
+		},
+		"insufficientBalance": {
+			input:      geth.ErrInsufficientBalance,
+			wantResult: tosca.CallResult{GasLeft: gas},
+			wantError:  nil,
+		},
+		"OutOfGas": {
+			input:      geth.ErrOutOfGas,
+			wantResult: tosca.CallResult{},
+			wantError:  nil,
+		},
+		"stackUnderflow": {
+			input:      &geth.ErrStackUnderflow{},
+			wantResult: tosca.CallResult{},
+			wantError:  nil,
+		},
+		"stackOverflow": {
+			input:      &geth.ErrStackOverflow{},
+			wantResult: tosca.CallResult{},
+			wantError:  nil,
+		},
+		"invalidOpCode": {
+			input:      &geth.ErrInvalidOpCode{},
+			wantResult: tosca.CallResult{},
+			wantError:  nil,
+		},
+		"other": {
+			input:      otherError,
+			wantResult: tosca.CallResult{},
+			wantError:  otherError,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			gotResult, gotErr := gethToVMErrors(test.input, gas)
+			if !errors.Is(gotErr, test.wantError) {
+				t.Errorf("Unexpected error: expected %v, got %v", test.wantError, gotErr)
+			}
+			reflect.DeepEqual(gotResult, test.wantResult)
+		})
+	}
+}
+
+func TestAdapter_ReadOnlyIsSetAndResetCorrectly(t *testing.T) {
+	tests := map[string]bool{
+		"readOnly":    true,
+		"notReadOnly": false,
+	}
+	recipient := tosca.Address{0x42}
+	depth := 42
+	gas := uint64(42)
+	for name, readOnly := range tests {
+		t.Run(name, func(t *testing.T) {
+			setGas := encodeReadOnlyInGas(gas, recipient, readOnly)
+			gotReadOnly, unsetGas := decodeReadOnlyFromGas(depth, readOnly, setGas)
+
+			if unsetGas != gas {
+				t.Errorf("Gas was not set or unset correctly, expected %v, got %v", gas, unsetGas)
+			}
+			if gotReadOnly != readOnly {
+				t.Errorf("ReadOnly was not set or unset correctly, expected %v, got %v", readOnly, gotReadOnly)
+			}
+		})
+	}
+}
+
+func TestGethInterpreterAdapter_RefundShiftIsReverted(t *testing.T) {
+	tests := map[string]struct {
+		err    error
+		refund uint64
+	}{
+		"noErrorHighRefund": {
+			err:    nil,
+			refund: 100,
+		},
+		"noErrorLowRefund": {
+			err:    nil,
+			refund: 10,
+		},
+		"errorHighRefund": {
+			err:    fmt.Errorf("error"),
+			refund: 100,
+		},
+		"errorLowRefund": {
+			err:    fmt.Errorf("error"),
+			refund: 10,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			stateDb := NewMockStateDb(ctrl)
+
+			shift := uint64(42)
+			expectedSub := shift
+			if test.refund < shift {
+				expectedSub = test.refund
+			}
+
+			if test.err == nil {
+				stateDb.EXPECT().GetRefund().Return(test.refund)
+				stateDb.EXPECT().SubRefund(expectedSub)
+			}
+
+			undoRefundShift(stateDb, test.err, shift)
+		})
 	}
 }
