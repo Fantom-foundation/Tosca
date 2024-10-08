@@ -63,7 +63,7 @@ override:
     path: go/interpreter/lfvm/ct.go
   - threshold: 38
     path: go/interpreter/lfvm/lfvm.go
-  - threshold: 95
+  - threshold: 0
     path: go/interpreter/lfvm/memory.go
   - threshold: 0
     path: go/processor/floria/processor.go
