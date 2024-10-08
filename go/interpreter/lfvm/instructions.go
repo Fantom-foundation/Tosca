@@ -837,7 +837,7 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 		}
 	}
 
-	// Apply EIP150
+	// compute and apply eip150 https://eips.ethereum.org/EIPS/eip-150
 	nestedCallGas := c.gas
 	nestedCallGas -= nestedCallGas / 64
 
