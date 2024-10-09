@@ -781,14 +781,6 @@ func opExtcodehash(c *context) error {
 	return nil
 }
 
-func opCreate(c *context) error {
-	return genericCreate(c, tosca.Create)
-}
-
-func opCreate2(c *context) error {
-	return genericCreate(c, tosca.Create2)
-}
-
 func genericCreate(c *context, kind tosca.CallKind) error {
 
 	// Create is a write instruction, it shall not be executed in static mode.
@@ -840,18 +832,15 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 		}
 	}
 
-	// Apply EIP150
-	gas := c.gas
-	gas -= gas / 64
-	if err := c.useGas(gas); err != nil {
-		return err
-	}
+	// compute and apply eip150 https://eips.ethereum.org/EIPS/eip-150
+	nestedCallGas := c.gas
+	nestedCallGas -= nestedCallGas / 64
 
 	res, err := c.context.Call(kind, tosca.CallParameters{
 		Sender: c.params.Recipient,
 		Value:  tosca.Value(value.Bytes32()),
 		Input:  input,
-		Gas:    gas,
+		Gas:    nestedCallGas,
 		Salt:   salt,
 	})
 
@@ -868,6 +857,8 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 	} else {
 		c.returnData = nil
 	}
+
+	c.gas -= nestedCallGas
 	c.gas += res.GasLeft
 	c.refund += res.GasRefund
 	return nil

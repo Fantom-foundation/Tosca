@@ -269,7 +269,7 @@ func TestCreateChecksBalance(t *testing.T) {
 	// The source account should have enough funds.
 	runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
 
-	err := opCreate(&ctxt)
+	err := genericCreate(&ctxt, tosca.Create)
 	if err != nil {
 		t.Errorf("opCreate failed: %v", err)
 	}
@@ -696,7 +696,7 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 				runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil)
 			}
 
-			err := opCreate(&ctxt)
+			err := genericCreate(&ctxt, tosca.Create)
 			if want, got := test.expecedErr, err; want != got {
 				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
 			}
@@ -761,7 +761,7 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 
 		runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil)
 
-		err := opCreate(&ctxt)
+		err := genericCreate(&ctxt, tosca.Create)
 		if err != nil {
 			t.Errorf("opCreate failed: %v", err)
 		}
@@ -1153,46 +1153,85 @@ func TestComputeCodeSizeCost(t *testing.T) {
 	}
 }
 
-func TestGenericCreate_MaxInitCodeSizeIsNotCheckedBeforeShanghai(t *testing.T) {
-
-	tests := []struct {
+func TestGenericCreate_ReportsErrors(t *testing.T) {
+	one := uint256.NewInt(1)
+	tests := map[string]struct {
+		offset, size  uint256.Int
+		kind          tosca.CallKind
 		revision      tosca.Revision
 		expectedError error
 	}{
-		{tosca.R11_Paris, nil},
-		{tosca.R12_Shanghai, errInitCodeTooLarge},
+		"not enough gas for code size": {
+			offset:        *one,
+			size:          *uint256.NewInt(31),
+			revision:      tosca.R12_Shanghai,
+			kind:          tosca.Create,
+			expectedError: errOutOfGas,
+		},
+		"gas not checked for max code size before shanghai": {
+			offset:        *one,
+			size:          *uint256.NewInt(31),
+			revision:      tosca.R11_Paris,
+			kind:          tosca.Create,
+			expectedError: nil,
+		},
+		"not enough gas for create2 init code hashing": {
+			offset:        *one,
+			size:          *one,
+			kind:          tosca.Create2,
+			expectedError: errOutOfGas,
+		},
+		"does not charge init code hashing in create": {
+			offset:        *one,
+			size:          *one,
+			kind:          tosca.Create,
+			expectedError: nil,
+		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.revision.String(), func(t *testing.T) {
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			mockRunContext := tosca.NewMockRunContext(gomock.NewController(t))
+			mockRunContext.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{}, nil).AnyTimes()
+			ctxt := getEmptyContext()
+			ctxt.context = mockRunContext
+			ctxt.params.Revision = test.revision
+			ctxt.gas = 3
 
-			runContext := tosca.NewMockRunContext(gomock.NewController(t))
-			runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil).AnyTimes()
+			ctxt.stack.push(uint256.NewInt(0)) // salt
+			ctxt.stack.push(&test.size)
+			ctxt.stack.push(&test.offset)
+			ctxt.stack.push(uint256.NewInt(0)) // value
 
-			ctxt := context{
-				params: tosca.Parameters{
-					BlockParameters: tosca.BlockParameters{
-						Revision: test.revision,
-					},
-					Recipient: tosca.Address{1},
-				},
-				context: runContext,
-				stack:   NewStack(),
-				memory:  NewMemory(),
-				gas:     50000,
-			}
-
-			ctxt.stack.push(uint256.NewInt(49153)) // size
-			ctxt.stack.push(uint256.NewInt(0))     // offset
-			ctxt.stack.push(uint256.NewInt(0))     // value
-
-			err := genericCreate(&ctxt, tosca.Create)
-
+			err := genericCreate(&ctxt, test.kind)
 			if err != test.expectedError {
-				t.Errorf("unexpected status after call, wanted %v, got %v", test.expectedError, err)
+				t.Errorf("unexpected err. wanted %v, got %v", test.expectedError, err)
 			}
-
 		})
+	}
+}
+
+func TestGenericCreate_ResultIsWrittenToStack(t *testing.T) {
+	CreatedAddress := tosca.Address([20]byte{19: 0x1})
+	for _, success := range []bool{true, false} {
+		runContext := tosca.NewMockRunContext(gomock.NewController(t))
+		runContext.EXPECT().Call(gomock.Any(), gomock.Any()).Return(tosca.CallResult{Success: success, CreatedAddress: CreatedAddress}, nil)
+		ctxt := getEmptyContext()
+		ctxt.context = runContext
+		ctxt.stack.push(uint256.NewInt(0))
+		ctxt.stack.push(uint256.NewInt(0))
+		ctxt.stack.push(uint256.NewInt(0))
+		err := genericCreate(&ctxt, tosca.Create)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := uint256.NewInt(0)
+		if success {
+			want = new(uint256.Int).SetBytes(CreatedAddress[:])
+		}
+		if got := ctxt.stack.peek(); !want.Eq(got) {
+			t.Errorf("unexpected return value, wanted %v, got %v", want, got)
+		}
 	}
 }
 
