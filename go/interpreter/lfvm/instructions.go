@@ -1143,9 +1143,12 @@ func opLog(c *context, n int) error {
 		return errStaticContextViolation
 	}
 
-	topics := make([]tosca.Hash, n)
-	offset, size := c.stack.pop(), c.stack.pop()
+	var (
+		offset = c.stack.pop()
+		size   = c.stack.pop()
+	)
 
+	topics := make([]tosca.Hash, n)
 	for i := 0; i < n; i++ {
 		addr := c.stack.pop()
 		topics[i] = addr.Bytes32()
