@@ -1918,6 +1918,32 @@ func TestInstructions_ReturnDataCopy_ReturnsErrorOnParameterOverflow(t *testing.
 	}
 }
 
+func TestOpExp_ProducesCorrectResults(t *testing.T) {
+	ctxt := context{gas: tosca.Gas(uint256.NewInt(8).ByteLen() * 50)}
+	ctxt.stack = NewStack()
+	ctxt.stack.push(uint256.NewInt(8)) // exponent
+	ctxt.stack.push(uint256.NewInt(2)) // base
+	err := opExp(&ctxt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expected := uint256.NewInt(256)
+	if got := ctxt.stack.pop(); got.Cmp(expected) != 0 {
+		t.Errorf("unexpected result, wanted %v, got %v", expected, got)
+	}
+}
+
+func TestOpExp_ReportsOutOfGas(t *testing.T) {
+	ctxt := context{gas: 3}
+	ctxt.stack = NewStack()
+	ctxt.stack.push(uint256.NewInt(256)) // exponent
+	ctxt.stack.push(uint256.NewInt(2))   // base
+	err := opExp(&ctxt)
+	if err != errOutOfGas {
+		t.Errorf("expected out of gas error, got %v", err)
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Helper functions
 
