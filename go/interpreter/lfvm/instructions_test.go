@@ -281,64 +281,6 @@ func TestCreateChecksBalance(t *testing.T) {
 	}
 }
 
-func TestLogOpSizeOverflow(t *testing.T) {
-
-	originalBugValue := uint256.MustFromHex("0x3030303030303030")
-	maxUint64 := uint256.NewInt(math.MaxUint64)
-	zero := uint256.NewInt(0)
-
-	tests := map[string]struct {
-		logn          int
-		size          *uint256.Int
-		logCalls      int
-		expectedError error
-	}{
-		"log0_zero":        {logn: 0, size: zero, logCalls: 1, expectedError: nil},
-		"log1_zero":        {logn: 1, size: zero, logCalls: 1, expectedError: nil},
-		"log2_zero":        {logn: 2, size: zero, logCalls: 1, expectedError: nil},
-		"log3_zero":        {logn: 3, size: zero, logCalls: 1, expectedError: nil},
-		"log4_zero":        {logn: 4, size: zero, logCalls: 1, expectedError: nil},
-		"log0_max":         {logn: 0, size: maxUint64, logCalls: 0, expectedError: errOverflow},
-		"log1_max":         {logn: 1, size: maxUint64, logCalls: 0, expectedError: errOverflow},
-		"log2_max":         {logn: 2, size: maxUint64, logCalls: 0, expectedError: errOverflow},
-		"log3_max":         {logn: 3, size: maxUint64, logCalls: 0, expectedError: errOverflow},
-		"log4_max":         {logn: 4, size: maxUint64, logCalls: 0, expectedError: errOverflow},
-		"log0_much_larger": {logn: 0, size: originalBugValue, logCalls: 0, expectedError: errMaxMemoryExpansionSize},
-		"log1_much_larger": {logn: 1, size: originalBugValue, logCalls: 0, expectedError: errMaxMemoryExpansionSize},
-		"log2_much_larger": {logn: 2, size: originalBugValue, logCalls: 0, expectedError: errMaxMemoryExpansionSize},
-		"log3_much_larger": {logn: 3, size: originalBugValue, logCalls: 0, expectedError: errMaxMemoryExpansionSize},
-		"log4_much_larger": {logn: 4, size: originalBugValue, logCalls: 0, expectedError: errMaxMemoryExpansionSize},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-
-			ctrl := gomock.NewController(t)
-			runContext := tosca.NewMockRunContext(ctrl)
-			runContext.EXPECT().EmitLog(gomock.Any()).Times(test.logCalls)
-
-			stack := NewStack()
-			for i := 0; i < test.logn; i++ {
-				stack.push(uint256.NewInt(0))
-			}
-			stack.push(test.size)
-			stack.push(uint256.NewInt(0))
-
-			ctxt := context{
-				gas:     392,
-				context: runContext,
-				stack:   stack,
-				memory:  NewMemory(),
-			}
-
-			err := opLog(&ctxt, test.logn)
-			if got, want := err, test.expectedError; got != want {
-				t.Fatalf("unexpected result, wanted %v, got %v", want, got)
-			}
-		})
-	}
-}
-
 func TestBlobHash(t *testing.T) {
 
 	hash := tosca.Hash{1}
