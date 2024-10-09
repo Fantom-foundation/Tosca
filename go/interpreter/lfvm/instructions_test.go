@@ -1743,44 +1743,36 @@ func TestOpBlockhash(t *testing.T) {
 		})
 	}
 }
-func TestInstructions_ReturnDataCopy_ReturnsErrorOnParameterOverflow(t *testing.T) {
+func TestInstructions_ReturnDataCopy_ReturnsErrorOn(t *testing.T) {
 
 	zero := *uint256.NewInt(0)
 	one := *uint256.NewInt(1)
 	maxUint64 := *uint256.NewInt(math.MaxUint64)
 	uint64Overflow := *new(uint256.Int).Add(&maxUint64, uint256.NewInt(1))
+	returnDataSize := uint64(10)
 
 	tests := map[string]struct {
-		stack []uint256.Int
+		stack []uint256.Int // memoryOffset, dataOffset, length
 	}{
 		"length overflow": {
-			stack: []uint256.Int{
-				zero, one, uint64Overflow,
-			},
+			stack: []uint256.Int{zero, one, uint64Overflow},
 		},
 		"dataOffset overflow": {
-			stack: []uint256.Int{
-				zero, uint64Overflow, one,
-			},
+			stack: []uint256.Int{zero, uint64Overflow, one},
 		},
 		"offset + length overflow": {
-			stack: []uint256.Int{
-				zero, maxUint64, one,
-			},
+			stack: []uint256.Int{zero, maxUint64, one},
 		},
 		"offset + length greater than returnData": {
-			stack: []uint256.Int{
-				zero, zero, maxUint64,
-			},
+			stack: []uint256.Int{zero, zero, *uint256.NewInt(returnDataSize + 1)},
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctxt := getEmptyContext()
-			ctxt.gas = math.MaxInt64
 			ctxt.stack = fillStack(test.stack...)
-			ctxt.returnData = make([]byte, 10)
+			ctxt.returnData = make([]byte, returnDataSize)
 
 			err := opReturnDataCopy(&ctxt)
 			if err != errOverflow {
@@ -2085,6 +2077,15 @@ func TestInstructions_MCopy_CopiesOverlappingRanges(t *testing.T) {
 	expected := [32]byte{0, 1, 2, 3, 4, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	if want, got := expected[:], ctxt.memory.store; !bytes.Equal(want, got) {
 		t.Errorf("unexpected memory, wanted %v, got %v", want, got)
+	}
+}
+
+func TestInstructions_ReturnDataCopy_ReturnsOutOfGas(t *testing.T) {
+	zero := *uint256.NewInt(0)
+	ctxt := context{gas: 3, stack: fillStack(zero, zero, *uint256.NewInt(65))}
+	err := opReturnDataCopy(&ctxt)
+	if err != errOutOfGas {
+		t.Fatalf("expected overflow error, got %v", err)
 	}
 }
 
