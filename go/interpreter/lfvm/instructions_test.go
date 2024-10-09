@@ -1165,12 +1165,14 @@ func TestGenericCreate_ReportsErrors(t *testing.T) {
 			offset:        *one,
 			size:          *uint256.NewInt(31),
 			revision:      tosca.R12_Shanghai,
+			kind:          tosca.Create,
 			expectedError: errOutOfGas,
 		},
 		"gas not checked for max code size before shanghai": {
 			offset:        *one,
 			size:          *uint256.NewInt(31),
 			revision:      tosca.R11_Paris,
+			kind:          tosca.Create,
 			expectedError: nil,
 		},
 		"not enough gas for create2 init code hashing": {
