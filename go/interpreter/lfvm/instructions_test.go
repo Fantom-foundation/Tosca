@@ -1630,10 +1630,12 @@ func TestInstructions_OpExtCodeCopy_CallsContextAndCopiesCodeSlice(t *testing.T)
 	ctxt.context = runContext
 	ctxt.gas = 1 << 32
 
-	ctxt.stack.push(uint256.NewInt(size))   // length
-	ctxt.stack.push(uint256.NewInt(offset)) // codeOffset
-	ctxt.stack.push(uint256.NewInt(0))      // memOffset
-	ctxt.stack.push(new(uint256.Int).SetBytes(address[:]))
+	ctxt.stack = fillStack(
+		*new(uint256.Int).SetBytes(address[:]),
+		*uint256.NewInt(0),      // memOffset
+		*uint256.NewInt(offset), // codeOffset
+		*uint256.NewInt(size),   // length
+	)
 
 	err := opExtCodeCopy(&ctxt)
 	if err != nil {
