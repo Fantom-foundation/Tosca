@@ -412,6 +412,23 @@ func TestConvert_SI_WhenDisabledNoSuperInstructionsAreUsed(t *testing.T) {
 	}
 }
 
+func TestConverter_SI_FallsBackToLFVMInstructionsWhenNoSuperInstructionIsFit(t *testing.T) {
+
+	config := ConversionConfig{
+		WithSuperInstructions: true,
+	}
+	code := []byte{byte(PUSH2), 0x12, 0x34, byte(ADD), byte(PUSH1), 0x56, byte(SUB)}
+	convertedCode := convert(code, config)
+	if len(convertedCode) != 4 {
+		t.Fatalf("Expected 4 instructions, got %d", len(convertedCode))
+	}
+	for _, inst := range convertedCode {
+		if inst.opcode.isSuperInstruction() {
+			t.Errorf("Super instruction %v used", inst.opcode)
+		}
+	}
+}
+
 func benchmarkConvertCode(b *testing.B, code []byte, config ConversionConfig) {
 	converter, err := NewConverter(config)
 	if err != nil {
