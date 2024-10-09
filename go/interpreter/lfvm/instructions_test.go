@@ -1997,16 +1997,17 @@ func TestInstructions_Sha3_WritesCorrectHashInStack(t *testing.T) {
 	}
 }
 
-func TestOpExtCodeHash_WritesCorrectHashInStack(t *testing.T) {
+func TestOpExtCodeHash_WritesHashInStack(t *testing.T) {
 
 	hash := tosca.Hash{0x1, 0x2, 0x3}
+	address := tosca.Address{0x1}
 
 	ctxt := getEmptyContext()
-	ctxt.stack = fillStack(*uint256.NewInt(1))
+	ctxt.stack = fillStack(*new(uint256.Int).SetBytes20(address[:]))
 
 	runContext := tosca.NewMockRunContext(gomock.NewController(t))
-	runContext.EXPECT().AccountExists(gomock.Any()).Return(true)
-	runContext.EXPECT().GetCodeHash(gomock.Any()).Return(hash)
+	runContext.EXPECT().AccountExists(address).Return(true)
+	runContext.EXPECT().GetCodeHash(address).Return(hash)
 	ctxt.context = runContext
 
 	err := opExtcodehash(&ctxt)
