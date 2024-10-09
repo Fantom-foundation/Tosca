@@ -1022,11 +1022,7 @@ func genericCall(c *context, kind tosca.CallKind) error {
 	if provided_gas.IsUint64() && (nestedCallGas >= tosca.Gas(provided_gas.Uint64())) {
 		nestedCallGas = tosca.Gas(provided_gas.Uint64())
 	}
-	if err := c.useGas(nestedCallGas); err != nil {
-		// this usage can never fail because the endowment is at most
-		// 63/64 of the current gas level.
-		return err
-	}
+	c.gas -= nestedCallGas
 
 	// first use static and dynamic gas cost and then resize the memory
 	// when out of gas is happening, then mem should not be resized
