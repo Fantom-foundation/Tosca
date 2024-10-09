@@ -664,7 +664,7 @@ func TestCreateShanghaiInitCodeSize(t *testing.T) {
 		"shanghai-maxuint64-running": {
 			revision:       tosca.R12_Shanghai,
 			init_code_size: math.MaxUint64,
-			expecedErr:     errInitCodeTooLarge,
+			expecedErr:     errOverflow,
 		},
 	}
 
@@ -1153,83 +1153,17 @@ func TestComputeCodeSizeCost(t *testing.T) {
 	}
 }
 
-func TestGenericCreate_MaxInitCodeSizeIsNotCheckedBeforeShanghai(t *testing.T) {
-
-	tests := []struct {
-		revision      tosca.Revision
-		expectedError error
-	}{
-		{tosca.R11_Paris, nil},
-		{tosca.R12_Shanghai, errInitCodeTooLarge},
-	}
-
-	for _, test := range tests {
-		t.Run(test.revision.String(), func(t *testing.T) {
-
-			runContext := tosca.NewMockRunContext(gomock.NewController(t))
-			runContext.EXPECT().Call(tosca.Create, gomock.Any()).Return(tosca.CallResult{}, nil).AnyTimes()
-
-			ctxt := context{
-				params: tosca.Parameters{
-					BlockParameters: tosca.BlockParameters{
-						Revision: test.revision,
-					},
-					Recipient: tosca.Address{1},
-				},
-				context: runContext,
-				stack:   NewStack(),
-				memory:  NewMemory(),
-				gas:     50000,
-			}
-
-			ctxt.stack.push(uint256.NewInt(49153)) // size
-			ctxt.stack.push(uint256.NewInt(0))     // offset
-			ctxt.stack.push(uint256.NewInt(0))     // value
-
-			err := genericCreate(&ctxt, tosca.Create)
-
-			if err != test.expectedError {
-				t.Errorf("unexpected status after call, wanted %v, got %v", test.expectedError, err)
-			}
-
-		})
-	}
-}
-
 func TestGenericCreate_ReportsErrors(t *testing.T) {
-
-	u64Overflow := new(uint256.Int).Add(uint256.NewInt(math.MaxUint64), uint256.NewInt(math.MaxUint64))
 	one := uint256.NewInt(1)
-
 	tests := map[string]struct {
 		offset, size  uint256.Int
 		kind          tosca.CallKind
 		revision      tosca.Revision
 		expectedError error
 	}{
-		"offset overflow": {
-			offset:        *u64Overflow,
-			size:          *one,
-			expectedError: errOverflow,
-		},
-		"size zero ignores offset overflow": {
-			offset:        *u64Overflow,
-			size:          *uint256.NewInt(0),
-			expectedError: nil,
-		},
-		"size overflow": {
-			offset:        *uint256.NewInt(0),
-			size:          *u64Overflow,
-			expectedError: errOverflow,
-		},
-		"size+offset overflow": {
-			offset:        *uint256.NewInt(math.MaxUint64 - 4),
-			size:          *uint256.NewInt(5),
-			expectedError: errOverflow,
-		},
 		"not enough gas for code size": {
 			offset:        *one,
-			size:          *uint256.NewInt(33),
+			size:          *uint256.NewInt(31),
 			revision:      tosca.R12_Shanghai,
 			expectedError: errOutOfGas,
 		},

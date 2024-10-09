@@ -821,11 +821,6 @@ func genericCreate(c *context, kind tosca.CallKind) error {
 		}
 	}
 
-	input, err := c.memory.getSlice(offset.Uint64(), sizeU64, c)
-	if err != nil {
-		return err
-	}
-
 	if !value.IsZero() {
 		balance := c.context.GetBalance(c.params.Recipient)
 		balanceU256 := new(uint256.Int).SetBytes(balance[:])
