@@ -45,7 +45,7 @@ func (m *Memory) getExpansionCostsAndSize(size uint64) (tosca.Gas, uint64, error
 	)
 
 	if m.length() >= size {
-		return 0, size, nil
+		return 0, m.length(), nil
 	}
 
 	words := tosca.SizeInWords(size)
@@ -76,7 +76,7 @@ func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 		return errOverflow
 	}
 	if m.length() < needed {
-		fee, expansionSize, err := m.getExpansionCostsAndSize(needed)
+		fee, expandedSize, err := m.getExpansionCostsAndSize(needed)
 		if err != nil {
 			return err
 		}
@@ -84,9 +84,9 @@ func (m *Memory) expandMemory(offset, size uint64, c *context) error {
 			return err
 		}
 
-		size := m.length()
+		currentSize := m.length()
 		m.currentMemoryCost += fee
-		m.store = append(m.store, make([]byte, expansionSize-size)...)
+		m.store = append(m.store, make([]byte, expandedSize-currentSize)...)
 	}
 
 	return nil
