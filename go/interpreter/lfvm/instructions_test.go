@@ -1615,6 +1615,59 @@ func TestInstructions_ComparisonAndShiftOperations(t *testing.T) {
 	}
 }
 
+func TestInstructions_OpExtCodeCopy_CallsContextAndCopiesCodeSlice(t *testing.T) {
+
+	code := []byte{0x1, 0x2, 0x3, 0x4}
+	address := tosca.Address{}
+	_, _ = rand.Read(address[:])
+	var offset uint64 = 1
+	var size uint64 = 2
+
+	runContext := tosca.NewMockRunContext(gomock.NewController(t))
+	runContext.EXPECT().GetCode(address).Return(code)
+
+	ctxt := getEmptyContext()
+	ctxt.context = runContext
+	ctxt.gas = 1 << 32
+
+	ctxt.stack.push(uint256.NewInt(size))   // length
+	ctxt.stack.push(uint256.NewInt(offset)) // codeOffset
+	ctxt.stack.push(uint256.NewInt(0))      // memOffset
+	ctxt.stack.push(new(uint256.Int).SetBytes(address[:]))
+
+	err := opExtCodeCopy(&ctxt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if want, got := code[offset:offset+size], ctxt.memory.store[0:size]; !bytes.Equal(want, got) {
+		t.Errorf("unexpected memory, wanted %v, got %v", want, got)
+	}
+}
+
+func TestInstructions_opExtcodesize_CallsContextAndWritesResultInStack(t *testing.T) {
+
+	address := tosca.Address{}
+	_, _ = rand.Read(address[:])
+	runContext := tosca.NewMockRunContext(gomock.NewController(t))
+	runContext.EXPECT().GetCodeSize(address).Return(1234)
+
+	ctxt := getEmptyContext()
+	ctxt.context = runContext
+	ctxt.gas = 1 << 32
+
+	ctxt.stack.push(new(uint256.Int).SetBytes(address[:]))
+
+	err := opExtcodesize(&ctxt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if want, got := uint256.NewInt(1234), ctxt.stack.pop(); want.Cmp(got) != 0 {
+		t.Errorf("unexpected result, wanted %v, got %v", want, got)
+	}
+}
+
 func TestOpBlockhash(t *testing.T) {
 
 	hash := tosca.Hash{}
