@@ -1997,25 +1997,42 @@ func TestInstructions_Sha3_WritesCorrectHashInStack(t *testing.T) {
 	}
 }
 
-func TestOpExtCodeHash_WritesHashInStack(t *testing.T) {
+func TestOpExtCodeHash_WritesHashInStackIf(t *testing.T) {
+
+	tests := map[string]struct {
+		accountExists bool
+	}{
+		"account exists":         {accountExists: true},
+		"account does not exist": {accountExists: false},
+	}
 
 	hash := tosca.Hash{0x1, 0x2, 0x3}
 	address := tosca.Address{0x1}
 
-	ctxt := getEmptyContext()
-	ctxt.stack = fillStack(*new(uint256.Int).SetBytes20(address[:]))
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctxt := getEmptyContext()
+			ctxt.stack = fillStack(*new(uint256.Int).SetBytes20(address[:]))
 
-	runContext := tosca.NewMockRunContext(gomock.NewController(t))
-	runContext.EXPECT().AccountExists(address).Return(true)
-	runContext.EXPECT().GetCodeHash(address).Return(hash)
-	ctxt.context = runContext
+			runContext := tosca.NewMockRunContext(gomock.NewController(t))
+			runContext.EXPECT().AccountExists(address).Return(test.accountExists)
+			if test.accountExists {
+				runContext.EXPECT().GetCodeHash(address).Return(hash)
+			}
+			ctxt.context = runContext
 
-	err := opExtcodehash(&ctxt)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if want, got := hash[:], ctxt.stack.pop().Bytes(); !bytes.Equal(want, got) {
-		t.Errorf("unexpected result, wanted %v, got %v", want, got)
+			err := opExtcodehash(&ctxt)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			want := hash[:]
+			if !test.accountExists {
+				want = []byte{}
+			}
+			if got := ctxt.stack.pop().Bytes(); !bytes.Equal(want, got) {
+				t.Errorf("unexpected result, wanted %v, got %v", want, got)
+			}
+		})
 	}
 }
 
