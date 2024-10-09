@@ -29,6 +29,7 @@ custom-evmc = ["dep:evmc-vm-tosca-refactor"]
 jumptable = []
 hash-cache = ["dep:lru"]
 jump-cache = ["dep:lru", "dep:nohash-hasher"]
+thread-local-cache = []
 
 [dependencies]
 bnum = "0.12.0"

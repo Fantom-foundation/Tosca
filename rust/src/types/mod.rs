@@ -15,6 +15,11 @@ mod tx_context;
 pub use amount::u256;
 #[cfg(any(feature = "hash-cache", feature = "jump-cache"))]
 pub use cache::Cache;
+#[cfg(all(
+    feature = "thread-local-cache",
+    any(feature = "hash-cache", feature = "jump-cache")
+))]
+pub use cache::LocalKeyExt;
 pub use code_reader::{CodeReader, GetOpcodeError};
 pub use execution_context::*;
 pub use jump_analysis::JumpAnalysis;

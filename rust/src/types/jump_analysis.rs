@@ -1,5 +1,7 @@
 use std::ops::Deref;
-#[cfg(feature = "jump-cache")]
+#[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+use std::rc::Rc;
+#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
 use std::sync::Arc;
 
 #[cfg(feature = "jump-cache")]
@@ -7,6 +9,8 @@ use nohash_hasher::BuildNoHashHasher;
 
 #[cfg(feature = "jump-cache")]
 use crate::types::Cache;
+#[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+use crate::types::LocalKeyExt;
 use crate::types::{code_byte_type, u256, CodeByteType};
 
 /// This type represents a hash value in form of a u256.
@@ -23,13 +27,12 @@ impl std::hash::Hash for u256Hash {
     }
 }
 
-#[cfg(feature = "jump-cache")]
-const CACHE_SIZE: usize = 1 << 16; // value taken from evmzero
-
 #[cfg(not(feature = "jump-cache"))]
 type AnalysisContainer<T> = Box<T>;
-#[cfg(feature = "jump-cache")]
+#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
 type AnalysisContainer<T> = Arc<T>;
+#[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+type AnalysisContainer<T> = Rc<T>;
 
 #[derive(Debug, Clone)]
 pub struct JumpAnalysis(AnalysisContainer<[CodeByteType]>);
@@ -64,10 +67,18 @@ impl JumpAnalysis {
 }
 
 #[cfg(feature = "jump-cache")]
-type JumpCache = Cache<CACHE_SIZE, u256Hash, JumpAnalysis, BuildNoHashHasher<u64>>;
+const CACHE_SIZE: usize = 1 << 16; // value taken from evmzero
 
 #[cfg(feature = "jump-cache")]
+type JumpCache = Cache<CACHE_SIZE, u256Hash, JumpAnalysis, BuildNoHashHasher<u64>>;
+
+#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
 static JUMP_CACHE: JumpCache = JumpCache::new();
+
+#[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+thread_local! {
+    static JUMP_CACHE: JumpCache = JumpCache::new();
+}
 
 fn compute_code_byte_types(code: &[u8]) -> Vec<CodeByteType> {
     let mut code_byte_types = vec![CodeByteType::DataOrInvalid; code.len()];
