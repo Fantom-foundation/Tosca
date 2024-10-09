@@ -35,6 +35,7 @@ no-bounds-checks = []
 jumptable = []
 hash-cache = ["dep:lru"]
 jump-cache = ["dep:lru", "dep:nohash-hasher"]
+thread-local-cache = []
 
 [dependencies]
 bnum = "0.12.0"

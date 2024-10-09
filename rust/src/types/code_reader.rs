@@ -1,12 +1,13 @@
+#[cfg(feature = "jump-cache")]
+use std::num::NonZeroUsize;
+#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
+use std::sync::{Arc, LazyLock, Mutex};
+#[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+use std::{cell::RefCell, rc::Rc};
 use std::{
     cmp::min,
     mem::{self},
     ops::Deref,
-};
-#[cfg(feature = "jump-cache")]
-use std::{
-    num::NonZeroUsize,
-    sync::{Arc, LazyLock, Mutex},
 };
 
 #[cfg(feature = "jump-cache")]
@@ -20,7 +21,7 @@ use crate::types::{code_byte_type, u256, CodeByteType, FailStatus, Opcode};
 const CACHE_SIZE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1 << 16) }; // taken from evmzero
 
 // Mutex<LruCache<...>> is faster that quick_cache::Cache<...>
-#[cfg(feature = "jump-cache")]
+#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
 static JUMP_CACHE: LazyLock<Mutex<LruCache<u256, Arc<[CodeByteType]>, BuildNoHashHasher<u64>>>> =
     LazyLock::new(|| {
         Mutex::new(LruCache::with_hasher(
@@ -28,6 +29,12 @@ static JUMP_CACHE: LazyLock<Mutex<LruCache<u256, Arc<[CodeByteType]>, BuildNoHas
             BuildNoHashHasher::default(),
         ))
     });
+
+#[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+thread_local! {
+    static JUMP_CACHE: RefCell<LruCache<u256, Rc<[CodeByteType]>, BuildNoHashHasher<u64>>> =
+        RefCell::new(LruCache::with_hasher(CACHE_SIZE, BuildNoHashHasher::default()));
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct PushLen(usize);
@@ -46,10 +53,12 @@ impl PushLen {
 #[derive(Debug)]
 pub struct CodeReader<'a> {
     code: &'a [u8],
-    #[cfg(feature = "jump-cache")]
-    code_byte_types: Arc<[CodeByteType]>,
     #[cfg(not(feature = "jump-cache"))]
     code_byte_types: Box<[CodeByteType]>,
+    #[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
+    code_byte_types: Arc<[CodeByteType]>,
+    #[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+    code_byte_types: Rc<[CodeByteType]>,
     pc: usize,
 }
 
@@ -77,15 +86,37 @@ impl<'a> CodeReader<'a> {
                 // NOTE: The HashMap only stores the hash of the code, not the code itself (because
                 // this would require an allocation). This means a hash conflict
                 // will result in a wrong jump analysis.
-                code_byte_type = JUMP_CACHE
-                    .lock()
-                    .unwrap()
-                    .get_or_insert(code_hash.unwrap(), || {
-                        Arc::from(compute_code_byte_types(code).as_slice())
-                    })
-                    .clone();
+
+                #[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
+                {
+                    code_byte_type = JUMP_CACHE
+                        .lock()
+                        .unwrap()
+                        .get_or_insert(code_hash.unwrap(), || {
+                            Arc::from(compute_code_byte_types(code).as_slice())
+                        })
+                        .clone();
+                }
+
+                #[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+                {
+                    code_byte_type = JUMP_CACHE.with_borrow_mut(|cache| {
+                        cache
+                            .get_or_insert(code_hash.unwrap(), || {
+                                Rc::from(compute_code_byte_types(code).as_slice())
+                            })
+                            .clone()
+                    });
+                }
             } else {
-                code_byte_type = Arc::from(compute_code_byte_types(code).as_slice());
+                #[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
+                {
+                    code_byte_type = Arc::from(compute_code_byte_types(code).as_slice());
+                }
+                #[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+                {
+                    code_byte_type = Rc::from(compute_code_byte_types(code).as_slice());
+                }
             }
         }
         #[cfg(not(feature = "jump-cache"))]
