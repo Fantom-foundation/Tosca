@@ -281,64 +281,6 @@ func TestCreateChecksBalance(t *testing.T) {
 	}
 }
 
-func TestLogOpSizeOverflow(t *testing.T) {
-
-	originalBugValue := uint256.MustFromHex("0x3030303030303030")
-	maxUint64 := uint256.NewInt(math.MaxUint64)
-	zero := uint256.NewInt(0)
-
-	tests := map[string]struct {
-		logn          int
-		size          *uint256.Int
-		logCalls      int
-		expectedError error
-	}{
-		"log0_zero":        {logn: 0, size: zero, logCalls: 1, expectedError: nil},
-		"log1_zero":        {logn: 1, size: zero, logCalls: 1, expectedError: nil},
-		"log2_zero":        {logn: 2, size: zero, logCalls: 1, expectedError: nil},
-		"log3_zero":        {logn: 3, size: zero, logCalls: 1, expectedError: nil},
-		"log4_zero":        {logn: 4, size: zero, logCalls: 1, expectedError: nil},
-		"log0_max":         {logn: 0, size: maxUint64, logCalls: 0, expectedError: errOverflow},
-		"log1_max":         {logn: 1, size: maxUint64, logCalls: 0, expectedError: errOverflow},
-		"log2_max":         {logn: 2, size: maxUint64, logCalls: 0, expectedError: errOverflow},
-		"log3_max":         {logn: 3, size: maxUint64, logCalls: 0, expectedError: errOverflow},
-		"log4_max":         {logn: 4, size: maxUint64, logCalls: 0, expectedError: errOverflow},
-		"log0_much_larger": {logn: 0, size: originalBugValue, logCalls: 0, expectedError: errMaxMemoryExpansionSize},
-		"log1_much_larger": {logn: 1, size: originalBugValue, logCalls: 0, expectedError: errMaxMemoryExpansionSize},
-		"log2_much_larger": {logn: 2, size: originalBugValue, logCalls: 0, expectedError: errMaxMemoryExpansionSize},
-		"log3_much_larger": {logn: 3, size: originalBugValue, logCalls: 0, expectedError: errMaxMemoryExpansionSize},
-		"log4_much_larger": {logn: 4, size: originalBugValue, logCalls: 0, expectedError: errMaxMemoryExpansionSize},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-
-			ctrl := gomock.NewController(t)
-			runContext := tosca.NewMockRunContext(ctrl)
-			runContext.EXPECT().EmitLog(gomock.Any()).Times(test.logCalls)
-
-			stack := NewStack()
-			for i := 0; i < test.logn; i++ {
-				stack.push(uint256.NewInt(0))
-			}
-			stack.push(test.size)
-			stack.push(uint256.NewInt(0))
-
-			ctxt := context{
-				gas:     392,
-				context: runContext,
-				stack:   stack,
-				memory:  NewMemory(),
-			}
-
-			err := opLog(&ctxt, test.logn)
-			if got, want := err, test.expectedError; got != want {
-				t.Fatalf("unexpected result, wanted %v, got %v", want, got)
-			}
-		})
-	}
-}
-
 func TestBlobHash(t *testing.T) {
 
 	hash := tosca.Hash{1}
@@ -1994,6 +1936,69 @@ func TestInstructions_Sha3_WritesCorrectHashInStack(t *testing.T) {
 				t.Errorf("unexpected hash wanted %x, got %x", want, got.Bytes())
 			}
 		})
+	}
+}
+
+func TestInstructions_opLog(t *testing.T) {
+
+	tests := map[string]struct {
+		offset, size  *uint256.Int
+		expectedError error
+		reduceGas     uint64
+	}{
+		"returns error if memory expansion fails": {
+			offset: uint256.NewInt(math.MaxUint64), size: uint256.NewInt(1),
+			expectedError: errOverflow,
+		},
+		"returns error if word gas cost is more than available gas": {
+			offset: uint256.NewInt(10), size: uint256.NewInt(128),
+			reduceGas:     1,
+			expectedError: errOutOfGas,
+		},
+		"calls emitLog with recipient": {
+			offset: uint256.NewInt(10), size: uint256.NewInt(128),
+		},
+	}
+	for name, test := range tests {
+		for n := 0; n < 4; n++ {
+			t.Run(fmt.Sprintf("%v/LOG%d", name, n), func(t *testing.T) {
+
+				runContext := tosca.NewMockRunContext(gomock.NewController(t))
+				ctxt := getEmptyContext()
+				for i := 0; i < n; i++ {
+					ctxt.stack.push(uint256.NewInt(0))
+				}
+				ctxt.stack.push(test.size)
+				ctxt.stack.push(test.offset)
+				ctxt.memory.store = make([]byte, 10)
+				ctxt.context = runContext
+				ctxt.gas = tosca.Gas(test.size.Uint64()*8 - test.reduceGas)
+				ctxt.params.Recipient = tosca.Address{1}
+				// ignore the expansion error to focus on log operation
+				// this expansion is done to remove expansion costs (if any) and
+				// test word count cost only.
+				_ = ctxt.memory.expandMemory(test.offset.Uint64(), test.size.Uint64(), &context{gas: 1 << 32})
+
+				if test.expectedError == nil {
+					runContext.EXPECT().EmitLog(gomock.Any()).Do(func(log tosca.Log) {
+						if want, got := ctxt.params.Recipient, log.Address; want != got {
+							t.Errorf("unexpected log address, wanted %v, got %v", want, got)
+						}
+						if want, got := n, len(log.Topics); want != got {
+							t.Errorf("unexpected number of topics, wanted %v, got %v", want, got)
+						}
+						if want, got := test.size.Uint64(), uint64(len(log.Data)); want != got {
+							t.Errorf("unexpected data length, wanted %v, got %v", want, got)
+						}
+					})
+				}
+
+				err := opLog(&ctxt, n)
+				if want, got := test.expectedError, err; want != got {
+					t.Fatalf("unexpected error, wanted %v, got %v", want, got)
+				}
+			})
+		}
 	}
 }
 
