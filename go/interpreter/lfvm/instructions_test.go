@@ -339,6 +339,26 @@ func TestLogOpSizeOverflow(t *testing.T) {
 	}
 }
 
+func TestLogOp_ReportsOutOfGas(t *testing.T) {
+
+	ctrl := gomock.NewController(t)
+	runContext := tosca.NewMockRunContext(ctrl)
+	runContext.EXPECT().EmitLog(gomock.Any()).Times(0)
+	size := uint64(1)
+
+	ctxt := context{
+		gas:     tosca.Gas(size*8 - 1),
+		context: runContext,
+		stack:   fillStack(*uint256.NewInt(0), *uint256.NewInt(size)),
+		memory:  NewMemory(),
+	}
+
+	err := opLog(&ctxt, 0)
+	if err != errOutOfGas {
+		t.Fatalf("unexpected result, wanted %v, got %v", errOutOfGas, err)
+	}
+}
+
 func TestBlobHash(t *testing.T) {
 
 	hash := tosca.Hash{1}
