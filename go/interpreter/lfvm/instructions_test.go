@@ -13,6 +13,7 @@ package lfvm
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math"
 	"slices"
@@ -2082,8 +2083,12 @@ func TestInstructions_MCopy_ReturnsErrorOnFailure(t *testing.T) {
 				*uint256.NewInt(test.srcOffset),
 				*uint256.NewInt(test.size))
 
-			ctxt.memory.expandMemory(test.destOffset, test.size, &context{gas: 1 << 32})
-			ctxt.memory.expandMemory(test.srcOffset, test.size, &context{gas: 1 << 32})
+			if err := errors.Join(
+				ctxt.memory.expandMemory(test.destOffset, test.size, &context{gas: 1 << 32}),
+				ctxt.memory.expandMemory(test.srcOffset, test.size, &context{gas: 1 << 32}),
+			); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 			ctxt.gas = tosca.Gas(3*tosca.SizeInWords(test.size) - test.gasRemoved)
 
 			err := opMcopy(&ctxt)
@@ -2103,14 +2108,17 @@ func TestInstructions_MCopy_CopiesOverlappingRanges(t *testing.T) {
 		*uint256.NewInt(0),
 		*uint256.NewInt(10))
 
-	ctxt.memory.set(
+	err := ctxt.memory.set(
 		uint256.NewInt(0),
 		[]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 		&context{gas: 1 << 32},
 	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	ctxt.gas = tosca.Gas(3 * tosca.SizeInWords(10))
 
-	err := opMcopy(&ctxt)
+	err = opMcopy(&ctxt)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
