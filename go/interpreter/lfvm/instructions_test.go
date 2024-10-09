@@ -1961,7 +1961,8 @@ func TestInstructions_MCopy_ReturnsErrorOnFailure(t *testing.T) {
 				*uint256.NewInt(test.size))
 
 			// ignore memory setup errors, to focus on the mcopy operation
-			// if cached here, too large size error cannot be tested
+			// expansion is done to accumulate memory cost and focus on the
+			// word count gas cost.
 			_ = ctxt.memory.expandMemory(test.destOffset, test.size, &context{gas: 1 << 32})
 			_ = ctxt.memory.expandMemory(test.srcOffset, test.size, &context{gas: 1 << 32})
 			ctxt.gas = tosca.Gas(3*tosca.SizeInWords(test.size) - test.gasRemoved)
