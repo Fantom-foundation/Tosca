@@ -105,6 +105,49 @@ func TestGetExpansionCostsAndSize(t *testing.T) {
 	}
 }
 
+func TestMemory_ExpansionsAndCostsAreIncremental(t *testing.T) {
+	for a := uint64(0); a < 128; a += 32 {
+		for b := uint64(0); b < 128; b += 32 {
+
+			m := NewMemory()
+
+			// Compute costs from 0 to target size.
+			costA, sizeA, errA := m.getExpansionCostsAndSize(a)
+			costB, sizeB, errB := m.getExpansionCostsAndSize(b)
+			if errA != nil || errB != nil {
+				t.Fatalf("unexpected error: %v, %v", errA, errB)
+			}
+
+			// Compute costs for increasing from size a to size b.
+			ctxt := &context{gas: math.MaxInt}
+			if err := m.expandMemory(0, a, ctxt); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			delta, sizeAB, err := m.getExpansionCostsAndSize(b)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			max := sizeA
+			if sizeB > sizeA {
+				max = sizeB
+			}
+			if sizeAB != max {
+				t.Fatalf("size must increase monotonically, got: %d, %d, %d", sizeA, sizeB, sizeAB)
+			}
+
+			wantDelta := tosca.Gas(0)
+			if a <= b {
+				wantDelta = costB - costA
+			}
+
+			if wantDelta != delta {
+				t.Fatalf("unexpected delta for expansions to %d and %d: want: %d, got: %d", a, b, wantDelta, delta)
+			}
+		}
+	}
+}
+
 func TestMemory_expandMemory_ErrorCases(t *testing.T) {
 
 	tests := map[string]struct {
