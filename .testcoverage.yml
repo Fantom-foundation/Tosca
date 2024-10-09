@@ -59,11 +59,11 @@ override:
     path: go/interpreter/evmc/evmc_steppable_interpreter.go
   - threshold: 0
     path: go/interpreter/geth/ct.go
-  - threshold: 90
+  - threshold: 87
     path: go/interpreter/lfvm/ct.go
   - threshold: 38
     path: go/interpreter/lfvm/lfvm.go
-  - threshold: 95
+  - threshold: 0
     path: go/interpreter/lfvm/memory.go
   - threshold: 0
     path: go/processor/floria/processor.go

@@ -12,6 +12,7 @@ package lfvm
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/Fantom-foundation/Tosca/go/ct"
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -19,6 +20,7 @@ import (
 	"github.com/Fantom-foundation/Tosca/go/ct/utils"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/holiman/uint256"
 )
 
 func NewConformanceTestingTarget() ct.Evm {
@@ -58,7 +60,10 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	pcMap := a.getPcMap(state.Code)
 
-	memory := convertCtMemoryToLfvmMemory(state.Memory)
+	memory, err := convertCtMemoryToLfvmMemory(state.Memory)
+	if err != nil {
+		return nil, err
+	}
 
 	// Set up execution context.
 	var ctxt = &context{
@@ -84,7 +89,6 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	}
 
 	// Update the resulting state.
-	var err error
 	state.Status, err = convertLfvmStatusToCtStatus(status)
 	if err != nil {
 		return nil, err
@@ -198,14 +202,14 @@ func convertLfvmStackToCtStack(stack *stack, result *st.Stack) *st.Stack {
 	return result
 }
 
-func convertCtMemoryToLfvmMemory(memory *st.Memory) *Memory {
+func convertCtMemoryToLfvmMemory(memory *st.Memory) (*Memory, error) {
 	data := memory.Read(0, uint64(memory.Size()))
-
 	result := NewMemory()
-	size := uint64(len(data))
-	_ = result.expandMemoryWithoutCharging(size)
-	copy(result.store, data)
-	return result
+	err := result.set(new(uint256.Int), data, &context{gas: math.MaxInt64})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func convertLfvmMemoryToCtMemory(memory *Memory) *st.Memory {
