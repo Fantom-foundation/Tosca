@@ -1929,23 +1929,23 @@ func TestInstructions_opLog(t *testing.T) {
 func TestInstructions_MCopy_ReturnsErrorOnFailure(t *testing.T) {
 
 	tests := map[string]struct {
-		srcOffset, destOffset, size uint64
-		expectedError               error
-		gasRemoved                  uint64
+		destOffset, offset, size uint64
+		expectedError            error
+		gasRemoved               uint64
 	}{
 		"does nothing if size is zero": {
-			srcOffset: 128, destOffset: 1024, size: 0,
-		},
-		"returns error when failed write memory expansion": {
-			srcOffset: math.MaxUint64, destOffset: 0, size: 1,
-			expectedError: errOverflow,
+			destOffset: 1024, offset: 125, size: 0,
 		},
 		"returns error when failed read memory expansion": {
-			srcOffset: 0, destOffset: math.MaxUint64, size: 1,
+			destOffset: 0, offset: math.MaxUint64, size: 1,
+			expectedError: errOverflow,
+		},
+		"returns error when failed write memory expansion": {
+			destOffset: math.MaxUint64, offset: 0, size: 1,
 			expectedError: errOverflow,
 		},
 		"returns error if gas is not enough for size": {
-			srcOffset: 0, destOffset: 0, size: 128,
+			destOffset: 0, offset: 0, size: 128,
 			expectedError: errOutOfGas,
 			gasRemoved:    1,
 		},
@@ -1957,14 +1957,15 @@ func TestInstructions_MCopy_ReturnsErrorOnFailure(t *testing.T) {
 			ctxt.params.Revision = tosca.R13_Cancun
 			ctxt.stack = fillStack(
 				*uint256.NewInt(test.destOffset),
-				*uint256.NewInt(test.srcOffset),
-				*uint256.NewInt(test.size))
+				*uint256.NewInt(test.offset),
+				*uint256.NewInt(test.size),
+			)
 
 			// ignore memory setup errors, to focus on the mcopy operation
 			// expansion is done to accumulate memory cost and focus on the
 			// word count gas cost.
 			_ = ctxt.memory.expandMemory(test.destOffset, test.size, &context{gas: 1 << 32})
-			_ = ctxt.memory.expandMemory(test.srcOffset, test.size, &context{gas: 1 << 32})
+			_ = ctxt.memory.expandMemory(test.offset, test.size, &context{gas: 1 << 32})
 			ctxt.gas = tosca.Gas(3*tosca.SizeInWords(test.size) - test.gasRemoved)
 
 			err := opMcopy(&ctxt)
