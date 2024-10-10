@@ -1997,7 +1997,7 @@ func TestInstructions_Sha3_WritesCorrectHashInStack(t *testing.T) {
 	}
 }
 
-func TestOpExtCodeHash_WritesHashInStackIf(t *testing.T) {
+func TestOpExtCodeHash_WritesHashOnStackIfAccountExists(t *testing.T) {
 
 	tests := map[string]struct {
 		accountExists bool
