@@ -926,10 +926,11 @@ func TestGetAccessCost_RespondsWithProperGasPrice(t *testing.T) {
 }
 
 func TestCall_ChargesNothingForColdAccessBeforeBerlin(t *testing.T) {
-
+	zero := *uint256.NewInt(0)
+	one := *uint256.NewInt(1)
 	ctrl := gomock.NewController(t)
 	runContext := tosca.NewMockRunContext(ctrl)
-	runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{}).Return(tosca.CallResult{}, nil)
+	runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{Recipient: one.Bytes20()}).Return(tosca.CallResult{}, nil)
 	ctxt := context{
 		params: tosca.Parameters{
 			BlockParameters: tosca.BlockParameters{
@@ -942,7 +943,7 @@ func TestCall_ChargesNothingForColdAccessBeforeBerlin(t *testing.T) {
 		gas:     0,
 	}
 
-	ctxt.stack.stackPointer = 8
+	ctxt.stack = fillStack(zero, one, zero, zero, zero, zero, zero, zero)
 
 	err := genericCall(&ctxt, tosca.Call)
 	if err != nil {
@@ -954,13 +955,14 @@ func TestCall_ChargesNothingForColdAccessBeforeBerlin(t *testing.T) {
 }
 
 func TestCall_ChargesForAccessAfterBerlin(t *testing.T) {
-
+	one := *uint256.NewInt(1)
+	zero := *uint256.NewInt(0)
 	for _, accessStatus := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
 
 		ctrl := gomock.NewController(t)
 		runContext := tosca.NewMockRunContext(ctrl)
-		runContext.EXPECT().AccessAccount(tosca.Address{}).Return(accessStatus)
-		runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{}).Return(tosca.CallResult{}, nil)
+		runContext.EXPECT().AccessAccount(one.Bytes20()).Return(accessStatus)
+		runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{Recipient: one.Bytes20()}).Return(tosca.CallResult{}, nil)
 		delta := tosca.Gas(1)
 		ctxt := context{
 			params: tosca.Parameters{
@@ -973,7 +975,7 @@ func TestCall_ChargesForAccessAfterBerlin(t *testing.T) {
 			context: runContext,
 			gas:     2600 + delta,
 		}
-		ctxt.stack.stackPointer = 8
+		ctxt.stack = fillStack(zero, one, zero, zero, zero, zero, zero, zero)
 
 		err := genericCall(&ctxt, tosca.Call)
 		if err != nil {
@@ -1638,12 +1640,15 @@ func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
 }
 
 func TestGenericCall_CallKindPropagatesStaticMode(t *testing.T) {
+	zero := *uint256.NewInt(0)
+	one := *uint256.NewInt(1)
 	runContext := tosca.NewMockRunContext(gomock.NewController(t))
-	runContext.EXPECT().Call(tosca.StaticCall, tosca.CallParameters{}).Return(tosca.CallResult{}, nil)
+	runContext.EXPECT().Call(tosca.StaticCall, tosca.CallParameters{Recipient: one.Bytes20()}).Return(tosca.CallResult{}, nil)
 	ctxt := getEmptyContext()
 	ctxt.context = runContext
 	ctxt.params.Static = true
-	ctxt.stack.stackPointer = 7
+	ctxt.stack = fillStack(zero, one, zero, zero, zero, zero, zero)
+
 	err := genericCall(&ctxt, tosca.Call)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -1651,12 +1656,14 @@ func TestGenericCall_CallKindPropagatesStaticMode(t *testing.T) {
 }
 
 func TestGeneralCall_ResultIsWrittenToStack(t *testing.T) {
+	zero := *uint256.NewInt(0)
+	one := *uint256.NewInt(1)
 	for _, success := range []bool{true, false} {
 		runContext := tosca.NewMockRunContext(gomock.NewController(t))
-		runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{}).Return(tosca.CallResult{Success: success}, nil)
+		runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{Recipient: one.Bytes20()}).Return(tosca.CallResult{Success: success}, nil)
 		ctxt := getEmptyContext()
 		ctxt.context = runContext
-		ctxt.stack.stackPointer = 7
+		ctxt.stack = fillStack(zero, one, zero, zero, zero, zero, zero)
 		_ = genericCall(&ctxt, tosca.Call)
 		want := uint256.NewInt(0)
 		if success {
