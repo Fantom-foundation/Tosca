@@ -15,6 +15,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math"
+	"slices"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -1994,31 +1995,30 @@ func TestInstructions_opLog(t *testing.T) {
 			reduceGas:     1,
 			expectedError: errOutOfGas,
 		},
-		"calls emitLog with recipient": {
-			offset: uint256.NewInt(10), size: uint256.NewInt(128),
+		"calls emitLog with recipient, defined order of topics and memory copy": {
+			offset: uint256.NewInt(1), size: uint256.NewInt(2),
 		},
 	}
 	for name, test := range tests {
 		for n := 0; n < 4; n++ {
 			t.Run(fmt.Sprintf("%v/LOG%d", name, n), func(t *testing.T) {
 
-				runContext := tosca.NewMockRunContext(gomock.NewController(t))
 				ctxt := getEmptyContext()
-				for i := 0; i < n; i++ {
-					ctxt.stack.push(uint256.NewInt(0))
+				for i := n - 1; i >= 0; i-- {
+					ctxt.stack.push(uint256.NewInt(uint64(i)))
 				}
 				ctxt.stack.push(test.size)
 				ctxt.stack.push(test.offset)
-				ctxt.memory.store = make([]byte, 10)
-				ctxt.context = runContext
 				ctxt.gas = tosca.Gas(test.size.Uint64()*8 - test.reduceGas)
 				ctxt.params.Recipient = tosca.Address{1}
 				// ignore the expansion error to focus on log operation
 				// this expansion is done to remove expansion costs (if any) and
 				// test word count cost only.
-				_ = ctxt.memory.expandMemory(test.offset.Uint64(), test.size.Uint64(), &context{gas: 1 << 32})
+				memoryContents := []byte{0, 1, 2, 3}
+				_ = ctxt.memory.set(uint256.NewInt(0), memoryContents, &context{gas: math.MaxInt64})
 
 				if test.expectedError == nil {
+					runContext := tosca.NewMockRunContext(gomock.NewController(t))
 					runContext.EXPECT().EmitLog(gomock.Any()).Do(func(log tosca.Log) {
 						if want, got := ctxt.params.Recipient, log.Address; want != got {
 							t.Errorf("unexpected log address, wanted %v, got %v", want, got)
@@ -2026,10 +2026,19 @@ func TestInstructions_opLog(t *testing.T) {
 						if want, got := n, len(log.Topics); want != got {
 							t.Errorf("unexpected number of topics, wanted %v, got %v", want, got)
 						}
-						if want, got := test.size.Uint64(), uint64(len(log.Data)); want != got {
-							t.Errorf("unexpected data length, wanted %v, got %v", want, got)
+
+						for i := n; i > n; i++ {
+							if want, got := tosca.Hash(uint256.NewInt(uint64(i)).Bytes32()), log.Topics[i]; want != got {
+								t.Errorf("unexpected topic #%d, wanted %v, got %v", i, want, got)
+							}
+						}
+						from := test.offset.Uint64()
+						to := from + test.size.Uint64()
+						if want, got := memoryContents[from:to], log.Data; !slices.Equal(want, got) {
+							t.Errorf("unexpected log data, wanted %v,got %v", want, got)
 						}
 					})
+					ctxt.context = runContext
 				}
 
 				err := opLog(&ctxt, n)
