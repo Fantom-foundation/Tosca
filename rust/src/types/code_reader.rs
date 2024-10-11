@@ -3,55 +3,13 @@ use std::{
     mem::{self},
     ops::Deref,
 };
-#[cfg(feature = "jump-cache")]
-use std::{
-    num::NonZeroUsize,
-    sync::{Arc, LazyLock, Mutex},
-};
 
-#[cfg(feature = "jump-cache")]
-use lru::LruCache;
-#[cfg(feature = "jump-cache")]
-use nohash_hasher::BuildNoHashHasher;
-
-use crate::types::{code_byte_type, u256, CodeByteType, FailStatus, Opcode};
-
-/// This type represents a hash value in form of a u256.
-/// Because it is already a hash value there is no need to hash it again when implementing Hash.
-#[cfg(feature = "jump-cache")]
-#[allow(non_camel_case_types)]
-#[derive(Debug, PartialEq, Eq)]
-struct u256Hash(u256);
-
-#[cfg(feature = "jump-cache")]
-impl std::hash::Hash for u256Hash {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        state.write_u64(self.0.into_u64_with_overflow().0);
-    }
-}
-
-#[cfg(feature = "jump-cache")]
-const CACHE_SIZE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1 << 16) }; // taken from evmzero
-
-#[cfg(feature = "jump-cache")]
-type JumpCache = LazyLock<Mutex<LruCache<u256Hash, Arc<[CodeByteType]>, BuildNoHashHasher<u64>>>>;
-
-// Mutex<LruCache<...>> is faster that quick_cache::Cache<...>
-#[cfg(feature = "jump-cache")]
-static JUMP_CACHE: JumpCache = LazyLock::new(|| {
-    Mutex::new(LruCache::with_hasher(
-        CACHE_SIZE,
-        BuildNoHashHasher::default(),
-    ))
-});
+use crate::types::{code_byte_type, u256, CodeByteType, FailStatus, JumpAnalysis, Opcode};
 
 #[derive(Debug)]
 pub struct CodeReader<'a> {
     code: &'a [u8],
-    #[cfg(feature = "jump-cache")]
-    code_byte_types: Arc<[CodeByteType]>,
-    #[cfg(not(feature = "jump-cache"))]
-    code_byte_types: Box<[CodeByteType]>,
+    code_byte_types: JumpAnalysis,
     pc: usize,
 }
 
@@ -72,24 +30,9 @@ pub enum GetOpcodeError {
 impl<'a> CodeReader<'a> {
     #[allow(unused_variables)]
     pub fn new(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
-        #[cfg(feature = "jump-cache")]
-        let code_byte_types = if code_hash.is_some_and(|h| h != u256::ZERO) {
-            JUMP_CACHE
-                .lock()
-                .unwrap()
-                .get_or_insert(u256Hash(code_hash.unwrap()), || {
-                    Arc::from(compute_code_byte_types(code).as_slice())
-                })
-                .clone()
-        } else {
-            Arc::from(compute_code_byte_types(code).as_slice())
-        };
-        #[cfg(not(feature = "jump-cache"))]
-        let code_byte_types = compute_code_byte_types(code).into_boxed_slice();
-
         Self {
             code,
-            code_byte_types,
+            code_byte_types: JumpAnalysis::new(code_hash, || compute_code_byte_types(code)),
             pc,
         }
     }
