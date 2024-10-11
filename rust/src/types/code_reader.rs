@@ -1,9 +1,7 @@
-#[cfg(feature = "jump-cache")]
-use std::num::NonZeroUsize;
-#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
-use std::sync::{Arc, LazyLock, Mutex};
 #[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
+#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
+use std::sync::Arc;
 use std::{
     cmp::min,
     mem::{self},
@@ -11,29 +9,26 @@ use std::{
 };
 
 #[cfg(feature = "jump-cache")]
-use lru::LruCache;
-#[cfg(feature = "jump-cache")]
 use nohash_hasher::BuildNoHashHasher;
 
+#[cfg(feature = "jump-cache")]
+use crate::types::Cache;
 use crate::types::{code_byte_type, u256, CodeByteType, FailStatus, Opcode};
 
 #[cfg(feature = "jump-cache")]
-const CACHE_SIZE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1 << 16) }; // taken from evmzero
+const CACHE_SIZE: usize = 1 << 16; // value taken from evmzero
 
-// Mutex<LruCache<...>> is faster that quick_cache::Cache<...>
-#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
-static JUMP_CACHE: LazyLock<Mutex<LruCache<u256, Arc<[CodeByteType]>, BuildNoHashHasher<u64>>>> =
-    LazyLock::new(|| {
-        Mutex::new(LruCache::with_hasher(
-            CACHE_SIZE,
-            BuildNoHashHasher::default(),
-        ))
-    });
+#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache"),))]
+pub type JumpCache = Cache<CACHE_SIZE, u256, Arc<[CodeByteType]>, BuildNoHashHasher<u64>>;
+#[cfg(all(feature = "jump-cache", feature = "thread-local-cache",))]
+pub type JumpCache = Cache<CACHE_SIZE, u256, Rc<[CodeByteType]>, BuildNoHashHasher<u64>>;
+
+#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache"),))]
+static JUMP_CACHE: JumpCache = JumpCache::new();
 
 #[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
 thread_local! {
-    static JUMP_CACHE: RefCell<LruCache<u256, Rc<[CodeByteType]>, BuildNoHashHasher<u64>>> =
-        RefCell::new(LruCache::with_hasher(CACHE_SIZE, BuildNoHashHasher::default()));
+    static JUMP_CACHE: JumpCache = JumpCache::new();
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -79,50 +74,32 @@ pub enum GetOpcodeError {
 impl<'a> CodeReader<'a> {
     #[allow(unused_variables)]
     pub fn new(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
-        let code_byte_type;
         #[cfg(feature = "jump-cache")]
-        {
-            if code_hash.is_some_and(|h| h != u256::ZERO) {
-                // NOTE: The HashMap only stores the hash of the code, not the code itself (because
-                // this would require an allocation). This means a hash conflict
-                // will result in a wrong jump analysis.
-
-                #[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
-                {
-                    code_byte_type = JUMP_CACHE
-                        .lock()
-                        .unwrap()
-                        .get_or_insert(code_hash.unwrap(), || {
-                            Arc::from(compute_code_byte_types(code).as_slice())
-                        })
-                        .clone();
-                }
-
-                #[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
-                {
-                    code_byte_type = JUMP_CACHE.with_borrow_mut(|cache| {
-                        cache
-                            .get_or_insert(code_hash.unwrap(), || {
-                                Rc::from(compute_code_byte_types(code).as_slice())
-                            })
-                            .clone()
-                    });
-                }
-            } else {
-                #[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
-                {
-                    code_byte_type = Arc::from(compute_code_byte_types(code).as_slice());
-                }
-                #[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
-                {
-                    code_byte_type = Rc::from(compute_code_byte_types(code).as_slice());
-                }
+        let code_byte_type = {
+            // NOTE: The HashMap only stores the hash of the code, not the code itself (because
+            // this would require an allocation). This means a hash conflict
+            // will result in a wrong jump analysis.
+            match code_hash {
+                #[cfg(not(feature = "thread-local-cache"))]
+                Some(code_hash) if code_hash != u256::ZERO => JUMP_CACHE
+                    .get_or_insert(code_hash, || {
+                        Arc::from(compute_code_byte_types(code).as_slice())
+                    }),
+                #[cfg(feature = "thread-local-cache")]
+                Some(code_hash) if code_hash != u256::ZERO => JUMP_CACHE.with(|cache| {
+                    cache.get_or_insert(code_hash, || {
+                        Rc::from(compute_code_byte_types(code).as_slice())
+                    })
+                }),
+                #[cfg(not(feature = "thread-local-cache"))]
+                _ => Arc::from(compute_code_byte_types(code).as_slice()),
+                #[cfg(feature = "thread-local-cache")]
+                _ => Rc::from(compute_code_byte_types(code).as_slice()),
             }
-        }
+        };
         #[cfg(not(feature = "jump-cache"))]
-        {
-            code_byte_type = compute_code_byte_types(code).into_boxed_slice();
-        }
+        let code_byte_type = compute_code_byte_types(code).into_boxed_slice();
+
         Self {
             code,
             code_byte_types: code_byte_type,

@@ -1,4 +1,6 @@
 mod amount;
+#[cfg(any(feature = "hash-cache", feature = "jump-cache"))]
+mod cache;
 mod code_reader;
 mod execution_context;
 pub mod hash_cache;
@@ -10,6 +12,8 @@ mod status_code;
 mod tx_context;
 
 pub use amount::u256;
+#[cfg(any(feature = "hash-cache", feature = "jump-cache"))]
+pub use cache::Cache;
 pub use code_reader::{CodeReader, GetOpcodeError, PushLen};
 pub use execution_context::*;
 pub use memory::Memory;
