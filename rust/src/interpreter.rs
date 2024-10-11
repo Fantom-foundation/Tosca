@@ -295,7 +295,7 @@ where
                         self.stack.push(u256::ZERO)?;
                     } else {
                         let end = min(call_data.len(), offset + 32);
-                        let mut bytes = [0; 32];
+                        let mut bytes = u256::ZERO;
                         bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
                         self.stack.push(bytes)?;
                     }
@@ -903,6 +903,7 @@ where
             salt.into(),
             u256::ZERO.into(), // ignored
             None,
+            None,
         );
         let result = self.context.call(&message);
 
@@ -993,6 +994,7 @@ where
                 u256::ZERO.into(), // ignored
                 addr,
                 None,
+                None,
             )
         } else {
             ExecutionMessage::new(
@@ -1006,6 +1008,7 @@ where
                 value.into(),
                 u256::ZERO.into(), // ignored
                 u256::ZERO.into(), // ignored
+                None,
                 None,
             )
         };
@@ -1083,6 +1086,7 @@ where
                 u256::ZERO.into(), // ignored
                 addr,
                 None,
+                None,
             )
         } else {
             ExecutionMessage::new(
@@ -1096,6 +1100,7 @@ where
                 u256::ZERO.into(), // ignored
                 u256::ZERO.into(), // ignored
                 u256::ZERO.into(), // ignored
+                None,
                 None,
             )
         };

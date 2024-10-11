@@ -76,9 +76,9 @@ impl Memory {
 
     pub fn get_word(&mut self, offset: u256, gas_left: &mut Gas) -> Result<u256, StatusCode> {
         let slice = self.get_mut_slice(offset, 32u8.into(), gas_left)?;
-        let mut bytes = [0; 32];
-        bytes.copy_from_slice(slice);
-        Ok(bytes.into())
+        let mut word = u256::ZERO;
+        word.copy_from_slice(slice);
+        Ok(word)
     }
 
     pub fn get_mut_byte(
