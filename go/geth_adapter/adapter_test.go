@@ -171,36 +171,72 @@ func TestRunContextAdapter_GetAndSetTransientStorage(t *testing.T) {
 }
 
 func TestRunContextAdapter_SelfDestruct(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	stateDb := NewMockStateDb(ctrl)
-
-	address := tosca.Address{0x42}
-	beneficiary := tosca.Address{0x43}
-	contractRef := testContractRef{address: gc.Address(address)}
-
-	blockContext := geth.BlockContext{
-		BlockNumber: big.NewInt(42),
-		Time:        uint64(42),
+	cancunTime := uint64(42)
+	londonBlock := big.NewInt(42)
+	tests := map[string]struct {
+		selfdestructed bool
+		blockTime      uint64
+	}{
+		"selfdestructedPreCancun": {
+			true,
+			cancunTime - 1,
+		},
+		"notSelfdestructedPreCancun": {
+			false,
+			cancunTime - 1,
+		},
+		"selddestructedCancun": {
+			true,
+			cancunTime,
+		},
+		"notSelfdestructedCancun": {
+			false,
+			cancunTime,
+		},
 	}
-	chainConfig := &params.ChainConfig{
-		ChainID: big.NewInt(42),
-	}
-	evm := geth.NewEVM(blockContext,
-		geth.TxContext{},
-		stateDb,
-		chainConfig,
-		geth.Config{},
-	)
-	adapter := &runContextAdapter{evm: evm, contract: geth.NewContract(contractRef, contractRef, nil, 0)}
 
-	stateDb.EXPECT().HasSelfDestructed(gc.Address(address)).Return(false)
-	stateDb.EXPECT().GetBalance(gc.Address(address)).Return(uint256.NewInt(42))
-	stateDb.EXPECT().AddBalance(gc.Address(beneficiary), uint256.NewInt(42), tracing.BalanceDecreaseSelfdestruct)
-	stateDb.EXPECT().SelfDestruct(gc.Address(address))
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			stateDb := NewMockStateDb(ctrl)
 
-	selfdestructed := adapter.SelfDestruct(address, beneficiary)
-	if !selfdestructed {
-		t.Errorf("Account should have been selfdestructed successful")
+			address := tosca.Address{0x42}
+			beneficiary := tosca.Address{0x43}
+			contractRef := testContractRef{address: gc.Address(address)}
+
+			blockContext := geth.BlockContext{
+				BlockNumber: londonBlock.Add(londonBlock, big.NewInt(1)),
+				Time:        test.blockTime,
+			}
+			chainConfig := &params.ChainConfig{
+				CancunTime:  &cancunTime,
+				LondonBlock: londonBlock,
+				ChainID:     big.NewInt(42),
+			}
+			evm := geth.NewEVM(blockContext,
+				geth.TxContext{},
+				stateDb,
+				chainConfig,
+				geth.Config{},
+			)
+			adapter := &runContextAdapter{evm: evm, contract: geth.NewContract(contractRef, contractRef, nil, 0)}
+
+			stateDb.EXPECT().HasSelfDestructed(gc.Address(address)).Return(test.selfdestructed)
+			stateDb.EXPECT().GetBalance(gc.Address(address)).Return(uint256.NewInt(42))
+			stateDb.EXPECT().AddBalance(gc.Address(beneficiary), uint256.NewInt(42), tracing.BalanceDecreaseSelfdestruct)
+
+			if test.blockTime < cancunTime {
+				stateDb.EXPECT().SelfDestruct(gc.Address(address))
+			} else {
+				stateDb.EXPECT().SubBalance(gc.Address(address), uint256.NewInt(42), tracing.BalanceDecreaseSelfdestruct)
+				stateDb.EXPECT().Selfdestruct6780(gc.Address(address))
+			}
+
+			got := adapter.SelfDestruct(address, beneficiary)
+			if got == test.selfdestructed {
+				t.Errorf("Selfdestruct should only return true if it has not been called before")
+			}
+		})
 	}
 }
 
