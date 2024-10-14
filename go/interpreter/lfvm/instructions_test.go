@@ -1247,7 +1247,6 @@ func TestInstructions_StorageOps_CallStorageContext(t *testing.T) {
 				ctxt.params.Recipient = address
 				ctxt.params.Revision = revision
 				ctxt.stack = fillStack(test.stack...)
-				ctxt.gas = tosca.Gas(math.MaxInt64)
 				runContext := tosca.NewMockRunContext(gomock.NewController(t))
 				if revision >= tosca.R09_Berlin {
 					runContext.EXPECT().AccessStorage(address, key).Return(tosca.WarmAccess)
