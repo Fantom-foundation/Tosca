@@ -64,4 +64,6 @@ for FEATURES in "$@"; do
     sed -i "s/$INTERPRETER-//g" $OUTPUT_FILE
 done
 
-benchstat $OUTPUT_DIR/* | tee $OUTPUT_DIR/comparison
+cd $OUTPUT_DIR
+benchstat * | tee comparison
+cd -

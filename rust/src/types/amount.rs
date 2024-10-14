@@ -111,9 +111,9 @@ impl From<U512> for u256 {
         // U512 = BUint<8>
         // BUint<8> is transparent wrapper around [u64; 8]
         let bytes64: [u8; 64] = unsafe { mem::transmute(be_value) };
-        let mut bytes32 = [0; 32];
+        let mut bytes32 = Self::ZERO;
         bytes32.copy_from_slice(&bytes64[32..]);
-        bytes32.into()
+        bytes32
     }
 }
 
@@ -164,17 +164,17 @@ impl From<usize> for u256 {
 
 impl From<Address> for u256 {
     fn from(value: Address) -> Self {
-        let mut bytes = [0; 32];
+        let mut bytes = Self::ZERO;
         bytes[32 - 20..].copy_from_slice(&value.bytes);
-        bytes.into()
+        bytes
     }
 }
 
 impl From<&Address> for u256 {
     fn from(value: &Address) -> Self {
-        let mut bytes = [0; 32];
+        let mut bytes = Self::ZERO;
         bytes[32 - 20..].copy_from_slice(&value.bytes);
-        bytes.into()
+        bytes
     }
 }
 
