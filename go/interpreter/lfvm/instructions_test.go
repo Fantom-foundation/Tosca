@@ -1926,6 +1926,38 @@ func TestInstructions_opLog(t *testing.T) {
 	}
 }
 
+func TestInstructions_MCopy_DoesNothingWithSizeZero(t *testing.T) {
+
+	data := [1024]byte{}
+	_, _ = rand.Read(data[:])
+
+	ctxt := getEmptyContext()
+	ctxt.params.Revision = tosca.R13_Cancun
+	ctxt.stack = fillStack(
+		*uint256.NewInt(2500),
+		*uint256.NewInt(137),
+		*uint256.NewInt(0))
+	ctxt.gas = 0
+
+	err := ctxt.memory.set(
+		uint256.NewInt(0),
+		data[:],
+		&context{gas: 1 << 32},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	err = opMcopy(&ctxt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if want, got := data[:], ctxt.memory.store; !bytes.Equal(want, got) {
+		t.Errorf("unexpected memory, wanted %v, got %v", want, got)
+	}
+}
+
 func TestInstructions_MCopy_ReturnsErrorOnFailure(t *testing.T) {
 
 	tests := map[string]struct {
@@ -1933,9 +1965,6 @@ func TestInstructions_MCopy_ReturnsErrorOnFailure(t *testing.T) {
 		expectedError            error
 		gasRemoved               uint64
 	}{
-		"does nothing if size is zero": {
-			destOffset: 1024, offset: 125, size: 0,
-		},
 		"returns error when failed read memory expansion": {
 			destOffset: 0, offset: math.MaxUint64, size: 1,
 			expectedError: errOverflow,
@@ -1982,7 +2011,7 @@ func TestInstructions_MCopy_CopiesOverlappingRanges(t *testing.T) {
 	ctxt.params.Revision = tosca.R13_Cancun
 	ctxt.stack = fillStack(
 		*uint256.NewInt(5),
-		*uint256.NewInt(0),
+		*uint256.NewInt(1),
 		*uint256.NewInt(10))
 
 	err := ctxt.memory.set(
@@ -2000,8 +2029,8 @@ func TestInstructions_MCopy_CopiesOverlappingRanges(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	expected := []byte{0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-	if want, got := expected, ctxt.memory.store[0:15]; !bytes.Equal(want, got) {
+	expected := [32]byte{0, 1, 2, 3, 4, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+	if want, got := expected[:], ctxt.memory.store; !bytes.Equal(want, got) {
 		t.Errorf("unexpected memory, wanted %v, got %v", want, got)
 	}
 }
