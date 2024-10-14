@@ -1628,7 +1628,6 @@ func TestInstructions_OpExtCodeCopy_CallsContextAndCopiesCodeSlice(t *testing.T)
 
 	ctxt := getEmptyContext()
 	ctxt.context = runContext
-	ctxt.gas = 1 << 32
 
 	ctxt.stack = fillStack(
 		*new(uint256.Int).SetBytes(address[:]),
@@ -1656,7 +1655,6 @@ func TestInstructions_opExtcodesize_CallsContextAndWritesResultInStack(t *testin
 
 	ctxt := getEmptyContext()
 	ctxt.context = runContext
-	ctxt.gas = 1 << 32
 
 	ctxt.stack.push(new(uint256.Int).SetBytes(address[:]))
 
