@@ -13,6 +13,26 @@ use crate::{
     utils::{check_min_revision, check_not_read_only, word_size, Gas, SliceExt},
 };
 
+macro_rules! return_from_op {
+    (stop = true) => {
+        return Ok(());
+    };
+    ($self:ident) => {
+        #[cfg(not(feature = "jumptable-tail-call"))]
+        return Ok(());
+        #[cfg(feature = "jumptable-tail-call")]
+        $self.code_reader.next();
+        #[cfg(feature = "jumptable-tail-call")]
+        return $self.run();
+    };
+    ($self:ident, next = false) => {
+        #[cfg(not(feature = "jumptable-tail-call"))]
+        return Ok(());
+        #[cfg(feature = "jumptable-tail-call")]
+        return $self.run();
+    };
+}
+
 type OpResult = Result<(), FailStatus>;
 
 #[cfg(feature = "jumptable")]
@@ -98,6 +118,7 @@ where
         }
     }
 
+    #[cfg(not(feature = "jumptable-tail-call"))]
     pub fn run(&mut self) -> Result<(), FailStatus> {
         loop {
             if self.exec_status != ExecStatus::Running {
@@ -130,6 +151,26 @@ where
         }
 
         Ok(())
+    }
+    #[cfg(feature = "jumptable-tail-call")]
+    #[inline(always)]
+    pub fn run(&mut self) -> Result<(), FailStatus> {
+        match &mut self.steps {
+            None => (),
+            Some(0) => return Ok(()),
+            Some(steps) => *steps -= 1,
+        }
+        let op = match self.code_reader.get() {
+            Ok(op) => op,
+            Err(GetOpcodeError::OutOfRange) => {
+                self.exec_status = ExecStatus::Stopped;
+                return Ok(());
+            }
+            Err(GetOpcodeError::Invalid) => {
+                return Err(FailStatus::InvalidInstruction);
+            }
+        };
+        self.run_op(op)
     }
 
     #[cfg(feature = "jumptable")]
@@ -559,70 +600,70 @@ where
 
     fn stop(&mut self) -> OpResult {
         self.exec_status = ExecStatus::Stopped;
-        Ok(())
+        return_from_op!(stop = true);
     }
 
     fn add(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value2, value1] = self.stack.pop()?;
         self.stack.push(value1 + value2)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn mul(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
         let [fac2, fac1] = self.stack.pop()?;
         self.stack.push(fac1 * fac2)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn sub(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value2, value1] = self.stack.pop()?;
         self.stack.push(value1 - value2)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn div(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
         let [denominator, value] = self.stack.pop()?;
         self.stack.push(value / denominator)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn s_div(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
         let [denominator, value] = self.stack.pop()?;
         self.stack.push(value.sdiv(denominator))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn mod_(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
         let [denominator, value] = self.stack.pop()?;
         self.stack.push(value % denominator)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn s_mod(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
         let [denominator, value] = self.stack.pop()?;
         self.stack.push(value.srem(denominator))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn add_mod(&mut self) -> OpResult {
         self.gas_left.consume(8)?;
         let [denominator, value2, value1] = self.stack.pop()?;
         self.stack.push(u256::addmod(value1, value2, denominator))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn mul_mod(&mut self) -> OpResult {
         self.gas_left.consume(8)?;
         let [denominator, fac2, fac1] = self.stack.pop()?;
         self.stack.push(u256::mulmod(fac1, fac2, denominator))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn exp(&mut self) -> OpResult {
@@ -631,112 +672,112 @@ where
         let byte_size = 32 - exp.into_iter().take_while(|byte| *byte == 0).count() as u64;
         self.gas_left.consume(byte_size * 50)?; // * does not overflow
         self.stack.push(value.pow(exp))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn sign_extend(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
         let [value, size] = self.stack.pop()?;
         self.stack.push(u256::signextend(size, value))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn lt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs < rhs)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn gt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs > rhs)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn s_lt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs.slt(&rhs))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn s_gt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs.sgt(&rhs))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn eq(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs == rhs)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn is_zero(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value] = self.stack.pop()?;
         self.stack.push(value == u256::ZERO)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn and(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs & rhs)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn or(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs | rhs)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn xor(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs ^ rhs)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn not(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value] = self.stack.pop()?;
         self.stack.push(!value)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn byte(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value, offset] = self.stack.pop()?;
         self.stack.push(value.byte(offset))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn shl(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value, shift] = self.stack.pop()?;
         self.stack.push(value << shift)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn shr(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value, shift] = self.stack.pop()?;
         self.stack.push(value >> shift)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn sar(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [value, shift] = self.stack.pop()?;
         self.stack.push(value.sar(shift))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn sha3(&mut self) -> OpResult {
@@ -748,13 +789,13 @@ where
 
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
         self.stack.push(hash_cache::hash(data))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn address(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.message.recipient())?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn balance(&mut self) -> OpResult {
@@ -766,25 +807,25 @@ where
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
         self.stack.push(self.context.get_balance(&addr))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn origin(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.context.get_tx_context().tx_origin)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn caller(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.message.sender())?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn call_value(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(*self.message.value())?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn call_data_load(&mut self) -> OpResult {
@@ -811,7 +852,7 @@ where
             bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
             self.stack.push(bytes)?;
         }
-        Ok(())
+        return_from_op!(self);
     }
 
     fn call_data_size(&mut self) -> OpResult {
@@ -825,14 +866,14 @@ where
             })
             .unwrap_or_default();
         self.stack.push(call_data_len)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn push0(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_SHANGHAI, self.revision)?;
         self.gas_left.consume(2)?;
         self.stack.push(u256::ZERO)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn call_data_copy(&mut self) -> OpResult {
@@ -861,13 +902,13 @@ where
                 .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
             dest.copy_padded(src, &mut self.gas_left)?;
         }
-        Ok(())
+        return_from_op!(self);
     }
 
     fn code_size(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.code_reader.len())?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn code_copy(&mut self) -> OpResult {
@@ -883,14 +924,14 @@ where
                 .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
             dest.copy_padded(src, &mut self.gas_left)?;
         }
-        Ok(())
+        return_from_op!(self);
     }
 
     fn gas_price(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().tx_gas_price)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn ext_code_size(&mut self) -> OpResult {
@@ -902,7 +943,7 @@ where
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
         self.stack.push(self.context.get_code_size(&addr))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn ext_code_copy(&mut self) -> OpResult {
@@ -929,7 +970,7 @@ where
                 dest[bytes_written..].set_to_zero();
             }
         }
-        Ok(())
+        return_from_op!(self);
     }
 
     fn return_data_size(&mut self) -> OpResult {
@@ -940,7 +981,7 @@ where
                 .map(Vec::len)
                 .unwrap_or_default(),
         )?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn return_data_copy(&mut self) -> OpResult {
@@ -962,7 +1003,7 @@ where
                 .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
             dest.copy_padded(src, &mut self.gas_left)?;
         }
-        Ok(())
+        return_from_op!(self);
     }
 
     fn ext_code_hash(&mut self) -> OpResult {
@@ -974,7 +1015,7 @@ where
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
         self.stack.push(self.context.get_code_hash(&addr))?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn block_hash(&mut self) -> OpResult {
@@ -986,48 +1027,48 @@ where
                 .map(|idx: u64| self.context.get_block_hash(idx as i64))
                 .unwrap_or(u256::ZERO.into()),
         )?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn coinbase(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_coinbase)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn timestamp(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_timestamp as u64)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn number(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_number as u64)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn prev_randao(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_prev_randao)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn gas_limit(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_gas_limit as u64)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn chain_id(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.context.get_tx_context().chain_id)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn self_balance(&mut self) -> OpResult {
@@ -1039,7 +1080,7 @@ where
         } else {
             self.stack.push(self.context.get_balance(addr))?;
         }
-        Ok(())
+        return_from_op!(self);
     }
 
     fn base_fee(&mut self) -> OpResult {
@@ -1047,7 +1088,7 @@ where
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_base_fee)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn blob_hash(&mut self) -> OpResult {
@@ -1062,7 +1103,7 @@ where
         } else {
             self.stack.push(u256::ZERO)?;
         }
-        Ok(())
+        return_from_op!(self);
     }
 
     fn blob_base_fee(&mut self) -> OpResult {
@@ -1070,13 +1111,13 @@ where
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().blob_base_fee)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn pop(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         let [_] = self.stack.pop()?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn m_load(&mut self) -> OpResult {
@@ -1085,7 +1126,7 @@ where
 
         self.stack
             .push(self.memory.get_word(offset, &mut self.gas_left)?)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn m_store(&mut self) -> OpResult {
@@ -1094,7 +1135,7 @@ where
 
         let dest = self.memory.get_mut_slice(offset, 32, &mut self.gas_left)?;
         dest.copy_from_slice(value.as_slice());
-        Ok(())
+        return_from_op!(self);
     }
 
     fn m_store8(&mut self) -> OpResult {
@@ -1103,7 +1144,7 @@ where
 
         let dest = self.memory.get_mut_byte(offset, &mut self.gas_left)?;
         *dest = value[31];
-        Ok(())
+        return_from_op!(self);
     }
 
     fn s_load(&mut self) -> OpResult {
@@ -1122,14 +1163,14 @@ where
         }
         let value = self.context.get_storage(addr, &key);
         self.stack.push(value)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn jump(&mut self) -> OpResult {
         self.gas_left.consume(8)?;
         let [dest] = self.stack.pop()?;
         self.code_reader.try_jump(dest)?;
-        Ok(())
+        return_from_op!(self, next = false);
     }
 
     fn jump_i(&mut self) -> OpResult {
@@ -1140,30 +1181,30 @@ where
         } else {
             self.code_reader.try_jump(dest)?;
         }
-        Ok(())
+        return_from_op!(self, next = false);
     }
 
     fn pc(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.code_reader.pc())?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn m_size(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.memory.len())?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn gas(&mut self) -> OpResult {
         self.gas_left.consume(2)?;
         self.stack.push(self.gas_left.as_u64())?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn jump_dest(&mut self) -> OpResult {
         self.gas_left.consume(1)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn t_load(&mut self) -> OpResult {
@@ -1173,7 +1214,7 @@ where
         let addr = self.message.recipient();
         let value = self.context.get_transient_storage(addr, &key.into());
         self.stack.push(value)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn t_store(&mut self) -> OpResult {
@@ -1184,7 +1225,7 @@ where
         let addr = self.message.recipient();
         self.context
             .set_transient_storage(addr, &key.into(), &value.into());
-        Ok(())
+        return_from_op!(self);
     }
 
     fn m_copy(&mut self) -> OpResult {
@@ -1195,7 +1236,7 @@ where
             self.memory
                 .copy_within(offset, dest_offset, len, &mut self.gas_left)?;
         }
-        Ok(())
+        return_from_op!(self);
     }
 
     fn return_(&mut self) -> OpResult {
@@ -1211,7 +1252,7 @@ where
             self.output = Some(Box::from(&*data));
         }
         self.exec_status = ExecStatus::Returned;
-        Ok(())
+        return_from_op!(stop = true);
     }
 
     fn revert(&mut self) -> OpResult {
@@ -1229,7 +1270,7 @@ where
             self.output = Some(Box::from(&*data));
         }
         self.exec_status = ExecStatus::Revert;
-        Ok(())
+        return_from_op!(stop = true);
     }
 
     fn invalid(&mut self) -> OpResult {
@@ -1261,7 +1302,7 @@ where
         }
 
         self.exec_status = ExecStatus::Stopped;
-        Ok(())
+        return_from_op!(stop = true);
     }
 
     fn sstore(&mut self) -> OpResult {
@@ -1311,7 +1352,7 @@ where
         }
         self.gas_left.consume(dyn_gas)?;
         self.gas_refund += gas_refund_change;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn push(&mut self, len: usize) -> OpResult {
@@ -1319,19 +1360,19 @@ where
         self.code_reader.next();
         self.stack
             .push(self.code_reader.get_push_data(PushLen::new(len)))?;
-        Ok(())
+        return_from_op!(self, next = false);
     }
 
     fn dup(&mut self, nth: usize) -> OpResult {
         self.gas_left.consume(3)?;
         self.stack.push(self.stack.nth(nth - 1)?)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn swap(&mut self, nth: usize) -> OpResult {
         self.gas_left.consume(3)?;
         self.stack.swap_with_top(nth)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn log<const N: usize>(&mut self) -> OpResult {
@@ -1355,7 +1396,7 @@ where
         let topics = unsafe { mem::transmute::<&[u256], &[Uint256]>(topics.as_slice()) };
         self.context
             .emit_log(self.message.recipient(), data, topics);
-        Ok(())
+        return_from_op!(self);
     }
 
     fn create(&mut self) -> OpResult {
@@ -1397,8 +1438,7 @@ where
         if value > self.context.get_balance(self.message.recipient()).into() {
             self.last_call_return_data = None;
             self.stack.push(u256::ZERO)?;
-
-            return Ok(());
+            return_from_op!(self);
         }
 
         let gas_left = self.gas_left.as_u64();
@@ -1439,7 +1479,7 @@ where
             self.last_call_return_data = result.output().map(ToOwned::to_owned);
             self.stack.push(u256::ZERO)?;
         }
-        Ok(())
+        return_from_op!(self);
     }
 
     fn call(&mut self) -> OpResult {
@@ -1492,8 +1532,7 @@ where
         if value > u256::from(self.context.get_balance(self.message.recipient())) {
             self.last_call_return_data = None;
             self.stack.push(u256::ZERO)?;
-
-            return Ok(());
+            return_from_op!(self);
         }
 
         let call_message = if CODE {
@@ -1545,7 +1584,7 @@ where
 
         self.stack
             .push(result.status_code() == EvmcStatusCode::EVMC_SUCCESS)?;
-        Ok(())
+        return_from_op!(self);
     }
 
     fn static_call(&mut self) -> OpResult {
@@ -1632,7 +1671,7 @@ where
 
         self.stack
             .push(result.status_code() == EvmcStatusCode::EVMC_SUCCESS)?;
-        Ok(())
+        return_from_op!(self);
     }
 }
 

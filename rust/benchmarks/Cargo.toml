@@ -13,6 +13,7 @@ hash-cache = ["evmrs/hash-cache"]
 jump-cache = ["evmrs/jump-cache"]
 thread-local-cache = ["evmrs/thread-local-cache"]
 no-bounds-checks = ["evmrs/no-bounds-checks"]
+jumptable-tail-call = ["evmrs/jumptable-tail-call"]
 
 [dependencies]
 evmrs = { path = ".." }
