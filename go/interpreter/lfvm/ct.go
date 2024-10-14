@@ -12,7 +12,6 @@ package lfvm
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/Fantom-foundation/Tosca/go/ct"
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
@@ -28,6 +27,7 @@ func NewConformanceTestingTarget() ct.Evm {
 		WithSuperInstructions: false,
 	})
 	if err != nil {
+		// this panic can only occur if for some reason the cache cannot be initialized.
 		panic("failed to create converter: " + err.Error())
 	}
 	cache, _ := lru.New[[32]byte, *pcMap](4096) // can only fail for non-positive size
@@ -62,6 +62,7 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	memory, err := convertCtMemoryToLfvmMemory(state.Memory)
 	if err != nil {
+		// as explained in line 211, this can not be tested at the moment due to hardware limitations
 		return nil, err
 	}
 
@@ -91,6 +92,7 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	// Update the resulting state.
 	state.Status, err = convertLfvmStatusToCtStatus(status)
 	if err != nil {
+		// this is a development check. It should never happen in production.
 		return nil, err
 	}
 
@@ -205,8 +207,11 @@ func convertLfvmStackToCtStack(stack *stack, result *st.Stack) *st.Stack {
 func convertCtMemoryToLfvmMemory(memory *st.Memory) (*Memory, error) {
 	data := memory.Read(0, uint64(memory.Size()))
 	result := NewMemory()
-	err := result.set(new(uint256.Int), data, &context{gas: math.MaxInt64})
+	err := result.set(new(uint256.Int), data, &context{gas: st.MaxGasUsedByCt})
 	if err != nil {
+		// this error can only occur if memory.Size() is greater than maxMemoryExpansionSize
+		// (approximately 128GB). For greater memory sizes it will fail due to out of gas.
+		// Unfortunately, we cannot test this due too hardware limitations.
 		return nil, err
 	}
 	return result, nil

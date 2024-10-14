@@ -11,6 +11,8 @@
 package lfvm
 
 import (
+	"bytes"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -54,6 +56,98 @@ func TestCtAdapter_Add(t *testing.T) {
 func TestCtAdapter_Interface(t *testing.T) {
 	// Compile time check that ctAdapter implements the st.Evm interface.
 	var _ ct.Evm = &ctAdapter{}
+}
+
+func TestCTAdapter_DoesNotAddDuplicatedCodeToPCMap(t *testing.T) {
+	s := st.NewState(st.NewCode([]byte{
+		byte(vm.STOP),
+	}))
+	c := NewConformanceTestingTarget()
+
+	executeStepAndChecks := func() {
+		s.Status = st.Running
+		_, err := c.StepN(s, 1)
+		if err != nil {
+			t.Fatalf("unexpected conversion error: %v", err)
+		}
+		if c.(*ctAdapter).pcMapCache.Len() != 1 {
+			t.Fatalf("unexpected pc map size, wanted 2, got %d", c.(*ctAdapter).pcMapCache.Len())
+		}
+	}
+
+	executeStepAndChecks()
+	executeStepAndChecks()
+}
+
+func TestCtAdapter_ReturnsErrorForUnsupportedRevisions(t *testing.T) {
+	unsupportedRevision := newestSupportedRevision + 1
+	want := &tosca.ErrUnsupportedRevision{Revision: unsupportedRevision}
+	s := st.NewState(st.NewCode([]byte{
+		byte(vm.STOP),
+	}))
+	s.Revision = unsupportedRevision
+
+	c := NewConformanceTestingTarget()
+	_, err := c.StepN(s, 1)
+
+	var e *tosca.ErrUnsupportedRevision
+	if !errors.As(err, &e) {
+		t.Errorf("unexpected error, wanted %v, got %v", want, err)
+	}
+}
+
+func TestCtAdapter_DoesNotAffectNonRunningStates(t *testing.T) {
+	s := st.NewState(st.NewCode([]byte{
+		byte(vm.STOP),
+	}))
+	s.Status = st.Stopped
+
+	c := NewConformanceTestingTarget()
+	s2, err := c.StepN(s.Clone(), 1)
+	defer s2.Release()
+	if err != nil {
+		t.Fatalf("unexpected conversion error: %v", err)
+	}
+	if !s.Eq(s2) {
+		t.Errorf("unexpected state, wanted %v, got %v", s, s2)
+	}
+}
+
+func TestCtAdapter_SetsPcOnResultingState(t *testing.T) {
+	s := st.NewState(st.NewCode([]byte{
+		byte(vm.PUSH1),
+		0x01,
+		byte(vm.PUSH0),
+	}))
+	s.Gas = 100
+	s.Stack = st.NewStack()
+	c := NewConformanceTestingTarget()
+	s2, err := c.StepN(s, 1)
+	if err != nil {
+		t.Fatalf("unexpected conversion error: %v", err)
+	}
+	if want, got := uint16(2), s2.Pc; want != got {
+		t.Errorf("unexpected pc, wanted %d, got %d", want, got)
+	}
+}
+
+func TestCtAdapter_FillsReturnDataOnResultingState(t *testing.T) {
+	s := st.NewState(st.NewCode([]byte{
+		byte(vm.PUSH1), byte(1),
+		byte(vm.PUSH1), byte(0),
+		byte(vm.RETURN),
+	}))
+	s.Gas = 100
+	memory := []byte{0xFA}
+	s.Memory.Append(memory)
+	c := NewConformanceTestingTarget()
+	s2, err := c.StepN(s, 3)
+	if err != nil {
+		t.Fatalf("unexpected conversion error: %v", err)
+	}
+	if want, got := memory, s2.ReturnData.ToBytes(); !bytes.Equal(want, got) {
+		t.Errorf("unexpected return data, wanted %v, got %v", want, got)
+	}
 }
 
 ////////////////////////////////////////////////////////////
@@ -108,6 +202,9 @@ func TestConvertToLfvm_Pc(t *testing.T) {
 			byte(vm.INVALID),
 			byte(vm.JUMPDEST)},
 			6, 6}},
+		"extra padding for truncated push": {{[]byte{
+			byte(vm.PUSH14), 0x2e, 0x5a, 0x30, 0x10, 0x64,
+		}, 6, 7}},
 	}
 
 	for name, test := range tests {
@@ -398,6 +495,9 @@ func TestConvertToCt_Pc(t *testing.T) {
 			byte(vm.INVALID),
 			byte(vm.JUMPDEST)},
 			6, 6}},
+		"extra padding for truncated push": {{[]byte{
+			byte(vm.PUSH14), 0x2e, 0x5a, 0x30, 0x10, 0x64,
+		}, 7, 6}},
 	}
 
 	for name, test := range tests {
