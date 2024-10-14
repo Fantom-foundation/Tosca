@@ -117,6 +117,10 @@ func BenchmarkEmpty(b *testing.B) {
 	}
 }
 
+func BenchmarkStaticOverhead(b *testing.B) {
+	benchmark(b, examples.GetStaticOverheadExample(), 1)
+}
+
 func BenchmarkInc(b *testing.B) {
 	args := []int{1, 10}
 	for _, i := range args {
