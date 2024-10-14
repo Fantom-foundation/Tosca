@@ -409,130 +409,6 @@ func TestBlobBaseFee(t *testing.T) {
 	}
 }
 
-func TestMCopy(t *testing.T) {
-
-	tests := map[string]struct {
-		gasBefore    tosca.Gas
-		gasAfter     tosca.Gas
-		revision     tosca.Revision
-		dest         uint64
-		src          uint64
-		size         uint64
-		memSize      uint64
-		memoryBefore []byte
-		memoryAfter  []byte
-		err          error
-	}{
-		"empty": {
-			gasBefore: 0,
-			gasAfter:  0,
-			revision:  tosca.R13_Cancun,
-			dest:      0,
-			src:       0,
-			size:      0,
-			memoryBefore: []byte{
-				1, 2, 3, 4, 5, 6, 7, 8, // 0-7
-				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
-				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
-				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
-			},
-			memoryAfter: []byte{
-				1, 2, 3, 4, 5, 6, 7, 8, // 0-7
-				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
-				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
-				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
-			},
-		},
-		"old-revision": {
-			revision: tosca.R12_Shanghai,
-			err:      errInvalidRevision,
-		},
-		"copy": {
-			revision:  tosca.R13_Cancun,
-			gasBefore: 1000,
-			gasAfter:  1000 - 3,
-			dest:      1,
-			src:       0,
-			size:      8,
-			memoryBefore: []byte{
-				1, 2, 3, 4, 5, 6, 7, 8, // 0-7
-				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
-				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
-				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
-			},
-			memoryAfter: []byte{
-				1, 1, 2, 3, 4, 5, 6, 7, // 0-7
-				8, 0, 0, 0, 0, 0, 0, 0, // 8-15
-				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
-				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
-			},
-		},
-		"memory-expansion": {
-			revision:  tosca.R13_Cancun,
-			gasBefore: 1000,
-			gasAfter:  1000 - 9,
-			dest:      32,
-			src:       0,
-			size:      4,
-			memoryBefore: []byte{
-				1, 2, 3, 4, 0, 0, 0, 0, // 0-7
-				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
-				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
-				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
-			},
-			memoryAfter: []byte{
-				1, 2, 3, 4, 0, 0, 0, 0, // 0-7
-				0, 0, 0, 0, 0, 0, 0, 0, // 8-15
-				0, 0, 0, 0, 0, 0, 0, 0, // 16-23
-				0, 0, 0, 0, 0, 0, 0, 0, // 24-31
-				1, 2, 3, 4, 0, 0, 0, 0, // 32-39
-				0, 0, 0, 0, 0, 0, 0, 0, // 40-47
-				0, 0, 0, 0, 0, 0, 0, 0, // 48-55
-				0, 0, 0, 0, 0, 0, 0, 0, // 56-63
-			},
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-
-			ctxt := context{
-				stack:  NewStack(),
-				memory: NewMemory(),
-			}
-			ctxt.params.Revision = test.revision
-			ctxt.gas = test.gasBefore
-			ctxt.stack.push(uint256.NewInt(test.size))
-			ctxt.stack.push(uint256.NewInt(test.src))
-			ctxt.stack.push(uint256.NewInt(test.dest))
-			ctxt.memory.store = append(ctxt.memory.store, test.memoryBefore...)
-
-			err := opMcopy(&ctxt)
-			if want, got := test.err, err; want != got {
-				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
-			}
-
-			if ctxt.memory.length() != uint64(len(test.memoryAfter)) {
-				t.Errorf("expected memory size %d, got %d", uint64(len(test.memoryAfter)), ctxt.memory.length())
-			}
-			data, err := ctxt.memory.getSlice(
-				uint256.NewInt(0),
-				uint256.NewInt(ctxt.memory.length()),
-				&ctxt,
-			)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
-			if !bytes.Equal(data, test.memoryAfter) {
-				t.Errorf("expected memory %v, got %v", test.memoryAfter, data)
-			}
-			if ctxt.gas != test.gasAfter {
-				t.Errorf("expected gas %d, got %d", test.gasAfter, ctxt.gas)
-			}
-		})
-	}
-}
-
 func TestCreateShanghaiInitCodeSize(t *testing.T) {
 	maxInitCodeSize := uint64(49152)
 	tests := map[string]struct {
@@ -2047,6 +1923,115 @@ func TestInstructions_opLog(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestInstructions_MCopy_DoesNothingWithSizeZero(t *testing.T) {
+
+	data := [1024]byte{}
+	_, _ = rand.Read(data[:])
+
+	ctxt := getEmptyContext()
+	ctxt.params.Revision = tosca.R13_Cancun
+	ctxt.stack = fillStack(
+		*uint256.NewInt(2500), // destOffset
+		*uint256.NewInt(137),  // offset
+		*uint256.NewInt(0))    // size
+	ctxt.gas = 0
+
+	err := ctxt.memory.set(
+		uint256.NewInt(0),
+		data[:],
+		&context{gas: 1 << 32},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	err = opMcopy(&ctxt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if want, got := data[:], ctxt.memory.store; !bytes.Equal(want, got) {
+		t.Errorf("unexpected memory, wanted %v, got %v", want, got)
+	}
+}
+
+func TestInstructions_MCopy_ReturnsErrorOnFailure(t *testing.T) {
+
+	tests := map[string]struct {
+		destOffset, offset, size uint64
+		expectedError            error
+		gasRemoved               uint64
+	}{
+		"returns error when failed read memory expansion": {
+			destOffset: 0, offset: math.MaxUint64, size: 1,
+			expectedError: errOverflow,
+		},
+		"returns error when failed write memory expansion": {
+			destOffset: math.MaxUint64, offset: 0, size: 1,
+			expectedError: errOverflow,
+		},
+		"returns error if gas is not enough for size": {
+			destOffset: 0, offset: 0, size: 128,
+			expectedError: errOutOfGas,
+			gasRemoved:    1,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctxt := getEmptyContext()
+			ctxt.params.Revision = tosca.R13_Cancun
+			ctxt.stack = fillStack(
+				*uint256.NewInt(test.destOffset),
+				*uint256.NewInt(test.offset),
+				*uint256.NewInt(test.size),
+			)
+
+			// ignore memory setup errors, to focus on the mcopy operation
+			// expansion is done to accumulate memory cost and focus on the
+			// word count gas cost.
+			_ = ctxt.memory.expandMemory(test.destOffset, test.size, &context{gas: 1 << 32})
+			_ = ctxt.memory.expandMemory(test.offset, test.size, &context{gas: 1 << 32})
+			ctxt.gas = tosca.Gas(3*tosca.SizeInWords(test.size) - test.gasRemoved)
+
+			err := opMcopy(&ctxt)
+			if err != test.expectedError {
+				t.Fatalf("unexpected error, wanted %v, got %v", test.expectedError, err)
+			}
+		})
+	}
+}
+
+func TestInstructions_MCopy_CopiesOverlappingRanges(t *testing.T) {
+
+	ctxt := getEmptyContext()
+	ctxt.params.Revision = tosca.R13_Cancun
+	ctxt.stack = fillStack(
+		*uint256.NewInt(5),
+		*uint256.NewInt(1),
+		*uint256.NewInt(10))
+
+	err := ctxt.memory.set(
+		uint256.NewInt(0),
+		[]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		&context{gas: 1 << 32},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	ctxt.gas = tosca.Gas(3 * tosca.SizeInWords(10))
+
+	err = opMcopy(&ctxt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expected := [32]byte{0, 1, 2, 3, 4, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+	if want, got := expected[:], ctxt.memory.store; !bytes.Equal(want, got) {
+		t.Errorf("unexpected memory, wanted %v, got %v", want, got)
 	}
 }
 
