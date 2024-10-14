@@ -15,6 +15,7 @@ inherits = "release"
 debug = true
 
 [features]
+default = []
 # Flag mock enables code generation for test mocking. This allows generating mocks for other build configuration but "test". 
 mock = ["dep:mockall"]
 dump-cov = []
@@ -33,6 +34,7 @@ stack-array = []
 message-slice-output-box = ["dep:evmc-vm-tosca-message-slice-output-box"]
 no-bounds-checks = []
 jumptable = []
+jumptable-tail-call = ["jumptable"]
 hash-cache = ["dep:lru"]
 jump-cache = ["dep:lru", "dep:nohash-hasher"]
 thread-local-cache = []
