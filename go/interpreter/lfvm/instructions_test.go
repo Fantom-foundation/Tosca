@@ -1934,9 +1934,9 @@ func TestInstructions_MCopy_DoesNothingWithSizeZero(t *testing.T) {
 	ctxt := getEmptyContext()
 	ctxt.params.Revision = tosca.R13_Cancun
 	ctxt.stack = fillStack(
-		*uint256.NewInt(2500),
-		*uint256.NewInt(137),
-		*uint256.NewInt(0))
+		*uint256.NewInt(2500), // destOffset
+		*uint256.NewInt(137),  // offset
+		*uint256.NewInt(0))    // size
 	ctxt.gas = 0
 
 	err := ctxt.memory.set(
