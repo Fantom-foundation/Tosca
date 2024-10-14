@@ -1,6 +1,4 @@
-use evmc_vm::StatusCode;
-
-use crate::types::u256;
+use crate::types::{u256, FailStatus};
 
 #[derive(Debug)]
 pub struct Stack(Vec<u256>);
@@ -14,13 +12,13 @@ impl Stack {
         self.0
     }
 
-    pub fn push(&mut self, value: impl Into<u256>) -> Result<(), StatusCode> {
+    pub fn push(&mut self, value: impl Into<u256>) -> Result<(), FailStatus> {
         self.check_overflow_on_push()?;
         self.0.push(value.into());
         Ok(())
     }
 
-    pub fn swap_with_top(&mut self, nth: usize) -> Result<(), StatusCode> {
+    pub fn swap_with_top(&mut self, nth: usize) -> Result<(), FailStatus> {
         self.check_underflow(nth + 1)?;
 
         let len = self.0.len();
@@ -28,7 +26,7 @@ impl Stack {
         Ok(())
     }
 
-    pub fn pop<const N: usize>(&mut self) -> Result<[u256; N], StatusCode> {
+    pub fn pop<const N: usize>(&mut self) -> Result<[u256; N], FailStatus> {
         self.check_underflow(N)?;
 
         let new_len = self.0.len() - N;
@@ -38,23 +36,23 @@ impl Stack {
         Ok(array)
     }
 
-    pub fn nth(&self, nth: usize) -> Result<u256, StatusCode> {
+    pub fn nth(&self, nth: usize) -> Result<u256, FailStatus> {
         self.check_underflow(nth + 1)?;
         Ok(self.0[self.0.len() - nth - 1])
     }
 
     #[inline(always)]
-    fn check_overflow_on_push(&self) -> Result<(), StatusCode> {
+    fn check_overflow_on_push(&self) -> Result<(), FailStatus> {
         if self.0.len() >= 1024 {
-            return Err(StatusCode::EVMC_STACK_OVERFLOW);
+            return Err(FailStatus::StackOverflow);
         }
         Ok(())
     }
 
     #[inline(always)]
-    fn check_underflow(&self, min_len: usize) -> Result<(), StatusCode> {
+    fn check_underflow(&self, min_len: usize) -> Result<(), FailStatus> {
         if self.0.len() < min_len {
-            return Err(StatusCode::EVMC_STACK_UNDERFLOW);
+            return Err(FailStatus::StackUnderflow);
         }
         Ok(())
     }
@@ -62,9 +60,7 @@ impl Stack {
 
 #[cfg(test)]
 mod tests {
-    use evmc_vm::StatusCode;
-
-    use crate::types::{stack::Stack, u256};
+    use crate::types::{stack::Stack, u256, FailStatus};
 
     #[test]
     fn push() {
@@ -73,7 +69,7 @@ mod tests {
         assert_eq!(stack.into_inner().pop(), Some(u256::MAX));
 
         let mut stack = Stack::new(vec![u256::ZERO; 1024]);
-        assert_eq!(stack.push(u256::ZERO), Err(StatusCode::EVMC_STACK_OVERFLOW));
+        assert_eq!(stack.push(u256::ZERO), Err(FailStatus::StackOverflow));
     }
 
     #[test]
@@ -82,13 +78,13 @@ mod tests {
         assert_eq!(stack.pop::<1>(), Ok([u256::MAX]));
 
         let mut stack = Stack::new(vec![]);
-        assert_eq!(stack.pop::<1>(), Err(StatusCode::EVMC_STACK_UNDERFLOW));
+        assert_eq!(stack.pop::<1>(), Err(FailStatus::StackUnderflow));
 
         let mut stack = Stack::new(vec![u256::ONE, u256::MAX]);
         assert_eq!(stack.pop::<2>(), Ok([u256::ONE, u256::MAX]));
 
         let mut stack = Stack::new(vec![u256::MAX]);
-        assert_eq!(stack.pop::<2>(), Err(StatusCode::EVMC_STACK_UNDERFLOW));
+        assert_eq!(stack.pop::<2>(), Err(FailStatus::StackUnderflow));
     }
 
     #[test]
@@ -96,7 +92,7 @@ mod tests {
         let stack = Stack::new(vec![u256::MAX, u256::ZERO]);
         assert_eq!(stack.nth(0), Ok(u256::ZERO));
         assert_eq!(stack.nth(1), Ok(u256::MAX));
-        assert_eq!(stack.nth(2), Err(StatusCode::EVMC_STACK_UNDERFLOW));
+        assert_eq!(stack.nth(2), Err(FailStatus::StackUnderflow));
     }
 
     #[test]
@@ -110,10 +106,7 @@ mod tests {
         assert_eq!(stack.into_inner(), [u256::ZERO, u256::MAX]);
 
         let mut stack = Stack::new(vec![u256::MAX, u256::ZERO]);
-        assert_eq!(
-            stack.swap_with_top(2),
-            Err(StatusCode::EVMC_STACK_UNDERFLOW)
-        );
+        assert_eq!(stack.swap_with_top(2), Err(FailStatus::StackUnderflow));
     }
 
     #[test]
@@ -123,7 +116,7 @@ mod tests {
         let stack = Stack::new(vec![u256::MAX; 1024]);
         assert_eq!(
             stack.check_overflow_on_push(),
-            Err(StatusCode::EVMC_STACK_OVERFLOW)
+            Err(FailStatus::StackOverflow)
         );
     }
 
@@ -133,9 +126,6 @@ mod tests {
         assert_eq!(stack.check_underflow(0), Ok(()));
         let stack = Stack::new(vec![u256::ZERO]);
         assert_eq!(stack.check_underflow(1), Ok(()));
-        assert_eq!(
-            stack.check_underflow(2),
-            Err(StatusCode::EVMC_STACK_UNDERFLOW)
-        );
+        assert_eq!(stack.check_underflow(2), Err(FailStatus::StackUnderflow));
     }
 }

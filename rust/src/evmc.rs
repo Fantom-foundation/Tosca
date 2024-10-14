@@ -1,8 +1,8 @@
-use std::process;
+use std::{convert, process};
 
 use evmc_vm::{
     ffi::evmc_capabilities, EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult, Revision,
-    StatusCode, StepResult, StepStatusCode, SteppableEvmcVm, Uint256,
+    StepResult, StepStatusCode, SteppableEvmcVm, Uint256,
 };
 
 use crate::{
@@ -37,7 +37,7 @@ impl EvmcVm for EvmRs {
         Interpreter::new(revision, message, context, code)
             .run()
             .map(Into::into)
-            .unwrap_or_else(|status_code| ExecutionResult::new(status_code, 0, 0, None))
+            .unwrap_or_else(|fail_status| ExecutionResult::new(fail_status.into(), 0, 0, None))
     }
 
     fn set_option(&mut self, _: &str, _: &str) -> Result<(), evmc_vm::SetOptionError> {
@@ -71,7 +71,7 @@ impl SteppableEvmcVm for EvmRs {
         };
         let stack = Stack::new(stack.iter().copied().map(Into::into).collect());
         let memory = Memory::new(memory.to_owned());
-        Interpreter::new_steppable(
+        Interpreter::try_new_steppable(
             revision,
             message,
             context,
@@ -84,17 +84,12 @@ impl SteppableEvmcVm for EvmRs {
             Some(last_call_return_data.to_owned()),
             Some(steps),
         )
-        .run()
-        .map(Into::into)
-        .unwrap_or_else(|status_code| {
-            let step_status_code = match status_code {
-                StatusCode::EVMC_SUCCESS => StepStatusCode::EVMC_STEP_RUNNING,
-                StatusCode::EVMC_REVERT => StepStatusCode::EVMC_STEP_REVERTED,
-                _ => StepStatusCode::EVMC_STEP_FAILED,
-            };
+        .map(|interpreter| interpreter.run().map(Into::into))
+        .and_then(convert::identity) // use .flatten() once stabilized
+        .unwrap_or_else(|fail_status| {
             StepResult::new(
-                step_status_code,
-                status_code,
+                fail_status.into(),
+                fail_status.into(),
                 Revision::EVMC_FRONTIER,
                 0,
                 0,

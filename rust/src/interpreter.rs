@@ -2,30 +2,23 @@ use std::{cmp::min, mem};
 
 use evmc_vm::{
     AccessStatus, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
-    StatusCode, StepResult, StepStatusCode, StorageStatus, Uint256,
+    StatusCode as EvmcStatusCode, StepResult, StepStatusCode, StorageStatus, Uint256,
 };
 use sha3::{Digest, Keccak256};
 
 use crate::{
     types::{
-        u256, CodeReader, ExecutionContextTrait, ExecutionTxContext, GetOpcodeError, Memory,
-        Opcode, Stack,
+        u256, CodeReader, ExecStatus, ExecutionContextTrait, ExecutionTxContext, FailStatus,
+        GetOpcodeError, Memory, Opcode, Stack,
     },
     utils::{check_min_revision, check_not_read_only, word_size, Gas, SliceExt},
 };
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ShouldStop {
-    True,
-    False,
-}
 
 pub struct Interpreter<'a, E>
 where
     E: ExecutionContextTrait,
 {
-    pub step_status_code: StepStatusCode,
-    pub status_code: StatusCode,
+    pub exec_status: ExecStatus,
     pub message: &'a ExecutionMessage,
     pub context: &'a mut E,
     pub revision: Revision,
@@ -50,8 +43,7 @@ where
         code: &'a [u8],
     ) -> Self {
         Self {
-            step_status_code: StepStatusCode::EVMC_STEP_RUNNING,
-            status_code: StatusCode::EVMC_SUCCESS,
+            exec_status: ExecStatus::Running,
             message,
             context,
             revision,
@@ -67,7 +59,7 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn new_steppable(
+    pub fn try_new_steppable(
         revision: Revision,
         message: &'a ExecutionMessage,
         context: &'a mut E,
@@ -79,10 +71,9 @@ where
         memory: Memory,
         last_call_return_data: Option<Vec<u8>>,
         steps: Option<i32>,
-    ) -> Self {
-        Self {
-            step_status_code,
-            status_code: StatusCode::EVMC_SUCCESS,
+    ) -> Result<Self, FailStatus> {
+        step_status_code.try_into().map(|exec_status| Self {
+            exec_status,
             message,
             context,
             revision,
@@ -94,11 +85,15 @@ where
             memory,
             last_call_return_data,
             steps,
-        }
+        })
     }
 
-    pub fn run(mut self) -> Result<Self, StatusCode> {
+    pub fn run(mut self) -> Result<Self, FailStatus> {
         loop {
+            if self.exec_status != ExecStatus::Running {
+                break;
+            }
+
             match &mut self.steps {
                 None => (),
                 Some(0) => break,
@@ -107,14 +102,14 @@ where
             let op = match self.code_reader.get() {
                 Ok(op) => op,
                 Err(GetOpcodeError::OutOfRange) => {
-                    self.step_status_code = StepStatusCode::EVMC_STEP_STOPPED;
+                    self.exec_status = ExecStatus::Stopped;
                     break;
                 }
                 Err(GetOpcodeError::Invalid) => {
-                    return Err(StatusCode::EVMC_INVALID_INSTRUCTION);
+                    return Err(FailStatus::InvalidInstruction);
                 }
             };
-            let stop = match op {
+            match op {
                 Opcode::Stop => self.stop()?,
                 Opcode::Add => self.add()?,
                 Opcode::Mul => self.mul()?,
@@ -265,9 +260,6 @@ where
                 Opcode::Invalid => self.invalid()?,
                 Opcode::SelfDestruct => self.self_destruct()?,
             };
-            if stop == ShouldStop::True {
-                break;
-            }
 
             if !(Opcode::Push1 as u8..=Opcode::Push32 as u8).contains(&(op as u8))
                 && op != Opcode::Jump
@@ -280,194 +272,193 @@ where
         Ok(self)
     }
 
-    fn stop(&mut self) -> Result<ShouldStop, StatusCode> {
-        self.step_status_code = StepStatusCode::EVMC_STEP_STOPPED;
-        self.status_code = StatusCode::EVMC_SUCCESS;
-        Ok(ShouldStop::True)
+    fn stop(&mut self) -> Result<(), FailStatus> {
+        self.exec_status = ExecStatus::Stopped;
+        Ok(())
     }
 
-    fn add(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn add(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [value2, value1] = self.stack.pop()?;
         self.stack.push(value1 + value2)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn mul(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn mul(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(5)?;
         let [fac2, fac1] = self.stack.pop()?;
         self.stack.push(fac1 * fac2)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn sub(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn sub(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [value2, value1] = self.stack.pop()?;
         self.stack.push(value1 - value2)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn div(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn div(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(5)?;
         let [denominator, value] = self.stack.pop()?;
         self.stack.push(value / denominator)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn s_div(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn s_div(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(5)?;
         let [denominator, value] = self.stack.pop()?;
         self.stack.push(value.sdiv(denominator))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn mod_(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn mod_(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(5)?;
         let [denominator, value] = self.stack.pop()?;
         self.stack.push(value % denominator)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn s_mod(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn s_mod(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(5)?;
         let [denominator, value] = self.stack.pop()?;
         self.stack.push(value.srem(denominator))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn add_mod(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn add_mod(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(8)?;
         let [denominator, value2, value1] = self.stack.pop()?;
         self.stack.push(u256::addmod(value1, value2, denominator))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn mul_mod(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn mul_mod(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(8)?;
         let [denominator, fac2, fac1] = self.stack.pop()?;
         self.stack.push(u256::mulmod(fac1, fac2, denominator))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn exp(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn exp(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(10)?;
         let [exp, value] = self.stack.pop()?;
         let byte_size = 32 - exp.into_iter().take_while(|byte| *byte == 0).count() as u64;
         self.gas_left.consume(byte_size * 50)?; // * does not overflow
         self.stack.push(value.pow(exp))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn sign_extend(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn sign_extend(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(5)?;
         let [value, size] = self.stack.pop()?;
         self.stack.push(u256::signextend(size, value))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn lt(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn lt(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs < rhs)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn gt(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn gt(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs > rhs)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn s_lt(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn s_lt(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs.slt(&rhs))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn s_gt(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn s_gt(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs.sgt(&rhs))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn eq(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn eq(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs == rhs)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn is_zero(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn is_zero(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [value] = self.stack.pop()?;
         self.stack.push(value == u256::ZERO)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn and(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn and(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs & rhs)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn or(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn or(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs | rhs)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn xor(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn xor(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
         self.stack.push(lhs ^ rhs)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn not(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn not(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [value] = self.stack.pop()?;
         self.stack.push(!value)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn byte(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn byte(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [value, offset] = self.stack.pop()?;
         self.stack.push(value.byte(offset))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn shl(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn shl(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [value, shift] = self.stack.pop()?;
         self.stack.push(value << shift)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn shr(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn shr(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [value, shift] = self.stack.pop()?;
         self.stack.push(value >> shift)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn sar(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn sar(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [value, shift] = self.stack.pop()?;
         self.stack.push(value.sar(shift))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn sha3(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn sha3(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(30)?;
         let [len, offset] = self.stack.pop()?;
 
-        let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+        let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
         self.gas_left.consume(6 * word_size(len)?)?; // * does not overflow
 
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
@@ -476,16 +467,16 @@ where
         let mut bytes = [0; 32];
         hasher.finalize_into((&mut bytes).into());
         self.stack.push(bytes)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn address(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn address(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack.push(self.message.recipient())?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn balance(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn balance(&mut self) -> Result<(), FailStatus> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
@@ -494,28 +485,28 @@ where
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
         self.stack.push(self.context.get_balance(&addr))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn origin(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn origin(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack.push(self.context.get_tx_context().tx_origin)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn caller(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn caller(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack.push(self.message.sender())?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn call_value(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn call_value(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack.push(*self.message.value())?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn call_data_load(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn call_data_load(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [offset] = self.stack.pop()?;
         let (offset, overflow) = offset.into_u64_with_overflow();
@@ -530,10 +521,10 @@ where
             bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
             self.stack.push(bytes)?;
         }
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn call_data_size(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn call_data_size(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         let call_data_len = self
             .message
@@ -544,24 +535,24 @@ where
             })
             .unwrap_or_default();
         self.stack.push(call_data_len)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn push0(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn push0(&mut self) -> Result<(), FailStatus> {
         check_min_revision(Revision::EVMC_SHANGHAI, self.revision)?;
         self.gas_left.consume(2)?;
         self.stack.push(u256::ZERO)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn call_data_copy(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn call_data_copy(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [len, offset, dest_offset] = self.stack.pop()?;
 
         if len != u256::ZERO {
             let len = len
                 .try_into()
-                .map_err(|_| StatusCode::EVMC_INVALID_MEMORY_ACCESS)?;
+                .map_err(|_| FailStatus::InvalidMemoryAccess)?;
 
             #[allow(clippy::map_identity)]
             let src = self
@@ -575,21 +566,21 @@ where
                 .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
             dest.copy_padded(src, &mut self.gas_left)?;
         }
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn code_size(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn code_size(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack.push(self.code_reader.len())?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn code_copy(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn code_copy(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [len, offset, dest_offset] = self.stack.pop()?;
 
         if len != u256::ZERO {
-            let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+            let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
 
             let src = self.code_reader.get_within_bounds(offset, len);
             let dest = self
@@ -597,17 +588,17 @@ where
                 .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
             dest.copy_padded(src, &mut self.gas_left)?;
         }
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn gas_price(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn gas_price(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().tx_gas_price)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn ext_code_size(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn ext_code_size(&mut self) -> Result<(), FailStatus> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
@@ -616,10 +607,10 @@ where
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
         self.stack.push(self.context.get_code_size(&addr))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn ext_code_copy(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn ext_code_copy(&mut self) -> Result<(), FailStatus> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
@@ -629,7 +620,7 @@ where
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
         if len != u256::ZERO {
-            let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+            let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
 
             let dest = self
                 .memory
@@ -643,10 +634,10 @@ where
                 dest[bytes_written..].set_to_zero();
             }
         }
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn return_data_size(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn return_data_size(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack.push(
             self.last_call_return_data
@@ -654,10 +645,10 @@ where
                 .map(Vec::len)
                 .unwrap_or_default(),
         )?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn return_data_copy(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn return_data_copy(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [len, offset, dest_offset] = self.stack.pop()?;
 
@@ -666,7 +657,7 @@ where
         let (len, len_overflow) = len.into_u64_with_overflow();
         let (end, end_overflow) = offset.overflowing_add(len);
         if offset_overflow || len_overflow || end_overflow || end > src.len() as u64 {
-            return Err(StatusCode::EVMC_INVALID_MEMORY_ACCESS);
+            return Err(FailStatus::InvalidMemoryAccess);
         }
 
         if len != 0 {
@@ -676,10 +667,10 @@ where
                 .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
             dest.copy_padded(src, &mut self.gas_left)?;
         }
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn ext_code_hash(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn ext_code_hash(&mut self) -> Result<(), FailStatus> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
@@ -688,10 +679,10 @@ where
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
         self.stack.push(self.context.get_code_hash(&addr))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn block_hash(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn block_hash(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(20)?;
         let [block_number] = self.stack.pop()?;
         self.stack.push(
@@ -700,51 +691,51 @@ where
                 .map(|idx: u64| self.context.get_block_hash(idx as i64))
                 .unwrap_or(u256::ZERO.into()),
         )?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn coinbase(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn coinbase(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_coinbase)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn timestamp(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn timestamp(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_timestamp as u64)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn number(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn number(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_number as u64)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn prev_randao(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn prev_randao(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_prev_randao)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn gas_limit(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn gas_limit(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_gas_limit as u64)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn chain_id(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn chain_id(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack.push(self.context.get_tx_context().chain_id)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn self_balance(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn self_balance(&mut self) -> Result<(), FailStatus> {
         check_min_revision(Revision::EVMC_ISTANBUL, self.revision)?;
         self.gas_left.consume(5)?;
         let addr = self.message.recipient();
@@ -753,18 +744,18 @@ where
         } else {
             self.stack.push(self.context.get_balance(addr))?;
         }
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn base_fee(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn base_fee(&mut self) -> Result<(), FailStatus> {
         check_min_revision(Revision::EVMC_LONDON, self.revision)?;
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().block_base_fee)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn blob_hash(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn blob_hash(&mut self) -> Result<(), FailStatus> {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         self.gas_left.consume(3)?;
         let [idx] = self.stack.pop()?;
@@ -776,51 +767,51 @@ where
         } else {
             self.stack.push(u256::ZERO)?;
         }
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn blob_base_fee(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn blob_base_fee(&mut self) -> Result<(), FailStatus> {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         self.gas_left.consume(2)?;
         self.stack
             .push(self.context.get_tx_context().blob_base_fee)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn pop(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn pop(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         let [_] = self.stack.pop()?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn m_load(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn m_load(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [offset] = self.stack.pop()?;
 
         self.stack
             .push(self.memory.get_word(offset, &mut self.gas_left)?)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn m_store(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn m_store(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [value, offset] = self.stack.pop()?;
 
         let dest = self.memory.get_mut_slice(offset, 32, &mut self.gas_left)?;
         dest.copy_from_slice(value.as_slice());
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn m_store8(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn m_store8(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         let [value, offset] = self.stack.pop()?;
 
         let dest = self.memory.get_mut_byte(offset, &mut self.gas_left)?;
         *dest = value[31];
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn s_load(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn s_load(&mut self) -> Result<(), FailStatus> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(800)?;
         }
@@ -836,17 +827,17 @@ where
         }
         let value = self.context.get_storage(addr, &key);
         self.stack.push(value)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn jump(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn jump(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(8)?;
         let [dest] = self.stack.pop()?;
         self.code_reader.try_jump(dest)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn jump_i(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn jump_i(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(10)?;
         let [cond, dest] = self.stack.pop()?;
         if cond == u256::ZERO {
@@ -854,43 +845,43 @@ where
         } else {
             self.code_reader.try_jump(dest)?;
         }
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn pc(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn pc(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack.push(self.code_reader.pc())?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn m_size(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn m_size(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack.push(self.memory.len())?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn gas(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn gas(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(2)?;
         self.stack.push(self.gas_left.as_u64())?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn jump_dest(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn jump_dest(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(1)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn t_load(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn t_load(&mut self) -> Result<(), FailStatus> {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         self.gas_left.consume(100)?;
         let [key] = self.stack.pop()?;
         let addr = self.message.recipient();
         let value = self.context.get_transient_storage(addr, &key.into());
         self.stack.push(value)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn t_store(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn t_store(&mut self) -> Result<(), FailStatus> {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         check_not_read_only(self)?;
         self.gas_left.consume(100)?;
@@ -898,10 +889,10 @@ where
         let addr = self.message.recipient();
         self.context
             .set_transient_storage(addr, &key.into(), &value.into());
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn m_copy(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn m_copy(&mut self) -> Result<(), FailStatus> {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         self.gas_left.consume(3)?;
         let [len, offset, dest_offset] = self.stack.pop()?;
@@ -909,36 +900,35 @@ where
             self.memory
                 .copy_within(offset, dest_offset, len, &mut self.gas_left)?;
         }
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn return_(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn return_(&mut self) -> Result<(), FailStatus> {
         let [len, offset] = self.stack.pop()?;
-        let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+        let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
         self.output = Some(data.to_owned());
-        self.step_status_code = StepStatusCode::EVMC_STEP_RETURNED;
-        Ok(ShouldStop::True)
+        self.exec_status = ExecStatus::Returned;
+        Ok(())
     }
 
-    fn revert(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn revert(&mut self) -> Result<(), FailStatus> {
         let [len, offset] = self.stack.pop()?;
-        let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+        let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
         // TODO revert self changes
         // gas_refund = original_gas_refund;
         self.output = Some(data.to_owned());
-        self.step_status_code = StepStatusCode::EVMC_STEP_REVERTED;
-        self.status_code = StatusCode::EVMC_REVERT;
-        Ok(ShouldStop::True)
+        self.exec_status = ExecStatus::Revert;
+        Ok(())
     }
 
-    fn invalid(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn invalid(&mut self) -> Result<(), FailStatus> {
         check_min_revision(Revision::EVMC_HOMESTEAD, self.revision)?;
-        Err(StatusCode::EVMC_INVALID_INSTRUCTION)
+        Err(FailStatus::InvalidInstruction)
     }
 
-    fn self_destruct(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn self_destruct(&mut self) -> Result<(), FailStatus> {
         check_not_read_only(self)?;
         self.gas_left.consume(5_000)?;
         let [addr] = self.stack.pop()?;
@@ -961,15 +951,15 @@ where
             self.gas_refund += 24_000;
         }
 
-        self.step_status_code = StepStatusCode::EVMC_STEP_STOPPED;
-        Ok(ShouldStop::True)
+        self.exec_status = ExecStatus::Stopped;
+        Ok(())
     }
 
-    fn sstore(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn sstore(&mut self) -> Result<(), FailStatus> {
         check_not_read_only(self)?;
 
         if self.revision >= Revision::EVMC_ISTANBUL && self.gas_left <= 2_300 {
-            return Err(StatusCode::EVMC_OUT_OF_GAS);
+            return Err(FailStatus::OutOfGas);
         }
         let [value, key] = self.stack.pop()?;
         let key = key.into();
@@ -1012,29 +1002,29 @@ where
         }
         self.gas_left.consume(dyn_gas)?;
         self.gas_refund += gas_refund_change;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn push(&mut self, len: usize) -> Result<ShouldStop, StatusCode> {
+    fn push(&mut self, len: usize) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         self.code_reader.next();
         self.stack.push(self.code_reader.get_push_data(len))?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn dup(&mut self, nth: usize) -> Result<ShouldStop, StatusCode> {
+    fn dup(&mut self, nth: usize) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         self.stack.push(self.stack.nth(nth - 1)?)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn swap(&mut self, nth: usize) -> Result<ShouldStop, StatusCode> {
+    fn swap(&mut self, nth: usize) -> Result<(), FailStatus> {
         self.gas_left.consume(3)?;
         self.stack.swap_with_top(nth)?;
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn log<const N: usize>(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn log<const N: usize>(&mut self) -> Result<(), FailStatus> {
         check_not_read_only(self)?;
         self.gas_left.consume(375)?;
         let [len, offset] = self.stack.pop()?;
@@ -1043,7 +1033,7 @@ where
         let (len8, len8_overflow) = len.overflowing_mul(8);
         let (cost, cost_overflow) = (375 * N as u64).overflowing_add(len8);
         if len_overflow || len8_overflow || cost_overflow {
-            return Err(StatusCode::EVMC_OUT_OF_GAS);
+            return Err(FailStatus::OutOfGas);
         }
         self.gas_left.consume(cost)?;
 
@@ -1055,18 +1045,18 @@ where
         let topics = unsafe { mem::transmute::<&[u256], &[Uint256]>(topics.as_slice()) };
         self.context
             .emit_log(self.message.recipient(), data, topics);
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn create(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn create(&mut self) -> Result<(), FailStatus> {
         self.create_or_create2::<false>()
     }
 
-    fn create2(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn create2(&mut self) -> Result<(), FailStatus> {
         self.create_or_create2::<true>()
     }
 
-    fn create_or_create2<const CREATE2: bool>(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn create_or_create2<const CREATE2: bool>(&mut self) -> Result<(), FailStatus> {
         self.gas_left.consume(32_000)?;
         check_not_read_only(self)?;
         let [len, offset, value] = self.stack.pop()?;
@@ -1076,13 +1066,13 @@ where
         } else {
             u256::ZERO // ignored
         };
-        let len = len.try_into().map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+        let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
 
         let init_code_word_size = word_size(len)?;
         if self.revision >= Revision::EVMC_SHANGHAI {
             const MAX_INIT_CODE_LEN: u64 = 2 * 24576;
             if len > MAX_INIT_CODE_LEN {
-                return Err(StatusCode::EVMC_OUT_OF_GAS);
+                return Err(FailStatus::OutOfGas);
             }
             let init_code_cost = 2 * init_code_word_size; // does not overflow
             self.gas_left.consume(init_code_cost)?;
@@ -1097,7 +1087,8 @@ where
         if value > self.context.get_balance(self.message.recipient()).into() {
             self.last_call_return_data = None;
             self.stack.push(u256::ZERO)?;
-            return Ok(ShouldStop::False);
+
+            return Ok(());
         }
 
         let gas_left = self.gas_left.as_u64();
@@ -1127,9 +1118,9 @@ where
         self.gas_left.add(result.gas_left() as u64);
         self.gas_refund += result.gas_refund();
 
-        if result.status_code() == StatusCode::EVMC_SUCCESS {
+        if result.status_code() == EvmcStatusCode::EVMC_SUCCESS {
             let Some(addr) = result.create_address() else {
-                return Err(StatusCode::EVMC_INTERNAL_ERROR);
+                return Err(FailStatus::InternalError);
             };
 
             self.last_call_return_data = None;
@@ -1138,18 +1129,18 @@ where
             self.last_call_return_data = result.output().map(ToOwned::to_owned);
             self.stack.push(u256::ZERO)?;
         }
-        Ok(ShouldStop::False)
+        Ok(())
     }
 
-    fn call(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn call(&mut self) -> Result<(), FailStatus> {
         self.call_or_call_code::<false>()
     }
 
-    fn call_code(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn call_code(&mut self) -> Result<(), FailStatus> {
         self.call_or_call_code::<true>()
     }
 
-    fn call_or_call_code<const CODE: bool>(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn call_or_call_code<const CODE: bool>(&mut self) -> Result<(), FailStatus> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
@@ -1160,12 +1151,8 @@ where
         }
 
         let addr = addr.into();
-        let args_len = args_len
-            .try_into()
-            .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
-        let ret_len = ret_len
-            .try_into()
-            .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+        let args_len = args_len.try_into().map_err(|_| FailStatus::OutOfGas)?;
+        let ret_len = ret_len.try_into().map_err(|_| FailStatus::OutOfGas)?;
 
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
@@ -1195,7 +1182,8 @@ where
         if value > u256::from(self.context.get_balance(self.message.recipient())) {
             self.last_call_return_data = None;
             self.stack.push(u256::ZERO)?;
-            return Ok(ShouldStop::False);
+
+            return Ok(());
         }
 
         let call_message = if CODE {
@@ -1246,31 +1234,27 @@ where
         self.gas_refund += result.gas_refund();
 
         self.stack
-            .push(result.status_code() == StatusCode::EVMC_SUCCESS)?;
-        Ok(ShouldStop::False)
+            .push(result.status_code() == EvmcStatusCode::EVMC_SUCCESS)?;
+        Ok(())
     }
 
-    fn static_call(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn static_call(&mut self) -> Result<(), FailStatus> {
         self.static_or_delegate_call::<false>()
     }
 
-    fn delegate_call(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn delegate_call(&mut self) -> Result<(), FailStatus> {
         self.static_or_delegate_call::<true>()
     }
 
-    fn static_or_delegate_call<const DELEGATE: bool>(&mut self) -> Result<ShouldStop, StatusCode> {
+    fn static_or_delegate_call<const DELEGATE: bool>(&mut self) -> Result<(), FailStatus> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
         let [ret_len, ret_offset, args_len, args_offset, addr, gas] = self.stack.pop()?;
 
         let addr = addr.into();
-        let args_len = args_len
-            .try_into()
-            .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
-        let ret_len = ret_len
-            .try_into()
-            .map_err(|_| StatusCode::EVMC_OUT_OF_GAS)?;
+        let args_len = args_len.try_into().map_err(|_| FailStatus::OutOfGas)?;
+        let ret_len = ret_len.try_into().map_err(|_| FailStatus::OutOfGas)?;
 
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
@@ -1337,8 +1321,8 @@ where
         self.gas_refund += result.gas_refund();
 
         self.stack
-            .push(result.status_code() == StatusCode::EVMC_SUCCESS)?;
-        Ok(ShouldStop::False)
+            .push(result.status_code() == EvmcStatusCode::EVMC_SUCCESS)?;
+        Ok(())
     }
 }
 
@@ -1354,8 +1338,8 @@ where
             .map(Into::into)
             .collect();
         Self::new(
-            value.step_status_code,
-            value.status_code,
+            value.exec_status.into(),
+            EvmcStatusCode::EVMC_SUCCESS,
             value.revision,
             value.code_reader.pc() as u64,
             value.gas_left.as_u64() as i64,
@@ -1374,7 +1358,7 @@ where
 {
     fn from(value: Interpreter<E>) -> Self {
         Self::new(
-            value.status_code,
+            value.exec_status.into(),
             value.gas_left.as_u64() as i64,
             value.gas_refund,
             value.output.as_deref(),
@@ -1391,7 +1375,10 @@ mod tests {
 
     use crate::{
         interpreter::Interpreter,
-        types::{u256, Memory, MockExecutionContextTrait, MockExecutionMessage, Opcode, Stack},
+        types::{
+            u256, ExecStatus, FailStatus, Memory, MockExecutionContextTrait, MockExecutionMessage,
+            Opcode, Stack,
+        },
     };
 
     #[test]
@@ -1401,8 +1388,7 @@ mod tests {
         let result = Interpreter::new(Revision::EVMC_FRONTIER, &message, &mut context, &[]).run();
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.exec_status, ExecStatus::Stopped);
         assert_eq!(result.code_reader.pc(), 0);
         assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
@@ -1411,7 +1397,7 @@ mod tests {
     fn pc_after_end() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let result = Interpreter::new_steppable(
+        let result = Interpreter::try_new_steppable(
             Revision::EVMC_FRONTIER,
             &message,
             &mut context,
@@ -1424,11 +1410,11 @@ mod tests {
             None,
             None,
         )
+        .unwrap()
         .run();
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.exec_status, ExecStatus::Stopped);
         assert_eq!(result.code_reader.pc(), 1);
         assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
@@ -1437,7 +1423,7 @@ mod tests {
     fn pc_on_data() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let result = Interpreter::new_steppable(
+        let result = Interpreter::try_new_steppable(
             Revision::EVMC_FRONTIER,
             &message,
             &mut context,
@@ -1450,10 +1436,11 @@ mod tests {
             None,
             None,
         )
+        .unwrap()
         .run();
         assert!(result.is_err());
         let status = result.map(|_| ()).unwrap_err();
-        assert_eq!(status, StatusCode::EVMC_INVALID_INSTRUCTION);
+        assert_eq!(status, FailStatus::InvalidInstruction);
     }
 
     #[test]
@@ -1470,8 +1457,7 @@ mod tests {
         let result = interpreter.run();
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_RUNNING);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.exec_status, ExecStatus::Running);
         assert_eq!(result.code_reader.pc(), 0);
         assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
@@ -1491,8 +1477,7 @@ mod tests {
         let result = interpreter.run();
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_RUNNING);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.exec_status, ExecStatus::Running);
         assert_eq!(result.stack.into_inner(), [3u8.into()]);
         assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS - 3);
     }
@@ -1511,8 +1496,7 @@ mod tests {
         let result = interpreter.run();
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.exec_status, ExecStatus::Stopped);
         assert_eq!(result.stack.into_inner(), [3u8.into()]);
         assert_eq!(result.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS - 3);
     }
@@ -1531,8 +1515,7 @@ mod tests {
         let result = interpreter.run();
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.exec_status, ExecStatus::Stopped);
         assert_eq!(result.stack.into_inner(), [6u8.into()]);
         assert_eq!(
             result.gas_left,
@@ -1558,7 +1541,7 @@ mod tests {
         let result = interpreter.run();
         assert!(result.is_err());
         let status = result.map(|_| ()).unwrap_err();
-        assert_eq!(status, StatusCode::EVMC_OUT_OF_GAS);
+        assert_eq!(status, FailStatus::OutOfGas);
     }
 
     #[test]
@@ -1623,7 +1606,7 @@ mod tests {
             gas.into(),
         ];
 
-        let result = Interpreter::new_steppable(
+        let result = Interpreter::try_new_steppable(
             Revision::EVMC_FRONTIER,
             &message,
             &mut context,
@@ -1636,11 +1619,11 @@ mod tests {
             None,
             None,
         )
+        .unwrap()
         .run();
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
-        assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
+        assert_eq!(result.exec_status, ExecStatus::Stopped);
         assert_eq!(result.code_reader.pc(), 1);
         assert_eq!(
             result.gas_left,

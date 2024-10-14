@@ -1,10 +1,10 @@
 use std::cmp::min;
 
-use evmc_vm::{MessageFlags, Revision, StatusCode};
+use evmc_vm::{MessageFlags, Revision};
 
 use crate::{
     interpreter::Interpreter,
-    types::{u256, ExecutionContextTrait},
+    types::{u256, ExecutionContextTrait, FailStatus},
     utils::Gas,
 };
 
@@ -13,7 +13,7 @@ pub trait SliceExt {
 
     fn set_to_zero(&mut self);
 
-    fn copy_padded(&mut self, src: &[u8], gas_left: &mut Gas) -> Result<(), StatusCode>;
+    fn copy_padded(&mut self, src: &[u8], gas_left: &mut Gas) -> Result<(), FailStatus>;
 }
 
 impl SliceExt for [u8] {
@@ -44,7 +44,7 @@ impl SliceExt for [u8] {
     }
 
     #[inline(always)]
-    fn copy_padded(&mut self, src: &[u8], gas_left: &mut Gas) -> Result<(), StatusCode> {
+    fn copy_padded(&mut self, src: &[u8], gas_left: &mut Gas) -> Result<(), FailStatus> {
         gas_left.consume_copy_cost(self.len() as u64)?;
         self[..src.len()].copy_from_slice(src);
         self[src.len()..].set_to_zero();
@@ -53,42 +53,42 @@ impl SliceExt for [u8] {
 }
 
 #[inline(always)]
-pub fn word_size(byte_len: u64) -> Result<u64, StatusCode> {
+pub fn word_size(byte_len: u64) -> Result<u64, FailStatus> {
     let (end, overflow) = byte_len.overflowing_add(31);
     if overflow {
-        return Err(StatusCode::EVMC_OUT_OF_GAS);
+        return Err(FailStatus::OutOfGas);
     }
     Ok(end / 32)
 }
 
 #[inline(always)]
-pub fn check_min_revision(min_revision: Revision, revision: Revision) -> Result<(), StatusCode> {
+pub fn check_min_revision(min_revision: Revision, revision: Revision) -> Result<(), FailStatus> {
     if revision < min_revision {
-        return Err(StatusCode::EVMC_UNDEFINED_INSTRUCTION);
+        return Err(FailStatus::UndefinedInstruction);
     }
     Ok(())
 }
 
 #[inline(always)]
-pub fn check_not_read_only<E>(state: &Interpreter<E>) -> Result<(), StatusCode>
+pub fn check_not_read_only<E>(state: &Interpreter<E>) -> Result<(), FailStatus>
 where
     E: ExecutionContextTrait,
 {
     if state.revision >= Revision::EVMC_BYZANTIUM
         && state.message.flags() == MessageFlags::EVMC_STATIC as u32
     {
-        return Err(StatusCode::EVMC_STATIC_MODE_VIOLATION);
+        return Err(FailStatus::StaticModeViolation);
     }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use evmc_vm::{MessageFlags, Revision, StatusCode};
+    use evmc_vm::{MessageFlags, Revision};
 
     use crate::{
         interpreter::Interpreter,
-        types::{u256, MockExecutionContextTrait, MockExecutionMessage},
+        types::{u256, FailStatus, MockExecutionContextTrait, MockExecutionMessage},
         utils::{self, Gas, SliceExt},
     };
 
@@ -140,7 +140,7 @@ mod tests {
         let mut dest = [1];
         assert_eq!(
             dest.copy_padded(&src, &mut Gas::new(0)),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
     }
 
@@ -150,7 +150,7 @@ mod tests {
         assert_eq!(utils::word_size(1), Ok(1));
         assert_eq!(utils::word_size(32), Ok(1));
         assert_eq!(utils::word_size(33), Ok(2));
-        assert_eq!(utils::word_size(u64::MAX), Err(StatusCode::EVMC_OUT_OF_GAS));
+        assert_eq!(utils::word_size(u64::MAX), Err(FailStatus::OutOfGas));
     }
 
     #[test]
@@ -165,7 +165,7 @@ mod tests {
         );
         assert_eq!(
             utils::check_min_revision(Revision::EVMC_CANCUN, Revision::EVMC_FRONTIER),
-            Err(StatusCode::EVMC_UNDEFINED_INSTRUCTION)
+            Err(FailStatus::UndefinedInstruction)
         );
     }
 
@@ -187,7 +187,7 @@ mod tests {
         let interpreter = Interpreter::new(Revision::EVMC_BYZANTIUM, &message, &mut context, &[]);
         assert_eq!(
             utils::check_not_read_only(&interpreter),
-            Err(StatusCode::EVMC_STATIC_MODE_VIOLATION)
+            Err(FailStatus::StaticModeViolation)
         );
     }
 }

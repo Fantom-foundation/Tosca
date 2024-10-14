@@ -1,8 +1,6 @@
 use std::{cmp::min, mem, ops::Deref};
 
-use evmc_vm::StatusCode;
-
-use crate::types::{code_byte_type, u256, CodeByteType, Opcode};
+use crate::types::{code_byte_type, u256, CodeByteType, FailStatus, Opcode};
 
 #[derive(Debug)]
 pub struct CodeReader<'a> {
@@ -54,11 +52,11 @@ impl<'a> CodeReader<'a> {
         self.pc += 1;
     }
 
-    pub fn try_jump(&mut self, dest: u256) -> Result<(), StatusCode> {
-        let dest = u64::try_from(dest).map_err(|_| StatusCode::EVMC_BAD_JUMP_DESTINATION)? as usize;
+    pub fn try_jump(&mut self, dest: u256) -> Result<(), FailStatus> {
+        let dest = u64::try_from(dest).map_err(|_| FailStatus::BadJumpDestination)? as usize;
         if dest >= self.code_byte_type.len() || self.code_byte_type[dest] != CodeByteType::JumpDest
         {
-            return Err(StatusCode::EVMC_BAD_JUMP_DESTINATION);
+            return Err(FailStatus::BadJumpDestination);
         }
         self.pc = dest;
 
@@ -96,11 +94,9 @@ fn compute_code_byte_types(code: &[u8]) -> Box<[CodeByteType]> {
 
 #[cfg(test)]
 mod tests {
-    use evmc_vm::StatusCode;
-
     use crate::types::{
         code_reader::{compute_code_byte_types, CodeReader, GetOpcodeError},
-        u256, CodeByteType, Opcode,
+        u256, CodeByteType, FailStatus, Opcode,
     };
 
     #[test]
@@ -231,16 +227,16 @@ mod tests {
         );
         assert_eq!(
             code_reader.try_jump(1u8.into()),
-            Err(StatusCode::EVMC_BAD_JUMP_DESTINATION)
+            Err(FailStatus::BadJumpDestination)
         );
         assert_eq!(code_reader.try_jump(2u8.into()), Ok(()));
         assert_eq!(
             code_reader.try_jump(3u8.into()),
-            Err(StatusCode::EVMC_BAD_JUMP_DESTINATION)
+            Err(FailStatus::BadJumpDestination)
         );
         assert_eq!(
             code_reader.try_jump(u256::MAX),
-            Err(StatusCode::EVMC_BAD_JUMP_DESTINATION)
+            Err(FailStatus::BadJumpDestination)
         );
     }
 
