@@ -199,7 +199,7 @@ type ErrUnsupportedRevision struct {
 }
 
 func (e *ErrUnsupportedRevision) Error() string {
-	return fmt.Sprintf("Unsupported revision %d", e.Revision)
+	return fmt.Sprintf("unsupported revision %d", e.Revision)
 }
 
 // ProfilingInterpreter is an optional extension to the Interpreter interface
