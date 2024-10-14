@@ -11,7 +11,7 @@ git submodule update --init --recursive
 - Go toolchain, minimum version 1.22
     - Ubuntu/Debian package: `golang-go`
     - Snap package: `go`
-- C/C++ toolchain, Clang >= 16 or Gcc >= 11.4
+- C/C++ toolchain, Clang >= 16 and Gcc >= 11.4
     - Ubuntu/Debian package: `clang`
     - Recommended: install `clang-format`, `clangd`, and `gdb` for development
 - Rust toolchain >= 1.81.0
