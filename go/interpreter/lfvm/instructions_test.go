@@ -1212,6 +1212,68 @@ func TestInstructions_EIP2929_SSTOREReportsOutOfGas(t *testing.T) {
 	}
 }
 
+func TestInstructions_StorageOps_CallStorageContext(t *testing.T) {
+	address := tosca.Address{}
+	_, _ = rand.Read(address[:])
+	key := tosca.Key{}
+	_, _ = rand.Read(key[:])
+	value := tosca.Word{}
+	_, _ = rand.Read(value[:])
+
+	tests := map[OpCode]struct {
+		implementation func(*context) error
+		stack          []uint256.Int
+	}{
+		SLOAD: {
+			implementation: opSload,
+			stack: []uint256.Int{
+				*new(uint256.Int).SetBytes(key[:]),
+			},
+		},
+		SSTORE: {
+			implementation: opSstore,
+			stack: []uint256.Int{
+				*new(uint256.Int).SetBytes(key[:]),
+				*new(uint256.Int).SetBytes(value[:]),
+			},
+		},
+	}
+
+	for op, test := range tests {
+		t.Run(op.String(), func(t *testing.T) {
+			forEachRevision(t, op, func(t *testing.T, revision tosca.Revision) {
+
+				ctxt := getEmptyContext()
+				ctxt.params.Recipient = address
+				ctxt.params.Revision = revision
+				ctxt.stack = fillStack(test.stack...)
+				runContext := tosca.NewMockRunContext(gomock.NewController(t))
+				if revision >= tosca.R09_Berlin {
+					runContext.EXPECT().AccessStorage(address, key).Return(tosca.WarmAccess)
+				}
+				if op == SLOAD {
+					runContext.EXPECT().GetStorage(address, key).Return(value)
+				}
+				if op == SSTORE {
+					runContext.EXPECT().SetStorage(address, key, value)
+				}
+				ctxt.context = runContext
+
+				err := test.implementation(&ctxt)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+
+				if op == SLOAD {
+					if got := ctxt.stack.peek(); got.Cmp(new(uint256.Int).SetBytes(value[:])) != 0 {
+						t.Errorf("unexpected return value, wanted %v, got %v", value, got)
+					}
+				}
+			})
+		})
+	}
+}
+
 func TestInstructions_JumpOpsCheckJUMPDEST(t *testing.T) {
 	tests := map[OpCode]struct {
 		implementation func(*context) error
