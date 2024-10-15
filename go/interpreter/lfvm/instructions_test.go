@@ -591,40 +591,48 @@ func TestCreateShanghaiDeploymentCost(t *testing.T) {
 }
 
 func TestTransientStorageOperations(t *testing.T) {
+	address := tosca.Address{}
+	_, _ = rand.Read(address[:])
+	key := tosca.Key{}
+	_, _ = rand.Read(key[:])
+	value := tosca.Word{}
+	_, _ = rand.Read(value[:])
+
 	tests := map[string]struct {
 		op       func(*context) error
 		setup    func(*tosca.MockRunContext)
-		stackPtr int
+		stack    []uint256.Int
 		revision tosca.Revision
 		err      error
 	}{
 		"tload-regular": {
 			op: opTload,
 			setup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().GetTransientStorage(gomock.Any(), gomock.Any()).Return(tosca.Word{})
+				runContext.EXPECT().GetTransientStorage(address, key).Return(tosca.Word{})
 			},
-			stackPtr: 1,
+			stack: []uint256.Int{
+				*new(uint256.Int).SetBytes(key[:]),
+			},
 			revision: tosca.R13_Cancun,
 		},
 		"tload-old-revision": {
 			op:       opTload,
-			setup:    func(runContext *tosca.MockRunContext) {},
-			stackPtr: 1,
 			revision: tosca.R11_Paris,
 			err:      errInvalidRevision,
 		},
 		"tstore-regular": {
 			op: opTstore,
 			setup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().SetTransientStorage(gomock.Any(), gomock.Any(), gomock.Any())
+				runContext.EXPECT().SetTransientStorage(address, key, value)
 			},
-			stackPtr: 2,
+			stack: []uint256.Int{
+				*new(uint256.Int).SetBytes(key[:]),
+				*new(uint256.Int).SetBytes(value[:]),
+			},
 			revision: tosca.R13_Cancun,
 		},
 		"tstore-old-revision": {
 			op:       opTstore,
-			setup:    func(runContext *tosca.MockRunContext) {},
-			stackPtr: 2,
 			revision: tosca.R11_Paris,
 			err:      errInvalidRevision,
 		},
@@ -642,10 +650,13 @@ func TestTransientStorageOperations(t *testing.T) {
 				},
 				stack: NewStack(),
 			}
-			runContext := tosca.NewMockRunContext(ctrl)
-			test.setup(runContext)
-			ctxt.context = runContext
-			ctxt.stack.stackPointer = test.stackPtr
+			if test.setup != nil {
+				runContext := tosca.NewMockRunContext(ctrl)
+				test.setup(runContext)
+				ctxt.context = runContext
+			}
+			ctxt.stack = fillStack(test.stack...)
+			ctxt.params.Recipient = address
 
 			err := test.op(&ctxt)
 			if want, got := test.err, err; want != got {
