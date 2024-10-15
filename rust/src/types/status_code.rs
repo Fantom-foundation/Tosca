@@ -1,4 +1,7 @@
-use evmc_vm::{StatusCode as EvmcStatusCode, StepStatusCode as EvmcStepStatusCode};
+use evmc_vm::{
+    ExecutionResult, Revision, StatusCode as EvmcStatusCode, StepResult,
+    StepStatusCode as EvmcStepStatusCode,
+};
 
 /// This type combines [`EvmcStatusCode`] and [`EvmcStepStatusCode`].
 /// [`EvmcStatusCode::EVMC_SUCCESS`] is replaced by the 3 success variants of [`EvmcStepStatusCode`]
@@ -35,20 +38,6 @@ pub enum FailStatus {
     InternalError = EvmcStatusCode::EVMC_INTERNAL_ERROR as isize,
     Rejected = EvmcStatusCode::EVMC_REJECTED as isize,
     OutOfMemory = EvmcStatusCode::EVMC_OUT_OF_MEMORY as isize,
-}
-
-impl TryFrom<EvmcStepStatusCode> for ExecStatus {
-    type Error = FailStatus;
-
-    fn try_from(value: EvmcStepStatusCode) -> Result<Self, Self::Error> {
-        match value {
-            EvmcStepStatusCode::EVMC_STEP_RUNNING => Ok(ExecStatus::Running),
-            EvmcStepStatusCode::EVMC_STEP_STOPPED => Ok(ExecStatus::Stopped),
-            EvmcStepStatusCode::EVMC_STEP_RETURNED => Ok(ExecStatus::Returned),
-            EvmcStepStatusCode::EVMC_STEP_REVERTED => Ok(ExecStatus::Revert),
-            EvmcStepStatusCode::EVMC_STEP_FAILED => Err(FailStatus::Failure),
-        }
-    }
 }
 
 impl From<FailStatus> for EvmcStatusCode {
@@ -100,5 +89,28 @@ impl From<ExecStatus> for EvmcStepStatusCode {
             ExecStatus::Returned => Self::EVMC_STEP_RETURNED,
             ExecStatus::Revert => Self::EVMC_STEP_REVERTED,
         }
+    }
+}
+
+impl From<FailStatus> for StepResult {
+    fn from(fail_status: FailStatus) -> Self {
+        Self::new(
+            fail_status.into(),
+            fail_status.into(),
+            Revision::EVMC_FRONTIER,
+            0,
+            0,
+            0,
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+        )
+    }
+}
+
+impl From<FailStatus> for ExecutionResult {
+    fn from(fail_status: FailStatus) -> Self {
+        Self::new(fail_status.into(), 0, 0, None)
     }
 }

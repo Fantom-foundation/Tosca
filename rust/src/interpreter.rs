@@ -2,7 +2,7 @@ use std::{cmp::min, mem};
 
 use evmc_vm::{
     AccessStatus, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
-    StatusCode as EvmcStatusCode, StepResult, StepStatusCode, StorageStatus, Uint256,
+    StatusCode as EvmcStatusCode, StepResult, StorageStatus, Uint256,
 };
 use sha3::{Digest, Keccak256};
 
@@ -59,11 +59,10 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn try_new_steppable(
+    pub fn new_steppable(
         revision: Revision,
         message: &'a ExecutionMessage,
         context: &'a mut E,
-        step_status_code: StepStatusCode,
         code: &'a [u8],
         pc: usize,
         gas_refund: i64,
@@ -71,9 +70,9 @@ where
         memory: Memory,
         last_call_return_data: Option<Vec<u8>>,
         steps: Option<i32>,
-    ) -> Result<Self, FailStatus> {
-        step_status_code.try_into().map(|exec_status| Self {
-            exec_status,
+    ) -> Self {
+        Self {
+            exec_status: ExecStatus::Running,
             message,
             context,
             revision,
@@ -85,7 +84,7 @@ where
             memory,
             last_call_return_data,
             steps,
-        })
+        }
     }
 
     pub fn run(mut self) -> Result<Self, FailStatus> {
@@ -1369,7 +1368,7 @@ where
 #[cfg(test)]
 mod tests {
     use evmc_vm::{
-        Address, ExecutionResult, MessageKind, Revision, StatusCode, StepStatusCode, Uint256,
+        Address, ExecutionResult, MessageKind, Revision, StatusCode as EvmcStatusCode, Uint256,
     };
     use mockall::predicate;
 
@@ -1397,11 +1396,10 @@ mod tests {
     fn pc_after_end() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let result = Interpreter::try_new_steppable(
+        let result = Interpreter::new_steppable(
             Revision::EVMC_FRONTIER,
             &message,
             &mut context,
-            StepStatusCode::EVMC_STEP_RUNNING,
             &[Opcode::Add as u8],
             1,
             0,
@@ -1410,7 +1408,6 @@ mod tests {
             None,
             None,
         )
-        .unwrap()
         .run();
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -1423,11 +1420,10 @@ mod tests {
     fn pc_on_data() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let result = Interpreter::try_new_steppable(
+        let result = Interpreter::new_steppable(
             Revision::EVMC_FRONTIER,
             &message,
             &mut context,
-            StepStatusCode::EVMC_STEP_RUNNING,
             &[Opcode::Push1 as u8, 0x00],
             1,
             0,
@@ -1436,7 +1432,6 @@ mod tests {
             None,
             None,
         )
-        .unwrap()
         .run();
         assert!(result.is_err());
         let status = result.map(|_| ()).unwrap_err();
@@ -1591,7 +1586,7 @@ mod tests {
                     && call_message.code().is_none()
             })
             .returning(move |_| {
-                ExecutionResult::new(StatusCode::EVMC_SUCCESS, 0, 0, Some(&ret_data))
+                ExecutionResult::new(EvmcStatusCode::EVMC_SUCCESS, 0, 0, Some(&ret_data))
             });
 
         let message = message.into();
@@ -1606,11 +1601,10 @@ mod tests {
             gas.into(),
         ];
 
-        let result = Interpreter::try_new_steppable(
+        let result = Interpreter::new_steppable(
             Revision::EVMC_FRONTIER,
             &message,
             &mut context,
-            StepStatusCode::EVMC_STEP_RUNNING,
             &[Opcode::Call as u8],
             0,
             0,
@@ -1619,7 +1613,6 @@ mod tests {
             None,
             None,
         )
-        .unwrap()
         .run();
         assert!(result.is_ok());
         let result = result.unwrap();
