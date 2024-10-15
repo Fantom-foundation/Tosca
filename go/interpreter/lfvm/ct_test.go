@@ -165,10 +165,7 @@ func TestConvertToLfvm_StatusCode(t *testing.T) {
 	}
 
 	for status, test := range tests {
-		got, err := convertLfvmStatusToCtStatus(status)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		got := convertLfvmStatusToCtStatus(status)
 		if want, got := test, got; want != got {
 			t.Errorf("unexpected conversion, wanted %v, got %v", want, got)
 		}
@@ -176,9 +173,9 @@ func TestConvertToLfvm_StatusCode(t *testing.T) {
 }
 
 func TestConvertToLfvm_StatusCodeFailsOnUnknownStatus(t *testing.T) {
-	_, err := convertLfvmStatusToCtStatus(statusFailed + 1)
-	if err == nil {
-		t.Fatalf("expected error, got nil")
+	status := convertLfvmStatusToCtStatus(statusFailed + 1)
+	if status != st.Failed {
+		t.Errorf("unexpected conversion, wanted %v, got %v", st.Failed, status)
 	}
 }
 
