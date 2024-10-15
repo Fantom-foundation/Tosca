@@ -1,9 +1,7 @@
 use std::{cmp::max, iter};
 
-use evmc_vm::StatusCode;
-
 use crate::{
-    types::u256,
+    types::{u256, FailStatus},
     utils::{word_size, Gas},
 };
 
@@ -23,7 +21,7 @@ impl Memory {
         self.0.len() as u64
     }
 
-    fn expand(&mut self, new_len_bytes: u64, gas_left: &mut Gas) -> Result<(), StatusCode> {
+    fn expand(&mut self, new_len_bytes: u64, gas_left: &mut Gas) -> Result<(), FailStatus> {
         let current_len = self.0.len() as u64;
         let new_len = word_size(new_len_bytes)? * 32; // word_size just did a division by 32 so * will not overflow
         if new_len > current_len {
@@ -34,14 +32,14 @@ impl Memory {
         Ok(())
     }
 
-    fn consume_expansion_cost(&self, new_len: u64, gas_left: &mut Gas) -> Result<(), StatusCode> {
-        fn memory_cost(size: u64) -> Result<u64, StatusCode> {
+    fn consume_expansion_cost(&self, new_len: u64, gas_left: &mut Gas) -> Result<(), FailStatus> {
+        fn memory_cost(size: u64) -> Result<u64, FailStatus> {
             let word_size = word_size(size)?;
             let (pow2, pow2_overflow) = word_size.overflowing_pow(2);
             let (word_size_3, word_size_3_overflow) = word_size.overflowing_mul(3);
             let (cost, cost_overflow) = (pow2 / 512).overflowing_add(word_size_3);
             if pow2_overflow || word_size_3_overflow || cost_overflow {
-                return Err(StatusCode::EVMC_OUT_OF_GAS);
+                return Err(FailStatus::OutOfGas);
             };
             Ok(cost)
         }
@@ -60,21 +58,21 @@ impl Memory {
         offset: u256,
         len: u64,
         gas_left: &mut Gas,
-    ) -> Result<&mut [u8], StatusCode> {
+    ) -> Result<&mut [u8], FailStatus> {
         if len == 0 {
             return Ok(&mut []);
         }
         let (offset, offset_overflow) = offset.into_u64_with_overflow();
         let (end, end_overflow) = offset.overflowing_add(len);
         if offset_overflow || end_overflow {
-            return Err(StatusCode::EVMC_OUT_OF_GAS);
+            return Err(FailStatus::OutOfGas);
         }
         self.expand(end, gas_left)?;
 
         Ok(&mut self.0[offset as usize..end as usize])
     }
 
-    pub fn get_word(&mut self, offset: u256, gas_left: &mut Gas) -> Result<u256, StatusCode> {
+    pub fn get_word(&mut self, offset: u256, gas_left: &mut Gas) -> Result<u256, FailStatus> {
         let slice = self.get_mut_slice(offset, 32u8.into(), gas_left)?;
         let mut word = u256::ZERO;
         word.copy_from_slice(slice);
@@ -85,7 +83,7 @@ impl Memory {
         &mut self,
         offset: u256,
         gas_left: &mut Gas,
-    ) -> Result<&mut u8, StatusCode> {
+    ) -> Result<&mut u8, FailStatus> {
         let slice = self.get_mut_slice(offset, 1, gas_left)?;
         Ok(&mut slice[0])
     }
@@ -96,13 +94,13 @@ impl Memory {
         dest_offset: u256,
         len: u256,
         gas_left: &mut Gas,
-    ) -> Result<(), StatusCode> {
+    ) -> Result<(), FailStatus> {
         let (src_offset, src_overflow) = src_offset.into_u64_with_overflow();
         let (dest_offset, dest_overflow) = dest_offset.into_u64_with_overflow();
         let (len, len_overflow) = len.into_u64_with_overflow();
         let (end, end_overflow) = max(src_offset, dest_offset).overflowing_add(len);
         if src_overflow || dest_overflow || len_overflow || end_overflow {
-            return Err(StatusCode::EVMC_OUT_OF_GAS);
+            return Err(FailStatus::OutOfGas);
         }
         gas_left.consume_copy_cost(len)?;
         self.expand(end, gas_left)?;
@@ -117,10 +115,8 @@ impl Memory {
 
 #[cfg(test)]
 mod tests {
-    use evmc_vm::StatusCode;
-
     use crate::{
-        types::{memory::Memory, u256},
+        types::{memory::Memory, u256, FailStatus},
         utils::Gas,
     };
 
@@ -152,7 +148,7 @@ mod tests {
         let mut memory = Memory::new(Vec::new());
         assert_eq!(
             memory.expand(u64::MAX, &mut Gas::new(1_000)),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
     }
 
@@ -178,12 +174,12 @@ mod tests {
 
         assert_eq!(
             memory.consume_expansion_cost(u64::MAX, &mut Gas::new(10_000)),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
 
         assert_eq!(
             memory.consume_expansion_cost(u64::MAX / 100, &mut Gas::new(10_000)),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
     }
 
@@ -200,7 +196,7 @@ mod tests {
         let mut gas_left = Gas::new(0);
         assert_eq!(
             mem.get_mut_slice(u256::ZERO, 1, &mut gas_left),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
@@ -266,7 +262,7 @@ mod tests {
         let mut gas_left = Gas::new(1_000_000);
         assert_eq!(
             mem.get_mut_slice(u256::MAX, 1, &mut gas_left),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
     }
 
@@ -276,7 +272,7 @@ mod tests {
         let mut gas_left = Gas::new(0);
         assert_eq!(
             mem.get_word(u256::ZERO, &mut gas_left),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
@@ -306,7 +302,7 @@ mod tests {
         let mut gas_left = Gas::new(0);
         assert_eq!(
             mem.get_mut_byte(u256::ZERO, &mut gas_left),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
@@ -343,28 +339,28 @@ mod tests {
         let mut gas_left = Gas::new(0);
         assert_eq!(
             mem.copy_within(u256::ONE, u256::ZERO, u256::ZERO, &mut gas_left),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(0);
         assert_eq!(
             mem.copy_within(u256::ZERO, u256::ONE, u256::ZERO, &mut gas_left),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(0);
         assert_eq!(
             mem.copy_within(u256::ZERO, u256::ZERO, u256::ONE, &mut gas_left),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(1_000_000);
         assert_eq!(
             mem.copy_within(u256::MAX, u256::ZERO, u256::ZERO, &mut gas_left),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());

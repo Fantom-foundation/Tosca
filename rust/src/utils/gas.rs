@@ -1,7 +1,7 @@
-use evmc_vm::{AccessStatus, Address, Revision, StatusCode};
+use evmc_vm::{AccessStatus, Address, Revision};
 
 use crate::{
-    types::{u256, ExecutionContextTrait},
+    types::{u256, ExecutionContextTrait, FailStatus},
     utils::word_size,
 };
 
@@ -35,16 +35,16 @@ impl Gas {
     }
 
     #[inline(always)]
-    pub fn consume(&mut self, gas: u64) -> Result<(), StatusCode> {
+    pub fn consume(&mut self, gas: u64) -> Result<(), FailStatus> {
         if self.0 < gas {
-            return Err(StatusCode::EVMC_OUT_OF_GAS);
+            return Err(FailStatus::OutOfGas);
         }
         self.0 -= gas;
         Ok(())
     }
 
     #[inline(always)]
-    pub fn consume_positive_value_cost(&mut self, value: &u256) -> Result<(), StatusCode> {
+    pub fn consume_positive_value_cost(&mut self, value: &u256) -> Result<(), FailStatus> {
         if *value != u256::ZERO {
             self.consume(9_000)?;
         }
@@ -57,7 +57,7 @@ impl Gas {
         value: &u256,
         addr: &Address,
         context: &mut E,
-    ) -> Result<(), StatusCode> {
+    ) -> Result<(), FailStatus> {
         if *value != u256::ZERO && !context.account_exists(addr) {
             self.consume(25_000)?;
         }
@@ -70,7 +70,7 @@ impl Gas {
         addr: &Address,
         revision: Revision,
         context: &mut E,
-    ) -> Result<(), StatusCode> {
+    ) -> Result<(), FailStatus> {
         if revision < Revision::EVMC_BERLIN {
             return Ok(());
         }
@@ -82,7 +82,7 @@ impl Gas {
     }
 
     #[inline(always)]
-    pub fn consume_copy_cost(&mut self, len: u64) -> Result<(), StatusCode> {
+    pub fn consume_copy_cost(&mut self, len: u64) -> Result<(), FailStatus> {
         let cost = word_size(len)? * 3; // does not overflow because word_size divides by 32
         self.consume(cost)
     }
@@ -90,12 +90,12 @@ impl Gas {
 
 #[cfg(test)]
 mod tests {
-    use evmc_vm::{AccessStatus, Address, Revision, StatusCode};
+    use evmc_vm::{AccessStatus, Address, Revision};
     use mockall::predicate;
 
     use crate::{
         interpreter::Interpreter,
-        types::{u256, MockExecutionContextTrait, MockExecutionMessage, Opcode},
+        types::{u256, FailStatus, MockExecutionContextTrait, MockExecutionMessage, Opcode},
         utils::Gas,
     };
 
@@ -110,7 +110,7 @@ mod tests {
         assert_eq!(gas_left, 0);
 
         let mut gas_left = Gas::new(1);
-        assert_eq!(gas_left.consume(2), Err(StatusCode::EVMC_OUT_OF_GAS));
+        assert_eq!(gas_left.consume(2), Err(FailStatus::OutOfGas));
         assert_eq!(gas_left, 1);
     }
 
@@ -127,7 +127,7 @@ mod tests {
         let mut gas_left = Gas::new(1);
         assert_eq!(
             gas_left.consume_positive_value_cost(&u256::ONE),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
         assert_eq!(gas_left, 1);
     }
@@ -185,7 +185,7 @@ mod tests {
                         &addr,
                         interpreter.context
                     ),
-                    Err(StatusCode::EVMC_OUT_OF_GAS)
+                    Err(FailStatus::OutOfGas)
                 );
             }
         }
@@ -260,16 +260,13 @@ mod tests {
         assert_eq!(gas_left, 0);
 
         let mut gas_left = Gas::new(2);
-        assert_eq!(
-            gas_left.consume_copy_cost(1),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
-        );
+        assert_eq!(gas_left.consume_copy_cost(1), Err(FailStatus::OutOfGas));
         assert_eq!(gas_left, 2);
 
         let mut gas_left = Gas::new(2);
         assert_eq!(
             gas_left.consume_copy_cost(u64::MAX),
-            Err(StatusCode::EVMC_OUT_OF_GAS)
+            Err(FailStatus::OutOfGas)
         );
         assert_eq!(gas_left, 2);
     }

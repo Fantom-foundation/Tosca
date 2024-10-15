@@ -2,7 +2,8 @@ use std::process;
 
 use evmc_vm::{
     ffi::evmc_capabilities, EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult, Revision,
-    StatusCode, StepResult, StepStatusCode, SteppableEvmcVm, Uint256,
+    StatusCode as EvmcStatusCode, StepResult, StepStatusCode as EvmcStepStatusCode,
+    SteppableEvmcVm, Uint256,
 };
 
 use crate::{
@@ -36,8 +37,8 @@ impl EvmcVm for EvmRs {
         };
         Interpreter::new(revision, message, context, code)
             .run()
-            .map(Into::into)
-            .unwrap_or_else(|status_code| ExecutionResult::new(status_code, 0, 0, None))
+            .map(ExecutionResult::from)
+            .unwrap_or_else(ExecutionResult::from)
     }
 
     fn set_option(&mut self, _: &str, _: &str) -> Result<(), evmc_vm::SetOptionError> {
@@ -52,7 +53,7 @@ impl SteppableEvmcVm for EvmRs {
         code: &'a [u8],
         message: &'a ExecutionMessage,
         context: Option<&'a mut ExecutionContext<'a>>,
-        step_status_code: StepStatusCode,
+        step_status_code: EvmcStepStatusCode,
         pc: u64,
         gas_refund: i64,
         stack: &'a mut [Uint256],
@@ -60,6 +61,30 @@ impl SteppableEvmcVm for EvmRs {
         last_call_return_data: &'a mut [u8],
         steps: i32,
     ) -> StepResult {
+        if step_status_code != EvmcStepStatusCode::EVMC_STEP_RUNNING {
+            return StepResult::new(
+                step_status_code,
+                match step_status_code {
+                    EvmcStepStatusCode::EVMC_STEP_RUNNING
+                    | EvmcStepStatusCode::EVMC_STEP_STOPPED
+                    | EvmcStepStatusCode::EVMC_STEP_RETURNED => EvmcStatusCode::EVMC_SUCCESS,
+                    EvmcStepStatusCode::EVMC_STEP_REVERTED => EvmcStatusCode::EVMC_REVERT,
+                    EvmcStepStatusCode::EVMC_STEP_FAILED => EvmcStatusCode::EVMC_FAILURE,
+                },
+                revision,
+                pc,
+                gas_refund,
+                gas_refund,
+                None,
+                stack.to_owned(),
+                memory.to_owned(),
+                if last_call_return_data.is_empty() {
+                    None
+                } else {
+                    Some(last_call_return_data.to_owned())
+                },
+            );
+        }
         assert_ne!(
             EVMC_CAPABILITY,
             evmc_capabilities::EVMC_CAPABILITY_PRECOMPILES
@@ -75,7 +100,6 @@ impl SteppableEvmcVm for EvmRs {
             revision,
             message,
             context,
-            step_status_code,
             code,
             pc as usize,
             gas_refund,
@@ -85,25 +109,7 @@ impl SteppableEvmcVm for EvmRs {
             Some(steps),
         )
         .run()
-        .map(Into::into)
-        .unwrap_or_else(|status_code| {
-            let step_status_code = match status_code {
-                StatusCode::EVMC_SUCCESS => StepStatusCode::EVMC_STEP_RUNNING,
-                StatusCode::EVMC_REVERT => StepStatusCode::EVMC_STEP_REVERTED,
-                _ => StepStatusCode::EVMC_STEP_FAILED,
-            };
-            StepResult::new(
-                step_status_code,
-                status_code,
-                Revision::EVMC_FRONTIER,
-                0,
-                0,
-                0,
-                None,
-                Vec::new(),
-                Vec::new(),
-                None,
-            )
-        })
+        .map(StepResult::from)
+        .unwrap_or_else(StepResult::from)
     }
 }
