@@ -15,10 +15,11 @@ debug = true
 mock = ["dep:mockall"]
 dump-cov = []
 # optimizations:
-performance = ["mimalloc", "stack-array", "custom-evmc"]
+performance = ["mimalloc", "stack-array", "custom-evmc", "jumptable"]
 mimalloc = ["dep:mimalloc"]
 stack-array = []
 custom-evmc = ["dep:evmc-vm-tosca-refactor"]
+jumptable = []
 
 [dependencies]
 bnum = "0.12.0"

@@ -8,6 +8,7 @@ performance = ["evmrs/performance"]
 mimalloc = ["evmrs/mimalloc"]
 stack-array = ["evmrs/stack-array"]
 custom-evmc = ["evmrs/custom-evmc"]
+jumptable = ["evmrs/jumptable"]
 
 [dependencies]
 evmrs = { path = ".." }
