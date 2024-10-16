@@ -26,8 +26,10 @@ import (
 func ToVmParameters(state *st.State) tosca.Parameters {
 
 	var code []byte
+	var codeHash tosca.Hash
 	if state.Code != nil {
 		code = state.Code.Copy()
+		codeHash = state.Code.Hash()
 	}
 
 	transactionContext := state.TransactionContext
@@ -61,8 +63,8 @@ func ToVmParameters(state *st.State) tosca.Parameters {
 		Sender:    tosca.Address(state.CallContext.CallerAddress),
 		Input:     state.CallData.ToBytes(),
 		Value:     tosca.Value(state.CallContext.Value.Bytes32be()),
-		CodeHash:  nil,
 		Code:      code,
+		CodeHash:  &codeHash,
 	}
 }
 
