@@ -4,12 +4,11 @@ use evmc_vm::{
     AccessStatus, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
     StatusCode as EvmcStatusCode, StepResult, StorageStatus, Uint256,
 };
-use sha3::{Digest, Keccak256};
 
 use crate::{
     types::{
-        u256, CodeReader, ExecStatus, ExecutionContextTrait, ExecutionTxContext, FailStatus,
-        GetOpcodeError, Memory, Opcode, Stack,
+        hash_cache, u256, CodeReader, ExecStatus, ExecutionContextTrait, ExecutionTxContext,
+        FailStatus, GetOpcodeError, Memory, Opcode, Stack,
     },
     utils::{check_min_revision, check_not_read_only, word_size, Gas, SliceExt},
 };
@@ -748,11 +747,7 @@ where
         self.gas_left.consume(6 * word_size(len)?)?; // * does not overflow
 
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
-        let mut hasher = Keccak256::new();
-        hasher.update(data);
-        let mut bytes = [0; 32];
-        hasher.finalize_into((&mut bytes).into());
-        self.stack.push(bytes)?;
+        self.stack.push(hash_cache::hash(data))?;
         Ok(())
     }
 
