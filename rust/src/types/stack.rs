@@ -51,15 +51,16 @@ impl StackRaw {
         self.len
     }
 
+    /// # Safety
+    /// self.len must be < 1024
     pub unsafe fn push(&mut self, value: u256) {
-        *self.data.get_unchecked_mut(self.len) = MaybeUninit::new(value);
+        self.data[self.len] = MaybeUninit::new(value);
         self.len += 1;
     }
 
-    pub fn pop_array<const N: usize>(&mut self) -> Option<[u256; N]> {
-        if self.len < N {
-            return None;
-        }
+    /// # Safety
+    /// self.len must be >= N
+    pub unsafe fn pop_array<const N: usize>(&mut self) -> [u256; N] {
         self.len -= N;
         let start = self.data.as_ptr() as *const u256;
         // SAFETY:
@@ -70,7 +71,7 @@ impl StackRaw {
         // `self.len` just got decremented by N, which means now that the first `self.len + N`
         // elements are initialized. Therefore, it is safe to read N elements starting at index
         // `self.len` as an array of length N and type u256.
-        unsafe { Some(std::ptr::read(array_start as *const [u256; N])) }
+        unsafe { std::ptr::read(array_start as *const [u256; N]) }
     }
 }
 
@@ -100,6 +101,7 @@ impl Stack {
 
     pub fn push(&mut self, value: impl Into<u256>) -> Result<(), FailStatus> {
         self.check_overflow_on_push()?;
+
         #[cfg(feature = "stack-array")]
         // SAFETY:
         // self.0.len < 1024
@@ -108,6 +110,7 @@ impl Stack {
         }
         #[cfg(not(feature = "stack-array"))]
         self.0.push(value.into());
+
         Ok(())
     }
 
@@ -124,7 +127,9 @@ impl Stack {
 
         #[cfg(feature = "stack-array")]
         {
-            Ok(self.0.pop_array().unwrap())
+            // SAFETY:
+            // self.0.len >= N
+            Ok(unsafe { self.0.pop_array() })
         }
         #[cfg(not(feature = "stack-array"))]
         {
