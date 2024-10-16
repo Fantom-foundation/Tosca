@@ -188,6 +188,7 @@ func TestInterpreter_CanDispatchExecutableInstructions(t *testing.T) {
 				mock.EXPECT().GetBalance(gomock.Any()).AnyTimes()
 				mock.EXPECT().GetCodeSize(gomock.Any()).AnyTimes()
 				mock.EXPECT().GetCode(gomock.Any()).AnyTimes()
+				mock.EXPECT().GetNonce(gomock.Any()).AnyTimes()
 				mock.EXPECT().AccountExists(gomock.Any()).AnyTimes()
 				mock.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).AnyTimes()
 				mock.EXPECT().GetStorage(gomock.Any(), gomock.Any()).AnyTimes()
