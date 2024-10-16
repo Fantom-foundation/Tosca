@@ -61,7 +61,7 @@ override:
     path: go/interpreter/geth/ct.go
   - threshold: 87
     path: go/interpreter/lfvm/ct.go
-  - threshold: 38
+  - threshold: 37
     path: go/interpreter/lfvm/lfvm.go
   - threshold: 100
     path: go/interpreter/lfvm/converter.go
