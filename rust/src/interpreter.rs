@@ -20,13 +20,19 @@ where
     E: ExecutionContextTrait,
 {
     pub exec_status: ExecStatus,
+    #[cfg(not(feature = "custom-evmc"))]
     pub message: &'a ExecutionMessage,
+    #[cfg(feature = "custom-evmc")]
+    pub message: &'a ExecutionMessage<'a>,
     pub context: &'a mut E,
     pub revision: Revision,
     pub code_reader: CodeReader<'a>,
     pub gas_left: Gas,
     pub gas_refund: i64,
+    #[cfg(not(feature = "custom-evmc"))]
     pub output: Option<Vec<u8>>,
+    #[cfg(feature = "custom-evmc")]
+    pub output: Option<Box<[u8]>>,
     pub stack: Stack,
     pub memory: Memory,
     pub last_call_return_data: Option<Vec<u8>>,
@@ -512,7 +518,16 @@ where
         let (offset, overflow) = offset.into_u64_with_overflow();
         let offset = offset as usize;
         #[allow(clippy::map_identity)]
-        let call_data = self.message.input().map(Vec::as_slice).unwrap_or_default();
+        let call_data = self
+            .message
+            .input()
+            .map(
+                #[cfg(not(feature = "custom-evmc"))]
+                Vec::as_slice,
+                #[cfg(feature = "custom-evmc")]
+                std::convert::identity,
+            )
+            .unwrap_or_default();
         if overflow || offset >= call_data.len() {
             self.stack.push(u256::ZERO)?;
         } else {
@@ -558,7 +573,12 @@ where
             let src = self
                 .message
                 .input()
-                .map(Vec::as_slice)
+                .map(
+                    #[cfg(not(feature = "custom-evmc"))]
+                    Vec::as_slice,
+                    #[cfg(feature = "custom-evmc")]
+                    std::convert::identity,
+                )
                 .unwrap_or_default()
                 .get_within_bounds(offset, len);
             let dest = self
@@ -907,7 +927,14 @@ where
         let [len, offset] = self.stack.pop()?;
         let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
-        self.output = Some(data.to_owned());
+        #[cfg(not(feature = "custom-evmc"))]
+        {
+            self.output = Some((data).to_owned());
+        }
+        #[cfg(feature = "custom-evmc")]
+        {
+            self.output = Some(Box::from(&*data));
+        }
         self.exec_status = ExecStatus::Returned;
         Ok(())
     }
@@ -918,7 +945,14 @@ where
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
         // TODO revert self changes
         // gas_refund = original_gas_refund;
-        self.output = Some(data.to_owned());
+        #[cfg(not(feature = "custom-evmc"))]
+        {
+            self.output = Some((data).to_owned());
+        }
+        #[cfg(feature = "custom-evmc")]
+        {
+            self.output = Some(Box::from(&*data));
+        }
         self.exec_status = ExecStatus::Revert;
         Ok(())
     }
@@ -1353,16 +1387,19 @@ where
     }
 }
 
-impl<'a, E> From<&Interpreter<'a, E>> for ExecutionResult
+impl<'a, E> From<&mut Interpreter<'a, E>> for ExecutionResult
 where
     E: ExecutionContextTrait,
 {
-    fn from(value: &Interpreter<E>) -> Self {
+    fn from(value: &mut Interpreter<E>) -> Self {
         Self::new(
             value.exec_status.into(),
             value.gas_left.as_u64() as i64,
             value.gas_refund,
+            #[cfg(not(feature = "custom-evmc"))]
             value.output.as_deref(),
+            #[cfg(feature = "custom-evmc")]
+            value.output.take(),
         )
     }
 }
@@ -1590,7 +1627,15 @@ mod tests {
                     && call_message.code().is_none()
             })
             .returning(move |_| {
-                ExecutionResult::new(EvmcStatusCode::EVMC_SUCCESS, 0, 0, Some(&ret_data))
+                #[cfg(not(feature = "custom-evmc"))]
+                return ExecutionResult::new(EvmcStatusCode::EVMC_SUCCESS, 0, 0, Some(&ret_data));
+                #[cfg(feature = "custom-evmc")]
+                return ExecutionResult::new(
+                    EvmcStatusCode::EVMC_SUCCESS,
+                    0,
+                    0,
+                    Some(Box::from(ret_data.as_slice())),
+                );
             });
 
         let message = message.into();

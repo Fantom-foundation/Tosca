@@ -5,6 +5,11 @@ mod interpreter;
 mod types;
 mod utils;
 
+#[cfg(not(feature = "custom-evmc"))]
+pub extern crate evmc_vm_tosca as evmc_vm;
+#[cfg(feature = "custom-evmc")]
+pub extern crate evmc_vm_tosca_refactor as evmc_vm;
+
 #[cfg(feature = "mock")]
 pub use types::MockExecutionContextTrait;
 pub use types::{u256, ExecutionContextTrait, MockExecutionMessage, Opcode};

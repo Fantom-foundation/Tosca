@@ -4,7 +4,7 @@ use std::{
     ptr,
 };
 
-use evmc_vm::{
+use evmrs::evmc_vm::{
     ffi::{
         evmc_host_interface, evmc_message, evmc_result, evmc_step_result, evmc_step_status_code,
         evmc_tx_context, evmc_vm as evmc_vm_t, evmc_vm_steppable,

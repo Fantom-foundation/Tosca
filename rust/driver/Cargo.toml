@@ -7,5 +7,4 @@ edition = "2021"
 mock = ["evmrs/mock"]
 
 [dependencies]
-evmc-vm = { git = "https://github.com/Fantom-foundation/evmc", branch = "tosca-extensions" }
-evmrs = { path = "..", optional = true }
+evmrs = { path = ".." }
