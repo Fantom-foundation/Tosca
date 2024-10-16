@@ -29,13 +29,13 @@ func NewConformanceTestingTarget() ct.Evm {
 
 	cache, _ := lru.New[[32]byte, *pcMap](4096) // can only fail for non-positive size
 	return &ctAdapter{
-		converter:  sanctionedVm.converter,
+		vm:         sanctionedVm,
 		pcMapCache: cache,
 	}
 }
 
 type ctAdapter struct {
-	converter  *Converter
+	vm         *lfvm
 	pcMapCache *lru.Cache[[32]byte, *pcMap]
 }
 
@@ -50,7 +50,7 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		return state, nil
 	}
 
-	converted := a.converter.Convert(
+	converted := a.vm.converter.Convert(
 		params.Code,
 		params.CodeHash,
 	)
@@ -61,15 +61,16 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 
 	// Set up execution context.
 	var ctxt = &context{
-		pc:         int32(pcMap.evmToLfvm[state.Pc]),
-		params:     params,
-		context:    params.Context,
-		gas:        params.Gas,
-		refund:     tosca.Gas(state.GasRefund),
-		stack:      convertCtStackToLfvmStack(state.Stack),
-		memory:     memory,
-		code:       converted,
-		returnData: state.LastCallReturnData.ToBytes(),
+		pc:           int32(pcMap.evmToLfvm[state.Pc]),
+		params:       params,
+		context:      params.Context,
+		gas:          params.Gas,
+		refund:       tosca.Gas(state.GasRefund),
+		stack:        convertCtStackToLfvmStack(state.Stack),
+		memory:       memory,
+		code:         converted,
+		returnData:   state.LastCallReturnData.ToBytes(),
+		withShaCache: a.vm.config.WithShaCache,
 	}
 
 	defer func() {

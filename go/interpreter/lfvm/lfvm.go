@@ -19,7 +19,6 @@ import (
 
 // Config provides a set of user-definable options for the LFVM interpreter.
 type Config struct {
-	// TODO: add options for code cache size and other configuration options
 }
 
 // NewInterpreter creates a new LFVM interpreter instance with the official
@@ -130,12 +129,7 @@ func (v *lfvm) Run(params tosca.Parameters) (tosca.Result, error) {
 		params.CodeHash,
 	)
 
-	config := interpreterConfig{
-		withShaCache: v.config.WithShaCache,
-		runner:       v.config.runner,
-	}
-
-	return run(config, params, converted)
+	return run(v.config, params, converted)
 }
 
 func (e *lfvm) DumpProfile() {

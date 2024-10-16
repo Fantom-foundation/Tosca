@@ -285,7 +285,7 @@ func TestInterpreter_Vanilla_RunsWithoutOutput(t *testing.T) {
 	os.Stdout = w
 
 	// Run testing code
-	_, err := run(interpreterConfig{}, params, code)
+	_, err := run(config{}, params, code)
 	// read the output
 	_ = w.Close() // ignore error in test
 	out, _ := io.ReadAll(r)
@@ -303,7 +303,7 @@ func TestInterpreter_Vanilla_RunsWithoutOutput(t *testing.T) {
 func TestInterpreter_EmptyCodeBypassesRunnerAndSucceeds(t *testing.T) {
 	code := []Instruction{}
 	params := tosca.Parameters{}
-	config := interpreterConfig{
+	config := config{
 		runner: NewMockrunner(gomock.NewController(t)),
 	}
 
@@ -322,7 +322,7 @@ func TestInterpreter_run_ReturnsErrorOnRuntimeError(t *testing.T) {
 	runner := NewMockrunner(gomock.NewController(t))
 	code := []Instruction{{JUMPDEST, 0}}
 	params := tosca.Parameters{Gas: 20}
-	config := interpreterConfig{runner: runner}
+	config := config{runner: runner}
 
 	expectedError := fmt.Errorf("runtime error")
 
