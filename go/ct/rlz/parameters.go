@@ -62,6 +62,7 @@ func (JumpTargetParameter) Samples() []U256 {
 
 type StorageAccessKeyParameter = NumericParameter
 
+// MemoryOffsetParameter is a parameter for offsets used when accessing memory.
 type MemoryOffsetParameter struct{}
 
 var memoryOffsetParameterSamples = []U256{
@@ -77,28 +78,33 @@ func (MemoryOffsetParameter) Samples() []U256 {
 	return memoryOffsetParameterSamples
 }
 
-type MemoryOffsetForCopyParameter struct{}
+// DataOffsetParameter is a parameter for offsets used when accessing other
+// buffers but Memory (input, code, return).
+// Because these buffers are not expanding memory, much larger offsets are valid.
+type DataOffsetParameter struct{}
 
-var memoryOffsetForCopyParameter = []U256{
+var dataOffsetParameterSamples = []U256{
 	NewU256(0),
 	NewU256(1),
 	NewU256(32),
-	NewU256(st.MaxMemoryExpansionSize),
-	NewU256(st.MaxMemoryExpansionSize + 1),
-	NewU256(1, 0),
+	NewU256(math.MaxUint64),
+	MaxU256(),
 }
 
-func (MemoryOffsetForCopyParameter) Samples() []U256 {
-	return memoryOffsetForCopyParameter
+func (DataOffsetParameter) Samples() []U256 {
+	return dataOffsetParameterSamples
 }
 
-type MemorySizeParameter struct{}
+// SizeParameter is a parameter for sizes used when accessing buffers,
+// Ops involving both memory and a second buffer use one single size parameter.
+type SizeParameter struct{}
 
-var memorySizeParameterSamples = []U256{
+var sizeParameterSamples = []U256{
 	NewU256(0),
 	NewU256(1),
 	NewU256(32),
 	NewU256(1, 0),
+
 	// Samples stressing the max init code size introduced with Shanghai
 	NewU256(2*24576 - 1),
 	NewU256(2 * 24576),
@@ -108,8 +114,8 @@ var memorySizeParameterSamples = []U256{
 	NewU256(st.MaxMemoryExpansionSize + 1),
 }
 
-func (MemorySizeParameter) Samples() []U256 {
-	return memorySizeParameterSamples
+func (SizeParameter) Samples() []U256 {
+	return sizeParameterSamples
 }
 
 type TopicParameter struct{}
@@ -140,9 +146,6 @@ var addressParameterSamples = []U256{
 func (AddressParameter) Samples() []U256 {
 	return addressParameterSamples
 }
-
-type DataOffsetParameter = MemoryOffsetParameter
-type DataSizeParameter = MemorySizeParameter
 
 type GasParameter struct{}
 

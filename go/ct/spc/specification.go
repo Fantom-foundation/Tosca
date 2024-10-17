@@ -254,7 +254,7 @@ func getAllRules() []Rule {
 		pushes:    1,
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
-			MemorySizeParameter{},
+			SizeParameter{},
 		},
 		effect: func(s *st.State) {
 			offsetU256 := s.Stack.Pop()
@@ -263,7 +263,6 @@ func getAllRules() []Rule {
 			memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < memExpCost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= memExpCost
@@ -271,7 +270,6 @@ func getAllRules() []Rule {
 			wordCost := tosca.Gas(6 * tosca.SizeInWords(size))
 			if s.Gas < wordCost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= wordCost
@@ -351,7 +349,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		parameters: []Parameter{
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 		},
 		effect: func(s *st.State) {
 			offsetU256 := s.Stack.Pop()
@@ -359,7 +357,6 @@ func getAllRules() []Rule {
 			cost, offset, _ := s.Memory.ExpansionCosts(offsetU256, NewU256(32))
 			if s.Gas < cost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= cost
@@ -377,7 +374,7 @@ func getAllRules() []Rule {
 		pops:      2,
 		pushes:    0,
 		parameters: []Parameter{
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
@@ -387,7 +384,6 @@ func getAllRules() []Rule {
 			cost, offset, _ := s.Memory.ExpansionCosts(offsetU256, NewU256(32))
 			if s.Gas < cost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= cost
@@ -405,7 +401,7 @@ func getAllRules() []Rule {
 		pops:      2,
 		pushes:    0,
 		parameters: []Parameter{
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
@@ -415,7 +411,6 @@ func getAllRules() []Rule {
 			cost, offset, _ := s.Memory.ExpansionCosts(offsetU256, NewU256(1))
 			if s.Gas < cost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= cost
@@ -884,9 +879,9 @@ func getAllRules() []Rule {
 		pops:      3,
 		pushes:    0,
 		parameters: []Parameter{
-			MemoryOffsetForCopyParameter{},
-			MemoryOffsetForCopyParameter{},
-			MemorySizeParameter{},
+			MemoryOffsetParameter{},
+			MemoryOffsetParameter{},
+			SizeParameter{},
 		},
 		conditions: []Condition{
 			RevisionBounds(tosca.R13_Cancun, NewestSupportedRevision),
@@ -904,7 +899,6 @@ func getAllRules() []Rule {
 			dynamicGas, overflow := sumWithOverflow(expansionCost, wordCountCost)
 			if s.Gas < dynamicGas || overflow {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= dynamicGas
@@ -1184,9 +1178,9 @@ func getAllRules() []Rule {
 		},
 		parameters: []Parameter{
 			AddressParameter{},
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 			DataOffsetParameter{},
-			DataSizeParameter{}},
+			SizeParameter{}},
 		effect: func(s *st.State) {
 			extCodeCopyEffect(s, true)
 		},
@@ -1205,9 +1199,9 @@ func getAllRules() []Rule {
 		},
 		parameters: []Parameter{
 			AddressParameter{},
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 			DataOffsetParameter{},
-			DataSizeParameter{}},
+			SizeParameter{}},
 		effect: func(s *st.State) {
 			extCodeCopyEffect(s, false)
 		},
@@ -1225,9 +1219,9 @@ func getAllRules() []Rule {
 		},
 		parameters: []Parameter{
 			AddressParameter{},
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 			DataOffsetParameter{},
-			DataSizeParameter{}},
+			SizeParameter{}},
 		effect: func(s *st.State) {
 			extCodeCopyEffect(s, false)
 		},
@@ -1440,9 +1434,9 @@ func getAllRules() []Rule {
 		pops:      3,
 		pushes:    0,
 		parameters: []Parameter{
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 			DataOffsetParameter{},
-			DataSizeParameter{}},
+			SizeParameter{}},
 		effect: func(s *st.State) {
 			destOffsetU256 := s.Stack.Pop()
 			offsetU256 := s.Stack.Pop()
@@ -1452,7 +1446,6 @@ func getAllRules() []Rule {
 			cost, overflow := sumWithOverflow(cost, tosca.Gas(3*tosca.SizeInWords(size)))
 			if s.Gas < cost || overflow {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= cost
@@ -1489,7 +1482,7 @@ func getAllRules() []Rule {
 		staticGas:  3,
 		pops:       1,
 		pushes:     1,
-		parameters: []Parameter{MemoryOffsetForCopyParameter{}},
+		parameters: []Parameter{MemoryOffsetParameter{}},
 		effect: func(s *st.State) {
 			offsetU256 := s.Stack.Pop()
 			pushData := NewU256(0)
@@ -1519,7 +1512,7 @@ func getAllRules() []Rule {
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
 			DataOffsetParameter{},
-			DataSizeParameter{}},
+			SizeParameter{}},
 		effect: func(s *st.State) {
 			destOffsetU256 := s.Stack.Pop()
 			offsetU256 := s.Stack.Pop()
@@ -1529,7 +1522,6 @@ func getAllRules() []Rule {
 			expansionCost, overflow := sumWithOverflow(expansionCost, tosca.Gas(3*tosca.SizeInWords(size)))
 			if s.Gas < expansionCost || overflow {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= expansionCost
@@ -1579,34 +1571,32 @@ func getAllRules() []Rule {
 		pops:      3,
 		pushes:    0,
 		parameters: []Parameter{
+			MemoryOffsetParameter{},
 			DataOffsetParameter{},
-			DataOffsetParameter{},
-			DataSizeParameter{}},
+			SizeParameter{}},
 		effect: func(s *st.State) {
-			destOffsetU256 := s.Stack.Pop()
-			offsetU256 := s.Stack.Pop()
+			memOffsetU256 := s.Stack.Pop()
+			dataOffsetU256 := s.Stack.Pop()
 			sizeU256 := s.Stack.Pop()
 
-			// offset + size overflows OR offset + size is larger than RETURNDATASIZE.
-			offset := offsetU256.Uint64()
-			readUntil, overflow := sumWithOverflow(offset, sizeU256.Uint64())
-			if !offsetU256.IsUint64() || !sizeU256.IsUint64() || overflow ||
+			// dataOffset + size overflows OR dataOffset + size is larger than RETURNDATASIZE.
+			dataOffset := dataOffsetU256.Uint64()
+			readUntil, overflow := sumWithOverflow(dataOffset, sizeU256.Uint64())
+			if !dataOffsetU256.IsUint64() || !sizeU256.IsUint64() || overflow ||
 				readUntil > uint64(s.LastCallReturnData.Length()) {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 
-			expansionCost, destOffsetUint64, size := s.Memory.ExpansionCosts(destOffsetU256, sizeU256)
+			expansionCost, memOffset, size := s.Memory.ExpansionCosts(memOffsetU256, sizeU256)
 			expansionCost, overflow = sumWithOverflow(expansionCost, tosca.Gas(3*tosca.SizeInWords(size)))
 			if s.Gas < expansionCost || overflow {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= expansionCost
 
-			s.Memory.Write(s.LastCallReturnData.Get(offset, readUntil), destOffsetUint64)
+			s.Memory.Write(s.LastCallReturnData.Get(dataOffset, readUntil), memOffset)
 		},
 	})...)
 
@@ -1619,7 +1609,7 @@ func getAllRules() []Rule {
 		pushes:    0,
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
-			MemorySizeParameter{}},
+			SizeParameter{}},
 		effect: func(s *st.State) {
 			offsetU256 := s.Stack.Pop()
 			sizeU256 := s.Stack.Pop()
@@ -1627,7 +1617,6 @@ func getAllRules() []Rule {
 			expansionCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= expansionCost
@@ -1646,7 +1635,7 @@ func getAllRules() []Rule {
 		pushes:    0,
 		parameters: []Parameter{
 			MemoryOffsetParameter{},
-			MemorySizeParameter{}},
+			SizeParameter{}},
 		effect: func(s *st.State) {
 			offsetU256 := s.Stack.Pop()
 			sizeU256 := s.Stack.Pop()
@@ -1654,7 +1643,6 @@ func getAllRules() []Rule {
 			expansionCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= expansionCost
@@ -1712,7 +1700,7 @@ func getAllRules() []Rule {
 		parameters: []Parameter{
 			ValueParameter{},
 			MemoryOffsetParameter{},
-			MemorySizeParameter{},
+			SizeParameter{},
 		},
 		effect: FailEffect().Apply,
 	})...)
@@ -1728,7 +1716,7 @@ func getAllRules() []Rule {
 		parameters: []Parameter{
 			ValueParameter{},
 			MemoryOffsetParameter{},
-			MemorySizeParameter{},
+			SizeParameter{},
 		},
 		effect: func(s *st.State) {
 			createEffect(s, tosca.Create)
@@ -1749,7 +1737,7 @@ func getAllRules() []Rule {
 		parameters: []Parameter{
 			ValueParameter{},
 			MemoryOffsetParameter{},
-			MemorySizeParameter{},
+			SizeParameter{},
 			NumericParameter{},
 		},
 		effect: FailEffect().Apply,
@@ -1766,7 +1754,7 @@ func getAllRules() []Rule {
 		parameters: []Parameter{
 			ValueParameter{},
 			MemoryOffsetParameter{},
-			MemorySizeParameter{},
+			SizeParameter{},
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
@@ -1797,13 +1785,11 @@ func createEffect(s *st.State, callKind tosca.CallKind) {
 			InitCodeWordGas = 2 // Once per word of the init code when creating a contract.
 		)
 		if !sizeU256.IsUint64() || size > MaxInitCodeSize {
-			s.Gas = 0
 			s.Status = st.Failed
 			return
 		}
 		dynamicGas, overflow = sumWithOverflow(dynamicGas, tosca.Gas(InitCodeWordGas*tosca.SizeInWords(size)))
 		if overflow {
-			s.Gas = 0
 			s.Status = st.Failed
 			return
 		}
@@ -1814,7 +1800,6 @@ func createEffect(s *st.State, callKind tosca.CallKind) {
 		saltU256 = s.Stack.Pop()
 		dynamicGas, overflow = sumWithOverflow(dynamicGas, tosca.Gas(6*tosca.SizeInWords(size)))
 		if overflow {
-			s.Gas = 0
 			s.Status = st.Failed
 			return
 		}
@@ -1822,7 +1807,6 @@ func createEffect(s *st.State, callKind tosca.CallKind) {
 
 	if s.Gas < dynamicGas {
 		s.Status = st.Failed
-		s.Gas = 0
 		return
 	}
 	s.Gas -= dynamicGas
@@ -1881,7 +1865,6 @@ func binaryOpWithDynamicCost(
 			// TODO: Improve handling of dynamic gas through dedicated constraint.
 			if s.Gas < dynamicCost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= dynamicCost
@@ -2009,7 +1992,6 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 	cost, overflow := sumWithOverflow(cost, tosca.Gas(3*tosca.SizeInWords(size)))
 	if s.Gas < cost || overflow {
 		s.Status = st.Failed
-		s.Gas = 0
 		return
 	}
 	s.Gas -= cost
@@ -2158,7 +2140,7 @@ func logOp(n int) []Rule {
 
 	parameter := []Parameter{
 		MemoryOffsetParameter{},
-		MemorySizeParameter{},
+		SizeParameter{},
 	}
 	for i := 0; i < n; i++ {
 		parameter = append(parameter, TopicParameter{})
@@ -2183,14 +2165,12 @@ func logOp(n int) []Rule {
 			memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < memExpCost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= memExpCost
 
 			if s.Gas < tosca.Gas(8*size) {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= tosca.Gas(8 * size)
@@ -2482,9 +2462,9 @@ func getRulesForCall(op vm.OpCode, revision tosca.Revision, warm, zeroValue bool
 
 	parameters = append(parameters,
 		MemoryOffsetParameter{},
-		MemorySizeParameter{},
+		SizeParameter{},
 		MemoryOffsetParameter{},
-		MemorySizeParameter{},
+		SizeParameter{},
 	)
 
 	name = fmt.Sprintf("_%v_%v_%v%v", strings.ToLower(revision.String()), warmColdString,
