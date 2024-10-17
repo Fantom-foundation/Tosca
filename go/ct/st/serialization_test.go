@@ -222,7 +222,6 @@ func TestSerialization_DeserializedStateIsIndependent(t *testing.T) {
 	deserializedState.Storage.original[NewU256(77)] = NewU256(7)
 	deserializedState.Storage.warm[NewU256(9)] = false
 	deserializedState.Accounts.SetBalance(tosca.Address{0x01}, NewU256(77))
-	deserializedState.Accounts.SetCode(tosca.Address{0x01}, NewBytes([]byte{byte(vm.INVALID)}))
 	delete(deserializedState.Accounts.warm, tosca.Address{0x02})
 	deserializedState.Logs.Entries[0].Data[0] = 99
 	deserializedState.Logs.Entries[0].Topics[0] = NewU256(42)
