@@ -349,7 +349,7 @@ func getAllRules() []Rule {
 		pops:      1,
 		pushes:    1,
 		parameters: []Parameter{
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 		},
 		effect: func(s *st.State) {
 			offsetU256 := s.Stack.Pop()
@@ -374,7 +374,7 @@ func getAllRules() []Rule {
 		pops:      2,
 		pushes:    0,
 		parameters: []Parameter{
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
@@ -384,7 +384,6 @@ func getAllRules() []Rule {
 			cost, offset, _ := s.Memory.ExpansionCosts(offsetU256, NewU256(32))
 			if s.Gas < cost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= cost
@@ -402,7 +401,7 @@ func getAllRules() []Rule {
 		pops:      2,
 		pushes:    0,
 		parameters: []Parameter{
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 			NumericParameter{},
 		},
 		effect: func(s *st.State) {
@@ -412,7 +411,6 @@ func getAllRules() []Rule {
 			cost, offset, _ := s.Memory.ExpansionCosts(offsetU256, NewU256(1))
 			if s.Gas < cost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= cost
@@ -881,8 +879,8 @@ func getAllRules() []Rule {
 		pops:      3,
 		pushes:    0,
 		parameters: []Parameter{
-			MemoryOffsetForCopyParameter{},
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
+			MemoryOffsetParameter{},
 			MemorySizeParameter{},
 		},
 		conditions: []Condition{
@@ -1180,7 +1178,7 @@ func getAllRules() []Rule {
 		},
 		parameters: []Parameter{
 			AddressParameter{},
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 			DataOffsetParameter{},
 			DataSizeParameter{}},
 		effect: func(s *st.State) {
@@ -1201,7 +1199,7 @@ func getAllRules() []Rule {
 		},
 		parameters: []Parameter{
 			AddressParameter{},
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 			DataOffsetParameter{},
 			DataSizeParameter{}},
 		effect: func(s *st.State) {
@@ -1221,7 +1219,7 @@ func getAllRules() []Rule {
 		},
 		parameters: []Parameter{
 			AddressParameter{},
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 			DataOffsetParameter{},
 			DataSizeParameter{}},
 		effect: func(s *st.State) {
@@ -1436,7 +1434,7 @@ func getAllRules() []Rule {
 		pops:      3,
 		pushes:    0,
 		parameters: []Parameter{
-			MemoryOffsetForCopyParameter{},
+			MemoryOffsetParameter{},
 			DataOffsetParameter{},
 			DataSizeParameter{}},
 		effect: func(s *st.State) {
@@ -1484,7 +1482,7 @@ func getAllRules() []Rule {
 		staticGas:  3,
 		pops:       1,
 		pushes:     1,
-		parameters: []Parameter{MemoryOffsetForCopyParameter{}},
+		parameters: []Parameter{MemoryOffsetParameter{}},
 		effect: func(s *st.State) {
 			offsetU256 := s.Stack.Pop()
 			pushData := NewU256(0)

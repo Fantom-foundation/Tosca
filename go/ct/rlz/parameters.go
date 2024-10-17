@@ -77,21 +77,6 @@ func (MemoryOffsetParameter) Samples() []U256 {
 	return memoryOffsetParameterSamples
 }
 
-type MemoryOffsetForCopyParameter struct{}
-
-var memoryOffsetForCopyParameter = []U256{
-	NewU256(0),
-	NewU256(1),
-	NewU256(32),
-	NewU256(st.MaxMemoryExpansionSize),
-	NewU256(st.MaxMemoryExpansionSize + 1),
-	NewU256(1, 0),
-}
-
-func (MemoryOffsetForCopyParameter) Samples() []U256 {
-	return memoryOffsetForCopyParameter
-}
-
 type MemorySizeParameter struct{}
 
 var memorySizeParameterSamples = []U256{
