@@ -178,6 +178,10 @@ pub enum Opcode {
     Shr = SHR,
     Sar = SAR,
     Sha3 = SHA3,
+    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    NoOp = SHA3 + 1,
+    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    SkipNoOps = SHA3 + 2,
     Address = ADDRESS,
     Balance = BALANCE,
     Origin = ORIGIN,

@@ -18,10 +18,9 @@ macro_rules! return_from_op {
         return Ok(());
     };
     ($self:ident) => {
+        $self.code_reader.next();
         #[cfg(not(feature = "jumptable-tail-call"))]
         return Ok(());
-        #[cfg(feature = "jumptable-tail-call")]
-        $self.code_reader.next();
         #[cfg(feature = "jumptable-tail-call")]
         return $self.run();
     };
@@ -35,20 +34,16 @@ macro_rules! return_from_op {
 
 type OpResult = Result<(), FailStatus>;
 
-#[cfg(feature = "jumptable")]
-type OpFn<'a, E> = fn(&mut Interpreter<'a, E>) -> OpResult;
+#[cfg(any(feature = "jumptable", feature = "opcode-fn-ptr-conversion"))]
+pub type OpFn = fn(&mut Interpreter) -> OpResult;
 
-#[derive(Debug)]
-pub struct Interpreter<'a, E>
-where
-    E: ExecutionContextTrait,
-{
+pub struct Interpreter<'a> {
     pub exec_status: ExecStatus,
     #[cfg(not(feature = "custom-evmc"))]
     pub message: &'a ExecutionMessage,
     #[cfg(feature = "custom-evmc")]
     pub message: &'a ExecutionMessage<'a>,
-    pub context: &'a mut E,
+    pub context: &'a mut dyn ExecutionContextTrait,
     pub revision: Revision,
     pub code_reader: CodeReader<'a>,
     pub gas_left: Gas,
@@ -63,14 +58,18 @@ where
     pub steps: Option<i32>,
 }
 
-impl<'a, E> Interpreter<'a, E>
-where
-    E: ExecutionContextTrait,
-{
+impl<'a> Interpreter<'a> {
+    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    pub const NO_OP_FN: OpFn = Self::JUMPTABLE[Opcode::NoOp as u8 as usize];
+    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    pub const SKIP_NO_OPS_FN: OpFn = Self::JUMPTABLE[Opcode::SkipNoOps as u8 as usize];
+    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    pub const JUMP_DEST_FN: OpFn = Self::JUMPTABLE[Opcode::JumpDest as u8 as usize];
+
     pub fn new(
         revision: Revision,
         message: &'a ExecutionMessage,
-        context: &'a mut E,
+        context: &'a mut dyn ExecutionContextTrait,
         code: &'a [u8],
     ) -> Self {
         Self {
@@ -93,7 +92,7 @@ where
     pub fn new_steppable(
         revision: Revision,
         message: &'a ExecutionMessage,
-        context: &'a mut E,
+        context: &'a mut dyn ExecutionContextTrait,
         code: &'a [u8],
         pc: usize,
         gas_refund: i64,
@@ -118,7 +117,10 @@ where
         }
     }
 
-    #[cfg(not(feature = "jumptable-tail-call"))]
+    #[cfg(any(
+        not(feature = "jumptable-tail-call"),
+        feature = "opcode-fn-ptr-conversion"
+    ))]
     pub fn run(&mut self) -> Result<(), FailStatus> {
         loop {
             if self.exec_status != ExecStatus::Running {
@@ -140,19 +142,18 @@ where
                     return Err(FailStatus::InvalidInstruction);
                 }
             };
+            #[cfg(not(feature = "opcode-fn-ptr-conversion"))]
             self.run_op(op)?;
-
-            if !(Opcode::Push1 as u8..=Opcode::Push32 as u8).contains(&(op as u8))
-                && op != Opcode::Jump
-                && op != Opcode::JumpI
-            {
-                self.code_reader.next();
-            }
+            #[cfg(feature = "opcode-fn-ptr-conversion")]
+            op(self)?;
         }
 
         Ok(())
     }
-    #[cfg(feature = "jumptable-tail-call")]
+    #[cfg(all(
+        feature = "jumptable-tail-call",
+        not(feature = "opcode-fn-ptr-conversion")
+    ))]
     #[inline(always)]
     pub fn run(&mut self) -> Result<(), FailStatus> {
         match &mut self.steps {
@@ -173,272 +174,273 @@ where
         self.run_op(op)
     }
 
-    #[cfg(feature = "jumptable")]
-    const JUMPTABLE: [OpFn<'a, E>; 256] = [
-        Self::stop,
-        Self::add,
-        Self::mul,
-        Self::sub,
-        Self::div,
-        Self::s_div,
-        Self::mod_,
-        Self::s_mod,
-        Self::add_mod,
-        Self::mul_mod,
-        Self::exp,
-        Self::sign_extend,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::lt,
-        Self::gt,
-        Self::s_lt,
-        Self::s_gt,
-        Self::eq,
-        Self::is_zero,
-        Self::and,
-        Self::or,
-        Self::xor,
-        Self::not,
-        Self::byte,
-        Self::shl,
-        Self::shr,
-        Self::sar,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::sha3,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::address,
-        Self::balance,
-        Self::origin,
-        Self::caller,
-        Self::call_value,
-        Self::call_data_load,
-        Self::call_data_size,
-        Self::call_data_copy,
-        Self::code_size,
-        Self::code_copy,
-        Self::gas_price,
-        Self::ext_code_size,
-        Self::ext_code_copy,
-        Self::return_data_size,
-        Self::return_data_copy,
-        Self::ext_code_hash,
-        Self::block_hash,
-        Self::coinbase,
-        Self::timestamp,
-        Self::number,
-        Self::prev_randao,
-        Self::gas_limit,
-        Self::chain_id,
-        Self::self_balance,
-        Self::base_fee,
-        Self::blob_hash,
-        Self::blob_base_fee,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::pop,
-        Self::m_load,
-        Self::m_store,
-        Self::m_store8,
-        Self::s_load,
-        Self::sstore,
-        Self::jump,
-        Self::jump_i,
-        Self::pc,
-        Self::m_size,
-        Self::gas,
-        Self::jump_dest,
-        Self::t_load,
-        Self::t_store,
-        Self::m_copy,
-        Self::push0,
-        (|s| Self::push(s, 1)) as OpFn<_>,
-        (|s| Self::push(s, 2)) as OpFn<_>,
-        (|s| Self::push(s, 3)) as OpFn<_>,
-        (|s| Self::push(s, 4)) as OpFn<_>,
-        (|s| Self::push(s, 5)) as OpFn<_>,
-        (|s| Self::push(s, 6)) as OpFn<_>,
-        (|s| Self::push(s, 7)) as OpFn<_>,
-        (|s| Self::push(s, 8)) as OpFn<_>,
-        (|s| Self::push(s, 9)) as OpFn<_>,
-        (|s| Self::push(s, 10)) as OpFn<_>,
-        (|s| Self::push(s, 11)) as OpFn<_>,
-        (|s| Self::push(s, 12)) as OpFn<_>,
-        (|s| Self::push(s, 13)) as OpFn<_>,
-        (|s| Self::push(s, 14)) as OpFn<_>,
-        (|s| Self::push(s, 15)) as OpFn<_>,
-        (|s| Self::push(s, 16)) as OpFn<_>,
-        (|s| Self::push(s, 17)) as OpFn<_>,
-        (|s| Self::push(s, 18)) as OpFn<_>,
-        (|s| Self::push(s, 19)) as OpFn<_>,
-        (|s| Self::push(s, 20)) as OpFn<_>,
-        (|s| Self::push(s, 21)) as OpFn<_>,
-        (|s| Self::push(s, 22)) as OpFn<_>,
-        (|s| Self::push(s, 23)) as OpFn<_>,
-        (|s| Self::push(s, 24)) as OpFn<_>,
-        (|s| Self::push(s, 25)) as OpFn<_>,
-        (|s| Self::push(s, 26)) as OpFn<_>,
-        (|s| Self::push(s, 27)) as OpFn<_>,
-        (|s| Self::push(s, 28)) as OpFn<_>,
-        (|s| Self::push(s, 29)) as OpFn<_>,
-        (|s| Self::push(s, 30)) as OpFn<_>,
-        (|s| Self::push(s, 31)) as OpFn<_>,
-        (|s| Self::push(s, 32)) as OpFn<_>,
-        (|s| Self::dup(s, 1)) as OpFn<_>,
-        (|s| Self::dup(s, 2)) as OpFn<_>,
-        (|s| Self::dup(s, 3)) as OpFn<_>,
-        (|s| Self::dup(s, 4)) as OpFn<_>,
-        (|s| Self::dup(s, 5)) as OpFn<_>,
-        (|s| Self::dup(s, 6)) as OpFn<_>,
-        (|s| Self::dup(s, 7)) as OpFn<_>,
-        (|s| Self::dup(s, 8)) as OpFn<_>,
-        (|s| Self::dup(s, 9)) as OpFn<_>,
-        (|s| Self::dup(s, 10)) as OpFn<_>,
-        (|s| Self::dup(s, 11)) as OpFn<_>,
-        (|s| Self::dup(s, 12)) as OpFn<_>,
-        (|s| Self::dup(s, 13)) as OpFn<_>,
-        (|s| Self::dup(s, 14)) as OpFn<_>,
-        (|s| Self::dup(s, 15)) as OpFn<_>,
-        (|s| Self::dup(s, 16)) as OpFn<_>,
-        (|s| Self::swap(s, 1)) as OpFn<_>,
-        (|s| Self::swap(s, 2)) as OpFn<_>,
-        (|s| Self::swap(s, 3)) as OpFn<_>,
-        (|s| Self::swap(s, 4)) as OpFn<_>,
-        (|s| Self::swap(s, 5)) as OpFn<_>,
-        (|s| Self::swap(s, 6)) as OpFn<_>,
-        (|s| Self::swap(s, 7)) as OpFn<_>,
-        (|s| Self::swap(s, 8)) as OpFn<_>,
-        (|s| Self::swap(s, 9)) as OpFn<_>,
-        (|s| Self::swap(s, 10)) as OpFn<_>,
-        (|s| Self::swap(s, 11)) as OpFn<_>,
-        (|s| Self::swap(s, 12)) as OpFn<_>,
-        (|s| Self::swap(s, 13)) as OpFn<_>,
-        (|s| Self::swap(s, 14)) as OpFn<_>,
-        (|s| Self::swap(s, 15)) as OpFn<_>,
-        (|s| Self::swap(s, 16)) as OpFn<_>,
-        Self::log::<0>,
-        Self::log::<1>,
-        Self::log::<2>,
-        Self::log::<3>,
-        Self::log::<4>,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::create,
-        Self::call,
-        Self::call_code,
-        Self::return_,
-        Self::delegate_call,
-        Self::create2,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::static_call,
-        Self::jumptable_placeholder,
-        Self::jumptable_placeholder,
-        Self::revert,
-        Self::invalid,
-        Self::self_destruct,
+    #[cfg(any(feature = "jumptable", feature = "opcode-fn-ptr-conversion"))]
+    #[allow(clippy::redundant_closure_for_method_calls)]
+    pub const JUMPTABLE: [OpFn; 256] = [
+        |i| i.stop(),
+        |i| i.add(),
+        |i| i.mul(),
+        |i| i.sub(),
+        |i| i.div(),
+        |i| i.s_div(),
+        |i| i.mod_(),
+        |i| i.s_mod(),
+        |i| i.add_mod(),
+        |i| i.mul_mod(),
+        |i| i.exp(),
+        |i| i.sign_extend(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.lt(),
+        |i| i.gt(),
+        |i| i.s_lt(),
+        |i| i.s_gt(),
+        |i| i.eq(),
+        |i| i.is_zero(),
+        |i| i.and(),
+        |i| i.or(),
+        |i| i.xor(),
+        |i| i.not(),
+        |i| i.byte(),
+        |i| i.shl(),
+        |i| i.shr(),
+        |i| i.sar(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.sha3(),
+        |i| i.no_op(),
+        |i| i.skip_no_ops(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.address(),
+        |i| i.balance(),
+        |i| i.origin(),
+        |i| i.caller(),
+        |i| i.call_value(),
+        |i| i.call_data_load(),
+        |i| i.call_data_size(),
+        |i| i.call_data_copy(),
+        |i| i.code_size(),
+        |i| i.code_copy(),
+        |i| i.gas_price(),
+        |i| i.ext_code_size(),
+        |i| i.ext_code_copy(),
+        |i| i.return_data_size(),
+        |i| i.return_data_copy(),
+        |i| i.ext_code_hash(),
+        |i| i.block_hash(),
+        |i| i.coinbase(),
+        |i| i.timestamp(),
+        |i| i.number(),
+        |i| i.prev_randao(),
+        |i| i.gas_limit(),
+        |i| i.chain_id(),
+        |i| i.self_balance(),
+        |i| i.base_fee(),
+        |i| i.blob_hash(),
+        |i| i.blob_base_fee(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.pop(),
+        |i| i.m_load(),
+        |i| i.m_store(),
+        |i| i.m_store8(),
+        |i| i.s_load(),
+        |i| i.sstore(),
+        |i| i.jump(),
+        |i| i.jump_i(),
+        |i| i.pc(),
+        |i| i.m_size(),
+        |i| i.gas(),
+        |i| i.jump_dest(),
+        |i| i.t_load(),
+        |i| i.t_store(),
+        |i| i.m_copy(),
+        |i| i.push0(),
+        (|s| s.push(1)) as OpFn,
+        (|s| s.push(2)) as OpFn,
+        (|s| s.push(3)) as OpFn,
+        (|s| s.push(4)) as OpFn,
+        (|s| s.push(5)) as OpFn,
+        (|s| s.push(6)) as OpFn,
+        (|s| s.push(7)) as OpFn,
+        (|s| s.push(8)) as OpFn,
+        (|s| s.push(9)) as OpFn,
+        (|s| s.push(10)) as OpFn,
+        (|s| s.push(11)) as OpFn,
+        (|s| s.push(12)) as OpFn,
+        (|s| s.push(13)) as OpFn,
+        (|s| s.push(14)) as OpFn,
+        (|s| s.push(15)) as OpFn,
+        (|s| s.push(16)) as OpFn,
+        (|s| s.push(17)) as OpFn,
+        (|s| s.push(18)) as OpFn,
+        (|s| s.push(19)) as OpFn,
+        (|s| s.push(20)) as OpFn,
+        (|s| s.push(21)) as OpFn,
+        (|s| s.push(22)) as OpFn,
+        (|s| s.push(23)) as OpFn,
+        (|s| s.push(24)) as OpFn,
+        (|s| s.push(25)) as OpFn,
+        (|s| s.push(26)) as OpFn,
+        (|s| s.push(27)) as OpFn,
+        (|s| s.push(28)) as OpFn,
+        (|s| s.push(29)) as OpFn,
+        (|s| s.push(30)) as OpFn,
+        (|s| s.push(31)) as OpFn,
+        (|s| s.push(32)) as OpFn,
+        (|s| s.dup(1)) as OpFn,
+        (|s| s.dup(2)) as OpFn,
+        (|s| s.dup(3)) as OpFn,
+        (|s| s.dup(4)) as OpFn,
+        (|s| s.dup(5)) as OpFn,
+        (|s| s.dup(6)) as OpFn,
+        (|s| s.dup(7)) as OpFn,
+        (|s| s.dup(8)) as OpFn,
+        (|s| s.dup(9)) as OpFn,
+        (|s| s.dup(10)) as OpFn,
+        (|s| s.dup(11)) as OpFn,
+        (|s| s.dup(12)) as OpFn,
+        (|s| s.dup(13)) as OpFn,
+        (|s| s.dup(14)) as OpFn,
+        (|s| s.dup(15)) as OpFn,
+        (|s| s.dup(16)) as OpFn,
+        (|s| s.swap(1)) as OpFn,
+        (|s| s.swap(2)) as OpFn,
+        (|s| s.swap(3)) as OpFn,
+        (|s| s.swap(4)) as OpFn,
+        (|s| s.swap(5)) as OpFn,
+        (|s| s.swap(6)) as OpFn,
+        (|s| s.swap(7)) as OpFn,
+        (|s| s.swap(8)) as OpFn,
+        (|s| s.swap(9)) as OpFn,
+        (|s| s.swap(10)) as OpFn,
+        (|s| s.swap(11)) as OpFn,
+        (|s| s.swap(12)) as OpFn,
+        (|s| s.swap(13)) as OpFn,
+        (|s| s.swap(14)) as OpFn,
+        (|s| s.swap(15)) as OpFn,
+        (|s| s.swap(16)) as OpFn,
+        |i| i.log::<0>(),
+        |i| i.log::<1>(),
+        |i| i.log::<2>(),
+        |i| i.log::<3>(),
+        |i| i.log::<4>(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.create(),
+        |i| i.call(),
+        |i| i.call_code(),
+        |i| i.return_(),
+        |i| i.delegate_call(),
+        |i| i.create2(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.static_call(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.revert(),
+        |i| i.invalid(),
+        |i| i.self_destruct(),
     ];
 
-    #[cfg(feature = "jumptable")]
+    #[cfg(all(feature = "jumptable", not(feature = "opcode-fn-ptr-conversion")))]
     fn run_op(&mut self, op: Opcode) -> OpResult {
         Self::JUMPTABLE[op as u8 as usize](self)
     }
 
-    #[cfg(not(feature = "jumptable"))]
+    #[cfg(all(not(feature = "jumptable"), not(feature = "opcode-fn-ptr-conversion")))]
     fn run_op(&mut self, op: Opcode) -> OpResult {
         match op {
             Opcode::Stop => self.stop(),
@@ -593,9 +595,21 @@ where
         }
     }
 
-    #[cfg(feature = "jumptable")]
-    fn jumptable_placeholder(_self: &mut Self) -> OpResult {
+    #[cfg(any(feature = "jumptable", feature = "opcode-fn-ptr-conversion"))]
+    #[allow(clippy::unused_self)]
+    fn jumptable_placeholder(&mut self) -> OpResult {
         Err(FailStatus::Failure)
+    }
+
+    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    fn no_op(&mut self) -> OpResult {
+        return_from_op!(self);
+    }
+
+    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    fn skip_no_ops(&mut self) -> OpResult {
+        self.code_reader.jump_to();
+        return_from_op!(self, next = false);
     }
 
     fn stop(&mut self) -> OpResult {
@@ -1357,6 +1371,7 @@ where
 
     fn push(&mut self, len: usize) -> OpResult {
         self.gas_left.consume(3)?;
+        #[cfg(not(feature = "opcode-fn-ptr-conversion"))]
         self.code_reader.next();
         self.stack
             .push(self.code_reader.get_push_data(PushLen::new(len)))?;
@@ -1675,11 +1690,8 @@ where
     }
 }
 
-impl<'a, E> From<Interpreter<'a, E>> for StepResult
-where
-    E: ExecutionContextTrait,
-{
-    fn from(value: Interpreter<E>) -> Self {
+impl<'a> From<Interpreter<'a>> for StepResult {
+    fn from(value: Interpreter) -> Self {
         let stack = value
             .stack
             .as_slice()
@@ -1702,11 +1714,8 @@ where
     }
 }
 
-impl<'a, E> From<&mut Interpreter<'a, E>> for ExecutionResult
-where
-    E: ExecutionContextTrait,
-{
-    fn from(value: &mut Interpreter<E>) -> Self {
+impl<'a> From<&mut Interpreter<'a>> for ExecutionResult {
+    fn from(value: &mut Interpreter) -> Self {
         Self::new(
             value.exec_status.into(),
             value.gas_left.as_u64() as i64,

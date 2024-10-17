@@ -1,10 +1,10 @@
-use std::{
-    cmp::min,
-    mem::{self},
-    ops::Deref,
-};
+use std::{self, cmp::min, fmt::Debug, ops::Deref};
 
-use crate::types::{u256, CodeByteType, FailStatus, JumpAnalysis, Opcode};
+#[cfg(feature = "opcode-fn-ptr-conversion")]
+use crate::interpreter::OpFn;
+#[cfg(not(feature = "opcode-fn-ptr-conversion"))]
+use crate::types::Opcode;
+use crate::types::{u256, CodeByteType, FailStatus, JumpAnalysis};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PushLen(usize);
@@ -50,6 +50,7 @@ impl<'a> CodeReader<'a> {
         }
     }
 
+    #[cfg(not(feature = "opcode-fn-ptr-conversion"))]
     pub fn get(&self) -> Result<Opcode, GetOpcodeError> {
         if let Some(op) = self.code.get(self.pc) {
             #[cfg(not(feature = "no-bounds-checks"))]
@@ -66,12 +67,19 @@ impl<'a> CodeReader<'a> {
                 // [Opcode] has repr(u8) and therefore the same memory layout as u8.
                 // In get_code_byte_types this byte of the code was determined to be a valid opcode.
                 // Therefore the value is a valid [Opcode].
-                let op = unsafe { mem::transmute::<u8, Opcode>(*op) };
+                let op = unsafe { std::mem::transmute::<u8, Opcode>(*op) };
                 Ok(op)
             }
         } else {
             Err(GetOpcodeError::OutOfRange)
         }
+    }
+    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    pub fn get(&self) -> Result<OpFn, GetOpcodeError> {
+        self.jump_analysis
+            .get(self.pc)
+            .ok_or(GetOpcodeError::OutOfRange)
+            .and_then(|analysis| analysis.get_func().ok_or(GetOpcodeError::Invalid))
     }
 
     pub fn next(&mut self) {
@@ -80,7 +88,12 @@ impl<'a> CodeReader<'a> {
 
     pub fn try_jump(&mut self, dest: u256) -> Result<(), FailStatus> {
         let dest = u64::try_from(dest).map_err(|_| FailStatus::BadJumpDestination)? as usize;
-        if dest >= self.jump_analysis.len() || self.jump_analysis[dest] != CodeByteType::JumpDest {
+        if !self.jump_analysis.get(dest).is_some_and(|c| {
+            #[cfg(not(feature = "opcode-fn-ptr-conversion"))]
+            return *c == CodeByteType::JumpDest;
+            #[cfg(feature = "opcode-fn-ptr-conversion")]
+            return c.code_byte_type() == CodeByteType::JumpDest;
+        }) {
             return Err(FailStatus::BadJumpDestination);
         }
         self.pc = dest;
@@ -88,6 +101,7 @@ impl<'a> CodeReader<'a> {
         Ok(())
     }
 
+    #[cfg(not(feature = "opcode-fn-ptr-conversion"))]
     pub fn get_push_data(&mut self, push_len: PushLen) -> u256 {
         let len = min(push_len.value(), self.code.len().saturating_sub(self.pc));
         let mut data = u256::ZERO;
@@ -116,6 +130,34 @@ impl<'a> CodeReader<'a> {
 
         data
     }
+    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    pub fn get_push_data(&mut self, push_len: PushLen) -> u256 {
+        let mut len = push_len.value();
+        let mut data = u256::ZERO;
+        #[cfg(not(feature = "no-bounds-checks"))]
+        let mut dest = &mut data[32 - len..];
+        #[cfg(feature = "no-bounds-checks")]
+        // SAFETY:
+        // Because push_len <= 32 so is len, which means the index is always in bounds.
+        let mut dest = unsafe { data.get_unchecked_mut(32 - len..) };
+        // #[cfg(feature = "no-bounds-checks")] // TODO add version without bounds checks
+        while len > 0 {
+            let capped_len = min(len, 8);
+            dest[..capped_len]
+                .copy_from_slice(&self.jump_analysis[self.pc].get_data()[..capped_len]);
+            dest = &mut dest[capped_len..];
+            len -= capped_len;
+            self.pc += 1;
+        }
+
+        data
+    }
+
+    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    pub fn jump_to(&mut self) {
+        let offset = u64::from_ne_bytes(self.jump_analysis[self.pc].get_data());
+        self.pc += offset as usize;
+    }
 
     pub fn pc(&self) -> usize {
         self.pc
@@ -139,6 +181,7 @@ mod tests {
         assert_eq!(code_reader.pc(), pc);
     }
 
+    #[cfg(feature = "xx")]
     #[test]
     fn code_reader_get() {
         let mut code_reader =

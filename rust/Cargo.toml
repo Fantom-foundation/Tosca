@@ -15,7 +15,7 @@ inherits = "release"
 debug = true
 
 [features]
-default = []
+default = ["opcode-fn-ptr-conversion"]
 # Flag mock enables code generation for test mocking. This allows generating mocks for other build configuration but "test". 
 mock = ["dep:mockall"]
 dump-cov = []
@@ -38,6 +38,8 @@ jump-cache = ["dep:lru", "dep:nohash-hasher"]
 thread-local-cache = []
 no-bounds-checks = []
 jumptable-tail-call = ["jumptable"]
+# opcode-fn-ptr-conversion takes precedence over jumptable and jumptable-tail-call
+opcode-fn-ptr-conversion = []
 
 [dependencies]
 bnum = "0.12.0"
