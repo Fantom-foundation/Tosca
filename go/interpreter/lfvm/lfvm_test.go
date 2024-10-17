@@ -11,6 +11,7 @@
 package lfvm
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -43,5 +44,30 @@ func TestLfvm_OfficialConfigurationHasSanctionedProperties(t *testing.T) {
 	}
 	if lfvm.config.ConversionConfig.WithSuperInstructions != false {
 		t.Fatalf("lfvm is configured with super instructions")
+	}
+}
+
+func TestLfvm_InterpreterReturnsErrorWhenExecutingUnsupportedRevision(t *testing.T) {
+	vm, err := tosca.NewInterpreter("lfvm")
+	if err != nil {
+		t.Fatalf("lfvm is not registered: %v", err)
+	}
+
+	params := tosca.Parameters{}
+	params.Revision = newestSupportedRevision + 1
+
+	_, err = vm.Run(params)
+	if want, got := fmt.Sprintf("unsupported revision %d", params.Revision), err.Error(); want != got {
+		t.Fatalf("unexpected error: want %q, got %q", want, got)
+	}
+}
+
+func TestLfvm_newVm_returnsErrorWithWrongConfiguration(t *testing.T) {
+	config := config{
+		ConversionConfig: ConversionConfig{CacheSize: maxCachedCodeLength / 2},
+	}
+	_, err := newVm(config)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
 	}
 }
