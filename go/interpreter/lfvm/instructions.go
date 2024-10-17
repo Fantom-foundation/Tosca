@@ -306,7 +306,7 @@ func opCallDataload(c *context) {
 	top.SetBytes(value)
 }
 
-func opCallDataCopy(c *context) error {
+func genericDataCopy(c *context, source []byte) error {
 	var (
 		memOffset  = c.stack.pop()
 		dataOffset = c.stack.pop()
@@ -315,8 +315,7 @@ func opCallDataCopy(c *context) error {
 
 	// Charge for the copy costs
 	words := tosca.SizeInWords(length.Uint64())
-	price := tosca.Gas(3 * words)
-	if err := c.useGas(price); err != nil {
+	if err := c.useGas(tosca.Gas(3 * words)); err != nil {
 		return err
 	}
 
@@ -324,9 +323,10 @@ func opCallDataCopy(c *context) error {
 	if err != nil {
 		return err
 	}
+
 	// length overflow has been checked by getSlice
-	codeCopy := getData(c.params.Input, dataOffset, length.Uint64())
-	copy(data, codeCopy)
+	dataCopy := getData(source, dataOffset, length.Uint64())
+	copy(data, dataCopy)
 	return nil
 }
 
@@ -729,29 +729,6 @@ func opCodeSize(c *context) {
 	c.stack.pushUndefined().SetUint64(uint64(size))
 }
 
-func opCodeCopy(c *context) error {
-	var (
-		memOffset  = c.stack.pop()
-		codeOffset = c.stack.pop()
-		length     = c.stack.pop()
-	)
-
-	// Charge for length of copied code
-	words := tosca.SizeInWords(length.Uint64())
-	if err := c.useGas(tosca.Gas(3 * words)); err != nil {
-		return err
-	}
-
-	data, err := c.memory.getSlice(memOffset, length, c)
-	if err != nil {
-		return err
-	}
-	// length overflow has been checked by getSlice
-	codeCopy := getData(c.params.Code, codeOffset, length.Uint64())
-	copy(data, codeCopy)
-	return nil
-}
-
 func opExtcodesize(c *context) error {
 	top := c.stack.peek()
 	address := tosca.Address(top.Bytes20())
@@ -916,34 +893,16 @@ func getData(data []byte, offset *uint256.Int, size uint64) []byte {
 }
 
 func opExtCodeCopy(c *context) error {
-	var (
-		a          = c.stack.pop()
-		memOffset  = c.stack.pop()
-		codeOffset = c.stack.pop()
-		length     = c.stack.pop()
-	)
 
-	// Charge for length of copied code
-	words := tosca.SizeInWords(length.Uint64())
-	if err := c.useGas(tosca.Gas(3 * words)); err != nil {
-		return err
-	}
+	address := c.stack.pop().Bytes20()
 
-	address := tosca.Address(a.Bytes20())
 	if c.isAtLeast(tosca.R09_Berlin) {
 		if err := c.useGas(getAccessCost(c.context.AccessAccount(address))); err != nil {
 			return err
 		}
 	}
 
-	data, err := c.memory.getSlice(memOffset, length, c)
-	if err != nil {
-		return err
-	}
-	// length overflow has been checked by getSlice
-	codeCopy := getData(c.context.GetCode(address), codeOffset, length.Uint64())
-	copy(data, codeCopy)
-	return nil
+	return genericDataCopy(c, c.context.GetCode(address))
 }
 
 func getAccessCost(accessStatus tosca.AccessStatus) tosca.Gas {
