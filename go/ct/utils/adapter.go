@@ -77,7 +77,7 @@ type ctRunContext struct {
 
 // TODO: add unit test
 func (c *ctRunContext) AccountExists(addr tosca.Address) bool {
-	return c.state.Accounts.Exist(addr)
+	return c.state.Accounts.Exists(addr)
 }
 
 func (c *ctRunContext) GetStorage(addr tosca.Address, key tosca.Key) tosca.Word {

@@ -285,13 +285,15 @@ func newAccountsSerializable(accounts *Accounts) *accountsSerializable {
 		warm[key] = true
 	}
 
+	balances := make(map[tosca.Address]U256)
 	codes := make(map[tosca.Address]Bytes)
-	for address, code := range accounts.code {
-		codes[address] = code
+	for address, account := range accounts.accounts {
+		codes[address] = account.Code
+		balances[address] = account.Balance
 	}
 
 	return &accountsSerializable{
-		Balance: maps.Clone(accounts.balance),
+		Balance: balances,
 		Code:    codes,
 		Warm:    warm,
 	}
