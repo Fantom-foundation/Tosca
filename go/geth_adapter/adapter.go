@@ -508,8 +508,9 @@ func (a *runContextAdapter) SelfDestruct(addr tosca.Address, beneficiary tosca.A
 	}
 
 	stateDb := a.evm.StateDB
+	selfdestructed := true
 	if stateDb.HasSelfDestructed(gc.Address(addr)) {
-		return false
+		selfdestructed = false
 	}
 	balance := stateDb.GetBalance(a.contract.Address())
 	stateDb.AddBalance(gc.Address(beneficiary), balance, tracing.BalanceDecreaseSelfdestruct)
@@ -521,7 +522,7 @@ func (a *runContextAdapter) SelfDestruct(addr tosca.Address, beneficiary tosca.A
 		stateDb.SelfDestruct(gc.Address(addr))
 	}
 
-	return true
+	return selfdestructed
 }
 
 func (a *runContextAdapter) CreateSnapshot() tosca.Snapshot {
