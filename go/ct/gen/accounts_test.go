@@ -12,9 +12,12 @@ package gen
 
 import (
 	"errors"
+	"maps"
+	"strings"
 	"testing"
 
 	. "github.com/Fantom-foundation/Tosca/go/ct/common"
+	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"pgregory.net/rand"
 )
 
@@ -76,7 +79,7 @@ func TestAccountsGenerator_WarmColdConstraintsNoAssignment(t *testing.T) {
 
 	accounts, err := generator.Generate(assignment, rnd, NewAddressFromInt(8))
 	if err != nil {
-		t.Fatalf("Unexpected error during balance generation")
+		t.Fatalf("Unexpected error during account generation")
 	}
 
 	pos1, found1 := assignment[v1]
@@ -90,6 +93,131 @@ func TestAccountsGenerator_WarmColdConstraintsNoAssignment(t *testing.T) {
 	}
 	if accounts.IsWarm(NewAddress(pos2)) {
 		t.Errorf("Expected address to be cold but got warm")
+	}
+}
+
+func TestAccountsGenerator_CanSpecifyExistenceConstraints(t *testing.T) {
+	v1 := Variable("v1")
+	v2 := Variable("v2")
+	v3 := Variable("v3")
+
+	gen := NewAccountGenerator()
+
+	gen.BindToAddressOfExistingAccount(v1)
+	gen.BindToAddressOfNonExistingAccount(v2)
+	gen.BindToAddressOfExistingAccount(v3)
+	gen.BindToAddressOfNonExistingAccount(v3)
+
+	print := gen.String()
+
+	want := []string{
+		"exists($v1)",
+		"!exists($v2)",
+		"exists($v3)",
+		"!exists($v3)",
+	}
+
+	for _, w := range want {
+		if !strings.Contains(print, w) {
+			t.Errorf("Expected to find %v in %v", w, print)
+		}
+	}
+}
+
+func TestAccountsGenerator_ExistenceConstraintsAreSatisfied(t *testing.T) {
+	v1 := Variable("v1")
+	v2 := Variable("v2")
+	assignment := Assignment{}
+	rnd := rand.New(0)
+	generator := NewAccountGenerator()
+
+	generator.BindToAddressOfExistingAccount(v1)
+	generator.BindToAddressOfNonExistingAccount(v2)
+
+	accounts, err := generator.Generate(assignment, rnd, NewAddressFromInt(8))
+	if err != nil {
+		t.Fatalf("Unexpected error during account generation")
+	}
+
+	addr1 := NewAddress(assignment[v1])
+	addr2 := NewAddress(assignment[v2])
+
+	if !accounts.Exists(addr1) {
+		t.Errorf("Expected account to exist but it does not")
+	}
+	if accounts.Exists(addr2) {
+		t.Errorf("Expected account not to exist but it does")
+	}
+}
+
+func TestAccountsGenerator_PreAssignedVariablesArePreserved(t *testing.T) {
+	v1 := Variable("v1")
+	v2 := Variable("v2")
+
+	assignment := Assignment{
+		v1: NewU256(42),
+		v2: NewU256(24),
+	}
+	backup := maps.Clone(assignment)
+
+	rnd := rand.New(0)
+	generator := NewAccountGenerator()
+
+	generator.BindToAddressOfExistingAccount(v1)
+
+	accounts, err := generator.Generate(assignment, rnd, tosca.Address{})
+	if err != nil {
+		t.Fatalf("Unexpected error during account generation")
+	}
+
+	addr1 := NewAddress(assignment[v1])
+	if !accounts.Exists(addr1) {
+		t.Errorf("Expected account to exist but it does not")
+	}
+
+	if !maps.Equal(backup, assignment) {
+		t.Errorf("Pre-assigned variables were modified")
+	}
+}
+
+func TestAccountsGenerator_ConflictingExistenceConstraintsAreDetected(t *testing.T) {
+	v1 := Variable("v1")
+	assignment := Assignment{}
+
+	rnd := rand.New(0)
+	generator := NewAccountGenerator()
+
+	generator.BindToAddressOfExistingAccount(v1)
+	generator.BindToAddressOfNonExistingAccount(v1)
+
+	_, err := generator.Generate(assignment, rnd, tosca.Address{})
+	if !errors.Is(err, ErrUnsatisfiable) {
+		t.Errorf("Conflicting existence constraints not detected")
+	}
+}
+
+func TestAccountsGenerator_CanHandleAccessStateAndExistenceStateConstraintsOnSameVariable(t *testing.T) {
+	v1 := Variable("v1")
+	assignment := Assignment{}
+
+	rnd := rand.New(0)
+	generator := NewAccountGenerator()
+
+	generator.BindToAddressOfExistingAccount(v1)
+	generator.BindWarm(v1)
+
+	accounts, err := generator.Generate(assignment, rnd, tosca.Address{})
+	if err != nil {
+		t.Fatalf("Unexpected error during account generation")
+	}
+
+	address := NewAddress(assignment[v1])
+	if !accounts.Exists(address) {
+		t.Errorf("Expected account to exist but it does not")
+	}
+
+	if !accounts.IsWarm(address) {
+		t.Errorf("Expected account to be warm but it is cold")
 	}
 }
 
