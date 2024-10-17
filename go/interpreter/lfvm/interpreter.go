@@ -288,7 +288,7 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 		case CALLDATASIZE:
 			opCallDatasize(c)
 		case CALLDATACOPY:
-			err = opCallDataCopy(c)
+			err = genericDataCopy(c, c.params.Input)
 		case MLOAD:
 			err = opMload(c)
 		case MSTORE:
@@ -436,7 +436,7 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 		case CODESIZE:
 			opCodeSize(c)
 		case CODECOPY:
-			err = opCodeCopy(c)
+			err = genericDataCopy(c, c.params.Code)
 		case EXTCODESIZE:
 			err = opExtcodesize(c)
 		case EXTCODEHASH:
