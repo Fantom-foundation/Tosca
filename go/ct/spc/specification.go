@@ -263,7 +263,6 @@ func getAllRules() []Rule {
 			memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < memExpCost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= memExpCost
@@ -271,7 +270,6 @@ func getAllRules() []Rule {
 			wordCost := tosca.Gas(6 * tosca.SizeInWords(size))
 			if s.Gas < wordCost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= wordCost
@@ -359,7 +357,6 @@ func getAllRules() []Rule {
 			cost, offset, _ := s.Memory.ExpansionCosts(offsetU256, NewU256(32))
 			if s.Gas < cost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= cost
@@ -904,7 +901,6 @@ func getAllRules() []Rule {
 			dynamicGas, overflow := sumWithOverflow(expansionCost, wordCountCost)
 			if s.Gas < dynamicGas || overflow {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= dynamicGas
@@ -1452,7 +1448,6 @@ func getAllRules() []Rule {
 			cost, overflow := sumWithOverflow(cost, tosca.Gas(3*tosca.SizeInWords(size)))
 			if s.Gas < cost || overflow {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= cost
@@ -1529,7 +1524,6 @@ func getAllRules() []Rule {
 			expansionCost, overflow := sumWithOverflow(expansionCost, tosca.Gas(3*tosca.SizeInWords(size)))
 			if s.Gas < expansionCost || overflow {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= expansionCost
@@ -1593,7 +1587,6 @@ func getAllRules() []Rule {
 			if !offsetU256.IsUint64() || !sizeU256.IsUint64() || overflow ||
 				readUntil > uint64(s.LastCallReturnData.Length()) {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 
@@ -1601,7 +1594,6 @@ func getAllRules() []Rule {
 			expansionCost, overflow = sumWithOverflow(expansionCost, tosca.Gas(3*tosca.SizeInWords(size)))
 			if s.Gas < expansionCost || overflow {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= expansionCost
@@ -1627,7 +1619,6 @@ func getAllRules() []Rule {
 			expansionCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= expansionCost
@@ -1654,7 +1645,6 @@ func getAllRules() []Rule {
 			expansionCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < expansionCost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= expansionCost
@@ -1797,13 +1787,11 @@ func createEffect(s *st.State, callKind tosca.CallKind) {
 			InitCodeWordGas = 2 // Once per word of the init code when creating a contract.
 		)
 		if !sizeU256.IsUint64() || size > MaxInitCodeSize {
-			s.Gas = 0
 			s.Status = st.Failed
 			return
 		}
 		dynamicGas, overflow = sumWithOverflow(dynamicGas, tosca.Gas(InitCodeWordGas*tosca.SizeInWords(size)))
 		if overflow {
-			s.Gas = 0
 			s.Status = st.Failed
 			return
 		}
@@ -1814,7 +1802,6 @@ func createEffect(s *st.State, callKind tosca.CallKind) {
 		saltU256 = s.Stack.Pop()
 		dynamicGas, overflow = sumWithOverflow(dynamicGas, tosca.Gas(6*tosca.SizeInWords(size)))
 		if overflow {
-			s.Gas = 0
 			s.Status = st.Failed
 			return
 		}
@@ -1822,7 +1809,6 @@ func createEffect(s *st.State, callKind tosca.CallKind) {
 
 	if s.Gas < dynamicGas {
 		s.Status = st.Failed
-		s.Gas = 0
 		return
 	}
 	s.Gas -= dynamicGas
@@ -1881,7 +1867,6 @@ func binaryOpWithDynamicCost(
 			// TODO: Improve handling of dynamic gas through dedicated constraint.
 			if s.Gas < dynamicCost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= dynamicCost
@@ -2009,7 +1994,6 @@ func extCodeCopyEffect(s *st.State, markWarm bool) {
 	cost, overflow := sumWithOverflow(cost, tosca.Gas(3*tosca.SizeInWords(size)))
 	if s.Gas < cost || overflow {
 		s.Status = st.Failed
-		s.Gas = 0
 		return
 	}
 	s.Gas -= cost
@@ -2183,14 +2167,12 @@ func logOp(n int) []Rule {
 			memExpCost, offset, size := s.Memory.ExpansionCosts(offsetU256, sizeU256)
 			if s.Gas < memExpCost {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= memExpCost
 
 			if s.Gas < tosca.Gas(8*size) {
 				s.Status = st.Failed
-				s.Gas = 0
 				return
 			}
 			s.Gas -= tosca.Gas(8 * size)
