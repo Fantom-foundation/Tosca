@@ -852,7 +852,6 @@ func TestSelfDestruct_Refund(t *testing.T) {
 }
 
 func TestSelfDestruct_NewAccountCost(t *testing.T) {
-
 	tests := map[string]struct {
 		beneficiaryEmpty bool
 		balance          tosca.Value
@@ -882,9 +881,44 @@ func TestSelfDestruct_NewAccountCost(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			cost := selfDestructNewAccountCost(test.beneficiaryEmpty, test.balance)
-			if cost != test.cost {
-				t.Errorf("unexpected gas, wanted %d, got %d", test.cost, cost)
+			address := tosca.Address{0x01}
+			beneficiary := tosca.Address{0x02}
+			ctrl := gomock.NewController(t)
+			runContext := tosca.NewMockRunContext(ctrl)
+
+			runContext.EXPECT().AccessAccount(beneficiary).Return(tosca.WarmAccess)
+			runContext.EXPECT().GetBalance(beneficiary).Return(tosca.Value{})
+			runContext.EXPECT().GetCode(beneficiary).Return(nil)
+			if test.beneficiaryEmpty {
+				runContext.EXPECT().GetNonce(beneficiary).Return(uint64(0))
+			} else {
+				runContext.EXPECT().GetNonce(beneficiary).Return(uint64(1))
+			}
+			runContext.EXPECT().GetBalance(address).Return(test.balance)
+			runContext.EXPECT().SelfDestruct(address, beneficiary).Return(true)
+
+			ctxt := context{
+				params: tosca.Parameters{
+					BlockParameters: tosca.BlockParameters{
+						Revision: tosca.R13_Cancun,
+					},
+					Recipient: address,
+				},
+				stack:   NewStack(),
+				memory:  NewMemory(),
+				context: runContext,
+				gas:     test.cost,
+			}
+			ctxt.stack.push(new(uint256.Int).SetBytes(beneficiary[:]))
+			status, err := opSelfdestruct(&ctxt)
+			if err != nil {
+				t.Fatalf("unexpected error, got %v", err)
+			}
+			if want, got := statusSelfDestructed, status; want != got {
+				t.Fatalf("unexpected status, wanted %v, got %v", want, got)
+			}
+			if want, got := tosca.Gas(0), ctxt.gas; want != got {
+				t.Errorf("unexpected gas, wanted %d, got %d", want, got)
 			}
 		})
 	}
@@ -934,32 +968,32 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 	}
 }
 
-func TestSelfDestruct_AccountExistsButIsNotEmpty(t *testing.T) {
+func TestSelfDestruct_ReturnsSelfDestructedAndConsumesGas(t *testing.T) {
 	tests := map[string]struct {
 		beneficiaryNonce   uint64
 		beneficiaryBalance tosca.Value
-		beneficiarCode     []byte
+		beneficiaryCode    []byte
 		remainingGas       tosca.Gas
 	}{
-		"empty": {
+		"with empty beneficiary account": {
 			0,
 			tosca.Value{},
 			nil,
 			tosca.Gas(0),
 		},
-		"nonEmptyNonce": {
+		"non empty beneficiary account with nonce": {
 			1,
 			tosca.Value{},
 			nil,
 			tosca.Gas(25_000),
 		},
-		"nonEmptyBalance": {
+		"non empty beneficiary account with Balance": {
 			0,
 			tosca.Value{1},
 			nil,
 			tosca.Gas(25_000),
 		},
-		"nonEmptyCode": {
+		"non empty beneficiary account with Code": {
 			0,
 			tosca.Value{},
 			[]byte{0x01},
@@ -976,7 +1010,7 @@ func TestSelfDestruct_AccountExistsButIsNotEmpty(t *testing.T) {
 
 			runContext.EXPECT().AccessAccount(beneficiary).Return(tosca.ColdAccess)
 			runContext.EXPECT().GetBalance(beneficiary).Return(test.beneficiaryBalance)
-			runContext.EXPECT().GetCode(beneficiary).Return(test.beneficiarCode).AnyTimes()
+			runContext.EXPECT().GetCode(beneficiary).Return(test.beneficiaryCode).AnyTimes()
 			runContext.EXPECT().GetNonce(beneficiary).Return(test.beneficiaryNonce).AnyTimes()
 			runContext.EXPECT().GetBalance(address).Return(tosca.Value{1})
 			runContext.EXPECT().SelfDestruct(address, beneficiary).Return(true)

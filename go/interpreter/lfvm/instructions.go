@@ -656,10 +656,16 @@ func opSelfdestruct(c *context) (status, error) {
 			cost += getAccessCost(accessStatus)
 		}
 	}
-	empty := c.context.GetBalance(beneficiary).Cmp(tosca.Value{}) == 0 &&
+
+	empty := c.context.GetBalance(beneficiary) == (tosca.Value{}) &&
 		c.context.GetCode(beneficiary) == nil &&
 		c.context.GetNonce(beneficiary) == 0
-	cost += selfDestructNewAccountCost(empty, c.context.GetBalance(c.params.Recipient))
+	balance := c.context.GetBalance(c.params.Recipient)
+	if empty && balance != (tosca.Value{}) {
+		// cost of creating an account defined in eip-150 (see https://eips.ethereum.org/EIPS/eip-150)
+		cost += 25_000
+	}
+
 	// even death is not for free
 	if err := c.useGas(cost); err != nil {
 		return statusStopped, err
@@ -668,16 +674,6 @@ func opSelfdestruct(c *context) (status, error) {
 	destructed := c.context.SelfDestruct(c.params.Recipient, beneficiary)
 	c.refund += selfDestructRefund(destructed, c.params.Revision)
 	return statusSelfDestructed, nil
-}
-
-func selfDestructNewAccountCost(accountEmpty bool, balance tosca.Value) tosca.Gas {
-	if accountEmpty && balance != (tosca.Value{}) {
-		// cost of creating an account defined in eip-150 (see https://eips.ethereum.org/EIPS/eip-150)
-		// CreateBySelfdestructGas is used when the refunded account is one that does
-		// not exist. This logic is similar to call.
-		return 25_000
-	}
-	return 0
 }
 
 func selfDestructRefund(destructed bool, revision tosca.Revision) tosca.Gas {
