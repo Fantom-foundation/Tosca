@@ -55,7 +55,7 @@ func TestInterpreter_Logger_ExecutesCodeAndLogs(t *testing.T) {
 			code := test.code
 			buffer := bytes.NewBuffer([]byte{})
 			logger := newLogger(buffer)
-			config := interpreterConfig{
+			config := config{
 				runner: logger,
 			}
 			_, err := run(config, params, code)
@@ -88,7 +88,7 @@ func TestInterpreter_Logger_RunsWithoutOutput(t *testing.T) {
 	defer func() { os.Stderr = oldErr }()
 
 	logger := newLogger(nil)
-	config := interpreterConfig{
+	config := config{
 		runner: logger,
 	}
 
@@ -132,7 +132,7 @@ func (l loggerErrorMock) Write(p []byte) (n int, err error) {
 func TestInterpreter_logger_PropagatesWriterError(t *testing.T) {
 
 	logger := newLogger(loggerErrorMock{})
-	config := interpreterConfig{
+	config := config{
 		runner: logger,
 	}
 	// Get tosca.Parameters

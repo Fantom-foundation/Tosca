@@ -11,34 +11,30 @@
 package lfvm
 
 import (
-	"fmt"
-	"math"
-
 	"github.com/Fantom-foundation/Tosca/go/ct"
 	"github.com/Fantom-foundation/Tosca/go/ct/common"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
 	"github.com/Fantom-foundation/Tosca/go/ct/utils"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	lru "github.com/hashicorp/golang-lru/v2"
-	"github.com/holiman/uint256"
 )
 
 func NewConformanceTestingTarget() ct.Evm {
-	converter, err := NewConverter(ConversionConfig{
-		WithSuperInstructions: false,
-	})
-	if err != nil {
-		panic("failed to create converter: " + err.Error())
-	}
-	cache, _ := lru.New[[32]byte, *pcMap](4096) // can only fail for non-positive size
+
+	// Can only fail for invalid configuration. Configuration is hardcoded.
+	sanctionedVm, _ := NewInterpreter(Config{})
+
+	// can only fail for non-positive size
+	cache, _ := lru.New[[32]byte, *pcMap](4096)
+
 	return &ctAdapter{
-		converter:  converter,
+		vm:         sanctionedVm,
 		pcMapCache: cache,
 	}
 }
 
 type ctAdapter struct {
-	converter  *Converter
+	vm         *lfvm
 	pcMapCache *lru.Cache[[32]byte, *pcMap]
 }
 
@@ -53,29 +49,27 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 		return state, nil
 	}
 
-	converted := a.converter.Convert(
+	converted := a.vm.converter.Convert(
 		params.Code,
 		params.CodeHash,
 	)
 
 	pcMap := a.getPcMap(state.Code)
 
-	memory, err := convertCtMemoryToLfvmMemory(state.Memory)
-	if err != nil {
-		return nil, err
-	}
+	memory := convertCtMemoryToLfvmMemory(state.Memory)
 
 	// Set up execution context.
 	var ctxt = &context{
-		pc:         int32(pcMap.evmToLfvm[state.Pc]),
-		params:     params,
-		context:    params.Context,
-		gas:        params.Gas,
-		refund:     tosca.Gas(state.GasRefund),
-		stack:      convertCtStackToLfvmStack(state.Stack),
-		memory:     memory,
-		code:       converted,
-		returnData: state.LastCallReturnData.ToBytes(),
+		pc:           int32(pcMap.evmToLfvm[state.Pc]),
+		params:       params,
+		context:      params.Context,
+		gas:          params.Gas,
+		refund:       tosca.Gas(state.GasRefund),
+		stack:        convertCtStackToLfvmStack(state.Stack),
+		memory:       memory,
+		code:         converted,
+		returnData:   state.LastCallReturnData.ToBytes(),
+		withShaCache: a.vm.config.WithShaCache,
 	}
 
 	defer func() {
@@ -89,10 +83,7 @@ func (a *ctAdapter) StepN(state *st.State, numSteps int) (*st.State, error) {
 	}
 
 	// Update the resulting state.
-	state.Status, err = convertLfvmStatusToCtStatus(status)
-	if err != nil {
-		return nil, err
-	}
+	state.Status = convertLfvmStatusToCtStatus(status)
 
 	if status == statusRunning {
 		state.Pc = pcMap.lfvmToEvm[ctxt.pc]
@@ -167,21 +158,20 @@ func genPcMap(code []byte) *pcMap {
 	}
 }
 
-func convertLfvmStatusToCtStatus(status status) (st.StatusCode, error) {
+func convertLfvmStatusToCtStatus(status status) st.StatusCode {
 	switch status {
 	case statusRunning:
-		return st.Running, nil
+		return st.Running
 	case statusReturned, statusStopped:
-		return st.Stopped, nil
+		return st.Stopped
 	case statusReverted:
-		return st.Reverted, nil
+		return st.Reverted
 	case statusSelfDestructed:
-		return st.Stopped, nil
+		return st.Stopped
 	case statusFailed:
-		return st.Failed, nil
-	default:
-		return st.Failed, fmt.Errorf("unable to convert lfvm status %v to ct status", status)
+		return st.Failed
 	}
+	return st.Failed
 }
 
 func convertCtStackToLfvmStack(stack *st.Stack) *stack {
@@ -202,14 +192,14 @@ func convertLfvmStackToCtStack(stack *stack, result *st.Stack) *st.Stack {
 	return result
 }
 
-func convertCtMemoryToLfvmMemory(memory *st.Memory) (*Memory, error) {
+func convertCtMemoryToLfvmMemory(memory *st.Memory) *Memory {
 	data := memory.Read(0, uint64(memory.Size()))
-	result := NewMemory()
-	err := result.set(new(uint256.Int), data, &context{gas: math.MaxInt64})
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	mem := NewMemory()
+	words := tosca.SizeInWords(uint64(len(data)))
+	mem.store = make([]byte, words*32)
+	copy(mem.store, data)
+	mem.currentMemoryCost = tosca.Gas((words*words)/512 + (3 * words))
+	return mem
 }
 
 func convertLfvmMemoryToCtMemory(memory *Memory) *st.Memory {

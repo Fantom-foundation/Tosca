@@ -32,7 +32,7 @@ func TestStatisticsRunner_RunWithStatistics(t *testing.T) {
 	statsRunner := &statisticRunner{
 		stats: newStatistics(),
 	}
-	config := interpreterConfig{
+	config := config{
 		runner: statsRunner,
 	}
 	_, err := run(config, params, code)

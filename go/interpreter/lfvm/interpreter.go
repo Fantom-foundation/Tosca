@@ -83,13 +83,8 @@ type runner interface {
 	run(*context) (status, error)
 }
 
-type interpreterConfig struct {
-	withShaCache bool
-	runner       runner
-}
-
 func run(
-	config interpreterConfig,
+	config config,
 	params tosca.Parameters,
 	code Code,
 ) (tosca.Result, error) {
@@ -110,7 +105,7 @@ func run(
 		stack:        NewStack(),
 		memory:       NewMemory(),
 		code:         code,
-		withShaCache: config.withShaCache,
+		withShaCache: config.WithShaCache,
 	}
 	defer ReturnStack(ctxt.stack)
 
