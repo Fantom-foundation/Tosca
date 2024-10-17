@@ -64,19 +64,16 @@ func TestCTAdapter_DoesNotAddDuplicatedCodeToPCMap(t *testing.T) {
 	}))
 	c := NewConformanceTestingTarget()
 
-	executeStepAndChecks := func() {
+	for i := 0; i < 3; i++ {
 		s.Status = st.Running
 		_, err := c.StepN(s, 1)
 		if err != nil {
 			t.Fatalf("unexpected conversion error: %v", err)
 		}
-		if c.(*ctAdapter).pcMapCache.Len() != 1 {
-			t.Fatalf("unexpected pc map size, wanted 2, got %d", c.(*ctAdapter).pcMapCache.Len())
+		if want, got := 1, c.(*ctAdapter).pcMapCache.Len(); want != got {
+			t.Fatalf("unexpected pc map size, wanted %d, got %d", want, got)
 		}
 	}
-
-	executeStepAndChecks()
-	executeStepAndChecks()
 }
 
 func TestCtAdapter_ReturnsErrorForUnsupportedRevisions(t *testing.T) {
