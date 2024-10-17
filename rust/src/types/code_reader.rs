@@ -1,11 +1,15 @@
-use std::{cmp::min, mem, ops::Deref};
+use std::{
+    cmp::min,
+    mem::{self},
+    ops::Deref,
+};
 
-use crate::types::{code_byte_type, u256, CodeByteType, FailStatus, Opcode};
+use crate::types::{code_byte_type, u256, CodeByteType, FailStatus, JumpAnalysis, Opcode};
 
 #[derive(Debug)]
 pub struct CodeReader<'a> {
     code: &'a [u8],
-    code_byte_type: Box<[CodeByteType]>,
+    code_byte_types: JumpAnalysis,
     pc: usize,
 }
 
@@ -24,10 +28,10 @@ pub enum GetOpcodeError {
 }
 
 impl<'a> CodeReader<'a> {
-    pub fn new(code: &'a [u8], pc: usize) -> Self {
+    pub fn new(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
         Self {
             code,
-            code_byte_type: compute_code_byte_types(code),
+            code_byte_types: JumpAnalysis::new(code_hash, || compute_code_byte_types(code)),
             pc,
         }
     }
@@ -35,7 +39,7 @@ impl<'a> CodeReader<'a> {
     pub fn get(&self) -> Result<Opcode, GetOpcodeError> {
         if self.pc >= self.code.len() {
             Err(GetOpcodeError::OutOfRange)
-        } else if self.code_byte_type[self.pc] == CodeByteType::DataOrInvalid {
+        } else if self.code_byte_types[self.pc] == CodeByteType::DataOrInvalid {
             Err(GetOpcodeError::Invalid)
         } else {
             let op = self.code[self.pc];
@@ -54,7 +58,8 @@ impl<'a> CodeReader<'a> {
 
     pub fn try_jump(&mut self, dest: u256) -> Result<(), FailStatus> {
         let dest = u64::try_from(dest).map_err(|_| FailStatus::BadJumpDestination)? as usize;
-        if dest >= self.code_byte_type.len() || self.code_byte_type[dest] != CodeByteType::JumpDest
+        if dest >= self.code_byte_types.len()
+            || self.code_byte_types[dest] != CodeByteType::JumpDest
         {
             return Err(FailStatus::BadJumpDestination);
         }
@@ -79,7 +84,7 @@ impl<'a> CodeReader<'a> {
     }
 }
 
-fn compute_code_byte_types(code: &[u8]) -> Box<[CodeByteType]> {
+fn compute_code_byte_types(code: &[u8]) -> Vec<CodeByteType> {
     let mut code_byte_types = vec![CodeByteType::DataOrInvalid; code.len()];
 
     let mut pc = 0;
@@ -89,7 +94,7 @@ fn compute_code_byte_types(code: &[u8]) -> Box<[CodeByteType]> {
         pc += inc;
     }
 
-    code_byte_types.into_boxed_slice()
+    code_byte_types
 }
 
 #[cfg(test)]
@@ -197,7 +202,7 @@ mod tests {
     fn code_reader_internals() {
         let code = [Opcode::Add as u8, Opcode::Add as u8, 0xc0];
         let pc = 1;
-        let code_reader = CodeReader::new(&code, pc);
+        let code_reader = CodeReader::new(&code, None, pc);
         assert_eq!(*code_reader, code);
         assert_eq!(code_reader.len(), code.len());
         assert_eq!(code_reader.pc(), pc);
@@ -205,7 +210,8 @@ mod tests {
 
     #[test]
     fn code_reader_get() {
-        let mut code_reader = CodeReader::new(&[Opcode::Add as u8, Opcode::Add as u8, 0xc0], 0);
+        let mut code_reader =
+            CodeReader::new(&[Opcode::Add as u8, Opcode::Add as u8, 0xc0], None, 0);
         assert_eq!(code_reader.get(), Ok(Opcode::Add));
         code_reader.next();
         assert_eq!(code_reader.get(), Ok(Opcode::Add));
@@ -223,6 +229,7 @@ mod tests {
                 Opcode::JumpDest as u8,
                 Opcode::JumpDest as u8,
             ],
+            None,
             0,
         );
         assert_eq!(
@@ -242,19 +249,19 @@ mod tests {
 
     #[test]
     fn code_reader_get_push_data() {
-        let mut code_reader = CodeReader::new(&[0xff; 32], 0);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 0);
         assert_eq!(code_reader.get_push_data(0u8.into()), u256::ZERO);
 
-        let mut code_reader = CodeReader::new(&[0xff; 32], 0);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 0);
         assert_eq!(code_reader.get_push_data(1u8.into()), 0xffu8.into());
 
-        let mut code_reader = CodeReader::new(&[0xff; 32], 0);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 0);
         assert_eq!(code_reader.get_push_data(32u8.into()), u256::MAX);
 
-        let mut code_reader = CodeReader::new(&[0xff; 32], 31);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 31);
         assert_eq!(code_reader.get_push_data(32u8.into()), 0xffu8.into());
 
-        let mut code_reader = CodeReader::new(&[0xff; 32], 32);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 32);
         assert_eq!(code_reader.get_push_data(32u8.into()), u256::ZERO);
     }
 }
