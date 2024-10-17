@@ -35,10 +35,6 @@ func TestNumericParameter_Samples(t *testing.T) {
 			got:  MemoryOffsetParameter{}.Samples(),
 			want: memoryOffsetParameterSamples,
 		},
-		"MemoryOffsetForCopyParameter": {
-			got:  MemoryOffsetForCopyParameter{}.Samples(),
-			want: memoryOffsetForCopyParameter,
-		},
 		"MemorySizeParameter": {
 			got:  MemorySizeParameter{}.Samples(),
 			want: memorySizeParameterSamples,
