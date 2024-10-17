@@ -106,12 +106,13 @@ func TestDynamicGas(t *testing.T) {
 
 						// World state interactions triggered by the EVM.
 						mockStateDB.EXPECT().SetBalance(gomock.Any(), gomock.Any()).AnyTimes()
-						mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes()
 						mockStateDB.EXPECT().SetNonce(gomock.Any(), gomock.Any()).AnyTimes()
 						mockStateDB.EXPECT().SetCode(gomock.Any(), gomock.Any()).AnyTimes()
 
-						// SELFDESTRUCT gas computation is dependent on an account balance and sets its own expectations
+						// SELFDESTRUCT gas computation is dependent on an account balance and
+						// existence (handled by nonce in this test), it sets its own expectations
 						if op != vm.SELFDESTRUCT {
+							mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes()
 							mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(accountBalance)
 						}
 
