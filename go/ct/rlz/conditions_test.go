@@ -199,6 +199,58 @@ func TestCondition_CheckStorageConfiguration(t *testing.T) {
 	}
 }
 
+func TestCondition_CheckForExistingAccount(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.Pc = 42
+	condition := AccountExists(Pc())
+
+	exists, err := condition.Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exists {
+		t.Error("account should be considered non-existing")
+	}
+
+	state.Accounts = st.NewAccountsBuilder().
+		SetBalance(NewAddress(NewU256(42)), NewU256(0)).
+		Build()
+
+	exists, err = condition.Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		t.Error("account should be considered existing")
+	}
+}
+
+func TestCondition_CheckForNonExistingAccount(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.Pc = 42
+	condition := AccountDoesNotExist(Pc())
+
+	pass, err := condition.Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pass {
+		t.Error("account should be considered non-existing")
+	}
+
+	state.Accounts = st.NewAccountsBuilder().
+		SetBalance(NewAddress(NewU256(42)), NewU256(0)).
+		Build()
+
+	pass, err = condition.Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pass {
+		t.Error("account should be considered existing")
+	}
+}
+
 func TestCondition_CheckWarmCold(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Pc = 42

@@ -42,9 +42,10 @@ func getNewFilledState() *State {
 		SetWarm(NewU256(9), true).
 		Build()
 	s.TransientStorage = &TransientStorage{}
-	s.Accounts = NewAccounts()
-	s.Accounts.SetBalance(tosca.Address{0x01}, NewU256(42))
-	s.Accounts.SetCode(tosca.Address{0x01}, NewBytes([]byte{byte(vm.PUSH1), byte(6)}))
+	s.Accounts = NewAccountsBuilder().
+		SetBalance(tosca.Address{0x01}, NewU256(42)).
+		SetCode(tosca.Address{0x01}, NewBytes([]byte{byte(vm.PUSH1), byte(6)})).
+		Build()
 	s.Accounts.MarkWarm(tosca.Address{0x02})
 	s.Logs.AddLog([]byte{4, 5, 6}, NewU256(21), NewU256(22))
 	s.CallContext = CallContext{AccountAddress: tosca.Address{0x01}}
@@ -117,7 +118,7 @@ func getTestChanges() map[string]testStruct {
 		},
 		"accounts": {func(state *State) {
 			state.Accounts.SetBalance(tosca.Address{0x01}, NewU256(6))
-		}, "Different balance entry",
+		}, "Different account entry",
 		},
 		"logs": {func(state *State) {
 			state.Logs.AddLog([]byte{10, 11}, NewU256(21), NewU256(22))
