@@ -20,14 +20,13 @@ import (
 )
 
 func NewConformanceTestingTarget() ct.Evm {
-	sanctionedVm, err := NewInterpreter(Config{})
-	if err != nil {
-		// because configuration values are hardcoded, this panic can only
-		// happen if the interpreter is misconfigured during development
-		panic("failed to create converter: " + err.Error())
-	}
 
-	cache, _ := lru.New[[32]byte, *pcMap](4096) // can only fail for non-positive size
+	// Can only fail for invalid configuration. Configuration is hardcoded.
+	sanctionedVm, _ := NewInterpreter(Config{})
+
+	// can only fail for non-positive size
+	cache, _ := lru.New[[32]byte, *pcMap](4096)
+
 	return &ctAdapter{
 		vm:         sanctionedVm,
 		pcMapCache: cache,
