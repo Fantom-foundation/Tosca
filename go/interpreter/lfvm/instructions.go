@@ -997,7 +997,10 @@ func genericCall(c *context, kind tosca.CallKind) error {
 
 	// EIP158 states that non-zero value calls that create a new account should
 	// be charged an additional gas fee.
-	if kind == tosca.Call && !value.IsZero() && !c.context.AccountExists(toAddr) {
+	empty := c.context.GetBalance(toAddr) == (tosca.Value{}) &&
+		c.context.GetCode(toAddr) == nil &&
+		c.context.GetNonce(toAddr) == 0
+	if kind == tosca.Call && !value.IsZero() && empty {
 		if err := c.useGas(CallNewAccountGas); err != nil {
 			return err
 		}

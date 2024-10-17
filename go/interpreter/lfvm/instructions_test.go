@@ -231,7 +231,7 @@ func TestCallChecksBalances(t *testing.T) {
 	ctxt.stack.data[5].SetBytes(target[:])    // < the target address for the call
 
 	// The target account should exist and the source account without funds.
-	runContext.EXPECT().AccountExists(target).Return(true)
+	runContext.EXPECT().GetBalance(target).Return(tosca.Value{1})
 	runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
 
 	err := opCall(&ctxt)
@@ -760,6 +760,7 @@ func TestCall_ChargesNothingForColdAccessBeforeBerlin(t *testing.T) {
 	one := *uint256.NewInt(1)
 	ctrl := gomock.NewController(t)
 	runContext := tosca.NewMockRunContext(ctrl)
+	runContext.EXPECT().GetBalance(one.Bytes20()).Return(tosca.Value{1})
 	runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{Recipient: one.Bytes20()}).Return(tosca.CallResult{}, nil)
 	ctxt := context{
 		params: tosca.Parameters{
@@ -792,6 +793,7 @@ func TestCall_ChargesForAccessAfterBerlin(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		runContext := tosca.NewMockRunContext(ctrl)
 		runContext.EXPECT().AccessAccount(one.Bytes20()).Return(accessStatus)
+		runContext.EXPECT().GetBalance(one.Bytes20()).Return(tosca.Value{1})
 		runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{Recipient: one.Bytes20()}).Return(tosca.CallResult{}, nil)
 		delta := tosca.Gas(1)
 		ctxt := context{
@@ -1501,7 +1503,6 @@ func TestGetData(t *testing.T) {
 }
 
 func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
-
 	one := uint256.NewInt(1)
 	u64overflow := new(uint256.Int).Add(uint256.NewInt(2), uint256.NewInt(math.MaxUint64))
 	address := tosca.Address{1}
@@ -1551,7 +1552,9 @@ func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			runContext := tosca.NewMockRunContext(gomock.NewController(t))
 			runContext.EXPECT().AccessAccount(address).Return(tosca.WarmAccess).AnyTimes()
-			runContext.EXPECT().AccountExists(address).Return(false).AnyTimes()
+			runContext.EXPECT().GetBalance(address).Return(tosca.Value{}).AnyTimes()
+			runContext.EXPECT().GetCode(address).Return(nil).AnyTimes()
+			runContext.EXPECT().GetNonce(address).Return(uint64(0)).AnyTimes()
 
 			ctxt := getEmptyContext()
 			ctxt.context = runContext
@@ -1586,6 +1589,7 @@ func TestGenericCall_CallKindPropagatesStaticMode(t *testing.T) {
 	zero := *uint256.NewInt(0)
 	one := *uint256.NewInt(1)
 	runContext := tosca.NewMockRunContext(gomock.NewController(t))
+	runContext.EXPECT().GetBalance(one.Bytes20()).Return(tosca.Value{1})
 	runContext.EXPECT().Call(tosca.StaticCall, tosca.CallParameters{Recipient: one.Bytes20()}).Return(tosca.CallResult{}, nil)
 	ctxt := getEmptyContext()
 	ctxt.context = runContext
@@ -1603,6 +1607,7 @@ func TestGeneralCall_ResultIsWrittenToStack(t *testing.T) {
 	one := *uint256.NewInt(1)
 	for _, success := range []bool{true, false} {
 		runContext := tosca.NewMockRunContext(gomock.NewController(t))
+		runContext.EXPECT().GetBalance(one.Bytes20()).Return(tosca.Value{1})
 		runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{Recipient: one.Bytes20()}).Return(tosca.CallResult{Success: success}, nil)
 		ctxt := getEmptyContext()
 		ctxt.context = runContext
@@ -1616,6 +1621,84 @@ func TestGeneralCall_ResultIsWrittenToStack(t *testing.T) {
 			t.Errorf("unexpected return value, wanted %v, got %v", want, got)
 		}
 	}
+}
+
+func TestGenericCall_GasIsCalculatedForCallsWithValueAndEmptyReceiver(t *testing.T) {
+	tests := map[string]struct {
+		value        tosca.Value
+		balance      tosca.Value
+		code         []byte
+		nonce        uint64
+		remainingGas tosca.Gas
+	}{
+		"no value empty account": {
+			value:        tosca.Value{},
+			balance:      tosca.Value{},
+			code:         nil,
+			nonce:        0,
+			remainingGas: 100_000,
+		},
+		"value empty account": {
+			value:        tosca.Value{1},
+			balance:      tosca.Value{},
+			code:         nil,
+			nonce:        0,
+			remainingGas: 66_000,
+		},
+		"value account with balance": {
+			value:        tosca.Value{1},
+			balance:      tosca.Value{1},
+			code:         nil,
+			nonce:        0,
+			remainingGas: 91_000,
+		},
+		"value account with code": {
+			value:        tosca.Value{1},
+			balance:      tosca.Value{},
+			code:         []byte{0x01},
+			nonce:        0,
+			remainingGas: 91_000,
+		},
+		"value account with nonce": {
+			value:        tosca.Value{1},
+			balance:      tosca.Value{},
+			code:         nil,
+			nonce:        1,
+			remainingGas: 91_000,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			recipient := tosca.Address{1}
+			runContext := tosca.NewMockRunContext(gomock.NewController(t))
+			runContext.EXPECT().GetBalance(recipient).Return(test.balance)
+			runContext.EXPECT().GetCode(recipient).Return(test.code).AnyTimes()
+			runContext.EXPECT().GetNonce(recipient).Return(test.nonce).AnyTimes()
+			runContext.EXPECT().GetBalance(tosca.Address{}).Return(test.value).AnyTimes() // sufficient balance for value transfer
+			runContext.EXPECT().Call(tosca.Call, gomock.Any()).Return(tosca.CallResult{Success: true}, nil)
+
+			ctxt := getEmptyContext()
+			ctxt.context = runContext
+			ctxt.gas = 100_000
+			ctxt.stack = fillStack(
+				*uint256.NewInt(uint64(0)),                   // gas
+				*uint256.NewInt(0).SetBytes20(recipient[:]),  // address
+				*uint256.NewInt(0).SetBytes32(test.value[:]), // value
+				*uint256.NewInt(0),                           // inOffset
+				*uint256.NewInt(0),                           // inSize
+				*uint256.NewInt(0),                           // outOffset
+				*uint256.NewInt(0),                           // outSize
+			)
+			err := genericCall(&ctxt, tosca.Call)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got := ctxt.gas; got != test.remainingGas {
+				t.Errorf("unexpected gas, wanted %d, got %d", test.remainingGas, got)
+			}
+		})
+	}
+
 }
 
 func TestInstructions_ComparisonAndShiftOperations(t *testing.T) {
