@@ -28,6 +28,7 @@ performance = [
     "hash-cache",
     "code-analysis-cache",
     "tail-call",
+    "opcode-fn-ptr-conversion",
 ]
 mimalloc = ["dep:mimalloc"]
 stack-array = []
@@ -37,6 +38,8 @@ hash-cache = ["dep:lru"]
 code-analysis-cache = ["dep:lru", "dep:nohash-hasher"]
 thread-local-cache = []
 tail-call = []
+# opcode-fn-ptr-conversion takes precedence over jumptable
+opcode-fn-ptr-conversion = []
 
 [dependencies]
 bnum = "0.12.0"
