@@ -607,8 +607,16 @@ func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationG
 		}
 		mockCalls := func(mock *MockStateDB) {
 			mock.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
-			mock.EXPECT().GetCode(address).AnyTimes().Return(calledCode)
 			mock.EXPECT().AccountExists(address).AnyTimes().Return(exist)
+			if exist {
+				mock.EXPECT().GetBalance(address).AnyTimes().Return(tosca.Value{1})
+				mock.EXPECT().GetCode(address).AnyTimes().Return(calledCode)
+			} else {
+				mock.EXPECT().GetBalance(address).AnyTimes().Return(tosca.Value{})
+				mock.EXPECT().GetCode(address).AnyTimes().Return(nil)
+				mock.EXPECT().GetNonce(address).AnyTimes().Return(uint64(0))
+			}
+			mock.EXPECT().GetBalance(tosca.Address{}).AnyTimes().Return(tosca.Value{100})
 			mock.EXPECT().IsAddressInAccessList(address).AnyTimes().Return(inAccessList)
 			mock.EXPECT().AccessAccount(address).AnyTimes().Return(accountState)
 		}
