@@ -28,7 +28,6 @@ pub enum GetOpcodeError {
 }
 
 impl<'a> CodeReader<'a> {
-    #[allow(unused_variables)]
     pub fn new(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
         Self {
             code,
