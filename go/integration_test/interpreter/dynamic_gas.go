@@ -840,13 +840,6 @@ func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
 			})
 
 			mock.EXPECT().AccountExists(targetAddress).AnyTimes().Return(!empty)
-			mock.EXPECT().GetBalance(targetAddress).AnyTimes().Return(tosca.Value{})
-			mock.EXPECT().GetCode(targetAddress).AnyTimes().Return(nil)
-			if empty {
-				mock.EXPECT().GetNonce(targetAddress).AnyTimes().Return(uint64(0))
-			} else {
-				mock.EXPECT().GetNonce(targetAddress).AnyTimes().Return(uint64(1))
-			}
 			mock.EXPECT().IsAddressInAccessList(targetAddress).AnyTimes().Return(inAcl)
 			mock.EXPECT().AccessAccount(targetAddress).AnyTimes().Return(tosca.AccessStatus(inAcl))
 		}

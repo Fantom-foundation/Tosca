@@ -851,6 +851,45 @@ func TestSelfDestruct_Refund(t *testing.T) {
 	}
 }
 
+func TestSelfDestruct_NewAccountCost(t *testing.T) {
+
+	tests := map[string]struct {
+		beneficiaryExists bool
+		balance           tosca.Value
+		cost              tosca.Gas
+	}{
+		"account exists no balance": {
+			beneficiaryExists: true,
+			balance:           tosca.Value{},
+			cost:              0,
+		},
+		"account exists with balance": {
+			beneficiaryExists: true,
+			balance:           tosca.Value{1},
+			cost:              0,
+		},
+		"new account without balance": {
+			beneficiaryExists: false,
+			balance:           tosca.Value{},
+			cost:              0,
+		},
+		"new account with balance": {
+			beneficiaryExists: false,
+			balance:           tosca.Value{1},
+			cost:              25_000,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			cost := selfDestructNewAccountCost(test.beneficiaryExists, test.balance)
+			if cost != test.cost {
+				t.Errorf("unexpected gas, wanted %d, got %d", test.cost, cost)
+			}
+		})
+	}
+}
+
 func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 	// This tests produces the combination of context calls/results for the maximum dynamic gas cost possible.
 
@@ -862,9 +901,7 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	runContext := tosca.NewMockRunContext(ctrl)
 	runContext.EXPECT().AccessAccount(beneficiaryAddress).Return(tosca.ColdAccess)
-	runContext.EXPECT().GetBalance(beneficiaryAddress).Return(tosca.Value{})
-	runContext.EXPECT().GetCode(beneficiaryAddress).Return(nil)
-	runContext.EXPECT().GetNonce(beneficiaryAddress).Return(uint64(0))
+	runContext.EXPECT().AccountExists(beneficiaryAddress).Return(false)
 	runContext.EXPECT().GetBalance(selfAddress).Return(tosca.Value{1})
 	runContext.EXPECT().SelfDestruct(selfAddress, beneficiaryAddress).Return(true)
 
@@ -895,135 +932,47 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 	}
 }
 
-func TestSelfDestruct_ReturnsSelfDestructedAndConsumesGas(t *testing.T) {
-	tests := map[string]struct {
-		balance            tosca.Value
-		beneficiaryNonce   uint64
-		beneficiaryBalance tosca.Value
-		beneficiaryCode    []byte
-		remainingGas       tosca.Gas
-	}{
-		"balance and empty beneficiary account": {
-			tosca.Value{1},
-			0,
-			tosca.Value{},
-			nil,
-			tosca.Gas(0),
-		},
-		"balance and non empty beneficiary account with nonce": {
-			tosca.Value{1},
-			1,
-			tosca.Value{},
-			nil,
-			tosca.Gas(25_000),
-		},
-		"balance and non empty beneficiary account with Balance": {
-			tosca.Value{1},
-			0,
-			tosca.Value{1},
-			nil,
-			tosca.Gas(25_000),
-		},
-		"balance and non empty beneficiary account with Code": {
-			tosca.Value{1},
-			0,
-			tosca.Value{},
-			[]byte{0x01},
-			tosca.Gas(25_000),
-		},
-		"no balance and empty beneficiary": {
-			tosca.Value{},
-			0,
-			tosca.Value{},
-			nil,
-			tosca.Gas(25_000),
-		},
-		"no balance and non empty beneficiary": {
-			tosca.Value{},
-			1,
-			tosca.Value{1},
-			nil,
-			tosca.Gas(25_000),
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			address := tosca.Address{0x01}
-			beneficiary := tosca.Address{0x02}
-			ctrl := gomock.NewController(t)
-			runContext := tosca.NewMockRunContext(ctrl)
-
-			runContext.EXPECT().AccessAccount(beneficiary).Return(tosca.ColdAccess)
-			runContext.EXPECT().GetBalance(beneficiary).Return(test.beneficiaryBalance)
-			runContext.EXPECT().GetCode(beneficiary).Return(test.beneficiaryCode).AnyTimes()
-			runContext.EXPECT().GetNonce(beneficiary).Return(test.beneficiaryNonce).AnyTimes()
-			runContext.EXPECT().GetBalance(address).Return(test.balance)
-			runContext.EXPECT().SelfDestruct(address, beneficiary).Return(true)
-
-			ctxt := context{
-				params: tosca.Parameters{
-					BlockParameters: tosca.BlockParameters{
-						Revision: tosca.R13_Cancun,
-					},
-					Recipient: address,
-				},
-				stack:   NewStack(),
-				memory:  NewMemory(),
-				context: runContext,
-				gas:     27_600,
-			}
-			ctxt.stack.push(new(uint256.Int).SetBytes(beneficiary[:]))
-			status, err := opSelfdestruct(&ctxt)
-			if err != nil {
-				t.Fatalf("unexpected error, got %v", err)
-			}
-			if want, got := statusSelfDestructed, status; want != got {
-				t.Fatalf("unexpected status, wanted %v, got %v", want, got)
-			}
-			if want, got := test.remainingGas, ctxt.gas; want != got {
-				t.Errorf("unexpected gas, wanted %d, got %d", want, got)
-			}
-		})
-	}
-}
-
-func TestSelfDestruct_ReturnsOutOfGasError(t *testing.T) {
+func TestSelfDestruct_ProperlyReportsNotEnoughGas(t *testing.T) {
 	for _, beneficiaryAccess := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
-		t.Run(fmt.Sprintf("beneficiaryAccess:%v", beneficiaryAccess), func(t *testing.T) {
-			beneficiaryAddress := tosca.Address{1}
-			selfAddress := tosca.Address{2}
+		for _, accountExists := range []bool{true, false} {
+			t.Run(fmt.Sprintf("beneficiaryAccess:%v_accountExists:%v", beneficiaryAccess, accountExists), func(t *testing.T) {
+				beneficiaryAddress := tosca.Address{1}
+				selfAddress := tosca.Address{2}
 
-			ctrl := gomock.NewController(t)
-			runContext := tosca.NewMockRunContext(ctrl)
-			runContext.EXPECT().AccessAccount(beneficiaryAddress).Return(beneficiaryAccess)
-			// Existing beneficiary
-			runContext.EXPECT().GetBalance(beneficiaryAddress).Return(tosca.Value{1})
-			runContext.EXPECT().GetBalance(selfAddress).Return(tosca.Value{1})
+				ctrl := gomock.NewController(t)
+				runContext := tosca.NewMockRunContext(ctrl)
+				runContext.EXPECT().AccessAccount(beneficiaryAddress).Return(beneficiaryAccess)
+				runContext.EXPECT().AccountExists(beneficiaryAddress).Return(accountExists)
+				runContext.EXPECT().GetBalance(selfAddress).Return(tosca.Value{1})
 
-			ctxt := context{
-				params: tosca.Parameters{
-					BlockParameters: tosca.BlockParameters{
-						Revision: tosca.R13_Cancun,
+				ctxt := context{
+					params: tosca.Parameters{
+						BlockParameters: tosca.BlockParameters{
+							Revision: tosca.R13_Cancun,
+						},
+						Recipient: selfAddress,
 					},
-					Recipient: selfAddress,
-				},
-				stack:   NewStack(),
-				memory:  NewMemory(),
-				context: runContext,
-			}
-			if beneficiaryAccess == tosca.ColdAccess {
-				ctxt.gas += 2600
-			}
-			ctxt.gas -= 1
+					stack:   NewStack(),
+					memory:  NewMemory(),
+					context: runContext,
+				}
+				if beneficiaryAccess == tosca.ColdAccess {
+					ctxt.gas += 2600
+				}
+				if !accountExists {
+					ctxt.gas += 25000
+				}
+				ctxt.gas -= 1
 
-			ctxt.stack.push(new(uint256.Int).SetBytes(beneficiaryAddress[:]))
+				ctxt.stack.push(new(uint256.Int).SetBytes(beneficiaryAddress[:]))
 
-			_, err := opSelfdestruct(&ctxt)
-			if err != errOutOfGas {
-				t.Fatalf("expected out of gas but got %v", err)
-			}
-		})
+				_, err := opSelfdestruct(&ctxt)
+				if err != errOutOfGas {
+					t.Fatalf("expected out of gas but got %v", err)
+				}
+
+			})
+		}
 	}
 }
 
