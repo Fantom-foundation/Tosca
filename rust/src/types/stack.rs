@@ -5,21 +5,21 @@ use crate::types::{u256, FailStatus};
 
 #[cfg(feature = "stack-array")]
 #[derive(Debug)]
-struct StackRaw {
+pub struct Stack {
     data: [MaybeUninit<u256>; 1024],
     len: usize,
 }
 
 #[cfg(feature = "stack-array")]
-impl StackRaw {
+impl Stack {
     pub fn new(inner: &[u256]) -> Self {
         let len = min(inner.len(), 1024);
         let mut s = Self {
-            data: [const { MaybeUninit::uninit() }; 1024],
+            data: [MaybeUninit::uninit(); 1024],
             len,
         };
         // SAFETY:
-        // &[T] and &[MaybeUninit<T>] have the same layout
+        // &[T] and &[MaybeUninit<T>] have the same layout.
         // With nightly rust this could be replaced by MaybeUninit::copy_from_slice
         s.data[..len].copy_from_slice(unsafe {
             std::mem::transmute::<&[u256], &[std::mem::MaybeUninit<u256>]>(inner)
@@ -29,21 +29,10 @@ impl StackRaw {
 
     pub fn as_slice(&self) -> &[u256] {
         // SAFETY:
-        // &[T] and &[MaybeUninit<T>] have the same layout and self.data is initialized up to
-        // self.len
+        // &[T] and &[MaybeUninit<T>] have the same layout and the first self.len elements are
+        // initialized.
         unsafe {
             std::mem::transmute::<&[std::mem::MaybeUninit<u256>], &[u256]>(&self.data[..self.len])
-        }
-    }
-
-    pub fn as_mut_slice(&mut self) -> &mut [u256] {
-        // SAFETY:
-        // &[T] and &[MaybeUninit<T>] have the same layout and self.data is initialized up to
-        // self.len
-        unsafe {
-            std::mem::transmute::<&mut [std::mem::MaybeUninit<u256>], &mut [u256]>(
-                &mut self.data[..self.len],
-            )
         }
     }
 
@@ -51,44 +40,84 @@ impl StackRaw {
         self.len
     }
 
-    /// # Safety
-    /// self.len must be < 1024
-    pub unsafe fn push(&mut self, value: u256) {
-        self.data[self.len] = MaybeUninit::new(value);
+    pub fn push(&mut self, value: impl Into<u256>) -> Result<(), FailStatus> {
+        if self.len >= 1024 {
+            return Err(FailStatus::StackOverflow);
+        }
+
+        let value = MaybeUninit::new(value.into());
+
+        self.data[self.len] = value;
+
         self.len += 1;
+
+        Ok(())
     }
 
-    /// # Safety
-    /// self.len must be >= N
-    pub unsafe fn pop_array<const N: usize>(&mut self) -> [u256; N] {
+    pub fn pop<const N: usize>(&mut self) -> Result<[u256; N], FailStatus> {
+        self.check_underflow(N)?;
+
         self.len -= N;
         let start = self.data.as_ptr() as *const u256;
         // SAFETY:
         // This does not wrap and the whole range from start to start + self.len is valid.
-        let array_start = unsafe { start.add(self.len) };
+        let pop_start = unsafe { start.add(self.len) };
         // SAFETY:
-        // The invariant of this type is that the first `self.len` elements are initialized.
+        // The the first self.len elements are initialized (invariant).
         // `self.len` just got decremented by N, which means now that the first `self.len + N`
         // elements are initialized. Therefore, it is safe to read N elements starting at index
         // `self.len` as an array of length N and type u256.
-        unsafe { std::ptr::read(array_start as *const [u256; N]) }
+        Ok(unsafe { std::ptr::read(pop_start as *const [u256; N]) })
+    }
+
+    pub fn swap_with_top(&mut self, nth: usize) -> Result<(), FailStatus> {
+        self.check_underflow(nth + 1)?;
+
+        let start = self.data.as_mut_ptr();
+        // SAFETY:
+        // This does not wrap and the whole range is valid.
+        let top = unsafe { start.add(self.len - 1) };
+        // SAFETY:
+        // This does not wrap and the whole range is valid.
+        let nth = unsafe { top.sub(nth) };
+        // SAFETY:
+        // top and nth are valid pointers into self.data.
+        unsafe {
+            std::ptr::swap(top, nth);
+        }
+        Ok(())
+    }
+
+    pub fn nth(&self, nth: usize) -> Result<u256, FailStatus> {
+        self.check_underflow(nth + 1)?;
+        let start = self.data.as_ptr() as *const u256;
+        // SAFETY:
+        // This does not wrap and the whole range is valid.
+        let nth = unsafe { start.add(self.len - 1 - nth) };
+        // SAFETY:
+        // nth is a valid pointer into self.data which points to one of the first self.len elements,
+        // which are all initialized, so the access is in bounds and it is safe so read the element
+        // as u256.
+        Ok(unsafe { *nth })
+    }
+
+    #[inline(always)]
+    fn check_underflow(&self, min_len: usize) -> Result<(), FailStatus> {
+        if self.len < min_len {
+            return Err(FailStatus::StackUnderflow);
+        }
+        Ok(())
     }
 }
-
-#[cfg(feature = "stack-array")]
-#[derive(Debug)]
-pub struct Stack(StackRaw);
 
 #[cfg(not(feature = "stack-array"))]
 #[derive(Debug)]
 pub struct Stack(Vec<u256>);
 
+#[cfg(not(feature = "stack-array"))]
 impl Stack {
     pub fn new(inner: &[u256]) -> Self {
-        #[cfg(feature = "stack-array")]
-        return Self(StackRaw::new(inner));
-        #[cfg(not(feature = "stack-array"))]
-        return Self(Vec::from(inner));
+        Self(Vec::from(inner))
     }
 
     pub fn as_slice(&self) -> &[u256] {
@@ -100,17 +129,10 @@ impl Stack {
     }
 
     pub fn push(&mut self, value: impl Into<u256>) -> Result<(), FailStatus> {
-        self.check_overflow_on_push()?;
-
-        #[cfg(feature = "stack-array")]
-        // SAFETY:
-        // self.0.len < 1024
-        unsafe {
-            self.0.push(value.into());
+        if self.0.len() >= 1024 {
+            return Err(FailStatus::StackOverflow);
         }
-        #[cfg(not(feature = "stack-array"))]
         self.0.push(value.into());
-
         Ok(())
     }
 
@@ -125,33 +147,16 @@ impl Stack {
     pub fn pop<const N: usize>(&mut self) -> Result<[u256; N], FailStatus> {
         self.check_underflow(N)?;
 
-        #[cfg(feature = "stack-array")]
-        {
-            // SAFETY:
-            // self.0.len >= N
-            Ok(unsafe { self.0.pop_array() })
-        }
-        #[cfg(not(feature = "stack-array"))]
-        {
-            let new_len = self.0.len() - N;
-            let mut array = [u256::ZERO; N];
-            array.copy_from_slice(&self.0[new_len..]);
-            self.0.truncate(new_len);
-            Ok(array)
-        }
+        let new_len = self.0.len() - N;
+        let mut array = [u256::ZERO; N];
+        array.copy_from_slice(&self.0[new_len..]);
+        self.0.truncate(new_len);
+        Ok(array)
     }
 
     pub fn nth(&self, nth: usize) -> Result<u256, FailStatus> {
         self.check_underflow(nth + 1)?;
-        Ok(self.0.as_slice()[self.0.len() - nth - 1])
-    }
-
-    #[inline(always)]
-    fn check_overflow_on_push(&self) -> Result<(), FailStatus> {
-        if self.0.len() >= 1024 {
-            return Err(FailStatus::StackOverflow);
-        }
-        Ok(())
+        Ok(self.0[self.0.len() - nth - 1])
     }
 
     #[inline(always)]
@@ -219,17 +224,6 @@ mod tests {
 
         let mut stack = Stack::new(&[u256::MAX, u256::ONE]);
         assert_eq!(stack.swap_with_top(2), Err(FailStatus::StackUnderflow));
-    }
-
-    #[test]
-    fn check_overflow_on_push() {
-        let stack = Stack::new(&[u256::MAX; 1023]);
-        assert_eq!(stack.check_overflow_on_push(), Ok(()));
-        let stack = Stack::new(&[u256::MAX; 1024]);
-        assert_eq!(
-            stack.check_overflow_on_push(),
-            Err(FailStatus::StackOverflow)
-        );
     }
 
     #[test]
