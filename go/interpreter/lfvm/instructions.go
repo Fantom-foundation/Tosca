@@ -1048,19 +1048,21 @@ func genericCall(c *context, kind tosca.CallKind) error {
 		Value: tosca.Value(value.Bytes32()),
 	}
 
+	if (kind == tosca.CallCode || kind == tosca.DelegateCall) && tosca.IsPrecompiledContract(toAddr) {
+		callParams.Recipient = toAddr
+	} else {
+		callParams.Recipient = c.params.Recipient
+	}
+
 	switch kind {
 	case tosca.Call, tosca.StaticCall:
 		callParams.Sender = c.params.Recipient
 		callParams.Recipient = toAddr
-
 	case tosca.CallCode:
 		callParams.Sender = c.params.Recipient
-		callParams.Recipient = c.params.Recipient
 		callParams.CodeAddress = toAddr
-
 	case tosca.DelegateCall:
 		callParams.Sender = c.params.Sender
-		callParams.Recipient = c.params.Recipient
 		callParams.CodeAddress = toAddr
 		callParams.Value = c.params.Value
 	}

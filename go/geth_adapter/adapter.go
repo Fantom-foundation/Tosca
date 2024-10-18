@@ -316,7 +316,7 @@ func (a *runContextAdapter) Call(kind tosca.CallKind, parameter tosca.CallParame
 // which is not a desired trait for Tosca interpreter implementations.
 // With this trick, this requirement is circumvented.
 func encodeReadOnlyInGas(gas uint64, recipient tosca.Address, readOnly bool) uint64 {
-	if !isPrecompiledContract(recipient) {
+	if !tosca.IsPrecompiledContract(recipient) {
 		if readOnly {
 			gas += (1 << 63)
 		}
@@ -593,14 +593,4 @@ func bigIntToHash(value *big.Int) (tosca.Hash, error) {
 func bigIntToWord(value *big.Int) (tosca.Word, error) {
 	res, err := bigIntToValue(value)
 	return tosca.Word(res), err
-}
-
-func isPrecompiledContract(recipient tosca.Address) bool {
-	// the addresses 1-9 are precompiled contracts
-	for i := 0; i < 18; i++ {
-		if recipient[i] != 0 {
-			return false
-		}
-	}
-	return 1 <= recipient[19] && recipient[19] <= 9
 }
