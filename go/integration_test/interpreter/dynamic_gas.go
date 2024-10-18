@@ -417,6 +417,8 @@ func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 		mock.EXPECT().GetCodeSize(gomock.Any()).AnyTimes()
 		mock.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(tosca.ColdAccess)
 		mock.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(tosca.Value{})
+		mock.EXPECT().GetNonce(gomock.Any()).AnyTimes().Return(uint64(0))
+		mock.EXPECT().GetCode(gomock.Any()).AnyTimes().Return(nil)
 		mock.EXPECT().HasSelfDestructed(gomock.Any()).AnyTimes().Return(true)
 		mock.EXPECT().GetStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(tosca.Word{1})
 	}
