@@ -476,6 +476,20 @@ func TestU256_RandU256(t *testing.T) {
 	}
 }
 
+func TestU256_RandU256Between(t *testing.T) {
+	rnd := rand.New()
+	for min := uint64(0); min < 10; min++ {
+		for max := min; max < 10; max++ {
+			for i := 0; i < 100; i++ {
+				r := RandU256Between(rnd, NewU256(min), NewU256(max))
+				if r.Uint64() < min || r.Uint64() > max {
+					t.Errorf("random U256 is not between %d and %d, got %v", min, max, r)
+				}
+			}
+		}
+	}
+}
+
 func TestU256_IsUint64(t *testing.T) {
 	tests := []struct {
 		value U256

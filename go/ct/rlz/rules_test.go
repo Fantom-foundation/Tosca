@@ -31,6 +31,8 @@ func TestRule_GenerateSatisfyingState(t *testing.T) {
 		And(Eq(Op(Pc()), vm.ADD)),
 		And(Eq(Op(Pc()), vm.JUMP), Eq(Op(Param(0)), vm.JUMPDEST)),
 		And(Eq(Op(Constant(NewU256(12))), vm.ADD), Eq(Op(Constant(NewU256(3))), vm.JUMP)),
+		And(Eq(Balance(Self()), NewU256(42))),
+		And(Gt(Balance(Self()), NewU256(0))),
 	}
 
 	rnd := rand.New(0)
@@ -47,7 +49,7 @@ func TestRule_GenerateSatisfyingState(t *testing.T) {
 			t.Errorf("Condition check error %v", err)
 		}
 		if !satisfied {
-			t.Errorf("Generated state does not satisfy condition %v: %v", test, &state)
+			t.Errorf("Generated state does not satisfy condition '%v': %v", test, state)
 		}
 	}
 }
@@ -60,6 +62,10 @@ func TestRule_EnumerateTestCases(t *testing.T) {
 		And(Eq(Status(), st.Failed), Eq(Pc(), NewU256(42))),
 		And(Eq(Op(Pc()), vm.ADD)),
 		And(Eq(Op(Pc()), vm.JUMP), Eq(Op(Param(0)), vm.JUMPDEST)),
+		And(Eq(Balance(Self()), NewU256(42))),
+		And(Gt(Balance(Self()), NewU256(0))),
+		And(Eq(Balance(ToAddress(Param(0))), NewU256(20))),
+		And(Eq(Balance(Self()), NewU256(0))),
 	}
 
 	rnd := rand.New(0)

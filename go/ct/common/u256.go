@@ -80,6 +80,18 @@ func RandU256(rnd *rand.Rand) U256 {
 	return value
 }
 
+func RandU256Between(rnd *rand.Rand, min, max U256) U256 {
+	if min.internal.Gt(&max.internal) {
+		panic("min is greater than max")
+	}
+	// Calculate the range
+	rangeValue := max.Sub(min).Add(NewU256(1))
+	// Generate a random value within the range
+	randValue := RandU256(rnd).Mod(rangeValue)
+	// Add the min value to the random value
+	return min.Add(randValue)
+}
+
 func MaxU256() (result U256) {
 	result.internal.SetAllOne()
 	return
@@ -235,6 +247,10 @@ func (a U256) Srsh(b U256) (z U256) {
 
 func (i U256) String() string {
 	return fmt.Sprintf("%016x %016x %016x %016x", i.internal[3], i.internal[2], i.internal[1], i.internal[0])
+}
+
+func (i U256) DecimalString() string {
+	return i.internal.String()
 }
 
 func (i U256) MarshalText() ([]byte, error) {
