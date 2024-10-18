@@ -75,3 +75,13 @@ func SizeInWords(size uint64) uint64 {
 	}
 	return (size + 31) / 32
 }
+
+func IsPrecompiledContract(recipient Address) bool {
+	// the addresses 1-9 are precompiled contracts
+	for i := 0; i < 18; i++ {
+		if recipient[i] != 0 {
+			return false
+		}
+	}
+	return 1 <= recipient[19] && recipient[19] <= 9
+}
