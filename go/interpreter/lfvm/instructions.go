@@ -729,7 +729,7 @@ func opCodeSize(c *context) {
 	c.stack.pushUndefined().SetUint64(uint64(size))
 }
 
-func opExtcodesize(c *context) error {
+func opExtCodeSize(c *context) error {
 	top := c.stack.peek()
 	address := tosca.Address(top.Bytes20())
 	if c.isAtLeast(tosca.R09_Berlin) {
@@ -741,7 +741,7 @@ func opExtcodesize(c *context) error {
 	return nil
 }
 
-func opExtcodehash(c *context) error {
+func opExtCodeHash(c *context) error {
 	slot := c.stack.peek()
 	address := tosca.Address(slot.Bytes20())
 	if c.isAtLeast(tosca.R09_Berlin) {

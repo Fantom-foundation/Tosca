@@ -438,9 +438,9 @@ func steps(c *context, oneStepOnly bool) (status, error) {
 		case CODECOPY:
 			err = genericDataCopy(c, c.params.Code)
 		case EXTCODESIZE:
-			err = opExtcodesize(c)
+			err = opExtCodeSize(c)
 		case EXTCODEHASH:
-			err = opExtcodehash(c)
+			err = opExtCodeHash(c)
 		case EXTCODECOPY:
 			err = opExtCodeCopy(c)
 		case BALANCE:

@@ -1106,8 +1106,8 @@ func TestInstructions_EIP2929_dynamicGasCostReportsOutOfGas(t *testing.T) {
 	tests := map[OpCode]func(*context) error{
 		BALANCE:      opBalance,
 		EXTCODECOPY:  opExtCodeCopy,
-		EXTCODEHASH:  opExtcodehash,
-		EXTCODESIZE:  opExtcodesize,
+		EXTCODEHASH:  opExtCodeHash,
+		EXTCODESIZE:  opExtCodeSize,
 		CALL:         opCall,
 		CALLCODE:     opCallCode,
 		DELEGATECALL: opDelegateCall,
@@ -1721,7 +1721,7 @@ func TestInstructions_opExtcodesize_CallsContextAndWritesResultInStack(t *testin
 
 	ctxt.stack.push(new(uint256.Int).SetBytes(address[:]))
 
-	err := opExtcodesize(&ctxt)
+	err := opExtCodeSize(&ctxt)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1948,7 +1948,7 @@ func TestOpExtCodeHash_WritesHashOnStackIfAccountExists(t *testing.T) {
 			}
 			ctxt.context = runContext
 
-			err := opExtcodehash(&ctxt)
+			err := opExtCodeHash(&ctxt)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
