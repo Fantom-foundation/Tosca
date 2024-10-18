@@ -742,14 +742,23 @@ func opExtCodeSize(c *context) error {
 }
 
 func opExtCodeHash(c *context) error {
-	slot := c.stack.peek()
-	address := tosca.Address(slot.Bytes20())
+	var (
+		slot    = c.stack.peek()
+		address = tosca.Address(slot.Bytes20())
+	)
+
 	if c.isAtLeast(tosca.R09_Berlin) {
 		if err := c.useGas(getAccessCost(c.context.AccessAccount(address))); err != nil {
 			return err
 		}
 	}
-	if !c.context.AccountExists(address) {
+
+	// from evm.codes: Zero if the account does not exist or has been destroyed.
+	empty := c.context.GetBalance(address) == tosca.Value{} &&
+		len(c.context.GetCode(address)) == 0 &&
+		c.context.GetNonce(address) == 0
+
+	if empty {
 		slot.Clear()
 	} else {
 		hash := c.context.GetCodeHash(address)
