@@ -666,25 +666,46 @@ func TestTransientStorageOperations(t *testing.T) {
 	}
 }
 
+func TestGenericDataCopy_CopiesDataIntoMemoryAndPadsExcessWithZeroes(t *testing.T) {
+
+	testBuffer := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+	ctxt := getEmptyContext()
+	ctxt.stack = fillStack(
+		*uint256.NewInt(0),  // memory offset
+		*uint256.NewInt(0),  // data offset
+		*uint256.NewInt(15), // size
+	)
+
+	err := genericDataCopy(&ctxt, testBuffer)
+	if err != nil {
+		t.Fatalf("genericDataCopy failed: %v", err)
+	}
+
+	// 15 bytes read, expanded to 32 bytes: 0-14 are copied, 15-31 are zeroed.
+	expected := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 31: 0}
+	if want, got := expected[:], ctxt.memory.store; !bytes.Equal(want, got) {
+		t.Errorf("unexpected memory, wanted %v, got %v", want, got)
+	}
+}
+
 func TestGenericDataCopy_ReturnsErrorOn(t *testing.T) {
 	testBuffer := make([]byte, 1024)
+	size := *uint256.NewInt(10)
 
 	tests := map[string]struct {
-		offset        uint256.Int
-		size          uint256.Int
+		memOffset     uint256.Int
 		gas           tosca.Gas
 		expectedError error
 	}{
 		"not enough gas": {
-			offset:        *uint256.NewInt(10),
-			size:          *uint256.NewInt(10),
+			memOffset:     *uint256.NewInt(10),
 			gas:           1,
 			expectedError: errOutOfGas,
 		},
 
-		"expansionFailure": {
-			offset:        *uint256.NewInt(math.MaxUint64),
-			size:          *uint256.NewInt(10),
+		"expansion failure": {
+			memOffset:     *uint256.NewInt(math.MaxUint64),
 			gas:           1 << 32,
 			expectedError: errOverflow,
 		},
@@ -696,9 +717,9 @@ func TestGenericDataCopy_ReturnsErrorOn(t *testing.T) {
 			ctxt := getEmptyContext()
 			ctxt.gas = test.gas
 			ctxt.stack = fillStack(
-				test.offset,
-				*uint256.NewInt(0), // source offset
-				test.size,
+				test.memOffset,
+				*uint256.NewInt(0), // data offset
+				size,
 			)
 
 			err := genericDataCopy(&ctxt, testBuffer)
