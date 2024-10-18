@@ -1671,15 +1671,18 @@ func getAllRules() []Rule {
 	// --- SELFDESTRUCT ---
 
 	for revision := tosca.R07_Istanbul; revision <= NewestSupportedRevision; revision++ {
-		for _, beneficiaryAccountExists := range []bool{true, false} {
-			for _, beneficiaryAccountIsWarm := range []bool{true, false} {
-				for _, hasSelfDestructed := range []bool{true, false} {
-					rules = append(rules, makeSelfDestructRules(
-						revision,
-						hasSelfDestructed,
-						beneficiaryAccountExists,
-						beneficiaryAccountIsWarm,
-					)...)
+		for _, originatorHasFunds := range []bool{true, false} {
+			for _, beneficiaryAccountExists := range []bool{true, false} {
+				for _, beneficiaryAccountIsWarm := range []bool{true, false} {
+					for _, hasSelfDestructed := range []bool{true, false} {
+						rules = append(rules, makeSelfDestructRules(
+							revision,
+							originatorHasFunds,
+							hasSelfDestructed,
+							beneficiaryAccountExists,
+							beneficiaryAccountIsWarm,
+						)...)
+					}
 				}
 			}
 		}
@@ -2219,12 +2222,22 @@ func logOp(n int) []Rule {
 
 func makeSelfDestructRules(
 	revision tosca.Revision,
+	originatorHasFunds bool,
 	originatorHasSelfDestructedBefore bool,
 	beneficiaryAccountExists bool,
 	beneficiaryAccountIsWarm bool,
 ) []Rule {
 
 	name := "_" + revision.String()
+
+	var originatorHasFundsCondition Condition
+	if originatorHasFunds {
+		originatorHasFundsCondition = Gt(Balance(Self()), NewU256(0))
+		name += "_originator_has_funds"
+	} else {
+		originatorHasFundsCondition = Eq(Balance(Self()), NewU256(0))
+		name += "_originator_has_no_funds"
+	}
 
 	var beneficiaryExists Condition
 	if beneficiaryAccountExists {
@@ -2261,6 +2274,7 @@ func makeSelfDestructRules(
 		conditions: []Condition{
 			Eq(ReadOnly(), false),
 			IsRevision(revision),
+			originatorHasFundsCondition,
 			hasSelfDestructedCondition,
 			beneficiaryExists,
 			beneficiaryWarm,
@@ -2286,17 +2300,17 @@ func selfDestructEffect(s *st.State) {
 
 	dynamicCost := tosca.Gas(0)
 
+	// Add warm-up costs if the beneficiary account is cold.
+	if s.Revision > tosca.R07_Istanbul && !s.Accounts.IsWarm(beneficiaryAccount) {
+		dynamicCost += 2600
+		s.Accounts.MarkWarm(beneficiaryAccount)
+	}
+
 	// Add costs for transfering the remaining balance.
 	if !originatorBalance.IsZero() {
 		// If the target account does not exist, the account creation fee is added.
 		if !s.Accounts.Exists(beneficiaryAccount) {
 			dynamicCost += 25000
-		}
-
-		// Add warm-up costs if the beneficiary account is cold.
-		if s.Revision > tosca.R07_Istanbul && !s.Accounts.IsWarm(beneficiaryAccount) {
-			dynamicCost += 2600
-			s.Accounts.MarkWarm(beneficiaryAccount)
 		}
 	}
 
