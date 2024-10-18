@@ -37,10 +37,7 @@ var stackPool = sync.Pool{
 
 // NewStack returns a stack from the stack pool, all stacks are allocated with the maximal capacity
 func NewStack(values ...U256) *Stack {
-	stack := stackPool.Get().(*Stack)
-	if MaxStackSize < len(values) {
-		panic("Warning: maximal stack size exceeded")
-	}
+	stack := NewStackWithSize(len(values))
 	stack.stack = stack.stack[:copy(stack.stack, values)]
 	return stack
 }

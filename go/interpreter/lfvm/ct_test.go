@@ -34,6 +34,7 @@ func TestCtAdapter_Add(t *testing.T) {
 	s.Pc = 0
 	s.Gas = 100
 	s.Stack = st.NewStack(cc.NewU256(1), cc.NewU256(2))
+	defer s.Stack.Release()
 	s.Memory = st.NewMemory(1, 2, 3)
 
 	c := NewConformanceTestingTarget()
@@ -101,7 +102,6 @@ func TestCtAdapter_DoesNotAffectNonRunningStates(t *testing.T) {
 
 	c := NewConformanceTestingTarget()
 	s2, err := c.StepN(s.Clone(), 1)
-	defer s2.Release()
 	if err != nil {
 		t.Fatalf("unexpected conversion error: %v", err)
 	}
@@ -118,6 +118,7 @@ func TestCtAdapter_SetsPcOnResultingState(t *testing.T) {
 	}))
 	s.Gas = 100
 	s.Stack = st.NewStack()
+	defer s.Stack.Release()
 	c := NewConformanceTestingTarget()
 	s2, err := c.StepN(s, 1)
 	if err != nil {
@@ -427,41 +428,40 @@ func TestConvertToLfvm_Stack(t *testing.T) {
 		return stack
 	}
 
-	tests := map[string][]struct {
+	tests := map[string]struct {
 		ctStack   *st.Stack
 		lfvmStack *stack
 	}{
-		"empty": {{
+		"empty": {
 			st.NewStack(),
-			newLfvmStack()}},
-		"one-element": {{
+			newLfvmStack()},
+		"one-element": {
 			st.NewStack(cc.NewU256(7)),
-			newLfvmStack(cc.NewU256(7))}},
-		"two-elements": {{
+			newLfvmStack(cc.NewU256(7))},
+		"two-elements": {
 			st.NewStack(cc.NewU256(1), cc.NewU256(2)),
-			newLfvmStack(cc.NewU256(1), cc.NewU256(2))}},
-		"three-elements": {{
+			newLfvmStack(cc.NewU256(1), cc.NewU256(2))},
+		"three-elements": {
 			st.NewStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3)),
-			newLfvmStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3))}},
+			newLfvmStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3))},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			for _, cur := range test {
-				stack := convertCtStackToLfvmStack(cur.ctStack)
-
-				if want, got := cur.lfvmStack.len(), stack.len(); want != got {
-					t.Fatalf("unexpected stack size, wanted %v, got %v", want, got)
-				}
-
-				for i := 0; i < stack.len(); i++ {
-					want := *cur.lfvmStack.get(i)
-					got := *stack.get(i)
-					if want != got {
-						t.Errorf("unexpected stack value, wanted %v, got %v", want, got)
-					}
+			stack := convertCtStackToLfvmStack(test.ctStack)
+			if want, got := test.lfvmStack.len(), stack.len(); want != got {
+				t.Fatalf("unexpected stack size, wanted %v, got %v", want, got)
+			}
+			for i := 0; i < stack.len(); i++ {
+				want := *test.lfvmStack.get(i)
+				got := *stack.get(i)
+				if want != got {
+					t.Errorf("unexpected stack value, wanted %v, got %v", want, got)
 				}
 			}
+			ReturnStack(test.lfvmStack)
+			ReturnStack(stack)
+			test.ctStack.Release()
 		})
 	}
 }
@@ -517,37 +517,37 @@ func TestConvertToCt_Stack(t *testing.T) {
 		return stack
 	}
 
-	tests := map[string][]struct {
+	tests := map[string]struct {
 		lfvmStack *stack
 		ctStack   *st.Stack
 	}{
-		"empty": {{
+		"empty": {
 			newLfvmStack(),
-			st.NewStack()}},
-		"one-element": {{
+			st.NewStack()},
+		"one-element": {
 			newLfvmStack(cc.NewU256(7)),
-			st.NewStack(cc.NewU256(7))}},
-		"two-elements": {{
+			st.NewStack(cc.NewU256(7))},
+		"two-elements": {
 			newLfvmStack(cc.NewU256(1), cc.NewU256(2)),
-			st.NewStack(cc.NewU256(1), cc.NewU256(2))}},
-		"three-elements": {{
+			st.NewStack(cc.NewU256(1), cc.NewU256(2))},
+		"three-elements": {
 			newLfvmStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3)),
-			st.NewStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3))}},
+			st.NewStack(cc.NewU256(1), cc.NewU256(2), cc.NewU256(3))},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			for _, cur := range test {
-				want := cur.ctStack
-				ctStack := st.NewStack()
-				got := convertLfvmStackToCtStack(cur.lfvmStack, ctStack)
+			want := test.ctStack
+			ctStack := st.NewStack()
+			got := convertLfvmStackToCtStack(test.lfvmStack, ctStack)
 
-				diffs := got.Diff(want)
-
-				for _, diff := range diffs {
-					t.Errorf("%s", diff)
-				}
+			diffs := got.Diff(want)
+			for _, diff := range diffs {
+				t.Errorf("%s", diff)
 			}
+			ReturnStack(test.lfvmStack)
+			test.ctStack.Release()
+			ctStack.Release()
 		})
 	}
 }
