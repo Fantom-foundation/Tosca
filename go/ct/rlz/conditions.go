@@ -669,6 +669,80 @@ func (c *bindTransientStorageToZero) String() string {
 }
 
 ////////////////////////////////////////////////////////////
+// Account Exists
+
+type accountExists struct {
+	address BindableExpression[U256]
+}
+
+func AccountExists(address BindableExpression[U256]) *accountExists {
+	return &accountExists{address}
+}
+
+func (c *accountExists) Check(s *st.State) (bool, error) {
+	address, err := c.address.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return s.Accounts.Exists(NewAddress(address)), nil
+}
+
+func (c *accountExists) Restrict(generator *gen.StateGenerator) {
+	address := c.address.GetVariable()
+	c.address.BindTo(generator)
+	generator.BindToAddressOfExistingAccount(address)
+}
+
+func (c *accountExists) GetTestValues() []TestValue {
+	property := Property(fmt.Sprintf("exists(%v)", c.address))
+	restrict := func(generator *gen.StateGenerator, shouldExist bool) {
+		if shouldExist {
+			AccountExists(c.address).Restrict(generator)
+		} else {
+			AccountDoesNotExist(c.address).Restrict(generator)
+		}
+	}
+	return []TestValue{
+		NewTestValue(property, boolDomain{}, true, restrict),
+		NewTestValue(property, boolDomain{}, false, restrict),
+	}
+}
+
+func (c *accountExists) String() string {
+	return fmt.Sprintf("account_exists(%v)", c.address)
+}
+
+////////////////////////////////////////////////////////////
+// Address does not exist
+
+type accountDoesNotExist struct {
+	address BindableExpression[U256]
+}
+
+func AccountDoesNotExist(address BindableExpression[U256]) *accountDoesNotExist {
+	return &accountDoesNotExist{address}
+}
+
+func (c *accountDoesNotExist) Check(s *st.State) (bool, error) {
+	res, err := AccountExists(c.address).Check(s)
+	return !res, err
+}
+
+func (c *accountDoesNotExist) Restrict(generator *gen.StateGenerator) {
+	address := c.address.GetVariable()
+	c.address.BindTo(generator)
+	generator.BindToAddressOfNonExistingAccount(address)
+}
+
+func (c *accountDoesNotExist) GetTestValues() []TestValue {
+	return AccountExists(c.address).GetTestValues()
+}
+
+func (c *accountDoesNotExist) String() string {
+	return fmt.Sprintf("!account_exists(%v)", c.address)
+}
+
+////////////////////////////////////////////////////////////
 // Is Address Warm
 
 type isAddressWarm struct {
@@ -734,7 +808,7 @@ func (c *isAddressCold) GetTestValues() []TestValue {
 }
 
 func (c *isAddressCold) String() string {
-	return fmt.Sprintf("account cold(%v)", c.key)
+	return fmt.Sprintf("account_cold(%v)", c.key)
 }
 
 func restrictAccountWarmCold(bindKey BindableExpression[U256]) func(generator *gen.StateGenerator, isWarm bool) {
@@ -750,7 +824,7 @@ func restrictAccountWarmCold(bindKey BindableExpression[U256]) func(generator *g
 }
 
 ////////////////////////////////////////////////////////////
-// Has Address Selfdestructed
+// Has Self-Destructed
 
 type hasSelfDestructed struct {
 }
@@ -788,7 +862,7 @@ func (c *hasSelfDestructed) String() string {
 }
 
 ////////////////////////////////////////////////////////////
-// Has Not Address Selfdestructed
+// Has Not Self-Destructed
 
 type hasNotSelfDestructed struct {
 }
