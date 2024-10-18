@@ -729,7 +729,7 @@ func opCodeSize(c *context) {
 	c.stack.pushUndefined().SetUint64(uint64(size))
 }
 
-func opExtcodesize(c *context) error {
+func opExtCodeSize(c *context) error {
 	top := c.stack.peek()
 	address := tosca.Address(top.Bytes20())
 	if c.isAtLeast(tosca.R09_Berlin) {
@@ -741,15 +741,24 @@ func opExtcodesize(c *context) error {
 	return nil
 }
 
-func opExtcodehash(c *context) error {
-	slot := c.stack.peek()
-	address := tosca.Address(slot.Bytes20())
+func opExtCodeHash(c *context) error {
+	var (
+		slot    = c.stack.peek()
+		address = tosca.Address(slot.Bytes20())
+	)
+
 	if c.isAtLeast(tosca.R09_Berlin) {
 		if err := c.useGas(getAccessCost(c.context.AccessAccount(address))); err != nil {
 			return err
 		}
 	}
-	if !c.context.AccountExists(address) {
+
+	// from evm.codes: Zero if the account does not exist or has been destroyed.
+	empty := c.context.GetBalance(address) == tosca.Value{} &&
+		len(c.context.GetCode(address)) == 0 &&
+		c.context.GetNonce(address) == 0
+
+	if empty {
 		slot.Clear()
 	} else {
 		hash := c.context.GetCodeHash(address)
