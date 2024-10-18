@@ -38,7 +38,7 @@ mkdir -p $OUTPUT_DIR
 
 make -C ..
 
-if [ ! $EVMRS_ONLY ]; then
+if [ $EVMRS_ONLY -eq 0 ]; then
     INTERPRETERS=("evmzero" "lfvm" "geth")
     for INTERPRETER in "${INTERPRETERS[@]}"; do
         echo running $INTERPRETER
