@@ -35,6 +35,7 @@ func TestStaticGas(t *testing.T) {
 						mockStateDB := NewMockStateDB(ctrl)
 						mockStateDB.EXPECT().GetStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(tosca.Word{})
 						mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(tosca.Value{})
+						mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes().Return(uint64(0))
 						mockStateDB.EXPECT().GetCodeSize(gomock.Any()).AnyTimes().Return(0)
 						mockStateDB.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(true)
 						mockStateDB.EXPECT().GetCodeHash(gomock.Any()).AnyTimes().Return(tosca.Hash{})
@@ -107,6 +108,7 @@ func TestDynamicGas(t *testing.T) {
 						// World state interactions triggered by the EVM.
 						mockStateDB.EXPECT().SetBalance(gomock.Any(), gomock.Any()).AnyTimes()
 						mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes()
+						mockStateDB.EXPECT().GetCodeSize(gomock.Any()).AnyTimes()
 						mockStateDB.EXPECT().SetNonce(gomock.Any(), gomock.Any()).AnyTimes()
 						mockStateDB.EXPECT().SetCode(gomock.Any(), gomock.Any()).AnyTimes()
 

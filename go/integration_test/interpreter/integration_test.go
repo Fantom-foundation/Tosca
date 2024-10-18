@@ -755,18 +755,18 @@ func TestExtCodeHashOnEmptyAccount(t *testing.T) {
 
 	type extCodeHashTest struct {
 		name   string
-		exist  bool
 		empty  bool
 		result tosca.Hash
 	}
 
 	codeHash := tosca.Hash{byte(2)}
 
-	tests := []extCodeHashTest{
-		{"account for slot exist and is empty", true, true, tosca.Hash{}},
-		{"account for slot doesn't exist is empty", false, true, tosca.Hash{}},
-		{"account for slot exist and is not empty", true, false, codeHash},
-		{"account for slot doesn't exist and is not empty", false, false, tosca.Hash{}},
+	tests := map[string]struct {
+		empty  bool
+		result tosca.Hash
+	}{
+		"empty_account":     {true, tosca.Hash{}},
+		"non_empty_account": {false, codeHash},
 	}
 
 	// For every variant of interpreter
@@ -777,9 +777,9 @@ func TestExtCodeHashOnEmptyAccount(t *testing.T) {
 		}
 
 		for _, revision := range revisions {
-			for _, test := range tests {
+			for name, test := range tests {
 
-				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, test.name), func(t *testing.T) {
+				t.Run(fmt.Sprintf("%s/%s/%s", variant, revision, name), func(t *testing.T) {
 
 					mockCtrl := gomock.NewController(t)
 					mockStateDB := NewMockStateDB(mockCtrl)
@@ -799,15 +799,17 @@ func TestExtCodeHashOnEmptyAccount(t *testing.T) {
 						byte(vm.RETURN)}...)
 
 					// set mock for inner call
-					mockStateDB.EXPECT().AccountExists(account).AnyTimes().Return(test.exist)
+					if test.empty {
+						mockStateDB.EXPECT().GetBalance(account).AnyTimes().Return(tosca.Value{0})
+					} else {
+						mockStateDB.EXPECT().GetBalance(account).AnyTimes().Return(tosca.Value{1})
+					}
+					mockStateDB.EXPECT().GetNonce(account).AnyTimes().Return(uint64(0))
+					mockStateDB.EXPECT().GetCodeSize(account).AnyTimes().Return(0)
 					mockStateDB.EXPECT().IsAddressInAccessList(account).AnyTimes().Return(false)
 					mockStateDB.EXPECT().AccessAccount(account).AnyTimes().Return(tosca.ColdAccess)
-					// when account doesn't exists stateDB should take care about it
-					if test.exist && !test.empty {
-						mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(codeHash)
-					} else {
-						mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(tosca.Hash{byte(0)})
-					}
+
+					mockStateDB.EXPECT().GetCodeHash(account).AnyTimes().Return(codeHash)
 
 					evm := GetCleanEVM(revision, variant, mockStateDB)
 

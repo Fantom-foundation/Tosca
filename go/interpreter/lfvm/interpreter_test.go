@@ -186,6 +186,7 @@ func TestInterpreter_CanDispatchExecutableInstructions(t *testing.T) {
 				// mock all to satisfy any instruction
 				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess).AnyTimes()
 				mock.EXPECT().GetBalance(gomock.Any()).AnyTimes()
+				mock.EXPECT().GetNonce(gomock.Any()).AnyTimes()
 				mock.EXPECT().GetCodeSize(gomock.Any()).AnyTimes()
 				mock.EXPECT().GetCode(gomock.Any()).AnyTimes()
 				mock.EXPECT().AccountExists(gomock.Any()).AnyTimes()

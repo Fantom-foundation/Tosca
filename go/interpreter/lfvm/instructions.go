@@ -656,7 +656,11 @@ func opSelfdestruct(c *context) (status, error) {
 			cost += getAccessCost(accessStatus)
 		}
 	}
-	cost += selfDestructNewAccountCost(c.context.AccountExists(beneficiary),
+	beneficiaryEmpty := c.context.GetBalance(beneficiary) == (tosca.Value{}) &&
+		c.context.GetNonce(beneficiary) == 0 &&
+		c.context.GetCodeSize(beneficiary) == 0
+
+	cost += selfDestructNewAccountCost(beneficiaryEmpty,
 		c.context.GetBalance(c.params.Recipient))
 	// even death is not for free
 	if err := c.useGas(cost); err != nil {
@@ -668,8 +672,8 @@ func opSelfdestruct(c *context) (status, error) {
 	return statusSelfDestructed, nil
 }
 
-func selfDestructNewAccountCost(accountExists bool, balance tosca.Value) tosca.Gas {
-	if !accountExists && balance != (tosca.Value{}) {
+func selfDestructNewAccountCost(accountEmpty bool, balance tosca.Value) tosca.Gas {
+	if accountEmpty && balance != (tosca.Value{}) {
 		// cost of creating an account defined in eip-150 (see https://eips.ethereum.org/EIPS/eip-150)
 		// CreateBySelfdestructGas is used when the refunded account is one that does
 		// not exist. This logic is similar to call.
@@ -749,7 +753,12 @@ func opExtcodehash(c *context) error {
 			return err
 		}
 	}
-	if !c.context.AccountExists(address) {
+
+	empty := c.context.GetBalance(address) == (tosca.Value{}) &&
+		c.context.GetNonce(address) == 0 &&
+		c.context.GetCodeSize(address) == 0
+
+	if empty {
 		slot.Clear()
 	} else {
 		hash := c.context.GetCodeHash(address)
