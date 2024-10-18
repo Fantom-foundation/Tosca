@@ -111,7 +111,7 @@ func TestDynamicGas(t *testing.T) {
 
 						// SELFDESTRUCT gas computation is dependent on an account balance and
 						// existence (handled by nonce in this test), it sets its own expectations
-						if op != vm.SELFDESTRUCT {
+						if op != vm.SELFDESTRUCT && op != vm.CALL {
 							mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes()
 							mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(accountBalance)
 						}
