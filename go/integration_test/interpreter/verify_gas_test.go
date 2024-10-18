@@ -35,6 +35,8 @@ func TestStaticGas(t *testing.T) {
 						mockStateDB := NewMockStateDB(ctrl)
 						mockStateDB.EXPECT().GetStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(tosca.Word{})
 						mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(tosca.Value{})
+						mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes().Return(uint64(0))
+						mockStateDB.EXPECT().GetCode(gomock.Any()).AnyTimes().Return(nil)
 						mockStateDB.EXPECT().GetCodeSize(gomock.Any()).AnyTimes().Return(0)
 						mockStateDB.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(true)
 						mockStateDB.EXPECT().GetCodeHash(gomock.Any()).AnyTimes().Return(tosca.Hash{})

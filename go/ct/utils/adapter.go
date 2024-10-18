@@ -203,13 +203,15 @@ func (c *ctRunContext) SetBalance(tosca.Address, tosca.Value) {
 	// -- ignored, since balances are not tracked in the context of a CT run --
 }
 
+func (c *ctRunContext) GetNonce(tosca.Address) uint64 {
+	// Required to identify empty accounts. Nonces are not explicitly modeled
+	// by the CT state, so they are always considered to be 0.
+	return 0
+}
+
 // --- API only needed in the context of a full transaction, which is not covered by CT ---
 
 func (c *ctRunContext) CreateAccount(tosca.Address, tosca.Code) bool {
-	panic("should not be needed")
-}
-
-func (c *ctRunContext) GetNonce(tosca.Address) uint64 {
 	panic("should not be needed")
 }
 
