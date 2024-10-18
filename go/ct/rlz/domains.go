@@ -138,6 +138,35 @@ func (d u256Domain) SamplesForAll(as []U256) []U256 {
 	return res
 }
 
+////////////////////////////////////////////////////////////
+// Address
+
+type addressDomain struct{}
+
+func (addressDomain) Equal(a tosca.Address, b tosca.Address) bool { return a == b }
+func (addressDomain) Less(a tosca.Address, b tosca.Address) bool  { panic("not useful") }
+func (addressDomain) Predecessor(a tosca.Address) tosca.Address   { panic("not useful") }
+func (addressDomain) Successor(a tosca.Address) tosca.Address     { panic("not useful") }
+
+func (addressDomain) SomethingNotEqual(a tosca.Address) tosca.Address {
+	a[0]++
+	return a
+}
+
+func (d addressDomain) Samples(a tosca.Address) []tosca.Address {
+	return d.SamplesForAll([]tosca.Address{a})
+}
+
+func (d addressDomain) SamplesForAll(as []tosca.Address) []tosca.Address {
+	if len(as) == 0 {
+		return []tosca.Address{{0}}
+	}
+	return append(as, d.Successor(as[0]))
+}
+
+////////////////////////////////////////////////////////////
+// Value
+
 // valueDomain is a domain value parameters of call expressions.
 type valueDomain struct {
 	u256Domain
