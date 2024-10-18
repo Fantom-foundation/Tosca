@@ -666,83 +666,67 @@ func TestTransientStorageOperations(t *testing.T) {
 	}
 }
 
-func TestExpansionCostOverflow(t *testing.T) {
-	memTestValues := []uint64{
-		maxMemoryExpansionSize,
-		maxMemoryExpansionSize + 1,
-		math.MaxUint64,
+func TestGenericDataCopy_CopiesDataIntoMemoryAndPadsExcessWithZeroes(t *testing.T) {
+
+	testBuffer := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+	ctxt := getEmptyContext()
+	ctxt.stack = fillStack(
+		*uint256.NewInt(0),  // memory offset
+		*uint256.NewInt(0),  // data offset
+		*uint256.NewInt(15), // size
+	)
+
+	err := genericDataCopy(&ctxt, testBuffer)
+	if err != nil {
+		t.Fatalf("genericDataCopy failed: %v", err)
 	}
 
+	// 15 bytes read, expanded to 32 bytes: 0-14 are copied, 15-31 are zeroed.
+	expected := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 31: 0}
+	if want, got := expected[:], ctxt.memory.store; !bytes.Equal(want, got) {
+		t.Errorf("unexpected memory, wanted %v, got %v", want, got)
+	}
+}
+
+func TestGenericDataCopy_ReturnsErrorOn(t *testing.T) {
+	testBuffer := make([]byte, 1024)
+	size := *uint256.NewInt(10)
+
 	tests := map[string]struct {
-		op         func(*context) error
-		stackSize  int
-		memIndexes []int
-		setup      func(*tosca.MockRunContext)
+		memOffset     uint256.Int
+		gas           tosca.Gas
+		expectedError error
 	}{
-		"mcopy": {
-			op:         opMcopy,
-			stackSize:  3,
-			memIndexes: []int{0, 1, 2},
-			setup:      func(runContext *tosca.MockRunContext) {},
+		"not enough gas": {
+			memOffset:     *uint256.NewInt(10),
+			gas:           1,
+			expectedError: errOutOfGas,
 		},
-		"calldatacopy": {
-			op:         opCallDataCopy,
-			stackSize:  3,
-			memIndexes: []int{0, 2},
-			setup:      func(runContext *tosca.MockRunContext) {},
-		},
-		"codecopy": {
-			op:         opCodeCopy,
-			stackSize:  3,
-			memIndexes: []int{0, 2},
-			setup:      func(runContext *tosca.MockRunContext) {},
-		},
-		"extcodecopy": {
-			op:         opExtCodeCopy,
-			stackSize:  4,
-			memIndexes: []int{0, 2},
-			setup: func(runContext *tosca.MockRunContext) {
-				runContext.EXPECT().AccessAccount(gomock.Any()).AnyTimes().Return(tosca.WarmAccess)
-				runContext.EXPECT().GetCode(gomock.Any()).AnyTimes().Return([]byte{0x01, 0x02, 0x03, 0x04})
-			},
+
+		"expansion failure": {
+			memOffset:     *uint256.NewInt(math.MaxUint64),
+			gas:           1 << 32,
+			expectedError: errOverflow,
 		},
 	}
 
 	for name, test := range tests {
-		for _, memIndex := range test.memIndexes {
-			for _, memValue := range memTestValues {
-				t.Run(fmt.Sprintf("%v_i:%v_v:%v", name, memIndex, memValue), func(t *testing.T) {
-					ctrl := gomock.NewController(t)
-					runContext := tosca.NewMockRunContext(ctrl)
-					test.setup(runContext)
+		t.Run(name, func(t *testing.T) {
 
-					ctxt := context{
-						params: tosca.Parameters{
-							BlockParameters: tosca.BlockParameters{
-								Revision: tosca.R13_Cancun,
-							},
-						},
-						stack:   NewStack(),
-						memory:  NewMemory(),
-						context: runContext,
-						gas:     12884901899,
-					}
-					ctxt.stack.stackPointer = test.stackSize
-					ctxt.stack.data[memIndex].Set(uint256.NewInt(memValue))
-					for i := range test.memIndexes {
-						if i != memIndex {
-							ctxt.stack.data[i].Set(uint256.NewInt(1))
-						}
-					}
+			ctxt := getEmptyContext()
+			ctxt.gas = test.gas
+			ctxt.stack = fillStack(
+				test.memOffset,
+				*uint256.NewInt(0), // data offset
+				size,
+			)
 
-					err := test.op(&ctxt)
-					// FIXME: can we narrow the error? test says overflow, it manifests an out of gas error
-					if err == nil {
-						t.Fatalf("expected error, got nil")
-					}
-				})
+			err := genericDataCopy(&ctxt, testBuffer)
+			if want, got := test.expectedError, err; want != got {
+				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
 			}
-		}
+		})
 	}
 }
 
