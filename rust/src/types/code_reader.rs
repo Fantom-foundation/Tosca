@@ -1,11 +1,15 @@
-use std::{cmp::min, mem, ops::Deref};
+use std::{
+    cmp::min,
+    mem::{self},
+    ops::Deref,
+};
 
-use crate::types::{code_byte_type, u256, CodeByteType, FailStatus, Opcode};
+use crate::types::{u256, CodeByteType, FailStatus, JumpAnalysis, Opcode};
 
 #[derive(Debug)]
 pub struct CodeReader<'a> {
     code: &'a [u8],
-    code_byte_type: Box<[CodeByteType]>,
+    jump_analysis: JumpAnalysis,
     pc: usize,
 }
 
@@ -24,10 +28,10 @@ pub enum GetOpcodeError {
 }
 
 impl<'a> CodeReader<'a> {
-    pub fn new(code: &'a [u8], pc: usize) -> Self {
+    pub fn new(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
         Self {
             code,
-            code_byte_type: compute_code_byte_types(code),
+            jump_analysis: JumpAnalysis::new(code, code_hash),
             pc,
         }
     }
@@ -35,7 +39,7 @@ impl<'a> CodeReader<'a> {
     pub fn get(&self) -> Result<Opcode, GetOpcodeError> {
         if self.pc >= self.code.len() {
             Err(GetOpcodeError::OutOfRange)
-        } else if self.code_byte_type[self.pc] == CodeByteType::DataOrInvalid {
+        } else if self.jump_analysis[self.pc] == CodeByteType::DataOrInvalid {
             Err(GetOpcodeError::Invalid)
         } else {
             let op = self.code[self.pc];
@@ -54,8 +58,7 @@ impl<'a> CodeReader<'a> {
 
     pub fn try_jump(&mut self, dest: u256) -> Result<(), FailStatus> {
         let dest = u64::try_from(dest).map_err(|_| FailStatus::BadJumpDestination)? as usize;
-        if dest >= self.code_byte_type.len() || self.code_byte_type[dest] != CodeByteType::JumpDest
-        {
+        if dest >= self.jump_analysis.len() || self.jump_analysis[dest] != CodeByteType::JumpDest {
             return Err(FailStatus::BadJumpDestination);
         }
         self.pc = dest;
@@ -79,125 +82,18 @@ impl<'a> CodeReader<'a> {
     }
 }
 
-fn compute_code_byte_types(code: &[u8]) -> Box<[CodeByteType]> {
-    let mut code_byte_types = vec![CodeByteType::DataOrInvalid; code.len()];
-
-    let mut pc = 0;
-    while pc < code.len() {
-        let (code_byte_type, inc) = code_byte_type(code[pc]);
-        code_byte_types[pc] = code_byte_type;
-        pc += inc;
-    }
-
-    code_byte_types.into_boxed_slice()
-}
-
 #[cfg(test)]
 mod tests {
     use crate::types::{
-        code_reader::{compute_code_byte_types, CodeReader, GetOpcodeError},
-        u256, CodeByteType, FailStatus, Opcode,
+        code_reader::{CodeReader, GetOpcodeError},
+        u256, FailStatus, Opcode,
     };
-
-    #[test]
-    fn compute_code_byte_types_single_byte() {
-        assert_eq!(
-            *compute_code_byte_types(&[Opcode::Add as u8]),
-            [CodeByteType::Opcode]
-        );
-        assert_eq!(
-            *compute_code_byte_types(&[Opcode::Push2 as u8]),
-            [CodeByteType::Opcode]
-        );
-        assert_eq!(
-            *compute_code_byte_types(&[Opcode::JumpDest as u8]),
-            [CodeByteType::JumpDest]
-        );
-        assert_eq!(
-            *compute_code_byte_types(&[0xc0]),
-            [CodeByteType::DataOrInvalid]
-        );
-    }
-
-    #[test]
-    fn compute_byte_types_jumpdest() {
-        assert_eq!(
-            *compute_code_byte_types(&[Opcode::JumpDest as u8, Opcode::Add as u8]),
-            [CodeByteType::JumpDest, CodeByteType::Opcode]
-        );
-        assert_eq!(
-            *compute_code_byte_types(&[Opcode::JumpDest as u8, 0xc0]),
-            [CodeByteType::JumpDest, CodeByteType::DataOrInvalid]
-        );
-    }
-
-    #[test]
-    fn compute_code_byte_types_push_with_data() {
-        assert_eq!(
-            *compute_code_byte_types(&[Opcode::Push1 as u8, Opcode::Add as u8, Opcode::Add as u8]),
-            [
-                CodeByteType::Opcode,
-                CodeByteType::DataOrInvalid,
-                CodeByteType::Opcode,
-            ]
-        );
-        assert_eq!(
-            *compute_code_byte_types(&[Opcode::Push1 as u8, Opcode::Add as u8, 0xc0]),
-            [
-                CodeByteType::Opcode,
-                CodeByteType::DataOrInvalid,
-                CodeByteType::DataOrInvalid,
-            ]
-        );
-        assert_eq!(
-            *compute_code_byte_types(&[
-                Opcode::Push1 as u8,
-                Opcode::Add as u8,
-                0xc0,
-                Opcode::Add as u8
-            ]),
-            [
-                CodeByteType::Opcode,
-                CodeByteType::DataOrInvalid,
-                CodeByteType::DataOrInvalid,
-                CodeByteType::Opcode,
-            ]
-        );
-        assert_eq!(
-            *compute_code_byte_types(&[
-                Opcode::Push2 as u8,
-                Opcode::Add as u8,
-                Opcode::Add as u8,
-                Opcode::Add as u8,
-            ]),
-            [
-                CodeByteType::Opcode,
-                CodeByteType::DataOrInvalid,
-                CodeByteType::DataOrInvalid,
-                CodeByteType::Opcode,
-            ]
-        );
-        assert_eq!(
-            *compute_code_byte_types(&[
-                Opcode::Push2 as u8,
-                Opcode::Add as u8,
-                Opcode::Add as u8,
-                0xc0
-            ]),
-            [
-                CodeByteType::Opcode,
-                CodeByteType::DataOrInvalid,
-                CodeByteType::DataOrInvalid,
-                CodeByteType::DataOrInvalid,
-            ]
-        );
-    }
 
     #[test]
     fn code_reader_internals() {
         let code = [Opcode::Add as u8, Opcode::Add as u8, 0xc0];
         let pc = 1;
-        let code_reader = CodeReader::new(&code, pc);
+        let code_reader = CodeReader::new(&code, None, pc);
         assert_eq!(*code_reader, code);
         assert_eq!(code_reader.len(), code.len());
         assert_eq!(code_reader.pc(), pc);
@@ -205,7 +101,8 @@ mod tests {
 
     #[test]
     fn code_reader_get() {
-        let mut code_reader = CodeReader::new(&[Opcode::Add as u8, Opcode::Add as u8, 0xc0], 0);
+        let mut code_reader =
+            CodeReader::new(&[Opcode::Add as u8, Opcode::Add as u8, 0xc0], None, 0);
         assert_eq!(code_reader.get(), Ok(Opcode::Add));
         code_reader.next();
         assert_eq!(code_reader.get(), Ok(Opcode::Add));
@@ -223,6 +120,7 @@ mod tests {
                 Opcode::JumpDest as u8,
                 Opcode::JumpDest as u8,
             ],
+            None,
             0,
         );
         assert_eq!(
@@ -242,19 +140,19 @@ mod tests {
 
     #[test]
     fn code_reader_get_push_data() {
-        let mut code_reader = CodeReader::new(&[0xff; 32], 0);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 0);
         assert_eq!(code_reader.get_push_data(0u8.into()), u256::ZERO);
 
-        let mut code_reader = CodeReader::new(&[0xff; 32], 0);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 0);
         assert_eq!(code_reader.get_push_data(1u8.into()), 0xffu8.into());
 
-        let mut code_reader = CodeReader::new(&[0xff; 32], 0);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 0);
         assert_eq!(code_reader.get_push_data(32u8.into()), u256::MAX);
 
-        let mut code_reader = CodeReader::new(&[0xff; 32], 31);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 31);
         assert_eq!(code_reader.get_push_data(32u8.into()), 0xffu8.into());
 
-        let mut code_reader = CodeReader::new(&[0xff; 32], 32);
+        let mut code_reader = CodeReader::new(&[0xff; 32], None, 32);
         assert_eq!(code_reader.get_push_data(32u8.into()), u256::ZERO);
     }
 }
