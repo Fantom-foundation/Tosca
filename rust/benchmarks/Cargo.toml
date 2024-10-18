@@ -11,6 +11,7 @@ custom-evmc = ["evmrs/custom-evmc"]
 jumptable = ["evmrs/jumptable"]
 hash-cache = ["evmrs/hash-cache"]
 jump-cache = ["evmrs/jump-cache"]
+thread-local-cache = ["evmrs/thread-local-cache"]
 
 [dependencies]
 evmrs = { path = ".." }
