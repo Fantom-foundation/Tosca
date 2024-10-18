@@ -201,8 +201,8 @@ func TestCondition_CheckStorageConfiguration(t *testing.T) {
 
 func TestCondition_CheckForExistingAccount(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
-	state.Pc = 42
-	condition := AccountExists(Pc())
+	state.Stack = st.NewStack(NewU256(42))
+	condition := AccountExists(Param(0))
 
 	exists, err := condition.Check(state)
 	if err != nil {
@@ -227,8 +227,8 @@ func TestCondition_CheckForExistingAccount(t *testing.T) {
 
 func TestCondition_CheckForNonExistingAccount(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
-	state.Pc = 42
-	condition := AccountDoesNotExist(Pc())
+	state.Stack = st.NewStack(NewU256(42))
+	condition := AccountDoesNotExist(Param(0))
 
 	pass, err := condition.Check(state)
 	if err != nil {

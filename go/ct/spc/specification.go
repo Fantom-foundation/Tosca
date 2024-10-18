@@ -2246,9 +2246,7 @@ func makeSelfDestructRules(
 			beneficiaryWarm,
 		},
 		parameters: []Parameter{AddressParameter{}},
-		effect: func(s *st.State) {
-			selfDestructEffect(s)
-		},
+		effect:     selfDestructEffect,
 	}
 
 	return rulesFor(instruction)
@@ -2268,13 +2266,13 @@ func selfDestructEffect(s *st.State) {
 
 	// Add costs for transfering the remaining balance.
 	if !originatorBalance.IsZero() {
-		// If the target account does not exist, the account creation fee is added.
-		if !s.Accounts.Exists(beneficiaryAccount) {
+		// If the target account is empty, the account creation fee is added.
+		if s.Accounts.IsEmpty(beneficiaryAccount) {
 			dynamicCost += 25000
 		}
 
 		// Add warm-up costs if the beneficiary account is cold.
-		if s.Revision > tosca.R07_Istanbul && !s.Accounts.IsWarm(beneficiaryAccount) {
+		if s.Revision >= tosca.R09_Berlin && !s.Accounts.IsWarm(beneficiaryAccount) {
 			dynamicCost += 2600
 			s.Accounts.MarkWarm(beneficiaryAccount)
 		}
