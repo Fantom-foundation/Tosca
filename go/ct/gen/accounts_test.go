@@ -241,6 +241,111 @@ func TestAccountsGenerator_CanHandleAccessStateAndEmptinessConstraintsOnSameVari
 	}
 }
 
+func TestAccountsGenerator_CanSpecifyBalanceConstraints(t *testing.T) {
+	v1 := Variable("v1")
+	v2 := Variable("v2")
+
+	gen := NewAccountGenerator()
+
+	gen.AddBalanceLowerBound(v1, NewU256(42))
+	gen.AddBalanceUpperBound(v1, NewU256(76))
+	gen.AddBalanceUpperBound(v2, NewU256(52))
+
+	print := gen.String()
+
+	want := []string{
+		"balance($v1) ≥ 42",
+		"balance($v1) ≤ 76",
+		"balance($v2) ≤ 52",
+	}
+
+	for _, w := range want {
+		if !strings.Contains(print, w) {
+			t.Errorf("Expected to find %v in %v", w, print)
+		}
+	}
+}
+
+func TestAccountsGenerator_BalanceConstraintsAreEnforced(t *testing.T) {
+	v1 := Variable("v1")
+	v2 := Variable("v2")
+	v3 := Variable("v3")
+
+	gen := NewAccountGenerator()
+
+	gen.AddBalanceLowerBound(v1, NewU256(42))
+	gen.AddBalanceUpperBound(v1, NewU256(76))
+	gen.AddBalanceUpperBound(v2, NewU256(52))
+	gen.AddBalanceLowerBound(v3, NewU256(123))
+	gen.AddBalanceUpperBound(v3, NewU256(123))
+
+	assignment := Assignment{}
+	rnd := rand.New(0)
+	state, err := gen.Generate(assignment, rnd, tosca.Address{})
+	if err != nil {
+		t.Fatalf("Unexpected error during account generation")
+	}
+
+	addr1 := NewAddress(assignment[v1])
+	addr2 := NewAddress(assignment[v2])
+	addr3 := NewAddress(assignment[v3])
+
+	if got := state.GetBalance(addr1); got.Lt(NewU256(42)) {
+		t.Errorf("Expected balance to be at least 42 but got %v", got.DecimalString())
+	}
+	if got := state.GetBalance(addr1); got.Gt(NewU256(76)) {
+		t.Errorf("Expected balance to be at most 76 but got %v", got.DecimalString())
+	}
+	if got := state.GetBalance(addr2); got.Gt(NewU256(52)) {
+		t.Errorf("Expected balance to be at most 52 but got %v", got.DecimalString())
+	}
+	if got := state.GetBalance(addr3); got.Ne(NewU256(123)) {
+		t.Errorf("Expected balance to be exactly 123 but got %v", got.DecimalString())
+	}
+}
+
+func TestAccountsGenerator_BalanceConflictsAreDetected(t *testing.T) {
+	v1 := Variable("v1")
+
+	gen := NewAccountGenerator()
+
+	gen.AddBalanceLowerBound(v1, NewU256(76))
+	gen.AddBalanceUpperBound(v1, NewU256(24))
+
+	assignment := Assignment{}
+	rnd := rand.New(0)
+	_, err := gen.Generate(assignment, rnd, tosca.Address{})
+	if !errors.Is(err, ErrUnsatisfiable) {
+		t.Errorf("Conflicting balance constraints not detected")
+	}
+}
+
+func TestAccountsGenerator_PreAssignedAddressesAreRespected(t *testing.T) {
+	v1 := Variable("v1")
+
+	gen := NewAccountGenerator()
+
+	gen.AddBalanceLowerBound(v1, NewU256(25))
+	gen.AddBalanceUpperBound(v1, NewU256(25))
+
+	assignment := Assignment{}
+	assignment[v1] = NewU256(12345)
+	rnd := rand.New(0)
+	state, err := gen.Generate(assignment, rnd, tosca.Address{})
+	if err != nil {
+		t.Fatalf("Unexpected error during account generation")
+	}
+
+	if got := assignment[v1]; got.Ne(NewU256(12345)) {
+		t.Errorf("Expected pre-assigned address to be preserved but got %v", got.DecimalString())
+	}
+
+	addr := NewAddress(assignment[v1])
+	if got := state.GetBalance(addr); got.Ne(NewU256(25)) {
+		t.Errorf("Expected balance to be exactly 25 but got %v", got.DecimalString())
+	}
+}
+
 func BenchmarkAccountGenWithConstraint(b *testing.B) {
 	v1 := Variable("v1")
 	v2 := Variable("v2")

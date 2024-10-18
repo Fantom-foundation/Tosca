@@ -235,3 +235,7 @@ func (ab *AccountsBuilder) SetWarm(addr tosca.Address) *AccountsBuilder {
 	ab.accounts.warm[addr] = struct{}{}
 	return ab
 }
+
+func (ab *AccountsBuilder) Exists(addr tosca.Address) bool {
+	return ab.accounts.Exists(addr)
+}
