@@ -101,9 +101,16 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	if err != nil {
 		return nil, fmt.Errorf("could not convert chain Id: %v", err)
 	}
-	difficulty, err := bigIntToHash(a.evm.Context.Difficulty)
-	if err != nil {
-		return nil, fmt.Errorf("could not convert difficulty: %v", err)
+	var prevRandao tosca.Hash
+	if revision < tosca.R11_Paris {
+		prevRandao, err = bigIntToHash(a.evm.Context.Difficulty)
+		if err != nil {
+			return nil, fmt.Errorf("could not convert difficulty: %v", err)
+		}
+	} else {
+		if a.evm.Context.Random != nil {
+			prevRandao = tosca.Hash(*a.evm.Context.Random)
+		}
 	}
 	blobBaseFee, err := bigIntToValue(a.evm.Context.BlobBaseFee)
 	if err != nil {
@@ -125,7 +132,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		Timestamp:   int64(a.evm.Context.Time),
 		Coinbase:    tosca.Address(a.evm.Context.Coinbase),
 		GasLimit:    tosca.Gas(a.evm.Context.GasLimit),
-		PrevRandao:  difficulty,
+		PrevRandao:  prevRandao,
 		BaseFee:     baseFee,
 		BlobBaseFee: blobBaseFee,
 		Revision:    revision,
@@ -172,7 +179,9 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 
 	// Update refunds.
 	if result.Success {
-		if result.GasRefund >= 0 {
+		if result.GasRefund == 0 {
+			// ignore
+		} else if result.GasRefund > 0 {
 			a.evm.StateDB.AddRefund(uint64(result.GasRefund))
 		} else {
 			a.evm.StateDB.SubRefund(uint64(-result.GasRefund))
@@ -336,8 +345,10 @@ func decodeReadOnlyFromGas(depth int, readOnly bool, gas uint64) (bool, uint64) 
 
 func gethToVMErrors(err error, gas tosca.Gas) (tosca.CallResult, error) {
 	switch err {
-	case geth.ErrInsufficientBalance:
-		// In this case, the caller get its gas back.
+	case geth.ErrInsufficientBalance,
+		geth.ErrNonceUintOverflow,
+		geth.ErrDepth:
+		// In these case, the caller get its gas back.
 		// TODO: this seems to be a geth implementation quirk that got
 		// transferred into the LFVM implementation; this should be fixed.
 		return tosca.CallResult{
@@ -347,7 +358,6 @@ func gethToVMErrors(err error, gas tosca.Gas) (tosca.CallResult, error) {
 	case
 		geth.ErrOutOfGas,
 		geth.ErrCodeStoreOutOfGas,
-		geth.ErrDepth,
 		geth.ErrContractAddressCollision,
 		geth.ErrExecutionReverted,
 		geth.ErrMaxCodeSizeExceeded,
