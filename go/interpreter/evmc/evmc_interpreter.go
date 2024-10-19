@@ -222,14 +222,10 @@ func (ctx *hostContext) GetCodeSize(addr evmc.Address) int {
 }
 
 func (ctx *hostContext) GetCodeHash(addr evmc.Address) evmc.Hash {
-	target := tosca.Address(addr)
-	empty := ctx.context.GetNonce(target) == 0 &&
-		ctx.context.GetBalance(target) == tosca.Value{} &&
-		ctx.context.GetCodeSize(target) == 0
-	if empty {
+	if !ctx.AccountExists(addr) { // < Note: in the EVMC, this actually checks for emptiness
 		return evmc.Hash{}
 	}
-	return evmc.Hash(ctx.context.GetCodeHash(target))
+	return evmc.Hash(ctx.context.GetCodeHash(tosca.Address(addr)))
 }
 
 func (ctx *hostContext) GetCode(addr evmc.Address) []byte {

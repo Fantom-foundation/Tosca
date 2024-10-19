@@ -1136,6 +1136,8 @@ func opLog(c *context, n int) error {
 	return nil
 }
 
+// isEmpty is a utility function that checks if an account is empty. An account
+// is considered empty if it has no nonce, no balance, and no code.
 func isEmpty(c tosca.RunContext, addr tosca.Address) bool {
 	return c.GetNonce(addr) == 0 &&
 		c.GetBalance(addr) == (tosca.Value{}) &&
