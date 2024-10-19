@@ -106,20 +106,32 @@ func TestDynamicGas(t *testing.T) {
 						mockStateDB := NewMockStateDB(mockCtrl)
 
 						// World state interactions triggered by the EVM.
+						recipient := tosca.Address{}
+						mockStateDB.EXPECT().GetNonce(recipient).AnyTimes()
+						mockStateDB.EXPECT().GetCodeSize(recipient).AnyTimes()
+						mockStateDB.EXPECT().SetNonce(recipient, gomock.Any()).AnyTimes()
+						mockStateDB.EXPECT().SetCode(recipient, gomock.Any()).AnyTimes()
 						mockStateDB.EXPECT().SetBalance(gomock.Any(), gomock.Any()).AnyTimes()
-						mockStateDB.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(true)
-						mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes()
-						mockStateDB.EXPECT().GetCodeSize(gomock.Any()).AnyTimes()
-						mockStateDB.EXPECT().SetNonce(gomock.Any(), gomock.Any()).AnyTimes()
-						mockStateDB.EXPECT().SetCode(gomock.Any(), gomock.Any()).AnyTimes()
 
 						// SELFDESTRUCT gas computation is dependent on an account balance and sets its own expectations
 						if op != vm.SELFDESTRUCT {
-							mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(accountBalance)
+							mockStateDB.EXPECT().GetBalance(recipient).AnyTimes().Return(accountBalance)
 						}
 
 						if op == vm.CREATE || op == vm.CREATE2 {
+							// Create calls check that the target account is indeed empty.
 							mockStateDB.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(false)
+							mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes()
+							mockStateDB.EXPECT().GetBalance(gomock.Any()).AnyTimes()
+							mockStateDB.EXPECT().GetCodeSize(gomock.Any()).AnyTimes()
+							// Also, they may create the account.
+							mockStateDB.EXPECT().SetNonce(gomock.Any(), uint64(1)).AnyTimes()
+							mockStateDB.EXPECT().SetCode(gomock.Any(), gomock.Any()).AnyTimes()
+						}
+
+						// For EXTCODEHASH the targeted account must exist.
+						if op == vm.EXTCODEHASH {
+							mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes().Return(uint64(1))
 						}
 
 						// Init stateDB mock calls from test function

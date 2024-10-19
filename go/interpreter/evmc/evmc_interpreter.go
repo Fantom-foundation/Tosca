@@ -170,9 +170,9 @@ func (ctx *hostContext) AccountExists(addr evmc.Address) bool {
 
 	// TODO: if this works, consider renaming AccountExists to AccountEmpty in
 	// tosca RunContext or eliminate it altogether.
-	return ctx.context.GetNonce(tosca.Address(addr)) == 0 &&
+	return !(ctx.context.GetNonce(tosca.Address(addr)) == 0 &&
 		ctx.context.GetBalance(tosca.Address(addr)) == tosca.Value{} &&
-		ctx.context.GetCodeSize(tosca.Address(addr)) == 0
+		ctx.context.GetCodeSize(tosca.Address(addr)) == 0)
 }
 
 func (ctx *hostContext) GetStorage(addr evmc.Address, key evmc.Hash) evmc.Hash {
