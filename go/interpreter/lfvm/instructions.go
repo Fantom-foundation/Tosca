@@ -656,12 +656,11 @@ func opSelfdestruct(c *context) (status, error) {
 			cost += getAccessCost(accessStatus)
 		}
 	}
-	beneficiaryEmpty := c.context.GetBalance(beneficiary) == (tosca.Value{}) &&
-		c.context.GetNonce(beneficiary) == 0 &&
-		c.context.GetCodeSize(beneficiary) == 0
 
-	cost += selfDestructNewAccountCost(beneficiaryEmpty,
-		c.context.GetBalance(c.params.Recipient))
+	cost += selfDestructNewAccountCost(
+		isEmpty(c.context, beneficiary),
+		c.context.GetBalance(c.params.Recipient),
+	)
 	// even death is not for free
 	if err := c.useGas(cost); err != nil {
 		return statusStopped, err
@@ -672,8 +671,8 @@ func opSelfdestruct(c *context) (status, error) {
 	return statusSelfDestructed, nil
 }
 
-func selfDestructNewAccountCost(accountEmpty bool, balance tosca.Value) tosca.Gas {
-	if accountEmpty && balance != (tosca.Value{}) {
+func selfDestructNewAccountCost(beneficiaryEmpty bool, balance tosca.Value) tosca.Gas {
+	if beneficiaryEmpty && balance != (tosca.Value{}) {
 		// cost of creating an account defined in eip-150 (see https://eips.ethereum.org/EIPS/eip-150)
 		// CreateBySelfdestructGas is used when the refunded account is one that does
 		// not exist. This logic is similar to call.
@@ -754,11 +753,7 @@ func opExtcodehash(c *context) error {
 		}
 	}
 
-	empty := c.context.GetBalance(address) == (tosca.Value{}) &&
-		c.context.GetNonce(address) == 0 &&
-		c.context.GetCodeSize(address) == 0
-
-	if empty {
+	if isEmpty(c.context, address) {
 		slot.Clear()
 	} else {
 		hash := c.context.GetCodeHash(address)
@@ -967,7 +962,7 @@ func genericCall(c *context, kind tosca.CallKind) error {
 
 	// EIP158 states that non-zero value calls that create a new account should
 	// be charged an additional gas fee.
-	if kind == tosca.Call && !value.IsZero() && !c.context.AccountExists(toAddr) {
+	if kind == tosca.Call && !value.IsZero() && isEmpty(c.context, toAddr) {
 		if err := c.useGas(CallNewAccountGas); err != nil {
 			return err
 		}
@@ -1139,4 +1134,10 @@ func opLog(c *context, n int) error {
 		Data:    log_data,
 	})
 	return nil
+}
+
+func isEmpty(c tosca.RunContext, addr tosca.Address) bool {
+	return c.GetNonce(addr) == 0 &&
+		c.GetBalance(addr) == (tosca.Value{}) &&
+		c.GetCodeSize(addr) == 0
 }

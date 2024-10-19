@@ -231,7 +231,7 @@ func TestCallChecksBalances(t *testing.T) {
 	ctxt.stack.data[5].SetBytes(target[:])    // < the target address for the call
 
 	// The target account should exist and the source account without funds.
-	runContext.EXPECT().AccountExists(target).Return(true)
+	runContext.EXPECT().GetNonce(target).Return(uint64(1))
 	runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
 
 	err := opCall(&ctxt)
@@ -1494,7 +1494,9 @@ func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			runContext := tosca.NewMockRunContext(gomock.NewController(t))
 			runContext.EXPECT().AccessAccount(address).Return(tosca.WarmAccess).AnyTimes()
-			runContext.EXPECT().AccountExists(address).Return(false).AnyTimes()
+			runContext.EXPECT().GetNonce(address).AnyTimes()
+			runContext.EXPECT().GetBalance(address).AnyTimes()
+			runContext.EXPECT().GetCodeSize(address).AnyTimes()
 
 			ctxt := getEmptyContext()
 			ctxt.context = runContext

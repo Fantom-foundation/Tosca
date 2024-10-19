@@ -107,6 +107,7 @@ func TestDynamicGas(t *testing.T) {
 
 						// World state interactions triggered by the EVM.
 						mockStateDB.EXPECT().SetBalance(gomock.Any(), gomock.Any()).AnyTimes()
+						mockStateDB.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(true)
 						mockStateDB.EXPECT().GetNonce(gomock.Any()).AnyTimes()
 						mockStateDB.EXPECT().GetCodeSize(gomock.Any()).AnyTimes()
 						mockStateDB.EXPECT().SetNonce(gomock.Any(), gomock.Any()).AnyTimes()

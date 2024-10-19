@@ -752,15 +752,7 @@ func TestNoReturnDataForCreate(t *testing.T) {
 }
 
 func TestExtCodeHashOnEmptyAccount(t *testing.T) {
-
-	type extCodeHashTest struct {
-		name   string
-		empty  bool
-		result tosca.Hash
-	}
-
 	codeHash := tosca.Hash{byte(2)}
-
 	tests := map[string]struct {
 		empty  bool
 		result tosca.Hash
