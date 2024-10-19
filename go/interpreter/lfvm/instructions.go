@@ -1015,6 +1015,7 @@ func genericCall(c *context, kind tosca.CallKind) error {
 	case tosca.Call, tosca.StaticCall:
 		callParams.Sender = c.params.Recipient
 		callParams.Recipient = toAddr
+		callParams.CodeAddress = toAddr
 
 	case tosca.CallCode:
 		callParams.Sender = c.params.Recipient
