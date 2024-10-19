@@ -166,10 +166,10 @@ type hostContext struct {
 }
 
 func (ctx *hostContext) AccountExists(addr evmc.Address) bool {
-	//return ctx.context.AccountExists(tosca.Address(addr))
-
-	// TODO: if this works, consider renaming AccountExists to AccountEmpty in
-	// tosca RunContext or eliminate it altogether.
+	// Although the EVMC function name asks for the existence of an account,
+	// it is actually referring to the emptiness of an account. The concept
+	// of an existing or non-existing account is a DB concept that is not
+	// exposed to any interpreter implementation.
 	return !(ctx.context.GetNonce(tosca.Address(addr)) == 0 &&
 		ctx.context.GetBalance(tosca.Address(addr)) == tosca.Value{} &&
 		ctx.context.GetCodeSize(tosca.Address(addr)) == 0)
