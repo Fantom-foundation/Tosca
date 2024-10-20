@@ -23,8 +23,8 @@ import (
 )
 
 type AccountsGenerator struct {
-	existingAccounts []existenceConstraint
-	warmCold         []warmColdConstraint
+	emptyAccounts []emptyConstraint
+	warmCold      []warmColdConstraint
 }
 
 func NewAccountGenerator() *AccountsGenerator {
@@ -33,8 +33,8 @@ func NewAccountGenerator() *AccountsGenerator {
 
 func (g *AccountsGenerator) Clone() *AccountsGenerator {
 	return &AccountsGenerator{
-		existingAccounts: slices.Clone(g.existingAccounts),
-		warmCold:         slices.Clone(g.warmCold),
+		emptyAccounts: slices.Clone(g.emptyAccounts),
+		warmCold:      slices.Clone(g.warmCold),
 	}
 }
 
@@ -42,21 +42,21 @@ func (g *AccountsGenerator) Restore(other *AccountsGenerator) {
 	if g == other {
 		return
 	}
-	g.existingAccounts = slices.Clone(other.existingAccounts)
+	g.emptyAccounts = slices.Clone(other.emptyAccounts)
 	g.warmCold = slices.Clone(other.warmCold)
 }
 
-func (g *AccountsGenerator) BindToAddressOfExistingAccount(address Variable) {
-	c := existenceConstraint{address, true}
-	if !slices.Contains(g.existingAccounts, c) {
-		g.existingAccounts = append(g.existingAccounts, c)
+func (g *AccountsGenerator) BindToAddressOfEmptyAccount(address Variable) {
+	c := emptyConstraint{address, true}
+	if !slices.Contains(g.emptyAccounts, c) {
+		g.emptyAccounts = append(g.emptyAccounts, c)
 	}
 }
 
-func (g *AccountsGenerator) BindToAddressOfNonExistingAccount(address Variable) {
-	c := existenceConstraint{address, false}
-	if !slices.Contains(g.existingAccounts, c) {
-		g.existingAccounts = append(g.existingAccounts, c)
+func (g *AccountsGenerator) BindToAddressOfNoneEmptyAccount(address Variable) {
+	c := emptyConstraint{address, false}
+	if !slices.Contains(g.emptyAccounts, c) {
+		g.emptyAccounts = append(g.emptyAccounts, c)
 	}
 }
 
@@ -86,14 +86,14 @@ func (g *AccountsGenerator) String() string {
 		}
 	}
 
-	sort.Slice(g.existingAccounts, func(i, j int) bool {
-		return g.existingAccounts[i].Less(&g.existingAccounts[j])
+	sort.Slice(g.emptyAccounts, func(i, j int) bool {
+		return g.emptyAccounts[i].Less(&g.emptyAccounts[j])
 	})
-	for _, con := range g.existingAccounts {
-		if con.exists {
-			parts = append(parts, fmt.Sprintf("exists(%v)", con.address))
+	for _, con := range g.emptyAccounts {
+		if con.empty {
+			parts = append(parts, fmt.Sprintf("empty(%v)", con.address))
 		} else {
-			parts = append(parts, fmt.Sprintf("!exists(%v)", con.address))
+			parts = append(parts, fmt.Sprintf("!empty(%v)", con.address))
 		}
 	}
 
@@ -101,14 +101,14 @@ func (g *AccountsGenerator) String() string {
 }
 
 func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, accountAddress tosca.Address) (*st.Accounts, error) {
-	// Check for conflicts among existence constraints.
-	sort.Slice(g.existingAccounts, func(i, j int) bool {
-		return g.existingAccounts[i].Less(&g.existingAccounts[j])
+	// Check for conflicts among empty constraints.
+	sort.Slice(g.emptyAccounts, func(i, j int) bool {
+		return g.emptyAccounts[i].Less(&g.emptyAccounts[j])
 	})
-	for i := 0; i < len(g.existingAccounts)-1; i++ {
-		a, b := g.existingAccounts[i], g.existingAccounts[i+1]
-		if a.address == b.address && a.exists != b.exists {
-			return nil, fmt.Errorf("%w, address %v conflicting existence constraints", ErrUnsatisfiable, a.address)
+	for i := 0; i < len(g.emptyAccounts)-1; i++ {
+		a, b := g.emptyAccounts[i], g.emptyAccounts[i+1]
+		if a.address == b.address && a.empty != b.empty {
+			return nil, fmt.Errorf("%w, address %v conflicting empty constraints", ErrUnsatisfiable, a.address)
 		}
 	}
 
@@ -154,12 +154,30 @@ func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, acco
 
 	accountsBuilder := st.NewAccountsBuilder()
 
-	// Process existence constraints.
-	for _, con := range g.existingAccounts {
+	// Process empty constraints.
+	emptyAccounts := map[tosca.Address]struct{}{}
+	nonEmptyAccounts := map[tosca.Address]struct{}{}
+	for _, con := range g.emptyAccounts {
 		address := getBoundOrBindNewAddress(con.address)
-		if con.exists {
-			accountsBuilder.MarkExisting(address)
+		if con.empty {
+			if _, found := nonEmptyAccounts[address]; found {
+				return nil, fmt.Errorf("%w, address %v conflicting empty constraints", ErrUnsatisfiable, address)
+			}
+			emptyAccounts[address] = struct{}{}
+		} else {
+			if _, found := emptyAccounts[address]; found {
+				return nil, fmt.Errorf("%w, address %v conflicting empty constraints", ErrUnsatisfiable, address)
+			}
+			nonEmptyAccounts[address] = struct{}{}
 		}
+	}
+	for address := range emptyAccounts {
+		accountsBuilder.SetBalance(address, NewU256(0))
+		accountsBuilder.SetCode(address, Bytes{})
+	}
+	for address := range nonEmptyAccounts {
+		accountsBuilder.SetBalance(address, NewU256(0))
+		accountsBuilder.SetCode(address, NewBytes([]byte{1}))
 	}
 
 	// Process warm/cold constraints.
@@ -189,14 +207,14 @@ func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, acco
 	return accountsBuilder.Build(), nil
 }
 
-type existenceConstraint struct {
+type emptyConstraint struct {
 	address Variable
-	exists  bool
+	empty   bool
 }
 
-func (a *existenceConstraint) Less(b *existenceConstraint) bool {
+func (a *emptyConstraint) Less(b *emptyConstraint) bool {
 	if a.address != b.address {
 		return a.address < b.address
 	}
-	return a.exists != b.exists && a.exists
+	return a.empty != b.empty && a.empty
 }

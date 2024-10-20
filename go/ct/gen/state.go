@@ -240,16 +240,16 @@ func (g *StateGenerator) BindTransientStorageToZero(key Variable) {
 	g.transientStorageGen.BindToZero(key)
 }
 
-// BindTransientStorageToValue constraints the given variable to be mapped to
-// an address of an account that exists.
-func (g *StateGenerator) BindToAddressOfExistingAccount(address Variable) {
-	g.accountsGen.BindToAddressOfExistingAccount(address)
+// BindToAddressOfEmptyAccount constraints the given variable to be mapped to
+// an address of an account that empty.
+func (g *StateGenerator) BindToAddressOfEmptyAccount(address Variable) {
+	g.accountsGen.BindToAddressOfEmptyAccount(address)
 }
 
-// BindTransientStorageToValue constraints the given variable to be mapped to
-// an address of an account that does not exist.
-func (g *StateGenerator) BindToAddressOfNonExistingAccount(address Variable) {
-	g.accountsGen.BindToAddressOfNonExistingAccount(address)
+// BindToAddressOfNoneEmptyAccount constraints the given variable to be mapped
+// to an address of an account that not empty.
+func (g *StateGenerator) BindToAddressOfNoneEmptyAccount(address Variable) {
+	g.accountsGen.BindToAddressOfNoneEmptyAccount(address)
 }
 
 // BindToWarmAddress wraps AccountsGenerator.BindWarm.

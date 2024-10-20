@@ -1659,13 +1659,13 @@ func getAllRules() []Rule {
 	// --- SELFDESTRUCT ---
 
 	for revision := tosca.R07_Istanbul; revision <= NewestSupportedRevision; revision++ {
-		for _, beneficiaryAccountExists := range []bool{true, false} {
+		for _, beneficiaryAccountEmpty := range []bool{true, false} {
 			for _, beneficiaryAccountIsWarm := range []bool{true, false} {
 				for _, hasSelfDestructed := range []bool{true, false} {
 					rules = append(rules, makeSelfDestructRules(
 						revision,
 						hasSelfDestructed,
-						beneficiaryAccountExists,
+						beneficiaryAccountEmpty,
 						beneficiaryAccountIsWarm,
 					)...)
 				}
@@ -2200,19 +2200,19 @@ func logOp(n int) []Rule {
 func makeSelfDestructRules(
 	revision tosca.Revision,
 	originatorHasSelfDestructedBefore bool,
-	beneficiaryAccountExists bool,
+	beneficiaryAccountIsEmpty bool,
 	beneficiaryAccountIsWarm bool,
 ) []Rule {
 
 	name := "_" + revision.String()
 
-	var beneficiaryExists Condition
-	if beneficiaryAccountExists {
-		beneficiaryExists = AccountExists(Param(0))
-		name += "_beneficiary_exists"
+	var beneficiaryIsEmpty Condition
+	if beneficiaryAccountIsEmpty {
+		beneficiaryIsEmpty = AccountIsEmpty(Param(0))
+		name += "_beneficiary_is_empty"
 	} else {
-		beneficiaryExists = AccountDoesNotExist(Param(0))
-		name += "_beneficiary_does_not_exist"
+		beneficiaryIsEmpty = AccountIsNotEmpty(Param(0))
+		name += "_beneficiary_is_not_empty"
 	}
 
 	var beneficiaryWarm Condition
@@ -2242,7 +2242,7 @@ func makeSelfDestructRules(
 			Eq(ReadOnly(), false),
 			IsRevision(revision),
 			hasSelfDestructedCondition,
-			beneficiaryExists,
+			beneficiaryIsEmpty,
 			beneficiaryWarm,
 		},
 		parameters: []Parameter{AddressParameter{}},

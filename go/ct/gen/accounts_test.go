@@ -96,25 +96,25 @@ func TestAccountsGenerator_WarmColdConstraintsNoAssignment(t *testing.T) {
 	}
 }
 
-func TestAccountsGenerator_CanSpecifyExistenceConstraints(t *testing.T) {
+func TestAccountsGenerator_CanSpecifyEmptyConstraints(t *testing.T) {
 	v1 := Variable("v1")
 	v2 := Variable("v2")
 	v3 := Variable("v3")
 
 	gen := NewAccountGenerator()
 
-	gen.BindToAddressOfExistingAccount(v1)
-	gen.BindToAddressOfNonExistingAccount(v2)
-	gen.BindToAddressOfExistingAccount(v3)
-	gen.BindToAddressOfNonExistingAccount(v3)
+	gen.BindToAddressOfEmptyAccount(v1)
+	gen.BindToAddressOfNoneEmptyAccount(v2)
+	gen.BindToAddressOfEmptyAccount(v3)
+	gen.BindToAddressOfNoneEmptyAccount(v3)
 
 	print := gen.String()
 
 	want := []string{
-		"exists($v1)",
-		"!exists($v2)",
-		"exists($v3)",
-		"!exists($v3)",
+		"empty($v1)",
+		"!empty($v2)",
+		"empty($v3)",
+		"!empty($v3)",
 	}
 
 	for _, w := range want {
@@ -124,15 +124,15 @@ func TestAccountsGenerator_CanSpecifyExistenceConstraints(t *testing.T) {
 	}
 }
 
-func TestAccountsGenerator_ExistenceConstraintsAreSatisfied(t *testing.T) {
+func TestAccountsGenerator_EmptinessConstraintsAreSatisfied(t *testing.T) {
 	v1 := Variable("v1")
 	v2 := Variable("v2")
 	assignment := Assignment{}
 	rnd := rand.New(0)
 	generator := NewAccountGenerator()
 
-	generator.BindToAddressOfExistingAccount(v1)
-	generator.BindToAddressOfNonExistingAccount(v2)
+	generator.BindToAddressOfEmptyAccount(v1)
+	generator.BindToAddressOfNoneEmptyAccount(v2)
 
 	accounts, err := generator.Generate(assignment, rnd, NewAddressFromInt(8))
 	if err != nil {
@@ -142,11 +142,11 @@ func TestAccountsGenerator_ExistenceConstraintsAreSatisfied(t *testing.T) {
 	addr1 := NewAddress(assignment[v1])
 	addr2 := NewAddress(assignment[v2])
 
-	if !accounts.Exists(addr1) {
-		t.Errorf("Expected account to exist but it does not")
+	if !accounts.IsEmpty(addr1) {
+		t.Errorf("Expected account to be empty but it does not")
 	}
-	if accounts.Exists(addr2) {
-		t.Errorf("Expected account not to exist but it does")
+	if accounts.IsEmpty(addr2) {
+		t.Errorf("Expected account not to empty but it does")
 	}
 }
 
@@ -163,7 +163,7 @@ func TestAccountsGenerator_PreAssignedVariablesArePreserved(t *testing.T) {
 	rnd := rand.New(0)
 	generator := NewAccountGenerator()
 
-	generator.BindToAddressOfExistingAccount(v1)
+	generator.BindToAddressOfEmptyAccount(v1)
 
 	accounts, err := generator.Generate(assignment, rnd, tosca.Address{})
 	if err != nil {
@@ -171,8 +171,8 @@ func TestAccountsGenerator_PreAssignedVariablesArePreserved(t *testing.T) {
 	}
 
 	addr1 := NewAddress(assignment[v1])
-	if !accounts.Exists(addr1) {
-		t.Errorf("Expected account to exist but it does not")
+	if !accounts.IsEmpty(addr1) {
+		t.Errorf("Expected account to be empty but it does not")
 	}
 
 	if !maps.Equal(backup, assignment) {
@@ -180,19 +180,39 @@ func TestAccountsGenerator_PreAssignedVariablesArePreserved(t *testing.T) {
 	}
 }
 
-func TestAccountsGenerator_ConflictingExistenceConstraintsAreDetected(t *testing.T) {
+func TestAccountsGenerator_ConflictingEmptinessConstraintsAreDetected(t *testing.T) {
 	v1 := Variable("v1")
 	assignment := Assignment{}
 
 	rnd := rand.New(0)
 	generator := NewAccountGenerator()
 
-	generator.BindToAddressOfExistingAccount(v1)
-	generator.BindToAddressOfNonExistingAccount(v1)
+	generator.BindToAddressOfEmptyAccount(v1)
+	generator.BindToAddressOfNoneEmptyAccount(v1)
 
 	_, err := generator.Generate(assignment, rnd, tosca.Address{})
 	if !errors.Is(err, ErrUnsatisfiable) {
-		t.Errorf("Conflicting existence constraints not detected")
+		t.Errorf("Conflicting emptiness constraints not detected")
+	}
+}
+
+func TestAccountsGenerator_ConflictingBetweenPreAssignmentAndEmptinessConstraintsIsDetected(t *testing.T) {
+	v1 := Variable("v1")
+	v2 := Variable("v2")
+
+	rnd := rand.New(0)
+	generator := NewAccountGenerator()
+
+	generator.BindToAddressOfEmptyAccount(v1)
+	generator.BindToAddressOfNoneEmptyAccount(v2)
+
+	assignment := Assignment{}
+	assignment[v1] = NewU256(42)
+	assignment[v2] = NewU256(42)
+
+	_, err := generator.Generate(assignment, rnd, tosca.Address{})
+	if !errors.Is(err, ErrUnsatisfiable) {
+		t.Errorf("Conflicting emptiness constraints not detected")
 	}
 }
 
@@ -203,7 +223,7 @@ func TestAccountsGenerator_CanHandleAccessStateAndExistenceStateConstraintsOnSam
 	rnd := rand.New(0)
 	generator := NewAccountGenerator()
 
-	generator.BindToAddressOfExistingAccount(v1)
+	generator.BindToAddressOfEmptyAccount(v1)
 	generator.BindWarm(v1)
 
 	accounts, err := generator.Generate(assignment, rnd, tosca.Address{})
@@ -212,8 +232,8 @@ func TestAccountsGenerator_CanHandleAccessStateAndExistenceStateConstraintsOnSam
 	}
 
 	address := NewAddress(assignment[v1])
-	if !accounts.Exists(address) {
-		t.Errorf("Expected account to exist but it does not")
+	if !accounts.IsEmpty(address) {
+		t.Errorf("Expected account to be empty but it does not")
 	}
 
 	if !accounts.IsWarm(address) {
