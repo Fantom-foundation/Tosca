@@ -30,8 +30,8 @@ import (
 )
 
 var evms = map[string]ct.Evm{
-	"lfvm":    lfvm.NewConformanceTestingTarget(),
 	"geth":    geth.NewConformanceTestingTarget(),
+	"lfvm":    lfvm.NewConformanceTestingTarget(),
 	"evmzero": evmzero.NewConformanceTestingTarget(),
 	"evmrs":   evmrs.NewConformanceTestingTarget(),
 }

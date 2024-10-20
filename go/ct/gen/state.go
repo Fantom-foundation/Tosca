@@ -241,13 +241,13 @@ func (g *StateGenerator) BindTransientStorageToZero(key Variable) {
 }
 
 // BindToAddressOfEmptyAccount constraints the given variable to be mapped to
-// an address of an account that empty.
+// an address of an account that is empty.
 func (g *StateGenerator) BindToAddressOfEmptyAccount(address Variable) {
 	g.accountsGen.BindToAddressOfEmptyAccount(address)
 }
 
 // BindToAddressOfNoneEmptyAccount constraints the given variable to be mapped
-// to an address of an account that not empty.
+// to an address of an account that is not empty.
 func (g *StateGenerator) BindToAddressOfNoneEmptyAccount(address Variable) {
 	g.accountsGen.BindToAddressOfNoneEmptyAccount(address)
 }
