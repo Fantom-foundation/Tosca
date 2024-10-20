@@ -179,9 +179,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 
 	// Update refunds.
 	if result.Success {
-		if result.GasRefund == 0 {
-			// ignore
-		} else if result.GasRefund > 0 {
+		if result.GasRefund >= 0 {
 			a.evm.StateDB.AddRefund(uint64(result.GasRefund))
 		} else {
 			a.evm.StateDB.SubRefund(uint64(-result.GasRefund))
