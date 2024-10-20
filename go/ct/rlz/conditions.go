@@ -695,8 +695,8 @@ func (c *accountIsEmpty) Restrict(generator *gen.StateGenerator) {
 
 func (c *accountIsEmpty) GetTestValues() []TestValue {
 	property := Property(fmt.Sprintf("empty(%v)", c.address))
-	restrict := func(generator *gen.StateGenerator, shouldExist bool) {
-		if shouldExist {
+	restrict := func(generator *gen.StateGenerator, shouldBeEmpty bool) {
+		if shouldBeEmpty {
 			AccountIsEmpty(c.address).Restrict(generator)
 		} else {
 			AccountIsNotEmpty(c.address).Restrict(generator)
