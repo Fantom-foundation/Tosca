@@ -219,16 +219,6 @@ func (ab *AccountsBuilder) SetCode(addr tosca.Address, code Bytes) *AccountsBuil
 	return ab
 }
 
-func (ab *AccountsBuilder) MarkExisting(addr tosca.Address) *AccountsBuilder {
-	if ab.accounts.accounts == nil {
-		ab.accounts.accounts = make(map[tosca.Address]Account)
-	}
-	if _, found := ab.accounts.accounts[addr]; !found {
-		ab.accounts.accounts[addr] = Account{}
-	}
-	return ab
-}
-
 func (ab *AccountsBuilder) modifyAccount(address tosca.Address, f func(*Account)) {
 	if ab.accounts.accounts == nil {
 		ab.accounts.accounts = make(map[tosca.Address]Account)

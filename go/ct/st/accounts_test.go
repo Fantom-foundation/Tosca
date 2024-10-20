@@ -179,37 +179,30 @@ func TestAccounts_Exists(t *testing.T) {
 func TestAccountsBuilder_NewAccountsBuilder(t *testing.T) {
 	addr1 := NewAddressFromInt(42)
 	addr2 := NewAddressFromInt(24)
-	addr3 := NewAddressFromInt(242)
 	ab := NewAccountsBuilder()
 	ab.SetBalance(addr1, NewU256(1))
 	ab.SetCode(addr2, NewBytes([]byte{1, 2, 3}))
 	ab.SetWarm(addr1)
 	ab.SetWarm(addr2)
-	ab.MarkExisting(addr3)
 	acc := ab.Build()
 	if want, got := NewU256(1), acc.GetBalance(addr1); !want.Eq(got) {
-		t.Errorf("AccountsBuilder balance is broken, wante %v but got %v", want, got)
+		t.Errorf("AccountsBuilder balance is broken, want %v but got %v", want, got)
 	}
 	if want, got := NewBytes([]byte{1, 2, 3}), acc.GetCode(addr2); want != got {
-		t.Errorf("AccountsBuilder code is broken, wante %v but got %v", want, got)
+		t.Errorf("AccountsBuilder code is broken, want %v but got %v", want, got)
 	}
 	if want, got := true, acc.IsWarm(addr1) && acc.IsWarm(addr2); want != got {
-		t.Errorf("AccountsBuilder warm is broken, wante %v but got %v", want, got)
+		t.Errorf("AccountsBuilder warm is broken, want %v but got %v", want, got)
 	}
 }
 
 func TestAccounts_String(t *testing.T) {
 	addr := NewAddressFromInt(42)
-	addr2 := NewAddressFromInt(24)
 	builder := NewAccountsBuilder()
 	builder.SetBalance(addr, NewU256(1))
 	builder.SetCode(addr, NewBytes([]byte{1}))
 	builder.SetWarm(addr)
-	builder.MarkExisting(addr2)
 	want := "Accounts:\n"
-	want += fmt.Sprintf("\t%v:\n", addr2)
-	want += fmt.Sprintf("\t\tBalance: %v\n", NewU256(0))
-	want += fmt.Sprintf("\t\tCode: %v\n", NewBytes([]byte{}))
 	want += fmt.Sprintf("\t%v:\n", addr)
 	want += fmt.Sprintf("\t\tBalance: %v\n", NewU256(1))
 	want += fmt.Sprintf("\t\tCode: %v\n", NewBytes([]byte{1}))

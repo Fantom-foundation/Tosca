@@ -199,55 +199,55 @@ func TestCondition_CheckStorageConfiguration(t *testing.T) {
 	}
 }
 
-func TestCondition_CheckForExistingAccount(t *testing.T) {
+func TestCondition_CheckForEmptyAccount(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Stack = st.NewStack(NewU256(42))
-	condition := AccountExists(Param(0))
+	condition := AccountIsEmpty(Param(0))
 
-	exists, err := condition.Check(state)
+	empty, err := condition.Check(state)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if exists {
-		t.Error("account should be considered non-existing")
+	if !empty {
+		t.Error("account should be considered empty")
 	}
 
 	state.Accounts = st.NewAccountsBuilder().
-		SetBalance(NewAddress(NewU256(42)), NewU256(0)).
+		SetBalance(NewAddress(NewU256(42)), NewU256(12)).
 		Build()
 
-	exists, err = condition.Check(state)
+	empty, err = condition.Check(state)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !exists {
-		t.Error("account should be considered existing")
+	if empty {
+		t.Error("account should be considered non-empty")
 	}
 }
 
-func TestCondition_CheckForNonExistingAccount(t *testing.T) {
+func TestCondition_CheckForNoneEmptyAccount(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Stack = st.NewStack(NewU256(42))
-	condition := AccountDoesNotExist(Param(0))
+	condition := AccountIsNotEmpty(Param(0))
 
-	pass, err := condition.Check(state)
+	noneEmpty, err := condition.Check(state)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !pass {
-		t.Error("account should be considered non-existing")
+	if noneEmpty {
+		t.Error("account should be considered empty")
 	}
 
 	state.Accounts = st.NewAccountsBuilder().
-		SetBalance(NewAddress(NewU256(42)), NewU256(0)).
+		SetBalance(NewAddress(NewU256(42)), NewU256(12)).
 		Build()
 
-	pass, err = condition.Check(state)
+	noneEmpty, err = condition.Check(state)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if pass {
-		t.Error("account should be considered existing")
+	if !noneEmpty {
+		t.Error("account should be considered non-empty")
 	}
 }
 
