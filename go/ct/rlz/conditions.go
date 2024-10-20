@@ -669,37 +669,37 @@ func (c *bindTransientStorageToZero) String() string {
 }
 
 ////////////////////////////////////////////////////////////
-// Account Exists
+// Account Empty
 
-type accountExists struct {
+type accountIsEmpty struct {
 	address BindableExpression[U256]
 }
 
-func AccountExists(address BindableExpression[U256]) *accountExists {
-	return &accountExists{address}
+func AccountIsEmpty(address BindableExpression[U256]) *accountIsEmpty {
+	return &accountIsEmpty{address}
 }
 
-func (c *accountExists) Check(s *st.State) (bool, error) {
+func (c *accountIsEmpty) Check(s *st.State) (bool, error) {
 	address, err := c.address.Eval(s)
 	if err != nil {
 		return false, err
 	}
-	return s.Accounts.Exists(NewAddress(address)), nil
+	return s.Accounts.IsEmpty(NewAddress(address)), nil
 }
 
-func (c *accountExists) Restrict(generator *gen.StateGenerator) {
+func (c *accountIsEmpty) Restrict(generator *gen.StateGenerator) {
 	address := c.address.GetVariable()
 	c.address.BindTo(generator)
-	generator.BindToAddressOfExistingAccount(address)
+	generator.BindToAddressOfEmptyAccount(address)
 }
 
-func (c *accountExists) GetTestValues() []TestValue {
-	property := Property(fmt.Sprintf("exists(%v)", c.address))
+func (c *accountIsEmpty) GetTestValues() []TestValue {
+	property := Property(fmt.Sprintf("empty(%v)", c.address))
 	restrict := func(generator *gen.StateGenerator, shouldExist bool) {
 		if shouldExist {
-			AccountExists(c.address).Restrict(generator)
+			AccountIsEmpty(c.address).Restrict(generator)
 		} else {
-			AccountDoesNotExist(c.address).Restrict(generator)
+			AccountIsNotEmpty(c.address).Restrict(generator)
 		}
 	}
 	return []TestValue{
@@ -708,38 +708,38 @@ func (c *accountExists) GetTestValues() []TestValue {
 	}
 }
 
-func (c *accountExists) String() string {
-	return fmt.Sprintf("account_exists(%v)", c.address)
+func (c *accountIsEmpty) String() string {
+	return fmt.Sprintf("account_empty(%v)", c.address)
 }
 
 ////////////////////////////////////////////////////////////
-// Address does not exist
+// Address not empty
 
-type accountDoesNotExist struct {
+type accountIsNotEmpty struct {
 	address BindableExpression[U256]
 }
 
-func AccountDoesNotExist(address BindableExpression[U256]) *accountDoesNotExist {
-	return &accountDoesNotExist{address}
+func AccountIsNotEmpty(address BindableExpression[U256]) *accountIsNotEmpty {
+	return &accountIsNotEmpty{address}
 }
 
-func (c *accountDoesNotExist) Check(s *st.State) (bool, error) {
-	res, err := AccountExists(c.address).Check(s)
+func (c *accountIsNotEmpty) Check(s *st.State) (bool, error) {
+	res, err := AccountIsEmpty(c.address).Check(s)
 	return !res, err
 }
 
-func (c *accountDoesNotExist) Restrict(generator *gen.StateGenerator) {
+func (c *accountIsNotEmpty) Restrict(generator *gen.StateGenerator) {
 	address := c.address.GetVariable()
 	c.address.BindTo(generator)
-	generator.BindToAddressOfNonExistingAccount(address)
+	generator.BindToAddressOfNoneEmptyAccount(address)
 }
 
-func (c *accountDoesNotExist) GetTestValues() []TestValue {
-	return AccountExists(c.address).GetTestValues()
+func (c *accountIsNotEmpty) GetTestValues() []TestValue {
+	return AccountIsEmpty(c.address).GetTestValues()
 }
 
-func (c *accountDoesNotExist) String() string {
-	return fmt.Sprintf("!account_exists(%v)", c.address)
+func (c *accountIsNotEmpty) String() string {
+	return fmt.Sprintf("!account_empty(%v)", c.address)
 }
 
 ////////////////////////////////////////////////////////////
