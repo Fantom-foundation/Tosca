@@ -34,12 +34,13 @@ func NewCallJournal() *CallJournal {
 func (j *CallJournal) Call(kind tosca.CallKind, parameter tosca.CallParameters) tosca.CallResult {
 	// log the call as a past call.
 	j.Past = append(j.Past, PastCall{
-		Kind:      kind,
-		Recipient: parameter.Recipient,
-		Sender:    parameter.Sender,
-		Input:     NewBytes(parameter.Input),
-		Value:     parameter.Value,
-		Gas:       parameter.Gas,
+		Kind:        kind,
+		Recipient:   parameter.Recipient,
+		Sender:      parameter.Sender,
+		Input:       NewBytes(parameter.Input),
+		Value:       parameter.Value,
+		Gas:         parameter.Gas,
+		CodeAddress: parameter.CodeAddress,
 	})
 
 	// consume the next future result
@@ -118,12 +119,13 @@ func (j *CallJournal) Clone() *CallJournal {
 // PastCall represents an already processed call. It is part of the state
 // model for two reasons to enable the verification of call parameters.
 type PastCall struct {
-	Kind      tosca.CallKind
-	Recipient tosca.Address
-	Sender    tosca.Address
-	Input     Bytes
-	Value     tosca.Value
-	Gas       tosca.Gas
+	Kind        tosca.CallKind
+	Recipient   tosca.Address
+	Sender      tosca.Address
+	Input       Bytes
+	Value       tosca.Value
+	Gas         tosca.Gas
+	CodeAddress tosca.Address
 }
 
 func (c *PastCall) Equal(other *PastCall) bool {
@@ -149,6 +151,9 @@ func (c *PastCall) Diff(other *PastCall) []string {
 	}
 	if have, got := c.Gas, other.Gas; have != got {
 		res = append(res, fmt.Sprintf("different gas: %v vs %v (diff: %d)", have, got, got-have))
+	}
+	if have, got := c.CodeAddress, other.CodeAddress; have != got {
+		res = append(res, fmt.Sprintf("different code address: %v vs %v", have, got))
 	}
 	return res
 }

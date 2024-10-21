@@ -2597,20 +2597,18 @@ func callEffect(s *st.State, addrAccessCost tosca.Gas, op vm.OpCode) {
 
 	sender := s.CallContext.AccountAddress
 	recipient := target.Bytes20be()
-	codeAddress := tosca.Address{}
+	codeAddress := target.Bytes20be()
 	// In a static context all calls are static calls.
 	kind := tosca.Call
 	if op == vm.DELEGATECALL {
 		kind = tosca.DelegateCall
 		sender = s.CallContext.CallerAddress
 		recipient = s.CallContext.AccountAddress
-		codeAddress = target.Bytes20be()
 		value = s.CallContext.Value
 	} else if op == vm.CALLCODE {
 		kind = tosca.CallCode
 		sender = s.CallContext.AccountAddress
 		recipient = s.CallContext.AccountAddress
-		codeAddress = target.Bytes20be()
 	}
 
 	if (s.ReadOnly && op == vm.CALL) || op == vm.STATICCALL {

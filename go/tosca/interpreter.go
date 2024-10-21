@@ -167,8 +167,8 @@ type CallParameters struct {
 	Value       Value   // < ignored by static calls, considered to be 0
 	Input       Data
 	Gas         Gas
-	Salt        Hash    // < only relevant for CREATE2 calls
-	CodeAddress Address // < only relevant for DELEGATECALL and CALLCODE calls
+	Salt        Hash // < only relevant for CREATE2 calls
+	CodeAddress Address
 }
 
 type CallResult struct {

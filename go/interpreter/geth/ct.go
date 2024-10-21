@@ -168,11 +168,12 @@ func (i *callInterceptor) Call(env *geth_vm.EVM, me geth_vm.ContractRef, addr ge
 	}
 
 	res, err := i.makeCall(kind, tosca.CallParameters{
-		Sender:    tosca.Address(me.Address()),
-		Recipient: tosca.Address(addr),
-		Value:     tosca.ValueFromUint256(value),
-		Input:     data,
-		Gas:       tosca.Gas(gas),
+		Sender:      tosca.Address(me.Address()),
+		Recipient:   tosca.Address(addr),
+		Value:       tosca.ValueFromUint256(value),
+		Input:       data,
+		Gas:         tosca.Gas(gas),
+		CodeAddress: tosca.Address(addr),
 	})
 	return res.Output, uint64(res.GasLeft), err
 }
@@ -199,21 +200,23 @@ func (i *callInterceptor) CallCode(env *geth_vm.EVM, me geth_vm.ContractRef, add
 
 func (i *callInterceptor) DelegateCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, data []byte, gas uint64) ([]byte, uint64, error) {
 	res, err := i.makeCall(tosca.DelegateCall, tosca.CallParameters{
-		Sender:    i.parameters.Sender,
-		Recipient: i.parameters.Recipient,
-		Value:     i.parameters.Value,
-		Input:     data,
-		Gas:       tosca.Gas(gas),
+		Sender:      i.parameters.Sender,
+		Recipient:   i.parameters.Recipient,
+		Value:       i.parameters.Value,
+		Input:       data,
+		Gas:         tosca.Gas(gas),
+		CodeAddress: tosca.Address(addr),
 	})
 	return res.Output, uint64(res.GasLeft), err
 }
 
 func (i *callInterceptor) StaticCall(env *geth_vm.EVM, me geth_vm.ContractRef, addr geth_common.Address, input []byte, gas uint64) ([]byte, uint64, error) {
 	res, err := i.makeCall(tosca.StaticCall, tosca.CallParameters{
-		Sender:    tosca.Address(me.Address()),
-		Recipient: tosca.Address(addr),
-		Input:     input,
-		Gas:       tosca.Gas(gas),
+		Sender:      tosca.Address(me.Address()),
+		Recipient:   tosca.Address(addr),
+		Input:       input,
+		Gas:         tosca.Gas(gas),
+		CodeAddress: tosca.Address(addr),
 	})
 	return res.Output, uint64(res.GasLeft), err
 }
