@@ -101,10 +101,6 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	if err != nil {
 		return nil, fmt.Errorf("could not convert chain Id: %v", err)
 	}
-	difficulty, err := bigIntToHash(a.evm.Context.Difficulty)
-	if err != nil {
-		return nil, fmt.Errorf("could not convert difficulty: %v", err)
-	}
 	blobBaseFee, err := bigIntToValue(a.evm.Context.BlobBaseFee)
 	if err != nil {
 		return nil, fmt.Errorf("could not convert blob-base fee: %v", err)
@@ -112,6 +108,10 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	gasPrice, err := bigIntToValue(a.evm.TxContext.GasPrice)
 	if err != nil {
 		return nil, fmt.Errorf("could not convert gas price: %v", err)
+	}
+	prevRandao, err := getPrevRandao(&a.evm.Context, revision)
+	if err != nil {
+		return nil, err
 	}
 
 	var codeHash *tosca.Hash
@@ -125,7 +125,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		Timestamp:   int64(a.evm.Context.Time),
 		Coinbase:    tosca.Address(a.evm.Context.Coinbase),
 		GasLimit:    tosca.Gas(a.evm.Context.GasLimit),
-		PrevRandao:  difficulty,
+		PrevRandao:  prevRandao,
 		BaseFee:     baseFee,
 		BlobBaseFee: blobBaseFee,
 		Revision:    revision,
@@ -190,6 +190,22 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 		return nil, geth.ErrOutOfGas // < they are all handled equally
 	}
 	return result.Output, nil
+}
+
+func getPrevRandao(context *geth.BlockContext, revision tosca.Revision) (tosca.Hash, error) {
+	if revision < tosca.R11_Paris {
+		prevRandao, err := bigIntToHash(context.Difficulty)
+		if err != nil {
+			return tosca.Hash{}, fmt.Errorf("could not convert difficulty: %v", err)
+		}
+		return prevRandao, nil
+	}
+
+	var prevRandao tosca.Hash
+	if context.Random != nil {
+		prevRandao = tosca.Hash(*context.Random)
+	}
+	return prevRandao, nil
 }
 
 func debugRunStart(input []byte, readOnly bool) {
