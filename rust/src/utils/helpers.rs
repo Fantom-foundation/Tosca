@@ -4,7 +4,7 @@ use evmc_vm::{MessageFlags, Revision};
 
 use crate::{
     interpreter::Interpreter,
-    types::{u256, ExecutionContextTrait, FailStatus},
+    types::{u256, FailStatus},
     utils::Gas,
 };
 
@@ -61,10 +61,7 @@ pub fn check_min_revision(min_revision: Revision, revision: Revision) -> Result<
 }
 
 #[inline(always)]
-pub fn check_not_read_only<E>(state: &Interpreter<'_, E>) -> Result<(), FailStatus>
-where
-    E: ExecutionContextTrait,
-{
+pub fn check_not_read_only(state: &Interpreter) -> Result<(), FailStatus> {
     if state.revision >= Revision::EVMC_BYZANTIUM
         && state.message.flags() == MessageFlags::EVMC_STATIC as u32
     {
