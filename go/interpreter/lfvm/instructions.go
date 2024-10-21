@@ -973,7 +973,7 @@ func genericCall(c *context, kind tosca.CallKind) error {
 	// defines that at all but one 64th of the available gas in one scope may be passed
 	// to a nested call.
 	nestedCallGas := tosca.Gas(c.gas - c.gas/64)
-	if provided_gas.IsUint64() && (nestedCallGas >= tosca.Gas(provided_gas.Uint64())) {
+	if provided_gas.IsUint64() && provided_gas.Uint64() <= math.MaxInt64 && (nestedCallGas >= tosca.Gas(provided_gas.Uint64())) {
 		nestedCallGas = tosca.Gas(provided_gas.Uint64())
 	}
 	c.gas -= nestedCallGas
