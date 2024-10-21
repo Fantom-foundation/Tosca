@@ -1576,10 +1576,6 @@ func TestGenericCall_HandlesBigProvidedGasValues(t *testing.T) {
 	for name, providedGas := range tests {
 		t.Run(name, func(t *testing.T) {
 			nestedGas := tosca.Gas(gas - gas/64)
-			providedGasU64 := providedGas.Uint64()
-			if providedGas.IsUint64() && providedGasU64 <= math.MaxInt64 && (nestedGas >= tosca.Gas(providedGasU64)) {
-				nestedGas = tosca.Gas(providedGasU64)
-			}
 			runContext := tosca.NewMockRunContext(gomock.NewController(t))
 			runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{Gas: nestedGas}).Return(tosca.CallResult{}, nil)
 			ctxt := context{gas: gas}
