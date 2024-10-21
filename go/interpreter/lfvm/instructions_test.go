@@ -1543,7 +1543,7 @@ func TestGenericCall_CallKindPropagatesStaticMode(t *testing.T) {
 	}
 }
 
-func TestGeneralCall_ResultIsWrittenToStack(t *testing.T) {
+func TestGenericCall_ResultIsWrittenToStack(t *testing.T) {
 	zero := *uint256.NewInt(0)
 	one := *uint256.NewInt(1)
 	for _, success := range []bool{true, false} {
@@ -1561,6 +1561,38 @@ func TestGeneralCall_ResultIsWrittenToStack(t *testing.T) {
 			t.Errorf("unexpected return value, wanted %v, got %v", want, got)
 		}
 	}
+}
+
+func TestGenericCall_HandlesBigProvidedGasValues(t *testing.T) {
+	zero := *uint256.NewInt(0)
+	gas := tosca.Gas(50_000) // value big enough to cover all gas costs
+	tests := map[string]uint256.Int{
+		"maxInt64-1": *uint256.NewInt(math.MaxInt64 - 1),
+		"maxInt64":   *uint256.NewInt(math.MaxInt64),
+		"maxInt64+1": *uint256.NewInt(math.MaxInt64 + 1),
+		"maxUint64":  *uint256.NewInt(math.MaxUint64),
+	}
+
+	for name, providedGas := range tests {
+		t.Run(name, func(t *testing.T) {
+			nestedGas := tosca.Gas(gas - gas/64)
+			providedGasU64 := providedGas.Uint64()
+			if providedGas.IsUint64() && providedGasU64 <= math.MaxInt64 && (nestedGas >= tosca.Gas(providedGasU64)) {
+				nestedGas = tosca.Gas(providedGasU64)
+			}
+			runContext := tosca.NewMockRunContext(gomock.NewController(t))
+			runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{Gas: nestedGas}).Return(tosca.CallResult{}, nil)
+			ctxt := context{gas: gas}
+			ctxt.context = runContext
+			ctxt.stack = fillStack(providedGas, zero, zero, zero, zero, zero, zero)
+
+			err := genericCall(&ctxt, tosca.Call)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+
 }
 
 func TestInstructions_ComparisonAndShiftOperations(t *testing.T) {
