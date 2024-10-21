@@ -58,7 +58,7 @@ jobs:
       run: cargo install cargo-hack
     - name: cargo clippy
       working-directory: rust
-      run: cargo hack --workspace --feature-powerset --exclude-features mock,dump-cov,performance clippy --examples --tests --benches -- --deny warnings
+      run: cargo hack --workspace --each-feature clippy --examples --tests --benches -- --deny warnings
     
   doc:
     name: doc
@@ -79,7 +79,7 @@ jobs:
       env:
         RUSTDOCFLAGS: "-D warnings" 
       working-directory: rust
-      run: cargo hack --workspace --feature-powerset --exclude-features mock,dump-cov,performance doc --no-deps
+      run: cargo hack --workspace --each-feature doc --no-deps
 
   build:
     name: build
@@ -98,7 +98,7 @@ jobs:
       run: cargo install cargo-hack
     - name: cargo build
       working-directory: rust
-      run: cargo hack --workspace --feature-powerset --exclude-features mock,dump-cov,performance build
+      run: cargo hack --workspace --each-feature build
 
   test:
     name: test
@@ -117,7 +117,7 @@ jobs:
       run: cargo install cargo-hack
     - name: cargo test
       working-directory: rust
-      run: cargo hack --workspace --feature-powerset --exclude-features mock,dump-cov,performance test
+      run: cargo hack --workspace --each-feature test
 
   deps:
     name: unused deps
