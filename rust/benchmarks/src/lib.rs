@@ -23,7 +23,7 @@ impl RunArgs {
     /// pointers get passed via the FFI interface and then the data is copied into a fresh
     /// allocation on the other side.
     /// - `ExecutionMessage` contains non-empty input
-    /// - `code` is non-empty so that `CodeReader` must allocate memory to store the jump analysis
+    /// - `code` is non-empty so that `CodeReader` must allocate memory to store the code analysis
     ///   results
     /// - `code` contains `Opcode::MStore` so that `memory` is non-empty
     /// - `code` returns a single word so that `output` is non-empty

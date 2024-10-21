@@ -11,8 +11,6 @@ use crate::{
 pub trait SliceExt {
     fn get_within_bounds(&self, offset: u256, len: u64) -> &[u8];
 
-    fn set_to_zero(&mut self);
-
     fn copy_padded(&mut self, src: &[u8], gas_left: &mut Gas) -> Result<(), FailStatus>;
 }
 
@@ -37,17 +35,10 @@ impl SliceExt for [u8] {
     }
 
     #[inline(always)]
-    fn set_to_zero(&mut self) {
-        for byte in self {
-            *byte = 0;
-        }
-    }
-
-    #[inline(always)]
     fn copy_padded(&mut self, src: &[u8], gas_left: &mut Gas) -> Result<(), FailStatus> {
         gas_left.consume_copy_cost(self.len() as u64)?;
         self[..src.len()].copy_from_slice(src);
-        self[src.len()..].set_to_zero();
+        self[src.len()..].fill(0);
         Ok(())
     }
 }
@@ -100,19 +91,6 @@ mod tests {
         assert_eq!([1].get_within_bounds(u256::ZERO, 2), &[1]);
         assert_eq!([1].get_within_bounds(u256::ONE, 1), &[]);
         assert_eq!([1].get_within_bounds(u256::MAX, 1), &[]);
-    }
-
-    #[test]
-    fn set_to_zero() {
-        let mut data = [];
-        data.set_to_zero();
-        assert_eq!(&data, &[]);
-        let mut data = [1];
-        data.set_to_zero();
-        assert_eq!(&data, &[0]);
-        let mut data = [1, 2];
-        data.set_to_zero();
-        assert_eq!(&data, &[0, 0]);
     }
 
     #[test]

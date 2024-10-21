@@ -985,9 +985,9 @@ where
             self.gas_left.consume_copy_cost(len)?;
             let bytes_written = self.context.copy_code(&addr, offset as usize, dest);
             if offset_overflow {
-                dest.set_to_zero();
+                dest.fill(0);
             } else if (bytes_written as u64) < len {
-                dest[bytes_written..].set_to_zero();
+                dest[bytes_written..].fill(0);
             }
         }
         self.code_reader.next();

@@ -26,14 +26,14 @@ performance = [
     "custom-evmc",
     "jumptable",
     "hash-cache",
-    "jump-cache",
+    "code-analysis-cache",
 ]
 mimalloc = ["dep:mimalloc"]
 stack-array = []
 custom-evmc = ["dep:evmc-vm-tosca-refactor"]
 jumptable = []
 hash-cache = ["dep:lru"]
-jump-cache = ["dep:lru", "dep:nohash-hasher"]
+code-analysis-cache = ["dep:lru", "dep:nohash-hasher"]
 thread-local-cache = []
 jumptable-tail-call = ["jumptable"]
 
