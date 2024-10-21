@@ -35,18 +35,13 @@ func TestAccounts_MarkWarmMarksAddressesAsWarm(t *testing.T) {
 func TestAccounts_SetWarm(t *testing.T) {
 	acc := NewAccounts()
 	addr := NewAddressFromInt(42)
-	if want, got := true, acc.IsCold(addr); want != got {
-		t.Fatalf("IsCold is broken, want %v, got %v", want, got)
+	if want, got := false, acc.IsWarm(addr); want != got {
+		t.Fatalf("IsWarm is broken, want %v, got %v", want, got)
 	}
-	acc.SetWarm(addr, true)
-	if want, got := false, acc.IsCold(addr); want != got {
-		t.Fatalf("SetWarm is broken, want %v, got %v", want, got)
+	acc.MarkWarm(addr)
+	if want, got := true, acc.IsWarm(addr); want != got {
+		t.Fatalf("MarkWarm is broken, want %v, got %v", want, got)
 	}
-	acc.SetWarm(addr, false)
-	if want, got := true, acc.IsCold(addr); want != got {
-		t.Fatalf("SetWarm to cold is broken, want %v, got %v", want, got)
-	}
-
 }
 
 func TestAccounts_Clone(t *testing.T) {
@@ -55,26 +50,8 @@ func TestAccounts_Clone(t *testing.T) {
 	tests := map[string]struct {
 		change func(*Accounts)
 	}{
-		"add-balance": {func(accounts *Accounts) {
-			accounts.SetBalance(b, NewU256(3))
-		}},
 		"modify-balance": {func(accounts *Accounts) {
 			accounts.SetBalance(b, NewU256(3))
-		}},
-		"remove-balance": {func(accounts *Accounts) {
-			accounts.RemoveBalance(a)
-		}},
-		"add-code": {func(accounts *Accounts) {
-			accounts.SetCode(b, NewBytes([]byte{byte(vm.ADD), byte(vm.PUSH1), 5, byte(vm.PUSH2)}))
-		}},
-		"modify-code": {func(accounts *Accounts) {
-			accounts.SetCode(a, NewBytes([]byte{byte(vm.SUB), byte(vm.BALANCE), 5, byte(vm.SHA3)}))
-		}},
-		"remove-code": {func(accounts *Accounts) {
-			accounts.RemoveCode(a)
-		}},
-		"mark-cold": {func(accounts *Accounts) {
-			accounts.MarkCold(a)
 		}},
 		"mark-warm": {func(accounts *Accounts) {
 			accounts.MarkWarm(b)
@@ -85,7 +62,6 @@ func TestAccounts_Clone(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			b1 := NewAccounts()
 			b1.SetBalance(a, NewU256(1))
-			b1.SetCode(a, NewBytes([]byte{byte(vm.SUB), byte(vm.SWAP1), 5, byte(vm.PUSH2)}))
 			b1.MarkWarm(a)
 			b2 := b1.Clone()
 			if !b1.Eq(b2) {
@@ -119,27 +95,9 @@ func TestAccounts_Diff(t *testing.T) {
 		change  func(*Accounts)
 		outcome string
 	}{
-		"add-balance": {func(accounts *Accounts) {
-			accounts.SetBalance(b, NewU256(3))
-		}, "Different balance entry"},
 		"modify-balance": {func(accounts *Accounts) {
 			accounts.SetBalance(a, NewU256(3))
-		}, "Different balance entry"},
-		"remove-balance": {func(accounts *Accounts) {
-			accounts.RemoveBalance(a)
-		}, "Different balance entry"},
-		"add-code": {func(accounts *Accounts) {
-			accounts.SetCode(b, NewBytes([]byte{byte(vm.ADD), byte(vm.PUSH1), 5, byte(vm.PUSH2)}))
-		}, "Different code entry"},
-		"modify-code": {func(accounts *Accounts) {
-			accounts.SetCode(a, NewBytes([]byte{byte(vm.SUB), byte(vm.BALANCE), 5, byte(vm.SHA3)}))
-		}, "Different code entry"},
-		"remove-code": {func(accounts *Accounts) {
-			accounts.RemoveCode(a)
-		}, "Different code entry"},
-		"mark-cold": {func(accounts *Accounts) {
-			accounts.MarkCold(a)
-		}, "Different account warm entry"},
+		}, "Different account entry"},
 		"mark-warm": {func(accounts *Accounts) {
 			accounts.MarkWarm(b)
 		}, "Different account warm entry"},
@@ -147,10 +105,11 @@ func TestAccounts_Diff(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			a1 := NewAccounts()
-			a1.SetBalance(a, NewU256(1))
-			a1.SetCode(a, NewBytes([]byte{byte(vm.SUB), byte(vm.SWAP1), 5, byte(vm.PUSH2)}))
-			a1.MarkWarm(a)
+			a1 := NewAccountsBuilder().
+				SetBalance(a, NewU256(1)).
+				SetCode(a, NewBytes([]byte{byte(vm.SUB), byte(vm.SWAP1), 5, byte(vm.PUSH2)})).
+				SetWarm(a).
+				Build()
 			a2 := a1.Clone()
 			diff := a1.Diff(a2)
 			if len(diff) != 0 {
@@ -159,7 +118,7 @@ func TestAccounts_Diff(t *testing.T) {
 			test.change(a2)
 			diff = a1.Diff(a2)
 			if !strings.Contains(diff[0], test.outcome) {
-				t.Errorf("difference in accounts not found: %v", diff)
+				t.Errorf("difference in accounts not found: %v, wanted: %v", diff, test.outcome)
 			}
 		})
 	}
@@ -185,13 +144,14 @@ func TestAccounts_IsEmptyDependsOnBalanceAndCode(t *testing.T) {
 	addr := tosca.Address{}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			accounts := NewAccounts()
+			builder := NewAccountsBuilder()
 			if test.balance != nil {
-				accounts.SetBalance(addr, *test.balance)
+				builder.SetBalance(addr, *test.balance)
 			}
 			if test.code != nil {
-				accounts.SetCode(addr, NewBytes(test.code))
+				builder.SetCode(addr, NewBytes(test.code))
 			}
+			accounts := builder.Build()
 			if want, got := test.empty, accounts.IsEmpty(addr); want != got {
 				t.Errorf("unexpected result, wanted %t, got %t", want, got)
 			}
@@ -203,20 +163,16 @@ func TestAccounts_IsEmptyDependsOnBalanceAndCode(t *testing.T) {
 func TestAccounts_Exists(t *testing.T) {
 	acc := NewAccounts()
 	addr := NewAddressFromInt(42)
-	if want, got := false, acc.Exist(addr); want != got {
-		t.Errorf("Exist is broken, want %v but got %v", want, got)
+	if want, got := false, acc.Exists(addr); want != got {
+		t.Errorf("Exists is broken, want %v but got %v", want, got)
+	}
+	acc.SetBalance(addr, NewU256(0))
+	if want, got := true, acc.Exists(addr); want != got {
+		t.Errorf("Exists is broken, want %v but got %v", want, got)
 	}
 	acc.SetBalance(addr, NewU256(1))
-	if want, got := true, acc.Exist(addr); want != got {
-		t.Errorf("Exist is broken, want %v but got %v", want, got)
-	}
-	delete(acc.balance, addr)
-	if want, got := false, acc.Exist(addr); want != got {
-		t.Errorf("Exist is broken, want %v but got %v", want, got)
-	}
-	acc.SetCode(addr, NewBytes([]byte{1}))
-	if want, got := true, acc.Exist(addr); want != got {
-		t.Errorf("Exist is broken, want %v but got %v", want, got)
+	if want, got := true, acc.Exists(addr); want != got {
+		t.Errorf("Exists is broken, want %v but got %v", want, got)
 	}
 }
 
@@ -230,26 +186,28 @@ func TestAccountsBuilder_NewAccountsBuilder(t *testing.T) {
 	ab.SetWarm(addr2)
 	acc := ab.Build()
 	if want, got := NewU256(1), acc.GetBalance(addr1); !want.Eq(got) {
-		t.Errorf("AccountsBuilder balance is broken, wante %v but got %v", want, got)
+		t.Errorf("AccountsBuilder balance is broken, want %v but got %v", want, got)
 	}
 	if want, got := NewBytes([]byte{1, 2, 3}), acc.GetCode(addr2); want != got {
-		t.Errorf("AccountsBuilder code is broken, wante %v but got %v", want, got)
+		t.Errorf("AccountsBuilder code is broken, want %v but got %v", want, got)
 	}
 	if want, got := true, acc.IsWarm(addr1) && acc.IsWarm(addr2); want != got {
-		t.Errorf("AccountsBuilder warm is broken, wante %v but got %v", want, got)
+		t.Errorf("AccountsBuilder warm is broken, want %v but got %v", want, got)
 	}
 }
 
 func TestAccounts_String(t *testing.T) {
 	addr := NewAddressFromInt(42)
-	acc := NewAccounts()
-	acc.SetBalance(addr, NewU256(1))
-	acc.SetCode(addr, NewBytes([]byte{1}))
-	acc.MarkWarm(addr)
-	want := fmt.Sprintf("\tAccount.Balance:\n\t    [%v]=%v\n", addr, NewU256(1))
-	want += fmt.Sprintf("\tAccount.Code:\n\t    [%v]=%v\n", addr, NewBytes([]byte{1}))
-	want += fmt.Sprintf("\tAccount.Warm:\n\t    [%v]={}\n", addr)
-	if got := acc.String(); want != got {
+	builder := NewAccountsBuilder()
+	builder.SetBalance(addr, NewU256(1))
+	builder.SetCode(addr, NewBytes([]byte{1}))
+	builder.SetWarm(addr)
+	want := "Accounts:\n"
+	want += fmt.Sprintf("\t%v:\n", addr)
+	want += fmt.Sprintf("\t\tBalance: %v\n", NewU256(1))
+	want += fmt.Sprintf("\t\tCode: %v\n", NewBytes([]byte{1}))
+	want += fmt.Sprintf("Warm Accounts:\n\t\t%v\n", addr)
+	if got := builder.Build().String(); want != got {
 		t.Errorf("Accounts.String broken, wanted:\n %v\n but got:\n %v", want, got)
 	}
 }
@@ -279,23 +237,5 @@ func BenchmarkAccountCloneModifyBalance(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b2 := b1.Clone()
 		b2.SetBalance(a, NewU256(3))
-	}
-}
-
-func BenchmarkAccountCloneModifyCode(b *testing.B) {
-	a := NewAddressFromInt(42)
-	b1 := accountInit(a)
-	for i := 0; i < b.N; i++ {
-		b2 := b1.Clone()
-		b2.SetCode(a, NewBytes([]byte{byte(vm.ADD), byte(vm.PUSH1), 5, byte(vm.PUSH2)}))
-	}
-}
-
-func BenchmarkAccountCloneModifyWarm(b *testing.B) {
-	a := NewAddressFromInt(42)
-	b1 := accountInit(a)
-	for i := 0; i < b.N; i++ {
-		b2 := b1.Clone()
-		b2.SetWarm(a, false)
 	}
 }

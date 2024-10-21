@@ -199,6 +199,58 @@ func TestCondition_CheckStorageConfiguration(t *testing.T) {
 	}
 }
 
+func TestCondition_CheckForEmptyAccount(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.Stack = st.NewStack(NewU256(42))
+	condition := AccountIsEmpty(Param(0))
+
+	empty, err := condition.Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !empty {
+		t.Error("account should be considered empty")
+	}
+
+	state.Accounts = st.NewAccountsBuilder().
+		SetBalance(NewAddress(NewU256(42)), NewU256(12)).
+		Build()
+
+	empty, err = condition.Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if empty {
+		t.Error("account should be considered non-empty")
+	}
+}
+
+func TestCondition_CheckForNoneEmptyAccount(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{}))
+	state.Stack = st.NewStack(NewU256(42))
+	condition := AccountIsNotEmpty(Param(0))
+
+	noneEmpty, err := condition.Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if noneEmpty {
+		t.Error("account should be considered empty")
+	}
+
+	state.Accounts = st.NewAccountsBuilder().
+		SetBalance(NewAddress(NewU256(42)), NewU256(12)).
+		Build()
+
+	noneEmpty, err = condition.Check(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !noneEmpty {
+		t.Error("account should be considered non-empty")
+	}
+}
+
 func TestCondition_CheckWarmCold(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Pc = 42
