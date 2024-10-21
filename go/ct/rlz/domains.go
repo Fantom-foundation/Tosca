@@ -154,14 +154,11 @@ func (addressDomain) SomethingNotEqual(a tosca.Address) tosca.Address {
 }
 
 func (d addressDomain) Samples(a tosca.Address) []tosca.Address {
-	return d.SamplesForAll([]tosca.Address{a})
+	panic("not implemented")
 }
 
 func (d addressDomain) SamplesForAll(as []tosca.Address) []tosca.Address {
-	if len(as) == 0 {
-		return []tosca.Address{{0}}
-	}
-	return append(as, d.Successor(as[0]))
+	panic("not implemented")
 }
 
 ////////////////////////////////////////////////////////////
