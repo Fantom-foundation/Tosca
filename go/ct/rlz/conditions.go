@@ -731,7 +731,7 @@ func (c *accountIsNotEmpty) Check(s *st.State) (bool, error) {
 func (c *accountIsNotEmpty) Restrict(generator *gen.StateGenerator) {
 	address := c.address.GetVariable()
 	c.address.BindTo(generator)
-	generator.BindToAddressOfNoneEmptyAccount(address)
+	generator.BindToAddressOfNonEmptyAccount(address)
 }
 
 func (c *accountIsNotEmpty) GetTestValues() []TestValue {

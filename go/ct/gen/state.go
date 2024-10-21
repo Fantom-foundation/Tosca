@@ -246,10 +246,10 @@ func (g *StateGenerator) BindToAddressOfEmptyAccount(address Variable) {
 	g.accountsGen.BindToAddressOfEmptyAccount(address)
 }
 
-// BindToAddressOfNoneEmptyAccount constraints the given variable to be mapped
+// BindToAddressOfNonEmptyAccount constraints the given variable to be mapped
 // to an address of an account that is not empty.
-func (g *StateGenerator) BindToAddressOfNoneEmptyAccount(address Variable) {
-	g.accountsGen.BindToAddressOfNoneEmptyAccount(address)
+func (g *StateGenerator) BindToAddressOfNonEmptyAccount(address Variable) {
+	g.accountsGen.BindToAddressOfNonEmptyAccount(address)
 }
 
 // BindToWarmAddress wraps AccountsGenerator.BindWarm.

@@ -104,9 +104,9 @@ func TestAccountsGenerator_CanSpecifyEmptyConstraints(t *testing.T) {
 	gen := NewAccountGenerator()
 
 	gen.BindToAddressOfEmptyAccount(v1)
-	gen.BindToAddressOfNoneEmptyAccount(v2)
+	gen.BindToAddressOfNonEmptyAccount(v2)
 	gen.BindToAddressOfEmptyAccount(v3)
-	gen.BindToAddressOfNoneEmptyAccount(v3)
+	gen.BindToAddressOfNonEmptyAccount(v3)
 
 	print := gen.String()
 
@@ -132,7 +132,7 @@ func TestAccountsGenerator_EmptinessConstraintsAreSatisfied(t *testing.T) {
 	generator := NewAccountGenerator()
 
 	generator.BindToAddressOfEmptyAccount(v1)
-	generator.BindToAddressOfNoneEmptyAccount(v2)
+	generator.BindToAddressOfNonEmptyAccount(v2)
 
 	accounts, err := generator.Generate(assignment, rnd, NewAddressFromInt(8))
 	if err != nil {
@@ -188,7 +188,7 @@ func TestAccountsGenerator_ConflictingEmptinessConstraintsAreDetected(t *testing
 	generator := NewAccountGenerator()
 
 	generator.BindToAddressOfEmptyAccount(v1)
-	generator.BindToAddressOfNoneEmptyAccount(v1)
+	generator.BindToAddressOfNonEmptyAccount(v1)
 
 	_, err := generator.Generate(assignment, rnd, tosca.Address{})
 	if !errors.Is(err, ErrUnsatisfiable) {
@@ -204,7 +204,7 @@ func TestAccountsGenerator_ConflictingBetweenPreAssignmentAndEmptinessConstraint
 	generator := NewAccountGenerator()
 
 	generator.BindToAddressOfEmptyAccount(v1)
-	generator.BindToAddressOfNoneEmptyAccount(v2)
+	generator.BindToAddressOfNonEmptyAccount(v2)
 
 	assignment := Assignment{}
 	assignment[v1] = NewU256(42)

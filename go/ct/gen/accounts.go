@@ -53,7 +53,7 @@ func (g *AccountsGenerator) BindToAddressOfEmptyAccount(address Variable) {
 	}
 }
 
-func (g *AccountsGenerator) BindToAddressOfNoneEmptyAccount(address Variable) {
+func (g *AccountsGenerator) BindToAddressOfNonEmptyAccount(address Variable) {
 	c := emptyConstraint{address, false}
 	if !slices.Contains(g.emptyAccounts, c) {
 		g.emptyAccounts = append(g.emptyAccounts, c)
