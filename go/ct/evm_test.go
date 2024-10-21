@@ -21,7 +21,6 @@ import (
 	. "github.com/Fantom-foundation/Tosca/go/ct/rlz"
 	"github.com/Fantom-foundation/Tosca/go/ct/spc"
 	"github.com/Fantom-foundation/Tosca/go/ct/st"
-	"github.com/Fantom-foundation/Tosca/go/interpreter/evmrs"
 	"github.com/Fantom-foundation/Tosca/go/interpreter/evmzero"
 	"github.com/Fantom-foundation/Tosca/go/interpreter/geth"
 	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
@@ -33,7 +32,6 @@ var evms = map[string]ct.Evm{
 	"geth":    geth.NewConformanceTestingTarget(),
 	"lfvm":    lfvm.NewConformanceTestingTarget(),
 	"evmzero": evmzero.NewConformanceTestingTarget(),
-	"evmrs":   evmrs.NewConformanceTestingTarget(),
 }
 
 func TestCt_ExplicitCases(t *testing.T) {
