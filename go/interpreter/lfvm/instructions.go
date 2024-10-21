@@ -1006,9 +1006,10 @@ func genericCall(c *context, kind tosca.CallKind) error {
 
 	// Prepare arguments, depending on call kind
 	callParams := tosca.CallParameters{
-		Input: args,
-		Gas:   nestedCallGas,
-		Value: tosca.Value(value.Bytes32()),
+		Input:       args,
+		Gas:         nestedCallGas,
+		Value:       tosca.Value(value.Bytes32()),
+		CodeAddress: toAddr,
 	}
 
 	switch kind {
