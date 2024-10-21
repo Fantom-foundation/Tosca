@@ -160,6 +160,42 @@ func (gas) String() string {
 	return "Gas"
 }
 
+////////////////////////////////////////////////////////////
+// Self - the address of the called contract
+
+type self struct{}
+
+func Self() BindableExpression[tosca.Address] {
+	return self{}
+}
+
+func (self) Property() Property { return Property("self") }
+
+func (self) Domain() Domain[tosca.Address] { return addressDomain{} }
+
+func (self) Eval(s *st.State) (tosca.Address, error) {
+	return s.CallContext.AccountAddress, nil
+}
+
+func (self) Restrict(kind RestrictionKind, address tosca.Address, generator *gen.StateGenerator) {
+	if kind != RestrictEqual {
+		panic("Self can only support equality constraints")
+	}
+	generator.SetSelfAddress(address)
+}
+
+func (self) String() string {
+	return "Self"
+}
+
+func (self) GetVariable() gen.Variable {
+	return gen.Variable("self")
+}
+
+func (s self) BindTo(generator *gen.StateGenerator) {
+	generator.BindToSelfAddress(s.GetVariable())
+}
+
 // //////////////////////////////////////////////////////////
 // Read Only Mode
 type readOnly struct{}
@@ -185,6 +221,52 @@ func (readOnly) Restrict(kind RestrictionKind, isSet bool, generator *gen.StateG
 
 func (readOnly) String() string {
 	return "readOnly"
+}
+
+////////////////////////////////////////////////////////////
+// Balance
+
+type balance struct {
+	account BindableExpression[tosca.Address]
+}
+
+func Balance(account BindableExpression[tosca.Address]) Expression[U256] {
+	return balance{account}
+}
+
+func (b balance) Property() Property { return Property(b.String()) }
+
+func (balance) Domain() Domain[U256] { return u256Domain{} }
+
+func (b balance) Eval(s *st.State) (U256, error) {
+	address, err := b.account.Eval(s)
+	if err != nil {
+		return U256{}, err
+	}
+	return s.Accounts.GetBalance(address), nil
+}
+
+func (b balance) Restrict(kind RestrictionKind, value U256, generator *gen.StateGenerator) {
+	variable := b.account.GetVariable()
+	b.account.BindTo(generator)
+
+	switch kind {
+	case RestrictLess:
+		generator.AddBalanceUpperBound(variable, value.Sub(NewU256(1)))
+	case RestrictLessEqual:
+		generator.AddBalanceUpperBound(variable, value)
+	case RestrictEqual:
+		generator.AddBalanceLowerBound(variable, value)
+		generator.AddBalanceUpperBound(variable, value)
+	case RestrictGreaterEqual:
+		generator.AddBalanceLowerBound(variable, value)
+	case RestrictGreater:
+		generator.AddBalanceLowerBound(variable, value.Add(NewU256(1)))
+	}
+}
+
+func (b balance) String() string {
+	return fmt.Sprintf("balance(%v)", b.account)
 }
 
 ////////////////////////////////////////////////////////////
@@ -358,4 +440,43 @@ func (c constant) GetVariable() gen.Variable {
 
 func (c constant) BindTo(generator *gen.StateGenerator) {
 	generator.BindValue(c.GetVariable(), c.value)
+}
+
+////////////////////////////////////////////////////////////
+// ToAddress
+
+type toAddress struct {
+	expr BindableExpression[U256]
+}
+
+func ToAddress(expr BindableExpression[U256]) BindableExpression[tosca.Address] {
+	return toAddress{expr}
+}
+
+func (a toAddress) Property() Property { return a.expr.Property() }
+
+func (a toAddress) Domain() Domain[tosca.Address] { return addressDomain{} }
+
+func (a toAddress) Eval(s *st.State) (tosca.Address, error) {
+	value, err := a.expr.Eval(s)
+	if err != nil {
+		return tosca.Address{}, err
+	}
+	return NewAddress(value), nil
+}
+
+func (a toAddress) Restrict(RestrictionKind, tosca.Address, *gen.StateGenerator) {
+	panic("should not be needed")
+}
+
+func (a toAddress) String() string {
+	return fmt.Sprintf("toAddress(%v)", a.expr)
+}
+
+func (a toAddress) GetVariable() gen.Variable {
+	return a.expr.GetVariable()
+}
+
+func (a toAddress) BindTo(generator *gen.StateGenerator) {
+	a.expr.BindTo(generator)
 }
