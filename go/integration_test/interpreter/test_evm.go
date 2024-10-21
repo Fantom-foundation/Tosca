@@ -213,7 +213,10 @@ func (a *runContextAdapter) Call(kind tosca.CallKind, parameter tosca.CallParame
 }
 
 func (a *runContextAdapter) SelfDestruct(address tosca.Address, beneficiary tosca.Address) bool {
-	if a.AccountExists(beneficiary) {
+	beneficiaryEmpty := a.GetBalance(beneficiary) == (tosca.Value{}) &&
+		a.GetNonce(beneficiary) == 0 &&
+		a.GetCodeSize(beneficiary) == 0
+	if beneficiaryEmpty {
 		return false
 	}
 	balance := a.GetBalance(address)

@@ -413,7 +413,8 @@ func getOutOfDynamicGasTests(revision Revision) []*FailGasTest {
 		mock.EXPECT().IsSlotInAccessList(gomock.Any(), gomock.Any()).AnyTimes().Return(false, false)
 		mock.EXPECT().IsAddressInAccessList(gomock.Any()).AnyTimes().Return(false)
 		mock.EXPECT().AccessAccount(gomock.Any()).AnyTimes().Return(tosca.ColdAccess)
-		mock.EXPECT().AccountExists(gomock.Any()).AnyTimes().Return(false)
+		mock.EXPECT().GetNonce(gomock.Any()).AnyTimes()
+		mock.EXPECT().GetCodeSize(gomock.Any()).AnyTimes()
 		mock.EXPECT().AccessStorage(gomock.Any(), gomock.Any()).AnyTimes().Return(tosca.ColdAccess)
 		mock.EXPECT().GetBalance(gomock.Any()).AnyTimes().Return(tosca.Value{})
 		mock.EXPECT().HasSelfDestructed(gomock.Any()).AnyTimes().Return(true)
@@ -577,21 +578,21 @@ func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationG
 
 	type callTest struct {
 		testName         string
-		addrExist        bool
+		addrEmpty        bool
 		addrInAccessList bool
 		callValue        *big.Int
 	}
 
-	tests := []callTest{
-		{"Address exist and in access list", true, true, big.NewInt(0)},
-		{"Address exist and not in access list", true, false, big.NewInt(0)},
-	}
-
-	if useCallValue {
-		tests = append(tests, []callTest{
-			{"Call value is > 0", true, true, big.NewInt(1)},
-			{"Call value is > 0 & address not exist", false, false, big.NewInt(1)},
-		}...)
+	tests := []callTest{}
+	for _, empty := range []bool{false, true} {
+		for _, inAccessList := range []bool{false, true} {
+			name := fmt.Sprintf("empty %v, in access list %v", empty, inAccessList)
+			tests = append(tests, callTest{name, empty, inAccessList, big.NewInt(0)})
+			if useCallValue {
+				name = "call value > 0, " + name
+				tests = append(tests, callTest{name, empty, inAccessList, big.NewInt(1)})
+			}
+		}
 	}
 
 	testCases := []*DynGasTest{}
@@ -599,16 +600,23 @@ func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationG
 	for i, test := range tests {
 		address := tosca.Address{byte(i + 1)}
 		hash := tosca.Hash{byte(i + 1)}
-		exist := test.addrExist
+		empty := test.addrEmpty
 		inAccessList := test.addrInAccessList
 		accountState := tosca.ColdAccess
 		if inAccessList {
 			accountState = tosca.WarmAccess
 		}
 		mockCalls := func(mock *MockStateDB) {
+			nonce := uint64(0)
+			if !empty {
+				nonce = 1
+			}
+			mock.EXPECT().AccountExists(address).AnyTimes().Return(true)
 			mock.EXPECT().GetCodeHash(address).AnyTimes().Return(hash)
 			mock.EXPECT().GetCode(address).AnyTimes().Return(calledCode)
-			mock.EXPECT().AccountExists(address).AnyTimes().Return(exist)
+			mock.EXPECT().GetNonce(address).AnyTimes().Return(nonce)
+			mock.EXPECT().GetBalance(address).AnyTimes().Return(tosca.Value{})
+			mock.EXPECT().GetCodeSize(address).AnyTimes()
 			mock.EXPECT().IsAddressInAccessList(address).AnyTimes().Return(inAccessList)
 			mock.EXPECT().AccessAccount(address).AnyTimes().Return(accountState)
 		}
@@ -626,7 +634,7 @@ func gasDynamicCallCommon(revision Revision, useCallValue bool, addressCreationG
 
 		if useCallValue && test.callValue.Cmp(big.NewInt(0)) > 0 {
 			expectedGas += 9000 - 2300
-			if addressCreationGas && !test.addrExist {
+			if addressCreationGas && test.addrEmpty {
 				expectedGas += 25000
 			}
 		}
@@ -787,23 +795,21 @@ func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
 		hasSuicided     bool
 	}
 
-	tests := []selfdestructTest{
-		{"Target address empty, in ACL, no balance, not suicided", 0, true, true, false},
-		{"Target address empty, in ACL, with balance, not suicided", 1, true, true, false},
-		{"Target address empty, not in ACL no balance, not suicided", 0, true, false, false},
-		{"Target address empty, not in ACL with balance, not suicided", 1, true, false, false},
-		{"Target address empty, in ACL, no balance, suicided", 0, true, true, true},
-		{"Target address empty, in ACL, with balance suicided", 1, true, true, true},
-		{"Target address empty, not in ACL, no balance suicided", 0, true, false, true},
-		{"Target address empty, not in ACL, with balance suicided", 1, true, false, true},
-		{"Target address not empty, in ACL, no balance, not suicided", 0, false, true, false},
-		{"Target address not empty, in ACL, with balance, not suicided", 1, false, true, false},
-		{"Target address not empty, not in ACL no balance, not suicided", 0, false, false, false},
-		{"Target address not empty, not in ACL with balance, not suicided", 1, false, false, false},
-		{"Target address not empty, in ACL, no balance, suicided", 0, false, true, true},
-		{"Target address not empty, in ACL, with balance suicided", 1, false, true, true},
-		{"Target address not empty, not in ACL, no balance suicided", 0, false, false, true},
-		{"Target address not empty, not in ACL, with balance suicided", 1, false, false, true},
+	tests := []selfdestructTest{}
+	for _, balance := range []int{0, 1} {
+		for _, empty := range []bool{false, true} {
+			for _, inAccessList := range []bool{false, true} {
+				for _, suicided := range []bool{false, true} {
+					name := fmt.Sprintf(
+						"balance %v, empty %v, in access list %v, suicided %v",
+						balance, empty, inAccessList, suicided,
+					)
+					tests = append(tests, selfdestructTest{
+						name, balance, empty, inAccessList, suicided,
+					})
+				}
+			}
+		}
 	}
 
 	for i, test := range tests {
@@ -839,7 +845,12 @@ func gasDynamicSelfDestruct(revision Revision) []*DynGasTest {
 				return tosca.Value{}
 			})
 
-			mock.EXPECT().AccountExists(targetAddress).AnyTimes().Return(!empty)
+			nonce := uint64(0)
+			if !empty {
+				nonce = 1
+			}
+			mock.EXPECT().GetNonce(targetAddress).AnyTimes().Return(nonce)
+			mock.EXPECT().GetCodeSize(targetAddress).AnyTimes()
 			mock.EXPECT().IsAddressInAccessList(targetAddress).AnyTimes().Return(inAcl)
 			mock.EXPECT().AccessAccount(targetAddress).AnyTimes().Return(tosca.AccessStatus(inAcl))
 		}

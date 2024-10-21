@@ -347,7 +347,7 @@ func (s *stateDbAdapter) Exist(addr common.Address) bool {
 }
 
 func (s *stateDbAdapter) Empty(addr common.Address) bool {
-	return !s.context.AccountExists(tosca.Address(addr))
+	return s.GetBalance(addr).IsZero() && s.GetNonce(addr) == 0 && s.GetCodeSize(addr) == 0
 }
 
 func (s *stateDbAdapter) PrepareAccessList(sender common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {

@@ -166,7 +166,17 @@ type hostContext struct {
 }
 
 func (ctx *hostContext) AccountExists(addr evmc.Address) bool {
-	return ctx.context.AccountExists(tosca.Address(addr))
+	// Although the EVMC function name asks for the existence of an account,
+	// it is actually referring to the emptiness of an account. The concept
+	// of an existing or non-existing account is a DB concept that is not
+	// exposed to any interpreter implementation.
+	return !ctx.isEmpty(addr)
+}
+
+func (ctx *hostContext) isEmpty(addr evmc.Address) bool {
+	return (ctx.context.GetNonce(tosca.Address(addr)) == 0 &&
+		ctx.context.GetBalance(tosca.Address(addr)) == tosca.Value{} &&
+		ctx.context.GetCodeSize(tosca.Address(addr)) == 0)
 }
 
 func (ctx *hostContext) GetStorage(addr evmc.Address, key evmc.Hash) evmc.Hash {
@@ -216,6 +226,9 @@ func (ctx *hostContext) GetCodeSize(addr evmc.Address) int {
 }
 
 func (ctx *hostContext) GetCodeHash(addr evmc.Address) evmc.Hash {
+	if ctx.isEmpty(addr) {
+		return evmc.Hash{}
+	}
 	return evmc.Hash(ctx.context.GetCodeHash(tosca.Address(addr)))
 }
 

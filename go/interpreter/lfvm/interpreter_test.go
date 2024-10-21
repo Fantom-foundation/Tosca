@@ -186,6 +186,7 @@ func TestInterpreter_CanDispatchExecutableInstructions(t *testing.T) {
 				// mock all to satisfy any instruction
 				mock.EXPECT().AccessAccount(gomock.Any()).Return(tosca.WarmAccess).AnyTimes()
 				mock.EXPECT().GetBalance(gomock.Any()).AnyTimes()
+				mock.EXPECT().GetNonce(gomock.Any()).AnyTimes()
 				mock.EXPECT().GetCodeSize(gomock.Any()).AnyTimes()
 				mock.EXPECT().GetCode(gomock.Any()).AnyTimes()
 				mock.EXPECT().AccountExists(gomock.Any()).AnyTimes()
@@ -248,8 +249,8 @@ func TestInterpreter_ExecutionTerminates(t *testing.T) {
 			ctxt.stack.push(uint256.NewInt(3))
 			// runcontext is needed for selfdestruct
 			mockContext := tosca.NewMockRunContext(gomock.NewController(t))
-			mockContext.EXPECT().AccountExists(gomock.Any()).Return(true).AnyTimes()
 			mockContext.EXPECT().GetBalance(gomock.Any()).Return(tosca.Value{1}).AnyTimes()
+			mockContext.EXPECT().GetNonce(gomock.Any()).Return(uint64(1)).AnyTimes()
 			mockContext.EXPECT().SelfDestruct(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
 			ctxt.context = mockContext
 

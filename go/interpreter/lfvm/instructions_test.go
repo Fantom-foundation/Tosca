@@ -231,7 +231,7 @@ func TestCallChecksBalances(t *testing.T) {
 	ctxt.stack.data[5].SetBytes(target[:])    // < the target address for the call
 
 	// The target account should exist and the source account without funds.
-	runContext.EXPECT().AccountExists(target).Return(true)
+	runContext.EXPECT().GetNonce(target).Return(uint64(1))
 	runContext.EXPECT().GetBalance(source).Return(tosca.Value{})
 
 	err := opCall(&ctxt)
@@ -838,35 +838,35 @@ func TestSelfDestruct_Refund(t *testing.T) {
 func TestSelfDestruct_NewAccountCost(t *testing.T) {
 
 	tests := map[string]struct {
-		beneficiaryExists bool
-		balance           tosca.Value
-		cost              tosca.Gas
+		beneficiaryEmpty bool
+		balance          tosca.Value
+		cost             tosca.Gas
 	}{
-		"account exists no balance": {
-			beneficiaryExists: true,
-			balance:           tosca.Value{},
-			cost:              0,
+		"beneficiary empty no balance": {
+			beneficiaryEmpty: true,
+			balance:          tosca.Value{},
+			cost:             0,
 		},
-		"account exists with balance": {
-			beneficiaryExists: true,
-			balance:           tosca.Value{1},
-			cost:              0,
+		"beneficiary empty with balance": {
+			beneficiaryEmpty: true,
+			balance:          tosca.Value{1},
+			cost:             25_000,
 		},
-		"new account without balance": {
-			beneficiaryExists: false,
-			balance:           tosca.Value{},
-			cost:              0,
+		"beneficiary not empty without balance": {
+			beneficiaryEmpty: false,
+			balance:          tosca.Value{},
+			cost:             0,
 		},
-		"new account with balance": {
-			beneficiaryExists: false,
-			balance:           tosca.Value{1},
-			cost:              25_000,
+		"beneficiary not empty with balance": {
+			beneficiaryEmpty: false,
+			balance:          tosca.Value{1},
+			cost:             0,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			cost := selfDestructNewAccountCost(test.beneficiaryExists, test.balance)
+			cost := selfDestructNewAccountCost(test.beneficiaryEmpty, test.balance)
 			if cost != test.cost {
 				t.Errorf("unexpected gas, wanted %d, got %d", test.cost, cost)
 			}
@@ -885,7 +885,9 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	runContext := tosca.NewMockRunContext(ctrl)
 	runContext.EXPECT().AccessAccount(beneficiaryAddress).Return(tosca.ColdAccess)
-	runContext.EXPECT().AccountExists(beneficiaryAddress).Return(false)
+	runContext.EXPECT().GetBalance(beneficiaryAddress)
+	runContext.EXPECT().GetNonce(beneficiaryAddress)
+	runContext.EXPECT().GetCodeSize(beneficiaryAddress)
 	runContext.EXPECT().GetBalance(selfAddress).Return(tosca.Value{1})
 	runContext.EXPECT().SelfDestruct(selfAddress, beneficiaryAddress).Return(true)
 
@@ -918,15 +920,23 @@ func TestSelfDestruct_ExistingAccountToNewBeneficiary(t *testing.T) {
 
 func TestSelfDestruct_ProperlyReportsNotEnoughGas(t *testing.T) {
 	for _, beneficiaryAccess := range []tosca.AccessStatus{tosca.WarmAccess, tosca.ColdAccess} {
-		for _, accountExists := range []bool{true, false} {
-			t.Run(fmt.Sprintf("beneficiaryAccess:%v_accountExists:%v", beneficiaryAccess, accountExists), func(t *testing.T) {
+		for _, accountEmpty := range []bool{true, false} {
+			t.Run(fmt.Sprintf("beneficiaryAccess:%v_accountEmpty:%v", beneficiaryAccess, accountEmpty), func(t *testing.T) {
 				beneficiaryAddress := tosca.Address{1}
 				selfAddress := tosca.Address{2}
 
 				ctrl := gomock.NewController(t)
 				runContext := tosca.NewMockRunContext(ctrl)
 				runContext.EXPECT().AccessAccount(beneficiaryAddress).Return(beneficiaryAccess)
-				runContext.EXPECT().AccountExists(beneficiaryAddress).Return(accountExists)
+
+				if accountEmpty {
+					runContext.EXPECT().GetCodeSize(beneficiaryAddress).Return(1)
+				} else {
+					runContext.EXPECT().GetCodeSize(beneficiaryAddress).Return(0)
+				}
+				runContext.EXPECT().GetBalance(beneficiaryAddress).AnyTimes()
+				runContext.EXPECT().GetNonce(beneficiaryAddress).AnyTimes()
+
 				runContext.EXPECT().GetBalance(selfAddress).Return(tosca.Value{1})
 
 				ctxt := context{
@@ -943,7 +953,7 @@ func TestSelfDestruct_ProperlyReportsNotEnoughGas(t *testing.T) {
 				if beneficiaryAccess == tosca.ColdAccess {
 					ctxt.gas += 2600
 				}
-				if !accountExists {
+				if !accountEmpty {
 					ctxt.gas += 25000
 				}
 				ctxt.gas -= 1
@@ -1484,7 +1494,9 @@ func TestGenericCall_ProperlyReportsErrors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			runContext := tosca.NewMockRunContext(gomock.NewController(t))
 			runContext.EXPECT().AccessAccount(address).Return(tosca.WarmAccess).AnyTimes()
-			runContext.EXPECT().AccountExists(address).Return(false).AnyTimes()
+			runContext.EXPECT().GetNonce(address).AnyTimes()
+			runContext.EXPECT().GetBalance(address).AnyTimes()
+			runContext.EXPECT().GetCodeSize(address).AnyTimes()
 
 			ctxt := getEmptyContext()
 			ctxt.context = runContext
@@ -1927,10 +1939,10 @@ func TestInstructions_Sha3_WritesCorrectHashInStack(t *testing.T) {
 func TestOpExtCodeHash_WritesHashOnStackIfAccountExists(t *testing.T) {
 
 	tests := map[string]struct {
-		accountExists bool
+		accountEmpty bool
 	}{
-		"account exists":         {accountExists: true},
-		"account does not exist": {accountExists: false},
+		"account empty":     {accountEmpty: true},
+		"account not empty": {accountEmpty: false},
 	}
 
 	hash := tosca.Hash{0x1, 0x2, 0x3}
@@ -1942,8 +1954,16 @@ func TestOpExtCodeHash_WritesHashOnStackIfAccountExists(t *testing.T) {
 			ctxt.stack = fillStack(*new(uint256.Int).SetBytes20(address[:]))
 
 			runContext := tosca.NewMockRunContext(gomock.NewController(t))
-			runContext.EXPECT().AccountExists(address).Return(test.accountExists)
-			if test.accountExists {
+
+			runContext.EXPECT().GetBalance(address).AnyTimes()
+			runContext.EXPECT().GetNonce(address).AnyTimes()
+			if test.accountEmpty {
+				runContext.EXPECT().GetCodeSize(address).Return(0)
+			} else {
+				runContext.EXPECT().GetCodeSize(address).Return(1)
+			}
+
+			if !test.accountEmpty {
 				runContext.EXPECT().GetCodeHash(address).Return(hash)
 			}
 			ctxt.context = runContext
@@ -1953,7 +1973,7 @@ func TestOpExtCodeHash_WritesHashOnStackIfAccountExists(t *testing.T) {
 				t.Errorf("unexpected error: %v", err)
 			}
 			want := hash[:]
-			if !test.accountExists {
+			if test.accountEmpty {
 				want = []byte{}
 			}
 			if got := ctxt.stack.pop().Bytes(); !bytes.Equal(want, got) {
