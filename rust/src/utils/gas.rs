@@ -52,11 +52,11 @@ impl Gas {
     }
 
     #[inline(always)]
-    pub fn consume_value_to_empty_account_cost<E: ExecutionContextTrait>(
+    pub fn consume_value_to_empty_account_cost(
         &mut self,
         value: &u256,
         addr: &Address,
-        context: &mut E,
+        context: &mut dyn ExecutionContextTrait,
     ) -> Result<(), FailStatus> {
         if *value != u256::ZERO && !context.account_exists(addr) {
             self.consume(25_000)?;
@@ -65,11 +65,11 @@ impl Gas {
     }
 
     #[inline(always)]
-    pub fn consume_address_access_cost<E: ExecutionContextTrait>(
+    pub fn consume_address_access_cost(
         &mut self,
         addr: &Address,
         revision: Revision,
-        context: &mut E,
+        context: &mut dyn ExecutionContextTrait,
     ) -> Result<(), FailStatus> {
         if revision < Revision::EVMC_BERLIN {
             return Ok(());
