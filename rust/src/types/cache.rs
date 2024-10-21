@@ -39,7 +39,7 @@ where
         )))
     }
 
-    #[cfg(feature = "jump-cache")]
+    #[cfg(feature = "code-analysis-cache")]
     pub fn get_or_insert(&self, key: K, f: impl FnOnce() -> V) -> V
     where
         V: Clone,
@@ -66,7 +66,7 @@ where
 
 #[cfg(feature = "thread-local-cache")]
 pub trait LocalKeyExt<const S: usize, K, V, H> {
-    #[cfg(feature = "jump-cache")]
+    #[cfg(feature = "code-analysis-cache")]
     fn get_or_insert(&'static self, key: K, f: impl FnOnce() -> V) -> V
     where
         V: Clone;
@@ -85,7 +85,7 @@ where
     K: Hash + Eq,
     H: BuildHasher + Default,
 {
-    #[cfg(feature = "jump-cache")]
+    #[cfg(feature = "code-analysis-cache")]
     fn get_or_insert(&'static self, key: K, f: impl FnOnce() -> V) -> V
     where
         V: Clone,

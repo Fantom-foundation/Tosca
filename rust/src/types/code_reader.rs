@@ -4,12 +4,12 @@ use std::{
     ops::Deref,
 };
 
-use crate::types::{u256, CodeByteType, FailStatus, JumpAnalysis, Opcode};
+use crate::types::{u256, CodeAnalysis, CodeByteType, FailStatus, Opcode};
 
 #[derive(Debug)]
 pub struct CodeReader<'a> {
     code: &'a [u8],
-    jump_analysis: JumpAnalysis,
+    code_analysis: CodeAnalysis,
     pc: usize,
 }
 
@@ -31,7 +31,7 @@ impl<'a> CodeReader<'a> {
     pub fn new(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
         Self {
             code,
-            jump_analysis: JumpAnalysis::new(code, code_hash),
+            code_analysis: CodeAnalysis::new(code, code_hash),
             pc,
         }
     }
@@ -39,7 +39,7 @@ impl<'a> CodeReader<'a> {
     pub fn get(&self) -> Result<Opcode, GetOpcodeError> {
         if self.pc >= self.code.len() {
             Err(GetOpcodeError::OutOfRange)
-        } else if self.jump_analysis[self.pc] == CodeByteType::DataOrInvalid {
+        } else if self.code_analysis[self.pc] == CodeByteType::DataOrInvalid {
             Err(GetOpcodeError::Invalid)
         } else {
             let op = self.code[self.pc];
@@ -58,7 +58,7 @@ impl<'a> CodeReader<'a> {
 
     pub fn try_jump(&mut self, dest: u256) -> Result<(), FailStatus> {
         let dest = u64::try_from(dest).map_err(|_| FailStatus::BadJumpDestination)? as usize;
-        if dest >= self.jump_analysis.len() || self.jump_analysis[dest] != CodeByteType::JumpDest {
+        if dest >= self.code_analysis.len() || self.code_analysis[dest] != CodeByteType::JumpDest {
             return Err(FailStatus::BadJumpDestination);
         }
         self.pc = dest;
@@ -69,7 +69,7 @@ impl<'a> CodeReader<'a> {
     pub fn get_push_data(&mut self, len: usize) -> u256 {
         assert!(len <= 32);
 
-        let len = min(len, self.code.len() - self.pc);
+        let len = min(len, self.code.len().saturating_sub(self.pc));
         let mut data = u256::ZERO;
         data[32 - len..].copy_from_slice(&self.code[self.pc..self.pc + len]);
         self.pc += len;

@@ -10,7 +10,7 @@ stack-array = ["evmrs/stack-array"]
 custom-evmc = ["evmrs/custom-evmc"]
 jumptable = ["evmrs/jumptable"]
 hash-cache = ["evmrs/hash-cache"]
-jump-cache = ["evmrs/jump-cache"]
+code-analysis-cache = ["evmrs/code-analysis-cache"]
 thread-local-cache = ["evmrs/thread-local-cache"]
 jumptable-tail-call = ["evmrs/jumptable-tail-call"]
 

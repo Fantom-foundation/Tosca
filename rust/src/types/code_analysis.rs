@@ -1,43 +1,43 @@
 use std::ops::Deref;
-#[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+#[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
 use std::rc::Rc;
-#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
+#[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
 use std::sync::Arc;
 
-#[cfg(feature = "jump-cache")]
+#[cfg(feature = "code-analysis-cache")]
 use nohash_hasher::BuildNoHashHasher;
 
-#[cfg(feature = "jump-cache")]
+#[cfg(feature = "code-analysis-cache")]
 use crate::types::Cache;
-#[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+#[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
 use crate::types::LocalKeyExt;
 use crate::types::{code_byte_type, u256, CodeByteType};
 
 /// This type represents a hash value in form of a u256.
 /// Because it is already a hash value there is no need to hash it again when implementing Hash.
-#[cfg(feature = "jump-cache")]
+#[cfg(feature = "code-analysis-cache")]
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq)]
 struct u256Hash(u256);
 
-#[cfg(feature = "jump-cache")]
+#[cfg(feature = "code-analysis-cache")]
 impl std::hash::Hash for u256Hash {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_u64(self.0.into_u64_with_overflow().0);
     }
 }
 
-#[cfg(not(feature = "jump-cache"))]
+#[cfg(not(feature = "code-analysis-cache"))]
 type AnalysisContainer<T> = Box<T>;
-#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
+#[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
 type AnalysisContainer<T> = Arc<T>;
-#[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+#[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
 type AnalysisContainer<T> = Rc<T>;
 
 #[derive(Debug, Clone)]
-pub struct JumpAnalysis(AnalysisContainer<[CodeByteType]>);
+pub struct CodeAnalysis(AnalysisContainer<[CodeByteType]>);
 
-impl Deref for JumpAnalysis {
+impl Deref for CodeAnalysis {
     type Target = [CodeByteType];
 
     fn deref(&self) -> &Self::Target {
@@ -45,37 +45,37 @@ impl Deref for JumpAnalysis {
     }
 }
 
-impl JumpAnalysis {
+impl CodeAnalysis {
     #[allow(unused_variables)]
     pub fn new(code: &[u8], code_hash: Option<u256>) -> Self {
-        #[cfg(feature = "jump-cache")]
+        #[cfg(feature = "code-analysis-cache")]
         match code_hash {
             Some(code_hash) if code_hash != u256::ZERO => {
                 JUMP_CACHE.get_or_insert(u256Hash(code_hash), || {
-                    JumpAnalysis(AnalysisContainer::from(
+                    CodeAnalysis(AnalysisContainer::from(
                         compute_code_byte_types(code).as_slice(),
                     ))
                 })
             }
-            _ => JumpAnalysis(AnalysisContainer::from(
+            _ => CodeAnalysis(AnalysisContainer::from(
                 compute_code_byte_types(code).as_slice(),
             )),
         }
-        #[cfg(not(feature = "jump-cache"))]
-        JumpAnalysis(compute_code_byte_types(code).into_boxed_slice())
+        #[cfg(not(feature = "code-analysis-cache"))]
+        CodeAnalysis(compute_code_byte_types(code).into_boxed_slice())
     }
 }
 
-#[cfg(feature = "jump-cache")]
+#[cfg(feature = "code-analysis-cache")]
 const CACHE_SIZE: usize = 1 << 16; // value taken from evmzero
 
-#[cfg(feature = "jump-cache")]
-type JumpCache = Cache<CACHE_SIZE, u256Hash, JumpAnalysis, BuildNoHashHasher<u64>>;
+#[cfg(feature = "code-analysis-cache")]
+type JumpCache = Cache<CACHE_SIZE, u256Hash, CodeAnalysis, BuildNoHashHasher<u64>>;
 
-#[cfg(all(feature = "jump-cache", not(feature = "thread-local-cache")))]
+#[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
 static JUMP_CACHE: JumpCache = JumpCache::new();
 
-#[cfg(all(feature = "jump-cache", feature = "thread-local-cache"))]
+#[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
 thread_local! {
     static JUMP_CACHE: JumpCache = JumpCache::new();
 }
@@ -95,7 +95,7 @@ fn compute_code_byte_types(code: &[u8]) -> Vec<CodeByteType> {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{jump_analysis::compute_code_byte_types, CodeByteType, Opcode};
+    use crate::types::{code_analysis::compute_code_byte_types, CodeByteType, Opcode};
 
     #[test]
     fn compute_code_byte_types_single_byte() {
