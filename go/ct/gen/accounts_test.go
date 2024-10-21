@@ -119,7 +119,7 @@ func TestAccountsGenerator_CanSpecifyEmptyConstraints(t *testing.T) {
 
 	for _, w := range want {
 		if !strings.Contains(print, w) {
-			t.Errorf("Expected to find %v in %v", w, print)
+			t.Errorf("Expected to find %q in %q", w, print)
 		}
 	}
 }
@@ -128,7 +128,7 @@ func TestAccountsGenerator_EmptinessConstraintsAreSatisfied(t *testing.T) {
 	v1 := Variable("v1")
 	v2 := Variable("v2")
 	assignment := Assignment{}
-	rnd := rand.New(0)
+	rnd := rand.New()
 	generator := NewAccountGenerator()
 
 	generator.BindToAddressOfEmptyAccount(v1)
@@ -160,7 +160,7 @@ func TestAccountsGenerator_PreAssignedVariablesArePreserved(t *testing.T) {
 	}
 	backup := maps.Clone(assignment)
 
-	rnd := rand.New(0)
+	rnd := rand.New()
 	generator := NewAccountGenerator()
 
 	generator.BindToAddressOfEmptyAccount(v1)
@@ -184,7 +184,7 @@ func TestAccountsGenerator_ConflictingEmptinessConstraintsAreDetected(t *testing
 	v1 := Variable("v1")
 	assignment := Assignment{}
 
-	rnd := rand.New(0)
+	rnd := rand.New()
 	generator := NewAccountGenerator()
 
 	generator.BindToAddressOfEmptyAccount(v1)
@@ -200,7 +200,7 @@ func TestAccountsGenerator_ConflictingBetweenPreAssignmentAndEmptinessConstraint
 	v1 := Variable("v1")
 	v2 := Variable("v2")
 
-	rnd := rand.New(0)
+	rnd := rand.New()
 	generator := NewAccountGenerator()
 
 	generator.BindToAddressOfEmptyAccount(v1)
@@ -216,11 +216,11 @@ func TestAccountsGenerator_ConflictingBetweenPreAssignmentAndEmptinessConstraint
 	}
 }
 
-func TestAccountsGenerator_CanHandleAccessStateAndExistenceStateConstraintsOnSameVariable(t *testing.T) {
+func TestAccountsGenerator_CanHandleAccessStateAndEmptinessConstraintsOnSameVariable(t *testing.T) {
 	v1 := Variable("v1")
 	assignment := Assignment{}
 
-	rnd := rand.New(0)
+	rnd := rand.New()
 	generator := NewAccountGenerator()
 
 	generator.BindToAddressOfEmptyAccount(v1)

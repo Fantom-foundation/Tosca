@@ -176,8 +176,15 @@ func (g *AccountsGenerator) Generate(assignment Assignment, rnd *rand.Rand, acco
 		accountsBuilder.SetCode(address, Bytes{})
 	}
 	for address := range nonEmptyAccounts {
-		accountsBuilder.SetBalance(address, NewU256(0))
-		accountsBuilder.SetCode(address, NewBytes([]byte{1}))
+		switch rand.Intn(3) {
+		case 0:
+			accountsBuilder.SetBalance(address, NewU256(1))
+		case 1:
+			accountsBuilder.SetCode(address, NewBytes([]byte{1}))
+		case 2:
+			accountsBuilder.SetBalance(address, NewU256(1))
+			accountsBuilder.SetCode(address, NewBytes([]byte{1}))
+		}
 	}
 
 	// Process warm/cold constraints.
