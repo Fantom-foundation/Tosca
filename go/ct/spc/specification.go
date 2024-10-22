@@ -1659,17 +1659,16 @@ func getAllRules() []Rule {
 	// --- SELFDESTRUCT ---
 
 	for revision := tosca.R07_Istanbul; revision <= NewestSupportedRevision; revision++ {
-		for _, warm := range []bool{true, false} {
-			for _, hasSelfDestructed := range []bool{true, false} {
-				coldTargetCost := tosca.Gas(0)
-				createAccountFee := tosca.Gas(0)
-				if !warm {
-					createAccountFee = 25000
-					if revision > tosca.R07_Istanbul {
-						coldTargetCost = 2600
-					}
+		for _, beneficiaryAccountEmpty := range []bool{true, false} {
+			for _, beneficiaryAccountIsWarm := range []bool{true, false} {
+				for _, hasSelfDestructed := range []bool{true, false} {
+					rules = append(rules, makeSelfDestructRules(
+						revision,
+						hasSelfDestructed,
+						beneficiaryAccountEmpty,
+						beneficiaryAccountIsWarm,
+					)...)
 				}
-				rules = append(rules, nonStaticSelfDestructRules(revision, warm, coldTargetCost, createAccountFee, hasSelfDestructed)...)
 			}
 		}
 	}
@@ -2198,34 +2197,41 @@ func logOp(n int) []Rule {
 	return rules
 }
 
-func nonStaticSelfDestructRules(revision tosca.Revision, warm bool, destinationColdCost, accountCreationFee tosca.Gas, hasSelfDestructed bool) []Rule {
+func makeSelfDestructRules(
+	revision tosca.Revision,
+	originatorHasSelfDestructedBefore bool,
+	beneficiaryAccountIsEmpty bool,
+	beneficiaryAccountIsWarm bool,
+) []Rule {
 
-	var targetWarm Condition
-	var warmColdString string
-	if warm {
-		warmColdString = "warm"
-		targetWarm = IsAddressWarm(Param(0))
+	name := "_" + revision.String()
+
+	var beneficiaryIsEmpty Condition
+	if beneficiaryAccountIsEmpty {
+		beneficiaryIsEmpty = AccountIsEmpty(Param(0))
+		name += "_beneficiary_is_empty"
 	} else {
-		warmColdString = "cold"
-		targetWarm = IsAddressCold(Param(0))
+		beneficiaryIsEmpty = AccountIsNotEmpty(Param(0))
+		name += "_beneficiary_is_not_empty"
 	}
 
-	var hasSelfDestructedString string
+	var beneficiaryWarm Condition
+	if beneficiaryAccountIsWarm {
+		beneficiaryWarm = IsAddressWarm(Param(0))
+		name += "_beneficiary_warm"
+	} else {
+		beneficiaryWarm = IsAddressCold(Param(0))
+		name += "_beneficiary_cold"
+	}
+
 	var hasSelfDestructedCondition Condition
-	if hasSelfDestructed {
-		hasSelfDestructedString = "destructed"
+	if originatorHasSelfDestructedBefore {
 		hasSelfDestructedCondition = HasSelfDestructed()
+		name += "_originator_has_self_destructed"
 	} else {
-		hasSelfDestructedString = "not_destructed"
 		hasSelfDestructedCondition = HasNotSelfDestructed()
+		name += "_originator_has_not_self_destructed"
 	}
-
-	refundGas := tosca.Gas(0)
-	if revision < tosca.R10_London && !hasSelfDestructed {
-		refundGas = 24000
-	}
-
-	name := fmt.Sprintf("_%v_%v_%v", strings.ToLower(revision.String()), warmColdString, hasSelfDestructedString)
 
 	instruction := instruction{
 		op:        vm.SELFDESTRUCT,
@@ -2236,48 +2242,70 @@ func nonStaticSelfDestructRules(revision tosca.Revision, warm bool, destinationC
 			Eq(ReadOnly(), false),
 			IsRevision(revision),
 			hasSelfDestructedCondition,
-			targetWarm,
+			beneficiaryIsEmpty,
+			beneficiaryWarm,
 		},
 		parameters: []Parameter{AddressParameter{}},
-		effect: func(s *st.State) {
-			selfDestructEffect(s, destinationColdCost, accountCreationFee, refundGas)
-		},
+		effect:     selfDestructEffect,
 	}
 
 	return rulesFor(instruction)
 }
 
-func selfDestructEffect(s *st.State, destinationColdCost, accountCreationFee, refundGas tosca.Gas) {
+func selfDestructEffect(s *st.State) {
 	// Behavior pre cancun: the current account is registered to be destroyed, and will be at the end of the current
 	// transaction. The transfer of the current balance to the given account cannot fail. In particular,
 	// the destination account code (if any) is not executed, or, if the account does not exist, the
 	// balance is still added to the given address.
 
-	// account to send the current balance to
-	destinationAccount := s.Stack.Pop().Bytes20be()
-	currentAccount := s.CallContext.AccountAddress
-	CurrentBalance := s.Accounts.GetBalance(currentAccount)
+	beneficiaryAccount := s.Stack.Pop().Bytes20be()
+	originatorAccount := s.CallContext.AccountAddress
+	originatorBalance := s.Accounts.GetBalance(originatorAccount)
 
 	dynamicCost := tosca.Gas(0)
-	if !CurrentBalance.IsZero() && !s.Accounts.Exist(destinationAccount) {
-		dynamicCost += accountCreationFee
+
+	// Add costs for transfering the remaining balance.
+	if !originatorBalance.IsZero() {
+		// If the target account is empty, the account creation fee is added.
+		if s.Accounts.IsEmpty(beneficiaryAccount) {
+			dynamicCost += 25000
+		}
+
+		// Add warm-up costs if the beneficiary account is cold.
+		if s.Revision >= tosca.R09_Berlin && !s.Accounts.IsWarm(beneficiaryAccount) {
+			dynamicCost += 2600
+			s.Accounts.MarkWarm(beneficiaryAccount)
+		}
 	}
 
-	dynamicCost += destinationColdCost
-
+	// Charge the dynamic gas cost.
 	if s.Gas < dynamicCost {
 		s.Status = st.Failed
 		return
 	}
 	s.Gas -= dynamicCost
-	if s.Revision > tosca.R07_Istanbul {
-		s.Accounts.MarkWarm(destinationAccount)
+
+	// Compute the refund.
+	refund := tosca.Gas(0)
+	if s.Revision < tosca.R10_London {
+		if !s.HasSelfDestructed {
+			refund = 24000
+		}
 	}
-	// add beneficiary to list in state
+	s.GasRefund += refund
+
+	// Keep a record of the self-destruct operation.
 	s.HasSelfDestructed = true
-	s.SelfDestructedJournal = append(s.SelfDestructedJournal, st.NewSelfDestructEntry(s.CallContext.AccountAddress, destinationAccount))
+	s.SelfDestructedJournal = append(
+		s.SelfDestructedJournal,
+		st.NewSelfDestructEntry(
+			originatorAccount,
+			beneficiaryAccount,
+		),
+	)
+
+	// After the self-destruct, this contract ends.
 	s.Status = st.Stopped
-	s.GasRefund += refundGas
 }
 
 func tooLittleGas(i instruction) []Rule {

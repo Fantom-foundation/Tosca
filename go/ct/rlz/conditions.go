@@ -669,6 +669,80 @@ func (c *bindTransientStorageToZero) String() string {
 }
 
 ////////////////////////////////////////////////////////////
+// Account Empty
+
+type accountIsEmpty struct {
+	address BindableExpression[U256]
+}
+
+func AccountIsEmpty(address BindableExpression[U256]) *accountIsEmpty {
+	return &accountIsEmpty{address}
+}
+
+func (c *accountIsEmpty) Check(s *st.State) (bool, error) {
+	address, err := c.address.Eval(s)
+	if err != nil {
+		return false, err
+	}
+	return s.Accounts.IsEmpty(NewAddress(address)), nil
+}
+
+func (c *accountIsEmpty) Restrict(generator *gen.StateGenerator) {
+	address := c.address.GetVariable()
+	c.address.BindTo(generator)
+	generator.BindToAddressOfEmptyAccount(address)
+}
+
+func (c *accountIsEmpty) GetTestValues() []TestValue {
+	property := Property(fmt.Sprintf("empty(%v)", c.address))
+	restrict := func(generator *gen.StateGenerator, shouldBeEmpty bool) {
+		if shouldBeEmpty {
+			AccountIsEmpty(c.address).Restrict(generator)
+		} else {
+			AccountIsNotEmpty(c.address).Restrict(generator)
+		}
+	}
+	return []TestValue{
+		NewTestValue(property, boolDomain{}, true, restrict),
+		NewTestValue(property, boolDomain{}, false, restrict),
+	}
+}
+
+func (c *accountIsEmpty) String() string {
+	return fmt.Sprintf("account_empty(%v)", c.address)
+}
+
+////////////////////////////////////////////////////////////
+// Address not empty
+
+type accountIsNotEmpty struct {
+	address BindableExpression[U256]
+}
+
+func AccountIsNotEmpty(address BindableExpression[U256]) *accountIsNotEmpty {
+	return &accountIsNotEmpty{address}
+}
+
+func (c *accountIsNotEmpty) Check(s *st.State) (bool, error) {
+	res, err := AccountIsEmpty(c.address).Check(s)
+	return !res, err
+}
+
+func (c *accountIsNotEmpty) Restrict(generator *gen.StateGenerator) {
+	address := c.address.GetVariable()
+	c.address.BindTo(generator)
+	generator.BindToAddressOfNonEmptyAccount(address)
+}
+
+func (c *accountIsNotEmpty) GetTestValues() []TestValue {
+	return AccountIsEmpty(c.address).GetTestValues()
+}
+
+func (c *accountIsNotEmpty) String() string {
+	return fmt.Sprintf("!account_empty(%v)", c.address)
+}
+
+////////////////////////////////////////////////////////////
 // Is Address Warm
 
 type isAddressWarm struct {
@@ -734,7 +808,7 @@ func (c *isAddressCold) GetTestValues() []TestValue {
 }
 
 func (c *isAddressCold) String() string {
-	return fmt.Sprintf("account cold(%v)", c.key)
+	return fmt.Sprintf("account_cold(%v)", c.key)
 }
 
 func restrictAccountWarmCold(bindKey BindableExpression[U256]) func(generator *gen.StateGenerator, isWarm bool) {
@@ -750,7 +824,7 @@ func restrictAccountWarmCold(bindKey BindableExpression[U256]) func(generator *g
 }
 
 ////////////////////////////////////////////////////////////
-// Has Address Selfdestructed
+// Has Self-Destructed
 
 type hasSelfDestructed struct {
 }
@@ -788,7 +862,7 @@ func (c *hasSelfDestructed) String() string {
 }
 
 ////////////////////////////////////////////////////////////
-// Has Not Address Selfdestructed
+// Has Not Self-Destructed
 
 type hasNotSelfDestructed struct {
 }
