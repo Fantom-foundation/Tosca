@@ -665,6 +665,16 @@ func TestRunContextAdapter_gethToVMErrors(t *testing.T) {
 			wantResult: tosca.CallResult{GasLeft: gas},
 			wantError:  nil,
 		},
+		"maxCallDepth": {
+			input:      geth.ErrDepth,
+			wantResult: tosca.CallResult{GasLeft: gas},
+			wantError:  nil,
+		},
+		"nonceOverflow": {
+			input:      geth.ErrNonceUintOverflow,
+			wantResult: tosca.CallResult{GasLeft: gas},
+			wantError:  nil,
+		},
 		"OutOfGas": {
 			input:      geth.ErrOutOfGas,
 			wantResult: tosca.CallResult{},
@@ -700,6 +710,37 @@ func TestRunContextAdapter_gethToVMErrors(t *testing.T) {
 			}
 			reflect.DeepEqual(gotResult, test.wantResult)
 		})
+	}
+}
+
+func TestRunContextAdapter_AllGethErrorsAreHandled(t *testing.T) {
+	// all errors defined in geth/core/vm/gethErrors.go
+	gethErrors := []error{
+		geth.ErrOutOfGas,
+		geth.ErrCodeStoreOutOfGas,
+		geth.ErrDepth,
+		geth.ErrInsufficientBalance,
+		geth.ErrContractAddressCollision,
+		geth.ErrExecutionReverted,
+		geth.ErrMaxCodeSizeExceeded,
+		geth.ErrMaxInitCodeSizeExceeded,
+		geth.ErrInvalidJump,
+		geth.ErrWriteProtection,
+		geth.ErrReturnDataOutOfBounds,
+		geth.ErrGasUintOverflow,
+		geth.ErrInvalidCode,
+		geth.ErrNonceUintOverflow,
+
+		&geth.ErrStackUnderflow{},
+		&geth.ErrStackOverflow{},
+		&geth.ErrInvalidOpCode{},
+	}
+
+	for _, inErr := range gethErrors {
+		_, outErr := gethToVMErrors(inErr, tosca.Gas(42))
+		if outErr != nil {
+			t.Errorf("Unexpected return error %v", outErr)
+		}
 	}
 }
 

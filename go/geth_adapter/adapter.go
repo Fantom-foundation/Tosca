@@ -352,8 +352,11 @@ func decodeReadOnlyFromGas(depth int, readOnly bool, gas uint64) (bool, uint64) 
 
 func gethToVMErrors(err error, gas tosca.Gas) (tosca.CallResult, error) {
 	switch err {
-	case geth.ErrInsufficientBalance:
-		// In this case, the caller get its gas back.
+	case
+		geth.ErrInsufficientBalance,
+		geth.ErrDepth,
+		geth.ErrNonceUintOverflow:
+		// In these cases, the caller get its gas back.
 		// TODO: this seems to be a geth implementation quirk that got
 		// transferred into the LFVM implementation; this should be fixed.
 		return tosca.CallResult{
@@ -363,9 +366,9 @@ func gethToVMErrors(err error, gas tosca.Gas) (tosca.CallResult, error) {
 	case
 		geth.ErrOutOfGas,
 		geth.ErrCodeStoreOutOfGas,
-		geth.ErrDepth,
 		geth.ErrContractAddressCollision,
 		geth.ErrExecutionReverted,
+		geth.ErrMaxInitCodeSizeExceeded,
 		geth.ErrMaxCodeSizeExceeded,
 		geth.ErrInvalidJump,
 		geth.ErrWriteProtection,
