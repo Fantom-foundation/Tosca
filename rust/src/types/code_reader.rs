@@ -1,15 +1,11 @@
-use std::{
-    cmp::min,
-    mem::{self},
-    ops::Deref,
-};
+use std::{cmp::min, ops::Deref};
 
-use crate::types::{u256, CodeAnalysis, CodeByteType, FailStatus, Opcode};
+use crate::types::{u256, AnalysisContainer, CodeAnalysis, CodeByteType, FailStatus, Opcode};
 
 #[derive(Debug)]
 pub struct CodeReader<'a> {
     code: &'a [u8],
-    code_analysis: CodeAnalysis,
+    code_analysis: AnalysisContainer<CodeAnalysis>,
     pc: usize,
 }
 
@@ -37,18 +33,20 @@ impl<'a> CodeReader<'a> {
     }
 
     pub fn get(&self) -> Result<Opcode, GetOpcodeError> {
-        if self.pc >= self.code.len() {
-            Err(GetOpcodeError::OutOfRange)
-        } else if self.code_analysis[self.pc] == CodeByteType::DataOrInvalid {
-            Err(GetOpcodeError::Invalid)
+        if let Some(op) = self.code.get(self.pc) {
+            let analysis = self.code_analysis.analysis[self.pc];
+            if analysis == CodeByteType::DataOrInvalid {
+                Err(GetOpcodeError::Invalid)
+            } else {
+                // SAFETY:
+                // [Opcode] has repr(u8) and therefore the same memory layout as u8.
+                // In get_code_byte_types this byte of the code was determined to be a valid opcode.
+                // Therefore the value is a valid [Opcode].
+                let op = unsafe { std::mem::transmute::<u8, Opcode>(*op) };
+                Ok(op)
+            }
         } else {
-            let op = self.code[self.pc];
-            // SAFETY:
-            // [Opcode] has repr(u8) and therefore the same memory layout as u8.
-            // In get_code_byte_types this byte of the code was determined to be a valid opcode.
-            // Therefore the value is a valid [Opcode].
-            let op = unsafe { mem::transmute::<u8, Opcode>(op) };
-            Ok(op)
+            Err(GetOpcodeError::OutOfRange)
         }
     }
 
@@ -58,7 +56,9 @@ impl<'a> CodeReader<'a> {
 
     pub fn try_jump(&mut self, dest: u256) -> Result<(), FailStatus> {
         let dest = u64::try_from(dest).map_err(|_| FailStatus::BadJumpDestination)? as usize;
-        if dest >= self.code_analysis.len() || self.code_analysis[dest] != CodeByteType::JumpDest {
+        if dest >= self.code_analysis.analysis.len()
+            || self.code_analysis.analysis[dest] != CodeByteType::JumpDest
+        {
             return Err(FailStatus::BadJumpDestination);
         }
         self.pc = dest;

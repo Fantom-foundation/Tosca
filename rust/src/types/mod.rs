@@ -20,7 +20,7 @@ pub use cache::Cache;
     any(feature = "hash-cache", feature = "code-analysis-cache")
 ))]
 pub use cache::LocalKeyExt;
-pub use code_analysis::CodeAnalysis;
+pub use code_analysis::{AnalysisContainer, CodeAnalysis};
 pub use code_reader::{CodeReader, GetOpcodeError};
 pub use execution_context::*;
 pub use memory::Memory;
