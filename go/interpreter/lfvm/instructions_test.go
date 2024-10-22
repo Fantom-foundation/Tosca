@@ -347,8 +347,10 @@ func TestBlobHash(t *testing.T) {
 				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
 			}
 
-			if want, got := test.want, ctxt.stack.data[0]; tosca.Hash(got.Bytes32()) != want {
-				t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
+			if err == nil {
+				if want, got := test.want, ctxt.stack.data[0]; tosca.Hash(got.Bytes32()) != want {
+					t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
+				}
 			}
 		})
 	}
