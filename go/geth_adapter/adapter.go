@@ -270,7 +270,7 @@ func (a *runContextAdapter) Call(kind tosca.CallKind, parameter tosca.CallParame
 		defer func() { debugCallEnd(result, reserr) }()
 	}
 
-	gas := encodeReadOnlyInGas(uint64(parameter.Gas), parameter.Recipient, a.readOnly)
+	gas := encodeReadOnlyInGas(uint64(parameter.Gas), parameter.CodeAddress, a.readOnly)
 
 	// Documentation of the parameters can be found here: t.ly/yhxC
 	toAddr := gc.Address(parameter.Recipient)
