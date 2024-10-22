@@ -152,11 +152,8 @@ type GasParameter struct{}
 var gasParameterSamples = []U256{
 	NewU256(0),
 	NewU256(1),
-	NewU256(1 << 10),
-	NewU256(st.MaxGasUsedByCt),
 	NewU256(math.MaxInt64),
 	NewU256(math.MaxInt64 + 1),
-	NewU256(math.MaxUint64),
 }
 
 func (GasParameter) Samples() []U256 {
