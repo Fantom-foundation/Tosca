@@ -347,6 +347,56 @@ func TestRunContextAdapter_Call(t *testing.T) {
 	}
 }
 
+func TestRunContextAdapter_getPrevRandaoReturnsHashBasedOnRevision(t *testing.T) {
+	tests := map[string]struct {
+		revision tosca.Revision
+		want     tosca.Hash
+	}{
+		"london": {
+			revision: tosca.R10_London,
+			want:     tosca.Hash(tosca.NewValue(42)),
+		},
+		"paris": {
+			revision: tosca.R11_Paris,
+			want:     tosca.Hash{0x24},
+		},
+		"shanghai": {
+			revision: tosca.R12_Shanghai,
+			want:     tosca.Hash{0x24},
+		},
+	}
+
+	random := gc.Hash{0x24}
+	context := geth.BlockContext{
+		Difficulty: big.NewInt(42),
+		Random:     &random,
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+
+			got, err := getPrevRandao(&context, test.revision)
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			if got != test.want {
+				t.Errorf("Got wrong prevRandao %v, expected %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestRunContextAdapter_getPrevRandaoErrorIfDifficultyCanNotBeConverted(t *testing.T) {
+	context := geth.BlockContext{
+		Difficulty: big.NewInt(-42),
+	}
+
+	_, err := getPrevRandao(&context, tosca.R10_London)
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	}
+}
+
 func TestRunContextAdapter_Run(t *testing.T) {
 	tests := map[string]bool{
 		"success": true,
