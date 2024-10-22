@@ -744,7 +744,7 @@ func TestCall_ChargesNothingForColdAccessBeforeBerlin(t *testing.T) {
 	one := *uint256.NewInt(1)
 	ctrl := gomock.NewController(t)
 	runContext := tosca.NewMockRunContext(ctrl)
-	runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{Recipient: one.Bytes20()}).Return(tosca.CallResult{}, nil)
+	runContext.EXPECT().Call(tosca.Call, gomock.Any()).Return(tosca.CallResult{}, nil)
 	ctxt := context{
 		params: tosca.Parameters{
 			BlockParameters: tosca.BlockParameters{
@@ -776,7 +776,7 @@ func TestCall_ChargesForAccessAfterBerlin(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		runContext := tosca.NewMockRunContext(ctrl)
 		runContext.EXPECT().AccessAccount(one.Bytes20()).Return(accessStatus)
-		runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{Recipient: one.Bytes20()}).Return(tosca.CallResult{}, nil)
+		runContext.EXPECT().Call(tosca.Call, gomock.Any()).Return(tosca.CallResult{}, nil)
 		delta := tosca.Gas(1)
 		ctxt := context{
 			params: tosca.Parameters{
@@ -1531,7 +1531,7 @@ func TestGenericCall_CallKindPropagatesStaticMode(t *testing.T) {
 	zero := *uint256.NewInt(0)
 	one := *uint256.NewInt(1)
 	runContext := tosca.NewMockRunContext(gomock.NewController(t))
-	runContext.EXPECT().Call(tosca.StaticCall, tosca.CallParameters{Recipient: one.Bytes20()}).Return(tosca.CallResult{}, nil)
+	runContext.EXPECT().Call(tosca.StaticCall, gomock.Any()).Return(tosca.CallResult{}, nil)
 	ctxt := getEmptyContext()
 	ctxt.context = runContext
 	ctxt.params.Static = true
@@ -1548,7 +1548,7 @@ func TestGenericCall_ResultIsWrittenToStack(t *testing.T) {
 	one := *uint256.NewInt(1)
 	for _, success := range []bool{true, false} {
 		runContext := tosca.NewMockRunContext(gomock.NewController(t))
-		runContext.EXPECT().Call(tosca.Call, tosca.CallParameters{Recipient: one.Bytes20()}).Return(tosca.CallResult{Success: success}, nil)
+		runContext.EXPECT().Call(tosca.Call, gomock.Any()).Return(tosca.CallResult{Success: success}, nil)
 		ctxt := getEmptyContext()
 		ctxt.context = runContext
 		ctxt.stack = fillStack(zero, one, zero, zero, zero, zero, zero)
@@ -1588,7 +1588,65 @@ func TestGenericCall_HandlesBigProvidedGasValues(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestGenericCall_ForwardsCallParamsDependingOnCallKind(t *testing.T) {
+
+	zero := *uint256.NewInt(0)
+	sender := tosca.Address{1}
+	recipient := tosca.Address{2}
+	value := tosca.Value{3}
+	targetAddress := tosca.Address{4}
+	targetAddressU256 := *new(uint256.Int).SetBytes20(targetAddress[:])
+
+	tests := map[tosca.CallKind]struct {
+		sender, recipient tosca.Address
+		value             tosca.Value
+	}{
+		tosca.Call: {
+			sender:    recipient,
+			recipient: targetAddress,
+		},
+		tosca.StaticCall: {
+			sender:    recipient,
+			recipient: targetAddress,
+		},
+		tosca.DelegateCall: {
+			sender:    sender,
+			recipient: recipient,
+			value:     value,
+		},
+		tosca.CallCode: {
+			sender:    recipient,
+			recipient: recipient,
+		},
+	}
+
+	for kind, test := range tests {
+		t.Run(kind.String(), func(t *testing.T) {
+
+			runContext := tosca.NewMockRunContext(gomock.NewController(t))
+			wantParams := tosca.CallParameters{
+				Sender:      test.sender,
+				Recipient:   test.recipient,
+				Value:       test.value,
+				CodeAddress: targetAddress,
+			}
+			runContext.EXPECT().Call(kind, wantParams).Return(tosca.CallResult{}, nil)
+			ctxt := getEmptyContext()
+			ctxt.context = runContext
+			ctxt.params.Sender = sender
+			ctxt.params.Recipient = recipient
+			ctxt.params.Value = value
+
+			ctxt.stack = fillStack(zero, targetAddressU256, zero, zero, zero, zero, zero)
+
+			err := genericCall(&ctxt, kind)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
 }
 
 func TestInstructions_ComparisonAndShiftOperations(t *testing.T) {

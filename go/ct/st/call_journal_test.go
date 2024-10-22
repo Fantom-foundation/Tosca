@@ -59,12 +59,13 @@ func TestCallJournal_CallMovesFutureToPastCall(t *testing.T) {
 		t.Fatalf("no past call was recorded")
 	}
 	want := PastCall{
-		Kind:      tosca.StaticCall,
-		Recipient: tosca.Address{2},
-		Sender:    tosca.Address{1},
-		Input:     common.NewBytes([]byte{4, 5}),
-		Value:     tosca.Value{3},
-		Gas:       tosca.Gas(6),
+		Kind:        tosca.StaticCall,
+		Recipient:   tosca.Address{2},
+		Sender:      tosca.Address{1},
+		Input:       common.NewBytes([]byte{4, 5}),
+		Value:       tosca.Value{3},
+		Gas:         tosca.Gas(6),
+		CodeAddress: tosca.Address{8},
 	}
 
 	if got := journal.Past[0]; !want.Equal(&got) {
@@ -157,12 +158,13 @@ func TestPastCall_EqualDetectsDifferences(t *testing.T) {
 	tests := map[string]struct {
 		modify func(c *PastCall)
 	}{
-		"kind":      {func(c *PastCall) { c.Kind = tosca.DelegateCall }},
-		"recipient": {func(c *PastCall) { c.Recipient[0]++ }},
-		"sender":    {func(c *PastCall) { c.Sender[0]++ }},
-		"input":     {func(c *PastCall) { c.Input = common.NewBytes([]byte{1, 2, 3}) }},
-		"value":     {func(c *PastCall) { c.Value[0]++ }},
-		"gas":       {func(c *PastCall) { c.Gas++ }},
+		"kind":         {func(c *PastCall) { c.Kind = tosca.DelegateCall }},
+		"recipient":    {func(c *PastCall) { c.Recipient[0]++ }},
+		"sender":       {func(c *PastCall) { c.Sender[0]++ }},
+		"input":        {func(c *PastCall) { c.Input = common.NewBytes([]byte{1, 2, 3}) }},
+		"value":        {func(c *PastCall) { c.Value[0]++ }},
+		"gas":          {func(c *PastCall) { c.Gas++ }},
+		"code address": {func(c *PastCall) { c.CodeAddress[0]++ }},
 	}
 
 	for name, test := range tests {
@@ -181,12 +183,13 @@ func TestPastCall_DiffDetectsDifferences(t *testing.T) {
 	tests := map[string]struct {
 		modify func(c *PastCall)
 	}{
-		"kind":      {func(c *PastCall) { c.Kind = tosca.DelegateCall }},
-		"recipient": {func(c *PastCall) { c.Recipient[0]++ }},
-		"sender":    {func(c *PastCall) { c.Sender[0]++ }},
-		"input":     {func(c *PastCall) { c.Input = common.NewBytes([]byte{1, 2, 3}) }},
-		"value":     {func(c *PastCall) { c.Value[0]++ }},
-		"gas":       {func(c *PastCall) { c.Gas++ }},
+		"kind":         {func(c *PastCall) { c.Kind = tosca.DelegateCall }},
+		"recipient":    {func(c *PastCall) { c.Recipient[0]++ }},
+		"sender":       {func(c *PastCall) { c.Sender[0]++ }},
+		"input":        {func(c *PastCall) { c.Input = common.NewBytes([]byte{1, 2, 3}) }},
+		"value":        {func(c *PastCall) { c.Value[0]++ }},
+		"gas":          {func(c *PastCall) { c.Gas++ }},
+		"code address": {func(c *PastCall) { c.CodeAddress[0]++ }},
 	}
 
 	for name, test := range tests {
