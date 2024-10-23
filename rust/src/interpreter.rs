@@ -1610,7 +1610,7 @@ impl<'a> Interpreter<'a> {
                 Some(input),
                 value.into(),
                 u256::ZERO.into(), // ignored
-                u256::ZERO.into(), // ignored
+                addr,
                 None,
                 None,
             )
@@ -1699,7 +1699,7 @@ impl<'a> Interpreter<'a> {
                 Some(input),
                 u256::ZERO.into(), // ignored
                 u256::ZERO.into(), // ignored
-                u256::ZERO.into(), // ignored
+                addr,
                 None,
                 None,
             )
@@ -1983,7 +1983,7 @@ mod tests {
                     && call_message.input() == Some(&input)
                     && call_message.value() == &Uint256::from(value)
                     && call_message.create2_salt() == &Uint256::from(u256::ZERO)
-                    && call_message.code_address() == &Address::from(u256::ZERO)
+                    && call_message.code_address() == &Address::from(addr)
                     && call_message.code().is_none()
             })
             .returning(move |_| {
