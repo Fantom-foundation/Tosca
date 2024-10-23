@@ -118,5 +118,11 @@ pipeline {
                 sh 'LLVM_PROFILE_FILE="/tmp/go/rust-%p-%m.profraw" go test -v  -run ^TestDumpRustCoverageData$ ./go/lib/rust/ --expect-coverage'
             }
         }
+
+        stage('Clean up') {
+            steps {
+                sh 'make clean'
+            }
+        }
     }
 }
