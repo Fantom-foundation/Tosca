@@ -1,4 +1,3 @@
-use std::ops::Deref;
 #[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
 use std::rc::Rc;
 #[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
@@ -28,111 +27,110 @@ impl std::hash::Hash for u256Hash {
 }
 
 #[cfg(not(feature = "code-analysis-cache"))]
-type AnalysisContainer<T> = Box<T>;
+pub type AnalysisContainer<T> = T;
 #[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
-type AnalysisContainer<T> = Arc<T>;
+pub type AnalysisContainer<T> = Arc<T>;
 #[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
-type AnalysisContainer<T> = Rc<T>;
+pub type AnalysisContainer<T> = Rc<T>;
 
-#[derive(Debug, Clone)]
-pub struct CodeAnalysis(AnalysisContainer<[CodeByteType]>);
-
-impl Deref for CodeAnalysis {
-    type Target = [CodeByteType];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl CodeAnalysis {
-    #[allow(unused_variables)]
-    pub fn new(code: &[u8], code_hash: Option<u256>) -> Self {
-        #[cfg(feature = "code-analysis-cache")]
-        match code_hash {
-            Some(code_hash) if code_hash != u256::ZERO => {
-                JUMP_CACHE.get_or_insert(u256Hash(code_hash), || {
-                    CodeAnalysis(AnalysisContainer::from(
-                        compute_code_byte_types(code).as_slice(),
-                    ))
-                })
-            }
-            _ => CodeAnalysis(AnalysisContainer::from(
-                compute_code_byte_types(code).as_slice(),
-            )),
-        }
-        #[cfg(not(feature = "code-analysis-cache"))]
-        CodeAnalysis(compute_code_byte_types(code).into_boxed_slice())
-    }
-}
+pub type AnalysisItem = CodeByteType;
 
 #[cfg(feature = "code-analysis-cache")]
 const CACHE_SIZE: usize = 1 << 16; // value taken from evmzero
 
 #[cfg(feature = "code-analysis-cache")]
-type JumpCache = Cache<CACHE_SIZE, u256Hash, CodeAnalysis, BuildNoHashHasher<u64>>;
+type CodeAnalysisCache =
+    Cache<CACHE_SIZE, u256Hash, AnalysisContainer<CodeAnalysis>, BuildNoHashHasher<u64>>;
 
 #[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
-static JUMP_CACHE: JumpCache = JumpCache::new();
+static CODE_ANALYSIS_CACHE: CodeAnalysisCache = CodeAnalysisCache::new();
 
 #[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
 thread_local! {
-    static JUMP_CACHE: JumpCache = JumpCache::new();
+    static CODE_ANALYSIS_CACHE: CodeAnalysisCache = CodeAnalysisCache::new();
 }
 
-fn compute_code_byte_types(code: &[u8]) -> Vec<CodeByteType> {
-    let mut code_byte_types = vec![CodeByteType::DataOrInvalid; code.len()];
+#[derive(Debug)]
+pub struct CodeAnalysis {
+    pub analysis: Vec<AnalysisItem>,
+}
 
-    let mut pc = 0;
-    while pc < code.len() {
-        let (code_byte_type, inc) = code_byte_type(code[pc]);
-        code_byte_types[pc] = code_byte_type;
-        pc += inc;
+impl CodeAnalysis {
+    #[allow(unused_variables)]
+    pub fn new(code: &[u8], code_hash: Option<u256>) -> AnalysisContainer<Self> {
+        #[cfg(feature = "code-analysis-cache")]
+        match code_hash {
+            Some(code_hash) if code_hash != u256::ZERO => CODE_ANALYSIS_CACHE
+                .get_or_insert(u256Hash(code_hash), || {
+                    AnalysisContainer::new(Self::analyze_code(code))
+                }),
+            _ => AnalysisContainer::new(Self::analyze_code(code)),
+        }
+        #[cfg(not(feature = "code-analysis-cache"))]
+        Self::analyze_code(code)
     }
 
-    code_byte_types
+    fn analyze_code(code: &[u8]) -> Self {
+        let mut code_byte_types = vec![CodeByteType::DataOrInvalid; code.len()];
+
+        let mut pc = 0;
+        while let Some(op) = code.get(pc).copied() {
+            let (code_byte_type, data) = code_byte_type(op);
+            code_byte_types[pc] = code_byte_type;
+            pc += 1 + data;
+        }
+
+        CodeAnalysis {
+            analysis: code_byte_types,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{code_analysis::compute_code_byte_types, CodeByteType, Opcode};
+    use crate::types::{CodeAnalysis, CodeByteType, Opcode};
 
     #[test]
-    fn compute_code_byte_types_single_byte() {
+    fn analyze_code_single_byte() {
         assert_eq!(
-            *compute_code_byte_types(&[Opcode::Add as u8]),
+            CodeAnalysis::analyze_code(&[Opcode::Add as u8]).analysis,
             [CodeByteType::Opcode]
         );
         assert_eq!(
-            *compute_code_byte_types(&[Opcode::Push2 as u8]),
+            CodeAnalysis::analyze_code(&[Opcode::Push2 as u8]).analysis,
             [CodeByteType::Opcode]
         );
         assert_eq!(
-            *compute_code_byte_types(&[Opcode::JumpDest as u8]),
+            CodeAnalysis::analyze_code(&[Opcode::JumpDest as u8]).analysis,
             [CodeByteType::JumpDest]
         );
         assert_eq!(
-            *compute_code_byte_types(&[0xc0]),
+            CodeAnalysis::analyze_code(&[0xc0]).analysis,
             [CodeByteType::DataOrInvalid]
         );
     }
 
     #[test]
-    fn compute_byte_types_jumpdest() {
+    fn analyze_code_jumpdest() {
         assert_eq!(
-            *compute_code_byte_types(&[Opcode::JumpDest as u8, Opcode::Add as u8]),
+            CodeAnalysis::analyze_code(&[Opcode::JumpDest as u8, Opcode::Add as u8]).analysis,
             [CodeByteType::JumpDest, CodeByteType::Opcode]
         );
         assert_eq!(
-            *compute_code_byte_types(&[Opcode::JumpDest as u8, 0xc0]),
+            CodeAnalysis::analyze_code(&[Opcode::JumpDest as u8, 0xc0]).analysis,
             [CodeByteType::JumpDest, CodeByteType::DataOrInvalid]
         );
     }
 
     #[test]
-    fn compute_code_byte_types_push_with_data() {
+    fn analyze_code_push_with_data() {
         assert_eq!(
-            *compute_code_byte_types(&[Opcode::Push1 as u8, Opcode::Add as u8, Opcode::Add as u8]),
+            CodeAnalysis::analyze_code(&[
+                Opcode::Push1 as u8,
+                Opcode::Add as u8,
+                Opcode::Add as u8
+            ])
+            .analysis,
             [
                 CodeByteType::Opcode,
                 CodeByteType::DataOrInvalid,
@@ -140,7 +138,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            *compute_code_byte_types(&[Opcode::Push1 as u8, Opcode::Add as u8, 0xc0]),
+            CodeAnalysis::analyze_code(&[Opcode::Push1 as u8, Opcode::Add as u8, 0xc0]).analysis,
             [
                 CodeByteType::Opcode,
                 CodeByteType::DataOrInvalid,
@@ -148,12 +146,13 @@ mod tests {
             ]
         );
         assert_eq!(
-            *compute_code_byte_types(&[
+            CodeAnalysis::analyze_code(&[
                 Opcode::Push1 as u8,
                 Opcode::Add as u8,
                 0xc0,
                 Opcode::Add as u8
-            ]),
+            ])
+            .analysis,
             [
                 CodeByteType::Opcode,
                 CodeByteType::DataOrInvalid,
@@ -162,12 +161,13 @@ mod tests {
             ]
         );
         assert_eq!(
-            *compute_code_byte_types(&[
+            CodeAnalysis::analyze_code(&[
                 Opcode::Push2 as u8,
                 Opcode::Add as u8,
                 Opcode::Add as u8,
                 Opcode::Add as u8,
-            ]),
+            ])
+            .analysis,
             [
                 CodeByteType::Opcode,
                 CodeByteType::DataOrInvalid,
@@ -176,12 +176,13 @@ mod tests {
             ]
         );
         assert_eq!(
-            *compute_code_byte_types(&[
+            CodeAnalysis::analyze_code(&[
                 Opcode::Push2 as u8,
                 Opcode::Add as u8,
                 Opcode::Add as u8,
                 0xc0
-            ]),
+            ])
+            .analysis,
             [
                 CodeByteType::Opcode,
                 CodeByteType::DataOrInvalid,
