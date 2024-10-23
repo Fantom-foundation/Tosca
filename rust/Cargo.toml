@@ -1,5 +1,5 @@
 [workspace]
-members = ["driver", "benchmarks"]
+members = ["driver", "benchmarks", "bencher"]
 
 [package]
 name = "evmrs"
