@@ -395,3 +395,30 @@ func TestCorpusEntryToCtState(t *testing.T) {
 		})
 	}
 }
+
+func filterLargeMem(state *st.State) (*st.State, error) {
+	return state, nil
+}
+
+func TestInputsCanBeFiltered(t *testing.T) {
+
+	tests := map[string]struct {
+		state       *st.State
+		expectedErr error
+	}{}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			state, err := filterLargeMem(test.state)
+			if err != nil {
+				if err.Error() != test.expectedErr.Error() {
+					t.Errorf("Unexpected error. Got: %v, Want: %v", err, test.expectedErr)
+				}
+				return
+			}
+
+			_ = state
+		})
+	}
+
+}
