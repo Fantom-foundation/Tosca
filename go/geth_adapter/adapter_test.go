@@ -559,19 +559,6 @@ func TestRunContextAdapter_bigIntToWord(t *testing.T) {
 	}
 }
 
-func TestRunContextAdapter_ConvertRevisionCanDealWithUnsetMergeBlock(t *testing.T) {
-	chainConfig := &params.ChainConfig{
-		ChainID:            big.NewInt(42),
-		IstanbulBlock:      big.NewInt(0),
-		MergeNetsplitBlock: nil,
-	}
-
-	revision := convertRevision(chainConfig, big.NewInt(0), 0)
-	if revision != tosca.R07_Istanbul {
-		t.Errorf("Conversion returned wrong value, expected %v, got %v", tosca.R07_Istanbul, revision)
-	}
-}
-
 func TestRunContextAdapter_ConvertRevision(t *testing.T) {
 	cancunTime := uint64(1000)
 	shanghaiTime := uint64(900)
@@ -581,10 +568,10 @@ func TestRunContextAdapter_ConvertRevision(t *testing.T) {
 	istanbulBlock := big.NewInt(70)
 
 	tests := map[string]struct {
-		mergeBlock *big.Int
-		block      *big.Int
-		time       uint64
-		want       tosca.Revision
+		random *gc.Hash
+		block  *big.Int
+		time   uint64
+		want   tosca.Revision
 	}{
 		"Istanbul": {
 			block: istanbulBlock,
@@ -602,19 +589,22 @@ func TestRunContextAdapter_ConvertRevision(t *testing.T) {
 			want:  tosca.R10_London,
 		},
 		"Paris": {
-			block: parisBlock,
-			time:  uint64(0),
-			want:  tosca.R11_Paris,
+			random: &gc.Hash{0x42},
+			block:  parisBlock,
+			time:   uint64(0),
+			want:   tosca.R11_Paris,
 		},
 		"Shanghai": {
-			block: parisBlock,
-			time:  shanghaiTime,
-			want:  tosca.R12_Shanghai,
+			random: &gc.Hash{0x42},
+			block:  parisBlock,
+			time:   shanghaiTime,
+			want:   tosca.R12_Shanghai,
 		},
 		"Cancun": {
-			block: parisBlock,
-			time:  cancunTime,
-			want:  tosca.R13_Cancun,
+			random: &gc.Hash{0x42},
+			block:  parisBlock,
+			time:   cancunTime,
+			want:   tosca.R13_Cancun,
 		},
 	}
 
@@ -630,7 +620,12 @@ func TestRunContextAdapter_ConvertRevision(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := convertRevision(chainConfig, test.block, test.time)
+			evm := geth.NewEVM(geth.BlockContext{Random: test.random}, geth.TxContext{}, nil, chainConfig, geth.Config{})
+			rules := evm.ChainConfig().Rules(test.block, evm.Context.Random != nil, test.time)
+			got, err := convertRevision(rules)
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
 			if got != test.want {
 				t.Errorf("Conversion returned wrong value, expected %v, got %v", test.want, got)
 			}
@@ -638,15 +633,14 @@ func TestRunContextAdapter_ConvertRevision(t *testing.T) {
 	}
 }
 
-func TestRunContextAdapter_ConvertRevisionPanicsWithUnsupportedRevision(t *testing.T) {
-	var revision tosca.Revision
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("Unsupported revision was not spotted, got %v", revision)
-		}
-	}()
-	chainConfig := &params.ChainConfig{}
-	revision = convertRevision(chainConfig, big.NewInt(0), 0)
+func TestRunContextAdapter_ConvertRevisionReturnsUnsupportedRevisionError(t *testing.T) {
+	rules := params.Rules{
+		IsHomestead: true,
+	}
+	_, err := convertRevision(rules)
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	}
 }
 
 func TestRunContextAdapter_gethToVMErrors(t *testing.T) {

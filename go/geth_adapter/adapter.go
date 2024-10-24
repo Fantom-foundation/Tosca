@@ -85,7 +85,11 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	a.evm.SetDepth(a.evm.GetDepth() + 1)
 	defer func() { a.evm.SetDepth(a.evm.GetDepth() - 1) }()
 
-	revision := convertRevision(a.evm.ChainConfig(), a.evm.Context.BlockNumber, a.evm.Context.Time)
+	rules := a.evm.ChainConfig().Rules(a.evm.Context.BlockNumber, a.evm.Context.Random != nil, a.evm.Context.Time)
+	revision, err := convertRevision(rules)
+	if err != nil {
+		return nil, fmt.Errorf("unsupported revision: %v", err)
+	}
 	if adapterDebug {
 		fmt.Printf("Running revision %v\n", revision)
 	}
@@ -236,25 +240,21 @@ func undoRefundShift(stateDB geth.StateDB, err error, refundShift uint64) {
 	}
 }
 
-func convertRevision(chainConfig *params.ChainConfig, blockNumber *big.Int, time uint64) tosca.Revision {
-	if chainConfig := chainConfig; chainConfig != nil {
-		// Note: configurations need to be checked in reverse order since
-		// later revisions implicitly include earlier revisions.
-		if chainConfig.IsCancun(blockNumber, time) {
-			return tosca.R13_Cancun
-		} else if chainConfig.IsShanghai(blockNumber, time) {
-			return tosca.R12_Shanghai
-		} else if chainConfig.MergeNetsplitBlock != nil && blockNumber.Cmp(chainConfig.MergeNetsplitBlock) >= 0 {
-			return tosca.R11_Paris
-		} else if chainConfig.IsLondon(blockNumber) {
-			return tosca.R10_London
-		} else if chainConfig.IsBerlin(blockNumber) {
-			return tosca.R09_Berlin
-		} else if chainConfig.IsIstanbul(blockNumber) {
-			return tosca.R07_Istanbul
-		}
+func convertRevision(rules params.Rules) (tosca.Revision, error) {
+	if rules.IsCancun {
+		return tosca.R13_Cancun, nil
+	} else if rules.IsShanghai {
+		return tosca.R12_Shanghai, nil
+	} else if rules.IsMerge {
+		return tosca.R11_Paris, nil
+	} else if rules.IsLondon {
+		return tosca.R10_London, nil
+	} else if rules.IsBerlin {
+		return tosca.R09_Berlin, nil
+	} else if rules.IsIstanbul {
+		return tosca.R07_Istanbul, nil
 	}
-	panic("unsupported revision")
+	return tosca.Revision(-1), &tosca.ErrUnsupportedRevision{Revision: tosca.Revision(-1)}
 }
 
 // runContextAdapter implements the tosca.RunContext interface using geth infrastructure.
