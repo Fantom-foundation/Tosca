@@ -1345,82 +1345,54 @@ func getAllRules() []Rule {
 		return address
 	}
 
-	// cold
-	rules = append(rules, rulesFor(instruction{
-		op:        vm.EXTCODEHASH,
-		name:      "_cold",
-		staticGas: 0 + 2600, // 2600 dynamic cost for cold address
-		pops:      1,
-		pushes:    1,
-		conditions: []Condition{
-			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
-			IsAddressCold(Param(0)),
-		},
-		parameters: []Parameter{
-			AddressParameter{},
-		},
-		effect: func(s *st.State) {
-			address := extCodeHashEffect(s)
-			s.Accounts.MarkWarm(address)
-		},
-	})...)
+	for _, revision := range tosca.GetAllKnownRevisions() {
+		for _, warm := range []bool{true, false} {
+			for _, isEmpty := range []bool{true, false} {
+				name := "_" + revision.String()
+				staticGas := tosca.Gas(100) // warm access
+				conditions := []Condition{IsRevision(revision)}
 
-	// warm
-	rules = append(rules, rulesFor(instruction{
-		op:        vm.EXTCODEHASH,
-		name:      "_warm",
-		staticGas: 0 + 100, // 100 dynamic cost for warm address
-		pops:      1,
-		pushes:    1,
-		conditions: []Condition{
-			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
-			IsAddressWarm(Param(0)),
-		},
-		parameters: []Parameter{
-			AddressParameter{},
-		},
-		effect: func(s *st.State) {
-			extCodeHashEffect(s)
-		},
-	})...)
+				if warm {
+					name += "_warm"
+					conditions = append(conditions, IsAddressWarm(Param(0)))
+				} else {
+					name += "_cold"
+					staticGas = 2600
+					conditions = append(conditions, IsAddressCold(Param(0)))
+				}
 
-	// pre Berlin
-	rules = append(rules, rulesFor(instruction{
-		op:        vm.EXTCODEHASH,
-		name:      "_preBerlin",
-		staticGas: 700,
-		pops:      1,
-		pushes:    1,
-		conditions: []Condition{
-			IsRevision(tosca.R07_Istanbul),
-		},
-		parameters: []Parameter{
-			AddressParameter{},
-		},
-		effect: func(s *st.State) {
-			extCodeHashEffect(s)
-		},
-	})...)
+				if revision < tosca.R09_Berlin {
+					staticGas = 700
+				}
 
-	// notEmpty
-	rules = append(rules, rulesFor(instruction{
-		op:        vm.EXTCODEHASH,
-		name:      "_not_empty",
-		staticGas: 2600, // highest possible cost.
-		pops:      1,
-		pushes:    1,
-		conditions: []Condition{
-			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
-			AccountIsNotEmpty(Param(0)),
-		},
-		parameters: []Parameter{
-			AddressParameter{},
-		},
-		effect: func(s *st.State) {
-			address := extCodeHashEffect(s)
-			s.Accounts.MarkWarm(address)
-		},
-	})...)
+				if isEmpty {
+					name += "_empty"
+					conditions = append(conditions, AccountIsEmpty(Param(0)))
+				} else {
+					name += "_not_empty"
+					conditions = append(conditions, AccountIsNotEmpty(Param(0)))
+				}
+
+				rules = append(rules, rulesFor(instruction{
+					op:         vm.EXTCODEHASH,
+					name:       name,
+					staticGas:  staticGas,
+					pops:       1,
+					pushes:     1,
+					conditions: conditions,
+					parameters: []Parameter{
+						AddressParameter{},
+					},
+					effect: func(s *st.State) {
+						address := extCodeHashEffect(s)
+						if revision >= tosca.R09_Berlin && !warm {
+							s.Accounts.MarkWarm(address)
+						}
+					},
+				})...)
+			}
+		}
+	}
 
 	// --- CHAINID ---
 
@@ -1675,32 +1647,6 @@ func getAllRules() []Rule {
 	// --- CALL, CALLCODE, STATICCALL and DELEGATECALL ---
 
 	rules = append(rules, getRulesForAllCallTypes()...)
-
-	rules = append(rules, Rule{
-		Name: "call_not_enough_gas_for_new_account",
-		Parameter: []Parameter{
-			GasParameter{},
-			AddressParameter{},
-			ValueParameter{},
-			MemoryOffsetParameter{},
-			SizeParameter{},
-			MemoryOffsetParameter{},
-			SizeParameter{},
-		},
-		Condition: And(
-			Eq(Status(), st.Running),
-			Eq(Op(Pc()), vm.CALL),
-			Eq(Gas(), 9000+2600+25000-1), // non zero value cost + cold address cost + new account cost - 1
-			Ge(StackSize(), 7),
-			Le(StackSize(), st.MaxStackSize-6),
-			IsRevision(tosca.R09_Berlin),
-			Eq(ReadOnly(), false), // non static
-			AccountIsEmpty(Param(1)),
-			IsAddressCold(Param(1)),
-			Ne(ValueParam(2), NewU256(0)), // non zero value
-		),
-		Effect: FailEffect(),
-	})
 
 	// --- SELFDESTRUCT ---
 
