@@ -17,20 +17,20 @@ use evmc_vm::{Address, Uint256};
 /// This represents a 256-bit integer. Internally it is a 32 byte array of [`u8`] in big endian.
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy)]
-#[repr(transparent)]
-pub struct u256(Uint256);
+#[repr(align(8))]
+pub struct u256([u8; 32]);
 
 impl Deref for u256 {
     type Target = [u8; 32];
 
     fn deref(&self) -> &Self::Target {
-        &self.0.bytes
+        &self.0
     }
 }
 
 impl DerefMut for u256 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0.bytes
+        &mut self.0
     }
 }
 
@@ -56,13 +56,13 @@ impl Debug for u256 {
 
 impl From<Uint256> for u256 {
     fn from(value: Uint256) -> Self {
-        Self(value)
+        Self(value.bytes)
     }
 }
 
 impl From<u256> for Uint256 {
     fn from(value: u256) -> Self {
-        value.0
+        Uint256 { bytes: value.0 }
     }
 }
 
@@ -73,8 +73,9 @@ impl From<U256> for u256 {
         // SAFETY:
         // U256 = BUint<4>
         // BUint<4> is transparent wrapper around [u64; 4]
+        // [u64; 4] is also a valid [u8; 32]
         let bytes: [u8; 32] = unsafe { mem::transmute(be_value) };
-        bytes.into()
+        Self(bytes)
     }
 }
 
@@ -92,8 +93,9 @@ impl From<I256> for u256 {
         // I256 = is transparent wrapper around U256
         // U256 = BInt<4>
         // BUint<4> is transparent wrapper around [u64; 4]
+        // [u64; 4] is also a valid [u8; 32]
         let bytes: [u8; 32] = unsafe { mem::transmute(be_value) };
-        bytes.into()
+        Self(bytes)
     }
 }
 
@@ -110,6 +112,7 @@ impl From<U512> for u256 {
         // SAFETY:
         // U512 = BUint<8>
         // BUint<8> is transparent wrapper around [u64; 8]
+        // [u64; 8] is also a valid [u8; 64]
         let bytes64: [u8; 64] = unsafe { mem::transmute(be_value) };
         let mut bytes32 = Self::ZERO;
         bytes32.copy_from_slice(&bytes64[32..]);
@@ -125,7 +128,7 @@ impl From<u256> for U512 {
 
 impl From<[u8; 32]> for u256 {
     fn from(value: [u8; 32]) -> Self {
-        Self(Uint256 { bytes: value })
+        Self(value)
     }
 }
 
@@ -137,22 +140,20 @@ impl From<bool> for u256 {
 
 impl From<u8> for u256 {
     fn from(value: u8) -> Self {
-        [
+        Self([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, value,
-        ]
-        .into()
+        ])
     }
 }
 
 impl From<u64> for u256 {
     fn from(value: u64) -> Self {
         let bytes = value.to_be_bytes();
-        [
+        Self([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, bytes[0],
             bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-        ]
-        .into()
+        ])
     }
 }
 
@@ -387,14 +388,12 @@ impl Shr for u256 {
 }
 
 impl u256 {
-    pub const ZERO: Self = Self(Uint256 { bytes: [0; 32] });
-    pub const ONE: Self = Self(Uint256 {
-        bytes: [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 1,
-        ],
-    });
-    pub const MAX: Self = Self(Uint256 { bytes: [0xff; 32] });
+    pub const ZERO: Self = Self([0; 32]);
+    pub const ONE: Self = Self([
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 1,
+    ]);
+    pub const MAX: Self = Self([0xff; 32]);
 
     pub fn into_u64_with_overflow(self) -> (u64, bool) {
         let bytes: [u8; 32] = *self;
