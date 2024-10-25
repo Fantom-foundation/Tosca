@@ -145,6 +145,8 @@ fn make_build() -> Result<(), Box<dyn Error>> {
 }
 
 fn cargo_build(features: &str) -> Result<(), Box<dyn Error>> {
+    let output = Command::new("cargo").arg("clean").output()?;
+    check_success("cargo clean", &output)?;
     let output = Command::new("cargo")
         .args(["build", "--lib", "--release", "--features", features])
         .output()?;

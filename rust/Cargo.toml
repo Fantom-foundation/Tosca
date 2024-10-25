@@ -27,6 +27,7 @@ performance = [
     "jumptable",
     "hash-cache",
     "code-analysis-cache",
+    "jumptable-tail-call",
 ]
 mimalloc = ["dep:mimalloc"]
 stack-array = []
