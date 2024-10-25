@@ -1,4 +1,4 @@
-use std::{cmp::min, mem};
+use std::cmp::min;
 
 use evmc_vm::{
     AccessStatus, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
@@ -1424,7 +1424,7 @@ impl<'a> Interpreter<'a> {
         check_not_read_only(self)?;
         self.gas_left.consume(375)?;
         let [len, offset] = self.stack.pop()?;
-        let mut topics: [u256; N] = self.stack.pop()?;
+        let topics: [u256; N] = self.stack.pop()?;
         let (len, len_overflow) = len.into_u64_with_overflow();
         let (len8, len8_overflow) = len.overflowing_mul(8);
         let (cost, cost_overflow) = (375 * N as u64).overflowing_add(len8);
@@ -1434,13 +1434,12 @@ impl<'a> Interpreter<'a> {
         self.gas_left.consume(cost)?;
 
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
-        topics.reverse();
-        // SAFETY:
-        // [u256] is a newtype of [Uint256] with repr(transparent) which guarantees the same memory
-        // layout.
-        let topics = unsafe { mem::transmute::<&[u256], &[Uint256]>(topics.as_slice()) };
+        let mut topics_uint256 = [Uint256 { bytes: [0; 32] }; N];
+        for i in 0..N {
+            topics_uint256[i] = Uint256::from(topics[N - 1 - i]);
+        }
         self.context
-            .emit_log(self.message.recipient(), data, topics);
+            .emit_log(self.message.recipient(), data, &topics_uint256);
         self.code_reader.next();
         self.return_from_op()
     }

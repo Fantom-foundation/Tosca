@@ -96,9 +96,7 @@ impl SteppableEvmcVm for EvmRs {
             // If this is not the case it violates the EVMC spec and is an irrecoverable error.
             process::abort();
         };
-        // SAFETY:
-        // &[Uint256] and &[u256] have the same layout
-        let stack = Stack::new(unsafe { std::mem::transmute::<&[Uint256], &[u256]>(stack) });
+        let stack = Stack::new(&stack.iter().map(|i| u256::from(*i)).collect::<Vec<_>>());
         let memory = Memory::new(memory.to_owned());
         let mut interpreter = Interpreter::new_steppable(
             revision,
