@@ -69,9 +69,10 @@ impl<'a> CodeReader<'a> {
     pub fn get_push_data(&mut self, len: usize) -> u256 {
         assert!(len <= 32);
 
-        let len = min(len, self.code.len().saturating_sub(self.pc));
+        let data_len = min(len, self.code.len().saturating_sub(self.pc));
         let mut data = u256::ZERO;
-        data[32 - len..].copy_from_slice(&self.code[self.pc..self.pc + len]);
+        data[32 - len..32 - len + data_len]
+            .copy_from_slice(&self.code[self.pc..self.pc + data_len]);
         self.pc += len;
 
         data
@@ -150,7 +151,10 @@ mod tests {
         assert_eq!(code_reader.get_push_data(32u8.into()), u256::MAX);
 
         let mut code_reader = CodeReader::new(&[0xff; 32], None, 31);
-        assert_eq!(code_reader.get_push_data(32u8.into()), 0xffu8.into());
+        assert_eq!(
+            code_reader.get_push_data(32u8.into()),
+            u256::from(0xffu8) << u256::from(248u8)
+        );
 
         let mut code_reader = CodeReader::new(&[0xff; 32], None, 32);
         assert_eq!(code_reader.get_push_data(32u8.into()), u256::ZERO);
