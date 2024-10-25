@@ -1338,69 +1338,60 @@ func getAllRules() []Rule {
 
 	// --- EXTCODEHASH ---
 
-	extCodeHashEffect := func(s *st.State) tosca.Address {
-		address := NewAddress(s.Stack.Pop())
-		hash := s.Accounts.GetCodeHash(address)
-		s.Stack.Push(NewU256FromBytes(hash[:]...))
-		return address
+	for _, revision := range tosca.GetAllKnownRevisions() {
+		for _, warm := range []bool{true, false} {
+			for _, isEmpty := range []bool{true, false} {
+				name := "_" + revision.String()
+				staticGas := tosca.Gas(100) // warm access
+				conditions := []Condition{IsRevision(revision)}
+
+				if warm {
+					name += "_warm"
+					conditions = append(conditions, IsAddressWarm(Param(0)))
+				} else {
+					name += "_cold"
+					staticGas = 2600
+					conditions = append(conditions, IsAddressCold(Param(0)))
+				}
+
+				if revision < tosca.R09_Berlin {
+					staticGas = 700
+				}
+
+				if isEmpty {
+					name += "_empty"
+					conditions = append(conditions, AccountIsEmpty(Param(0)))
+				} else {
+					name += "_not_empty"
+					conditions = append(conditions, AccountIsNotEmpty(Param(0)))
+				}
+
+				rules = append(rules, rulesFor(instruction{
+					op:         vm.EXTCODEHASH,
+					name:       name,
+					staticGas:  staticGas,
+					pops:       1,
+					pushes:     1,
+					conditions: conditions,
+					parameters: []Parameter{
+						AddressParameter{},
+					},
+					effect: func(s *st.State) {
+						address := NewAddress(s.Stack.Pop())
+						if s.Accounts.IsEmpty(address) {
+							s.Stack.Push(NewU256(0))
+						} else {
+							hash := s.Accounts.GetCodeHash(address)
+							s.Stack.Push(NewU256FromBytes(hash[:]...))
+						}
+						if revision >= tosca.R09_Berlin && !warm {
+							s.Accounts.MarkWarm(address)
+						}
+					},
+				})...)
+			}
+		}
 	}
-
-	// cold
-	rules = append(rules, rulesFor(instruction{
-		op:        vm.EXTCODEHASH,
-		name:      "_cold",
-		staticGas: 0 + 2600, // 2600 dynamic cost for cold address
-		pops:      1,
-		pushes:    1,
-		conditions: []Condition{
-			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
-			IsAddressCold(Param(0)),
-		},
-		parameters: []Parameter{
-			AddressParameter{},
-		},
-		effect: func(s *st.State) {
-			address := extCodeHashEffect(s)
-			s.Accounts.MarkWarm(address)
-		},
-	})...)
-
-	// warm
-	rules = append(rules, rulesFor(instruction{
-		op:        vm.EXTCODEHASH,
-		name:      "_warm",
-		staticGas: 0 + 100, // 100 dynamic cost for warm address
-		pops:      1,
-		pushes:    1,
-		conditions: []Condition{
-			RevisionBounds(tosca.R09_Berlin, NewestSupportedRevision),
-			IsAddressWarm(Param(0)),
-		},
-		parameters: []Parameter{
-			AddressParameter{},
-		},
-		effect: func(s *st.State) {
-			extCodeHashEffect(s)
-		},
-	})...)
-
-	// pre Berlin
-	rules = append(rules, rulesFor(instruction{
-		op:        vm.EXTCODEHASH,
-		name:      "_preBerlin",
-		staticGas: 700,
-		pops:      1,
-		pushes:    1,
-		conditions: []Condition{
-			IsRevision(tosca.R07_Istanbul),
-		},
-		parameters: []Parameter{
-			AddressParameter{},
-		},
-		effect: func(s *st.State) {
-			extCodeHashEffect(s)
-		},
-	})...)
 
 	// --- CHAINID ---
 
@@ -1652,7 +1643,7 @@ func getAllRules() []Rule {
 		},
 	})...)
 
-	// --- CALL, STATICCALL and DELEGATECALL ---
+	// --- CALL, CALLCODE, STATICCALL and DELEGATECALL ---
 
 	rules = append(rules, getRulesForAllCallTypes()...)
 
