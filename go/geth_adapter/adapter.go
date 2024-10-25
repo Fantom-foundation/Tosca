@@ -88,7 +88,7 @@ func (a *gethInterpreterAdapter) Run(contract *geth.Contract, input []byte, read
 	rules := a.evm.ChainConfig().Rules(a.evm.Context.BlockNumber, a.evm.Context.Random != nil, a.evm.Context.Time)
 	revision, err := convertRevision(rules)
 	if err != nil {
-		return nil, fmt.Errorf("unsupported revision: %v", err)
+		return nil, fmt.Errorf("unsupported revision: %w", err)
 	}
 	if adapterDebug {
 		fmt.Printf("Running revision %v\n", revision)

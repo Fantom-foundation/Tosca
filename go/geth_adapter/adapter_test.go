@@ -638,8 +638,9 @@ func TestRunContextAdapter_ConvertRevisionReturnsUnsupportedRevisionError(t *tes
 		IsHomestead: true,
 	}
 	_, err := convertRevision(rules)
-	if err == nil {
-		t.Errorf("Expected error, got nil")
+	targetError := &tosca.ErrUnsupportedRevision{}
+	if !errors.As(err, &targetError) {
+		t.Errorf("Expected unsupported revision error, got %v", err)
 	}
 }
 
