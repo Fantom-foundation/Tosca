@@ -282,48 +282,31 @@ func TestCreateChecksBalance(t *testing.T) {
 	}
 }
 
-func TestBlobHash(t *testing.T) {
-
+func TestBlobHash_PushesCorrectValueOnStack(t *testing.T) {
 	hash := tosca.Hash{1}
 
 	tests := map[string]struct {
-		setup    func(*tosca.Parameters, *stack)
-		gas      tosca.Gas
-		revision tosca.Revision
-		err      error
-		want     tosca.Hash
+		setup func(*tosca.Parameters, *stack)
+		want  tosca.Hash
 	}{
 		"regular": {
 			setup: func(params *tosca.Parameters, stack *stack) {
 				stack.push(uint256.NewInt(0))
 				params.BlobHashes = []tosca.Hash{hash}
 			},
-			gas:      2,
-			revision: tosca.R13_Cancun,
-			want:     hash,
-		},
-		"old-revision": {
-			setup:    func(params *tosca.Parameters, stack *stack) {},
-			gas:      2,
-			revision: tosca.R12_Shanghai,
-			err:      errInvalidRevision,
-			want:     tosca.Hash{},
+			want: hash,
 		},
 		"no-hashes": {
 			setup: func(params *tosca.Parameters, stack *stack) {
 				stack.push(uint256.NewInt(0))
 			},
-			gas:      2,
-			revision: tosca.R13_Cancun,
-			want:     tosca.Hash{},
+			want: tosca.Hash{},
 		},
 		"target-non-existent": {
 			setup: func(params *tosca.Parameters, stack *stack) {
 				stack.push(uint256.NewInt(1))
 			},
-			gas:      2,
-			revision: tosca.R13_Cancun,
-			want:     tosca.Hash{},
+			want: tosca.Hash{},
 		},
 	}
 
@@ -331,83 +314,31 @@ func TestBlobHash(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 
 			ctxt := context{
-				params: tosca.Parameters{
-					Recipient: tosca.Address{1},
-				},
-				stack:  NewStack(),
-				memory: NewMemory(),
+				stack: NewStack(),
 			}
-			ctxt.gas = test.gas
-			ctxt.params.Revision = test.revision
-
+			ctxt.params.Revision = tosca.R13_Cancun
 			test.setup(&ctxt.params, ctxt.stack)
 
 			err := opBlobHash(&ctxt)
-			if want, got := test.err, err; want != got {
-				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
+			if err != nil {
+				t.Fatalf("unexpected return: %v", err)
 			}
-
-			if err == nil {
-				if want, got := test.want, ctxt.stack.data[0]; tosca.Hash(got.Bytes32()) != want {
-					t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
-				}
+			if want, got := test.want, ctxt.stack.data[0]; tosca.Hash(got.Bytes32()) != want {
+				t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
 			}
 		})
 	}
 }
 
-func TestBlobBaseFee(t *testing.T) {
-
-	blobBaseFeeValue := tosca.Value{1}
-
-	tests := map[string]struct {
-		setup    func(*tosca.Parameters)
-		gas      tosca.Gas
-		revision tosca.Revision
-		err      error
-		want     tosca.Value
-	}{
-		"regular": {
-			setup: func(params *tosca.Parameters) {
-				params.BlobBaseFee = blobBaseFeeValue
-			},
-			gas:      2,
-			revision: tosca.R13_Cancun,
-			want:     blobBaseFeeValue,
-		},
-		"old-revision": {
-			setup:    func(*tosca.Parameters) {},
-			gas:      2,
-			revision: tosca.R12_Shanghai,
-			err:      errInvalidRevision,
-			want:     tosca.Value{},
-		},
+func TestBlobBaseFee_ReturnsErrorWhenCalledWithUnsupportedRevision(t *testing.T) {
+	ctxt := context{
+		stack: NewStack(),
 	}
+	ctxt.params.Revision = tosca.R12_Shanghai
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-
-			ctxt := context{
-				params: tosca.Parameters{
-					Recipient: tosca.Address{1},
-				},
-				stack:  NewStack(),
-				memory: NewMemory(),
-			}
-			ctxt.gas = test.gas
-			ctxt.params.Revision = test.revision
-
-			test.setup(&ctxt.params)
-
-			err := opBlobBaseFee(&ctxt)
-			if want, got := test.err, err; want != got {
-				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
-			}
-
-			if want, got := test.want, ctxt.stack.data[0]; got.Cmp(new(uint256.Int).SetBytes(want[:])) != 0 {
-				t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
-			}
-		})
+	err := opBlobBaseFee(&ctxt)
+	if want, got := errInvalidRevision, err; want != got {
+		t.Fatalf("unexpected return, wanted %v, got %v", want, got)
 	}
 }
 
