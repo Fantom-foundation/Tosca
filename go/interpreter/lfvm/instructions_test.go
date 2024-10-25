@@ -356,7 +356,7 @@ func TestBlobHash(t *testing.T) {
 	}
 }
 
-func TestBlobBaseFee(t *testing.T) {
+func TestBlobBaseFee_ReturnsErrorWhenCalledWithUnsupportedRevision(t *testing.T) {
 
 	blobBaseFeeValue := tosca.Value{1}
 
@@ -404,8 +404,10 @@ func TestBlobBaseFee(t *testing.T) {
 				t.Fatalf("unexpected return, wanted %v, got %v", want, got)
 			}
 
-			if want, got := test.want, ctxt.stack.data[0]; got.Cmp(new(uint256.Int).SetBytes(want[:])) != 0 {
-				t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
+			if test.err == nil {
+				if want, got := test.want, ctxt.stack.data[0]; got.Cmp(new(uint256.Int).SetBytes(want[:])) != 0 {
+					t.Fatalf("unexpected value on top of stack, wanted %v, got %v", want, got)
+				}
 			}
 		})
 	}
