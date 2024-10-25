@@ -1338,13 +1338,6 @@ func getAllRules() []Rule {
 
 	// --- EXTCODEHASH ---
 
-	extCodeHashEffect := func(s *st.State) tosca.Address {
-		address := NewAddress(s.Stack.Pop())
-		hash := s.Accounts.GetCodeHash(address)
-		s.Stack.Push(NewU256FromBytes(hash[:]...))
-		return address
-	}
-
 	for _, revision := range tosca.GetAllKnownRevisions() {
 		for _, warm := range []bool{true, false} {
 			for _, isEmpty := range []bool{true, false} {
@@ -1384,7 +1377,13 @@ func getAllRules() []Rule {
 						AddressParameter{},
 					},
 					effect: func(s *st.State) {
-						address := extCodeHashEffect(s)
+						address := NewAddress(s.Stack.Pop())
+						if s.Accounts.IsEmpty(address) {
+							s.Stack.Push(NewU256(0))
+						} else {
+							hash := s.Accounts.GetCodeHash(address)
+							s.Stack.Push(NewU256FromBytes(hash[:]...))
+						}
 						if revision >= tosca.R09_Berlin && !warm {
 							s.Accounts.MarkWarm(address)
 						}
