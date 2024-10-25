@@ -89,14 +89,13 @@ func doRun(context *cli.Context) error {
 	defer fmt.Printf("Seed Used: %d\n", seed)
 
 	issuesCollector := cliUtils.IssuesCollector{}
-	var skippedCount atomic.Int32
 	var numUnsupportedTests atomic.Int32
 
 	printIssueCounts := func(relativeTime time.Duration, rate float64, current int64) {
 		fmt.Printf(
-			"[t=%4d:%02d] - Processing ~%s tests per second, total %d, skipped %d, found issues %d\n",
+			"[t=%4d:%02d] - Processing ~%s tests per second, total %d, found issues %d\n",
 			int(relativeTime.Seconds())/60, int(relativeTime.Seconds())%60,
-			unitconv.FormatPrefix(rate, unitconv.SI, 0), current, skippedCount.Load(), issuesCollector.NumIssues(),
+			unitconv.FormatPrefix(rate, unitconv.SI, 0), current, issuesCollector.NumIssues(),
 		)
 	}
 
@@ -115,7 +114,6 @@ func doRun(context *cli.Context) error {
 		// TODO: do not only skip state but change 'pc_on_data_is_ignored' rule to anyEffect
 		// Pc on data is not supported
 		if !state.Code.IsCode(int(state.Pc)) {
-			skippedCount.Add(1)
 			return rlz.ConsumeContinue
 		}
 
@@ -141,10 +139,6 @@ func doRun(context *cli.Context) error {
 	issues := issuesCollector.GetIssues()
 
 	// Summarize the result.
-	if skippedCount.Load() > 0 {
-		fmt.Printf("Number of skipped tests: %d\n", skippedCount.Load())
-	}
-
 	if numUnsupportedTests.Load() > 0 {
 		fmt.Printf("Number of tests with unsupported revision: %d\n", numUnsupportedTests.Load())
 	}
