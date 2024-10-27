@@ -140,70 +140,70 @@ impl<'a> Interpreter<'a> {
         |i| i.t_store(),
         |i| i.m_copy(),
         |i| i.push0(),
-        (|i| i.push(1)),
-        (|i| i.push(2)),
-        (|i| i.push(3)),
-        (|i| i.push(4)),
-        (|i| i.push(5)),
-        (|i| i.push(6)),
-        (|i| i.push(7)),
-        (|i| i.push(8)),
-        (|i| i.push(9)),
-        (|i| i.push(10)),
-        (|i| i.push(11)),
-        (|i| i.push(12)),
-        (|i| i.push(13)),
-        (|i| i.push(14)),
-        (|i| i.push(15)),
-        (|i| i.push(16)),
-        (|i| i.push(17)),
-        (|i| i.push(18)),
-        (|i| i.push(19)),
-        (|i| i.push(20)),
-        (|i| i.push(21)),
-        (|i| i.push(22)),
-        (|i| i.push(23)),
-        (|i| i.push(24)),
-        (|i| i.push(25)),
-        (|i| i.push(26)),
-        (|i| i.push(27)),
-        (|i| i.push(28)),
-        (|i| i.push(29)),
-        (|i| i.push(30)),
-        (|i| i.push(31)),
-        (|i| i.push(32)),
-        (|i| i.dup(1)),
-        (|i| i.dup(2)),
-        (|i| i.dup(3)),
-        (|i| i.dup(4)),
-        (|i| i.dup(5)),
-        (|i| i.dup(6)),
-        (|i| i.dup(7)),
-        (|i| i.dup(8)),
-        (|i| i.dup(9)),
-        (|i| i.dup(10)),
-        (|i| i.dup(11)),
-        (|i| i.dup(12)),
-        (|i| i.dup(13)),
-        (|i| i.dup(14)),
-        (|i| i.dup(15)),
-        (|i| i.dup(16)),
-        (|i| i.swap(1)),
-        (|i| i.swap(2)),
-        (|i| i.swap(3)),
-        (|i| i.swap(4)),
-        (|i| i.swap(5)),
-        (|i| i.swap(6)),
-        (|i| i.swap(7)),
-        (|i| i.swap(8)),
-        (|i| i.swap(9)),
-        (|i| i.swap(10)),
-        (|i| i.swap(11)),
-        (|i| i.swap(12)),
-        (|i| i.swap(13)),
-        (|i| i.swap(14)),
-        (|i| i.swap(15)),
-        (|i| i.swap(16)),
+        |i| i.push(1),
+        |i| i.push(2),
+        |i| i.push(3),
+        |i| i.push(4),
+        |i| i.push(5),
+        |i| i.push(6),
+        |i| i.push(7),
+        |i| i.push(8),
+        |i| i.push(9),
+        |i| i.push(10),
+        |i| i.push(11),
+        |i| i.push(12),
+        |i| i.push(13),
+        |i| i.push(14),
+        |i| i.push(15),
+        |i| i.push(16),
+        |i| i.push(17),
+        |i| i.push(18),
+        |i| i.push(19),
+        |i| i.push(20),
+        |i| i.push(21),
+        |i| i.push(22),
+        |i| i.push(23),
+        |i| i.push(24),
+        |i| i.push(25),
+        |i| i.push(26),
+        |i| i.push(27),
+        |i| i.push(28),
+        |i| i.push(29),
+        |i| i.push(30),
+        |i| i.push(31),
+        |i| i.push(32),
+        |i| i.dup(1),
+        |i| i.dup(2),
+        |i| i.dup(3),
+        |i| i.dup(4),
+        |i| i.dup(5),
+        |i| i.dup(6),
+        |i| i.dup(7),
+        |i| i.dup(8),
+        |i| i.dup(9),
+        |i| i.dup(10),
+        |i| i.dup(11),
+        |i| i.dup(12),
+        |i| i.dup(13),
+        |i| i.dup(14),
+        |i| i.dup(15),
+        |i| i.dup(16),
+        |i| i.swap(1),
+        |i| i.swap(2),
+        |i| i.swap(3),
+        |i| i.swap(4),
+        |i| i.swap(5),
+        |i| i.swap(6),
+        |i| i.swap(7),
+        |i| i.swap(8),
+        |i| i.swap(9),
+        |i| i.swap(10),
+        |i| i.swap(11),
+        |i| i.swap(12),
+        |i| i.swap(13),
+        |i| i.swap(14),
+        |i| i.swap(15),
+        |i| i.swap(16),
         |i| i.log::<0>(),
         |i| i.log::<1>(),
         |i| i.log::<2>(),
@@ -786,7 +786,7 @@ impl<'a> Interpreter<'a> {
         self.gas_left.consume(30)?;
         let [len, offset] = self.stack.pop()?;
 
-        let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
+        let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
         self.gas_left.consume(6 * word_size(len)?)?; // * does not overflow
 
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
@@ -892,9 +892,7 @@ impl<'a> Interpreter<'a> {
         let [len, offset, dest_offset] = self.stack.pop()?;
 
         if len != u256::ZERO {
-            let len = len
-                .try_into()
-                .map_err(|_| FailStatus::InvalidMemoryAccess)?;
+            let len = u64::try_from(len).map_err(|_| FailStatus::InvalidMemoryAccess)?;
 
             #[allow(clippy::map_identity)]
             let src = self
@@ -929,7 +927,7 @@ impl<'a> Interpreter<'a> {
         let [len, offset, dest_offset] = self.stack.pop()?;
 
         if len != u256::ZERO {
-            let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
+            let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
 
             let src = self.code_reader.get_within_bounds(offset, len);
             let dest = self
@@ -972,7 +970,7 @@ impl<'a> Interpreter<'a> {
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
         if len != u256::ZERO {
-            let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
+            let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
 
             let dest = self
                 .memory
@@ -1042,10 +1040,9 @@ impl<'a> Interpreter<'a> {
         self.gas_left.consume(20)?;
         let [block_number] = self.stack.pop()?;
         self.stack.push(
-            block_number
-                .try_into()
-                .map(|idx: u64| self.context.get_block_hash(idx as i64))
-                .unwrap_or(u256::ZERO.into()),
+            u64::try_from(block_number)
+                .map(|idx| self.context.get_block_hash(idx as i64).into())
+                .unwrap_or(u256::ZERO),
         )?;
         self.code_reader.next();
         self.return_from_op()
@@ -1284,7 +1281,7 @@ impl<'a> Interpreter<'a> {
 
     fn return_(&mut self) -> OpResult {
         let [len, offset] = self.stack.pop()?;
-        let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
+        let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
         #[cfg(not(feature = "custom-evmc"))]
         {
@@ -1300,7 +1297,7 @@ impl<'a> Interpreter<'a> {
 
     fn revert(&mut self) -> OpResult {
         let [len, offset] = self.stack.pop()?;
-        let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
+        let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
         // TODO revert self changes
         // gas_refund = original_gas_refund;
@@ -1462,7 +1459,7 @@ impl<'a> Interpreter<'a> {
         } else {
             u256::ZERO // ignored
         };
-        let len = len.try_into().map_err(|_| FailStatus::OutOfGas)?;
+        let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
 
         let init_code_word_size = word_size(len)?;
         if self.revision >= Revision::EVMC_SHANGHAI {
@@ -1548,8 +1545,8 @@ impl<'a> Interpreter<'a> {
         }
 
         let addr = addr.into();
-        let args_len = args_len.try_into().map_err(|_| FailStatus::OutOfGas)?;
-        let ret_len = ret_len.try_into().map_err(|_| FailStatus::OutOfGas)?;
+        let args_len = u64::try_from(args_len).map_err(|_| FailStatus::OutOfGas)?;
+        let ret_len = u64::try_from(ret_len).map_err(|_| FailStatus::OutOfGas)?;
 
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
@@ -1651,8 +1648,8 @@ impl<'a> Interpreter<'a> {
         let [ret_len, ret_offset, args_len, args_offset, addr, gas] = self.stack.pop()?;
 
         let addr = addr.into();
-        let args_len = args_len.try_into().map_err(|_| FailStatus::OutOfGas)?;
-        let ret_len = ret_len.try_into().map_err(|_| FailStatus::OutOfGas)?;
+        let args_len = u64::try_from(args_len).map_err(|_| FailStatus::OutOfGas)?;
+        let ret_len = u64::try_from(ret_len).map_err(|_| FailStatus::OutOfGas)?;
 
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
