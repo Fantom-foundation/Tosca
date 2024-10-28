@@ -12,7 +12,7 @@ TOSCA_CPP_ASAN = OFF
 TOSCA_CPP_COVERAGE = OFF
 
 STATICCHECK_VERSION = 2024.1.1
-ERRCHECK_VERSION = v1.7.0
+ERRCHECK_VERSION = v1.8.0
 
 .PHONY: all tosca tosca-go tosca-cpp tosca-rust test test-go test-cpp test-rust test-cpp-asan \
         bench bench-go clean clean-go clean-cpp clean-rust evmone evmone-clean license-headers
