@@ -353,7 +353,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    #[cfg(not(feature = "jumptable-tail-call"))]
+    #[cfg(not(feature = "tail-call"))]
     pub fn run(&mut self) -> Result<(), FailStatus> {
         loop {
             if self.exec_status != ExecStatus::Running {
@@ -380,7 +380,7 @@ impl<'a> Interpreter<'a> {
 
         Ok(())
     }
-    #[cfg(feature = "jumptable-tail-call")]
+    #[cfg(feature = "tail-call")]
     #[inline(always)]
     pub fn run(&mut self) -> Result<(), FailStatus> {
         match &mut self.steps {
@@ -405,7 +405,6 @@ impl<'a> Interpreter<'a> {
     fn run_op(&mut self, op: Opcode) -> OpResult {
         Self::JUMPTABLE[op as u8 as usize](self)
     }
-
     #[cfg(not(feature = "jumptable"))]
     fn run_op(&mut self, op: Opcode) -> OpResult {
         match op {
@@ -563,9 +562,9 @@ impl<'a> Interpreter<'a> {
 
     #[allow(clippy::unused_self)]
     fn return_from_op(&mut self) -> OpResult {
-        #[cfg(not(feature = "jumptable-tail-call"))]
+        #[cfg(not(feature = "tail-call"))]
         return Ok(());
-        #[cfg(feature = "jumptable-tail-call")]
+        #[cfg(feature = "tail-call")]
         return self.run();
     }
 
