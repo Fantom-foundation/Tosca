@@ -12,7 +12,7 @@ jumptable = ["evmrs/jumptable"]
 hash-cache = ["evmrs/hash-cache"]
 code-analysis-cache = ["evmrs/code-analysis-cache"]
 thread-local-cache = ["evmrs/thread-local-cache"]
-jumptable-tail-call = ["evmrs/jumptable-tail-call"]
+tail-call = ["evmrs/tail-call"]
 
 [dependencies]
 evmrs = { path = ".." }
