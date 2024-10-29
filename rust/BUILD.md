@@ -47,7 +47,7 @@ cargo doc --workspace --document-private-items --open
     go run ./go/ct/driver run --full-mode evmrs
     ```
 
-Also see [test.sh](./scripts/test.sh) which runs the Go tests and CT in full mode.
+Also see [run_ct.sh](./scripts/run_ct.sh) which runs the Go tests and CT.
 
 ## Coverage
 
@@ -76,7 +76,7 @@ cargo build --features mimalloc,stack-array
 1. Identify a possible optimization opportunity by
     - running the Go VM benchmarks and comparing them, in cases where `evmrs` is slower than the other interpreters
         ```sh
-        ./scripts/bench.sh performance
+        cargo run --package bencher
         ```
     - running a profiler of you choice and identifying a bottleneck
 1. Add a feature in [Cargo.toml](Cargo.toml)
@@ -88,7 +88,7 @@ cargo build --features mimalloc,stack-array
    This will run the Rust benchmarks and generate flamegraphs for all currently implemented features and for all currently implemented features and the new feature
 1. Run Go VM Benchmarks 
     ```sh
-    ./scripts/bench.sh performance performance,my-new-feature
+    cargo run --package bencher -- --evmrs-only performance,my-new-feature
     ```
 1. If all benchmarks indicate that the performance with the optimization is better that before, add the feature name to the features enabled by the `performance` feature in [Cargo.toml](Cargo.toml).
 

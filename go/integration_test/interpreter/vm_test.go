@@ -118,7 +118,10 @@ func BenchmarkEmpty(b *testing.B) {
 }
 
 func BenchmarkStaticOverhead(b *testing.B) {
-	benchmark(b, examples.GetStaticOverheadExample(), 1)
+	// this is just to the benchmark name consists of 3 parts and can be matched by regex
+	b.Run("1", func(b *testing.B) {
+		benchmark(b, examples.GetStaticOverheadExample(), 1)
+	})
 }
 
 func BenchmarkInc(b *testing.B) {
