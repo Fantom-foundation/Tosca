@@ -11,6 +11,7 @@
 package gen
 
 import (
+	"bytes"
 	"fmt"
 	"slices"
 	"sort"
@@ -325,6 +326,10 @@ func (g *StateGenerator) IsAbsentBlobHashIndex(variable Variable) {
 // generators are invoked automatically.
 func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	assignment := Assignment{}
+	return g.generateWith(rnd, assignment)
+}
+
+func (g *StateGenerator) generateWith(rnd *rand.Rand, assignment Assignment) (*st.State, error) {
 
 	// Enforce variable assignments.
 	for _, binding := range g.variableBindings {
@@ -632,6 +637,18 @@ func (g *StateGenerator) String() string {
 	sort.Slice(g.pcVariableConstraints, func(i, j int) bool { return g.pcVariableConstraints[i] < g.pcVariableConstraints[j] })
 	for _, pc := range g.pcVariableConstraints {
 		parts = append(parts, fmt.Sprintf("pc=%v", pc))
+	}
+
+	sort.Slice(g.selfAddressBindings, func(i, j int) bool { return g.selfAddressBindings[i] < g.selfAddressBindings[j] })
+	for _, v := range g.selfAddressBindings {
+		parts = append(parts, fmt.Sprintf("selfAddress=%v", v))
+	}
+
+	sort.Slice(g.selfAddressConstraints, func(i, j int) bool {
+		return bytes.Compare(g.selfAddressConstraints[i][:], g.selfAddressConstraints[j][:]) < 0
+	})
+	for _, address := range g.selfAddressConstraints {
+		parts = append(parts, fmt.Sprintf("selfAddress=%v", address))
 	}
 
 	parts = append(parts, g.gasConstraints.Print("gas"))
