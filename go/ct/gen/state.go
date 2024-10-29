@@ -11,6 +11,7 @@
 package gen
 
 import (
+	"bytes"
 	"fmt"
 	"slices"
 	"sort"
@@ -42,13 +43,15 @@ import (
 // The same applies to subsequent generators.
 type StateGenerator struct {
 	// Constraints
-	statusConstraints     []st.StatusCode
-	readOnlyConstraints   []bool
-	pcConstantConstraints []uint16
-	pcVariableConstraints []Variable
-	gasConstraints        *RangeSolver[tosca.Gas]
-	gasRefundConstraints  *RangeSolver[tosca.Gas]
-	variableBindings      []variableBinding
+	statusConstraints      []st.StatusCode
+	readOnlyConstraints    []bool
+	pcConstantConstraints  []uint16
+	pcVariableConstraints  []Variable
+	gasConstraints         *RangeSolver[tosca.Gas]
+	gasRefundConstraints   *RangeSolver[tosca.Gas]
+	variableBindings       []variableBinding
+	selfAddressConstraints []tosca.Address
+	selfAddressBindings    []Variable
 
 	// Generators
 	codeGen               *CodeGenerator
@@ -136,6 +139,22 @@ func (g *StateGenerator) SetPc(pc uint16) {
 func (g *StateGenerator) BindPc(pc Variable) {
 	if !slices.Contains(g.pcVariableConstraints, pc) {
 		g.pcVariableConstraints = append(g.pcVariableConstraints, pc)
+	}
+}
+
+// BindToAccountAddress constraints the given variable to be mapped to the
+// address of the account that is executing the code.
+func (g *StateGenerator) BindToSelfAddress(address Variable) {
+	if !slices.Contains(g.selfAddressBindings, address) {
+		g.selfAddressBindings = append(g.selfAddressBindings, address)
+	}
+}
+
+// SetSelfAddress adds a constraint on the State's self address to match the
+// given address.
+func (g *StateGenerator) SetSelfAddress(address tosca.Address) {
+	if !slices.Contains(g.selfAddressConstraints, address) {
+		g.selfAddressConstraints = append(g.selfAddressConstraints, address)
 	}
 }
 
@@ -252,6 +271,18 @@ func (g *StateGenerator) BindToAddressOfNonEmptyAccount(address Variable) {
 	g.accountsGen.BindToAddressOfNonEmptyAccount(address)
 }
 
+// AddMinimumBalance adds a constraint restricting the balance of the account
+// identified by the given variable to be at least the given value.
+func (g *StateGenerator) AddBalanceLowerBound(address Variable, value U256) {
+	g.accountsGen.AddBalanceLowerBound(address, value)
+}
+
+// AddMinimumBalance adds a constraint restricting the balance of the account
+// identified by the given variable to be at most the given value.
+func (g *StateGenerator) AddBalanceUpperBound(address Variable, value U256) {
+	g.accountsGen.AddBalanceUpperBound(address, value)
+}
+
 // BindToWarmAddress wraps AccountsGenerator.BindWarm.
 func (g *StateGenerator) BindToWarmAddress(key Variable) {
 	g.accountsGen.BindWarm(key)
@@ -295,6 +326,10 @@ func (g *StateGenerator) IsAbsentBlobHashIndex(variable Variable) {
 // generators are invoked automatically.
 func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 	assignment := Assignment{}
+	return g.generateWith(rnd, assignment)
+}
+
+func (g *StateGenerator) generateWith(rnd *rand.Rand, assignment Assignment) (*st.State, error) {
 
 	// Enforce variable assignments.
 	for _, binding := range g.variableBindings {
@@ -372,7 +407,52 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 		return nil, fmt.Errorf("failed to resolve gas refund constraints: %w", err)
 	}
 
-	accountAddress := RandomAddress(rnd)
+	// --- Self Address ---
+
+	// Pick the address of the account executing the code.
+	var address *tosca.Address
+
+	// Consume fixed constraints on the self-address.
+	if len(g.selfAddressConstraints) > 1 {
+		return nil, fmt.Errorf(
+			"%w, multiple conflicting self address constraints defined: %v",
+			ErrUnsatisfiable, g.selfAddressConstraints,
+		)
+	}
+	if len(g.selfAddressConstraints) == 1 {
+		address = &g.selfAddressConstraints[0]
+	}
+
+	// Check variable constraints and pre-assigned values.
+	for _, v := range g.selfAddressBindings {
+		value, found := assignment[v]
+		if !found {
+			continue
+		}
+		should := NewAddress(value)
+		if address == nil {
+			address = &should
+			continue
+		}
+		if should != *address {
+			return nil, fmt.Errorf("%w, conflicting address bindings", ErrUnsatisfiable)
+		}
+	}
+
+	// If there are no constraints, generate a random address.
+	if address == nil {
+		// Generate a random address.
+		accountAddress := RandomAddress(rnd)
+		address = &accountAddress
+	}
+
+	// Update all variables to be bound to the self address to match that value.
+	accountAddress := *address
+	for _, v := range g.selfAddressBindings {
+		assignment[v] = NewU256FromBytes(accountAddress[:]...)
+	}
+
+	// --- Call Context ---
 
 	// Invoke CallContextGenerator
 	resultCallContext, err := g.callContextGen.Generate(rnd, accountAddress)
@@ -483,24 +563,26 @@ func (g *StateGenerator) Generate(rnd *rand.Rand) (*st.State, error) {
 // Future modifications are isolated from each other.
 func (g *StateGenerator) Clone() *StateGenerator {
 	return &StateGenerator{
-		statusConstraints:     slices.Clone(g.statusConstraints),
-		readOnlyConstraints:   slices.Clone(g.readOnlyConstraints),
-		pcConstantConstraints: slices.Clone(g.pcConstantConstraints),
-		pcVariableConstraints: slices.Clone(g.pcVariableConstraints),
-		gasConstraints:        g.gasConstraints.Clone(),
-		gasRefundConstraints:  g.gasRefundConstraints.Clone(),
-		variableBindings:      slices.Clone(g.variableBindings),
-		codeGen:               g.codeGen.Clone(),
-		stackGen:              g.stackGen.Clone(),
-		memoryGen:             g.memoryGen.Clone(),
-		storageGen:            g.storageGen.Clone(),
-		transientStorageGen:   g.transientStorageGen.Clone(),
-		accountsGen:           g.accountsGen.Clone(),
-		callContextGen:        g.callContextGen.Clone(),
-		callJournalGen:        g.callJournalGen.Clone(),
-		blockContextGen:       g.blockContextGen.Clone(),
-		hasSelfDestructedGen:  g.hasSelfDestructedGen.Clone(),
-		transactionContextGen: g.transactionContextGen.Clone(),
+		statusConstraints:      slices.Clone(g.statusConstraints),
+		readOnlyConstraints:    slices.Clone(g.readOnlyConstraints),
+		pcConstantConstraints:  slices.Clone(g.pcConstantConstraints),
+		pcVariableConstraints:  slices.Clone(g.pcVariableConstraints),
+		gasConstraints:         g.gasConstraints.Clone(),
+		gasRefundConstraints:   g.gasRefundConstraints.Clone(),
+		variableBindings:       slices.Clone(g.variableBindings),
+		selfAddressConstraints: slices.Clone(g.selfAddressConstraints),
+		selfAddressBindings:    slices.Clone(g.selfAddressBindings),
+		codeGen:                g.codeGen.Clone(),
+		stackGen:               g.stackGen.Clone(),
+		memoryGen:              g.memoryGen.Clone(),
+		storageGen:             g.storageGen.Clone(),
+		transientStorageGen:    g.transientStorageGen.Clone(),
+		accountsGen:            g.accountsGen.Clone(),
+		callContextGen:         g.callContextGen.Clone(),
+		callJournalGen:         g.callJournalGen.Clone(),
+		blockContextGen:        g.blockContextGen.Clone(),
+		hasSelfDestructedGen:   g.hasSelfDestructedGen.Clone(),
+		transactionContextGen:  g.transactionContextGen.Clone(),
 	}
 }
 
@@ -514,6 +596,8 @@ func (g *StateGenerator) Restore(other *StateGenerator) {
 		g.gasConstraints.Restore(other.gasConstraints)
 		g.gasRefundConstraints.Restore(other.gasRefundConstraints)
 		g.variableBindings = slices.Clone(other.variableBindings)
+		g.selfAddressConstraints = slices.Clone(other.selfAddressConstraints)
+		g.selfAddressBindings = slices.Clone(other.selfAddressBindings)
 		g.codeGen.Restore(other.codeGen)
 		g.stackGen.Restore(other.stackGen)
 		g.memoryGen.Restore(other.memoryGen)
@@ -553,6 +637,18 @@ func (g *StateGenerator) String() string {
 	sort.Slice(g.pcVariableConstraints, func(i, j int) bool { return g.pcVariableConstraints[i] < g.pcVariableConstraints[j] })
 	for _, pc := range g.pcVariableConstraints {
 		parts = append(parts, fmt.Sprintf("pc=%v", pc))
+	}
+
+	sort.Slice(g.selfAddressBindings, func(i, j int) bool { return g.selfAddressBindings[i] < g.selfAddressBindings[j] })
+	for _, v := range g.selfAddressBindings {
+		parts = append(parts, fmt.Sprintf("selfAddress=%v", v))
+	}
+
+	sort.Slice(g.selfAddressConstraints, func(i, j int) bool {
+		return bytes.Compare(g.selfAddressConstraints[i][:], g.selfAddressConstraints[j][:]) < 0
+	})
+	for _, address := range g.selfAddressConstraints {
+		parts = append(parts, fmt.Sprintf("selfAddress=%v", address))
 	}
 
 	parts = append(parts, g.gasConstraints.Print("gas"))

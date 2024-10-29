@@ -303,6 +303,108 @@ func TestStateGenerator_AddGasRefundLowerUpperBoundIsEnforced(t *testing.T) {
 }
 
 ////////////////////////////////////////////////////////////
+// Self Address
+
+func TestStateGenerator_SetSelfAddress(t *testing.T) {
+	addresses := []tosca.Address{{1}, {8}, {72, 14}}
+
+	rnd := rand.New(0)
+	for _, address := range addresses {
+		generator := NewStateGenerator()
+		generator.SetSelfAddress(address)
+		state, err := generator.Generate(rnd)
+		if err != nil {
+			t.Fatalf("unexpected error during build: %v", err)
+		}
+		if want, got := address, state.CallContext.AccountAddress; want != got {
+			t.Errorf("unexpected account address, wanted %d, got %d", want, got)
+		}
+	}
+}
+
+func TestStateGenerator_ConflictingSelfAddressesAreDetected(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.SetSelfAddress(tosca.Address{1})
+	generator.SetSelfAddress(tosca.Address{2})
+	rnd := rand.New(0)
+	if _, err := generator.Generate(rnd); !errors.Is(err, ErrUnsatisfiable) {
+		t.Errorf("unsatisfiable constraint not detected, got %v", err)
+	}
+}
+
+func TestStateGenerator_NonConflictingSelfAddressesAreAccepted(t *testing.T) {
+	generator := NewStateGenerator()
+	generator.SetSelfAddress(tosca.Address{1})
+	generator.SetSelfAddress(tosca.Address{1})
+	rnd := rand.New(0)
+	if _, err := generator.Generate(rnd); err != nil {
+		t.Errorf("generation failed: %v", err)
+	}
+}
+
+func TestStateGenerator_SelfAddressCanBeBoundToVariable(t *testing.T) {
+	varX := Variable("X")
+	varY := Variable("Y")
+
+	rnd := rand.New(0)
+	generator := NewStateGenerator()
+	generator.BindToSelfAddress(varX)
+	generator.BindToSelfAddress(varY)
+	assignment := Assignment{}
+	state, err := generator.generateWith(rnd, assignment)
+	if err != nil {
+		t.Fatalf("unexpected error during build: %v", err)
+	}
+	want := NewU256FromBytes(state.CallContext.AccountAddress[:]...)
+	if got := assignment[varX]; want != got {
+		t.Errorf("unexpected account address for %s, wanted %d, got %d", varX, want, got)
+	}
+	if got := assignment[varY]; want != got {
+		t.Errorf("unexpected account address for %s, wanted %d, got %d", varY, want, got)
+	}
+}
+
+func TestStateGenerator_ConflictingPreBoundAddressesAreDetected(t *testing.T) {
+	varX := Variable("X")
+	varY := Variable("Y")
+
+	rnd := rand.New(0)
+	generator := NewStateGenerator()
+	generator.BindToSelfAddress(varX)
+	generator.BindToSelfAddress(varY)
+	assignment := Assignment{
+		varX: NewU256(1),
+		varY: NewU256(2),
+	}
+	_, err := generator.generateWith(rnd, assignment)
+	if !errors.Is(err, ErrUnsatisfiable) {
+		t.Errorf("unsatisfiable constraint not detected, got %v", err)
+	}
+}
+
+func TestStateGenerator_SelfAddressConstraintsAndVariablesCanBeCombined(t *testing.T) {
+	addr := tosca.Address{1, 2, 3}
+	varX := Variable("X")
+
+	rnd := rand.New(0)
+	generator := NewStateGenerator()
+	generator.SetSelfAddress(addr)
+	generator.BindToSelfAddress(varX)
+	assignment := Assignment{}
+	state, err := generator.generateWith(rnd, assignment)
+	if err != nil {
+		t.Fatalf("unexpected error during build: %v", err)
+	}
+	if want, got := addr, state.CallContext.AccountAddress; want != got {
+		t.Errorf("unexpected account address, wanted %d, got %d", want, got)
+	}
+	want := NewU256FromBytes(addr[:]...)
+	if got := assignment[varX]; want != got {
+		t.Errorf("unexpected account address for %s, wanted %d, got %d", varX, want, got)
+	}
+}
+
+////////////////////////////////////////////////////////////
 // Clone / Restore
 
 func TestStateGenerator_CloneCopiesBuilderState(t *testing.T) {
@@ -313,6 +415,8 @@ func TestStateGenerator_CloneCopiesBuilderState(t *testing.T) {
 	original.SetGas(5)
 	original.SetGasRefund(6)
 	original.BindValue(Variable("x"), NewU256(12))
+	original.BindToSelfAddress(Variable("Y"))
+	original.SetSelfAddress(tosca.Address{1})
 
 	clone := original.Clone()
 
@@ -334,6 +438,8 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone1.AddStackSizeLowerBound(2)
 	clone1.AddStackSizeUpperBound(200)
 	clone1.BindValue(Variable("x"), NewU256(12))
+	clone1.BindToSelfAddress(Variable("Y"))
+	clone1.SetSelfAddress(tosca.Address{1})
 	clone1.MustBeSelfDestructed()
 
 	clone2 := base.Clone()
@@ -346,6 +452,8 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 	clone2.AddStackSizeUpperBound(300)
 	clone2.BindTransientStorageToZero("x")
 	clone2.BindValue(Variable("y"), NewU256(14))
+	clone2.BindToSelfAddress(Variable("w"))
+	clone2.SetSelfAddress(tosca.Address{2})
 	clone2.MustNotBeSelfDestructed()
 	clone2.IsPresentBlobHashIndex(Variable("z"))
 
@@ -365,6 +473,8 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"$x=0000000000000000 0000000000000000 0000000000000000 000000000000000c",
 		"status=reverted",
 		"pc=4",
+		"selfAddress=$Y",
+		"selfAddress=0x0100000000000000000000000000000000000000",
 		"gas=5",
 		"gasRefund=6",
 		"code={op[20]=ADD}",
@@ -384,6 +494,8 @@ func TestStateGenerator_ClonesAreIndependent(t *testing.T) {
 		"$y=0000000000000000 0000000000000000 0000000000000000 000000000000000e",
 		"status=running",
 		"pc=4",
+		"selfAddress=$w",
+		"selfAddress=0x0200000000000000000000000000000000000000",
 		"gas=7",
 		"gasRefund=8",
 		"code={op[30]=ADD}",
@@ -405,19 +517,21 @@ func TestStateGenerator_CloneCanBeUsedToResetBuilder(t *testing.T) {
 	tests := map[string]struct {
 		modify func(*StateGenerator)
 	}{
-		"status":       {modify: func(gen *StateGenerator) { gen.SetStatus(st.Reverted) }},
-		"read-only":    {modify: func(gen *StateGenerator) { gen.SetReadOnly(false) }},
-		"pc":           {modify: func(gen *StateGenerator) { gen.SetPc(4) }},
-		"pc-bind":      {modify: func(gen *StateGenerator) { gen.BindPc("PC") }},
-		"gas":          {modify: func(gen *StateGenerator) { gen.SetGas(5) }},
-		"gasRefund":    {modify: func(gen *StateGenerator) { gen.SetGasRefund(6) }},
-		"bind-value":   {modify: func(gen *StateGenerator) { gen.BindValue(Variable("x"), NewU256(12)) }},
-		"code":         {modify: func(gen *StateGenerator) { gen.SetCodeOperation(20, vm.ADD) }},
-		"stack":        {modify: func(gen *StateGenerator) { gen.AddStackSizeLowerBound(2); gen.AddStackSizeUpperBound(200) }},
-		"storage":      {modify: func(gen *StateGenerator) { gen.BindIsStorageWarm("warmStorage") }},
-		"accounts":     {modify: func(gen *StateGenerator) { gen.BindToWarmAddress("warmAccount") }},
-		"revision":     {modify: func(gen *StateGenerator) { gen.SetRevision(tosca.R10_London) }},
-		"selfdestruct": {modify: func(gen *StateGenerator) { gen.MustBeSelfDestructed() }},
+		"status":            {modify: func(gen *StateGenerator) { gen.SetStatus(st.Reverted) }},
+		"read-only":         {modify: func(gen *StateGenerator) { gen.SetReadOnly(false) }},
+		"pc":                {modify: func(gen *StateGenerator) { gen.SetPc(4) }},
+		"pc-bind":           {modify: func(gen *StateGenerator) { gen.BindPc("PC") }},
+		"gas":               {modify: func(gen *StateGenerator) { gen.SetGas(5) }},
+		"gasRefund":         {modify: func(gen *StateGenerator) { gen.SetGasRefund(6) }},
+		"bind-value":        {modify: func(gen *StateGenerator) { gen.BindValue(Variable("x"), NewU256(12)) }},
+		"code":              {modify: func(gen *StateGenerator) { gen.SetCodeOperation(20, vm.ADD) }},
+		"stack":             {modify: func(gen *StateGenerator) { gen.AddStackSizeLowerBound(2); gen.AddStackSizeUpperBound(200) }},
+		"storage":           {modify: func(gen *StateGenerator) { gen.BindIsStorageWarm("warmStorage") }},
+		"accounts":          {modify: func(gen *StateGenerator) { gen.BindToWarmAddress("warmAccount") }},
+		"revision":          {modify: func(gen *StateGenerator) { gen.SetRevision(tosca.R10_London) }},
+		"selfDestruct":      {modify: func(gen *StateGenerator) { gen.MustBeSelfDestructed() }},
+		"selfAddress-var":   {modify: func(gen *StateGenerator) { gen.BindToSelfAddress(Variable("Y")) }},
+		"selfAddress-const": {modify: func(gen *StateGenerator) { gen.SetSelfAddress(tosca.Address{1}) }},
 		// the following fields can not be tested as they do not have any internal state to be compared
 		// "memory": {setup: func(gen *StateGenerator) { gen.memoryGen = nil }},
 		// "call": {setup: func(gen *StateGenerator) { gen.callContextGen = &CallContextGenerator{} }},
