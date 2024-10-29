@@ -3,12 +3,7 @@ use evmc_vm::{
     StepStatusCode as EvmcStepStatusCode,
 };
 
-/// This type combines [`EvmcStatusCode`] and [`EvmcStepStatusCode`].
-/// [`EvmcStatusCode::EVMC_SUCCESS`] is replaced by the 3 success variants of [`EvmcStepStatusCode`]
-/// ([`EvmcStepStatusCode::EVMC_STEP_RUNNING`], [`EvmcStepStatusCode::EVMC_STEP_STOPPED`],
-/// [`EvmcStepStatusCode::EVMC_STEP_RETURNED`]). Both Reverted variants are merged and
-/// [`EvmcStepStatusCode::EVMC_STEP_STOPPED`] is represented by all failure variants of
-/// [`EvmcStatusCode`].
+/// This type combines the success variants of [`EvmcStatusCode`] and [`EvmcStepStatusCode`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExecStatus {
     Running,
@@ -17,6 +12,7 @@ pub enum ExecStatus {
     Revert,
 }
 
+/// This type combines the failure variants of [`EvmcStatusCode`] and [`EvmcStepStatusCode`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailStatus {
     Failure = EvmcStatusCode::EVMC_FAILURE as isize,

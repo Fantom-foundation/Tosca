@@ -45,12 +45,8 @@ impl Stack {
             return Err(FailStatus::StackOverflow);
         }
 
-        let value = MaybeUninit::new(value.into());
-
-        self.data[self.len] = value;
-
+        self.data[self.len] = MaybeUninit::new(value.into());
         self.len += 1;
-
         Ok(())
     }
 
