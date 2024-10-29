@@ -191,7 +191,7 @@ impl TryFrom<u256> for u64 {
     type Error = U64Overflow;
 
     fn try_from(value: u256) -> Result<Self, Self::Error> {
-        let (prefix, u64_bytes) = split_off_8(&value);
+        let (prefix, u64_bytes) = split_into_most_significant_24_and_least_significant_8(&value);
         if prefix != &[0; 24] {
             Err(U64Overflow)
         } else {
@@ -395,14 +395,14 @@ impl u256 {
     pub const MAX: Self = Self([0xff; 32]);
 
     pub fn into_u64_with_overflow(self) -> (u64, bool) {
-        let (prefix, u64_bytes) = split_off_8(&self);
+        let (prefix, u64_bytes) = split_into_most_significant_24_and_least_significant_8(&self);
         let overflow = prefix != &[0; 24];
         let num = u64::from_be_bytes(*u64_bytes);
         (num, overflow)
     }
 
     pub fn into_u64_saturating(self) -> u64 {
-        let (prefix, u64_bytes) = split_off_8(&self);
+        let (prefix, u64_bytes) = split_into_most_significant_24_and_least_significant_8(&self);
         if prefix != &[0; 24] {
             u64::MAX
         } else {
@@ -528,7 +528,9 @@ impl u256 {
     }
 }
 
-fn split_off_8(input: &[u8; 32]) -> (&[u8; 24], &[u8; 8]) {
+fn split_into_most_significant_24_and_least_significant_8(
+    input: &[u8; 32],
+) -> (&[u8; 24], &[u8; 8]) {
     // SAFETY:
     // This pointer points to the beginning of the 32-byte array, so it is safe to interpret it as
     // as pointer to an 24-byte array.
