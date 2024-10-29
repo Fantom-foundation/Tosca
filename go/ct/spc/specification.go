@@ -2203,10 +2203,10 @@ func makeSelfDestructRules(
 
 	var originatorHasFundsCondition Condition
 	if originatorHasFunds {
-		originatorHasFundsCondition = Gt(Balance(Self()), NewU256(0))
+		originatorHasFundsCondition = Gt(Balance(SelfAddress()), NewU256(0))
 		name += "_originator_has_funds"
 	} else {
-		originatorHasFundsCondition = Eq(Balance(Self()), NewU256(0))
+		originatorHasFundsCondition = Eq(Balance(SelfAddress()), NewU256(0))
 		name += "_originator_has_no_funds"
 	}
 

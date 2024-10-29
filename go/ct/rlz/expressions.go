@@ -161,38 +161,38 @@ func (gas) String() string {
 }
 
 ////////////////////////////////////////////////////////////
-// Self - the address of the called contract
+// SelfAddress - the address of the called contract
 
-type self struct{}
+type selfAddress struct{}
 
-func Self() BindableExpression[tosca.Address] {
-	return self{}
+func SelfAddress() BindableExpression[tosca.Address] {
+	return selfAddress{}
 }
 
-func (self) Property() Property { return Property("self") }
+func (selfAddress) Property() Property { return Property("selfAddress") }
 
-func (self) Domain() Domain[tosca.Address] { return addressDomain{} }
+func (selfAddress) Domain() Domain[tosca.Address] { return addressDomain{} }
 
-func (self) Eval(s *st.State) (tosca.Address, error) {
+func (selfAddress) Eval(s *st.State) (tosca.Address, error) {
 	return s.CallContext.AccountAddress, nil
 }
 
-func (self) Restrict(kind RestrictionKind, address tosca.Address, generator *gen.StateGenerator) {
+func (selfAddress) Restrict(kind RestrictionKind, address tosca.Address, generator *gen.StateGenerator) {
 	if kind != RestrictEqual {
 		panic("Self can only support equality constraints")
 	}
 	generator.SetSelfAddress(address)
 }
 
-func (self) String() string {
+func (selfAddress) String() string {
 	return "Self"
 }
 
-func (self) GetVariable() gen.Variable {
+func (selfAddress) GetVariable() gen.Variable {
 	return gen.Variable("self")
 }
 
-func (s self) BindTo(generator *gen.StateGenerator) {
+func (s selfAddress) BindTo(generator *gen.StateGenerator) {
 	generator.BindToSelfAddress(s.GetVariable())
 }
 
