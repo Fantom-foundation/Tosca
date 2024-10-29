@@ -8,10 +8,7 @@ use std::{
     },
 };
 
-use bnum::{
-    types::{I256, U256, U512},
-    BInt, BUint,
-};
+use bnum::types::{I256, U256, U512};
 use evmc_vm::{Address, Uint256};
 
 /// This represents a 256-bit integer. Internally it is a 32 byte array of [`u8`] in big endian.
@@ -81,7 +78,7 @@ impl From<U256> for u256 {
 
 impl From<u256> for U256 {
     fn from(value: u256) -> Self {
-        BUint::from_be_slice(value.deref()).unwrap()
+        U256::from_be_slice(value.deref()).unwrap()
     }
 }
 
@@ -101,7 +98,7 @@ impl From<I256> for u256 {
 
 impl From<u256> for I256 {
     fn from(value: u256) -> Self {
-        BInt::from_be_slice(value.deref()).unwrap()
+        I256::from_be_slice(value.deref()).unwrap()
     }
 }
 
@@ -194,11 +191,11 @@ impl TryFrom<u256> for u64 {
     type Error = U64Overflow;
 
     fn try_from(value: u256) -> Result<Self, Self::Error> {
-        let bytes: [u8; 32] = *value;
-        if bytes.iter().take(24).any(|b| *b > 0) {
+        let (prefix, u64_bytes) = split_into_most_significant_24_and_least_significant_8(&value);
+        if prefix != &[0; 24] {
             Err(U64Overflow)
         } else {
-            Ok(u64::from_be_bytes(*bytes.split_last_chunk().unwrap().1))
+            Ok(u64::from_be_bytes(*u64_bytes))
         }
     }
 }
@@ -365,7 +362,8 @@ impl Shl for u256 {
     type Output = Self;
 
     fn shl(self, rhs: Self) -> Self::Output {
-        if rhs > u256::from(255u8) {
+        // rhs > 255
+        if rhs[..31] != [0; 31] {
             return u256::ZERO;
         }
         let value: U256 = self.into();
@@ -378,7 +376,8 @@ impl Shr for u256 {
     type Output = Self;
 
     fn shr(self, rhs: Self) -> Self::Output {
-        if rhs > u256::from(255u8) {
+        // rhs > 255
+        if rhs[..31] != [0; 31] {
             return u256::ZERO;
         }
         let value: U256 = self.into();
@@ -396,18 +395,18 @@ impl u256 {
     pub const MAX: Self = Self([0xff; 32]);
 
     pub fn into_u64_with_overflow(self) -> (u64, bool) {
-        let bytes: [u8; 32] = *self;
-        let overflow = bytes.iter().take(24).any(|b| *b > 0);
-        let num = u64::from_be_bytes(*bytes.split_last_chunk().unwrap().1);
+        let (prefix, u64_bytes) = split_into_most_significant_24_and_least_significant_8(&self);
+        let overflow = prefix != &[0; 24];
+        let num = u64::from_be_bytes(*u64_bytes);
         (num, overflow)
     }
 
     pub fn into_u64_saturating(self) -> u64 {
-        let bytes: [u8; 32] = *self;
-        if bytes.iter().take(24).any(|b| *b > 0) {
+        let (prefix, u64_bytes) = split_into_most_significant_24_and_least_significant_8(&self);
+        if prefix != &[0; 24] {
             u64::MAX
         } else {
-            u64::from_be_bytes(*bytes.split_last_chunk().unwrap().1)
+            u64::from_be_bytes(*u64_bytes)
         }
     }
 
@@ -511,7 +510,8 @@ impl u256 {
 
     pub fn sar(self, rhs: Self) -> Self {
         let negative = self[0] & 0x80 > 0;
-        if rhs > u256::from(255u8) {
+        // rhs > 255
+        if rhs[..31] != [0; 31] {
             if negative {
                 return u256::MAX;
             } else {
@@ -526,6 +526,24 @@ impl u256 {
         }
         shr.into()
     }
+}
+
+fn split_into_most_significant_24_and_least_significant_8(
+    input: &[u8; 32],
+) -> (&[u8; 24], &[u8; 8]) {
+    // SAFETY:
+    // This pointer points to the beginning of the 32-byte array, so it is safe to interpret it as
+    // as pointer to an 24-byte array.
+    let prefix = unsafe { &*(input.as_ptr() as *const [u8; 24]) };
+
+    // SAFETY:
+    // input points to the 32-byte array, so it is safe to advance it by 24 bytes.
+    let offset = unsafe { input.as_ptr().add(24) as *const [u8; 8] };
+    // SAFETY:
+    // offset points to the 24th byte of the 32-byte array so it is valid and safe to dereference.
+    let u64_bytes = unsafe { &*offset };
+
+    (prefix, u64_bytes)
 }
 
 #[cfg(test)]
