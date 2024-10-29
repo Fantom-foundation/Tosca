@@ -35,7 +35,7 @@ import (
 // This, in turn, would allow operations with overflowing memory requirements
 // to trigger memory expansions for low gas costs that would exceed real
 // world memory capacities.
-// Such overflows happen whenever more than MaxMemoryExapnsionSize
+// Such overflows happen whenever more than MaxMemoryExpansionSize
 // words of memory are to be allocated. To be able to detect those in the CT,
 // there must be sufficient Gas provided to cover the 3*W term in the gas cost
 // equation, assuming that the W^2/512 will overflow to a near zero value.

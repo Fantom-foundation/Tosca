@@ -138,8 +138,9 @@ func fuzzVm(testee ct.Evm, f *testing.F) {
 }
 
 const (
-	fuzzIdealStackSize     int = 7  // < max pops in a single instruction
-	fuzzMaximumCodeSegment int = 33 // < 1 instruction with 32 data bytes
+	fuzzIdealStackSize     = 7             // < max pops in a single instruction
+	fuzzMaximumCodeSegment = 33            // < 1 instruction with 32 data bytes
+	fuzzMaxGas             = 5_000_000_000 // < gas limits memory usage
 )
 
 // prepareFuzzingSeeds is a helper function to be used by similar fuzzing tests
@@ -158,7 +159,7 @@ func prepareFuzzingSeeds(f *testing.F) {
 			// the fuzzer will generate more interesting values around these, the initial
 			// list just sketches a region of interest around which the fuzzer will generate
 			// more values. I found no measurable difference about being more accurate.
-			for _, gas := range []int64{0, 1, 6, 10, 1000, st.MaxGasUsedByCt} {
+			for _, gas := range []int64{0, 1, 6, 10, 1000, fuzzMaxGas} {
 
 				// generate a code segment with the operation followed by 6 random values
 				ops := make([]byte, fuzzMaximumCodeSegment)
@@ -215,7 +216,7 @@ func corpusEntryToCtState(opCodes []byte, gas int64, revision byte, stackBytes [
 		return nil, fmt.Errorf("negative gas %v", gas)
 	}
 
-	if gas > st.MaxGasUsedByCt {
+	if gas > fuzzMaxGas {
 		return nil, fmt.Errorf("gas too large %v", gas)
 	}
 
@@ -391,7 +392,6 @@ func TestCorpusEntryToCtState(t *testing.T) {
 			if state.Stack.Size() != stateStackSize {
 				t.Errorf("Unexpected stack size. Got: %v, Want: %v", state.Stack.Size(), stateStackSize)
 			}
-
 		})
 	}
 }
