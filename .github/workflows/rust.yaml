@@ -118,6 +118,9 @@ jobs:
     - name: cargo test
       working-directory: rust
       run: cargo hack --workspace --each-feature test
+    - name: cargo test tail call elimination
+      working-directory: rust
+      run: cargo test --profile release --features tail-call
 
   deps:
     name: unused deps
