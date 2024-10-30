@@ -741,8 +741,7 @@ impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
     fn exp(&mut self) -> OpResult {
         self.gas_left.consume(10)?;
         let [exp, value] = self.stack.pop()?;
-        let byte_size = 32 - exp.into_iter().take_while(|byte| *byte == 0).count() as u64;
-        self.gas_left.consume(byte_size * 50)?; // * does not overflow
+        self.gas_left.consume(exp.bits().div_ceil(8) as u64 * 50)?; // * does not overflow
         self.stack.push(value.pow(exp))?;
         self.code_reader.next();
         self.return_from_op()
@@ -942,9 +941,9 @@ impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
             self.stack.push(u256::ZERO)?;
         } else {
             let end = min(call_data.len(), offset + 32);
-            let mut bytes = u256::ZERO;
-            bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
-            self.stack.push(bytes)?;
+            self.stack.push(
+                u256::from_be_slice(&call_data[offset..end]) << (8 * (32 - (end - offset))),
+            )?;
         }
         self.code_reader.next();
         self.return_from_op()
@@ -1250,7 +1249,8 @@ impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
         let [value, offset] = self.stack.pop()?;
 
         let dest = self.memory.get_mut_slice(offset, 32, &mut self.gas_left)?;
-        dest.copy_from_slice(value.as_slice());
+        dest.copy_from_slice(value.as_le_bytes());
+        dest.reverse();
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1260,7 +1260,7 @@ impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
         let [value, offset] = self.stack.pop()?;
 
         let dest = self.memory.get_mut_byte(offset, &mut self.gas_left)?;
-        *dest = value[31];
+        *dest = value.least_significant_byte();
         self.code_reader.next();
         self.return_from_op()
     }

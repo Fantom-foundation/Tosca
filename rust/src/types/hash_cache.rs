@@ -31,7 +31,7 @@ fn sha3(data: &[u8]) -> u256 {
     let mut bytes = [0; 32];
     hasher.finalize_into((&mut bytes).into());
 
-    bytes.into()
+    u256::from_be_slice(&bytes)
 }
 
 pub fn hash(data: &[u8]) -> u256 {
