@@ -13,6 +13,7 @@ hash-cache = ["evmrs/hash-cache"]
 code-analysis-cache = ["evmrs/code-analysis-cache"]
 thread-local-cache = ["evmrs/thread-local-cache"]
 tail-call = ["evmrs/tail-call"]
+opcode-fn-ptr-conversion = ["evmrs/opcode-fn-ptr-conversion"]
 
 [dependencies]
 evmrs = { path = ".." }
