@@ -11,10 +11,10 @@
 package interpreter_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/Fantom-foundation/Tosca/go/interpreter/lfvm"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -22,7 +22,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func BenchmarkParallelStressTests(b *testing.B) {
+func BenchmarkParallel_StressTests(b *testing.B) {
 	codes := map[string][]byte{
 		"smallTransaction": getStressBenchmark_SmallTransaction(),
 		"largeCodes":       getStressBenchmark_LargeCodes(),
@@ -35,45 +35,46 @@ func BenchmarkParallelStressTests(b *testing.B) {
 		if err != nil {
 			b.Fatalf("failed to load %s with error: %v", interpreterName, err)
 		}
-		for _, numCalls := range []int{1, 10, 100, 1000, 10000} {
-			for codeName, code := range codes {
-				b.Run(fmt.Sprintf("%s-%s-numCalls=%d", interpreterName, codeName, numCalls), func(b *testing.B) {
+		for codeName, code := range codes {
+			for _, numCalls := range []int{1, 10, 100, 1000, 10000} {
+				b.Run(fmt.Sprintf("%s-%s-%d", interpreterName, codeName, numCalls), func(b *testing.B) {
 					hash := lfvm.Keccak256(code)
 					errs, _ := errgroup.WithContext(context.Background())
 					errs.SetLimit(-1) // set limit of max goroutines to unlimited
 
-					start := time.Now()
-					for i := 0; i < numCalls; i++ {
-						errs.Go(func() error {
+					b.ResetTimer()
+					for range b.N {
+						for i := 0; i < numCalls; i++ {
+							errs.Go(func() error {
 
-							if codeName == "noCodeReUsage" {
-								// code has to be different for each call
-								code = append(code, byte(vm.PUSH4))
-								code = append(code, uint32ToBytes(uint32(i))...)
-								code = append(code, byte(vm.STOP)) // stop
-								hash = lfvm.Keccak256(code)
-							}
+								localCode := bytes.Clone(code)
+								localHash := hash
+								if codeName == "noCodeReUsage" {
+									// code has to be different for each call
+									localCode = append(localCode, uint32ToBytes(uint32(i))...)
+									localCode = append(localCode, byte(vm.STOP)) // stop
+									localHash = lfvm.Keccak256(localCode)
+								}
 
-							params := tosca.Parameters{
-								Gas:      100000,
-								Input:    uint32ToBytes(uint32(i)),
-								CodeHash: &hash,
-								Code:     code,
-							}
+								params := tosca.Parameters{
+									Gas:      100000,
+									Input:    uint32ToBytes(uint32(i)),
+									CodeHash: &localHash,
+									Code:     localCode,
+								}
 
-							result, err := interpreter.Run(params)
-							if err != nil || !result.Success {
-								return fmt.Errorf("interpreter run failed or was not successful, err: %v", err)
-							}
-							return nil
-						})
+								result, err := interpreter.Run(params)
+								if err != nil || !result.Success {
+									return fmt.Errorf("interpreter run failed or was not successful, err: %v", err)
+								}
+								return nil
+							})
+						}
+						err = errs.Wait()
+						if err != nil {
+							b.Fatalf("failed to run interpreter: %v", err)
+						}
 					}
-					err = errs.Wait()
-					elapsed := time.Since(start)
-					if err != nil {
-						b.Fatalf("failed to run interpreter: %v", err)
-					}
-					b.Logf("Number calls %v, elapsed time: %v", numCalls, elapsed)
 				})
 			}
 		}
@@ -90,7 +91,8 @@ func getStressBenchmark_NoCodeReUsage() []byte {
 		code[i+4] = byte(vm.ADD)
 		code[i+5] = byte(vm.POP)
 	}
-	code = append(code, []byte{byte(vm.PUSH1), byte(0)}...)
+	code = append(code, []byte{byte(vm.PUSH1), byte(0), byte(vm.PUSH4)}...)
+	// code is extended inside call loop
 	return code
 }
 
