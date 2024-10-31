@@ -1950,6 +1950,27 @@ mod tests {
         );
     }
 
+    #[cfg(not(debug_assertions))]
+    #[test]
+    // When feature tail-call is enabled, but the tail calls are not eliminated the stack will
+    // overflow if enough operations are executed. This test makes sure that does not happen.
+    // Because it will fail when compiled without optimizations, it is only enabled when
+    // debug_assertions are not enabled (the default in release mode).
+    fn tail_call_elimination() {
+        let mut context = MockExecutionContextTrait::new();
+        let message = MockExecutionMessage::default().into();
+        let mut interpreter = Interpreter::new(
+            Revision::EVMC_FRONTIER,
+            &message,
+            &mut context,
+            &[Opcode::JumpDest as u8; 10_000_000],
+        );
+        let result = interpreter.run();
+        println!("{result:?}");
+        assert!(result.is_ok());
+        assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
+    }
+
     #[test]
     fn add_not_enough_gas() {
         let mut context = MockExecutionContextTrait::new();

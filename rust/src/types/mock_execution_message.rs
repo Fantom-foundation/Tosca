@@ -22,7 +22,7 @@ pub struct MockExecutionMessage<'a> {
 }
 
 impl<'a> MockExecutionMessage<'a> {
-    pub const DEFAULT_INIT_GAS: u64 = 1_000_000;
+    pub const DEFAULT_INIT_GAS: u64 = u64::MAX;
 
     pub fn to_evmc_message(&self) -> evmc_message {
         evmc_message {
