@@ -50,6 +50,7 @@ mockall = { version = "0.13.0", optional = true }
 mimalloc = { version = "0.1.43", optional = true }
 lru = { version = "0.12.5", optional = true }
 nohash-hasher = { version = "0.2.0", optional = true }
+zerocopy = { version = "0.8.8", features = ["derive"] }
 
 [dev-dependencies]
 # workaround for enabling mock feature also in integration tests
