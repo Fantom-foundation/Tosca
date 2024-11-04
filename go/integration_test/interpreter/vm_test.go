@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/Tosca/go/examples"
+	"github.com/Fantom-foundation/Tosca/go/lib/rust"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 	"go.uber.org/mock/gomock"
 	// Enable this import to see C/C++ symbols in CPU profile data.
@@ -118,6 +119,7 @@ func BenchmarkEmpty(b *testing.B) {
 }
 
 func BenchmarkStaticOverhead(b *testing.B) {
+	defer rust.DumpRustCoverageData("/tmp/pgo-data/static_overhead") // dump profiling data for pgo
 	// this is just to the benchmark name consists of 3 parts and can be matched by regex
 	b.Run("1", func(b *testing.B) {
 		benchmark(b, examples.GetStaticOverheadExample(), 1)
@@ -125,6 +127,7 @@ func BenchmarkStaticOverhead(b *testing.B) {
 }
 
 func BenchmarkInc(b *testing.B) {
+	defer rust.DumpRustCoverageData("/tmp/pgo-data/inc") // dump profiling data for pgo
 	args := []int{1, 10}
 	for _, i := range args {
 		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
@@ -134,6 +137,7 @@ func BenchmarkInc(b *testing.B) {
 }
 
 func BenchmarkFib(b *testing.B) {
+	defer rust.DumpRustCoverageData("/tmp/pgo-data/fib") // dump profiling data for pgo
 	args := []int{1, 5, 10, 15, 20}
 	for _, i := range args {
 		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
@@ -143,6 +147,7 @@ func BenchmarkFib(b *testing.B) {
 }
 
 func BenchmarkSha3(b *testing.B) {
+	defer rust.DumpRustCoverageData("/tmp/pgo-data/sha3") // dump profiling data for pgo
 	args := []int{1, 10, 100, 1000}
 	for _, i := range args {
 		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
@@ -152,6 +157,7 @@ func BenchmarkSha3(b *testing.B) {
 }
 
 func BenchmarkArith(b *testing.B) {
+	defer rust.DumpRustCoverageData("/tmp/pgo-data/arith") // dump profiling data for pgo
 	args := []int{1, 10, 100, 280}
 	for _, i := range args {
 		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
@@ -161,6 +167,7 @@ func BenchmarkArith(b *testing.B) {
 }
 
 func BenchmarkMemory(b *testing.B) {
+	defer rust.DumpRustCoverageData("/tmp/pgo-data/memory") // dump profiling data for pgo
 	args := []int{1, 10, 100, 1000, 10000}
 	for _, i := range args {
 		b.Run(fmt.Sprintf("%d", i), func(b *testing.B) {
@@ -170,6 +177,7 @@ func BenchmarkMemory(b *testing.B) {
 }
 
 func BenchmarkAnalysis(b *testing.B) {
+	defer rust.DumpRustCoverageData("/tmp/pgo-data/analysis") // dump profiling data for pgo
 	examples := []examples.Example{
 		examples.GetJumpdestAnalysisExample(),
 		examples.GetStopAnalysisExample(),
