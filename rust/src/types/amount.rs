@@ -1,7 +1,6 @@
 use std::{
     cmp::Ordering,
     fmt::{Debug, Display},
-    mem,
     ops::{
         Add, AddAssign, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, DivAssign, Mul, MulAssign,
         Not, Rem, RemAssign, Shl, Shr, Sub, SubAssign,
@@ -10,10 +9,11 @@ use std::{
 
 use bnum::types::{I256, U256, U512};
 use evmc_vm::{Address, Uint256};
+use zerocopy::{transmute, transmute_ref, FromBytes, Immutable, IntoBytes};
 
 /// This represents a 256-bit integer. Internally it is a 32 byte array of [`u8`] in big endian.
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, FromBytes, IntoBytes, Immutable)]
 #[repr(align(8))]
 pub struct u256([u8; 32]);
 
@@ -65,14 +65,8 @@ impl From<u256> for Uint256 {
 
 impl From<U256> for u256 {
     fn from(value: U256) -> Self {
-        // TODO bnum has to_be_bytes with feature nightly
         let be_value = value.to_be();
-        // SAFETY:
-        // U256 = BUint<4>
-        // BUint<4> is transparent wrapper around [u64; 4]
-        // [u64; 4] is also a valid [u8; 32]
-        let bytes: [u8; 32] = unsafe { mem::transmute(be_value) };
-        Self(bytes)
+        transmute!(*be_value.digits())
     }
 }
 
@@ -84,15 +78,8 @@ impl From<u256> for U256 {
 
 impl From<I256> for u256 {
     fn from(value: I256) -> Self {
-        // TODO bnum has to_be_bytes with feature nightly
-        let be_value = value.to_be();
-        // SAFETY:
-        // I256 = is transparent wrapper around U256
-        // U256 = BInt<4>
-        // BUint<4> is transparent wrapper around [u64; 4]
-        // [u64; 4] is also a valid [u8; 32]
-        let bytes: [u8; 32] = unsafe { mem::transmute(be_value) };
-        Self(bytes)
+        let be_value = value.to_be().cast_unsigned();
+        transmute!(*be_value.digits())
     }
 }
 
@@ -106,11 +93,7 @@ impl From<U512> for u256 {
     fn from(value: U512) -> Self {
         // TODO bnum has to_be_bytes with feature nightly
         let be_value = value.to_be();
-        // SAFETY:
-        // U512 = BUint<8>
-        // BUint<8> is transparent wrapper around [u64; 8]
-        // [u64; 8] is also a valid [u8; 64]
-        let bytes64: [u8; 64] = unsafe { mem::transmute(be_value) };
+        let bytes64: [u8; 64] = transmute!(*be_value.digits());
         let mut bytes32 = Self::ZERO;
         bytes32.copy_from_slice(&bytes64[32..]);
         bytes32
@@ -528,22 +511,15 @@ impl u256 {
     }
 }
 
-fn split_into_most_significant_24_and_least_significant_8(
-    input: &[u8; 32],
-) -> (&[u8; 24], &[u8; 8]) {
-    // SAFETY:
-    // This pointer points to the beginning of the 32-byte array, so it is safe to interpret it as
-    // as pointer to an 24-byte array.
-    let prefix = unsafe { &*(input.as_ptr() as *const [u8; 24]) };
-
-    // SAFETY:
-    // input points to the 32-byte array, so it is safe to advance it by 24 bytes.
-    let offset = unsafe { input.as_ptr().add(24) as *const [u8; 8] };
-    // SAFETY:
-    // offset points to the 24th byte of the 32-byte array so it is valid and safe to dereference.
-    let u64_bytes = unsafe { &*offset };
-
-    (prefix, u64_bytes)
+fn split_into_most_significant_24_and_least_significant_8(input: &u256) -> (&[u8; 24], &[u8; 8]) {
+    #[derive(FromBytes, Immutable)]
+    #[repr(C)]
+    struct Split {
+        smb24: [u8; 24],
+        lsb8: [u8; 8],
+    }
+    let s: &Split = transmute_ref!(input);
+    (&s.smb24, &s.lsb8)
 }
 
 #[cfg(test)]
