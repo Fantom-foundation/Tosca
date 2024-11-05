@@ -22,7 +22,7 @@ mkdir -p $CT_COV
 
 make -C ..
 # build evmrs with coverage instrumentation
-RUSTFLAGS="-C instrument-coverage" cargo build --release --features dump-cov
+RUSTFLAGS="-C instrument-coverage" cargo build --release
 # run CT
 LLVM_PROFILE_FILE="$CT_COV_TARGET/rust-%p-%m.profraw" go run ../go/ct/driver run evmrs
 $RUST_LLVM_DIR/llvm-profdata \

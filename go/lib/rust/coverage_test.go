@@ -13,7 +13,6 @@ package rust
 import (
 	"flag"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -24,16 +23,11 @@ var stateImpl = flag.Bool("expect-coverage", false, "enable if the unit test is 
 func TestDumpRustCoverageData(t *testing.T) {
 
 	// write coverage data into tempDir directory
-	//tempDir := t.TempDir()
-	tempDir := "/tmp/go"
+	tempDir := t.TempDir()
 	llvmProfileFile := tempDir + "/rust-%p-%m.profraw"
-	err := os.Setenv("LLVM_PROFILE_FILE", llvmProfileFile)
-	if err != nil {
-		t.Fatalf("Failed to set LLVM_PROFILE_FILE: %v", err)
-	}
 
 	// run dump routine
-	DumpRustCoverageData()
+	DumpRustCoverageData(llvmProfileFile)
 
 	expectEnabled := *stateImpl
 	enabled := isRustCoverageEnabled()
@@ -50,7 +44,7 @@ func TestDumpRustCoverageData(t *testing.T) {
 
 	// check that at least one file is generated
 	found := false
-	err = filepath.WalkDir(tempDir, func(s string, _ fs.DirEntry, err error) error {
+	err := filepath.WalkDir(tempDir, func(s string, _ fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
