@@ -7,10 +7,16 @@ mod execution_context;
 pub mod hash_cache;
 mod memory;
 mod mock_execution_message;
-#[cfg(feature = "opcode-fn-ptr-conversion")]
+#[cfg(any(
+    feature = "opcode-fn-ptr-conversion",
+    feature = "opcode-fn-ptr-conversion-inline"
+))]
 mod op_fn_data;
 mod opcode;
-#[cfg(feature = "opcode-fn-ptr-conversion")]
+#[cfg(any(
+    feature = "opcode-fn-ptr-conversion",
+    feature = "opcode-fn-ptr-conversion-inline"
+))]
 mod pc_map;
 mod stack;
 mod status_code;
@@ -29,10 +35,16 @@ pub use code_reader::{CodeReader, GetOpcodeError};
 pub use execution_context::*;
 pub use memory::Memory;
 pub use mock_execution_message::MockExecutionMessage;
-#[cfg(feature = "opcode-fn-ptr-conversion")]
+#[cfg(any(
+    feature = "opcode-fn-ptr-conversion",
+    feature = "opcode-fn-ptr-conversion-inline"
+))]
 pub use op_fn_data::OpFnData;
 pub use opcode::*;
-#[cfg(feature = "opcode-fn-ptr-conversion")]
+#[cfg(any(
+    feature = "opcode-fn-ptr-conversion",
+    feature = "opcode-fn-ptr-conversion-inline"
+))]
 pub use pc_map::PcMap;
 pub use stack::Stack;
 pub use status_code::{ExecStatus, FailStatus};
