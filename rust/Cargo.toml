@@ -18,29 +18,33 @@ debug = true
 default = []
 # Flag mock enables code generation for test mocking. This allows generating mocks for other build configuration but "test". 
 mock = ["dep:mockall"]
+# partial features (enabled by other features to simplyfy conditional compilation attributes. Not intended to be used on their own)
+needs-jumptable = []
+needs-fn-ptr-conversion = ["needs-jumptable"]
+needs-cache = ["dep:lru"]
 # optimizations:
 performance = [
     "mimalloc",
     "stack-array",
     "custom-evmc",
-    "jumptable",
     "hash-cache",
     "code-analysis-cache",
     "tail-call",
-    "opcode-fn-ptr-conversion",
+    "jumptable-dispatch",
+    "fn-ptr-conversion-expanded-dispatch",
 ]
 mimalloc = ["dep:mimalloc"]
 stack-array = []
 custom-evmc = ["dep:evmc-vm-tosca-refactor"]
-jumptable = []
-hash-cache = ["dep:lru"]
-code-analysis-cache = ["dep:lru", "dep:nohash-hasher"]
+hash-cache = ["needs-cache"]
+code-analysis-cache = ["dep:nohash-hasher", "needs-cache"]
 thread-local-cache = []
 tail-call = []
-# opcode-fn-ptr-conversion takes precedence over jumptable, switch (default) and opcode-fn-ptr-conversion-inline
-opcode-fn-ptr-conversion = []
-# opcode-fn-ptr-conversion-inline takes precedence over jumptable and switch (default)
-opcode-fn-ptr-conversion-inline = []
+jumptable-dispatch = ["needs-jumptable"]
+# fn-ptr-conversion takes precedence over jumptable, switch (default) and fn-ptr-conversion-inline
+fn-ptr-conversion-expanded-dispatch = ["needs-fn-ptr-conversion"]
+# fn-ptr-conversion-inline takes precedence over jumptable and switch (default)
+fn-ptr-conversion-inline-dispatch = ["needs-fn-ptr-conversion"]
 
 [dependencies]
 bnum = "0.12.0"

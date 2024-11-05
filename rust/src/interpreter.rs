@@ -15,11 +15,7 @@ use crate::{
 
 type OpResult = Result<(), FailStatus>;
 
-#[cfg(any(
-    feature = "jumptable",
-    feature = "opcode-fn-ptr-conversion",
-    feature = "opcode-fn-ptr-conversion-inline",
-))]
+#[cfg(feature = "needs-jumptable")]
 pub type OpFn = fn(&mut Interpreter) -> OpResult;
 
 pub struct Interpreter<'a> {
@@ -44,29 +40,16 @@ pub struct Interpreter<'a> {
 }
 
 impl<'a> Interpreter<'a> {
-    #[cfg(any(
-        feature = "opcode-fn-ptr-conversion",
-        feature = "opcode-fn-ptr-conversion-inline",
-    ))]
+    #[cfg(feature = "needs-fn-ptr-conversion")]
     pub const NO_OP_FN: OpFn = Self::JUMPTABLE[Opcode::NoOp as u8 as usize];
-    #[cfg(any(
-        feature = "opcode-fn-ptr-conversion",
-        feature = "opcode-fn-ptr-conversion-inline",
-    ))]
+    #[cfg(feature = "needs-fn-ptr-conversion")]
     pub const SKIP_NO_OPS_FN: OpFn = Self::JUMPTABLE[Opcode::SkipNoOps as u8 as usize];
-    #[cfg(any(
-        feature = "opcode-fn-ptr-conversion",
-        feature = "opcode-fn-ptr-conversion-inline",
-    ))]
+    #[cfg(feature = "needs-fn-ptr-conversion")]
     pub const JUMP_DEST_FN: OpFn = Self::JUMPTABLE[Opcode::JumpDest as u8 as usize];
 
     // The closures here are necessary because methods capture the lifetime of the type which we
     // want to avoid.
-    #[cfg(any(
-        feature = "jumptable",
-        feature = "opcode-fn-ptr-conversion",
-        feature = "opcode-fn-ptr-conversion-inline",
-    ))]
+    #[cfg(feature = "needs-jumptable")]
     pub const JUMPTABLE: [OpFn; 256] = [
         |i| i.stop(),
         |i| i.add(),
@@ -101,25 +84,13 @@ impl<'a> Interpreter<'a> {
         |i| i.jumptable_placeholder(),
         |i| i.jumptable_placeholder(),
         |i| i.sha3(),
-        #[cfg(any(
-            feature = "opcode-fn-ptr-conversion",
-            feature = "opcode-fn-ptr-conversion-inline"
-        ))]
+        #[cfg(feature = "needs-fn-ptr-conversion")]
         |i| i.no_op(),
-        #[cfg(any(
-            feature = "opcode-fn-ptr-conversion",
-            feature = "opcode-fn-ptr-conversion-inline"
-        ))]
+        #[cfg(feature = "needs-fn-ptr-conversion")]
         |i| i.skip_no_ops(),
-        #[cfg(all(
-            not(feature = "opcode-fn-ptr-conversion"),
-            not(feature = "opcode-fn-ptr-conversion-inline")
-        ))]
+        #[cfg(not(feature = "needs-fn-ptr-conversion"))]
         |i| i.jumptable_placeholder(),
-        #[cfg(all(
-            not(feature = "opcode-fn-ptr-conversion"),
-            not(feature = "opcode-fn-ptr-conversion-inline")
-        ))]
+        #[cfg(not(feature = "needs-fn-ptr-conversion"))]
         |i| i.jumptable_placeholder(),
         |i| i.jumptable_placeholder(),
         |i| i.jumptable_placeholder(),
@@ -443,22 +414,18 @@ impl<'a> Interpreter<'a> {
         self.run_op(op)
     }
 
-    #[cfg(any(
-        feature = "opcode-fn-ptr-conversion",
-        feature = "opcode-fn-ptr-conversion-inline"
-    ))]
+    #[cfg(feature = "needs-fn-ptr-conversion")]
     fn run_op(&mut self, op: OpFn) -> OpResult {
         op(self)
     }
-    #[cfg(all(feature = "jumptable", not(feature = "opcode-fn-ptr-conversion")))]
+    #[cfg(all(
+        feature = "jumptable-dispatch",
+        not(feature = "needs-fn-ptr-conversion")
+    ))]
     fn run_op(&mut self, op: Opcode) -> OpResult {
         Self::JUMPTABLE[op as u8 as usize](self)
     }
-    #[cfg(all(
-        not(feature = "jumptable"),
-        not(feature = "opcode-fn-ptr-conversion"),
-        not(feature = "opcode-fn-ptr-conversion-inline"),
-    ))]
+    #[cfg(not(feature = "needs-jumptable"))]
     fn run_op(&mut self, op: Opcode) -> OpResult {
         match op {
             Opcode::Stop => self.stop(),
@@ -621,29 +588,19 @@ impl<'a> Interpreter<'a> {
         return self.run();
     }
 
-    #[cfg(any(
-        feature = "jumptable",
-        feature = "opcode-fn-ptr-conversion",
-        feature = "opcode-fn-ptr-conversion-inline",
-    ))]
+    #[cfg(feature = "needs-jumptable")]
     #[allow(clippy::unused_self)]
     pub fn jumptable_placeholder(&mut self) -> OpResult {
         Err(FailStatus::Failure)
     }
 
-    #[cfg(any(
-        feature = "opcode-fn-ptr-conversion",
-        feature = "opcode-fn-ptr-conversion-inline",
-    ))]
+    #[cfg(feature = "needs-fn-ptr-conversion")]
     pub fn no_op(&mut self) -> OpResult {
         self.code_reader.next();
         self.return_from_op()
     }
 
-    #[cfg(any(
-        feature = "opcode-fn-ptr-conversion",
-        feature = "opcode-fn-ptr-conversion-inline",
-    ))]
+    #[cfg(feature = "needs-fn-ptr-conversion")]
     pub fn skip_no_ops(&mut self) -> OpResult {
         self.code_reader.jump_to();
         self.return_from_op()
@@ -1473,10 +1430,10 @@ impl<'a> Interpreter<'a> {
     #[allow(unused_variables)]
     fn push(&mut self, len: usize) -> OpResult {
         self.gas_left.consume(3)?;
-        #[cfg(not(feature = "opcode-fn-ptr-conversion"))]
+        #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
         self.code_reader.next();
         self.stack.push(self.code_reader.get_push_data(
-            #[cfg(not(feature = "opcode-fn-ptr-conversion"))]
+            #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
             len,
         ))?;
         self.return_from_op()
@@ -1890,12 +1847,9 @@ mod tests {
         assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
     }
 
-    // when features "opcode-fn-ptr-conversion"  or "opcode-fn-ptr-conversion-inline" are enabled
-    // this in undefined behavior
-    #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        not(feature = "opcode-fn-ptr-conversion-inline")
-    ))]
+    // when features "fn-ptr-conversion-expanded-dispatch"  or
+    // "fn-ptr-conversion-inline-dispatch" are enabled this in undefined behavior
+    #[cfg(not(feature = "needs-fn-ptr-conversion"))]
     #[test]
     fn pc_on_data() {
         let mut context = MockExecutionContextTrait::new();

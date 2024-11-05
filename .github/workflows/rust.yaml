@@ -58,7 +58,7 @@ jobs:
       run: cargo install cargo-hack
     - name: cargo clippy
       working-directory: rust
-      run: cargo hack --workspace --each-feature clippy --examples --tests --benches -- --deny warnings
+      run: cargo hack --workspace --each-feature --exclude-features needs-cache,needs-fn-ptr-conversion,needs-jumptable clippy --examples --tests --benches -- --deny warnings
     
   doc:
     name: doc
@@ -79,7 +79,7 @@ jobs:
       env:
         RUSTDOCFLAGS: "-D warnings" 
       working-directory: rust
-      run: cargo hack --workspace --each-feature doc --no-deps
+      run: cargo hack --workspace --each-feature --exclude-features needs-cache,needs-fn-ptr-conversion,needs-jumptable doc --no-deps
 
   build:
     name: build
@@ -98,7 +98,7 @@ jobs:
       run: cargo install cargo-hack
     - name: cargo build
       working-directory: rust
-      run: cargo hack --workspace --each-feature build
+      run: cargo hack --workspace --each-feature --exclude-features needs-cache,needs-fn-ptr-conversion,needs-jumptable build
 
   test:
     name: test
@@ -117,10 +117,10 @@ jobs:
       run: cargo install cargo-hack
     - name: cargo test
       working-directory: rust
-      run: cargo hack --workspace --each-feature test
+      run: cargo hack --workspace --each-feature --exclude-features needs-cache,needs-fn-ptr-conversion,needs-jumptable test
     - name: cargo test tail call elimination
       working-directory: rust
-      run: cargo test --profile release --features tail-call
+      run: cargo test --profile release --features  tail-call
 
   deps:
     name: unused deps
