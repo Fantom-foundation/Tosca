@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"regexp"
 	"sync/atomic"
 	"time"
@@ -62,7 +63,7 @@ var evms = map[string]ct.Evm{
 
 func doRun(context *cli.Context) error {
 	defer cpp.DumpCppCoverageData()
-	defer rust.DumpRustCoverageData()
+	defer rust.DumpRustCoverageData(os.Getenv("LLVM_PROFILE_FILE"))
 
 	jobCount := cliUtils.JobsFlag.Fetch(context)
 	seed := cliUtils.SeedFlag.Fetch(context)

@@ -45,7 +45,7 @@ tosca-rust:
 
 tosca-rust-coverage:
 	cd rust; \
-	RUSTFLAGS="-C instrument-coverage" cargo build --release --features dump-cov
+	RUSTFLAGS="-C instrument-coverage" cargo build --release
 
 evmone:
 	@cd third_party/evmone ; \

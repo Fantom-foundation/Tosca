@@ -13,10 +13,12 @@ package rust
 /*
 #cgo LDFLAGS: -L${SRCDIR}/../../../rust/target/release -levmrs -Wl,-rpath,${SRCDIR}/../../../rust/target/release
 #include <stdint.h>
-void evmrs_dump_coverage();
+#include <stdlib.h>
+void evmrs_dump_coverage(char* filename);
 uint8_t evmrs_is_coverage_enabled();
 */
 import "C"
+import "unsafe"
 
 // isRustCoverageEnabled returns true if Rust has been compiled with coverage enabled.
 // This assumes that every Rust library loaded at runtime for which coverage data should
@@ -29,6 +31,8 @@ func isRustCoverageEnabled() bool {
 // Not calling this function will result in no coverage data being reported
 // for runtime loaded Rust libraries.
 // If coverage data collection is not enabled, this function is a no-op.
-func DumpRustCoverageData() {
-	C.evmrs_dump_coverage()
+func DumpRustCoverageData(filename string) {
+	cStr := C.CString(filename)
+	defer C.free(unsafe.Pointer(cStr))
+	C.evmrs_dump_coverage(cStr)
 }
