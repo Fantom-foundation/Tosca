@@ -1,12 +1,22 @@
 #!/bin/bash
 
+# https://clang.llvm.org/docs/UsersManual.html#profile-guided-optimization
+# https://doc.rust-lang.org/rustc/codegen-options/index.html
+# https://github.com/rust-lang/rust/commit/a17193dbb931ea0c8b66d82f640385bce8b4929a#diff-047672bc6da76afeeb5c06d57462ad63e3c3a052bb7716b35d4e617baf40a5faR25
+
 # rustup component add llvm-tools-preview
 # apt install bolt-18
 # #cargo install cargo-pgo
 
-BENCH=1
+if [ $(cat /proc/sys/kernel/perf_event_paranoid) -ne 0 ]; then
+    echo 'running: "echo 0 | sudo tee /proc/sys/kernel/perf_event_paranoid"'
+    echo 0 | sudo tee /proc/sys/kernel/perf_event_paranoid
+fi
+
+BENCH=0
 # segfault with tail-call
-FEATURES=mimalloc,stack-array,custom-evmc,jumptable,hash-cache,code-analysis-cache,opcode-fn-ptr-conversion
+#FEATURES=mimalloc,stack-array,custom-evmc,jumptable-dispatch,hash-cache,code-analysis-cache,fn-ptr-conversion-expanded-dispatch
+FEATURES=performance
 RUNS=1
 RUST_LLVM_DIR=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin
 
@@ -28,21 +38,24 @@ fi
 
 # build & run pgo instrumented
 cargo clean
-RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data" \
-    cargo build --release --features $FEATURES
+#RUSTFLAGS="-Cdebug--for-profiling -Cunique-internal-linkage-names" \
+RUSTFLAGS="-Zdebug-info-for-profiling" \
+    cargo +nightly build --release --features $FEATURES
 
-rm -rf /tmp/pgo-data
-
-go test ../go/integration_test/interpreter/... \
+perf record -b -e BR_INST_RETIRED.NEAR_TAKEN:uppp \
+    go test ../go/integration_test/interpreter/... \
     --run none --bench ^Benchmark[a-zA-Z]+/./evmrs \
     --count $RUNS --timeout 1h
 
-$RUST_LLVM_DIR/llvm-profdata merge -o /tmp/pgo-data/merged.profdata /tmp/pgo-data
+llvm-profgen-16 --binary=target/release/libevmrs.so --output=code.prof --perfdata=perf.data
+#create_llvm_prof --binary=target/release/libevmrs.so --out=code.prof
+
+#RUSTFLAGS="-Cdebug-info-for-profiling -Cunique-internal-linkage-names -Cprofile-sample-use=code.prof" \
+RUSTFLAGS="-Zprofile-sample-use=$(pwd)/code.prof" \
+    cargo +nightly build --release --features $FEATURES
 
 # bench pgo optimized
 if [ $BENCH -eq 1 ]; then
-    RUSTFLAGS="-Cprofile-use=/tmp/pgo-data/merged.profdata -Cllvm-args=-pgo-warn-missing-function" \
-        cargo build --release --features $FEATURES
     taskset --cpu-list 0 \
         go test ../go/integration_test/interpreter/... \
         --run none --bench ^Benchmark[a-zA-Z]+/./evmrs \
