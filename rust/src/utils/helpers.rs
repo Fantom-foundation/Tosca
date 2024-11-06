@@ -8,14 +8,14 @@ use crate::{
 };
 
 pub trait SliceExt {
-    fn get_within_bounds(&self, offset: u256, len: u64) -> &[u8];
+    fn get_within_bounds(&self, offset: &u256, len: u64) -> &[u8];
 
     fn copy_padded(&mut self, src: &[u8], gas_left: &mut Gas) -> Result<(), FailStatus>;
 }
 
 impl SliceExt for [u8] {
     #[inline(always)]
-    fn get_within_bounds(&self, offset: u256, len: u64) -> &[u8] {
+    fn get_within_bounds(&self, offset: &u256, len: u64) -> &[u8] {
         if len == 0 {
             return &[];
         }
@@ -79,12 +79,12 @@ mod tests {
 
     #[test]
     fn get_within_bounds() {
-        assert_eq!([].get_within_bounds(u256::ZERO, 1), &[]);
-        assert_eq!([1].get_within_bounds(u256::ZERO, 0), &[]);
-        assert_eq!([1].get_within_bounds(u256::ZERO, 1), &[1]);
-        assert_eq!([1].get_within_bounds(u256::ZERO, 2), &[1]);
-        assert_eq!([1].get_within_bounds(u256::ONE, 1), &[]);
-        assert_eq!([1].get_within_bounds(u256::MAX, 1), &[]);
+        assert_eq!([].get_within_bounds(&u256::ZERO, 1), &[]);
+        assert_eq!([1].get_within_bounds(&u256::ZERO, 0), &[]);
+        assert_eq!([1].get_within_bounds(&u256::ZERO, 1), &[1]);
+        assert_eq!([1].get_within_bounds(&u256::ZERO, 2), &[1]);
+        assert_eq!([1].get_within_bounds(&u256::ONE, 1), &[]);
+        assert_eq!([1].get_within_bounds(&u256::MAX, 1), &[]);
     }
 
     #[test]

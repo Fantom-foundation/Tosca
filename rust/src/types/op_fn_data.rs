@@ -169,8 +169,8 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
         self.func
     }
 
-    pub fn get_data(&self) -> u256 {
-        self.data
+    pub fn get_data(&self) -> &u256 {
+        &self.data
     }
 }
 

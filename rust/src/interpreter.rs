@@ -838,7 +838,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
     fn byte(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let (value, [offset]) = self.stack.pop_with_guard()?;
-        *value = value.byte(offset);
+        *value = value.byte(&offset);
         self.code_reader.next();
         self.return_from_op()
     }
@@ -871,10 +871,12 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         self.gas_left.consume(30)?;
         let (len_l, [offset]) = self.stack.pop_with_guard()?;
 
-        let len = u64::try_from(*len_l).map_err(|_| FailStatus::OutOfGas)?;
+        let len = u64::try_from(&*len_l).map_err(|_| FailStatus::OutOfGas)?;
         self.gas_left.consume(6 * word_size(len)?)?; // * does not overflow
 
-        let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        let data = self
+            .memory
+            .get_mut_slice(&offset, len, &mut self.gas_left)?;
         *len_l = hash_cache::hash(data);
         self.code_reader.next();
         self.return_from_op()
@@ -977,7 +979,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         let [len, offset, dest_offset] = self.stack.pop()?;
 
         if len != u256::ZERO {
-            let len = u64::try_from(len).map_err(|_| FailStatus::InvalidMemoryAccess)?;
+            let len = u64::try_from(&len).map_err(|_| FailStatus::InvalidMemoryAccess)?;
 
             #[allow(clippy::map_identity)]
             let src = self
@@ -990,10 +992,10 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
                     std::convert::identity,
                 )
                 .unwrap_or_default()
-                .get_within_bounds(offset, len);
+                .get_within_bounds(&offset, len);
             let dest = self
                 .memory
-                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
+                .get_mut_slice(&dest_offset, len, &mut self.gas_left)?;
             dest.copy_padded(src, &mut self.gas_left)?;
         }
         self.code_reader.next();
@@ -1012,12 +1014,12 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         let [len, offset, dest_offset] = self.stack.pop()?;
 
         if len != u256::ZERO {
-            let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
+            let len = u64::try_from(&len).map_err(|_| FailStatus::OutOfGas)?;
 
-            let src = self.code_reader.get_within_bounds(offset, len);
+            let src = self.code_reader.get_within_bounds(&offset, len);
             let dest = self
                 .memory
-                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
+                .get_mut_slice(&dest_offset, len, &mut self.gas_left)?;
             dest.copy_padded(src, &mut self.gas_left)?;
         }
         self.code_reader.next();
@@ -1055,11 +1057,11 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
         if len != u256::ZERO {
-            let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
+            let len = u64::try_from(&len).map_err(|_| FailStatus::OutOfGas)?;
 
             let dest = self
                 .memory
-                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
+                .get_mut_slice(&dest_offset, len, &mut self.gas_left)?;
             let (offset, offset_overflow) = offset.into_u64_with_overflow();
             self.gas_left.consume_copy_cost(len)?;
             let bytes_written = self.context.copy_code(&addr, offset as usize, dest);
@@ -1101,7 +1103,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
             let src = &src[offset as usize..end as usize];
             let dest = self
                 .memory
-                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
+                .get_mut_slice(&dest_offset, len, &mut self.gas_left)?;
             dest.copy_padded(src, &mut self.gas_left)?;
         }
         self.code_reader.next();
@@ -1124,7 +1126,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
     fn block_hash(&mut self) -> OpResult {
         self.gas_left.consume(20)?;
         let (block_number, []) = self.stack.pop_with_guard()?;
-        *block_number = u64::try_from(*block_number)
+        *block_number = u64::try_from(&*block_number)
             .map(|idx| self.context.get_block_hash(idx as i64).into())
             .unwrap_or(u256::ZERO);
         self.code_reader.next();
@@ -1237,7 +1239,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         self.gas_left.consume(3)?;
         let (offset, []) = self.stack.pop_with_guard()?;
 
-        *offset = self.memory.get_word(*offset, &mut self.gas_left)?;
+        *offset = self.memory.get_word(offset, &mut self.gas_left)?;
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1246,7 +1248,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         self.gas_left.consume(3)?;
         let [value, offset] = self.stack.pop()?;
 
-        let dest = self.memory.get_mut_slice(offset, 32, &mut self.gas_left)?;
+        let dest = self.memory.get_mut_slice(&offset, 32, &mut self.gas_left)?;
         dest.copy_from_slice(value.as_le_bytes());
         dest.reverse();
         self.code_reader.next();
@@ -1257,7 +1259,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         self.gas_left.consume(3)?;
         let [value, offset] = self.stack.pop()?;
 
-        let dest = self.memory.get_mut_byte(offset, &mut self.gas_left)?;
+        let dest = self.memory.get_mut_byte(&offset, &mut self.gas_left)?;
         *dest = value.least_significant_byte();
         self.code_reader.next();
         self.return_from_op()
@@ -1287,7 +1289,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
     fn jump(&mut self) -> OpResult {
         self.gas_left.consume(if STEPPABLE { 8 } else { 8 + 1 })?;
         let [dest] = self.stack.pop()?;
-        self.code_reader.try_jump(dest)?;
+        self.code_reader.try_jump(&dest)?;
         if !STEPPABLE {
             self.code_reader.next();
         }
@@ -1301,7 +1303,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         if cond == u256::ZERO {
             self.code_reader.next();
         } else {
-            self.code_reader.try_jump(dest)?;
+            self.code_reader.try_jump(&dest)?;
             if !STEPPABLE {
                 self.gas_left.consume(1)?;
                 self.code_reader.next();
@@ -1368,7 +1370,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         let [len, offset, dest_offset] = self.stack.pop()?;
         if len != u256::ZERO {
             self.memory
-                .copy_within(offset, dest_offset, len, &mut self.gas_left)?;
+                .copy_within(&offset, &dest_offset, &len, &mut self.gas_left)?;
         }
         self.code_reader.next();
         self.return_from_op()
@@ -1376,8 +1378,10 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
     fn return_(&mut self) -> OpResult {
         let [len, offset] = self.stack.pop()?;
-        let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
-        let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        let len = u64::try_from(&len).map_err(|_| FailStatus::OutOfGas)?;
+        let data = self
+            .memory
+            .get_mut_slice(&offset, len, &mut self.gas_left)?;
         #[cfg(not(feature = "custom-evmc"))]
         {
             self.output = Some(data.to_owned());
@@ -1392,8 +1396,10 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
     fn revert(&mut self) -> OpResult {
         let [len, offset] = self.stack.pop()?;
-        let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
-        let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        let len = u64::try_from(&len).map_err(|_| FailStatus::OutOfGas)?;
+        let data = self
+            .memory
+            .get_mut_slice(&offset, len, &mut self.gas_left)?;
         #[cfg(not(feature = "custom-evmc"))]
         {
             self.output = Some(data.to_owned());
@@ -1528,7 +1534,9 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         }
         self.gas_left.consume(cost)?;
 
-        let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        let data = self
+            .memory
+            .get_mut_slice(&offset, len, &mut self.gas_left)?;
         let mut topics_uint256 = [Uint256 { bytes: [0; 32] }; N];
         for i in 0..N {
             topics_uint256[i] = Uint256::from(topics[N - 1 - i]);
@@ -1557,7 +1565,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         } else {
             u256::ZERO // ignored
         };
-        let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
+        let len = u64::try_from(&len).map_err(|_| FailStatus::OutOfGas)?;
 
         let init_code_word_size = word_size(len)?;
         if self.revision >= Revision::EVMC_SHANGHAI {
@@ -1573,7 +1581,9 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
             self.gas_left.consume(hash_cost)?;
         }
 
-        let init_code = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        let init_code = self
+            .memory
+            .get_mut_slice(&offset, len, &mut self.gas_left)?;
 
         if value > self.context.get_balance(self.message.recipient()).into() {
             self.last_call_return_data = None;
@@ -1644,8 +1654,8 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         }
 
         let addr = addr.into();
-        let args_len = u64::try_from(args_len).map_err(|_| FailStatus::OutOfGas)?;
-        let ret_len = u64::try_from(*ret_len_l).map_err(|_| FailStatus::OutOfGas)?;
+        let args_len = u64::try_from(&args_len).map_err(|_| FailStatus::OutOfGas)?;
+        let ret_len = u64::try_from(&*ret_len_l).map_err(|_| FailStatus::OutOfGas)?;
 
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
@@ -1658,10 +1668,10 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         // another mutable reference into memory for input
         let _dest = self
             .memory
-            .get_mut_slice(ret_offset, ret_len, &mut self.gas_left)?;
+            .get_mut_slice(&ret_offset, ret_len, &mut self.gas_left)?;
         let input = self
             .memory
-            .get_mut_slice(args_offset, args_len, &mut self.gas_left)?;
+            .get_mut_slice(&args_offset, args_len, &mut self.gas_left)?;
 
         let gas_left = self.gas_left.as_u64();
         let limit = gas_left - gas_left / 64;
@@ -1714,7 +1724,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         self.last_call_return_data = result.output().map(ToOwned::to_owned);
         let dest = self
             .memory
-            .get_mut_slice(ret_offset, ret_len, &mut self.gas_left)?;
+            .get_mut_slice(&ret_offset, ret_len, &mut self.gas_left)?;
         if let Some(output) = &self.last_call_return_data {
             let min_len = min(output.len(), ret_len as usize); // ret_len == dest.len()
             dest[..min_len].copy_from_slice(&output[..min_len]);
@@ -1747,8 +1757,8 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
             self.stack.pop_with_guard()?;
 
         let addr = addr.into();
-        let args_len = u64::try_from(args_len).map_err(|_| FailStatus::OutOfGas)?;
-        let ret_len = u64::try_from(*ret_len_l).map_err(|_| FailStatus::OutOfGas)?;
+        let args_len = u64::try_from(&args_len).map_err(|_| FailStatus::OutOfGas)?;
+        let ret_len = u64::try_from(&*ret_len_l).map_err(|_| FailStatus::OutOfGas)?;
 
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
@@ -1756,10 +1766,10 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         // another mutable reference into memory for input
         let _dest = self
             .memory
-            .get_mut_slice(ret_offset, ret_len, &mut self.gas_left)?;
+            .get_mut_slice(&ret_offset, ret_len, &mut self.gas_left)?;
         let input = self
             .memory
-            .get_mut_slice(args_offset, args_len, &mut self.gas_left)?;
+            .get_mut_slice(&args_offset, args_len, &mut self.gas_left)?;
 
         let gas_left = self.gas_left.as_u64();
         let limit = gas_left - gas_left / 64;
@@ -1802,7 +1812,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         self.last_call_return_data = result.output().map(ToOwned::to_owned);
         let dest = self
             .memory
-            .get_mut_slice(ret_offset, ret_len, &mut self.gas_left)?;
+            .get_mut_slice(&ret_offset, ret_len, &mut self.gas_left)?;
         if let Some(output) = &self.last_call_return_data {
             let min_len = min(output.len(), ret_len as usize); // ret_len == dest.len()
             dest[..min_len].copy_from_slice(&output[..min_len]);
@@ -2072,7 +2082,7 @@ mod tests {
         let ret_data = [next_value(), next_value()];
 
         let gas = next_value() as u64;
-        let addr = next_value().into();
+        let addr = u256::from(next_value());
         let value = u256::ZERO;
         let args_offset = 1usize;
         let args_len = memory.len() - args_offset - 1;
@@ -2082,9 +2092,11 @@ mod tests {
         let input = memory[args_offset..args_offset + args_len].to_vec();
 
         let message = MockExecutionMessage {
-            recipient: u256::from(next_value()).into(),
+            recipient: Address::from(u256::from(next_value())),
             ..Default::default()
         };
+        let value_clone = Uint256::from(value);
+        let addr_clone = Address::from(addr);
 
         let mut context = MockExecutionContextTrait::new();
         context
@@ -2101,11 +2113,11 @@ mod tests {
                     && call_message.depth() == message.depth + 1
                     && call_message.gas() == gas as i64
                     && call_message.sender() == &message.recipient
-                    && call_message.recipient() == &Address::from(addr)
+                    && call_message.recipient() == &addr_clone
                     && call_message.input() == Some(&input)
-                    && call_message.value() == &Uint256::from(value)
+                    && call_message.value() == &value_clone
                     && call_message.create2_salt() == &Uint256::from(u256::ZERO)
-                    && call_message.code_address() == &Address::from(addr)
+                    && call_message.code_address() == &addr_clone
                     && call_message.code().is_none()
             })
             .returning(move |_| {

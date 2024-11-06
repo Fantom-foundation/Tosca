@@ -73,7 +73,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
         self.pc += 1;
     }
 
-    pub fn try_jump(&mut self, dest: u256) -> Result<(), FailStatus> {
+    pub fn try_jump(&mut self, dest: &u256) -> Result<(), FailStatus> {
         let dest = u64::try_from(dest).map_err(|_| FailStatus::BadJumpDestination)? as usize;
         if !self.code_analysis.analysis.get(dest).is_some_and(|c| {
             #[cfg(not(feature = "needs-fn-ptr-conversion"))]
@@ -105,7 +105,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
     #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
     pub fn get_push_data(&mut self) -> u256 {
         self.pc += 1;
-        self.code_analysis.analysis[self.pc - 1].get_data()
+        *self.code_analysis.analysis[self.pc - 1].get_data()
     }
     #[cfg(all(
         not(feature = "fn-ptr-conversion-expanded-dispatch"),
@@ -272,16 +272,16 @@ mod tests {
             0,
         );
         assert_eq!(
-            code_reader.try_jump(1u8.into()),
+            code_reader.try_jump(&1u8.into()),
             Err(FailStatus::BadJumpDestination)
         );
-        assert_eq!(code_reader.try_jump(2u8.into()), Ok(()));
+        assert_eq!(code_reader.try_jump(&2u8.into()), Ok(()));
         assert_eq!(
-            code_reader.try_jump(3u8.into()),
+            code_reader.try_jump(&3u8.into()),
             Err(FailStatus::BadJumpDestination)
         );
         assert_eq!(
-            code_reader.try_jump(u256::MAX),
+            code_reader.try_jump(&u256::MAX),
             Err(FailStatus::BadJumpDestination)
         );
     }

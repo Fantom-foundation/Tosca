@@ -55,7 +55,7 @@ impl Memory {
 
     pub fn get_mut_slice(
         &mut self,
-        offset: u256,
+        offset: &u256,
         len: u64,
         gas_left: &mut Gas,
     ) -> Result<&mut [u8], FailStatus> {
@@ -72,7 +72,7 @@ impl Memory {
         Ok(&mut self.0[offset as usize..end as usize])
     }
 
-    pub fn get_word(&mut self, offset: u256, gas_left: &mut Gas) -> Result<u256, FailStatus> {
+    pub fn get_word(&mut self, offset: &u256, gas_left: &mut Gas) -> Result<u256, FailStatus> {
         let slice = self.get_mut_slice(offset, 32, gas_left)?;
         // SAFETY:
         // The slice is 32 bytes long.
@@ -82,7 +82,7 @@ impl Memory {
 
     pub fn get_mut_byte(
         &mut self,
-        offset: u256,
+        offset: &u256,
         gas_left: &mut Gas,
     ) -> Result<&mut u8, FailStatus> {
         let slice = self.get_mut_slice(offset, 1, gas_left)?;
@@ -91,9 +91,9 @@ impl Memory {
 
     pub fn copy_within(
         &mut self,
-        src_offset: u256,
-        dest_offset: u256,
-        len: u256,
+        src_offset: &u256,
+        dest_offset: &u256,
+        len: &u256,
         gas_left: &mut Gas,
     ) -> Result<(), FailStatus> {
         let (src_offset, src_overflow) = src_offset.into_u64_with_overflow();
@@ -189,21 +189,21 @@ mod tests {
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(0);
         assert_eq!(
-            mem.get_mut_slice(u256::ZERO, 0, &mut gas_left),
+            mem.get_mut_slice(&u256::ZERO, 0, &mut gas_left),
             Ok([].as_mut_slice())
         );
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(0);
         assert_eq!(
-            mem.get_mut_slice(u256::ZERO, 1, &mut gas_left),
+            mem.get_mut_slice(&u256::ZERO, 1, &mut gas_left),
             Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(3);
         assert_eq!(
-            mem.get_mut_slice(u256::ZERO, 1, &mut gas_left),
+            mem.get_mut_slice(&u256::ZERO, 1, &mut gas_left),
             Ok([0].as_mut_slice())
         );
         assert_eq!(gas_left, 0);
@@ -211,7 +211,7 @@ mod tests {
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(3);
         assert_eq!(
-            mem.get_mut_slice(u256::ZERO, 32, &mut gas_left),
+            mem.get_mut_slice(&u256::ZERO, 32, &mut gas_left),
             Ok([0; 32].as_mut_slice())
         );
         assert_eq!(gas_left, 0);
@@ -219,7 +219,7 @@ mod tests {
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(6);
         assert_eq!(
-            mem.get_mut_slice(u256::ZERO, 32 + 1, &mut gas_left),
+            mem.get_mut_slice(&u256::ZERO, 32 + 1, &mut gas_left),
             Ok([0; 32 + 1].as_mut_slice())
         );
         assert_eq!(gas_left, 0);
@@ -227,14 +227,14 @@ mod tests {
         let mut mem = Memory::new(vec![1; 32]);
         let mut gas_left = Gas::new(0);
         assert_eq!(
-            mem.get_mut_slice(u256::ZERO, 1, &mut gas_left),
+            mem.get_mut_slice(&u256::ZERO, 1, &mut gas_left),
             Ok([1].as_mut_slice())
         );
 
         let mut mem = Memory::new(vec![1; 32]);
         let mut gas_left = Gas::new(0);
         assert_eq!(
-            mem.get_mut_slice(u256::ZERO, 32, &mut gas_left),
+            mem.get_mut_slice(&u256::ZERO, 32, &mut gas_left),
             Ok([1; 32].as_mut_slice())
         );
         assert_eq!(gas_left, 0);
@@ -244,7 +244,7 @@ mod tests {
         let mut result = [1; 32 + 1];
         result[32] = 0;
         assert_eq!(
-            mem.get_mut_slice(u256::ZERO, 32 + 1, &mut gas_left),
+            mem.get_mut_slice(&u256::ZERO, 32 + 1, &mut gas_left),
             Ok(result.as_mut_slice())
         );
         assert_eq!(gas_left, 0);
@@ -254,7 +254,7 @@ mod tests {
         let mut result = [1; 32 * 2];
         result[32..].copy_from_slice(&[0; 32]);
         assert_eq!(
-            mem.get_mut_slice(32u8.into(), 32 * 2, &mut gas_left),
+            mem.get_mut_slice(&32u8.into(), 32 * 2, &mut gas_left),
             Ok(result.as_mut_slice())
         );
         assert_eq!(gas_left, 0);
@@ -262,7 +262,7 @@ mod tests {
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(1_000_000);
         assert_eq!(
-            mem.get_mut_slice(u256::MAX, 1, &mut gas_left),
+            mem.get_mut_slice(&u256::MAX, 1, &mut gas_left),
             Err(FailStatus::OutOfGas)
         );
     }
@@ -272,28 +272,28 @@ mod tests {
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(0);
         assert_eq!(
-            mem.get_word(u256::ZERO, &mut gas_left),
+            mem.get_word(&u256::ZERO, &mut gas_left),
             Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(3);
-        assert_eq!(mem.get_word(u256::ZERO, &mut gas_left), Ok(u256::ZERO));
+        assert_eq!(mem.get_word(&u256::ZERO, &mut gas_left), Ok(u256::ZERO));
         assert_eq!(gas_left, 0);
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(6);
-        assert_eq!(mem.get_word(u256::ONE, &mut gas_left), Ok(u256::ZERO));
+        assert_eq!(mem.get_word(&u256::ONE, &mut gas_left), Ok(u256::ZERO));
         assert_eq!(gas_left, 0);
 
         let mut mem = Memory::new(vec![0xff; 32]);
         let mut gas_left = Gas::new(0);
-        assert_eq!(mem.get_word(u256::ZERO, &mut gas_left), Ok(u256::MAX));
+        assert_eq!(mem.get_word(&u256::ZERO, &mut gas_left), Ok(u256::MAX));
         assert_eq!(gas_left, 0);
 
         let mut mem = Memory::new(vec![0xff; 32]);
         let mut gas_left = Gas::new(3);
-        assert_eq!(mem.get_word(32u8.into(), &mut gas_left), Ok(u256::ZERO));
+        assert_eq!(mem.get_word(&32u8.into(), &mut gas_left), Ok(u256::ZERO));
         assert_eq!(gas_left, 0);
     }
 
@@ -302,28 +302,28 @@ mod tests {
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(0);
         assert_eq!(
-            mem.get_mut_byte(u256::ZERO, &mut gas_left),
+            mem.get_mut_byte(&u256::ZERO, &mut gas_left),
             Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(3);
-        assert_eq!(mem.get_mut_byte(u256::ZERO, &mut gas_left), Ok(&mut 0));
+        assert_eq!(mem.get_mut_byte(&u256::ZERO, &mut gas_left), Ok(&mut 0));
         assert_eq!(gas_left, 0);
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(6);
-        assert_eq!(mem.get_mut_byte(32u8.into(), &mut gas_left), Ok(&mut 0));
+        assert_eq!(mem.get_mut_byte(&32u8.into(), &mut gas_left), Ok(&mut 0));
         assert_eq!(gas_left, 0);
 
         let mut mem = Memory::new(vec![1; 32]);
         let mut gas_left = Gas::new(0);
-        assert_eq!(mem.get_mut_byte(u256::ZERO, &mut gas_left), Ok(&mut 1));
+        assert_eq!(mem.get_mut_byte(&u256::ZERO, &mut gas_left), Ok(&mut 1));
         assert_eq!(gas_left, 0);
 
         let mut mem = Memory::new(vec![1; 32]);
         let mut gas_left = Gas::new(3);
-        assert_eq!(mem.get_mut_byte(32u8.into(), &mut gas_left), Ok(&mut 0));
+        assert_eq!(mem.get_mut_byte(&32u8.into(), &mut gas_left), Ok(&mut 0));
         assert_eq!(gas_left, 0);
     }
 
@@ -332,42 +332,42 @@ mod tests {
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(0);
         assert_eq!(
-            mem.copy_within(u256::ZERO, u256::ZERO, u256::ZERO, &mut gas_left),
+            mem.copy_within(&u256::ZERO, &u256::ZERO, &u256::ZERO, &mut gas_left),
             Ok(())
         );
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(0);
         assert_eq!(
-            mem.copy_within(u256::ONE, u256::ZERO, u256::ZERO, &mut gas_left),
+            mem.copy_within(&u256::ONE, &u256::ZERO, &u256::ZERO, &mut gas_left),
             Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(0);
         assert_eq!(
-            mem.copy_within(u256::ZERO, u256::ONE, u256::ZERO, &mut gas_left),
+            mem.copy_within(&u256::ZERO, &u256::ONE, &u256::ZERO, &mut gas_left),
             Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(0);
         assert_eq!(
-            mem.copy_within(u256::ZERO, u256::ZERO, u256::ONE, &mut gas_left),
+            mem.copy_within(&u256::ZERO, &u256::ZERO, &u256::ONE, &mut gas_left),
             Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(1_000_000);
         assert_eq!(
-            mem.copy_within(u256::MAX, u256::ZERO, u256::ZERO, &mut gas_left),
+            mem.copy_within(&u256::MAX, &u256::ZERO, &u256::ZERO, &mut gas_left),
             Err(FailStatus::OutOfGas)
         );
 
         let mut mem = Memory::new(Vec::new());
         let mut gas_left = Gas::new(3 + 3);
         assert_eq!(
-            mem.copy_within(u256::ZERO, u256::ZERO, u256::ONE, &mut gas_left),
+            mem.copy_within(&u256::ZERO, &u256::ZERO, &u256::ONE, &mut gas_left),
             Ok(())
         );
         assert_eq!(gas_left, 0);
@@ -375,7 +375,7 @@ mod tests {
         let mut mem = Memory::new(vec![1; 32]);
         let mut gas_left = Gas::new(3);
         assert_eq!(
-            mem.copy_within(u256::ZERO, u256::ZERO, u256::ONE, &mut gas_left),
+            mem.copy_within(&u256::ZERO, &u256::ZERO, &u256::ONE, &mut gas_left),
             Ok(())
         );
         assert_eq!(gas_left, 0);
@@ -383,7 +383,7 @@ mod tests {
         let mut mem = Memory::new(vec![1; 32]);
         let mut gas_left = Gas::new(3 + 6);
         assert_eq!(
-            mem.copy_within(u256::ZERO, u256::ZERO, 33u8.into(), &mut gas_left),
+            mem.copy_within(&u256::ZERO, &u256::ZERO, &33u8.into(), &mut gas_left),
             Ok(())
         );
         assert_eq!(gas_left, 0);
@@ -391,7 +391,7 @@ mod tests {
         let mut mem = Memory::new(vec![1; 32]);
         let mut gas_left = Gas::new(3 + 3);
         assert_eq!(
-            mem.copy_within(32u8.into(), u256::ZERO, u256::ONE, &mut gas_left),
+            mem.copy_within(&32u8.into(), &u256::ZERO, &u256::ONE, &mut gas_left),
             Ok(())
         );
         assert_eq!(gas_left, 0);
@@ -399,7 +399,7 @@ mod tests {
         let mut mem = Memory::new(vec![1; 32]);
         let mut gas_left = Gas::new(3 + 3);
         assert_eq!(
-            mem.copy_within(u256::ZERO, 32u8.into(), u256::ONE, &mut gas_left),
+            mem.copy_within(&u256::ZERO, &32u8.into(), &u256::ONE, &mut gas_left),
             Ok(())
         );
         assert_eq!(gas_left, 0);

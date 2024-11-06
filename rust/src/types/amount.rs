@@ -115,14 +115,22 @@ impl From<u256> for Address {
 #[derive(Debug, PartialEq)]
 pub struct U64Overflow;
 
-impl TryFrom<u256> for u64 {
+impl TryFrom<&u256> for u64 {
     type Error = U64Overflow;
 
-    fn try_from(value: u256) -> Result<Self, Self::Error> {
+    fn try_from(value: &u256) -> Result<Self, Self::Error> {
         match value.into_u64_with_overflow() {
             (_, true) => Err(U64Overflow),
             (value, false) => Ok(value),
         }
+    }
+}
+
+impl TryFrom<&mut u256> for u64 {
+    type Error = U64Overflow;
+
+    fn try_from(value: &mut u256) -> Result<Self, Self::Error> {
+        Self::try_from(&*value)
     }
 }
 
@@ -313,13 +321,13 @@ impl u256 {
     pub const ONE: Self = Self(U256::ONE);
     pub const MAX: Self = Self(U256::MAX);
 
-    pub fn into_u64_with_overflow(self) -> (u64, bool) {
+    pub fn into_u64_with_overflow(&self) -> (u64, bool) {
         let digits = self.0.digits();
         let overflow = digits[1..] != [0; 3];
         (digits[0], overflow)
     }
 
-    pub fn into_u64_saturating(self) -> u64 {
+    pub fn into_u64_saturating(&self) -> u64 {
         let digits = self.0.digits();
         if digits[1..] != [0; 3] {
             u64::MAX
@@ -364,12 +372,12 @@ impl u256 {
         Self(U256::cast_from((s1 + s2).rem(m)))
     }
 
-    pub fn mulmod(s1: Self, s2: Self, m: Self) -> Self {
+    pub fn mulmod(f1: Self, f2: Self, m: Self) -> Self {
         if m == u256::ZERO {
             return u256::ZERO;
         }
-        let s1 = U512::cast_from(s1.0);
-        let s2 = U512::cast_from(s2.0);
+        let s1 = U512::cast_from(f1.0);
+        let s2 = U512::cast_from(f2.0);
         let m = U512::cast_from(m.0);
 
         Self(U256::cast_from((s1 * s2).rem(m)))
@@ -419,14 +427,15 @@ impl u256 {
         lhs > rhs
     }
 
-    pub fn byte(&self, index: Self) -> Self {
-        if index >= 32u8.into() {
+    pub fn byte(&self, index: &Self) -> Self {
+        if index >= &u256::from(32u8) {
             return u256::ZERO;
         }
         let idx = index.as_le_bytes()[0];
-        self.as_le_bytes()[31 - idx as usize].into()
+        Self::from(self.as_le_bytes()[31 - idx as usize])
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn sar(self, rhs: Self) -> Self {
         let lhs: I256 = self.0.cast_signed();
         let rhs = rhs.as_le_bytes();
@@ -519,7 +528,7 @@ mod tests {
         assert_eq!(u256::from(0u64), u256::ZERO);
         assert_eq!(u256::from(1u64), u256::ONE);
         for num in [0, 1, u64::MAX - 1, u64::MAX] {
-            assert_eq!(u256::from(num).try_into(), Ok(num));
+            assert_eq!(u64::try_from(&u256::from(num)), Ok(num));
         }
         for num in [0, 1, u64::MAX - 1, u64::MAX] {
             assert_eq!(u256::from(num).into_u64_with_overflow(), (num, false));
@@ -527,7 +536,10 @@ mod tests {
         for num in [0, 1, u64::MAX - 1, u64::MAX] {
             assert_eq!(u256::from(num).into_u64_saturating(), num);
         }
-        assert_eq!(u256::MAX.try_into(), Result::<u64, _>::Err(U64Overflow));
+        assert_eq!(
+            u64::try_from(&u256::MAX),
+            Result::<u64, _>::Err(U64Overflow)
+        );
         assert_eq!(u256::MAX.into_u64_with_overflow(), (u64::MAX, true));
         assert_eq!(u256::MAX.into_u64_saturating(), u64::MAX);
 
