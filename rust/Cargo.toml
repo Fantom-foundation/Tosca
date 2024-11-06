@@ -37,8 +37,10 @@ hash-cache = ["dep:lru"]
 code-analysis-cache = ["dep:lru", "dep:nohash-hasher"]
 thread-local-cache = []
 tail-call = []
-# opcode-fn-ptr-conversion takes precedence over jumptable
+# opcode-fn-ptr-conversion takes precedence over jumptable, switch (default) and opcode-fn-ptr-conversion-inline
 opcode-fn-ptr-conversion = []
+# opcode-fn-ptr-conversion-inline takes precedence over jumptable and switch (default)
+opcode-fn-ptr-conversion-inline = []
 
 [dependencies]
 bnum = "0.12.0"
