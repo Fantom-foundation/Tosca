@@ -5,6 +5,37 @@ mod interpreter;
 mod types;
 mod utils;
 
+#[cfg(all(
+    feature = "needs-cache",
+    not(feature = "code-analysis-cache"),
+    not(feature = "hash-cache"),
+))]
+compile_error!(
+    "Feature `needs-cache` is only a helper feature and not supposed to be enabled on its own.
+    Either disable it or enable one or all of `code-analysis-cache` or `hash-cache`."
+);
+
+#[cfg(all(
+    feature = "needs-fn-ptr-conversion",
+    not(feature = "fn-ptr-conversion-expanded-dispatch"),
+    not(feature = "fn-ptr-conversion-inline-dispatch"),
+))]
+compile_error!(
+    "Feature `needs-fn-ptr-conversion` is only a helper feature and not supposed to be enabled on its own.
+    Either disable it or enable one or all of `fn-ptr-conversion-expanded-dispatch` or `fn-ptr-conversion-inline-dispatch`."
+);
+
+#[cfg(all(
+    feature = "needs-jumptable",
+    not(feature = "jumptable-dispatch"),
+    not(feature = "fn-ptr-conversion-expanded-dispatch"),
+    not(feature = "fn-ptr-conversion-inline-dispatch"),
+))]
+compile_error!(
+    "Feature `needs-jumptable` is only a helper feature and not supposed to be enabled on its own.
+    Either disable it or enable one or all of `jumptable-dispatch`, `fn-ptr-conversion-expanded-dispatch` or `fn-ptr-conversion-inline-dispatch`."
+);
+
 #[cfg(not(feature = "custom-evmc"))]
 pub extern crate evmc_vm_tosca as evmc_vm;
 #[cfg(feature = "custom-evmc")]

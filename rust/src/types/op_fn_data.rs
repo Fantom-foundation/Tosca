@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-#[cfg(feature = "opcode-fn-ptr-conversion")]
+#[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
 use crate::u256;
 use crate::{
     interpreter::{Interpreter, OpFn},
@@ -8,14 +8,14 @@ use crate::{
 };
 
 #[cfg(all(
-    not(feature = "opcode-fn-ptr-conversion"),
-    feature = "opcode-fn-ptr-conversion-inline"
+    not(feature = "fn-ptr-conversion-expanded-dispatch"),
+    feature = "fn-ptr-conversion-inline-dispatch"
 ))]
 pub const OP_FN_DATA_SIZE: usize = 4;
 
 #[cfg(all(
-    not(feature = "opcode-fn-ptr-conversion"),
-    feature = "opcode-fn-ptr-conversion-inline"
+    not(feature = "fn-ptr-conversion-expanded-dispatch"),
+    feature = "fn-ptr-conversion-inline-dispatch"
 ))]
 #[derive(Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -26,8 +26,8 @@ enum OpFnDataType {
 }
 
 #[cfg(all(
-    not(feature = "opcode-fn-ptr-conversion"),
-    feature = "opcode-fn-ptr-conversion-inline"
+    not(feature = "fn-ptr-conversion-expanded-dispatch"),
+    feature = "fn-ptr-conversion-inline-dispatch"
 ))]
 #[derive(Clone, PartialEq, Eq)]
 #[repr(align(8))]
@@ -36,8 +36,8 @@ pub struct OpFnData {
 }
 
 #[cfg(all(
-    not(feature = "opcode-fn-ptr-conversion"),
-    feature = "opcode-fn-ptr-conversion-inline"
+    not(feature = "fn-ptr-conversion-expanded-dispatch"),
+    feature = "fn-ptr-conversion-inline-dispatch"
 ))]
 impl OpFnData {
     pub fn data(data: [u8; OP_FN_DATA_SIZE]) -> Self {
@@ -108,8 +108,8 @@ impl OpFnData {
 }
 
 #[cfg(all(
-    not(feature = "opcode-fn-ptr-conversion"),
-    feature = "opcode-fn-ptr-conversion-inline"
+    not(feature = "fn-ptr-conversion-expanded-dispatch"),
+    feature = "fn-ptr-conversion-inline-dispatch"
 ))]
 impl Debug for OpFnData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -117,14 +117,14 @@ impl Debug for OpFnData {
     }
 }
 
-#[cfg(feature = "opcode-fn-ptr-conversion")]
+#[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
 #[derive(Clone, PartialEq, Eq)]
 pub struct OpFnData {
     func: Option<OpFn>,
     data: u256,
 }
 
-#[cfg(feature = "opcode-fn-ptr-conversion")]
+#[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
 impl OpFnData {
     pub fn data(data: u256) -> Self {
         OpFnData { func: None, data }
@@ -175,7 +175,7 @@ impl OpFnData {
     }
 }
 
-#[cfg(feature = "opcode-fn-ptr-conversion")]
+#[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
 impl Debug for OpFnData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OpFnData")

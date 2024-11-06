@@ -1,7 +1,4 @@
-#[cfg(any(
-    feature = "opcode-fn-ptr-conversion",
-    feature = "opcode-fn-ptr-conversion-inline"
-))]
+#[cfg(feature = "needs-fn-ptr-conversion")]
 use std::cmp::min;
 #[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
 use std::rc::Rc;
@@ -17,14 +14,11 @@ use crate::types::Cache;
 use crate::types::LocalKeyExt;
 use crate::types::{code_byte_type, u256, CodeByteType};
 #[cfg(all(
-    not(feature = "opcode-fn-ptr-conversion"),
-    feature = "opcode-fn-ptr-conversion-inline"
+    not(feature = "fn-ptr-conversion-expanded-dispatch"),
+    feature = "fn-ptr-conversion-inline-dispatch"
 ))]
 use crate::types::{op_fn_data::OP_FN_DATA_SIZE, Opcode};
-#[cfg(any(
-    feature = "opcode-fn-ptr-conversion",
-    feature = "opcode-fn-ptr-conversion-inline"
-))]
+#[cfg(feature = "needs-fn-ptr-conversion")]
 use crate::types::{OpFnData, PcMap};
 
 /// This type represents a hash value in form of a u256.
@@ -48,15 +42,9 @@ pub type AnalysisContainer<T> = Arc<T>;
 #[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
 pub type AnalysisContainer<T> = Rc<T>;
 
-#[cfg(all(
-    not(feature = "opcode-fn-ptr-conversion"),
-    not(feature = "opcode-fn-ptr-conversion-inline"),
-))]
+#[cfg(not(feature = "needs-fn-ptr-conversion"))]
 pub type AnalysisItem = CodeByteType;
-#[cfg(any(
-    feature = "opcode-fn-ptr-conversion",
-    feature = "opcode-fn-ptr-conversion-inline"
-))]
+#[cfg(feature = "needs-fn-ptr-conversion")]
 pub type AnalysisItem = OpFnData;
 
 #[cfg(feature = "code-analysis-cache")]
@@ -77,10 +65,7 @@ thread_local! {
 #[derive(Debug)]
 pub struct CodeAnalysis {
     pub analysis: Vec<AnalysisItem>,
-    #[cfg(any(
-        feature = "opcode-fn-ptr-conversion",
-        feature = "opcode-fn-ptr-conversion-inline"
-    ))]
+    #[cfg(feature = "needs-fn-ptr-conversion")]
     pub pc_map: PcMap,
 }
 
@@ -99,10 +84,7 @@ impl CodeAnalysis {
         Self::analyze_code(code)
     }
 
-    #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        not(feature = "opcode-fn-ptr-conversion-inline")
-    ))]
+    #[cfg(not(feature = "needs-fn-ptr-conversion"))]
     fn analyze_code(code: &[u8]) -> Self {
         let mut code_byte_types = vec![CodeByteType::DataOrInvalid; code.len()];
 
@@ -117,7 +99,7 @@ impl CodeAnalysis {
             analysis: code_byte_types,
         }
     }
-    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
     fn analyze_code(code: &[u8]) -> Self {
         let mut analysis = Vec::with_capacity(code.len());
         // +32+1 because if last op is push32 we need mapping from after converted to after code+32
@@ -168,8 +150,8 @@ impl CodeAnalysis {
         CodeAnalysis { analysis, pc_map }
     }
     #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        feature = "opcode-fn-ptr-conversion-inline"
+        not(feature = "fn-ptr-conversion-expanded-dispatch"),
+        feature = "fn-ptr-conversion-inline-dispatch"
     ))]
     fn analyze_code(code: &[u8]) -> Self {
         let mut analysis = Vec::with_capacity(code.len());
@@ -237,8 +219,8 @@ impl CodeAnalysis {
 }
 
 #[cfg(all(
-    not(feature = "opcode-fn-ptr-conversion"),
-    feature = "opcode-fn-ptr-conversion-inline"
+    not(feature = "fn-ptr-conversion-expanded-dispatch"),
+    feature = "fn-ptr-conversion-inline-dispatch"
 ))]
 fn copy_push_data(src: &[u8], src_start: usize, len: usize) -> [u8; OP_FN_DATA_SIZE] {
     let src = &src[min(src.len(), src_start)..];
@@ -251,24 +233,18 @@ fn copy_push_data(src: &[u8], src_start: usize, len: usize) -> [u8; OP_FN_DATA_S
 
 #[cfg(test)]
 mod tests {
-    #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        not(feature = "opcode-fn-ptr-conversion-inline")
-    ))]
+    #[cfg(not(feature = "needs-fn-ptr-conversion"))]
     use crate::types::CodeByteType;
     #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        feature = "opcode-fn-ptr-conversion-inline"
+        not(feature = "fn-ptr-conversion-expanded-dispatch"),
+        feature = "fn-ptr-conversion-inline-dispatch"
     ))]
     use crate::types::{op_fn_data::OP_FN_DATA_SIZE, OpFnData};
-    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
     use crate::types::{u256, OpFnData};
     use crate::types::{CodeAnalysis, Opcode};
 
-    #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        not(feature = "opcode-fn-ptr-conversion-inline")
-    ))]
+    #[cfg(not(feature = "needs-fn-ptr-conversion"))]
     #[test]
     fn analyze_code_single_byte() {
         assert_eq!(
@@ -289,7 +265,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
     #[test]
     fn analyze_code_single_byte() {
         assert_eq!(
@@ -310,8 +286,8 @@ mod tests {
         );
     }
     #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        feature = "opcode-fn-ptr-conversion-inline"
+        not(feature = "fn-ptr-conversion-expanded-dispatch"),
+        feature = "fn-ptr-conversion-inline-dispatch"
     ))]
     #[test]
     fn analyze_code_single_byte() {
@@ -336,10 +312,7 @@ mod tests {
         );
     }
 
-    #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        not(feature = "opcode-fn-ptr-conversion-inline")
-    ))]
+    #[cfg(not(feature = "needs-fn-ptr-conversion"))]
     #[test]
     fn analyze_code_jumpdest() {
         assert_eq!(
@@ -352,7 +325,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
     #[test]
     fn analyze_code_jumpdest() {
         use crate::u256;
@@ -370,8 +343,8 @@ mod tests {
         );
     }
     #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        feature = "opcode-fn-ptr-conversion-inline"
+        not(feature = "fn-ptr-conversion-expanded-dispatch"),
+        feature = "fn-ptr-conversion-inline-dispatch"
     ))]
     #[test]
     fn analyze_code_jumpdest() {
@@ -384,10 +357,7 @@ mod tests {
             [OpFnData::jump_dest(), OpFnData::data([0; OP_FN_DATA_SIZE])]
         );
     }
-    #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        not(feature = "opcode-fn-ptr-conversion-inline")
-    ))]
+    #[cfg(not(feature = "needs-fn-ptr-conversion"))]
     #[test]
     fn analyze_code_push_with_data() {
         assert_eq!(
@@ -458,7 +428,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
     #[test]
     fn analyze_code_push_with_data() {
         use crate::u256;
@@ -545,8 +515,8 @@ mod tests {
         );
     }
     #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        feature = "opcode-fn-ptr-conversion-inline"
+        not(feature = "fn-ptr-conversion-expanded-dispatch"),
+        feature = "fn-ptr-conversion-inline-dispatch"
     ))]
     #[test]
     fn analyze_code_push_with_data() {
@@ -635,8 +605,8 @@ mod tests {
     }
 
     #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        feature = "opcode-fn-ptr-conversion-inline"
+        not(feature = "fn-ptr-conversion-expanded-dispatch"),
+        feature = "fn-ptr-conversion-inline-dispatch"
     ))]
     #[test]
     fn copy_push_data() {

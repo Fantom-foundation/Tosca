@@ -1,19 +1,10 @@
-#[cfg(all(
-    not(feature = "opcode-fn-ptr-conversion"),
-    not(feature = "opcode-fn-ptr-conversion-inline")
-))]
+#[cfg(not(feature = "needs-fn-ptr-conversion"))]
 use std::cmp::min;
 use std::{self, ops::Deref};
 
-#[cfg(any(
-    feature = "opcode-fn-ptr-conversion",
-    feature = "opcode-fn-ptr-conversion-inline"
-))]
+#[cfg(feature = "needs-fn-ptr-conversion")]
 use crate::interpreter::OpFn;
-#[cfg(all(
-    not(feature = "opcode-fn-ptr-conversion"),
-    not(feature = "opcode-fn-ptr-conversion-inline")
-))]
+#[cfg(not(feature = "needs-fn-ptr-conversion"))]
 use crate::types::Opcode;
 use crate::types::{u256, AnalysisContainer, CodeAnalysis, CodeByteType, FailStatus};
 
@@ -41,10 +32,7 @@ pub enum GetOpcodeError {
 impl<'a> CodeReader<'a> {
     pub fn new(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
         let code_analysis = CodeAnalysis::new(code, code_hash);
-        #[cfg(any(
-            feature = "opcode-fn-ptr-conversion",
-            feature = "opcode-fn-ptr-conversion-inline"
-        ))]
+        #[cfg(feature = "needs-fn-ptr-conversion")]
         let pc = code_analysis.pc_map.to_converted(pc);
         Self {
             code,
@@ -53,10 +41,7 @@ impl<'a> CodeReader<'a> {
         }
     }
 
-    #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        not(feature = "opcode-fn-ptr-conversion-inline")
-    ))]
+    #[cfg(not(feature = "needs-fn-ptr-conversion"))]
     pub fn get(&self) -> Result<Opcode, GetOpcodeError> {
         if let Some(op) = self.code.get(self.pc) {
             let analysis = self.code_analysis.analysis[self.pc];
@@ -74,10 +59,7 @@ impl<'a> CodeReader<'a> {
             Err(GetOpcodeError::OutOfRange)
         }
     }
-    #[cfg(any(
-        feature = "opcode-fn-ptr-conversion",
-        feature = "opcode-fn-ptr-conversion-inline"
-    ))]
+    #[cfg(feature = "needs-fn-ptr-conversion")]
     pub fn get(&self) -> Result<OpFn, GetOpcodeError> {
         self.code_analysis
             .analysis
@@ -93,16 +75,10 @@ impl<'a> CodeReader<'a> {
     pub fn try_jump(&mut self, dest: u256) -> Result<(), FailStatus> {
         let dest = u64::try_from(dest).map_err(|_| FailStatus::BadJumpDestination)? as usize;
         if !self.code_analysis.analysis.get(dest).is_some_and(|c| {
-            #[cfg(all(
-                not(feature = "opcode-fn-ptr-conversion"),
-                not(feature = "opcode-fn-ptr-conversion-inline")
-            ))]
+            #[cfg(not(feature = "needs-fn-ptr-conversion"))]
             return *c == CodeByteType::JumpDest;
 
-            #[cfg(any(
-                feature = "opcode-fn-ptr-conversion",
-                feature = "opcode-fn-ptr-conversion-inline"
-            ))]
+            #[cfg(feature = "needs-fn-ptr-conversion")]
             return c.code_byte_type() == CodeByteType::JumpDest;
         }) {
             return Err(FailStatus::BadJumpDestination);
@@ -112,10 +88,7 @@ impl<'a> CodeReader<'a> {
         Ok(())
     }
 
-    #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        not(feature = "opcode-fn-ptr-conversion-inline")
-    ))]
+    #[cfg(not(feature = "needs-fn-ptr-conversion"))]
     pub fn get_push_data(&mut self, len: usize) -> u256 {
         assert!(len <= 32);
 
@@ -127,14 +100,14 @@ impl<'a> CodeReader<'a> {
 
         data
     }
-    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
     pub fn get_push_data(&mut self) -> u256 {
         self.pc += 1;
         self.code_analysis.analysis[self.pc - 1].get_data()
     }
     #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        feature = "opcode-fn-ptr-conversion-inline"
+        not(feature = "fn-ptr-conversion-expanded-dispatch"),
+        feature = "fn-ptr-conversion-inline-dispatch"
     ))]
     pub fn get_push_data(&mut self, len: usize) -> u256 {
         use crate::types::op_fn_data::OP_FN_DATA_SIZE;
@@ -152,32 +125,21 @@ impl<'a> CodeReader<'a> {
         data
     }
 
-    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    #[cfg(feature = "needs-fn-ptr-conversion")]
     pub fn jump_to(&mut self) {
+        #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
         let offset = self.code_analysis.analysis[self.pc]
             .get_data()
             .into_u64_saturating();
-        self.pc += offset as usize;
-    }
-    #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        feature = "opcode-fn-ptr-conversion-inline"
-    ))]
-    pub fn jump_to(&mut self) {
+        #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
         let offset = u32::from_ne_bytes(self.code_analysis.analysis[self.pc].get_data());
         self.pc += offset as usize;
     }
 
     pub fn pc(&self) -> usize {
-        #[cfg(all(
-            not(feature = "opcode-fn-ptr-conversion"),
-            not(feature = "opcode-fn-ptr-conversion-inline")
-        ))]
+        #[cfg(not(feature = "needs-fn-ptr-conversion"))]
         return self.pc;
-        #[cfg(any(
-            feature = "opcode-fn-ptr-conversion",
-            feature = "opcode-fn-ptr-conversion-inline"
-        ))]
+        #[cfg(feature = "needs-fn-ptr-conversion")]
         return self.code_analysis.pc_map.to_ct(self.pc);
     }
 }
@@ -199,7 +161,7 @@ mod tests {
         assert_eq!(code_reader.pc(), pc);
     }
 
-    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
     #[test]
     fn code_reader_pc() {
         let code = [Opcode::Push1 as u8, Opcode::Add as u8, Opcode::Add as u8];
@@ -236,8 +198,8 @@ mod tests {
         assert_eq!(code_reader.pc(), 22);
     }
     #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        feature = "opcode-fn-ptr-conversion-inline"
+        not(feature = "fn-ptr-conversion-expanded-dispatch"),
+        feature = "fn-ptr-conversion-inline-dispatch"
     ))]
     #[test]
     fn code_reader_pc() {
@@ -281,26 +243,14 @@ mod tests {
     fn code_reader_get() {
         let mut code_reader =
             CodeReader::new(&[Opcode::Add as u8, Opcode::Add as u8, 0xc0], None, 0);
-        #[cfg(all(
-            not(feature = "opcode-fn-ptr-conversion"),
-            not(feature = "opcode-fn-ptr-conversion-inline")
-        ))]
+        #[cfg(not(feature = "needs-fn-ptr-conversion"))]
         assert_eq!(code_reader.get(), Ok(Opcode::Add));
-        #[cfg(any(
-            feature = "opcode-fn-ptr-conversion",
-            feature = "opcode-fn-ptr-conversion-inline"
-        ))]
+        #[cfg(feature = "needs-fn-ptr-conversion")]
         assert!(code_reader.get().is_ok(),);
         code_reader.next();
-        #[cfg(all(
-            not(feature = "opcode-fn-ptr-conversion"),
-            not(feature = "opcode-fn-ptr-conversion-inline")
-        ))]
+        #[cfg(not(feature = "needs-fn-ptr-conversion"))]
         assert_eq!(code_reader.get(), Ok(Opcode::Add));
-        #[cfg(any(
-            feature = "opcode-fn-ptr-conversion",
-            feature = "opcode-fn-ptr-conversion-inline"
-        ))]
+        #[cfg(feature = "needs-fn-ptr-conversion")]
         assert!(code_reader.get().is_ok(),);
         code_reader.next();
         assert_eq!(code_reader.get(), Err(GetOpcodeError::Invalid));
@@ -334,10 +284,7 @@ mod tests {
         );
     }
 
-    #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        not(feature = "opcode-fn-ptr-conversion-inline")
-    ))]
+    #[cfg(not(feature = "needs-fn-ptr-conversion"))]
     #[test]
     fn code_reader_get_push_data() {
         let mut code_reader = CodeReader::new(&[0xff; 32], None, 0);
@@ -358,7 +305,7 @@ mod tests {
         let mut code_reader = CodeReader::new(&[0xff; 32], None, 32);
         assert_eq!(code_reader.get_push_data(32u8.into()), u256::ZERO);
     }
-    #[cfg(feature = "opcode-fn-ptr-conversion")]
+    #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
     #[test]
     fn code_reader_get_push_data() {
         // pc on data is non longer possible because there are not data items anymore
@@ -368,8 +315,8 @@ mod tests {
         assert_eq!(code_reader.get_push_data(), u256::MAX);
     }
     #[cfg(all(
-        not(feature = "opcode-fn-ptr-conversion"),
-        feature = "opcode-fn-ptr-conversion-inline"
+        not(feature = "fn-ptr-conversion-expanded-dispatch"),
+        feature = "fn-ptr-conversion-inline-dispatch"
     ))]
     #[test]
     fn code_reader_get_push_data() {
