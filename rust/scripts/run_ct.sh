@@ -32,6 +32,6 @@ go run ../go/ct/driver run evmrs | tee $OUTPUT_DIR/ct-full-performance
 
 cargo clean
 go clean --cache
-RUSTFLAGS="-C instrument-coverage" cargo build --lib --release --all-features
+cargo build --lib --release --all-features
 go test ../go/... | tee $OUTPUT_DIR/go-test-all-features
 go run ../go/ct/driver run evmrs | tee $OUTPUT_DIR/ct-full-all-features
