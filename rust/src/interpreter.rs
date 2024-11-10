@@ -10,7 +10,7 @@ use crate::types::Opcode;
 use crate::{
     types::{
         hash_cache, u256, CodeReader, ExecStatus, ExecutionContextTrait, ExecutionTxContext,
-        FailStatus, GetOpcodeError, Memory, Observer, Stack,
+        FailStatus, Memory, Observer, Stack,
     },
     utils::{check_min_revision, check_not_read_only, word_size, Gas, GasRefund, SliceExt},
 };
@@ -410,15 +410,9 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
                     Some(steps) => *steps -= 1,
                 }
             }
-            let op = match self.code_reader.get() {
-                Ok(op) => op,
-                Err(GetOpcodeError::OutOfRange) => {
-                    self.exec_status = ExecStatus::Stopped;
-                    break;
-                }
-                Err(GetOpcodeError::Invalid) => {
-                    return FailStatus::InvalidInstruction.into();
-                }
+            let Some(op) = self.code_reader.get() else {
+                self.exec_status = ExecStatus::Stopped;
+                break;
             };
             observer.pre_op(&self);
             if let Err(err) = self.run_op(op) {
@@ -453,15 +447,9 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
                 Some(steps) => *steps -= 1,
             }
         }
-        let op = match self.code_reader.get() {
-            Ok(op) => op,
-            Err(GetOpcodeError::OutOfRange) => {
-                self.exec_status = ExecStatus::Stopped;
-                return Ok(());
-            }
-            Err(GetOpcodeError::Invalid) => {
-                return Err(FailStatus::InvalidInstruction);
-            }
+        let Some(op) = self.code_reader.get() else {
+            self.exec_status = ExecStatus::Stopped;
+            return Ok(());
         };
         self.run_op(op)
     }

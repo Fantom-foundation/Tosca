@@ -15,7 +15,7 @@ inherits = "release"
 debug = true
 
 [features]
-default = []
+default = ["performance"]
 # feature mock enables code generation for test mocking. This allows generating mocks for other build configuration but "test". 
 mock = ["dep:mockall"]
 fuzzing = ["dep:arbitrary"]

@@ -171,12 +171,6 @@ impl<const STEPPABLE: bool> CodeAnalysis<STEPPABLE> {
                     analysis.push(OpFnData::func(op, u256::ZERO));
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
                 }
-                CodeByteType::DataOrInvalid => {
-                    // This should only be the case if an invalid opcode was not preceded by a push.
-                    // In this case we don't care what the data contains.
-                    analysis.push(OpFnData::data(u256::ZERO));
-                    pc_map.add_mapping(pc - 1, analysis.len() - 1);
-                }
             };
         }
 

@@ -312,24 +312,23 @@ pub enum CodeByteType {
     #[cfg(feature = "needs-fn-ptr-conversion")]
     Push,
     Opcode,
-    DataOrInvalid,
 }
 
 pub fn code_byte_type(code_byte: u8) -> (CodeByteType, usize) {
     match code_byte {
-        STOP | ADD | MUL | SUB | DIV | SDIV | MOD | SMOD | ADDMOD | MULMOD | EXP | SIGNEXTEND
-        | LT | GT | SLT | SGT | EQ | ISZERO | AND | OR | XOR | NOT | BYTE | SHL | SHR | SAR
-        | SHA3 | ADDRESS | BALANCE | ORIGIN | CALLER | CALLVALUE | CALLDATALOAD | CALLDATASIZE
-        | CALLDATACOPY | CODESIZE | CODECOPY | GASPRICE | EXTCODESIZE | EXTCODECOPY
-        | RETURNDATASIZE | RETURNDATACOPY | EXTCODEHASH | BLOCKHASH | COINBASE | TIMESTAMP
-        | NUMBER | PREVRANDAO | GASLIMIT | CHAINID | SELFBALANCE | BASEFEE | BLOBHASH
-        | BLOBBASEFEE | POP | MLOAD | MSTORE | MSTORE8 | SLOAD | SSTORE | JUMP | JUMPI | PC
-        | MSIZE | GAS | TLOAD | TSTORE | MCOPY | PUSH0 | DUP1 | DUP2 | DUP3 | DUP4 | DUP5
-        | DUP6 | DUP7 | DUP8 | DUP9 | DUP10 | DUP11 | DUP12 | DUP13 | DUP14 | DUP15 | DUP16
-        | SWAP1 | SWAP2 | SWAP3 | SWAP4 | SWAP5 | SWAP6 | SWAP7 | SWAP8 | SWAP9 | SWAP10
-        | SWAP11 | SWAP12 | SWAP13 | SWAP14 | SWAP15 | SWAP16 | LOG0 | LOG1 | LOG2 | LOG3
-        | LOG4 | CREATE | CALL | CALLCODE | RETURN | DELEGATECALL | CREATE2 | STATICCALL
-        | REVERT | INVALID | SELFDESTRUCT => (CodeByteType::Opcode, 0),
+        //STOP | ADD | MUL | SUB | DIV | SDIV | MOD | SMOD | ADDMOD | MULMOD | EXP | SIGNEXTEND
+        //| LT | GT | SLT | SGT | EQ | ISZERO | AND | OR | XOR | NOT | BYTE | SHL | SHR | SAR
+        //| SHA3 | ADDRESS | BALANCE | ORIGIN | CALLER | CALLVALUE | CALLDATALOAD | CALLDATASIZE
+        //| CALLDATACOPY | CODESIZE | CODECOPY | GASPRICE | EXTCODESIZE | EXTCODECOPY
+        //| RETURNDATASIZE | RETURNDATACOPY | EXTCODEHASH | BLOCKHASH | COINBASE | TIMESTAMP
+        //| NUMBER | PREVRANDAO | GASLIMIT | CHAINID | SELFBALANCE | BASEFEE | BLOBHASH
+        //| BLOBBASEFEE | POP | MLOAD | MSTORE | MSTORE8 | SLOAD | SSTORE | JUMP | JUMPI | PC
+        //| MSIZE | GAS | TLOAD | TSTORE | MCOPY | PUSH0 | DUP1 | DUP2 | DUP3 | DUP4 | DUP5
+        //| DUP6 | DUP7 | DUP8 | DUP9 | DUP10 | DUP11 | DUP12 | DUP13 | DUP14 | DUP15 | DUP16
+        //| SWAP1 | SWAP2 | SWAP3 | SWAP4 | SWAP5 | SWAP6 | SWAP7 | SWAP8 | SWAP9 | SWAP10
+        //| SWAP11 | SWAP12 | SWAP13 | SWAP14 | SWAP15 | SWAP16 | LOG0 | LOG1 | LOG2 | LOG3
+        //| LOG4 | CREATE | CALL | CALLCODE | RETURN | DELEGATECALL | CREATE2 | STATICCALL
+        //| REVERT | INVALID | SELFDESTRUCT => (CodeByteType::Opcode, 0),
         PUSH1..=PUSH32 => (
             #[cfg(not(feature = "needs-fn-ptr-conversion"))]
             CodeByteType::Opcode,
@@ -338,6 +337,6 @@ pub fn code_byte_type(code_byte: u8) -> (CodeByteType, usize) {
             (code_byte - Opcode::Push1 as u8 + 1) as usize,
         ),
         JUMPDEST => (CodeByteType::JumpDest, 0),
-        _ => (CodeByteType::DataOrInvalid, 0),
+        _ => (CodeByteType::Opcode, 0),
     }
 }
