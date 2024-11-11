@@ -41,11 +41,11 @@ tosca-cpp-coverage: tosca-cpp
 
 tosca-rust:
 	cd rust; \
-	cargo build --release
+	cargo build --lib --release
 
 tosca-rust-coverage:
 	cd rust; \
-	RUSTFLAGS="-C instrument-coverage" cargo build --release
+	RUSTFLAGS="-C instrument-coverage" cargo build --lib --release
 
 evmone:
 	@cd third_party/evmone ; \
