@@ -1316,7 +1316,7 @@ impl<'a> Interpreter<'a> {
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
         #[cfg(not(feature = "custom-evmc"))]
         {
-            self.output = Some((data).to_owned());
+            self.output = Some(data.to_owned());
         }
         #[cfg(feature = "custom-evmc")]
         {
@@ -1334,7 +1334,7 @@ impl<'a> Interpreter<'a> {
         // gas_refund = original_gas_refund;
         #[cfg(not(feature = "custom-evmc"))]
         {
-            self.output = Some((data).to_owned());
+            self.output = Some(data.to_owned());
         }
         #[cfg(feature = "custom-evmc")]
         {
