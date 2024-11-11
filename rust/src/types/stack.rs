@@ -10,6 +10,16 @@ pub struct Stack {
     len: usize,
 }
 
+/// Wrapper around [`&mut u256`] that ensures that the only possible operation is to write once to
+/// this memory location.
+pub struct PushGuard<'p>(&'p mut u256);
+
+impl<'p> PushGuard<'p> {
+    pub fn push(self, value: impl Into<u256>) {
+        *self.0 = value.into();
+    }
+}
+
 #[cfg(feature = "stack-array")]
 impl Stack {
     pub fn new(inner: &[u256]) -> Self {
@@ -63,7 +73,29 @@ impl Stack {
         // `self.len` just got decremented by N, which means now that the first `self.len + N`
         // elements are initialized. Therefore, it is safe to read N elements starting at index
         // `self.len` as an array of length N and type u256.
-        Ok(unsafe { std::ptr::read(pop_start as *const [u256; N]) })
+        Ok(unsafe { *(pop_start as *const [u256; N]) })
+    }
+
+    pub fn pop_with_guard<const N: usize>(&mut self) -> Result<(PushGuard, [u256; N]), FailStatus> {
+        self.check_underflow(N)?;
+
+        self.len -= N - 1;
+        let start = self.data.as_ptr() as *mut u256;
+        // SAFETY:
+        // This does not wrap and the whole range from start to start + self.len is valid.
+        let pop_start = unsafe { start.add(self.len - 1) };
+        // SAFETY:
+        // The the first self.len elements are initialized (invariant).
+        // `self.len` just got decremented by N - 1, which means now that the first `self.len - 1 +
+        // (N + 1)` elements are initialized. Therefore, it is safe to read N elements
+        // starting at index `self.len - 1` as an array of length N and type u256.
+        let pop_data = unsafe { *(pop_start as *const [u256; N]) };
+        // SAFETY:
+        // The data for pop_data is copied out so there are no other references to this data.
+        // The validity of the data is the same as for pop_data. Because the pointer is valid and no
+        // one else holds a reference to it, it is safe to cast it to a mutable reference.
+        let push_guard = PushGuard(unsafe { &mut *pop_start });
+        Ok((push_guard, pop_data))
     }
 
     pub fn peek(&self) -> Option<&u256> {

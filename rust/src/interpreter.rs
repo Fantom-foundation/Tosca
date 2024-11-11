@@ -653,215 +653,215 @@ impl<'a> Interpreter<'a> {
 
     fn add(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value2, value1] = self.stack.pop()?;
-        self.stack.push(value1 + value2)?;
+        let (push_guard, [value2, value1]) = self.stack.pop_with_guard()?;
+        push_guard.push(value1 + value2);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn mul(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [fac2, fac1] = self.stack.pop()?;
-        self.stack.push(fac1 * fac2)?;
+        let (push_guard, [fac2, fac1]) = self.stack.pop_with_guard()?;
+        push_guard.push(fac1 * fac2);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn sub(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value2, value1] = self.stack.pop()?;
-        self.stack.push(value1 - value2)?;
+        let (push_guard, [value2, value1]) = self.stack.pop_with_guard()?;
+        push_guard.push(value1 - value2);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn div(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value / denominator)?;
+        let (push_guard, [denominator, value]) = self.stack.pop_with_guard()?;
+        push_guard.push(value / denominator);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn s_div(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value.sdiv(denominator))?;
+        let (push_guard, [denominator, value]) = self.stack.pop_with_guard()?;
+        push_guard.push(value.sdiv(denominator));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn mod_(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value % denominator)?;
+        let (push_guard, [denominator, value]) = self.stack.pop_with_guard()?;
+        push_guard.push(value % denominator);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn s_mod(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value.srem(denominator))?;
+        let (push_guard, [denominator, value]) = self.stack.pop_with_guard()?;
+        push_guard.push(value.srem(denominator));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn add_mod(&mut self) -> OpResult {
         self.gas_left.consume(8)?;
-        let [denominator, value2, value1] = self.stack.pop()?;
-        self.stack.push(u256::addmod(value1, value2, denominator))?;
+        let (push_guard, [denominator, value2, value1]) = self.stack.pop_with_guard()?;
+        push_guard.push(u256::addmod(value1, value2, denominator));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn mul_mod(&mut self) -> OpResult {
         self.gas_left.consume(8)?;
-        let [denominator, fac2, fac1] = self.stack.pop()?;
-        self.stack.push(u256::mulmod(fac1, fac2, denominator))?;
+        let (push_guard, [denominator, fac2, fac1]) = self.stack.pop_with_guard()?;
+        push_guard.push(u256::mulmod(fac1, fac2, denominator));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn exp(&mut self) -> OpResult {
         self.gas_left.consume(10)?;
-        let [exp, value] = self.stack.pop()?;
+        let (push_guard, [exp, value]) = self.stack.pop_with_guard()?;
         let byte_size = 32 - exp.into_iter().take_while(|byte| *byte == 0).count() as u64;
         self.gas_left.consume(byte_size * 50)?; // * does not overflow
-        self.stack.push(value.pow(exp))?;
+        push_guard.push(value.pow(exp));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn sign_extend(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [value, size] = self.stack.pop()?;
-        self.stack.push(u256::signextend(size, value))?;
+        let (push_guard, [value, size]) = self.stack.pop_with_guard()?;
+        push_guard.push(u256::signextend(size, value));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn lt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs < rhs)?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs < rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn gt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs > rhs)?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs > rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn s_lt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs.slt(rhs))?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs.slt(rhs));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn s_gt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs.sgt(rhs))?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs.sgt(rhs));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn eq(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs == rhs)?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs == rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn is_zero(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value] = self.stack.pop()?;
-        self.stack.push(value == u256::ZERO)?;
+        let (push_guard, [value]) = self.stack.pop_with_guard()?;
+        push_guard.push(value == u256::ZERO);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn and(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs & rhs)?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs & rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn or(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs | rhs)?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs | rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn xor(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs ^ rhs)?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs ^ rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn not(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value] = self.stack.pop()?;
-        self.stack.push(!value)?;
+        let (push_guard, [value]) = self.stack.pop_with_guard()?;
+        push_guard.push(!value);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn byte(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value, offset] = self.stack.pop()?;
-        self.stack.push(value.byte(offset))?;
+        let (push_guard, [value, offset]) = self.stack.pop_with_guard()?;
+        push_guard.push(value.byte(offset));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn shl(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value, shift] = self.stack.pop()?;
-        self.stack.push(value << shift)?;
+        let (push_guard, [value, shift]) = self.stack.pop_with_guard()?;
+        push_guard.push(value << shift);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn shr(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value, shift] = self.stack.pop()?;
-        self.stack.push(value >> shift)?;
+        let (push_guard, [value, shift]) = self.stack.pop_with_guard()?;
+        push_guard.push(value >> shift);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn sar(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value, shift] = self.stack.pop()?;
-        self.stack.push(value.sar(shift))?;
+        let (push_guard, [value, shift]) = self.stack.pop_with_guard()?;
+        push_guard.push(value.sar(shift));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn sha3(&mut self) -> OpResult {
         self.gas_left.consume(30)?;
-        let [len, offset] = self.stack.pop()?;
+        let (push_guard, [len, offset]) = self.stack.pop_with_guard()?;
 
         let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
         self.gas_left.consume(6 * word_size(len)?)?; // * does not overflow
 
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
-        self.stack.push(hash_cache::hash(data))?;
+        push_guard.push(hash_cache::hash(data));
         self.code_reader.next();
         self.return_from_op()
     }
@@ -877,11 +877,11 @@ impl<'a> Interpreter<'a> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
-        let [addr] = self.stack.pop()?;
+        let (push_guard, [addr]) = self.stack.pop_with_guard()?;
         let addr = Address::from(addr);
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
-        self.stack.push(self.context.get_balance(&addr))?;
+        push_guard.push(self.context.get_balance(&addr));
         self.code_reader.next();
         self.return_from_op()
     }
@@ -909,7 +909,7 @@ impl<'a> Interpreter<'a> {
 
     fn call_data_load(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [offset] = self.stack.pop()?;
+        let (push_guard, [offset]) = self.stack.pop_with_guard()?;
         let (offset, overflow) = offset.into_u64_with_overflow();
         let offset = offset as usize;
         #[allow(clippy::map_identity)]
@@ -924,12 +924,12 @@ impl<'a> Interpreter<'a> {
             )
             .unwrap_or_default();
         if overflow || offset >= call_data.len() {
-            self.stack.push(u256::ZERO)?;
+            push_guard.push(u256::ZERO);
         } else {
             let end = min(call_data.len(), offset + 32);
             let mut bytes = u256::ZERO;
             bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
-            self.stack.push(bytes)?;
+            push_guard.push(bytes);
         }
         self.code_reader.next();
         self.return_from_op()
@@ -1022,11 +1022,11 @@ impl<'a> Interpreter<'a> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
-        let [addr] = self.stack.pop()?;
+        let (push_guard, [addr]) = self.stack.pop_with_guard()?;
         let addr = Address::from(addr);
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
-        self.stack.push(self.context.get_code_size(&addr))?;
+        push_guard.push(self.context.get_code_size(&addr));
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1098,23 +1098,23 @@ impl<'a> Interpreter<'a> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
-        let [addr] = self.stack.pop()?;
+        let (push_guard, [addr]) = self.stack.pop_with_guard()?;
         let addr = Address::from(addr);
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
-        self.stack.push(self.context.get_code_hash(&addr))?;
+        push_guard.push(self.context.get_code_hash(&addr));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn block_hash(&mut self) -> OpResult {
         self.gas_left.consume(20)?;
-        let [block_number] = self.stack.pop()?;
-        self.stack.push(
+        let (push_guard, [block_number]) = self.stack.pop_with_guard()?;
+        push_guard.push(
             u64::try_from(block_number)
                 .map(|idx| u256::from(self.context.get_block_hash(idx as i64)))
                 .unwrap_or(u256::ZERO),
-        )?;
+        );
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1170,11 +1170,12 @@ impl<'a> Interpreter<'a> {
         check_min_revision(Revision::EVMC_ISTANBUL, self.revision)?;
         self.gas_left.consume(5)?;
         let addr = self.message.recipient();
-        if u256::from(addr) == u256::ZERO {
-            self.stack.push(u256::ZERO)?;
+        let value = if u256::from(addr) == u256::ZERO {
+            u256::ZERO
         } else {
-            self.stack.push(self.context.get_balance(addr))?;
-        }
+            u256::from(self.context.get_balance(addr))
+        };
+        self.stack.push(value)?;
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1191,14 +1192,14 @@ impl<'a> Interpreter<'a> {
     fn blob_hash(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         self.gas_left.consume(3)?;
-        let [idx] = self.stack.pop()?;
+        let (push_guard, [idx]) = self.stack.pop_with_guard()?;
         let (idx, idx_overflow) = idx.into_u64_with_overflow();
         let idx = idx as usize;
         let hashes = ExecutionTxContext::from(self.context.get_tx_context()).blob_hashes;
         if !idx_overflow && idx < hashes.len() {
-            self.stack.push(hashes[idx])?;
+            push_guard.push(hashes[idx]);
         } else {
-            self.stack.push(u256::ZERO)?;
+            push_guard.push(u256::ZERO);
         }
         self.code_reader.next();
         self.return_from_op()
@@ -1222,10 +1223,9 @@ impl<'a> Interpreter<'a> {
 
     fn m_load(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [offset] = self.stack.pop()?;
+        let (push_guard, [offset]) = self.stack.pop_with_guard()?;
 
-        self.stack
-            .push(self.memory.get_word(offset, &mut self.gas_left)?)?;
+        push_guard.push(self.memory.get_word(offset, &mut self.gas_left)?);
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1254,7 +1254,7 @@ impl<'a> Interpreter<'a> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(800)?;
         }
-        let [key] = self.stack.pop()?;
+        let (push_guard, [key]) = self.stack.pop_with_guard()?;
         let key = Uint256::from(key);
         let addr = self.message.recipient();
         if self.revision >= Revision::EVMC_BERLIN {
@@ -1265,7 +1265,7 @@ impl<'a> Interpreter<'a> {
             }
         }
         let value = self.context.get_storage(addr, &key);
-        self.stack.push(value)?;
+        push_guard.push(value);
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1327,19 +1327,19 @@ impl<'a> Interpreter<'a> {
     fn t_load(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         self.gas_left.consume(100)?;
-        let [key] = self.stack.pop()?;
+        let (push_guard, [key]) = self.stack.pop_with_guard()?;
         let addr = self.message.recipient();
         let value = self
             .context
             .get_transient_storage(addr, &Uint256::from(key));
-        self.stack.push(value)?;
+        push_guard.push(value);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn t_store(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-        check_not_read_only(self)?;
+        check_not_read_only(self.message.flags())?;
         self.gas_left.consume(100)?;
         let [value, key] = self.stack.pop()?;
         let addr = self.message.recipient();
@@ -1401,7 +1401,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn self_destruct(&mut self) -> OpResult {
-        check_not_read_only(self)?;
+        check_not_read_only(self.message.flags())?;
         self.gas_left.consume(5_000)?;
         let [addr] = self.stack.pop()?;
         let addr = Address::from(addr);
@@ -1428,7 +1428,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn sstore(&mut self) -> OpResult {
-        check_not_read_only(self)?;
+        check_not_read_only(self.message.flags())?;
 
         if self.revision >= Revision::EVMC_ISTANBUL && self.gas_left <= 2_300 {
             return Err(FailStatus::OutOfGas);
@@ -1505,7 +1505,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn log<const N: usize>(&mut self) -> OpResult {
-        check_not_read_only(self)?;
+        check_not_read_only(self.message.flags())?;
         self.gas_left.consume(375)?;
         let [len, offset] = self.stack.pop()?;
         let topics: [u256; N] = self.stack.pop()?;
@@ -1538,7 +1538,7 @@ impl<'a> Interpreter<'a> {
 
     fn create_or_create2<const CREATE2: bool>(&mut self) -> OpResult {
         self.gas_left.consume(32_000)?;
-        check_not_read_only(self)?;
+        check_not_read_only(self.message.flags())?;
         let [len, offset, value] = self.stack.pop()?;
         let salt = if CREATE2 {
             let [salt] = self.stack.pop()?;
@@ -1625,10 +1625,12 @@ impl<'a> Interpreter<'a> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
-        let [ret_len, ret_offset, args_len, args_offset, value, addr, gas] = self.stack.pop()?;
+        let flags = self.message.flags();
+        let (push_guard, [ret_len, ret_offset, args_len, args_offset, value, addr, gas]) =
+            self.stack.pop_with_guard()?;
 
         if !CODE && value != u256::ZERO {
-            check_not_read_only(self)?;
+            check_not_read_only(flags)?;
         }
 
         let addr = Address::from(addr);
@@ -1661,7 +1663,7 @@ impl<'a> Interpreter<'a> {
 
         if value > u256::from(self.context.get_balance(self.message.recipient())) {
             self.last_call_return_data = None;
-            self.stack.push(u256::ZERO)?;
+            push_guard.push(u256::ZERO);
             self.code_reader.next();
             return self.return_from_op();
         }
@@ -1731,7 +1733,8 @@ impl<'a> Interpreter<'a> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
-        let [ret_len, ret_offset, args_len, args_offset, addr, gas] = self.stack.pop()?;
+        let (push_guard, [ret_len, ret_offset, args_len, args_offset, addr, gas]) =
+            self.stack.pop_with_guard()?;
 
         let addr = Address::from(addr);
         let args_len = u64::try_from(args_len).map_err(|_| FailStatus::OutOfGas)?;
@@ -1799,8 +1802,7 @@ impl<'a> Interpreter<'a> {
         self.gas_left.consume(endowment)?;
         self.gas_refund += result.gas_refund();
 
-        self.stack
-            .push(result.status_code() == EvmcStatusCode::EVMC_SUCCESS)?;
+        push_guard.push(result.status_code() == EvmcStatusCode::EVMC_SUCCESS);
         self.code_reader.next();
         self.return_from_op()
     }
