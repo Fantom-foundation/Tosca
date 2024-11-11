@@ -148,7 +148,7 @@ impl OpFnData {
     pub fn skip_no_ops_iter(count: usize) -> impl Iterator<Item = Self> {
         std::iter::once(OpFnData {
             func: Some(interpreter::SKIP_NO_OPS_FN),
-            data: (count as u64).into(),
+            data: u256::from(count as u64),
         })
         .chain(
             std::iter::repeat_with(move || OpFnData {

@@ -1,8 +1,9 @@
 use std::cmp::min;
 
 use evmc_vm::{
-    AccessStatus, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
-    StatusCode as EvmcStatusCode, StepResult, StorageStatus, Uint256,
+    AccessStatus, Address, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
+    StatusCode as EvmcStatusCode, StepResult, StepStatusCode as EvmcStepStatusCode, StorageStatus,
+    Uint256,
 };
 
 use crate::{
@@ -759,7 +760,7 @@ impl<'a> Interpreter<'a> {
     fn s_lt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs.slt(&rhs))?;
+        self.stack.push(lhs.slt(rhs))?;
         self.code_reader.next();
         self.return_from_op()
     }
@@ -767,7 +768,7 @@ impl<'a> Interpreter<'a> {
     fn s_gt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
         let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs.sgt(&rhs))?;
+        self.stack.push(lhs.sgt(rhs))?;
         self.code_reader.next();
         self.return_from_op()
     }
@@ -877,7 +878,7 @@ impl<'a> Interpreter<'a> {
             self.gas_left.consume(700)?;
         }
         let [addr] = self.stack.pop()?;
-        let addr = addr.into();
+        let addr = Address::from(addr);
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
         self.stack.push(self.context.get_balance(&addr))?;
@@ -1022,7 +1023,7 @@ impl<'a> Interpreter<'a> {
             self.gas_left.consume(700)?;
         }
         let [addr] = self.stack.pop()?;
-        let addr = addr.into();
+        let addr = Address::from(addr);
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
         self.stack.push(self.context.get_code_size(&addr))?;
@@ -1035,7 +1036,7 @@ impl<'a> Interpreter<'a> {
             self.gas_left.consume(700)?;
         }
         let [len, offset, dest_offset, addr] = self.stack.pop()?;
-        let addr = addr.into();
+        let addr = Address::from(addr);
 
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
@@ -1098,7 +1099,7 @@ impl<'a> Interpreter<'a> {
             self.gas_left.consume(700)?;
         }
         let [addr] = self.stack.pop()?;
-        let addr = addr.into();
+        let addr = Address::from(addr);
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
         self.stack.push(self.context.get_code_hash(&addr))?;
@@ -1111,7 +1112,7 @@ impl<'a> Interpreter<'a> {
         let [block_number] = self.stack.pop()?;
         self.stack.push(
             u64::try_from(block_number)
-                .map(|idx| self.context.get_block_hash(idx as i64).into())
+                .map(|idx| u256::from(self.context.get_block_hash(idx as i64)))
                 .unwrap_or(u256::ZERO),
         )?;
         self.code_reader.next();
@@ -1254,7 +1255,7 @@ impl<'a> Interpreter<'a> {
             self.gas_left.consume(800)?;
         }
         let [key] = self.stack.pop()?;
-        let key = key.into();
+        let key = Uint256::from(key);
         let addr = self.message.recipient();
         if self.revision >= Revision::EVMC_BERLIN {
             if self.context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD {
@@ -1328,7 +1329,9 @@ impl<'a> Interpreter<'a> {
         self.gas_left.consume(100)?;
         let [key] = self.stack.pop()?;
         let addr = self.message.recipient();
-        let value = self.context.get_transient_storage(addr, &key.into());
+        let value = self
+            .context
+            .get_transient_storage(addr, &Uint256::from(key));
         self.stack.push(value)?;
         self.code_reader.next();
         self.return_from_op()
@@ -1341,7 +1344,7 @@ impl<'a> Interpreter<'a> {
         let [value, key] = self.stack.pop()?;
         let addr = self.message.recipient();
         self.context
-            .set_transient_storage(addr, &key.into(), &value.into());
+            .set_transient_storage(addr, &Uint256::from(key), &Uint256::from(value));
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1401,7 +1404,7 @@ impl<'a> Interpreter<'a> {
         check_not_read_only(self)?;
         self.gas_left.consume(5_000)?;
         let [addr] = self.stack.pop()?;
-        let addr = addr.into();
+        let addr = Address::from(addr);
 
         if self.revision >= Revision::EVMC_BERLIN
             && self.context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
@@ -1431,7 +1434,7 @@ impl<'a> Interpreter<'a> {
             return Err(FailStatus::OutOfGas);
         }
         let [value, key] = self.stack.pop()?;
-        let key = key.into();
+        let key = Uint256::from(key);
         let addr = self.message.recipient();
 
         let (dyn_gas_1, dyn_gas_2, dyn_gas_3, refund_1, refund_2, refund_3) =
@@ -1452,7 +1455,7 @@ impl<'a> Interpreter<'a> {
                 (5_000, 5_000, 20_000, 0, 0, 0)
             };
 
-        let status = self.context.set_storage(addr, &key, &value.into());
+        let status = self.context.set_storage(addr, &key, &Uint256::from(value));
         let (mut dyn_gas, gas_refund_change) = match status {
             StorageStatus::EVMC_STORAGE_ASSIGNED => (dyn_gas_1, 0),
             StorageStatus::EVMC_STORAGE_ADDED => (dyn_gas_3, 0),
@@ -1561,7 +1564,7 @@ impl<'a> Interpreter<'a> {
 
         let init_code = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
 
-        if value > self.context.get_balance(self.message.recipient()).into() {
+        if value > u256::from(self.context.get_balance(self.message.recipient())) {
             self.last_call_return_data = None;
             self.stack.push(u256::ZERO)?;
             self.code_reader.next();
@@ -1581,12 +1584,12 @@ impl<'a> Interpreter<'a> {
             self.message.flags(),
             self.message.depth() + 1,
             gas_limit as i64,
-            u256::ZERO.into(), // ignored
+            Address::from(u256::ZERO), // ignored
             *self.message.recipient(),
             Some(init_code),
-            value.into(),
-            salt.into(),
-            u256::ZERO.into(), // ignored
+            Uint256::from(value),
+            Uint256::from(salt),
+            Address::from(u256::ZERO), // ignored
             None,
             None,
         );
@@ -1628,7 +1631,7 @@ impl<'a> Interpreter<'a> {
             check_not_read_only(self)?;
         }
 
-        let addr = addr.into();
+        let addr = Address::from(addr);
         let args_len = u64::try_from(args_len).map_err(|_| FailStatus::OutOfGas)?;
         let ret_len = u64::try_from(ret_len).map_err(|_| FailStatus::OutOfGas)?;
 
@@ -1672,8 +1675,8 @@ impl<'a> Interpreter<'a> {
                 *self.message.recipient(),
                 *self.message.recipient(),
                 Some(input),
-                value.into(),
-                u256::ZERO.into(), // ignored
+                Uint256::from(value),
+                Uint256::from(u256::ZERO), // ignored
                 addr,
                 None,
                 None,
@@ -1687,8 +1690,8 @@ impl<'a> Interpreter<'a> {
                 addr,
                 *self.message.recipient(),
                 Some(input),
-                value.into(),
-                u256::ZERO.into(), // ignored
+                Uint256::from(value),
+                Uint256::from(u256::ZERO), // ignored
                 addr,
                 None,
                 None,
@@ -1730,7 +1733,7 @@ impl<'a> Interpreter<'a> {
         }
         let [ret_len, ret_offset, args_len, args_offset, addr, gas] = self.stack.pop()?;
 
-        let addr = addr.into();
+        let addr = Address::from(addr);
         let args_len = u64::try_from(args_len).map_err(|_| FailStatus::OutOfGas)?;
         let ret_len = u64::try_from(ret_len).map_err(|_| FailStatus::OutOfGas)?;
 
@@ -1760,7 +1763,7 @@ impl<'a> Interpreter<'a> {
                 *self.message.sender(),
                 Some(input),
                 *self.message.value(),
-                u256::ZERO.into(), // ignored
+                Uint256::from(u256::ZERO), // ignored
                 addr,
                 None,
                 None,
@@ -1774,8 +1777,8 @@ impl<'a> Interpreter<'a> {
                 addr,
                 *self.message.recipient(),
                 Some(input),
-                u256::ZERO.into(), // ignored
-                u256::ZERO.into(), // ignored
+                Uint256::from(u256::ZERO), // ignored
+                Uint256::from(u256::ZERO), // ignored
                 addr,
                 None,
                 None,
@@ -1813,8 +1816,8 @@ impl<'a> From<Interpreter<'a>> for StepResult {
             .map(Into::into)
             .collect();
         Self::new(
-            value.exec_status.into(),
-            EvmcStatusCode::EVMC_SUCCESS,
+            EvmcStepStatusCode::from(value.exec_status),
+            EvmcStatusCode::from(value.exec_status),
             value.revision,
             value.code_reader.pc() as u64,
             value.gas_left.as_u64() as i64,
@@ -1830,7 +1833,7 @@ impl<'a> From<Interpreter<'a>> for StepResult {
 impl<'a> From<&mut Interpreter<'a>> for ExecutionResult {
     fn from(value: &mut Interpreter) -> Self {
         Self::new(
-            value.exec_status.into(),
+            EvmcStatusCode::from(value.exec_status),
             value.gas_left.as_u64() as i64,
             value.gas_refund,
             #[cfg(not(feature = "custom-evmc"))]
@@ -2050,7 +2053,7 @@ mod tests {
         let ret_data = [next_value(), next_value()];
 
         let gas = next_value() as u64;
-        let addr = next_value().into();
+        let addr = u256::from(next_value());
         let value = u256::ZERO;
         let args_offset = 1usize;
         let args_len = memory.len() - args_offset - 1;
@@ -2060,7 +2063,7 @@ mod tests {
         let input = memory[args_offset..args_offset + args_len].to_vec();
 
         let message = MockExecutionMessage {
-            recipient: u256::from(next_value()).into(),
+            recipient: Address::from(u256::from(next_value())),
             ..Default::default()
         };
 

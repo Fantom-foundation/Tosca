@@ -136,6 +136,6 @@ impl SteppableEvmcVm for EvmRs {
         if let Err(status_code) = run_result {
             return StepResult::from(status_code);
         }
-        interpreter.into()
+        StepResult::from(interpreter)
     }
 }

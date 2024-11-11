@@ -91,8 +91,8 @@ impl From<ExecStatus> for EvmcStepStatusCode {
 impl From<FailStatus> for StepResult {
     fn from(fail_status: FailStatus) -> Self {
         Self::new(
-            fail_status.into(),
-            fail_status.into(),
+            EvmcStepStatusCode::from(fail_status),
+            EvmcStatusCode::from(fail_status),
             Revision::EVMC_ISTANBUL,
             0,
             0,
@@ -107,6 +107,6 @@ impl From<FailStatus> for StepResult {
 
 impl From<FailStatus> for ExecutionResult {
     fn from(fail_status: FailStatus) -> Self {
-        Self::new(fail_status.into(), 0, 0, None)
+        Self::new(EvmcStatusCode::from(fail_status), 0, 0, None)
     }
 }

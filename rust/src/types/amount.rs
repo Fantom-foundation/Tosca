@@ -83,7 +83,7 @@ impl From<U256> for u256 {
 
 impl From<u256> for U256 {
     fn from(value: u256) -> Self {
-        U256::from_be_slice(value.deref()).unwrap()
+        Self::from_digits(transmute!(value)).to_be()
     }
 }
 
@@ -96,7 +96,7 @@ impl From<I256> for u256 {
 
 impl From<u256> for I256 {
     fn from(value: u256) -> Self {
-        I256::from_be_slice(value.deref()).unwrap()
+        U256::from_digits(transmute!(value)).cast_signed().to_be()
     }
 }
 
@@ -125,7 +125,7 @@ impl From<[u8; 32]> for u256 {
 
 impl From<bool> for u256 {
     fn from(value: bool) -> Self {
-        (value as u8).into()
+        Self::from(value as u8)
     }
 }
 
@@ -150,7 +150,7 @@ impl From<u64> for u256 {
 
 impl From<usize> for u256 {
     fn from(value: usize) -> Self {
-        (value as u64).into()
+        Self::from(value as u64)
     }
 }
 
@@ -198,10 +198,7 @@ impl Add for u256 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let lhs: U256 = self.into();
-        let rhs: U256 = rhs.into();
-
-        lhs.wrapping_add(rhs).into()
+        Self::from(U256::from(self).wrapping_add(U256::from(rhs)))
     }
 }
 
@@ -215,10 +212,7 @@ impl Sub for u256 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let lhs: U256 = self.into();
-        let rhs: U256 = rhs.into();
-
-        lhs.wrapping_sub(rhs).into()
+        Self::from(U256::from(self).wrapping_sub(U256::from(rhs)))
     }
 }
 
@@ -232,10 +226,7 @@ impl Mul for u256 {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let lhs: U256 = self.into();
-        let rhs: U256 = rhs.into();
-
-        lhs.wrapping_mul(rhs).into()
+        Self::from(U256::from(self).wrapping_mul(U256::from(rhs)))
     }
 }
 
@@ -252,10 +243,7 @@ impl Div for u256 {
         if rhs == u256::ZERO {
             return u256::ZERO;
         }
-        let lhs: U256 = self.into();
-        let rhs: U256 = rhs.into();
-
-        lhs.wrapping_div(rhs).into()
+        Self::from(U256::from(self).wrapping_div(U256::from(rhs)))
     }
 }
 
@@ -272,10 +260,7 @@ impl Rem for u256 {
         if rhs == u256::ZERO {
             return u256::ZERO;
         }
-        let lhs: U256 = self.into();
-        let rhs: U256 = rhs.into();
-
-        lhs.wrapping_rem(rhs).into()
+        Self::from(U256::from(self).wrapping_rem(U256::from(rhs)))
     }
 }
 
@@ -301,9 +286,7 @@ impl PartialOrd for u256 {
 
 impl Ord for u256 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let lhs: U256 = (*self).into();
-        let rhs: U256 = (*other).into();
-        lhs.cmp(&rhs)
+        U256::from(*self).cmp(&U256::from(*other))
     }
 }
 
@@ -360,9 +343,9 @@ impl Shl for u256 {
         if rhs[..31] != [0; 31] {
             return u256::ZERO;
         }
-        let value: U256 = self.into();
+        let value = U256::from(self);
         let shift = rhs[31] as u32;
-        (value.wrapping_shl(shift)).into()
+        Self::from(value.wrapping_shl(shift))
     }
 }
 
@@ -374,9 +357,9 @@ impl Shr for u256 {
         if rhs[..31] != [0; 31] {
             return u256::ZERO;
         }
-        let value: U256 = self.into();
+        let value = U256::from(self);
         let shift = rhs[31] as u32;
-        (value.wrapping_shr(shift)).into()
+        Self::from(value.wrapping_shr(shift))
     }
 }
 
@@ -388,15 +371,15 @@ impl u256 {
     ]);
     pub const MAX: Self = Self([0xff; 32]);
 
-    pub fn into_u64_with_overflow(self) -> (u64, bool) {
-        let (prefix, u64_bytes) = split_into_most_significant_24_and_least_significant_8(&self);
+    pub fn into_u64_with_overflow(&self) -> (u64, bool) {
+        let (prefix, u64_bytes) = split_into_most_significant_24_and_least_significant_8(self);
         let overflow = prefix != &[0; 24];
         let num = u64::from_be_bytes(*u64_bytes);
         (num, overflow)
     }
 
-    pub fn into_u64_saturating(self) -> u64 {
-        let (prefix, u64_bytes) = split_into_most_significant_24_and_least_significant_8(&self);
+    pub fn into_u64_saturating(&self) -> u64 {
+        let (prefix, u64_bytes) = split_into_most_significant_24_and_least_significant_8(self);
         if prefix != &[0; 24] {
             u64::MAX
         } else {
@@ -408,47 +391,41 @@ impl u256 {
         if rhs == u256::ZERO {
             return u256::ZERO;
         }
-        let lhs: I256 = self.into();
-        let rhs: I256 = rhs.into();
-
-        lhs.wrapping_div(rhs).into()
+        u256::from(I256::from(self).wrapping_div(I256::from(rhs)))
     }
 
     pub fn srem(self, rhs: Self) -> Self {
         if rhs == u256::ZERO {
             return u256::ZERO;
         }
-        let lhs: I256 = self.into();
-        let rhs: I256 = rhs.into();
-
-        lhs.wrapping_rem(rhs).into()
+        u256::from(I256::from(self).wrapping_rem(I256::from(rhs)))
     }
 
     pub fn addmod(s1: Self, s2: Self, m: Self) -> Self {
         if m == u256::ZERO {
             return u256::ZERO;
         }
-        let s1: U512 = s1.into();
-        let s2: U512 = s2.into();
-        let m: U512 = m.into();
+        let s1 = U512::from(s1);
+        let s2 = U512::from(s2);
+        let m = U512::from(m);
 
-        (s1 + s2).rem(m).into()
+        Self::from((s1 + s2).rem(m))
     }
 
-    pub fn mulmod(s1: Self, s2: Self, m: Self) -> Self {
+    pub fn mulmod(f1: Self, f2: Self, m: Self) -> Self {
         if m == u256::ZERO {
             return u256::ZERO;
         }
-        let f1: U512 = s1.into();
-        let f2: U512 = s2.into();
-        let m: U512 = m.into();
+        let f1 = U512::from(f1);
+        let f2 = U512::from(f2);
+        let m = U512::from(m);
 
-        (f1 * f2).rem(m).into()
+        Self::from((f1 * f2).rem(m))
     }
 
     pub fn pow(self, exp: Self) -> Self {
-        let base: U256 = self.into();
-        let exp: U256 = exp.into();
+        let base = U256::from(self);
+        let exp = U256::from(exp);
         let mut res = U256::ONE;
 
         for bit in (0..U256::BITS).rev().map(|bit| exp.bit(bit)) {
@@ -458,7 +435,7 @@ impl u256 {
             }
         }
 
-        res.into()
+        Self::from(res)
     }
 
     pub fn signextend(self, rhs: Self) -> Self {
@@ -471,7 +448,7 @@ impl u256 {
         let byte = 31 - lhs; // lhs <= 31 so this does not underflow
         let negative = (rhs[byte] & 0x80) > 0;
 
-        let rhs: U256 = rhs.into();
+        let rhs = U256::from(rhs);
 
         let res = if negative {
             rhs | (U256::MAX << ((32 - byte) * 8))
@@ -479,27 +456,27 @@ impl u256 {
             rhs & (U256::MAX >> (byte * 8))
         };
 
-        res.into()
+        Self::from(res)
     }
 
-    pub fn slt(&self, rhs: &Self) -> bool {
-        let lhs: I256 = (*self).into();
-        let rhs: I256 = (*rhs).into();
+    pub fn slt(self, rhs: Self) -> bool {
+        let lhs = I256::from(self);
+        let rhs = I256::from(rhs);
         lhs.cmp(&rhs) == Ordering::Less
     }
 
-    pub fn sgt(&self, rhs: &Self) -> bool {
-        let lhs: I256 = (*self).into();
-        let rhs: I256 = (*rhs).into();
+    pub fn sgt(self, rhs: Self) -> bool {
+        let lhs = I256::from(self);
+        let rhs = I256::from(rhs);
         lhs.cmp(&rhs) == Ordering::Greater
     }
 
     pub fn byte(&self, index: Self) -> Self {
-        if index >= 32u8.into() {
+        if index >= u256::from(32u8) {
             return u256::ZERO;
         }
         let idx = index[31];
-        self[idx as usize].into()
+        Self::from(self[idx as usize])
     }
 
     pub fn sar(self, rhs: Self) -> Self {
@@ -512,13 +489,13 @@ impl u256 {
                 return u256::ZERO;
             }
         }
-        let value: U256 = self.into();
+        let value = U256::from(self);
         let shift = rhs[31] as u32;
         let mut shr = value.wrapping_shr(shift);
         if negative {
             shr |= U256::MAX.wrapping_shl(255 - shift);
         }
-        shr.into()
+        Self::from(shr)
     }
 }
 
@@ -579,27 +556,23 @@ mod tests {
 
     #[test]
     fn conversions() {
-        let v1 = u256::from([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 1,
-        ]);
         let v255 = u256::from([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 255,
         ]);
 
         assert_eq!(u256::from(false), u256::ZERO);
-        assert_eq!(u256::from(true), v1);
+        assert_eq!(u256::from(true), u256::ONE);
 
         assert_eq!(u256::from(0u8), u256::ZERO);
-        assert_eq!(u256::from(1u8), v1);
+        assert_eq!(u256::from(1u8), u256::ONE);
         assert_eq!(u256::from(255u8), v255);
 
         assert_eq!(u256::from(0u64), u256::ZERO);
-        assert_eq!(u256::from(1u64), v1);
+        assert_eq!(u256::from(1u64), u256::ONE);
         assert_eq!(u256::from(255u64), v255);
         for num in [0, 1, u64::MAX - 1, u64::MAX] {
-            assert_eq!(u256::from(num).try_into(), Ok(num));
+            assert_eq!(u64::try_from(u256::from(num)), Ok(num));
         }
         for num in [0, 1, u64::MAX - 1, u64::MAX] {
             assert_eq!(u256::from(num).into_u64_with_overflow(), (num, false));
@@ -607,29 +580,29 @@ mod tests {
         for num in [0, 1, u64::MAX - 1, u64::MAX] {
             assert_eq!(u256::from(num).into_u64_saturating(), num);
         }
-        assert_eq!(u256::MAX.try_into(), Result::<u64, _>::Err(U64Overflow));
+        assert_eq!(u64::try_from(u256::MAX), Result::<u64, _>::Err(U64Overflow));
         assert_eq!(u256::MAX.into_u64_with_overflow(), (u64::MAX, true));
         assert_eq!(u256::MAX.into_u64_saturating(), u64::MAX);
 
         assert_eq!(U256::from(u256::ZERO), U256::ZERO);
-        assert_eq!(U256::from(v1), U256::ONE);
+        assert_eq!(U256::from(u256::ONE), U256::ONE);
         assert_eq!(U256::from(u256::MAX), U256::MAX);
         assert_eq!(u256::from(U256::ZERO), u256::ZERO);
-        assert_eq!(u256::from(U256::ONE), v1);
+        assert_eq!(u256::from(U256::ONE), u256::ONE);
         assert_eq!(u256::from(U256::MAX), u256::MAX);
 
         assert_eq!(I256::from(u256::ZERO), I256::ZERO);
-        assert_eq!(I256::from(v1), I256::ONE);
+        assert_eq!(I256::from(u256::ONE), I256::ONE);
         assert_eq!(I256::from(u256::MAX), I256::NEG_ONE);
         assert_eq!(u256::from(I256::ZERO), u256::ZERO);
-        assert_eq!(u256::from(I256::ONE), v1);
-        assert_eq!(u256::from(I256::MAX), u256::MAX >> v1);
+        assert_eq!(u256::from(I256::ONE), u256::ONE);
+        assert_eq!(u256::from(I256::MAX), u256::MAX >> u256::ONE);
 
         assert_eq!(U512::from(u256::ZERO), U512::ZERO);
-        assert_eq!(U512::from(v1), U512::ONE);
+        assert_eq!(U512::from(u256::ONE), U512::ONE);
         assert_eq!(U512::from(u256::MAX), U512::cast_from(U256::MAX));
         assert_eq!(u256::from(U512::ZERO), u256::ZERO);
-        assert_eq!(u256::from(U512::ONE), v1);
+        assert_eq!(u256::from(U512::ONE), u256::ONE);
         assert_eq!(u256::from(U512::MAX), u256::MAX);
     }
 }
