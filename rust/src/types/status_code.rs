@@ -93,7 +93,7 @@ impl From<FailStatus> for StepResult {
         Self::new(
             fail_status.into(),
             fail_status.into(),
-            Revision::EVMC_FRONTIER,
+            Revision::EVMC_ISTANBUL,
             0,
             0,
             0,
