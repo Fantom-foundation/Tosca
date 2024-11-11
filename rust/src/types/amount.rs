@@ -1,8 +1,8 @@
 use std::{
     fmt::{Debug, Display, LowerHex},
     ops::{
-        Add, AddAssign, BitAnd, BitOr, BitXor, Div, DivAssign, Mul, MulAssign, Not, Rem, RemAssign,
-        Shl, Shr, Sub, SubAssign,
+        Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
+        DivAssign, Mul, MulAssign, Not, Rem, RemAssign, Shl, Shr, Sub, SubAssign,
     },
 };
 
@@ -230,6 +230,12 @@ impl BitAnd for u256 {
     }
 }
 
+impl BitAndAssign for u256 {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+
 impl BitOr for u256 {
     type Output = Self;
 
@@ -238,11 +244,23 @@ impl BitOr for u256 {
     }
 }
 
+impl BitOrAssign for u256 {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
 impl BitXor for u256 {
     type Output = Self;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
         Self(self.0.bitxor(rhs.0))
+    }
+}
+
+impl BitXorAssign for u256 {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.0 ^= rhs.0;
     }
 }
 
@@ -357,7 +375,7 @@ impl u256 {
         Self(U256::cast_from((s1 * s2).rem(m)))
     }
 
-    pub fn pow(self, exp: Self) -> Self {
+    pub fn pow(self, exp: &Self) -> Self {
         let mut res = U256::ONE;
 
         for bit in (0..U256::BITS).rev().map(|bit| exp.0.bit(bit)) {

@@ -1,7 +1,7 @@
-use std::cmp::min;
+use std::{cmp::min, ops::Not};
 
 use evmc_vm::{
-    AccessStatus, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
+    AccessStatus, Address, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
     StatusCode, StepResult, StorageStatus, Uint256,
 };
 
@@ -700,8 +700,8 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
     fn s_div(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value.sdiv(denominator))?;
+        let (denominator, [value]) = self.stack.pop_with_guard()?;
+        *denominator = value.sdiv(*denominator);
         self.code_reader.next();
         self.return_from_op()
     }
@@ -716,166 +716,166 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
     fn s_mod(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value.srem(denominator))?;
+        let (denominator, [value]) = self.stack.pop_with_guard()?;
+        *denominator = value.srem(*denominator);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn add_mod(&mut self) -> OpResult {
         self.gas_left.consume(8)?;
-        let [denominator, value2, value1] = self.stack.pop()?;
-        self.stack.push(u256::addmod(value1, value2, denominator))?;
+        let (denominator, [value2, value1]) = self.stack.pop_with_guard()?;
+        *denominator = u256::addmod(value1, value2, *denominator);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn mul_mod(&mut self) -> OpResult {
         self.gas_left.consume(8)?;
-        let [denominator, fac2, fac1] = self.stack.pop()?;
-        self.stack.push(u256::mulmod(fac1, fac2, denominator))?;
+        let (denominator, [fac2, fac1]) = self.stack.pop_with_guard()?;
+        *denominator = u256::mulmod(fac1, fac2, *denominator);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn exp(&mut self) -> OpResult {
         self.gas_left.consume(10)?;
-        let [exp, value] = self.stack.pop()?;
+        let (exp, [value]) = self.stack.pop_with_guard()?;
         self.gas_left.consume(exp.bits().div_ceil(8) as u64 * 50)?; // * does not overflow
-        self.stack.push(value.pow(exp))?;
+        *exp = value.pow(exp);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn sign_extend(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [value, size] = self.stack.pop()?;
-        self.stack.push(u256::signextend(size, value))?;
+        let (value, [size]) = self.stack.pop_with_guard()?;
+        *value = u256::signextend(size, *value);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn lt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs < rhs)?;
+        let (rhs, [lhs]) = self.stack.pop_with_guard()?;
+        *rhs = u256::from(&lhs < rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn gt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs > rhs)?;
+        let (rhs, [lhs]) = self.stack.pop_with_guard()?;
+        *rhs = u256::from(&lhs > rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn s_lt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs.slt(&rhs))?;
+        let (rhs, [lhs]) = self.stack.pop_with_guard()?;
+        *rhs = u256::from(lhs.slt(rhs));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn s_gt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs.sgt(&rhs))?;
+        let (rhs, [lhs]) = self.stack.pop_with_guard()?;
+        *rhs = u256::from(lhs.sgt(rhs));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn eq(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs == rhs)?;
+        let (rhs, [lhs]) = self.stack.pop_with_guard()?;
+        *rhs = u256::from(&lhs == rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn is_zero(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value] = self.stack.pop()?;
-        self.stack.push(value == u256::ZERO)?;
+        let (value, []) = self.stack.pop_with_guard()?;
+        *value = u256::from(value == &u256::ZERO);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn and(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs & rhs)?;
+        let (rhs, [lhs]) = self.stack.pop_with_guard()?;
+        *rhs &= lhs;
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn or(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs | rhs)?;
+        let (rhs, [lhs]) = self.stack.pop_with_guard()?;
+        *rhs |= lhs;
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn xor(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs ^ rhs)?;
+        let (rhs, [lhs]) = self.stack.pop_with_guard()?;
+        *rhs ^= lhs;
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn not(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value] = self.stack.pop()?;
-        self.stack.push(!value)?;
+        let (value, []) = self.stack.pop_with_guard()?;
+        *value = value.not();
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn byte(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value, offset] = self.stack.pop()?;
-        self.stack.push(value.byte(offset))?;
+        let (value, [offset]) = self.stack.pop_with_guard()?;
+        *value = value.byte(offset);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn shl(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value, shift] = self.stack.pop()?;
-        self.stack.push(value << shift)?;
+        let (value, [shift]) = self.stack.pop_with_guard()?;
+        *value = *value << shift;
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn shr(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value, shift] = self.stack.pop()?;
-        self.stack.push(value >> shift)?;
+        let (value, [shift]) = self.stack.pop_with_guard()?;
+        *value = *value >> shift;
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn sar(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value, shift] = self.stack.pop()?;
-        self.stack.push(value.sar(shift))?;
+        let (value, [shift]) = self.stack.pop_with_guard()?;
+        *value = value.sar(shift);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn sha3(&mut self) -> OpResult {
         self.gas_left.consume(30)?;
-        let [len, offset] = self.stack.pop()?;
+        let (len_l, [offset]) = self.stack.pop_with_guard()?;
 
-        let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
+        let len = u64::try_from(*len_l).map_err(|_| FailStatus::OutOfGas)?;
         self.gas_left.consume(6 * word_size(len)?)?; // * does not overflow
 
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
-        self.stack.push(hash_cache::hash(data))?;
+        *len_l = hash_cache::hash(data);
         self.code_reader.next();
         self.return_from_op()
     }
@@ -891,11 +891,11 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
-        let [addr] = self.stack.pop()?;
-        let addr = addr.into();
+        let (addr, []) = self.stack.pop_with_guard()?;
+        let addr_a = Address::from(*addr);
         self.gas_left
-            .consume_address_access_cost(&addr, self.revision, self.context)?;
-        self.stack.push(self.context.get_balance(&addr))?;
+            .consume_address_access_cost(&addr_a, self.revision, self.context)?;
+        *addr = u256::from(self.context.get_balance(&addr_a));
         self.code_reader.next();
         self.return_from_op()
     }
@@ -923,8 +923,8 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
     fn call_data_load(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [offset] = self.stack.pop()?;
-        let (offset, overflow) = offset.into_u64_with_overflow();
+        let (offset_l, []) = self.stack.pop_with_guard()?;
+        let (offset, overflow) = offset_l.into_u64_with_overflow();
         let offset = offset as usize;
         #[allow(clippy::map_identity)]
         let call_data = self
@@ -938,12 +938,12 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
             )
             .unwrap_or_default();
         if overflow || offset >= call_data.len() {
-            self.stack.push(u256::ZERO)?;
+            *offset_l = u256::ZERO;
         } else {
             let end = min(call_data.len(), offset + 32);
             let mut bytes = [0; 32];
             bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
-            self.stack.push(u256::from_be_bytes(bytes))?;
+            *offset_l = u256::from_be_bytes(bytes);
         }
         self.code_reader.next();
         self.return_from_op()
@@ -1036,11 +1036,11 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
-        let [addr] = self.stack.pop()?;
-        let addr = addr.into();
+        let (addr_l, []) = self.stack.pop_with_guard()?;
+        let addr = Address::from(*addr_l);
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
-        self.stack.push(self.context.get_code_size(&addr))?;
+        *addr_l = u256::from(self.context.get_code_size(&addr));
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1112,23 +1112,21 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
-        let [addr] = self.stack.pop()?;
-        let addr = addr.into();
+        let (addr, []) = self.stack.pop_with_guard()?;
+        let addr_a = Address::from(*addr);
         self.gas_left
-            .consume_address_access_cost(&addr, self.revision, self.context)?;
-        self.stack.push(self.context.get_code_hash(&addr))?;
+            .consume_address_access_cost(&addr_a, self.revision, self.context)?;
+        *addr = u256::from(self.context.get_code_hash(&addr_a));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn block_hash(&mut self) -> OpResult {
         self.gas_left.consume(20)?;
-        let [block_number] = self.stack.pop()?;
-        self.stack.push(
-            u64::try_from(block_number)
-                .map(|idx| self.context.get_block_hash(idx as i64).into())
-                .unwrap_or(u256::ZERO),
-        )?;
+        let (block_number, []) = self.stack.pop_with_guard()?;
+        *block_number = u64::try_from(*block_number)
+            .map(|idx| self.context.get_block_hash(idx as i64).into())
+            .unwrap_or(u256::ZERO);
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1184,11 +1182,12 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         check_min_revision(Revision::EVMC_ISTANBUL, self.revision)?;
         self.gas_left.consume(5)?;
         let addr = self.message.recipient();
-        if u256::from(addr) == u256::ZERO {
-            self.stack.push(u256::ZERO)?;
+        let value = if u256::from(addr) == u256::ZERO {
+            u256::ZERO
         } else {
-            self.stack.push(self.context.get_balance(addr))?;
-        }
+            u256::from(self.context.get_balance(addr))
+        };
+        self.stack.push(value)?;
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1205,14 +1204,14 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
     fn blob_hash(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         self.gas_left.consume(3)?;
-        let [idx] = self.stack.pop()?;
-        let (idx, idx_overflow) = idx.into_u64_with_overflow();
+        let (idx_l, []) = self.stack.pop_with_guard()?;
+        let (idx, idx_overflow) = idx_l.into_u64_with_overflow();
         let idx = idx as usize;
         let hashes = ExecutionTxContext::from(self.context.get_tx_context()).blob_hashes;
         if !idx_overflow && idx < hashes.len() {
-            self.stack.push(hashes[idx])?;
+            *idx_l = u256::from(hashes[idx]);
         } else {
-            self.stack.push(u256::ZERO)?;
+            *idx_l = u256::ZERO;
         }
         self.code_reader.next();
         self.return_from_op()
@@ -1236,10 +1235,9 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
     fn m_load(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [offset] = self.stack.pop()?;
+        let (offset, []) = self.stack.pop_with_guard()?;
 
-        self.stack
-            .push(self.memory.get_word(offset, &mut self.gas_left)?)?;
+        *offset = self.memory.get_word(*offset, &mut self.gas_left)?;
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1269,8 +1267,8 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(800)?;
         }
-        let [key] = self.stack.pop()?;
-        let key = key.into();
+        let (key_l, []) = self.stack.pop_with_guard()?;
+        let key = Uint256::from(*key_l);
         let addr = self.message.recipient();
         if self.revision >= Revision::EVMC_BERLIN {
             if self.context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD {
@@ -1280,7 +1278,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
             }
         }
         let value = self.context.get_storage(addr, &key);
-        self.stack.push(value)?;
+        *key_l = u256::from(value);
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1342,10 +1340,12 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
     fn t_load(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
         self.gas_left.consume(100)?;
-        let [key] = self.stack.pop()?;
+        let (key, []) = self.stack.pop_with_guard()?;
         let addr = self.message.recipient();
-        let value = self.context.get_transient_storage(addr, &key.into());
-        self.stack.push(value)?;
+        let value = self
+            .context
+            .get_transient_storage(addr, &Uint256::from(*key));
+        *key = u256::from(value);
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1636,7 +1636,8 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
-        let [ret_len, ret_offset, args_len, args_offset, value, addr, gas] = self.stack.pop()?;
+        let (ret_len_l, [ret_offset, args_len, args_offset, value, addr, gas]) =
+            self.stack.pop_with_guard()?;
 
         if !CODE && value != u256::ZERO {
             check_not_read_only(self.message)?;
@@ -1644,7 +1645,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
         let addr = addr.into();
         let args_len = u64::try_from(args_len).map_err(|_| FailStatus::OutOfGas)?;
-        let ret_len = u64::try_from(ret_len).map_err(|_| FailStatus::OutOfGas)?;
+        let ret_len = u64::try_from(*ret_len_l).map_err(|_| FailStatus::OutOfGas)?;
 
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
@@ -1672,7 +1673,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
         if value > u256::from(self.context.get_balance(self.message.recipient())) {
             self.last_call_return_data = None;
-            self.stack.push(u256::ZERO)?;
+            *ret_len_l = u256::ZERO;
             self.code_reader.next();
             return self.return_from_op();
         }
@@ -1742,11 +1743,12 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         if self.revision < Revision::EVMC_BERLIN {
             self.gas_left.consume(700)?;
         }
-        let [ret_len, ret_offset, args_len, args_offset, addr, gas] = self.stack.pop()?;
+        let (ret_len_l, [ret_offset, args_len, args_offset, addr, gas]) =
+            self.stack.pop_with_guard()?;
 
         let addr = addr.into();
         let args_len = u64::try_from(args_len).map_err(|_| FailStatus::OutOfGas)?;
-        let ret_len = u64::try_from(ret_len).map_err(|_| FailStatus::OutOfGas)?;
+        let ret_len = u64::try_from(*ret_len_l).map_err(|_| FailStatus::OutOfGas)?;
 
         self.gas_left
             .consume_address_access_cost(&addr, self.revision, self.context)?;
@@ -1810,8 +1812,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         self.gas_left.consume(endowment)?;
         self.gas_refund.add(result.gas_refund())?;
 
-        self.stack
-            .push(result.status_code() == StatusCode::EVMC_SUCCESS)?;
+        *ret_len_l = u256::from(result.status_code() == StatusCode::EVMC_SUCCESS);
         self.code_reader.next();
         self.return_from_op()
     }
