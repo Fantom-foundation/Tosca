@@ -131,6 +131,18 @@ func getAllRules() []Rule {
 		}),
 	})
 
+	// --- No Code ---
+
+	rules = append(rules, Rule{
+		Name: "no_code_no_effect",
+		Condition: And(
+			AnyKnownRevision(),
+			Eq(Status(), st.Running),
+			Eq(CodeLength(), 0),
+		),
+		Effect: NoEffect(),
+	})
+
 	// --- Arithmetic ---
 
 	rules = append(rules, binaryOp(vm.ADD, 3, func(a, b U256) U256 {

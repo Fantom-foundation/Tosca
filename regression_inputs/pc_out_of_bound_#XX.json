@@ -1,0 +1,79 @@
+{
+    "Status": "running",
+	"Revision": "Berlin",
+	"ReadOnly": false,
+	"Pc": 0 ,
+	"Gas": 766154147,
+	"GasRefund": -386980389124,
+	"Code": "",
+	"Stack": [
+	    "73d98e21930ee3c4 9adfe6af5c3129a6 14d8827ba8c91ac6 aad5465e39e7224f",
+	    "fbe73cec10215f25 b4b4cdc59461cf5e 0bdbdfbd8bb66463 8d8f315fa500dfd2",
+	    "44e536d9beb6692f f1771bc7786d984f e8121ed7845eb679 7481234b5f8357fc",
+	    "a4908db06f82ce80 fa765578d53df1b1 79aa3a06d8ea630a 5946bb7a396ca860",
+	    "5567e6eac386c167 503cbc87f4045ae3 03416fcf004cb556 f2339e0f9dad807a"
+    ],
+	"Memory": "",
+	"Storage": {
+      "Current": {
+	    "92a92958b1a3234a 85a7164614cfab91 05073ee45d5262b7 9941f43a48bbc25b": "bed5526f8d103f02 99205d203d61b68f da3cfadba0930b58 e6da8260c9133a89",
+	    "9c522d37a6ce67c5 dc09a2b1073a55b8 cc6f90d390c2ce25 acdf58bc9bf1896d": "c657030c778cd84b 326a6ac008bf6b45 7d4238673e56b71a b0af05c3b1c7bc76"
+      },
+	  "Original": {
+	    "9c522d37a6ce67c5 dc09a2b1073a55b8 cc6f90d390c2ce25 acdf58bc9bf1896d": "300985a719a81750 b7db92fb1a09a732 1173c2212c042f3b f3c86d482f083353",
+	    "92a92958b1a3234a 85a7164614cfab91 05073ee45d5262b7 9941f43a48bbc25b": "33ad329a6517fe0a 00b97ac7dbe6ea9b 4ea511bdbb4f78d3 e6b46978bbf960df"
+        },
+      "Warm": null  
+    },
+	"TransientStorage": {
+      "Storage": {
+	    "664a721b3d31c526 f349af3a118df5f6 db6a40c0836aa421 df6b5f4814b886e3": "90ab56d56c2e2c4f 4e57a002e0e101c6 d388b2763f3d5f11 1beec5be4c33d8c2",
+	    "e0cb28e39b7d1380 81e7eda301f44f45 f30e8e196c52f861 1cc0b3cd1e571a7e": "3d2b5e42789cac2d d6661d4ece05ae02 c05f66e2becc40ef 1678c6bfed2bde45"
+      }
+    },
+    "Accounts": {
+        "Balance": {
+            "0x7e4196c521a24348583e3c85391aee6776adc12d": "1a7812265c2e35f5 11b00132499594fb 391f642b08072e19 2c36e3e1781dccf3",
+            "0xeaeba8b05e873d8c8c2d7b47806db2024d9e3289": "6f9ac0e95edc9847 f06b89b7f65018dd 53dc24c4bcafee7e 78870c406fd0fa96"
+        },
+        "Code": {
+            "0x7e4196c521a24348583e3c85391aee6776adc12d": "2084e0916e68897a7693168712066cd414611e0a58e23d8e6988c360c637060d3d5915d03f78ee09fdf8",
+            "0xeaeba8b05e873d8c8c2d7b47806db2024d9e3289": "ebef3335c0811ca5e514a664a75e36ce347de8c3b702fe13f1abbd613de5ea6c8eecce885f82ea0b75c3"
+        },
+        "Warm": null
+    },
+    "Logs": {
+        "Entries": null
+    },
+    "CallContext": {
+        "AccountAddress": "0x7e4196c521a24348583e3c85391aee6776adc12d",
+        "CallerAddress": "0xe9bd25b51ce85e6e2e457ba097888c378eff3b5f",
+        "Value": "f24be5bf8c666a01 b13aa78448cb6b27 48ff2f594dabd326 5aa99cf1c6636879"
+    },
+    "BlockContext": {
+        "BaseFee": "4a6a435379f18ff1 988ec277ca91a1a1 fb90f259dea8fbea 501f47fdfbf709ca",
+        "BlobBaseFee": "0716d9015d5a7504 c1668749b69703a1 12397602aada2820 718b3b7495cbb606",
+        "BlockNumber": 1162,
+        "ChainID": "df95e47be1acd300 06f7ffd42e9c81e8 8077fc39e16c08d8 c708f478ae567610",
+        "CoinBase": "0x8109e86e5a4543190a14733d26231560c575de14",
+        "GasLimit": 4192632916383493728,
+        "GasPrice": "6354b862c07c400e 86e20ea90719a060 9cf888460ba0414b eaa818f4e4da79c7",
+        "PrevRandao": "696681fdcc254d1b 9e012354a3800bf3 1f0686a7006ea518 efe7d2d97843d42b",
+        "Timestamp": 1935
+    },
+    "CallData": "09dae4566c748d3a648a6b830e73d2430d9831f0",
+    "LastCallReturnData": "8effdd19a02bf44b32274b5e3fab410dd43d2093",
+    "ReturnData": "3078",
+    "CallJournal": {
+        "Past": null,
+        "Future": [
+            {
+                "Success": false,
+                "Output": "c0032e0788f04a396b57ceb69250bbae73e48df72d2409cd541f5cfbbb81a99d02ce75e4cca0a4d838cbe29bf1f9680a54e0c8e703a8260009b768a2f3ee3d60370d3a4940849d354f2e77083663058ec35083eb963be8940f2e433acc30519b261a11061277733e22b5eda378da2ed489498b29d3611c727119004b7e17131eea0b0dc75acb46ddb2f2a509c5b45f89013ddf141aa9616f965afee3a4a18b6dcf995f2303cef6d1893a3f576ee3979ad42479532b2048f07206d03fd2c1aad8a78ba8bdd15eb2e70708732a29e9d8847a4f1f0a9ccc93d6a977e94b424f0baed604d9bbf0b8ef9ccc923a3131b9",
+                "GasCosts": 5810853146617735669
+            }
+        ]
+    },
+    "HasSelfDestructed": true,
+    "SelfDestructedJournal": []
+}

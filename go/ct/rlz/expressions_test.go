@@ -222,6 +222,25 @@ func TestExpression_OpRestrict(t *testing.T) {
 	}
 }
 
+func TestExpression_CodeLengthEval(t *testing.T) {
+	state := st.NewState(st.NewCode([]byte{byte(vm.STOP), byte(vm.STOP), byte(vm.ADD)}))
+	if length, err := CodeLength().Eval(state); err != nil || length != 3 {
+		t.Fail()
+	}
+}
+
+func TestExpression_CodeLengthRestrict(t *testing.T) {
+	generator := gen.NewStateGenerator()
+	CodeLength().Restrict(RestrictEqual, 5, generator)
+	state, err := generator.Generate(rand.New(0))
+	if err != nil {
+		t.Errorf("State generation failed %v", err)
+	}
+	if state.Code.Length() != 5 {
+		t.Errorf("Generator was not restricted by expression")
+	}
+}
+
 func TestExpression_StackSizeEval(t *testing.T) {
 	state := st.NewState(st.NewCode([]byte{}))
 	state.Stack.Push(NewU256(1))

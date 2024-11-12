@@ -86,6 +86,34 @@ func (status) String() string {
 }
 
 ////////////////////////////////////////////////////////////
+// Code length
+
+type codeLength struct{}
+
+func CodeLength() Expression[uint16] {
+	return codeLength{}
+}
+
+func (codeLength) Property() Property { return Property("codeLength") }
+
+func (codeLength) Domain() Domain[uint16] { return uint16Domain{} }
+
+func (codeLength) Eval(s *st.State) (uint16, error) {
+	return uint16(s.Code.Length()), nil
+}
+
+func (codeLength) Restrict(kind RestrictionKind, length uint16, generator *gen.StateGenerator) {
+	if kind != RestrictEqual {
+		panic("Code length can only support equality constraints")
+	}
+	generator.SetCodeLength(length)
+}
+
+func (codeLength) String() string {
+	return "codeLength"
+}
+
+////////////////////////////////////////////////////////////
 // Program Counter
 
 type pc struct{}

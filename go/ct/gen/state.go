@@ -127,6 +127,10 @@ func (g *StateGenerator) SetReadOnly(readOnly bool) {
 	}
 }
 
+func (g *StateGenerator) SetCodeLength(length uint16) {
+	g.codeGen.SetSize(length)
+}
+
 // SetPc adds a constraint on the State's program counter.
 func (g *StateGenerator) SetPc(pc uint16) {
 	if !slices.Contains(g.pcConstantConstraints, pc) {

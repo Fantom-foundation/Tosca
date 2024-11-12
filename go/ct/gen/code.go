@@ -31,7 +31,7 @@ type CodeGenerator struct {
 	varIsCodeConstraints []varIsCodeConstraint
 	varIsDataConstraints []varIsDataConstraint
 
-	// testing only
+	// testing only, TODO: make this not testing only
 	codeSize *int
 }
 
@@ -77,6 +77,11 @@ func (g *CodeGenerator) AddIsCode(v Variable) {
 // segment where the byte at v is data.
 func (g *CodeGenerator) AddIsData(v Variable) {
 	g.varIsDataConstraints = append(g.varIsDataConstraints, varIsDataConstraint{v})
+}
+
+func (g *CodeGenerator) SetSize(size uint16) {
+	g.codeSize = new(int)
+	*g.codeSize = int(size)
 }
 
 // Generate produces a Code instance satisfying the constraints set on this
@@ -244,11 +249,17 @@ func (g *CodeGenerator) Generate(assignment Assignment, rnd *rand.Rand) (*st.Cod
 // Clone creates an independent copy of the generator in its current state.
 // Future modifications are isolated from each other.
 func (g *CodeGenerator) Clone() *CodeGenerator {
+	var codeSizePtr *int
+	if g.codeSize != nil {
+		size := *g.codeSize
+		codeSizePtr = &size
+	}
 	return &CodeGenerator{
 		constOps:             slices.Clone(g.constOps),
 		varOps:               slices.Clone(g.varOps),
 		varIsCodeConstraints: slices.Clone(g.varIsCodeConstraints),
 		varIsDataConstraints: slices.Clone(g.varIsDataConstraints),
+		codeSize:             codeSizePtr,
 	}
 }
 
@@ -261,6 +272,9 @@ func (g *CodeGenerator) Restore(other *CodeGenerator) {
 	g.varOps = slices.Clone(other.varOps)
 	g.varIsCodeConstraints = slices.Clone(other.varIsCodeConstraints)
 	g.varIsDataConstraints = slices.Clone(other.varIsDataConstraints)
+	if other.codeSize != nil {
+		*g.codeSize = *other.codeSize
+	}
 }
 
 func (g *CodeGenerator) String() string {

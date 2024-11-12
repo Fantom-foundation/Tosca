@@ -58,12 +58,15 @@ func (s *specificationMap) GetRulesFor(state *st.State) []Rule {
 	op, err := state.Code.GetOperation(int(state.Pc))
 	var opString string
 	if err != nil {
+		// PC on data
+		opString = "noOp"
+	} else if state.Status != st.Running || state.Code.Length() == 0 {
+		opString = "noOp"
+	} else if state.Revision == common.R99_UnknownNextRevision {
+		getRules(op.String()) // Multiple rules can apply to states with unsupported revision
 		opString = "noOp"
 	} else {
 		opString = op.String()
-		if state.Revision == common.R99_UnknownNextRevision || state.Status != st.Running {
-			getRules("noOp")
-		}
 	}
 
 	getRules(opString)
