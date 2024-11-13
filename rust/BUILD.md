@@ -144,8 +144,8 @@ Also see [compare-features.sh](./scripts/compare-features.sh) which when provide
 
 ```sh
 cargo install --locked samply
-# same steps as for Perf + Flamegraph but instead of `perf script | ...` run 
-samply import perf.data
+# now run the same commands as for Perf + Flamegraph except for the last line with `perf script ...`
+samply import perf.data # this converts perf.data, opens firefox profiler in your default browser and serves the data
 ```
 
 ### Samply + Firefox Profiler
@@ -153,7 +153,7 @@ samply import perf.data
 ```sh
 cargo install --locked samply
 cargo build --package benchmarks --profile profiling
-samply record ./target/profiling/benchmarks
+samply record ./target/profiling/benchmarks # this collects profiling data, opens firefox profiler in your default browser and serves the data
 ```
 
 ### Intel VTune
