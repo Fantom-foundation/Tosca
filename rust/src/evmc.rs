@@ -9,15 +9,19 @@ use evmc_vm::{
 use crate::{
     ffi::EVMC_CAPABILITY,
     interpreter::Interpreter,
-    types::{Memory, Stack},
+    types::{LoggingObserver, Memory, NoOpObserver, ObserverType, Stack},
     u256,
 };
 
-pub struct EvmRs;
+pub struct EvmRs {
+    observer_type: ObserverType,
+}
 
 impl EvmcVm for EvmRs {
     fn init() -> Self {
-        EvmRs {}
+        EvmRs {
+            observer_type: ObserverType::NoOp,
+        }
     }
 
     fn execute<'a>(
@@ -37,13 +41,22 @@ impl EvmcVm for EvmRs {
             process::abort();
         };
         let mut interpreter = Interpreter::new(revision, message, context, code);
-        if let Err(status_code) = interpreter.run() {
+        let run_result = match self.observer_type {
+            ObserverType::NoOp => interpreter.run(&mut NoOpObserver()),
+            ObserverType::Logging => interpreter.run(&mut LoggingObserver {}),
+        };
+        if let Err(status_code) = run_result {
             return ExecutionResult::from(status_code);
         }
         ExecutionResult::from(&mut interpreter)
     }
 
-    fn set_option(&mut self, _: &str, _: &str) -> Result<(), evmc_vm::SetOptionError> {
+    fn set_option(&mut self, key: &str, value: &str) -> Result<(), evmc_vm::SetOptionError> {
+        match (key, value) {
+            ("logging", "true") => self.observer_type = ObserverType::Logging,
+            ("logging", "false") => self.observer_type = ObserverType::NoOp,
+            _ => (),
+        }
         Ok(())
     }
 }
@@ -110,7 +123,11 @@ impl SteppableEvmcVm for EvmRs {
             Some(last_call_return_data.to_owned()),
             Some(steps),
         );
-        if let Err(status_code) = interpreter.run() {
+        let run_result = match self.observer_type {
+            ObserverType::NoOp => interpreter.run(&mut NoOpObserver()),
+            ObserverType::Logging => interpreter.run(&mut LoggingObserver {}),
+        };
+        if let Err(status_code) = run_result {
             return StepResult::from(status_code);
         }
         interpreter.into()

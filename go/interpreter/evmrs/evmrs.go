@@ -37,6 +37,19 @@ func init() {
 			return &evmrsInstance{evm}, nil
 		})
 	}
+
+	{
+		evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
+		if err != nil {
+			panic(fmt.Errorf("failed to load evmrs library: %s", err))
+		}
+		if err = evm.SetOption("logging", "true"); err != nil {
+			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+		}
+		tosca.MustRegisterInterpreterFactory("evmrs-logging", func(any) (tosca.Interpreter, error) {
+			return &evmrsInstance{evm}, nil
+		})
+	}
 }
 
 type evmrsInstance struct {
