@@ -110,6 +110,7 @@ dependencies = [
  "criterion",
  "driver",
  "evmrs",
+ "sha3",
 ]
 
 [[package]]
