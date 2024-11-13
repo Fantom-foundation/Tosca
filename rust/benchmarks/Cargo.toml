@@ -20,6 +20,7 @@ fn-ptr-conversion-expanded-dispatch = [
 [dependencies]
 evmrs = { path = ".." }
 driver = { path = "../driver" }
+sha3 = "0.10.8"
 
 [dev-dependencies]
 criterion = "0.5.1"

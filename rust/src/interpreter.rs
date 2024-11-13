@@ -1967,7 +1967,6 @@ mod tests {
             &[Opcode::JumpDest as u8; 10_000_000],
         );
         let result = interpreter.run();
-        println!("{result:?}");
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
     }
