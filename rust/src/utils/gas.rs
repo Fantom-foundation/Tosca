@@ -159,7 +159,7 @@ mod tests {
                 .return_const(exists);
 
             let mut interpreter = Interpreter::new(
-                Revision::EVMC_FRONTIER,
+                Revision::EVMC_ISTANBUL,
                 &message,
                 &mut context,
                 &[Opcode::Call as u8],
@@ -195,7 +195,7 @@ mod tests {
     fn consume_address_access_cost() {
         let cases = [
             (
-                Revision::EVMC_FRONTIER,
+                Revision::EVMC_ISTANBUL,
                 AccessStatus::EVMC_ACCESS_COLD,
                 Gas::new(0),
             ),

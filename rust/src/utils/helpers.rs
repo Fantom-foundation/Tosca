@@ -62,9 +62,7 @@ pub fn check_min_revision(min_revision: Revision, revision: Revision) -> Result<
 
 #[inline(always)]
 pub fn check_not_read_only(state: &Interpreter) -> Result<(), FailStatus> {
-    if state.revision >= Revision::EVMC_BYZANTIUM
-        && state.message.flags() == MessageFlags::EVMC_STATIC as u32
-    {
+    if state.message.flags() == MessageFlags::EVMC_STATIC as u32 {
         return Err(FailStatus::StaticModeViolation);
     }
     Ok(())
@@ -131,15 +129,15 @@ mod tests {
     #[test]
     fn check_min_revision() {
         assert_eq!(
-            utils::check_min_revision(Revision::EVMC_FRONTIER, Revision::EVMC_FRONTIER),
+            utils::check_min_revision(Revision::EVMC_ISTANBUL, Revision::EVMC_ISTANBUL),
             Ok(())
         );
         assert_eq!(
-            utils::check_min_revision(Revision::EVMC_FRONTIER, Revision::EVMC_CANCUN),
+            utils::check_min_revision(Revision::EVMC_ISTANBUL, Revision::EVMC_CANCUN),
             Ok(())
         );
         assert_eq!(
-            utils::check_min_revision(Revision::EVMC_CANCUN, Revision::EVMC_FRONTIER),
+            utils::check_min_revision(Revision::EVMC_CANCUN, Revision::EVMC_ISTANBUL),
             Err(FailStatus::UndefinedInstruction)
         );
     }
@@ -148,10 +146,7 @@ mod tests {
     fn check_not_read_only() {
         let message = MockExecutionMessage::default().into();
         let mut context = MockExecutionContextTrait::new();
-        let interpreter = Interpreter::new(Revision::EVMC_FRONTIER, &message, &mut context, &[]);
-        assert_eq!(utils::check_not_read_only(&interpreter), Ok(()));
-
-        let interpreter = Interpreter::new(Revision::EVMC_BYZANTIUM, &message, &mut context, &[]);
+        let interpreter = Interpreter::new(Revision::EVMC_CANCUN, &message, &mut context, &[]);
         assert_eq!(utils::check_not_read_only(&interpreter), Ok(()));
 
         let message = MockExecutionMessage {
@@ -159,7 +154,7 @@ mod tests {
             ..Default::default()
         };
         let message = message.into();
-        let interpreter = Interpreter::new(Revision::EVMC_BYZANTIUM, &message, &mut context, &[]);
+        let interpreter = Interpreter::new(Revision::EVMC_CANCUN, &message, &mut context, &[]);
         assert_eq!(
             utils::check_not_read_only(&interpreter),
             Err(FailStatus::StaticModeViolation)

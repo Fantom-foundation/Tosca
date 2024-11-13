@@ -1344,8 +1344,8 @@ impl<'a> Interpreter<'a> {
         Ok(())
     }
 
+    #[allow(clippy::unused_self)]
     fn invalid(&mut self) -> OpResult {
-        check_min_revision(Revision::EVMC_HOMESTEAD, self.revision)?;
         Err(FailStatus::InvalidInstruction)
     }
 
@@ -1603,9 +1603,8 @@ impl<'a> Interpreter<'a> {
         let gas_left = self.gas_left.as_u64();
         let limit = gas_left - gas_left / 64;
         let mut endowment = gas.into_u64_saturating();
-        if self.revision >= Revision::EVMC_TANGERINE_WHISTLE {
-            endowment = min(endowment, limit); // cap gas at all but one 64th of gas left
-        }
+        endowment = min(endowment, limit); // cap gas at all but one 64th of gas left
+
         let stipend = if value == u256::ZERO { 0 } else { 2_300 };
         self.gas_left.add(stipend);
 
@@ -1701,9 +1700,7 @@ impl<'a> Interpreter<'a> {
         let gas_left = self.gas_left.as_u64();
         let limit = gas_left - gas_left / 64;
         let mut endowment = gas.into_u64_saturating();
-        if self.revision >= Revision::EVMC_TANGERINE_WHISTLE {
-            endowment = min(endowment, limit); // cap gas at all but one 64th of gas left
-        }
+        endowment = min(endowment, limit); // cap gas at all but one 64th of gas left
 
         let call_message = if DELEGATE {
             ExecutionMessage::new(
@@ -1816,7 +1813,7 @@ mod tests {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
         let mut interpreter =
-            Interpreter::new(Revision::EVMC_FRONTIER, &message, &mut context, &[]);
+            Interpreter::new(Revision::EVMC_ISTANBUL, &message, &mut context, &[]);
         let result = interpreter.run();
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
@@ -1829,7 +1826,7 @@ mod tests {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
         let mut interpreter = Interpreter::new_steppable(
-            Revision::EVMC_FRONTIER,
+            Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8],
@@ -1855,7 +1852,7 @@ mod tests {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
         let result = Interpreter::new_steppable(
-            Revision::EVMC_FRONTIER,
+            Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Push1 as u8, 0x00],
@@ -1877,7 +1874,7 @@ mod tests {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
         let mut interpreter = Interpreter::new(
-            Revision::EVMC_FRONTIER,
+            Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8],
@@ -1895,7 +1892,7 @@ mod tests {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
         let mut interpreter = Interpreter::new(
-            Revision::EVMC_FRONTIER,
+            Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8, Opcode::Add as u8],
@@ -1917,7 +1914,7 @@ mod tests {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
         let mut interpreter = Interpreter::new(
-            Revision::EVMC_FRONTIER,
+            Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8],
@@ -1938,7 +1935,7 @@ mod tests {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
         let mut interpreter = Interpreter::new(
-            Revision::EVMC_FRONTIER,
+            Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8, Opcode::Add as u8],
@@ -1964,7 +1961,7 @@ mod tests {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
         let mut interpreter = Interpreter::new(
-            Revision::EVMC_FRONTIER,
+            Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::JumpDest as u8; 10_000_000],
@@ -1984,7 +1981,7 @@ mod tests {
         };
         let message = message.into();
         let mut interpreter = Interpreter::new(
-            Revision::EVMC_FRONTIER,
+            Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8],
@@ -2067,7 +2064,7 @@ mod tests {
         ];
 
         let mut interpreter = Interpreter::new_steppable(
-            Revision::EVMC_FRONTIER,
+            Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Call as u8],
