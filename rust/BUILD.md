@@ -8,11 +8,11 @@
 
 - build `evmrs` in release mode
     ```sh
-    cargo build --release # OR run `make` or `make tosca-rust` in Tosca directory
+    cargo build --lib --release # OR run `make` or `make tosca-rust` in Tosca directory
     ```
 - build `evmrs` with debug symbols (the `profiling` profile inherits `release` and enables debug symbols)
     ```sh
-    cargo build --profile profiling
+    cargo build --lib --profile profiling
     ```
 
 ## Lint
@@ -37,7 +37,7 @@ cargo doc --workspace --document-private-items --open
     ```
 - Go tests
     ```sh
-    cargo build --release # OR run `make` or `make tosca-rust` in Tosca directory
+    cargo build --lib --release # OR run `make` or `make tosca-rust` in Tosca directory
     go test ../go/interpreter/evmrs/...
     ```
 - CT
@@ -61,7 +61,7 @@ To generate code coverage for CT see [coverage.sh](./scripts/coverage.sh).
 
 ## Optimizations
 
-By default, `evmrs` is build with the simplest and most idiomatic implementation.
+By default, `evmrs` is build with the simplest implementation.
 All optimizations are behind feature flags.
 A list of all features can be found in the `[features]` section in [Cargo.toml](./Cargo.toml).
 For convenience there is also a feature named `performance` which enables all other features that improve overall performance.
@@ -74,7 +74,7 @@ cargo build --features mimalloc,stack-array
 ### Optimization Workflow
 
 1. Identify a possible optimization opportunity by
-    - running the Go VM benchmarks and comparing them, in cases where `evmrs` is slower than the other interpreters
+    - running the Go VM benchmarks and comparing `evmrs` with other interpreters
         ```sh
         cargo run --package bencher
         ```
@@ -142,14 +142,18 @@ Also see [compare-features.sh](./scripts/compare-features.sh) which when provide
 
 ### Perf + Firefox Profiler
 
-TODO
+```sh
+cargo install --locked samply
+# now run the same commands as for Perf + Flamegraph except for the last line with `perf script ...`
+samply import perf.data # this converts perf.data, opens firefox profiler in your default browser and serves the data
+```
 
 ### Samply + Firefox Profiler
 
 ```sh
 cargo install --locked samply
 cargo build --package benchmarks --profile profiling
-samply record ./target/profiling/benchmarks
+samply record ./target/profiling/benchmarks # this collects profiling data, opens firefox profiler in your default browser and serves the data
 ```
 
 ### Intel VTune
