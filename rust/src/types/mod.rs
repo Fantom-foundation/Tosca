@@ -7,6 +7,7 @@ mod execution_context;
 pub mod hash_cache;
 mod memory;
 mod mock_execution_message;
+mod observer;
 #[cfg(feature = "needs-fn-ptr-conversion")]
 mod op_fn_data;
 mod opcode;
@@ -26,6 +27,7 @@ pub use code_reader::{CodeReader, GetOpcodeError};
 pub use execution_context::*;
 pub use memory::Memory;
 pub use mock_execution_message::MockExecutionMessage;
+pub use observer::*;
 #[cfg(feature = "needs-fn-ptr-conversion")]
 pub use op_fn_data::OpFnData;
 pub use opcode::*;
