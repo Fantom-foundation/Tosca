@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    fmt::{Debug, Display},
+    fmt::{Debug, Display, LowerHex},
     ops::{
         Add, AddAssign, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, DivAssign, Mul, MulAssign,
         Not, Rem, RemAssign, Shl, Shr, Sub, SubAssign,
@@ -31,15 +31,26 @@ impl DerefMut for u256 {
     }
 }
 
-impl Display for u256 {
+impl LowerHex for u256 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("0x")?;
-        for (i, byte) in (*self).into_iter().enumerate() {
+        if f.alternate() {
+            f.write_str("0x")?;
+        }
+        for (i, byte) in self.into_iter().enumerate() {
             f.write_fmt(format_args!("{byte:02x}"))?;
             if i % 8 == 7 && i < 31 {
                 f.write_str("_")?;
             }
         }
+
+        Ok(())
+    }
+}
+
+impl Display for u256 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let x = U256::from(*self);
+        f.write_fmt(format_args!("{x}"))?;
 
         Ok(())
     }
@@ -533,36 +544,37 @@ mod tests {
 
     #[test]
     fn display() {
-        assert_eq!(
-            format!(
-                "{}",
-                u256::from([
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0,
-                ])
+        let x = [
+            (
+                u256::from(0u8),
+                [
+                    "0",
+                    "0000000000000000_0000000000000000_0000000000000000_0000000000000000",
+                    "0x0000000000000000_0000000000000000_0000000000000000_0000000000000000",
+                ],
             ),
-            "0x0000000000000000_0000000000000000_0000000000000000_0000000000000000"
-        );
-        assert_eq!(
-            format!(
-                "{}",
-                u256::from([
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0xfe,
-                ])
+            (
+                u256::from(0xfeu8),
+                [
+                    "254",
+                    "0000000000000000_0000000000000000_0000000000000000_00000000000000fe",
+                    "0x0000000000000000_0000000000000000_0000000000000000_00000000000000fe",
+                ],
             ),
-            "0x0000000000000000_0000000000000000_0000000000000000_00000000000000fe"
-        );
-        assert_eq!(
-            format!(
-                "{}",
-                u256::from([
-                    0xfe, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0,
-                ])
+            (
+                u256::from(0xfeu8) << u256::from(8 * 31u8),
+                [
+                    "114887463540149662646824336688307533573166312910440247132899321632851308314624",
+                    "fe00000000000000_0000000000000000_0000000000000000_0000000000000000",
+                    "0xfe00000000000000_0000000000000000_0000000000000000_0000000000000000",
+                ],
             ),
-            "0xfe00000000000000_0000000000000000_0000000000000000_0000000000000000"
-        );
+        ];
+        for (value, fmt_strings) in x {
+            assert_eq!(format!("{value}",), fmt_strings[0]);
+            assert_eq!(format!("{value:x}",), fmt_strings[1]);
+            assert_eq!(format!("{value:#x}",), fmt_strings[2]);
+        }
     }
 
     #[test]

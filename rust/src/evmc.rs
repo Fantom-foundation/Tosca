@@ -43,7 +43,7 @@ impl EvmcVm for EvmRs {
         let mut interpreter = Interpreter::new(revision, message, context, code);
         let run_result = match self.observer_type {
             ObserverType::NoOp => interpreter.run(&mut NoOpObserver()),
-            ObserverType::Logging => interpreter.run(&mut LoggingObserver {}),
+            ObserverType::Logging => interpreter.run(&mut LoggingObserver::new(std::io::stdout())),
         };
         if let Err(status_code) = run_result {
             return ExecutionResult::from(status_code);
@@ -125,7 +125,7 @@ impl SteppableEvmcVm for EvmRs {
         );
         let run_result = match self.observer_type {
             ObserverType::NoOp => interpreter.run(&mut NoOpObserver()),
-            ObserverType::Logging => interpreter.run(&mut LoggingObserver {}),
+            ObserverType::Logging => interpreter.run(&mut LoggingObserver::new(std::io::stdout())),
         };
         if let Err(status_code) = run_result {
             return StepResult::from(status_code);

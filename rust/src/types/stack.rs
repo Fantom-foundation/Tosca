@@ -66,6 +66,18 @@ impl Stack {
         Ok(unsafe { std::ptr::read(pop_start as *const [u256; N]) })
     }
 
+    pub fn peek(&self) -> Option<&u256> {
+        if self.len == 0 {
+            None
+        } else {
+            let top = &self.data[self.len - 1];
+            // SAFETY:
+            // The first self.len elements are initialized.
+            let top = unsafe { std::mem::transmute::<&MaybeUninit<u256>, &u256>(top) };
+            Some(top)
+        }
+    }
+
     pub fn swap_with_top(&mut self, nth: usize) -> Result<(), FailStatus> {
         self.check_underflow(nth + 1)?;
 
@@ -148,6 +160,10 @@ impl Stack {
         array.copy_from_slice(&self.0[new_len..]);
         self.0.truncate(new_len);
         Ok(array)
+    }
+
+    pub fn peek(&self) -> Option<&u256> {
+        self.0.last()
     }
 
     pub fn nth(&self, nth: usize) -> Result<u256, FailStatus> {
