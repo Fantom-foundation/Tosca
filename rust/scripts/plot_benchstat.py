@@ -1,9 +1,17 @@
 # USAGE: benchstat ... | python3 plot_benchstat.py
+# to export to other formats just adjust the file_format variable
+#
+# REQUIREMENTS:
+# sys and re usually come with the python installation but matplotlib as to be installed manually
+# pip3 install matplotlib
+#
 
 import sys
 import matplotlib.pyplot as plt
 import matplotlib
 import re
+
+file_format = "png" # "svg"
 
 def parse_benchstat_output(benchstat_output):
     lines = benchstat_output.strip().splitlines()
@@ -91,7 +99,7 @@ def plot_benchmarks(data):
 
         plt.xticks([])
         plt.tight_layout()
-        plt.savefig(f'{benchmark.replace("/", "_")}.png')
+        plt.savefig(f'{benchmark.replace("/", "_")}.{file_format}')
         plt.close(fig)
 
 def main():
