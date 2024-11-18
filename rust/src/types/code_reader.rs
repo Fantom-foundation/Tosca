@@ -31,8 +31,8 @@ pub enum GetOpcodeError {
 
 impl<'a> CodeReader<'a> {
     /// If the const generic J is false, jumpdests are skipped.
-    pub fn new<const J: bool>(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
-        let code_analysis = CodeAnalysis::new::<J>(code, code_hash);
+    pub fn new<const JUMPDEST: bool>(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
+        let code_analysis = CodeAnalysis::new::<JUMPDEST>(code, code_hash);
         #[cfg(feature = "needs-fn-ptr-conversion")]
         let pc = code_analysis.pc_map.to_converted(pc);
         Self {

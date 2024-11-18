@@ -62,7 +62,7 @@ impl OpFnData {
         )
     }
 
-    pub fn func<const J: bool>(op: u8) -> Self {
+    pub fn func<const JUMPDEST: bool>(op: u8) -> Self {
         let ptr_value = Interpreter::JUMPTABLE[op as usize] as usize;
         OpFnData {
             raw: ptr_value.to_ne_bytes(),
@@ -144,9 +144,9 @@ impl OpFnData {
         )
     }
 
-    pub fn func<const J: bool>(op: u8, data: u256) -> Self {
+    pub fn func<const JUMPDEST: bool>(op: u8, data: u256) -> Self {
         OpFnData {
-            func: Some(if J {
+            func: Some(if JUMPDEST {
                 Interpreter::JUMPTABLE[op as usize]
             } else {
                 Interpreter::JUMPTABLE_SKIP_JUMPDEST[op as usize]

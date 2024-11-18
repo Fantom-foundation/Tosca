@@ -385,7 +385,7 @@ impl<'a> Interpreter<'a> {
     /// If the const generic S is false, the step check is skipped.
     /// If the const generic J is false jumpdests are skipped.
     #[cfg(not(feature = "tail-call"))]
-    pub fn run<O: Observer, const S: bool, const J: bool>(
+    pub fn run<O: Observer, const STEP_CHECK: bool, const JUMPDEST: bool>(
         &mut self,
         observer: &mut O,
     ) -> Result<(), FailStatus> {
@@ -394,7 +394,7 @@ impl<'a> Interpreter<'a> {
                 break;
             }
 
-            if S {
+            if STEP_CHECK {
                 match &mut self.steps {
                     None => (),
                     Some(0) => break,
@@ -412,7 +412,7 @@ impl<'a> Interpreter<'a> {
                 }
             };
             observer.pre_op(self);
-            self.run_op::<J>(op)?;
+            self.run_op::<JUMPDEST>(op)?;
             observer.post_op(self);
         }
 
@@ -421,7 +421,7 @@ impl<'a> Interpreter<'a> {
     /// The const generics S and J are currently ignored when feature tail-call is enabled.
     #[cfg(feature = "tail-call")]
     #[inline(always)]
-    pub fn run<O: Observer, const S: bool, const J: bool>(
+    pub fn run<O: Observer, const STEP_CHECK: bool, const JUMPDEST: bool>(
         &mut self,
         observer: &mut O,
     ) -> Result<(), FailStatus> {
@@ -450,22 +450,22 @@ impl<'a> Interpreter<'a> {
     }
 
     #[cfg(feature = "needs-fn-ptr-conversion")]
-    fn run_op<const J: bool>(&mut self, op: OpFn) -> OpResult {
+    fn run_op<const JUMPDEST: bool>(&mut self, op: OpFn) -> OpResult {
         op(self)
     }
     #[cfg(all(
         feature = "jumptable-dispatch",
         not(feature = "needs-fn-ptr-conversion")
     ))]
-    fn run_op<const J: bool>(&mut self, op: Opcode) -> OpResult {
-        if J {
+    fn run_op<const JUMPDEST: bool>(&mut self, op: Opcode) -> OpResult {
+        if JUMPDEST {
             Self::JUMPTABLE[op as u8 as usize](self)
         } else {
             Self::JUMPTABLE_SKIP_JUMPDEST[op as u8 as usize](self)
         }
     }
     #[cfg(not(feature = "needs-jumptable"))]
-    fn run_op<const J: bool>(&mut self, op: Opcode) -> OpResult {
+    fn run_op<const JUMPDEST: bool>(&mut self, op: Opcode) -> OpResult {
         match op {
             Opcode::Stop => self.stop(),
             Opcode::Add => self.add(),
@@ -527,8 +527,8 @@ impl<'a> Interpreter<'a> {
             Opcode::MStore8 => self.m_store8(),
             Opcode::SLoad => self.s_load(),
             Opcode::SStore => self.sstore(),
-            Opcode::Jump => self.jump::<J>(),
-            Opcode::JumpI => self.jump_i::<J>(),
+            Opcode::Jump => self.jump::<JUMPDEST>(),
+            Opcode::JumpI => self.jump_i::<JUMPDEST>(),
             Opcode::Pc => self.pc(),
             Opcode::MSize => self.m_size(),
             Opcode::Gas => self.gas(),
@@ -1270,25 +1270,25 @@ impl<'a> Interpreter<'a> {
     }
 
     /// If the const generic J is false, jumpdests are skipped.
-    fn jump<const J: bool>(&mut self) -> OpResult {
-        self.gas_left.consume(if J { 8 } else { 8 + 1 })?;
+    fn jump<const JUMPDEST: bool>(&mut self) -> OpResult {
+        self.gas_left.consume(if JUMPDEST { 8 } else { 8 + 1 })?;
         let [dest] = self.stack.pop()?;
         self.code_reader.try_jump(dest)?;
-        if !J {
+        if !JUMPDEST {
             self.code_reader.next();
         }
         self.return_from_op()
     }
 
     /// If the const generic J is false, jumpdests are skipped.
-    fn jump_i<const J: bool>(&mut self) -> OpResult {
+    fn jump_i<const JUMPDEST: bool>(&mut self) -> OpResult {
         self.gas_left.consume(10)?;
         let [cond, dest] = self.stack.pop()?;
         if cond == u256::ZERO {
             self.code_reader.next();
         } else {
             self.code_reader.try_jump(dest)?;
-            if !J {
+            if !JUMPDEST {
                 self.gas_left.consume(1)?;
                 self.code_reader.next();
             }

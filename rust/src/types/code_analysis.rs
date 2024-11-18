@@ -72,21 +72,24 @@ pub struct CodeAnalysis {
 impl CodeAnalysis {
     /// If the const generic J is false, jumpdests are skipped.
     #[allow(unused_variables)]
-    pub fn new<const J: bool>(code: &[u8], code_hash: Option<u256>) -> AnalysisContainer<Self> {
+    pub fn new<const JUMPDEST: bool>(
+        code: &[u8],
+        code_hash: Option<u256>,
+    ) -> AnalysisContainer<Self> {
         #[cfg(feature = "code-analysis-cache")]
         match code_hash {
             Some(code_hash) if code_hash != u256::ZERO => CODE_ANALYSIS_CACHE
                 .get_or_insert(u256Hash(code_hash), || {
-                    AnalysisContainer::new(Self::analyze_code::<J>(code))
+                    AnalysisContainer::new(Self::analyze_code::<JUMPDEST>(code))
                 }),
-            _ => AnalysisContainer::new(Self::analyze_code::<J>(code)),
+            _ => AnalysisContainer::new(Self::analyze_code::<JUMPDEST>(code)),
         }
         #[cfg(not(feature = "code-analysis-cache"))]
-        Self::analyze_code::<J>(code)
+        Self::analyze_code::<JUMPDEST>(code)
     }
 
     #[cfg(not(feature = "needs-fn-ptr-conversion"))]
-    fn analyze_code<const J: bool>(code: &[u8]) -> Self {
+    fn analyze_code<const JUMPDEST: bool>(code: &[u8]) -> Self {
         let mut code_byte_types = vec![CodeByteType::DataOrInvalid; code.len()];
 
         let mut pc = 0;
@@ -101,7 +104,7 @@ impl CodeAnalysis {
         }
     }
     #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
-    fn analyze_code<const J: bool>(code: &[u8]) -> Self {
+    fn analyze_code<const JUMPDEST: bool>(code: &[u8]) -> Self {
         let mut analysis = Vec::with_capacity(code.len());
         // +32+1 because if last op is push32 we need mapping from after converted to after code+32
         let mut pc_map = PcMap::new(code.len() + 32 + 1);
@@ -127,14 +130,14 @@ impl CodeAnalysis {
                     let avail = min(data_len, code.len() - pc);
                     data[32 - data_len..32 - data_len + avail]
                         .copy_from_slice(&code[pc..pc + avail]);
-                    analysis.push(OpFnData::func::<J>(op, data));
+                    analysis.push(OpFnData::func::<JUMPDEST>(op, data));
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
 
                     no_ops += data_len;
                     pc += data_len;
                 }
                 CodeByteType::Opcode => {
-                    analysis.push(OpFnData::func::<J>(op, u256::ZERO));
+                    analysis.push(OpFnData::func::<JUMPDEST>(op, u256::ZERO));
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
                 }
                 CodeByteType::DataOrInvalid => {
@@ -154,7 +157,7 @@ impl CodeAnalysis {
         not(feature = "fn-ptr-conversion-expanded-dispatch"),
         feature = "fn-ptr-conversion-inline-dispatch"
     ))]
-    fn analyze_code<const J: bool>(code: &[u8]) -> Self {
+    fn analyze_code<const JUMPDEST: bool>(code: &[u8]) -> Self {
         let mut analysis = Vec::with_capacity(code.len());
         // +32+1 because if last op is push32 we need mapping from after converted to after code+32
         let mut pc_map = PcMap::new(code.len() + 32 + 1);
@@ -170,7 +173,7 @@ impl CodeAnalysis {
                     pc_map.add_mapping(pc - 1, analysis.len());
                     match no_ops {
                         0 => (),
-                        1 => analysis.push(OpFnData::func::<J>(Opcode::NoOp as u8)),
+                        1 => analysis.push(OpFnData::func::<JUMPDEST>(Opcode::NoOp as u8)),
                         2.. => analysis.extend(OpFnData::skip_no_ops_iter(no_ops)),
                     }
                     no_ops = 0;
@@ -178,7 +181,7 @@ impl CodeAnalysis {
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
                 }
                 CodeByteType::Push => {
-                    analysis.push(OpFnData::func::<J>(op));
+                    analysis.push(OpFnData::func::<JUMPDEST>(op));
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
 
                     let mut capped_inc = data_len.rem_euclid(OP_FN_DATA_SIZE);
@@ -201,7 +204,7 @@ impl CodeAnalysis {
                     }
                 }
                 CodeByteType::Opcode => {
-                    analysis.push(OpFnData::func::<J>(op));
+                    analysis.push(OpFnData::func::<JUMPDEST>(op));
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
                 }
                 CodeByteType::DataOrInvalid => {
