@@ -143,8 +143,8 @@ impl<'a> Interpreter<'a> {
         |i| i.m_store8(),
         |i| i.s_load(),
         |i| i.sstore(),
-        |i| i.jump(),
-        |i| i.jump_i(),
+        |i| i.jump::<true>(),
+        |i| i.jump_i::<true>(),
         |i| i.pc(),
         |i| i.m_size(),
         |i| i.gas(),
@@ -315,6 +315,14 @@ impl<'a> Interpreter<'a> {
         |i| i.self_destruct(),
     ];
 
+    #[cfg(feature = "needs-jumptable")]
+    pub const JUMPTABLE_SKIP_JUMPDEST: [OpFn; 256] = {
+        let mut jumptable = Self::JUMPTABLE;
+        jumptable[Opcode::Jump as u8 as usize] = |i| i.jump::<false>();
+        jumptable[Opcode::JumpI as u8 as usize] = |i| i.jump_i::<false>();
+        jumptable
+    };
+
     pub fn new(
         revision: Revision,
         message: &'a ExecutionMessage,
@@ -326,7 +334,11 @@ impl<'a> Interpreter<'a> {
             message,
             context,
             revision,
-            code_reader: CodeReader::new(code, message.code_hash().map(|h| u256::from(*h)), 0),
+            code_reader: CodeReader::new::<false>(
+                code,
+                message.code_hash().map(|h| u256::from(*h)),
+                0,
+            ),
             gas_left: Gas::new(message.gas() as u64),
             gas_refund: 0,
             output: None,
@@ -355,7 +367,11 @@ impl<'a> Interpreter<'a> {
             message,
             context,
             revision,
-            code_reader: CodeReader::new(code, message.code_hash().map(|h| u256::from(*h)), pc),
+            code_reader: CodeReader::new::<true>(
+                code,
+                message.code_hash().map(|h| u256::from(*h)),
+                pc,
+            ),
             gas_left: Gas::new(message.gas() as u64),
             gas_refund,
             output: None,
@@ -366,17 +382,24 @@ impl<'a> Interpreter<'a> {
         }
     }
 
+    /// If the const generic S is false, the step check is skipped.
+    /// If the const generic J is false jumpdests are skipped.
     #[cfg(not(feature = "tail-call"))]
-    pub fn run<O: Observer>(&mut self, observer: &mut O) -> Result<(), FailStatus> {
+    pub fn run<O: Observer, const S: bool, const J: bool>(
+        &mut self,
+        observer: &mut O,
+    ) -> Result<(), FailStatus> {
         loop {
             if self.exec_status != ExecStatus::Running {
                 break;
             }
 
-            match &mut self.steps {
-                None => (),
-                Some(0) => break,
-                Some(steps) => *steps -= 1,
+            if S {
+                match &mut self.steps {
+                    None => (),
+                    Some(0) => break,
+                    Some(steps) => *steps -= 1,
+                }
             }
             let op = match self.code_reader.get() {
                 Ok(op) => op,
@@ -389,15 +412,19 @@ impl<'a> Interpreter<'a> {
                 }
             };
             observer.pre_op(self);
-            self.run_op(op)?;
+            self.run_op::<J>(op)?;
             observer.post_op(self);
         }
 
         Ok(())
     }
+    /// The const generics S and J are currently ignored when feature tail-call is enabled.
     #[cfg(feature = "tail-call")]
     #[inline(always)]
-    pub fn run<O: Observer>(&mut self, observer: &mut O) -> Result<(), FailStatus> {
+    pub fn run<O: Observer, const S: bool, const J: bool>(
+        &mut self,
+        observer: &mut O,
+    ) -> Result<(), FailStatus> {
         observer.log("feature \"tail-call\" does not support logging".into());
         self.next()
     }
@@ -419,22 +446,26 @@ impl<'a> Interpreter<'a> {
                 return Err(FailStatus::InvalidInstruction);
             }
         };
-        self.run_op(op)
+        self.run_op::<true>(op)
     }
 
     #[cfg(feature = "needs-fn-ptr-conversion")]
-    fn run_op(&mut self, op: OpFn) -> OpResult {
+    fn run_op<const J: bool>(&mut self, op: OpFn) -> OpResult {
         op(self)
     }
     #[cfg(all(
         feature = "jumptable-dispatch",
         not(feature = "needs-fn-ptr-conversion")
     ))]
-    fn run_op(&mut self, op: Opcode) -> OpResult {
-        Self::JUMPTABLE[op as u8 as usize](self)
+    fn run_op<const J: bool>(&mut self, op: Opcode) -> OpResult {
+        if J {
+            Self::JUMPTABLE[op as u8 as usize](self)
+        } else {
+            Self::JUMPTABLE_SKIP_JUMPDEST[op as u8 as usize](self)
+        }
     }
     #[cfg(not(feature = "needs-jumptable"))]
-    fn run_op(&mut self, op: Opcode) -> OpResult {
+    fn run_op<const J: bool>(&mut self, op: Opcode) -> OpResult {
         match op {
             Opcode::Stop => self.stop(),
             Opcode::Add => self.add(),
@@ -496,8 +527,8 @@ impl<'a> Interpreter<'a> {
             Opcode::MStore8 => self.m_store8(),
             Opcode::SLoad => self.s_load(),
             Opcode::SStore => self.sstore(),
-            Opcode::Jump => self.jump(),
-            Opcode::JumpI => self.jump_i(),
+            Opcode::Jump => self.jump::<J>(),
+            Opcode::JumpI => self.jump_i::<J>(),
             Opcode::Pc => self.pc(),
             Opcode::MSize => self.m_size(),
             Opcode::Gas => self.gas(),
@@ -1238,20 +1269,29 @@ impl<'a> Interpreter<'a> {
         self.return_from_op()
     }
 
-    fn jump(&mut self) -> OpResult {
-        self.gas_left.consume(8)?;
+    /// If the const generic J is false, jumpdests are skipped.
+    fn jump<const J: bool>(&mut self) -> OpResult {
+        self.gas_left.consume(if J { 8 } else { 8 + 1 })?;
         let [dest] = self.stack.pop()?;
         self.code_reader.try_jump(dest)?;
+        if !J {
+            self.code_reader.next();
+        }
         self.return_from_op()
     }
 
-    fn jump_i(&mut self) -> OpResult {
+    /// If the const generic J is false, jumpdests are skipped.
+    fn jump_i<const J: bool>(&mut self) -> OpResult {
         self.gas_left.consume(10)?;
         let [cond, dest] = self.stack.pop()?;
         if cond == u256::ZERO {
             self.code_reader.next();
         } else {
             self.code_reader.try_jump(dest)?;
+            if !J {
+                self.gas_left.consume(1)?;
+                self.code_reader.next();
+            }
         }
         self.return_from_op()
     }
@@ -1822,7 +1862,7 @@ mod tests {
         let message = MockExecutionMessage::default().into();
         let mut interpreter =
             Interpreter::new(Revision::EVMC_ISTANBUL, &message, &mut context, &[]);
-        let result = interpreter.run(&mut NoOpObserver());
+        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
         assert_eq!(interpreter.code_reader.pc(), 0);
@@ -1845,7 +1885,7 @@ mod tests {
             None,
             None,
         );
-        let result = interpreter.run(&mut NoOpObserver());
+        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
         assert_eq!(interpreter.code_reader.pc(), 1);
@@ -1871,7 +1911,7 @@ mod tests {
             None,
             None,
         )
-        .run(&mut NoOpObserver());
+        .run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_err());
         let status = result.map(|_| ()).unwrap_err();
         assert_eq!(status, FailStatus::InvalidInstruction);
@@ -1888,7 +1928,7 @@ mod tests {
             &[Opcode::Add as u8],
         );
         interpreter.steps = Some(0);
-        let result = interpreter.run(&mut NoOpObserver());
+        let result = interpreter.run::<_, true, true>(&mut NoOpObserver());
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Running);
         assert_eq!(interpreter.code_reader.pc(), 0);
@@ -1907,7 +1947,7 @@ mod tests {
         );
         interpreter.steps = Some(1);
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
-        let result = interpreter.run(&mut NoOpObserver());
+        let result = interpreter.run::<_, true, true>(&mut NoOpObserver());
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Running);
         assert_eq!(interpreter.stack.as_slice(), [3u8.into()]);
@@ -1928,7 +1968,7 @@ mod tests {
             &[Opcode::Add as u8],
         );
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
-        let result = interpreter.run(&mut NoOpObserver());
+        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
         assert_eq!(interpreter.stack.as_slice(), [3u8.into()]);
@@ -1949,7 +1989,7 @@ mod tests {
             &[Opcode::Add as u8, Opcode::Add as u8],
         );
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into(), 3u8.into()]);
-        let result = interpreter.run(&mut NoOpObserver());
+        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
         assert_eq!(interpreter.stack.as_slice(), [6u8.into()]);
@@ -1974,7 +2014,7 @@ mod tests {
             &mut context,
             &[Opcode::JumpDest as u8; 10_000_000],
         );
-        let result = interpreter.run(&mut NoOpObserver());
+        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
     }
@@ -1994,7 +2034,7 @@ mod tests {
             &[Opcode::Add as u8],
         );
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
-        let result = interpreter.run(&mut NoOpObserver());
+        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_err());
         let status = result.map(|_| ()).unwrap_err();
         assert_eq!(status, FailStatus::OutOfGas);
@@ -2082,7 +2122,7 @@ mod tests {
             None,
             None,
         );
-        let result = interpreter.run(&mut NoOpObserver());
+        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
         assert_eq!(interpreter.code_reader.pc(), 1);
