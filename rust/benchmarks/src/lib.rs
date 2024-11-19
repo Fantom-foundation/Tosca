@@ -1,5 +1,3 @@
-use core::slice;
-
 use driver::{self, get_tx_context_zeroed, host_interface::null_ptr_host_interface, Instance};
 use evmrs::{
     evmc_vm::{
@@ -277,29 +275,65 @@ impl RunArgs {
         )
     }
 
+    const fn analysis_code_len(max_len: usize, filler_len: usize) -> usize {
+        let code_start_len = 10;
+        let code_end_len = 6;
+        let filler_repetitions = (max_len - code_start_len - code_end_len) / filler_len;
+        code_start_len + filler_len * filler_repetitions + code_end_len
+    }
+
+    const fn build_analysis_code<const N: usize>(filler: &[u8]) -> [u8; N] {
+        let code_start = [96, 4, 53, 96, 0, 82, 97, 255, 255, 86];
+        let code_end = [91, 96, 32, 96, 0, 243];
+        let mut code = [0; N];
+
+        let mut i = 0;
+        while i < code_start.len() {
+            code[i] = code_start[i];
+            i += 1;
+        }
+
+        let jumpdest_idx = ((N - code_end.len()) as u16).to_be_bytes();
+        code[7] = jumpdest_idx[0];
+        code[8] = jumpdest_idx[1];
+
+        i = code_start.len();
+        while i < N - code_end.len() {
+            let mut j = 0;
+            while j < filler.len() {
+                code[i + j] = filler[j];
+                j += 1;
+            }
+            i += filler.len();
+        }
+
+        i = 0;
+        while i < code_end.len() {
+            code[N - code_end.len() + i] = code_end[i];
+            i += 1;
+        }
+
+        code
+    }
+
+    const LONG_MAX_LEN: usize = 0x6000;
+    const SHORT_MAX_LEN: usize = 100;
+
     // See go/examples/analysis.go
-    fn analysis(size: u32, filler: &[u8]) -> (Self, u32) {
+    pub fn analysis(size: u32, short_code: &'static [u8], long_code: &'static [u8]) -> (Self, u32) {
         fn analysis_ref(input: u32) -> u32 {
             input
         }
 
-        let code_start = [96, 4, 53, 96, 0, 82, 97, 255, 255, 86];
-        let code_end = [91, 96, 32, 96, 0, 243];
-        const MAX_CODE_LEN: usize = 0x6000;
-        let filler_len =
-            (MAX_CODE_LEN - code_start.len() - code_end.len()) / filler.len() * filler.len();
-        let code_len = code_start.len() + filler_len + code_end.len();
-        let mut code = vec![0; code_len];
-        code[..code_start.len()].copy_from_slice(&code_start);
-        let mut filler_iter = std::iter::repeat(filler).flatten().copied();
-        for c in &mut code[code_start.len()..code_len - code_end.len()] {
-            *c = filler_iter.next().unwrap();
-        }
-        code[code_len - code_end.len()..].copy_from_slice(&code_end);
-        let jumpdest_idx = ((code_len - code_end.len()) as u16).to_be_bytes();
-        code[7..=8].copy_from_slice(&jumpdest_idx);
-
-        let code = &*Box::leak(code.into_boxed_slice());
+        let code: &[u8] = match size as usize {
+            Self::LONG_MAX_LEN => long_code,
+            Self::SHORT_MAX_LEN => short_code,
+            _ => panic!(
+                "analysis only supports size {} or {}",
+                Self::LONG_MAX_LEN,
+                Self::SHORT_MAX_LEN
+            ),
+        };
 
         (
             Self::new(code, size, Some([204, 130, 28, 9])),
@@ -308,21 +342,63 @@ impl RunArgs {
     }
 
     pub fn jumpdest_analysis(size: u32) -> (Self, u32) {
-        Self::analysis(size, &[Opcode::JumpDest as u8])
+        const FILLER: [u8; 1] = [Opcode::JumpDest as u8];
+
+        const LONG_CODE_LEN: usize =
+            RunArgs::analysis_code_len(RunArgs::LONG_MAX_LEN, FILLER.len());
+        const LONG_CODE: [u8; LONG_CODE_LEN] = RunArgs::build_analysis_code(&FILLER);
+
+        const SHORT_CODE_LEN: usize =
+            RunArgs::analysis_code_len(RunArgs::SHORT_MAX_LEN, FILLER.len());
+        const SHORT_CODE: [u8; SHORT_CODE_LEN] = RunArgs::build_analysis_code(&FILLER);
+
+        Self::analysis(size, &SHORT_CODE, &LONG_CODE)
     }
 
     pub fn stop_analysis(size: u32) -> (Self, u32) {
-        Self::analysis(size, &[Opcode::Stop as u8])
+        const FILLER: [u8; 1] = [Opcode::Stop as u8];
+
+        const LONG_CODE_LEN: usize =
+            RunArgs::analysis_code_len(RunArgs::LONG_MAX_LEN, FILLER.len());
+        const LONG_CODE: [u8; LONG_CODE_LEN] = RunArgs::build_analysis_code(&FILLER);
+
+        const SHORT_CODE_LEN: usize =
+            RunArgs::analysis_code_len(RunArgs::SHORT_MAX_LEN, FILLER.len());
+        const SHORT_CODE: [u8; SHORT_CODE_LEN] = RunArgs::build_analysis_code(&FILLER);
+
+        Self::analysis(size, &SHORT_CODE, &LONG_CODE)
     }
 
     pub fn push1_analysis(size: u32) -> (Self, u32) {
-        Self::analysis(size, &[Opcode::Push1 as u8, 0])
+        const FILLER: [u8; 2] = [Opcode::Push1 as u8, 0];
+
+        const LONG_CODE_LEN: usize =
+            RunArgs::analysis_code_len(RunArgs::LONG_MAX_LEN, FILLER.len());
+        const LONG_CODE: [u8; LONG_CODE_LEN] = RunArgs::build_analysis_code(&FILLER);
+
+        const SHORT_CODE_LEN: usize =
+            RunArgs::analysis_code_len(RunArgs::SHORT_MAX_LEN, FILLER.len());
+        const SHORT_CODE: [u8; SHORT_CODE_LEN] = RunArgs::build_analysis_code(&FILLER);
+
+        Self::analysis(size, &SHORT_CODE, &LONG_CODE)
     }
 
     pub fn push32_analysis(size: u32) -> (Self, u32) {
-        let mut code = [0; 33];
-        code[0] = Opcode::Push32 as u8;
-        Self::analysis(size, &code)
+        const FILLER: [u8; 33] = {
+            let mut code = [0; 33];
+            code[0] = Opcode::Push32 as u8;
+            code
+        };
+
+        const LONG_CODE_LEN: usize =
+            RunArgs::analysis_code_len(RunArgs::LONG_MAX_LEN, FILLER.len());
+        const LONG_CODE: [u8; LONG_CODE_LEN] = RunArgs::build_analysis_code(&FILLER);
+
+        const SHORT_CODE_LEN: usize =
+            RunArgs::analysis_code_len(RunArgs::SHORT_MAX_LEN, FILLER.len());
+        const SHORT_CODE: [u8; SHORT_CODE_LEN] = RunArgs::build_analysis_code(&FILLER);
+
+        Self::analysis(size, &SHORT_CODE, &LONG_CODE)
     }
 
     fn new(code: &'static [u8], size: u32, func: Option<[u8; 4]>) -> Self {
@@ -384,7 +460,7 @@ pub fn run(args: &mut RunArgs) -> u32 {
         args.instance
             .run_with_null_context(&args.host, args.revision, &args.message, args.code);
     assert_eq!(result.status_code, StatusCode::EVMC_SUCCESS);
-    let output = unsafe { slice::from_raw_parts(result.output_data, result.output_size) };
+    let output = result.output.unwrap();
     assert_eq!(output.len(), 32);
     u32::from_be_bytes(output[28..32].try_into().unwrap())
 }
