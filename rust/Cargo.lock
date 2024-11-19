@@ -432,7 +432,7 @@ dependencies = [
 [[package]]
 name = "evmc-sys"
 version = "12.0.0-alpha.0"
-source = "git+https://github.com/LorenzSchueler/evmc?branch=lorenz%2Ftosca-extension#a99e1c6b9207beae7bc446dad405da12797e291d"
+source = "git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions#8a3015a1de0655d8cb71a26004caa9be4ab29eb4"
 dependencies = [
  "bindgen",
 ]
@@ -448,9 +448,9 @@ dependencies = [
 [[package]]
 name = "evmc-vm"
 version = "12.0.0-alpha.0"
-source = "git+https://github.com/LorenzSchueler/evmc?branch=lorenz%2Ftosca-extension#a99e1c6b9207beae7bc446dad405da12797e291d"
+source = "git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions#8a3015a1de0655d8cb71a26004caa9be4ab29eb4"
 dependencies = [
- "evmc-sys 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=lorenz%2Ftosca-extension)",
+ "evmc-sys 12.0.0-alpha.0 (git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions)",
 ]
 
 [[package]]
@@ -467,7 +467,7 @@ version = "0.1.0"
 dependencies = [
  "bnum",
  "driver",
- "evmc-vm 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=lorenz%2Ftosca-extension)",
+ "evmc-vm 12.0.0-alpha.0 (git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions)",
  "evmc-vm 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-execution-message-slice-output-box)",
  "evmrs",
  "llvm-profile-wrappers",
@@ -927,9 +927,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustix"
-version = "0.38.40"
+version = "0.38.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99e4ea3e1cdc4b559b8e5650f9c8e5998e3e5c1343b4eaf034565f32318d63c0"
+checksum = "d7f649912bc1495e167a6edee79151c84b1bad49748cb4f1f1167f459f6224f6"
 dependencies = [
  "bitflags",
  "errno",

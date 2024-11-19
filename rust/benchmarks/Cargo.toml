@@ -16,6 +16,7 @@ jumptable-dispatch = ["evmrs/jumptable-dispatch"]
 fn-ptr-conversion-expanded-dispatch = [
     "evmrs/fn-ptr-conversion-expanded-dispatch",
 ]
+fn-ptr-conversion-inline-dispatch = ["evmrs/fn-ptr-conversion-inline-dispatch"]
 
 [dependencies]
 evmrs = { path = ".." }

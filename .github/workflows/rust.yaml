@@ -148,7 +148,7 @@ jobs:
       working-directory: rust
       env: 
         MIRIFLAGS: "-Zmiri-disable-stacked-borrows -Zmiri-permissive-provenance -Zmiri-backtrace=full"
-      run: cargo +nightly hack miri run --package benchmarks --each-feature --exclude-features needs-cache,needs-fn-ptr-conversion,needs-jumptable,mimalloc,performance -- 1 all
+      run: cargo +nightly hack miri run --package benchmarks --each-feature --exclude-features mimalloc,performance -- 1 all-short
 
   deps:
     name: unused deps
