@@ -3,7 +3,7 @@ use std::fmt::Debug;
 #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
 use crate::u256;
 use crate::{
-    interpreter::{Interpreter, OpFn},
+    interpreter::{self, OpFn},
     types::CodeByteType,
 };
 
@@ -32,8 +32,16 @@ enum OpFnDataType {
 #[derive(Clone, PartialEq, Eq)]
 #[repr(align(8))]
 pub struct OpFnData {
-    raw: [u8; 8],
+    raw: *const (),
 }
+
+// SAFETY:
+// OpFnData only stores function pointers or [u8; 4] so it is safe to share accross threads;
+unsafe impl Send for OpFnData {}
+
+// SAFETY:
+// OpFnData only stores function pointers or [u8; 4] so it is safe to share accross threads;
+unsafe impl Sync for OpFnData {}
 
 #[cfg(all(
     not(feature = "fn-ptr-conversion-expanded-dispatch"),
@@ -46,39 +54,45 @@ impl OpFnData {
         raw[..OP_FN_DATA_SIZE].copy_from_slice(&data);
         raw[7] = OpFnDataType::DataOrInvalid as u8;
 
-        OpFnData { raw }
+        OpFnData {
+            raw: usize::from_ne_bytes(raw) as *const (),
+        }
     }
 
     pub fn skip_no_ops_iter(count: usize) -> impl Iterator<Item = Self> {
         std::iter::once(OpFnData {
-            raw: (Interpreter::SKIP_NO_OPS_FN as usize).to_ne_bytes(),
+            raw: interpreter::SKIP_NO_OPS_FN as *const (),
         })
         .chain(Some(OpFnData::data((count as u32).to_ne_bytes())))
         .chain(
             std::iter::repeat_with(move || OpFnData {
-                raw: (Interpreter::NO_OP_FN as usize).to_ne_bytes(),
+                raw: interpreter::NO_OP_FN as usize as *const (),
             })
             .take(count - 2),
         )
     }
 
     pub fn func<const JUMPDEST: bool>(op: u8) -> Self {
-        let ptr_value = Interpreter::JUMPTABLE[op as usize] as usize;
+        let ptr_value = if JUMPDEST {
+            interpreter::JUMPTABLE[op as usize]
+        } else {
+            interpreter::JUMPTABLE_SKIP_JUMPDEST[op as usize]
+        };
         OpFnData {
-            raw: ptr_value.to_ne_bytes(),
+            raw: ptr_value as *const (),
         }
     }
 
     pub fn jump_dest() -> Self {
-        let mut ptr_value = Interpreter::JUMP_DEST_FN as usize;
+        let mut ptr_value = interpreter::JUMP_DEST_FN as usize;
         ptr_value |= 0x0100000000000000; // OpFnDataType::JumpDest
         OpFnData {
-            raw: ptr_value.to_ne_bytes(),
+            raw: ptr_value as *const (),
         }
     }
 
     pub fn code_byte_type(&self) -> CodeByteType {
-        match self.raw[7] {
+        match (self.raw as usize).to_ne_bytes()[7] {
             t if t == OpFnDataType::Opcode as u8 => CodeByteType::Opcode,
             t if t == OpFnDataType::JumpDest as u8 => CodeByteType::JumpDest,
             _ => CodeByteType::DataOrInvalid,
@@ -86,16 +100,17 @@ impl OpFnData {
     }
 
     pub fn get_func(&self) -> Option<OpFn> {
-        if self.raw[7] == OpFnDataType::DataOrInvalid as u8 {
+        if (self.raw as usize).to_ne_bytes()[7] == OpFnDataType::DataOrInvalid as u8 {
             None
         } else {
-            let mut ptr_value = u64::from_ne_bytes(self.raw) as usize;
+            let mut ptr_value = self.raw as usize;
             ptr_value &= 0x0000ffffffffffff;
+            let ptr = ptr_value as *const ();
             // SAFETY:
             // During code analysis self.raw was created from a function pointer. The highest bit
             // was used for marking it as such, but was masked out. As long as only the lower 6
             // bytes are used for pointers, the value is the same as before the conversion.
-            Some(unsafe { std::mem::transmute::<usize, OpFn>(ptr_value) })
+            Some(unsafe { std::mem::transmute::<*const (), OpFn>(ptr) })
         }
     }
 
@@ -103,7 +118,7 @@ impl OpFnData {
         // SAFETY:
         // A pointer to an 8 byte array can be safely cast to a pointer to an 4 byte and then read
         // as such, because the alignment is the same and all reads are in bounds.
-        unsafe { std::ptr::read(self.raw.as_ptr() as *const [u8; OP_FN_DATA_SIZE]) }
+        unsafe { std::ptr::read(&self.raw as *const _ as *const [u8; OP_FN_DATA_SIZE]) }
     }
 }
 
@@ -132,12 +147,12 @@ impl OpFnData {
 
     pub fn skip_no_ops_iter(count: usize) -> impl Iterator<Item = Self> {
         std::iter::once(OpFnData {
-            func: Some(Interpreter::SKIP_NO_OPS_FN),
+            func: Some(interpreter::SKIP_NO_OPS_FN),
             data: (count as u64).into(),
         })
         .chain(
             std::iter::repeat_with(move || OpFnData {
-                func: Some(Interpreter::NO_OP_FN),
+                func: Some(interpreter::NO_OP_FN),
                 data: u256::ZERO,
             })
             .take(count - 1),
@@ -147,9 +162,9 @@ impl OpFnData {
     pub fn func<const JUMPDEST: bool>(op: u8, data: u256) -> Self {
         OpFnData {
             func: Some(if JUMPDEST {
-                Interpreter::JUMPTABLE[op as usize]
+                interpreter::JUMPTABLE[op as usize]
             } else {
-                Interpreter::JUMPTABLE_SKIP_JUMPDEST[op as usize]
+                interpreter::JUMPTABLE_SKIP_JUMPDEST[op as usize]
             }),
             data,
         }
@@ -157,7 +172,7 @@ impl OpFnData {
 
     pub fn jump_dest() -> Self {
         OpFnData {
-            func: Some(Interpreter::JUMP_DEST_FN),
+            func: Some(interpreter::JUMP_DEST_FN),
             data: u256::ZERO,
         }
     }
@@ -165,7 +180,7 @@ impl OpFnData {
     pub fn code_byte_type(&self) -> CodeByteType {
         match self.func {
             None => CodeByteType::DataOrInvalid,
-            Some(func) if func == Interpreter::JUMP_DEST_FN => CodeByteType::JumpDest,
+            Some(func) if func == interpreter::JUMP_DEST_FN => CodeByteType::JumpDest,
             Some(_) => CodeByteType::Opcode,
         }
     }
