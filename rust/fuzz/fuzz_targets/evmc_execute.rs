@@ -53,7 +53,7 @@ impl<'a> Arbitrary<'a> for InterpreterArgs<'a> {
                 .clone(),
             flags: u32::arbitrary(u)?,
             depth: i32::arbitrary(u)?,
-            gas: u.int_in_range(0..=500_000_000_000)?, // see go/ct/evm_fuzz_test.go
+            gas: u.int_in_range(0..=5_000_000_000)?, // see go/ct/evm_fuzz_test.go
             recipient: u256::arbitrary(u)?.into(),
             sender: u256::arbitrary(u)?.into(),
             input_data: input.as_ptr(),
@@ -165,7 +165,7 @@ impl<'a> Arbitrary<'a> for InterpreterArgs<'a> {
         context
             .expect_get_block_hash()
             .return_const(Uint256::from(u256::arbitrary(u)?));
-        let _ = context.expect_emit_log().return_const(());
+        context.expect_emit_log().return_const(());
         context.expect_access_account().return_const(
             u.choose(&[
                 AccessStatus::EVMC_ACCESS_COLD,
@@ -183,13 +183,32 @@ impl<'a> Arbitrary<'a> for InterpreterArgs<'a> {
         context
             .expect_get_transient_storage()
             .return_const(Uint256::from(u256::arbitrary(u)?));
-        let _ = context.expect_set_transient_storage().return_const(());
+        context.expect_set_transient_storage().return_const(());
 
+        let revision = u
+            .choose(&[
+                Revision::EVMC_FRONTIER,
+                Revision::EVMC_HOMESTEAD,
+                Revision::EVMC_TANGERINE_WHISTLE,
+                Revision::EVMC_SPURIOUS_DRAGON,
+                Revision::EVMC_BYZANTIUM,
+                Revision::EVMC_CONSTANTINOPLE,
+                Revision::EVMC_PETERSBURG,
+                Revision::EVMC_ISTANBUL,
+                Revision::EVMC_BERLIN,
+                Revision::EVMC_LONDON,
+                Revision::EVMC_PARIS,
+                Revision::EVMC_SHANGHAI,
+                Revision::EVMC_CANCUN,
+                Revision::EVMC_PRAGUE,
+                Revision::EVMC_OSAKA,
+            ])?
+            .clone();
         let args = Self {
             instance: Instance::default(),
             host: mocked_host_interface(),
             context,
-            revision: unsafe { std::mem::transmute(u.int_in_range(0..=14)?) },
+            revision,
             message,
             code: Arbitrary::arbitrary(u)?,
         };
