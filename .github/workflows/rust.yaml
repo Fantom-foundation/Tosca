@@ -122,6 +122,34 @@ jobs:
       working-directory: rust
       run: cargo test --profile release --features  tail-call
 
+  miri:
+    name: miri
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+    - name: install rust
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: miri
+    - name: load cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: rust
+    - name: install cargo-hack
+      run: cargo install cargo-hack
+    - name: cargo miri test
+      working-directory: rust
+      env: 
+        MIRIFLAGS: "-Zmiri-disable-stacked-borrows -Zmiri-permissive-provenance -Zmiri-backtrace=full"
+      run: cargo +nightly hack miri test --workspace --each-feature --exclude-features needs-cache,needs-fn-ptr-conversion,needs-jumptable,mimalloc,performance
+    - name: cargo miri benchmarks
+      working-directory: rust
+      env: 
+        MIRIFLAGS: "-Zmiri-disable-stacked-borrows -Zmiri-permissive-provenance -Zmiri-backtrace=full"
+      run: cargo +nightly hack miri run --package benchmarks --each-feature --exclude-features mimalloc,performance -- 1 all-short
+
   deps:
     name: unused deps
     runs-on: ubuntu-latest

@@ -6,10 +6,10 @@ use std::{
 
 use evmrs::evmc_vm::{
     ffi::{
-        evmc_host_interface, evmc_message, evmc_result, evmc_step_result, evmc_step_status_code,
-        evmc_tx_context, evmc_vm as evmc_vm_t, evmc_vm_steppable,
+        evmc_host_interface, evmc_message, evmc_step_status_code, evmc_tx_context,
+        evmc_vm as evmc_vm_t, evmc_vm_steppable,
     },
-    Address, Revision, Uint256,
+    Address, ExecutionResult, Revision, StepResult, Uint256,
 };
 
 pub mod host_interface;
@@ -103,18 +103,10 @@ impl Instance {
         message: *const evmc_message,
         code: *const u8,
         code_len: usize,
-    ) -> evmc_result {
+    ) -> ExecutionResult {
         let execute = self.execute.unwrap();
 
-        execute(
-            &mut **self,
-            host,
-            context,
-            revision,
-            message,
-            code,
-            code_len,
-        )
+        execute(self.0, host, context, revision, message, code, code_len).into()
     }
 
     /// Run the interpreter (the `execute` function) with the supplied values. This is a safe
@@ -127,7 +119,7 @@ impl Instance {
         revision: Revision,
         message: &evmc_message,
         code: &[u8],
-    ) -> evmc_result {
+    ) -> ExecutionResult {
         // SAFETY:
         // All pointer are valid since they are created from references.
         unsafe {
@@ -155,7 +147,7 @@ impl Instance {
         revision: Revision,
         message: &evmc_message,
         code: &[u8],
-    ) -> evmc_result {
+    ) -> ExecutionResult {
         // SAFETY:
         // All pointer are valid since they are created from references except for `context` which
         // is allowed to be null.
@@ -245,11 +237,11 @@ impl SteppableInstance {
         last_call_result_data: *mut u8,
         last_call_result_data_len: usize,
         steps: i32,
-    ) -> evmc_step_result {
+    ) -> StepResult {
         let step_n = self.step_n.unwrap();
 
         step_n(
-            &mut **self,
+            self.0,
             host,
             context,
             revision,
@@ -267,6 +259,7 @@ impl SteppableInstance {
             last_call_result_data_len,
             steps,
         )
+        .into()
     }
 
     /// Run the interpreter (the `step_n` function) with the supplied values. This is a safe
@@ -287,7 +280,7 @@ impl SteppableInstance {
         memory: &mut [u8],
         last_call_result_data: &mut [u8],
         steps: i32,
-    ) -> evmc_step_result {
+    ) -> StepResult {
         // SAFETY:
         // All pointer are valid since they are created from references.
         unsafe {
@@ -346,7 +339,7 @@ impl SteppableInstance {
         memory: &mut [u8],
         last_call_result_data: &mut [u8],
         steps: i32,
-    ) -> evmc_step_result {
+    ) -> StepResult {
         // SAFETY:
         // All pointer are valid since they are created from references except for `context` which
         // is allowed to be null.

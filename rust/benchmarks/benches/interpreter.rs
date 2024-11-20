@@ -30,19 +30,19 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("memory/10000", |b| {
         b.iter(|| assert_eq!(benchmarks::run(&mut args), expected))
     });
-    let (mut args, expected) = RunArgs::jumpdest_analysis(1000);
+    let (mut args, expected) = RunArgs::jumpdest_analysis(0x6000);
     c.bench_function("analysis/jumpdest", |b| {
         b.iter(|| assert_eq!(benchmarks::run(&mut args), expected))
     });
-    let (mut args, expected) = RunArgs::stop_analysis(1000);
+    let (mut args, expected) = RunArgs::stop_analysis(0x6000);
     c.bench_function("analysis/stop", |b| {
         b.iter(|| assert_eq!(benchmarks::run(&mut args), expected))
     });
-    let (mut args, expected) = RunArgs::push1_analysis(1000);
+    let (mut args, expected) = RunArgs::push1_analysis(0x6000);
     c.bench_function("analysis/push1", |b| {
         b.iter(|| assert_eq!(benchmarks::run(&mut args), expected))
     });
-    let (mut args, expected) = RunArgs::push32_analysis(1000);
+    let (mut args, expected) = RunArgs::push32_analysis(0x6000);
     c.bench_function("analysis/push32", |b| {
         b.iter(|| assert_eq!(benchmarks::run(&mut args), expected))
     });
