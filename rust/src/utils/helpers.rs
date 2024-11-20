@@ -92,27 +92,39 @@ mod tests {
     fn copy_padded() {
         let src = [];
         let mut dest = [];
-        assert_eq!(dest.copy_padded(&src, &mut Gas::new(1_000_000)), Ok(()));
+        assert_eq!(
+            dest.copy_padded(&src, &mut Gas::try_new(1_000_000).unwrap()),
+            Ok(())
+        );
 
         let src = [];
         let mut dest = [1];
-        assert_eq!(dest.copy_padded(&src, &mut Gas::new(1_000_000)), Ok(()));
+        assert_eq!(
+            dest.copy_padded(&src, &mut Gas::try_new(1_000_000).unwrap()),
+            Ok(())
+        );
         assert_eq!(dest, [0]);
 
         let src = [2];
         let mut dest = [1];
-        assert_eq!(dest.copy_padded(&src, &mut Gas::new(1_000_000)), Ok(()));
+        assert_eq!(
+            dest.copy_padded(&src, &mut Gas::try_new(1_000_000).unwrap()),
+            Ok(())
+        );
         assert_eq!(dest, [2]);
 
         let src = [3];
         let mut dest = [1, 2];
-        assert_eq!(dest.copy_padded(&src, &mut Gas::new(1_000_000)), Ok(()));
+        assert_eq!(
+            dest.copy_padded(&src, &mut Gas::try_new(1_000_000).unwrap()),
+            Ok(())
+        );
         assert_eq!(dest, [3, 0]);
 
         let src = [2];
         let mut dest = [1];
         assert_eq!(
-            dest.copy_padded(&src, &mut Gas::new(0)),
+            dest.copy_padded(&src, &mut Gas::try_new(0).unwrap()),
             Err(FailStatus::OutOfGas)
         );
     }
@@ -146,7 +158,8 @@ mod tests {
     fn check_not_read_only() {
         let message = MockExecutionMessage::default().into();
         let mut context = MockExecutionContextTrait::new();
-        let interpreter = Interpreter::new(Revision::EVMC_CANCUN, &message, &mut context, &[]);
+        let interpreter =
+            Interpreter::try_new(Revision::EVMC_CANCUN, &message, &mut context, &[]).unwrap();
         assert_eq!(utils::check_not_read_only(&interpreter), Ok(()));
 
         let message = MockExecutionMessage {
@@ -154,7 +167,8 @@ mod tests {
             ..Default::default()
         };
         let message = message.into();
-        let interpreter = Interpreter::new(Revision::EVMC_CANCUN, &message, &mut context, &[]);
+        let interpreter =
+            Interpreter::try_new(Revision::EVMC_CANCUN, &message, &mut context, &[]).unwrap();
         assert_eq!(
             utils::check_not_read_only(&interpreter),
             Err(FailStatus::StaticModeViolation)

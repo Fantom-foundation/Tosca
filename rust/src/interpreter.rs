@@ -10,7 +10,7 @@ use crate::{
         hash_cache, u256, CodeReader, ExecStatus, ExecutionContextTrait, ExecutionTxContext,
         FailStatus, GetOpcodeError, Memory, Observer, Opcode, Stack,
     },
-    utils::{check_min_revision, check_not_read_only, word_size, Gas, SliceExt},
+    utils::{check_min_revision, check_not_read_only, word_size, Gas, GasRefund, SliceExt},
 };
 
 type OpResult = Result<(), FailStatus>;
@@ -311,7 +311,7 @@ pub struct Interpreter<'a> {
     pub revision: Revision,
     pub code_reader: CodeReader<'a>,
     pub gas_left: Gas,
-    pub gas_refund: i64,
+    pub gas_refund: GasRefund,
     #[cfg(not(feature = "custom-evmc"))]
     pub output: Option<Vec<u8>>,
     #[cfg(feature = "custom-evmc")]
@@ -323,13 +323,13 @@ pub struct Interpreter<'a> {
 }
 
 impl<'a> Interpreter<'a> {
-    pub fn new(
+    pub fn try_new(
         revision: Revision,
         message: &'a ExecutionMessage,
         context: &'a mut dyn ExecutionContextTrait,
         code: &'a [u8],
-    ) -> Self {
-        Self {
+    ) -> Result<Self, FailStatus> {
+        Ok(Self {
             exec_status: ExecStatus::Running,
             message,
             context,
@@ -339,18 +339,18 @@ impl<'a> Interpreter<'a> {
                 message.code_hash().map(|h| u256::from(*h)),
                 0,
             ),
-            gas_left: Gas::new(message.gas() as u64),
-            gas_refund: 0,
+            gas_left: Gas::try_new(message.gas())?,
+            gas_refund: GasRefund::new(0),
             output: None,
             stack: Stack::new(&[]),
             memory: Memory::new(Vec::new()),
             last_call_return_data: None,
             steps: None,
-        }
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn new_steppable(
+    pub fn try_new_steppable(
         revision: Revision,
         message: &'a ExecutionMessage,
         context: &'a mut dyn ExecutionContextTrait,
@@ -361,8 +361,8 @@ impl<'a> Interpreter<'a> {
         memory: Memory,
         last_call_return_data: Option<Vec<u8>>,
         steps: Option<i32>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, FailStatus> {
+        Ok(Self {
             exec_status: ExecStatus::Running,
             message,
             context,
@@ -372,14 +372,14 @@ impl<'a> Interpreter<'a> {
                 message.code_hash().map(|h| u256::from(*h)),
                 pc,
             ),
-            gas_left: Gas::new(message.gas() as u64),
-            gas_refund,
+            gas_left: Gas::try_new(message.gas())?,
+            gas_refund: GasRefund::new(gas_refund),
             output: None,
             stack,
             memory,
             last_call_return_data,
             steps,
-        }
+        })
     }
 
     /// If the const generic S is false, the step check is skipped.
@@ -1417,7 +1417,7 @@ impl<'a> Interpreter<'a> {
 
         let destructed = self.context.selfdestruct(self.message.recipient(), &addr);
         if self.revision <= Revision::EVMC_BERLIN && destructed {
-            self.gas_refund += 24_000;
+            self.gas_refund.add(24_000)?;
         }
 
         self.exec_status = ExecStatus::Stopped;
@@ -1470,7 +1470,7 @@ impl<'a> Interpreter<'a> {
             dyn_gas += 2_100;
         }
         self.gas_left.consume(dyn_gas)?;
-        self.gas_refund += gas_refund_change;
+        self.gas_refund.add(gas_refund_change)?;
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1592,8 +1592,8 @@ impl<'a> Interpreter<'a> {
         );
         let result = self.context.call(&message);
 
-        self.gas_left.add(result.gas_left() as u64);
-        self.gas_refund += result.gas_refund();
+        self.gas_left.add(result.gas_left())?;
+        self.gas_refund.add(result.gas_refund())?;
 
         if result.status_code() == EvmcStatusCode::EVMC_SUCCESS {
             let Some(addr) = result.create_address() else {
@@ -1653,8 +1653,8 @@ impl<'a> Interpreter<'a> {
         let mut endowment = gas.into_u64_saturating();
         endowment = min(endowment, limit); // cap gas at all but one 64th of gas left
 
-        let stipend = if value == u256::ZERO { 0 } else { 2_300 };
-        self.gas_left.add(stipend);
+        let stipend: u64 = if value == u256::ZERO { 0 } else { 2_300 };
+        self.gas_left.add(stipend as i64)?;
 
         if value > u256::from(self.context.get_balance(self.message.recipient())) {
             self.last_call_return_data = None;
@@ -1705,10 +1705,10 @@ impl<'a> Interpreter<'a> {
             dest[..min_len].copy_from_slice(&output[..min_len]);
         }
 
-        self.gas_left.add(result.gas_left() as u64);
+        self.gas_left.add(result.gas_left())?;
         self.gas_left.consume(endowment)?;
         self.gas_left.consume(stipend)?;
-        self.gas_refund += result.gas_refund();
+        self.gas_refund.add(result.gas_refund())?;
 
         self.stack
             .push(result.status_code() == EvmcStatusCode::EVMC_SUCCESS)?;
@@ -1792,9 +1792,9 @@ impl<'a> Interpreter<'a> {
             dest[..min_len].copy_from_slice(&output[..min_len]);
         }
 
-        self.gas_left.add(result.gas_left() as u64);
+        self.gas_left.add(result.gas_left())?;
         self.gas_left.consume(endowment)?;
-        self.gas_refund += result.gas_refund();
+        self.gas_refund.add(result.gas_refund())?;
 
         self.stack
             .push(result.status_code() == EvmcStatusCode::EVMC_SUCCESS)?;
@@ -1818,7 +1818,7 @@ impl<'a> From<Interpreter<'a>> for StepResult {
             value.revision,
             value.code_reader.pc() as u64,
             value.gas_left.as_u64() as i64,
-            value.gas_refund,
+            value.gas_refund.as_i64(),
             value.output,
             stack,
             value.memory.into_inner(),
@@ -1832,7 +1832,7 @@ impl<'a> From<&mut Interpreter<'a>> for ExecutionResult {
         Self::new(
             value.exec_status.into(),
             value.gas_left.as_u64() as i64,
-            value.gas_refund,
+            value.gas_refund.as_i64(),
             #[cfg(not(feature = "custom-evmc"))]
             value.output.as_deref(),
             #[cfg(feature = "custom-evmc")]
@@ -1861,7 +1861,7 @@ mod tests {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
         let mut interpreter =
-            Interpreter::new(Revision::EVMC_ISTANBUL, &message, &mut context, &[]);
+            Interpreter::try_new(Revision::EVMC_ISTANBUL, &message, &mut context, &[]).unwrap();
         let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
@@ -1873,7 +1873,7 @@ mod tests {
     fn pc_after_end() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter = Interpreter::new_steppable(
+        let mut interpreter = Interpreter::try_new_steppable(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
@@ -1884,7 +1884,8 @@ mod tests {
             Memory::new(Vec::new()),
             None,
             None,
-        );
+        )
+        .unwrap();
         let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
@@ -1899,7 +1900,7 @@ mod tests {
     fn pc_on_data() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let result = Interpreter::new_steppable(
+        let result = Interpreter::try_new_steppable(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
@@ -1911,6 +1912,7 @@ mod tests {
             None,
             None,
         )
+        .unwrap()
         .run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_err());
         let status = result.map(|_| ()).unwrap_err();
@@ -1921,12 +1923,13 @@ mod tests {
     fn zero_steps() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter = Interpreter::new(
+        let mut interpreter = Interpreter::try_new(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8],
-        );
+        )
+        .unwrap();
         interpreter.steps = Some(0);
         let result = interpreter.run::<_, true, true>(&mut NoOpObserver());
         assert!(result.is_ok());
@@ -1939,12 +1942,13 @@ mod tests {
     fn add_one_step() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter = Interpreter::new(
+        let mut interpreter = Interpreter::try_new(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8, Opcode::Add as u8],
-        );
+        )
+        .unwrap();
         interpreter.steps = Some(1);
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
         let result = interpreter.run::<_, true, true>(&mut NoOpObserver());
@@ -1961,12 +1965,13 @@ mod tests {
     fn add_single_op() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter = Interpreter::new(
+        let mut interpreter = Interpreter::try_new(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8],
-        );
+        )
+        .unwrap();
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
         let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_ok());
@@ -1982,12 +1987,13 @@ mod tests {
     fn add_twice() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter = Interpreter::new(
+        let mut interpreter = Interpreter::try_new(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8, Opcode::Add as u8],
-        );
+        )
+        .unwrap();
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into(), 3u8.into()]);
         let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_ok());
@@ -2008,12 +2014,13 @@ mod tests {
     fn tail_call_elimination() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter = Interpreter::new(
+        let mut interpreter = Interpreter::try_new(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::JumpDest as u8; 10_000_000],
-        );
+        )
+        .unwrap();
         let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
@@ -2027,12 +2034,13 @@ mod tests {
             ..Default::default()
         };
         let message = message.into();
-        let mut interpreter = Interpreter::new(
+        let mut interpreter = Interpreter::try_new(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8],
-        );
+        )
+        .unwrap();
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
         let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_err());
@@ -2110,7 +2118,7 @@ mod tests {
             gas.into(),
         ];
 
-        let mut interpreter = Interpreter::new_steppable(
+        let mut interpreter = Interpreter::try_new_steppable(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
@@ -2121,7 +2129,8 @@ mod tests {
             Memory::new(memory),
             None,
             None,
-        );
+        )
+        .unwrap();
         let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
         assert!(result.is_ok());
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);

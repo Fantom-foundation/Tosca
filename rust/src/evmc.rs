@@ -42,7 +42,10 @@ impl EvmcVm for EvmRs {
             // If this is not the case it violates the EVMC spec and is an irrecoverable error.
             process::abort();
         };
-        let mut interpreter = Interpreter::new(revision, message, context, code);
+        let mut interpreter = match Interpreter::try_new(revision, message, context, code) {
+            Ok(interpreter) => interpreter,
+            Err(fail_status) => return ExecutionResult::from(fail_status),
+        };
         let run_result = match self.observer_type {
             ObserverType::NoOp => interpreter.run::<_, STEP_CHECK, JUMPDESTS>(&mut NoOpObserver()),
             ObserverType::Logging => interpreter
@@ -116,7 +119,7 @@ impl SteppableEvmcVm for EvmRs {
         };
         let stack = Stack::new(&stack.iter().map(|i| u256::from(*i)).collect::<Vec<_>>());
         let memory = Memory::new(memory.to_owned());
-        let mut interpreter = Interpreter::new_steppable(
+        let mut interpreter = match Interpreter::try_new_steppable(
             revision,
             message,
             context,
@@ -127,7 +130,10 @@ impl SteppableEvmcVm for EvmRs {
             memory,
             Some(last_call_return_data.to_owned()),
             Some(steps),
-        );
+        ) {
+            Ok(interpreter) => interpreter,
+            Err(fail_status) => return StepResult::from(fail_status),
+        };
         let run_result = match self.observer_type {
             ObserverType::NoOp => interpreter.run::<_, STEP_CHECK, JUMPDESTS>(&mut NoOpObserver()),
             ObserverType::Logging => interpreter
