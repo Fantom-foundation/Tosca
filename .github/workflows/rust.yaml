@@ -150,6 +150,25 @@ jobs:
         MIRIFLAGS: "-Zmiri-disable-stacked-borrows -Zmiri-permissive-provenance -Zmiri-backtrace=full"
       run: cargo +nightly hack miri run --package benchmarks --each-feature --exclude-features mimalloc,performance -- 1 all-short
 
+  fuzz:
+    name: fuzz
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+    - name: install rust
+      uses: dtolnay/rust-toolchain@stable
+    - name: load cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: rust
+    - name: install cargo-fuzz
+      run: cargo install cargo-fuzz
+    - name: cargo fuzz evmc execute
+      working-directory: rust
+      run: cargo fuzz run --sanitizer none evmc_execute -- -max_total_time=10
+
   deps:
     name: unused deps
     runs-on: ubuntu-latest
