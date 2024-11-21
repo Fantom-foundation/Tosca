@@ -1,0 +1,21 @@
+[package]
+name = "fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1.4.1" }
+evmrs = { path = "..", features = ["mock", "fuzzing"] }
+driver = { path = "../driver", features = ["mock"] }
+
+[[bin]]
+name = "evmc_execute"
+path = "fuzz_targets/evmc_execute.rs"
+test = false
+doc = false
+bench = false

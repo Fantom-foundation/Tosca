@@ -162,3 +162,39 @@ samply record ./target/profiling/benchmarks # this collects profiling data, open
 cargo build --package benchmarks --profile profiling
 ```
 run `./target/profiling/benchmarks` with Intel VTune 
+
+## Miri & Sanitizers
+
+### Miri
+
+[Miri](https://github.com/rust-lang/miri) *is an Undefined Behavior detection tool for Rust*. It interprets Rust mid-intermediate representation as has therefore much more information available than when executing a binary. However, that makes it also relatively slow. Furthermore, it is only available on nightly Rust, which is not a big deal because it is only used for testing anyway.
+*Because miri runs as a platform independent interpreter, it has no access to most platform-specific APIs or FFI.* It is therefore not possible to run it with a custom allocator an hence also not with feature *mimalloc* or *performance*.
+
+```sh
+# install miri
+rustup +nightly component add miri
+
+export MIRIFLAGS "-Zmiri-disable-stacked-borrows -Zmiri-permissive-provenance -Zmiri-backtrace=full"
+
+# run tests with miri
+cargo +nightly miri test
+# run benchmark binary with miri
+cargo +nightly miri run --package benchmarks -- 1 all-short
+```
+
+## Fuzzing
+
+Fuzzing is done with [libfuzzer](https://llvm.org/docs/LibFuzzer.html) an *in-process, coverage-guided, evolutionary fuzzing engine*.
+It is using the Rust binding [libfuzzer-sys](https://crates.io/crates/libfuzzer-sys) together with cargo integration [cargo fuzz](https://crates.io/crates/cargo-fuzz).
+
+```sh
+# install cargo integration
+cargo install cargo-fuzz
+
+# run fuzzer
+cargo fuzz run --sanitizer none evmc_execute
+# run fuzzer and stop after 10s
+cargo fuzz run --sanitizer none evmc_execute -- -max_total_time=10
+# run fuzzer with multiple jobs
+cargo fuzz run --jobs <jobs> --sanitizer none evmc_execute
+```

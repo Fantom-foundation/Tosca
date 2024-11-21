@@ -7,6 +7,8 @@ use std::{
     },
 };
 
+#[cfg(feature = "fuzzing")]
+use arbitrary::Arbitrary;
 use bnum::types::{I256, U256, U512};
 use evmc_vm::{Address, Uint256};
 use zerocopy::{transmute, transmute_ref, FromBytes, Immutable, IntoBytes};
@@ -14,6 +16,7 @@ use zerocopy::{transmute, transmute_ref, FromBytes, Immutable, IntoBytes};
 /// This represents a 256-bit integer. Internally it is a 32 byte array of [`u8`] in big endian.
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, FromBytes, IntoBytes, Immutable)]
+#[cfg_attr(feature = "fuzzing", derive(Arbitrary))]
 #[repr(align(8))]
 pub struct u256([u8; 32]);
 
