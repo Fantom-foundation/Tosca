@@ -1378,8 +1378,6 @@ impl<'a> Interpreter<'a> {
         let [len, offset] = self.stack.pop()?;
         let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
         let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
-        // TODO revert self changes
-        // gas_refund = original_gas_refund;
         #[cfg(not(feature = "custom-evmc"))]
         {
             self.output = Some(data.to_owned());

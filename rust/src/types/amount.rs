@@ -9,7 +9,10 @@ use std::{
 
 #[cfg(feature = "fuzzing")]
 use arbitrary::Arbitrary;
-use bnum::types::{I256, U256, U512};
+use bnum::{
+    cast::CastFrom,
+    types::{I256, U256, U512},
+};
 use evmc_vm::{Address, Uint256};
 use zerocopy::{transmute, transmute_ref, FromBytes, Immutable, IntoBytes};
 
@@ -79,44 +82,37 @@ impl From<u256> for Uint256 {
 
 impl From<U256> for u256 {
     fn from(value: U256) -> Self {
-        let be_value = value.to_be();
-        transmute!(*be_value.digits())
+        transmute!(*value.to_be().digits())
     }
 }
 
 impl From<u256> for U256 {
     fn from(value: u256) -> Self {
-        U256::from_be_slice(value.deref()).unwrap()
+        U256::from_digits(transmute!(value.0)).to_be()
     }
 }
 
 impl From<I256> for u256 {
     fn from(value: I256) -> Self {
-        let be_value = value.to_be().cast_unsigned();
-        transmute!(*be_value.digits())
+        u256::from(value.cast_unsigned())
     }
 }
 
 impl From<u256> for I256 {
     fn from(value: u256) -> Self {
-        I256::from_be_slice(value.deref()).unwrap()
+        U256::from(value).cast_signed()
     }
 }
 
 impl From<U512> for u256 {
     fn from(value: U512) -> Self {
-        // TODO bnum has to_be_bytes with feature nightly
-        let be_value = value.to_be();
-        let bytes64: [u8; 64] = transmute!(*be_value.digits());
-        let mut bytes32 = Self::ZERO;
-        bytes32.copy_from_slice(&bytes64[32..]);
-        bytes32
+        u256::from(U256::cast_from(value))
     }
 }
 
 impl From<u256> for U512 {
     fn from(value: u256) -> Self {
-        U512::from_be_slice(value.deref()).unwrap()
+        U512::cast_from(U256::from(value))
     }
 }
 
@@ -153,7 +149,7 @@ impl From<u64> for u256 {
 
 impl From<usize> for u256 {
     fn from(value: usize) -> Self {
-        (value as u64).into()
+        u256::from(value as u64)
     }
 }
 
@@ -175,9 +171,9 @@ impl From<&Address> for u256 {
 
 impl From<u256> for Address {
     fn from(value: u256) -> Self {
-        let mut bytes = [0; 20];
-        bytes.copy_from_slice(&value[32 - 20..]);
-        Address { bytes }
+        let mut addr = Address { bytes: [0; 20] };
+        addr.bytes.copy_from_slice(&value[32 - 20..]);
+        addr
     }
 }
 
