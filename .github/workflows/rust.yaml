@@ -120,7 +120,73 @@ jobs:
       run: cargo hack --workspace --each-feature --exclude-features needs-cache,needs-fn-ptr-conversion,needs-jumptable test
     - name: cargo test tail call elimination
       working-directory: rust
-      run: cargo test --profile release --features  tail-call
+      run: cargo test --profile release --features tail-call
+
+  test-with-sanitizers:
+    name: test-with-sanitizers
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+    - name: install rust
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: rust-src
+    - name: load cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: rust
+    - name: install cargo-hack
+      run: cargo install cargo-hack
+    - name: cargo test with address sanitizer
+      working-directory: rust
+      env:
+        RUSTFLAGS: -Zsanitizer=address
+      run: cargo +nightly hack --workspace --each-feature --exclude-features needs-cache,needs-fn-ptr-conversion,needs-jumptable test -Zbuild-std --target x86_64-unknown-linux-gnu
+    - name: cargo test with memory sanitizer
+      working-directory: rust
+      env:
+        RUSTFLAGS: "-Zsanitizer=memory -Zsanitizer-memory-track-origins"
+      run: cargo +nightly hack --workspace --each-feature --exclude-features needs-cache,needs-fn-ptr-conversion,needs-jumptable test -Zbuild-std --target x86_64-unknown-linux-gnu
+    - name: cargo test with leak sanitizer
+      working-directory: rust
+      env:
+        RUSTFLAGS: -Zsanitizer=thread
+      run: cargo +nightly hack --workspace --each-feature --exclude-features needs-cache,needs-fn-ptr-conversion,needs-jumptable test -Zbuild-std --target x86_64-unknown-linux-gnu
+
+  benchmarks-with-sanitizers:
+    name: benchmarks-with-sanitizers
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+    - name: install rust
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: rust-src
+    - name: load cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: rust
+    - name: install cargo-hack
+      run: cargo install cargo-hack
+    - name: cargo run benchmarks with address sanitizer
+      working-directory: rust
+      env:
+        RUSTFLAGS: -Zsanitizer=address
+      run: cargo +nightly hack --each-feature run -Zbuild-std --target x86_64-unknown-linux-gnu --package benchmarks --release -- 1 all-short
+    - name: cargo run benchmarks with memory sanitizer
+      working-directory: rust
+      env:
+        RUSTFLAGS: "-Zsanitizer=memory -Zsanitizer-memory-track-origins"
+      run: cargo +nightly hack --each-feature run -Zbuild-std --target x86_64-unknown-linux-gnu --package benchmarks --release -- 1 all-short
+    - name: cargo run benchmarks with leak sanitizer
+      working-directory: rust
+      env:
+        RUSTFLAGS: -Zsanitizer=thread
+      run: cargo +nightly hack --each-feature run -Zbuild-std --target x86_64-unknown-linux-gnu --package benchmarks --release -- 1 all-short
 
   miri:
     name: miri
