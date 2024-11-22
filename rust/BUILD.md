@@ -182,6 +182,44 @@ cargo +nightly miri test
 cargo +nightly miri run --package benchmarks -- 1 all-short
 ```
 
+### Sanitizers
+
+Rust supports various kinds of sanitizers. However, they are currently only available on nightly Rust. For more information see the [official documentation](https://doc.rust-lang.org/beta/unstable-book/compiler-flags/sanitizer.html).
+
+It is recommended to pass `--target` and `-Zbuild-std` to cargo.
+`--target` makes sure that the rustflags (for sanitizer instrumentation) are not applied to build scripts and procedural macros.
+`-Zbuild-std` rebuilds the standard library with instrumentation.
+
+Examples:
+```sh
+# required for -Zbuild-std
+rustup +nightly component add rust-src
+
+# run tests with address sanitizer
+RUSTFLAGS=-Zsanitizer=address \
+    cargo +nightly test -Zbuild-std --target x86_64-unknown-linux-gnu
+
+# run tests with memory sanitizer
+RUSTFLAGS="-Zsanitizer=memory -Zsanitizer-memory-track-origins" \
+    cargo +nightly test -Zbuild-std --target x86_64-unknown-linux-gnu
+
+# run tests with thread sanitizer
+CFLAGS=-fsanitize=thread RUSTFLAGS=-Zsanitizer=thread \
+    cargo +nightly test -Zbuild-std --target x86_64-unknown-linux-gnu
+
+# run benchmarks with address sanitizer
+RUSTFLAGS=-Zsanitizer=address \
+    cargo +nightly run -Zbuild-std --target x86_64-unknown-linux-gnu --package benchmarks -- 1 all-short
+
+# run benchmarks with memory sanitizer
+RUSTFLAGS="-Zsanitizer=memory -Zsanitizer-memory-track-origins" \
+    cargo +nightly run -Zbuild-std --target x86_64-unknown-linux-gnu --package benchmarks -- 1 all-short
+
+# run benchmarks with thread sanitizer
+CFLAGS=-fsanitize=thread RUSTFLAGS=-Zsanitizer=thread \
+    cargo +nightly run -Zbuild-std --target x86_64-unknown-linux-gnu --package benchmarks -- 1 all-short
+```
+
 ## Fuzzing
 
 Fuzzing is done with [libfuzzer](https://llvm.org/docs/LibFuzzer.html) an *in-process, coverage-guided, evolutionary fuzzing engine*.

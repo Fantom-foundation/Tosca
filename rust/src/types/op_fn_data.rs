@@ -36,11 +36,11 @@ pub struct OpFnData {
 }
 
 // SAFETY:
-// OpFnData only stores function pointers or [u8; 4] so it is safe to share accross threads;
+// OpFnData only stores function pointers or [u8; 4] so it is safe to share across threads;
 unsafe impl Send for OpFnData {}
 
 // SAFETY:
-// OpFnData only stores function pointers or [u8; 4] so it is safe to share accross threads;
+// OpFnData only stores function pointers or [u8; 4] so it is safe to share across threads;
 unsafe impl Sync for OpFnData {}
 
 #[cfg(all(
