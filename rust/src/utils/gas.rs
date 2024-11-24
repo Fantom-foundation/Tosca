@@ -45,11 +45,12 @@ impl PartialOrd<u64> for Gas {
 }
 
 impl Gas {
-    pub fn try_new(gas: i64) -> Result<Self, FailStatus> {
+    pub fn new(gas: i64) -> Self {
         if gas < 0 {
-            return Err(FailStatus::OutOfGas);
+            Self(0)
+        } else {
+            Self(gas as u64)
         }
-        Ok(Self(gas as u64))
     }
 
     pub fn as_u64(&self) -> u64 {
@@ -133,30 +134,30 @@ mod tests {
 
     #[test]
     fn consume_gas() {
-        let mut gas_left = Gas::try_new(1).unwrap();
+        let mut gas_left = Gas::new(1);
         assert_eq!(gas_left.consume(0), Ok(()));
         assert_eq!(gas_left, 1);
 
-        let mut gas_left = Gas::try_new(1).unwrap();
+        let mut gas_left = Gas::new(1);
         assert_eq!(gas_left.consume(1), Ok(()));
         assert_eq!(gas_left, 0);
 
-        let mut gas_left = Gas::try_new(1).unwrap();
+        let mut gas_left = Gas::new(1);
         assert_eq!(gas_left.consume(2), Err(FailStatus::OutOfGas));
         assert_eq!(gas_left, 1);
     }
 
     #[test]
     fn consume_positive_value_cost() {
-        let mut gas_left = Gas::try_new(1).unwrap();
+        let mut gas_left = Gas::new(1);
         assert_eq!(gas_left.consume_positive_value_cost(&u256::ZERO), Ok(()));
         assert_eq!(gas_left, 1);
 
-        let mut gas_left = Gas::try_new(9_000).unwrap();
+        let mut gas_left = Gas::new(9_000);
         assert_eq!(gas_left.consume_positive_value_cost(&u256::ONE), Ok(()));
         assert_eq!(gas_left, 0);
 
-        let mut gas_left = Gas::try_new(1).unwrap();
+        let mut gas_left = Gas::new(1);
         assert_eq!(
             gas_left.consume_positive_value_cost(&u256::ONE),
             Err(FailStatus::OutOfGas)
@@ -190,14 +191,13 @@ mod tests {
                 .with(predicate::eq(addr))
                 .return_const(exists);
 
-            let mut interpreter = Interpreter::try_new(
+            let mut interpreter = Interpreter::new(
                 Revision::EVMC_ISTANBUL,
                 &message,
                 &mut context,
                 &[Opcode::Call as u8],
-            )
-            .unwrap();
-            interpreter.gas_left = Gas::try_new(if consume { 25_000 } else { 0 }).unwrap();
+            );
+            interpreter.gas_left = Gas::new(if consume { 25_000 } else { 0 });
 
             assert_eq!(
                 interpreter.gas_left.consume_value_to_empty_account_cost(
@@ -210,7 +210,7 @@ mod tests {
             assert_eq!(interpreter.gas_left, 0);
 
             if consume {
-                interpreter.gas_left = Gas::try_new(0).unwrap();
+                interpreter.gas_left = Gas::new(0);
 
                 assert_eq!(
                     interpreter.gas_left.consume_value_to_empty_account_cost(
@@ -230,17 +230,17 @@ mod tests {
             (
                 Revision::EVMC_ISTANBUL,
                 AccessStatus::EVMC_ACCESS_COLD,
-                Gas::try_new(0).unwrap(),
+                Gas::new(0),
             ),
             (
                 Revision::EVMC_BERLIN,
                 AccessStatus::EVMC_ACCESS_COLD,
-                Gas::try_new(2_600).unwrap(),
+                Gas::new(2_600),
             ),
             (
                 Revision::EVMC_BERLIN,
                 AccessStatus::EVMC_ACCESS_WARM,
-                Gas::try_new(100).unwrap(),
+                Gas::new(100),
             ),
         ];
         for (revision, access_status, gas) in cases {
@@ -259,8 +259,7 @@ mod tests {
                 .return_const(access_status);
 
             let mut interpreter =
-                Interpreter::try_new(revision, &message, &mut context, &[Opcode::Call as u8])
-                    .unwrap();
+                Interpreter::new(revision, &message, &mut context, &[Opcode::Call as u8]);
             interpreter.gas_left = gas;
 
             assert_eq!(
@@ -277,27 +276,27 @@ mod tests {
 
     #[test]
     fn consume_copy_cost() {
-        let mut gas_left = Gas::try_new(1).unwrap();
+        let mut gas_left = Gas::new(1);
         assert_eq!(gas_left.consume_copy_cost(0), Ok(()));
         assert_eq!(gas_left, 1);
 
-        let mut gas_left = Gas::try_new(3).unwrap();
+        let mut gas_left = Gas::new(3);
         assert_eq!(gas_left.consume_copy_cost(1), Ok(()));
         assert_eq!(gas_left, 0);
 
-        let mut gas_left = Gas::try_new(3).unwrap();
+        let mut gas_left = Gas::new(3);
         assert_eq!(gas_left.consume_copy_cost(32), Ok(()));
         assert_eq!(gas_left, 0);
 
-        let mut gas_left = Gas::try_new(6).unwrap();
+        let mut gas_left = Gas::new(6);
         assert_eq!(gas_left.consume_copy_cost(33), Ok(()));
         assert_eq!(gas_left, 0);
 
-        let mut gas_left = Gas::try_new(2).unwrap();
+        let mut gas_left = Gas::new(2);
         assert_eq!(gas_left.consume_copy_cost(1), Err(FailStatus::OutOfGas));
         assert_eq!(gas_left, 2);
 
-        let mut gas_left = Gas::try_new(2).unwrap();
+        let mut gas_left = Gas::new(2);
         assert_eq!(
             gas_left.consume_copy_cost(u64::MAX),
             Err(FailStatus::OutOfGas)
