@@ -20,7 +20,7 @@ use zerocopy::{transmute, transmute_ref, FromBytes, Immutable, IntoBytes};
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, FromBytes, IntoBytes, Immutable)]
 #[cfg_attr(feature = "fuzzing", derive(Arbitrary))]
-#[repr(align(8))]
+#[repr(align(16))] // 16 byte alignment is faster than 1, 8 or 32 byte alignment on x86-64.
 pub struct u256([u8; 32]);
 
 impl Deref for u256 {
