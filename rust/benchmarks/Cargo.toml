@@ -6,7 +6,7 @@ edition = "2021"
 [features]
 performance = ["evmrs/performance"]
 mimalloc = ["evmrs/mimalloc"]
-stack-array = ["evmrs/stack-array"]
+unsafe-stack = ["evmrs/unsafe-stack"]
 custom-evmc = ["evmrs/custom-evmc"]
 hash-cache = ["evmrs/hash-cache"]
 code-analysis-cache = ["evmrs/code-analysis-cache"]

@@ -26,7 +26,7 @@ needs-cache = ["dep:lru"]
 # optimizations:
 performance = [
     "mimalloc",
-    "stack-array",
+    "unsafe-stack",
     "custom-evmc",
     "hash-cache",
     "code-analysis-cache",
@@ -35,7 +35,7 @@ performance = [
     "fn-ptr-conversion-expanded-dispatch",
 ]
 mimalloc = ["dep:mimalloc"]
-stack-array = []
+unsafe-stack = []
 custom-evmc = ["dep:evmc-vm-tosca-refactor"]
 hash-cache = ["needs-cache"]
 code-analysis-cache = ["dep:nohash-hasher", "needs-cache"]
