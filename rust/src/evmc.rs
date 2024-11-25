@@ -42,16 +42,14 @@ impl EvmcVm for EvmRs {
             // If this is not the case it violates the EVMC spec and is an irrecoverable error.
             process::abort();
         };
-        let mut interpreter = Interpreter::new(revision, message, context, code);
-        let run_result = match self.observer_type {
-            ObserverType::NoOp => interpreter.run::<_, STEP_CHECK, JUMPDESTS>(&mut NoOpObserver()),
+        let interpreter = Interpreter::new(revision, message, context, code);
+        match self.observer_type {
+            ObserverType::NoOp => {
+                interpreter.run::<_, _, STEP_CHECK, JUMPDESTS>(&mut NoOpObserver())
+            }
             ObserverType::Logging => interpreter
-                .run::<_, STEP_CHECK, JUMPDESTS>(&mut LoggingObserver::new(std::io::stdout())),
-        };
-        if let Err(status_code) = run_result {
-            return ExecutionResult::from(status_code);
+                .run::<_, _, STEP_CHECK, JUMPDESTS>(&mut LoggingObserver::new(std::io::stdout())),
         }
-        ExecutionResult::from(&mut interpreter)
     }
 
     fn set_option(&mut self, key: &str, value: &str) -> Result<(), evmc_vm::SetOptionError> {
@@ -116,7 +114,7 @@ impl SteppableEvmcVm for EvmRs {
         };
         let stack = Stack::new(&stack.iter().map(|i| u256::from(*i)).collect::<Vec<_>>());
         let memory = Memory::new(memory.to_owned());
-        let mut interpreter = Interpreter::new_steppable(
+        let interpreter = Interpreter::new_steppable(
             revision,
             message,
             context,
@@ -128,14 +126,12 @@ impl SteppableEvmcVm for EvmRs {
             Some(last_call_return_data.to_owned()),
             Some(steps),
         );
-        let run_result = match self.observer_type {
-            ObserverType::NoOp => interpreter.run::<_, STEP_CHECK, JUMPDESTS>(&mut NoOpObserver()),
+        match self.observer_type {
+            ObserverType::NoOp => {
+                interpreter.run::<_, _, STEP_CHECK, JUMPDESTS>(&mut NoOpObserver())
+            }
             ObserverType::Logging => interpreter
-                .run::<_, STEP_CHECK, JUMPDESTS>(&mut LoggingObserver::new(std::io::stdout())),
-        };
-        if let Err(status_code) = run_result {
-            return StepResult::from(status_code);
+                .run::<_, _, STEP_CHECK, JUMPDESTS>(&mut LoggingObserver::new(std::io::stdout())),
         }
-        interpreter.into()
     }
 }

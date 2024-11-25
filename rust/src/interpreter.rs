@@ -2,7 +2,7 @@ use std::cmp::min;
 
 use evmc_vm::{
     AccessStatus, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
-    StatusCode as EvmcStatusCode, StepResult, StorageStatus, Uint256,
+    StatusCode, StepResult, StorageStatus, Uint256,
 };
 
 use crate::{
@@ -385,10 +385,11 @@ impl<'a> Interpreter<'a> {
     /// If the const generic S is false, the step check is skipped.
     /// If the const generic J is false jumpdests are skipped.
     #[cfg(not(feature = "tail-call"))]
-    pub fn run<O: Observer, const STEP_CHECK: bool, const JUMPDEST: bool>(
-        &mut self,
-        observer: &mut O,
-    ) -> Result<(), FailStatus> {
+    pub fn run<O, R, const STEP_CHECK: bool, const JUMPDEST: bool>(mut self, observer: &mut O) -> R
+    where
+        O: Observer,
+        R: From<Self> + From<FailStatus>,
+    {
         loop {
             if self.exec_status != ExecStatus::Running {
                 break;
@@ -408,29 +409,35 @@ impl<'a> Interpreter<'a> {
                     break;
                 }
                 Err(GetOpcodeError::Invalid) => {
-                    return Err(FailStatus::InvalidInstruction);
+                    return FailStatus::InvalidInstruction.into();
                 }
             };
-            observer.pre_op(self);
-            self.run_op::<JUMPDEST>(op)?;
-            observer.post_op(self);
+            observer.pre_op(&self);
+            if let Err(err) = self.run_op::<JUMPDEST>(op) {
+                return err.into();
+            }
+            observer.post_op(&self);
         }
 
-        Ok(())
+        self.into()
     }
     /// The const generics S and J are currently ignored when feature tail-call is enabled.
     #[cfg(feature = "tail-call")]
     #[inline(always)]
-    pub fn run<O: Observer, const STEP_CHECK: bool, const JUMPDEST: bool>(
-        &mut self,
-        observer: &mut O,
-    ) -> Result<(), FailStatus> {
+    pub fn run<O, R, const STEP_CHECK: bool, const JUMPDEST: bool>(mut self, observer: &mut O) -> R
+    where
+        O: Observer,
+        R: From<Self> + From<FailStatus>,
+    {
         observer.log("feature \"tail-call\" does not support logging".into());
-        self.next()
+        if let Err(err) = self.next() {
+            return err.into();
+        }
+        self.into()
     }
     #[cfg(feature = "tail-call")]
     #[inline(always)]
-    pub fn next(&mut self) -> Result<(), FailStatus> {
+    pub fn next(&mut self) -> OpResult {
         match &mut self.steps {
             None => (),
             Some(0) => return Ok(()),
@@ -1593,7 +1600,7 @@ impl<'a> Interpreter<'a> {
         self.gas_left.add(result.gas_left())?;
         self.gas_refund.add(result.gas_refund())?;
 
-        if result.status_code() == EvmcStatusCode::EVMC_SUCCESS {
+        if result.status_code() == StatusCode::EVMC_SUCCESS {
             let Some(addr) = result.create_address() else {
                 return Err(FailStatus::InternalError);
             };
@@ -1709,7 +1716,7 @@ impl<'a> Interpreter<'a> {
         self.gas_refund.add(result.gas_refund())?;
 
         self.stack
-            .push(result.status_code() == EvmcStatusCode::EVMC_SUCCESS)?;
+            .push(result.status_code() == StatusCode::EVMC_SUCCESS)?;
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1795,7 +1802,7 @@ impl<'a> Interpreter<'a> {
         self.gas_refund.add(result.gas_refund())?;
 
         self.stack
-            .push(result.status_code() == EvmcStatusCode::EVMC_SUCCESS)?;
+            .push(result.status_code() == StatusCode::EVMC_SUCCESS)?;
         self.code_reader.next();
         self.return_from_op()
     }
@@ -1812,7 +1819,7 @@ impl<'a> From<Interpreter<'a>> for StepResult {
             .collect();
         Self::new(
             value.exec_status.into(),
-            EvmcStatusCode::EVMC_SUCCESS,
+            StatusCode::EVMC_SUCCESS,
             value.revision,
             value.code_reader.pc() as u64,
             value.gas_left.as_u64() as i64,
@@ -1825,8 +1832,8 @@ impl<'a> From<Interpreter<'a>> for StepResult {
     }
 }
 
-impl<'a> From<&mut Interpreter<'a>> for ExecutionResult {
-    fn from(value: &mut Interpreter) -> Self {
+impl<'a> From<Interpreter<'a>> for ExecutionResult {
+    fn from(value: Interpreter) -> Self {
         Self::new(
             value.exec_status.into(),
             value.gas_left.as_u64() as i64,
@@ -1834,7 +1841,7 @@ impl<'a> From<&mut Interpreter<'a>> for ExecutionResult {
             #[cfg(not(feature = "custom-evmc"))]
             value.output.as_deref(),
             #[cfg(feature = "custom-evmc")]
-            value.output.take(),
+            value.output,
         )
     }
 }
@@ -1842,15 +1849,16 @@ impl<'a> From<&mut Interpreter<'a>> for ExecutionResult {
 #[cfg(test)]
 mod tests {
     use evmc_vm::{
-        Address, ExecutionResult, MessageKind, Revision, StatusCode as EvmcStatusCode, Uint256,
+        Address, ExecutionResult, MessageKind, Revision, StatusCode, StepResult, StepStatusCode,
+        Uint256,
     };
     use mockall::predicate;
 
     use crate::{
         interpreter::Interpreter,
         types::{
-            u256, ExecStatus, FailStatus, Memory, MockExecutionContextTrait, MockExecutionMessage,
-            NoOpObserver, Opcode, Stack,
+            u256, Memory, MockExecutionContextTrait, MockExecutionMessage, NoOpObserver, Opcode,
+            Stack,
         },
     };
 
@@ -1858,20 +1866,21 @@ mod tests {
     fn empty_code() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter =
-            Interpreter::new(Revision::EVMC_ISTANBUL, &message, &mut context, &[]);
-        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_ok());
-        assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
-        assert_eq!(interpreter.code_reader.pc(), 0);
-        assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
+        let interpreter = Interpreter::new(Revision::EVMC_ISTANBUL, &message, &mut context, &[]);
+        let result: StepResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
+        assert_eq!(result.pc, 0);
+        assert_eq!(
+            result.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS as i64
+        );
     }
 
     #[test]
     fn pc_after_end() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter = Interpreter::new_steppable(
+        let interpreter = Interpreter::new_steppable(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
@@ -1883,11 +1892,13 @@ mod tests {
             None,
             None,
         );
-        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_ok());
-        assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
-        assert_eq!(interpreter.code_reader.pc(), 1);
-        assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
+        let result: StepResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
+        assert_eq!(result.pc, 1);
+        assert_eq!(
+            result.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS as i64
+        );
     }
 
     // when features "fn-ptr-conversion-expanded-dispatch"  or
@@ -1897,7 +1908,7 @@ mod tests {
     fn pc_on_data() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let result = Interpreter::new_steppable(
+        let result: ExecutionResult = Interpreter::new_steppable(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
@@ -1909,10 +1920,8 @@ mod tests {
             None,
             None,
         )
-        .run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_err());
-        let status = result.map(|_| ()).unwrap_err();
-        assert_eq!(status, FailStatus::InvalidInstruction);
+        .run::<_, _, false, false>(&mut NoOpObserver());
+        assert_eq!(result.status_code, StatusCode::EVMC_INVALID_INSTRUCTION);
     }
 
     #[test]
@@ -1926,11 +1935,13 @@ mod tests {
             &[Opcode::Add as u8],
         );
         interpreter.steps = Some(0);
-        let result = interpreter.run::<_, true, true>(&mut NoOpObserver());
-        assert!(result.is_ok());
-        assert_eq!(interpreter.exec_status, ExecStatus::Running);
-        assert_eq!(interpreter.code_reader.pc(), 0);
-        assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
+        let result: StepResult = interpreter.run::<_, _, true, true>(&mut NoOpObserver());
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_RUNNING);
+        assert_eq!(result.pc, 0);
+        assert_eq!(
+            result.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS as i64
+        );
     }
 
     #[test]
@@ -1945,13 +1956,12 @@ mod tests {
         );
         interpreter.steps = Some(1);
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
-        let result = interpreter.run::<_, true, true>(&mut NoOpObserver());
-        assert!(result.is_ok());
-        assert_eq!(interpreter.exec_status, ExecStatus::Running);
-        assert_eq!(interpreter.stack.as_slice(), [3u8.into()]);
+        let result: StepResult = interpreter.run::<_, _, true, true>(&mut NoOpObserver());
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_RUNNING);
+        assert_eq!(result.stack.as_slice(), [u256::from(3u8).into()]);
         assert_eq!(
-            interpreter.gas_left,
-            MockExecutionMessage::DEFAULT_INIT_GAS - 3
+            result.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS as i64 - 3
         );
     }
 
@@ -1966,13 +1976,12 @@ mod tests {
             &[Opcode::Add as u8],
         );
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
-        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_ok());
-        assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
-        assert_eq!(interpreter.stack.as_slice(), [3u8.into()]);
+        let result: StepResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
+        assert_eq!(result.stack.as_slice(), [u256::from(3u8).into()]);
         assert_eq!(
-            interpreter.gas_left,
-            MockExecutionMessage::DEFAULT_INIT_GAS - 3
+            result.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS as i64 - 3
         );
     }
 
@@ -1987,13 +1996,12 @@ mod tests {
             &[Opcode::Add as u8, Opcode::Add as u8],
         );
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into(), 3u8.into()]);
-        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_ok());
-        assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
-        assert_eq!(interpreter.stack.as_slice(), [6u8.into()]);
+        let result: StepResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
+        assert_eq!(result.stack.as_slice(), [u256::from(6u8).into()]);
         assert_eq!(
-            interpreter.gas_left,
-            MockExecutionMessage::DEFAULT_INIT_GAS - 2 * 3
+            result.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS as i64 - 2 * 3
         );
     }
 
@@ -2012,9 +2020,8 @@ mod tests {
             &mut context,
             &[Opcode::JumpDest as u8; 10_000_000],
         );
-        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_ok());
-        assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
+        let result: StepResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
     }
 
     #[test]
@@ -2032,10 +2039,8 @@ mod tests {
             &[Opcode::Add as u8],
         );
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
-        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_err());
-        let status = result.map(|_| ()).unwrap_err();
-        assert_eq!(status, FailStatus::OutOfGas);
+        let result: ExecutionResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        assert_eq!(result.status_code, StatusCode::EVMC_OUT_OF_GAS);
     }
 
     #[test]
@@ -2086,10 +2091,10 @@ mod tests {
             })
             .returning(move |_| {
                 #[cfg(not(feature = "custom-evmc"))]
-                return ExecutionResult::new(EvmcStatusCode::EVMC_SUCCESS, 0, 0, Some(&ret_data));
+                return ExecutionResult::new(StatusCode::EVMC_SUCCESS, 0, 0, Some(&ret_data));
                 #[cfg(feature = "custom-evmc")]
                 return ExecutionResult::new(
-                    EvmcStatusCode::EVMC_SUCCESS,
+                    StatusCode::EVMC_SUCCESS,
                     0,
                     0,
                     Some(Box::from(ret_data.as_slice())),
@@ -2108,7 +2113,7 @@ mod tests {
             gas.into(),
         ];
 
-        let mut interpreter = Interpreter::new_steppable(
+        let interpreter = Interpreter::new_steppable(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
@@ -2120,20 +2125,19 @@ mod tests {
             None,
             None,
         );
-        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_ok());
-        assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
-        assert_eq!(interpreter.code_reader.pc(), 1);
+        let result: StepResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
+        assert_eq!(result.pc, 1);
         assert_eq!(
-            interpreter.gas_left,
-            MockExecutionMessage::DEFAULT_INIT_GAS - 700 - gas
+            result.gas_left,
+            MockExecutionMessage::DEFAULT_INIT_GAS as i64 - 700 - gas as i64
         );
         assert_eq!(
-            interpreter.last_call_return_data.as_deref(),
+            result.last_call_return_data.as_deref(),
             Some(ret_data.as_slice())
         );
         assert_eq!(
-            &interpreter.memory.into_inner()[ret_offset..ret_offset + ret_len],
+            &result.memory[ret_offset..ret_offset + ret_len],
             ret_data.as_slice()
         );
     }
