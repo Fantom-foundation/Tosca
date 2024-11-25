@@ -386,9 +386,9 @@ impl<'a> Interpreter<'a> {
     /// If the const generic J is false jumpdests are skipped.
     #[cfg(not(feature = "tail-call"))]
     pub fn run<O: Observer, const STEP_CHECK: bool, const JUMPDEST: bool>(
-        &mut self,
+        mut self,
         observer: &mut O,
-    ) -> Result<(), FailStatus> {
+    ) -> Result<Self, FailStatus> {
         loop {
             if self.exec_status != ExecStatus::Running {
                 break;
@@ -411,22 +411,23 @@ impl<'a> Interpreter<'a> {
                     return Err(FailStatus::InvalidInstruction);
                 }
             };
-            observer.pre_op(self);
+            observer.pre_op(&self);
             self.run_op::<JUMPDEST>(op)?;
-            observer.post_op(self);
+            observer.post_op(&self);
         }
 
-        Ok(())
+        Ok(self)
     }
     /// The const generics S and J are currently ignored when feature tail-call is enabled.
     #[cfg(feature = "tail-call")]
     #[inline(always)]
     pub fn run<O: Observer, const STEP_CHECK: bool, const JUMPDEST: bool>(
-        &mut self,
+        mut self,
         observer: &mut O,
-    ) -> Result<(), FailStatus> {
+    ) -> Result<Self, FailStatus> {
         observer.log("feature \"tail-call\" does not support logging".into());
-        self.next()
+        self.next()?;
+        Ok(self)
     }
     #[cfg(feature = "tail-call")]
     #[inline(always)]
@@ -1825,8 +1826,8 @@ impl<'a> From<Interpreter<'a>> for StepResult {
     }
 }
 
-impl<'a> From<&mut Interpreter<'a>> for ExecutionResult {
-    fn from(value: &mut Interpreter) -> Self {
+impl<'a> From<Interpreter<'a>> for ExecutionResult {
+    fn from(value: Interpreter) -> Self {
         Self::new(
             value.exec_status.into(),
             value.gas_left.as_u64() as i64,
@@ -1834,7 +1835,7 @@ impl<'a> From<&mut Interpreter<'a>> for ExecutionResult {
             #[cfg(not(feature = "custom-evmc"))]
             value.output.as_deref(),
             #[cfg(feature = "custom-evmc")]
-            value.output.take(),
+            value.output,
         )
     }
 }
@@ -1858,10 +1859,10 @@ mod tests {
     fn empty_code() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter =
-            Interpreter::new(Revision::EVMC_ISTANBUL, &message, &mut context, &[]);
-        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_ok());
+        let interpreter = Interpreter::new(Revision::EVMC_ISTANBUL, &message, &mut context, &[]);
+        let interpreter = interpreter
+            .run::<_, false, false>(&mut NoOpObserver())
+            .unwrap();
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
         assert_eq!(interpreter.code_reader.pc(), 0);
         assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
@@ -1871,7 +1872,7 @@ mod tests {
     fn pc_after_end() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter = Interpreter::new_steppable(
+        let interpreter = Interpreter::new_steppable(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
@@ -1883,8 +1884,9 @@ mod tests {
             None,
             None,
         );
-        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_ok());
+        let interpreter = interpreter
+            .run::<_, false, false>(&mut NoOpObserver())
+            .unwrap();
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
         assert_eq!(interpreter.code_reader.pc(), 1);
         assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
@@ -1926,8 +1928,9 @@ mod tests {
             &[Opcode::Add as u8],
         );
         interpreter.steps = Some(0);
-        let result = interpreter.run::<_, true, true>(&mut NoOpObserver());
-        assert!(result.is_ok());
+        let interpreter = interpreter
+            .run::<_, true, true>(&mut NoOpObserver())
+            .unwrap();
         assert_eq!(interpreter.exec_status, ExecStatus::Running);
         assert_eq!(interpreter.code_reader.pc(), 0);
         assert_eq!(interpreter.gas_left, MockExecutionMessage::DEFAULT_INIT_GAS);
@@ -1945,8 +1948,9 @@ mod tests {
         );
         interpreter.steps = Some(1);
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
-        let result = interpreter.run::<_, true, true>(&mut NoOpObserver());
-        assert!(result.is_ok());
+        let interpreter = interpreter
+            .run::<_, true, true>(&mut NoOpObserver())
+            .unwrap();
         assert_eq!(interpreter.exec_status, ExecStatus::Running);
         assert_eq!(interpreter.stack.as_slice(), [3u8.into()]);
         assert_eq!(
@@ -1966,8 +1970,9 @@ mod tests {
             &[Opcode::Add as u8],
         );
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
-        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_ok());
+        let interpreter = interpreter
+            .run::<_, false, false>(&mut NoOpObserver())
+            .unwrap();
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
         assert_eq!(interpreter.stack.as_slice(), [3u8.into()]);
         assert_eq!(
@@ -1987,8 +1992,9 @@ mod tests {
             &[Opcode::Add as u8, Opcode::Add as u8],
         );
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into(), 3u8.into()]);
-        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_ok());
+        let interpreter = interpreter
+            .run::<_, false, false>(&mut NoOpObserver())
+            .unwrap();
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
         assert_eq!(interpreter.stack.as_slice(), [6u8.into()]);
         assert_eq!(
@@ -2108,7 +2114,7 @@ mod tests {
             gas.into(),
         ];
 
-        let mut interpreter = Interpreter::new_steppable(
+        let interpreter = Interpreter::new_steppable(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
@@ -2120,8 +2126,9 @@ mod tests {
             None,
             None,
         );
-        let result = interpreter.run::<_, false, false>(&mut NoOpObserver());
-        assert!(result.is_ok());
+        let interpreter = interpreter
+            .run::<_, false, false>(&mut NoOpObserver())
+            .unwrap();
         assert_eq!(interpreter.exec_status, ExecStatus::Stopped);
         assert_eq!(interpreter.code_reader.pc(), 1);
         assert_eq!(
