@@ -384,6 +384,7 @@ impl<'a> Interpreter<'a> {
 
     /// If the const generic S is false, the step check is skipped.
     /// If the const generic J is false jumpdests are skipped.
+    /// R is expected to be [ExecutionResult] or [StepResult].
     #[cfg(not(feature = "tail-call"))]
     pub fn run<O, R, const STEP_CHECK: bool, const JUMPDEST: bool>(mut self, observer: &mut O) -> R
     where
@@ -422,6 +423,7 @@ impl<'a> Interpreter<'a> {
         self.into()
     }
     /// The const generics S and J are currently ignored when feature tail-call is enabled.
+    /// R is expected to be [ExecutionResult] or [StepResult].
     #[cfg(feature = "tail-call")]
     #[inline(always)]
     pub fn run<O, R, const STEP_CHECK: bool, const JUMPDEST: bool>(mut self, observer: &mut O) -> R
