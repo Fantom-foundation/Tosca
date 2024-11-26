@@ -3,8 +3,12 @@ use std::fmt::Debug;
 #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
 use crate::u256;
 use crate::{
-    interpreter::{self, OpFn},
+    interpreter::{
+        self, OpFn, JUMPTABLE_NO_STEPCHECK_JUMPDEST, JUMPTABLE_NO_STEPCHECK_NO_JUMPDEST,
+        JUMPTABLE_STEPCHECK_JUMPDEST, JUMPTABLE_STEPCHECK_NO_JUMPDEST,
+    },
     types::CodeByteType,
+    Opcode,
 };
 
 #[cfg(all(
@@ -37,11 +41,11 @@ pub struct OpFnData {
 
 // SAFETY:
 // OpFnData only stores function pointers or [u8; 4] so it is safe to share across threads;
-unsafe impl Send for OpFnData {}
+unsafe impl<const STEP_CHECK: bool, const JUMPDEST: bool> Send for OpFnData<STEP_CHECK, JUMPDEST> {}
 
 // SAFETY:
 // OpFnData only stores function pointers or [u8; 4] so it is safe to share across threads;
-unsafe impl Sync for OpFnData {}
+unsafe impl<const STEP_CHECK: bool, const JUMPDEST: bool> Sync for OpFnData<STEP_CHECK, JUMPDEST> {}
 
 #[cfg(all(
     not(feature = "fn-ptr-conversion-expanded-dispatch"),
@@ -134,58 +138,58 @@ impl Debug for OpFnData {
 
 #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
 #[derive(Clone, PartialEq, Eq)]
-pub struct OpFnData {
-    func: Option<OpFn>,
+pub struct OpFnData<const STEP_CHECK: bool, const JUMPDEST: bool> {
+    func: Option<OpFn<STEP_CHECK, JUMPDEST>>,
     data: u256,
 }
 
 #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
-impl OpFnData {
+impl<const STEP_CHECK: bool, const JUMPDEST: bool> OpFnData<STEP_CHECK, JUMPDEST> {
     pub fn data(data: u256) -> Self {
         OpFnData { func: None, data }
     }
 
     pub fn skip_no_ops_iter(count: usize) -> impl Iterator<Item = Self> {
-        std::iter::once(OpFnData {
-            func: Some(interpreter::SKIP_NO_OPS_FN),
-            data: (count as u64).into(),
-        })
-        .chain(
-            std::iter::repeat_with(move || OpFnData {
-                func: Some(interpreter::NO_OP_FN),
-                data: u256::ZERO,
-            })
-            .take(count - 1),
-        )
+        let skip_no_ops = Self::func(Opcode::SkipNoOps as u8, (count as u64).into());
+        let gen_no_ops = move || Self::func(Opcode::NoOp as u8, u256::ZERO);
+        std::iter::once(skip_no_ops).chain(std::iter::repeat_with(gen_no_ops).take(count - 1))
     }
 
-    pub fn func<const JUMPDEST: bool>(op: u8, data: u256) -> Self {
+    fn jumptable_lookup(op: u8) -> OpFn<STEP_CHECK, JUMPDEST> {
+        unsafe {
+            match (STEP_CHECK, JUMPDEST) {
+                (true, true) => std::mem::transmute(JUMPTABLE_STEPCHECK_JUMPDEST[op as usize]),
+                (true, false) => std::mem::transmute(JUMPTABLE_STEPCHECK_NO_JUMPDEST[op as usize]),
+                (false, true) => std::mem::transmute(JUMPTABLE_NO_STEPCHECK_JUMPDEST[op as usize]),
+                (false, false) => {
+                    std::mem::transmute(JUMPTABLE_NO_STEPCHECK_NO_JUMPDEST[op as usize])
+                }
+            }
+        }
+    }
+
+    pub fn func(op: u8, data: u256) -> Self {
         OpFnData {
-            func: Some(if JUMPDEST {
-                interpreter::JUMPTABLE[op as usize]
-            } else {
-                interpreter::JUMPTABLE_SKIP_JUMPDEST[op as usize]
-            }),
+            func: Some(Self::jumptable_lookup(op)),
             data,
         }
     }
 
     pub fn jump_dest() -> Self {
-        OpFnData {
-            func: Some(interpreter::JUMP_DEST_FN),
-            data: u256::ZERO,
-        }
+        Self::func(Opcode::JumpDest as u8, u256::ZERO)
     }
 
     pub fn code_byte_type(&self) -> CodeByteType {
         match self.func {
             None => CodeByteType::DataOrInvalid,
-            Some(func) if func == interpreter::JUMP_DEST_FN => CodeByteType::JumpDest,
+            Some(func) if func == Self::jumptable_lookup(Opcode::JumpDest as u8) => {
+                CodeByteType::JumpDest
+            }
             Some(_) => CodeByteType::Opcode,
         }
     }
 
-    pub fn get_func(&self) -> Option<OpFn> {
+    pub fn get_func(&self) -> Option<OpFn<STEP_CHECK, JUMPDEST>> {
         self.func
     }
 
@@ -195,7 +199,7 @@ impl OpFnData {
 }
 
 #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
-impl Debug for OpFnData {
+impl<const STEP_CHECK: bool, const JUMPDEST: bool> Debug for OpFnData<STEP_CHECK, JUMPDEST> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OpFnData")
             .field("func", &self.func.map(|f| f as *const u8))

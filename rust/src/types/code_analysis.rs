@@ -45,51 +45,93 @@ pub type AnalysisContainer<T> = Rc<T>;
 #[cfg(not(feature = "needs-fn-ptr-conversion"))]
 pub type AnalysisItem = CodeByteType;
 #[cfg(feature = "needs-fn-ptr-conversion")]
-pub type AnalysisItem = OpFnData;
+pub type AnalysisItem<const STEP_CHECK: bool, const JUMPDEST: bool> =
+    OpFnData<STEP_CHECK, JUMPDEST>;
 
 #[cfg(feature = "code-analysis-cache")]
 const CACHE_SIZE: usize = 1 << 16; // value taken from evmzero
 
 #[cfg(feature = "code-analysis-cache")]
-type CodeAnalysisCache =
-    Cache<CACHE_SIZE, u256Hash, AnalysisContainer<CodeAnalysis>, BuildNoHashHasher<u64>>;
+type CodeAnalysisCache<const STEP_CHECK: bool, const JUMPDEST: bool> = Cache<
+    CACHE_SIZE,
+    u256Hash,
+    AnalysisContainer<CodeAnalysis<STEP_CHECK, JUMPDEST>>,
+    BuildNoHashHasher<u64>,
+>;
 
 #[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
-static CODE_ANALYSIS_CACHE: CodeAnalysisCache = CodeAnalysisCache::new();
+static CODE_ANALYSIS_CACHE_T_T: CodeAnalysisCache<true, true> = CodeAnalysisCache::new();
+#[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
+static CODE_ANALYSIS_CACHE_T_F: CodeAnalysisCache<true, false> = CodeAnalysisCache::new();
+#[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
+static CODE_ANALYSIS_CACHE_F_T: CodeAnalysisCache<false, true> = CodeAnalysisCache::new();
+#[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
+static CODE_ANALYSIS_CACHE_F_F: CodeAnalysisCache<false, false> = CodeAnalysisCache::new();
 
 #[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
 thread_local! {
     static CODE_ANALYSIS_CACHE: CodeAnalysisCache = CodeAnalysisCache::new();
 }
 
+#[cfg(feature = "needs-jumptable")]
+fn code_analysis_get_or_insert<const STEP_CHECK: bool, const JUMPDEST: bool>(
+    code_hash: u256,
+    code: &[u8],
+) -> AnalysisContainer<CodeAnalysis<STEP_CHECK, JUMPDEST>> {
+    unsafe {
+        match (STEP_CHECK, JUMPDEST) {
+            (true, true) => {
+                let analysis = CODE_ANALYSIS_CACHE_T_T.get_or_insert(u256Hash(code_hash), || {
+                    AnalysisContainer::new(CodeAnalysis::analyze_code(code))
+                });
+                std::mem::transmute(analysis)
+            }
+            (true, false) => {
+                let analysis = CODE_ANALYSIS_CACHE_T_F.get_or_insert(u256Hash(code_hash), || {
+                    AnalysisContainer::new(CodeAnalysis::analyze_code(code))
+                });
+                std::mem::transmute(analysis)
+            }
+            (false, true) => {
+                let analysis = CODE_ANALYSIS_CACHE_F_T.get_or_insert(u256Hash(code_hash), || {
+                    AnalysisContainer::new(CodeAnalysis::analyze_code(code))
+                });
+                std::mem::transmute(analysis)
+            }
+            (false, false) => {
+                let analysis = CODE_ANALYSIS_CACHE_F_F.get_or_insert(u256Hash(code_hash), || {
+                    AnalysisContainer::new(CodeAnalysis::analyze_code(code))
+                });
+                std::mem::transmute(analysis)
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
-pub struct CodeAnalysis {
-    pub analysis: Vec<AnalysisItem>,
+pub struct CodeAnalysis<const STEP_CHECK: bool, const JUMPDEST: bool> {
+    pub analysis: Vec<AnalysisItem<STEP_CHECK, JUMPDEST>>,
     #[cfg(feature = "needs-fn-ptr-conversion")]
     pub pc_map: PcMap,
 }
 
-impl CodeAnalysis {
+impl<const STEP_CHECK: bool, const JUMPDEST: bool> CodeAnalysis<STEP_CHECK, JUMPDEST> {
     /// If the const generic J is false, jumpdests are skipped.
     #[allow(unused_variables)]
-    pub fn new<const JUMPDEST: bool>(
-        code: &[u8],
-        code_hash: Option<u256>,
-    ) -> AnalysisContainer<Self> {
+    pub fn new(code: &[u8], code_hash: Option<u256>) -> AnalysisContainer<Self> {
         #[cfg(feature = "code-analysis-cache")]
         match code_hash {
-            Some(code_hash) if code_hash != u256::ZERO => CODE_ANALYSIS_CACHE
-                .get_or_insert(u256Hash(code_hash), || {
-                    AnalysisContainer::new(Self::analyze_code::<JUMPDEST>(code))
-                }),
-            _ => AnalysisContainer::new(Self::analyze_code::<JUMPDEST>(code)),
+            Some(code_hash) if code_hash != u256::ZERO => {
+                code_analysis_get_or_insert(code_hash, code)
+            }
+            _ => AnalysisContainer::new(Self::analyze_code(code)),
         }
         #[cfg(not(feature = "code-analysis-cache"))]
-        Self::analyze_code::<JUMPDEST>(code)
+        Self::analyze_code(code)
     }
 
     #[cfg(not(feature = "needs-fn-ptr-conversion"))]
-    fn analyze_code<const JUMPDEST: bool>(code: &[u8]) -> Self {
+    fn analyze_code(code: &[u8]) -> Self {
         let mut code_byte_types = vec![CodeByteType::DataOrInvalid; code.len()];
 
         let mut pc = 0;
@@ -104,7 +146,7 @@ impl CodeAnalysis {
         }
     }
     #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
-    fn analyze_code<const JUMPDEST: bool>(code: &[u8]) -> Self {
+    fn analyze_code(code: &[u8]) -> Self {
         let mut analysis = Vec::with_capacity(code.len());
         // +32+1 because if last op is push32 we need mapping from after converted to after code+32
         let mut pc_map = PcMap::new(code.len() + 32 + 1);
@@ -130,14 +172,14 @@ impl CodeAnalysis {
                     let avail = min(data_len, code.len() - pc);
                     data[32 - data_len..32 - data_len + avail]
                         .copy_from_slice(&code[pc..pc + avail]);
-                    analysis.push(OpFnData::func::<JUMPDEST>(op, data));
+                    analysis.push(OpFnData::func(op, data));
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
 
                     no_ops += data_len;
                     pc += data_len;
                 }
                 CodeByteType::Opcode => {
-                    analysis.push(OpFnData::func::<JUMPDEST>(op, u256::ZERO));
+                    analysis.push(OpFnData::func(op, u256::ZERO));
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
                 }
                 CodeByteType::DataOrInvalid => {

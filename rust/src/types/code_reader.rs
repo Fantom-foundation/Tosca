@@ -9,13 +9,15 @@ use crate::types::Opcode;
 use crate::types::{u256, AnalysisContainer, CodeAnalysis, CodeByteType, FailStatus};
 
 #[derive(Debug)]
-pub struct CodeReader<'a> {
+pub struct CodeReader<'a, const STEP_CHECK: bool, const JUMPDEST: bool> {
     code: &'a [u8],
-    code_analysis: AnalysisContainer<CodeAnalysis>,
+    code_analysis: AnalysisContainer<CodeAnalysis<STEP_CHECK, JUMPDEST>>,
     pc: usize,
 }
 
-impl<'a> Deref for CodeReader<'a> {
+impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> Deref
+    for CodeReader<'a, STEP_CHECK, JUMPDEST>
+{
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
@@ -29,10 +31,10 @@ pub enum GetOpcodeError {
     Invalid,
 }
 
-impl<'a> CodeReader<'a> {
+impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> CodeReader<'a, STEP_CHECK, JUMPDEST> {
     /// If the const generic J is false, jumpdests are skipped.
-    pub fn new<const JUMPDEST: bool>(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
-        let code_analysis = CodeAnalysis::new::<JUMPDEST>(code, code_hash);
+    pub fn new(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
+        let code_analysis = CodeAnalysis::new(code, code_hash);
         #[cfg(feature = "needs-fn-ptr-conversion")]
         let pc = code_analysis.pc_map.to_converted(pc);
         Self {
@@ -61,7 +63,7 @@ impl<'a> CodeReader<'a> {
         }
     }
     #[cfg(feature = "needs-fn-ptr-conversion")]
-    pub fn get(&self) -> Result<OpFn, GetOpcodeError> {
+    pub fn get(&self) -> Result<OpFn<STEP_CHECK, JUMPDEST>, GetOpcodeError> {
         self.code_analysis
             .analysis
             .get(self.pc)

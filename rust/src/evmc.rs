@@ -42,13 +42,11 @@ impl EvmcVm for EvmRs {
             // If this is not the case it violates the EVMC spec and is an irrecoverable error.
             process::abort();
         };
-        let interpreter = Interpreter::new(revision, message, context, code);
+        let interpreter =
+            Interpreter::<STEP_CHECK, JUMPDESTS>::new(revision, message, context, code);
         match self.observer_type {
-            ObserverType::NoOp => {
-                interpreter.run::<_, _, STEP_CHECK, JUMPDESTS>(&mut NoOpObserver())
-            }
-            ObserverType::Logging => interpreter
-                .run::<_, _, STEP_CHECK, JUMPDESTS>(&mut LoggingObserver::new(std::io::stdout())),
+            ObserverType::NoOp => interpreter.run(&mut NoOpObserver()),
+            ObserverType::Logging => interpreter.run(&mut LoggingObserver::new(std::io::stdout())),
         }
     }
 
@@ -114,7 +112,7 @@ impl SteppableEvmcVm for EvmRs {
         };
         let stack = Stack::new(&stack.iter().map(|i| u256::from(*i)).collect::<Vec<_>>());
         let memory = Memory::new(memory.to_owned());
-        let interpreter = Interpreter::new_steppable(
+        let interpreter = Interpreter::<STEP_CHECK, JUMPDESTS>::new_steppable(
             revision,
             message,
             context,
@@ -127,11 +125,8 @@ impl SteppableEvmcVm for EvmRs {
             Some(steps),
         );
         match self.observer_type {
-            ObserverType::NoOp => {
-                interpreter.run::<_, _, STEP_CHECK, JUMPDESTS>(&mut NoOpObserver())
-            }
-            ObserverType::Logging => interpreter
-                .run::<_, _, STEP_CHECK, JUMPDESTS>(&mut LoggingObserver::new(std::io::stdout())),
+            ObserverType::NoOp => interpreter.run(&mut NoOpObserver()),
+            ObserverType::Logging => interpreter.run(&mut LoggingObserver::new(std::io::stdout())),
         }
     }
 }

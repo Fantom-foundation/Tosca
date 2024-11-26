@@ -5,10 +5,12 @@ use evmc_vm::{
     StatusCode, StepResult, StorageStatus, Uint256,
 };
 
+#[cfg(not(feature = "needs-jumptable"))]
+use crate::types::Opcode;
 use crate::{
     types::{
         hash_cache, u256, CodeReader, ExecStatus, ExecutionContextTrait, ExecutionTxContext,
-        FailStatus, GetOpcodeError, Memory, Observer, Opcode, Stack,
+        FailStatus, GetOpcodeError, Memory, Observer, Stack,
     },
     utils::{check_min_revision, check_not_read_only, word_size, Gas, GasRefund, SliceExt},
 };
@@ -16,292 +18,290 @@ use crate::{
 type OpResult = Result<(), FailStatus>;
 
 #[cfg(feature = "needs-jumptable")]
-pub type OpFn = fn(&mut Interpreter) -> OpResult;
+pub type OpFn<const STEP_CHECK: bool, const JUMPDEST: bool> =
+    fn(&mut Interpreter<STEP_CHECK, JUMPDEST>) -> OpResult;
 
 // The closures here are necessary because methods capture the lifetime of the type which we
 // want to avoid.
 #[cfg(feature = "needs-jumptable")]
-pub static JUMPTABLE: [OpFn; 256] = [
-    |i| i.stop(),
-    |i| i.add(),
-    |i| i.mul(),
-    |i| i.sub(),
-    |i| i.div(),
-    |i| i.s_div(),
-    |i| i.mod_(),
-    |i| i.s_mod(),
-    |i| i.add_mod(),
-    |i| i.mul_mod(),
-    |i| i.exp(),
-    |i| i.sign_extend(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.lt(),
-    |i| i.gt(),
-    |i| i.s_lt(),
-    |i| i.s_gt(),
-    |i| i.eq(),
-    |i| i.is_zero(),
-    |i| i.and(),
-    |i| i.or(),
-    |i| i.xor(),
-    |i| i.not(),
-    |i| i.byte(),
-    |i| i.shl(),
-    |i| i.shr(),
-    |i| i.sar(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.sha3(),
-    #[cfg(feature = "needs-fn-ptr-conversion")]
-    |i| i.no_op(),
-    #[cfg(feature = "needs-fn-ptr-conversion")]
-    |i| i.skip_no_ops(),
-    #[cfg(not(feature = "needs-fn-ptr-conversion"))]
-    |i| i.jumptable_placeholder(),
-    #[cfg(not(feature = "needs-fn-ptr-conversion"))]
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.address(),
-    |i| i.balance(),
-    |i| i.origin(),
-    |i| i.caller(),
-    |i| i.call_value(),
-    |i| i.call_data_load(),
-    |i| i.call_data_size(),
-    |i| i.call_data_copy(),
-    |i| i.code_size(),
-    |i| i.code_copy(),
-    |i| i.gas_price(),
-    |i| i.ext_code_size(),
-    |i| i.ext_code_copy(),
-    |i| i.return_data_size(),
-    |i| i.return_data_copy(),
-    |i| i.ext_code_hash(),
-    |i| i.block_hash(),
-    |i| i.coinbase(),
-    |i| i.timestamp(),
-    |i| i.number(),
-    |i| i.prev_randao(),
-    |i| i.gas_limit(),
-    |i| i.chain_id(),
-    |i| i.self_balance(),
-    |i| i.base_fee(),
-    |i| i.blob_hash(),
-    |i| i.blob_base_fee(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.pop(),
-    |i| i.m_load(),
-    |i| i.m_store(),
-    |i| i.m_store8(),
-    |i| i.s_load(),
-    |i| i.sstore(),
-    |i| i.jump::<true>(),
-    |i| i.jump_i::<true>(),
-    |i| i.pc(),
-    |i| i.m_size(),
-    |i| i.gas(),
-    |i| i.jump_dest(),
-    |i| i.t_load(),
-    |i| i.t_store(),
-    |i| i.m_copy(),
-    |i| i.push0(),
-    |i| i.push(1),
-    |i| i.push(2),
-    |i| i.push(3),
-    |i| i.push(4),
-    |i| i.push(5),
-    |i| i.push(6),
-    |i| i.push(7),
-    |i| i.push(8),
-    |i| i.push(9),
-    |i| i.push(10),
-    |i| i.push(11),
-    |i| i.push(12),
-    |i| i.push(13),
-    |i| i.push(14),
-    |i| i.push(15),
-    |i| i.push(16),
-    |i| i.push(17),
-    |i| i.push(18),
-    |i| i.push(19),
-    |i| i.push(20),
-    |i| i.push(21),
-    |i| i.push(22),
-    |i| i.push(23),
-    |i| i.push(24),
-    |i| i.push(25),
-    |i| i.push(26),
-    |i| i.push(27),
-    |i| i.push(28),
-    |i| i.push(29),
-    |i| i.push(30),
-    |i| i.push(31),
-    |i| i.push(32),
-    |i| i.dup(1),
-    |i| i.dup(2),
-    |i| i.dup(3),
-    |i| i.dup(4),
-    |i| i.dup(5),
-    |i| i.dup(6),
-    |i| i.dup(7),
-    |i| i.dup(8),
-    |i| i.dup(9),
-    |i| i.dup(10),
-    |i| i.dup(11),
-    |i| i.dup(12),
-    |i| i.dup(13),
-    |i| i.dup(14),
-    |i| i.dup(15),
-    |i| i.dup(16),
-    |i| i.swap(1),
-    |i| i.swap(2),
-    |i| i.swap(3),
-    |i| i.swap(4),
-    |i| i.swap(5),
-    |i| i.swap(6),
-    |i| i.swap(7),
-    |i| i.swap(8),
-    |i| i.swap(9),
-    |i| i.swap(10),
-    |i| i.swap(11),
-    |i| i.swap(12),
-    |i| i.swap(13),
-    |i| i.swap(14),
-    |i| i.swap(15),
-    |i| i.swap(16),
-    |i| i.log::<0>(),
-    |i| i.log::<1>(),
-    |i| i.log::<2>(),
-    |i| i.log::<3>(),
-    |i| i.log::<4>(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.create(),
-    |i| i.call(),
-    |i| i.call_code(),
-    |i| i.return_(),
-    |i| i.delegate_call(),
-    |i| i.create2(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.static_call(),
-    |i| i.jumptable_placeholder(),
-    |i| i.jumptable_placeholder(),
-    |i| i.revert(),
-    |i| i.invalid(),
-    |i| i.self_destruct(),
-];
+const fn gen_jumptable<const STEP_CHECK: bool, const JUMPDEST: bool>(
+) -> [OpFn<STEP_CHECK, JUMPDEST>; 256] {
+    [
+        |i| i.stop(),
+        |i| i.add(),
+        |i| i.mul(),
+        |i| i.sub(),
+        |i| i.div(),
+        |i| i.s_div(),
+        |i| i.mod_(),
+        |i| i.s_mod(),
+        |i| i.add_mod(),
+        |i| i.mul_mod(),
+        |i| i.exp(),
+        |i| i.sign_extend(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.lt(),
+        |i| i.gt(),
+        |i| i.s_lt(),
+        |i| i.s_gt(),
+        |i| i.eq(),
+        |i| i.is_zero(),
+        |i| i.and(),
+        |i| i.or(),
+        |i| i.xor(),
+        |i| i.not(),
+        |i| i.byte(),
+        |i| i.shl(),
+        |i| i.shr(),
+        |i| i.sar(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.sha3(),
+        #[cfg(feature = "needs-fn-ptr-conversion")]
+        |i| i.no_op(),
+        #[cfg(feature = "needs-fn-ptr-conversion")]
+        |i| i.skip_no_ops(),
+        #[cfg(not(feature = "needs-fn-ptr-conversion"))]
+        |i| i.jumptable_placeholder(),
+        #[cfg(not(feature = "needs-fn-ptr-conversion"))]
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.address(),
+        |i| i.balance(),
+        |i| i.origin(),
+        |i| i.caller(),
+        |i| i.call_value(),
+        |i| i.call_data_load(),
+        |i| i.call_data_size(),
+        |i| i.call_data_copy(),
+        |i| i.code_size(),
+        |i| i.code_copy(),
+        |i| i.gas_price(),
+        |i| i.ext_code_size(),
+        |i| i.ext_code_copy(),
+        |i| i.return_data_size(),
+        |i| i.return_data_copy(),
+        |i| i.ext_code_hash(),
+        |i| i.block_hash(),
+        |i| i.coinbase(),
+        |i| i.timestamp(),
+        |i| i.number(),
+        |i| i.prev_randao(),
+        |i| i.gas_limit(),
+        |i| i.chain_id(),
+        |i| i.self_balance(),
+        |i| i.base_fee(),
+        |i| i.blob_hash(),
+        |i| i.blob_base_fee(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.pop(),
+        |i| i.m_load(),
+        |i| i.m_store(),
+        |i| i.m_store8(),
+        |i| i.s_load(),
+        |i| i.sstore(),
+        |i| i.jump(),
+        |i| i.jump_i(),
+        |i| i.pc(),
+        |i| i.m_size(),
+        |i| i.gas(),
+        |i| i.jump_dest(),
+        |i| i.t_load(),
+        |i| i.t_store(),
+        |i| i.m_copy(),
+        |i| i.push0(),
+        |i| i.push(1),
+        |i| i.push(2),
+        |i| i.push(3),
+        |i| i.push(4),
+        |i| i.push(5),
+        |i| i.push(6),
+        |i| i.push(7),
+        |i| i.push(8),
+        |i| i.push(9),
+        |i| i.push(10),
+        |i| i.push(11),
+        |i| i.push(12),
+        |i| i.push(13),
+        |i| i.push(14),
+        |i| i.push(15),
+        |i| i.push(16),
+        |i| i.push(17),
+        |i| i.push(18),
+        |i| i.push(19),
+        |i| i.push(20),
+        |i| i.push(21),
+        |i| i.push(22),
+        |i| i.push(23),
+        |i| i.push(24),
+        |i| i.push(25),
+        |i| i.push(26),
+        |i| i.push(27),
+        |i| i.push(28),
+        |i| i.push(29),
+        |i| i.push(30),
+        |i| i.push(31),
+        |i| i.push(32),
+        |i| i.dup(1),
+        |i| i.dup(2),
+        |i| i.dup(3),
+        |i| i.dup(4),
+        |i| i.dup(5),
+        |i| i.dup(6),
+        |i| i.dup(7),
+        |i| i.dup(8),
+        |i| i.dup(9),
+        |i| i.dup(10),
+        |i| i.dup(11),
+        |i| i.dup(12),
+        |i| i.dup(13),
+        |i| i.dup(14),
+        |i| i.dup(15),
+        |i| i.dup(16),
+        |i| i.swap(1),
+        |i| i.swap(2),
+        |i| i.swap(3),
+        |i| i.swap(4),
+        |i| i.swap(5),
+        |i| i.swap(6),
+        |i| i.swap(7),
+        |i| i.swap(8),
+        |i| i.swap(9),
+        |i| i.swap(10),
+        |i| i.swap(11),
+        |i| i.swap(12),
+        |i| i.swap(13),
+        |i| i.swap(14),
+        |i| i.swap(15),
+        |i| i.swap(16),
+        |i| i.log::<0>(),
+        |i| i.log::<1>(),
+        |i| i.log::<2>(),
+        |i| i.log::<3>(),
+        |i| i.log::<4>(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.create(),
+        |i| i.call(),
+        |i| i.call_code(),
+        |i| i.return_(),
+        |i| i.delegate_call(),
+        |i| i.create2(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.static_call(),
+        |i| i.jumptable_placeholder(),
+        |i| i.jumptable_placeholder(),
+        |i| i.revert(),
+        |i| i.invalid(),
+        |i| i.self_destruct(),
+    ]
+}
 
 #[cfg(feature = "needs-jumptable")]
-pub static JUMPTABLE_SKIP_JUMPDEST: [OpFn; 256] = {
-    let mut jumptable = JUMPTABLE;
-    jumptable[Opcode::Jump as u8 as usize] = |i| i.jump::<false>();
-    jumptable[Opcode::JumpI as u8 as usize] = |i| i.jump_i::<false>();
-    jumptable
-};
+pub static JUMPTABLE_STEPCHECK_JUMPDEST: [OpFn<true, true>; 256] = gen_jumptable();
+#[cfg(feature = "needs-jumptable")]
+pub static JUMPTABLE_STEPCHECK_NO_JUMPDEST: [OpFn<true, false>; 256] = gen_jumptable();
+#[cfg(feature = "needs-jumptable")]
+pub static JUMPTABLE_NO_STEPCHECK_JUMPDEST: [OpFn<false, true>; 256] = gen_jumptable();
+#[cfg(feature = "needs-jumptable")]
+pub static JUMPTABLE_NO_STEPCHECK_NO_JUMPDEST: [OpFn<false, false>; 256] = gen_jumptable();
 
-#[cfg(feature = "needs-fn-ptr-conversion")]
-pub static NO_OP_FN: OpFn = JUMPTABLE[Opcode::NoOp as u8 as usize];
-#[cfg(feature = "needs-fn-ptr-conversion")]
-pub static SKIP_NO_OPS_FN: OpFn = JUMPTABLE[Opcode::SkipNoOps as u8 as usize];
-#[cfg(feature = "needs-fn-ptr-conversion")]
-pub static JUMP_DEST_FN: OpFn = JUMPTABLE[Opcode::JumpDest as u8 as usize];
-
-pub struct Interpreter<'a> {
+pub struct Interpreter<'a, const STEP_CHECK: bool, const JUMPDEST: bool> {
     pub exec_status: ExecStatus,
     #[cfg(not(feature = "custom-evmc"))]
     pub message: &'a ExecutionMessage,
@@ -309,7 +309,7 @@ pub struct Interpreter<'a> {
     pub message: &'a ExecutionMessage<'a>,
     pub context: &'a mut dyn ExecutionContextTrait,
     pub revision: Revision,
-    pub code_reader: CodeReader<'a>,
+    pub code_reader: CodeReader<'a, STEP_CHECK, JUMPDEST>,
     pub gas_left: Gas,
     pub gas_refund: GasRefund,
     #[cfg(not(feature = "custom-evmc"))]
@@ -322,7 +322,7 @@ pub struct Interpreter<'a> {
     pub steps: Option<i32>,
 }
 
-impl<'a> Interpreter<'a> {
+impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> Interpreter<'a, STEP_CHECK, JUMPDEST> {
     pub fn new(
         revision: Revision,
         message: &'a ExecutionMessage,
@@ -334,11 +334,7 @@ impl<'a> Interpreter<'a> {
             message,
             context,
             revision,
-            code_reader: CodeReader::new::<false>(
-                code,
-                message.code_hash().map(|h| u256::from(*h)),
-                0,
-            ),
+            code_reader: CodeReader::new(code, message.code_hash().map(|h| u256::from(*h)), 0),
             gas_left: Gas::new(message.gas()),
             gas_refund: GasRefund::new(0),
             output: None,
@@ -367,11 +363,7 @@ impl<'a> Interpreter<'a> {
             message,
             context,
             revision,
-            code_reader: CodeReader::new::<true>(
-                code,
-                message.code_hash().map(|h| u256::from(*h)),
-                pc,
-            ),
+            code_reader: CodeReader::new(code, message.code_hash().map(|h| u256::from(*h)), pc),
             gas_left: Gas::new(message.gas()),
             gas_refund: GasRefund::new(gas_refund),
             output: None,
@@ -386,9 +378,9 @@ impl<'a> Interpreter<'a> {
     /// If the const generic J is false jumpdests are skipped.
     /// R is expected to be [ExecutionResult] or [StepResult].
     #[cfg(not(feature = "tail-call"))]
-    pub fn run<O, R, const STEP_CHECK: bool, const JUMPDEST: bool>(mut self, observer: &mut O) -> R
+    pub fn run<O, R>(&mut self, observer: &mut O) -> R
     where
-        O: Observer,
+        O: Observer<STEP_CHECK, JUMPDEST>,
         R: From<Self> + From<FailStatus>,
     {
         loop {
@@ -414,7 +406,7 @@ impl<'a> Interpreter<'a> {
                 }
             };
             observer.pre_op(&self);
-            if let Err(err) = self.run_op::<JUMPDEST>(op) {
+            if let Err(err) = self.run_op(op) {
                 return err.into();
             }
             observer.post_op(&self);
@@ -426,9 +418,9 @@ impl<'a> Interpreter<'a> {
     /// R is expected to be [ExecutionResult] or [StepResult].
     #[cfg(feature = "tail-call")]
     #[inline(always)]
-    pub fn run<O, R, const STEP_CHECK: bool, const JUMPDEST: bool>(mut self, observer: &mut O) -> R
+    pub fn run<O, R>(mut self, observer: &mut O) -> R
     where
-        O: Observer,
+        O: Observer<STEP_CHECK, JUMPDEST>,
         R: From<Self> + From<FailStatus>,
     {
         observer.log("feature \"tail-call\" does not support logging".into());
@@ -440,10 +432,12 @@ impl<'a> Interpreter<'a> {
     #[cfg(feature = "tail-call")]
     #[inline(always)]
     pub fn next(&mut self) -> OpResult {
-        match &mut self.steps {
-            None => (),
-            Some(0) => return Ok(()),
-            Some(steps) => *steps -= 1,
+        if STEP_CHECK {
+            match &mut self.steps {
+                None => (),
+                Some(0) => return Ok(()),
+                Some(steps) => *steps -= 1,
+            }
         }
         let op = match self.code_reader.get() {
             Ok(op) => op,
@@ -455,18 +449,18 @@ impl<'a> Interpreter<'a> {
                 return Err(FailStatus::InvalidInstruction);
             }
         };
-        self.run_op::<true>(op)
+        self.run_op(op)
     }
 
     #[cfg(feature = "needs-fn-ptr-conversion")]
-    fn run_op<const JUMPDEST: bool>(&mut self, op: OpFn) -> OpResult {
+    fn run_op(&mut self, op: OpFn<STEP_CHECK, JUMPDEST>) -> OpResult {
         op(self)
     }
     #[cfg(all(
         feature = "jumptable-dispatch",
         not(feature = "needs-fn-ptr-conversion")
     ))]
-    fn run_op<const JUMPDEST: bool>(&mut self, op: Opcode) -> OpResult {
+    fn run_op(&mut self, op: Opcode) -> OpResult {
         if JUMPDEST {
             JUMPTABLE[op as u8 as usize](self)
         } else {
@@ -474,7 +468,7 @@ impl<'a> Interpreter<'a> {
         }
     }
     #[cfg(not(feature = "needs-jumptable"))]
-    fn run_op<const JUMPDEST: bool>(&mut self, op: Opcode) -> OpResult {
+    fn run_op(&mut self, op: Opcode) -> OpResult {
         match op {
             Opcode::Stop => self.stop(),
             Opcode::Add => self.add(),
@@ -536,8 +530,8 @@ impl<'a> Interpreter<'a> {
             Opcode::MStore8 => self.m_store8(),
             Opcode::SLoad => self.s_load(),
             Opcode::SStore => self.sstore(),
-            Opcode::Jump => self.jump::<JUMPDEST>(),
-            Opcode::JumpI => self.jump_i::<JUMPDEST>(),
+            Opcode::Jump => self.jump(),
+            Opcode::JumpI => self.jump_i(),
             Opcode::Pc => self.pc(),
             Opcode::MSize => self.m_size(),
             Opcode::Gas => self.gas(),
@@ -1279,7 +1273,7 @@ impl<'a> Interpreter<'a> {
     }
 
     /// If the const generic J is false, jumpdests are skipped.
-    fn jump<const JUMPDEST: bool>(&mut self) -> OpResult {
+    fn jump(&mut self) -> OpResult {
         self.gas_left.consume(if JUMPDEST { 8 } else { 8 + 1 })?;
         let [dest] = self.stack.pop()?;
         self.code_reader.try_jump(dest)?;
@@ -1290,7 +1284,7 @@ impl<'a> Interpreter<'a> {
     }
 
     /// If the const generic J is false, jumpdests are skipped.
-    fn jump_i<const JUMPDEST: bool>(&mut self) -> OpResult {
+    fn jump_i(&mut self) -> OpResult {
         self.gas_left.consume(10)?;
         let [cond, dest] = self.stack.pop()?;
         if cond == u256::ZERO {
@@ -1345,7 +1339,7 @@ impl<'a> Interpreter<'a> {
 
     fn t_store(&mut self) -> OpResult {
         check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-        check_not_read_only(self)?;
+        check_not_read_only(self.message)?;
         self.gas_left.consume(100)?;
         let [value, key] = self.stack.pop()?;
         let addr = self.message.recipient();
@@ -1405,7 +1399,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn self_destruct(&mut self) -> OpResult {
-        check_not_read_only(self)?;
+        check_not_read_only(self.message)?;
         self.gas_left.consume(5_000)?;
         let [addr] = self.stack.pop()?;
         let addr = addr.into();
@@ -1432,7 +1426,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn sstore(&mut self) -> OpResult {
-        check_not_read_only(self)?;
+        check_not_read_only(self.message)?;
 
         if self.revision >= Revision::EVMC_ISTANBUL && self.gas_left <= 2_300 {
             return Err(FailStatus::OutOfGas);
@@ -1509,7 +1503,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn log<const N: usize>(&mut self) -> OpResult {
-        check_not_read_only(self)?;
+        check_not_read_only(self.message)?;
         self.gas_left.consume(375)?;
         let [len, offset] = self.stack.pop()?;
         let topics: [u256; N] = self.stack.pop()?;
@@ -1542,7 +1536,7 @@ impl<'a> Interpreter<'a> {
 
     fn create_or_create2<const CREATE2: bool>(&mut self) -> OpResult {
         self.gas_left.consume(32_000)?;
-        check_not_read_only(self)?;
+        check_not_read_only(self.message)?;
         let [len, offset, value] = self.stack.pop()?;
         let salt = if CREATE2 {
             let [salt] = self.stack.pop()?;
@@ -1632,7 +1626,7 @@ impl<'a> Interpreter<'a> {
         let [ret_len, ret_offset, args_len, args_offset, value, addr, gas] = self.stack.pop()?;
 
         if !CODE && value != u256::ZERO {
-            check_not_read_only(self)?;
+            check_not_read_only(self.message)?;
         }
 
         let addr = addr.into();
@@ -1810,8 +1804,10 @@ impl<'a> Interpreter<'a> {
     }
 }
 
-impl<'a> From<Interpreter<'a>> for StepResult {
-    fn from(value: Interpreter) -> Self {
+impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> From<Interpreter<'a, STEP_CHECK, JUMPDEST>>
+    for StepResult
+{
+    fn from(value: Interpreter<STEP_CHECK, JUMPDEST>) -> Self {
         let stack = value
             .stack
             .as_slice()
@@ -1834,8 +1830,10 @@ impl<'a> From<Interpreter<'a>> for StepResult {
     }
 }
 
-impl<'a> From<Interpreter<'a>> for ExecutionResult {
-    fn from(value: Interpreter) -> Self {
+impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> From<Interpreter<'a, STEP_CHECK, JUMPDEST>>
+    for ExecutionResult
+{
+    fn from(value: Interpreter<STEP_CHECK, JUMPDEST>) -> Self {
         Self::new(
             value.exec_status.into(),
             value.gas_left.as_u64() as i64,
