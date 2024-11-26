@@ -1,15 +1,42 @@
-use std::cmp::min;
+use std::{cmp::min, sync::Mutex};
 
 use crate::types::{u256, FailStatus};
+
+static REUSABLE_STACK: Mutex<Option<Vec<u256>>> = Mutex::new(None);
 
 #[derive(Debug)]
 pub struct Stack(Vec<u256>);
 
+impl Drop for Stack {
+    fn drop(&mut self) {
+        let mut stack = Vec::new();
+        std::mem::swap(&mut stack, &mut self.0);
+        *REUSABLE_STACK.lock().unwrap() = Some(stack);
+    }
+}
+
 impl Stack {
+    const CAPACITY: usize = 1024;
+
+    #[inline(never)]
     pub fn new(inner: &[u256]) -> Self {
-        let len = min(inner.len(), 1024);
-        let mut v = Vec::with_capacity(1024);
-        v.extend_from_slice(&inner[..len]);
+        let len = min(inner.len(), Self::CAPACITY);
+        let inner = &inner[..len];
+        let mut v = REUSABLE_STACK
+            .lock()
+            .unwrap()
+            .take()
+            .unwrap_or_else(|| Vec::with_capacity(Self::CAPACITY));
+        v.clear();
+        #[cfg(feature = "unsafe-stack")]
+        // SAFETY:
+        // inner was shorted to the minimum of its original length and Self::CAPACITY.
+        // v was taken from REUSABLE_STACK which was put there by Stack::drop or was created with
+        // capacity Self::CAPACITY. Therefore it always has capacity Self::CAPACITY.
+        unsafe {
+            std::hint::assert_unchecked(inner.len() <= v.capacity());
+        }
+        v.extend_from_slice(inner);
         Self(v)
     }
 
@@ -22,14 +49,14 @@ impl Stack {
     }
 
     pub fn push(&mut self, value: impl Into<u256>) -> Result<(), FailStatus> {
-        if self.0.len() >= 1024 {
+        if self.0.len() >= Self::CAPACITY {
             return Err(FailStatus::StackOverflow);
         }
         #[cfg(feature = "unsafe-stack")]
         // SAFETY:
-        // self.0 is initialized with capacity 1024 and never shrunk.
+        // self.0 is initialized with capacity Self::CAPACITY and never shrunk.
         unsafe {
-            std::hint::assert_unchecked(self.0.capacity() == 1024);
+            std::hint::assert_unchecked(self.0.capacity() == Self::CAPACITY);
         }
         self.0.push(value.into());
         Ok(())
@@ -113,7 +140,7 @@ mod tests {
         assert_eq!(stack.push(u256::MAX), Ok(()));
         assert_eq!(stack.as_slice(), [u256::MAX]);
 
-        let mut stack = Stack::new(&[u256::ZERO; 1024]);
+        let mut stack = Stack::new(&[u256::ZERO; Stack::CAPACITY]);
         assert_eq!(stack.push(u256::ZERO), Err(FailStatus::StackOverflow));
     }
 
