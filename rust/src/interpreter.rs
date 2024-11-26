@@ -18,14 +18,12 @@ use crate::{
 type OpResult = Result<(), FailStatus>;
 
 #[cfg(feature = "needs-jumptable")]
-pub type OpFn<const STEP_CHECK: bool, const JUMPDEST: bool> =
-    fn(&mut Interpreter<STEP_CHECK, JUMPDEST>) -> OpResult;
+pub type OpFn<const STEPPABLE: bool> = fn(&mut Interpreter<STEPPABLE>) -> OpResult;
 
 // The closures here are necessary because methods capture the lifetime of the type which we
 // want to avoid.
 #[cfg(feature = "needs-jumptable")]
-const fn gen_jumptable<const STEP_CHECK: bool, const JUMPDEST: bool>(
-) -> [OpFn<STEP_CHECK, JUMPDEST>; 256] {
+const fn gen_jumptable<const STEPPABLE: bool>() -> [OpFn<STEPPABLE>; 256] {
     [
         |i| i.stop(),
         |i| i.add(),
@@ -293,15 +291,11 @@ const fn gen_jumptable<const STEP_CHECK: bool, const JUMPDEST: bool>(
 }
 
 #[cfg(feature = "needs-jumptable")]
-pub static JUMPTABLE_STEPCHECK_JUMPDEST: [OpFn<true, true>; 256] = gen_jumptable();
+pub static JUMPTABLE_STEPPABLE: [OpFn<true>; 256] = gen_jumptable();
 #[cfg(feature = "needs-jumptable")]
-pub static JUMPTABLE_STEPCHECK_NO_JUMPDEST: [OpFn<true, false>; 256] = gen_jumptable();
-#[cfg(feature = "needs-jumptable")]
-pub static JUMPTABLE_NO_STEPCHECK_JUMPDEST: [OpFn<false, true>; 256] = gen_jumptable();
-#[cfg(feature = "needs-jumptable")]
-pub static JUMPTABLE_NO_STEPCHECK_NO_JUMPDEST: [OpFn<false, false>; 256] = gen_jumptable();
+pub static JUMPTABLE_NON_STEPPABLE: [OpFn<false>; 256] = gen_jumptable();
 
-pub struct Interpreter<'a, const STEP_CHECK: bool, const JUMPDEST: bool> {
+pub struct Interpreter<'a, const STEPPABLE: bool> {
     pub exec_status: ExecStatus,
     #[cfg(not(feature = "custom-evmc"))]
     pub message: &'a ExecutionMessage,
@@ -309,7 +303,7 @@ pub struct Interpreter<'a, const STEP_CHECK: bool, const JUMPDEST: bool> {
     pub message: &'a ExecutionMessage<'a>,
     pub context: &'a mut dyn ExecutionContextTrait,
     pub revision: Revision,
-    pub code_reader: CodeReader<'a, STEP_CHECK, JUMPDEST>,
+    pub code_reader: CodeReader<'a, STEPPABLE>,
     pub gas_left: Gas,
     pub gas_refund: GasRefund,
     #[cfg(not(feature = "custom-evmc"))]
@@ -322,7 +316,7 @@ pub struct Interpreter<'a, const STEP_CHECK: bool, const JUMPDEST: bool> {
     pub steps: Option<i32>,
 }
 
-impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> Interpreter<'a, STEP_CHECK, JUMPDEST> {
+impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
     pub fn new(
         revision: Revision,
         message: &'a ExecutionMessage,
@@ -380,7 +374,7 @@ impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> Interpreter<'a, STEP_CHEC
     #[cfg(not(feature = "tail-call"))]
     pub fn run<O, R>(&mut self, observer: &mut O) -> R
     where
-        O: Observer<STEP_CHECK, JUMPDEST>,
+        O: Observer<STEPPABLE>,
         R: From<Self> + From<FailStatus>,
     {
         loop {
@@ -388,7 +382,7 @@ impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> Interpreter<'a, STEP_CHEC
                 break;
             }
 
-            if STEP_CHECK {
+            if STEPPABLE {
                 match &mut self.steps {
                     None => (),
                     Some(0) => break,
@@ -420,7 +414,7 @@ impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> Interpreter<'a, STEP_CHEC
     #[inline(always)]
     pub fn run<O, R>(mut self, observer: &mut O) -> R
     where
-        O: Observer<STEP_CHECK, JUMPDEST>,
+        O: Observer<STEPPABLE>,
         R: From<Self> + From<FailStatus>,
     {
         observer.log("feature \"tail-call\" does not support logging".into());
@@ -432,7 +426,7 @@ impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> Interpreter<'a, STEP_CHEC
     #[cfg(feature = "tail-call")]
     #[inline(always)]
     pub fn next(&mut self) -> OpResult {
-        if STEP_CHECK {
+        if STEPPABLE {
             match &mut self.steps {
                 None => (),
                 Some(0) => return Ok(()),
@@ -453,7 +447,7 @@ impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> Interpreter<'a, STEP_CHEC
     }
 
     #[cfg(feature = "needs-fn-ptr-conversion")]
-    fn run_op(&mut self, op: OpFn<STEP_CHECK, JUMPDEST>) -> OpResult {
+    fn run_op(&mut self, op: OpFn<STEPPABLE>) -> OpResult {
         op(self)
     }
     #[cfg(all(
@@ -461,7 +455,7 @@ impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> Interpreter<'a, STEP_CHEC
         not(feature = "needs-fn-ptr-conversion")
     ))]
     fn run_op(&mut self, op: Opcode) -> OpResult {
-        if JUMPDEST {
+        if STEPPABLE {
             JUMPTABLE[op as u8 as usize](self)
         } else {
             JUMPTABLE_SKIP_JUMPDEST[op as u8 as usize](self)
@@ -1274,10 +1268,10 @@ impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> Interpreter<'a, STEP_CHEC
 
     /// If the const generic J is false, jumpdests are skipped.
     fn jump(&mut self) -> OpResult {
-        self.gas_left.consume(if JUMPDEST { 8 } else { 8 + 1 })?;
+        self.gas_left.consume(if STEPPABLE { 8 } else { 8 + 1 })?;
         let [dest] = self.stack.pop()?;
         self.code_reader.try_jump(dest)?;
-        if !JUMPDEST {
+        if !STEPPABLE {
             self.code_reader.next();
         }
         self.return_from_op()
@@ -1291,7 +1285,7 @@ impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> Interpreter<'a, STEP_CHEC
             self.code_reader.next();
         } else {
             self.code_reader.try_jump(dest)?;
-            if !JUMPDEST {
+            if !STEPPABLE {
                 self.gas_left.consume(1)?;
                 self.code_reader.next();
             }
@@ -1804,10 +1798,8 @@ impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> Interpreter<'a, STEP_CHEC
     }
 }
 
-impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> From<Interpreter<'a, STEP_CHECK, JUMPDEST>>
-    for StepResult
-{
-    fn from(value: Interpreter<STEP_CHECK, JUMPDEST>) -> Self {
+impl<'a, const STEPPABLE: bool> From<Interpreter<'a, STEPPABLE>> for StepResult {
+    fn from(value: Interpreter<STEPPABLE>) -> Self {
         let stack = value
             .stack
             .as_slice()
@@ -1830,10 +1822,8 @@ impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> From<Interpreter<'a, STEP
     }
 }
 
-impl<'a, const STEP_CHECK: bool, const JUMPDEST: bool> From<Interpreter<'a, STEP_CHECK, JUMPDEST>>
-    for ExecutionResult
-{
-    fn from(value: Interpreter<STEP_CHECK, JUMPDEST>) -> Self {
+impl<'a, const STEPPABLE: bool> From<Interpreter<'a, STEPPABLE>> for ExecutionResult {
+    fn from(value: Interpreter<STEPPABLE>) -> Self {
         Self::new(
             value.exec_status.into(),
             value.gas_left.as_u64() as i64,

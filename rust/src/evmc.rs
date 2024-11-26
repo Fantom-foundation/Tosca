@@ -31,8 +31,7 @@ impl EvmcVm for EvmRs {
         message: &'a ExecutionMessage,
         context: Option<&'a mut ExecutionContext<'a>>,
     ) -> ExecutionResult {
-        const STEP_CHECK: bool = false;
-        const JUMPDESTS: bool = false;
+        const STEPPABLE: bool = false;
         assert_ne!(
             EVMC_CAPABILITY,
             evmc_capabilities::EVMC_CAPABILITY_PRECOMPILES
@@ -42,8 +41,7 @@ impl EvmcVm for EvmRs {
             // If this is not the case it violates the EVMC spec and is an irrecoverable error.
             process::abort();
         };
-        let interpreter =
-            Interpreter::<STEP_CHECK, JUMPDESTS>::new(revision, message, context, code);
+        let interpreter = Interpreter::<STEPPABLE>::new(revision, message, context, code);
         match self.observer_type {
             ObserverType::NoOp => interpreter.run(&mut NoOpObserver()),
             ObserverType::Logging => interpreter.run(&mut LoggingObserver::new(std::io::stdout())),
@@ -75,8 +73,7 @@ impl SteppableEvmcVm for EvmRs {
         last_call_return_data: &'a mut [u8],
         steps: i32,
     ) -> StepResult {
-        const STEP_CHECK: bool = true;
-        const JUMPDESTS: bool = true;
+        const STEPPABLE: bool = true;
         if step_status_code != EvmcStepStatusCode::EVMC_STEP_RUNNING {
             return StepResult::new(
                 step_status_code,
@@ -112,7 +109,7 @@ impl SteppableEvmcVm for EvmRs {
         };
         let stack = Stack::new(&stack.iter().map(|i| u256::from(*i)).collect::<Vec<_>>());
         let memory = Memory::new(memory.to_owned());
-        let interpreter = Interpreter::<STEP_CHECK, JUMPDESTS>::new_steppable(
+        let interpreter = Interpreter::<STEPPABLE>::new_steppable(
             revision,
             message,
             context,

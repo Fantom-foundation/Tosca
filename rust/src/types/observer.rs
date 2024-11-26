@@ -4,20 +4,20 @@ use crate::interpreter::Interpreter;
 #[cfg(feature = "needs-fn-ptr-conversion")]
 use crate::Opcode;
 
-pub trait Observer<const STEP_CHECK: bool, const JUMPDEST: bool> {
-    fn pre_op(&mut self, interpreter: &Interpreter<STEP_CHECK, JUMPDEST>);
+pub trait Observer<const STEPPABLE: bool> {
+    fn pre_op(&mut self, interpreter: &Interpreter<STEPPABLE>);
 
-    fn post_op(&mut self, interpreter: &Interpreter<STEP_CHECK, JUMPDEST>);
+    fn post_op(&mut self, interpreter: &Interpreter<STEPPABLE>);
 
     fn log(&mut self, message: Cow<str>);
 }
 
 pub struct NoOpObserver();
 
-impl<const STEP_CHECK: bool, const JUMPDEST: bool> Observer<STEP_CHECK, JUMPDEST> for NoOpObserver {
-    fn pre_op(&mut self, _interpreter: &Interpreter<STEP_CHECK, JUMPDEST>) {}
+impl<const STEPPABLE: bool> Observer<STEPPABLE> for NoOpObserver {
+    fn pre_op(&mut self, _interpreter: &Interpreter<STEPPABLE>) {}
 
-    fn post_op(&mut self, _interpreter: &Interpreter<STEP_CHECK, JUMPDEST>) {}
+    fn post_op(&mut self, _interpreter: &Interpreter<STEPPABLE>) {}
 
     fn log(&mut self, _message: Cow<str>) {}
 }
@@ -32,10 +32,8 @@ impl<W: Write> LoggingObserver<W> {
     }
 }
 
-impl<W: Write, const STEP_CHECK: bool, const JUMPDEST: bool> Observer<STEP_CHECK, JUMPDEST>
-    for LoggingObserver<W>
-{
-    fn pre_op(&mut self, interpreter: &Interpreter<STEP_CHECK, JUMPDEST>) {
+impl<W: Write, const STEPPABLE: bool> Observer<STEPPABLE> for LoggingObserver<W> {
+    fn pre_op(&mut self, interpreter: &Interpreter<STEPPABLE>) {
         // pre_op is called after the op is fetched so this will always be Ok(..)
         #[cfg(not(feature = "needs-fn-ptr-conversion"))]
         let op = interpreter.code_reader.get().unwrap();
@@ -58,7 +56,7 @@ impl<W: Write, const STEP_CHECK: bool, const JUMPDEST: bool> Observer<STEP_CHECK
         self.writer.flush().unwrap();
     }
 
-    fn post_op(&mut self, _interpreter: &Interpreter<STEP_CHECK, JUMPDEST>) {}
+    fn post_op(&mut self, _interpreter: &Interpreter<STEPPABLE>) {}
 
     fn log(&mut self, message: Cow<str>) {
         writeln!(self.writer, "{message}").unwrap();

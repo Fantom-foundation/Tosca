@@ -45,28 +45,19 @@ pub type AnalysisContainer<T> = Rc<T>;
 #[cfg(not(feature = "needs-fn-ptr-conversion"))]
 pub type AnalysisItem = CodeByteType;
 #[cfg(feature = "needs-fn-ptr-conversion")]
-pub type AnalysisItem<const STEP_CHECK: bool, const JUMPDEST: bool> =
-    OpFnData<STEP_CHECK, JUMPDEST>;
+pub type AnalysisItem<const STEPPABLE: bool> = OpFnData<STEPPABLE>;
 
 #[cfg(feature = "code-analysis-cache")]
 const CACHE_SIZE: usize = 1 << 16; // value taken from evmzero
 
 #[cfg(feature = "code-analysis-cache")]
-type CodeAnalysisCache<const STEP_CHECK: bool, const JUMPDEST: bool> = Cache<
-    CACHE_SIZE,
-    u256Hash,
-    AnalysisContainer<CodeAnalysis<STEP_CHECK, JUMPDEST>>,
-    BuildNoHashHasher<u64>,
->;
+type CodeAnalysisCache<const STEPPABLE: bool> =
+    Cache<CACHE_SIZE, u256Hash, AnalysisContainer<CodeAnalysis<STEPPABLE>>, BuildNoHashHasher<u64>>;
 
 #[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
-static CODE_ANALYSIS_CACHE_T_T: CodeAnalysisCache<true, true> = CodeAnalysisCache::new();
+static CODE_ANALYSIS_CACHE_STEPPABLE: CodeAnalysisCache<true> = CodeAnalysisCache::new();
 #[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
-static CODE_ANALYSIS_CACHE_T_F: CodeAnalysisCache<true, false> = CodeAnalysisCache::new();
-#[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
-static CODE_ANALYSIS_CACHE_F_T: CodeAnalysisCache<false, true> = CodeAnalysisCache::new();
-#[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
-static CODE_ANALYSIS_CACHE_F_F: CodeAnalysisCache<false, false> = CodeAnalysisCache::new();
+static CODE_ANALYSIS_CACHE_NON_STEPPABLE: CodeAnalysisCache<false> = CodeAnalysisCache::new();
 
 #[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
 thread_local! {
@@ -74,48 +65,34 @@ thread_local! {
 }
 
 #[cfg(feature = "needs-jumptable")]
-fn code_analysis_get_or_insert<const STEP_CHECK: bool, const JUMPDEST: bool>(
+fn code_analysis_get_or_insert<const STEPPABLE: bool>(
     code_hash: u256,
     code: &[u8],
-) -> AnalysisContainer<CodeAnalysis<STEP_CHECK, JUMPDEST>> {
+) -> AnalysisContainer<CodeAnalysis<STEPPABLE>> {
     unsafe {
-        match (STEP_CHECK, JUMPDEST) {
-            (true, true) => {
-                let analysis = CODE_ANALYSIS_CACHE_T_T.get_or_insert(u256Hash(code_hash), || {
+        if STEPPABLE {
+            let analysis = CODE_ANALYSIS_CACHE_STEPPABLE.get_or_insert(u256Hash(code_hash), || {
+                AnalysisContainer::new(CodeAnalysis::analyze_code(code))
+            });
+            std::mem::transmute(analysis)
+        } else {
+            let analysis = CODE_ANALYSIS_CACHE_NON_STEPPABLE
+                .get_or_insert(u256Hash(code_hash), || {
                     AnalysisContainer::new(CodeAnalysis::analyze_code(code))
                 });
-                std::mem::transmute(analysis)
-            }
-            (true, false) => {
-                let analysis = CODE_ANALYSIS_CACHE_T_F.get_or_insert(u256Hash(code_hash), || {
-                    AnalysisContainer::new(CodeAnalysis::analyze_code(code))
-                });
-                std::mem::transmute(analysis)
-            }
-            (false, true) => {
-                let analysis = CODE_ANALYSIS_CACHE_F_T.get_or_insert(u256Hash(code_hash), || {
-                    AnalysisContainer::new(CodeAnalysis::analyze_code(code))
-                });
-                std::mem::transmute(analysis)
-            }
-            (false, false) => {
-                let analysis = CODE_ANALYSIS_CACHE_F_F.get_or_insert(u256Hash(code_hash), || {
-                    AnalysisContainer::new(CodeAnalysis::analyze_code(code))
-                });
-                std::mem::transmute(analysis)
-            }
+            std::mem::transmute(analysis)
         }
     }
 }
 
 #[derive(Debug)]
-pub struct CodeAnalysis<const STEP_CHECK: bool, const JUMPDEST: bool> {
-    pub analysis: Vec<AnalysisItem<STEP_CHECK, JUMPDEST>>,
+pub struct CodeAnalysis<const STEPPABLE: bool> {
+    pub analysis: Vec<AnalysisItem<STEPPABLE>>,
     #[cfg(feature = "needs-fn-ptr-conversion")]
     pub pc_map: PcMap,
 }
 
-impl<const STEP_CHECK: bool, const JUMPDEST: bool> CodeAnalysis<STEP_CHECK, JUMPDEST> {
+impl<const STEPPABLE: bool> CodeAnalysis<STEPPABLE> {
     /// If the const generic J is false, jumpdests are skipped.
     #[allow(unused_variables)]
     pub fn new(code: &[u8], code_hash: Option<u256>) -> AnalysisContainer<Self> {
@@ -199,7 +176,7 @@ impl<const STEP_CHECK: bool, const JUMPDEST: bool> CodeAnalysis<STEP_CHECK, JUMP
         not(feature = "fn-ptr-conversion-expanded-dispatch"),
         feature = "fn-ptr-conversion-inline-dispatch"
     ))]
-    fn analyze_code<const JUMPDEST: bool>(code: &[u8]) -> Self {
+    fn analyze_code<const STEPPABLE: bool>(code: &[u8]) -> Self {
         let mut analysis = Vec::with_capacity(code.len());
         // +32+1 because if last op is push32 we need mapping from after converted to after code+32
         let mut pc_map = PcMap::new(code.len() + 32 + 1);
@@ -215,7 +192,7 @@ impl<const STEP_CHECK: bool, const JUMPDEST: bool> CodeAnalysis<STEP_CHECK, JUMP
                     pc_map.add_mapping(pc - 1, analysis.len());
                     match no_ops {
                         0 => (),
-                        1 => analysis.push(OpFnData::func::<JUMPDEST>(Opcode::NoOp as u8)),
+                        1 => analysis.push(OpFnData::func::<STEPPABLE>(Opcode::NoOp as u8)),
                         2.. => analysis.extend(OpFnData::skip_no_ops_iter(no_ops)),
                     }
                     no_ops = 0;
@@ -223,7 +200,7 @@ impl<const STEP_CHECK: bool, const JUMPDEST: bool> CodeAnalysis<STEP_CHECK, JUMP
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
                 }
                 CodeByteType::Push => {
-                    analysis.push(OpFnData::func::<JUMPDEST>(op));
+                    analysis.push(OpFnData::func::<STEPPABLE>(op));
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
 
                     let mut capped_inc = data_len.rem_euclid(OP_FN_DATA_SIZE);
@@ -246,7 +223,7 @@ impl<const STEP_CHECK: bool, const JUMPDEST: bool> CodeAnalysis<STEP_CHECK, JUMP
                     }
                 }
                 CodeByteType::Opcode => {
-                    analysis.push(OpFnData::func::<JUMPDEST>(op));
+                    analysis.push(OpFnData::func::<STEPPABLE>(op));
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
                 }
                 CodeByteType::DataOrInvalid => {
