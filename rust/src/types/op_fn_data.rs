@@ -3,7 +3,7 @@ use std::fmt::Debug;
 #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
 use crate::u256;
 use crate::{
-    interpreter::{OpFn, JUMPTABLE_NON_STEPPABLE, JUMPTABLE_STEPPABLE},
+    interpreter::{self, OpFn},
     types::CodeByteType,
     Opcode,
 };
@@ -32,7 +32,7 @@ enum OpFnDataType {
 ))]
 #[derive(Clone, PartialEq, Eq)]
 #[repr(align(8))]
-pub struct OpFnData {
+pub struct OpFnData<const STEPPABLE: bool> {
     raw: *const (),
 }
 
@@ -48,46 +48,38 @@ unsafe impl<const STEPPABLE: bool> Sync for OpFnData<STEPPABLE> {}
     not(feature = "fn-ptr-conversion-expanded-dispatch"),
     feature = "fn-ptr-conversion-inline-dispatch"
 ))]
-impl OpFnData {
+impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
     pub fn data(data: [u8; OP_FN_DATA_SIZE]) -> Self {
         // assumes native endian = little endian
         let mut raw = [0; 8];
         raw[..OP_FN_DATA_SIZE].copy_from_slice(&data);
         raw[7] = OpFnDataType::DataOrInvalid as u8;
 
-        OpFnData {
+        Self {
             raw: usize::from_ne_bytes(raw) as *const (),
         }
     }
 
     pub fn skip_no_ops_iter(count: usize) -> impl Iterator<Item = Self> {
-        std::iter::once(OpFnData {
-            raw: interpreter::SKIP_NO_OPS_FN as *const (),
-        })
-        .chain(Some(OpFnData::data((count as u32).to_ne_bytes())))
-        .chain(
-            std::iter::repeat_with(move || OpFnData {
-                raw: interpreter::NO_OP_FN as usize as *const (),
-            })
-            .take(count - 2),
-        )
+        let skip_no_ops = Self::func(Opcode::SkipNoOps as u8);
+        let count_data = Self::data((count as u32).to_ne_bytes());
+        let gen_no_ops = move || Self::func(Opcode::NoOp as u8);
+        std::iter::once(skip_no_ops)
+            .chain(std::iter::once(count_data))
+            .chain(std::iter::repeat_with(gen_no_ops).take(count - 2))
     }
 
-    pub fn func<const STEPPABLE: bool>(op: u8) -> Self {
-        let ptr_value = if STEPPABLE {
-            interpreter::JUMPTABLE[op as usize]
-        } else {
-            interpreter::JUMPTABLE_SKIP_JUMPDEST[op as usize]
-        };
+    pub fn func(op: u8) -> Self {
         OpFnData {
-            raw: ptr_value as *const (),
+            raw: interpreter::jumptable_lookup::<STEPPABLE>(op) as *const (),
         }
     }
 
     pub fn jump_dest() -> Self {
-        let mut ptr_value = interpreter::JUMP_DEST_FN as usize;
+        let mut ptr_value =
+            interpreter::jumptable_lookup::<STEPPABLE>(Opcode::JumpDest as u8) as usize;
         ptr_value |= 0x0100000000000000; // OpFnDataType::JumpDest
-        OpFnData {
+        Self {
             raw: ptr_value as *const (),
         }
     }
@@ -100,7 +92,7 @@ impl OpFnData {
         }
     }
 
-    pub fn get_func(&self) -> Option<OpFn> {
+    pub fn get_func(&self) -> Option<OpFn<STEPPABLE>> {
         if (self.raw as usize).to_ne_bytes()[7] == OpFnDataType::DataOrInvalid as u8 {
             None
         } else {
@@ -111,7 +103,7 @@ impl OpFnData {
             // During code analysis self.raw was created from a function pointer. The highest bit
             // was used for marking it as such, but was masked out. As long as only the lower 6
             // bytes are used for pointers, the value is the same as before the conversion.
-            Some(unsafe { std::mem::transmute::<*const (), OpFn>(ptr) })
+            Some(unsafe { std::mem::transmute::<*const (), OpFn<STEPPABLE>>(ptr) })
         }
     }
 
@@ -127,7 +119,7 @@ impl OpFnData {
     not(feature = "fn-ptr-conversion-expanded-dispatch"),
     feature = "fn-ptr-conversion-inline-dispatch"
 ))]
-impl Debug for OpFnData {
+impl<const STEPPABLE: bool> Debug for OpFnData<STEPPABLE> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OpFnData").field("raw", &self.raw).finish()
     }
@@ -143,7 +135,7 @@ pub struct OpFnData<const STEPPABLE: bool> {
 #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
 impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
     pub fn data(data: u256) -> Self {
-        OpFnData { func: None, data }
+        Self { func: None, data }
     }
 
     pub fn skip_no_ops_iter(count: usize) -> impl Iterator<Item = Self> {
@@ -152,19 +144,9 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
         std::iter::once(skip_no_ops).chain(std::iter::repeat_with(gen_no_ops).take(count - 1))
     }
 
-    fn jumptable_lookup(op: u8) -> OpFn<STEPPABLE> {
-        unsafe {
-            if STEPPABLE {
-                std::mem::transmute(JUMPTABLE_STEPPABLE[op as usize])
-            } else {
-                std::mem::transmute(JUMPTABLE_NON_STEPPABLE[op as usize])
-            }
-        }
-    }
-
     pub fn func(op: u8, data: u256) -> Self {
-        OpFnData {
-            func: Some(Self::jumptable_lookup(op)),
+        Self {
+            func: Some(interpreter::jumptable_lookup(op)),
             data,
         }
     }
@@ -176,7 +158,7 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
     pub fn code_byte_type(&self) -> CodeByteType {
         match self.func {
             None => CodeByteType::DataOrInvalid,
-            Some(func) if func == Self::jumptable_lookup(Opcode::JumpDest as u8) => {
+            Some(func) if func == interpreter::jumptable_lookup(Opcode::JumpDest as u8) => {
                 CodeByteType::JumpDest
             }
             Some(_) => CodeByteType::Opcode,

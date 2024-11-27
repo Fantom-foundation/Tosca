@@ -58,7 +58,7 @@ jobs:
       run: cargo install cargo-hack
     - name: cargo clippy
       working-directory: rust
-      run: cargo hack --workspace --each-feature --exclude-features needs-cache,needs-fn-ptr-conversion,needs-jumptable clippy --examples --tests --benches -- --deny warnings
+      run: cargo hack --workspace --each-feature --exclude-features needs-cache,needs-fn-ptr-conversion,needs-jumptable clippy --all-targets -- --deny warnings
     
   doc:
     name: doc

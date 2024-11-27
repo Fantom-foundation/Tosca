@@ -146,7 +146,7 @@ mod tests {
         let message = MockExecutionMessage::default().into();
         let mut context = MockExecutionContextTrait::new();
         let interpreter = Interpreter::new(Revision::EVMC_CANCUN, &message, &mut context, &[]);
-        assert_eq!(utils::check_not_read_only(&interpreter), Ok(()));
+        assert_eq!(utils::check_not_read_only(interpreter.message), Ok(()));
 
         let message = MockExecutionMessage {
             flags: MessageFlags::EVMC_STATIC as u32,
@@ -155,7 +155,7 @@ mod tests {
         let message = message.into();
         let interpreter = Interpreter::new(Revision::EVMC_CANCUN, &message, &mut context, &[]);
         assert_eq!(
-            utils::check_not_read_only(&interpreter),
+            utils::check_not_read_only(interpreter.message),
             Err(FailStatus::StaticModeViolation)
         );
     }

@@ -5,7 +5,7 @@ use evmc_vm::{
     StatusCode, StepResult, StorageStatus, Uint256,
 };
 
-#[cfg(not(feature = "needs-jumptable"))]
+#[cfg(not(feature = "needs-fn-ptr-conversion"))]
 use crate::types::Opcode;
 use crate::{
     types::{
@@ -291,9 +291,28 @@ const fn gen_jumptable<const STEPPABLE: bool>() -> [OpFn<STEPPABLE>; 256] {
 }
 
 #[cfg(feature = "needs-jumptable")]
-pub static JUMPTABLE_STEPPABLE: [OpFn<true>; 256] = gen_jumptable();
+static JUMPTABLE_STEPPABLE: [OpFn<true>; 256] = gen_jumptable();
 #[cfg(feature = "needs-jumptable")]
-pub static JUMPTABLE_NON_STEPPABLE: [OpFn<false>; 256] = gen_jumptable();
+static JUMPTABLE_NON_STEPPABLE: [OpFn<false>; 256] = gen_jumptable();
+
+#[cfg(feature = "needs-jumptable")]
+pub fn jumptable_lookup<const STEPPABLE: bool>(op: u8) -> OpFn<STEPPABLE> {
+    if STEPPABLE {
+        // SAFETY:
+        // STEPPABLE is true
+        unsafe {
+            std::mem::transmute::<OpFn<true>, OpFn<STEPPABLE>>(JUMPTABLE_STEPPABLE[op as usize])
+        }
+    } else {
+        // SAFETY:
+        // STEPPABLE is false
+        unsafe {
+            std::mem::transmute::<OpFn<false>, OpFn<STEPPABLE>>(
+                JUMPTABLE_NON_STEPPABLE[op as usize],
+            )
+        }
+    }
+}
 
 pub struct Interpreter<'a, const STEPPABLE: bool> {
     pub exec_status: ExecStatus,
@@ -316,7 +335,7 @@ pub struct Interpreter<'a, const STEPPABLE: bool> {
     pub steps: Option<i32>,
 }
 
-impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
+impl<'a> Interpreter<'a, false> {
     pub fn new(
         revision: Revision,
         message: &'a ExecutionMessage,
@@ -338,7 +357,9 @@ impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
             steps: None,
         }
     }
+}
 
+impl<'a> Interpreter<'a, true> {
     #[allow(clippy::too_many_arguments)]
     pub fn new_steppable(
         revision: Revision,
@@ -367,12 +388,14 @@ impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
             steps,
         }
     }
+}
 
+impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
     /// If the const generic S is false, the step check is skipped.
     /// If the const generic J is false jumpdests are skipped.
     /// R is expected to be [ExecutionResult] or [StepResult].
     #[cfg(not(feature = "tail-call"))]
-    pub fn run<O, R>(&mut self, observer: &mut O) -> R
+    pub fn run<O, R>(mut self, observer: &mut O) -> R
     where
         O: Observer<STEPPABLE>,
         R: From<Self> + From<FailStatus>,
@@ -455,11 +478,7 @@ impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
         not(feature = "needs-fn-ptr-conversion")
     ))]
     fn run_op(&mut self, op: Opcode) -> OpResult {
-        if STEPPABLE {
-            JUMPTABLE[op as u8 as usize](self)
-        } else {
-            JUMPTABLE_SKIP_JUMPDEST[op as u8 as usize](self)
-        }
+        jumptable_lookup(op as u8)(self)
     }
     #[cfg(not(feature = "needs-jumptable"))]
     fn run_op(&mut self, op: Opcode) -> OpResult {
@@ -1857,7 +1876,7 @@ mod tests {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
         let interpreter = Interpreter::new(Revision::EVMC_ISTANBUL, &message, &mut context, &[]);
-        let result: StepResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        let result: StepResult = interpreter.run(&mut NoOpObserver());
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
         assert_eq!(result.pc, 0);
         assert_eq!(
@@ -1882,7 +1901,7 @@ mod tests {
             None,
             None,
         );
-        let result: StepResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        let result: StepResult = interpreter.run(&mut NoOpObserver());
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
         assert_eq!(result.pc, 1);
         assert_eq!(
@@ -1910,7 +1929,7 @@ mod tests {
             None,
             None,
         )
-        .run::<_, _, false, false>(&mut NoOpObserver());
+        .run(&mut NoOpObserver());
         assert_eq!(result.status_code, StatusCode::EVMC_INVALID_INSTRUCTION);
     }
 
@@ -1918,14 +1937,19 @@ mod tests {
     fn zero_steps() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter = Interpreter::new(
+        let interpreter = Interpreter::new_steppable(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8],
+            0,
+            0,
+            Stack::new(&[]),
+            Memory::new(Vec::new()),
+            None,
+            Some(0),
         );
-        interpreter.steps = Some(0);
-        let result: StepResult = interpreter.run::<_, _, true, true>(&mut NoOpObserver());
+        let result: StepResult = interpreter.run(&mut NoOpObserver());
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_RUNNING);
         assert_eq!(result.pc, 0);
         assert_eq!(
@@ -1938,15 +1962,19 @@ mod tests {
     fn add_one_step() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter = Interpreter::new(
+        let interpreter = Interpreter::new_steppable(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::Add as u8, Opcode::Add as u8],
+            0,
+            0,
+            Stack::new(&[1u8.into(), 2u8.into()]),
+            Memory::new(Vec::new()),
+            None,
+            Some(1),
         );
-        interpreter.steps = Some(1);
-        interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
-        let result: StepResult = interpreter.run::<_, _, true, true>(&mut NoOpObserver());
+        let result: StepResult = interpreter.run(&mut NoOpObserver());
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_RUNNING);
         assert_eq!(result.stack.as_slice(), [u256::from(3u8).into()]);
         assert_eq!(
@@ -1966,7 +1994,7 @@ mod tests {
             &[Opcode::Add as u8],
         );
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
-        let result: StepResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        let result: StepResult = interpreter.run(&mut NoOpObserver());
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
         assert_eq!(result.stack.as_slice(), [u256::from(3u8).into()]);
         assert_eq!(
@@ -1986,7 +2014,7 @@ mod tests {
             &[Opcode::Add as u8, Opcode::Add as u8],
         );
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into(), 3u8.into()]);
-        let result: StepResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        let result: StepResult = interpreter.run(&mut NoOpObserver());
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
         assert_eq!(result.stack.as_slice(), [u256::from(6u8).into()]);
         assert_eq!(
@@ -2004,13 +2032,13 @@ mod tests {
     fn tail_call_elimination() {
         let mut context = MockExecutionContextTrait::new();
         let message = MockExecutionMessage::default().into();
-        let mut interpreter = Interpreter::new(
+        let interpreter = Interpreter::new(
             Revision::EVMC_ISTANBUL,
             &message,
             &mut context,
             &[Opcode::JumpDest as u8; 10_000_000],
         );
-        let result: StepResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        let result: StepResult = interpreter.run(&mut NoOpObserver());
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
     }
 
@@ -2029,7 +2057,7 @@ mod tests {
             &[Opcode::Add as u8],
         );
         interpreter.stack = Stack::new(&[1u8.into(), 2u8.into()]);
-        let result: ExecutionResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        let result: ExecutionResult = interpreter.run(&mut NoOpObserver());
         assert_eq!(result.status_code, StatusCode::EVMC_OUT_OF_GAS);
     }
 
@@ -2115,7 +2143,7 @@ mod tests {
             None,
             None,
         );
-        let result: StepResult = interpreter.run::<_, _, false, false>(&mut NoOpObserver());
+        let result: StepResult = interpreter.run(&mut NoOpObserver());
         assert_eq!(result.step_status_code, StepStatusCode::EVMC_STEP_STOPPED);
         assert_eq!(result.pc, 1);
         assert_eq!(
