@@ -16,8 +16,6 @@ package evmone
 import "C"
 
 import (
-	"fmt"
-
 	"github.com/Fantom-foundation/Tosca/go/interpreter/evmc"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
@@ -32,14 +30,14 @@ func init() {
 	tosca.MustRegisterInterpreterFactory("evmone", func(any) (tosca.Interpreter, error) {
 		evmone, err := evmc.LoadEvmcInterpreter("libevmone.so")
 		if err != nil {
-			panic(fmt.Errorf("failed to load evmone library: %s", err))
+			return nil, err
 		}
 		return &evmoneInstance{evmone}, nil
 	})
 	tosca.MustRegisterInterpreterFactory("evmone-basic", func(any) (tosca.Interpreter, error) {
 		evmone, err := evmc.LoadEvmcInterpreter("libevmone.so")
 		if err != nil {
-			panic(fmt.Errorf("failed to load evmone library: %s", err))
+			return nil, err
 		}
 		return &evmoneInstance{evmone}, nil
 	})
@@ -48,10 +46,10 @@ func init() {
 	tosca.MustRegisterInterpreterFactory("evmone-advanced", func(any) (tosca.Interpreter, error) {
 		evmone, err := evmc.LoadEvmcInterpreter("libevmone.so")
 		if err != nil {
-			panic(fmt.Errorf("failed to load evmone library: %s", err))
+			return nil, err
 		}
 		if err := evmone.SetOption("advanced", "on"); err != nil {
-			panic(fmt.Errorf("failed to configure evmone advanced mode: %v", err))
+			return nil, err
 		}
 		return &evmoneInstance{evmone}, nil
 	})

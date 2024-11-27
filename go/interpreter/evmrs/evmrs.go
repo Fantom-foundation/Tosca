@@ -16,8 +16,6 @@ package evmrs
 import "C"
 
 import (
-	"fmt"
-
 	"github.com/Fantom-foundation/Tosca/go/interpreter/evmc"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
@@ -32,7 +30,7 @@ func init() {
 		tosca.MustRegisterInterpreterFactory("evmrs", func(any) (tosca.Interpreter, error) {
 			evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
 			if err != nil {
-				panic(fmt.Errorf("failed to load evmrs library: %s", err))
+				return nil, err
 			}
 			return &evmrsInstance{evm}, nil
 		})
@@ -42,10 +40,10 @@ func init() {
 		tosca.MustRegisterInterpreterFactory("evmrs-logging", func(any) (tosca.Interpreter, error) {
 			evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
 			if err != nil {
-				panic(fmt.Errorf("failed to load evmrs library: %s", err))
+				return nil, err
 			}
 			if err = evm.SetOption("logging", "true"); err != nil {
-				panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+				return nil, err
 			}
 			return &evmrsInstance{evm}, nil
 		})

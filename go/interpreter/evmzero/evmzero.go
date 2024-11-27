@@ -19,8 +19,6 @@ void evmzero_reset_profiler(void* vm);
 import "C"
 
 import (
-	"fmt"
-
 	"github.com/Fantom-foundation/Tosca/go/interpreter/evmc"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
@@ -35,7 +33,7 @@ func init() {
 		tosca.MustRegisterInterpreterFactory("evmzero", func(any) (tosca.Interpreter, error) {
 			evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
 			if err != nil {
-				panic(fmt.Errorf("failed to load evmzero library: %s", err))
+				return nil, err
 			}
 			return &evmzeroInstance{evm}, nil
 		})
@@ -46,10 +44,10 @@ func init() {
 		tosca.MustRegisterInterpreterFactory("evmzero-logging", func(any) (tosca.Interpreter, error) {
 			evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
 			if err != nil {
-				panic(fmt.Errorf("failed to load evmzero library: %s", err))
+				return nil, err
 			}
 			if err = evm.SetOption("logging", "true"); err != nil {
-				panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+				return nil, err
 			}
 			return &evmzeroInstance{evm}, nil
 		})
@@ -60,10 +58,10 @@ func init() {
 		tosca.MustRegisterInterpreterFactory("evmzero-no-analysis-cache", func(any) (tosca.Interpreter, error) {
 			evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
 			if err != nil {
-				panic(fmt.Errorf("failed to load evmzero library: %s", err))
+				return nil, err
 			}
 			if err = evm.SetOption("analysis_cache", "false"); err != nil {
-				panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+				return nil, err
 			}
 			return &evmzeroInstance{evm}, nil
 		})
@@ -74,10 +72,10 @@ func init() {
 		tosca.MustRegisterInterpreterFactory("evmzero-no-sha3-cache", func(any) (tosca.Interpreter, error) {
 			evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
 			if err != nil {
-				panic(fmt.Errorf("failed to load evmzero library: %s", err))
+				return nil, err
 			}
 			if err = evm.SetOption("sha3_cache", "false"); err != nil {
-				panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+				return nil, err
 			}
 			return &evmzeroInstance{evm}, nil
 		})
@@ -88,10 +86,10 @@ func init() {
 		tosca.MustRegisterInterpreterFactory("evmzero-profiling", func(any) (tosca.Interpreter, error) {
 			evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
 			if err != nil {
-				panic(fmt.Errorf("failed to load evmzero library: %s", err))
+				return nil, err
 			}
 			if err = evm.SetOption("profiling", "true"); err != nil {
-				panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+				return nil, err
 			}
 			return &evmzeroInstanceWithProfiler{&evmzeroInstance{evm}}, nil
 		})
@@ -102,10 +100,10 @@ func init() {
 		tosca.MustRegisterInterpreterFactory("evmzero-profiling-external", func(any) (tosca.Interpreter, error) {
 			evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
 			if err != nil {
-				panic(fmt.Errorf("failed to load evmzero library: %s", err))
+				return nil, err
 			}
 			if err = evm.SetOption("profiling_external", "true"); err != nil {
-				panic(fmt.Errorf("failed to configure EVM instance: %s", err))
+				return nil, err
 			}
 			return &evmzeroInstanceWithProfiler{&evmzeroInstance{evm}}, nil
 		})
