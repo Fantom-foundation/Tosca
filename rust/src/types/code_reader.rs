@@ -9,13 +9,13 @@ use crate::types::Opcode;
 use crate::types::{u256, AnalysisContainer, CodeAnalysis, CodeByteType, FailStatus};
 
 #[derive(Debug)]
-pub struct CodeReader<'a> {
+pub struct CodeReader<'a, const STEPPABLE: bool> {
     code: &'a [u8],
-    code_analysis: AnalysisContainer<CodeAnalysis>,
+    code_analysis: AnalysisContainer<CodeAnalysis<STEPPABLE>>,
     pc: usize,
 }
 
-impl<'a> Deref for CodeReader<'a> {
+impl<'a, const STEPPABLE: bool> Deref for CodeReader<'a, STEPPABLE> {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
@@ -29,10 +29,10 @@ pub enum GetOpcodeError {
     Invalid,
 }
 
-impl<'a> CodeReader<'a> {
+impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
     /// If the const generic J is false, jumpdests are skipped.
-    pub fn new<const JUMPDEST: bool>(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
-        let code_analysis = CodeAnalysis::new::<JUMPDEST>(code, code_hash);
+    pub fn new(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
+        let code_analysis = CodeAnalysis::new(code, code_hash);
         #[cfg(feature = "needs-fn-ptr-conversion")]
         let pc = code_analysis.pc_map.to_converted(pc);
         Self {
@@ -61,7 +61,7 @@ impl<'a> CodeReader<'a> {
         }
     }
     #[cfg(feature = "needs-fn-ptr-conversion")]
-    pub fn get(&self) -> Result<OpFn, GetOpcodeError> {
+    pub fn get(&self) -> Result<OpFn<STEPPABLE>, GetOpcodeError> {
         self.code_analysis
             .analysis
             .get(self.pc)
@@ -156,7 +156,7 @@ mod tests {
     fn code_reader_internals() {
         let code = [Opcode::Add as u8, Opcode::Add as u8, 0xc0];
         let pc = 1;
-        let code_reader = CodeReader::new::<false>(&code, None, pc);
+        let code_reader = CodeReader::<false>::new(&code, None, pc);
         assert_eq!(*code_reader, code);
         assert_eq!(code_reader.len(), code.len());
         assert_eq!(code_reader.pc(), pc);
@@ -167,34 +167,34 @@ mod tests {
     fn code_reader_pc() {
         let code = [Opcode::Push1 as u8, Opcode::Add as u8, Opcode::Add as u8];
 
-        let code_reader = CodeReader::new::<false>(&code, None, 0);
+        let code_reader = CodeReader::<false>::new(&code, None, 0);
         assert_eq!(code_reader.pc, 0);
         assert_eq!(code_reader.pc(), 0);
 
-        let mut code_reader = CodeReader::new::<false>(&code, None, 0);
+        let mut code_reader = CodeReader::<false>::new(&code, None, 0);
         assert_eq!(code_reader.pc, 0);
         code_reader.get_push_data();
         assert_eq!(code_reader.pc, 1);
         assert_eq!(code_reader.pc(), 2);
 
-        let code_reader = CodeReader::new::<false>(&code, None, 2);
+        let code_reader = CodeReader::<false>::new(&code, None, 2);
         assert_eq!(code_reader.pc, 1);
         assert_eq!(code_reader.pc(), 2);
 
         let mut code = [Opcode::Add as u8; 23];
         code[0] = Opcode::Push21 as u8;
 
-        let code_reader = CodeReader::new::<false>(&code, None, 0);
+        let code_reader = CodeReader::<false>::new(&code, None, 0);
         assert_eq!(code_reader.pc, 0);
         assert_eq!(code_reader.pc(), 0);
 
-        let mut code_reader = CodeReader::new::<false>(&code, None, 0);
+        let mut code_reader = CodeReader::<false>::new(&code, None, 0);
         assert_eq!(code_reader.pc, 0);
         code_reader.get_push_data();
         assert_eq!(code_reader.pc, 1);
         assert_eq!(code_reader.pc(), 22);
 
-        let code_reader = CodeReader::new::<false>(&code, None, 22);
+        let code_reader = CodeReader::<false>::new(&code, None, 22);
         assert_eq!(code_reader.pc, 1);
         assert_eq!(code_reader.pc(), 22);
     }
@@ -206,36 +206,36 @@ mod tests {
     fn code_reader_pc() {
         let code = [Opcode::Push1 as u8, Opcode::Add as u8, Opcode::Add as u8];
 
-        let code_reader = CodeReader::new::<false>(&code, None, 0);
+        let code_reader = CodeReader::<false>::new(&code, None, 0);
         assert_eq!(code_reader.pc, 0);
         assert_eq!(code_reader.pc(), 0);
 
-        let mut code_reader = CodeReader::new::<false>(&code, None, 0);
+        let mut code_reader = CodeReader::<false>::new(&code, None, 0);
         assert_eq!(code_reader.pc, 0);
         code_reader.next();
         code_reader.get_push_data(1);
         assert_eq!(code_reader.pc, 2);
         assert_eq!(code_reader.pc(), 2);
 
-        let code_reader = CodeReader::new::<false>(&code, None, 2);
+        let code_reader = CodeReader::<false>::new(&code, None, 2);
         assert_eq!(code_reader.pc, 2);
         assert_eq!(code_reader.pc(), 2);
 
         let mut code = [Opcode::Add as u8; 23];
         code[0] = Opcode::Push21 as u8;
 
-        let code_reader = CodeReader::new::<false>(&code, None, 0);
+        let code_reader = CodeReader::<false>::new(&code, None, 0);
         assert_eq!(code_reader.pc, 0);
         assert_eq!(code_reader.pc(), 0);
 
-        let mut code_reader = CodeReader::new::<false>(&code, None, 0);
+        let mut code_reader = CodeReader::<false>::new(&code, None, 0);
         assert_eq!(code_reader.pc, 0);
         code_reader.next();
         code_reader.get_push_data(21);
         assert_eq!(code_reader.pc, 7);
         assert_eq!(code_reader.pc(), 22);
 
-        let code_reader = CodeReader::new::<false>(&code, None, 22);
+        let code_reader = CodeReader::<false>::new(&code, None, 22);
         assert_eq!(code_reader.pc, 7);
         assert_eq!(code_reader.pc(), 22);
     }
@@ -243,7 +243,7 @@ mod tests {
     #[test]
     fn code_reader_get() {
         let mut code_reader =
-            CodeReader::new::<false>(&[Opcode::Add as u8, Opcode::Add as u8, 0xc0], None, 0);
+            CodeReader::<false>::new(&[Opcode::Add as u8, Opcode::Add as u8, 0xc0], None, 0);
         #[cfg(not(feature = "needs-fn-ptr-conversion"))]
         assert_eq!(code_reader.get(), Ok(Opcode::Add));
         #[cfg(feature = "needs-fn-ptr-conversion")]
@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn code_reader_try_jump() {
-        let mut code_reader = CodeReader::new::<false>(
+        let mut code_reader = CodeReader::<false>::new(
             &[
                 Opcode::Push1 as u8,
                 Opcode::JumpDest as u8,
@@ -288,22 +288,22 @@ mod tests {
     #[cfg(not(feature = "needs-fn-ptr-conversion"))]
     #[test]
     fn code_reader_get_push_data() {
-        let mut code_reader = CodeReader::new::<false>(&[0xff; 32], None, 0);
+        let mut code_reader = CodeReader::<false>::new(&[0xff; 32], None, 0);
         assert_eq!(code_reader.get_push_data(0u8.into()), u256::ZERO);
 
-        let mut code_reader = CodeReader::new::<false>(&[0xff; 32], None, 0);
+        let mut code_reader = CodeReader::<false>::new(&[0xff; 32], None, 0);
         assert_eq!(code_reader.get_push_data(1u8.into()), 0xffu8.into());
 
-        let mut code_reader = CodeReader::new::<false>(&[0xff; 32], None, 0);
+        let mut code_reader = CodeReader::<false>::new(&[0xff; 32], None, 0);
         assert_eq!(code_reader.get_push_data(32u8.into()), u256::MAX);
 
-        let mut code_reader = CodeReader::new::<false>(&[0xff; 32], None, 31);
+        let mut code_reader = CodeReader::<false>::new(&[0xff; 32], None, 31);
         assert_eq!(
             code_reader.get_push_data(32u8.into()),
             u256::from(0xffu8) << u256::from(248u8)
         );
 
-        let mut code_reader = CodeReader::new::<false>(&[0xff; 32], None, 32);
+        let mut code_reader = CodeReader::<false>::new(&[0xff; 32], None, 32);
         assert_eq!(code_reader.get_push_data(32u8.into()), u256::ZERO);
     }
     #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
@@ -312,7 +312,7 @@ mod tests {
         // pc on data is non longer possible because there are not data items anymore
         let mut code = [0xff; 33];
         code[0] = Opcode::Push32 as u8;
-        let mut code_reader = CodeReader::new::<false>(&code, None, 0);
+        let mut code_reader = CodeReader::<false>::new(&code, None, 0);
         assert_eq!(code_reader.get_push_data(), u256::MAX);
     }
     #[cfg(all(
@@ -325,18 +325,18 @@ mod tests {
         // pc on data is undefined behavior so we have to advance the pc by calling next
         let mut code = [0xff; 33];
         code[0] = Opcode::Push32 as u8;
-        let mut code_reader = CodeReader::new::<false>(&code, None, 0);
+        let mut code_reader = CodeReader::<false>::new(&code, None, 0);
         code_reader.next();
         assert_eq!(code_reader.get_push_data(0u8.into()), u256::ZERO);
 
-        let mut code_reader = CodeReader::new::<false>(&code, None, 0);
+        let mut code_reader = CodeReader::<false>::new(&code, None, 0);
         code_reader.next();
         assert_eq!(
             code_reader.get_push_data(1u8.into()),
             (u32::MAX as u64).into()
         );
 
-        let mut code_reader = CodeReader::new::<false>(&code, None, 0);
+        let mut code_reader = CodeReader::<false>::new(&code, None, 0);
         code_reader.next();
         assert_eq!(code_reader.get_push_data(32u8.into()), u256::MAX);
     }

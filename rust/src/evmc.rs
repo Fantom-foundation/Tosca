@@ -31,8 +31,6 @@ impl EvmcVm for EvmRs {
         message: &'a ExecutionMessage,
         context: Option<&'a mut ExecutionContext<'a>>,
     ) -> ExecutionResult {
-        const STEP_CHECK: bool = false;
-        const JUMPDESTS: bool = false;
         assert_ne!(
             EVMC_CAPABILITY,
             evmc_capabilities::EVMC_CAPABILITY_PRECOMPILES
@@ -44,11 +42,8 @@ impl EvmcVm for EvmRs {
         };
         let interpreter = Interpreter::new(revision, message, context, code);
         match self.observer_type {
-            ObserverType::NoOp => {
-                interpreter.run::<_, _, STEP_CHECK, JUMPDESTS>(&mut NoOpObserver())
-            }
-            ObserverType::Logging => interpreter
-                .run::<_, _, STEP_CHECK, JUMPDESTS>(&mut LoggingObserver::new(std::io::stdout())),
+            ObserverType::NoOp => interpreter.run(&mut NoOpObserver()),
+            ObserverType::Logging => interpreter.run(&mut LoggingObserver::new(std::io::stdout())),
         }
     }
 
@@ -77,8 +72,6 @@ impl SteppableEvmcVm for EvmRs {
         last_call_return_data: &'a mut [u8],
         steps: i32,
     ) -> StepResult {
-        const STEP_CHECK: bool = true;
-        const JUMPDESTS: bool = true;
         if step_status_code != EvmcStepStatusCode::EVMC_STEP_RUNNING {
             return StepResult::new(
                 step_status_code,
@@ -127,11 +120,8 @@ impl SteppableEvmcVm for EvmRs {
             Some(steps),
         );
         match self.observer_type {
-            ObserverType::NoOp => {
-                interpreter.run::<_, _, STEP_CHECK, JUMPDESTS>(&mut NoOpObserver())
-            }
-            ObserverType::Logging => interpreter
-                .run::<_, _, STEP_CHECK, JUMPDESTS>(&mut LoggingObserver::new(std::io::stdout())),
+            ObserverType::NoOp => interpreter.run(&mut NoOpObserver()),
+            ObserverType::Logging => interpreter.run(&mut LoggingObserver::new(std::io::stdout())),
         }
     }
 }
