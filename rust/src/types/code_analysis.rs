@@ -157,8 +157,11 @@ impl<const STEPPABLE: bool> CodeAnalysis<STEPPABLE> {
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
                 }
                 CodeByteType::Push => {
+                    let mut data = [0; 32];
                     let avail = min(data_len, code.len() - pc);
-                    let data = u256::from_be_slice(&code[pc..pc + avail]) << (data_len - avail);
+                    data[32 - data_len..32 - data_len + avail]
+                        .copy_from_slice(&code[pc..pc + avail]);
+                    let data = u256::from_be_bytes(data);
                     analysis.push(OpFnData::func(op, data));
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
 

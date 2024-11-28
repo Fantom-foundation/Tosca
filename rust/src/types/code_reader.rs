@@ -94,8 +94,10 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
         assert!(len <= 32);
 
         let data_len = min(len, self.code.len().saturating_sub(self.pc));
-        let data =
-            u256::from_be_slice(&self.code[self.pc..self.pc + data_len]) << (8 * (len - data_len));
+        let mut data = [0; 32];
+        data[32 - len..32 - len + data_len]
+            .copy_from_slice(&self.code[self.pc..self.pc + data_len]);
+        let data = u256::from_be_bytes(data);
         self.pc += len;
 
         data

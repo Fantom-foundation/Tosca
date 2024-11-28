@@ -17,7 +17,7 @@ use zerocopy::{transmute, transmute_ref};
 
 /// This represents a 256-bit integer in native endian.
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 #[repr(align(16))] // 16 byte alignment is faster than 1, 8 or 32 byte alignment on x86-64.
 pub struct u256(U256);
 
@@ -32,27 +32,19 @@ impl LowerHex for u256 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let digits = self.0.digits();
         if f.alternate() {
-            f.write_str("0x")?;
+            write!(f, "0x")?;
         }
-        f.write_fmt(format_args!("{:016x}", digits[3]))?;
-        f.write_str("_")?;
-        f.write_fmt(format_args!("{:016x}", digits[2]))?;
-        f.write_str("_")?;
-        f.write_fmt(format_args!("{:016x}", digits[1]))?;
-        f.write_str("_")?;
-        f.write_fmt(format_args!("{:016x}", digits[0]))
+        write!(
+            f,
+            "{:016x}_{:016x}_{:016x}_{:016x}",
+            digits[3], digits[2], digits[1], digits[0]
+        )
     }
 }
 
 impl Display for u256 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}", self.0))
-    }
-}
-
-impl Debug for u256 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self}")
+        write!(f, "{}", self.0)
     }
 }
 
@@ -67,12 +59,6 @@ impl From<u256> for Uint256 {
         Uint256 {
             bytes: transmute!(*value.0.to_be().digits()),
         }
-    }
-}
-
-impl From<[u8; 32]> for u256 {
-    fn from(value: [u8; 32]) -> Self {
-        Self(U256::from_digits(transmute!(value)))
     }
 }
 
@@ -102,13 +88,17 @@ impl From<usize> for u256 {
 
 impl From<Address> for u256 {
     fn from(value: Address) -> Self {
-        Self(U256::from_be_slice(&value.bytes).unwrap())
+        let mut bytes = [0; 32];
+        bytes[32 - 20..].copy_from_slice(&value.bytes);
+        Self::from_be_bytes(bytes)
     }
 }
 
 impl From<&Address> for u256 {
     fn from(value: &Address) -> Self {
-        Self(U256::from_be_slice(&value.bytes).unwrap())
+        let mut bytes = [0; 32];
+        bytes[32 - 20..].copy_from_slice(&value.bytes);
+        Self::from_be_bytes(bytes)
     }
 }
 
@@ -442,8 +432,12 @@ impl u256 {
         self.0.bits()
     }
 
-    pub fn from_be_slice(slice: &[u8]) -> Self {
-        Self(U256::from_be_slice(slice).unwrap())
+    pub fn from_le_bytes(bytes: [u8; 32]) -> Self {
+        Self(U256::from_digits(transmute!(bytes)))
+    }
+
+    pub fn from_be_bytes(bytes: [u8; 32]) -> Self {
+        Self(U256::from_digits(transmute!(bytes)).to_be())
     }
 
     pub fn least_significant_byte(&self) -> u8 {

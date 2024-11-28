@@ -941,9 +941,9 @@ impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
             self.stack.push(u256::ZERO)?;
         } else {
             let end = min(call_data.len(), offset + 32);
-            self.stack.push(
-                u256::from_be_slice(&call_data[offset..end]) << (8 * (32 - (end - offset))),
-            )?;
+            let mut bytes = [0; 32];
+            bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
+            self.stack.push(u256::from_be_bytes(bytes))?;
         }
         self.code_reader.next();
         self.return_from_op()

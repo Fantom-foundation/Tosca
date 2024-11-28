@@ -419,7 +419,7 @@ impl RunArgs {
 
         let message = MockExecutionMessage {
             input: Some(Box::leak(Box::from(input.as_slice()))),
-            code_hash: Some(Box::leak(Box::new(u256::from(code_hash).into()))),
+            code_hash: Some(Box::leak(Box::new(u256::from_le_bytes(code_hash).into()))),
             ..Default::default()
         };
 
