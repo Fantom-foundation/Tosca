@@ -136,7 +136,7 @@ impl Add for u256 {
 
 impl AddAssign for u256 {
     fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs;
+        self.0 += rhs.0;
     }
 }
 
@@ -150,7 +150,7 @@ impl Sub for u256 {
 
 impl SubAssign for u256 {
     fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs;
+        self.0 -= rhs.0;
     }
 }
 
@@ -164,7 +164,7 @@ impl Mul for u256 {
 
 impl MulAssign for u256 {
     fn mul_assign(&mut self, rhs: Self) {
-        *self = *self * rhs;
+        self.0 *= rhs.0;
     }
 }
 
@@ -181,7 +181,7 @@ impl Div for u256 {
 
 impl DivAssign for u256 {
     fn div_assign(&mut self, rhs: Self) {
-        *self = *self / rhs;
+        self.0 /= rhs.0;
     }
 }
 
