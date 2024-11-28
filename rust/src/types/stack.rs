@@ -10,6 +10,16 @@ impl<const N: usize> NonZero<N> {
     const VALID: () = assert!(N > 0);
 }
 
+/// Wrapper around [`&mut u256`] that ensures that the only possible operation is to write once to
+/// this memory location.
+pub struct PushGuard<'p>(&'p mut u256);
+
+impl PushGuard<'_> {
+    pub fn push(self, value: impl Into<u256>) {
+        *self.0 = value.into();
+    }
+}
+
 #[cfg(feature = "alloc-reuse")]
 static REUSABLE_STACK: Mutex<Vec<Vec<u256>>> = Mutex::new(Vec::new());
 
@@ -112,6 +122,30 @@ impl Stack {
         array.copy_from_slice(&self.0[new_len..]);
         self.0.truncate(new_len);
         Ok(array)
+    }
+
+    pub fn pop_with_guard<const N: usize>(&mut self) -> Result<(PushGuard, [u256; N]), FailStatus> {
+        self.check_underflow(N)?;
+
+        unsafe {
+            self.0.set_len(self.len() - N + 1);
+        }
+        let start = self.0.as_ptr() as *mut u256;
+        // SAFETY:
+        // This does not wrap and the whole range from start to start + self.len is valid.
+        let pop_start = unsafe { start.add(self.len() - 1) };
+        // SAFETY:
+        // The the first self.len elements are initialized (invariant).
+        // `self.len` just got decremented by N - 1, which means now that the first `self.len - 1 +
+        // (N + 1)` elements are initialized. Therefore, it is safe to read N elements
+        // starting at index `self.len - 1` as an array of length N and type u256.
+        let pop_data = unsafe { *(pop_start as *const [u256; N]) };
+        // SAFETY:
+        // The data for pop_data is copied out so there are no other references to this data.
+        // The validity of the data is the same as for pop_data. Because the pointer is valid and no
+        // one else holds a reference to it, it is safe to cast it to a mutable reference.
+        let push_guard = PushGuard(unsafe { &mut *pop_start });
+        Ok((push_guard, pop_data))
     }
 
     pub fn peek(&self) -> Option<&u256> {

@@ -658,32 +658,32 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
     fn add(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value2, value1] = self.stack.pop()?;
-        self.stack.push(value1 + value2)?;
+        let (push_guard, [value2, value1]) = self.stack.pop_with_guard()?;
+        push_guard.push(value1 + value2);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn mul(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [fac2, fac1] = self.stack.pop()?;
-        self.stack.push(fac1 * fac2)?;
+        let (push_guard, [fac2, fac1]) = self.stack.pop_with_guard()?;
+        push_guard.push(fac1 * fac2);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn sub(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value2, value1] = self.stack.pop()?;
-        self.stack.push(value1 - value2)?;
+        let (push_guard, [value2, value1]) = self.stack.pop_with_guard()?;
+        push_guard.push(value1 - value2);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn div(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value / denominator)?;
+        let (push_guard, [denominator, value]) = self.stack.pop_with_guard()?;
+        push_guard.push(value / denominator);
         self.code_reader.next();
         self.return_from_op()
     }
@@ -698,8 +698,8 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
     fn mod_(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value % denominator)?;
+        let (push_guard, [denominator, value]) = self.stack.pop_with_guard()?;
+        push_guard.push(value % denominator);
         self.code_reader.next();
         self.return_from_op()
     }
