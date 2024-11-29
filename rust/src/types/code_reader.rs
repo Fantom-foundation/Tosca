@@ -15,7 +15,7 @@ pub struct CodeReader<'a, const STEPPABLE: bool> {
     pc: usize,
 }
 
-impl<'a, const STEPPABLE: bool> Deref for CodeReader<'a, STEPPABLE> {
+impl<const STEPPABLE: bool> Deref for CodeReader<'_, STEPPABLE> {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
@@ -94,9 +94,10 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
         assert!(len <= 32);
 
         let data_len = min(len, self.code.len().saturating_sub(self.pc));
-        let mut data = u256::ZERO;
+        let mut data = [0; 32];
         data[32 - len..32 - len + data_len]
             .copy_from_slice(&self.code[self.pc..self.pc + data_len]);
+        let data = u256::from_be_bytes(data);
         self.pc += len;
 
         data
@@ -114,7 +115,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
         use crate::types::op_fn_data::OP_FN_DATA_SIZE;
         const MAX_CHUNKS: usize = 32usize.div_ceil(OP_FN_DATA_SIZE);
 
-        let mut data = u256::ZERO;
+        let mut data = [0; 32];
         let chunks = len.div_ceil(OP_FN_DATA_SIZE);
         for chunk in 0..chunks {
             let offset = (MAX_CHUNKS - chunks + chunk) * OP_FN_DATA_SIZE;
@@ -123,7 +124,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
             self.pc += 1;
         }
 
-        data
+        u256::from_be_bytes(data)
     }
 
     #[cfg(feature = "needs-fn-ptr-conversion")]
