@@ -115,7 +115,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
         use crate::types::op_fn_data::OP_FN_DATA_SIZE;
         const MAX_CHUNKS: usize = 32usize.div_ceil(OP_FN_DATA_SIZE);
 
-        let mut data = u256::ZERO;
+        let mut data = [0; 32];
         let chunks = len.div_ceil(OP_FN_DATA_SIZE);
         for chunk in 0..chunks {
             let offset = (MAX_CHUNKS - chunks + chunk) * OP_FN_DATA_SIZE;
@@ -124,7 +124,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
             self.pc += 1;
         }
 
-        data
+        u256::from_be_bytes(data)
     }
 
     #[cfg(feature = "needs-fn-ptr-conversion")]
