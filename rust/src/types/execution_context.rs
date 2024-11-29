@@ -58,7 +58,7 @@ pub trait ExecutionContextTrait {
     fn set_transient_storage(&mut self, address: &Address, key: &Uint256, value: &Uint256);
 }
 
-impl<'a> ExecutionContextTrait for ExecutionContext<'a> {
+impl ExecutionContextTrait for ExecutionContext<'_> {
     fn get_tx_context(&self) -> &ExecutionTxContext {
         self.get_tx_context()
     }

@@ -84,7 +84,7 @@ impl From<MockExecutionMessage> for ExecutionMessage {
 }
 
 #[cfg(feature = "custom-evmc")]
-impl<'a> From<MockExecutionMessage> for ExecutionMessage<'a> {
+impl From<MockExecutionMessage> for ExecutionMessage<'_> {
     fn from(value: MockExecutionMessage) -> Self {
         Self::new(
             value.kind,

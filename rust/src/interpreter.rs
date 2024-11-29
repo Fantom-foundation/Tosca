@@ -390,7 +390,7 @@ impl<'a> Interpreter<'a, true> {
     }
 }
 
-impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
+impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
     /// If the const generic S is false, the step check is skipped.
     /// If the const generic J is false jumpdests are skipped.
     /// R is expected to be [ExecutionResult] or [StepResult].
@@ -1817,7 +1817,7 @@ impl<'a, const STEPPABLE: bool> Interpreter<'a, STEPPABLE> {
     }
 }
 
-impl<'a, const STEPPABLE: bool> From<Interpreter<'a, STEPPABLE>> for StepResult {
+impl<const STEPPABLE: bool> From<Interpreter<'_, STEPPABLE>> for StepResult {
     fn from(value: Interpreter<STEPPABLE>) -> Self {
         let stack = value
             .stack
@@ -1841,7 +1841,7 @@ impl<'a, const STEPPABLE: bool> From<Interpreter<'a, STEPPABLE>> for StepResult 
     }
 }
 
-impl<'a, const STEPPABLE: bool> From<Interpreter<'a, STEPPABLE>> for ExecutionResult {
+impl<const STEPPABLE: bool> From<Interpreter<'_, STEPPABLE>> for ExecutionResult {
     fn from(value: Interpreter<STEPPABLE>) -> Self {
         Self::new(
             value.exec_status.into(),

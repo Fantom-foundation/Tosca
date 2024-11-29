@@ -15,7 +15,7 @@ pub struct CodeReader<'a, const STEPPABLE: bool> {
     pc: usize,
 }
 
-impl<'a, const STEPPABLE: bool> Deref for CodeReader<'a, STEPPABLE> {
+impl<const STEPPABLE: bool> Deref for CodeReader<'_, STEPPABLE> {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
