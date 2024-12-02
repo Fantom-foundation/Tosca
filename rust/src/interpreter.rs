@@ -690,8 +690,8 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
     fn s_div(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value.sdiv(denominator))?;
+        let (push_guard, [denominator, value]) = self.stack.pop_with_guard()?;
+        push_guard.push(value.sdiv(denominator));
         self.code_reader.next();
         self.return_from_op()
     }
@@ -706,153 +706,153 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
     fn s_mod(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value.srem(denominator))?;
+        let (push_guard, [denominator, value]) = self.stack.pop_with_guard()?;
+        push_guard.push(value.srem(denominator));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn add_mod(&mut self) -> OpResult {
         self.gas_left.consume(8)?;
-        let [denominator, value2, value1] = self.stack.pop()?;
-        self.stack.push(u256::addmod(value1, value2, denominator))?;
+        let (push_guard, [denominator, value2, value1]) = self.stack.pop_with_guard()?;
+        push_guard.push(u256::addmod(value1, value2, denominator));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn mul_mod(&mut self) -> OpResult {
         self.gas_left.consume(8)?;
-        let [denominator, fac2, fac1] = self.stack.pop()?;
-        self.stack.push(u256::mulmod(fac1, fac2, denominator))?;
+        let (push_guard, [denominator, fac2, fac1]) = self.stack.pop_with_guard()?;
+        push_guard.push(u256::mulmod(fac1, fac2, denominator));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn exp(&mut self) -> OpResult {
         self.gas_left.consume(10)?;
-        let [exp, value] = self.stack.pop()?;
+        let (push_guard, [exp, value]) = self.stack.pop_with_guard()?;
         self.gas_left.consume(exp.bits().div_ceil(8) as u64 * 50)?; // * does not overflow
-        self.stack.push(value.pow(exp))?;
+        push_guard.push(value.pow(exp));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn sign_extend(&mut self) -> OpResult {
         self.gas_left.consume(5)?;
-        let [value, size] = self.stack.pop()?;
-        self.stack.push(u256::signextend(size, value))?;
+        let (push_guard, [value, size]) = self.stack.pop_with_guard()?;
+        push_guard.push(u256::signextend(size, value));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn lt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs < rhs)?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs < rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn gt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs > rhs)?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs > rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn s_lt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs.slt(&rhs))?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs.slt(&rhs));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn s_gt(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs.sgt(&rhs))?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs.sgt(&rhs));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn eq(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs == rhs)?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs == rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn is_zero(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value] = self.stack.pop()?;
-        self.stack.push(value == u256::ZERO)?;
+        let (push_guard, [value]) = self.stack.pop_with_guard()?;
+        push_guard.push(value == u256::ZERO);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn and(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs & rhs)?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs & rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn or(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs | rhs)?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs | rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn xor(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs ^ rhs)?;
+        let (push_guard, [rhs, lhs]) = self.stack.pop_with_guard()?;
+        push_guard.push(lhs ^ rhs);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn not(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value] = self.stack.pop()?;
-        self.stack.push(!value)?;
+        let (push_guard, [value]) = self.stack.pop_with_guard()?;
+        push_guard.push(!value);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn byte(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value, offset] = self.stack.pop()?;
-        self.stack.push(value.byte(offset))?;
+        let (push_guard, [value, offset]) = self.stack.pop_with_guard()?;
+        push_guard.push(value.byte(offset));
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn shl(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value, shift] = self.stack.pop()?;
-        self.stack.push(value << shift)?;
+        let (push_guard, [value, shift]) = self.stack.pop_with_guard()?;
+        push_guard.push(value << shift);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn shr(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value, shift] = self.stack.pop()?;
-        self.stack.push(value >> shift)?;
+        let (push_guard, [value, shift]) = self.stack.pop_with_guard()?;
+        push_guard.push(value >> shift);
         self.code_reader.next();
         self.return_from_op()
     }
 
     fn sar(&mut self) -> OpResult {
         self.gas_left.consume(3)?;
-        let [value, shift] = self.stack.pop()?;
-        self.stack.push(value.sar(shift))?;
+        let (push_guard, [value, shift]) = self.stack.pop_with_guard()?;
+        push_guard.push(value.sar(shift));
         self.code_reader.next();
         self.return_from_op()
     }
