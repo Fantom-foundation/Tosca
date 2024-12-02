@@ -49,6 +49,7 @@ unsafe impl<const STEPPABLE: bool> Sync for OpFnData<STEPPABLE> {}
     feature = "fn-ptr-conversion-inline-dispatch"
 ))]
 impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
+    #[inline(always)]
     pub fn data(data: [u8; OP_FN_DATA_SIZE]) -> Self {
         // assumes native endian = little endian
         let mut raw = [0; 8];
@@ -60,6 +61,7 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
         }
     }
 
+    #[inline(always)]
     pub fn skip_no_ops_iter(count: usize) -> impl Iterator<Item = Self> {
         let skip_no_ops = Self::func(Opcode::SkipNoOps as u8);
         let count_data = Self::data((count as u32).to_ne_bytes());
@@ -69,12 +71,14 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
             .chain(std::iter::repeat_with(gen_no_ops).take(count - 2))
     }
 
+    #[inline(always)]
     pub fn func(op: u8) -> Self {
         OpFnData {
             raw: interpreter::jumptable_lookup::<STEPPABLE>(op) as *const (),
         }
     }
 
+    #[inline(always)]
     pub fn jump_dest() -> Self {
         let mut ptr_value =
             interpreter::jumptable_lookup::<STEPPABLE>(Opcode::JumpDest as u8) as usize;
@@ -84,6 +88,7 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
         }
     }
 
+    #[inline(always)]
     pub fn code_byte_type(&self) -> CodeByteType {
         match (self.raw as usize).to_ne_bytes()[7] {
             t if t == OpFnDataType::Opcode as u8 => CodeByteType::Opcode,
@@ -92,6 +97,7 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
         }
     }
 
+    #[inline(always)]
     pub fn get_func(&self) -> Option<OpFn<STEPPABLE>> {
         if (self.raw as usize).to_ne_bytes()[7] == OpFnDataType::DataOrInvalid as u8 {
             None
@@ -107,6 +113,7 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
         }
     }
 
+    #[inline(always)]
     pub fn get_data(&self) -> [u8; OP_FN_DATA_SIZE] {
         // SAFETY:
         // A pointer to an 8 byte array can be safely cast to a pointer to an 4 byte and then read
@@ -134,16 +141,19 @@ pub struct OpFnData<const STEPPABLE: bool> {
 
 #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
 impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
+    #[inline(always)]
     pub fn data(data: u256) -> Self {
         Self { func: None, data }
     }
 
+    #[inline(always)]
     pub fn skip_no_ops_iter(count: usize) -> impl Iterator<Item = Self> {
         let skip_no_ops = Self::func(Opcode::SkipNoOps as u8, (count as u64).into());
         let gen_no_ops = move || Self::func(Opcode::NoOp as u8, u256::ZERO);
         std::iter::once(skip_no_ops).chain(std::iter::repeat_with(gen_no_ops).take(count - 1))
     }
 
+    #[inline(always)]
     pub fn func(op: u8, data: u256) -> Self {
         Self {
             func: Some(interpreter::jumptable_lookup(op)),
@@ -151,10 +161,12 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
         }
     }
 
+    #[inline(always)]
     pub fn jump_dest() -> Self {
         Self::func(Opcode::JumpDest as u8, u256::ZERO)
     }
 
+    #[inline(always)]
     pub fn code_byte_type(&self) -> CodeByteType {
         match self.func {
             None => CodeByteType::DataOrInvalid,
@@ -165,10 +177,12 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
         }
     }
 
+    #[inline(always)]
     pub fn get_func(&self) -> Option<OpFn<STEPPABLE>> {
         self.func
     }
 
+    #[inline(always)]
     pub fn get_data(&self) -> u256 {
         self.data
     }

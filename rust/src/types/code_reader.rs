@@ -30,7 +30,6 @@ pub enum GetOpcodeError {
 }
 
 impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
-    /// If the const generic J is false, jumpdests are skipped.
     pub fn new(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
         let code_analysis = CodeAnalysis::new(code, code_hash);
         #[cfg(feature = "needs-fn-ptr-conversion")]
@@ -43,6 +42,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
     }
 
     #[cfg(not(feature = "needs-fn-ptr-conversion"))]
+    #[inline(always)]
     pub fn get(&self) -> Result<Opcode, GetOpcodeError> {
         if let Some(op) = self.code.get(self.pc) {
             let analysis = self.code_analysis.analysis[self.pc];
@@ -61,6 +61,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
         }
     }
     #[cfg(feature = "needs-fn-ptr-conversion")]
+    #[inline(always)]
     pub fn get(&self) -> Result<OpFn<STEPPABLE>, GetOpcodeError> {
         self.code_analysis
             .analysis
@@ -69,10 +70,12 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
             .and_then(|analysis| analysis.get_func().ok_or(GetOpcodeError::Invalid))
     }
 
+    #[inline(always)]
     pub fn next(&mut self) {
         self.pc += 1;
     }
 
+    #[inline(always)]
     pub fn try_jump(&mut self, dest: u256) -> Result<(), FailStatus> {
         let dest = u64::try_from(dest).map_err(|_| FailStatus::BadJumpDestination)? as usize;
         if !self.code_analysis.analysis.get(dest).is_some_and(|c| {
@@ -90,6 +93,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
     }
 
     #[cfg(not(feature = "needs-fn-ptr-conversion"))]
+    #[inline(always)]
     pub fn get_push_data(&mut self, len: usize) -> u256 {
         assert!(len <= 32);
 
@@ -103,6 +107,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
         data
     }
     #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
+    #[inline(always)]
     pub fn get_push_data(&mut self) -> u256 {
         self.pc += 1;
         self.code_analysis.analysis[self.pc - 1].get_data()
@@ -111,6 +116,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
         not(feature = "fn-ptr-conversion-expanded-dispatch"),
         feature = "fn-ptr-conversion-inline-dispatch"
     ))]
+    #[inline(always)]
     pub fn get_push_data(&mut self, len: usize) -> u256 {
         use crate::types::op_fn_data::OP_FN_DATA_SIZE;
         const MAX_CHUNKS: usize = 32usize.div_ceil(OP_FN_DATA_SIZE);
@@ -128,6 +134,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
     }
 
     #[cfg(feature = "needs-fn-ptr-conversion")]
+    #[inline(always)]
     pub fn jump_to(&mut self) {
         #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
         let offset = self.code_analysis.analysis[self.pc]
@@ -138,6 +145,7 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
         self.pc += offset as usize;
     }
 
+    #[inline(always)]
     pub fn pc(&self) -> usize {
         #[cfg(not(feature = "needs-fn-ptr-conversion"))]
         return self.pc;

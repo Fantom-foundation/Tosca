@@ -25,6 +25,7 @@ thread_local! {
     static HASH_CACHE_64: HashCache64 = HashCache64::new();
 }
 
+#[inline(always)]
 fn sha3(data: &[u8]) -> u256 {
     let mut hasher = Keccak256::new();
     hasher.update(data);

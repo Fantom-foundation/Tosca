@@ -13,14 +13,17 @@ impl Memory {
         Self(memory)
     }
 
+    #[inline(always)]
     pub fn into_inner(self) -> Vec<u8> {
         self.0
     }
 
+    #[inline(always)]
     pub fn len(&self) -> u64 {
         self.0.len() as u64
     }
 
+    #[inline(always)]
     fn expand(&mut self, new_len_bytes: u64, gas_left: &mut Gas) -> Result<(), FailStatus> {
         let current_len = self.0.len() as u64;
         let new_len = word_size(new_len_bytes)? * 32; // word_size just did a division by 32 so * will not overflow
@@ -32,6 +35,7 @@ impl Memory {
         Ok(())
     }
 
+    #[inline(always)]
     fn consume_expansion_cost(&self, new_len: u64, gas_left: &mut Gas) -> Result<(), FailStatus> {
         fn memory_cost(size: u64) -> Result<u64, FailStatus> {
             let word_size = word_size(size)?;
@@ -53,6 +57,7 @@ impl Memory {
         Ok(())
     }
 
+    #[inline(always)]
     pub fn get_mut_slice(
         &mut self,
         offset: u256,
@@ -72,6 +77,7 @@ impl Memory {
         Ok(&mut self.0[offset as usize..end as usize])
     }
 
+    #[inline(always)]
     pub fn get_word(&mut self, offset: u256, gas_left: &mut Gas) -> Result<u256, FailStatus> {
         let slice = self.get_mut_slice(offset, 32, gas_left)?;
         // SAFETY:
@@ -80,6 +86,7 @@ impl Memory {
         Ok(u256::from_be_bytes(*slice))
     }
 
+    #[inline(always)]
     pub fn get_mut_byte(
         &mut self,
         offset: u256,
@@ -89,6 +96,7 @@ impl Memory {
         Ok(&mut slice[0])
     }
 
+    #[inline(always)]
     pub fn copy_within(
         &mut self,
         src_offset: u256,

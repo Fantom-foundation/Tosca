@@ -13,14 +13,17 @@ impl Stack {
         Self(v)
     }
 
+    #[inline(always)]
     pub fn as_slice(&self) -> &[u256] {
         self.0.as_slice()
     }
 
+    #[inline(always)]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    #[inline(always)]
     pub fn push(&mut self, value: impl Into<u256>) -> Result<(), FailStatus> {
         if self.0.len() >= 1024 {
             return Err(FailStatus::StackOverflow);
@@ -35,6 +38,7 @@ impl Stack {
         Ok(())
     }
 
+    #[inline(always)]
     pub fn swap_with_top(&mut self, nth: usize) -> Result<(), FailStatus> {
         self.check_underflow(nth + 1)?;
 
@@ -62,6 +66,7 @@ impl Stack {
         Ok(())
     }
 
+    #[inline(always)]
     pub fn pop<const N: usize>(&mut self) -> Result<[u256; N], FailStatus> {
         self.check_underflow(N)?;
 
@@ -72,10 +77,12 @@ impl Stack {
         Ok(array)
     }
 
+    #[inline(always)]
     pub fn peek(&self) -> Option<&u256> {
         self.0.last()
     }
 
+    #[inline(always)]
     pub fn nth(&self, nth: usize) -> Result<u256, FailStatus> {
         self.check_underflow(nth + 1)?;
         #[cfg(not(feature = "unsafe-stack"))]

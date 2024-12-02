@@ -12,15 +12,18 @@ impl PcMap {
         }
     }
 
+    #[inline(always)]
     pub fn add_mapping(&mut self, orig: usize, converted: usize) {
         self.from_ct[orig] = converted;
         self.to_ct[converted] = orig;
     }
 
+    #[inline(always)]
     pub fn to_ct(&self, converted: usize) -> usize {
         self.to_ct[converted]
     }
 
+    #[inline(always)]
     pub fn to_converted(&self, orig: usize) -> usize {
         self.from_ct[orig]
     }
