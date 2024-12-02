@@ -49,12 +49,14 @@ impl Display for u256 {
 }
 
 impl From<Uint256> for u256 {
+    #[inline(always)]
     fn from(value: Uint256) -> Self {
         Self(U256::from_digits(transmute!(value.bytes)).to_be())
     }
 }
 
 impl From<u256> for Uint256 {
+    #[inline(always)]
     fn from(value: u256) -> Self {
         Uint256 {
             bytes: transmute!(*value.0.to_be().digits()),
@@ -63,30 +65,35 @@ impl From<u256> for Uint256 {
 }
 
 impl From<bool> for u256 {
+    #[inline(always)]
     fn from(value: bool) -> Self {
         Self(U256::from(value))
     }
 }
 
 impl From<u8> for u256 {
+    #[inline(always)]
     fn from(value: u8) -> Self {
         Self(U256::from(value))
     }
 }
 
 impl From<u64> for u256 {
+    #[inline(always)]
     fn from(value: u64) -> Self {
         Self(U256::from(value))
     }
 }
 
 impl From<usize> for u256 {
+    #[inline(always)]
     fn from(value: usize) -> Self {
         Self(U256::from(value))
     }
 }
 
 impl From<Address> for u256 {
+    #[inline(always)]
     fn from(value: Address) -> Self {
         let mut bytes = [0; 32];
         bytes[32 - 20..].copy_from_slice(&value.bytes);
@@ -95,6 +102,7 @@ impl From<Address> for u256 {
 }
 
 impl From<&Address> for u256 {
+    #[inline(always)]
     fn from(value: &Address) -> Self {
         let mut bytes = [0; 32];
         bytes[32 - 20..].copy_from_slice(&value.bytes);
@@ -103,6 +111,7 @@ impl From<&Address> for u256 {
 }
 
 impl From<u256> for Address {
+    #[inline(always)]
     fn from(value: u256) -> Self {
         let value = value.0.to_be();
         let bytes: &[u8; 32] = transmute_ref!(value.digits());
@@ -118,6 +127,7 @@ pub struct U64Overflow;
 impl TryFrom<u256> for u64 {
     type Error = U64Overflow;
 
+    #[inline(always)]
     fn try_from(value: u256) -> Result<Self, Self::Error> {
         match value.into_u64_with_overflow() {
             (_, true) => Err(U64Overflow),
@@ -129,12 +139,14 @@ impl TryFrom<u256> for u64 {
 impl Add for u256 {
     type Output = Self;
 
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         Self(self.0.wrapping_add(rhs.0))
     }
 }
 
 impl AddAssign for u256 {
+    #[inline(always)]
     fn add_assign(&mut self, rhs: Self) {
         *self = *self + rhs;
     }
@@ -143,12 +155,14 @@ impl AddAssign for u256 {
 impl Sub for u256 {
     type Output = Self;
 
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0.wrapping_sub(rhs.0))
     }
 }
 
 impl SubAssign for u256 {
+    #[inline(always)]
     fn sub_assign(&mut self, rhs: Self) {
         *self = *self - rhs;
     }
@@ -157,12 +171,14 @@ impl SubAssign for u256 {
 impl Mul for u256 {
     type Output = Self;
 
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
         Self(self.0.wrapping_mul(rhs.0))
     }
 }
 
 impl MulAssign for u256 {
+    #[inline(always)]
     fn mul_assign(&mut self, rhs: Self) {
         *self = *self * rhs;
     }
@@ -171,6 +187,7 @@ impl MulAssign for u256 {
 impl Div for u256 {
     type Output = Self;
 
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         if rhs == u256::ZERO {
             return u256::ZERO;
@@ -180,6 +197,7 @@ impl Div for u256 {
 }
 
 impl DivAssign for u256 {
+    #[inline(always)]
     fn div_assign(&mut self, rhs: Self) {
         *self = *self / rhs;
     }
@@ -188,6 +206,7 @@ impl DivAssign for u256 {
 impl Rem for u256 {
     type Output = Self;
 
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         if rhs == u256::ZERO {
             return u256::ZERO;
@@ -197,12 +216,14 @@ impl Rem for u256 {
 }
 
 impl RemAssign for u256 {
+    #[inline(always)]
     fn rem_assign(&mut self, rhs: Self) {
         *self = *self % rhs;
     }
 }
 
 impl PartialEq for u256 {
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
@@ -211,12 +232,14 @@ impl PartialEq for u256 {
 impl Eq for u256 {}
 
 impl PartialOrd for u256 {
+    #[inline(always)]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for u256 {
+    #[inline(always)]
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.0.cmp(&other.0)
     }
@@ -225,6 +248,7 @@ impl Ord for u256 {
 impl BitAnd for u256 {
     type Output = Self;
 
+    #[inline(always)]
     fn bitand(self, rhs: Self) -> Self::Output {
         Self(self.0.bitand(rhs.0))
     }
@@ -233,6 +257,7 @@ impl BitAnd for u256 {
 impl BitOr for u256 {
     type Output = Self;
 
+    #[inline(always)]
     fn bitor(self, rhs: Self) -> Self::Output {
         Self(self.0.bitor(rhs.0))
     }
@@ -241,6 +266,7 @@ impl BitOr for u256 {
 impl BitXor for u256 {
     type Output = Self;
 
+    #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self::Output {
         Self(self.0.bitxor(rhs.0))
     }
@@ -249,6 +275,7 @@ impl BitXor for u256 {
 impl Not for u256 {
     type Output = Self;
 
+    #[inline(always)]
     fn not(self) -> Self::Output {
         Self(self.0.not())
     }
@@ -257,6 +284,7 @@ impl Not for u256 {
 impl Shl for u256 {
     type Output = Self;
 
+    #[inline(always)]
     fn shl(self, rhs: Self) -> Self::Output {
         // rhs > 255
         let rhs = rhs.as_le_bytes();
@@ -271,6 +299,7 @@ impl Shl for u256 {
 impl Shl<usize> for u256 {
     type Output = Self;
 
+    #[inline(always)]
     fn shl(self, rhs: usize) -> Self::Output {
         Self(self.0.wrapping_shl(rhs as u32))
     }
@@ -279,6 +308,7 @@ impl Shl<usize> for u256 {
 impl Shr for u256 {
     type Output = Self;
 
+    #[inline(always)]
     fn shr(self, rhs: Self) -> Self::Output {
         // rhs > 255
         let rhs = rhs.as_le_bytes();
@@ -295,12 +325,14 @@ impl u256 {
     pub const ONE: Self = Self(U256::ONE);
     pub const MAX: Self = Self(U256::MAX);
 
+    #[inline(always)]
     pub fn into_u64_with_overflow(self) -> (u64, bool) {
         let digits = self.0.digits();
         let overflow = digits[1..] != [0; 3];
         (digits[0], overflow)
     }
 
+    #[inline(always)]
     pub fn into_u64_saturating(self) -> u64 {
         let digits = self.0.digits();
         if digits[1..] != [0; 3] {
@@ -310,6 +342,7 @@ impl u256 {
         }
     }
 
+    #[inline(always)]
     pub fn sdiv(self, rhs: Self) -> Self {
         if rhs == u256::ZERO {
             return u256::ZERO;
@@ -323,6 +356,7 @@ impl u256 {
         )
     }
 
+    #[inline(always)]
     pub fn srem(self, rhs: Self) -> Self {
         if rhs == u256::ZERO {
             return u256::ZERO;
@@ -335,6 +369,7 @@ impl u256 {
         )
     }
 
+    #[inline(always)]
     pub fn addmod(s1: Self, s2: Self, m: Self) -> Self {
         if m == u256::ZERO {
             return u256::ZERO;
@@ -346,6 +381,7 @@ impl u256 {
         Self(U256::cast_from((s1 + s2).rem(m)))
     }
 
+    #[inline(always)]
     pub fn mulmod(s1: Self, s2: Self, m: Self) -> Self {
         if m == u256::ZERO {
             return u256::ZERO;
@@ -357,6 +393,7 @@ impl u256 {
         Self(U256::cast_from((s1 * s2).rem(m)))
     }
 
+    #[inline(always)]
     pub fn pow(self, exp: Self) -> Self {
         let mut res = U256::ONE;
 
@@ -370,6 +407,7 @@ impl u256 {
         Self(res)
     }
 
+    #[inline(always)]
     pub fn signextend(self, rhs: Self) -> Self {
         let (lhs, lhs_overflow) = self.into_u64_with_overflow();
         let lhs = lhs as usize;
@@ -389,18 +427,21 @@ impl u256 {
         Self(res)
     }
 
+    #[inline(always)]
     pub fn slt(&self, rhs: &Self) -> bool {
         let lhs: I256 = self.0.cast_signed();
         let rhs: I256 = rhs.0.cast_signed();
         lhs < rhs
     }
 
+    #[inline(always)]
     pub fn sgt(&self, rhs: &Self) -> bool {
         let lhs: I256 = self.0.cast_signed();
         let rhs: I256 = rhs.0.cast_signed();
         lhs > rhs
     }
 
+    #[inline(always)]
     pub fn byte(&self, index: Self) -> Self {
         if index >= 32u8.into() {
             return u256::ZERO;
@@ -409,6 +450,7 @@ impl u256 {
         self.as_le_bytes()[31 - idx as usize].into()
     }
 
+    #[inline(always)]
     pub fn sar(self, rhs: Self) -> Self {
         let lhs: I256 = self.0.cast_signed();
         let rhs = rhs.as_le_bytes();
@@ -428,22 +470,27 @@ impl u256 {
         Self(shr)
     }
 
+    #[inline(always)]
     pub const fn bits(&self) -> u32 {
         self.0.bits()
     }
 
+    #[inline(always)]
     pub fn from_le_bytes(bytes: [u8; 32]) -> Self {
         Self(U256::from_digits(transmute!(bytes)))
     }
 
+    #[inline(always)]
     pub fn from_be_bytes(bytes: [u8; 32]) -> Self {
         Self(U256::from_digits(transmute!(bytes)).to_be())
     }
 
+    #[inline(always)]
     pub fn least_significant_byte(&self) -> u8 {
         self.0.digits()[0] as u8
     }
 
+    #[inline(always)]
     pub fn as_le_bytes(&self) -> &[u8; 32] {
         transmute_ref!(self.0.digits())
     }
