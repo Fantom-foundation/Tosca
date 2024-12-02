@@ -37,6 +37,7 @@ pub enum FailStatus {
 }
 
 impl From<FailStatus> for EvmcStatusCode {
+    #[inline(always)]
     fn from(value: FailStatus) -> Self {
         match value {
             FailStatus::Failure => Self::EVMC_FAILURE,
@@ -63,12 +64,14 @@ impl From<FailStatus> for EvmcStatusCode {
 }
 
 impl From<FailStatus> for EvmcStepStatusCode {
+    #[inline(always)]
     fn from(_value: FailStatus) -> Self {
         Self::EVMC_STEP_FAILED
     }
 }
 
 impl From<ExecStatus> for EvmcStatusCode {
+    #[inline(always)]
     fn from(value: ExecStatus) -> Self {
         match value {
             ExecStatus::Running | ExecStatus::Stopped | ExecStatus::Returned => Self::EVMC_SUCCESS,
@@ -78,6 +81,7 @@ impl From<ExecStatus> for EvmcStatusCode {
 }
 
 impl From<ExecStatus> for EvmcStepStatusCode {
+    #[inline(always)]
     fn from(value: ExecStatus) -> Self {
         match value {
             ExecStatus::Running => Self::EVMC_STEP_RUNNING,
@@ -89,6 +93,7 @@ impl From<ExecStatus> for EvmcStepStatusCode {
 }
 
 impl From<FailStatus> for StepResult {
+    #[inline(always)]
     fn from(fail_status: FailStatus) -> Self {
         Self::new(
             fail_status.into(),
@@ -106,6 +111,7 @@ impl From<FailStatus> for StepResult {
 }
 
 impl From<FailStatus> for ExecutionResult {
+    #[inline(always)]
     fn from(fail_status: FailStatus) -> Self {
         Self::new(fail_status.into(), 0, 0, None)
     }

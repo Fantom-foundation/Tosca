@@ -1818,6 +1818,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 }
 
 impl<const STEPPABLE: bool> From<Interpreter<'_, STEPPABLE>> for StepResult {
+    #[inline(always)]
     fn from(value: Interpreter<STEPPABLE>) -> Self {
         let stack = value
             .stack
@@ -1842,6 +1843,7 @@ impl<const STEPPABLE: bool> From<Interpreter<'_, STEPPABLE>> for StepResult {
 }
 
 impl<const STEPPABLE: bool> From<Interpreter<'_, STEPPABLE>> for ExecutionResult {
+    #[inline(always)]
     fn from(value: Interpreter<STEPPABLE>) -> Self {
         Self::new(
             value.exec_status.into(),
