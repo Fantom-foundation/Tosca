@@ -130,7 +130,11 @@ impl Add for u256 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0.wrapping_add(rhs.0))
+        let lhs: [u128; 2] = transmute!(*self.0.digits());
+        let rhs: [u128; 2] = transmute!(*rhs.0.digits());
+        let (l, c) = lhs[0].overflowing_add(rhs[0]);
+        let h = lhs[1].wrapping_add(rhs[1]).wrapping_add(c as u128);
+        Self(U256::from_digits(transmute!([l, h])))
     }
 }
 
@@ -144,7 +148,11 @@ impl Sub for u256 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0.wrapping_sub(rhs.0))
+        let lhs: [u128; 2] = transmute!(*self.0.digits());
+        let rhs: [u128; 2] = transmute!(*rhs.0.digits());
+        let (l, c) = lhs[0].overflowing_sub(rhs[0]);
+        let h = lhs[1].wrapping_sub(rhs[1]).wrapping_sub(c as u128);
+        Self(U256::from_digits(transmute!([l, h])))
     }
 }
 
