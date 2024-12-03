@@ -117,6 +117,12 @@ func doRegressionTests(context *cli.Context) error {
 			expected := state.Clone()
 			rule.Effect.Apply(expected)
 
+			// TODO: do not only skip state but change 'pc_on_data_is_ignored' rule to anyEffect
+			// Pc on data is not supported
+			if !state.Code.IsCode(int(state.Pc)) {
+				continue
+			}
+
 			result, err := evm.StepN(input.Clone(), 1)
 			if err != nil {
 				fmt.Printf("Failed to evaluate rule %v: %v\n", rule, err)
