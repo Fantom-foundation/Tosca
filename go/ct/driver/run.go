@@ -112,7 +112,7 @@ func doRun(context *cli.Context) error {
 			return rlz.ConsumeAbort
 		}
 
-		// TODO: do not only skip state but change 'pc_on_data_is_ignored' rule to anyEffect
+		// TODO: do not only skip state but change 'pc_on_data_is_ignored' rule to anyEffect, see #954
 		// Pc on data is not supported
 		if !state.Code.IsCode(int(state.Pc)) {
 			return rlz.ConsumeContinue
