@@ -59,11 +59,10 @@ func (s *specificationMap) GetRulesFor(state *st.State) []Rule {
 	var opString string
 	if err != nil {
 		opString = "noOp"
+	} else if state.Revision == common.R99_UnknownNextRevision || state.Status != st.Running {
+		opString = "noOp"
 	} else {
 		opString = op.String()
-		if state.Revision == common.R99_UnknownNextRevision || state.Status != st.Running {
-			getRules("noOp")
-		}
 	}
 
 	getRules(opString)

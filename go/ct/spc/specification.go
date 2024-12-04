@@ -98,9 +98,13 @@ func getAllRules() []Rule {
 		op := vm.OpCode(i)
 		if !vm.IsValid(op) {
 			rules = append(rules, Rule{
-				Name:      fmt.Sprintf("%v_invalid", op),
-				Condition: And(Eq(Status(), st.Running), Eq(Op(Pc()), op)),
-				Effect:    FailEffect(),
+				Name: fmt.Sprintf("%v_invalid", op),
+				Condition: And(
+					Eq(Status(), st.Running),
+					Eq(Op(Pc()), op),
+					AnyKnownRevision(),
+				),
+				Effect: FailEffect(),
 			})
 		}
 	}
