@@ -27,268 +27,268 @@ pub type OpFn<const STEPPABLE: bool> = fn(&mut Interpreter<STEPPABLE>) -> OpResu
 #[cfg(feature = "needs-jumptable")]
 const fn gen_jumptable<const STEPPABLE: bool>() -> [OpFn<STEPPABLE>; 256] {
     [
-        |i| i.stop(),
-        |i| i.add(),
-        |i| i.mul(),
-        |i| i.sub(),
-        |i| i.div(),
-        |i| i.s_div(),
-        |i| i.mod_(),
-        |i| i.s_mod(),
-        |i| i.add_mod(),
-        |i| i.mul_mod(),
-        |i| i.exp(),
-        |i| i.sign_extend(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.lt(),
-        |i| i.gt(),
-        |i| i.s_lt(),
-        |i| i.s_gt(),
-        |i| i.eq(),
-        |i| i.is_zero(),
-        |i| i.and(),
-        |i| i.or(),
-        |i| i.xor(),
-        |i| i.not(),
-        |i| i.byte(),
-        |i| i.shl(),
-        |i| i.shr(),
-        |i| i.sar(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.sha3(),
+        Interpreter::stop,
+        Interpreter::add,
+        Interpreter::mul,
+        Interpreter::sub,
+        Interpreter::div,
+        Interpreter::s_div,
+        Interpreter::mod_,
+        Interpreter::s_mod,
+        Interpreter::add_mod,
+        Interpreter::mul_mod,
+        Interpreter::exp,
+        Interpreter::sign_extend,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::lt,
+        Interpreter::gt,
+        Interpreter::s_lt,
+        Interpreter::s_gt,
+        Interpreter::eq,
+        Interpreter::is_zero,
+        Interpreter::and,
+        Interpreter::or,
+        Interpreter::xor,
+        Interpreter::not,
+        Interpreter::byte,
+        Interpreter::shl,
+        Interpreter::shr,
+        Interpreter::sar,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::sha3,
         #[cfg(feature = "needs-fn-ptr-conversion")]
-        |i| i.no_op(),
+        Interpreter::no_op,
         #[cfg(feature = "needs-fn-ptr-conversion")]
-        |i| i.skip_no_ops(),
+        Interpreter::skip_no_ops,
         #[cfg(not(feature = "needs-fn-ptr-conversion"))]
-        |i| i.jumptable_placeholder(),
+        Interpreter::jumptable_placeholder,
         #[cfg(not(feature = "needs-fn-ptr-conversion"))]
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.address(),
-        |i| i.balance(),
-        |i| i.origin(),
-        |i| i.caller(),
-        |i| i.call_value(),
-        |i| i.call_data_load(),
-        |i| i.call_data_size(),
-        |i| i.call_data_copy(),
-        |i| i.code_size(),
-        |i| i.code_copy(),
-        |i| i.gas_price(),
-        |i| i.ext_code_size(),
-        |i| i.ext_code_copy(),
-        |i| i.return_data_size(),
-        |i| i.return_data_copy(),
-        |i| i.ext_code_hash(),
-        |i| i.block_hash(),
-        |i| i.coinbase(),
-        |i| i.timestamp(),
-        |i| i.number(),
-        |i| i.prev_randao(),
-        |i| i.gas_limit(),
-        |i| i.chain_id(),
-        |i| i.self_balance(),
-        |i| i.base_fee(),
-        |i| i.blob_hash(),
-        |i| i.blob_base_fee(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.pop(),
-        |i| i.m_load(),
-        |i| i.m_store(),
-        |i| i.m_store8(),
-        |i| i.s_load(),
-        |i| i.sstore(),
-        |i| i.jump(),
-        |i| i.jump_i(),
-        |i| i.pc(),
-        |i| i.m_size(),
-        |i| i.gas(),
-        |i| i.jump_dest(),
-        |i| i.t_load(),
-        |i| i.t_store(),
-        |i| i.m_copy(),
-        |i| i.push0(),
-        |i| i.push::<1>(),
-        |i| i.push::<2>(),
-        |i| i.push::<3>(),
-        |i| i.push::<4>(),
-        |i| i.push::<5>(),
-        |i| i.push::<6>(),
-        |i| i.push::<7>(),
-        |i| i.push::<8>(),
-        |i| i.push::<9>(),
-        |i| i.push::<10>(),
-        |i| i.push::<11>(),
-        |i| i.push::<12>(),
-        |i| i.push::<13>(),
-        |i| i.push::<14>(),
-        |i| i.push::<15>(),
-        |i| i.push::<16>(),
-        |i| i.push::<17>(),
-        |i| i.push::<18>(),
-        |i| i.push::<19>(),
-        |i| i.push::<20>(),
-        |i| i.push::<21>(),
-        |i| i.push::<22>(),
-        |i| i.push::<23>(),
-        |i| i.push::<24>(),
-        |i| i.push::<25>(),
-        |i| i.push::<26>(),
-        |i| i.push::<27>(),
-        |i| i.push::<28>(),
-        |i| i.push::<29>(),
-        |i| i.push::<30>(),
-        |i| i.push::<31>(),
-        |i| i.push::<32>(),
-        |i| i.dup::<1>(),
-        |i| i.dup::<2>(),
-        |i| i.dup::<3>(),
-        |i| i.dup::<4>(),
-        |i| i.dup::<5>(),
-        |i| i.dup::<6>(),
-        |i| i.dup::<7>(),
-        |i| i.dup::<8>(),
-        |i| i.dup::<9>(),
-        |i| i.dup::<10>(),
-        |i| i.dup::<11>(),
-        |i| i.dup::<12>(),
-        |i| i.dup::<13>(),
-        |i| i.dup::<14>(),
-        |i| i.dup::<15>(),
-        |i| i.dup::<16>(),
-        |i| i.swap::<1>(),
-        |i| i.swap::<2>(),
-        |i| i.swap::<3>(),
-        |i| i.swap::<4>(),
-        |i| i.swap::<5>(),
-        |i| i.swap::<6>(),
-        |i| i.swap::<7>(),
-        |i| i.swap::<8>(),
-        |i| i.swap::<9>(),
-        |i| i.swap::<10>(),
-        |i| i.swap::<11>(),
-        |i| i.swap::<12>(),
-        |i| i.swap::<13>(),
-        |i| i.swap::<14>(),
-        |i| i.swap::<15>(),
-        |i| i.swap::<16>(),
-        |i| i.log::<0>(),
-        |i| i.log::<1>(),
-        |i| i.log::<2>(),
-        |i| i.log::<3>(),
-        |i| i.log::<4>(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.create(),
-        |i| i.call(),
-        |i| i.call_code(),
-        |i| i.return_(),
-        |i| i.delegate_call(),
-        |i| i.create2(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.static_call(),
-        |i| i.jumptable_placeholder(),
-        |i| i.jumptable_placeholder(),
-        |i| i.revert(),
-        |i| i.invalid(),
-        |i| i.self_destruct(),
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::address,
+        Interpreter::balance,
+        Interpreter::origin,
+        Interpreter::caller,
+        Interpreter::call_value,
+        Interpreter::call_data_load,
+        Interpreter::call_data_size,
+        Interpreter::call_data_copy,
+        Interpreter::code_size,
+        Interpreter::code_copy,
+        Interpreter::gas_price,
+        Interpreter::ext_code_size,
+        Interpreter::ext_code_copy,
+        Interpreter::return_data_size,
+        Interpreter::return_data_copy,
+        Interpreter::ext_code_hash,
+        Interpreter::block_hash,
+        Interpreter::coinbase,
+        Interpreter::timestamp,
+        Interpreter::number,
+        Interpreter::prev_randao,
+        Interpreter::gas_limit,
+        Interpreter::chain_id,
+        Interpreter::self_balance,
+        Interpreter::base_fee,
+        Interpreter::blob_hash,
+        Interpreter::blob_base_fee,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::pop,
+        Interpreter::m_load,
+        Interpreter::m_store,
+        Interpreter::m_store8,
+        Interpreter::s_load,
+        Interpreter::sstore,
+        Interpreter::jump,
+        Interpreter::jump_i,
+        Interpreter::pc,
+        Interpreter::m_size,
+        Interpreter::gas,
+        Interpreter::jump_dest,
+        Interpreter::t_load,
+        Interpreter::t_store,
+        Interpreter::m_copy,
+        Interpreter::push0,
+        Interpreter::push::<1>,
+        Interpreter::push::<2>,
+        Interpreter::push::<3>,
+        Interpreter::push::<4>,
+        Interpreter::push::<5>,
+        Interpreter::push::<6>,
+        Interpreter::push::<7>,
+        Interpreter::push::<8>,
+        Interpreter::push::<9>,
+        Interpreter::push::<10>,
+        Interpreter::push::<11>,
+        Interpreter::push::<12>,
+        Interpreter::push::<13>,
+        Interpreter::push::<14>,
+        Interpreter::push::<15>,
+        Interpreter::push::<16>,
+        Interpreter::push::<17>,
+        Interpreter::push::<18>,
+        Interpreter::push::<19>,
+        Interpreter::push::<20>,
+        Interpreter::push::<21>,
+        Interpreter::push::<22>,
+        Interpreter::push::<23>,
+        Interpreter::push::<24>,
+        Interpreter::push::<25>,
+        Interpreter::push::<26>,
+        Interpreter::push::<27>,
+        Interpreter::push::<28>,
+        Interpreter::push::<29>,
+        Interpreter::push::<30>,
+        Interpreter::push::<31>,
+        Interpreter::push::<32>,
+        Interpreter::dup::<1>,
+        Interpreter::dup::<2>,
+        Interpreter::dup::<3>,
+        Interpreter::dup::<4>,
+        Interpreter::dup::<5>,
+        Interpreter::dup::<6>,
+        Interpreter::dup::<7>,
+        Interpreter::dup::<8>,
+        Interpreter::dup::<9>,
+        Interpreter::dup::<10>,
+        Interpreter::dup::<11>,
+        Interpreter::dup::<12>,
+        Interpreter::dup::<13>,
+        Interpreter::dup::<14>,
+        Interpreter::dup::<15>,
+        Interpreter::dup::<16>,
+        Interpreter::swap::<1>,
+        Interpreter::swap::<2>,
+        Interpreter::swap::<3>,
+        Interpreter::swap::<4>,
+        Interpreter::swap::<5>,
+        Interpreter::swap::<6>,
+        Interpreter::swap::<7>,
+        Interpreter::swap::<8>,
+        Interpreter::swap::<9>,
+        Interpreter::swap::<10>,
+        Interpreter::swap::<11>,
+        Interpreter::swap::<12>,
+        Interpreter::swap::<13>,
+        Interpreter::swap::<14>,
+        Interpreter::swap::<15>,
+        Interpreter::swap::<16>,
+        Interpreter::log::<0>,
+        Interpreter::log::<1>,
+        Interpreter::log::<2>,
+        Interpreter::log::<3>,
+        Interpreter::log::<4>,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::create,
+        Interpreter::call,
+        Interpreter::call_code,
+        Interpreter::return_,
+        Interpreter::delegate_call,
+        Interpreter::create2,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::static_call,
+        Interpreter::jumptable_placeholder,
+        Interpreter::jumptable_placeholder,
+        Interpreter::revert,
+        Interpreter::invalid,
+        Interpreter::self_destruct,
     ]
 }
 
@@ -382,7 +382,8 @@ impl<'a> Interpreter<'a, true> {
     }
 }
 
-impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
+#[allow(clippy::needless_lifetimes)]
+impl<'i, const STEPPABLE: bool> Interpreter<'i, STEPPABLE> {
     /// R is expected to be [ExecutionResult] or [StepResult].
     #[cfg(not(feature = "tail-call"))]
     pub fn run<O, R>(mut self, observer: &mut O) -> R
@@ -427,7 +428,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
     pub fn run<O, R>(mut self, observer: &mut O) -> R
     where
         O: Observer<STEPPABLE>,
-        R: From<Self> + From<FailStatus>,
+        R: From<Interpreter<'i, STEPPABLE>> + From<FailStatus>,
     {
         observer.log("feature \"tail-call\" does not support logging".into());
         if let Err(err) = self.next() {
@@ -472,155 +473,155 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
     #[cfg(not(feature = "needs-jumptable"))]
     fn run_op(&mut self, op: Opcode) -> OpResult {
         match op {
-            Opcode::Stop => self.stop(),
-            Opcode::Add => self.add(),
-            Opcode::Mul => self.mul(),
-            Opcode::Sub => self.sub(),
-            Opcode::Div => self.div(),
-            Opcode::SDiv => self.s_div(),
-            Opcode::Mod => self.mod_(),
-            Opcode::SMod => self.s_mod(),
-            Opcode::AddMod => self.add_mod(),
-            Opcode::MulMod => self.mul_mod(),
-            Opcode::Exp => self.exp(),
-            Opcode::SignExtend => self.sign_extend(),
-            Opcode::Lt => self.lt(),
-            Opcode::Gt => self.gt(),
-            Opcode::SLt => self.s_lt(),
-            Opcode::SGt => self.s_gt(),
-            Opcode::Eq => self.eq(),
-            Opcode::IsZero => self.is_zero(),
-            Opcode::And => self.and(),
-            Opcode::Or => self.or(),
-            Opcode::Xor => self.xor(),
-            Opcode::Not => self.not(),
-            Opcode::Byte => self.byte(),
-            Opcode::Shl => self.shl(),
-            Opcode::Shr => self.shr(),
-            Opcode::Sar => self.sar(),
-            Opcode::Sha3 => self.sha3(),
-            Opcode::Address => self.address(),
-            Opcode::Balance => self.balance(),
-            Opcode::Origin => self.origin(),
-            Opcode::Caller => self.caller(),
-            Opcode::CallValue => self.call_value(),
-            Opcode::CallDataLoad => self.call_data_load(),
-            Opcode::CallDataSize => self.call_data_size(),
-            Opcode::CallDataCopy => self.call_data_copy(),
-            Opcode::CodeSize => self.code_size(),
-            Opcode::CodeCopy => self.code_copy(),
-            Opcode::GasPrice => self.gas_price(),
-            Opcode::ExtCodeSize => self.ext_code_size(),
-            Opcode::ExtCodeCopy => self.ext_code_copy(),
-            Opcode::ReturnDataSize => self.return_data_size(),
-            Opcode::ReturnDataCopy => self.return_data_copy(),
-            Opcode::ExtCodeHash => self.ext_code_hash(),
-            Opcode::BlockHash => self.block_hash(),
-            Opcode::Coinbase => self.coinbase(),
-            Opcode::Timestamp => self.timestamp(),
-            Opcode::Number => self.number(),
-            Opcode::PrevRandao => self.prev_randao(),
-            Opcode::GasLimit => self.gas_limit(),
-            Opcode::ChainId => self.chain_id(),
-            Opcode::SelfBalance => self.self_balance(),
-            Opcode::BaseFee => self.base_fee(),
-            Opcode::BlobHash => self.blob_hash(),
-            Opcode::BlobBaseFee => self.blob_base_fee(),
-            Opcode::Pop => self.pop(),
-            Opcode::MLoad => self.m_load(),
-            Opcode::MStore => self.m_store(),
-            Opcode::MStore8 => self.m_store8(),
-            Opcode::SLoad => self.s_load(),
-            Opcode::SStore => self.sstore(),
-            Opcode::Jump => self.jump(),
-            Opcode::JumpI => self.jump_i(),
-            Opcode::Pc => self.pc(),
-            Opcode::MSize => self.m_size(),
-            Opcode::Gas => self.gas(),
-            Opcode::JumpDest => self.jump_dest(),
-            Opcode::TLoad => self.t_load(),
-            Opcode::TStore => self.t_store(),
-            Opcode::MCopy => self.m_copy(),
-            Opcode::Push0 => self.push0(),
-            Opcode::Push1 => self.push::<1>(),
-            Opcode::Push2 => self.push::<2>(),
-            Opcode::Push3 => self.push::<3>(),
-            Opcode::Push4 => self.push::<4>(),
-            Opcode::Push5 => self.push::<5>(),
-            Opcode::Push6 => self.push::<6>(),
-            Opcode::Push7 => self.push::<7>(),
-            Opcode::Push8 => self.push::<8>(),
-            Opcode::Push9 => self.push::<9>(),
-            Opcode::Push10 => self.push::<10>(),
-            Opcode::Push11 => self.push::<11>(),
-            Opcode::Push12 => self.push::<12>(),
-            Opcode::Push13 => self.push::<13>(),
-            Opcode::Push14 => self.push::<14>(),
-            Opcode::Push15 => self.push::<15>(),
-            Opcode::Push16 => self.push::<16>(),
-            Opcode::Push17 => self.push::<17>(),
-            Opcode::Push18 => self.push::<18>(),
-            Opcode::Push19 => self.push::<19>(),
-            Opcode::Push20 => self.push::<20>(),
-            Opcode::Push21 => self.push::<21>(),
-            Opcode::Push22 => self.push::<22>(),
-            Opcode::Push23 => self.push::<23>(),
-            Opcode::Push24 => self.push::<24>(),
-            Opcode::Push25 => self.push::<25>(),
-            Opcode::Push26 => self.push::<26>(),
-            Opcode::Push27 => self.push::<27>(),
-            Opcode::Push28 => self.push::<28>(),
-            Opcode::Push29 => self.push::<29>(),
-            Opcode::Push30 => self.push::<30>(),
-            Opcode::Push31 => self.push::<31>(),
-            Opcode::Push32 => self.push::<32>(),
-            Opcode::Dup1 => self.dup::<1>(),
-            Opcode::Dup2 => self.dup::<2>(),
-            Opcode::Dup3 => self.dup::<3>(),
-            Opcode::Dup4 => self.dup::<4>(),
-            Opcode::Dup5 => self.dup::<5>(),
-            Opcode::Dup6 => self.dup::<6>(),
-            Opcode::Dup7 => self.dup::<7>(),
-            Opcode::Dup8 => self.dup::<8>(),
-            Opcode::Dup9 => self.dup::<9>(),
-            Opcode::Dup10 => self.dup::<10>(),
-            Opcode::Dup11 => self.dup::<11>(),
-            Opcode::Dup12 => self.dup::<12>(),
-            Opcode::Dup13 => self.dup::<13>(),
-            Opcode::Dup14 => self.dup::<14>(),
-            Opcode::Dup15 => self.dup::<15>(),
-            Opcode::Dup16 => self.dup::<16>(),
-            Opcode::Swap1 => self.swap::<1>(),
-            Opcode::Swap2 => self.swap::<2>(),
-            Opcode::Swap3 => self.swap::<3>(),
-            Opcode::Swap4 => self.swap::<4>(),
-            Opcode::Swap5 => self.swap::<5>(),
-            Opcode::Swap6 => self.swap::<6>(),
-            Opcode::Swap7 => self.swap::<7>(),
-            Opcode::Swap8 => self.swap::<8>(),
-            Opcode::Swap9 => self.swap::<9>(),
-            Opcode::Swap10 => self.swap::<10>(),
-            Opcode::Swap11 => self.swap::<11>(),
-            Opcode::Swap12 => self.swap::<12>(),
-            Opcode::Swap13 => self.swap::<13>(),
-            Opcode::Swap14 => self.swap::<14>(),
-            Opcode::Swap15 => self.swap::<15>(),
-            Opcode::Swap16 => self.swap::<16>(),
-            Opcode::Log0 => self.log::<0>(),
-            Opcode::Log1 => self.log::<1>(),
-            Opcode::Log2 => self.log::<2>(),
-            Opcode::Log3 => self.log::<3>(),
-            Opcode::Log4 => self.log::<4>(),
-            Opcode::Create => self.create(),
-            Opcode::Call => self.call(),
-            Opcode::CallCode => self.call_code(),
-            Opcode::Return => self.return_(),
-            Opcode::DelegateCall => self.delegate_call(),
-            Opcode::Create2 => self.create2(),
-            Opcode::StaticCall => self.static_call(),
-            Opcode::Revert => self.revert(),
-            Opcode::Invalid => self.invalid(),
-            Opcode::SelfDestruct => self.self_destruct(),
+            Opcode::Stop => Self::stop(self),
+            Opcode::Add => Self::add(self),
+            Opcode::Mul => Self::mul(self),
+            Opcode::Sub => Self::sub(self),
+            Opcode::Div => Self::div(self),
+            Opcode::SDiv => Self::s_div(self),
+            Opcode::Mod => Self::mod_(self),
+            Opcode::SMod => Self::s_mod(self),
+            Opcode::AddMod => Self::add_mod(self),
+            Opcode::MulMod => Self::mul_mod(self),
+            Opcode::Exp => Self::exp(self),
+            Opcode::SignExtend => Self::sign_extend(self),
+            Opcode::Lt => Self::lt(self),
+            Opcode::Gt => Self::gt(self),
+            Opcode::SLt => Self::s_lt(self),
+            Opcode::SGt => Self::s_gt(self),
+            Opcode::Eq => Self::eq(self),
+            Opcode::IsZero => Self::is_zero(self),
+            Opcode::And => Self::and(self),
+            Opcode::Or => Self::or(self),
+            Opcode::Xor => Self::xor(self),
+            Opcode::Not => Self::not(self),
+            Opcode::Byte => Self::byte(self),
+            Opcode::Shl => Self::shl(self),
+            Opcode::Shr => Self::shr(self),
+            Opcode::Sar => Self::sar(self),
+            Opcode::Sha3 => Self::sha3(self),
+            Opcode::Address => Self::address(self),
+            Opcode::Balance => Self::balance(self),
+            Opcode::Origin => Self::origin(self),
+            Opcode::Caller => Self::caller(self),
+            Opcode::CallValue => Self::call_value(self),
+            Opcode::CallDataLoad => Self::call_data_load(self),
+            Opcode::CallDataSize => Self::call_data_size(self),
+            Opcode::CallDataCopy => Self::call_data_copy(self),
+            Opcode::CodeSize => Self::code_size(self),
+            Opcode::CodeCopy => Self::code_copy(self),
+            Opcode::GasPrice => Self::gas_price(self),
+            Opcode::ExtCodeSize => Self::ext_code_size(self),
+            Opcode::ExtCodeCopy => Self::ext_code_copy(self),
+            Opcode::ReturnDataSize => Self::return_data_size(self),
+            Opcode::ReturnDataCopy => Self::return_data_copy(self),
+            Opcode::ExtCodeHash => Self::ext_code_hash(self),
+            Opcode::BlockHash => Self::block_hash(self),
+            Opcode::Coinbase => Self::coinbase(self),
+            Opcode::Timestamp => Self::timestamp(self),
+            Opcode::Number => Self::number(self),
+            Opcode::PrevRandao => Self::prev_randao(self),
+            Opcode::GasLimit => Self::gas_limit(self),
+            Opcode::ChainId => Self::chain_id(self),
+            Opcode::SelfBalance => Self::self_balance(self),
+            Opcode::BaseFee => Self::base_fee(self),
+            Opcode::BlobHash => Self::blob_hash(self),
+            Opcode::BlobBaseFee => Self::blob_base_fee(self),
+            Opcode::Pop => Self::pop(self),
+            Opcode::MLoad => Self::m_load(self),
+            Opcode::MStore => Self::m_store(self),
+            Opcode::MStore8 => Self::m_store8(self),
+            Opcode::SLoad => Self::s_load(self),
+            Opcode::SStore => Self::sstore(self),
+            Opcode::Jump => Self::jump(self),
+            Opcode::JumpI => Self::jump_i(self),
+            Opcode::Pc => Self::pc(self),
+            Opcode::MSize => Self::m_size(self),
+            Opcode::Gas => Self::gas(self),
+            Opcode::JumpDest => Self::jump_dest(self),
+            Opcode::TLoad => Self::t_load(self),
+            Opcode::TStore => Self::t_store(self),
+            Opcode::MCopy => Self::m_copy(self),
+            Opcode::Push0 => Self::push0(self),
+            Opcode::Push1 => Self::push::<1>(self),
+            Opcode::Push2 => Self::push::<2>(self),
+            Opcode::Push3 => Self::push::<3>(self),
+            Opcode::Push4 => Self::push::<4>(self),
+            Opcode::Push5 => Self::push::<5>(self),
+            Opcode::Push6 => Self::push::<6>(self),
+            Opcode::Push7 => Self::push::<7>(self),
+            Opcode::Push8 => Self::push::<8>(self),
+            Opcode::Push9 => Self::push::<9>(self),
+            Opcode::Push10 => Self::push::<10>(self),
+            Opcode::Push11 => Self::push::<11>(self),
+            Opcode::Push12 => Self::push::<12>(self),
+            Opcode::Push13 => Self::push::<13>(self),
+            Opcode::Push14 => Self::push::<14>(self),
+            Opcode::Push15 => Self::push::<15>(self),
+            Opcode::Push16 => Self::push::<16>(self),
+            Opcode::Push17 => Self::push::<17>(self),
+            Opcode::Push18 => Self::push::<18>(self),
+            Opcode::Push19 => Self::push::<19>(self),
+            Opcode::Push20 => Self::push::<20>(self),
+            Opcode::Push21 => Self::push::<21>(self),
+            Opcode::Push22 => Self::push::<22>(self),
+            Opcode::Push23 => Self::push::<23>(self),
+            Opcode::Push24 => Self::push::<24>(self),
+            Opcode::Push25 => Self::push::<25>(self),
+            Opcode::Push26 => Self::push::<26>(self),
+            Opcode::Push27 => Self::push::<27>(self),
+            Opcode::Push28 => Self::push::<28>(self),
+            Opcode::Push29 => Self::push::<29>(self),
+            Opcode::Push30 => Self::push::<30>(self),
+            Opcode::Push31 => Self::push::<31>(self),
+            Opcode::Push32 => Self::push::<32>(self),
+            Opcode::Dup1 => Self::dup::<1>(self),
+            Opcode::Dup2 => Self::dup::<2>(self),
+            Opcode::Dup3 => Self::dup::<3>(self),
+            Opcode::Dup4 => Self::dup::<4>(self),
+            Opcode::Dup5 => Self::dup::<5>(self),
+            Opcode::Dup6 => Self::dup::<6>(self),
+            Opcode::Dup7 => Self::dup::<7>(self),
+            Opcode::Dup8 => Self::dup::<8>(self),
+            Opcode::Dup9 => Self::dup::<9>(self),
+            Opcode::Dup10 => Self::dup::<10>(self),
+            Opcode::Dup11 => Self::dup::<11>(self),
+            Opcode::Dup12 => Self::dup::<12>(self),
+            Opcode::Dup13 => Self::dup::<13>(self),
+            Opcode::Dup14 => Self::dup::<14>(self),
+            Opcode::Dup15 => Self::dup::<15>(self),
+            Opcode::Dup16 => Self::dup::<16>(self),
+            Opcode::Swap1 => Self::swap::<1>(self),
+            Opcode::Swap2 => Self::swap::<2>(self),
+            Opcode::Swap3 => Self::swap::<3>(self),
+            Opcode::Swap4 => Self::swap::<4>(self),
+            Opcode::Swap5 => Self::swap::<5>(self),
+            Opcode::Swap6 => Self::swap::<6>(self),
+            Opcode::Swap7 => Self::swap::<7>(self),
+            Opcode::Swap8 => Self::swap::<8>(self),
+            Opcode::Swap9 => Self::swap::<9>(self),
+            Opcode::Swap10 => Self::swap::<10>(self),
+            Opcode::Swap11 => Self::swap::<11>(self),
+            Opcode::Swap12 => Self::swap::<12>(self),
+            Opcode::Swap13 => Self::swap::<13>(self),
+            Opcode::Swap14 => Self::swap::<14>(self),
+            Opcode::Swap15 => Self::swap::<15>(self),
+            Opcode::Swap16 => Self::swap::<16>(self),
+            Opcode::Log0 => Self::log::<0>(self),
+            Opcode::Log1 => Self::log::<1>(self),
+            Opcode::Log2 => Self::log::<2>(self),
+            Opcode::Log3 => Self::log::<3>(self),
+            Opcode::Log4 => Self::log::<4>(self),
+            Opcode::Create => Self::create(self),
+            Opcode::Call => Self::call(self),
+            Opcode::CallCode => Self::call_code(self),
+            Opcode::Return => Self::return_(self),
+            Opcode::DelegateCall => Self::delegate_call(self),
+            Opcode::Create2 => Self::create2(self),
+            Opcode::StaticCall => Self::static_call(self),
+            Opcode::Revert => Self::revert(self),
+            Opcode::Invalid => Self::invalid(self),
+            Opcode::SelfDestruct => Self::self_destruct(self),
         }
     }
 
@@ -634,290 +635,289 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
     }
 
     #[cfg(feature = "needs-jumptable")]
-    #[allow(clippy::unused_self)]
-    pub fn jumptable_placeholder(&mut self) -> OpResult {
+    pub fn jumptable_placeholder(_i: &mut Interpreter<STEPPABLE>) -> OpResult {
         Err(FailStatus::Failure)
     }
 
     #[cfg(feature = "needs-fn-ptr-conversion")]
-    pub fn no_op(&mut self) -> OpResult {
-        self.code_reader.next();
-        self.return_from_op()
+    pub fn no_op(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.code_reader.next();
+        i.return_from_op()
     }
 
     #[cfg(feature = "needs-fn-ptr-conversion")]
-    pub fn skip_no_ops(&mut self) -> OpResult {
-        self.code_reader.jump_to();
-        self.return_from_op()
+    pub fn skip_no_ops(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.code_reader.jump_to();
+        i.return_from_op()
     }
 
-    fn stop(&mut self) -> OpResult {
-        self.exec_status = ExecStatus::Stopped;
+    fn stop(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.exec_status = ExecStatus::Stopped;
         Ok(())
     }
 
-    fn add(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [value2, value1] = self.stack.pop()?;
-        self.stack.push(value1 + value2)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn add(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [value2, value1] = i.stack.pop()?;
+        i.stack.push(value1 + value2)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn mul(&mut self) -> OpResult {
-        self.gas_left.consume(5)?;
-        let [fac2, fac1] = self.stack.pop()?;
-        self.stack.push(fac1 * fac2)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn mul(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(5)?;
+        let [fac2, fac1] = i.stack.pop()?;
+        i.stack.push(fac1 * fac2)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn sub(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [value2, value1] = self.stack.pop()?;
-        self.stack.push(value1 - value2)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn sub(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [value2, value1] = i.stack.pop()?;
+        i.stack.push(value1 - value2)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn div(&mut self) -> OpResult {
-        self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value / denominator)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn div(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(5)?;
+        let [denominator, value] = i.stack.pop()?;
+        i.stack.push(value / denominator)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn s_div(&mut self) -> OpResult {
-        self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value.sdiv(denominator))?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn s_div(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(5)?;
+        let [denominator, value] = i.stack.pop()?;
+        i.stack.push(value.sdiv(denominator))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn mod_(&mut self) -> OpResult {
-        self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value % denominator)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn mod_(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(5)?;
+        let [denominator, value] = i.stack.pop()?;
+        i.stack.push(value % denominator)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn s_mod(&mut self) -> OpResult {
-        self.gas_left.consume(5)?;
-        let [denominator, value] = self.stack.pop()?;
-        self.stack.push(value.srem(denominator))?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn s_mod(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(5)?;
+        let [denominator, value] = i.stack.pop()?;
+        i.stack.push(value.srem(denominator))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn add_mod(&mut self) -> OpResult {
-        self.gas_left.consume(8)?;
-        let [denominator, value2, value1] = self.stack.pop()?;
-        self.stack.push(u256::addmod(value1, value2, denominator))?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn add_mod(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(8)?;
+        let [denominator, value2, value1] = i.stack.pop()?;
+        i.stack.push(u256::addmod(value1, value2, denominator))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn mul_mod(&mut self) -> OpResult {
-        self.gas_left.consume(8)?;
-        let [denominator, fac2, fac1] = self.stack.pop()?;
-        self.stack.push(u256::mulmod(fac1, fac2, denominator))?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn mul_mod(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(8)?;
+        let [denominator, fac2, fac1] = i.stack.pop()?;
+        i.stack.push(u256::mulmod(fac1, fac2, denominator))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn exp(&mut self) -> OpResult {
-        self.gas_left.consume(10)?;
-        let [exp, value] = self.stack.pop()?;
-        self.gas_left.consume(exp.bits().div_ceil(8) as u64 * 50)?; // * does not overflow
-        self.stack.push(value.pow(exp))?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn exp(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(10)?;
+        let [exp, value] = i.stack.pop()?;
+        i.gas_left.consume(exp.bits().div_ceil(8) as u64 * 50)?; // * does not overflow
+        i.stack.push(value.pow(exp))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn sign_extend(&mut self) -> OpResult {
-        self.gas_left.consume(5)?;
-        let [value, size] = self.stack.pop()?;
-        self.stack.push(u256::signextend(size, value))?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn sign_extend(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(5)?;
+        let [value, size] = i.stack.pop()?;
+        i.stack.push(u256::signextend(size, value))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn lt(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs < rhs)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn lt(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [rhs, lhs] = i.stack.pop()?;
+        i.stack.push(lhs < rhs)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn gt(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs > rhs)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn gt(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [rhs, lhs] = i.stack.pop()?;
+        i.stack.push(lhs > rhs)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn s_lt(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs.slt(&rhs))?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn s_lt(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [rhs, lhs] = i.stack.pop()?;
+        i.stack.push(lhs.slt(&rhs))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn s_gt(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs.sgt(&rhs))?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn s_gt(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [rhs, lhs] = i.stack.pop()?;
+        i.stack.push(lhs.sgt(&rhs))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn eq(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs == rhs)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn eq(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [rhs, lhs] = i.stack.pop()?;
+        i.stack.push(lhs == rhs)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn is_zero(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [value] = self.stack.pop()?;
-        self.stack.push(value == u256::ZERO)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn is_zero(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [value] = i.stack.pop()?;
+        i.stack.push(value == u256::ZERO)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn and(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs & rhs)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn and(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [rhs, lhs] = i.stack.pop()?;
+        i.stack.push(lhs & rhs)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn or(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs | rhs)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn or(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [rhs, lhs] = i.stack.pop()?;
+        i.stack.push(lhs | rhs)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn xor(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [rhs, lhs] = self.stack.pop()?;
-        self.stack.push(lhs ^ rhs)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn xor(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [rhs, lhs] = i.stack.pop()?;
+        i.stack.push(lhs ^ rhs)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn not(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [value] = self.stack.pop()?;
-        self.stack.push(!value)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn not(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [value] = i.stack.pop()?;
+        i.stack.push(!value)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn byte(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [value, offset] = self.stack.pop()?;
-        self.stack.push(value.byte(offset))?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn byte(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [value, offset] = i.stack.pop()?;
+        i.stack.push(value.byte(offset))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn shl(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [value, shift] = self.stack.pop()?;
-        self.stack.push(value << shift)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn shl(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [value, shift] = i.stack.pop()?;
+        i.stack.push(value << shift)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn shr(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [value, shift] = self.stack.pop()?;
-        self.stack.push(value >> shift)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn shr(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [value, shift] = i.stack.pop()?;
+        i.stack.push(value >> shift)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn sar(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [value, shift] = self.stack.pop()?;
-        self.stack.push(value.sar(shift))?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn sar(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [value, shift] = i.stack.pop()?;
+        i.stack.push(value.sar(shift))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn sha3(&mut self) -> OpResult {
-        self.gas_left.consume(30)?;
-        let [len, offset] = self.stack.pop()?;
+    fn sha3(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(30)?;
+        let [len, offset] = i.stack.pop()?;
 
         let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
-        self.gas_left.consume(6 * word_size(len)?)?; // * does not overflow
+        i.gas_left.consume(6 * word_size(len)?)?; // * does not overflow
 
-        let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
-        self.stack.push(hash_cache::hash(data))?;
-        self.code_reader.next();
-        self.return_from_op()
+        let data = i.memory.get_mut_slice(offset, len, &mut i.gas_left)?;
+        i.stack.push(hash_cache::hash(data))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn address(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack.push(self.message.recipient())?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn address(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(i.message.recipient())?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn balance(&mut self) -> OpResult {
-        if self.revision < Revision::EVMC_BERLIN {
-            self.gas_left.consume(700)?;
+    fn balance(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        if i.revision < Revision::EVMC_BERLIN {
+            i.gas_left.consume(700)?;
         }
-        let [addr] = self.stack.pop()?;
+        let [addr] = i.stack.pop()?;
         let addr = addr.into();
-        self.gas_left
-            .consume_address_access_cost(&addr, self.revision, self.context)?;
-        self.stack.push(self.context.get_balance(&addr))?;
-        self.code_reader.next();
-        self.return_from_op()
+        i.gas_left
+            .consume_address_access_cost(&addr, i.revision, i.context)?;
+        i.stack.push(i.context.get_balance(&addr))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn origin(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack.push(self.context.get_tx_context().tx_origin)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn origin(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(i.context.get_tx_context().tx_origin)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn caller(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack.push(self.message.sender())?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn caller(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(i.message.sender())?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn call_value(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack.push(*self.message.value())?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn call_value(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(*i.message.value())?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn call_data_load(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [offset] = self.stack.pop()?;
+    fn call_data_load(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [offset] = i.stack.pop()?;
         let (offset, overflow) = offset.into_u64_with_overflow();
         let offset = offset as usize;
         #[allow(clippy::map_identity)]
-        let call_data = self
+        let call_data = i
             .message
             .input()
             .map(
@@ -928,20 +928,20 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
             )
             .unwrap_or_default();
         if overflow || offset >= call_data.len() {
-            self.stack.push(u256::ZERO)?;
+            i.stack.push(u256::ZERO)?;
         } else {
             let end = min(call_data.len(), offset + 32);
             let mut bytes = [0; 32];
             bytes[..end - offset].copy_from_slice(&call_data[offset..end]);
-            self.stack.push(u256::from_be_bytes(bytes))?;
+            i.stack.push(u256::from_be_bytes(bytes))?;
         }
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn call_data_size(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        let call_data_len = self
+    fn call_data_size(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        let call_data_len = i
             .message
             .input()
             .map(|m| {
@@ -949,28 +949,28 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
                 m.len()
             })
             .unwrap_or_default();
-        self.stack.push(call_data_len)?;
-        self.code_reader.next();
-        self.return_from_op()
+        i.stack.push(call_data_len)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn push0(&mut self) -> OpResult {
-        check_min_revision(Revision::EVMC_SHANGHAI, self.revision)?;
-        self.gas_left.consume(2)?;
-        self.stack.push(u256::ZERO)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn push0(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        check_min_revision(Revision::EVMC_SHANGHAI, i.revision)?;
+        i.gas_left.consume(2)?;
+        i.stack.push(u256::ZERO)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn call_data_copy(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [len, offset, dest_offset] = self.stack.pop()?;
+    fn call_data_copy(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [len, offset, dest_offset] = i.stack.pop()?;
 
         if len != u256::ZERO {
             let len = u64::try_from(len).map_err(|_| FailStatus::InvalidMemoryAccess)?;
 
             #[allow(clippy::map_identity)]
-            let src = self
+            let src = i
                 .message
                 .input()
                 .map(
@@ -981,105 +981,98 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
                 )
                 .unwrap_or_default()
                 .get_within_bounds(offset, len);
-            let dest = self
-                .memory
-                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
-            dest.copy_padded(src, &mut self.gas_left)?;
+            let dest = i.memory.get_mut_slice(dest_offset, len, &mut i.gas_left)?;
+            dest.copy_padded(src, &mut i.gas_left)?;
         }
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn code_size(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack.push(self.code_reader.len())?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn code_size(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(i.code_reader.len())?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn code_copy(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [len, offset, dest_offset] = self.stack.pop()?;
+    fn code_copy(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [len, offset, dest_offset] = i.stack.pop()?;
 
         if len != u256::ZERO {
             let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
 
-            let src = self.code_reader.get_within_bounds(offset, len);
-            let dest = self
-                .memory
-                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
-            dest.copy_padded(src, &mut self.gas_left)?;
+            let src = i.code_reader.get_within_bounds(offset, len);
+            let dest = i.memory.get_mut_slice(dest_offset, len, &mut i.gas_left)?;
+            dest.copy_padded(src, &mut i.gas_left)?;
         }
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn gas_price(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack
-            .push(self.context.get_tx_context().tx_gas_price)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn gas_price(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(i.context.get_tx_context().tx_gas_price)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn ext_code_size(&mut self) -> OpResult {
-        if self.revision < Revision::EVMC_BERLIN {
-            self.gas_left.consume(700)?;
+    fn ext_code_size(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        if i.revision < Revision::EVMC_BERLIN {
+            i.gas_left.consume(700)?;
         }
-        let [addr] = self.stack.pop()?;
+        let [addr] = i.stack.pop()?;
         let addr = addr.into();
-        self.gas_left
-            .consume_address_access_cost(&addr, self.revision, self.context)?;
-        self.stack.push(self.context.get_code_size(&addr))?;
-        self.code_reader.next();
-        self.return_from_op()
+        i.gas_left
+            .consume_address_access_cost(&addr, i.revision, i.context)?;
+        i.stack.push(i.context.get_code_size(&addr))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn ext_code_copy(&mut self) -> OpResult {
-        if self.revision < Revision::EVMC_BERLIN {
-            self.gas_left.consume(700)?;
+    fn ext_code_copy(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        if i.revision < Revision::EVMC_BERLIN {
+            i.gas_left.consume(700)?;
         }
-        let [len, offset, dest_offset, addr] = self.stack.pop()?;
+        let [len, offset, dest_offset, addr] = i.stack.pop()?;
         let addr = addr.into();
 
-        self.gas_left
-            .consume_address_access_cost(&addr, self.revision, self.context)?;
+        i.gas_left
+            .consume_address_access_cost(&addr, i.revision, i.context)?;
         if len != u256::ZERO {
             let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
 
-            let dest = self
-                .memory
-                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
+            let dest = i.memory.get_mut_slice(dest_offset, len, &mut i.gas_left)?;
             let (offset, offset_overflow) = offset.into_u64_with_overflow();
-            self.gas_left.consume_copy_cost(len)?;
-            let bytes_written = self.context.copy_code(&addr, offset as usize, dest);
+            i.gas_left.consume_copy_cost(len)?;
+            let bytes_written = i.context.copy_code(&addr, offset as usize, dest);
             if offset_overflow {
                 dest.fill(0);
             } else if (bytes_written as u64) < len {
                 dest[bytes_written..].fill(0);
             }
         }
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn return_data_size(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack.push(
-            self.last_call_return_data
+    fn return_data_size(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(
+            i.last_call_return_data
                 .as_ref()
                 .map(Vec::len)
                 .unwrap_or_default(),
         )?;
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn return_data_copy(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [len, offset, dest_offset] = self.stack.pop()?;
+    fn return_data_copy(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [len, offset, dest_offset] = i.stack.pop()?;
 
-        let src = self.last_call_return_data.as_deref().unwrap_or_default();
+        let src = i.last_call_return_data.as_deref().unwrap_or_default();
         let (offset, offset_overflow) = offset.into_u64_with_overflow();
         let (len, len_overflow) = len.into_u64_with_overflow();
         let (end, end_overflow) = offset.overflowing_add(len);
@@ -1089,357 +1082,350 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
 
         if len != 0 {
             let src = &src[offset as usize..end as usize];
-            let dest = self
-                .memory
-                .get_mut_slice(dest_offset, len, &mut self.gas_left)?;
-            dest.copy_padded(src, &mut self.gas_left)?;
+            let dest = i.memory.get_mut_slice(dest_offset, len, &mut i.gas_left)?;
+            dest.copy_padded(src, &mut i.gas_left)?;
         }
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn ext_code_hash(&mut self) -> OpResult {
-        if self.revision < Revision::EVMC_BERLIN {
-            self.gas_left.consume(700)?;
+    fn ext_code_hash(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        if i.revision < Revision::EVMC_BERLIN {
+            i.gas_left.consume(700)?;
         }
-        let [addr] = self.stack.pop()?;
+        let [addr] = i.stack.pop()?;
         let addr = addr.into();
-        self.gas_left
-            .consume_address_access_cost(&addr, self.revision, self.context)?;
-        self.stack.push(self.context.get_code_hash(&addr))?;
-        self.code_reader.next();
-        self.return_from_op()
+        i.gas_left
+            .consume_address_access_cost(&addr, i.revision, i.context)?;
+        i.stack.push(i.context.get_code_hash(&addr))?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn block_hash(&mut self) -> OpResult {
-        self.gas_left.consume(20)?;
-        let [block_number] = self.stack.pop()?;
-        self.stack.push(
+    fn block_hash(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(20)?;
+        let [block_number] = i.stack.pop()?;
+        i.stack.push(
             u64::try_from(block_number)
-                .map(|idx| self.context.get_block_hash(idx as i64).into())
+                .map(|idx| i.context.get_block_hash(idx as i64).into())
                 .unwrap_or(u256::ZERO),
         )?;
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn coinbase(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack
-            .push(self.context.get_tx_context().block_coinbase)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn coinbase(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(i.context.get_tx_context().block_coinbase)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn timestamp(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack
-            .push(self.context.get_tx_context().block_timestamp as u64)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn timestamp(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack
+            .push(i.context.get_tx_context().block_timestamp as u64)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn number(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack
-            .push(self.context.get_tx_context().block_number as u64)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn number(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack
+            .push(i.context.get_tx_context().block_number as u64)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn prev_randao(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack
-            .push(self.context.get_tx_context().block_prev_randao)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn prev_randao(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(i.context.get_tx_context().block_prev_randao)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn gas_limit(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack
-            .push(self.context.get_tx_context().block_gas_limit as u64)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn gas_limit(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack
+            .push(i.context.get_tx_context().block_gas_limit as u64)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn chain_id(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack.push(self.context.get_tx_context().chain_id)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn chain_id(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(i.context.get_tx_context().chain_id)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn self_balance(&mut self) -> OpResult {
-        check_min_revision(Revision::EVMC_ISTANBUL, self.revision)?;
-        self.gas_left.consume(5)?;
-        let addr = self.message.recipient();
+    fn self_balance(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        check_min_revision(Revision::EVMC_ISTANBUL, i.revision)?;
+        i.gas_left.consume(5)?;
+        let addr = i.message.recipient();
         if u256::from(addr) == u256::ZERO {
-            self.stack.push(u256::ZERO)?;
+            i.stack.push(u256::ZERO)?;
         } else {
-            self.stack.push(self.context.get_balance(addr))?;
+            i.stack.push(i.context.get_balance(addr))?;
         }
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn base_fee(&mut self) -> OpResult {
-        check_min_revision(Revision::EVMC_LONDON, self.revision)?;
-        self.gas_left.consume(2)?;
-        self.stack
-            .push(self.context.get_tx_context().block_base_fee)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn base_fee(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        check_min_revision(Revision::EVMC_LONDON, i.revision)?;
+        i.gas_left.consume(2)?;
+        i.stack.push(i.context.get_tx_context().block_base_fee)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn blob_hash(&mut self) -> OpResult {
-        check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-        self.gas_left.consume(3)?;
-        let [idx] = self.stack.pop()?;
+    fn blob_hash(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        check_min_revision(Revision::EVMC_CANCUN, i.revision)?;
+        i.gas_left.consume(3)?;
+        let [idx] = i.stack.pop()?;
         let (idx, idx_overflow) = idx.into_u64_with_overflow();
         let idx = idx as usize;
-        let hashes = ExecutionTxContext::from(self.context.get_tx_context()).blob_hashes;
+        let hashes = ExecutionTxContext::from(i.context.get_tx_context()).blob_hashes;
         if !idx_overflow && idx < hashes.len() {
-            self.stack.push(hashes[idx])?;
+            i.stack.push(hashes[idx])?;
         } else {
-            self.stack.push(u256::ZERO)?;
+            i.stack.push(u256::ZERO)?;
         }
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn blob_base_fee(&mut self) -> OpResult {
-        check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-        self.gas_left.consume(2)?;
-        self.stack
-            .push(self.context.get_tx_context().blob_base_fee)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn blob_base_fee(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        check_min_revision(Revision::EVMC_CANCUN, i.revision)?;
+        i.gas_left.consume(2)?;
+        i.stack.push(i.context.get_tx_context().blob_base_fee)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn pop(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        let [_] = self.stack.pop()?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn pop(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        let [_] = i.stack.pop()?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn m_load(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [offset] = self.stack.pop()?;
+    fn m_load(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [offset] = i.stack.pop()?;
 
-        self.stack
-            .push(self.memory.get_word(offset, &mut self.gas_left)?)?;
-        self.code_reader.next();
-        self.return_from_op()
+        i.stack.push(i.memory.get_word(offset, &mut i.gas_left)?)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn m_store(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [value, offset] = self.stack.pop()?;
+    fn m_store(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [value, offset] = i.stack.pop()?;
 
-        let dest = self.memory.get_mut_slice(offset, 32, &mut self.gas_left)?;
+        let dest = i.memory.get_mut_slice(offset, 32, &mut i.gas_left)?;
         dest.copy_from_slice(&value.to_le_bytes());
         dest.reverse();
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn m_store8(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        let [value, offset] = self.stack.pop()?;
+    fn m_store8(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        let [value, offset] = i.stack.pop()?;
 
-        let dest = self.memory.get_mut_byte(offset, &mut self.gas_left)?;
+        let dest = i.memory.get_mut_byte(offset, &mut i.gas_left)?;
         *dest = value.least_significant_byte();
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn s_load(&mut self) -> OpResult {
-        if self.revision < Revision::EVMC_BERLIN {
-            self.gas_left.consume(800)?;
+    fn s_load(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        if i.revision < Revision::EVMC_BERLIN {
+            i.gas_left.consume(800)?;
         }
-        let [key] = self.stack.pop()?;
+        let [key] = i.stack.pop()?;
         let key = key.into();
-        let addr = self.message.recipient();
-        if self.revision >= Revision::EVMC_BERLIN {
-            if self.context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD {
-                self.gas_left.consume(2_100)?;
+        let addr = i.message.recipient();
+        if i.revision >= Revision::EVMC_BERLIN {
+            if i.context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD {
+                i.gas_left.consume(2_100)?;
             } else {
-                self.gas_left.consume(100)?;
+                i.gas_left.consume(100)?;
             }
         }
-        let value = self.context.get_storage(addr, &key);
-        self.stack.push(value)?;
-        self.code_reader.next();
-        self.return_from_op()
+        let value = i.context.get_storage(addr, &key);
+        i.stack.push(value)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn jump(&mut self) -> OpResult {
-        self.gas_left.consume(if STEPPABLE { 8 } else { 8 + 1 })?;
-        let [dest] = self.stack.pop()?;
-        self.code_reader.try_jump(dest)?;
+    fn jump(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(if STEPPABLE { 8 } else { 8 + 1 })?;
+        let [dest] = i.stack.pop()?;
+        i.code_reader.try_jump(dest)?;
         if !STEPPABLE {
-            self.code_reader.next();
+            i.code_reader.next();
         }
-        self.return_from_op()
+        i.return_from_op()
     }
 
-    fn jump_i(&mut self) -> OpResult {
-        self.gas_left.consume(10)?;
-        let [cond, dest] = self.stack.pop()?;
+    fn jump_i(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(10)?;
+        let [cond, dest] = i.stack.pop()?;
         if cond == u256::ZERO {
-            self.code_reader.next();
+            i.code_reader.next();
         } else {
-            self.code_reader.try_jump(dest)?;
+            i.code_reader.try_jump(dest)?;
             if !STEPPABLE {
-                self.gas_left.consume(1)?;
-                self.code_reader.next();
+                i.gas_left.consume(1)?;
+                i.code_reader.next();
             }
         }
-        self.return_from_op()
+        i.return_from_op()
     }
 
-    fn pc(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack.push(self.code_reader.pc())?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn pc(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(i.code_reader.pc())?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn m_size(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack.push(self.memory.len())?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn m_size(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(i.memory.len())?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn gas(&mut self) -> OpResult {
-        self.gas_left.consume(2)?;
-        self.stack.push(self.gas_left.as_u64())?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn gas(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(2)?;
+        i.stack.push(i.gas_left.as_u64())?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn jump_dest(&mut self) -> OpResult {
-        self.gas_left.consume(1)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn jump_dest(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(1)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn t_load(&mut self) -> OpResult {
-        check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-        self.gas_left.consume(100)?;
-        let [key] = self.stack.pop()?;
-        let addr = self.message.recipient();
-        let value = self.context.get_transient_storage(addr, &key.into());
-        self.stack.push(value)?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn t_load(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        check_min_revision(Revision::EVMC_CANCUN, i.revision)?;
+        i.gas_left.consume(100)?;
+        let [key] = i.stack.pop()?;
+        let addr = i.message.recipient();
+        let value = i.context.get_transient_storage(addr, &key.into());
+        i.stack.push(value)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn t_store(&mut self) -> OpResult {
-        check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-        check_not_read_only(self.message)?;
-        self.gas_left.consume(100)?;
-        let [value, key] = self.stack.pop()?;
-        let addr = self.message.recipient();
-        self.context
+    fn t_store(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        check_min_revision(Revision::EVMC_CANCUN, i.revision)?;
+        check_not_read_only(i.message)?;
+        i.gas_left.consume(100)?;
+        let [value, key] = i.stack.pop()?;
+        let addr = i.message.recipient();
+        i.context
             .set_transient_storage(addr, &key.into(), &value.into());
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn m_copy(&mut self) -> OpResult {
-        check_min_revision(Revision::EVMC_CANCUN, self.revision)?;
-        self.gas_left.consume(3)?;
-        let [len, offset, dest_offset] = self.stack.pop()?;
+    fn m_copy(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        check_min_revision(Revision::EVMC_CANCUN, i.revision)?;
+        i.gas_left.consume(3)?;
+        let [len, offset, dest_offset] = i.stack.pop()?;
         if len != u256::ZERO {
-            self.memory
-                .copy_within(offset, dest_offset, len, &mut self.gas_left)?;
+            i.memory
+                .copy_within(offset, dest_offset, len, &mut i.gas_left)?;
         }
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn return_(&mut self) -> OpResult {
-        let [len, offset] = self.stack.pop()?;
+    fn return_(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        let [len, offset] = i.stack.pop()?;
         let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
-        let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        let data = i.memory.get_mut_slice(offset, len, &mut i.gas_left)?;
         #[cfg(not(feature = "custom-evmc"))]
         {
-            self.output = Some(data.to_owned());
+            i.output = Some(data.to_owned());
         }
         #[cfg(feature = "custom-evmc")]
         {
-            self.output = Some(Box::from(&*data));
+            i.output = Some(Box::from(&*data));
         }
-        self.exec_status = ExecStatus::Returned;
+        i.exec_status = ExecStatus::Returned;
         Ok(())
     }
 
-    fn revert(&mut self) -> OpResult {
-        let [len, offset] = self.stack.pop()?;
+    fn revert(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        let [len, offset] = i.stack.pop()?;
         let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
-        let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        let data = i.memory.get_mut_slice(offset, len, &mut i.gas_left)?;
         #[cfg(not(feature = "custom-evmc"))]
         {
-            self.output = Some(data.to_owned());
+            i.output = Some(data.to_owned());
         }
         #[cfg(feature = "custom-evmc")]
         {
-            self.output = Some(Box::from(&*data));
+            i.output = Some(Box::from(&*data));
         }
-        self.exec_status = ExecStatus::Revert;
+        i.exec_status = ExecStatus::Revert;
         Ok(())
     }
 
     #[allow(clippy::unused_self)]
-    fn invalid(&mut self) -> OpResult {
+    fn invalid(_i: &mut Interpreter<STEPPABLE>) -> OpResult {
         Err(FailStatus::InvalidInstruction)
     }
 
-    fn self_destruct(&mut self) -> OpResult {
-        check_not_read_only(self.message)?;
-        self.gas_left.consume(5_000)?;
-        let [addr] = self.stack.pop()?;
+    fn self_destruct(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        check_not_read_only(i.message)?;
+        i.gas_left.consume(5_000)?;
+        let [addr] = i.stack.pop()?;
         let addr = addr.into();
 
-        if self.revision >= Revision::EVMC_BERLIN
-            && self.context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
+        if i.revision >= Revision::EVMC_BERLIN
+            && i.context.access_account(&addr) == AccessStatus::EVMC_ACCESS_COLD
         {
-            self.gas_left.consume(2_600)?;
+            i.gas_left.consume(2_600)?;
         }
 
-        if u256::from(self.context.get_balance(self.message.recipient())) > u256::ZERO
-            && !self.context.account_exists(&addr)
+        if u256::from(i.context.get_balance(i.message.recipient())) > u256::ZERO
+            && !i.context.account_exists(&addr)
         {
-            self.gas_left.consume(25_000)?;
+            i.gas_left.consume(25_000)?;
         }
 
-        let destructed = self.context.selfdestruct(self.message.recipient(), &addr);
-        if self.revision <= Revision::EVMC_BERLIN && destructed {
-            self.gas_refund.add(24_000)?;
+        let destructed = i.context.selfdestruct(i.message.recipient(), &addr);
+        if i.revision <= Revision::EVMC_BERLIN && destructed {
+            i.gas_refund.add(24_000)?;
         }
 
-        self.exec_status = ExecStatus::Stopped;
+        i.exec_status = ExecStatus::Stopped;
         Ok(())
     }
 
-    fn sstore(&mut self) -> OpResult {
-        check_not_read_only(self.message)?;
+    fn sstore(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        check_not_read_only(i.message)?;
 
-        if self.revision >= Revision::EVMC_ISTANBUL && self.gas_left <= 2_300 {
+        if i.revision >= Revision::EVMC_ISTANBUL && i.gas_left <= 2_300 {
             return Err(FailStatus::OutOfGas);
         }
-        let [value, key] = self.stack.pop()?;
+        let [value, key] = i.stack.pop()?;
         let key = key.into();
-        let addr = self.message.recipient();
+        let addr = i.message.recipient();
 
         let (dyn_gas_1, dyn_gas_2, dyn_gas_3, refund_1, refund_2, refund_3) =
-            if self.revision >= Revision::EVMC_LONDON {
+            if i.revision >= Revision::EVMC_LONDON {
                 (100, 2_900, 20_000, 5_000 - 2_100 - 100, 4_800, 20_000 - 100)
-            } else if self.revision >= Revision::EVMC_BERLIN {
+            } else if i.revision >= Revision::EVMC_BERLIN {
                 (
                     100,
                     2_900,
@@ -1448,13 +1434,13 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
                     15_000,
                     20_000 - 100,
                 )
-            } else if self.revision >= Revision::EVMC_ISTANBUL {
+            } else if i.revision >= Revision::EVMC_ISTANBUL {
                 (800, 5_000, 20_000, 4_200, 15_000, 19_200)
             } else {
                 (5_000, 5_000, 20_000, 0, 0, 0)
             };
 
-        let status = self.context.set_storage(addr, &key, &value.into());
+        let status = i.context.set_storage(addr, &key, &value.into());
         let (mut dyn_gas, gas_refund_change) = match status {
             StorageStatus::EVMC_STORAGE_ASSIGNED => (dyn_gas_1, 0),
             StorageStatus::EVMC_STORAGE_ADDED => (dyn_gas_3, 0),
@@ -1466,81 +1452,81 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
             StorageStatus::EVMC_STORAGE_ADDED_DELETED => (dyn_gas_1, refund_3),
             StorageStatus::EVMC_STORAGE_MODIFIED_RESTORED => (dyn_gas_1, refund_1),
         };
-        if self.revision >= Revision::EVMC_BERLIN
-            && self.context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD
+        if i.revision >= Revision::EVMC_BERLIN
+            && i.context.access_storage(addr, &key) == AccessStatus::EVMC_ACCESS_COLD
         {
             dyn_gas += 2_100;
         }
-        self.gas_left.consume(dyn_gas)?;
-        self.gas_refund.add(gas_refund_change)?;
-        self.code_reader.next();
-        self.return_from_op()
+        i.gas_left.consume(dyn_gas)?;
+        i.gas_refund.add(gas_refund_change)?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
     #[allow(unused_variables)]
-    fn push<const N: usize>(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
+    fn push<const N: usize>(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
         #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
-        self.code_reader.next();
+        i.code_reader.next();
         #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
-        self.stack.push(self.code_reader.get_push_data::<N>())?;
+        i.stack.push(i.code_reader.get_push_data::<N>())?;
         #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
-        self.stack.push(self.code_reader.get_push_data())?;
-        self.return_from_op()
+        i.stack.push(i.code_reader.get_push_data())?;
+        i.return_from_op()
     }
 
-    fn dup<const N: usize>(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        self.stack.dup::<N>()?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn dup<const N: usize>(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        i.stack.dup::<N>()?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn swap<const N: usize>(&mut self) -> OpResult {
-        self.gas_left.consume(3)?;
-        self.stack.swap_with_top::<N>()?;
-        self.code_reader.next();
-        self.return_from_op()
+    fn swap<const N: usize>(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(3)?;
+        i.stack.swap_with_top::<N>()?;
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn log<const N: usize>(&mut self) -> OpResult {
-        check_not_read_only(self.message)?;
-        self.gas_left.consume(375)?;
-        let [len, offset] = self.stack.pop()?;
-        let topics: [u256; N] = self.stack.pop()?;
+    fn log<const N: usize>(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        check_not_read_only(i.message)?;
+        i.gas_left.consume(375)?;
+        let [len, offset] = i.stack.pop()?;
+        let topics: [u256; N] = i.stack.pop()?;
         let (len, len_overflow) = len.into_u64_with_overflow();
         let (len8, len8_overflow) = len.overflowing_mul(8);
         let (cost, cost_overflow) = (375 * N as u64).overflowing_add(len8);
         if len_overflow || len8_overflow || cost_overflow {
             return Err(FailStatus::OutOfGas);
         }
-        self.gas_left.consume(cost)?;
+        i.gas_left.consume(cost)?;
 
-        let data = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        let data = i.memory.get_mut_slice(offset, len, &mut i.gas_left)?;
         let mut topics_uint256 = [Uint256 { bytes: [0; 32] }; N];
         for i in 0..N {
             topics_uint256[i] = Uint256::from(topics[N - 1 - i]);
         }
-        self.context
-            .emit_log(self.message.recipient(), data, &topics_uint256);
-        self.code_reader.next();
-        self.return_from_op()
+        i.context
+            .emit_log(i.message.recipient(), data, &topics_uint256);
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn create(&mut self) -> OpResult {
-        self.create_or_create2::<false>()
+    fn create(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        Interpreter::create_or_create2::<false>(i)
     }
 
-    fn create2(&mut self) -> OpResult {
-        self.create_or_create2::<true>()
+    fn create2(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        Interpreter::create_or_create2::<true>(i)
     }
 
-    fn create_or_create2<const CREATE2: bool>(&mut self) -> OpResult {
-        self.gas_left.consume(32_000)?;
-        check_not_read_only(self.message)?;
-        let [len, offset, value] = self.stack.pop()?;
+    fn create_or_create2<const CREATE2: bool>(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        i.gas_left.consume(32_000)?;
+        check_not_read_only(i.message)?;
+        let [len, offset, value] = i.stack.pop()?;
         let salt = if CREATE2 {
-            let [salt] = self.stack.pop()?;
+            let [salt] = i.stack.pop()?;
             salt
         } else {
             u256::ZERO // ignored
@@ -1548,31 +1534,31 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         let len = u64::try_from(len).map_err(|_| FailStatus::OutOfGas)?;
 
         let init_code_word_size = word_size(len)?;
-        if self.revision >= Revision::EVMC_SHANGHAI {
+        if i.revision >= Revision::EVMC_SHANGHAI {
             const MAX_INIT_CODE_LEN: u64 = 2 * 24576;
             if len > MAX_INIT_CODE_LEN {
                 return Err(FailStatus::OutOfGas);
             }
             let init_code_cost = 2 * init_code_word_size; // does not overflow
-            self.gas_left.consume(init_code_cost)?;
+            i.gas_left.consume(init_code_cost)?;
         }
         if CREATE2 {
             let hash_cost = 6 * init_code_word_size; // does not overflow
-            self.gas_left.consume(hash_cost)?;
+            i.gas_left.consume(hash_cost)?;
         }
 
-        let init_code = self.memory.get_mut_slice(offset, len, &mut self.gas_left)?;
+        let init_code = i.memory.get_mut_slice(offset, len, &mut i.gas_left)?;
 
-        if value > self.context.get_balance(self.message.recipient()).into() {
-            self.last_call_return_data = None;
-            self.stack.push(u256::ZERO)?;
-            self.code_reader.next();
-            return self.return_from_op();
+        if value > i.context.get_balance(i.message.recipient()).into() {
+            i.last_call_return_data = None;
+            i.stack.push(u256::ZERO)?;
+            i.code_reader.next();
+            return i.return_from_op();
         }
 
-        let gas_left = self.gas_left.as_u64();
+        let gas_left = i.gas_left.as_u64();
         let gas_limit = gas_left - gas_left / 64;
-        self.gas_left.consume(gas_limit)?;
+        i.gas_left.consume(gas_limit)?;
 
         let message = ExecutionMessage::new(
             if CREATE2 {
@@ -1580,11 +1566,11 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
             } else {
                 MessageKind::EVMC_CREATE
             },
-            self.message.flags(),
-            self.message.depth() + 1,
+            i.message.flags(),
+            i.message.depth() + 1,
             gas_limit as i64,
             u256::ZERO.into(), // ignored
-            *self.message.recipient(),
+            *i.message.recipient(),
             Some(init_code),
             value.into(),
             salt.into(),
@@ -1592,87 +1578,87 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
             None,
             None,
         );
-        let result = self.context.call(&message);
+        let result = i.context.call(&message);
 
-        self.gas_left.add(result.gas_left())?;
-        self.gas_refund.add(result.gas_refund())?;
+        i.gas_left.add(result.gas_left())?;
+        i.gas_refund.add(result.gas_refund())?;
 
         if result.status_code() == StatusCode::EVMC_SUCCESS {
             let Some(addr) = result.create_address() else {
                 return Err(FailStatus::InternalError);
             };
 
-            self.last_call_return_data = None;
-            self.stack.push(addr)?;
+            i.last_call_return_data = None;
+            i.stack.push(addr)?;
         } else {
-            self.last_call_return_data = result.output().map(ToOwned::to_owned);
-            self.stack.push(u256::ZERO)?;
+            i.last_call_return_data = result.output().map(ToOwned::to_owned);
+            i.stack.push(u256::ZERO)?;
         }
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn call(&mut self) -> OpResult {
-        self.call_or_call_code::<false>()
+    fn call(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        Interpreter::call_or_call_code::<false>(i)
     }
 
-    fn call_code(&mut self) -> OpResult {
-        self.call_or_call_code::<true>()
+    fn call_code(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        Interpreter::call_or_call_code::<true>(i)
     }
 
-    fn call_or_call_code<const CODE: bool>(&mut self) -> OpResult {
-        if self.revision < Revision::EVMC_BERLIN {
-            self.gas_left.consume(700)?;
+    fn call_or_call_code<const CODE: bool>(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        if i.revision < Revision::EVMC_BERLIN {
+            i.gas_left.consume(700)?;
         }
-        let [ret_len, ret_offset, args_len, args_offset, value, addr, gas] = self.stack.pop()?;
+        let [ret_len, ret_offset, args_len, args_offset, value, addr, gas] = i.stack.pop()?;
 
         if !CODE && value != u256::ZERO {
-            check_not_read_only(self.message)?;
+            check_not_read_only(i.message)?;
         }
 
         let addr = addr.into();
         let args_len = u64::try_from(args_len).map_err(|_| FailStatus::OutOfGas)?;
         let ret_len = u64::try_from(ret_len).map_err(|_| FailStatus::OutOfGas)?;
 
-        self.gas_left
-            .consume_address_access_cost(&addr, self.revision, self.context)?;
-        self.gas_left.consume_positive_value_cost(&value)?;
+        i.gas_left
+            .consume_address_access_cost(&addr, i.revision, i.context)?;
+        i.gas_left.consume_positive_value_cost(&value)?;
         if !CODE {
-            self.gas_left
-                .consume_value_to_empty_account_cost(&value, &addr, self.context)?;
+            i.gas_left
+                .consume_value_to_empty_account_cost(&value, &addr, i.context)?;
         }
         // access slice to consume potential memory expansion cost but drop it so that we can get
         // another mutable reference into memory for input
-        let _dest = self
+        let _dest = i
             .memory
-            .get_mut_slice(ret_offset, ret_len, &mut self.gas_left)?;
-        let input = self
+            .get_mut_slice(ret_offset, ret_len, &mut i.gas_left)?;
+        let input = i
             .memory
-            .get_mut_slice(args_offset, args_len, &mut self.gas_left)?;
+            .get_mut_slice(args_offset, args_len, &mut i.gas_left)?;
 
-        let gas_left = self.gas_left.as_u64();
+        let gas_left = i.gas_left.as_u64();
         let limit = gas_left - gas_left / 64;
         let mut endowment = gas.into_u64_saturating();
         endowment = min(endowment, limit); // cap gas at all but one 64th of gas left
 
         let stipend: u64 = if value == u256::ZERO { 0 } else { 2_300 };
-        self.gas_left.add(stipend as i64)?;
+        i.gas_left.add(stipend as i64)?;
 
-        if value > u256::from(self.context.get_balance(self.message.recipient())) {
-            self.last_call_return_data = None;
-            self.stack.push(u256::ZERO)?;
-            self.code_reader.next();
-            return self.return_from_op();
+        if value > u256::from(i.context.get_balance(i.message.recipient())) {
+            i.last_call_return_data = None;
+            i.stack.push(u256::ZERO)?;
+            i.code_reader.next();
+            return i.return_from_op();
         }
 
         let call_message = if CODE {
             ExecutionMessage::new(
                 MessageKind::EVMC_CALLCODE,
-                self.message.flags(),
-                self.message.depth() + 1,
+                i.message.flags(),
+                i.message.depth() + 1,
                 (endowment + stipend) as i64,
-                *self.message.recipient(),
-                *self.message.recipient(),
+                *i.message.recipient(),
+                *i.message.recipient(),
                 Some(input),
                 value.into(),
                 u256::ZERO.into(), // ignored
@@ -1683,11 +1669,11 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         } else {
             ExecutionMessage::new(
                 MessageKind::EVMC_CALL,
-                self.message.flags(),
-                self.message.depth() + 1,
+                i.message.flags(),
+                i.message.depth() + 1,
                 (endowment + stipend) as i64,
                 addr,
-                *self.message.recipient(),
+                *i.message.recipient(),
                 Some(input),
                 value.into(),
                 u256::ZERO.into(), // ignored
@@ -1697,57 +1683,57 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
             )
         };
 
-        let result = self.context.call(&call_message);
-        self.last_call_return_data = result.output().map(ToOwned::to_owned);
-        let dest = self
+        let result = i.context.call(&call_message);
+        i.last_call_return_data = result.output().map(ToOwned::to_owned);
+        let dest = i
             .memory
-            .get_mut_slice(ret_offset, ret_len, &mut self.gas_left)?;
-        if let Some(output) = &self.last_call_return_data {
+            .get_mut_slice(ret_offset, ret_len, &mut i.gas_left)?;
+        if let Some(output) = &i.last_call_return_data {
             let min_len = min(output.len(), ret_len as usize); // ret_len == dest.len()
             dest[..min_len].copy_from_slice(&output[..min_len]);
         }
 
-        self.gas_left.add(result.gas_left())?;
-        self.gas_left.consume(endowment)?;
-        self.gas_left.consume(stipend)?;
-        self.gas_refund.add(result.gas_refund())?;
+        i.gas_left.add(result.gas_left())?;
+        i.gas_left.consume(endowment)?;
+        i.gas_left.consume(stipend)?;
+        i.gas_refund.add(result.gas_refund())?;
 
-        self.stack
+        i.stack
             .push(result.status_code() == StatusCode::EVMC_SUCCESS)?;
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 
-    fn static_call(&mut self) -> OpResult {
-        self.static_or_delegate_call::<false>()
+    fn static_call(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        Interpreter::static_or_delegate_call::<false>(i)
     }
 
-    fn delegate_call(&mut self) -> OpResult {
-        self.static_or_delegate_call::<true>()
+    fn delegate_call(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        Interpreter::static_or_delegate_call::<true>(i)
     }
 
-    fn static_or_delegate_call<const DELEGATE: bool>(&mut self) -> OpResult {
-        if self.revision < Revision::EVMC_BERLIN {
-            self.gas_left.consume(700)?;
+    fn static_or_delegate_call<const DELEGATE: bool>(i: &mut Interpreter<STEPPABLE>) -> OpResult {
+        if i.revision < Revision::EVMC_BERLIN {
+            i.gas_left.consume(700)?;
         }
-        let [ret_len, ret_offset, args_len, args_offset, addr, gas] = self.stack.pop()?;
+        let [ret_len, ret_offset, args_len, args_offset, addr, gas] = i.stack.pop()?;
 
         let addr = addr.into();
         let args_len = u64::try_from(args_len).map_err(|_| FailStatus::OutOfGas)?;
         let ret_len = u64::try_from(ret_len).map_err(|_| FailStatus::OutOfGas)?;
 
-        self.gas_left
-            .consume_address_access_cost(&addr, self.revision, self.context)?;
+        i.gas_left
+            .consume_address_access_cost(&addr, i.revision, i.context)?;
         // access slice to consume potential memory expansion cost but drop it so that we can get
         // another mutable reference into memory for input
-        let _dest = self
+        let _dest = i
             .memory
-            .get_mut_slice(ret_offset, ret_len, &mut self.gas_left)?;
-        let input = self
+            .get_mut_slice(ret_offset, ret_len, &mut i.gas_left)?;
+        let input = i
             .memory
-            .get_mut_slice(args_offset, args_len, &mut self.gas_left)?;
+            .get_mut_slice(args_offset, args_len, &mut i.gas_left)?;
 
-        let gas_left = self.gas_left.as_u64();
+        let gas_left = i.gas_left.as_u64();
         let limit = gas_left - gas_left / 64;
         let mut endowment = gas.into_u64_saturating();
         endowment = min(endowment, limit); // cap gas at all but one 64th of gas left
@@ -1755,13 +1741,13 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         let call_message = if DELEGATE {
             ExecutionMessage::new(
                 MessageKind::EVMC_DELEGATECALL,
-                self.message.flags(),
-                self.message.depth() + 1,
+                i.message.flags(),
+                i.message.depth() + 1,
                 endowment as i64,
-                *self.message.recipient(),
-                *self.message.sender(),
+                *i.message.recipient(),
+                *i.message.sender(),
                 Some(input),
-                *self.message.value(),
+                *i.message.value(),
                 u256::ZERO.into(), // ignored
                 addr,
                 None,
@@ -1771,10 +1757,10 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
             ExecutionMessage::new(
                 MessageKind::EVMC_CALL,
                 MessageFlags::EVMC_STATIC as u32,
-                self.message.depth() + 1,
+                i.message.depth() + 1,
                 endowment as i64,
                 addr,
-                *self.message.recipient(),
+                *i.message.recipient(),
                 Some(input),
                 u256::ZERO.into(), // ignored
                 u256::ZERO.into(), // ignored
@@ -1784,24 +1770,24 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
             )
         };
 
-        let result = self.context.call(&call_message);
-        self.last_call_return_data = result.output().map(ToOwned::to_owned);
-        let dest = self
+        let result = i.context.call(&call_message);
+        i.last_call_return_data = result.output().map(ToOwned::to_owned);
+        let dest = i
             .memory
-            .get_mut_slice(ret_offset, ret_len, &mut self.gas_left)?;
-        if let Some(output) = &self.last_call_return_data {
+            .get_mut_slice(ret_offset, ret_len, &mut i.gas_left)?;
+        if let Some(output) = &i.last_call_return_data {
             let min_len = min(output.len(), ret_len as usize); // ret_len == dest.len()
             dest[..min_len].copy_from_slice(&output[..min_len]);
         }
 
-        self.gas_left.add(result.gas_left())?;
-        self.gas_left.consume(endowment)?;
-        self.gas_refund.add(result.gas_refund())?;
+        i.gas_left.add(result.gas_left())?;
+        i.gas_left.consume(endowment)?;
+        i.gas_refund.add(result.gas_refund())?;
 
-        self.stack
+        i.stack
             .push(result.status_code() == StatusCode::EVMC_SUCCESS)?;
-        self.code_reader.next();
-        self.return_from_op()
+        i.code_reader.next();
+        i.return_from_op()
     }
 }
 
