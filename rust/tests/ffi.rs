@@ -1,8 +1,10 @@
 #![allow(unused_crate_dependencies)]
+#[cfg(not(feature = "custom-evmc"))]
+use driver::TX_CONTEXT_ZEROED;
 use driver::{
     get_tx_context_zeroed,
     host_interface::{self, null_ptr_host_interface},
-    Instance, SteppableInstance, TX_CONTEXT_ZEROED, ZERO,
+    Instance, SteppableInstance, ZERO,
 };
 use evmrs::{
     evmc_vm::{Revision, StatusCode, StepStatusCode},
@@ -14,6 +16,7 @@ fn execute_can_be_called_with_mocked_context() {
     let mut instance = Instance::default();
     let host = host_interface::mocked_host_interface();
     let mut context = MockExecutionContextTrait::new();
+    #[cfg(not(feature = "custom-evmc"))]
     context
         .expect_get_tx_context()
         .times(1)
@@ -66,6 +69,7 @@ fn step_n_can_be_called_with_mocked_context() {
     let mut instance = SteppableInstance::default();
     let host = host_interface::mocked_host_interface();
     let mut context = MockExecutionContextTrait::new();
+    #[cfg(not(feature = "custom-evmc"))]
     context
         .expect_get_tx_context()
         .times(1)
