@@ -130,7 +130,6 @@ func getAllRules() []Rule {
 		),
 		Effect: Change(func(s *st.State) {
 			s.Status = st.Stopped
-			s.ReturnData = Bytes{}
 			s.Pc++
 		}),
 	})
