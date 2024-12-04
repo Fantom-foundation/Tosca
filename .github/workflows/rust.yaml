@@ -8,13 +8,15 @@ on:
   push:
     branches: [ main, evmrs ]
     paths:
-      - '**.rs'
-      - 'Cargo.*'
+      - '.github/workflows/rust.yml'
+      - 'rust/**'
+      - Makefile
   pull_request:
     branches: [ main ]
     paths:
-      - '**.rs'
-      - 'Cargo.*'
+      - '.github/workflows/rust.yml'
+      - 'rust/**'
+      - Makefile
 
 env:
   CARGO_TERM_COLOR: always
