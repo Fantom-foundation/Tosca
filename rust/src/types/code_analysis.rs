@@ -105,7 +105,6 @@ pub struct CodeAnalysis<const STEPPABLE: bool> {
 }
 
 impl<const STEPPABLE: bool> CodeAnalysis<STEPPABLE> {
-    /// If the const generic J is false, jumpdests are skipped.
     #[allow(unused_variables)]
     pub fn new(code: &[u8], code_hash: Option<u256>) -> AnalysisContainer<Self> {
         #[cfg(feature = "code-analysis-cache")]

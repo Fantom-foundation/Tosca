@@ -30,7 +30,6 @@ pub enum GetOpcodeError {
 }
 
 impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
-    /// If the const generic J is false, jumpdests are skipped.
     pub fn new(code: &'a [u8], code_hash: Option<u256>, pc: usize) -> Self {
         let code_analysis = CodeAnalysis::new(code, code_hash);
         #[cfg(feature = "needs-fn-ptr-conversion")]
