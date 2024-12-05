@@ -462,7 +462,7 @@ dependencies = [
 [[package]]
 name = "evmc-sys"
 version = "12.0.0-alpha.0"
-source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-execution-message-slice-output-box#0f0df157a43fbb72b458f29f5835ac46dca2f069"
+source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized#3d75575daa32e3563488361ffce84edf17109c74"
 dependencies = [
  "bindgen",
 ]
@@ -478,9 +478,9 @@ dependencies = [
 [[package]]
 name = "evmc-vm"
 version = "12.0.0-alpha.0"
-source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-execution-message-slice-output-box#0f0df157a43fbb72b458f29f5835ac46dca2f069"
+source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized#3d75575daa32e3563488361ffce84edf17109c74"
 dependencies = [
- "evmc-sys 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-execution-message-slice-output-box)",
+ "evmc-sys 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized)",
 ]
 
 [[package]]
@@ -491,7 +491,7 @@ dependencies = [
  "bnum",
  "driver",
  "evmc-vm 12.0.0-alpha.0 (git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions)",
- "evmc-vm 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-execution-message-slice-output-box)",
+ "evmc-vm 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized)",
  "evmrs",
  "llvm-profile-wrappers",
  "lru",

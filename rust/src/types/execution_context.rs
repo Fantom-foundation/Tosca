@@ -59,6 +59,7 @@ pub trait ExecutionContextTrait {
 }
 
 impl ExecutionContextTrait for ExecutionContext<'_> {
+    #[allow(unconditional_recursion)] // this is a bug in clippy
     fn get_tx_context(&self) -> &ExecutionTxContext {
         self.get_tx_context()
     }
