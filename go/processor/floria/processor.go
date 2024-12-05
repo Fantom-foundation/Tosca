@@ -105,7 +105,7 @@ func (p *processor) Run(
 	// End of work in progress
 
 	var createdAddress *tosca.Address
-	if kind == tosca.Create {
+	if kind == tosca.Create || kind == tosca.Create2 {
 		createdAddress = &result.CreatedAddress
 	}
 
