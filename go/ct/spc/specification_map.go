@@ -46,15 +46,6 @@ func NewSpecificationMap(rules ...Rule) Specification {
 }
 
 func (s *specificationMap) GetRulesFor(state *st.State) []Rule {
-	result := []Rule{}
-	getRules := func(opString string) {
-		for _, rule := range s.rules[opString] {
-			if valid, err := rule.Condition.Check(state); valid && err == nil {
-				result = append(result, rule)
-			}
-		}
-	}
-
 	op, err := state.Code.GetOperation(int(state.Pc))
 	var opString string
 	if err != nil {
@@ -65,7 +56,12 @@ func (s *specificationMap) GetRulesFor(state *st.State) []Rule {
 		opString = op.String()
 	}
 
-	getRules(opString)
+	result := []Rule{}
+	for _, rule := range s.rules[opString] {
+		if valid, err := rule.Condition.Check(state); valid && err == nil {
+			result = append(result, rule)
+		}
+	}
 
 	return result
 }
