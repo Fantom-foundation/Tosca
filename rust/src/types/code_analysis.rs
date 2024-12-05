@@ -54,23 +54,18 @@ const CACHE_SIZE: usize = 1 << 16; // value taken from evmzero
 type CodeAnalysisCache<const STEPPABLE: bool> =
     Cache<CACHE_SIZE, u256Hash, AnalysisContainer<CodeAnalysis<STEPPABLE>>, BuildNoHashHasher<u64>>;
 
-#[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
-static CODE_ANALYSIS_CACHE_STEPPABLE: CodeAnalysisCache<true> = CodeAnalysisCache::new();
-#[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
-static CODE_ANALYSIS_CACHE_NON_STEPPABLE: CodeAnalysisCache<false> = CodeAnalysisCache::new();
-
-#[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
-thread_local! {
-    static CODE_ANALYSIS_CACHE_STEPPABLE: CodeAnalysisCache<true> = CodeAnalysisCache::new();
-    static CODE_ANALYSIS_CACHE_NON_STEPPABLE: CodeAnalysisCache<false> = CodeAnalysisCache::new();
-}
-
 #[cfg(feature = "code-analysis-cache")]
 fn code_analysis_get_or_insert<const STEPPABLE: bool>(
     code_hash: u256,
     code: &[u8],
 ) -> AnalysisContainer<CodeAnalysis<STEPPABLE>> {
     if STEPPABLE {
+        #[cfg(not(feature = "thread-local-cache"))]
+        static CODE_ANALYSIS_CACHE_STEPPABLE: CodeAnalysisCache<true> = CodeAnalysisCache::new();
+        #[cfg(feature = "thread-local-cache")]
+        thread_local! {
+            static CODE_ANALYSIS_CACHE_STEPPABLE: CodeAnalysisCache<true> = CodeAnalysisCache::new();
+        }
         let analysis = CODE_ANALYSIS_CACHE_STEPPABLE.get_or_insert(u256Hash(code_hash), || {
             AnalysisContainer::new(CodeAnalysis::analyze_code(code))
         });
@@ -83,6 +78,13 @@ fn code_analysis_get_or_insert<const STEPPABLE: bool>(
             >(analysis)
         }
     } else {
+        #[cfg(not(feature = "thread-local-cache"))]
+        static CODE_ANALYSIS_CACHE_NON_STEPPABLE: CodeAnalysisCache<false> =
+            CodeAnalysisCache::new();
+        #[cfg(feature = "thread-local-cache")]
+        thread_local! {
+            static CODE_ANALYSIS_CACHE_NON_STEPPABLE: CodeAnalysisCache<false> = CodeAnalysisCache::new();
+        }
         let analysis = CODE_ANALYSIS_CACHE_NON_STEPPABLE.get_or_insert(u256Hash(code_hash), || {
             AnalysisContainer::new(CodeAnalysis::analyze_code(code))
         });

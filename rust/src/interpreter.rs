@@ -19,11 +19,13 @@ type OpResult = Result<(), FailStatus>;
 
 #[cfg(feature = "needs-jumptable")]
 pub type OpFn<const STEPPABLE: bool> = fn(&mut Interpreter<STEPPABLE>) -> OpResult;
+#[cfg(feature = "needs-jumptable")]
+pub type Jumptable<const STEPPABLE: bool> = [OpFn<STEPPABLE>; 256];
 
 // The closures here are necessary because methods capture the lifetime of the type which we
 // want to avoid.
 #[cfg(feature = "needs-jumptable")]
-const fn gen_jumptable<const STEPPABLE: bool>() -> [OpFn<STEPPABLE>; 256] {
+const fn gen_jumptable<const STEPPABLE: bool>() -> Jumptable<STEPPABLE> {
     [
         |i| i.stop(),
         |i| i.add(),
@@ -291,24 +293,23 @@ const fn gen_jumptable<const STEPPABLE: bool>() -> [OpFn<STEPPABLE>; 256] {
 }
 
 #[cfg(feature = "needs-jumptable")]
-static JUMPTABLE_STEPPABLE: [OpFn<true>; 256] = gen_jumptable();
-#[cfg(feature = "needs-jumptable")]
-static JUMPTABLE_NON_STEPPABLE: [OpFn<false>; 256] = gen_jumptable();
-
-#[cfg(feature = "needs-jumptable")]
-pub fn jumptable_lookup<const STEPPABLE: bool>(op: u8) -> OpFn<STEPPABLE> {
+pub const fn jumptable<const STEPPABLE: bool>() -> &'static Jumptable<STEPPABLE> {
     if STEPPABLE {
+        static JUMPTABLE_STEPPABLE: Jumptable<true> = gen_jumptable();
         // SAFETY:
         // STEPPABLE is true
         unsafe {
-            std::mem::transmute::<OpFn<true>, OpFn<STEPPABLE>>(JUMPTABLE_STEPPABLE[op as usize])
+            std::mem::transmute::<&'static Jumptable<true>, &'static Jumptable<STEPPABLE>>(
+                &JUMPTABLE_STEPPABLE,
+            )
         }
     } else {
+        static JUMPTABLE_NON_STEPPABLE: Jumptable<false> = gen_jumptable();
         // SAFETY:
         // STEPPABLE is false
         unsafe {
-            std::mem::transmute::<OpFn<false>, OpFn<STEPPABLE>>(
-                JUMPTABLE_NON_STEPPABLE[op as usize],
+            std::mem::transmute::<&'static Jumptable<false>, &'static Jumptable<STEPPABLE>>(
+                &JUMPTABLE_NON_STEPPABLE,
             )
         }
     }
@@ -475,7 +476,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         not(feature = "needs-fn-ptr-conversion")
     ))]
     fn run_op(&mut self, op: Opcode) -> OpResult {
-        jumptable_lookup(op as u8)(self)
+        jumptable()[op as u8 as usize](self)
     }
     #[cfg(not(feature = "needs-jumptable"))]
     fn run_op(&mut self, op: Opcode) -> OpResult {

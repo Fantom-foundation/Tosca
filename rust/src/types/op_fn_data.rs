@@ -71,13 +71,13 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
 
     pub fn func(op: u8) -> Self {
         OpFnData {
-            raw: interpreter::jumptable_lookup::<STEPPABLE>(op) as *const (),
+            raw: interpreter::jumptable::<STEPPABLE>()[op] as *const (),
         }
     }
 
     pub fn jump_dest() -> Self {
         let mut ptr_value =
-            interpreter::jumptable_lookup::<STEPPABLE>(Opcode::JumpDest as u8) as usize;
+            interpreter::jumptable::<STEPPABLE>()[Opcode::JumpDest as u8 as usize] as usize;
         ptr_value |= 0x0100000000000000; // OpFnDataType::JumpDest
         Self {
             raw: ptr_value as *const (),
@@ -146,7 +146,7 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
 
     pub fn func(op: u8, data: u256) -> Self {
         Self {
-            func: Some(interpreter::jumptable_lookup(op)),
+            func: Some(interpreter::jumptable()[op as usize]),
             data,
         }
     }
@@ -158,7 +158,7 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
     pub fn code_byte_type(&self) -> CodeByteType {
         match self.func {
             None => CodeByteType::DataOrInvalid,
-            Some(func) if func == interpreter::jumptable_lookup(Opcode::JumpDest as u8) => {
+            Some(func) if func == interpreter::jumptable()[Opcode::JumpDest as u8 as usize] => {
                 CodeByteType::JumpDest
             }
             Some(_) => CodeByteType::Opcode,
