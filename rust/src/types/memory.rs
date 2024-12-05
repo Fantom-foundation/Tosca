@@ -5,7 +5,7 @@ use crate::{
     utils::{word_size, Gas},
 };
 
-static REUSABLE_MEMORY: Mutex<Option<Vec<u8>>> = Mutex::new(None);
+static REUSABLE_MEMORY: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
 
 #[derive(Debug)]
 pub struct Memory(Vec<u8>);
@@ -14,13 +14,13 @@ impl Drop for Memory {
     fn drop(&mut self) {
         let mut memory = Vec::new();
         std::mem::swap(&mut memory, &mut self.0);
-        *REUSABLE_MEMORY.lock().unwrap() = Some(memory);
+        REUSABLE_MEMORY.lock().unwrap().push(memory);
     }
 }
 
 impl Memory {
     pub fn new(memory: &[u8]) -> Self {
-        let mut m = REUSABLE_MEMORY.lock().unwrap().take().unwrap_or_default();
+        let mut m = REUSABLE_MEMORY.lock().unwrap().pop().unwrap_or_default();
         m.clear();
         m.extend_from_slice(memory);
         Self(m)
