@@ -87,13 +87,13 @@ extern "C" fn __evmc_step_n(
         unsafe { slice::from_raw_parts(code, code_size) }
     };
 
-    // Acquire ownership from EVMC.
     // SAFETY:
     // `instance` is not null. The caller must make sure that it points to a valid
-    // `SteppableEvmcContainer::<EvmRs>`.
-    let container = unsafe { SteppableEvmcContainer::<EvmRs>::from_ffi_pointer(instance) };
+    // `SteppableEvmcContainer::<EvmRs>` (which is the case it it was created with
+    // evmc_create_steppable_evmrs) an the pointer is unique.
+    let container = unsafe { &mut **(instance as *mut SteppableEvmcContainer<EvmRs>) };
 
-    let result = panic::catch_unwind(|| {
+    panic::catch_unwind(|| {
         let mut execution_context = if host.is_null() {
             None
         } else {
@@ -144,18 +144,9 @@ extern "C" fn __evmc_step_n(
             last_call_result_data,
             steps,
         )
-    });
-
-    // Release ownership to EVMC.
-    // SAFETY:
-    // SteppableEvmcContainer::into_ffi_pointer is marked as unsafe in the evmc bindings although it
-    // only contains safe operations (it only calls Box::into_raw which is safe).
-    unsafe {
-        SteppableEvmcContainer::into_ffi_pointer(container);
-    }
-
-    result
-        .unwrap_or(StepResult::new(
+    })
+    .unwrap_or_else(|_| {
+        StepResult::new(
             StepStatusCode::EVMC_STEP_FAILED,
             StatusCode::EVMC_INTERNAL_ERROR,
             revision,
@@ -166,8 +157,9 @@ extern "C" fn __evmc_step_n(
             Vec::new(),
             Vec::new(),
             None,
-        ))
-        .into()
+        )
+    })
+    .into()
 }
 
 #[cfg(test)]
