@@ -2,7 +2,7 @@ use std::{cmp::min, sync::Mutex};
 
 use crate::types::{u256, FailStatus};
 
-static REUSABLE_STACK: Mutex<Option<Vec<u256>>> = Mutex::new(None);
+static REUSABLE_STACK: Mutex<Vec<Vec<u256>>> = Mutex::new(Vec::new());
 
 #[derive(Debug)]
 pub struct Stack(Vec<u256>);
@@ -11,7 +11,7 @@ impl Drop for Stack {
     fn drop(&mut self) {
         let mut stack = Vec::new();
         std::mem::swap(&mut stack, &mut self.0);
-        *REUSABLE_STACK.lock().unwrap() = Some(stack);
+        REUSABLE_STACK.lock().unwrap().push(stack);
     }
 }
 
@@ -25,7 +25,7 @@ impl Stack {
         let mut v = REUSABLE_STACK
             .lock()
             .unwrap()
-            .take()
+            .pop()
             .unwrap_or_else(|| Vec::with_capacity(Self::CAPACITY));
         v.clear();
         #[cfg(feature = "unsafe-stack")]
