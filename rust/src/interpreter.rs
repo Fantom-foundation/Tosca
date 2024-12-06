@@ -352,7 +352,7 @@ impl<'a> Interpreter<'a, false> {
             gas_refund: GasRefund::new(0),
             output: None,
             stack: Stack::new(&[]),
-            memory: Memory::new(Vec::new()),
+            memory: Memory::new(&[]),
             last_call_return_data: None,
             steps: None,
         }
@@ -1830,7 +1830,7 @@ impl<const STEPPABLE: bool> From<Interpreter<'_, STEPPABLE>> for StepResult {
             value.gas_refund.as_i64(),
             value.output,
             stack,
-            value.memory.into_inner(),
+            value.memory.as_slice().to_vec(),
             value.last_call_return_data,
         )
     }
@@ -1892,7 +1892,7 @@ mod tests {
             1,
             0,
             Stack::new(&[]),
-            Memory::new(Vec::new()),
+            Memory::new(&[]),
             None,
             None,
         );
@@ -1920,7 +1920,7 @@ mod tests {
             1,
             0,
             Stack::new(&[]),
-            Memory::new(Vec::new()),
+            Memory::new(&[]),
             None,
             None,
         )
@@ -1940,7 +1940,7 @@ mod tests {
             0,
             0,
             Stack::new(&[]),
-            Memory::new(Vec::new()),
+            Memory::new(&[]),
             None,
             Some(0),
         );
@@ -1965,7 +1965,7 @@ mod tests {
             0,
             0,
             Stack::new(&[1u8.into(), 2u8.into()]),
-            Memory::new(Vec::new()),
+            Memory::new(&[]),
             None,
             Some(1),
         );
@@ -2062,7 +2062,7 @@ mod tests {
         let mut unique_values = 1u8..;
         let mut next_value = || unique_values.next().unwrap();
 
-        let memory = vec![next_value(), next_value(), next_value(), next_value()];
+        let memory = [next_value(), next_value(), next_value(), next_value()];
         let ret_data = [next_value(), next_value()];
 
         let gas = next_value() as u64;
@@ -2134,7 +2134,7 @@ mod tests {
             0,
             0,
             Stack::new(&stack),
-            Memory::new(memory),
+            Memory::new(&memory),
             None,
             None,
         );

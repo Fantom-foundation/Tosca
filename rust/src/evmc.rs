@@ -106,7 +106,7 @@ impl SteppableEvmcVm for EvmRs {
             process::abort();
         };
         let stack = Stack::new(&stack.iter().map(|i| u256::from(*i)).collect::<Vec<_>>());
-        let memory = Memory::new(memory.to_owned());
+        let memory = Memory::new(memory);
         let interpreter = Interpreter::new_steppable(
             revision,
             message,
