@@ -104,7 +104,14 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
     #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
     pub fn get_push_data(&mut self) -> u256 {
         self.pc += 1;
-        self.code_analysis.analysis[self.pc - 1].get_data()
+        // Note: the bound checks could be avoided with unsafe code but this does not improve
+        // performance in any measurable way.
+        unsafe {
+            self.code_analysis
+                .analysis
+                .get_unchecked(self.pc - 1)
+                .get_data()
+        }
     }
     #[cfg(all(
         not(feature = "fn-ptr-conversion-expanded-dispatch"),
