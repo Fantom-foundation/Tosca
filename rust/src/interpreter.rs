@@ -1246,7 +1246,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         let [value, offset] = self.stack.pop()?;
 
         let dest = self.memory.get_mut_slice(offset, 32, &mut self.gas_left)?;
-        dest.copy_from_slice(value.as_le_bytes());
+        dest.copy_from_slice(&value.to_le_bytes());
         dest.reverse();
         self.code_reader.next();
         self.return_from_op()
