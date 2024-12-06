@@ -1,0 +1,16 @@
+{
+    "Status": "running",
+	"Revision": "Berlin",
+	"ReadOnly": false,
+	"Pc": 0 ,
+	"Gas": 766154147,
+	"GasRefund": -386980389124,
+	"Code": "",
+	"Stack": [
+	    "73d98e21930ee3c4 9adfe6af5c3129a6 14d8827ba8c91ac6 aad5465e39e7224f",
+	    "fbe73cec10215f25 b4b4cdc59461cf5e 0bdbdfbd8bb66463 8d8f315fa500dfd2",
+	    "44e536d9beb6692f f1771bc7786d984f e8121ed7845eb679 7481234b5f8357fc",
+	    "a4908db06f82ce80 fa765578d53df1b1 79aa3a06d8ea630a 5946bb7a396ca860",
+	    "5567e6eac386c167 503cbc87f4045ae3 03416fcf004cb556 f2339e0f9dad807a"
+    ]
+}
