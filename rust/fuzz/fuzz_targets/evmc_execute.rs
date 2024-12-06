@@ -51,7 +51,7 @@ impl<'a> Arbitrary<'a> for InterpreterArgs<'a> {
             ])?,
             flags: u32::arbitrary(u)?,
             depth: i32::arbitrary(u)?,
-            gas: u.int_in_range(0..=5_000_000_000)?, // see go/ct/evm_fuzz_test.go
+            gas: u.int_in_range(0..=100_000_000)?, // see go/ct/evm_fuzz_test.go
             recipient: u256::arbitrary(u)?.into(),
             sender: u256::arbitrary(u)?.into(),
             input_data: input.as_ptr(),

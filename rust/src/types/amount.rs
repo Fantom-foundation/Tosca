@@ -366,14 +366,14 @@ impl u256 {
 
         while exp > U256::ONE {
             if (exp & U256::ONE) == U256::ONE {
-                acc *= base;
+                acc = acc.wrapping_mul(base);
             }
             exp /= U256::from(2u64);
-            base = base * base;
+            base = base.wrapping_mul(base);
         }
 
         if exp == U256::ONE {
-            acc *= base;
+            acc = acc.wrapping_mul(base);
         }
 
         Self(acc)
