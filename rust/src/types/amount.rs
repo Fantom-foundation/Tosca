@@ -8,12 +8,10 @@ use std::{
 
 #[cfg(feature = "fuzzing")]
 use arbitrary::Arbitrary;
-use bnum::{
-    cast::CastFrom,
-    types::{I256, U256, U512},
-};
+use bnum::{cast::CastFrom, types::U512};
+use ethnum::U256;
 use evmc_vm::{Address, Uint256};
-use zerocopy::{transmute, transmute_ref};
+use zerocopy::{transmute, IntoBytes};
 
 /// This represents a 256-bit integer in native endian.
 #[allow(non_camel_case_types)]
@@ -24,13 +22,13 @@ pub struct u256(U256);
 #[cfg(feature = "fuzzing")]
 impl<'a> Arbitrary<'a> for u256 {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
-        Ok(Self(U256::from_digits(Arbitrary::arbitrary(u)?)))
+        Ok(Self(U256(Arbitrary::arbitrary(u)?)))
     }
 }
 
 impl LowerHex for u256 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let digits = self.0.digits();
+        let digits: [u64; 4] = transmute!(self.0 .0);
         if f.alternate() {
             write!(f, "0x")?;
         }
@@ -50,14 +48,14 @@ impl Display for u256 {
 
 impl From<Uint256> for u256 {
     fn from(value: Uint256) -> Self {
-        Self(U256::from_digits(transmute!(value.bytes)).to_be())
+        Self(U256(transmute!(value.bytes)).to_be())
     }
 }
 
 impl From<u256> for Uint256 {
     fn from(value: u256) -> Self {
         Uint256 {
-            bytes: transmute!(*value.0.to_be().digits()),
+            bytes: transmute!(value.0.to_be().0),
         }
     }
 }
@@ -82,7 +80,7 @@ impl From<u64> for u256 {
 
 impl From<usize> for u256 {
     fn from(value: usize) -> Self {
-        Self(U256::from(value))
+        Self(U256::from(value as u64))
     }
 }
 
@@ -105,7 +103,7 @@ impl From<&Address> for u256 {
 impl From<u256> for Address {
     fn from(value: u256) -> Self {
         let value = value.0.to_be();
-        let bytes: &[u8; 32] = transmute_ref!(value.digits());
+        let bytes = value.0.as_bytes();
         let mut addr = Address { bytes: [0; 20] };
         addr.bytes.copy_from_slice(&bytes[32 - 20..]);
         addr
@@ -130,11 +128,7 @@ impl Add for u256 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let lhs: [u128; 2] = transmute!(*self.0.digits());
-        let rhs: [u128; 2] = transmute!(*rhs.0.digits());
-        let (l, c) = lhs[0].overflowing_add(rhs[0]);
-        let h = lhs[1].wrapping_add(rhs[1]).wrapping_add(c as u128);
-        Self(U256::from_digits(transmute!([l, h])))
+        Self(self.0.wrapping_add(rhs.0))
     }
 }
 
@@ -148,11 +142,7 @@ impl Sub for u256 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let lhs: [u128; 2] = transmute!(*self.0.digits());
-        let rhs: [u128; 2] = transmute!(*rhs.0.digits());
-        let (l, c) = lhs[0].overflowing_sub(rhs[0]);
-        let h = lhs[1].wrapping_sub(rhs[1]).wrapping_sub(c as u128);
-        Self(U256::from_digits(transmute!([l, h])))
+        Self(self.0.wrapping_sub(rhs.0))
     }
 }
 
@@ -267,7 +257,7 @@ impl Shl for u256 {
 
     fn shl(self, rhs: Self) -> Self::Output {
         // rhs > 255
-        let rhs = rhs.as_le_bytes();
+        let rhs = rhs.to_le_bytes();
         if rhs[1..] != [0; 31] {
             return u256::ZERO;
         }
@@ -289,7 +279,7 @@ impl Shr for u256 {
 
     fn shr(self, rhs: Self) -> Self::Output {
         // rhs > 255
-        let rhs = rhs.as_le_bytes();
+        let rhs = rhs.to_le_bytes();
         if rhs[1..] != [0; 31] {
             return u256::ZERO;
         }
@@ -304,13 +294,13 @@ impl u256 {
     pub const MAX: Self = Self(U256::MAX);
 
     pub fn into_u64_with_overflow(self) -> (u64, bool) {
-        let digits = self.0.digits();
+        let digits: [u64; 4] = transmute!(self.0 .0);
         let overflow = digits[1..] != [0; 3];
         (digits[0], overflow)
     }
 
     pub fn into_u64_saturating(self) -> u64 {
-        let digits = self.0.digits();
+        let digits: [u64; 4] = transmute!(self.0 .0);
         if digits[1..] != [0; 3] {
             u64::MAX
         } else {
@@ -323,59 +313,70 @@ impl u256 {
             return u256::ZERO;
         }
 
-        Self(
-            self.0
-                .cast_signed()
-                .wrapping_div(rhs.0.cast_signed())
-                .cast_unsigned(),
-        )
+        Self(self.0.as_i256().wrapping_div(rhs.0.as_i256()).as_u256())
     }
 
     pub fn srem(self, rhs: Self) -> Self {
         if rhs == u256::ZERO {
             return u256::ZERO;
         }
-        Self(
-            self.0
-                .cast_signed()
-                .wrapping_rem(rhs.0.cast_signed())
-                .cast_unsigned(),
-        )
+        Self(self.0.as_i256().wrapping_rem(rhs.0.as_i256()).as_u256())
     }
 
+    // ethnum has no support for addmod and mulmod yet (see https://github.com/nlordell/ethnum-rs/issues/10)
     pub fn addmod(s1: Self, s2: Self, m: Self) -> Self {
         if m == u256::ZERO {
             return u256::ZERO;
         }
-        let s1 = U512::cast_from(s1.0);
-        let s2 = U512::cast_from(s2.0);
-        let m = U512::cast_from(m.0);
+        let s1 = bnum::types::U256::from_digits(transmute!(s1.0 .0));
+        let s1 = U512::cast_from(s1);
+        let s2 = bnum::types::U256::from_digits(transmute!(s2.0 .0));
+        let s2 = U512::cast_from(s2);
+        let m = bnum::types::U256::from_digits(transmute!(m.0 .0));
+        let m = U512::cast_from(m);
 
-        Self(U256::cast_from((s1 + s2).rem(m)))
+        Self(U256(transmute!(*bnum::types::U256::cast_from(
+            (s1 + s2).rem(m)
+        )
+        .digits())))
     }
 
+    // ethnum has no support for addmod and mulmod yet (see https://github.com/nlordell/ethnum-rs/issues/10)
     pub fn mulmod(s1: Self, s2: Self, m: Self) -> Self {
         if m == u256::ZERO {
             return u256::ZERO;
         }
-        let s1 = U512::cast_from(s1.0);
-        let s2 = U512::cast_from(s2.0);
-        let m = U512::cast_from(m.0);
+        let s1 = bnum::types::U256::from_digits(transmute!(s1.0 .0));
+        let s1 = U512::cast_from(s1);
+        let s2 = bnum::types::U256::from_digits(transmute!(s2.0 .0));
+        let s2 = U512::cast_from(s2);
+        let m = bnum::types::U256::from_digits(transmute!(m.0 .0));
+        let m = U512::cast_from(m);
 
-        Self(U256::cast_from((s1 * s2).rem(m)))
+        Self(U256(transmute!(*bnum::types::U256::cast_from(
+            (s1 * s2).rem(m)
+        )
+        .digits())))
     }
 
     pub fn pow(self, exp: Self) -> Self {
-        let mut res = U256::ONE;
+        let mut exp = exp.0;
+        let mut base = self.0;
+        let mut acc = U256::ONE;
 
-        for bit in (0..U256::BITS).rev().map(|bit| exp.0.bit(bit)) {
-            res = res.wrapping_mul(res);
-            if bit {
-                res = res.wrapping_mul(self.0);
+        while exp > U256::ONE {
+            if (exp & U256::ONE) == U256::ONE {
+                acc = acc.wrapping_mul(base);
             }
+            exp /= U256::from(2u64);
+            base = base.wrapping_mul(base);
         }
 
-        Self(res)
+        if exp == U256::ONE {
+            acc = acc.wrapping_mul(base);
+        }
+
+        Self(acc)
     }
 
     pub fn signextend(self, rhs: Self) -> Self {
@@ -386,7 +387,7 @@ impl u256 {
         }
 
         let byte = 31 - lhs; // lhs <= 31 so this does not underflow
-        let negative = (rhs.as_le_bytes()[lhs] & 0x80) > 0;
+        let negative = (rhs.to_le_bytes()[lhs] & 0x80) > 0;
 
         let res = if negative {
             rhs.0 | (U256::MAX << ((32 - byte) * 8))
@@ -398,14 +399,14 @@ impl u256 {
     }
 
     pub fn slt(&self, rhs: &Self) -> bool {
-        let lhs: I256 = self.0.cast_signed();
-        let rhs: I256 = rhs.0.cast_signed();
+        let lhs = self.0.as_i256();
+        let rhs = rhs.0.as_i256();
         lhs < rhs
     }
 
     pub fn sgt(&self, rhs: &Self) -> bool {
-        let lhs: I256 = self.0.cast_signed();
-        let rhs: I256 = rhs.0.cast_signed();
+        let lhs = self.0.as_i256();
+        let rhs = rhs.0.as_i256();
         lhs > rhs
     }
 
@@ -413,13 +414,13 @@ impl u256 {
         if index >= 32u8.into() {
             return u256::ZERO;
         }
-        let idx = index.as_le_bytes()[0];
-        self.as_le_bytes()[31 - idx as usize].into()
+        let idx = index.to_le_bytes()[0];
+        self.to_le_bytes()[31 - idx as usize].into()
     }
 
     pub fn sar(self, rhs: Self) -> Self {
-        let lhs: I256 = self.0.cast_signed();
-        let rhs = rhs.as_le_bytes();
+        let lhs = self.0.as_i256();
+        let rhs = rhs.to_le_bytes();
         // rhs > 255
         if rhs[1..] != [0; 31] {
             if lhs.is_negative() {
@@ -436,24 +437,24 @@ impl u256 {
         Self(shr)
     }
 
-    pub const fn bits(&self) -> u32 {
-        self.0.bits()
+    pub fn bits(&self) -> u32 {
+        256 - self.0.leading_zeros()
     }
 
     pub fn from_le_bytes(bytes: [u8; 32]) -> Self {
-        Self(U256::from_digits(transmute!(bytes)))
+        Self(U256::from_le_bytes(bytes))
     }
 
     pub fn from_be_bytes(bytes: [u8; 32]) -> Self {
-        Self(U256::from_digits(transmute!(bytes)).to_be())
+        Self(U256::from_be_bytes(bytes))
     }
 
     pub fn least_significant_byte(&self) -> u8 {
-        self.0.digits()[0] as u8
+        self.0 .0[0] as u8
     }
 
-    pub fn as_le_bytes(&self) -> &[u8; 32] {
-        transmute_ref!(self.0.digits())
+    pub fn to_le_bytes(self) -> [u8; 32] {
+        self.0.to_le_bytes()
     }
 }
 
