@@ -11,6 +11,7 @@
 package floria
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -291,6 +292,36 @@ func TestCreateAddress(t *testing.T) {
 			result := createAddress(test.kind, test.sender, test.nonce, test.salt, test.initHash)
 			if result != want {
 				t.Errorf("Unexpected address, got: %v, want: %v", result, want)
+			}
+		})
+	}
+}
+
+func TestIncrementNonce(t *testing.T) {
+	tests := map[string]struct {
+		nonce uint64
+		err   error
+	}{
+		"zero": {
+			nonce: 0,
+			err:   nil,
+		},
+		"max": {
+			nonce: math.MaxUint64,
+			err:   fmt.Errorf("nonce overflow"),
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			context := tosca.NewMockTransactionContext(ctrl)
+			context.EXPECT().GetNonce(gomock.Any()).Return(test.nonce)
+			context.EXPECT().SetNonce(gomock.Any(), test.nonce+1).AnyTimes()
+
+			err := incrementNonce(context, tosca.Address{})
+			if test.err != nil && err == nil {
+				t.Errorf("incrementNonce returned an unexpected error: %v", err)
 			}
 		})
 	}

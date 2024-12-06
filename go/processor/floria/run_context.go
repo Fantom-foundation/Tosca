@@ -11,6 +11,8 @@
 package floria
 
 import (
+	"fmt"
+
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 
 	// geth dependencies
@@ -123,41 +125,45 @@ func (r runContext) Calls(kind tosca.CallKind, parameters tosca.CallParameters) 
 }
 
 func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters) (tosca.CallResult, error) {
+	errResult := tosca.CallResult{
+		Success: false,
+		GasLeft: parameters.Gas,
+	}
 	if r.depth > MaxRecursiveDepth {
-		return tosca.CallResult{}, nil
+		return errResult, nil
 	}
 	r.depth++
 	defer func() { r.depth-- }()
 
-	codeHash := r.GetCodeHash(parameters.Recipient)
-	code := r.GetCode(parameters.Recipient)
+	if !canTransferValue(r, parameters.Value, parameters.Sender, parameters.Recipient) {
+		return errResult, nil
+	}
+	if err := incrementNonce(r, parameters.Sender); err != nil {
+		return errResult, nil
+	}
 
+	if r.blockParameters.Revision >= tosca.R09_Berlin {
+		r.AccessAccount(parameters.Recipient)
+	}
+
+	code := r.GetCode(parameters.Recipient)
+	codeHash := r.GetCodeHash(parameters.Recipient)
 	if parameters.Recipient == (tosca.Address{}) {
 		code = tosca.Code(parameters.Input)
 		codeHash = hashCode(code)
 	}
+	createdAddress := createAddress(kind, parameters.Sender, r.GetNonce(parameters.Sender)-1,
+		parameters.Salt, codeHash)
 
-	createdAddress := createAddress(
-		kind,
-		parameters.Sender,
-		r.GetNonce(parameters.Sender),
-		parameters.Salt,
-		codeHash,
-	)
+	// TODO: check that storage also empty
 	if r.GetNonce(createdAddress) != 0 ||
 		(r.GetCodeHash(createdAddress) != (tosca.Hash{}) &&
 			r.GetCodeHash(createdAddress) != emptyCodeHash) {
 		return tosca.CallResult{}, nil
 	}
-
-	r.SetNonce(parameters.Sender, r.GetNonce(parameters.Sender)+1)
+	snapshot := r.CreateSnapshot()
 	r.SetNonce(createdAddress, 1)
 
-	snapshot := r.CreateSnapshot()
-	if !canTransferValue(r, parameters.Value, parameters.Sender, createdAddress) {
-		r.RestoreSnapshot(snapshot)
-		return tosca.CallResult{}, nil
-	}
 	transferValue(r, parameters.Value, parameters.Sender, createdAddress)
 
 	interpreterParameters := tosca.Parameters{
@@ -177,23 +183,31 @@ func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters
 	}
 
 	result, err := r.interpreter.Run(interpreterParameters)
-	if err != nil || !result.Success {
+	if err != nil {
 		r.RestoreSnapshot(snapshot)
-	} else {
-		outCode := result.Output
-		if len(outCode) > maxCodeSize {
-			return tosca.CallResult{}, nil
-		}
-		if r.blockParameters.Revision >= tosca.R10_London && len(outCode) > 0 && outCode[0] == 0xEF {
-			return tosca.CallResult{}, nil
-		}
-		createGas := tosca.Gas(len(outCode) * createGasCostPerByte)
-		if result.GasLeft < createGas {
-			return tosca.CallResult{}, nil
-		}
-		result.GasLeft -= createGas
+		return tosca.CallResult{}, err
+	}
 
+	outCode := result.Output
+	if len(outCode) > maxCodeSize {
+		result.Success = false
+		result.GasLeft = 0
+	}
+	if r.blockParameters.Revision >= tosca.R10_London && len(outCode) > 0 && outCode[0] == 0xEF {
+		result.Success = false
+		result.GasLeft = 0
+	}
+	createGas := tosca.Gas(len(outCode) * createGasCostPerByte)
+	if result.GasLeft < createGas {
+		result.Success = false
+		result.GasLeft = createGas
+	}
+	result.GasLeft -= createGas
+
+	if result.Success {
 		r.SetCode(createdAddress, tosca.Code(outCode))
+	} else {
+		r.RestoreSnapshot(snapshot)
 	}
 
 	return tosca.CallResult{
@@ -248,6 +262,15 @@ func canTransferValue(
 	}
 
 	return true
+}
+
+func incrementNonce(context tosca.TransactionContext, address tosca.Address) error {
+	nonce := context.GetNonce(address)
+	if nonce+1 < nonce {
+		return fmt.Errorf("nonce overflow")
+	}
+	context.SetNonce(address, nonce+1)
+	return nil
 }
 
 // Only to be called after canTransferValue
