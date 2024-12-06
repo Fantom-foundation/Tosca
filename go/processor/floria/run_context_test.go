@@ -151,12 +151,7 @@ func TestTransferValue_InCallRestoreFailed(t *testing.T) {
 		Gas:       1000,
 		Input:     []byte{},
 	}
-
-	context.EXPECT().GetCodeHash(params.Recipient).Return(tosca.Hash{})
-	context.EXPECT().GetCode(params.Recipient).Return([]byte{})
-	context.EXPECT().CreateSnapshot()
 	context.EXPECT().GetBalance(params.Sender).Return(tosca.NewValue(0))
-	context.EXPECT().RestoreSnapshot(gomock.Any())
 
 	result, err := runContext.Call(tosca.Call, params)
 	if err != nil {

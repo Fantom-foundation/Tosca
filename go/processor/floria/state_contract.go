@@ -79,6 +79,10 @@ func init() {
 var ErrExecutionReverted = fmt.Errorf("execution reverted")
 var ErrOutOfGas = fmt.Errorf("out of gas")
 
+func isStateContract(address tosca.Address) bool {
+	return address == StateContractAddress()
+}
+
 // handleStateContract is a reworked version of the original function from the Opera client.
 // It is used to handle epochs and allows to set balance, copy code, swap code, set storage, and increment nonce.
 // Source: https://github.com/Fantom-foundation/Sonic/blob/main/opera/contracts/evmwriter/evm_writer.go#L24

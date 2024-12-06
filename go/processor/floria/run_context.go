@@ -37,53 +37,60 @@ func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (
 }
 
 func (r runContext) Calls(kind tosca.CallKind, parameters tosca.CallParameters) (tosca.CallResult, error) {
+	errResult := tosca.CallResult{
+		Success: false,
+		GasLeft: parameters.Gas,
+	}
 	if r.depth > MaxRecursiveDepth {
-		return tosca.CallResult{}, nil
+		return errResult, nil
 	}
 	r.depth++
 	defer func() { r.depth-- }()
 
-	codeHash := r.GetCodeHash(parameters.Recipient)
-	code := r.GetCode(parameters.Recipient)
-
-	if kind == tosca.DelegateCall || kind == tosca.CallCode {
-		code = r.GetCode(parameters.CodeAddress)
-		codeHash = r.GetCodeHash(parameters.CodeAddress)
+	if kind == tosca.Call || kind == tosca.CallCode {
+		if !canTransferValue(r, parameters.Value, parameters.Sender, parameters.Recipient) {
+			return errResult, nil
+		}
 	}
-
+	snapshot := r.CreateSnapshot()
 	recipient := parameters.Recipient
 
 	if kind == tosca.StaticCall {
 		r.static = true
 	}
 
-	snapshot := r.CreateSnapshot()
+	if !isPrecompiled(recipient, r.blockParameters.Revision) && !isStateContract(recipient) &&
+		!r.AccountExists(recipient) && r.blockParameters.Revision >= tosca.R09_Berlin &&
+		parameters.Value.Cmp(tosca.Value{}) == 0 {
+		return tosca.CallResult{Success: true, GasLeft: parameters.Gas}, nil
+	}
 
-	// StaticCall and DelegateCall do not transfer value
 	if kind == tosca.Call || kind == tosca.CallCode {
-		if !canTransferValue(r, parameters.Value, parameters.Sender, recipient) {
-			r.RestoreSnapshot(snapshot)
-			return tosca.CallResult{}, nil
-		}
 		transferValue(r, parameters.Value, parameters.Sender, recipient)
 	}
 
-	output, isStatePrecompiled := handleStateContract(
-		r, parameters.Sender, parameters.Recipient, parameters.Input, parameters.Gas)
-	if isStatePrecompiled {
-		return output, nil
-	}
-	output, isPrecompiled := handlePrecompiledContract(
-		r.blockParameters.Revision, parameters.Input, recipient, parameters.Gas)
-	if isPrecompiled {
-		return output, nil
+	if kind == tosca.Call {
+		result, isStatePrecompiled := handleStateContract(
+			r, parameters.Sender, parameters.Recipient, parameters.Input, parameters.Gas)
+		if isStatePrecompiled {
+			return result, nil
+		}
 	}
 
-	if kind == tosca.Call && !r.AccountExists(recipient) {
-		return tosca.CallResult{
-			Success: true,
-			GasLeft: parameters.Gas,
-		}, nil
+	result, isPrecompiled := handlePrecompiledContract(
+		r.blockParameters.Revision, parameters.Input, recipient, parameters.Gas)
+	if isPrecompiled {
+		return result, nil
+	}
+
+	codeHash := emptyCodeHash
+	code := []byte{}
+	if kind == tosca.Call || kind == tosca.StaticCall {
+		codeHash = r.GetCodeHash(recipient)
+		code = r.GetCode(recipient)
+	} else if kind == tosca.DelegateCall || kind == tosca.CallCode {
+		code = r.GetCode(parameters.CodeAddress)
+		codeHash = r.GetCodeHash(parameters.CodeAddress)
 	}
 
 	interpreterParameters := tosca.Parameters{
@@ -102,16 +109,16 @@ func (r runContext) Calls(kind tosca.CallKind, parameters tosca.CallParameters) 
 		Code:                  code,
 	}
 
-	result, err := r.interpreter.Run(interpreterParameters)
-	if err != nil || !result.Success {
+	callResult, err := r.interpreter.Run(interpreterParameters)
+	if err != nil || !callResult.Success {
 		r.RestoreSnapshot(snapshot)
 	}
 
 	return tosca.CallResult{
-		Output:    result.Output,
-		GasLeft:   result.GasLeft,
-		GasRefund: result.GasRefund,
-		Success:   result.Success,
+		Output:    callResult.Output,
+		GasLeft:   callResult.GasLeft,
+		GasRefund: callResult.GasRefund,
+		Success:   callResult.Success,
 	}, err
 }
 
