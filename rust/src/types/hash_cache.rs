@@ -1,3 +1,5 @@
+#[cfg(feature = "hash-cache")]
+use arrayref::array_ref;
 use sha3::{Digest, Keccak256};
 
 #[cfg(feature = "hash-cache")]
@@ -37,14 +39,10 @@ fn sha3(data: &[u8]) -> u256 {
 pub fn hash(data: &[u8]) -> u256 {
     #[cfg(feature = "hash-cache")]
     if data.len() == 32 {
-        // SAFETY:
-        // data has length 32 so it is safe to cast it to &[u8; 32].
-        let data = unsafe { &*(data.as_ptr() as *const [u8; 32]) };
+        let data = array_ref!(data, 0, 32);
         HASH_CACHE_32.get_or_insert_ref(data, || sha3(data))
     } else if data.len() == 64 {
-        // SAFETY:
-        // data has length 64 so it is safe to cast it to &[u8; 64].
-        let data = unsafe { &*(data.as_ptr() as *const [u8; 64]) };
+        let data = array_ref!(data, 0, 64);
         HASH_CACHE_64.get_or_insert_ref(data, || sha3(data))
     } else {
         sha3(data)
