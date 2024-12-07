@@ -12,7 +12,10 @@ use crate::{
         hash_cache, u256, CodeReader, ExecStatus, ExecutionContextTrait, ExecutionTxContext,
         FailStatus, GetOpcodeError, Memory, Observer, Stack,
     },
-    utils::{check_min_revision, check_not_read_only, word_size, Gas, GasRefund, SliceExt},
+    utils::{
+        check_min_revision, check_not_read_only, word_size, Gas, GasRefund, GetGenericStatic,
+        SliceExt,
+    },
 };
 
 type OpResult = Result<(), FailStatus>;
@@ -291,26 +294,16 @@ const fn gen_jumptable<const STEPPABLE: bool>() -> [OpFn<STEPPABLE>; 256] {
 }
 
 #[cfg(feature = "needs-jumptable")]
-static JUMPTABLE_STEPPABLE: [OpFn<true>; 256] = gen_jumptable();
-#[cfg(feature = "needs-jumptable")]
-static JUMPTABLE_NON_STEPPABLE: [OpFn<false>; 256] = gen_jumptable();
+pub struct GenericJumptable;
 
 #[cfg(feature = "needs-jumptable")]
-pub fn jumptable_lookup<const STEPPABLE: bool>(op: u8) -> OpFn<STEPPABLE> {
-    if STEPPABLE {
-        // SAFETY:
-        // STEPPABLE is true
-        unsafe {
-            std::mem::transmute::<OpFn<true>, OpFn<STEPPABLE>>(JUMPTABLE_STEPPABLE[op as usize])
-        }
-    } else {
-        // SAFETY:
-        // STEPPABLE is false
-        unsafe {
-            std::mem::transmute::<OpFn<false>, OpFn<STEPPABLE>>(
-                JUMPTABLE_NON_STEPPABLE[op as usize],
-            )
-        }
+impl GetGenericStatic for GenericJumptable {
+    type I<const STEPPABLE: bool> = [OpFn<STEPPABLE>; 256];
+
+    fn get<const STEPPABLE: bool>() -> &'static Self::I<STEPPABLE> {
+        static JUMPTABLE_STEPPABLE: [OpFn<true>; 256] = gen_jumptable();
+        static JUMPTABLE_NON_STEPPABLE: [OpFn<false>; 256] = gen_jumptable();
+        Self::get_with_args(&JUMPTABLE_STEPPABLE, &JUMPTABLE_NON_STEPPABLE)
     }
 }
 
@@ -475,7 +468,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
         not(feature = "needs-fn-ptr-conversion")
     ))]
     fn run_op(&mut self, op: Opcode) -> OpResult {
-        jumptable_lookup(op as u8)(self)
+        GenericJumptable::get()[op as u8 as usize](self)
     }
     #[cfg(not(feature = "needs-jumptable"))]
     fn run_op(&mut self, op: Opcode) -> OpResult {

@@ -12,7 +12,6 @@ use nohash_hasher::BuildNoHashHasher;
 use crate::types::Cache;
 #[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
 use crate::types::LocalKeyExt;
-use crate::types::{code_byte_type, u256, CodeByteType};
 #[cfg(all(
     not(feature = "fn-ptr-conversion-expanded-dispatch"),
     feature = "fn-ptr-conversion-inline-dispatch"
@@ -20,6 +19,10 @@ use crate::types::{code_byte_type, u256, CodeByteType};
 use crate::types::{op_fn_data::OP_FN_DATA_SIZE, Opcode};
 #[cfg(feature = "needs-fn-ptr-conversion")]
 use crate::types::{OpFnData, PcMap};
+use crate::{
+    types::{code_byte_type, u256, CodeByteType},
+    utils::GetGenericStatic,
+};
 
 /// This type represents a hash value in form of a u256.
 /// Because it is already a hash value there is no need to hash it again when implementing Hash.
@@ -54,46 +57,30 @@ const CACHE_SIZE: usize = 1 << 16; // value taken from evmzero
 type CodeAnalysisCache<const STEPPABLE: bool> =
     Cache<CACHE_SIZE, u256Hash, AnalysisContainer<CodeAnalysis<STEPPABLE>>, BuildNoHashHasher<u64>>;
 
-#[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
-static CODE_ANALYSIS_CACHE_STEPPABLE: CodeAnalysisCache<true> = CodeAnalysisCache::new();
-#[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
-static CODE_ANALYSIS_CACHE_NON_STEPPABLE: CodeAnalysisCache<false> = CodeAnalysisCache::new();
-
-#[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
-thread_local! {
-    static CODE_ANALYSIS_CACHE_STEPPABLE: CodeAnalysisCache<true> = CodeAnalysisCache::new();
-    static CODE_ANALYSIS_CACHE_NON_STEPPABLE: CodeAnalysisCache<false> = CodeAnalysisCache::new();
-}
+#[cfg(feature = "code-analysis-cache")]
+struct GenericCodeAnalysisCache;
 
 #[cfg(feature = "code-analysis-cache")]
-fn code_analysis_get_or_insert<const STEPPABLE: bool>(
-    code_hash: u256,
-    code: &[u8],
-) -> AnalysisContainer<CodeAnalysis<STEPPABLE>> {
-    if STEPPABLE {
-        let analysis = CODE_ANALYSIS_CACHE_STEPPABLE.get_or_insert(u256Hash(code_hash), || {
-            AnalysisContainer::new(CodeAnalysis::analyze_code(code))
-        });
-        // SAFETY:
-        // STEPPABLE is true
-        unsafe {
-            std::mem::transmute::<
-                AnalysisContainer<CodeAnalysis<true>>,
-                AnalysisContainer<CodeAnalysis<STEPPABLE>>,
-            >(analysis)
+impl GetGenericStatic for GenericCodeAnalysisCache {
+    type I<const STEPPABLE: bool> = CodeAnalysisCache<STEPPABLE>;
+
+    fn get<const STEPPABLE: bool>() -> &'static Self::I<STEPPABLE> {
+        #[cfg(not(feature = "thread-local-cache"))]
+        static CODE_ANALYSIS_CACHE_STEPPABLE: CodeAnalysisCache<true> = CodeAnalysisCache::new();
+        #[cfg(not(feature = "thread-local-cache"))]
+        static CODE_ANALYSIS_CACHE_NON_STEPPABLE: CodeAnalysisCache<false> =
+            CodeAnalysisCache::new();
+
+        #[cfg(feature = "thread-local-cache")]
+        thread_local! {
+            static CODE_ANALYSIS_CACHE_STEPPABLE: CodeAnalysisCache<true> = CodeAnalysisCache::new();
+            static CODE_ANALYSIS_CACHE_NON_STEPPABLE: CodeAnalysisCache<false> = CodeAnalysisCache::new();
         }
-    } else {
-        let analysis = CODE_ANALYSIS_CACHE_NON_STEPPABLE.get_or_insert(u256Hash(code_hash), || {
-            AnalysisContainer::new(CodeAnalysis::analyze_code(code))
-        });
-        // SAFETY:
-        // STEPPABLE is false
-        unsafe {
-            std::mem::transmute::<
-                AnalysisContainer<CodeAnalysis<false>>,
-                AnalysisContainer<CodeAnalysis<STEPPABLE>>,
-            >(analysis)
-        }
+
+        Self::get_with_args(
+            &CODE_ANALYSIS_CACHE_STEPPABLE,
+            &CODE_ANALYSIS_CACHE_NON_STEPPABLE,
+        )
     }
 }
 
@@ -109,9 +96,10 @@ impl<const STEPPABLE: bool> CodeAnalysis<STEPPABLE> {
     pub fn new(code: &[u8], code_hash: Option<u256>) -> AnalysisContainer<Self> {
         #[cfg(feature = "code-analysis-cache")]
         match code_hash {
-            Some(code_hash) if code_hash != u256::ZERO => {
-                code_analysis_get_or_insert(code_hash, code)
-            }
+            Some(code_hash) if code_hash != u256::ZERO => GenericCodeAnalysisCache::get()
+                .get_or_insert(u256Hash(code_hash), || {
+                    AnalysisContainer::new(CodeAnalysis::analyze_code(code))
+                }),
             _ => AnalysisContainer::new(Self::analyze_code(code)),
         }
         #[cfg(not(feature = "code-analysis-cache"))]
