@@ -1,5 +1,7 @@
 use std::{cmp::max, iter, sync::Mutex};
 
+use arrayref::array_ref;
+
 use crate::{
     types::{u256, FailStatus},
     utils::{word_size, Gas},
@@ -87,10 +89,7 @@ impl Memory {
 
     pub fn get_word(&mut self, offset: u256, gas_left: &mut Gas) -> Result<u256, FailStatus> {
         let slice = self.get_mut_slice(offset, 32, gas_left)?;
-        // SAFETY:
-        // The slice is 32 bytes long.
-        let slice = unsafe { &*(slice.as_ptr() as *const [u8; 32]) };
-        Ok(u256::from_be_bytes(*slice))
+        Ok(u256::from_be_bytes(*array_ref!(slice, 0, 32)))
     }
 
     pub fn get_mut_byte(

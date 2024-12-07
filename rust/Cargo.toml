@@ -53,10 +53,11 @@ ethnum = "1.5.0"
 evmc-vm-tosca = { package = "evmc-vm", git = "https://github.com/Fantom-foundation/evmc", branch = "tosca-extensions" }
 evmc-vm-tosca-refactor = { package = "evmc-vm", git = "https://github.com/LorenzSchueler/evmc", branch = "tosca-extensions-optimized", optional = true }
 sha3 = "0.10.8"
-zerocopy = { version = "0.8.8", features = ["derive"] }
+zerocopy = { version = "0.8.8" }
+arrayref = "0.3.9"
 llvm-profile-wrappers = { path = "llvm-profile-wrappers" }
 mockall = { version = "0.13.0", optional = true }
-arbitrary = { version = "1.4.1", features = ["derive"], optional = true }
+arbitrary = { version = "1.4.1", optional = true }
 mimalloc = { version = "0.1.43", optional = true }
 lru = { version = "0.12.5", optional = true }
 nohash-hasher = { version = "0.2.0", optional = true }
