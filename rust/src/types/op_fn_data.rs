@@ -36,10 +36,18 @@ pub struct OpFnData<const STEPPABLE: bool> {
     raw: *const (),
 }
 
+#[cfg(all(
+    not(feature = "fn-ptr-conversion-expanded-dispatch"),
+    feature = "fn-ptr-conversion-inline-dispatch"
+))]
 // SAFETY:
 // OpFnData only stores function pointers or [u8; 4] so it is safe to share across threads;
 unsafe impl<const STEPPABLE: bool> Send for OpFnData<STEPPABLE> {}
 
+#[cfg(all(
+    not(feature = "fn-ptr-conversion-expanded-dispatch"),
+    feature = "fn-ptr-conversion-inline-dispatch"
+))]
 // SAFETY:
 // OpFnData only stores function pointers or [u8; 4] so it is safe to share across threads;
 unsafe impl<const STEPPABLE: bool> Sync for OpFnData<STEPPABLE> {}
