@@ -1,4 +1,6 @@
-use std::{cmp::min, sync::Mutex};
+use std::cmp::min;
+
+use parking_lot::Mutex;
 
 use crate::types::{u256, FailStatus};
 
@@ -11,7 +13,7 @@ impl Drop for Stack {
     fn drop(&mut self) {
         let mut stack = Vec::new();
         std::mem::swap(&mut stack, &mut self.0);
-        *REUSABLE_STACK.lock().unwrap() = Some(stack);
+        *REUSABLE_STACK.lock() = Some(stack);
     }
 }
 
@@ -24,7 +26,6 @@ impl Stack {
         let inner = &inner[..len];
         let mut v = REUSABLE_STACK
             .lock()
-            .unwrap()
             .take()
             .unwrap_or_else(|| Vec::with_capacity(Self::CAPACITY));
         v.clear();

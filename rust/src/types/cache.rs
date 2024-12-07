@@ -1,5 +1,5 @@
 #[cfg(not(feature = "thread-local-cache"))]
-use std::sync::{LazyLock, Mutex};
+use std::sync::LazyLock;
 #[cfg(feature = "thread-local-cache")]
 use std::{cell::RefCell, thread::LocalKey};
 use std::{
@@ -8,6 +8,7 @@ use std::{
 };
 
 use lru::{DefaultHasher, LruCache};
+use parking_lot::Mutex;
 
 pub struct Cache<const S: usize, K, V, H = DefaultHasher>(
     // Mutex<LruCache<...>> is faster that quick_cache::Cache<...>
@@ -45,7 +46,7 @@ where
         V: Clone,
     {
         #[cfg(not(feature = "thread-local-cache"))]
-        return self.0.lock().unwrap().get_or_insert(key, f).clone();
+        return self.0.lock().get_or_insert(key, f).clone();
         #[cfg(feature = "thread-local-cache")]
         return self.0.borrow_mut().get_or_insert(key, f).clone();
     }
@@ -58,7 +59,7 @@ where
         V: Clone,
     {
         #[cfg(not(feature = "thread-local-cache"))]
-        return self.0.lock().unwrap().get_or_insert_ref(key, f).clone();
+        return self.0.lock().get_or_insert_ref(key, f).clone();
         #[cfg(feature = "thread-local-cache")]
         return self.0.borrow_mut().get_or_insert_ref(key, f).clone();
     }

@@ -1,4 +1,6 @@
-use std::{cmp::max, iter, sync::Mutex};
+use std::{cmp::max, iter};
+
+use parking_lot::Mutex;
 
 use crate::{
     types::{u256, FailStatus},
@@ -14,13 +16,13 @@ impl Drop for Memory {
     fn drop(&mut self) {
         let mut memory = Vec::new();
         std::mem::swap(&mut memory, &mut self.0);
-        *REUSABLE_MEMORY.lock().unwrap() = Some(memory);
+        *REUSABLE_MEMORY.lock() = Some(memory);
     }
 }
 
 impl Memory {
     pub fn new(memory: &[u8]) -> Self {
-        let mut m = REUSABLE_MEMORY.lock().unwrap().take().unwrap_or_default();
+        let mut m = REUSABLE_MEMORY.lock().take().unwrap_or_default();
         m.clear();
         m.extend_from_slice(memory);
         Self(m)
