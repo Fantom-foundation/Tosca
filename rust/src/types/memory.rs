@@ -43,12 +43,18 @@ impl Memory {
     }
 
     fn expand(&mut self, new_len_bytes: u64, gas_left: &mut Gas) -> Result<(), FailStatus> {
+        #[cold]
+        fn expand_raw(m: &mut Memory, new_len: u64, gas_left: &mut Gas) -> Result<(), FailStatus> {
+            let current_len = m.0.len() as u64;
+            m.consume_expansion_cost(new_len, gas_left)?;
+            m.0.extend(iter::repeat(0).take((new_len - current_len) as usize));
+            Ok(())
+        }
+
         let current_len = self.0.len() as u64;
         let new_len = word_size(new_len_bytes)? * 32; // word_size just did a division by 32 so * will not overflow
         if new_len > current_len {
-            self.consume_expansion_cost(new_len, gas_left)?;
-            self.0
-                .extend(iter::repeat(0).take((new_len - current_len) as usize));
+            expand_raw(self, new_len, gas_left)?;
         }
         Ok(())
     }
