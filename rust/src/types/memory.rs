@@ -42,6 +42,7 @@ impl Memory {
         self.0.len() as u64
     }
 
+    #[inline(always)]
     fn expand(&mut self, new_len_bytes: u64, gas_left: &mut Gas) -> Result<(), FailStatus> {
         let current_len = self.0.len() as u64;
         let new_len = word_size(new_len_bytes)? * 32; // word_size just did a division by 32 so * will not overflow
