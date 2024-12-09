@@ -14,9 +14,9 @@ use evmrs::evmc_vm::{
 
 pub mod host_interface;
 
-extern "C" {
-    fn evmc_create_evmrs() -> *mut evmc_vm_t;
-    fn evmc_create_steppable_evmrs() -> *mut evmc_vm_steppable;
+unsafe extern "C" {
+    safe fn evmc_create_evmrs() -> *mut evmc_vm_t;
+    safe fn evmc_create_steppable_evmrs() -> *mut evmc_vm_steppable;
 }
 
 pub const ZERO: Uint256 = Uint256 { bytes: [0; 32] };
@@ -63,9 +63,7 @@ impl DerefMut for Instance {
 
 impl Default for Instance {
     fn default() -> Self {
-        // SAFETY:
-        // `evmc_create_evmrs` must return a valid pointer to an `evmc_vm_t`.
-        let instance = unsafe { evmc_create_evmrs() };
+        let instance = evmc_create_evmrs();
         if instance.is_null() {
             panic!("failed to construct evmrs instance")
         }
@@ -185,9 +183,7 @@ impl DerefMut for SteppableInstance {
 
 impl Default for SteppableInstance {
     fn default() -> Self {
-        // SAFETY:
-        // `evmc_create_steppable_evmrs` must return a valid pointer to an `evmc_vm_steppable`.
-        let instance = unsafe { evmc_create_steppable_evmrs() };
+        let instance = evmc_create_steppable_evmrs();
         if instance.is_null() {
             panic!("vm instance is null")
         }
