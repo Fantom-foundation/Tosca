@@ -90,7 +90,8 @@ impl Memory {
         }
         self.expand(end, gas_left)?;
 
-        Ok(&mut self.0[offset as usize..end as usize])
+        //Ok(&mut self.0[offset as usize..end as usize])
+        Ok(unsafe { self.0.get_unchecked_mut(offset as usize..end as usize) })
     }
 
     pub fn get_word(&mut self, offset: u256, gas_left: &mut Gas) -> Result<u256, FailStatus> {
