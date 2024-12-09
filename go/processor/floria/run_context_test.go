@@ -190,7 +190,7 @@ func TestTransferValue_SuccessfulValueTransfer(t *testing.T) {
 				context.EXPECT().GetBalance(*transaction.Recipient).Return(recipientBalance)
 			}
 
-			if !canTransferValue(context, transaction.Value, transaction.Sender, *transaction.Recipient) {
+			if !canTransferValue(context, transaction.Value, transaction.Sender, transaction.Recipient) {
 				t.Errorf("Value should be possible but was not")
 			}
 		})
@@ -223,7 +223,7 @@ func TestTransferValue_FailedValueTransfer(t *testing.T) {
 			context.EXPECT().GetBalance(tosca.Address{1}).Return(transfer.senderBalance).AnyTimes()
 			context.EXPECT().GetBalance(tosca.Address{2}).Return(transfer.receiverBalance).AnyTimes()
 
-			if canTransferValue(context, transfer.value, tosca.Address{1}, tosca.Address{2}) {
+			if canTransferValue(context, transfer.value, tosca.Address{1}, &tosca.Address{2}) {
 				t.Errorf("value transfer should have returned an error")
 			}
 		})
@@ -244,7 +244,7 @@ func TestTransferValue_SameSenderAndReceiver(t *testing.T) {
 		context := tosca.NewMockTransactionContext(ctrl)
 		context.EXPECT().GetBalance(gomock.Any()).Return(tosca.NewValue(100))
 
-		canTransfer := canTransferValue(context, test.value, tosca.Address{1}, tosca.Address{1})
+		canTransfer := canTransferValue(context, test.value, tosca.Address{1}, &tosca.Address{1})
 		if test.expectedError {
 			if canTransfer {
 				t.Errorf("transfer value should have not been possible")

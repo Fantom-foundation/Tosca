@@ -50,7 +50,7 @@ func (r runContext) Calls(kind tosca.CallKind, parameters tosca.CallParameters) 
 	defer func() { r.depth-- }()
 
 	if kind == tosca.Call || kind == tosca.CallCode {
-		if !canTransferValue(r, parameters.Value, parameters.Sender, parameters.Recipient) {
+		if !canTransferValue(r, parameters.Value, parameters.Sender, &parameters.Recipient) {
 			return errResult, nil
 		}
 	}
@@ -135,7 +135,7 @@ func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters
 	r.depth++
 	defer func() { r.depth-- }()
 
-	if !canTransferValue(r, parameters.Value, parameters.Sender, parameters.Recipient) {
+	if !canTransferValue(r, parameters.Value, parameters.Sender, &parameters.Recipient) {
 		return errResult, nil
 	}
 	if err := incrementNonce(r, parameters.Sender); err != nil {
@@ -240,7 +240,7 @@ func canTransferValue(
 	context tosca.TransactionContext,
 	value tosca.Value,
 	sender tosca.Address,
-	recipient tosca.Address,
+	recipient *tosca.Address,
 ) bool {
 	if value == (tosca.Value{}) {
 		return true
@@ -251,11 +251,11 @@ func canTransferValue(
 		return false
 	}
 
-	if sender == recipient {
+	if recipient == nil || sender == *recipient {
 		return true
 	}
 
-	receiverBalance := context.GetBalance(recipient)
+	receiverBalance := context.GetBalance(*recipient)
 	updatedBalance := tosca.Add(receiverBalance, value)
 	if updatedBalance.Cmp(receiverBalance) < 0 || updatedBalance.Cmp(value) < 0 {
 		return false

@@ -35,38 +35,57 @@ func TestProcessor_HandleNonce(t *testing.T) {
 	context := tosca.NewMockTransactionContext(ctrl)
 
 	context.EXPECT().GetNonce(tosca.Address{1}).Return(uint64(9))
-	context.EXPECT().SetNonce(tosca.Address{1}, uint64(10))
-	context.EXPECT().GetNonce(tosca.Address{1}).Return(uint64(10))
 
 	transaction := tosca.Transaction{
-		Sender:    tosca.Address{1},
-		Recipient: &tosca.Address{2},
-		Nonce:     9,
+		Sender: tosca.Address{1},
+		Nonce:  9,
 	}
 
-	err := handleNonce(transaction, context)
+	err := nonceCheck(transaction.Nonce, context.GetNonce(transaction.Sender))
 	if err != nil {
-		t.Errorf("handleNonce returned an error: %v", err)
-	}
-	if context.GetNonce(transaction.Sender) != 10 {
-		t.Errorf("Nonce was not incremented")
+		t.Errorf("nonceCheck returned an error: %v", err)
 	}
 }
 
 func TestProcessor_NonceMissmatch(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	context := tosca.NewMockTransactionContext(ctrl)
 
-	context.EXPECT().GetNonce(tosca.Address{1}).Return(uint64(5))
-
-	transaction := tosca.Transaction{
-		Sender:    tosca.Address{1},
-		Recipient: &tosca.Address{2},
-		Nonce:     10,
-	}
-	err := handleNonce(transaction, context)
+	err := nonceCheck(uint64(10), uint64(42))
 	if err == nil {
-		t.Errorf("handleNonce did not spot nonce miss match")
+		t.Errorf("nonceCheck did not spot nonce miss match")
+	}
+}
+
+func TestProcessor_EoaCheck(t *testing.T) {
+	tests := map[string]struct {
+		codeHash tosca.Hash
+		isEOA    bool
+	}{
+		"empty": {
+			tosca.Hash{},
+			false,
+		},
+		"emptyHash": {
+			emptyCodeHash,
+			false,
+		},
+		"nonEmpty": {
+			tosca.Hash{1, 2, 3},
+			true,
+		},
+	}
+
+	for testName, test := range tests {
+		t.Run(testName, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			context := tosca.NewMockTransactionContext(ctrl)
+
+			context.EXPECT().GetCodeHash(tosca.Address{1}).Return(test.codeHash)
+
+			err := eoaCheck(tosca.Address{1}, context)
+			if test.isEOA && err == nil {
+				t.Errorf("eoaCheck returned wrong result: %v", err)
+			}
+		})
 	}
 }
 
@@ -302,7 +321,7 @@ func TestProcessor_SetupGasBilling(t *testing.T) {
 				AccessList: test.accessList,
 			}
 
-			actualGasUsed := setupGasBilling(transaction)
+			actualGasUsed := setupGas(transaction)
 			if actualGasUsed != test.expectedGasUsed {
 				t.Errorf("setupGasBilling returned incorrect gas used, got: %d, want: %d", actualGasUsed, test.expectedGasUsed)
 			}
