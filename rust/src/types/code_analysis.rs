@@ -12,6 +12,7 @@ use nohash_hasher::BuildNoHashHasher;
 use crate::types::Cache;
 #[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
 use crate::types::LocalKeyExt;
+use crate::types::{code_byte_type, u256, CodeByteType};
 #[cfg(all(
     not(feature = "fn-ptr-conversion-expanded-dispatch"),
     feature = "fn-ptr-conversion-inline-dispatch"
@@ -19,10 +20,8 @@ use crate::types::LocalKeyExt;
 use crate::types::{op_fn_data::OP_FN_DATA_SIZE, Opcode};
 #[cfg(feature = "needs-fn-ptr-conversion")]
 use crate::types::{OpFnData, PcMap};
-use crate::{
-    types::{code_byte_type, u256, CodeByteType},
-    utils::GetGenericStatic,
-};
+#[cfg(feature = "code-analysis-cache")]
+use crate::utils::GetGenericStatic;
 
 /// This type represents a hash value in form of a u256.
 /// Because it is already a hash value there is no need to hash it again when implementing Hash.
