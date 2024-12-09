@@ -1,12 +1,16 @@
-use std::{cmp::min, sync::Mutex};
+use std::cmp::min;
+#[cfg(feature = "alloc-reuse")]
+use std::sync::Mutex;
 
 use crate::types::{u256, FailStatus};
 
+#[cfg(feature = "alloc-reuse")]
 static REUSABLE_STACK: Mutex<Vec<Vec<u256>>> = Mutex::new(Vec::new());
 
 #[derive(Debug)]
 pub struct Stack(Vec<u256>);
 
+#[cfg(feature = "alloc-reuse")]
 impl Drop for Stack {
     fn drop(&mut self) {
         let mut stack = Vec::new();
@@ -22,6 +26,9 @@ impl Stack {
     pub fn new(inner: &[u256]) -> Self {
         let len = min(inner.len(), Self::CAPACITY);
         let inner = &inner[..len];
+        #[cfg(not(feature = "alloc-reuse"))]
+        let mut v = Vec::with_capacity(Self::CAPACITY);
+        #[cfg(feature = "alloc-reuse")]
         let mut v = REUSABLE_STACK
             .lock()
             .unwrap()

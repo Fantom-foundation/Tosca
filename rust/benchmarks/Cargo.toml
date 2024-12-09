@@ -11,6 +11,7 @@ custom-evmc = ["evmrs/custom-evmc"]
 hash-cache = ["evmrs/hash-cache"]
 code-analysis-cache = ["evmrs/code-analysis-cache"]
 thread-local-cache = ["evmrs/thread-local-cache"]
+alloc-reuse = ["evmrs/alloc-reuse"]
 tail-call = ["evmrs/tail-call"]
 jumptable-dispatch = ["evmrs/jumptable-dispatch"]
 fn-ptr-conversion-expanded-dispatch = [

@@ -30,6 +30,7 @@ performance = [
     "custom-evmc",
     "hash-cache",
     "code-analysis-cache",
+    "alloc-reuse",
     "tail-call",
     "jumptable-dispatch",
     "fn-ptr-conversion-expanded-dispatch",
@@ -40,6 +41,7 @@ custom-evmc = ["dep:evmc-vm-tosca-refactor"]
 hash-cache = ["needs-cache"]
 code-analysis-cache = ["dep:nohash-hasher", "needs-cache"]
 thread-local-cache = []
+alloc-reuse = []
 tail-call = []
 jumptable-dispatch = ["needs-jumptable"]
 # fn-ptr-conversion takes precedence over jumptable, switch (default) and fn-ptr-conversion-inline
