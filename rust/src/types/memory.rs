@@ -42,6 +42,7 @@ impl Memory {
         self.0.len() as u64
     }
 
+    #[inline(always)]
     fn expand(&mut self, new_len_bytes: u64, gas_left: &mut Gas) -> Result<(), FailStatus> {
         #[cold]
         fn expand_raw(m: &mut Memory, new_len: u64, gas_left: &mut Gas) -> Result<(), FailStatus> {
