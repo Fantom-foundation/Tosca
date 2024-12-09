@@ -1,9 +1,9 @@
 #[cfg(feature = "needs-fn-ptr-conversion")]
 use std::cmp::min;
-#[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
-use std::rc::Rc;
 #[cfg(all(feature = "code-analysis-cache", not(feature = "thread-local-cache")))]
 use std::sync::Arc;
+#[cfg(all(feature = "code-analysis-cache", feature = "thread-local-cache"))]
+use std::{rc::Rc, thread::LocalKey};
 
 #[cfg(feature = "code-analysis-cache")]
 use nohash_hasher::BuildNoHashHasher;
@@ -61,7 +61,10 @@ struct GenericCodeAnalysisCache;
 
 #[cfg(feature = "code-analysis-cache")]
 impl GetGenericStatic for GenericCodeAnalysisCache {
+    #[cfg(not(feature = "thread-local-cache"))]
     type I<const STEPPABLE: bool> = CodeAnalysisCache<STEPPABLE>;
+    #[cfg(feature = "thread-local-cache")]
+    type I<const STEPPABLE: bool> = LocalKey<CodeAnalysisCache<STEPPABLE>>;
 
     fn get<const STEPPABLE: bool>() -> &'static Self::I<STEPPABLE> {
         #[cfg(not(feature = "thread-local-cache"))]
