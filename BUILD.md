@@ -151,7 +151,7 @@ The columns are as follows:
 
 The `-bench` flag can be used to filter benchmarks by their name using regex expressions. It's important to note that:
  - tests are selected if the regex matches any part of the benchmark name
- - before the regex expressions are applied, the pattern is devided into sub-patterns for sub-tests using the `/` separator
+ - before the regex expressions are applied, the pattern is divided into sub-patterns for sub-tests using the `/` separator
 
 Thus, the command
 
@@ -182,7 +182,7 @@ This command runs the benchmark and collects CPU performance data which can be s
 go tool pprof -text -nodecount=10 cpu.log
 ```
 
-or can be visualized by the following command (requires the graphviz libary)
+or can be visualized by the following command (requires the graphviz library)
 
 ```sh
 go tool pprof -http "localhost:8000" ./cpu.log
@@ -256,7 +256,7 @@ Overall coverage rate:
   functions......: 82.8% (2057 of 2483 functions)
 ```
 
-The report will be generated in HTML form to alow visualization of each line of code coverage for each C++ file in the project. The entry HTML page to the report is located at the C++ build folder: `cpp/build/coverage/index.html`
+The report will be generated in HTML form to allow visualization of each line of code coverage for each C++ file in the project. The entry HTML page to the report is located at the C++ build folder: `cpp/build/coverage/index.html`
 
 In VSCode, line by line coverage can be visualized using the extension [gcov-viewer](https://marketplace.visualstudio.com/items?itemName=JacquesLucke.gcov-viewer)
 
