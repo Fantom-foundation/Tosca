@@ -9,6 +9,8 @@ use crate::interpreter::OpFn;
     feature = "fn-ptr-conversion-inline-dispatch"
 ))]
 use crate::types::op_fn_data::OP_FN_DATA_SIZE;
+#[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
+use crate::types::OpFnData;
 #[cfg(not(feature = "needs-fn-ptr-conversion"))]
 use crate::types::Opcode;
 use crate::types::{u256, AnalysisContainer, CodeAnalysis, CodeByteType, FailStatus};
@@ -19,6 +21,13 @@ struct PushDataLen<const N: usize>;
 #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
 impl<const N: usize> PushDataLen<N> {
     const VALID: () = assert!(N > 0 && N <= 32);
+}
+
+#[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
+#[derive(Debug, PartialEq, Eq)]
+pub enum GetOpcodeError {
+    OutOfRange,
+    Invalid,
 }
 
 #[derive(Debug)]
@@ -34,12 +43,6 @@ impl<const STEPPABLE: bool> Deref for CodeReader<'_, STEPPABLE> {
     fn deref(&self) -> &Self::Target {
         self.code
     }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum GetOpcodeError {
-    OutOfRange,
-    Invalid,
 }
 
 impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
@@ -72,7 +75,17 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
             Err(GetOpcodeError::OutOfRange)
         }
     }
-    #[cfg(feature = "needs-fn-ptr-conversion")]
+    #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
+    pub fn get(&self) -> Option<OpFn<STEPPABLE>> {
+        self.code_analysis
+            .analysis
+            .get(self.pc)
+            .map(OpFnData::get_func)
+    }
+    #[cfg(all(
+        not(feature = "fn-ptr-conversion-expanded-dispatch"),
+        feature = "fn-ptr-conversion-inline-dispatch"
+    ))]
     pub fn get(&self) -> Result<OpFn<STEPPABLE>, GetOpcodeError> {
         self.code_analysis
             .analysis
@@ -160,10 +173,9 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{
-        code_reader::{CodeReader, GetOpcodeError},
-        u256, FailStatus, Opcode,
-    };
+    #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
+    use crate::types::GetOpcodeError;
+    use crate::types::{code_reader::CodeReader, u256, FailStatus, Opcode};
 
     #[test]
     fn code_reader_internals() {
@@ -259,17 +271,33 @@ mod tests {
             CodeReader::<false>::new(&[Opcode::Add as u8, Opcode::Add as u8, 0xc0], None, 0);
         #[cfg(not(feature = "needs-fn-ptr-conversion"))]
         assert_eq!(code_reader.get(), Ok(Opcode::Add));
-        #[cfg(feature = "needs-fn-ptr-conversion")]
-        assert!(code_reader.get().is_ok(),);
+        #[cfg(all(
+            not(feature = "fn-ptr-conversion-expanded-dispatch"),
+            feature = "fn-ptr-conversion-inline-dispatch"
+        ))]
+        assert!(code_reader.get().is_ok());
+        #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
+        assert!(code_reader.get().is_some());
         code_reader.next();
         #[cfg(not(feature = "needs-fn-ptr-conversion"))]
         assert_eq!(code_reader.get(), Ok(Opcode::Add));
-        #[cfg(feature = "needs-fn-ptr-conversion")]
-        assert!(code_reader.get().is_ok(),);
+        #[cfg(all(
+            not(feature = "fn-ptr-conversion-expanded-dispatch"),
+            feature = "fn-ptr-conversion-inline-dispatch"
+        ))]
+        assert!(code_reader.get().is_ok());
+        #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
+        assert!(code_reader.get().is_some());
         code_reader.next();
+        #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
         assert_eq!(code_reader.get(), Err(GetOpcodeError::Invalid));
+        #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
+        assert!(code_reader.get().is_some());
         code_reader.next();
+        #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
         assert_eq!(code_reader.get(), Err(GetOpcodeError::OutOfRange));
+        #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
+        assert_eq!(code_reader.get(), None);
     }
 
     #[test]

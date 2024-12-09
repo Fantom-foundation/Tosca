@@ -137,16 +137,12 @@ impl<const STEPPABLE: bool> Debug for OpFnData<STEPPABLE> {
 #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
 #[derive(Clone, PartialEq, Eq)]
 pub struct OpFnData<const STEPPABLE: bool> {
-    func: Option<OpFn<STEPPABLE>>,
+    func: OpFn<STEPPABLE>,
     data: u256,
 }
 
 #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
 impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
-    pub fn data(data: u256) -> Self {
-        Self { func: None, data }
-    }
-
     pub fn skip_no_ops_iter(count: usize) -> impl Iterator<Item = Self> {
         let skip_no_ops = Self::func(Opcode::SkipNoOps as u8, (count as u64).into());
         let gen_no_ops = move || Self::func(Opcode::NoOp as u8, u256::ZERO);
@@ -155,7 +151,7 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
 
     pub fn func(op: u8, data: u256) -> Self {
         Self {
-            func: Some(GenericJumptable::get()[op as usize]),
+            func: GenericJumptable::get()[op as usize],
             data,
         }
     }
@@ -165,16 +161,14 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
     }
 
     pub fn code_byte_type(&self) -> CodeByteType {
-        match self.func {
-            None => CodeByteType::DataOrInvalid,
-            Some(func) if func == GenericJumptable::get()[Opcode::JumpDest as u8 as usize] => {
-                CodeByteType::JumpDest
-            }
-            Some(_) => CodeByteType::Opcode,
+        if self.func == GenericJumptable::get()[Opcode::JumpDest as u8 as usize] {
+            CodeByteType::JumpDest
+        } else {
+            CodeByteType::Opcode
         }
     }
 
-    pub fn get_func(&self) -> Option<OpFn<STEPPABLE>> {
+    pub fn get_func(&self) -> OpFn<STEPPABLE> {
         self.func
     }
 
@@ -187,7 +181,7 @@ impl<const STEPPABLE: bool> OpFnData<STEPPABLE> {
 impl<const STEPPABLE: bool> Debug for OpFnData<STEPPABLE> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OpFnData")
-            .field("func", &self.func.map(|f| f as *const u8))
+            .field("func", &(self.func as *const u8))
             .field("data", &self.data)
             .finish()
     }

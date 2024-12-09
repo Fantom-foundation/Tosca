@@ -23,7 +23,9 @@ pub use cache::Cache;
 #[cfg(all(feature = "thread-local-cache", feature = "needs-cache"))]
 pub use cache::LocalKeyExt;
 pub use code_analysis::{AnalysisContainer, CodeAnalysis};
-pub use code_reader::{CodeReader, GetOpcodeError};
+pub use code_reader::CodeReader;
+#[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
+pub use code_reader::GetOpcodeError;
 pub use execution_context::*;
 pub use memory::Memory;
 pub use mock_execution_message::MockExecutionMessage;

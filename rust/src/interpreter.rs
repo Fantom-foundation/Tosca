@@ -5,6 +5,8 @@ use evmc_vm::{
     StatusCode, StepResult, StorageStatus, Uint256,
 };
 
+#[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
+use crate::types::GetOpcodeError;
 #[cfg(not(feature = "needs-fn-ptr-conversion"))]
 use crate::types::Opcode;
 #[cfg(feature = "needs-jumptable")]
@@ -12,7 +14,7 @@ use crate::utils::GetGenericStatic;
 use crate::{
     types::{
         hash_cache, u256, CodeReader, ExecStatus, ExecutionContextTrait, ExecutionTxContext,
-        FailStatus, GetOpcodeError, Memory, Observer, Stack,
+        FailStatus, Memory, Observer, Stack,
     },
     utils::{check_min_revision, check_not_read_only, word_size, Gas, GasRefund, SliceExt},
 };
@@ -402,6 +404,13 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
                     Some(steps) => *steps -= 1,
                 }
             }
+
+            #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
+            let Some(op) = self.code_reader.get() else {
+                self.exec_status = ExecStatus::Stopped;
+                break;
+            };
+            #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
             let op = match self.code_reader.get() {
                 Ok(op) => op,
                 Err(GetOpcodeError::OutOfRange) => {
@@ -412,6 +421,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
                     return FailStatus::InvalidInstruction.into();
                 }
             };
+
             observer.pre_op(&self);
             if let Err(err) = self.run_op(op) {
                 return err.into();
@@ -445,6 +455,13 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
                 Some(steps) => *steps -= 1,
             }
         }
+
+        #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
+        let Some(op) = self.code_reader.get() else {
+            self.exec_status = ExecStatus::Stopped;
+            return Ok(());
+        };
+        #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
         let op = match self.code_reader.get() {
             Ok(op) => op,
             Err(GetOpcodeError::OutOfRange) => {
@@ -455,6 +472,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
                 return Err(FailStatus::InvalidInstruction);
             }
         };
+
         self.run_op(op)
     }
 

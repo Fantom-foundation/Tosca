@@ -161,12 +161,6 @@ impl<const STEPPABLE: bool> CodeAnalysis<STEPPABLE> {
                     analysis.push(OpFnData::func(op, u256::ZERO));
                     pc_map.add_mapping(pc - 1, analysis.len() - 1);
                 }
-                CodeByteType::DataOrInvalid => {
-                    // This should only be the case if an invalid opcode was not preceded by a push.
-                    // In this case we don't care what the data contains.
-                    analysis.push(OpFnData::data(u256::ZERO));
-                    pc_map.add_mapping(pc - 1, analysis.len() - 1);
-                }
             };
         }
 
@@ -307,7 +301,7 @@ mod tests {
         );
         assert_eq!(
             CodeAnalysis::<false>::analyze_code(&[0xc0]).analysis,
-            [OpFnData::data(u256::ZERO)]
+            [OpFnData::func(0xc0, u256::ZERO)]
         );
     }
     #[cfg(all(
@@ -366,7 +360,7 @@ mod tests {
         );
         assert_eq!(
             CodeAnalysis::<false>::analyze_code(&[Opcode::JumpDest as u8, 0xc0]).analysis,
-            [OpFnData::jump_dest(), OpFnData::data(u256::ZERO)]
+            [OpFnData::jump_dest(), OpFnData::func(0xc0, u256::ZERO)]
         );
     }
     #[cfg(all(
@@ -482,7 +476,7 @@ mod tests {
                 .analysis,
             [
                 OpFnData::<false>::func(Opcode::Push1 as u8, (Opcode::Add as u8).into()),
-                OpFnData::data(u256::ZERO),
+                OpFnData::func(0xc0, u256::ZERO)
             ]
         );
         assert_eq!(
@@ -495,7 +489,7 @@ mod tests {
             .analysis,
             [
                 OpFnData::<false>::func(Opcode::Push1 as u8, (Opcode::Add as u8).into()),
-                OpFnData::data(u256::ZERO),
+                OpFnData::<false>::func(0xc0, u256::ZERO),
                 OpFnData::<false>::func(Opcode::Add as u8, u256::ZERO),
             ]
         );
@@ -528,7 +522,7 @@ mod tests {
                     Opcode::Push2 as u8,
                     (((Opcode::Add as u8 as u64) << 8) + Opcode::Add as u8 as u64).into()
                 ),
-                OpFnData::data(u256::ZERO),
+                OpFnData::func(0xc0, u256::ZERO)
             ]
         );
         let mut code = [0; 23];

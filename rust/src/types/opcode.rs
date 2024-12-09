@@ -312,11 +312,13 @@ pub enum CodeByteType {
     #[cfg(feature = "needs-fn-ptr-conversion")]
     Push,
     Opcode,
+    #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
     DataOrInvalid,
 }
 
 pub fn code_byte_type(code_byte: u8) -> (CodeByteType, usize) {
     match code_byte {
+        #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
         STOP | ADD | MUL | SUB | DIV | SDIV | MOD | SMOD | ADDMOD | MULMOD | EXP | SIGNEXTEND
         | LT | GT | SLT | SGT | EQ | ISZERO | AND | OR | XOR | NOT | BYTE | SHL | SHR | SAR
         | SHA3 | ADDRESS | BALANCE | ORIGIN | CALLER | CALLVALUE | CALLDATALOAD | CALLDATASIZE
@@ -331,13 +333,16 @@ pub fn code_byte_type(code_byte: u8) -> (CodeByteType, usize) {
         | LOG4 | CREATE | CALL | CALLCODE | RETURN | DELEGATECALL | CREATE2 | STATICCALL
         | REVERT | INVALID | SELFDESTRUCT => (CodeByteType::Opcode, 0),
         PUSH1..=PUSH32 => (
-            #[cfg(not(feature = "needs-fn-ptr-conversion"))]
-            CodeByteType::Opcode,
             #[cfg(feature = "needs-fn-ptr-conversion")]
             CodeByteType::Push,
+            #[cfg(not(feature = "needs-fn-ptr-conversion"))]
+            CodeByteType::Opcode,
             (code_byte - Opcode::Push1 as u8 + 1) as usize,
         ),
         JUMPDEST => (CodeByteType::JumpDest, 0),
+        #[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
         _ => (CodeByteType::DataOrInvalid, 0),
+        #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
+        _ => (CodeByteType::Opcode, 0),
     }
 }
