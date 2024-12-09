@@ -7,15 +7,14 @@ use evmc_vm::{
 
 #[cfg(not(feature = "needs-fn-ptr-conversion"))]
 use crate::types::Opcode;
+#[cfg(feature = "needs-jumptable")]
+use crate::utils::GetGenericStatic;
 use crate::{
     types::{
         hash_cache, u256, CodeReader, ExecStatus, ExecutionContextTrait, ExecutionTxContext,
         FailStatus, GetOpcodeError, Memory, Observer, Stack,
     },
-    utils::{
-        check_min_revision, check_not_read_only, word_size, Gas, GasRefund, GetGenericStatic,
-        SliceExt,
-    },
+    utils::{check_min_revision, check_not_read_only, word_size, Gas, GasRefund, SliceExt},
 };
 
 type OpResult = Result<(), FailStatus>;
