@@ -112,6 +112,16 @@ cargo build --features mimalloc,stack-array
 
 ## Profiling
 
+> Note:
+Unless you are profiling function dispatch, it might make sense to disable feature `tail-call`. 
+Otherwise, stack traces get very long and stack overflows can occur.
+To do so, just comment out `tail-call` in the list of features enabled by feature `performance` in [Cargo.toml](Cargo.toml)
+
+> Note: 
+In the examples below, the rust benchmarks (`./target/profiling/benchmarks`) are always run with the parameters `10` (runs) and `fib2` (benchmark name). 
+You can obviously choose other parameters.
+Run `./target/profiling/benchmarks --help` to get a list of available benchmarks.
+
 ### Perf + Flamegraph
 
 - Rust benchmarks
@@ -123,7 +133,7 @@ cargo build --features mimalloc,stack-array
     # OR build benchmarks and then run perf manually
     cargo install inferno
     cargo build --package benchmarks --profile profiling
-    perf record --call-graph dwarf -F 25000 ./target/profiling/benchmarks
+    perf record --call-graph dwarf -F 25000 ./target/profiling/benchmarks 10 fib20
     perf script | inferno-collapse-perf | inferno-flamegraph > flamegraph.svg
     ```
 - Go VM benchmarks
@@ -153,7 +163,7 @@ samply import perf.data # this converts perf.data, opens firefox profiler in you
 ```sh
 cargo install --locked samply
 cargo build --package benchmarks --profile profiling
-samply record ./target/profiling/benchmarks # this collects profiling data, opens firefox profiler in your default browser and serves the data
+samply record ./target/profiling/benchmarks 10 fib20 # this collects profiling data, opens firefox profiler in your default browser and serves the data
 ```
 
 ### Intel VTune
@@ -162,6 +172,26 @@ samply record ./target/profiling/benchmarks # this collects profiling data, open
 cargo build --package benchmarks --profile profiling
 ```
 run `./target/profiling/benchmarks` with Intel VTune 
+
+### DHAT
+
+[DHAT](https://valgrind.org/docs/manual/dh-manual.html) is a *dynamic heap analysis tool*.
+It can be used to investigate where, how much and how often memory gets allocated and how those allocations get used.
+
+> Note:
+DHAT does not work properly if feature mimalloc is enabled.
+To disable mimalloc, just comment out `mimalloc` in the list of features enabled by feature `performance` in [Cargo.toml](Cargo.toml)
+
+```sh
+cargo build --package benchmarks --profile profiling
+valgrind --tool=dhat ./target/profiling/benchmarks 10 fib20
+
+# open DHAT viewer
+firefox https://nnethercote.github.io/dh_view/dh_view.html
+# OR
+open file:///usr/libexec/valgrind/dh_view.html
+# then load dhat.out.<pid>
+```
 
 ## Miri & Sanitizers
 
