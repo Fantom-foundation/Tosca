@@ -16,8 +16,6 @@ package evmrs
 import "C"
 
 import (
-	"fmt"
-
 	"github.com/Fantom-foundation/Tosca/go/interpreter/evmc"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
@@ -28,25 +26,25 @@ func init() {
 	// This way, the libevmrs.so file can be found during runtime, even if
 	// the LD_LIBRARY_PATH is not set accordingly.
 	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmrs library: %s", err))
-		}
 		// This instance remains in its basic configuration.
 		tosca.MustRegisterInterpreterFactory("evmrs", func(any) (tosca.Interpreter, error) {
+			evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
+			if err != nil {
+				return nil, err
+			}
 			return &evmrsInstance{evm}, nil
 		})
 	}
 
 	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmrs library: %s", err))
-		}
-		if err = evm.SetOption("logging", "true"); err != nil {
-			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-		}
 		tosca.MustRegisterInterpreterFactory("evmrs-logging", func(any) (tosca.Interpreter, error) {
+			evm, err := evmc.LoadEvmcInterpreter("libevmrs.so")
+			if err != nil {
+				return nil, err
+			}
+			if err = evm.SetOption("logging", "true"); err != nil {
+				return nil, err
+			}
 			return &evmrsInstance{evm}, nil
 		})
 	}
