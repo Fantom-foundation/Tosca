@@ -175,6 +175,9 @@ run `./target/profiling/benchmarks` with Intel VTune
 
 ### DHAT
 
+[DHAT](https://valgrind.org/docs/manual/dh-manual.html) is a *dynamic heap analysis tool*.
+It can be used to investigate where, how much and how often memory gets allocated and how those allocations get used.
+
 > Note:
 DHAT does not work properly if feature mimalloc is enabled.
 To disable mimalloc, just comment out `mimalloc` in the list of features enabled by feature `performance` in [Cargo.toml](Cargo.toml)
