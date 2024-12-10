@@ -90,7 +90,12 @@ impl Memory {
         }
         self.expand(end, gas_left)?;
 
-        Ok(&mut self.0[offset as usize..end as usize])
+        let offset = offset as usize;
+        let end = end as usize;
+        unsafe {
+            std::hint::assert_unchecked(offset < end && end <= self.0.len());
+        }
+        Ok(&mut self.0[offset..end])
     }
 
     pub fn get_word(&mut self, offset: u256, gas_left: &mut Gas) -> Result<u256, FailStatus> {
