@@ -46,9 +46,6 @@ use llvm_profile_wrappers::{
     llvm_profile_write_file,
 };
 use types::u256;
-pub use types::ExecutionContextTrait;
-#[cfg(feature = "mock")]
-pub use types::MockExecutionContextTrait;
 
 /// Dump coverage data when compiled with `RUSTFLAGS="-C instrument-coverage"`.
 /// Otherwise this is a no-op.

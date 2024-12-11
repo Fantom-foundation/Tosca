@@ -21,7 +21,6 @@ fn-ptr-conversion-expanded-dispatch = [
 fn-ptr-conversion-inline-dispatch = ["driver/fn-ptr-conversion-inline-dispatch"]
 
 [dependencies]
-evmrs = { path = "..", features = ["mock"] }
 common = { path = "../common", features = ["mock"] }
 driver = { path = "../driver", features = ["mock"] }
 libfuzzer-sys = "0.4"

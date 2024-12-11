@@ -495,7 +495,6 @@ dependencies = [
  "ethnum",
  "evmc-vm 12.0.0-alpha.0 (git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions)",
  "evmc-vm 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized)",
- "evmrs",
  "llvm-profile-wrappers",
  "lru",
  "mimalloc",
@@ -524,7 +523,6 @@ dependencies = [
  "arbitrary",
  "common",
  "driver",
- "evmrs",
  "libfuzzer-sys",
 ]
 

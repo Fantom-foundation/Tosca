@@ -4,13 +4,15 @@ use core::slice;
 use std::fmt::Debug;
 
 use arbitrary::Arbitrary;
-use common::evmc_vm::{
-    ffi::{evmc_host_interface, evmc_message},
-    AccessStatus, Address, ExecutionResult, ExecutionTxContext, MessageKind, Revision, StatusCode,
-    StorageStatus, Uint256,
+use common::{
+    evmc_vm::{
+        ffi::{evmc_host_interface, evmc_message},
+        AccessStatus, Address, ExecutionResult, ExecutionTxContext, MessageKind, Revision,
+        StatusCode, StorageStatus, Uint256,
+    },
+    MockExecutionContextTrait,
 };
 use driver::{host_interface::mocked_host_interface, Instance};
-use evmrs::MockExecutionContextTrait;
 use libfuzzer_sys::fuzz_target;
 
 struct InterpreterArgs<'a> {

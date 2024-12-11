@@ -69,14 +69,12 @@ pub fn check_not_read_only(message: &ExecutionMessage) -> Result<(), FailStatus>
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use common::{
-        MockExecutionMessage,
-    };
+    use common::{MockExecutionContextTrait, MockExecutionMessage};
 
+    use super::*;
     use crate::{
         interpreter::Interpreter,
-        types::{u256, FailStatus, MockExecutionContextTrait},
+        types::{u256, FailStatus},
         utils::{self, Gas, SliceExt},
     };
 

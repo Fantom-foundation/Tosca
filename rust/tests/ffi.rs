@@ -1,7 +1,7 @@
 #![allow(unused_crate_dependencies)]
 use common::{
     opcode::{ADD, PUSH0},
-    MockExecutionMessage,
+    MockExecutionContextTrait, MockExecutionMessage,
 };
 #[cfg(not(feature = "custom-evmc"))]
 use driver::TX_CONTEXT_ZEROED;
@@ -10,10 +10,7 @@ use driver::{
     host_interface::{self, null_ptr_host_interface},
     Instance, SteppableInstance, ZERO,
 };
-use evmrs::{
-    evmc_vm::{Revision, StatusCode, StepStatusCode},
-    MockExecutionContextTrait
-};
+use evmrs::evmc_vm::{Revision, StatusCode, StepStatusCode};
 
 #[test]
 fn execute_can_be_called_with_mocked_context() {

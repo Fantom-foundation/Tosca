@@ -3,7 +3,6 @@ mod amount;
 mod cache;
 mod code_analysis;
 mod code_reader;
-mod execution_context;
 pub mod hash_cache;
 mod memory;
 mod observer;
@@ -23,7 +22,6 @@ pub use cache::Cache;
 pub use cache::LocalKeyExt;
 pub use code_analysis::{AnalysisContainer, CodeAnalysis};
 pub use code_reader::{CodeReader, GetOpcodeError};
-pub use execution_context::*;
 pub use memory::Memory;
 pub use observer::*;
 #[cfg(feature = "needs-fn-ptr-conversion")]
