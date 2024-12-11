@@ -75,6 +75,10 @@ func (r runContext) Calls(kind tosca.CallKind, parameters tosca.CallParameters) 
 		result, isStatePrecompiled := handleStateContract(
 			r, parameters.Sender, parameters.Recipient, parameters.Input, parameters.Gas)
 		if isStatePrecompiled {
+			if !result.Success {
+				r.RestoreSnapshot(snapshot)
+				result.GasLeft = 0
+			}
 			return result, nil
 		}
 	}
@@ -82,6 +86,10 @@ func (r runContext) Calls(kind tosca.CallKind, parameters tosca.CallParameters) 
 	result, isPrecompiled := handlePrecompiledContract(
 		r.blockParameters.Revision, parameters.Input, recipient, parameters.Gas)
 	if isPrecompiled {
+		if !result.Success {
+			r.RestoreSnapshot(snapshot)
+			result.GasLeft = 0
+		}
 		return result, nil
 	}
 
@@ -112,8 +120,12 @@ func (r runContext) Calls(kind tosca.CallKind, parameters tosca.CallParameters) 
 	}
 
 	callResult, err := r.interpreter.Run(interpreterParameters)
-	if err != nil || !callResult.Success {
+	if (callResult.GasLeft > 0 || len(callResult.Output) > 0) && !callResult.Success {
+		// Revert
 		r.RestoreSnapshot(snapshot)
+	} else if err != nil || !callResult.Success {
+		r.RestoreSnapshot(snapshot)
+		callResult.GasLeft = 0
 	}
 
 	return tosca.CallResult{
@@ -176,7 +188,7 @@ func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters
 		Gas:                   parameters.Gas,
 		Recipient:             createdAddress,
 		Sender:                parameters.Sender,
-		Input:                 parameters.Input,
+		Input:                 nil,
 		Value:                 parameters.Value,
 		CodeHash:              &codeHash,
 		Code:                  code,
@@ -186,6 +198,11 @@ func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters
 	if err != nil {
 		r.RestoreSnapshot(snapshot)
 		return tosca.CallResult{}, err
+	}
+	if (result.GasLeft > 0 || len(result.Output) > 0) && !result.Success {
+		// Revert
+		r.RestoreSnapshot(snapshot)
+		return tosca.CallResult{Output: result.Output, GasLeft: result.GasLeft, CreatedAddress: createdAddress}, nil
 	}
 
 	outCode := result.Output
