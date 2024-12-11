@@ -1,11 +1,12 @@
-use driver::{self, get_tx_context_zeroed, host_interface::null_ptr_host_interface, Instance};
-use evmrs::{
+use common::{
     evmc_vm::{
         ffi::{evmc_host_interface, evmc_message},
         Revision, StatusCode, Uint256,
     },
-    u256, MockExecutionMessage, Opcode,
+    opcode::*,
+    MockExecutionMessage,
 };
+use driver::{get_tx_context_zeroed, host_interface::null_ptr_host_interface, Instance};
 use sha3::{Digest, Keccak256};
 
 pub struct RunArgs {
@@ -24,24 +25,24 @@ impl RunArgs {
     /// - `ExecutionMessage` contains non-empty input
     /// - `code` is non-empty so that `CodeReader` must allocate memory to store the code analysis
     ///   results
-    /// - `code` contains `Opcode::MStore` so that `memory` is non-empty
+    /// - `code` contains `MStore` so that `memory` is non-empty
     /// - `code` returns a single word so that `output` is non-empty
     pub fn ffi_overhead(size: u32) -> (Self, u32) {
         fn ffi_overhead_ref(input: u32) -> u32 {
             input
         }
         const CODE: [u8; 11] = [
-            Opcode::Push1 as u8,
+            PUSH1,
             4, // offset
-            Opcode::CallDataLoad as u8,
-            Opcode::Push1 as u8,
+            CALLDATALOAD,
+            PUSH1,
             0, // offset
-            Opcode::MStore as u8,
-            Opcode::Push1 as u8,
+            MSTORE,
+            PUSH1,
             32, // len
-            Opcode::Push1 as u8,
+            PUSH1,
             0, // offset
-            Opcode::Return as u8,
+            RETURN,
         ];
 
         (Self::new(&CODE, size, None), ffi_overhead_ref(size))
@@ -158,26 +159,26 @@ impl RunArgs {
     // See go/examples/arithmetic.go
     pub fn arithmetic(size: u32) -> (Self, u32) {
         fn arithmetic_ref(input: u32) -> u32 {
-            let iterations = u256::from(input as u64);
-            let mut result = u256::ZERO;
-            let mut i = u256::ONE;
+            let iterations = input;
+            let mut result = 0;
+            let mut i = 1;
             while i <= iterations {
                 let i_squared = i * i;
                 let i_cubed = i_squared * i;
-                let i_mod3 = i % u256::from(3u8);
+                let i_mod3 = i % 3;
                 result += i;
                 result *= i;
                 result += i_squared;
                 result -= i;
                 result /= i;
-                result *= i_mod3 + u256::ONE;
+                result *= i_mod3 + 1;
                 result += i_cubed;
 
-                i += u256::ONE;
+                i += 1;
             }
-            let max_u32 = u256::from(i32::MAX as u64);
+            let max_u32 = i32::MAX as u32;
             result %= max_u32;
-            result.into_u64_with_overflow().0 as u32
+            result
         }
 
         const CODE: [u8; 483] = [
@@ -342,7 +343,7 @@ impl RunArgs {
     }
 
     pub fn jumpdest_analysis(size: u32) -> (Self, u32) {
-        const FILLER: [u8; 1] = [Opcode::JumpDest as u8];
+        const FILLER: [u8; 1] = [JUMPDEST];
 
         const LONG_CODE_LEN: usize =
             RunArgs::analysis_code_len(RunArgs::LONG_MAX_LEN, FILLER.len());
@@ -356,7 +357,7 @@ impl RunArgs {
     }
 
     pub fn stop_analysis(size: u32) -> (Self, u32) {
-        const FILLER: [u8; 1] = [Opcode::Stop as u8];
+        const FILLER: [u8; 1] = [STOP];
 
         const LONG_CODE_LEN: usize =
             RunArgs::analysis_code_len(RunArgs::LONG_MAX_LEN, FILLER.len());
@@ -370,7 +371,7 @@ impl RunArgs {
     }
 
     pub fn push1_analysis(size: u32) -> (Self, u32) {
-        const FILLER: [u8; 2] = [Opcode::Push1 as u8, 0];
+        const FILLER: [u8; 2] = [PUSH1, 0];
 
         const LONG_CODE_LEN: usize =
             RunArgs::analysis_code_len(RunArgs::LONG_MAX_LEN, FILLER.len());
@@ -386,7 +387,7 @@ impl RunArgs {
     pub fn push32_analysis(size: u32) -> (Self, u32) {
         const FILLER: [u8; 33] = {
             let mut code = [0; 33];
-            code[0] = Opcode::Push32 as u8;
+            code[0] = PUSH32;
             code
         };
 
@@ -419,7 +420,7 @@ impl RunArgs {
 
         let message = MockExecutionMessage {
             input: Some(Box::leak(Box::from(input.as_slice()))),
-            code_hash: Some(Box::leak(Box::new(u256::from_le_bytes(code_hash).into()))),
+            code_hash: Some(Box::leak(Box::new(Uint256 { bytes: code_hash }))),
             ..Default::default()
         };
 

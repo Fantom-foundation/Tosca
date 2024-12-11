@@ -4,14 +4,27 @@ version = "0.0.0"
 publish = false
 edition = "2021"
 
-[package.metadata]
-cargo-fuzz = true
+[features]
+performance = ["driver/performance"]
+mimalloc = ["driver/mimalloc"]
+unsafe-stack = ["driver/unsafe-stack"]
+custom-evmc = ["driver/custom-evmc"]
+hash-cache = ["driver/hash-cache"]
+code-analysis-cache = ["driver/code-analysis-cache"]
+thread-local-cache = ["driver/thread-local-cache"]
+alloc-reuse = ["driver/alloc-reuse"]
+tail-call = ["driver/tail-call"]
+jumptable-dispatch = ["driver/jumptable-dispatch"]
+fn-ptr-conversion-expanded-dispatch = [
+    "driver/fn-ptr-conversion-expanded-dispatch",
+]
+fn-ptr-conversion-inline-dispatch = ["driver/fn-ptr-conversion-inline-dispatch"]
 
 [dependencies]
-libfuzzer-sys = "0.4"
-arbitrary = { version = "1.4.1" }
-evmrs = { path = "..", features = ["mock", "fuzzing"] }
+common = { path = "../common", features = ["mock"] }
 driver = { path = "../driver", features = ["mock"] }
+libfuzzer-sys = "0.4"
+arbitrary = "1.4.1"
 
 [[bin]]
 name = "evmc_execute"
@@ -19,3 +32,6 @@ path = "fuzz_targets/evmc_execute.rs"
 test = false
 doc = false
 bench = false
+
+[package.metadata]
+cargo-fuzz = true
