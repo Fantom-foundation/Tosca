@@ -1,6 +1,6 @@
-use std::cmp::min;
 #[cfg(feature = "alloc-reuse")]
 use std::sync::Mutex;
+use std::{cmp::min, num::NonZeroUsize};
 
 use crate::types::{u256, FailStatus};
 
@@ -69,7 +69,8 @@ impl Stack {
         Ok(())
     }
 
-    pub fn swap_with_top(&mut self, nth: usize) -> Result<(), FailStatus> {
+    pub fn swap_with_top(&mut self, nth: NonZeroUsize) -> Result<(), FailStatus> {
+        let nth = nth.get();
         self.check_underflow(nth + 1)?;
 
         #[cfg(not(feature = "unsafe-stack"))]
@@ -89,7 +90,7 @@ impl Stack {
             // SAFETY:
             // top and nth are valid pointers into the initialized part of the vector.
             unsafe {
-                std::ptr::swap(top, nth);
+                std::ptr::swap_nonoverlapping(top, nth, 1);
             }
         }
 
@@ -132,6 +133,8 @@ impl Stack {
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroUsize;
+
     use crate::types::{stack::Stack, u256, FailStatus};
 
     #[test]
@@ -177,15 +180,14 @@ mod tests {
     #[test]
     fn swap_with_top() {
         let mut stack = Stack::new(&[u256::MAX, u256::ONE]);
-        assert_eq!(stack.swap_with_top(0), Ok(()));
-        assert_eq!(stack.as_slice(), &[u256::MAX, u256::ONE]);
-
-        let mut stack = Stack::new(&[u256::MAX, u256::ONE]);
-        assert_eq!(stack.swap_with_top(1), Ok(()));
+        assert_eq!(stack.swap_with_top(NonZeroUsize::new(1).unwrap()), Ok(()));
         assert_eq!(stack.as_slice(), [u256::ONE, u256::MAX]);
 
         let mut stack = Stack::new(&[u256::MAX, u256::ONE]);
-        assert_eq!(stack.swap_with_top(2), Err(FailStatus::StackUnderflow));
+        assert_eq!(
+            stack.swap_with_top(NonZeroUsize::new(2).unwrap()),
+            Err(FailStatus::StackUnderflow)
+        );
     }
 
     #[test]
