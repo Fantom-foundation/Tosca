@@ -5,7 +5,8 @@
 //! Ideally this would be done already in [evmc_vm].
 use std::slice;
 
-use evmc_vm::{
+use common::evmc_vm::{
+    self,
     ffi::{evmc_tx_context, evmc_tx_initcode},
     Address, Uint256,
 };

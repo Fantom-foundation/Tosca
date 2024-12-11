@@ -1,6 +1,6 @@
 use std::{ffi::c_void, panic, slice};
 
-use ::evmc_vm::{
+use common::evmc_vm::{
     ffi::{
         evmc_bytes32, evmc_capabilities, evmc_host_interface, evmc_message, evmc_revision,
         evmc_step_result, evmc_step_status_code, evmc_vm_steppable,

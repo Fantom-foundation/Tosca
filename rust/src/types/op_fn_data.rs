@@ -4,9 +4,8 @@ use std::fmt::Debug;
 use crate::u256;
 use crate::{
     interpreter::{GenericJumptable, OpFn},
-    types::CodeByteType,
+    types::{CodeByteType, Opcode},
     utils::GetGenericStatic,
-    Opcode,
 };
 
 #[cfg(all(

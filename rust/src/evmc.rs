@@ -1,8 +1,8 @@
 use std::process;
 
-use evmc_vm::{
+use common::evmc_vm::{
     ffi::evmc_capabilities, EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult, Revision,
-    StatusCode as EvmcStatusCode, StepResult, StepStatusCode as EvmcStepStatusCode,
+    SetOptionError, StatusCode as EvmcStatusCode, StepResult, StepStatusCode as EvmcStepStatusCode,
     SteppableEvmcVm, Uint256,
 };
 
@@ -47,7 +47,7 @@ impl EvmcVm for EvmRs {
         }
     }
 
-    fn set_option(&mut self, key: &str, value: &str) -> Result<(), evmc_vm::SetOptionError> {
+    fn set_option(&mut self, key: &str, value: &str) -> Result<(), SetOptionError> {
         match (key, value) {
             ("logging", "true") => self.observer_type = ObserverType::Logging,
             ("logging", "false") => self.observer_type = ObserverType::NoOp,

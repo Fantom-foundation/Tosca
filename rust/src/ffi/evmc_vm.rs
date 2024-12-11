@@ -3,7 +3,7 @@ use std::{
     panic, slice,
 };
 
-use evmc_vm::{
+use common::evmc_vm::{
     ffi::{
         evmc_capabilities, evmc_capabilities_flagset, evmc_host_context, evmc_host_interface,
         evmc_message, evmc_result, evmc_revision, evmc_set_option_result, evmc_status_code,
@@ -162,7 +162,7 @@ extern "C" fn __evmc_execute(
 
 #[cfg(test)]
 mod tests {
-    use evmc_vm::ffi::{evmc_capabilities_flagset, evmc_set_option_result};
+    use common::evmc_vm::ffi::{evmc_capabilities_flagset, evmc_set_option_result};
 
     use crate::ffi::{
         evmc_vm::{__evmc_destroy, __evmc_get_capabilities, __evmc_set_option, evmc_create_evmrs},

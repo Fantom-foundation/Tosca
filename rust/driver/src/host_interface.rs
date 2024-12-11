@@ -1,10 +1,10 @@
-use evmrs::evmc_vm::ffi::evmc_host_interface;
+use common::evmc_vm::ffi::evmc_host_interface;
 
 #[cfg(feature = "mock")]
 mod mock_callbacks {
     use std::{ffi, slice};
 
-    use evmrs::{
+    use common::{
         evmc_vm::{
             ffi::{evmc_message, evmc_result, evmc_tx_context},
             AccessStatus, Address, StorageStatus, Uint256,

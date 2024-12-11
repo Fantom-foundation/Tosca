@@ -1,5 +1,12 @@
 [workspace]
-members = ["driver", "benchmarks", "bencher", "llvm-profile-wrappers", "fuzz"]
+members = [
+    "driver",
+    "benchmarks",
+    "bencher",
+    "llvm-profile-wrappers",
+    "fuzz",
+    "common",
+]
 
 [package]
 name = "evmrs"
@@ -16,9 +23,6 @@ debug = true
 
 [features]
 default = []
-# feature mock enables code generation for test mocking. This allows generating mocks for other build configuration but "test". 
-mock = ["dep:mockall"]
-fuzzing = ["dep:arbitrary"]
 # partial features (enabled by other features to simplyfy conditional compilation attributes. Not intended to be used on their own)
 needs-jumptable = []
 needs-fn-ptr-conversion = ["needs-jumptable"]
@@ -36,7 +40,7 @@ performance = [
 ]
 mimalloc = ["dep:mimalloc"]
 unsafe-stack = []
-custom-evmc = ["dep:evmc-vm-tosca-refactor"]
+custom-evmc = ["common/custom-evmc"]
 hash-cache = ["needs-cache"]
 code-analysis-cache = ["dep:nohash-hasher", "needs-cache"]
 thread-local-cache = []
@@ -49,23 +53,20 @@ fn-ptr-conversion-expanded-dispatch = ["needs-fn-ptr-conversion"]
 fn-ptr-conversion-inline-dispatch = ["needs-fn-ptr-conversion"]
 
 [dependencies]
+common = { path = "common" }
 bnum = "0.12.0"
 ethnum = "1.5.0"
-evmc-vm-tosca = { package = "evmc-vm", git = "https://github.com/Fantom-foundation/evmc", branch = "tosca-extensions" }
-evmc-vm-tosca-refactor = { package = "evmc-vm", git = "https://github.com/LorenzSchueler/evmc", branch = "tosca-extensions-optimized", optional = true }
 sha3 = "0.10.8"
 zerocopy = { version = "0.8.8", features = ["derive"] }
 llvm-profile-wrappers = { path = "llvm-profile-wrappers" }
-mockall = { version = "0.13.0", optional = true }
-arbitrary = { version = "1.4.1", features = ["derive"], optional = true }
 mimalloc = { version = "0.1.43", optional = true }
 lru = { version = "0.12.5", optional = true }
 nohash-hasher = { version = "0.2.0", optional = true }
 
 [dev-dependencies]
-# workaround for enabling mock feature also in integration tests
-evmrs = { path = ".", features = ["mock"] }
+common = { path = "common", features = ["mock"] }
 driver = { path = "driver", features = ["mock"] }
+mockall = "0.13.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

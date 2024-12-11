@@ -4,23 +4,23 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-performance = ["evmrs/performance"]
-mimalloc = ["evmrs/mimalloc"]
-unsafe-stack = ["evmrs/unsafe-stack"]
-custom-evmc = ["evmrs/custom-evmc"]
-hash-cache = ["evmrs/hash-cache"]
-code-analysis-cache = ["evmrs/code-analysis-cache"]
-thread-local-cache = ["evmrs/thread-local-cache"]
-alloc-reuse = ["evmrs/alloc-reuse"]
-tail-call = ["evmrs/tail-call"]
-jumptable-dispatch = ["evmrs/jumptable-dispatch"]
+performance = ["driver/performance"]
+mimalloc = ["driver/mimalloc"]
+unsafe-stack = ["driver/unsafe-stack"]
+custom-evmc = ["driver/custom-evmc"]
+hash-cache = ["driver/hash-cache"]
+code-analysis-cache = ["driver/code-analysis-cache"]
+thread-local-cache = ["driver/thread-local-cache"]
+alloc-reuse = ["driver/alloc-reuse"]
+tail-call = ["driver/tail-call"]
+jumptable-dispatch = ["driver/jumptable-dispatch"]
 fn-ptr-conversion-expanded-dispatch = [
-    "evmrs/fn-ptr-conversion-expanded-dispatch",
+    "driver/fn-ptr-conversion-expanded-dispatch",
 ]
-fn-ptr-conversion-inline-dispatch = ["evmrs/fn-ptr-conversion-inline-dispatch"]
+fn-ptr-conversion-inline-dispatch = ["driver/fn-ptr-conversion-inline-dispatch"]
 
 [dependencies]
-evmrs = { path = ".." }
+common = { path = "../common" }
 driver = { path = "../driver" }
 sha3 = "0.10.8"
 clap = { version = "4.5.21", features = ["derive"] }

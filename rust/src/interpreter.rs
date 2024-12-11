@@ -1,8 +1,11 @@
 use std::cmp::min;
 
-use evmc_vm::{
-    AccessStatus, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
-    StatusCode, StepResult, StorageStatus, Uint256,
+use common::{
+    evmc_vm::{
+        AccessStatus, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
+        StatusCode, StepResult, StorageStatus, Uint256,
+    },
+    ExecutionContextTrait,
 };
 
 #[cfg(not(feature = "needs-fn-ptr-conversion"))]
@@ -11,8 +14,8 @@ use crate::types::Opcode;
 use crate::utils::GetGenericStatic;
 use crate::{
     types::{
-        hash_cache, u256, CodeReader, ExecStatus, ExecutionContextTrait, ExecutionTxContext,
-        FailStatus, GetOpcodeError, Memory, Observer, Stack,
+        hash_cache, u256, CodeReader, ExecStatus, ExecutionTxContext, FailStatus, GetOpcodeError,
+        Memory, Observer, Stack,
     },
     utils::{check_min_revision, check_not_read_only, word_size, Gas, GasRefund, SliceExt},
 };
@@ -1845,18 +1848,18 @@ impl<const STEPPABLE: bool> From<Interpreter<'_, STEPPABLE>> for ExecutionResult
 
 #[cfg(test)]
 mod tests {
-    use evmc_vm::{
-        Address, ExecutionResult, MessageKind, Revision, StatusCode, StepResult, StepStatusCode,
-        Uint256,
+    use common::{
+        evmc_vm::{
+            Address, ExecutionResult, MessageKind, Revision, StatusCode, StepResult,
+            StepStatusCode, Uint256,
+        },
+        MockExecutionContextTrait, MockExecutionMessage,
     };
     use mockall::predicate;
 
     use crate::{
         interpreter::Interpreter,
-        types::{
-            u256, Memory, MockExecutionContextTrait, MockExecutionMessage, NoOpObserver, Opcode,
-            Stack,
-        },
+        types::{u256, Memory, NoOpObserver, Opcode, Stack},
     };
 
     #[test]
