@@ -1849,14 +1849,14 @@ mod tests {
         Address, ExecutionResult, MessageKind, Revision, StatusCode, StepResult, StepStatusCode,
         Uint256,
     };
+    use common::{
+        MockExecutionMessage,
+    };
     use mockall::predicate;
 
     use crate::{
         interpreter::Interpreter,
-        types::{
-            u256, Memory, MockExecutionContextTrait, MockExecutionMessage, NoOpObserver, Opcode,
-            Stack,
-        },
+        types::{u256, Memory, MockExecutionContextTrait, NoOpObserver, Opcode, Stack},
     };
 
     #[test]

@@ -1,5 +1,8 @@
 #![allow(unused_crate_dependencies)]
-use common::opcode::{ADD, PUSH0};
+use common::{
+    opcode::{ADD, PUSH0},
+    MockExecutionMessage,
+};
 #[cfg(not(feature = "custom-evmc"))]
 use driver::TX_CONTEXT_ZEROED;
 use driver::{
@@ -9,7 +12,7 @@ use driver::{
 };
 use evmrs::{
     evmc_vm::{Revision, StatusCode, StepStatusCode},
-    MockExecutionContextTrait, MockExecutionMessage,
+    MockExecutionContextTrait
 };
 
 #[test]

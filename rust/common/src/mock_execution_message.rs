@@ -2,8 +2,6 @@ use std::ptr;
 
 use evmc_vm::{ffi::evmc_message, Address, ExecutionMessage, MessageKind, Uint256};
 
-use crate::types::u256;
-
 /// The same as ExecutionMessage but with `pub` fields for easier testing.
 #[derive(Debug)]
 pub struct MockExecutionMessage {
@@ -51,12 +49,12 @@ impl Default for MockExecutionMessage {
             flags: 0,
             depth: 0,
             gas: Self::DEFAULT_INIT_GAS as i64,
-            recipient: u256::ZERO.into(),
-            sender: u256::ZERO.into(),
+            recipient: Address { bytes: [0; 20] },
+            sender: Address { bytes: [0; 20] },
             input: None,
-            value: u256::ZERO.into(),
-            create2_salt: u256::ZERO.into(),
-            code_address: u256::ZERO.into(),
+            value: Uint256 { bytes: [0; 32] },
+            create2_salt: Uint256 { bytes: [0; 32] },
+            code_address: Address { bytes: [0; 20] },
             code: None,
             code_hash: None,
         }

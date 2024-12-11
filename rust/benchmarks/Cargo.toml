@@ -20,7 +20,6 @@ fn-ptr-conversion-expanded-dispatch = [
 fn-ptr-conversion-inline-dispatch = ["driver/fn-ptr-conversion-inline-dispatch"]
 
 [dependencies]
-evmrs = { path = ".." }
 common = { path = "../common" }
 driver = { path = "../driver" }
 sha3 = "0.10.8"

@@ -69,11 +69,14 @@ pub fn check_not_read_only(message: &ExecutionMessage) -> Result<(), FailStatus>
 
 #[cfg(test)]
 mod tests {
-    use evmc_vm::{MessageFlags, Revision};
+    use super::*;
+    use common::{
+        MockExecutionMessage,
+    };
 
     use crate::{
         interpreter::Interpreter,
-        types::{u256, FailStatus, MockExecutionContextTrait, MockExecutionMessage},
+        types::{u256, FailStatus, MockExecutionContextTrait},
         utils::{self, Gas, SliceExt},
     };
 

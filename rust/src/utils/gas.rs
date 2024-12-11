@@ -124,11 +124,14 @@ impl Gas {
 #[cfg(test)]
 mod tests {
     use evmc_vm::{AccessStatus, Address, Revision};
+    use common::{
+        MockExecutionMessage,
+    };
     use mockall::predicate;
 
     use crate::{
         interpreter::Interpreter,
-        types::{u256, FailStatus, MockExecutionContextTrait, MockExecutionMessage, Opcode},
+        types::{u256, FailStatus, MockExecutionContextTrait, Opcode},
         utils::Gas,
     };
 

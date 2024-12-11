@@ -4,9 +4,9 @@ use common::{
         Revision, StatusCode, Uint256,
     },
     opcode::*,
+    MockExecutionMessage,
 };
 use driver::{get_tx_context_zeroed, host_interface::null_ptr_host_interface, Instance};
-use evmrs::MockExecutionMessage;
 use sha3::{Digest, Keccak256};
 
 pub struct RunArgs {
