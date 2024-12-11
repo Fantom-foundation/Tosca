@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- install Rust toolchain >= 1.81.0 from [here](https://rustup.rs/)
+- install Rust toolchain >= 1.83.0 from [here](https://rustup.rs/)
 
 ## Building `evmrs` (shared C library)
 
