@@ -4,13 +4,16 @@ use std::{
     ptr,
 };
 
-use evmrs::evmc_vm::{
+use common::evmc_vm::{
     ffi::{
         evmc_host_interface, evmc_message, evmc_step_status_code, evmc_tx_context,
         evmc_vm as evmc_vm_t, evmc_vm_steppable,
     },
     Address, ExecutionResult, Revision, StepResult, Uint256,
 };
+// This is needed in order for driver to link against evmrs.
+#[allow(unused_imports, clippy::single_component_path_imports)]
+use evmrs;
 
 pub mod host_interface;
 
@@ -39,10 +42,7 @@ pub const TX_CONTEXT_ZEROED: evmc_tx_context = evmc_tx_context {
     initcodes_count: 0,
 };
 
-/// # Safety
-///
-/// The value of the pointer is not used because a constant value is returned.
-pub unsafe extern "C" fn get_tx_context_zeroed(_context: *mut ffi::c_void) -> evmc_tx_context {
+pub extern "C" fn get_tx_context_zeroed(_context: *mut ffi::c_void) -> evmc_tx_context {
     TX_CONTEXT_ZEROED
 }
 

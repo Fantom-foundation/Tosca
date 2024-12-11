@@ -4,15 +4,15 @@ use core::slice;
 use std::fmt::Debug;
 
 use arbitrary::Arbitrary;
-use driver::{host_interface::mocked_host_interface, Instance};
-use evmrs::{
+use common::{
     evmc_vm::{
         ffi::{evmc_host_interface, evmc_message},
-        AccessStatus, ExecutionResult, ExecutionTxContext, MessageKind, Revision, StatusCode,
-        StorageStatus, Uint256,
+        AccessStatus, Address, ExecutionResult, ExecutionTxContext, MessageKind, Revision,
+        StatusCode, StorageStatus, Uint256,
     },
-    u256, MockExecutionContextTrait,
+    MockExecutionContextTrait,
 };
+use driver::{host_interface::mocked_host_interface, Instance};
 use libfuzzer_sys::fuzz_target;
 
 struct InterpreterArgs<'a> {
@@ -36,6 +36,18 @@ impl Debug for InterpreterArgs<'_> {
     }
 }
 
+fn arbitrary_address(u: &mut arbitrary::Unstructured) -> arbitrary::Result<Address> {
+    Ok(Address {
+        bytes: Arbitrary::arbitrary(u)?,
+    })
+}
+
+fn arbitrary_uint256(u: &mut arbitrary::Unstructured) -> arbitrary::Result<Uint256> {
+    Ok(Uint256 {
+        bytes: Arbitrary::arbitrary(u)?,
+    })
+}
+
 impl<'a> Arbitrary<'a> for InterpreterArgs<'a> {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
         let input = <&[u8]>::arbitrary(u)?;
@@ -52,13 +64,13 @@ impl<'a> Arbitrary<'a> for InterpreterArgs<'a> {
             flags: u32::arbitrary(u)?,
             depth: i32::arbitrary(u)?,
             gas: u.int_in_range(0..=100_000_000)?, // see go/ct/evm_fuzz_test.go
-            recipient: u256::arbitrary(u)?.into(),
-            sender: u256::arbitrary(u)?.into(),
+            recipient: arbitrary_address(u)?,
+            sender: arbitrary_address(u)?,
             input_data: input.as_ptr(),
             input_size: input.len(),
-            value: u256::arbitrary(u)?.into(),
-            create2_salt: u256::arbitrary(u)?.into(),
-            code_address: u256::arbitrary(u)?.into(),
+            value: arbitrary_uint256(u)?,
+            create2_salt: arbitrary_uint256(u)?,
+            code_address: arbitrary_address(u)?,
             code: code.as_ptr(),
             code_size: code.len(),
             code_hash: std::ptr::null(),
@@ -70,16 +82,16 @@ impl<'a> Arbitrary<'a> for InterpreterArgs<'a> {
         let blob_hashes: &[Uint256] =
             unsafe { slice::from_raw_parts(bytes.as_ptr() as *const Uint256, len) };
         let txcontext = ExecutionTxContext {
-            tx_gas_price: u256::arbitrary(u)?.into(),
-            tx_origin: u256::arbitrary(u)?.into(),
-            block_coinbase: u256::arbitrary(u)?.into(),
+            tx_gas_price: arbitrary_uint256(u)?,
+            tx_origin: arbitrary_address(u)?,
+            block_coinbase: arbitrary_address(u)?,
             block_number: Arbitrary::arbitrary(u)?,
             block_timestamp: Arbitrary::arbitrary(u)?,
             block_gas_limit: Arbitrary::arbitrary(u)?,
-            block_prev_randao: u256::arbitrary(u)?.into(),
-            chain_id: u256::arbitrary(u)?.into(),
-            block_base_fee: u256::arbitrary(u)?.into(),
-            blob_base_fee: u256::arbitrary(u)?.into(),
+            block_prev_randao: arbitrary_uint256(u)?,
+            chain_id: arbitrary_uint256(u)?,
+            block_base_fee: arbitrary_uint256(u)?,
+            blob_base_fee: arbitrary_uint256(u)?,
             blob_hashes: blob_hashes.as_ptr(),
             blob_hashes_count: blob_hashes.len(),
             initcodes: std::ptr::null(),
@@ -91,7 +103,7 @@ impl<'a> Arbitrary<'a> for InterpreterArgs<'a> {
             .return_const(bool::arbitrary(u)?);
         context
             .expect_get_storage()
-            .return_const(Uint256::from(u256::arbitrary(u)?));
+            .return_const(arbitrary_uint256(u)?);
         context.expect_set_storage().return_const(*u.choose(&[
             StorageStatus::EVMC_STORAGE_ASSIGNED,
             StorageStatus::EVMC_STORAGE_ADDED,
@@ -105,13 +117,13 @@ impl<'a> Arbitrary<'a> for InterpreterArgs<'a> {
         ])?);
         context
             .expect_get_balance()
-            .return_const(Uint256::from(u256::arbitrary(u)?));
+            .return_const(arbitrary_uint256(u)?);
         context
             .expect_get_code_size()
             .return_const(usize::arbitrary(u)?);
         context
             .expect_get_code_hash()
-            .return_const(Uint256::from(u256::arbitrary(u)?));
+            .return_const(arbitrary_uint256(u)?);
         context
             .expect_copy_code()
             .return_const(usize::arbitrary(u)?);
@@ -145,7 +157,10 @@ impl<'a> Arbitrary<'a> for InterpreterArgs<'a> {
             gas_left: Arbitrary::arbitrary(u)?,
             gas_refund: Arbitrary::arbitrary(u)?,
             output: Arbitrary::arbitrary(u)?,
-            create_address: Option::<u256>::arbitrary(u)?.map(Into::into),
+            create_address: {
+                let s = arbitrary_address(u)?;
+                *u.choose(&[None, Some(s)])?
+            },
         };
         let clone_result = move || ExecutionResult {
             status_code: execution_result.status_code,
@@ -157,7 +172,7 @@ impl<'a> Arbitrary<'a> for InterpreterArgs<'a> {
         context.expect_call().returning(move |_| clone_result());
         context
             .expect_get_block_hash()
-            .return_const(Uint256::from(u256::arbitrary(u)?));
+            .return_const(arbitrary_uint256(u)?);
         context.expect_emit_log().return_const(());
         context.expect_access_account().return_const(*u.choose(&[
             AccessStatus::EVMC_ACCESS_COLD,
@@ -169,7 +184,7 @@ impl<'a> Arbitrary<'a> for InterpreterArgs<'a> {
         ])?);
         context
             .expect_get_transient_storage()
-            .return_const(Uint256::from(u256::arbitrary(u)?));
+            .return_const(arbitrary_uint256(u)?);
         context.expect_set_transient_storage().return_const(());
 
         let revision = *u.choose(&[

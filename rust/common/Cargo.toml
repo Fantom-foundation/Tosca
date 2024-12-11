@@ -1,0 +1,13 @@
+[package]
+name = "common"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+custom-evmc = ["dep:evmc-vm-tosca-refactor"]
+mock = ["dep:mockall"]
+
+[dependencies]
+evmc-vm-tosca = { package = "evmc-vm", git = "https://github.com/Fantom-foundation/evmc", branch = "tosca-extensions" }
+evmc-vm-tosca-refactor = { package = "evmc-vm", git = "https://github.com/LorenzSchueler/evmc", branch = "tosca-extensions-optimized", optional = true }
+mockall = { version = "0.13.0", optional = true }

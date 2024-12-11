@@ -2,7 +2,7 @@ use std::{borrow::Cow, io::Write};
 
 use crate::interpreter::Interpreter;
 #[cfg(feature = "needs-fn-ptr-conversion")]
-use crate::Opcode;
+use crate::types::Opcode;
 
 pub trait Observer<const STEPPABLE: bool> {
     fn pre_op(&mut self, interpreter: &Interpreter<STEPPABLE>);

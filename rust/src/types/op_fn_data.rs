@@ -4,8 +4,7 @@ use std::fmt::Debug;
 use crate::u256;
 use crate::{
     interpreter::{self, OpFn},
-    types::CodeByteType,
-    Opcode,
+    types::{CodeByteType, Opcode},
 };
 
 #[cfg(all(

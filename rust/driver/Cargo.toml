@@ -4,7 +4,24 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-mock = ["evmrs/mock"]
+mock = ["common/mock"]
+
+performance = ["evmrs/performance"]
+mimalloc = ["evmrs/mimalloc"]
+unsafe-stack = ["evmrs/unsafe-stack"]
+custom-evmc = ["evmrs/custom-evmc"]
+hash-cache = ["evmrs/hash-cache"]
+code-analysis-cache = ["evmrs/code-analysis-cache"]
+thread-local-cache = ["evmrs/thread-local-cache"]
+alloc-reuse = ["evmrs/alloc-reuse"]
+tail-call = ["evmrs/tail-call"]
+jumptable-dispatch = ["evmrs/jumptable-dispatch"]
+fn-ptr-conversion-expanded-dispatch = [
+    "evmrs/fn-ptr-conversion-expanded-dispatch",
+]
+fn-ptr-conversion-inline-dispatch = ["evmrs/fn-ptr-conversion-inline-dispatch"]
 
 [dependencies]
+common = { path = "../common" }
+# this ensures that evmrs gets compiled and can be linked
 evmrs = { path = ".." }
