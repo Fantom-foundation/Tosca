@@ -633,6 +633,7 @@ impl<const STEPPABLE: bool> Interpreter<'_, STEPPABLE> {
     }
 
     #[allow(clippy::unused_self)]
+    #[inline(always)]
     fn return_from_op(&mut self) -> OpResult {
         #[cfg(not(feature = "tail-call"))]
         return Ok(());
