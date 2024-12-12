@@ -51,11 +51,8 @@ pub use types::{u256, ExecutionContextTrait, MockExecutionMessage, Opcode};
 
 /// Dump coverage data when compiled with `RUSTFLAGS="-C instrument-coverage"`.
 /// Otherwise this is a no-op.
-/// # Safety
-/// The provided filename can be a C string to set a new name or null to reset to the default
-/// behavior.
 #[no_mangle]
-pub unsafe extern "C" fn evmrs_dump_coverage(filename: *const std::ffi::c_char) {
+pub extern "C" fn evmrs_dump_coverage(filename: Option<&std::ffi::c_char>) {
     if llvm_profile_enabled() != 0 {
         llvm_profile_set_filename(filename);
         llvm_profile_write_file();
