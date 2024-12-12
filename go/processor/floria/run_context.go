@@ -225,6 +225,8 @@ func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters
 		r.SetCode(createdAddress, tosca.Code(outCode))
 	} else {
 		r.RestoreSnapshot(snapshot)
+		result.GasLeft = 0
+		result.Output = nil
 	}
 
 	return tosca.CallResult{
