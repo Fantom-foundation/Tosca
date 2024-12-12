@@ -296,7 +296,7 @@ static JUMPTABLE_STEPPABLE: [OpFn<true>; 256] = gen_jumptable();
 static JUMPTABLE_NON_STEPPABLE: [OpFn<false>; 256] = gen_jumptable();
 
 #[cfg(feature = "needs-jumptable")]
-pub fn jumptable_lookup<const STEPPABLE: bool>(op: u8) -> OpFn<STEPPABLE> {
+pub const fn jumptable_lookup<const STEPPABLE: bool>(op: u8) -> OpFn<STEPPABLE> {
     if STEPPABLE {
         // SAFETY:
         // STEPPABLE is true

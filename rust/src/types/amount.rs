@@ -11,7 +11,7 @@ use arbitrary::Arbitrary;
 use bnum::{cast::CastFrom, types::U512};
 use ethnum::U256;
 use evmc_vm::{Address, Uint256};
-use zerocopy::{transmute, IntoBytes};
+use zerocopy::transmute;
 
 /// This represents a 256-bit integer in native endian.
 #[allow(non_camel_case_types)]
@@ -102,8 +102,7 @@ impl From<&Address> for u256 {
 
 impl From<u256> for Address {
     fn from(value: u256) -> Self {
-        let value = value.0.to_be();
-        let bytes = value.0.as_bytes();
+        let bytes: [u8; 32] = transmute!(value.0.to_be().0);
         let mut addr = Address { bytes: [0; 20] };
         addr.bytes.copy_from_slice(&bytes[32 - 20..]);
         addr
