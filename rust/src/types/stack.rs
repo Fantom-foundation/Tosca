@@ -1,8 +1,14 @@
+use std::cmp::min;
 #[cfg(feature = "alloc-reuse")]
 use std::sync::Mutex;
-use std::{cmp::min, num::NonZeroUsize};
 
 use crate::types::{u256, FailStatus};
+
+struct NonZero<const N: usize>;
+
+impl<const N: usize> NonZero<N> {
+    const VALID: () = assert!(N > 0);
+}
 
 #[cfg(feature = "alloc-reuse")]
 static REUSABLE_STACK: Mutex<Vec<Vec<u256>>> = Mutex::new(Vec::new());
@@ -69,14 +75,15 @@ impl Stack {
         Ok(())
     }
 
-    pub fn swap_with_top(&mut self, nth: NonZeroUsize) -> Result<(), FailStatus> {
-        let nth = nth.get();
-        self.check_underflow(nth + 1)?;
+    pub fn swap_with_top<const N: usize>(&mut self) -> Result<(), FailStatus> {
+        let () = const { NonZero::<N>::VALID };
+
+        self.check_underflow(N + 1)?;
 
         #[cfg(not(feature = "unsafe-stack"))]
         {
             let len = self.0.len();
-            self.0.swap(len - 1, len - 1 - nth);
+            self.0.swap(len - 1, len - 1 - N);
         }
         #[cfg(feature = "unsafe-stack")]
         {
@@ -86,7 +93,7 @@ impl Stack {
             let top = unsafe { start.add(self.len() - 1) };
             // SAFETY:
             // This does not wrap and the whole range is valid.
-            let nth = unsafe { top.sub(nth) };
+            let nth = unsafe { top.sub(N) };
             // SAFETY:
             // top and nth are valid pointers into the initialized part of the vector.
             unsafe {
@@ -111,15 +118,19 @@ impl Stack {
         self.0.last()
     }
 
-    pub fn nth(&self, nth: usize) -> Result<u256, FailStatus> {
-        self.check_underflow(nth + 1)?;
+    pub fn dup<const N: usize>(&mut self) -> Result<(), FailStatus> {
+        // Note: N is 1 based (N = x -> duplicate element at index x-1)
+        let () = const { NonZero::<N>::VALID };
+
+        self.check_underflow(N)?;
         #[cfg(not(feature = "unsafe-stack"))]
-        return Ok(self.0[self.0.len() - 1 - nth]);
+        let element = self.0[self.0.len() - N];
         #[cfg(feature = "unsafe-stack")]
         // SAFETY:
         // self.0.len() >= nth + 1 was checked in check_underflow.
         // Therefore self.0.len() - 1 - nth is in bounds.
-        return Ok(*unsafe { self.0.get_unchecked(self.0.len() - 1 - nth) });
+        let element = *unsafe { self.0.get_unchecked(self.0.len() - N) };
+        self.push(element)
     }
 
     #[inline(always)]
@@ -133,8 +144,6 @@ impl Stack {
 
 #[cfg(test)]
 mod tests {
-    use std::num::NonZeroUsize;
-
     use crate::types::{stack::Stack, u256, FailStatus};
 
     #[test]
@@ -170,24 +179,30 @@ mod tests {
     }
 
     #[test]
-    fn nth() {
-        let stack = Stack::new(&[u256::MAX, u256::ZERO]);
-        assert_eq!(stack.nth(0), Ok(u256::ZERO));
-        assert_eq!(stack.nth(1), Ok(u256::MAX));
-        assert_eq!(stack.nth(2), Err(FailStatus::StackUnderflow));
+    fn dup() {
+        let mut stack = Stack::new(&[u256::MAX, u256::ZERO]);
+        stack.dup::<1>().unwrap();
+        assert_eq!(stack.as_slice(), [u256::MAX, u256::ZERO, u256::ZERO]);
+
+        let mut stack = Stack::new(&[u256::MAX, u256::ZERO]);
+        stack.dup::<2>().unwrap();
+        assert_eq!(stack.as_slice(), [u256::MAX, u256::ZERO, u256::MAX]);
+
+        let mut stack = Stack::new(&[u256::MAX, u256::ZERO]);
+        assert_eq!(stack.dup::<3>(), Err(FailStatus::StackUnderflow));
+
+        let mut stack = Stack::new(&[u256::ZERO; 1024]);
+        assert_eq!(stack.dup::<1>(), Err(FailStatus::StackOverflow));
     }
 
     #[test]
     fn swap_with_top() {
         let mut stack = Stack::new(&[u256::MAX, u256::ONE]);
-        assert_eq!(stack.swap_with_top(NonZeroUsize::new(1).unwrap()), Ok(()));
+        assert_eq!(stack.swap_with_top::<1>(), Ok(()));
         assert_eq!(stack.as_slice(), [u256::ONE, u256::MAX]);
 
         let mut stack = Stack::new(&[u256::MAX, u256::ONE]);
-        assert_eq!(
-            stack.swap_with_top(NonZeroUsize::new(2).unwrap()),
-            Err(FailStatus::StackUnderflow)
-        );
+        assert_eq!(stack.swap_with_top::<2>(), Err(FailStatus::StackUnderflow));
     }
 
     #[test]

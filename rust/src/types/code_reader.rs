@@ -4,9 +4,22 @@ use std::{self, ops::Deref};
 
 #[cfg(feature = "needs-fn-ptr-conversion")]
 use crate::interpreter::OpFn;
+#[cfg(all(
+    not(feature = "fn-ptr-conversion-expanded-dispatch"),
+    feature = "fn-ptr-conversion-inline-dispatch"
+))]
+use crate::types::op_fn_data::OP_FN_DATA_SIZE;
 #[cfg(not(feature = "needs-fn-ptr-conversion"))]
 use crate::types::Opcode;
 use crate::types::{u256, AnalysisContainer, CodeAnalysis, CodeByteType, FailStatus};
+
+#[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
+struct PushDataLen<const N: usize>;
+
+#[cfg(not(feature = "fn-ptr-conversion-expanded-dispatch"))]
+impl<const N: usize> PushDataLen<N> {
+    const VALID: () = assert!(N > 0 && N <= 32);
+}
 
 #[derive(Debug)]
 pub struct CodeReader<'a, const STEPPABLE: bool> {
@@ -89,15 +102,14 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
     }
 
     #[cfg(not(feature = "needs-fn-ptr-conversion"))]
-    pub fn get_push_data(&mut self, len: usize) -> u256 {
-        assert!(len <= 32);
+    pub fn get_push_data<const N: usize>(&mut self) -> u256 {
+        let () = const { PushDataLen::<N>::VALID };
 
-        let data_len = min(len, self.code.len().saturating_sub(self.pc));
+        let data_len = min(N, self.code.len().saturating_sub(self.pc));
         let mut data = [0; 32];
-        data[32 - len..32 - len + data_len]
-            .copy_from_slice(&self.code[self.pc..self.pc + data_len]);
+        data[32 - N..32 - N + data_len].copy_from_slice(&self.code[self.pc..self.pc + data_len]);
         let data = u256::from_be_bytes(data);
-        self.pc += len;
+        self.pc += N;
 
         data
     }
@@ -110,12 +122,13 @@ impl<'a, const STEPPABLE: bool> CodeReader<'a, STEPPABLE> {
         not(feature = "fn-ptr-conversion-expanded-dispatch"),
         feature = "fn-ptr-conversion-inline-dispatch"
     ))]
-    pub fn get_push_data(&mut self, len: usize) -> u256 {
-        use crate::types::op_fn_data::OP_FN_DATA_SIZE;
+    pub fn get_push_data<const N: usize>(&mut self) -> u256 {
         const MAX_CHUNKS: usize = 32usize.div_ceil(OP_FN_DATA_SIZE);
 
+        let () = const { PushDataLen::<N>::VALID };
+
         let mut data = [0; 32];
-        let chunks = len.div_ceil(OP_FN_DATA_SIZE);
+        let chunks = const { N.div_ceil(OP_FN_DATA_SIZE) };
         for chunk in 0..chunks {
             let offset = (MAX_CHUNKS - chunks + chunk) * OP_FN_DATA_SIZE;
             data[offset..offset + OP_FN_DATA_SIZE]
@@ -213,7 +226,7 @@ mod tests {
         let mut code_reader = CodeReader::<false>::new(&code, None, 0);
         assert_eq!(code_reader.pc, 0);
         code_reader.next();
-        code_reader.get_push_data(1);
+        code_reader.get_push_data::<1>();
         assert_eq!(code_reader.pc, 2);
         assert_eq!(code_reader.pc(), 2);
 
@@ -231,7 +244,7 @@ mod tests {
         let mut code_reader = CodeReader::<false>::new(&code, None, 0);
         assert_eq!(code_reader.pc, 0);
         code_reader.next();
-        code_reader.get_push_data(21);
+        code_reader.get_push_data::<21>();
         assert_eq!(code_reader.pc, 7);
         assert_eq!(code_reader.pc(), 22);
 
@@ -289,22 +302,19 @@ mod tests {
     #[test]
     fn code_reader_get_push_data() {
         let mut code_reader = CodeReader::<false>::new(&[0xff; 32], None, 0);
-        assert_eq!(code_reader.get_push_data(0u8.into()), u256::ZERO);
+        assert_eq!(code_reader.get_push_data::<1>(), 0xffu8.into());
 
         let mut code_reader = CodeReader::<false>::new(&[0xff; 32], None, 0);
-        assert_eq!(code_reader.get_push_data(1u8.into()), 0xffu8.into());
-
-        let mut code_reader = CodeReader::<false>::new(&[0xff; 32], None, 0);
-        assert_eq!(code_reader.get_push_data(32u8.into()), u256::MAX);
+        assert_eq!(code_reader.get_push_data::<32>(), u256::MAX);
 
         let mut code_reader = CodeReader::<false>::new(&[0xff; 32], None, 31);
         assert_eq!(
-            code_reader.get_push_data(32u8.into()),
+            code_reader.get_push_data::<32>(),
             u256::from(0xffu8) << u256::from(248u8)
         );
 
         let mut code_reader = CodeReader::<false>::new(&[0xff; 32], None, 32);
-        assert_eq!(code_reader.get_push_data(32u8.into()), u256::ZERO);
+        assert_eq!(code_reader.get_push_data::<32>(), u256::ZERO);
     }
     #[cfg(feature = "fn-ptr-conversion-expanded-dispatch")]
     #[test]
@@ -325,19 +335,13 @@ mod tests {
         // pc on data is undefined behavior so we have to advance the pc by calling next
         let mut code = [0xff; 33];
         code[0] = Opcode::Push32 as u8;
-        let mut code_reader = CodeReader::<false>::new(&code, None, 0);
-        code_reader.next();
-        assert_eq!(code_reader.get_push_data(0u8.into()), u256::ZERO);
 
         let mut code_reader = CodeReader::<false>::new(&code, None, 0);
         code_reader.next();
-        assert_eq!(
-            code_reader.get_push_data(1u8.into()),
-            (u32::MAX as u64).into()
-        );
+        assert_eq!(code_reader.get_push_data::<1>(), (u32::MAX as u64).into());
 
         let mut code_reader = CodeReader::<false>::new(&code, None, 0);
         code_reader.next();
-        assert_eq!(code_reader.get_push_data(32u8.into()), u256::MAX);
+        assert_eq!(code_reader.get_push_data::<32>(), u256::MAX);
     }
 }
