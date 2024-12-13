@@ -1,16 +1,14 @@
-use evmrs::evmc_vm::ffi::evmc_host_interface;
+use common::evmc_vm::ffi::evmc_host_interface;
 
 #[cfg(feature = "mock")]
 mod mock_callbacks {
     use std::{ffi, slice};
 
-    use evmrs::{
-        evmc_vm::{
-            ffi::{evmc_message, evmc_result, evmc_tx_context},
-            AccessStatus, Address, StorageStatus, Uint256,
-        },
-        ExecutionContextTrait, MockExecutionContextTrait,
+    use common::evmc_vm::{
+        ffi::{evmc_message, evmc_result, evmc_tx_context},
+        AccessStatus, Address, StorageStatus, Uint256,
     };
+    use evmrs::{ExecutionContextTrait, MockExecutionContextTrait};
 
     pub extern "C" fn account_exists(context: *mut ffi::c_void, addr: *const Address) -> bool {
         let mock = unsafe { &mut *(context as *mut MockExecutionContextTrait) };

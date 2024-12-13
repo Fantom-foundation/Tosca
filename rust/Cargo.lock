@@ -92,9 +92,6 @@ name = "arbitrary"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dde20b3d026af13f561bdd0f15edf01fc734f0dafcedbaf42bba506a9517f223"
-dependencies = [
- "derive_arbitrary",
-]
 
 [[package]]
 name = "autocfg"
@@ -117,6 +114,7 @@ name = "benchmarks"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "common",
  "criterion",
  "driver",
  "evmrs",
@@ -304,6 +302,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "evmc-vm 12.0.0-alpha.0 (git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions)",
+ "evmc-vm 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized)",
+ "mockall",
+]
+
+[[package]]
 name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -396,17 +403,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "derive_arbitrary"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30542c1ad912e0e3d22a1935c290e12e8a29d704a420177a31faad4a601a0800"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -426,6 +422,7 @@ checksum = "1435fa1053d8b2fbbe9be7e97eca7f33d37b28409959813daefc1446a14247f1"
 name = "driver"
 version = "0.1.0"
 dependencies = [
+ "common",
  "evmrs",
 ]
 
@@ -493,12 +490,10 @@ dependencies = [
 name = "evmrs"
 version = "0.1.0"
 dependencies = [
- "arbitrary",
  "bnum",
+ "common",
  "driver",
  "ethnum",
- "evmc-vm 12.0.0-alpha.0 (git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions)",
- "evmc-vm 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized)",
  "evmrs",
  "llvm-profile-wrappers",
  "lru",
@@ -526,6 +521,7 @@ name = "fuzz"
 version = "0.0.0"
 dependencies = [
  "arbitrary",
+ "common",
  "driver",
  "evmrs",
  "libfuzzer-sys",

@@ -1,4 +1,4 @@
-use evmc_vm::{
+use common::evmc_vm::{
     AccessStatus, Address, ExecutionContext, ExecutionMessage, ExecutionResult, ExecutionTxContext,
     StorageStatus, Uint256,
 };

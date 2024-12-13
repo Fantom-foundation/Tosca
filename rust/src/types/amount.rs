@@ -6,11 +6,9 @@ use std::{
     },
 };
 
-#[cfg(feature = "fuzzing")]
-use arbitrary::Arbitrary;
 use bnum::{cast::CastFrom, types::U512};
+use common::evmc_vm::{Address, Uint256};
 use ethnum::U256;
-use evmc_vm::{Address, Uint256};
 use zerocopy::transmute;
 
 /// This represents a 256-bit integer in native endian.
@@ -18,13 +16,6 @@ use zerocopy::transmute;
 #[derive(Debug, Clone, Copy)]
 #[repr(align(16))] // 16 byte alignment is faster than 1, 8 or 32 byte alignment on x86-64.
 pub struct u256(U256);
-
-#[cfg(feature = "fuzzing")]
-impl<'a> Arbitrary<'a> for u256 {
-    fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
-        Ok(Self(U256(Arbitrary::arbitrary(u)?)))
-    }
-}
 
 impl LowerHex for u256 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -459,9 +450,7 @@ impl u256 {
 
 #[cfg(test)]
 mod tests {
-    use evmc_vm::Address;
-
-    use crate::types::amount::{u256, U64Overflow};
+    use super::*;
 
     #[test]
     fn display() {

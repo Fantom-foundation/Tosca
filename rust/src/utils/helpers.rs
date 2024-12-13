@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use evmc_vm::{ExecutionMessage, MessageFlags, Revision};
+use common::evmc_vm::{ExecutionMessage, MessageFlags, Revision};
 
 use crate::{
     types::{u256, FailStatus},
@@ -69,7 +69,7 @@ pub fn check_not_read_only(message: &ExecutionMessage) -> Result<(), FailStatus>
 
 #[cfg(test)]
 mod tests {
-    use evmc_vm::{MessageFlags, Revision};
+    use common::evmc_vm::{MessageFlags, Revision};
 
     use crate::{
         interpreter::Interpreter,

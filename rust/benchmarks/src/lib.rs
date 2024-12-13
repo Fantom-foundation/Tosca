@@ -1,11 +1,9 @@
-use driver::{self, get_tx_context_zeroed, host_interface::null_ptr_host_interface, Instance};
-use evmrs::{
-    evmc_vm::{
-        ffi::{evmc_host_interface, evmc_message},
-        Revision, StatusCode, Uint256,
-    },
-    u256, MockExecutionMessage, Opcode,
+use common::evmc_vm::{
+    ffi::{evmc_host_interface, evmc_message},
+    Revision, StatusCode, Uint256,
 };
+use driver::{get_tx_context_zeroed, host_interface::null_ptr_host_interface, Instance};
+use evmrs::{MockExecutionMessage, Opcode};
 use sha3::{Digest, Keccak256};
 
 pub struct RunArgs {
@@ -158,26 +156,26 @@ impl RunArgs {
     // See go/examples/arithmetic.go
     pub fn arithmetic(size: u32) -> (Self, u32) {
         fn arithmetic_ref(input: u32) -> u32 {
-            let iterations = u256::from(input as u64);
-            let mut result = u256::ZERO;
-            let mut i = u256::ONE;
+            let iterations = input;
+            let mut result = 0;
+            let mut i = 1;
             while i <= iterations {
                 let i_squared = i * i;
                 let i_cubed = i_squared * i;
-                let i_mod3 = i % u256::from(3u8);
+                let i_mod3 = i % 3;
                 result += i;
                 result *= i;
                 result += i_squared;
                 result -= i;
                 result /= i;
-                result *= i_mod3 + u256::ONE;
+                result *= i_mod3 + 1;
                 result += i_cubed;
 
-                i += u256::ONE;
+                i += 1;
             }
-            let max_u32 = u256::from(i32::MAX as u64);
+            let max_u32 = i32::MAX as u32;
             result %= max_u32;
-            result.into_u64_with_overflow().0 as u32
+            result
         }
 
         const CODE: [u8; 483] = [
@@ -419,7 +417,7 @@ impl RunArgs {
 
         let message = MockExecutionMessage {
             input: Some(Box::leak(Box::from(input.as_slice()))),
-            code_hash: Some(Box::leak(Box::new(u256::from_le_bytes(code_hash).into()))),
+            code_hash: Some(Box::leak(Box::new(Uint256 { bytes: code_hash }))),
             ..Default::default()
         };
 
