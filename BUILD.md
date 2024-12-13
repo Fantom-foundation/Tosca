@@ -14,7 +14,7 @@ git submodule update --init --recursive
 - C/C++ toolchain, Clang >= 16 and Gcc >= 11.4
     - Ubuntu/Debian package: `clang`
     - Recommended: install `clang-format`, `clangd`, and `gdb` for development
-- Rust toolchain >= 1.81.0
+- Rust toolchain >= 1.83.0
     - [install Rust](https://rustup.rs/)
     - Recommended: install `rust-analyzer` VSCode extension
 - [mockgen](https://github.com/golang/mock)
