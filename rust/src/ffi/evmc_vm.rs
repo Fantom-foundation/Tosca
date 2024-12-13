@@ -3,7 +3,7 @@ use std::{
     panic, slice,
 };
 
-use common::evmc_vm::{
+use evmc_vm::{
     ffi::{
         evmc_capabilities, evmc_capabilities_flagset, evmc_host_context, evmc_host_interface,
         evmc_message, evmc_result, evmc_revision, evmc_set_option_result, evmc_status_code,

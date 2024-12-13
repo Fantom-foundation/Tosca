@@ -1,4 +1,4 @@
-use common::evmc_vm::{AccessStatus, Address, Revision};
+use evmc_vm::{AccessStatus, Address, Revision};
 
 use crate::{
     types::{u256, ExecutionContextTrait, FailStatus},
@@ -123,7 +123,7 @@ impl Gas {
 
 #[cfg(test)]
 mod tests {
-    use common::evmc_vm::{AccessStatus, Address, Revision};
+    use evmc_vm::{AccessStatus, Address, Revision};
     use mockall::predicate;
 
     use crate::{

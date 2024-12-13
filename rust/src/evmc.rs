@@ -1,6 +1,6 @@
 use std::process;
 
-use common::evmc_vm::{
+use evmc_vm::{
     ffi::evmc_capabilities, EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult, Revision,
     SetOptionError, StatusCode as EvmcStatusCode, StepResult, StepStatusCode as EvmcStepStatusCode,
     SteppableEvmcVm, Uint256,

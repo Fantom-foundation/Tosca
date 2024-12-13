@@ -1,4 +1,4 @@
-use common::evmc_vm::{
+use evmc_vm::{
     ExecutionResult, Revision, StatusCode as EvmcStatusCode, StepResult,
     StepStatusCode as EvmcStepStatusCode,
 };

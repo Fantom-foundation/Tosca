@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use common::evmc_vm::{
+use evmc_vm::{
     AccessStatus, ExecutionMessage, ExecutionResult, MessageFlags, MessageKind, Revision,
     StatusCode, StepResult, StorageStatus, Uint256,
 };
@@ -1845,7 +1845,7 @@ impl<const STEPPABLE: bool> From<Interpreter<'_, STEPPABLE>> for ExecutionResult
 
 #[cfg(test)]
 mod tests {
-    use common::evmc_vm::{
+    use evmc_vm::{
         Address, ExecutionResult, MessageKind, Revision, StatusCode, StepResult, StepStatusCode,
         Uint256,
     };

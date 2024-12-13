@@ -7,8 +7,8 @@ use std::{
 };
 
 use bnum::{cast::CastFrom, types::U512};
-use common::evmc_vm::{Address, Uint256};
 use ethnum::U256;
+use evmc_vm::{Address, Uint256};
 use zerocopy::transmute;
 
 /// This represents a 256-bit integer in native endian.
