@@ -6,7 +6,7 @@ use evmc_vm::{
 #[cfg_attr(feature = "mock", mockall::automock)]
 pub trait ExecutionContextTrait {
     /// Retrieve the transaction context.
-    fn get_tx_context(&self) -> &ExecutionTxContext;
+    fn get_tx_context(&mut self) -> &ExecutionTxContext;
 
     /// Check if an account exists.
     fn account_exists(&self, address: &Address) -> bool;
@@ -59,9 +59,8 @@ pub trait ExecutionContextTrait {
 }
 
 impl ExecutionContextTrait for ExecutionContext<'_> {
-    #[allow(unconditional_recursion)] // this is a bug in clippy
-    fn get_tx_context(&self) -> &ExecutionTxContext {
-        self.get_tx_context()
+    fn get_tx_context(&mut self) -> &ExecutionTxContext {
+        ExecutionContext::get_tx_context(self)
     }
 
     fn account_exists(&self, address: &Address) -> bool {
