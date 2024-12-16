@@ -159,6 +159,7 @@ func setUpAccessList(transaction tosca.Transaction, context tosca.TransactionCon
 		return
 	}
 
+	context.AccessAccount(transaction.Sender)
 	if transaction.Recipient != nil {
 		context.AccessAccount(*transaction.Recipient)
 	}
