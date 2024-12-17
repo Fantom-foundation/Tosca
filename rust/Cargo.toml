@@ -31,7 +31,6 @@ performance = [
     "hash-cache",
     "code-analysis-cache",
     "alloc-reuse",
-    "tail-call",
     "jumptable-dispatch",
     "fn-ptr-conversion-expanded-dispatch",
 ]
