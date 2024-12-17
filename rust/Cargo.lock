@@ -460,7 +460,7 @@ checksum = "b90ca2580b73ab6a1f724b76ca11ab632df820fd6040c336200d2c1df7b3c82c"
 [[package]]
 name = "evmc-sys"
 version = "12.0.0-alpha.0"
-source = "git+https://github.com/LorenzSchueler/evmc?branch=lorenz%2Fcross-platform#a8afb02398f7634243e53e535cd1543dbea88da5"
+source = "git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions#e37034770c59ebfc311b050dfbe8bc9c649929a9"
 dependencies = [
  "bindgen",
 ]
@@ -468,7 +468,7 @@ dependencies = [
 [[package]]
 name = "evmc-sys"
 version = "12.0.0-alpha.0"
-source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized#22946d5fa5e5edea25f2bf7a3b66ebd63ad828b3"
+source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized#a8a85a570ea179ee8f875f361e2924c27a6b4ba6"
 dependencies = [
  "bindgen",
 ]
@@ -476,15 +476,15 @@ dependencies = [
 [[package]]
 name = "evmc-vm"
 version = "12.0.0-alpha.0"
-source = "git+https://github.com/LorenzSchueler/evmc?branch=lorenz%2Fcross-platform#a8afb02398f7634243e53e535cd1543dbea88da5"
+source = "git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions#e37034770c59ebfc311b050dfbe8bc9c649929a9"
 dependencies = [
- "evmc-sys 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=lorenz%2Fcross-platform)",
+ "evmc-sys 12.0.0-alpha.0 (git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions)",
 ]
 
 [[package]]
 name = "evmc-vm"
 version = "12.0.0-alpha.0"
-source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized#22946d5fa5e5edea25f2bf7a3b66ebd63ad828b3"
+source = "git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized#a8a85a570ea179ee8f875f361e2924c27a6b4ba6"
 dependencies = [
  "evmc-sys 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized)",
 ]
@@ -497,7 +497,7 @@ dependencies = [
  "bnum",
  "driver",
  "ethnum",
- "evmc-vm 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=lorenz%2Fcross-platform)",
+ "evmc-vm 12.0.0-alpha.0 (git+https://github.com/Fantom-foundation/evmc?branch=tosca-extensions)",
  "evmc-vm 12.0.0-alpha.0 (git+https://github.com/LorenzSchueler/evmc?branch=tosca-extensions-optimized)",
  "evmrs",
  "llvm-profile-wrappers",
@@ -582,11 +582,11 @@ checksum = "fbf6a919d6cf397374f7dfeeea91d974c7c0a7221d0d0f4f20d859d329e53fcc"
 
 [[package]]
 name = "home"
-version = "0.5.9"
+version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3d1354bf6b7235cb4a0576c2619fd4ed18183f689b12b006a0ee7329eeff9a5"
+checksum = "589533453244b0995c858700322199b2becb13b627df2851f64a2775d024abcf"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
