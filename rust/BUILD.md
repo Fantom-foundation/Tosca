@@ -8,18 +8,18 @@
 
 - build `evmrs` in release mode
     ```sh
-    cargo build --lib --release # OR run `make` or `make tosca-rust` in Tosca directory
+    cargo build --lib --release --features performance # OR run `make` or `make tosca-rust` in Tosca directory
     ```
 - build `evmrs` with debug symbols (the `profiling` profile inherits `release` and enables debug symbols)
     ```sh
-    cargo build --lib --profile profiling
+    cargo build --lib --profile profiling --features performance
     ```
 
 ## Lint
 
 To run the [Rust linter](https://doc.rust-lang.org/clippy/) on the whole project run:
 ```sh
-cargo clippy --workspace --tests --benches --examples
+cargo clippy --workspace --all-targets --features performance
 ```
 
 ## Documentation
@@ -33,11 +33,11 @@ cargo doc --workspace --document-private-items --open
 
 - Rust tests
     ```sh
-    cargo test
+    cargo test --features performance
     ```
 - Go tests
     ```sh
-    cargo build --lib --release # OR run `make` or `make tosca-rust` in Tosca directory
+    cargo build --lib --release --features performance
     go test ../go/interpreter/evmrs/...
     ```
 - CT
@@ -54,7 +54,7 @@ Also see [run_ct.sh](./scripts/run_ct.sh) which runs the Go tests and CT.
 To generate code coverage for the Rust tests using [cargo-llvm-cov](https://crates.io/crates/cargo-llvm-cov/0.1.13) run:
 ```sh
 cargo install cargo-llvm-cov
-cargo llvm-cov --open
+cargo llvm-cov --open --features performance
 ```
 
 To generate code coverage for CT see [coverage.sh](./scripts/coverage.sh).
@@ -68,46 +68,31 @@ For convenience there is also a feature named `performance` which enables all ot
 
 Most `cargo` commands accept the `--features` flag followed by a list of features to enable, e.g.
 ```sh
-cargo build --features mimalloc,stack-array
+cargo build --features mimalloc,custom-evmc
 ```
-
-### Optimization Workflow
-
-1. Identify a possible optimization opportunity by
-    - running the Go VM benchmarks and comparing `evmrs` with other interpreters
-        ```sh
-        cargo run --package bencher
-        ```
-    - running a profiler of you choice and identifying a bottleneck
-1. Add a feature in [Cargo.toml](Cargo.toml)
-1. Implement the optimization and put it behind this new feature
-1. Run [compare-features.sh](./scripts/compare-features.sh)
-    ```sh
-    ./compare-features.sh performance performance,my-new-feature
-    ```
-   This will run the Rust benchmarks and generate flamegraphs for all currently implemented features and for all currently implemented features and the new feature
-1. Run Go VM Benchmarks 
-    ```sh
-    cargo run --package bencher -- --evmrs-only performance,my-new-feature
-    ```
-1. If all benchmarks indicate that the performance with the optimization is better that before, add the feature name to the features enabled by the `performance` feature in [Cargo.toml](Cargo.toml).
 
 ## Benchmarking
 
 - Rust Benchmarks
-    ```sh
-    cargo bench --package benchmarks --release
-    ```
+    - Run with criterion benchmark harness (provides statistics about execution times)
+        ```sh
+        cargo bench --package benchmarks --release --features performance
+        ```
+    - Run as normal executable (no statistics but also no overhead from any harness - better suited for profiling)
+        ```sh
+        cargo run --package benchmarks --release --features performance
+        ```
 - Go VM Benchmarks (for more information see [../BUILD.md](../BUILD.md#running-benchmarks))
+    - Run with evmrs by hand.
     ```sh
-    cargo build --release # or run make in Tosca directory
+    cargo build --release --features performance # or run make in Tosca directory
     go test ../go/integration_test/interpreter \
         --run none --bench ^Benchmark[a-zA-Z]+/./evmrs \
         --timeout 1h --count 20
     ```
-    To run benchmarks for evmzero, lfvm, geth and evmrs with different feature sets run:
+    - Run benchmarks for evmzero, lfvm, geth and evmrs with different feature combinations compare times and store results in `./output/benches/<time>#<git ref>#<runs>`.
     ```sh
-    ./scripts/bench.sh <feature-set-1> <feature-set-2>
+    cargo run --package bencher
     ```
 
 ## Profiling
@@ -115,12 +100,16 @@ cargo build --features mimalloc,stack-array
 > Note:
 Unless you are profiling function dispatch, it might make sense to disable feature `tail-call`. 
 Otherwise, stack traces get very long and stack overflows can occur.
-To do so, just comment out `tail-call` in the list of features enabled by feature `performance` in [Cargo.toml](Cargo.toml)
+This is currently the default but might change in the future again. Just make sure `tail-call` is not in the list of features enabled by feature `performance` in [Cargo.toml](Cargo.toml)
 
 > Note: 
 In the examples below, the rust benchmarks (`./target/profiling/benchmarks`) are always run with the parameters `10` (runs) and `fib2` (benchmark name). 
 You can obviously choose other parameters.
 Run `./target/profiling/benchmarks --help` to get a list of available benchmarks.
+
+> Note:
+For profiling it makes sense to use the `profiling` profile (which is the release profile with debug symbols).
+When running the go benchmarks the link paths have to be adjusted in `../go/interpreter/evmrs/evmrs.go` and `../go/lib/rust/coverage.go` (replace `target/release` by `target/profiling`).
 
 ### Perf + Flamegraph
 
@@ -128,11 +117,11 @@ Run `./target/profiling/benchmarks --help` to get a list of available benchmarks
     ```sh
     # EITHER use cargo flamegraph
     cargo install cargo-flamegraph
-    cargo flamegraph --package benchmarks --profile profiling
+    cargo flamegraph --package benchmarks --profile profiling --features performance
 
     # OR build benchmarks and then run perf manually
     cargo install inferno
-    cargo build --package benchmarks --profile profiling
+    cargo build --package benchmarks --profile profiling --features performance
     perf record --call-graph dwarf -F 25000 ./target/profiling/benchmarks 10 fib20
     perf script | inferno-collapse-perf | inferno-flamegraph > flamegraph.svg
     ```
@@ -140,7 +129,7 @@ Run `./target/profiling/benchmarks --help` to get a list of available benchmarks
     ```sh
     cargo install inferno
     cargo clean # make sure Go does not pick up the release build
-    cargo build --profile profiling
+    cargo build --profile profiling --features performance
     perf record --call-graph dwarf -F 25000 \
         go test ../go/integration_test/interpreter \
         --run none --bench '^Benchmark[a-zA-Z]+/./evmrs$' \
@@ -162,14 +151,14 @@ samply import perf.data # this converts perf.data, opens firefox profiler in you
 
 ```sh
 cargo install --locked samply
-cargo build --package benchmarks --profile profiling
+cargo build --package benchmarks --profile profiling --features performance
 samply record ./target/profiling/benchmarks 10 fib20 # this collects profiling data, opens firefox profiler in your default browser and serves the data
 ```
 
 ### Intel VTune
 
 ```sh
-cargo build --package benchmarks --profile profiling
+cargo build --package benchmarks --profile profiling --features performance
 ```
 run `./target/profiling/benchmarks` with Intel VTune 
 
@@ -183,7 +172,7 @@ DHAT does not work properly if feature mimalloc is enabled.
 To disable mimalloc, just comment out `mimalloc` in the list of features enabled by feature `performance` in [Cargo.toml](Cargo.toml)
 
 ```sh
-cargo build --package benchmarks --profile profiling
+cargo build --package benchmarks --profile profiling --features performance
 valgrind --tool=dhat ./target/profiling/benchmarks 10 fib20
 
 # open DHAT viewer

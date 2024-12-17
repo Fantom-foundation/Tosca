@@ -41,11 +41,11 @@ tosca-cpp-coverage: tosca-cpp
 
 tosca-rust:
 	cd rust; \
-	cargo build --lib --release
+	cargo build --lib --release --features performance
 
 tosca-rust-coverage:
 	cd rust; \
-	RUSTFLAGS="-C instrument-coverage" cargo build --lib --release
+	RUSTFLAGS="-C instrument-coverage" cargo build --lib --release --features performance
 
 evmone:
 	@cd third_party/evmone ; \
@@ -88,7 +88,7 @@ test-cpp: tosca-cpp
 
 test-rust:
 	cd rust; \
-	cargo test
+	cargo test --features performance
 
 test-cpp-asan: TOSCA_CPP_BUILD = Debug
 test-cpp-asan: TOSCA_CPP_ASAN = ON
