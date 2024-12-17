@@ -154,10 +154,6 @@ func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters
 		return errResult, nil
 	}
 
-	if r.blockParameters.Revision >= tosca.R09_Berlin {
-		r.AccessAccount(parameters.Recipient)
-	}
-
 	code := r.GetCode(parameters.Recipient)
 	codeHash := r.GetCodeHash(parameters.Recipient)
 	if parameters.Recipient == (tosca.Address{}) {
@@ -166,6 +162,10 @@ func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters
 	}
 	createdAddress := createAddress(kind, parameters.Sender, r.GetNonce(parameters.Sender)-1,
 		parameters.Salt, codeHash)
+
+	if r.blockParameters.Revision >= tosca.R09_Berlin {
+		r.AccessAccount(createdAddress)
+	}
 
 	// TODO: check that storage also empty
 	if r.GetNonce(createdAddress) != 0 ||
@@ -208,16 +208,13 @@ func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters
 	outCode := result.Output
 	if len(outCode) > maxCodeSize {
 		result.Success = false
-		result.GasLeft = 0
 	}
 	if r.blockParameters.Revision >= tosca.R10_London && len(outCode) > 0 && outCode[0] == 0xEF {
 		result.Success = false
-		result.GasLeft = 0
 	}
 	createGas := tosca.Gas(len(outCode) * createGasCostPerByte)
 	if result.GasLeft < createGas {
 		result.Success = false
-		result.GasLeft = createGas
 	}
 	result.GasLeft -= createGas
 
@@ -235,7 +232,7 @@ func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters
 		GasRefund:      result.GasRefund,
 		Success:        result.Success,
 		CreatedAddress: createdAddress,
-	}, err
+	}, nil
 }
 
 func hashCode(code tosca.Code) tosca.Hash {
