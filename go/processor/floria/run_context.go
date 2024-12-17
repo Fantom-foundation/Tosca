@@ -93,12 +93,12 @@ func (r runContext) Calls(kind tosca.CallKind, parameters tosca.CallParameters) 
 		return result, nil
 	}
 
-	codeHash := emptyCodeHash
-	code := []byte{}
+	var codeHash tosca.Hash
+	var code tosca.Code
 	if kind == tosca.Call || kind == tosca.StaticCall {
 		codeHash = r.GetCodeHash(recipient)
 		code = r.GetCode(recipient)
-	} else if kind == tosca.DelegateCall || kind == tosca.CallCode {
+	} else {
 		code = r.GetCode(parameters.CodeAddress)
 		codeHash = r.GetCodeHash(parameters.CodeAddress)
 	}
@@ -154,12 +154,9 @@ func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters
 		return errResult, nil
 	}
 
-	code := r.GetCode(parameters.Recipient)
-	codeHash := r.GetCodeHash(parameters.Recipient)
-	if parameters.Recipient == (tosca.Address{}) {
-		code = tosca.Code(parameters.Input)
-		codeHash = hashCode(code)
-	}
+	code := tosca.Code(parameters.Input)
+	codeHash := hashCode(code)
+
 	createdAddress := createAddress(kind, parameters.Sender, r.GetNonce(parameters.Sender)-1,
 		parameters.Salt, codeHash)
 

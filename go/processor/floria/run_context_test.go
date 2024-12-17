@@ -132,6 +132,51 @@ func TestCall_TransferValueInCall(t *testing.T) {
 	}
 }
 
+func TestCall_TransferValueInCreate(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	context := tosca.NewMockTransactionContext(ctrl)
+	interpreter := tosca.NewMockInterpreter(ctrl)
+	runContext := runContext{
+		context,
+		interpreter,
+		tosca.BlockParameters{},
+		tosca.TransactionParameters{},
+		0,
+		false,
+	}
+
+	params := tosca.CallParameters{
+		Sender: tosca.Address{1},
+		Value:  tosca.NewValue(10),
+		Gas:    1000,
+		Input:  []byte{},
+	}
+	code := tosca.Code{}
+	createdAddress := tosca.Address(crypto.CreateAddress(common.Address(params.Sender), 0))
+
+	context.EXPECT().GetBalance(params.Sender).Return(tosca.NewValue(100))
+	context.EXPECT().GetBalance(params.Recipient).Return(tosca.NewValue(0))
+	context.EXPECT().GetNonce(params.Sender).Return(uint64(0))
+	context.EXPECT().SetNonce(params.Sender, uint64(1))
+	context.EXPECT().GetNonce((params.Sender)).Return(uint64(1))
+	context.EXPECT().GetNonce(createdAddress).Return(uint64(0))
+	context.EXPECT().GetCodeHash(createdAddress).Return(tosca.Hash{})
+	context.EXPECT().CreateSnapshot()
+	context.EXPECT().SetNonce(createdAddress, uint64(1))
+	context.EXPECT().GetBalance(params.Sender).Return(tosca.NewValue(100))
+	context.EXPECT().GetBalance(createdAddress).Return(tosca.NewValue(0))
+	context.EXPECT().SetBalance(params.Sender, tosca.NewValue(90))
+	context.EXPECT().SetBalance(createdAddress, tosca.NewValue(10))
+	context.EXPECT().SetCode(createdAddress, code)
+
+	interpreter.EXPECT().Run(gomock.Any()).Return(tosca.Result{Success: true, Output: tosca.Data(code)}, nil)
+
+	_, err := runContext.Call(tosca.Create, params)
+	if err != nil {
+		t.Errorf("transferValue returned an error: %v", err)
+	}
+}
+
 func TestTransferValue_InCallRestoreFailed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	context := tosca.NewMockTransactionContext(ctrl)
@@ -230,7 +275,7 @@ func TestTransferValue_FailedValueTransfer(t *testing.T) {
 	}
 }
 
-func TestTransferValue_SameSenderAndReceiver(t *testing.T) {
+func TestCanTransferValue_SameSenderAndReceiver(t *testing.T) {
 	tests := map[string]struct {
 		value         tosca.Value
 		expectedError bool
@@ -255,6 +300,16 @@ func TestTransferValue_SameSenderAndReceiver(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestTransferValue_BalanceIsNotChangedWhenValueIsTransferredToTheSameAccount(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	context := tosca.NewMockTransactionContext(ctrl)
+
+	address := tosca.Address{1}
+	value := tosca.NewValue(10)
+
+	transferValue(context, value, address, address)
 }
 
 func TestCreateAddress(t *testing.T) {

@@ -17,7 +17,6 @@ import (
 )
 
 const (
-	fantom                    = true
 	TxGas                     = 21_000
 	TxGasContractCreation     = 53_000
 	TxDataNonZeroGasEIP2028   = 16
@@ -74,12 +73,6 @@ func (p *processor) Run(
 		return errorReceipt, nil
 	}
 	gas -= intrinsicGas
-
-	if !fantom {
-		if !canTransferValue(context, transaction.Value, transaction.Sender, transaction.Recipient) {
-			return tosca.Receipt{}, nil
-		}
-	}
 
 	if blockParameters.Revision >= tosca.R12_Shanghai && transaction.Recipient == nil &&
 		len(transaction.Input) > maxInitCodeSize {
@@ -199,11 +192,10 @@ func callParameters(transaction tosca.Transaction, gas tosca.Gas) tosca.CallPara
 
 func calculateGasLeft(transaction tosca.Transaction, result tosca.CallResult, revision tosca.Revision) tosca.Gas {
 	gasLeft := result.GasLeft
-	if fantom {
-		// 10% of remaining gas is charged for non-internal transactions
-		if transaction.Sender != (tosca.Address{}) {
-			gasLeft -= gasLeft / 10
-		}
+
+	// 10% of remaining gas is charged for non-internal transactions
+	if transaction.Sender != (tosca.Address{}) {
+		gasLeft -= gasLeft / 10
 	}
 
 	if result.Success {

@@ -11,6 +11,7 @@
 package floria
 
 import (
+	"math"
 	"reflect"
 	"testing"
 
@@ -27,6 +28,14 @@ func TestProcessorRegistry_InitProcessor(t *testing.T) {
 	processor := tosca.GetProcessorFactory("floria")
 	if processor == nil {
 		t.Errorf("Floria processor factory not found")
+	}
+}
+
+func TestProcessor_NewProcessorReturnsProcessor(t *testing.T) {
+	interpreter := tosca.NewMockInterpreter(gomock.NewController(t))
+	processor := newProcessor(interpreter)
+	if processor == nil {
+		t.Errorf("newProcessor returned nil")
 	}
 }
 
@@ -47,8 +56,14 @@ func TestProcessor_HandleNonce(t *testing.T) {
 	}
 }
 
-func TestProcessor_NonceMissmatch(t *testing.T) {
+func TestProcessor_NonceOverflowIsDetected(t *testing.T) {
+	err := nonceCheck(math.MaxUint64, math.MaxUint64)
+	if err == nil {
+		t.Errorf("nonceCheck did not spot nonce overflow")
+	}
+}
 
+func TestProcessor_NonceMissmatch(t *testing.T) {
 	err := nonceCheck(uint64(10), uint64(42))
 	if err == nil {
 		t.Errorf("nonceCheck did not spot nonce miss match")
@@ -414,6 +429,22 @@ func TestProcessor_SetUpAccessList(t *testing.T) {
 	context.EXPECT().AccessAccount(accessListAddress)
 	context.EXPECT().AccessStorage(accessListAddress, tosca.Key{1})
 	context.EXPECT().AccessStorage(accessListAddress, tosca.Key{2})
+
+	setUpAccessList(transaction, context, tosca.R09_Berlin)
+}
+
+func TestProcessor_AccessListIsNotCreatedIfTransactionHasNone(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	context := tosca.NewMockTransactionContext(ctrl)
+	// No calls to context
+
+	sender := tosca.Address{1}
+	recipient := tosca.Address{2}
+
+	transaction := tosca.Transaction{
+		Sender:    sender,
+		Recipient: &recipient,
+	}
 
 	setUpAccessList(transaction, context, tosca.R09_Berlin)
 }
