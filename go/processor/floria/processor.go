@@ -147,6 +147,7 @@ func nonceCheck(transactionNonce uint64, stateNonce uint64) error {
 	return nil
 }
 
+// Only accept transactions from externally owned accounts (EOAs) and not from contracts
 func eoaCheck(sender tosca.Address, context tosca.TransactionContext) error {
 	codehash := context.GetCodeHash(sender)
 	if codehash != (tosca.Hash{}) && codehash != emptyCodeHash {
