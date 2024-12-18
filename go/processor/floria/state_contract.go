@@ -12,8 +12,8 @@ package floria
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/Fantom-foundation/Tosca/go/tosca"
@@ -228,7 +228,7 @@ func executeStateContractIncNonce(state tosca.WorldState, sender tosca.Address, 
 
 	account := tosca.Address(input[12:32])
 	value := tosca.Value(input[32:64])
-	valueUint := binary.LittleEndian.Uint64(value[:])
+	valueUint := big.NewInt(0).SetBytes(value[:]).Uint64()
 
 	if account == sender {
 		// Origin nonce shouldn't change during his transaction
