@@ -265,7 +265,7 @@ func TestStateContract_executeStateIncNonce(t *testing.T) {
 			ErrExecutionReverted,
 		},
 		"successful": {
-			append(append(make([]byte, 32), increment), make([]byte, 31)...),
+			append(make([]byte, 63), increment),
 			callValueTransferGas + remainingGas,
 			address0x01,
 			nil,
@@ -357,7 +357,7 @@ func TestStateContract_HandleStatePrecompiled(t *testing.T) {
 		"incNonce": {
 			StateContractAddress(),
 			[]byte{0x79, 0xbe, 0xad, 0x38},
-			append(append(make([]byte, 32), increment), make([]byte, 31)...),
+			append(make([]byte, 63), increment),
 			true,
 			func(mock *tosca.MockWorldState) {
 				mock.EXPECT().GetNonce(tosca.Address{}).Return(uint64(5))
