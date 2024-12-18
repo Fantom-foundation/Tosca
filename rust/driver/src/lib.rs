@@ -39,10 +39,7 @@ pub const TX_CONTEXT_ZEROED: evmc_tx_context = evmc_tx_context {
     initcodes_count: 0,
 };
 
-/// # Safety
-///
-/// The value of the pointer is not used because a constant value is returned.
-pub unsafe extern "C" fn get_tx_context_zeroed(_context: *mut ffi::c_void) -> evmc_tx_context {
+pub extern "C" fn get_tx_context_zeroed(_context: *mut ffi::c_void) -> evmc_tx_context {
     TX_CONTEXT_ZEROED
 }
 
