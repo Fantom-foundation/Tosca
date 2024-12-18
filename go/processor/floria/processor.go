@@ -26,6 +26,7 @@ const (
 
 	createGasCostPerByte = 200
 	maxCodeSize          = 24576
+	maxInitCodeSize      = 2 * maxCodeSize
 
 	MaxRecursiveDepth = 1024 // Maximum depth of call/create stack.
 )
@@ -55,6 +56,14 @@ func (p *processor) Run(
 	}
 	gas := transaction.GasLimit
 
+	if nonceCheck(transaction.Nonce, context.GetNonce(transaction.Sender)) != nil {
+		return tosca.Receipt{}, nil
+	}
+
+	if eoaCheck(transaction.Sender, context) != nil {
+		return tosca.Receipt{}, nil
+	}
+
 	if err := buyGas(transaction, context); err != nil {
 		return tosca.Receipt{}, nil
 	}
@@ -65,8 +74,9 @@ func (p *processor) Run(
 	}
 	gas -= intrinsicGas
 
-	if err := handleNonce(transaction, context); err != nil {
-		return errorReceipt, nil
+	if blockParameters.Revision >= tosca.R12_Shanghai && transaction.Recipient == nil &&
+		len(transaction.Input) > maxInitCodeSize {
+		return tosca.Receipt{}, nil
 	}
 
 	transactionParameters := tosca.TransactionParameters{
@@ -90,6 +100,10 @@ func (p *processor) Run(
 
 	callParameters := callParameters(transaction, gas)
 	kind := callKind(transaction)
+
+	if kind == tosca.Call {
+		context.SetNonce(transaction.Sender, context.GetNonce(transaction.Sender)+1)
+	}
 
 	result, err := runContext.Call(kind, callParameters)
 	if err != nil {
@@ -121,6 +135,24 @@ func (p *processor) Run(
 		Output:          result.Output,
 		Logs:            logs,
 	}, nil
+}
+
+func nonceCheck(transactionNonce uint64, stateNonce uint64) error {
+	if transactionNonce != stateNonce {
+		return fmt.Errorf("nonce mismatch: %v != %v", transactionNonce, stateNonce)
+	}
+	if stateNonce+1 < stateNonce {
+		return fmt.Errorf("nonce overflow")
+	}
+	return nil
+}
+
+func eoaCheck(sender tosca.Address, context tosca.TransactionContext) error {
+	codehash := context.GetCodeHash(sender)
+	if codehash != (tosca.Hash{}) && codehash != emptyCodeHash {
+		return fmt.Errorf("sender is not an EOA")
+	}
+	return nil
 }
 
 func setUpAccessList(transaction tosca.Transaction, context tosca.TransactionContext, revision tosca.Revision) {
@@ -235,18 +267,6 @@ func setupGasBilling(transaction tosca.Transaction) tosca.Gas {
 	}
 
 	return tosca.Gas(gas)
-}
-
-func handleNonce(transaction tosca.Transaction, context tosca.TransactionContext) error {
-	stateNonce := context.GetNonce(transaction.Sender)
-	messageNonce := transaction.Nonce
-	if messageNonce != stateNonce {
-		return fmt.Errorf("nonce mismatch: %v != %v", messageNonce, stateNonce)
-	}
-	if transaction.Recipient != nil {
-		context.SetNonce(transaction.Sender, stateNonce+1)
-	}
-	return nil
 }
 
 func buyGas(transaction tosca.Transaction, context tosca.TransactionContext) error {
