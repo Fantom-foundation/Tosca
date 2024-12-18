@@ -128,6 +128,7 @@ func setUpAccessList(transaction tosca.Transaction, context tosca.TransactionCon
 		return
 	}
 
+	context.AccessAccount(transaction.Sender)
 	if transaction.Recipient != nil {
 		context.AccessAccount(*transaction.Recipient)
 	}
@@ -138,6 +139,7 @@ func setUpAccessList(transaction tosca.Transaction, context tosca.TransactionCon
 	}
 
 	for _, accessTuple := range transaction.AccessList {
+		context.AccessAccount(accessTuple.Address)
 		for _, key := range accessTuple.Keys {
 			context.AccessStorage(accessTuple.Address, key)
 		}
