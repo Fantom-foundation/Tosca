@@ -118,5 +118,11 @@ pipeline {
                 sh 'go test -v  -run ^TestDumpRustCoverageData$ ./go/lib/rust/ --expect-coverage'
             }
         }
+
+        stage('Clean up') {
+            steps {
+                sh 'make clean'
+            }
+        }
     }
 }
