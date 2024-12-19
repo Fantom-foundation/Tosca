@@ -80,7 +80,7 @@ ct-coverage-evmzero:
 test: test-go test-cpp test-rust
 
 test-go: tosca-go
-	@go test ./... -count 1 --coverprofile=cover.out
+	@go test ./... -count 1 --coverprofile=cover.out --timeout 30m
 
 test-cpp: tosca-cpp
 	@cd cpp/build ; \

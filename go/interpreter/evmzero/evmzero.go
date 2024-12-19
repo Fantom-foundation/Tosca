@@ -19,8 +19,6 @@ void evmzero_reset_profiler(void* vm);
 import "C"
 
 import (
-	"fmt"
-
 	"github.com/Fantom-foundation/Tosca/go/interpreter/evmc"
 	"github.com/Fantom-foundation/Tosca/go/tosca"
 )
@@ -31,82 +29,82 @@ func init() {
 	// This way, the libevmzero.so file can be found during runtime, even if
 	// the LD_LIBRARY_PATH is not set accordingly.
 	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmzero library: %s", err))
-		}
 		// This instance remains in its basic configuration.
 		tosca.MustRegisterInterpreterFactory("evmzero", func(any) (tosca.Interpreter, error) {
+			evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
+			if err != nil {
+				return nil, err
+			}
 			return &evmzeroInstance{evm}, nil
 		})
 	}
 
 	// We create a second instance in which we enable logging.
 	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmzero library: %s", err))
-		}
-		if err = evm.SetOption("logging", "true"); err != nil {
-			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-		}
 		tosca.MustRegisterInterpreterFactory("evmzero-logging", func(any) (tosca.Interpreter, error) {
+			evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
+			if err != nil {
+				return nil, err
+			}
+			if err = evm.SetOption("logging", "true"); err != nil {
+				return nil, err
+			}
 			return &evmzeroInstance{evm}, nil
 		})
 	}
 
 	// A third instance without analysis cache.
 	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmzero library: %s", err))
-		}
-		if err = evm.SetOption("analysis_cache", "false"); err != nil {
-			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-		}
 		tosca.MustRegisterInterpreterFactory("evmzero-no-analysis-cache", func(any) (tosca.Interpreter, error) {
+			evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
+			if err != nil {
+				return nil, err
+			}
+			if err = evm.SetOption("analysis_cache", "false"); err != nil {
+				return nil, err
+			}
 			return &evmzeroInstance{evm}, nil
 		})
 	}
 
 	// Another instance without SHA3 cache.
 	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmzero library: %s", err))
-		}
-		if err = evm.SetOption("sha3_cache", "false"); err != nil {
-			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-		}
 		tosca.MustRegisterInterpreterFactory("evmzero-no-sha3-cache", func(any) (tosca.Interpreter, error) {
+			evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
+			if err != nil {
+				return nil, err
+			}
+			if err = evm.SetOption("sha3_cache", "false"); err != nil {
+				return nil, err
+			}
 			return &evmzeroInstance{evm}, nil
 		})
 	}
 
 	// Another instance in which we enable profiling.
 	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmzero library: %s", err))
-		}
-		if err = evm.SetOption("profiling", "true"); err != nil {
-			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-		}
 		tosca.MustRegisterInterpreterFactory("evmzero-profiling", func(any) (tosca.Interpreter, error) {
+			evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
+			if err != nil {
+				return nil, err
+			}
+			if err = evm.SetOption("profiling", "true"); err != nil {
+				return nil, err
+			}
 			return &evmzeroInstanceWithProfiler{&evmzeroInstance{evm}}, nil
 		})
 	}
 
 	// Another instance in which we enable profiling external.
 	{
-		evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
-		if err != nil {
-			panic(fmt.Errorf("failed to load evmzero library: %s", err))
-		}
-		if err = evm.SetOption("profiling_external", "true"); err != nil {
-			panic(fmt.Errorf("failed to configure EVM instance: %s", err))
-		}
 		tosca.MustRegisterInterpreterFactory("evmzero-profiling-external", func(any) (tosca.Interpreter, error) {
+			evm, err := evmc.LoadEvmcInterpreter("libevmzero.so")
+			if err != nil {
+				return nil, err
+			}
+			if err = evm.SetOption("profiling_external", "true"); err != nil {
+				return nil, err
+			}
 			return &evmzeroInstanceWithProfiler{&evmzeroInstance{evm}}, nil
 		})
 	}
