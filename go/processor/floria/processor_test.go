@@ -19,6 +19,14 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+func TestProcessor_NewProcessorReturnsProcessor(t *testing.T) {
+	interpreter := tosca.NewMockInterpreter(gomock.NewController(t))
+	processor := newProcessor(interpreter)
+	if processor == nil {
+		t.Errorf("newProcessor returned nil")
+	}
+}
+
 func TestProcessorRegistry_InitProcessor(t *testing.T) {
 	processorFactories := tosca.GetAllRegisteredProcessorFactories()
 	if len(processorFactories) == 0 {
@@ -328,7 +336,7 @@ func TestProcessor_SetupGasBilling(t *testing.T) {
 				AccessList: test.accessList,
 			}
 
-			actualGasUsed := setupGasBilling(transaction)
+			actualGasUsed := calculateSetupGas(transaction)
 			if actualGasUsed != test.expectedGasUsed {
 				t.Errorf("setupGasBilling returned incorrect gas used, got: %d, want: %d", actualGasUsed, test.expectedGasUsed)
 			}

@@ -68,11 +68,11 @@ func (p *processor) Run(
 		return tosca.Receipt{}, nil
 	}
 
-	intrinsicGas := setupGasBilling(transaction)
-	if gas < intrinsicGas {
+	setupGas := calculateSetupGas(transaction)
+	if gas < setupGas {
 		return errorReceipt, nil
 	}
-	gas -= intrinsicGas
+	gas -= setupGas
 
 	if blockParameters.Revision >= tosca.R12_Shanghai && transaction.Recipient == nil &&
 		len(transaction.Input) > maxInitCodeSize {
@@ -109,14 +109,6 @@ func (p *processor) Run(
 	if err != nil {
 		return errorReceipt, err
 	}
-	// Depending on wether the call was unsuccessful due to a revert with gas
-	// left or due to other failures, the transaction needs to handle it differently.
-	// TODO: add extensive testing for output handling in reverted/failed cases
-	// Work in progress, still prone to changes
-	if !result.Success && result.GasLeft == 0 {
-		return errorReceipt, nil
-	}
-	// End of work in progress
 
 	var createdAddress *tosca.Address
 	if kind == tosca.Create {
@@ -201,6 +193,7 @@ func callParameters(transaction tosca.Transaction, gas tosca.Gas) tosca.CallPara
 
 func calculateGasLeft(transaction tosca.Transaction, result tosca.CallResult, revision tosca.Revision) tosca.Gas {
 	gasLeft := result.GasLeft
+
 	// 10% of remaining gas is charged for non-internal transactions
 	if transaction.Sender != (tosca.Address{}) {
 		gasLeft -= gasLeft / 10
@@ -235,7 +228,7 @@ func refundGas(transaction tosca.Transaction, context tosca.TransactionContext, 
 	context.SetBalance(transaction.Sender, senderBalance)
 }
 
-func setupGasBilling(transaction tosca.Transaction) tosca.Gas {
+func calculateSetupGas(transaction tosca.Transaction) tosca.Gas {
 	var gas tosca.Gas
 	if transaction.Recipient == nil {
 		gas = TxGasContractCreation
@@ -251,13 +244,14 @@ func setupGasBilling(transaction tosca.Transaction) tosca.Gas {
 			}
 		}
 		zeroBytes := tosca.Gas(len(transaction.Input)) - nonZeroBytes
+
+		// No overflow check for the gas computation is required although it is performed in the
+		// opera version. The overflow check would be triggered in a worst case with an input
+		// greater than 2^64 / 16 - 53000 = ~10^18, which is not possible with real world hardware
 		gas += zeroBytes * TxDataZeroGasEIP2028
 		gas += nonZeroBytes * TxDataNonZeroGasEIP2028
 	}
 
-	// No overflow check for the gas computation is required although it is performed in the
-	// opera version. The overflow check would be triggered in a worst case with an input
-	// greater than 2^64 / 16 - 53000 = ~10^18, which is not possible with real world hardware
 	if transaction.AccessList != nil {
 		gas += tosca.Gas(len(transaction.AccessList)) * TxAccessListAddressGas
 
