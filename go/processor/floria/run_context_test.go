@@ -74,7 +74,6 @@ func TestCalls_InterpreterResultIsHandledCorrectly(t *testing.T) {
 			context.EXPECT().GetCodeHash(params.Recipient).Return(tosca.Hash{})
 			context.EXPECT().GetCode(params.Recipient).Return([]byte{})
 			context.EXPECT().CreateSnapshot()
-			context.EXPECT().AccountExists(params.Recipient).Return(true)
 			context.EXPECT().RestoreSnapshot(gomock.Any()).AnyTimes()
 
 			test.setup(interpreter)
@@ -116,7 +115,6 @@ func TestCall_TransferValueInCall(t *testing.T) {
 
 	context.EXPECT().GetCodeHash(params.Recipient).Return(tosca.Hash{})
 	context.EXPECT().GetCode(params.Recipient).Return([]byte{})
-	context.EXPECT().AccountExists(params.Recipient).Return(true)
 	context.EXPECT().CreateSnapshot()
 
 	context.EXPECT().GetBalance(params.Sender).Return(tosca.NewValue(100)).Times(2)

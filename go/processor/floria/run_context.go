@@ -33,12 +33,12 @@ type runContext struct {
 
 func (r runContext) Call(kind tosca.CallKind, parameters tosca.CallParameters) (tosca.CallResult, error) {
 	if kind == tosca.Create || kind == tosca.Create2 {
-		return r.Creates(kind, parameters)
+		return r.executeCreate(kind, parameters)
 	}
-	return r.Calls(kind, parameters)
+	return r.executeCall(kind, parameters)
 }
 
-func (r runContext) Calls(kind tosca.CallKind, parameters tosca.CallParameters) (tosca.CallResult, error) {
+func (r runContext) executeCall(kind tosca.CallKind, parameters tosca.CallParameters) (tosca.CallResult, error) {
 	errResult := tosca.CallResult{
 		Success: false,
 		GasLeft: parameters.Gas,
@@ -61,8 +61,10 @@ func (r runContext) Calls(kind tosca.CallKind, parameters tosca.CallParameters) 
 		r.static = true
 	}
 
-	if !isPrecompiled(recipient, r.blockParameters.Revision) && !isStateContract(recipient) &&
-		!r.AccountExists(recipient) && r.blockParameters.Revision >= tosca.R09_Berlin &&
+	if r.blockParameters.Revision >= tosca.R09_Berlin &&
+		!isPrecompiled(recipient, r.blockParameters.Revision) &&
+		!isStateContract(recipient) &&
+		!r.AccountExists(recipient) &&
 		parameters.Value.Cmp(tosca.Value{}) == 0 {
 		return tosca.CallResult{Success: true, GasLeft: parameters.Gas}, nil
 	}
@@ -120,12 +122,13 @@ func (r runContext) Calls(kind tosca.CallKind, parameters tosca.CallParameters) 
 	}
 
 	callResult, err := r.interpreter.Run(interpreterParameters)
-	if (callResult.GasLeft > 0 || len(callResult.Output) > 0) && !callResult.Success {
-		// Revert
+	if err != nil || !callResult.Success {
 		r.RestoreSnapshot(snapshot)
-	} else if err != nil || !callResult.Success {
-		r.RestoreSnapshot(snapshot)
-		callResult.GasLeft = 0
+
+		if !isRevert(callResult, err) {
+			// if the unsuccessful call was due to a revert, the gas is not consumed
+			callResult.GasLeft = 0
+		}
 	}
 
 	return tosca.CallResult{
@@ -136,7 +139,7 @@ func (r runContext) Calls(kind tosca.CallKind, parameters tosca.CallParameters) 
 	}, err
 }
 
-func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters) (tosca.CallResult, error) {
+func (r runContext) executeCreate(kind tosca.CallKind, parameters tosca.CallParameters) (tosca.CallResult, error) {
 	errResult := tosca.CallResult{
 		Success: false,
 		GasLeft: parameters.Gas,
@@ -191,13 +194,13 @@ func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters
 	}
 
 	result, err := r.interpreter.Run(interpreterParameters)
-	if err != nil {
+	if err != nil || !result.Success {
 		r.RestoreSnapshot(snapshot)
-		return tosca.CallResult{}, err
-	}
-	if (result.GasLeft > 0 || len(result.Output) > 0) && !result.Success {
-		// Revert
-		r.RestoreSnapshot(snapshot)
+
+		if !isRevert(result, err) {
+			// if the unsuccessful create was due to a revert, the result is still returned
+			return tosca.CallResult{}, err
+		}
 		return tosca.CallResult{Output: result.Output, GasLeft: result.GasLeft, CreatedAddress: createdAddress}, nil
 	}
 
@@ -229,6 +232,13 @@ func (r runContext) Creates(kind tosca.CallKind, parameters tosca.CallParameters
 		Success:        result.Success,
 		CreatedAddress: createdAddress,
 	}, nil
+}
+
+func isRevert(result tosca.Result, err error) bool {
+	if err == nil && !result.Success && (result.GasLeft > 0 || len(result.Output) > 0) {
+		return true
+	}
+	return false
 }
 
 func hashCode(code tosca.Code) tosca.Hash {
