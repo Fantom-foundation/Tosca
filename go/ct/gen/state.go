@@ -471,12 +471,6 @@ func (g *StateGenerator) generateWith(rnd *rand.Rand, assignment Assignment) (*s
 	// Generate return data of last call
 	resultLastCallReturnData := RandomBytes(rnd, st.MaxDataSize)
 
-	// Generate return data for terminal states.
-	var resultReturnData Bytes
-	if resultStatus == st.Stopped || resultStatus == st.Reverted {
-		resultReturnData = RandomBytes(rnd, st.MaxDataSize)
-	}
-
 	// Invoke SelfDestructedGenerator
 	resultHasSelfdestructed, err := g.hasSelfDestructedGen.Generate(rnd)
 	if err != nil {
@@ -534,6 +528,7 @@ func (g *StateGenerator) generateWith(rnd *rand.Rand, assignment Assignment) (*s
 
 	resultRevision := GetRevisionForBlock(resultBlockContext.BlockNumber)
 
+	// Return data is not set as it should only be set by RETURN/REVERT opcodes.
 	result := st.NewState(resultCode)
 	result.Status = resultStatus
 	result.Revision = resultRevision
@@ -552,7 +547,6 @@ func (g *StateGenerator) generateWith(rnd *rand.Rand, assignment Assignment) (*s
 	result.TransactionContext = resultTransactionContext
 	result.CallData = resultCallData
 	result.LastCallReturnData = resultLastCallReturnData
-	result.ReturnData = resultReturnData
 	result.HasSelfDestructed = resultHasSelfdestructed
 	result.RecentBlockHashes = resultRecentBlockHashes
 
